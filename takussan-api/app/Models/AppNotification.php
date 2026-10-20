@@ -70,18 +70,4 @@ class AppNotification extends AbstractModel
     {
         return $this->hasMany(NotificationDeliveryAttempt::class)->orderBy('attempt');
     }
-
-    public function reference()
-    {
-        $map = [
-            'booking' => Booking::class,
-            'lease' => Lease::class,
-            'lease_payment' => LeasePayment::class,
-            'maintenance' => MaintenanceRequest::class,
-            'property_visit' => PropertyVisit::class,
-        ];
-        $class = $map[$this->referenceable_type] ?? null;
-
-        return $class ? $class::find($this->referenceable_id) : null;
-    }
 }

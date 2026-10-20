@@ -1,6 +1,6 @@
 # ADR-0021 — `fields[]` désigne des colonnes ; une ressource n'invente pas ce qu'elle n'a pas lu
 
-- **Statut** : **Proposé** — la partie 1 est appliquée, l'arbitrage de la partie 2 reste ouvert
+- **Statut** : **Accepté** — la partie 1 est appliquée ; la partie 2 est tranchée en (a) par le porteur le 2026-10-20 (P60.03)
 - **Date** : 2026-08-21
 - **Tickets** : TCK-336 (le ticket qui aurait dû exiger cet ADR), TCK-335 (l'audit d'où il sort)
 
@@ -62,7 +62,15 @@ Les clés **dérivées** et les **relations d'`include=`** restent **incondition
 n'a aucun moyen de les demander, les gager sur `fields[]` les ferait disparaître chez des appelants
 qui les affichent.
 
-### Partie 2 — OUVERTE : faut-il, en plus, filtrer par `fields[]` ?
+### Partie 2 — faut-il, en plus, filtrer par `fields[]` ? Tranchée : (a)
+
+**Décision du porteur, 2026-10-20 (piste P60.03)** : la voie **(a)**. `fields[]` et `include=` ne
+valent que pour les **listes** ; un `show` rend la ressource de détail entière. Les `fields[]` que le
+front envoie à un `show` se retirent, au lieu d'être honorés : faire honorer `fields[]` par les dix-huit
+`show` qui l'ignorent les rendrait restrictifs pour des vues qui n'énumèrent pas ce qu'elles
+affichent, pour un gain mesuré de 123 octets gzip. La règle s'écrit dans
+`docs/spatie-query-builder.md`. Le résidu des `*_label` ci-dessous reste un choix disponible, non
+retenu.
 
 Trois voies. Elles ne s'excluent pas de la partie 1 ; elles s'y ajoutent.
 

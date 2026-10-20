@@ -7,7 +7,7 @@ family: technique
 estimate: S
 wave: null
 created: 2026-10-16
-updated: 2026-10-19
+updated: 2026-10-20
 depends_on: []
 blocks: []
 spec_refs:
@@ -31,7 +31,7 @@ Aucun endpoint ni modèle. Les clés d'environnement et leur emplacement sont d�
 [`docs/infra/hebergement.md`](../../infra/hebergement.md), et les drivers déclarés dans
 [`docs/infra/prod-drivers.json`](../../infra/prod-drivers.json).
 
-Sources : pistes P27.01, P27.04, P05.09, P10.10, puis P36.04 et P37.03 (2026-10-17), de
+Sources : pistes P27.01, P27.04, P05.09, P10.10, puis P36.04 et P37.03 (2026-10-17), et P65.01 (2026-10-20), de
 [`docs/plans/2026-10-15-pistes-d-amelioration.md`](../../plans/2026-10-15-pistes-d-amelioration.md),
 où chaque constat est sourcé et daté.
 
@@ -67,6 +67,11 @@ où chaque constat est sourcé et daté.
   `preview` à 800 px).
 - [ ] **P10.10** — servir l'avatar par une conversion à sa taille d'affichage, plutôt que
   l'original jusqu'à 2560 px.
+- [ ] **P65.01** — mesurer dans l'image de l'API le sens de `max_execution_time = 60` sous
+  FrankenPHP (`php -d max_execution_time=1 -r 'sleep(3);'`, puis une requête de plus de 60 s derrière
+  `php_server`) et l'inscrire dans `deploy/takussan/smoke-api.sh image` ; poser `num_threads` et
+  `max_wait_time` dans `docker/Caddyfile` ; relever les délais de Traefik et de Cloudflare dans
+  `docs/infra/hebergement.md` et y corriger l'équivalence avec nginx selon la mesure.
 - [ ] **P36.04** — piste faite en session par TCK-943 (un jeton d'URL par fournisseur, repli sur
   `SMS_WEBHOOK_URL_TOKEN`) : poser les trois jetons `SMS_ORANGE_WEBHOOK_URL_TOKEN`,
   `SMS_MTARGET_WEBHOOK_URL_TOKEN` et `SMS_LAM_WEBHOOK_URL_TOKEN`, un par environnement, dans Dokploy, puis reporter l'URL de chacun dans le tableau de bord de son fournisseur. Le jeton

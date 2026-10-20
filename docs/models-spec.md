@@ -1256,9 +1256,9 @@ les lignes sans code. Un contact sans compte (`ContactSansCompte`) ne crée **au
 **Méthodes :**
 - `isCritical()` : `data.is_critical` — une notification critique part tout de suite, quelle que soit
   `users.email_frequency`.
-- `reference()` : **pas une relation Eloquent** — résout un alias court de `referenceable_type`
-  (`booking`, `lease`, `lease_payment`, `maintenance`, `property_visit`) puis appelle `find()`.
-  Aucun appelant dans `app/` au 2026-10-19.
+- Aucune méthode ne résout `referenceable_*` : `reference()`, sans appelant, est retirée par
+  TCK-1045 (P11.11, 2026-10-20). La cible d'une ligne se lit par `target`, ou se déduit par
+  `NotificationTarget::fromReferenceable()` (Règle 3).
 - La lecture se marque par `NotificationController::markAsRead()` (`is_read`, `read_at`) ; le
   modèle ne porte ni `markAsRead()` ni scope `unread()`.
 
@@ -5056,7 +5056,7 @@ Les colonnes `*_count` et `average_rating` ne doivent **jamais** être mises à 
 Le lien d'une `AppNotification` vers son entité est un **morph manuel** (`referenceable_id`/`referenceable_type`), sans `morphTo` Eloquent. Le motif qui tient encore : un **contrôle fin des types reconnus**. Il vit à deux endroits (relevé du 2026-10-19) :
 
 - `NotificationTarget::fromReferenceable()` — **le seul lecteur** : il déduit la cible d'une ligne sans `target` et reconnaît l'alias court **ou** le nom de classe (`booking`, `lease`, `lease_payment`, `maintenance`, `property_visit`, `property`, `kyc_dossier`, et les classes `BankStatement` et `RoleDelegation`). Un type inconnu ne produit aucune cible.
-- `AppNotification::reference()` — une méthode, pas une relation, qui ne connaît que cinq alias (dont `property_visit`) et n'a aucun appelant.
+- `AppNotification::reference()`, qui ne connaissait que cinq alias et n'avait aucun appelant, est retirée (TCK-1045, P11.11, 2026-10-20). Les deux formes de `referenceable_type` restent écrites : l'unifier, ou cesser d'écrire le lien, n'a pas été décidé.
 
 > ℹ️ Cette règle invoquait aussi « éviter la création des tables `model_has_...` de spatie ». Ce
 > motif est **caduc depuis TCK-278** : le paquet est désinstallé et ces tables n'existent plus. Il

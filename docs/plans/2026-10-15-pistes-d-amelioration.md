@@ -1743,7 +1743,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le lien `referenceable_*` d'une notification : deux formes, un lecteur de repli, une méthode morte
 - Réf : P11.11
-- Statut : retenu · à valider — chemin fermé : `docs/models-spec.md` (l. 1259 et 5059 décrivent `reference()` ; la décision (a) retire la méthode et demande cette mise à jour, que l'implémenteur ne peut pas écrire)
+- Statut : fait · TCK-1045
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/SavedSearchMatchesNotification.php:121`, `takussan-api/app/Models/AppNotification.php` (`reference()`), `takussan-api/app/Domain/Notifications/NotificationTarget.php:146-170`, `takussan-api/database/seeders/Engagement/AppNotificationSeeder.php`
 - Constat :
@@ -1763,6 +1763,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `AppNotification.php:71-83` (`reference()`, cinq alias), `NotificationTarget.php:146-170` (`fromReferenceable()`, sans `SavedSearch`), `SavedSearchMatchesNotification.php:121` (`SavedSearch::class`) ; `grep -rn "reference()" app routes resources database tests` → aucun appelant de la méthode ; `grep -rn referenceable tests` → rien ; seul autre écrivain le seeder (`AppNotificationSeeder.php:46`, `property_visit`) → le constat tient tel quel, la répartition en base de développement n'est pas re-mesurée. Classement : V4, la `Piste` propose trois options dont (c) est une migration, et seul (a), le retrait de `reference()`, serait A3 ; le choix revient au porteur.
 - Mesure (2026-10-20, 31d408855, delegue) : relu `AppNotification.php:71-83` ; `grep -rn "reference()\|->reference\b" app routes resources database tests` → seule la définition l. 71, aucun appelant ; `docs/models-spec.md:5059` décrit déjà la méthode « sans appelant », et la Règle 3 admet les deux formes de `referenceable_type` (l. 1198) → (a) est du code mort sans choix de produit. Délégation : V4, seul (a) est accordé, qui ne touche aucun schéma ; (c) supprime des colonnes (V4 non additif) et (b) engage la forme du lien que (c) abandonnerait, d'où le reste au porteur, sur le modèle de sa décision pour P58.05 (retrait du code, colonne au porteur). La PR #755 touche aussi `AppNotification.php` : conflit possible, sans recouvrement de sujet.
 - Mesure (2026-10-20, bb1524a12, implementeur) : `grep -rn "reference()" app tests` → seule la définition `AppNotification.php:74`, aucun appelant : la partie morte tient ; `grep -n "reference()" docs/models-spec.md` → l. 1259 (§12, « pas une relation Eloquent ») et l. 5059 (Règle 3, « aucun appelant ») la décrivent. Retirer la méthode sans réécrire ces deux lignes laisserait la spec fausse, et `docs/models-spec.md` est fermé à l'implémenteur. Rien implémenté. Classement : chemin fermé, distinct du V4 accordé (aucun schéma n'est en cause) ; le retrait du code et les deux lignes de spec peuvent partir ensemble, en session.
+- Mesure (2026-10-20, a233822b8, humain) : option (a) choisie par le porteur ; `grep -rn "reference()" app routes resources database tests` et `grep -rnE -- "->reference\b"` → aucun appelant de `AppNotification::reference()` ; méthode retirée, `docs/models-spec.md` §12 et Règle 3 réécrits ; `php artisan test tests/Feature/Notifications` → 118 verts, `bin/impacted-tests.php --run` → 40 verts. Pas d'ablation : retrait de code sans appelant.
 
 ## Angle 12 — Tests : zones non gardées, tests verts sans leur code
 
@@ -5942,7 +5943,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
 - Mesure (2026-10-19, 5cd62d286, implementeur) : avant correctif, une ligne `password_reset_tokens` pour l'adresse du compte survit à `executeDeletion()` et le planificateur ne porte aucun `auth:clear-resets` (3 rouges) → `anonymize()` supprime les lignes de l'adresse d'origine, et `routes/console.php` planifie chaque jour `auth:clear-resets activations` : la table est partagée avec le lien d'activation de 7 jours (TCK-781), que la purge par le broker par défaut (60 min) effacerait au bout d'une heure ; `AccountDeletionExecuteTest` et `PasswordResetTokensPruneTest` verts, trois ablations (effacement, planification, commande sans broker) → rouges, 13 verts.
 ### Une invitation adressée au compte garde son e-mail, son lien au compte et son statut « envoyée » après l'effacement
 - Réf : P57.04
-- Statut : retenu · à valider — V4 : effacer à la fois `email` et `phone` d'une invitation viole la contrainte `invitations_email_or_phone_check` (migration du 2026-10-07) ; la décision accordée (V3) demande donc soit une migration qui lève ou change la contrainte, soit de masquer l'adresse (`deleted-<id>@takussan.local`, comme `users.email`) au lieu de l'effacer, option de la `Piste` que la décision n'a pas retenue
+- Statut : validé — (a) à l'anonymisation, révoquer les invitations en cours du compte et masquer leur adresse (`deleted-<id>@takussan.local`, comme `users.email`) au lieu de l'effacer, sans migration ; test : après `executeDeletion()`, aucune invitation en cours ne vise le compte ni son adresse (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/migrations/2026_05_10_000001_create_invitations_table.php:24-29`, `takussan-api/database/migrations/2026_10_07_150300_add_phone_to_invitations_table.php:25`, `takussan-api/app/Services/Invitation/InvitationService.php:224-233`
 - Constat :
@@ -6175,7 +6176,7 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
 
 ### Dix-huit `show` sur dix-neuf ignorent `fields[...]` que le front leur envoie, et rendent la ressource entière
 - Réf : P60.03
-- Statut : retenu · à valider — V7 : la piste offre deux voies, faire honorer `fields` par les `show` ou écrire qu'il ne vaut que pour les listes
+- Statut : validé — (b) un `show` rend la ressource de détail entière, `fields`/`include` ne valent que pour les listes : l'écrire dans `docs/spatie-query-builder.md`, retirer du front les `fields` envoyés à un `show`, servir l'en-tête de la fiche de bail par la liste filtrée par id ; la partie 2 d'ADR-0021 est fermée en session (TCK-1045, même PR) (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/leases/[id]/page.tsx:39-41`, `takussan-web/src/hooks/useAgencyCurrency.ts:52-57`, `takussan-web/src/lib/queries/properties-server.ts:192-198`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:72-77`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:64-73`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:171`
 - Constat :
@@ -6219,7 +6220,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### `/api/properties/{id}/collaborators` rend la ligne `users` entière de chaque collaborateur, au bailleur du bien comme à tout membre de l'agence
 - Réf : P61.01
-- Statut : retenu · à valider — V3 : compte entier de chaque collaborateur rendu au bailleur, projection et sort de `username` à trancher
+- Statut : validé — ressource pour `index`, `store`, `update` et `designatePrimary`, compte projeté par `IncludedUserResource` plus `username` (slug public) ; test : bailleur et agent, `data.0.user` n'a que les clés de la projection (porteur, 2026-10-20)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:64`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:91`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:150`, `takussan-api/app/Policies/PropertyPolicy.php:45-60`, `takussan-api/app/Http/Resources/PropertyResource.php:217-230`, `takussan-web/src/lib/queries/property-collaborators.ts:23-35`
 - Constat :
@@ -6236,7 +6237,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### `include=agency` rend la ligne `agencies` entière à un prestataire et à un bailleur, seuil des reversements compris
 - Réf : P61.02
-- Statut : retenu · à valider — V3 : ligne `agencies` entière, seuil et `bank_csv_mapping` compris, rendue à un prestataire et à un bailleur
+- Statut : validé — rendre les deux listes par une ressource, l'agence incluse passant par `AgencyResource`, qui juge ce que l'appelant voit ; test : le prestataire avec `include=agency` ne reçoit ni `payout_approval_threshold` ni `bank_csv_mapping` (porteur, 2026-10-20)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderAgenciesController.php:31-69`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:167-184`, `takussan-api/app/Http/Resources/OwnerProfileResource.php:37`, `takussan-api/app/Http/Resources/IncludedUserResource.php:51-61`, `takussan-api/app/Http/Resources/AgencyResource.php:17,31-46,61,70`, `takussan-api/app/Models/Profiles/ServiceProviderAgencyCollaboration.php:51`
 - Constat :
@@ -6254,7 +6255,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### `/api/me/owner-profiles/{id}/properties` sans `fields` rend au bailleur des colonnes qu'aucune ressource n'émet (gel plateforme, suivi admin, bien de test)
 - Réf : P61.03
-- Statut : retenu · à valider — V3 : colonnes de modération (dont l'identifiant du super-admin) rendues au bailleur ; ressource ou projection par défaut à choisir
+- Statut : validé — rendre la liste par `PropertyResource` ; test sans `fields` : ni `platform_hold_by_id` ni `admin_monitored` (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:167-184`, `takussan-api/app/Models/Property.php:134-144`, `takussan-api/app/Services/Property/PropertyModerationService.php:250-263`
 - Constat :
@@ -6268,7 +6269,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### Petites améliorations
 - Réf : P61.04
-- Statut : retenu · à valider — V3 : `/profiles/{id}/suspend` rend `metadata` avec le `kyc` ; retraits de routes et garde de `json()` à décider
+- Statut : validé — garde de `Base\Controller::json()` sous `runningUnitTests()` qui refuse un `Model`, une `Eloquent\Collection` ou un paginateur, une ressource par modèle rendu (dont `suspend`, sans le `kyc` de `metadata`), et retrait des deux routes sans appelant (`/me/service-provider/collaborations`, `/profiles/{id}/suspend`) ; si le retrait impose de supprimer des tests, ce volet passe en session (porteur, 2026-10-20)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderAgenciesController.php:63`, `takussan-api/app/Http/Controllers/Api/PropertyTagController.php:60`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:160-181`, `takussan-api/app/Http/Controllers/Api/AgentProfileController.php:39`, `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:37`, `takussan-api/app/Http/Controllers/Api/ThresholdAlertController.php:33`
 - Constat :
@@ -6287,7 +6288,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### La création d'un bail dit à tout compte connecté quels clients, garants et biens existent, trois par requête
 - Réf : P62.01
-- Statut : retenu · à valider — V2 : change la réponse de `POST /api/leases` à ses appelants
+- Statut : validé — (a) juger l'existence dans le service avec la réponse du refus (modèle de TCK-599), pour les sept entrées P62.01 à P62.07 ; test : même statut et même corps pour un absent et un tiers (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:28-40`, `takussan-api/app/Services/Model/LeaseService.php:36-54`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:52-57`
 - Constat :
@@ -6303,7 +6304,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### La création d'une réservation distingue un client absent d'un client d'une autre agence, et l'état d'un bien non publié
 - Réf : P62.02
-- Statut : retenu · à valider — V2 : change l'ordre et le code des refus de `POST /api/bookings`
+- Statut : validé — (a) comme P62.01 : `customer_id` jugé dans le service avec la réponse du refus, visibilité avant état pour un appelant hors personnel (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreBookingRequest.php:24-34`, `takussan-api/app/Services/Model/BookingService.php:32-39,55-93`
 - Constat :
@@ -6317,7 +6318,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### La création d'une tâche énumère les comptes de la plateforme, et ses fiches clients
 - Réf : P62.03
-- Statut : retenu · à valider — V2 : change le code rendu par `POST /api/tasks` pour un parent refusé
+- Statut : validé — (a) comme P62.01 : retirer `exists:users,id` et rendre 404 quand `attachTo` refuse, comme `DocumentController::store()` (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreTaskRequest.php:27-30,51`, `takussan-api/app/Http/Controllers/Api/TaskController.php:53-69,89-109`
 - Constat :
@@ -6330,7 +6331,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### Quatre routes disent quels baux existent, et deux quelles demandes d'intervention
 - Réf : P62.04
-- Statut : retenu · à valider — V2 : change la réponse de quatre routes à leurs appelants
+- Statut : validé — (a) comme P62.01 : retirer `exists:` des champs que `guardContext()` juge, et juger le bail dans le contrôleur avec la réponse du refus (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/InventoryStoreRequest.php:28-36`, `takussan-api/app/Http/Requests/Api/StoreMaintenanceRequestRequest.php:27,43-44`, `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:34,51-52`, `takussan-api/app/Http/Requests/Conversation/CreateGroupConversationRequest.php:46,66-68,109-112`, `takussan-api/app/Http/Requests/Conversation/Concerns/GuardsConversationScope.php:28-43`
 - Constat :
@@ -6347,7 +6348,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### La recherche dans les messages dit quelles conversations existent
 - Réf : P62.05
-- Statut : retenu · à valider — V2 : change la réponse de deux routes de recherche à leurs appelants
+- Statut : validé — (a) comme P62.01 : `['nullable', 'integer']` seul, page vide pour un fil absent comme pour un fil tiers (porteur, 2026-10-20)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Search/SearchQueryRequest.php:11-21`, `takussan-api/app/Services/Search/MessageSearchService.php:20-29`
 - Constat :
@@ -6360,7 +6361,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### Le calendrier, la visite et l'intervention disent quels biens existent, brouillons compris
 - Réf : P62.06
-- Statut : retenu · à valider — V2 : change la réponse de quatre routes à leurs appelants
+- Statut : validé — (a) comme P62.01 : retirer `exists:properties,id` là où la visibilité est déjà jugée, avec la réponse du refus pour un absent (porteur, 2026-10-20)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/IndexCalendarRequest.php:26,37-40`, `takussan-api/app/Http/Requests/Api/StorePropertyVisitRequest.php:45,99`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:119-128`, `takussan-api/app/Http/Requests/Api/StoreMaintenanceRequestRequest.php:43`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:92-103`, `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:51`
 - Constat :
@@ -6375,7 +6376,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### Petites améliorations : identifiants d'agence, de profil et de rôle
 - Réf : P62.07
-- Statut : retenu · à valider — V2 : change la réponse de trois routes, dont 404 au lieu de 403 sur `agency-role`
+- Statut : validé — (a) comme P62.01 : même traitement, et 404 quand `assign` refuse sur `agency-role` (porteur, 2026-10-20)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/StoreIntegrationRequest.php:25,37`, `takussan-api/app/Http/Requests/Api/IndexCalendarRequest.php:42`, `takussan-api/app/Http/Controllers/Api/CalendarController.php:34-37`, `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:20-27,71`, `takussan-api/app/Http/Requests/Agency/AssignAgencyRoleRequest.php:25-28,43`, `takussan-api/app/Http/Controllers/Api/Profile/AgencyRoleController.php:28-43`
 - Constat :
@@ -6415,7 +6416,7 @@ d'export de l'angle 77.*
 
 ### Le lien de l'export d'audit asynchrone d'une agence peut servir le journal d'une autre agence, ou celui de toute la plateforme
 - Réf : P63.01
-- Statut : retenu · à valider — V3 : le lien sert le journal d'audit d'une autre agence
+- Statut : validé — (b) nommer le fichier d'un identifiant opaque (le nom lisible pour le seul `Content-Disposition`) et lier la signature au demandeur, vérifié au téléchargement ; test : deux agences de même nom, chaque lien ne rend que la sienne, et la variante « Platform » (porteur, 2026-10-20)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:39-49`, `takussan-api/app/Services/Audit/ActivityLogExporter.php:51-57`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:44,59-71`, `takussan-api/routes/api/audit-log.php:22-24`
 - Constat :
@@ -6432,7 +6433,7 @@ d'export de l'angle 77.*
 
 ### Le courriel « export de rapport prêt » mène à une route qui n'existe pas
 - Réf : P63.02
-- Statut : retenu · à valider — V7 : route de téléchargement neuve ou retrait du chemin asynchrone
+- Statut : validé — (a) une route de téléchargement `signed` jusqu'à `expires_at`, hors `auth:sanctum`, liée au demandeur comme P63.01, qui ne sert que l'export `ready` désigné ; la notification la produit par `URL::temporarySignedRoute` (porteur, 2026-10-20)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Notifications/ReportExportReadyNotification.php:26`, `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:51-63`, `takussan-api/app/Http/Controllers/Api/Admin/ReportingController.php:108-143`, `takussan-api/lang/fr/notifications.php:867-872`
 - Constat :
@@ -6464,7 +6465,7 @@ d'export de l'angle 77.*
 
 ### Petites améliorations
 - Réf : P63.04
-- Statut : retenu · à valider — V3 : conservation des exports d'audit
+- Statut : validé — les trois : retirer `download_url` de `toArray()`, lier le lien au demandeur (P63.01), purger les fichiers d'export d'audit à l'échéance du lien (porteur, 2026-10-20)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/ActivityLogExportReadyNotification.php:23-26,43-50`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:59-71`, `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:42`
 - Constat :
@@ -6503,7 +6504,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
 
 ### L'effacement du compte laisse les pièces de ses profils intactes : ligne, média, fichier et nom de fichier d'origine
 - Réf : P64.02
-- Statut : retenu · à valider — V3 : ce que l'effacement conserve ou retire des pièces de profil
+- Statut : validé — à l'effacement, terminer les profils du compte (date de fin) et remplacer le `name` des pièces et de leurs médias par le libellé du type ; la purge de TCK-537 part de la fin du profil (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:237-325`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:59-78`, `takussan-api/app/Models/Document.php:100-110`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:76-83`, `takussan-web/src/content/legal/privacy.ts:123-124`
 - Constat :
@@ -6518,7 +6519,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
 
 ### Le titulaire peut supprimer sa pièce, même vérifiée, et le fichier part 90 jours plus tard
 - Réf : P64.03
-- Statut : retenu · à valider — V3 : durée de conservation d'une pièce KYC supprimée par son titulaire, choix ouvert dans la piste
+- Statut : validé — (a) refuser au titulaire la suppression d'une pièce de profil vérifiée ; test : `DELETE` d'une pièce vérifiée par son titulaire refusé (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:131-136`, `takussan-api/app/Policies/DocumentPolicy.php:70-80,123-126`, `takussan-api/app/Console/Commands/MediaCleanup.php`, `takussan-api/routes/console.php:72`
 - Constat :
@@ -6531,7 +6532,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
 
 ### Un nouvel envoi remet la pièce à « non vérifiée » mais garde l'auteur et la date de la vérification précédente
 - Réf : P64.04
-- Statut : retenu · à valider — V3 : effacer `verified_by` et `verified_at` retire la seule trace de la vérification précédente
+- Statut : validé — remettre `verified_by` et `verified_at` à `null` avec `is_verified` dans une méthode partagée, et écrire au journal d'audit qui avait vérifié la pièce remplacée, pour en garder la trace (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:59-72`, `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:68-81`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:59-72`, `takussan-api/app/Http/Resources/DocumentResource.php:37-38`
 - Constat :
@@ -6576,7 +6577,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### La seule borne de durée d'une requête est `max_execution_time = 60`, dont le sens dans l'image n'est pas mesuré
 - Réf : P65.01
-- Statut : retenu · à valider — V5 : Caddyfile, image et délais de Traefik/Cloudflare
+- Statut : retenu · à valider — V5 : Caddyfile, image et délais de Traefik/Cloudflare ; porteur (2026-10-20) : traité hors agents, avec le déploiement ; consigné dans TCK-720
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/php.ini:10-11`, `takussan-api/docker/Caddyfile:12-50`, `takussan-api/Dockerfile:15-17,85`, `deploy/takussan/compose.api.yml:27-39`, `docs/infra/hebergement.md:547`
 - Constat :
@@ -6591,7 +6592,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### L'initiation d'un paiement appelle le fournisseur dans la transaction, sous le verrou de la ligne, jusqu'à 35 s (Orange Money) et 60 s (Lemon Squeezy)
 - Réf : P65.02
-- Statut : retenu · à valider — V1 : initiation de paiement
+- Statut : validé — un ticket dédié : initiation en trois temps (réserver sous verrou avec échéance, appeler le fournisseur hors transaction, enregistrer sous verrou en revérifiant, sur le modèle de `verify()`) et délais explicites aux deux appels Lemon Squeezy ; avant la mise en production (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:150-226,257-266`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:53,76-81,168-173`, `takussan-api/app/Services/Payments/Drivers/LemonSqueezyDriver.php:48-80,197-213`, `vendor/lemonsqueezy/laravel/src/LemonSqueezy.php:59-63`, `vendor/laravel/framework/src/Illuminate/Http/Client/PendingRequest.php:267-272`
 - Constat :
@@ -6623,7 +6624,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### Le client Resend n'a aucun délai, et des courriels partent dans la requête HTTP, dont un sous verrou
 - Réf : P65.04
-- Statut : retenu · à valider — V6 : transport de courriel et mise en file
+- Statut : validé — un transport `resend` de l'application sur un `GuzzleClient` borné (`connect_timeout` 5 s, `timeout` 10 s), garde par un test qui lit les options du client ; les envois de l'invitation restent dans la requête (TCK-367) (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `vendor/resend/resend-php/src/Resend.php:20-29`, `vendor/laravel/framework/src/Illuminate/Mail/MailManager.php:320-325`, `takussan-api/app/Services/Invitation/InvitationService.php:248,405-434,951-958`, `takussan-api/app/Mail/InvitationMailable.php:23`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:119-137`, `takussan-api/app/Notifications/LeaseSignatureCodeNotification.php:19,55-57`, `takussan-api/config/mail.php:64-66`
 - Constat :
@@ -6638,7 +6639,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### Les disques R2 n'ont aucun délai HTTP, et le téléversement de photos les écrit un à un pendant la requête
 - Réf : P65.05
-- Statut : retenu · à valider — V5 : délais du stockage de production
+- Statut : validé — `http => ['connect_timeout' => 5, 'timeout' => 60]` sur les deux disques R2 ; test qui lit `@http` d'une commande du client des deux disques (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/filesystems.php:60-84`, `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:43-90`, `takussan-api/app/Services/Admin/HealthcheckService.php:192-203`
 - Constat :
@@ -6656,7 +6657,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### Une valeur ajoutée par le super-admin est refusée en 422 à la création d'un bien
 - Réf : P66.01
-- Statut : retenu · à valider — V6 : catalogue lu par l'écriture ou retrait de l'ajout, deux voies
+- Statut : validé — (b) retirer de la console l'ajout de valeur et dire à l'écran que la liste vit dans le code (ADR-0007) ; test qui refuse l'ajout (porteur, 2026-10-20)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/BusinessEnumService.php:64-85`, `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:52-55`, `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:49-52`, `takussan-api/app/Models/Property.php:70-73`, `takussan-web/src/lib/enums/property.ts:12-31`
 - Constat :
@@ -6672,7 +6673,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### Une valeur désactivée reste acceptée en écriture et proposée par tous les formulaires
 - Réf : P66.02
-- Statut : retenu · à valider — V7 : dépend du choix de P66.01
+- Statut : validé — avec (b) de P66.01 : retirer la désactivation de la console (porteur, 2026-10-20)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/BusinessEnumService.php:117-129`, `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:52-55`, `takussan-web/src/lib/enums/property.ts:12-29`, `takussan-web/src/components/search/FilterSidebar.tsx:16`
 - Constat :
@@ -6687,7 +6688,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### Les libellés FR / EN / WO édités dans la console ne sont lus par aucun rendu
 - Réf : P66.03
-- Statut : retenu · à valider — V7 : dépend du choix de P66.01, principe n° 5
+- Statut : validé — avec (b) de P66.01 : retirer l'édition des libellés FR / EN / WO (principe n° 5) et corriger le sous-titre de `/super-admin/enums` (porteur, 2026-10-20)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Resources/Bases/BaseResource.php:72-80`, `takussan-api/app/Http/Resources/PropertyResource.php:101-110`, `takussan-web/src/components/property-form/options.ts:47-60`, `takussan-web/src/app/(super-admin)/super-admin/enums/page.tsx:46-51`
 - Constat :
@@ -6701,7 +6702,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### Le libellé français par défaut de chaque valeur est sa clé anglaise, figée à la première écriture
 - Réf : P66.04
-- Statut : retenu · à valider — V7 : sans objet si la console perd ses libellés (P66.03)
+- Statut : caduc — sans objet : P66.03 retire l'édition des libellés de la console (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/BusinessEnumService.php:156-166`, `:193-199`
 - Constat :
@@ -6715,7 +6716,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### La liste enregistrée masque les cas ajoutés plus tard à l'enum PHP
 - Réf : P66.05
-- Statut : retenu · à valider — V7 : sans objet si la voie (b) de P66.01 est prise
+- Statut : caduc — sans objet : la voie (b) de P66.01 retire la liste éditable (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/BusinessEnumService.php:141-167`, `:91-99`
 - Constat :
@@ -6728,7 +6729,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### Petites améliorations
 - Réf : P66.06
-- Statut : retenu · à valider — V7 : bouton de réactivation neuf, dépend de P66.02
+- Statut : caduc — sans objet : P66.02 retire l'activation de la console (porteur, 2026-10-20)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/super/business-enums.tsx:98-105`, `:184-186`, `takussan-api/app/Services/Admin/BusinessEnumService.php:201-208`, `takussan-api/app/Http/Requests/Api/Admin/StoreBusinessEnumValueRequest.php`
 - Constat :
@@ -6763,7 +6764,7 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
 
 ### Une recherche sauvegardée sur un quartier fusionné ne trouve plus rien, alors que le référentiel garde le lien vers la cible
 - Réf : P67.01
-- Statut : retenu · à valider — V7 : ce qu'un ancien nom fusionné rend au public et aux alertes n'est écrit nulle part
+- Statut : validé — un ancien nom fusionné désigne le quartier cible : suivre la fusion dans `idsDuReferentiel()` (`merged_into_id ?? id`) ; test : alerte et `/public/properties/search` sur l'ancien nom → 1 (porteur, 2026-10-20)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Search/QuartierDuFiltre.php:27-40`, `takussan-api/app/Services/Search/PropertySearchService.php:484-490`, `takussan-api/app/Services/Geo/GeoNeighborhoodModeration.php:79-106`, `:123-141`
 - Constat :
@@ -6777,7 +6778,7 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
 
 ### Un quartier renommé fait taire les recherches sauvegardées sur son ancien nom, et ce nom n'est gardé nulle part
 - Réf : P67.02
-- Statut : retenu · à valider — V7 : deux voies à choisir (alias gardés ou critères réécrits), la seconde V4
+- Statut : validé — (a) garder les anciens noms d'un quartier (table ou colonne d'alias, écrite par `renommer()`, lue par `idsDuReferentiel()`) ; test : renommer, puis rejouer l'alerte sur l'ancien nom (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoNeighborhoodModeration.php:54-77`, `takussan-api/app/Services/Search/QuartierDuFiltre.php:27-40`, `takussan-api/app/Support/SavedSearchCriteria.php:121-138`
 - Constat :
@@ -6791,7 +6792,7 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
 
 ### Un équipement proposé puis renommé ou fusionné vide les alertes qui le demandent par son nom
 - Réf : P67.03
-- Statut : retenu · à valider — V7 : deux voies à choisir, la seconde change le contrat front ↔ API et l'index (V6)
+- Statut : validé — (a) réécrire `criteria.tags` des recherches sauvegardées (nom source → nom cible) dans la transaction de `TagModeration::renommer()` et `fusionner()` ; test : renommer, fusionner, rejouer l'alerte (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Tags/TagModeration.php:42-57`, `:59-83`, `:85-130`, `takussan-api/app/Services/Search/PropertySearchService.php:581-590`, `takussan-web/src/components/search/FilterSidebar.tsx:589-595`
 - Constat :
@@ -6806,7 +6807,7 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
 
 ### Le récapitulatif CRM ne rapproche plus un prospect d'un bien dont le quartier a été fusionné ou renommé
 - Réf : P67.04
-- Statut : retenu · à valider — V7 : deux voies à choisir, dont une réécriture des critères des prospects (V3, V4)
+- Statut : validé — (a) comparer par la clé `CleDeQuartier` et les identifiants du référentiel, comme `QuartierDuFiltre`, fusion suivie ; test : fusion, puis `customersFor` (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Crm/ProspectMatcher.php:87-103`, `:145-170`, `takussan-api/app/Jobs/Crm/SendProspectMatchDigest.php:66`, `takussan-web/src/components/customer-form/CustomerForm.tsx:382`
 - Constat :
@@ -6818,7 +6819,7 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
 
 ### Le rapprochement CRM ne reconnaît pas « Liberte 4 » pour « Liberté 4 », que la recherche publique confond
 - Réf : P67.05
-- Statut : retenu · à valider — V7 : étendre au CRM le repli d'accents décidé pour la seule recherche publique
+- Statut : validé — couvert par P67.04 : la clé `CleDeQuartier` au rapprochement CRM, en PHP sans `unaccent`, et le docblock de `ProspectMatcher` corrigé ; test : graphie sans accent ni tiret (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Crm/ProspectMatcher.php:26-27`, `:152-170`, `takussan-api/app/Support/Search/CleDeQuartier.php`, `takussan-api/app/Services/Search/QuartierDuFiltre.php:9-18`
 - Constat :
@@ -6923,7 +6924,7 @@ de violation hors `region`.*
 
 ### Ouvrir le combobox des agences de la console masque son propre déclencheur, focus compris
 - Réf : P68.06
-- Statut : retenu · à valider — V7 : retirer le déclencheur ou changer la modalité du combobox
+- Statut : validé — aligner `AgencyCombobox` sur `ui/combobox.tsx` : retirer le `Combobox.Trigger`, ouvrir au clic dans la saisie (`openOnInputClick`), et vérifier que `Combobox.Clear` ne reste pas focusable sous `aria-hidden` (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/AgencyCombobox.tsx:170-196`, `takussan-web/src/components/ui/combobox.tsx:146-149`
 - Constat :
@@ -7011,7 +7012,7 @@ dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
 
 ### Le préchargement par défaut des liens fait rendre au serveur des listes entières : trois recherches de 40 biens par visite de fiche, impressions sponsorisées comprises
 - Réf : P69.02
-- Statut : retenu · à valider — V7 : couper le préchargement change la navigation des liens visibles
+- Statut : validé — `prefetch={false}` sur les liens vers les listes dynamiques (fil d'Ariane de la fiche, raccourcis de ville et de quartier), avec un test du fil d'Ariane ; le compte des impressions au préchargement reste une décision à part (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyBreadcrumb.tsx:33`, `takussan-web/src/components/shared/LienLocalise.tsx:37`, `takussan-web/src/app/[locale]/(public)/properties/(liste)/page.tsx:63`, `takussan-web/src/app/[locale]/(public)/properties/(liste)/page.tsx:163`, `takussan-web/src/lib/api.ts:124-126`, `takussan-api/app/Http/Middleware/CountBoostImpressions.php:40-44`, `takussan-api/app/Services/Search/PropertySearchService.php:150-156`
 - Constat :
@@ -7029,7 +7030,7 @@ dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
 
 ### Le document de l'accueil attend `discovery` sans cache : environ 1 s de TTFB avant le premier octet
 - Réf : P69.03
-- Statut : retenu · à valider — V7 : Suspense ou cache, choix laissé ouvert par le constat
+- Statut : validé — (a) une frontière `Suspense` autour de `HomepageDiscovery`, repli sur le squelette existant ; vérifier que le HTML diffusé porte toujours titres et liens `/properties/<slug>` (TCK-432) ; TTFB mesuré avant et après (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/page.tsx:61-64`, `takussan-web/src/lib/queries/public-discovery.ts:60-64`
 - Constat :
@@ -7056,7 +7057,7 @@ dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
 
 ### Le dictionnaire du groupe public pèse 33 Kio gzip dans chaque document, page légale comprise, et ne se met jamais en cache
 - Réf : P69.05
-- Statut : retenu · à valider — V6 : redécouper les frontières de dictionnaire revient sur ADR-0022
+- Statut : retenu · à valider — V6 : redécouper les frontières de dictionnaire revient sur ADR-0022 ; porteur (2026-10-20) : traité hors agents, en session : mesure de la taille gzip de chaque frontière, puis amendement d'ADR-0022 pour deux ou trois frontières sous `(public)`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/layout.tsx:89`, `takussan-web/src/i18n/namespaces.json`
 - Constat :
@@ -7069,7 +7070,7 @@ dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
 
 ### Petites améliorations
 - Réf : P69.06
-- Statut : retenu · à valider — V7 : référentiel chargé à l'ouverture du panneau, au choix entre deux voies
+- Statut : validé — charger le référentiel des filtres quand le panneau est visible (au montage en `lg` et au-delà, à la première ouverture du tiroir en dessous) ; un seul `priority` par fiche, sur `PropertyMobileGallery` (porteur, 2026-10-20)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx`
 - Constat :
@@ -7149,7 +7150,7 @@ sont pas mesurées, ni la charge RSC du document.*
 
 ### La coque de `/app` pèse 363 à 367 Kio gzip sur chaque écran, dont 18 Kio pour deux composants que la plupart des sessions n'ouvrent jamais
 - Réf : P70.05
-- Statut : retenu · à valider — V2 : `TotpEnrollment` est l'enrôlement 2FA forcé de la garde
+- Statut : validé — différer `CustomerMinimalProfileSheet` par `next/dynamic` derrière sa condition ; `TotpEnrollment` reste importé statiquement, le dialogue qui bloque l'accès ne dépend pas du réseau (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/layout.tsx`, `takussan-web/src/app/(dashboard)/app/layout.tsx`, `takussan-web/src/components/layout/AppShell.tsx:15-20,138-145`, `takussan-web/src/components/customer/MinimalProfileTriggerProvider.tsx:6-9,138-144`, `takussan-web/src/components/auth/GardeDoubleFacteur.tsx:7,77-84`
 - Constat :
