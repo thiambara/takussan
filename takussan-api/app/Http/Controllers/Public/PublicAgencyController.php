@@ -7,6 +7,7 @@ use App\Http\Requests\Public\IndexPublicProfilesRequest;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Agency;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\UserStatus;
@@ -292,7 +293,10 @@ class PublicAgencyController extends Controller
         $professionnelsIci = $teamUserIds->isEmpty()
             ? collect()
             : AgentProfile::query()->active()->where('agency_id', $agency->id)->whereIn('user_id', $teamUserIds)->pluck('user_id')
-                ->merge(AgencyAdminProfile::query()->active()->where('agency_id', $agency->id)->whereIn('user_id', $teamUserIds)->pluck('user_id'))
+                // TCK-1077 — l'admin d'un espace `individual` en est l'hôte, pas un agent.
+                ->merge($agency->kind === AgencyKind::Standard
+                    ? AgencyAdminProfile::query()->active()->where('agency_id', $agency->id)->whereIn('user_id', $teamUserIds)->pluck('user_id')
+                    : collect())
                 ->map(fn ($id) => (int) $id)
                 ->flip();
 
