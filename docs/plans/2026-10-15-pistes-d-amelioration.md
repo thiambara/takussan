@@ -158,7 +158,7 @@ voie d'écriture (angle 13, puis 47).
 | 83 | Clés des colonnes JSON hors `agencies.settings` (`agencies.metadata`, `users`, `properties`, `leases`, `customers` : `metadata`, `settings`, `preferences`) : lues sans écrivain, écrites sans lecteur — le relevé de l'angle 47 sur les autres modèles | fait |
 | 84 | Valeurs qu'ADR-0044 chiffre (RIB, NINEA, numéro de pièce, revenu) recopiées en clair ailleurs : `wizard_drafts.data` des autres parcours (bailleur, prestataire, hôte), `metadata`, `activity_log.properties`, `app_notifications.data` | fait |
 | 85 | Ce que le site public montre d'une agence `individual` : annuaire `/agencies`, fiche `/agencies/{slug}`, carte d'agence de la fiche bien (`PropertyResource.php:441-449`) — nom « Espace de {prénom} », slug, badge vérifié | fait |
-| 86 | Collaborateurs `co_owner` et `viewer` d'un bien (`property_collaborators`, laissés hors du périmètre par ADR-0031 § 2) : ce qu'ils lisent et écrivent réellement — bien, lots, baux, loyers, relevé, reversement | à faire |
+| 86 | Collaborateurs `co_owner` et `viewer` d'un bien (`property_collaborators`, laissés hors du périmètre par ADR-0031 § 2) : ce qu'ils lisent et écrivent réellement — bien, lots, baux, loyers, relevé, reversement | fait |
 | 87 | Tris alphabétiques sur colonnes texte sous la collation `C` (`sort=first_name`, `name`, `title` des listes de l'API et de la console) : minuscules et initiales accentuées rejetées après « Z » | à faire |
 | 88 | Comptes `blocked` (`UserStatus::Blocked`), qui n'ouvrent plus de session : ce qu'ils reçoivent encore (notifications, e-mails, SMS) et les sélecteurs qui les proposent encore (participants, agent responsable, collaborateurs, destinataires) | à faire |
 | 89 | Commandes jouées par `release.sh` et `seed.sh` (`geo:sync-referential`, `tags:sync-catalog`, `alerts:ensure-ops-rules`, `membership:reconcile-system-roles`, `scout:import`) : code de sortie réel sur une erreur, face à ce que le script en conclut | à faire |
@@ -8424,3 +8424,73 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
 - Piste : servir `is_verified` dans `show()` et l'afficher à côté du nom. Interdire `license_number` à une agence `individual`, comme les mentions légales, ou ne pas l'afficher pour elle. Retirer l'expression morte.
 - Mesure (2026-10-20, 01adb7c8a, mesureur) : relu `PublicAgencyController.php:343-352` (`show()` ne sert pas `is_verified`, alors que l'`index()` le sert, l. 180), `AgencyUpdateRequest.php:51` (`license_number` sans condition) et `:107-118` (mentions légales `prohibited` pour `individual`), `agencies/[slug]/page.tsx:146` (`agency.license_number ? null : null`, toujours nul) et `:212-217` (« Licence n° ») ; test temporaire (`POST /api/host/individual/auto-onboard` pour Awa Diop, `preferred_language = en`, logo dans la collection `logo`, un bien `published()`, puis les surfaces publiques en anonyme ; base de test PostgreSQL, charge 2,60 sur 8 cœurs ; retiré ensuite) → la clé `is_verified` est absente de `/api/public/agencies/space-of-awa`, présente (`false`) dans l'annuaire. Les trois parties tiennent. Classement : V7, afficher un badge sur la fiche et interdire ou masquer la licence d'un particulier sont des choix visibles que la Piste laisse ouverts ; seul le retrait de l'expression morte de `page.tsx:146` relèverait de A3.
 - Mesure (2026-10-20, 9c967349f, delegue) : relu `PublicAgencyController.php:343-352` (`show()` sans `is_verified`) et `:180` (l'`index()` le sert déjà, `(bool) $agence->is_verified`), `ProfileCard.tsx:95-96` (badge `BadgeCheck` et libellé `verifie` déjà existants), `agencies/[slug]/page.tsx:146` (`agency.license_number ? null : null`, toujours nul) et `:212-217`, `AgencyUpdateRequest.php:51`, `:100-119`, `docs/features.md:484` (`license_number` est une donnée de l'`AgentProfile`) → les trois parties tiennent ; l'état vérifié d'une agence est déjà public dans l'annuaire, ce n'est pas une donnée personnelle. Délégation : V7, V8 ; montrer sur la fiche le badge que l'annuaire et la carte de la fiche bien montrent déjà, avec la donnée que l'`index()` sert déjà et le libellé existant, n'ajoute ni texte ni parcours et se défait en un commit ; le retrait de l'expression morte relève de A3. La licence d'un particulier reste au porteur ; recommandation pour elle : la rendre `prohibited` pour une agence `individual` dans `AgencyUpdateRequest`, comme les mentions légales (l. 100-119), et ne pas l'afficher sur la fiche d'un espace, puisque `features.md:484` rattache la licence à l'agent, qu'un espace n'a pas.
+
+## Angle 86 — Collaborateurs `co_owner` et `viewer` d'un bien
+
+*Exploré le 2026-10-20 sur `pre-dev` 9c967349f, par l'explorateur. Tout est relu par l'explorateur lui-même, sans sous-agent. Les comportements cités comme mesurés viennent d'un test temporaire unique (`TmpExplorateurP86Test`, base de test PostgreSQL, charge 2,99 sur 8 cœurs), retiré avant la fin. La base de développement est lue en `SELECT` seulement : elle ne contient aucune ligne `co_owner` ni `viewer` (voir P86.05). Hors du périmètre de l'angle : ce que l'absence d'écriture de `accepted_at` fait aux rôles `agent` et `manager` (`BookingStakeholders::collaboratorsOf`), laissé sans relevé.*
+
+### Un bailleur obtient le nom, le courriel et le téléphone de tout autre bailleur de son agence en l'ajoutant en `co_owner`, alors que `/api/owners` lui est refusé
+- Réf : P86.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/StorePropertyCollaboratorRequest.php:30-50`, `takussan-api/app/Rules/CollaboratorEligibleForProperty.php:58-74`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:45-66`, `takussan-api/app/Policies/PropertyPolicy.php:143-146`, `takussan-api/app/Services/Membership/SystemRoleCapabilities.php:92-95`
+- Constat :
+  - `store` est autorisé par `update` du bien. Le bailleur auteur du bien le tient par `properties.update_own`, la seule capacité de son rôle système (lu, `PropertyPolicy.php:143-146`, `SystemRoleCapabilities.php:92-95`).
+  - `CollaboratorEligibleForProperty` accepte en `co_owner` tout bailleur de l'agence du bien, et en `viewer` tout bailleur ou membre du personnel (lu, l. 69-72). La réponse 201 rend le compte projeté du collaborateur (lu, l. 64).
+  - mesuré (test temporaire, deux bailleurs L1 et L2 d'une même agence, L1 auteur du bien) :
+    - L1, `GET /api/owners` → 403 ; `GET /api/owners/{L2}` → 404 ; `GET /api/users` → 403 ;
+    - L1, `POST …/collaborators` avec l'identifiant d'un client → 422 (`user_id`, « must belong to the property's agency ») ; avec celui d'un agent en `co_owner` → 422 ; avec celui de L2 en `co_owner` → 201, `data.user` porte `first_name`, `last_name`, `email`, `phone` et `username` de L2 ;
+    - L1, `DELETE …/collaborators/{id}` → 204 : la ligne disparaît, et L2 n'a rien reçu (aucune notification dans le contrôleur, lu).
+  - En parcourant les identifiants, un bailleur apprend donc qui est bailleur de son agence (le 201 ou le 422 font un oracle) et relève leurs coordonnées, sans trace durable. ADR-0031 § 2 rend étrangères au bailleur les ressources d'un autre bailleur ; c'est ce que les 403 et 404 de `/api/owners` appliquent.
+  - P61.01 (fait) a borné le compte rendu à une projection. Il ne traite ni l'éligibilité ni l'oracle, et la projection garde `email` et `phone`.
+  - Établi comment : lecture des fichiers cités et test temporaire ci-dessus.
+- Piste : borner l'ajout d'un `co_owner` ou d'un `viewer` bailleur à qui peut déjà lire les bailleurs de l'agence (le personnel), ou décider ce qu'un bailleur peut savoir d'un co-indivisaire avant de le désigner. Garde : un test « bailleur → `POST` d'un autre bailleur en `co_owner` » qui rougit sur le code actuel.
+
+### D-66 tient, et sa condition de réouverture est remplie : `co_owner` et `viewer` ne lisent rien du bien qui les nomme
+- Réf : P86.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Policies/PropertyPolicy.php:45-58`, `docs/ardoise.md` (D-66), `docs/features.md:89`, `takussan-web/src/messages/fr.json:1426-1427`, `takussan-web/src/components/property-dashboard/PropertyCollaboratorsPanel.tsx:25`
+- Constat :
+  - `PropertyPolicy::view` n'accorde qu'à l'auteur du bien, au personnel de son agence et au super-admin (lu, l. 45-58). `grep -rn -i collaborat app/Policies` ne trouve que des docblocks (mesuré).
+  - mesuré (test temporaire, L2 en `co_owner` du bien de L1) : `GET /api/properties/{id}` → 403 ; `GET …/collaborators` → 403 ; `GET /api/leases/{id}` du bail du bien → 403 ; `GET /api/leases` et `GET /api/properties` → 200 avec 0 ligne. Passé en `viewer`, `GET /api/properties/{id}` → 403 encore.
+  - Les services de relevé, de reversement et de loyer ne lisent pas `property_collaborators` (mesuré : `grep -rln "collaborators\|PropertyCollaborator\|CollaboratorRole" app` ne les liste pas).
+  - D-66 n'a pas de ticket « sur décision du porteur ». Sa condition de réouverture est la fusion de TCK-587 (lu, `docs/ardoise.md`). TCK-587 est `done` (lu, frontmatter).
+  - `docs/features.md:89` dit le rôle « sans permission propre au collaborateur ». Le front affiche pourtant `viewer` sous le libellé « Lecture seule » (lu, `fr.json:1427`), qui promet une lecture que l'API ne donne pas.
+- Piste : rendre D-66 au porteur, sa condition étant remplie : ouvrir une lecture aux deux rôles (bien, baux, loyers, à décider), ou retirer `co_owner` et `viewer` de l'enum et du libellé. Choix de produit. En attendant, un libellé qui ne promet pas de lecture.
+
+### Une part de commission posée sur un `co_owner` ou un `viewer` compte dans le plafond de 100 % et n'est jamais versée
+- Réf : P86.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:178-218`, `takussan-api/app/Http/Requests/Api/StorePropertyCollaboratorRequest.php:36-50`, `takussan-api/app/Services/Commission/CommissionLedgerService.php:52-71`
+- Constat :
+  - `commission_share` est accepté pour tout rôle (lu, règles de `store` et `update`). Le plafond additionne les parts de **toutes** les lignes du bien (lu, `sum('commission_share')`, l. 212).
+  - Le grand livre ne sert que les lignes `role = agent` du personnel. Le négociateur est plafonné à `100 − Σ` de ces seules parts (lu, `CommissionLedgerService.php:52-71`, ADR-0049 § 3).
+  - mesuré (test temporaire) : L2 ajouté en `co_owner` avec `commission_share = 70` → 201. Un agent de l'agence ajouté ensuite avec 40 → 422 (`commission_share`, « cannot exceed 100% »).
+  - Les 70 % ne sont versés à personne, et ils empêchent de donner plus de 30 % aux agents. Au grand livre, ils ne réduisent pas non plus le plafond du négociateur. Le même écart vaut pour `manager` : la base de développement porte 231 lignes `manager`, toutes avec une part, pour une somme de 6 835,75 (mesuré, `SELECT role, count(*), sum(commission_share) FROM property_collaborators GROUP BY role`).
+- Piste : soit refuser `commission_share` hors du rôle `agent` (422, et retirer ou annuler la part au changement de rôle), soit borner le plafond aux parts que le grand livre sert. Le premier suit ADR-0049 § 3. Test : `co_owner` avec part → 422, ou agent à 40 accepté après un `co_owner` à 70.
+
+### Deux chemins donnent à tout collaborateur « accepté », `viewer` compris, ce que `PropertyPolicy` lui refuse : agenda et quittances
+- Réf : P86.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Calendar/CalendarEventCollector.php:152-164`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:155-172`, `takussan-api/tests/Feature/Api/ReceiptPdfTest.php:81-118`
+- Constat :
+  - `scopeVisibleProperties` ajoute les biens dont l'appelant est collaborateur avec `accepted_at` non nul, sans condition de rôle (lu, l. 159-162, « branche conservée telle quelle (dette D-66) »). La même méthode sert l'agenda et le flux iCalendar (lu, `CalendarController`, `CalendarFeedController`).
+  - `authorizeReceipt` accorde la quittance de tout bail du bien à un collaborateur accepté de n'importe quel rôle, sans exiger qu'il soit du personnel (lu, l. 166-169). `ReceiptPdfTest:81-118` le garde avec un compte sans aucun profil.
+  - mesuré (test temporaire) : L2 en `viewer`, `accepted_at` posé à la main, une réservation confirmée sur le bien → `GET /api/calendar?types[]=booking` → 200 avec la réservation (référence, dates, titre du bien), alors que `GET /api/properties/{id}` → 403.
+  - Aujourd'hui, rien dans `app/` n'écrit `property_collaborators.accepted_at` (mesuré, `grep -rn accepted_at app`). Seul `PropertyCollaboratorSeeder` le remplit. Ces branches sont donc mortes hors des données semées : elles s'ouvriront avec le premier parcours d'acceptation, pour les quatre rôles.
+- Piste : borner ces deux branches aux rôles `agent` et `manager` encore personnel de l'agence, comme `BookingStakeholders::collaboratorsOf`. Ou les retirer, si l'acceptation n'a pas de sens métier (models-spec, `accepted_at`). Test : un `viewer` accepté ne voit ni l'événement ni la quittance.
+
+### Petites améliorations
+- Réf : P86.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Review/ReceivedReviews.php:48-52`, `takussan-api/app/Services/Property/PropertyDuplicationService.php:97-102`, `takussan-api/database/seeders/Catalog/PropertyCollaboratorSeeder.php:46-50`
+- Constat :
+  - `ReceivedReviews` range dans la boîte « avis reçus » les avis publiés de tout bien dont l'appelant est collaborateur, quel que soit son rôle et sans `accepted_at` (lu, l. 52). Un `co_owner` y lit les avis d'un bien qu'il ne peut pas ouvrir, et `ReviewPolicy::reply` lui refuse d'y répondre (lu, l. 57-71). Les avis sont publiés, donc publics : l'effet est un écart de périmètre, pas une fuite.
+  - La copie d'un bien avec `copy_collaborators` recrée les lignes (rôle et part compris) sans rejuger `CollaboratorEligibleForProperty` (lu, l. 97-102). Un `co_owner` qui n'est plus bailleur de l'agence est recopié (à vérifier : la copie peut-elle changer d'agence ?).
+  - Le seeder ne crée que des rôles `agent` et `manager` (lu, l. 46-50). La base de développement n'a aucune ligne `co_owner` ni `viewer` (mesuré, même `SELECT` qu'en P86.03). Aucun écran ne les montre donc en local.
+  - Le front n'a aucun appelant de `POST`, `PUT` ou `DELETE …/collaborators` (mesuré, `grep -rn collaborators takussan-web/src`). Ces deux rôles ne naissent que par un appel direct à l'API ou par une copie.
+- Piste : borner `ReceivedReviews` aux rôles qui répondent pour le bien ; rejuger l'éligibilité à la copie ; semer au moins un `co_owner` et un `viewer` pour que l'écran les montre.
