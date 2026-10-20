@@ -6331,7 +6331,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### La création d'une tâche énumère les comptes de la plateforme, et ses fiches clients
 - Réf : P62.03
-- Statut : validé — (a) comme P62.01 : retirer `exists:users,id` et rendre 404 quand `attachTo` refuse, comme `DocumentController::store()` (porteur, 2026-10-20)
+- Statut : fait · TCK-1069
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreTaskRequest.php:27-30,51`, `takussan-api/app/Http/Controllers/Api/TaskController.php:53-69,89-109`
 - Constat :
@@ -6341,6 +6341,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Établi comment : lu, et test temporaire.
 - Piste : retirer `exists:users,id` (l'assigné est déjà jugé par `authorizeAssignee`) et rendre 404 quand `attachTo` refuse, comme `DocumentController::store()` depuis TCK-732 (P03.06). Test : compte absent et compte existant, parent absent et parent tiers, mêmes réponses.
 - Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `StoreTaskRequest.php:51` (`assigned_to_id` : `exists:users,id`, `authorize()` rend `true`) ; test temporaire retiré, compte sans agence → `taskable_id` absent avec un compte existant : 404 `http.not_found`, avec un compte absent : 422 sur `assigned_to_id` ; fiche client tierce : 403 `http.forbidden`, absente : 404. Classement : V2, rendre 404 au lieu de 403 quand `attachTo` refuse change la réponse d'une autorisation à des appelants légitimes, comme pour P03.06.
+- Mesure (2026-10-20, 8dd5b10d6, implementeur) : avant correctif, `TaskExistenceOracleTest` neuf → 5 rouges sur 5 : parent absent avec un compte existant 404, avec un compte absent 422 sur `assigned_to_id` ; fiche client et bien tiers 403 contre 404 absents ; `assigned_to_id=abc` → 500 ; correctif (`integer` sans `exists:`, `find()` puis 404 quand le parent manque ou que `attachTo` refuse, contrôle d'existence de l'assigné sur le chemin du super-admin, exception retirée d'`ExistsSurRouteOuverteTest`, `TaskTest` et `TaskAuthorizationTest` attendent 404 pour la fiche tierce) → 5 verts, 55 verts sur les classes qui citent la route ; ablations : FormRequest d'origine → 4 rouges, contrôleur d'origine → 2 rouges.
 
 ### Quatre routes disent quels baux existent, et deux quelles demandes d'intervention
 - Réf : P62.04
