@@ -17,7 +17,7 @@ use Tests\TestCase;
  *
  *   · d'un mandataire de confiance, Laravel ne croit que `X-Forwarded-For`, `-Proto` et `-Port`.
  *     L'hôte et le préfixe ne viennent pas d'un en-tête : les URL rendues par l'API (`url()`,
- *     routes signées) gardent l'hôte de la requête ;
+ *     routes signées) portent l'origine d'`APP_URL` (TCK-1058, `RacineDesUrlTest`) ;
  *   · la liste d'IP des webhooks compare par `IpUtils::checkIp` : plages CIDR et IPv6 sous
  *     n'importe quelle écriture ;
  *   · `TRUSTED_PROXIES=*` ne croit personne (le découpage en fait `['*']`, que `TrustProxies` ne

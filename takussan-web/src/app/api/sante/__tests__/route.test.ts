@@ -40,9 +40,11 @@ describe('GET /api/sante', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ api: 'ok' });
     expect(urlAppelee()).toBe('http://takussan-api-preview:8080/up');
-    // Les en-têtes du chemin interne : le nom public de l'API, comme pour toute lecture serveur.
+    // Les en-têtes du chemin interne, comme pour toute lecture serveur : le schéma public, jamais
+    // l'hôte (TCK-1058, P73.01 : l'API tire l'hôte de ses URL d'`APP_URL`).
     const enTetes = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
-    expect(enTetes['X-Forwarded-Host']).toBe('api.publique.test');
+    expect(enTetes['X-Forwarded-Proto']).toBeTruthy();
+    expect(enTetes['X-Forwarded-Host']).toBeUndefined();
   });
 
   it('retombe sur API_URL quand API_INTERNAL_URL est absente', async () => {

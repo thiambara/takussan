@@ -53,7 +53,8 @@ class LAfricaMobileSmsStatusController extends Controller
         if (! SmsWebhookUrlToken::accepts('lafricamobile', (string) $request->route('token'), config())) {
             abort(404);
         }
-        if (! $request->hasValidSignatureWhileIgnoring(self::LAM_QUERY_PARAMS)) {
+        // TCK-1059 (P73.02) — relative, comme l'émission (`RelativeSignedUrl`).
+        if (! $request->hasValidSignatureWhileIgnoring(self::LAM_QUERY_PARAMS, false)) {
             abort_code(403, 'webhook.signature_invalid');
         }
         // TCK-602 — l'IP (`restrict.ip`), le jeton et la signature d'URL ont passé.

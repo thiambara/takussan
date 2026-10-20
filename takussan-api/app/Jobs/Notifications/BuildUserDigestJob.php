@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Notifications;
 
+use App\Http\Controllers\NotificationUnsubscribeController;
 use App\Mail\NotificationDigestMail;
 use App\Models\Enums\EmailFrequency;
 use App\Models\User;
@@ -13,7 +14,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\URL;
 
 /**
  * TCK-103 — Per-user digest job dispatched by SendNotificationDigestJob.
@@ -56,7 +56,7 @@ class BuildUserDigestJob implements ShouldQueue
         }
 
         $truncated = $all->count() >= DigestBuilderService::MAX_NOTIFICATIONS;
-        $unsubscribeUrl = URL::signedRoute('notifications.unsubscribe', ['user' => $this->user->id]);
+        $unsubscribeUrl = NotificationUnsubscribeController::signedUrl($this->user);
 
         try {
             Mail::to($this->user->email)->send(new NotificationDigestMail(

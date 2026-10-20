@@ -6,9 +6,9 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\KycDossier;
 use App\Services\Kyc\SharedLegalIdentifierDetector;
+use App\Support\RelativeSignedUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\URL;
 
 class KycDossierResource extends BaseResource
 {
@@ -81,7 +81,7 @@ class KycDossierResource extends BaseResource
                 'document_expires_at' => $this->calendarDate(
                     is_string($date = $media->getCustomProperty('expires_at')) && $date !== '' ? Carbon::parse($date) : null,
                 ),
-                'signed_url' => URL::temporarySignedRoute('kyc.documents.show', now()->addMinutes(15), ['media' => $media->id]),
+                'signed_url' => RelativeSignedUrl::temporary('kyc.documents.show', now()->addMinutes(15), ['media' => $media->id]),
                 'expires_at' => $this->iso(now()->addMinutes(15)),
             ])->values()->all(),
             'created_at' => $this->iso($dossier->created_at),

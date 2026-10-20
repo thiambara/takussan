@@ -65,7 +65,7 @@ class DepositRefundAttachmentLinksTest extends TestCase
 
         $this->assertSame($media->id, $attachment['id']);
         $this->assertStringStartsWith(url("/api/media/{$media->id}/file?"), $attachment['url']);
-        $this->assertTrue(URL::hasValidSignature(request()->create($attachment['url'])));
+        $this->assertTrue(URL::hasValidSignature(request()->create($attachment['url']), absolute: false));
         parse_str((string) parse_url($attachment['url'], PHP_URL_QUERY), $query);
         $this->assertEqualsWithDelta(
             now()->addMinutes(PrivateMediaAccess::SIGNED_ROUTE_TTL_MINUTES)->getTimestamp(),
