@@ -84,9 +84,11 @@ class InventoryController extends Controller
     {
         $data = $request->validated();
 
-        $lease = Lease::findOrFail($data['lease_id']);
         $user = $request->user();
 
+        // TCK-1070 (P62.04) — un bail absent reçoit le refus d'un bail que l'appelant ne gère pas.
+        $lease = Lease::query()->find((int) $data['lease_id']);
+        abort_if($lease === null, 403);
         $this->authorize('update', $lease);
 
         $inventory = $this->inventories->create($lease, $user, $data);

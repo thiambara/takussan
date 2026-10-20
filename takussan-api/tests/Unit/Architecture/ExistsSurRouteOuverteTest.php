@@ -25,10 +25,7 @@ class ExistsSurRouteOuverteTest extends TestCase
     private const EXCEPTIONS = [
         'Api/StoreLeaseRequest.php' => 'P62.01',
         'Api/StoreTaskRequest.php' => 'P62.03',
-        'InventoryStoreRequest.php' => 'P62.04',
-        'Api/StoreMaintenanceRequestRequest.php' => 'P62.04, P62.06',
-        'Api/StoreConversationRequest.php' => 'P62.04, P62.06',
-        'Conversation/CreateGroupConversationRequest.php' => 'P62.04',
+        'Api/StoreMaintenanceRequestRequest.php' => 'P62.06',
         'Search/SearchQueryRequest.php' => 'P62.05',
         'Api/StorePropertyVisitRequest.php' => 'P62.06',
         'Api/IndexCalendarRequest.php' => 'P62.06, P62.07',

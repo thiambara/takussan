@@ -41,7 +41,9 @@ class StoreMaintenanceRequestRequest extends BaseFormRequest
     {
         return [
             'property_id' => ['required', 'exists:properties,id'],
-            'lease_id' => ['nullable', 'exists:leases,id'],
+            // TCK-1070 (P62.04) — pas d'`exists:leases,id` : le contrôleur juge le bail, et rend le même
+            // refus à un bail absent et à un bail que l'appelant ne voit pas.
+            'lease_id' => ['nullable', 'integer'],
             // TCK-592 — un compte assignable au bien visé (prestataire actif en collaboration active
             // avec son agence, ou membre de son équipe).
             'assigned_to' => ['nullable', 'integer', new AssignableProvider($this->targetProperty())],
