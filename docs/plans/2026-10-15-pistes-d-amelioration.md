@@ -6421,7 +6421,7 @@ d'export de l'angle 77.*
 
 ### Le lien de l'export d'audit asynchrone d'une agence peut servir le journal d'une autre agence, ou celui de toute la plateforme
 - Réf : P63.01
-- Statut : fait · TCK-1050
+- Statut : fait · TCK-1054
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:39-49`, `takussan-api/app/Services/Audit/ActivityLogExporter.php:51-57`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:44,59-71`, `takussan-api/routes/api/audit-log.php:22-24`
 - Constat :

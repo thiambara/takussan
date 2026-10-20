@@ -74,7 +74,7 @@ class CrossTenantAuditExportTest extends ApiTestCase
 
         $url = $this->apiGet('/api/admin/audit/export')->json('data.url');
 
-        // TCK-1050 — le lien porte le fichier par son nom opaque (`file=`), plus par son chemin.
+        // TCK-1054 — le lien porte le fichier par son nom opaque (`file=`), plus par son chemin.
         $this->assertStringContainsString('file=', $url);
         $this->get(str_replace('file=', 'file=x', $url))->assertForbidden();
     }

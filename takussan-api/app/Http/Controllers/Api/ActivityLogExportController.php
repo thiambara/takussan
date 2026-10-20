@@ -57,7 +57,7 @@ class ActivityLogExportController extends Controller
     /**
      * Serve an async export file via signed temporary URL (TTL 24h).
      *
-     * TCK-1050 (P63.01) — le lien est lié à son demandeur : `user`, `file` et `name` sont signés
+     * TCK-1054 (P63.01) — le lien est lié à son demandeur : `user`, `file` et `name` sont signés
      * ensemble, et le fichier ne se cherche que dans le dossier du demandeur signé, qui doit
      * toujours exister. Un lien ne sert donc que le fichier écrit pour celui qui l'a reçu.
      */
