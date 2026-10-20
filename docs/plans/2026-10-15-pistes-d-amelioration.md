@@ -6377,7 +6377,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### Le calendrier, la visite et l'intervention disent quels biens existent, brouillons compris
 - Réf : P62.06
-- Statut : validé — (a) comme P62.01 : retirer `exists:properties,id` là où la visibilité est déjà jugée, avec la réponse du refus pour un absent (porteur, 2026-10-20)
+- Statut : fait · TCK-1072
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/IndexCalendarRequest.php:26,37-40`, `takussan-api/app/Http/Requests/Api/StorePropertyVisitRequest.php:45,99`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:119-128`, `takussan-api/app/Http/Requests/Api/StoreMaintenanceRequestRequest.php:43`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:92-103`, `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:51`
 - Constat :
@@ -6389,6 +6389,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Établi comment : lu, et test temporaire pour les deux premières.
 - Piste : retirer `exists:properties,id` là où le contrôleur ou le collecteur juge déjà la visibilité, avec la réponse du refus pour un absent. Test par route.
 - Mesure (2026-10-20, 0ba226223, mesureur) : test temporaire retiré, compte sans agence, bien `draft` d'une agence tierce → `GET /api/calendar` `property_id` brouillon 200, absent 422 sur `property_id` ; `property_ids[]` brouillon 200, absent 422 sur `property_ids.0` (mesuré, le constat le laissait non mesuré) ; `POST /api/property-visits` brouillon 422 sur `scheduled_at` seul, absent 422 sur `property_id` et `scheduled_at` ; `POST /api/maintenance-requests` brouillon 422 sans `property_id`, absent 422 avec `property_id`. Classement : V2, même forme que P62.01 à P62.04.
+- Mesure (2026-10-20, b4eb809ba, implementeur) : avant correctif, `PropertyContextExistenceOracleTest` neuf, compte sans agence, brouillon d'une agence tierce → 3 rouges : calendrier 200 et agenda vide contre 422 sur `property_id` pour un absent ; visite 403 `visit.property_unavailable` contre 422 ; intervention 403 contre 422 ; correctif (`integer` sans `exists:`, bien absent → la réponse du refus dans les deux contrôleurs ; la partie conversation est faite par TCK-1070) → 3 verts ; ablation : correctif retiré → 3 rouges ; `CalendarTest::test_calendar_rejects_unknown_property_id` épinglait le 422 de l'inconnu et attend désormais l'agenda vide (et 422 pour `abc`) ; 338 verts sur les vingt-deux classes voisines.
 
 ### Petites améliorations : identifiants d'agence, de profil et de rôle
 - Réf : P62.07
