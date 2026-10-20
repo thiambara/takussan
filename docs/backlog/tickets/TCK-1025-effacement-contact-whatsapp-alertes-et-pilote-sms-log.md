@@ -1,7 +1,7 @@
 ---
 id: TCK-1025
 title: "L'effacement retire le contact WhatsApp et les alertes sans compte du compte, et le pilote SMS `log` ne journalise plus ni le numéro ni le texte"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -36,22 +36,22 @@ contact vérifié, et le pilote `log` ne journalise plus un numéro entier ni un
 
 ## Delta à produire
 
-- [ ] `AccountDeletionService::anonymize()` : relever, avant le `forceFill`, l'adresse si
+- [x] `AccountDeletionService::anonymize()` : relever, avant le `forceFill`, l'adresse si
       `email_verified_at` est posé et chaque numéro (`phone`, `secondary_phone`) dont la date de
       vérification est posée ; après, supprimer les `WhatsappContact` de ces numéros et les
       `AlertSubscriber` de ces contacts (par `contact_hash`, recherches en cascade).
-- [ ] `LogSmsDriver::send()` : `phone_suffix` (4 derniers caractères) à la place de `to`, et la
+- [x] `LogSmsDriver::send()` : `phone_suffix` (4 derniers caractères) à la place de `to`, et la
       longueur du message à la place de son texte.
-- [ ] Tests : `AccountDeletionExecuteTest` (contact WhatsApp, alertes), `LogSmsDriverTest`.
+- [x] Tests : `AccountDeletionExecuteTest` (contact WhatsApp, alertes), `LogSmsDriverTest`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Après `executeDeletion()`, aucun `WhatsappContact` au numéro vérifié du compte ; celui
+- [x] AC1 — Après `executeDeletion()`, aucun `WhatsappContact` au numéro vérifié du compte ; celui
       d'un autre numéro reste, et celui d'un numéro **non vérifié** du compte aussi.
-- [ ] AC2 — Après `executeDeletion()`, aucune `AlertSubscriber` à l'adresse vérifiée (quelle que
+- [x] AC2 — Après `executeDeletion()`, aucune `AlertSubscriber` à l'adresse vérifiée (quelle que
       soit la casse saisie) ni au numéro vérifié du compte, ni leurs recherches ; une alerte d'un
       autre contact reste.
-- [ ] AC3 — Un envoi par le pilote `log` ne laisse au journal ni le numéro complet ni le texte du
+- [x] AC3 — Un envoi par le pilote `log` ne laisse au journal ni le numéro complet ni le texte du
       message ; il y laisse les 4 derniers caractères du numéro.
 
 ## Hypothèses (mode sans humain)
@@ -73,4 +73,10 @@ contact vérifié, et le pilote `log` ne journalise plus un numéro entier ni un
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Avant correctif : 3 rouges (contact WhatsApp et alertes survivants, code au journal).
+  Ablations, rejouées sur les deux classes (14 tests) : suppression du contact WhatsApp retirée →
+  1 rouge ; suppression des alertes retirée → 1 rouge ; pilote `log` d'origine → 1 rouge ; filtre
+  « vérifié » retiré (tout numéro du compte) → 1 rouge, le contact du numéro non vérifié part.
+  Remis → 14 verts.
+- `whatsapp_contacts.phone` et l'empreinte d'une alerte WhatsApp sont en E.164 sans espaces :
+  le numéro du compte est débarrassé de ses espaces avant comparaison (`+221 77 …` dans le test).
