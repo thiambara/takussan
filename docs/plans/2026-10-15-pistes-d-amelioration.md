@@ -7642,7 +7642,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 
 ### Un reversement de la plateforme clos avant un remboursement est approuvé et payé avec la ligne remboursée
 - Réf : P76.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : refus d'approuver ou de payer un reversement de la plateforme
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:109-169`, `:200-233`, `:236-343`
 - Constat :
@@ -7651,10 +7651,11 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - La plateforme a donc rendu 100 000 au locataire et versé 95 000 à l'agence pour le même loyer. P39.07 l'avait déduit pour un reversement déjà payé ; la mesure montre que les deux gestes qui suivent la clôture ne l'arrêtent pas non plus.
   - Établi comment : lu, puis mesuré de bout en bout par les routes `/api/admin/payouts/*`.
 - Piste : à `approve()` et `markPaid()`, refuser (422 `platform_payout.items_changed`) un reversement dont une ligne n'est plus `paid`, ce qui renvoie à `cancel()` puis à une nouvelle clôture ; pour un reversement déjà `paid`, au moins un signalement à la console (le choix entre signaler et compenser est celui de P39.07). Garde : le scénario mesuré en test.
+- Mesure (2026-10-20, 740c8247f, mesureur) : lu `PlatformPayoutService::approve()` (l. 109-136) et `markPaid()` (l. 144-170) : ni l'un ni l'autre ne relit les lignes, `cancel()` seul remet `platform_payout_id` à nul (l. 178-181), `breakdown()` agrège par `platform_payout_id` sans filtre de statut (l. 207-215) ; test temporaire `tests/Feature/Tmp/MesureurTmp76Test.php` (retiré), charge 2,85 / 3,26 / 3,19 sur 8 cœurs : loyer de 100 000 soldé par l'intégration globale, `close-period` → reversement `pending`, puis `applyEventToMatchingPayment` d'un remboursement de 100 000 → échéance `refunded`, `refund_amount = 100000`, `paid_amount = 0`, `platform_payout_id` toujours posé ; `approve` → 200, `mark-paid` → 200, reversement `paid` (le `breakdown` n'a pas été relu par la route) → le constat tient. Classement : V1, le correctif bloque le versement d'un reversement et touche à la suite d'un reversement déjà payé (signaler ou compenser, P39.07).
 
 ### Un remboursement partiel fait sortir toute la ligne de l'encaissé, de la clôture de la plateforme et du reversement au bailleur
 - Réf : P76.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : assiette de l'encaissé, de la clôture et du reversement ; choix d'ADR-0057 § 2
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:12-23`, `:50`, `:65-79`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:251`, `:263`, `takussan-api/app/Services/Payout/PayoutCalculator.php:63`, `:87`, `takussan-api/app/Services/Model/BookingPaymentService.php:64-82`
 - Constat :
@@ -7665,10 +7666,11 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - `BOOKING_NET_SQL` (« ce qui a été payé, moins ce qui a été rendu », l. 49-50) et le docblock (« `BookingPayment` `paid`, montant − `refund_amount` », l. 17, repris d'ADR-0057 § 2) soustraient un `refund_amount` qui est toujours nul sur une ligne `paid` : la soustraction n'agit jamais.
   - Établi comment : lu, puis mesuré par le test temporaire.
 - Piste : faire compter une ligne `refunded` à hauteur de `amount − refund_amount` partout où `paid` compte (encaissé, clôture, `PayoutCalculator`, avec la commission sur cette base), ou ne passer à `refunded` qu'un remboursement total et garder la ligne `paid` avec son `refund_amount` pour un partiel. Le choix touche ADR-0057 § 2. Garde : les deux scénarios mesurés en test, sur chacun des trois lecteurs.
+- Mesure (2026-10-20, 740c8247f, mesureur) : lu `CollectedPayments::leaseIncome()`/`bookingIncome()` (filtre `paid`), `BOOKING_NET_SQL` (l. 50), `PlatformPayoutService.php:251` et `:263`, `PayoutCalculator.php:63` et `:87` (tous `status = paid`) ; `reportedRefundAmount` est désormais en `PaymentGatewayService.php:1125-1139` et s'applique l. 1180-1181 ; test temporaire `tests/Feature/Tmp/MesureurTmp76Test.php` (retiré), charge 2,85 / 3,26 / 3,19 sur 8 cœurs : loyer de 150 000 soldé par la plateforme, remboursé de 40 000 → `refunded`, `paid_amount = 110000`, `remaining_amount = 40000`, `close-period` → 201, `data = []`, `leaseIncome` → 0 ligne ; acompte de 50 000, `BookingPaymentService::refund` de 20 000 → `refunded`, `paid_amount = 30000`, `SUM(BOOKING_NET_SQL)` de 50 000 à 0 → le constat tient (`PayoutCalculator` lu, non rejoué). Classement : V1, l'assiette de l'encaissé, de la clôture et des reversements change, et la piste offre deux options qui touchent ADR-0057 § 2.
 
 ### Un reversement au bailleur préparé avant un remboursement est versé sans relire ses lignes
 - Réf : P76.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : refus de verser un reversement au bailleur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/PayoutService.php:202-268`, `:269-337`, `:401-471`, `:508-537`
 - Constat :
@@ -7677,10 +7679,11 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - Le remboursement par webhook s'applique aussi aux intégrations propres à l'agence (`LeaseDueFixture`, P39.01) : une échéance attachée à un reversement `pending` puis remboursée serait versée au bailleur (déduit, à vérifier : le scénario n'a pas été rejoué).
   - Établi comment : lu.
 - Piste : la même relecture que pour P76.01, à `approve()` et à `markProcessed()` (`payout.items_changed`), et le contrôle de statut repris dans `createLocked()`, sous le verrou. Garde : un test par geste.
+- Mesure (2026-10-20, 740c8247f, mesureur) : lu `PayoutService::createLocked()` (l. 405-433 : relit les lignes sous verrou sans revérifier `paid`), `assertItemsInScope()` (l. 519 et 534 : `paid` exigé, hors transaction) et `markProcessed()` (l. 288-294 : ne compare que `approved_net_amount`) ; test temporaire `tests/Feature/Tmp/MesureurTmp76Test.php` (retiré), charge 2,85 / 3,26 / 3,19 sur 8 cœurs : loyer de 100 000 soldé par l'intégration propre à l'agence, `POST /api/payouts` → 201 `pending`, remboursement de 100 000 par webhook sous l'autorité de cette intégration → échéance `refunded`, reversement toujours `pending` ; `mark-processed` → 200, reversement `completed`, net 100 000 → le scénario « à vérifier » est vérifié, le constat tient. Classement : V1, le correctif bloque le versement d'un reversement au bailleur.
 
 ### Un acompte soldé en ligne par la plateforme peut être déclaré remboursé par l'agence, et sort alors de la clôture
 - Réf : P76.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : qui rembourse un acompte encaissé par la plateforme ; V1
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/BookingPaymentService.php:53-91`, `takussan-api/app/Http/Requests/Api/RefundBookingPaymentRequest.php:32-48`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:245-254`
 - Constat :
@@ -7688,10 +7691,11 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - Une fois `refunded`, l'acompte n'entre plus dans la clôture de la plateforme (lu, l. 251). Si l'agence a rendu l'argent de sa poche, la plateforme garde l'acompte qu'elle avait encaissé ; si personne n'a rien rendu, le locataire voit un remboursement qui n'a pas eu lieu (déduit, à vérifier : qui rend un acompte encaissé par la plateforme n'est écrit ni dans ADR-0039 ni dans le code).
   - Établi comment : lu.
 - Piste : décider qui rembourse un payable encaissé par la plateforme (V7) ; à défaut, refuser le geste manuel sur un acompte soldé par une intégration globale tant qu'aucun remboursement n'est reçu du fournisseur, ou le garder dans la clôture à hauteur de ce qui reste dû à l'agence. Garde : le cas en test.
+- Mesure (2026-10-20, 740c8247f, mesureur) : lu `BookingPaymentService::refund()` (l. 53-91) : il n'exige que `paid` et `refund_amount ≤ amount`, sans lire `metadata.gateway.settled_by` ni l'intégration ; `PlatformPayoutService.php:251` ne prend que les acomptes `paid` dans la clôture ; `grep -rln "P76\." docs/backlog/tickets` → aucun ticket → le constat tient sur le code ; qui rend un acompte encaissé par la plateforme reste non écrit (non rejoué de bout en bout). Classement : V7, la piste demande d'abord un choix de produit (qui rembourse), et chacune de ses options touche un paiement (V1).
 
 ### Un loyer remboursé n'est plus ni encaissé, ni dû, ni payable
 - Réf : P76.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : sort d'un loyer remboursé ; V1
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:41`, `:83-91`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:94-96`, `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:121-128`
 - Constat :
@@ -7700,10 +7704,11 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - Remboursé en entier, le loyer du mois disparaît de tous les compteurs, alors que le bail court toujours (déduit, à vérifier : rien ne dit si le remboursement d'un loyer l'annule ou le rend de nouveau dû).
   - Établi comment : lu, et mesuré pour le remboursement partiel.
 - Piste : choisir ce que devient l'échéance d'un loyer remboursé (V7) : rouverte (dû `= refund_amount`), annulée avec trace, ou remplacée par une échéance neuve. Garde : un test sur `leaseOwed` et `isPayable` pour le choix retenu.
+- Mesure (2026-10-20, 740c8247f, mesureur) : lu `CollectedPayments::OWED_STATUSES` (l. 41, sans `refunded`) et la matrice `HasPaymentAttributes` (`Refunded` terminal, l. 94) ; test temporaire `tests/Feature/Tmp/MesureurTmp76Test.php` (retiré), charge 2,85 / 3,26 / 3,19 sur 8 cœurs : échéance de 150 000 soldée puis remboursée de 40 000 → `refunded`, `remaining_amount = 40000`, `leaseOwed` → 0 ligne → le constat tient. Classement : V7, la piste demande de choisir ce que devient l'échéance (rouverte, annulée, remplacée), et chaque option touche une échéance due (V1).
 
 ### Petites améliorations
 - Réf : P76.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : champ et colonne d'export neufs
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Resources/LeasePaymentResource.php:32-33`, `takussan-api/app/Services/Export/ExportDataService.php:43-71`
 - Constat :
@@ -7711,3 +7716,4 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - **Export des paiements.** Il exporte `amount` et `status`, sans `refund_amount` (lu, l. 46 et 71). Une ligne remboursée en partie s'exporte avec son montant facial.
   - Établi comment : lu.
 - Piste : ajouter `refund_amount` à `LeasePaymentResource` et une colonne `refund_amount` (ou `net_amount`) à l'export des paiements.
+- Mesure (2026-10-20, 740c8247f, mesureur) : lu `LeasePaymentResource.php:23-41` (`amount`, `paid_amount`, `remaining_amount`, `late_fee_amount`, `amount_due`, pas de `refund_amount`) et `BookingPaymentResource.php:24` (qui l'expose) ; `ExportDataService.php` sélectionne et rend `amount` et `status` sans `refund_amount` (colonnes l. 46 et 71) → les deux points tiennent. Classement : V7, ni la spec ni un ticket n'écrivent ce champ ou cette colonne, et le choix entre `refund_amount` et `net_amount` à l'export reste ouvert.
