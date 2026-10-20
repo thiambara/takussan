@@ -7,6 +7,7 @@ use App\Models\Activity;
 use App\Models\AlertSubscriber;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Document;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\InvoiceStatus;
@@ -373,6 +374,13 @@ class AccountDeletionService
                 'updated_at' => now(),
             ]);
 
+        // TCK-1061 (P64.02) — les profils du compte reçoivent une date de fin (`deleted_at`), d'où
+        // partira la purge à « fin + 5 ans » de la politique (TCK-537). Leurs pièces restent,
+        // mais le nom de fichier choisi par la personne, sur la pièce et sur ses médias, cède la
+        // place au type. Les profils déjà terminés (agent retiré de l'agence) comptent aussi.
+        // Décision du porteur, 2026-10-20.
+        $this->endProfiles($user);
+
         // TCK-1025 (P57.05) — le contact WhatsApp et les alertes sans compte du contact vérifié
         // partent avec le compte (décision du porteur, 2026-10-19). Les recherches des alertes
         // suivent par la FK en cascade.
@@ -534,6 +542,32 @@ class AccountDeletionService
             ->orderBy('scheduled_for')
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * TCK-1061 (P64.02) — termine les profils du compte et retire le nom d'origine de leurs pièces.
+     */
+    private function endProfiles(User $user): void
+    {
+        foreach (Document::PROFILE_TYPES as $profileClass) {
+            $ids = $profileClass::withTrashed()->where('user_id', $user->id)->pluck('id');
+            if ($ids->isEmpty()) {
+                continue;
+            }
+
+            Document::withTrashed()
+                ->where('documentable_type', $profileClass)
+                ->whereIn('documentable_id', $ids)
+                ->with('media')
+                ->get()
+                ->each(function (Document $document): void {
+                    $label = $document->type?->value ?? 'document';
+                    $document->forceFill(['name' => $label])->save();
+                    $document->media->each(fn ($media) => $media->forceFill(['name' => $label])->save());
+                });
+
+            $profileClass::query()->whereIn('id', $ids)->get()->each->delete();
+        }
     }
 
     /**
