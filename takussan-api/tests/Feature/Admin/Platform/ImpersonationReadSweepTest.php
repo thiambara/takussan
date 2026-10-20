@@ -91,6 +91,8 @@ class ImpersonationReadSweepTest extends TestCase
         'upgradeRequest', 'dossier', 'event', 'channel', 'report', 'webhookLog', 'role', 'hash',
         'lead', 'dataExport', 'versionId', 'invitation', 'sp_profile', 'visit', 'city',
         'review', 'bill', 'tag', 'task',
+        // TCK-1051 — route `signed`, liée au demandeur : sans la signature du courriel, 403.
+        'reportExport',
     ];
 
     private User $cible;
