@@ -30,7 +30,6 @@ import { listerProfilsPublics, listerSlugsDeProfils } from '../queries/public-pr
 import { villesDuCatalogue } from '../queries/facettes';
 import { listerBiensDuSitemap } from '../queries/sitemap-catalogue';
 import { FRAICHEUR_FICHE_SECONDES, getProperty } from '../queries/public-property';
-import { origineApi } from '@/lib/config-publique';
 
 const headersMock = vi.mocked(headers);
 
@@ -204,7 +203,7 @@ describe('AC7 — la fiche se lit dans le cache de données, étiquetée par slu
 });
 
 describe('ADR-0052 §5 — le serveur joint l’API par son adresse interne', () => {
-  it('avec `API_INTERNAL_URL` : la base interne, et l’hôte public en X-Forwarded-*, identiques pour tous', async () => {
+  it('avec `API_INTERNAL_URL` : la base interne, le schéma et le port publics en X-Forwarded-*, identiques pour tous, jamais l’hôte (P73.01)', async () => {
     vi.stubEnv('API_INTERNAL_URL', 'http://api:8080/');
     requeteEntrante('203.0.113.1');
 
@@ -215,7 +214,8 @@ describe('ADR-0052 §5 — le serveur joint l’API par son adresse interne', ()
     expect(parFetch!.url).toBe('http://api:8080/api/public/test');
     expect(parRequest!.url).toBe('http://api:8080/api/test');
     for (const { entetes } of [parFetch!, parRequest!]) {
-      expect(entetes['X-Forwarded-Host']).toBe(new URL(origineApi()).hostname);
+      // TCK-1058 (P73.01) — l'API tire l'hôte de ses URL d'`APP_URL` : l'en-tête ne part plus.
+      expect(entetes['X-Forwarded-Host']).toBeUndefined();
       expect(entetes['X-Forwarded-Proto']).toMatch(/^https?$/);
       expect(entetes['X-Forwarded-Port']).toMatch(/^\d+$/);
     }
