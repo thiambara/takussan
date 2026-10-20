@@ -152,7 +152,7 @@ voie d'écriture (angle 13, puis 47).
 | 77 | Fichiers du disque `local` dans le volume `storage` des conteneurs (archives d'export RGPD, exports de rapports) : écrits par `worker`, servis par `api`, purge réelle, taille, et ce qui reste après `PurgeExpiredDataExports` | fait |
 | 78 | Pic mémoire des jobs qui accumulent tout en tableau avant d'écrire (export RGPD `DataExportBuilder`, exports de rapports `GenerateReportExport`, relevés OFX) face à `memory_limit = 256M` et aux `mem_limit` des workers | fait |
 | 79 | Appels du serveur Next vers l'API sans délai (`apiFetch`, `apiRequest`, relais BFF : aucun `AbortSignal.timeout`) : rendu d'une page publique ou d'une action quand l'API répond lentement, face au `requestTimeout` de Node (300 s) et aux délais de Traefik | fait |
-| 80 | Champs envoyés par les formulaires montés du front et écartés en silence par `validated()` (aucune règle dans le FormRequest), et champs `required` jamais envoyés : reste de l'angle 45, non relevé | à faire |
+| 80 | Champs envoyés par les formulaires montés du front et écartés en silence par `validated()` (aucune règle dans le FormRequest), et champs `required` jamais envoyés : reste de l'angle 45, non relevé | fait |
 | 81 | État du bail face aux écritures d'argent (création d'échéance, `mark-paid`, lien de paiement, pénalité, restitution) sur un bail `draft`, `pending_signature`, `terminated` ou `renewed` | à faire |
 | 82 | Routes qui jugent un bailleur ou un membre par `landlord_id === user.id`, `user_id ===` ou `staffAgencyId()` en dur, au lieu de `landlordWrites` / `isStaffAt` / la policy : bailleur suspendu, rôle personnalisé sans la capacité, membre de plusieurs agences | à faire |
 | 83 | Clés des colonnes JSON hors `agencies.settings` (`agencies.metadata`, `users`, `properties`, `leases`, `customers` : `metadata`, `settings`, `preferences`) : lues sans écrivain, écrites sans lecteur — le relevé de l'angle 47 sur les autres modèles | à faire |
@@ -187,6 +187,7 @@ voie d'écriture (angle 13, puis 47).
 | 111 | Jobs en file qui posent un statut de suivi (`processing`, `queued`) sur une ligne (`ReportExport`, `DataExport`, `ParseBankStatementJob`, versements) sans `failed()` — 7 jobs sur 43 en ont un : ce que voit l'utilisateur après l'échec définitif ou un arrêt brutal du worker, et ce qui bloque une nouvelle demande | à faire |
 | 112 | Exports synchrones de `ExportController` (`GET /api/exports/{entity}`, jusqu'à 10 000 lignes, 2 000 en PDF) et de `PrivacyRequestController` : requêtes par ligne des constructeurs d'entité, mémoire et durée dans la requête HTTP — le relevé de l'angle 78 sur les exports qui ne passent pas par un job | à faire |
 | 113 | Appels du navigateur vers l'API sans délai (`useApiQuery`, `apiRequest` client, mutations TanStack, `fetch` direct des composants) : bouton `isPending` figé et requête jamais abandonnée sur un réseau mobile qui ne coupe pas — le pendant client de l'angle 79 | à faire |
+| 114 | Champs écartés par `validated()` sur les modules `src/lib/queries/*.ts` de l à z et les server actions `src/app/actions/*.ts` : la moitié de l'angle 80 laissée sans relevé | à faire |
 
 ---
 
@@ -7982,3 +7983,49 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
 - Piste : le relais rend un statut et un corps JSON sur un rejet (P79.04), et le bandeau ignore une réponse non `ok` sans lever.
 - Mesure (2026-10-20, 7163372c5, mesureur) : relu `src/app/api/maintenance/status/route.ts:4-17` (`fetch` sans `catch`) et `src/components/maintenance/MaintenanceBanner.tsx:14-17,52` (`res.json()` sans test de `res.ok`, `refetchInterval: 60_000`) ; test temporaire vitest (retiré) : `GET()` avec un `fetch` qui rejette → lève `fetch failed`. Le bandeau masqué n'a pas été vu sur un rendu : `useQuery` en erreur laisse `data` vide, donc pas de bandeau (déduit), et une fois corrigé il resterait masqué, l'état de maintenance étant inconnu. Classement : V7, la partie relais dépend du statut et du code choisis en P79.04 ; la partie bandeau ne change rien de visible seule.
 - Mesure (2026-10-20, 1f632a3cc, delegue) : relu `takussan-web/src/app/api/maintenance/status/route.ts:4-17` et `src/components/maintenance/MaintenanceBanner.tsx:14-17,52` ; la partie bandeau (ignorer une réponse non `ok` sans lever) ne change rien de visible, la partie relais suit P79.04. Recommandation : la traiter avec P79.04, une fois choisis son statut et son code, et ajouter au bandeau le seul test de `res.ok` ; à ne pas valider seule : elle hérite du choix encore ouvert de P79.04 (V7) ; manque : la décision de P79.04.
+
+## Angle 80 — Champs envoyés par les formulaires et écartés par `validated()`
+
+*Exploré le 2026-10-20 sur `pre-dev` 52deccdf8, par l'explorateur. Le balayage vient d'un
+sous-agent, sur les modules `src/lib/queries/*.ts` de a à k (environ 60 mutations, aucun champ
+`required` jamais envoyé trouvé). Les deux écarts retenus ont été relus par l'explorateur. Les
+modules de l à z, les server actions et les écritures directes des composants n'ont **pas** été
+relevés : les deux sous-agents qui les couvraient ont été arrêtés avant leur rapport, faute de
+budget (angle 114). Les cas déjà connus (P13 `LeasePaymentDialog`, `settings` et `slug` d'agence)
+n'ont pas été rouverts.*
+
+### Le statut choisi à la création d'un client est écarté, et le client est enregistré « actif »
+- Réf : P80.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/customer-form/CustomerForm.tsx:308-313`, `takussan-web/src/lib/schemas/customer.ts:195`, `takussan-api/app/Http/Requests/Api/StoreCustomerRequest.php:40-49`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:49-68`
+- Constat :
+  - Le formulaire affiche le sélecteur `status` sans condition de mode, création comprise (lu, `CustomerForm.tsx:308-313`), et le corps l'envoie (lu, `customer.ts:195`).
+  - `StoreCustomerRequest::rules()` n'a pas de règle `status` (lu, `:40-49`) ; le trait `ValidatesCustomerContactAndCriteria` non plus (sous-agent). `UpdateCustomerRequest` l'accepte (sous-agent).
+  - Le contrôleur prend `$request->validated()` (lu, `CustomerController.php:49`) puis force `'status' => CustomerStatus::Active->value` dans le `create` (lu, `:65`). Une règle seule ne suffirait donc pas.
+  - Établi comment : lu.
+- Piste : soit retirer le sélecteur en création, soit accepter `status` dans `StoreCustomerRequest` et ne poser `Active` qu'à défaut. Un test de création qui envoie `status=inactive` et relit la ligne le garde.
+
+### Le nombre de voyageurs du tunnel de réservation est exigé du visiteur et jamais enregistré
+- Réf : P80.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/lib/schemas/booking.ts:27-31`, `takussan-web/src/components/bookings/BookingTunnel.tsx:49,151,358`, `takussan-api/app/Http/Requests/Api/StoreBookingRequest.php:33-47`, `takussan-api/app/Http/Controllers/Api/BookingController.php:49-52`
+- Constat :
+  - `guests` est un champ obligatoire de la première étape du tunnel (lu, `BookingTunnel.tsx:49,358` ; schéma min 1 max 20, sous-agent) et part dans le corps de `POST /api/bookings` (lu, `:151`).
+  - `StoreBookingRequest` n'a pas de règle `guests` (mesuré : `grep -n guests` → rien) ; le contrôleur ne passe que `$request->validated()` au service (lu, `BookingController.php:49-52`), et `grep -rn guests app/Services` ne rend rien (mesuré).
+  - Le flux public distinct range `guests` dans `metadata` (sous-agent : `BookingRequestPublicPropertyRequest.php:31`, `PublicPropertyController.php:1036`) : le choix existe déjà ailleurs.
+  - Établi comment : lu et mesuré.
+- Piste : accepter `guests` dans `StoreBookingRequest` et l'écrire comme le flux public (`metadata.guests`), ou retirer le champ du tunnel. Un test qui crée une réservation avec `guests=3` et relit la ligne le garde.
+
+### Aucune garde ne signale une clé envoyée par le front que le FormRequest ignore
+- Réf : P80.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/BaseFormRequest.php` (seuls `authorize`, `prepareForValidation`, `normalize`), `scripts/check-*.mjs`
+- Constat :
+  - `BaseFormRequest` ne relève ni ne journalise les clés hors règles (lu). Aucune des 54 gardes `scripts/check-*.mjs` ne compare un corps du front aux règles (mesuré : `ls scripts/check-*.mjs | wc -l` → 54 ; aucune ne lit `app/Http/Requests`, à vérifier une à une).
+  - Cinq écarts du même motif sont déjà relevés à la main (P80.01, P80.02, et ceux de `LeasePaymentDialog`, des `settings` et du `slug` d'agence) : chacun a été trouvé par lecture, aucun par un signal.
+  - Petit écart voisin : `AddParticipantsRequest.php:46` valide `role`, que `ConversationParticipantController.php:39` ne lit pas (`validated('user_ids')`). Le front ne l'envoie pas, mais le type `AddParticipantsPayload.role` laisse croire le contraire (sous-agent, à vérifier).
+  - Établi comment : lu, mesuré pour le compte ; l'absence de garde est à vérifier.
+- Piste : en local et en test, journaliser (ou faire échouer sous `APP_ENV=testing`) toute clé d'entrée absente des règles d'un `BaseFormRequest`, avec une liste d'exceptions explicite ; un test de non-vacuité renvoie `guests` sur `POST /api/bookings` et attend le signal.
