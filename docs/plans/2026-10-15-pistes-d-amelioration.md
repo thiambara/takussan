@@ -149,7 +149,7 @@ voie d'écriture (angle 13, puis 47).
 | 74 | Ce que joint sans authentification un service voisin de `dokploy-network` (Dokploy, Compose `donnees`, autres projets) : API sur 8080, Redis, Meilisearch (clé maîtresse ?), PostgreSQL, front Next — et l'alias `api` partagé entre projets | fait |
 | 75 | Classes `Notification` historiques de `AppDatabaseChannel::TYPES`, hors `NotificationCode` : sans `code` ni `target` dans la cloche, préférences lues à la main dans `via()`, couvertes par un test ? | fait |
 | 76 | Effets aval d'un paiement soldé puis passé à `refunded` : quittance déjà envoyée, ligne prise par un reversement de la plateforme (`platform_payout_id`) ou du propriétaire (`PayoutCalculator`), commission, exports et totaux de l'historique | fait |
-| 77 | Fichiers du disque `local` dans le volume `storage` des conteneurs (archives d'export RGPD, exports de rapports) : écrits par `worker`, servis par `api`, purge réelle, taille, et ce qui reste après `PurgeExpiredDataExports` | à faire |
+| 77 | Fichiers du disque `local` dans le volume `storage` des conteneurs (archives d'export RGPD, exports de rapports) : écrits par `worker`, servis par `api`, purge réelle, taille, et ce qui reste après `PurgeExpiredDataExports` | fait |
 | 78 | Pic mémoire des jobs qui accumulent tout en tableau avant d'écrire (export RGPD `DataExportBuilder`, exports de rapports `GenerateReportExport`, relevés OFX) face à `memory_limit = 256M` et aux `mem_limit` des workers | à faire |
 | 79 | Appels du serveur Next vers l'API sans délai (`apiFetch`, `apiRequest`, relais BFF : aucun `AbortSignal.timeout`) : rendu d'une page publique ou d'une action quand l'API répond lentement, face au `requestTimeout` de Node (300 s) et aux délais de Traefik | à faire |
 | 80 | Champs envoyés par les formulaires montés du front et écartés en silence par `validated()` (aucune règle dans le FormRequest), et champs `required` jamais envoyés : reste de l'angle 45, non relevé | à faire |
@@ -184,6 +184,7 @@ voie d'écriture (angle 13, puis 47).
 | 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | à faire |
 | 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | à faire |
 | 110 | Rapprochement bancaire (`bank_reconciled_at`, `bank_statement_line_id`, `Accounting\ReconciliationManager`) d'une échéance, d'un acompte ou d'une facture passés à `refunded` après rapprochement : la ligne de relevé reste-t-elle rapprochée, et le remboursement sortant a-t-il un pendant | à faire |
+| 111 | Jobs en file qui posent un statut de suivi (`processing`, `queued`) sur une ligne (`ReportExport`, `DataExport`, `ParseBankStatementJob`, versements) sans `failed()` — 7 jobs sur 43 en ont un : ce que voit l'utilisateur après l'échec définitif ou un arrêt brutal du worker, et ce qui bloque une nouvelle demande | à faire |
 
 ---
 
@@ -7717,3 +7718,71 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - Établi comment : lu.
 - Piste : ajouter `refund_amount` à `LeasePaymentResource` et une colonne `refund_amount` (ou `net_amount`) à l'export des paiements.
 - Mesure (2026-10-20, 740c8247f, mesureur) : lu `LeasePaymentResource.php:23-41` (`amount`, `paid_amount`, `remaining_amount`, `late_fee_amount`, `amount_due`, pas de `refund_amount`) et `BookingPaymentResource.php:24` (qui l'expose) ; `ExportDataService.php` sélectionne et rend `amount` et `status` sans `refund_amount` (colonnes l. 46 et 71) → les deux points tiennent. Classement : V7, ni la spec ni un ticket n'écrivent ce champ ou cette colonne, et le choix entre `refund_amount` et `net_amount` à l'export reste ouvert.
+
+## Angle 77 — Fichiers du disque `local` dans le volume `storage`
+
+*Exploré le 2026-10-20 sur `pre-dev` 7a867b653, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : écrivains et effaceurs du disque `local` (`grep -rn
+"Storage::"` sous `app/`), `deploy/takussan/compose.api.yml`, `Dockerfile`, `docker/seed.sh`,
+`AccountDeletionService::anonymize()`, ADR-0044 § A et § D. Deux tests temporaires, retirés
+(charge 3,8 puis 4,8 sur 8 cœurs). Limites : ni la préproduction ni son volume n'ont été lus (la
+garde interdit ssh et Dokploy) ; la valeur de `FILESYSTEM_DISK` de la préproduction est hors dépôt.
+Le partage du volume entre `api`, `worker`, `worker-media` et `scheduler` est sain (lu,
+`compose.api.yml:36`, même ancre `x-api` pour les quatre), et le disque de la machine est déjà
+surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
+
+### L'archive d'export RGPD survit à l'effacement du compte, et le super-admin qui l'a demandée la télécharge encore
+- Réf : P77.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Account/AccountDeletionService.php:241-381`, `takussan-api/app/Http/Controllers/Api/DataExportDownloadController.php:15-38`, `takussan-api/app/Jobs/Privacy/PurgeExpiredDataExports.php:20-29`, `takussan-api/database/migrations/2026_05_07_000225_create_data_exports_table.php:14`
+- Constat :
+  - L'archive est un zip sur le disque `local`, `data-exports/user-{id}/export-{id}.zip`. Elle porte le profil, les fiches client et les identifiants sensibles **en clair** (TCK-601, TCK-956), et expire à J+7 (lu, `DataExportBuilder.php:50-83`, `:96-113`).
+  - `anonymize()` ne touche ni `data_exports` ni le fichier (lu, l. 241-381). Le compte n'est que soft-deleted (`User` porte `SoftDeletes`, lu l. 50) : la FK `cascadeOnDelete` de `data_exports.user_id` ne joue pas (lu, migration l. 14).
+  - Le téléchargement ne vérifie que la propriété et l'échéance : `user_id` égal à l'appelant, ou `requested_by` égal à l'appelant s'il est super-admin (lu, contrôleur l. 17-21). Rien ne regarde si le sujet est effacé.
+  - Mesuré par test temporaire (retiré) : un super-admin demande l'export d'un compte témoin, `DataExportBuilder::build()` l'écrit, puis `anonymize($sujet, false)` → le fichier existe encore, statut `ready` ; `GET /api/data-exports/{id}/download` du super-admin → 200, et `profile.json` contient l'e-mail d'origine du témoin.
+  - La donnée effacée reste donc lisible jusqu'à l'échéance de l'export (7 jours au plus), puis jusqu'au passage de `PurgeExpiredDataExports` (02:30). Le front promet « Vos données personnelles sont anonymisées » (lu, `takussan-web/src/messages/fr.json:3110`). ADR-0044 § A ne cite que les sauvegardes comme lieu où une donnée effacée survit (lu, l. 301-311).
+  - Établi comment : lu, et mesuré par le test temporaire.
+- Piste : dans `anonymize()`, supprimer les archives des exports du compte (fichier et `archive_path`) et les passer à `expired`, comme le fait la purge. Test : un export `ready` d'un compte, puis `anonymize()` → fichier absent, et le téléchargement du super-admin rend 404 ou 410.
+
+### Les exports de rapport de la console ne sont jamais purgés, ni le fichier ni la ligne
+- Réf : P77.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:50-60`, `takussan-api/app/Http/Controllers/Api/Admin/ReportingController.php:111-120`, `takussan-api/routes/console.php:84`, `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:362-366`
+- Constat :
+  - Le job écrit `reports/{report}-{id}.csv` sur le disque `local` et pose `expires_at` à J+7 (lu, job l. 50-60). Aucun code ne supprime ce fichier ni ne lit `expires_at`. Mesuré : `grep -rn "ReportExport" app routes` → le modèle, le contrôleur qui crée, le job et la notification. La seule purge planifiée du domaine, `PurgeExpiredDataExports` (`routes/console.php:84`), ne lit que `DataExport`.
+  - Le chemin synchrone crée aussi une ligne `report_exports` à chaque export, `ready`, sans fichier (lu, contrôleur l. 111-120) : la table grossit d'une ligne par clic, sans purge.
+  - ADR-0044 § D dit que le volume « ne porte plus que des fichiers temporaires, dont les archives d'export RGPD que `PurgeExpiredDataExports` supprime » (lu, l. 362-366). Les CSV de rapport et les fichiers `exports/audit/*` (voir P63.04) y restent sans fin.
+  - P63.02 (validé, PR #806 ouverte) sert le fichier jusqu'à `expires_at` par une route signée, mais n'ajoute pas de purge (lu, liste des fichiers de la PR).
+  - Établi comment : lu et grep.
+- Piste : étendre la purge planifiée aux `report_exports` échus (fichier supprimé, statut `expired`), et l'appliquer aussi aux `exports/audit/*` que retient P63.04. Test : un export échu, la purge → fichier absent et statut `expired` ; un export non échu reste.
+
+### Une écriture refusée par le disque `local` passe pour un succès : l'export est annoncé prêt et son lien rend 404
+- Réf : P77.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/config/filesystems.php:33-39`, `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:52-62`, `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:42-54`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:95`
+- Constat :
+  - Le disque `local` est déclaré `'throw' => false` (lu, l. 37) : `put()` rend `false` au lieu de lever, sur un disque plein ou un droit refusé. `ErasureLedger::record()` le sait et lève lui-même (lu, `ErasureLedger.php:37-38`, `:56-58`).
+  - Les trois autres écrivains ignorent le retour de `put()` :
+    - `GenerateReportExport` (l. 52) passe l'export à `ready` et notifie ;
+    - `ExportActivityLogJob` (l. 42) envoie le lien signé ;
+    - `CrossTenantAuditController::export()` (l. 95) rend le lien.
+  - Mesuré par test temporaire (retiré) : un répertoire posé au chemin du CSV, `put()` → `false` ; `GenerateReportExport::handle()` → statut `ready`, fichier absent, une `ReportExportReadyNotification` envoyée.
+  - Le téléchargement d'audit rend alors 404 (lu, `ActivityLogExportController.php:66-68`). Personne n'est averti : le job ne lève pas, donc rien dans `failed_jobs` (déduit, à vérifier).
+  - `DataExportBuilder` n'est pas touché : `size()` sur un fichier absent devrait lever, et l'export passer à `failed` (lu, l. 72 et 78-81 ; la levée est déduite, à vérifier).
+  - Établi comment : lu, et mesuré sur le seul job de rapport.
+- Piste : lever quand `put()` rend `false` dans les trois écrivains, comme `ErasureLedger`. Ou passer le disque `local` à `'throw' => true`, après avoir relevé ses autres appelants (`DataExportDownloadController`, `PurgeExpiredDataExports`, `HealthcheckService::roundTrip`). Test : `put()` refusé → le job échoue et aucune notification ne part.
+
+### Petites améliorations
+- Réf : P77.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:42`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:66-70`, `docs/configuration.md:138`, `:554`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3532`, `takussan-api/docker/seed.sh:16`, `takussan-api/app/Models/ReportExport.php:24`
+- Constat :
+  - **Deux disques pour un même volume.** Les exports RGPD et de rapport nomment `Storage::disk('local')`. Les exports d'audit écrivent et servent par le disque par défaut, `Storage::put` et `Storage::download` (lu) : ils suivent donc `FILESYSTEM_DISK`. Or `docs/configuration.md` prescrit « `FILESYSTEM_DISK=local # ou s3 en prod` » (l. 138), et « `FILESYSTEM_DISK=s3` » dans la checklist de production (l. 554). Le plan, lui, pose `local` (l. 3532). Le disque `s3` lit `AWS_*`, qu'aucun environnement ne déclare (à vérifier). Suivre la checklist enverrait les exports d'audit vers un seau absent.
+  - **Fichiers orphelins après un reseed.** `seed.sh` fait `migrate:fresh` (lu, l. 16) : les lignes `data_exports` et `report_exports` partent, leurs fichiers restent dans le volume, et aucune ligne ne les désigne plus. Le seeder ne nettoie que `storage/app/public` (lu, `DatabaseSeeder.php:30-55`). Concerne la préproduction.
+  - **`failure_reason` de `report_exports` n'est jamais écrit.** Mesuré : `grep -rn failure_reason app` → `ReportExport.php:24` seul pour ce modèle. `GenerateReportExport` n'a pas de `failed()` : un export dont le calcul lève reste `processing` (lu). Voir l'angle 111.
+  - Établi comment : lu et grep.
+- Piste : faire nommer `local` aux deux écrivains d'audit et à leur téléchargement. Corriger `docs/configuration.md` (l. 138, 554) pour dire `local`, et R2 pour les médias (ADR-0029). Purger aussi les fichiers sans ligne dans la purge de P77.02. Écrire `failure_reason` et le statut `failed` dans un `failed()` du job.
