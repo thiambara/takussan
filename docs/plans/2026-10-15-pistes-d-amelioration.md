@@ -8121,7 +8121,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Un bailleur suspendu reste donneur d'ordre des interventions sur ses biens : devis, statut, prestataire
 - Réf : P82.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : en `awaiting_owner` le bailleur seul tranche le devis, le lui retirer suspendu laisse la demande sans décideur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:49-58`, `:126-155`, `:168-180`, `:270-283`
 - Constat :
@@ -8131,10 +8131,11 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - mesuré (test temporaire retiré) : bailleur `blocked` dans l'agence de son bien, demande `open` → `can('update')`, `can('manageQuotes')`, `can('actAsPrincipal')`, `can('decideQuote')` et `can('transitionTo', cancelled)` rendent tous `true`.
   - Établi comment : lecture de la policy, et la Gate interrogée dans le test.
 - Piste : faire passer la branche bailleur de `isPrincipalFor()` par la même règle que `landlordWrites` (bailleur non suspendu dans l'agence du bien) pour les gestes d'écriture, en gardant la lecture (`view`, `viewQuote`), comme ADR-0031 § 2 la garde. Test : bailleur `blocked` refusé sur l'approbation de devis et un changement de statut, lecture conservée.
+- Mesure (2026-10-20, 979ae6e95, mesureur) : relu `MaintenanceRequestPolicy::isPrincipalFor` (l. 270-292 : `property.user_id === user.id` sans lecture du statut), `actAsPrincipal` (l. 168-180), `decideQuote` (l. 148-156 : en `awaiting_owner`, le seul `property.user_id`) et `BasePolicy::landlordWrites` (l. 119-140) ; test temporaire retiré (charge 2,70 sur 8 cœurs) : bailleur `blocked` dans l'agence de son bien, demande `open` → `update`, `manageQuotes`, `actAsPrincipal`, `decideQuote`, `transitionTo(cancelled)`, `view` et `viewQuote` rendent tous `true` ; aucun commit ni ticket ne l'a traité (`grep -rln isPrincipalFor docs/backlog/tickets` : TCK-592, TCK-900, TCK-445, sans la suspension) → le constat tient, lignes inchangées. Classement : V2, ADR-0031 § 2 appuie le retrait des écritures, mais en `awaiting_owner` aucun autre acteur ne décide du devis (ADR-0037), et qui tranche quand le bailleur est suspendu est un choix.
 
 ### Un bailleur suspendu joint encore des documents à son bail, son bien, sa réservation et son état des lieux
 - Réf : P82.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : `attachTo` sert aussi la lecture (`view`), la piste telle qu'écrite retirerait la lecture que l'ADR-0031 garde
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/DocumentPolicy.php:147-192`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:79`
 - Constat :
@@ -8143,10 +8144,11 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - mesuré (test temporaire retiré) : bailleur `blocked`, document de son bail → `can('update')` et `can('share')` `false`, `can('attachTo', [Document::class, $lease])` et `[…, $property]` `true`.
   - Établi comment : lecture, et la Gate interrogée dans le test. Le `POST /api/documents` lui-même n'a pas été rejoué (à vérifier).
 - Piste : remplacer les comparaisons d'identité de `attachTo()` par `landlordWrites($user, <colonne>, <agence du porteur>)`, comme le reste de la policy. Test : bailleur `blocked` → 403 sur `POST /api/documents` vers son bail et son bien ; le locataire et le personnel inchangés.
+- Mesure (2026-10-20, 979ae6e95, mesureur) : relu `DocumentPolicy::attachTo` (l. 147-192, comparaisons d'identité sans `landlordWrites`), `DocumentPolicy::view` (l. 37-54 : `return $documentable !== null && $this->attachTo(...)`) et `DocumentController::store` (l. 77-82 : `attachTo`, refus en 404 `document.owner_not_found`, TCK-732) ; test temporaire retiré : bailleur `blocked`, son bail → `can('update')` et `can('share')` `false`, `can('attachTo')` `true` sur le bail et le bien, et `POST /api/documents` vers son bail (PDF de 2 Ko) rend 201 → le constat tient, le POST est désormais rejoué. Inexact : la piste remplace les comparaisons dans `attachTo()`, que `view()` appelle, ce qui retirerait au bailleur suspendu la lecture des documents de son bail ; le refus attendu est 404, pas 403. Classement : V2, le correctif doit séparer le rattachement (écriture) de la lecture, par une ability neuve ou une branche de `store`, et ce découpage de l'autorisation n'est écrit nulle part.
 
 ### Les liens de partage d'un document se listent et se révoquent sans la règle `share` : le bailleur suspendu lit les jetons et révoque
 - Réf : P82.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : retirer la révocation au bailleur suspendu l'empêche de fermer un lien public vers son propre document
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentShareLinkController.php:30-32`, `:103-105`, `:131-150`
 - Constat :
@@ -8156,10 +8158,11 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - `authorizeDocument` est dans les exemptions de `check-controller-authorization.mjs` (lu, `:143`), comme dette « hors périmètre TCK-306 ».
   - La ligne 98 en double du tableau des angles (documents « que l'on ne fait que lire ») cite ce contrôleur ; aucune section ne la porte (lu).
 - Piste : autoriser `index` et `destroy` par `can('share', $document)` et retirer `authorizeDocument()` et son exemption. Test : bailleur `blocked` → 403 sur la liste et la révocation ; personnel et téléverseur actif inchangés.
+- Mesure (2026-10-20, 979ae6e95, mesureur) : relu `DocumentShareLinkController::authorizeDocument` (l. 131-143, sans `landlordWrites`), `index` et `destroy` (l. 30-32, 103-105), `format()` (l. 152-165, rend `token`), `DocumentPolicy::share` (l. 90-103) et l'exemption de `scripts/check-controller-authorization.mjs:143` ; test temporaire retiré : bailleur `blocked`, téléverseur d'un document de son bail avec un lien actif → `POST …/share` 403, `GET …/share-links` 200 avec le jeton, `DELETE …/share/{link}` 204 et `revoked_at` posé → le constat tient. Relu : `share` ne diffère d'`authorizeDocument` que pour le bailleur suspendu (mêmes branches téléverseur, `user_id` du porteur, personnel de l'agence). Classement : V2, `index` par `share` suit ADR-0031 § 2, mais refuser au bailleur suspendu la révocation d'un lien public vers son propre bail est un choix (exposition de ses données) que l'ADR ne tranche pas.
 
 ### Indicateurs et alertes de seuil : jugés par le type de profil admin, jamais par une capacité
 - Réf : P82.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : l'admin d'agence sans capacité crée aujourd'hui KPI et alertes ; la capacité à exiger est un choix
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreKpiConfigRequest.php:31-37`, `UpdateKpiConfigRequest.php:31-38`, `StoreThresholdAlertRequest.php:31-37`, `UpdateThresholdAlertRequest.php:31-38`, `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:87-94`, `ThresholdAlertController.php:72-79`
 - Constat :
@@ -8168,10 +8171,11 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Le front appelle ces routes (lu, `takussan-web/src/app/actions/kpis.ts:26`, `alerts.ts:26`).
   - Établi comment : test temporaire. Quelle capacité devrait les garder n'est écrit nulle part (à vérifier).
 - Piste : juger ces gestes par une capacité (`agency.update`, ou une capacité neuve si l'on veut la distinguer) au lieu du type de profil, et faire porter la règle par une policy `KpiConfig` / `ThresholdAlert`. Le choix de la capacité revient au porteur. Test : admin sans la capacité refusé, membre qui la tient accepté.
+- Mesure (2026-10-20, 979ae6e95, mesureur) : relu `StoreKpiConfigRequest` et `StoreThresholdAlertRequest` (l. 31-37), `UpdateKpiConfigRequest` et `UpdateThresholdAlertRequest` (l. 31-38), `KpiConfigController::authorizeAgency` (l. 87-94), `ThresholdAlertController::authorizeAgency` (l. 72-79) : `isAgencyAdminAt` seul ; `docs/features.md:604-605` et TCK-295 ne nomment aucune capacité ; test temporaire retiré : admin sans aucune capacité (`adminWithout(...Capability::cases())`) → `POST /api/kpi-configs` 201, `POST /api/threshold-alerts` (corps vide) 422, donc autorisé ; agent qui les tient toutes → 403 et 403 ; `GET /api/kpi-configs` 200 aux deux → le constat tient. Classement : V2, le correctif retire le geste à un admin qui l'a aujourd'hui, et la capacité (`agency.update` ou une neuve) n'est écrite nulle part.
 
 ### Dossier KYC de l'agence : on le soumet avec `agency.update_kyc`, on ne le lit qu'en étant admin
 - Réf : P82.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : l'admin sans `agency.update_kyc` lit aujourd'hui le dossier KYC ; séparer ou non lecture et soumission est un choix
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Agency/KycController.php:18-21`, `:57-69`, `takussan-api/app/Http/Controllers/Api/KycDocumentController.php:31-45`, `takussan-api/app/Policies/AgencyPolicy.php:114-128`
 - Constat :
@@ -8179,3 +8183,4 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - `show` et la lecture d'une pièce (`KycDocumentController`) exigent `isAgencyAdminAt` sous le profil actif, sans lire la capacité (lu, `authorizeAgencyAdmin`, `authorizeDocument`).
   - mesuré (test temporaire retiré) : agent dont le rôle porte toutes les capacités → `GET /api/agencies/{a}/kyc` 403, `POST …/kyc/submit` 422 (autorisé, dossier incomplet) ; admin sans aucune capacité → `GET` 200, `submit` 403.
 - Piste : juger `show` et la lecture des pièces par la même règle que `updateKyc` (ou une capacité de lecture, si le porteur veut les séparer), et retirer les deux helpers et leurs exemptions de `check-controller-authorization.mjs`. Test : membre qui tient `agency.update_kyc` lit le dossier qu'il soumet.
+- Mesure (2026-10-20, 979ae6e95, mesureur) : relu `Agency/KycController` (`show` par `authorizeAgencyAdmin`, l. 18-21 et 57-69 ; `upload` et `submit` par `updateKyc`, l. 30 et 48), `KycDocumentController::authorizeDocument` (l. 31-45, `isAgencyAdminAt`), `AgencyPolicy::updateKyc` (l. 114-128) ; même test temporaire retiré : agent qui tient toutes les capacités → `GET /api/agencies/{a}/kyc` 403, `POST …/kyc/submit` 422 (autorisé) ; admin sans aucune capacité → `GET` 200, `submit` 403 → le constat tient. Classement : V2, juger la lecture par `updateKyc` la retire à l'admin sans la capacité, appelant légitime aujourd'hui de pièces d'identité (V3 voisin), et la Piste laisse au porteur le choix d'une capacité de lecture.
