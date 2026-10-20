@@ -3,7 +3,7 @@ id: TCK-1082
 title: "Le chemin asynchrone de l'export de rapport est gardé par un test qui passe par la route"
 status: done
 phase: P2
-family: tests
+family: technique
 estimate: S
 wave: null
 created: 2026-10-20
