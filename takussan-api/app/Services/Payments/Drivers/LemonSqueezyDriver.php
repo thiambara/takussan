@@ -11,6 +11,7 @@ use App\Services\Payments\Dto\PaymentStatus;
 use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use LemonSqueezy\Laravel\LemonSqueezy;
 use Throwable;
@@ -42,6 +43,14 @@ class LemonSqueezyDriver implements PaymentDriverContract
     public const CREDENTIAL_KEYS = ['api_key', 'store_id', 'variant_id', 'signing_secret'];
 
     public const PROVIDER = 'lemon_squeezy';
+
+    /**
+     * P65.02 (TCK-1075) — les délais des deux appels de l'initiation. `LemonSqueezy::api()` n'en
+     * pose aucun : les défauts de Laravel (30 s chacun) faisaient 60 s, la borne de la requête.
+     */
+    public const CONNECT_TIMEOUT_SECONDS = 5;
+
+    public const TIMEOUT_SECONDS = 15;
 
     public function __construct(protected Integration $integration) {}
 
@@ -75,7 +84,7 @@ class LemonSqueezyDriver implements PaymentDriverContract
         // TCK-602 — l'exception du paquet porte la réponse de l'API : ni au client, ni au journal
         // (ADR-0044 §2, son message est une donnée).
         try {
-            $url = $checkout->url();
+            $url = $this->bounded(fn (): string => $checkout->url());
         } catch (Throwable $e) {
             Log::warning('[lemon-squeezy] checkout failed', SafeExceptionContext::of($e));
             abort_code(502, 'payment.provider_unavailable');
@@ -199,7 +208,7 @@ class LemonSqueezyDriver implements PaymentDriverContract
         $storeId = $this->credential('store_id');
 
         try {
-            $currency = LemonSqueezy::api('GET', 'stores/'.rawurlencode($storeId))->json('data.attributes.currency');
+            $currency = $this->bounded(fn () => LemonSqueezy::api('GET', 'stores/'.rawurlencode($storeId)))->json('data.attributes.currency');
         } catch (Throwable $e) {
             Log::warning('[lemon-squeezy] checkout failed', SafeExceptionContext::of($e));
             abort_code(502, 'payment.provider_unavailable');
@@ -211,6 +220,33 @@ class LemonSqueezyDriver implements PaymentDriverContract
         }
 
         return strtoupper(trim($currency));
+    }
+
+    /**
+     * P65.02 (TCK-1075) — exécute un appel du paquet avec un délai explicite. `LemonSqueezy::api()`
+     * construit sa requête par la façade `Http` sans option : seul le gestionnaire HTTP lui en
+     * passe, par ses options globales. Elles sont posées le temps de l'appel, puis rendues telles
+     * qu'elles étaient.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $call
+     * @return T
+     */
+    protected function bounded(callable $call): mixed
+    {
+        $factory = Http::getFacadeRoot();
+        $previous = (fn () => $this->globalOptions)->call($factory);
+        $factory->globalOptions(array_merge((array) value($previous), [
+            'connect_timeout' => self::CONNECT_TIMEOUT_SECONDS,
+            'timeout' => self::TIMEOUT_SECONDS,
+        ]));
+
+        try {
+            return $call();
+        } finally {
+            $factory->globalOptions($previous);
+        }
     }
 
     protected function resolveBillable(): Agency
