@@ -153,7 +153,7 @@ voie d'écriture (angle 13, puis 47).
 | 78 | Pic mémoire des jobs qui accumulent tout en tableau avant d'écrire (export RGPD `DataExportBuilder`, exports de rapports `GenerateReportExport`, relevés OFX) face à `memory_limit = 256M` et aux `mem_limit` des workers | fait |
 | 79 | Appels du serveur Next vers l'API sans délai (`apiFetch`, `apiRequest`, relais BFF : aucun `AbortSignal.timeout`) : rendu d'une page publique ou d'une action quand l'API répond lentement, face au `requestTimeout` de Node (300 s) et aux délais de Traefik | fait |
 | 80 | Champs envoyés par les formulaires montés du front et écartés en silence par `validated()` (aucune règle dans le FormRequest), et champs `required` jamais envoyés : reste de l'angle 45, non relevé | fait |
-| 81 | État du bail face aux écritures d'argent (création d'échéance, `mark-paid`, lien de paiement, pénalité, restitution) sur un bail `draft`, `pending_signature`, `terminated` ou `renewed` | à faire |
+| 81 | État du bail face aux écritures d'argent (création d'échéance, `mark-paid`, lien de paiement, pénalité, restitution) sur un bail `draft`, `pending_signature`, `terminated` ou `renewed` | fait |
 | 82 | Routes qui jugent un bailleur ou un membre par `landlord_id === user.id`, `user_id ===` ou `staffAgencyId()` en dur, au lieu de `landlordWrites` / `isStaffAt` / la policy : bailleur suspendu, rôle personnalisé sans la capacité, membre de plusieurs agences | à faire |
 | 83 | Clés des colonnes JSON hors `agencies.settings` (`agencies.metadata`, `users`, `properties`, `leases`, `customers` : `metadata`, `settings`, `preferences`) : lues sans écrivain, écrites sans lecteur — le relevé de l'angle 47 sur les autres modèles | à faire |
 | 84 | Valeurs qu'ADR-0044 chiffre (RIB, NINEA, numéro de pièce, revenu) recopiées en clair ailleurs : `wizard_drafts.data` des autres parcours (bailleur, prestataire, hôte), `metadata`, `activity_log.properties`, `app_notifications.data` | à faire |
@@ -188,6 +188,7 @@ voie d'écriture (angle 13, puis 47).
 | 112 | Exports synchrones de `ExportController` (`GET /api/exports/{entity}`, jusqu'à 10 000 lignes, 2 000 en PDF) et de `PrivacyRequestController` : requêtes par ligne des constructeurs d'entité, mémoire et durée dans la requête HTTP — le relevé de l'angle 78 sur les exports qui ne passent pas par un job | à faire |
 | 113 | Appels du navigateur vers l'API sans délai (`useApiQuery`, `apiRequest` client, mutations TanStack, `fetch` direct des composants) : bouton `isPending` figé et requête jamais abandonnée sur un réseau mobile qui ne coupe pas — le pendant client de l'angle 79 | à faire |
 | 114 | Champs écartés par `validated()` sur les modules `src/lib/queries/*.ts` de l à z et les server actions `src/app/actions/*.ts` : la moitié de l'angle 80 laissée sans relevé | à faire |
+| 115 | Statuts d'enum qu'aucun chemin de `app/` n'écrit et que seuls les seeders posent (`LeaseStatus::Expired`, les autres enums de statut de `app/Models/Enums`) : gardes, filtres, tableaux de bord et écrans du front qui attendent un état que la production n'atteindra jamais | à faire |
 
 ---
 
@@ -8035,3 +8036,60 @@ n'ont pas été rouverts.*
 - Piste : en local et en test, journaliser (ou faire échouer sous `APP_ENV=testing`) toute clé d'entrée absente des règles d'un `BaseFormRequest`, avec une liste d'exceptions explicite ; un test de non-vacuité renvoie `guests` sur `POST /api/bookings` et attend le signal.
 - Mesure (2026-10-20, 92a755f9f, mesureur) : relu `BaseFormRequest.php` (seuls `authorize`, `prepareForValidation`, `normalize` : rien ne relève une clé hors règles) ; `ls scripts/check-*.mjs | wc -l` → 54, `grep -l 'app/Http/Requests\|FormRequest\|rules()'` → deux seules, `check-inline-validation.mjs` (interdit la validation en ligne) et `check-agency-scope-clause.mjs` (clause d'agence), aucune ne compare un corps du front aux règles ; l'écart voisin tient : `AddParticipantsRequest.php:46` valide `role`, `ConversationParticipantController.php:39` ne lit que `validated('user_ids')`, et `conversations.ts:375` type `role?` → le constat tient. Classement : V6, faire échouer sous `APP_ENV=testing` ou journaliser toute clé hors règles change le comportement de tous les FormRequest et de la suite, avec une liste d'exceptions à arrêter : c'est une convention transverse, pas une garde isolée (A5).
 - Mesure (2026-10-20, 0aa821e99, delegue) : relu `BaseFormRequest.php` (rien ne relève une clé hors règles) et `docs/adr/README.md` (aucun ADR sur la validation des entrées) → le constat tient. Recommandation : commencer par un signal journalisé (`Log::warning` en `local` et `testing`, clé et route, jamais la valeur) plutôt qu'un échec sous `APP_ENV=testing`, qui ferait rougir la suite sur chaque écart connu d'un coup ; la liste d'exceptions et la bascule vers l'échec viendraient après un premier relevé ; à ne pas valider : convention transverse sur tous les FormRequest, qui demande un ADR (V6) ; manque : l'ADR, et la décision journaliser ou échouer.
+
+## Angle 81 — État du bail face aux écritures d'argent
+
+*Exploré le 2026-10-20 sur `pre-dev` 88d019565, par l'explorateur. Tout a été relu par l'explorateur lui-même, sans sous-agent : `LeaseService` (`terminate`, `activate`, `completeActivation`, `scheduleUnderLock`), `EarlyTerminationService` (`request`, `confirm`), `LeaseRenewalService::handOver`, `LeasePaymentService::markPaid`, `LeasePaymentController::store`, `LateFeeCalculator`, `ApplyLateFeesJob`, `SendLeasePaymentReminders`, `PaymentGatewayService::isPayable`, `LeasePaymentLinkService::isPayableByNature`, `DepositRefundService::refund`, `RentReviewService`, `LeaseSignatureService`, `AccountDeletionService::collectOpenObligations`, et côté front `DepositRefundBanner`. Les comportements viennent d'un test temporaire (`tests/Feature/TmpExplo81/SondeAngle81Test.php`, base de test PostgreSQL, charge 3,04 / 2,60 / 2,50 sur 8 cœurs), retiré avant la fin. Les comptes de baux viennent de la base de développement, lue en `SELECT` par `tinker` : ils décrivent des seeders, pas la préproduction. Ce qui tient déjà et n'est pas écrit ici : l'échéancier n'est émis que sur un bail `active` (`lease.not_active_schedule`), la création d'une ligne est refusée hors `active` et `terminating` (P46.04), la signature ne s'ouvre qu'en `pending_signature`, le renouvellement annule les échéances du chevauchement, la révision de loyer n'est permise qu'en `active`. La restitution d'une caution jamais encaissée est P04.10 et n'est pas reprise.*
+
+### La résiliation laisse dues toutes les échéances de loyer postérieures à la sortie : pénalités, relances et paiement continuent
+- Réf : P81.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Model/LeaseService.php:273-323`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:193-242`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:65-92`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:127-140`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1484-1500`, `takussan-api/app/Services/Model/LeasePaymentService.php:46-70`, `takussan-api/app/Services/Account/AccountDeletionService.php:423-430`
+- Constat :
+  - `terminate()` passe le bail `terminated` et pose l'indemnité, sans toucher aux échéances déjà émises (lu, l. 299-319). `EarlyTerminationService::confirm()` fait de même à la date d'effet (lu, l. 220-225). Seul le renouvellement annule les échéances à venir (`handOver`, `CANCELLABLE_DUE_STATUSES`, lu).
+  - `docs/models-spec.md:1354` écrit qu'en préavis « le loyer reste dû jusqu'à `early_termination_effective_date` » : après, il ne l'est plus (lu).
+  - Ni `ApplyLateFeesJob`, ni `SendLeasePaymentReminders`, ni `isPayable`, ni `isPayableByNature`, ni `markPaid` ne lisent l'état du bail (lu).
+  - Mesuré, bail de 12 mois à 100 000, pénalité de retard à 10 %, échéancier émis puis `terminate()` le 2026-10-20 : les 10 échéances de loyer de novembre 2026 à août 2027 restent `pending`, et `isPayable` rend `true` sur celle de novembre.
+  - Mesuré, même bail, horloge au 2026-12-02 : `ApplyLateFeesJob` applique une pénalité de 10 000 aux loyers de novembre et de décembre, postérieurs à la résiliation ; `SendLeasePaymentReminders` pose `reminder_overdue_1_sent_at` sur celui de décembre ; `markPaid` règle celui de novembre (`paid`).
+  - Mesuré, résiliation anticipée confirmée le 2026-12-05 (date d'effet J+45, facture d'indemnité payée) : les 9 échéances de décembre 2026 à août 2027 restent `pending` ; deux mois plus tard, `ApplyLateFeesJob` pénalise celles de décembre, janvier et février.
+  - Ces échéances ouvertes bloquent la suppression du compte du locataire : `collectOpenObligations` compte toute ligne `pending`, `late` ou `partially_paid` de ses fiches, sans date ni état du bail (lu, l. 423-430). Les relevés et la balance âgée qui les lisent n'ont pas été rendus (à vérifier).
+  - Établi comment : lu, puis mesuré par test temporaire.
+- Piste : à la résiliation immédiate et à la confirmation de la résiliation anticipée, sous le verrou du bail, annuler (`cancelled`, tracé dans `activity_log` comme `lease_renewal_schedule_cancelled`) les échéances de loyer non engagées dont `period_start` suit la date de sortie, avec les mêmes refus que `handOver` pour une échéance engagée (réglée, en partie réglée, checkout ouvert) ; le cas de l'échéance à cheval sur la date de sortie (prorata ou non) est un choix. Garde : un test par voie, qui relit les échéances après la sortie et fait tourner `ApplyLateFeesJob`.
+
+### Rien n'écrit `expired` : un bail arrivé à son terme reste `active`, et sa caution ne se restitue pas depuis l'écran
+- Réf : P81.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Models/Enums/LeaseStatus.php:10`, `takussan-api/app/Services/Lease/DepositRefundService.php:50-54`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:85-91`, `takussan-api/routes/api/leases.php:28`, `takussan-web/src/components/leases/DepositRefundBanner.tsx:34-38`, `takussan-api/database/seeders/Activity/LeaseSeeder.php:45`
+- Constat :
+  - `grep -rn "LeaseStatus::Expired" takussan-api/app` ne rend que des listes de statuts admis (renouvellement, résiliation anticipée, avis) : aucune écriture. Aucune tâche planifiée ne vise les baux échus (mesuré : `php artisan schedule:list`). Seul `LeaseSeeder` pose `expired` (lu, l. 45).
+  - Mesuré, base de développement : 33 baux `active` ont une `end_date` passée.
+  - La restitution exige `terminated` ou `expired` (lu, l. 50-54). Mesuré, test temporaire, bail `active` échu depuis un mois avec 200 000 de caution : `POST /api/leases/{id}/deposit-refund` → 422 `deposit_refund.lease_not_ended`.
+  - La résiliation anticipée refuse une date d'effet au-delà de la fin du contrat, et renvoie à « the regular end-of-lease flow » (mesuré : 422 sur `effective_date`). Cette voie est `POST /api/leases/{id}/terminate`, qui n'a aucun appelant dans le front (lu ; voir P13.08, dont TCK-780 l'a laissée en reste ; `grep terminate takussan-web/src` → rien).
+  - Le bandeau de restitution ne s'affiche qu'en `terminated` ou `expired` (lu, `DepositRefundBanner.tsx:34`). Depuis l'interface, la caution d'un bail allé à son terme ne peut donc jamais être rendue.
+  - Établi comment : lu, mesuré par test temporaire et par lecture de la base de développement.
+- Piste : une tâche quotidienne qui passe `expired` les baux `active` dont `end_date` est passée et qu'aucun renouvellement n'a relevés, ou une action « clore le bail » au front sur `terminate` ; le choix entre les deux, et le sort des baux échus déjà en base, sont des décisions. Garde : un test qui fait passer la date de fin, lance la tâche, puis restitue la caution.
+
+### La pénalité de retard tombe aussi sur l'indemnité de résiliation et sur les lignes qui ne sont pas des loyers
+- Réf : P81.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:65-92`, `takussan-api/app/Services/Lease/LateFeeCalculator.php:78-111,172-178`, `takussan-api/app/Services/Model/LeaseService.php:306-318`
+- Constat :
+  - La sélection n'écarte que `deposit_refund` (`exceptDepositRefunds`), et `isApplicable` ne lit pas `payment_type` (lu). L'indemnité de `terminate()`, une `LeasePayment` `penalty` due à J+30, est donc pénalisable, comme une caution (`deposit`) ou des charges.
+  - Mesuré : indemnité de 200 000 posée par `terminate()` le 2026-10-20, due le 2026-11-19 ; au 2026-12-02, `ApplyLateFeesJob` lui applique 20 000 et la passe `late`.
+  - `docs/features.md:195` parle de la pénalité d'une « échéance de loyer » ; rien n'écrit si l'indemnité ou la caution en portent une (lu, `grep late_fee docs/features.md`).
+  - Établi comment : lu, puis mesuré pour l'indemnité ; la caution et les charges sont lues, non exécutées.
+- Piste : borner la sélection aux types que la règle vise (`rent`, peut-être `charges`), par un filtre sur `payment_type` dans `candidateQuery` et `isApplicable` ; la liste des types est un choix (V1). Garde : un test par type exclu.
+
+### Petites améliorations
+- Réf : P81.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:37-47`, `takussan-api/app/Services/Account/AccountDeletionService.php:388-411`
+- Constat :
+  - Depuis P46.04, `POST /api/leases/{id}/payments` refuse un bail `terminated` ou `expired` (`lease_payment.lease_not_active`, lu). Une régularisation de charges ou un rappel posé après la sortie n'a donc plus de voie ; la retenue sur caution passe par une facture, pas par une ligne. Que ce soit voulu n'est écrit nulle part (à vérifier dans TCK-957).
+  - `collectOpenObligations` ne compte comme bail en cours, côté bailleur comme côté locataire, que `active` et `pending_signature` : un bail `terminating` (préavis, loyer dû) n'est pas une obligation (lu, l. 390 et 410), alors que `User::ACTIVE_TENANT_LEASE_STATUSES` le compte ailleurs (`HasProfiles.php:43`). Ses échéances ouvertes bloquent quand même : l'écart ne se voit que sur un préavis sans échéance due.
+  - Établi comment : lu.
+- Piste : écrire dans TCK-957 si les types `regularization` et `charges` restent permis après la sortie ; juger les baux en cours de `collectOpenObligations` par `User::ACTIVE_TENANT_LEASE_STATUSES`.
