@@ -8346,7 +8346,7 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
 
 ### La fiche publique d'une agence rend `logo_url` toujours nul, alors que l'annuaire et la carte de la fiche bien rendent le logo
 - Réf : P85.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1076
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Public/PublicAgencyController.php:348`, `:184` ; `takussan-api/app/Http/Resources/PropertyResource.php:445` ; `takussan-web/src/app/[locale]/(public)/agencies/[slug]/page.tsx:90`, `:187-200`
 - Constat :
@@ -8356,6 +8356,7 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
   - Établi comment : lecture des trois chemins, puis test temporaire.
 - Piste : servir `$agency->getFirstMediaUrl('logo') ?: null` dans `show()`, comme l'`index()` et `PropertyResource`. Garde : un test de `show()` qui dépose un logo et attend une URL non nulle.
 - Mesure (2026-10-20, 01adb7c8a, mesureur) : relu `PublicAgencyController.php:348` (`$agency->logo_url ?? null`), `:181-184` (l'`index()` passe par `getFirstMediaUrl('logo')` et son commentaire dit que l'attribut n'existe pas), `PropertyResource.php:445` ; `git log -S 'agency->logo_url'` → seul le commit d'origine (TCK-177) et celui de l'explorateur ; test temporaire (`POST /api/host/individual/auto-onboard` pour Awa Diop, `preferred_language = en`, logo dans la collection `logo`, un bien `published()`, puis les surfaces publiques en anonyme ; base de test PostgreSQL, charge 2,60 sur 8 cœurs ; retiré ensuite) → `/api/public/agencies` rend `logo_url: "/storage/1/logo.png?v=…"`, la carte d'agence de `/api/public/properties/{slug}` aussi, `/api/public/agencies/space-of-awa` rend `logo_url: null`. Le constat tient en entier. Classement : A1, l'`index()` du même contrôleur et `PropertyResource` écrivent déjà le comportement attendu, et le correctif n'est qu'une lecture de média.
+- Mesure (2026-10-20, 0581fca48, implementeur) : `PublicAgencyLogoTest` (logo déposé dans la collection `logo`, un bien `published()`) → avant correctif, `GET /api/public/agencies/{slug}` rend `logo_url: null` quand l'annuaire rend l'URL (1 rouge sur 2) ; `show()` lit `getFirstMediaUrl('logo') ?: null` → 2 verts, et la fiche rend la même URL que l'annuaire ; ablation (ligne d'origine remise) → le même rouge.
 
 ### L'hôte particulier d'une agence `individual` est présenté « agent » sur la fiche d'agence et dans l'annuaire des personnes, alors que la fiche bien le dit non-agent
 - Réf : P85.02
