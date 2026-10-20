@@ -16,7 +16,7 @@ spec_refs:
   models:
     - "docs/models-spec.md#13-activitylog--remplacé-par-spatielaravel-activitylog"
   pistes:
-    - "docs/plans/2026-10-15-pistes-d-amelioration.md#angle-63--exports-asynchrones-liens-signés-et-fichiers-déposés"
+    - "docs/plans/2026-10-15-pistes-d-amelioration.md#angle-63--url-signées-et-liens-de-téléchargement-rangés-ou-envoyés--durée-lecteurs-liens-morts"
 tags: [api, audit, export, lien-signe, rgpd, pistes]
 ---
 
