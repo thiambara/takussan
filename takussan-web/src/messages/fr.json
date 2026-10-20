@@ -1353,6 +1353,7 @@
         "edit": "Modifier",
         "viewPublic": "Voir la fiche publique",
         "more": "Plus d’actions",
+        "moreFor": "Plus d’actions — {title}",
         "quickActions": "Actions rapides",
         "unpublish": "Dépublier",
         "publish": "Publier",

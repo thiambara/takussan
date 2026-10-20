@@ -82,7 +82,17 @@ describe('super-admin users page — impersonation réservée au super_admin (TC
     mockFetch([ligne]);
     renderPage(gestes as PlatformAbilities);
     expect(await screen.findByText('Awa Ndiaye')).toBeInTheDocument();
-    expect(screen.queryAllByRole('button', { name: 'Impersonifier' })).toHaveLength(attendus);
+    expect(screen.queryAllByRole('button', { name: /^Impersonifier/ })).toHaveLength(attendus);
+  });
+
+  it('TCK-1035 (P68.08) — le bouton nomme le compte visé, le texte visible restant « Impersonifier »', async () => {
+    mockFetch([ligne, { ...ligne, id: 8, first_name: 'Moussa', last_name: 'Sow', full_name: 'Moussa Sow', email: 'moussa@example.test' }]);
+    renderPage(SUPER_ADMIN as PlatformAbilities);
+    expect(await screen.findByText('Awa Ndiaye')).toBeInTheDocument();
+
+    const awa = screen.getByRole('button', { name: 'Impersonifier Awa Ndiaye' });
+    expect(awa).toHaveTextContent(/^Impersonifier$/);
+    expect(screen.getByRole('button', { name: 'Impersonifier Moussa Sow' })).toBeInTheDocument();
   });
 });
 
