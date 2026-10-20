@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
-import { useActiveLeaseSummaries } from '@/lib/queries/leases';
+import { useActiveLeaseSummaries } from '@/lib/queries/leases-active-summaries';
 import type { WelcomeSeenListResponse } from '@/types/welcome-view';
 
 /**

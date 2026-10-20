@@ -16,7 +16,7 @@ type ListShape = { data: Conversation[] };
 
 const useConversationsMock = vi.fn<() => { data: ListShape | undefined; isLoading: boolean }>();
 
-vi.mock('@/lib/queries/conversations', () => ({
+vi.mock('@/lib/queries/conversations-list', () => ({
   useConversations: (...args: unknown[]) => useConversationsMock(...(args as [])),
 }));
 
