@@ -71,9 +71,8 @@ class ServiceProviderProfileController extends Controller
             ],
         );
 
-        // Replace existing media (singleFile collection) so a re-upload
-        // doesn't accumulate stale files on disk.
-        $document->clearMediaCollection('file');
+        // TCK-1026 (P64.05) — la collection `singleFile` retire l'ancien fichier APRÈS l'ajout du
+        // nouveau : un ajout qui échoue garde la pièce, et rien ne s'accumule sur le disque.
         $media = $document->addMedia($file->getRealPath())
             ->usingFileName($file->hashName())
             ->usingName($file->getClientOriginalName() ?: $kind)
