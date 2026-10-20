@@ -6585,7 +6585,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### Un délai dépassé chez Wave ou Orange Money rend 500 au lieu de 502 `payment.provider_unavailable`, à l'initiation comme à la vérification
 - Réf : P65.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1021
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:79-89,106-118`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:76-86,103-116,168-179`, `takussan-api/bootstrap/app.php:131-168`
 - Constat :
@@ -6597,6 +6597,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - Établi comment : test temporaire et lecture.
 - Piste : attraper `ConnectionException` dans les deux pilotes (initiation, jeton, vérification), journaliser sous la forme sûre (`SafeExceptionContext`), et rendre `abort_code(502, 'payment.provider_unavailable')`. Test par pilote et par appel : un faux qui lève, et l'assertion du 502 et de son code.
 - Mesure (2026-10-20, eb4dde5a0, mesureur) : test temporaire, retiré depuis, sous-classe de `PaymentGatewayInitiateTest` avec `Http::fake` qui lève `ConnectionException` (« cURL error 28 »), charge 3,66 / 3,45 / 3,58 sur 8 cœurs ; `git log 0ba226223..HEAD` sur les pilotes et `bootstrap/app.php` → aucun commit ; `grep ConnectionException` dans `WaveDriver.php` et `OrangeMoneyDriver.php` → rien → Wave initiation 500, Orange Money initiation 500, Wave vérification 500, Orange Money vérification 500 (jeton en cache vidé), message de cURL dans les quatre cas : le constat tient en entier. Classement : A1, le contrat `502 payment.provider_unavailable` est déjà celui des deux pilotes sur réponse en erreur et de Lemon Squeezy sur exception, et traduire l'exception de connexion n'écrit ni ne calcule aucun montant.
+- Mesure (2026-10-20, c3c65f7a7, implementeur) : `PaymentDriverConnectionFailureTest`, six cas par les routes `lease-payments/{id}/initiate` et `/verify` avec un faux qui lève `ConnectionException` (charge 1,39 sur 8 cœurs) : avant correctif, 6 rouges « Expected response status code [502] but received 500 » → `reach()` dans `WaveDriver` (initiation, vérification) et `OrangeMoneyDriver` (jeton, initiation, vérification) rend 502 `payment.provider_unavailable` et journalise `SafeExceptionContext` sans le message de cURL : 6 verts ; ablation (pilotes remis à `pre-dev`) → 6 rouges, remis → 6 verts.
 
 ### Le client Resend n'a aucun délai, et des courriels partent dans la requête HTTP, dont un sous verrou
 - Réf : P65.04
