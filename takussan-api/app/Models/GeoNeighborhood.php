@@ -31,7 +31,7 @@ class GeoNeighborhood extends AbstractModel
 
     protected $fillable = [
         'geo_city_id', 'slug', 'name', 'latitude', 'longitude', 'status', 'origin', 'osm_ref',
-        'created_by_id', 'merged_into_id', 'renamed_at',
+        'created_by_id', 'merged_into_id', 'renamed_at', 'former_names',
     ];
 
     protected $attributes = [
@@ -45,6 +45,8 @@ class GeoNeighborhood extends AbstractModel
         'status' => ReferentialStatus::class,
         'origin' => GeoNeighborhoodOrigin::class,
         'renamed_at' => 'datetime',
+        // TCK-1080 (P67.02) — les noms d'avant un renommage, que le filtre `location` lit encore.
+        'former_names' => 'array',
     ];
 
     protected static array $requestFilterable = ['status', 'geo_city_id', 'origin'];
