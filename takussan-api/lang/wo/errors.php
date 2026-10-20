@@ -104,7 +104,6 @@ return [
         'stats_window_too_wide' => 'Diir bi mënul ëpp 92 fan.',
     ],
     'business_enum' => [
-        'value_in_use' => 'Valeur bii dañu koy jëfandikoo, mënuñu ko far.',
         'value_not_found' => 'Valeur bi gisuñu ko.',
     ],
     'calendar' => [

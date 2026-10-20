@@ -104,7 +104,6 @@ return [
         'stats_window_too_wide' => 'The period cannot exceed 92 days.',
     ],
     'business_enum' => [
-        'value_in_use' => 'This value is in use and cannot be deleted.',
         'value_not_found' => 'Value not found.',
     ],
     'calendar' => [

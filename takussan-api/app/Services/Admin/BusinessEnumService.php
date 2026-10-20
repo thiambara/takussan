@@ -58,7 +58,7 @@ class BusinessEnumService
     }
 
     /**
-     * @param  array{labels?:array{fr?:string,en?:?string,wo?:?string},is_active?:bool}  $payload
+     * @param  array{labels?:array{fr?:string,en?:?string,wo?:?string}}  $payload
      * @return array<string,mixed>
      */
     public function updateValue(string $key, string $value, array $payload, User $actor): array
@@ -73,32 +73,12 @@ class BusinessEnumService
 
         $current = $values->get($index);
         $current['labels'] = array_replace($current['labels'], $payload['labels'] ?? []);
-        $current['is_active'] = array_key_exists('is_active', $payload)
-            ? (bool) $payload['is_active']
-            : (bool) $current['is_active'];
         $values[$index] = $this->normaliseValue($current);
 
         $this->persist($key, $values->values()->all(), $actor);
         $this->audit($actor, 'super_admin_enum_value_updated', $key, $value, $payload);
 
         return $this->get($key);
-    }
-
-    /**
-     * @return array<string,mixed>
-     */
-    public function deactivateValue(string $key, string $value, User $actor): array
-    {
-        $this->ensureEditable($key);
-        $usage = $this->usageCount($key, $value);
-        if ($usage > 0) {
-            abort_code(409, 'business_enum.value_in_use');
-        }
-
-        $updated = $this->updateValue($key, $value, ['is_active' => false], $actor);
-        $this->audit($actor, 'super_admin_enum_value_deactivated', $key, $value, ['usage_count' => $usage]);
-
-        return $updated;
     }
 
     private function ensureEditable(string $key): void
@@ -169,15 +149,6 @@ class BusinessEnumService
             ['key' => "enum.{$key}.values", 'scope' => SettingScope::Global, 'scope_id' => null],
             ['value' => ['values' => $values], 'updated_by_id' => $actor->id],
         );
-    }
-
-    private function usageCount(string $key, string $value): int
-    {
-        $usage = EditableBusinessEnums::get($key)['usage'];
-        /** @var class-string<Model> $model */
-        $model = $usage['model'];
-
-        return $model::query()->where($usage['column'], $value)->count();
     }
 
     /**

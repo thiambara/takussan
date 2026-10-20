@@ -18,7 +18,6 @@ class UpdateBusinessEnumValueRequest extends FormRequest
             'labels.fr' => ['sometimes', 'required', 'string', 'max:120'],
             'labels.en' => ['nullable', 'string', 'max:120'],
             'labels.wo' => ['nullable', 'string', 'max:120'],
-            'is_active' => ['sometimes', 'boolean'],
         ];
     }
 }

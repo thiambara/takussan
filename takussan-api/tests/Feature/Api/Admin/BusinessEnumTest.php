@@ -55,15 +55,26 @@ class BusinessEnumTest extends TestCase
         $this->getJson('/api/admin/enums/property_type')->assertForbidden();
     }
 
-    public function test_deactivation_returns_409_when_value_is_used(): void
+    /**
+     * P66.02 (TCK-1056) : la console ne désactive plus de valeur. Aucune écriture de bien ne lisait
+     * le drapeau : une valeur « désactivée » restait acceptée par `POST /api/properties` et
+     * proposée par tous les formulaires, qui lisent la liste du code.
+     */
+    public function test_console_refuses_deactivating_a_value(): void
     {
-        Property::factory()->create(['type' => PropertyType::Villa]);
-
         $this->actingAsRole('super_admin');
 
-        $this->deleteJson('/api/admin/enums/property_type/values/villa')
-            ->assertStatus(409)
-            ->assertJsonPath('code', 'business_enum.value_in_use');
+        $status = $this->deleteJson('/api/admin/enums/property_type/values/farm')->status();
+        $this->assertContains($status, [404, 405], "la désactivation a répondu {$status}");
+
+        $this->patchJson('/api/admin/enums/property_type/values/farm', ['is_active' => false]);
+
+        $this->assertFalse(Activity::query()->where('event', 'super_admin_enum_value_deactivated')->exists());
+        $this->getJson('/api/enums/property_type')
+            ->assertOk()
+            ->assertJsonPath('data.values', fn (array $values) => collect($values)->contains(
+                fn (array $value) => $value['value'] === 'farm' && $value['is_active'] === true
+            ));
     }
 
     public function test_update_writes_translations_and_audit(): void

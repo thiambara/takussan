@@ -104,7 +104,6 @@ return [
         'stats_window_too_wide' => 'La période ne peut pas dépasser 92 jours.',
     ],
     'business_enum' => [
-        'value_in_use' => 'Cette valeur est utilisée et ne peut pas être supprimée.',
         'value_not_found' => 'Valeur introuvable.',
     ],
     'calendar' => [
