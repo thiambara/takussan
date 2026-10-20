@@ -156,7 +156,7 @@ voie d'écriture (angle 13, puis 47).
 | 81 | État du bail face aux écritures d'argent (création d'échéance, `mark-paid`, lien de paiement, pénalité, restitution) sur un bail `draft`, `pending_signature`, `terminated` ou `renewed` | fait |
 | 82 | Routes qui jugent un bailleur ou un membre par `landlord_id === user.id`, `user_id ===` ou `staffAgencyId()` en dur, au lieu de `landlordWrites` / `isStaffAt` / la policy : bailleur suspendu, rôle personnalisé sans la capacité, membre de plusieurs agences | fait |
 | 83 | Clés des colonnes JSON hors `agencies.settings` (`agencies.metadata`, `users`, `properties`, `leases`, `customers` : `metadata`, `settings`, `preferences`) : lues sans écrivain, écrites sans lecteur — le relevé de l'angle 47 sur les autres modèles | fait |
-| 84 | Valeurs qu'ADR-0044 chiffre (RIB, NINEA, numéro de pièce, revenu) recopiées en clair ailleurs : `wizard_drafts.data` des autres parcours (bailleur, prestataire, hôte), `metadata`, `activity_log.properties`, `app_notifications.data` | à faire |
+| 84 | Valeurs qu'ADR-0044 chiffre (RIB, NINEA, numéro de pièce, revenu) recopiées en clair ailleurs : `wizard_drafts.data` des autres parcours (bailleur, prestataire, hôte), `metadata`, `activity_log.properties`, `app_notifications.data` | fait |
 | 85 | Ce que le site public montre d'une agence `individual` : annuaire `/agencies`, fiche `/agencies/{slug}`, carte d'agence de la fiche bien (`PropertyResource.php:441-449`) — nom « Espace de {prénom} », slug, badge vérifié | à faire |
 | 86 | Collaborateurs `co_owner` et `viewer` d'un bien (`property_collaborators`, laissés hors du périmètre par ADR-0031 § 2) : ce qu'ils lisent et écrivent réellement — bien, lots, baux, loyers, relevé, reversement | à faire |
 | 87 | Tris alphabétiques sur colonnes texte sous la collation `C` (`sort=first_name`, `name`, `title` des listes de l'API et de la console) : minuscules et initiales accentuées rejetées après « Z » | à faire |
@@ -191,6 +191,7 @@ voie d'écriture (angle 13, puis 47).
 | 115 | Statuts d'enum qu'aucun chemin de `app/` n'écrit et que seuls les seeders posent (`LeaseStatus::Expired`, les autres enums de statut de `app/Models/Enums`) : gardes, filtres, tableaux de bord et écrans du front qui attendent un état que la production n'atteindra jamais | à faire |
 | 116 | Gestes d'agence jugés par le type de profil (`isAgencyAdminAt`, `isAgentAt` : une quarantaine d'appels dans `app/Http` et `app/Services`) au lieu d'une capacité (`canActAt`) : admin à qui un rôle personnalisé retire la capacité, membre à qui il la donne — le relevé de P82.04 et P82.05 sur le reste de l'API | à faire |
 | 117 | Clés de `metadata` des profils (`owner_profiles`, `agent_profiles`, `service_provider_profiles` : `kind`, `source`, `intervention_zones`, `visit_fee`, `availability`, `has_insurance`, `trades`) écrites par les assistants `Me\*ProfileController` : lues par qui, à l'API et dans les listes du front (`ServiceProvidersList`, `OwnersList`, `MaintenanceAssignmentBlock`) qui y retombent à défaut de colonne | à faire |
+| 118 | Données personnelles gardées dans le stockage du navigateur après déconnexion ou changement de compte (`localStorage`/`sessionStorage` : `takussan.coordonnees` nom et téléphone, cache TanStack « persisté par certains écrans » selon `OwnersList.tsx:83`, `useInitiatePayment`, `attribution.ts`) : ce que lit le compte suivant sur un poste partagé |
 
 ---
 
@@ -8263,3 +8264,58 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Établi comment : lu.
 - Piste : corriger les trois commentaires pour dire ce que fait le code, et lister les clés de `agencies.metadata` dans la spec, sur le modèle de `users`.
 - Mesure (2026-10-20, e5f73559b, mesureur) : relu `AdminGlobalSearchService.php:31-33` (« Le NINEA se cherche dans `agencies.metadata->legal_info` ») contre l. 124-128 (`where('ninea', …)` puis repli `metadata->'legal_info'`) ; `FlipAgencyKindOnUpgradeApproved.php:58` (« le flip écrit `metadata.legal_info` ») contre `AgencyKindFlipService.php:39` (« the flip writes only there [colonnes]. `metadata.legal_info` is read, never » écrit) ; `takussan-web/src/types/agency.ts:17-19` (« backfilled by the agency-upgrade flow ») ; `docs/models-spec.md:545` sans clés, alors que `Agency.php:245-257` lit `slug_changed_at` et `welcome.standard_unlocked_at` et `AgencyController.php:124` écrit la première → le constat tient. Classement : A6, trois commentaires et une ligne de spec corrigés pour dire ce que fait le code, sans changement de comportement.
+
+## Angle 84 — Valeurs chiffrées par ADR-0044 recopiées en clair ailleurs
+
+*Exploré le 2026-10-20 sur `pre-dev` 7fcec6bf3, par l'explorateur. Relu par l'explorateur lui-même, sans sous-agent : les types de données des cinq assistants qui écrivent `wizard_drafts` (`OwnerOnboardingWizard`, `AgentOnboardingWizard`, `ServiceProviderOnboardingWizard`, `HostIndividualWizard`, `PropertyWizard`), `Auditable` et la liste blanche de chaque modèle chiffré, les `activity()->withProperties()` d'`app/`, `NotificationService::send` et les trois notifications de passage en agence, `AgencyKindFlipService`, `PayoutService` et les pilotes de versement, `DocumentPdfService` et les vues PDF, les constructeurs de jobs et d'événements qui reçoivent un tableau, `PropertyRedactor`. Rien de chiffré n'est recopié en clair par ces chemins, hors du NINEA d'agence (P84.02) : les brouillons des quatre parcours d'onboarding ne portent que des booléens (`cni_uploaded`, `rib_uploaded`…) et le téléphone, les pièces KYC vont en fichier sur le disque privé, les versements ne gardent que `payout_method_id` et l'identifiant masqué, les notifications ne portent ni RIB ni pièce. Base de développement lue en `SELECT` (tinker) : 0 brouillon ; 0 ligne d'`app_notifications` (`data`, `params`) et 0 `metadata` de `owner_profiles`, `customers`, `agencies`, `leases`, `users`, profils et `documents` avec une clé `rib`, `rib_pro`, `iban`, `ninea`, `tax_id`, `id_number`, `id_document_number`, `monthly_income`, `account_identifier` ; dans `activity_log`, 4 lignes seulement (`Agency`, `created`), qui portent `ninea` vide. La base semée n'a aucun NINEA, aucune demande de passage ni aucun moyen de versement : elle ne dit rien des chemins qu'elle n'exerce pas, d'où la lecture.*
+
+### Le NINEA d'une agence est chiffré et masqué dans la demande, puis recopié en clair dans `agencies.ninea` par une décision qu'ADR-0044 n'écrit pas
+- Réf : P84.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:44-46`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:62-63`, `:94-105`, `takussan-api/app/Models/Agency.php:38-46`, `takussan-api/app/Http/Resources/AgencyResource.php:50`, `takussan-api/app/Http/Resources/AgencyUpgradeRequestResource.php:41`, `takussan-api/app/Support/Audit/PropertyRedactor.php:41`, `takussan-api/app/Services/Kyc/SharedLegalIdentifierDetector.php:25-27`
+- Constat :
+  - ADR-0044 § 1 retient `agency_upgrade_requests.ninea` parmi les colonnes chiffrées, et ne nomme `agencies.ninea` nulle part (lu, l. 44-46 ; `grep -n ninea docs/adr/0044-*.md` → l. 17, 45, 103, 157, 160, aucune sur la colonne d'agence).
+  - Au passage en `standard`, le flip recopie le NINEA de la demande dans la colonne en clair `agencies.ninea` quand elle est vide (lu, `AgencyKindFlipService.php:62-63`, `:94-105`).
+  - La même valeur reçoit ensuite deux traitements contraires (lu) :
+    - masquée (`Masking::tail`) dans toute réponse sur la demande, hors du détail de la console (`AgencyUpgradeRequestResource.php:41`) ;
+    - rendue en clair à tout lecteur d'`AgencyResource` (`:50`) ;
+    - journalisée en clair dans `attribute_changes`, puisque `ninea` est dans `Agency::AUDIT_ONLY` (`Agency.php:42-46`) ;
+    - puis rendue `[REDACTED]` à la lecture du journal, puisque `ninea` est un segment d'identifiant de `PropertyRedactor` (`:41`).
+  - La raison n'est écrite que dans deux commentaires : « le NINEA d'une agence est public, décision du 2026-10-08 » (`Agency.php:38-39`) et « mention légale publique » (`SharedLegalIdentifierDetector.php:25-27`). ADR-0039 en fait une mention légale imprimée sur la facture (lu, l. 287-289). Une agence `individual` ne peut pas l'écrire (`AgencyUpdateRequest.php:100-119`, `prohibited`).
+  - Établi comment : lu. Non mesuré en base : la base de développement n'a aucun NINEA (`select count(ninea) from agencies` → 0).
+- Piste : écrire l'exception dans ADR-0044 § 1 (le NINEA d'une personne morale est une mention légale publique : en clair dans `agencies.ninea`, chiffré seulement dans la demande, le temps de la revue), ou cesser de masquer le NINEA de la demande. Dans le premier cas, retirer `ninea` du masquage de lecture du journal pour le seul sujet `Agency`, ou écrire pourquoi il y reste.
+
+### `AgencyUpgradeRequest` chiffre le RIB pro et le NINEA sans les cacher : tout `toArray()` les rend en clair
+- Réf : P84.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/AgencyUpgradeRequest.php:69-76`, `takussan-api/app/Models/DocumentShareLink.php:21-24`, `takussan-api/app/Models/DataExport.php`, `takussan-api/app/Models/ReportExport.php`
+- Constat :
+  - ADR-0044 § 1 : une donnée chiffrée « ne sort jamais en clair ni dans une réponse par défaut » (lu, l. 37-39).
+  - Sur les quatorze modèles à cast `encrypted*`, quatre n'ont pas de `$hidden` qui couvre la colonne (mesuré : `grep -rl "=> 'encrypted" app/Models` puis `grep -F 'protected $hidden'` dans chacun) :
+    - `AgencyUpgradeRequest` (`ninea`, `rib_pro`), et c'est le seul porteur d'une donnée d'ADR-0044 dans ce cas ;
+    - `DocumentShareLink`, dont `$hidden` couvre `token_hash` et pas `token` ;
+    - `DataExport` et `ReportExport` (`archive_path`).
+  - Les autres ont tous un `$hidden` : `OwnerProfile`, `Customer`, `Guarantor`, `PayoutMethod`, `AlertSubscriber`, `Integration`, `IntegrationWebhookLog`, `LeasePaymentLink`, `PropertyCalendarFeed`, `User` (lu).
+  - Mesuré : `php artisan tinker`, sans écriture → `(new AgencyUpgradeRequest(['ninea' => '005012345', 'rib_pro' => 'SN012 …']))->toArray()` rend `{"ninea":"005012345","rib_pro":"SN012 01001 000123456789 12"}`. Le même appel sur `OwnerProfile(['rib' => …])` rend `[]`.
+  - Aucun chemin ne le sérialise brut aujourd'hui (lu). Les deux contrôleurs passent par `AgencyUpgradeRequestResource`. `upgradeRequests` n'est ni dans `Agency::$requestLoadable` (`['primaryAdmin', 'addresses']`) ni dans les `include` d'un autre modèle. De même, `shareLinks` n'est pas dans `Document::$requestLoadable`. Le défaut attend donc un `include`, un `$paginator->items()` ou un export qui le prendrait.
+  - Aucune garde ne lie un cast `encrypted*` à `$hidden` (mesuré : `grep -rln encrypted tests | xargs grep -l -i hidden` → rien).
+  - Établi comment : lu et mesuré.
+- Piste : ajouter `protected $hidden = ['ninea', 'rib_pro']` à `AgencyUpgradeRequest`, et `token` à celui de `DocumentShareLink`. La Resource lit les attributs, pas `toArray()`, et resterait inchangée. Garde : un test qui parcourt `app/Models` et exige que toute colonne castée `encrypted*` soit dans `$hidden`, avec une liste d'exceptions motivées (`archive_path`, si l'on juge qu'un chemin n'est pas une donnée).
+
+### Petites améliorations — angle 84
+- Réf : P84.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/onboarding/OwnerOnboardingWizard.tsx:58`, `:240`, `takussan-web/src/components/onboarding/AgentOnboardingWizard.tsx:75`, `:268`, `takussan-web/src/components/onboarding/ServiceProviderOnboardingWizard.tsx:70`, `:306`, `takussan-web/src/components/onboarding/HostIndividualWizard.tsx:54`, `:505`, `takussan-web/src/hooks/useAutosaveBrouillon.ts:123`, `takussan-api/app/Services/Auth/PhoneVerificationService.php:24`, `:37`, `takussan-api/app/Console/Commands/PurgeOldWizardDrafts.php:19`
+- Constat :
+  - Le code de vérification du téléphone est gardé en clair dans le brouillon serveur des quatre assistants d'onboarding, jusqu'à 90 jours, alors que l'API le garde haché, cinq minutes et à usage unique :
+    - le type de données des quatre assistants porte `code` à côté du numéro (`phone.code`, `phone_otp.code` pour l'hôte) (lu, l. 58, 75, 70, 54) ;
+    - l'état entier part dans `save(step, data)` à chaque saisie qui diffère de l'état vierge (lu, `useAutosaveBrouillon.ts:123`) ;
+    - la vérification réussie passe `verified` à vrai sans vider `code` (lu, l. 240, 268, 306, 505) ;
+    - un brouillon vit jusqu'à la fin de l'assistant ou 90 jours d'inactivité (lu, `PurgeOldWizardDrafts.php:19`) ;
+    - côté API, le code a 6 chiffres, un TTL de 5 minutes et un usage unique, et il est « HACHÉ en cache » (lu, `PhoneVerificationService.php:24`, `:37`).
+  - Le risque est faible, puisque le code expire avant que le brouillon soit relu. Mais c'est la seule copie en clair d'un code que l'API prend soin de hacher.
+  - Établi comment : lu. Non mesuré en base (0 brouillon en développement).
+- Piste : retirer `code` des données de l'assistant et le garder dans un état local de l'étape, ou le vider au passage de `verified` à vrai. Garde : le test de chaque assistant vérifie que le corps du `PUT` du brouillon ne contient pas `code`.
