@@ -16,6 +16,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Messaging\ConversationAccess;
+use App\Support\Audit\PropertyRedactor;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
 use ZipArchive;
@@ -145,8 +146,37 @@ class DataExportBuilder
                     ->where(fn ($inner) => $inner->where('causer_type', User::class)->where('causer_id', $user->id))
                     ->orWhere(fn ($inner) => $inner->where('subject_type', User::class)->where('subject_id', $user->id)))
                 ->get()
-                ->toArray(),
+                ->map(fn (Activity $activity) => $this->auditRow($activity, $user))
+                ->all(),
             'media/manifest.json' => $user->media()->get(['id', 'collection_name', 'file_name', 'mime_type', 'size'])->toArray(),
         ];
+    }
+
+    /**
+     * TCK-1017 (P56.02) — une ligne dont le titulaire n'est que le CAUSEUR décrit un tiers (un
+     * client qu'il a saisi, par exemple) : l'export n'en rend que l'acte. Une ligne dont il est le
+     * SUJET garde son diff, passé par `PropertyRedactor` comme les autres lectures du journal.
+     *
+     * @return array<string,mixed>
+     */
+    private function auditRow(Activity $activity, User $user): array
+    {
+        $isSubject = $activity->subject_type === User::class && (int) $activity->subject_id === $user->id;
+
+        if (! $isSubject) {
+            return [
+                'event' => $activity->event,
+                'subject_type' => $activity->subject_type,
+                'subject_id' => $activity->subject_id,
+                'created_at' => $activity->created_at?->toJSON(),
+                'description' => $activity->description,
+            ];
+        }
+
+        $row = $activity->toArray();
+        $row['properties'] = PropertyRedactor::redact($activity->properties);
+        $row['attribute_changes'] = PropertyRedactor::redact($activity->attribute_changes);
+
+        return $row;
     }
 }
