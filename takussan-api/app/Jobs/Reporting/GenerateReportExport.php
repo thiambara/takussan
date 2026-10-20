@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 /**
  * TCK-227 — Async report export. Triggered for matrices > 10k rows; serializes
@@ -49,7 +50,11 @@ class GenerateReportExport implements ShouldQueue
 
         $csv = $this->toCsv($payload['rows']);
         $path = "reports/{$export->report}-{$export->id}.csv";
-        Storage::disk('local')->put($path, $csv);
+        // TCK-1084 (P77.03) — le disque `local` rend `false` au lieu de lever (`'throw' => false`) :
+        // sans ce contrôle, l'export passait à `ready` et notifiait un lien qui rend 404.
+        if (Storage::disk('local')->put($path, $csv) !== true) {
+            throw new RuntimeException("L'export de rapport n'a pas pu écrire {$path}.");
+        }
 
         $export->update([
             'status' => 'ready',
