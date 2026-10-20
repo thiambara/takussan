@@ -72,3 +72,7 @@ racine).
 - Ablation front : composant, page, requêtes et messages d'origine remis, le cas rougit sur le
   bouton « Modifier villa » trouvé.
 - Après ce ticket, `BusinessEnumService` n'écrit plus rien : il ne garde que `all()` et `get()`.
+- `EnumValueDialog.test.tsx`, retiré par TCK-1055, est rétabli et réécrit : la garde de l'implémenteur
+  refuse qu'un test se supprime. Il garde le retrait au niveau du composant (aucun bouton dans la
+  table, le module n'exporte plus que `EnumList` et `EnumValueTable`). Ablation : composant et
+  messages de `pre-dev` remis, ses deux cas rougissent.
