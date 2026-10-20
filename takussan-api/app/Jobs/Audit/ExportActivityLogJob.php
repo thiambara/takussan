@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Audit;
 
+use App\Http\Controllers\Api\ActivityLogExportController;
 use App\Models\User;
 use App\Notifications\ActivityLogExportReadyNotification;
 use App\Services\Audit\ActivityLogExporter;
@@ -13,6 +14,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Excel as ExcelType;
@@ -36,15 +38,22 @@ class ExportActivityLogJob implements ShouldQueue
         $rowCount = count($payload['rows']);
 
         $filename = $payload['filename'].'.'.$format;
-        $storagePath = 'exports/audit/'.$filename;
+        // TCK-1050 (P63.01) — le fichier se nomme d'un identifiant opaque, rangé sous le dossier du
+        // demandeur. Nommé du seul nom d'agence réduit à `[a-z0-9-]` et des dates, il était le même
+        // pour deux agences homonymes (« Immo Dakar », « Immo-Dakar »), ou pour une agence nommée
+        // « Platform » et un super-admin : le second export écrasait le premier, et le lien de l'un
+        // servait le journal de l'autre. Le nom lisible ne sert plus qu'au `Content-Disposition`.
+        $file = Str::uuid()->toString().'.'.$format;
 
         $content = $this->generateContent($format, $payload);
-        Storage::put($storagePath, $content);
+        Storage::put(ActivityLogExportController::storagePath($this->user->id, $file), $content);
 
+        // La signature couvre le demandeur, le fichier et le nom : le téléchargement ne sert que le
+        // dossier du demandeur signé (`ActivityLogExportController::download`).
         $downloadUrl = URL::temporarySignedRoute(
             'activity-logs.export.download',
             now()->addHours(24),
-            ['path' => $storagePath],
+            ['user' => $this->user->id, 'file' => $file, 'name' => $filename],
         );
 
         $this->user->notify(new ActivityLogExportReadyNotification(

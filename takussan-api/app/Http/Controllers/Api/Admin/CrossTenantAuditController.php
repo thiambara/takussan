@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Http\Controllers\Api\ActivityLogExportController;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Filters\ExactIdentifierFilter;
 use App\Models\Activity;
@@ -12,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -91,8 +93,13 @@ class CrossTenantAuditController extends Controller
         }
 
         $filename = 'audit-plateforme-'.now()->format('Ymd-His');
-        $path = 'exports/audit/'.$filename.'-'.bin2hex(random_bytes(6)).'.csv';
-        Storage::put($path, $exporter->csvContent($exporter->payloadForQuery($query->getEloquentBuilder(), $filename)));
+        // TCK-1050 (P63.01) — le même rangement que l'export d'agence : dossier du demandeur, nom
+        // opaque, et un lien signé pour ce demandeur seul.
+        $file = Str::uuid()->toString().'.csv';
+        Storage::put(
+            ActivityLogExportController::storagePath($request->user()->id, $file),
+            $exporter->csvContent($exporter->payloadForQuery($query->getEloquentBuilder(), $filename)),
+        );
 
         $expiresAt = now()->addHour();
 
@@ -108,7 +115,9 @@ class CrossTenantAuditController extends Controller
 
         return $this->json([
             'data' => [
-                'url' => URL::temporarySignedRoute('activity-logs.export.download', $expiresAt, ['path' => $path]),
+                'url' => URL::temporarySignedRoute('activity-logs.export.download', $expiresAt, [
+                    'user' => $request->user()->id, 'file' => $file, 'name' => $filename.'.csv',
+                ]),
                 'expires_at' => $expiresAt->toIso8601String(),
                 'count' => $count,
             ],

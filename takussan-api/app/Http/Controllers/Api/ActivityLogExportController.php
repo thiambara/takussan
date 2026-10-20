@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Audit\ExportActivityLogRequest;
 use App\Jobs\Audit\ExportActivityLogJob;
+use App\Models\User;
 use App\Services\Audit\ActivityLogExporter;
 use App\Services\Export\ExportWriter;
 use App\Support\AgencyKindGuard;
@@ -55,6 +56,10 @@ class ActivityLogExportController extends Controller
 
     /**
      * Serve an async export file via signed temporary URL (TTL 24h).
+     *
+     * TCK-1050 (P63.01) — le lien est lié à son demandeur : `user`, `file` et `name` sont signés
+     * ensemble, et le fichier ne se cherche que dans le dossier du demandeur signé, qui doit
+     * toujours exister. Un lien ne sert donc que le fichier écrit pour celui qui l'a reçu.
      */
     public function download(Request $request): mixed
     {
@@ -62,11 +67,26 @@ class ActivityLogExportController extends Controller
             abort_code(403, 'activity_log.export_link_invalid');
         }
 
-        $path = $request->query('path');
-        if (! $path || ! Storage::exists((string) $path)) {
+        $userId = filter_var($request->query('user'), FILTER_VALIDATE_INT);
+        $file = (string) $request->query('file', '');
+        if ($userId === false || preg_match(self::FICHIER, $file) !== 1 || ! User::query()->whereKey($userId)->exists()) {
             abort(404);
         }
 
-        return Storage::download((string) $path);
+        $path = self::storagePath($userId, $file);
+        if (! Storage::exists($path)) {
+            abort(404);
+        }
+
+        return Storage::download($path, (string) $request->query('name', $file));
+    }
+
+    /** Le nom opaque que le job donne au fichier : un UUID et l'extension du format. */
+    private const FICHIER = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(csv|xlsx)$/';
+
+    /** Le chemin d'un export asynchrone : le dossier de son demandeur, puis le nom opaque. */
+    public static function storagePath(int $userId, string $file): string
+    {
+        return "exports/audit/{$userId}/{$file}";
     }
 }
