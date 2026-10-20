@@ -8043,7 +8043,7 @@ n'ont pas été rouverts.*
 
 ### La résiliation laisse dues toutes les échéances de loyer postérieures à la sortie : pénalités, relances et paiement continuent
 - Réf : P81.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : annuler des échéances de loyer, et le prorata de l'échéance à cheval est un choix
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/LeaseService.php:273-323`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:193-242`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:65-92`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:127-140`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1484-1500`, `takussan-api/app/Services/Model/LeasePaymentService.php:46-70`, `takussan-api/app/Services/Account/AccountDeletionService.php:423-430`
 - Constat :
@@ -8056,10 +8056,11 @@ n'ont pas été rouverts.*
   - Ces échéances ouvertes bloquent la suppression du compte du locataire : `collectOpenObligations` compte toute ligne `pending`, `late` ou `partially_paid` de ses fiches, sans date ni état du bail (lu, l. 423-430). Les relevés et la balance âgée qui les lisent n'ont pas été rendus (à vérifier).
   - Établi comment : lu, puis mesuré par test temporaire.
 - Piste : à la résiliation immédiate et à la confirmation de la résiliation anticipée, sous le verrou du bail, annuler (`cancelled`, tracé dans `activity_log` comme `lease_renewal_schedule_cancelled`) les échéances de loyer non engagées dont `period_start` suit la date de sortie, avec les mêmes refus que `handOver` pour une échéance engagée (réglée, en partie réglée, checkout ouvert) ; le cas de l'échéance à cheval sur la date de sortie (prorata ou non) est un choix. Garde : un test par voie, qui relit les échéances après la sortie et fait tourner `ApplyLateFeesJob`.
+- Mesure (2026-10-20, 04ec6c724, mesureur) : `git log 88d019565..HEAD` sur les fichiers cités → aucun commit ; relu `LeaseService::terminate` (l. 273-323, inchangé : statut et indemnité, aucune échéance touchée) et `candidateQuery`/`isApplicable` (aucune lecture de l'état du bail) ; test temporaire (retiré, charge 4,74 / 2,84 / 2,55 sur 8 cœurs) : bail de 12 mois à 100 000 et 10 % de pénalité, échéancier émis le 2026-10-01 (12 lignes), `terminate()` le 2026-10-20 → 11 loyers postérieurs restent `pending`, `isPayable` rend `true` sur celui de novembre ; horloge au 2026-12-02, `ApplyLateFeesJob` pénalise le loyer de novembre (10 000, `late`), postérieur à la sortie → le constat tient (voie anticipée relue, non rejouée). Classement : V1, la piste annule des échéances de loyer et laisse ouvert le sort de l'échéance à cheval sur la date de sortie.
 
 ### Rien n'écrit `expired` : un bail arrivé à son terme reste `active`, et sa caution ne se restitue pas depuis l'écran
 - Réf : P81.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : tâche d'expiration ou action « clore le bail », et sort des baux échus en base (V4)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/Enums/LeaseStatus.php:10`, `takussan-api/app/Services/Lease/DepositRefundService.php:50-54`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:85-91`, `takussan-api/routes/api/leases.php:28`, `takussan-web/src/components/leases/DepositRefundBanner.tsx:34-38`, `takussan-api/database/seeders/Activity/LeaseSeeder.php:45`
 - Constat :
@@ -8070,10 +8071,11 @@ n'ont pas été rouverts.*
   - Le bandeau de restitution ne s'affiche qu'en `terminated` ou `expired` (lu, `DepositRefundBanner.tsx:34`). Depuis l'interface, la caution d'un bail allé à son terme ne peut donc jamais être rendue.
   - Établi comment : lu, mesuré par test temporaire et par lecture de la base de développement.
 - Piste : une tâche quotidienne qui passe `expired` les baux `active` dont `end_date` est passée et qu'aucun renouvellement n'a relevés, ou une action « clore le bail » au front sur `terminate` ; le choix entre les deux, et le sort des baux échus déjà en base, sont des décisions. Garde : un test qui fait passer la date de fin, lance la tâche, puis restitue la caution.
+- Mesure (2026-10-20, 04ec6c724, mesureur) : `grep -rn LeaseStatus::Expired app` → seules des listes admises (`LeaseRenewalService:55`, `EarlyTerminationService:56`, `DepositRefundService:51`, `ReviewEligibility:38`), aucune écriture ; `routes/console.php` ne planifie rien sur les baux échus ; `grep -rn /terminate takussan-web/src` → aucun appelant ; `DepositRefundBanner.tsx:34` toujours limité à `terminated`/`expired` ; test temporaire (retiré) : bail `active` échu le 2026-11-01 avec 200 000 de caution, `DepositRefundService::refund` → `ApiError deposit_refund.lease_not_ended` → le constat tient (compte des 33 baux de la base de développement non relu). Classement : V7, la piste laisse le choix entre une tâche quotidienne et une action visible, et la reprise des baux échus déjà en base est une réécriture de données (V4).
 
 ### La pénalité de retard tombe aussi sur l'indemnité de résiliation et sur les lignes qui ne sont pas des loyers
 - Réf : P81.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : liste des types de ligne qui portent une pénalité de retard
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:65-92`, `takussan-api/app/Services/Lease/LateFeeCalculator.php:78-111,172-178`, `takussan-api/app/Services/Model/LeaseService.php:306-318`
 - Constat :
@@ -8082,10 +8084,11 @@ n'ont pas été rouverts.*
   - `docs/features.md:195` parle de la pénalité d'une « échéance de loyer » ; rien n'écrit si l'indemnité ou la caution en portent une (lu, `grep late_fee docs/features.md`).
   - Établi comment : lu, puis mesuré pour l'indemnité ; la caution et les charges sont lues, non exécutées.
 - Piste : borner la sélection aux types que la règle vise (`rent`, peut-être `charges`), par un filtre sur `payment_type` dans `candidateQuery` et `isApplicable` ; la liste des types est un choix (V1). Garde : un test par type exclu.
+- Mesure (2026-10-20, 04ec6c724, mesureur) : relu `ApplyLateFeesJob::candidateQuery` (seul `exceptDepositRefunds`) et `LateFeeCalculator::isApplicable` (aucune lecture de `payment_type`) ; même test temporaire que P81.01 (retiré) : indemnité de 200 000 posée par `terminate()` le 2026-10-20, au 2026-12-02 `ApplyLateFeesJob` lui applique 20 000 et la passe `late` → le constat tient. Classement : V1, borner la pénalité à `rent` (et peut-être `charges`) change un montant dû, et la liste des types n'est écrite nulle part.
 
 ### Petites améliorations
 - Réf : P81.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : ce qui bloque l'effacement du compte ; et V7 pour les lignes après la sortie
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:37-47`, `takussan-api/app/Services/Account/AccountDeletionService.php:388-411`
 - Constat :
@@ -8093,3 +8096,4 @@ n'ont pas été rouverts.*
   - `collectOpenObligations` ne compte comme bail en cours, côté bailleur comme côté locataire, que `active` et `pending_signature` : un bail `terminating` (préavis, loyer dû) n'est pas une obligation (lu, l. 390 et 410), alors que `User::ACTIVE_TENANT_LEASE_STATUSES` le compte ailleurs (`HasProfiles.php:43`). Ses échéances ouvertes bloquent quand même : l'écart ne se voit que sur un préavis sans échéance due.
   - Établi comment : lu.
 - Piste : écrire dans TCK-957 si les types `regularization` et `charges` restent permis après la sortie ; juger les baux en cours de `collectOpenObligations` par `User::ACTIVE_TENANT_LEASE_STATUSES`.
+- Mesure (2026-10-20, 04ec6c724, mesureur) : relu `LeasePaymentController::store` (l. 38-47, refus hors `active`/`terminating`), TCK-957 « Hypothèses » (résilié et expiré refusés, rien sur `regularization` ni `charges` après la sortie), `AccountDeletionService` l. 390 et 410 (baux en cours : `active` et `pending_signature` seuls) et `HasProfiles.php:43` (`ACTIVE_TENANT_LEASE_STATUSES` = `active`, `terminating`) ; la PR #820 touche ce service sans changer ces deux listes → les deux parties tiennent. Classement : V3, élargir les baux qui bloquent l'effacement change ce qui retient des données personnelles, et permettre une régularisation après la sortie est un choix de produit (V7).
