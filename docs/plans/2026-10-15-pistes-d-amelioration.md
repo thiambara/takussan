@@ -7260,7 +7260,7 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
 
 ### Petites améliorations du plan F3 et du relevé
 - Réf : P71.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : variables de production de F3 et relevé de Dokploy
 - Gravité : 🟢 amélioration
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:238`, `:4160`, `:4166`, `docs/infra/prod-drivers.json:67`, `docs/infra/hebergement.md:172-173`
 - Constat :
@@ -7269,6 +7269,7 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - `prod-drivers.json` nomme le service de production `takussan-api-prod` (lu, `:67`) ; F3, ADR-0069 et `compose.api.yml` disent `takussan-api-production`.
   - La ligne TCK-720 de F3 exige un `CACHE_PREFIX` propre à la production (lu, `:4166`). Le motif de P05.09 était le Redis partagé `redis-takussan`, que TCK-880 a remplacé par un Redis par pile (lu, en-tête de `deploy/takussan/compose.api.yml`). La consigne reste sans danger, mais elle ne dit plus pourquoi.
 - Piste : nommer `GOOGLE_REDIRECT_URI`, `SESSION_DOMAIN` et `SESSION_COOKIE` dans la table F3, avec leur valeur de production. Corriger le nom du service dans `prod-drivers.json`. Récrire le motif de `CACHE_PREFIX`, ou retirer la consigne si le porteur la juge sans objet.
+- Mesure (2026-10-20, 3ba79daa1, mesureur) : `grep -n GOOGLE_REDIRECT_URI` → nommée seulement à `hebergement.md:176` et au plan `:238`, absente de la table F3 (l. 4155-4166) ; `SESSION_DOMAIN`/`SESSION_COOKIE` → `hebergement.md:173` et plan `:3517` (préproduction), jamais en F3 ; `prod-drivers.json:67` dit toujours `takussan-api-prod` quand le plan (`:4146`) et `compose.api.yml:15,93` disent `takussan-api-production` ; la ligne TCK-720 de F3 (`:4166`) motive toujours `CACHE_PREFIX` par P05.09 → les quatre points tiennent ; les valeurs de session et de Google ne se lisent pas depuis le poste. Classement : V5, le correctif écrit la table des variables de la production à créer et le relevé de Dokploy, et ses valeurs demandent une mesure hors du poste.
 
 ## Angle 72 — Accusés `failed` reçus après coup (SMS et WhatsApp)
 
@@ -7325,7 +7326,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### Un code à usage unique perdu en accusé `failed` ne laisse ni signal ni autre voie au destinataire
 - Réf : P72.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 et V7 : contexte du code sur la tentative, réaction neuve à un échec tardif
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/PhoneVerificationService.php:303-336,394-420`, `takussan-api/app/Services/Account/DeletionStepUpService.php:65-108`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:112-141`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:340-355`
 - Constat :
@@ -7335,10 +7336,11 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
   - Une réaction est aujourd'hui impossible sans schéma : la tentative ne porte ni l'événement (`phone_otp`, `lease_signature`…) ni le sujet, et elle est sans notification pour ces trois envois (lu, `attemptRow()`, l. 340-355 ; `models-spec.md` § 69).
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : écrire l'événement du contexte sur la tentative ; sur un `failed` tardif d'un code, lever le délai de renvoi du sujet et l'exposer (un état que l'écran de saisie du code peut relire), voire basculer sur l'e-mail vérifié quand il existe. Garde : un test par envoi de code.
+- Mesure (2026-10-20, 3ba79daa1, mesureur) : relu `DeletionStepUpService` l. 88-98 (résultat de `$this->sms->send()` ignoré), `LeaseSignatureService::sendCode()` (`smsLeft()` seul, SMS imposé à un numéro vérifié, l. 120-121), `SmsRouterDriver::attemptRow()` (ni événement ni sujet) ; `git log 90019ce08..3ba79daa1 -- takussan-api/app` → rien ; test temporaire retiré (charge 1,99 / 2,04 / 2,91 sur 8 cœurs) : tentative `orange` à `sent`, `DeliveryAttemptUpdater::applyStatus('orange', 'm-1', 'failed', …)` → vert : ligne à `failed`, `Queue` et `Notification` vides, aucun `Log::info`/`warning`/`error` → tient. Classement : V4 et V7, la piste écrit une colonne neuve sur `notification_delivery_attempts` et choisit ce que l'écran de saisie montre ou le canal de repli.
 
 ### Un échec de livraison n'est lisible nulle part, et ceux de WhatsApp pas même par la sonde de santé
 - Réf : P72.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ce que l'expéditeur voit d'un échec, sonde de santé neuve
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/HealthcheckService.php:236-257`, `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:30-63`, `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:42-95`
 - Constat :
@@ -7347,16 +7349,18 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
   - Ni le job WhatsApp ni `DeliveryAttemptUpdater` n'écrivent au journal sur un `failed` (mesuré, `Log::spy` du test temporaire : aucun appel).
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : une sonde de taux d'échec WhatsApp à côté de celle du SMS, comptée sur `updated_at` pour voir les accusés tardifs ; un `Log::warning` (suffixe du numéro, fournisseur, motif) sur tout `failed` tardif ; et une décision sur ce que l'expéditeur voit de l'échec d'un message qu'il a déclenché.
+- Mesure (2026-10-20, 3ba79daa1, mesureur) : `grep -rn 'deliveryAttempts\|delivery_attempts\|NotificationDeliveryAttempt' takussan-api/app/Http` → un seul docblock (`OrangeSmsStatusController.php:53`) ; `HealthcheckService::sms()` relu : `created_at >= now()->subHour()` et `provider not like 'whatsapp%'` ; test temporaire retiré (même passage que P72.04) : `applyStatus(…, 'failed', …)` n'écrit rien au journal → tient. Classement : V7, la piste demande une décision sur ce que l'expéditeur voit et une sonde neuve, dont le seuil WhatsApp n'est écrit nulle part.
 
 ### Petites améliorations des accusés `failed`
 - Réf : P72.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux options pour le trait `Critical`, forme de `failure_reason`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Webhook/WhatsappStatusController.php:146-153`, `takussan-api/app/Notifications/Concerns/Critical.php:1-27`
 - Constat :
   - `failureReason()` garde le `title` de l'erreur Meta avant son `code` (lu, l. 152) : la tentative porte « Message undeliverable » et perd `131026`, le seul champ qui distingue un numéro sans WhatsApp d'un gabarit refusé, et dont P72.01 à P72.03 auraient besoin.
   - Le trait `Concerns\Critical`, dont le docblock annonce les codes 2FA et de réinitialisation, n'est employé par aucune notification (lu, `grep -rn 'use Critical' app` : aucun) ; les codes passent par le routeur direct ou par `isCriticalSms()` écrit à la main.
 - Piste : écrire `code` (et le titre à côté) dans `failure_reason` ; retirer le trait sans emploi ou y ramener `LeaseSignatureCodeNotification`.
+- Mesure (2026-10-20, 3ba79daa1, mesureur) : relu `WhatsappStatusController::failureReason()` : `title ?? message ?? code`, le code Meta est perdu dès qu'un titre existe ; `grep -rn 'Critical;' takussan-api/app` → aucun emploi du trait `Concerns\Critical` dans `app/`, un seul dans `tests/Feature/Services/Sms/SmsChannelTest.php:10` → tient. Le constat dit « aucune notification » : vrai de `app/`, mais le trait a un appelant de test. Classement : V7, la piste laisse le choix entre retirer le trait et l'appliquer au code de signature (contournement des heures calmes), et la forme de `failure_reason` n'est écrite dans aucune spec.
 
 ## Angle 73 — URL signées absolues derrière Traefik et sur le chemin interne du front
 
@@ -7380,7 +7384,7 @@ Traefik, ni Cloudflare. Les hôtes réels ont été remplacés dans les tests pa
 
 ### Sur le chemin interne du front, l'API rend ses URL signées et ses liens avec l'hôte interne : `X-Forwarded-Host` n'est plus cru depuis TCK-853
 - Réf : P73.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : l'hôte des URL rendues contredit ADR-0052 § 5, deux voies
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/bootstrap/app.php:53-59`, `takussan-web/src/lib/api.ts:10-48,129`, `takussan-web/src/lib/relais-api.ts:68`, `takussan-api/app/Http/Resources/PropertyResource.php:476-479`, `takussan-api/app/Http/Resources/KycDossierResource.php:84`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:111`, `takussan-web/src/lib/queries/public-property.ts:86-89`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyDocuments.tsx:46`, `takussan-web/src/components/admin/super/kyc-queue.tsx:376`, `takussan-web/src/components/admin/super/CrossTenantAuditTable.tsx:70`, `docs/adr/0052-cache-public-de-la-fiche-et-ip-du-visiteur.md:137-140`
 - Constat :
@@ -7398,10 +7402,11 @@ Traefik, ni Cloudflare. Les hôtes réels ont été remplacés dans les tests pa
   - Ne plus dériver de la requête l'hôte des URL que l'API rend. Une voie : `URL::forceRootUrl(config('app.url'))` et `forceScheme`, posés pour le contexte HTTP dans `AppServiceProvider`. TCK-853 garde son but (aucun en-tête ne choisit l'hôte), et l'en-tête du front devient inutile. L'autre voie : ne croire `X-Forwarded-Host` que du sous-réseau interne.
   - Corriger ensuite le commentaire d'`api.ts` et ADR-0052 § 5.
   - Garde : un test de l'API qui rejoue exactement les en-têtes que le front envoie (hôte interne et trois `X-Forwarded-*`). Il exige que `PropertyResource` et `PrivateMediaAccess::signedUrl()` rendent l'origine d'`APP_URL`, et qu'une URL ainsi signée soit acceptée par `signed` derrière Traefik.
+- Mesure (2026-10-20, 3ba79daa1, mesureur) : relu `bootstrap/app.php:56-59` (seuls `FOR | PROTO | PORT` crus), `api.ts:29-48` (le front envoie toujours `X-Forwarded-Host`), aucun `forceRootUrl`/`forceScheme` dans `app/` ; test temporaire retiré (charge 2,54 / 2,10 / 3,00 sur 8 cœurs) : depuis `127.0.0.1`, `Host: api-interne:8080` avec `X-Forwarded-Host: api-publique.example`, `-Proto: https`, `-Port: 443` → `URL::temporarySignedRoute('media.private.show', …)` rend `https://api-interne/api/media/1/file?expires=…&signature=…` et `url('/x')` rend `https://api-interne/x` → tient ; la préproduction n'est pas mesurée. Classement : V6, le correctif choisit entre fixer la racine sur `APP_URL` et rendre confiance à `X-Forwarded-Host` d'un sous-réseau, contre la règle écrite par ADR-0052 § 5 et le choix de TCK-853.
 
 ### Toute URL signée absolue n'est valide que si l'adresse de Traefik figure dans `TRUSTED_PROXIES`, et aucune sonde ne relie les deux
 - Réf : P73.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 et V6 : signature relative ou sonde, `TRUSTED_PROXIES` de production
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/media.php:23`, `takussan-api/routes/web.php:14`, `takussan-api/routes/api/sms-webhooks.php:34`, `takussan-api/app/Http/Controllers/Api/KycDocumentController.php:17`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:61`, `takussan-api/app/Support/TrustedProxyList.php:9-13`, `takussan-api/app/Services/Admin/HealthcheckService.php:400-408`, `takussan-api/docker/Caddyfile:1-10`
 - Constat :
@@ -7416,10 +7421,11 @@ Traefik, ni Cloudflare. Les hôtes réels ont été remplacés dans les tests pa
   - Une valeur de `TRUSTED_PROXIES` qui oublie le sous-réseau de `dokploy-network` rend donc 403 sur tout fichier privé, tout lien de désabonnement et tout accusé LAM. C'est aussi le cas d'une valeur qui contient `*`, qui « ne croit personne » (lu, `TrustedProxyList.php:9-13`). Un tel oubli est possible pour la production à créer en F3. La sonde `proxies` ne signale que le joker (`HealthcheckService.php:400-408`, lu), et l'IP du client se trompe en silence : les deux symptômes ne se voient pas au démarrage (déduit ; à vérifier sur un environnement servi).
   - Préproduction : `APP_URL` vaut `https://preview.api.takussan.com` dans le plan (lu, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3520`), et D5 prouve que l'IP du client traverse Traefik. Une URL émise en file y est donc, selon toute vraisemblance, acceptée (déduit, non mesuré sur le serveur).
 - Piste : signer en relatif (`absolute: false` à l'émission, `signed:relative` ou `hasValidSignature(false)` à la vérification) les liens qui ne sortent pas du domaine de l'API. L'hôte reste fixé par l'émission (P73.01), et la validité ne dépend plus du schéma vu par Laravel. Sinon, faire rougir la sonde `proxies` quand une requête arrivée par Traefik est vue en `http`. Garde : un test qui émet une URL signée hors requête puis la présente depuis une adresse hors de la liste.
+- Mesure (2026-10-20, 3ba79daa1, mesureur) : relu `Caddyfile` (pas de `trusted_proxies`), routes `signed` de `media.php:23`, `web.php:14`, `sms-webhooks.php:34`, `hasValidSignature()` de `KycDocumentController:17` et `ActivityLogExportController:61`, sonde `proxies` (joker seul, `HealthcheckService.php:400-408`) ; test temporaire retiré (même passage que P73.01) : URL signée sous `https://api-publique.example` (`forceRootUrl` + `forceScheme`), présentée avec `X-Forwarded-Proto: https` → de `127.0.0.1` `hasValidSignature()` = `true`, de `198.51.100.7` `false` avec `url()` = `http://api-publique.example/api/media/1/file` → tient ; l'oubli en production reste déduit. Classement : V5 et V6, la piste touche `TRUSTED_PROXIES` et la manière de signer toutes les URL, avec deux voies au choix.
 
 ### Petites améliorations
 - Réf : P73.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : la pièce KYC sous `auth:sanctum` (TCK-546)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/api/kyc.php:6-8`, `takussan-api/app/Http/Resources/DataExportResource.php:23`, `takussan-web/src/types/super-admin.ts:713`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:135-147`, `takussan-api/app/Notifications/LeaseSignatureCodeNotification.php`
 - Constat :
@@ -7428,3 +7434,4 @@ Traefik, ni Cloudflare. Les hôtes réels ont été remplacés dans les tests pa
   - **Le `ret_url` de LAfricaMobile** est signé dans la requête en cours (lu, `LAfricaMobileSmsDriver.php:135-147`), et `LeaseSignatureCodeNotification` n'est pas mise en file (lu, aucun `ShouldQueue`). Aujourd'hui, l'envoi du code part du navigateur, vers l'URL publique (lu, `leases.ts:341-345`, `useApiMutation`). Un envoi synchrone venu d'une action serveur donnerait à LAM une URL de rappel sur l'hôte interne, injoignable. P73.01 le fermerait du même geste (déduit).
   - **Les signatures dans le journal d'accès de Traefik** : `hebergement.md` dit que le journal porte le chemin de chaque requête. Si `RequestPath` comprend la chaîne de requête, chaque `signature=` y est écrite, et elle vaut jusqu'à sept jours (rappel LAM, pièces jointes de caution) ou sans limite (désabonnement du résumé). Voir P10.10, qui laisse ce point « à vérifier » (non mesurable depuis le poste).
 - Piste : traiter TCK-546 avec P73.01 ; retirer `download_url` s'il n'a pas de lecteur ; vérifier sur le serveur ce que Traefik journalise, et sinon écarter la chaîne de requête des journaux.
+- Mesure (2026-10-20, 3ba79daa1, mesureur) : relu `routes/api/kyc.php:6-8` (`kyc.documents.show` sous `auth:sanctum`) et `TCK-546` (`status: todo`) ; `grep -rn download_url takussan-web/src` → le type `super-admin.ts:713` et un test (`DataExportsPanel.test.tsx:42`), aucun lecteur ; `DataExportResource.php:23` fabrique le champ par `url()` ; `LAfricaMobileSmsDriver::buildReturnUrl()` signe dans la requête, `LeaseSignatureCodeNotification` sans `ShouldQueue` ; le journal de Traefik n'est pas mesurable depuis le poste → les trois premiers points tiennent, le quatrième reste à vérifier. Le 401 n'est pas rejoué, il se lit du middleware. Classement : V2, ouvrir la pièce sans jeton change l'autorisation d'une route, et le retrait de `download_url` touche le contrat de l'API.
