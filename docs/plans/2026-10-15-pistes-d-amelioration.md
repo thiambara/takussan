@@ -7163,7 +7163,7 @@ sont pas mesurées, ni la charge RSC du document.*
 
 ### Aucune garde ne voit le poids des écrans de `/app`
 - Réf : P70.06
-- Statut : retenu · autonome
+- Statut : retenu · à valider — chemin fermé : takussan-web/scripts/poids-des-routes.mjs (garde existante, V9)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/scripts/poids-des-routes.mjs:60,120`, `.github/workflows/web-ci.yml:207`, `takussan-web/src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts:29`
 - Constat :
@@ -7171,10 +7171,11 @@ sont pas mesurées, ni la charge RSC du document.*
   - Les défauts P70.01 et P70.02 (130 à 140 Kio et 66 Kio par écran) ne cassent rien, et aucun journal ne les montre.
 - Piste : faire imprimer aussi au rapport les routes de `(dashboard)` (et de `(super-admin)`), sans seuil, comme pour le site public ; le seuil reste à décider à part.
 - Mesure (2026-10-20, 1ddc38cd0, mesureur) : relu `poids-des-routes.mjs:60,120` (`PREFIXE_PUBLIC = '/[locale]/(public)/'`, filtre des routes) et `web-ci.yml:207` (`run: node scripts/poids-des-routes.mjs`) ; `git log e0275f6b6..1ddc38cd0 -- takussan-web/scripts` → aucun commit ; le script temporaire du passage, même calcul sans le filtre, rend les 65 écrans de `(dashboard)` de 267,0 à 602,6 Kio, qu'aucun rapport n'imprime → tient. Classement : A5, imprimer aussi les routes de `(dashboard)` et `(super-admin)` dans le rapport, sans seuil et sans toucher `web-ci.yml`, ajoute de la visibilité sans resserrer aucun refus ; le seuil reste hors de la piste, comme elle le dit.
+- Mesure (2026-10-20, 7a21765a8, implementeur) : sur le build local, `node scripts/poids-des-routes.mjs` imprime 18 routes publiques et aucun écran de `/app` ni de `/super-admin` → tient ; correctif écrit et éprouvé (seconde section « écrans de la console », sans seuil ni refus neuf : `poids-des-routes.test.ts` 2 rouges sur 10 avant, 10/10 après, 102 écrans sur le build local, ablation → les 2 mêmes rouges), puis retiré : `check-pistes.mjs --role implementeur` refuse toute modification sous `takussan-web/scripts/` (« une garde existante ne se modifie pas (critère V9) »). Le porteur la traite lui-même ; l'étape de `web-ci.yml` (« Poids des routes publiques ») serait à renommer avec.
 
 ### Petites améliorations
 - Réf : P70.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-1042 — reste : mesurer la charge RSC d'un document `/app` servi (copies imbriquées des dictionnaires) avant de décider quoi que ce soit sur eux, sous ADR-0022
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/hooks/useTenantWelcomeOnce.ts:6`, `takussan-web/src/components/chat-widget/useUnreadCount.ts:4`, `takussan-web/src/lib/queries/leases.ts:1`, `takussan-web/src/lib/queries/conversations.ts:1`, `takussan-web/src/i18n/namespaces.json`, `takussan-web/src/app/layout.tsx:88`, `takussan-web/src/app/(dashboard)/layout.tsx`, `takussan-web/src/app/(dashboard)/app/layout.tsx`
 - Constat :
@@ -7182,6 +7183,7 @@ sont pas mesurées, ni la charge RSC du document.*
   - Chaque document de `/app` sérialise trois dictionnaires imbriqués : le layout racine (`.`, 8 espaces, 22,5 Kio bruts, 7,4 gzip), `(dashboard)` (11 espaces, 34,9 et 10,9) et `(dashboard)/app` (50 espaces, 235,0 et 70,1), chaque frontière portant l'ensemble cumulé de ses parents (mesuré, `node -e` sur `namespaces.json` et `messages/fr.json` ; lu, `messages.ts`). Sous `/app/agency`, il y en a un quatrième, de 276,1 et 82,3. Que la charge RSC servie porte bien ces copies, et ce qu'elles coûtent après la compression du document, est à vérifier sur un document servi.
 - Piste : importer seulement ce qu'il faut de ces deux modules (ou les scinder) ; mesurer la charge RSC d'un document `/app` servi avant de décider quoi que ce soit sur les dictionnaires (ADR-0022).
 - Mesure (2026-10-20, 1ddc38cd0, mesureur) : relu `useTenantWelcomeOnce.ts` (seul `useActiveLeaseSummaries`) et `useUnreadCount.ts` (seul `useConversations`), `leases.ts` et `conversations.ts` (`'use client'`, 42 et 37 exports) ; le « à vérifier » de l'élagage est levé sur le build de référence : le JS initial de `/app/overview`, qui n'a pas de JS propre, contient `generate-schedule`, `signature/otp`, `deposit-refund`, `early-termination` et `/participants`, chaînes qu'on ne trouve que dans `leases.ts` et `conversations.ts` hors des composants de bail (`grep -rln`), dans un morceau de 20,9 Kio gzip → les exports inutilisés ne sont pas élagués, tient ; le second point (copies des dictionnaires dans la charge RSC) n'est pas re-mesuré, faute de document servi. Classement : A2 pour la scission des deux modules (le crochet de la coque dans son propre fichier, réexporté par l'ancien), sans changement de résultat ; les dictionnaires restent hors du correctif, la piste ne demande qu'une mesure avant toute décision sous ADR-0022.
+- Mesure (2026-10-20, 7a21765a8, implementeur) : test `src/app/(dashboard)/__tests__/coque-sans-modules-de-requetes-entiers.test.ts` (graphe client statique de `(dashboard)/layout.tsx` et `(dashboard)/app/layout.tsx`) → avant correctif `app/layout.tsx` atteint `lib/queries/leases.ts` et `lib/queries/conversations.ts`, 1 rouge sur 2 ; `useActiveLeaseSummaries` et `useConversations` dans `leases-active-summaries.ts` et `conversations-list.ts`, réexportés par les anciens modules, trois importeurs repointés → 2/2, et 432/432 sur les 50 fichiers de test des lecteurs ; ablation (les trois importeurs rendus à `HEAD`) → le même rouge, correctif remis → vert. Les dictionnaires ne sont pas touchés.
 
 ## Angle 71 — Variables d'environnement des services de production du plan F3
 
