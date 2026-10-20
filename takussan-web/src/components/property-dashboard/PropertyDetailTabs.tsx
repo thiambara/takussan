@@ -1,19 +1,31 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PropertyForm } from '@/components/property-form';
 import { ContactsSurPlaceDuBien } from '@/components/contact/ContactsSurPlaceDuBien';
-import { PropertyCalendarPanel } from '@/components/property-dashboard/PropertyCalendarPanel';
 import { PropertyCollaboratorsPanel } from '@/components/property-dashboard/PropertyCollaboratorsPanel';
-import { PropertyMediaPanel } from '@/components/property-dashboard/PropertyMediaPanel';
 import { PropertyOverviewPanel } from '@/components/property-dashboard/PropertyOverviewPanel';
 import { PropertyPriceHistoryList } from '@/components/property-dashboard/PropertyPriceHistoryList';
 import type { PropertyDetail } from '@/types/property';
 import type { Tag } from '@/types/tag';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { useTranslations } from 'next-intl';
+
+/**
+ * TCK-1040 (P70.03) — le contenu des onglets autres que l'aperçu se charge à leur première
+ * ouverture : `TabsContent` ne monte que l'onglet actif, et `next/dynamic` sort leur code du JS
+ * initial de la fiche (l'assistant d'édition seul y pesait 58,9 Kio gzip). Garde :
+ * `__tests__/PropertyDetailTabs.onglets-differes.test.ts`.
+ */
+const PropertyForm = dynamic(() => import('@/components/property-form/PropertyForm').then((m) => m.PropertyForm));
+const PropertyMediaPanel = dynamic(() =>
+  import('@/components/property-dashboard/PropertyMediaPanel').then((m) => m.PropertyMediaPanel),
+);
+const PropertyCalendarPanel = dynamic(() =>
+  import('@/components/property-dashboard/PropertyCalendarPanel').then((m) => m.PropertyCalendarPanel),
+);
 
 const TAB_VALUES = ['overview', 'edit', 'media', 'calendar', 'history'] as const;
 type TabKey = (typeof TAB_VALUES)[number];
