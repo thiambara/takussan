@@ -7162,7 +7162,7 @@ sont pas mesurées, ni la charge RSC du document.*
 
 ### Aucune garde ne voit le poids des écrans de `/app`
 - Réf : P70.06
-- Statut : retenu · autonome
+- Statut : retenu · à valider — chemin fermé : takussan-web/scripts/poids-des-routes.mjs (garde existante, V9)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/scripts/poids-des-routes.mjs:60,120`, `.github/workflows/web-ci.yml:207`, `takussan-web/src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts:29`
 - Constat :
@@ -7170,6 +7170,7 @@ sont pas mesurées, ni la charge RSC du document.*
   - Les défauts P70.01 et P70.02 (130 à 140 Kio et 66 Kio par écran) ne cassent rien, et aucun journal ne les montre.
 - Piste : faire imprimer aussi au rapport les routes de `(dashboard)` (et de `(super-admin)`), sans seuil, comme pour le site public ; le seuil reste à décider à part.
 - Mesure (2026-10-20, 1ddc38cd0, mesureur) : relu `poids-des-routes.mjs:60,120` (`PREFIXE_PUBLIC = '/[locale]/(public)/'`, filtre des routes) et `web-ci.yml:207` (`run: node scripts/poids-des-routes.mjs`) ; `git log e0275f6b6..1ddc38cd0 -- takussan-web/scripts` → aucun commit ; le script temporaire du passage, même calcul sans le filtre, rend les 65 écrans de `(dashboard)` de 267,0 à 602,6 Kio, qu'aucun rapport n'imprime → tient. Classement : A5, imprimer aussi les routes de `(dashboard)` et `(super-admin)` dans le rapport, sans seuil et sans toucher `web-ci.yml`, ajoute de la visibilité sans resserrer aucun refus ; le seuil reste hors de la piste, comme elle le dit.
+- Mesure (2026-10-20, 7a21765a8, implementeur) : sur le build local, `node scripts/poids-des-routes.mjs` imprime 18 routes publiques et aucun écran de `/app` ni de `/super-admin` → tient ; correctif écrit et éprouvé (seconde section « écrans de la console », sans seuil ni refus neuf : `poids-des-routes.test.ts` 2 rouges sur 10 avant, 10/10 après, 102 écrans sur le build local, ablation → les 2 mêmes rouges), puis retiré : `check-pistes.mjs --role implementeur` refuse toute modification sous `takussan-web/scripts/` (« une garde existante ne se modifie pas (critère V9) »). Le porteur la traite lui-même ; l'étape de `web-ci.yml` (« Poids des routes publiques ») serait à renommer avec.
 
 ### Petites améliorations
 - Réf : P70.07
