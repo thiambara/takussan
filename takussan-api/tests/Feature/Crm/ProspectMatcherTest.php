@@ -10,8 +10,12 @@ use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\GeoCity;
+use App\Models\GeoNeighborhood;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Crm\ProspectMatcher;
+use App\Services\Geo\GeoNeighborhoodModeration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\ApiTestCase;
 
@@ -47,8 +51,63 @@ class ProspectMatcherTest extends ApiTestCase
         ]);
     }
 
+    /**
+     * TCK-1083 (P67.04) — la fusion réécrit le texte des adresses vers la cible (« Liberté 4 ») ;
+     * le prospect a gardé l'ancien nom. Le rapprochement comparait les textes : 0 dans les deux
+     * sens, et le récapitulatif quotidien se taisait. Il suit désormais la fusion, comme la
+     * recherche publique (`QuartierDuFiltre`).
+     */
+    public function test_a_merged_neighborhood_still_matches_both_ways(): void
+    {
+        $ville = GeoCity::factory()->create(['name' => 'Dakar', 'slug' => 'dakar']);
+        $source = GeoNeighborhood::factory()->create(['geo_city_id' => $ville->id, 'name' => 'Liberte Quatre', 'slug' => 'liberte-quatre']);
+        $cible = GeoNeighborhood::factory()->create(['geo_city_id' => $ville->id, 'name' => 'Liberté 4', 'slug' => 'liberte-4']);
+        $this->prospect->update(['seeking_neighborhoods' => ['Liberte Quatre']]);
+        $bien = $this->property(neighborhood: 'Liberte Quatre', neighborhoodId: $source->id);
+        $this->property(neighborhood: 'Médina');
+        $this->assertMatchesBothWays($bien);
+
+        app(GeoNeighborhoodModeration::class)->fusionner($source, $cible, User::factory()->create());
+        $this->assertSame('Liberté 4', $bien->address()->first()->neighborhood);
+
+        $this->assertMatchesBothWays($bien);
+        $this->actingAsApi($this->agent)
+            ->apiGet("/api/properties/{$bien->id}/matching-customers")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $this->prospect->id);
+    }
+
+    /**
+     * TCK-1083 (P67.05) — la saisie du prospect est libre : « Liberte 4 » doit trouver le bien de
+     * « Liberté 4 », rattaché ou non, comme la recherche publique (`CleDeQuartier`, TCK-663).
+     */
+    public function test_a_neighborhood_written_without_accent_or_hyphen_matches(): void
+    {
+        $ville = GeoCity::factory()->create(['name' => 'Dakar', 'slug' => 'dakar']);
+        $quartier = GeoNeighborhood::factory()->create(['geo_city_id' => $ville->id, 'name' => 'Liberté 4', 'slug' => 'liberte-4']);
+        $this->prospect->update(['seeking_neighborhoods' => ['Liberte 4', 'grand yoff']]);
+        $rattache = $this->property(neighborhood: 'Liberté 4', neighborhoodId: $quartier->id);
+        $libre = $this->property(neighborhood: 'Grand-Yoff');
+        $this->property(neighborhood: 'Grand Dakar');
+
+        $this->assertEqualsCanonicalizing(
+            [$rattache->id, $libre->id],
+            app(ProspectMatcher::class)->propertiesFor($this->prospect->fresh())->pluck('properties.id')->all(),
+        );
+        $this->assertMatchesBothWays($rattache);
+        $this->assertMatchesBothWays($libre);
+    }
+
+    private function assertMatchesBothWays(Property $bien): void
+    {
+        $matcher = app(ProspectMatcher::class);
+        $this->assertContains($bien->id, $matcher->propertiesFor($this->prospect->fresh())->pluck('properties.id')->all());
+        $this->assertSame([$this->prospect->id], $matcher->customersFor($bien->fresh())->pluck('customers.id')->all());
+    }
+
     /** @param array<string, mixed> $overrides */
-    private function property(array $overrides = [], string $city = 'Dakar', ?Agency $agency = null): Property
+    private function property(array $overrides = [], string $city = 'Dakar', ?Agency $agency = null, ?string $neighborhood = null, ?int $neighborhoodId = null): Property
     {
         $property = Property::factory()->create(array_merge([
             'agency_id' => ($agency ?? $this->agency)->id,
@@ -59,11 +118,13 @@ class ProspectMatcherTest extends ApiTestCase
             'status' => PropertyStatus::Available,
             'visibility' => PropertyVisibility::Private,
         ], $overrides));
-        Address::factory()->create([
+        Address::factory()->create(array_filter([
             'addressable_type' => Property::class,
             'addressable_id' => $property->id,
             'city' => $city,
-        ]);
+            'neighborhood' => $neighborhood,
+            'geo_neighborhood_id' => $neighborhoodId,
+        ], static fn ($valeur) => $valeur !== null));
 
         return $property;
     }

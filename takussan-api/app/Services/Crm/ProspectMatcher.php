@@ -2,12 +2,15 @@
 
 namespace App\Services\Crm;
 
+use App\Models\Address;
 use App\Models\Customer;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
+use App\Services\Search\QuartierDuFiltre;
 use App\Support\CaseInsensitive;
+use App\Support\Search\CleDeQuartier;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -23,8 +26,12 @@ use Illuminate\Support\Facades\DB;
  * correspond à rien : il correspondrait sinon à tout le portefeuille, et le récapitulatif
  * quotidien deviendrait du bruit.
  *
- * Villes et quartiers se comparent repliés (ADR-0025), sans replier les accents. Quand les deux
- * sont donnés, les deux doivent correspondre.
+ * Les villes se comparent repliées (ADR-0025), sans replier les accents. Les quartiers suivent la
+ * règle du filtre `location` de la recherche publique ({@see QuartierDuFiltre}, TCK-663) : une
+ * adresse rattachée au référentiel se juge par son `geo_neighborhood_id`, fusion suivie, et une
+ * adresse non rattachée par la clé {@see CleDeQuartier} de son texte, qui ramène accents et tirets
+ * (« Liberte 4 » trouve « Liberté 4 »). La clé se calcule en PHP, la base n'ayant pas `unaccent`
+ * (TCK-1083, P67.04, P67.05). Quand ville et quartier sont donnés, les deux doivent correspondre.
  */
 class ProspectMatcher
 {
@@ -44,6 +51,14 @@ class ProspectMatcher
         'seeking_contract_type', 'budget_min', 'budget_max', 'seeking_property_types',
         'seeking_cities', 'seeking_neighborhoods', 'min_bedrooms',
     ];
+
+    /** @var array<string, list<int>> saisie → quartiers du référentiel qu'elle désigne */
+    private array $idsParSaisie = [];
+
+    /** @var array<string, list<string>> saisie → textes d'adresses non rattachées de même clé */
+    private array $textesParSaisie = [];
+
+    public function __construct(private readonly QuartierDuFiltre $quartiers) {}
 
     public static function hasCriteria(Customer $customer): bool
     {
@@ -84,22 +99,29 @@ class ProspectMatcher
             $query->where('properties.bedrooms', '>=', $customer->min_bedrooms);
         }
 
-        foreach (['seeking_cities' => 'city', 'seeking_neighborhoods' => 'neighborhood'] as $criterion => $column) {
-            $wanted = array_values(array_filter(array_map(
-                fn ($v) => is_string($v) ? CaseInsensitive::fold(trim($v)) : null,
-                (array) ($customer->getAttribute($criterion) ?? []),
-            )));
-            if ($wanted === []) {
-                continue;
+        $cities = array_values(array_filter(array_map(
+            fn ($v) => is_string($v) ? CaseInsensitive::fold(trim($v)) : null,
+            (array) ($customer->seeking_cities ?? []),
+        )));
+        if ($cities !== []) {
+            $query->whereExists(fn ($sub) => $this->adresseDuBien($sub)
+                ->whereIn(DB::raw(CaseInsensitive::sql('addresses.city')), $cities));
+        }
+
+        // TCK-1083 (P67.04, P67.05) — la règle de `QuartierDuFiltre`, comme la recherche publique.
+        $neighborhoods = $this->saisies($customer->seeking_neighborhoods);
+        if ($neighborhoods !== []) {
+            $ids = [];
+            $textes = [];
+            foreach ($neighborhoods as $saisie) {
+                $ids = [...$ids, ...$this->idsDe($saisie)];
+                $textes = [...$textes, ...$this->textesDe($saisie)];
             }
 
-            $query->whereExists(function ($sub) use ($column, $wanted) {
-                $sub->selectRaw('1')
-                    ->from('addresses')
-                    ->whereColumn('addresses.addressable_id', 'properties.id')
-                    ->where('addresses.addressable_type', Property::class)
-                    ->whereIn(DB::raw(CaseInsensitive::sql("addresses.{$column}")), $wanted);
-            });
+            $query->whereExists(fn ($sub) => $this->adresseDuBien($sub)
+                ->where(fn ($q) => $q->whereIn('addresses.geo_neighborhood_id', array_values(array_unique($ids)))
+                    ->orWhere(fn ($q) => $q->whereNull('addresses.geo_neighborhood_id')
+                        ->whereIn('addresses.neighborhood', array_values(array_unique($textes))))));
         }
 
         return $query;
@@ -143,9 +165,67 @@ class ProspectMatcher
 
         $address = $property->address()->first();
         $this->whereListAccepts($query, 'seeking_cities', $address?->city);
-        $this->whereListAccepts($query, 'seeking_neighborhoods', $address?->neighborhood);
+        $this->whereNeighborhoodAccepts($query, $property->agency_id, $address);
 
         return $query;
+    }
+
+    /** @param  \Illuminate\Database\Query\Builder  $sub */
+    private function adresseDuBien($sub)
+    {
+        return $sub->selectRaw('1')
+            ->from('addresses')
+            ->whereColumn('addresses.addressable_id', 'properties.id')
+            ->where('addresses.addressable_type', Property::class);
+    }
+
+    /**
+     * TCK-1083 (P67.04, P67.05) — le sens inverse de la règle de `propertiesFor()`. La clé ne se
+     * calcule pas en SQL (pas d'`unaccent`) : les prospects de l'agence qui demandent des quartiers
+     * sont jugés en PHP, et ceux qui acceptent l'adresse du bien retenus par identifiant.
+     */
+    private function whereNeighborhoodAccepts(Builder $query, int|string|null $agencyId, ?Address $address): void
+    {
+        $quartierId = $address?->geo_neighborhood_id;
+        $cle = CleDeQuartier::de($address?->neighborhood);
+
+        $accepte = fn (string $saisie): bool => $quartierId !== null
+            ? in_array((int) $quartierId, $this->idsDe($saisie), true)
+            : $cle !== null && CleDeQuartier::de($saisie) === $cle;
+
+        $acceptants = ($quartierId === null && $cle === null) ? [] : Customer::query()
+            ->where('customers.agency_id', $agencyId)
+            ->whereRaw("jsonb_array_length(COALESCE(customers.seeking_neighborhoods, '[]'::jsonb)) > 0")
+            ->get(['customers.id', 'customers.seeking_neighborhoods'])
+            ->filter(fn (Customer $c) => array_filter($this->saisies($c->seeking_neighborhoods), $accepte) !== [])
+            ->map(fn (Customer $c) => (int) $c->id)
+            ->values()
+            ->all();
+
+        $query->where(fn (Builder $q) => $q
+            ->whereRaw("jsonb_array_length(COALESCE(customers.seeking_neighborhoods, '[]'::jsonb)) = 0")
+            ->orWhereIn('customers.id', $acceptants));
+    }
+
+    /** @return list<string> */
+    private function saisies(mixed $liste): array
+    {
+        return array_values(array_filter(
+            array_map(fn ($v) => is_string($v) ? trim($v) : '', (array) ($liste ?? [])),
+            fn (string $v) => $v !== '',
+        ));
+    }
+
+    /** @return list<int> */
+    private function idsDe(string $saisie): array
+    {
+        return $this->idsParSaisie[$saisie] ??= $this->quartiers->idsDuReferentiel($saisie);
+    }
+
+    /** @return list<string> */
+    private function textesDe(string $saisie): array
+    {
+        return $this->textesParSaisie[$saisie] ??= $this->quartiers->textesLibres($saisie);
     }
 
     /** Une liste vide ou absente accepte tout ; sinon elle doit contenir la valeur. */

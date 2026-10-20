@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -96,10 +97,12 @@ class CrossTenantAuditController extends Controller
         // TCK-1054 (P63.01) — le même rangement que l'export d'agence : dossier du demandeur, nom
         // opaque, et un lien signé pour ce demandeur seul.
         $file = Str::uuid()->toString().'.csv';
-        Storage::put(
-            ActivityLogExportController::storagePath($request->user()->id, $file),
-            $exporter->csvContent($exporter->payloadForQuery($query->getEloquentBuilder(), $filename)),
-        );
+        // TCK-1084 (P77.03) — le disque `local` rend `false` au lieu de lever : le lien rendu
+        // aurait mené à un 404.
+        $path = ActivityLogExportController::storagePath($request->user()->id, $file);
+        if (Storage::put($path, $exporter->csvContent($exporter->payloadForQuery($query->getEloquentBuilder(), $filename))) !== true) {
+            throw new RuntimeException("L'export de l'audit de la console n'a pas pu écrire {$path}.");
+        }
 
         $expiresAt = now()->addHour();
 
