@@ -19,12 +19,14 @@ use App\Http\Resources\Messaging\MessagingContactResource;
 use App\Http\Resources\OwnerProfileResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertySitemapResource;
+use App\Http\Resources\ServiceProviderAgencyCollaborationResource;
 use App\Http\Resources\ServiceProviderDirectoryResource;
 use App\Models\Agency;
 use App\Models\Lease;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\User;
@@ -120,6 +122,11 @@ final class ResourceInventory
             'modeles' => [ServiceProviderProfile::class],
             'raison' => 'Une ligne du carnet des prestataires d\'une agence, `metadata` réduite à ce que le front lit (TCK-904, P21.06) — '
                 .'le nom dit la vue, et le modèle vit sous `Profiles\\`.',
+        ],
+        ServiceProviderAgencyCollaborationResource::class => [
+            'modeles' => [ServiceProviderAgencyCollaboration::class],
+            'raison' => 'Une collaboration du prestataire, l\'agence incluse par `AgencyResource` (TCK-1049, P61.02) — '
+                .'le modèle vit sous `Profiles\\`, la convention ne le trouve pas.',
         ],
         OwnerProfileResource::class => [
             'modeles' => [OwnerProfile::class],
