@@ -344,6 +344,10 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
               type="file"
               accept={AGENCY_LOGO_ACCEPT}
               className="sr-only"
+              // Relais du bouton ci-dessous, qui porte le geste et le nom : hors de la
+              // tabulation et de l'arbre d'accessibilité (TCK-1031).
+              tabIndex={-1}
+              aria-hidden="true"
               onChange={handleLogoPick}
               disabled={isUploadingLogo}
             />

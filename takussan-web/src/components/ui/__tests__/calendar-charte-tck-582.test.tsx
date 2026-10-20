@@ -193,4 +193,22 @@ describe('ce que le calendrier pose réellement dans le DOM', () => {
       expect(css).toMatch(/fill:\s*none/);
     }
   });
+
+  /**
+   * TCK-1032 (P68.04) — la feuille pose `opacity: var(--rdp-weekday-opacity)` (0,75) sur
+   * `.rdp-weekday` : le jeton `--muted-foreground` y tombait à 3,33:1, sous le seuil de 4,5:1
+   * (axe `color-contrast`, mesuré au navigateur). Les utilitaires doivent rétablir l'opacité
+   * pleine ; la couche `utilities` passe après `rdp` (test ci-dessus).
+   */
+  it('les jours de la semaine sont à opacité pleine, dans la couleur du jeton', async () => {
+    const { container } = rendu();
+    const jours = container.querySelectorAll('.rdp-weekday');
+    expect(jours.length).toBe(7);
+    const css = utilitaires(await feuille([...jours[0].classList]));
+    expect(css).toMatch(/(?:^|[;{\s])opacity:\s*(?:100%|1)\s*;/m);
+    // La couleur, elle, reste le jeton : la tête compilée ici ne porte pas le thème, on lit la
+    // classe posée.
+    expect(jours[0].classList).toContain('text-muted-foreground');
+  });
 });
+

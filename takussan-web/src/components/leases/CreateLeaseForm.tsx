@@ -171,6 +171,7 @@ export function CreateLeaseForm() {
               control={form.control}
               name="tenant_id"
               label={null}
+              ariaLabel={t('tenant')}
               placeholder={customersQuery.isLoading ? t('searching') : t('selectTenant')}
               options={customers.map((customer) => ({
                 value: customer.id,
@@ -338,6 +339,7 @@ function EntitySelect({
   control,
   name,
   label,
+  ariaLabel,
   placeholder,
   options,
   required,
@@ -345,6 +347,11 @@ function EntitySelect({
   control: Control<CreateLeaseFormValues>;
   name: 'property_id' | 'tenant_id';
   label: string | null;
+  /**
+   * Nom accessible du déclencheur quand `label` est `null` : sans lui, le choix n'a aucun nom
+   * (TCK-1030, axe `button-name`).
+   */
+  ariaLabel?: string;
   placeholder: string;
   options: readonly EntityOption[];
   required?: boolean;
@@ -373,6 +380,7 @@ function EntitySelect({
             <SelectTrigger
               id={id}
               className="w-full"
+              aria-label={label ? undefined : ariaLabel}
               aria-invalid={Boolean(fieldState.error) || undefined}
               aria-describedby={fieldState.error ? `${id}-error` : undefined}
             >
