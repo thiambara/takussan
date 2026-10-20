@@ -141,7 +141,7 @@ voie d'écriture (angle 13, puis 47).
 | 66 | Valeurs d'enum métier ajoutées ou désactivées par le super-admin (`BusinessEnumService`, `settings` `enum.*.values`) : lues par aucune validation ni aucun écran hors de la console ? | fait |
 | 67 | Critères nommés des recherches sauvegardées et des liens partagés (`tags=Piscine`, `location=<quartier>`) après un renommage, une fusion ou un rejet au référentiel (`TagModeration`, `GeoNeighborhoodModeration`) : alertes muettes, filtres vides | fait |
 | 68 | Passage axe au navigateur des écrans connectés (`/app`, console super-admin) derrière un faux API : barre latérale, tableaux, dialogues et feuilles de `@base-ui/react` | fait |
-| 69 | Fiche bien, recherche et accueil servis par `next start` avec l'API de dev, sous 3G simulé par CDP : LCP, TBT, octets du document RSC et ordre des préchargements | à faire |
+| 69 | Fiche bien, recherche et accueil servis par `next start` avec l'API de dev, sous 3G simulé par CDP : LCP, TBT, octets du document RSC et ordre des préchargements | fait |
 | 70 | Poids JS initial des écrans de `/app` (`(dashboard)`, 500 à 610 Kio gzip au build du 2026-10-17) : ce que la coque et la barre latérale chargent pour chaque écran | à faire |
 | 71 | Variables d'environnement des services de production du plan F3 (`takussan-web-prod`, `takussan-api-prod`) face au relevé de la préproduction dans `docs/infra/hebergement.md` : clés absentes, valeurs reprises de D1 | à faire |
 | 72 | Ce qu'un accusé `failed` reçu après coup (SMS ou WhatsApp) déclenche : repli sur un autre canal, renvoi, trace pour l'expéditeur — face aux envois critiques (OTP, code de signature de bail) | à faire |
@@ -175,6 +175,8 @@ voie d'écriture (angle 13, puis 47).
 | 98 | Supprimer, versionner ou partager un document que l'on ne fait que lire (`DocumentController::destroy`, `DocumentVersionController`, `DocumentShareLinkController`, `DocumentPolicy::share`) face aux règles écrites des tickets : locataire, bailleur invité, agent d'une autre agence, compte bloqué |
 | 100 | Constantes `*_FIELDS` et `fields[…]` écrits du front face aux `$queryFields` du modèle visé : colonne demandée que l'API refuse (400 `http.bad_request`), rattrapée en `null` ou en page d'erreur — `src/lib/queries/*.ts`, `src/app/actions/*` | à faire |
 | 101 | Passage axe au navigateur des écrans `/app` des autres profils (propriétaire, locataire, prestataire, agent) et des pages de détail `[id]` (bien, bail, client, paiement), derrière le faux API en lecture seule de l'angle 68 | à faire |
+| 102 | État initial masqué au rendu serveur (`opacity-0`, `invisible`, `useReveal`, `animate-*` dépendant d'un effet) sur les autres listes et rangées publiques (`PropertyRow` de l'accueil, fiches agence et agent, favoris, biens similaires) : contenu présent dans le HTML et invisible jusqu'à l'hydratation, ou sans JS | à faire |
+| 103 | Appels du navigateur à l'hydratation des pages publiques (`geo/cities`, `geo/regions`, `amenities`, `property-types`, `maintenance/status`, préflights CORS) : lesquels pourraient venir du rendu serveur ou du cache de données, et ce qu'ils coûtent sous 3G | à faire |
 
 ---
 
@@ -6955,3 +6957,101 @@ de violation hors `region`.*
 - Piste : lien d'évitement dans le repère de la barre du haut ; `<div>` au lieu de `<header>` dans le popover ; `aria-label` distincts sur les `aside` et les sections ; `aria-expanded={sidebarOpen}` sur le bouton du menu ; nom accessible avec la ligne (« Plus d'actions — {titre} ») ; zone cliquable portée à 24 px par un `py`. Aucune ne demande de texte neuf hormis les noms contextualisés, qui réutilisent des données affichées.
 - Mesure (2026-10-20, 8150df982, mesureur) : relu `AppShell.tsx` (`<LienEvitement />` rendu avant la bannière et la barre haute, hors de tout repère), `NotificationBell.tsx:179` (`<header>` dans le popover), `AppTopbar.tsx:51-56` (bouton du menu sans `aria-expanded`), `MessagesPage.tsx:213` (`aside` sans nom) et `super-admin/users/page.tsx:377-378` (« Impersonifier » sans contexte) → ces cinq points tiennent ; `target-size` des liens `tel:`/`mailto:` et `scrollable-region-focusable` du kanban non re-mesurés (marqués « à vérifier »), hors du classement. Classement : V7, les noms contextualisés (« Plus d'actions — {titre} ») sont un texte neuf par clé interpolée, et déplacer le lien d'évitement change la structure des coques ; `aria-expanded`, `<div>` au lieu de `<header>` et les noms d'`aside` seraient A4 seuls.
 - Mesure (2026-10-20, c6e71581f, delegue) : relu `AppTopbar.tsx:48-58` (bouton `onClick={onMenuToggle}` sans `aria-expanded`), `NotificationBell.tsx:176-182` (`<header>` dans un popover déjà nommé par `aria-label`), `super-admin/users/page.tsx:370-382` (« Impersonifier » sans contexte) ; `grep` dans `messages/fr.json` → `impersonateTitle` : « Impersonifier {name} » existe déjà, « Plus d’actions » (l. 1355) n'a pas de variante interpolée ; décision du porteur sur P07.13 (`validé — libellés contextuels et captions en fr/en ; en wo, le texte français tel quel`, devenu TCK-912). Délégation : V7, chaque point retenu est un attribut ARIA ou une balise sans effet visible, et les noms contextualisés suivent mot pour mot la décision écrite du porteur sur P07.13, même motif sur d'autres écrans ; le nom du bouton d'impersonation ne touche ni la route ni la capacité `platform.users.impersonate`. Laissés au porteur : la place du lien d'évitement, qui change la structure des coques et l'ordre de tabulation devant le bandeau (aucune décision écrite depuis P31.04/TCK-905), les noms d'`aside` et de sections, qui demandent des libellés neufs sans précédent, et les deux points que le mesureur n'a pas re-mesurés.
+
+## Angle 69 — Fiche bien, recherche et accueil sous 3G simulé, servis par `next start`
+
+*Exploré le 2026-10-20 sur `pre-dev` f163a4726, par l'explorateur. Tout a été lancé et relu par
+l'explorateur lui-même, sans sous-agent. Montage, hors du dépôt : `next build` de production de
+l'arbre puis `next start` (port 3392), devant l'API de l'arbre servie par `php -S` avec un routeur
+qui journalise chaque appel et sa durée. La session PostgreSQL est en lecture seule
+(`PGOPTIONS=-c default_transaction_read_only=on`, relu par `show default_transaction_read_only` →
+`on`), cache et session en mémoire, `FRONTEND_URL` posé sur l'origine du montage pour le CORS. Chrome
+155 sans tête piloté par CDP, un contexte de navigateur et un cache vide par tour, préréglage « Fast
+3G » de DevTools (562,5 ms, 1,47 Mbit/s descendant, 675 kbit/s montant), CPU ×4, écran 412 × 823.
+LCP, FCP et tâches longues sont relevés par `PerformanceObserver`, le TBT est la somme des
+dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
+**Limites** :
+- base de dev, sans photos : les URL de médias visent `localhost:8002`, et toutes les images ont
+  échoué. Le LCP mesuré est donc un texte, jamais une photo ;
+- `POST …/view` rend 500 sous la lecture seule ;
+- la charge de la machine a varié de 2,5 à 12 sur 8 cœurs, donc les TBT ne valent rien, sauf
+  quand l'écart est massif ;
+- un premier passage a été jeté : CORS refusé, et la fiche montrait alors 16 à 45 tâches longues
+  qui ont disparu une fois le CORS corrigé ;
+- l'ablation des polices (`Network.setBlockedURLs *.woff2`) n'a rien départagé sous cette charge
+  (FCP médian 2 864 ms avec les polices, 2 532 ms sans), et n'a pas d'entrée ;
+- les TTFB viennent de `php -S`, pas de PHP-FPM.*
+
+### Sur la liste, les biens sponsorisés en tête restent invisibles jusqu'à l'hydratation : LCP à 10 s pour des cartes présentes dans le HTML à 3 s
+- Réf : P69.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/property/PropertyCard.tsx:45-60`, `takussan-web/src/components/property/PropertyCard.tsx:159`, `takussan-web/src/components/property/PropertyCard.tsx:199`, `takussan-web/src/components/boost/EmplacementSponsorise.tsx:36`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:613-619`
+- Constat :
+  - `PropertyCard` rend sa racine en `opacity-0` tant que `useReveal(ref) || priority` est faux. `useReveal` ne passe à vrai que dans un `useEffect` qui pose un `IntersectionObserver`, donc après l'hydratation (lu, l. 45-60, 159, 199). Le commentaire de la l. 157-158 dit pourquoi `priority` existe : « Priority cards (above-the-fold) skip the initial hidden state so the browser can count their image as the LCP candidate immediately. »
+  - La grille de la liste rend d'abord `EmplacementsSponsorises`, puis les cartes ordinaires avec `priority={i < 4}` (lu, `PropertiesDiscoveryPage.tsx:613-619`). `EmplacementsSponsorises` monte `PropertyCard` **sans** `priority` (lu, `EmplacementSponsorise.tsx:36`). Les premières cartes de la page sont donc masquées au rendu serveur.
+  - Mesuré sur `/fr/properties` (deux emplacements sponsorisés dans la base de dev), avec un `MutationObserver` : le squelette cède la place aux cartes à 2,8-3,1 s. À 5 s, la carte « Boutique commerciale à Parcelles Assainies » est dans la fenêtre (y = 511 sur 823), et son seul ancêtre non visible est la racine de la carte, en `opacity: 0`.
+  - Mesuré, entrées LCP successives : « Chercher » à 2,5 s, puis le `h1` à 3,1 s, puis le `h3` de cette carte sponsorisée à **10,3 s**, après la tâche longue d'hydratation (8,3-9,3 s). Médiane sur trois tours : FCP 2 372 ms, **LCP 10 304 ms**. Témoins dans le même montage : fiche 2 988 ms, accueil 3 788 ms, page légale 2 496 ms.
+  - Les images de ces cartes sortent aussi en `loading="lazy"` (lu dans le HTML servi), comme celle de la première carte ordinaire « Studio moderne à Touba ». Que la carte ordinaire d'indice 0 rende `lazy` malgré `priority` est **à vérifier**.
+- Piste : donner `priority` aux emplacements sponsorisés (ils sont toujours en tête), ou décompter les emplacements dans le `i < 4` de la grille. Mieux encore, ne plus masquer au rendu serveur : animer par CSS seul, sans état initial `opacity-0` dépendant du JS. Garde : un test de rendu serveur de la grille avec deux sponsorisés, qui refuse `opacity-0` sur les quatre premières cartes.
+
+### Le préchargement par défaut des liens fait rendre au serveur des listes entières : trois recherches de 40 biens par visite de fiche, impressions sponsorisées comprises
+- Réf : P69.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyBreadcrumb.tsx:33`, `takussan-web/src/components/shared/LienLocalise.tsx:37`, `takussan-web/src/app/[locale]/(public)/properties/(liste)/page.tsx:63`, `takussan-web/src/app/[locale]/(public)/properties/(liste)/page.tsx:163`, `takussan-web/src/lib/api.ts:124-126`, `takussan-api/app/Http/Middleware/CountBoostImpressions.php:40-44`, `takussan-api/app/Services/Search/PropertySearchService.php:150-156`
+- Constat :
+  - Aucun `prefetch=` dans `takussan-web/src` (mesuré : `grep -rn "prefetch" src` hors tests → rien). `LienLocalise` passe ses props à `next/link` (lu, l. 37), et le fil d'Ariane de la fiche en est fait (lu, `PropertyBreadcrumb.tsx:33`).
+  - Mesuré, visite unique et froide de `/fr/properties/entrepot-a-ngor-U227Ze`, journal de l'API recalé sur la frise CDP :
+    - le navigateur précharge `/fr`, `/fr/properties?contract_type=rent`, `…&city=Dakar` et `?city=Dakar&location=Ngor`, en deux vagues (8,1 s puis 9,1-9,5 s) ;
+    - pendant la seconde vague, l'API reçoit `search?contract_type=rent&per_page=40` (758 ms), `search?city=Dakar&contract_type=rent&per_page=40` (795 ms) et `search?city=Dakar&location=Ngor&per_page=40` (597 ms) ;
+    - le navigateur n'en reçoit que 2 Kio par lien.
+  - La même chose sur la fiche « Villa avec jardin à Liberté 6 », à chacun des trois tours. Sur l'accueil, `search?city=Dakar&per_page=40` et quatre fiches (`GET /api/public/properties/<slug>`) partent pendant les préchargements.
+  - Sonde : un `GET` RSC avec `Next-Router-Prefetch: 1` sur `/fr/properties?city=Dakar&location=Ngor` → 200, 145 Kio, et une recherche `per_page=40` dans le journal de l'API (mesuré).
+  - Ces recherches ne portent pas `placements=false` (mesuré, journal), et le rendu serveur relaie l'agent du visiteur (lu, `api.ts:124-126`). `CountBoostImpressions` valide les impressions de toute réponse 200 d'un agent non robot (lu, l. 40-44). Que chaque visite de fiche compte ainsi des impressions pour les emplacements de trois listes jamais affichées est **à vérifier** : la base était en lecture seule, et l'agent sans tête peut être pris pour un robot. Voir P01.04, dont le reste porte sur les doubles recherches.
+- Piste : `prefetch={false}` sur les liens vers des listes dynamiques (fil d'Ariane, raccourcis de ville, liens de quartier), ou les faire servir sans recherche au préchargement. Pour les impressions, ne pas les compter sur un rendu de préchargement (en-tête `Next-Router-Prefetch` relayé, ou `placements=false`). Garde : un test du fil d'Ariane qui exige `prefetch={false}`.
+
+### Le document de l'accueil attend `discovery` sans cache : environ 1 s de TTFB avant le premier octet
+- Réf : P69.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/[locale]/(public)/page.tsx:61-64`, `takussan-web/src/lib/queries/public-discovery.ts:60-64`
+- Constat :
+  - La page d'accueil attend `decouverteDeLAccueil` et `raccourcisDeLAccueil` avant de rendre quoi que ce soit (lu, l. 61-64). `decouverteDeLAccueil` appelle `discovery` sans `revalidate` (lu, `public-discovery.ts:60-64`, contrairement à `getProperty` et aux facettes).
+  - Mesuré, sans bridage, trois `curl` de suite : `/fr` TTFB 0,83-0,89 s, contre 0,04-0,19 s pour `/fr/properties` et 0,04 s pour la page légale. Le journal de l'API montre, à chaque visite, `discovery?per_row=12` (789-1 022 ms) et `search?contract_type=sale&per_page=12&placements=false` (495-701 ms) en parallèle.
+  - Sous Fast 3G : TTFB médian 1 040 ms sur l'accueil, contre 82-87 ms sur la liste et la page légale. Le FCP de l'accueil est le plus tardif des quatre pages (2 800 ms).
+  - Une mise en cache se heurte aux impressions de la rangée vedette, comptées à chaque appel de `discovery` (voir P18.03). Le choix reste à faire.
+- Piste : soit une frontière `Suspense` autour des rangées, pour que la coque parte tout de suite, soit `discovery` en cache court partagé avec des impressions comptées à part. Mesurer le TTFB avant et après avec le même montage.
+
+### zod et le formulaire d'alerte sont dans le JS initial de la liste, par le bouton « Enregistrer la recherche »
+- Réf : P69.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/favorites/SaveSearchButton.tsx:11`, `takussan-web/src/components/favorites/SaveSearchButton.tsx:25-27`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:20`, `takussan-web/src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts:26`
+- Constat :
+  - `SaveSearchButton` importe statiquement `PublicSearchAlertForm`, `savedSearchPayloadSchema` (`lib/schemas/search`) et `useTraducteurValidation` (`hooks/useApiForm`) (lu). `PropertiesDiscoveryPage` l'importe (lu, l. 20). Le test de TCK-744 l'admet nommément : « enregistrer une recherche ouvre un formulaire » (lu, l. 26).
+  - Mesuré : le morceau `1f6glm94c8plh.js` (64,7 Kio transférés, porteur de `ZodError`) est chargé dans le `<head>` de `/fr/properties`, ni sur l'accueil ni sur la fiche. Le JS initial transféré : liste 40 scripts, 575 Kio ; accueil 42, 603 Kio ; fiche 43, 476 Kio ; page légale 26, 336 Kio.
+  - Sous Fast 3G, le dernier script de la liste finit à 8,4 s, et l'hydratation (tâche de 524 à 916 ms) commence à 8,3 s : tout ce JS est payé avant que le premier filtre réponde. La part de `react-hook-form` dans ce JS n'a pas été isolée (à vérifier).
+- Piste : charger le formulaire par `next/dynamic` au premier clic, sur le modèle des dialogues de la fiche (TCK-850), puis retirer l'exception de la table du test pour qu'elle ne puisse plus servir.
+
+### Le dictionnaire du groupe public pèse 33 Kio gzip dans chaque document, page légale comprise, et ne se met jamais en cache
+- Réf : P69.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/[locale]/(public)/layout.tsx:89`, `takussan-web/src/i18n/namespaces.json`
+- Constat :
+  - Mesuré, charge RSC décodée des documents servis : la ligne `messages` du provider de `(public)` fait 113 Kio bruts, **33 Kio gzip**, et porte 30 espaces, identiques sur la page légale et sur la liste. Les plus lourds en brut : `property` 37 Kio, `search` 10, `validation` 8, `bookings` 7, `agency` 6, `messaging` 5, `agents` 5.
+  - Mesuré, document gzip : page légale 50 Kio, dont 33 de dictionnaire ; fiche 56 ; accueil 71 ; liste 77. Le document part en `Cache-Control: private, no-cache, no-store` (mesuré, `curl -D -`) : ces octets se repaient à chaque page vue, alors qu'un fichier statique se mettrait en cache.
+  - C'est le grain voulu par ADR-0022 (« Le grain de la PAGE ne vaut pas son coût »). La décision ne chiffrait pas ce coût sous 3G : à 1,47 Mbit/s, 33 Kio font environ 0,18 s de liaison par page (calcul, non mesuré).
+- Piste : à décider avec ADR-0022. Soit des frontières de dictionnaire plus fines dans `(public)` (fiche, liste, pages légales), soit sortir les espaces lourds et rares (`bookings`, `agency`, `messaging`) vers les seuls composants qui les lisent. Le dérivateur `check-i18n-namespaces.mjs` imprimerait la taille de chaque frontière.
+
+### Petites améliorations
+- Réf : P69.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx`
+- Constat :
+  - Liste, à l'hydratation : le navigateur appelle `geo/cities` (55 Kio transférés), `geo/regions`, `amenities` et `property-types`. Trois de ces appels passent par un préflight CORS, soit un aller-retour de 562 ms de plus chacun sous Fast 3G (mesuré, frise CDP), pour un panneau de filtres fermé à 412 px. Le composant qui les déclenche n'a pas été relu (à vérifier).
+  - Fiche : le `<head>` porte deux `<link rel="preload" as="image">` pour la même photo, avec deux `imageSrcSet` (384w et 640w) sur un fichier `-thumbnail.webp` unique. Le navigateur l'a demandée deux fois, à 2,1 s et à 4,1 s (mesuré). Comme l'image échoue dans le montage, savoir si le second appel est servi par le cache quand elle répond est à vérifier.
+  - Toutes les pages publiques demandent `/api/maintenance/status` après l'hydratation (0,4 Kio, mesuré), et la page d'accueil peint le logo (`icon.svg`) à 6,8 s, après les scripts (mesuré).
+- Piste : charger le référentiel des filtres à l'ouverture du panneau, ou le rendre côté serveur avec la page (il est déjà en cache de données d'une heure pour les facettes) ; un seul préchargement de la photo principale par fiche.
