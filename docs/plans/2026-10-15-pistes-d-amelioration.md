@@ -6221,7 +6221,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### `/api/properties/{id}/collaborators` rend la ligne `users` entière de chaque collaborateur, au bailleur du bien comme à tout membre de l'agence
 - Réf : P61.01
-- Statut : validé — ressource pour `index`, `store`, `update` et `designatePrimary`, compte projeté par `IncludedUserResource` plus `username` (slug public) ; test : bailleur et agent, `data.0.user` n'a que les clés de la projection (porteur, 2026-10-20)
+- Statut : fait · TCK-1047
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:64`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:91`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:150`, `takussan-api/app/Policies/PropertyPolicy.php:45-60`, `takussan-api/app/Http/Resources/PropertyResource.php:217-230`, `takussan-web/src/lib/queries/property-collaborators.ts:23-35`
 - Constat :
@@ -6235,6 +6235,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : faire passer la ligne par une ressource, avec le compte projeté par `IncludedUserResource` (plus `username` si le front le garde, ou bien le front s'en passe). Une même ressource pour `index`, `store`, `update` et `designatePrimary`. Test : le bailleur et un agent lisent la liste, et `data.0.user` n'a que les clés de la projection. Ablation : remettre `->get()` brut.
 - Mesure (2026-10-19, bde1d5b43, mesureur) : lu `PropertyCollaboratorController.php:64` (`$collaborator->load('user')`), `:91` (`refresh()->load('user')`), `:150` (`collaborators()->with('user')->orderBy('id')->get()`) et `PropertyPolicy.php:51-57` ; aucun commit sur ce contrôleur depuis 89acf8152 ; test temporaire retiré (charge 2,41 sur 8 cœurs) → le bailleur, `GET /api/properties/{id}/collaborators` 200, `data.0.user` à 38 clés dont `google_id`, `metadata`, `secondary_phone`, `last_login_at` et `deletion_requested_at`. Classement : V3, ce qui est exposé d'un compte, avec un choix sur `username` que la piste laisse ouvert.
+- Mesure (2026-10-20, 96392a9cb, implementeur) : charge 1,27 sur 8 cœurs ; trois tests neufs de `PropertyCollaboratorTest` (bailleur et agent sur `GET …/collaborators`, `store` puis `update`) rouges avant correctif, `data.0.user` à 38 clés dont `google_id`, `metadata` et `secondary_phone` → `PropertyCollaboratorResource` sur les quatre routes, compte par `IncludedUserResource` plus `username` : 22 verts, 81 avec les classes qui frappent la route ; ablation (sorties remises brutes) → 3 rouges ; remis → verts.
 
 ### `include=agency` rend la ligne `agencies` entière à un prestataire et à un bailleur, seuil des reversements compris
 - Réf : P61.02
