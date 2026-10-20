@@ -6300,7 +6300,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### La création d'un bail dit à tout compte connecté quels clients, garants et biens existent, trois par requête
 - Réf : P62.01
-- Statut : validé — (a) juger l'existence dans le service avec la réponse du refus (modèle de TCK-599), pour les sept entrées P62.01 à P62.07 ; test : même statut et même corps pour un absent et un tiers (porteur, 2026-10-20)
+- Statut : fait · TCK-1068
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:28-40`, `takussan-api/app/Services/Model/LeaseService.php:36-54`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:52-57`
 - Constat :
@@ -6313,6 +6313,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Établi comment : lu, et test temporaire.
 - Piste : retirer les `exists:` du FormRequest et juger l'existence dans le service avec la même réponse que le refus (le modèle de TCK-599, contrainte 11, `StoreFavoriteRequest.php:31-33`) ; ou porter l'autorisation du bien dans `authorize()` pour que l'intrus reçoive 403 avant la validation. Test : même statut et même corps pour un client absent et un client d'une autre agence.
 - Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `StoreLeaseRequest.php` (`authorize()` rend `true`, `exists:` sur `property_id`, `tenant_id`, `guarantor_id`, `booking_id`), `LeaseService.php:45-54` (contrôle `view` après la validation) ; test temporaire retiré, compte sans agence, bien publié d'une agence tierce, `type` invalide → client et garant tiers : 422 sur `type`, `start_date` ; absents : 422 sur `tenant_id`, `guarantor_id`, `type`, `start_date`. Classement : V2, comme P22.02 et P03.06 : le correctif change le statut rendu à des appelants légitimes, et la `Piste` laisse le choix entre « juger dans le service » et « autoriser dans `authorize()` ».
+- Mesure (2026-10-20, 8dd5b10d6, implementeur) : avant correctif, `LeaseExistenceOracleTest` neuf → 5 rouges sur 6 : hors agence, client et garant absents nommés en 422 (`tenant_id`, `guarantor_id`) quand des tiers ne l'étaient pas ; pour le bailleur, bien absent 404 contre 403 pour un bien tiers ; réservation absente 422 `booking_id` alors que celle d'un autre bien du même appelant hors agence passait la validation ; `property_id=abc` → 500 ; correctif (`integer` sans `exists:`, bien absent → 403 dans le contrôleur, réservation du bien jugée dans `LeaseService::create()` après l'autorisation, exception retirée d'`ExistsSurRouteOuverteTest`) → 6 verts, 261 verts sur les 14 classes qui créent des baux ; ablations : FormRequest d'origine → 5 rouges, `findOrFail` → 1 rouge, service sans le contrôle de réservation → 1 rouge (réservation d'un autre bien acceptée).
 
 ### La création d'une réservation distingue un client absent d'un client d'une autre agence, et l'état d'un bien non publié
 - Réf : P62.02
