@@ -885,7 +885,11 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
     git -C "$arbre" format-patch --quiet -o "$sortie/patchs" "$(git -C "$arbre" merge-base HEAD "$BASE_REF")..HEAD" || true
     fin refuse "vérification rouge — rien n'est poussé ; correctifs dans $sortie/patchs"
   fi
-  if [ ! -s "$sortie/pr-titre.txt" ] || [ ! -s "$sortie/pr-corps.md" ]; then fin refuse "pr-titre.txt ou pr-corps.md absent"; fi
+  # Le titre ne sert qu'à créer la PR : une réparation ne le demande pas (commun.md, « Mode
+  # réparation »), et l'exiger refusait toute réparation juste — 9 refus du 2026-10-17 au 2026-10-20,
+  # dont les trois de #815.
+  if [ ! -s "$sortie/pr-corps.md" ]; then fin refuse "pr-corps.md absent"; fi
+  if [ "$MODE" = nouveau ] && [ ! -s "$sortie/pr-titre.txt" ]; then fin refuse "pr-titre.txt absent"; fi
 
   local pied verifs="" corps="$sortie/pr-corps-publie.md"
   if [ "$ROLE" = implementeur ]; then verifs=", gardes du dépôt, index du backlog et Pint verts"; fi
@@ -896,7 +900,7 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
   { sed '/Generated with \[Claude Code\]/d' "$sortie/pr-corps.md"; printf '%s\n' "$pied"; } > "$corps"
 
   if [ "$A_BLANC" -eq 1 ]; then
-    fin a-blanc "aurait poussé $branche ($avance commits) et publié « $(head -n 1 "$sortie/pr-titre.txt") » ; corps dans $corps"
+    fin a-blanc "aurait poussé $branche ($avance commits) et publié « $(head -n 1 "$sortie/pr-titre.txt" 2> /dev/null || echo "réparation de #$PR") » ; corps dans $corps"
   fi
   git -C "$arbre" push --quiet -u origin "HEAD:refs/heads/$branche"
   if [ "$MODE" = nouveau ]; then
