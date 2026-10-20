@@ -1,7 +1,7 @@
 ---
 id: TCK-1028
 title: "Retirer des `show` les relations chargées que leur ressource n'émet pas"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -39,25 +39,25 @@ Ces cinq `show` ne chargent plus que ce que leur ressource émet, sans que la r�
 
 ## Delta à produire
 
-- [ ] `LeaseController::show` : retirer `payments` du `load()`.
-- [ ] `InvoiceController::show` : retirer `customer` du `load()`.
-- [ ] `BookingController::show` : retirer `agency` du `load()` (`BookingMoneyAccess::canRefund`
+- [x] `LeaseController::show` : retirer `payments` du `load()`.
+- [x] `InvoiceController::show` : retirer `customer` du `load()`.
+- [x] `BookingController::show` : retirer `agency` du `load()` (`BookingMoneyAccess::canRefund`
       relit l'agence par `Agency::query()->find()`).
-- [ ] `Admin\KycController::show` : retirer `reviewer` du `load()`.
-- [ ] `BankStatementController::show` : retirer `agency` de la liste blanche de `include=`.
-- [ ] `takussan-web/src/lib/queries/leases.ts` : retirer `payments` de l'`include` de `useLease`.
-- [ ] Test : `tests/Feature/Api/ShowChargementsNonEmisTest.php`, qui relève les requêtes de
+- [x] `Admin\KycController::show` : retirer `reviewer` du `load()`.
+- [x] `BankStatementController::show` : retirer `agency` de la liste blanche de `include=`.
+- [x] `takussan-web/src/lib/queries/leases.ts` : retirer `payments` de l'`include` de `useLease`.
+- [x] Test : `tests/Feature/Api/ShowChargementsNonEmisTest.php`, qui relève les requêtes de
       chargement anticipé de chaque `show` et rougit si l'une de ces relations revient.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/leases/{id}` ne joue aucune requête `from "lease_payments" where
+- [x] AC1 — `GET /api/leases/{id}` ne joue aucune requête `from "lease_payments" where
       "lease_payments"."lease_id" in`, et rend toujours `property`.
-- [ ] AC2 — `GET /api/invoices/{id}`, `GET /api/bookings/{id}`, `GET /api/admin/kyc/{id}` et
+- [x] AC2 — `GET /api/invoices/{id}`, `GET /api/bookings/{id}`, `GET /api/admin/kyc/{id}` et
       `GET /api/bank-statements/{id}?include=agency,uploadedBy` ne chargent plus `customers`,
       `agencies`, le relecteur (`users`) ni l'agence du relevé ; `uploaded_by` reste rendu.
-- [ ] AC3 — Les clés rendues par ces `show` sont inchangées (aucune n'était émise).
-- [ ] AC4 — Ablation : chaque relation remise rend le test rouge.
+- [x] AC3 — Les clés rendues par ces `show` sont inchangées (aucune n'était émise).
+- [x] AC4 — Ablation : chaque relation remise rend le test rouge.
 
 ## Hypothèses (mode sans humain)
 
@@ -73,4 +73,11 @@ Ces cinq `show` ne chargent plus que ce que leur ressource émet, sans que la r�
 - Faire honorer `include=`/`fields` par les `show` (P21.04, P60.03, au porteur).
 
 ## Notes d'implémentation
+
+- Avant correctif, les cinq cas rougissent, chacun sur sa requête : `lease_payments … "lease_id" in`,
+  `customers … "id" in`, `agencies … "id" in` (réservation et relevé), `users … "id" in` (le
+  relecteur ; le dossier de test porte un `reviewed_by`, pour que la relation ait une clé à charger).
+- Ablation : correctif retiré → 5 rouges ; remis → 5 verts (20 assertions).
+- Le retrait de `payments` de l'`include` du front n'a pas de garde propre : le `show` ignore
+  `include=`, l'envoyer ou non ne change ni la requête ni la réponse.
 
