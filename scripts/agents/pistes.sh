@@ -338,8 +338,15 @@ fusionner() {
       dev) case ",$etiquettes," in *,agents:synchro,*) ;; *) continue ;; esac ;;
       *) continue ;;
     esac
-    # UNKNOWN juste après une autre fusion : GitHub recalcule, le tour suivant tranchera.
-    [ "$mergeable" = MERGEABLE ] || continue
+    # Seul CONFLICTING écarte une PR. GitHub rend UNKNOWN après chaque fusion dans pre-dev et ne
+    # recalcule que si on lui redemande la PR : « le tour suivant tranchera » était faux. Relevé le
+    # 2026-10-20 : #782 verte à 08:37, sautée par les tours de 09:00 et 09:10, fusionnée à 09:14
+    # dès qu'une lecture l'a fait recalculer. La lecture ci-dessous le déclenche, pour que la fusion
+    # qui suit l'essai soit acceptée ; l'essai de fusion juge le conflit sur place.
+    if [ "$mergeable" = UNKNOWN ]; then
+      mergeable="$(GH_REPO="$GH_REPO" gh pr view "$num" --json mergeable --jq .mergeable 2> /dev/null || echo UNKNOWN)"
+    fi
+    [ "$mergeable" != CONFLICTING ] || continue
     [ "$(etat_ci "$num")" = vert ] || continue
     essai_de_fusion "$num" "$tete" || continue
     if [ "$tete" = dev ]; then
