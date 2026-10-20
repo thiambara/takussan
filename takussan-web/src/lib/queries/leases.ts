@@ -219,7 +219,7 @@ export function useLease(id: number | null | undefined) {
       // omit from sparse fieldset; PropertyResource emits it anyway.
       properties: ['id', 'title', 'slug'],
     },
-    include: ['property', 'payments'],
+    include: ['property'],
   };
 
   return useApiQuery<ApiResponse<LeaseWithRelations>>(
