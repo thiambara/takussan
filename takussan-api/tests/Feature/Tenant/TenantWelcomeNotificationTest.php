@@ -98,8 +98,9 @@ class TenantWelcomeNotificationTest extends TestCase
         (new SendTenantWelcomeNotification)->handle(new LeaseActivated($lease));
 
         Notification::assertNothingSent();
-        // The sentinel is still stamped so we don't retry forever.
-        $this->assertNotNull($lease->fresh()->tenant_welcomed_at);
+        // TCK-1002 (P48.02) — rien n'est parti : le tampon ne se pose pas, et un compte rattaché
+        // plus tard reçoit la bienvenue à la prochaine activation.
+        $this->assertNull($lease->fresh()->tenant_welcomed_at);
     }
 
     /**

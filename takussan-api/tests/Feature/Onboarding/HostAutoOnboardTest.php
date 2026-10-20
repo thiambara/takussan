@@ -5,12 +5,14 @@ namespace Tests\Feature\Onboarding;
 use App\Domain\Features\Flag;
 use App\Events\Onboarding\SpaceCreated;
 use App\Models\Agency;
+use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyKind;
 use App\Models\FeatureFlag;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Agency\AgencyKindFlipService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -222,5 +224,28 @@ class HostAutoOnboardTest extends TestCase
 
         $this->assertNotSame($sienne->id, $id);
         $this->assertFalse(AgencyAdminProfile::query()->where('user_id', $user->id)->where('agency_id', $sienne->id)->exists());
+    }
+
+    /**
+     * TCK-990 (P49.03) — après le passage en agence professionnelle, « Publier » rend l'agence
+     * passée, et n'en recrée pas une individuelle : « la sienne » se juge par `primary_admin_id`,
+     * quel que soit le `kind`.
+     */
+    public function test_bascule_puis_auto_onboard_rend_l_agence_passee_sans_second_espace(): void
+    {
+        $user = User::factory()->create(['first_name' => 'Awa']);
+        Sanctum::actingAs($user);
+        $id = $this->postJson(self::ROUTE)->assertCreated()->json('data.agency.id');
+
+        app(AgencyKindFlipService::class)->flip(
+            AgencyUpgradeRequest::factory()->create(['agency_id' => $id, 'submitted_by' => $user->id]),
+        );
+
+        $this->postJson(self::ROUTE)
+            ->assertOk()
+            ->assertJsonPath('data.created', false)
+            ->assertJsonPath('data.agency.id', $id)
+            ->assertJsonPath('data.agency.kind', 'standard');
+        $this->assertSame([$id], Agency::query()->where('primary_admin_id', $user->id)->pluck('id')->all());
     }
 }

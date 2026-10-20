@@ -55,6 +55,10 @@ return [
         'platform_capability' => 'Capacité réservée à la plateforme : :capabilities. Aucun rôle d\'agence ne peut la porter.',
         'profile_type_mismatch' => 'Ce rôle ne cible pas le même type de profil.',
     ],
+    'agency_upgrade' => [
+        // TCK-1003 — l'approbation d'une demande de passage exige un dossier KYC vérifié.
+        'kyc_not_verified' => 'Le dossier KYC de l\'agence doit être vérifié avant d\'approuver son passage en agence professionnelle.',
+    ],
     'agent_absence' => [
         'overlaps' => 'Une absence de ce membre est déjà prévue ou en cours sur cette période.',
     ],

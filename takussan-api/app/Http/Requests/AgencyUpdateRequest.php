@@ -72,6 +72,28 @@ class AgencyUpdateRequest extends BaseFormRequest
             // TCK-594 (ADR-0039 §7) — TVA par défaut des factures (un taux explicite gagne).
             'default_tax_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             ...$this->legalRules(),
+            'slug' => $this->slugRules(),
+        ];
+    }
+
+    /**
+     * TCK-1004 (P49.04) — le slug ne s'édite qu'une fois, sur une agence passée en professionnelle
+     * (`Agency::slugEditableOnce()`). Partout ailleurs il est `prohibited` : `validated()` l'écartait
+     * jusqu'ici sans un mot.
+     *
+     * @return array<int, mixed>
+     */
+    private function slugRules(): array
+    {
+        $agency = $this->route('agency');
+        if (! $agency instanceof Agency || ! $agency->slugEditableOnce()) {
+            return ['prohibited'];
+        }
+
+        return [
+            'sometimes', 'required', 'string', 'max:100', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
+            // Toutes les lignes, supprimées comprises : l'index unique de la colonne les compte.
+            Rule::unique('agencies', 'slug')->ignore($agency->getKey()),
         ];
     }
 

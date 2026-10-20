@@ -3,6 +3,8 @@
 namespace Tests\Feature\Privacy;
 
 use App\Models\Agency;
+use App\Models\Customer;
+use App\Models\Enums\IdType;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Services\Privacy\DataExportBuilder;
@@ -29,6 +31,9 @@ class OwnerProfileSensitiveDataTest extends ApiTestCase
 
     private const ID_NUMBER = 'AB12345678';
 
+    /** TCK-956 (ADR-0070) — le revenu mensuel du bailleur suit la même règle. */
+    private const REVENU = '350000.00';
+
     private function ownerOf(Agency $agency, array $overrides = []): OwnerProfile
     {
         return OwnerProfile::factory()->create(array_merge([
@@ -36,6 +41,7 @@ class OwnerProfileSensitiveDataTest extends ApiTestCase
             'rib' => self::RIB,
             'tax_id' => self::TAX_ID,
             'id_document_number' => self::ID_NUMBER,
+            'monthly_income' => self::REVENU,
         ], $overrides));
     }
 
@@ -196,5 +202,80 @@ class OwnerProfileSensitiveDataTest extends ApiTestCase
         $this->assertNotSame(self::RIB, $first);
         $this->assertSame($first, $second, 'un second up() ne rechiffre pas une valeur déjà chiffrée');
         $this->assertSame(self::RIB, $profile->fresh()->rib);
+    }
+
+    /** TCK-956 AC1 — le revenu fait l'aller-retour au centime, et `down()` rend `numeric(14,2)`. */
+    public function test_la_migration_du_revenu_fait_l_aller_retour(): void
+    {
+        $profile = $this->ownerOf(Agency::factory()->create());
+        $migration = require database_path('migrations/2026_10_19_120000_encrypt_monthly_income_on_owner_profiles.php');
+        $brut = fn () => DB::table('owner_profiles')->where('id', $profile->id)->value('monthly_income');
+
+        $migration->down();
+        $this->assertSame(self::REVENU, $brut());
+
+        $migration->up();
+        $premier = $brut();
+        $this->assertSame(self::REVENU, Crypt::decryptString($premier));
+        $migration->up();
+        $this->assertSame($premier, $brut(), 'un second up() ne rechiffre pas une valeur déjà chiffrée');
+
+        $migration->down();
+        $this->assertSame(self::REVENU, $brut());
+        $colonne = DB::selectOne(
+            "select data_type, numeric_precision, numeric_scale from information_schema.columns
+             where table_schema = current_schema() and table_name = 'owner_profiles' and column_name = 'monthly_income'"
+        );
+        $this->assertSame(['numeric', 14, 2], [$colonne->data_type, (int) $colonne->numeric_precision, (int) $colonne->numeric_scale]);
+
+        $migration->up();
+        $this->assertSame(self::REVENU, $profile->fresh()->monthly_income);
+    }
+
+    /** TCK-956 AC2 et AC3 — le carnet ne rend que le masque du revenu ; la lecture dédiée le rend en nombre. */
+    public function test_le_revenu_est_masque_au_carnet_et_clair_par_la_lecture_dediee(): void
+    {
+        $agency = Agency::factory()->create();
+        $profile = $this->ownerOf($agency);
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+
+        $row = collect($this->apiGet('/api/owners')->assertOk()->json('data'))->firstWhere('id', $profile->id);
+        $this->assertArrayNotHasKey('monthly_income', $row);
+        $this->assertSame('••••', $row['monthly_income_masked']);
+        $sparse = collect($this->apiGet('/api/owners?fields[owner_profiles]=id,status')->assertOk()->json('data'))->firstWhere('id', $profile->id);
+        $this->assertSame('••••', $sparse['monthly_income_masked']);
+        $this->apiGet('/api/owners?fields[owner_profiles]=id,monthly_income')->assertStatus(400);
+
+        $this->actingAsWithStepUp($admin);
+        $this->apiGet("/api/owners/{$profile->id}/sensitive")
+            ->assertOk()
+            ->assertJsonPath('data.monthly_income', 350000);
+    }
+
+    /** TCK-956 AC4 — l'export du droit d'accès porte la fiche client du titulaire, pièce en clair, sans notes ni métadonnées. */
+    public function test_l_export_porte_la_fiche_client_du_titulaire(): void
+    {
+        $profile = $this->ownerOf(Agency::factory()->create());
+        Customer::factory()->create([
+            'user_id' => $profile->user_id,
+            'id_type' => IdType::IdCard,
+            'id_number' => 'SN-112233',
+            'notes' => 'Note interne de l\'agence',
+            'metadata' => ['source' => 'salon'],
+        ]);
+        Customer::factory()->create(['id_number' => 'SN-AUTRUI']);
+
+        $payloads = app(DataExportBuilder::class)->payloads($profile->user);
+
+        $this->assertSame(self::REVENU, collect($payloads['profile.json']['profiles']['owners'])->firstWhere('id', $profile->id)['monthly_income']);
+
+        $fiches = $payloads['customers.json'];
+        $this->assertCount(1, $fiches);
+        $this->assertSame('SN-112233', $fiches[0]['id_number']);
+        $this->assertSame('id_card', $fiches[0]['id_type']);
+        $this->assertArrayNotHasKey('notes', $fiches[0]);
+        $this->assertArrayNotHasKey('metadata', $fiches[0]);
+        $this->assertStringContainsString('"id_number":"SN-112233"', json_encode($fiches));
+        $this->assertStringNotContainsString('SN-AUTRUI', json_encode($payloads));
     }
 }

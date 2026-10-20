@@ -48,9 +48,9 @@ Les conversions d'images (thumbnails, responsive) sont configurées dans `regist
 > ⚠️ **Refonte architecturale TCK-278 → TCK-279.** Le trait `HasRoles` est **retiré du modèle `User`**. Le « rôle » d'un humain dans le système n'est plus un attribut auth-level mais une **propriété dérivée du profil polymorphe** dont il dispose dans un contexte donné (agence ou plateforme). Voir [Règle 5 — Profil = rôle](#règle-5--profil--rôle).
 
 **Phase 1 (TCK-278) — Suppression de spatie sur User.**
-- `User` ne porte plus de rôle direct. Les checks `$user->hasRole('agent')` sont remplacés par `$user->isAgentAt($agency)` / `$user->hasProfileAt($agency, AgentProfile::class)` / `$user->canActAt(Capability::xxx, $agency)`.
+- `User` ne porte plus de rôle direct. Les checks `$user->hasRole('agent')` sont remplacés par `$user->isAgentAt(int $agencyId)` / `$user->hasProfileAt(int $agencyId, string $profileType)` / `$user->canActAt(Capability::xxx, ?Agency $agency)`.
 - Les rôles « plateforme » (`super_admin`, `support`, `viewer`) deviennent un nouveau modèle polymorphe : [PlatformProfile](#51-platformprofile-).
-- Les rôles « customer » et « tenant » ne deviennent pas des profils en phase 1 : ils sont **dérivés** de la présence d'une `Booking` / `Lease` actif dans l'agence (helpers `isCustomerOf($agency)` / `isTenantOf($agency)`). Profile-isation reportée si TCK-020 / TCK-090 en font émerger le besoin.
+- Les rôles « customer » et « tenant » ne deviennent pas des profils en phase 1 : ils sont **dérivés** dans `HasProfiles` (TCK-492) — `customer` pour toute identité authentifiée, `tenant` pour un compte qui a un bail actif (`hasActiveTenantLease()`). Il n'existe ni `isCustomerOf()` ni `isTenantOf()`. Profile-isation reportée si TCK-020 / TCK-090 en font émerger le besoin.
 - L'enum `Capability` (code-defined) catalogue toutes les capacités atomiques de l'application, groupées par domaine (`<domaine>.<verbe>` ; le nombre se lit dans `app/Models/Enums/Capability.php`, pas ici). Un résolveur `MembershipCapabilityResolver` mappe `(Capability, ProfileType) → bool`.
 - Les tables spatie (`roles`, `permissions`, `model_has_roles`, `model_has_permissions`, `role_has_permissions`) **disparaissent**.
 
@@ -74,9 +74,24 @@ Les conversions d'images (thumbnails, responsive) sont configurées dans `regist
 
 ### `spatie/laravel-activitylog`
 
-Remplace le modèle custom `ActivityLog`. Gère automatiquement le journal d'audit via le trait `LogsActivity` sur chaque modèle concerné.
-Les tables `activity_log` et la configuration du package (`config/activitylog.php`) remplacent entièrement le modèle custom.
-Voir la section [13. ActivityLog](#13-activitylog--remplacé-par-spatielaravel-activitylog) pour les détails de migration.
+Version 5 (`^5.0`). Le journal d'audit est la table `activity_log`, écrite par `App\Models\Activity`
+(`config/activitylog.php`, `activity_model`), via le trait `App\Models\Bases\Auditable` (qui porte
+`LogsActivity`) sur les modèles tracés. Le détail d'un changement vit dans `attribute_changes`.
+Voir la section [13. ActivityLog](#13-activitylog--remplacé-par-spatielaravel-activitylog).
+
+### `lemonsqueezy/laravel` — les tables `lemon_squeezy_*`
+
+Cinq tables créées par les migrations **du paquet** (`vendor/lemonsqueezy/laravel/database/migrations/2023_01_16_00000{1..5}`),
+hors de `database/migrations/` : `lemon_squeezy_customers`, `lemon_squeezy_subscriptions`,
+`lemon_squeezy_orders`, `lemon_squeezy_license_keys`, `lemon_squeezy_license_key_instances`. Les
+trois premières portent la clé polymorphe `billable`, qui vise `Agency` (trait `LemonSqueezyBillable`,
+voir [§2](#2-agency)). La base compte donc cinq migrations de plus que le dépôt n'a de fichiers.
+
+### `laravel/scout`
+
+Recherche plein texte sur Meilisearch (`config/scout.php`). Modèles `Searchable` au 2026-10-19 :
+`Agency`, `Customer`, `Document`, `MaintenanceRequest`, `Message`, `Property`, `User`
+(la source fait foi : les classes de `app/Models` qui portent le trait — `HasQueryBuilder` importe la classe sans la porter).
 
 ### `laravel/sanctum` — la table `personal_access_tokens`
 
@@ -98,6 +113,23 @@ bornées :
   `ImpersonationService` et non par `SessionTokenIssuer` — il ne porte donc jamais
   `two_factor_verified_at` ; voir [§83 ImpersonationSession](#83-impersonationsession-).
 - Index (Sanctum) : `token` unique, `(tokenable_type, tokenable_id)`, `expires_at`.
+
+### Tables du framework
+
+Créées par les migrations de base de Laravel (`0001_01_01_000000` à `000002`), sans modèle dans
+`app/Models` :
+
+- **`password_reset_tokens`** — `email` (clé primaire), `token` (haché), `created_at`. Un seul jeton
+  par adresse : **un compte sans e-mail n'emprunte pas ce chemin** (il se connecte par téléphone,
+  ADR-0033). Deux jeux de `config/auth.php` partagent la table : `users` (réinitialisation, 60 min) et
+  `activations` (lien d'activation du gérant provisionné, 7 jours — TCK-781, TCK-209). Au 2026-10-19,
+  la table **n'est jamais purgée** (`auth:clear-resets` n'est pas planifiée) et l'effacement d'un
+  compte ne retire pas ses lignes : les deux sont validés par la piste P57.03.
+- `sessions` — sessions web de Laravel.
+- `cache`, `cache_locks` — magasin de cache et verrous du pilote `database`.
+- `jobs`, `job_batches`, `failed_jobs` — file de travaux du pilote `database`.
+
+Les tables `lemon_squeezy_*` viennent d'un paquet, voir [`lemonsqueezy/laravel`](#lemonsqueezylaravel--les-tables-lemon_squeezy_).
 
 ---
 
@@ -337,15 +369,15 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | Colonne | Type | Nullable | Défaut | Description | Changement |
 |---------|------|----------|--------|-------------|------------|
 | id | bigint PK | | auto | Identifiant unique | |
-| username | string | oui | null | Nom d'utilisateur unique | |
+| username | string | oui | null | Nom d'utilisateur unique. Sert aussi de **slug public** de la fiche `/agents/{slug}` (`PublicAgentController`, `PropertyResource` → `owner.slug`, TCK-177) | |
 | email | string | oui | null | Adresse email, unique casse repliée (`users_email_lower_unique`, ADR-0025). **Nullable depuis TCK-589** (`2026_10_07_150200`, ADR-0033) : un compte ouvert par téléphone n'en a pas | |
 | password | string | | | Mot de passe hashé — reste NOT NULL : un compte sans mot de passe choisi porte un hash machine que personne ne connaît | |
 | password_set_at | timestamp | oui | null | Date à laquelle l'utilisateur a **choisi** son mot de passe ; `null` = `password` est une valeur machine (compte OAuth, invitation acceptée sans mot de passe). Hors `$fillable` (`forceFill`). Backfill imparfait, décrit par l'en-tête de `2026_08_15_100000_add_password_set_at_to_users_table` (TCK-272) | ➕ |
 | ~~type~~ | — | — | — | ~~Supprimée — la nature métier est portée par les profils polymorphes (cutover TCK-142)~~ | ➖ |
-| status | UserStatus | oui | 'active' | Statut du compte | |
-| first_name | string | oui | null | Prénom | |
-| last_name | string | oui | null | Nom de famille | |
-| phone | string | oui | null | Numéro de téléphone principal. **Pas unique en soi** : seul un numéro *vérifié* l'est, sur sa forme canonique (`users_phone_verified_unique`, voir « Index » ci-dessous) | |
+| status | UserStatus | | 'active' | Statut du compte | |
+| first_name | string | | | Prénom. **NOT NULL sans défaut** : un compte ouvert par téléphone (`PhoneLoginService`) ou anonymisé (`AccountDeletionService`) reçoit une chaîne **vide**, jamais `null` — l'interface et `PublishReadiness` la traitent comme absente | |
+| last_name | string | | | Nom de famille — même règle que `first_name` | |
+| phone | string(30) | oui | null | Numéro de téléphone principal. **Pas unique en soi** : seul un numéro *vérifié* l'est, sur sa forme canonique (`users_phone_verified_unique`, voir « Index » ci-dessous) | |
 | email_verified_at | datetime | oui | null | Date de vérification email | |
 | phone_verified_at | datetime | oui | null | Date de vérification téléphone | ➕ |
 | phone_whatsapp | boolean | oui | null | Le numéro principal reçoit WhatsApp. **`null` = jamais répondu** (l'écran de publication pose alors la question), `false` = non. Remis à `null` par `User::booted()` (`updating`) dès que `phone` change sans réponse dans la même écriture (TCK-633, lot C) | ➕ |
@@ -356,15 +388,15 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | terms_version | string(40) | oui | null | Version des CGU acceptée (TCK-633) | ➕ |
 | ~~avatar_url~~ | — | — | — | ~~Remplacé par media collection `avatar` (spatie/medialibrary)~~ | ➖ |
 | bio | text | oui | null | Biographie / présentation | ➕ |
-| preferred_language | string(5) | oui | 'fr' | Langue préférée (fr, en, wo) | ➕ |
+| preferred_language | string(10) | | 'fr' | Langue préférée (fr, en, wo) | ➕ |
 | last_login_at | datetime | oui | null | Dernière connexion | ➕ |
 | ~~agency_id~~ | — | — | — | ~~Supprimée — l'attache à une agence est portée par le profil actif (cutover TCK-142)~~ | ➖ |
 | added_by_id | FK users | oui | null | Créateur du compte (si ajouté par un admin/agent) | |
 | google_id | string | oui | null | Identifiant OAuth Google | |
 | facebook_id | string | oui | null | Identifiant OAuth Facebook | ➕ |
 | apple_id | string | oui | null | Identifiant OAuth Apple | ➕ |
-| remember_token | string | oui | null | Token de session persistante | |
-| timezone | string | | 'Africa/Dakar' | Fuseau horaire préféré | ➕ |
+| remember_token | string(100) | oui | null | Token de session persistante | |
+| timezone | string(50) | | 'Africa/Dakar' | Fuseau horaire préféré | ➕ |
 | two_factor_enabled | boolean | | false | Authentification à deux facteurs activée | ➕ |
 | two_factor_secret | text (encrypted) | oui | null | Secret TOTP (chiffré) | ➕ |
 | two_factor_recovery_codes | text (encrypted) | oui | null | Codes de récupération 2FA (chiffrés) | ➕ |
@@ -377,10 +409,24 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | digest_send_at | string(5) | | '08:00' | Heure locale d'envoi du récapitulatif (`HH:MM`) (TCK-103) | ➕ |
 | digest_day_of_week | string(16) | | 'monday' | Jour du récapitulatif hebdomadaire (TCK-103) | ➕ |
 | preferences | jsonb | oui | null | Indications de personnalisation **choisies par l'utilisateur** et exposées par l'API (ville, intention de recherche — fiche de profil minimal différée). Distinct de `metadata`, état interne (TCK-253 ; `2026_05_10_140000`) | ➕ |
-| metadata | jsonb | oui | null | Données supplémentaires flexibles | |
+| metadata | jsonb | oui | null | État interne, jamais exposé tel quel — clés lues par le code ci-dessous | |
 | deleted_at | datetime | oui | null | Soft delete | |
 | created_at | datetime | | auto | Date de création | |
 | updated_at | datetime | | auto | Date de modification | |
+
+> Nullabilités et longueurs relevées en base le 2026-10-19 (passe 013 de `/sync-specs`, C2) : le
+> tableau écrivait `status`, `first_name` et `last_name` nullables, et `preferred_language` en
+> `string(5)` nullable.
+
+**Clés de `metadata` lues par le code :**
+- `failed_login_attempts`, `failed_login_first_at`, `locked_at` — verrou du **canal mot de passe**
+  (`LoginLock`, TCK-589, ADR-0033 §6) : 10 échecs consécutifs posent `locked_at`, le verrou court
+  15 min, la série vit 24 h depuis son premier échec ; `UserSupportService::unlock()` efface les
+  trois clés. Le verrou du canal téléphone et le leurre d'une adresse inconnue vivent **en cache**,
+  sans colonne.
+- `force_2fa_reconfigure` — posé par `UserSupportService::resetTwoFactor()`, impose le réenrôlement
+  du second facteur (`RequireTwoFactor`) ; retiré par `TwoFactorController` et
+  `SuperAdminTwoFactorController` à l'enrôlement, exposé par `UserResource`.
 
 **Colonnes supprimées :**
 - ➖ `model_id` + `model_type` (nullableMorphs 'model') — non utilisés, redondants avec les profils et la relation `customer()`
@@ -389,7 +435,8 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 - ➖ `agency_id` — l'attache à une agence est portée par chaque profil ; cutover effectif en TCK-142
 
 **Traits :**
-- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `avatar`
+- `InteractsWithMedia` (spatie/laravel-medialibrary) — collections `avatar`, `avatars`, `photos`, `documents` ; seules `avatar` et `avatars` sont sur le disque public (ADR-0029 §3)
+- `LogsActivity` (spatie/laravel-activitylog), `Searchable` (laravel/scout), `SoftDeletes`, `Notifiable`, `HasQueryBuilder`
 - ~~`HasRoles` (spatie/laravel-permission)~~ — **retiré en TCK-278.** Le rôle est dérivé des profils ; voir [Règle 5](#règle-5--profil--rôle).
 - `HasApiTokens` (laravel/sanctum) — authentification API
 - `HasProfiles` (custom, TCK-140 / enrichi TCK-278) — expose `ownerProfiles()`, `agentProfiles()`, `agencyAdminProfiles()`, `serviceProviderProfile()`, `platformProfile()`, `profiles()`, `activeProfile()`, `hasProfileAt()`, `isAgentAt()`, `isAgencyAdminAt()`, `isOwnerAt()`, `isProviderAt()`, `hasActiveSuperAdminProfile()`, `canActAt(Capability, Agency)` etc. (`brokerProfile()` retiré par TCK-586 ; `isSuperAdmin()`, que cette ligne citait, n'existe pas dans le trait)
@@ -423,29 +470,34 @@ servi au public nulle part » — ni par `…/contact` d'un bien, ni par la fich
 Pour les deux index de téléphone, dernier recours seulement : `PhoneVerificationService` teste avant
 d'écrire (piège PostgreSQL n°1 — une violation abandonne la transaction entière).
 
-**Relations :**
-- `added_by()` → belongsTo User
-- `owner_profiles()` → hasMany OwnerProfile 🆕
-- `agent_profiles()` → hasMany AgentProfile 🆕
-- `agency_admin_profiles()` → hasMany AgencyAdminProfile 🆕 (TCK-271)
-- `service_provider_profile()` → hasOne ServiceProviderProfile 🆕
-- `platform_profile()` → hasOne PlatformProfile 🆕 (TCK-278)
+**Relations** (noms tels que le code les déclare — Eloquent ne résout pas un nom en snake_case ; relevé du 2026-10-19) :
+- `addedBy()` → belongsTo User (via `added_by_id`)
+- `ownerProfiles()` → hasMany OwnerProfile 🆕 (trait `HasProfiles`)
+- `agentProfiles()` → hasMany AgentProfile 🆕 (trait `HasProfiles`)
+- `agencyAdminProfiles()` → hasMany AgencyAdminProfile 🆕 (TCK-271, trait `HasProfiles`)
+- `serviceProviderProfile()` → hasOne ServiceProviderProfile 🆕 (trait `HasProfiles`)
+- `platformProfile()` → hasOne PlatformProfile 🆕 (TCK-278, trait `HasProfiles`)
 - `profiles()` → collection unifiée des profils du user (Eloquent `Collection` retournée par accesseur, pas une relation Eloquent native) 🆕
+- `agency()` → hasOneThrough Agency via AgentProfile — la **première** agence dont le compte est agent, pont de compatibilité de TCK-142. **Pas l'agence active** : ne jamais s'en servir pour juger une capacité ([Règle 4](#règle-4--active-profile-context))
 - `properties()` → hasMany Property
-- `bookings()` → hasMany Booking
-- `customers()` → hasMany Customer (via added_by_id)
-- `customer()` → hasOne Customer (via user_id)
-- `customer_relationships()` → hasMany UserCustomerRelationship
-- `related_customers()` → belongsToMany Customer (pivot)
+- `bookings()` → hasMany Booking (via `created_by_id`)
+- `customers()` → hasMany Customer (via `added_by_id`)
+- `customer()` → hasOne Customer (via `user_id`) — commodité : un compte porte un dossier client **par agence**, `customers.user_id` n'est pas unique
+- `customerRelationships()` → hasMany UserCustomerRelationship
+- `relatedCustomers()` → belongsToMany Customer (pivot `user_customer_relationships`)
 - `addresses()` → morphMany Address
-- `leases()` → hasMany Lease (via landlord_id — en tant que bailleur) 🆕
+- `leases()` → hasMany Lease (via `landlord_id` — en tant que bailleur) 🆕
+- `tenantLeases()` → hasManyThrough Lease via Customer (`customers.user_id` → `leases.tenant_id`) — en tant que **locataire** (TCK-492) ; `leases.tenant_id` référence `customers`, pas `users`
+- `payouts()` → hasMany Payout (via `landlord_id`)
 - `favorites()` → hasMany Favorite 🆕
-- `conversations()` → belongsToMany Conversation (via ConversationParticipant) 🆕
-- `saved_searches()` → hasMany SavedSearch 🆕
-- `app_notifications()` → hasMany AppNotification (table `app_notifications`) 🆕
-- `written_reviews()` → hasMany Review (avis rédigés par cet utilisateur) 🆕
-- `received_reviews()` → morphMany Review (avis reçus sur cet utilisateur, via `reviewable`) 🆕
+- `conversations()` → belongsToMany Conversation (via `conversation_participants`) 🆕
+- `savedSearches()` → hasMany SavedSearch 🆕
+- `appNotifications()` → hasMany AppNotification (table `app_notifications`) 🆕
+- `writtenReviews()` → hasMany Review (via `author_id`, avis rédigés par cet utilisateur) 🆕
+- `receivedReviews()` → morphMany Review (avis reçus sur cet utilisateur, via `reviewable`) 🆕
 - `documents()` → morphMany Document (pièces d'identité, RIB, etc.) 🆕
+- `roleDelegations()` → hasMany RoleDelegation (délégations dont le compte est bénéficiaire, TCK-108)
+- `deletionRequest()` → hasOne AccountDeletionRequest (au plus une par compte, TCK-080)
 - `notificationPreferences()` → hasMany [NotificationPreference](#99-notificationpreference-) (TCK-070) 🆕
 
 ---
@@ -467,7 +519,7 @@ d'écrire (piège PostgreSQL n°1 — une violation abandonne la transaction ent
 | website | string | oui | null | Site web | |
 | ~~logo_path~~ | — | — | — | ~~Remplacé par media collection `logo` (spatie/medialibrary)~~ | ➖ |
 | description | text | oui | null | Présentation de l'agence | |
-| status | AgencyStatus | | 'active' | Statut (active, inactive, suspended) | |
+| status | AgencyStatus | | 'active' | Statut (active, inactive, suspended). La suspension et sa levée (`AgencyModerationController`, super-admin, TCK-600, ADR-0048) exigent un **motif, qui n'a pas de colonne** : il vit dans le journal (`super_admin_agency_suspended` / `super_admin_agency_reinstated`, propriétés `old_status`, `new_status`, `reason`) et dans la notification aux administrateurs de l'agence. Ni la date ni l'auteur de la suspension ne sont sur la ligne | |
 | commission_rate | decimal(5,2) | oui | null | Taux de commission par défaut (%) | ➕ |
 | currency | Currency (char(3)) | | 'XOF' | Devise par défaut de l'agence (`2026_04_24_000001`, TCK-084) ; l'espace auto-créé la pose en XOF | ➕ |
 | founded_at | date | oui | null | Date de création de l'agence | ➕ |
@@ -478,7 +530,7 @@ d'écrire (piège PostgreSQL n°1 — une violation abandonne la transaction ent
 | active_leases_count | integer | | 0 | Compteur baux actifs (cache) | ➕ |
 | average_rating | decimal(3,2) | oui | null | Note moyenne des avis **publiés** (`is_approved = true`) — cache | ➕ |
 | reviews_count | unsigned integer | | 0 | Nombre d'avis publiés — cache, recompté avec la moyenne (`2026_10_08_100400`, TCK-597, ADR-0043 §6) | ➕ |
-| settings | jsonb | oui | null | Paramètres internes (préférences, config) — remplacé **en entier** par `AgencyUpdateRequest` | |
+| settings | jsonb | oui | null | Réglages de l'agence — **fusionnés clé par clé** par `AgencyController::update` (TCK-593) : une clé envoyée à `null` est retirée et revient au défaut du code. Clés ci-dessous | |
 | moderation_required | boolean | | false | Modération avant publication activée par l'admin d'agence (`2026_04_26_000002`) — lue par `PropertyObserver` (TCK-597) | ➕ |
 | bank_csv_mapping | jsonb | oui | null | Correspondance des colonnes d'un relevé bancaire CSV, propre à l'agence (`2026_04_28_000006`) — cf. [§40](#40-bankstatement-) | ➕ |
 | payout_approval_threshold | decimal(14,2) | oui | null | Seuil d'approbation des reversements (quatre yeux) — **ni défaut ni reprise** : `null` tant que l'agence ne l'active pas ; écrit par `PayoutApprovalThreshold` seul, hors `$fillable` (`2026_10_07_200500`, TCK-594, ADR-0039 §4) | ➕ |
@@ -499,7 +551,9 @@ d'écrire (piège PostgreSQL n°1 — une violation abandonne la transaction ent
 - ➖ `logo_path` — remplacé par media collection `logo` via spatie/medialibrary
 
 **Reversements, TVA et mentions légales (TCK-594, ADR-0039).** `payout_approval_threshold` est une
-colonne et non une clé de `settings`, parce que `AgencyUpdateRequest` remplace `settings` en entier.
+colonne et non une clé de `settings`, parce qu'il a un écrivain unique et un contrôle à quatre yeux
+(`PayoutApprovalThreshold::change()`, sous `updatePayoutThreshold`), qu'une clé de `settings` écrite
+par `PATCH /api/agencies/{id}` contournerait.
 Le **relâchement** du seuil (le couper ou le relever) ne prend effet qu'à la confirmation d'un second
 détenteur de `payouts.approve` : la valeur demandée attend dans les trois colonnes
 `pending_payout_threshold*` ; c'est `pending_payout_threshold_requested_at` qui marque la demande,
@@ -509,8 +563,33 @@ ont été reprises de `metadata.legal_info` (`company_legal_name`, `ninea`, `rc`
 dans `metadata`, non tronquée. **Jamais `rib_pro`** : un RIB n'a pas sa place dans une colonne lue en
 clair par chaque facture (TCK-601).
 
+**Clés de `settings`** (relevé du 2026-10-19). **La source fait foi** :
+`App\Domain\Settings\AgencySettings` (TCK-970) est le catalogue des clés qu'un admin écrit ; il
+donne à `AgencyUpdateRequest` ses règles `settings.*`, et `Agency::setting()` y lit chaque valeur
+dans son type, défaut compris quand la clé est absente.
+
+| Clé | Type | Défaut (clé absente) | Lecteur |
+|-----|------|----------------------|---------|
+| `watermark_enabled` | bool | `true` | `AgencyWatermarkContext` (filigrane des photos, TCK-539) |
+| `watermark_position` | `WatermarkPosition` | `WatermarkPosition::default()` | `AgencyWatermarkContext` |
+| `watermark_opacity` | int, 10-100 | 60 | `AgencyWatermarkContext` |
+| `require_team_two_factor` | bool | `false` | `TwoFactorRequirement`, `RequireTwoFactor`, `ProtectedActions` — 2FA exigée du personnel (TCK-589) |
+| `late_fee_online_collection` | bool | `false` | `Agency::collectsLateFeesOnline()` (TCK-593) |
+| `booking_pending_expiry_hours` | int, 0-168 | 48 (0 = désactivé) | `BookingExpirationService` (TCK-963) |
+| `tenant_onboarding_enabled` | bool | `true` | `TenantOnboardingService` — `false` comme `0` coupent la checklist (TCK-963, TCK-970) |
+
+Les clés que l'onboarding déposait (`primary_city`, `primary_property_type`, `onboarding_source`,
+`payment.preferred_provider`) ne sont plus enregistrées depuis TCK-966 ; celles d'une ligne ancienne
+sont retirées de la réponse par `AgencyResource`. `settings.currency` n'est plus lue :
+la devise est la colonne `currency`.
+
 **Traits :**
+- `Auditable` (journal, voir [§13](#13-activitylog--remplacé-par-spatielaravel-activitylog)), `Searchable` (laravel/scout), `SoftDeletes`
 - `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `logo`
+- `LemonSqueezyBillable` (`LemonSqueezy\Laravel\Billable`, TCK-079) — l'agence est le payeur d'un
+  `checkout()` Lemon Squeezy (`LemonSqueezyDriver`) ; le trait ajoute `customer()` et `orders()`.
+  ⚠ **`Agency::subscriptions()` (→ AgencySubscription) masque la méthode homonyme du trait** :
+  `subscribed()`, `onTrial()` et `subscription()` du paquet ne sont pas utilisables sur une agence.
 
 **Relations :**
 - `properties()` → hasMany Property
@@ -546,8 +625,8 @@ pause, le réactiver les reprend (ADR-0061 §8).
 |---------|------|----------|--------|-------------|------------|
 | id | bigint PK | | auto | Identifiant unique | |
 | parent_id | FK properties | oui | null | Bien parent (ex: immeuble contenant des appartements) | |
-| user_id | FK users | | | Titulaire du bien (`restrictOnDelete`) — son propriétaire pour un particulier ; sur un bien d'agence, **le bailleur désigné à la saisie** (un bailleur actif de l'agence), ou **l'auteur** quand l'agence garde le bien en propre ou en attendant qu'un bailleur invité accepte ; un lot prend à sa création le titulaire bailleur de son parent, et la copie celui de sa source. **Ce n'est pas l'agent responsable** (le collaborateur principal, [§8](#8-propertycollaborator)) : hors création, seules trois voies le réécrivent, jamais depuis un bailleur — la passation d'un bien saisi par un partant (TCK-603), l'acceptation de l'invitation du bailleur en attente, et « changer le titulaire » par l'admin d'agence ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md), amendé le 2026-10-19 ; TCK-997, TCK-999, TCK-1000) | ✏️ |
-| pending_owner_profile_id | FK owner_profiles | oui | null | Bailleur invité pour qui le bien a été saisi (`nullOnDelete`) : le bien lui passe quand il accepte l'invitation, et le lien s'efface à l'acceptation, à la révocation ou à l'expiration (TCK-1000) | ➕ |
+| user_id | FK users | | | Titulaire du bien (`restrictOnDelete`) — son propriétaire pour un particulier ; sur un bien d'agence, **le bailleur désigné à la saisie** (un bailleur actif de l'agence), ou **l'auteur** quand l'agence garde le bien en propre ou en attendant qu'un bailleur invité accepte ; un lot prend à sa création le titulaire bailleur de son parent, et la copie celui de sa source. **Ce n'est pas l'agent responsable** (le collaborateur principal, [§8](#8-propertycollaborator)) : hors création, seules trois voies le réécrivent, jamais depuis un bailleur — la passation d'un bien saisi par un partant (TCK-603), l'acceptation de l'invitation du bailleur en attente, et « changer le titulaire » par l'admin d'agence ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md), amendé le 2026-10-19 ; TCK-997, TCK-999, TCK-1000). **À venir** (les trois tickets sont `todo` au 2026-10-19) : la désignation du bailleur à la saisie, le titulaire bailleur d'un lot, l'invitation en attente et « changer le titulaire ». **Aujourd'hui**, le titulaire est l'auteur de la saisie — celui d'une copie aussi (`PropertyDuplicationService`, l'auteur de la copie) —, et seule la passation (TCK-603) le réécrit | ✏️ |
+| pending_owner_profile_id | FK owner_profiles | oui | null | **À venir — TCK-1000, non migrée au 2026-10-19.** Bailleur invité pour qui le bien a été saisi (`nullOnDelete`) : le bien lui passe quand il accepte l'invitation, et le lien s'efface à l'acceptation, à la révocation ou à l'expiration | ➕ (à venir) |
 | agency_id | FK agencies | oui | null | Agence gestionnaire (`nullOnDelete`) | |
 | title | string | | | Titre de l'annonce | |
 | slug | string | | | Identifiant URL — **unique** ; fabriqué par `Str::slug()`, donc sans variante de casse possible | |
@@ -591,7 +670,7 @@ pause, le réactiver les reprend (ADR-0061 §8).
 | ical_export_token_hash | string(64) | oui | null | Empreinte SHA-256 du jeton d'export iCal du bien — **unique** (`properties_ical_token_hash_unique`), cachée (`$hidden`) ; le jeton clair n'est jamais stocké (`2026_10_08_010200`, TCK-596 §3B, ADR-0041 ; cf. [§81](#81-propertycalendarfeed-)) | ➕ |
 | ~~amenities~~ | — | — | — | ~~Remplacé par Tags de type `amenity` (migration P3.10 — données seedées en Tags via TagSeeder)~~ | ➖ |
 | featured | boolean | | false | **État dérivé « une Vedette est active »** depuis TCK-633 ([ADR-0061 §5](adr/0061-credits-d-espace-et-boost-des-annonces.md)) : écrit par `BoostLifecycle::project()` — et une fois par la migration `500400`, qui a converti les mises en avant antérieures (Vedette offerte de 30 jours, ou `false` pour un bien sans agence) —, refusé par le PATCH du bien (`UpdatePropertyRequest` : `prohibited`). Le filtre public `featured=true` et la rangée vedette le lisent ; le tri organique ne le lit plus | ✏️ dérivé |
-| ranked_at | timestamp | oui | null | Ordre organique (`ranked_at DESC`, ADR-0061 §7) : la date de publication, ou la dernière Remontée. Posé à `published_at` par `Property::booted()` (`saving`) s'il est plus ancien ; rattrapé par la migration `500300` sur les biens publiés. Index `properties_ranked_at_idx` (TCK-633) | ➕ |
+| ranked_at | timestamp | oui | null | Ordre organique (`ranked_at DESC`, ADR-0061 §7) : la date de publication, ou la dernière Remontée. Posé à `published_at` par `Property::booted()` (`saving`) s'il est plus ancien ; rattrapé par la migration `500300` sur les biens publiés. Index `properties_ranked_at_idx` (TCK-633) ; l'ordre du catalogue public se lit par `properties_public_ranked_order_idx (ranked_at DESC NULLS LAST, id DESC)`, partiel sur le prédicat de `scopePublic()` (`visibility = 'public' AND NOT is_test`) (TCK-863, `2026_10_18_050100`) | ➕ |
 | sponsored_until | timestamp | oui | null | Projection : fin de la Vedette active (`BoostLifecycle` seul) (TCK-633) | ➕ |
 | badge | string(20) | oui | null | Projection : `BoostBadge` du Badge actif — `urgent`, `price_drop` (TCK-633) | ➕ |
 | badge_until | timestamp | oui | null | Projection : fin du Badge actif (TCK-633) | ➕ |
@@ -802,7 +881,9 @@ dans les `$queryFields` (TCK-575) : `response_deadline` en dépend.
 | created_at | datetime | | auto | | |
 | updated_at | datetime | | auto | | |
 
-**Index :** `(booking_id, status)`, `payment_type`, `booking_payments_bank_line_unique` (partiel, ci-dessus).
+**Index :** `(booking_id, status)`, `payment_type`, `booking_payments_bank_line_unique` (partiel, ci-dessus),
+`booking_payments_transaction_id_idx (transaction_id)` — lu à chaque webhook entrant par
+`PaymentGatewayService::paymentsForEvent()` (TCK-891, `2026_10_18_080000`).
 
 Il n'existe **ni `user_id`, ni `payment_date`, ni `confirmed_date`** : la personne est dédoublée en
 payeur (`payer_id`, un client) et encaisseur (`collector_id`, un utilisateur), et la date est
@@ -842,10 +923,11 @@ payeur, par `customers` (`payer_id`). L'ancienne `User::bookingPayments()`, qui 
 | status | CustomerStatus | | 'active' | Statut administratif du contact (active, inactive, blocked, deleted) — indexé | |
 | pipeline_stage | CustomerPipelineStage | | 'lead' | Étape CRM (lead, prospect, qualified, negotiating, converted, lost) — distinct du statut administratif ; indexé | ➕ |
 | id_type | IdType | oui | null | Type de pièce d'identité (id_card, passport, driving_license) — `id_card` couvre la CNI et toute carte nationale | ✏️ |
-| id_number | string | oui | null | Numéro de pièce d'identité | ➕ |
+| id_number | text (cast `encrypted`) | oui | null | Numéro de pièce d'identité — **chiffré** (TCK-953, [ADR-0070](adr/0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md), `2026_10_19_100000`) ; voir « Données sensibles » | ➕ |
 | occupation | string | oui | null | Profession / activité | ➕ |
 | emergency_contact_name | string | oui | null | Nom du contact d'urgence | ➕ |
 | emergency_contact_phone | string(30) | oui | null | Téléphone du contact d'urgence, normalisé comme `phone` | ➕ |
+| locale | string(5) | oui | null | Langue des messages d'un client **sans compte** (`fr`, `en`, `wo`), saisie par l'agence ; sans valeur, `ContactSansCompte::fromCustomer()` garde son repli `fr` (TCK-921, `2026_10_18_163900`) | ➕ |
 | notes | text | oui | null | Note libre de la fiche (les notes datées vivent dans [CustomerNote](#33-customernote-)) | |
 | seeking_contract_type | string(20) | oui | null | Critère de recherche du prospect : `ContractType` (`sale`, `rent`), contrôlé par l'application (ADR-0007) — `2026_10_07_591200`, TCK-591 | ➕ |
 | budget_min | decimal(15,2) | oui | null | Budget minimum recherché | ➕ |
@@ -868,7 +950,17 @@ Il n'existe **pas de colonne `birth_date`**. Les critères de recherche reprenne
 **Index :** `agency_id`, `status`, `pipeline_stage` ; `customers_agency_phone_idx (agency_id, phone)`
 et `customers_agency_email_ci_idx (agency_id, LOWER(email COLLATE "und-x-icu"))` — les deux index du
 détecteur de doublons `CustomerDuplicateDetector`, qui écrit exactement ces expressions (ADR-0025 ;
-`2026_10_07_591200`).
+`2026_10_07_591200`) ; `customers_user_id_index (user_id)`, que lit à chaque `/api/auth/me` la
+jointure de `HasProfiles::hasActiveTenantLease()` (TCK-862, `2026_10_18_050000`).
+
+**Données sensibles** (TCK-953, TCK-955, ADR-0070) : `id_number` (`Customer::SENSITIVE`) est chiffré
+en base, en `text`, absent de toute sérialisation par défaut (`$hidden`) et hors de `$queryFields` —
+`fields[customers]=…,id_number` rend 400. Il ne sort que par trois voies : masqué par
+`CustomerResource` (`id_number_masked`, les quatre derniers caractères) ; en clair par
+`GET /api/customers/{id}/sensitive`, réservé à l'admin de l'agence de la fiche et au super-admin,
+sous second facteur récent, consultation journalisée (surface `customer_sensitive`) — une fiche sans
+agence n'est lisible en clair que par le super-admin ; et par l'export du droit d'accès de
+l'utilisateur lié (`customers.json`, colonnes d'identité seules, ADR-0070 § 7).
 
 **Visibilité (`scopeVisibleTo`)** : un détenteur de `crm.view_all` voit les fiches de son agence de
 personnel, plus celles qu'il a ajoutées ; les autres ne voient que leurs propres ajouts, hors agence
@@ -1093,26 +1185,31 @@ d'agence ne modère que les avis de ces cibles ; les autres relèvent de la plat
 | Colonne | Type | Nullable | Défaut | Description | Changement |
 |---------|------|----------|--------|-------------|------------|
 | id | bigint PK | | auto | Identifiant unique | |
-| user_id | FK users | | | Destinataire | |
-| type | NotificationType | | | Type de notification (booking, payment, lease, maintenance, visit, message, system) | ✏️ |
-| title | string | | | Titre | |
-| content | text | | | Contenu | |
+| user_id | FK users (`cascadeOnDelete`) | | | Destinataire | |
+| type | NotificationType | | | Type de notification — douze valeurs, voir l'[inventaire des enums](#enums) | ✏️ |
+| delivery_channel | NotificationChannel | | 'app' | Canal (`app`, `email`, `sms`, `push`, `whatsapp`) | ✏️ |
+| title | string | | | Titre ; pour une ligne à `code`, simple repli (voir TCK-588 ci-dessous) | |
+| body | text | oui | null | Texte de la notification ; pour une ligne à `code`, simple repli, re-rendu à la lecture | |
+| data | jsonb | oui | null | Charge libre de la notification (identifiants des entités liées, dont `NotificationTarget::derive()` déduit une cible) ; `is_critical` y fait contourner le récapitulatif (`isCritical()`) | |
 | code | string(100) | oui | null | Code du message (`lease_payment.overdue`), cas de `App\Domain\Notifications\NotificationCode` ([ADR-0032](adr/0032-l-api-n-ecrit-plus-de-prose.md)). Null pour les classes `Notification` historiques | 🆕 TCK-588 |
 | params | jsonb | oui | null | Paramètres BRUTS du code (montant `{amount, currency}`, date ISO, compte, texte saisi) — jamais une phrase | 🆕 TCK-588 |
 | target | jsonb | oui | null | Cible `{kind, id, path}` (`NotificationTarget`). Null : dérivée à la lecture de `data`/`referenceable_*` | 🆕 TCK-588 |
-| referenceable_id | bigint | oui | null | ID de l'entité liée (morphs manuel) | ✏️ ancien `reference_id` |
-| referenceable_type | string | oui | null | Type de l'entité liée (morphs manuel) | ✏️ ancien `reference_type` |
+| referenceable_id | bigint | oui | null | ID de l'entité liée (morph manuel, voir [Règle 3](#règle-3--morph-referenceable-dans-appnotification)) | ✏️ ancien `reference_id` |
+| referenceable_type | string | oui | null | Type de l'entité liée : un alias court (`booking`, `lease`, `lease_payment`, `maintenance`, `property_visit`…) **ou** un nom de classe (`SavedSearchMatchesNotification` écrit `SavedSearch::class`) | ✏️ ancien `reference_type` |
 | is_read | boolean | | false | Lue oui/non | |
-| read_at | datetime | oui | null | Date de lecture | |
-| is_actioned | boolean | | false | Action effectuée (clic sur le lien) | |
-| actioned_at | datetime | oui | null | Date de l'action | |
-| delivered | boolean | | false | Notification délivrée | |
-| delivery_channel | NotificationChannel | | 'app' | Canal (app, email, sms, push) | ✏️ |
-| delivered_at | datetime | oui | null | Date de délivrance | |
-| metadata | jsonb | oui | null | Données supplémentaires (passerelle, contexte) | |
-| deleted_at | datetime | oui | null | Soft delete | |
-| created_at | datetime | | auto | | |
-| updated_at | datetime | | auto | | |
+| read_at | timestamp | oui | null | Date de lecture | |
+| sent_at | timestamp | oui | null | Date d'envoi | |
+| delivery_attempts | jsonb | oui | null | **Héritée** (TCK-102, `2026_04_26_160847`) : les tentatives vivent dans [NotificationDeliveryAttempt](#69-notificationdeliveryattempt-) depuis TCK-110 et plus aucun code n'écrit cette colonne. Son retrait de `$fillable` est validé (piste P58.05) ; celui de la colonne attend une mesure de la préproduction | |
+| digested_at | timestamp | oui | null | Date d'inclusion dans un récapitulatif (TCK-103, `2026_04_26_200002`) — `null` = pas encore récapitulée (`scopeUndigested()`, `DigestBuilderService`) | ➕ |
+| created_at | timestamp | | auto | | |
+| updated_at | timestamp | | auto | | |
+
+> **Réécrit sur la table réelle le 2026-10-19** (passe 013 de `/sync-specs`, C1). Le tableau
+> décrivait sept colonnes qu'aucune migration n'a jamais créées — `content`, `is_actioned`,
+> `actioned_at`, `delivered`, `delivered_at`, `metadata`, `deleted_at` (la table n'est pas en
+> suppression douce) — et en omettait cinq.
+
+**Index :** `(user_id, is_read)`, `(referenceable_type, referenceable_id)`, `(user_id, digested_at)`.
 
 **Colonnes renommées :**
 - ✏️ `reference_id` → `referenceable_id` / `reference_type` → `referenceable_type` (convention standard Laravel pour les morphs)
@@ -1124,7 +1221,7 @@ Une ligne émise par `NotificationService::send()` porte `code` + `params` + `ta
 dans la langue de la requête (`AppNotificationResource`) — ils ne servent plus que de repli pour
 les lignes sans code. Un contact sans compte (`ContactSansCompte`) ne crée **aucune** ligne.
 
-**Note :** La relation `referenceable()` est intentionnellement manuelle (morph non standard) — voir [Règle 3](#règle-3--morph-referenceable-dans-appnotification) pour le motif.
+**Note :** le lien vers l'entité est un morph manuel, sans relation Eloquent — voir [Règle 3](#règle-3--morph-referenceable-dans-appnotification).
 
 > ⚠️ **Le canal a changé de nom, et cette phrase a coûté quatre mois — corrigé le 2026-08-21.**
 > Cette note annonçait un canal **`app_database` enregistré dans `AppServiceProvider` via
@@ -1154,44 +1251,57 @@ les lignes sans code. Un contact sans compte (`ContactSansCompte`) ne crée **au
 > *Une décision qui n'est écrite que dans une spec n'est pas appliquée ; elle est seulement
 > espérée.*
 
-**Scopes :**
-- `unread()` → `where('is_read', false)`
-- `ofType(NotificationType $type)` → `where('type', $type)`
-- `forUser(User $user)` → `where('user_id', $user->id)`
+**Scope :** `undigested()` → `whereNull('digested_at')`.
 
 **Méthodes :**
-- `markAsRead()` : set `is_read = true`, `read_at = now()`, save
-- `markAsActioned()` : set `is_actioned = true`, `actioned_at = now()`, save
+- `isCritical()` : `data.is_critical` — une notification critique part tout de suite, quelle que soit
+  `users.email_frequency`.
+- `reference()` : **pas une relation Eloquent** — résout un alias court de `referenceable_type`
+  (`booking`, `lease`, `lease_payment`, `maintenance`, `property_visit`) puis appelle `find()`.
+  Aucun appelant dans `app/` au 2026-10-19.
+- La lecture se marque par `NotificationController::markAsRead()` (`is_read`, `read_at`) ; le
+  modèle ne porte ni `markAsRead()` ni scope `unread()`.
 
 **Relations :**
 - `user()` → belongsTo User
-- `referenceable()` → morphTo (résolu via `referenceable_id` + `referenceable_type` — Booking, Lease, LeasePayment, MaintenanceRequest)
+- `deliveryAttempts()` → hasMany [NotificationDeliveryAttempt](#69-notificationdeliveryattempt-), triées par `attempt` (TCK-110)
 
 ---
 
 ### 13. ActivityLog ➖ (remplacé par spatie/laravel-activitylog)
 
-> **⚠️ Ce modèle custom est remplacé par le package `spatie/laravel-activitylog`.**
-> Les tables `activity_log` (et `activity_log_changes` selon la configuration) et le trait `LogsActivity` remplacent entièrement ce modèle custom.
-> La migration de données existantes depuis `activity_logs` vers `activity_log` est à réaliser si des données de production existent.
+> **Le journal est la table `activity_log` de `spatie/laravel-activitylog` v5** (`^5.0`), écrite par
+> `App\Models\Activity` (ci-dessous). Le modèle custom `ActivityLog` n'a pas de
+> table : **aucune migration n'a jamais créé `activity_logs` ni `activity_log_changes`** — réécrit le
+> 2026-10-19 (passe 013 de `/sync-specs`, C16 ; piste P56.04), la section annonçait une migration de
+> données depuis une table qui n'a jamais existé.
 
-**Configuration spatie/laravel-activitylog :**
-- Ajouter le trait `LogsActivity` sur chaque modèle devant être tracé
-- Configurer `config/activitylog.php` pour définir le driver de log (eloquent) et les options
-- Le `causer` correspond à l'utilisateur authentifié (`Auth::user()`)
-- Le `subject` est le modèle tracé (équivalent de `loggable`)
+**Mécanisme :**
+- Le trait **`App\Models\Bases\Auditable`** porte `LogsActivity` avec une configuration commune :
+  colonnes modifiées seules (`logOnlyDirty`), pas de ligne vide (`dontLogEmptyChanges`), `log_name` =
+  nom court de la classe. 28 modèles le portent au 2026-10-19.
+- **Liste blanche** (TCK-601, ADR-0044 §3) : un modèle qui déclare `AUDIT_ONLY` ne journalise que ces
+  colonnes (`Agency`, `AgencyRole`, `Integration`, `OwnerProfile`, `AgentProfile`,
+  `AgencyAdminProfile`) ; sans elle, tout le `$fillable` entre dans le journal. Un modèle qui porte une
+  donnée personnelle ou un secret déclare donc sa liste, ou surcharge `getActivitylogOptions()`
+  (`Customer`, `CustomerNote`, `Task`, `PrivacyRequest`, `BookingPayment`, `LeasePayment`).
+- `User` et `Invitation` portent `LogsActivity` directement, avec leurs propres options.
+- Un acte hors modèle s'écrit par `activity('…')->event(…)->withProperties([…])->log(…)`.
+- `causer` = l'utilisateur authentifié ; `subject` = le modèle tracé.
 
-**Mapping ancien modèle → package :**
+**Où vit quoi :**
 
-| Ancien champ | Équivalent spatie |
+| Ancien champ | Colonne de `activity_log` |
 |---|---|
 | `user_id` | `causer_id` / `causer_type` (morphTo) |
 | `loggable_id` / `loggable_type` | `subject_id` / `subject_type` (morphTo) |
-| `action` | `event` (created, updated, deleted, custom) |
+| `action` | `event` (created, updated, deleted, ou un nom d'acte) |
 | `description` | `description` |
-| `changes` | `properties` (json : `old`, `attributes`) |
-| `ip_address` | à stocker dans `properties` via `tapActivity()` |
-| `user_agent` | à stocker dans `properties` via `tapActivity()` |
+| `changes` | **`attribute_changes`** (jsonb : `old`, `attributes`) — le détail d'un événement de modèle. Depuis la v5, `properties` ne le porte plus |
+| `ip_address`, `user_agent` | `properties` — le contexte libre écrit par `withProperties()` |
+
+`properties` ne porte que ce qu'écrit `withProperties()` : pour un événement `created` ou `updated`
+d'un modèle, il est vide.
 
 **`App\Models\Activity` (TCK-601, ADR-0044 §3)** — étend le modèle spatie, déclaré dans
 `config/activitylog.php` (`activity_model`). Colonne ajoutée à `activity_log` :
@@ -1199,10 +1309,19 @@ les lignes sans code. Un contact sans compte (`ContactSansCompte`) ne crée **au
 | Colonne | Type | Nullable | Défaut | Description |
 |---|---|---|---|---|
 | agency_id | FK agencies (`activity_log_agency_fk`, `nullOnDelete`) | oui | null | Agence du **sujet**, résolue à la création par `AuditAgencyResolver` (explicite → `HasAuditAgency::auditAgencyId()` → colonne `agency_id` réelle du sujet → sujet `Agency` → sans sujet : profil actif). Jamais l'acteur. `null` = visible du seul super-admin |
+| impersonator_id | FK users (`activity_log_impersonator_fk`, `nullOnDelete`) | oui | null | Super-admin qui agissait sous l'identité du causeur — voir [§83 ImpersonationSession](#83-impersonationsession-) |
 
-Index : `activity_log_agency_created_idx (agency_id, created_at)`, `activity_log_created_idx (created_at)`.
+Index : `activity_log_agency_created_idx (agency_id, created_at)`, `activity_log_created_idx (created_at)`,
+`activity_log_impersonator_idx (impersonator_id)` ; et ceux du paquet : `subject`, `causer`, `log_name`.
 Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <agence du profil actif>`
-(`AuditScope`) ; `properties` passe par `PropertyRedactor` à la lecture.
+(`AuditScope`).
+
+**Ce que rendent les lectures.** Les lectures du journal d'agence et de la console rendent
+`properties`, et **jamais `attribute_changes`** : aucun écran ne montre le détail d'un événement
+(décision du porteur du 2026-10-19, piste P56.03 — à rouvrir avec un écran qui le montre).
+`properties` y passe par `PropertyRedactor`, sauf dans la fiche utilisateur de la console
+(`UserDetailController::activity()`), dont l'alignement est validé (piste P56.05). L'export du journal
+(`ActivityLogExporter`) rend l'avant et l'après, expurgés.
 
 ---
 
@@ -1351,6 +1470,7 @@ Aucune relation `conversations()` : `Conversation.lease_id` existe, mais le mod�
 | late_fee_applied_at | timestamp | oui | null | Application de la pénalité ; non nulle, `LateFeeCalculator` ne la réapplique jamais (une pénalité au plus par ligne) |
 | late_fee_paid_at | timestamp | oui | null | Pénalité **réglée** (TCK-593, `2026_10_07_150000`). `status` décrit le loyer : sans cette colonne, un loyer soldé faisait disparaître la pénalité des écrans. `lateFeeOutstanding()` s'en dérive |
 | transaction_id | string | oui | null | ID transaction externe (mobile money, banque) — exclu du journal d'activité |
+| refund_amount | decimal(14,2) | oui | null | Montant remboursé, comme `booking_payments.refund_amount` : `HasPaymentAttributes::paidAmount()` en déduit le reçu d'une échéance `refunded` (TCK-873, `2026_10_18_070000`) |
 | notes | text | oui | null | Notes |
 | metadata | jsonb | oui | null | |
 | deleted_at | datetime | oui | null | Soft delete |
@@ -1360,7 +1480,7 @@ Aucune relation `conversations()` : `Conversation.lease_id` existe, mais le mod�
 **Traits :**
 - `HasPaymentAttributes` (`App\Models\Concerns`) — casts et scopes partagés avec BookingPayment (amount, currency, payment_method, status, transaction_id) ➕
 
-**Index :** `(due_date, status)`, `(lease_id, period_start)`, `lease_payments_bank_line_unique`
+**Index :** `(due_date, status)`, `(lease_id, period_start)`, `lease_payments_transaction_id_idx (transaction_id)` (TCK-891, `2026_10_18_080000`), `lease_payments_bank_line_unique`
 (partiel, ci-dessus).
 
 **Relations** (`app/Models/LeasePayment.php`) :
@@ -1833,10 +1953,10 @@ Le modèle ne déclare ni `documents()` ni de relation vers les deux signataires
 | phone | string | oui | null | Téléphone principal |
 | email | string | oui | null | Email de contact |
 | id_type | IdType | oui | null | Type de pièce d'identité |
-| id_number | string | oui | null | Numéro de pièce d'identité |
+| id_number | text (cast `encrypted`) | oui | null | Numéro de pièce d'identité — **chiffré** (TCK-954, ADR-0070) |
 | occupation | string | oui | null | Profession / activité |
 | employer | string | oui | null | Nom de l'employeur |
-| monthly_income | decimal(14,2) | oui | null | Revenu mensuel déclaré |
+| monthly_income | text (cast `encrypted`) | oui | null | Revenu mensuel déclaré (XOF) — **chiffré** (TCK-954, ADR-0070) ; le `down()` de `2026_10_19_110000` rend `numeric(14,2)` |
 | relationship_to_tenant | string | oui | null | Lien avec le locataire (parent, conjoint, employeur, autre) |
 | added_by_id | FK users | oui | null | Utilisateur ayant saisi le garant (`nullOnDelete`) |
 | notes | text | oui | null | Notes internes |
@@ -1844,6 +1964,15 @@ Le modèle ne déclare ni `documents()` ni de relation vers les deux signataires
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
+
+**Données sensibles** (TCK-954, TCK-955, [ADR-0070](adr/0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md)) :
+`id_number` et `monthly_income` (`Guarantor::SENSITIVE`) sont chiffrés en base, en `text`, et absents
+de toute sérialisation par défaut (`$hidden`). Ils ne sortent que masqués par
+`GuarantorController::format` — `id_number_masked` (les quatre derniers caractères) et
+`monthly_income_masked` (`••••` ou `null`, sans rien révéler du montant) —, et en clair par
+`GET /api/guarantors/{id}/sensitive`, réservé à l'admin de l'agence de l'auteur (`GuarantorPolicy::agencyOf`,
+par `addedBy`) et au super-admin, sous second facteur récent, consultation journalisée (surface
+`guarantor_sensitive`).
 
 **Traits :**
 - `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `id_documents` (CNI, attestations de revenus, fiches de paie)
@@ -2125,12 +2254,12 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | user_id | FK users | oui | null | Identité du propriétaire (`restrictOnDelete`). **Nul pendant le brouillon** : le profil naît `draft` à l'envoi d'une invitation, avant que le compte cible n'existe, et `user_id` se renseigne à l'acceptation (TCK-256, `2026_05_10_150000`) |
 | agency_id | FK agencies | | | Agence chez laquelle ce profil existe (`restrictOnDelete`) |
 | agency_role_id | FK agency_roles | | | Le rôle personnalisé de ce profil — **exactement un** (`restrictOnDelete`, FK `owner_profiles_agency_role_id_fk`). À la création, un profil qui n'en déclare pas reçoit le rôle système de son type dans son agence (`HasAgencyRole`) (TCK-279, `2026_08_16_120200` → `120400`) |
-| status | OwnerProfileStatus | | 'active' | Statut du profil (draft, active, inactive, blocked) |
+| status | OwnerProfileStatus | | 'active' | Statut du profil (draft, active, inactive, blocked). **`blocked` = adhésion suspendue par l'agence** (`TeamMemberSuspensionService`, capacité `team.suspend`, TCK-587, ADR-0031 §2 ; journal `team_member_suspended` / `team_member_reactivated`) : le bailleur garde la lecture et perd les écritures dans cette agence (`HasProfiles::isBlockedOwnerAt()`) ; la réactivation ne lève que ce statut |
 | rib | text (cast `encrypted`) | oui | null | Relevé d'identité bancaire — **chiffré** (TCK-601, ADR-0044 §1, `2026_10_08_601100`) |
 | tax_id | text (cast `encrypted`) | oui | null | Numéro fiscal / NINEA — chiffré (TCK-601) |
 | id_document_type | IdType | oui | null | Type de pièce d'identité |
 | id_document_number | text (cast `encrypted`) | oui | null | Numéro de pièce — chiffré (TCK-601) |
-| monthly_income | decimal(14,2) | oui | null | Revenus mensuels déclarés (XOF) |
+| monthly_income | text (cast `encrypted`) | oui | null | Revenus mensuels déclarés (XOF) — chiffré (TCK-956, ADR-0070, `2026_10_19_120000`) |
 | works_approval_threshold | decimal(14,2) | oui | null | Plafond de travaux du bailleur pour cette agence : au-delà, l'approbation d'un devis — ou un coût réel déclaré — par l'équipe attend l'accord du bailleur. `null` = pas d'accord requis (état de toutes les lignes antérieures). Lu en un seul endroit, `OwnerApprovalThreshold` (TCK-592, ADR-0037, `2026_10_07_130100`) |
 | employer | string | oui | null | Employeur |
 | guarantor_user_id | FK users | oui | null | Garant (autre user — `nullOnDelete`) |
@@ -2139,7 +2268,7 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Données sensibles** (TCK-601, ADR-0044 §1) : `rib`, `tax_id` et `id_document_number` (`OwnerProfile::SENSITIVE`) sont chiffrés en base, en `text` — une valeur chiffrée ne tient pas dans un `varchar(255)` —, absents de toute sérialisation par défaut (`$hidden`), hors des sparse fieldsets, de la recherche et du journal d'activité. Ils ne sortent que par `OwnerProfileResource` (masqués), `GET /api/owners/{id}/sensitive` (consultation journalisée) et l'export du droit d'accès.
+**Données sensibles** (TCK-601, ADR-0044 §1 ; TCK-956, ADR-0070) : `rib`, `tax_id`, `id_document_number` et `monthly_income` (`OwnerProfile::SENSITIVE`) sont chiffrés en base, en `text` — une valeur chiffrée ne tient pas dans un `varchar(255)` —, absents de toute sérialisation par défaut (`$hidden`), hors des sparse fieldsets, de la recherche et du journal d'activité. Ils ne sortent que par `OwnerProfileResource` (masqués ; le revenu par `monthly_income_masked`, `••••` ou `null`), `GET /api/owners/{id}/sensitive` (consultation journalisée ; le revenu en nombre) et l'export du droit d'accès.
 
 **Contraintes et index** (mesurés sur `2026_05_02_000001` et suivantes) :
 - `(user_id, agency_id)` unique — un user a au plus un profil propriétaire par agence. Les brouillons (`user_id` nul) n'y entrent pas en collision : PostgreSQL tient deux `NULL` pour distincts.
@@ -2168,7 +2297,7 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | user_id | FK users | oui | null | Identité de l'agent (`restrictOnDelete`). **Nul pendant le brouillon** : le profil naît `draft` à l'envoi d'une invitation, avant que le compte cible n'existe (TCK-258, `2026_05_10_160000`) |
 | agency_id | FK agencies | | | Agence employeuse (`restrictOnDelete`) |
 | agency_role_id | FK agency_roles | | | Le rôle personnalisé de ce profil — **exactement un** (`restrictOnDelete`, FK `agent_profiles_agency_role_id_fk`). Rôle système de son type par défaut à la création (`HasAgencyRole`) (TCK-279, `2026_08_16_120200` → `120400`) |
-| status | AgentProfileStatus | | 'active' | Statut du profil (draft, active, inactive, suspended) |
+| status | AgentProfileStatus | | 'active' | Statut du profil (draft, active, inactive, suspended). **`suspended` = adhésion suspendue par l'agence** (`TeamMemberSuspensionService`, capacité `team.suspend`, TCK-587, ADR-0031 §2 ; journal `team_member_suspended` / `team_member_reactivated`, qui passe par `AgentInvitationService::suspend()`) ; la réactivation ne lève que ce statut |
 | license_number | string | oui | null | Numéro de licence professionnelle |
 | commission_rate | decimal(5,2) | oui | null | Taux de commission (%) |
 | specialty | string | oui | null | Spécialité (résidentiel, commercial, luxe, etc.) |
@@ -3106,6 +3235,8 @@ Une ligne par tâche et par exécution enregistrée.
 
 **Index :**
 - `task`
+- `scheduled_task_runs_task_last_run_idx (task, last_run_at DESC, id DESC)` — la dernière exécution
+  de chaque tâche, que lit `ScheduledTaskInspector` sans tri (TCK-802, `2026_10_17_120000`)
 
 **Relations :** aucune.
 
@@ -3481,15 +3612,15 @@ clos **garde la décision qui l'a clos, qui l'a prise et pour quel motif codé**
 ### 69. NotificationDeliveryAttempt ✅
 
 **Table :** `notification_delivery_attempts` *(déclarée explicitement par `$table` sur le modèle)*
-**Description :** Une ligne par **tentative** d'acheminement SMS/WhatsApp d'une notification
-(TCK-110). Remplace la colonne JSON `app_notifications.delivery_attempts` : l'unicité
+**Description :** Une ligne par **tentative** d'acheminement SMS/WhatsApp, d'une notification ou
+d'un envoi direct (TCK-110, TCK-799). Remplace la colonne JSON `app_notifications.delivery_attempts` : l'unicité
 `(provider, provider_message_id)` rend la résolution d'un accusé de réception (DLR) en O(1) et
 supprime l'ambiguïté de sous-chaîne qu'avait la recherche `LIKE` sur le JSON.
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
-| app_notification_id | FK app_notifications | | | Notification acheminée (`cascadeOnDelete`) |
+| app_notification_id | FK app_notifications | oui | null | Notification acheminée (`cascadeOnDelete`). **Nulle** pour un SMS envoyé hors notification — contact sans compte, code de signature de bail (TCK-799, `2026_10_17_160000` ; son `down()` supprime d'abord ces tentatives) |
 | attempt | unsignedSmallInteger | | | Rang de la tentative |
 | provider | string | | | Identifiant du driver, tel que rendu par sa méthode `id()` : `orange`, `mtarget`, `lafricamobile`, `log` (SMS) ou `whatsapp_cloud` |
 | provider_message_id | string | oui | null | Identifiant de message côté fournisseur |
@@ -4468,7 +4599,7 @@ de `/sync-specs`).
 | user_id | FK users | oui | null | Titulaire (`restrictOnDelete`). **Nullable**, par parité avec les profils propriétaire et agent — laissé ouvert pour une invitation de co-administrateur ; plusieurs lignes sans titulaire coexistent par agence (deux `NULL` ne se comparent pas) |
 | agency_id | FK agencies | | | Agence administrée (`restrictOnDelete`) |
 | agency_role_id | FK agency_roles | | | Rôle d'agence porté par le profil — **NOT NULL** ([Règle 6](#règle-6--1-profil--1-rôle-personnalisé)), FK `agency_admin_profiles_agency_role_fk`, `restrictOnDelete`. Un profil créé sans rôle reçoit le rôle système `agency_admin` de son agence (`HasAgencyRole::bootHasAgencyRole`) |
-| status | string — `AgencyAdminProfileStatus` | | 'active' | `active`, `suspended`, `archived` — `suspended`/`archived` réservés à la modération plateforme |
+| status | string — `AgencyAdminProfileStatus` | | 'active' | `active`, `suspended`, `archived`. **`suspended` = adhésion suspendue par l'agence**, pas par la plateforme (`TeamMemberSuspensionService`, capacité `team.suspend`, TCK-587, ADR-0031 §2 ; journal `team_member_suspended` / `team_member_reactivated`) ; seul un admin actif de l'agence suspend un admin, et l'administrateur principal (`agencies.primary_admin_id`) ne se suspend pas (`team.suspension_primary_admin`, 422). **`archived` : aucun code ne le pose** au 2026-10-19 |
 | metadata | jsonb | oui | null | |
 | deleted_at | timestamp | oui | null | Soft delete |
 | created_at / updated_at | timestamp | | auto | |
@@ -4483,7 +4614,8 @@ de `/sync-specs`).
 - `agencyRole()` → belongsTo [AgencyRole](#52-agencyrole--tck-279) (trait `HasAgencyRole`)
 
 **Inverse :**
-- `User.agency_admin_profiles()` → hasMany AgencyAdminProfile
+- `User::agencyAdminProfiles()` → hasMany AgencyAdminProfile (trait `HasProfiles`)
+- `AgencyRole::agencyAdminProfiles()` → hasMany AgencyAdminProfile
 
 ---
 
@@ -4921,7 +5053,10 @@ Les colonnes `*_count` et `average_rating` ne doivent **jamais** être mises à 
 
 ### Règle 3 — Morph `referenceable` dans AppNotification
 
-La relation `referenceable()` de `AppNotification` est intentionnellement **non standard** (morph manuel via `referenceable_id`/`referenceable_type` sans utiliser Eloquent `morphTo` standard). Le motif qui tient encore : un **contrôle fin des types autorisés** — Booking, Lease, LeasePayment, MaintenanceRequest.
+Le lien d'une `AppNotification` vers son entité est un **morph manuel** (`referenceable_id`/`referenceable_type`), sans `morphTo` Eloquent. Le motif qui tient encore : un **contrôle fin des types reconnus**. Il vit à deux endroits (relevé du 2026-10-19) :
+
+- `NotificationTarget::fromReferenceable()` — **le seul lecteur** : il déduit la cible d'une ligne sans `target` et reconnaît l'alias court **ou** le nom de classe (`booking`, `lease`, `lease_payment`, `maintenance`, `property_visit`, `property`, `kyc_dossier`, et les classes `BankStatement` et `RoleDelegation`). Un type inconnu ne produit aucune cible.
+- `AppNotification::reference()` — une méthode, pas une relation, qui ne connaît que cinq alias (dont `property_visit`) et n'a aucun appelant.
 
 > ℹ️ Cette règle invoquait aussi « éviter la création des tables `model_has_...` de spatie ». Ce
 > motif est **caduc depuis TCK-278** : le paquet est désinstallé et ces tables n'existent plus. Il
@@ -5153,7 +5288,7 @@ participants actifs — son créateur et 2 à 19 invités (`CreateGroupConversat
 
 ### EF6 — spatie/laravel-activitylog : migration des données
 
-Si des données existent dans la table `activity_logs` custom, une migration de données vers la table `activity_log` du package est nécessaire. Le schéma diffère (notamment `causer_id`/`causer_type` vs `user_id`, et `properties` json vs colonnes séparées).
+**Statut :** sans objet — la table `activity_logs` n'a jamais existé dans ce dépôt (aucune migration ne l'a créée ; relevé de la passe 013 de `/sync-specs`, confirmé le 2026-10-19). Il n'y a rien à migrer.
 
 ### EF7 — Multi-branches agence (`Agency.parent_agency_id`)
 

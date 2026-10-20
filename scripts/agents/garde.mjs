@@ -36,7 +36,9 @@ const BORNES = ['.agent/', '.claude/', 'scripts/agents/', 'scripts/check-pistes.
 
 // Règles sur le texte d'une commande shell : [motif, raison]. La première qui correspond refuse.
 const COMMANDES = [
-  [/\bgit\b[^|;&]*\bpush\b/, 'pas de push : pistes.sh publie après avoir vérifié le diff'],
+  // `push` en SOUS-COMMANDE de git, options globales permises (`git -C dir push`) : `git stash push`,
+  // dont les vérifications par ablation se servent, était refusé (4 refus relevés le 2026-10-19).
+  [/\bgit(\s+(-[Cc]\s+("[^"]*"|'[^']*'|\S+)|--?[\w-]+(=\S+)?))*\s+push\b/, 'pas de push : pistes.sh publie après avoir vérifié le diff'],
   [/\bgit\b[^|;&]*\bworktree\s+(add|remove|prune|move|repair)\b/, 'les worktrees sont gérés par pistes.sh'],
   [/\bgit\b[^|;&]*\bconfig\s+--(global|system)\b/, 'pas de configuration git globale'],
   [/\bgit\b[^|;&]*--no-verify\b/, 'jamais --no-verify'],
@@ -49,8 +51,9 @@ const COMMANDES = [
   [/\b(psql|docker\s+exec)\b[^|;&]*\b(insert\s+into|update\s+\w+\s+set|delete\s+from|drop|truncate|alter|create\s+(table|index|database|extension)|grant|vacuum)\b/i, 'la base de développement se lit seulement'],
   // `Request::create(…)` fabrique une requête en mémoire : c'est une mesure, pas une écriture (faux positif du 2026-10-15).
   [/\b(tinker|php\s+-r)\b[\s\S]*(->(save|update|delete|forceDelete|insert|insertOrIgnore|upsert|truncate|increment|decrement|flush)|(?<!Request)::(create|insert|update|delete|truncate|statement|unprepared|updateOrCreate|firstOrCreate))\s*\(/, 'tinker et php -r : lecture seule'],
-  // En position de commande seulement : `grep -rn ssh deploy/` reste une lecture.
-  [/(^|[;&|(`]\s*|\b(xargs|exec|nohup|time)\s+)(ssh|scp|sftp|rsync|dokploy|flyctl|kubectl|terraform|sudo|launchctl|crontab|osascript|shutdown|reboot|killall|pkill)\b/, 'commande hors du périmètre des agents'],
+  // En position de commande seulement : `grep -rn ssh deploy/` reste une lecture. Un saut de ligne
+  // sépare aussi deux commandes (`sh -s <<EOF` puis `pkill` passait, relevé le 2026-10-19).
+  [/(^|[;&|(`\n]\s*|\b(xargs|exec|nohup|time)\s+)(ssh|scp|sftp|rsync|dokploy|flyctl|kubectl|terraform|sudo|launchctl|crontab|osascript|shutdown|reboot|killall|pkill)\b/, 'commande hors du périmètre des agents'],
   [/\b(curl|wget|http|https|nc|ping|dig|nslookup|openssl)\b[^|;&]*takussan\.com/i, 'aucun accès à un environnement déployé'],
   [/\bsecurity\s+(find|dump|add|delete|export|unlock)-/, 'le trousseau ne se lit pas'],
   [/\b(npm|pnpm|yarn)\s+(add|remove|rm|uninstall|un|update|up|upgrade|publish|login|adduser|link)\b/, 'pas de dépendance ajoutée, retirée ou mise à jour'],
@@ -110,12 +113,27 @@ function verifierChemin(brut, cwd) {
   if (/(^|\/)\.env(\.|$)/.test(relatif) && !/\.env\.(example|docker)$/.test(relatif)) refuser('un .env ne se modifie pas', relatif);
 }
 
+// Le corps d'un heredoc est du TEXTE quand la commande qui le reçoit n'exécute rien : `cat >> f`,
+// `tee`, `git commit -F -`. L'explorateur qui ajoutait un angle citant `dokploy-network` ou
+// « git … push » au fichier de pistes était refusé (relevé le 2026-10-19). Le corps reste jugé dès
+// qu'un interpréteur le reçoit (shell, python, node, psql, tinker…), et la ligne qui ouvre le
+// heredoc l'est toujours.
+const INTERPRETE = /(^|[;&|(`]\s*|\$\(\s*|\b(xargs|exec|nohup|time|sudo|env)\s+)(\S*\/)?((ba|z|k|da)?sh|python3?|node|deno|bun|perl|ruby|php|tinker|psql|mysql|sqlite3|ssh|docker|osascript|source|eval|xargs)\b|\btinker\b/;
+// Un heredoc écrit dans un fichier de script sera exécuté : son corps reste jugé.
+const SCRIPT = />\s*\S+\.(sh|bash|zsh|py|js|mjs|cjs|ts|php|pl|rb)\b/;
+function sansTexteRecopie(cmd) {
+  return cmd.replace(/^([^\n]*?)<<-?\s*(['"]?)(\w+)\2([^\n]*)\n[\s\S]*?\n\3(?=\n|$)/gm, (bloc, avant, _q, fin, apres) =>
+    INTERPRETE.test(`${avant}<<${fin}${apres}`) || SCRIPT.test(`${avant} ${apres}`) ? bloc : `${avant}<<${fin}${apres}`,
+  );
+}
+
 function verifierCommande(cmd, cwd) {
   if (DEPOT && cwd && dans(normalize(cwd), DEPOT)) refuser("l'arbre principal du porteur est interdit (répertoire courant)", cwd);
   if (DEPOT && cmd.includes(DEPOT)) refuser("l'arbre principal du porteur est interdit", cmd);
+  const commande = sansTexteRecopie(cmd);
   for (const [motif, raison] of COMMANDES) {
-    if (raison === "pas d'écriture HTTP" && recherche_locale_seule(cmd)) continue;
-    if (motif.test(cmd)) refuser(raison, cmd);
+    if (raison === "pas d'écriture HTTP" && recherche_locale_seule(commande)) continue;
+    if (motif.test(commande)) refuser(raison, cmd);
   }
   if (ecritUneBorne(cmd)) refuser('ce chemin borne les agents et appartient au porteur', cmd);
   // rm récursif ou forcé hors de l'arbre, de la sortie et des dossiers temporaires.

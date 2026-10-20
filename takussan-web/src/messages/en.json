@@ -6358,6 +6358,8 @@
       "fields": {
         "name": "Agency name",
         "slug": "URL identifier (not editable)",
+        "slugEditable": "URL identifier (can be changed once)",
+        "slugEditableHint": "Your agency is now professional: you can replace this identifier once. Lowercase letters, digits and hyphens. The old address of your public page will stop working.",
         "license": "Licence number",
         "licensePlaceholder": "e.g. SEN-IMMO-2024",
         "description": "Description",
@@ -8228,7 +8230,9 @@
           "decidedOn": "Decided on",
           "by": "By",
           "comment": "Comment",
-          "userFallback": "User #{id}"
+          "userFallback": "User #{id}",
+          "kycNotVerified": "The agency KYC dossier is not verified: the request cannot be approved until it is. Without it, the platform could no longer pay the agency out once it becomes professional.",
+          "openKyc": "Open the agency and its KYC dossier"
         },
         "status": {
           "pending": "Pending",

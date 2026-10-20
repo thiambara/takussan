@@ -5,6 +5,7 @@ namespace Tests\Feature\Console;
 use App\Models\Customer;
 use App\Models\Guarantor;
 use App\Models\PayoutMethod;
+use App\Models\Profiles\OwnerProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -45,6 +46,25 @@ class BackupVerifyEncryptionTest extends TestCase
         Guarantor::factory()->create(['id_number' => 'CNI-445566', 'monthly_income' => '800000.00']);
 
         $this->artisan('backup:verify-encryption')
+            ->expectsOutputToContain('guarantors.id_number : 1 lue(s), 0 illisible(s)')
+            ->expectsOutputToContain('guarantors.monthly_income : 1 lue(s), 0 illisible(s)')
+            ->assertExitCode(0);
+    }
+
+    /**
+     * TCK-956 (ADR-0070 § 9) — le revenu du bailleur entre par son cast `encrypted`. Avec la pièce
+     * du client et la pièce et le revenu de la caution, les quatre colonnes d'ADR-0070 sont
+     * vérifiées.
+     */
+    public function test_les_quatre_colonnes_d_adr_0070_sont_verifiees(): void
+    {
+        OwnerProfile::factory()->create(['monthly_income' => '350000.00']);
+        Customer::factory()->create(['id_number' => 'SN-998877']);
+        Guarantor::factory()->create(['id_number' => 'CNI-445566', 'monthly_income' => '800000.00']);
+
+        $this->artisan('backup:verify-encryption')
+            ->expectsOutputToContain('owner_profiles.monthly_income : 1 lue(s), 0 illisible(s)')
+            ->expectsOutputToContain('customers.id_number : 1 lue(s), 0 illisible(s)')
             ->expectsOutputToContain('guarantors.id_number : 1 lue(s), 0 illisible(s)')
             ->expectsOutputToContain('guarantors.monthly_income : 1 lue(s), 0 illisible(s)')
             ->assertExitCode(0);

@@ -41,8 +41,12 @@ class OwnerProfile extends AbstractModel
      * sparse fieldsets et de la recherche. Ils ne sortent qu'à travers
      * `OwnerProfileResource` (masqués), `GET /api/owners/{id}/sensitive` (admin, consultation
      * journalisée) et l'export du droit d'accès (`DataExportBuilder`, `makeVisible`).
+     *
+     * TCK-956 (ADR-0070 § 1) — le revenu mensuel aussi. Son cast est `encrypted` simple, pas
+     * `decimal:2` : il se relit comme une chaîne, et une classe de cast maison le sortirait de
+     * `backup:verify-encryption`.
      */
-    public const SENSITIVE = ['rib', 'tax_id', 'id_document_number'];
+    public const SENSITIVE = ['rib', 'tax_id', 'id_document_number', 'monthly_income'];
 
     protected $hidden = self::SENSITIVE;
 
@@ -52,7 +56,7 @@ class OwnerProfile extends AbstractModel
         'tax_id' => 'encrypted',
         'id_document_number' => 'encrypted',
         'id_document_type' => IdType::class,
-        'monthly_income' => 'decimal:2',
+        'monthly_income' => 'encrypted',
         'works_approval_threshold' => 'decimal:2',
         'metadata' => 'array',
     ];
@@ -75,8 +79,9 @@ class OwnerProfile extends AbstractModel
 
     protected static array $queryFields = [
         'id', 'user_id', 'agency_id', 'agency_role_id', 'status',
+        // TCK-956 — sans `monthly_income` : `fields[owner_profiles]=…,monthly_income` rend 400.
         'id_document_type',
-        'monthly_income', 'employer', 'guarantor_user_id',
+        'employer', 'guarantor_user_id',
         'metadata', 'created_at', 'updated_at',
     ];
 

@@ -1428,6 +1428,8 @@ export interface AdminAgencyUpgradeRequestRow {
     slug: string | null;
     kind: string | null;
     status: string | null;
+    /** TCK-1003 — état du dossier KYC de l'agence (détail seulement) ; `null` sans dossier. */
+    kyc_status?: string | null;
     created_at: string | null;
   } | null;
   submitter?: {

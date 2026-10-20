@@ -4602,6 +4602,8 @@
       "fields": {
         "name": "Turu ajance bi",
         "slug": "Identifiant URL (mënul soppeeku)",
+        "slugEditable": "Identifiant URL (modifiable une fois)",
+        "slugEditableHint": "Votre agence est passée en professionnelle : vous pouvez remplacer cet identifiant une seule fois. Lettres minuscules, chiffres et tirets. L'ancienne adresse de votre page publique ne fonctionnera plus.",
         "license": "Limeeru licence",
         "licensePlaceholder": "misaal : SEN-IMMO-2024",
         "description": "Leeral",
@@ -7580,7 +7582,9 @@
           "decidedOn": "Dogal ko",
           "by": "Ku ko def",
           "comment": "Wax",
-          "userFallback": "Jëfandikukat #{id}"
+          "userFallback": "Jëfandikukat #{id}",
+          "kycNotVerified": "Le dossier KYC de l'agence n'est pas vérifié : la demande ne peut pas être approuvée tant qu'il ne l'est pas. Sans lui, la plateforme ne pourrait plus reverser à l'agence une fois passée en professionnelle.",
+          "openKyc": "Ouvrir l'agence et son dossier KYC"
         },
         "status": {
           "pending": "Di xaar",

@@ -187,7 +187,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.5 | Reversement au bailleur calculé depuis les loyers et réservations encaissés de la période (loyer, charges, pénalités, régularisations ; jamais la caution), commission du bail sinon de l'agence, frais de travaux refacturés déduits ; le brut n'est pas saisi et un paiement n'est reversé qu'une fois (TCK-594) |
 | P1 | §1.5 | Un reversement ne cite que des paiements de l'agence et du bailleur concernés ; un remboursement de caution est un versement au locataire, jamais compté comme reversé au bailleur (TCK-594) |
 | P1 | §1.5 | Relevé de gérance mensuel (PDF / CSV) par bien et consolidé, et attestation annuelle de revenus locatifs, envoyés au bailleur en début de mois (TCK-594) |
-| P2 | §1.5 | Lien de paiement en ligne (Wave / Orange Money / Free Money) par échéance de loyer, utilisable sans compte : jeton expirant et révocable envoyé au locataire, quittance remise après paiement (TCK-602) |
+| P2 | §1.5 | Lien de paiement en ligne (Wave / Orange Money) par échéance de loyer, utilisable sans compte : jeton expirant et révocable envoyé au locataire, quittance remise après paiement (TCK-602) |
 | P1 | §1.5 | Le payeur (locataire, client) voit les fournisseurs de paiement en ligne que l'agence a activés — intégration plateforme comprise — et seulement ceux-là (TCK-602) |
 | P2 | §1.5 | Moyens de versement du bénéficiaire (Wave, Orange Money, Free Money, virement), vérifiés par l'agence ; décaissement tracé par une référence de transaction obligatoire ; avis de versement effectué / échoué au bénéficiaire (TCK-594) |
 
@@ -248,7 +248,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P1 | §2.1 | Données bancaires et d'identité des profils et des demandes de passage en agence (RIB, NINEA, n° de pièce, RIB professionnel) chiffrées au repos et masquées à l'affichage ; valeur complète réservée à l'admin de l'agence et au super-admin, consultation journalisée (TCK-601) |
+| P1 | §2.1 | Données bancaires et d'identité des profils et des demandes de passage en agence (RIB, NINEA, n° de pièce, RIB professionnel, revenu déclaré), et pièce et revenu du locataire et de la caution, chiffrées au repos et masquées à l'affichage ; valeur complète réservée à l'admin de l'agence et au super-admin, sous second facteur récent, consultation journalisée (TCK-601, TCK-953 à TCK-956, [ADR-0070](adr/0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md)) |
 | P0 | §2.1 | Onboarding wizard Customer post-signup — welcome modale (3 slides skippables) + complétion différée du profil minimal (téléphone, ville, type de recherche) au moment de la première action sensible (favoris / réservation / contact) |
 
 ### §2.3 Notifications
@@ -331,7 +331,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.5 | Un reversement ne cite que des paiements de l'agence et du bailleur concernés ; un remboursement de caution est un versement au locataire, jamais compté comme reversé au bailleur (TCK-594) |
 | P1 | §1.5 | Relevé de gérance mensuel (PDF / CSV) par bien et consolidé, et attestation annuelle de revenus locatifs, envoyés au bailleur en début de mois (TCK-594) |
 | P1 | §1.5 | Double validation des sorties d'argent : la même personne ne tient jamais deux gestes consécutifs (préparer, approuver, marquer payé) ni n'approuve un versement dont elle est bénéficiaire. Reversements plateforme : toujours. Reversements d'agence : désactivée par défaut ; l'agence l'active par un seuil, possible seulement avec deux approbateurs (TCK-594) |
-| P2 | §1.5 | Lien de paiement en ligne (Wave / Orange Money / Free Money) par échéance de loyer, utilisable sans compte : jeton expirant et révocable envoyé au locataire, quittance remise après paiement (TCK-602) |
+| P2 | §1.5 | Lien de paiement en ligne (Wave / Orange Money) par échéance de loyer, utilisable sans compte : jeton expirant et révocable envoyé au locataire, quittance remise après paiement (TCK-602) |
 | P2 | §1.5 | Un reversement programmé échu est rappelé une fois à son émetteur (TCK-594) |
 | P2 | §1.5 | Moyens de versement du bénéficiaire (Wave, Orange Money, Free Money, virement), vérifiés par l'agence ; décaissement tracé par une référence de transaction obligatoire ; avis de versement effectué / échoué au bénéficiaire (TCK-594) |
 
@@ -440,7 +440,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.1 | Publier exige un contact joignable : prénom et numéro vérifié de la personne que les visiteurs appelleront — l'agent principal du bien, à défaut son titulaire — ; ce qui manque se complète au moment de publier (nom, numéro avec code SMS, WhatsApp) ; les CGU sont acceptées par le publieur, et sa première publication vaut acceptation, datée (TCK-633) |
 | P1 | §1.1 | Booster une annonce avec les crédits de l'espace : **Remontée** (le bien repasse en tête du tri par récence, au plus une fois par délai réglé), **En vedette** (emplacements « Sponsorisé » pour une durée), **Badge** (« Urgent », « Prix en baisse ») ; un boost se met en pause quand le bien quitte la surface publique, et ses jours restants sont rendus quand le bien est loué, vendu ou supprimé par l'annonceur (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P1 | §1.1 | Historique de prix automatique à chaque changement |
-| P1 | §1.1 | Ajouter des collaborateurs au bien avec part de commission explicite et permissions granulaires — un collaborateur appartient à l'agence du bien (agent ou admin pour les rôles agent / gestionnaire, bailleur de l'agence pour co-propriétaire) ; la part de commission et le rôle ne sont jamais exposés sur le site public (TCK-598, TCK-586) |
+| P1 | §1.1 | Ajouter des collaborateurs au bien avec part de commission explicite et un rôle (gestionnaire, co-propriétaire, agent, lecteur), sans permission propre au collaborateur : le rôle fixe qui peut l'occuper et qui peut être l'agent principal, pas ce qu'il peut faire — un collaborateur appartient à l'agence du bien (agent ou admin pour les rôles agent / gestionnaire, bailleur de l'agence pour co-propriétaire) ; la part de commission et le rôle ne sont jamais exposés sur le site public (TCK-598, TCK-586) |
 | P1 | §1.1 | Désigner l'**agent principal** d'un bien parmi ses collaborateurs agents, un seul par bien (TCK-504, [ADR-0053](adr/0053-l-agent-principal-est-une-marque-unique-par-bien.md)). C'est l'**agent responsable** du bien et son **contact principal** : la fiche publique le nomme et révèle son numéro, il reçoit les messages et les demandes de contact et de visite. Sans désignation, ou si l'agent désigné n'est plus actif dans l'agence, c'est l'agent du bien le plus anciennement ajouté ; sans agent, le titulaire du bien ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md)) |
 | P1 | §1.1 | Saisir un bien au nom d'un bailleur de l'agence : le bailleur se choisit à la saisie parmi les bailleurs actifs, facultativement (sans choix, l'agence garde le bien en propre) ; il est prévenu par une notification, voit le bien, ses baux et son relevé, et en reçoit les loyers ; un lot prend le bailleur de son immeuble, une copie celui du bien copié, et un lot ne se rattache qu'à un bien du même titulaire (TCK-997, [ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md)) |
 | P1 | §1.1 | Inviter un bailleur depuis le formulaire de bien : le bien reste à l'agence et lui passe quand il accepte l'invitation ; une invitation révoquée ou expirée le laisse à l'agence (TCK-1000) |
@@ -498,7 +498,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P2 | §1.5 | Lien de paiement en ligne (Wave / Orange Money / Free Money) par échéance de loyer, utilisable sans compte : jeton expirant et révocable envoyé au locataire, quittance remise après paiement (TCK-602) |
+| P2 | §1.5 | Lien de paiement en ligne (Wave / Orange Money) par échéance de loyer, utilisable sans compte : jeton expirant et révocable envoyé au locataire, quittance remise après paiement (TCK-602) |
 | P1 | §1.5 | Le payeur (locataire, client) voit les fournisseurs de paiement en ligne que l'agence a activés — intégration plateforme comprise — et seulement ceux-là (TCK-602) |
 | P1 | §1.5 | Commissions automatiques par agent / collaborateur : à l'activation d'un bail, le grand livre ventile sa commission entre les collaborateurs agents du bien (leur part) et son négociateur (son taux), puis la fige ; relevé par agent — l'agent voit les siennes, l'admin toutes, qu'il marque « payée à l'agent » ou annule (TCK-595, [ADR-0049](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md)) |
 
@@ -696,7 +696,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.5 | Double validation des sorties d'argent : la même personne ne tient jamais deux gestes consécutifs (préparer, approuver, marquer payé) ni n'approuve un versement dont elle est bénéficiaire. Reversements plateforme : toujours. Reversements d'agence : désactivée par défaut ; l'agence l'active par un seuil, possible seulement avec deux approbateurs (TCK-594) |
 | P1 | §1.5 | Historique des paiements par entité (bien, bail, client) |
 | P1 | §1.5 | Suivi des statuts (en attente, payé, remboursé, annulé) |
-| P2 | §1.5 | Intégration d'une passerelle de paiement (Wave, Orange Money, Free Money, Stripe) ; une intégration de paiement n'est enregistrée qu'avec les identifiants que son pilote exige (TCK-602) |
+| P2 | §1.5 | Intégration d'une passerelle de paiement — pilotes livrés : Wave et Orange Money (XOF), Lemon Squeezy (carte, hors XOF) ; Free Money et Stripe n'ont pas de pilote (Stripe n'a qu'une fiche d'identifiants au registre des intégrations) ; une intégration de paiement n'est enregistrée qu'avec les identifiants que son pilote exige (TCK-602) |
 | P2 | §1.5 | Supervision des paiements (console plateforme) : paiements en échec, en retard et webhooks non appariés, par fournisseur et par agence (TCK-602) |
 | P2 | §1.5 | Rapprochement bancaire semi-automatique |
 | P2 | §1.5 | Régler depuis l'écran le mapping CSV des relevés de l'agence (colonnes, format de date, séparateur décimal déclaré) et voir les lignes ignorées à l'import (TCK-593) — les préréglages Wave Business / Orange Money attendent un export réel (dette D-67) |
@@ -757,7 +757,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §2.1 | 2FA TOTP exigée en continu pour tout super-admin : la console refuse un compte sans 2FA active ; la 2FA d'un super-admin ne se désactive pas, elle se renouvelle ; une réinitialisation par le support impose le réenrôlement à la connexion suivante (TCK-589) |
 | P1 | §2.1 | 2FA exigée pour le personnel de l'agence sur les opérations d'argent, d'intégrations, de rôles et d'équipe ; réglage d'agence « 2FA obligatoire pour toute l'équipe » ; statut 2FA visible dans la liste de l'équipe (TCK-589) |
-| P1 | §2.1 | Données bancaires et d'identité des profils et des demandes de passage en agence (RIB, NINEA, n° de pièce, RIB professionnel) chiffrées au repos et masquées à l'affichage ; valeur complète réservée à l'admin de l'agence et au super-admin, consultation journalisée (TCK-601) |
+| P1 | §2.1 | Données bancaires et d'identité des profils et des demandes de passage en agence (RIB, NINEA, n° de pièce, RIB professionnel, revenu déclaré), et pièce et revenu du locataire et de la caution, chiffrées au repos et masquées à l'affichage ; valeur complète réservée à l'admin de l'agence et au super-admin, sous second facteur récent, consultation journalisée (TCK-601, TCK-953 à TCK-956, [ADR-0070](adr/0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md)) |
 | P2 | §2.1 | Déclenchement de l'export RGPD par un super-admin pour le compte d'un utilisateur (support / réquisition) |
 | P0 | §2.1 | Toute capacité est résolue dans le scope du profil actif — pour un couple *(utilisateur, agence)*, jamais globalement ([ADR-0003](adr/0003-capacites-enum-code-defined.md)) |
 | P1 | §2.1 | Création/désactivation d'un profil par un agency_admin (ex. nouvel agent recruté) |
@@ -817,7 +817,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.6 | Consultation du journal par entité |
 | P1 | §2.6 | Filtrage par utilisateur, date, action |
 | P1 | §2.6 | Le journal d'une agence couvre tout ce qui touche ses objets (actes des admins, du système et des webhooks compris) et rien de ce qui touche une autre agence (TCK-601) |
-| P1 | §2.6 | Journal des consultations de données personnelles depuis la console (fiche utilisateur, sessions, dossier et pièces KYC, valeurs bancaires) (TCK-601) |
+| P1 | §2.6 | Journal des consultations de données personnelles depuis la console (fiche utilisateur, sessions, dossier et pièces KYC, valeurs bancaires) et des valeurs claires lues dans l'application (pièce, revenu) (TCK-601, TCK-955) |
 | P2 | §2.6 | Export de l'audit trail |
 | P3 | §2.6 | Alertes sur actions sensibles |
 | P3 | §2.6 | Alertes d'exploitation à seuil (pic d'échecs de jobs, file bloquée, santé dégradée), en plus des gestes sensibles (TCK-600) |

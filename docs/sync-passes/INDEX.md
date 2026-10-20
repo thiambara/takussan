@@ -23,6 +23,7 @@
 | 012 | 2026-10-14 | [`pass-012-2026-10-14-0909`](./pass-012-2026-10-14-0909/00-summary.md) | **Convergence rompue** — aucune des 54 recommandations de la 011 appliquée ; TCK-633 mesuré (9 sections sur 10 exactes) ; §4 `Address` et §10 `Tag`, faux positifs de la 011, re-jugés |
 | 013 | 2026-10-14 | [`pass-013-2026-10-14-1023`](./pass-013-2026-10-14-1023/00-summary.md) | **Zéro ❌ côté modèles** — lots 1-3 de convergence appliqués, M1-M49 soldées (sauf M44, TCK-639) ; première relecture intégrale : 19 sections et la ligne push (❌) découvertes |
 | 014 | 2026-10-14 | [`pass-014-2026-10-14-2220`](./pass-014-2026-10-14-2220/00-summary.md) | **Différentielle après ADR-0064** — §96 conforme (TCK-639), unicités globales en base (TCK-640) ; la voie brute des paramètres globaux, servie par la console depuis TCK-648, contredit l.671 et §30 |
+| 015 | 2026-10-19 | [`pass-015-2026-10-19-2229`](./pass-015-2026-10-19-2229/00-summary.md) | **Différentielle après ADR-0070** — §30 conforme (TCK-651, FC1 soldée), §100 exacte ; onze migrations fusionnées sans la spec : quatre colonnes chiffrées décrites en clair (§7, §27, §34), six autres migrations absentes ; la §3 décrit TCK-997/999/1000 avant leur livraison |
 
 ## Tableau d'évolution
 
@@ -42,6 +43,7 @@
 | 012 | 2026-10-14 | **379** | **99** | **343** | **131** | **4** | **+15** | **+6** | **0** |
 | 013 | 2026-10-14 | **380** | **99** | **385** | **93** | **1** | **+42** | **−38** | **−3** |
 | 014 | 2026-10-14 | 380 | 99 | 384 | 94 | 1 | −1 | +1 | 0 |
+| 015 | 2026-10-19 | 383 | 100 | 384 | 98 | 1 | 0 | +4 | 0 |
 
 > **n.c. = non comparable.** La passe 011 juge la spec contre les migrations, plus contre le seul
 > catalogue, et ses unités ont changé (lignes de features : ~208 → 368 ; modèles : 39 → 87 sections
@@ -54,6 +56,11 @@
 >
 > **Passe 014 : comparable à la 013** (même méthode, mêmes unités), mais différentielle : elle ne
 > re-mesure que ce qui a bougé depuis.
+>
+> **Passe 015 : comparable à la 014**, différentielle elle aussi. Son Δ nul en ✅ cache deux
+> mouvements de sens contraire : +5 (l.92, l.94, l.674, §30, §100) et −5 (§6, §7, §15, §34, §69).
+> Les cinq sections dégradées le sont par des migrations fusionnées sans mise à jour de la spec ;
+> aucune ne l'est par une erreur de la spec.
 >
 > **Passe 013 : plus sévère que la 012 à état égal** — elle relit les 99 sections colonne à colonne
 > et compte ⚠️ une donnée rangée hors colonne sans que la spec dise où. Son Δ mêle les corrections des

@@ -130,13 +130,14 @@ export function parametresDeRecherche(brut: URLSearchParams): URLSearchParams {
 /**
  * TCK-633 (lot E, AC6) — les clés que la LISTE lit et que la CARTE refuse : le plein-texte (la
  * carte est SQL, ADR-0023), le tri, la pagination, le rectangle de la liste, et la coupure des
- * emplacements (TCK-687 : la carte n'en sert aucun).
+ * emplacements (TCK-687 : la carte n'en sert aucun), et l'heure de graine de leur rotation (TCK-1008).
  *
  * ⚠ Miroir de `MapPublicPropertyRequest::CLES_PROPRES_A_LA_LISTE` (PHP) :
  * `search-filters.parity.test.ts` compare les deux listes.
  */
 export const CLES_PROPRES_A_LA_LISTE = [
   'q', 'search', 'sort', 'page', 'per_page', 'lat_min', 'lat_max', 'lng_min', 'lng_max', 'placements',
+  'seed_hour',
 ] as const;
 
 /**
