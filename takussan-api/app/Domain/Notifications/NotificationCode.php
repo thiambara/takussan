@@ -420,6 +420,8 @@ enum NotificationCode: string
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue => ['payment_url' => self::PARAM_URL],
             // Le lien `/pay/{jeton}` sert la quittance : jamais tronqué.
             self::LeasePaymentSettledOnline => ['receipt_url' => self::PARAM_URL],
+            // TCK-1002 — la quittance d'un paiement enregistré par l'agence, même lien.
+            self::LeasePaymentRecorded => ['receipt_url' => self::PARAM_URL],
             default => [],
         };
     }
@@ -437,7 +439,7 @@ enum NotificationCode: string
     {
         return match ($this) {
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue => ['payment_url'],
-            self::LeasePaymentSettledOnline => ['receipt_url'],
+            self::LeasePaymentSettledOnline, self::LeasePaymentRecorded => ['receipt_url'],
             default => [],
         };
     }
@@ -461,6 +463,9 @@ enum NotificationCode: string
         return match ($this) {
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::LeasePaymentOverdueLandlord,
             self::LeasePaymentSettledOnline,
+            // TCK-1002 — vers un contact sans compte seulement : l'envoi à un compte retient le
+            // canal mobile (`LeasePaymentService::markPaid`, `$mobileBorne = false`).
+            self::LeasePaymentRecorded,
             self::VisitReminder,
             // TCK-590 (contrainte 4) — un SMS ne suit qu'un geste humain de l'agence, jamais le
             // dépôt d'une demande par un tiers ; il est borné au point d'envoi (`VisitNotifier`).
@@ -486,6 +491,8 @@ enum NotificationCode: string
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::VisitReminder,
             // TCK-602 — la quittance d'une échéance payée en ligne : transactionnel.
             self::LeasePaymentSettledOnline,
+            // TCK-1002 — et celle d'une échéance enregistrée payée par l'agence.
+            self::LeasePaymentRecorded,
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged,
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,

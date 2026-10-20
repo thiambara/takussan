@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 
 import { StatusBadge as ConsoleStatusBadge, type StatusTone } from '@/components/console';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
-import { propertyStatusValues } from '@/lib/schemas/property';
+import { propertyStatusValues } from '@/lib/enums/property';
 
 /**
  * `statut du bien → ton du DS` — **l'unique table du produit pour ce vocabulaire** (TCK-472).

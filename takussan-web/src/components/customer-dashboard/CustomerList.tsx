@@ -21,7 +21,7 @@ import type { CustomerListItem } from '@/types/customer';
 import {
   customerStatusValues,
   pipelineStageValues,
-} from '@/lib/schemas/customer';
+} from '@/lib/enums/customer';
 import { CUSTOMER_STATUS_TONE, PIPELINE_STAGE_TONE } from '@/components/customer-form/options';
 
 interface CustomerListProps {

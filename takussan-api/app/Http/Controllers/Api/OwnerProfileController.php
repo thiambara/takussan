@@ -94,6 +94,8 @@ class OwnerProfileController extends Controller
                 'tax_id' => $ownerProfile->tax_id,
                 'id_document_type' => $ownerProfile->id_document_type?->value,
                 'id_document_number' => $ownerProfile->id_document_number,
+                // TCK-956 (ADR-0070 § 5) — le revenu en nombre ; le cast `encrypted` le relit en chaîne.
+                'monthly_income' => $ownerProfile->monthly_income !== null ? (float) $ownerProfile->monthly_income : null,
             ],
         ]);
     }

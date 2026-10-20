@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 
-import { InventoryDetail } from '@/components/inventory';
+import { InventoryDetail } from '@/components/inventory/InventoryDetail';
 import { buttonVariants } from '@/components/ui/button';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';

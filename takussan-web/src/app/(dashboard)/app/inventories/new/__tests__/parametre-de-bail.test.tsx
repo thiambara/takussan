@@ -20,10 +20,12 @@ vi.mock('@/app/actions/auth', () => ({
 vi.mock('next-intl/server', () => ({
   getTranslations: async () => (cle: string) => cle,
 }));
-vi.mock('@/components/inventory', () => ({
+vi.mock('@/components/inventory/InventoryForm', () => ({
   InventoryForm: ({ leaseId }: { leaseId: number }) => (
     <div data-testid="formulaire">bail {leaseId}</div>
   ),
+}));
+vi.mock('@/components/inventory/InventoryLeasePicker', () => ({
   InventoryLeasePicker: () => <div data-testid="selecteur" />,
 }));
 

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
-import { MaintenanceDetail } from '@/components/maintenance';
+import { MaintenanceDetail } from '@/components/maintenance/MaintenanceDetail';
 import { buttonVariants } from '@/components/ui/button';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';

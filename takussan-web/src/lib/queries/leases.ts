@@ -97,28 +97,9 @@ export function useLeases(params: UseLeasesParams = {}) {
   );
 }
 
-export type ActiveLeaseSummary = Pick<Lease, 'id' | 'reference_number'>;
-
-/**
- * TCK-968 (P48.01) — les baux actifs du compte, pour la modale de bienvenue et la check-list
- * d'entrée du locataire. Par l'API Laravel : un `fetch` relatif vers `/api/leases` visait le serveur
- * Next, qui n'a pas ce relais, et les deux ne s'affichaient jamais. Une seule clé pour les deux
- * lecteurs de l'accueil, donc une seule requête.
- */
-export function useActiveLeaseSummaries(enabled = true) {
-  return useApiQuery<PaginatedResponse<ActiveLeaseSummary>>(
-    ['leases', 'active-summaries'],
-    '/api/leases',
-    {
-      params: {
-        fields: { leases: ['id', 'reference_number'] },
-        filter: { status: 'active' },
-        per_page: 50,
-      },
-      enabled,
-    },
-  );
-}
+// TCK-1042 (P70.07) — le crochet de la coque vit dans son propre fichier : la coque de `/app`
+// l'importe de là, sans embarquer les 42 exports de ce module (le bundler ne les élague pas).
+export { useActiveLeaseSummaries, type ActiveLeaseSummary } from './leases-active-summaries';
 
 /**
  * TCK-776 (P15.09) — les biens que le sélecteur du bail propose : tous, sauf ceux qu'on a vendus,
@@ -219,7 +200,7 @@ export function useLease(id: number | null | undefined) {
       // omit from sparse fieldset; PropertyResource emits it anyway.
       properties: ['id', 'title', 'slug'],
     },
-    include: ['property', 'payments'],
+    include: ['property'],
   };
 
   return useApiQuery<ApiResponse<LeaseWithRelations>>(

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Resources\ServiceProviderAgencyCollaborationResource;
 use App\Http\Responses\PaginationMeta;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
@@ -60,7 +61,8 @@ class ServiceProviderAgenciesController extends Controller
             ->defaultSort('-created_at')
             ->paginate($perPage);
 
-        return $this->paginated($paginator, $paginator->items(), [
+        // TCK-1049 (P61.02) — la ligne par sa ressource, l'agence incluse par `AgencyResource`.
+        return $this->paginated($paginator, ServiceProviderAgencyCollaborationResource::collection($paginator)->toArray($request), [
             'service_provider_profile_id' => $sp->id,
             'active_count' => ServiceProviderAgencyCollaboration::query()
                 ->where('service_provider_profile_id', $sp->id)

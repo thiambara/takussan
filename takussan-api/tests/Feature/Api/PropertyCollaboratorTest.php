@@ -433,4 +433,78 @@ class PropertyCollaboratorTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.phone', '+221770000001');
     }
+
+    /**
+     * TCK-1047 (piste P61.01) — le compte d'un collaborateur sort par la projection
+     * d'`IncludedUserResource`, plus `username` (le slug public, que l'écran lit). Sans elle, la
+     * ligne `users` sortait entière : 38 clés, `google_id`, `metadata`, `secondary_phone` et
+     * `last_login_at` compris, au bailleur comme à tout membre de l'agence.
+     */
+    private const CLES_DU_COMPTE = ['avatar_url', 'email', 'first_name', 'full_name', 'id', 'last_name', 'phone', 'username'];
+
+    private function clesTriees(array $compte): array
+    {
+        $cles = array_keys($compte);
+        sort($cles);
+
+        return $cles;
+    }
+
+    private function collaborateurBavard(Property $property): PropertyCollaborator
+    {
+        $agent = $this->agentDe($property->agency_id);
+        $agent->forceFill([
+            'google_id' => 'g-123', 'secondary_phone' => '+221770000099',
+            'metadata' => ['note' => 'interne'], 'last_login_at' => now(),
+        ])->save();
+
+        return PropertyCollaborator::create([
+            'property_id' => $property->id, 'user_id' => $agent->id,
+            'role' => CollaboratorRole::Agent->value, 'invited_at' => now(),
+        ]);
+    }
+
+    public function test_le_bailleur_ne_lit_du_compte_collaborateur_que_la_projection(): void
+    {
+        [$bailleur, $property] = $this->bienDUnBailleur();
+        $this->collaborateurBavard($property);
+
+        Sanctum::actingAs($bailleur);
+        $user = $this->getJson("/api/properties/{$property->id}/collaborators")->assertOk()->json('data.0.user');
+
+        $this->assertSame(self::CLES_DU_COMPTE, $this->clesTriees($user));
+    }
+
+    public function test_un_agent_de_l_agence_ne_lit_du_compte_collaborateur_que_la_projection(): void
+    {
+        [, $property] = $this->bienDUnBailleur();
+        $this->collaborateurBavard($property);
+
+        Sanctum::actingAs($this->agentDe($property->agency_id));
+        $reponse = $this->getJson("/api/properties/{$property->id}/collaborators")->assertOk();
+
+        $this->assertSame(self::CLES_DU_COMPTE, $this->clesTriees($reponse->json('data.0.user')));
+        // La ligne elle-même garde sa forme : le front lit `role`, `is_primary`, `commission_share`.
+        $reponse->assertJsonPath('data.0.role', CollaboratorRole::Agent->value)
+            ->assertJsonPath('data.0.is_primary', false);
+    }
+
+    public function test_store_et_update_ne_rendent_du_compte_que_la_projection(): void
+    {
+        [$bailleur, $property] = $this->bienDUnBailleur();
+        $agent = $this->agentDe($property->agency_id);
+        $agent->forceFill(['google_id' => 'g-456'])->save();
+
+        Sanctum::actingAs($bailleur);
+        $cree = $this->postJson("/api/properties/{$property->id}/collaborators", [
+            'user_id' => $agent->id, 'role' => CollaboratorRole::Agent->value, 'commission_share' => 10,
+        ])->assertCreated();
+        $this->assertSame(self::CLES_DU_COMPTE, $this->clesTriees($cree->json('data.user')));
+        $cree->assertJsonPath('data.commission_share', '10.00');
+
+        $modifie = $this->putJson("/api/properties/{$property->id}/collaborators/{$cree->json('data.id')}", [
+            'commission_share' => 5,
+        ])->assertOk();
+        $this->assertSame(self::CLES_DU_COMPTE, $this->clesTriees($modifie->json('data.user')));
+    }
 }

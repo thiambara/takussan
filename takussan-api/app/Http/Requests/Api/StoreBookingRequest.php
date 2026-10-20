@@ -30,8 +30,12 @@ class StoreBookingRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'property_id' => ['required', 'exists:properties,id'],
-            'customer_id' => ['nullable', 'exists:customers,id'],
+            // TCK-1066 (P62.02) — plus de `exists:` : un 422 pour un identifiant absent contre un
+            // 403 pour un client tiers ou un bien privé faisait de la création un ORACLE
+            // d'existence. L'absence se juge dans le contrôleur et le service, avec la réponse du
+            // refus (modèle de TCK-599, `StoreFavoriteRequest`).
+            'property_id' => ['required', 'integer'],
+            'customer_id' => ['nullable', 'integer'],
             // TCK-530 — facultatifs : le serveur calcule les deux (App\Services\Booking\BookingQuote)
             // et refuse un montant envoyé qui en diffère. `decimal:0,2` borne la forme que le
             // comparateur découpe sans flottant.
@@ -44,6 +48,9 @@ class StoreBookingRequest extends BaseFormRequest
             'start_date' => ['nullable', 'date', 'after_or_equal:today'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string'],
+            // TCK-1065 (P80.02) — le nombre que le tunnel exige (1 à 20, `booking.ts`) ; rangé dans
+            // `metadata.guests` par `BookingService::create()`, comme la demande publique.
+            'guests' => ['sometimes', 'integer', 'min:1', 'max:20'],
             'expires_at' => ['nullable', 'date'],
         ];
     }

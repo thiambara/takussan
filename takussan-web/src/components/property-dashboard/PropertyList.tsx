@@ -42,7 +42,7 @@ import {
   contractTypeValues,
   propertyTypeValues,
   propertyVisibilityValues,
-} from '@/lib/schemas/property';
+} from '@/lib/enums/property';
 import {
   bulkArchivePropertiesAction,
   bulkAssignPropertiesAction,

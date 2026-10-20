@@ -26,6 +26,7 @@ import {
   idTypeValues,
   normaliseCustomerForm,
   sansCriteres,
+  sansStatut,
   pipelineStageValues,
   seekingContractTypeValues,
   seekingPropertyTypeValues,
@@ -38,6 +39,7 @@ import {
 } from '@/app/actions/dashboard-customers';
 import type { CustomerDetail } from '@/types/customer';
 import { localeDisplayLabel, type Locale } from '@/i18n/config';
+import { RevelationNumeroDePiece } from './RevelationNumeroDePiece';
 
 
 /**
@@ -49,6 +51,11 @@ interface CustomerFormProps {
   readonly customer?: CustomerDetail;
   readonly onSuccess?: (customer: CustomerDetail) => void;
   readonly compact?: boolean;
+  /**
+   * TCK-955 — l'admin (ou le super-admin) a le geste « Afficher » du numéro de pièce. L'API tranche
+   * de toute façon : ce drapeau n'évite que de proposer un geste voué au refus.
+   */
+  readonly canRevealIdNumber?: boolean;
 }
 
 function toDefaults(customer?: CustomerDetail): CustomerFormValues {
@@ -63,6 +70,7 @@ function toDefaults(customer?: CustomerDetail): CustomerFormValues {
       status: 'active',
       id_type: '',
       id_number: '',
+      id_number_masked: null,
       locale: '',
       seeking_contract_type: '',
       budget_min: '',
@@ -84,7 +92,9 @@ function toDefaults(customer?: CustomerDetail): CustomerFormValues {
     pipeline_stage: (customer.pipeline_stage ?? 'lead') as CustomerFormValues['pipeline_stage'],
     status: (customer.status ?? 'active') as CustomerFormValues['status'],
     id_type: (customer.id_type ?? '') as CustomerFormValues['id_type'],
-    id_number: customer.id_number ?? '',
+    // TCK-953 — le numéro ne se relit plus : le champ part vide, le masque sert d'indication.
+    id_number: '',
+    id_number_masked: customer.id_number_masked ?? null,
     locale: customer.locale ?? '',
     seeking_contract_type: customer.seeking_contract_type ?? '',
     budget_min: montant(customer.budget_min),
@@ -101,6 +111,7 @@ export function CustomerForm({
   customer,
   onSuccess,
   compact,
+  canRevealIdNumber = false,
 }: CustomerFormProps) {
   const t = useTranslations('crm.form');
   const tCommon = useTranslations('common.actions');
@@ -151,7 +162,7 @@ export function CustomerForm({
         const result =
           mode === 'edit' && customer
             ? await updateCustomerAction(customer.id, payload)
-            : await createCustomerAction(payload);
+            : await createCustomerAction(sansStatut(payload));
         if (!result.ok) {
           if (result.duplicates) setDuplicates(result.duplicates);
           throw new ApiError(result.status ?? 500, {
@@ -295,12 +306,15 @@ export function CustomerForm({
             label={t('pipelineStage')}
             options={pipelineStageOptions}
           />
-          <FormSelect
-            control={control}
-            name="status"
-            label={t('status')}
-            options={customerStatusOptions}
-          />
+          {/* TCK-1064 (P80.01) — l'API crée toujours un client actif : le statut ne se choisit qu'en édition. */}
+          {mode === 'edit' ? (
+            <FormSelect
+              control={control}
+              name="status"
+              label={t('status')}
+              options={customerStatusOptions}
+            />
+          ) : null}
         </div>
       </div>
 
@@ -390,7 +404,17 @@ export function CustomerForm({
             options={idTypeOptions}
             placeholder={t('idTypePlaceholder')}
           />
-          <FormInput control={control} name="id_number" label={t('idNumber')} />
+          <div>
+            <FormInput
+              control={control}
+              name="id_number"
+              label={t('idNumber')}
+              placeholder={customer?.id_number_masked ? t('idNumberKept', { masque: customer.id_number_masked }) : undefined}
+            />
+            {canRevealIdNumber && customer?.id_number_masked ? (
+              <RevelationNumeroDePiece customerId={customer.id} masque={customer.id_number_masked} />
+            ) : null}
+          </div>
         </div>
       </div>
 

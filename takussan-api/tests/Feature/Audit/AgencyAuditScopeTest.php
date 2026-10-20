@@ -5,12 +5,14 @@ namespace Tests\Feature\Audit;
 use App\Jobs\Audit\ExportActivityLogJob;
 use App\Models\Activity;
 use App\Models\Agency;
+use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Payout;
 use App\Models\PlatformPayout;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Notifications\ActivityLogExportReadyNotification;
 use App\Services\Audit\ActivityLogExporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -18,7 +20,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Tests\ApiTestCase;
+use Tests\Support\OperateursPlateforme;
 
 /**
  * TCK-601 (AD9, ADR-0044 §3) — le journal d'une agence est celui de ses SUJETS, quel qu'en soit
@@ -27,6 +31,7 @@ use Tests\ApiTestCase;
  */
 class AgencyAuditScopeTest extends ApiTestCase
 {
+    use OperateursPlateforme;
     use RefreshDatabase;
 
     private function logOn(object $subject, ?User $causer, string $description, array $properties = []): Activity
@@ -150,6 +155,92 @@ class AgencyAuditScopeTest extends ApiTestCase
         $this->assertStringNotContainsString('temoin-job-b', $content);
     }
 
+    /**
+     * TCK-1054 (piste P63.01) — le lien de l'export asynchrone, tel que le reçoit le demandeur.
+     * Le fichier se nommait du seul nom d'agence réduit à `[a-z0-9-]` et des dates : deux agences
+     * de même nom, ou une agence nommée « Platform » et un super-admin, écrivaient le même
+     * fichier, et le lien de l'un servait le journal de l'autre.
+     */
+    private function lienDExport(User $demandeur, ?int $agencyId): string
+    {
+        Notification::fake();
+        $this->app->instance('request', Request::create('/'));
+        (new ExportActivityLogJob($demandeur, ['format' => 'csv'], $agencyId))->handle(app(ActivityLogExporter::class));
+
+        $lien = null;
+        Notification::assertSentTo($demandeur, ActivityLogExportReadyNotification::class, function ($n) use (&$lien) {
+            $lien = $n->downloadUrl;
+
+            return true;
+        });
+
+        return $lien;
+    }
+
+    private function contenuDuLien(string $lien): string
+    {
+        return $this->get($lien)->assertOk()->streamedContent();
+    }
+
+    public function test_deux_agences_de_meme_nom_recoivent_chacune_leur_journal(): void
+    {
+        Storage::fake();
+        $a = Agency::factory()->create(['name' => 'Immo Dakar']);
+        $b = Agency::factory()->create(['name' => 'Immo-Dakar']);
+        [$adminA, $adminB] = [$this->adminOnly($a), $this->adminOnly($b)];
+        $this->logOn(Property::factory()->create(['agency_id' => $a->id]), $adminA, 'temoin-homonyme-a');
+        $this->logOn(Property::factory()->create(['agency_id' => $b->id]), $adminB, 'temoin-homonyme-b');
+
+        $lienA = $this->lienDExport($adminA, $a->id);
+        $lienB = $this->lienDExport($adminB, $b->id);
+
+        // Le nom lisible ne sert plus qu'au `Content-Disposition`.
+        $this->get($lienA)->assertDownload('audit-trail-immo-dakar-'.now()->subDays(30)->toDateString().'-'.now()->toDateString().'.csv');
+        $contenuA = $this->contenuDuLien($lienA);
+        $this->assertStringContainsString('temoin-homonyme-a', $contenuA);
+        $this->assertStringNotContainsString('temoin-homonyme-b', $contenuA);
+        $contenuB = $this->contenuDuLien($lienB);
+        $this->assertStringContainsString('temoin-homonyme-b', $contenuB);
+        $this->assertStringNotContainsString('temoin-homonyme-a', $contenuB);
+    }
+
+    public function test_une_agence_nommee_platform_ne_recoit_pas_le_journal_de_la_plateforme(): void
+    {
+        Storage::fake();
+        $platform = Agency::factory()->create(['name' => 'Platform']);
+        $tierce = Agency::factory()->create();
+        $admin = $this->adminOnly($platform);
+        $this->logOn(Property::factory()->create(['agency_id' => $platform->id]), $admin, 'temoin-agence-platform');
+        $this->logOn(Property::factory()->create(['agency_id' => $tierce->id]), null, 'temoin-agence-tierce');
+
+        $lienAdmin = $this->lienDExport($admin, $platform->id);
+        $this->lienDExport($this->operateur(PlatformProfileLevel::SuperAdmin), null);
+
+        $contenu = $this->contenuDuLien($lienAdmin);
+        $this->assertStringContainsString('temoin-agence-platform', $contenu);
+        $this->assertStringNotContainsString('temoin-agence-tierce', $contenu);
+    }
+
+    public function test_le_lien_ne_sert_que_le_fichier_de_son_demandeur(): void
+    {
+        Storage::fake();
+        $a = Agency::factory()->create();
+        $admin = $this->adminOnly($a);
+        $autre = $this->adminOnly(Agency::factory()->create());
+        $this->logOn(Property::factory()->create(['agency_id' => $a->id]), $admin, 'temoin-demandeur');
+
+        $lien = $this->lienDExport($admin, $a->id);
+        parse_str((string) parse_url($lien, PHP_URL_QUERY), $parametres);
+
+        // Le même fichier, signé pour un autre demandeur : refusé.
+        $detourne = URL::temporarySignedRoute(
+            'activity-logs.export.download',
+            now()->addHour(),
+            array_merge(array_diff_key($parametres, array_flip(['expires', 'signature'])), ['user' => $autre->id]),
+        );
+        $this->get($detourne)->assertNotFound();
+    }
+
     /** AC13 — l'historique d'un objet : borné à l'agence, et au type EXACT (pas de `LIKE`). */
     public function test_l_historique_d_un_objet_est_borne_a_l_agence_et_au_type_exact(): void
     {
@@ -242,7 +333,7 @@ class AgencyAuditScopeTest extends ApiTestCase
         Storage::fake();
         Notification::fake();
         (new ExportActivityLogJob($admin, ['format' => 'csv'], $agency->id))->handle(app(ActivityLogExporter::class));
-        $jobExport = Storage::get(Storage::files('exports/audit')[0]);
+        $jobExport = Storage::get(Storage::allFiles('exports/audit')[0]);
 
         foreach ([$agencyExport, $platformExport, $jobExport] as $csv) {
             $this->assertStringContainsString("'=HYPERLINK", $csv);

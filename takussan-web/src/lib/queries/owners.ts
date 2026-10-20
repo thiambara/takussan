@@ -60,6 +60,8 @@ export type OwnerProfileSummary = {
   readonly rib_masked?: string | null;
   readonly tax_id_masked?: string | null;
   readonly id_document_number_masked?: string | null;
+  /** TCK-956 (ADR-0070) — `••••` si un revenu est saisi ; aucun chiffre ne sort. */
+  readonly monthly_income_masked?: string | null;
   readonly user?: {
     readonly id: number;
     readonly first_name: string;
@@ -144,6 +146,8 @@ export type OwnerSensitiveData = {
   readonly tax_id: string | null;
   readonly id_document_type: string | null;
   readonly id_document_number: string | null;
+  /** TCK-956 — le revenu mensuel en clair, en nombre. */
+  readonly monthly_income: number | null;
 };
 
 export async function fetchOwnerSensitive(

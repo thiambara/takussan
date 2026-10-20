@@ -107,6 +107,20 @@ describe('<NotificationBell>', () => {
     await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument());
   });
 
+  it('TCK-1035 (P68.08) — le panneau ouvert n’ajoute pas un second repère `banner`', async () => {
+    const browserUser = userEvent.setup();
+    getNotificationsMock.mockResolvedValue({ ok: true, data: response() });
+
+    render(wrap(<AppTopbar user={user} />));
+    await browserUser.click(screen.getByRole('button', { name: 'Notifications' }));
+
+    const feed = await screen.findByRole('dialog', { name: 'Centre de notifications' });
+    expect(within(feed).getByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
+    expect(within(feed).queryByRole('banner')).toBeNull();
+    // Le seul `banner` qui reste est la barre haute (le panneau rend le reste `aria-hidden`).
+    expect(screen.getAllByRole('banner', { hidden: true })).toHaveLength(1);
+  });
+
   it('opens a date-sorted feed and marks one notification as read', async () => {
     const browserUser = userEvent.setup();
     getNotificationsMock.mockResolvedValue({ ok: true, data: response() });

@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\Admin;
 use App\Models\Agency;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
+use App\Support\Audit\PropertyRedactor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -140,6 +141,27 @@ class UserDetailTest extends TestCase
         $this->getJson("/api/admin/users/{$user->id}/activity")
             ->assertOk()
             ->assertJsonPath('meta.total', 2);
+    }
+
+    /**
+     * TCK-1018 (P56.05) — l'activité d'un compte passe `properties` par `PropertyRedactor`, comme
+     * les trois autres lectures du journal.
+     */
+    public function test_activity_endpoint_redacts_properties(): void
+    {
+        $this->actingAsRole('super_admin');
+        $user = User::factory()->create();
+        Activity::query()->delete();
+
+        activity('User')->performedOn($user)->event('contact_changed')
+            ->withProperties(['target_email' => 'temoin.tck1018@example.test', 'reason' => 'demande'])
+            ->log('contact changed');
+
+        $response = $this->getJson("/api/admin/users/{$user->id}/activity")->assertOk();
+
+        $this->assertSame(PropertyRedactor::REDACTED, $response->json('data.0.properties.target_email'));
+        $this->assertSame('demande', $response->json('data.0.properties.reason'));
+        $this->assertStringNotContainsString('temoin.tck1018', $response->getContent());
     }
 
     public function test_agency_admin_is_forbidden_on_user_detail_routes(): void

@@ -15,6 +15,17 @@ class Guarantor extends AbstractModel
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * TCK-954 (ADR-0070 § 1 et 3) — la pièce et le revenu : chiffrés (casts `encrypted`, colonnes
+     * `text`) et absents de toute sérialisation par défaut (`$hidden`). Ils ne sortent que masqués
+     * (`GuarantorController::format`). Le revenu se relit donc comme une chaîne : un cast
+     * `encrypted` simple, jamais une classe maison, sans quoi `backup:verify-encryption` ne verrait
+     * plus la colonne.
+     */
+    public const SENSITIVE = ['id_number', 'monthly_income'];
+
+    protected $hidden = self::SENSITIVE;
+
     protected $fillable = [
         'first_name', 'last_name', 'phone', 'email',
         'id_type', 'id_number', 'occupation', 'employer',
@@ -24,7 +35,8 @@ class Guarantor extends AbstractModel
 
     protected $casts = [
         'id_type' => IdType::class,
-        'monthly_income' => 'decimal:2',
+        'id_number' => 'encrypted',
+        'monthly_income' => 'encrypted',
         'metadata' => 'array',
     ];
 

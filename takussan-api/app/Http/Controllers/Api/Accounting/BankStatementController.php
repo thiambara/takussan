@@ -79,7 +79,7 @@ class BankStatementController extends Controller
 
         $statement->load(array_intersect(
             explode(',', $request->query('include', '')),
-            ['uploadedBy', 'finalizedBy', 'agency'],
+            ['uploadedBy', 'finalizedBy'],
         ));
 
         return BankStatementResource::make($statement);

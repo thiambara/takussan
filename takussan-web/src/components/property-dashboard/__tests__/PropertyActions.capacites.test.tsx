@@ -48,7 +48,10 @@ function tenant(capacites: readonly string[]) {
 }
 
 async function entrees(user: ReturnType<typeof userEvent.setup>): Promise<string[]> {
-  await user.click(screen.getByRole('button', { name: A.more }));
+  // L'en-tête dit « Plus d'actions » ; la ligne de liste y ajoute le bien (TCK-1035).
+  await user.click(screen.getByRole('button', {
+    name: (nom) => nom === A.more || nom === A.moreFor.replace('{title}', BIEN.title),
+  }));
   return (await screen.findAllByRole('menuitem')).map((el) => el.textContent ?? '');
 }
 

@@ -1034,6 +1034,13 @@
       "idType": "Xeetu kayit",
       "idTypePlaceholder": "Ñu ko binduwul",
       "idNumber": "Nomboro",
+      "idNumberKept": "{masque} — laisser vide pour le garder",
+      "idNumberSensitive": {
+        "reveal": "Afficher",
+        "hide": "Masquer",
+        "notice": "« Afficher » révèle le numéro complet et enregistre la consultation dans le journal de l’agence.",
+        "errorTitle": "Impossible d’afficher le numéro de pièce"
+      },
       "saving": "Mu ngi denc…",
       "create": "Sos kiliyaan bi"
     },
@@ -1807,6 +1814,7 @@
       "creditNotePdf": "PDF de l'avoir"
     },
     "payoutDialog": {
+      "viewStatement": "Voir le relevé du mois",
       "title": "Waajal reversement",
       "description": "Tànnal bailleur bi ak période bi : xayma bi dañu koy jàng, duñu ko bind.",
       "periodStart": "Tàmbalig période",
@@ -4595,6 +4603,8 @@
       "fields": {
         "name": "Turu ajance bi",
         "slug": "Identifiant URL (mënul soppeeku)",
+        "slugEditable": "Identifiant URL (modifiable une fois)",
+        "slugEditableHint": "Votre agence est passée en professionnelle : vous pouvez remplacer cet identifiant une seule fois. Lettres minuscules, chiffres et tirets. L'ancienne adresse de votre page publique ne fonctionnera plus.",
         "license": "Limeeru licence",
         "licensePlaceholder": "misaal : SEN-IMMO-2024",
         "description": "Leeral",
@@ -5618,6 +5628,7 @@
         "edit": "Soppi",
         "viewPublic": "Xool fiis bi ñépp gis",
         "more": "Yeneen jëf",
+        "moreFor": "Plus d’actions — {title}",
         "quickActions": "Aksioŋ yu gaaw",
         "unpublish": "Dindi ci génn gi",
         "publish": "Génne",
@@ -6658,17 +6669,11 @@
       "empty_description": "Limu njëg yi ci liggéey bi dinañu feeñ fii bu ñu ko yeglee.",
       "navLabel": "Enum yu ñu man a soppi",
       "valuesCount": "{count} njëg",
-      "addValue": "Yokk benn njëg",
-      "editValue": "Soppi njëg bi",
       "value": "Njëg",
       "localeFr": "FR",
       "localeEn": "EN",
       "localeWo": "WO",
       "usage": "Jëfandikoo",
-      "actions": "Aksioŋ yi",
-      "editValueAria": "Soppi {value}",
-      "deactivateValueAria": "Faral {value}",
-      "warning": "Nekkin yu teknik ak wàll yi mënuñu leen a soppi fii.",
       "tableCaption": "Waloor yu enum {name}"
     },
     "moderation": {
@@ -7258,7 +7263,8 @@
       },
       "enums": {
         "title": "Enum yu liggéey",
-        "subtitle": "Toppatoo turu FR / EN / WO yi ak njëg yu liggéey yu dul teknik.",
+        "readOnlySubtitle": "Consultez les valeurs métier non techniques et leur usage. Elles ne se modifient pas depuis la console.",
+        "codeNotice": "Les valeurs de ces listes vivent dans le code : en ajouter une demande un déploiement.",
         "lockedNotice": "Enum yu teknik ni fey yi, wàll yi ak nekkin yu biir dañu tëju ci kod bi."
       },
       "featureFlags": {
@@ -7573,7 +7579,9 @@
           "decidedOn": "Dogal ko",
           "by": "Ku ko def",
           "comment": "Wax",
-          "userFallback": "Jëfandikukat #{id}"
+          "userFallback": "Jëfandikukat #{id}",
+          "kycNotVerified": "Le dossier KYC de l'agence n'est pas vérifié : la demande ne peut pas être approuvée tant qu'il ne l'est pas. Sans lui, la plateforme ne pourrait plus reverser à l'agence une fois passée en professionnelle.",
+          "openKyc": "Ouvrir l'agence et son dossier KYC"
         },
         "status": {
           "pending": "Di xaar",

@@ -20,6 +20,7 @@ use App\Services\Crm\CustomerActivityFeed;
 use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Crm\PipelineStatsService;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Privacy\PersonalDataAccessLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -65,8 +66,9 @@ class CustomerController extends Controller
             'pipeline_stage' => $data['pipeline_stage'] ?? CustomerPipelineStage::Lead->value,
         ]));
 
+        // TCK-953 — relue en entier : le masque de la pièce se calcule même si elle n'a pas été saisie.
         return $this->json([
-            'data' => CustomerResource::make($customer)->resolve($request),
+            'data' => CustomerResource::make($customer->refresh())->resolve($request),
         ], 201);
     }
 
@@ -112,10 +114,36 @@ class CustomerController extends Controller
         $this->authorize('view', $customer);
 
         // Re-fetch through the query builder so ?include= params (e.g. tags) are honoured.
-        $customer = Customer::buildQuery(Customer::where('id', $customer->id), $request)->firstOrFail();
+        $query = Customer::buildQuery(Customer::where('id', $customer->id), $request);
+        // TCK-953 (ADR-0070 § 3) — `id_number` n'est plus demandable par `fields[customers]` : il est
+        // chargé ici pour que la ressource en calcule le MASQUE. Sans `fields[]`, `select *` le charge.
+        if ($query->getQuery()->columns !== null) {
+            $query->addSelect(array_map(static fn (string $column): string => 'customers.'.$column, Customer::SENSITIVE));
+        }
+        $customer = $query->firstOrFail();
 
         return $this->json([
             'data' => CustomerResource::make($customer)->resolve($request),
+        ]);
+    }
+
+    /**
+     * TCK-955 (ADR-0070 § 5) — le numéro de pièce EN CLAIR. La garde de step-up a déjà répondu
+     * (`ProtectedActions::STEP_UP`), l'impersonation aussi (`EnforceImpersonationReadOnly`) ; la
+     * consultation est journalisée APRÈS l'autorisation, rattachée à l'agence du client.
+     */
+    public function sensitive(Request $request, Customer $customer, PersonalDataAccessLogger $accessLog): JsonResponse
+    {
+        $this->authorize('viewSensitive', $customer);
+
+        $accessLog->record($request->user(), $customer, PersonalDataAccessLogger::SURFACE_CUSTOMER_SENSITIVE);
+
+        return $this->json([
+            'data' => [
+                'id' => $customer->id,
+                'id_type' => $customer->id_type?->value,
+                'id_number' => $customer->id_number,
+            ],
         ]);
     }
 

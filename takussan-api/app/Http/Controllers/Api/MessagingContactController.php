@@ -7,6 +7,7 @@ use App\Http\Resources\Messaging\MessagingContactResource;
 use App\Models\Conversation;
 use App\Models\User;
 use App\Services\Messaging\MessagingReach;
+use App\Sorts\CollatedNameSort;
 use App\Sorts\SearchRelevanceSort;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -76,8 +77,8 @@ class MessagingContactController extends Controller
     /** Les seuls attributs de l'index `users` qu'une recherche de contact interroge. */
     private const SEARCHABLE_NAME = ['first_name', 'last_name'];
 
-    /** Même plafond que `HasQueryBuilder::SEARCH_ID_CAP` — le périmètre est intersecté ensuite. */
-    private const SEARCH_ID_CAP = 5000;
+    /** Même plafond que `HasQueryBuilder::SEARCH_ID_CAP`, pris DANS le périmètre (P51.04). */
+    protected const SEARCH_ID_CAP = 5000;
 
     /** @param  Builder<User>  $base */
     private function contacts(Request $request, Builder $base): JsonResponse
@@ -87,6 +88,12 @@ class MessagingContactController extends Controller
         // TCK-973 (P51.06) — la ressource ne lit que l'avatar : les autres collections du compte
         // (`documents`, `photos`…) ne se chargent pas.
         $base->with(['media' => fn ($media) => $media->where('collection_name', 'avatar')]);
+
+        // P51.05 — les noms se trient en `COLLATE "und-x-icu"` (ADR-0025, amendement du
+        // 2026-10-19), au défaut comme sur demande : sous `--locale=C`, l'ordre des octets
+        // rejetait minuscules et initiales accentuées après « Z ».
+        $prenom = AllowedSort::custom('first_name', new CollatedNameSort, 'users.first_name');
+        $nom = AllowedSort::custom('last_name', new CollatedNameSort, 'users.last_name');
 
         $query = QueryBuilder::for($base, $request)
             ->allowedFields('id', 'first_name', 'last_name')
@@ -109,16 +116,28 @@ class MessagingContactController extends Controller
                         return;
                     }
 
+                    // P51.04 — le périmètre d'abord, en SQL, puis passé à Meilisearch en filtre sur
+                    // `id` (filtrable dans `config/scout.php`) : le plafond se prend sur les seules
+                    // personnes joignables, et non sur tous les comptes de la plateforme, où un
+                    // contact classé après N homonymes d'ailleurs disparaissait sans signal.
+                    $perimetre = (clone $q)->reorder()->pluck('users.id')->map(fn ($id) => (int) $id)->all();
+                    if ($perimetre === []) {
+                        $q->whereRaw('1 = 0');
+
+                        return;
+                    }
+
                     $relevance = User::search($terms)
                         ->options(['attributesToSearchOn' => self::SEARCHABLE_NAME])
-                        ->take(self::SEARCH_ID_CAP)
+                        ->whereIn('id', $perimetre)
+                        ->take(static::SEARCH_ID_CAP)
                         ->keys()
                         ->all();
 
                     $q->whereIn('users.id', $relevance);
                 }),
             )
-            ->allowedSorts('first_name', 'last_name')
+            ->allowedSorts($prenom, $nom)
             // Aucune relation : l'appel VIDE est ce qui fait refuser un `include=` (400), qu'on
             // ignorerait sinon en silence.
             ->allowedIncludes();
@@ -129,7 +148,7 @@ class MessagingContactController extends Controller
             $query->addSelect('users.username');
         }
 
-        $defaults = ['first_name', 'last_name', 'id'];
+        $defaults = [$prenom, $nom, 'id'];
         if (count($relevance) > 1 && SearchRelevanceSort::supports($relevance)) {
             array_unshift($defaults, AllowedSort::custom('search_relevance', new SearchRelevanceSort($relevance)));
         }

@@ -23,7 +23,6 @@ const PAQUETS = ['zod', 'react-hook-form', '@hookform/resolvers'];
 
 const FORMULAIRES_ADMIS: Readonly<Record<string, string>> = {
   'components/bookings/BookingTunnel.tsx': 'le tunnel de réservation est un formulaire',
-  'components/favorites/SaveSearchButton.tsx': 'enregistrer une recherche ouvre un formulaire',
 };
 
 const ENTREES = sourcesDe(join(RACINE_SRC, 'app', '[locale]', '(public)')).filter((f) =>

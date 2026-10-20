@@ -5,8 +5,9 @@
  *
  * Single-step legal form. Reuses {@link useWizardDraft} for resumable
  * autosave under the key `agency-upgrade-{agency_id}`, so an admin who
- * starts typing the RC / NINEA / RIB and leaves the page comes back to
- * exactly the state they left. The uploaded PDF is intentionally NOT
+ * starts typing the RC / legal name / address and leaves the page comes back
+ * to that state. TCK-989 — the NINEA and the RIB are NOT autosaved (see
+ * `brouillonUpgradeDepuisFormulaire`). The uploaded PDF is intentionally NOT
  * persisted across sessions — binary blobs don't belong in the
  * wizard-drafts JSON column, the user re-attaches the file when they
  * resume.
@@ -26,7 +27,9 @@ import { ApiError } from '@/lib/api';
 import { submitAgencyUpgradeRequest } from '@/lib/queries/agency-upgrade';
 import {
   FORMULAIRE_UPGRADE_VIERGE,
+  brouillonUpgradeDepuisFormulaire,
   formulaireUpgradeDepuisBrouillon,
+  type BrouillonUpgrade,
 } from '@/lib/agency-upgrade-brouillon';
 import type { AgencyUpgradeRequestFormFields } from '@/types/agency-upgrade';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -43,7 +46,7 @@ export type UpgradeRequestFormProps = {
 const EMPTY_FORM = FORMULAIRE_UPGRADE_VIERGE;
 
 /** TCK-566 — le formulaire tel qu'il s'ouvre, sans saisie : il n'est pas une démarche. */
-const ETAT_VIERGE = serialiserEtatBrouillon(0, EMPTY_FORM);
+const ETAT_VIERGE = serialiserEtatBrouillon(0, brouillonUpgradeDepuisFormulaire(EMPTY_FORM));
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB — mirrors backend cap.
 const ACCEPT_MIME = 'application/pdf,image/jpeg,image/png';
@@ -57,7 +60,7 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
 
   const draftKey = `agency-upgrade-${agencyId}`;
   const { draft, isLoading, save, flush, clear } =
-    useWizardDraft<AgencyUpgradeRequestFormFields>(draftKey);
+    useWizardDraft<BrouillonUpgrade>(draftKey);
 
   const [form, setForm] = useState<AgencyUpgradeRequestFormFields>(EMPTY_FORM);
   const [hydrated, setHydrated] = useState(false);
@@ -90,10 +93,15 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
   // comme « 1 démarche en cours — Passage en pro ». Seule une saisie écrit
   // désormais le brouillon ; revenir au formulaire vide le supprime, et un
   // brouillon vide hérité de l'ancien comportement est supprimé à l'ouverture.
+  //
+  // TCK-989 — l'autosave reçoit le formulaire SANS RIB ni NINEA : ce qui part
+  // dans le PUT, et ce que l'état vierge compare. Un objet neuf par rendu ne
+  // réécrit rien : le hook compare des états sérialisés.
+  const donneesBrouillon = brouillonUpgradeDepuisFormulaire(form);
   useAutosaveBrouillon({
     hydrated,
     step: 0,
-    data: form,
+    data: donneesBrouillon,
     etatVierge: ETAT_VIERGE,
     brouillonServeurExiste,
     save,

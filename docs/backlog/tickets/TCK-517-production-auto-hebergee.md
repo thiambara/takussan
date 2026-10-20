@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: 64
 created: 2026-09-13
-updated: 2026-10-18
+updated: 2026-10-20
 depends_on: [TCK-516, TCK-518, TCK-519, TCK-520, TCK-522, TCK-523, TCK-524, TCK-526]
 blocks: []
 spec_refs:
@@ -44,6 +44,19 @@ tâches F1 à F5. **Ne s'ouvre que sur la décision du porteur** — pas avant t
 - [ ] F2 à F3 — Takussan : `images.yml` sur `master` (image de la préproduction réétiquetée), environnement Dokploy `production`, mise en service DNS — réécrites le 2026-10-18 par TCK-931 (ADR-0069, étape 6)
 - ~~F4 — CheckPrint Plus~~ — **annulée le 2026-10-04** : projet arrêté, retiré du serveur et de Vercel
 - [ ] F5 — retrait de Vercel, des relevés et de la garde qui le mesuraient
+- [ ] Réseau partagé de Dokploy et serveur — ajouté le 2026-10-20, décisions du porteur sur les
+  pistes P74.01 à P74.05 et P73.03 (le détail de chaque décision est dans le fichier de pistes) :
+  - **P74.04 d'abord** : relever les services attachés à `dokploy-network` et ce que chacun répond à
+    un conteneur de la pile sans secret, dans `hebergement.md` ; puis un réseau de données dédié, et
+    les piles d'API hors de `dokploy-network` sauf le service `api` ;
+  - P74.01 : un alias `takussan-meilisearch` visé par `MEILISEARCH_HOST`, et la garde réseau étendue
+    aux noms nus des services partagés ;
+  - P74.02 : mesurer `/keys`, `/dumps` et `/snapshots` avec la clé de préproduction, puis des clés à
+    liste d'actions fermée, et ces refus dans les preuves d'A4 et de F1 ;
+  - P74.03 : un réseau dédié entre Traefik et le front (avec P37.03 et P37.04) ;
+  - P74.05 : `REVOKE CONNECT ON DATABASE postgres FROM PUBLIC` aux étapes A4 et F1, et la note sur
+    l'authentification basique ;
+  - P73.03 : relever ce que Traefik journalise de la chaîne de requête.
 
 ## Critères d'acceptation
 

@@ -18,6 +18,16 @@ import type {
   PropertyConversationResolution,
 } from '@/types/message';
 import { cheminApi, requete } from '@/lib/chemin-api';
+import { CONVERSATION_LIST_FIELDS, CONVERSATION_PROPERTY_FIELDS } from './conversations-list';
+
+// TCK-1042 (P70.07) — la liste des conversations vit dans son propre fichier : la pastille de la
+// messagerie, montée par la coque de `/app`, l'importe de là sans embarquer les 37 exports de ce
+// module (le bundler ne les élague pas).
+export {
+  CONVERSATION_PROPERTY_FIELDS,
+  useConversations,
+  type UseConversationsParams,
+} from './conversations-list';
 
 /**
  * React Query hooks for Conversations and Messages (TCK-045).
@@ -27,32 +37,6 @@ import { cheminApi, requete } from '@/lib/chemin-api';
  * WebSockets. The stale time is pushed down so new messages surface fast
  * even when the user tabs back in. See ticket Notes d'implémentation.
  */
-
-const CONVERSATION_LIST_FIELDS: string[] = [
-  'id',
-  'subject',
-  'property_id',
-  'type',
-  'status',
-  'last_message_at',
-  'last_message_preview',
-  'updated_at',
-];
-
-/**
- * Colonnes du bien attaché à une conversation (TCK-336).
- *
- * Constante EXPORTÉE et non deux littéraux recopiés : `property-fields.coverage.test.ts`
- * la compare aux clés que `ConversationList` et `ChatView` lisent réellement, et une garde
- * ne peut pas comparer ce qui n'a pas de nom.
- *
- * ⚠ `main_photo_url` — que les deux composants affichent — n'y figure pas et ne peut pas
- * y figurer : c'est un attribut calculé (media library), pas une colonne. Mesuré le
- * 2026-08-21 : `GET /api/properties?fields[properties]=id,title,main_photo_url` rend
- * **400 InvalidFieldQuery**. Le contrat de TCK-336 est donc que `PropertyResource` le
- * serve INCONDITIONNELLEMENT, quel que soit `fields[]`.
- */
-export const CONVERSATION_PROPERTY_FIELDS: string[] = ['id', 'title', 'slug'];
 
 const MESSAGE_LIST_FIELDS: string[] = [
   'id',
@@ -89,52 +73,6 @@ export function usePropertyConversation(slug: string | null, options: { enabled?
     propertyConversationQueryKey(slug),
     cheminApi`/api/public/properties/${slug}/conversation`,
     { enabled, staleTime: 30_000 },
-  );
-}
-
-export type UseConversationsParams = {
-  status?: 'active' | 'archived' | 'closed';
-  property_id?: number;
-  page?: number;
-  per_page?: number;
-};
-
-export function useConversations(
-  params: UseConversationsParams = {},
-  options: { refetchInterval?: number | false; enabled?: boolean } = {},
-) {
-  // `/api/conversations` is auth-only (auth:sanctum). Gate at the source so no
-  // caller (e.g. the globally-mounted ChatWidget badge) ever polls it for an
-  // anonymous visitor. In authenticated contexts `user` is always set, so this
-  // is a no-op there.
-  const { user } = useAuth();
-  const enabled = (options.enabled ?? true) && Boolean(user);
-
-  const filter: Record<string, string | number> = {};
-  if (params.status) filter.status = params.status;
-  if (params.property_id) filter.property_id = params.property_id;
-
-  const spatieParams: SpatieQueryParams = {
-    fields: {
-      conversations: CONVERSATION_LIST_FIELDS,
-      properties: CONVERSATION_PROPERTY_FIELDS,
-    },
-    filter,
-    include: ['property', 'participants', 'last_message'],
-    sort: ['-last_message_at'],
-    page: params.page ?? 1,
-    per_page: params.per_page ?? 30,
-  };
-
-  return useApiQuery<PaginatedResponse<Conversation>>(
-    ['conversations', 'list', params],
-    '/api/conversations',
-    {
-      params: spatieParams,
-      enabled,
-      refetchInterval: options.refetchInterval ?? 10_000,
-      staleTime: 0,
-    },
   );
 }
 

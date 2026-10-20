@@ -9,6 +9,7 @@ import { withIntl } from '@/test/intl';
 import { OwnerStatementPanel } from '../OwnerStatementPanel';
 
 const PERIODES = vi.hoisted(() => [] as string[]);
+const BAILLEURS = vi.hoisted(() => [] as (number | undefined)[]);
 const REPONSE = vi.hoisted(() => ({
   isLoading: false,
   isError: false,
@@ -24,8 +25,9 @@ const REPONSE = vi.hoisted(() => ({
   },
 }));
 vi.mock('@/lib/queries/payments', () => ({
-  useOwnerStatement: (period: string) => {
+  useOwnerStatement: (period: string, landlordId?: number) => {
     PERIODES.push(period);
+    BAILLEURS.push(landlordId);
     return REPONSE;
   },
 }));
@@ -39,6 +41,7 @@ describe('OwnerStatementPanel — le relevé à côté des versements (TCK-594)'
 
   beforeEach(() => {
     PERIODES.length = 0;
+    BAILLEURS.length = 0;
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
     URL.createObjectURL = vi.fn(() => 'blob:releve');
@@ -70,6 +73,20 @@ describe('OwnerStatementPanel — le relevé à côté des versements (TCK-594)'
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toMatch(/\/api\/owner-statements\/pdf\?period=2026-09$/);
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer jeton-de-session');
+  });
+
+  it('lit et télécharge le relevé du bailleur désigné, pour le personnel (TCK-1016)', async () => {
+    fetchMock.mockResolvedValue(new Response(new Blob(['%PDF']), { status: 200 }));
+    render(withIntl(<OwnerStatementPanel landlordId={42} initialMonth="2026-09" />));
+
+    expect(PERIODES.at(-1)).toBe('2026-09');
+    expect(BAILLEURS.at(-1)).toBe(42);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Télécharger le PDF' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/api\/owner-statements\/pdf\?period=2026-09&landlord_id=42$/);
   });
 
   it('dit pourquoi le téléchargement échoue', async () => {

@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * TCK-102 — Local / testing driver. Logs the payload and returns a
+ * TCK-102 — Local / testing driver. Logs the dispatch (masked number,
+ * message length) and returns a
  * synthetic `sent` SmsResult so the rest of the pipeline can be
  * exercised without hitting any provider.
  */
@@ -29,9 +30,11 @@ class LogSmsDriver implements SmsDriverInterface
         foreach ($recipients as $recipient) {
             $normalized = PhoneNumber::normalize($recipient);
             $providerMessageId = 'log_'.Str::uuid()->toString();
+            // TCK-1025 (P57.05) — ni le numéro entier ni le texte, qui porte le code de
+            // vérification : ce pilote sert aussi de repli (`SMS_LOG_FALLBACK`) hors du poste.
             Log::info('[sms-log-driver] dispatched', [
-                'to' => $normalized,
-                'message' => $message,
+                'phone_suffix' => substr($normalized, -4),
+                'message_length' => mb_strlen($message),
                 'segments' => $segments,
                 'context' => $context,
                 'provider_message_id' => $providerMessageId,

@@ -32,8 +32,13 @@ final class PropertyRedactor
         'two_factor', '2fa', 'credit_card', 'card_number', 'cvv', 'authorization',
     ];
 
-    /** @var list<string> */
-    private const IDENTIFIER_SEGMENTS = ['rib', 'iban', 'tax_id', 'ninea', 'id_document'];
+    /**
+     * TCK-953 (ADR-0070 § 9) — `id_number` : la pièce du client et de la caution. TCK-954 —
+     * `income` : le revenu mensuel de la caution et du bailleur.
+     *
+     * @var list<string>
+     */
+    private const IDENTIFIER_SEGMENTS = ['rib', 'iban', 'tax_id', 'ninea', 'id_document', 'id_number', 'income'];
 
     /**
      * TCK-692 — l'adresse et le numéro, reconnus par DERNIER segment : `email`, `target_email`,

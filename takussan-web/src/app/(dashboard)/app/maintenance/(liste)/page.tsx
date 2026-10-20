@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 
-import { MaintenanceList } from '@/components/maintenance';
+import { MaintenanceList } from '@/components/maintenance/MaintenanceList';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
 import { ServiceProviderBillsTable } from '@/components/payments/ServiceProviderBillsTable';

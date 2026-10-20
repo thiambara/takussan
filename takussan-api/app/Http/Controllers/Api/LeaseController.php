@@ -66,7 +66,7 @@ class LeaseController extends Controller
         $this->authorize('view', $lease);
 
         return $this->json([
-            'data' => LeaseResource::make($lease->load(['property.address', 'tenant', 'payments', 'signatures.signer', 'signatures.onBehalfOf']))
+            'data' => LeaseResource::make($lease->load(['property.address', 'tenant', 'signatures.signer', 'signatures.onBehalfOf']))
                 ->forViewer($request->user())
                 ->resolve($request),
         ]);

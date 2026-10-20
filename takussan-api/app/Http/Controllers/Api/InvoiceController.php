@@ -58,7 +58,7 @@ class InvoiceController extends Controller
 
         return $this->json([
             // TCK-594 (ADR-0039 §7) — l'avoir se lit sur la facture qu'il annule.
-            'data' => InvoiceResource::make($invoice->load(['customer', 'creditNotes']))->resolve($request),
+            'data' => InvoiceResource::make($invoice->load(['creditNotes']))->resolve($request),
         ]);
     }
 

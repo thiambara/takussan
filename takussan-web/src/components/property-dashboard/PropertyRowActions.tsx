@@ -31,7 +31,7 @@ import {
   updatePropertyVisibilityAction,
 } from '@/app/actions/dashboard-properties';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
-import { propertyStatusValues } from '@/lib/schemas/property';
+import { propertyStatusValues } from '@/lib/enums/property';
 import { usePublicationAvecCoordonnees } from '@/components/contact/PublicationAvecCoordonnees';
 import { STATUTS_DE_PUBLICATION, useGestesDuBien } from './useGestesDuBien';
 import type { PropertyListItem } from '@/types/property';
@@ -222,7 +222,8 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label={t('more')}
+              // TCK-1035 (P68.08) — une icône par ligne : le nom porte le bien visé.
+              aria-label={t('moreFor', { title: property.title })}
               disabled={pending}
             >
               {pending ? (

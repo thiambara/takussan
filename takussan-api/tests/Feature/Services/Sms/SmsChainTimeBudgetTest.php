@@ -6,7 +6,6 @@ use App\Jobs\SendDeferredSmsJob;
 use App\Models\Agency;
 use App\Models\Integration;
 use App\Notifications\CodedNotification;
-use App\Notifications\NewBookingNotification;
 use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use Carbon\CarbonImmutable;
@@ -158,7 +157,7 @@ class SmsChainTimeBudgetTest extends TestCase
             (int) config('queue.connections.database.retry_after'),
             (int) config('queue.connections.redis.retry_after'),
         );
-        foreach ([CodedNotification::class, NewBookingNotification::class, SendDeferredSmsJob::class] as $class) {
+        foreach ([CodedNotification::class, SendDeferredSmsJob::class] as $class) {
             $timeout = (new \ReflectionClass($class))->getProperty('timeout')->getDefaultValue();
             $this->assertIsInt($timeout, $class);
             $this->assertGreaterThan(self::BUDGET + 10, $timeout, $class);

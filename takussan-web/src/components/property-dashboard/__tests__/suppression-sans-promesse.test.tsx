@@ -77,7 +77,10 @@ describe.each(Object.entries(MENUS) as [keyof typeof MENUS, () => React.ReactEle
         const a = libelles(locale);
         render(withIntl(menu(), locale));
 
-        await user.click(screen.getByRole('button', { name: a.more }));
+        await user.click(screen.getByRole('button', {
+          // L'en-tête dit « Plus d'actions » ; la ligne de liste y ajoute le bien (TCK-1035).
+          name: (nom) => nom === a.more || nom === a.moreFor.replace('{title}', BIEN.title),
+        }));
         await user.click(await screen.findByRole('menuitem', { name: a.delete }));
         const dialogue = await screen.findByRole('dialog', { name: a.deleteTitle });
 

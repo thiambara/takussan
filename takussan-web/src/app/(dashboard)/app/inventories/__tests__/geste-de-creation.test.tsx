@@ -15,7 +15,7 @@ vi.mock('@/app/actions/auth', () => ({ getMeAction: async () => me.user }));
 vi.mock('next-intl/server', () => ({ getTranslations: async () => (cle: string) => cle }));
 
 const rendu = vi.hoisted(() => ({ dernierCanCreate: undefined as boolean | undefined }));
-vi.mock('@/components/inventory', () => ({
+vi.mock('@/components/inventory/InventoryList', () => ({
   InventoryList: (props: { canCreate?: boolean }) => {
     rendu.dernierCanCreate = props.canCreate;
     return null;

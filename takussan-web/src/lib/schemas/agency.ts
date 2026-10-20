@@ -10,6 +10,9 @@ import { msgValidation } from './messages';
 
 export const agencyFormSchema = z.object({
   name: z.string().trim().min(1, msgValidation('agency.nameRequired')).max(255, msgValidation('agency.nameTooLong')),
+  // TCK-1004 (P49.04) — la forme du slug se juge à l'API (422 sur le champ) : un slug ancien porte
+  // des majuscules (`Str::random`), et un contrôle ici bloquerait l'enregistrement du reste.
+  slug: z.string().trim().optional(),
   license_number: z
     .string()
     .trim()
@@ -94,6 +97,8 @@ export type AgencyFormValues = z.infer<typeof agencyFormSchema>;
 
 export interface AgencyFormPayload {
   name: string;
+  /** TCK-1004 — n'est envoyé que s'il est éditable et modifié. */
+  slug?: string;
   license_number?: string | null;
   description?: string | null;
   email?: string | null;
@@ -126,6 +131,12 @@ export interface AgencyFormPayload {
 export interface AgencyFormContext {
   individual: boolean;
   initialThreshold: string;
+  /**
+   * TCK-1004 (P49.04) — le slug ne part que s'il est éditable (une fois, après le passage en
+   * professionnelle) et modifié : l'API le refuse (`prohibited`) partout ailleurs.
+   */
+  slugEditable?: boolean;
+  initialSlug?: string;
 }
 
 function emptyToNull(v: string | undefined): string | null {
@@ -157,8 +168,11 @@ export function normaliseAgencyForm(
   settings.require_team_two_factor = values.require_team_two_factor;
   settings.late_fee_online_collection = values.late_fee_online_collection;
 
+  const slug = (values.slug ?? '').trim();
+
   return {
     name: values.name.trim(),
+    ...(context.slugEditable && slug !== (context.initialSlug ?? '') ? { slug } : {}),
     license_number: emptyToNull(values.license_number),
     description: emptyToNull(values.description),
     email: emptyToNull(values.email)?.toLowerCase() ?? null,

@@ -3,6 +3,9 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { DocumentsLibrary } from '../DocumentsLibrary';
+// TCK-1041 — chargé par `next/dynamic` dans la bibliothèque : importé ici, son module est déjà
+// transformé quand le test ouvre le dialogue, qui arrive au tick suivant.
+import '../DocumentUploadDialog';
 import fr from '@/messages/fr.json';
 import type { Document } from '@/types/document';
 import type { User } from '@/lib/auth';
@@ -119,7 +122,8 @@ describe('<DocumentsLibrary>', () => {
 
     await user.click(screen.getAllByRole('button', { name: /Téléverser un document/i })[1]);
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    // TCK-1041 — le dialogue est chargé par `next/dynamic` à sa première ouverture : il arrive après.
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Téléverser un document' })).toBeInTheDocument();
     expect(screen.getByText(/Associez le fichier à une entité/i)).toBeInTheDocument();
   });

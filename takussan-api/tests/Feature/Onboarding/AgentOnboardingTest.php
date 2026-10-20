@@ -117,8 +117,8 @@ class AgentOnboardingTest extends TestCase
             ->where('documentable_id', $agent->id)
             ->count());
 
-        $agent->refresh();
-        $docs = (array) data_get($agent->metadata, 'kyc.docs');
+        // TCK-1026 (P64.05) — plus de miroir `metadata.kyc.docs` : `submitKyc` lit les pièces.
+        $docs = (array) $this->postJson("/api/me/agent-profiles/{$agent->id}/kyc/submit")->assertOk()->json('data.kyc.docs');
         sort($docs);
         $this->assertSame(['cni', 'license', 'photo'], $docs);
 

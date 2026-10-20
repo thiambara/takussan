@@ -10,6 +10,7 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class MaintenanceRequestTest extends TestCase
@@ -39,6 +40,45 @@ class MaintenanceRequestTest extends TestCase
         ])->assertCreated()
             ->assertJsonPath('data.status', 'open')
             ->assertJsonPath('data.priority', 'high');
+    }
+
+    /**
+     * TCK-1001 (P48.04) — un locataire en préavis (`terminating`) habite encore le logement :
+     * il demande une intervention comme un locataire `active`. Un bail clos, lui, n'ouvre rien.
+     *
+     * @return array<string, array{LeaseStatus, int}>
+     */
+    public static function statutsDuBailDuDemandeur(): array
+    {
+        return [
+            'actif' => [LeaseStatus::Active, 201],
+            'en préavis' => [LeaseStatus::Terminating, 201],
+            'résilié' => [LeaseStatus::Terminated, 403],
+            'expiré' => [LeaseStatus::Expired, 403],
+        ];
+    }
+
+    #[DataProvider('statutsDuBailDuDemandeur')]
+    public function test_tenant_lease_status_decides_maintenance_creation(LeaseStatus $statut, int $attendu): void
+    {
+        $user = User::factory()->create();
+        $property = Property::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $user->id]);
+        Lease::factory()->create([
+            'property_id' => $property->id,
+            'tenant_id' => $customer->id,
+            'landlord_id' => $property->user_id,
+            'status' => $statut,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/maintenance-requests', [
+            'property_id' => $property->id,
+            'title' => 'Fuite robinet cuisine',
+            'description' => 'Fuite continue',
+            'category' => 'plumbing',
+        ])->assertStatus($attendu);
     }
 
     public function test_unrelated_user_cannot_create_maintenance_request(): void

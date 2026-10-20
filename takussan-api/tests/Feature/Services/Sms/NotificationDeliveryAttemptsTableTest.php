@@ -116,6 +116,20 @@ class NotificationDeliveryAttemptsTableTest extends TestCase
         $this->assertSame(2, NotificationDeliveryAttempt::query()->count());
     }
 
+    /**
+     * TCK-1020 (P58.05) — la colonne JSON n'a plus d'écrivain depuis TCK-110 : elle ne s'écrit plus
+     * par affectation de masse. Seule la commande de reprise la lit encore.
+     */
+    public function test_la_colonne_json_heritee_ne_s_ecrit_plus_par_affectation_de_masse(): void
+    {
+        $notification = $this->notification();
+
+        $notification->update(['delivery_attempts' => [['attempt' => 1, 'to' => '+221771111111']]]);
+
+        $this->assertNull($notification->fresh()->getRawOriginal('delivery_attempts'));
+        $this->assertFalse($notification->isFillable('delivery_attempts'));
+    }
+
     public function test_backfill_command_imports_legacy_json_attempts_idempotently(): void
     {
         // Seed a notification with the legacy JSON `delivery_attempts`

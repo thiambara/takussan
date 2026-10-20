@@ -8,6 +8,7 @@ use App\Http\Resources\Api\Admin\UserListResource;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\User;
 use App\Services\Privacy\PersonalDataAccessLogger;
+use App\Support\Audit\PropertyRedactor;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -176,7 +177,7 @@ class UserDetailController extends Controller
                 'causer_id' => $log->causer_id,
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
-                'properties' => $log->properties?->toArray(),
+                'properties' => PropertyRedactor::redact($log->properties),
                 'impersonator' => $log->impersonator_id === null ? null : [
                     'id' => (int) $log->impersonator_id,
                     'name' => $operateurs->get($log->impersonator_id)?->full_name,

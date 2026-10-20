@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Enums\Capability;
 use App\Models\Profiles\AgentProfile;
+use App\Services\Kyc\ProfilePieces;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,7 +34,7 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
  *  - `license` → `Document` polymorph, type=other (license card scan).
  *  - `cni`     → `Document` polymorph, type=id_card.
  *  - `photo`   → `Document` polymorph, type=photo.
- *  - submission → `AgentProfile.metadata.kyc.{status, submitted_at, docs[]}`.
+ *  - submission → `AgentProfile.metadata.kyc.submitted_at` ; the list of documents is derived from the live `Document` rows (TCK-1026).
  *  - `license_number` (string) → existing `agent_profiles.license_number`
  *    column (already nullable). The KYC card scan stays in `Document`.
  *  - `specialty` (string)        → existing `agent_profiles.specialty` column
@@ -65,38 +66,19 @@ class AgentProfileController extends Controller
         // One Document per (profile, kind). Re-uploads replace the media
         // file in-place to keep `Document::activeVersion()` semantics
         // intact and avoid orphan files on disk.
-        $document = Document::query()->updateOrCreate(
-            [
-                'documentable_type' => AgentProfile::class,
-                'documentable_id' => $agent_profile->id,
-                'type' => $type,
-            ],
-            [
-                'uploaded_by' => $request->user()->id,
-                'name' => $file->getClientOriginalName() ?: ucfirst($kind),
-                'description' => null,
-                'is_verified' => false,
-                'metadata' => ['kind' => $kind, 'source' => 'agent_onboarding_wizard'],
-            ],
-        );
+        // TCK-1063 (P64.04) — vide aussi `verified_by`/`verified_at`, et journalise la vérification remplacée.
+        $document = app(ProfilePieces::class)->upsert($agent_profile, $type, $request->user(), [
+            'name' => $file->getClientOriginalName() ?: ucfirst($kind),
+            'description' => null,
+            'metadata' => ['kind' => $kind, 'source' => 'agent_onboarding_wizard'],
+        ]);
 
-        $document->clearMediaCollection('file');
+        // TCK-1026 (P64.05) — pas de `clearMediaCollection()` avant : la collection `singleFile`
+        // retire l'ancien fichier APRÈS l'ajout du nouveau, et un ajout qui échoue garde la pièce.
         $media = $document->addMedia($file->getRealPath())
             ->usingFileName($file->hashName())
             ->usingName($file->getClientOriginalName() ?: $kind)
             ->toMediaCollection('file');
-
-        // Mirror the doc presence in `metadata.kyc.docs` so the wizard
-        // recap and the dashboard banner can read submission progress
-        // without a join.
-        $metadata = $agent_profile->metadata ?? [];
-        $kyc = $metadata['kyc'] ?? [];
-        $kyc['docs'] = array_values(array_unique(array_merge(
-            (array) ($kyc['docs'] ?? []),
-            [$kind],
-        )));
-        $metadata['kyc'] = $kyc;
-        $agent_profile->forceFill(['metadata' => $metadata])->save();
 
         activity('Onboarding')
             ->performedOn($agent_profile)
@@ -134,6 +116,8 @@ class AgentProfileController extends Controller
         $metadata = $agent_profile->metadata ?? [];
         $kyc = $metadata['kyc'] ?? [];
         $alreadySubmitted = ! empty($kyc['submitted_at']);
+        // TCK-1026 (P64.05) — les pièces qui existent, lues sur les `Document` vivants du profil.
+        $docs = $this->kycDocs($agent_profile);
 
         unset($kyc['status']);
         $kyc['submitted_at'] = $kyc['submitted_at'] ?? now()->toIso8601String();
@@ -145,7 +129,7 @@ class AgentProfileController extends Controller
                 ->performedOn($agent_profile)
                 ->causedBy($request->user())
                 ->withProperties([
-                    'docs' => (array) ($kyc['docs'] ?? []),
+                    'docs' => $docs,
                 ])
                 ->event('agent_kyc_submitted')
                 ->log('agent_kyc_submitted');
@@ -156,7 +140,7 @@ class AgentProfileController extends Controller
                 'id' => $agent_profile->id,
                 'kyc' => [
                     'submitted_at' => $kyc['submitted_at'],
-                    'docs' => (array) ($kyc['docs'] ?? []),
+                    'docs' => $docs,
                 ],
             ],
         ]);
@@ -304,5 +288,26 @@ class AgentProfileController extends Controller
         }
 
         return $out;
+    }
+
+    /**
+     * TCK-1026 (P64.05) — les sortes (`kind`) des pièces non supprimées du profil, dans l'ordre de
+     * {@see UploadKycAgentProfileRequest::KYC_KIND_TO_TYPE}. La sorte se lit sur le `type`, clé de l'`updateOrCreate`.
+     *
+     * @return list<string>
+     */
+    private function kycDocs(AgentProfile $agent_profile): array
+    {
+        $types = Document::query()
+            ->where('documentable_type', AgentProfile::class)
+            ->where('documentable_id', $agent_profile->id)
+            ->pluck('type')
+            ->map(fn ($type) => $type instanceof \BackedEnum ? $type->value : (string) $type)
+            ->all();
+
+        return array_keys(array_filter(
+            UploadKycAgentProfileRequest::KYC_KIND_TO_TYPE,
+            fn ($type) => in_array($type->value, $types, true),
+        ));
     }
 }

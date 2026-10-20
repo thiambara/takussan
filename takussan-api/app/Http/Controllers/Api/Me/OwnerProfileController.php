@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Me\UploadKycOwnerProfileRequest;
+use App\Http\Resources\PropertyResource;
 use App\Models\Document;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
+use App\Services\Kyc\ProfilePieces;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -33,7 +35,7 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
  *  - `cni`   → `Document` polymorph, type=id_card.
  *  - `rib`   → `Document` polymorph, type=rib.
  *  - `ninea` → `Document` polymorph, type=ninea.
- *  - submission → `OwnerProfile.metadata.kyc.{status, submitted_at, docs[]}`.
+ *  - submission → `OwnerProfile.metadata.kyc.submitted_at` ; the list of documents is derived from the live `Document` rows (TCK-1026).
  */
 class OwnerProfileController extends Controller
 {
@@ -56,38 +58,19 @@ class OwnerProfileController extends Controller
         // One Document per (profile, kind). Re-uploads replace the media
         // file in-place to keep `Document::activeVersion()` semantics
         // intact and avoid orphan files on disk.
-        $document = Document::query()->updateOrCreate(
-            [
-                'documentable_type' => OwnerProfile::class,
-                'documentable_id' => $owner_profile->id,
-                'type' => $type,
-            ],
-            [
-                'uploaded_by' => $request->user()->id,
-                'name' => $file->getClientOriginalName() ?: ucfirst($kind),
-                'description' => null,
-                'is_verified' => false,
-                'metadata' => ['kind' => $kind, 'source' => 'owner_onboarding_wizard'],
-            ],
-        );
+        // TCK-1063 (P64.04) — vide aussi `verified_by`/`verified_at`, et journalise la vérification remplacée.
+        $document = app(ProfilePieces::class)->upsert($owner_profile, $type, $request->user(), [
+            'name' => $file->getClientOriginalName() ?: ucfirst($kind),
+            'description' => null,
+            'metadata' => ['kind' => $kind, 'source' => 'owner_onboarding_wizard'],
+        ]);
 
-        $document->clearMediaCollection('file');
+        // TCK-1026 (P64.05) — pas de `clearMediaCollection()` avant : la collection `singleFile`
+        // retire l'ancien fichier APRÈS l'ajout du nouveau, et un ajout qui échoue garde la pièce.
         $media = $document->addMedia($file->getRealPath())
             ->usingFileName($file->hashName())
             ->usingName($file->getClientOriginalName() ?: $kind)
             ->toMediaCollection('file');
-
-        // Mirror the doc presence in `metadata.kyc.docs` so the wizard
-        // recap and the dashboard banner can read submission progress
-        // without a join.
-        $metadata = $owner_profile->metadata ?? [];
-        $kyc = $metadata['kyc'] ?? [];
-        $kyc['docs'] = array_values(array_unique(array_merge(
-            (array) ($kyc['docs'] ?? []),
-            [$kind],
-        )));
-        $metadata['kyc'] = $kyc;
-        $owner_profile->forceFill(['metadata' => $metadata])->save();
 
         activity('Onboarding')
             ->performedOn($owner_profile)
@@ -125,6 +108,8 @@ class OwnerProfileController extends Controller
         $metadata = $owner_profile->metadata ?? [];
         $kyc = $metadata['kyc'] ?? [];
         $alreadySubmitted = ! empty($kyc['submitted_at']);
+        // TCK-1026 (P64.05) — les pièces qui existent, lues sur les `Document` vivants du profil.
+        $docs = $this->kycDocs($owner_profile);
 
         unset($kyc['status']);
         $kyc['submitted_at'] = $kyc['submitted_at'] ?? now()->toIso8601String();
@@ -136,7 +121,7 @@ class OwnerProfileController extends Controller
                 ->performedOn($owner_profile)
                 ->causedBy($request->user())
                 ->withProperties([
-                    'docs' => (array) ($kyc['docs'] ?? []),
+                    'docs' => $docs,
                 ])
                 ->event('owner_kyc_submitted')
                 ->log('owner_kyc_submitted');
@@ -147,7 +132,7 @@ class OwnerProfileController extends Controller
                 'id' => $owner_profile->id,
                 'kyc' => [
                     'submitted_at' => $kyc['submitted_at'],
-                    'docs' => (array) ($kyc['docs'] ?? []),
+                    'docs' => $docs,
                 ],
             ],
         ]);
@@ -173,14 +158,15 @@ class OwnerProfileController extends Controller
             ->when($owner_profile->user_id === null, fn (Builder $q) => $q->whereRaw('1 = 0'))
             ->when($owner_profile->agency_id !== null, fn (Builder $q) => $q->where('agency_id', $owner_profile->agency_id));
 
-        $paginator = Property::buildQuery($base, $request)
+        $paginator = Property::buildQuery($base->with('media'), $request)
             ->defaultSort('-created_at')
             ->paginate($this->tailleDePage($request, 20));
 
-        return $this->json([
-            'data' => $paginator->items(),
-            'meta' => $this->paginationMeta($paginator),
-        ]);
+        // TCK-1048 (P61.03) — la ligne passe par `PropertyResource` : sans `fields[properties]`,
+        // spatie fait un `select *` et `$paginator->items()` rendait au bailleur gel plateforme,
+        // suivi admin et bien de test, qu'aucune ressource n'émet. L'agence d'un `include=agency`
+        // sort par sa projection publique (`buildAgency`), sans seuil des reversements (P61.02).
+        return $this->paginated($paginator, PropertyResource::collection($paginator)->toArray($request));
     }
 
     /**
@@ -200,5 +186,26 @@ class OwnerProfileController extends Controller
         if ((int) $owner_profile->user_id !== (int) $user->id) {
             throw new AuthorizationException(__('owners.onboarding.errors.not_owner'));
         }
+    }
+
+    /**
+     * TCK-1026 (P64.05) — les sortes (`kind`) des pièces non supprimées du profil, dans l'ordre de
+     * {@see UploadKycOwnerProfileRequest::KYC_KIND_TO_TYPE}. La sorte se lit sur le `type`, clé de l'`updateOrCreate`.
+     *
+     * @return list<string>
+     */
+    private function kycDocs(OwnerProfile $owner_profile): array
+    {
+        $types = Document::query()
+            ->where('documentable_type', OwnerProfile::class)
+            ->where('documentable_id', $owner_profile->id)
+            ->pluck('type')
+            ->map(fn ($type) => $type instanceof \BackedEnum ? $type->value : (string) $type)
+            ->all();
+
+        return array_keys(array_filter(
+            UploadKycOwnerProfileRequest::KYC_KIND_TO_TYPE,
+            fn ($type) => in_array($type->value, $types, true),
+        ));
     }
 }

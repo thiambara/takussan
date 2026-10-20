@@ -24,8 +24,8 @@ export const AGENCY_UPGRADE_REQUEST_FIELDS = [
   'agency_id',
   'submitted_by',
   'rc',
-  'ninea',
-  'rib_pro',
+  // Ni `ninea` ni `rib_pro` : `$queryFields` ne les porte plus (TCK-601), et les demander
+  // rend 400 à chaque appel (TCK-1029). La liste ne les lit pas.
   'company_legal_name',
   'address_fiscale',
   'planned_agents_count',

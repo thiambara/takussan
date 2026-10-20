@@ -50,6 +50,7 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
 import { AVEC_MOTIF, GESTE_DE_TRANSITION, transitionsDeModeration } from './agency-moderation';
 import { usePlatformAbilities } from './PlatformAbilitiesProvider';
+import { DUREE_URL_SIGNEE_KYC_MS, rafraichirAvantExpiration } from '@/lib/url-signee';
 
 type Action = AgencyModerationAction;
 type Tab = 'kyc' | 'subscription' | 'team' | 'properties' | 'transactions';
@@ -146,6 +147,8 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
       {
         queryKey: ['super-admin', 'agency', agencyId, 'kyc'],
         queryFn: () => fetchAdminAgencyKyc(agencyId),
+        // TCK-1024 — les pièces portent un `signed_url` de 15 min.
+        ...rafraichirAvantExpiration(DUREE_URL_SIGNEE_KYC_MS),
       },
     ],
   });

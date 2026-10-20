@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Enums\DocumentType;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Guarantor;
 use App\Models\ImpersonationSession;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
@@ -50,6 +51,11 @@ class ImpersonationReadSweepTest extends TestCase
 
     private const NOM_DE_PIECE = 'piece-garde-tck920.pdf';
 
+    /** TCK-954 — le revenu de la caution de la cible, reconnu par ses chiffres. */
+    private const REVENU_DE_GARDE = '987654.32';
+
+    private const REVENU = 'revenu mensuel';
+
     private const PIECE_D_IDENTITE = 'numéro de pièce d\'identité';
 
     private const PIECE_DE_PROFIL = 'pièce de profil';
@@ -65,14 +71,6 @@ class ImpersonationReadSweepTest extends TestCase
      * @var array<string, list<string>>
      */
     private const FUITES_TOLEREES = [
-        // P23.03 (retenu · à valider, V8) — le numéro de pièce du client et de la caution est en
-        // clair partout, sans lecture dédiée ; la session le lit comme le personnel de l'agence.
-        'api/customers' => [self::PIECE_D_IDENTITE],
-        'api/customers/{customer}' => [self::PIECE_D_IDENTITE],
-        'api/leases' => [self::PIECE_D_IDENTITE],
-        'api/leases/{lease}' => [self::PIECE_D_IDENTITE],
-        'api/bookings' => [self::PIECE_D_IDENTITE],
-        'api/bookings/{booking}' => [self::PIECE_D_IDENTITE],
         // Relevé par cette garde (TCK-920) — `documents.recent` liste les pièces des profils de la
         // cible (nom, type), que TCK-697 retire de `GET /api/documents` sous impersonation.
         'api/dashboard/tenant' => [self::PIECE_DE_PROFIL],
@@ -91,8 +89,10 @@ class ImpersonationReadSweepTest extends TestCase
         'slug', 'token', 'id', 'integration', 'entity', 'key', 'media', 'payout', 'provider',
         'statement', 'payment', 'inventory', 'invoice', 'agent_profile', 'paymentType', 'paymentId',
         'upgradeRequest', 'dossier', 'event', 'channel', 'report', 'webhookLog', 'role', 'hash',
-        'lead', 'dataExport', 'versionId', 'guarantor', 'invitation', 'sp_profile', 'visit', 'city',
+        'lead', 'dataExport', 'versionId', 'invitation', 'sp_profile', 'visit', 'city',
         'review', 'bill', 'tag', 'task',
+        // TCK-1051 — route `signed`, liée au demandeur : sans la signature du courriel, 403.
+        'reportExport',
     ];
 
     private User $cible;
@@ -157,7 +157,17 @@ class ImpersonationReadSweepTest extends TestCase
         $this->avecLeJeton($this->cible->createToken('mobile')->plainTextToken);
         $finDeSession = now()->addMinutes(ImpersonationSession::TTL_MINUTES)->getTimestamp();
 
-        $this->assertContains(self::PIECE_D_IDENTITE, $this->marquesDe("/api/customers/{$this->valeurs['customer']}", $finDeSession));
+        // TCK-953 — la pièce du client ne sort plus que masquée, même vers la cible : le masque
+        // témoigne que la fiche en porte une, et le détecteur est éprouvé sur la valeur claire.
+        $this->getJson("/api/customers/{$this->valeurs['customer']}")->assertOk()
+            ->assertJsonPath('data.id_number_masked', '•••• '.substr(self::NUMERO_DE_PIECE, -4));
+        $this->assertSame([self::PIECE_D_IDENTITE], $this->marques('{"id_number":"'.self::NUMERO_DE_PIECE.'"}', $finDeSession));
+        // TCK-954 — de même pour la caution : sa fiche porte les deux masques, et le détecteur
+        // reconnaît le revenu tel que la fiche le rendait (`(float)`, sans zéros).
+        $this->getJson("/api/guarantors/{$this->valeurs['guarantor']}")->assertOk()
+            ->assertJsonPath('data.id_number_masked', '•••• '.substr(self::NUMERO_DE_PIECE, -4))
+            ->assertJsonPath('data.monthly_income_masked', '••••');
+        $this->assertSame([self::REVENU], $this->marques('{"monthly_income":'.(float) self::REVENU_DE_GARDE.'}', $finDeSession));
         $this->assertContains(self::PIECE_DE_PROFIL, $this->marquesDe('/api/documents', $finDeSession));
         $this->assertContains(self::URL_SIGNEE_DURABLE, $this->marquesDe("/api/leases/{$this->valeurs['lease']}/deposit-refund", $finDeSession));
         $this->assertContains(self::URL_SIGNEE_DURABLE, $this->marquesDe('/api/notifications', $finDeSession));
@@ -195,6 +205,9 @@ class ImpersonationReadSweepTest extends TestCase
         $marques = [];
         if (str_contains($corps, self::NUMERO_DE_PIECE)) {
             $marques[] = self::PIECE_D_IDENTITE;
+        }
+        if (str_contains($corps, substr(self::REVENU_DE_GARDE, 0, 6))) {
+            $marques[] = self::REVENU;
         }
         if (str_contains($corps, self::NOM_DE_PIECE)) {
             $marques[] = self::PIECE_DE_PROFIL;
@@ -271,6 +284,14 @@ class ImpersonationReadSweepTest extends TestCase
         $locataire = Customer::factory()->create(['user_id' => $this->cible->id]);
         $this->retenue($agence, $property, User::factory()->create(), $locataire);
 
+        // TCK-954 — une caution avec sa pièce et son revenu, que la cible a saisie : les routes des
+        // cautions entrent dans le balayage.
+        $caution = Guarantor::factory()->create([
+            'added_by_id' => $this->cible->id,
+            'id_number' => self::NUMERO_DE_PIECE,
+            'monthly_income' => self::REVENU_DE_GARDE,
+        ]);
+
         $conversation = Conversation::factory()->create(['created_by' => $this->cible->id, 'property_id' => $property->id]);
         $conversation->participants()->attach($this->cible->id, ['joined_at' => now()]);
 
@@ -279,6 +300,7 @@ class ImpersonationReadSweepTest extends TestCase
             'property' => $property->id,
             'lease' => $bail->id,
             'customer' => $client->id,
+            'guarantor' => $caution->id,
             'document' => $piece->id,
             'user' => $this->cible->id,
             'booking' => $booking->id,

@@ -51,8 +51,6 @@ class PlatformPayout extends AbstractModel
 
     protected static array $requestSortable = ['period_end', 'period_start', 'created_at', 'net_amount'];
 
-    protected static array $requestLoadable = ['agency', 'approver', 'closer', 'payer'];
-
     protected static array $queryFields = [
         'id',
         'agency_id',

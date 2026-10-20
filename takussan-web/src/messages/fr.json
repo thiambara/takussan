@@ -1353,6 +1353,7 @@
         "edit": "Modifier",
         "viewPublic": "Voir la fiche publique",
         "more": "Plus d’actions",
+        "moreFor": "Plus d’actions — {title}",
         "quickActions": "Actions rapides",
         "unpublish": "Dépublier",
         "publish": "Publier",
@@ -2761,6 +2762,13 @@
       "idType": "Type de pièce",
       "idTypePlaceholder": "Non renseigné",
       "idNumber": "Numéro",
+      "idNumberKept": "{masque} — laisser vide pour le garder",
+      "idNumberSensitive": {
+        "reveal": "Afficher",
+        "hide": "Masquer",
+        "notice": "« Afficher » révèle le numéro complet et enregistre la consultation dans le journal de l’agence.",
+        "errorTitle": "Impossible d’afficher le numéro de pièce"
+      },
       "saving": "Enregistrement…",
       "create": "Créer le client"
     },
@@ -3534,6 +3542,7 @@
       "creditNotePdf": "PDF de l'avoir"
     },
     "payoutDialog": {
+      "viewStatement": "Voir le relevé du mois",
       "title": "Préparer un reversement",
       "description": "Choisissez le bailleur et la période : le calcul se lit, il ne se saisit pas.",
       "periodStart": "Début de période",
@@ -6351,6 +6360,8 @@
       "fields": {
         "name": "Nom de l’agence",
         "slug": "Identifiant URL (non modifiable)",
+        "slugEditable": "Identifiant URL (modifiable une fois)",
+        "slugEditableHint": "Votre agence est passée en professionnelle : vous pouvez remplacer cet identifiant une seule fois. Lettres minuscules, chiffres et tirets. L'ancienne adresse de votre page publique ne fonctionnera plus.",
         "license": "Numéro de licence",
         "licensePlaceholder": "ex : SEN-IMMO-2024",
         "description": "Description",
@@ -7306,17 +7317,11 @@
       "empty_description": "Les listes de valeurs métier apparaîtront ici dès qu'une sera déclarée.",
       "navLabel": "Enums éditables",
       "valuesCount": "{count, plural, one {# valeur} other {# valeurs}}",
-      "addValue": "Ajouter une valeur",
-      "editValue": "Modifier la valeur",
       "value": "Valeur",
       "localeFr": "FR",
       "localeEn": "EN",
       "localeWo": "WO",
       "usage": "Usage",
-      "actions": "Actions",
-      "editValueAria": "Modifier {value}",
-      "deactivateValueAria": "Désactiver {value}",
-      "warning": "Les statuts techniques et rôles ne sont pas éditables ici.",
       "tableCaption": "Valeurs de l'enum {name}"
     },
     "moderation": {
@@ -7906,7 +7911,8 @@
       },
       "enums": {
         "title": "Enums métier",
-        "subtitle": "Gérez les libellés FR / EN / WO et les valeurs métier non techniques.",
+        "readOnlySubtitle": "Consultez les valeurs métier non techniques et leur usage. Elles ne se modifient pas depuis la console.",
+        "codeNotice": "Les valeurs de ces listes vivent dans le code : en ajouter une demande un déploiement.",
         "lockedNotice": "Les enums techniques comme paiements, rôles et statuts internes restent verrouillés dans le code."
       },
       "featureFlags": {
@@ -8221,7 +8227,9 @@
           "decidedOn": "Décidée le",
           "by": "Par",
           "comment": "Commentaire",
-          "userFallback": "User #{id}"
+          "userFallback": "User #{id}",
+          "kycNotVerified": "Le dossier KYC de l'agence n'est pas vérifié : la demande ne peut pas être approuvée tant qu'il ne l'est pas. Sans lui, la plateforme ne pourrait plus reverser à l'agence une fois passée en professionnelle.",
+          "openKyc": "Ouvrir l'agence et son dossier KYC"
         },
         "status": {
           "pending": "En attente",
