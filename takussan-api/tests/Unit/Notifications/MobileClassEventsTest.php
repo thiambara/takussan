@@ -2,12 +2,15 @@
 
 namespace Tests\Unit\Notifications;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Notifications\CodedNotification;
 use App\Notifications\Concerns\SupportsSms;
 use App\Notifications\Concerns\SupportsWhatsapp;
 use App\Notifications\LeaseSignatureCodeNotification;
 use App\Services\Notifications\PreferenceResolver;
 use PHPUnit\Framework\TestCase;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use ReflectionClass;
 
 /**
@@ -66,6 +69,47 @@ class MobileClassEventsTest extends TestCase
         }
         foreach (PreferenceResolver::MOBILE_CLASS_EVENTS as $event) {
             $this->assertContains($event, $classes, "{$event} listé sans classe mobile");
+        }
+    }
+
+    /**
+     * TCK-1053 (P75.01) — chaque événement dont la matrice ouvre les cases `sms`/`whatsapp` a un
+     * émetteur réel : un code `mobile()` de cet événement nommé hors du catalogue des codes, ou une
+     * classe mobile de cet événement envoyée par `notify(new …)` / `send(…, new …)`.
+     *
+     * `NewBookingNotification` n'était nommée que par `AppDatabaseChannel` et `PreferenceResolver` :
+     * le premier test passait, et les cases `booking_request` étaient cochables sans rien commander.
+     */
+    public function test_chaque_evenement_mobile_a_un_emetteur_reel(): void
+    {
+        $app = dirname(__DIR__, 3).'/app';
+        $sources = [];
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($app, RecursiveDirectoryIterator::SKIP_DOTS)) as $file) {
+            if ($file->getExtension() === 'php' && ! str_starts_with($file->getPathname(), $app.'/Domain/Notifications/')) {
+                $sources[$file->getPathname()] = (string) file_get_contents($file->getPathname());
+            }
+        }
+        $code = implode("\n", $sources);
+
+        $classes = $this->mobileClasses();
+        $events = PreferenceResolver::mobileEvents();
+        $this->assertNotEmpty($events);
+
+        foreach ($events as $event) {
+            $emis = false;
+            foreach (NotificationCode::cases() as $case) {
+                if ($case->mobile() && $case->preferenceEvent() === $event
+                    && preg_match('/NotificationCode::'.$case->name.'\b/', $code) === 1) {
+                    $emis = true;
+                }
+            }
+            foreach (array_keys($classes, $event, true) as $class) {
+                $court = (new ReflectionClass($class))->getShortName();
+                if (preg_match('/(notify|notifyNow|send|sendNow)\(\s*(\$[^,()]+,\s*)?new\s+'.$court.'\b/', $code) === 1) {
+                    $emis = true;
+                }
+            }
+            $this->assertTrue($emis, "l'événement mobile {$event} n'a aucun émetteur : ses cases sms/whatsapp ne commandent rien");
         }
     }
 

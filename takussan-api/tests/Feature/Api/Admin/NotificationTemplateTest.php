@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Api\Admin;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Booking;
 use App\Models\NotificationTemplate;
 use App\Models\User;
-use App\Notifications\NewBookingNotification;
+use App\Notifications\CodedNotification;
+use App\Services\Booking\BookingNotificationParams;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -86,13 +88,20 @@ class NotificationTemplateTest extends TestCase
             'is_active' => true,
         ]);
 
+        // TCK-1053 — le gabarit `booking_confirmed` est lu par le code `booking.confirmed`, seul
+        // envoi réel de la confirmation ; `NewBookingNotification`, sans émetteur, est retirée.
+        $notification = new CodedNotification(
+            NotificationCode::BookingConfirmed,
+            BookingNotificationParams::for($booking, NotificationCode::BookingConfirmed),
+        );
+
         app()->setLocale('fr');
-        $mail = (new NewBookingNotification($booking))->toMail($user);
+        $mail = $notification->toMail($user);
         $this->assertSame('Sujet BK-1', $mail->subject);
         $this->assertStringContainsString('Corps Awa', implode("\n", $mail->introLines));
 
         NotificationTemplate::query()->update(['is_active' => false]);
-        $fallback = (new NewBookingNotification($booking))->toMail($user);
+        $fallback = $notification->toMail($user);
         $this->assertNotSame('Sujet BK-1', $fallback->subject);
     }
 

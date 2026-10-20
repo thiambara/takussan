@@ -2,15 +2,16 @@
 
 namespace Tests\Feature\Notifications;
 
-use App\Models\Agency;
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\NotificationPreference;
 use App\Models\Property;
 use App\Models\User;
-use App\Notifications\NewBookingNotification;
+use App\Notifications\CodedNotification;
 use App\Notifications\RegistrationConfirmationNotification;
 use App\Notifications\ResetPasswordNotification;
+use App\Services\Booking\BookingNotificationParams;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -69,69 +70,41 @@ class NotificationEmailTest extends TestCase
         );
     }
 
-    public function test_new_booking_notification_sends_to_mail_and_database_and_broadcast(): void
+    /**
+     * TCK-1053 (P75.01) — la demande de réservation part par le code `booking.created`
+     * (`NotifyOnBookingRequested`) : e-mail selon la préférence, jamais sur mobile (TCK-590,
+     * contrainte 4). Ces tests visaient `NewBookingNotification`, classe sans émetteur, retirée.
+     */
+    public function test_la_demande_de_reservation_part_par_e_mail_et_jamais_sur_mobile(): void
     {
-        Notification::fake();
-
-        $agency = Agency::factory()->create();
-        $user = User::factory()->create([
-            'agency_id' => $agency->id,
-            'notifications_email_enabled' => true,
-            'notifications_push_enabled' => true,
-        ]);
+        $user = User::factory()->create(['phone_verified_at' => now()]);
         $booking = $this->makeBookingFor($user);
 
-        $user->notify(new NewBookingNotification($booking));
+        $channels = $this->demande($booking)->via($user);
 
-        Notification::assertSentTo($user, NewBookingNotification::class, function ($notification, $channels) {
-            return in_array('mail', $channels)
-                && in_array('database', $channels)
-                && in_array('broadcast', $channels);
-        });
+        $this->assertContains('mail', $channels);
+        $this->assertNotContains('sms', $channels);
+        $this->assertNotContains('whatsapp', $channels);
     }
 
-    public function test_new_booking_notification_respects_email_preference_disabled(): void
+    public function test_la_demande_de_reservation_respecte_la_preference_e_mail_coupee(): void
     {
-        Notification::fake();
-
-        $agency = Agency::factory()->create();
-        $user = User::factory()->create(['agency_id' => $agency->id]);
-        // Flip the booking_request × email preference off via the canonical
-        // matrix (the legacy flat boolean is no longer authoritative).
+        $user = User::factory()->create();
         NotificationPreference::updateOrCreate(
-            ['user_id' => $user->id, 'event_type' => NewBookingNotification::EVENT_TYPE, 'channel' => 'email'],
+            ['user_id' => $user->id, 'event_type' => 'booking_request', 'channel' => 'email'],
             ['enabled' => false],
         );
         $booking = $this->makeBookingFor($user);
 
-        $user->notify(new NewBookingNotification($booking));
-
-        Notification::assertSentTo($user, NewBookingNotification::class, function ($notification, $channels) {
-            return ! in_array('mail', $channels)
-                && in_array('database', $channels)
-                && in_array('broadcast', $channels);
-        });
+        $this->assertNotContains('mail', $this->demande($booking)->via($user));
     }
 
-    public function test_new_booking_notification_respects_push_preference_disabled(): void
+    private function demande(Booking $booking): CodedNotification
     {
-        Notification::fake();
-
-        $agency = Agency::factory()->create();
-        $user = User::factory()->create(['agency_id' => $agency->id]);
-        NotificationPreference::updateOrCreate(
-            ['user_id' => $user->id, 'event_type' => NewBookingNotification::EVENT_TYPE, 'channel' => 'push'],
-            ['enabled' => false],
+        return new CodedNotification(
+            NotificationCode::BookingCreated,
+            BookingNotificationParams::for($booking, NotificationCode::BookingCreated),
         );
-        $booking = $this->makeBookingFor($user);
-
-        $user->notify(new NewBookingNotification($booking));
-
-        Notification::assertSentTo($user, NewBookingNotification::class, function ($notification, $channels) {
-            return in_array('mail', $channels)
-                && in_array('database', $channels)
-                && ! in_array('broadcast', $channels);
-        });
     }
 
     public function test_user_implements_has_locale_preference_for_queued_notifications(): void
@@ -149,20 +122,6 @@ class NotificationEmailTest extends TestCase
             'User must implement HasLocalePreference so queued notifications pick up preferred_language.',
         );
         $this->assertSame('fr', $user->preferredLocale());
-    }
-
-    public function test_new_booking_notification_payload_includes_reference(): void
-    {
-        $agency = Agency::factory()->create();
-        $user = User::factory()->create(['agency_id' => $agency->id]);
-        $booking = $this->makeBookingFor($user);
-
-        $notification = new NewBookingNotification($booking);
-        $payload = $notification->toArray($user);
-
-        $this->assertSame($booking->id, $payload['booking_id']);
-        $this->assertArrayHasKey('reference', $payload);
-        $this->assertArrayHasKey('title', $payload);
     }
 
     protected function makeBookingFor(User $user): Booking
