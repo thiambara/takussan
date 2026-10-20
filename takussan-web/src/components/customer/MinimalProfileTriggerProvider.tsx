@@ -1,12 +1,11 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { MinimalProfileTriggerContext } from '@/hooks/useTriggerMinimalProfileOnce';
-import {
-  CustomerMinimalProfileSheet,
-  type MinimalProfilePayload,
-} from './CustomerMinimalProfileSheet';
+import { useDejaOuvert } from '@/hooks/useDejaOuvert';
+import type { MinimalProfilePayload } from './CustomerMinimalProfileSheet';
 import { useAuth } from '@/context/AuthContext';
 import type { WelcomeSeenListResponse } from '@/types/welcome-view';
 import { isCustomerOnly } from '@/lib/roles';
@@ -27,6 +26,12 @@ import { isCustomerOnly } from '@/lib/roles';
  */
 
 const WELCOME_KEY = 'customer-profile-minimal';
+
+// TCK-1089 (P70.05) — chargée à sa première ouverture : importée statiquement, la feuille
+// apportait seule `@base-ui/react/select` au JS initial de chaque écran de `/app`.
+const CustomerMinimalProfileSheet = dynamic(() =>
+  import('./CustomerMinimalProfileSheet').then((m) => m.CustomerMinimalProfileSheet),
+);
 
 export type MinimalProfileTriggerProviderProps = {
   children: ReactNode;
@@ -131,11 +136,12 @@ export function MinimalProfileTriggerProvider({
   }, []);
 
   const value = useMemo(() => ({ triggerIfNeeded }), [triggerIfNeeded]);
+  const monte = useDejaOuvert(open);
 
   return (
     <MinimalProfileTriggerContext.Provider value={value}>
       {children}
-      {enabled ? (
+      {enabled && monte ? (
         <CustomerMinimalProfileSheet
           open={open}
           onClose={handleClose}
