@@ -277,4 +277,70 @@ class PublicRoleTest extends TestCase
 
         $this->assertSame($attendus, $obtenus);
     }
+
+    /**
+     * TCK-1077 (P85.02) — l'hôte d'un espace `individual` n'est pas un professionnel en exercice.
+     *
+     * « Publier » lui donne un `AgencyAdminProfile` actif sur son espace (`autoOnboard`), et
+     * `rolesPublics()` comptait tout `AgencyAdminProfile` actif : l'hôte était dit « agent » sur
+     * l'annuaire, sur sa fiche et dans l'équipe de son espace, compté dans `stats.agents`, quand la
+     * fiche de son bien le disait déjà non-agent. `features.md` § 1.2 réserve « Agent immobilier »
+     * au professionnel en exercice ; § 1.12 fait de l'espace celui d'un hôte solo.
+     *
+     * L'admin d'une agence `standard` reste un agent sur les trois surfaces : un filtre qui
+     * dirait toujours `owner` rougit ici.
+     */
+    public function test_l_hote_d_un_espace_individual_est_presente_en_proprietaire_sur_les_trois_surfaces(): void
+    {
+        $espace = Agency::factory()->individual()->create(['slug' => 'espace-de-awa', 'status' => AgencyStatus::Active]);
+        $hote = $this->publieur('awa-hote', $espace);
+        AgencyAdminProfile::factory()->create(['user_id' => $hote->id, 'agency_id' => $espace->id]);
+        OwnerProfile::factory()->create(['user_id' => $hote->id, 'agency_id' => $espace->id]);
+
+        $agence = Agency::factory()->create(['slug' => 'agence-standard', 'status' => AgencyStatus::Active]);
+        $admin = $this->publieur('moussa-admin', $agence);
+        AgencyAdminProfile::factory()->create(['user_id' => $admin->id, 'agency_id' => $agence->id]);
+
+        $this->getJson('/api/public/agents/awa-hote')->assertOk()->assertJsonPath('data.public_role', 'owner');
+        $this->getJson('/api/public/agents/moussa-admin')->assertOk()->assertJsonPath('data.public_role', 'agent');
+
+        $index = collect($this->getJson('/api/public/agents?per_page=48')->assertOk()->json('data'))
+            ->pluck('public_role', 'slug')
+            ->all();
+        $this->assertSame('owner', $index['awa-hote'] ?? null);
+        $this->assertSame('agent', $index['moussa-admin'] ?? null);
+
+        $this->getJson('/api/public/agencies/espace-de-awa')
+            ->assertOk()
+            ->assertJsonPath('data.agents.0.slug', 'awa-hote')
+            ->assertJsonPath('data.agents.0.public_role', 'owner')
+            ->assertJsonPath('data.stats.agents', 0);
+        $this->getJson('/api/public/agencies/agence-standard')
+            ->assertOk()
+            ->assertJsonPath('data.agents.0.public_role', 'agent')
+            ->assertJsonPath('data.stats.agents', 1);
+    }
+
+    /**
+     * TCK-1077 — sur la fiche de son espace, un agent d'une agence `standard` qui y est l'hôte n'y
+     * exerce pas : il y est présenté en propriétaire, et sa propre fiche le dit toujours agent. Le
+     * rôle de l'équipe est la conjonction de la règle publique (ici `agent`, par son
+     * `AgentProfile` ailleurs) et d'un profil professionnel dans CETTE agence.
+     */
+    public function test_un_agent_d_ailleurs_hote_d_un_espace_y_est_presente_en_proprietaire(): void
+    {
+        $espace = Agency::factory()->individual()->create(['slug' => 'espace-de-fatou', 'status' => AgencyStatus::Active]);
+        $ailleurs = Agency::factory()->create(['status' => AgencyStatus::Active]);
+
+        $hote = $this->publieur('fatou-hote', $espace);
+        AgencyAdminProfile::factory()->create(['user_id' => $hote->id, 'agency_id' => $espace->id]);
+        AgentProfile::factory()->create(['user_id' => $hote->id, 'agency_id' => $ailleurs->id]);
+
+        $this->getJson('/api/public/agencies/espace-de-fatou')
+            ->assertOk()
+            ->assertJsonPath('data.agents.0.public_role', 'owner')
+            ->assertJsonPath('data.stats.agents', 0);
+
+        $this->getJson('/api/public/agents/fatou-hote')->assertJsonPath('data.public_role', 'agent');
+    }
 }

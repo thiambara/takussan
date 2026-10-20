@@ -31,6 +31,8 @@ export interface AgencyDto {
   name: string;
   description: string | null;
   license_number: string | null;
+  /** TCK-1079 — servi par `show()` comme par l'annuaire. */
+  is_verified?: boolean;
   email?: string | null;
   phone?: string | null;
   city?: string | null;
