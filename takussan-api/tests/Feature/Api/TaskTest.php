@@ -138,7 +138,8 @@ class TaskTest extends TestCase
             'title' => 'Sneaky cross-tenant task',
             'taskable_id' => $customer->id,
             'taskable_type' => Customer::class,
-        ])->assertForbidden();
+            // TCK-1069 (P62.03) — le 404 d'une fiche introuvable : un 403 dirait qu'elle existe.
+        ])->assertNotFound();
     }
 
     public function test_create_rejects_taskable_type_outside_allowlist(): void

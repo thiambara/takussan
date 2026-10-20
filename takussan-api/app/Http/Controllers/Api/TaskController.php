@@ -59,8 +59,10 @@ class TaskController extends Controller
         // Resolve & authorize the polymorphic parent: a user may only attach a
         // task to a record their agency owns / they created (superadmin bypass).
         // Previously the parent was persisted unchecked — a cross-tenant IDOR.
-        $parent = $data['taskable_type']::query()->findOrFail($data['taskable_id']);
-        $this->authorize('attachTo', [Task::class, $parent]);
+        // TCK-1069 (P62.03) — un parent interdit rend le 404 d'un parent introuvable, comme
+        // `DocumentController::store()` (TCK-732) : un 403 dirait qu'une fiche d'une autre agence existe.
+        $parent = $data['taskable_type']::query()->find($data['taskable_id']);
+        abort_if($parent === null || ! $user->can('attachTo', [Task::class, $parent]), 404);
 
         // The assignee must be the caller or staff of the parent's agency, so a
         // task can't be pushed into another tenant's task list.
@@ -89,6 +91,10 @@ class TaskController extends Controller
     protected function authorizeAssignee(User $user, int $assigneeId, ?Model $parent): void
     {
         if ($user->isSuperAdmin()) {
+            // TCK-1069 (P62.03) — sans `exists:` au FormRequest, un compte absent finirait en violation
+            // de clé étrangère (500).
+            abort_code_unless(User::query()->whereKey($assigneeId)->exists(), 422, 'task.assignee_not_staff');
+
             return;
         }
 

@@ -127,7 +127,8 @@ class TaskAuthorizationTest extends ApiTestCase
             'taskable_id' => $customer->id,
         ]);
 
-        $response->assertForbidden();
+        // TCK-1069 (P62.03) — le 404 d'une fiche introuvable : un 403 dirait qu'elle existe.
+        $response->assertNotFound();
         $this->assertStringNotContainsString('Diop', $response->getContent());
         $this->assertDatabaseCount('tasks', 0);
     }

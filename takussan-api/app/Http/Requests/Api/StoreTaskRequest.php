@@ -48,7 +48,10 @@ class StoreTaskRequest extends BaseFormRequest
             'description' => ['nullable', 'string'],
             'taskable_id' => ['required', 'integer'],
             'taskable_type' => ['required', 'string', Rule::in(self::TASKABLE_TYPES)],
-            'assigned_to_id' => ['nullable', 'exists:users,id'],
+            // TCK-1069 (P62.03) — plus de `exists:users,id` : jugé avant la résolution du parent, il
+            // rendait 422 pour un compte absent et laissait tout compte connecté énumérer `users`.
+            // `TaskController::authorizeAssignee()` rend déjà `task.assignee_not_staff` à un absent.
+            'assigned_to_id' => ['nullable', 'integer'],
             'due_at' => ['nullable', 'date'],
             'status' => ['nullable', Rule::enum(TaskStatus::class)],
             'priority' => ['nullable', Rule::enum(TaskPriority::class)],
