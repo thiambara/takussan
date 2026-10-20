@@ -57,7 +57,7 @@ class XlsxExportFormulaTest extends ApiTestCase
         Notification::fake();
         (new ExportActivityLogJob($admin, ['format' => 'xlsx'], $agency->id))->handle(app(ActivityLogExporter::class));
 
-        $sheet = $this->sheet(Storage::path(Storage::files('exports/audit')[0]));
+        $sheet = $this->sheet(Storage::path(Storage::allFiles('exports/audit')[0]));
         $cells = [];
         foreach ($sheet->getRowIterator(2) as $row) {
             foreach ($row->getCellIterator() as $cell) {

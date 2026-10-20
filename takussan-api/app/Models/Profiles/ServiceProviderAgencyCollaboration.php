@@ -48,7 +48,12 @@ class ServiceProviderAgencyCollaboration extends AbstractModel
 
     protected static array $requestSortable = ['id', 'created_at', 'started_at', 'status'];
 
-    protected static array $requestLoadable = ['agency', 'serviceProviderProfile', 'agencyRole'];
+    /**
+     * TCK-1049 (P61.02) — `agency` seul : la liste rend sa ligne par
+     * `ServiceProviderAgencyCollaborationResource`, qui n'émet que l'agence (par `AgencyResource`).
+     * `serviceProviderProfile` et `agencyRole` sortaient bruts et n'avaient aucun appelant.
+     */
+    protected static array $requestLoadable = ['agency'];
 
     protected static array $queryFields = [
         'id', 'service_provider_profile_id', 'agency_id', 'status',

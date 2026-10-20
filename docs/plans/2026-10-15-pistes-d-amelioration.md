@@ -6223,7 +6223,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### `/api/properties/{id}/collaborators` rend la ligne `users` entière de chaque collaborateur, au bailleur du bien comme à tout membre de l'agence
 - Réf : P61.01
-- Statut : validé — ressource pour `index`, `store`, `update` et `designatePrimary`, compte projeté par `IncludedUserResource` plus `username` (slug public) ; test : bailleur et agent, `data.0.user` n'a que les clés de la projection (porteur, 2026-10-20)
+- Statut : fait · TCK-1047
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:64`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:91`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:150`, `takussan-api/app/Policies/PropertyPolicy.php:45-60`, `takussan-api/app/Http/Resources/PropertyResource.php:217-230`, `takussan-web/src/lib/queries/property-collaborators.ts:23-35`
 - Constat :
@@ -6237,10 +6237,11 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : faire passer la ligne par une ressource, avec le compte projeté par `IncludedUserResource` (plus `username` si le front le garde, ou bien le front s'en passe). Une même ressource pour `index`, `store`, `update` et `designatePrimary`. Test : le bailleur et un agent lisent la liste, et `data.0.user` n'a que les clés de la projection. Ablation : remettre `->get()` brut.
 - Mesure (2026-10-19, bde1d5b43, mesureur) : lu `PropertyCollaboratorController.php:64` (`$collaborator->load('user')`), `:91` (`refresh()->load('user')`), `:150` (`collaborators()->with('user')->orderBy('id')->get()`) et `PropertyPolicy.php:51-57` ; aucun commit sur ce contrôleur depuis 89acf8152 ; test temporaire retiré (charge 2,41 sur 8 cœurs) → le bailleur, `GET /api/properties/{id}/collaborators` 200, `data.0.user` à 38 clés dont `google_id`, `metadata`, `secondary_phone`, `last_login_at` et `deletion_requested_at`. Classement : V3, ce qui est exposé d'un compte, avec un choix sur `username` que la piste laisse ouvert.
+- Mesure (2026-10-20, 96392a9cb, implementeur) : charge 1,27 sur 8 cœurs ; trois tests neufs de `PropertyCollaboratorTest` (bailleur et agent sur `GET …/collaborators`, `store` puis `update`) rouges avant correctif, `data.0.user` à 38 clés dont `google_id`, `metadata` et `secondary_phone` → `PropertyCollaboratorResource` sur les quatre routes, compte par `IncludedUserResource` plus `username` : 22 verts, 81 avec les classes qui frappent la route ; ablation (sorties remises brutes) → 3 rouges ; remis → verts.
 
 ### `include=agency` rend la ligne `agencies` entière à un prestataire et à un bailleur, seuil des reversements compris
 - Réf : P61.02
-- Statut : validé — rendre les deux listes par une ressource, l'agence incluse passant par `AgencyResource`, qui juge ce que l'appelant voit ; test : le prestataire avec `include=agency` ne reçoit ni `payout_approval_threshold` ni `bank_csv_mapping` (porteur, 2026-10-20)
+- Statut : fait · TCK-1049 — reste : `IncludedUserResource::inParent()` de `OwnerProfileResource` laisse sortir brutes les autres relations incluses de `/api/owners` (`agency`, `invitations`, `agencyRole`), à projeter par leur ressource ou à retirer de `$requestLoadable`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderAgenciesController.php:31-69`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:167-184`, `takussan-api/app/Http/Resources/OwnerProfileResource.php:37`, `takussan-api/app/Http/Resources/IncludedUserResource.php:51-61`, `takussan-api/app/Http/Resources/AgencyResource.php:17,31-46,61,70`, `takussan-api/app/Models/Profiles/ServiceProviderAgencyCollaboration.php:51`
 - Constat :
@@ -6255,10 +6256,11 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : rendre ces deux listes par une ressource, avec l'agence incluse par `AgencyResource` (qui juge déjà ce que l'appelant voit) ou par une projection publique, comme `/agencies`. `inParent()` projette chaque relation incluse par sa ressource, ou bien l'include est retiré de `$requestLoadable` quand rien ne le demande. Test : le prestataire avec `include=agency` ne reçoit ni `payout_approval_threshold` ni `bank_csv_mapping`. Ablation sur la ressource.
 - Mesure (2026-10-19, bde1d5b43, mesureur) : lu `ServiceProviderAgenciesController.php:63` (`$paginator->items()`), `OwnerProfileController.php:181` (`'data' => $paginator->items()`), `ServiceProviderAgencyCollaboration.php:51` (`agency` dans `$requestLoadable`) ; test temporaire retiré (agence à seuil 750 000, `settings`, `metadata`, `bank_csv_mapping`) → prestataire, `/api/me/service-provider/collaborations?include=agency` 200, `data.0.agency` à 36 clés dont `payout_approval_threshold` `"750000.00"`, `settings`, `metadata`, `bank_csv_mapping`, `commission_rate` ; bailleur, `/api/me/owner-profiles/{id}/properties?include=agency` 200, 36 clés, même seuil. Le cas `/api/owners?include=agency` par un agent sans capacité de reversement n'est pas re-mesuré. Classement : V3, exposition de données d'agence à des tiers, et la piste laisse le choix entre `AgencyResource`, projection publique et retrait de l'include.
+- Mesure (2026-10-20, 96392a9cb, implementeur) : deux tests neufs de `ServiceProviderCollaborationsListTest` (prestataire, `?include=agency`, agence à seuil 750 000 et `bank_csv_mapping`) rouges avant correctif sur `payout_approval_threshold` et sur `started_at` en `…T00:00:00.000000Z` → `ServiceProviderAgencyCollaborationResource`, l'agence par `AgencyResource`, `$requestLoadable` réduit à `agency` (la garde de TCK-807 rougissait sur `serviceProviderProfile`, `agencyRole`, sans appelant) ; le versant bailleur est fermé par `PropertyResource` (TCK-1048), épinglé par un test `include=agency` ; ablations (sortie brute, agence en `toArray()`, liste du bailleur brute) → rouges ; remis → 51 verts sur les classes touchées.
 
 ### `/api/me/owner-profiles/{id}/properties` sans `fields` rend au bailleur des colonnes qu'aucune ressource n'émet (gel plateforme, suivi admin, bien de test)
 - Réf : P61.03
-- Statut : validé — rendre la liste par `PropertyResource` ; test sans `fields` : ni `platform_hold_by_id` ni `admin_monitored` (porteur, 2026-10-20)
+- Statut : fait · TCK-1048
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:167-184`, `takussan-api/app/Models/Property.php:134-144`, `takussan-api/app/Services/Property/PropertyModerationService.php:250-263`
 - Constat :
@@ -6269,6 +6271,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : rendre la liste par `PropertyResource`, ou poser une projection par défaut quand `fields[properties]` est absent. Test sans `fields` : ni `platform_hold_by_id` ni `admin_monitored`. Ablation sur la ressource.
 - Mesure (2026-10-19, bde1d5b43, mesureur) : lu `OwnerProfileController.php:167-184` (`'data' => $paginator->items()` de `Property::buildQuery`) ; test temporaire retiré → le bailleur, sans paramètre, 200 et 60 clés par ligne (61 au constat), dont `platform_hold_at`, `platform_hold_by_id`, `platform_hold_reason`, `admin_monitored`, `is_test`, `metadata`, `rejected_by_user_id`, `approved_by_user_id` et `deleted_at`. Classement : V3, ce qui est exposé au bailleur, avec deux voies dans la piste.
+- Mesure (2026-10-20, 96392a9cb, implementeur) : test neuf `test_la_liste_sans_fields_ne_rend_pas_les_colonnes_de_moderation` (bailleur, sans paramètre) rouge avant correctif sur `platform_hold_at` → la liste passe par `PropertyResource::collection()` : 9 verts dans `OwnerOnboardingTest`, l'appel du front à `fields[properties]=id,title` compris ; ablation (`$paginator->items()` remis) → rouge ; remis → vert.
 
 ### Petites améliorations
 - Réf : P61.04
@@ -6419,7 +6422,7 @@ d'export de l'angle 77.*
 
 ### Le lien de l'export d'audit asynchrone d'une agence peut servir le journal d'une autre agence, ou celui de toute la plateforme
 - Réf : P63.01
-- Statut : validé — (b) nommer le fichier d'un identifiant opaque (le nom lisible pour le seul `Content-Disposition`) et lier la signature au demandeur, vérifié au téléchargement ; test : deux agences de même nom, chaque lien ne rend que la sienne, et la variante « Platform » (porteur, 2026-10-20)
+- Statut : fait · TCK-1054
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:39-49`, `takussan-api/app/Services/Audit/ActivityLogExporter.php:51-57`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:44,59-71`, `takussan-api/routes/api/audit-log.php:22-24`
 - Constat :
@@ -6433,6 +6436,7 @@ d'export de l'angle 77.*
   - Établi comment : lu, et mesuré par deux tests temporaires qui appellent `handle()` du job comme `AgencyAuditScopeTest::test_le_fichier_du_job_porte_l_agence_active_et_elle_seule`.
 - Piste : nommer le fichier d'un identifiant opaque (aléa, ou identifiant d'une ligne d'export), et garder le nom lisible pour le seul `Content-Disposition`. Mieux encore, lier la signature au demandeur (paramètre `user` vérifié au téléchargement). Test : deux exports de deux agences de même nom, puis chaque lien ne rend que son agence ; et la variante « Platform » contre le super-admin.
 - Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `ExportActivityLogJob.php:39-49` et `ActivityLogExporter.php:51-57` (inchangés) ; test temporaire retiré qui appelle `handle()` du job pour les admins de « Immo Dakar » et « Immo-Dakar » → un seul fichier `exports/audit/audit-trail-immo-dakar-2026-09-20-2026-10-20.csv`, et l'URL signée reçue par l'admin de la première rend 200 avec le témoin de la seconde et sans le sien. Variante « Platform » et écrasement entre deux admins de la même agence non re-mesurés. Classement : V3, le défaut expose les actions et acteurs d'une autre agence, et la `Piste` propose aussi de lier la signature au demandeur (V2).
+- Mesure (2026-10-20, 96392a9cb, implementeur) : trois tests neufs de `AgencyAuditScopeTest` qui appellent `handle()` du job puis suivent le lien du courriel, rouges avant correctif (« Immo Dakar » reçoit le témoin de « Immo-Dakar », l'admin de « Platform » celui d'une agence tierce, un lien re-signé pour un autre demandeur rend 200) → fichier `exports/audit/{user_id}/{uuid}`, lien signé sur `user`, `file` et `name`, téléchargement borné au dossier du demandeur signé, export de la console aligné : 37 verts sur `tests/Feature/Audit` et `ActivityLogExporterTest` ; ablations (dossier du demandeur retiré → rouge sur le lien détourné ; correctif retiré → 3 rouges) ; remis → verts.
 
 ### Le courriel « export de rapport prêt » mène à une route qui n'existe pas
 - Réf : P63.02
