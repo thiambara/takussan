@@ -165,7 +165,9 @@ d'implémenter.
      compte « Done — N » de l'index change dans les deux : la seconde à fusionner entre toujours en
      conflit, sans rien à décider ;
    - la plus ancienne PR rouge, ou en conflit ailleurs, est réparée par le passage. Après trois
-     réparations, elle est abandonnée, le passage le dit, et elle garde sa place ;
+     réparations, elle est abandonnée, le passage le dit, et elle garde sa place. Un job en échec
+     rend la PR rouge même si d'autres tournent encore : avant le 2026-10-20, « en cours »
+     l'emportait, et le passage prenait une piste neuve au lieu de réparer (#747, 40 minutes) ;
    - le conflit ne se lit pas seulement chez GitHub, qui rend `UNKNOWN` après chaque fusion dans
      `pre-dev` tant qu'on ne lui redemande pas : sans verdict, `git merge-tree` le calcule sur place.
      Une PR à la CI verte dont l'essai de fusion est rouge (conflit, ou garde rouge sur l'arbre
