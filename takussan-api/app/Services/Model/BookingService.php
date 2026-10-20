@@ -101,6 +101,13 @@ class BookingService
 
         abort_unless($isStaff || $isBookingForSelf, 403);
 
+        // TCK-1065 (P80.02) — le nombre de voyageurs n'a pas de colonne : il va dans `metadata`,
+        // sous la forme qu'écrit déjà `PublicPropertyController::bookingRequest()`.
+        if (array_key_exists('guests', $data)) {
+            $data['metadata'] = ['guests' => (int) $data['guests']];
+            unset($data['guests']);
+        }
+
         // Montants ET devise viennent du bien : la devise n'est plus le défaut XOF (TCK-530).
         $data = array_merge($data, $this->pricedAmounts($property, $data));
 

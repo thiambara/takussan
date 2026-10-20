@@ -44,6 +44,9 @@ class StoreBookingRequest extends BaseFormRequest
             'start_date' => ['nullable', 'date', 'after_or_equal:today'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string'],
+            // TCK-1065 (P80.02) — le nombre que le tunnel exige (1 à 20, `booking.ts`) ; rangé dans
+            // `metadata.guests` par `BookingService::create()`, comme la demande publique.
+            'guests' => ['sometimes', 'integer', 'min:1', 'max:20'],
             'expires_at' => ['nullable', 'date'],
         ];
     }
