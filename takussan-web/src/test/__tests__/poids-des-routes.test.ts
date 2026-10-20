@@ -6,7 +6,8 @@
  * sortie. Trois contrats :
  *
  *  · un rapport sans seuil — il imprime, par route publique, le JS initial gzip et les polices
- *    préchargées, et sort en 0 quel que soit le poids ;
+ *    préchargées, puis les mêmes chiffres pour les écrans de la console (P70.06), et sort en 0 quel
+ *    que soit le poids ;
  *  · un seul refus — `zod` dans le JS du layout racine sort en 1 (P33.02 l'en avait retiré) ; zod
  *    dans le JS d'une PAGE reste un chiffre du rapport, pas un refus ;
  *  · une mesure absente n'est pas un vert — sans sortie de build, ou sur une sortie illisible
@@ -46,7 +47,7 @@ function manifesteClient(cle: string, entrees: Record<string, string[]>) {
   );
 }
 
-/** Une sortie `.next/` minimale : deux routes publiques, une route de la console. */
+/** Une sortie `.next/` minimale : deux routes publiques, un écran de `/app`, un de `/super-admin`. */
 function sortieDeBuild(options: { layout?: string; page?: string } = {}): string {
   const racine = mkdtempSync(path.join(tmpdir(), 'poids-des-routes-'));
   dossiers.push(racine);
@@ -58,6 +59,7 @@ function sortieDeBuild(options: { layout?: string; page?: string } = {}): string
       '/[locale]/(public)/page': '/[locale]',
       '/[locale]/(public)/legal/page': '/[locale]/legal',
       '/(dashboard)/app/page': '/app',
+      '/(super-admin)/super-admin/page': '/super-admin',
     }),
   );
   const layout = { '[project]/src/app/layout': ['static/chunks/layout-1.js', 'static/chunks/layout-2.js'] };
@@ -73,6 +75,16 @@ function sortieDeBuild(options: { layout?: string; page?: string } = {}): string
   );
   ecrire(
     racine,
+    'server/app/(dashboard)/app/page_client-reference-manifest.js',
+    manifesteClient('/(dashboard)/app/page', { ...layout, '[project]/src/app/(dashboard)/app/page': ['static/chunks/tableau.js'] }),
+  );
+  ecrire(
+    racine,
+    'server/app/(super-admin)/super-admin/page_client-reference-manifest.js',
+    manifesteClient('/(super-admin)/super-admin/page', layout),
+  );
+  ecrire(
+    racine,
     'server/next-font-manifest.json',
     JSON.stringify({ app: { '[project]/src/app/[locale]/(public)/page': ['static/media/bricolage.woff2'] } }),
   );
@@ -80,6 +92,7 @@ function sortieDeBuild(options: { layout?: string; page?: string } = {}): string
   ecrire(racine, 'static/chunks/layout-1.js', 'const cadre = 1;');
   ecrire(racine, 'static/chunks/layout-2.js', options.layout ?? 'const layout = 1;');
   ecrire(racine, 'static/chunks/accueil.js', options.page ?? 'const accueil = 2;');
+  ecrire(racine, 'static/chunks/tableau.js', 't'.repeat(8000));
   ecrire(racine, 'static/media/bricolage.woff2', 'w'.repeat(2048));
   return racine;
 }
@@ -90,15 +103,33 @@ function lancer(dossier: string) {
 }
 
 describe('poids-des-routes.mjs — TCK-947', () => {
-  it('rapporte chaque route publique, et seulement elles, sans seuil : sortie 0', () => {
+  it('rapporte chaque route publique, puis chaque écran de la console, sans seuil : sortie 0', () => {
     const { code, sortie } = lancer(sortieDeBuild());
+    const [publique, console_] = sortie.split('écrans de la console');
 
     expect(code).toBe(0);
-    expect(sortie).toContain('/[locale]/legal');
-    expect(sortie).toMatch(/^\s*\/\[locale\]\s/m);
-    expect(sortie).not.toContain('/app');
+    expect(console_).toBeDefined();
+    expect(publique).toContain('/[locale]/legal');
+    expect(publique).toMatch(/^\s*\/\[locale\]\s/m);
+    expect(publique).not.toContain('/app');
+    expect(publique).not.toContain('/super-admin');
     // L'accueil précharge une police de 2 Kio ; la page légale aucune.
-    expect(sortie).toMatch(/\/\[locale\]\s.*\b1 police.*2,0 Kio/);
+    expect(publique).toMatch(/\/\[locale\]\s.*\b1 police.*2,0 Kio/);
+    // P70.06 — la console a sa section, et ses chiffres sont les siens (le tableau pèse plus).
+    expect(console_).toMatch(/^\s*\/app\s/m);
+    expect(console_).toMatch(/^\s*\/super-admin\s/m);
+    expect(console_).not.toContain('/[locale]');
+  });
+
+  it('sans écran de la console dans le build, rien n’est mesuré : sortie 2', () => {
+    const racine = sortieDeBuild();
+    ecrire(
+      racine,
+      'app-path-routes-manifest.json',
+      JSON.stringify({ '/[locale]/(public)/page': '/[locale]', '/[locale]/(public)/legal/page': '/[locale]/legal' }),
+    );
+
+    expect(lancer(racine).code).toBe(2);
   });
 
   it('refuse zod dans le JS du layout racine : sortie 1, et le morceau est nommé', () => {

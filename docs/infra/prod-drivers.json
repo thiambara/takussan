@@ -64,7 +64,7 @@
       }
     },
     "production": {
-      "fichier": "Dokploy → Compose takussan-api-prod (n'existe pas encore : plan, tâche F3, étape 1)",
+      "fichier": "Dokploy → Compose takussan-api-production (n'existe pas encore : plan, tâche F3, étape 1)",
       "hors_depot": true,
       "deploye": {
         "etat": "mesure",

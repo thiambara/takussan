@@ -208,6 +208,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(Dispatcher $events): void
     {
+        // P71.02 — l'aperçu des codes SMS ne démarre jamais sur l'API de production.
+        OtpPreview::refuserSurLaProduction();
         $this->loadRoutesFrom(base_path('routes/lemon-squeezy.php'));
         $this->bootRequestMacros();
         $this->bootRateLimiters();
