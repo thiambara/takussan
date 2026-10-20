@@ -14,7 +14,7 @@ use Tests\TestCase;
  * lit une clé absente comme une relation vide (cas réel : P21.04, le garant du bail).
  *
  * Ce test confronte, pour chaque modèle de `app/Models` qui déclare `$requestLoadable` et qui a une
- * ressource `App\Http\Resources\<Modèle>Resource`, chaque relation déclarée aux `whenLoaded('…')`
+ * ressource `<Modèle>Resource` (dans tout `app/Http/Resources`, TCK-1022), chaque relation déclarée aux `whenLoaded('…')`
  * et `relationLoaded('…')` du source de la ressource. Il lit une forme, pas un comportement : une
  * relation émise autrement (accès direct `$this->rel`) doit être réécrite en `whenLoaded`, ou
  * exemptée ci-dessous avec sa raison.
@@ -34,6 +34,8 @@ class RequestLoadableEmittedTest extends TestCase
      */
     private const EXEMPTIONS = [
         'Agency' => ['primaryAdmin', 'addresses'],
+        // P60.04 — déclaration sans lecteur, retirée par son propre ticket.
+        'AgencySubscription' => ['agency'],
         'AgencyUpgradeRequest' => ['agency', 'submitter', 'reviewer', 'documents'],
         'Customer' => ['user', 'agency', 'addresses', 'tasks'],
         'Document' => ['uploader', 'verifier'],
@@ -56,6 +58,7 @@ class RequestLoadableEmittedTest extends TestCase
     private function modelesAvecRessource(): array
     {
         $paires = [];
+        $ressources = $this->ressourcesParNom();
         $racine = app_path('Models');
         $fichiers = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($racine));
 
@@ -72,8 +75,8 @@ class RequestLoadableEmittedTest extends TestCase
             if ($reflet->isAbstract() || ! $reflet->hasProperty('requestLoadable')) {
                 continue;
             }
-            $ressource = app_path('Http/Resources/'.$reflet->getShortName().'Resource.php');
-            if (! is_file($ressource)) {
+            $ressource = $ressources[$reflet->getShortName().'Resource.php'] ?? null;
+            if ($ressource === null) {
                 continue;
             }
             $paires[$reflet->getShortName()] = [$classe, $ressource];
@@ -82,6 +85,41 @@ class RequestLoadableEmittedTest extends TestCase
         ksort($paires);
 
         return $paires;
+    }
+
+    /**
+     * TCK-1022 (P60.01) — la ressource d'un modèle se cherche par son nom dans tout
+     * `app/Http/Resources`, sous-dossiers compris (`Api/Admin/`, `Agency/`, `Accounting/`…) : au
+     * seul chemin racine, la garde sautait les ressources rangées. La ressource racine l'emporte
+     * quand elle existe (`AgencyResource` a une variante sous `Api/Admin/`) ; un nom porté par
+     * plusieurs fichiers hors de la racine est ambigu, et refusé plutôt que tranché au hasard du
+     * parcours.
+     *
+     * @return array<string, string> nom de fichier → chemin
+     */
+    private function ressourcesParNom(): array
+    {
+        $racine = app_path('Http/Resources');
+        $trouvees = [];
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($racine)) as $fichier) {
+            if ($fichier->isFile() && str_ends_with($fichier->getFilename(), 'Resource.php')) {
+                $trouvees[$fichier->getFilename()][] = $fichier->getPathname();
+            }
+        }
+
+        $ressources = [];
+        foreach ($trouvees as $nom => $chemins) {
+            $aLaRacine = $racine.DIRECTORY_SEPARATOR.$nom;
+            if (in_array($aLaRacine, $chemins, true)) {
+                $ressources[$nom] = $aLaRacine;
+
+                continue;
+            }
+            $this->assertCount(1, $chemins, "Plusieurs ressources {$nom} hors de la racine : ".implode(', ', $chemins));
+            $ressources[$nom] = $chemins[0];
+        }
+
+        return $ressources;
     }
 
     /**
@@ -107,6 +145,9 @@ class RequestLoadableEmittedTest extends TestCase
         $this->assertArrayHasKey('Lease', $paires);
         $this->assertArrayHasKey('Payout', $paires);
         $this->assertArrayHasKey('Booking', $paires);
+        // TCK-1022 — et ceux dont la ressource est rangée en sous-dossier (`Agency/`, `Accounting/`).
+        $this->assertArrayHasKey('AgencyRole', $paires);
+        $this->assertArrayHasKey('BankStatement', $paires);
 
         $ecarts = [];
         foreach ($paires as $modele => [$classe, $ressource]) {
