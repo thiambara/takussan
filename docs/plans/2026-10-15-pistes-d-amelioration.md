@@ -1734,7 +1734,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le lien `referenceable_*` d'une notification : deux formes, un lecteur de repli, une méthode morte
 - Réf : P11.11
-- Statut : validé (délégué) — option (a) : retirer `AppNotification::reference()`, sans appelant, et mettre à jour `docs/models-spec.md` §12 et la Règle 3 ; reste : (b) unifier sur l'alias court ou (c) cesser d'écrire le lien et retirer les colonnes, au porteur
+- Statut : retenu · à valider — chemin fermé : `docs/models-spec.md` (l. 1259 et 5059 décrivent `reference()` ; la décision (a) retire la méthode et demande cette mise à jour, que l'implémenteur ne peut pas écrire)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/SavedSearchMatchesNotification.php:121`, `takussan-api/app/Models/AppNotification.php` (`reference()`), `takussan-api/app/Domain/Notifications/NotificationTarget.php:146-170`, `takussan-api/database/seeders/Engagement/AppNotificationSeeder.php`
 - Constat :
@@ -1753,6 +1753,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   Dans tous les cas, mettre à jour `docs/models-spec.md` §12 et la Règle 3.
 - Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `AppNotification.php:71-83` (`reference()`, cinq alias), `NotificationTarget.php:146-170` (`fromReferenceable()`, sans `SavedSearch`), `SavedSearchMatchesNotification.php:121` (`SavedSearch::class`) ; `grep -rn "reference()" app routes resources database tests` → aucun appelant de la méthode ; `grep -rn referenceable tests` → rien ; seul autre écrivain le seeder (`AppNotificationSeeder.php:46`, `property_visit`) → le constat tient tel quel, la répartition en base de développement n'est pas re-mesurée. Classement : V4, la `Piste` propose trois options dont (c) est une migration, et seul (a), le retrait de `reference()`, serait A3 ; le choix revient au porteur.
 - Mesure (2026-10-20, 31d408855, delegue) : relu `AppNotification.php:71-83` ; `grep -rn "reference()\|->reference\b" app routes resources database tests` → seule la définition l. 71, aucun appelant ; `docs/models-spec.md:5059` décrit déjà la méthode « sans appelant », et la Règle 3 admet les deux formes de `referenceable_type` (l. 1198) → (a) est du code mort sans choix de produit. Délégation : V4, seul (a) est accordé, qui ne touche aucun schéma ; (c) supprime des colonnes (V4 non additif) et (b) engage la forme du lien que (c) abandonnerait, d'où le reste au porteur, sur le modèle de sa décision pour P58.05 (retrait du code, colonne au porteur). La PR #755 touche aussi `AppNotification.php` : conflit possible, sans recouvrement de sujet.
+- Mesure (2026-10-20, bb1524a12, implementeur) : `grep -rn "reference()" app tests` → seule la définition `AppNotification.php:74`, aucun appelant : la partie morte tient ; `grep -n "reference()" docs/models-spec.md` → l. 1259 (§12, « pas une relation Eloquent ») et l. 5059 (Règle 3, « aucun appelant ») la décrivent. Retirer la méthode sans réécrire ces deux lignes laisserait la spec fausse, et `docs/models-spec.md` est fermé à l'implémenteur. Rien implémenté. Classement : chemin fermé, distinct du V4 accordé (aucun schéma n'est en cause) ; le retrait du code et les deux lignes de spec peuvent partir ensemble, en session.
 
 ## Angle 12 — Tests : zones non gardées, tests verts sans leur code
 
