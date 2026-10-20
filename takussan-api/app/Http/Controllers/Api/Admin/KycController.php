@@ -46,7 +46,7 @@ class KycController extends Controller
         $this->accessLog->record($request->user(), $dossier, PersonalDataAccessLogger::SURFACE_KYC_DOSSIER);
 
         return $this->json([
-            'data' => (new KycDossierResource($dossier->load(['subject', 'reviewer'])))->resolve($request),
+            'data' => (new KycDossierResource($dossier->load(['subject'])))->resolve($request),
         ]);
     }
 
