@@ -148,7 +148,7 @@ voie d'écriture (angle 13, puis 47).
 | 73 | URL signées absolues (`hasValidSignature`, `temporarySignedRoute`, `media.private.show`) derrière Traefik : schéma et hôte vus par l'API face à `APP_URL`, signature refusée en préproduction ? | fait |
 | 74 | Ce que joint sans authentification un service voisin de `dokploy-network` (Dokploy, Compose `donnees`, autres projets) : API sur 8080, Redis, Meilisearch (clé maîtresse ?), PostgreSQL, front Next — et l'alias `api` partagé entre projets | fait |
 | 75 | Classes `Notification` historiques de `AppDatabaseChannel::TYPES`, hors `NotificationCode` : sans `code` ni `target` dans la cloche, préférences lues à la main dans `via()`, couvertes par un test ? | fait |
-| 76 | Effets aval d'un paiement soldé puis passé à `refunded` : quittance déjà envoyée, ligne prise par un reversement de la plateforme (`platform_payout_id`) ou du propriétaire (`PayoutCalculator`), commission, exports et totaux de l'historique | à faire |
+| 76 | Effets aval d'un paiement soldé puis passé à `refunded` : quittance déjà envoyée, ligne prise par un reversement de la plateforme (`platform_payout_id`) ou du propriétaire (`PayoutCalculator`), commission, exports et totaux de l'historique | fait |
 | 77 | Fichiers du disque `local` dans le volume `storage` des conteneurs (archives d'export RGPD, exports de rapports) : écrits par `worker`, servis par `api`, purge réelle, taille, et ce qui reste après `PurgeExpiredDataExports` | à faire |
 | 78 | Pic mémoire des jobs qui accumulent tout en tableau avant d'écrire (export RGPD `DataExportBuilder`, exports de rapports `GenerateReportExport`, relevés OFX) face à `memory_limit = 256M` et aux `mem_limit` des workers | à faire |
 | 79 | Appels du serveur Next vers l'API sans délai (`apiFetch`, `apiRequest`, relais BFF : aucun `AbortSignal.timeout`) : rendu d'une page publique ou d'une action quand l'API répond lentement, face au `requestTimeout` de Node (300 s) et aux délais de Traefik | à faire |
@@ -183,6 +183,7 @@ voie d'écriture (angle 13, puis 47).
 | 107 | Champs du profil que l'utilisateur déclare pour être joint (`phone_whatsapp`, `secondary_phone`, `secondary_phone_whatsapp`, `preferred_language`, heures calmes) : lus par les chemins qui envoient (canaux de notification, codes, relances), ou seulement affichés ? | à faire |
 | 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | à faire |
 | 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | à faire |
+| 110 | Rapprochement bancaire (`bank_reconciled_at`, `bank_statement_line_id`, `Accounting\ReconciliationManager`) d'une échéance, d'un acompte ou d'une facture passés à `refunded` après rapprochement : la ligne de relevé reste-t-elle rapprochée, et le remboursement sortant a-t-il un pendant | à faire |
 
 ---
 
@@ -7619,3 +7620,94 @@ le sous-réseau est P37.04.*
 - Piste : ajouter `lease_id` (le bail enfant) aux données du renouvellement ; donner une cible aux autres là où une page existe (`team`, `agency_settings`, `/super-admin/…`) ; titrer le rappel de tâche par une clé de traduction. À terme, porter ces classes au catalogue `NotificationCode`, ce que le reste de P48 demande déjà pour quatre d'entre elles.
 - Mesure (2026-10-20, d08842ee3, mesureur) : lu `NotificationTarget::derive()` (l. 121-147) : ni `parent_lease_id`/`child_lease_id`, ni `invoice_id`, ni `task_id` (`LeaseRenewedNotification.php:75-76`, `InvoiceOverdueReminderNotification.php:87`, `TaskDueReminderNotification.php:66`) ; `TaskDueReminderNotification.php:69` range `task->title` comme titre ; `ThresholdAlertTriggered.php:78` met `metric` dans la clé de titre ; `AppNotificationResource.php:45-46` rend `title`/`body` tels quels sans code ; `grep -ln "'code'" app/Notifications` → `CodedNotification`, `PropertyApproved/Rejected`, `LeaseSignatureCode`, `NewBooking` seulement → les trois points tiennent (non rejoué par un envoi). Classement : V7, la cible de chaque ligne (quelle page) et le titre neuf du rappel de tâche sont des choix d'interface et de texte.
 - Mesure (2026-10-20, 89dbcf997, delegue) : relu le constat et la `Mesure` du mesureur, puis `NotificationTarget::derive()` l. 118-147 (la clé `lease_id` mène à `lease`), `NotificationTarget::PATHS` (`lease` → `/app/leases/{id}`, page présente : `takussan-web/src/app/(dashboard)/app/leases/[id]/page.tsx`), `LeaseRenewedNotification::toArray()` l. 72-86 (`parent_lease_id`, `child_lease_id`, sans `lease_id`) et TCK-588 l. 35 (« un clic dans la cloche m'emmène sur l'objet concerné », C11) → la cible du renouvellement est écrite et sa page existe ; les autres cibles (factures, tâches, alertes de seuil, `AgencyUpgrade*`, `SuperAdmin*Broadcast`) demandent de choisir une page, le titre du rappel de tâche est un texte neuf, et la langue figée relève du portage au catalogue. Délégation : V7, seule la partie dont la cible est écrite par TCK-588 (C11) et déjà servie par `PATHS` est validée ; elle ajoute une clé de données sans rien retirer et se défait en un commit ; le reste revient au porteur.
+
+## Angle 76 — Effets aval d'un paiement soldé puis passé à `refunded`
+
+*Exploré le 2026-10-20 sur `pre-dev` 89dbcf997, par l'explorateur. Relu par l'explorateur lui-même :
+la branche `REFUNDED` d'`applyStatusToPayment` et `reportedRefundAmount` (`PaymentGatewayService`),
+`HasPaymentAttributes` (`paid_amount`, `remaining_amount`), `BookingPaymentService::refund` et
+`RefundBookingPaymentRequest`, `SendRentReceiptAfterOnlinePayment`, les trois points qui servent une
+quittance (`DocumentPdfController::receipt`, `PublicPaymentLinkController::receipt`,
+`BookingPaymentController::receipt`), `PlatformPayoutService` (clôture, `breakdown`, `approve`,
+`markPaid`, `cancel`), `PayoutCalculator`, `PayoutService` (`assertItemsInScope`, `createLocked`,
+`markProcessed`), `CollectedPayments`, `ExportDataService::payments`, `LeasePaymentResource`,
+`CommissionLedgerService`. Mesuré par un test temporaire `tests/Feature/Tmp/ExplorateurTmp76Test.php`
+(retiré), sur des payables soldés par l'intégration globale (`EncaissementsPlateforme`) et un
+remboursement appliqué par `applyEventToMatchingPayment()` sous son autorité, comme
+`PaymentWebhookRefundTest` ; charge 4,66 / 5,07 / 4,61 sur 8 cœurs. Aucun sous-agent. Hors constat,
+parce que le code est juste : la quittance n'est plus servie après un remboursement (les trois
+points exigent `paid`), et la commission d'agent se calcule sur le bail (`generateFor`), pas sur
+l'échéance. La quittance déjà envoyée et l'absence de tout événement sur la transition vers
+`refunded` sont P39.07 : elles ne sont pas reprises.*
+
+### Un reversement de la plateforme clos avant un remboursement est approuvé et payé avec la ligne remboursée
+- Réf : P76.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:109-169`, `:200-233`, `:236-343`
+- Constat :
+  - La clôture fige `gross_amount`, `platform_fee_amount` et `net_amount` et pose `platform_payout_id` sur les lignes (lu, l. 312-342). `approve()` et `markPaid()` ne relisent ni les lignes ni leur statut (lu, l. 109-169) ; `breakdown()` agrège par `platform_payout_id` sans filtre de statut (lu, l. 207-215). Le remboursement ne touche pas `platform_payout_id` (lu : seul `cancel()` le remet à nul, l. 178-181).
+  - Mesuré (test temporaire) : loyer de 100 000 soldé par l'intégration globale, `close-period` → reversement `pending`, brut 100 000, net 95 000 ; remboursement de 100 000 → échéance `refunded`, `refund_amount = 100000`, `paid_amount = 0`, `platform_payout_id` toujours posé ; `breakdown` → `lease.count = 1`, `gross = 100000` ; `approve` → 200, `mark-paid` → 200, statut `paid`, net 95 000.
+  - La plateforme a donc rendu 100 000 au locataire et versé 95 000 à l'agence pour le même loyer. P39.07 l'avait déduit pour un reversement déjà payé ; la mesure montre que les deux gestes qui suivent la clôture ne l'arrêtent pas non plus.
+  - Établi comment : lu, puis mesuré de bout en bout par les routes `/api/admin/payouts/*`.
+- Piste : à `approve()` et `markPaid()`, refuser (422 `platform_payout.items_changed`) un reversement dont une ligne n'est plus `paid`, ce qui renvoie à `cancel()` puis à une nouvelle clôture ; pour un reversement déjà `paid`, au moins un signalement à la console (le choix entre signaler et compenser est celui de P39.07). Garde : le scénario mesuré en test.
+
+### Un remboursement partiel fait sortir toute la ligne de l'encaissé, de la clôture de la plateforme et du reversement au bailleur
+- Réf : P76.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:12-23`, `:50`, `:65-79`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:251`, `:263`, `takussan-api/app/Services/Payout/PayoutCalculator.php:63`, `:87`, `takussan-api/app/Services/Model/BookingPaymentService.php:64-82`
+- Constat :
+  - Un remboursement partiel existe des deux côtés : le webhook écrit `refund_amount` plafonné au montant (lu, `PaymentGatewayService.php:1125-1139`), le geste manuel d'un acompte accepte tout montant `≤ amount` (lu, `BookingPaymentService.php:64-68`). Les deux passent le payable entier à `refunded`, et `refund_amount` n'est écrit nulle part ailleurs (`grep -rn refund_amount app`).
+  - Tous les circuits d'argent filtrent `status = paid` : l'encaissé (`leaseIncome`, `bookingIncome`), la clôture de la plateforme et `PayoutCalculator` (lu). La part gardée sort donc avec la part rendue.
+  - Mesuré : loyer de 150 000 soldé par l'intégration globale, remboursement de 40 000 → `refunded`, `paid_amount = 110000` ; `close-period` → 201 sans reversement (`data = []`) ; `leaseIncome` → 0 ligne ; `PayoutCalculator::leasePayments` → 0 ligne. Les 110 000 restent chez la plateforme et ne vont ni à l'agence ni au bailleur.
+  - Mesuré : acompte de 50 000, `BookingPaymentService::refund` de 20 000 → `refunded`, `paid_amount = 30000` ; l'encaissé `SUM(BOOKING_NET_SQL)` passe de 50 000 à 0.
+  - `BOOKING_NET_SQL` (« ce qui a été payé, moins ce qui a été rendu », l. 49-50) et le docblock (« `BookingPayment` `paid`, montant − `refund_amount` », l. 17, repris d'ADR-0057 § 2) soustraient un `refund_amount` qui est toujours nul sur une ligne `paid` : la soustraction n'agit jamais.
+  - Établi comment : lu, puis mesuré par le test temporaire.
+- Piste : faire compter une ligne `refunded` à hauteur de `amount − refund_amount` partout où `paid` compte (encaissé, clôture, `PayoutCalculator`, avec la commission sur cette base), ou ne passer à `refunded` qu'un remboursement total et garder la ligne `paid` avec son `refund_amount` pour un partiel. Le choix touche ADR-0057 § 2. Garde : les deux scénarios mesurés en test, sur chacun des trois lecteurs.
+
+### Un reversement au bailleur préparé avant un remboursement est versé sans relire ses lignes
+- Réf : P76.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Model/PayoutService.php:202-268`, `:269-337`, `:401-471`, `:508-537`
+- Constat :
+  - `assertItemsInScope()` exige `paid` à la création (lu, l. 519 et 534). Elle tourne hors de la transaction, et `createLocked()` relit les lignes sous verrou sans revérifier leur statut (lu, l. 413-433).
+  - `approve()` retient `approved_net_amount` ; `markProcessed()` ne compare que ce net au net figé (lu, l. 288-294). Aucun des deux ne relit les échéances attachées par `payout_lease_payment`.
+  - Le remboursement par webhook s'applique aussi aux intégrations propres à l'agence (`LeaseDueFixture`, P39.01) : une échéance attachée à un reversement `pending` puis remboursée serait versée au bailleur (déduit, à vérifier : le scénario n'a pas été rejoué).
+  - Établi comment : lu.
+- Piste : la même relecture que pour P76.01, à `approve()` et à `markProcessed()` (`payout.items_changed`), et le contrôle de statut repris dans `createLocked()`, sous le verrou. Garde : un test par geste.
+
+### Un acompte soldé en ligne par la plateforme peut être déclaré remboursé par l'agence, et sort alors de la clôture
+- Réf : P76.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Model/BookingPaymentService.php:53-91`, `takussan-api/app/Http/Requests/Api/RefundBookingPaymentRequest.php:32-48`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:245-254`
+- Constat :
+  - Le geste manuel ne regarde ni `metadata.gateway.settled_by` ni l'intégration qui a encaissé (lu, l. 53-82). Il est ouvert à qui a `bookings.refund` dans l'agence (lu, `BookingMoneyAccess::canRefund`).
+  - Une fois `refunded`, l'acompte n'entre plus dans la clôture de la plateforme (lu, l. 251). Si l'agence a rendu l'argent de sa poche, la plateforme garde l'acompte qu'elle avait encaissé ; si personne n'a rien rendu, le locataire voit un remboursement qui n'a pas eu lieu (déduit, à vérifier : qui rend un acompte encaissé par la plateforme n'est écrit ni dans ADR-0039 ni dans le code).
+  - Établi comment : lu.
+- Piste : décider qui rembourse un payable encaissé par la plateforme (V7) ; à défaut, refuser le geste manuel sur un acompte soldé par une intégration globale tant qu'aucun remboursement n'est reçu du fournisseur, ou le garder dans la clôture à hauteur de ce qui reste dû à l'agence. Garde : le cas en test.
+
+### Un loyer remboursé n'est plus ni encaissé, ni dû, ni payable
+- Réf : P76.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:41`, `:83-91`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:94-96`, `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:121-128`
+- Constat :
+  - `refunded` est terminal (lu, matrice l. 94-96), hors de l'impayé (`OWED_STATUSES`, lu) et non payable (`isPayableByNature`, lu ; `isPayable` → 409 `payment.not_payable`, mesuré en P39.01).
+  - Mesuré : échéance de 150 000 remboursée de 40 000 → `remaining_amount = 40000`, `leaseOwed` → 0 ligne. Le reste dû s'affiche, mais n'entre ni dans la balance âgée, ni dans les relances, ni dans les pénalités, et ne peut plus être payé.
+  - Remboursé en entier, le loyer du mois disparaît de tous les compteurs, alors que le bail court toujours (déduit, à vérifier : rien ne dit si le remboursement d'un loyer l'annule ou le rend de nouveau dû).
+  - Établi comment : lu, et mesuré pour le remboursement partiel.
+- Piste : choisir ce que devient l'échéance d'un loyer remboursé (V7) : rouverte (dû `= refund_amount`), annulée avec trace, ou remplacée par une échéance neuve. Garde : un test sur `leaseOwed` et `isPayable` pour le choix retenu.
+
+### Petites améliorations
+- Réf : P76.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Resources/LeasePaymentResource.php:32-33`, `takussan-api/app/Services/Export/ExportDataService.php:43-71`
+- Constat :
+  - **Montant rendu absent de l'échéance.** `LeasePaymentResource` expose `paid_amount` et `remaining_amount`, pas `refund_amount` (lu). `BookingPaymentResource` l'expose (lu, l. 24). Un écran ne peut pas dire combien a été rendu sur un loyer.
+  - **Export des paiements.** Il exporte `amount` et `status`, sans `refund_amount` (lu, l. 46 et 71). Une ligne remboursée en partie s'exporte avec son montant facial.
+  - Établi comment : lu.
+- Piste : ajouter `refund_amount` à `LeasePaymentResource` et une colonne `refund_amount` (ou `net_amount`) à l'export des paiements.
