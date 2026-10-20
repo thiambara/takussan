@@ -6988,7 +6988,7 @@ dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
 
 ### Sur la liste, les biens sponsorisés en tête restent invisibles jusqu'à l'hydratation : LCP à 10 s pour des cartes présentes dans le HTML à 3 s
 - Réf : P69.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/property/PropertyCard.tsx:45-60`, `takussan-web/src/components/property/PropertyCard.tsx:159`, `takussan-web/src/components/property/PropertyCard.tsx:199`, `takussan-web/src/components/boost/EmplacementSponsorise.tsx:36`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:613-619`
 - Constat :
@@ -6998,10 +6998,11 @@ dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
   - Mesuré, entrées LCP successives : « Chercher » à 2,5 s, puis le `h1` à 3,1 s, puis le `h3` de cette carte sponsorisée à **10,3 s**, après la tâche longue d'hydratation (8,3-9,3 s). Médiane sur trois tours : FCP 2 372 ms, **LCP 10 304 ms**. Témoins dans le même montage : fiche 2 988 ms, accueil 3 788 ms, page légale 2 496 ms.
   - Les images de ces cartes sortent aussi en `loading="lazy"` (lu dans le HTML servi), comme celle de la première carte ordinaire « Studio moderne à Touba ». Que la carte ordinaire d'indice 0 rende `lazy` malgré `priority` est **à vérifier**.
 - Piste : donner `priority` aux emplacements sponsorisés (ils sont toujours en tête), ou décompter les emplacements dans le `i < 4` de la grille. Mieux encore, ne plus masquer au rendu serveur : animer par CSS seul, sans état initial `opacity-0` dépendant du JS. Garde : un test de rendu serveur de la grille avec deux sponsorisés, qui refuse `opacity-0` sur les quatre premières cartes.
+- Mesure (2026-10-20, 634fd3a77, mesureur) : relu `PropertyCard.tsx` (`useReveal` posé dans un `useEffect`, racine en `opacity-0` tant que `useReveal(ref) || priority` est faux, commentaire « Priority cards (above-the-fold) skip the initial hidden state »), `EmplacementSponsorise.tsx:36` (`PropertyCard` sans `priority`) et `PropertiesDiscoveryPage.tsx:613-619` (sponsorisés rendus avant la grille, `priority={i < 4}` compté sur les seules cartes ordinaires) ; test vitest temporaire, retiré, `renderToString` de deux emplacements puis d'une carte `priority` → la racine de chaque carte sponsorisée sort en `opacity-0` et son image en `loading="lazy"`, la carte `priority` sort sans `opacity-0` sur sa racine ni `loading="lazy"` (le `lazy` de la carte ordinaire d'indice 0 vu par l'explorateur ne se reproduit pas sur le composant seul, la grille entière n'a pas été rendue) ; `git log` des deux composants : rien depuis TCK-794. Classement : A1, le comportement attendu est écrit dans le commentaire de `PropertyCard` (les cartes au-dessus de la ligne de flottaison sautent l'état masqué) : le correctif fait compter les emplacements dans les quatre premières cellules de la grille, sans toucher à l'animation des autres, et la réécriture en CSS seul proposée en « mieux encore » n'en fait pas partie.
 
 ### Le préchargement par défaut des liens fait rendre au serveur des listes entières : trois recherches de 40 biens par visite de fiche, impressions sponsorisées comprises
 - Réf : P69.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : couper le préchargement change la navigation des liens visibles
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyBreadcrumb.tsx:33`, `takussan-web/src/components/shared/LienLocalise.tsx:37`, `takussan-web/src/app/[locale]/(public)/properties/(liste)/page.tsx:63`, `takussan-web/src/app/[locale]/(public)/properties/(liste)/page.tsx:163`, `takussan-web/src/lib/api.ts:124-126`, `takussan-api/app/Http/Middleware/CountBoostImpressions.php:40-44`, `takussan-api/app/Services/Search/PropertySearchService.php:150-156`
 - Constat :
@@ -7014,10 +7015,11 @@ dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
   - Sonde : un `GET` RSC avec `Next-Router-Prefetch: 1` sur `/fr/properties?city=Dakar&location=Ngor` → 200, 145 Kio, et une recherche `per_page=40` dans le journal de l'API (mesuré).
   - Ces recherches ne portent pas `placements=false` (mesuré, journal), et le rendu serveur relaie l'agent du visiteur (lu, `api.ts:124-126`). `CountBoostImpressions` valide les impressions de toute réponse 200 d'un agent non robot (lu, l. 40-44). Que chaque visite de fiche compte ainsi des impressions pour les emplacements de trois listes jamais affichées est **à vérifier** : la base était en lecture seule, et l'agent sans tête peut être pris pour un robot. Voir P01.04, dont le reste porte sur les doubles recherches.
 - Piste : `prefetch={false}` sur les liens vers des listes dynamiques (fil d'Ariane, raccourcis de ville, liens de quartier), ou les faire servir sans recherche au préchargement. Pour les impressions, ne pas les compter sur un rendu de préchargement (en-tête `Next-Router-Prefetch` relayé, ou `placements=false`). Garde : un test du fil d'Ariane qui exige `prefetch={false}`.
+- Mesure (2026-10-20, 634fd3a77, mesureur) : `grep -rn prefetch src` hors tests → aucun `prefetch=` ; relu `LienLocalise.tsx` (props passées telles quelles à `next/link`), `PropertyBreadcrumb.tsx` (maillons en `LienLocalise`), `(liste)/page.tsx` (`generateMetadata` et la page appellent `rechercherBiensPublics`, un `loading.tsx` existe à côté), `api.ts` (agent du visiteur relayé hors appel partagé, TCK-792) et `CountBoostImpressions.php` (impressions validées pour toute réponse < 400 d'un agent non robot) → le défaut de code tient ; le préchargement réel n'a pas été rejoué (pas de `next build` dans ce passage), et le comptage d'impressions reste à vérifier comme l'écrit le constat. Classement : V7, `prefetch={false}` rend plus lente la navigation vers les listes, ne plus compter les impressions au préchargement touche aux statistiques que voient les annonceurs, et la piste laisse deux voies au choix.
 
 ### Le document de l'accueil attend `discovery` sans cache : environ 1 s de TTFB avant le premier octet
 - Réf : P69.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : Suspense ou cache, choix laissé ouvert par le constat
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/page.tsx:61-64`, `takussan-web/src/lib/queries/public-discovery.ts:60-64`
 - Constat :
@@ -7026,10 +7028,11 @@ dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
   - Sous Fast 3G : TTFB médian 1 040 ms sur l'accueil, contre 82-87 ms sur la liste et la page légale. Le FCP de l'accueil est le plus tardif des quatre pages (2 800 ms).
   - Une mise en cache se heurte aux impressions de la rangée vedette, comptées à chaque appel de `discovery` (voir P18.03). Le choix reste à faire.
 - Piste : soit une frontière `Suspense` autour des rangées, pour que la coque parte tout de suite, soit `discovery` en cache court partagé avec des impressions comptées à part. Mesurer le TTFB avant et après avec le même montage.
+- Mesure (2026-10-20, 634fd3a77, mesureur) : relu `(public)/page.tsx` (`await Promise.all([decouverteDeLAccueil, raccourcisDeLAccueil])` avant tout rendu), `public-discovery.ts` (`apiFetch` sans `revalidate` ni `cache`) et la liste de `(public)/` (aucun `loading.tsx` pour l'accueil) ; `git log` des deux fichiers : rien depuis TCK-628 → tient ; TTFB non re-mesuré. Classement : V7, la piste propose une frontière `Suspense` (squelette visible) ou un cache qui demande de compter les impressions de la rangée vedette à part (P18.03), et le constat dit lui-même que le choix reste à faire.
 
 ### zod et le formulaire d'alerte sont dans le JS initial de la liste, par le bouton « Enregistrer la recherche »
 - Réf : P69.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/favorites/SaveSearchButton.tsx:11`, `takussan-web/src/components/favorites/SaveSearchButton.tsx:25-27`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:20`, `takussan-web/src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts:26`
 - Constat :
@@ -7037,10 +7040,11 @@ dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
   - Mesuré : le morceau `1f6glm94c8plh.js` (64,7 Kio transférés, porteur de `ZodError`) est chargé dans le `<head>` de `/fr/properties`, ni sur l'accueil ni sur la fiche. Le JS initial transféré : liste 40 scripts, 575 Kio ; accueil 42, 603 Kio ; fiche 43, 476 Kio ; page légale 26, 336 Kio.
   - Sous Fast 3G, le dernier script de la liste finit à 8,4 s, et l'hydratation (tâche de 524 à 916 ms) commence à 8,3 s : tout ce JS est payé avant que le premier filtre réponde. La part de `react-hook-form` dans ce JS n'a pas été isolée (à vérifier).
 - Piste : charger le formulaire par `next/dynamic` au premier clic, sur le modèle des dialogues de la fiche (TCK-850), puis retirer l'exception de la table du test pour qu'elle ne puisse plus servir.
+- Mesure (2026-10-20, 634fd3a77, mesureur) : relu `SaveSearchButton.tsx` (imports statiques de `PublicSearchAlertForm`, `savedSearchPayloadSchema` et `useTraducteurValidation`), `PropertiesDiscoveryPage.tsx:20` (import statique du bouton) et `zod-hors-des-pages-publiques.test.ts` (`FORMULAIRES_ADMIS` nomme toujours `SaveSearchButton.tsx`) ; précédent relu : `PropertyDetailContent.tsx` et `dialogues-differes.test.ts` (TCK-850, dialogues de la fiche par `next/dynamic`) → tient ; la taille du morceau n'a pas été re-mesurée. Classement : A2, charger le contenu du dialogue par `next/dynamic` au premier clic, sur le modèle de TCK-850, ne change ni le formulaire ni son texte ; retirer l'exception de `FORMULAIRES_ADMIS` resserre une table d'exceptions, pas un seuil (A5).
 
 ### Le dictionnaire du groupe public pèse 33 Kio gzip dans chaque document, page légale comprise, et ne se met jamais en cache
 - Réf : P69.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : redécouper les frontières de dictionnaire revient sur ADR-0022
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/layout.tsx:89`, `takussan-web/src/i18n/namespaces.json`
 - Constat :
@@ -7048,10 +7052,11 @@ dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
   - Mesuré, document gzip : page légale 50 Kio, dont 33 de dictionnaire ; fiche 56 ; accueil 71 ; liste 77. Le document part en `Cache-Control: private, no-cache, no-store` (mesuré, `curl -D -`) : ces octets se repaient à chaque page vue, alors qu'un fichier statique se mettrait en cache.
   - C'est le grain voulu par ADR-0022 (« Le grain de la PAGE ne vaut pas son coût »). La décision ne chiffrait pas ce coût sous 3G : à 1,47 Mbit/s, 33 Kio font environ 0,18 s de liaison par page (calcul, non mesuré).
 - Piste : à décider avec ADR-0022. Soit des frontières de dictionnaire plus fines dans `(public)` (fiche, liste, pages légales), soit sortir les espaces lourds et rares (`bookings`, `agency`, `messaging`) vers les seuls composants qui les lisent. Le dérivateur `check-i18n-namespaces.mjs` imprimerait la taille de chaque frontière.
+- Mesure (2026-10-20, 634fd3a77, mesureur) : relu `(public)/layout.tsx` (`messagesPour('[locale]/(public)')`) et `namespaces.json` ; `node -e` sur `frontieres["[locale]/(public)"]` et `messages/fr.json` → 30 espaces, 108,2 Kio bruts, **33,0 Kio gzip** ; `property` 35,5 Kio, `search` 10,0, `validation` 7,7, `bookings` 7,1, `agency` 6,4, `messaging` 5,4, `agents` 5,0 → tient ; `Cache-Control` du document non re-mesuré. Classement : V6, ADR-0022 (point 3, « Le grain de la PAGE ne vaut pas son coût ») a fixé ce grain, et la piste dit elle-même « à décider avec ADR-0022 ».
 
 ### Petites améliorations
 - Réf : P69.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : référentiel chargé à l'ouverture du panneau, au choix entre deux voies
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx`
 - Constat :
@@ -7059,3 +7064,4 @@ dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
   - Fiche : le `<head>` porte deux `<link rel="preload" as="image">` pour la même photo, avec deux `imageSrcSet` (384w et 640w) sur un fichier `-thumbnail.webp` unique. Le navigateur l'a demandée deux fois, à 2,1 s et à 4,1 s (mesuré). Comme l'image échoue dans le montage, savoir si le second appel est servi par le cache quand elle répond est à vérifier.
   - Toutes les pages publiques demandent `/api/maintenance/status` après l'hydratation (0,4 Kio, mesuré), et la page d'accueil peint le logo (`icon.svg`) à 6,8 s, après les scripts (mesuré).
 - Piste : charger le référentiel des filtres à l'ouverture du panneau, ou le rendre côté serveur avec la page (il est déjà en cache de données d'une heure pour les facettes) ; un seul préchargement de la photo principale par fiche.
+- Mesure (2026-10-20, 634fd3a77, mesureur) : relu `FilterSidebar.tsx` (importe `ChoixDeVille`, `ChoixDeQuartier`, `ChoixDEquipements` de `ChoixDuReferentiel`, qui lisent `referentiel-public.ts` ; le panneau reste monté, sections comprises, quand il est fermé) et `PropertyDetailContent.tsx:188-200` (`PropertyGalleryMosaic` en `hidden md:block` et `PropertyMobileGallery` en `md:hidden`, montés tous deux, chacun avec `priority` sur sa première photo, d'où deux préchargements de la même photo) → les deux premiers points tiennent par lecture ; préflights CORS, `maintenance/status` et logo non re-mesurés. Classement : V7, charger le référentiel à l'ouverture fait attendre le panneau au premier clic, le rendre côté serveur en est l'autre voie, et le choix n'est écrit nulle part.
