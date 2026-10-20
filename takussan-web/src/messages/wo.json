@@ -1814,6 +1814,7 @@
       "creditNotePdf": "PDF de l'avoir"
     },
     "payoutDialog": {
+      "viewStatement": "Voir le relevé du mois",
       "title": "Waajal reversement",
       "description": "Tànnal bailleur bi ak période bi : xayma bi dañu koy jàng, duñu ko bind.",
       "periodStart": "Tàmbalig période",

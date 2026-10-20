@@ -3570,6 +3570,7 @@
       "creditNotePdf": "Credit note PDF"
     },
     "payoutDialog": {
+      "viewStatement": "View the month's statement",
       "title": "Prepare a payout",
       "description": "Choose the landlord and the period: the calculation is read, not typed.",
       "periodStart": "Period start",

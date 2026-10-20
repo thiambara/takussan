@@ -21,19 +21,28 @@ import type { Locale } from '@/i18n/config';
  * le net, et ce qui lui a déjà été versé — pour un mois, ou pour l'année (l'attestation annuelle).
  * Le PDF et le CSV lisent le MÊME calcul que l'écran : ils se téléchargent avec le jeton de session,
  * l'URL seule ne suffit pas.
+ *
+ * TCK-1016 — avec `landlordId`, le relevé de ce bailleur, ouvert au personnel depuis le dialogue de
+ * reversement ; sans lui, celui du lecteur.
  */
-export function OwnerStatementPanel() {
+interface OwnerStatementPanelProps {
+  readonly landlordId?: number;
+  /** `YYYY-MM` — le mois affiché à l'ouverture ; le mois courant sinon. */
+  readonly initialMonth?: string;
+}
+
+export function OwnerStatementPanel({ landlordId, initialMonth }: OwnerStatementPanelProps = {}) {
   const t = useTranslations('payments.ownerStatement');
   const locale = useLocale() as Locale;
   const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(() => initialMonth ?? new Date().toISOString().slice(0, 7));
   const [annual, setAnnual] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<'pdf' | 'csv' | null>(null);
 
   const period = annual ? month.slice(0, 4) : month;
-  const { data, isLoading, isError, error } = useOwnerStatement(period);
+  const { data, isLoading, isError, error } = useOwnerStatement(period, landlordId);
   const statement = data?.data;
   const money = (amount: number) => formatCurrency(amount, locale, { currency: statement?.currency || 'XOF' });
 
@@ -41,7 +50,8 @@ export function OwnerStatementPanel() {
     setDownloading(format);
     setDownloadError(null);
     try {
-      const response = await fetch(urlApiPublique(`/owner-statements/${format}?period=${encodeURIComponent(period)}`), {
+      const bailleur = landlordId !== undefined ? `&landlord_id=${landlordId}` : '';
+      const response = await fetch(urlApiPublique(`/owner-statements/${format}?period=${encodeURIComponent(period)}${bailleur}`), {
         headers: {
           Accept: format === 'pdf' ? 'application/pdf' : 'text/csv',
           'Accept-Language': locale,
