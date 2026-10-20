@@ -144,7 +144,7 @@ voie d'écriture (angle 13, puis 47).
 | 69 | Fiche bien, recherche et accueil servis par `next start` avec l'API de dev, sous 3G simulé par CDP : LCP, TBT, octets du document RSC et ordre des préchargements | fait |
 | 70 | Poids JS initial des écrans de `/app` (`(dashboard)`, 500 à 610 Kio gzip au build du 2026-10-17) : ce que la coque et la barre latérale chargent pour chaque écran | fait |
 | 71 | Variables d'environnement des services de production du plan F3 (`takussan-web-prod`, `takussan-api-prod`) face au relevé de la préproduction dans `docs/infra/hebergement.md` : clés absentes, valeurs reprises de D1 | fait |
-| 72 | Ce qu'un accusé `failed` reçu après coup (SMS ou WhatsApp) déclenche : repli sur un autre canal, renvoi, trace pour l'expéditeur — face aux envois critiques (OTP, code de signature de bail) | à faire |
+| 72 | Ce qu'un accusé `failed` reçu après coup (SMS ou WhatsApp) déclenche : repli sur un autre canal, renvoi, trace pour l'expéditeur — face aux envois critiques (OTP, code de signature de bail) | fait |
 | 73 | URL signées absolues (`hasValidSignature`, `temporarySignedRoute`, `media.private.show`) derrière Traefik : schéma et hôte vus par l'API face à `APP_URL`, signature refusée en préproduction ? | à faire |
 | 74 | Ce que joint sans authentification un service voisin de `dokploy-network` (Dokploy, Compose `donnees`, autres projets) : API sur 8080, Redis, Meilisearch (clé maîtresse ?), PostgreSQL, front Next — et l'alias `api` partagé entre projets | à faire |
 | 75 | Classes `Notification` historiques de `AppDatabaseChannel::TYPES`, hors `NotificationCode` : sans `code` ni `target` dans la cloche, préférences lues à la main dans `via()`, couvertes par un test ? | à faire |
@@ -180,6 +180,7 @@ voie d'écriture (angle 13, puis 47).
 | 104 | Poids JS initial des écrans de la console `/super-admin` (`SuperAdminShell`, tableaux, dialogues importés statiquement, fichiers `index.ts` de `components/admin/super`) : le relevé de l'angle 70 sur l'autre console | à faire |
 | 105 | Charge RSC d'un document `/app` servi : dictionnaires imbriqués de `layout.tsx`, `(dashboard)` et `(dashboard)/app` (et `/app/agency`) sérialisés chacun avec l'ensemble cumulé de ses parents, mesurés sur le document compressé | à faire |
 | 106 | Branches que le code ne prend qu'en `APP_ENV=production` (`RestrictIpMiddleware` à liste vide, `DeletionStepUpService::sendCode`, `AddRobotsTagOutsideProduction` jugé sur `APP_URL`) : chacune éprouvée par un test en `production`, alors que la préproduction tourne en `staging` et ne les prend jamais ? | à faire |
+| 107 | Champs du profil que l'utilisateur déclare pour être joint (`phone_whatsapp`, `secondary_phone`, `secondary_phone_whatsapp`, `preferred_language`, heures calmes) : lus par les chemins qui envoient (canaux de notification, codes, relances), ou seulement affichés ? | à faire |
 
 ---
 
@@ -7255,3 +7256,88 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - `prod-drivers.json` nomme le service de production `takussan-api-prod` (lu, `:67`) ; F3, ADR-0069 et `compose.api.yml` disent `takussan-api-production`.
   - La ligne TCK-720 de F3 exige un `CACHE_PREFIX` propre à la production (lu, `:4166`). Le motif de P05.09 était le Redis partagé `redis-takussan`, que TCK-880 a remplacé par un Redis par pile (lu, en-tête de `deploy/takussan/compose.api.yml`). La consigne reste sans danger, mais elle ne dit plus pourquoi.
 - Piste : nommer `GOOGLE_REDIRECT_URI`, `SESSION_DOMAIN` et `SESSION_COOKIE` dans la table F3, avec leur valeur de production. Corriger le nom du service dans `prod-drivers.json`. Récrire le motif de `CACHE_PREFIX`, ou retirer la consigne si le porteur la juge sans objet.
+
+## Angle 72 — Accusés `failed` reçus après coup (SMS et WhatsApp)
+
+*Exploré le 2026-10-20 sur `pre-dev` 90019ce08, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : `UpdateWhatsappDeliveryStatusJob`,
+`DeliveryAttemptUpdater`, `DlrReportApplier`, `WhatsappStatusController`, `WhatsappChannel`,
+`ServiceWindow`, `SmsRouterDriver`, `PreferenceResolver`, `PhoneVerificationService`,
+`DeletionStepUpService`, `LeaseSignatureService::sendCode()`, `LeaseSignatureCodeNotification`,
+`HealthcheckService::sms()`, `NotificationDeliveryAttempt`, `docs/features.md` § « Canal WhatsApp
+sortant » et `docs/models-spec.md` § 69. Un test temporaire, retiré depuis, sur la base de test
+(charge 1,60 / 1,68 / 2,06 sur 8 cœurs). Non mesuré : ce que Meta, Orange, Mtarget et LAfricaMobile
+renvoient réellement, en particulier si Meta accepte en 200 un envoi vers un numéro absent de
+WhatsApp avant de le dire `failed` par le webhook ; cela est noté « à vérifier » là où une entrée en
+dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) sont l'angle 36.*
+
+### Un `failed` WhatsApp reçu après l'acceptation ne déclenche aucun repli SMS
+- Réf : P72.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:30-63`, `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:42-95`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:122-135`, `docs/features.md:563-564`
+- Constat :
+  - `WhatsappChannel::send()` ne se replie sur le SMS que sur un échec rendu par l'appel lui-même ; un résultat `sent` termine l'envoi (lu, l. 125-127).
+  - L'accusé `failed` qui arrive ensuite passe par `UpdateWhatsappDeliveryStatusJob`, qui ne fait qu'écrire `status` et `failure_reason` sur la tentative ; `NotificationDeliveryAttempt` n'a ni observateur ni événement lu ailleurs (lu, `grep -rln NotificationDeliveryAttempt app` : aucun écouteur).
+  - mesuré : test temporaire, tentative `whatsapp_cloud` à `sent`, `SmsRouterDriver` remplacé par un double qui refuse tout `send`, puis `UpdateWhatsappDeliveryStatusJob('wamid.X', 'failed', '131026')->handle()` → la ligne passe à `failed`, aucun appel au routeur, `Queue` et `Notification` vides, aucun `Log::info`, `warning` ni `error`.
+  - La spec promet « si WhatsApp […] échoue durement, bascule automatique vers SMS (le SMS reste le filet de sécurité) » (`features.md:563`) ; elle ne dit pas si un échec tardif est « dur » (lu).
+  - Que Meta accepte en 200 puis dise `failed` par le webhook pour un numéro sans WhatsApp ou un gabarit refusé est le cas courant annoncé par sa documentation, mais n'est pas mesuré depuis le poste : à vérifier.
+  - Établi comment : lu, et mesuré par le test temporaire.
+- Piste : sur un `failed` tardif d'une tentative `whatsapp_cloud` rattachée à une notification, sans tentative SMS déjà écrite pour elle, et dont la notification permet le repli (`smsFallbackAllowed`), mettre en file l'envoi SMS de la même notification ; un test qui rejoue l'accusé deux fois et n'attend qu'un SMS. Préciser dans `features.md` ce que vaut « échoue durement ».
+
+### `phone_whatsapp = false`, déclaré par l'utilisateur, n'écarte pas WhatsApp du routage
+- Réf : P72.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Notifications/PreferenceResolver.php:157-205,268-278`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:234-235`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:66-135`
+- Constat :
+  - L'utilisateur déclare si son numéro est sur WhatsApp (`PATCH` du profil, `AuthController.php:234-235`), mais `phone_whatsapp` n'est lu ni par `PreferenceResolver` ni par `WhatsappChannel` (lu, `grep -rn phone_whatsapp app` : seuls le modèle, la ressource, la requête, `AuthController`, `PropertyContactNumbers` et la suppression de compte).
+  - mesuré : test temporaire, utilisateur au téléphone vérifié, `phone_whatsapp` à `false`, sans préférence → `resolveMobileChannel($user, 'lease_payment_overdue')` rend `"whatsapp"`. Les quatre événements de `MOBILE_DEFAULT_EVENTS` (échéance, impayé, rappel de visite, réservation) ont WhatsApp allumé par défaut (lu, l. 136-141 et 194-205).
+  - Joint à P72.01 : si Meta accepte le gabarit puis le dit `failed`, cet utilisateur ne reçoit aucun message mobile pour une relance d'impayé (à vérifier, comme P72.01).
+- Piste : dans `resolveMobileChannel()`, passer au SMS quand `phone_whatsapp === false` (laisser `null`, « non dit », au défaut actuel) ; un test par valeur.
+
+### Un échec tardif ne change aucun routage suivant
+- Réf : P72.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:72,100-108`, `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:30-63`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:142-162`
+- Constat :
+  - La chaîne SMS d'un opérateur est lue telle quelle dans `sms.fallback_chains` à chaque envoi (lu, `resolveChain()`, l. 100-108) : un fournisseur qui accepte puis échoue en accusé reste premier pour le renvoi suivant, code à usage unique compris. Seul le plafond Orange de 3 SMS par jour et par numéro le fait sauter (lu, en-tête l. 23-26).
+  - Un `failed` WhatsApp ne touche ni `whatsapp_contacts` ni une préférence (lu, le job n'écrit que la tentative) : le message suivant au même numéro reprend WhatsApp, et échoue de même.
+  - Établi comment : lu.
+- Piste : retenir, par numéro et pour une durée bornée, le dernier échec tardif d'un fournisseur ou de WhatsApp, et le faire sauter au prochain envoi ; au minimum pour les codes à usage unique (`is_otp`). Test : un `failed` tardif, puis un renvoi qui part par le fournisseur suivant.
+
+### Un code à usage unique perdu en accusé `failed` ne laisse ni signal ni autre voie au destinataire
+- Réf : P72.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Auth/PhoneVerificationService.php:303-336,394-420`, `takussan-api/app/Services/Account/DeletionStepUpService.php:65-108`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:112-141`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:340-355`
+- Constat :
+  - Les trois envois de code ne jugent que la réponse synchrone : `deliver()` du code de téléphone (l. 394-420), `afterSending()` du code de signature (`smsLeft()`), et rien du tout pour le step-up de suppression, qui ignore le résultat de `$this->sms->send()` (l. 89-98) et répond 202 dans tous les cas (lu).
+  - Une fois le SMS accepté, un `failed` tardif n'est vu par personne (mesuré pour le SMS : test temporaire, tentative `orange` à `sent`, `applyStatus(…, 'failed', …)` → la ligne passe à `failed`, file et notifications vides, aucun journal). L'utilisateur voit « code envoyé » et ne peut que redemander après le délai de renvoi, par la même chaîne (P72.03).
+  - Pour la signature de bail, un numéro vérifié impose le SMS, sans e-mail (lu, l. 120-121) : c'est le reste de P15.05 ; ce constat y ajoute que même le 503 de TCK-799 ne voit pas un échec tardif.
+  - Une réaction est aujourd'hui impossible sans schéma : la tentative ne porte ni l'événement (`phone_otp`, `lease_signature`…) ni le sujet, et elle est sans notification pour ces trois envois (lu, `attemptRow()`, l. 340-355 ; `models-spec.md` § 69).
+  - Établi comment : lu, et mesuré par le test temporaire.
+- Piste : écrire l'événement du contexte sur la tentative ; sur un `failed` tardif d'un code, lever le délai de renvoi du sujet et l'exposer (un état que l'écran de saisie du code peut relire), voire basculer sur l'e-mail vérifié quand il existe. Garde : un test par envoi de code.
+
+### Un échec de livraison n'est lisible nulle part, et ceux de WhatsApp pas même par la sonde de santé
+- Réf : P72.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Admin/HealthcheckService.php:236-257`, `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:30-63`, `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:42-95`
+- Constat :
+  - Aucune route ne lit `notification_delivery_attempts` : ni la cloche, ni une page de l'agence, ni la console (lu, `grep -rn 'deliveryAttempts\|delivery_attempts\|NotificationDeliveryAttempt' app/Http` → un seul docblock). L'agent qui relance un impayé ne sait pas que le message n'est pas arrivé.
+  - La sonde `sms` de la santé écarte toute tentative `whatsapp%` (lu, l. 244-246) : aucun taux d'échec WhatsApp n'existe. Elle compte les tentatives par `created_at` de la dernière heure, donc un accusé `failed` arrivé plus d'une heure après l'envoi n'y entre jamais (lu, l. 244).
+  - Ni le job WhatsApp ni `DeliveryAttemptUpdater` n'écrivent au journal sur un `failed` (mesuré, `Log::spy` du test temporaire : aucun appel).
+  - Établi comment : lu, et mesuré par le test temporaire.
+- Piste : une sonde de taux d'échec WhatsApp à côté de celle du SMS, comptée sur `updated_at` pour voir les accusés tardifs ; un `Log::warning` (suffixe du numéro, fournisseur, motif) sur tout `failed` tardif ; et une décision sur ce que l'expéditeur voit de l'échec d'un message qu'il a déclenché.
+
+### Petites améliorations des accusés `failed`
+- Réf : P72.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Webhook/WhatsappStatusController.php:146-153`, `takussan-api/app/Notifications/Concerns/Critical.php:1-27`
+- Constat :
+  - `failureReason()` garde le `title` de l'erreur Meta avant son `code` (lu, l. 152) : la tentative porte « Message undeliverable » et perd `131026`, le seul champ qui distingue un numéro sans WhatsApp d'un gabarit refusé, et dont P72.01 à P72.03 auraient besoin.
+  - Le trait `Concerns\Critical`, dont le docblock annonce les codes 2FA et de réinitialisation, n'est employé par aucune notification (lu, `grep -rn 'use Critical' app` : aucun) ; les codes passent par le routeur direct ou par `isCriticalSms()` écrit à la main.
+- Piste : écrire `code` (et le titre à côté) dans `failure_reason` ; retirer le trait sans emploi ou y ramener `LeaseSignatureCodeNotification`.
