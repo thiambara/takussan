@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Me\UploadKycOwnerProfileRequest;
+use App\Http\Resources\PropertyResource;
 use App\Models\Document;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
@@ -164,14 +165,15 @@ class OwnerProfileController extends Controller
             ->when($owner_profile->user_id === null, fn (Builder $q) => $q->whereRaw('1 = 0'))
             ->when($owner_profile->agency_id !== null, fn (Builder $q) => $q->where('agency_id', $owner_profile->agency_id));
 
-        $paginator = Property::buildQuery($base, $request)
+        $paginator = Property::buildQuery($base->with('media'), $request)
             ->defaultSort('-created_at')
             ->paginate($this->tailleDePage($request, 20));
 
-        return $this->json([
-            'data' => $paginator->items(),
-            'meta' => $this->paginationMeta($paginator),
-        ]);
+        // TCK-1048 (P61.03) — la ligne passe par `PropertyResource` : sans `fields[properties]`,
+        // spatie fait un `select *` et `$paginator->items()` rendait au bailleur gel plateforme,
+        // suivi admin et bien de test, qu'aucune ressource n'émet. L'agence d'un `include=agency`
+        // sort par sa projection publique (`buildAgency`), sans seuil des reversements (P61.02).
+        return $this->paginated($paginator, PropertyResource::collection($paginator)->toArray($request));
     }
 
     /**

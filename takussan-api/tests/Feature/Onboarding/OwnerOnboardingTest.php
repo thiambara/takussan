@@ -248,6 +248,31 @@ class OwnerOnboardingTest extends TestCase
             ->assertJsonPath('meta.total', 3);
     }
 
+    /**
+     * TCK-1048 (piste P61.03) — sans `fields[properties]`, la liste rendait la ligne `properties`
+     * entière (`select *`, seul `$hidden` filtrait) : gel plateforme et son auteur, suivi admin,
+     * bien de test. Elle passe par `PropertyResource`, qui n'émet aucune de ces colonnes.
+     */
+    public function test_la_liste_sans_fields_ne_rend_pas_les_colonnes_de_moderation(): void
+    {
+        $user = User::factory()->create();
+        $agency = Agency::factory()->create();
+        $owner = OwnerProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $agency->id]);
+        $bien = Property::factory()->create(['user_id' => $user->id, 'agency_id' => $agency->id, 'title' => 'Villa Ngor']);
+        $bien->forceFill([
+            'platform_hold_at' => now(), 'platform_hold_by_id' => User::factory()->create()->id,
+            'platform_hold_reason' => 'contrôle', 'admin_monitored' => true, 'is_test' => true,
+        ])->save();
+
+        Sanctum::actingAs($user);
+        $ligne = $this->getJson("/api/me/owner-profiles/{$owner->id}/properties")->assertOk()->json('data.0');
+
+        $this->assertSame('Villa Ngor', $ligne['title']);
+        foreach (['platform_hold_at', 'platform_hold_by_id', 'platform_hold_reason', 'admin_monitored', 'is_test', 'metadata', 'deleted_at'] as $colonne) {
+            $this->assertArrayNotHasKey($colonne, $ligne);
+        }
+    }
+
     public function test_endpoints_require_authentication(): void
     {
         $owner = OwnerProfile::factory()->create();
