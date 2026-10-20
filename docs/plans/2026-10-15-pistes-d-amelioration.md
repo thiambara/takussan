@@ -6692,7 +6692,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### Les libellés FR / EN / WO édités dans la console ne sont lus par aucun rendu
 - Réf : P66.03
-- Statut : validé — avec (b) de P66.01 : retirer l'édition des libellés FR / EN / WO (principe n° 5) et corriger le sous-titre de `/super-admin/enums` (porteur, 2026-10-20)
+- Statut : fait · TCK-1057
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Resources/Bases/BaseResource.php:72-80`, `takussan-api/app/Http/Resources/PropertyResource.php:101-110`, `takussan-web/src/components/property-form/options.ts:47-60`, `takussan-web/src/app/(super-admin)/super-admin/enums/page.tsx:46-51`
 - Constat :
@@ -6703,6 +6703,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 - Piste : même choix que P66.01. Si la console reste en lecture seule sur les libellés, le dire à l'écran et retirer l'édition ; si elle doit agir, un seul lecteur de libellé (réglage, sinon dictionnaire), et un test qui lit `type_label` après un `PATCH`. Le principe n°5 (le front possède le texte affiché) pèse sur ce choix.
 - Mesure (2026-10-20, 0bd41cb0d, mesureur) : test temporaire (retiré) : `PATCH /api/admin/enums/property_type/values/villa` `labels.fr = "Villa de luxe"` → 200, puis agent `POST /api/properties` `type=villa` sous `Accept-Language: fr` → 201, `type_label` « Villa » ; `enumLabel()` lit toujours `lang/` (`BaseResource.php`) ; le sous-titre « Gérez les libellés FR / EN / WO… » est toujours dans `takussan-web/src/messages/fr.json` → le constat tient. Classement : V7, retirer l'édition ou la faire lire par les rendus est un choix de produit qui touche le principe n° 5.
 - Mesure (2026-10-20, 550abfd75, delegue) : relu le constat, `CLAUDE.md` principe n° 5 (« Le front possède le texte affiché ; les libellés passent par next-intl »), `BaseResource.php` (`enumLabel()` lit `lang/`) → le principe n° 5 est une décision écrite qui place les libellés dans les dictionnaires du front, pas dans un réglage de la console. Recommandation : retirer l'édition des libellés FR / EN / WO de la console et corriger le sous-titre de `/super-admin/enums`, parce que faire lire le réglage par les rendus irait contre le principe n° 5 ; cette voie rend P66.04 sans objet. Pas validé : c'est le retrait d'une fonction visible de la console, qui suit le choix de P66.01 ; il manque au porteur de trancher P66.01.
+- Mesure (2026-10-20, b306dca2b, implementeur) : avant correctif, `BusinessEnumTest::test_console_refuses_editing_labels` : super-admin `PATCH /api/admin/enums/property_type/values/villa` `labels.fr = "Villa premium"` → 200 → route, contrôleur, service et requête d'édition retirés, dialogue et bouton « Modifier » retirés de `/super-admin/enums`, sous-titre remplacé par une clé neuve (« Consultez les valeurs métier non techniques et leur usage. Elles ne se modifient pas depuis la console. », `wo` en français) ; le test exige 404 ou 405, aucun réglage ni audit, plus un cas de `enums/__tests__/page.test.tsx` (aucun bouton « Modifier », plus de « Gérez les libellés ») ; ablation : correctif retiré, rouge (200 ; bouton trouvé), remis, verts.
 
 ### Le libellé français par défaut de chaque valeur est sa clé anglaise, figée à la première écriture
 - Réf : P66.04
