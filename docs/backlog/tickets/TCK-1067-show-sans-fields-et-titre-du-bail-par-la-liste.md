@@ -3,7 +3,7 @@ id: TCK-1067
 title: "Un show rend la ressource de détail entière : le front ne lui envoie plus de fields, et le titre du bail passe par la liste"
 status: done
 phase: P2
-family: dette
+family: full
 estimate: M
 wave: null
 created: 2026-10-20
