@@ -35,9 +35,12 @@ class UserResource extends BaseResource
             'phone' => $this->phone,
             'bio' => $this->bio,
             'avatar_url' => $this->avatarUrl(),
-            'email_verified_at' => $this->iso($this->email_verified_at),
-            'phone_verified_at' => $this->iso($this->phone_verified_at),
-            'two_factor_enabled' => (bool) $this->two_factor_enabled,
+            // TCK-1019 (P58.04) — `whenHas`, comme `has_usable_password` ci-dessous : ces colonnes
+            // sont hors `User::$queryFields`, et sous un sparse fieldset un appel nu affirmait
+            // `null` ou `false` sur des comptes dont rien n'avait été lu.
+            'email_verified_at' => $this->whenHas('email_verified_at', fn () => $this->iso($this->email_verified_at)),
+            'phone_verified_at' => $this->whenHas('phone_verified_at', fn () => $this->iso($this->phone_verified_at)),
+            'two_factor_enabled' => $this->whenHas('two_factor_enabled', fn () => (bool) $this->two_factor_enabled),
             // TCK-272 — le front ne DEVINE pas le mode de step-up : le
             // backend le dit. `false` = le hash en base est une valeur
             // machine (OAuth / invitation / provisioning), donc la
@@ -64,11 +67,11 @@ class UserResource extends BaseResource
             // TCK-263 / TCK-264 — surfaced so the frontend can detect a
             // pending super-admin onboarding state and redirect to
             // /onboarding/super-admin before serving any super-admin route.
-            'force_2fa_at_first_login' => (bool) $this->force_2fa_at_first_login,
+            'force_2fa_at_first_login' => $this->whenHas('force_2fa_at_first_login', fn () => (bool) $this->force_2fa_at_first_login),
             // TCK-589 — la 2FA a été réinitialisée par le support : toute route hors
             // `auth/*` rend 403 `two_factor_required` jusqu'au ré-enrôlement, et le
             // front y conduit (`/onboarding/securite`).
-            'force_2fa_reconfigure' => ($this->metadata['force_2fa_reconfigure'] ?? false) === true,
+            'force_2fa_reconfigure' => $this->whenHas('metadata', fn () => ($this->metadata['force_2fa_reconfigure'] ?? false) === true),
             // TCK-633 (lot C) — les préférences de contact ne sortent que pour SOI : `UserResource`
             // sert aussi les membres d'une agence (`AgencyController`), et le second numéro d'un
             // collègue n'a rien à faire dans cette liste.
@@ -87,9 +90,9 @@ class UserResource extends BaseResource
             'roles' => $this->profileTypes()->all(),
             'status' => $this->status?->value,
             // TCK-253 — opt-in personalisation hints set via PATCH /api/me.
-            // Always returned as an object (possibly empty) so clients can
-            // assume the shape without null-checks.
-            'preferences' => is_array($this->preferences) ? $this->preferences : (object) [],
+            // Returned as an object (possibly empty) whenever the column was read, so clients can
+            // assume the shape without null-checks; omitted under a sparse fieldset (TCK-1019).
+            'preferences' => $this->whenHas('preferences', fn () => is_array($this->preferences) ? $this->preferences : (object) []),
             'created_at' => $this->iso($this->created_at),
         ];
     }
