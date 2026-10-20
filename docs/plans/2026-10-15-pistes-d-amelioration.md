@@ -6741,7 +6741,7 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
 
 ### Une recherche sauvegardée sur un quartier fusionné ne trouve plus rien, alors que le référentiel garde le lien vers la cible
 - Réf : P67.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ce qu'un ancien nom fusionné rend au public et aux alertes n'est écrit nulle part
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Search/QuartierDuFiltre.php:27-40`, `takussan-api/app/Services/Search/PropertySearchService.php:484-490`, `takussan-api/app/Services/Geo/GeoNeighborhoodModeration.php:79-106`, `:123-141`
 - Constat :
@@ -6750,10 +6750,11 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
   - Mesuré (test temporaire) : bien rattaché à « Liberte Quatre » (proposition), recherche `{location: "Liberte Quatre"}` → 1 ; `POST /api/admin/geo/neighborhoods/{source}/merge` vers « Liberté 4 » → 200 ; même recherche → 0, `{location: "Liberté 4"}` → 1. `GET /api/public/properties/search?location=Liberte%20Quatre` → `total` 0. L'alerte se tait sans erreur, et un lien partagé rend une liste vide.
   - Établi comment : lu, puis mesuré par le chemin de l'alerte (`SearchService::getMatchingProperties` appelle `alertMatches` sur `toSearchParams($search->criteria)`, lu l. 190-200).
 - Piste : dans `idsDuReferentiel()`, remplacer un quartier fusionné par sa cible (`merged_into_id ?? id`) ; la fusion ne fait jamais de chaîne (l. 97), une étape suffit. Garder par un test : bien rattaché à la source, fusion, puis `alertMatches` et `/public/properties/search` sur l'ancien nom → 1.
+- Mesure (2026-10-20, df863bd1c, mesureur) : relu `QuartierDuFiltre::idsDuReferentiel()` (filtre par `CleDeQuartier` sur tous les quartiers, fusionnés compris, sans suivre `merged_into_id`), `PropertySearchService::buildFilter()` (branche libre `geo_neighborhood_id IS NULL`) et `GeoNeighborhoodModeration::fusionner()`/`reecrireAdresses()`, inchangés depuis 550abfd75 (`git log`), aucun ticket ; test temporaire (retiré, charge 5,58 sur 8 cœurs) par `alertMatches(toSearchParams(criteria))` : `{location: "Liberte Quatre"}` → 1, fusion dans « Liberté 4 » → 200, puis → 0, `{location: "Liberté 4"}` → 1, `GET /api/public/properties/search?location=Liberte%20Quatre` → `meta.total` 0 → le constat tient en entier. Classement : V7, suivre la fusion élargit l'alerte à tout le quartier cible, et ni ADR-0062 ni TCK-663 ne disent ce qu'un ancien nom doit rendre.
 
 ### Un quartier renommé fait taire les recherches sauvegardées sur son ancien nom, et ce nom n'est gardé nulle part
 - Réf : P67.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux voies à choisir (alias gardés ou critères réécrits), la seconde V4
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoNeighborhoodModeration.php:54-77`, `takussan-api/app/Services/Search/QuartierDuFiltre.php:27-40`, `takussan-api/app/Support/SavedSearchCriteria.php:121-138`
 - Constat :
@@ -6762,10 +6763,11 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
   - Mesuré (test temporaire) : quartier approuvé « Sicap Lib », `{location: "Sicap Lib"}` → 1 ; `PATCH /api/admin/geo/neighborhoods/{id}` `{name: "Sicap Liberté"}` → 200 ; `{location: "Sicap Lib"}` → 0, `{location: "Sicap Liberté"}` → 1.
   - Un renommage qui ne change que la ponctuation ou la casse garde la même clé `CleDeQuartier` et ne casse rien (déduit de `QuartierDuFiltre.php:36`, à vérifier).
 - Piste : deux voies, à choisir. Garder les anciens noms d'un quartier (colonne ou table d'alias, lue par `idsDuReferentiel()`) ; ou réécrire, dans la même transaction, les `criteria.location` des recherches sauvegardées qui portent l'ancien nom. Garder par un test : renommer, puis rejouer l'alerte sur l'ancien nom.
+- Mesure (2026-10-20, df863bd1c, mesureur) : relu `GeoNeighborhoodModeration::renommer()` (nom et `renamed_at` écrits, ancien nom seulement au journal, aucun contrôle de statut) ; test temporaire (retiré) : quartier approuvé « Sicap Lib », `{location: "Sicap Lib"}` → 1, `PATCH …/neighborhoods/{id}` « Sicap Liberté » → 200, puis « Sicap Lib » → 0 et « Sicap Liberté » → 1 → le constat tient ; le cas ponctuation seule n'est pas mesuré. Classement : V7, la `Piste` propose deux voies, et réécrire `saved_searches.criteria` est une réécriture de données (V4).
 
 ### Un équipement proposé puis renommé ou fusionné vide les alertes qui le demandent par son nom
 - Réf : P67.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux voies à choisir, la seconde change le contrat front ↔ API et l'index (V6)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Tags/TagModeration.php:42-57`, `:59-83`, `:85-130`, `takussan-api/app/Services/Search/PropertySearchService.php:581-590`, `takussan-web/src/components/search/FilterSidebar.tsx:589-595`
 - Constat :
@@ -6775,10 +6777,11 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
   - Un refus retire les liaisons (l. 49) : une alerte sur une proposition refusée ne rendra plus jamais rien, ce qui peut se défendre, mais personne ne le sait (lu).
   - Les tags ET entre eux : une alerte `Piscine,Pool` devient muette tout entière, pas seulement pour `Pool` (déduit de la clause par équipement, à vérifier).
 - Piste : à choisir. Réécrire `criteria.tags` des recherches sauvegardées dans la transaction du renommage et de la fusion (nom source → nom cible) ; ou filtrer par slug ou identifiant, stables, au lieu du nom (contrat front ↔ API et index changent). Garder par un test : renommer, fusionner, puis rejouer l'alerte.
+- Mesure (2026-10-20, df863bd1c, mesureur) : relu `TagModeration::renommer()`/`fusionner()` (aucun ne touche `saved_searches`, la source fusionnée est supprimée) et la clause `tags = <nom>` par équipement de `buildFilter()` ; test temporaire (retiré) par `alertMatches` : `Jacuzzi` → 1, `Pool` → 1, `Piscine,Pool` → 1 ; renommage `Jacuzzi extérieur` → 200, fusion `Pool` → `Bassin` → 200 ; puis `Jacuzzi` → 0, `Jacuzzi extérieur` → 1, `Pool` → 0, `Bassin` → 1, `Piscine,Pool` → 0, public `?tags=Pool` → 0 → le constat tient, y compris la partie « à vérifier » (l'alerte à deux équipements se tait entière). Classement : V7, la `Piste` laisse le choix entre réécrire les critères (V4) et filtrer par identifiant (contrat et index, V6).
 
 ### Le récapitulatif CRM ne rapproche plus un prospect d'un bien dont le quartier a été fusionné ou renommé
 - Réf : P67.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux voies à choisir, dont une réécriture des critères des prospects (V3, V4)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Crm/ProspectMatcher.php:87-103`, `:145-170`, `takussan-api/app/Jobs/Crm/SendProspectMatchDigest.php:66`, `takussan-web/src/components/customer-form/CustomerForm.tsx:382`
 - Constat :
@@ -6786,10 +6789,11 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
   - Mesuré (test temporaire) : prospect d'une agence avec `seeking_neighborhoods = ["Liberte Quatre"]`, bien de la même agence rattaché à ce quartier ; `propertiesFor` → 1, `customersFor` → 1 ; après la fusion dans « Liberté 4 » → 0 et 0. Le récapitulatif quotidien (`SendProspectMatchDigest`, qui passe par `customersFor`) ne le citerait plus.
   - Les quartiers du prospect sont saisis en texte libre, séparés par des virgules (lu, `CustomerForm.tsx:103`, `:382`) : rien ne les rattache au référentiel.
 - Piste : comparer par la clé `CleDeQuartier` et les identifiants du référentiel, comme la recherche publique (`QuartierDuFiltre`), fusion suivie ; ou réécrire `seeking_neighborhoods` à la fusion et au renommage. Garder par un test : fusion, puis `customersFor`.
+- Mesure (2026-10-20, df863bd1c, mesureur) : relu `ProspectMatcher::propertiesFor()` et `whereListAccepts()` (comparaison du texte `addresses.neighborhood` replié par casse seule), inchangés depuis 550abfd75 ; test temporaire (retiré) : prospect `seeking_neighborhoods = ["Liberte Quatre"]`, bien de la même agence sur ce quartier, `propertiesFor` → 1, `customersFor` → 1 ; fusion dans « Liberté 4 » → 200 ; puis 0 et 0 → le constat tient. Classement : V7, la `Piste` propose deux voies, et réécrire `seeking_neighborhoods` touche des données de prospects (V3, V4).
 
 ### Le rapprochement CRM ne reconnaît pas « Liberte 4 » pour « Liberté 4 », que la recherche publique confond
 - Réf : P67.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : étendre au CRM le repli d'accents décidé pour la seule recherche publique
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Crm/ProspectMatcher.php:26-27`, `:152-170`, `takussan-api/app/Support/Search/CleDeQuartier.php`, `takussan-api/app/Services/Search/QuartierDuFiltre.php:9-18`
 - Constat :
@@ -6797,3 +6801,4 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
   - Mesuré (test temporaire) : prospect `seeking_neighborhoods = ["Liberte 4"]`, bien à « Liberté 4 » → `propertiesFor` 0.
   - La saisie du prospect étant libre (P67.04), la graphie de l'agent et celle du référentiel diffèrent souvent ; aucune n'est mesurée en base de développement (0 prospect avec des quartiers).
 - Piste : appliquer au rapprochement la règle de `QuartierDuFiltre` (choix du porteur pour la recherche, TCK-663), en SQL ou par la liste des textes de même clé (`textesLibres()`), et corriger le docblock. Garder par un test : graphie sans accent ni tiret.
+- Mesure (2026-10-20, df863bd1c, mesureur) : relu le docblock de `ProspectMatcher` (« sans replier les accents ») et `CleDeQuartier::de()` ; test temporaire (retiré) : prospect `["Liberte 4"]`, bien à « Liberté 4 » de la même agence → `propertiesFor` 0, `customersFor` 0 → le constat tient. Classement : V7, le rapprochement suit délibérément ADR-0025 (accents non repliés) et le repli de `CleDeQuartier` a été décidé pour le filtre `location` seul (TCK-663) : l'étendre au CRM est un choix du porteur.
