@@ -249,9 +249,11 @@ class CalendarTest extends TestCase
     }
 
     /**
-     * TCK-072 — garde-fou : `property_id` invalide → 422 (pas de 500 ni
-     * de leak silencieux). Protège contre une tentative de sonde sur des
-     * IDs inexistants.
+     * TCK-072 — garde-fou : `property_id` mal formé → 422 (pas de 500).
+     *
+     * TCK-1072 (P62.06) — un identifiant INCONNU ne rend plus 422 : c'était la sonde que ce test
+     * disait fermer, puisque le bien d'une agence tierce, lui, rendait 200. Il rend l'agenda vide,
+     * comme un bien que l'appelant ne voit pas (`PropertyContextExistenceOracleTest`).
      */
     public function test_calendar_rejects_unknown_property_id(): void
     {
@@ -261,7 +263,12 @@ class CalendarTest extends TestCase
         $to = now()->addWeek()->toDateString();
 
         $this->getJson("/api/calendar?start_date={$from}&end_date={$to}&property_id=999999")
-            ->assertStatus(422);
+            ->assertOk()
+            ->assertExactJson(['data' => []]);
+
+        $this->getJson("/api/calendar?start_date={$from}&end_date={$to}&property_id=abc")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('property_id');
     }
 
     /**

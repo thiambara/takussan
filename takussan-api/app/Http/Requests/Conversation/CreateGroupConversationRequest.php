@@ -63,9 +63,11 @@ class CreateGroupConversationRequest extends BaseFormRequest
             // TCK-565 — AUCUNE règle sur `participants.*` : elle produirait une erreur par
             // position (« participants.0 »). `bail` + `ParticipantIdsRule` = une erreur au plus.
             'participants' => ['bail', 'required', 'array', 'min:2', 'max:19', new ParticipantIdsRule(distinct: true)],
-            'property_id' => ['nullable', 'integer', 'exists:properties,id'],
-            'lease_id' => ['nullable', 'integer', 'exists:leases,id'],
-            'maintenance_request_id' => ['nullable', 'integer', 'exists:maintenance_requests,id'],
+            // TCK-1070 (P62.04) — pas d'`exists:` : `guardContext()` juge l'existence et la
+            // visibilité ensemble, avec un seul message pour les deux.
+            'property_id' => ['nullable', 'integer'],
+            'lease_id' => ['nullable', 'integer'],
+            'maintenance_request_id' => ['nullable', 'integer'],
             'initial_message' => ['nullable', 'string', 'max:5000'],
         ];
     }

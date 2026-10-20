@@ -33,7 +33,9 @@ class InventoryStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lease_id' => ['required', 'integer', 'exists:leases,id'],
+            // TCK-1070 (P62.04) — pas d'`exists:leases,id` : un bail absent rendait 422 sur ce champ là où
+            // un bail tiers passait la validation. Le contrôleur rend le refus aux deux.
+            'lease_id' => ['required', 'integer'],
             'type' => ['required', Rule::enum(InventoryType::class)],
             'conducted_at' => ['nullable', 'date'],
             'general_condition' => ['required', Rule::enum(InventoryCondition::class)],
