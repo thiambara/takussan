@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\Payments\DisbursementDriverContract;
 use App\Http\Middleware\ThrottleRequestsByNetwork;
 use App\Listeners\Admin\DispatchAlerts;
+use App\Mail\Transport\BoundedResendClient;
 use App\Models\AccountDeletionRequest;
 use App\Models\Activity as AuditActivity;
 use App\Models\Address;
@@ -134,11 +135,13 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Transport\ResendTransport;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -256,6 +259,7 @@ class AppServiceProvider extends ServiceProvider
         // `tests/Feature/Events/EventListenerDuplicationTest.php` garde les deux sens.
         $this->bootAuthEventListeners();
         $this->bootNotificationChannels();
+        $this->bootMailTransports();
     }
 
     // -----------------------------------------------------------------
@@ -911,6 +915,15 @@ class AppServiceProvider extends ServiceProvider
 
             return $frontend.'/auth/reset-password?token='.$token.'&email='.urlencode($notifiable->getEmailForPasswordReset());
         });
+    }
+
+    private function bootMailTransports(): void
+    {
+        // P65.04 (TCK-1074) — le transport `resend` de Laravel passe par `Resend::client()`, dont le
+        // Guzzle n'a aucun délai. Celui-ci est le même transport, sur un client borné.
+        Mail::extend('resend', fn (array $config) => new ResendTransport(
+            BoundedResendClient::make((string) ($config['key'] ?? config('services.resend.key'))),
+        ));
     }
 
     private function bootNotificationChannels(): void
