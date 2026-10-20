@@ -27,7 +27,7 @@ de la fiche bien montraient le badge vérifié, la fiche d'agence jamais. La pag
 
 ## Décision du porteur (déléguée)
 
-> servir `is_verified` dans `show()` comme l'`index()`, et afficher sur la fiche d'agence, à côté du nom, le badge vérifié de `ProfileCard` avec son libellé existant ; retirer l'expression morte `agency.license_number ? null : null` de `page.tsx:146`
+> servir `is_verified` dans `show()` comme l'`index()`, et afficher sur la fiche d'agence, à côté du nom, le badge vérifié de `ProfileCard` avec son libellé existant ; retirer l'expression morte `agency.license_number ? null : null` de `page.tsx:146` ; reste : la licence d'une agence `individual` (l'interdire dans `AgencyUpdateRequest` comme les mentions légales, ou la masquer sur la fiche), au porteur
 
 ## Reste à faire
 

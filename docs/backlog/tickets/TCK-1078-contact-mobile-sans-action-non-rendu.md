@@ -28,7 +28,7 @@ vide.
 
 ## Décision du porteur (déléguée)
 
-> ne pas rendre le déclencheur mobile « Contacter » de `ContactSheet` quand ni courriel, ni téléphone, ni `agentSlug` n'existent, comme sur grand écran ; garde : un test de `ContactSheet` sans les trois, qui n'attend aucun bouton
+> ne pas rendre le déclencheur mobile « Contacter » de `ContactSheet` quand ni courriel, ni téléphone, ni `agentSlug` n'existent, comme sur grand écran ; garde : un test de `ContactSheet` sans les trois, qui n'attend aucun bouton ; reste : le formulaire de contact anonyme vers l'admin sur la fiche d'un espace `individual`, qui dépend de la décision de P85.04
 
 ## Reste à faire
 
