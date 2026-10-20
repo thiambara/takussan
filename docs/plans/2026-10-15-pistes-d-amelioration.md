@@ -7708,7 +7708,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 
 ### Petites améliorations
 - Réf : P76.06
-- Statut : retenu · à valider — V7 : champ et colonne d'export neufs
+- Statut : validé (délégué) — ajouter `refund_amount` à `LeasePaymentResource`, sous la forme de `BookingPaymentResource` (`(float)` ou `null`), et une colonne `refund_amount` (la valeur en base, sans calcul ; pas de `net_amount`) en fin de colonnes de l'export des paiements d'`ExportDataService::payments()` ; test : une échéance remboursée en partie rend son `refund_amount` dans la ressource et dans l'export ; reste : l'affichage du montant rendu dans l'écran de l'historique, au porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Resources/LeasePaymentResource.php:32-33`, `takussan-api/app/Services/Export/ExportDataService.php:43-71`
 - Constat :
@@ -7717,3 +7717,4 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - Établi comment : lu.
 - Piste : ajouter `refund_amount` à `LeasePaymentResource` et une colonne `refund_amount` (ou `net_amount`) à l'export des paiements.
 - Mesure (2026-10-20, 740c8247f, mesureur) : lu `LeasePaymentResource.php:23-41` (`amount`, `paid_amount`, `remaining_amount`, `late_fee_amount`, `amount_due`, pas de `refund_amount`) et `BookingPaymentResource.php:24` (qui l'expose) ; `ExportDataService.php` sélectionne et rend `amount` et `status` sans `refund_amount` (colonnes l. 46 et 71) → les deux points tiennent. Classement : V7, ni la spec ni un ticket n'écrivent ce champ ou cette colonne, et le choix entre `refund_amount` et `net_amount` à l'export reste ouvert.
+- Mesure (2026-10-20, 7a867b653, delegue) : relu `LeasePaymentResource.php:17-45` (sans `refund_amount`), `BookingPaymentResource.php:24` (`refund_amount` nullable en `float`), `ExportDataService::payments()` (l. 43-77 : `select` et colonnes sans `refund_amount`), `docs/models-spec.md:1473` (`lease_payments.refund_amount` existe, écrit par TCK-873) et TCK-873 § Hors périmètre, qui nomme « l'exposition de `refund_amount` d'une échéance par `LeasePaymentResource` et l'écran de l'historique » comme suite ; `grep -rn "P76.06" docs/backlog/tickets` → aucun ticket → la piste tient. Délégation : V7, champ en lecture seule d'une colonne déjà écrite, sur le modèle exact de `BookingPaymentResource` et annoncé par TCK-873 ; colonne d'export ajoutée en fin, sans calcul, qui se retire en un commit ; aucun montant n'est calculé ni écrit, le `net_amount`, qui en calculerait un, est laissé ; l'écran, comportement visible neuf, reste au porteur.
