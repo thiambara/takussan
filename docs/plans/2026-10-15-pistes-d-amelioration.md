@@ -6438,7 +6438,7 @@ d'export de l'angle 77.*
 
 ### Petites améliorations
 - Réf : P63.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : conservation des exports d'audit
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/ActivityLogExportReadyNotification.php:23-26,43-50`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:59-71`, `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:42`
 - Constat :
@@ -6447,6 +6447,7 @@ d'export de l'angle 77.*
   - Les fichiers `exports/audit/*` ne sont purgés par rien (mesuré : `grep -rn "exports/" app routes config` → les deux écrivains et aucun effaceur). Ils restent donc lisibles à qui retrouverait un chemin signé plus tard, et s'accumulent (voir l'angle 77).
   - Établi comment : lu et grep.
 - Piste : retirer `toArray()`, ou n'y ranger que le nom du fichier ; lier le lien au demandeur (P63.01) ; purger les fichiers d'export d'audit à l'échéance du lien, dans le job de purge que retiendra l'angle 77.
+- Mesure (2026-10-20, eb4dde5a0, mesureur) : relu `ActivityLogExportReadyNotification.php` (`via()` → `['mail']`, `toArray()` range toujours `download_url`), `ActivityLogExportController::download()` (signature seule, puis `Storage::download`), `grep -rn "exports/" app routes config` → deux écrivains (`ExportActivityLogJob.php:39`, `CrossTenantAuditController.php:94`) et aucun effaceur ; l'angle 77 n'existe pas encore dans le fichier → les trois points tiennent. Classement : V3, purger les exports et lier le lien au demandeur décident de la conservation et de l'accès au journal (V2) ; seul le retrait de `toArray()` serait du code mort.
 
 ## Angle 64 — Pièces KYC des profils à l'effacement, à la fin du profil et au re-téléversement
 
@@ -6518,7 +6519,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
 
 ### Petites améliorations
 - Réf : P64.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : sens de `kyc.docs` dans l'assistant
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:74-90,121-131`, `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:83-99`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:76-80`
 - Constat :
@@ -6526,6 +6527,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
   - **Le remplacement n'est pas atomique.** `clearMediaCollection('file')` efface l'ancien fichier avant `addMedia()`, hors transaction (lu, l. 74-78 dans les trois contrôleurs). Si l'écriture du nouveau fichier échoue, la ligne reste sans fichier, et l'ancien est perdu. Non éprouvé.
   - Établi comment : test temporaire et lecture.
 - Piste : dériver `kyc.docs` des `Document` vivants du profil au lieu de le tenir à la main, ou le mettre à jour à la suppression ; ajouter le nouveau média avant de retirer l'ancien (la collection `singleFile` remplace d'elle-même), dans les trois contrôleurs.
+- Mesure (2026-10-20, eb4dde5a0, mesureur) : relu les trois `Me\*ProfileController` : `clearMediaCollection('file')` avant `addMedia()` (Owner l. 74-75, Agent l. 83-84, ServiceProvider l. 76-77), hors transaction ; `kyc.docs` n'est écrit que par Owner et Agent (`array_merge`, l. 85 et 94) et `grep -rln "'docs'" app` ne trouve aucun autre écrivain, donc aucune suppression ne le met à jour ; le test temporaire de l'explorateur n'a pas été rejoué → les deux points tiennent, le second reste non éprouvé ; `ServiceProviderProfileController` ne tient pas `kyc.docs`. Classement : V7, dériver `kyc.docs` des documents vivants change ce que l'assistant et `submitKyc` affichent.
 
 ## Angle 65 — Durée des appels sortants synchrones d'une requête HTTP face aux délais de PHP, du serveur web et de Traefik
 
@@ -6546,7 +6548,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### La seule borne de durée d'une requête est `max_execution_time = 60`, dont le sens dans l'image n'est pas mesuré
 - Réf : P65.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : Caddyfile, image et délais de Traefik/Cloudflare
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/php.ini:10-11`, `takussan-api/docker/Caddyfile:12-50`, `takussan-api/Dockerfile:15-17,85`, `deploy/takussan/compose.api.yml:27-39`, `docs/infra/hebergement.md:547`
 - Constat :
@@ -6557,10 +6559,11 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - Sur le poste (PHP 8.4.6 NTS, macOS), `php -d max_execution_time=1 -r 'sleep(3);'` meurt sur « Maximum execution time » (mesuré). Ce résultat ne dit rien de l'image, ni du système, ni du mode de compilation.
   - Établi comment : lu ; mesure locale seulement.
 - Piste : mesurer dans l'image (`php -d max_execution_time=1 -r 'sleep(3);'`, puis une requête qui attend plus de 60 s derrière `php_server`), et l'inscrire dans `smoke-api.sh image` pour qu'un changement d'image ne la défasse pas en silence. Poser `num_threads` et `max_wait_time` explicitement. Relever les délais de Traefik et de Cloudflare dans `hebergement.md`, et y corriger l'équivalence avec nginx selon la mesure.
+- Mesure (2026-10-20, eb4dde5a0, mesureur) : relu `docker/php.ini:10-11` (commentaire nginx et `max_execution_time = 60` inchangés), `hebergement.md:547` (équivalence toujours écrite), `grep -n "timeout\|num_threads\|max_wait" docker/Caddyfile` → rien ; `docker ps` → aucun conteneur de l'API sur le poste, la mesure dans l'image n'est donc pas faite → le constat de lecture tient, le sens de `max_execution_time` dans l'image FrankenPHP reste « à vérifier ». Classement : V5, la piste touche le Caddyfile, l'image, `smoke-api.sh` et la configuration de Traefik, et demande une mesure dans l'image.
 
 ### L'initiation d'un paiement appelle le fournisseur dans la transaction, sous le verrou de la ligne, jusqu'à 35 s (Orange Money) et 60 s (Lemon Squeezy)
 - Réf : P65.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : initiation de paiement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:150-226,257-266`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:53,76-81,168-173`, `takussan-api/app/Services/Payments/Drivers/LemonSqueezyDriver.php:48-80,197-213`, `vendor/lemonsqueezy/laravel/src/LemonSqueezy.php:59-63`, `vendor/laravel/framework/src/Illuminate/Http/Client/PendingRequest.php:267-272`
 - Constat :
@@ -6572,10 +6575,11 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - Si PHP coupe la requête à 60 s, la transaction est annulée. La page de paiement déjà créée chez le fournisseur n'est alors rattachée à aucune ligne (déduit, à vérifier).
   - Établi comment : lu.
 - Piste : séparer l'initiation en trois temps : réserver sous verrou (marque « initiation en cours », avec une échéance), appeler le fournisseur hors transaction, puis enregistrer sous verrou en revérifiant l'état, sur le modèle de `verify()`. Donner un délai explicite aux deux appels Lemon Squeezy. Test : un faux fournisseur qui fait avancer l'horloge, et une seconde connexion qui constate que la ligne n'est pas verrouillée pendant l'appel.
+- Mesure (2026-10-20, eb4dde5a0, mesureur) : relu `PaymentGatewayService.php` : `initiate()` ouvre `DB::transaction` l. 155, `lockForUpdate` l. 156, `$driver->initiate()` l. 221 ; `verify()` garde l'appel hors transaction (l. 257-264) ; `OrangeMoneyDriver` jeton `connectTimeout(5)->timeout(15)` puis création `timeout(20)` ; `vendor/lemonsqueezy/laravel/src/LemonSqueezy.php:59-63` sans délai ; aucun commit sur ces fichiers depuis 0ba226223 → le constat tient (non rejoué en exécution). Classement : V1, le correctif réécrit la séquence d'écriture d'un paiement (réservation, échéance, enregistrement).
 
 ### Un délai dépassé chez Wave ou Orange Money rend 500 au lieu de 502 `payment.provider_unavailable`, à l'initiation comme à la vérification
 - Réf : P65.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:79-89,106-118`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:76-86,103-116,168-179`, `takussan-api/bootstrap/app.php:131-168`
 - Constat :
@@ -6586,10 +6590,11 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - Le rapport par défaut de l'exception écrit au journal l'URL appelée, qui contient pour Wave l'identifiant de la session de paiement (déduit, à vérifier).
   - Établi comment : test temporaire et lecture.
 - Piste : attraper `ConnectionException` dans les deux pilotes (initiation, jeton, vérification), journaliser sous la forme sûre (`SafeExceptionContext`), et rendre `abort_code(502, 'payment.provider_unavailable')`. Test par pilote et par appel : un faux qui lève, et l'assertion du 502 et de son code.
+- Mesure (2026-10-20, eb4dde5a0, mesureur) : test temporaire, retiré depuis, sous-classe de `PaymentGatewayInitiateTest` avec `Http::fake` qui lève `ConnectionException` (« cURL error 28 »), charge 3,66 / 3,45 / 3,58 sur 8 cœurs ; `git log 0ba226223..HEAD` sur les pilotes et `bootstrap/app.php` → aucun commit ; `grep ConnectionException` dans `WaveDriver.php` et `OrangeMoneyDriver.php` → rien → Wave initiation 500, Orange Money initiation 500, Wave vérification 500, Orange Money vérification 500 (jeton en cache vidé), message de cURL dans les quatre cas : le constat tient en entier. Classement : A1, le contrat `502 payment.provider_unavailable` est déjà celui des deux pilotes sur réponse en erreur et de Lemon Squeezy sur exception, et traduire l'exception de connexion n'écrit ni ne calcule aucun montant.
 
 ### Le client Resend n'a aucun délai, et des courriels partent dans la requête HTTP, dont un sous verrou
 - Réf : P65.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : transport de courriel et mise en file
 - Gravité : 🟠 risque ou dette
 - Où : `vendor/resend/resend-php/src/Resend.php:20-29`, `vendor/laravel/framework/src/Illuminate/Mail/MailManager.php:320-325`, `takussan-api/app/Services/Invitation/InvitationService.php:248,405-434,951-958`, `takussan-api/app/Mail/InvitationMailable.php:23`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:119-137`, `takussan-api/app/Notifications/LeaseSignatureCodeNotification.php:19,55-57`, `takussan-api/config/mail.php:64-66`
 - Constat :
@@ -6599,10 +6604,11 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - Un Resend qui ne répond pas tient donc la requête jusqu'à la borne de P65.01, quelle qu'elle soit. Dans la relance, la ligne reste verrouillée pendant ce temps (déduit).
   - Établi comment : lu.
 - Piste : poser un délai au client Resend : un transport `resend` enregistré par l'application avec un `GuzzleClient` borné (`timeout`, `connect_timeout`), ou passer par SMTP avec `timeout`. Mettre en file les courriels qui n'ont pas besoin de partir dans la requête, l'invitation d'abord. Garde : un test qui lit les options du client construit par le gestionnaire de courriel.
+- Mesure (2026-10-20, eb4dde5a0, mesureur) : relu `vendor/resend/resend-php/src/Resend.php:20-29` (`new GuzzleClient()` sans option), `config/mail.php:64-66` (rien pour `resend`), `InvitationMailable` (`extends Mailable`, sans `ShouldQueue`), `InvitationService.php:248` (`afterCommit`), l. 413 (`lockForUpdate`) et l. 956 (`Mail::to`), `LeaseSignatureCodeNotification` sans file → le constat tient ; le délai par défaut de cURL n'est pas mesuré. Classement : V6, remplacer le transport du fournisseur ou mettre en file des envois que TCK-367 a voulus dans la requête est une décision structurelle.
 
 ### Les disques R2 n'ont aucun délai HTTP, et le téléversement de photos les écrit un à un pendant la requête
 - Réf : P65.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : délais du stockage de production
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/filesystems.php:60-84`, `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:43-90`, `takussan-api/app/Services/Admin/HealthcheckService.php:192-203`
 - Constat :
@@ -6612,3 +6618,4 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - Si R2 cesse de répondre en cours de lot, la requête attend jusqu'à la borne de P65.01. Les photos déjà écrites restent, la réponse est une erreur, et un nouvel envoi les double (déduit, à vérifier).
   - Établi comment : lu et mesuré en `tinker` (aucun appel réseau).
 - Piste : poser `http => ['timeout' => …, 'connect_timeout' => …]` sur les deux disques R2, dimensionné pour 25 Mio. Garde : un test qui lit `@http` d'une commande du client des deux disques.
+- Mesure (2026-10-20, eb4dde5a0, mesureur) : `tinker` : disques construits sur la configuration de `r2-media` et `r2-private` avec identifiants, endpoint et seau factices → clé `http` absente, `getCommand('HeadObject')['@http']` = `[]` pour les deux (aucun appel réseau) ; `HealthcheckService.php:198` borne toujours sa seule sonde ; `PropertyMediaController.php:43-90` écrit toujours chaque photo dans la boucle → le constat tient. Classement : V5, la valeur du délai pour un lot de 25 Mio vers R2 de production n'est écrite nulle part et se choisit.
