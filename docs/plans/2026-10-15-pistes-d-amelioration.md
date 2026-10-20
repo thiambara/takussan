@@ -6363,7 +6363,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### La recherche dans les messages dit quelles conversations existent
 - Réf : P62.05
-- Statut : validé — (a) comme P62.01 : `['nullable', 'integer']` seul, page vide pour un fil absent comme pour un fil tiers (porteur, 2026-10-20)
+- Statut : fait · TCK-1071
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Search/SearchQueryRequest.php:11-21`, `takussan-api/app/Services/Search/MessageSearchService.php:20-29`
 - Constat :
@@ -6373,6 +6373,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Établi comment : lu, et test temporaire.
 - Piste : `['nullable', 'integer']` seul, le service rendant une page vide pour un fil absent comme pour un fil tiers. Test qui épingle la même réponse.
 - Mesure (2026-10-20, 0ba226223, mesureur) : lu `SearchQueryRequest.php` (`authorize()` rend `true`, `filter.conversation` : `exists:conversations,id`) et `MessageSearchService.php:20-29` ; la requête sert aussi `SearchDocumentController` (lu), ce que le constat ne dit pas ; test temporaire retiré → `GET /api/search/messages?filter[conversation]=` absente : 422 sur `filter.conversation`, tierce : validation passée (500 « Index … not found », faute d'index dans la base de test). Classement : V2, comme P62.01 à P62.04 : un 422 devient une page vide pour des appelants légitimes.
+- Mesure (2026-10-20, b4eb809ba, implementeur) : avant correctif, `MessageSearchExistenceOracleTest` neuf (driver `collection`, comme `MessageSearchTest`) → fil absent 422 sur `filter.conversation` contre 200 et page vide pour un fil tiers ; correctif (`['nullable', 'integer']`) → 2 verts, un fil de l'appelant garde son résultat et `abc` reste un 422 ; ablation : `exists:` remis → rouge ; 24 verts avec `MessageSearchTest`, `DocumentSearchTest` et `ExistsSurRouteOuverteTest`.
 
 ### Le calendrier, la visite et l'intervention disent quels biens existent, brouillons compris
 - Réf : P62.06
