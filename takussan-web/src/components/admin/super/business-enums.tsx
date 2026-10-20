@@ -43,7 +43,7 @@ export function EnumList({
         >
           <span>
             <span className="block">{item.name}</span>
-            <span className="block text-xs opacity-75">{t('valuesCount', { count: item.values.length })}</span>
+            <span className="block text-xs">{t('valuesCount', { count: item.values.length })}</span>
           </span>
         </Button>
       ))}
