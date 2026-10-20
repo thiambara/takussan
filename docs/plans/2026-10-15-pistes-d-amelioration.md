@@ -7192,7 +7192,7 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
 
 ### La commande de F3 pour l'`APP_KEY` de production produit une clé que Laravel refuse : il manque le préfixe `base64:`
 - Réf : P71.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : variable d'environnement de production du plan de mise en service
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4156`, à comparer à `:3518` et `deploy/takussan/smoke-api.sh:97`
 - Constat :
@@ -7202,10 +7202,11 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - À vérifier : ce qui échoue concrètement au premier déploiement. Le chiffreur se construit à la demande, donc `/up` et la preuve d'`images.yml` peuvent passer au vert pendant que toute écriture d'une colonne `encrypted*` (RIB, numéro de pièce, ADR-0044) rend 500.
   - L'empreinte que F3 fait porter au relevé (`printf %s "$APP_KEY" | sha256sum`) serait celle de la clé fausse.
 - Piste : écrire `base64:$(openssl rand -base64 32)` dans la table F3, comme en D1. Garde possible : un contrôle de `scripts/` qui refuse, dans `docs/plans/` et `docs/infra/`, un `openssl rand -base64 32` dans une ligne qui nomme `APP_KEY` sans `base64:`.
+- Mesure (2026-10-20, 14ba88061, mesureur) : relu le plan F3 (la ligne `APP_KEY` est aujourd'hui l. 4156, « neuve (`openssl rand -base64 32`) »), `grep -rn "openssl rand -base64 32" docs deploy scripts` → D1 (l. 3518), l. 1359, l. 2701 et `smoke-api.sh:97` portent `base64:`, F3 seul non ; `EncryptionServiceProvider::parseKey()` ne décode qu'après `base64:` (lu) ; mesuré : `new Encrypter(<sortie fraîche d'openssl rand -base64 32>, 'AES-256-CBC')` → longueur 44, `RuntimeException: Unsupported cipher or incorrect key length`, la même valeur décodée est acceptée ; `git log 1ddc38cd0..14ba88061 -- docs/plans` → seuls les commits des pistes → tient. Ce qui échoue concrètement au premier déploiement reste non mesuré. Classement : V5, le correctif est d'une ligne de document, mais il fixe la valeur d'une variable d'environnement de la production dans le runbook de Dokploy.
 
 ### F3 reprend l'`APP_ENV` de la préproduction (`staging`) et son `OTP_PREVIEW_ENABLED=true` : le code SMS reviendrait dans la réponse en production
 - Réf : P71.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : `APP_ENV` et `OTP_PREVIEW_ENABLED` de la production, et V2 : aperçu du code de connexion
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4148-4166`, `docs/infra/hebergement.md:183-187`, `docs/adr/0060-code-sms-affiche-hors-production.md:15`, `takussan-api/app/Services/Auth/OtpPreview.php:21-29`, `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:29-34`, `takussan-api/app/Http/Middleware/AddRobotsTagOutsideProduction.php:18-19`
 - Constat :
@@ -7215,10 +7216,11 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - Autre effet de `staging` : `RestrictIpMiddleware` laisse passer tout appelant quand la liste d'IP d'un fournisseur est vide, et ne refuse qu'en `production` (lu, `:29-34`).
   - Les documents se contredisent sur la valeur réelle. Le docblock d'`AddRobotsTagOutsideProduction` affirme que « la préproduction tourne elle aussi en `production` » (lu, `:18-19`), ce que contredit le relevé d'ADR-0060. AC6 de TCK-720 a mesuré un accusé SMS accepté en `200` en préproduction (lu, `TCK-720:79-82`), alors que le relevé ne porte aucune clé `SMS_*_WEBHOOK_IPS`. Cela s'accorde avec `staging`, pas avec `production` (à vérifier dans Dokploy).
 - Piste : ajouter à la table F3 les lignes `APP_ENV` = `production` et `OTP_PREVIEW_ENABLED` = absente ou `false`, et décider de `PHONE_LOGIN_ENABLED`. Relever la valeur d'`APP_ENV` de la préproduction dans `hebergement.md`, puis corriger celui des deux documents qui se trompe. Garde possible : au démarrage, refuser `OTP_PREVIEW_ENABLED=true` quand `APP_URL` est l'origine de production (`AddRobotsTagOutsideProduction::PRODUCTION_ORIGIN`), qui se juge sur une donnée que F3 change, elle.
+- Mesure (2026-10-20, 14ba88061, mesureur) : relu la table F3 (l. 4148-4166 inchangées : ni `APP_ENV`, ni `OTP_PREVIEW_ENABLED`, ni `PHONE_LOGIN_ENABLED`), `OtpPreview::enabled()` (drapeau ET `APP_ENV` dans `local`/`staging`/`testing`), `RestrictIpMiddleware` (403 seulement en `production`), ADR-0060 l. 15 (`APP_ENV=staging`, relevé le 2026-10-10), `hebergement.md` l. 183-187 (`OTP_PREVIEW_ENABLED` à `true`) et le docblock d'`AddRobotsTagOutsideProduction` l. 18-19 (« la préproduction tourne elle aussi en `production` ») → la contradiction et l'héritage décrits tiennent ; la valeur réelle d'`APP_ENV` dans Dokploy n'est pas lisible du poste. Classement : V5 et V2, la piste fixe des variables d'environnement de production qui ouvrent ou ferment l'aperçu du code de connexion, et `PHONE_LOGIN_ENABLED` est laissé au porteur.
 
 ### F3 ne pose pas `MAIL_MAILER` : la production hériterait du `log` de la préproduction et n'enverrait aucun courriel
 - Réf : P71.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : `MAIL_MAILER` de la production dans le plan F3
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4148-4166`, `docs/infra/prod-drivers.json` (`preview.drivers.MAIL_MAILER`, `production.drivers.MAIL_MAILER`), `docs/infra/hebergement.md` § « Courriels »
 - Constat :
@@ -7226,10 +7228,11 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - La table F3 ne cite aucune clé `MAIL_*` (lu, `:4148-4166`). La ligne « clés des fournisseurs (SMS, WhatsApp, Google…) » de l'export A1 ne nomme pas le transport. Recopié depuis la préproduction comme F3 le prescrit, l'environnement garde `log` : vérification d'adresse, mot de passe oublié et notifications par courriel finissent au journal, sans erreur.
   - `scripts/check-prod-drivers.mjs` ne lit que la checklist de `docs/configuration.md`, pas le plan (lu, `prod-drivers.json`, `_mesure.pourquoi_pas_en_ci`) : rien ne confronte F3 au catalogue.
 - Piste : une ligne `MAIL_MAILER` = `resend` dans la table F3, avec renvoi à `prod-drivers.json`, et, plus largement, une ligne par driver du catalogue (`SESSION_DRIVER`, `CACHE_STORE`, `QUEUE_CONNECTION`, `MAIL_MAILER`). Garde possible : `check-prod-drivers.mjs` vérifie que chaque driver `prescrit` de la production figure dans la table F3 avec la même valeur.
+- Mesure (2026-10-20, 14ba88061, mesureur) : relu la table F3 (l. 4148-4166 : aucune clé `MAIL_*`), `grep -n "MAIL_MAILER" docs/plans/2026-09-13-…` → l. 236, 1337, 2645 seulement ; `prod-drivers.json` porte `log` mesuré pour la préproduction et `resend` prescrit pour la production, avec pour source « F3, étape 1 : … à ces différences près — MAIL_MAILER=resend », différence que la table F3 réécrite par TCK-931 ne contient plus → tient ; au passage, `resend/resend-php` est aujourd'hui dans `composer.json` et `composer.lock` (l'écart l. 236 du plan est levé). Classement : V5, la piste ajoute des variables d'environnement au runbook de production et propose une garde sur la CI.
 
 ### F3 ne pose pas les listes d'IP des accusés SMS : en `production`, une liste vide refuse tous les accusés en 403
 - Réf : P71.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : listes d'IP des accusés SMS en production
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4166`, `takussan-api/config/sms.php:163-167`, `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:26-34`, `takussan-api/routes/api/sms-webhooks.php:26-34`, `docs/ardoise.md:394-399`
 - Constat :
@@ -7239,10 +7242,11 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - D5 étape 4 pose `SMS_ORANGE_WEBHOOK_IPS` le temps d'une sonde, puis fait « remettre la valeur de l'export A1 » (lu, `:3681-3700`). Or l'export A1 n'a aucune clé `SMS_*` (lu, `:230`).
   - Si P71.02 est corrigé et que la production passe en `production`, ce refus devient le comportement par défaut. Aucun envoi n'échoue, seuls les statuts ne remontent plus.
 - Piste : ajouter à F3 les trois `SMS_*_WEBHOOK_IPS` (plages publiées par chaque fournisseur, ou décision écrite de ne pas en poser pour un fournisseur sans plage connue), et une vérification après déploiement : un accusé de test accepté, ou la ligne `webhook.ip_allowlist_not_configured` absente du journal des webhooks (ADR-0051). Corriger le renvoi de l'ardoise vers F3.
+- Mesure (2026-10-20, 14ba88061, mesureur) : relu `config/sms.php:163-167` (trois `SMS_*_WEBHOOK_IPS`, vides par défaut), `RestrictIpMiddleware` (liste vide et `production` → `abort_code(403, 'webhook.ip_allowlist_not_configured')`), `routes/api/sms-webhooks.php:26-34` (`restrict.ip:{fournisseur}` sur les trois), `ardoise.md:394-399` (renvoi au runbook de TCK-288), `grep -n WEBHOOK_IPS docs/infra/hebergement.md` → rien, plan F3 l. 4166 → seuls les jetons d'URL → tient. Classement : V5, la piste pose des variables d'environnement de production dont les valeurs (plages des fournisseurs) ou leur absence relèvent du porteur.
 
 ### Le relevé des clés de la préproduction s'arrête au 2026-10-10 : il manque les jetons de webhook posés le 2026-10-18, et F3 renvoie à ce relevé
 - Réf : P71.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : relevé des variables d'environnement de Dokploy
 - Gravité : 🟠 risque ou dette
 - Où : `docs/infra/hebergement.md:156-191`, `docs/backlog/tickets/TCK-720-reglages-de-deploiement-du-porteur.md:70-95`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4148-4149`
 - Constat :
@@ -7251,6 +7255,7 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - Le relevé affirme encore que `SMS_*` et `WHATSAPP_*` sont « absentes de l'export, donc aux défauts de `config/` » (lu, `:189`), ce qui n'est plus vrai de la préproduction.
   - F3 construit l'environnement de production depuis celui de la préproduction (lu, `:4148-4149`). La liste dont il part est donc incomplète, et rien ne dit, pour ces cinq clés, qu'elles doivent changer de valeur. Seule la ligne TCK-720 le laisse entendre, pour les jetons SMS.
 - Piste : porter les cinq clés et le nouveau compte au relevé, et corriger la phrase de `:189`. Dans F3, nommer les jetons de webhook WhatsApp avec les jetons SMS (une valeur neuve par environnement, et l'URL à reporter chez Meta).
+- Mesure (2026-10-20, 14ba88061, mesureur) : `grep -n "WEBHOOK_URL_TOKEN\|WHATSAPP_WEBHOOK" docs/infra/hebergement.md` → rien ; le relevé s'arrête à « 82 clés » (l. 183) et dit toujours `SMS_*`, `WHATSAPP_*` « absentes de l'export » (l. 189) ; `TCK-720:70-95` relu, les cinq clés posées en préproduction le 2026-10-18 et relues dans le conteneur, promues le 2026-10-19 → tient. Classement : V5, le correctif écrit le relevé des clés de Dokploy et le plan de production, mesure hors du poste que l'agent ne peut pas refaire.
 
 ### Petites améliorations du plan F3 et du relevé
 - Réf : P71.06
@@ -7280,7 +7285,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### Un `failed` WhatsApp reçu après l'acceptation ne déclenche aucun repli SMS
 - Réf : P72.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : envoi SMS neuf après un échec WhatsApp tardif
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:30-63`, `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:42-95`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:122-135`, `docs/features.md:563-564`
 - Constat :
@@ -7291,10 +7296,11 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
   - Que Meta accepte en 200 puis dise `failed` par le webhook pour un numéro sans WhatsApp ou un gabarit refusé est le cas courant annoncé par sa documentation, mais n'est pas mesuré depuis le poste : à vérifier.
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : sur un `failed` tardif d'une tentative `whatsapp_cloud` rattachée à une notification, sans tentative SMS déjà écrite pour elle, et dont la notification permet le repli (`smsFallbackAllowed`), mettre en file l'envoi SMS de la même notification ; un test qui rejoue l'accusé deux fois et n'attend qu'un SMS. Préciser dans `features.md` ce que vaut « échoue durement ».
+- Mesure (2026-10-20, 14ba88061, mesureur) : relu `UpdateWhatsappDeliveryStatusJob::handle()` et `DeliveryAttemptUpdater::applyStatus()` (écriture de `status`, `failure_reason`, `delivered_at` seulement), `WhatsappChannel::send()` (repli SMS seulement sur l'échec synchrone non ambigu), aucun observateur sur `NotificationDeliveryAttempt` ; `git log 90019ce08..14ba88061 -- takussan-api/app` → rien ; test temporaire retiré (charge 3,57 / 4,29 / 4,02 sur 8 cœurs) : tentative `whatsapp_cloud` à `sent`, `SmsRouterDriver` doublé sans `send` permis, `UpdateWhatsappDeliveryStatusJob('wamid.X', 'failed', '131026')->handle()` → vert : ligne à `failed`, une seule tentative, `Queue` et `Notification` vides, aucun `Log::info`/`warning`/`error` → tient. Classement : V7, `features.md:563` ne dit pas si un échec tardif est « dur », et envoyer un SMS après coup est un comportement visible neuf.
 
 ### `phone_whatsapp = false`, déclaré par l'utilisateur, n'écarte pas WhatsApp du routage
 - Réf : P72.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : routage mobile neuf selon `phone_whatsapp`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/PreferenceResolver.php:157-205,268-278`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:234-235`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:66-135`
 - Constat :
@@ -7302,10 +7308,11 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
   - mesuré : test temporaire, utilisateur au téléphone vérifié, `phone_whatsapp` à `false`, sans préférence → `resolveMobileChannel($user, 'lease_payment_overdue')` rend `"whatsapp"`. Les quatre événements de `MOBILE_DEFAULT_EVENTS` (échéance, impayé, rappel de visite, réservation) ont WhatsApp allumé par défaut (lu, l. 136-141 et 194-205).
   - Joint à P72.01 : si Meta accepte le gabarit puis le dit `failed`, cet utilisateur ne reçoit aucun message mobile pour une relance d'impayé (à vérifier, comme P72.01).
 - Piste : dans `resolveMobileChannel()`, passer au SMS quand `phone_whatsapp === false` (laisser `null`, « non dit », au défaut actuel) ; un test par valeur.
+- Mesure (2026-10-20, 14ba88061, mesureur) : `grep -rn phone_whatsapp takussan-api/app` → ressource, requête, `AuthController`, `PhoneVerificationService`, `PropertyContactNumbers`, `AccountDeletionService`, jamais `PreferenceResolver` ni `WhatsappChannel` ; test temporaire retiré : utilisateur vérifié, `phone_whatsapp` à `false`, aucune préférence → `resolveMobileChannel($user, 'lease_payment_overdue')` rend `"whatsapp"` → tient. `models-spec.md:383` définit la colonne (« Le numéro principal reçoit WhatsApp », `false` = non) sans en tirer de règle de routage. Classement : V7, faire décider le routage par cette déclaration change le canal que reçoivent les utilisateurs, et la spec ne l'écrit pas.
 
 ### Un échec tardif ne change aucun routage suivant
 - Réf : P72.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 et V6 : mémoire des échecs tardifs pour le routage
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:72,100-108`, `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:30-63`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:142-162`
 - Constat :
@@ -7313,6 +7320,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
   - Un `failed` WhatsApp ne touche ni `whatsapp_contacts` ni une préférence (lu, le job n'écrit que la tentative) : le message suivant au même numéro reprend WhatsApp, et échoue de même.
   - Établi comment : lu.
 - Piste : retenir, par numéro et pour une durée bornée, le dernier échec tardif d'un fournisseur ou de WhatsApp, et le faire sauter au prochain envoi ; au minimum pour les codes à usage unique (`is_otp`). Test : un `failed` tardif, puis un renvoi qui part par le fournisseur suivant.
+- Mesure (2026-10-20, 14ba88061, mesureur) : relu `SmsRouterDriver::resolveChain()` (chaîne lue telle quelle dans `sms.fallback_chains`, seul le plafond Orange la fait sauter, en-tête l. 23-26) et `UpdateWhatsappDeliveryStatusJob` (n'écrit que la tentative, ni `whatsapp_contacts` ni préférence) ; aucun code ne retient un échec tardif (`grep -rln "last_failed\|dernier échec" app` → paiements seulement) → tient. Classement : V7 et V6, la piste demande un état neuf (par numéro, durée bornée) dont la durée, le lieu de stockage et la portée sont des choix à faire.
 
 ### Un code à usage unique perdu en accusé `failed` ne laisse ni signal ni autre voie au destinataire
 - Réf : P72.04
