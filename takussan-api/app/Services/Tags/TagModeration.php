@@ -5,6 +5,7 @@ namespace App\Services\Tags;
 use App\Models\Enums\ReferentialStatus;
 use App\Models\Enums\TagType;
 use App\Models\Property;
+use App\Models\SavedSearch;
 use App\Models\Tag;
 use App\Models\User;
 use App\Services\Geo\GeoReindexation;
@@ -72,6 +73,7 @@ final class TagModeration
                 ->whereRaw(CaseInsensitive::sql('name').' = ?', [CaseInsensitive::fold($nom)])
                 ->exists();
             abort_code_if($pris, 409, 'tags.name_taken');
+            $this->reecrireRecherchesSauvegardees($ligne->name, $nom);
             $ligne->forceFill(['name' => $nom])->save();
 
             return $this->biensDe($ligne);
@@ -120,6 +122,7 @@ final class TagModeration
             );
             // La suppression emporte les liaisons de la source (`cascadeOnDelete`).
             Tag::query()->whereKey($source->getKey())->delete();
+            $this->reecrireRecherchesSauvegardees($src->name, $cbl->name);
 
             return $biens;
         });
@@ -127,6 +130,44 @@ final class TagModeration
         $this->journaliser($cible, $par, 'super_admin_tag_merged', ['from_id' => $source->getKey(), 'from_name' => $source->name], 'Équipement fusionné');
 
         return $cible->refresh();
+    }
+
+    /**
+     * TCK-1081 (P67.03) — le filtre `tags` compare des NOMS (`PropertySearchService::buildFilter`,
+     * une clause par équipement) : une recherche sauvegardée qui porte l'ancien nom ne rendrait
+     * plus rien, et une alerte à plusieurs équipements se tairait entière. Ses critères suivent
+     * le renommage et la fusion (décision du porteur), dans la transaction de la décision.
+     *
+     * La forme est gardée — une chaîne `a,b` (l'URL) reste une chaîne, une liste (le front) une
+     * liste — et un nom présent deux fois après une fusion n'est gardé qu'une fois.
+     */
+    private function reecrireRecherchesSauvegardees(string $ancien, string $nouveau): void
+    {
+        $ancien = trim($ancien);
+        if ($ancien === '' || $ancien === $nouveau) {
+            return;
+        }
+
+        SavedSearch::query()
+            ->whereRaw("jsonb_typeof(criteria->'tags') in ('array', 'string')")
+            ->chunkById(200, function ($recherches) use ($ancien, $nouveau) {
+                foreach ($recherches as $recherche) {
+                    $criteres = $recherche->criteria;
+                    $tags = $criteres['tags'];
+                    $enChaine = is_string($tags);
+                    $noms = $enChaine ? explode(',', $tags) : (array) $tags;
+                    if (! in_array($ancien, array_map(fn ($n) => is_string($n) ? trim($n) : $n, $noms), true)) {
+                        continue;
+                    }
+
+                    $noms = array_values(array_unique(array_map(
+                        fn ($n) => is_string($n) && trim($n) === $ancien ? $nouveau : $n,
+                        $noms,
+                    ), SORT_REGULAR));
+                    $criteres['tags'] = $enChaine ? implode(',', $noms) : $noms;
+                    $recherche->forceFill(['criteria' => $criteres])->save();
+                }
+            });
     }
 
     private function verrouiller(Tag $tag): Tag
