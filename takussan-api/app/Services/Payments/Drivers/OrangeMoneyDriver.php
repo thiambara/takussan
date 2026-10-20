@@ -8,7 +8,11 @@ use App\Services\Payments\Dto\CheckoutSession;
 use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus;
 use App\Support\Logging\ProviderResponseContext;
+use App\Support\Logging\SafeExceptionContext;
+use Closure;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -73,12 +77,12 @@ class OrangeMoneyDriver implements PaymentDriverContract
             'reference' => 'TKS-'.$payment->getKey(),
         ];
 
-        $response = Http::withToken($accessToken)
+        $response = $this->reach('checkout', fn () => Http::withToken($accessToken)
             ->acceptJson()
             ->asJson()
             ->connectTimeout(5)
             ->timeout(20)
-            ->post($this->baseUrl().'/orange-money-webpay/v1/webpayment', $payload);
+            ->post($this->baseUrl().'/orange-money-webpay/v1/webpayment', $payload));
 
         if (! $response->successful()) {
             Log::warning('[orange-money] checkout failed', ProviderResponseContext::of($response));
@@ -102,14 +106,14 @@ class OrangeMoneyDriver implements PaymentDriverContract
     {
         $accessToken = $this->accessToken();
 
-        $response = Http::withToken($accessToken)
+        $response = $this->reach('verify', fn () => Http::withToken($accessToken)
             ->acceptJson()
             ->connectTimeout(5)
             ->timeout(15)
             ->retry(2, 200, throw: false)
             ->get($this->baseUrl().'/orange-money-webpay/v1/transactionstatus', [
                 'pay_token' => $externalId,
-            ]);
+            ]));
 
         if (! $response->successful()) {
             Log::warning('[orange-money] verify failed', ProviderResponseContext::of($response));
@@ -165,12 +169,12 @@ class OrangeMoneyDriver implements PaymentDriverContract
             return $cached;
         }
 
-        $response = Http::asForm()
+        $response = $this->reach('oauth', fn () => Http::asForm()
             ->acceptJson()
             ->withBasicAuth($this->credential('client_id'), $this->credential('client_secret'))
             ->connectTimeout(5)
             ->timeout(15)
-            ->post((string) config('payments.orange_money.oauth_token_url'), ['grant_type' => 'client_credentials']);
+            ->post((string) config('payments.orange_money.oauth_token_url'), ['grant_type' => 'client_credentials']));
 
         $token = (string) ($response->json('access_token') ?? '');
         if (! $response->successful() || $token === '') {
@@ -182,6 +186,24 @@ class OrangeMoneyDriver implements PaymentDriverContract
         Cache::put($key, $token, max(30, (int) ($response->json('expires_in') ?? 3600) - $margin));
 
         return $token;
+    }
+
+    /**
+     * TCK-1021 (P65.03) — un fournisseur qui ne répond pas (délai dépassé, connexion refusée) est
+     * indisponible, comme celui qui répond en erreur : 502 `payment.provider_unavailable`, et non
+     * une `ConnectionException` qui sort du pilote en 500. Le journal n'en garde que la forme sûre :
+     * son message recopie l'URL appelée.
+     *
+     * @param  Closure(): Response  $call
+     */
+    private function reach(string $step, Closure $call): Response
+    {
+        try {
+            return $call();
+        } catch (ConnectionException $e) {
+            Log::warning('[orange-money] '.$step.' unreachable', SafeExceptionContext::of($e));
+            abort_code(502, 'payment.provider_unavailable');
+        }
     }
 
     protected function baseUrl(): string
