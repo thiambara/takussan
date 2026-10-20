@@ -31,7 +31,7 @@ import {
   updatePropertyVisibilityAction,
 } from '@/app/actions/dashboard-properties';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
-import { propertyStatusValues } from '@/lib/schemas/property';
+import { propertyStatusValues } from '@/lib/enums/property';
 import { usePublicationAvecCoordonnees } from '@/components/contact/PublicationAvecCoordonnees';
 import { STATUTS_DE_PUBLICATION, useGestesDuBien } from './useGestesDuBien';
 import type { PropertyListItem } from '@/types/property';

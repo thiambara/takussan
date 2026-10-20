@@ -10,7 +10,7 @@ import { withIntl } from '@/test/intl';
 import { PropertyDetailTabs } from '../PropertyDetailTabs';
 
 vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams('tab=edit') }));
-vi.mock('@/components/property-form', () => ({ PropertyForm: () => null }));
+vi.mock('@/components/property-form/PropertyForm', () => ({ PropertyForm: () => null }));
 vi.mock('@/components/property-dashboard/PropertyMediaPanel', () => ({ PropertyMediaPanel: () => null }));
 vi.mock('@/components/property-dashboard/PropertyOverviewPanel', () => ({ PropertyOverviewPanel: () => null }));
 vi.mock('@/components/property-dashboard/PropertyCollaboratorsPanel', () => ({ PropertyCollaboratorsPanel: () => null }));

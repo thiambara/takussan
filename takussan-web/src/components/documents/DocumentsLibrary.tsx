@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import {
@@ -48,9 +49,16 @@ import {
   resolveDocumentableHref,
 } from './constants';
 import { DocumentShareDialog } from './DocumentShareDialog';
-import { DocumentUploadDialog } from './DocumentUploadDialog';
 import { DocumentsFilters } from './DocumentsFilters';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useDejaOuvert } from '@/hooks/useDejaOuvert';
+
+/**
+ * TCK-1041 (P70.04) — le formulaire de dépôt (zod, react-hook-form) n'est chargé qu'à sa première
+ * ouverture : importé statiquement, il pesait dans le JS initial de `/app/documents`. Garde :
+ * `src/app/(dashboard)/__tests__/zod-hors-des-ecrans-de-lecture.test.ts`.
+ */
+const DocumentUploadDialog = dynamic(() => import('./DocumentUploadDialog').then((m) => m.DocumentUploadDialog));
 
 function formatFileSize(bytes: number | null): string {
   if (bytes === null || bytes === undefined) return '—';
@@ -68,6 +76,7 @@ export function DocumentsLibrary() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const [uploadOpen, setUploadOpen] = useState(false);
+  const uploadMonte = useDejaOuvert(uploadOpen);
   const [shareDoc, setShareDoc] = useState<Document | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -221,7 +230,7 @@ export function DocumentsLibrary() {
         <PropertyPagination meta={data.meta} />
       ) : null}
 
-      <DocumentUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
+      {uploadMonte ? <DocumentUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} /> : null}
       <Dialog
         open={pendingDelete !== null}
         onOpenChange={(open) => {

@@ -28,7 +28,7 @@ import {
   contractTypeValues,
   propertyStatusValues,
   propertyTypeValues,
-} from '@/lib/schemas/property';
+} from '@/lib/enums/property';
 import {
   PROPERTY_ENUM_NAMESPACES,
   contractTypeOptions,

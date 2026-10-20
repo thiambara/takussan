@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { FileText, Send } from 'lucide-react';
@@ -9,10 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCan } from '@/hooks/useCan';
+import { useDejaOuvert } from '@/hooks/useDejaOuvert';
 import { useAuth } from '@/context/AuthContext';
 import { isOwner } from '@/lib/roles';
 
-import { CreateInvoiceDialog } from './CreateInvoiceDialog';
 import { CreatePayoutDialog } from './CreatePayoutDialog';
 import { InvoiceDetailDialog } from './InvoiceDetailDialog';
 import { InvoicesTable } from './InvoicesTable';
@@ -22,6 +23,13 @@ import { PayoutsTable } from './PayoutsTable';
 import { PaymentsHistoryFilters } from './PaymentsHistoryFilters';
 import { PaymentsHistoryTable } from './PaymentsHistoryTable';
 import { ServiceProviderBillsTable } from './ServiceProviderBillsTable';
+
+/**
+ * TCK-1041 (P70.04) — le formulaire de facture (zod, react-hook-form) n'est chargé qu'à sa première
+ * ouverture : importé statiquement, il pesait dans le JS initial de `/app/payments`. Garde :
+ * `src/app/(dashboard)/__tests__/zod-hors-des-ecrans-de-lecture.test.ts`.
+ */
+const CreateInvoiceDialog = dynamic(() => import('./CreateInvoiceDialog').then((m) => m.CreateInvoiceDialog));
 
 const TAB_VALUES = ['history', 'invoices', 'payouts', 'approvals', 'bills'] as const;
 type TabValue = (typeof TAB_VALUES)[number];
@@ -55,6 +63,7 @@ export function PaymentsTabs() {
   const estBailleur = isOwner(user?.roles ?? []);
 
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const invoiceMonte = useDejaOuvert(invoiceOpen);
   const [payoutOpen, setPayoutOpen] = useState(false);
   const [invoiceId, setInvoiceId] = useState<number | null>(null);
   const [payoutId, setPayoutId] = useState<number | null>(null);
@@ -133,11 +142,13 @@ export function PaymentsTabs() {
         ) : null}
       </Tabs>
 
-      <CreateInvoiceDialog
-        open={invoiceOpen}
-        onOpenChange={setInvoiceOpen}
-        onCreated={(id) => setInvoiceId(id)}
-      />
+      {invoiceMonte ? (
+        <CreateInvoiceDialog
+          open={invoiceOpen}
+          onOpenChange={setInvoiceOpen}
+          onCreated={(id) => setInvoiceId(id)}
+        />
+      ) : null}
       <CreatePayoutDialog
         open={payoutOpen}
         onOpenChange={setPayoutOpen}

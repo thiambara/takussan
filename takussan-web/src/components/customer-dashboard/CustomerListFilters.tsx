@@ -16,7 +16,7 @@ import {
 import {
   customerStatusValues,
   pipelineStageValues,
-} from '@/lib/schemas/customer';
+} from '@/lib/enums/customer';
 import { ESPACE_DES_ETIQUETTES_CRM, libelleEquipement } from '@/lib/libelle-equipement';
 import type { Tag as TagType } from '@/types/tag';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
