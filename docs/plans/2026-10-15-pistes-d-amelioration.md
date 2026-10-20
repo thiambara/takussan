@@ -5810,7 +5810,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
 
 ### L'export RGPD d'un membre contient les e-mails et téléphones des clients qu'il a saisis
 - Réf : P56.02
-- Statut : validé — pour une ligne dont l'utilisateur n'est que le causeur, ne rendre que l'acte (`event`, `subject_type`, `subject_id`, `created_at`, `description`) ; garder le diff, passé par `PropertyRedactor`, pour les lignes dont il est le sujet ; un test : l'export d'un agent qui a saisi un client ne contient ni l'e-mail ni le téléphone de ce client (porteur, 2026-10-19)
+- Statut : fait · TCK-1017
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:124-129`, `takussan-api/app/Models/Customer.php:39-50`
 - Constat :
@@ -5821,6 +5821,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
   - Établi comment : lecture, test temporaire.
 - Piste : pour les lignes où l'utilisateur n'est que le causeur, ne rendre que l'acte (`event`, `subject_type`, `subject_id`, `created_at`, `description`), sans `attribute_changes` ni `properties` ; garder le diff pour les lignes dont il est le sujet, passé par `PropertyRedactor`. Un test : l'export d'un agent qui a saisi un client ne contient ni l'e-mail ni le téléphone de ce client.
 - Mesure (2026-10-19, 94ac420d2, mesureur) : relu `DataExportBuilder::payloads()` (l. 124-129 : `audit-log.json` prend les lignes dont l'utilisateur est causeur ou sujet, rendues par `->toArray()`, sans projection ni `PropertyRedactor`) et `Customer::getActivitylogOptions()` (l. 41-46 : `first_name`, `last_name`, `email`, `phone` journalisés), puis test temporaire (retiré, même charge) : un agent connecté crée un client (e-mail et téléphone témoins) puis change son e-mail → `payloads($agent)['audit-log.json']` porte 3 lignes, dont l'e-mail et le téléphone d'origine du client. L'ADR-0044 (l. 171) dit seulement que « le droit d'accès reste entier » au titulaire, rien sur les tiers ; aucun ticket ne le tranche (`grep attribute_changes` des tickets : TCK-613 et TCK-692 portent sur le journal d'agence et son export CSV). Classement : V3, décider ce qu'un export d'accès rend des données de tiers saisies par le titulaire (l'acte seul, ou le diff expurgé) est un choix sur l'exposition de données personnelles.
+- Mesure (2026-10-20, 35d861d57, implementeur) : `DataExportTest::test_l_export_d_un_agent_ne_contient_ni_l_e_mail_ni_le_telephone_des_clients_qu_il_a_saisis`, neuf (agent connecté qui crée un client témoin puis change son e-mail, et change son propre nom et son e-mail), rouge avant correctif (`client.temoin@example.test` dans `audit-log.json`) → `DataExportBuilder::auditRow()` : l'acte seul (cinq clés) quand l'agent n'est pas le sujet, la ligne expurgée par `PropertyRedactor` quand il l'est ; vert ; ablation 1 (projection neutralisée) → rouge, clés de la ligne client ; ablation 2 (expurgation d'`attribute_changes` retirée) → rouge, e-mail en clair ; remis → `DataExportTest` 7 verts.
 
 ### Les journaux d'audit de l'API ne disent jamais ce qu'un événement de modèle a changé
 - Réf : P56.03
