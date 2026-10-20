@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   FORMULAIRE_UPGRADE_VIERGE,
+  brouillonUpgradeDepuisFormulaire,
   brouillonUpgradeEstVierge,
   formulaireUpgradeDepuisBrouillon,
 } from '@/lib/agency-upgrade-brouillon';
@@ -54,5 +55,25 @@ describe('brouillonUpgradeEstVierge — TCK-566', () => {
   it('faux dès qu’un champ porte une saisie', () => {
     expect(brouillonUpgradeEstVierge({ ...VIDE_TEL_QUE_STOCKE, ninea: '0' })).toBe(false);
     expect(brouillonUpgradeEstVierge({ ...VIDE_TEL_QUE_STOCKE, planned_agents_count: 2 })).toBe(false);
+  });
+});
+
+describe('brouillonUpgradeDepuisFormulaire — TCK-989', () => {
+  it('garde la saisie du formulaire, sans le RIB professionnel ni le NINEA', () => {
+    expect(
+      brouillonUpgradeDepuisFormulaire({
+        rc: 'RC-9',
+        ninea: '005012345',
+        rib_pro: 'SN012 01001 000123456789 12',
+        company_legal_name: 'Takussan Immo SARL',
+        address_fiscale: 'Dakar',
+        planned_agents_count: 3,
+      }),
+    ).toEqual({
+      rc: 'RC-9',
+      company_legal_name: 'Takussan Immo SARL',
+      address_fiscale: 'Dakar',
+      planned_agents_count: 3,
+    });
   });
 });

@@ -4,6 +4,7 @@ namespace App\Services\Agency;
 
 use App\Events\AgencyUpgradeApproved;
 use App\Models\AgencyUpgradeRequest;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
 use App\Models\Enums\KycDossierStatus;
 use App\Models\User;
@@ -47,6 +48,15 @@ class AgencyUpgradeReviewService
     ): AgencyUpgradeRequest {
         $this->assertPending($request);
         $this->assertKycVerified($request);
+
+        // TCK-991 (P49.05) — une agence suspendue ne passe pas en `standard` : la demande reste
+        // `pending`, approuvable une fois la suspension levée, ou rejetable. `inactive` reste
+        // approuvable (ADR-0048 : la mise en conformité, que le passage peut servir).
+        abort_code_if(
+            $request->agency()->value('status') === AgencyStatus::Suspended,
+            422,
+            'agency.suspended',
+        );
 
         // TCK-269 — Option A: the actual `Agency.kind = standard` flip is
         // executed inline within the same DB transaction as the approval,

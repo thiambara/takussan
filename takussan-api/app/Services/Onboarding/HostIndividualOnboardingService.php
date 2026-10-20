@@ -144,9 +144,10 @@ class HostIndividualOnboardingService
         return DB::transaction(function () use ($user): array {
             User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
 
+            // TCK-990 (P49.03) — quel que soit le `kind` : après le passage en agence
+            // professionnelle, l'espace reste « le sien », et « Publier » n'en recrée pas un.
             $existante = Agency::query()
                 ->where('primary_admin_id', $user->id)
-                ->where('kind', AgencyKind::Individual)
                 ->orderBy('id')
                 ->first();
             $created = $existante === null;
@@ -213,8 +214,17 @@ class HostIndividualOnboardingService
         return $this->phoneVerification->verifyOtp($user, $code);
     }
 
+    /**
+     * TCK-990 (P49.03) — un compte `primary_admin_id` d'une agence, de quelque `kind` qu'elle soit
+     * (une agence passée en professionnelle comprise), est un hôte déjà installé. La règle
+     * d'avant (bailleur d'une agence individuelle) reste.
+     */
     private function userAlreadyHasIndividualAgency(User $user): bool
     {
+        if (Agency::query()->where('primary_admin_id', $user->id)->exists()) {
+            return true;
+        }
+
         return OwnerProfile::query()
             ->where('user_id', $user->id)
             ->whereHas('agency', fn ($q) => $q->where('kind', AgencyKind::Individual))
