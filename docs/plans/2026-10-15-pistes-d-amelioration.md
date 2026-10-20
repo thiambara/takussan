@@ -7122,7 +7122,7 @@ sont pas mesurées, ni la charge RSC du document.*
 
 ### La fiche bien de la console charge l'éditeur complet du bien, le calendrier et l'historique avant d'afficher l'onglet « aperçu »
 - Réf : P70.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1040
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/property-dashboard/PropertyDetailTabs.tsx:5-12`, `takussan-web/src/components/property-dashboard/PropertyDetailTabs.tsx:83-123`, `takussan-web/src/app/(dashboard)/app/properties/[id]/page.tsx:13-18`
 - Constat :
@@ -7131,6 +7131,7 @@ sont pas mesurées, ni la charge RSC du document.*
   - Mesuré, ablation `PropertyForm` → `() => null` : **602,3 → 544,6 Kio** (−57,7) ; zod reste, par d'autres chemins de la page (`DocumentUploadDialog`, présent dans l'analyse).
 - Piste : charger les contenus des onglets autres que l'aperçu par `next/dynamic` au premier affichage, à commencer par `PropertyForm` ; même méthode que TCK-850 sur la fiche publique (P33.04), mesure avant et après par `poids-des-routes.mjs`.
 - Mesure (2026-10-20, 1ddc38cd0, mesureur) : relu `PropertyDetailTabs.tsx:5-12` (imports statiques de `PropertyForm` et des quatre panneaux), onglet `overview` par défaut sauf `?tab=` ; `grep -rln "dynamic(" src/app src/components` → la fiche publique, sa carte, `SaveSearchButton` (TCK-1037), les deux chargeurs de carte et `ChatWidget`, rien dans la console ; quatre `npm run build` de production (référence et trois ablations, charge 3,6 sur 8 cœurs au départ) relus par un script temporaire hors dépôt qui compte le JS initial comme `poids-des-routes.mjs` (union des `rootMainFiles` et des `entryJSFiles`, gzip 6) sur les 65 écrans de `(dashboard)`, ablations retirées depuis (`git checkout -- src`) : `/app/properties/[id]` **602,6 Kio**, le plus lourd des 65 ; `PropertyForm` remplacé par `() => null` (mêlé au repointage de P70.02, qui touche aussi la fiche) → 543,7 (−58,9), zod reste → tient. Classement : A2, différer le contenu d'un onglet fermé ne change pas ce que l'onglet rend, même méthode que TCK-850 et TCK-1037 déjà fusionnés.
+- Mesure (2026-10-20, 14ba88061, implementeur) : test `PropertyDetailTabs.onglets-differes.test.ts` (graphe client statique de `properties/[id]/page.tsx`) → avant correctif `PropertyForm`, `PropertyMediaPanel` et `PropertyCalendarPanel` y sont, 3 rouges ; les trois passent par `next/dynamic` (`TabsContent` ne monte que l'onglet actif, `keepMounted` à `false`, lu) → 4/4 verts, tests de `PropertyDetailTabs` et de la page verts (18/18) ; ablation (`PropertyDetailTabs.tsx` rendu à `HEAD`) → les 3 mêmes rouges, correctif remis → vert. `PropertyPriceHistoryList` reste statique, l'aperçu l'importe aussi.
 
 ### Les dialogues de création et de paiement, importés statiquement, mettent zod et react-hook-form dans le JS initial des listes et des fiches
 - Réf : P70.04
