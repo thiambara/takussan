@@ -7,8 +7,8 @@ use App\Http\Requests\Api\Me\ShowServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UpdateAvailabilityServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UpdateTradesServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UploadKycServiceProviderProfileRequest;
-use App\Models\Document;
 use App\Models\Profiles\ServiceProviderProfile;
+use App\Services\Kyc\ProfilePieces;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
@@ -56,20 +56,12 @@ class ServiceProviderProfileController extends Controller
         // One Document row per (profile, kind) — replace previous version
         // by hand to keep `Document::activeVersion()` semantics intact and
         // avoid orphan medialibrary files across re-uploads.
-        $document = Document::query()->updateOrCreate(
-            [
-                'documentable_type' => ServiceProviderProfile::class,
-                'documentable_id' => $sp_profile->id,
-                'type' => $type,
-            ],
-            [
-                'uploaded_by' => $request->user()->id,
-                'name' => $file->getClientOriginalName() ?: ucfirst($kind),
-                'description' => null,
-                'is_verified' => false,
-                'metadata' => ['kind' => $kind, 'source' => 'sp_onboarding_wizard'],
-            ],
-        );
+        // TCK-1063 (P64.04) — vide aussi `verified_by`/`verified_at`, et journalise la vérification remplacée.
+        $document = app(ProfilePieces::class)->upsert($sp_profile, $type, $request->user(), [
+            'name' => $file->getClientOriginalName() ?: ucfirst($kind),
+            'description' => null,
+            'metadata' => ['kind' => $kind, 'source' => 'sp_onboarding_wizard'],
+        ]);
 
         // TCK-1026 (P64.05) — la collection `singleFile` retire l'ancien fichier APRÈS l'ajout du
         // nouveau : un ajout qui échoue garde la pièce, et rien ne s'accumule sur le disque.

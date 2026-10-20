@@ -8,6 +8,7 @@ use App\Http\Resources\PropertyResource;
 use App\Models\Document;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
+use App\Services\Kyc\ProfilePieces;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -57,20 +58,12 @@ class OwnerProfileController extends Controller
         // One Document per (profile, kind). Re-uploads replace the media
         // file in-place to keep `Document::activeVersion()` semantics
         // intact and avoid orphan files on disk.
-        $document = Document::query()->updateOrCreate(
-            [
-                'documentable_type' => OwnerProfile::class,
-                'documentable_id' => $owner_profile->id,
-                'type' => $type,
-            ],
-            [
-                'uploaded_by' => $request->user()->id,
-                'name' => $file->getClientOriginalName() ?: ucfirst($kind),
-                'description' => null,
-                'is_verified' => false,
-                'metadata' => ['kind' => $kind, 'source' => 'owner_onboarding_wizard'],
-            ],
-        );
+        // TCK-1063 (P64.04) — vide aussi `verified_by`/`verified_at`, et journalise la vérification remplacée.
+        $document = app(ProfilePieces::class)->upsert($owner_profile, $type, $request->user(), [
+            'name' => $file->getClientOriginalName() ?: ucfirst($kind),
+            'description' => null,
+            'metadata' => ['kind' => $kind, 'source' => 'owner_onboarding_wizard'],
+        ]);
 
         // TCK-1026 (P64.05) — pas de `clearMediaCollection()` avant : la collection `singleFile`
         // retire l'ancien fichier APRÈS l'ajout du nouveau, et un ajout qui échoue garde la pièce.
