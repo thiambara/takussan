@@ -7827,7 +7827,7 @@ l'angle 111.*
 
 ### L'export d'audit d'une agence fait deux requêtes par ligne : au-delà de 5 000 lignes, le job dépasse les 60 s du worker
 - Réf : P78.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : le `$timeout` du job se borne par `retry_after`, valeur d'environnement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:42-49,135-155`, `takussan-api/app/Models/Concerns/HasProfiles.php:238-275,317-321`, `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:23-64`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:44-54`, `deploy/takussan/compose.api.yml:125`
 - Constat :
@@ -7839,10 +7839,11 @@ l'angle 111.*
   - La plage de dates va jusqu'à un an (lu, `ExportActivityLogRequest.php:43`) ; la base de développement porte 24 481 lignes de journal sur un an (mesuré, `SELECT count(*)` par `tinker`).
   - Établi comment : lu, puis test temporaire (retiré) qui appelle `buildPayload()` et `handle()` du job comme `XlsxExportFormulaTest`.
 - Piste : précharger ce que lit `profileTypes()` (`causer.serviceProviderProfile`, `causer.tenantLeases`), ou calculer `causer_role` une fois par auteur dans `buildPayload()`. Donner au job un `$timeout` mesuré. Test : nombre de requêtes de `buildPayload()` constant entre 10 et 100 lignes d'un même auteur.
+- Mesure (2026-10-20, 8e6c7ef17, mesureur) : relu `ActivityLogExporter.php:44-49` (préchargement sans `serviceProviderProfile` ni `tenantLeases`) et `:155` (`profileTypes()->first()`), `HasProfiles.php:238-275,317-321`, `ExportActivityLogJob.php` (ni `$timeout` ni `failed()`), `compose.api.yml` (worker sans `--timeout`, défaut `--timeout=60` lu dans `WorkCommand.php:49`) ; test temporaire (retiré) autour de `buildPayload()`, un seul auteur admin d'agence, charge 3,98/4,41/4,34 sur 8 cœurs → 100 lignes 209 requêtes en 0,5 s, 200 → 409 en 1,1 s, 2 000 → 4 009 en 12,1 s, soit deux requêtes par ligne et une durée linéaire ; le constat tient. Classement : V5, le préchargement seul relèverait de A2, mais la piste demande aussi un `$timeout` mesuré que `retry_after` (`config/queue.php:50,78`, `DB_QUEUE_RETRY_AFTER`/`REDIS_QUEUE_RETRY_AFTER`, 90 s par défaut) doit dépasser, réglage d'environnement non mesurable depuis le dépôt.
 
 ### L'export d'audit de la console tourne dans la requête HTTP, jusqu'à 50 000 lignes et six requêtes par ligne
 - Réf : P78.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : abaisser le plafond ou passer l'export par le job change ce que voit la console
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:57,87-102`, `takussan-api/app/Services/Audit/ActivityLogExporter.php:73-79,83-96`, `takussan-api/docker/php.ini:11`
 - Constat :
@@ -7852,10 +7853,11 @@ l'angle 111.*
   - `max_execution_time = 60` (lu, `php.ini:11`) ; sous FrankenPHP, ce que ce plafond compte (temps CPU ou temps écoulé) et ce que coupent Traefik et le relais BFF du front ne sont pas mesurés (à vérifier).
   - Établi comment : lu, puis test temporaire (retiré) qui appelle `payloadForQuery()` et `csvContent()`.
 - Piste : le même préchargement que P78.01, puis soit abaisser `EXPORT_MAX_ROWS` à ce que la requête tient, soit passer cet export par le job d'agence. Test : nombre de requêtes constant ; durée de l'export plafond mesurée.
+- Mesure (2026-10-20, 8e6c7ef17, mesureur) : relu `CrossTenantAuditController.php:57,87-102` (`EXPORT_MAX_ROWS = 50_000`, CSV construit dans la requête) et `ActivityLogExporter.php:73-96` (`with('causer')` seul) ; test temporaire (retiré) autour de `payloadForQuery()`, même charge → 100 lignes 602 requêtes en 1,2 s, 200 → 1 202 en 2,6 s, 2 000 → 12 002 en 35,1 s : six requêtes par ligne, et le plafond de 50 000 lignes est hors de portée des 60 s de `php.ini:11` ; le constat tient. Classement : V7, le préchargement seul relève de A2, mais la piste demande en outre de choisir entre un plafond abaissé (422 plus tôt) et un export asynchrone (réponse et courriel neufs), deux comportements visibles.
 
 ### Le XLSX de l'export d'audit est construit en entier par PhpSpreadsheet, sans borne de lignes
 - Réf : P78.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la borne du XLSX, ou son repli en CSV, est un comportement visible
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:66-94`, `takussan-api/app/Http/Requests/Audit/ExportActivityLogRequest.php:19-45`, `takussan-api/docker/php.ini:3`
 - Constat :
@@ -7864,10 +7866,11 @@ l'angle 111.*
   - À ce rythme, les 256 Mo de `memory_limit` seraient atteints vers 40 000 à 45 000 lignes d'un an (déduit, extrapolation linéaire de deux points, sur des diffs courts).
   - Établi comment : test temporaire (retiré), même charge.
 - Piste : borner les lignes du format `xlsx` (refus en 422 au-delà, ou repli en CSV), ou écrire la feuille par morceaux. Le choix de la borne est un comportement visible. Test : un export `xlsx` au-delà de la borne est refusé ou servi en CSV.
+- Mesure (2026-10-20, 8e6c7ef17, mesureur) : relu `ExportActivityLogJob.php:66-94` (`Excel::raw()` d'un `FromArray` de toutes les lignes) et `ExportActivityLogRequest.php:35-46` (seule la plage d'un an est bornée) ; test temporaire (retiré) qui appelle `handle()` du job sur 3 000 lignes à diff d'environ 250 octets, `memory_limit=-1` → surcroît 18 Mo en CSV, 40 Mo en XLSX : l'écart tient ; l'extrapolation à 256 Mo vers 40 000 lignes reste déduite, non re-mesurée. Classement : V7, la piste le dit elle-même : refuser au-delà d'une borne ou servir un CSV à la place est un choix de produit.
 
 ### `GenerateReportExport` n'est atteint par aucun rapport : le seuil de 10 000 lignes dépasse le plus long rapport, 60 lignes
 - Réf : P78.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : garder le chemin asynchrone (seuil à revoir) ou le retirer est un choix de produit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/ReportingController.php:24,108-135`, `takussan-api/app/Services/Reporting/PlatformReportingService.php:59,190,277-282,398-400`, `takussan-api/app/Jobs/Reporting/GenerateReportExport.php`
 - Constat :
@@ -7877,3 +7880,4 @@ l'angle 111.*
   - Le job, sa notification, son téléchargement (TCK-1051) et sa purge (P77.02) ne servent donc aucun export réel aujourd'hui. Voir P63.02 : la recommandation du délégué y écarte le retrait du chemin asynchrone parce que TCK-227 l'écrit ; le seuil, lui, ne peut pas être atteint.
   - Le pic mémoire de ce job n'est donc pas un risque aujourd'hui.
 - Piste : décider avec P63.02 si le chemin asynchrone reste (seuil à revoir, ou rapport plus long à venir) ou part. S'il reste, un test qui atteint le seuil par la route, et non par `handle()`.
+- Mesure (2026-10-20, 8e6c7ef17, mesureur) : relu `ReportingController.php:24,108-109,134` (`ASYNC_THRESHOLD_ROWS = 10_000`, seul `dispatch`), `PlatformReportingService.php:59,190,270-285,398-400` (60 tranches au plus, `min(24, $depth)`, quatre étapes du tunnel) ; `grep -rn GenerateReportExport app routes tests` → le contrôleur et deux tests qui appellent `handle()` à la main (`ReportExportDownloadTest.php:53`, `PlatformReportingTest.php:417`) ; P63.02 est aujourd'hui `fait · TCK-1051` → aucun rapport n'atteint le seuil, le constat tient. Classement : V7, ce n'est pas du code mort (A3) tant que TCK-227 écrit le chemin asynchrone : le retirer ou abaisser le seuil change ce que reçoit l'appelant (202 et courriel au lieu du fichier).
