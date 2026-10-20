@@ -349,6 +349,8 @@ class PublicAgencyController extends Controller
                 'name' => $agency->name,
                 'description' => $agency->description,
                 'license_number' => $agency->license_number,
+                // TCK-1079 — comme `index()` : le badge de la fiche lit la même donnée que l'annuaire.
+                'is_verified' => (bool) $agency->is_verified,
                 // TCK-1076 — la collection `logo`, comme `index()` : `$agency->logo_url` n'existe pas.
                 'logo_url' => $agency->getFirstMediaUrl('logo') ?: null,
                 'email' => $agency->email,
