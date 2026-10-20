@@ -160,7 +160,7 @@ voie d'écriture (angle 13, puis 47).
 | 85 | Ce que le site public montre d'une agence `individual` : annuaire `/agencies`, fiche `/agencies/{slug}`, carte d'agence de la fiche bien (`PropertyResource.php:441-449`) — nom « Espace de {prénom} », slug, badge vérifié | fait |
 | 86 | Collaborateurs `co_owner` et `viewer` d'un bien (`property_collaborators`, laissés hors du périmètre par ADR-0031 § 2) : ce qu'ils lisent et écrivent réellement — bien, lots, baux, loyers, relevé, reversement | fait |
 | 87 | Tris alphabétiques sur colonnes texte sous la collation `C` (`sort=first_name`, `name`, `title` des listes de l'API et de la console) : minuscules et initiales accentuées rejetées après « Z » | fait |
-| 88 | Comptes `blocked` (`UserStatus::Blocked`), qui n'ouvrent plus de session : ce qu'ils reçoivent encore (notifications, e-mails, SMS) et les sélecteurs qui les proposent encore (participants, agent responsable, collaborateurs, destinataires) | à faire |
+| 88 | Comptes `blocked` (`UserStatus::Blocked`), qui n'ouvrent plus de session : ce qu'ils reçoivent encore (notifications, e-mails, SMS) et les sélecteurs qui les proposent encore (participants, agent responsable, collaborateurs, destinataires) | fait |
 | 89 | Commandes jouées par `release.sh` et `seed.sh` (`geo:sync-referential`, `tags:sync-catalog`, `alerts:ensure-ops-rules`, `membership:reconcile-system-roles`, `scout:import`) : code de sortie réel sur une erreur, face à ce que le script en conclut | à faire |
 | 90 | Écritures explicites dans l'index (`->searchable()` / `unsearchable()` de `PropertyTagController`, `BoostLifecycle`, `GeoReindexation`, `SyncAgencyPropertiesSearchIndex`) : appelées dans une transaction qui peut être annulée, face à `SCOUT_AFTER_COMMIT` et `SCOUT_QUEUE` de chaque environnement | à faire |
 | 91 | FormRequests dont la borne `max:` dépasse la longueur `varchar(N)` de la colonne écrite, ou qui n'en ont pas : 500 (`22001`) au lieu de 422 — le pendant « longueur » de l'angle 54 | à faire |
@@ -194,6 +194,8 @@ voie d'écriture (angle 13, puis 47).
 | 118 | Listes paginées triées sur une colonne non unique sans départage par `id` (`orderBy` écrits à la main des contrôleurs `Admin\*`, `defaultSort('-created_at')` seul, `$requestSortable` sur `status`, `name`, `first_name`) : ligne rendue deux fois ou jamais d'une page à l'autre sous PostgreSQL | à faire |
 | 119 | Requêtes de base passées à `buildQuery()` ou à `QueryBuilder::for()` avec un `orWhere`/`orWhereHas` non groupé ou un `orderBy` en dur : filtres de la requête qui ne s'appliquent qu'à une branche, `sort=` relégué après le tri fixe — le relevé de P87.04 sur le reste de l'API | à faire |
 | 118 | Données personnelles gardées dans le stockage du navigateur après déconnexion ou changement de compte (`localStorage`/`sessionStorage` : `takussan.coordonnees` nom et téléphone, cache TanStack « persisté par certains écrans » selon `OwnersList.tsx:83`, `useInitiatePayment`, `attribution.ts`) : ce que lit le compte suivant sur un poste partagé |
+| 120 | Listes de personnes servies aux sélecteurs du front (`fetchAgencyAgents`, `role-delegations.ts`, `ContactLeadsInbox`, `AuditTrail`, `ParticipantPicker`) face au prédicat que l'API juge ensuite à l'écriture (`isStaffAt`, `PersonnelDeLAgence::estPersonnel`, `CollaboratorEligibleForProperty`) : candidat proposé puis refusé en 422, candidat légitime absent | à faire |
+| 121 | Passation de portefeuille (`AgentHandoverService::move`) : chaque catégorie réécrite par `DB::table()->update` ou `update(['user_id'])` sans rejuger la règle de cible du geste unitaire (visites `PersonnelDeLAgence`, référent `crm.assign`, maintenance TCK-592, collaborations), et le compte rendu `moved` / `unassigned` face à l'état écrit | à faire |
 
 ---
 
@@ -8591,3 +8593,78 @@ repris ici : `App\Sorts\CollatedNameSort` n'a qu'un appelant, `MessagingContactC
   - Établi comment : lu, et mesuré par `SELECT` pour les titres.
 - Piste : étendre la classe de tri ICU aux noms d'agence et aux titres de biens quand on touche ces listes, et ajouter `id` en départage aux tris écrits à la main.
 - Mesure (2026-10-20, ba1919880, mesureur) : relu `AgencyModerationController.php:104-120` (`orderBy('agencies.name')`, sans départage par `id`), `AdminCreditWalletController.php:30` (`orderBy('name')`), `ConversationContextController.php:77-82` (`defaultSort('title')`, puis `orderBy('properties.id')` : ce sélecteur a donc déjà un départage) et `UserDetailController.php:79-83` (sans départage) → les tris en ordre d'octets tiennent à la lecture ; non exécutés, et les comptes de la base de dev ne sont pas rejoués. L'instabilité de pagination reste déduite : le départage manque, mais aucun changement de page n'a été observé. Classement : V7, les noms d'agence et les titres de biens sortent de la portée de l'amendement d'ADR-0025, qui laisse ces listes « quand on les touche » ; seul l'ajout d'`id` en départage serait sans choix.
+
+## Angle 88 — Comptes `blocked` : ce qu'ils reçoivent et qui les propose encore
+
+*Exploré le 2026-10-20 sur `pre-dev` 3eff8de82, par l'explorateur. Tout est relu par l'explorateur
+lui-même, sans sous-agent : `User::canOpenSession()`, `UserLifecycleController::block`,
+`NotificationService::send`, `CodedNotification::via`, `PreferenceResolver::shouldSend`,
+`SendTaskDueReminders`, `SendSavedSearchAlerts`, `SendFavoriteChangeAlerts`,
+`MembershipCapabilityResolver::isStaffAt`, `PersonnelDeLAgence`, `PrimaryPropertyContact`,
+`ResponsibleAgentAssigner`, `AgentHandoverService`, `AgentAbsenceService`, `TaskController`,
+`SetPrimaryContactCustomerRequest`, `CollaboratorEligibleForProperty`, `AgencyController::listMembers`
+et, côté front, `fetchAgencyAgents` et ses trois appelants. Les mesures viennent d'un test temporaire
+(base de test PostgreSQL, `Notification::fake()`, charge 1,43 / 2,25 / 2,71 sur 8 cœurs), retiré
+avant la fin. Le sélecteur de participants de la messagerie est déjà traité (P51.01, fait ·
+TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au navigateur.*
+
+### La passation vers un repreneur bloqué en fait l'agent principal du bien, alors que la réponse annonce le bien « non attribué »
+- Réf : P88.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Agency/AgentHandoverService.php:213-249`, `takussan-api/app/Http/Requests/Agency/StoreAgentHandoverRequest.php:55-62`, `takussan-api/app/Services/Property/PrimaryPropertyContact.php:186-207`
+- Constat :
+  - Le repreneur est jugé par `isStaffAt()` seul (lu, `StoreAgentHandoverRequest.php:58-60`). `isStaffAt()` ne lit que le statut du profil, jamais `users.status` (lu, `MembershipCapabilityResolver.php:468-491`). Un compte bloqué dont le profil d'agent reste actif passe donc.
+  - La catégorie `responsible_properties` appelle `ResponsibleAgentAssigner::assign()`, que `PrimaryAgentDesignator` refuse pour un compte non joignable (`property.primary_not_eligible`, lu, `PrimaryPropertyContact::eligible()` l. 200-207). Le bien part en `dropped`, compté « non attribué » (lu, l. 213-222).
+  - La catégorie `collaborations` vient ensuite. La ligne du sortant porte `is_primary = true`. Le repreneur n'a pas de ligne sur ce bien (`$taken` faux), donc le service réécrit `user_id` sans toucher `is_primary` (lu, l. 237-249). La règle de désignation n'est pas rejugée.
+  - mesuré (test temporaire) : agent sortant principal d'un bien, une tâche à lui ; `POST /api/agencies/{a}/members/{sortant}/handover` avec `successor_id` = compte `blocked` → 200, `moved.collaborations = 1`, `unassigned.responsible_properties = 1`. Dans la base ensuite : collaborateur du bien `{user_id: bloqué, is_primary: true}`, et la tâche est assignée au bloqué.
+  - mesuré : `PrimaryPropertyContact::for()` du bien rend le bailleur, pas le bloqué. Le contact public est donc protégé ; c'est la marque `is_primary` et le compte rendu de la passation qui sont faux.
+  - Établi comment : lu, puis mesuré.
+- Piste : dans `collaborations`, quand la ligne déplacée est principale et que `assignResponsible()` refuse le repreneur, retirer `is_primary` (ou supprimer la ligne) au lieu de la réécrire telle quelle. Et faire juger le repreneur par `PersonnelDeLAgence::estPersonnel()` (joignable + personnel), comme les visites. Test : repreneur `blocked` → 422 sur `successor_id`, et, à défaut, aucune ligne `is_primary` à son nom après la passation.
+
+### Tâche, référent client, remplaçant d'absence et collaborateur acceptent un compte bloqué ; seules les visites et les demandes le refusent
+- Réf : P88.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/TaskController.php:91-133`, `takussan-api/app/Http/Requests/Api/SetPrimaryContactCustomerRequest.php:46-62`, `takussan-api/app/Services/Agency/AgentAbsenceService.php:31-42`, `takussan-api/app/Rules/CollaboratorEligibleForProperty.php:58-73`, `takussan-api/app/Rules/PersonnelDeLAgence.php:26-48`
+- Constat :
+  - Le blocage par la console (`UserLifecycleController::block`, lu, l. 39-55) passe `users.status` à `blocked`, supprime les jetons et ferme les flux de calendrier. Il ne touche aucun profil d'agence : le compte reste « personnel actif » au sens d'`isStaffAt()` (lu).
+  - Il existe deux définitions du personnel. `PersonnelDeLAgence::estPersonnel()` ajoute la joignabilité (« ni bloqué, ni supprimé ») à `isStaffAt()`, et son en-tête dit que c'est « LA définition du personnel » pour l'attribution (lu, l. 26-48). Les quatre chemins ci-dessous n'appellent qu'`isStaffAt()` (lu).
+  - mesuré (test temporaire), admin d'agence, cible = agent de l'agence au compte `blocked` :
+    - `POST /api/tasks` avec `assigned_to_id` → 201 ;
+    - `POST /api/customers/{id}/primary-contact` → 200, `is_primary: true` ;
+    - `POST /api/agencies/{a}/absences` avec le bloqué en `substitute_id` → 201, `status: active`. Une tâche créée ensuite pour l'absent est assignée au bloqué (`routeToSubstitute`, l. 121-133) → 201, `assigned_to_id` = bloqué ;
+    - `POST /api/properties/{p}/collaborators` en `agent` → 201 ;
+    - témoin : `POST /api/property-visits` avec le bloqué en `agent_id` → 422 « The chosen agent must be on the property's agency staff ».
+  - Le compte ne lira jamais ces tâches ni ces clients (`canOpenSession()`, lu, `User.php:672-676`). Pendant l'absence, les tâches de l'absent vont à quelqu'un qui ne se connecte pas.
+  - Aucune spec n'écrit qu'un compte bloqué cesse d'être attribuable hors des visites, des demandes et du contact (TCK-590, `docs/features.md:131`) (lu, `grep -n bloqué docs/features.md`).
+  - Établi comment : lu, puis mesuré.
+- Piste : remplacer `isStaffAt()` par `PersonnelDeLAgence::estPersonnel()` dans ces quatre jugements de cible (et dans la passation, P88.01). Test : un cas « cible `blocked` → 422 » par chemin, avec le témoin « cible `inactive` → accepté ». Reste à décider si le blocage d'un compte doit aussi signaler aux admins de ses agences ce qui lui reste attribué.
+
+### Le sélecteur d'agents propose les comptes bloqués, les profils suspendus et les bailleurs de l'agence qui sont agents ailleurs
+- Réf : P88.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:172-198`, `takussan-web/src/lib/queries/agent-crm.ts:102-114`, `takussan-web/src/components/crm/CustomerReferent.tsx:37`, `takussan-web/src/components/crm/HandoverWizard.tsx`, `takussan-web/src/components/crm/AgentAbsencesSection.tsx`
+- Constat :
+  - La base de la liste est « profil d'agent OU profil de bailleur dans cette agence », sans statut de profil ni de compte (lu, l. 179-182). `filter[role]=agent` ajoute `whereHas('agentProfiles')` **sans agence ni statut** (lu, l. 193-198).
+  - mesuré (test temporaire) : `GET /api/agencies/{a}/members?filter[role]=agent&fields[users]=id,first_name,last_name&per_page=100` → 200 avec, en plus des agents actifs, le compte `blocked`, l'agent au profil `suspended`, et un bailleur de l'agence qui n'est agent que dans une autre agence.
+  - Le front sert cette liste telle quelle au choix du référent, du repreneur et du remplaçant (lu, `fetchAgencyAgents`). L'API refuse ensuite le suspendu et l'agent d'ailleurs (`isStaffAt`, 422), et accepte le bloqué (P88.02).
+  - Le même défaut de `filter[role]` a été corrigé sur `/api/users` (P03.02, TCK-665), pas sur cette route : la liste dit à l'admin de A qu'un de ses bailleurs est agent ailleurs.
+  - Établi comment : lu, puis mesuré.
+- Piste : contraindre `filter[role]` à l'agence de la route et aux profils `active()`, et écarter `blocked` et `deleted` (`PrimaryPropertyContact::joignable`) quand la liste sert un choix de cible. Une option `filter[assignable]=1` éviterait de retirer de la liste d'équipe les membres qu'un admin doit voir. Test : les trois cas ci-dessus absents de `filter[role]=agent`, l'agent actif présent.
+
+### Un compte bloqué reçoit toujours ses notifications : e-mail, WhatsApp ou SMS, rappels de tâche, alertes de recherche et de favoris
+- Réf : P88.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Model/NotificationService.php:53-97`, `takussan-api/app/Notifications/CodedNotification.php:120-150`, `takussan-api/app/Services/Notifications/PreferenceResolver.php:158-192`, `takussan-api/app/Jobs/SendTaskDueReminders.php:41-85`, `takussan-api/app/Jobs/SendSavedSearchAlerts.php:95-100`, `takussan-api/app/Jobs/SendFavoriteChangeAlerts.php:71-84`
+- Constat :
+  - Aucun de ces chemins ne lit `users.status` (lu, `grep -rn "UserStatus::" app` : seuls l'authentification, l'impersonation, les flux de calendrier, la messagerie, le contact principal et deux pages publiques le lisent).
+  - mesuré (test temporaire) : compte `blocked`, téléphone vérifié, `NotificationService::send(…, lease_payment.due_soon)` → une ligne `app_notifications` et `CodedNotification` envoyée par `["mail","whatsapp"]`.
+  - mesuré : tâche assignée au bloqué, échéance dans 24 h, `SendTaskDueReminders::handle()` → `TaskDueReminderNotification` envoyée par `["database","mail","broadcast"]`.
+  - lu : `SendSavedSearchAlerts` prend toute recherche active à `user_id` non nul (l. 95-99), `SendFavoriteChangeAlerts` tout compte qui a des favoris (l. 73-75), sans statut. Le message des fils où le bloqué reste participant suit `NotifyNewMessageJob` (non mesuré, à vérifier).
+  - Certaines notifications doivent l'atteindre : `AccountBlocked` et `AccountReactivated`, envoyées par la console au moment du geste (lu, `UserLifecycleController.php:51,65`). Le filtre ne peut donc pas être global.
+  - Coût : le canal mobile part au tarif SMS ou WhatsApp pour un compte qui ne peut pas agir sur ce qu'on lui annonce (déduit, à vérifier sur `notification_delivery_attempts`).
+  - Établi comment : lu, puis mesuré pour les deux premiers chemins.
+- Piste : dans `NotificationService::send()` et `CodedNotification::via()`, ne rien envoyer à un compte non joignable sauf pour une liste fermée de codes de compte (blocage, réactivation, effacement). Écarter aussi `blocked` et `deleted` des requêtes des trois jobs planifiés. Test : compte `blocked` → aucun canal pour un code métier, `mail` conservé pour `AccountBlocked` ; rappel de tâche et alerte de recherche muets.
