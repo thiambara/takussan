@@ -6313,7 +6313,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### La création d'une réservation distingue un client absent d'un client d'une autre agence, et l'état d'un bien non publié
 - Réf : P62.02
-- Statut : validé — (a) comme P62.01 : `customer_id` jugé dans le service avec la réponse du refus, visibilité avant état pour un appelant hors personnel (porteur, 2026-10-20)
+- Statut : fait · TCK-1066
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreBookingRequest.php:24-34`, `takussan-api/app/Services/Model/BookingService.php:32-39,55-93`
 - Constat :
@@ -6325,6 +6325,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 - Piste : juger `customer_id` dans le service avec la réponse du refus ; pour un appelant qui n'est pas du personnel, tester la visibilité avant l'état et rendre la même réponse qu'un bien absent. Test : client absent et client tiers, bien absent, brouillon et privé, mêmes statut et corps.
 - Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `StoreBookingRequest.php` (`exists:customers,id`), `BookingService.php` ; test temporaire retiré, compte sans agence → client d'une agence tierce : 403 `http.forbidden` ; client absent : 422 sur `customer_id` ; bien `draft` tiers : 422 `booking.property_unavailable` ; bien absent : 422 sur `property_id`. Le 403 d'un bien privé non brouillon n'est pas mesuré. Classement : V2, le correctif change le statut rendu aux appelants et l'ordre « visibilité avant état » de la réservation.
 
+- Mesure (2026-10-20, 88d019565, implementeur) : avant correctif, `BookingExistenceOracleTest` neuf, compte sans agence face à une agence tierce → 3 rouges : client absent 422 sur `customer_id` contre 403 `http.forbidden` pour un client tiers ; bien privé 403 `booking.property_unavailable` (le cas non mesuré du constat, confirmé) contre 422 pour un brouillon ou un vendu ; `property_id=abc` → 500 ; correctif (`integer` sans `exists:`, bien absent → 403 `booking.property_unavailable` dans le contrôleur, visibilité avant état hors personnel et propriétaire) → 4 verts, et `BookingTest` réaligné (vendu → 403) ; ablations : `exists:` remis → 2 rouges, ancien ordre du service → 2 rouges ; 212 verts sur les onze classes voisines.
 ### La création d'une tâche énumère les comptes de la plateforme, et ses fiches clients
 - Réf : P62.03
 - Statut : validé — (a) comme P62.01 : retirer `exists:users,id` et rendre 404 quand `attachTo` refuse, comme `DocumentController::store()` (porteur, 2026-10-20)
