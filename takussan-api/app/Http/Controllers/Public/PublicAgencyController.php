@@ -345,7 +345,8 @@ class PublicAgencyController extends Controller
                 'name' => $agency->name,
                 'description' => $agency->description,
                 'license_number' => $agency->license_number,
-                'logo_url' => $agency->logo_url ?? null,
+                // TCK-1076 — la collection `logo`, comme `index()` : `$agency->logo_url` n'existe pas.
+                'logo_url' => $agency->getFirstMediaUrl('logo') ?: null,
                 'email' => $agency->email,
                 'phone' => $agency->phone,
                 'city' => $agency->addresses->first()?->city,
