@@ -137,7 +137,7 @@ voie d'écriture (angle 13, puis 47).
 | 62 | Règles `exists:` des FormRequests reçues par une route ouverte à tout compte connecté (`exists:users,id`, `exists:properties,id`…) : oracles d'existence par identifiant séquentiel, au-delà des routes en lot de P22.02 | fait |
 | 63 | URL signées rangées en base ou dans un `metadata` (`app_notifications.data`, `LeaseDepositRefundNotification`, `DepositRefundService`, `MaintenanceRequestService::addPhotos`) : durée, lecteurs, liens morts à la relecture | fait |
 | 64 | Pièces KYC des profils (`Document` d'`OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`) à l'effacement du compte, à la fin du profil et au re-téléversement : fichier, versions et lignes réellement supprimés ? | fait |
-| 65 | Durée cumulée des appels sortants synchrones dans une requête HTTP (OTP SMS, step-up, initiation de paiement) face au délai de PHP, du serveur web et de Traefik | à faire |
+| 65 | Durée cumulée des appels sortants synchrones dans une requête HTTP (OTP SMS, step-up, initiation de paiement) face au délai de PHP, du serveur web et de Traefik | fait |
 | 66 | Valeurs d'enum métier ajoutées ou désactivées par le super-admin (`BusinessEnumService`, `settings` `enum.*.values`) : lues par aucune validation ni aucun écran hors de la console ? | à faire |
 | 67 | Critères nommés des recherches sauvegardées et des liens partagés (`tags=Piscine`, `location=<quartier>`) après un renommage, une fusion ou un rejet au référentiel (`TagModeration`, `GeoNeighborhoodModeration`) : alertes muettes, filtres vides | à faire |
 | 68 | Passage axe au navigateur des écrans connectés (`/app`, console super-admin) derrière un faux API : barre latérale, tableaux, dialogues et feuilles de `@base-ui/react` | à faire |
@@ -6526,3 +6526,89 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
   - **Le remplacement n'est pas atomique.** `clearMediaCollection('file')` efface l'ancien fichier avant `addMedia()`, hors transaction (lu, l. 74-78 dans les trois contrôleurs). Si l'écriture du nouveau fichier échoue, la ligne reste sans fichier, et l'ancien est perdu. Non éprouvé.
   - Établi comment : test temporaire et lecture.
 - Piste : dériver `kyc.docs` des `Document` vivants du profil au lieu de le tenir à la main, ou le mettre à jour à la suppression ; ajouter le nouveau média avant de retirer l'ancien (la collection `singleFile` remplace d'elle-même), dans les trois contrôleurs.
+
+## Angle 65 — Durée des appels sortants synchrones d'une requête HTTP face aux délais de PHP, du serveur web et de Traefik
+
+*Exploré le 2026-10-20 sur `pre-dev` 0ba226223, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : `docker/php.ini`, `docker/Caddyfile`, `Dockerfile`,
+`deploy/takussan/compose.api.yml`, `hebergement.md` (§ Caddy), `SmsTimeBudget`, `OrangeSmsDriver`,
+`PhoneVerificationService`, `DeletionStepUpService`, `LeaseSignatureService::sendCode()`, les
+pilotes Wave, Orange Money et Lemon Squeezy, `PaymentGatewayService::initiate()/verify()`,
+`InvitationService::deliver()/resend()`, `PropertyMediaController::store()`, `GeoLinkResolver`,
+`SafeOutboundUrl`, `HealthcheckService`, `config/filesystems.php`, `PendingRequest` (Laravel),
+`Resend::client()` (resend-php 1.14.0). Un test temporaire, retiré depuis, sur la base de test
+(charge 5,39 / 4,25 / 3,80 sur 8 cœurs), et une lecture en `tinker` de la configuration du client
+S3. Non mesuré : l'image de l'API (FrankenPHP 1.12.7, PHP ZTS), Traefik et Cloudflare, qu'on ne
+joint pas depuis le poste ; la configuration de Traefik (`traefik.yml`) est hors dépôt. Les codes
+à usage unique par SMS sont déjà bornés (30 s par traversée, TCK-842, angle 27) : rien de neuf à
+leur sujet, sinon qu'ils tiennent sous les 60 s. La résolution des liens de carte (3 sauts de 4 s)
+et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
+
+### La seule borne de durée d'une requête est `max_execution_time = 60`, dont le sens dans l'image n'est pas mesuré
+- Réf : P65.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/docker/php.ini:10-11`, `takussan-api/docker/Caddyfile:12-50`, `takussan-api/Dockerfile:15-17,85`, `deploy/takussan/compose.api.yml:27-39`, `docs/infra/hebergement.md:547`
+- Constat :
+  - `php.ini` pose `max_execution_time = 60`, commenté « nginx : fastcgi_read_timeout 60 », et `hebergement.md:547` présente les deux comme équivalents (lu). `fastcgi_read_timeout` bornait le temps d'horloge. `max_execution_time` ne borne l'horloge que sur une version de PHP compilée avec les minuteurs d'exécution de Zend (ZTS sous Linux). Sur une version NTS sous Linux, il compte le temps processeur, et l'attente d'un appel réseau n'y entre pas (documentation de PHP, à vérifier dans l'image FrankenPHP).
+  - Le Caddyfile ne pose aucun délai (`timeouts`) et aucun `num_threads` ni `max_wait_time` FrankenPHP. Le service `api` n'en pose pas non plus (lu). La documentation de FrankenPHP donne par défaut 2 fils PHP par cœur vu, et une attente sans limite quand tous sont pris (à vérifier dans le conteneur).
+  - Conséquence : quelques requêtes qui attendent un fournisseur lent (P65.02 à P65.05) suffisent à occuper tous les fils de l'API (déduit, à vérifier). Les autres requêtes, `/up` compris, attendent alors derrière elles.
+  - Devant l'API, les délais de Traefik (v3.6.7, `traefik.yml` hors dépôt) et de Cloudflare (100 s par défaut pour un hôte proxifié, d'après la documentation de Cloudflare) ne sont relevés nulle part dans le dépôt (mesuré : `grep -rn -i "timeout" deploy/ takussan-api/docker` → seuls les `healthcheck` et `smoke-web.sh`).
+  - Sur le poste (PHP 8.4.6 NTS, macOS), `php -d max_execution_time=1 -r 'sleep(3);'` meurt sur « Maximum execution time » (mesuré). Ce résultat ne dit rien de l'image, ni du système, ni du mode de compilation.
+  - Établi comment : lu ; mesure locale seulement.
+- Piste : mesurer dans l'image (`php -d max_execution_time=1 -r 'sleep(3);'`, puis une requête qui attend plus de 60 s derrière `php_server`), et l'inscrire dans `smoke-api.sh image` pour qu'un changement d'image ne la défasse pas en silence. Poser `num_threads` et `max_wait_time` explicitement. Relever les délais de Traefik et de Cloudflare dans `hebergement.md`, et y corriger l'équivalence avec nginx selon la mesure.
+
+### L'initiation d'un paiement appelle le fournisseur dans la transaction, sous le verrou de la ligne, jusqu'à 35 s (Orange Money) et 60 s (Lemon Squeezy)
+- Réf : P65.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:150-226,257-266`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:53,76-81,168-173`, `takussan-api/app/Services/Payments/Drivers/LemonSqueezyDriver.php:48-80,197-213`, `vendor/lemonsqueezy/laravel/src/LemonSqueezy.php:59-63`, `vendor/laravel/framework/src/Illuminate/Http/Client/PendingRequest.php:267-272`
+- Constat :
+  - `initiate()` ouvre `DB::transaction`, verrouille la ligne de paiement (`lockForUpdate`), puis appelle `$driver->initiate()` dans cette transaction (lu, l. 155-156 et 221).
+  - Orange Money y enchaîne le jeton OAuth (`timeout(15)`, s'il n'est pas en cache) et la création de la page de paiement (`timeout(20)`), soit 35 s au plus (lu ; somme non mesurée).
+  - Lemon Squeezy y enchaîne `GET stores/{id}` (TCK-735) et `POST checkouts` par `LemonSqueezy::api()`, sans délai propre : les défauts de Laravel s'appliquent, `timeout` 30 s et `connect_timeout` 10 s (lu). Soit 60 s, la valeur même de `max_execution_time` (P65.01).
+  - Pendant ce temps, la connexion PostgreSQL reste ouverte dans la transaction, et la ligne est verrouillée. Le webhook du même paiement et `verify()` la reverrouillent, et ils attendent (lu, l. 264 et 795-824).
+  - `verify()` suit la règle inverse, écrite dans son commentaire : « l'appel au prestataire reste hors transaction » (VERIF-594 m-4, lu l. 257).
+  - Si PHP coupe la requête à 60 s, la transaction est annulée. La page de paiement déjà créée chez le fournisseur n'est alors rattachée à aucune ligne (déduit, à vérifier).
+  - Établi comment : lu.
+- Piste : séparer l'initiation en trois temps : réserver sous verrou (marque « initiation en cours », avec une échéance), appeler le fournisseur hors transaction, puis enregistrer sous verrou en revérifiant l'état, sur le modèle de `verify()`. Donner un délai explicite aux deux appels Lemon Squeezy. Test : un faux fournisseur qui fait avancer l'horloge, et une seconde connexion qui constate que la ligne n'est pas verrouillée pendant l'appel.
+
+### Un délai dépassé chez Wave ou Orange Money rend 500 au lieu de 502 `payment.provider_unavailable`, à l'initiation comme à la vérification
+- Réf : P65.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:79-89,106-118`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:76-86,103-116,168-179`, `takussan-api/bootstrap/app.php:131-168`
+- Constat :
+  - Les pilotes Wave et Orange Money rendent 502 `payment.provider_unavailable` sur une réponse en erreur (lu, `abort_code(502, …)`). Mais aucun de leurs appels n'est dans un `try`, et une `ConnectionException` (délai dépassé, connexion refusée) sort du pilote telle quelle (lu). `bootstrap/app.php` ne la traduit pas : elle n'est ni une `ApiError` ni une `HttpException` (lu, l. 131-168).
+  - Lemon Squeezy, lui, attrape toute exception et rend 502 (lu, `LemonSqueezyDriver.php:79,203`).
+  - mesuré : test temporaire, retiré depuis, sur le modèle de `PaymentGatewayInitiateTest`. Un faux Wave qui lève `ConnectionException` (« cURL error 28 ») donne `POST /api/booking-payments/{id}/initiate` → **500** après 1 appel. `GET /api/booking-payments/{id}/verify` → **500** après 2 appels : `retry(2, 200, throw: false)` relance l'appel sur une exception de connexion, puis la laisse sortir. Le message rendu sous `APP_DEBUG` est celui de cURL. Hors débogage, c'est le « Server Error » générique de Laravel (lu), et le front ne peut pas afficher le texte « Le prestataire de paiement ne répond pas » (`lang/fr/errors.php:378`).
+  - Durées au pire, en lisant les délais : vérification Wave 2 × 15 s, vérification Orange Money 15 s (jeton) + 2 × 15 s. Le front relance cette vérification toutes les 15 s depuis la page de retour (lu, `takussan-web/src/hooks/useInitiatePayment.ts:84-100`).
+  - Le rapport par défaut de l'exception écrit au journal l'URL appelée, qui contient pour Wave l'identifiant de la session de paiement (déduit, à vérifier).
+  - Établi comment : test temporaire et lecture.
+- Piste : attraper `ConnectionException` dans les deux pilotes (initiation, jeton, vérification), journaliser sous la forme sûre (`SafeExceptionContext`), et rendre `abort_code(502, 'payment.provider_unavailable')`. Test par pilote et par appel : un faux qui lève, et l'assertion du 502 et de son code.
+
+### Le client Resend n'a aucun délai, et des courriels partent dans la requête HTTP, dont un sous verrou
+- Réf : P65.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `vendor/resend/resend-php/src/Resend.php:20-29`, `vendor/laravel/framework/src/Illuminate/Mail/MailManager.php:320-325`, `takussan-api/app/Services/Invitation/InvitationService.php:248,405-434,951-958`, `takussan-api/app/Mail/InvitationMailable.php:23`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:119-137`, `takussan-api/app/Notifications/LeaseSignatureCodeNotification.php:19,55-57`, `takussan-api/config/mail.php:64-66`
+- Constat :
+  - Le transport `resend` de Laravel construit son client par `Resend::client()`, qui fait `new GuzzleClient()` sans option (lu). Guzzle n'a alors aucun délai total, et la connexion attend le délai de cURL, 300 s (documentation de Guzzle et de cURL, à vérifier). `config/mail.php` ne pose rien pour `resend` (lu). La production est prescrite en `MAIL_MAILER=resend` (`hebergement.md:198`), la préproduction est en `log`.
+  - `InvitationMailable` n'est pas en file (`extends Mailable`, sans `ShouldQueue`, lu). `deliver()` l'envoie par `Mail::to()->send()` (lu, l. 956-957). Il le fait dans la requête qui crée l'invitation (`DB::afterCommit`, l. 248), et dans celle qui la relance. Dans la relance, l'envoi a lieu dans la transaction, sous le verrou de l'invitation (l. 405-434, voulu par TCK-367).
+  - `LeaseSignatureCodeNotification` n'est pas en file. Quand le signataire n'a pas de numéro vérifié, le code part par `mail`, pendant la requête `sendCode` (lu).
+  - Un Resend qui ne répond pas tient donc la requête jusqu'à la borne de P65.01, quelle qu'elle soit. Dans la relance, la ligne reste verrouillée pendant ce temps (déduit).
+  - Établi comment : lu.
+- Piste : poser un délai au client Resend : un transport `resend` enregistré par l'application avec un `GuzzleClient` borné (`timeout`, `connect_timeout`), ou passer par SMTP avec `timeout`. Mettre en file les courriels qui n'ont pas besoin de partir dans la requête, l'invitation d'abord. Garde : un test qui lit les options du client construit par le gestionnaire de courriel.
+
+### Les disques R2 n'ont aucun délai HTTP, et le téléversement de photos les écrit un à un pendant la requête
+- Réf : P65.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/config/filesystems.php:60-84`, `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:43-90`, `takussan-api/app/Services/Admin/HealthcheckService.php:192-203`
+- Constat :
+  - `r2-media` et `r2-private` ne déclarent pas de clé `http` (lu). mesuré : `tinker`, disque construit sur la configuration de `r2-media` avec des identifiants factices. `getCommand('HeadObject')['@http']` → `[]`, donc ni `timeout` ni `connect_timeout` ne sont passés à Guzzle.
+  - `HealthcheckService::boundedDisk()` le sait : il reconstruit le disque avec `http.timeout` à 3 s pour sa sonde seule (lu, l. 192-203). Le reste du code utilise le disque non borné.
+  - `PropertyMediaController::store()` écrit chaque photo du lot (20 au plus, 25 Mio en tout) par `addMedia()->toMediaCollection()`, l'une après l'autre, dans la requête (lu, l. 43-90). Les conversions sont en file, pas l'original.
+  - Si R2 cesse de répondre en cours de lot, la requête attend jusqu'à la borne de P65.01. Les photos déjà écrites restent, la réponse est une erreur, et un nouvel envoi les double (déduit, à vérifier).
+  - Établi comment : lu et mesuré en `tinker` (aucun appel réseau).
+- Piste : poser `http => ['timeout' => …, 'connect_timeout' => …]` sur les deux disques R2, dimensionné pour 25 Mio. Garde : un test qui lit `@http` d'une commande du client des deux disques.
