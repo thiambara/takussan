@@ -150,7 +150,7 @@ voie d'écriture (angle 13, puis 47).
 | 75 | Classes `Notification` historiques de `AppDatabaseChannel::TYPES`, hors `NotificationCode` : sans `code` ni `target` dans la cloche, préférences lues à la main dans `via()`, couvertes par un test ? | fait |
 | 76 | Effets aval d'un paiement soldé puis passé à `refunded` : quittance déjà envoyée, ligne prise par un reversement de la plateforme (`platform_payout_id`) ou du propriétaire (`PayoutCalculator`), commission, exports et totaux de l'historique | fait |
 | 77 | Fichiers du disque `local` dans le volume `storage` des conteneurs (archives d'export RGPD, exports de rapports) : écrits par `worker`, servis par `api`, purge réelle, taille, et ce qui reste après `PurgeExpiredDataExports` | fait |
-| 78 | Pic mémoire des jobs qui accumulent tout en tableau avant d'écrire (export RGPD `DataExportBuilder`, exports de rapports `GenerateReportExport`, relevés OFX) face à `memory_limit = 256M` et aux `mem_limit` des workers | à faire |
+| 78 | Pic mémoire des jobs qui accumulent tout en tableau avant d'écrire (export RGPD `DataExportBuilder`, exports de rapports `GenerateReportExport`, relevés OFX) face à `memory_limit = 256M` et aux `mem_limit` des workers | fait |
 | 79 | Appels du serveur Next vers l'API sans délai (`apiFetch`, `apiRequest`, relais BFF : aucun `AbortSignal.timeout`) : rendu d'une page publique ou d'une action quand l'API répond lentement, face au `requestTimeout` de Node (300 s) et aux délais de Traefik | à faire |
 | 80 | Champs envoyés par les formulaires montés du front et écartés en silence par `validated()` (aucune règle dans le FormRequest), et champs `required` jamais envoyés : reste de l'angle 45, non relevé | à faire |
 | 81 | État du bail face aux écritures d'argent (création d'échéance, `mark-paid`, lien de paiement, pénalité, restitution) sur un bail `draft`, `pending_signature`, `terminated` ou `renewed` | à faire |
@@ -185,6 +185,7 @@ voie d'écriture (angle 13, puis 47).
 | 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | à faire |
 | 110 | Rapprochement bancaire (`bank_reconciled_at`, `bank_statement_line_id`, `Accounting\ReconciliationManager`) d'une échéance, d'un acompte ou d'une facture passés à `refunded` après rapprochement : la ligne de relevé reste-t-elle rapprochée, et le remboursement sortant a-t-il un pendant | à faire |
 | 111 | Jobs en file qui posent un statut de suivi (`processing`, `queued`) sur une ligne (`ReportExport`, `DataExport`, `ParseBankStatementJob`, versements) sans `failed()` — 7 jobs sur 43 en ont un : ce que voit l'utilisateur après l'échec définitif ou un arrêt brutal du worker, et ce qui bloque une nouvelle demande | à faire |
+| 112 | Exports synchrones de `ExportController` (`GET /api/exports/{entity}`, jusqu'à 10 000 lignes, 2 000 en PDF) et de `PrivacyRequestController` : requêtes par ligne des constructeurs d'entité, mémoire et durée dans la requête HTTP — le relevé de l'angle 78 sur les exports qui ne passent pas par un job | à faire |
 
 ---
 
@@ -7800,3 +7801,76 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
   - Établi comment : lu et grep.
 - Piste : faire nommer `local` aux deux écrivains d'audit et à leur téléchargement. Corriger `docs/configuration.md` (l. 138, 554) pour dire `local`, et R2 pour les médias (ADR-0029). Purger aussi les fichiers sans ligne dans la purge de P77.02. Écrire `failure_reason` et le statut `failed` dans un `failed()` du job.
 - Mesure (2026-10-20, 82f697038, mesureur) : lu `ActivityLogExportController.php:66-70` (`Storage::exists` et `Storage::download`, disque par défaut) et `ExportActivityLogJob.php:42` (`Storage::put`) ; `docs/configuration.md:138` (« `FILESYSTEM_DISK=local # ou s3 en prod` ») et `:554` (« `FILESYSTEM_DISK=s3` + `AWS_*` ») contre le plan l. 3532 (`local`) ; `grep -n "FILESYSTEM\|AWS" docs/infra/prod-drivers.json` → rien, la valeur déployée n'est pas dans le dépôt ; `docker/seed.sh:16` fait `migrate:fresh`, `DatabaseSeeder.php:42` ne nettoie que `storage/app/public` ; `grep -n "failure_reason\|function failed"` dans `GenerateReportExport.php` → rien, et le job passe à `processing` (l. 29) → les quatre points tiennent. Classement : V5, la piste corrige la checklist de production et fige le disque d'une variable d'environnement dont la valeur déployée n'est pas mesurable ; la purge des orphelins dépend de P77.02 (V4).
+
+## Angle 78 — Pic mémoire et durée des exports accumulés en tableau
+
+*Exploré le 2026-10-20 sur `pre-dev` 48e7c901f, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : `DataExportBuilder`, `ProcessDataExport`,
+`GenerateReportExport`, `ReportingController::export`, `PlatformReportingService`,
+`ExportActivityLogJob`, `ActivityLogExporter`, `ActivityLogExportController`,
+`CrossTenantAuditController::export`, `HasProfiles::profileTypes()`, `OfxDriver`, `docker/php.ini`,
+`deploy/takussan/compose.api.yml`. Mesures par un test temporaire (retiré) sur la base de test
+PostgreSQL locale, `XDEBUG_MODE=off`, `memory_limit=-1` : lignes de journal insérées pour un admin
+d'agence et un bien (diff `attribute_changes` d'environ 250 octets), surcroît de mémoire par
+`memory_reset_peak_usage()` puis `memory_get_peak_usage(true)` au-dessus de l'usage courant (les
+mesures successives d'un même processus réutilisent la mémoire déjà prise : les surcroîts sont des
+planchers), charge 4,16 / 4,17 / 3,85 sur 8 cœurs. Les durées sont celles du poste, base locale :
+celles de la préproduction ne sont pas mesurées. **Écartés, sans entrée** : l'export RGPD
+(`DataExportBuilder::payloads()` avec 20 000 lignes de journal dont le titulaire est l'auteur :
+8 Mo, 2,9 s) ; le relevé OFX de 10 Mo (`file_get_contents` + `preg_match_all` de `OfxDriver.php:21-34`,
+61 515 transactions : 36 Mo de surcroît sous `memory_limit=256M`, rejoué hors application dans
+`/tmp`) ; le CSV, déjà traité par TCK-932 (P43.01). Le `failed()` absent des jobs d'export est
+l'angle 111.*
+
+### L'export d'audit d'une agence fait deux requêtes par ligne : au-delà de 5 000 lignes, le job dépasse les 60 s du worker
+- Réf : P78.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:42-49,135-155`, `takussan-api/app/Models/Concerns/HasProfiles.php:238-275,317-321`, `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:23-64`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:44-54`, `deploy/takussan/compose.api.yml:125`
+- Constat :
+  - `mapRow()` remplit `causer_role` par `$causer?->profileTypes()->first()` (lu, l. 155). `profileTypes()` calcule toute la liste avant d'en prendre le premier : `serviceProviderProfile` et `hasActiveTenantLease()` ne sont pas préchargés par `buildPayload()` (lu, l. 45), et `profileRelationExists()` interroge la base quand la relation n'est pas chargée, sans retenir la réponse (lu, `HasProfiles.php:317-321`).
+  - Mesuré : un seul auteur, 100 lignes → 209 requêtes, 200 lignes → 409 requêtes (`DB::enableQueryLog()` autour de `buildPayload()`).
+  - Mesuré : `buildPayload()` sur 5 001 lignes → 20,1 s ; sur 20 000 lignes → 66,9 s ; le job entier en CSV sur 20 000 lignes → 70,0 s, en XLSX → 83,8 s.
+  - Au-delà de 5 000 lignes, l'export part dans `ExportActivityLogJob` (lu, contrôleur l. 44-50), qui n'a ni `$timeout` ni `failed()` (lu). Le worker `default` tourne sans `--timeout` (lu, `compose.api.yml:125`), donc avec les 60 s par défaut de `queue:work`. Un job plus long y est tué, rejoué jusqu'à `--tries=3`, puis échoue sans qu'aucun courriel ne parte (déduit, à vérifier dans l'image : la durée en préproduction n'est pas mesurée).
+  - Sous le seuil, le même calcul tourne dans la requête HTTP : 5 000 lignes demandent environ 20 s avant la réponse (déduit de la mesure à 5 001).
+  - La plage de dates va jusqu'à un an (lu, `ExportActivityLogRequest.php:43`) ; la base de développement porte 24 481 lignes de journal sur un an (mesuré, `SELECT count(*)` par `tinker`).
+  - Établi comment : lu, puis test temporaire (retiré) qui appelle `buildPayload()` et `handle()` du job comme `XlsxExportFormulaTest`.
+- Piste : précharger ce que lit `profileTypes()` (`causer.serviceProviderProfile`, `causer.tenantLeases`), ou calculer `causer_role` une fois par auteur dans `buildPayload()`. Donner au job un `$timeout` mesuré. Test : nombre de requêtes de `buildPayload()` constant entre 10 et 100 lignes d'un même auteur.
+
+### L'export d'audit de la console tourne dans la requête HTTP, jusqu'à 50 000 lignes et six requêtes par ligne
+- Réf : P78.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:57,87-102`, `takussan-api/app/Services/Audit/ActivityLogExporter.php:73-79,83-96`, `takussan-api/docker/php.ini:11`
+- Constat :
+  - `export()` compte les lignes, refuse au-delà de `EXPORT_MAX_ROWS = 50_000` (lu, l. 57 et 91-93), puis construit tout le CSV dans la requête : `payloadForQuery()` charge toutes les lignes avec le seul `with('causer')` (lu, l. 77), et `csvContent()` écrit la chaîne entière en mémoire avant `Storage::put` (lu, l. 83-96 ; contrôleur l. 99-102).
+  - Mesuré : 100 lignes d'un seul auteur → 602 requêtes, 200 → 1 202 (six par ligne : `profileTypes()` sans aucun profil préchargé).
+  - Mesuré : 5 001 lignes → 46,0 s et 28 Mo ; 20 000 lignes → 238,1 s et 57 Mo de surcroît. À 50 000 lignes, la durée serait d'environ dix minutes (déduit, linéaire).
+  - `max_execution_time = 60` (lu, `php.ini:11`) ; sous FrankenPHP, ce que ce plafond compte (temps CPU ou temps écoulé) et ce que coupent Traefik et le relais BFF du front ne sont pas mesurés (à vérifier).
+  - Établi comment : lu, puis test temporaire (retiré) qui appelle `payloadForQuery()` et `csvContent()`.
+- Piste : le même préchargement que P78.01, puis soit abaisser `EXPORT_MAX_ROWS` à ce que la requête tient, soit passer cet export par le job d'agence. Test : nombre de requêtes constant ; durée de l'export plafond mesurée.
+
+### Le XLSX de l'export d'audit est construit en entier par PhpSpreadsheet, sans borne de lignes
+- Réf : P78.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:66-94`, `takussan-api/app/Http/Requests/Audit/ExportActivityLogRequest.php:19-45`, `takussan-api/docker/php.ini:3`
+- Constat :
+  - En `xlsx`, le job passe toutes les lignes à `Excel::raw()` dans un `FromArray`, qui bâtit la feuille entière en mémoire (lu, l. 68-94). Rien ne borne le nombre de lignes du chemin asynchrone : seule la plage d'un an l'est (lu, requête l. 43).
+  - Mesuré : job `xlsx` → 53 Mo de surcroît pour 5 001 lignes, 117,7 Mo pour 20 000 ; le même job en CSV → 4 et 9,3 Mo.
+  - À ce rythme, les 256 Mo de `memory_limit` seraient atteints vers 40 000 à 45 000 lignes d'un an (déduit, extrapolation linéaire de deux points, sur des diffs courts).
+  - Établi comment : test temporaire (retiré), même charge.
+- Piste : borner les lignes du format `xlsx` (refus en 422 au-delà, ou repli en CSV), ou écrire la feuille par morceaux. Le choix de la borne est un comportement visible. Test : un export `xlsx` au-delà de la borne est refusé ou servi en CSV.
+
+### `GenerateReportExport` n'est atteint par aucun rapport : le seuil de 10 000 lignes dépasse le plus long rapport, 60 lignes
+- Réf : P78.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/ReportingController.php:24,108-135`, `takussan-api/app/Services/Reporting/PlatformReportingService.php:59,190,277-282,398-400`, `takussan-api/app/Jobs/Reporting/GenerateReportExport.php`
+- Constat :
+  - Le contrôleur ne met en file que si le rapport dépasse `ASYNC_THRESHOLD_ROWS = 10_000` lignes (lu, l. 24 et 108-109).
+  - `growth` et `revenue` rendent une ligne par tranche, et une plage de plus de `MAX_BUCKETS = 60` tranches est refusée en 422 (lu, l. 59 et 398-400). `cohorts` rend au plus 24 lignes (lu, `min(24, $depth)`, l. 190). `funnel` en rend 4 (lu, l. 277-282).
+  - `grep -rn GenerateReportExport app routes` → le seul `dispatch` du contrôleur (mesuré). Les deux tests qui l'exercent appellent `handle()` à la main (`ReportExportDownloadTest.php:53`).
+  - Le job, sa notification, son téléchargement (TCK-1051) et sa purge (P77.02) ne servent donc aucun export réel aujourd'hui. Voir P63.02 : la recommandation du délégué y écarte le retrait du chemin asynchrone parce que TCK-227 l'écrit ; le seuil, lui, ne peut pas être atteint.
+  - Le pic mémoire de ce job n'est donc pas un risque aujourd'hui.
+- Piste : décider avec P63.02 si le chemin asynchrone reste (seuil à revoir, ou rapport plus long à venir) ou part. S'il reste, un test qui atteint le seuil par la route, et non par `handle()`.
