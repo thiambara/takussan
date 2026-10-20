@@ -84,3 +84,6 @@ Aucune des deux listes ne rend une agence incluse hors d'une ressource.
 - Le premier rouge après correctif est venu de la garde `RequestLoadableEmittedTest` :
   la ressource neuve rend la paire modèle/ressource visible, et `serviceProviderProfile`,
   `agencyRole` y apparaissaient acceptés sans être émis.
+- Le modèle vit sous `Models\Profiles\` : la ressource neuve s'inscrit dans
+  `ResourceInventory::MODELES_EXPLICITES`, sans quoi `DateInventoryByValueTest` rougit (relevé
+  par la sélection du lot, pas par les classes ciblées).
