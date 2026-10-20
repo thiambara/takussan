@@ -166,6 +166,11 @@ d'implémenter.
      conflit, sans rien à décider ;
    - la plus ancienne PR rouge, ou en conflit ailleurs, est réparée par le passage. Après trois
      réparations, elle est abandonnée, le passage le dit, et elle garde sa place ;
+   - le conflit ne se lit pas seulement chez GitHub, qui rend `UNKNOWN` après chaque fusion dans
+     `pre-dev` tant qu'on ne lui redemande pas : sans verdict, `git merge-tree` le calcule sur place.
+     Une PR à la CI verte dont l'essai de fusion est rouge (conflit, ou garde rouge sur l'arbre
+     fusionné) se répare aussi, et le message de réparation porte le rapport de l'essai. Avant le
+     2026-10-19, ces deux PR étaient classées « CI en cours » à chaque passage (#739, deux heures) ;
    - sinon, s'il reste une place, le passage prend du travail neuf ; s'il n'en reste pas, il
      s'arrête avant de lancer le modèle.
 
