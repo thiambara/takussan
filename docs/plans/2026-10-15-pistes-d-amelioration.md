@@ -7737,7 +7737,7 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
 
 ### L'archive d'export RGPD survit à l'effacement du compte, et le super-admin qui l'a demandée la télécharge encore
 - Réf : P77.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : suppression d'une archive de données personnelles à l'effacement
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:241-381`, `takussan-api/app/Http/Controllers/Api/DataExportDownloadController.php:15-38`, `takussan-api/app/Jobs/Privacy/PurgeExpiredDataExports.php:20-29`, `takussan-api/database/migrations/2026_05_07_000225_create_data_exports_table.php:14`
 - Constat :
@@ -7748,10 +7748,11 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
   - La donnée effacée reste donc lisible jusqu'à l'échéance de l'export (7 jours au plus), puis jusqu'au passage de `PurgeExpiredDataExports` (02:30). Le front promet « Vos données personnelles sont anonymisées » (lu, `takussan-web/src/messages/fr.json:3110`). ADR-0044 § A ne cite que les sauvegardes comme lieu où une donnée effacée survit (lu, l. 301-311).
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : dans `anonymize()`, supprimer les archives des exports du compte (fichier et `archive_path`) et les passer à `expired`, comme le fait la purge. Test : un export `ready` d'un compte, puis `anonymize()` → fichier absent, et le téléchargement du super-admin rend 404 ou 410.
+- Mesure (2026-10-20, 82f697038, mesureur) : `grep -n "DataExport\|Storage" AccountDeletionService.php` → aucune ligne, `anonymize()` (l. 241) ignore toujours les exports ; `DataExportDownloadController.php:17-28` ne juge que propriété, échéance et statut ; test temporaire `tests/Feature/Tmp/MesureurTmp77Test.php` (retiré), charge 3,36 / 2,47 / 2,71 sur 8 cœurs : export demandé par un super-admin, `DataExportBuilder::build()`, puis `anonymize($sujet, false)` → statut `ready`, archive présente, `GET /api/data-exports/{id}/download` du super-admin → 200, `profile.json` porte l'e-mail d'origine → le constat tient en entier. Classement : V3, la piste supprime une donnée personnelle conservée et change ce que l'effacement retire.
 
 ### Les exports de rapport de la console ne sont jamais purgés, ni le fichier ni la ligne
 - Réf : P77.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : purge planifiée de lignes `report_exports` et de fichiers
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:50-60`, `takussan-api/app/Http/Controllers/Api/Admin/ReportingController.php:111-120`, `takussan-api/routes/console.php:84`, `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:362-366`
 - Constat :
@@ -7761,10 +7762,11 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
   - P63.02 (validé, PR #806 ouverte) sert le fichier jusqu'à `expires_at` par une route signée, mais n'ajoute pas de purge (lu, liste des fichiers de la PR).
   - Établi comment : lu et grep.
 - Piste : étendre la purge planifiée aux `report_exports` échus (fichier supprimé, statut `expired`), et l'appliquer aussi aux `exports/audit/*` que retient P63.04. Test : un export échu, la purge → fichier absent et statut `expired` ; un export non échu reste.
+- Mesure (2026-10-20, 82f697038, mesureur) : `grep -rn "ReportExport" app routes` → le modèle, `ReportingController` (création, l. 111-120, ligne `ready` sans fichier sur le chemin synchrone), `GenerateReportExport` (écrit `reports/{report}-{id}.csv`, `expires_at` J+7, l. 50-60), `ReportExportDownloadController` (TCK-1051, P63.02 désormais fusionnée : sert le fichier, ne purge rien) et la notification ; `ls app/Jobs/*/ | grep -i purge` → `PurgeExpiredDataExports` et `PurgeCdnCacheJob` seuls ; `routes/console.php:84` ne planifie que la purge des `DataExport` ; `exports/audit/*` n'est effacé par aucun code → le constat tient. Classement : V4, la piste supprime des lignes et des fichiers par une tâche planifiée, et le sort de la ligne (statut `expired` ou suppression) reste à choisir.
 
 ### Une écriture refusée par le disque `local` passe pour un succès : l'export est annoncé prêt et son lien rend 404
 - Réf : P77.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : sort visible d'une écriture refusée, et deux voies proposées
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/filesystems.php:33-39`, `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:52-62`, `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:42-54`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:95`
 - Constat :
@@ -7778,10 +7780,11 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
   - `DataExportBuilder` n'est pas touché : `size()` sur un fichier absent devrait lever, et l'export passer à `failed` (lu, l. 72 et 78-81 ; la levée est déduite, à vérifier).
   - Établi comment : lu, et mesuré sur le seul job de rapport.
 - Piste : lever quand `put()` rend `false` dans les trois écrivains, comme `ErasureLedger`. Ou passer le disque `local` à `'throw' => true`, après avoir relevé ses autres appelants (`DataExportDownloadController`, `PurgeExpiredDataExports`, `HealthcheckService::roundTrip`). Test : `put()` refusé → le job échoue et aucune notification ne part.
+- Mesure (2026-10-20, 82f697038, mesureur) : lu `config/filesystems.php:37` (`'throw' => false` sur `local`), `GenerateReportExport.php:52` (`put()` sans lecture du retour, puis `ready` et notification), `ExportActivityLogJob.php:42` et `CrossTenantAuditController.php:95` (`Storage::put` ignoré) ; test temporaire (retiré, même charge) : répertoire posé au chemin du CSV → `put()` rend `false`, `GenerateReportExport::handle()` → statut `ready`, fichier absent, `ReportExportReadyNotification` envoyée → le constat tient pour le job de rapport ; les deux écrivains d'audit et la levée de `DataExportBuilder` ne sont que lus. Classement : V7, la piste laisse le choix entre lever dans trois écrivains et passer tout le disque à `throw`, et l'un comme l'autre change ce que voit le super-admin (500 au lieu d'un lien, export resté `processing` faute de `failed()`, cf. P77.04).
 
 ### Petites améliorations
 - Réf : P77.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : disque des exports d'audit et checklist `FILESYSTEM_DISK` de production
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:42`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:66-70`, `docs/configuration.md:138`, `:554`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3532`, `takussan-api/docker/seed.sh:16`, `takussan-api/app/Models/ReportExport.php:24`
 - Constat :
@@ -7790,3 +7793,4 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
   - **`failure_reason` de `report_exports` n'est jamais écrit.** Mesuré : `grep -rn failure_reason app` → `ReportExport.php:24` seul pour ce modèle. `GenerateReportExport` n'a pas de `failed()` : un export dont le calcul lève reste `processing` (lu). Voir l'angle 111.
   - Établi comment : lu et grep.
 - Piste : faire nommer `local` aux deux écrivains d'audit et à leur téléchargement. Corriger `docs/configuration.md` (l. 138, 554) pour dire `local`, et R2 pour les médias (ADR-0029). Purger aussi les fichiers sans ligne dans la purge de P77.02. Écrire `failure_reason` et le statut `failed` dans un `failed()` du job.
+- Mesure (2026-10-20, 82f697038, mesureur) : lu `ActivityLogExportController.php:66-70` (`Storage::exists` et `Storage::download`, disque par défaut) et `ExportActivityLogJob.php:42` (`Storage::put`) ; `docs/configuration.md:138` (« `FILESYSTEM_DISK=local # ou s3 en prod` ») et `:554` (« `FILESYSTEM_DISK=s3` + `AWS_*` ») contre le plan l. 3532 (`local`) ; `grep -n "FILESYSTEM\|AWS" docs/infra/prod-drivers.json` → rien, la valeur déployée n'est pas dans le dépôt ; `docker/seed.sh:16` fait `migrate:fresh`, `DatabaseSeeder.php:42` ne nettoie que `storage/app/public` ; `grep -n "failure_reason\|function failed"` dans `GenerateReportExport.php` → rien, et le job passe à `processing` (l. 29) → les quatre points tiennent. Classement : V5, la piste corrige la checklist de production et fige le disque d'une variable d'environnement dont la valeur déployée n'est pas mesurable ; la purge des orphelins dépend de P77.02 (V4).
