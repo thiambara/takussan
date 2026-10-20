@@ -54,27 +54,20 @@ class BookingService
      */
     public function create(Property $property, User $user, array $data): Booking
     {
-        abort_code_if(
-            in_array($property->status, self::UNBOOKABLE_STATUSES, true),
-            422,
-            'booking.property_unavailable'
-        );
-
-        // Owners cannot book their own property (admins can still act on their behalf).
-        abort_code_if(
-            $property->user_id === $user->id && ! $user->isSuperAdmin(),
-            403,
-            'booking.own_property'
-        );
+        $isOwner = $property->user_id === $user->id && ! $user->isSuperAdmin();
 
         // TCK-587 (ADR-0031) — le PERSONNEL de l'agence du bien. La clause « même agence » valait
         // pour un autre bailleur de l'agence : il réservait un bien privé ou non publié, sans
         // client. Il suit désormais le chemin du client. Le disjoint `$property->user_id ===
-        // $user->id` était mort : le propriétaire est refusé plus haut.
+        // $user->id` était mort : le propriétaire est refusé plus bas.
         $isStaff = $user->isSuperAdmin()
             || ($property->agency_id !== null && $user->staffAgencyId() === (int) $property->agency_id);
 
-        if (! $isStaff) {
+        // TCK-1066 (P62.02) — la visibilité AVANT l'état, pour qui n'est ni du personnel ni le
+        // propriétaire : un brouillon tiers rendait 422 là où un bien privé rendait 403, et
+        // l'appelant apprenait l'état d'un bien qu'il ne voit pas. Même réponse qu'un bien absent
+        // (`BookingController::store()`).
+        if (! $isStaff && ! $isOwner) {
             abort_code_unless(
                 Property::query()->where('id', $property->id)->public()->exists(),
                 403,
@@ -82,9 +75,19 @@ class BookingService
             );
         }
 
+        abort_code_if(
+            in_array($property->status, self::UNBOOKABLE_STATUSES, true),
+            422,
+            'booking.property_unavailable'
+        );
+
+        // Owners cannot book their own property (admins can still act on their behalf).
+        abort_code_if($isOwner, 403, 'booking.own_property');
+
         $isBookingForSelf = false;
         if (! empty($data['customer_id'])) {
-            $customer = Customer::find($data['customer_id']);
+            // TCK-1066 (P62.02) — un client absent tombe dans le même refus qu'un client tiers.
+            $customer = Customer::query()->find((int) $data['customer_id']);
             $isBookingForSelf = $customer && $customer->user_id === $user->id;
             // Vérification adverse de TCK-530 — `$isStaff` laissait un membre de l'agence du bien
             // réserver au nom de N'IMPORTE QUEL client, y compris celui d'une autre agence. Le
@@ -100,6 +103,13 @@ class BookingService
         }
 
         abort_unless($isStaff || $isBookingForSelf, 403);
+
+        // TCK-1065 (P80.02) — le nombre de voyageurs n'a pas de colonne : il va dans `metadata`,
+        // sous la forme qu'écrit déjà `PublicPropertyController::bookingRequest()`.
+        if (array_key_exists('guests', $data)) {
+            $data['metadata'] = ['guests' => (int) $data['guests']];
+            unset($data['guests']);
+        }
 
         // Montants ET devise viennent du bien : la devise n'est plus le défaut XOF (TCK-530).
         $data = array_merge($data, $this->pricedAmounts($property, $data));

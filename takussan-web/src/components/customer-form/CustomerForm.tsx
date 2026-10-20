@@ -26,6 +26,7 @@ import {
   idTypeValues,
   normaliseCustomerForm,
   sansCriteres,
+  sansStatut,
   pipelineStageValues,
   seekingContractTypeValues,
   seekingPropertyTypeValues,
@@ -161,7 +162,7 @@ export function CustomerForm({
         const result =
           mode === 'edit' && customer
             ? await updateCustomerAction(customer.id, payload)
-            : await createCustomerAction(payload);
+            : await createCustomerAction(sansStatut(payload));
         if (!result.ok) {
           if (result.duplicates) setDuplicates(result.duplicates);
           throw new ApiError(result.status ?? 500, {
@@ -305,12 +306,15 @@ export function CustomerForm({
             label={t('pipelineStage')}
             options={pipelineStageOptions}
           />
-          <FormSelect
-            control={control}
-            name="status"
-            label={t('status')}
-            options={customerStatusOptions}
-          />
+          {/* TCK-1064 (P80.01) — l'API crée toujours un client actif : le statut ne se choisit qu'en édition. */}
+          {mode === 'edit' ? (
+            <FormSelect
+              control={control}
+              name="status"
+              label={t('status')}
+              options={customerStatusOptions}
+            />
+          ) : null}
         </div>
       </div>
 

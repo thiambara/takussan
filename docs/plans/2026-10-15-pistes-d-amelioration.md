@@ -6316,7 +6316,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### La création d'une réservation distingue un client absent d'un client d'une autre agence, et l'état d'un bien non publié
 - Réf : P62.02
-- Statut : validé — (a) comme P62.01 : `customer_id` jugé dans le service avec la réponse du refus, visibilité avant état pour un appelant hors personnel (porteur, 2026-10-20)
+- Statut : fait · TCK-1066
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreBookingRequest.php:24-34`, `takussan-api/app/Services/Model/BookingService.php:32-39,55-93`
 - Constat :
@@ -6328,6 +6328,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 - Piste : juger `customer_id` dans le service avec la réponse du refus ; pour un appelant qui n'est pas du personnel, tester la visibilité avant l'état et rendre la même réponse qu'un bien absent. Test : client absent et client tiers, bien absent, brouillon et privé, mêmes statut et corps.
 - Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `StoreBookingRequest.php` (`exists:customers,id`), `BookingService.php` ; test temporaire retiré, compte sans agence → client d'une agence tierce : 403 `http.forbidden` ; client absent : 422 sur `customer_id` ; bien `draft` tiers : 422 `booking.property_unavailable` ; bien absent : 422 sur `property_id`. Le 403 d'un bien privé non brouillon n'est pas mesuré. Classement : V2, le correctif change le statut rendu aux appelants et l'ordre « visibilité avant état » de la réservation.
 
+- Mesure (2026-10-20, 88d019565, implementeur) : avant correctif, `BookingExistenceOracleTest` neuf, compte sans agence face à une agence tierce → 3 rouges : client absent 422 sur `customer_id` contre 403 `http.forbidden` pour un client tiers ; bien privé 403 `booking.property_unavailable` (le cas non mesuré du constat, confirmé) contre 422 pour un brouillon ou un vendu ; `property_id=abc` → 500 ; correctif (`integer` sans `exists:`, bien absent → 403 `booking.property_unavailable` dans le contrôleur, visibilité avant état hors personnel et propriétaire) → 4 verts, et `BookingTest` réaligné (vendu → 403) ; ablations : `exists:` remis → 2 rouges, ancien ordre du service → 2 rouges ; 212 verts sur les onze classes voisines.
 ### La création d'une tâche énumère les comptes de la plateforme, et ses fiches clients
 - Réf : P62.03
 - Statut : validé — (a) comme P62.01 : retirer `exists:users,id` et rendre 404 quand `attachTo` refuse, comme `DocumentController::store()` (porteur, 2026-10-20)
@@ -8002,7 +8003,7 @@ n'ont pas été rouverts.*
 
 ### Le statut choisi à la création d'un client est écarté, et le client est enregistré « actif »
 - Réf : P80.01
-- Statut : validé (délégué) — retirer le sélecteur `status` du formulaire en mode `create` (il reste en `edit`), et ne plus envoyer `status` dans le corps de création ; `StoreCustomerRequest` inchangé, le contrôleur garde `CustomerStatus::Active` forcé, le défaut déjà en vigueur ; test : en `create` le sélecteur n'est pas rendu et le corps n'a pas de `status`, en `edit` il l'est ; reste : créer un client directement `inactive` ou `blocked`, au porteur
+- Statut : fait · TCK-1064 — reste : créer un client directement `inactive` ou `blocked`, au porteur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/customer-form/CustomerForm.tsx:308-313`, `takussan-web/src/lib/schemas/customer.ts:195`, `takussan-api/app/Http/Requests/Api/StoreCustomerRequest.php:40-49`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:49-68`
 - Constat :
@@ -8014,9 +8015,10 @@ n'ont pas été rouverts.*
 - Mesure (2026-10-20, 92a755f9f, mesureur) : relu `CustomerForm.tsx:308-313` (sélecteur `status` sans condition de `mode`), `customer.ts:195` (`status` envoyé), `StoreCustomerRequest.php:38-51` (aucune règle `status`, `ValidatesCustomerContactAndCriteria` non plus : `grep status` → rien), `CustomerController.php:65` (`'status' => CustomerStatus::Active->value` forcé), `UpdateCustomerRequest.php:73` (accepte `status`) ; test temporaire (retiré) `POST /api/customers` avec `status=inactive` → 201, réponse et ligne en base `active` (charge 2,13 sur 8 cœurs) → le constat tient en entier. Classement : V7, la piste offre deux options visibles (retirer le champ en création ou enregistrer le statut choisi), qui sont un choix de produit.
 
 - Mesure (2026-10-20, 0aa821e99, delegue) : relu `CustomerForm.tsx:134,308-313` (sélecteur `status` hors de toute condition de `mode`), `CustomerController.php:47-68` (`'status' => CustomerStatus::Active->value` forcé à la création), `UpdateCustomerRequest.php:73` (accepte `status`), `docs/models-spec.md:923` (défaut `'active'`) → la création enregistre toujours `active`, le sélecteur ne commande rien en `create`. Délégation : V7, choix mineur et réversible en un commit : le retrait aligne l'écran sur le défaut déjà en vigueur côté serveur et dans `models-spec.md:923`, aucun statut enregistré ne change, et la fonction retirée n'a jamais fonctionné ; honorer le statut choisi serait une règle neuve (créer un client `blocked` ou `deleted`), laissée au porteur.
+- Mesure (2026-10-20, 88d019565, implementeur) : avant correctif, `CustomerForm.statut.test.tsx` neuf → 1 rouge, le champ « Statut » rendu en `create` ; correctif (sélecteur rendu en `edit` seul, `sansStatut()` sur le corps de création) → 2 verts, 15 sur `customer-form/__tests__` ; ablation de `sansStatut()` → 1 rouge (`status` présent dans le corps de création) ; l'API n'est pas touchée.
 ### Le nombre de voyageurs du tunnel de réservation est exigé du visiteur et jamais enregistré
 - Réf : P80.02
-- Statut : validé (délégué) — accepter `guests` dans `StoreBookingRequest` (`['sometimes', 'integer', 'min:1', 'max:20']`, la borne du tunnel en vigueur) et l'écrire dans `metadata.guests`, comme `PublicPropertyController.php:1036` ; aucune migration, le tunnel ne change pas ; test : `POST /api/bookings` avec `guests=3` → la ligne porte `metadata.guests = 3`, et sans `guests` → `metadata` inchangé ; reste : l'affichage du nombre à l'agence, et l'écart de borne avec le flux public (50), au porteur
+- Statut : fait · TCK-1065 — reste : l'affichage du nombre à l'agence, et l'écart de borne avec le flux public (50), au porteur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/schemas/booking.ts:27-31`, `takussan-web/src/components/bookings/BookingTunnel.tsx:49,151,358`, `takussan-api/app/Http/Requests/Api/StoreBookingRequest.php:33-47`, `takussan-api/app/Http/Controllers/Api/BookingController.php:49-52`
 - Constat :
@@ -8028,6 +8030,7 @@ n'ont pas été rouverts.*
 - Mesure (2026-10-20, 92a755f9f, mesureur) : relu `booking.ts:27-31` (min 1 max 20), `BookingTunnel.tsx:49,151,358` (champ obligatoire de l'étape 0, envoyé), `StoreBookingRequest.php:30-48` (aucune règle `guests` ni `metadata`), `BookingController.php:47-52` ; `grep -rn guests takussan-api/app` → seul le flux public (`BookingRequestPublicPropertyRequest.php:31`, max 50 et non 20, `PublicPropertyController.php:1036` vers `metadata.guests`) ; test temporaire (retiré) `POST /api/bookings` avec `guests=3` → 201, ligne avec `metadata` à `null` (charge 2,13 sur 8 cœurs) → le constat tient. Classement : V7, la piste laisse le choix entre enregistrer le nombre (et sa borne, 20 côté tunnel contre 50 côté flux public) ou retirer un champ visible.
 
 - Mesure (2026-10-20, 0aa821e99, delegue) : relu `BookingTunnel.tsx:49,151,358` (champ obligatoire, envoyé), `booking.ts:27-31` (1 à 20), `StoreBookingRequest.php:30-48` (aucune règle `guests`), `Booking.php:26,41` (`metadata` fillable, casté `array`), `PublicPropertyController.php:1036` (`metadata => ['guests' => …]`) ; `grep -rn guests takussan-api/app takussan-web/src` → aucun lecteur de `metadata.guests`, ni API ni front, et `BookingQuote` ne le lit pas. Délégation : V7, garder un champ sans lecteur : l'option suit la forme déjà écrite par le flux public, ne change rien de ce que voient le visiteur et l'agence, ne demande aucune colonne (`metadata` existe), et se défait en un commit ; retirer le champ changerait le tunnel visible, et toucher la borne du flux public serait un choix, tous deux laissés au porteur.
+- Mesure (2026-10-20, 88d019565, implementeur) : avant correctif, `BookingGuestsTest` neuf → 2 rouges : `guests=3` laissait `metadata` à `null`, et `guests=21` rendait 201 ; correctif (règle `['sometimes', 'integer', 'min:1', 'max:20']`, `guests` → `metadata.guests` dans `BookingService::create()`) → 3 verts, 38 sur les quatre classes de réservation ; ablation de la conversion dans le service → 1 rouge (`metadata` à `null`).
 ### Aucune garde ne signale une clé envoyée par le front que le FormRequest ignore
 - Réf : P80.03
 - Statut : retenu · à valider — V6 : signal transverse sur tous les FormRequest, avec liste d'exceptions

@@ -196,7 +196,13 @@ class BookingTest extends TestCase
             'deposit_amount' => 100000,
             'start_date' => now()->addDay()->toDateString(),
             'end_date' => now()->addMonth()->toDateString(),
-        ])->assertStatus(422);
+        ])
+            // TCK-1066 (P62.02) — hors personnel, la visibilité se juge avant l'état : un bien
+            // vendu n'est pas public, et reçoit le refus d'un bien invisible (403, et non plus 422).
+            ->assertForbidden()
+            ->assertJsonPath('code', 'booking.property_unavailable');
+
+        $this->assertDatabaseCount('bookings', 0);
     }
 
     public function test_end_date_before_start_date_returns_422(): void
