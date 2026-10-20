@@ -3,18 +3,14 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Edit3, Power } from 'lucide-react';
+import { AlertTriangle, Edit3 } from 'lucide-react';
 import { DataTable, type DataTableColumn } from '@/components/console';
-import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { WarningBanner } from '@/components/ui/warning-banner';
-import {
-  deleteBusinessEnumValue,
-  patchBusinessEnumValue,
-} from '@/lib/queries/super-admin';
+import { patchBusinessEnumValue } from '@/lib/queries/super-admin';
 import type { BusinessEnum, BusinessEnumValue } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -58,17 +54,6 @@ export function EnumValueTable({
   onEdit: (value: BusinessEnumValue) => void;
 }) {
   const t = useTranslations('superAdmin.enums');
-  const messageErreur = useMessageErreurApi();
-  const queryClient = useQueryClient();
-  const [error, setError] = useState<string | null>(null);
-  const deactivate = useMutation({
-    mutationFn: (value: string) => deleteBusinessEnumValue(item.key, value),
-    onSuccess: () => {
-      setError(null);
-      queryClient.invalidateQueries({ queryKey: ['super-admin', 'business-enums'] });
-    },
-    onError: (err: ApiError) => setError(messageErreur(err)),
-  });
 
   const columns: DataTableColumn<BusinessEnumValue>[] = [
     { id: 'value', header: t('value'), className: 'font-mono text-xs', cell: (value) => value.value },
@@ -92,16 +77,6 @@ export function EnumValueTable({
           <Button type="button" variant="ghost" size="icon-sm" aria-label={t('editValueAria', { value: value.value })} onClick={() => onEdit(value)}>
             <Edit3 className="size-4" aria-hidden="true" />
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={t('deactivateValueAria', { value: value.value })}
-            onClick={() => deactivate.mutate(value.value)}
-            disabled={deactivate.isPending || !value.is_active}
-          >
-            <Power className="size-4" aria-hidden="true" />
-          </Button>
         </div>
       ),
     },
@@ -115,7 +90,6 @@ export function EnumValueTable({
         <h2 className="font-display text-xl font-semibold text-foreground">{item.name}</h2>
         <p className="mt-1 text-pretty text-sm text-muted-foreground">{item.description}</p>
       </div>
-      {error ? <ErrorState className="m-4" message={error} /> : null}
       <DataTable
         // La table de valeurs est la plus dense de la console (six colonnes, dont trois locales) :
         // c'est le seul écran qui réclame la variante compacte, et c'est pour ça qu'elle existe.

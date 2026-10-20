@@ -3,7 +3,8 @@
  *
  * La liste des valeurs vit dans l'enum PHP : la validation (`Rule::enum`) et le cast du modèle ne
  * lisent qu'elle. Ce que la console écrivait n'était lu par aucune écriture ni aucun rendu :
- * - P66.01 (TCK-1055) : une valeur ajoutée était refusée en 422 à la création d'un bien.
+ * - P66.01 (TCK-1055) : une valeur ajoutée était refusée en 422 à la création d'un bien ;
+ * - P66.02 (TCK-1056) : une valeur désactivée restait acceptée et proposée partout.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -16,7 +17,6 @@ import SuperAdminEnumsPage from '../page';
 
 vi.mock('@/lib/queries/super-admin', () => ({
   fetchBusinessEnums: vi.fn(),
-  deleteBusinessEnumValue: vi.fn(),
   patchBusinessEnumValue: vi.fn(),
 }));
 
@@ -62,5 +62,13 @@ describe('/super-admin/enums', () => {
     expect(
       screen.getByText('Les valeurs de ces listes vivent dans le code : en ajouter une demande un déploiement.'),
     ).toBeInTheDocument();
+  });
+
+  it("n'offre pas de désactiver une valeur (P66.02)", async () => {
+    vi.mocked(fetchBusinessEnums).mockResolvedValue(ENUMS);
+    renderPage();
+
+    expect(await screen.findByRole('cell', { name: 'villa' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /désactiver/i })).not.toBeInTheDocument();
   });
 });

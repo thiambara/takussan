@@ -707,21 +707,13 @@ export async function fetchBusinessEnums(): Promise<BusinessEnumsResponse> {
 export async function patchBusinessEnumValue(
   key: string,
   value: string,
-  payload: { labels?: { fr?: string; en?: string; wo?: string }; is_active?: boolean },
+  payload: { labels?: { fr?: string; en?: string; wo?: string } },
 ): Promise<BusinessEnumResponse> {
   const res = await fetch(cheminApi`/api/super-admin/enums/${key}/values/${value}`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<BusinessEnumResponse>(res);
-}
-
-export async function deleteBusinessEnumValue(key: string, value: string): Promise<BusinessEnumResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/enums/${key}/values/${value}`, {
-    method: 'DELETE',
-    credentials: 'include',
   });
   return jsonOrThrow<BusinessEnumResponse>(res);
 }

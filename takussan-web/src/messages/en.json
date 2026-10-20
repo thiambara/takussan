@@ -7325,7 +7325,6 @@
       "usage": "Usage",
       "actions": "Actions",
       "editValueAria": "Edit {value}",
-      "deactivateValueAria": "Deactivate {value}",
       "warning": "Technical statuses and roles cannot be edited here.",
       "tableCaption": "Values of the {name} enum"
     },
