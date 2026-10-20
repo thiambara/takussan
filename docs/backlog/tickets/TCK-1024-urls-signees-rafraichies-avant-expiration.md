@@ -1,7 +1,7 @@
 ---
 id: TCK-1024
 title: "Les écrans KYC, documents et maintenance rafraîchissent leurs URL signées avant qu'elles expirent"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
@@ -43,20 +43,20 @@ l'utilisateur.
 
 ## Delta à produire
 
-- [ ] `src/lib/url-signee.ts` : les deux durées de l'API, et `rafraichirAvantExpiration(durée)`
+- [x] `src/lib/url-signee.ts` : les deux durées de l'API, et `rafraichirAvantExpiration(durée)`
       (`staleTime` et `refetchInterval` à mi-durée).
-- [ ] KYC (15 min) : `AgencyKycClient`, l'onglet KYC d'`AgencyDetailPage` (super-admin), la file
+- [x] KYC (15 min) : `AgencyKycClient`, l'onglet KYC d'`AgencyDetailPage` (super-admin), la file
       KYC du super-admin (`refetchInterval` seul, son `staleTime` de 15 s étant déjà plus court).
-- [ ] Médias privés (30 min) : `useDocuments`, `useDocumentVersions`, `useMaintenanceRequest`.
-- [ ] File KYC du super-admin : le panneau lit le dossier sélectionné dans la dernière réponse,
+- [x] Médias privés (30 min) : `useDocuments`, `useDocumentVersions`, `useMaintenanceRequest`.
+- [x] File KYC du super-admin : le panneau lit le dossier sélectionné dans la dernière réponse,
       faute de quoi le rafraîchissement ne changerait pas le lien affiché.
-- [ ] `src/lib/__tests__/url-signee.tck-1024.test.tsx`.
+- [x] `src/lib/__tests__/url-signee.tck-1024.test.tsx`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Chaque requête citée déclare un `refetchInterval` et un `staleTime` plus courts que la
+- [x] AC1 — Chaque requête citée déclare un `refetchInterval` et un `staleTime` plus courts que la
       durée de ses liens (lus sur les observateurs du cache TanStack).
-- [ ] AC2 — Après un rafraîchissement de la file KYC, le lien « Ouvrir » du panneau porte la
+- [x] AC2 — Après un rafraîchissement de la file KYC, le lien « Ouvrir » du panneau porte la
       nouvelle URL.
 
 ## Reste à faire
@@ -72,4 +72,11 @@ les pièces jointes déjà chargées de `ChatView`, et la signature au clic, au 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Avant correctif : 7 tests rouges sur 8 (`refetchInterval` absent des six requêtes ; le panneau de
+  la file KYC garde `signature=ancienne` après le rafraîchissement).
+- Ablation (les six fichiers rendus à `pre-dev`, `url-signee.ts` gardé pour ses constantes) → 7
+  rouges ; correctif remis → 8 verts.
+- Piège : rafraîchir la file KYC ne suffisait pas, la page passait au panneau l'objet capturé au
+  clic (`selected`). Le panneau lit maintenant le dossier de même id dans la dernière réponse.
+- `useMaintenanceRequest` couvre aussi les pièces des devis (`media.quotes`), servies par la même
+  ressource.
