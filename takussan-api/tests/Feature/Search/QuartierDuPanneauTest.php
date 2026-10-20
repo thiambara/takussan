@@ -6,6 +6,10 @@ use App\Models\Address;
 use App\Models\GeoCity;
 use App\Models\GeoNeighborhood;
 use App\Models\Property;
+use App\Models\User;
+use App\Services\Geo\GeoNeighborhoodModeration;
+use App\Services\Search\PropertySearchService;
+use App\Support\SavedSearchCriteria;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\ApiTestCase;
@@ -57,6 +61,37 @@ class QuartierDuPanneauTest extends ApiTestCase
         $this->assertDeuxCotes([$rattache->id, $libre->id], ['location' => 'Sacré-Cœur 3']);
         $this->assertDeuxCotes([$rattache->id, $libre->id], ['location' => 'sacre coeur 3']);
         $this->assertDeuxCotes([], ['location' => 'Ancien nom']);
+    }
+
+    /**
+     * TCK-1052 (P67.01) — décision du porteur : un ancien nom fusionné désigne le quartier cible.
+     *
+     * La fusion réécrit les adresses vers la cible et garde la source avec `merged_into_id`.
+     * `idsDuReferentiel()` rendait l'identifiant de la source, qu'aucune adresse ne porte plus : la
+     * recherche et l'alerte sur l'ancien nom rendaient 0, sans erreur.
+     */
+    public function test_un_ancien_nom_fusionne_designe_le_quartier_cible(): void
+    {
+        $ville = GeoCity::factory()->create(['name' => 'Dakar', 'slug' => 'dakar']);
+        $source = GeoNeighborhood::factory()->create(['geo_city_id' => $ville->id, 'name' => 'Liberte Quatre', 'slug' => 'liberte-quatre']);
+        $cible = GeoNeighborhood::factory()->create(['geo_city_id' => $ville->id, 'name' => 'Liberté 4', 'slug' => 'liberte-4']);
+        $bien = $this->bien('Dakar', 'Liberte Quatre', $source->id);
+        $this->indexProperties();
+        $this->assertDeuxCotes([$bien->id], ['location' => 'Liberte Quatre']);
+
+        app(GeoNeighborhoodModeration::class)->fusionner($source, $cible, User::factory()->create());
+        $this->indexProperties();
+
+        $this->assertDeuxCotes([$bien->id], ['location' => 'Liberté 4']);
+        $this->assertDeuxCotes([$bien->id], ['location' => 'Liberte Quatre']);
+
+        $alerte = app(PropertySearchService::class)->alertMatches(
+            SavedSearchCriteria::toSearchParams(['location' => 'Liberte Quatre']),
+            null,
+            now(),
+        );
+        $this->assertSame(1, $alerte['total']);
+        $this->assertSame([$bien->id], $alerte['properties']->pluck('id')->map(fn ($id) => (int) $id)->all());
     }
 
     private function bien(string $ville, ?string $quartier, ?int $quartierId = null): Property
