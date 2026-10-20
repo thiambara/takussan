@@ -6875,7 +6875,7 @@ de violation hors `region`.*
 
 ### Le champ fichier du logo d'agence, masqué en `sr-only`, reste dans l'ordre de tabulation sans nom
 - Réf : P68.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1031
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:341-357`
 - Constat :
@@ -6884,6 +6884,7 @@ de violation hors `region`.*
   - Établi comment : axe, code relu.
 - Piste : `tabIndex={-1}` et `aria-hidden` sur l'`input` (le bouton porte le geste), ou un `<label htmlFor="agency-logo">` stylé en bouton à la place du `Button`. Garde : test de rendu qui n'attend aucun `input[type=file]` focusable sans nom.
 - Mesure (2026-10-20, 8150df982, mesureur) : relu `AgencyConfigForm.tsx` l. 341-355 : `input#agency-logo` `type=file` en `sr-only`, sans `tabIndex`, sans libellé ni `aria-label`, suivi du `Button` qui l'ouvre par `logoInputRef.current?.click()` → le constat tient. Classement : A4, attribut d'accessibilité seul (`tabIndex={-1}` et `aria-hidden` sur l'`input`), le bouton visible gardant le geste, aucun texte neuf.
+- Mesure (2026-10-20, c6e71581f, implementeur) : relu `AgencyConfigForm.tsx` (`#agency-logo` en `sr-only`, sans `tabIndex` ni nom) → test `AgencyConfigForm.champ-logo.tck-1031.test.tsx` : rouge avant correctif sur `#agency-logo` (focusable et sans nom), vert après (`tabIndex={-1}`, `aria-hidden`) ; ablation → rouge, remis → vert ; le bouton visible appelle toujours `click()` sur l'`input` (second test).
 
 ### Les jours de la semaine du calendrier sont à 3,33:1, par l'opacité de la feuille de react-day-picker
 - Réf : P68.04
