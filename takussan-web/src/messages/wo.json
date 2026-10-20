@@ -6669,7 +6669,6 @@
       "empty_description": "Limu njëg yi ci liggéey bi dinañu feeñ fii bu ñu ko yeglee.",
       "navLabel": "Enum yu ñu man a soppi",
       "valuesCount": "{count} njëg",
-      "addValue": "Yokk benn njëg",
       "editValue": "Soppi njëg bi",
       "value": "Njëg",
       "localeFr": "FR",
@@ -7270,6 +7269,7 @@
       "enums": {
         "title": "Enum yu liggéey",
         "subtitle": "Toppatoo turu FR / EN / WO yi ak njëg yu liggéey yu dul teknik.",
+        "codeNotice": "Les valeurs de ces listes vivent dans le code : en ajouter une demande un déploiement.",
         "lockedNotice": "Enum yu teknik ni fey yi, wàll yi ak nekkin yu biir dañu tëju ci kod bi."
       },
       "featureFlags": {

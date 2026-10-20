@@ -48,7 +48,10 @@ export default function SuperAdminEnumsPage() {
         description={tPage('subtitle')}
       />
 
-      <WarningBanner>{tPage('lockedNotice')}</WarningBanner>
+      <WarningBanner>
+        <p>{tPage('codeNotice')}</p>
+        <p>{tPage('lockedNotice')}</p>
+      </WarningBanner>
 
       {query.isLoading ? (
         <Skeleton className="h-48 rounded-xl" />
@@ -68,10 +71,6 @@ export default function SuperAdminEnumsPage() {
             item={selected}
             onEdit={(value) => {
               setEditing(value);
-              setDialogOpen(true);
-            }}
-            onAdd={() => {
-              setEditing(null);
               setDialogOpen(true);
             }}
           />

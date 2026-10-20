@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Edit3, Plus, Power } from 'lucide-react';
+import { AlertTriangle, Edit3, Power } from 'lucide-react';
 import { DataTable, type DataTableColumn } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,6 @@ import { WarningBanner } from '@/components/ui/warning-banner';
 import {
   deleteBusinessEnumValue,
   patchBusinessEnumValue,
-  postBusinessEnumValue,
 } from '@/lib/queries/super-admin';
 import type { BusinessEnum, BusinessEnumValue } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
@@ -54,11 +53,9 @@ export function EnumList({
 export function EnumValueTable({
   item,
   onEdit,
-  onAdd,
 }: {
   item: BusinessEnum;
   onEdit: (value: BusinessEnumValue) => void;
-  onAdd: () => void;
 }) {
   const t = useTranslations('superAdmin.enums');
   const messageErreur = useMessageErreurApi();
@@ -112,15 +109,11 @@ export function EnumValueTable({
 
   return (
     <section className="overflow-hidden rounded-xl bg-card ring-1 ring-border">
-      <div className="flex flex-col gap-3 border-b border-border p-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h2 className="font-display text-xl font-semibold text-foreground">{item.name}</h2>
-          <p className="mt-1 text-pretty text-sm text-muted-foreground">{item.description}</p>
-        </div>
-        <Button type="button" onClick={onAdd}>
-          <Plus className="size-4" aria-hidden="true" />
-          {t('addValue')}
-        </Button>
+      {/* Aucun bouton d'ajout : la liste vit dans l'enum PHP (ADR-0007), et une valeur ajoutée
+        ici était refusée en 422 à la création d'un bien (P66.01, TCK-1055). */}
+      <div className="border-b border-border p-4">
+        <h2 className="font-display text-xl font-semibold text-foreground">{item.name}</h2>
+        <p className="mt-1 text-pretty text-sm text-muted-foreground">{item.description}</p>
       </div>
       {error ? <ErrorState className="m-4" message={error} /> : null}
       <DataTable
@@ -151,12 +144,14 @@ export function EnumValueDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <EnumValueDialogForm
-        key={`${enumKey}:${value?.value ?? 'new'}:${open ? 'open' : 'closed'}`}
-        enumKey={enumKey}
-        value={value}
-        onOpenChange={onOpenChange}
-      />
+      {value ? (
+        <EnumValueDialogForm
+          key={`${enumKey}:${value.value}:${open ? 'open' : 'closed'}`}
+          enumKey={enumKey}
+          value={value}
+          onOpenChange={onOpenChange}
+        />
+      ) : null}
     </Dialog>
   );
 }
@@ -167,24 +162,20 @@ function EnumValueDialogForm({
   onOpenChange,
 }: {
   enumKey: string;
-  value: BusinessEnumValue | null;
+  value: BusinessEnumValue;
   onOpenChange: (open: boolean) => void;
 }) {
   const t = useTranslations('superAdmin.enums');
   const tCommon = useTranslations('common');
   const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
-  const [rawValue, setRawValue] = useState(value?.value ?? '');
-  const [fr, setFr] = useState(value?.labels.fr ?? '');
-  const [en, setEn] = useState(value?.labels.en ?? '');
-  const [wo, setWo] = useState(value?.labels.wo ?? '');
+  const [fr, setFr] = useState(value.labels.fr);
+  const [en, setEn] = useState(value.labels.en);
+  const [wo, setWo] = useState(value.labels.wo);
   const [error, setError] = useState<string | null>(null);
-  const editing = value !== null;
 
   const mutation = useMutation({
-    mutationFn: () => editing
-      ? patchBusinessEnumValue(enumKey, value.value, { labels: { fr, en, wo } })
-      : postBusinessEnumValue(enumKey, { value: rawValue, labels: { fr, en, wo }, is_active: true }),
+    mutationFn: () => patchBusinessEnumValue(enumKey, value.value, { labels: { fr, en, wo } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'business-enums'] });
       onOpenChange(false);
@@ -195,7 +186,7 @@ function EnumValueDialogForm({
   return (
     <DialogContent className="sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle>{editing ? t('editValue') : t('addValue')}</DialogTitle>
+        <DialogTitle>{t('editValue')}</DialogTitle>
       </DialogHeader>
       <WarningBanner
         className="rounded-md px-3 py-2"
@@ -206,7 +197,7 @@ function EnumValueDialogForm({
       <div className="space-y-3">
         <label className="block text-sm font-medium">
           <span className="mb-1 block">{t('value')}</span>
-          <Input value={rawValue} onChange={(event) => setRawValue(event.target.value)} disabled={editing} />
+          <Input value={value.value} disabled />
         </label>
         <div className="grid gap-3 md:grid-cols-3">
           <label className="block text-sm font-medium">
@@ -228,7 +219,7 @@ function EnumValueDialogForm({
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
           {tCommon('actions.cancel')}
         </Button>
-        <Button type="button" onClick={() => mutation.mutate()} disabled={mutation.isPending || fr.trim() === '' || rawValue.trim() === ''}>
+        <Button type="button" onClick={() => mutation.mutate()} disabled={mutation.isPending || fr.trim() === ''}>
           {tCommon('actions.save')}
         </Button>
       </DialogFooter>

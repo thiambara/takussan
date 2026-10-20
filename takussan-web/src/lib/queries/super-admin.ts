@@ -704,19 +704,6 @@ export async function fetchBusinessEnums(): Promise<BusinessEnumsResponse> {
   return jsonOrThrow<BusinessEnumsResponse>(res);
 }
 
-export async function postBusinessEnumValue(
-  key: string,
-  payload: { value: string; labels: { fr: string; en?: string; wo?: string }; is_active: boolean },
-): Promise<BusinessEnumResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/enums/${key}/values`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<BusinessEnumResponse>(res);
-}
-
 export async function patchBusinessEnumValue(
   key: string,
   value: string,

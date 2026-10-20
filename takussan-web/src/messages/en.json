@@ -7317,7 +7317,6 @@
       "empty_description": "Business value lists will show up here as soon as one is declared.",
       "navLabel": "Editable enums",
       "valuesCount": "{count, plural, one {# value} other {# values}}",
-      "addValue": "Add a value",
       "editValue": "Edit the value",
       "value": "Value",
       "localeFr": "FR",
@@ -7918,6 +7917,7 @@
       "enums": {
         "title": "Business enums",
         "subtitle": "Manage the FR / EN / WO labels and the non-technical business values.",
+        "codeNotice": "The values of these lists live in the code: adding one takes a deployment.",
         "lockedNotice": "Technical enums such as payments, roles and internal statuses stay locked in the code."
       },
       "featureFlags": {
