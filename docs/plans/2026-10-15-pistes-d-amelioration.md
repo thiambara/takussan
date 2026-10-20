@@ -7541,7 +7541,7 @@ le sous-réseau est P37.04.*
 
 ### Les cases SMS et WhatsApp de « demande de réservation » sont cochables et ne commandent aucun envoi
 - Réf : P75.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer les cases mobiles de la demande de réservation ou l'envoyer par SMS/WhatsApp
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Notifications/PreferenceResolver.php:110-113,217-239`, `takussan-api/app/Notifications/NewBookingNotification.php:31,56`, `takussan-api/app/Domain/Notifications/NotificationCode.php:270,461-481`, `takussan-api/app/Listeners/Booking/NotifyOnBookingRequested.php:29-37`, `takussan-api/tests/Unit/Notifications/MobileClassEventsTest.php:59-70`
 - Constat :
@@ -7552,10 +7552,11 @@ le sous-réseau est P37.04.*
   - L'historique de `app/Services`, `app/Listeners`, `app/Http`, `app/Jobs` et `app/Observers` ne montre aucun envoi de la classe (`git log -S NewBookingNotification` → le seul commit de TCK-588, qui l'ajoute à `MOBILE_CLASS_EVENTS`).
   - Établi comment : lu, et mesuré par `tinker` et par un test temporaire.
 - Piste : retirer `NewBookingNotification` et son entrée de `MOBILE_CLASS_EVENTS` et de `AppDatabaseChannel::TYPES` (les tests qui l'instancient — `NotificationEmailTest`, `WhatsappChannelTest`, `NotificationTemplateTest`, `SmsChainTimeBudgetTest` — se reportent sur une classe vivante ou sur `CodedNotification`), ou, si la demande de réservation doit partir sur mobile, rendre les deux codes `mobile()`. Garde : un test qui, pour chaque événement de `mobileEvents()`, exige un émetteur réel (code `mobile()` émis, ou classe référencée hors des catalogues).
+- Mesure (2026-10-20, d08842ee3, mesureur) : `grep -rlw NewBookingNotification app` → sa classe, `AppDatabaseChannel` et `PreferenceResolver` seulement ; `NotifyOnBookingRequested.php:29-37` envoie `booking.created`/`booking.requested_undated` ; `tinker` : `channelsFor('booking_request')` → `["inapp","email","sms","whatsapp"]`, `mobile()` → `false` pour les deux codes, `booking_request` absent de `NotificationCode::mobileEvents()` ; test temporaire retiré (charge 2,30 sur 8 cœurs) : `matrixFor()` d'un compte au numéro vérifié → cases `booking_request`/`sms` et `/whatsapp` `locked: false` ; `MOBILE_CLASS_EVENTS` est à `PreferenceResolver.php:110-113` → le constat tient en entier. Classement : V7, la piste offre deux options (retirer la classe morte et verrouiller les cases, ou rendre les deux codes `mobile()`), et la seconde ferait partir un SMS neuf.
 
 ### Cinq types d'événement des classes historiques n'ont pas d'interrupteur : leur e-mail ne se coupe pas
 - Réf : P75.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : interrupteur neuf ou envoi non désactivable, au cas par cas
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/PreferenceResolver.php:54-86,157-191,342-352`, `takussan-api/app/Notifications/BookingExpiredNotification.php:27-29`, `takussan-api/app/Notifications/LeaseDepositRefundNotification.php:40`, `takussan-api/app/Notifications/TenantWelcomeNotification.php:21-23,30`, `takussan-api/app/Notifications/PropertyApprovedNotification.php:22`, `takussan-api/app/Notifications/PropertyRejectedNotification.php:22`
 - Constat :
@@ -7565,10 +7566,11 @@ le sous-réseau est P37.04.*
   - `LeasePaymentLateFeeNotification` emprunte l'interrupteur `lease_payment_overdue` (lu, l. 25) : couper les relances d'impayé coupe aussi l'e-mail de pénalité (déduit de la lecture, à vérifier).
   - Établi comment : lu, et mesuré par un test temporaire.
 - Piste : pour chacun, décider entre un interrupteur (l'ajouter à `EVENTS`, avec ses libellés de matrice) et un envoi non désactivable assumé (appeler `mail` sans résolveur, et corriger le docblock). Garde : un test qui lit l'`EVENT_TYPE` (ou les chaînes passées à `shouldSend`) de chaque classe de `app/Notifications` et exige qu'il figure dans `EVENTS` ou dans une liste fermée « sans interrupteur ».
+- Mesure (2026-10-20, d08842ee3, mesureur) : lu les `via()` : `booking_expired`/`booking_expired_agent` (`BookingExpiredNotification.php:27-29,44-53`), `lease_deposit_refunded` (`LeaseDepositRefundNotification.php:40,59-65`), `tenant_welcomed` (`TenantWelcomeNotification.php:30,44-47`), `property_moderation` (`PropertyApproved/RejectedNotification.php:22`) passent à `shouldSend()`, absents de `EVENTS` (l. 54-86) ; `updateMany()` les saute (l. 346-348) ; test temporaire retiré (charge 2,30 sur 8 cœurs) : `updateMany()` `email` à faux pour les cinq, puis `shouldSend(…, 'email')` → `true` pour les cinq ; `LeasePaymentLateFeeNotification.php:25` porte bien `lease_payment_overdue` → le constat tient. Classement : V7, chaque événement demande de choisir entre une case neuve de l'écran des préférences, avec ses libellés, et un envoi assumé non désactivable.
 
 ### Le corps que quatre classes écrivent pour la cloche n'y arrive pas
 - Réf : P75.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : afficher dans la cloche un corps qu'elle n'a jamais montré
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/Channels/AppDatabaseChannel.php:172-187`, `takussan-api/app/Notifications/TenantWelcomeNotification.php:80`, `takussan-api/app/Notifications/TenantInventoryReminderNotification.php:72`, `takussan-api/app/Notifications/AgentTenantInventoryReminderNotification.php:83`, `takussan-api/app/Notifications/BookingExpiredNotification.php:94`, `takussan-web/src/components/notifications/texteNotification.ts:70-73`
 - Constat :
@@ -7578,10 +7580,11 @@ le sous-réseau est P37.04.*
   - Mesuré (test temporaire) : `TenantWelcomeNotification` → `body` nul dans la ressource, `data.body` présent ; `BookingExpiredNotification` → `body` nul, `data.message` présent. Le locataire lit « Bienvenue chez vous — bail LS-… » sans le texte qui suit.
   - Établi comment : lu, et mesuré. Que ce corps soit attendu dans la cloche se déduit de son nom : à vérifier.
 - Piste : faire lire `body` par le canal quand `toArray()` le porte (et renommer `message` en `body`), ou porter ces classes au catalogue (`NotificationCode`), ce qui règle aussi la langue (P75.05). Garde : un test qui envoie chaque classe de `TYPES` et vérifie qu'une clé `body` ou `message` de `toArray()` se retrouve dans la colonne.
+- Mesure (2026-10-20, d08842ee3, mesureur) : lu `AppDatabaseChannel.php:162-187` : sans `toAppNotification()`, `payload()` rend `type`, `title` et `data`, jamais `body` (la colonne prend `$payload['body'] ?? null`, l. 152) ; `body` est écrit dans `toArray()` par `TenantWelcomeNotification.php:80`, `TenantInventoryReminderNotification.php:72`, `AgentTenantInventoryReminderNotification.php:83`, `message` par `BookingExpiredNotification.php:94`, aucune des quatre n'a de `toAppNotification()` ; `texteNotification.ts:70-73` lit `body ?? content`, jamais `data` → le constat tient (non rejoué par un envoi : la lecture du canal suffit). Classement : V7, que ces textes doivent paraître dans la cloche reste déduit du nom de la clé, et la piste offre deux voies (lecture par le canal ou portage au catalogue).
 
 ### La résiliation anticipée n'a aucun test qui asserte un destinataire, un canal ou une ligne de cloche
 - Réf : P75.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/LeaseEarlyTerminationNotification.php:45-61,91-107`, `takussan-api/app/Listeners/Lease/NotifyOnEarlyTermination.php:38-58`, `takussan-api/tests/Feature/Services/EarlyTerminationServiceTest.php:36`, `takussan-api/tests/Feature/Api/LeaseEarlyTerminationEndpointTest.php:28`, `takussan-api/tests/Feature/Jobs/ConfirmEarlyTerminationsJobTest.php:26`
 - Constat :
@@ -7591,10 +7594,11 @@ le sous-réseau est P37.04.*
   - `LeaseRentReviewedNotification` n'est citée que par `NotificationAmountsTest` (montants du courriel) : son envoi par `NotifyTenantOfRentReview` n'est pas asserté non plus (mesuré, `grep -rlw`).
   - Établi comment : lu et mesuré par `grep`.
 - Piste : un test par transition (`requested`, `cancelled`, `confirmed`) qui lance le service sans `Notification::fake()` et vérifie les lignes `app_notifications` du locataire et du bailleur (titre, cible `lease`) ; idem pour la révision de loyer. Garde : ces tests.
+- Mesure (2026-10-20, d08842ee3, mesureur) : `grep -rlw 'LeaseEarlyTerminationNotification\|NotifyOnEarlyTermination' tests` → `tests/impact-map.json` seul ; `LeaseRentReviewedNotification\|NotifyTenantOfRentReview` → l'impact-map et `NotificationAmountsTest` seuls ; `Notification::fake()` en l. 36, 28 et 26 des trois classes citées, aucun `assertSent*` dans aucune ; `NotifyOnEarlyTermination.php:38-58` envoie au `tenant.user` et au `landlord`, dédoublonnés ; le titre est `notifications.lease_early_termination.{transition}.subject` (`LeaseEarlyTerminationNotification.php:103`) et `toArray()` porte `lease_id` (l. 94) → le constat tient. Classement : A5, tests seuls qui gardent le comportement écrit de l'écouteur, sans changer de code ni de seuil.
 
 ### Petites améliorations
 - Réf : P75.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : liens et titres neufs dans la cloche
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Domain/Notifications/NotificationTarget.php:121-147`, `takussan-api/app/Notifications/LeaseRenewedNotification.php:72-86`, `takussan-api/app/Notifications/InvoiceOverdueReminderNotification.php:84-97`, `takussan-api/app/Notifications/TaskDueReminderNotification.php:63-73`, `takussan-api/app/Notifications/ThresholdAlertTriggered.php:74-81`, `takussan-api/app/Http/Resources/AppNotificationResource.php:45-46`
 - Constat :
@@ -7603,3 +7607,4 @@ le sous-réseau est P37.04.*
   - **Langue figée.** Sans code, `title` et `body` sont rendus tels qu'écrits à l'envoi (lu, `AppNotificationResource.php:45-46`) : un utilisateur qui change de langue relit les anciennes lignes dans l'autre. Les 18 classes sans `code` sont dans ce cas (lu : seules `PropertyApproved`/`PropertyRejected` en portent un).
   - Établi comment : lu, et mesuré pour les trois premières cibles et le titre de tâche.
 - Piste : ajouter `lease_id` (le bail enfant) aux données du renouvellement ; donner une cible aux autres là où une page existe (`team`, `agency_settings`, `/super-admin/…`) ; titrer le rappel de tâche par une clé de traduction. À terme, porter ces classes au catalogue `NotificationCode`, ce que le reste de P48 demande déjà pour quatre d'entre elles.
+- Mesure (2026-10-20, d08842ee3, mesureur) : lu `NotificationTarget::derive()` (l. 121-147) : ni `parent_lease_id`/`child_lease_id`, ni `invoice_id`, ni `task_id` (`LeaseRenewedNotification.php:75-76`, `InvoiceOverdueReminderNotification.php:87`, `TaskDueReminderNotification.php:66`) ; `TaskDueReminderNotification.php:69` range `task->title` comme titre ; `ThresholdAlertTriggered.php:78` met `metric` dans la clé de titre ; `AppNotificationResource.php:45-46` rend `title`/`body` tels quels sans code ; `grep -ln "'code'" app/Notifications` → `CodedNotification`, `PropertyApproved/Rejected`, `LeaseSignatureCode`, `NewBooking` seulement → les trois points tiennent (non rejoué par un envoi). Classement : V7, la cible de chaque ligne (quelle page) et le titre neuf du rappel de tâche sont des choix d'interface et de texte.
