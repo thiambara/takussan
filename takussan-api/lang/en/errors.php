@@ -103,6 +103,10 @@ return [
         'property_not_public' => 'Only a published, visible listing can be promoted.',
         'stats_window_too_wide' => 'The period cannot exceed 92 days.',
     ],
+    'business_enum' => [
+        'value_in_use' => 'This value is in use and cannot be deleted.',
+        'value_not_found' => 'Value not found.',
+    ],
     'calendar' => [
         'feed_not_staff' => 'The calendar link is reserved for agency staff and service providers.',
         'other_agency_forbidden' => 'Only administrators can view other agencies.',
