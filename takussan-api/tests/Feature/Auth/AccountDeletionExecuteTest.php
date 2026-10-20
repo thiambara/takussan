@@ -16,7 +16,7 @@ use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Services\Account\AccountDeletionService;
-use App\Services\Notifications\Sms\SmsDriverInterface;
+use App\Services\Notifications\Sms\SmsRouterDriver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -237,7 +237,11 @@ class AccountDeletionExecuteTest extends TestCase
 
         $user = User::factory()->create(['phone' => '+221771230001']);
         $user->forceFill(['secondary_phone' => '+221771230002'])->save();
-        app(SmsDriverInterface::class)->send('+221771230001', 'code 123456', [
+        // Le chemin réel d'un SMS sans notification, indépendant du `.env` : routeur, chaîne
+        // `log`, heures calmes levées (même réglage que `SmsFailureTraceTest`).
+        config()->set('sms.quiet_hours.enabled', false);
+        config()->set('sms.fallback_chains', ['default' => ['log']]);
+        app(SmsRouterDriver::class)->send('+221771230001', 'code 123456', [
             'event_type' => 'phone_otp',
             'is_otp' => true,
             'bypass_quiet_hours' => true,

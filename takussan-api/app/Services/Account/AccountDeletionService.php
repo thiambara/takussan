@@ -336,9 +336,9 @@ class AccountDeletionService
                 ->update(['to' => null]);
         }
 
-        // TCK-1015 (P57.03) — `password_reset_tokens` a l'e-mail pour clé, et le broker y écrit
-        // l'adresse du compte : la ligne de l'adresse d'origine part avec elle. Les deux brokers
-        // (`users`, `activations`) partagent la table.
+        // TCK-1015 (P57.03) — `password_reset_tokens` a l'e-mail pour clé, et la réinitialisation y
+        // écrit l'adresse du compte : la ligne de l'adresse d'origine part avec elle. Les deux jeux
+        // de jetons (`users`, `activations`) partagent la table.
         DB::table((string) config('auth.passwords.users.table', 'password_reset_tokens'))
             ->where('email', $originalEmail)
             ->delete();

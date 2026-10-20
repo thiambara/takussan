@@ -108,7 +108,7 @@ Schedule::command('sanctum:prune-expired --hours=24')->daily()->withoutOverlappi
 // Sanctum ne voit pas : même règle que `AccessTokenGate`, même grâce de 24 h.
 Schedule::command('sessions:prune-idle --hours=24')->daily()->withoutOverlapping();
 // TCK-1015 (P57.03) — les jetons de réinitialisation ne quittaient la table qu'à l'usage : une
-// demande abandonnée y gardait son adresse pour toujours. Le broker `activations` (7 jours,
+// demande abandonnée y gardait son adresse pour toujours. Le jeu `activations` (7 jours,
 // TCK-781) partage la table avec `users` (60 min) : purger par `users` effacerait au bout d'une
 // heure le lien d'activation d'un gérant provisionné. Idempotente (un `DELETE` par date).
 Schedule::command('auth:clear-resets activations')->daily()->withoutOverlapping();
