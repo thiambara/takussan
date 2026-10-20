@@ -7992,7 +7992,7 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
 
 ### Un délai posé par `AbortSignal.timeout` serait classé « bug » par les gardes d'accès, et non « panne »
 - Réf : P79.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1090
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/access/server-guards.ts:57-83`
 - Constat :
@@ -8001,6 +8001,7 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
   - Établi comment : lu ; mesuré.
 - Piste : reconnaître `TimeoutError` (et `AbortError` du seul délai) dans `estPanneReseau`, dans le même ticket que P79.01. Garde : un cas de test de `classer` avec une `DOMException` `TimeoutError`.
 - Mesure (2026-10-20, 7163372c5, mesureur) : relu `src/lib/access/server-guards.ts:57-83` (`estPanneReseau` exige `name === 'TypeError'` ; `CAUSES_RESEAU` contient `UND_ERR_HEADERS_TIMEOUT` et `UND_ERR_CONNECT_TIMEOUT`) ; test temporaire vitest (retiré) sur `resolveAgencyOrNull(..., 'decision')` → `DOMException` `TimeoutError` relancée comme un bug, `TypeError` de cause `UND_ERR_HEADERS_TIMEOUT` redirigée vers `/verification-indisponible`. Le défaut ne se voit pas aujourd'hui, aucun appel serveur ne posant `AbortSignal.timeout` (P79.01). Classement : A1, le code range déjà les délais d'undici parmi les pannes ; reconnaître aussi `TimeoutError` étend ce contrat sans choix de produit (l'`AbortError` de la piste, qui ne se distingue pas d'un abandon voulu, est hors du correctif autonome).
+- Mesure (2026-10-20, 20815aac1, implementeur) : deux cas ajoutés à `src/lib/access/__tests__/server-guards.test.ts` → avant correctif, la raison réelle d'un `AbortSignal.timeout(1)` (`DOMException` `TimeoutError`) relancée comme un bug par `ensureStandardAgencyOrRedirect`, 1 rouge ; `estPanneReseau` reconnaît `name === 'TimeoutError'` → 19/19 verts, `AbortError` toujours relancée (asserté), 71/71 sur `src/lib/access` ; ablation (`server-guards.ts` rendu à `HEAD`) → le même rouge, correctif remis → vert. La borne elle-même reste P79.01.
 
 ### Petites améliorations
 - Réf : P79.06
