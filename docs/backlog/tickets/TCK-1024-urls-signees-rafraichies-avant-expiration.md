@@ -34,7 +34,7 @@ le lien de l'instantané du clic même après un rafraîchissement de la file.
 
 ## Décision du porteur (déléguée)
 
-> rafraîchir la requête avant l'expiration du lien : `refetchInterval` (et `staleTime`) plus courts que la durée du lien pour les requêtes des écrans KYC, documents et maintenance qui portent une URL signée, avec le test vitest de la `Piste`
+> rafraîchir la requête avant l'expiration du lien : `refetchInterval` (et `staleTime`) plus courts que la durée du lien pour les requêtes des écrans KYC, documents et maintenance qui portent une URL signée, avec le test vitest de la `Piste` ; reste : les pièces jointes déjà chargées de `ChatView`, et la signature au clic, au porteur
 
 ## Objectif
 
