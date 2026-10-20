@@ -138,7 +138,7 @@ voie d'écriture (angle 13, puis 47).
 | 63 | URL signées rangées en base ou dans un `metadata` (`app_notifications.data`, `LeaseDepositRefundNotification`, `DepositRefundService`, `MaintenanceRequestService::addPhotos`) : durée, lecteurs, liens morts à la relecture | fait |
 | 64 | Pièces KYC des profils (`Document` d'`OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`) à l'effacement du compte, à la fin du profil et au re-téléversement : fichier, versions et lignes réellement supprimés ? | fait |
 | 65 | Durée cumulée des appels sortants synchrones dans une requête HTTP (OTP SMS, step-up, initiation de paiement) face au délai de PHP, du serveur web et de Traefik | fait |
-| 66 | Valeurs d'enum métier ajoutées ou désactivées par le super-admin (`BusinessEnumService`, `settings` `enum.*.values`) : lues par aucune validation ni aucun écran hors de la console ? | à faire |
+| 66 | Valeurs d'enum métier ajoutées ou désactivées par le super-admin (`BusinessEnumService`, `settings` `enum.*.values`) : lues par aucune validation ni aucun écran hors de la console ? | fait |
 | 67 | Critères nommés des recherches sauvegardées et des liens partagés (`tags=Piscine`, `location=<quartier>`) après un renommage, une fusion ou un rejet au référentiel (`TagModeration`, `GeoNeighborhoodModeration`) : alertes muettes, filtres vides | à faire |
 | 68 | Passage axe au navigateur des écrans connectés (`/app`, console super-admin) derrière un faux API : barre latérale, tableaux, dialogues et feuilles de `@base-ui/react` | à faire |
 | 69 | Fiche bien, recherche et accueil servis par `next start` avec l'API de dev, sous 3G simulé par CDP : LCP, TBT, octets du document RSC et ordre des préchargements | à faire |
@@ -170,6 +170,7 @@ voie d'écriture (angle 13, puis 47).
 | 95 | Réponse d'une écriture (`store`, `update`, action) face au `show` ou à la liste du même modèle : forme, ressource, types (`commission_share` en chaîne ou en nombre), clés — `PropertyCollaboratorController`, `CustomerController::setPrimaryContact`, `PropertyTagController::sync` | à faire |
 | 96 | Règles `exists:` sans `whereNull('deleted_at')` sur une table à `SoftDeletes` (`exists:customers,id`, `exists:users,id`, `exists:leases,id`…) suivies d'un `find()` masqué par la portée : 404 ou 500 au lieu de 422, ou clé étrangère écrite vers une ligne supprimée | à faire |
 | 97 | Liens d'action des courriels (`->action(…)` des `toMail()`, boutons des Mailables) : la route ou la page visée existe-t-elle, un clic depuis un client de courriel porte-t-il l'authentification qu'elle exige, et vise-t-il l'hôte du front ou celui de l'API | à faire |
+| 98 | Autres écrans d'écriture de la console super-admin (modèles de notification `NotificationTemplateService`, annonces, intégrations, paramètres plateforme) : ce que chaque écran promet de changer est-il lu par le chemin qui envoie, affiche ou décide, hors de la console ? | à faire |
 | 98 | Supprimer, versionner ou partager un document que l'on ne fait que lire (`DocumentController::destroy`, `DocumentVersionController`, `DocumentShareLinkController`, `DocumentPolicy::share`) face aux règles écrites des tickets : locataire, bailleur invité, agent d'une autre agence, compte bloqué |
 
 ---
@@ -6621,3 +6622,81 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - Établi comment : lu et mesuré en `tinker` (aucun appel réseau).
 - Piste : poser `http => ['timeout' => …, 'connect_timeout' => …]` sur les deux disques R2, dimensionné pour 25 Mio. Garde : un test qui lit `@http` d'une commande du client des deux disques.
 - Mesure (2026-10-20, eb4dde5a0, mesureur) : `tinker` : disques construits sur la configuration de `r2-media` et `r2-private` avec identifiants, endpoint et seau factices → clé `http` absente, `getCommand('HeadObject')['@http']` = `[]` pour les deux (aucun appel réseau) ; `HealthcheckService.php:198` borne toujours sa seule sonde ; `PropertyMediaController.php:43-90` écrit toujours chaque photo dans la boucle → le constat tient. Classement : V5, la valeur du délai pour un lot de 25 Mio vers R2 de production n'est écrite nulle part et se choisit.
+
+## Angle 66 — Valeurs d'enum métier éditées par le super-admin : qui les lit hors de la console
+
+*Exploré le 2026-10-20 sur `pre-dev` 341c01a24, par l'explorateur. Relu par l'explorateur lui-même : `BusinessEnumService.php`, `EditableBusinessEnums.php`, les deux contrôleurs et les deux FormRequests de la console, `StorePropertyRequest.php`, `UpdatePropertyRequest.php`, les casts de `Property.php`, `BaseResource::enumLabel`, `business-enums.tsx`, la page `/super-admin/enums`, `lib/enums/property.ts`, `property-form/options.ts`, le ticket TCK-214. Mesures par un test temporaire (retiré), base de test créée par la suite, charge 1,96 sur 8 cœurs. Aucun sous-agent. Le relevé porte sur les quatre clés du catalogue (`property_type`, `contract_type`, `title_type`, `rent_period`) ; seule `property_type` a été mesurée, les trois autres suivent le même chemin (lu).*
+
+### Une valeur ajoutée par le super-admin est refusée en 422 à la création d'un bien
+- Réf : P66.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Admin/BusinessEnumService.php:64-85`, `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:52-55`, `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:49-52`, `takussan-api/app/Models/Property.php:70-73`, `takussan-web/src/lib/enums/property.ts:12-31`
+- Constat :
+  - Les clés `enum.*.values` ne sont lues que par `BusinessEnumService` lui-même (mesuré : `grep -rn "BusinessEnumService\|EditableBusinessEnums" app routes` → les deux contrôleurs de la console et de `/api/enums/{key}`, rien d'autre).
+  - La création et la modification d'un bien valident `type`, `contract_type`, `rent_period` et `title_type` par `Rule::enum(<enum PHP>)` (lu), et le modèle les caste vers les mêmes enums PHP (lu, `Property.php:70-73`). Une valeur qui n'est pas un cas de l'enum ne peut donc ni passer la validation ni être relue par le cast.
+  - Mesuré : test temporaire, super-admin `POST /api/admin/enums/property_type/values` `{value: lodge}` → 201, `GET /api/enums/property_type` la rend ; puis agent `POST /api/properties` `type=lodge` → **422** « La valeur sélectionnée pour type est invalide. ».
+  - Le front ne propose de toute façon que la liste écrite en dur (lu, `lib/enums/property.ts:12-29`, lue par `options.ts:87`) ; `/api/enums/{key}` n'a aucun appelant dans `takussan-web/src` (déjà relevé en P28.02).
+  - TCK-214 (`done`) promettait l'inverse : « ajouter une valeur (ex. nouveau type de bien régional comme "lodge") », endpoint public « utilisé par le frontend pour les selects » (lu, `TCK-214-super-admin-business-enums.md:24-28,62`). Son test d'acceptation s'arrête à la lecture publique (lu, `BusinessEnumTest.php:16-35`).
+  - Établi comment : lu et mesuré (test temporaire).
+- Piste : deux voies, à trancher. (a) Faire lire le catalogue par l'écriture : règle de validation qui lit les valeurs actives de `BusinessEnumService`, cast qui accepte une valeur hors enum PHP (chaîne, ou objet valeur), formulaires et filtres du front nourris par `/api/enums/{key}` — changement de structure, à poser en ADR. (b) Retirer l'ajout de valeur de la console et dire à l'écran que la liste vit dans le code. Dans les deux cas, un test qui suit une valeur de la console jusqu'à `POST /api/properties`.
+
+### Une valeur désactivée reste acceptée en écriture et proposée par tous les formulaires
+- Réf : P66.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Admin/BusinessEnumService.php:117-129`, `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:52-55`, `takussan-web/src/lib/enums/property.ts:12-29`, `takussan-web/src/components/search/FilterSidebar.tsx:16`
+- Constat :
+  - `deactivateValue()` n'écrit que `is_active = false` dans le JSON du réglage (lu, l. 117-129) ; aucun chemin d'écriture de bien ne lit ce drapeau (lu, voir P66.01).
+  - Mesuré : test temporaire, super-admin `DELETE /api/admin/enums/property_type/values/farm` → 200 ; `/api/enums/property_type` ne rend plus `farm` ; agent `POST /api/properties` `type=farm` → **201**, `type_label` « Ferme ».
+  - Le bien créé rend aussitôt la valeur « utilisée » : la console l'affiche grisée avec un compte d'usage de 1, état que le 409 de `deactivateValue()` existe pour empêcher (lu, l. 120-123).
+  - Les formulaires, filtres et critères du front lisent la liste statique : la valeur désactivée reste proposée partout (lu, `lib/enums/property.ts`, `FilterSidebar.tsx:16`, `options.ts:87`).
+  - Établi comment : lu et mesuré (test temporaire).
+- Piste : même choix que P66.01, dont elle dépend. Si le catalogue est lu, la validation refuse une valeur inactive à la création et l'accepte sur un bien qui la porte déjà. Sinon, retirer la désactivation de la console. Un test : désactiver, puis `POST /api/properties` avec la valeur → 422.
+
+### Les libellés FR / EN / WO édités dans la console ne sont lus par aucun rendu
+- Réf : P66.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Resources/Bases/BaseResource.php:72-80`, `takussan-api/app/Http/Resources/PropertyResource.php:101-110`, `takussan-web/src/components/property-form/options.ts:47-60`, `takussan-web/src/app/(super-admin)/super-admin/enums/page.tsx:46-51`
+- Constat :
+  - Côté API, `type_label`, `contract_type_label`, `rent_period_label` et `title_type_label` viennent de `enumLabel()`, qui lit `lang/<locale>/properties.php` (lu, `BaseResource.php:78-79`). Côté front, les libellés viennent de next-intl (`property.types`…, lu, `options.ts:47-60`).
+  - Mesuré : test temporaire, super-admin `PATCH /api/admin/enums/property_type/values/villa` `labels.fr = "Villa de luxe"` → 200 ; agent `POST /api/properties` `type=villa` sous `Accept-Language: fr` → 201, `type_label` « Villa ».
+  - L'écran annonce pourtant « Gérez les libellés FR / EN / WO et les valeurs métier non techniques. » (lu, `fr.json` `superAdmin.pages.enums.subtitle`, rendu par `page.tsx:46-48`), et chaque modification est journalisée comme si elle prenait effet (lu, `BusinessEnumService.php:109`).
+  - Établi comment : lu et mesuré (test temporaire).
+- Piste : même choix que P66.01. Si la console reste en lecture seule sur les libellés, le dire à l'écran et retirer l'édition ; si elle doit agir, un seul lecteur de libellé (réglage, sinon dictionnaire), et un test qui lit `type_label` après un `PATCH`. Le principe n°5 (le front possède le texte affiché) pèse sur ce choix.
+
+### Le libellé français par défaut de chaque valeur est sa clé anglaise, figée à la première écriture
+- Réf : P66.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Admin/BusinessEnumService.php:156-166`, `:193-199`
+- Constat :
+  - Sans réglage enregistré, chaque valeur reçoit `labels.fr = Str::headline(<valeur>)`, repris en `en` et `wo` par `normaliseValue()` (lu, l. 161, l. 182-183).
+  - Mesuré : après un premier ajout, `GET /api/admin/enums/property_type` → `apartment` : `{"fr":"Apartment","en":"Apartment","wo":"Apartment"}`. La console affiche donc « Apartment » dans la colonne FR, là où le produit dit « Appartement » partout ailleurs.
+  - La première écriture (`persist()`, l. 193-199) recopie toute la liste, défauts compris, dans le réglage : ces libellés faux deviennent des données stockées.
+  - Établi comment : lu et mesuré (test temporaire).
+- Piste : si la console garde ses libellés (P66.03), partir des dictionnaires `lang/<locale>/properties.php` au lieu de `Str::headline`. Un test : sans réglage, le libellé `fr` d'`apartment` vaut celui de `lang/fr`.
+
+### La liste enregistrée masque les cas ajoutés plus tard à l'enum PHP
+- Réf : P66.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Admin/BusinessEnumService.php:141-167`, `:91-99`
+- Constat :
+  - Dès qu'un réglage `enum.<clé>.values` existe, `storedValues()` rend ses seules valeurs et ne relit plus `$source::cases()` (lu, l. 149-154).
+  - Un cas ajouté au code après la première écriture de la console (un nouveau `PropertyType`) n'y apparaît donc pas. Il ne peut être ni renommé ni désactivé : mesuré, réglage enregistré sans `garage`, `DELETE /api/admin/enums/property_type/values/garage` → **404** `business_enum.value_not_found`, alors que `garage` est un cas de l'enum et reste accepté par l'écriture.
+  - Établi comment : lu et mesuré (test temporaire, retrait de la valeur simulé dans le réglage).
+- Piste : fusionner à la lecture les cas de l'enum PHP absents du réglage, actifs par défaut. Un test : réglage enregistré, cas absent → la console le rend. Sans objet si la voie (b) de P66.01 retire la liste éditable.
+
+### Petites améliorations
+- Réf : P66.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/admin/super/business-enums.tsx:98-105`, `:184-186`, `takussan-api/app/Services/Admin/BusinessEnumService.php:201-208`, `takussan-api/app/Http/Requests/Api/Admin/StoreBusinessEnumValueRequest.php`
+- Constat :
+  - Aucun geste ne réactive une valeur dans la console : le bouton est désactivé sur une valeur inactive (lu, l. 104) et le dialogue n'envoie que les libellés (lu, l. 184-186). L'API l'accepte pourtant : mesuré, `PATCH …/values/farm` `{is_active: true}` → 200.
+  - Le 409 de désactivation ne compte que `properties`, biens supprimés exclus par `SoftDeletes` (lu, l. 201-208, `Property.php:42`). Les critères de recherche des clients (`customers.seeking_property_types`, `seeking_contract_type`, lu, `Customer.php:30`) et les recherches sauvegardées portent aussi ces valeurs (recherches sauvegardées : à vérifier).
+  - La règle de `value` accepte le tiret (`regex:/^[a-z][a-z0-9_-]*$/`, lu), qu'aucun cas des quatre enums PHP ne porte, et `addValue()` ne le replie pas (mesuré : `Str::of("lodge-eco")->lower()->snake()` → `lodge-eco`).
+  - Établi comment : lu, et mesuré pour la réactivation (test temporaire).
+- Piste : à reprendre seulement si la console garde l'activation (P66.02) : un bouton de réactivation, un compte d'usage qui lit aussi les critères clients, une règle de `value` alignée sur la forme des cas d'enum.
