@@ -6676,7 +6676,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### Une valeur désactivée reste acceptée en écriture et proposée par tous les formulaires
 - Réf : P66.02
-- Statut : validé — avec (b) de P66.01 : retirer la désactivation de la console (porteur, 2026-10-20)
+- Statut : fait · TCK-1056
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/BusinessEnumService.php:117-129`, `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:52-55`, `takussan-web/src/lib/enums/property.ts:12-29`, `takussan-web/src/components/search/FilterSidebar.tsx:16`
 - Constat :
@@ -6688,6 +6688,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 - Piste : même choix que P66.01, dont elle dépend. Si le catalogue est lu, la validation refuse une valeur inactive à la création et l'accepte sur un bien qui la porte déjà. Sinon, retirer la désactivation de la console. Un test : désactiver, puis `POST /api/properties` avec la valeur → 422.
 - Mesure (2026-10-20, 0bd41cb0d, mesureur) : test temporaire (retiré) : `DELETE /api/admin/enums/property_type/values/farm` → 200, `farm` absent de `/api/enums/property_type`, agent `POST /api/properties` `type=farm` → 201, `type_label` « Ferme » ; `lib/enums/property.ts:12-29` liste toujours `farm` en dur → le constat tient. Classement : V7, le correctif suit la voie choisie pour P66.01 (validation qui lit le catalogue, ou retrait de la désactivation).
 - Mesure (2026-10-20, 550abfd75, delegue) : relu le constat, la `Piste` et l'entrée P66.01 → la piste dépend de P66.01, qui n'est pas tranchée (recommandée au porteur). Recommandation : suivre P66.01 ; avec la voie (b), retirer aussi la désactivation de la console, puisqu'aucune écriture ne lit le drapeau et qu'ADR-0007 met la liste dans l'enum PHP ; avec la voie (a), la validation refuse une valeur inactive à la création et l'accepte sur un bien qui la porte déjà, test `DELETE` puis `POST /api/properties` → 422. Pas validé : retrait d'un geste visible ou règle d'écriture neuve, selon un choix qui reste au porteur.
+- Mesure (2026-10-20, b306dca2b, implementeur) : avant correctif, `BusinessEnumTest::test_console_refuses_deactivating_a_value` : super-admin `DELETE /api/admin/enums/property_type/values/farm` → 200 → route, contrôleur et service de désactivation retirés, `is_active` retiré du `PATCH`, bouton « Désactiver » retiré de `/super-admin/enums` ; le test exige 404 ou 405 au `DELETE`, `farm` encore active après `PATCH {is_active: false}` et aucun audit de désactivation, plus un cas de `enums/__tests__/page.test.tsx` ; ablation : correctif retiré, rouge (200 ; bouton trouvé), et `is_active` seul rendu au `PATCH`, rouge aussi ; remis, verts.
 
 ### Les libellés FR / EN / WO édités dans la console ne sont lus par aucun rendu
 - Réf : P66.03
