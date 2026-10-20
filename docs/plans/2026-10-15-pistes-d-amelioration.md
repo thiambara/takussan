@@ -6545,7 +6545,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
 
 ### Un nouvel envoi remet la pièce à « non vérifiée » mais garde l'auteur et la date de la vérification précédente
 - Réf : P64.04
-- Statut : validé — remettre `verified_by` et `verified_at` à `null` avec `is_verified` dans une méthode partagée, et écrire au journal d'audit qui avait vérifié la pièce remplacée, pour en garder la trace (porteur, 2026-10-20)
+- Statut : fait · TCK-1063
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:59-72`, `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:68-81`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:59-72`, `takussan-api/app/Http/Resources/DocumentResource.php:37-38`
 - Constat :
@@ -6556,6 +6556,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
   - Établi comment : test temporaire, lecture et `grep`.
 - Piste : remettre `verified_by` et `verified_at` à `null` dans les trois `updateOrCreate`, de préférence par une seule méthode partagée. Un test par contrôleur, ou un seul sur la méthode : après un nouvel envoi, les trois champs de vérification sont vides. Ablation → rouge.
 - Mesure (2026-10-20, 0ba226223, mesureur) : lu `OwnerProfileController.php:59-72` (`updateOrCreate` avec `is_verified => false`, sans `verified_by` ni `verified_at`), `DocumentController::verify()` (pose les trois ensemble) ; `Document` n'est pas journalisé (lu : pas d'`Auditable`) ; test temporaire retiré → CNI vérifiée par un admin, nouvel envoi, `GET /api/documents/{id}` 200 `is_verified: false`, `verified_by: 5`, `verified_at` posé. Classement : V3, le correctif est simple mais efface l'unique trace de qui a vérifié la pièce précédente : la garder ailleurs ou la perdre est à décider.
+- Mesure (2026-10-20, 7163372c5, implementeur) : avant correctif, pièce vérifiée puis nouvel envoi par chacun des trois `uploadKyc` → `verified_by` encore posé (3 rouges) → `App\Services\Kyc\ProfilePieces::upsert()`, partagée par les trois, vide les trois champs et écrit `document_verification_reset` (`verified_by`, `verified_at`) au journal quand une vérification est remplacée ; `KycDocumentsDerivedTest::test_un_nouvel_envoi_efface_la_verification_et_la_journalise` vert sur les trois profils, deux ablations (remise à zéro, journal) → 3 rouges chacune, 69 verts sur les classes qui téléversent une pièce.
 
 ### Petites améliorations
 - Réf : P64.05
