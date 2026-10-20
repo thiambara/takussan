@@ -30,7 +30,10 @@ export function PropertyBreadcrumb({ property, hrefQuartier, hrefVille }: Proper
         <span key={i} className="flex items-center gap-1">
           {i > 0 && <ChevronRight className="size-3.5" aria-hidden />}
           {c.href ? (
-            <LienLocalise href={c.href} className="hover:text-foreground transition-colors">
+            // TCK-1086 (P69.02) — chaque maillon mène à une page rendue à la demande (accueil,
+            // listes) : préchargé, il faisait rendre au serveur une recherche de 40 biens par
+            // maillon à chaque visite de fiche, pour 2 Kio reçus.
+            <LienLocalise href={c.href} prefetch={false} className="hover:text-foreground transition-colors">
               {c.libelle}
             </LienLocalise>
           ) : (
