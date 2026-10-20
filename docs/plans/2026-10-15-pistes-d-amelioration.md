@@ -7164,7 +7164,7 @@ sont pas mesurées, ni la charge RSC du document.*
 
 ### Aucune garde ne voit le poids des écrans de `/app`
 - Réf : P70.06
-- Statut : retenu · à valider — chemin fermé : takussan-web/scripts/poids-des-routes.mjs (garde existante, V9) ; porteur (2026-10-20) : traité hors agents, en session : imprimer aussi les écrans de `(dashboard)` et `(super-admin)` dans le rapport de `poids-des-routes.mjs`, sans seuil ni refus neuf, et renommer l'étape de `web-ci.yml` ; le seuil reste à décider à part
+- Statut : fait · TCK-1050
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/scripts/poids-des-routes.mjs:60,120`, `.github/workflows/web-ci.yml:207`, `takussan-web/src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts:29`
 - Constat :
@@ -7173,6 +7173,7 @@ sont pas mesurées, ni la charge RSC du document.*
 - Piste : faire imprimer aussi au rapport les routes de `(dashboard)` (et de `(super-admin)`), sans seuil, comme pour le site public ; le seuil reste à décider à part.
 - Mesure (2026-10-20, 1ddc38cd0, mesureur) : relu `poids-des-routes.mjs:60,120` (`PREFIXE_PUBLIC = '/[locale]/(public)/'`, filtre des routes) et `web-ci.yml:207` (`run: node scripts/poids-des-routes.mjs`) ; `git log e0275f6b6..1ddc38cd0 -- takussan-web/scripts` → aucun commit ; le script temporaire du passage, même calcul sans le filtre, rend les 65 écrans de `(dashboard)` de 267,0 à 602,6 Kio, qu'aucun rapport n'imprime → tient. Classement : A5, imprimer aussi les routes de `(dashboard)` et `(super-admin)` dans le rapport, sans seuil et sans toucher `web-ci.yml`, ajoute de la visibilité sans resserrer aucun refus ; le seuil reste hors de la piste, comme elle le dit.
 - Mesure (2026-10-20, 7a21765a8, implementeur) : sur le build local, `node scripts/poids-des-routes.mjs` imprime 18 routes publiques et aucun écran de `/app` ni de `/super-admin` → tient ; correctif écrit et éprouvé (seconde section « écrans de la console », sans seuil ni refus neuf : `poids-des-routes.test.ts` 2 rouges sur 10 avant, 10/10 après, 102 écrans sur le build local, ablation → les 2 mêmes rouges), puis retiré : `check-pistes.mjs --role implementeur` refuse toute modification sous `takussan-web/scripts/` (« une garde existante ne se modifie pas (critère V9) »). Le porteur la traite lui-même ; l'étape de `web-ci.yml` (« Poids des routes publiques ») serait à renommer avec.
+- Mesure (2026-10-20, ab37be2fa, humain) : seconde section « écrans de la console » dans `poids-des-routes.mjs`, `(dashboard)` et `(super-admin)`, sans seuil, sortie 2 sans écran de console ; étape de `web-ci.yml` renommée ; `poids-des-routes.test.ts` 8/8, ablation (script d'avant) → 2 rouges sur 8 ; sur le build local : 18 routes publiques et 102 écrans de console imprimés.
 
 ### Petites améliorations
 - Réf : P70.07
@@ -7201,7 +7202,7 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
 
 ### La commande de F3 pour l'`APP_KEY` de production produit une clé que Laravel refuse : il manque le préfixe `base64:`
 - Réf : P71.01
-- Statut : retenu · à valider — V5 : variable d'environnement de production du plan de mise en service ; porteur (2026-10-20) : traité hors agents, en session : `base64:$(openssl rand -base64 32)` dans la table F3, et une garde de `scripts/` qui refuse, dans `docs/`, un `openssl rand -base64 32` sur une ligne qui nomme `APP_KEY` sans `base64:`
+- Statut : fait · TCK-1050
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4156`, à comparer à `:3518` et `deploy/takussan/smoke-api.sh:97`
 - Constat :
@@ -7212,10 +7213,11 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - L'empreinte que F3 fait porter au relevé (`printf %s "$APP_KEY" | sha256sum`) serait celle de la clé fausse.
 - Piste : écrire `base64:$(openssl rand -base64 32)` dans la table F3, comme en D1. Garde possible : un contrôle de `scripts/` qui refuse, dans `docs/plans/` et `docs/infra/`, un `openssl rand -base64 32` dans une ligne qui nomme `APP_KEY` sans `base64:`.
 - Mesure (2026-10-20, 14ba88061, mesureur) : relu le plan F3 (la ligne `APP_KEY` est aujourd'hui l. 4156, « neuve (`openssl rand -base64 32`) »), `grep -rn "openssl rand -base64 32" docs deploy scripts` → D1 (l. 3518), l. 1359, l. 2701 et `smoke-api.sh:97` portent `base64:`, F3 seul non ; `EncryptionServiceProvider::parseKey()` ne décode qu'après `base64:` (lu) ; mesuré : `new Encrypter(<sortie fraîche d'openssl rand -base64 32>, 'AES-256-CBC')` → longueur 44, `RuntimeException: Unsupported cipher or incorrect key length`, la même valeur décodée est acceptée ; `git log 1ddc38cd0..14ba88061 -- docs/plans` → seuls les commits des pistes → tient. Ce qui échoue concrètement au premier déploiement reste non mesuré. Classement : V5, le correctif est d'une ligne de document, mais il fixe la valeur d'une variable d'environnement de la production dans le runbook de Dokploy.
+- Mesure (2026-10-20, ab37be2fa, humain) : table F3 : `echo "base64:$(openssl rand -base64 32)"` ; garde neuve `scripts/check-app-key-base64.mjs` (Repo CI) : 5 générations, toutes préfixées ; ablation (table F3 d'avant) → sortie 1 sur la ligne 4156.
 
 ### F3 reprend l'`APP_ENV` de la préproduction (`staging`) et son `OTP_PREVIEW_ENABLED=true` : le code SMS reviendrait dans la réponse en production
 - Réf : P71.02
-- Statut : retenu · à valider — V5 : `APP_ENV` et `OTP_PREVIEW_ENABLED` de la production, et V2 : aperçu du code de connexion ; porteur (2026-10-20) : traité hors agents, en session : `APP_ENV` = `production` et `OTP_PREVIEW_ENABLED` absente dans la table F3, `PHONE_LOGIN_ENABLED` à la valeur de la préproduction, la valeur d'`APP_ENV` de la préproduction relevée et le document fautif corrigé ; garde au démarrage qui refuse `OTP_PREVIEW_ENABLED=true` quand `APP_URL` est l'origine de production
+- Statut : fait · TCK-1050
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4148-4166`, `docs/infra/hebergement.md:183-187`, `docs/adr/0060-code-sms-affiche-hors-production.md:15`, `takussan-api/app/Services/Auth/OtpPreview.php:21-29`, `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:29-34`, `takussan-api/app/Http/Middleware/AddRobotsTagOutsideProduction.php:18-19`
 - Constat :
@@ -7226,10 +7228,11 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - Les documents se contredisent sur la valeur réelle. Le docblock d'`AddRobotsTagOutsideProduction` affirme que « la préproduction tourne elle aussi en `production` » (lu, `:18-19`), ce que contredit le relevé d'ADR-0060. AC6 de TCK-720 a mesuré un accusé SMS accepté en `200` en préproduction (lu, `TCK-720:79-82`), alors que le relevé ne porte aucune clé `SMS_*_WEBHOOK_IPS`. Cela s'accorde avec `staging`, pas avec `production` (à vérifier dans Dokploy).
 - Piste : ajouter à la table F3 les lignes `APP_ENV` = `production` et `OTP_PREVIEW_ENABLED` = absente ou `false`, et décider de `PHONE_LOGIN_ENABLED`. Relever la valeur d'`APP_ENV` de la préproduction dans `hebergement.md`, puis corriger celui des deux documents qui se trompe. Garde possible : au démarrage, refuser `OTP_PREVIEW_ENABLED=true` quand `APP_URL` est l'origine de production (`AddRobotsTagOutsideProduction::PRODUCTION_ORIGIN`), qui se juge sur une donnée que F3 change, elle.
 - Mesure (2026-10-20, 14ba88061, mesureur) : relu la table F3 (l. 4148-4166 inchangées : ni `APP_ENV`, ni `OTP_PREVIEW_ENABLED`, ni `PHONE_LOGIN_ENABLED`), `OtpPreview::enabled()` (drapeau ET `APP_ENV` dans `local`/`staging`/`testing`), `RestrictIpMiddleware` (403 seulement en `production`), ADR-0060 l. 15 (`APP_ENV=staging`, relevé le 2026-10-10), `hebergement.md` l. 183-187 (`OTP_PREVIEW_ENABLED` à `true`) et le docblock d'`AddRobotsTagOutsideProduction` l. 18-19 (« la préproduction tourne elle aussi en `production` ») → la contradiction et l'héritage décrits tiennent ; la valeur réelle d'`APP_ENV` dans Dokploy n'est pas lisible du poste. Classement : V5 et V2, la piste fixe des variables d'environnement de production qui ouvrent ou ferment l'aperçu du code de connexion, et `PHONE_LOGIN_ENABLED` est laissé au porteur.
+- Mesure (2026-10-20, ab37be2fa, humain) : relevé Dokploy du 2026-10-20 : la préproduction est en `APP_ENV=staging`, `OTP_PREVIEW_ENABLED` et `PHONE_LOGIN_ENABLED` à `true` ; table F3 : `APP_ENV` = `production`, `OTP_PREVIEW_ENABLED` absente, `PHONE_LOGIN_ENABLED` = `true` ; docblock d'`AddRobotsTagOutsideProduction` corrigé ; `OtpPreview::refuserSurLaProduction()` appelé au démarrage par `AppServiceProvider` : `OtpPreviewTest` construit l'application par `bootstrap/app.php` avec le drapeau, l'`APP_URL` de production et `APP_ENV=staging` → refus ; ablation de l'appel → 1 rouge sur 11.
 
 ### F3 ne pose pas `MAIL_MAILER` : la production hériterait du `log` de la préproduction et n'enverrait aucun courriel
 - Réf : P71.03
-- Statut : retenu · à valider — V5 : `MAIL_MAILER` de la production dans le plan F3 ; porteur (2026-10-20) : traité hors agents, en session : `MAIL_MAILER` = `resend` dans la table F3, une ligne par driver de `prod-drivers.json`, et `check-prod-drivers.mjs` qui vérifie que chaque driver prescrit de la production figure dans F3 avec la même valeur
+- Statut : fait · TCK-1050
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4148-4166`, `docs/infra/prod-drivers.json` (`preview.drivers.MAIL_MAILER`, `production.drivers.MAIL_MAILER`), `docs/infra/hebergement.md` § « Courriels »
 - Constat :
@@ -7238,10 +7241,11 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - `scripts/check-prod-drivers.mjs` ne lit que la checklist de `docs/configuration.md`, pas le plan (lu, `prod-drivers.json`, `_mesure.pourquoi_pas_en_ci`) : rien ne confronte F3 au catalogue.
 - Piste : une ligne `MAIL_MAILER` = `resend` dans la table F3, avec renvoi à `prod-drivers.json`, et, plus largement, une ligne par driver du catalogue (`SESSION_DRIVER`, `CACHE_STORE`, `QUEUE_CONNECTION`, `MAIL_MAILER`). Garde possible : `check-prod-drivers.mjs` vérifie que chaque driver `prescrit` de la production figure dans la table F3 avec la même valeur.
 - Mesure (2026-10-20, 14ba88061, mesureur) : relu la table F3 (l. 4148-4166 : aucune clé `MAIL_*`), `grep -n "MAIL_MAILER" docs/plans/2026-09-13-…` → l. 236, 1337, 2645 seulement ; `prod-drivers.json` porte `log` mesuré pour la préproduction et `resend` prescrit pour la production, avec pour source « F3, étape 1 : … à ces différences près — MAIL_MAILER=resend », différence que la table F3 réécrite par TCK-931 ne contient plus → tient ; au passage, `resend/resend-php` est aujourd'hui dans `composer.json` et `composer.lock` (l'écart l. 236 du plan est levé). Classement : V5, la piste ajoute des variables d'environnement au runbook de production et propose une garde sur la CI.
+- Mesure (2026-10-20, ab37be2fa, humain) : table F3 : une ligne par driver de `prod-drivers.json`, dont `MAIL_MAILER` = `resend` ; `check-prod-drivers.mjs` confronte F3 au catalogue (10 accords) ; ablation (table F3 d'avant) → les six lignes manquantes nommées.
 
 ### F3 ne pose pas les listes d'IP des accusés SMS : en `production`, une liste vide refuse tous les accusés en 403
 - Réf : P71.04
-- Statut : retenu · à valider — V5 : listes d'IP des accusés SMS en production ; porteur (2026-10-20) : traité hors agents, en session : les trois `SMS_*_WEBHOOK_IPS` dans F3, avec les plages publiées par chaque fournisseur (à demander au fournisseur si elles ne le sont pas), une vérification après déploiement (un accusé de test accepté), et le renvoi de l'ardoise corrigé
+- Statut : fait · TCK-1050 — reste : relever les plages d'IP publiées par Orange, mTarget et LAfricaMobile, et les poser au moment de F3
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4166`, `takussan-api/config/sms.php:163-167`, `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:26-34`, `takussan-api/routes/api/sms-webhooks.php:26-34`, `docs/ardoise.md:394-399`
 - Constat :
@@ -7252,10 +7256,11 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - Si P71.02 est corrigé et que la production passe en `production`, ce refus devient le comportement par défaut. Aucun envoi n'échoue, seuls les statuts ne remontent plus.
 - Piste : ajouter à F3 les trois `SMS_*_WEBHOOK_IPS` (plages publiées par chaque fournisseur, ou décision écrite de ne pas en poser pour un fournisseur sans plage connue), et une vérification après déploiement : un accusé de test accepté, ou la ligne `webhook.ip_allowlist_not_configured` absente du journal des webhooks (ADR-0051). Corriger le renvoi de l'ardoise vers F3.
 - Mesure (2026-10-20, 14ba88061, mesureur) : relu `config/sms.php:163-167` (trois `SMS_*_WEBHOOK_IPS`, vides par défaut), `RestrictIpMiddleware` (liste vide et `production` → `abort_code(403, 'webhook.ip_allowlist_not_configured')`), `routes/api/sms-webhooks.php:26-34` (`restrict.ip:{fournisseur}` sur les trois), `ardoise.md:394-399` (renvoi au runbook de TCK-288), `grep -n WEBHOOK_IPS docs/infra/hebergement.md` → rien, plan F3 l. 4166 → seuls les jetons d'URL → tient. Classement : V5, la piste pose des variables d'environnement de production dont les valeurs (plages des fournisseurs) ou leur absence relèvent du porteur.
+- Mesure (2026-10-20, ab37be2fa, humain) : relevé Dokploy du 2026-10-20 : aucune `SMS_*_WEBHOOK_IPS` en préproduction ; table F3 : les trois clés, le 403 d'une liste vide en `production`, la vérification après déploiement ; renvoi de l'ardoise corrigé (F3, et non plus TCK-288).
 
 ### Le relevé des clés de la préproduction s'arrête au 2026-10-10 : il manque les jetons de webhook posés le 2026-10-18, et F3 renvoie à ce relevé
 - Réf : P71.05
-- Statut : retenu · à valider — V5 : relevé des variables d'environnement de Dokploy ; porteur (2026-10-20) : traité hors agents, en session : porter au relevé de `hebergement.md` les cinq jetons de webhook posés le 2026-10-18 et le nouveau compte, corriger la phrase des clés absentes, et nommer dans F3 les jetons WhatsApp avec les jetons SMS
+- Statut : fait · TCK-1050
 - Gravité : 🟠 risque ou dette
 - Où : `docs/infra/hebergement.md:156-191`, `docs/backlog/tickets/TCK-720-reglages-de-deploiement-du-porteur.md:70-95`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4148-4149`
 - Constat :
@@ -7265,10 +7270,11 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - F3 construit l'environnement de production depuis celui de la préproduction (lu, `:4148-4149`). La liste dont il part est donc incomplète, et rien ne dit, pour ces cinq clés, qu'elles doivent changer de valeur. Seule la ligne TCK-720 le laisse entendre, pour les jetons SMS.
 - Piste : porter les cinq clés et le nouveau compte au relevé, et corriger la phrase de `:189`. Dans F3, nommer les jetons de webhook WhatsApp avec les jetons SMS (une valeur neuve par environnement, et l'URL à reporter chez Meta).
 - Mesure (2026-10-20, 14ba88061, mesureur) : `grep -n "WEBHOOK_URL_TOKEN\|WHATSAPP_WEBHOOK" docs/infra/hebergement.md` → rien ; le relevé s'arrête à « 82 clés » (l. 183) et dit toujours `SMS_*`, `WHATSAPP_*` « absentes de l'export » (l. 189) ; `TCK-720:70-95` relu, les cinq clés posées en préproduction le 2026-10-18 et relues dans le conteneur, promues le 2026-10-19 → tient. Classement : V5, le correctif écrit le relevé des clés de Dokploy et le plan de production, mesure hors du poste que l'agent ne peut pas refaire.
+- Mesure (2026-10-20, ab37be2fa, humain) : noms des clés relus dans Dokploy le 2026-10-20 (script sans valeur) : 86 clés = 82 + les cinq jetons + `API_ALIAS` + un `SEED_*` (13 et non 12) − `REDIS_HOST` − `REDIS_PORT` ; relevé de `hebergement.md` mis à jour, phrase des clés absentes corrigée ; jetons WhatsApp nommés dans F3.
 
 ### Petites améliorations du plan F3 et du relevé
 - Réf : P71.06
-- Statut : retenu · à valider — V5 : variables de production de F3 et relevé de Dokploy ; porteur (2026-10-20) : traité hors agents, en session : les quatre : `GOOGLE_REDIRECT_URI`, `SESSION_DOMAIN` et `SESSION_COOKIE` dans la table F3, le nom du service corrigé dans `prod-drivers.json`, le motif de `CACHE_PREFIX` réécrit
+- Statut : fait · TCK-1050
 - Gravité : 🟢 amélioration
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:238`, `:4160`, `:4166`, `docs/infra/prod-drivers.json:67`, `docs/infra/hebergement.md:172-173`
 - Constat :
@@ -7278,6 +7284,7 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - La ligne TCK-720 de F3 exige un `CACHE_PREFIX` propre à la production (lu, `:4166`). Le motif de P05.09 était le Redis partagé `redis-takussan`, que TCK-880 a remplacé par un Redis par pile (lu, en-tête de `deploy/takussan/compose.api.yml`). La consigne reste sans danger, mais elle ne dit plus pourquoi.
 - Piste : nommer `GOOGLE_REDIRECT_URI`, `SESSION_DOMAIN` et `SESSION_COOKIE` dans la table F3, avec leur valeur de production. Corriger le nom du service dans `prod-drivers.json`. Récrire le motif de `CACHE_PREFIX`, ou retirer la consigne si le porteur la juge sans objet.
 - Mesure (2026-10-20, 3ba79daa1, mesureur) : `grep -n GOOGLE_REDIRECT_URI` → nommée seulement à `hebergement.md:176` et au plan `:238`, absente de la table F3 (l. 4155-4166) ; `SESSION_DOMAIN`/`SESSION_COOKIE` → `hebergement.md:173` et plan `:3517` (préproduction), jamais en F3 ; `prod-drivers.json:67` dit toujours `takussan-api-prod` quand le plan (`:4146`) et `compose.api.yml:15,93` disent `takussan-api-production` ; la ligne TCK-720 de F3 (`:4166`) motive toujours `CACHE_PREFIX` par P05.09 → les quatre points tiennent ; les valeurs de session et de Google ne se lisent pas depuis le poste. Classement : V5, le correctif écrit la table des variables de la production à créer et le relevé de Dokploy, et ses valeurs demandent une mesure hors du poste.
+- Mesure (2026-10-20, ab37be2fa, humain) : relevé Dokploy du 2026-10-20 : `SESSION_DOMAIN` = `.takussan.com`, `SESSION_COOKIE` = `takussan_session_preview`, `GOOGLE_REDIRECT_URI` sur `preview.takussan.com` ; table F3 : `.takussan.com` / `takussan_session` et `https://www.takussan.com/auth/oauth/google/callback` ; `prod-drivers.json` → `takussan-api-production` ; motif de `CACHE_PREFIX` réécrit (TCK-880).
 
 ## Angle 72 — Accusés `failed` reçus après coup (SMS et WhatsApp)
 
