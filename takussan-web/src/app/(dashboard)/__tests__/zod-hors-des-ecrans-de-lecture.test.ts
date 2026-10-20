@@ -34,6 +34,9 @@ const ECRANS: readonly string[] = [
   // TCK-1039 (P70.02) — les listes de valeurs de bien et de client viennent de `@/lib/enums/*`.
   'properties/(liste)/page.tsx',
   'customers/(liste)/page.tsx',
+  // TCK-1041 (P70.04) — le dialogue de création n'est chargé qu'à sa première ouverture.
+  'payments/page.tsx',
+  'documents/(liste)/page.tsx',
 ];
 
 describe('zod hors des écrans de lecture de la console', () => {
