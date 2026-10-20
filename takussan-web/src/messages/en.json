@@ -65,7 +65,6 @@
       "noResult": "No agency matches",
       "loadMore": "Show more",
       "shown": "{shown} of {total}",
-      "openAria": "Open the agency list",
       "clearAria": "Clear the selected agency",
       "error": "The agency list could not be loaded.",
       "retry": "Retry",
