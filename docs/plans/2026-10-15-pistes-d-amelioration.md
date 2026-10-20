@@ -5950,7 +5950,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
 - Mesure (2026-10-19, 5cd62d286, implementeur) : avant correctif, une ligne `password_reset_tokens` pour l'adresse du compte survit à `executeDeletion()` et le planificateur ne porte aucun `auth:clear-resets` (3 rouges) → `anonymize()` supprime les lignes de l'adresse d'origine, et `routes/console.php` planifie chaque jour `auth:clear-resets activations` : la table est partagée avec le lien d'activation de 7 jours (TCK-781), que la purge par le broker par défaut (60 min) effacerait au bout d'une heure ; `AccountDeletionExecuteTest` et `PasswordResetTokensPruneTest` verts, trois ablations (effacement, planification, commande sans broker) → rouges, 13 verts.
 ### Une invitation adressée au compte garde son e-mail, son lien au compte et son statut « envoyée » après l'effacement
 - Réf : P57.04
-- Statut : validé — (a) à l'anonymisation, révoquer les invitations en cours du compte et masquer leur adresse (`deleted-<id>@takussan.local`, comme `users.email`) au lieu de l'effacer, sans migration ; test : après `executeDeletion()`, aucune invitation en cours ne vise le compte ni son adresse (porteur, 2026-10-20)
+- Statut : fait · TCK-1060
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/migrations/2026_05_10_000001_create_invitations_table.php:24-29`, `takussan-api/database/migrations/2026_10_07_150300_add_phone_to_invitations_table.php:25`, `takussan-api/app/Services/Invitation/InvitationService.php:224-233`
 - Constat :
@@ -5963,6 +5963,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
 
 - Mesure (2026-10-19, bc2d31e79, mesureur) : test temporaire retiré : une invitation `sent` à l'adresse du compte, `invited_user_id` = le compte, puis `executeDeletion()` → `email`, `invited_user_id` et `status = sent` inchangés ; relu `InvitationService` l. 224-233 (`withProperties(['email' => $email, …])` sur une ligne dont l'invitation est le sujet). Non éprouvé, comme dans le constat : l'acceptation d'une invitation encore `sent` vers un compte effacé. Classement : V3, révoquer et effacer l'adresse des invitations change ce que l'agence conserve, et l'adresse dans `activity_log` relève de P19.01/P56.05.
 - Mesure (2026-10-19, 5cd62d286, implementeur) : test temporaire retiré (charge 1,40 / 2,38 / 2,98 sur 8 cœurs) : une invitation `sent` à l'adresse du compte, `invited_user_id` = le compte, puis `executeDeletion()` → `email`, `invited_user_id` et `status = sent` inchangés, le défaut tient ; puis `UPDATE invitations SET email = NULL, phone = NULL` sur cette ligne → `SQLSTATE[23514]` « violates check constraint invitations_email_or_phone_check » (lu : `2026_10_07_150300_add_phone_to_invitations_table.php:29-32`, `CHECK (email IS NOT NULL OR phone IS NOT NULL)`). Rien implémenté : révoquer sans effacer serait une partie de la décision seulement, et effacer exige une migration (V4) ou un masquage que le porteur n'a pas choisi. Classement : V4, distinct du V3 accordé, qui portait sur ce que l'effacement retire et non sur le schéma.
+- Mesure (2026-10-20, 7163372c5, implementeur) : avant correctif, une invitation `sent` à l'adresse du compte, une autre `invited_user_id` = le compte et une `sent` échue, puis `executeDeletion()` → statut `sent` inchangé (rouge) → `anonymize()` passe les invitations `sent` du compte (identifiant ou adresse d'origine) à `revoked`, e-mail `deleted-<id>@takussan.local`, numéro `null` ; `AccountDeletionExecuteTest::test_execute_revoque_et_masque_les_invitations_en_cours_du_compte` vert (une acceptée et celle d'une autre adresse intactes), deux ablations (requête, numéro) → rouges, 14 verts sur la classe.
 ### Petites améliorations
 - Réf : P57.05
 - Statut : fait · TCK-1025 — reste : la durée de conservation des demandes de contact (`ContactLeadService`, `privacy.ts` § 6), au porteur
@@ -6516,7 +6517,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
 
 ### L'effacement du compte laisse les pièces de ses profils intactes : ligne, média, fichier et nom de fichier d'origine
 - Réf : P64.02
-- Statut : validé — à l'effacement, terminer les profils du compte (date de fin) et remplacer le `name` des pièces et de leurs médias par le libellé du type ; la purge de TCK-537 part de la fin du profil (porteur, 2026-10-20)
+- Statut : fait · TCK-1061
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:237-325`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:59-78`, `takussan-api/app/Models/Document.php:100-110`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:76-83`, `takussan-web/src/content/legal/privacy.ts:123-124`
 - Constat :
@@ -6528,10 +6529,11 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
   - Établi comment : test temporaire et lecture.
 - Piste : à l'effacement, terminer les profils du compte (statut, ou suppression en douceur, qui donne une date de fin) et remplacer le `name` des pièces et de leurs médias par le libellé du type. La purge à « fin + 5 ans » de TCK-537 peut alors partir du `deleted_at` du profil. Un test : après `executeDeletion()`, aucun `Document` ni média d'un profil du compte ne porte le nom d'origine, et chaque profil a une date de fin. Ablation → rouge.
 - Mesure (2026-10-20, 0ba226223, mesureur) : lu `AccountDeletionService.php:292-294` (seules `avatar`, `avatars`, `photos`) ; PR #750 ouverte (P57) ne touche ni profils ni `Document` (lu, son corps) ; test temporaire retiré → bailleur, `kyc/upload` de `CNI_Aminata_Diop.pdf` 201, puis `executeDeletion()` : `Document` non supprimé, `name` et nom du média `CNI_Aminata_Diop.pdf`, fichier présent sur le disque, `OwnerProfile` `active`, `deleted_at` nul, rattaché au compte. Le volet `AgencyMemberRemovalService` n'a été que relu (l. 78, suppression en masse des `AgentProfile`), non re-mesuré. Classement : V3, conserver, renommer ou dater la fin des pièces d'un compte effacé est une décision de données personnelles.
+- Mesure (2026-10-20, 7163372c5, implementeur) : avant correctif, un bailleur téléverse `CNI_Aminata_Diop.pdf` par `kyc/upload`, puis `executeDeletion()` → l'`OwnerProfile` sans `deleted_at` (rouge) → `anonymize()` supprime en douceur les profils du compte et donne le type (`id_card`) pour `name` à leurs pièces et à leurs médias, profils déjà terminés compris ; `AccountDeletionExecuteTest::test_execute_termine_les_profils_et_renomme_leurs_pieces` vert (la pièce d'un autre compte garde son nom), quatre ablations (fin des profils, nom de la pièce, nom du média, profils terminés) → rouges, 15 verts sur la classe. La purge à « fin + 5 ans » reste à TCK-537.
 
 ### Le titulaire peut supprimer sa pièce, même vérifiée, et le fichier part 90 jours plus tard
 - Réf : P64.03
-- Statut : validé — (a) refuser au titulaire la suppression d'une pièce de profil vérifiée ; test : `DELETE` d'une pièce vérifiée par son titulaire refusé (porteur, 2026-10-20)
+- Statut : fait · TCK-1062
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:131-136`, `takussan-api/app/Policies/DocumentPolicy.php:70-80,123-126`, `takussan-api/app/Console/Commands/MediaCleanup.php`, `takussan-api/routes/console.php:72`
 - Constat :
@@ -6541,10 +6543,11 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
   - Établi comment : test temporaire et lecture. Qu'une pièce vérifiée doive survivre au geste de son titulaire est une question de produit et de droit, non tranchée ici.
 - Piste : décider et écrire : refuser la suppression d'une pièce de profil vérifiée (ou de toute pièce de profil), ou ajouter les pièces aux collections de preuve que `MediaCleanup::isEvidence()` épargne, avec leur propre durée. Dans les deux cas, un test qui le tient. Ablation → rouge.
 - Mesure (2026-10-20, 0ba226223, mesureur) : lu `DocumentController::destroy()` (`authorize('delete')`), `DocumentPolicy::delete()` = `update()`, `MediaCleanup.php:28` (`SOFT_DELETE_RETENTION_DAYS = 90`) et `:90-96` (`isEvidence` : `signed_contract`, `room_photos` hors brouillon) ; test temporaire retiré → RIB du bailleur, vérifié, `DELETE /api/documents/{id}` 204, ligne supprimée en douceur, fichier présent. Classement : V3 et V7, refuser le geste ou conserver le fichier plus longtemps est un choix de produit et de conservation que la piste laisse ouvert.
+- Mesure (2026-10-20, 7163372c5, implementeur) : avant correctif, RIB de profil vérifié, `DELETE /api/documents/{id}` par son titulaire → 204 (rouge) → `DocumentPolicy::delete()` refuse une pièce de profil vérifiée à tout autre que le super-admin ; `DocumentTest::test_holder_cannot_delete_verified_profile_piece` vert (403, ligne intacte ; la même pièce non vérifiée → 204), ablation → rouge, 19 verts sur `DocumentTest` et `DestroyAuthorizationTest`.
 
 ### Un nouvel envoi remet la pièce à « non vérifiée » mais garde l'auteur et la date de la vérification précédente
 - Réf : P64.04
-- Statut : validé — remettre `verified_by` et `verified_at` à `null` avec `is_verified` dans une méthode partagée, et écrire au journal d'audit qui avait vérifié la pièce remplacée, pour en garder la trace (porteur, 2026-10-20)
+- Statut : fait · TCK-1063
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:59-72`, `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:68-81`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:59-72`, `takussan-api/app/Http/Resources/DocumentResource.php:37-38`
 - Constat :
@@ -6555,6 +6558,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
   - Établi comment : test temporaire, lecture et `grep`.
 - Piste : remettre `verified_by` et `verified_at` à `null` dans les trois `updateOrCreate`, de préférence par une seule méthode partagée. Un test par contrôleur, ou un seul sur la méthode : après un nouvel envoi, les trois champs de vérification sont vides. Ablation → rouge.
 - Mesure (2026-10-20, 0ba226223, mesureur) : lu `OwnerProfileController.php:59-72` (`updateOrCreate` avec `is_verified => false`, sans `verified_by` ni `verified_at`), `DocumentController::verify()` (pose les trois ensemble) ; `Document` n'est pas journalisé (lu : pas d'`Auditable`) ; test temporaire retiré → CNI vérifiée par un admin, nouvel envoi, `GET /api/documents/{id}` 200 `is_verified: false`, `verified_by: 5`, `verified_at` posé. Classement : V3, le correctif est simple mais efface l'unique trace de qui a vérifié la pièce précédente : la garder ailleurs ou la perdre est à décider.
+- Mesure (2026-10-20, 7163372c5, implementeur) : avant correctif, pièce vérifiée puis nouvel envoi par chacun des trois `uploadKyc` → `verified_by` encore posé (3 rouges) → `App\Services\Kyc\ProfilePieces::upsert()`, partagée par les trois, vide les trois champs et écrit `document_verification_reset` (`verified_by`, `verified_at`) au journal quand une vérification est remplacée ; `KycDocumentsDerivedTest::test_un_nouvel_envoi_efface_la_verification_et_la_journalise` vert sur les trois profils, deux ablations (remise à zéro, journal) → 3 rouges chacune, 69 verts sur les classes qui téléversent une pièce.
 
 ### Petites améliorations
 - Réf : P64.05

@@ -7,11 +7,14 @@ use App\Models\Activity;
 use App\Models\AlertSubscriber;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Document;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\UserStatus;
+use App\Models\Invitation;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -22,6 +25,7 @@ use App\Models\WhatsappContact;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -350,6 +354,33 @@ class AccountDeletionService
             ->where('email', $originalEmail)
             ->delete();
 
+        // TCK-1060 (P57.04) — une invitation en cours qui vise le compte, par son identifiant ou
+        // par son adresse d'origine, reste acceptable par la boîte et garde l'adresse en clair :
+        // elle est révoquée et son adresse masquée comme `users.email`, sans être effacée (la
+        // contrainte `invitations_email_or_phone_check` exige un destinataire) ; son numéro, s'il
+        // en a un, part, l'adresse masquée suffisant à la contrainte. Décision du
+        // porteur, 2026-10-20. Par requête : aucun champ journalisé de l'invitation ne porte
+        // l'adresse.
+        Invitation::query()
+            ->where('status', InvitationStatus::Sent->value)
+            ->where(fn ($query) => $query
+                ->where('invited_user_id', $user->id)
+                ->orWhere('email', CaseInsensitive::fold(trim((string) $originalEmail))))
+            ->update([
+                'status' => InvitationStatus::Revoked->value,
+                'revoked_at' => now(),
+                'email' => sprintf('deleted-%d@takussan.local', $user->id),
+                'phone' => null,
+                'updated_at' => now(),
+            ]);
+
+        // TCK-1061 (P64.02) — les profils du compte reçoivent une date de fin (`deleted_at`), d'où
+        // partira la purge à « fin + 5 ans » de la politique (TCK-537). Leurs pièces restent,
+        // mais le nom de fichier choisi par la personne, sur la pièce et sur ses médias, cède la
+        // place au type. Les profils déjà terminés (agent retiré de l'agence) comptent aussi.
+        // Décision du porteur, 2026-10-20.
+        $this->endProfiles($user);
+
         // TCK-1025 (P57.05) — le contact WhatsApp et les alertes sans compte du contact vérifié
         // partent avec le compte (décision du porteur, 2026-10-19). Les recherches des alertes
         // suivent par la FK en cascade.
@@ -511,6 +542,32 @@ class AccountDeletionService
             ->orderBy('scheduled_for')
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * TCK-1061 (P64.02) — termine les profils du compte et retire le nom d'origine de leurs pièces.
+     */
+    private function endProfiles(User $user): void
+    {
+        foreach (Document::PROFILE_TYPES as $profileClass) {
+            $ids = $profileClass::withTrashed()->where('user_id', $user->id)->pluck('id');
+            if ($ids->isEmpty()) {
+                continue;
+            }
+
+            Document::withTrashed()
+                ->where('documentable_type', $profileClass)
+                ->whereIn('documentable_id', $ids)
+                ->with('media')
+                ->get()
+                ->each(function (Document $document): void {
+                    $label = $document->type?->value ?? 'document';
+                    $document->forceFill(['name' => $label])->save();
+                    $document->media->each(fn ($media) => $media->forceFill(['name' => $label])->save());
+                });
+
+            $profileClass::query()->whereIn('id', $ids)->get()->each->delete();
+        }
     }
 
     /**

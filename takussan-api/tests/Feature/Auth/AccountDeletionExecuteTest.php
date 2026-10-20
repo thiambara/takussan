@@ -8,11 +8,17 @@ use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Customer;
+use App\Models\Document;
+use App\Models\Enums\DocumentType;
+use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\UserStatus;
+use App\Models\Invitation;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\PropertyVisit;
 use App\Models\SavedSearch;
 use App\Models\User;
@@ -21,8 +27,10 @@ use App\Notifications\AccountDeletionExecutedNotification;
 use App\Services\Account\AccountDeletionService;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
@@ -319,6 +327,91 @@ class AccountDeletionExecuteTest extends TestCase
             ['autre@example.test'],
             DB::table('password_reset_tokens')->pluck('email')->all(),
         );
+    }
+
+    /**
+     * TCK-1060 (P57.04) — les invitations en cours qui visent le compte, par son identifiant ou
+     * par son adresse d'origine, sont révoquées et leur adresse masquée comme `users.email`.
+     * Une invitation acceptée, et celle d'une autre adresse, restent telles quelles.
+     */
+    public function test_execute_revoque_et_masque_les_invitations_en_cours_du_compte(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create(['email' => 'origine@example.test']);
+        $parAdresse = Invitation::factory()->create(['email' => 'origine@example.test']);
+        $parCompte = Invitation::factory()->create(['email' => 'ancienne@example.test', 'phone' => '+221770000001', 'invited_user_id' => $user->id]);
+        $expiree = Invitation::factory()->expired()->create(['email' => 'origine@example.test']);
+        $acceptee = Invitation::factory()->accepted()->create(['email' => 'origine@example.test', 'invited_user_id' => $user->id]);
+        $autre = Invitation::factory()->create(['email' => 'autre@example.test']);
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $masque = sprintf('deleted-%d@takussan.local', $user->id);
+        foreach ([$parAdresse, $parCompte, $expiree] as $invitation) {
+            $invitation->refresh();
+            $this->assertSame(InvitationStatus::Revoked, $invitation->status);
+            $this->assertNotNull($invitation->revoked_at);
+            $this->assertSame($masque, $invitation->email);
+            $this->assertNull($invitation->phone);
+        }
+        $this->assertSame(0, Invitation::query()
+            ->where('status', InvitationStatus::Sent->value)
+            ->where(fn ($q) => $q->where('invited_user_id', $user->id)->orWhere('email', 'origine@example.test'))
+            ->count());
+
+        $this->assertSame(InvitationStatus::Accepted, $acceptee->fresh()->status);
+        $this->assertSame(InvitationStatus::Sent, $autre->fresh()->status);
+        $this->assertSame('autre@example.test', $autre->fresh()->email);
+    }
+
+    /**
+     * TCK-1061 (P64.02) — à l'effacement, chaque profil du compte reçoit une date de fin
+     * (`deleted_at`), et ses pièces, comme leurs médias, perdent le nom de fichier d'origine au
+     * profit du type. La pièce d'un autre compte garde son nom.
+     */
+    public function test_execute_termine_les_profils_et_renomme_leurs_pieces(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+        $owner = OwnerProfile::factory()->create(['user_id' => $user->id]);
+        $agent = AgentProfile::factory()->create(['user_id' => $user->id]);
+        Sanctum::actingAs($user);
+        $this->postJson("/api/me/owner-profiles/{$owner->id}/kyc/upload", [
+            'file' => UploadedFile::fake()->create('CNI_Aminata_Diop.pdf', 200, 'application/pdf'),
+            'kind' => 'cni',
+        ])->assertCreated();
+        $piece = Document::query()->where('documentable_id', $owner->id)->sole();
+        $this->assertSame('CNI_Aminata_Diop.pdf', $piece->name);
+
+        $autre = Document::factory()->create([
+            'documentable_type' => OwnerProfile::class,
+            'documentable_id' => OwnerProfile::factory()->create()->id,
+            'type' => DocumentType::IdCard->value,
+            'name' => 'CNI_Autre.pdf',
+        ]);
+        // Un profil déjà terminé (agent retiré de son agence) : sa pièce perd aussi son nom.
+        $retire = AgentProfile::factory()->create(['user_id' => $user->id]);
+        $pieceDuRetire = Document::factory()->create([
+            'documentable_type' => AgentProfile::class,
+            'documentable_id' => $retire->id,
+            'type' => DocumentType::Rib->value,
+            'name' => 'RIB_Aminata_Diop.pdf',
+        ]);
+        $retire->delete();
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertSame(DocumentType::Rib->value, $pieceDuRetire->fresh()->name);
+        $this->assertNotNull(OwnerProfile::withTrashed()->find($owner->id)->deleted_at);
+        $this->assertNotNull(AgentProfile::withTrashed()->find($agent->id)->deleted_at);
+        $piece->refresh();
+        $this->assertSame(DocumentType::IdCard->value, $piece->name);
+        $this->assertSame([DocumentType::IdCard->value], $piece->getMedia('file')->pluck('name')->all());
+        $this->assertSame('CNI_Autre.pdf', $autre->fresh()->name);
     }
 
     /**

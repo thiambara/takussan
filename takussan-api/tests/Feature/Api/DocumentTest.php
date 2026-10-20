@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Models\Agency;
 use App\Models\Document;
 use App\Models\Enums\DocumentType;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -191,6 +192,34 @@ class DocumentTest extends TestCase
         Sanctum::actingAs(User::factory()->create());
 
         $this->deleteJson("/api/documents/{$document->id}")->assertForbidden();
+    }
+
+    /**
+     * TCK-1062 (P64.03) — une pièce de profil vérifiée ne se supprime plus par son titulaire :
+     * le fichier, sinon, partait 90 jours plus tard par `media:cleanup`. Non vérifiée, elle se
+     * supprime toujours.
+     */
+    public function test_holder_cannot_delete_verified_profile_piece(): void
+    {
+        $user = User::factory()->create();
+        $profile = OwnerProfile::factory()->create(['user_id' => $user->id]);
+        $piece = fn (bool $verified) => Document::factory()->create([
+            'documentable_id' => $profile->id,
+            'documentable_type' => OwnerProfile::class,
+            'uploaded_by' => $user->id,
+            'type' => DocumentType::Rib->value,
+            'is_verified' => $verified,
+        ]);
+        $verifiee = $piece(true);
+        $nonVerifiee = $piece(false);
+
+        Sanctum::actingAs($user);
+
+        $this->deleteJson("/api/documents/{$verifiee->id}")->assertForbidden();
+        $this->assertNotSoftDeleted('documents', ['id' => $verifiee->id]);
+
+        $this->deleteJson("/api/documents/{$nonVerifiee->id}")->assertNoContent();
+        $this->assertSoftDeleted('documents', ['id' => $nonVerifiee->id]);
     }
 
     public function test_admin_can_verify_document(): void

@@ -101,6 +101,44 @@ class KycDocumentsDerivedTest extends TestCase
         $this->assertSame($mediaId, $restants->first()->id);
     }
 
+    /**
+     * TCK-1063 (P64.04) — un nouvel envoi remet les trois champs de vérification à vide, et le
+     * journal d'audit garde qui avait vérifié la pièce remplacée, et quand.
+     */
+    #[DataProvider('profilsQuiTeleversent')]
+    public function test_un_nouvel_envoi_efface_la_verification_et_la_journalise(string $profil, string $chemin, string $sorte): void
+    {
+        [$user, $profile] = $this->profil($profil);
+        Sanctum::actingAs($user);
+
+        $id = $this->televerser($chemin, $profile->id, $sorte, 'premier.pdf')->assertCreated()->json('data.id');
+        $verificateur = User::factory()->create();
+        $verifieeLe = now()->subDay()->startOfSecond();
+        Document::query()->findOrFail($id)->forceFill([
+            'is_verified' => true, 'verified_by' => $verificateur->id, 'verified_at' => $verifieeLe,
+        ])->save();
+
+        $this->televerser($chemin, $profile->id, $sorte, 'second.pdf')->assertCreated();
+
+        $document = Document::query()->findOrFail($id);
+        $this->assertFalse($document->is_verified);
+        $this->assertNull($document->verified_by);
+        $this->assertNull($document->verified_at);
+
+        $journal = Activity::query()
+            ->where('event', 'document_verification_reset')
+            ->where('subject_type', Document::class)
+            ->where('subject_id', $id)
+            ->sole();
+        $this->assertSame($user->id, (int) $journal->causer_id);
+        $this->assertSame($verificateur->id, $journal->properties['verified_by']);
+        $this->assertSame($verifieeLe->toIso8601String(), $journal->properties['verified_at']);
+
+        // Un envoi sur une pièce non vérifiée n'écrit rien au journal.
+        $this->televerser($chemin, $profile->id, $sorte, 'troisieme.pdf')->assertCreated();
+        $this->assertSame(1, Activity::query()->where('event', 'document_verification_reset')->count());
+    }
+
     /** @return array{User, OwnerProfile|AgentProfile|ServiceProviderProfile} */
     private function profil(string $profil): array
     {
