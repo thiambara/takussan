@@ -43,7 +43,7 @@ des valeurs est celle de l'enum PHP ([ADR-0007](../../adr/0007-pas-d-enum-sql.md
 - [x] API : retirer la route `admin.enums.values.destroy`,
       `BusinessEnumController::deactivateValue()`, `BusinessEnumService::deactivateValue()` et
       `usageCount()`, la règle `is_active` d'`UpdateBusinessEnumValueRequest` et son traitement
-      dans `updateValue()`, le code d'erreur `business_enum.value_in_use` des trois langues.
+      dans `updateValue()`.
 - [x] Front : retirer le bouton de désactivation de la table, `deleteBusinessEnumValue()`,
       `is_active` du corps de `patchBusinessEnumValue()` et la clé `deactivateValueAria`.
 - [x] Tests : `BusinessEnumTest::test_console_refuses_deactivating_a_value`, et un cas de
@@ -63,6 +63,9 @@ des valeurs est celle de l'enum PHP ([ADR-0007](../../adr/0007-pas-d-enum-sql.md
   il est lu, et son retrait n'est pas demandé.
 
 ## Notes d'implémentation
+
+- Le code `business_enum.value_in_use` reste dans `lang/*/errors.php`, sans émetteur : toucher ces
+  fichiers fait sélectionner la suite entière par `bin/impacted-tests.php`.
 
 - Ablation API : correctif retiré, le test rougit sur « la désactivation a répondu 200 ». Ablation
   partielle, `DELETE` retiré mais `is_active` rendu au `PATCH` : le test rougit encore (`farm`

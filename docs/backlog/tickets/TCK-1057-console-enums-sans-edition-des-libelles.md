@@ -44,7 +44,7 @@ racine).
 
 - [x] API : retirer la route `admin.enums.values.update`, `BusinessEnumController::updateValue()`,
       `BusinessEnumService::updateValue()`, `persist()` et `audit()`,
-      `UpdateBusinessEnumValueRequest`, et le code `business_enum.value_not_found` des trois langues.
+      et `UpdateBusinessEnumValueRequest`.
 - [x] Front : retirer `EnumValueDialog`, le bouton « Modifier » et la colonne d'actions,
       `patchBusinessEnumValue()` et les clés devenues mortes ; le sous-titre passe par
       `superAdmin.pages.enums.readOnlySubtitle`.
@@ -67,6 +67,9 @@ racine).
   renommées, que la console et `/api/enums/{key}` continuent de lire.
 
 ## Notes d'implémentation
+
+- Le code `business_enum.value_not_found` reste dans `lang/*/errors.php`, sans émetteur, pour la
+  même raison que TCK-1056.
 
 - Ablation API : correctif retiré, le test rougit sur « l'édition des libellés a répondu 200 ».
 - Ablation front : composant, page, requêtes et messages d'origine remis, le cas rougit sur le
