@@ -1,7 +1,7 @@
 ---
 id: TCK-1065
 title: "La réservation enregistre le nombre de voyageurs que le tunnel exige (P80.02)"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -59,15 +59,15 @@ Le tunnel (`BookingTunnel.tsx`) exige `guests` (1 à 20) et l'envoie à `POST /a
 
 ## Delta à produire
 
-- [ ] `StoreBookingRequest::rules()` : `'guests' => ['sometimes', 'integer', 'min:1', 'max:20']`.
-- [ ] `BookingService::create()` : `guests` → `metadata.guests`.
-- [ ] Test : `tests/Feature/Api/BookingGuestsTest.php` (trois cas).
+- [x] `StoreBookingRequest::rules()` : `'guests' => ['sometimes', 'integer', 'min:1', 'max:20']`.
+- [x] `BookingService::create()` : `guests` → `metadata.guests`.
+- [x] Test : `tests/Feature/Api/BookingGuestsTest.php` (trois cas).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `POST /api/bookings` avec `guests=3` → 201, la ligne porte `metadata = {guests: 3}`.
-- [ ] AC2 — sans `guests` → 201, `metadata` reste `null`.
-- [ ] AC3 — `guests=0` ou `guests=21` → 422 sur `guests`, aucune réservation créée.
+- [x] AC1 — `POST /api/bookings` avec `guests=3` → 201, la ligne porte `metadata = {guests: 3}`.
+- [x] AC2 — sans `guests` → 201, `metadata` reste `null`.
+- [x] AC3 — `guests=0` ou `guests=21` → 422 sur `guests`, aucune réservation créée.
 
 ## Hors périmètre
 
@@ -76,4 +76,5 @@ Le tunnel (`BookingTunnel.tsx`) exige `guests` (1 à 20) et l'envoie à `POST /a
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : la conversion `guests` → `metadata` retirée de `BookingService::create()` → 1 rouge (`test_le_nombre_de_voyageurs_est_enregistre`, `metadata` à `null`) ; avant tout correctif, la borne rougissait aussi (21 → 201). Correctif remis → 38 verts sur `BookingGuestsTest`, `BookingTest`, `BookingCustomerScopeTest`, `BookingPricingTest`.
+- `guests` est retiré de `$data` avant `Booking::create()` : la clé n'est pas `fillable`, mais la laisser rendait la conversion invisible à la lecture.
