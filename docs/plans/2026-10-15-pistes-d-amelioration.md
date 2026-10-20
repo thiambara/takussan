@@ -6420,7 +6420,7 @@ d'export de l'angle 77.*
 
 ### Le lien de l'export d'audit asynchrone d'une agence peut servir le journal d'une autre agence, ou celui de toute la plateforme
 - Réf : P63.01
-- Statut : validé — (b) nommer le fichier d'un identifiant opaque (le nom lisible pour le seul `Content-Disposition`) et lier la signature au demandeur, vérifié au téléchargement ; test : deux agences de même nom, chaque lien ne rend que la sienne, et la variante « Platform » (porteur, 2026-10-20)
+- Statut : fait · TCK-1050
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:39-49`, `takussan-api/app/Services/Audit/ActivityLogExporter.php:51-57`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:44,59-71`, `takussan-api/routes/api/audit-log.php:22-24`
 - Constat :
@@ -6434,6 +6434,7 @@ d'export de l'angle 77.*
   - Établi comment : lu, et mesuré par deux tests temporaires qui appellent `handle()` du job comme `AgencyAuditScopeTest::test_le_fichier_du_job_porte_l_agence_active_et_elle_seule`.
 - Piste : nommer le fichier d'un identifiant opaque (aléa, ou identifiant d'une ligne d'export), et garder le nom lisible pour le seul `Content-Disposition`. Mieux encore, lier la signature au demandeur (paramètre `user` vérifié au téléchargement). Test : deux exports de deux agences de même nom, puis chaque lien ne rend que son agence ; et la variante « Platform » contre le super-admin.
 - Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `ExportActivityLogJob.php:39-49` et `ActivityLogExporter.php:51-57` (inchangés) ; test temporaire retiré qui appelle `handle()` du job pour les admins de « Immo Dakar » et « Immo-Dakar » → un seul fichier `exports/audit/audit-trail-immo-dakar-2026-09-20-2026-10-20.csv`, et l'URL signée reçue par l'admin de la première rend 200 avec le témoin de la seconde et sans le sien. Variante « Platform » et écrasement entre deux admins de la même agence non re-mesurés. Classement : V3, le défaut expose les actions et acteurs d'une autre agence, et la `Piste` propose aussi de lier la signature au demandeur (V2).
+- Mesure (2026-10-20, 96392a9cb, implementeur) : trois tests neufs de `AgencyAuditScopeTest` qui appellent `handle()` du job puis suivent le lien du courriel, rouges avant correctif (« Immo Dakar » reçoit le témoin de « Immo-Dakar », l'admin de « Platform » celui d'une agence tierce, un lien re-signé pour un autre demandeur rend 200) → fichier `exports/audit/{user_id}/{uuid}`, lien signé sur `user`, `file` et `name`, téléchargement borné au dossier du demandeur signé, export de la console aligné : 37 verts sur `tests/Feature/Audit` et `ActivityLogExporterTest` ; ablations (dossier du demandeur retiré → rouge sur le lien détourné ; correctif retiré → 3 rouges) ; remis → verts.
 
 ### Le courriel « export de rapport prêt » mène à une route qui n'existe pas
 - Réf : P63.02
