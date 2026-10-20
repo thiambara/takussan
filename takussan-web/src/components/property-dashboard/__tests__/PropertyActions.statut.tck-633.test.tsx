@@ -46,6 +46,9 @@ vi.mock('@/context/AuthContext', () => ({
 /** En ligne, puis retiré par son statut : `visibility` est restée `public`. */
 const BIEN = { id: 47, title: 'Studio à Ouakam', slug: 'studio-ouakam', status: 'unavailable', visibility: 'public' } as const;
 
+/** L'en-tête de la fiche dit « Plus d'actions » ; la ligne de liste y ajoute le bien (TCK-1035). */
+const MENU_DU_BIEN = (nom: string) => nom === 'Plus d’actions' || nom === `Plus d’actions — ${BIEN.title}`;
+
 const MENUS = {
   'ligne de la liste': () => <PropertyRowActions property={BIEN as unknown as PropertyListItem} layout="card" />,
   'en-tête de la fiche': () => <PropertyHeaderActions property={BIEN as unknown as PropertyDetail} />,
@@ -58,7 +61,7 @@ const ANCIEN_COMPTE = {
 };
 
 async function choisirStatut(user: ReturnType<typeof userEvent.setup>, libelle: string) {
-  await user.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+  await user.click(screen.getByRole('button', { name: MENU_DU_BIEN }));
   await user.click(await screen.findByRole('menuitem', { name: libelle }));
 }
 
@@ -78,7 +81,7 @@ describe.each(Object.entries(MENUS))('remettre en ligne par le statut depuis « 
     render(withIntl(menu()));
 
     // Le menu propose « Dépublier », pas « Publier » : le bien est encore `public`.
-    await user.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+    await user.click(screen.getByRole('button', { name: MENU_DU_BIEN }));
     expect(await screen.findByRole('menuitem', { name: 'Dépublier' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Publier' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('menuitem', { name: 'Disponible' }));

@@ -97,7 +97,7 @@ export function AppShell({
         <ImpersonationBanner />
         {agencySuspended ? <AgencySuspendedBanner /> : null}
         {pleinEcran ? null : (
-          <AppTopbar user={user} onMenuToggle={() => setSidebarOpen((v) => !v)} />
+          <AppTopbar user={user} menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen((v) => !v)} />
         )}
         <div className="flex min-h-0 flex-1 overflow-hidden">
           {pleinEcran ? null : (

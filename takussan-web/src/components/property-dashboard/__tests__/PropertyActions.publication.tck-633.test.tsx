@@ -40,6 +40,9 @@ vi.mock('@/context/AuthContext', () => ({
 
 const BIEN = { id: 47, title: 'Studio à Ouakam', slug: 'studio-ouakam', status: 'draft', visibility: 'private' } as const;
 
+/** L'en-tête de la fiche dit « Plus d'actions » ; la ligne de liste y ajoute le bien (TCK-1035). */
+const MENU_DU_BIEN = (nom: string) => nom === 'Plus d’actions' || nom === `Plus d’actions — ${BIEN.title}`;
+
 const MENUS = {
   'ligne de la liste': () => <PropertyRowActions property={BIEN as unknown as PropertyListItem} layout="card" />,
   'en-tête de la fiche': () => <PropertyHeaderActions property={BIEN as unknown as PropertyDetail} />,
@@ -62,7 +65,7 @@ async function publierDansLaBoite(dialogue: HTMLElement) {
 }
 
 async function cliquerPublier(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+  await user.click(screen.getByRole('button', { name: MENU_DU_BIEN }));
   await user.click(await screen.findByRole('menuitem', { name: 'Publier' }));
 }
 

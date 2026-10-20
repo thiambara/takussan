@@ -1382,6 +1382,7 @@
         "edit": "Edit",
         "viewPublic": "View public listing",
         "more": "More actions",
+        "moreFor": "More actions — {title}",
         "quickActions": "Quick actions",
         "unpublish": "Unpublish",
         "publish": "Publish",

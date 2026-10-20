@@ -109,6 +109,10 @@ export function DateTimePicker({
   // une primitive `ui/` ferait embarquer TOUT l'espace `calendar` à chaque écran qui pose un
   // sélecteur de date. Trois chaînes courtes coûtent moins cher que cet espace-là.
   const dfLocale = localeDateFns(useLocale());
+  // TCK-1034 (P68.05) — le popover est un `dialog` : il prend le nom de son déclencheur,
+  // l'`aria-label` reçu s'il y en a un, sinon le texte du bouton par `aria-labelledby`.
+  const idDeRepli = React.useId();
+  const triggerId = id ?? idDeRepli;
   const selected = toDateTime(value);
   const minDate = toDateTime(min);
   const maxDate = toDateTime(max);
@@ -166,7 +170,7 @@ export function DateTimePicker({
           render={
             <button
               type="button"
-              id={id}
+              id={triggerId}
               data-slot="date-time-picker-trigger"
               data-testid={dataTestId}
               aria-haspopup="dialog"
@@ -196,7 +200,12 @@ export function DateTimePicker({
             </button>
           }
         />
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent
+          className="w-auto p-0"
+          align="start"
+          aria-label={ariaLabel}
+          aria-labelledby={ariaLabel ? undefined : triggerId}
+        >
           <div className="flex flex-col gap-2 p-2">
             <Calendar
               mode="single"

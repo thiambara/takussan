@@ -375,7 +375,15 @@ export default function SuperAdminUsersPage() {
           </Link>
           {/* TCK-600 (ADR-0047) — l'impersonation est un geste du seul `super_admin`. */}
           {can('platform.users.impersonate') ? (
-            <Button size="sm" variant="outline" onClick={() => setTarget(u)} disabled={impersonate.isPending}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setTarget(u)}
+              disabled={impersonate.isPending}
+              // TCK-1035 (P68.08) — une ligne par compte : le nom porte le compte visé, et commence
+              // par le texte visible (WCAG 2.5.3).
+              aria-label={tPage('impersonateTitle', { name: getUserDisplayName(u) })}
+            >
               {tPage('impersonate')}
             </Button>
           ) : null}
