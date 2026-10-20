@@ -145,7 +145,7 @@ voie d'écriture (angle 13, puis 47).
 | 70 | Poids JS initial des écrans de `/app` (`(dashboard)`, 500 à 610 Kio gzip au build du 2026-10-17) : ce que la coque et la barre latérale chargent pour chaque écran | fait |
 | 71 | Variables d'environnement des services de production du plan F3 (`takussan-web-prod`, `takussan-api-prod`) face au relevé de la préproduction dans `docs/infra/hebergement.md` : clés absentes, valeurs reprises de D1 | fait |
 | 72 | Ce qu'un accusé `failed` reçu après coup (SMS ou WhatsApp) déclenche : repli sur un autre canal, renvoi, trace pour l'expéditeur — face aux envois critiques (OTP, code de signature de bail) | fait |
-| 73 | URL signées absolues (`hasValidSignature`, `temporarySignedRoute`, `media.private.show`) derrière Traefik : schéma et hôte vus par l'API face à `APP_URL`, signature refusée en préproduction ? | à faire |
+| 73 | URL signées absolues (`hasValidSignature`, `temporarySignedRoute`, `media.private.show`) derrière Traefik : schéma et hôte vus par l'API face à `APP_URL`, signature refusée en préproduction ? | fait |
 | 74 | Ce que joint sans authentification un service voisin de `dokploy-network` (Dokploy, Compose `donnees`, autres projets) : API sur 8080, Redis, Meilisearch (clé maîtresse ?), PostgreSQL, front Next — et l'alias `api` partagé entre projets | à faire |
 | 75 | Classes `Notification` historiques de `AppDatabaseChannel::TYPES`, hors `NotificationCode` : sans `code` ni `target` dans la cloche, préférences lues à la main dans `via()`, couvertes par un test ? | à faire |
 | 76 | Effets aval d'un paiement soldé puis passé à `refunded` : quittance déjà envoyée, ligne prise par un reversement de la plateforme (`platform_payout_id`) ou du propriétaire (`PayoutCalculator`), commission, exports et totaux de l'historique | à faire |
@@ -181,6 +181,7 @@ voie d'écriture (angle 13, puis 47).
 | 105 | Charge RSC d'un document `/app` servi : dictionnaires imbriqués de `layout.tsx`, `(dashboard)` et `(dashboard)/app` (et `/app/agency`) sérialisés chacun avec l'ensemble cumulé de ses parents, mesurés sur le document compressé | à faire |
 | 106 | Branches que le code ne prend qu'en `APP_ENV=production` (`RestrictIpMiddleware` à liste vide, `DeletionStepUpService::sendCode`, `AddRobotsTagOutsideProduction` jugé sur `APP_URL`) : chacune éprouvée par un test en `production`, alors que la préproduction tourne en `staging` et ne les prend jamais ? | à faire |
 | 107 | Champs du profil que l'utilisateur déclare pour être joint (`phone_whatsapp`, `secondary_phone`, `secondary_phone_whatsapp`, `preferred_language`, heures calmes) : lus par les chemins qui envoient (canaux de notification, codes, relances), ou seulement affichés ? | à faire |
+| 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | à faire |
 
 ---
 
@@ -7356,3 +7357,74 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
   - `failureReason()` garde le `title` de l'erreur Meta avant son `code` (lu, l. 152) : la tentative porte « Message undeliverable » et perd `131026`, le seul champ qui distingue un numéro sans WhatsApp d'un gabarit refusé, et dont P72.01 à P72.03 auraient besoin.
   - Le trait `Concerns\Critical`, dont le docblock annonce les codes 2FA et de réinitialisation, n'est employé par aucune notification (lu, `grep -rn 'use Critical' app` : aucun) ; les codes passent par le routeur direct ou par `isCriticalSms()` écrit à la main.
 - Piste : écrire `code` (et le titre à côté) dans `failure_reason` ; retirer le trait sans emploi ou y ramener `LeaseSignatureCodeNotification`.
+
+## Angle 73 — URL signées absolues derrière Traefik et sur le chemin interne du front
+
+*Exploré le 2026-10-20 sur `pre-dev` 14ba88061, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : `bootstrap/app.php` (`trustProxies`), `TrustedProxyList`,
+`TrustedProxiesTest`, `docker/Caddyfile`, `PrivateMediaAccess`, les ressources qui émettent une URL
+signée ou `route()` (`KycDossierResource`, `DocumentResource`, `PropertyResource`, `MediaResource`,
+`InventoryResource`, `MaintenanceRequestResource`, `MessageResource`, `DataExportResource`),
+`CrossTenantAuditController::export`, `ExportActivityLogJob`, `ActivityLogExportController`,
+`KycDocumentController` et sa route, `LAfricaMobileSmsDriver::buildReturnUrl`, les routes `signed`
+de `routes/`, côté front `src/lib/api.ts` (`baseServeur`, `enTetesDuCheminInterne`, `apiFetch`),
+`src/lib/relais-api.ts`, les relais `super-admin`, `agencies` et `impersonation/proxy`,
+`public-property.ts`, `PropertyDocuments.tsx`, `kyc-queue.tsx`, `kyc.ts`, `CrossTenantAuditTable.tsx`,
+ADR-0052 § 5, TCK-853, TCK-546 et `docs/infra/hebergement.md`. Deux tests temporaires, retirés
+depuis, sous `php artisan test`, charge 11,94 / 6,23 / 4,78 sur 8 cœurs (forte, mais les mesures
+lisent des chaînes, pas des durées). Rien n'a été mesuré hors du poste : ni la préproduction, ni
+Traefik, ni Cloudflare. Les hôtes réels ont été remplacés dans les tests par `api-interne:8080` et
+`api-publique.example`. Ce que la préproduction sert aujourd'hui se déduit de deux relevés écrits :
+`API_INTERNAL_URL` posée sur `takussan-web-preview` le 2026-10-18 (`hebergement.md`), et TCK-853
+(`a8cb93116`) contenu dans la référence locale `origin/preview` (`git merge-base --is-ancestor`).*
+
+### Sur le chemin interne du front, l'API rend ses URL signées et ses liens avec l'hôte interne : `X-Forwarded-Host` n'est plus cru depuis TCK-853
+- Réf : P73.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/bootstrap/app.php:53-59`, `takussan-web/src/lib/api.ts:10-48,129`, `takussan-web/src/lib/relais-api.ts:68`, `takussan-api/app/Http/Resources/PropertyResource.php:476-479`, `takussan-api/app/Http/Resources/KycDossierResource.php:84`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:111`, `takussan-web/src/lib/queries/public-property.ts:86-89`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyDocuments.tsx:46`, `takussan-web/src/components/admin/super/kyc-queue.tsx:376`, `takussan-web/src/components/admin/super/CrossTenantAuditTable.tsx:70`, `docs/adr/0052-cache-public-de-la-fiche-et-ip-du-visiteur.md:137-140`
+- Constat :
+  - Quand `API_INTERNAL_URL` est posée, le serveur Next joint l'API par l'adresse interne et envoie `X-Forwarded-Host`, `-Proto` et `-Port` tirés de l'origine publique. Le commentaire dit pourquoi : « sans eux, les URL que Laravel fabrique depuis la requête (`route()`, le lien d'un document publié) désigneraient l'hôte interne. […] Laravel les croit » (lu, `api.ts:29-48`). ADR-0052 § 5 écrit la même règle (lu, l. 137-140).
+  - Depuis TCK-853, l'API ne croit plus de ses mandataires que `FOR | PROTO | PORT` (lu, `bootstrap/app.php:56-59`). `TrustedProxiesTest` épingle que `X-Forwarded-Host` ne change pas l'hôte (lu, l. 64-74). Côté front, deux tests épinglent que l'en-tête part (lu, `api.ip-du-visiteur.test.ts:218`, `relais-commun.test.ts:80`). Les deux suites sont vertes et se contredisent.
+  - Mesuré (test temporaire, retiré) : depuis un mandataire de confiance, `Host: api-interne:8080` avec `X-Forwarded-Host: api-publique.example`, `-Proto: https` et `-Port: 443`. `URL::temporarySignedRoute('media.private.show', …)` rend alors `https://api-interne/api/media/1/file?expires=…&signature=…`, et `url('/x')` rend `https://api-interne/x`. La signature porte sur cet hôte : on ne peut pas réécrire l'URL après coup.
+  - Passent par ce chemin, et rendent donc l'hôte interne au navigateur (lu) :
+    - la fiche publique. `apiFetch` sur le serveur, appel partagé (`public-property.ts:86-89`). Le lien de chaque document public y est un `route('public.properties.documents.file')` absolu (`PropertyResource.php:476-479`), rendu en `href` par `PropertyDocuments.tsx:46`. Ce mauvais lien est mis en cache pour tous les visiteurs, jusqu'à la revalidation ;
+    - la file KYC de la console. Le relais `super-admin` passe par `relayerVersApi` → `urlApiServeur`. La pièce y est ouverte par `href={piece.signed_url}` (`kyc-queue.tsx:376`). Même chose pour le KYC d'agence, par le relais `agencies` (`kyc.ts:34`) ;
+    - l'export du journal d'audit. `CrossTenantAuditController.php:111` signe dans la requête, et `CrossTenantAuditTable.tsx:70` pose l'URL en `a.href` ;
+    - toute lecture faite sous impersonation, car le relais `impersonation/proxy` passe par `relayerVersApi` (`route.ts:27`). Les URL signées de `DocumentResource`, `MediaResource`, `InventoryResource`, `MaintenanceRequestResource` et `MessageResource` y sortent donc toutes avec l'hôte interne.
+  - Les appels du navigateur vers l'URL publique ne sont pas touchés : `useApiQuery`, par exemple `documents.ts:81-86`, garde l'hôte public (lu).
+  - Préproduction : `API_INTERNAL_URL=http://takussan-api-preview:8080` est posée depuis le 2026-10-18 (lu, `hebergement.md`), et TCK-853 est dans `origin/preview` (mesuré, `git merge-base`). Que l'image servie porte bien les deux reste à vérifier : relevé local, non rejoué sur le serveur.
+- Piste :
+  - Ne plus dériver de la requête l'hôte des URL que l'API rend. Une voie : `URL::forceRootUrl(config('app.url'))` et `forceScheme`, posés pour le contexte HTTP dans `AppServiceProvider`. TCK-853 garde son but (aucun en-tête ne choisit l'hôte), et l'en-tête du front devient inutile. L'autre voie : ne croire `X-Forwarded-Host` que du sous-réseau interne.
+  - Corriger ensuite le commentaire d'`api.ts` et ADR-0052 § 5.
+  - Garde : un test de l'API qui rejoue exactement les en-têtes que le front envoie (hôte interne et trois `X-Forwarded-*`). Il exige que `PropertyResource` et `PrivateMediaAccess::signedUrl()` rendent l'origine d'`APP_URL`, et qu'une URL ainsi signée soit acceptée par `signed` derrière Traefik.
+
+### Toute URL signée absolue n'est valide que si l'adresse de Traefik figure dans `TRUSTED_PROXIES`, et aucune sonde ne relie les deux
+- Réf : P73.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/routes/api/media.php:23`, `takussan-api/routes/web.php:14`, `takussan-api/routes/api/sms-webhooks.php:34`, `takussan-api/app/Http/Controllers/Api/KycDocumentController.php:17`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:61`, `takussan-api/app/Support/TrustedProxyList.php:9-13`, `takussan-api/app/Services/Admin/HealthcheckService.php:400-408`, `takussan-api/docker/Caddyfile:1-10`
+- Constat :
+  - Caddy écoute en HTTP sur 8080 et ne déclare pas de `trusted_proxies` (lu, `Caddyfile`). Le schéma que voit Laravel ne vient donc que de `X-Forwarded-Proto`, et seulement si l'adresse de Traefik est dans `TRUSTED_PROXIES` (lu, `bootstrap/app.php:56-59`).
+  - Mesuré (test temporaire, retiré) : URL signée émise sous la racine `https://api-publique.example`, comme le fait une tâche de file qui part d'`APP_URL`. Rejouée avec `Host: api-publique.example` et `X-Forwarded-Proto: https`, elle donne :
+    - d'un mandataire de confiance : `hasValidSignature()` → `true` ;
+    - d'une adresse hors de la liste : `false`, `url()` = `http://api-publique.example/…`.
+  - Les vérifications absolues, qui comparent donc le schéma et l'hôte (lu) :
+    - par middleware `signed` : `media.private.show` (fichiers privés), `notifications.unsubscribe`, le rappel LAfricaMobile ;
+    - par `hasValidSignature()` dans le contrôleur : `KycDocumentController:17`, `ActivityLogExportController:61`.
+    - Seules `verification.verify`, `saved-searches.unsubscribe` et `auth.php:50` signent en relatif.
+  - Une valeur de `TRUSTED_PROXIES` qui oublie le sous-réseau de `dokploy-network` rend donc 403 sur tout fichier privé, tout lien de désabonnement et tout accusé LAM. C'est aussi le cas d'une valeur qui contient `*`, qui « ne croit personne » (lu, `TrustedProxyList.php:9-13`). Un tel oubli est possible pour la production à créer en F3. La sonde `proxies` ne signale que le joker (`HealthcheckService.php:400-408`, lu), et l'IP du client se trompe en silence : les deux symptômes ne se voient pas au démarrage (déduit ; à vérifier sur un environnement servi).
+  - Préproduction : `APP_URL` vaut `https://preview.api.takussan.com` dans le plan (lu, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3520`), et D5 prouve que l'IP du client traverse Traefik. Une URL émise en file y est donc, selon toute vraisemblance, acceptée (déduit, non mesuré sur le serveur).
+- Piste : signer en relatif (`absolute: false` à l'émission, `signed:relative` ou `hasValidSignature(false)` à la vérification) les liens qui ne sortent pas du domaine de l'API. L'hôte reste fixé par l'émission (P73.01), et la validité ne dépend plus du schéma vu par Laravel. Sinon, faire rougir la sonde `proxies` quand une requête arrivée par Traefik est vue en `http`. Garde : un test qui émet une URL signée hors requête puis la présente depuis une adresse hors de la liste.
+
+### Petites améliorations
+- Réf : P73.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/routes/api/kyc.php:6-8`, `takussan-api/app/Http/Resources/DataExportResource.php:23`, `takussan-web/src/types/super-admin.ts:713`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:135-147`, `takussan-api/app/Notifications/LeaseSignatureCodeNotification.php`
+- Constat :
+  - **La pièce KYC reste fermée au navigateur, même avec le bon hôte.** `kyc.documents.show` est sous `auth:sanctum` (lu, `kyc.php:6-8`). Mesuré par un test temporaire, retiré : une URL signée valide, demandée sans jeton en `Accept: text/html` comme le fait un clic sur un lien, rend `401 Unauthenticated.`. C'est TCK-546, toujours `todo` (lu). Corriger P73.01 seul ne rendra donc pas la pièce lisible depuis la file KYC : les deux corrections vont ensemble.
+  - **`download_url` d'un export de données** est fabriqué par `url()` (lu, `DataExportResource.php:23`), donc avec l'hôte de la requête. Le front ne fait que le typer (`super-admin.ts:713`, lu) et télécharge par son relais `data-exports/[id]/download`. Si personne ne le lit, c'est un champ mort qui porte l'hôte interne (à vérifier : `grep download_url` hors des types et des tests).
+  - **Le `ret_url` de LAfricaMobile** est signé dans la requête en cours (lu, `LAfricaMobileSmsDriver.php:135-147`), et `LeaseSignatureCodeNotification` n'est pas mise en file (lu, aucun `ShouldQueue`). Aujourd'hui, l'envoi du code part du navigateur, vers l'URL publique (lu, `leases.ts:341-345`, `useApiMutation`). Un envoi synchrone venu d'une action serveur donnerait à LAM une URL de rappel sur l'hôte interne, injoignable. P73.01 le fermerait du même geste (déduit).
+  - **Les signatures dans le journal d'accès de Traefik** : `hebergement.md` dit que le journal porte le chemin de chaque requête. Si `RequestPath` comprend la chaîne de requête, chaque `signature=` y est écrite, et elle vaut jusqu'à sept jours (rappel LAM, pièces jointes de caution) ou sans limite (désabonnement du résumé). Voir P10.10, qui laisse ce point « à vérifier » (non mesurable depuis le poste).
+- Piste : traiter TCK-546 avec P73.01 ; retirer `download_url` s'il n'a pas de lecteur ; vérifier sur le serveur ce que Traefik journalise, et sinon écarter la chaîne de requête des journaux.
