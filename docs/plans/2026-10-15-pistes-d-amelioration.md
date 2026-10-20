@@ -6842,7 +6842,7 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
 
 ### Le récapitulatif CRM ne rapproche plus un prospect d'un bien dont le quartier a été fusionné ou renommé
 - Réf : P67.04
-- Statut : validé — (a) comparer par la clé `CleDeQuartier` et les identifiants du référentiel, comme `QuartierDuFiltre`, fusion suivie ; test : fusion, puis `customersFor` (porteur, 2026-10-20)
+- Statut : fait · TCK-1083
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Crm/ProspectMatcher.php:87-103`, `:145-170`, `takussan-api/app/Jobs/Crm/SendProspectMatchDigest.php:66`, `takussan-web/src/components/customer-form/CustomerForm.tsx:382`
 - Constat :
@@ -6851,10 +6851,11 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
   - Les quartiers du prospect sont saisis en texte libre, séparés par des virgules (lu, `CustomerForm.tsx:103`, `:382`) : rien ne les rattache au référentiel.
 - Piste : comparer par la clé `CleDeQuartier` et les identifiants du référentiel, comme la recherche publique (`QuartierDuFiltre`), fusion suivie ; ou réécrire `seeking_neighborhoods` à la fusion et au renommage. Garder par un test : fusion, puis `customersFor`.
 - Mesure (2026-10-20, df863bd1c, mesureur) : relu `ProspectMatcher::propertiesFor()` et `whereListAccepts()` (comparaison du texte `addresses.neighborhood` replié par casse seule), inchangés depuis 550abfd75 ; test temporaire (retiré) : prospect `seeking_neighborhoods = ["Liberte Quatre"]`, bien de la même agence sur ce quartier, `propertiesFor` → 1, `customersFor` → 1 ; fusion dans « Liberté 4 » → 200 ; puis 0 et 0 → le constat tient. Classement : V7, la `Piste` propose deux voies, et réécrire `seeking_neighborhoods` touche des données de prospects (V3, V4).
+- Mesure (2026-10-20, 3eff8de82, implementeur) : test `ProspectMatcherTest::test_a_merged_neighborhood_still_matches_both_ways` avant correctif → rouge : prospect `["Liberte Quatre"]`, bien rattaché à ce quartier, 1 et 1, puis fusion dans « Liberté 4 » et `propertiesFor` ne rend plus le bien → `ProspectMatcher` juge le quartier par `QuartierDuFiltre` (identifiant du référentiel, fusion suivie ; clé du texte pour une adresse libre), dans les deux sens ; après correctif, `propertiesFor`, `customersFor` et `GET /api/properties/{id}/matching-customers` → le prospect ; ablation (ancien `whereListAccepts` remis dans `customersFor`) → 2 rouges, remis → 6 verts. Un quartier renommé suivra par `idsDuReferentiel()` quand P67.02 (TCK-1080) sera fusionnée.
 
 ### Le rapprochement CRM ne reconnaît pas « Liberte 4 » pour « Liberté 4 », que la recherche publique confond
 - Réf : P67.05
-- Statut : validé — couvert par P67.04 : la clé `CleDeQuartier` au rapprochement CRM, en PHP sans `unaccent`, et le docblock de `ProspectMatcher` corrigé ; test : graphie sans accent ni tiret (porteur, 2026-10-20)
+- Statut : fait · TCK-1083
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Crm/ProspectMatcher.php:26-27`, `:152-170`, `takussan-api/app/Support/Search/CleDeQuartier.php`, `takussan-api/app/Services/Search/QuartierDuFiltre.php:9-18`
 - Constat :
@@ -6864,6 +6865,7 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
 - Piste : appliquer au rapprochement la règle de `QuartierDuFiltre` (choix du porteur pour la recherche, TCK-663), en SQL ou par la liste des textes de même clé (`textesLibres()`), et corriger le docblock. Garder par un test : graphie sans accent ni tiret.
 - Mesure (2026-10-20, df863bd1c, mesureur) : relu le docblock de `ProspectMatcher` (« sans replier les accents ») et `CleDeQuartier::de()` ; test temporaire (retiré) : prospect `["Liberte 4"]`, bien à « Liberté 4 » de la même agence → `propertiesFor` 0, `customersFor` 0 → le constat tient. Classement : V7, le rapprochement suit délibérément ADR-0025 (accents non repliés) et le repli de `CleDeQuartier` a été décidé pour le filtre `location` seul (TCK-663) : l'étendre au CRM est un choix du porteur.
 - Mesure (2026-10-20, 95f0fc396, delegue) : relu le docblock et `whereListAccepts()`/`propertiesFor()` de `ProspectMatcher` (repli par `CaseInsensitive` seul, en SQL), `QuartierDuFiltre`, TCK-663 (repli d'accents décidé par le porteur pour le filtre `location`, en PHP faute d'`unaccent`) et ADR-0025 l. 100-104 (« `Café` et `Cafe` restent deux valeurs », `unaccent` refusé par ADR-0020 §2) → le constat tient. Recommandation : étendre au rapprochement CRM la clé `CleDeQuartier`, en PHP et sans `unaccent` (textes de même clé pour `propertiesFor`, candidats de l'agence filtrés en PHP pour `customersFor`), et corriger le docblock, parce que c'est la règle que le porteur a choisie pour les mêmes noms de quartier ; pas validé, parce que la voie 1 de P67.04 (clé et identifiants du référentiel, fusion suivie, réservée au porteur par V3) couvre déjà ce repli et qu'il vaut mieux les trancher ensemble, et parce qu'ADR-0025 fait du non-repli des accents un choix délibéré que seule la recherche publique a levé.
+- Mesure (2026-10-20, 3eff8de82, implementeur) : test `ProspectMatcherTest::test_a_neighborhood_written_without_accent_or_hyphen_matches` avant correctif → rouge : prospect `["Liberte 4", "grand yoff"]`, bien rattaché à « Liberté 4 » et bien libre « Grand-Yoff » → `propertiesFor` `[]` → clé `CleDeQuartier` en PHP, sans `unaccent`, docblock corrigé (TCK-1083) ; après correctif, les deux biens dans les deux sens, « Grand Dakar » écarté ; ablation (même retrait que P67.04) → rouge sur `customersFor`, remis → vert.
 
 ## Angle 68 — Passage axe au navigateur des écrans connectés (`/app`, console super-admin)
 
