@@ -227,7 +227,6 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
 
     Route::get('enums', [BusinessEnumController::class, 'index'])->name('admin.enums.index');
     Route::get('enums/{key}', [BusinessEnumController::class, 'show'])->name('admin.enums.show');
-    Route::post('enums/{key}/values', [BusinessEnumController::class, 'storeValue'])->name('admin.enums.values.store');
     Route::patch('enums/{key}/values/{value}', [BusinessEnumController::class, 'updateValue'])->name('admin.enums.values.update');
     Route::delete('enums/{key}/values/{value}', [BusinessEnumController::class, 'deactivateValue'])->name('admin.enums.values.destroy');
 

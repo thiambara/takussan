@@ -58,33 +58,6 @@ class BusinessEnumService
     }
 
     /**
-     * @param  array{value:string,labels:array{fr:string,en?:?string,wo?:?string},is_active?:bool}  $payload
-     * @return array<string,mixed>
-     */
-    public function addValue(string $key, array $payload, User $actor): array
-    {
-        $this->ensureEditable($key);
-        $values = $this->storedValues($key);
-        $value = Str::of($payload['value'])->lower()->snake()->value();
-
-        if (collect($values)->contains(fn (array $row) => $row['value'] === $value)) {
-            throw ValidationException::withMessages(['value' => 'enum_value_exists']);
-        }
-
-        $values[] = $this->normaliseValue([
-            'value' => $value,
-            'labels' => $payload['labels'],
-            'is_active' => $payload['is_active'] ?? true,
-            'is_custom' => true,
-        ]);
-
-        $this->persist($key, $values, $actor);
-        $this->audit($actor, 'super_admin_enum_value_added', $key, $value, ['labels' => $payload['labels']]);
-
-        return $this->get($key);
-    }
-
-    /**
      * @param  array{labels?:array{fr?:string,en?:?string,wo?:?string},is_active?:bool}  $payload
      * @return array<string,mixed>
      */

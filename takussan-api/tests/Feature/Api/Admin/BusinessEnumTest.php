@@ -13,48 +13,38 @@ class BusinessEnumTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_super_admin_can_add_value_and_public_endpoint_returns_it(): void
+    /**
+     * P66.01 (TCK-1055) : la console n'ajoute plus de valeur. La liste vit dans l'enum PHP
+     * (ADR-0007) : une valeur ajoutée par la console était acceptée ici puis refusée en 422 à la
+     * création d'un bien, parce que la validation et le cast ne connaissent que l'enum.
+     */
+    public function test_console_refuses_adding_a_value(): void
     {
         $this->actingAsRole('super_admin');
 
-        $this->postJson('/api/admin/enums/property_type/values', [
+        $status = $this->postJson('/api/admin/enums/property_type/values', [
             'value' => 'lodge',
             'labels' => ['fr' => 'Lodge', 'en' => 'Lodge'],
             'is_active' => true,
-        ])->assertCreated()
-            ->assertJsonPath('data.key', 'property_type');
+        ])->status();
+        $this->assertContains($status, [404, 405], "l'ajout de valeur a répondu {$status}");
 
+        $this->assertDatabaseMissing('settings', ['key' => 'enum.property_type.values']);
+        $this->assertFalse(Activity::query()->where('event', 'super_admin_enum_value_added')->exists());
         $this->getJson('/api/enums/property_type')
             ->assertOk()
-            ->assertJsonPath('data.values', fn (array $values) => collect($values)->contains(
-                fn (array $value) => $value['value'] === 'lodge' && $value['labels']['fr'] === 'Lodge'
-            ));
-
-        $this->assertDatabaseHas('settings', ['key' => 'enum.property_type.values']);
-        $this->assertTrue(Activity::query()->where('event', 'super_admin_enum_value_added')->exists());
+            ->assertJsonPath('data.values', fn (array $values) => collect($values)->pluck('value')->all()
+                === array_map(fn (PropertyType $case) => $case->value, PropertyType::cases()));
     }
 
     public function test_unknown_enum_is_rejected_as_not_editable(): void
     {
         $this->actingAsRole('super_admin');
 
-        $this->postJson('/api/admin/enums/payment_status/values', [
-            'value' => 'custom',
-            'labels' => ['fr' => 'Custom'],
-        ])->assertUnprocessable()
+        $this->getJson('/api/admin/enums/payment_status')
+            ->assertUnprocessable()
             ->assertJsonValidationErrors('key')
             ->assertJsonPath('errors.key.0', 'enum_not_editable');
-    }
-
-    public function test_french_label_is_required(): void
-    {
-        $this->actingAsRole('super_admin');
-
-        $this->postJson('/api/admin/enums/property_type/values', [
-            'value' => 'lodge',
-            'labels' => ['en' => 'Lodge'],
-        ])->assertUnprocessable()
-            ->assertJsonValidationErrors('labels.fr');
     }
 
     public function test_agency_admin_is_forbidden_on_admin_endpoints(): void
@@ -62,10 +52,7 @@ class BusinessEnumTest extends TestCase
         $this->actingAsRole('agency_admin');
 
         $this->getJson('/api/admin/enums')->assertForbidden();
-        $this->postJson('/api/admin/enums/property_type/values', [
-            'value' => 'lodge',
-            'labels' => ['fr' => 'Lodge'],
-        ])->assertForbidden();
+        $this->getJson('/api/admin/enums/property_type')->assertForbidden();
     }
 
     public function test_deactivation_returns_409_when_value_is_used(): void
