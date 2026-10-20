@@ -6515,7 +6515,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
 
 ### L'effacement du compte laisse les pièces de ses profils intactes : ligne, média, fichier et nom de fichier d'origine
 - Réf : P64.02
-- Statut : validé — à l'effacement, terminer les profils du compte (date de fin) et remplacer le `name` des pièces et de leurs médias par le libellé du type ; la purge de TCK-537 part de la fin du profil (porteur, 2026-10-20)
+- Statut : fait · TCK-1061
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:237-325`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:59-78`, `takussan-api/app/Models/Document.php:100-110`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:76-83`, `takussan-web/src/content/legal/privacy.ts:123-124`
 - Constat :
@@ -6527,6 +6527,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
   - Établi comment : test temporaire et lecture.
 - Piste : à l'effacement, terminer les profils du compte (statut, ou suppression en douceur, qui donne une date de fin) et remplacer le `name` des pièces et de leurs médias par le libellé du type. La purge à « fin + 5 ans » de TCK-537 peut alors partir du `deleted_at` du profil. Un test : après `executeDeletion()`, aucun `Document` ni média d'un profil du compte ne porte le nom d'origine, et chaque profil a une date de fin. Ablation → rouge.
 - Mesure (2026-10-20, 0ba226223, mesureur) : lu `AccountDeletionService.php:292-294` (seules `avatar`, `avatars`, `photos`) ; PR #750 ouverte (P57) ne touche ni profils ni `Document` (lu, son corps) ; test temporaire retiré → bailleur, `kyc/upload` de `CNI_Aminata_Diop.pdf` 201, puis `executeDeletion()` : `Document` non supprimé, `name` et nom du média `CNI_Aminata_Diop.pdf`, fichier présent sur le disque, `OwnerProfile` `active`, `deleted_at` nul, rattaché au compte. Le volet `AgencyMemberRemovalService` n'a été que relu (l. 78, suppression en masse des `AgentProfile`), non re-mesuré. Classement : V3, conserver, renommer ou dater la fin des pièces d'un compte effacé est une décision de données personnelles.
+- Mesure (2026-10-20, 7163372c5, implementeur) : avant correctif, un bailleur téléverse `CNI_Aminata_Diop.pdf` par `kyc/upload`, puis `executeDeletion()` → l'`OwnerProfile` sans `deleted_at` (rouge) → `anonymize()` supprime en douceur les profils du compte et donne le type (`id_card`) pour `name` à leurs pièces et à leurs médias, profils déjà terminés compris ; `AccountDeletionExecuteTest::test_execute_termine_les_profils_et_renomme_leurs_pieces` vert (la pièce d'un autre compte garde son nom), quatre ablations (fin des profils, nom de la pièce, nom du média, profils terminés) → rouges, 15 verts sur la classe. La purge à « fin + 5 ans » reste à TCK-537.
 
 ### Le titulaire peut supprimer sa pièce, même vérifiée, et le fichier part 90 jours plus tard
 - Réf : P64.03
