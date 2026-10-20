@@ -6847,7 +6847,7 @@ de violation hors `region`.*
 
 ### La page « Passer en agence » d'une agence individuelle rend la page d'erreur, et la barre latérale ignore la demande en cours
 - Réf : P68.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1029 — reste : la garde qui confronte toutes les constantes `*_FIELDS` du front au `$queryFields` de leur modèle (angle proposé 100) ; seule `AGENCY_UPGRADE_REQUEST_FIELDS` est gardée ici
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/agency-upgrade.ts:22-39,49-58`, `takussan-web/src/app/(dashboard)/app/settings/agency/upgrade/page.tsx:42-45`, `takussan-web/src/app/(dashboard)/app/layout.tsx:38-41,54-55`, `takussan-api/app/Models/AgencyUpgradeRequest.php:88-94`
 - Constat :
@@ -6858,10 +6858,11 @@ de violation hors `region`.*
   - Établi comment : faux API (l'API réelle en lecture seule), CDP, code relu.
 - Piste : retirer `ninea` et `rib_pro` de `AGENCY_UPGRADE_REQUEST_FIELDS` (le formulaire les envoie, la liste n'en a pas besoin ; vérifier `types/agency-upgrade.ts:20` et `UpgradeRequestStatus`). Garde : un test qui confronte chaque constante `*_FIELDS` du front au `$queryFields` du modèle visé (voir l'angle proposé 100), à défaut un test de la page qui joue un 400 et attend autre chose que l'erreur.
 - Mesure (2026-10-20, 8150df982, mesureur) : relu `AGENCY_UPGRADE_REQUEST_FIELDS` (`agency-upgrade.ts`, demande toujours `ninea` et `rib_pro`), `$queryFields` d'`AgencyUpgradeRequest` (ne les porte plus, docblock TCK-601 : « un `fields[]` qui les demande est refusé (400) »), `Promise.all` sans `catch` de `upgrade/page.tsx` et `.catch(() => null)` du layout ; test temporaire (retiré) sur `GET /api/agencies/{id}/upgrade-requests` par un admin d'agence individuelle : avec les champs exacts du front → 400 `http.bad_request`, sans `ninea`/`rib_pro` → 200 ; `grep` : aucune lecture de `.ninea`/`.rib_pro` sur la liste côté front (seul le détail de la console les lit, par une autre requête) → le constat tient. Classement : A1, le contrat est écrit dans le modèle (TCK-601) et le front s'y aligne en retirant deux champs que la liste n'affiche pas, sans choix de produit.
+- Mesure (2026-10-20, c6e71581f, implementeur) : relu `AGENCY_UPGRADE_REQUEST_FIELDS` (porte toujours `ninea` et `rib_pro`) et `AgencyUpgradeRequest::$queryFields` (ne les porte pas) → test `agency-upgrade.fields.tck-1029.test.ts`, qui lit le `$queryFields` PHP et la constante importée : rouge avant correctif (`["ninea", "rib_pro"]` refusés), vert après ; ablation (constante d'origine remise) → rouge, correctif remis → vert ; tests du layout et du formulaire qui importent le module verts (23 sur 4 fichiers).
 
 ### Le sélecteur de locataire du nouveau bail n'a pas de nom accessible
 - Réf : P68.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1030
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:160-180,352-372`
 - Constat :
@@ -6870,10 +6871,11 @@ de violation hors `region`.*
   - Établi comment : axe et lecture du DOM par CDP, code relu.
 - Piste : donner au déclencheur le nom du champ (`aria-labelledby` vers le libellé « Locataire », ou `aria-label` avec la clé existante `t('tenant')`) quand `label` est `null`. Garde : test de rendu qui attend `getByRole('combobox', { name: /locataire/i })`.
 - Mesure (2026-10-20, 8150df982, mesureur) : relu `CreateLeaseForm.tsx` : le libellé « Locataire » vise `#tenant-search`, `EntitySelect` reçoit `label={null}` et son `SelectTrigger` `#field-tenant_id` ne porte ni `aria-label` ni `aria-labelledby` ; `git log` : dernier changement TCK-913, sans rapport → le constat tient. Classement : A4, attribut ARIA seul, avec la clé existante `t('tenant')` ou un `aria-labelledby` vers le libellé déjà rendu.
+- Mesure (2026-10-20, c6e71581f, implementeur) : relu `CreateLeaseForm.tsx` (`label={null}`, `SelectTrigger` sans nom) → test `CreateLeaseForm.nom-du-locataire.tck-1030.test.tsx` : `getByRole('combobox', { name: /^Locataire/ })` introuvable avant correctif, trouve `#field-tenant_id` après (`aria-label` = clé existante `t('tenant')`) ; ablation (`aria-label` retiré) → rouge, remis → vert.
 
 ### Le champ fichier du logo d'agence, masqué en `sr-only`, reste dans l'ordre de tabulation sans nom
 - Réf : P68.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1031
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:341-357`
 - Constat :
@@ -6882,10 +6884,11 @@ de violation hors `region`.*
   - Établi comment : axe, code relu.
 - Piste : `tabIndex={-1}` et `aria-hidden` sur l'`input` (le bouton porte le geste), ou un `<label htmlFor="agency-logo">` stylé en bouton à la place du `Button`. Garde : test de rendu qui n'attend aucun `input[type=file]` focusable sans nom.
 - Mesure (2026-10-20, 8150df982, mesureur) : relu `AgencyConfigForm.tsx` l. 341-355 : `input#agency-logo` `type=file` en `sr-only`, sans `tabIndex`, sans libellé ni `aria-label`, suivi du `Button` qui l'ouvre par `logoInputRef.current?.click()` → le constat tient. Classement : A4, attribut d'accessibilité seul (`tabIndex={-1}` et `aria-hidden` sur l'`input`), le bouton visible gardant le geste, aucun texte neuf.
+- Mesure (2026-10-20, c6e71581f, implementeur) : relu `AgencyConfigForm.tsx` (`#agency-logo` en `sr-only`, sans `tabIndex` ni nom) → test `AgencyConfigForm.champ-logo.tck-1031.test.tsx` : rouge avant correctif sur `#agency-logo` (focusable et sans nom), vert après (`tabIndex={-1}`, `aria-hidden`) ; ablation → rouge, remis → vert ; le bouton visible appelle toujours `click()` sur l'`input` (second test).
 
 ### Les jours de la semaine du calendrier sont à 3,33:1, par l'opacité de la feuille de react-day-picker
 - Réf : P68.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1032
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/ui/calendar.tsx:65-68`, `takussan-web/src/app/globals.css:17`, `node_modules/react-day-picker/dist/style.css:55,262`
 - Constat :
@@ -6895,6 +6898,7 @@ de violation hors `region`.*
   - Établi comment : axe et styles calculés par CDP, code relu.
 - Piste : `opacity-100` (ou `[--rdp-weekday-opacity:1]`) dans la classe `weekday` de `calendar.tsx`, la couleur restant celle du jeton. Garde : le test de charte du calendrier (`calendar-charte-tck-582.test.tsx`) étendu à l'opacité des en-têtes, ou la règle `color-contrast` d'axe sur le calendrier ouvert.
 - Mesure (2026-10-20, 8150df982, mesureur) : relu `calendar.tsx` (classe `weekday` : `text-muted-foreground`, aucune opacité rétablie), `globals.css:17` (`@import "react-day-picker/style.css" layer(rdp)`) et la feuille du paquet, servie par `src/style.css` et non `dist/style.css` comme l'écrit le constat (`--rdp-weekday-opacity: 0.75` l. 55, `opacity: var(--rdp-weekday-opacity)` l. 262) ; contraste recalculé : `#6e655a` à 0,75 sur `#ffffff` → 3,33:1, à opacité 1 → 5,72:1 → le constat tient. Classement : A4, contraste ramené sur le jeton existant en rétablissant l'opacité, sans changer de couleur.
+- Mesure (2026-10-20, c6e71581f, implementeur) : relu la classe `weekday` de `calendar.tsx` (aucune opacité rétablie) → test ajouté à `calendar-charte-tck-582.test.tsx`, qui compile par le Tailwind du dépôt les classes posées sur `.rdp-weekday` : aucune `opacity` dans la couche `utilities` avant correctif (rouge), `opacity: 100%` après (`opacity-100`), la classe `text-muted-foreground` restant posée ; ablation → rouge, remis → vert (6 sur 6). Contraste non re-mesuré au navigateur.
 
 ### Le popover du sélecteur de date est un `dialog` sans nom
 - Réf : P68.05
