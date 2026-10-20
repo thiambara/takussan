@@ -34,10 +34,14 @@ class StoreLeaseRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'property_id' => ['required', 'exists:properties,id'],
-            'tenant_id' => ['required', 'exists:customers,id'],
-            'booking_id' => ['nullable', Rule::exists('bookings', 'id')->where('property_id', $this->input('property_id'))],
-            'guarantor_id' => ['nullable', 'exists:guarantors,id'],
+            // TCK-1068 (P62.01) — plus de `exists:` : jugés avant toute autorisation, ils rendaient 422
+            // pour un identifiant absent quand un identifiant tiers passait, et faisaient de la création
+            // un ORACLE d'existence. L'existence se juge après l'autorisation, avec la réponse du refus
+            // (`LeaseController::store()`, `LeaseService::create()` ; modèle de TCK-599).
+            'property_id' => ['required', 'integer'],
+            'tenant_id' => ['required', 'integer'],
+            'booking_id' => ['nullable', 'integer'],
+            'guarantor_id' => ['nullable', 'integer'],
             'type' => ['required', Rule::enum(LeaseType::class)],
             'start_date' => ['required', 'date'],
             'end_date' => ['nullable', 'date', 'after:start_date'],
