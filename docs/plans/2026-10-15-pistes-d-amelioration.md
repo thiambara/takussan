@@ -8431,7 +8431,7 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
 
 ### Un bailleur obtient le nom, le courriel et le téléphone de tout autre bailleur de son agence en l'ajoutant en `co_owner`, alors que `/api/owners` lui est refusé
 - Réf : P86.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : borner un ajout qu'un bailleur fait aujourd'hui, et que TCK-586 a voulu ; V3 : ce qu'un bailleur sait d'un co-indivisaire
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyCollaboratorRequest.php:30-50`, `takussan-api/app/Rules/CollaboratorEligibleForProperty.php:58-74`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:45-66`, `takussan-api/app/Policies/PropertyPolicy.php:143-146`, `takussan-api/app/Services/Membership/SystemRoleCapabilities.php:92-95`
 - Constat :
@@ -8445,10 +8445,11 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
   - P61.01 (fait) a borné le compte rendu à une projection. Il ne traite ni l'éligibilité ni l'oracle, et la projection garde `email` et `phone`.
   - Établi comment : lecture des fichiers cités et test temporaire ci-dessus.
 - Piste : borner l'ajout d'un `co_owner` ou d'un `viewer` bailleur à qui peut déjà lire les bailleurs de l'agence (le personnel), ou décider ce qu'un bailleur peut savoir d'un co-indivisaire avant de le désigner. Garde : un test « bailleur → `POST` d'un autre bailleur en `co_owner` » qui rougit sur le code actuel.
+- Mesure (2026-10-20, b23ae0b4e, mesureur) : relu `StorePropertyCollaboratorRequest.php:30-49` (`authorize()` délègue à `update` du bien), `CollaboratorEligibleForProperty.php:58-74` (`co_owner` → `isOwnerAt`, `viewer` → personnel ou bailleur), `PropertyPolicy.php:135-150`, `SystemRoleCapabilities.php:92-95` (le bailleur n'a que `properties.update_own`), `PropertyCollaboratorTest::test_store_accepte_un_bailleur_de_l_agence_en_co_owner` (le 201 est épinglé par TCK-586, ticket l. 187 et 366), `docs/features.md:89` (« bailleur de l'agence pour co-propriétaire ») ; aucun ticket ni commit ne borne l'ajout ; test temporaire (`TmpMesureurP86Test`, deux bailleurs L1 et L2 et un agent d'une même agence, L1 auteur du bien ; base de test PostgreSQL, charge 7,76 sur 8 cœurs ; retiré ensuite) → L1 : `GET /api/owners` 403, `GET /api/owners/{L2}` 404, `POST …/collaborators` de L2 en `co_owner` 201, et `data.user` porte `id`, `first_name`, `last_name`, `email`, `phone` (le numéro de L2), `full_name`, `avatar_url`, `username`. Le constat tient en entier ; le code n'a pas bougé depuis 9c967349f. Classement : V2 et V3, l'ajout d'un co-indivisaire par le bailleur est un geste voulu et testé, et choisir entre le retirer au bailleur ou réduire ce qu'il apprend est un choix d'autorisation et de données personnelles.
 
 ### D-66 tient, et sa condition de réouverture est remplie : `co_owner` et `viewer` ne lisent rien du bien qui les nomme
 - Réf : P86.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ouvrir une lecture à `co_owner` et `viewer`, ou retirer les deux rôles, est un choix de produit (D-66)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/PropertyPolicy.php:45-58`, `docs/ardoise.md` (D-66), `docs/features.md:89`, `takussan-web/src/messages/fr.json:1426-1427`, `takussan-web/src/components/property-dashboard/PropertyCollaboratorsPanel.tsx:25`
 - Constat :
@@ -8458,10 +8459,11 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
   - D-66 n'a pas de ticket « sur décision du porteur ». Sa condition de réouverture est la fusion de TCK-587 (lu, `docs/ardoise.md`). TCK-587 est `done` (lu, frontmatter).
   - `docs/features.md:89` dit le rôle « sans permission propre au collaborateur ». Le front affiche pourtant `viewer` sous le libellé « Lecture seule » (lu, `fr.json:1427`), qui promet une lecture que l'API ne donne pas.
 - Piste : rendre D-66 au porteur, sa condition étant remplie : ouvrir une lecture aux deux rôles (bien, baux, loyers, à décider), ou retirer `co_owner` et `viewer` de l'enum et du libellé. Choix de produit. En attendant, un libellé qui ne promet pas de lecture.
+- Mesure (2026-10-20, b23ae0b4e, mesureur) : relu `PropertyPolicy.php:45-58` (`view` : auteur, personnel de l'agence, super-admin), `docs/ardoise.md` D-66 (« Pas de ticket, sur décision du porteur ; condition de réouverture : TCK-587 fusionné »), frontmatter de TCK-587 (`done`), `docs/features.md:89` (« sans permission propre au collaborateur ») ; même test temporaire (`TmpMesureurP86Test`, deux bailleurs L1 et L2 et un agent d'une même agence, L1 auteur du bien ; base de test PostgreSQL, charge 7,76 sur 8 cœurs ; retiré ensuite) → L2 en `co_owner` : `GET /api/properties/{id}` 403, `GET …/collaborators` 403 ; passé en `viewer` avec `accepted_at` : `GET /api/properties/{id}` 403. Le constat tient ; baux et listes non re-mesurés ici, la policy lue ne les ouvre pas. Classement : V7, la Piste elle-même propose deux options de produit opposées, et le libellé « Lecture seule » ne se corrige pas sans savoir laquelle.
 
 ### Une part de commission posée sur un `co_owner` ou un `viewer` compte dans le plafond de 100 % et n'est jamais versée
 - Réf : P86.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : le plafond et la ventilation des parts de commission
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:178-218`, `takussan-api/app/Http/Requests/Api/StorePropertyCollaboratorRequest.php:36-50`, `takussan-api/app/Services/Commission/CommissionLedgerService.php:52-71`
 - Constat :
@@ -8470,10 +8472,11 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
   - mesuré (test temporaire) : L2 ajouté en `co_owner` avec `commission_share = 70` → 201. Un agent de l'agence ajouté ensuite avec 40 → 422 (`commission_share`, « cannot exceed 100% »).
   - Les 70 % ne sont versés à personne, et ils empêchent de donner plus de 30 % aux agents. Au grand livre, ils ne réduisent pas non plus le plafond du négociateur. Le même écart vaut pour `manager` : la base de développement porte 231 lignes `manager`, toutes avec une part, pour une somme de 6 835,75 (mesuré, `SELECT role, count(*), sum(commission_share) FROM property_collaborators GROUP BY role`).
 - Piste : soit refuser `commission_share` hors du rôle `agent` (422, et retirer ou annuler la part au changement de rôle), soit borner le plafond aux parts que le grand livre sert. Le premier suit ADR-0049 § 3. Test : `co_owner` avec part → 422, ou agent à 40 accepté après un `co_owner` à 70.
+- Mesure (2026-10-20, b23ae0b4e, mesureur) : relu `PropertyCollaboratorController.php` `assertCommissionWithinCapLocked()` (somme de `commission_share` sur toutes les lignes du bien, sans filtre de rôle), `StorePropertyCollaboratorRequest.php:48` (`commission_share` accepté pour tout rôle), `CommissionLedgerService.php:52-71` (seules les lignes `role = agent` du personnel sont servies) et ADR-0049 « Ventilation » § 1-2 ; même test temporaire (`TmpMesureurP86Test`, deux bailleurs L1 et L2 et un agent d'une même agence, L1 auteur du bien ; base de test PostgreSQL, charge 7,76 sur 8 cœurs ; retiré ensuite) → L2 en `co_owner` avec `commission_share = 70` : 201 ; l'agent ajouté ensuite avec 40 : 422 (`commission_share`, « cannot exceed 100% »). Le constat tient ; le compte des lignes `manager` de la base de développement n'est pas re-mesuré. Classement : V1, refuser une part hors du rôle `agent` ou changer l'assiette du plafond touche le calcul des commissions.
 
 ### Deux chemins donnent à tout collaborateur « accepté », `viewer` compris, ce que `PropertyPolicy` lui refuse : agenda et quittances
 - Réf : P86.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : retirer une branche d'autorisation que `ReceiptPdfTest` garde
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Calendar/CalendarEventCollector.php:152-164`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:155-172`, `takussan-api/tests/Feature/Api/ReceiptPdfTest.php:81-118`
 - Constat :
@@ -8482,10 +8485,11 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
   - mesuré (test temporaire) : L2 en `viewer`, `accepted_at` posé à la main, une réservation confirmée sur le bien → `GET /api/calendar?types[]=booking` → 200 avec la réservation (référence, dates, titre du bien), alors que `GET /api/properties/{id}` → 403.
   - Aujourd'hui, rien dans `app/` n'écrit `property_collaborators.accepted_at` (mesuré, `grep -rn accepted_at app`). Seul `PropertyCollaboratorSeeder` le remplit. Ces branches sont donc mortes hors des données semées : elles s'ouvriront avec le premier parcours d'acceptation, pour les quatre rôles.
 - Piste : borner ces deux branches aux rôles `agent` et `manager` encore personnel de l'agence, comme `BookingStakeholders::collaboratorsOf`. Ou les retirer, si l'acceptation n'a pas de sens métier (models-spec, `accepted_at`). Test : un `viewer` accepté ne voit ni l'événement ni la quittance.
+- Mesure (2026-10-20, b23ae0b4e, mesureur) : relu `CalendarEventCollector.php:152-164` (`scopeVisibleProperties` : collaborateur avec `accepted_at`, sans condition de rôle), `DocumentPdfController.php:155-172` (`authorizeReceipt` : `$isCollab` pour tout rôle), `docs/models-spec.md:1008` (`accepted_at` : « aucun sens métier aujourd'hui »), `grep -rn accepted_at app` (seuls le modèle et la ressource de `PropertyCollaborator` le nomment, rien ne l'écrit) ; même test temporaire (`TmpMesureurP86Test`, deux bailleurs L1 et L2 et un agent d'une même agence, L1 auteur du bien ; base de test PostgreSQL, charge 7,76 sur 8 cœurs ; retiré ensuite) → L2 en `viewer` avec `accepted_at` posé à la main et une réservation confirmée sur le bien : `GET /api/calendar?types[]=booking` 200 avec 1 événement, `GET /api/properties/{id}` 403. La quittance n'est pas re-mesurée, lue seulement. Classement : V2, borner ou retirer ces branches change une autorisation qu'un test du dépôt épingle, et la Piste laisse le choix entre les deux.
 
 ### Petites améliorations
 - Réf : P86.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le périmètre de la boîte d'avis et ce que la copie recopie sont des choix visibles
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Review/ReceivedReviews.php:48-52`, `takussan-api/app/Services/Property/PropertyDuplicationService.php:97-102`, `takussan-api/database/seeders/Catalog/PropertyCollaboratorSeeder.php:46-50`
 - Constat :
@@ -8494,3 +8498,4 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
   - Le seeder ne crée que des rôles `agent` et `manager` (lu, l. 46-50). La base de développement n'a aucune ligne `co_owner` ni `viewer` (mesuré, même `SELECT` qu'en P86.03). Aucun écran ne les montre donc en local.
   - Le front n'a aucun appelant de `POST`, `PUT` ou `DELETE …/collaborators` (mesuré, `grep -rn collaborators takussan-web/src`). Ces deux rôles ne naissent que par un appel direct à l'API ou par une copie.
 - Piste : borner `ReceivedReviews` aux rôles qui répondent pour le bien ; rejuger l'éligibilité à la copie ; semer au moins un `co_owner` et un `viewer` pour que l'écran les montre.
+- Mesure (2026-10-20, b23ae0b4e, mesureur) : relu `ReceivedReviews.php:48-52` (tout bien où l'appelant a une ligne de collaborateur, sans rôle ni `accepted_at`), `PropertyDuplicationService.php:40-102` (`replicate()` garde `agency_id` : la copie ne change jamais d'agence, ce qui répond au « à vérifier » ; les lignes de collaborateurs sont recréées sans rejuger `CollaboratorEligibleForProperty`), `PropertyCollaboratorSeeder.php:40-52` (`agent` ou `manager` seulement), `grep -rn collaborators takussan-web/src` (aucun `POST`, `PUT` ni `DELETE` vers `…/collaborators`) → les quatre points tiennent à la lecture ; non exécutés. Classement : V7, borner la boîte d'avis et écarter à la copie un collaborateur devenu inéligible changent ce qu'un utilisateur voit ou garde, sans spec qui le dise ; seul le seeder serait sans choix.
