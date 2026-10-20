@@ -57,6 +57,10 @@ return [
         //
         // Region `auto` et endpoint `https://<compte>.r2.cloudflarestorage.com` : R2 ne connaît pas
         // de région AWS. Le style de chemin est exigé par R2 pour les URL présignées.
+        //
+        // `http` : sans elle, le client S3 ne passe aucun délai à Guzzle, et un R2 qui ne répond
+        // plus tient la requête jusqu'à la borne de PHP (P65.05, TCK-1073). 60 s couvrent un
+        // original de lot de photos (25 Mio en tout) ; 5 s pour joindre le service.
         'r2-media' => [
             'driver' => 's3',
             'key' => env('R2_ACCESS_KEY_ID'),
@@ -67,6 +71,7 @@ return [
             'endpoint' => env('R2_ENDPOINT'),
             'use_path_style_endpoint' => true,
             'visibility' => 'public',
+            'http' => ['connect_timeout' => 5, 'timeout' => 60],
             'throw' => true,
             'report' => false,
         ],
@@ -80,6 +85,7 @@ return [
             'endpoint' => env('R2_ENDPOINT'),
             'use_path_style_endpoint' => true,
             'visibility' => 'private',
+            'http' => ['connect_timeout' => 5, 'timeout' => 60],
             'throw' => true,
             'report' => false,
         ],
