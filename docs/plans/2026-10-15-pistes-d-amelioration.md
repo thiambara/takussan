@@ -7903,7 +7903,7 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
 
 ### Aucun appel du serveur Next vers l'API ne porte de délai : il attend jusqu'aux 300 s d'undici
 - Réf : P79.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la borne par défaut, et celle des relais d'export et de téléversement, sont des valeurs à choisir ; une requête lente servie aujourd'hui échouerait
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/api.ts:129-132,734-741`, `takussan-web/src/lib/relais-api.ts:65`, `takussan-web/src/app/api/sante/route.ts:20,32`
 - Constat :
@@ -7913,10 +7913,11 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
   - `server.requestTimeout` de Node (300 000 ms, mesuré : `node -e 'console.log(require("http").createServer().requestTimeout)'`) borne la réception de la requête du client, pas la durée de sa réponse (documentation de Node, à vérifier) : rien, côté front, ne coupe un rendu qui attend. `docker/demarrer.mjs` importe `server.js` sans rien régler (lu).
   - Établi comment : lu ; deux mesures locales.
 - Piste : un délai par défaut dans `apiFetch` et `apiRequest` côté serveur (`AbortSignal.any([signal appelant, AbortSignal.timeout(N)])`), avec une valeur plus longue ou une option pour les relais d'export et de téléversement (`export/[entity]`, `kyc/upload`, `data-exports/[id]/download`), et la classer comme une panne réseau (voir P79.05). Garde : un test vitest contre un `fetch` qui ne se résout jamais, qui exige un rejet sous la borne.
+- Mesure (2026-10-20, 7163372c5, mesureur) : relu `src/lib/api.ts:129-132` (`fetch` d'`apiFetch` avec le seul `init` de l'appelant), `:734-741` (`apiRequest` ne passe que le `signal` de l'appelant), `src/lib/relais-api.ts:65` ; `grep -rn 'AbortSignal.timeout\|signal:' src/app/api src/app/actions src/lib/relais-api.ts src/lib/api.ts` → la seule `sante/route.ts:32` ; script Node 24.18.0 (charge 3,70 / 4,25 / 4,25 sur 8 cœurs) contre un serveur TCP local qui accepte sans répondre → `fetch` sans `signal` rejeté après 301,2 s (`TypeError`, cause `UND_ERR_HEADERS_TIMEOUT`), avec `AbortSignal.timeout(200)` après 0,21 s (`DOMException` `TimeoutError`, sans `cause`) → le constat tient, lignes citées inchangées ; `requestTimeout` de Node non re-mesuré. Classement : V7, aucune spec ni ADR n'écrit de délai, et la valeur choisie, avec ses exceptions par relais, décide de ce qui échoue.
 
 ### La mise en page racine attend `/auth/me` sans borne : un visiteur connecté ne reçoit aucun octet de quelque page que ce soit tant que l'API ne répond pas
 - Réf : P79.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la borne de `getMe` est une valeur à choisir, et la changer change ce que voit un visiteur connecté sur une API lente
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/layout.tsx:66-80`, `takussan-web/src/lib/auth.ts:98-100`, `takussan-web/src/app/(dashboard)/layout.tsx:52`
 - Constat :
@@ -7927,10 +7928,11 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
   - Devant le front, Cloudflare coupe une réponse sans premier octet à 100 s par défaut (documentation de Cloudflare, à vérifier sur la zone) : le visiteur voit alors une 524, et le rendu continue côté serveur (déduit).
   - Établi comment : lu ; ordre de rendu et délai de Cloudflare à vérifier.
 - Piste : borner `getMe` de la mise en page racine à quelques secondes, en gardant le repli anonyme actuel ; mesurer par un rendu `next start` contre une API figée le délai avant premier octet, avant et après. Garde : un test de la mise en page avec un `getMe` qui ne se résout jamais.
+- Mesure (2026-10-20, 7163372c5, mesureur) : relu `src/app/layout.tsx:66-80` (`await getMe(...)` sous `try/catch`, repli `initialUser = null`), `src/lib/auth.ts:98-100` (`getMe` = `apiRequest('/api/auth/me')` sans `signal`), `src/app/(dashboard)/layout.tsx:52` (`await getMeAction()`) ; aucun ticket ni commit n'y pose de délai (`grep -rln 'AbortSignal.timeout' docs/backlog/tickets` → le seul TCK-948, la sonde) → l'attente sans borne tient ; l'ordre de rendu (racine au-dessus de toute frontière `loading.tsx`) et le délai de Cloudflare restent à vérifier par un rendu, non lancé. Classement : V7, la valeur de la borne n'est écrite nulle part : une session reconnue aujourd'hui au bout de N secondes serait rendue en visiteur anonyme, ce qui est visible.
 
 ### Les états « indisponible » prévus pour une API en panne ne sont atteints qu'après le délai d'undici
 - Réf : P79.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le correctif est la borne de P79.01, dont la valeur reste à choisir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/public-property.ts:73-105`, `takussan-web/src/lib/access/server-guards.ts:107`
 - Constat :
@@ -7939,10 +7941,11 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
   - Même schéma pour les gardes d'accès : `verification-indisponible` existe pour une agence qu'on n'a pas pu lire (lu, `server-guards.ts:107`), atteint après le même délai.
   - Établi comment : lu.
 - Piste : la borne de P79.01 suffit à rendre ces états à temps ; la garde de P79.01 peut se doubler d'un test de `getProperty` qui exige `indisponible` sous la borne.
+- Mesure (2026-10-20, 7163372c5, mesureur) : relu `src/lib/queries/public-property.ts:73-105` (`apiFetch` partagé sous `try`, tout rejet hors 404 → `indisponible`) et `src/lib/access/server-guards.ts:57-83,107,124-175` (`ROUTE_VERIF_INDISPONIBLE` sur un `TypeError` réseau) ; test temporaire vitest (retiré) qui fait rejeter `fetchAgency` d'un `TypeError` de cause `UND_ERR_HEADERS_TIMEOUT` → redirection vers `/verification-indisponible` : les états sont bien atteints au rejet, donc au délai d'undici mesuré en P79.01 ; le cache de données de la fiche n'a pas été re-mesuré. Classement : V7, l'entrée n'a pas de correctif propre : elle tient ou tombe avec la borne de P79.01, choix à faire.
 
 ### Les relais BFF ne transmettent pas l'abandon du navigateur, et 18 route handlers sur 22 lèvent sans réponse JSON quand l'API est injoignable
 - Réf : P79.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : abandonner l'appel amont d'une mutation quand le client part, et le statut 502/504 rendu, sont des comportements à choisir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/relais-api.ts:46-75`, `takussan-web/src/app/api/export/[entity]/route.ts:46-56`, `takussan-web/src/app/api/maintenance/status/route.ts:4-17`, `takussan-web/src/app/api/feature-flags/me/route.ts:9`
 - Constat :
@@ -7950,10 +7953,11 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
   - Aucun `catch` dans 18 des 22 fichiers qui appellent `fetch` sous `src/app/api` ou dans `relais-api.ts` (mesuré : `grep -c catch` par fichier → 0 pour tous sauf `sante`, `auth/logout`, `impersonation/start`, `stop`, `current`). Un `fetch` qui lève (API arrêtée, délai) remonte comme une exception du handler : le navigateur reçoit la 500 de Next, sans le `code` que lit `messageCorpsErreurBff` (forme exacte de la réponse à vérifier).
   - Établi comment : lu, et `grep`.
 - Piste : `relayerVersApi` passe `request.signal` (combiné au délai de P79.01) et rend un 502/504 JSON avec un code BFF sur un rejet de `fetch` ; les relais à `fetch` direct l'adoptent ou suivent le même patron. Garde : un test de `relayerVersApi` avec un `fetch` qui rejette.
+- Mesure (2026-10-20, 7163372c5, mesureur) : relu `src/lib/relais-api.ts:46-75` (`fetch(urlApiServeur(...), init)` sans `signal` ni `catch`) ; `grep -rn 'request.signal\|req.signal' src` → rien ; compté les fichiers qui appellent `fetch(` sous `src/app/api` plus `relais-api.ts` → 22, dont 17 sans `catch` (et non 18 : les cinq qui en ont sont `sante`, `auth/logout`, `impersonation/start`, `stop`, `current`), et six routes passent par `relayerVersApi`, sans `catch` non plus ; test temporaire vitest (retiré) : `relayerVersApi` avec un `fetch` qui rejette → le relais lève `fetch failed`, et sur une `NextRequest` munie d'un `signal`, le `fetch` amont ne reçoit aucun `signal`. La forme de la 500 de Next n'a pas été mesurée (aucun serveur lancé). Classement : V7, le code `server_error` existe (`api.ts:227`), mais transmettre `request.signal` interromprait aussi les POST en vol, et le choix 502 ou 504 n'est écrit nulle part.
 
 ### Un délai posé par `AbortSignal.timeout` serait classé « bug » par les gardes d'accès, et non « panne »
 - Réf : P79.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/access/server-guards.ts:57-83`
 - Constat :
@@ -7961,13 +7965,15 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
   - Mesuré, même script : `fetch(…, { signal: AbortSignal.timeout(200) })` → `name= TimeoutError ctor= DOMException`, sans `cause`. Le correctif de P79.01, s'il est fait tel quel, ferait passer une API lente de « réessayez » (`UND_ERR_HEADERS_TIMEOUT` est dans la liste aujourd'hui, lu `:59`) à « bug ».
   - Établi comment : lu ; mesuré.
 - Piste : reconnaître `TimeoutError` (et `AbortError` du seul délai) dans `estPanneReseau`, dans le même ticket que P79.01. Garde : un cas de test de `classer` avec une `DOMException` `TimeoutError`.
+- Mesure (2026-10-20, 7163372c5, mesureur) : relu `src/lib/access/server-guards.ts:57-83` (`estPanneReseau` exige `name === 'TypeError'` ; `CAUSES_RESEAU` contient `UND_ERR_HEADERS_TIMEOUT` et `UND_ERR_CONNECT_TIMEOUT`) ; test temporaire vitest (retiré) sur `resolveAgencyOrNull(..., 'decision')` → `DOMException` `TimeoutError` relancée comme un bug, `TypeError` de cause `UND_ERR_HEADERS_TIMEOUT` redirigée vers `/verification-indisponible`. Le défaut ne se voit pas aujourd'hui, aucun appel serveur ne posant `AbortSignal.timeout` (P79.01). Classement : A1, le code range déjà les délais d'undici parmi les pannes ; reconnaître aussi `TimeoutError` étend ce contrat sans choix de produit (l'`AbortError` de la piste, qui ne se distingue pas d'un abandon voulu, est hors du correctif autonome).
 
 ### Petites améliorations
 - Réf : P79.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le corps et le statut que rend le relais en panne suivent le choix de P79.04
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/api/maintenance/status/route.ts:7-17`, `takussan-web/src/components/maintenance/MaintenanceBanner.tsx:14-17,52`
 - Constat :
   - Le bandeau de maintenance interroge `/api/maintenance/status` toutes les 60 s (lu, `MaintenanceBanner.tsx:52`) et fait `res.json()` sans regarder le statut (lu, `:14-17`). Le relais n'a ni délai ni `catch` (lu, `route.ts:7-10`) : API injoignable, la route lève, et le bandeau ne s'affiche pas — précisément quand l'API ne répond plus (déduit, à vérifier sur un rendu).
   - Établi comment : lu.
 - Piste : le relais rend un statut et un corps JSON sur un rejet (P79.04), et le bandeau ignore une réponse non `ok` sans lever.
+- Mesure (2026-10-20, 7163372c5, mesureur) : relu `src/app/api/maintenance/status/route.ts:4-17` (`fetch` sans `catch`) et `src/components/maintenance/MaintenanceBanner.tsx:14-17,52` (`res.json()` sans test de `res.ok`, `refetchInterval: 60_000`) ; test temporaire vitest (retiré) : `GET()` avec un `fetch` qui rejette → lève `fetch failed`. Le bandeau masqué n'a pas été vu sur un rendu : `useQuery` en erreur laisse `data` vide, donc pas de bandeau (déduit), et une fois corrigé il resterait masqué, l'état de maintenance étant inconnu. Classement : V7, la partie relais dépend du statut et du code choisis en P79.04 ; la partie bandeau ne change rien de visible seule.
