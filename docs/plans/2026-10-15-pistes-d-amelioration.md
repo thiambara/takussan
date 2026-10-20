@@ -6322,7 +6322,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### La recherche dans les messages dit quelles conversations existent
 - Réf : P62.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : change la réponse de deux routes de recherche à leurs appelants
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Search/SearchQueryRequest.php:11-21`, `takussan-api/app/Services/Search/MessageSearchService.php:20-29`
 - Constat :
@@ -6331,10 +6331,11 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Seul le nombre de conversations de la plateforme se lit ainsi : gravité faible.
   - Établi comment : lu, et test temporaire.
 - Piste : `['nullable', 'integer']` seul, le service rendant une page vide pour un fil absent comme pour un fil tiers. Test qui épingle la même réponse.
+- Mesure (2026-10-20, 0ba226223, mesureur) : lu `SearchQueryRequest.php` (`authorize()` rend `true`, `filter.conversation` : `exists:conversations,id`) et `MessageSearchService.php:20-29` ; la requête sert aussi `SearchDocumentController` (lu), ce que le constat ne dit pas ; test temporaire retiré → `GET /api/search/messages?filter[conversation]=` absente : 422 sur `filter.conversation`, tierce : validation passée (500 « Index … not found », faute d'index dans la base de test). Classement : V2, comme P62.01 à P62.04 : un 422 devient une page vide pour des appelants légitimes.
 
 ### Le calendrier, la visite et l'intervention disent quels biens existent, brouillons compris
 - Réf : P62.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : change la réponse de quatre routes à leurs appelants
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/IndexCalendarRequest.php:26,37-40`, `takussan-api/app/Http/Requests/Api/StorePropertyVisitRequest.php:45,99`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:119-128`, `takussan-api/app/Http/Requests/Api/StoreMaintenanceRequestRequest.php:43`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:92-103`, `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:51`
 - Constat :
@@ -6345,26 +6346,29 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Les identifiants des biens publiés sont publics : seuls les brouillons, privés et archivés s'en déduisent. P22.02 a fermé le même oracle sur les routes en lot.
   - Établi comment : lu, et test temporaire pour les deux premières.
 - Piste : retirer `exists:properties,id` là où le contrôleur ou le collecteur juge déjà la visibilité, avec la réponse du refus pour un absent. Test par route.
+- Mesure (2026-10-20, 0ba226223, mesureur) : test temporaire retiré, compte sans agence, bien `draft` d'une agence tierce → `GET /api/calendar` `property_id` brouillon 200, absent 422 sur `property_id` ; `property_ids[]` brouillon 200, absent 422 sur `property_ids.0` (mesuré, le constat le laissait non mesuré) ; `POST /api/property-visits` brouillon 422 sur `scheduled_at` seul, absent 422 sur `property_id` et `scheduled_at` ; `POST /api/maintenance-requests` brouillon 422 sans `property_id`, absent 422 avec `property_id`. Classement : V2, même forme que P62.01 à P62.04.
 
 ### Petites améliorations : identifiants d'agence, de profil et de rôle
 - Réf : P62.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : change la réponse de trois routes, dont 404 au lieu de 403 sur `agency-role`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/StoreIntegrationRequest.php:25,37`, `takussan-api/app/Http/Requests/Api/IndexCalendarRequest.php:42`, `takussan-api/app/Http/Controllers/Api/CalendarController.php:34-37`, `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:20-27,71`, `takussan-api/app/Http/Requests/Agency/AssignAgencyRoleRequest.php:25-28,43`, `takussan-api/app/Http/Controllers/Api/Profile/AgencyRoleController.php:28-43`
 - Constat :
   - `agency_id` (`exists:agencies,id`) se juge avant le 403 `integration.other_agency_forbidden` (`IntegrationController.php:77-81`), le 403 `calendar.other_agency_forbidden` et le refus de l'invitation : un absent rend 422, une agence tierce 403 (lu, non mesuré). Que les identifiants d'agence soient déjà publics (annuaire, fiche bien) n'a pas été relevé : à vérifier.
   - `PATCH /api/profiles/{profile}/agency-role` : `authorize()` rend `user() !== null` ; `agency_role_id` porte `exists:agency_roles,id`, et le profil est résolu par `findOrFail()` (l. 36) avant `Gate::authorize('assign')` (l. 41) : profil absent → 404, profil tiers → 403 (lu, non mesuré).
 - Piste : même traitement que les entrées précédentes ; pour le profil, rendre 404 quand `assign` refuse.
+- Mesure (2026-10-20, 0ba226223, mesureur) : test temporaire retiré, compte sans agence → `GET /api/calendar?agency_id=` tierce 403 `calendar.other_agency_forbidden`, absente 422 ; `POST /api/integrations` (fournisseur invalide) : `agency_id` absente en erreur, tierce non ; `PATCH /api/profiles/{id}/agency-role` profil tiers 403, absent 404, rôle absent 422 sur `agency_role_id`. Le « à vérifier » : les identifiants d'agence sont publics par l'annuaire (lu, `PublicAgencyController.php:170` et `:343`), l'oracle ne vise donc que les agences hors annuaire. Classement : V2, comme P62.03 : rendre 404 quand `assign` refuse change la réponse d'une autorisation.
 
 ### Rien n'empêche une règle `exists:` neuve sur une route dont l'`authorize()` laisse passer tout compte
 - Réf : P62.08
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/` (13 FormRequests hors `Admin/` dont l'`authorize()` rend `true` ou `user() !== null` et qui portent un `exists:`), `scripts/`
 - Constat :
   - Le défaut a été corrigé route par route (TCK-599 sur les favoris, TCK-732 sur les documents, TCK-817 sur les routes en lot), et chaque correctif l'a écrit dans un commentaire (`StoreFavoriteRequest.php:31-33`, `PropertyController.php:454`, `PropertyBulkAssignService.php:87`) ; aucun test ni garde ne porte la règle (lu : aucun `check-*.mjs` ni test d'architecture ne lit `exists:`).
   - Les entrées P62.01 à P62.07 montrent que la même forme est restée ouverte sur treize autres routes.
 - Piste : un test d'architecture qui liste les FormRequests dont l'`authorize()` ne juge rien et qui portent `exists:` sur une table d'agence (`customers`, `leases`, `guarantors`, `users`, `conversations`, `maintenance_requests`, `properties`), avec une liste d'exceptions motivées, vide une fois les entrées faites.
+- Mesure (2026-10-20, 0ba226223, mesureur) : relevé des FormRequests hors `Admin/` qui portent `exists:` et dont l'`authorize()` rend `true` ou `user() !== null` → 14 fichiers, dont `StoreFavoriteRequest` (TCK-599) : 13 autres, comme le constat ; `grep exists:` dans `scripts/check-*.mjs` et dans les tests d'architecture → aucun. Classement : A5, un test neuf qui liste les FormRequests de cette forme, avec les 13 actuels en exceptions motivées par leur Réf (P62.01 à P62.07), sans changer aucune réponse ni resserrer un seuil existant.
 
 ## Angle 63 — URL signées et liens de téléchargement rangés ou envoyés : durée, lecteurs, liens morts
 
@@ -6456,7 +6460,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
 
 ### Tout compte qui peut lire un document peut en téléverser et en restaurer une version, contre TCK-097 qui exige le droit de modifier
 - Réf : P64.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : retire l'ajout et la restauration de version au personnel d'agence et au bailleur du porteur, qui les ont aujourd'hui
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentVersionController.php:46-60,85-94`, `takussan-api/app/Policies/DocumentPolicy.php:37-80,140-160`, `docs/backlog/tickets/TCK-097-document-version-history.md:85-87`, `docs/backlog/tickets/TCK-306-autorisation-controleurs-vers-policies.md:109-118`
 - Constat :
@@ -6465,10 +6469,11 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
   - Mesuré par un test temporaire : un bail, un document du bailleur sur ce bail, le locataire connecté. `DELETE /api/documents/{id}` → 403, mais `POST /api/documents/{id}/versions` → 201, et `GET /api/documents/{id}` rend ensuite le fichier du locataire en `active_version` (`is_active: true`).
   - Établi comment : test temporaire et lecture. Pour une pièce de profil, `view` ne s'ouvre qu'à l'auteur et au super-admin (lu, `attachTo` n'a pas de branche de profil) : le défaut ne touche pas les pièces KYC, mais tous les documents de bail, de bien, de client, de réservation et d'état des lieux.
 - Piste : autoriser `store` et `restore` par `update`, comme TCK-097 l'écrit, et garder `view` pour `index` et `download`. Un test : le locataire d'un bail reçoit 403 sur l'ajout et la restauration d'une version d'un document du bailleur ; l'auteur reçoit 201. Ablation → rouge.
+- Mesure (2026-10-20, 0ba226223, mesureur) : lu `DocumentVersionController.php:48` et `:87` (`authorize('view')`), `DocumentPolicy.php` `update()` (super-admin ou `landlordWrites` du téléverseur) et `attachTo()` (branche `Lease` : bailleur, personnel de l'agence, locataire), TCK-097 l. 85-87 ; test temporaire retiré (charge 4,22 sur 8 cœurs), bail, document du bailleur avec une version, locataire connecté → `DELETE /api/documents/{id}` 403, `POST …/versions` 201, `POST …/versions/{v1}/restore` 200. Le constat tient. Classement : V2, autoriser par `update` comme l'écrit TCK-097 retire aussi ces deux gestes au personnel de l'agence et au propriétaire du porteur qui ne sont pas le téléverseur, appelants légitimes aujourd'hui : qui garde le droit est à trancher.
 
 ### L'effacement du compte laisse les pièces de ses profils intactes : ligne, média, fichier et nom de fichier d'origine
 - Réf : P64.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : ce que l'effacement conserve ou retire des pièces de profil
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:237-325`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:59-78`, `takussan-api/app/Models/Document.php:100-110`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:76-83`, `takussan-web/src/content/legal/privacy.ts:123-124`
 - Constat :
@@ -6479,10 +6484,11 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
   - Le retrait d'un agent de l'agence supprime en douceur son `AgentProfile` par une requête en masse (lu, l. 78), sans toucher ses `Document`. Mesuré : après `remove()`, le profil est supprimé en douceur, le document ne l'est pas et le fichier existe. `media:cleanup` ne regarde que le modèle qui porte le média, ici le `Document` : il ne purgera jamais ce fichier (lu, `MediaCleanup.php`, `isOrphan()`).
   - Établi comment : test temporaire et lecture.
 - Piste : à l'effacement, terminer les profils du compte (statut, ou suppression en douceur, qui donne une date de fin) et remplacer le `name` des pièces et de leurs médias par le libellé du type. La purge à « fin + 5 ans » de TCK-537 peut alors partir du `deleted_at` du profil. Un test : après `executeDeletion()`, aucun `Document` ni média d'un profil du compte ne porte le nom d'origine, et chaque profil a une date de fin. Ablation → rouge.
+- Mesure (2026-10-20, 0ba226223, mesureur) : lu `AccountDeletionService.php:292-294` (seules `avatar`, `avatars`, `photos`) ; PR #750 ouverte (P57) ne touche ni profils ni `Document` (lu, son corps) ; test temporaire retiré → bailleur, `kyc/upload` de `CNI_Aminata_Diop.pdf` 201, puis `executeDeletion()` : `Document` non supprimé, `name` et nom du média `CNI_Aminata_Diop.pdf`, fichier présent sur le disque, `OwnerProfile` `active`, `deleted_at` nul, rattaché au compte. Le volet `AgencyMemberRemovalService` n'a été que relu (l. 78, suppression en masse des `AgentProfile`), non re-mesuré. Classement : V3, conserver, renommer ou dater la fin des pièces d'un compte effacé est une décision de données personnelles.
 
 ### Le titulaire peut supprimer sa pièce, même vérifiée, et le fichier part 90 jours plus tard
 - Réf : P64.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : durée de conservation d'une pièce KYC supprimée par son titulaire, choix ouvert dans la piste
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:131-136`, `takussan-api/app/Policies/DocumentPolicy.php:70-80,123-126`, `takussan-api/app/Console/Commands/MediaCleanup.php`, `takussan-api/routes/console.php:72`
 - Constat :
@@ -6491,10 +6497,11 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
   - `media:cleanup`, chaque jour à 03:00, détruit le média d'un modèle supprimé en douceur depuis plus de 90 jours (lu, `SOFT_DELETE_RETENTION_DAYS`, TCK-750). Seuls le contrat signé et les photos d'un état des lieux en sont exclus. Une pièce KYC vérifiée, supprimée par son titulaire, perd donc son fichier au bout de 90 jours, contre les 5 ans de `privacy.ts:124`. Ce que la règle LBC impose n'a pas été cherché.
   - Établi comment : test temporaire et lecture. Qu'une pièce vérifiée doive survivre au geste de son titulaire est une question de produit et de droit, non tranchée ici.
 - Piste : décider et écrire : refuser la suppression d'une pièce de profil vérifiée (ou de toute pièce de profil), ou ajouter les pièces aux collections de preuve que `MediaCleanup::isEvidence()` épargne, avec leur propre durée. Dans les deux cas, un test qui le tient. Ablation → rouge.
+- Mesure (2026-10-20, 0ba226223, mesureur) : lu `DocumentController::destroy()` (`authorize('delete')`), `DocumentPolicy::delete()` = `update()`, `MediaCleanup.php:28` (`SOFT_DELETE_RETENTION_DAYS = 90`) et `:90-96` (`isEvidence` : `signed_contract`, `room_photos` hors brouillon) ; test temporaire retiré → RIB du bailleur, vérifié, `DELETE /api/documents/{id}` 204, ligne supprimée en douceur, fichier présent. Classement : V3 et V7, refuser le geste ou conserver le fichier plus longtemps est un choix de produit et de conservation que la piste laisse ouvert.
 
 ### Un nouvel envoi remet la pièce à « non vérifiée » mais garde l'auteur et la date de la vérification précédente
 - Réf : P64.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : effacer `verified_by` et `verified_at` retire la seule trace de la vérification précédente
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:59-72`, `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:68-81`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:59-72`, `takussan-api/app/Http/Resources/DocumentResource.php:37-38`
 - Constat :
@@ -6504,6 +6511,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
   - Aucun écran du front ne lit `verified_at` d'un document (mesuré : `grep` dans `takussan-web/src` → seul le type `document.ts:41`). Le défaut est dans la réponse de l'API et en base.
   - Établi comment : test temporaire, lecture et `grep`.
 - Piste : remettre `verified_by` et `verified_at` à `null` dans les trois `updateOrCreate`, de préférence par une seule méthode partagée. Un test par contrôleur, ou un seul sur la méthode : après un nouvel envoi, les trois champs de vérification sont vides. Ablation → rouge.
+- Mesure (2026-10-20, 0ba226223, mesureur) : lu `OwnerProfileController.php:59-72` (`updateOrCreate` avec `is_verified => false`, sans `verified_by` ni `verified_at`), `DocumentController::verify()` (pose les trois ensemble) ; `Document` n'est pas journalisé (lu : pas d'`Auditable`) ; test temporaire retiré → CNI vérifiée par un admin, nouvel envoi, `GET /api/documents/{id}` 200 `is_verified: false`, `verified_by: 5`, `verified_at` posé. Classement : V3, le correctif est simple mais efface l'unique trace de qui a vérifié la pièce précédente : la garder ailleurs ou la perdre est à décider.
 
 ### Petites améliorations
 - Réf : P64.05
