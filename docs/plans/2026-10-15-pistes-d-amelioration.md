@@ -6847,7 +6847,7 @@ de violation hors `region`.*
 
 ### La page « Passer en agence » d'une agence individuelle rend la page d'erreur, et la barre latérale ignore la demande en cours
 - Réf : P68.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/agency-upgrade.ts:22-39,49-58`, `takussan-web/src/app/(dashboard)/app/settings/agency/upgrade/page.tsx:42-45`, `takussan-web/src/app/(dashboard)/app/layout.tsx:38-41,54-55`, `takussan-api/app/Models/AgencyUpgradeRequest.php:88-94`
 - Constat :
@@ -6857,10 +6857,11 @@ de violation hors `region`.*
   - Aucun test ne le voit : les deux tests qui montent le layout simulent `fetchAgencyUpgradeRequests` (lu, `bandeau-suspension.test.tsx`, `layout.acces-admin.test.tsx`).
   - Établi comment : faux API (l'API réelle en lecture seule), CDP, code relu.
 - Piste : retirer `ninea` et `rib_pro` de `AGENCY_UPGRADE_REQUEST_FIELDS` (le formulaire les envoie, la liste n'en a pas besoin ; vérifier `types/agency-upgrade.ts:20` et `UpgradeRequestStatus`). Garde : un test qui confronte chaque constante `*_FIELDS` du front au `$queryFields` du modèle visé (voir l'angle proposé 100), à défaut un test de la page qui joue un 400 et attend autre chose que l'erreur.
+- Mesure (2026-10-20, 8150df982, mesureur) : relu `AGENCY_UPGRADE_REQUEST_FIELDS` (`agency-upgrade.ts`, demande toujours `ninea` et `rib_pro`), `$queryFields` d'`AgencyUpgradeRequest` (ne les porte plus, docblock TCK-601 : « un `fields[]` qui les demande est refusé (400) »), `Promise.all` sans `catch` de `upgrade/page.tsx` et `.catch(() => null)` du layout ; test temporaire (retiré) sur `GET /api/agencies/{id}/upgrade-requests` par un admin d'agence individuelle : avec les champs exacts du front → 400 `http.bad_request`, sans `ninea`/`rib_pro` → 200 ; `grep` : aucune lecture de `.ninea`/`.rib_pro` sur la liste côté front (seul le détail de la console les lit, par une autre requête) → le constat tient. Classement : A1, le contrat est écrit dans le modèle (TCK-601) et le front s'y aligne en retirant deux champs que la liste n'affiche pas, sans choix de produit.
 
 ### Le sélecteur de locataire du nouveau bail n'a pas de nom accessible
 - Réf : P68.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:160-180,352-372`
 - Constat :
@@ -6868,10 +6869,11 @@ de violation hors `region`.*
   - axe rend `button-name` (impact « critical ») sur `#field-tenant_id` de `/app/leases/new` (mesuré, deux passages). Le lecteur d'écran annonce au mieux la valeur ou le placeholder (« Recherche… »), jamais la question.
   - Établi comment : axe et lecture du DOM par CDP, code relu.
 - Piste : donner au déclencheur le nom du champ (`aria-labelledby` vers le libellé « Locataire », ou `aria-label` avec la clé existante `t('tenant')`) quand `label` est `null`. Garde : test de rendu qui attend `getByRole('combobox', { name: /locataire/i })`.
+- Mesure (2026-10-20, 8150df982, mesureur) : relu `CreateLeaseForm.tsx` : le libellé « Locataire » vise `#tenant-search`, `EntitySelect` reçoit `label={null}` et son `SelectTrigger` `#field-tenant_id` ne porte ni `aria-label` ni `aria-labelledby` ; `git log` : dernier changement TCK-913, sans rapport → le constat tient. Classement : A4, attribut ARIA seul, avec la clé existante `t('tenant')` ou un `aria-labelledby` vers le libellé déjà rendu.
 
 ### Le champ fichier du logo d'agence, masqué en `sr-only`, reste dans l'ordre de tabulation sans nom
 - Réf : P68.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:341-357`
 - Constat :
@@ -6879,10 +6881,11 @@ de violation hors `region`.*
   - axe rend `label` (impact « critical ») sur `#agency-logo` de `/app/agency` (mesuré).
   - Établi comment : axe, code relu.
 - Piste : `tabIndex={-1}` et `aria-hidden` sur l'`input` (le bouton porte le geste), ou un `<label htmlFor="agency-logo">` stylé en bouton à la place du `Button`. Garde : test de rendu qui n'attend aucun `input[type=file]` focusable sans nom.
+- Mesure (2026-10-20, 8150df982, mesureur) : relu `AgencyConfigForm.tsx` l. 341-355 : `input#agency-logo` `type=file` en `sr-only`, sans `tabIndex`, sans libellé ni `aria-label`, suivi du `Button` qui l'ouvre par `logoInputRef.current?.click()` → le constat tient. Classement : A4, attribut d'accessibilité seul (`tabIndex={-1}` et `aria-hidden` sur l'`input`), le bouton visible gardant le geste, aucun texte neuf.
 
 ### Les jours de la semaine du calendrier sont à 3,33:1, par l'opacité de la feuille de react-day-picker
 - Réf : P68.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/ui/calendar.tsx:65-68`, `takussan-web/src/app/globals.css:17`, `node_modules/react-day-picker/dist/style.css:55,262`
 - Constat :
@@ -6891,10 +6894,11 @@ de violation hors `region`.*
   - 30 fichiers montent `Calendar` ou `DateTimePicker` (mesuré, `grep -rln`), dont les dialogues de visite et de réservation de la fiche publique.
   - Établi comment : axe et styles calculés par CDP, code relu.
 - Piste : `opacity-100` (ou `[--rdp-weekday-opacity:1]`) dans la classe `weekday` de `calendar.tsx`, la couleur restant celle du jeton. Garde : le test de charte du calendrier (`calendar-charte-tck-582.test.tsx`) étendu à l'opacité des en-têtes, ou la règle `color-contrast` d'axe sur le calendrier ouvert.
+- Mesure (2026-10-20, 8150df982, mesureur) : relu `calendar.tsx` (classe `weekday` : `text-muted-foreground`, aucune opacité rétablie), `globals.css:17` (`@import "react-day-picker/style.css" layer(rdp)`) et la feuille du paquet, servie par `src/style.css` et non `dist/style.css` comme l'écrit le constat (`--rdp-weekday-opacity: 0.75` l. 55, `opacity: var(--rdp-weekday-opacity)` l. 262) ; contraste recalculé : `#6e655a` à 0,75 sur `#ffffff` → 3,33:1, à opacité 1 → 5,72:1 → le constat tient. Classement : A4, contraste ramené sur le jeton existant en rétablissant l'opacité, sans changer de couleur.
 
 ### Le popover du sélecteur de date est un `dialog` sans nom
 - Réf : P68.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/ui/date-time-picker.tsx:199`, `takussan-web/src/components/ui/popover.tsx`
 - Constat :
@@ -6903,10 +6907,11 @@ de violation hors `region`.*
   - Les autres popovers montés par `ui/popover.tsx` n'ont pas été passés (à vérifier).
   - Établi comment : axe et DOM par CDP.
 - Piste : passer au `PopoverContent` l'`aria-label` que reçoit déjà le composant (`ariaLabel`, l. 97 et 173). Garde : test de rendu qui ouvre le sélecteur et attend `getByRole('dialog', { name })`.
+- Mesure (2026-10-20, 8150df982, mesureur) : relu `date-time-picker.tsx` : `aria-label` reçu en `ariaLabel` (l. 97) et posé sur le seul déclencheur (l. 173), `PopoverContent` sans nom (l. 199) ; `grep` : 1 seul des 6 fichiers qui montent `DateTimePicker` lui passe un `aria-label`, la piste telle qu'écrite laisserait donc la plupart des popovers sans nom ; les autres popovers d'`ui/popover.tsx` non passés (non mesuré, hors du classement) → le constat tient pour le sélecteur de date. Classement : A4, attribut ARIA seul, sans texte neuf (`aria-label` quand il est fourni, sinon `aria-labelledby` vers le déclencheur).
 
 ### Ouvrir le combobox des agences de la console masque son propre déclencheur, focus compris
 - Réf : P68.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer le déclencheur ou changer la modalité du combobox
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/AgencyCombobox.tsx:170-196`, `takussan-web/src/components/ui/combobox.tsx:146-149`
 - Constat :
@@ -6916,10 +6921,11 @@ de violation hors `region`.*
   - Ce qu'un lecteur d'écran annonce réellement n'a pas été écouté (à vérifier).
   - Établi comment : axe et DOM par CDP, code relu.
 - Piste : déplacer le focus dans la saisie à l'ouverture par le déclencheur, ou ouvrir la liste en mode non modal si Base UI 1.7 le permet pour le combobox ; à défaut, retirer le `Trigger` comme l'a fait `ui/combobox.tsx` (`openOnInputClick`). Garde : test qui ouvre par le déclencheur et vérifie que `document.activeElement` n'a aucun ancêtre `aria-hidden`.
+- Mesure (2026-10-20, 8150df982, mesureur) : relu `AgencyCombobox.tsx` (`Combobox.Clear` et `Combobox.Trigger` hors de la saisie, dans l'`InputGroup`) et le commentaire de `combobox.tsx:146-149` ; test Vitest temporaire (retiré), ouverture par le bouton « Ouvrir la liste des agences » → focus sur l'`INPUT` « Agence » (et non sur le déclencheur, comme sous Chrome), mais la saisie et le déclencheur ont tous deux un ancêtre `aria-hidden`/inerte → le constat tient, et la première option de la piste (focus dans la saisie) ne suffit pas sous jsdom. Classement : V7, les options qui restent changent ce que voit l'utilisateur (retrait du déclencheur visible) ou le mode d'ouverture du composant, à choisir par le porteur.
 
 ### Trois petits textes de la console et de l'espace sous 4,5:1
 - Réf : P68.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : choix du couple de jetons des deux pastilles
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/business-enums.tsx:46`, `takussan-web/src/components/layout/SuperAdminTopbar.tsx:72-77`, `takussan-web/src/components/property-dashboard/PropertyList.tsx:586-590`
 - Constat :
@@ -6928,10 +6934,11 @@ de violation hors `region`.*
   - `/app/properties`, menu « Plus d'actions » ouvert : le badge de visibilité publique, `bg-primary/10 text-primary`, 4,29:1 (`#a85332` sur `#f0e5dc`, 10,8 px) (mesuré).
   - Établi comment : axe par CDP, code relu.
 - Piste : retirer l'`opacity-75` (ou passer sur `primary-foreground` plein), et ramener les deux pastilles sur un couple de jetons qui passe 4,5:1 à leur taille ; aucun texte neuf. Garde : un test de contraste sur les jetons, comme `chrome-publique.contraste.test.tsx`.
+- Mesure (2026-10-20, 8150df982, mesureur) : relu `business-enums.tsx:46` (`text-xs opacity-75`), `SuperAdminTopbar.tsx:72-77` (`bg-primary/15 text-primary`) et `PropertyList.tsx:586-590` (`bg-primary/10 text-primary`) ; contrastes recalculés : `#fcf9f3` à 0,75 sur `#a85332` → 3,6:1 (plein : 5,06:1) ; `#a85332` sur `primary/10` → 4,42:1 sur `#fcf9f3`, 4,64:1 sur `#ffffff` (sous 4,5:1 selon le fond) ; la pastille sombre (4,31:1) non recalculée, fond rendu non relu → le constat tient. Classement : V7, le retrait de l'`opacity-75` relève de A4, mais les deux pastilles demandent de choisir un autre couple de jetons, donc leur apparence.
 
 ### Petites améliorations relevées par axe dans les coques connectées
 - Réf : P68.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : noms contextualisés et place du lien d'évitement
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/shared/LienEvitement.tsx` (monté par `AppShell.tsx:94`, `SuperAdminShell.tsx`), `takussan-web/src/components/layout/NotificationBell.tsx:179`, `takussan-web/src/components/messages/MessagesPage.tsx:213`, `takussan-web/src/components/layout/AppTopbar.tsx:51-56`, `takussan-web/src/app/(super-admin)/super-admin/users/page.tsx:377-378`, `takussan-web/src/components/pipeline/PipelineKanban.tsx:271-274`
 - Constat :
@@ -6944,3 +6951,4 @@ de violation hors `region`.*
   - `/app/crm/pipeline` : `scrollable-region-focusable` sur le conteneur du kanban (mesuré) ; les cartes n'étaient peut-être pas encore chargées au passage (à vérifier).
   - Établi comment : axe et DOM par CDP.
 - Piste : lien d'évitement dans le repère de la barre du haut ; `<div>` au lieu de `<header>` dans le popover ; `aria-label` distincts sur les `aside` et les sections ; `aria-expanded={sidebarOpen}` sur le bouton du menu ; nom accessible avec la ligne (« Plus d'actions — {titre} ») ; zone cliquable portée à 24 px par un `py`. Aucune ne demande de texte neuf hormis les noms contextualisés, qui réutilisent des données affichées.
+- Mesure (2026-10-20, 8150df982, mesureur) : relu `AppShell.tsx` (`<LienEvitement />` rendu avant la bannière et la barre haute, hors de tout repère), `NotificationBell.tsx:179` (`<header>` dans le popover), `AppTopbar.tsx:51-56` (bouton du menu sans `aria-expanded`), `MessagesPage.tsx:213` (`aside` sans nom) et `super-admin/users/page.tsx:377-378` (« Impersonifier » sans contexte) → ces cinq points tiennent ; `target-size` des liens `tel:`/`mailto:` et `scrollable-region-focusable` du kanban non re-mesurés (marqués « à vérifier »), hors du classement. Classement : V7, les noms contextualisés (« Plus d'actions — {titre} ») sont un texte neuf par clé interpolée, et déplacer le lien d'évitement change la structure des coques ; `aria-expanded`, `<div>` au lieu de `<header>` et les noms d'`aside` seraient A4 seuls.
