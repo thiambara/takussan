@@ -6376,7 +6376,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### Rien n'empêche une règle `exists:` neuve sur une route dont l'`authorize()` laisse passer tout compte
 - Réf : P62.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-1027
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/` (13 FormRequests hors `Admin/` dont l'`authorize()` rend `true` ou `user() !== null` et qui portent un `exists:`), `scripts/`
 - Constat :
@@ -6384,6 +6384,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Les entrées P62.01 à P62.07 montrent que la même forme est restée ouverte sur treize autres routes.
 - Piste : un test d'architecture qui liste les FormRequests dont l'`authorize()` ne juge rien et qui portent `exists:` sur une table d'agence (`customers`, `leases`, `guarantors`, `users`, `conversations`, `maintenance_requests`, `properties`), avec une liste d'exceptions motivées, vide une fois les entrées faites.
 - Mesure (2026-10-20, 0ba226223, mesureur) : relevé des FormRequests hors `Admin/` qui portent `exists:` et dont l'`authorize()` rend `true` ou `user() !== null` → 14 fichiers, dont `StoreFavoriteRequest` (TCK-599) : 13 autres, comme le constat ; `grep exists:` dans `scripts/check-*.mjs` et dans les tests d'architecture → aucun. Classement : A5, un test neuf qui liste les FormRequests de cette forme, avec les 13 actuels en exceptions motivées par leur Réf (P62.01 à P62.07), sans changer aucune réponse ni resserrer un seuil existant.
+- Mesure (2026-10-20, bb1524a12, implementeur) : relevé refait par la garde même : 13 FormRequests hors `Admin/` et `Auth/`, `authorize()` ouvert et `exists:`/`Rule::exists()` sur une table d'agence, commentaires exclus (`StoreFavoriteRequest` n'en garde qu'un commentaire, TCK-599, et n'est pas compté) ; aucune garde ne lisait `exists:`. `ExistsSurRouteOuverteTest` les fige avec leur Réf. Ablations : exceptions vidées → rouge (les 13 nommés) ; `exists:properties,id` ajouté à `StoreFavoriteRequest` → rouge ; exception fantôme → rouge ; commentaires lus → rouge ; remis → 3 verts. Tables retenues : celles de la `Piste`, plus `agencies`, `agency_roles` et `bookings`, sans lesquelles trois des treize échappaient.
 
 ## Angle 63 — URL signées et liens de téléchargement rangés ou envoyés : durée, lecteurs, liens morts
 

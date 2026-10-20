@@ -1,7 +1,7 @@
 ---
 id: TCK-1027
 title: "Garde : pas de règle `exists:` neuve sur une table d'agence quand l'`authorize()` laisse passer tout compte"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -34,7 +34,7 @@ que décroître.
 
 ## Delta à produire
 
-- [ ] `tests/Unit/Architecture/ExistsSurRouteOuverteTest.php` : balaie `app/Http/Requests/` hors
+- [x] `tests/Unit/Architecture/ExistsSurRouteOuverteTest.php` : balaie `app/Http/Requests/` hors
       `Admin/` et `Auth/`, retient les FormRequests dont l'`authorize()` rend `true` ou ne teste
       que la présence d'un compte (ou qui n'en ont pas et étendent `FormRequest`), et qui portent
       `exists:` ou `Rule::exists()` sur une table d'agence, commentaires exclus ; compare à une
@@ -42,13 +42,13 @@ que décroître.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Les treize FormRequests relevés par P62.01 à P62.07 sont en exceptions, chacun avec
+- [x] AC1 — Les treize FormRequests relevés par P62.01 à P62.07 sont en exceptions, chacun avec
       sa Réf ; la garde est verte.
-- [ ] AC2 — Un `exists:properties,id` ajouté à un FormRequest ouvert hors liste
+- [x] AC2 — Un `exists:properties,id` ajouté à un FormRequest ouvert hors liste
       (`StoreFavoriteRequest`) la fait rougir, en le nommant.
-- [ ] AC3 — Une exception qui n'a plus la forme (corrigée, ou fichier disparu) la fait rougir,
+- [x] AC3 — Une exception qui n'a plus la forme (corrigée, ou fichier disparu) la fait rougir,
       pour qu'on la retire : la liste ne fait que décroître.
-- [ ] AC4 — Une mention de `exists:` dans un commentaire ne compte pas.
+- [x] AC4 — Une mention de `exists:` dans un commentaire ne compte pas.
 
 ## Hypothèses (mode sans humain)
 
@@ -67,4 +67,8 @@ que décroître.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Une garde ne rougit pas avant d'exister : elle s'éprouve par ablation. Liste d'exceptions
+  vidée → rouge, les 13 nommés ; `exists:properties,id` ajouté à `StoreFavoriteRequest` → rouge,
+  le fichier nommé ; exception fantôme → rouge (péremption) ; commentaires non retirés → rouge
+  (le commentaire de `CreateInvitationRequest::authorize()` masque alors sa forme). Remis → 3 verts.
+- La garde vérifie qu'elle a lu plus de 100 fichiers : un balayage vide serait vert.
