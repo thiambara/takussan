@@ -71,7 +71,7 @@ class AgencyRole extends AbstractModel
 
     protected static array $requestSortable = ['id', 'name', 'created_at', 'base_profile_type'];
 
-    protected static array $requestLoadable = ['agency', 'capabilities'];
+    protected static array $requestLoadable = ['capabilities'];
 
     protected static array $requestSearchFields = ['name', 'description'];
 

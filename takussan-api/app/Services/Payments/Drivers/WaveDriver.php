@@ -8,7 +8,11 @@ use App\Services\Payments\Dto\CheckoutSession;
 use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus;
 use App\Support\Logging\ProviderResponseContext;
+use App\Support\Logging\SafeExceptionContext;
+use Closure;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -76,12 +80,12 @@ class WaveDriver implements PaymentDriverContract
             'error_url' => $meta['cancel_url'] ?? config('app.frontend_url').'/app/payments/return?status=failed',
         ];
 
-        $response = Http::withToken($apiKey)
+        $response = $this->reach('checkout', fn () => Http::withToken($apiKey)
             ->acceptJson()
             ->asJson()
             ->connectTimeout(5)
             ->timeout(20)
-            ->post($this->baseUrl().'/v1/checkout/sessions', $payload);
+            ->post($this->baseUrl().'/v1/checkout/sessions', $payload));
 
         if (! $response->successful()) {
             Log::warning('[wave] checkout failed', ProviderResponseContext::of($response));
@@ -105,12 +109,12 @@ class WaveDriver implements PaymentDriverContract
     {
         $apiKey = $this->credential('api_key');
 
-        $response = Http::withToken($apiKey)
+        $response = $this->reach('verify', fn () => Http::withToken($apiKey)
             ->acceptJson()
             ->connectTimeout(5)
             ->timeout(15)
             ->retry(2, 200, throw: false)
-            ->get($this->baseUrl().'/v1/checkout/sessions/'.$externalId);
+            ->get($this->baseUrl().'/v1/checkout/sessions/'.$externalId));
 
         if (! $response->successful()) {
             Log::warning('[wave] verify failed', ProviderResponseContext::of($response));
@@ -182,6 +186,24 @@ class WaveDriver implements PaymentDriverContract
 
         $expected = hash_hmac('sha256', $timestamp.'.'.$rawBody, $secret);
         abort_code_unless(hash_equals($expected, $provided), 401, 'webhook.signature_invalid');
+    }
+
+    /**
+     * TCK-1021 (P65.03) — un fournisseur qui ne répond pas (délai dépassé, connexion refusée) est
+     * indisponible, comme celui qui répond en erreur : 502 `payment.provider_unavailable`, et non
+     * une `ConnectionException` qui sort du pilote en 500. Le journal n'en garde que la forme sûre :
+     * son message recopie l'URL appelée.
+     *
+     * @param  Closure(): Response  $call
+     */
+    private function reach(string $step, Closure $call): Response
+    {
+        try {
+            return $call();
+        } catch (ConnectionException $e) {
+            Log::warning('[wave] '.$step.' unreachable', SafeExceptionContext::of($e));
+            abort_code(502, 'payment.provider_unavailable');
+        }
     }
 
     protected function baseUrl(): string

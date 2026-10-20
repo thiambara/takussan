@@ -6128,7 +6128,7 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
 
 ### Quatre modèles acceptent des `include=` que leur ressource n'émet pas, et la garde de TCK-807 ne les voit pas
 - Réf : P60.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1022
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/PlatformPayout.php:54`, `takussan-api/app/Http/Resources/Api/Admin/PlatformPayoutResource.php:10-37`, `takussan-api/app/Models/Plan.php:40`, `takussan-api/app/Http/Resources/Api/Admin/PlanResource.php:10-25`, `takussan-api/app/Models/AgencyRole.php:74`, `takussan-api/app/Http/Resources/Agency/AgencyRoleResource.php:34`, `takussan-api/app/Models/BankStatement.php:51`, `takussan-api/app/Http/Resources/Accounting/BankStatementResource.php:14-38`, `takussan-api/tests/Unit/Http/Resources/RequestLoadableEmittedTest.php:75`
 - Constat :
@@ -6144,6 +6144,7 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : retirer ces relations de `$requestLoadable`, puisque aucun appelant ne les demande. La garde trouve la ressource par son nom de classe dans tout `app/Http/Resources`, ou par une table modèle → ressource : elle nommerait alors ces quatre modèles. Ablation : remettre la recherche à un seul chemin et constater qu'elle ne les voit plus.
 - Mesure (2026-10-19, bde1d5b43, mesureur) : lu `PlatformPayout.php:54`, `Plan.php:40`, `AgencyRole.php:74`, `BankStatement.php:51` (`$requestLoadable` inchangés) et leurs ressources sous `Api/Admin/`, `Agency/`, `Accounting/` (aucun `whenLoaded` pour ces relations) ; `RequestLoadableEmittedTest.php:75` cherche toujours `app/Http/Resources/<Modèle>Resource.php` ; test temporaire retiré (charge 2,41 sur 8 cœurs) → `/api/me/payouts?include=agency,approver,closer,payer` 200, une requête `from "agencies" where "agencies"."id" in`, aucune des quatre clés ; `/api/admin/payouts?include=agency,approver` 200 sans `agency` ; `/api/admin/plans` 2 requêtes, 3 avec `include=subscriptions`, sans clé `subscriptions` ; `/api/agencies/{id}/roles?include=agency` 200 sans `agency` ; `grep` du front → `fetchAdminPlans`, `fetchPlatformPayouts`, `fetchMyPlatformPayouts` n'envoient que `fields`/`sort`, `agency-roles.ts:71` n'inclut que `capabilities`. Classement : A3 et A5, includes acceptés sans appelant des deux côtés et garde élargie sans seuil resserré ; l'implémenteur vérifie que la garde élargie ne nomme pas d'autres modèles à traiter dans le même lot.
+- Mesure (2026-10-20, c3c65f7a7, implementeur) : `RequestLoadableEmittedTest` élargi à tout `app/Http/Resources` (ressource racine prioritaire, nom ambigu hors racine refusé), charge 1,40 sur 8 cœurs : avant correctif, rouge sur `AgencyRole : agency`, `BankStatement : agency`, `Plan : subscriptions`, `PlatformPayout : agency, approver, closer, payer`, et `AgencySubscription : agency` (P60.04, exempté le temps de son ticket ; aucun autre modèle nommé) → `$requestLoadable` retiré de `PlatformPayout` et `Plan`, `agency` retiré d'`AgencyRole` et `BankStatement` : 2 verts, et 74 verts sur les classes des quatre listes ; ablation 1 (modèles remis) → rouge sur les quatre ; ablation 2 (recherche au seul chemin racine) → rouge sur le plancher `AgencyRole` ; remis → 2 verts.
 
 ### Des `show` chargent en dur des relations que leur ressource n'émet pas
 - Réf : P60.02
@@ -6181,7 +6182,7 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
 
 ### Petites améliorations
 - Réf : P60.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1023
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/AgencySubscription.php:42`, `takussan-api/tests/Unit/Http/Resources/RequestLoadableEmittedTest.php:99-102`
 - Constat :
@@ -6190,6 +6191,7 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
   - Établi comment : lu et `grep`.
 - Piste : retirer `AgencySubscription::$requestLoadable`. La garde retire les commentaires du source avant de chercher (`token_get_all`, en écartant `T_COMMENT` et `T_DOC_COMMENT`).
 - Mesure (2026-10-19, bde1d5b43, mesureur) : lu `AgencySubscription.php:42` (`['agency', 'plan']`) ; `grep -rn "AgencySubscription::buildQuery" app` → rien (seuls des `AgencySubscription::query()` dans les services) ; ressource rangée sous `Api/Admin/AgencySubscriptionResource.php`, qui n'émet que `plan` (l. 28) et `agency_id` (l. 17) ; `RequestLoadableEmittedTest.php` cherche par `preg_match` sur `file_get_contents` brut (lu, l. 95-101), donc un `whenLoaded('x')` en commentaire satisfait la garde : établi par lecture, non éprouvé. Classement : A3 et A5, déclaration sans lecteur retirée et garde durcie sans seuil touché.
+- Mesure (2026-10-20, c3c65f7a7, implementeur) : `grep -rn "buildQuery" app | grep -i subscription` → rien, la déclaration est morte ; test neuf `test_un_when_loaded_en_commentaire_ne_compte_pas` (quatre formes de commentaire et un `whenLoaded('plan')` de code), charge 1,40 sur 8 cœurs : rouge sur le source brut → la garde retire `T_COMMENT` et `T_DOC_COMMENT` par `token_get_all`, et `AgencySubscription::$requestLoadable` est retiré avec l'exemption posée par TCK-1022 : 3 verts, 71 verts avec les classes qui citent `AgencySubscription` ; ablation du filtrage → rouge, exemption retirée sur le modèle d'origine → rouge sur `AgencySubscription : agency` ; remis → verts. Aucun autre écart révélé par le filtrage.
 
 ## Angle 61 — Modèles rendus bruts par un contrôleur, au-delà de `User`
 
@@ -6590,7 +6592,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### Un délai dépassé chez Wave ou Orange Money rend 500 au lieu de 502 `payment.provider_unavailable`, à l'initiation comme à la vérification
 - Réf : P65.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1021
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:79-89,106-118`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:76-86,103-116,168-179`, `takussan-api/bootstrap/app.php:131-168`
 - Constat :
@@ -6602,6 +6604,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - Établi comment : test temporaire et lecture.
 - Piste : attraper `ConnectionException` dans les deux pilotes (initiation, jeton, vérification), journaliser sous la forme sûre (`SafeExceptionContext`), et rendre `abort_code(502, 'payment.provider_unavailable')`. Test par pilote et par appel : un faux qui lève, et l'assertion du 502 et de son code.
 - Mesure (2026-10-20, eb4dde5a0, mesureur) : test temporaire, retiré depuis, sous-classe de `PaymentGatewayInitiateTest` avec `Http::fake` qui lève `ConnectionException` (« cURL error 28 »), charge 3,66 / 3,45 / 3,58 sur 8 cœurs ; `git log 0ba226223..HEAD` sur les pilotes et `bootstrap/app.php` → aucun commit ; `grep ConnectionException` dans `WaveDriver.php` et `OrangeMoneyDriver.php` → rien → Wave initiation 500, Orange Money initiation 500, Wave vérification 500, Orange Money vérification 500 (jeton en cache vidé), message de cURL dans les quatre cas : le constat tient en entier. Classement : A1, le contrat `502 payment.provider_unavailable` est déjà celui des deux pilotes sur réponse en erreur et de Lemon Squeezy sur exception, et traduire l'exception de connexion n'écrit ni ne calcule aucun montant.
+- Mesure (2026-10-20, c3c65f7a7, implementeur) : `PaymentDriverConnectionFailureTest`, six cas par les routes `lease-payments/{id}/initiate` et `/verify` avec un faux qui lève `ConnectionException` (charge 1,39 sur 8 cœurs) : avant correctif, 6 rouges « Expected response status code [502] but received 500 » → `reach()` dans `WaveDriver` (initiation, vérification) et `OrangeMoneyDriver` (jeton, initiation, vérification) rend 502 `payment.provider_unavailable` et journalise `SafeExceptionContext` sans le message de cURL : 6 verts ; ablation (pilotes remis à `pre-dev`) → 6 rouges, remis → 6 verts.
 
 ### Le client Resend n'a aucun délai, et des courriels partent dans la requête HTTP, dont un sous verrou
 - Réf : P65.04

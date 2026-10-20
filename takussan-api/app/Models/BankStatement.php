@@ -48,7 +48,7 @@ class BankStatement extends AbstractModel implements HasMedia
         'uploaded_by', 'finalized_by',
     ];
 
-    protected static array $requestLoadable = ['uploadedBy', 'finalizedBy', 'agency'];
+    protected static array $requestLoadable = ['uploadedBy', 'finalizedBy'];
 
     public function registerMediaCollections(): void
     {
