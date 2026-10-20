@@ -151,7 +151,7 @@ voie d'écriture (angle 13, puis 47).
 | 76 | Effets aval d'un paiement soldé puis passé à `refunded` : quittance déjà envoyée, ligne prise par un reversement de la plateforme (`platform_payout_id`) ou du propriétaire (`PayoutCalculator`), commission, exports et totaux de l'historique | fait |
 | 77 | Fichiers du disque `local` dans le volume `storage` des conteneurs (archives d'export RGPD, exports de rapports) : écrits par `worker`, servis par `api`, purge réelle, taille, et ce qui reste après `PurgeExpiredDataExports` | fait |
 | 78 | Pic mémoire des jobs qui accumulent tout en tableau avant d'écrire (export RGPD `DataExportBuilder`, exports de rapports `GenerateReportExport`, relevés OFX) face à `memory_limit = 256M` et aux `mem_limit` des workers | fait |
-| 79 | Appels du serveur Next vers l'API sans délai (`apiFetch`, `apiRequest`, relais BFF : aucun `AbortSignal.timeout`) : rendu d'une page publique ou d'une action quand l'API répond lentement, face au `requestTimeout` de Node (300 s) et aux délais de Traefik | à faire |
+| 79 | Appels du serveur Next vers l'API sans délai (`apiFetch`, `apiRequest`, relais BFF : aucun `AbortSignal.timeout`) : rendu d'une page publique ou d'une action quand l'API répond lentement, face au `requestTimeout` de Node (300 s) et aux délais de Traefik | fait |
 | 80 | Champs envoyés par les formulaires montés du front et écartés en silence par `validated()` (aucune règle dans le FormRequest), et champs `required` jamais envoyés : reste de l'angle 45, non relevé | à faire |
 | 81 | État du bail face aux écritures d'argent (création d'échéance, `mark-paid`, lien de paiement, pénalité, restitution) sur un bail `draft`, `pending_signature`, `terminated` ou `renewed` | à faire |
 | 82 | Routes qui jugent un bailleur ou un membre par `landlord_id === user.id`, `user_id ===` ou `staffAgencyId()` en dur, au lieu de `landlordWrites` / `isStaffAt` / la policy : bailleur suspendu, rôle personnalisé sans la capacité, membre de plusieurs agences | à faire |
@@ -186,6 +186,7 @@ voie d'écriture (angle 13, puis 47).
 | 110 | Rapprochement bancaire (`bank_reconciled_at`, `bank_statement_line_id`, `Accounting\ReconciliationManager`) d'une échéance, d'un acompte ou d'une facture passés à `refunded` après rapprochement : la ligne de relevé reste-t-elle rapprochée, et le remboursement sortant a-t-il un pendant | à faire |
 | 111 | Jobs en file qui posent un statut de suivi (`processing`, `queued`) sur une ligne (`ReportExport`, `DataExport`, `ParseBankStatementJob`, versements) sans `failed()` — 7 jobs sur 43 en ont un : ce que voit l'utilisateur après l'échec définitif ou un arrêt brutal du worker, et ce qui bloque une nouvelle demande | à faire |
 | 112 | Exports synchrones de `ExportController` (`GET /api/exports/{entity}`, jusqu'à 10 000 lignes, 2 000 en PDF) et de `PrivacyRequestController` : requêtes par ligne des constructeurs d'entité, mémoire et durée dans la requête HTTP — le relevé de l'angle 78 sur les exports qui ne passent pas par un job | à faire |
+| 113 | Appels du navigateur vers l'API sans délai (`useApiQuery`, `apiRequest` client, mutations TanStack, `fetch` direct des composants) : bouton `isPending` figé et requête jamais abandonnée sur un réseau mobile qui ne coupe pas — le pendant client de l'angle 79 | à faire |
 
 ---
 
@@ -7884,3 +7885,89 @@ l'angle 111.*
 - Piste : décider avec P63.02 si le chemin asynchrone reste (seuil à revoir, ou rapport plus long à venir) ou part. S'il reste, un test qui atteint le seuil par la route, et non par `handle()`.
 - Mesure (2026-10-20, 8e6c7ef17, mesureur) : relu `ReportingController.php:24,108-109,134` (`ASYNC_THRESHOLD_ROWS = 10_000`, seul `dispatch`), `PlatformReportingService.php:59,190,270-285,398-400` (60 tranches au plus, `min(24, $depth)`, quatre étapes du tunnel) ; `grep -rn GenerateReportExport app routes tests` → le contrôleur et deux tests qui appellent `handle()` à la main (`ReportExportDownloadTest.php:53`, `PlatformReportingTest.php:417`) ; P63.02 est aujourd'hui `fait · TCK-1051` → aucun rapport n'atteint le seuil, le constat tient. Classement : V7, ce n'est pas du code mort (A3) tant que TCK-227 écrit le chemin asynchrone : le retirer ou abaisser le seuil change ce que reçoit l'appelant (202 et courriel au lieu du fichier).
 - Mesure (2026-10-20, a54446ee9, delegue) : relu `ReportingController.php:24-29,108-145` (seuil `ASYNC_THRESHOLD_ROWS`, service injecté au constructeur), `PlatformReportingService.php:25` (classe non `final`, substituable dans le conteneur), `TCK-227-super-admin-platform-reporting.md:54,81,95` (« L'export > 10k lignes passe en async et notifie par email ») et la décision du délégué sur P63.02, suivie par TCK-1051 → le chemin asynchrone est écrit par TCK-227 et désormais servi par une route liée au demandeur ; seul manque un test qui l'atteigne par la route. Délégation : V7, garder le chemin et son seuil ne change aucun comportement, suit une décision écrite (TCK-227) et la recommandation déjà retenue sur P63.02 ; aucun code de production touché, un commit le défait ; le retrait ou un seuil abaissé, eux, changeraient ce que reçoit la console et restent au porteur.
+
+## Angle 79 — Appels du serveur Next vers l'API sans délai
+
+*Exploré le 2026-10-20 sur `pre-dev` 4bc743f93, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : `src/lib/api.ts` (`apiFetch`, `apiRequest`),
+`src/lib/relais-api.ts`, les 21 route handlers de `src/app/api` qui appellent `fetch`,
+`src/app/layout.tsx`, `src/app/(dashboard)/layout.tsx`, `src/lib/queries/public-property.ts`,
+`src/lib/access/server-guards.ts`, `MaintenanceBanner.tsx`, `docker/demarrer.mjs` et le Dockerfile
+du front, l'adaptateur `NextRequest` de Next 16.3.1. Deux mesures en Node 24.18.0 sur le poste (la
+version de l'image, `node:24-bookworm-slim`), contre un serveur TCP local qui accepte la connexion
+et ne répond jamais ; charge 2,54 / 3,15 / 3,90 sur 8 cœurs. Non mesuré : un rendu réel de page
+(ni `next start` ni build lancés), la préproduction, Traefik et Cloudflare, qu'on ne joint pas
+depuis le poste. Le chemin serveur Next → API ne traverse pas Traefik (`API_INTERNAL_URL` vise
+`http://takussan-api-preview:8080`, lu `docs/infra/hebergement.md:96`) : devant l'API, la seule
+borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
+
+### Aucun appel du serveur Next vers l'API ne porte de délai : il attend jusqu'aux 300 s d'undici
+- Réf : P79.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/api.ts:129-132,734-741`, `takussan-web/src/lib/relais-api.ts:65`, `takussan-web/src/app/api/sante/route.ts:20,32`
+- Constat :
+  - `apiFetch` appelle `fetch` avec le seul `init` de l'appelant (lu, `api.ts:129-132`). `apiRequest` ne passe que le `signal` fourni par l'appelant (lu, `:740`) ; côté serveur, aucun appelant n'en fournit (mesuré : `grep -rn 'AbortSignal.timeout\|signal:' src/app/api src/app/actions src/lib/relais-api.ts` → la seule `sante/route.ts:32`). `relayerVersApi` n'en pose pas non plus (lu, `relais-api.ts:65`).
+  - Mesuré, script Node 24.18.0 contre un serveur qui accepte la connexion sans répondre : `fetch` sans `signal` → rejet après 306,8 s, `TypeError` de cause `UND_ERR_HEADERS_TIMEOUT` (« Headers Timeout Error »), le `headersTimeout` par défaut d'undici (300 s). Une page, une action serveur ou un relais attend donc jusque-là une API qui ne répond pas.
+  - Seule `api/sante` se borne, à 3 s (lu, `sante/route.ts:20`) : la sonde le sait, le rendu des pages non.
+  - `server.requestTimeout` de Node (300 000 ms, mesuré : `node -e 'console.log(require("http").createServer().requestTimeout)'`) borne la réception de la requête du client, pas la durée de sa réponse (documentation de Node, à vérifier) : rien, côté front, ne coupe un rendu qui attend. `docker/demarrer.mjs` importe `server.js` sans rien régler (lu).
+  - Établi comment : lu ; deux mesures locales.
+- Piste : un délai par défaut dans `apiFetch` et `apiRequest` côté serveur (`AbortSignal.any([signal appelant, AbortSignal.timeout(N)])`), avec une valeur plus longue ou une option pour les relais d'export et de téléversement (`export/[entity]`, `kyc/upload`, `data-exports/[id]/download`), et la classer comme une panne réseau (voir P79.05). Garde : un test vitest contre un `fetch` qui ne se résout jamais, qui exige un rejet sous la borne.
+
+### La mise en page racine attend `/auth/me` sans borne : un visiteur connecté ne reçoit aucun octet de quelque page que ce soit tant que l'API ne répond pas
+- Réf : P79.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/layout.tsx:66-80`, `takussan-web/src/lib/auth.ts:98-100`, `takussan-web/src/app/(dashboard)/layout.tsx:52`
+- Constat :
+  - `RootLayout` fait `await getMe(jeton)` dès qu'un cookie de session ou d'impersonation est présent, avant de rendre quoi que ce soit (lu, `layout.tsx:73-80`). `getMe` est un `apiRequest` sans délai (lu, `auth.ts:98-100` ; P79.01).
+  - Le repli existe — `catch { initialUser = null }`, la page se rend en visiteur anonyme — mais il n'est atteint qu'à l'échec de `fetch`, soit, sur une API qui ne répond pas, après le délai mesuré en P79.01.
+  - La mise en page racine est au-dessus de toutes les frontières `loading.tsx` : elle doit se résoudre avant que l'enveloppe ne parte (fonctionnement des layouts de l'App Router, à vérifier par un rendu). Les pages publiques comprises, `/properties` et la fiche, dont les données sont pourtant en cache (P79.03).
+  - L'espace `/app` ajoute un second `getMeAction()` dans `(dashboard)/layout.tsx:52` (lu), lui aussi sans délai.
+  - Devant le front, Cloudflare coupe une réponse sans premier octet à 100 s par défaut (documentation de Cloudflare, à vérifier sur la zone) : le visiteur voit alors une 524, et le rendu continue côté serveur (déduit).
+  - Établi comment : lu ; ordre de rendu et délai de Cloudflare à vérifier.
+- Piste : borner `getMe` de la mise en page racine à quelques secondes, en gardant le repli anonyme actuel ; mesurer par un rendu `next start` contre une API figée le délai avant premier octet, avant et après. Garde : un test de la mise en page avec un `getMe` qui ne se résout jamais.
+
+### Les états « indisponible » prévus pour une API en panne ne sont atteints qu'après le délai d'undici
+- Réf : P79.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/public-property.ts:73-105`, `takussan-web/src/lib/access/server-guards.ts:107`
+- Constat :
+  - La fiche publique distingue `introuvable` (404) et `indisponible` (toute autre panne, `robots: { index: false }`), un choix écrit et motivé (lu, `public-property.ts:34-44,94-101`). Sur une API qui accepte la connexion sans répondre, `apiFetch` ne rejette qu'au délai d'undici (P79.01) : la page attend jusque-là au lieu de rendre l'état prévu.
+  - La lecture est en cache de données (`revalidate`, lu `:88-92`) : une fiche déjà en cache est servie, et seule une absence de cache attend (déduit du cache de données de Next, à vérifier).
+  - Même schéma pour les gardes d'accès : `verification-indisponible` existe pour une agence qu'on n'a pas pu lire (lu, `server-guards.ts:107`), atteint après le même délai.
+  - Établi comment : lu.
+- Piste : la borne de P79.01 suffit à rendre ces états à temps ; la garde de P79.01 peut se doubler d'un test de `getProperty` qui exige `indisponible` sous la borne.
+
+### Les relais BFF ne transmettent pas l'abandon du navigateur, et 18 route handlers sur 22 lèvent sans réponse JSON quand l'API est injoignable
+- Réf : P79.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/relais-api.ts:46-75`, `takussan-web/src/app/api/export/[entity]/route.ts:46-56`, `takussan-web/src/app/api/maintenance/status/route.ts:4-17`, `takussan-web/src/app/api/feature-flags/me/route.ts:9`
+- Constat :
+  - Next construit `NextRequest` avec un `signal` lié à la réponse Node, qui s'abandonne quand le client ferme la connexion (lu, `node_modules/next/dist/server/web/spec-extension/adapters/next-request.js:56-62,108`). `relayerVersApi` ne le transmet pas à son `fetch` (lu, `relais-api.ts:61,65`), ni aucun des autres relais (mesuré : `grep -rn 'request.signal\|req.signal' src` → rien). Un onglet fermé, ou une 524 de Cloudflare, laisse l'appel amont tourner jusqu'au bout (déduit).
+  - Aucun `catch` dans 18 des 22 fichiers qui appellent `fetch` sous `src/app/api` ou dans `relais-api.ts` (mesuré : `grep -c catch` par fichier → 0 pour tous sauf `sante`, `auth/logout`, `impersonation/start`, `stop`, `current`). Un `fetch` qui lève (API arrêtée, délai) remonte comme une exception du handler : le navigateur reçoit la 500 de Next, sans le `code` que lit `messageCorpsErreurBff` (forme exacte de la réponse à vérifier).
+  - Établi comment : lu, et `grep`.
+- Piste : `relayerVersApi` passe `request.signal` (combiné au délai de P79.01) et rend un 502/504 JSON avec un code BFF sur un rejet de `fetch` ; les relais à `fetch` direct l'adoptent ou suivent le même patron. Garde : un test de `relayerVersApi` avec un `fetch` qui rejette.
+
+### Un délai posé par `AbortSignal.timeout` serait classé « bug » par les gardes d'accès, et non « panne »
+- Réf : P79.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/lib/access/server-guards.ts:57-83`
+- Constat :
+  - `estPanneReseau` ne reconnaît qu'un `TypeError` (`fetch failed`, ou `cause.code` dans `CAUSES_RESEAU`) ; tout autre `Error` hors `ApiError` donne le verdict `bug` (lu, `:73-83`).
+  - Mesuré, même script : `fetch(…, { signal: AbortSignal.timeout(200) })` → `name= TimeoutError ctor= DOMException`, sans `cause`. Le correctif de P79.01, s'il est fait tel quel, ferait passer une API lente de « réessayez » (`UND_ERR_HEADERS_TIMEOUT` est dans la liste aujourd'hui, lu `:59`) à « bug ».
+  - Établi comment : lu ; mesuré.
+- Piste : reconnaître `TimeoutError` (et `AbortError` du seul délai) dans `estPanneReseau`, dans le même ticket que P79.01. Garde : un cas de test de `classer` avec une `DOMException` `TimeoutError`.
+
+### Petites améliorations
+- Réf : P79.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/api/maintenance/status/route.ts:7-17`, `takussan-web/src/components/maintenance/MaintenanceBanner.tsx:14-17,52`
+- Constat :
+  - Le bandeau de maintenance interroge `/api/maintenance/status` toutes les 60 s (lu, `MaintenanceBanner.tsx:52`) et fait `res.json()` sans regarder le statut (lu, `:14-17`). Le relais n'a ni délai ni `catch` (lu, `route.ts:7-10`) : API injoignable, la route lève, et le bandeau ne s'affiche pas — précisément quand l'API ne répond plus (déduit, à vérifier sur un rendu).
+  - Établi comment : lu.
+- Piste : le relais rend un statut et un corps JSON sur un rejet (P79.04), et le bandeau ignore une réponse non `ok` sans lever.
