@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Services\Whatsapp;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Agency;
 use App\Models\AppNotification;
-use App\Models\Booking;
 use App\Models\Integration;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\NotificationPreference;
@@ -13,9 +13,9 @@ use App\Models\SavedSearch;
 use App\Models\User;
 use App\Models\WhatsappContact;
 use App\Notifications\Channels\WhatsappChannel;
+use App\Notifications\CodedNotification;
 use App\Notifications\Concerns\SupportsSms;
 use App\Notifications\Concerns\SupportsWhatsapp;
-use App\Notifications\NewBookingNotification;
 use App\Notifications\SavedSearchMatchesNotification;
 use App\Services\Notifications\Whatsapp\WhatsappResult;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
@@ -297,12 +297,12 @@ class WhatsappChannelTest extends TestCase
 
     public function test_pilot_notification_exposes_app_notification_id(): void
     {
-        // TCK-282/283 — the pilot honors the appNotificationIdFor() contract
+        // TCK-282/283 — the mobile notification honors the appNotificationIdFor() contract
         // so the mobile channels can log delivery attempts the DLR webhook
-        // can later match.
-        $booking = new Booking;
-        $this->assertSame(42, (new NewBookingNotification($booking, 42))->appNotificationIdFor($this->user));
-        $this->assertNull((new NewBookingNotification($booking))->appNotificationIdFor($this->user));
+        // can later match. TCK-1053 : porté du pilote retiré (`NewBookingNotification`, sans
+        // émetteur) sur `CodedNotification`, qui porte les envois mobiles réels.
+        $this->assertSame(42, (new CodedNotification(NotificationCode::BookingConfirmed, [], null, 42))->appNotificationIdFor($this->user));
+        $this->assertNull((new CodedNotification(NotificationCode::BookingConfirmed, []))->appNotificationIdFor($this->user));
     }
 
     public function test_unverified_phone_is_skipped(): void

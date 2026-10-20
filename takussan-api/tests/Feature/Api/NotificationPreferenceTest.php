@@ -103,6 +103,24 @@ class NotificationPreferenceTest extends TestCase
         $this->assertArrayNotHasKey('reason', $overdue);
     }
 
+    /**
+     * TCK-1053 (P75.01) — la demande de réservation ne part pas sur mobile (TCK-590, contrainte 4) :
+     * ses cases SMS et WhatsApp sont verrouillées. Elles étaient ouvertes par la seule présence de
+     * `NewBookingNotification`, sans émetteur, dans `MOBILE_CLASS_EVENTS`.
+     */
+    public function test_les_cases_mobiles_de_la_demande_de_reservation_sont_verrouillees(): void
+    {
+        $matrix = $this->matrix(User::factory()->create(['phone_verified_at' => now()]));
+
+        foreach (['sms', 'whatsapp'] as $canal) {
+            $cell = $matrix["booking_request|{$canal}"];
+            $this->assertTrue($cell['locked'], $canal);
+            $this->assertFalse($cell['enabled'], $canal);
+            $this->assertSame('channel_unavailable', $cell['reason'] ?? null, $canal);
+        }
+        $this->assertFalse($matrix['booking_request|email']['locked']);
+    }
+
     public function test_ac16_activer_une_case_indisponible_ne_cree_aucune_ligne(): void
     {
         $user = User::factory()->create(['phone_verified_at' => now()]);
