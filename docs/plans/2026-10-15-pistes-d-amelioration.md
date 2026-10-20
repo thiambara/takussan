@@ -6007,7 +6007,7 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
 
 ### `UserResource` affirme `false` ou `null` sur les colonnes qu'un sparse fieldset n'a pas lues : 2FA, vérification, préférences
 - Réf : P58.04
-- Statut : validé — `whenHas` sur les clés dérivées de colonnes hors `$queryFields` (`two_factor_enabled`, `force_2fa_*`, `email_verified_at`, `phone_verified_at`, `preferences`), sur le modèle de `has_usable_password` ; `UserResourceSparseFieldsTest` étendu, avec ablation (porteur, 2026-10-19)
+- Statut : fait · TCK-1019
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/UserResource.php:30-97`, `takussan-api/app/Models/User.php:234-238`, `takussan-api/tests/Feature/Api/UserResourceSparseFieldsTest.php`
 - Constat :
@@ -6018,6 +6018,7 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
   - Établi comment : test temporaire et lecture.
 - Piste : étendre `whenHas` aux clés dérivées de colonnes hors `$queryFields` (`two_factor_enabled`, `force_2fa_*`, `email_verified_at`, `phone_verified_at`, `preferences`), sur le modèle de `has_usable_password` ; étendre `UserResourceSparseFieldsTest` à ces clés, avec ablation.
 - Mesure (2026-10-19, 353c40b57, mesureur) : test temporaire retiré, admin d'agence et membre agent aux drapeaux vrais : `GET /api/agencies/{id}/members` → `two_factor_enabled`, `force_2fa_at_first_login`, `force_2fa_reconfigure` vrais, `email_verified_at` daté, `preferences {x:1}` ; avec `fields[users]=id,first_name,last_name,email,status` → `false`, `false`, `false`, `null`, objet vide ; `User::$queryFields` ne porte aucune de ces colonnes (lu, `User.php:234-238`). Les types du front les déclarent optionnelles (lu, `src/types/user.ts:94,99,104`, `src/types/admin-users.ts:30`), mais `UserResource.php` écrit pour `preferences` « Always returned as an object (possibly empty) so clients can assume the shape ». Classement : V2, omettre des drapeaux de 2FA qui pilotent des redirections change ce que lit une partie de l'authentification, et l'omission de `preferences` contredit un contrat écrit : le choix revient au porteur.
+- Mesure (2026-10-20, 35d861d57, implementeur) : `UserResourceSparseFieldsTest::test_les_cles_derivees_de_colonnes_non_selectionnees_sont_omises`, neuf (membre aux drapeaux vrais, liste sous `fields[users]=id,first_name,last_name,email,status`), rouge avant correctif (`two_factor_enabled` émis) → `whenHas` sur les six clés (`metadata` pour `force_2fa_reconfigure`) ; vert, et le versant positif (modèle entier : six clés vraies, `preferences` = `{x: 1}`) vert ; ablation 1 (ressource de `pre-dev`) → rouge ; ablation 2 (`whenHas` retiré de `preferences` seul) → rouge ; remis → 4 verts. Sept classes d'authentification et d'onboarding qui lisent ces clés restent vertes.
 
 ### Petites améliorations
 - Réf : P58.05
