@@ -1,7 +1,7 @@
 ---
 id: TCK-1026
 title: "`kyc.docs` se dérive des pièces vivantes du profil, et le re-téléversement ajoute avant de retirer"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -37,21 +37,21 @@ précédente.
 
 ## Delta à produire
 
-- [ ] `OwnerProfileController`, `AgentProfileController` : `uploadKyc` n'écrit plus
+- [x] `OwnerProfileController`, `AgentProfileController` : `uploadKyc` n'écrit plus
       `metadata.kyc.docs` ; `submitKyc` rend et journalise les sortes (`kind`) des `Document`
       non supprimés du profil.
-- [ ] `OwnerProfileController`, `AgentProfileController`, `ServiceProviderProfileController` :
+- [x] `OwnerProfileController`, `AgentProfileController`, `ServiceProviderProfileController` :
       `clearMediaCollection('file')` retiré avant `addMedia()`.
-- [ ] Tests : `KycDocumentsDerivedTest` (pièce supprimée absente de `submitKyc`, réponse et
+- [x] Tests : `KycDocumentsDerivedTest` (pièce supprimée absente de `submitKyc`, réponse et
       journal ; ajout raté qui garde l'ancien fichier, dans les trois contrôleurs) ; les deux
       tests d'onboarding qui lisaient le miroir lisent désormais `submitKyc`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Owner et Agent : après téléversement de deux pièces et suppression de l'une,
+- [x] AC1 — Owner et Agent : après téléversement de deux pièces et suppression de l'une,
       `submitKyc` rend et journalise la seule pièce restante.
-- [ ] AC2 — `uploadKyc` n'écrit plus `metadata.kyc.docs`.
-- [ ] AC3 — Dans les trois contrôleurs, un re-téléversement dont l'ajout du média échoue laisse
+- [x] AC2 — `uploadKyc` n'écrit plus `metadata.kyc.docs`.
+- [x] AC3 — Dans les trois contrôleurs, un re-téléversement dont l'ajout du média échoue laisse
       la pièce avec son fichier précédent ; un re-téléversement réussi la laisse avec un seul
       fichier, le nouveau.
 
@@ -70,4 +70,12 @@ précédente.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Avant correctif : 5 rouges sur 8 (`KycDocumentsDerivedTest`) — miroir encore écrit (Owner,
+  Agent), pièce perdue après un ajout raté (les trois contrôleurs). Les trois cas « ajout réussi »
+  sont verts avant comme après : ils gardent que `singleFile` remplace bien sans
+  `clearMediaCollection()`.
+- Ablations : `submitKyc` relu sur le miroir → 2 rouges ; `clearMediaCollection('file')` remis
+  dans Owner, Agent, puis ServiceProvider → 1 rouge chacun. Remis → 8 verts ; `tests/Feature/Onboarding`
+  et `tests/Feature/Kyc` verts.
+- L'ajout raté se simule par un `Media::creating` qui lève : l'ancien code avait déjà effacé
+  le média quand l'écriture du nouveau échoue.
