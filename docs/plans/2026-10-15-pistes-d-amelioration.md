@@ -146,7 +146,7 @@ voie d'écriture (angle 13, puis 47).
 | 71 | Variables d'environnement des services de production du plan F3 (`takussan-web-prod`, `takussan-api-prod`) face au relevé de la préproduction dans `docs/infra/hebergement.md` : clés absentes, valeurs reprises de D1 | fait |
 | 72 | Ce qu'un accusé `failed` reçu après coup (SMS ou WhatsApp) déclenche : repli sur un autre canal, renvoi, trace pour l'expéditeur — face aux envois critiques (OTP, code de signature de bail) | fait |
 | 73 | URL signées absolues (`hasValidSignature`, `temporarySignedRoute`, `media.private.show`) derrière Traefik : schéma et hôte vus par l'API face à `APP_URL`, signature refusée en préproduction ? | fait |
-| 74 | Ce que joint sans authentification un service voisin de `dokploy-network` (Dokploy, Compose `donnees`, autres projets) : API sur 8080, Redis, Meilisearch (clé maîtresse ?), PostgreSQL, front Next — et l'alias `api` partagé entre projets | à faire |
+| 74 | Ce que joint sans authentification un service voisin de `dokploy-network` (Dokploy, Compose `donnees`, autres projets) : API sur 8080, Redis, Meilisearch (clé maîtresse ?), PostgreSQL, front Next — et l'alias `api` partagé entre projets | fait |
 | 75 | Classes `Notification` historiques de `AppDatabaseChannel::TYPES`, hors `NotificationCode` : sans `code` ni `target` dans la cloche, préférences lues à la main dans `via()`, couvertes par un test ? | à faire |
 | 76 | Effets aval d'un paiement soldé puis passé à `refunded` : quittance déjà envoyée, ligne prise par un reversement de la plateforme (`platform_payout_id`) ou du propriétaire (`PayoutCalculator`), commission, exports et totaux de l'historique | à faire |
 | 77 | Fichiers du disque `local` dans le volume `storage` des conteneurs (archives d'export RGPD, exports de rapports) : écrits par `worker`, servis par `api`, purge réelle, taille, et ce qui reste après `PurgeExpiredDataExports` | à faire |
@@ -182,6 +182,7 @@ voie d'écriture (angle 13, puis 47).
 | 106 | Branches que le code ne prend qu'en `APP_ENV=production` (`RestrictIpMiddleware` à liste vide, `DeletionStepUpService::sendCode`, `AddRobotsTagOutsideProduction` jugé sur `APP_URL`) : chacune éprouvée par un test en `production`, alors que la préproduction tourne en `staging` et ne les prend jamais ? | à faire |
 | 107 | Champs du profil que l'utilisateur déclare pour être joint (`phone_whatsapp`, `secondary_phone`, `secondary_phone_whatsapp`, `preferred_language`, heures calmes) : lus par les chemins qui envoient (canaux de notification, codes, relances), ou seulement affichés ? | à faire |
 | 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | à faire |
+| 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | à faire |
 
 ---
 
@@ -7442,3 +7443,81 @@ Traefik, ni Cloudflare. Les hôtes réels ont été remplacés dans les tests pa
   - **Les signatures dans le journal d'accès de Traefik** : `hebergement.md` dit que le journal porte le chemin de chaque requête. Si `RequestPath` comprend la chaîne de requête, chaque `signature=` y est écrite, et elle vaut jusqu'à sept jours (rappel LAM, pièces jointes de caution) ou sans limite (désabonnement du résumé). Voir P10.10, qui laisse ce point « à vérifier » (non mesurable depuis le poste).
 - Piste : traiter TCK-546 avec P73.01 ; retirer `download_url` s'il n'a pas de lecteur ; vérifier sur le serveur ce que Traefik journalise, et sinon écarter la chaîne de requête des journaux.
 - Mesure (2026-10-20, 3ba79daa1, mesureur) : relu `routes/api/kyc.php:6-8` (`kyc.documents.show` sous `auth:sanctum`) et `TCK-546` (`status: todo`) ; `grep -rn download_url takussan-web/src` → le type `super-admin.ts:713` et un test (`DataExportsPanel.test.tsx:42`), aucun lecteur ; `DataExportResource.php:23` fabrique le champ par `url()` ; `LAfricaMobileSmsDriver::buildReturnUrl()` signe dans la requête, `LeaseSignatureCodeNotification` sans `ShouldQueue` ; le journal de Traefik n'est pas mesurable depuis le poste → les trois premiers points tiennent, le quatrième reste à vérifier. Le 401 n'est pas rejoué, il se lit du middleware. Classement : V2, ouvrir la pièce sans jeton change l'autorisation d'une route, et le retrait de `download_url` touche le contrat de l'API.
+
+## Angle 74 — Ce que joint un service voisin de `dokploy-network`
+
+*Exploré le 2026-10-20 sur `pre-dev` a233822b8, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : `deploy/server/compose.data.yml`,
+`deploy/takussan/compose.api.yml`, `scripts/check-reseau-par-environnement.mjs`, `docker/Caddyfile`,
+`bootstrap/app.php` (`trustProxies`), `TrustedProxyList`, `RestrictIpMiddleware` et les routes qui
+l'emploient, `SafeOutboundUrl`, `GeoLinkResolver`, le pilote dompdf de `spatie/laravel-pdf`, côté
+front `src/lib/api.ts` (`sautsDeConfiance`, `ipDuVisiteur`, `resolveVisitorIp`), le `Dockerfile` et
+`next.config.ts` (`remotePatterns`), `docs/infra/hebergement.md` (relevé de Dokploy, clés par
+service, authentification basique), le plan d'auto-hébergement (A4 étapes 5 à 9, D1, F1) et D-71.
+Aucun test lancé, rien n'a été mesuré hors du poste : ni le serveur, ni la liste réelle des services
+attachés à `dokploy-network`, ni les droits réels des clés Meilisearch. Ce qui est déjà fermé et
+n'est pas repris : Redis, un par pile sur le réseau `interne`, injoignable depuis `dokploy-network`
+(TCK-880, mesuré sur le serveur le 2026-10-18) ; l'hôte `api` partagé, que la garde
+`check-reseau-par-environnement.mjs` refuse dans les URL ; l'étanchéité des bases PostgreSQL entre
+environnements (`REVOKE CONNECT`, prouvé par un refus au plan, A4 étape 9 et F1 étape 2) ; les
+appels sortants de l'API vers une URL d'utilisateur, bornés aux adresses publiques
+(`SafeOutboundUrl`) ou à une liste d'hôtes (`GeoLinkResolver`). La confiance de Laravel envers tout
+le sous-réseau est P37.04.*
+
+### L'API joint Meilisearch par le nom nu `meilisearch`, partagé sur `dokploy-network`, que la garde de l'hôte `api` ne couvre pas
+- Réf : P74.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `deploy/server/compose.data.yml:18-31`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3530,4159`, `scripts/check-reseau-par-environnement.mjs:34-36`, `docs/infra/hebergement.md:91`
+- Constat :
+  - Le service `meilisearch` du Compose `donnees` est sur `dokploy-network`, sans alias propre (lu, `compose.data.yml:18-31`). La table D1 donne `MEILISEARCH_HOST` = `http://meilisearch:7700` à l'API de préproduction, et F1 la même valeur à la production (lu, plan l. 3530 et 4159 ; le relevé de `hebergement.md:91` nomme aussi `meilisearch:7700`).
+  - C'est le défaut qu'ADR-0069 § 4 a fermé pour `api` : Compose donne à chaque service le nom de son service sur chaque réseau, et deux services de même nom sur un réseau partagé se répondent au hasard (lu, en-tête de `check-reseau-par-environnement.mjs:5-7` et `compose.api.yml:14-18`).
+  - La garde ne cherche que `http(s)://api` (lu, `URL_API`, l. 36). Une URL vers `meilisearch` passe.
+  - Effet : le jour où un autre Compose du serveur (projet voisin, pile d'essai, modèle de Dokploy) déclare un service `meilisearch` sur ce réseau, l'API envoie ses recherches, ses documents et sa clé `Bearer` à l'un ou à l'autre, sans erreur (déduit du mécanisme ; à vérifier : aucun second `meilisearch` aujourd'hui sur le serveur).
+- Piste : un alias propre au service (`takussan-meilisearch`, dans `networks.dokploy-network.aliases` de `compose.data.yml`), visé par `MEILISEARCH_HOST` dans D1, F3 et l'onglet de chaque pile ; étendre `check-reseau-par-environnement.mjs` aux noms nus de services partagés (`meilisearch`, `postgres`, `redis`) dans `deploy/**` et `docs/infra/**`.
+
+### Les clés Meilisearch de chaque environnement sont créées avec `"actions":["*"]` sur une instance partagée, et la preuve d'étanchéité n'éprouve que la création d'un index
+- Réf : P74.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:717-734,4028-4030`, `docs/backlog/tickets/TCK-510-serveur-reinstalle-sous-dokploy.md:103`, `deploy/server/compose.data.yml:19-24`
+- Constat :
+  - La clé de préproduction est créée avec `"actions":["*"],"indexes":["preview_*"]`, et celle de production le sera de même sur `prod_*` (lu, plan l. 719 et 4028). Les deux vivent sur la même instance (lu, `compose.data.yml`, un seul service).
+  - La preuve de la restriction est un `POST /indexes` : `prod_sonde` → `403`, `preview_sonde` → `202` (lu, plan l. 724-733 ; mesuré à l'installation, TCK-510 AC4).
+  - Meilisearch range des actions qui ne portent sur aucun index : vidages (`dumps.create`), instantanés (`snapshots.create`), gestion des clés (`keys.*`), fonctions expérimentales. Une restriction par `indexes` ne les borne pas (déduit de la documentation de Meilisearch ; à vérifier sur la v1.16 servie). Si `*` les comprend, la clé de préproduction écrit sur le disque de l'instance partagée par des vidages, et peut-être crée une clé sur `prod_*`.
+  - La préproduction est la plus exposée des deux : `OTP_PREVIEW_ENABLED=true` et des testeurs (lu, `hebergement.md:184-187` et 250-258). Sa clé est celle qu'on perdrait d'abord.
+- Piste : sur le serveur, avec la clé de préproduction, `POST /keys`, `POST /dumps`, `POST /snapshots` → le code rendu. Si l'un passe, recréer chaque clé avec la liste fermée des actions que l'API emploie (recherche, documents, index, réglages, tâches, statistiques ; relevé à faire dans `release.sh` et Scout), et ajouter ces trois refus à la preuve d'A4 étape 6 et de F1 étape 4.
+
+### Le front croit tout `X-Forwarded-For` qu'on lui envoie : un voisin qui le joint sur le port 3000 choisit l'IP de visiteur que l'API comptera, même une fois P37.04 corrigée
+- Réf : P74.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/api.ts:597-638`, `takussan-web/Dockerfile:31,44`, `docs/infra/hebergement.md:96,219-222`
+- Constat :
+  - Le serveur Next écoute sur `0.0.0.0:3000` (lu, `Dockerfile:31,44`). Il prend l'IP du visiteur dans le `X-Forwarded-For` reçu, à l'entrée de rang `n − VISITOR_IP_TRUSTED_HOPS`, soit `n − 2` en préproduction (lu, `ipDuVisiteur`, l. 610-614 ; valeur relevée, `hebergement.md:96`). Il ne regarde pas qui l'appelle.
+  - Par Cloudflare puis Traefik, les deux dernières entrées sont écrites par eux, et la règle est juste (lu, commentaire l. 602-609, mesure du 2026-10-18).
+  - Un service voisin qui joint le front directement, sans Traefik, écrit toute la chaîne. Avec `X-Forwarded-For: 203.0.113.7, 10.0.1.99`, le front retient `203.0.113.7` (lu, l. 612-613). Il la transmet à l'API par `API_INTERNAL_URL`, et l'API la croit, puisque le front est un mandataire de confiance (lu, `hebergement.md:219-222` ; voir P37.04).
+  - Le voisin choisit donc son seau dans chaque limiteur par visiteur et l'IP rangée dans `property_contact_leads.ip`. La piste de P37.04, un réseau dédié front ↔ API, garde ce chemin : le front reste sur `dokploy-network` pour Traefik (déduit ; à vérifier : que l'Application `takussan-web-preview` est bien joignable sur ce réseau depuis un autre conteneur).
+- Piste : traiter avec P37.04. Ou bien le front ne croit le `X-Forwarded-For` que si la socket vient de Traefik (adresse ou sous-réseau déclaré), ou bien le front n'est joignable que par un réseau qu'il partage avec Traefik seul. Un test de `resolveVisitorIp` garde la règle retenue (appel hors mandataire → l'IP de la socket, quel que soit l'en-tête).
+
+### Rien ne relève ce qu'un conteneur de Takussan joint sur `dokploy-network`, alors que Dokploy y range sa base, qui porte les secrets de tous les environnements
+- Réf : P74.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `deploy/takussan/compose.api.yml:27-39,88-94`, `docs/infra/hebergement.md:87,94,123-131`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:599-605`
+- Constat :
+  - Les cinq services de la pile d'API (`release`, `api`, `worker`, `worker-media`, `scheduler`) sont sur `dokploy-network` (lu, ancre `x-api`, l. 27-39). Ils traitent des fichiers envoyés par les utilisateurs : photos, pièces KYC, PDF.
+  - Le relevé de Dokploy ne donne de ce réseau que son sous-réseau (lu, `hebergement.md:94`). Aucune ligne ne dit quels services y sont attachés, ni ce que chacun exige pour répondre (mesuré : `grep` sur `docs/` et `deploy/` de `dokploy-redis`, `dokploy-postgres` et des services attachés → seule la commande `psql` de la ligne 87, lancée dans le conteneur `dokploy-postgres`). La mesure de P37.04 le dit aussi.
+  - La base de Dokploy porte l'onglet *Environment* de chaque service, donc les secrets de la préproduction et, demain, de la production (`APP_KEY`, mots de passe des bases, jetons R2) (lu, `hebergement.md:150-154` : Dokploy écrit le `.env` depuis cet onglet).
+  - Si `dokploy-postgres`, le Redis de Dokploy ou l'API de Traefik sont joignables sur ce réseau, une faille dans le traitement d'un fichier par l'API ou un worker de préproduction suffit pour les atteindre. Ce sont les seuls conteneurs du serveur qui lisent des fichiers de tiers. Ce qu'ils exigent, mot de passe ou rien, est à vérifier sur Dokploy v0.30.8 (déduit de la conception de Dokploy, non mesuré).
+- Piste : un relevé sur le serveur, ajouté à `hebergement.md` : services attachés à `dokploy-network`, et pour chacun ce qu'il répond à un conteneur de la pile sans secret (`redis-cli PING`, `psql` sans mot de passe, `curl` sur le port de l'API de Traefik). Puis, selon le relevé : un réseau de données dédié (PostgreSQL, Meilisearch, piles d'API), et les piles d'API hors de `dokploy-network` sauf le service `api`.
+
+### Petites améliorations : authentification basique contournée, catalogue PostgreSQL ouvert
+- Réf : P74.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `docs/infra/hebergement.md:226-237`, `takussan-web/Dockerfile:31`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:749-755,4010-4014`
+- Constat :
+  - **Authentification basique de la préproduction.** Elle est posée par Traefik (onglet *Security* de l'Application), pas par le front (lu, `hebergement.md:233-237`). Un voisin qui joint `takussan-web-preview:3000` ne la rencontre pas (déduit de `Dockerfile:31` ; à vérifier sur le serveur). L'effet est faible : l'API de préproduction, elle, est publique sans authentification basique (lu, `hebergement.md:104`, sonde UptimeRobot sur `/up`).
+  - **Catalogue de l'instance PostgreSQL partagée.** Le plan retire `CONNECT` à `PUBLIC` sur `takussan_preview` et `takussan_prod`, pas sur la base `postgres` (lu, plan l. 752 et 4012). Le rôle d'un environnement s'y connecte donc par défaut (comportement par défaut de PostgreSQL ; à vérifier sur l'instance). Il y lit la liste des bases et des rôles de l'instance, ceux de l'autre environnement compris (`pg_database`, `pg_roles`), sans aucune donnée.
+- Piste : noter dans le relevé que l'authentification basique ne vaut que par Traefik, à lier à P74.03 ; ajouter `REVOKE CONNECT ON DATABASE postgres FROM PUBLIC` aux étapes A4 et F1, et un refus du rôle d'environnement sur `postgres` à leur preuve.
