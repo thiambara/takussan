@@ -139,7 +139,7 @@ voie d'écriture (angle 13, puis 47).
 | 64 | Pièces KYC des profils (`Document` d'`OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`) à l'effacement du compte, à la fin du profil et au re-téléversement : fichier, versions et lignes réellement supprimés ? | fait |
 | 65 | Durée cumulée des appels sortants synchrones dans une requête HTTP (OTP SMS, step-up, initiation de paiement) face au délai de PHP, du serveur web et de Traefik | fait |
 | 66 | Valeurs d'enum métier ajoutées ou désactivées par le super-admin (`BusinessEnumService`, `settings` `enum.*.values`) : lues par aucune validation ni aucun écran hors de la console ? | fait |
-| 67 | Critères nommés des recherches sauvegardées et des liens partagés (`tags=Piscine`, `location=<quartier>`) après un renommage, une fusion ou un rejet au référentiel (`TagModeration`, `GeoNeighborhoodModeration`) : alertes muettes, filtres vides | à faire |
+| 67 | Critères nommés des recherches sauvegardées et des liens partagés (`tags=Piscine`, `location=<quartier>`) après un renommage, une fusion ou un rejet au référentiel (`TagModeration`, `GeoNeighborhoodModeration`) : alertes muettes, filtres vides | fait |
 | 68 | Passage axe au navigateur des écrans connectés (`/app`, console super-admin) derrière un faux API : barre latérale, tableaux, dialogues et feuilles de `@base-ui/react` | à faire |
 | 69 | Fiche bien, recherche et accueil servis par `next start` avec l'API de dev, sous 3G simulé par CDP : LCP, TBT, octets du document RSC et ordre des préchargements | à faire |
 | 70 | Poids JS initial des écrans de `/app` (`(dashboard)`, 500 à 610 Kio gzip au build du 2026-10-17) : ce que la coque et la barre latérale chargent pour chaque écran | à faire |
@@ -171,6 +171,7 @@ voie d'écriture (angle 13, puis 47).
 | 96 | Règles `exists:` sans `whereNull('deleted_at')` sur une table à `SoftDeletes` (`exists:customers,id`, `exists:users,id`, `exists:leases,id`…) suivies d'un `find()` masqué par la portée : 404 ou 500 au lieu de 422, ou clé étrangère écrite vers une ligne supprimée | à faire |
 | 97 | Liens d'action des courriels (`->action(…)` des `toMail()`, boutons des Mailables) : la route ou la page visée existe-t-elle, un clic depuis un client de courriel porte-t-il l'authentification qu'elle exige, et vise-t-il l'hôte du front ou celui de l'API | à faire |
 | 98 | Autres écrans d'écriture de la console super-admin (modèles de notification `NotificationTemplateService`, annonces, intégrations, paramètres plateforme) : ce que chaque écran promet de changer est-il lu par le chemin qui envoie, affiche ou décide, hors de la console ? | à faire |
+| 99 | Critères de ville et de région rangés par nom (`city`, `cities`, `region` des recherches sauvegardées et des alertes sans compte, `seeking_cities` du CRM) face à une ville renommée par le chargeur du référentiel (`GeoReferentialLoader`, TCK-787) : alertes et rapprochements muets ? | à faire |
 | 98 | Supprimer, versionner ou partager un document que l'on ne fait que lire (`DocumentController::destroy`, `DocumentVersionController`, `DocumentShareLinkController`, `DocumentPolicy::share`) face aux règles écrites des tickets : locataire, bailleur invité, agent d'une autre agence, compte bloqué |
 
 ---
@@ -6710,3 +6711,83 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - Établi comment : lu, et mesuré pour la réactivation (test temporaire).
 - Piste : à reprendre seulement si la console garde l'activation (P66.02) : un bouton de réactivation, un compte d'usage qui lit aussi les critères clients, une règle de `value` alignée sur la forme des cas d'enum.
 - Mesure (2026-10-20, 0bd41cb0d, mesureur) : lu `business-enums.tsx` (bouton désactivé sur `!value.is_active`, le dialogue n'envoie que `labels`), `StoreBusinessEnumValueRequest.php:17` (`regex:/^[a-z][a-z0-9_-]*$/`), `usageCount()` l. 201-208 sur le seul modèle `usage` ; test temporaire (retiré) : `PATCH …/values/farm` `{is_active: true}` → 200, `is_active` vrai ; `POST …/values` `lodge-eco` → 201, valeur stockée `lodge-eco` ; `SavedSearch.criteria` est un tableau JSON, sa teneur en types de bien n'est pas mesurée → le constat tient, recherches sauvegardées non vérifiées. Classement : V7, un geste visible neuf, et la piste ne vaut que si la console garde l'activation (P66.02).
+
+## Angle 67 — Critères nommés des recherches sauvegardées après un renommage ou une fusion au référentiel
+
+*Exploré le 2026-10-20 sur `pre-dev` 550abfd75, par l'explorateur, seul (aucun sous-agent). Relu :
+`TagModeration`, `GeoNeighborhoodModeration`, `QuartierDuFiltre`, `PropertySearchService::buildFilter`
+et `alertMatches`, `SavedSearchCriteria`, `SearchService::getMatchingProperties`,
+`SendSavedSearchAlerts::traiter`, `ProspectMatcher`, `SendProspectMatchDigest::handle`,
+`GeoReferentialController::neighborhoods` et `amenities` ; côté front `types/search.ts` (clé
+`tags`), `FilterSidebar` (équipements écrits par nom), `canonique.ts` et la page de liste,
+`CustomerForm` (quartiers du prospect en texte libre). Mesures : un test temporaire, retiré, sur
+la base de test (charge 2,03 sur 8 cœurs), qui appelle `alertMatches(toSearchParams(criteria))`
+— le chemin exact de l'alerte — et `GET /api/public/properties/search` ; `SELECT` par `tinker` sur
+la base de développement : 85 recherches sauvegardées, 0 critère `tags`, aucun quartier fusionné
+ni renommé, aucun prospect avec des quartiers. Rien n'a été lu en préproduction. Ce qui tient, et
+n'a pas d'entrée : un quartier **refusé** garde son texte, et `location=<son nom>` trouve toujours
+le bien (mesuré, 1 avant, 1 après) ; un équipement du catalogue ne se renomme ni ne se fusionne
+plus (TCK-729, TCK-846) ; une URL `location=<ancien nom>` déjà indexée par un moteur se replie sur
+la page de la ville, hors domaine des facettes, et une liste vide porte `noindex`
+(`canonique.ts:341-345`, `page.tsx:83`, lu). Aucun service de modération ne lit
+`saved_searches` ni `customers` (`grep` sur `app/Services/Geo`, `app/Services/Tags`), et aucun
+test ne rejoue une recherche sauvegardée après une décision de modération.*
+
+### Une recherche sauvegardée sur un quartier fusionné ne trouve plus rien, alors que le référentiel garde le lien vers la cible
+- Réf : P67.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Search/QuartierDuFiltre.php:27-40`, `takussan-api/app/Services/Search/PropertySearchService.php:484-490`, `takussan-api/app/Services/Geo/GeoNeighborhoodModeration.php:79-106`, `:123-141`
+- Constat :
+  - La fusion garde la ligne source, avec `merged_into_id` vers la cible, et réécrit les adresses vers la cible : `geo_neighborhood_id`, ville et texte (lu, l. 98 et 128-131).
+  - Le filtre `location` cherche les quartiers dont le nom a la même clé que la saisie, fusionnés compris, et ne suit pas `merged_into_id` (lu, `QuartierDuFiltre.php:34-39`). Il rend donc l'identifiant de la source, qu'aucune adresse ne porte plus. La branche « texte libre » exige `geo_neighborhood_id IS NULL` (lu, `PropertySearchService.php:485`) : elle ne rattrape rien.
+  - Mesuré (test temporaire) : bien rattaché à « Liberte Quatre » (proposition), recherche `{location: "Liberte Quatre"}` → 1 ; `POST /api/admin/geo/neighborhoods/{source}/merge` vers « Liberté 4 » → 200 ; même recherche → 0, `{location: "Liberté 4"}` → 1. `GET /api/public/properties/search?location=Liberte%20Quatre` → `total` 0. L'alerte se tait sans erreur, et un lien partagé rend une liste vide.
+  - Établi comment : lu, puis mesuré par le chemin de l'alerte (`SearchService::getMatchingProperties` appelle `alertMatches` sur `toSearchParams($search->criteria)`, lu l. 190-200).
+- Piste : dans `idsDuReferentiel()`, remplacer un quartier fusionné par sa cible (`merged_into_id ?? id`) ; la fusion ne fait jamais de chaîne (l. 97), une étape suffit. Garder par un test : bien rattaché à la source, fusion, puis `alertMatches` et `/public/properties/search` sur l'ancien nom → 1.
+
+### Un quartier renommé fait taire les recherches sauvegardées sur son ancien nom, et ce nom n'est gardé nulle part
+- Réf : P67.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Geo/GeoNeighborhoodModeration.php:54-77`, `takussan-api/app/Services/Search/QuartierDuFiltre.php:27-40`, `takussan-api/app/Support/SavedSearchCriteria.php:121-138`
+- Constat :
+  - `renommer()` écrit le nouveau nom et `renamed_at`, réécrit le texte des adresses et réindexe (lu, l. 69-73). Il s'applique à un quartier approuvé comme à une proposition : aucun contrôle de statut (lu).
+  - L'ancien nom ne survit que dans le journal d'activité (`'from' => $ancien`, l. 74) ; ni `geo_neighborhoods` ni `saved_searches.criteria` ne le gardent, et le filtre compare la saisie au nom courant (lu).
+  - Mesuré (test temporaire) : quartier approuvé « Sicap Lib », `{location: "Sicap Lib"}` → 1 ; `PATCH /api/admin/geo/neighborhoods/{id}` `{name: "Sicap Liberté"}` → 200 ; `{location: "Sicap Lib"}` → 0, `{location: "Sicap Liberté"}` → 1.
+  - Un renommage qui ne change que la ponctuation ou la casse garde la même clé `CleDeQuartier` et ne casse rien (déduit de `QuartierDuFiltre.php:36`, à vérifier).
+- Piste : deux voies, à choisir. Garder les anciens noms d'un quartier (colonne ou table d'alias, lue par `idsDuReferentiel()`) ; ou réécrire, dans la même transaction, les `criteria.location` des recherches sauvegardées qui portent l'ancien nom. Garder par un test : renommer, puis rejouer l'alerte sur l'ancien nom.
+
+### Un équipement proposé puis renommé ou fusionné vide les alertes qui le demandent par son nom
+- Réf : P67.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Tags/TagModeration.php:42-57`, `:59-83`, `:85-130`, `takussan-api/app/Services/Search/PropertySearchService.php:581-590`, `takussan-web/src/components/search/FilterSidebar.tsx:589-595`
+- Constat :
+  - Le filtre `tags` est une égalité sur le **nom** indexé, une clause par équipement (lu, `PropertySearchService.php:587-589`), et le front écrit les noms dans l'URL et dans `criteria` (lu, `FilterSidebar.tsx:589-595`, `types/search.ts:429-438`). Le panneau propose tous les équipements approuvés, propositions approuvées comprises (lu, `GeoReferentialController::amenities`, `status = approved`).
+  - Une proposition approuvée se renomme encore (seul le catalogue est protégé, l. 70) et se fusionne (l. 106) ; la source fusionnée est supprimée (l. 122). Aucun des deux ne touche `saved_searches` (lu).
+  - Mesuré (test temporaire) : « Jacuzzi » et « Pool » approuvés, chacun sur un bien ; `{tags: ["Jacuzzi"]}` → 1, `{tags: "Pool"}` → 1 ; `PATCH /api/admin/tags/{Jacuzzi}` `{name: "Jacuzzi extérieur"}` → 200, `POST /api/admin/tags/{Pool}/merge` vers « Bassin » → 200 ; puis `Jacuzzi` → 0, `Jacuzzi extérieur` → 1, `Pool` → 0, `Bassin` → 1 ; `GET /api/public/properties/search?tags=Pool` → 0.
+  - Un refus retire les liaisons (l. 49) : une alerte sur une proposition refusée ne rendra plus jamais rien, ce qui peut se défendre, mais personne ne le sait (lu).
+  - Les tags ET entre eux : une alerte `Piscine,Pool` devient muette tout entière, pas seulement pour `Pool` (déduit de la clause par équipement, à vérifier).
+- Piste : à choisir. Réécrire `criteria.tags` des recherches sauvegardées dans la transaction du renommage et de la fusion (nom source → nom cible) ; ou filtrer par slug ou identifiant, stables, au lieu du nom (contrat front ↔ API et index changent). Garder par un test : renommer, fusionner, puis rejouer l'alerte.
+
+### Le récapitulatif CRM ne rapproche plus un prospect d'un bien dont le quartier a été fusionné ou renommé
+- Réf : P67.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Crm/ProspectMatcher.php:87-103`, `:145-170`, `takussan-api/app/Jobs/Crm/SendProspectMatchDigest.php:66`, `takussan-web/src/components/customer-form/CustomerForm.tsx:382`
+- Constat :
+  - Les deux sens du rapprochement comparent `customers.seeking_neighborhoods` au **texte** `addresses.neighborhood`, replié par casse seulement (lu, l. 87-103 et 152-170). Ce texte est celui que la fusion et le renommage réécrivent (lu, `GeoNeighborhoodModeration.php:131`).
+  - Mesuré (test temporaire) : prospect d'une agence avec `seeking_neighborhoods = ["Liberte Quatre"]`, bien de la même agence rattaché à ce quartier ; `propertiesFor` → 1, `customersFor` → 1 ; après la fusion dans « Liberté 4 » → 0 et 0. Le récapitulatif quotidien (`SendProspectMatchDigest`, qui passe par `customersFor`) ne le citerait plus.
+  - Les quartiers du prospect sont saisis en texte libre, séparés par des virgules (lu, `CustomerForm.tsx:103`, `:382`) : rien ne les rattache au référentiel.
+- Piste : comparer par la clé `CleDeQuartier` et les identifiants du référentiel, comme la recherche publique (`QuartierDuFiltre`), fusion suivie ; ou réécrire `seeking_neighborhoods` à la fusion et au renommage. Garder par un test : fusion, puis `customersFor`.
+
+### Le rapprochement CRM ne reconnaît pas « Liberte 4 » pour « Liberté 4 », que la recherche publique confond
+- Réf : P67.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Crm/ProspectMatcher.php:26-27`, `:152-170`, `takussan-api/app/Support/Search/CleDeQuartier.php`, `takussan-api/app/Services/Search/QuartierDuFiltre.php:9-18`
+- Constat :
+  - Le docblock dit que villes et quartiers se comparent « repliés (ADR-0025), sans replier les accents » (lu, l. 26-27). La recherche publique, depuis TCK-663, compare les quartiers par `CleDeQuartier`, qui ramène accents et tirets (lu, `QuartierDuFiltre.php:9-18`) : « Grand Yoff » y trouve « Grand-Yoff ».
+  - Mesuré (test temporaire) : prospect `seeking_neighborhoods = ["Liberte 4"]`, bien à « Liberté 4 » → `propertiesFor` 0.
+  - La saisie du prospect étant libre (P67.04), la graphie de l'agent et celle du référentiel diffèrent souvent ; aucune n'est mesurée en base de développement (0 prospect avec des quartiers).
+- Piste : appliquer au rapprochement la règle de `QuartierDuFiltre` (choix du porteur pour la recherche, TCK-663), en SQL ou par la liste des textes de même clé (`textesLibres()`), et corriger le docblock. Garder par un test : graphie sans accent ni tiret.
