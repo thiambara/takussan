@@ -1,7 +1,7 @@
 ---
 id: TCK-1066
 title: "La création d'une réservation ne dit plus quels clients et quels biens existent (P62.02)"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: M
@@ -63,20 +63,20 @@ TCK-599) ; test : même statut et même corps pour un absent et un tiers ».
 
 ## Delta à produire
 
-- [ ] `StoreBookingRequest` : `property_id` `['required', 'integer']`, `customer_id`
+- [x] `StoreBookingRequest` : `property_id` `['required', 'integer']`, `customer_id`
       `['nullable', 'integer']`.
-- [ ] `BookingController::store()` : bien absent → 403 `booking.property_unavailable`.
-- [ ] `BookingService::create()` : pour qui n'est ni du personnel ni le propriétaire, la visibilité
+- [x] `BookingController::store()` : bien absent → 403 `booking.property_unavailable`.
+- [x] `BookingService::create()` : pour qui n'est ni du personnel ni le propriétaire, la visibilité
       se juge avant l'état ; un client absent tombe dans le refus d'un client tiers.
-- [ ] Test : `tests/Feature/Api/BookingExistenceOracleTest.php`.
+- [x] Test : `tests/Feature/Api/BookingExistenceOracleTest.php`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — client absent et client tiers : même statut (403) et même corps.
-- [ ] AC2 — bien absent, privé, brouillon et vendu d'une agence tierce : même statut (403) et même
+- [x] AC1 — client absent et client tiers : même statut (403) et même corps.
+- [x] AC2 — bien absent, privé, brouillon et vendu d'une agence tierce : même statut (403) et même
       corps (`booking.property_unavailable`).
-- [ ] AC3 — le personnel de l'agence garde 422 `booking.property_unavailable` sur un brouillon.
-- [ ] AC4 — `property_id=abc` et `customer_id=xyz` → 422 sur les deux champs.
+- [x] AC3 — le personnel de l'agence garde 422 `booking.property_unavailable` sur un brouillon.
+- [x] AC4 — `property_id=abc` et `customer_id=xyz` → 422 sur les deux champs.
 
 ## Hors périmètre
 
@@ -85,4 +85,7 @@ TCK-599) ; test : même statut et même corps pour un absent et un tiers ».
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation 1 : `exists:` remis dans `StoreBookingRequest` → 2 rouges (client absent 422 sur `customer_id` contre 403 ; bien absent 422 sur `property_id`). Ablation 2 : `BookingService` seul remis à l'état d'avant → 2 rouges (brouillon et vendu tiers en 422 au lieu de 403, et `BookingTest::test_cannot_create_booking_on_unbookable_property`). Correctif remis → 20 verts sur les trois classes, 212 sur les onze classes de réservation et d'autorisation voisines.
+- Avant correctif, `property_id=abc` faisait répondre **500** : `exists:properties,id` interrogeait une colonne entière avec une chaîne (PostgreSQL). La règle `integer` le ferme ; AC4 le garde.
+- `BookingTest::test_cannot_create_booking_on_unbookable_property` attendait 422 pour un client sur un bien vendu : c'est l'ordre que la décision inverse. Il attend désormais 403 `booking.property_unavailable`.
+- Le propriétaire est exclu du test de visibilité préalable : il garde l'ordre d'avant (état, puis `booking.own_property`), sans oracle puisqu'il connaît son bien.
