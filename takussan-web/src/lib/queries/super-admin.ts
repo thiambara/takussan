@@ -15,7 +15,6 @@ import type {
   AgencySubscriptionResponse,
   AdminPropertiesResponse,
   AdminModerationResponse,
-  BusinessEnumResponse,
   BusinessEnumsResponse,
   NotificationTemplateChannel,
   NotificationTemplateLocale,

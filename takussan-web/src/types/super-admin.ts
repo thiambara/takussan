@@ -478,7 +478,6 @@ export type BusinessEnum = {
 };
 
 export type BusinessEnumsResponse = { data: BusinessEnum[] };
-export type BusinessEnumResponse = { data: BusinessEnum };
 
 export type NotificationTemplateChannel = 'email' | 'sms' | 'push';
 export type NotificationTemplateLocale = 'fr' | 'en' | 'wo';
