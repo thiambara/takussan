@@ -155,7 +155,7 @@ voie d'écriture (angle 13, puis 47).
 | 80 | Champs envoyés par les formulaires montés du front et écartés en silence par `validated()` (aucune règle dans le FormRequest), et champs `required` jamais envoyés : reste de l'angle 45, non relevé | fait |
 | 81 | État du bail face aux écritures d'argent (création d'échéance, `mark-paid`, lien de paiement, pénalité, restitution) sur un bail `draft`, `pending_signature`, `terminated` ou `renewed` | fait |
 | 82 | Routes qui jugent un bailleur ou un membre par `landlord_id === user.id`, `user_id ===` ou `staffAgencyId()` en dur, au lieu de `landlordWrites` / `isStaffAt` / la policy : bailleur suspendu, rôle personnalisé sans la capacité, membre de plusieurs agences | fait |
-| 83 | Clés des colonnes JSON hors `agencies.settings` (`agencies.metadata`, `users`, `properties`, `leases`, `customers` : `metadata`, `settings`, `preferences`) : lues sans écrivain, écrites sans lecteur — le relevé de l'angle 47 sur les autres modèles | à faire |
+| 83 | Clés des colonnes JSON hors `agencies.settings` (`agencies.metadata`, `users`, `properties`, `leases`, `customers` : `metadata`, `settings`, `preferences`) : lues sans écrivain, écrites sans lecteur — le relevé de l'angle 47 sur les autres modèles | fait |
 | 84 | Valeurs qu'ADR-0044 chiffre (RIB, NINEA, numéro de pièce, revenu) recopiées en clair ailleurs : `wizard_drafts.data` des autres parcours (bailleur, prestataire, hôte), `metadata`, `activity_log.properties`, `app_notifications.data` | à faire |
 | 85 | Ce que le site public montre d'une agence `individual` : annuaire `/agencies`, fiche `/agencies/{slug}`, carte d'agence de la fiche bien (`PropertyResource.php:441-449`) — nom « Espace de {prénom} », slug, badge vérifié | à faire |
 | 86 | Collaborateurs `co_owner` et `viewer` d'un bien (`property_collaborators`, laissés hors du périmètre par ADR-0031 § 2) : ce qu'ils lisent et écrivent réellement — bien, lots, baux, loyers, relevé, reversement | à faire |
@@ -190,6 +190,7 @@ voie d'écriture (angle 13, puis 47).
 | 114 | Champs écartés par `validated()` sur les modules `src/lib/queries/*.ts` de l à z et les server actions `src/app/actions/*.ts` : la moitié de l'angle 80 laissée sans relevé | à faire |
 | 115 | Statuts d'enum qu'aucun chemin de `app/` n'écrit et que seuls les seeders posent (`LeaseStatus::Expired`, les autres enums de statut de `app/Models/Enums`) : gardes, filtres, tableaux de bord et écrans du front qui attendent un état que la production n'atteindra jamais | à faire |
 | 116 | Gestes d'agence jugés par le type de profil (`isAgencyAdminAt`, `isAgentAt` : une quarantaine d'appels dans `app/Http` et `app/Services`) au lieu d'une capacité (`canActAt`) : admin à qui un rôle personnalisé retire la capacité, membre à qui il la donne — le relevé de P82.04 et P82.05 sur le reste de l'API | à faire |
+| 117 | Clés de `metadata` des profils (`owner_profiles`, `agent_profiles`, `service_provider_profiles` : `kind`, `source`, `intervention_zones`, `visit_fee`, `availability`, `has_insurance`, `trades`) écrites par les assistants `Me\*ProfileController` : lues par qui, à l'API et dans les listes du front (`ServiceProvidersList`, `OwnersList`, `MaintenanceAssignmentBlock`) qui y retombent à défaut de colonne | à faire |
 
 ---
 
@@ -8187,3 +8188,70 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - mesuré (test temporaire retiré) : agent dont le rôle porte toutes les capacités → `GET /api/agencies/{a}/kyc` 403, `POST …/kyc/submit` 422 (autorisé, dossier incomplet) ; admin sans aucune capacité → `GET` 200, `submit` 403.
 - Piste : juger `show` et la lecture des pièces par la même règle que `updateKyc` (ou une capacité de lecture, si le porteur veut les séparer), et retirer les deux helpers et leurs exemptions de `check-controller-authorization.mjs`. Test : membre qui tient `agency.update_kyc` lit le dossier qu'il soumet.
 - Mesure (2026-10-20, 979ae6e95, mesureur) : relu `Agency/KycController` (`show` par `authorizeAgencyAdmin`, l. 18-21 et 57-69 ; `upload` et `submit` par `updateKyc`, l. 30 et 48), `KycDocumentController::authorizeDocument` (l. 31-45, `isAgencyAdminAt`), `AgencyPolicy::updateKyc` (l. 114-128) ; même test temporaire retiré : agent qui tient toutes les capacités → `GET /api/agencies/{a}/kyc` 403, `POST …/kyc/submit` 422 (autorisé) ; admin sans aucune capacité → `GET` 200, `submit` 403 → le constat tient. Classement : V2, juger la lecture par `updateKyc` la retire à l'admin sans la capacité, appelant légitime aujourd'hui de pièces d'identité (V3 voisin), et la Piste laisse au porteur le choix d'une capacité de lecture.
+
+## Angle 83 — Clés des colonnes JSON hors `agencies.settings`
+
+*Exploré le 2026-10-20 sur `pre-dev` 33142365f, par l'explorateur. Tout a été relu par l'explorateur lui-même, sans sous-agent : `agencies.metadata`, `users.metadata`, `users.preferences`, `properties.metadata`, `leases.metadata`, `customers.metadata`, recherchés par `grep` dans `takussan-api/app`, `database/seeders`, `database/factories` et `takussan-web/src`. `users.settings`, `properties.settings`, `leases.settings`, `customers.settings` et `*.preferences` hors `users` n'existent pas (aucun cast, aucune migration). Deux mesures par un test temporaire, retiré depuis (`php artisan test`, charge 5,28 sur 8 cœurs). La base de développement n'a pas été lue : `docker ps` a mis plus de deux minutes à répondre, et la mesure ne dit donc rien des données réellement présentes. Les clés de `users.metadata` (verrou, `force_2fa_reconfigure`) et de `users.preferences` (`city`, `search_intent`, `entry_intent`) ont chacune leur écrivain et leur lecteur. Les clés de l'assistant d'hôte (`primary_city`, `primary_property_type`) acceptées sans être enregistrées relèvent d'une décision du porteur (TCK-966) et ne sont pas reprises ici.*
+
+### Le champ « Type » de l'assistant de création d'agence du super-admin est enregistré, et rien ne le lit
+- Réf : P83.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/admin/super/AgencyOnboardingDialog.tsx:197-198`, `takussan-api/app/Http/Requests/Api/Admin/StoreAgencyOnboardingRequest.php:22`, `takussan-api/app/Services/Admin/AgencyProvisioningService.php:39-42,51-61`
+- Constat :
+  - L'assistant de la console propose un champ libre « Type » (`fields.type`, libellé `Type`), envoyé en `agency.type` (lu).
+  - La requête l'accepte en chaîne libre de 80 caractères, et le service le range dans `agencies.metadata.onboarding_type` (lu).
+  - `grep -rn onboarding_type` dans `takussan-api/app` et `takussan-web/src` → seulement l'écriture du service : aucun lecteur, ni à l'API ni à la console. Le test existant envoie `type: property_management` sans rien asserter dessus (`AgencyOnboardingTest.php:104`, lu).
+  - mesuré : test temporaire, en super-admin, `POST /api/admin/agencies` avec `agency.type = individual` → 201, puis `agencies` = `{"kind":"standard","metadata":"{\"onboarding_type\": \"individual\"}"}`. Le champ ressemble au `kind` de l'agence, que l'opérateur ne choisit pas ici : il tape « individual » et obtient une agence `standard`.
+  - Établi comment : lu, et mesuré.
+- Piste : retirer le champ de l'assistant et l'écriture du service, ou en faire un choix fermé qui pose une colonne lue (le `kind`, par exemple). C'est un choix de produit. Dans les deux cas, un test qui confronte les champs de `StoreAgencyOnboardingRequest` à ce que l'agence créée porte empêcherait le retour.
+
+### L'effacement d'un compte laisse la ville et les intentions déclarées dans `users.preferences`
+- Réf : P83.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Account/AccountDeletionService.php:282-309`, `takussan-api/app/Http/Controllers/Api/Me/MeController.php:50-66`
+- Constat :
+  - `anonymize()` vide les noms, téléphones, identifiants sociaux, secrets de second facteur et `metadata` (`'metadata' => null`), mais ne touche ni `preferences`, ni `timezone`, ni `preferred_language` (lu, l. 282-309).
+  - `preferences` porte ce que l'utilisateur a déclaré : sa ville (`city`), son intention de recherche (`search_intent`) et sa réponse d'orientation (`entry_intent`) (lu, `MeController.php:50-66`, `UpdateMeRequest::PREFERENCE_FIELDS`).
+  - mesuré : test temporaire, compte aux `preferences` `{"city":"Ziguinchor","search_intent":"buy","entry_intent":"search"}`, puis `AccountDeletionService::anonymize()` → `first_name` vide, `metadata` nul, `preferences` intact.
+  - Angle 57 a relevé les téléphones et e-mails hors de `users`. Ce champ est dans `users` même, et aucune entrée ne le cite.
+  - Établi comment : lu, et mesuré.
+- Piste : vider `preferences` dans `anonymize()`, avec un test qui sème les trois clés et assert `null` après effacement. Garde possible : un test qui énumère les colonnes de `users` et exige, pour chacune, qu'elle soit effacée ou qu'elle figure dans une liste « conservée, et pourquoi ».
+
+### Trois colonnes `metadata` sans écrivain applicatif : `customers`, `leases`, `properties`
+- Réf : P83.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Models/Customer.php:70,83,122`, `takussan-api/app/Http/Resources/CustomerResource.php:19,56`, `takussan-web/src/lib/queries/customers.ts:51`, `takussan-web/src/types/customer.ts:48`, `takussan-api/app/Models/Lease.php:45,82,343,356`, `takussan-api/app/Models/Property.php:61,97`, `takussan-api/database/seeders/Catalog/PropertyMediaSeeder.php:39-41`, `takussan-api/database/seeders/Support/EdgeCaseSeeder.php:289-295`, `docs/models-spec.md:685,941,1390`
+- Constat :
+  - `customers.metadata` : aucune requête n'a de règle `metadata` (`grep -rn "'metadata" app/Http/Requests`, lu), aucun service ne l'écrit, ni seeder ni factory. La colonne est pourtant dans `$fillable` et `$queryFields`, rendue à la fiche sous la garde de P23.02 (`CustomerResource::RESERVES`), et demandée par `DASHBOARD_CUSTOMER_DETAIL_FIELDS`. `grep` dans `takussan-web/src` ne trouve aucun composant qui la lise (lu).
+  - `leases.metadata` : aucun écrivain ni lecteur dans `app/` (lu). `Lease.php` ne la cite que dans `$fillable`, le cast et deux listes de colonnes (« technique », « neutre pour le contrat »). Les lectures `metadata->invoice_id` de `Lease.php:408-409` portent sur `payouts`.
+  - `properties.metadata` : aucun écrivain dans `app/`, aucune règle dans `StorePropertyRequest` ni `UpdatePropertyRequest` (lu). Seuls deux seeders y écrivent `media_placeholders`, et rien ne lit cette clé (`grep` dans `app` et `takussan-web/src`).
+  - `docs/models-spec.md` les décrit comme « Attributs supplémentaires spécifiques au type » (biens, l. 685), sans description (clients, l. 941 ; baux, l. 1390). La spec promet un usage que le code n'a pas.
+  - Établi comment : lu. Les données présentes en base de développement n'ont pas été lues.
+- Piste : retirer les colonnes de `$fillable`, `$queryFields` et des champs demandés par le front, et dire dans `models-spec.md` qu'elles sont réservées, sans usage. Retirer les colonnes elles-mêmes est une décision de schéma, à prendre à part, après lecture des données présentes.
+
+### La console ne montre pas l'état que `users.metadata` porte, et « Débloquer » lève un verrou échu
+- Réf : P83.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Resources/Api/Admin/UserDetailResource.php:15-57`, `takussan-web/src/components/admin/super/user-detail.tsx:174-203`, `takussan-api/app/Services/Admin/UserSupportService.php:28-45`, `takussan-api/app/Services/Auth/LoginLock.php:45-50,154-157`
+- Constat :
+  - `UserDetailResource` ne rend ni `metadata.locked_at`, ni `failed_login_attempts`, ni `force_2fa_reconfigure` (lu, l. 15-57). La console propose donc « Débloquer le compte » à chaque fiche, sans savoir si le compte est verrouillé (lu, `user-detail.tsx:184-187`). Elle l'apprend par un 409 `support.account_not_locked` après avoir saisi un motif.
+  - `LoginLock::isLocked()` ne tient un verrou que 15 minutes après `locked_at` (lu, l. 45-50 et 154-157). `unlock()` juge `empty($metadata['locked_at'])` sans regarder la durée (lu, l. 37) : un verrou échu, encore présent dans `metadata`, se « débloque » en 200 et se journalise `super_admin_account_unlocked`, alors que le compte n'était plus bloqué.
+  - Établi comment : lu.
+- Piste : rendre à la fiche un état dérivé (`locked_until`, `force_2fa_reconfigure`), par `LoginLock` plutôt que par la clé brute, et n'offrir l'action que si le compte est verrouillé. Juger `unlock()` par `isLocked()`. Un test : verrou posé il y a 20 minutes → 409.
+
+### Petites améliorations
+- Réf : P83.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:31-33`, `takussan-api/app/Listeners/Agency/FlipAgencyKindOnUpgradeApproved.php:58-59`, `takussan-web/src/types/agency.ts:16-19`, `docs/models-spec.md:545`
+- Constat :
+  - Le docblock de la recherche globale dit encore « Le NINEA se cherche dans `agencies.metadata->legal_info`, en clair ». Depuis TCK-959 (P47.01), il se cherche dans la colonne `agencies.ninea`, et `legal_info` n'est plus qu'un repli (lu, l. 31-33 et 124-128).
+  - Le commentaire de l'écouteur dit « le flip écrit `metadata.legal_info` ». Depuis TCK-960 (P47.06), il écrit les colonnes (lu, l. 58). La précaution reste juste, mais pour une autre raison : les colonnes portent aussi le NINEA en clair.
+  - Le docblock du type front dit que `legal_info.*` « is backfilled by the agency-upgrade flow » : ce n'est plus vrai depuis TCK-960 (lu, `types/agency.ts:17-19`). L'exposition elle-même est le reste de P47.06, à ne pas reprendre ici.
+  - `models-spec.md` décrit `agencies.metadata` comme « Données supplémentaires flexibles » (l. 545), sans ses clés lues par le code : `welcome.standard_unlocked_at` (`Agency.php:256`, `useAgencyStandardWelcomeOnce.ts:97`), la marque du changement de slug (`Agency::SLUG_CHANGED_AT`, `Agency.php:243-257`), `legal_info` en repli. La table `users` le fait déjà (« Clés de `metadata` lues par le code », l. 421).
+  - Établi comment : lu.
+- Piste : corriger les trois commentaires pour dire ce que fait le code, et lister les clés de `agencies.metadata` dans la spec, sur le modèle de `users`.
