@@ -6633,7 +6633,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### Une valeur ajoutée par le super-admin est refusée en 422 à la création d'un bien
 - Réf : P66.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : catalogue lu par l'écriture ou retrait de l'ajout, deux voies
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/BusinessEnumService.php:64-85`, `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:52-55`, `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:49-52`, `takussan-api/app/Models/Property.php:70-73`, `takussan-web/src/lib/enums/property.ts:12-31`
 - Constat :
@@ -6644,10 +6644,11 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - TCK-214 (`done`) promettait l'inverse : « ajouter une valeur (ex. nouveau type de bien régional comme "lodge") », endpoint public « utilisé par le frontend pour les selects » (lu, `TCK-214-super-admin-business-enums.md:24-28,62`). Son test d'acceptation s'arrête à la lecture publique (lu, `BusinessEnumTest.php:16-35`).
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : deux voies, à trancher. (a) Faire lire le catalogue par l'écriture : règle de validation qui lit les valeurs actives de `BusinessEnumService`, cast qui accepte une valeur hors enum PHP (chaîne, ou objet valeur), formulaires et filtres du front nourris par `/api/enums/{key}` — changement de structure, à poser en ADR. (b) Retirer l'ajout de valeur de la console et dire à l'écran que la liste vit dans le code. Dans les deux cas, un test qui suit une valeur de la console jusqu'à `POST /api/properties`.
+- Mesure (2026-10-20, 0bd41cb0d, mesureur) : `BusinessEnumService.php` inchangé depuis TCK-844 (`git log`), seuls appelants les deux contrôleurs de la console et de `/api/enums/{key}` (`grep`), `StorePropertyRequest.php:52-55` et `UpdatePropertyRequest.php:49-52` toujours en `Rule::enum`, `Property.php:70-73` caste vers les enums PHP, `/api/enums` sans appelant dans `takussan-web/src` (`grep`) ; test temporaire (retiré, charge 2,49 sur 8) : `POST /api/admin/enums/property_type/values` `lodge` → 201, puis agent `POST /api/properties` `type=lodge` → 422 « La valeur sélectionnée pour type est invalide. » → le constat tient. Classement : V6, la piste offre deux voies, l'une structurelle (ADR) et l'autre un retrait de fonction visible (V7).
 
 ### Une valeur désactivée reste acceptée en écriture et proposée par tous les formulaires
 - Réf : P66.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : dépend du choix de P66.01
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/BusinessEnumService.php:117-129`, `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:52-55`, `takussan-web/src/lib/enums/property.ts:12-29`, `takussan-web/src/components/search/FilterSidebar.tsx:16`
 - Constat :
@@ -6657,10 +6658,11 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - Les formulaires, filtres et critères du front lisent la liste statique : la valeur désactivée reste proposée partout (lu, `lib/enums/property.ts`, `FilterSidebar.tsx:16`, `options.ts:87`).
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : même choix que P66.01, dont elle dépend. Si le catalogue est lu, la validation refuse une valeur inactive à la création et l'accepte sur un bien qui la porte déjà. Sinon, retirer la désactivation de la console. Un test : désactiver, puis `POST /api/properties` avec la valeur → 422.
+- Mesure (2026-10-20, 0bd41cb0d, mesureur) : test temporaire (retiré) : `DELETE /api/admin/enums/property_type/values/farm` → 200, `farm` absent de `/api/enums/property_type`, agent `POST /api/properties` `type=farm` → 201, `type_label` « Ferme » ; `lib/enums/property.ts:12-29` liste toujours `farm` en dur → le constat tient. Classement : V7, le correctif suit la voie choisie pour P66.01 (validation qui lit le catalogue, ou retrait de la désactivation).
 
 ### Les libellés FR / EN / WO édités dans la console ne sont lus par aucun rendu
 - Réf : P66.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : dépend du choix de P66.01, principe n° 5
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Resources/Bases/BaseResource.php:72-80`, `takussan-api/app/Http/Resources/PropertyResource.php:101-110`, `takussan-web/src/components/property-form/options.ts:47-60`, `takussan-web/src/app/(super-admin)/super-admin/enums/page.tsx:46-51`
 - Constat :
@@ -6669,10 +6671,11 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - L'écran annonce pourtant « Gérez les libellés FR / EN / WO et les valeurs métier non techniques. » (lu, `fr.json` `superAdmin.pages.enums.subtitle`, rendu par `page.tsx:46-48`), et chaque modification est journalisée comme si elle prenait effet (lu, `BusinessEnumService.php:109`).
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : même choix que P66.01. Si la console reste en lecture seule sur les libellés, le dire à l'écran et retirer l'édition ; si elle doit agir, un seul lecteur de libellé (réglage, sinon dictionnaire), et un test qui lit `type_label` après un `PATCH`. Le principe n°5 (le front possède le texte affiché) pèse sur ce choix.
+- Mesure (2026-10-20, 0bd41cb0d, mesureur) : test temporaire (retiré) : `PATCH /api/admin/enums/property_type/values/villa` `labels.fr = "Villa de luxe"` → 200, puis agent `POST /api/properties` `type=villa` sous `Accept-Language: fr` → 201, `type_label` « Villa » ; `enumLabel()` lit toujours `lang/` (`BaseResource.php`) ; le sous-titre « Gérez les libellés FR / EN / WO… » est toujours dans `takussan-web/src/messages/fr.json` → le constat tient. Classement : V7, retirer l'édition ou la faire lire par les rendus est un choix de produit qui touche le principe n° 5.
 
 ### Le libellé français par défaut de chaque valeur est sa clé anglaise, figée à la première écriture
 - Réf : P66.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : sans objet si la console perd ses libellés (P66.03)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/BusinessEnumService.php:156-166`, `:193-199`
 - Constat :
@@ -6681,10 +6684,11 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - La première écriture (`persist()`, l. 193-199) recopie toute la liste, défauts compris, dans le réglage : ces libellés faux deviennent des données stockées.
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : si la console garde ses libellés (P66.03), partir des dictionnaires `lang/<locale>/properties.php` au lieu de `Str::headline`. Un test : sans réglage, le libellé `fr` d'`apartment` vaut celui de `lang/fr`.
+- Mesure (2026-10-20, 0bd41cb0d, mesureur) : lu `BusinessEnumService.php:161` (`Str::headline`) et l. 182-183 ; test temporaire (retiré) : sans réglage, `apartment` → `{"fr":"Apartment","en":"Apartment","wo":"Apartment"}`, et après un premier `PATCH` sur `villa` le réglage stocke ces mêmes libellés pour `apartment` → le constat tient. Classement : V7, le correctif n'a de sens que si P66.03 garde l'édition des libellés.
 
 ### La liste enregistrée masque les cas ajoutés plus tard à l'enum PHP
 - Réf : P66.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : sans objet si la voie (b) de P66.01 est prise
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/BusinessEnumService.php:141-167`, `:91-99`
 - Constat :
@@ -6692,10 +6696,11 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - Un cas ajouté au code après la première écriture de la console (un nouveau `PropertyType`) n'y apparaît donc pas. Il ne peut être ni renommé ni désactivé : mesuré, réglage enregistré sans `garage`, `DELETE /api/admin/enums/property_type/values/garage` → **404** `business_enum.value_not_found`, alors que `garage` est un cas de l'enum et reste accepté par l'écriture.
   - Établi comment : lu et mesuré (test temporaire, retrait de la valeur simulé dans le réglage).
 - Piste : fusionner à la lecture les cas de l'enum PHP absents du réglage, actifs par défaut. Un test : réglage enregistré, cas absent → la console le rend. Sans objet si la voie (b) de P66.01 retire la liste éditable.
+- Mesure (2026-10-20, 0bd41cb0d, mesureur) : lu `BusinessEnumService.php:149-154` (le réglage enregistré remplace `cases()`) ; test temporaire (retiré) : réglage enregistré sans `garage`, `DELETE …/values/garage` → 404 `business_enum.value_not_found`, et agent `POST /api/properties` `type=garage` → 201 → le constat tient. Classement : V7, la piste dit elle-même dépendre du choix de P66.01.
 
 ### Petites améliorations
 - Réf : P66.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : bouton de réactivation neuf, dépend de P66.02
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/super/business-enums.tsx:98-105`, `:184-186`, `takussan-api/app/Services/Admin/BusinessEnumService.php:201-208`, `takussan-api/app/Http/Requests/Api/Admin/StoreBusinessEnumValueRequest.php`
 - Constat :
@@ -6704,3 +6709,4 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - La règle de `value` accepte le tiret (`regex:/^[a-z][a-z0-9_-]*$/`, lu), qu'aucun cas des quatre enums PHP ne porte, et `addValue()` ne le replie pas (mesuré : `Str::of("lodge-eco")->lower()->snake()` → `lodge-eco`).
   - Établi comment : lu, et mesuré pour la réactivation (test temporaire).
 - Piste : à reprendre seulement si la console garde l'activation (P66.02) : un bouton de réactivation, un compte d'usage qui lit aussi les critères clients, une règle de `value` alignée sur la forme des cas d'enum.
+- Mesure (2026-10-20, 0bd41cb0d, mesureur) : lu `business-enums.tsx` (bouton désactivé sur `!value.is_active`, le dialogue n'envoie que `labels`), `StoreBusinessEnumValueRequest.php:17` (`regex:/^[a-z][a-z0-9_-]*$/`), `usageCount()` l. 201-208 sur le seul modèle `usage` ; test temporaire (retiré) : `PATCH …/values/farm` `{is_active: true}` → 200, `is_active` vrai ; `POST …/values` `lodge-eco` → 201, valeur stockée `lodge-eco` ; `SavedSearch.criteria` est un tableau JSON, sa teneur en types de bien n'est pas mesurée → le constat tient, recherches sauvegardées non vérifiées. Classement : V7, un geste visible neuf, et la piste ne vaut que si la console garde l'activation (P66.02).
