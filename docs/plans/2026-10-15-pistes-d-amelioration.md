@@ -6811,7 +6811,7 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
 
 ### Un quartier renommé fait taire les recherches sauvegardées sur son ancien nom, et ce nom n'est gardé nulle part
 - Réf : P67.02
-- Statut : validé — (a) garder les anciens noms d'un quartier (table ou colonne d'alias, écrite par `renommer()`, lue par `idsDuReferentiel()`) ; test : renommer, puis rejouer l'alerte sur l'ancien nom (porteur, 2026-10-20)
+- Statut : fait · TCK-1080
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoNeighborhoodModeration.php:54-77`, `takussan-api/app/Services/Search/QuartierDuFiltre.php:27-40`, `takussan-api/app/Support/SavedSearchCriteria.php:121-138`
 - Constat :
@@ -6822,6 +6822,7 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
 - Piste : deux voies, à choisir. Garder les anciens noms d'un quartier (colonne ou table d'alias, lue par `idsDuReferentiel()`) ; ou réécrire, dans la même transaction, les `criteria.location` des recherches sauvegardées qui portent l'ancien nom. Garder par un test : renommer, puis rejouer l'alerte sur l'ancien nom.
 - Mesure (2026-10-20, df863bd1c, mesureur) : relu `GeoNeighborhoodModeration::renommer()` (nom et `renamed_at` écrits, ancien nom seulement au journal, aucun contrôle de statut) ; test temporaire (retiré) : quartier approuvé « Sicap Lib », `{location: "Sicap Lib"}` → 1, `PATCH …/neighborhoods/{id}` « Sicap Liberté » → 200, puis « Sicap Lib » → 0 et « Sicap Liberté » → 1 → le constat tient ; le cas ponctuation seule n'est pas mesuré. Classement : V7, la `Piste` propose deux voies, et réécrire `saved_searches.criteria` est une réécriture de données (V4).
 - Mesure (2026-10-20, 95f0fc396, delegue) : relu le constat, la `Piste`, `GeoNeighborhoodModeration::renommer()` et TCK-663 AC2 (un ancien texte d'adresse ne répond plus au filtre, décision du porteur) → deux voies, aucune écrite. Recommandation : la voie des alias (table `geo_neighborhood_aliases` ou colonne, écrite par `renommer()` et lue par `idsDuReferentiel()`), additive et réversible, plutôt que réécrire `saved_searches.criteria` (V4 non additif, données de clients) ; à trancher avec P67.01, car la même question (« un ancien nom désigne-t-il le quartier actuel ? ») les gouverne toutes deux et l'AC2 de TCK-663 y répond aujourd'hui par non. Pas validé : deux voies, un choix de design, et une décision qui doit suivre celle de P67.01.
+- Mesure (2026-10-20, f733ce698, implementeur) : test `QuartierDuPanneauTest::test_un_ancien_nom_renomme_designe_toujours_le_quartier` avant correctif → rouge : bien rattaché à « Sicap Lib », renommé « Sicap Liberté » puis « Sicap Liberté 1 », `location=Sicap Liberte` → liste `[]` → colonne neuve `geo_neighborhoods.former_names` (migration additive avec `down()`), écrite par `renommer()`, lue par `idsDuReferentiel()` ; après correctif, liste, carte et `alertMatches` sur chacun des anciens noms → le bien (total 1) ; ablation (lecture de `former_names` retirée) → 1 rouge, remise → 4 verts.
 
 ### Un équipement proposé puis renommé ou fusionné vide les alertes qui le demandent par son nom
 - Réf : P67.03
