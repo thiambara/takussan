@@ -136,7 +136,7 @@ voie d'écriture (angle 13, puis 47).
 | 61 | Modèles rendus bruts par un contrôleur (`->items()`, `relationsToArray()`, paginateur brut) : colonnes qui sortent sans projection, au-delà de `User` | fait |
 | 62 | Règles `exists:` des FormRequests reçues par une route ouverte à tout compte connecté (`exists:users,id`, `exists:properties,id`…) : oracles d'existence par identifiant séquentiel, au-delà des routes en lot de P22.02 | fait |
 | 63 | URL signées rangées en base ou dans un `metadata` (`app_notifications.data`, `LeaseDepositRefundNotification`, `DepositRefundService`, `MaintenanceRequestService::addPhotos`) : durée, lecteurs, liens morts à la relecture | fait |
-| 64 | Pièces KYC des profils (`Document` d'`OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`) à l'effacement du compte, à la fin du profil et au re-téléversement : fichier, versions et lignes réellement supprimés ? | à faire |
+| 64 | Pièces KYC des profils (`Document` d'`OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`) à l'effacement du compte, à la fin du profil et au re-téléversement : fichier, versions et lignes réellement supprimés ? | fait |
 | 65 | Durée cumulée des appels sortants synchrones dans une requête HTTP (OTP SMS, step-up, initiation de paiement) face au délai de PHP, du serveur web et de Traefik | à faire |
 | 66 | Valeurs d'enum métier ajoutées ou désactivées par le super-admin (`BusinessEnumService`, `settings` `enum.*.values`) : lues par aucune validation ni aucun écran hors de la console ? | à faire |
 | 67 | Critères nommés des recherches sauvegardées et des liens partagés (`tags=Piscine`, `location=<quartier>`) après un renommage, une fusion ou un rejet au référentiel (`TagModeration`, `GeoNeighborhoodModeration`) : alertes muettes, filtres vides | à faire |
@@ -170,6 +170,7 @@ voie d'écriture (angle 13, puis 47).
 | 95 | Réponse d'une écriture (`store`, `update`, action) face au `show` ou à la liste du même modèle : forme, ressource, types (`commission_share` en chaîne ou en nombre), clés — `PropertyCollaboratorController`, `CustomerController::setPrimaryContact`, `PropertyTagController::sync` | à faire |
 | 96 | Règles `exists:` sans `whereNull('deleted_at')` sur une table à `SoftDeletes` (`exists:customers,id`, `exists:users,id`, `exists:leases,id`…) suivies d'un `find()` masqué par la portée : 404 ou 500 au lieu de 422, ou clé étrangère écrite vers une ligne supprimée | à faire |
 | 97 | Liens d'action des courriels (`->action(…)` des `toMail()`, boutons des Mailables) : la route ou la page visée existe-t-elle, un clic depuis un client de courriel porte-t-il l'authentification qu'elle exige, et vise-t-il l'hôte du front ou celui de l'API | à faire |
+| 98 | Supprimer, versionner ou partager un document que l'on ne fait que lire (`DocumentController::destroy`, `DocumentVersionController`, `DocumentShareLinkController`, `DocumentPolicy::share`) face aux règles écrites des tickets : locataire, bailleur invité, agent d'une autre agence, compte bloqué |
 
 ---
 
@@ -6439,3 +6440,78 @@ d'export de l'angle 77.*
   - Les fichiers `exports/audit/*` ne sont purgés par rien (mesuré : `grep -rn "exports/" app routes config` → les deux écrivains et aucun effaceur). Ils restent donc lisibles à qui retrouverait un chemin signé plus tard, et s'accumulent (voir l'angle 77).
   - Établi comment : lu et grep.
 - Piste : retirer `toArray()`, ou n'y ranger que le nom du fichier ; lier le lien au demandeur (P63.01) ; purger les fichiers d'export d'audit à l'échéance du lien, dans le job de purge que retiendra l'angle 77.
+
+## Angle 64 — Pièces KYC des profils à l'effacement, à la fin du profil et au re-téléversement
+
+*Exploré le 2026-10-20 sur `pre-dev` 205da7c39, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : les trois `uploadKyc` (`Me\OwnerProfileController`,
+`Me\AgentProfileController`, `Me\ServiceProviderProfileController`), `Document`, `DocumentPolicy`,
+`DocumentController`, `DocumentVersionController`, `AccountDeletionService::anonymize()`,
+`AgencyMemberRemovalService::remove()`, `MediaCleanup` (TCK-750), `DataExportBuilder`,
+`privacy.ts` § 6, TCK-097, TCK-306 et TCK-537. Deux tests temporaires, retirés depuis, sur la base
+de test et un disque de médias factice (charge 1,68 / 2,05 / 2,34 sur 8 cœurs). Le stockage réel
+(R2, volume des conteneurs) n'a pas été regardé. Déjà suivi, et non repris ici : les champs des
+profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de toute purge à
+« la relation + 5 ans » (TCK-537, `todo`). Le KYC d'agence (`KycDossier`) n'est pas couvert.*
+
+### Tout compte qui peut lire un document peut en téléverser et en restaurer une version, contre TCK-097 qui exige le droit de modifier
+- Réf : P64.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/DocumentVersionController.php:46-60,85-94`, `takussan-api/app/Policies/DocumentPolicy.php:37-80,140-160`, `docs/backlog/tickets/TCK-097-document-version-history.md:85-87`, `docs/backlog/tickets/TCK-306-autorisation-controleurs-vers-policies.md:109-118`
+- Constat :
+  - `store` et `restore` d'une version n'autorisent que par `view` (lu, l. 48 et 87). `view` accorde l'accès à quiconque peut joindre un document au porteur (`attachTo`), et pour un bail cela inclut le locataire (lu, `DocumentPolicy.php:151-155`). `delete` et `update` exigent d'être l'auteur du téléversement (lu, l. 70-80 et 123-126).
+  - TCK-097 écrit : « uploader une version requiert le même accès que `Document::update` ; restaurer une version idem » (lu, l. 85-87). TCK-306 a choisi `view` pour ne pas rendre 403 là où l'endpoint rendait 200 (lu, l. 115-118) : ce choix gardait le comportement d'avant sans le confronter au ticket.
+  - Mesuré par un test temporaire : un bail, un document du bailleur sur ce bail, le locataire connecté. `DELETE /api/documents/{id}` → 403, mais `POST /api/documents/{id}/versions` → 201, et `GET /api/documents/{id}` rend ensuite le fichier du locataire en `active_version` (`is_active: true`).
+  - Établi comment : test temporaire et lecture. Pour une pièce de profil, `view` ne s'ouvre qu'à l'auteur et au super-admin (lu, `attachTo` n'a pas de branche de profil) : le défaut ne touche pas les pièces KYC, mais tous les documents de bail, de bien, de client, de réservation et d'état des lieux.
+- Piste : autoriser `store` et `restore` par `update`, comme TCK-097 l'écrit, et garder `view` pour `index` et `download`. Un test : le locataire d'un bail reçoit 403 sur l'ajout et la restauration d'une version d'un document du bailleur ; l'auteur reçoit 201. Ablation → rouge.
+
+### L'effacement du compte laisse les pièces de ses profils intactes : ligne, média, fichier et nom de fichier d'origine
+- Réf : P64.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Account/AccountDeletionService.php:237-325`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:59-78`, `takussan-api/app/Models/Document.php:100-110`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:76-83`, `takussan-web/src/content/legal/privacy.ts:123-124`
+- Constat :
+  - `anonymize()` ne vide que les collections `avatar`, `avatars` et `photos` de l'utilisateur (lu, l. 291-294). Il ne lit ni les profils ni leurs `Document` (lu : aucune occurrence de `Profile` ni de `Document` dans le fichier).
+  - Mesuré par un test temporaire : un bailleur téléverse `CNI_Aminata_Diop.jpg` par `kyc/upload`, puis `executeDeletion()`. Le `Document` n'est pas supprimé, son `name` et le `name` du média restent `CNI_Aminata_Diop.jpg`, le fichier existe sur le disque, et l'`OwnerProfile` reste `active`, non supprimé, rattaché au compte effacé.
+  - Le nom d'origine du fichier est le nom choisi par la personne, et il est aussi le `title` du document dans l'index (lu, `Document.php:104`). TCK-537 relève les champs des profils, pas ce nom ni les pièces.
+  - La politique garde les pièces KYC « pendant la relation, puis 5 ans après sa fin » (lu, `privacy.ts:124`). Garder le fichier est donc conforme. Mais rien ne date la fin de la relation à l'effacement : le profil reste `active`. Une purge à « fin + 5 ans » n'aurait aucune date de départ.
+  - Le retrait d'un agent de l'agence supprime en douceur son `AgentProfile` par une requête en masse (lu, l. 78), sans toucher ses `Document`. Mesuré : après `remove()`, le profil est supprimé en douceur, le document ne l'est pas et le fichier existe. `media:cleanup` ne regarde que le modèle qui porte le média, ici le `Document` : il ne purgera jamais ce fichier (lu, `MediaCleanup.php`, `isOrphan()`).
+  - Établi comment : test temporaire et lecture.
+- Piste : à l'effacement, terminer les profils du compte (statut, ou suppression en douceur, qui donne une date de fin) et remplacer le `name` des pièces et de leurs médias par le libellé du type. La purge à « fin + 5 ans » de TCK-537 peut alors partir du `deleted_at` du profil. Un test : après `executeDeletion()`, aucun `Document` ni média d'un profil du compte ne porte le nom d'origine, et chaque profil a une date de fin. Ablation → rouge.
+
+### Le titulaire peut supprimer sa pièce, même vérifiée, et le fichier part 90 jours plus tard
+- Réf : P64.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:131-136`, `takussan-api/app/Policies/DocumentPolicy.php:70-80,123-126`, `takussan-api/app/Console/Commands/MediaCleanup.php`, `takussan-api/routes/console.php:72`
+- Constat :
+  - `delete` d'un document vaut `update` : l'auteur du téléversement, ou le super-admin (lu). Rien n'y lit le type (pièce ou non) ni `is_verified`.
+  - Mesuré par le test temporaire : le bailleur supprime son RIB par `DELETE /api/documents/{id}` → 204. La ligne est supprimée en douceur, le média et le fichier restent. Un nouvel envoi du même type crée une seconde ligne (2 avec les supprimées, 1 vivante).
+  - `media:cleanup`, chaque jour à 03:00, détruit le média d'un modèle supprimé en douceur depuis plus de 90 jours (lu, `SOFT_DELETE_RETENTION_DAYS`, TCK-750). Seuls le contrat signé et les photos d'un état des lieux en sont exclus. Une pièce KYC vérifiée, supprimée par son titulaire, perd donc son fichier au bout de 90 jours, contre les 5 ans de `privacy.ts:124`. Ce que la règle LBC impose n'a pas été cherché.
+  - Établi comment : test temporaire et lecture. Qu'une pièce vérifiée doive survivre au geste de son titulaire est une question de produit et de droit, non tranchée ici.
+- Piste : décider et écrire : refuser la suppression d'une pièce de profil vérifiée (ou de toute pièce de profil), ou ajouter les pièces aux collections de preuve que `MediaCleanup::isEvidence()` épargne, avec leur propre durée. Dans les deux cas, un test qui le tient. Ablation → rouge.
+
+### Un nouvel envoi remet la pièce à « non vérifiée » mais garde l'auteur et la date de la vérification précédente
+- Réf : P64.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:59-72`, `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:68-81`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:59-72`, `takussan-api/app/Http/Resources/DocumentResource.php:37-38`
+- Constat :
+  - Les trois `uploadKyc` font un `updateOrCreate` sur (profil, type) qui écrit `is_verified = false`, sans `verified_by` ni `verified_at` (lu).
+  - Mesuré par le test temporaire : pièce vérifiée (`verified_by` = un admin, `verified_at` posé), puis un nouvel envoi. `GET /api/documents/{id}` rend `is_verified: false`, avec `verified_by` et `verified_at` de la vérification d'avant, alors que le fichier est neuf.
+  - L'ancien fichier, lui, est bien retiré : 1 média, l'ancien chemin absent du disque, le nouveau présent (mesuré).
+  - Aucun écran du front ne lit `verified_at` d'un document (mesuré : `grep` dans `takussan-web/src` → seul le type `document.ts:41`). Le défaut est dans la réponse de l'API et en base.
+  - Établi comment : test temporaire, lecture et `grep`.
+- Piste : remettre `verified_by` et `verified_at` à `null` dans les trois `updateOrCreate`, de préférence par une seule méthode partagée. Un test par contrôleur, ou un seul sur la méthode : après un nouvel envoi, les trois champs de vérification sont vides. Ablation → rouge.
+
+### Petites améliorations
+- Réf : P64.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:74-90,121-131`, `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:83-99`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:76-80`
+- Constat :
+  - **`metadata.kyc.docs` ne retire jamais un type.** Mesuré par le test temporaire : après la suppression du RIB, `kyc.docs` vaut toujours `["rib"]`. `submitKyc` le recopie dans sa réponse et dans le journal sans vérifier qu'une pièce existe (lu, l. 121-150).
+  - **Le remplacement n'est pas atomique.** `clearMediaCollection('file')` efface l'ancien fichier avant `addMedia()`, hors transaction (lu, l. 74-78 dans les trois contrôleurs). Si l'écriture du nouveau fichier échoue, la ligne reste sans fichier, et l'ancien est perdu. Non éprouvé.
+  - Établi comment : test temporaire et lecture.
+- Piste : dériver `kyc.docs` des `Document` vivants du profil au lieu de le tenir à la main, ou le mettre à jour à la suppression ; ajouter le nouveau média avant de retirer l'ancien (la collection `singleFile` remplace d'elle-même), dans les trois contrôleurs.
