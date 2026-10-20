@@ -6345,7 +6345,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### Quatre routes disent quels baux existent, et deux quelles demandes d'intervention
 - Réf : P62.04
-- Statut : validé — (a) comme P62.01 : retirer `exists:` des champs que `guardContext()` juge, et juger le bail dans le contrôleur avec la réponse du refus (porteur, 2026-10-20)
+- Statut : fait · TCK-1070
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/InventoryStoreRequest.php:28-36`, `takussan-api/app/Http/Requests/Api/StoreMaintenanceRequestRequest.php:27,43-44`, `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:34,51-52`, `takussan-api/app/Http/Requests/Conversation/CreateGroupConversationRequest.php:46,66-68,109-112`, `takussan-api/app/Http/Requests/Conversation/Concerns/GuardsConversationScope.php:28-43`
 - Constat :
@@ -6359,6 +6359,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Établi comment : lu, et test temporaire.
 - Piste : dans les conversations, retirer `exists:` des champs que `guardContext()` juge déjà ; dans l'état des lieux et l'intervention, juger le bail dans le contrôleur avec la réponse du refus. Test par route : bail absent et bail tiers, même réponse.
 - Mesure (2026-10-20, 3280ae0c3, mesureur) : test temporaire retiré, compte sans agence, bail et demande d'intervention d'une agence tierce → `POST /api/inventories` : bail tiers sans erreur sur `lease_id`, absent « The selected lease is invalid » ; `POST /api/maintenance-requests` : bail tiers : 422 sans erreur sur `lease_id`, absent : 422 avec « The selected lease is invalid » (le constat disait 403 pour le tiers, mesuré avec un corps complet ; ici `property_id` et `category` manquaient) ; conversation directe : « You cannot link this conversation to this item » contre « The selected lease is invalid » ; groupe : « You cannot link this group to this item » contre « The selected maintenance request id is invalid ». Classement : V2, la `Piste` change le statut et le corps rendus par quatre routes, comme P22.02.
+- Mesure (2026-10-20, b4eb809ba, implementeur) : avant correctif, `LeaseContextExistenceOracleTest` neuf, compte sans agence face à une agence tierce → 5 rouges : état des lieux, bail absent 422 sur `lease_id` contre 403 `http.forbidden` pour un bail tiers ; intervention sur le bien de l'appelant, bail tiers **201** (rattaché, la route ne jugeait aucun bail) contre 422 pour un absent ; conversation directe et groupe, « The selected … is invalid » contre le message de `guardContext()` sur `lease_id`, `maintenance_request_id` et `property_id` ; correctif (`integer` sans `exists:`, bail absent → 403 dans les deux contrôleurs, bail invisible → 403 dans l'intervention) → 5 verts ; ablations : correctif retiré → 5 rouges, contrôle du bail de l'intervention seul retiré → 201 ; 405 verts sur les vingt-cinq classes voisines.
 
 ### La recherche dans les messages dit quelles conversations existent
 - Réf : P62.05
