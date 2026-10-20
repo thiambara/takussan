@@ -12,10 +12,13 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
+use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Services\Account\AccountDeletionService;
+use App\Services\Notifications\Sms\SmsRouterDriver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -220,6 +223,111 @@ class AccountDeletionExecuteTest extends TestCase
         $this->assertModelExists($tentative);
         $this->assertNull($tentative->fresh()->to);
         $this->assertSame('+221779876543', $tentativeAutre->fresh()->to);
+    }
+
+    /**
+     * TCK-1013 (P57.01) — depuis TCK-799, un SMS envoyé sans notification (code de vérification,
+     * step-up, signature de bail) écrit une tentative sans `app_notification_id`, au numéro du
+     * destinataire. L'effacement retire aussi ce numéro quand c'est le `phone` ou le
+     * `secondary_phone` du compte ; la tentative d'un autre numéro ne bouge pas.
+     */
+    public function test_execute_efface_le_numero_des_tentatives_sans_notification(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create(['phone' => '+221771230001']);
+        $user->forceFill(['secondary_phone' => '+221771230002'])->save();
+        // Le chemin réel d'un SMS sans notification, indépendant du `.env` : routeur, chaîne
+        // `log`, heures calmes levées (même réglage que `SmsFailureTraceTest`).
+        config()->set('sms.quiet_hours.enabled', false);
+        config()->set('sms.fallback_chains', ['default' => ['log']]);
+        app(SmsRouterDriver::class)->send('+221771230001', 'code 123456', [
+            'event_type' => 'phone_otp',
+            'is_otp' => true,
+            'bypass_quiet_hours' => true,
+        ]);
+        $this->assertSame(1, NotificationDeliveryAttempt::query()
+            ->whereNull('app_notification_id')->where('to', '+221771230001')->count());
+        $secondaire = $this->tentativeSansNotification('+221771230002');
+        $autre = $this->tentativeSansNotification('+221779870003');
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertSame(
+            0,
+            NotificationDeliveryAttempt::query()->whereIn('to', ['+221771230001', '+221771230002'])->count(),
+            'une tentative sans notification porte encore un numéro du compte anonymisé',
+        );
+        $this->assertModelExists($secondaire);
+        $this->assertSame('+221779870003', $autre->fresh()->to);
+    }
+
+    /**
+     * TCK-1014 (P57.02) — une visite demandée en étant connecté désigne le compte par
+     * `visitor_id`. L'effacement la dissocie comme une fiche client : `visitor_id` à `null`, le
+     * contact saisi pour la visite reste à l'agence. La visite d'un autre compte ne bouge pas.
+     */
+    public function test_execute_dissocie_les_visites_du_compte(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+        $autre = User::factory()->create();
+        $visite = PropertyVisit::factory()->create([
+            'visitor_id' => $user->id,
+            'visitor_name' => 'Awa Diop',
+            'visitor_email' => 'awa@example.test',
+            'visitor_phone' => '+221771230004',
+        ]);
+        $visiteAutre = PropertyVisit::factory()->create(['visitor_id' => $autre->id]);
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertSame(0, PropertyVisit::query()->where('visitor_id', $user->id)->count());
+        $visite->refresh();
+        $this->assertNull($visite->visitor_id);
+        $this->assertSame('Awa Diop', $visite->visitor_name);
+        $this->assertSame('awa@example.test', $visite->visitor_email);
+        $this->assertSame('+221771230004', $visite->visitor_phone);
+        $this->assertSame($autre->id, $visiteAutre->fresh()->visitor_id);
+    }
+
+    /**
+     * TCK-1015 (P57.03) — `password_reset_tokens` a l'e-mail pour clé : l'effacement retire la
+     * ligne de l'adresse d'origine, relevée avant que le `forceFill` la remplace. Celle d'une
+     * autre adresse reste.
+     */
+    public function test_execute_supprime_le_jeton_de_reinitialisation_de_l_adresse_d_origine(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create(['email' => 'origine@example.test']);
+        DB::table('password_reset_tokens')->insert([
+            ['email' => 'origine@example.test', 'token' => 'h1', 'created_at' => now()],
+            ['email' => 'autre@example.test', 'token' => 'h2', 'created_at' => now()],
+        ]);
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertSame(
+            ['autre@example.test'],
+            DB::table('password_reset_tokens')->pluck('email')->all(),
+        );
+    }
+
+    private function tentativeSansNotification(string $to): NotificationDeliveryAttempt
+    {
+        return NotificationDeliveryAttempt::query()->create([
+            'app_notification_id' => null,
+            'attempt' => 1,
+            'provider' => 'log',
+            'provider_message_id' => 'p57-'.$to,
+            'to' => $to,
+            'status' => 'sent',
+        ]);
     }
 
     private function tentativeEnvoyee(AppNotification $notification, string $to): NotificationDeliveryAttempt

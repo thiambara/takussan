@@ -15,6 +15,7 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
+use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
@@ -237,6 +238,8 @@ class AccountDeletionService
     public function anonymize(User $user, bool $notifier = true): array
     {
         $originalEmail = $user->email;
+        // TCK-1013 (P57.01) — relevés avant le `forceFill`, qui les efface.
+        $originalPhones = $this->phoneVariants([$user->phone, $user->secondary_phone]);
 
         // Notify BEFORE we scramble the email so the mail still routes.
         // The notification is queueable and reads `routeNotificationForMail`
@@ -248,6 +251,12 @@ class AccountDeletionService
 
         // Dissociate customers (preserve CRM history).
         Customer::query()->where('user_id', $user->id)->update(['user_id' => null]);
+
+        // TCK-1014 (P57.02) — de même pour les visites demandées en étant connecté : le compte
+        // n'étant que soft-deleted, la FK `visitor_id` en `nullOnDelete` ne joue pas. Le contact
+        // de la visite (`visitor_name`, `visitor_email`, `visitor_phone`) reste à l'agence
+        // (décision du porteur, 2026-10-19).
+        PropertyVisit::query()->where('visitor_id', $user->id)->update(['visitor_id' => null]);
 
         // Tokens already revoked at request time, but in case the user
         // signed back in to cancel and let the request lapse, revoke now.
@@ -314,6 +323,25 @@ class AccountDeletionService
             ->whereIn('app_notification_id', $user->appNotifications()->select('id'))
             ->whereNotNull('to')
             ->update(['to' => null]);
+
+        // TCK-1013 (P57.01) — depuis TCK-799, un SMS envoyé sans notification (code de
+        // vérification, step-up, signature de bail) écrit sa tentative sans `app_notification_id` :
+        // le filtre ci-dessus ne la voit pas. Elle se retrouve par le numéro, ceux du compte au
+        // moment de l'effacement ; un ancien numéro remplacé n'y figure plus (décision du porteur :
+        // ni migration ni colonne `user_id`).
+        if ($originalPhones !== []) {
+            NotificationDeliveryAttempt::query()
+                ->whereNull('app_notification_id')
+                ->whereIn('to', $originalPhones)
+                ->update(['to' => null]);
+        }
+
+        // TCK-1015 (P57.03) — `password_reset_tokens` a l'e-mail pour clé, et la réinitialisation y
+        // écrit l'adresse du compte : la ligne de l'adresse d'origine part avec elle. Les deux jeux
+        // de jetons (`users`, `activations`) partagent la table.
+        DB::table((string) config('auth.passwords.users.table', 'password_reset_tokens'))
+            ->where('email', $originalEmail)
+            ->delete();
 
         unset($originalEmail);
 
@@ -459,5 +487,26 @@ class AccountDeletionService
             ->orderBy('scheduled_for')
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * TCK-1013 — les numéros du compte, tels qu'enregistrés et sans espaces : le routeur SMS
+     * écrit `to` normalisé par `PhoneNumber::normalize()`, qui ne retire que les espaces.
+     *
+     * @param  list<?string>  $phones
+     * @return list<string>
+     */
+    private function phoneVariants(array $phones): array
+    {
+        $variants = [];
+        foreach ($phones as $phone) {
+            if ($phone === null || trim($phone) === '') {
+                continue;
+            }
+            $variants[] = $phone;
+            $variants[] = preg_replace('/\s+/', '', $phone) ?? $phone;
+        }
+
+        return array_values(array_unique($variants));
     }
 }
