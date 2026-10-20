@@ -6177,7 +6177,7 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
 
 ### Petites améliorations
 - Réf : P60.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1023
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/AgencySubscription.php:42`, `takussan-api/tests/Unit/Http/Resources/RequestLoadableEmittedTest.php:99-102`
 - Constat :
@@ -6186,6 +6186,7 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
   - Établi comment : lu et `grep`.
 - Piste : retirer `AgencySubscription::$requestLoadable`. La garde retire les commentaires du source avant de chercher (`token_get_all`, en écartant `T_COMMENT` et `T_DOC_COMMENT`).
 - Mesure (2026-10-19, bde1d5b43, mesureur) : lu `AgencySubscription.php:42` (`['agency', 'plan']`) ; `grep -rn "AgencySubscription::buildQuery" app` → rien (seuls des `AgencySubscription::query()` dans les services) ; ressource rangée sous `Api/Admin/AgencySubscriptionResource.php`, qui n'émet que `plan` (l. 28) et `agency_id` (l. 17) ; `RequestLoadableEmittedTest.php` cherche par `preg_match` sur `file_get_contents` brut (lu, l. 95-101), donc un `whenLoaded('x')` en commentaire satisfait la garde : établi par lecture, non éprouvé. Classement : A3 et A5, déclaration sans lecteur retirée et garde durcie sans seuil touché.
+- Mesure (2026-10-20, c3c65f7a7, implementeur) : `grep -rn "buildQuery" app | grep -i subscription` → rien, la déclaration est morte ; test neuf `test_un_when_loaded_en_commentaire_ne_compte_pas` (quatre formes de commentaire et un `whenLoaded('plan')` de code), charge 1,40 sur 8 cœurs : rouge sur le source brut → la garde retire `T_COMMENT` et `T_DOC_COMMENT` par `token_get_all`, et `AgencySubscription::$requestLoadable` est retiré avec l'exemption posée par TCK-1022 : 3 verts, 71 verts avec les classes qui citent `AgencySubscription` ; ablation du filtrage → rouge, exemption retirée sur le modèle d'origine → rouge sur `AgencySubscription : agency` ; remis → verts. Aucun autre écart révélé par le filtrage.
 
 ## Angle 61 — Modèles rendus bruts par un contrôleur, au-delà de `User`
 
