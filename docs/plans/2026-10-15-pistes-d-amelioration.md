@@ -6898,7 +6898,7 @@ de violation hors `region`.*
 
 ### Le popover du sélecteur de date est un `dialog` sans nom
 - Réf : P68.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1034
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/ui/date-time-picker.tsx:199`, `takussan-web/src/components/ui/popover.tsx`
 - Constat :
@@ -6908,6 +6908,7 @@ de violation hors `region`.*
   - Établi comment : axe et DOM par CDP.
 - Piste : passer au `PopoverContent` l'`aria-label` que reçoit déjà le composant (`ariaLabel`, l. 97 et 173). Garde : test de rendu qui ouvre le sélecteur et attend `getByRole('dialog', { name })`.
 - Mesure (2026-10-20, 8150df982, mesureur) : relu `date-time-picker.tsx` : `aria-label` reçu en `ariaLabel` (l. 97) et posé sur le seul déclencheur (l. 173), `PopoverContent` sans nom (l. 199) ; `grep` : 1 seul des 6 fichiers qui montent `DateTimePicker` lui passe un `aria-label`, la piste telle qu'écrite laisserait donc la plupart des popovers sans nom ; les autres popovers d'`ui/popover.tsx` non passés (non mesuré, hors du classement) → le constat tient pour le sélecteur de date. Classement : A4, attribut ARIA seul, sans texte neuf (`aria-label` quand il est fourni, sinon `aria-labelledby` vers le déclencheur).
+- Mesure (2026-10-20, f163a4726, implementeur) : relu `date-time-picker.tsx` (`PopoverContent` sans nom, `aria-label` posé sur le seul déclencheur) ; test `date-time-picker.nom-du-dialogue.test.tsx` rouge avant correctif : le `dialog` s'ouvre mais n'a pas de nom, avec ou sans `aria-label` → `aria-label` reçu posé sur le popover, sinon `aria-labelledby` vers le déclencheur (`id` replié sur `useId()`), 2 verts ; ablation : correctif retiré → 2 rouges, remis → 2 verts. Les autres popovers d'`ui/popover.tsx` (dont `ui/date-picker.tsx`) non traités.
 
 ### Ouvrir le combobox des agences de la console masque son propre déclencheur, focus compris
 - Réf : P68.06
