@@ -5853,7 +5853,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
 - Mesure (2026-10-19, e46a8d564, humain) : TCK-1012 réécrit `docs/models-spec.md` §13 sur activitylog v5 : le diff d'un modèle vit dans `attribute_changes` (`old`, `attributes`), `properties` ne porte que ce qu'écrit `withProperties()`, `activity_log_changes` et `activity_logs` sont dites n'avoir jamais existé, et EF6 est close ; `grep -n activity_log_changes docs/models-spec.md` → la seule ligne qui le dit.
 ### Petites améliorations
 - Réf : P56.05
-- Statut : validé — passer `UserDetailController::activity()` par `PropertyRedactor`, comme les trois autres lectures, et poser le témoin de `CrossTenantAuditExportTest` sous `attribute_changes` (porteur, 2026-10-19)
+- Statut : fait · TCK-1018
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:179`, `takussan-api/tests/Feature/Audit/CrossTenantAuditExportTest.php:26-28`
 - Constat :
@@ -5862,6 +5862,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
   - Établi comment : lecture.
 - Piste : passer `UserDetailController` par `PropertyRedactor`, comme ses voisins ; poser le témoin d'expurgation de `CrossTenantAuditExportTest` sous `attribute_changes`, la forme qu'écrit un événement de modèle.
 - Mesure (2026-10-19, 94ac420d2, mesureur) : relu `UserDetailController::activity()` (l. 179 : `$log->properties?->toArray()`, sans `PropertyRedactor`, quand les trois autres lectures l'appliquent) et `CrossTenantAuditExportTest.php:27` (témoin `rib` posé sous `properties.attributes`) ; `ActivityLogExporterTest::test_l_export_d_une_modification_porte_l_avant_et_l_apres_expurges` existe (l. 275). Qu'une clé masquée passe aujourd'hui reste non établi : la base de dev n'a aucune ligne à causeur ou sujet `User` dont `properties` soit non vide (`SELECT` + `PropertyRedactor::redact`, 0 sur 25 591), et la lecture des `withProperties()` ne l'a pas tranché. Classement : V3 pour la première partie, l'ADR-0044 § 2 nomme « l'audit plateforme » mais l'expurgation masque aussi `email` et `phone` à l'opérateur qui lit l'activité d'un compte ; le témoin du test (A5) seul serait autonome, et l'implémenteur peut le traiter avec cette entrée une fois validée.
+- Mesure (2026-10-20, 35d861d57, implementeur) : `UserDetailTest::test_activity_endpoint_redacts_properties`, neuf (ligne dont le compte est le sujet, `properties.target_email` témoin), rouge avant correctif (adresse en clair dans `GET /api/admin/users/{id}/activity`) → `PropertyRedactor::redact($log->properties)` ; vert, ablation → rouge, remis → `UserDetailTest` 8 verts. Témoin de `CrossTenantAuditExportTest` écrit par `withChanges()` sous `attribute_changes` : expurgation d'`attribute_changes` retirée d'`ActivityLogExporter` → rouge (`RIBTEMOIN` dans le CSV), alors que l'ancien témoin sous `properties` restait vert sous la même ablation ; remis → 5 verts.
 
 ## Angle 57 — Téléphones et e-mails hors de `users` face à l'anonymisation
 
