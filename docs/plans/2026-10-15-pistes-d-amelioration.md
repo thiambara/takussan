@@ -6662,7 +6662,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### Les disques R2 n'ont aucun délai HTTP, et le téléversement de photos les écrit un à un pendant la requête
 - Réf : P65.05
-- Statut : validé — `http => ['connect_timeout' => 5, 'timeout' => 60]` sur les deux disques R2 ; test qui lit `@http` d'une commande du client des deux disques (porteur, 2026-10-20)
+- Statut : fait · TCK-1073
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/filesystems.php:60-84`, `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:43-90`, `takussan-api/app/Services/Admin/HealthcheckService.php:192-203`
 - Constat :
@@ -6673,6 +6673,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - Établi comment : lu et mesuré en `tinker` (aucun appel réseau).
 - Piste : poser `http => ['timeout' => …, 'connect_timeout' => …]` sur les deux disques R2, dimensionné pour 25 Mio. Garde : un test qui lit `@http` d'une commande du client des deux disques.
 - Mesure (2026-10-20, eb4dde5a0, mesureur) : `tinker` : disques construits sur la configuration de `r2-media` et `r2-private` avec identifiants, endpoint et seau factices → clé `http` absente, `getCommand('HeadObject')['@http']` = `[]` pour les deux (aucun appel réseau) ; `HealthcheckService.php:198` borne toujours sa seule sonde ; `PropertyMediaController.php:43-90` écrit toujours chaque photo dans la boucle → le constat tient. Classement : V5, la valeur du délai pour un lot de 25 Mio vers R2 de production n'est écrite nulle part et se choisit.
+- Mesure (2026-10-20, 98465b028, implementeur) : `R2DiskHttpTimeoutTest`, disque construit par `Storage::build()` sur la configuration de `r2-media` et de `r2-private` avec identifiants factices (charge 5,78 sur 8 cœurs) : avant correctif, `getCommand('HeadObject')['@http']` sans `connect_timeout` ni `timeout`, 2 rouges → clé `http` `connect_timeout` 5, `timeout` 60 sur les deux disques : 2 verts ; ablation (configuration de `pre-dev`) → 2 rouges, remise → 2 verts ; `HealthcheckProbesTest` vert (la sonde garde ses 3 s).
 
 ## Angle 66 — Valeurs d'enum métier éditées par le super-admin : qui les lit hors de la console
 
