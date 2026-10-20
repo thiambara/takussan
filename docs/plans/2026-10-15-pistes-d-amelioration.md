@@ -7164,7 +7164,7 @@ sont pas mesurées, ni la charge RSC du document.*
 
 ### Aucune garde ne voit le poids des écrans de `/app`
 - Réf : P70.06
-- Statut : retenu · à valider — chemin fermé : takussan-web/scripts/poids-des-routes.mjs (garde existante, V9)
+- Statut : retenu · à valider — chemin fermé : takussan-web/scripts/poids-des-routes.mjs (garde existante, V9) ; porteur (2026-10-20) : traité hors agents, en session : imprimer aussi les écrans de `(dashboard)` et `(super-admin)` dans le rapport de `poids-des-routes.mjs`, sans seuil ni refus neuf, et renommer l'étape de `web-ci.yml` ; le seuil reste à décider à part
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/scripts/poids-des-routes.mjs:60,120`, `.github/workflows/web-ci.yml:207`, `takussan-web/src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts:29`
 - Constat :
@@ -7201,7 +7201,7 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
 
 ### La commande de F3 pour l'`APP_KEY` de production produit une clé que Laravel refuse : il manque le préfixe `base64:`
 - Réf : P71.01
-- Statut : retenu · à valider — V5 : variable d'environnement de production du plan de mise en service
+- Statut : retenu · à valider — V5 : variable d'environnement de production du plan de mise en service ; porteur (2026-10-20) : traité hors agents, en session : `base64:$(openssl rand -base64 32)` dans la table F3, et une garde de `scripts/` qui refuse, dans `docs/`, un `openssl rand -base64 32` sur une ligne qui nomme `APP_KEY` sans `base64:`
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4156`, à comparer à `:3518` et `deploy/takussan/smoke-api.sh:97`
 - Constat :
@@ -7215,7 +7215,7 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
 
 ### F3 reprend l'`APP_ENV` de la préproduction (`staging`) et son `OTP_PREVIEW_ENABLED=true` : le code SMS reviendrait dans la réponse en production
 - Réf : P71.02
-- Statut : retenu · à valider — V5 : `APP_ENV` et `OTP_PREVIEW_ENABLED` de la production, et V2 : aperçu du code de connexion
+- Statut : retenu · à valider — V5 : `APP_ENV` et `OTP_PREVIEW_ENABLED` de la production, et V2 : aperçu du code de connexion ; porteur (2026-10-20) : traité hors agents, en session : `APP_ENV` = `production` et `OTP_PREVIEW_ENABLED` absente dans la table F3, `PHONE_LOGIN_ENABLED` à la valeur de la préproduction, la valeur d'`APP_ENV` de la préproduction relevée et le document fautif corrigé ; garde au démarrage qui refuse `OTP_PREVIEW_ENABLED=true` quand `APP_URL` est l'origine de production
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4148-4166`, `docs/infra/hebergement.md:183-187`, `docs/adr/0060-code-sms-affiche-hors-production.md:15`, `takussan-api/app/Services/Auth/OtpPreview.php:21-29`, `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:29-34`, `takussan-api/app/Http/Middleware/AddRobotsTagOutsideProduction.php:18-19`
 - Constat :
@@ -7229,7 +7229,7 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
 
 ### F3 ne pose pas `MAIL_MAILER` : la production hériterait du `log` de la préproduction et n'enverrait aucun courriel
 - Réf : P71.03
-- Statut : retenu · à valider — V5 : `MAIL_MAILER` de la production dans le plan F3
+- Statut : retenu · à valider — V5 : `MAIL_MAILER` de la production dans le plan F3 ; porteur (2026-10-20) : traité hors agents, en session : `MAIL_MAILER` = `resend` dans la table F3, une ligne par driver de `prod-drivers.json`, et `check-prod-drivers.mjs` qui vérifie que chaque driver prescrit de la production figure dans F3 avec la même valeur
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4148-4166`, `docs/infra/prod-drivers.json` (`preview.drivers.MAIL_MAILER`, `production.drivers.MAIL_MAILER`), `docs/infra/hebergement.md` § « Courriels »
 - Constat :
@@ -7241,7 +7241,7 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
 
 ### F3 ne pose pas les listes d'IP des accusés SMS : en `production`, une liste vide refuse tous les accusés en 403
 - Réf : P71.04
-- Statut : retenu · à valider — V5 : listes d'IP des accusés SMS en production
+- Statut : retenu · à valider — V5 : listes d'IP des accusés SMS en production ; porteur (2026-10-20) : traité hors agents, en session : les trois `SMS_*_WEBHOOK_IPS` dans F3, avec les plages publiées par chaque fournisseur (à demander au fournisseur si elles ne le sont pas), une vérification après déploiement (un accusé de test accepté), et le renvoi de l'ardoise corrigé
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4166`, `takussan-api/config/sms.php:163-167`, `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:26-34`, `takussan-api/routes/api/sms-webhooks.php:26-34`, `docs/ardoise.md:394-399`
 - Constat :
@@ -7255,7 +7255,7 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
 
 ### Le relevé des clés de la préproduction s'arrête au 2026-10-10 : il manque les jetons de webhook posés le 2026-10-18, et F3 renvoie à ce relevé
 - Réf : P71.05
-- Statut : retenu · à valider — V5 : relevé des variables d'environnement de Dokploy
+- Statut : retenu · à valider — V5 : relevé des variables d'environnement de Dokploy ; porteur (2026-10-20) : traité hors agents, en session : porter au relevé de `hebergement.md` les cinq jetons de webhook posés le 2026-10-18 et le nouveau compte, corriger la phrase des clés absentes, et nommer dans F3 les jetons WhatsApp avec les jetons SMS
 - Gravité : 🟠 risque ou dette
 - Où : `docs/infra/hebergement.md:156-191`, `docs/backlog/tickets/TCK-720-reglages-de-deploiement-du-porteur.md:70-95`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4148-4149`
 - Constat :
@@ -7268,7 +7268,7 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
 
 ### Petites améliorations du plan F3 et du relevé
 - Réf : P71.06
-- Statut : retenu · à valider — V5 : variables de production de F3 et relevé de Dokploy
+- Statut : retenu · à valider — V5 : variables de production de F3 et relevé de Dokploy ; porteur (2026-10-20) : traité hors agents, en session : les quatre : `GOOGLE_REDIRECT_URI`, `SESSION_DOMAIN` et `SESSION_COOKIE` dans la table F3, le nom du service corrigé dans `prod-drivers.json`, le motif de `CACHE_PREFIX` réécrit
 - Gravité : 🟢 amélioration
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:238`, `:4160`, `:4166`, `docs/infra/prod-drivers.json:67`, `docs/infra/hebergement.md:172-173`
 - Constat :
@@ -7295,7 +7295,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### Un `failed` WhatsApp reçu après l'acceptation ne déclenche aucun repli SMS
 - Réf : P72.01
-- Statut : retenu · à valider — V7 : envoi SMS neuf après un échec WhatsApp tardif
+- Statut : validé — sur un `failed` tardif d'une tentative `whatsapp_cloud`, mettre en file le SMS de la même notification, une seule fois (aucune tentative SMS déjà écrite pour elle), seulement si `smsFallbackAllowed`, hors des heures calmes ARTP, et seulement si l'accusé arrive moins d'une heure après l'envoi ; préciser dans `features.md` (en session) qu'un `failed` de Meta est un échec dur ; test : l'accusé rejoué deux fois, un seul SMS (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:30-63`, `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:42-95`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:122-135`, `docs/features.md:563-564`
 - Constat :
@@ -7311,7 +7311,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### `phone_whatsapp = false`, déclaré par l'utilisateur, n'écarte pas WhatsApp du routage
 - Réf : P72.02
-- Statut : retenu · à valider — V7 : routage mobile neuf selon `phone_whatsapp`
+- Statut : validé — passer au SMS dans `resolveMobileChannel()` quand `phone_whatsapp === false` (`null` garde le défaut), et verrouiller la colonne WhatsApp de la matrice des préférences avec son motif affiché (règle de TCK-588) ; un test par valeur (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/PreferenceResolver.php:157-205,268-278`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:234-235`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:66-135`
 - Constat :
@@ -7324,7 +7324,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### Un échec tardif ne change aucun routage suivant
 - Réf : P72.03
-- Statut : retenu · à valider — V7 et V6 : mémoire des échecs tardifs pour le routage
+- Statut : validé — pour les seuls codes à usage unique (`is_otp`), retenir en cache, par numéro et pendant 15 minutes, le fournisseur (ou WhatsApp) dont l'accusé est revenu `failed`, et le sauter au renvoi ; aucune colonne neuve ; test : un `failed` tardif, puis un renvoi qui part par le fournisseur suivant (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:72,100-108`, `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:30-63`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:142-162`
 - Constat :
@@ -7337,7 +7337,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### Un code à usage unique perdu en accusé `failed` ne laisse ni signal ni autre voie au destinataire
 - Réf : P72.04
-- Statut : retenu · à valider — V4 et V7 : contexte du code sur la tentative, réaction neuve à un échec tardif
+- Statut : validé — une colonne nullable neuve sur `notification_delivery_attempts` qui porte l'événement du code (additive, avec `down()`) ; sur un `failed` tardif d'un code, lever une fois par code le délai de renvoi de son sujet, pour que l'écran de saisie propose aussitôt le renvoi ; le repli vers l'e-mail vérifié reste à part ; un test par envoi de code (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/PhoneVerificationService.php:303-336,394-420`, `takussan-api/app/Services/Account/DeletionStepUpService.php:65-108`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:112-141`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:340-355`
 - Constat :
@@ -7352,7 +7352,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### Un échec de livraison n'est lisible nulle part, et ceux de WhatsApp pas même par la sonde de santé
 - Réf : P72.05
-- Statut : retenu · à valider — V7 : ce que l'expéditeur voit d'un échec, sonde de santé neuve
+- Statut : validé — d'abord un `Log::warning` sur tout `failed` tardif (fournisseur, motif, identifiant de tentative, sans numéro) et une sonde WhatsApp comptée sur `updated_at`, au même seuil que celle du SMS ; ce que l'expéditeur voit de l'échec reste une décision à part (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/HealthcheckService.php:236-257`, `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:30-63`, `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:42-95`
 - Constat :
@@ -7399,7 +7399,7 @@ Traefik, ni Cloudflare. Les hôtes réels ont été remplacés dans les tests pa
 
 ### Sur le chemin interne du front, l'API rend ses URL signées et ses liens avec l'hôte interne : `X-Forwarded-Host` n'est plus cru depuis TCK-853
 - Réf : P73.01
-- Statut : retenu · à valider — V6 : l'hôte des URL rendues contredit ADR-0052 § 5, deux voies
+- Statut : validé — (a) `URL::forceRootUrl(config('app.url'))` et `forceScheme` dans le contexte HTTP, et le front cesse d'envoyer `X-Forwarded-Host` ; ADR-0052 § 5 amendé en session ; l'`APP_URL` de chaque environnement est relevé ; test qui rejoue les en-têtes du front et exige l'origine d'`APP_URL` pour `PropertyResource` et `PrivateMediaAccess::signedUrl()` (porteur, 2026-10-20)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/bootstrap/app.php:53-59`, `takussan-web/src/lib/api.ts:10-48,129`, `takussan-web/src/lib/relais-api.ts:68`, `takussan-api/app/Http/Resources/PropertyResource.php:476-479`, `takussan-api/app/Http/Resources/KycDossierResource.php:84`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:111`, `takussan-web/src/lib/queries/public-property.ts:86-89`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyDocuments.tsx:46`, `takussan-web/src/components/admin/super/kyc-queue.tsx:376`, `takussan-web/src/components/admin/super/CrossTenantAuditTable.tsx:70`, `docs/adr/0052-cache-public-de-la-fiche-et-ip-du-visiteur.md:137-140`
 - Constat :
@@ -7422,7 +7422,7 @@ Traefik, ni Cloudflare. Les hôtes réels ont été remplacés dans les tests pa
 
 ### Toute URL signée absolue n'est valide que si l'adresse de Traefik figure dans `TRUSTED_PROXIES`, et aucune sonde ne relie les deux
 - Réf : P73.02
-- Statut : retenu · à valider — V5 et V6 : signature relative ou sonde, `TRUSTED_PROXIES` de production
+- Statut : validé — (a) signer en relatif (`absolute: false` à l'émission, `signed:relative` ou `hasValidSignature(false)` à la vérification) les liens qui restent sur le domaine de l'API ; test : une URL signée hors requête, présentée depuis une adresse hors de `TRUSTED_PROXIES`, reste valide (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/media.php:23`, `takussan-api/routes/web.php:14`, `takussan-api/routes/api/sms-webhooks.php:34`, `takussan-api/app/Http/Controllers/Api/KycDocumentController.php:17`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:61`, `takussan-api/app/Support/TrustedProxyList.php:9-13`, `takussan-api/app/Services/Admin/HealthcheckService.php:400-408`, `takussan-api/docker/Caddyfile:1-10`
 - Constat :
@@ -7441,7 +7441,7 @@ Traefik, ni Cloudflare. Les hôtes réels ont été remplacés dans les tests pa
 
 ### Petites améliorations
 - Réf : P73.03
-- Statut : retenu · à valider — V2 : la pièce KYC sous `auth:sanctum` (TCK-546)
+- Statut : validé — traiter TCK-546 avec P73.01, et retirer `download_url` de `DataExportResource`, qu'aucun écran ne lit ; reste : relever sur le serveur ce que Traefik journalise de la chaîne de requête, dans la phase F (TCK-517) (porteur, 2026-10-20)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/api/kyc.php:6-8`, `takussan-api/app/Http/Resources/DataExportResource.php:23`, `takussan-web/src/types/super-admin.ts:713`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:135-147`, `takussan-api/app/Notifications/LeaseSignatureCodeNotification.php`
 - Constat :
@@ -7474,7 +7474,7 @@ le sous-réseau est P37.04.*
 
 ### L'API joint Meilisearch par le nom nu `meilisearch`, partagé sur `dokploy-network`, que la garde de l'hôte `api` ne couvre pas
 - Réf : P74.01
-- Statut : retenu · à valider — V5 : alias réseau dans `deploy/` et valeur d'environnement Dokploy
+- Statut : retenu · à valider — V5 : alias réseau dans `deploy/` et valeur d'environnement Dokploy ; porteur (2026-10-20) : traité hors agents, dans la phase F (TCK-517) : un alias propre au service (`takussan-meilisearch`) dans `compose.data.yml`, visé par `MEILISEARCH_HOST` dans D1, F3 et chaque pile, et `check-reseau-par-environnement.mjs` étendu aux noms nus des services partagés
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/server/compose.data.yml:18-31`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3530,4159`, `scripts/check-reseau-par-environnement.mjs:34-36`, `docs/infra/hebergement.md:91`
 - Constat :
@@ -7487,7 +7487,7 @@ le sous-réseau est P37.04.*
 
 ### Les clés Meilisearch de chaque environnement sont créées avec `"actions":["*"]` sur une instance partagée, et la preuve d'étanchéité n'éprouve que la création d'un index
 - Réf : P74.02
-- Statut : retenu · à valider — V5 : droits des clés Meilisearch, à mesurer et refaire sur le serveur
+- Statut : retenu · à valider — V5 : droits des clés Meilisearch, à mesurer et refaire sur le serveur ; porteur (2026-10-20) : traité hors agents, dans la phase F (TCK-517) : mesurer `POST /keys`, `/dumps` et `/snapshots` avec la clé de préproduction ; si l'un passe, recréer chaque clé avec la liste fermée des actions que l'API emploie, et ajouter ces trois refus aux preuves d'A4 et de F1
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:717-734,4028-4030`, `docs/backlog/tickets/TCK-510-serveur-reinstalle-sous-dokploy.md:103`, `deploy/server/compose.data.yml:19-24`
 - Constat :
@@ -7500,7 +7500,7 @@ le sous-réseau est P37.04.*
 
 ### Le front croit tout `X-Forwarded-For` qu'on lui envoie : un voisin qui le joint sur le port 3000 choisit l'IP de visiteur que l'API comptera, même une fois P37.04 corrigée
 - Réf : P74.03
-- Statut : retenu · à valider — V5 : exposition réseau du front sur `dokploy-network`, à trancher avec P37.04
+- Statut : retenu · à valider — V5 : exposition réseau du front sur `dokploy-network`, à trancher avec P37.04 ; porteur (2026-10-20) : traité hors agents, dans la phase F (TCK-517) : un réseau dédié entre Traefik et le front, comme pour l'API (P37.03), avec P37.04 ; un test de `resolveVisitorIp` garde la règle
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/api.ts:597-638`, `takussan-web/Dockerfile:31,44`, `docs/infra/hebergement.md:96,219-222`
 - Constat :
@@ -7513,7 +7513,7 @@ le sous-réseau est P37.04.*
 
 ### Rien ne relève ce qu'un conteneur de Takussan joint sur `dokploy-network`, alors que Dokploy y range sa base, qui porte les secrets de tous les environnements
 - Réf : P74.04
-- Statut : retenu · à valider — V5 : relevé sur le serveur et réseaux de la pile d'API
+- Statut : retenu · à valider — V5 : relevé sur le serveur et réseaux de la pile d'API ; porteur (2026-10-20) : traité hors agents, dans la phase F (TCK-517) : le relevé des services attachés à `dokploy-network` et de ce qu'ils répondent à un conteneur de la pile sans secret, ajouté à `hebergement.md`, puis un réseau de données dédié et les piles d'API hors de `dokploy-network` sauf le service `api` ; la plus importante des cinq
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/takussan/compose.api.yml:27-39,88-94`, `docs/infra/hebergement.md:87,94,123-131`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:599-605`
 - Constat :
@@ -7526,7 +7526,7 @@ le sous-réseau est P37.04.*
 
 ### Petites améliorations : authentification basique contournée, catalogue PostgreSQL ouvert
 - Réf : P74.05
-- Statut : retenu · à valider — V5 : étapes d'installation de la base partagée et relevé de Traefik
+- Statut : retenu · à valider — V5 : étapes d'installation de la base partagée et relevé de Traefik ; porteur (2026-10-20) : traité hors agents, dans la phase F (TCK-517) : noter que l'authentification basique ne vaut que par Traefik (avec P74.03), et ajouter `REVOKE CONNECT ON DATABASE postgres FROM PUBLIC` aux étapes A4 et F1 avec un refus du rôle d'environnement à leur preuve
 - Gravité : 🟢 amélioration
 - Où : `docs/infra/hebergement.md:226-237`, `takussan-web/Dockerfile:31`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:749-755,4010-4014`
 - Constat :

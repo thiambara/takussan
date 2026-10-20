@@ -1,6 +1,6 @@
 # ADR-0052 — La fiche publique se lit dans un cache de données étiqueté par slug, et l'IP du visiteur traverse le serveur Next par la chaîne de confiance
 
-- **Statut** : Accepté
+- **Statut** : Accepté — § 5 amendé le 2026-10-20 (piste P73.01) : l'hôte des URL rendues par l'API ne vient plus de la requête
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-598](../backlog/tickets/TCK-598-site-public-fiche-cachable-et-confiance.md)
 - **S'appuie sur** : [ADR-0026](0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md) (la
@@ -134,10 +134,18 @@ l'honore.**
   `TRUSTED_PROXIES` : Laravel y honore `X-Forwarded-For`. **Aucun client extérieur ne peut emprunter
   ce chemin** : le port 8080 n'est pas publié, et Traefik, seul point d'entrée, efface tout
   `X-Forwarded-For` qui ne vient pas de Cloudflare. `TRUSTED_PROXIES` ne change pas.
-- Sur ce chemin interne, le front envoie aussi `X-Forwarded-Host`, `X-Forwarded-Proto` et
-  `X-Forwarded-Port`, **dérivés de l'URL publique et identiques pour tous** : sans eux, les URL que
-  Laravel fabrique depuis la requête (`route()`, le lien d'un document publié) désigneraient l'hôte
-  interne. Ils ne fragmentent aucun cache.
+- ~~Sur ce chemin interne, le front envoie aussi `X-Forwarded-Host`, `X-Forwarded-Proto` et
+  `X-Forwarded-Port`, dérivés de l'URL publique, pour que les URL que Laravel fabrique depuis la
+  requête désignent l'hôte public.~~ **Amendé le 2026-10-20 (piste P73.01, décision du porteur).**
+  Depuis TCK-853, Laravel ne croit plus `X-Forwarded-Host`, même d'un mandataire de confiance, et il
+  a raison : aucun en-tête ne doit choisir l'hôte. L'en-tête du front était donc devenu sans effet, et
+  l'API rendait ses URL signées et ses liens avec l'hôte interne (mesuré : `https://api-interne/…`).
+  **L'API fixe la racine de ses URL sur `APP_URL`** (`URL::forceRootUrl` et `forceScheme`, dans le
+  contexte HTTP), quel que soit le chemin de la requête, et **le front cesse d'envoyer
+  `X-Forwarded-Host`**. La voie inverse, recroire `X-Forwarded-Host` venant du sous-réseau interne,
+  est écartée : elle rouvre l'injection d'hôte que TCK-853 a fermée. Conséquence : chaque URL signée
+  dépend de la justesse d'`APP_URL` dans chaque environnement, préproduction comprise. Cette valeur
+  se relève, elle ne se déduit pas.
 
 ### 6. Ce qui reste à mesurer, et par qui
 
