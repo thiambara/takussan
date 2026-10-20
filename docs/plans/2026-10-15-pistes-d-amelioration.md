@@ -7033,7 +7033,7 @@ dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
 
 ### zod et le formulaire d'alerte sont dans le JS initial de la liste, par le bouton « Enregistrer la recherche »
 - Réf : P69.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1037
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/favorites/SaveSearchButton.tsx:11`, `takussan-web/src/components/favorites/SaveSearchButton.tsx:25-27`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:20`, `takussan-web/src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts:26`
 - Constat :
@@ -7042,6 +7042,7 @@ dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
   - Sous Fast 3G, le dernier script de la liste finit à 8,4 s, et l'hydratation (tâche de 524 à 916 ms) commence à 8,3 s : tout ce JS est payé avant que le premier filtre réponde. La part de `react-hook-form` dans ce JS n'a pas été isolée (à vérifier).
 - Piste : charger le formulaire par `next/dynamic` au premier clic, sur le modèle des dialogues de la fiche (TCK-850), puis retirer l'exception de la table du test pour qu'elle ne puisse plus servir.
 - Mesure (2026-10-20, 634fd3a77, mesureur) : relu `SaveSearchButton.tsx` (imports statiques de `PublicSearchAlertForm`, `savedSearchPayloadSchema` et `useTraducteurValidation`), `PropertiesDiscoveryPage.tsx:20` (import statique du bouton) et `zod-hors-des-pages-publiques.test.ts` (`FORMULAIRES_ADMIS` nomme toujours `SaveSearchButton.tsx`) ; précédent relu : `PropertyDetailContent.tsx` et `dialogues-differes.test.ts` (TCK-850, dialogues de la fiche par `next/dynamic`) → tient ; la taille du morceau n'a pas été re-mesurée. Classement : A2, charger le contenu du dialogue par `next/dynamic` au premier clic, sur le modèle de TCK-850, ne change ni le formulaire ni son texte ; retirer l'exception de `FORMULAIRES_ADMIS` resserre une table d'exceptions, pas un seuil (A5).
+- Mesure (2026-10-20, e0275f6b6, implementeur) : `SaveSearchButton.tsx` retiré de `FORMULAIRES_ADMIS` → `zod-hors-des-pages-publiques.test.ts` rougit sur `properties/(liste)/page.tsx` par trois chemins (`zod ← lib/schemas/search.ts`, `react-hook-form` et `@hookform/resolvers ← hooks/useApiForm.ts`, tous `← SaveSearchButton.tsx ← PropertiesDiscoveryPage.tsx`) ; correctif : le dialogue sort dans `SaveSearchDialog.tsx`, chargé par `next/dynamic` et monté à la première ouverture → 20/20 verts sans l'exception ; ablation (import statique remis) → rouge, remis → vert ; tests du bouton, des critères, de `SearchEmpty` et `SearchToolbar` verts (63), plus un test d'AC3 (formulaire neuf à chaque ouverture). Taille du morceau au build non re-mesurée.
 
 ### Le dictionnaire du groupe public pèse 33 Kio gzip dans chaque document, page légale comprise, et ne se met jamais en cache
 - Réf : P69.05
