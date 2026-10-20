@@ -34,10 +34,13 @@ class IndexCalendarRequest extends BaseFormRequest
         return [
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'property_id' => ['sometimes', 'integer', 'exists:properties,id'],
+            // TCK-1072 (P62.06) — pas d'`exists:properties,id` : un bien absent rendait 422, le
+            // brouillon d'une agence tierce un agenda vide. Le collecteur borne déjà l'agenda à ce
+            // que l'appelant voit, et rend le même agenda vide aux deux.
+            'property_id' => ['sometimes', 'integer'],
             // TCK-078 — admin multi-property view supports `property_ids[]`.
             'property_ids' => ['sometimes', 'array'],
-            'property_ids.*' => ['integer', 'exists:properties,id'],
+            'property_ids.*' => ['integer'],
             // TCK-078 — admin-only cross-agency view.
             'agency_id' => ['sometimes', 'integer', 'exists:agencies,id'],
             'types' => ['sometimes', 'array'],

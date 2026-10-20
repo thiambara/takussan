@@ -96,7 +96,9 @@ class StorePropertyVisitRequest extends BaseFormRequest
         $agencyId = $this->property()?->agency_id;
 
         return [
-            'property_id' => ['required', 'exists:properties,id'],
+            // TCK-1072 (P62.06) — pas d'`exists:properties,id` : le contrôleur rend à un bien absent le
+            // refus d'un bien fermé aux visites.
+            'property_id' => ['required', 'integer'],
             'customer_id' => $manager
                 ? ['nullable', 'integer', new ClientDeLAgence($agencyId)]
                 : ['nullable'],

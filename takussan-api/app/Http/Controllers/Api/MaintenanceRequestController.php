@@ -89,7 +89,9 @@ class MaintenanceRequestController extends Controller
         $data = $request->validated();
 
         $user = $request->user();
-        $property = Property::findOrFail($data['property_id']);
+        // TCK-1072 (P62.06) — un bien absent reçoit le refus d'un bien tiers.
+        $property = Property::query()->find((int) $data['property_id']);
+        abort_if($property === null, 403);
 
         // TCK-445 — UNE seule définition du côté donneur d'ordre, partagée avec `update()`
         // (via l'ability `actAsPrincipal`). Elle était recopiée ici, et nulle part côté
