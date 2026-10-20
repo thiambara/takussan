@@ -41,7 +41,7 @@ dossier d'écriture en lecture seule (sonde : `put()` → `false`) :
 
 ## Décision du porteur (déléguée)
 
-> (a) : lever dans les trois écrivains (`GenerateReportExport`, `ExportActivityLogJob`, `CrossTenantAuditController::export()`) quand `put()` ne rend pas `true`, comme `ErasureLedger::record()` ; le disque `local` garde `'throw' => false` ; test : `put()` refusé → le job échoue, l'export n'est pas `ready` et aucune notification ne part
+> (a) : lever dans les trois écrivains (`GenerateReportExport`, `ExportActivityLogJob`, `CrossTenantAuditController::export()`) quand `put()` ne rend pas `true`, comme `ErasureLedger::record()` ; le disque `local` garde `'throw' => false` ; test : `put()` refusé → le job échoue, l'export n'est pas `ready` et aucune notification ne part ; reste : le `failed()` du job (statut `failed`, `failure_reason`), qui suit P77.04
 
 ## Reste à faire
 
