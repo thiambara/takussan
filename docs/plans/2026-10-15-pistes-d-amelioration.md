@@ -6257,7 +6257,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### `/api/me/owner-profiles/{id}/properties` sans `fields` rend au bailleur des colonnes qu'aucune ressource n'émet (gel plateforme, suivi admin, bien de test)
 - Réf : P61.03
-- Statut : validé — rendre la liste par `PropertyResource` ; test sans `fields` : ni `platform_hold_by_id` ni `admin_monitored` (porteur, 2026-10-20)
+- Statut : fait · TCK-1048
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:167-184`, `takussan-api/app/Models/Property.php:134-144`, `takussan-api/app/Services/Property/PropertyModerationService.php:250-263`
 - Constat :
@@ -6268,6 +6268,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : rendre la liste par `PropertyResource`, ou poser une projection par défaut quand `fields[properties]` est absent. Test sans `fields` : ni `platform_hold_by_id` ni `admin_monitored`. Ablation sur la ressource.
 - Mesure (2026-10-19, bde1d5b43, mesureur) : lu `OwnerProfileController.php:167-184` (`'data' => $paginator->items()` de `Property::buildQuery`) ; test temporaire retiré → le bailleur, sans paramètre, 200 et 60 clés par ligne (61 au constat), dont `platform_hold_at`, `platform_hold_by_id`, `platform_hold_reason`, `admin_monitored`, `is_test`, `metadata`, `rejected_by_user_id`, `approved_by_user_id` et `deleted_at`. Classement : V3, ce qui est exposé au bailleur, avec deux voies dans la piste.
+- Mesure (2026-10-20, 96392a9cb, implementeur) : test neuf `test_la_liste_sans_fields_ne_rend_pas_les_colonnes_de_moderation` (bailleur, sans paramètre) rouge avant correctif sur `platform_hold_at` → la liste passe par `PropertyResource::collection()` : 9 verts dans `OwnerOnboardingTest`, l'appel du front à `fields[properties]=id,title` compris ; ablation (`$paginator->items()` remis) → rouge ; remis → vert.
 
 ### Petites améliorations
 - Réf : P61.04
