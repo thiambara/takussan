@@ -15,12 +15,17 @@ interface TileProps {
   alt: string;
   index: number;
   sizes: string;
-  priority?: boolean;
   className?: string;
   onOpen: (index: number) => void;
 }
 
-function Tile({ photo, alt, index, sizes, priority, className, onOpen }: TileProps) {
+/**
+ * TCK-1088 (P69.06) — aucune tuile n'est `priority`. La fiche monte AUSSI `PropertyMobileGallery`
+ * (`md:hidden`), qui précharge sa première photo : avec la mosaïque, le `<head>` portait deux
+ * préchargements de la même photo, demandée deux fois. Un seul par fiche, sur la galerie mobile
+ * (décision du porteur) ; la mosaïque garde le chargement ordinaire.
+ */
+function Tile({ photo, alt, index, sizes, className, onOpen }: TileProps) {
   return (
     <button
       type="button"
@@ -32,7 +37,6 @@ function Tile({ photo, alt, index, sizes, priority, className, onOpen }: TilePro
         alt={alt}
         fill
         sizes={sizes}
-        priority={priority}
         className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
       />
     </button>
@@ -110,7 +114,6 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
         alt={title}
         index={0}
         sizes={TUILE_PLEINE}
-        priority
         onOpen={onOpenLightbox}
         className="w-full aspect-[16/7] rounded-xl"
       />
@@ -131,7 +134,7 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
       >
         {photos.length === 2 && (
           <>
-            <Tile photo={photos[0]} alt={altOf(0)} index={0} sizes={TUILE_60} priority onOpen={onOpenLightbox} className="rounded-l-xl" />
+            <Tile photo={photos[0]} alt={altOf(0)} index={0} sizes={TUILE_60} onOpen={onOpenLightbox} className="rounded-l-xl" />
             <Tile photo={photos[1]} alt={altOf(1)} index={1} sizes={TUILE_40} onOpen={onOpenLightbox} className="rounded-r-xl" />
           </>
         )}
@@ -143,7 +146,6 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
               alt={altOf(0)}
               index={0}
               sizes={TUILE_LARGE}
-              priority
               onOpen={onOpenLightbox}
               className="col-span-2 row-span-2 rounded-l-xl"
             />
@@ -173,7 +175,6 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
               alt={altOf(0)}
               index={0}
               sizes={TUILE_LARGE}
-              priority
               onOpen={onOpenLightbox}
               className="col-span-2 row-span-2 rounded-l-xl"
             />
@@ -197,7 +198,6 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
               alt={altOf(0)}
               index={0}
               sizes={TUILE_LARGE}
-              priority
               onOpen={onOpenLightbox}
               className="col-span-2 row-span-2 rounded-l-xl"
             />
