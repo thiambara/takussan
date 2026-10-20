@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 
 import {
   DASHBOARD_PROPERTY_FIELDS,
-  DASHBOARD_PROPERTY_DETAIL_FIELDS,
 } from '../properties-server';
 import { ADMIN_PROPERTY_FIELDS } from '../super-admin';
 import { CONVERSATION_PROPERTY_FIELDS } from '../conversations';
@@ -151,46 +150,8 @@ const APPELANTS: readonly Appelant[] = [
     horsQueryFields: [],
     minColonnesLues: 13,
   },
-  {
-    nom: 'fetchDashboardProperty → DASHBOARD_PROPERTY_DETAIL_FIELDS',
-    demande: DASHBOARD_PROPERTY_DETAIL_FIELDS,
-    consommateurs: [
-      ['src/app/(dashboard)/app/properties/[id]/page.tsx', ['property']],
-      ['src/components/property-dashboard/PropertyDetailTabs.tsx', ['property']],
-      ['src/components/property-dashboard/PropertyOverviewPanel.tsx', ['property']],
-      ['src/components/property-dashboard/PropertyHeaderActions.tsx', ['property']],
-      ['src/components/property-form/PropertyForm.tsx', ['property']],
-      ['src/components/property-form/PropertyModerationBanner.tsx', ['property']],
-      ['src/components/property-dashboard/ProprietaireEtResponsable.tsx', ['property']],
-    ],
-    inconditionnelles: [
-      'location',
-      'main_photo_url',
-      'status_label',
-      'type_label',
-      'contract_type_label',
-      'average_rating',
-      'reviews_count',
-      'photos',
-      'price_history',
-      'tags',
-      'approved_at',
-      'rejection_reason',
-      // TCK-598 — calculé par `CoutDEntree` depuis quatre colonnes DEMANDÉES ci-dessus.
-      'entry_cost',
-      // TCK-603 — l'en-tête nomme propriétaire et agent responsable : la route `show` les charge
-      // toujours (`PrimaryPropertyContact::eagerLoads()`), éprouvé par
-      // `PropertyReassignmentKeepsOwnerTest::test_la_liste_sert_le_responsable_si_l_agence_est_demandee`.
-      'owner',
-      'primary_contact',
-      'primary_contact_source',
-      // TCK-633 — l'édition masque les frais d'agence d'un indépendant (`agency.kind`) : la route
-      // `show` sert `agency` dès `$isDetail` (`PropertyResource`), `agency_id` étant demandé.
-      'agency',
-    ],
-    horsQueryFields: ['description'],
-    minColonnesLues: 20,
-  },
+  // TCK-1067 (P60.03) — `fetchDashboardProperty` n'envoie plus de `fields[properties]` : un `show`
+  // rend la ressource de détail entière, il n'y a plus de liste demandée à confronter.
   {
     nom: 'fetchAdminProperties / fetchAdminAgencyProperties → ADMIN_PROPERTY_FIELDS',
     demande: ADMIN_PROPERTY_FIELDS,

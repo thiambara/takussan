@@ -84,7 +84,9 @@ class Lease extends AbstractModel implements HasMedia
         'signature_requested_at' => 'datetime',
     ];
 
-    protected static array $requestFilterable = ['property_id', 'landlord_id', 'tenant_id', 'agency_id', 'agent_id', 'type', 'status', 'currency', 'payment_frequency', 'renewed_from_lease_id'];
+    // TCK-1067 (P60.03) — `id` : la lecture légère d'un bail passe par la liste filtrée par id, avec ses
+    // `fields[leases]` ; un `show` rend la ressource de détail entière.
+    protected static array $requestFilterable = ['id', 'property_id', 'landlord_id', 'tenant_id', 'agency_id', 'agent_id', 'type', 'status', 'currency', 'payment_frequency', 'renewed_from_lease_id'];
 
     protected static array $requestSortable = ['id', 'created_at', 'start_date', 'end_date', 'monthly_rent'];
 

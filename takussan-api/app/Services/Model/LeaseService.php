@@ -5,6 +5,7 @@ namespace App\Services\Model;
 use App\Events\Lease\LeaseActivated;
 use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Agency;
+use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
 use App\Models\Enums\LeasePaymentType;
@@ -22,6 +23,7 @@ use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\LeaseRenewalService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class LeaseService
 {
@@ -51,6 +53,16 @@ class LeaseService
         if (! empty($data['guarantor_id'])) {
             $guarantor = Guarantor::query()->find($data['guarantor_id']);
             abort_unless($guarantor !== null && $user->can('view', $guarantor), 403);
+        }
+
+        // TCK-1068 (P62.01) — la réservation d'origine doit être une réservation DU BIEN. Jugée ici,
+        // après l'autorisation du bien, et non par un `exists:` du FormRequest qui répondait à tout
+        // compte connecté : une réservation absente et celle d'un autre bien rendent la même erreur.
+        if (! empty($data['booking_id'])
+            && ! Booking::query()->whereKey((int) $data['booking_id'])->where('property_id', $property->id)->exists()) {
+            throw ValidationException::withMessages([
+                'booking_id' => [__('validation.exists', ['attribute' => 'booking id'])],
+            ]);
         }
 
         // TCK-595 (verif-595 B1, ADR-0049 §1-§2) — la base de commission et le négociateur sont des

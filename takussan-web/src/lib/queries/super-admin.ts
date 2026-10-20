@@ -111,7 +111,7 @@ export async function fetchAdminAgencies(params: {
 
 export async function fetchAdminAgencyDetail(agencyId: number): Promise<AdminAgencyDetailResponse> {
   const qs = new URLSearchParams();
-  qs.set('fields[agencies]', 'id,name,slug,status,is_verified,verified_at,license_number,email,phone,website,description,commission_rate,currency,founded_at,created_at');
+  // P60.03 — pas de `fields[agencies]` : un `show` rend la ressource de détail entière.
   qs.set('include', 'primaryAdmin,address');
   const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}?${qs.toString()}`, {
     credentials: 'include',
@@ -370,12 +370,8 @@ export async function fetchSystemMetrics(): Promise<SystemMetricsResponse> {
 }
 
 export async function fetchAdminUserDetail(userId: number): Promise<AdminUserDetailResponse> {
-  const qs = new URLSearchParams();
-  qs.set('fields[users]', 'id,username,first_name,last_name,email,phone,status,preferred_language,timezone,last_login_at,created_at');
-  // TCK-278 — include mort : `roles` n'existe plus comme relation. Inoffensif
-  // ici (l'endpoint n'utilise pas `buildQuery`), mais c'est le même paramètre
-  // qui produit un 400 sur `/team` — on ne le laisse pas traîner comme modèle.
-  const res = await fetch(cheminApi`/api/super-admin/users/${userId}?${qs.toString()}`, {
+  // P60.03 — ni `fields[users]` ni `include` : un `show` rend la ressource de détail entière.
+  const res = await fetch(cheminApi`/api/super-admin/users/${userId}`, {
     credentials: 'include',
   });
   return jsonOrThrow<AdminUserDetailResponse>(res);

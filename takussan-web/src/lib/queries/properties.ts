@@ -44,7 +44,6 @@ export type {
 } from './properties-server';
 export {
   DASHBOARD_PROPERTY_FIELDS,
-  DASHBOARD_PROPERTY_DETAIL_FIELDS,
   fetchDashboardProperties,
   fetchDashboardProperty,
   createProperty,
