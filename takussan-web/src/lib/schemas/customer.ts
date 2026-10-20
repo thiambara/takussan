@@ -1,29 +1,16 @@
 import { z } from 'zod';
 import { requiredStringSchema } from './common';
 import { msgValidation } from './messages';
+import { customerStatusValues, idTypeValues, pipelineStageValues } from '@/lib/enums/customer';
 
 /**
  * Customer (CRM) Zod schemas — TCK-042. Source of truth:
  * `docs/models-spec.md#7-customer` + `docs/models-spec.md#33-customernote`.
  */
 
-export const customerStatusValues = [
-  'active',
-  'inactive',
-  'blocked',
-  'deleted',
-] as const;
-
-export const pipelineStageValues = [
-  'lead',
-  'prospect',
-  'qualified',
-  'negotiating',
-  'converted',
-  'lost',
-] as const;
-
-export const idTypeValues = ['id_card', 'passport', 'driving_license'] as const;
+// TCK-1039 — les listes de valeurs vivent dans `@/lib/enums/customer`, sans dépendance ; réexportées
+// ici pour les formulaires. Un composant d'affichage les importe de là-bas, jamais d'ici.
+export { customerStatusValues, pipelineStageValues, idTypeValues };
 
 /**
  * TCK-921 — la langue des messages d'un client sans compte, celles de l'interface. `default` n'est

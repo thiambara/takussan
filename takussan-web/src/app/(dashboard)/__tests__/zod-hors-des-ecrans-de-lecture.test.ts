@@ -13,7 +13,12 @@ import { paquetsDuGrapheClient } from '@/test/graphe-client';
  * (morceau de 64,2 Kio gzip) et react-hook-form dans leur JS initial, pour 130 à 140 Kio de trop.
  * Ni `MaintenanceList` ni `InventoryList` n'y mènent : les pages les importaient par le fichier
  * `index.ts` de leur dossier, qui réexportait aussi les formulaires (`MaintenanceForm`,
- * `InventoryForm`…). Chaque page importe depuis son composant par son propre fichier.
+ * `InventoryForm`…). Chaque page importe désormais chaque composant par son propre fichier.
+ *
+ * TCK-1039 (P70.02) : les listes des biens et des clients le chargeaient pour lire des tableaux
+ * `as const` dans `@/lib/schemas/property` et `@/lib/schemas/customer`, deux modules qui commencent
+ * par `import { z } from 'zod'`. Ces tableaux vivent dans `@/lib/enums/property` et
+ * `@/lib/enums/customer`, sans dépendance (le patron de TCK-744).
  *
  * Les écrans ci-dessous n'affichent aucun formulaire au chargement : aucun chemin vers ces
  * paquets n'y est admis. Un écran de la console qui EST un formulaire (`new`) n'y figure pas.
@@ -26,6 +31,9 @@ const ECRANS: readonly string[] = [
   'maintenance/(liste)/page.tsx',
   'inventories/(liste)/page.tsx',
   'inventories/[id]/page.tsx',
+  // TCK-1039 (P70.02) — les listes de valeurs de bien et de client viennent de `@/lib/enums/*`.
+  'properties/(liste)/page.tsx',
+  'customers/(liste)/page.tsx',
 ];
 
 describe('zod hors des écrans de lecture de la console', () => {
