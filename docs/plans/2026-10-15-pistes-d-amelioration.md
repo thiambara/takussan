@@ -6888,7 +6888,7 @@ de violation hors `region`.*
 
 ### Les jours de la semaine du calendrier sont à 3,33:1, par l'opacité de la feuille de react-day-picker
 - Réf : P68.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1032
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/ui/calendar.tsx:65-68`, `takussan-web/src/app/globals.css:17`, `node_modules/react-day-picker/dist/style.css:55,262`
 - Constat :
@@ -6898,6 +6898,7 @@ de violation hors `region`.*
   - Établi comment : axe et styles calculés par CDP, code relu.
 - Piste : `opacity-100` (ou `[--rdp-weekday-opacity:1]`) dans la classe `weekday` de `calendar.tsx`, la couleur restant celle du jeton. Garde : le test de charte du calendrier (`calendar-charte-tck-582.test.tsx`) étendu à l'opacité des en-têtes, ou la règle `color-contrast` d'axe sur le calendrier ouvert.
 - Mesure (2026-10-20, 8150df982, mesureur) : relu `calendar.tsx` (classe `weekday` : `text-muted-foreground`, aucune opacité rétablie), `globals.css:17` (`@import "react-day-picker/style.css" layer(rdp)`) et la feuille du paquet, servie par `src/style.css` et non `dist/style.css` comme l'écrit le constat (`--rdp-weekday-opacity: 0.75` l. 55, `opacity: var(--rdp-weekday-opacity)` l. 262) ; contraste recalculé : `#6e655a` à 0,75 sur `#ffffff` → 3,33:1, à opacité 1 → 5,72:1 → le constat tient. Classement : A4, contraste ramené sur le jeton existant en rétablissant l'opacité, sans changer de couleur.
+- Mesure (2026-10-20, c6e71581f, implementeur) : relu la classe `weekday` de `calendar.tsx` (aucune opacité rétablie) → test ajouté à `calendar-charte-tck-582.test.tsx`, qui compile par le Tailwind du dépôt les classes posées sur `.rdp-weekday` : aucune `opacity` dans la couche `utilities` avant correctif (rouge), `opacity: 100%` après (`opacity-100`), la classe `text-muted-foreground` restant posée ; ablation → rouge, remis → vert (6 sur 6). Contraste non re-mesuré au navigateur.
 
 ### Le popover du sélecteur de date est un `dialog` sans nom
 - Réf : P68.05
