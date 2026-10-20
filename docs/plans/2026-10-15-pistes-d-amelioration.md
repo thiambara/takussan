@@ -7996,7 +7996,7 @@ n'ont pas été rouverts.*
 
 ### Le statut choisi à la création d'un client est écarté, et le client est enregistré « actif »
 - Réf : P80.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer le sélecteur en création ou honorer le statut choisi
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/customer-form/CustomerForm.tsx:308-313`, `takussan-web/src/lib/schemas/customer.ts:195`, `takussan-api/app/Http/Requests/Api/StoreCustomerRequest.php:40-49`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:49-68`
 - Constat :
@@ -8005,10 +8005,11 @@ n'ont pas été rouverts.*
   - Le contrôleur prend `$request->validated()` (lu, `CustomerController.php:49`) puis force `'status' => CustomerStatus::Active->value` dans le `create` (lu, `:65`). Une règle seule ne suffirait donc pas.
   - Établi comment : lu.
 - Piste : soit retirer le sélecteur en création, soit accepter `status` dans `StoreCustomerRequest` et ne poser `Active` qu'à défaut. Un test de création qui envoie `status=inactive` et relit la ligne le garde.
+- Mesure (2026-10-20, 92a755f9f, mesureur) : relu `CustomerForm.tsx:308-313` (sélecteur `status` sans condition de `mode`), `customer.ts:195` (`status` envoyé), `StoreCustomerRequest.php:38-51` (aucune règle `status`, `ValidatesCustomerContactAndCriteria` non plus : `grep status` → rien), `CustomerController.php:65` (`'status' => CustomerStatus::Active->value` forcé), `UpdateCustomerRequest.php:73` (accepte `status`) ; test temporaire (retiré) `POST /api/customers` avec `status=inactive` → 201, réponse et ligne en base `active` (charge 2,13 sur 8 cœurs) → le constat tient en entier. Classement : V7, la piste offre deux options visibles (retirer le champ en création ou enregistrer le statut choisi), qui sont un choix de produit.
 
 ### Le nombre de voyageurs du tunnel de réservation est exigé du visiteur et jamais enregistré
 - Réf : P80.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : enregistrer `guests` ou retirer le champ du tunnel
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/schemas/booking.ts:27-31`, `takussan-web/src/components/bookings/BookingTunnel.tsx:49,151,358`, `takussan-api/app/Http/Requests/Api/StoreBookingRequest.php:33-47`, `takussan-api/app/Http/Controllers/Api/BookingController.php:49-52`
 - Constat :
@@ -8017,10 +8018,11 @@ n'ont pas été rouverts.*
   - Le flux public distinct range `guests` dans `metadata` (sous-agent : `BookingRequestPublicPropertyRequest.php:31`, `PublicPropertyController.php:1036`) : le choix existe déjà ailleurs.
   - Établi comment : lu et mesuré.
 - Piste : accepter `guests` dans `StoreBookingRequest` et l'écrire comme le flux public (`metadata.guests`), ou retirer le champ du tunnel. Un test qui crée une réservation avec `guests=3` et relit la ligne le garde.
+- Mesure (2026-10-20, 92a755f9f, mesureur) : relu `booking.ts:27-31` (min 1 max 20), `BookingTunnel.tsx:49,151,358` (champ obligatoire de l'étape 0, envoyé), `StoreBookingRequest.php:30-48` (aucune règle `guests` ni `metadata`), `BookingController.php:47-52` ; `grep -rn guests takussan-api/app` → seul le flux public (`BookingRequestPublicPropertyRequest.php:31`, max 50 et non 20, `PublicPropertyController.php:1036` vers `metadata.guests`) ; test temporaire (retiré) `POST /api/bookings` avec `guests=3` → 201, ligne avec `metadata` à `null` (charge 2,13 sur 8 cœurs) → le constat tient. Classement : V7, la piste laisse le choix entre enregistrer le nombre (et sa borne, 20 côté tunnel contre 50 côté flux public) ou retirer un champ visible.
 
 ### Aucune garde ne signale une clé envoyée par le front que le FormRequest ignore
 - Réf : P80.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : signal transverse sur tous les FormRequest, avec liste d'exceptions
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/BaseFormRequest.php` (seuls `authorize`, `prepareForValidation`, `normalize`), `scripts/check-*.mjs`
 - Constat :
@@ -8029,3 +8031,4 @@ n'ont pas été rouverts.*
   - Petit écart voisin : `AddParticipantsRequest.php:46` valide `role`, que `ConversationParticipantController.php:39` ne lit pas (`validated('user_ids')`). Le front ne l'envoie pas, mais le type `AddParticipantsPayload.role` laisse croire le contraire (sous-agent, à vérifier).
   - Établi comment : lu, mesuré pour le compte ; l'absence de garde est à vérifier.
 - Piste : en local et en test, journaliser (ou faire échouer sous `APP_ENV=testing`) toute clé d'entrée absente des règles d'un `BaseFormRequest`, avec une liste d'exceptions explicite ; un test de non-vacuité renvoie `guests` sur `POST /api/bookings` et attend le signal.
+- Mesure (2026-10-20, 92a755f9f, mesureur) : relu `BaseFormRequest.php` (seuls `authorize`, `prepareForValidation`, `normalize` : rien ne relève une clé hors règles) ; `ls scripts/check-*.mjs | wc -l` → 54, `grep -l 'app/Http/Requests\|FormRequest\|rules()'` → deux seules, `check-inline-validation.mjs` (interdit la validation en ligne) et `check-agency-scope-clause.mjs` (clause d'agence), aucune ne compare un corps du front aux règles ; l'écart voisin tient : `AddParticipantsRequest.php:46` valide `role`, `ConversationParticipantController.php:39` ne lit que `validated('user_ids')`, et `conversations.ts:375` type `role?` → le constat tient. Classement : V6, faire échouer sous `APP_ENV=testing` ou journaliser toute clé hors règles change le comportement de tous les FormRequest et de la suite, avec une liste d'exceptions à arrêter : c'est une convention transverse, pas une garde isolée (A5).
