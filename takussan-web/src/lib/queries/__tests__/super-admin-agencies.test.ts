@@ -80,6 +80,7 @@ describe('include=roles ne doit plus être demandé (TCK-278)', () => {
 
     const url = String(fetchSpy.mock.calls[0][0]);
     expect(url).not.toContain('include=');
-    expect(url).toContain('fields%5Busers%5D=');
+    // P60.03 — un `show` rend la ressource de détail entière : aucun `fields[users]`.
+    expect(url).not.toContain('fields');
   });
 });

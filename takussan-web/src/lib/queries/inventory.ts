@@ -44,19 +44,6 @@ const LIST_FIELDS = [
   'created_at',
 ] as const;
 
-const DETAIL_FIELDS = [
-  ...LIST_FIELDS,
-  'conducted_by',
-  'tenant_id',
-  'rooms',
-  'notes',
-  'tenant_signed',
-  'tenant_signature_hash',
-  'owner_signed',
-  'owner_signature_hash',
-  'signed_at',
-] as const;
-
 export interface InventoryListParams {
   readonly type?: InventoryType;
   readonly status?: InventoryStatus;
@@ -109,7 +96,6 @@ export function useInventory(id: number | null) {
     inventoryKeys.detail(id ?? 0),
     cheminApi`/api/inventories/${id}`,
     {
-      params: { fields: { inventories: [...DETAIL_FIELDS] } },
       enabled: id !== null && id > 0,
     },
   );

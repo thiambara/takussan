@@ -212,10 +212,8 @@ export interface PropertyDetail extends PropertyListItem {
   /**
    * TCK-464 — même défaut que `title_type` : absente du JSON (pas nulle) quand elle n'est pas
    * dans `fields[properties]`. `COMPARE_FIELDS` (`useCompare.ts`) ne la demande pas — d'où
-   * l'optionalité. `DASHBOARD_PROPERTY_DETAIL_FIELDS`, lui, la demande DEPUIS que la page
-   * d'édition l'affiche : le type dit ce que l'API peut omettre, la liste de champs dit ce
-   * que la page a besoin de lire. Les deux ne se déduisent pas l'un de l'autre, et c'est la
-   * garde de TCK-336 qui a attrapé l'écart.
+   * l'optionalité. La page d'édition la reçoit du `show`, qui rend la ressource de détail
+   * entière (P60.03).
    */
   available_from?: string | null;
   year_built: number | null;
