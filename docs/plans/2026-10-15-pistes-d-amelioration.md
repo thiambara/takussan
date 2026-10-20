@@ -140,7 +140,7 @@ voie d'écriture (angle 13, puis 47).
 | 65 | Durée cumulée des appels sortants synchrones dans une requête HTTP (OTP SMS, step-up, initiation de paiement) face au délai de PHP, du serveur web et de Traefik | fait |
 | 66 | Valeurs d'enum métier ajoutées ou désactivées par le super-admin (`BusinessEnumService`, `settings` `enum.*.values`) : lues par aucune validation ni aucun écran hors de la console ? | fait |
 | 67 | Critères nommés des recherches sauvegardées et des liens partagés (`tags=Piscine`, `location=<quartier>`) après un renommage, une fusion ou un rejet au référentiel (`TagModeration`, `GeoNeighborhoodModeration`) : alertes muettes, filtres vides | fait |
-| 68 | Passage axe au navigateur des écrans connectés (`/app`, console super-admin) derrière un faux API : barre latérale, tableaux, dialogues et feuilles de `@base-ui/react` | à faire |
+| 68 | Passage axe au navigateur des écrans connectés (`/app`, console super-admin) derrière un faux API : barre latérale, tableaux, dialogues et feuilles de `@base-ui/react` | fait |
 | 69 | Fiche bien, recherche et accueil servis par `next start` avec l'API de dev, sous 3G simulé par CDP : LCP, TBT, octets du document RSC et ordre des préchargements | à faire |
 | 70 | Poids JS initial des écrans de `/app` (`(dashboard)`, 500 à 610 Kio gzip au build du 2026-10-17) : ce que la coque et la barre latérale chargent pour chaque écran | à faire |
 | 71 | Variables d'environnement des services de production du plan F3 (`takussan-web-prod`, `takussan-api-prod`) face au relevé de la préproduction dans `docs/infra/hebergement.md` : clés absentes, valeurs reprises de D1 | à faire |
@@ -173,6 +173,8 @@ voie d'écriture (angle 13, puis 47).
 | 98 | Autres écrans d'écriture de la console super-admin (modèles de notification `NotificationTemplateService`, annonces, intégrations, paramètres plateforme) : ce que chaque écran promet de changer est-il lu par le chemin qui envoie, affiche ou décide, hors de la console ? | à faire |
 | 99 | Critères de ville et de région rangés par nom (`city`, `cities`, `region` des recherches sauvegardées et des alertes sans compte, `seeking_cities` du CRM) face à une ville renommée par le chargeur du référentiel (`GeoReferentialLoader`, TCK-787) : alertes et rapprochements muets ? | à faire |
 | 98 | Supprimer, versionner ou partager un document que l'on ne fait que lire (`DocumentController::destroy`, `DocumentVersionController`, `DocumentShareLinkController`, `DocumentPolicy::share`) face aux règles écrites des tickets : locataire, bailleur invité, agent d'une autre agence, compte bloqué |
+| 100 | Constantes `*_FIELDS` et `fields[…]` écrits du front face aux `$queryFields` du modèle visé : colonne demandée que l'API refuse (400 `http.bad_request`), rattrapée en `null` ou en page d'erreur — `src/lib/queries/*.ts`, `src/app/actions/*` | à faire |
+| 101 | Passage axe au navigateur des écrans `/app` des autres profils (propriétaire, locataire, prestataire, agent) et des pages de détail `[id]` (bien, bail, client, paiement), derrière le faux API en lecture seule de l'angle 68 | à faire |
 
 ---
 
@@ -6818,3 +6820,126 @@ test ne rejoue une recherche sauvegardée après une décision de modération.*
 - Piste : appliquer au rapprochement la règle de `QuartierDuFiltre` (choix du porteur pour la recherche, TCK-663), en SQL ou par la liste des textes de même clé (`textesLibres()`), et corriger le docblock. Garder par un test : graphie sans accent ni tiret.
 - Mesure (2026-10-20, df863bd1c, mesureur) : relu le docblock de `ProspectMatcher` (« sans replier les accents ») et `CleDeQuartier::de()` ; test temporaire (retiré) : prospect `["Liberte 4"]`, bien à « Liberté 4 » de la même agence → `propertiesFor` 0, `customersFor` 0 → le constat tient. Classement : V7, le rapprochement suit délibérément ADR-0025 (accents non repliés) et le repli de `CleDeQuartier` a été décidé pour le filtre `location` seul (TCK-663) : l'étendre au CRM est un choix du porteur.
 - Mesure (2026-10-20, 95f0fc396, delegue) : relu le docblock et `whereListAccepts()`/`propertiesFor()` de `ProspectMatcher` (repli par `CaseInsensitive` seul, en SQL), `QuartierDuFiltre`, TCK-663 (repli d'accents décidé par le porteur pour le filtre `location`, en PHP faute d'`unaccent`) et ADR-0025 l. 100-104 (« `Café` et `Cafe` restent deux valeurs », `unaccent` refusé par ADR-0020 §2) → le constat tient. Recommandation : étendre au rapprochement CRM la clé `CleDeQuartier`, en PHP et sans `unaccent` (textes de même clé pour `propertiesFor`, candidats de l'agence filtrés en PHP pour `customersFor`), et corriger le docblock, parce que c'est la règle que le porteur a choisie pour les mêmes noms de quartier ; pas validé, parce que la voie 1 de P67.04 (clé et identifiants du référentiel, fusion suivie, réservée au porteur par V3) couvre déjà ce repli et qu'il vaut mieux les trancher ensemble, et parce qu'ADR-0025 fait du non-repli des accents un choix délibéré que seule la recherche publique a levé.
+
+## Angle 68 — Passage axe au navigateur des écrans connectés (`/app`, console super-admin)
+
+*Exploré le 2026-10-20 sur `pre-dev` 9ddfe61fa, par l'explorateur. Tout a été lancé et relu par
+l'explorateur lui-même, sans sous-agent. Montage : `next dev` de l'arbre (port 3298) devant un
+**faux API** qui est l'API de l'arbre elle-même servie par `php -S` avec un routeur hors du dépôt :
+connexion PostgreSQL passée en `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY` (aucune
+écriture possible dans la base de dev), cache, session et file en mémoire, utilisateur posé en
+mémoire depuis le jeton (`auth_token=u<ID>`), second facteur marqué vérifié en mémoire pour ouvrir
+la console. Chrome 155 sans tête piloté par CDP, un contexte de navigateur isolé par passage,
+`axe-core` 4.13.0 du front injecté, règles `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`
+et `best-practice`. Passé à 1280 px : les 51 pages statiques de `/app` en admin d'agence (Dakar
+Immo, u2) et les 33 de `/super-admin` (u1) ; à 390 px : la feuille de navigation de cinq pages ;
+ouverts au clic : feuille, menu utilisateur, centre de notifications, dialogue d'invitation, menu
+« Plus d'actions », sélecteur de date, combobox des agences. **Limites** : base de dev (peu de
+lignes par table, photos absentes), un seul profil par coque (ni propriétaire, ni locataire, ni
+prestataire, ni agent), aucune page de détail `[id]`, contraste rendu « incomplete » sur les
+textes posés sur image non tranché. Un premier passage a été jeté : deux onglets du même profil
+Chrome partageaient le cookie `auth_token`, et u1 et u2 s'écrasaient. **Sain** : la feuille
+mobile (`role=dialog` nommée, focus dedans, Échap la ferme et rend le focus au bouton), le menu
+utilisateur (`role=menu`, focus sur le premier élément), le centre de notifications et le
+dialogue d'invitation (nommés, focus dedans) ; aucun tableau, aucune liste de la console ne sort
+de violation hors `region`.*
+
+### La page « Passer en agence » d'une agence individuelle rend la page d'erreur, et la barre latérale ignore la demande en cours
+- Réf : P68.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/lib/queries/agency-upgrade.ts:22-39,49-58`, `takussan-web/src/app/(dashboard)/app/settings/agency/upgrade/page.tsx:42-45`, `takussan-web/src/app/(dashboard)/app/layout.tsx:38-41,54-55`, `takussan-api/app/Models/AgencyUpgradeRequest.php:88-94`
+- Constat :
+  - `AGENCY_UPGRADE_REQUEST_FIELDS` demande `ninea` et `rib_pro` (lu, `agency-upgrade.ts:27-28`) ; `$queryFields` du modèle ne les porte plus depuis `b610e2bc4` (TCK-601, 2026-10-08, lu `AgencyUpgradeRequest.php:88-94`). L'API rend donc `400 {"code":"http.bad_request"}` à chaque appel de `fetchAgencyUpgradeRequests` (mesuré : `GET /api/agencies/{1,4}/upgrade-requests?fields[agency_upgrade_requests]=…` → 400 à chacun des 183 appels relevés dans les deux journaux du passage, aucun 200).
+  - La page `/app/settings/agency/upgrade` n'attrape pas l'erreur (lu, `page.tsx:42-45`, `Promise.all` sans `catch`) : pour u62 et u97, admins de l'agence `individual` n° 4, elle rend « Une erreur est survenue — Cette page n'a pas pu être affichée » (mesuré, texte du `main` par CDP ; `next dev` journalise `Error: API error 400 at Page (page.tsx:42)`). C'est la seule page qui permet de demander le passage.
+  - Le layout de `/app` l'attrape en `null` (lu, `layout.tsx:40`), donc `hasPendingUpgrade` vaut toujours `false` : l'agence 4 a une demande `pending` en base (mesuré, `SELECT agency_id, status FROM agency_upgrade_requests` → `[{4, pending}]`), et sa barre latérale affiche « Passer en agence » au lieu de « Demande en cours » (mesuré, texte de la page par CDP).
+  - Aucun test ne le voit : les deux tests qui montent le layout simulent `fetchAgencyUpgradeRequests` (lu, `bandeau-suspension.test.tsx`, `layout.acces-admin.test.tsx`).
+  - Établi comment : faux API (l'API réelle en lecture seule), CDP, code relu.
+- Piste : retirer `ninea` et `rib_pro` de `AGENCY_UPGRADE_REQUEST_FIELDS` (le formulaire les envoie, la liste n'en a pas besoin ; vérifier `types/agency-upgrade.ts:20` et `UpgradeRequestStatus`). Garde : un test qui confronte chaque constante `*_FIELDS` du front au `$queryFields` du modèle visé (voir l'angle proposé 100), à défaut un test de la page qui joue un 400 et attend autre chose que l'erreur.
+
+### Le sélecteur de locataire du nouveau bail n'a pas de nom accessible
+- Réf : P68.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:160-180,352-372`
+- Constat :
+  - Le libellé « Locataire » vise le champ de recherche (`htmlFor="tenant-search"`, l. 160-169) ; le `SelectTrigger` qui porte le choix reçoit `label={null}` (l. 173) et n'a donc ni `label for`, ni `aria-label`, ni `aria-labelledby` (lu, l. 352-372 ; mesuré par CDP : `labels: []` pour `#field-tenant_id`, `["Bien*"]` pour `#field-property_id`).
+  - axe rend `button-name` (impact « critical ») sur `#field-tenant_id` de `/app/leases/new` (mesuré, deux passages). Le lecteur d'écran annonce au mieux la valeur ou le placeholder (« Recherche… »), jamais la question.
+  - Établi comment : axe et lecture du DOM par CDP, code relu.
+- Piste : donner au déclencheur le nom du champ (`aria-labelledby` vers le libellé « Locataire », ou `aria-label` avec la clé existante `t('tenant')`) quand `label` est `null`. Garde : test de rendu qui attend `getByRole('combobox', { name: /locataire/i })`.
+
+### Le champ fichier du logo d'agence, masqué en `sr-only`, reste dans l'ordre de tabulation sans nom
+- Réf : P68.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:341-357`
+- Constat :
+  - L'`input type="file"` `#agency-logo` est en `sr-only`, sans `tabIndex={-1}`, sans libellé ni `aria-label` (lu, l. 341-349) ; le bouton visible qui l'ouvre le suit (l. 350-355). Au clavier, on tombe d'abord sur un contrôle sans nom, puis sur le bouton.
+  - axe rend `label` (impact « critical ») sur `#agency-logo` de `/app/agency` (mesuré).
+  - Établi comment : axe, code relu.
+- Piste : `tabIndex={-1}` et `aria-hidden` sur l'`input` (le bouton porte le geste), ou un `<label htmlFor="agency-logo">` stylé en bouton à la place du `Button`. Garde : test de rendu qui n'attend aucun `input[type=file]` focusable sans nom.
+
+### Les jours de la semaine du calendrier sont à 3,33:1, par l'opacité de la feuille de react-day-picker
+- Réf : P68.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/ui/calendar.tsx:65-68`, `takussan-web/src/app/globals.css:17`, `node_modules/react-day-picker/dist/style.css:55,262`
+- Constat :
+  - `globals.css:17` importe `react-day-picker/style.css`, qui pose `--rdp-weekday-opacity: 0.75` et `opacity: var(--rdp-weekday-opacity)` sur `.rdp-weekday` (lu). `calendar.tsx` y ajoute `text-muted-foreground` à `0.7rem` sans rétablir l'opacité (lu, l. 65-68).
+  - Mesuré sur le sélecteur de date de `/app/tasks` ouvert : `th.rdp-weekday` à `opacity 0.75`, couleur calculée `rgb(110,101,90)` ; axe rend `color-contrast` (« serious ») sur les 7 en-têtes, 3,33:1 (`#928c83` sur `#ffffff`, 10 px), seuil 4,5:1.
+  - 30 fichiers montent `Calendar` ou `DateTimePicker` (mesuré, `grep -rln`), dont les dialogues de visite et de réservation de la fiche publique.
+  - Établi comment : axe et styles calculés par CDP, code relu.
+- Piste : `opacity-100` (ou `[--rdp-weekday-opacity:1]`) dans la classe `weekday` de `calendar.tsx`, la couleur restant celle du jeton. Garde : le test de charte du calendrier (`calendar-charte-tck-582.test.tsx`) étendu à l'opacité des en-têtes, ou la règle `color-contrast` d'axe sur le calendrier ouvert.
+
+### Le popover du sélecteur de date est un `dialog` sans nom
+- Réf : P68.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/ui/date-time-picker.tsx:199`, `takussan-web/src/components/ui/popover.tsx`
+- Constat :
+  - Ouvert depuis « Choisir une date et une heure », le `PopoverContent` rend `role="dialog"` sans `aria-label` ni `aria-labelledby` (mesuré par CDP ; lu, l. 199 : seule `className`). axe rend `aria-dialog-name` (« serious », règle `best-practice`).
+  - Le focus entre bien dans le popover (sur « Today, mardi 20 octobre 2026 »), et le déclencheur porte `aria-haspopup="dialog"` et `aria-expanded` (mesuré).
+  - Les autres popovers montés par `ui/popover.tsx` n'ont pas été passés (à vérifier).
+  - Établi comment : axe et DOM par CDP.
+- Piste : passer au `PopoverContent` l'`aria-label` que reçoit déjà le composant (`ariaLabel`, l. 97 et 173). Garde : test de rendu qui ouvre le sélecteur et attend `getByRole('dialog', { name })`.
+
+### Ouvrir le combobox des agences de la console masque son propre déclencheur, focus compris
+- Réf : P68.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/admin/super/AgencyCombobox.tsx:170-196`, `takussan-web/src/components/ui/combobox.tsx:146-149`
+- Constat :
+  - Sur `/super-admin/users`, focus sur « Ouvrir la liste des agences » puis clic : Base UI pose `aria-hidden` et `data-base-ui-inert` sur le reste de la page, dont le `div` qui contient le `Combobox.Trigger` et le `Combobox.Clear` (mesuré : le parent `div.absolute.right-1` est masqué, `contains(trigger) = true`) ; le focus reste sur le déclencheur, dans la zone masquée (mesuré, `document.activeElement`).
+  - axe rend `aria-hidden-focus` (« serious ») sur la barre du haut, le lien d'évitement et le lanceur de messagerie : du contenu focusable sous `aria-hidden`, joignable à Tab (mesuré).
+  - Le comportement est connu pour la saisie : `combobox.tsx:146-149` note que la liste ouverte rend le reste de la page `aria-hidden` quand la saisie est hors du popup (lu). `AgencyCombobox` ajoute un `Trigger` et un `Clear` hors de la saisie, que ce masquage atteint.
+  - Ce qu'un lecteur d'écran annonce réellement n'a pas été écouté (à vérifier).
+  - Établi comment : axe et DOM par CDP, code relu.
+- Piste : déplacer le focus dans la saisie à l'ouverture par le déclencheur, ou ouvrir la liste en mode non modal si Base UI 1.7 le permet pour le combobox ; à défaut, retirer le `Trigger` comme l'a fait `ui/combobox.tsx` (`openOnInputClick`). Garde : test qui ouvre par le déclencheur et vérifie que `document.activeElement` n'a aucun ancêtre `aria-hidden`.
+
+### Trois petits textes de la console et de l'espace sous 4,5:1
+- Réf : P68.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/admin/super/business-enums.tsx:46`, `takussan-web/src/components/layout/SuperAdminTopbar.tsx:72-77`, `takussan-web/src/components/property-dashboard/PropertyList.tsx:586-590`
+- Constat :
+  - `/super-admin/enums` : le compte « 16 valeurs » de l'entrée sélectionnée, `text-xs opacity-75` sur le fond `primary`, 3,59:1 (`#e7d0c3` sur `#a85332`, 10,8 px) (mesuré, axe `color-contrast`).
+  - Barre de la console à 390 px : la pastille « Console », `text-primary` sur `bg-primary/15` sous `.dark`, 4,31:1 (`#c87a52` sur `#38271c`, 11 px) (mesuré à 390 px ; non sortie à 1280 px).
+  - `/app/properties`, menu « Plus d'actions » ouvert : le badge de visibilité publique, `bg-primary/10 text-primary`, 4,29:1 (`#a85332` sur `#f0e5dc`, 10,8 px) (mesuré).
+  - Établi comment : axe par CDP, code relu.
+- Piste : retirer l'`opacity-75` (ou passer sur `primary-foreground` plein), et ramener les deux pastilles sur un couple de jetons qui passe 4,5:1 à leur taille ; aucun texte neuf. Garde : un test de contraste sur les jetons, comme `chrome-publique.contraste.test.tsx`.
+
+### Petites améliorations relevées par axe dans les coques connectées
+- Réf : P68.08
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/shared/LienEvitement.tsx` (monté par `AppShell.tsx:94`, `SuperAdminShell.tsx`), `takussan-web/src/components/layout/NotificationBell.tsx:179`, `takussan-web/src/components/messages/MessagesPage.tsx:213`, `takussan-web/src/components/layout/AppTopbar.tsx:51-56`, `takussan-web/src/app/(super-admin)/super-admin/users/page.tsx:377-378`, `takussan-web/src/components/pipeline/PipelineKanban.tsx:271-274`
+- Constat :
+  - `region` (« moderate ») sur 82 des 84 pages : le lien d'évitement est rendu hors de tout repère (mesuré ; seule exception `/app/messages` et `/app/properties/new`).
+  - Centre de notifications ouvert : son `<header>` (l. 179) fait un second repère `banner`, `landmark-no-duplicate-banner` et `landmark-unique` (mesuré).
+  - `/app/messages` : deux `aside` sans nom distinct, `landmark-unique` (mesuré) ; `/app/agency/integrations` : sections de webhook sans nom distinct et `h3` après un `h1` (`heading-order`) (mesuré, premier passage).
+  - Le bouton « Ouvrir le menu » de la barre mobile n'a pas d'`aria-expanded` (mesuré par CDP : `null`), la feuille étant ouverte par un `onClick` et non par un `Dialog.Trigger` (lu, `AppTopbar.tsx:51-56`, `AppShell.tsx:100`).
+  - Noms répétés sans contexte : 20 « Plus d'actions » sur `/app/properties`, 20 « Impersonifier » sur `/super-admin/users` (mesuré par CDP) — le même motif que P07.13, sur d'autres écrans.
+  - `/app/customers` : liens `tel:` et `mailto:` des lignes à 16 px de haut, `target-size` (« serious », 16 nœuds) (mesuré) ; le texte en ligne d'un tableau relève peut-être de l'exception « inline » de WCAG 2.5.8 (à vérifier).
+  - `/app/crm/pipeline` : `scrollable-region-focusable` sur le conteneur du kanban (mesuré) ; les cartes n'étaient peut-être pas encore chargées au passage (à vérifier).
+  - Établi comment : axe et DOM par CDP.
+- Piste : lien d'évitement dans le repère de la barre du haut ; `<div>` au lieu de `<header>` dans le popover ; `aria-label` distincts sur les `aside` et les sections ; `aria-expanded={sidebarOpen}` sur le bouton du menu ; nom accessible avec la ligne (« Plus d'actions — {titre} ») ; zone cliquable portée à 24 px par un `py`. Aucune ne demande de texte neuf hormis les noms contextualisés, qui réutilisent des données affichées.
