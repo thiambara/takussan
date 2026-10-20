@@ -122,6 +122,13 @@ class DocumentPolicy extends BasePolicy
      */
     public function delete(User $user, Model $model): bool
     {
+        // TCK-1062 (P64.03) — une pièce de profil vérifiée ne se supprime pas par son titulaire :
+        // supprimée en douceur, son fichier partirait au bout de 90 jours (`media:cleanup`), contre
+        // les 5 ans de la politique. Le super-admin garde le geste (décision du porteur, 2026-10-20).
+        if ($model instanceof Document && $model->is_verified && $model->isProfilePiece() && ! $user->isSuperAdmin()) {
+            return false;
+        }
+
         return $this->update($user, $model);
     }
 
