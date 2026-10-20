@@ -1,7 +1,7 @@
 ---
 id: TCK-1035
 title: "Coques connectées : état du menu, repère en double et noms de boutons contextualisés"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -43,28 +43,28 @@ Ces quatre défauts disparaissent sans texte visible neuf.
 
 ## Delta à produire
 
-- [ ] `AppTopbar` reçoit `menuOpen` (passé par `AppShell` depuis `sidebarOpen`) et le rend en
+- [x] `AppTopbar` reçoit `menuOpen` (passé par `AppShell` depuis `sidebarOpen`) et le rend en
       `aria-expanded` sur le bouton du menu.
-- [ ] `NotificationBell` : `<div>` au lieu de `<header>` en tête du panneau.
-- [ ] `PropertyRowActions` : `aria-label` par la clé neuve `property.dashboard.actions.moreFor`
+- [x] `NotificationBell` : `<div>` au lieu de `<header>` en tête du panneau.
+- [x] `PropertyRowActions` : `aria-label` par la clé neuve `property.dashboard.actions.moreFor`
       (« Plus d'actions — {title} », « More actions — {title} », en `wo` le texte français tel
       quel). L'en-tête de fiche (`PropertyHeaderActions`), seul de sa page, garde « Plus d'actions ».
-- [ ] `/super-admin/users` : `aria-label` du bouton par `superAdmin.pages.users.impersonateTitle`,
+- [x] `/super-admin/users` : `aria-label` du bouton par `superAdmin.pages.users.impersonateTitle`,
       avec le nom affiché du compte (`getUserDisplayName`, déjà employé par la boîte de
       confirmation).
-- [ ] Tests : `AppShell.menu-et-credits.test.tsx`, `NotificationBell.test.tsx`,
+- [x] Tests : `AppShell.menu-et-credits.test.tsx`, `NotificationBell.test.tsx`,
       `PropertyRowActions.nom-contextuel.test.tsx`, `super-admin/users/__tests__/page.test.tsx` ;
       les tests qui cherchaient « Plus d'actions » par nom exact acceptent les deux noms.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `aria-expanded` du bouton « Ouvrir le menu » vaut `false` tiroir fermé, `true` ouvert.
-- [ ] AC2 — Le panneau de notifications ouvert ne contient aucun repère `banner`.
-- [ ] AC3 — Chaque bouton de menu d'une ligne de `/app/properties` se nomme « Plus d'actions —
+- [x] AC1 — `aria-expanded` du bouton « Ouvrir le menu » vaut `false` tiroir fermé, `true` ouvert.
+- [x] AC2 — Le panneau de notifications ouvert ne contient aucun repère `banner`.
+- [x] AC3 — Chaque bouton de menu d'une ligne de `/app/properties` se nomme « Plus d'actions —
       <titre du bien> » (fr) / « More actions — <titre> » (en).
-- [ ] AC4 — Chaque bouton d'impersonation se nomme « Impersonifier <nom> », son texte visible
+- [x] AC4 — Chaque bouton d'impersonation se nomme « Impersonifier <nom> », son texte visible
       restant « Impersonifier ».
-- [ ] AC5 — `check:i18n` vert : la clé neuve existe dans les trois langues.
+- [x] AC5 — `check:i18n` vert : la clé neuve existe dans les trois langues.
 
 ## Hypothèses (mode sans humain)
 
@@ -79,4 +79,10 @@ Ces quatre défauts disparaissent sans texte visible neuf.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Le tiroir modal rend la barre haute `inert` : le test d'`aria-expanded` relit le nœud du bouton
+  pris avant l'ouverture, un `getByRole` ne le trouverait plus.
+- `PropertyActions.publication` et `.statut` (TCK-633) rougissent sous charge (« Indisponible →
+  Disponible sans CGU ») quand tout `property-dashboard/__tests__` tourne d'un coup, **avec ou sans
+  ce ticket** (mesuré à charge 9 sur 8 cœurs, sur l'arbre sans le diff) ; seuls, ils sont verts.
+- Ablation : les cinq fichiers de code remis à `pre-dev` → 5 rouges (un par point, deux langues
+  pour « Plus d'actions ») ; remis → 40 verts.
