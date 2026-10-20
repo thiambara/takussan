@@ -8,10 +8,10 @@ use App\Models\Enums\KycDossierStatus;
 use App\Models\KycDossier;
 use App\Models\User;
 use App\Services\Privacy\PersonalDataAccessLogger;
+use App\Support\RelativeSignedUrl;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Tests\ApiTestCase;
 use Tests\Support\RemoteDiskFake;
 
@@ -82,7 +82,7 @@ class PersonalDataAccessLogTest extends ApiTestCase
         $this->apiGet("/api/admin/agencies/{$agency->id}/kyc")->assertOk();
         $this->assertSame(2, $this->traces(PersonalDataAccessLogger::SURFACE_KYC_DOSSIER));
 
-        $url = URL::temporarySignedRoute('kyc.documents.show', now()->addMinutes(15), ['media' => $media->id]);
+        $url = RelativeSignedUrl::temporary('kyc.documents.show', now()->addMinutes(15), ['media' => $media->id]);
         $this->get($url)->assertOk();
         $this->get($url)->assertOk();
         $this->assertSame(1, $this->traces(PersonalDataAccessLogger::SURFACE_KYC_DOCUMENT));
@@ -100,7 +100,7 @@ class PersonalDataAccessLogTest extends ApiTestCase
             ->addMedia(UploadedFile::fake()->createWithContent('cni.pdf', 'piece'))->toMediaCollection('documents');
 
         $this->apiActingAsRole('agency_admin', ['agency' => Agency::factory()->create()]);
-        $this->get(URL::temporarySignedRoute('kyc.documents.show', now()->addMinutes(15), ['media' => $media->id]))->assertForbidden();
+        $this->get(RelativeSignedUrl::temporary('kyc.documents.show', now()->addMinutes(15), ['media' => $media->id]))->assertForbidden();
 
         $this->assertSame(0, $this->traces(PersonalDataAccessLogger::SURFACE_KYC_DOCUMENT));
     }

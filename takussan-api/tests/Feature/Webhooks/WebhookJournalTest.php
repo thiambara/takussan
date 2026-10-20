@@ -10,10 +10,10 @@ use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
 use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Webhooks\WebhookJournal;
+use App\Support\RelativeSignedUrl;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\URL;
 use Tests\Support\LeaseDueFixture;
 use Tests\Support\WebhookJournalFixture;
 use Tests\TestCase;
@@ -241,7 +241,7 @@ class WebhookJournalTest extends TestCase
 
         $notification = AppNotification::factory()->create(['user_id' => User::factory()->create()->id]);
         // P36.01 (TCK-795) — LAM ajoute ses paramètres à l'URL signée, comme au rappel réel.
-        $signed = URL::signedRoute('sms.webhook.lafricamobile', ['token' => 'sms-url-token-602', 'notification' => $notification->id]).'&push_id=lam-602&status=6';
+        $signed = RelativeSignedUrl::forever('sms.webhook.lafricamobile', ['token' => 'sms-url-token-602', 'notification' => $notification->id]).'&push_id=lam-602&status=6';
         $this->getJson($signed)->assertNotFound();
         parse_str((string) parse_url($signed, PHP_URL_QUERY), $signedQuery);
         $urlSignature = (string) ($signedQuery['signature'] ?? '');

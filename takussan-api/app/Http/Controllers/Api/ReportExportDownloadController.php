@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Models\ReportExport;
 use App\Notifications\ReportExportReadyNotification;
+use App\Support\RelativeSignedUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -25,7 +25,7 @@ class ReportExportDownloadController extends Controller
     /** Le lien du courriel, valable jusqu'à l'échéance de l'export. */
     public static function signedUrl(ReportExport $export): string
     {
-        return URL::temporarySignedRoute(
+        return RelativeSignedUrl::temporary(
             'report-exports.download',
             $export->expires_at,
             ['reportExport' => $export->id, 'user' => $export->requested_by],

@@ -7,13 +7,14 @@ use App\Models\ReportExport;
 use App\Models\User;
 use App\Notifications\ReportExportReadyNotification;
 use App\Services\Reporting\PlatformReportingService;
+use App\Support\RelativeSignedUrl;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Testing\TestResponse;
+use Tests\Support\UrlSigneeDerriereTraefik;
 use Tests\TestCase;
 
 /**
@@ -27,6 +28,7 @@ use Tests\TestCase;
 class ReportExportDownloadTest extends TestCase
 {
     use RefreshDatabase;
+    use UrlSigneeDerriereTraefik;
 
     private User $demandeur;
 
@@ -98,6 +100,16 @@ class ReportExportDownloadTest extends TestCase
         $this->assertStringContainsString('growth', (string) $response->headers->get('Content-Disposition'));
     }
 
+    /** TCK-1059 (P73.02) — signé en relatif, le lien ne dépend plus du schéma vu par l'API. */
+    public function test_le_lien_du_courriel_reste_valide_hors_des_mandataires(): void
+    {
+        $this->signerCommeEnProduction();
+        [, $url] = $this->exportPret();
+        Auth::forgetGuards();
+
+        $this->presenterHorsDesMandataires($url)->assertOk();
+    }
+
     public function test_le_lien_expire_avec_l_export(): void
     {
         [$export, $url] = $this->exportPret();
@@ -121,7 +133,7 @@ class ReportExportDownloadTest extends TestCase
         [$export] = $this->exportPret();
         $autre = User::factory()->create();
 
-        $url = URL::temporarySignedRoute(
+        $url = RelativeSignedUrl::temporary(
             'report-exports.download',
             $export->expires_at,
             ['reportExport' => $export->id, 'user' => $autre->id],
@@ -135,7 +147,7 @@ class ReportExportDownloadTest extends TestCase
         [$export] = $this->exportPret();
         $export->update(['status' => 'failed']);
 
-        $url = URL::temporarySignedRoute(
+        $url = RelativeSignedUrl::temporary(
             'report-exports.download',
             now()->addDay(),
             ['reportExport' => $export->id, 'user' => $this->demandeur->id],

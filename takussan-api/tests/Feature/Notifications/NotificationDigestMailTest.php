@@ -10,9 +10,9 @@ use App\Models\Enums\NotificationChannel;
 use App\Models\Enums\NotificationType;
 use App\Models\User;
 use App\Services\Notifications\DigestBuilderService;
+use App\Support\RelativeSignedUrl;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class NotificationDigestMailTest extends TestCase
@@ -110,7 +110,7 @@ class NotificationDigestMailTest extends TestCase
     {
         $user = User::factory()->create(['email' => 'unsub@example.com']);
         $grouped = collect(['system' => collect([$this->makeNotification($user)])]);
-        $url = URL::signedRoute('notifications.unsubscribe', ['user' => $user->id]);
+        $url = RelativeSignedUrl::forever('notifications.unsubscribe', ['user' => $user->id]);
 
         $mail = new NotificationDigestMail($user, $grouped, $url);
         $rendered = $mail->render();
@@ -125,7 +125,7 @@ class NotificationDigestMailTest extends TestCase
             'email' => 'unsub2@example.com',
         ]);
 
-        $url = URL::signedRoute('notifications.unsubscribe', ['user' => $user->id]);
+        $url = RelativeSignedUrl::forever('notifications.unsubscribe', ['user' => $user->id]);
 
         $this->get($url)->assertRedirect();
 

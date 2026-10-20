@@ -14,7 +14,8 @@ class KycDocumentController extends Controller
 {
     public function __invoke(Request $request, Media $media, PrivateMediaAccess $access, PersonalDataAccessLogger $accessLog)
     {
-        abort_unless($request->hasValidSignature(), 403);
+        // TCK-1059 (P73.02) — relative, comme l'émission (`RelativeSignedUrl`).
+        abort_unless($request->hasValidSignature(false), 403);
         abort_unless($media->model instanceof KycDossier, 404);
         $this->authorizeDocument($request, $media->model);
 

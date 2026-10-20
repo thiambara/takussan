@@ -8,15 +8,17 @@ use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
 use App\Services\Notifications\Sms\Drivers\LAfricaMobileSmsDriver;
 use App\Services\Notifications\Sms\SmsResult;
+use App\Support\RelativeSignedUrl;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\URL;
+use Tests\Support\UrlSigneeDerriereTraefik;
 use Tests\TestCase;
 
 class LAfricaMobileSmsWebhookTest extends TestCase
 {
     use RefreshDatabase;
+    use UrlSigneeDerriereTraefik;
 
     protected function setUp(): void
     {
@@ -95,6 +97,19 @@ class LAfricaMobileSmsWebhookTest extends TestCase
         $this->assertSame(SmsResult::STATUS_DELIVERED, $attempt->status);
     }
 
+    /** TCK-1059 (P73.02) — signé en relatif, l'accusé ne dépend plus du schéma vu par l'API. */
+    public function test_the_ret_url_emitted_by_the_driver_stays_valid_outside_the_trusted_proxies(): void
+    {
+        $this->signerCommeEnProduction();
+        $n = $this->makeNotificationWithAttempt('lam-traefik');
+
+        $this->presenterHorsDesMandataires($this->rappelDeLam($this->retUrlEmisParLePilote($n->id), 'lam-traefik', 6))
+            ->assertOk();
+
+        $this->assertSame(SmsResult::STATUS_DELIVERED, NotificationDeliveryAttempt::query()
+            ->where('provider_message_id', 'lam-traefik')->value('status'));
+    }
+
     public function test_unsigned_url_returns_403(): void
     {
         $n = $this->makeNotificationWithAttempt('lam-2');
@@ -167,7 +182,7 @@ class LAfricaMobileSmsWebhookTest extends TestCase
         // vient de nous, le jeton prouve qu'elle vise ce webhook-ci. Une URL
         // signée par nous avec un mauvais jeton doit rester refusée.
         $n = $this->makeNotificationWithAttempt('lam-5');
-        $url = URL::temporarySignedRoute('sms.webhook.lafricamobile', now()->addDay(), [
+        $url = RelativeSignedUrl::temporary('sms.webhook.lafricamobile', now()->addDay(), [
             'token' => 'mauvais-jeton',
             'notification' => $n->id,
         ]);
