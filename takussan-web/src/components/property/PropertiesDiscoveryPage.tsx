@@ -47,6 +47,8 @@ type View = 'list' | 'map';
 
 /** Le début des résultats — là où la pagination ramène la vue (TCK-557). */
 const ID_DES_RESULTATS = 'resultats';
+/** Les premières cellules de la grille, au-dessus de la ligne de flottaison : rendues sans état masqué (TCK-1036). */
+const CARTES_PRIORITAIRES = 4;
 
 /**
  * Les clés que l'utilisateur peut retirer depuis cet écran. Sert uniquement à décider si un 422
@@ -262,6 +264,9 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
   const meta = data?.meta;
   // TCK-633 lot F (ADR-0061 §7) — hors pagination, hors `total`.
   const sponsorises = lireEmplacements(data);
+  // TCK-1036 — les emplacements rendus en tête de la grille prennent les premières places
+  // prioritaires ; les biens ordinaires ont le reste. Ils ne sont pas rendus en erreur.
+  const emplacementsRendus = error ? 0 : sponsorises.length;
 
   // TCK-552 — à zéro résultat CONFIRMÉ (ni en chargement, ni en erreur), le tri et la bascule
   // n'agissent sur rien (E1) : ils ne sont pas rendus sous `lg`. Et la vue y retombe sur la
@@ -610,13 +615,19 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
                       {/* TCK-635 — les emplacements entrent DANS la grille, en tête, à la taille des
                           autres cartes ; leur robe les distingue (ADR-0061 §7). Toujours hors
                           `total` et hors pagination. */}
-                      {!error ? <EmplacementsSponsorises biens={sponsorises} sizes={CARD_SIZES_SEARCH_GRID} /> : null}
+                      {!error ? (
+                        <EmplacementsSponsorises
+                          biens={sponsorises}
+                          sizes={CARD_SIZES_SEARCH_GRID}
+                          prioritaires={CARTES_PRIORITAIRES}
+                        />
+                      ) : null}
                       {properties.map((property, i) => (
                         <PropertyCard
                           key={property.id}
                           property={property}
                           index={i}
-                          priority={i < 4}
+                          priority={emplacementsRendus + i < CARTES_PRIORITAIRES}
                           sizes={CARD_SIZES_SEARCH_GRID}
                           transactionFiltree={filters.contract_type}
                           // TCK-633 lot F → TCK-635 — une place réservée porte la robe « En vedette »
