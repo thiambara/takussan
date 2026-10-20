@@ -154,7 +154,7 @@ Applicable à **tous** les drivers, sans exception (loi sénégalaise) :
 
 - **Heures de silence 22h–06h Africa/Dakar.** SMS commerciaux
   interdits ; les transactionnels critiques (2FA, OTP, security alerts
-  — flag `Critical`/`isCriticalSms()=true`) sont **exemptés**. Le reste
+  — `isCriticalSms()=true`) sont **exemptés**. Le reste
   est différé jusqu'à 06h via `SendDeferredSmsJob`.
 - **Opt-in obligatoire pour le marketing.** Géré par `NotificationPreference`
   (TCK-070).
@@ -165,15 +165,23 @@ Applicable à **tous** les drivers, sans exception (loi sénégalaise) :
 ## Écrire une Notification SMS
 
 ```php
-use App\Notifications\Concerns\Critical;
 use App\Notifications\Concerns\SupportsSms;
 use Illuminate\Notifications\Notification;
 
 class TwoFactorCodeNotification extends Notification implements SupportsSms
 {
-    use Critical; // bypass quiet hours + opt-in
-
     public function __construct(public string $code) {}
+
+    // Critique : passe outre l'opt-in et les heures de silence.
+    public function shouldSendSms(): bool
+    {
+        return true;
+    }
+
+    public function isCriticalSms(): bool
+    {
+        return true;
+    }
 
     public function via(object $notifiable): array
     {
@@ -195,8 +203,7 @@ class TwoFactorCodeNotification extends Notification implements SupportsSms
 }
 ```
 
-For non-critical notifications, drop the `Critical` trait and
-implement `shouldSendSms()` + `isCriticalSms()` returning `false`. The
+For non-critical notifications, make `isCriticalSms()` return `false`. The
 channel will then enforce opt-in and the quiet-hours window.
 
 Optional hook: `appNotificationIdFor($notifiable): ?int` lets you

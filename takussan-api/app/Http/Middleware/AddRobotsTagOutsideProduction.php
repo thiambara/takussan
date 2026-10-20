@@ -15,8 +15,9 @@ use Symfony\Component\HttpFoundation\Response;
  * Dokploy, hors du dépôt. Un en-tête, et non `Disallow: /` : un moteur qui ne peut pas charger une
  * URL ne lit jamais son `noindex`.
  *
- * L'environnement se reconnaît à son origine, celle d'`APP_URL`, et non à `APP_ENV` : la
- * préproduction tourne elle aussi en `production`. Aucune variable neuve, donc rien à poser.
+ * L'environnement se reconnaît à son origine, celle d'`APP_URL`, et non à `APP_ENV`, qu'un onglet
+ * Dokploy pose à la main (la préproduction est en `staging`, relevé du 2026-10-20 ; ce docblock la
+ * disait en `production`). Aucune variable neuve, donc rien à poser.
  * {@see PRODUCTION_ORIGIN} est l'`APP_URL` de l'API de production du plan de bascule (F3, étape 1,
  * `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md`).
  *

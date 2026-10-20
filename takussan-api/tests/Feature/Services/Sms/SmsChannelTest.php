@@ -7,7 +7,6 @@ use App\Models\Integration;
 use App\Models\NotificationPreference;
 use App\Models\User;
 use App\Notifications\Channels\SmsChannel;
-use App\Notifications\Concerns\Critical;
 use App\Notifications\Concerns\SupportsSms;
 use App\Services\Notifications\Sms\SmsResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -144,9 +143,17 @@ class SmsChannelTest extends TestCase
     {
         return new class($body) extends Notification implements SupportsSms
         {
-            use Critical;
-
             public function __construct(public string $body) {}
+
+            public function shouldSendSms(): bool
+            {
+                return true;
+            }
+
+            public function isCriticalSms(): bool
+            {
+                return true;
+            }
 
             public function via(object $notifiable): array
             {

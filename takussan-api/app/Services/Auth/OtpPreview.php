@@ -2,7 +2,9 @@
 
 namespace App\Services\Auth;
 
+use App\Http\Middleware\AddRobotsTagOutsideProduction;
 use App\Http\Middleware\ExposeOtpPreview;
+use RuntimeException;
 
 /**
  * TCK-620 (ADR-0060) — hors production, le code envoyé par SMS revient aussi dans la réponse de la
@@ -14,6 +16,11 @@ use App\Http\Middleware\ExposeOtpPreview;
  * Deux verrous, qui doivent tenir ENSEMBLE : le drapeau `auth.otp_preview.enabled`
  * (`OTP_PREVIEW_ENABLED`, faux par défaut) et un `APP_ENV` de la liste d'autorisation, jugé à
  * l'exécution. Le drapeau recopié par erreur dans l'onglet de production ne rend donc aucun code.
+ *
+ * P71.02 — et l'API de production refuse de démarrer avec le drapeau allumé
+ * ({@see refuserSurLaProduction()}). Le second verrou tient sur `APP_ENV`, que le plan de mise en
+ * service pose à la main ; ce refus-là tient sur l'origine d'`APP_URL`, qui EST la production : un
+ * `APP_ENV` resté à `staging` y rendrait sinon les codes SMS dans la réponse.
  */
 class OtpPreview
 {
@@ -26,6 +33,22 @@ class OtpPreview
     {
         return (bool) config('auth.otp_preview.enabled')
             && app()->environment(self::ENVIRONMENTS);
+    }
+
+    /**
+     * Lève au démarrage si le drapeau est allumé sur l'API de production (origine d'`APP_URL` =
+     * {@see AddRobotsTagOutsideProduction::PRODUCTION_ORIGIN}). Bruyant à dessein : le `release` du
+     * déploiement échoue, et l'ancienne API continue de servir.
+     */
+    public static function refuserSurLaProduction(): void
+    {
+        if ((bool) config('auth.otp_preview.enabled')
+            && AddRobotsTagOutsideProduction::isProduction((string) config('app.url'))) {
+            throw new RuntimeException(
+                'OTP_PREVIEW_ENABLED=true sur l\'API de production : le code SMS reviendrait dans la réponse. '
+                .'Retirer la clé de l\'environnement de production (P71.02).'
+            );
+        }
     }
 
     /** Retient le code émis par cette requête. Sans effet si l'aperçu est fermé. */

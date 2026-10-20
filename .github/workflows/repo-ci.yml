@@ -999,8 +999,14 @@ jobs:
         # `docs/infra/prod-drivers.json` est la source unique. La garde confronte la checklist
         # §5.7 (dans le dépôt, donc bloquante) et les `.env` livrés (hors dépôt, absents du
         # runner, donc signalés sans bloquer) — elle ne peut pas garantir ce que le dépôt ne
-        # contient pas (TCK-300).
+        # contient pas (TCK-300). Et la table de la tâche F3 du plan, qui crée la production :
+        # chaque driver prescrit y a sa ligne (P71.03).
         run: node scripts/check-prod-drivers.mjs --report
+
+      - name: Une APP_KEY se génère avec son préfixe base64
+        # P71.01 : F3 faisait générer l'APP_KEY de production sans `base64:`, et Laravel la refuse
+        # (`Unsupported cipher or incorrect key length`). Rien ne le voyait avant le déploiement.
+        run: node scripts/check-app-key-base64.mjs --report
 
       - name: La source du backlog se rend en index sans erreur
         # INDEX.md n'est plus versionné (ADR-0067) : il n'y a plus de copie à juger périmée. Reste

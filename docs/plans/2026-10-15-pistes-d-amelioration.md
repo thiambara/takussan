@@ -147,8 +147,8 @@ voie d'écriture (angle 13, puis 47).
 | 72 | Ce qu'un accusé `failed` reçu après coup (SMS ou WhatsApp) déclenche : repli sur un autre canal, renvoi, trace pour l'expéditeur — face aux envois critiques (OTP, code de signature de bail) | fait |
 | 73 | URL signées absolues (`hasValidSignature`, `temporarySignedRoute`, `media.private.show`) derrière Traefik : schéma et hôte vus par l'API face à `APP_URL`, signature refusée en préproduction ? | fait |
 | 74 | Ce que joint sans authentification un service voisin de `dokploy-network` (Dokploy, Compose `donnees`, autres projets) : API sur 8080, Redis, Meilisearch (clé maîtresse ?), PostgreSQL, front Next — et l'alias `api` partagé entre projets | fait |
-| 75 | Classes `Notification` historiques de `AppDatabaseChannel::TYPES`, hors `NotificationCode` : sans `code` ni `target` dans la cloche, préférences lues à la main dans `via()`, couvertes par un test ? | à faire |
-| 76 | Effets aval d'un paiement soldé puis passé à `refunded` : quittance déjà envoyée, ligne prise par un reversement de la plateforme (`platform_payout_id`) ou du propriétaire (`PayoutCalculator`), commission, exports et totaux de l'historique | à faire |
+| 75 | Classes `Notification` historiques de `AppDatabaseChannel::TYPES`, hors `NotificationCode` : sans `code` ni `target` dans la cloche, préférences lues à la main dans `via()`, couvertes par un test ? | fait |
+| 76 | Effets aval d'un paiement soldé puis passé à `refunded` : quittance déjà envoyée, ligne prise par un reversement de la plateforme (`platform_payout_id`) ou du propriétaire (`PayoutCalculator`), commission, exports et totaux de l'historique | fait |
 | 77 | Fichiers du disque `local` dans le volume `storage` des conteneurs (archives d'export RGPD, exports de rapports) : écrits par `worker`, servis par `api`, purge réelle, taille, et ce qui reste après `PurgeExpiredDataExports` | à faire |
 | 78 | Pic mémoire des jobs qui accumulent tout en tableau avant d'écrire (export RGPD `DataExportBuilder`, exports de rapports `GenerateReportExport`, relevés OFX) face à `memory_limit = 256M` et aux `mem_limit` des workers | à faire |
 | 79 | Appels du serveur Next vers l'API sans délai (`apiFetch`, `apiRequest`, relais BFF : aucun `AbortSignal.timeout`) : rendu d'une page publique ou d'une action quand l'API répond lentement, face au `requestTimeout` de Node (300 s) et aux délais de Traefik | à faire |
@@ -183,6 +183,7 @@ voie d'écriture (angle 13, puis 47).
 | 107 | Champs du profil que l'utilisateur déclare pour être joint (`phone_whatsapp`, `secondary_phone`, `secondary_phone_whatsapp`, `preferred_language`, heures calmes) : lus par les chemins qui envoient (canaux de notification, codes, relances), ou seulement affichés ? | à faire |
 | 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | à faire |
 | 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | à faire |
+| 110 | Rapprochement bancaire (`bank_reconciled_at`, `bank_statement_line_id`, `Accounting\ReconciliationManager`) d'une échéance, d'un acompte ou d'une facture passés à `refunded` après rapprochement : la ligne de relevé reste-t-elle rapprochée, et le remboursement sortant a-t-il un pendant | à faire |
 
 ---
 
@@ -7168,7 +7169,7 @@ sont pas mesurées, ni la charge RSC du document.*
 
 ### Aucune garde ne voit le poids des écrans de `/app`
 - Réf : P70.06
-- Statut : retenu · à valider — chemin fermé : takussan-web/scripts/poids-des-routes.mjs (garde existante, V9)
+- Statut : fait · TCK-1050
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/scripts/poids-des-routes.mjs:60,120`, `.github/workflows/web-ci.yml:207`, `takussan-web/src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts:29`
 - Constat :
@@ -7177,6 +7178,7 @@ sont pas mesurées, ni la charge RSC du document.*
 - Piste : faire imprimer aussi au rapport les routes de `(dashboard)` (et de `(super-admin)`), sans seuil, comme pour le site public ; le seuil reste à décider à part.
 - Mesure (2026-10-20, 1ddc38cd0, mesureur) : relu `poids-des-routes.mjs:60,120` (`PREFIXE_PUBLIC = '/[locale]/(public)/'`, filtre des routes) et `web-ci.yml:207` (`run: node scripts/poids-des-routes.mjs`) ; `git log e0275f6b6..1ddc38cd0 -- takussan-web/scripts` → aucun commit ; le script temporaire du passage, même calcul sans le filtre, rend les 65 écrans de `(dashboard)` de 267,0 à 602,6 Kio, qu'aucun rapport n'imprime → tient. Classement : A5, imprimer aussi les routes de `(dashboard)` et `(super-admin)` dans le rapport, sans seuil et sans toucher `web-ci.yml`, ajoute de la visibilité sans resserrer aucun refus ; le seuil reste hors de la piste, comme elle le dit.
 - Mesure (2026-10-20, 7a21765a8, implementeur) : sur le build local, `node scripts/poids-des-routes.mjs` imprime 18 routes publiques et aucun écran de `/app` ni de `/super-admin` → tient ; correctif écrit et éprouvé (seconde section « écrans de la console », sans seuil ni refus neuf : `poids-des-routes.test.ts` 2 rouges sur 10 avant, 10/10 après, 102 écrans sur le build local, ablation → les 2 mêmes rouges), puis retiré : `check-pistes.mjs --role implementeur` refuse toute modification sous `takussan-web/scripts/` (« une garde existante ne se modifie pas (critère V9) »). Le porteur la traite lui-même ; l'étape de `web-ci.yml` (« Poids des routes publiques ») serait à renommer avec.
+- Mesure (2026-10-20, ab37be2fa, humain) : seconde section « écrans de la console » dans `poids-des-routes.mjs`, `(dashboard)` et `(super-admin)`, sans seuil, sortie 2 sans écran de console ; étape de `web-ci.yml` renommée ; `poids-des-routes.test.ts` 8/8, ablation (script d'avant) → 2 rouges sur 8 ; sur le build local : 18 routes publiques et 102 écrans de console imprimés.
 
 ### Petites améliorations
 - Réf : P70.07
@@ -7205,7 +7207,7 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
 
 ### La commande de F3 pour l'`APP_KEY` de production produit une clé que Laravel refuse : il manque le préfixe `base64:`
 - Réf : P71.01
-- Statut : retenu · à valider — V5 : variable d'environnement de production du plan de mise en service
+- Statut : fait · TCK-1050
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4156`, à comparer à `:3518` et `deploy/takussan/smoke-api.sh:97`
 - Constat :
@@ -7216,10 +7218,11 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - L'empreinte que F3 fait porter au relevé (`printf %s "$APP_KEY" | sha256sum`) serait celle de la clé fausse.
 - Piste : écrire `base64:$(openssl rand -base64 32)` dans la table F3, comme en D1. Garde possible : un contrôle de `scripts/` qui refuse, dans `docs/plans/` et `docs/infra/`, un `openssl rand -base64 32` dans une ligne qui nomme `APP_KEY` sans `base64:`.
 - Mesure (2026-10-20, 14ba88061, mesureur) : relu le plan F3 (la ligne `APP_KEY` est aujourd'hui l. 4156, « neuve (`openssl rand -base64 32`) »), `grep -rn "openssl rand -base64 32" docs deploy scripts` → D1 (l. 3518), l. 1359, l. 2701 et `smoke-api.sh:97` portent `base64:`, F3 seul non ; `EncryptionServiceProvider::parseKey()` ne décode qu'après `base64:` (lu) ; mesuré : `new Encrypter(<sortie fraîche d'openssl rand -base64 32>, 'AES-256-CBC')` → longueur 44, `RuntimeException: Unsupported cipher or incorrect key length`, la même valeur décodée est acceptée ; `git log 1ddc38cd0..14ba88061 -- docs/plans` → seuls les commits des pistes → tient. Ce qui échoue concrètement au premier déploiement reste non mesuré. Classement : V5, le correctif est d'une ligne de document, mais il fixe la valeur d'une variable d'environnement de la production dans le runbook de Dokploy.
+- Mesure (2026-10-20, ab37be2fa, humain) : table F3 : `echo "base64:$(openssl rand -base64 32)"` ; garde neuve `scripts/check-app-key-base64.mjs` (Repo CI) : 5 générations, toutes préfixées ; ablation (table F3 d'avant) → sortie 1 sur la ligne 4156.
 
 ### F3 reprend l'`APP_ENV` de la préproduction (`staging`) et son `OTP_PREVIEW_ENABLED=true` : le code SMS reviendrait dans la réponse en production
 - Réf : P71.02
-- Statut : retenu · à valider — V5 : `APP_ENV` et `OTP_PREVIEW_ENABLED` de la production, et V2 : aperçu du code de connexion
+- Statut : fait · TCK-1050
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4148-4166`, `docs/infra/hebergement.md:183-187`, `docs/adr/0060-code-sms-affiche-hors-production.md:15`, `takussan-api/app/Services/Auth/OtpPreview.php:21-29`, `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:29-34`, `takussan-api/app/Http/Middleware/AddRobotsTagOutsideProduction.php:18-19`
 - Constat :
@@ -7230,10 +7233,11 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - Les documents se contredisent sur la valeur réelle. Le docblock d'`AddRobotsTagOutsideProduction` affirme que « la préproduction tourne elle aussi en `production` » (lu, `:18-19`), ce que contredit le relevé d'ADR-0060. AC6 de TCK-720 a mesuré un accusé SMS accepté en `200` en préproduction (lu, `TCK-720:79-82`), alors que le relevé ne porte aucune clé `SMS_*_WEBHOOK_IPS`. Cela s'accorde avec `staging`, pas avec `production` (à vérifier dans Dokploy).
 - Piste : ajouter à la table F3 les lignes `APP_ENV` = `production` et `OTP_PREVIEW_ENABLED` = absente ou `false`, et décider de `PHONE_LOGIN_ENABLED`. Relever la valeur d'`APP_ENV` de la préproduction dans `hebergement.md`, puis corriger celui des deux documents qui se trompe. Garde possible : au démarrage, refuser `OTP_PREVIEW_ENABLED=true` quand `APP_URL` est l'origine de production (`AddRobotsTagOutsideProduction::PRODUCTION_ORIGIN`), qui se juge sur une donnée que F3 change, elle.
 - Mesure (2026-10-20, 14ba88061, mesureur) : relu la table F3 (l. 4148-4166 inchangées : ni `APP_ENV`, ni `OTP_PREVIEW_ENABLED`, ni `PHONE_LOGIN_ENABLED`), `OtpPreview::enabled()` (drapeau ET `APP_ENV` dans `local`/`staging`/`testing`), `RestrictIpMiddleware` (403 seulement en `production`), ADR-0060 l. 15 (`APP_ENV=staging`, relevé le 2026-10-10), `hebergement.md` l. 183-187 (`OTP_PREVIEW_ENABLED` à `true`) et le docblock d'`AddRobotsTagOutsideProduction` l. 18-19 (« la préproduction tourne elle aussi en `production` ») → la contradiction et l'héritage décrits tiennent ; la valeur réelle d'`APP_ENV` dans Dokploy n'est pas lisible du poste. Classement : V5 et V2, la piste fixe des variables d'environnement de production qui ouvrent ou ferment l'aperçu du code de connexion, et `PHONE_LOGIN_ENABLED` est laissé au porteur.
+- Mesure (2026-10-20, ab37be2fa, humain) : relevé Dokploy du 2026-10-20 : la préproduction est en `APP_ENV=staging`, `OTP_PREVIEW_ENABLED` et `PHONE_LOGIN_ENABLED` à `true` ; table F3 : `APP_ENV` = `production`, `OTP_PREVIEW_ENABLED` absente, `PHONE_LOGIN_ENABLED` = `true` ; docblock d'`AddRobotsTagOutsideProduction` corrigé ; `OtpPreview::refuserSurLaProduction()` appelé au démarrage par `AppServiceProvider` : `OtpPreviewTest` construit l'application par `bootstrap/app.php` avec le drapeau, l'`APP_URL` de production et `APP_ENV=staging` → refus ; ablation de l'appel → 1 rouge sur 11.
 
 ### F3 ne pose pas `MAIL_MAILER` : la production hériterait du `log` de la préproduction et n'enverrait aucun courriel
 - Réf : P71.03
-- Statut : retenu · à valider — V5 : `MAIL_MAILER` de la production dans le plan F3
+- Statut : fait · TCK-1050
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4148-4166`, `docs/infra/prod-drivers.json` (`preview.drivers.MAIL_MAILER`, `production.drivers.MAIL_MAILER`), `docs/infra/hebergement.md` § « Courriels »
 - Constat :
@@ -7242,10 +7246,11 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - `scripts/check-prod-drivers.mjs` ne lit que la checklist de `docs/configuration.md`, pas le plan (lu, `prod-drivers.json`, `_mesure.pourquoi_pas_en_ci`) : rien ne confronte F3 au catalogue.
 - Piste : une ligne `MAIL_MAILER` = `resend` dans la table F3, avec renvoi à `prod-drivers.json`, et, plus largement, une ligne par driver du catalogue (`SESSION_DRIVER`, `CACHE_STORE`, `QUEUE_CONNECTION`, `MAIL_MAILER`). Garde possible : `check-prod-drivers.mjs` vérifie que chaque driver `prescrit` de la production figure dans la table F3 avec la même valeur.
 - Mesure (2026-10-20, 14ba88061, mesureur) : relu la table F3 (l. 4148-4166 : aucune clé `MAIL_*`), `grep -n "MAIL_MAILER" docs/plans/2026-09-13-…` → l. 236, 1337, 2645 seulement ; `prod-drivers.json` porte `log` mesuré pour la préproduction et `resend` prescrit pour la production, avec pour source « F3, étape 1 : … à ces différences près — MAIL_MAILER=resend », différence que la table F3 réécrite par TCK-931 ne contient plus → tient ; au passage, `resend/resend-php` est aujourd'hui dans `composer.json` et `composer.lock` (l'écart l. 236 du plan est levé). Classement : V5, la piste ajoute des variables d'environnement au runbook de production et propose une garde sur la CI.
+- Mesure (2026-10-20, ab37be2fa, humain) : table F3 : une ligne par driver de `prod-drivers.json`, dont `MAIL_MAILER` = `resend` ; `check-prod-drivers.mjs` confronte F3 au catalogue (10 accords) ; ablation (table F3 d'avant) → les six lignes manquantes nommées.
 
 ### F3 ne pose pas les listes d'IP des accusés SMS : en `production`, une liste vide refuse tous les accusés en 403
 - Réf : P71.04
-- Statut : retenu · à valider — V5 : listes d'IP des accusés SMS en production
+- Statut : fait · TCK-1050 — reste : relever les plages d'IP publiées par Orange, mTarget et LAfricaMobile, et les poser au moment de F3
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4166`, `takussan-api/config/sms.php:163-167`, `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:26-34`, `takussan-api/routes/api/sms-webhooks.php:26-34`, `docs/ardoise.md:394-399`
 - Constat :
@@ -7256,10 +7261,11 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - Si P71.02 est corrigé et que la production passe en `production`, ce refus devient le comportement par défaut. Aucun envoi n'échoue, seuls les statuts ne remontent plus.
 - Piste : ajouter à F3 les trois `SMS_*_WEBHOOK_IPS` (plages publiées par chaque fournisseur, ou décision écrite de ne pas en poser pour un fournisseur sans plage connue), et une vérification après déploiement : un accusé de test accepté, ou la ligne `webhook.ip_allowlist_not_configured` absente du journal des webhooks (ADR-0051). Corriger le renvoi de l'ardoise vers F3.
 - Mesure (2026-10-20, 14ba88061, mesureur) : relu `config/sms.php:163-167` (trois `SMS_*_WEBHOOK_IPS`, vides par défaut), `RestrictIpMiddleware` (liste vide et `production` → `abort_code(403, 'webhook.ip_allowlist_not_configured')`), `routes/api/sms-webhooks.php:26-34` (`restrict.ip:{fournisseur}` sur les trois), `ardoise.md:394-399` (renvoi au runbook de TCK-288), `grep -n WEBHOOK_IPS docs/infra/hebergement.md` → rien, plan F3 l. 4166 → seuls les jetons d'URL → tient. Classement : V5, la piste pose des variables d'environnement de production dont les valeurs (plages des fournisseurs) ou leur absence relèvent du porteur.
+- Mesure (2026-10-20, ab37be2fa, humain) : relevé Dokploy du 2026-10-20 : aucune `SMS_*_WEBHOOK_IPS` en préproduction ; table F3 : les trois clés, le 403 d'une liste vide en `production`, la vérification après déploiement ; renvoi de l'ardoise corrigé (F3, et non plus TCK-288).
 
 ### Le relevé des clés de la préproduction s'arrête au 2026-10-10 : il manque les jetons de webhook posés le 2026-10-18, et F3 renvoie à ce relevé
 - Réf : P71.05
-- Statut : retenu · à valider — V5 : relevé des variables d'environnement de Dokploy
+- Statut : fait · TCK-1050
 - Gravité : 🟠 risque ou dette
 - Où : `docs/infra/hebergement.md:156-191`, `docs/backlog/tickets/TCK-720-reglages-de-deploiement-du-porteur.md:70-95`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4148-4149`
 - Constat :
@@ -7269,10 +7275,11 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - F3 construit l'environnement de production depuis celui de la préproduction (lu, `:4148-4149`). La liste dont il part est donc incomplète, et rien ne dit, pour ces cinq clés, qu'elles doivent changer de valeur. Seule la ligne TCK-720 le laisse entendre, pour les jetons SMS.
 - Piste : porter les cinq clés et le nouveau compte au relevé, et corriger la phrase de `:189`. Dans F3, nommer les jetons de webhook WhatsApp avec les jetons SMS (une valeur neuve par environnement, et l'URL à reporter chez Meta).
 - Mesure (2026-10-20, 14ba88061, mesureur) : `grep -n "WEBHOOK_URL_TOKEN\|WHATSAPP_WEBHOOK" docs/infra/hebergement.md` → rien ; le relevé s'arrête à « 82 clés » (l. 183) et dit toujours `SMS_*`, `WHATSAPP_*` « absentes de l'export » (l. 189) ; `TCK-720:70-95` relu, les cinq clés posées en préproduction le 2026-10-18 et relues dans le conteneur, promues le 2026-10-19 → tient. Classement : V5, le correctif écrit le relevé des clés de Dokploy et le plan de production, mesure hors du poste que l'agent ne peut pas refaire.
+- Mesure (2026-10-20, ab37be2fa, humain) : noms des clés relus dans Dokploy le 2026-10-20 (script sans valeur) : 86 clés = 82 + les cinq jetons + `API_ALIAS` + un `SEED_*` (13 et non 12) − `REDIS_HOST` − `REDIS_PORT` ; relevé de `hebergement.md` mis à jour, phrase des clés absentes corrigée ; jetons WhatsApp nommés dans F3.
 
 ### Petites améliorations du plan F3 et du relevé
 - Réf : P71.06
-- Statut : retenu · à valider — V5 : variables de production de F3 et relevé de Dokploy
+- Statut : fait · TCK-1050
 - Gravité : 🟢 amélioration
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:238`, `:4160`, `:4166`, `docs/infra/prod-drivers.json:67`, `docs/infra/hebergement.md:172-173`
 - Constat :
@@ -7282,6 +7289,7 @@ F3 de `takussan-web-production` : rien à signaler de ce côté.*
   - La ligne TCK-720 de F3 exige un `CACHE_PREFIX` propre à la production (lu, `:4166`). Le motif de P05.09 était le Redis partagé `redis-takussan`, que TCK-880 a remplacé par un Redis par pile (lu, en-tête de `deploy/takussan/compose.api.yml`). La consigne reste sans danger, mais elle ne dit plus pourquoi.
 - Piste : nommer `GOOGLE_REDIRECT_URI`, `SESSION_DOMAIN` et `SESSION_COOKIE` dans la table F3, avec leur valeur de production. Corriger le nom du service dans `prod-drivers.json`. Récrire le motif de `CACHE_PREFIX`, ou retirer la consigne si le porteur la juge sans objet.
 - Mesure (2026-10-20, 3ba79daa1, mesureur) : `grep -n GOOGLE_REDIRECT_URI` → nommée seulement à `hebergement.md:176` et au plan `:238`, absente de la table F3 (l. 4155-4166) ; `SESSION_DOMAIN`/`SESSION_COOKIE` → `hebergement.md:173` et plan `:3517` (préproduction), jamais en F3 ; `prod-drivers.json:67` dit toujours `takussan-api-prod` quand le plan (`:4146`) et `compose.api.yml:15,93` disent `takussan-api-production` ; la ligne TCK-720 de F3 (`:4166`) motive toujours `CACHE_PREFIX` par P05.09 → les quatre points tiennent ; les valeurs de session et de Google ne se lisent pas depuis le poste. Classement : V5, le correctif écrit la table des variables de la production à créer et le relevé de Dokploy, et ses valeurs demandent une mesure hors du poste.
+- Mesure (2026-10-20, ab37be2fa, humain) : relevé Dokploy du 2026-10-20 : `SESSION_DOMAIN` = `.takussan.com`, `SESSION_COOKIE` = `takussan_session_preview`, `GOOGLE_REDIRECT_URI` sur `preview.takussan.com` ; table F3 : `.takussan.com` / `takussan_session` et `https://www.takussan.com/auth/oauth/google/callback` ; `prod-drivers.json` → `takussan-api-production` ; motif de `CACHE_PREFIX` réécrit (TCK-880).
 
 ## Angle 72 — Accusés `failed` reçus après coup (SMS et WhatsApp)
 
@@ -7299,7 +7307,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### Un `failed` WhatsApp reçu après l'acceptation ne déclenche aucun repli SMS
 - Réf : P72.01
-- Statut : retenu · à valider — V7 : envoi SMS neuf après un échec WhatsApp tardif
+- Statut : validé — sur un `failed` tardif d'une tentative `whatsapp_cloud`, mettre en file le SMS de la même notification, une seule fois (aucune tentative SMS déjà écrite pour elle), seulement si `smsFallbackAllowed`, hors des heures calmes ARTP, et seulement si l'accusé arrive moins d'une heure après l'envoi ; préciser dans `features.md` (en session) qu'un `failed` de Meta est un échec dur ; test : l'accusé rejoué deux fois, un seul SMS (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:30-63`, `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:42-95`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:122-135`, `docs/features.md:563-564`
 - Constat :
@@ -7315,7 +7323,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### `phone_whatsapp = false`, déclaré par l'utilisateur, n'écarte pas WhatsApp du routage
 - Réf : P72.02
-- Statut : retenu · à valider — V7 : routage mobile neuf selon `phone_whatsapp`
+- Statut : validé — passer au SMS dans `resolveMobileChannel()` quand `phone_whatsapp === false` (`null` garde le défaut), et verrouiller la colonne WhatsApp de la matrice des préférences avec son motif affiché (règle de TCK-588) ; un test par valeur (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/PreferenceResolver.php:157-205,268-278`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:234-235`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:66-135`
 - Constat :
@@ -7328,7 +7336,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### Un échec tardif ne change aucun routage suivant
 - Réf : P72.03
-- Statut : retenu · à valider — V7 et V6 : mémoire des échecs tardifs pour le routage
+- Statut : validé — pour les seuls codes à usage unique (`is_otp`), retenir en cache, par numéro et pendant 15 minutes, le fournisseur (ou WhatsApp) dont l'accusé est revenu `failed`, et le sauter au renvoi ; aucune colonne neuve ; test : un `failed` tardif, puis un renvoi qui part par le fournisseur suivant (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:72,100-108`, `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:30-63`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:142-162`
 - Constat :
@@ -7341,7 +7349,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### Un code à usage unique perdu en accusé `failed` ne laisse ni signal ni autre voie au destinataire
 - Réf : P72.04
-- Statut : retenu · à valider — V4 et V7 : contexte du code sur la tentative, réaction neuve à un échec tardif
+- Statut : validé — une colonne nullable neuve sur `notification_delivery_attempts` qui porte l'événement du code (additive, avec `down()`) ; sur un `failed` tardif d'un code, lever une fois par code le délai de renvoi de son sujet, pour que l'écran de saisie propose aussitôt le renvoi ; le repli vers l'e-mail vérifié reste à part ; un test par envoi de code (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/PhoneVerificationService.php:303-336,394-420`, `takussan-api/app/Services/Account/DeletionStepUpService.php:65-108`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:112-141`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:340-355`
 - Constat :
@@ -7356,7 +7364,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### Un échec de livraison n'est lisible nulle part, et ceux de WhatsApp pas même par la sonde de santé
 - Réf : P72.05
-- Statut : retenu · à valider — V7 : ce que l'expéditeur voit d'un échec, sonde de santé neuve
+- Statut : validé — d'abord un `Log::warning` sur tout `failed` tardif (fournisseur, motif, identifiant de tentative, sans numéro) et une sonde WhatsApp comptée sur `updated_at`, au même seuil que celle du SMS ; ce que l'expéditeur voit de l'échec reste une décision à part (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/HealthcheckService.php:236-257`, `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:30-63`, `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:42-95`
 - Constat :
@@ -7370,7 +7378,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### Petites améliorations des accusés `failed`
 - Réf : P72.06
-- Statut : validé (délégué) — écrire dans `failure_reason` le `code` Meta suivi du `title` (`131026: Message undeliverable` ; le code ou le titre seul quand l'autre manque, `message` en dernier recours, borné à 255 caractères), et retirer le trait sans emploi `Concerns\Critical` en déclarant ses deux méthodes dans le double de `SmsChannelTest` ; ne pas l'appliquer à `LeaseSignatureCodeNotification`
+- Statut : fait · TCK-1046
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Webhook/WhatsappStatusController.php:146-153`, `takussan-api/app/Notifications/Concerns/Critical.php:1-27`
 - Constat :
@@ -7379,6 +7387,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 - Piste : écrire `code` (et le titre à côté) dans `failure_reason` ; retirer le trait sans emploi ou y ramener `LeaseSignatureCodeNotification`.
 - Mesure (2026-10-20, 3ba79daa1, mesureur) : relu `WhatsappStatusController::failureReason()` : `title ?? message ?? code`, le code Meta est perdu dès qu'un titre existe ; `grep -rn 'Critical;' takussan-api/app` → aucun emploi du trait `Concerns\Critical` dans `app/`, un seul dans `tests/Feature/Services/Sms/SmsChannelTest.php:10` → tient. Le constat dit « aucune notification » : vrai de `app/`, mais le trait a un appelant de test. Classement : V7, la piste laisse le choix entre retirer le trait et l'appliquer au code de signature (contournement des heures calmes), et la forme de `failure_reason` n'est écrite dans aucune spec.
 - Mesure (2026-10-20, a233822b8, delegue) : relu `WhatsappStatusController::failureReason()` (l. 146-153), `LeaseSignatureCodeNotification` (l. 81-89 : déclare déjà `isCriticalSms()` à `true`, et `shouldSendSms()` dépend du canal choisi), `grep -rn failure_reason takussan-api/app takussan-web/src` → pour les tentatives, écrit par `WhatsappChannel`, `SmsRouterDriver`, `DeliveryAttemptUpdater` et le backfill, lu par aucune route ni écran ; colonne `string` (`create_notification_delivery_attempts_table.php:28`), décrite « Motif d'échec renvoyé par le fournisseur » (`models-spec.md:3629`) → tient. Délégation : V7, choix mineur et réversible en un commit : le format d'un champ sans lecteur suit la définition écrite de la spec (le motif du fournisseur, dont le code est la partie stable), et retirer le trait est la seule option qui ne change aucun comportement, l'appliquer au code de signature rendant `shouldSendSms()` toujours vrai contre son choix de canal.
+- Mesure (2026-10-20, 54c0bdf7c, implementeur) : avant correctif, `WhatsappStatusWebhookTest` neuf (7 jeux) → 3 rouges : `{code: 131026, title: …}` rendait `Message undeliverable` (code perdu), `{code, message}` perdait le code, et un `title` de 400 caractères faisait répondre 500 au webhook (`QueryException`, colonne de 255) ; correctif dans `failureReason()` (`code: titre`, `message` à défaut de titre, borné à 255) → 18 verts ; ablation (ancienne ligne remise) → mêmes 3 rouges ; trait `Concerns\Critical` retiré, ses deux méthodes déclarées dans le double de `SmsChannelTest` (7 verts) et dans l'exemple de `docs/integrations/sms.md` ; `LeaseSignatureCodeNotification` intacte.
 
 ## Angle 73 — URL signées absolues derrière Traefik et sur le chemin interne du front
 
@@ -7402,7 +7411,7 @@ Traefik, ni Cloudflare. Les hôtes réels ont été remplacés dans les tests pa
 
 ### Sur le chemin interne du front, l'API rend ses URL signées et ses liens avec l'hôte interne : `X-Forwarded-Host` n'est plus cru depuis TCK-853
 - Réf : P73.01
-- Statut : retenu · à valider — V6 : l'hôte des URL rendues contredit ADR-0052 § 5, deux voies
+- Statut : validé — (a) `URL::forceRootUrl(config('app.url'))` et `forceScheme` dans le contexte HTTP, et le front cesse d'envoyer `X-Forwarded-Host` ; ADR-0052 § 5 amendé en session ; l'`APP_URL` de chaque environnement est relevé ; test qui rejoue les en-têtes du front et exige l'origine d'`APP_URL` pour `PropertyResource` et `PrivateMediaAccess::signedUrl()` (porteur, 2026-10-20)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/bootstrap/app.php:53-59`, `takussan-web/src/lib/api.ts:10-48,129`, `takussan-web/src/lib/relais-api.ts:68`, `takussan-api/app/Http/Resources/PropertyResource.php:476-479`, `takussan-api/app/Http/Resources/KycDossierResource.php:84`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:111`, `takussan-web/src/lib/queries/public-property.ts:86-89`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyDocuments.tsx:46`, `takussan-web/src/components/admin/super/kyc-queue.tsx:376`, `takussan-web/src/components/admin/super/CrossTenantAuditTable.tsx:70`, `docs/adr/0052-cache-public-de-la-fiche-et-ip-du-visiteur.md:137-140`
 - Constat :
@@ -7425,7 +7434,7 @@ Traefik, ni Cloudflare. Les hôtes réels ont été remplacés dans les tests pa
 
 ### Toute URL signée absolue n'est valide que si l'adresse de Traefik figure dans `TRUSTED_PROXIES`, et aucune sonde ne relie les deux
 - Réf : P73.02
-- Statut : retenu · à valider — V5 et V6 : signature relative ou sonde, `TRUSTED_PROXIES` de production
+- Statut : validé — (a) signer en relatif (`absolute: false` à l'émission, `signed:relative` ou `hasValidSignature(false)` à la vérification) les liens qui restent sur le domaine de l'API ; test : une URL signée hors requête, présentée depuis une adresse hors de `TRUSTED_PROXIES`, reste valide (porteur, 2026-10-20)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/media.php:23`, `takussan-api/routes/web.php:14`, `takussan-api/routes/api/sms-webhooks.php:34`, `takussan-api/app/Http/Controllers/Api/KycDocumentController.php:17`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:61`, `takussan-api/app/Support/TrustedProxyList.php:9-13`, `takussan-api/app/Services/Admin/HealthcheckService.php:400-408`, `takussan-api/docker/Caddyfile:1-10`
 - Constat :
@@ -7444,7 +7453,7 @@ Traefik, ni Cloudflare. Les hôtes réels ont été remplacés dans les tests pa
 
 ### Petites améliorations
 - Réf : P73.03
-- Statut : retenu · à valider — V2 : la pièce KYC sous `auth:sanctum` (TCK-546)
+- Statut : validé — traiter TCK-546 avec P73.01, et retirer `download_url` de `DataExportResource`, qu'aucun écran ne lit ; reste : relever sur le serveur ce que Traefik journalise de la chaîne de requête, dans la phase F (TCK-517) (porteur, 2026-10-20)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/api/kyc.php:6-8`, `takussan-api/app/Http/Resources/DataExportResource.php:23`, `takussan-web/src/types/super-admin.ts:713`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:135-147`, `takussan-api/app/Notifications/LeaseSignatureCodeNotification.php`
 - Constat :
@@ -7477,7 +7486,7 @@ le sous-réseau est P37.04.*
 
 ### L'API joint Meilisearch par le nom nu `meilisearch`, partagé sur `dokploy-network`, que la garde de l'hôte `api` ne couvre pas
 - Réf : P74.01
-- Statut : retenu · à valider — V5 : alias réseau dans `deploy/` et valeur d'environnement Dokploy
+- Statut : retenu · à valider — V5 : alias réseau dans `deploy/` et valeur d'environnement Dokploy ; porteur (2026-10-20) : traité hors agents, dans la phase F (TCK-517) : un alias propre au service (`takussan-meilisearch`) dans `compose.data.yml`, visé par `MEILISEARCH_HOST` dans D1, F3 et chaque pile, et `check-reseau-par-environnement.mjs` étendu aux noms nus des services partagés
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/server/compose.data.yml:18-31`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3530,4159`, `scripts/check-reseau-par-environnement.mjs:34-36`, `docs/infra/hebergement.md:91`
 - Constat :
@@ -7490,7 +7499,7 @@ le sous-réseau est P37.04.*
 
 ### Les clés Meilisearch de chaque environnement sont créées avec `"actions":["*"]` sur une instance partagée, et la preuve d'étanchéité n'éprouve que la création d'un index
 - Réf : P74.02
-- Statut : retenu · à valider — V5 : droits des clés Meilisearch, à mesurer et refaire sur le serveur
+- Statut : retenu · à valider — V5 : droits des clés Meilisearch, à mesurer et refaire sur le serveur ; porteur (2026-10-20) : traité hors agents, dans la phase F (TCK-517) : mesurer `POST /keys`, `/dumps` et `/snapshots` avec la clé de préproduction ; si l'un passe, recréer chaque clé avec la liste fermée des actions que l'API emploie, et ajouter ces trois refus aux preuves d'A4 et de F1
 - Gravité : 🟠 risque ou dette
 - Où : `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:717-734,4028-4030`, `docs/backlog/tickets/TCK-510-serveur-reinstalle-sous-dokploy.md:103`, `deploy/server/compose.data.yml:19-24`
 - Constat :
@@ -7503,7 +7512,7 @@ le sous-réseau est P37.04.*
 
 ### Le front croit tout `X-Forwarded-For` qu'on lui envoie : un voisin qui le joint sur le port 3000 choisit l'IP de visiteur que l'API comptera, même une fois P37.04 corrigée
 - Réf : P74.03
-- Statut : retenu · à valider — V5 : exposition réseau du front sur `dokploy-network`, à trancher avec P37.04
+- Statut : retenu · à valider — V5 : exposition réseau du front sur `dokploy-network`, à trancher avec P37.04 ; porteur (2026-10-20) : traité hors agents, dans la phase F (TCK-517) : un réseau dédié entre Traefik et le front, comme pour l'API (P37.03), avec P37.04 ; un test de `resolveVisitorIp` garde la règle
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/api.ts:597-638`, `takussan-web/Dockerfile:31,44`, `docs/infra/hebergement.md:96,219-222`
 - Constat :
@@ -7516,7 +7525,7 @@ le sous-réseau est P37.04.*
 
 ### Rien ne relève ce qu'un conteneur de Takussan joint sur `dokploy-network`, alors que Dokploy y range sa base, qui porte les secrets de tous les environnements
 - Réf : P74.04
-- Statut : retenu · à valider — V5 : relevé sur le serveur et réseaux de la pile d'API
+- Statut : retenu · à valider — V5 : relevé sur le serveur et réseaux de la pile d'API ; porteur (2026-10-20) : traité hors agents, dans la phase F (TCK-517) : le relevé des services attachés à `dokploy-network` et de ce qu'ils répondent à un conteneur de la pile sans secret, ajouté à `hebergement.md`, puis un réseau de données dédié et les piles d'API hors de `dokploy-network` sauf le service `api` ; la plus importante des cinq
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/takussan/compose.api.yml:27-39,88-94`, `docs/infra/hebergement.md:87,94,123-131`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:599-605`
 - Constat :
@@ -7529,7 +7538,7 @@ le sous-réseau est P37.04.*
 
 ### Petites améliorations : authentification basique contournée, catalogue PostgreSQL ouvert
 - Réf : P74.05
-- Statut : retenu · à valider — V5 : étapes d'installation de la base partagée et relevé de Traefik
+- Statut : retenu · à valider — V5 : étapes d'installation de la base partagée et relevé de Traefik ; porteur (2026-10-20) : traité hors agents, dans la phase F (TCK-517) : noter que l'authentification basique ne vaut que par Traefik (avec P74.03), et ajouter `REVOKE CONNECT ON DATABASE postgres FROM PUBLIC` aux étapes A4 et F1 avec un refus du rôle d'environnement à leur preuve
 - Gravité : 🟢 amélioration
 - Où : `docs/infra/hebergement.md:226-237`, `takussan-web/Dockerfile:31`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:749-755,4010-4014`
 - Constat :
@@ -7537,3 +7546,178 @@ le sous-réseau est P37.04.*
   - **Catalogue de l'instance PostgreSQL partagée.** Le plan retire `CONNECT` à `PUBLIC` sur `takussan_preview` et `takussan_prod`, pas sur la base `postgres` (lu, plan l. 752 et 4012). Le rôle d'un environnement s'y connecte donc par défaut (comportement par défaut de PostgreSQL ; à vérifier sur l'instance). Il y lit la liste des bases et des rôles de l'instance, ceux de l'autre environnement compris (`pg_database`, `pg_roles`), sans aucune donnée.
 - Piste : noter dans le relevé que l'authentification basique ne vaut que par Traefik, à lier à P74.03 ; ajouter `REVOKE CONNECT ON DATABASE postgres FROM PUBLIC` aux étapes A4 et F1, et un refus du rôle d'environnement sur `postgres` à leur preuve.
 - Mesure (2026-10-20, 98f869c30, mesureur) : relu `hebergement.md:233-237` (authentification basique dans l'onglet *Security*, donc posée par Traefik), `takussan-web/Dockerfile:31` (`HOSTNAME=0.0.0.0`), le plan l. 745-756 et 4008-4016 (`REVOKE CONNECT` sur `takussan_preview` et `takussan_prod` seulement) ; `grep -ni 'on database postgres'` dans le plan et `hebergement.md` → rien → les deux points tiennent sur le document ; qu'un voisin joigne le front sans Traefik et que le rôle d'environnement se connecte à `postgres` reste à vérifier sur le serveur. Classement : V5, le correctif change les étapes d'installation de la base partagée et se prouve sur le serveur.
+
+## Angle 75 — Classes `Notification` historiques hors `NotificationCode`
+
+*Exploré le 2026-10-20 sur `pre-dev` 96392a9cb, par l'explorateur. Relu par l'explorateur lui-même, sans sous-agent : `AppDatabaseChannel`, les 22 classes de `AppDatabaseChannel::TYPES` (`via()`, `toArray()`, `toAppNotification()`, émetteurs), `PreferenceResolver`, `NotificationCode::mobile()`/`preferenceEvent()`, `NotificationTarget::derive()`, `AppNotificationResource`, `MobileClassEventsTest`, `AppDatabaseChannelTest`, et côté front `texteNotification.ts` et `NotificationRow.tsx`. Mesures : `php artisan tinker` en lecture (aucune écriture), et une classe de test temporaire (base de test propre, charge 2,24 sur 8 cœurs) qui envoie cinq classes par le canal `database` et relit la ligne par `AppNotificationResource`, retirée avant la fin. La colonne Push (`broadcast` dans ces classes) n'est pas reprise : c'est P13.06. Les quatre classes de bail fermées aux contacts sans compte sont le reste de P48 (TCK-1002), non repris.*
+
+### Les cases SMS et WhatsApp de « demande de réservation » sont cochables et ne commandent aucun envoi
+- Réf : P75.01
+- Statut : validé (délégué) — retirer `NewBookingNotification`, sans émetteur, et son entrée de `PreferenceResolver::MOBILE_CLASS_EVENTS` et de `AppDatabaseChannel::TYPES`, pour que les cases `booking_request`/`sms` et `/whatsapp` soient verrouillées `channel_unavailable` (TCK-588) ; la demande de réservation ne part pas sur mobile (TCK-590, contrainte 4) ; les tests qui l'instancient se reportent sur une classe vivante ou une classe de test ; garde : un test qui, pour chaque événement de `mobileEvents()`, exige un émetteur réel
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Notifications/PreferenceResolver.php:110-113,217-239`, `takussan-api/app/Notifications/NewBookingNotification.php:31,56`, `takussan-api/app/Domain/Notifications/NotificationCode.php:270,461-481`, `takussan-api/app/Listeners/Booking/NotifyOnBookingRequested.php:29-37`, `takussan-api/tests/Unit/Notifications/MobileClassEventsTest.php:59-70`
+- Constat :
+  - `NewBookingNotification` n'a aucun émetteur : `grep -rlw NewBookingNotification app` ne rend que sa propre classe, `AppDatabaseChannel::TYPES` et `PreferenceResolver` (mesuré). Une demande de réservation part par les codes `booking.created` et `booking.requested_undated` (lu, `NotifyOnBookingRequested.php:29-37`), dont l'événement est `booking_request` (lu, `NotificationCode.php:270`) et qui ne sont pas `mobile()` (lu, `:461-481` ; mesuré : `NotificationCode::BookingCreated->mobile()` → `false`).
+  - L'événement `booking_request` est pourtant mobile par la seule présence de la classe morte dans `MOBILE_CLASS_EVENTS` (lu, `PreferenceResolver.php:110-113`). Mesuré : `channelsFor('booking_request')` → `["inapp","email","sms","whatsapp"]` ; `NotificationCode::mobileEvents()` ne contient pas `booking_request`.
+  - Mesuré (test temporaire) : pour un compte au numéro vérifié, `matrixFor()` rend les cases `booking_request`/`sms` et `booking_request`/`whatsapp` avec `locked: false`. L'utilisateur peut les cocher, et aucun envoi ne les lit. C'est exactement ce que TCK-588 dit avoir fermé (« la matrice ne propose plus que des cases qu'un envoi peut honorer », `PreferenceResolver.php:27-29`).
+  - `MobileClassEventsTest` ne le voit pas : il vérifie qu'une classe `SupportsSms`/`SupportsWhatsapp` existe pour chaque événement, jamais qu'elle a un émetteur (lu, l. 59-70).
+  - L'historique de `app/Services`, `app/Listeners`, `app/Http`, `app/Jobs` et `app/Observers` ne montre aucun envoi de la classe (`git log -S NewBookingNotification` → le seul commit de TCK-588, qui l'ajoute à `MOBILE_CLASS_EVENTS`).
+  - Établi comment : lu, et mesuré par `tinker` et par un test temporaire.
+- Piste : retirer `NewBookingNotification` et son entrée de `MOBILE_CLASS_EVENTS` et de `AppDatabaseChannel::TYPES` (les tests qui l'instancient — `NotificationEmailTest`, `WhatsappChannelTest`, `NotificationTemplateTest`, `SmsChainTimeBudgetTest` — se reportent sur une classe vivante ou sur `CodedNotification`), ou, si la demande de réservation doit partir sur mobile, rendre les deux codes `mobile()`. Garde : un test qui, pour chaque événement de `mobileEvents()`, exige un émetteur réel (code `mobile()` émis, ou classe référencée hors des catalogues).
+- Mesure (2026-10-20, d08842ee3, mesureur) : `grep -rlw NewBookingNotification app` → sa classe, `AppDatabaseChannel` et `PreferenceResolver` seulement ; `NotifyOnBookingRequested.php:29-37` envoie `booking.created`/`booking.requested_undated` ; `tinker` : `channelsFor('booking_request')` → `["inapp","email","sms","whatsapp"]`, `mobile()` → `false` pour les deux codes, `booking_request` absent de `NotificationCode::mobileEvents()` ; test temporaire retiré (charge 2,30 sur 8 cœurs) : `matrixFor()` d'un compte au numéro vérifié → cases `booking_request`/`sms` et `/whatsapp` `locked: false` ; `MOBILE_CLASS_EVENTS` est à `PreferenceResolver.php:110-113` → le constat tient en entier. Classement : V7, la piste offre deux options (retirer la classe morte et verrouiller les cases, ou rendre les deux codes `mobile()`), et la seconde ferait partir un SMS neuf.
+- Mesure (2026-10-20, 89dbcf997, delegue) : relu le constat, la `Piste` et la `Mesure` du mesureur, puis `NotificationCode.php:262-271` (`booking.created`/`booking.requested_undated` → `booking_request`, la confirmation, le refus et l'annulation → `booking_status_changed`), `NotificationCode::mobile()` l. 460-482 (contrainte 4 de TCK-590 : « un SMS ne suit qu'un geste humain de l'agence, jamais le dépôt d'une demande par un tiers »), le ticket TCK-588 l. 106-112 (« `sms` et `whatsapp` sont cochables […] Après ce ticket, seuls les codes `mobile()` en auront »), `docs/features.md:547` (le mobile vaut pour le changement de statut d'une réservation, pas pour la demande), `grep -rn NewBookingNotification app routes database config` → sa classe, `AppDatabaseChannel.php:20,110` et `PreferenceResolver.php:9,111` seulement, et `grep -rn booking_confirmed app` → le gabarit éditable reste lu par `NotificationCode::BookingConfirmed` (l. 508) → le retrait n'ôte aucun lecteur vivant. Délégation : V7, l'option (a) est déjà écrite par TCK-588 et TCK-590 ; elle ne retire qu'une case sans effet et une classe sans émetteur, et se défait en un commit ; la seconde option (envoyer un SMS au dépôt d'une demande) contredirait la contrainte 4 de TCK-590.
+
+### Cinq types d'événement des classes historiques n'ont pas d'interrupteur : leur e-mail ne se coupe pas
+- Réf : P75.02
+- Statut : retenu · à valider — V7 : interrupteur neuf ou envoi non désactivable, au cas par cas
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Notifications/PreferenceResolver.php:54-86,157-191,342-352`, `takussan-api/app/Notifications/BookingExpiredNotification.php:27-29`, `takussan-api/app/Notifications/LeaseDepositRefundNotification.php:40`, `takussan-api/app/Notifications/TenantWelcomeNotification.php:21-23,30`, `takussan-api/app/Notifications/PropertyApprovedNotification.php:22`, `takussan-api/app/Notifications/PropertyRejectedNotification.php:22`
+- Constat :
+  - Les `via()` de ces classes passent `booking_expired`, `booking_expired_agent`, `lease_deposit_refunded`, `tenant_welcomed` et `property_moderation` à `shouldSend()` (lu). Aucun de ces cinq n'est dans `PreferenceResolver::EVENTS` (lu, l. 54-86), et `updateMany()` ignore un événement hors de la liste (lu, l. 342-352).
+  - Mesuré (test temporaire) : `updateMany()` avec `email` à faux pour `booking_expired`, `lease_deposit_refunded`, `tenant_welcomed` et `property_moderation`, puis `shouldSend(…, 'email')` → `true` pour les quatre. L'e-mail part toujours, sans case dans l'écran des préférences.
+  - Les docblocks disent le contraire : `TenantWelcomeNotification` « email respects the user's preferences » (lu, l. 21-23), `LeaseDepositRefundNotification` et `BookingExpiredNotification` passent par le résolveur comme les classes qui ont un interrupteur. Pour `property_moderation`, les codes `property.approved` et `property.rejected` sont déclarés sans interrupteur (lu, `NotificationCode.php:291-293`) : la constante de classe ne sert qu'à un appel sans effet.
+  - `LeasePaymentLateFeeNotification` emprunte l'interrupteur `lease_payment_overdue` (lu, l. 25) : couper les relances d'impayé coupe aussi l'e-mail de pénalité (déduit de la lecture, à vérifier).
+  - Établi comment : lu, et mesuré par un test temporaire.
+- Piste : pour chacun, décider entre un interrupteur (l'ajouter à `EVENTS`, avec ses libellés de matrice) et un envoi non désactivable assumé (appeler `mail` sans résolveur, et corriger le docblock). Garde : un test qui lit l'`EVENT_TYPE` (ou les chaînes passées à `shouldSend`) de chaque classe de `app/Notifications` et exige qu'il figure dans `EVENTS` ou dans une liste fermée « sans interrupteur ».
+- Mesure (2026-10-20, d08842ee3, mesureur) : lu les `via()` : `booking_expired`/`booking_expired_agent` (`BookingExpiredNotification.php:27-29,44-53`), `lease_deposit_refunded` (`LeaseDepositRefundNotification.php:40,59-65`), `tenant_welcomed` (`TenantWelcomeNotification.php:30,44-47`), `property_moderation` (`PropertyApproved/RejectedNotification.php:22`) passent à `shouldSend()`, absents de `EVENTS` (l. 54-86) ; `updateMany()` les saute (l. 346-348) ; test temporaire retiré (charge 2,30 sur 8 cœurs) : `updateMany()` `email` à faux pour les cinq, puis `shouldSend(…, 'email')` → `true` pour les cinq ; `LeasePaymentLateFeeNotification.php:25` porte bien `lease_payment_overdue` → le constat tient. Classement : V7, chaque événement demande de choisir entre une case neuve de l'écran des préférences, avec ses libellés, et un envoi assumé non désactivable.
+- Mesure (2026-10-20, 89dbcf997, delegue) : relu le constat et la `Mesure` du mesureur, puis `NotificationCode::preferenceEvent()` l. 262-300 : l'approbation, le refus et la soumission d'un bien sont non désactivables (TCK-782, `PropertyApproved`/`PropertyRejected` → `null`), un remboursement de doublon aussi (TCK-593), la confirmation, le refus et l'annulation d'une réservation suivent `booking_status_changed` ; `PreferenceResolver::EVENTS` l. 54-86 ; `docs/features.md:548` (KYC critique, non désactivable) → seul `property_moderation` a une option écrite ; pour les quatre autres événements, rien d'écrit ne dit s'il faut une case neuve ou un envoi assumé. Recommandation : `property_moderation` envoyé sans résolveur et docblock corrigé (déjà écrit par TCK-782) ; `booking_expired` du client sous l'interrupteur existant `booking_status_changed` et `booking_expired_agent` sous `booking_request`, ce qui évite toute case neuve ; `tenant_welcomed` et `lease_deposit_refunded` non désactivables, comme un envoi transactionnel unique (précédent de TCK-593 pour une somme rendue), docblocks corrigés ; `LeasePaymentLateFeeNotification` laissé sous `lease_payment_overdue` après vérification ; la garde de la `Piste` en plus. Il manque au porteur de choisir pour ces quatre événements sans décision écrite, et de dire si un e-mail qui annonce une somme rendue touche V1.
+
+### Le corps que quatre classes écrivent pour la cloche n'y arrive pas
+- Réf : P75.03
+- Statut : retenu · à valider — V7 : afficher dans la cloche un corps qu'elle n'a jamais montré
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Notifications/Channels/AppDatabaseChannel.php:172-187`, `takussan-api/app/Notifications/TenantWelcomeNotification.php:80`, `takussan-api/app/Notifications/TenantInventoryReminderNotification.php:72`, `takussan-api/app/Notifications/AgentTenantInventoryReminderNotification.php:83`, `takussan-api/app/Notifications/BookingExpiredNotification.php:94`, `takussan-web/src/components/notifications/texteNotification.ts:70-73`
+- Constat :
+  - Sans `toAppNotification()`, le canal ne retient de `toArray()` que `title` ; le reste part dans `data` et la colonne `body` reste nulle (lu, `AppDatabaseChannel.php:172-187`).
+  - Quatre classes écrivent pourtant un corps dans `toArray()` : `body` pour la bienvenue et les deux relances d'état des lieux, `message` pour la réservation expirée (lu).
+  - La cloche lit `notification.body ?? notification.content` et jamais `data` (lu, `texteNotification.ts:70-73`).
+  - Mesuré (test temporaire) : `TenantWelcomeNotification` → `body` nul dans la ressource, `data.body` présent ; `BookingExpiredNotification` → `body` nul, `data.message` présent. Le locataire lit « Bienvenue chez vous — bail LS-… » sans le texte qui suit.
+  - Établi comment : lu, et mesuré. Que ce corps soit attendu dans la cloche se déduit de son nom : à vérifier.
+- Piste : faire lire `body` par le canal quand `toArray()` le porte (et renommer `message` en `body`), ou porter ces classes au catalogue (`NotificationCode`), ce qui règle aussi la langue (P75.05). Garde : un test qui envoie chaque classe de `TYPES` et vérifie qu'une clé `body` ou `message` de `toArray()` se retrouve dans la colonne.
+- Mesure (2026-10-20, d08842ee3, mesureur) : lu `AppDatabaseChannel.php:162-187` : sans `toAppNotification()`, `payload()` rend `type`, `title` et `data`, jamais `body` (la colonne prend `$payload['body'] ?? null`, l. 152) ; `body` est écrit dans `toArray()` par `TenantWelcomeNotification.php:80`, `TenantInventoryReminderNotification.php:72`, `AgentTenantInventoryReminderNotification.php:83`, `message` par `BookingExpiredNotification.php:94`, aucune des quatre n'a de `toAppNotification()` ; `texteNotification.ts:70-73` lit `body ?? content`, jamais `data` → le constat tient (non rejoué par un envoi : la lecture du canal suffit). Classement : V7, que ces textes doivent paraître dans la cloche reste déduit du nom de la clé, et la piste offre deux voies (lecture par le canal ou portage au catalogue).
+- Mesure (2026-10-20, 89dbcf997, delegue) : relu le constat et la `Mesure` du mesureur, puis le principe n° 5 du `CLAUDE.md` racine (« le front possède le texte affiché ») et TCK-588 l. 177-178 (« la cloche fige la langue d'écriture ») et l. 274-288 (`title`/`body` rendus à la lecture depuis `code`, dans la langue du destinataire) → la voie (a), faire lire `body` par le canal, ferait afficher dans la cloche une prose rendue côté serveur et figée dans sa langue d'écriture, au rebours de TCK-588 ; la voie (b) demande des codes et des textes neufs. Recommandation : (b), porter `TenantWelcomeNotification`, `TenantInventoryReminderNotification`, `AgentTenantInventoryReminderNotification` et `BookingExpiredNotification` au catalogue `NotificationCode`, avec leurs clés `notifications.codes.<code>.{title,body}` en `fr` et `en` (`wo` = le français, pause du wolof), dans la suite du reste de P48 (TCK-1002) ; à défaut, (a) seulement comme palliatif. Il manque au porteur de confirmer que ces corps doivent paraître dans la cloche (déduit du nom de la clé) et d'accepter le texte neuf ; le choix ne se délègue pas, la voie retenue fait paraître un texte que la cloche n'a jamais montré.
+
+### La résiliation anticipée n'a aucun test qui asserte un destinataire, un canal ou une ligne de cloche
+- Réf : P75.04
+- Statut : retenu · autonome
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Notifications/LeaseEarlyTerminationNotification.php:45-61,91-107`, `takussan-api/app/Listeners/Lease/NotifyOnEarlyTermination.php:38-58`, `takussan-api/tests/Feature/Services/EarlyTerminationServiceTest.php:36`, `takussan-api/tests/Feature/Api/LeaseEarlyTerminationEndpointTest.php:28`, `takussan-api/tests/Feature/Jobs/ConfirmEarlyTerminationsJobTest.php:26`
+- Constat :
+  - `grep -rlw LeaseEarlyTerminationNotification tests` ne rend que `tests/impact-map.json` (mesuré). Même chose pour `NotifyOnEarlyTermination`.
+  - Les trois classes qui exercent la résiliation posent `Notification::fake()` (lu) et n'assertent aucun envoi : la carte d'impact compte la classe comme couverte (5 classes de test), aucune ne vérifie qui la reçoit.
+  - L'écouteur choisit le locataire (s'il a un compte) et le bailleur, jamais l'agence ni l'agent (lu, l. 38-58) ; une régression de ce choix, ou du titre à clé dynamique `notifications.lease_early_termination.{transition}.subject`, ne rougirait rien.
+  - `LeaseRentReviewedNotification` n'est citée que par `NotificationAmountsTest` (montants du courriel) : son envoi par `NotifyTenantOfRentReview` n'est pas asserté non plus (mesuré, `grep -rlw`).
+  - Établi comment : lu et mesuré par `grep`.
+- Piste : un test par transition (`requested`, `cancelled`, `confirmed`) qui lance le service sans `Notification::fake()` et vérifie les lignes `app_notifications` du locataire et du bailleur (titre, cible `lease`) ; idem pour la révision de loyer. Garde : ces tests.
+- Mesure (2026-10-20, d08842ee3, mesureur) : `grep -rlw 'LeaseEarlyTerminationNotification\|NotifyOnEarlyTermination' tests` → `tests/impact-map.json` seul ; `LeaseRentReviewedNotification\|NotifyTenantOfRentReview` → l'impact-map et `NotificationAmountsTest` seuls ; `Notification::fake()` en l. 36, 28 et 26 des trois classes citées, aucun `assertSent*` dans aucune ; `NotifyOnEarlyTermination.php:38-58` envoie au `tenant.user` et au `landlord`, dédoublonnés ; le titre est `notifications.lease_early_termination.{transition}.subject` (`LeaseEarlyTerminationNotification.php:103`) et `toArray()` porte `lease_id` (l. 94) → le constat tient. Classement : A5, tests seuls qui gardent le comportement écrit de l'écouteur, sans changer de code ni de seuil.
+
+### Petites améliorations
+- Réf : P75.05
+- Statut : validé (délégué) — ajouter `lease_id` (le bail enfant) aux données de `LeaseRenewedNotification::toArray()`, pour que la ligne de cloche du renouvellement mène à `/app/leases/{id}` par `NotificationTarget::derive()` ; test : la ressource de la ligne rend la cible `lease` du bail enfant ; reste : les cibles des factures, des tâches, des alertes de seuil, des `AgencyUpgrade*` et des `SuperAdmin*Broadcast`, le titre du rappel de tâche, et la langue figée des classes sans code (portage au catalogue), au porteur
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Domain/Notifications/NotificationTarget.php:121-147`, `takussan-api/app/Notifications/LeaseRenewedNotification.php:72-86`, `takussan-api/app/Notifications/InvoiceOverdueReminderNotification.php:84-97`, `takussan-api/app/Notifications/TaskDueReminderNotification.php:63-73`, `takussan-api/app/Notifications/ThresholdAlertTriggered.php:74-81`, `takussan-api/app/Http/Resources/AppNotificationResource.php:45-46`
+- Constat :
+  - **Sans cible.** `NotificationTarget::derive()` ne reconnaît que `booking_id`, `lease_id`, `maintenance_request_id`, `conversation_id`, `visit_id`, `property_visit_id`, `property_id` et `lease_payment_id` (lu, l. 121-147). Mesuré (test temporaire) : `LeaseRenewedNotification` (`parent_lease_id`, `child_lease_id`), `InvoiceOverdueReminderNotification` (`invoice_id`) et `TaskDueReminderNotification` (`task_id`) → `target` nul : la ligne de cloche n'est pas un lien. Lu : de même pour `ThresholdAlertTriggered`, les trois `AgencyUpgrade*` et les deux `SuperAdmin*Broadcast`, qui ont un `toAppNotification()` sans `target`.
+  - **Titre brut.** `TaskDueReminderNotification` range le titre de la tâche tel quel comme titre de notification (lu, l. 63-73 ; mesuré : `"Soluta a fuga omnis vitae."`), sans dire qu'il s'agit d'une échéance. `ThresholdAlertTriggered` met le `metric` brut dans le titre (lu, l. 78) : à vérifier sur une alerte réelle.
+  - **Langue figée.** Sans code, `title` et `body` sont rendus tels qu'écrits à l'envoi (lu, `AppNotificationResource.php:45-46`) : un utilisateur qui change de langue relit les anciennes lignes dans l'autre. Les 18 classes sans `code` sont dans ce cas (lu : seules `PropertyApproved`/`PropertyRejected` en portent un).
+  - Établi comment : lu, et mesuré pour les trois premières cibles et le titre de tâche.
+- Piste : ajouter `lease_id` (le bail enfant) aux données du renouvellement ; donner une cible aux autres là où une page existe (`team`, `agency_settings`, `/super-admin/…`) ; titrer le rappel de tâche par une clé de traduction. À terme, porter ces classes au catalogue `NotificationCode`, ce que le reste de P48 demande déjà pour quatre d'entre elles.
+- Mesure (2026-10-20, d08842ee3, mesureur) : lu `NotificationTarget::derive()` (l. 121-147) : ni `parent_lease_id`/`child_lease_id`, ni `invoice_id`, ni `task_id` (`LeaseRenewedNotification.php:75-76`, `InvoiceOverdueReminderNotification.php:87`, `TaskDueReminderNotification.php:66`) ; `TaskDueReminderNotification.php:69` range `task->title` comme titre ; `ThresholdAlertTriggered.php:78` met `metric` dans la clé de titre ; `AppNotificationResource.php:45-46` rend `title`/`body` tels quels sans code ; `grep -ln "'code'" app/Notifications` → `CodedNotification`, `PropertyApproved/Rejected`, `LeaseSignatureCode`, `NewBooking` seulement → les trois points tiennent (non rejoué par un envoi). Classement : V7, la cible de chaque ligne (quelle page) et le titre neuf du rappel de tâche sont des choix d'interface et de texte.
+- Mesure (2026-10-20, 89dbcf997, delegue) : relu le constat et la `Mesure` du mesureur, puis `NotificationTarget::derive()` l. 118-147 (la clé `lease_id` mène à `lease`), `NotificationTarget::PATHS` (`lease` → `/app/leases/{id}`, page présente : `takussan-web/src/app/(dashboard)/app/leases/[id]/page.tsx`), `LeaseRenewedNotification::toArray()` l. 72-86 (`parent_lease_id`, `child_lease_id`, sans `lease_id`) et TCK-588 l. 35 (« un clic dans la cloche m'emmène sur l'objet concerné », C11) → la cible du renouvellement est écrite et sa page existe ; les autres cibles (factures, tâches, alertes de seuil, `AgencyUpgrade*`, `SuperAdmin*Broadcast`) demandent de choisir une page, le titre du rappel de tâche est un texte neuf, et la langue figée relève du portage au catalogue. Délégation : V7, seule la partie dont la cible est écrite par TCK-588 (C11) et déjà servie par `PATHS` est validée ; elle ajoute une clé de données sans rien retirer et se défait en un commit ; le reste revient au porteur.
+
+## Angle 76 — Effets aval d'un paiement soldé puis passé à `refunded`
+
+*Exploré le 2026-10-20 sur `pre-dev` 89dbcf997, par l'explorateur. Relu par l'explorateur lui-même :
+la branche `REFUNDED` d'`applyStatusToPayment` et `reportedRefundAmount` (`PaymentGatewayService`),
+`HasPaymentAttributes` (`paid_amount`, `remaining_amount`), `BookingPaymentService::refund` et
+`RefundBookingPaymentRequest`, `SendRentReceiptAfterOnlinePayment`, les trois points qui servent une
+quittance (`DocumentPdfController::receipt`, `PublicPaymentLinkController::receipt`,
+`BookingPaymentController::receipt`), `PlatformPayoutService` (clôture, `breakdown`, `approve`,
+`markPaid`, `cancel`), `PayoutCalculator`, `PayoutService` (`assertItemsInScope`, `createLocked`,
+`markProcessed`), `CollectedPayments`, `ExportDataService::payments`, `LeasePaymentResource`,
+`CommissionLedgerService`. Mesuré par un test temporaire `tests/Feature/Tmp/ExplorateurTmp76Test.php`
+(retiré), sur des payables soldés par l'intégration globale (`EncaissementsPlateforme`) et un
+remboursement appliqué par `applyEventToMatchingPayment()` sous son autorité, comme
+`PaymentWebhookRefundTest` ; charge 4,66 / 5,07 / 4,61 sur 8 cœurs. Aucun sous-agent. Hors constat,
+parce que le code est juste : la quittance n'est plus servie après un remboursement (les trois
+points exigent `paid`), et la commission d'agent se calcule sur le bail (`generateFor`), pas sur
+l'échéance. La quittance déjà envoyée et l'absence de tout événement sur la transition vers
+`refunded` sont P39.07 : elles ne sont pas reprises.*
+
+### Un reversement de la plateforme clos avant un remboursement est approuvé et payé avec la ligne remboursée
+- Réf : P76.01
+- Statut : retenu · à valider — V1 : refus d'approuver ou de payer un reversement de la plateforme
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:109-169`, `:200-233`, `:236-343`
+- Constat :
+  - La clôture fige `gross_amount`, `platform_fee_amount` et `net_amount` et pose `platform_payout_id` sur les lignes (lu, l. 312-342). `approve()` et `markPaid()` ne relisent ni les lignes ni leur statut (lu, l. 109-169) ; `breakdown()` agrège par `platform_payout_id` sans filtre de statut (lu, l. 207-215). Le remboursement ne touche pas `platform_payout_id` (lu : seul `cancel()` le remet à nul, l. 178-181).
+  - Mesuré (test temporaire) : loyer de 100 000 soldé par l'intégration globale, `close-period` → reversement `pending`, brut 100 000, net 95 000 ; remboursement de 100 000 → échéance `refunded`, `refund_amount = 100000`, `paid_amount = 0`, `platform_payout_id` toujours posé ; `breakdown` → `lease.count = 1`, `gross = 100000` ; `approve` → 200, `mark-paid` → 200, statut `paid`, net 95 000.
+  - La plateforme a donc rendu 100 000 au locataire et versé 95 000 à l'agence pour le même loyer. P39.07 l'avait déduit pour un reversement déjà payé ; la mesure montre que les deux gestes qui suivent la clôture ne l'arrêtent pas non plus.
+  - Établi comment : lu, puis mesuré de bout en bout par les routes `/api/admin/payouts/*`.
+- Piste : à `approve()` et `markPaid()`, refuser (422 `platform_payout.items_changed`) un reversement dont une ligne n'est plus `paid`, ce qui renvoie à `cancel()` puis à une nouvelle clôture ; pour un reversement déjà `paid`, au moins un signalement à la console (le choix entre signaler et compenser est celui de P39.07). Garde : le scénario mesuré en test.
+- Mesure (2026-10-20, 740c8247f, mesureur) : lu `PlatformPayoutService::approve()` (l. 109-136) et `markPaid()` (l. 144-170) : ni l'un ni l'autre ne relit les lignes, `cancel()` seul remet `platform_payout_id` à nul (l. 178-181), `breakdown()` agrège par `platform_payout_id` sans filtre de statut (l. 207-215) ; test temporaire `tests/Feature/Tmp/MesureurTmp76Test.php` (retiré), charge 2,85 / 3,26 / 3,19 sur 8 cœurs : loyer de 100 000 soldé par l'intégration globale, `close-period` → reversement `pending`, puis `applyEventToMatchingPayment` d'un remboursement de 100 000 → échéance `refunded`, `refund_amount = 100000`, `paid_amount = 0`, `platform_payout_id` toujours posé ; `approve` → 200, `mark-paid` → 200, reversement `paid` (le `breakdown` n'a pas été relu par la route) → le constat tient. Classement : V1, le correctif bloque le versement d'un reversement et touche à la suite d'un reversement déjà payé (signaler ou compenser, P39.07).
+
+### Un remboursement partiel fait sortir toute la ligne de l'encaissé, de la clôture de la plateforme et du reversement au bailleur
+- Réf : P76.02
+- Statut : retenu · à valider — V1 : assiette de l'encaissé, de la clôture et du reversement ; choix d'ADR-0057 § 2
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:12-23`, `:50`, `:65-79`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:251`, `:263`, `takussan-api/app/Services/Payout/PayoutCalculator.php:63`, `:87`, `takussan-api/app/Services/Model/BookingPaymentService.php:64-82`
+- Constat :
+  - Un remboursement partiel existe des deux côtés : le webhook écrit `refund_amount` plafonné au montant (lu, `PaymentGatewayService.php:1125-1139`), le geste manuel d'un acompte accepte tout montant `≤ amount` (lu, `BookingPaymentService.php:64-68`). Les deux passent le payable entier à `refunded`, et `refund_amount` n'est écrit nulle part ailleurs (`grep -rn refund_amount app`).
+  - Tous les circuits d'argent filtrent `status = paid` : l'encaissé (`leaseIncome`, `bookingIncome`), la clôture de la plateforme et `PayoutCalculator` (lu). La part gardée sort donc avec la part rendue.
+  - Mesuré : loyer de 150 000 soldé par l'intégration globale, remboursement de 40 000 → `refunded`, `paid_amount = 110000` ; `close-period` → 201 sans reversement (`data = []`) ; `leaseIncome` → 0 ligne ; `PayoutCalculator::leasePayments` → 0 ligne. Les 110 000 restent chez la plateforme et ne vont ni à l'agence ni au bailleur.
+  - Mesuré : acompte de 50 000, `BookingPaymentService::refund` de 20 000 → `refunded`, `paid_amount = 30000` ; l'encaissé `SUM(BOOKING_NET_SQL)` passe de 50 000 à 0.
+  - `BOOKING_NET_SQL` (« ce qui a été payé, moins ce qui a été rendu », l. 49-50) et le docblock (« `BookingPayment` `paid`, montant − `refund_amount` », l. 17, repris d'ADR-0057 § 2) soustraient un `refund_amount` qui est toujours nul sur une ligne `paid` : la soustraction n'agit jamais.
+  - Établi comment : lu, puis mesuré par le test temporaire.
+- Piste : faire compter une ligne `refunded` à hauteur de `amount − refund_amount` partout où `paid` compte (encaissé, clôture, `PayoutCalculator`, avec la commission sur cette base), ou ne passer à `refunded` qu'un remboursement total et garder la ligne `paid` avec son `refund_amount` pour un partiel. Le choix touche ADR-0057 § 2. Garde : les deux scénarios mesurés en test, sur chacun des trois lecteurs.
+- Mesure (2026-10-20, 740c8247f, mesureur) : lu `CollectedPayments::leaseIncome()`/`bookingIncome()` (filtre `paid`), `BOOKING_NET_SQL` (l. 50), `PlatformPayoutService.php:251` et `:263`, `PayoutCalculator.php:63` et `:87` (tous `status = paid`) ; `reportedRefundAmount` est désormais en `PaymentGatewayService.php:1125-1139` et s'applique l. 1180-1181 ; test temporaire `tests/Feature/Tmp/MesureurTmp76Test.php` (retiré), charge 2,85 / 3,26 / 3,19 sur 8 cœurs : loyer de 150 000 soldé par la plateforme, remboursé de 40 000 → `refunded`, `paid_amount = 110000`, `remaining_amount = 40000`, `close-period` → 201, `data = []`, `leaseIncome` → 0 ligne ; acompte de 50 000, `BookingPaymentService::refund` de 20 000 → `refunded`, `paid_amount = 30000`, `SUM(BOOKING_NET_SQL)` de 50 000 à 0 → le constat tient (`PayoutCalculator` lu, non rejoué). Classement : V1, l'assiette de l'encaissé, de la clôture et des reversements change, et la piste offre deux options qui touchent ADR-0057 § 2.
+
+### Un reversement au bailleur préparé avant un remboursement est versé sans relire ses lignes
+- Réf : P76.03
+- Statut : retenu · à valider — V1 : refus de verser un reversement au bailleur
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Model/PayoutService.php:202-268`, `:269-337`, `:401-471`, `:508-537`
+- Constat :
+  - `assertItemsInScope()` exige `paid` à la création (lu, l. 519 et 534). Elle tourne hors de la transaction, et `createLocked()` relit les lignes sous verrou sans revérifier leur statut (lu, l. 413-433).
+  - `approve()` retient `approved_net_amount` ; `markProcessed()` ne compare que ce net au net figé (lu, l. 288-294). Aucun des deux ne relit les échéances attachées par `payout_lease_payment`.
+  - Le remboursement par webhook s'applique aussi aux intégrations propres à l'agence (`LeaseDueFixture`, P39.01) : une échéance attachée à un reversement `pending` puis remboursée serait versée au bailleur (déduit, à vérifier : le scénario n'a pas été rejoué).
+  - Établi comment : lu.
+- Piste : la même relecture que pour P76.01, à `approve()` et à `markProcessed()` (`payout.items_changed`), et le contrôle de statut repris dans `createLocked()`, sous le verrou. Garde : un test par geste.
+- Mesure (2026-10-20, 740c8247f, mesureur) : lu `PayoutService::createLocked()` (l. 405-433 : relit les lignes sous verrou sans revérifier `paid`), `assertItemsInScope()` (l. 519 et 534 : `paid` exigé, hors transaction) et `markProcessed()` (l. 288-294 : ne compare que `approved_net_amount`) ; test temporaire `tests/Feature/Tmp/MesureurTmp76Test.php` (retiré), charge 2,85 / 3,26 / 3,19 sur 8 cœurs : loyer de 100 000 soldé par l'intégration propre à l'agence, `POST /api/payouts` → 201 `pending`, remboursement de 100 000 par webhook sous l'autorité de cette intégration → échéance `refunded`, reversement toujours `pending` ; `mark-processed` → 200, reversement `completed`, net 100 000 → le scénario « à vérifier » est vérifié, le constat tient. Classement : V1, le correctif bloque le versement d'un reversement au bailleur.
+
+### Un acompte soldé en ligne par la plateforme peut être déclaré remboursé par l'agence, et sort alors de la clôture
+- Réf : P76.04
+- Statut : retenu · à valider — V7 : qui rembourse un acompte encaissé par la plateforme ; V1
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Model/BookingPaymentService.php:53-91`, `takussan-api/app/Http/Requests/Api/RefundBookingPaymentRequest.php:32-48`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:245-254`
+- Constat :
+  - Le geste manuel ne regarde ni `metadata.gateway.settled_by` ni l'intégration qui a encaissé (lu, l. 53-82). Il est ouvert à qui a `bookings.refund` dans l'agence (lu, `BookingMoneyAccess::canRefund`).
+  - Une fois `refunded`, l'acompte n'entre plus dans la clôture de la plateforme (lu, l. 251). Si l'agence a rendu l'argent de sa poche, la plateforme garde l'acompte qu'elle avait encaissé ; si personne n'a rien rendu, le locataire voit un remboursement qui n'a pas eu lieu (déduit, à vérifier : qui rend un acompte encaissé par la plateforme n'est écrit ni dans ADR-0039 ni dans le code).
+  - Établi comment : lu.
+- Piste : décider qui rembourse un payable encaissé par la plateforme (V7) ; à défaut, refuser le geste manuel sur un acompte soldé par une intégration globale tant qu'aucun remboursement n'est reçu du fournisseur, ou le garder dans la clôture à hauteur de ce qui reste dû à l'agence. Garde : le cas en test.
+- Mesure (2026-10-20, 740c8247f, mesureur) : lu `BookingPaymentService::refund()` (l. 53-91) : il n'exige que `paid` et `refund_amount ≤ amount`, sans lire `metadata.gateway.settled_by` ni l'intégration ; `PlatformPayoutService.php:251` ne prend que les acomptes `paid` dans la clôture ; `grep -rln "P76\." docs/backlog/tickets` → aucun ticket → le constat tient sur le code ; qui rend un acompte encaissé par la plateforme reste non écrit (non rejoué de bout en bout). Classement : V7, la piste demande d'abord un choix de produit (qui rembourse), et chacune de ses options touche un paiement (V1).
+
+### Un loyer remboursé n'est plus ni encaissé, ni dû, ni payable
+- Réf : P76.05
+- Statut : retenu · à valider — V7 : sort d'un loyer remboursé ; V1
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:41`, `:83-91`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:94-96`, `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:121-128`
+- Constat :
+  - `refunded` est terminal (lu, matrice l. 94-96), hors de l'impayé (`OWED_STATUSES`, lu) et non payable (`isPayableByNature`, lu ; `isPayable` → 409 `payment.not_payable`, mesuré en P39.01).
+  - Mesuré : échéance de 150 000 remboursée de 40 000 → `remaining_amount = 40000`, `leaseOwed` → 0 ligne. Le reste dû s'affiche, mais n'entre ni dans la balance âgée, ni dans les relances, ni dans les pénalités, et ne peut plus être payé.
+  - Remboursé en entier, le loyer du mois disparaît de tous les compteurs, alors que le bail court toujours (déduit, à vérifier : rien ne dit si le remboursement d'un loyer l'annule ou le rend de nouveau dû).
+  - Établi comment : lu, et mesuré pour le remboursement partiel.
+- Piste : choisir ce que devient l'échéance d'un loyer remboursé (V7) : rouverte (dû `= refund_amount`), annulée avec trace, ou remplacée par une échéance neuve. Garde : un test sur `leaseOwed` et `isPayable` pour le choix retenu.
+- Mesure (2026-10-20, 740c8247f, mesureur) : lu `CollectedPayments::OWED_STATUSES` (l. 41, sans `refunded`) et la matrice `HasPaymentAttributes` (`Refunded` terminal, l. 94) ; test temporaire `tests/Feature/Tmp/MesureurTmp76Test.php` (retiré), charge 2,85 / 3,26 / 3,19 sur 8 cœurs : échéance de 150 000 soldée puis remboursée de 40 000 → `refunded`, `remaining_amount = 40000`, `leaseOwed` → 0 ligne → le constat tient. Classement : V7, la piste demande de choisir ce que devient l'échéance (rouverte, annulée, remplacée), et chaque option touche une échéance due (V1).
+
+### Petites améliorations
+- Réf : P76.06
+- Statut : retenu · à valider — V7 : champ et colonne d'export neufs
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Resources/LeasePaymentResource.php:32-33`, `takussan-api/app/Services/Export/ExportDataService.php:43-71`
+- Constat :
+  - **Montant rendu absent de l'échéance.** `LeasePaymentResource` expose `paid_amount` et `remaining_amount`, pas `refund_amount` (lu). `BookingPaymentResource` l'expose (lu, l. 24). Un écran ne peut pas dire combien a été rendu sur un loyer.
+  - **Export des paiements.** Il exporte `amount` et `status`, sans `refund_amount` (lu, l. 46 et 71). Une ligne remboursée en partie s'exporte avec son montant facial.
+  - Établi comment : lu.
+- Piste : ajouter `refund_amount` à `LeasePaymentResource` et une colonne `refund_amount` (ou `net_amount`) à l'export des paiements.
+- Mesure (2026-10-20, 740c8247f, mesureur) : lu `LeasePaymentResource.php:23-41` (`amount`, `paid_amount`, `remaining_amount`, `late_fee_amount`, `amount_due`, pas de `refund_amount`) et `BookingPaymentResource.php:24` (qui l'expose) ; `ExportDataService.php` sélectionne et rend `amount` et `status` sans `refund_amount` (colonnes l. 46 et 71) → les deux points tiennent. Classement : V7, ni la spec ni un ticket n'écrivent ce champ ou cette colonne, et le choix entre `refund_amount` et `net_amount` à l'export reste ouvert.

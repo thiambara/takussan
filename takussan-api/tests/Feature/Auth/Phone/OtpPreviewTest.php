@@ -2,14 +2,20 @@
 
 namespace Tests\Feature\Auth\Phone;
 
+use App\Http\Middleware\AddRobotsTagOutsideProduction;
 use App\Models\User;
 use App\Services\Auth\OtpPreview;
+use Illuminate\Container\Container;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Env;
+use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
+use RuntimeException;
 use Tests\Support\FakeSmsRouter;
 use Tests\TestCase;
 
@@ -37,6 +43,64 @@ class OtpPreviewTest extends TestCase
     }
 
     // ─── Les deux verrous ────────────────────────────────────────────────────────────────────
+
+    /**
+     * P71.02 — drapeau allumé avec l'`APP_URL` de production : l'application ne démarre pas, même
+     * si `APP_ENV` est resté à `staging`. Joué sur une application neuve, construite par
+     * `bootstrap/app.php` comme celle du déploiement, pour éprouver le CÂBLAGE dans le
+     * démarrage, et pas seulement la méthode.
+     */
+    public function test_drapeau_allume_sur_l_api_de_production_l_application_refuse_de_demarrer(): void
+    {
+        $poser = ['OTP_PREVIEW_ENABLED' => 'true', 'APP_URL' => AddRobotsTagOutsideProduction::PRODUCTION_ORIGIN, 'APP_ENV' => 'staging'];
+        $avant = [];
+        foreach ($poser as $cle => $valeur) {
+            $avant[$cle] = [$_ENV[$cle] ?? null, $_SERVER[$cle] ?? null, getenv($cle)];
+            $_ENV[$cle] = $_SERVER[$cle] = $valeur;
+            putenv("{$cle}={$valeur}");
+        }
+
+        // Le dépôt de variables d'`Env` est statique, et son écriture immuable réécrit ce qu'elle a
+        // elle-même chargé de `.env` : sans un dépôt neuf, `APP_URL` reviendrait à celle du poste.
+        Env::enablePutenv();
+
+        try {
+            $app = require base_path('bootstrap/app.php');
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('OTP_PREVIEW_ENABLED=true');
+            $app->make(Kernel::class)->bootstrap();
+        } finally {
+            foreach ($avant as $cle => [$env, $server, $getenv]) {
+                if ($env === null) {
+                    unset($_ENV[$cle]);
+                } else {
+                    $_ENV[$cle] = $env;
+                }
+                if ($server === null) {
+                    unset($_SERVER[$cle]);
+                } else {
+                    $_SERVER[$cle] = $server;
+                }
+                putenv($getenv === false ? $cle : "{$cle}={$getenv}");
+            }
+            Env::enablePutenv();
+            // `bootstrap/app.php` a pris la place de l'application du test dans le conteneur global.
+            Container::setInstance($this->app);
+            Facade::clearResolvedInstances();
+            Facade::setFacadeApplication($this->app);
+        }
+    }
+
+    public function test_drapeau_allume_hors_de_l_api_de_production_le_demarrage_passe(): void
+    {
+        config(['auth.otp_preview.enabled' => true, 'app.url' => 'https://preview.api.takussan.com']);
+        OtpPreview::refuserSurLaProduction();
+
+        config(['auth.otp_preview.enabled' => false, 'app.url' => AddRobotsTagOutsideProduction::PRODUCTION_ORIGIN]);
+        OtpPreview::refuserSurLaProduction();
+
+        $this->addToAssertionCount(1);
+    }
 
     public function test_drapeau_eteint_aucun_code_dans_la_reponse(): void
     {

@@ -140,6 +140,11 @@ class WhatsappStatusController extends Controller
     }
 
     /**
+     * Le motif écrit sur la tentative : le `code` Meta d'abord, seule partie
+     * stable (il distingue un numéro sans WhatsApp d'un gabarit refusé), puis
+     * le `title`, ou le `message` à défaut — `131026: Message undeliverable`.
+     * Borné aux 255 caractères de la colonne (TCK-1046, P72.06).
+     *
      * @param  array<string,mixed>  $status
      */
     private function failureReason(array $status): ?string
@@ -149,6 +154,10 @@ class WhatsappStatusController extends Controller
             return null;
         }
 
-        return (string) ($error['title'] ?? $error['message'] ?? $error['code'] ?? 'whatsapp_failed') ?: null;
+        $code = trim((string) ($error['code'] ?? ''));
+        $text = trim((string) ($error['title'] ?? '')) ?: trim((string) ($error['message'] ?? ''));
+        $reason = implode(': ', array_filter([$code, $text], fn (string $part) => $part !== ''));
+
+        return mb_substr($reason !== '' ? $reason : 'whatsapp_failed', 0, 255);
     }
 }

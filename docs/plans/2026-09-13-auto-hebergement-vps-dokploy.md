@@ -4153,8 +4153,20 @@ de la préproduction (ADR-0069 § 1).
 | `IMAGE_TAG` | `production` |
 | `API_ALIAS` | `takussan-api-production` — l'alias de la pile sur `dokploy-network` (ADR-0069 § 4), que vise `API_INTERNAL_URL` du front |
 | `REDIS_PASSWORD` | neuf (`openssl rand -hex 32`) : le Redis est celui de la pile, sur son seul réseau `interne` (TCK-880) ; ni `REDIS_HOST` ni `REDIS_DB` à poser |
-| `APP_KEY` | neuve (`openssl rand -base64 32`) — jamais celle de la préproduction. **Rangée hors du serveur avant le premier déploiement** (gestionnaire de mots de passe du porteur), et son empreinte (`printf %s "$APP_KEY" \| sha256sum \| cut -c1-12`) portée au relevé de `hebergement.md` : sans elle, une restauration perd toutes les colonnes chiffrées (ADR-0044, amendement du 2026-10-18, P42.02) |
-| `APP_URL` / `FRONTEND_URL` / `SANCTUM_STATEFUL_DOMAINS` | `https://api.takussan.com` / `https://www.takussan.com` / `www.takussan.com` |
+| `APP_KEY` | neuve (`echo "base64:$(openssl rand -base64 32)"`, comme en D1 : sans le préfixe `base64:`, Laravel refuse la clé, `Unsupported cipher or incorrect key length`, mesuré le 2026-10-20, P71.01) — jamais celle de la préproduction. **Rangée hors du serveur avant le premier déploiement** (gestionnaire de mots de passe du porteur), et son empreinte (`printf %s "$APP_KEY" \| sha256sum \| cut -c1-12`) portée au relevé de `hebergement.md` : sans elle, une restauration perd toutes les colonnes chiffrées (ADR-0044, amendement du 2026-10-18, P42.02) |
+| `APP_ENV` | `production` — la préproduction est en `staging` (relevé du 2026-10-20). `production` ferme l'aperçu des codes SMS (`OtpPreview`) et fait filtrer les accusés par IP (`RestrictIpMiddleware`) (P71.02) |
+| `OTP_PREVIEW_ENABLED` | **absente** (jamais `true`) : en préproduction, elle vaut `true` et le code SMS revient dans la réponse. L'API refuse de démarrer si elle vaut `true` avec l'`APP_URL` de production (P71.02) |
+| `PHONE_LOGIN_ENABLED` | `true`, comme la préproduction (relevé du 2026-10-20) |
+| `APP_URL` / `FRONTEND_URL` / `SANCTUM_STATEFUL_DOMAINS` | `https://api.takussan.com` / `https://www.takussan.com` / `www.takussan.com`. `APP_URL` est la racine de **toutes** les URL que l'API rend, signées comprises (ADR-0052 § 5, amendé le 2026-10-20) : une valeur fausse casse chaque lien |
+| `DB_CONNECTION` | `pgsql` — les drivers de cette table et des cinq lignes suivantes sont ceux de `docs/infra/prod-drivers.json`, et `check-prod-drivers.mjs` vérifie l'accord (P71.03) |
+| `CACHE_STORE` | `redis` |
+| `SESSION_DRIVER` | `redis` |
+| `QUEUE_CONNECTION` | `database` |
+| `MAIL_MAILER` | `resend` — la préproduction est en `log` : sans cette ligne, la production n'enverrait aucun courriel (P71.03) |
+| `SESSION_SECURE_COOKIE` | `true` |
+| `SESSION_DOMAIN` / `SESSION_COOKIE` | `.takussan.com` / `takussan_session`. Le domaine est celui de la préproduction (l'API et le front partagent le cookie de Sanctum) ; le **nom** les sépare : la préproduction pose `takussan_session_preview` (relevé du 2026-10-20). Jamais le même nom dans les deux (P71.06) |
+| `GOOGLE_REDIRECT_URI` | `https://www.takussan.com/auth/oauth/google/callback`, à déclarer aussi dans le client OAuth de production de Google. Celle de la préproduction redirigerait la connexion Google vers `preview.takussan.com` (P71.06) |
+| `SMS_ORANGE_WEBHOOK_IPS` / `SMS_MTARGET_WEBHOOK_IPS` / `SMS_LAM_WEBHOOK_IPS` | les plages publiées par chaque fournisseur, demandées au fournisseur si elles ne le sont pas. **Vides en `production`, elles refusent tous les accusés en 403** (`webhook.ip_allowlist_not_configured`, ADR-0051), sans erreur côté envoi. La préproduction n'en pose aucune : en `staging`, une liste vide ne filtre pas. Après le déploiement, un accusé de test doit être accepté, et le journal ne doit porter aucune ligne `webhook.ip_allowlist_not_configured` (P71.04) |
 | `DB_DATABASE` / `DB_USERNAME` / `DB_PASSWORD` | `takussan_prod` / `takussan_prod` / F1, étape 2 |
 | `SCOUT_PREFIX` / `MEILISEARCH_KEY` | `prod_` / la clé `prod_*` de F1, étape 4 |
 | clés des fournisseurs (SMS, WhatsApp, Google…) | celles de **production** de l'export A1 (`/var/www/takussan/shared/.env`) |
@@ -4163,7 +4175,9 @@ de la préproduction (ADR-0069 § 1).
 | `R2_MEDIA_BUCKET` / `R2_PRIVATE_BUCKET` / `R2_MEDIA_URL` | `takussan-prod-media` / `takussan-prod-private` / `https://media.takussan.com` |
 | `PUBLIC_CACHE_REVALIDATE_URL` | `https://www.takussan.com/api/revalidation/fiche` — **jamais** celle de la préproduction : la production révoquerait le cache d'un autre site |
 | `PUBLIC_CACHE_REVALIDATE_SECRET` | neuf (`openssl rand -hex 32`), le même que `takussan-web-production` |
-| réglages de TCK-720 | ceux qui valent par environnement : `CACHE_PREFIX` propre à la production (P05.09), jetons d'accusés SMS (P27.01, P36.04) |
+| réglages de TCK-720 | ceux qui valent par environnement : `CACHE_PREFIX` propre à la production, et les jetons des webhooks entrants. Le motif d'origine de `CACHE_PREFIX` (P05.09), le Redis partagé `redis-takussan`, a disparu avec TCK-880 : chaque pile a son Redis. Le préfixe reste une ceinture si deux piles venaient à partager un Redis, et il distingue les clés au diagnostic (P71.06) |
+| `SMS_ORANGE_WEBHOOK_URL_TOKEN` / `SMS_MTARGET_WEBHOOK_URL_TOKEN` / `SMS_LAM_WEBHOOK_URL_TOKEN` | neufs (`openssl rand -hex 20`), un par fournisseur, jamais ceux de la préproduction (P27.01, P36.04), et l'URL de chacun reportée dans le tableau de bord de son fournisseur |
+| `WHATSAPP_WEBHOOK_URL_TOKEN` / `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | neufs, jamais ceux de la préproduction, et l'URL reportée chez Meta (P71.05) |
 
 - Application `takussan-web-production` : image `ghcr.io/thiambara/takussan-web:production`,
   domaine `www.takussan.com`, **sans** authentification basique. Variables d'**exécution** — le

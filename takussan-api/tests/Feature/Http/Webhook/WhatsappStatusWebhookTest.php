@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Notifications\Whatsapp\WhatsappResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -110,6 +111,43 @@ class WhatsappStatusWebhookTest extends TestCase
         $attempt = NotificationDeliveryAttempt::query()->where('app_notification_id', $n->id)->first();
         $this->assertSame(WhatsappResult::STATUS_FAILED, $attempt->status);
         $this->assertSame('Undeliverable', $attempt->failure_reason);
+    }
+
+    /**
+     * TCK-1046 (P72.06) — le `code` Meta est la seule partie stable du motif :
+     * il distingue un numéro sans WhatsApp d'un gabarit refusé. Il passe donc
+     * devant le `title`, qui le perdait jusqu'ici.
+     *
+     * @return array<string, array{0: array<string, mixed>, 1: string}>
+     */
+    public static function erreursMeta(): array
+    {
+        return [
+            'code et titre' => [['code' => 131026, 'title' => 'Message undeliverable', 'message' => 'ignoré'], '131026: Message undeliverable'],
+            'code seul' => [['code' => 131026], '131026'],
+            'titre seul' => [['title' => 'Message undeliverable'], 'Message undeliverable'],
+            'message en dernier recours' => [['message' => 'Re-engagement message'], 'Re-engagement message'],
+            'code et message sans titre' => [['code' => 131047, 'message' => 'Re-engagement message'], '131047: Re-engagement message'],
+            'rien de lisible' => [['href' => 'https://example.test'], 'whatsapp_failed'],
+            'borné à 255' => [['code' => 1, 'title' => str_repeat('x', 400)], '1: '.str_repeat('x', 252)],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $error
+     */
+    #[DataProvider('erreursMeta')]
+    public function test_failed_reason_porte_le_code_meta_puis_le_titre(array $error, string $attendu): void
+    {
+        $n = $this->attempt('wamid.code1');
+        $payload = $this->payload('wamid.code1', 'failed');
+        $payload['entry'][0]['changes'][0]['value']['statuses'][0]['errors'] = [$error];
+        $this->postStatus($payload)->assertOk();
+
+        $this->assertSame(
+            $attendu,
+            NotificationDeliveryAttempt::query()->where('app_notification_id', $n->id)->value('failure_reason'),
+        );
     }
 
     public function test_invalid_token_returns_404(): void
