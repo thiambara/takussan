@@ -6862,7 +6862,7 @@ de violation hors `region`.*
 
 ### Le sélecteur de locataire du nouveau bail n'a pas de nom accessible
 - Réf : P68.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1030
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:160-180,352-372`
 - Constat :
@@ -6871,6 +6871,7 @@ de violation hors `region`.*
   - Établi comment : axe et lecture du DOM par CDP, code relu.
 - Piste : donner au déclencheur le nom du champ (`aria-labelledby` vers le libellé « Locataire », ou `aria-label` avec la clé existante `t('tenant')`) quand `label` est `null`. Garde : test de rendu qui attend `getByRole('combobox', { name: /locataire/i })`.
 - Mesure (2026-10-20, 8150df982, mesureur) : relu `CreateLeaseForm.tsx` : le libellé « Locataire » vise `#tenant-search`, `EntitySelect` reçoit `label={null}` et son `SelectTrigger` `#field-tenant_id` ne porte ni `aria-label` ni `aria-labelledby` ; `git log` : dernier changement TCK-913, sans rapport → le constat tient. Classement : A4, attribut ARIA seul, avec la clé existante `t('tenant')` ou un `aria-labelledby` vers le libellé déjà rendu.
+- Mesure (2026-10-20, c6e71581f, implementeur) : relu `CreateLeaseForm.tsx` (`label={null}`, `SelectTrigger` sans nom) → test `CreateLeaseForm.nom-du-locataire.tck-1030.test.tsx` : `getByRole('combobox', { name: /^Locataire/ })` introuvable avant correctif, trouve `#field-tenant_id` après (`aria-label` = clé existante `t('tenant')`) ; ablation (`aria-label` retiré) → rouge, remis → vert.
 
 ### Le champ fichier du logo d'agence, masqué en `sr-only`, reste dans l'ordre de tabulation sans nom
 - Réf : P68.03
