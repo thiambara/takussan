@@ -5814,7 +5814,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
 
 ### L'export RGPD d'un membre contient les e-mails et téléphones des clients qu'il a saisis
 - Réf : P56.02
-- Statut : validé — pour une ligne dont l'utilisateur n'est que le causeur, ne rendre que l'acte (`event`, `subject_type`, `subject_id`, `created_at`, `description`) ; garder le diff, passé par `PropertyRedactor`, pour les lignes dont il est le sujet ; un test : l'export d'un agent qui a saisi un client ne contient ni l'e-mail ni le téléphone de ce client (porteur, 2026-10-19)
+- Statut : fait · TCK-1017
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:124-129`, `takussan-api/app/Models/Customer.php:39-50`
 - Constat :
@@ -5825,6 +5825,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
   - Établi comment : lecture, test temporaire.
 - Piste : pour les lignes où l'utilisateur n'est que le causeur, ne rendre que l'acte (`event`, `subject_type`, `subject_id`, `created_at`, `description`), sans `attribute_changes` ni `properties` ; garder le diff pour les lignes dont il est le sujet, passé par `PropertyRedactor`. Un test : l'export d'un agent qui a saisi un client ne contient ni l'e-mail ni le téléphone de ce client.
 - Mesure (2026-10-19, 94ac420d2, mesureur) : relu `DataExportBuilder::payloads()` (l. 124-129 : `audit-log.json` prend les lignes dont l'utilisateur est causeur ou sujet, rendues par `->toArray()`, sans projection ni `PropertyRedactor`) et `Customer::getActivitylogOptions()` (l. 41-46 : `first_name`, `last_name`, `email`, `phone` journalisés), puis test temporaire (retiré, même charge) : un agent connecté crée un client (e-mail et téléphone témoins) puis change son e-mail → `payloads($agent)['audit-log.json']` porte 3 lignes, dont l'e-mail et le téléphone d'origine du client. L'ADR-0044 (l. 171) dit seulement que « le droit d'accès reste entier » au titulaire, rien sur les tiers ; aucun ticket ne le tranche (`grep attribute_changes` des tickets : TCK-613 et TCK-692 portent sur le journal d'agence et son export CSV). Classement : V3, décider ce qu'un export d'accès rend des données de tiers saisies par le titulaire (l'acte seul, ou le diff expurgé) est un choix sur l'exposition de données personnelles.
+- Mesure (2026-10-20, 35d861d57, implementeur) : `DataExportTest::test_l_export_d_un_agent_ne_contient_ni_l_e_mail_ni_le_telephone_des_clients_qu_il_a_saisis`, neuf (agent connecté qui crée un client témoin puis change son e-mail, et change son propre nom et son e-mail), rouge avant correctif (`client.temoin@example.test` dans `audit-log.json`) → `DataExportBuilder::auditRow()` : l'acte seul (cinq clés) quand l'agent n'est pas le sujet, la ligne expurgée par `PropertyRedactor` quand il l'est ; vert ; ablation 1 (projection neutralisée) → rouge, clés de la ligne client ; ablation 2 (expurgation d'`attribute_changes` retirée) → rouge, e-mail en clair ; remis → `DataExportTest` 7 verts.
 
 ### Les journaux d'audit de l'API ne disent jamais ce qu'un événement de modèle a changé
 - Réf : P56.03
@@ -5856,7 +5857,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
 - Mesure (2026-10-19, e46a8d564, humain) : TCK-1012 réécrit `docs/models-spec.md` §13 sur activitylog v5 : le diff d'un modèle vit dans `attribute_changes` (`old`, `attributes`), `properties` ne porte que ce qu'écrit `withProperties()`, `activity_log_changes` et `activity_logs` sont dites n'avoir jamais existé, et EF6 est close ; `grep -n activity_log_changes docs/models-spec.md` → la seule ligne qui le dit.
 ### Petites améliorations
 - Réf : P56.05
-- Statut : validé — passer `UserDetailController::activity()` par `PropertyRedactor`, comme les trois autres lectures, et poser le témoin de `CrossTenantAuditExportTest` sous `attribute_changes` (porteur, 2026-10-19)
+- Statut : fait · TCK-1018
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:179`, `takussan-api/tests/Feature/Audit/CrossTenantAuditExportTest.php:26-28`
 - Constat :
@@ -5865,6 +5866,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
   - Établi comment : lecture.
 - Piste : passer `UserDetailController` par `PropertyRedactor`, comme ses voisins ; poser le témoin d'expurgation de `CrossTenantAuditExportTest` sous `attribute_changes`, la forme qu'écrit un événement de modèle.
 - Mesure (2026-10-19, 94ac420d2, mesureur) : relu `UserDetailController::activity()` (l. 179 : `$log->properties?->toArray()`, sans `PropertyRedactor`, quand les trois autres lectures l'appliquent) et `CrossTenantAuditExportTest.php:27` (témoin `rib` posé sous `properties.attributes`) ; `ActivityLogExporterTest::test_l_export_d_une_modification_porte_l_avant_et_l_apres_expurges` existe (l. 275). Qu'une clé masquée passe aujourd'hui reste non établi : la base de dev n'a aucune ligne à causeur ou sujet `User` dont `properties` soit non vide (`SELECT` + `PropertyRedactor::redact`, 0 sur 25 591), et la lecture des `withProperties()` ne l'a pas tranché. Classement : V3 pour la première partie, l'ADR-0044 § 2 nomme « l'audit plateforme » mais l'expurgation masque aussi `email` et `phone` à l'opérateur qui lit l'activité d'un compte ; le témoin du test (A5) seul serait autonome, et l'implémenteur peut le traiter avec cette entrée une fois validée.
+- Mesure (2026-10-20, 35d861d57, implementeur) : `UserDetailTest::test_activity_endpoint_redacts_properties`, neuf (ligne dont le compte est le sujet, `properties.target_email` témoin), rouge avant correctif (adresse en clair dans `GET /api/admin/users/{id}/activity`) → `PropertyRedactor::redact($log->properties)` ; vert, ablation → rouge, remis → `UserDetailTest` 8 verts. Témoin de `CrossTenantAuditExportTest` écrit par `withChanges()` sous `attribute_changes` : expurgation d'`attribute_changes` retirée d'`ActivityLogExporter` → rouge (`RIBTEMOIN` dans le CSV), alors que l'ancien témoin sous `properties` restait vert sous la même ablation ; remis → 5 verts.
 
 ## Angle 57 — Téléphones et e-mails hors de `users` face à l'anonymisation
 
@@ -6009,7 +6011,7 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
 
 ### `UserResource` affirme `false` ou `null` sur les colonnes qu'un sparse fieldset n'a pas lues : 2FA, vérification, préférences
 - Réf : P58.04
-- Statut : validé — `whenHas` sur les clés dérivées de colonnes hors `$queryFields` (`two_factor_enabled`, `force_2fa_*`, `email_verified_at`, `phone_verified_at`, `preferences`), sur le modèle de `has_usable_password` ; `UserResourceSparseFieldsTest` étendu, avec ablation (porteur, 2026-10-19)
+- Statut : fait · TCK-1019
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/UserResource.php:30-97`, `takussan-api/app/Models/User.php:234-238`, `takussan-api/tests/Feature/Api/UserResourceSparseFieldsTest.php`
 - Constat :
@@ -6020,10 +6022,11 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
   - Établi comment : test temporaire et lecture.
 - Piste : étendre `whenHas` aux clés dérivées de colonnes hors `$queryFields` (`two_factor_enabled`, `force_2fa_*`, `email_verified_at`, `phone_verified_at`, `preferences`), sur le modèle de `has_usable_password` ; étendre `UserResourceSparseFieldsTest` à ces clés, avec ablation.
 - Mesure (2026-10-19, 353c40b57, mesureur) : test temporaire retiré, admin d'agence et membre agent aux drapeaux vrais : `GET /api/agencies/{id}/members` → `two_factor_enabled`, `force_2fa_at_first_login`, `force_2fa_reconfigure` vrais, `email_verified_at` daté, `preferences {x:1}` ; avec `fields[users]=id,first_name,last_name,email,status` → `false`, `false`, `false`, `null`, objet vide ; `User::$queryFields` ne porte aucune de ces colonnes (lu, `User.php:234-238`). Les types du front les déclarent optionnelles (lu, `src/types/user.ts:94,99,104`, `src/types/admin-users.ts:30`), mais `UserResource.php` écrit pour `preferences` « Always returned as an object (possibly empty) so clients can assume the shape ». Classement : V2, omettre des drapeaux de 2FA qui pilotent des redirections change ce que lit une partie de l'authentification, et l'omission de `preferences` contredit un contrat écrit : le choix revient au porteur.
+- Mesure (2026-10-20, 35d861d57, implementeur) : `UserResourceSparseFieldsTest::test_les_cles_derivees_de_colonnes_non_selectionnees_sont_omises`, neuf (membre aux drapeaux vrais, liste sous `fields[users]=id,first_name,last_name,email,status`), rouge avant correctif (`two_factor_enabled` émis) → `whenHas` sur les six clés (`metadata` pour `force_2fa_reconfigure`) ; vert, et le versant positif (modèle entier : six clés vraies, `preferences` = `{x: 1}`) vert ; ablation 1 (ressource de `pre-dev`) → rouge ; ablation 2 (`whenHas` retiré de `preferences` seul) → rouge ; remis → 4 verts. Sept classes d'authentification et d'onboarding qui lisent ces clés restent vertes.
 
 ### Petites améliorations
 - Réf : P58.05
-- Statut : validé — retirer seulement `delivery_attempts` de `$fillable` ; le retrait de la colonne attend une mesure de la préproduction et reste au porteur (porteur, 2026-10-19)
+- Statut : fait · TCK-1020 — reste : après une mesure de la préproduction (`select count(*) filter (where delivery_attempts is not null) from app_notifications`), retirer la colonne `delivery_attempts` (migration), sa clé de `$casts` et la commande `sms:backfill-delivery-attempts`, décision du porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/AppNotification.php:22,35,63-69`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:19`, `takussan-api/app/Console/Commands/SmsBackfillDeliveryAttempts.php:31-46`, `takussan-api/database/migrations/2026_04_26_160847_add_delivery_attempts_to_app_notifications.php:18`
 - Constat :
@@ -6033,6 +6036,7 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
 - Piste : constater la reprise en préproduction, puis retirer la colonne (migration, V4), la clé de `$fillable` et `$casts` et la commande de reprise. D'ici là, retirer `delivery_attempts` de `$fillable` empêche qu'un appelant la réécrive.
 - Mesure (2026-10-19, 353c40b57, mesureur) : `grep -rn delivery_attempts takussan-api/app` → `$fillable` et `$casts` d'`AppNotification.php:22,35`, des commentaires et la commande `SmsBackfillDeliveryAttempts` ; aucun écrivain ; `select count(*) filter (where delivery_attempts is not null), count(*) from app_notifications` sur la base de développement (lecture) → 0 sur 9 409 ; TCK-691 laisse la colonne « non mesurée » (lu, hors périmètre). L'état de la préproduction n'est pas mesurable depuis le poste. Classement : V4, le retrait de la colonne est une migration de schéma ; seul le retrait de `$fillable` serait A3, à traiter avec l'entrée.
 - Mesure (2026-10-19, 99abff99b, delegue) : relu `SmsBackfillDeliveryAttempts.php:13-46` (lit la colonne par `getAttribute`, sans `fill`), `NotificationDeliveryAttemptsTableTest.php:121-135` (pose la colonne par une factory, non gardée), TCK-110 `:42` et `:96` (le retrait est déjà prévu « après vérification du backfill », en migration séparée) et TCK-691 `:72-73` (colonne laissée « non mesurée ») → la colonne porte, entrée par entrée, le numéro du destinataire (`to`, forme reprise par le test `:131`) ; la préproduction n'est pas mesurable depuis le poste. Recommandation : ne retirer aujourd'hui que `delivery_attempts` de `$fillable` (A3, réversible en un commit, ni la commande de reprise ni la factory du test n'en dépendent), et garder au porteur la migration qui supprime la colonne, `$casts` et la commande, après un `select count(*) filter (where delivery_attempts is not null)` en préproduction ; pourquoi pas validé : le retrait de la colonne est un V4 destructif, non additif, et il efface des numéros de téléphone, critère V3 réservé que le mesureur n'avait pas nommé ; ce qui manque : la mesure de préproduction, et la décision du porteur sur la suppression de ces données.
+- Mesure (2026-10-20, 35d861d57, implementeur) : `NotificationDeliveryAttemptsTableTest::test_la_colonne_json_heritee_ne_s_ecrit_plus_par_affectation_de_masse`, neuf, rouge avant correctif (`update(['delivery_attempts' => …])` écrit `[{"to": "+221771111111", "attempt": 1}]` en base) → clé retirée de `AppNotification::$fillable` ; vert, ablation (clé remise) → rouge, retirée → 5 verts, le test de la commande de reprise compris (la factory est non gardée).
 
 ## Angle 59 — Requêtes SQL des listes `filter[search]` et de la recherche publique, index peuplé
 

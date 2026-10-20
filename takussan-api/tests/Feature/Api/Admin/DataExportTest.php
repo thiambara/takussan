@@ -4,11 +4,13 @@ namespace Tests\Feature\Api\Admin;
 
 use App\Jobs\Privacy\PurgeExpiredDataExports;
 use App\Models\Agency;
+use App\Models\Customer;
 use App\Models\DataExport;
 use App\Models\Enums\DataExportStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use App\Services\Privacy\DataExportBuilder;
+use App\Support\Audit\PropertyRedactor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
@@ -106,6 +108,42 @@ class DataExportTest extends TestCase
 
         $this->assertSame([$agency->id], array_column($profiles['agency_admins'], 'agency_id'));
         $this->assertArrayNotHasKey('broker', $profiles);
+    }
+
+    /**
+     * TCK-1017 (P56.02) — l'export d'accès d'un membre ne rend pas les données des tiers qu'il a
+     * saisis : pour une ligne dont il n'est que le causeur, l'acte seul ; pour une ligne dont il
+     * est le sujet, le diff passé par `PropertyRedactor`.
+     */
+    public function test_l_export_d_un_agent_ne_contient_ni_l_e_mail_ni_le_telephone_des_clients_qu_il_a_saisis(): void
+    {
+        $agent = User::factory()->create(['last_name' => 'Avant']);
+        $this->actingAs($agent);
+
+        $customer = Customer::factory()->create([
+            'email' => 'client.temoin@example.test',
+            'phone' => '+221770001122',
+        ]);
+        $customer->update(['email' => 'client.nouveau@example.test']);
+        $agent->update(['last_name' => 'Apres', 'email' => 'agent.nouveau@example.test']);
+
+        $log = app(DataExportBuilder::class)->payloads($agent->refresh())['audit-log.json'];
+        $json = json_encode($log, JSON_UNESCAPED_UNICODE);
+
+        $this->assertStringNotContainsString('client.temoin@example.test', $json);
+        $this->assertStringNotContainsString('client.nouveau@example.test', $json);
+        $this->assertStringNotContainsString('+221770001122', $json);
+
+        $actes = array_values(array_filter($log, fn (array $row) => $row['subject_type'] === Customer::class));
+        $this->assertNotEmpty($actes);
+        foreach ($actes as $acte) {
+            $this->assertSame(['event', 'subject_type', 'subject_id', 'created_at', 'description'], array_keys($acte));
+        }
+
+        $propres = array_values(array_filter($log, fn (array $row) => $row['subject_type'] === User::class && $row['event'] === 'updated'));
+        $this->assertCount(1, $propres);
+        $this->assertSame('Apres', $propres[0]['attribute_changes']['attributes']['last_name']);
+        $this->assertSame(PropertyRedactor::REDACTED, $propres[0]['attribute_changes']['attributes']['email']);
     }
 
     public function test_purge_marks_expired_and_deletes_archive(): void

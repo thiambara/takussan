@@ -19,7 +19,10 @@ class AppNotification extends AbstractModel
     protected $fillable = [
         'user_id', 'type', 'delivery_channel',
         'code', 'params', 'target',
-        'title', 'body', 'data', 'delivery_attempts',
+        // TCK-1020 (P58.05) — `delivery_attempts` n'y est plus : la colonne JSON n'a plus
+        // d'écrivain depuis TCK-110 (`notification_delivery_attempts` la remplace). Son retrait
+        // attend une mesure de la préproduction.
+        'title', 'body', 'data',
         'referenceable_id', 'referenceable_type',
         'is_read', 'read_at', 'sent_at', 'digested_at',
     ];
