@@ -1,49 +1,40 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
-import { postBusinessEnumValue } from '@/lib/queries/super-admin';
-import { EnumValueDialog } from '../business-enums';
+/**
+ * Le dialogue de valeur d'enum métier n'existe plus (angle 66 des pistes).
+ *
+ * Il ajoutait une valeur (retirée par TCK-1055 : refusée en 422 à la création d'un bien) puis
+ * éditait ses libellés FR / EN / WO (retirée par TCK-1057 : aucun rendu ne les lisait). Ce fichier
+ * éprouvait l'ajout ; il garde désormais le retrait, au niveau du composant : la table des valeurs
+ * ne porte plus aucun geste, et le module n'exporte plus de dialogue. La page entière est éprouvée
+ * par `app/(super-admin)/super-admin/enums/__tests__/page.test.tsx`.
+ */
+import { render, screen, within } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+
+import * as businessEnums from '../business-enums';
+import { EnumValueTable } from '../business-enums';
 import { withIntl } from '@/test/intl';
+import type { BusinessEnum } from '@/types/super-admin';
 
-vi.mock('@/lib/queries/super-admin', () => ({
-  postBusinessEnumValue: vi.fn(),
-}));
+const ENUM: BusinessEnum = {
+  key: 'property_type',
+  name: 'Types de biens',
+  description: '',
+  values: [
+    { value: 'villa', labels: { fr: 'Villa', en: 'Villa', wo: 'Villa' }, is_active: true, is_custom: false, usage_count: 2 },
+    { value: 'farm', labels: { fr: 'Ferme', en: 'Farm', wo: 'Ferme' }, is_active: true, is_custom: false, usage_count: 0 },
+  ],
+};
 
-function renderDialog() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+describe('<EnumValueTable> en lecture seule', () => {
+  it("ne porte aucun bouton, ni d'ajout, ni de modification, ni de désactivation", () => {
+    render(withIntl(<EnumValueTable item={ENUM} />));
+
+    const table = screen.getByRole('table');
+    expect(within(table).getByRole('cell', { name: 'villa' })).toBeInTheDocument();
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
   });
 
-  return render(withIntl(
-    <QueryClientProvider client={queryClient}>
-      <EnumValueDialog enumKey="property_type" value={null} open onOpenChange={vi.fn()} />
-    </QueryClientProvider>,
-  ));
-}
-
-describe('<EnumValueDialog>', () => {
-  it('posts a new multilingual enum value', async () => {
-    vi.mocked(postBusinessEnumValue).mockResolvedValue({
-      data: {
-        key: 'property_type',
-        name: 'Types de biens',
-        description: '',
-        values: [],
-      },
-    });
-    const user = userEvent.setup();
-    renderDialog();
-
-    await user.type(screen.getByLabelText('Valeur'), 'lodge');
-    await user.type(screen.getByLabelText('FR'), 'Lodge');
-    await user.type(screen.getByLabelText('EN'), 'Lodge');
-    await user.click(screen.getByRole('button', { name: /enregistrer/i }));
-
-    await waitFor(() => expect(postBusinessEnumValue).toHaveBeenCalledWith('property_type', {
-      value: 'lodge',
-      labels: { fr: 'Lodge', en: 'Lodge', wo: '' },
-      is_active: true,
-    }));
+  it("le module n'exporte plus de dialogue de valeur", () => {
+    expect(Object.keys(businessEnums).sort()).toEqual(['EnumList', 'EnumValueTable']);
   });
 });

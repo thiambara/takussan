@@ -5,7 +5,6 @@ namespace App\Services\Admin;
 use App\Domain\Settings\EditableBusinessEnums;
 use App\Models\Enums\SettingScope;
 use App\Models\Setting;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -55,77 +54,6 @@ class BusinessEnumService
             'description' => $definition['description'],
             'values' => $values->values()->all(),
         ];
-    }
-
-    /**
-     * @param  array{value:string,labels:array{fr:string,en?:?string,wo?:?string},is_active?:bool}  $payload
-     * @return array<string,mixed>
-     */
-    public function addValue(string $key, array $payload, User $actor): array
-    {
-        $this->ensureEditable($key);
-        $values = $this->storedValues($key);
-        $value = Str::of($payload['value'])->lower()->snake()->value();
-
-        if (collect($values)->contains(fn (array $row) => $row['value'] === $value)) {
-            throw ValidationException::withMessages(['value' => 'enum_value_exists']);
-        }
-
-        $values[] = $this->normaliseValue([
-            'value' => $value,
-            'labels' => $payload['labels'],
-            'is_active' => $payload['is_active'] ?? true,
-            'is_custom' => true,
-        ]);
-
-        $this->persist($key, $values, $actor);
-        $this->audit($actor, 'super_admin_enum_value_added', $key, $value, ['labels' => $payload['labels']]);
-
-        return $this->get($key);
-    }
-
-    /**
-     * @param  array{labels?:array{fr?:string,en?:?string,wo?:?string},is_active?:bool}  $payload
-     * @return array<string,mixed>
-     */
-    public function updateValue(string $key, string $value, array $payload, User $actor): array
-    {
-        $this->ensureEditable($key);
-        $values = collect($this->storedValues($key));
-        $index = $values->search(fn (array $row) => $row['value'] === $value);
-
-        if ($index === false) {
-            abort_code(404, 'business_enum.value_not_found');
-        }
-
-        $current = $values->get($index);
-        $current['labels'] = array_replace($current['labels'], $payload['labels'] ?? []);
-        $current['is_active'] = array_key_exists('is_active', $payload)
-            ? (bool) $payload['is_active']
-            : (bool) $current['is_active'];
-        $values[$index] = $this->normaliseValue($current);
-
-        $this->persist($key, $values->values()->all(), $actor);
-        $this->audit($actor, 'super_admin_enum_value_updated', $key, $value, $payload);
-
-        return $this->get($key);
-    }
-
-    /**
-     * @return array<string,mixed>
-     */
-    public function deactivateValue(string $key, string $value, User $actor): array
-    {
-        $this->ensureEditable($key);
-        $usage = $this->usageCount($key, $value);
-        if ($usage > 0) {
-            abort_code(409, 'business_enum.value_in_use');
-        }
-
-        $updated = $this->updateValue($key, $value, ['is_active' => false], $actor);
-        $this->audit($actor, 'super_admin_enum_value_deactivated', $key, $value, ['usage_count' => $usage]);
-
-        return $updated;
     }
 
     private function ensureEditable(string $key): void
@@ -188,26 +116,6 @@ class BusinessEnumService
     }
 
     /**
-     * @param  array<int,array<string,mixed>>  $values
-     */
-    private function persist(string $key, array $values, User $actor): void
-    {
-        Setting::updateOrCreate(
-            ['key' => "enum.{$key}.values", 'scope' => SettingScope::Global, 'scope_id' => null],
-            ['value' => ['values' => $values], 'updated_by_id' => $actor->id],
-        );
-    }
-
-    private function usageCount(string $key, string $value): int
-    {
-        $usage = EditableBusinessEnums::get($key)['usage'];
-        /** @var class-string<Model> $model */
-        $model = $usage['model'];
-
-        return $model::query()->where($usage['column'], $value)->count();
-    }
-
-    /**
      * Usage counts for many enum values in a single grouped query.
      *
      * @param  array<int,string>  $values
@@ -231,17 +139,5 @@ class BusinessEnumService
             ->pluck('total', 'enum_value')
             ->map(fn ($total) => (int) $total)
             ->toArray();
-    }
-
-    /**
-     * @param  array<string,mixed>  $properties
-     */
-    private function audit(User $actor, string $event, string $key, string $value, array $properties): void
-    {
-        activity('Admin')
-            ->causedBy($actor)
-            ->withProperties(['enum_key' => $key, 'value' => $value, ...$properties])
-            ->event($event)
-            ->log('Enum métier modifié');
     }
 }

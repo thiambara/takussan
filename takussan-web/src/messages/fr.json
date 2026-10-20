@@ -7317,17 +7317,11 @@
       "empty_description": "Les listes de valeurs métier apparaîtront ici dès qu'une sera déclarée.",
       "navLabel": "Enums éditables",
       "valuesCount": "{count, plural, one {# valeur} other {# valeurs}}",
-      "addValue": "Ajouter une valeur",
-      "editValue": "Modifier la valeur",
       "value": "Valeur",
       "localeFr": "FR",
       "localeEn": "EN",
       "localeWo": "WO",
       "usage": "Usage",
-      "actions": "Actions",
-      "editValueAria": "Modifier {value}",
-      "deactivateValueAria": "Désactiver {value}",
-      "warning": "Les statuts techniques et rôles ne sont pas éditables ici.",
       "tableCaption": "Valeurs de l'enum {name}"
     },
     "moderation": {
@@ -7917,7 +7911,8 @@
       },
       "enums": {
         "title": "Enums métier",
-        "subtitle": "Gérez les libellés FR / EN / WO et les valeurs métier non techniques.",
+        "readOnlySubtitle": "Consultez les valeurs métier non techniques et leur usage. Elles ne se modifient pas depuis la console.",
+        "codeNotice": "Les valeurs de ces listes vivent dans le code : en ajouter une demande un déploiement.",
         "lockedNotice": "Les enums techniques comme paiements, rôles et statuts internes restent verrouillés dans le code."
       },
       "featureFlags": {

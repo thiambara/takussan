@@ -7317,17 +7317,11 @@
       "empty_description": "Business value lists will show up here as soon as one is declared.",
       "navLabel": "Editable enums",
       "valuesCount": "{count, plural, one {# value} other {# values}}",
-      "addValue": "Add a value",
-      "editValue": "Edit the value",
       "value": "Value",
       "localeFr": "FR",
       "localeEn": "EN",
       "localeWo": "WO",
       "usage": "Usage",
-      "actions": "Actions",
-      "editValueAria": "Edit {value}",
-      "deactivateValueAria": "Deactivate {value}",
-      "warning": "Technical statuses and roles cannot be edited here.",
       "tableCaption": "Values of the {name} enum"
     },
     "moderation": {
@@ -7917,7 +7911,8 @@
       },
       "enums": {
         "title": "Business enums",
-        "subtitle": "Manage the FR / EN / WO labels and the non-technical business values.",
+        "readOnlySubtitle": "Browse the non-technical business values and their usage. They cannot be changed from the console.",
+        "codeNotice": "The values of these lists live in the code: adding one takes a deployment.",
         "lockedNotice": "Technical enums such as payments, roles and internal statuses stay locked in the code."
       },
       "featureFlags": {
