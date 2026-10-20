@@ -8523,7 +8523,7 @@ repris ici : `App\Sorts\CollatedNameSort` n'a qu'un appelant, `MessagingContactC
 
 ### Les listes de membres, d'utilisateurs et de clients trient les prénoms et noms dans l'ordre des octets, hors de la règle d'ADR-0025
 - Réf : P87.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/User.php:152`, `takussan-api/app/Models/Customer.php:108`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:79-83`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:157-163`, `takussan-web/src/components/admin/AuditTrail.tsx:199`, `takussan-web/src/lib/queries/role-delegations.ts:162`, `takussan-web/src/components/admin/users/AdminUsersTable.tsx:141`, `takussan-web/src/lib/queries/leases.ts:132`
 - Constat :
@@ -8534,10 +8534,11 @@ repris ici : `App\Sorts\CollatedNameSort` n'a qu'un appelant, `MessagingContactC
   - mesuré (`SELECT` sur la base de dev) : « Aïssatou » sort après « Awa », « Astou » et « Aminata » en ordre `C`, et avant en ICU. Sur les 305 utilisateurs, 54 rangs diffèrent entre `ORDER BY first_name, id` et le même tri en `und-x-icu` ; sur 564 clients, 63 rangs pour `last_name, first_name, id`.
   - Établi comment : lu, et mesuré par le test temporaire et les `SELECT`.
 - Piste : brancher `CollatedNameSort` sur les colonnes de nom de personne exposées par `HasQueryBuilder` (`first_name`, `last_name` de `User` et `Customer`), par exemple une liste de colonnes « à trier en collation » que `buildQuery()` traduit en `AllowedSort::custom` ; faire de même dans les tris écrits à la main de `UserDetailController` et `AgencyDetailController`. Test : une minuscule et une initiale accentuée, en tri montant et descendant. Une garde peut refuser une colonne de nom dans `$requestSortable` sans tri en collation.
+- Mesure (2026-10-20, ba1919880, mesureur) : relu `User.php:152` et `Customer.php:108` (`first_name`, `last_name` dans `$requestSortable` nu), `UserDetailController.php:79-83` (`orderBy($field)` sans départage), `AgencyDetailController.php:159-163` (`orderBy('first_name')->orderBy('last_name')`), `grep -rn CollatedNameSort app` (seul `MessagingContactController.php:95-96`), aucun ticket ouvert ; test temporaire `TmpMesureurP87Test` (base de test PostgreSQL, charge 2,66 / 2,42 / 2,58 sur 8 cœurs, retiré ensuite) → `GET /api/agencies/{id}/members?sort=first_name` : « Binta | Celestino | Zeynab | awa | Élodie » ; `GET /api/customers?sort=last_name,first_name` avec « Zola », « diop », « Écrivain », « Ba » : « Ba | Zola | diop | Écrivain ». Les `SELECT` de la base de dev ne sont pas rejoués. Classement : A1, l'amendement du 2026-10-19 d'ADR-0025 écrit déjà que toute liste triée sur un nom de personne affiché trie en `und-x-icu` par une classe sous `app/Sorts/`, et `CollatedNameSort` existe.
 
 ### Les rôles d'une agence sont rangés dans l'ordre des octets : un rôle créé en minuscule ou commençant par « É » passe après « Z »
 - Réf : P87.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : un nom de rôle n'est pas un nom de personne, l'ADR-0025 ne fixe pas son ordre
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Agency/RoleController.php:37-43`, `takussan-api/app/Models/AgencyRole.php:72`, `takussan-web/src/lib/queries/agency-roles.ts:72`
 - Constat :
@@ -8546,10 +8547,11 @@ repris ici : `App\Sorts\CollatedNameSort` n'a qu'un appelant, `MessagingContactC
   - La base de dev n'a aucun rôle dont le nom commence par une minuscule ou un accent (mesuré, `SELECT` : 0 sur 16) : le défaut ne se voit qu'avec un nom saisi.
   - Établi comment : lu et mesuré.
 - Piste : trier les rôles en `COLLATE "und-x-icu"`, par la même classe de tri (P87.01), défaut compris. Test avec le jeu ci-dessus.
+- Mesure (2026-10-20, ba1919880, mesureur) : relu `RoleController.php:37-43` (`defaultSort('name')` après `buildQuery`) et `AgencyRole.php:72` (`name` dans `$requestSortable` nu) ; test temporaire `TmpMesureurP87Test` (base de test PostgreSQL, charge 2,66 / 2,42 / 2,58 sur 8 cœurs, retiré ensuite) → rôles « Zélateur », « gérant », « Comptable », « Équipe terrain » créés : `GET /api/agencies/{id}/roles` rend « Administrateur | Agent | Comptable | Prestataire | Propriétaire | Zélateur | gérant | Équipe terrain ». Le constat tient. Classement : V7, l'amendement d'ADR-0025 ne vise que les noms de personnes et renvoie les autres listes à « quand on les touche » : changer l'ordre visible des rôles est un choix que rien n'écrit.
 
 ### Un même catalogue sort dans deux ordres : ICU sur le site public, octets sur l'API connectée et dans la console
 - Réf : P87.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : étendre le tri ICU aux étiquettes et aux quartiers n'est écrit nulle part
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/GeoReferentialController.php:27,44-50`, `takussan-api/app/Http/Controllers/Api/TagController.php:36-39`, `takussan-api/app/Http/Controllers/Api/Admin/TagModerationAdminController.php:26`, `takussan-api/app/Http/Controllers/Api/Admin/GeoNeighborhoodAdminController.php:32,60`, `takussan-api/app/Models/Tag.php:36`, `takussan-api/app/Models/GeoNeighborhood.php:52`, `takussan-web/src/lib/queries/tags.ts:48`, `takussan-web/src/lib/queries/super-admin-propositions.ts:150-163`
 - Constat :
@@ -8558,10 +8560,11 @@ repris ici : `App\Sorts\CollatedNameSort` n'a qu'un appelant, `MessagingContactC
   - mesuré (`SELECT` sur la base de dev) : étiquettes en ordre `C` « Dépendance | Famille | Fibre optique | Forage | Étranger | Étudiant » ; les quatre derniers quartiers en ordre `C` sont « Zone B », « Zone De Captage », « Île Nord », « Île Sud ». 287 rangs de quartiers sur 362 et 30 étiquettes sur 40 changent de place entre les deux ordres.
   - Établi comment : lu et mesuré (`SELECT`). L'écran de la console n'a pas été ouvert.
 - Piste : faire trier ces listes par la même classe de tri en `und-x-icu` (P87.01), pour que le référentiel ait un seul ordre partout. Test : un quartier en « Île » et une étiquette en « É » rangés avant « Z » sur `/api/tags` et sur la route d'administration des quartiers.
+- Mesure (2026-10-20, ba1919880, mesureur) : relu `GeoReferentialController.php:27` (`TRI = 'name COLLATE "und-x-icu"'`, servi l. 31, 49, 64, 81), `TagController.php:36-39` (`defaultSort('name')`), `Tag.php:36` et `GeoNeighborhood.php:52` (`name` nu dans `$requestSortable`), `GeoNeighborhoodAdminController.php:60` (`orderBy('name')`) ; test temporaire `TmpMesureurP87Test` (base de test PostgreSQL, charge 2,66 / 2,42 / 2,58 sur 8 cœurs, retiré ensuite) → étiquettes approuvées « Zinc », « étage », « Étranger », « Balcon » : `GET /api/tags` rend « Balcon | Zinc | Étranger | étage ». La route d'administration des quartiers n'est pas exécutée, lue seulement ; les comptes de la base de dev ne sont pas rejoués. Classement : V7, l'amendement d'ADR-0025 ne couvre que les noms de personnes ; aligner le catalogue sur l'ordre du site public change un ordre visible sans règle écrite.
 
 ### `GET /api/admin/agencies/{id}/team` : `filter[status]` ne s'applique qu'aux propriétaires, et un `sort=` ne vient qu'après le prénom
 - Réf : P87.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:157-166`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:178-181`, `takussan-web/src/lib/queries/super-admin.ts:129-141`
 - Constat :
@@ -8570,10 +8573,11 @@ repris ici : `App\Sorts\CollatedNameSort` n'a qu'un appelant, `MessagingContactC
   - Le front n'envoie ni `filter` ni `sort` sur cette route (lu, `super-admin.ts:129-141`) : rien de faux ne s'affiche aujourd'hui. `status` et `added_by_id` sont pourtant filtrables (lu, `User.php:150`).
   - Établi comment : lu, et SQL produit mesuré.
 - Piste : grouper les deux `whereHas` dans un `where(fn …)` comme `listMembers`, et passer le tri par défaut à `defaultSorts()` au lieu d'`orderBy()`. Test : un agent `blocked` et un propriétaire actif, `filter[status]=active` ne rend que le second.
+- Mesure (2026-10-20, ba1919880, mesureur) : relu `AgencyDetailController.php:157-166` (`whereHas(...)->orWhereHas(...)` sans groupe, puis `orderBy('first_name')->orderBy('last_name')` avant `User::buildQuery`) et `AgencyController.php:178-181` (`listMembers` groupe les deux branches) ; test temporaire `TmpMesureurP87Test` (base de test PostgreSQL, charge 2,66 / 2,42 / 2,58 sur 8 cœurs, retiré ensuite) → un agent `blocked` et un propriétaire `active` de la même agence, super-admin : `GET /api/admin/agencies/{id}/team?filter[status]=active` rend les deux (« Agent:blocked | Proprio:active ») ; `?sort=email` rend « b@x.sn | a@x.sn », le prénom passant avant l'e-mail. Classement : A1, `status` est déclaré filtrable et `email` triable (`User.php:150-152`) et `listMembers` écrit déjà la forme groupée : le correctif suit ce contrat sans choix de produit.
 
 ### Petites améliorations
 - Réf : P87.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : l'ordre des agences et des titres de biens n'est fixé par aucune règle
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:104-120`, `takussan-api/app/Http/Controllers/Api/Admin/AdminCreditWalletController.php:30`, `takussan-api/app/Http/Controllers/Api/ConversationContextController.php:77-81`, `takussan-api/app/Models/Property.php:112-114`, `takussan-web/src/lib/queries/leases.ts:106`, `takussan-web/src/lib/queries/reviews.ts:59`
 - Constat :
@@ -8582,3 +8586,4 @@ repris ici : `App\Sorts\CollatedNameSort` n'a qu'un appelant, `MessagingContactC
   - Le tri `sort=first_name` de `/api/admin/users` et `sort=name` des agences n'a pas de départage par `id` (lu) : deux lignes de même prénom peuvent changer de page d'une requête à l'autre (à vérifier).
   - Établi comment : lu, et mesuré par `SELECT` pour les titres.
 - Piste : étendre la classe de tri ICU aux noms d'agence et aux titres de biens quand on touche ces listes, et ajouter `id` en départage aux tris écrits à la main.
+- Mesure (2026-10-20, ba1919880, mesureur) : relu `AgencyModerationController.php:104-120` (`orderBy('agencies.name')`, sans départage par `id`), `AdminCreditWalletController.php:30` (`orderBy('name')`), `ConversationContextController.php:77-82` (`defaultSort('title')`, puis `orderBy('properties.id')` : ce sélecteur a donc déjà un départage) et `UserDetailController.php:79-83` (sans départage) → les tris en ordre d'octets tiennent à la lecture ; non exécutés, et les comptes de la base de dev ne sont pas rejoués. L'instabilité de pagination reste déduite : le départage manque, mais aucun changement de page n'a été observé. Classement : V7, les noms d'agence et les titres de biens sortent de la portée de l'amendement d'ADR-0025, qui laisse ces listes « quand on les touche » ; seul l'ajout d'`id` en départage serait sans choix.
