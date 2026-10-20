@@ -704,20 +704,6 @@ export async function fetchBusinessEnums(): Promise<BusinessEnumsResponse> {
   return jsonOrThrow<BusinessEnumsResponse>(res);
 }
 
-export async function patchBusinessEnumValue(
-  key: string,
-  value: string,
-  payload: { labels?: { fr?: string; en?: string; wo?: string } },
-): Promise<BusinessEnumResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/enums/${key}/values/${value}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<BusinessEnumResponse>(res);
-}
-
 export async function fetchNotificationTemplates(): Promise<NotificationTemplatesResponse> {
   const res = await fetch('/api/super-admin/notification-templates', { credentials: 'include' });
   return jsonOrThrow<NotificationTemplatesResponse>(res);

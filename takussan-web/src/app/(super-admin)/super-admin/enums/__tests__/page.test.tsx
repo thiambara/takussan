@@ -4,7 +4,8 @@
  * La liste des valeurs vit dans l'enum PHP : la validation (`Rule::enum`) et le cast du modèle ne
  * lisent qu'elle. Ce que la console écrivait n'était lu par aucune écriture ni aucun rendu :
  * - P66.01 (TCK-1055) : une valeur ajoutée était refusée en 422 à la création d'un bien ;
- * - P66.02 (TCK-1056) : une valeur désactivée restait acceptée et proposée partout.
+ * - P66.02 (TCK-1056) : une valeur désactivée restait acceptée et proposée partout ;
+ * - P66.03 (TCK-1057) : un libellé édité n'était lu par aucun rendu.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -17,7 +18,6 @@ import SuperAdminEnumsPage from '../page';
 
 vi.mock('@/lib/queries/super-admin', () => ({
   fetchBusinessEnums: vi.fn(),
-  patchBusinessEnumValue: vi.fn(),
 }));
 
 const ENUMS: BusinessEnumsResponse = {
@@ -70,5 +70,17 @@ describe('/super-admin/enums', () => {
 
     expect(await screen.findByRole('cell', { name: 'villa' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /désactiver/i })).not.toBeInTheDocument();
+  });
+
+  it("n'offre pas d'éditer les libellés, et le sous-titre ne le promet plus (P66.03)", async () => {
+    vi.mocked(fetchBusinessEnums).mockResolvedValue(ENUMS);
+    renderPage();
+
+    expect(await screen.findByRole('cell', { name: 'villa' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /modifier/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Gérez les libellés/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Consultez les valeurs métier non techniques et leur usage. Elles ne se modifient pas depuis la console.'),
+    ).toBeInTheDocument();
   });
 });
