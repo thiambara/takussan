@@ -103,9 +103,6 @@ return [
         'property_not_public' => 'Seul un bien publié et visible peut être mis en avant.',
         'stats_window_too_wide' => 'La période ne peut pas dépasser 92 jours.',
     ],
-    'business_enum' => [
-        'value_not_found' => 'Valeur introuvable.',
-    ],
     'calendar' => [
         'feed_not_staff' => "Le lien d'agenda est réservé au personnel d'une agence et aux prestataires.",
         'other_agency_forbidden' => 'Seuls les administrateurs peuvent consulter d\'autres agences.',

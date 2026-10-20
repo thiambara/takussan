@@ -4,7 +4,6 @@ namespace Tests\Feature\Api\Admin;
 
 use App\Models\Enums\PropertyType;
 use App\Models\Property;
-use App\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -77,24 +76,27 @@ class BusinessEnumTest extends TestCase
             ));
     }
 
-    public function test_update_writes_translations_and_audit(): void
+    /**
+     * P66.03 (TCK-1057) : la console n'édite plus les libellés FR / EN / WO. Aucun rendu ne les
+     * lisait : `type_label` vient de `lang/`, et le front possède le texte affiché (principe n° 5).
+     */
+    public function test_console_refuses_editing_labels(): void
     {
         $this->actingAsRole('super_admin');
 
-        $this->patchJson('/api/admin/enums/property_type/values/villa', [
+        $status = $this->patchJson('/api/admin/enums/property_type/values/villa', [
             'labels' => ['fr' => 'Villa premium', 'en' => 'Premium villa'],
-        ])->assertOk()
-            ->assertJsonPath('data.values.3.labels.fr', 'Villa premium');
+        ])->status();
+        $this->assertContains($status, [404, 405], "l'édition des libellés a répondu {$status}");
 
-        $setting = Setting::firstWhere('key', 'enum.property_type.values');
-        $this->assertNotNull($setting);
-        $this->assertTrue(Activity::query()->where('event', 'super_admin_enum_value_updated')->exists());
+        $this->assertDatabaseMissing('settings', ['key' => 'enum.property_type.values']);
+        $this->assertFalse(Activity::query()->where('event', 'super_admin_enum_value_updated')->exists());
     }
 
     /**
      * P28.02 (TCK-844) : la lecture publique `/api/enums/{key}` ne porte pas `usage_count`, compté
      * sur toute la table `properties`, brouillons et biens d'autres agences compris. La console
-     * super-admin le garde : elle s'en sert avant de désactiver une valeur.
+     * super-admin le garde, en lecture seule (TCK-1057).
      */
     public function test_public_read_does_not_expose_usage_count_and_admin_keeps_it(): void
     {

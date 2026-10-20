@@ -103,9 +103,6 @@ return [
         'property_not_public' => 'Kër gu ñu siiwal te ñu koy gis rekk lañu mën a yokk gis-gis.',
         'stats_window_too_wide' => 'Diir bi mënul ëpp 92 fan.',
     ],
-    'business_enum' => [
-        'value_not_found' => 'Valeur bi gisuñu ko.',
-    ],
     'calendar' => [
         'feed_not_staff' => 'Lëkkalekaayu ajandaa bi, liggéeykatu ajaans ak prestataire yi rekk la.',
         'other_agency_forbidden' => 'Administrateur yi rekk ñoo mën a xool yeneen agence.',
