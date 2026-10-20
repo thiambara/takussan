@@ -157,7 +157,7 @@ voie d'écriture (angle 13, puis 47).
 | 82 | Routes qui jugent un bailleur ou un membre par `landlord_id === user.id`, `user_id ===` ou `staffAgencyId()` en dur, au lieu de `landlordWrites` / `isStaffAt` / la policy : bailleur suspendu, rôle personnalisé sans la capacité, membre de plusieurs agences | fait |
 | 83 | Clés des colonnes JSON hors `agencies.settings` (`agencies.metadata`, `users`, `properties`, `leases`, `customers` : `metadata`, `settings`, `preferences`) : lues sans écrivain, écrites sans lecteur — le relevé de l'angle 47 sur les autres modèles | fait |
 | 84 | Valeurs qu'ADR-0044 chiffre (RIB, NINEA, numéro de pièce, revenu) recopiées en clair ailleurs : `wizard_drafts.data` des autres parcours (bailleur, prestataire, hôte), `metadata`, `activity_log.properties`, `app_notifications.data` | fait |
-| 85 | Ce que le site public montre d'une agence `individual` : annuaire `/agencies`, fiche `/agencies/{slug}`, carte d'agence de la fiche bien (`PropertyResource.php:441-449`) — nom « Espace de {prénom} », slug, badge vérifié | à faire |
+| 85 | Ce que le site public montre d'une agence `individual` : annuaire `/agencies`, fiche `/agencies/{slug}`, carte d'agence de la fiche bien (`PropertyResource.php:441-449`) — nom « Espace de {prénom} », slug, badge vérifié | fait |
 | 86 | Collaborateurs `co_owner` et `viewer` d'un bien (`property_collaborators`, laissés hors du périmètre par ADR-0031 § 2) : ce qu'ils lisent et écrivent réellement — bien, lots, baux, loyers, relevé, reversement | à faire |
 | 87 | Tris alphabétiques sur colonnes texte sous la collation `C` (`sort=first_name`, `name`, `title` des listes de l'API et de la console) : minuscules et initiales accentuées rejetées après « Z » | à faire |
 | 88 | Comptes `blocked` (`UserStatus::Blocked`), qui n'ouvrent plus de session : ce qu'ils reçoivent encore (notifications, e-mails, SMS) et les sélecteurs qui les proposent encore (participants, agent responsable, collaborateurs, destinataires) | à faire |
@@ -8322,3 +8322,89 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Établi comment : lu. Non mesuré en base (0 brouillon en développement).
 - Piste : retirer `code` des données de l'assistant et le garder dans un état local de l'étape, ou le vider au passage de `verified` à vrai. Garde : le test de chaque assistant vérifie que le corps du `PUT` du brouillon ne contient pas `code`.
 - Mesure (2026-10-20, 1a5deccf6, mesureur) : relu les quatre assistants (`code: string` dans le type, l. 58, 75, 70, 54 ; `verified: true` sans vider `code`, l. 240, 268, 306, 505), `WizardReprenable.tsx:193-201` qui passe `data` entier à `useAutosaveBrouillon`, `PhoneVerificationService.php:24`, `:37` (TTL 300 s, HMAC) et `PurgeOldWizardDrafts.php:19` (90 jours) → le constat tient. Le constat omet que `HostIndividualWizard.tsx:204` renvoie `phone_otp.code` à la soumission finale, et que `HostIndividualOnboardRequest.php:60-64` l'exige tant que `phone_verified_at` est nul : retirer `code` de l'état demande d'adapter cet envoi. Précédent : `lib/agency-upgrade-brouillon.ts:43-50` exclut `ninea` et `rib_pro` du brouillon par « décision du porteur ». Classement : V2, la Piste touche le parcours de vérification du téléphone, propose deux options, et le précédent voisin a été tranché par le porteur.
+
+## Angle 85 — Ce que le site public montre d'une agence `individual`
+
+*Exploré le 2026-10-20 sur `pre-dev` 822618abe, par l'explorateur. Relu par l'explorateur lui-même :
+`PublicAgencyController` (index, show, properties), `PublicAgentController` (index, show),
+`PublicProfileFacts::rolesPublics`, `PropertyResource::buildAgency` et `actsAsAgent`,
+`HostIndividualOnboardingService` (`autoOnboard`, `autoSpaceName`, `createAgency`),
+`AgencyUpdateRequest`, la fiche `/agencies/[slug]/page.tsx`, `ContactSheet.tsx`,
+`PropertyAgentCard.tsx`, `AgencyConfigForm.tsx`, `jsonld-profil.ts`, `docs/features.md:122,399,430`.
+Mesuré par un test temporaire (base de test PostgreSQL, charge 5,76 sur 8 cœurs), retiré ensuite :
+compte `Awa Diop` (`preferred_language = en`), `POST /api/host/individual/auto-onboard`, un logo
+déposé dans la collection `logo`, un bien `published()` de l'agence, puis `GET /api/public/agencies`,
+`/api/public/agencies/{slug}`, `/api/public/agents` et `/api/public/properties/{slug}` en anonyme.
+Le front n'a été que lu : aucun rendu au navigateur. Le slug de l'espace après le passage en
+professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agent.*
+
+### La fiche publique d'une agence rend `logo_url` toujours nul, alors que l'annuaire et la carte de la fiche bien rendent le logo
+- Réf : P85.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Public/PublicAgencyController.php:348`, `:184` ; `takussan-api/app/Http/Resources/PropertyResource.php:445` ; `takussan-web/src/app/[locale]/(public)/agencies/[slug]/page.tsx:90`, `:187-200`
+- Constat :
+  - `show()` sert `'logo_url' => $agency->logo_url ?? null` (lu, l. 348). Le modèle `Agency` n'a ni colonne ni accesseur `logo_url` (mesuré : `grep -n logo_url app/Models/Agency.php` et `grep -rn logo_url database/migrations` → rien). Le commentaire de l'`index()` du même contrôleur le dit déjà : « cet attribut n'existe pas […] il rend donc toujours null » (lu, l. 181-184), et l'`index()` passe par `getFirstMediaUrl('logo')`.
+  - mesuré : agence avec un logo dans la collection `logo` → `GET /api/public/agencies` rend `logo_url: "/storage/1/logo.png?v=…"`, la carte d'agence de `GET /api/public/properties/{slug}` aussi, `GET /api/public/agencies/{slug}` rend `logo_url: null`.
+  - La fiche affiche donc les initiales à la place du logo, et `openGraph.images` reste vide (lu, `page.tsx:90`, `:187-200`). Le défaut vaut pour toute agence, `individual` ou non.
+  - Établi comment : lecture des trois chemins, puis test temporaire.
+- Piste : servir `$agency->getFirstMediaUrl('logo') ?: null` dans `show()`, comme l'`index()` et `PropertyResource`. Garde : un test de `show()` qui dépose un logo et attend une URL non nulle.
+
+### L'hôte particulier d'une agence `individual` est présenté « agent » sur la fiche d'agence et dans l'annuaire des personnes, alors que la fiche bien le dit non-agent
+- Réf : P85.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Public/PublicProfileFacts.php:294-315` ; `takussan-api/app/Http/Controllers/Public/PublicAgencyController.php:284-296`, `:313`, `:359` ; `takussan-api/app/Http/Controllers/Public/PublicAgentController.php:153`, `:176`, `:272` ; `takussan-api/app/Http/Resources/PropertyResource.php:343-354`
+- Constat :
+  - `rolesPublics()` rend `agent` à quiconque porte un `AgencyAdminProfile` actif, dans n'importe quelle agence (lu, l. 300-311). L'espace créé par « Publier » donne à l'hôte un `AgencyAdminProfile` actif sur son agence `individual` (lu, `HostIndividualOnboardingService::autoOnboard`). Le filtre `professionnelsIci` de la fiche d'agence ne l'écarte pas : il retient aussi les admins actifs de l'agence (lu, `PublicAgencyController.php:292-296`).
+  - mesuré : `GET /api/public/agencies/space-of-awa` → `agents[0].public_role = "agent"`, `stats.agents = 1` ; `GET /api/public/agents` → `public_role = "agent"` pour `awa-diop` ; `GET /api/public/properties/{slug}` du même bien → `contact.is_agent = false`.
+  - `docs/features.md:122` écrit la règle : « Agent immobilier » pour un professionnel en exercice, « Propriétaire » pour tout autre publieur. `features.md:399` décrit l'agence `individual` comme un hôte solo dont le créateur est le propriétaire.
+  - Côté front, `public_role = "agent"` donne le titre de métadonnées d'agent (lu, `agents/[slug]/page.tsx:50-55`) et le nœud `RealEstateAgent` au lieu de `Person` (lu, `jsonld-profil.ts:40-48`). Il donne aussi le libellé de rôle de `TeamStrip` (lu, `TeamStrip.tsx:134`) et le compteur « Agents » du bandeau de la fiche d'agence (lu, `agencies/[slug]/page.tsx:153`). Ces rendus n'ont pas été rejoués au navigateur.
+  - Établi comment : lecture, puis test temporaire.
+- Piste : dans `rolesPublics()` et `professionnelsIci`, ne compter un `AgencyAdminProfile` que dans une agence `standard` (`whereHas('agency', kind = standard)`). Le `AgentProfile` ne change pas : une agence `individual` n'en a pas. Garde : un test par surface (`/agents`, `/agents/{slug}`, `/agencies/{slug}`) qui attend `owner` pour l'hôte d'un espace, et `agent` pour l'admin d'une agence `standard`.
+
+### Le nom et le slug de l'espace sont fixés dans la langue du compte à sa création, et servis tels quels à tous les visiteurs
+- Réf : P85.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:191-200`, `:244-246` ; `takussan-api/lang/en/onboarding.php:13` ; `docs/features.md:430`
+- Constat :
+  - `autoSpaceName()` traduit `onboarding.auto_space.name_with_first_name` dans la `preferred_language` du compte, et le slug en dérive (lu).
+  - mesuré : compte `preferred_language = en` → agence `name = "Space of Awa"`, `slug = "space-of-awa"`, rendus en l'état par l'annuaire, la fiche et la carte d'agence de la fiche bien, quelle que soit la langue du visiteur.
+  - `features.md:430` écrit le nom « Espace de {prénom} », sans parler de langue (lu). Un compte en `wo` aurait un nom et un slug en wolof (lu, `lang/wo/onboarding.php:13`, non mesuré).
+  - Établi comment : lecture, puis test temporaire.
+- Piste : décider ce que doit être le nom public d'un espace : un libellé composé à l'affichage par le front (le prénom seul en donnée), ou un nom fixe dans la langue de la plateforme. Le nom stocké reste modifiable par l'hôte. Choix de produit.
+
+### Une agence `individual` entre dans l'annuaire public des agences et reçoit une fiche d'agence, sous le nom « Espace de {prénom} »
+- Réf : P85.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Public/PublicAgencyController.php:118-125`, `:204-212`, `:377-380` ; `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyAgentCard.tsx:116-122`
+- Constat :
+  - Ni l'`index()`, ni `show()`, ni `properties()` ne filtrent sur `kind` : seuls le statut `active` et un bien public comptent (lu).
+  - mesuré : l'espace d'un hôte avec un bien publié apparaît dans `GET /api/public/agencies` (`name: "Space of Awa"`) et a sa fiche `/api/public/agencies/space-of-awa`. La fiche bien lie cette fiche sous le contact (lu, `PropertyAgentCard.tsx:116`).
+  - Le visiteur lit donc, pour un particulier, une « agence » au nom générique, à côté de la fiche de la même personne sous `/agents/{slug}`. Le front cache pourtant le slug de l'espace parce qu'il « n'apporte rien sous le nom d'un particulier » (lu, `espaces.ts:80-91`, cité en P49.04).
+  - Aucune spec ne dit si un espace `individual` est une agence au sens de l'annuaire (mesuré : `grep -n -i "annuaire\|/agencies" docs/features.md` → seul l'annuaire des personnes, l. 122).
+- Piste : trancher si l'annuaire et la fiche d'agence montrent un espace `individual`. Si non : filtrer `kind = standard` dans les trois méthodes, et faire lier par la carte de la fiche bien la fiche de la personne plutôt que celle de l'espace. Choix de produit.
+
+### La fiche d'un espace `individual` n'offre aucun moyen de contact : courriel et téléphone de l'agence sont nuls à la création
+- Réf : P85.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:244-253` ; `takussan-api/app/Http/Controllers/Public/PublicAgencyController.php:349-350` ; `takussan-web/src/components/public/profile/ContactSheet.tsx:65-155` ; `takussan-web/src/app/[locale]/(public)/agencies/[slug]/page.tsx:230-235`
+- Constat :
+  - `createAgency()` ne pose ni `email` ni `phone` (lu). mesuré : la fiche de l'espace rend `email: null`, `phone: null`.
+  - La fiche d'agence passe ces deux champs à `ContactSheet` sans `agentSlug` (lu, `page.tsx:230-235`). Sur grand écran, aucun bouton ne s'affiche. Sur mobile, le bouton « Contacter » s'affiche toujours et ouvre un volet sans aucune action (lu, `ContactSheet.tsx:65-155` ; non rendu au navigateur, à vérifier).
+  - La fiche de la même personne sous `/agents/{slug}` a, elle, le formulaire de contact anonyme (`agentSlug`, lu). L'hôte peut remplir courriel et téléphone de l'agence dans `/app/agency` (lu, `AgencyConfigForm.tsx:301-305`), mais rien ne le lui demande.
+- Piste : ne pas rendre le bouton mobile quand aucune action n'existe, et, pour un espace `individual`, donner à la fiche le formulaire anonyme vers son admin. Sinon, ne pas servir la fiche (P85.04). Garde : un test de `ContactSheet` sans courriel, téléphone ni `agentSlug`.
+
+### Petites améliorations de la fiche publique d'agence
+- Réf : P85.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Public/PublicAgencyController.php:343-352` ; `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:51`, `:100-119` ; `takussan-web/src/app/[locale]/(public)/agencies/[slug]/page.tsx:146`, `:212-217`
+- Constat :
+  - `show()` ne sert pas `is_verified` (lu, l. 343-352 ; mesuré : clé absente de la réponse). L'annuaire (`ProfileCard.tsx:95`) et la carte de la fiche bien (`PropertyAgentCard.tsx:121`) montrent le badge vérifié, la fiche elle-même jamais.
+  - `license_number` reste un texte libre ouvert à une agence `individual` : `AgencyUpdateRequest.php:51` ne pose aucune condition, alors que les mentions légales y sont `prohibited` (l. 100-119). La fiche l'affiche sous une icône de bouclier, « Licence n° {number} » (lu, `page.tsx:212-217`). Un particulier peut donc afficher une licence que rien ne vérifie (lu, non mesuré).
+  - `eyebrowParts` contient `agency.license_number ? null : null`, une expression toujours nulle aussitôt filtrée (lu, `page.tsx:146`) : du code mort.
+- Piste : servir `is_verified` dans `show()` et l'afficher à côté du nom. Interdire `license_number` à une agence `individual`, comme les mentions légales, ou ne pas l'afficher pour elle. Retirer l'expression morte.
