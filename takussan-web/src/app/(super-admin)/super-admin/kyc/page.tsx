@@ -20,6 +20,7 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { ApiError } from '@/lib/api';
 import { fetchAdminKycQueue } from '@/lib/queries/super-admin';
 import { queueCountQueryOptions } from '@/lib/queries/super-admin-queues';
+import { DUREE_URL_SIGNEE_KYC_MS, rafraichirAvantExpiration } from '@/lib/url-signee';
 import type { KycDossier, KycDossierStatus, KycDossiersResponse } from '@/types/super-admin';
 
 /**
@@ -63,6 +64,8 @@ export default function SuperAdminKycPage() {
     queryKey: ['super-admin', 'kyc', 'queue', params],
     queryFn: () => fetchAdminKycQueue(params),
     staleTime: 15_000,
+    // TCK-1024 — les pièces portent un `signed_url` de 15 min (`staleTime` déjà plus court).
+    refetchInterval: rafraichirAvantExpiration(DUREE_URL_SIGNEE_KYC_MS).refetchInterval,
   });
 
   /*
@@ -86,6 +89,12 @@ export default function SuperAdminKycPage() {
   const countQuery = useQuery<number, ApiError>(queueCountQueryOptions('kyc-pending'));
 
   const dossiers = query.data?.data ?? [];
+  /*
+   * TCK-1024 — le panneau lit le dossier de la DERNIÈRE réponse, pas l'instantané du clic : sans
+   * cela, le rafraîchissement de la file renouvelait les `signed_url` sans que le panneau les voie.
+   * Un dossier sorti de la page courante garde son instantané.
+   */
+  const dossierSelectionne = selected ? (dossiers.find((d) => d.id === selected.id) ?? selected) : null;
   const meta = query.data?.meta;
 
   const majUrl = useCallback(
@@ -194,7 +203,7 @@ export default function SuperAdminKycPage() {
           */}
           <KycDecisionPanel
             key={selected?.id ?? 'aucun'}
-            dossier={selected}
+            dossier={dossierSelectionne}
             onDone={() => setSelected(null)}
           />
         </div>

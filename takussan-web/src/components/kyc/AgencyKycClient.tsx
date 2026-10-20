@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { fetchAgencyKyc } from '@/lib/queries/kyc';
+import { DUREE_URL_SIGNEE_KYC_MS, rafraichirAvantExpiration } from '@/lib/url-signee';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { KycDocumentUploader, KycDossierTimeline } from './kyc-components';
@@ -12,6 +13,8 @@ export function AgencyKycClient({ agencyId }: { agencyId: number }) {
   const query = useQuery({
     queryKey: ['agency', agencyId, 'kyc'],
     queryFn: () => fetchAgencyKyc(agencyId),
+    // TCK-1024 — les pièces portent un `signed_url` de 15 min.
+    ...rafraichirAvantExpiration(DUREE_URL_SIGNEE_KYC_MS),
   });
 
   if (query.isLoading) {

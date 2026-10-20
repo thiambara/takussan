@@ -1,6 +1,7 @@
 'use client';
 
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
+import { DUREE_URL_SIGNEE_MEDIA_MS, rafraichirAvantExpiration } from '@/lib/url-signee';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type {
   Document,
@@ -80,7 +81,8 @@ export function useDocuments(params: UseDocumentsParams = {}) {
   return useApiQuery<PaginatedResponse<Document>>(
     documentsQueryKeys.list(params),
     '/api/documents',
-    { params: spatieParams },
+    // TCK-1024 — `file_url` est une URL signée de 30 min.
+    { params: spatieParams, ...rafraichirAvantExpiration(DUREE_URL_SIGNEE_MEDIA_MS) },
   );
 }
 
@@ -211,7 +213,8 @@ export function useDocumentVersions(documentId: number | null | undefined) {
   return useApiQuery<ApiResponse<DocumentVersion[]>>(
     documentVersionsQueryKeys.list(documentId),
     cheminApi`/api/documents/${documentId ?? 0}/versions`,
-    { enabled: Boolean(documentId) },
+    // TCK-1024 — `url` est une URL signée de 30 min.
+    { enabled: Boolean(documentId), ...rafraichirAvantExpiration(DUREE_URL_SIGNEE_MEDIA_MS) },
   );
 }
 
