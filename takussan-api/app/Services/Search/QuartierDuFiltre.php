@@ -20,7 +20,8 @@ final class QuartierDuFiltre
 {
     /**
      * Les quartiers du référentiel dont le nom a la même clé que la saisie, quelle que soit leur
-     * ville : le filtre `city`, s'il est posé, borne déjà le résultat.
+     * ville : le filtre `city`, s'il est posé, borne déjà le résultat. Un quartier fusionné est
+     * remplacé par sa cible.
      *
      * @return list<int>
      */
@@ -31,10 +32,15 @@ final class QuartierDuFiltre
             return [];
         }
 
+        // TCK-1052 (P67.01) — un ancien nom fusionné désigne le quartier cible (décision du
+        // porteur) : la fusion a réécrit les adresses vers la cible, aucune ne porte plus
+        // l'identifiant de la source. La fusion ne fait jamais de chaîne
+        // (`GeoNeighborhoodModeration::fusionner()`) : une étape suffit.
         return GeoNeighborhood::query()
-            ->get(['id', 'name'])
+            ->get(['id', 'name', 'merged_into_id'])
             ->filter(static fn (GeoNeighborhood $q) => CleDeQuartier::de($q->name) === $cle)
-            ->map(static fn (GeoNeighborhood $q) => (int) $q->id)
+            ->map(static fn (GeoNeighborhood $q) => (int) ($q->merged_into_id ?? $q->id))
+            ->unique()
             ->values()
             ->all();
     }
