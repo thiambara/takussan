@@ -8195,7 +8195,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Le champ « Type » de l'assistant de création d'agence du super-admin est enregistré, et rien ne le lit
 - Réf : P83.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer le champ « Type » de l'assistant ou en faire un choix fermé qui pose une colonne lue est un choix de produit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/AgencyOnboardingDialog.tsx:197-198`, `takussan-api/app/Http/Requests/Api/Admin/StoreAgencyOnboardingRequest.php:22`, `takussan-api/app/Services/Admin/AgencyProvisioningService.php:39-42,51-61`
 - Constat :
@@ -8205,10 +8205,11 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - mesuré : test temporaire, en super-admin, `POST /api/admin/agencies` avec `agency.type = individual` → 201, puis `agencies` = `{"kind":"standard","metadata":"{\"onboarding_type\": \"individual\"}"}`. Le champ ressemble au `kind` de l'agence, que l'opérateur ne choisit pas ici : il tape « individual » et obtient une agence `standard`.
   - Établi comment : lu, et mesuré.
 - Piste : retirer le champ de l'assistant et l'écriture du service, ou en faire un choix fermé qui pose une colonne lue (le `kind`, par exemple). C'est un choix de produit. Dans les deux cas, un test qui confronte les champs de `StoreAgencyOnboardingRequest` à ce que l'agence créée porte empêcherait le retour.
+- Mesure (2026-10-20, e5f73559b, mesureur) : relu `AgencyOnboardingDialog.tsx:197-198` (champ libre `fields.type`), `StoreAgencyOnboardingRequest.php:22` (`agency.type` chaîne de 80), `AgencyProvisioningService.php:39-42` (`metadata.onboarding_type`) ; `grep -rn onboarding_type` dans `takussan-api/app`, `database`, `tests` et `takussan-web/src` → la seule écriture du service ; test temporaire retiré (charge 5,00 sur 8 cœurs) : super-admin, `POST /api/admin/agencies` avec `agency.type = individual` → 201, agence `kind = standard`, `metadata = {"onboarding_type":"individual"}` → le constat tient. Classement : V7, la Piste offre deux options (retrait d'un champ visible, ou choix fermé posant le `kind`) et aucune n'est écrite dans une spec.
 
 ### L'effacement d'un compte laisse la ville et les intentions déclarées dans `users.preferences`
 - Réf : P83.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : ce que l'effacement conserve de `users.preferences` est une décision sur des données personnelles
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:282-309`, `takussan-api/app/Http/Controllers/Api/Me/MeController.php:50-66`
 - Constat :
@@ -8218,10 +8219,11 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Angle 57 a relevé les téléphones et e-mails hors de `users`. Ce champ est dans `users` même, et aucune entrée ne le cite.
   - Établi comment : lu, et mesuré.
 - Piste : vider `preferences` dans `anonymize()`, avec un test qui sème les trois clés et assert `null` après effacement. Garde possible : un test qui énumère les colonnes de `users` et exige, pour chacune, qu'elle soit effacée ou qu'elle figure dans une liste « conservée, et pourquoi ».
+- Mesure (2026-10-20, e5f73559b, mesureur) : relu `AccountDeletionService::anonymize()` (le `forceFill`, aujourd'hui l. 282-309) : `metadata` à `null`, ni `preferences`, ni `timezone`, ni `preferred_language` ; `docs/models-spec.md:411` décrit `preferences` comme ville et intention choisies par l'utilisateur ; test temporaire retiré (charge 5,00 sur 8 cœurs) : compte aux `preferences` `{city: Ziguinchor, search_intent: buy, entry_intent: search}`, `anonymize($u, false)` → `first_name` vide, `metadata` nul, `preferences` intact, `timezone` `Africa/Dakar`, `preferred_language` `fr` → le constat tient. Classement : V3, le correctif change ce que l'effacement conserve, et la liste « effacé ou conservé » de la garde proposée est à arrêter par le porteur.
 
 ### Trois colonnes `metadata` sans écrivain applicatif : `customers`, `leases`, `properties`
 - Réf : P83.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la spec promet à `properties.metadata` des attributs par type ; déclarer les trois colonnes réservées ou leur donner un usage est un choix
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Customer.php:70,83,122`, `takussan-api/app/Http/Resources/CustomerResource.php:19,56`, `takussan-web/src/lib/queries/customers.ts:51`, `takussan-web/src/types/customer.ts:48`, `takussan-api/app/Models/Lease.php:45,82,343,356`, `takussan-api/app/Models/Property.php:61,97`, `takussan-api/database/seeders/Catalog/PropertyMediaSeeder.php:39-41`, `takussan-api/database/seeders/Support/EdgeCaseSeeder.php:289-295`, `docs/models-spec.md:685,941,1390`
 - Constat :
@@ -8231,10 +8233,11 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - `docs/models-spec.md` les décrit comme « Attributs supplémentaires spécifiques au type » (biens, l. 685), sans description (clients, l. 941 ; baux, l. 1390). La spec promet un usage que le code n'a pas.
   - Établi comment : lu. Les données présentes en base de développement n'ont pas été lues.
 - Piste : retirer les colonnes de `$fillable`, `$queryFields` et des champs demandés par le front, et dire dans `models-spec.md` qu'elles sont réservées, sans usage. Retirer les colonnes elles-mêmes est une décision de schéma, à prendre à part, après lecture des données présentes.
+- Mesure (2026-10-20, e5f73559b, mesureur) : relu `Customer.php:70,83,122` (`$fillable`, cast, `$queryFields`), `CustomerResource.php:19,56`, `Lease.php:45,82,343,356`, `Property.php:61,97` ; `grep -rn "'metadata" app/Http/Requests` → aucune règle sur clients, baux ou biens ; `grep -rn metadata app` filtré sur client, bail et bien → aucun écrivain ni lecteur hors des modèles et de `CustomerResource` (les lectures `metadata->invoice_id` de `Lease.php:408-409` portent sur `payouts`) ; `media_placeholders` écrit par les deux seeders cités, lu nulle part (`app`, `takussan-web/src`) ; `takussan-web/src/lib/queries/customers.ts:51` demande `metadata`, aucun composant ne la lit ; `docs/models-spec.md:685,941,1390` comme écrit → le constat tient ; données de la base de développement non lues. Classement : V7, retirer les colonnes de l'API et dire la spec « réservée, sans usage » contredit l'usage que `models-spec.md:685` promet, et P23.02 les avait gardées exprès dans `RESERVES`.
 
 ### La console ne montre pas l'état que `users.metadata` porte, et « Débloquer » lève un verrou échu
 - Réf : P83.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : n'offrir « Débloquer » qu'à un compte verrouillé et montrer l'état du verrou change la console visible
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Resources/Api/Admin/UserDetailResource.php:15-57`, `takussan-web/src/components/admin/super/user-detail.tsx:174-203`, `takussan-api/app/Services/Admin/UserSupportService.php:28-45`, `takussan-api/app/Services/Auth/LoginLock.php:45-50,154-157`
 - Constat :
@@ -8242,10 +8245,11 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - `LoginLock::isLocked()` ne tient un verrou que 15 minutes après `locked_at` (lu, l. 45-50 et 154-157). `unlock()` juge `empty($metadata['locked_at'])` sans regarder la durée (lu, l. 37) : un verrou échu, encore présent dans `metadata`, se « débloque » en 200 et se journalise `super_admin_account_unlocked`, alors que le compte n'était plus bloqué.
   - Établi comment : lu.
 - Piste : rendre à la fiche un état dérivé (`locked_until`, `force_2fa_reconfigure`), par `LoginLock` plutôt que par la clé brute, et n'offrir l'action que si le compte est verrouillé. Juger `unlock()` par `isLocked()`. Un test : verrou posé il y a 20 minutes → 409.
+- Mesure (2026-10-20, e5f73559b, mesureur) : relu `UserDetailResource` (aucune clé de verrou ni `force_2fa_reconfigure`), `user-detail.tsx:184-187` (action `unlock` offerte sans condition), `UserSupportService::unlock()` (`empty($metadata['locked_at'])`, l. 36), `LoginLock::isLocked()` et `stillRunning()` (15 minutes) ; test temporaire retiré (charge 5,00 sur 8 cœurs) : `locked_at` posé il y a 20 minutes → `isLocked` `false`, `POST /api/admin/users/{id}/unlock` 200 et une ligne `super_admin_account_unlocked` ; `GET /api/admin/users/{id}` rend `id … two_factor_enabled, created_at, roles, profiles, agencies, mfa_enabled`, sans état de verrou → le constat tient. Classement : V7, rendre l'état à la fiche et conditionner l'action est un comportement visible neuf ; juger `unlock()` par `isLocked()` pourrait suivre seul (A1 voisin), mais la Piste les lie.
 
 ### Petites améliorations
 - Réf : P83.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:31-33`, `takussan-api/app/Listeners/Agency/FlipAgencyKindOnUpgradeApproved.php:58-59`, `takussan-web/src/types/agency.ts:16-19`, `docs/models-spec.md:545`
 - Constat :
@@ -8255,3 +8259,4 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - `models-spec.md` décrit `agencies.metadata` comme « Données supplémentaires flexibles » (l. 545), sans ses clés lues par le code : `welcome.standard_unlocked_at` (`Agency.php:256`, `useAgencyStandardWelcomeOnce.ts:97`), la marque du changement de slug (`Agency::SLUG_CHANGED_AT`, `Agency.php:243-257`), `legal_info` en repli. La table `users` le fait déjà (« Clés de `metadata` lues par le code », l. 421).
   - Établi comment : lu.
 - Piste : corriger les trois commentaires pour dire ce que fait le code, et lister les clés de `agencies.metadata` dans la spec, sur le modèle de `users`.
+- Mesure (2026-10-20, e5f73559b, mesureur) : relu `AdminGlobalSearchService.php:31-33` (« Le NINEA se cherche dans `agencies.metadata->legal_info` ») contre l. 124-128 (`where('ninea', …)` puis repli `metadata->'legal_info'`) ; `FlipAgencyKindOnUpgradeApproved.php:58` (« le flip écrit `metadata.legal_info` ») contre `AgencyKindFlipService.php:39` (« the flip writes only there [colonnes]. `metadata.legal_info` is read, never » écrit) ; `takussan-web/src/types/agency.ts:17-19` (« backfilled by the agency-upgrade flow ») ; `docs/models-spec.md:545` sans clés, alors que `Agency.php:245-257` lit `slug_changed_at` et `welcome.standard_unlocked_at` et `AgencyController.php:124` écrit la première → le constat tient. Classement : A6, trois commentaires et une ligne de spec corrigés pour dire ce que fait le code, sans changement de comportement.
