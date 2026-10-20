@@ -6,6 +6,8 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\DesignatePrimaryCollaboratorRequest;
 use App\Http\Requests\Api\StorePropertyCollaboratorRequest;
 use App\Http\Requests\Api\UpdatePropertyCollaboratorRequest;
+use App\Http\Resources\IncludedUserResource;
+use App\Http\Resources\PropertyCollaboratorResource;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
@@ -61,7 +63,7 @@ class PropertyCollaboratorController extends Controller
         // TCK-888 (ADR-0068 § 3) — un premier agent remplace le titulaire comme contact principal.
         $conversations->transmitForProperty($property->id);
 
-        return $this->json(['data' => $collaborator->load('user')], 201);
+        return $this->json(['data' => (new PropertyCollaboratorResource($collaborator->load('user')))->resolve($request)], 201);
     }
 
     public function update(UpdatePropertyCollaboratorRequest $request, Property $property, PropertyCollaborator $collaborator, PropertyConversationResolver $conversations): JsonResponse
@@ -88,7 +90,7 @@ class PropertyCollaboratorController extends Controller
         // TCK-888 (ADR-0068 § 3) — un changement de rôle peut déplacer le contact principal.
         $conversations->transmitForProperty($property->id);
 
-        return $this->json(['data' => $collaborator->refresh()->load('user')]);
+        return $this->json(['data' => (new PropertyCollaboratorResource($collaborator->refresh()->load('user')))->resolve($request)]);
     }
 
     public function destroy(Request $request, Property $property, PropertyCollaborator $collaborator, PropertyConversationResolver $conversations): JsonResponse
@@ -145,9 +147,13 @@ class PropertyCollaboratorController extends Controller
         $contact = PrimaryPropertyContact::for($property);
         $marque = $property->collaborators->first(fn (PropertyCollaborator $c) => $c->is_primary === true);
 
+        // La forme d'avant (`with('user')`, sans les médias que le contact principal charge), chaque
+        // ligne passée par sa ressource (TCK-1047, P61.01) : le compte n'en sort que projeté.
+        $lignes = $property->collaborators()->with('user')->orderBy('id')->get();
+        IncludedUserResource::preload($lignes);
+
         return [
-            // La forme d'avant (`with('user')`, sans les médias que le contact principal charge).
-            'data' => $property->collaborators()->with('user')->orderBy('id')->get(),
+            'data' => PropertyCollaboratorResource::collection($lignes)->resolve(request()),
             'primary_contact' => [
                 'user_id' => $contact?->id,
                 'collaborator_id' => $principal?->id,
