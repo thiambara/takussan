@@ -470,14 +470,18 @@ avec_verrou_git() {
   return "$statut"
 }
 
-# État CI d'une PR : vert, rouge, attente.
+# État CI d'une PR : vert, rouge, attente. Un job en échec l'emporte sur ceux qui tournent encore :
+# son verdict ne changera plus. Relevé le 2026-10-19 : #747, Gardes documentaires rouges à 23:35,
+# Web CI encore en cours, classée « en attente » ; le passage de 23:40 a pris une piste neuve de
+# 32 minutes et la réparation n'est partie qu'à 00:17.
 etat_ci() {
   local buckets
   buckets="$(GH_REPO="$GH_REPO" gh pr checks "$1" --json bucket --jq '[.[].bucket] | join(" ")' 2> /dev/null || true)"
   case " $buckets " in
     "  ") echo attente ;;
+    *" fail "*) echo rouge ;;
     *" pending "*) echo attente ;;
-    *" fail "* | *" cancel "*) echo rouge ;;
+    *" cancel "*) echo rouge ;;
     *) echo vert ;;
   esac
 }
