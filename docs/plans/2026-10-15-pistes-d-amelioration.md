@@ -8271,7 +8271,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Le NINEA d'une agence est chiffré et masqué dans la demande, puis recopié en clair dans `agencies.ninea` par une décision qu'ADR-0044 n'écrit pas
 - Réf : P84.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : exposition du NINEA, deux options contraires
 - Gravité : 🟠 risque ou dette
 - Où : `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:44-46`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:62-63`, `:94-105`, `takussan-api/app/Models/Agency.php:38-46`, `takussan-api/app/Http/Resources/AgencyResource.php:50`, `takussan-api/app/Http/Resources/AgencyUpgradeRequestResource.php:41`, `takussan-api/app/Support/Audit/PropertyRedactor.php:41`, `takussan-api/app/Services/Kyc/SharedLegalIdentifierDetector.php:25-27`
 - Constat :
@@ -8285,10 +8285,11 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - La raison n'est écrite que dans deux commentaires : « le NINEA d'une agence est public, décision du 2026-10-08 » (`Agency.php:38-39`) et « mention légale publique » (`SharedLegalIdentifierDetector.php:25-27`). ADR-0039 en fait une mention légale imprimée sur la facture (lu, l. 287-289). Une agence `individual` ne peut pas l'écrire (`AgencyUpdateRequest.php:100-119`, `prohibited`).
   - Établi comment : lu. Non mesuré en base : la base de développement n'a aucun NINEA (`select count(ninea) from agencies` → 0).
 - Piste : écrire l'exception dans ADR-0044 § 1 (le NINEA d'une personne morale est une mention légale publique : en clair dans `agencies.ninea`, chiffré seulement dans la demande, le temps de la revue), ou cesser de masquer le NINEA de la demande. Dans le premier cas, retirer `ninea` du masquage de lecture du journal pour le seul sujet `Agency`, ou écrire pourquoi il y reste.
+- Mesure (2026-10-20, 1a5deccf6, mesureur) : relu ADR-0044 l. 44-46 (`grep -n ninea` → l. 17, 45, 103, aucune sur `agencies.ninea`) ; `AgencyKindFlipService.php` `COLUMN_OF['ninea' => 'ninea']` et boucle l. 94-105 qui recopie la valeur de la demande dans la colonne vide ; `Agency.php:36-46` (`ninea` dans `AUDIT_ONLY`, « décision du 2026-10-08 » en commentaire seul) ; `AgencyResource.php:50` en clair ; `AgencyUpgradeRequestResource.php:41` `Masking::tail` ; `PropertyRedactor.php:41` segment `ninea` ; `SharedLegalIdentifierDetector.php:25` ; `git log` sur ces fichiers → dernier changement TCK-960 (flip en colonne), qui ne tranche pas la question → le constat tient. Classement : V3 (et V6 si l'ADR est amendé), la Piste offre deux options contraires sur ce qui est exposé du NINEA, à trancher par le porteur.
 
 ### `AgencyUpgradeRequest` chiffre le RIB pro et le NINEA sans les cacher : tout `toArray()` les rend en clair
 - Réf : P84.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/AgencyUpgradeRequest.php:69-76`, `takussan-api/app/Models/DocumentShareLink.php:21-24`, `takussan-api/app/Models/DataExport.php`, `takussan-api/app/Models/ReportExport.php`
 - Constat :
@@ -8303,10 +8304,11 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Aucune garde ne lie un cast `encrypted*` à `$hidden` (mesuré : `grep -rln encrypted tests | xargs grep -l -i hidden` → rien).
   - Établi comment : lu et mesuré.
 - Piste : ajouter `protected $hidden = ['ninea', 'rib_pro']` à `AgencyUpgradeRequest`, et `token` à celui de `DocumentShareLink`. La Resource lit les attributs, pas `toArray()`, et resterait inchangée. Garde : un test qui parcourt `app/Models` et exige que toute colonne castée `encrypted*` soit dans `$hidden`, avec une liste d'exceptions motivées (`archive_path`, si l'on juge qu'un chemin n'est pas une donnée).
+- Mesure (2026-10-20, 1a5deccf6, mesureur) : `php artisan tinker` sans écriture → `new AgencyUpgradeRequest(['ninea'=>…,'rib_pro'=>…])->toArray()` rend les deux en clair, `new OwnerProfile(['rib'=>…])->toArray()` rend `[]`, un `DocumentShareLink` dont on pose `token` rend `{"token":…}` ; `AgencyUpgradeRequest.php` sans `$hidden`, `DocumentShareLink.php:21` `$hidden = ['password_hash', 'token_hash']` ; aucun appelant ne sérialise ces modèles bruts (les deux contrôleurs passent par `AgencyUpgradeRequestResource`, `DocumentShareLinkController::format()` lit `$link->token` attribut par attribut, `archive_path` n'est lu que par les deux contrôleurs de téléchargement et absent de `DataExportResource`) ; `$requestLoadable` d'`Agency` et de `Document` sans `upgradeRequests`/`shareLinks` → le constat tient, aucune réponse d'aujourd'hui ne changerait. Classement : A1 et A5, ADR-0044 § 1 écrit déjà qu'une donnée chiffrée ne sort pas en clair dans une réponse par défaut, et `$hidden` ne change aucune sortie actuelle.
 
 ### Petites améliorations — angle 84
 - Réf : P84.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : vérification du téléphone, deux options
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/onboarding/OwnerOnboardingWizard.tsx:58`, `:240`, `takussan-web/src/components/onboarding/AgentOnboardingWizard.tsx:75`, `:268`, `takussan-web/src/components/onboarding/ServiceProviderOnboardingWizard.tsx:70`, `:306`, `takussan-web/src/components/onboarding/HostIndividualWizard.tsx:54`, `:505`, `takussan-web/src/hooks/useAutosaveBrouillon.ts:123`, `takussan-api/app/Services/Auth/PhoneVerificationService.php:24`, `:37`, `takussan-api/app/Console/Commands/PurgeOldWizardDrafts.php:19`
 - Constat :
@@ -8319,3 +8321,4 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Le risque est faible, puisque le code expire avant que le brouillon soit relu. Mais c'est la seule copie en clair d'un code que l'API prend soin de hacher.
   - Établi comment : lu. Non mesuré en base (0 brouillon en développement).
 - Piste : retirer `code` des données de l'assistant et le garder dans un état local de l'étape, ou le vider au passage de `verified` à vrai. Garde : le test de chaque assistant vérifie que le corps du `PUT` du brouillon ne contient pas `code`.
+- Mesure (2026-10-20, 1a5deccf6, mesureur) : relu les quatre assistants (`code: string` dans le type, l. 58, 75, 70, 54 ; `verified: true` sans vider `code`, l. 240, 268, 306, 505), `WizardReprenable.tsx:193-201` qui passe `data` entier à `useAutosaveBrouillon`, `PhoneVerificationService.php:24`, `:37` (TTL 300 s, HMAC) et `PurgeOldWizardDrafts.php:19` (90 jours) → le constat tient. Le constat omet que `HostIndividualWizard.tsx:204` renvoie `phone_otp.code` à la soumission finale, et que `HostIndividualOnboardRequest.php:60-64` l'exige tant que `phone_verified_at` est nul : retirer `code` de l'état demande d'adapter cet envoi. Précédent : `lib/agency-upgrade-brouillon.ts:43-50` exclut `ninea` et `rib_pro` du brouillon par « décision du porteur ». Classement : V2, la Piste touche le parcours de vérification du téléphone, propose deux options, et le précédent voisin a été tranché par le porteur.
