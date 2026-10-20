@@ -1,7 +1,7 @@
 ---
 id: TCK-1034
 title: "Le popover du sélecteur de date et d'heure porte le nom de son déclencheur"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -33,18 +33,18 @@ Le dialogue du sélecteur porte toujours un nom accessible, sans texte neuf.
 
 ## Delta à produire
 
-- [ ] `ui/date-time-picker.tsx` : `aria-label` reçu posé sur le `PopoverContent` ; à défaut,
+- [x] `ui/date-time-picker.tsx` : `aria-label` reçu posé sur le `PopoverContent` ; à défaut,
       `aria-labelledby` vers le déclencheur, dont l'`id` se replie sur un `useId()` quand
       l'appelant n'en passe pas.
-- [ ] Test : `src/components/ui/__tests__/date-time-picker.nom-du-dialogue.test.tsx`, qui ouvre
+- [x] Test : `src/components/ui/__tests__/date-time-picker.nom-du-dialogue.test.tsx`, qui ouvre
       le sélecteur et attend `getByRole('dialog', { name })`, avec et sans `aria-label`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Avec `aria-label`, le dialogue porte ce nom.
-- [ ] AC2 — Sans `aria-label`, le dialogue porte le texte du déclencheur (placeholder ou date
+- [x] AC1 — Avec `aria-label`, le dialogue porte ce nom.
+- [x] AC2 — Sans `aria-label`, le dialogue porte le texte du déclencheur (placeholder ou date
       choisie).
-- [ ] AC3 — Aucune clé de traduction neuve ; l'`id` passé par l'appelant reste celui du
+- [x] AC3 — Aucune clé de traduction neuve ; l'`id` passé par l'appelant reste celui du
       déclencheur.
 
 ## Hypothèses (mode sans humain)
@@ -59,4 +59,6 @@ Le dialogue du sélecteur porte toujours un nom accessible, sans texte neuf.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Avant correctif, le test trouve bien un `dialog` ouvert (`findByRole('dialog')`), mais aucun
+  qui porte le nom attendu : c'est le nom qui manque, pas le montage.
+- Ablation : correctif retiré → 2 rouges ; remis → 2 verts.
