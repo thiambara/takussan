@@ -1,29 +1,16 @@
 import { z } from 'zod';
 import { requiredStringSchema } from './common';
 import { msgValidation } from './messages';
+import { customerStatusValues, idTypeValues, pipelineStageValues } from '@/lib/enums/customer';
 
 /**
  * Customer (CRM) Zod schemas — TCK-042. Source of truth:
  * `docs/models-spec.md#7-customer` + `docs/models-spec.md#33-customernote`.
  */
 
-export const customerStatusValues = [
-  'active',
-  'inactive',
-  'blocked',
-  'deleted',
-] as const;
-
-export const pipelineStageValues = [
-  'lead',
-  'prospect',
-  'qualified',
-  'negotiating',
-  'converted',
-  'lost',
-] as const;
-
-export const idTypeValues = ['id_card', 'passport', 'driving_license'] as const;
+// TCK-1039 — les listes de valeurs vivent dans `@/lib/enums/customer`, sans dépendance ; réexportées
+// ici pour les formulaires. Un composant d'affichage les importe de là-bas, jamais d'ici.
+export { customerStatusValues, pipelineStageValues, idTypeValues };
 
 /**
  * TCK-921 — la langue des messages d'un client sans compte, celles de l'interface. `default` n'est
@@ -86,6 +73,9 @@ export const customerFormSchema = z
       msgValidation('customer.idTypeInvalid'),
     ),
     id_number: z.string().max(64, msgValidation('customer.idNumberTooLong')),
+    // TCK-953 — le masque du numéro déjà saisi (fiche en édition) : jamais envoyé. Un champ vide
+    // veut dire « inchangé », et le numéro n'est exigé que si la fiche n'en porte pas encore.
+    id_number_masked: z.string().nullable().optional(),
     locale: z.string().optional().refine(
       (v) => !v || v === CUSTOMER_LOCALE_DEFAULT || (customerLocaleValues as readonly string[]).includes(v),
       msgValidation('customer.localeInvalid'),
@@ -123,7 +113,7 @@ export const customerFormSchema = z
         message: msgValidation('agentCrm.budgetRange'),
       });
     }
-    if (data.id_type && !data.id_number.trim()) {
+    if (data.id_type && !data.id_number.trim() && !data.id_number_masked) {
       ctx.addIssue({
         code: 'custom',
         path: ['id_number'],
@@ -141,7 +131,8 @@ export interface CustomerFormPayload {
   phone?: string;
   occupation?: string;
   pipeline_stage: (typeof pipelineStageValues)[number];
-  status: (typeof customerStatusValues)[number];
+  /** TCK-1064 — absent à la création : l'API crée toujours un client `active`. */
+  status?: (typeof customerStatusValues)[number];
   id_type?: (typeof idTypeValues)[number];
   id_number?: string;
   /** TCK-921 — `null` efface la langue de la fiche. */
@@ -170,6 +161,12 @@ export const CRITERIA_KEYS = [
   'seeking_neighborhoods',
   'min_bedrooms',
 ] as const;
+
+/** TCK-1064 (P80.01) — le corps de création : `StoreCustomerRequest` n'a pas de règle `status`. */
+export function sansStatut(payload: CustomerFormPayload): CustomerFormPayload {
+  const { status: _status, ...reste } = payload;
+  return reste;
+}
 
 /** Le corps sans les critères : pour qui ne les a pas lus, les envoyer vides les effacerait. */
 export function sansCriteres(payload: CustomerFormPayload): CustomerFormPayload {

@@ -37,8 +37,6 @@ class Plan extends AbstractModel
 
     protected static array $requestSortable = ['sort_order', 'monthly_price_xof', 'created_at'];
 
-    protected static array $requestLoadable = ['subscriptions'];
-
     protected static array $queryFields = [
         'id',
         'code',

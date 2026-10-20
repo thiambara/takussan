@@ -42,7 +42,7 @@ export const TAG_FIELDS = ['id', 'name', 'slug', 'color'] as const;
 export const DASHBOARD_CUSTOMER_DETAIL_FIELDS = [
   ...DASHBOARD_CUSTOMER_FIELDS,
   'id_type',
-  'id_number',
+  // TCK-953 — pas d'`id_number` : l'API le refuse (400) et rend `id_number_masked` à la fiche.
   'emergency_contact_name',
   'emergency_contact_phone',
   'added_by_id',
@@ -109,6 +109,27 @@ export async function fetchDashboardCustomers(
   const qs = buildQueryString(buildListParams(params));
   return apiRequest<PaginatedResponse<CustomerListItem>>(
     cheminApi`/api/customers${requete(qs)}`,
+    { token },
+  );
+}
+
+/**
+ * TCK-955 (ADR-0070 § 5) — le numéro de pièce EN CLAIR : admin de l'agence du client (et
+ * super-admin), sous step-up, consultation journalisée par l'API. Hors de React Query, comme
+ * `fetchOwnerSensitive` : la valeur ne vit que le temps de l'affichage.
+ */
+export type CustomerSensitiveData = {
+  readonly id: number;
+  readonly id_type: string | null;
+  readonly id_number: string | null;
+};
+
+export async function fetchCustomerSensitive(
+  token: string,
+  customerId: number,
+): Promise<ApiResponse<CustomerSensitiveData>> {
+  return apiRequest<ApiResponse<CustomerSensitiveData>>(
+    cheminApi`/api/customers/${customerId}/sensitive`,
     { token },
   );
 }

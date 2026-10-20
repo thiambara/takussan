@@ -39,8 +39,6 @@ class AgencySubscription extends AbstractModel
 
     protected static array $requestSortable = ['created_at', 'current_period_end', 'trial_ends_at'];
 
-    protected static array $requestLoadable = ['agency', 'plan'];
-
     protected static array $queryFields = [
         'id',
         'agency_id',

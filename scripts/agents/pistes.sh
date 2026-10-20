@@ -7,8 +7,9 @@
 #
 # Usage, depuis le dépôt :
 #   scripts/agents/pistes.sh installer [--sans-etiquettes]   # outils figés, réglages, étiquettes GitHub
-#   scripts/agents/pistes.sh planifier X Y Z [W]  # launchd : explorateur toutes les X min, mesureur Y,
-#                                                 # implémenteur Z, délégué W (30 par défaut)
+#   scripts/agents/pistes.sh planifier [X Y Z [W]]  # launchd : explorateur toutes les X min, mesureur Y,
+#                                                   # implémenteur Z, délégué W ; sans argument
+#                                                   # 30 20 5 20, W seul omis : 20 (porteur, 2026-10-19)
 #   scripts/agents/pistes.sh deplanifier
 # Puis, depuis n'importe où (copie figée) :
 #   ~/.takussan-agents/outils/pistes.sh lancer <rôle>   # un passage, à la main ou par launchd
@@ -102,9 +103,15 @@ installer() {
   chmod 600 "$BASE"/env/* 2> /dev/null || true
   # Copies FIGÉES : un agent ne desserre pas, par son arbre ou par une PR fusionnée, la garde
   # qui le borne. Seule une réinstallation par le porteur les change.
-  cp "$ici/garde.mjs" "$BASE/outils/garde.mjs"
-  cp "$ici/pistes.sh" "$BASE/outils/pistes.sh"
-  chmod +x "$BASE/outils/pistes.sh"
+  # Remplacement ATOMIQUE (copie à côté, puis `mv`) : bash lit un script au fil de son exécution,
+  # et un `cp` sur place faisait lire au passage en cours la suite du NOUVEAU fichier. Relevé le
+  # 2026-10-19 : « line 858: branche: unbound variable » dans le fusionneur qui tournait pendant
+  # la réinstallation de 22 h 02.
+  cp "$ici/garde.mjs" "$BASE/outils/garde.mjs.nouveau"
+  mv -f "$BASE/outils/garde.mjs.nouveau" "$BASE/outils/garde.mjs"
+  cp "$ici/pistes.sh" "$BASE/outils/pistes.sh.nouveau"
+  chmod +x "$BASE/outils/pistes.sh.nouveau"
+  mv -f "$BASE/outils/pistes.sh.nouveau" "$BASE/outils/pistes.sh"
 
   node -e '
     const [garde, node, sortie] = process.argv.slice(1);
@@ -200,9 +207,11 @@ PLIST
 
 planifier() {
   charger_config
-  [ $# -eq 3 ] || [ $# -eq 4 ] || die "usage : planifier <x> <y> <z> [w]  (minutes : explorateur, mesureur, implementeur, délégué)"
+  [ $# -eq 0 ] || [ $# -eq 3 ] || [ $# -eq 4 ] || die "usage : planifier [<x> <y> <z> [w]]  (minutes : explorateur, mesureur, implementeur, délégué ; défaut 30 20 5 20)"
   local minutes role
-  set -- "$@" 30
+  # Cadences par défaut, posées par le porteur le 2026-10-19 (ADR-0066, Q2).
+  [ $# -gt 0 ] || set -- 30 20 5
+  set -- "$@" 20
   for role in $ROLES; do
     minutes="$1"
     shift
@@ -235,28 +244,46 @@ deplanifier() {
 # Un refus d'une PR d'agent la met à jour avec la base (`gh pr update-branch`) : sa CI rejoue alors
 # l'arbre fusionné, rougit, et l'agent la répare comme toute PR rouge. La PR de synchronisation,
 # dont la tête est `dev`, n'est jamais mise à jour : le refus est journalisé, le porteur tranche.
+# Rend 1 pour un arbre fusionné rouge (le rapport dit pourquoi), 2 quand l'essai n'a pas pu se
+# faire : réseau, arbre d'essai, ou branche déjà supprimée par une fusion. Relevé le 2026-10-19 :
+# l'implémenteur essayait des PR que le fusionneur venait de fusionner, journalisait trois faux
+# refus « conflit » et appelait `update-branch` sur des PR fermées.
 essai_de_fusion() {
-  local num="$1" tete="$2" arbre="$BASE/arbres/essai-${ROLE:-fusionneur}" rapport cle g echecs=0
+  local num="$1" tete="$2" arbre="$BASE/arbres/essai-${ROLE:-fusionneur}" rapport cle g h echecs=0
   rapport="$BASE/sorties/essais/$num.txt"
   mkdir -p "$BASE/sorties/essais"
-  avec_verrou_git git -C "$CLONE" fetch origin --prune --quiet || return 1
+  avec_verrou_git git -C "$CLONE" fetch origin --prune --quiet || return 2
+  git -C "$CLONE" rev-parse --verify --quiet "origin/$tete" > /dev/null || return 2
   cle="$(git -C "$CLONE" rev-parse "$BASE_REF") $(git -C "$CLONE" rev-parse "origin/$tete")"
   # Même base, même tête qu'un refus déjà journalisé : rien n'a changé, on ne le redit pas.
   [ "$cle" != "$(cat "$BASE/etat/essai-$num" 2> /dev/null || true)" ] || return 1
   if [ ! -d "$arbre" ]; then
-    avec_verrou_git git -C "$CLONE" worktree add --quiet --detach "$arbre" "$BASE_REF" || return 1
+    avec_verrou_git git -C "$CLONE" worktree add --quiet --detach "$arbre" "$BASE_REF" || return 2
   fi
   # Appelée derrière `||` ou `&&`, cette fonction tourne SANS `set -e` : chaque étape se vérifie.
   git -C "$arbre" merge --abort > /dev/null 2>&1 || true
-  git -C "$arbre" reset --quiet --hard || return 1
-  git -C "$arbre" clean -fdq || return 1
-  git -C "$arbre" checkout --quiet --detach "$BASE_REF" || return 1
+  git -C "$arbre" reset --quiet --hard || return 2
+  git -C "$arbre" clean -fdq || return 2
+  git -C "$arbre" checkout --quiet --detach "$BASE_REF" || return 2
   {
     echo "essai de #$num ($tete) sur $BASE_REF — $(date '+%Y-%m-%d %H:%M:%S')"
     if ! git -C "$arbre" merge --no-edit --quiet "origin/$tete" 2>&1; then
       echo "✗ conflit de fusion"
       echecs=1
     else
+      # `check-front-routes` (TCK-998) lit `php artisan route:list` et ÉCHOUE sans `vendor/` : sans
+      # cette installation, toutes les PR étaient refusées (relevé le 2026-10-19, #724 à #734).
+      # `vendor/` est ignoré par git, donc épargné par le `clean -fdq` ci-dessus : il ne se réinstalle
+      # que si le `composer.lock` de l'arbre fusionné change.
+      h="$(shasum "$arbre/takussan-api/composer.lock" | cut -c1-40)"
+      if [ ! -f "$arbre/takussan-api/vendor/autoload.php" ] || [ "$h" != "$(cat "$BASE/etat/composer-essai-${ROLE:-fusionneur}" 2> /dev/null || true)" ]; then
+        if (cd "$arbre/takussan-api" && composer install --no-interaction --no-progress --quiet) > /dev/null 2>&1; then
+          printf '%s' "$h" > "$BASE/etat/composer-essai-${ROLE:-fusionneur}"
+        else
+          echo "✗ composer install dans l'arbre d'essai"
+          echecs=$((echecs + 1))
+        fi
+      fi
       for g in "$arbre"/scripts/check-*.mjs; do
         (cd "$arbre" && node "$g") > /dev/null 2>&1 || {
           echo "✗ $(basename "$g")"
@@ -311,8 +338,15 @@ fusionner() {
       dev) case ",$etiquettes," in *,agents:synchro,*) ;; *) continue ;; esac ;;
       *) continue ;;
     esac
-    # UNKNOWN juste après une autre fusion : GitHub recalcule, le tour suivant tranchera.
-    [ "$mergeable" = MERGEABLE ] || continue
+    # Seul CONFLICTING écarte une PR. GitHub rend UNKNOWN après chaque fusion dans pre-dev et ne
+    # recalcule que si on lui redemande la PR : « le tour suivant tranchera » était faux. Relevé le
+    # 2026-10-20 : #782 verte à 08:37, sautée par les tours de 09:00 et 09:10, fusionnée à 09:14
+    # dès qu'une lecture l'a fait recalculer. La lecture ci-dessous le déclenche, pour que la fusion
+    # qui suit l'essai soit acceptée ; l'essai de fusion juge le conflit sur place.
+    if [ "$mergeable" = UNKNOWN ]; then
+      mergeable="$(GH_REPO="$GH_REPO" gh pr view "$num" --json mergeable --jq .mergeable 2> /dev/null || echo UNKNOWN)"
+    fi
+    [ "$mergeable" != CONFLICTING ] || continue
     [ "$(etat_ci "$num")" = vert ] || continue
     essai_de_fusion "$num" "$tete" || continue
     if [ "$tete" = dev ]; then
@@ -406,6 +440,8 @@ TOURS=""
 
 journaliser() {
   local duree=$(($(date +%s) - DEBUT))
+  # Une sortie par `set -e` (réseau, commande en échec) n'a pas de détail : le journal le dit.
+  if [ "$RESULTAT" = erreur ] && [ -z "$DETAIL" ]; then DETAIL="sortie inattendue (commande en échec ou réseau) : voir passage.log"; fi
   printf '%s\t%s\t%s\t%s\t%s\t%ss\t%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$ROLE" "${MODE:--}" \
     "$RESULTAT" "${PR:--}" "$duree" "${COUT:--}" "${TOURS:--}" "$DETAIL" >> "$BASE/journal.tsv"
 }
@@ -441,14 +477,18 @@ avec_verrou_git() {
   return "$statut"
 }
 
-# État CI d'une PR : vert, rouge, attente.
+# État CI d'une PR : vert, rouge, attente. Un job en échec l'emporte sur ceux qui tournent encore :
+# son verdict ne changera plus. Relevé le 2026-10-19 : #747, Gardes documentaires rouges à 23:35,
+# Web CI encore en cours, classée « en attente » ; le passage de 23:40 a pris une piste neuve de
+# 32 minutes et la réparation n'est partie qu'à 00:17.
 etat_ci() {
   local buckets
   buckets="$(GH_REPO="$GH_REPO" gh pr checks "$1" --json bucket --jq '[.[].bucket] | join(" ")' 2> /dev/null || true)"
   case " $buckets " in
     "  ") echo attente ;;
+    *" fail "*) echo rouge ;;
     *" pending "*) echo attente ;;
-    *" fail "* | *" cancel "*) echo rouge ;;
+    *" cancel "*) echo rouge ;;
     *) echo vert ;;
   esac
 }
@@ -584,8 +624,17 @@ verifier() {
 # précédente pour prendre la piste suivante (ADR-0066 § 4).
 # Lit et écrit les variables du passage (MODE, PR, branche, depart, ci, conflit, reparations),
 # déclarées par lancer() : bash les voit par portée dynamique.
+# Conflit textuel entre la tête d'une PR et la base, calculé sur place : `merge-tree --write-tree`
+# (git ≥ 2.38) ne touche ni arbre de travail ni index. Sort en 1 sur un conflit.
+en_conflit() {
+  local statut=0
+  git -C "$CLONE" rev-parse --verify --quiet "origin/$1" > /dev/null || return 1
+  git -C "$CLONE" merge-tree --write-tree "$BASE_REF" "origin/$1" > /dev/null 2>&1 || statut=$?
+  [ "$statut" -eq 1 ]
+}
+
 etat_des_pr() {
-  local pr_max lignes num tete etat_fusion ci_pr conflit_pr ouvertes=0 fusionnees=0 abandons=""
+  local pr_max lignes num tete etat_fusion ci_pr conflit_pr essai ouvertes=0 fusionnees=0 abandons=""
   pr_max="$(par_role PR_MAX "$ROLE")"
   if [ -z "$pr_max" ]; then
     if [ "$ROLE" = implementeur ]; then pr_max=3; else pr_max=1; fi
@@ -597,9 +646,22 @@ etat_des_pr() {
     [ -n "$num" ] || continue
     ci_pr="$(etat_ci "$num")"
     conflit_pr=non
-    if [ "$etat_fusion" = CONFLICTING ]; then conflit_pr=oui; fi
+    # GitHub rend UNKNOWN après chaque fusion dans pre-dev, tant qu'on ne lui a pas redemandé, et
+    # le fusionneur relance un rôle juste après une fusion : il ne voyait presque jamais
+    # CONFLICTING. Relevé le 2026-10-19 : #739 en conflit, CI verte, classée « CI en cours » à
+    # chaque passage pendant deux heures. Sans verdict de GitHub, le conflit se calcule ici.
+    if [ "$etat_fusion" = CONFLICTING ]; then
+      conflit_pr=oui
+    elif [ "$etat_fusion" != MERGEABLE ] && en_conflit "$tete"; then
+      conflit_pr=oui
+    fi
     if [ "$conflit_pr" = non ] && [ "$ci_pr" != rouge ]; then
-      if [ "$ci_pr" = vert ] && [ "$FUSION" = auto ] && [ "$A_BLANC" -eq 0 ] && essai_de_fusion "$num" "$tete"; then
+      essai=3
+      if [ "$ci_pr" = vert ] && [ "$FUSION" = auto ] && [ "$A_BLANC" -eq 0 ]; then
+        essai=0
+        essai_de_fusion "$num" "$tete" || essai=$?
+      fi
+      if [ "$essai" -eq 0 ]; then
         GH_REPO="$GH_REPO" gh pr merge "$num" --merge --delete-branch > /dev/null 2>&1 || true
         # Le fusionneur a pu passer entre-temps ; un refus (mergeable pas encore recalculé) attend.
         if [ "$(GH_REPO="$GH_REPO" gh pr view "$num" --json state --jq .state)" = MERGED ]; then
@@ -609,8 +671,18 @@ etat_des_pr() {
           continue
         fi
       fi
-      ouvertes=$((ouvertes + 1))
-      continue
+      if [ "$essai" -ne 1 ]; then
+        ouvertes=$((ouvertes + 1))
+        continue
+      fi
+      # CI verte, arbre fusionné rouge : la PR se répare au lieu d'attendre une CI déjà finie. Le
+      # rapport de l'essai dit si c'est un conflit ou une garde, et le message de réparation le
+      # porte, puisqu'aucun check GitHub n'est rouge.
+      if grep -q '^✗ conflit de fusion' "$BASE/sorties/essais/$num.txt" 2> /dev/null; then
+        conflit_pr=oui
+      else
+        ci_pr="rouge sur l'arbre fusionné avec $BASE_REF ($(grep '^✗' "$BASE/sorties/essais/$num.txt" 2> /dev/null | tr '\n' ' '))"
+      fi
     fi
     ouvertes=$((ouvertes + 1))
     if [ "$conflit_pr" = oui ] && [ "$ci_pr" != rouge ] && [ "$A_BLANC" -eq 0 ] \

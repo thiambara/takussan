@@ -311,6 +311,9 @@ return [
                 'title' => 'Fey bi bind nañu ko',
                 'body' => 'Sa fey bu :amount ngir :property bind nañu ko.',
                 'sms' => 'Takussan : fey bu :amount bind nañu ko (:property).',
+                // TCK-1002 — le wolof est en pause : le texte français tel quel.
+                'body_link' => 'Votre paiement de :amount pour :property a été enregistré. Votre quittance : :receipt_url',
+                'sms_link' => 'Takussan : paiement de :amount enregistré (:property). Quittance : :receipt_url',
             ],
             'received_landlord' => [
                 'title' => 'Pey kër bi agsi na : :property',

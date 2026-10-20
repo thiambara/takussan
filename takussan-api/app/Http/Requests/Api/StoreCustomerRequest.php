@@ -41,7 +41,8 @@ class StoreCustomerRequest extends BaseFormRequest
             'last_name' => ['required', 'string'],
             'email' => ['nullable', 'email'],
             'id_type' => ['nullable', Rule::enum(IdType::class)],
-            'id_number' => ['nullable', 'string'],
+            // TCK-953 — la valeur doit tenir dans le `varchar(255)` du `down()` (ADR-0070 § 2).
+            'id_number' => ['nullable', 'string', 'max:100'],
             'occupation' => ['nullable', 'string'],
             'pipeline_stage' => ['nullable', Rule::enum(CustomerPipelineStage::class)],
             'notes' => ['nullable', 'string'],

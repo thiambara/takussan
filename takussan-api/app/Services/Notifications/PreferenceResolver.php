@@ -6,7 +6,6 @@ use App\Domain\Notifications\NotificationCode;
 use App\Models\NotificationPreference;
 use App\Models\User;
 use App\Notifications\Channels\WhatsappChannel;
-use App\Notifications\NewBookingNotification;
 use App\Notifications\SavedSearchMatchesNotification;
 
 /**
@@ -103,12 +102,14 @@ class PreferenceResolver
      * TCK-588 — les événements des classes `Notification` qui implémentent `SupportsSms` ou
      * `SupportsWhatsapp` : avec les événements des codes `mobile()`, ce sont les seuls dont
      * les cases `sms`/`whatsapp` commandent un envoi. `MobileClassEventsTest` garde la
-     * réciprocité avec `app/Notifications/`.
+     * réciprocité avec `app/Notifications/`, et qu'un émetteur réel envoie chacun.
+     *
+     * TCK-1053 (P75.01) — `booking_request` n'y est plus : `NewBookingNotification`, sans émetteur,
+     * est retirée ; la demande de réservation ne part pas sur mobile (TCK-590, contrainte 4).
      *
      * @var list<string>
      */
     public const MOBILE_CLASS_EVENTS = [
-        NewBookingNotification::EVENT_TYPE,
         SavedSearchMatchesNotification::EVENT_TYPE,
     ];
 

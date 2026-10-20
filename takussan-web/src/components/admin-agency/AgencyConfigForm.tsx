@@ -61,6 +61,7 @@ function toDefaults(agency: Agency): AgencyFormValues {
   const currency = agency.currency ?? '';
   return {
     name: agency.name ?? '',
+    slug: agency.slug ?? '',
     license_number: agency.license_number ?? '',
     description: agency.description ?? '',
     email: agency.email ?? '',
@@ -110,6 +111,9 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
   // proposer un champ qui rendrait 403.
   const { can: canSetThreshold } = useCan('payouts.approve');
   const individual = agency.kind === 'individual';
+  // TCK-1004 (P49.04) — après le passage en professionnelle, le slug « espace-de-… » se remplace
+  // une fois ; l'API en tient le compte.
+  const slugEditable = agency.slug_editable === true;
   const { user } = useAuth();
   const pendingThreshold = agency.pending_payout_threshold_change ?? null;
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -144,6 +148,8 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         const payload = normaliseAgencyForm(values, {
           individual,
           initialThreshold: initialThreshold(agency),
+          slugEditable,
+          initialSlug: agency.slug,
         });
         const result = await avecGardeDoubleFacteurAction(
           () => updateAgencyAction(agency.id, payload),
@@ -251,17 +257,24 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <FormInput control={control} name="name" label={t('fields.name')} required />
-          <div>
-            <label
-              htmlFor="agency-slug"
-              className="mb-1.5 block text-sm font-medium text-muted-foreground"
-            >
-              {t('fields.slug')}
-            </label>
-            {/* La primitive, et non un `<input>` natif : celui-ci portait `h-9 rounded-md` à côté
-                de champs `h-8 rounded-lg` — deux hauteurs et deux rayons sur la même ligne. */}
-            <Input id="agency-slug" value={agency.slug} disabled readOnly />
-          </div>
+          {slugEditable ? (
+            <div className="space-y-1.5">
+              <FormInput control={control} name="slug" label={t('fields.slugEditable')} />
+              <p className="text-xs text-muted-foreground">{t('fields.slugEditableHint')}</p>
+            </div>
+          ) : (
+            <div>
+              <label
+                htmlFor="agency-slug"
+                className="mb-1.5 block text-sm font-medium text-muted-foreground"
+              >
+                {t('fields.slug')}
+              </label>
+              {/* La primitive, et non un `<input>` natif : celui-ci portait `h-9 rounded-md` à côté
+                  de champs `h-8 rounded-lg` — deux hauteurs et deux rayons sur la même ligne. */}
+              <Input id="agency-slug" value={agency.slug} disabled readOnly />
+            </div>
+          )}
         </div>
         <FormInput
           control={control}
@@ -331,6 +344,10 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
               type="file"
               accept={AGENCY_LOGO_ACCEPT}
               className="sr-only"
+              // Relais du bouton ci-dessous, qui porte le geste et le nom : hors de la
+              // tabulation et de l'arbre d'accessibilité (TCK-1031).
+              tabIndex={-1}
+              aria-hidden="true"
               onChange={handleLogoPick}
               disabled={isUploadingLogo}
             />

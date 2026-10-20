@@ -71,12 +71,28 @@ describe('<SaveSearchButton> — TCK-599', () => {
     render(wrap(<SaveSearchButton filters={{ city: 'Dakar' }} activeCount={1} />));
 
     await user.click(screen.getByRole('button', { name: S.trigger }));
-    expect(screen.getByRole('checkbox', { name: new RegExp(S.alsoAlert) })).not.toBeChecked();
+    expect(await screen.findByRole('checkbox', { name: new RegExp(S.alsoAlert) })).not.toBeChecked();
     await user.click(screen.getByRole('button', { name: S.save }));
 
     expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ notification_frequency: 'off' }));
     expect(await screen.findByText(S.savedFull)).toBeInTheDocument();
     expect(screen.queryByText(/alerte/i)).toBeNull();
+  });
+
+  it('TCK-1037 — chaque ouverture repart d’un formulaire neuf : nom suggéré, alerte décochée', async () => {
+    etat.user = { id: 1 };
+    const user = userEvent.setup();
+    render(wrap(<SaveSearchButton filters={{ city: 'Dakar' }} activeCount={1} />));
+
+    await user.click(screen.getByRole('button', { name: S.trigger }));
+    await user.click(await screen.findByRole('checkbox', { name: new RegExp(S.alsoAlert) }));
+    await user.clear(screen.getByLabelText(S.nameLabel));
+    await user.type(screen.getByLabelText(S.nameLabel), 'Autre nom');
+    await user.click(screen.getByRole('button', { name: S.cancel }));
+
+    await user.click(screen.getByRole('button', { name: S.trigger }));
+    expect(await screen.findByRole('checkbox', { name: new RegExp(S.alsoAlert) })).not.toBeChecked();
+    expect(screen.getByLabelText(S.nameLabel)).toHaveValue('Dakar');
   });
 
   it('AC15 — case cochée : `daily`, et la confirmation nomme les canaux rendus par l’API', async () => {
@@ -86,7 +102,7 @@ describe('<SaveSearchButton> — TCK-599', () => {
     render(wrap(<SaveSearchButton filters={{ city: 'Dakar' }} activeCount={1} />));
 
     await user.click(screen.getByRole('button', { name: S.trigger }));
-    await user.click(screen.getByRole('checkbox', { name: new RegExp(S.alsoAlert) }));
+    await user.click(await screen.findByRole('checkbox', { name: new RegExp(S.alsoAlert) }));
     await user.click(screen.getByRole('button', { name: S.save }));
 
     expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ notification_frequency: 'daily' }));

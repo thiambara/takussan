@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Check, ChevronRight, Circle, Loader2 } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
-import { useActiveLeaseSummaries, type ActiveLeaseSummary } from '@/lib/queries/leases';
+import { useActiveLeaseSummaries, type ActiveLeaseSummary } from '@/lib/queries/leases-active-summaries';
 import { useCompleteOnboardingItem, useTenantOnboardingChecklist } from '@/lib/queries/tenant-onboarding';
 import type { TenantOnboardingChecklist, TenantOnboardingChecklistItem } from '@/types/tenant-onboarding';
 import { cn } from '@/lib/utils';

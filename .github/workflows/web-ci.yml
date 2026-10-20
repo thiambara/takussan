@@ -198,9 +198,10 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Poids des routes publiques (TCK-947)
+      - name: Poids des routes publiques et des écrans de la console (TCK-947, P70.06)
         # Next 16 n'imprime plus le « First Load JS » : ce rapport le remplace, lu sur la sortie du
-        # build juste au-dessus — JS initial gzip et polices préchargées, par route publique. SANS
+        # build juste au-dessus — JS initial gzip et polices préchargées, par route publique, puis
+        # par écran de `/app` et de `/super-admin` (P70.06, 2026-10-20). SANS
         # seuil : il ne fait échouer le job que si zod revient dans le JS du layout racine, que
         # chaque page charge (P33.02), et sur une sortie de build absente (une mesure qui n'a rien
         # lu n'est pas un vert). Le chiffre se lit dans le journal de cette étape.

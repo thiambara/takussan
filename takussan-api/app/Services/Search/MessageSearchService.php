@@ -45,7 +45,12 @@ class MessageSearchService
             $search->where('created_at', '<=', Carbon::parse($params['filter']['date_to'])->endOfDay()->timestamp);
         }
 
-        return $search->paginate((int) ($params['per_page'] ?? 20));
+        // TCK-1010 (P59.02) — `MessageResource` lit les pièces jointes de chaque message : le
+        // paginateur de Scout ne précharge rien, comme `DocumentSearchService`.
+        $paginator = $search->paginate((int) ($params['per_page'] ?? 20));
+        $paginator->getCollection()->loadMissing('media');
+
+        return $paginator;
     }
 
     /**

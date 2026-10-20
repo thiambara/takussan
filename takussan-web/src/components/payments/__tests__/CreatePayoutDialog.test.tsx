@@ -27,7 +27,13 @@ const PREPARATION = vi.hoisted(() => ({
 const PREPARATION_ARGS = vi.hoisted(() => [] as unknown[]);
 
 const VERIFY = vi.hoisted(() => ({ mutateAsync: vi.fn(async (_payload: unknown) => ({ data: {} })), isPending: false }));
+const RELEVE_ARGS = vi.hoisted(() => [] as unknown[][]);
+const RELEVE = vi.hoisted(() => ({ data: undefined, isLoading: false, isError: false, error: null }));
 vi.mock('@/lib/queries/payments', () => ({
+  useOwnerStatement: (...args: unknown[]) => {
+    RELEVE_ARGS.push(args);
+    return RELEVE;
+  },
   useCreatePayout: () => MUTATION,
   useVerifyPayoutMethod: () => VERIFY,
   usePayoutPreparation: (params: unknown) => {
@@ -44,7 +50,8 @@ const OWNERS = vi.hoisted(() => ({
   isLoading: false,
 }));
 vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery: () => OWNERS }));
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 9, agency_id: 3 } }) }));
+const AUTH = vi.hoisted(() => ({ user: { id: 9, agency_id: 3 }, token: 'jeton' }));
+vi.mock('@/context/AuthContext', () => ({ useAuth: () => AUTH }));
 
 import { CreatePayoutDialog } from '../CreatePayoutDialog';
 
@@ -187,5 +194,32 @@ describe('CreatePayoutDialog — la destination par défaut vérifiée est prés
     monter();
 
     expect((screen.getByLabelText('Destination') as HTMLSelectElement).value).toBe('');
+  });
+});
+
+describe('CreatePayoutDialog — le relevé du bailleur choisi, avant de reverser (TCK-1016, P50.04)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    RELEVE_ARGS.length = 0;
+    PREPARATION.current = { data: undefined, isError: false, isFetching: false, error: null };
+  });
+
+  it("n'offre le relevé qu'une fois le bailleur choisi, et le demande pour lui et le mois de la période", async () => {
+    const user = userEvent.setup();
+    monter();
+
+    expect(screen.queryByRole('button', { name: 'Voir le relevé du mois' })).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText('Bailleur'), '42');
+    await user.type(screen.getByLabelText('Début de période'), '2026-09-01');
+    const bouton = screen.getByRole('button', { name: 'Voir le relevé du mois' });
+    expect(bouton).toHaveAttribute('aria-expanded', 'false');
+    expect(RELEVE_ARGS).toHaveLength(0);
+
+    await user.click(bouton);
+
+    expect(bouton).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('heading', { name: 'Relevé de gérance' })).toBeInTheDocument();
+    expect(RELEVE_ARGS.at(-1)).toEqual(['2026-09', 42]);
   });
 });

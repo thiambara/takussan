@@ -5,13 +5,9 @@ import { useTranslations } from 'next-intl';
 import { ListTree } from 'lucide-react';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { useQuery } from '@tanstack/react-query';
-import {
-  EnumList,
-  EnumValueDialog,
-  EnumValueTable,
-} from '@/components/admin/super/business-enums';
+import { EnumList, EnumValueTable } from '@/components/admin/super/business-enums';
 import { fetchBusinessEnums } from '@/lib/queries/super-admin';
-import type { BusinessEnumsResponse, BusinessEnumValue } from '@/types/super-admin';
+import type { BusinessEnumsResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { PageHeader } from '@/components/console';
@@ -25,8 +21,6 @@ export default function SuperAdminEnumsPage() {
   const tCommon = useTranslations('common');
   const messageErreur = useMessageErreurApi();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [editing, setEditing] = useState<BusinessEnumValue | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   const query = useQuery<BusinessEnumsResponse, ApiError>({
     queryKey: ['super-admin', 'business-enums'],
@@ -45,10 +39,13 @@ export default function SuperAdminEnumsPage() {
     <div className="space-y-6">
       <PageHeader
         title={tPage('title')}
-        description={tPage('subtitle')}
+        description={tPage('readOnlySubtitle')}
       />
 
-      <WarningBanner>{tPage('lockedNotice')}</WarningBanner>
+      <WarningBanner>
+        <p>{tPage('codeNotice')}</p>
+        <p>{tPage('lockedNotice')}</p>
+      </WarningBanner>
 
       {query.isLoading ? (
         <Skeleton className="h-48 rounded-xl" />
@@ -64,23 +61,7 @@ export default function SuperAdminEnumsPage() {
             que 424 px à une table de six colonnes. `items-start` : la liste ne s'étire plus
             sur toute la hauteur de la table. */}
           <EnumList enums={enums} selectedKey={selected.key} onSelect={setSelectedKey} />
-          <EnumValueTable
-            item={selected}
-            onEdit={(value) => {
-              setEditing(value);
-              setDialogOpen(true);
-            }}
-            onAdd={() => {
-              setEditing(null);
-              setDialogOpen(true);
-            }}
-          />
-          <EnumValueDialog
-            enumKey={selected.key}
-            value={editing}
-            open={dialogOpen}
-            onOpenChange={setDialogOpen}
-          />
+          <EnumValueTable item={selected} />
         </div>
       ) : (
         <EmptyState

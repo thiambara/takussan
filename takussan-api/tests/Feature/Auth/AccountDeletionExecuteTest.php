@@ -3,20 +3,34 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\AccountDeletionRequest;
+use App\Models\AlertSubscriber;
 use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Customer;
+use App\Models\Document;
+use App\Models\Enums\DocumentType;
+use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\UserStatus;
+use App\Models\Invitation;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\PropertyVisit;
+use App\Models\SavedSearch;
 use App\Models\User;
+use App\Models\WhatsappContact;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Services\Account\AccountDeletionService;
+use App\Services\Notifications\Sms\SmsRouterDriver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
@@ -220,6 +234,266 @@ class AccountDeletionExecuteTest extends TestCase
         $this->assertModelExists($tentative);
         $this->assertNull($tentative->fresh()->to);
         $this->assertSame('+221779876543', $tentativeAutre->fresh()->to);
+    }
+
+    /**
+     * TCK-1013 (P57.01) — depuis TCK-799, un SMS envoyé sans notification (code de vérification,
+     * step-up, signature de bail) écrit une tentative sans `app_notification_id`, au numéro du
+     * destinataire. L'effacement retire aussi ce numéro quand c'est le `phone` ou le
+     * `secondary_phone` du compte ; la tentative d'un autre numéro ne bouge pas.
+     */
+    public function test_execute_efface_le_numero_des_tentatives_sans_notification(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create(['phone' => '+221771230001']);
+        $user->forceFill(['secondary_phone' => '+221771230002'])->save();
+        // Le chemin réel d'un SMS sans notification, indépendant du `.env` : routeur, chaîne
+        // `log`, heures calmes levées (même réglage que `SmsFailureTraceTest`).
+        config()->set('sms.quiet_hours.enabled', false);
+        config()->set('sms.fallback_chains', ['default' => ['log']]);
+        app(SmsRouterDriver::class)->send('+221771230001', 'code 123456', [
+            'event_type' => 'phone_otp',
+            'is_otp' => true,
+            'bypass_quiet_hours' => true,
+        ]);
+        $this->assertSame(1, NotificationDeliveryAttempt::query()
+            ->whereNull('app_notification_id')->where('to', '+221771230001')->count());
+        $secondaire = $this->tentativeSansNotification('+221771230002');
+        $autre = $this->tentativeSansNotification('+221779870003');
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertSame(
+            0,
+            NotificationDeliveryAttempt::query()->whereIn('to', ['+221771230001', '+221771230002'])->count(),
+            'une tentative sans notification porte encore un numéro du compte anonymisé',
+        );
+        $this->assertModelExists($secondaire);
+        $this->assertSame('+221779870003', $autre->fresh()->to);
+    }
+
+    /**
+     * TCK-1014 (P57.02) — une visite demandée en étant connecté désigne le compte par
+     * `visitor_id`. L'effacement la dissocie comme une fiche client : `visitor_id` à `null`, le
+     * contact saisi pour la visite reste à l'agence. La visite d'un autre compte ne bouge pas.
+     */
+    public function test_execute_dissocie_les_visites_du_compte(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+        $autre = User::factory()->create();
+        $visite = PropertyVisit::factory()->create([
+            'visitor_id' => $user->id,
+            'visitor_name' => 'Awa Diop',
+            'visitor_email' => 'awa@example.test',
+            'visitor_phone' => '+221771230004',
+        ]);
+        $visiteAutre = PropertyVisit::factory()->create(['visitor_id' => $autre->id]);
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertSame(0, PropertyVisit::query()->where('visitor_id', $user->id)->count());
+        $visite->refresh();
+        $this->assertNull($visite->visitor_id);
+        $this->assertSame('Awa Diop', $visite->visitor_name);
+        $this->assertSame('awa@example.test', $visite->visitor_email);
+        $this->assertSame('+221771230004', $visite->visitor_phone);
+        $this->assertSame($autre->id, $visiteAutre->fresh()->visitor_id);
+    }
+
+    /**
+     * TCK-1015 (P57.03) — `password_reset_tokens` a l'e-mail pour clé : l'effacement retire la
+     * ligne de l'adresse d'origine, relevée avant que le `forceFill` la remplace. Celle d'une
+     * autre adresse reste.
+     */
+    public function test_execute_supprime_le_jeton_de_reinitialisation_de_l_adresse_d_origine(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create(['email' => 'origine@example.test']);
+        DB::table('password_reset_tokens')->insert([
+            ['email' => 'origine@example.test', 'token' => 'h1', 'created_at' => now()],
+            ['email' => 'autre@example.test', 'token' => 'h2', 'created_at' => now()],
+        ]);
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertSame(
+            ['autre@example.test'],
+            DB::table('password_reset_tokens')->pluck('email')->all(),
+        );
+    }
+
+    /**
+     * TCK-1060 (P57.04) — les invitations en cours qui visent le compte, par son identifiant ou
+     * par son adresse d'origine, sont révoquées et leur adresse masquée comme `users.email`.
+     * Une invitation acceptée, et celle d'une autre adresse, restent telles quelles.
+     */
+    public function test_execute_revoque_et_masque_les_invitations_en_cours_du_compte(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create(['email' => 'origine@example.test']);
+        $parAdresse = Invitation::factory()->create(['email' => 'origine@example.test']);
+        $parCompte = Invitation::factory()->create(['email' => 'ancienne@example.test', 'phone' => '+221770000001', 'invited_user_id' => $user->id]);
+        $expiree = Invitation::factory()->expired()->create(['email' => 'origine@example.test']);
+        $acceptee = Invitation::factory()->accepted()->create(['email' => 'origine@example.test', 'invited_user_id' => $user->id]);
+        $autre = Invitation::factory()->create(['email' => 'autre@example.test']);
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $masque = sprintf('deleted-%d@takussan.local', $user->id);
+        foreach ([$parAdresse, $parCompte, $expiree] as $invitation) {
+            $invitation->refresh();
+            $this->assertSame(InvitationStatus::Revoked, $invitation->status);
+            $this->assertNotNull($invitation->revoked_at);
+            $this->assertSame($masque, $invitation->email);
+            $this->assertNull($invitation->phone);
+        }
+        $this->assertSame(0, Invitation::query()
+            ->where('status', InvitationStatus::Sent->value)
+            ->where(fn ($q) => $q->where('invited_user_id', $user->id)->orWhere('email', 'origine@example.test'))
+            ->count());
+
+        $this->assertSame(InvitationStatus::Accepted, $acceptee->fresh()->status);
+        $this->assertSame(InvitationStatus::Sent, $autre->fresh()->status);
+        $this->assertSame('autre@example.test', $autre->fresh()->email);
+    }
+
+    /**
+     * TCK-1061 (P64.02) — à l'effacement, chaque profil du compte reçoit une date de fin
+     * (`deleted_at`), et ses pièces, comme leurs médias, perdent le nom de fichier d'origine au
+     * profit du type. La pièce d'un autre compte garde son nom.
+     */
+    public function test_execute_termine_les_profils_et_renomme_leurs_pieces(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+        $owner = OwnerProfile::factory()->create(['user_id' => $user->id]);
+        $agent = AgentProfile::factory()->create(['user_id' => $user->id]);
+        Sanctum::actingAs($user);
+        $this->postJson("/api/me/owner-profiles/{$owner->id}/kyc/upload", [
+            'file' => UploadedFile::fake()->create('CNI_Aminata_Diop.pdf', 200, 'application/pdf'),
+            'kind' => 'cni',
+        ])->assertCreated();
+        $piece = Document::query()->where('documentable_id', $owner->id)->sole();
+        $this->assertSame('CNI_Aminata_Diop.pdf', $piece->name);
+
+        $autre = Document::factory()->create([
+            'documentable_type' => OwnerProfile::class,
+            'documentable_id' => OwnerProfile::factory()->create()->id,
+            'type' => DocumentType::IdCard->value,
+            'name' => 'CNI_Autre.pdf',
+        ]);
+        // Un profil déjà terminé (agent retiré de son agence) : sa pièce perd aussi son nom.
+        $retire = AgentProfile::factory()->create(['user_id' => $user->id]);
+        $pieceDuRetire = Document::factory()->create([
+            'documentable_type' => AgentProfile::class,
+            'documentable_id' => $retire->id,
+            'type' => DocumentType::Rib->value,
+            'name' => 'RIB_Aminata_Diop.pdf',
+        ]);
+        $retire->delete();
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertSame(DocumentType::Rib->value, $pieceDuRetire->fresh()->name);
+        $this->assertNotNull(OwnerProfile::withTrashed()->find($owner->id)->deleted_at);
+        $this->assertNotNull(AgentProfile::withTrashed()->find($agent->id)->deleted_at);
+        $piece->refresh();
+        $this->assertSame(DocumentType::IdCard->value, $piece->name);
+        $this->assertSame([DocumentType::IdCard->value], $piece->getMedia('file')->pluck('name')->all());
+        $this->assertSame('CNI_Autre.pdf', $autre->fresh()->name);
+    }
+
+    /**
+     * TCK-1025 (P57.05) — le contact WhatsApp du numéro VÉRIFIÉ du compte part avec lui ; celui
+     * d'un numéro non vérifié (qui peut être celui d'un tiers) et celui d'un autre numéro restent.
+     */
+    public function test_execute_supprime_le_contact_whatsapp_du_numero_verifie(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create(['phone' => '+221 77 123 00 05', 'phone_verified_at' => now()]);
+        $user->forceFill(['secondary_phone' => '+221771230006', 'secondary_phone_verified_at' => null])->save();
+        WhatsappContact::query()->create(['phone' => '+221771230005', 'opt_in_status' => WhatsappContact::OPT_IN_OPTED_IN]);
+        $nonVerifie = WhatsappContact::query()->create(['phone' => '+221771230006']);
+        $autre = WhatsappContact::query()->create(['phone' => '+221779870007']);
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertSame(0, WhatsappContact::query()->where('phone', '+221771230005')->count());
+        $this->assertModelExists($nonVerifie);
+        $this->assertModelExists($autre);
+    }
+
+    /**
+     * TCK-1025 (P57.05) — les alertes sans compte à l'adresse ou au numéro vérifiés du compte
+     * partent avec lui, et leurs recherches par la cascade ; la casse saisie n'y change rien
+     * (empreinte repliée, comme `claim()`). L'alerte d'un autre contact reste.
+     */
+    public function test_execute_supprime_les_alertes_sans_compte_du_contact_verifie(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'email' => 'Awa@Exemple.sn',
+            'email_verified_at' => now(),
+            'phone' => '+221771230008',
+            'phone_verified_at' => now(),
+        ]);
+        $parMail = $this->abonneSansCompte(AlertSubscriber::CHANNEL_EMAIL, 'AWA@exemple.sn');
+        $parNumero = $this->abonneSansCompte(AlertSubscriber::CHANNEL_WHATSAPP, '+221771230008');
+        $autre = $this->abonneSansCompte(AlertSubscriber::CHANNEL_EMAIL, 'autre@exemple.sn');
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertModelMissing($parMail);
+        $this->assertModelMissing($parNumero);
+        $this->assertSame(0, SavedSearch::query()->whereIn('alert_subscriber_id', [$parMail->id, $parNumero->id])->count());
+        $this->assertModelExists($autre);
+        $this->assertSame(1, SavedSearch::query()->where('alert_subscriber_id', $autre->id)->count());
+    }
+
+    private function abonneSansCompte(string $channel, string $contact): AlertSubscriber
+    {
+        $abonne = AlertSubscriber::create([
+            'channel' => $channel,
+            'contact' => AlertSubscriber::normalizeContact($channel, $contact),
+            'contact_hash' => AlertSubscriber::contactHash($channel, $contact),
+            'locale' => 'fr',
+            'confirmed_at' => now(),
+            'unsubscribe_token' => $jeton = AlertSubscriber::newToken(),
+            'unsubscribe_token_hash' => AlertSubscriber::tokenHash($jeton),
+            'consent_at' => now(),
+            'consent_source' => 'public_search_alert',
+            'consent_version' => AlertSubscriber::CONSENT_VERSION,
+        ]);
+        SavedSearch::create(['alert_subscriber_id' => $abonne->id, 'name' => 'Dakar', 'criteria' => ['city' => 'Dakar']]);
+
+        return $abonne;
+    }
+
+    private function tentativeSansNotification(string $to): NotificationDeliveryAttempt
+    {
+        return NotificationDeliveryAttempt::query()->create([
+            'app_notification_id' => null,
+            'attempt' => 1,
+            'provider' => 'log',
+            'provider_message_id' => 'p57-'.$to,
+            'to' => $to,
+            'status' => 'sent',
+        ]);
     }
 
     private function tentativeEnvoyee(AppNotification $notification, string $to): NotificationDeliveryAttempt

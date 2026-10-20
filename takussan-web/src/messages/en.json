@@ -1382,6 +1382,7 @@
         "edit": "Edit",
         "viewPublic": "View public listing",
         "more": "More actions",
+        "moreFor": "More actions — {title}",
         "quickActions": "Quick actions",
         "unpublish": "Unpublish",
         "publish": "Publish",
@@ -2790,6 +2791,13 @@
       "idType": "Document type",
       "idTypePlaceholder": "Not provided",
       "idNumber": "Number",
+      "idNumberKept": "{masque} — leave blank to keep it",
+      "idNumberSensitive": {
+        "reveal": "Show",
+        "hide": "Hide",
+        "notice": "“Show” reveals the full number and records the access in the agency log.",
+        "errorTitle": "Unable to show the ID number"
+      },
       "saving": "Saving…",
       "create": "Create the customer"
     },
@@ -3563,6 +3571,7 @@
       "creditNotePdf": "Credit note PDF"
     },
     "payoutDialog": {
+      "viewStatement": "View the month's statement",
       "title": "Prepare a payout",
       "description": "Choose the landlord and the period: the calculation is read, not typed.",
       "periodStart": "Period start",
@@ -6351,6 +6360,8 @@
       "fields": {
         "name": "Agency name",
         "slug": "URL identifier (not editable)",
+        "slugEditable": "URL identifier (can be changed once)",
+        "slugEditableHint": "Your agency is now professional: you can replace this identifier once. Lowercase letters, digits and hyphens. The old address of your public page will stop working.",
         "license": "Licence number",
         "licensePlaceholder": "e.g. SEN-IMMO-2024",
         "description": "Description",
@@ -7306,17 +7317,11 @@
       "empty_description": "Business value lists will show up here as soon as one is declared.",
       "navLabel": "Editable enums",
       "valuesCount": "{count, plural, one {# value} other {# values}}",
-      "addValue": "Add a value",
-      "editValue": "Edit the value",
       "value": "Value",
       "localeFr": "FR",
       "localeEn": "EN",
       "localeWo": "WO",
       "usage": "Usage",
-      "actions": "Actions",
-      "editValueAria": "Edit {value}",
-      "deactivateValueAria": "Deactivate {value}",
-      "warning": "Technical statuses and roles cannot be edited here.",
       "tableCaption": "Values of the {name} enum"
     },
     "moderation": {
@@ -7906,7 +7911,8 @@
       },
       "enums": {
         "title": "Business enums",
-        "subtitle": "Manage the FR / EN / WO labels and the non-technical business values.",
+        "readOnlySubtitle": "Browse the non-technical business values and their usage. They cannot be changed from the console.",
+        "codeNotice": "The values of these lists live in the code: adding one takes a deployment.",
         "lockedNotice": "Technical enums such as payments, roles and internal statuses stay locked in the code."
       },
       "featureFlags": {
@@ -8221,7 +8227,9 @@
           "decidedOn": "Decided on",
           "by": "By",
           "comment": "Comment",
-          "userFallback": "User #{id}"
+          "userFallback": "User #{id}",
+          "kycNotVerified": "The agency KYC dossier is not verified: the request cannot be approved until it is. Without it, the platform could no longer pay the agency out once it becomes professional.",
+          "openKyc": "Open the agency and its KYC dossier"
         },
         "status": {
           "pending": "Pending",

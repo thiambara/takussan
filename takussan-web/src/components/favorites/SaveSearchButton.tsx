@@ -1,31 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BookmarkPlus, Check, Loader2 } from 'lucide-react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import {
-  useCreateSavedSearchMutation,
-  type SavedSearchAlertChannel,
-} from '@/lib/queries/saved-searches';
-import { PublicSearchAlertForm } from '@/components/favorites/PublicSearchAlertForm';
-import { CLES_DE_RECHERCHE, SEARCH_FILTER_KEYS, type SearchFilters } from '@/types/search';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { savedSearchPayloadSchema } from '@/lib/schemas/search';
-import { traduireMessageValidation } from '@/lib/schemas/messages';
-import { useTraducteurValidation } from '@/hooks/useApiForm';
+import dynamic from 'next/dynamic';
+import { BookmarkPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { CLES_DE_RECHERCHE, SEARCH_FILTER_KEYS, type SearchFilters } from '@/types/search';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
+// TCK-1037 (P69.04) — le dialogue tire zod, react-hook-form et le formulaire d'alerte : il se
+// charge au premier clic, hors du JS initial de la liste (`zod-hors-des-pages-publiques.test.ts`).
+const SaveSearchDialog = dynamic(() => import('./SaveSearchDialog').then((m) => m.SaveSearchDialog));
 
 /**
  * "Save this search" CTA + naming modal — Wave 3 / TCK-047, revu par TCK-599.
@@ -81,32 +65,6 @@ export function filtersToCriteria(filters: SearchFilters): Record<string, unknow
   return out;
 }
 
-type Traducteur = (cle: string, valeurs?: Record<string, string | number>) => string;
-
-/**
- * Hors composant : les libellés lui sont passés, il ne peut pas appeler de hook.
- *
- * ⚠ TCK-340 — **cette liste-ci n'est PAS unifiée, et c'est délibéré.** Elle ne cite que quatre
- * clés sur dix-sept, ce qui ressemble à une divergence et n'en est pas : un nom suggéré est un
- * RÉSUMÉ, pas un inventaire. Le dériver de la table produirait « Location · Dakar · Villa ·
- * 3 ch. · ≥ 150 000 FCFA · ≤ 900 000 FCFA · ≥ 40 m² · Meublé · ★ En vedette · … » dans un champ
- * plafonné à 100 caractères. La curation est la fonction ; l'unifier la supprimerait.
- */
-function suggestName(
-  filters: SearchFilters,
-  t: Traducteur,
-  tContract: Traducteur,
-  tTypes: Traducteur,
-): string {
-  const parts: string[] = [];
-  if (filters.contract_type === 'sale') parts.push(tContract('sale'));
-  if (filters.contract_type === 'rent') parts.push(tContract('rent'));
-  if (filters.city) parts.push(filters.city);
-  if (filters.type && filters.type.length > 0) parts.push(tTypes(filters.type[0]));
-  if (filters.bedrooms != null) parts.push(t('bedroomsShort', { count: filters.bedrooms }));
-  return parts.length > 0 ? parts.join(' · ') : t('defaultName');
-}
-
 export function SaveSearchButton({
   filters,
   activeCount,
@@ -114,68 +72,16 @@ export function SaveSearchButton({
   compact = false,
 }: SaveSearchButtonProps) {
   const t = useTranslations('search.saveSearch');
-  const tPublic = useTranslations('search.publicAlert');
-  // À la RACINE du dictionnaire : `t` ci-dessus est cantonné à `search.saveSearch` et ne peut pas
-  // résoudre un `validation.search.…`.
-  const tValidation = useTraducteurValidation();
-  const tContract = useTranslations('property.contractTypes');
-  const tTypes = useTranslations('property.types');
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const { user } = useAuth();
-
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [alsoAlert, setAlsoAlert] = useState(false);
-  const [saved, setSaved] = useState<{ id: number; channels: SavedSearchAlertChannel[] | null } | null>(
-    null,
-  );
-  const create = useCreateSavedSearchMutation();
-  const tChannels = useTranslations('search.alertChannels');
-
-  const redirectHref = (() => {
-    const qs = searchParams.toString();
-    const current = qs ? `${pathname}?${qs}` : pathname;
-    return `/auth/login?redirect=${encodeURIComponent(current)}`;
-  })();
+  // TCK-1037 — le dialogue n'est chargé, donc monté, qu'à la première ouverture ; il reste monté
+  // ensuite (animation de fermeture). `ouverture` le remet à neuf à chaque ouverture.
+  const [dejaOuvert, setDejaOuvert] = useState(false);
+  const [ouverture, setOuverture] = useState(0);
 
   function handleOpen() {
-    setName(suggestName(filters, t, tContract, tTypes));
-    setNameError(null);
-    setSaved(null);
-    setAlsoAlert(false);
+    setDejaOuvert(true);
+    setOuverture((n) => n + 1);
     setOpen(true);
-  }
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    const payload = {
-      name: name.trim(),
-      criteria: filtersToCriteria(filters),
-      notification_frequency: alsoAlert ? ('daily' as const) : ('off' as const),
-    };
-    const parsed = savedSearchPayloadSchema.safeParse(payload);
-    if (!parsed.success) {
-      // `issues[0].message` porte une CLÉ (`validation.search.…`), pas un libellé : sans cette
-      // résolution, l'utilisateur lit `validation.search.savedSearchNameRequired` (TCK-292, lot L).
-      setNameError(
-        traduireMessageValidation(parsed.error.issues[0]?.message, tValidation)
-        ?? t('invalidName'),
-      );
-      return;
-    }
-    setNameError(null);
-    try {
-      const res = await create.mutateAsync(parsed.data);
-      setSaved({
-        id: res.data.id,
-        channels: parsed.data.notification_frequency === 'off' ? null : (res.data.alert_channels ?? []),
-      });
-    } catch {
-      setNameError(t('error'));
-    }
   }
 
   return (
@@ -212,106 +118,15 @@ export function SaveSearchButton({
         </button>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          {!user ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>{tPublic('dialogTitle')}</DialogTitle>
-                <DialogDescription>{tPublic('dialogBody')}</DialogDescription>
-              </DialogHeader>
-              <PublicSearchAlertForm
-                criteria={filtersToCriteria(filters)}
-                name={name}
-                loginHref={redirectHref}
-                onClose={() => setOpen(false)}
-              />
-            </>
-          ) : (
-            <>
-              <DialogHeader>
-                <DialogTitle>{t('dialogTitle')}</DialogTitle>
-                <DialogDescription>{t('dialogBodyFull')}</DialogDescription>
-              </DialogHeader>
-
-              {saved ? (
-                <div className="flex flex-col items-center text-center py-4">
-                  <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center mb-3">
-                    <Check className="w-5 h-5 text-success" />
-                  </div>
-                  <p className="text-sm text-foreground mb-4" role="status">
-                    {saved.channels === null
-                      ? t('savedFull')
-                      : t('savedWithAlert', {
-                          channels: saved.channels.map((c) => tChannels(c)).join(', '),
-                        })}
-                  </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setOpen(false);
-                      router.push('/app/saved-searches');
-                    }}
-                  >
-                    {t('viewMine')}
-                  </Button>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="saved-search-name">{t('nameLabel')}</Label>
-                    <Input
-                      id="saved-search-name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder={t('namePlaceholder')}
-                      maxLength={100}
-                      required
-                    />
-                    {nameError && (
-                      <p className="text-xs text-destructive">{nameError}</p>
-                    )}
-                  </div>
-
-                  <label className="flex items-start gap-2 text-sm text-foreground">
-                    <input
-                      type="checkbox"
-                      checked={alsoAlert}
-                      onChange={(e) => setAlsoAlert(e.target.checked)}
-                      className="mt-0.5 size-4 shrink-0 accent-primary"
-                    />
-                    <span>
-                      {t('alsoAlert')}
-                      <span className="block text-xs bg-popover text-muted-foreground">{t('alsoAlertHint')}</span>
-                    </span>
-                  </label>
-
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setOpen(false)}
-                      disabled={create.isPending}
-                    >
-                      {t('cancel')}
-                    </Button>
-                    <Button type="submit" disabled={create.isPending}>
-                      {create.isPending ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                          {t('saving')}
-                        </>
-                      ) : (
-                        t('save')
-                      )}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              )}
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      {dejaOuvert ? (
+        <SaveSearchDialog
+          open={open}
+          onOpenChange={setOpen}
+          filters={filters}
+          criteria={filtersToCriteria(filters)}
+          ouverture={ouverture}
+        />
+      ) : null}
     </>
   );
 }

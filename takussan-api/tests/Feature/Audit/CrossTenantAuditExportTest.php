@@ -23,8 +23,10 @@ class CrossTenantAuditExportTest extends ApiTestCase
     {
         $agency = Agency::factory()->create();
         activity(PersonalDataAccessLogger::LOG_NAME)->performedOn($agency)->event('personal_data_viewed')->log('temoin-sensible');
+        // TCK-1018 (P56.05) — sous `attribute_changes`, la forme qu'écrit un événement de modèle
+        // depuis activitylog v5 ; `properties` ne porte plus que ce qu'écrit `withProperties()`.
         activity('Property')->performedOn($agency)->event('updated')
-            ->withProperties(['attributes' => ['rib' => 'RIBTEMOIN', 'title' => 'Titre']])
+            ->withChanges(['attributes' => ['rib' => 'RIBTEMOIN', 'title' => 'Titre']])
             ->log('temoin-ordinaire');
     }
 
@@ -72,7 +74,9 @@ class CrossTenantAuditExportTest extends ApiTestCase
 
         $url = $this->apiGet('/api/admin/audit/export')->json('data.url');
 
-        $this->get(str_replace('exports%2Faudit%2F', 'exports%2Faudit%2Fx', $url))->assertForbidden();
+        // TCK-1054 — le lien porte le fichier par son nom opaque (`file=`), plus par son chemin.
+        $this->assertStringContainsString('file=', $url);
+        $this->get(str_replace('file=', 'file=x', $url))->assertForbidden();
     }
 
     public function test_le_prereglage_filtre_aussi_l_index(): void

@@ -312,6 +312,8 @@ return [
                 'title' => 'Payment recorded',
                 'body' => 'Your payment of :amount for :property has been recorded.',
                 'sms' => 'Takussan: payment of :amount recorded (:property).',
+                'body_link' => 'Your payment of :amount for :property has been recorded. Your receipt: :receipt_url',
+                'sms_link' => 'Takussan: payment of :amount recorded (:property). Receipt: :receipt_url',
             ],
             'received_landlord' => [
                 'title' => 'Rent received: :property',

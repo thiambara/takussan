@@ -115,8 +115,8 @@ class OwnerOnboardingTest extends TestCase
             ->where('documentable_id', $owner->id)
             ->count());
 
-        $owner->refresh();
-        $docs = (array) data_get($owner->metadata, 'kyc.docs');
+        // TCK-1026 (P64.05) — plus de miroir `metadata.kyc.docs` : `submitKyc` lit les pièces.
+        $docs = (array) $this->postJson("/api/me/owner-profiles/{$owner->id}/kyc/submit")->assertOk()->json('data.kyc.docs');
         sort($docs);
         $this->assertSame(['cni', 'ninea', 'rib'], $docs);
 
@@ -246,6 +246,54 @@ class OwnerOnboardingTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('meta.total', 3);
+    }
+
+    /**
+     * TCK-1048 (piste P61.03) — sans `fields[properties]`, la liste rendait la ligne `properties`
+     * entière (`select *`, seul `$hidden` filtrait) : gel plateforme et son auteur, suivi admin,
+     * bien de test. Elle passe par `PropertyResource`, qui n'émet aucune de ces colonnes.
+     */
+    public function test_la_liste_sans_fields_ne_rend_pas_les_colonnes_de_moderation(): void
+    {
+        $user = User::factory()->create();
+        $agency = Agency::factory()->create();
+        $owner = OwnerProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $agency->id]);
+        $bien = Property::factory()->create(['user_id' => $user->id, 'agency_id' => $agency->id, 'title' => 'Villa Ngor']);
+        $bien->forceFill([
+            'platform_hold_at' => now(), 'platform_hold_by_id' => User::factory()->create()->id,
+            'platform_hold_reason' => 'contrôle', 'admin_monitored' => true, 'is_test' => true,
+        ])->save();
+
+        Sanctum::actingAs($user);
+        $ligne = $this->getJson("/api/me/owner-profiles/{$owner->id}/properties")->assertOk()->json('data.0');
+
+        $this->assertSame('Villa Ngor', $ligne['title']);
+        foreach (['platform_hold_at', 'platform_hold_by_id', 'platform_hold_reason', 'admin_monitored', 'is_test', 'metadata', 'deleted_at'] as $colonne) {
+            $this->assertArrayNotHasKey($colonne, $ligne);
+        }
+    }
+
+    /**
+     * TCK-1049 (piste P61.02) — `include=agency` rendait au bailleur la ligne `agencies` entière,
+     * seuil des reversements et `bank_csv_mapping` compris. L'agence sort par la projection de
+     * `PropertyResource` (TCK-1048).
+     */
+    public function test_l_agence_incluse_ne_rend_au_bailleur_ni_le_seuil_ni_le_mapping_bancaire(): void
+    {
+        $user = User::factory()->create();
+        $agency = Agency::factory()->create();
+        $agency->forceFill(['payout_approval_threshold' => 750000, 'bank_csv_mapping' => ['date' => 0]])->save();
+        $owner = OwnerProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $agency->id]);
+        Property::factory()->create(['user_id' => $user->id, 'agency_id' => $agency->id]);
+
+        Sanctum::actingAs($user);
+        $reponse = $this->getJson("/api/me/owner-profiles/{$owner->id}/properties?include=agency")->assertOk();
+
+        $reponse->assertJsonPath('data.0.agency.id', $agency->id);
+        $agenceRendue = $reponse->json('data.0.agency');
+        foreach (['payout_approval_threshold', 'pending_payout_threshold', 'bank_csv_mapping', 'settings', 'metadata'] as $cle) {
+            $this->assertArrayNotHasKey($cle, $agenceRendue);
+        }
     }
 
     public function test_endpoints_require_authentication(): void

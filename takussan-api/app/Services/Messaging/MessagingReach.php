@@ -3,10 +3,12 @@
 namespace App\Services\Messaging;
 
 use App\Models\Conversation;
+use App\Models\Enums\MessageType;
 use App\Models\Enums\UserStatus;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-565 — **qui un utilisateur peut-il faire entrer dans une conversation de groupe ?**
@@ -36,7 +38,9 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
  * Est joignable (union, jamais l'acteur lui-même, jamais un compte supprimé ni un compte
  * `blocked` ou `deleted`, qui n'ouvrent aucune session — TCK-972) :
  *
- *  1. **un correspondant** — quelqu'un avec qui l'acteur partage déjà une conversation ;
+ *  1. **un correspondant** — quelqu'un avec qui l'acteur partage déjà une conversation. Un
+ *     participant RETIRÉ d'un fil par un administrateur n'en est plus un, dans les deux sens ;
+ *     un départ volontaire garde la relation (P51.02) ;
  *  2. **un lien CRM** (`user_customer_relationships`) — les deux comptes sont rattachés à une même
  *     fiche client, OU l'un est rattaché à la fiche dont l'autre est le client (`customers.user_id`) :
  *     un propriétaire joint son locataire, et le locataire son propriétaire ;
@@ -91,15 +95,33 @@ class MessagingReach
             // (`User::canOpenSession()`, TCK-589) : il ne lirait jamais le fil où on l'ajoute.
             // `inactive` reste joignable : c'est un compte qui n'a pas encore servi.
             ->whereNotIn('users.status', [UserStatus::Blocked->value, UserStatus::Deleted->value])
-            ->where(function (Builder $reach) use ($actor, $agencyId, $actorIsStaff, $contextAgencyId) {
+            ->where(function (Builder $reach) use ($actor, $agencyId, $actorIsStaff, $contextAgencyId, $conversation) {
                 // 1. Correspondants. TCK-592 (passe 2, N1) — par les seuls fils que la garde de
                 //    conversation lui ouvre : un fil d'intervention fermé ne garde pas le contact.
-                $reach->whereIn('users.id', function (QueryBuilder $sub) use ($actor) {
+                //    P51.02 — un participant RETIRÉ par un administrateur perd la relation née du
+                //    fil, dans les deux sens : le fil ne compte plus pour lui, ni lui pour les autres.
+                //    Seule exception : il reste proposé pour le groupe même qu'on complète, la
+                //    ré-invitation par un administrateur restant étant un chemin prévu.
+                $reach->whereIn('users.id', function (QueryBuilder $sub) use ($actor, $conversation) {
                     $sub->select('cpb.user_id')
                         ->from('conversation_participants as cpb')
                         ->whereIn('cpb.conversation_id', app(ConversationAccess::class)
                             ->participatingQuery($actor, activeOnly: false)
-                            ->select('conversations.id'));
+                            ->select('conversations.id'))
+                        ->whereNotExists(fn (QueryBuilder $moi) => $this->removedByAdmin(
+                            $moi->from('conversation_participants as cpa')
+                                ->whereColumn('cpa.conversation_id', 'cpb.conversation_id')
+                                ->where('cpa.user_id', $actor->id),
+                            'cpa',
+                        ))
+                        ->where(fn (QueryBuilder $lui) => $lui
+                            ->whereNotExists(fn (QueryBuilder $retire) => $this->removedByAdmin(
+                                $retire->from('conversation_participants as cpr')
+                                    ->whereColumn('cpr.id', 'cpb.id'),
+                                'cpr',
+                            ))
+                            ->when($conversation !== null, fn (QueryBuilder $q) => $q
+                                ->orWhere('cpb.conversation_id', $conversation->getKey())));
                 });
 
                 // 2. Lien CRM, dans les trois sens où une fiche client relie deux comptes :
@@ -167,6 +189,32 @@ class MessagingReach
             ->all();
 
         return array_values(array_diff($wanted, $reachable));
+    }
+
+    /**
+     * P51.02 — restreint `$query` (sur `conversation_participants as {$alias}`) aux participations
+     * closes par un RETRAIT d'un administrateur, et non par un départ volontaire. Le schéma ne dit
+     * pas qui a posé `left_at` : c'est le dernier message système `participant_removed` qui le dit
+     * (`self_leave`, {@see SystemMessageFactory::participantRemoved()}). Une ré-invitation remet
+     * `left_at` à null, et la participation compte de nouveau.
+     */
+    private function removedByAdmin(QueryBuilder $query, string $alias): QueryBuilder
+    {
+        return $query->select(DB::raw(1))
+            ->whereNotNull("{$alias}.left_at")
+            ->whereExists(fn (QueryBuilder $m) => $m->from('messages as rm')
+                ->whereColumn('rm.conversation_id', "{$alias}.conversation_id")
+                ->where('rm.type', MessageType::System->value)
+                ->where('rm.metadata->event', SystemMessageFactory::EVENT_PARTICIPANT_REMOVED)
+                ->whereRaw("rm.metadata->>'target_id' = {$alias}.user_id::text")
+                ->whereRaw("coalesce(rm.metadata->>'self_leave', 'false') <> 'true'")
+                ->whereNotExists(fn (QueryBuilder $later) => $later->from('messages as rl')
+                    ->select(DB::raw(1))
+                    ->whereColumn('rl.conversation_id', 'rm.conversation_id')
+                    ->where('rl.type', MessageType::System->value)
+                    ->where('rl.metadata->event', SystemMessageFactory::EVENT_PARTICIPANT_REMOVED)
+                    ->whereRaw("rl.metadata->>'target_id' = rm.metadata->>'target_id'")
+                    ->whereColumn('rl.id', '>', 'rm.id')));
     }
 
     /** L'équipe ACTIVE d'une agence : ses agents et ses administrateurs. */

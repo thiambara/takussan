@@ -4,7 +4,7 @@ import {
   customerStatusValues,
   idTypeValues,
   pipelineStageValues,
-} from '@/lib/schemas/customer';
+} from '@/lib/enums/customer';
 
 /**
  * Le VOCABULAIRE des énumérations CRM — trois tables, un seul endroit.

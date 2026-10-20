@@ -19,7 +19,10 @@ class AppNotification extends AbstractModel
     protected $fillable = [
         'user_id', 'type', 'delivery_channel',
         'code', 'params', 'target',
-        'title', 'body', 'data', 'delivery_attempts',
+        // TCK-1020 (P58.05) — `delivery_attempts` n'y est plus : la colonne JSON n'a plus
+        // d'écrivain depuis TCK-110 (`notification_delivery_attempts` la remplace). Son retrait
+        // attend une mesure de la préproduction.
+        'title', 'body', 'data',
         'referenceable_id', 'referenceable_type',
         'is_read', 'read_at', 'sent_at', 'digested_at',
     ];
@@ -66,19 +69,5 @@ class AppNotification extends AbstractModel
     public function deliveryAttempts(): HasMany
     {
         return $this->hasMany(NotificationDeliveryAttempt::class)->orderBy('attempt');
-    }
-
-    public function reference()
-    {
-        $map = [
-            'booking' => Booking::class,
-            'lease' => Lease::class,
-            'lease_payment' => LeasePayment::class,
-            'maintenance' => MaintenanceRequest::class,
-            'property_visit' => PropertyVisit::class,
-        ];
-        $class = $map[$this->referenceable_type] ?? null;
-
-        return $class ? $class::find($this->referenceable_id) : null;
     }
 }

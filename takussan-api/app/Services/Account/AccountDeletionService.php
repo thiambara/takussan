@@ -4,20 +4,28 @@ namespace App\Services\Account;
 
 use App\Models\AccountDeletionRequest;
 use App\Models\Activity;
+use App\Models\AlertSubscriber;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Document;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\UserStatus;
+use App\Models\Invitation;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
+use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Models\WhatsappContact;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
+use App\Services\Notifications\Sms\PhoneNumber;
+use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -237,6 +245,12 @@ class AccountDeletionService
     public function anonymize(User $user, bool $notifier = true): array
     {
         $originalEmail = $user->email;
+        // TCK-1013 (P57.01) — relevés avant le `forceFill`, qui les efface.
+        $originalPhones = $this->phoneVariants([$user->phone, $user->secondary_phone]);
+        // TCK-1025 (P57.05) — le contact VÉRIFIÉ du compte, lu comme `claim()` le lit : un numéro
+        // ou une adresse non vérifiés peuvent être ceux d'un tiers.
+        $verifiedEmail = $user->email_verified_at !== null ? $user->email : null;
+        $verifiedPhones = $this->verifiedPhones($user);
 
         // Notify BEFORE we scramble the email so the mail still routes.
         // The notification is queueable and reads `routeNotificationForMail`
@@ -248,6 +262,12 @@ class AccountDeletionService
 
         // Dissociate customers (preserve CRM history).
         Customer::query()->where('user_id', $user->id)->update(['user_id' => null]);
+
+        // TCK-1014 (P57.02) — de même pour les visites demandées en étant connecté : le compte
+        // n'étant que soft-deleted, la FK `visitor_id` en `nullOnDelete` ne joue pas. Le contact
+        // de la visite (`visitor_name`, `visitor_email`, `visitor_phone`) reste à l'agence
+        // (décision du porteur, 2026-10-19).
+        PropertyVisit::query()->where('visitor_id', $user->id)->update(['visitor_id' => null]);
 
         // Tokens already revoked at request time, but in case the user
         // signed back in to cancel and let the request lapse, revoke now.
@@ -314,6 +334,69 @@ class AccountDeletionService
             ->whereIn('app_notification_id', $user->appNotifications()->select('id'))
             ->whereNotNull('to')
             ->update(['to' => null]);
+
+        // TCK-1013 (P57.01) — depuis TCK-799, un SMS envoyé sans notification (code de
+        // vérification, step-up, signature de bail) écrit sa tentative sans `app_notification_id` :
+        // le filtre ci-dessus ne la voit pas. Elle se retrouve par le numéro, ceux du compte au
+        // moment de l'effacement ; un ancien numéro remplacé n'y figure plus (décision du porteur :
+        // ni migration ni colonne `user_id`).
+        if ($originalPhones !== []) {
+            NotificationDeliveryAttempt::query()
+                ->whereNull('app_notification_id')
+                ->whereIn('to', $originalPhones)
+                ->update(['to' => null]);
+        }
+
+        // TCK-1015 (P57.03) — `password_reset_tokens` a l'e-mail pour clé, et la réinitialisation y
+        // écrit l'adresse du compte : la ligne de l'adresse d'origine part avec elle. Les deux jeux
+        // de jetons (`users`, `activations`) partagent la table.
+        DB::table((string) config('auth.passwords.users.table', 'password_reset_tokens'))
+            ->where('email', $originalEmail)
+            ->delete();
+
+        // TCK-1060 (P57.04) — une invitation en cours qui vise le compte, par son identifiant ou
+        // par son adresse d'origine, reste acceptable par la boîte et garde l'adresse en clair :
+        // elle est révoquée et son adresse masquée comme `users.email`, sans être effacée (la
+        // contrainte `invitations_email_or_phone_check` exige un destinataire) ; son numéro, s'il
+        // en a un, part, l'adresse masquée suffisant à la contrainte. Décision du
+        // porteur, 2026-10-20. Par requête : aucun champ journalisé de l'invitation ne porte
+        // l'adresse.
+        Invitation::query()
+            ->where('status', InvitationStatus::Sent->value)
+            ->where(fn ($query) => $query
+                ->where('invited_user_id', $user->id)
+                ->orWhere('email', CaseInsensitive::fold(trim((string) $originalEmail))))
+            ->update([
+                'status' => InvitationStatus::Revoked->value,
+                'revoked_at' => now(),
+                'email' => sprintf('deleted-%d@takussan.local', $user->id),
+                'phone' => null,
+                'updated_at' => now(),
+            ]);
+
+        // TCK-1061 (P64.02) — les profils du compte reçoivent une date de fin (`deleted_at`), d'où
+        // partira la purge à « fin + 5 ans » de la politique (TCK-537). Leurs pièces restent,
+        // mais le nom de fichier choisi par la personne, sur la pièce et sur ses médias, cède la
+        // place au type. Les profils déjà terminés (agent retiré de l'agence) comptent aussi.
+        // Décision du porteur, 2026-10-20.
+        $this->endProfiles($user);
+
+        // TCK-1025 (P57.05) — le contact WhatsApp et les alertes sans compte du contact vérifié
+        // partent avec le compte (décision du porteur, 2026-10-19). Les recherches des alertes
+        // suivent par la FK en cascade.
+        if ($verifiedPhones !== []) {
+            WhatsappContact::query()->whereIn('phone', $verifiedPhones)->delete();
+        }
+        $alertHashes = array_map(
+            fn (string $phone) => AlertSubscriber::contactHash(AlertSubscriber::CHANNEL_WHATSAPP, $phone),
+            $verifiedPhones,
+        );
+        if ($verifiedEmail !== null && $verifiedEmail !== '') {
+            $alertHashes[] = AlertSubscriber::contactHash(AlertSubscriber::CHANNEL_EMAIL, $verifiedEmail);
+        }
+        if ($alertHashes !== []) {
+            AlertSubscriber::query()->whereIn('contact_hash', $alertHashes)->delete();
+        }
 
         unset($originalEmail);
 
@@ -459,5 +542,72 @@ class AccountDeletionService
             ->orderBy('scheduled_for')
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * TCK-1061 (P64.02) — termine les profils du compte et retire le nom d'origine de leurs pièces.
+     */
+    private function endProfiles(User $user): void
+    {
+        foreach (Document::PROFILE_TYPES as $profileClass) {
+            $ids = $profileClass::withTrashed()->where('user_id', $user->id)->pluck('id');
+            if ($ids->isEmpty()) {
+                continue;
+            }
+
+            Document::withTrashed()
+                ->where('documentable_type', $profileClass)
+                ->whereIn('documentable_id', $ids)
+                ->with('media')
+                ->get()
+                ->each(function (Document $document): void {
+                    $label = $document->type?->value ?? 'document';
+                    $document->forceFill(['name' => $label])->save();
+                    $document->media->each(fn ($media) => $media->forceFill(['name' => $label])->save());
+                });
+
+            $profileClass::query()->whereIn('id', $ids)->get()->each->delete();
+        }
+    }
+
+    /**
+     * TCK-1025 — les numéros VÉRIFIÉS du compte, en E.164 (forme de `whatsapp_contacts.phone` et de
+     * l'empreinte des alertes). Un numéro qui n'a pas cette forme n'a pu être écrit ni par l'une
+     * ni par l'autre.
+     *
+     * @return list<string>
+     */
+    private function verifiedPhones(User $user): array
+    {
+        $phones = [];
+        foreach ([[$user->phone, $user->phone_verified_at], [$user->secondary_phone, $user->secondary_phone_verified_at]] as [$phone, $verifiedAt]) {
+            $clean = preg_replace('/\s+/', '', (string) $phone) ?? '';
+            if ($verifiedAt !== null && PhoneNumber::isValid($clean)) {
+                $phones[] = $clean;
+            }
+        }
+
+        return array_values(array_unique($phones));
+    }
+
+    /**
+     * TCK-1013 — les numéros du compte, tels qu'enregistrés et sans espaces : le routeur SMS
+     * écrit `to` normalisé par `PhoneNumber::normalize()`, qui ne retire que les espaces.
+     *
+     * @param  list<?string>  $phones
+     * @return list<string>
+     */
+    private function phoneVariants(array $phones): array
+    {
+        $variants = [];
+        foreach ($phones as $phone) {
+            if ($phone === null || trim($phone) === '') {
+                continue;
+            }
+            $variants[] = $phone;
+            $variants[] = preg_replace('/\s+/', '', $phone) ?? $phone;
+        }
+
+        return array_values(array_unique($variants));
     }
 }

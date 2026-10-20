@@ -15,7 +15,6 @@ import type {
   AgencySubscriptionResponse,
   AdminPropertiesResponse,
   AdminModerationResponse,
-  BusinessEnumResponse,
   BusinessEnumsResponse,
   NotificationTemplateChannel,
   NotificationTemplateLocale,
@@ -702,41 +701,6 @@ export async function releaseModerationItem(itemId: string): Promise<void> {
 export async function fetchBusinessEnums(): Promise<BusinessEnumsResponse> {
   const res = await fetch('/api/super-admin/enums', { credentials: 'include' });
   return jsonOrThrow<BusinessEnumsResponse>(res);
-}
-
-export async function postBusinessEnumValue(
-  key: string,
-  payload: { value: string; labels: { fr: string; en?: string; wo?: string }; is_active: boolean },
-): Promise<BusinessEnumResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/enums/${key}/values`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<BusinessEnumResponse>(res);
-}
-
-export async function patchBusinessEnumValue(
-  key: string,
-  value: string,
-  payload: { labels?: { fr?: string; en?: string; wo?: string }; is_active?: boolean },
-): Promise<BusinessEnumResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/enums/${key}/values/${value}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<BusinessEnumResponse>(res);
-}
-
-export async function deleteBusinessEnumValue(key: string, value: string): Promise<BusinessEnumResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/enums/${key}/values/${value}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  return jsonOrThrow<BusinessEnumResponse>(res);
 }
 
 export async function fetchNotificationTemplates(): Promise<NotificationTemplatesResponse> {
@@ -1428,6 +1392,8 @@ export interface AdminAgencyUpgradeRequestRow {
     slug: string | null;
     kind: string | null;
     status: string | null;
+    /** TCK-1003 — état du dossier KYC de l'agence (détail seulement) ; `null` sans dossier. */
+    kyc_status?: string | null;
     created_at: string | null;
   } | null;
   submitter?: {

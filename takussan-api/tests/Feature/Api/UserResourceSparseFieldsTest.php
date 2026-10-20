@@ -89,6 +89,63 @@ class UserResourceSparseFieldsTest extends ApiTestCase
     }
 
     /**
+     * TCK-1019 (P58.04) — les clés voisines, dérivées de colonnes hors `User::$queryFields`
+     * (2FA, vérification, préférences), sortaient en `false`, `null` ou `{}` sous un sparse
+     * fieldset, quelle que soit la base.
+     */
+    public function test_les_cles_derivees_de_colonnes_non_selectionnees_sont_omises(): void
+    {
+        [$agency, $membre] = $this->agencyWithMember();
+        $this->armerLesDrapeaux($membre);
+
+        $reponse = $this->getJson(
+            "/api/agencies/{$agency->id}/members"
+            .'?fields[users]=id,first_name,last_name,email,status'
+        )->assertOk();
+
+        $ligne = collect($reponse->json('data'))->firstWhere('id', $membre->id);
+
+        $this->assertNotNull($ligne, 'Le membre attendu ne figure pas dans la liste.');
+        foreach (self::CLES_DERIVEES as $cle) {
+            $this->assertArrayNotHasKey($cle, $ligne, "`{$cle}` est émis alors que sa colonne n'a pas été sélectionnée.");
+        }
+    }
+
+    /** Le versant positif : modèle entier, les mêmes clés sont là et disent vrai. */
+    public function test_les_cles_derivees_sont_presentes_et_justes_quand_le_modele_est_entier(): void
+    {
+        [$agency, $membre] = $this->agencyWithMember();
+        $this->armerLesDrapeaux($membre);
+
+        $ligne = collect($this->getJson("/api/agencies/{$agency->id}/members")->assertOk()->json('data'))
+            ->firstWhere('id', $membre->id);
+
+        $this->assertTrue($ligne['two_factor_enabled']);
+        $this->assertTrue($ligne['force_2fa_at_first_login']);
+        $this->assertTrue($ligne['force_2fa_reconfigure']);
+        $this->assertNotNull($ligne['email_verified_at']);
+        $this->assertNotNull($ligne['phone_verified_at']);
+        $this->assertSame(['x' => 1], $ligne['preferences']);
+    }
+
+    private const CLES_DERIVEES = [
+        'two_factor_enabled', 'force_2fa_at_first_login', 'force_2fa_reconfigure',
+        'email_verified_at', 'phone_verified_at', 'preferences',
+    ];
+
+    private function armerLesDrapeaux(User $membre): void
+    {
+        $membre->forceFill([
+            'two_factor_enabled' => true,
+            'force_2fa_at_first_login' => true,
+            'metadata' => ['force_2fa_reconfigure' => true],
+            'preferences' => ['x' => 1],
+            'email_verified_at' => now(),
+            'phone_verified_at' => now(),
+        ])->save();
+    }
+
+    /**
      * Une agence, son admin authentifié, et un membre agent à lister.
      *
      * @return array{0: Agency, 1: User}

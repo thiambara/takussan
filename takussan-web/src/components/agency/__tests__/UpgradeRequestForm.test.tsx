@@ -245,6 +245,37 @@ describe('<UpgradeRequestForm>', () => {
     expect(toastAdd).not.toHaveBeenCalled();
   });
 
+  // TCK-989 (P49.01) — le brouillon `wizard_drafts.data` est un `jsonb` en clair,
+  // purgé à 90 jours ; la demande envoyée chiffre le RIB et le NINEA (ADR-0044 § 1).
+  // Le corps du PUT est l'argument `data` de `save()` : `useWizardDraft` l'envoie
+  // tel quel (`JSON.stringify({ step, data })`).
+  describe('TCK-989 — ni RIB ni NINEA dans le brouillon', () => {
+    it('formulaire entièrement rempli : aucune écriture du brouillon ne porte rib_pro ni ninea', () => {
+      render(withIntl(<UpgradeRequestForm agencyId={42} />));
+      fillRequiredText();
+
+      expect(brouillon.save).toHaveBeenCalled();
+      for (const [, data] of brouillon.save.mock.calls) {
+        expect(data).not.toHaveProperty('rib_pro');
+        expect(data).not.toHaveProperty('ninea');
+      }
+      expect(brouillon.save).toHaveBeenLastCalledWith(
+        0,
+        expect.objectContaining({ rc: 'RC-123', company_legal_name: 'Takussan Immo SARL' }),
+      );
+    });
+
+    it('saisir le seul NINEA ou le seul RIB n’écrit aucun brouillon', () => {
+      render(withIntl(<UpgradeRequestForm agencyId={42} />));
+      fireEvent.change(screen.getByLabelText(/^NINEA/i), { target: { value: '005012345' } });
+      fireEvent.change(screen.getByLabelText(/RIB professionnel/i), {
+        target: { value: 'SN012 01001 000123456789 12' },
+      });
+
+      expect(brouillon.save).not.toHaveBeenCalled();
+    });
+  });
+
   // ── TCK-566 ────────────────────────────────────────────────────────────────
   // Retour testeur du 2026-09-23 : « J'ai seulement cliqué sur la notification
   // (passer en pro) ; je n'ai pas renseigné une seule ligne et on me dit

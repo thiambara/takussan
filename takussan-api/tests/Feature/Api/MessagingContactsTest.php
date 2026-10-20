@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Http\Controllers\Api\MessagingContactController;
 use App\Models\Agency;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -279,6 +280,30 @@ class MessagingContactsTest extends ApiTestCase
             // Tri par défaut alphabétique : c'est une liste de personnes, pas un fil d'activité.
             ->assertJsonPath('data.0.name', 'Awa Sarr')
             ->assertJsonPath('data.1.name', 'Binta Sarr');
+    }
+
+    /**
+     * P51.05 — sous `--locale=C`, `ORDER BY first_name` suivait l'ordre des octets : « awa » et
+     * « Élodie » passaient après « Zeynab ». Le tri des noms passe par `COLLATE "und-x-icu"`
+     * (ADR-0025, amendement du 2026-10-19), pour le défaut comme pour `sort=first_name` et
+     * `sort=last_name`, dans les deux sens.
+     */
+    public function test_le_tri_des_noms_suit_l_ordre_alphabetique_et_non_celui_des_octets(): void
+    {
+        $moi = $this->user('Fatou', 'Diop');
+        foreach ([['Binta', 'Sarr'], ['Zeynab', 'Sow'], ['awa', 'ba'], ['Élodie', 'Faye'], ['Omar', 'Écoute']] as [$prenom, $nom]) {
+            $this->shareConversation($moi, $this->user($prenom, $nom));
+        }
+
+        $this->actingAsApi($moi);
+        $noms = fn (string $query) => collect($this->getJson('/api/conversations/contacts'.$query)->assertOk()->json('data'))
+            ->pluck('name')->all();
+
+        $alphabetique = ['awa ba', 'Binta Sarr', 'Élodie Faye', 'Omar Écoute', 'Zeynab Sow'];
+        $this->assertSame($alphabetique, $noms(''));
+        $this->assertSame($alphabetique, $noms('?sort=first_name'));
+        $this->assertSame(array_reverse($alphabetique), $noms('?sort=-first_name'));
+        $this->assertSame(['awa ba', 'Omar Écoute', 'Élodie Faye', 'Binta Sarr', 'Zeynab Sow'], $noms('?sort=last_name'));
     }
 
     /**
@@ -807,4 +832,79 @@ class MessagingContactsTest extends ApiTestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['user_ids']);
     }
+
+    /**
+     * P51.02 — un participant RETIRÉ par un administrateur perd la relation née du groupe, dans les
+     * deux sens : ni lui ni les membres restants ne le comptent plus comme correspondant, et la
+     * directe ouverte aussitôt est refusée. Témoins : le départ volontaire garde la relation, et
+     * l'administrateur restant peut toujours ré-inviter le retiré, qui retrouve alors ses contacts.
+     */
+    public function test_un_membre_retire_par_un_administrateur_perd_la_relation_nee_du_groupe(): void
+    {
+        [$admin, $membre, $groupe] = $this->groupe();
+        $retire = $this->user('Retire', 'Groupe');
+        $parti = $this->user('Parti', 'Seul');
+        foreach ([$retire, $parti] as $participant) {
+            $groupe->participants()->attach($participant->id, ['role' => ParticipantRole::Member->value, 'joined_at' => now()]);
+        }
+
+        $this->actingAsApi($admin);
+        $this->deleteJson("/api/conversations/{$groupe->id}/participants/{$retire->id}")->assertOk();
+        $this->actingAsApi($parti);
+        $this->deleteJson("/api/conversations/{$groupe->id}/participants/{$parti->id}")->assertOk();
+
+        // Le retiré ne joint plus personne du groupe, et sa directe vers un membre est refusée.
+        $this->actingAsApi($retire);
+        $this->assertSame([], $this->contactIds());
+        $this->postJson('/api/conversations', ['participants' => [$membre->id]])
+            ->assertUnprocessable()->assertJsonValidationErrors(['participants']);
+
+        // L'autre sens : le membre restant ne le voit plus, ni ne peut lui écrire en directe.
+        $this->actingAsApi($membre);
+        $this->assertSame(collect([$admin->id, $parti->id])->sort()->values()->all(), $this->contactIds(), 'le départ volontaire garde la relation');
+        $this->postJson('/api/conversations', ['participants' => [$retire->id]])
+            ->assertUnprocessable()->assertJsonValidationErrors(['participants']);
+
+        // Témoin du départ volontaire, de son côté.
+        $this->actingAsApi($parti);
+        $this->assertSame(collect([$admin->id, $membre->id])->sort()->values()->all(), $this->contactIds());
+
+        // L'administrateur restant ne le propose plus pour un NOUVEAU groupe, mais le ré-invite.
+        $this->actingAsApi($admin);
+        $this->assertNotContains($retire->id, $this->contactIds());
+        $this->assertContains($retire->id, $this->contactIdsPour($groupe));
+        $this->postJson("/api/conversations/{$groupe->id}/participants", ['user_ids' => [$retire->id]])->assertCreated();
+
+        // Ré-invité, il retrouve la relation.
+        $this->actingAsApi($retire);
+        $this->assertSame(collect([$admin->id, $membre->id, $parti->id])->sort()->values()->all(), $this->contactIds());
+    }
+
+    /**
+     * P51.04 — le plafond d'identifiants se prend APRÈS le périmètre, plus avant : le périmètre est
+     * calculé en SQL, puis passé à Meilisearch en filtre sur `id`. Plafond abaissé à 2 : trois
+     * homonymes hors périmètre, indexés avant le contact, le rejetaient au-delà du plafond, et la
+     * recherche ne le trouvait pas.
+     */
+    public function test_un_contact_classe_apres_le_plafond_d_homonymes_hors_perimetre_reste_trouve(): void
+    {
+        $moi = $this->user('Zulqarnayn', 'Wxyzptlk');
+        foreach (range(1, 3) as $_) {
+            $this->user('Diop', 'Diop');
+        }
+        $contact = $this->user('Moussa', 'Diop');
+        $this->shareConversation($moi, $contact);
+        $this->indexSearchable(User::class);
+
+        $this->app->bind(MessagingContactController::class, MessagingContactControllerAuPlafondAbaisse::class);
+        $this->actingAsApi($moi);
+
+        $this->assertSame([$contact->id], $this->contactIds('?filter[search]=Diop'));
+    }
+}
+
+/** P51.04 — le même contrôleur, au plafond abaissé à 2 identifiants. */
+class MessagingContactControllerAuPlafondAbaisse extends MessagingContactController
+{
+    protected const SEARCH_ID_CAP = 2;
 }

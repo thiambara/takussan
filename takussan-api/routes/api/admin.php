@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\Admin\UserImpersonationController;
 use App\Http\Controllers\Api\Admin\UserLifecycleController;
 use App\Http\Controllers\Api\Admin\UserSupportController;
 use App\Http\Controllers\Api\Admin\WebhookLogController;
+use App\Http\Controllers\Api\ReportExportDownloadController;
 use App\Models\Enums\PlatformAbility;
 use Illuminate\Support\Facades\Route;
 
@@ -227,9 +228,6 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
 
     Route::get('enums', [BusinessEnumController::class, 'index'])->name('admin.enums.index');
     Route::get('enums/{key}', [BusinessEnumController::class, 'show'])->name('admin.enums.show');
-    Route::post('enums/{key}/values', [BusinessEnumController::class, 'storeValue'])->name('admin.enums.values.store');
-    Route::patch('enums/{key}/values/{value}', [BusinessEnumController::class, 'updateValue'])->name('admin.enums.values.update');
-    Route::delete('enums/{key}/values/{value}', [BusinessEnumController::class, 'deactivateValue'])->name('admin.enums.values.destroy');
 
     Route::get('plans', [PlanController::class, 'index'])->name('admin.plans.index');
     Route::post('plans', [PlanController::class, 'store'])->name('admin.plans.store');
@@ -297,3 +295,11 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::post('payouts/{payout}/mark-paid', [PlatformPayoutController::class, 'markPaid'])->name('admin.payouts.mark-paid');
     Route::post('payouts/{payout}/cancel', [PlatformPayoutController::class, 'cancel'])->name('admin.payouts.cancel');
 });
+
+// TCK-1051 (P63.02) — le lien du courriel d'un export de rapport asynchrone (TCK-227). Hors du
+// préfixe `admin` et de `auth:sanctum` : une messagerie n'envoie pas le jeton. La signature, liée
+// au demandeur et échue avec l'export, porte l'autorisation (voir l'en-tête du contrôleur).
+Route::get('report-exports/{reportExport}/download', ReportExportDownloadController::class)
+    ->whereNumber('reportExport')
+    ->middleware(['signed', 'throttle:60,1'])
+    ->name('report-exports.download');

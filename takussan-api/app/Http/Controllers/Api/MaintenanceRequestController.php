@@ -14,7 +14,6 @@ use App\Http\Requests\Api\UpdateMaintenanceRequestRequest;
 use App\Http\Requests\Api\UpdateStatusMaintenanceRequestRequest;
 use App\Http\Requests\Api\UploadPhotosMaintenanceRequestRequest;
 use App\Http\Resources\MaintenanceRequestResource;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
@@ -96,8 +95,10 @@ class MaintenanceRequestController extends Controller
         // `update()` : c'est cette asymétrie qui a laissé un prestataire assigné se
         // réassigner sa propre demande.
         $isStaff = MaintenanceRequestPolicy::isPrincipalFor($user, $property);
+        // TCK-1001 — un locataire en préavis (`terminating`) habite encore le logement : le
+        // bail « en cours » se juge par la même liste que le rôle `tenant`.
         $isActiveTenant = $property->leases()
-            ->where('status', LeaseStatus::Active)
+            ->whereIn('status', User::ACTIVE_TENANT_LEASE_STATUSES)
             ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
             ->exists();
         abort_unless($isStaff || $isActiveTenant, 403);

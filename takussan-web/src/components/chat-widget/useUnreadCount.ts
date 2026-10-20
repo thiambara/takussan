@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useConversations } from '@/lib/queries/conversations';
+import { useConversations } from '@/lib/queries/conversations-list';
 import { useAuth } from '@/context/AuthContext';
 
 /**

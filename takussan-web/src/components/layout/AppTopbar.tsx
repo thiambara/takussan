@@ -40,9 +40,11 @@ const ANNEAU_FOCUS =
 interface AppTopbarProps {
   user: User;
   onMenuToggle?: () => void;
+  /** TCK-1035 (P68.08) — le tiroir est ouvert : rendu en `aria-expanded` sur le bouton du menu. */
+  menuOpen?: boolean;
 }
 
-export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
+export function AppTopbar({ user, onMenuToggle, menuOpen = false }: AppTopbarProps) {
   const t = useTranslations('nav');
   const tCommon = useTranslations('common');
 
@@ -52,6 +54,7 @@ export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
         type="button"
         onClick={onMenuToggle}
         aria-label={t('openMenu')}
+        aria-expanded={menuOpen}
         className={cn(
           // `after:-inset-1` : 36 px visibles, 44 px touchables — la seule commande du tiroir.
           'relative inline-flex size-9 items-center justify-center rounded-md text-white/80 after:absolute after:-inset-1 hover:bg-white/10 md:hidden',

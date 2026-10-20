@@ -395,8 +395,10 @@ déploiement — et la procédure de dump pré-déploiement doit exister avant q
 > `SMS_ORANGE_WEBHOOK_IPS` vide en production ne « désactive » pas le filtre : cela **refuse tous les
 > accusés de livraison en 403**, sans erreur bruyante côté Takussan. Les statuts d'envoi ne
 > remonteraient jamais, et le diagnostic partirait du mauvais côté — on chercherait un défaut d'envoi
-> là où c'est la réception qui est fermée. À porter au runbook de
-> [TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md).
+> là où c'est la réception qui est fermée. ~~À porter au runbook de
+> [TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md).~~ Porté le 2026-10-20 à la
+> table de la tâche F3 du plan d'auto-hébergement, avec la vérification après déploiement (P71.04) :
+> TCK-288 décrivait l'ancienne chaîne de déploiement.
 >
 > **✅ Les 11 clés d'environnement SMS sont désormais déclarées** dans `.env.example` et
 > `.env.docker` (2026-08-16), avec le motif écrit à côté. Elles ne l'étaient nulle part, et

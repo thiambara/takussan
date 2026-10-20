@@ -115,6 +115,16 @@ class AgencyController extends Controller
             );
         }
 
+        // TCK-1004 (P49.04) — le changement unique du slug se marque ; renvoyer le slug courant
+        // (le formulaire le fait) ne le consomme pas.
+        if (array_key_exists('slug', $data)) {
+            if ($data['slug'] === $agency->slug) {
+                unset($data['slug']);
+            } else {
+                $agency->metadata = array_replace($agency->metadata ?? [], [Agency::SLUG_CHANGED_AT => now()->toIso8601String()]);
+            }
+        }
+
         $agency->fill($data)->save();
 
         return $this->json(

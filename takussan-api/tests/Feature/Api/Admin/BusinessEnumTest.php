@@ -4,7 +4,6 @@ namespace Tests\Feature\Api\Admin;
 
 use App\Models\Enums\PropertyType;
 use App\Models\Property;
-use App\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -13,48 +12,38 @@ class BusinessEnumTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_super_admin_can_add_value_and_public_endpoint_returns_it(): void
+    /**
+     * P66.01 (TCK-1055) : la console n'ajoute plus de valeur. La liste vit dans l'enum PHP
+     * (ADR-0007) : une valeur ajoutée par la console était acceptée ici puis refusée en 422 à la
+     * création d'un bien, parce que la validation et le cast ne connaissent que l'enum.
+     */
+    public function test_console_refuses_adding_a_value(): void
     {
         $this->actingAsRole('super_admin');
 
-        $this->postJson('/api/admin/enums/property_type/values', [
+        $status = $this->postJson('/api/admin/enums/property_type/values', [
             'value' => 'lodge',
             'labels' => ['fr' => 'Lodge', 'en' => 'Lodge'],
             'is_active' => true,
-        ])->assertCreated()
-            ->assertJsonPath('data.key', 'property_type');
+        ])->status();
+        $this->assertContains($status, [404, 405], "l'ajout de valeur a répondu {$status}");
 
+        $this->assertDatabaseMissing('settings', ['key' => 'enum.property_type.values']);
+        $this->assertFalse(Activity::query()->where('event', 'super_admin_enum_value_added')->exists());
         $this->getJson('/api/enums/property_type')
             ->assertOk()
-            ->assertJsonPath('data.values', fn (array $values) => collect($values)->contains(
-                fn (array $value) => $value['value'] === 'lodge' && $value['labels']['fr'] === 'Lodge'
-            ));
-
-        $this->assertDatabaseHas('settings', ['key' => 'enum.property_type.values']);
-        $this->assertTrue(Activity::query()->where('event', 'super_admin_enum_value_added')->exists());
+            ->assertJsonPath('data.values', fn (array $values) => collect($values)->pluck('value')->all()
+                === array_map(fn (PropertyType $case) => $case->value, PropertyType::cases()));
     }
 
     public function test_unknown_enum_is_rejected_as_not_editable(): void
     {
         $this->actingAsRole('super_admin');
 
-        $this->postJson('/api/admin/enums/payment_status/values', [
-            'value' => 'custom',
-            'labels' => ['fr' => 'Custom'],
-        ])->assertUnprocessable()
+        $this->getJson('/api/admin/enums/payment_status')
+            ->assertUnprocessable()
             ->assertJsonValidationErrors('key')
             ->assertJsonPath('errors.key.0', 'enum_not_editable');
-    }
-
-    public function test_french_label_is_required(): void
-    {
-        $this->actingAsRole('super_admin');
-
-        $this->postJson('/api/admin/enums/property_type/values', [
-            'value' => 'lodge',
-            'labels' => ['en' => 'Lodge'],
-        ])->assertUnprocessable()
-            ->assertJsonValidationErrors('labels.fr');
     }
 
     public function test_agency_admin_is_forbidden_on_admin_endpoints(): void
@@ -62,41 +51,52 @@ class BusinessEnumTest extends TestCase
         $this->actingAsRole('agency_admin');
 
         $this->getJson('/api/admin/enums')->assertForbidden();
-        $this->postJson('/api/admin/enums/property_type/values', [
-            'value' => 'lodge',
-            'labels' => ['fr' => 'Lodge'],
-        ])->assertForbidden();
+        $this->getJson('/api/admin/enums/property_type')->assertForbidden();
     }
 
-    public function test_deactivation_returns_409_when_value_is_used(): void
-    {
-        Property::factory()->create(['type' => PropertyType::Villa]);
-
-        $this->actingAsRole('super_admin');
-
-        $this->deleteJson('/api/admin/enums/property_type/values/villa')
-            ->assertStatus(409)
-            ->assertJsonPath('code', 'business_enum.value_in_use');
-    }
-
-    public function test_update_writes_translations_and_audit(): void
+    /**
+     * P66.02 (TCK-1056) : la console ne désactive plus de valeur. Aucune écriture de bien ne lisait
+     * le drapeau : une valeur « désactivée » restait acceptée par `POST /api/properties` et
+     * proposée par tous les formulaires, qui lisent la liste du code.
+     */
+    public function test_console_refuses_deactivating_a_value(): void
     {
         $this->actingAsRole('super_admin');
 
-        $this->patchJson('/api/admin/enums/property_type/values/villa', [
+        $status = $this->deleteJson('/api/admin/enums/property_type/values/farm')->status();
+        $this->assertContains($status, [404, 405], "la désactivation a répondu {$status}");
+
+        $this->patchJson('/api/admin/enums/property_type/values/farm', ['is_active' => false]);
+
+        $this->assertFalse(Activity::query()->where('event', 'super_admin_enum_value_deactivated')->exists());
+        $this->getJson('/api/enums/property_type')
+            ->assertOk()
+            ->assertJsonPath('data.values', fn (array $values) => collect($values)->contains(
+                fn (array $value) => $value['value'] === 'farm' && $value['is_active'] === true
+            ));
+    }
+
+    /**
+     * P66.03 (TCK-1057) : la console n'édite plus les libellés FR / EN / WO. Aucun rendu ne les
+     * lisait : `type_label` vient de `lang/`, et le front possède le texte affiché (principe n° 5).
+     */
+    public function test_console_refuses_editing_labels(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $status = $this->patchJson('/api/admin/enums/property_type/values/villa', [
             'labels' => ['fr' => 'Villa premium', 'en' => 'Premium villa'],
-        ])->assertOk()
-            ->assertJsonPath('data.values.3.labels.fr', 'Villa premium');
+        ])->status();
+        $this->assertContains($status, [404, 405], "l'édition des libellés a répondu {$status}");
 
-        $setting = Setting::firstWhere('key', 'enum.property_type.values');
-        $this->assertNotNull($setting);
-        $this->assertTrue(Activity::query()->where('event', 'super_admin_enum_value_updated')->exists());
+        $this->assertDatabaseMissing('settings', ['key' => 'enum.property_type.values']);
+        $this->assertFalse(Activity::query()->where('event', 'super_admin_enum_value_updated')->exists());
     }
 
     /**
      * P28.02 (TCK-844) : la lecture publique `/api/enums/{key}` ne porte pas `usage_count`, compté
      * sur toute la table `properties`, brouillons et biens d'autres agences compris. La console
-     * super-admin le garde : elle s'en sert avant de désactiver une valeur.
+     * super-admin le garde, en lecture seule (TCK-1057).
      */
     public function test_public_read_does_not_expose_usage_count_and_admin_keeps_it(): void
     {

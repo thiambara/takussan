@@ -11,6 +11,7 @@
  */
 
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
+import { DUREE_URL_SIGNEE_MEDIA_MS, rafraichirAvantExpiration } from '@/lib/url-signee';
 import type { PaginatedResponse, ApiResponse, SpatieQueryParams } from '@/types/api';
 import type { ServiceProviderProfileSummary } from '@/lib/queries/service-providers';
 import { SERVICE_PROVIDER_PROFILE_FIELDS } from '@/lib/queries/service-providers';
@@ -165,6 +166,8 @@ export function useMaintenanceRequest(id: number | null) {
         include: ['property', 'requester', 'assignee', 'quoteDecisionBy'],
       },
       enabled: id !== null && id > 0,
+      // TCK-1024 — les pièces de `media` (galerie, devis) sont des URL signées de 30 min.
+      ...rafraichirAvantExpiration(DUREE_URL_SIGNEE_MEDIA_MS),
     },
   );
 }
