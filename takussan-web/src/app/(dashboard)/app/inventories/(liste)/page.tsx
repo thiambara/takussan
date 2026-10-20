@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 
-import { InventoryList } from '@/components/inventory';
+import { InventoryList } from '@/components/inventory/InventoryList';
 import { getTranslations } from 'next-intl/server';
 import { isAdmin, isAgent } from '@/lib/roles';
 import { PageHeader } from '@/components/console';

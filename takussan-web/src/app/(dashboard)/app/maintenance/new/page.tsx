@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
-import { MaintenanceNewLauncher } from '@/components/maintenance';
+import { MaintenanceNewLauncher } from '@/components/maintenance/MaintenanceNewLauncher';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
 

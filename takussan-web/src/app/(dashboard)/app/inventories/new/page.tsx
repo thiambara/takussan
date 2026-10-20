@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
-import { InventoryForm, InventoryLeasePicker } from '@/components/inventory';
+import { InventoryForm } from '@/components/inventory/InventoryForm';
+import { InventoryLeasePicker } from '@/components/inventory/InventoryLeasePicker';
 import { PageHeader } from '@/components/console';
 
 export async function generateMetadata(): Promise<Metadata> {
