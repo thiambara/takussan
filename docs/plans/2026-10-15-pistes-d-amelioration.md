@@ -6531,7 +6531,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
 
 ### Le titulaire peut supprimer sa pièce, même vérifiée, et le fichier part 90 jours plus tard
 - Réf : P64.03
-- Statut : validé — (a) refuser au titulaire la suppression d'une pièce de profil vérifiée ; test : `DELETE` d'une pièce vérifiée par son titulaire refusé (porteur, 2026-10-20)
+- Statut : fait · TCK-1062
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:131-136`, `takussan-api/app/Policies/DocumentPolicy.php:70-80,123-126`, `takussan-api/app/Console/Commands/MediaCleanup.php`, `takussan-api/routes/console.php:72`
 - Constat :
@@ -6541,6 +6541,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
   - Établi comment : test temporaire et lecture. Qu'une pièce vérifiée doive survivre au geste de son titulaire est une question de produit et de droit, non tranchée ici.
 - Piste : décider et écrire : refuser la suppression d'une pièce de profil vérifiée (ou de toute pièce de profil), ou ajouter les pièces aux collections de preuve que `MediaCleanup::isEvidence()` épargne, avec leur propre durée. Dans les deux cas, un test qui le tient. Ablation → rouge.
 - Mesure (2026-10-20, 0ba226223, mesureur) : lu `DocumentController::destroy()` (`authorize('delete')`), `DocumentPolicy::delete()` = `update()`, `MediaCleanup.php:28` (`SOFT_DELETE_RETENTION_DAYS = 90`) et `:90-96` (`isEvidence` : `signed_contract`, `room_photos` hors brouillon) ; test temporaire retiré → RIB du bailleur, vérifié, `DELETE /api/documents/{id}` 204, ligne supprimée en douceur, fichier présent. Classement : V3 et V7, refuser le geste ou conserver le fichier plus longtemps est un choix de produit et de conservation que la piste laisse ouvert.
+- Mesure (2026-10-20, 7163372c5, implementeur) : avant correctif, RIB de profil vérifié, `DELETE /api/documents/{id}` par son titulaire → 204 (rouge) → `DocumentPolicy::delete()` refuse une pièce de profil vérifiée à tout autre que le super-admin ; `DocumentTest::test_holder_cannot_delete_verified_profile_piece` vert (403, ligne intacte ; la même pièce non vérifiée → 204), ablation → rouge, 19 verts sur `DocumentTest` et `DestroyAuthorizationTest`.
 
 ### Un nouvel envoi remet la pièce à « non vérifiée » mais garde l'auteur et la date de la vérification précédente
 - Réf : P64.04
