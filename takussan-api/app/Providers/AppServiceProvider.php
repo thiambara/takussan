@@ -211,6 +211,7 @@ class AppServiceProvider extends ServiceProvider
         // P71.02 — l'aperçu des codes SMS ne démarre jamais sur l'API de production.
         OtpPreview::refuserSurLaProduction();
         $this->loadRoutesFrom(base_path('routes/lemon-squeezy.php'));
+        $this->bootUrlRoot();
         $this->bootRequestMacros();
         $this->bootRateLimiters();
         // TCK-624 — la règle du mot de passe est CELLE du front (`passwordSchema`) : 8 à 72
@@ -375,6 +376,27 @@ class AppServiceProvider extends ServiceProvider
     // -----------------------------------------------------------------
     // boot() helpers
     // -----------------------------------------------------------------
+
+    /**
+     * TCK-1058 (P73.01) — l'origine des URL que l'API rend (`url()`, `route()`, routes signées) est
+     * celle d'`APP_URL`, jamais celle de la requête. Le serveur Next joint l'API par son adresse
+     * interne (ADR-0052 § 5), et `X-Forwarded-Host` n'est plus cru (TCK-853) : sans cette racine,
+     * ces URL partaient au navigateur avec l'hôte interne, signature comprise. Aucun en-tête ne
+     * choisit donc l'hôte, et toute URL dépend de la justesse d'`APP_URL` dans chaque environnement.
+     * `RacineDesUrlTest` le garde.
+     */
+    private function bootUrlRoot(): void
+    {
+        $racine = rtrim((string) config('app.url'), '/');
+        $schema = parse_url($racine, PHP_URL_SCHEME);
+
+        if ($racine === '' || ! is_string($schema)) {
+            return;
+        }
+
+        URL::forceRootUrl($racine);
+        URL::forceScheme($schema);
+    }
 
     private function bootRequestMacros(): void
     {

@@ -11,13 +11,13 @@ use App\Models\Integration;
 use App\Models\KycDossier;
 use App\Models\User;
 use App\Services\Auth\SessionTokenIssuer;
+use App\Support\RelativeSignedUrl;
 use App\Support\Security\ProtectedActions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\PersonalAccessToken;
 use ReflectionClass;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -142,7 +142,7 @@ class ImpersonationReadOnlyTest extends TestCase
             'status' => KycDossierStatus::Submitted,
             'submitted_at' => now(),
         ])->addMedia(UploadedFile::fake()->createWithContent('cni.pdf', 'piece-identite'))->toMediaCollection('documents');
-        $url = URL::temporarySignedRoute('kyc.documents.show', now()->addMinutes(15), ['media' => $piece->id]);
+        $url = RelativeSignedUrl::temporary('kyc.documents.show', now()->addMinutes(15), ['media' => $piece->id]);
         ['jeton' => $jeton] = $this->ouvrirUneSession(cible: $cible);
 
         $reponse = $this->avecLeJeton($jeton)->get($url);

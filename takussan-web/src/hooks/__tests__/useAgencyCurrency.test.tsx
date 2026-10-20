@@ -73,13 +73,13 @@ describe('useAgencyCurrency', () => {
     expect(result.current.formatter).toBe(first);
   });
 
-  it('passes sparse fieldsets so the network call stays cheap', () => {
+  it('n’envoie aucun `fields[agencies]` : un `show` rend la ressource entière (P60.03)', () => {
     setQueryReturn({ data: { id: 5, currency: 'XOF' } });
     renderHook(() => useAgencyCurrency(5));
 
     const params = (useApiQueryMock.mock.calls[0][2] as {
       params?: { fields?: { agencies?: string } };
     }).params;
-    expect(params?.fields?.agencies).toBe('id,currency');
+    expect(params?.fields).toBeUndefined();
   });
 });

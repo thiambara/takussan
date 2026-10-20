@@ -23,8 +23,6 @@ class ExistsSurRouteOuverteTest extends TestCase
 {
     /** Relatifs à `app/Http/Requests/`. La Réf est celle de l'entrée du fichier de pistes qui la corrige. */
     private const EXCEPTIONS = [
-        'Api/StoreLeaseRequest.php' => 'P62.01',
-        'Api/StoreTaskRequest.php' => 'P62.03',
         'Api/IndexCalendarRequest.php' => 'P62.07',
         'Api/StoreIntegrationRequest.php' => 'P62.07',
         'Invitation/CreateInvitationRequest.php' => 'P62.07',

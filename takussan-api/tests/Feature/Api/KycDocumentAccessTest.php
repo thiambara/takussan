@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Http\Resources\KycDossierResource;
 use App\Models\Agency;
 use App\Models\Enums\KycDossierStatus;
 use App\Models\KycDossier;
@@ -9,13 +10,14 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Support\RelativeSignedUrl;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Tests\ApiTestCase;
 use Tests\Support\RemoteDiskFake;
+use Tests\Support\UrlSigneeDerriereTraefik;
 
 /**
  * TCK-285 — `GET /api/kyc/documents/{media}` sert des PIÈCES D'IDENTITÉ.
@@ -46,6 +48,7 @@ use Tests\Support\RemoteDiskFake;
 class KycDocumentAccessTest extends ApiTestCase
 {
     use RefreshDatabase;
+    use UrlSigneeDerriereTraefik;
 
     private Agency $agency;
 
@@ -87,7 +90,7 @@ class KycDocumentAccessTest extends ApiTestCase
         $media = $this->kycMedia($this->agency);
         $admin = $this->agencyAdmin($this->agency);
 
-        $url = URL::temporarySignedRoute(
+        $url = RelativeSignedUrl::temporary(
             'kyc.documents.show',
             now()->subMinute(),
             ['media' => $media->id],
@@ -234,11 +237,24 @@ class KycDocumentAccessTest extends ApiTestCase
             ->assertOk();
     }
 
+    // ─── TCK-1059 (P73.02) : la signature est relative ───────────
+
+    public function test_le_lien_emis_par_le_dossier_reste_valide_hors_des_mandataires(): void
+    {
+        $this->signerCommeEnProduction();
+        $media = $this->kycMedia($this->agency);
+        $url = (new KycDossierResource($media->model))->resolve()['documents'][0]['signed_url'];
+
+        $this->actingAs($this->agencyAdmin($this->agency), 'sanctum');
+
+        $this->presenterHorsDesMandataires($url)->assertOk();
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────
 
     private function signedUrlFor(int $mediaId): string
     {
-        return URL::temporarySignedRoute(
+        return RelativeSignedUrl::temporary(
             'kyc.documents.show',
             now()->addMinutes(15),
             ['media' => $mediaId],

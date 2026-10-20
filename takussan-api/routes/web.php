@@ -11,7 +11,7 @@ Route::get('/', function () {
 // TCK-103 — One-click unsubscribe from digest emails (signed URL, no auth required).
 Route::get('notifications/unsubscribe/{user}', NotificationUnsubscribeController::class)
     ->name('notifications.unsubscribe')
-    ->middleware('signed');
+    ->middleware('signed:relative');
 
 // TCK-596 §3B (ADR-0041 §3-§4) — le flux iCal d'un bien, lu par une autre plateforme. Le jeton EST
 // l'autorisation : aucune session, aucun cookie (une plateforme tierce n'en a pas l'usage, et un

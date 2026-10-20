@@ -77,7 +77,9 @@ describe('relais BFF : un seul contrat (relayerVersApi)', () => {
       expect(envoyes.get('accept-language')).toBe('en');
       expect(envoyes.get('content-type')).toBe('multipart/form-data; boundary=x');
       expect(envoyes.get('x-forwarded-for')).toBe(VISITEUR);
-      expect(envoyes.get('x-forwarded-host')).toBe('localhost');
+      expect(envoyes.get('x-forwarded-proto')).toBeTruthy();
+      // TCK-1058 (P73.01) — l'hôte des URL vient d'`APP_URL`, côté API : l'en-tête ne part plus.
+      expect(envoyes.get('x-forwarded-host')).toBeNull();
       expect(Array.from(new Uint8Array(init.body as ArrayBuffer))).toEqual(OCTETS);
 
       expect(reponse.status).toBe(200);

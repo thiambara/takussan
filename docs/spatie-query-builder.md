@@ -60,6 +60,20 @@ GET /api/customers?fields[customers]=id,first_name,last_name,email,status
 GET /api/leases?fields[leases]=id,property_id,monthly_rent,status,start_date,end_date
 ```
 
+**`fields` et `include` ne valent que pour les listes. Un `show` rend la ressource de détail
+entière** (P60.03, TCK-1067). Le front n'envoie donc aucun `fields[...]` à une route de détail
+(`GET /api/<ressource>/{id}`) ; `src/lib/queries/__tests__/show-sans-fields.garde.test.ts` le
+garde. Relevé du 2026-10-19 : les `show` chargent des relations fixes et ignorent `fields` ;
+`CustomerController::show` est le seul à passer par `buildQuery`, et trois `show` lisent encore
+`include=` (`Customer`, `MaintenanceRequest`, `BankStatement`).
+
+Pour une lecture légère d'une seule ligne (un titre d'onglet, un en-tête), passer par la liste
+filtrée par id, avec ses `fields` :
+
+```
+GET /api/leases?filter[id]=42&fields[leases]=id,reference_number&per_page=1
+```
+
 ### Pagination
 
 ```
@@ -102,6 +116,7 @@ GET /api/properties?per_page=10&page=2
 ### Lease
 | Param | Type | Description |
 |---|---|---|
+| `filter[id]` | exact | lecture légère d'un bail (TCK-1067) |
 | `filter[status]` | exact | `active`, `expired`, `terminated`, ... |
 | `filter[type]` | exact | `rental`, `sale` |
 | `filter[property_id]` | exact | |

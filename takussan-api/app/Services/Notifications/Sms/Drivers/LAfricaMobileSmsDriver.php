@@ -11,10 +11,10 @@ use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsSegmentCalculator;
 use App\Services\Notifications\Sms\SmsTimeBudget;
 use App\Services\Notifications\Sms\SmsWebhookUrlToken;
+use App\Support\RelativeSignedUrl;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\URL;
 
 /**
  * TCK-102 — LAfricaMobile (LAMPUSH v2.3) driver.
@@ -139,7 +139,7 @@ class LAfricaMobileSmsDriver implements SmsDriverInterface
         $token = SmsWebhookUrlToken::for('lafricamobile', $this->config);
         $ttlDays = (int) $this->config->get('sms.lafricamobile.dlr_signature_ttl_days', 7);
 
-        return URL::temporarySignedRoute(
+        return RelativeSignedUrl::temporary(
             'sms.webhook.lafricamobile',
             now()->addDays(max(1, $ttlDays)),
             [
