@@ -142,7 +142,7 @@ voie d'écriture (angle 13, puis 47).
 | 67 | Critères nommés des recherches sauvegardées et des liens partagés (`tags=Piscine`, `location=<quartier>`) après un renommage, une fusion ou un rejet au référentiel (`TagModeration`, `GeoNeighborhoodModeration`) : alertes muettes, filtres vides | fait |
 | 68 | Passage axe au navigateur des écrans connectés (`/app`, console super-admin) derrière un faux API : barre latérale, tableaux, dialogues et feuilles de `@base-ui/react` | fait |
 | 69 | Fiche bien, recherche et accueil servis par `next start` avec l'API de dev, sous 3G simulé par CDP : LCP, TBT, octets du document RSC et ordre des préchargements | fait |
-| 70 | Poids JS initial des écrans de `/app` (`(dashboard)`, 500 à 610 Kio gzip au build du 2026-10-17) : ce que la coque et la barre latérale chargent pour chaque écran | à faire |
+| 70 | Poids JS initial des écrans de `/app` (`(dashboard)`, 500 à 610 Kio gzip au build du 2026-10-17) : ce que la coque et la barre latérale chargent pour chaque écran | fait |
 | 71 | Variables d'environnement des services de production du plan F3 (`takussan-web-prod`, `takussan-api-prod`) face au relevé de la préproduction dans `docs/infra/hebergement.md` : clés absentes, valeurs reprises de D1 | à faire |
 | 72 | Ce qu'un accusé `failed` reçu après coup (SMS ou WhatsApp) déclenche : repli sur un autre canal, renvoi, trace pour l'expéditeur — face aux envois critiques (OTP, code de signature de bail) | à faire |
 | 73 | URL signées absolues (`hasValidSignature`, `temporarySignedRoute`, `media.private.show`) derrière Traefik : schéma et hôte vus par l'API face à `APP_URL`, signature refusée en préproduction ? | à faire |
@@ -177,6 +177,8 @@ voie d'écriture (angle 13, puis 47).
 | 101 | Passage axe au navigateur des écrans `/app` des autres profils (propriétaire, locataire, prestataire, agent) et des pages de détail `[id]` (bien, bail, client, paiement), derrière le faux API en lecture seule de l'angle 68 | à faire |
 | 102 | État initial masqué au rendu serveur (`opacity-0`, `invisible`, `useReveal`, `animate-*` dépendant d'un effet) sur les autres listes et rangées publiques (`PropertyRow` de l'accueil, fiches agence et agent, favoris, biens similaires) : contenu présent dans le HTML et invisible jusqu'à l'hydratation, ou sans JS | à faire |
 | 103 | Appels du navigateur à l'hydratation des pages publiques (`geo/cities`, `geo/regions`, `amenities`, `property-types`, `maintenance/status`, préflights CORS) : lesquels pourraient venir du rendu serveur ou du cache de données, et ce qu'ils coûtent sous 3G | à faire |
+| 104 | Poids JS initial des écrans de la console `/super-admin` (`SuperAdminShell`, tableaux, dialogues importés statiquement, fichiers `index.ts` de `components/admin/super`) : le relevé de l'angle 70 sur l'autre console | à faire |
+| 105 | Charge RSC d'un document `/app` servi : dictionnaires imbriqués de `layout.tsx`, `(dashboard)` et `(dashboard)/app` (et `/app/agency`) sérialisés chacun avec l'ensemble cumulé de ses parents, mesurés sur le document compressé | à faire |
 
 ---
 
@@ -7065,3 +7067,94 @@ dépassements de 50 ms après le FCP. Trois tours par page, médianes citées.
   - Toutes les pages publiques demandent `/api/maintenance/status` après l'hydratation (0,4 Kio, mesuré), et la page d'accueil peint le logo (`icon.svg`) à 6,8 s, après les scripts (mesuré).
 - Piste : charger le référentiel des filtres à l'ouverture du panneau, ou le rendre côté serveur avec la page (il est déjà en cache de données d'une heure pour les facettes) ; un seul préchargement de la photo principale par fiche.
 - Mesure (2026-10-20, 634fd3a77, mesureur) : relu `FilterSidebar.tsx` (importe `ChoixDeVille`, `ChoixDeQuartier`, `ChoixDEquipements` de `ChoixDuReferentiel`, qui lisent `referentiel-public.ts` ; le panneau reste monté, sections comprises, quand il est fermé) et `PropertyDetailContent.tsx:188-200` (`PropertyGalleryMosaic` en `hidden md:block` et `PropertyMobileGallery` en `md:hidden`, montés tous deux, chacun avec `priority` sur sa première photo, d'où deux préchargements de la même photo) → les deux premiers points tiennent par lecture ; préflights CORS, `maintenance/status` et logo non re-mesurés. Classement : V7, charger le référentiel à l'ouverture fait attendre le panneau au premier clic, le rendre côté serveur en est l'autre voie, et le choix n'est écrit nulle part.
+
+## Angle 70 — Poids JS initial des écrans de `/app`
+
+*Exploré le 2026-10-20 sur `pre-dev` e0275f6b6, par l'explorateur. Tout a été lancé et relu par
+l'explorateur lui-même, sans sous-agent. Quatre `next build` de production (Turbopack,
+`takussan-web/`, charge 2,3 à 2,5 sur 8 cœurs au départ) : l'arbre tel quel, puis trois ablations
+temporaires, retirées depuis (`git checkout -- src`), dont chacune remplace un import par un module
+sans dépendance ou un composant par `() => null`. Le JS initial d'une route est compté comme
+`scripts/poids-des-routes.mjs` le fait : union des `rootMainFiles` et de tous les `entryJSFiles` du
+manifeste client de la route, gzip niveau 6 de Node. La part de chaque module vient de `next
+experimental-analyze -o`, dont les morceaux ont été appariés à ceux du build par leur taille brute
+(écart sous 1 %). Ces parts sont compressées module par module : elles se comparent entre elles,
+pas aux totaux. Aucune page n'a été servie, faute d'API et de session : les durées de chargement ne
+sont pas mesurées, ni la charge RSC du document.*
+
+### Les listes de maintenance et d'états des lieux chargent tous les formulaires de leur dossier par un fichier `index.ts`
+- Réf : P70.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/(dashboard)/app/maintenance/(liste)/page.tsx:4`, `takussan-web/src/app/(dashboard)/app/inventories/(liste)/page.tsx:4`, `takussan-web/src/components/maintenance/index.ts`, `takussan-web/src/components/inventory/index.ts`
+- Constat :
+  - Les deux pages de liste importent leur seul composant de liste par le fichier `index.ts` du dossier (`from '@/components/maintenance'`, `from '@/components/inventory'`), qui réexporte 12 et 11 composants, formulaires compris : `MaintenanceForm`, `QuoteSubmitForm`, `QuoteRejectionModal`, `MaintenanceCompleteForm`, `InventoryForm` (lu).
+  - `MaintenanceList.tsx` et `InventoryList.tsx`, tracés seuls, n'atteignent pas zod ; par le fichier `index.ts`, la page l'atteint par `MaintenanceForm → lib/schemas/maintenance.ts` et `InventoryForm → lib/schemas/inventory.ts` (mesuré, traceur d'imports statiques hors dépôt).
+  - Mesuré, JS initial gzip, avant → avec l'import direct du composant de liste (`@/components/maintenance/MaintenanceList`, `@/components/inventory/InventoryList`), même arbre : `/app/maintenance` **524,9 → 385,6 Kio** (−139,3, −27 %), zod sorti ; `/app/inventories` **507,6 → 377,6 Kio** (−130,0), zod sorti.
+  - `/app/maintenance/[id]` et `/app/maintenance/new` pèsent tous deux 519,4 Kio, `/app/inventories`, `/[id]` et `/new` tous trois 507,6 Kio (mesuré) ; ces pages importent aussi par le fichier `index.ts` (lu). Qu'elles chargent elles aussi les formulaires des autres pages est probable, et à vérifier.
+- Piste : importer chaque composant par son propre fichier dans les six pages, et retirer les deux `index.ts` s'ils n'ont plus d'importeur. Garde : une règle `no-restricted-imports` sur `@/components/maintenance` et `@/components/inventory` (ou un test qui refuse un `index.ts` réexportant un composant `'use client'` sous `src/components/`).
+
+### Les listes des biens et des clients de la console paient zod pour lire des listes de valeurs, le motif que P33.03 a corrigé sur le site public
+- Réf : P70.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/property-dashboard/PropertyList.tsx:41-45`, `takussan-web/src/components/property-dashboard/PropertyListFilters.tsx:27-31`, `takussan-web/src/components/property-dashboard/PropertyStatusBadge.tsx:7`, `takussan-web/src/components/property-dashboard/PropertyRowActions.tsx:34`, `takussan-web/src/components/customer-dashboard/CustomerList.tsx:21-24`, `takussan-web/src/components/customer-dashboard/CustomerListFilters.tsx:16-19`, `takussan-web/src/components/customer-form/options.ts:3-7`, `takussan-web/src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts:18,29`
+- Constat :
+  - Quatre composants de la liste des biens importent des tableaux `as const` (`propertyStatusValues`, `propertyTypeValues`, `contractTypeValues`, `propertyVisibilityValues`) depuis `@/lib/schemas/property`, alors que TCK-744 les a mis dans `@/lib/enums/property`, module sans dépendance, pour cette raison exacte (lu, en-tête de `lib/enums/property.ts`). Trois fichiers de la liste des clients importent `customerStatusValues`, `pipelineStageValues` et `idTypeValues` depuis `@/lib/schemas/customer`, qui commence par `import { z } from 'zod'` (lu). Il n'existe pas de `lib/enums/customer.ts` (mesuré, `ls src/lib/enums`).
+  - Mesuré, JS initial gzip, avant → imports repointés vers `lib/enums/property` et listes clients recopiées en local (ablation), même arbre : `/app/properties` **503,2 → 437,3 Kio** (−65,9), `/app/customers` **449,2 → 383,5 Kio** (−65,7) ; zod (morceau de 64,2 Kio) sort des deux.
+  - La garde de TCK-744 ne trace que les pages et layouts de `[locale]/(public)` (lu, `zod-hors-des-pages-publiques.test.ts:18,29`) : rien ne voit le même import dans la console.
+- Piste : repointer les quatre imports côté biens vers `@/lib/enums/property` ; créer `lib/enums/customer.ts`, que `schemas/customer.ts` réexporte, pour les trois fichiers clients. Garde : étendre le test aux pages de liste de `(dashboard)` (tables de formulaires admis), par le même `src/test/graphe-client.ts`.
+
+### La fiche bien de la console charge l'éditeur complet du bien, le calendrier et l'historique avant d'afficher l'onglet « aperçu »
+- Réf : P70.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/property-dashboard/PropertyDetailTabs.tsx:5-12`, `takussan-web/src/components/property-dashboard/PropertyDetailTabs.tsx:83-123`, `takussan-web/src/app/(dashboard)/app/properties/[id]/page.tsx:13-18`
+- Constat :
+  - `PropertyDetailTabs` importe statiquement les contenus de ses onglets : `PropertyForm` (l'assistant d'édition complet), `PropertyMediaPanel`, `PropertyCalendarPanel`, `PropertyCollaboratorsPanel`, `PropertyPriceHistoryList` ; l'onglet ouvert par défaut est `overview` (lu). Dans tout `src/app/(dashboard)` et `src/components`, `next/dynamic` n'apparaît que dans le widget de messagerie et les deux chargeurs de carte (mesuré, `grep -rln "dynamic(" src/app src/components`).
+  - Mesuré : `/app/properties/[id]` est l'écran de `/app` le plus lourd, **602,3 Kio gzip**, dont 235,2 Kio propres à la page (hors coque). Dans cette part, en parts compressées par module : zod 64,2 Kio (morceau propre à la page), `property-form/*` environ 43, dates (react-day-picker, date-fns, calendrier) environ 41, `@base-ui/react/combobox` 21,1, react-hook-form 12,5.
+  - Mesuré, ablation `PropertyForm` → `() => null` : **602,3 → 544,6 Kio** (−57,7) ; zod reste, par d'autres chemins de la page (`DocumentUploadDialog`, présent dans l'analyse).
+- Piste : charger les contenus des onglets autres que l'aperçu par `next/dynamic` au premier affichage, à commencer par `PropertyForm` ; même méthode que TCK-850 sur la fiche publique (P33.04), mesure avant et après par `poids-des-routes.mjs`.
+
+### Les dialogues de création et de paiement, importés statiquement, mettent zod et react-hook-form dans le JS initial des listes et des fiches
+- Réf : P70.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/payments/PaymentsTabs.tsx:15`, `takussan-web/src/components/documents/DocumentsLibrary.tsx:51`, `takussan-web/src/components/documents/AddDocumentButton.tsx:10`, `takussan-web/src/components/leases/LeaseDetail.tsx:21,29`, `takussan-web/src/components/bookings/BookingDetail.tsx:39`
+- Constat :
+  - Mesuré : zod est dans le JS initial de **23 des 65** écrans de `(dashboard)`. Hors les pages qui sont des formulaires (`new`, `/app/agency`, `/app/agency/integrations`, `/app/profile`), la messagerie (champ de saisie) et les cas de P70.01 et P70.02, il y entre par un dialogue fermé au chargement : `CreateInvoiceDialog` (`/app/payments`, `/app/agency/finances`), `useApiForm` d'un dialogue sur `/app/agency/team`, `DocumentUploadDialog` (`/app/documents`, et par `AddDocumentButton` sur `/app/customers/[id]` et `/app/leases/[id]`), `LeasePaymentDialog` (`/app/leases/[id]`), `BookingPaymentDialog` (`/app/bookings/[id]`) (mesuré, traceur d'imports ; lu, lignes citées).
+  - react-day-picker est dans le JS initial de 24 écrans (mesuré, marque `rdp-`). Chemins non relevés un à un.
+  - Le gain d'un chargement différé n'est pas mesuré sur ces écrans (à vérifier). Sur la fiche publique, différer quatre dialogues a retiré 39 Kio (TCK-850, mesuré alors).
+- Piste : monter ces dialogues par `next/dynamic` à la première ouverture, comme TCK-850 ; mesurer chaque écran avant et après.
+
+### La coque de `/app` pèse 363 à 367 Kio gzip sur chaque écran, dont 18 Kio pour deux composants que la plupart des sessions n'ouvrent jamais
+- Réf : P70.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/(dashboard)/layout.tsx`, `takussan-web/src/app/(dashboard)/app/layout.tsx`, `takussan-web/src/components/layout/AppShell.tsx:15-20,138-145`, `takussan-web/src/components/customer/MinimalProfileTriggerProvider.tsx:6-9,138-144`, `takussan-web/src/components/auth/GardeDoubleFacteur.tsx:7,77-84`
+- Constat :
+  - Mesuré, JS initial gzip des 65 écrans de `(dashboard)` : de 270,1 (`/verification-indisponible`) et 362,7 (`/app/overview`, sans JS propre) à 602,3 Kio. La part commune à tous les écrans de `/app` fait 362,7 ou 367,1 Kio (selon que le segment a un `loading.tsx`) : cadre de Next 128,3 ; layout racine, `error`, `not-found` 72,0 ; `(dashboard)` +60,6 (+5,6 de sa frontière d'erreur) ; `/app` +95,6.
+  - En parts compressées par module, `(dashboard)` ajoute surtout `@base-ui/react` (toast 9,7, dialog 5,6, field 5,1, positionnement 10,0) et `TotpEnrollment` (3,5) ; `/app` ajoute `@base-ui/react/menu` 15,8, `select` 14,1, `popover` 6,9, lucide 9,2, `AppSidebar` 5,2, `SearchAutocomplete` 3,6 (mesuré, `experimental-analyze`).
+  - Dans la coque, `select` n'est importé que par `CustomerMinimalProfileSheet` (mesuré, `grep` sur les dossiers des composants de la coque). Ce panneau n'est rendu que pour un compte `customer` seul, à la demande (`enabled`, lu). `TotpEnrollment` n'est rendu que sur un refus `two_factor_required` (lu). Les deux sont importés statiquement (lu).
+  - Mesuré, ablation de ces deux imports : coque **362,7 → 344,4 Kio** (−18,3, −5 %) sur `/app/overview`. Les cinq assistants de bienvenue, importés statiquement et montés selon le rôle, pèsent environ 0,6 chacun, plus 1,7 pour `WelcomeModal` (parts mesurées) : le gain y serait faible.
+- Piste : charger `CustomerMinimalProfileSheet` et `TotpEnrollment` par `next/dynamic`, derrière leur condition d'affichage. Le reste de la coque, le cadre et les primitives de menu et de popover de la barre haute, n'a pas de levier évident sans changer l'interface.
+
+### Aucune garde ne voit le poids des écrans de `/app`
+- Réf : P70.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/scripts/poids-des-routes.mjs:60,120`, `.github/workflows/web-ci.yml:207`, `takussan-web/src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts:29`
+- Constat :
+  - `poids-des-routes.mjs`, branché après le build de `web-ci`, ne retient que les routes sous `/[locale]/(public)/` (`PREFIXE_PUBLIC`, lu) : les 65 écrans de `(dashboard)` et ceux de `(super-admin)` ne figurent dans aucun rapport.
+  - Les défauts P70.01 et P70.02 (130 à 140 Kio et 66 Kio par écran) ne cassent rien, et aucun journal ne les montre.
+- Piste : faire imprimer aussi au rapport les routes de `(dashboard)` (et de `(super-admin)`), sans seuil, comme pour le site public ; le seuil reste à décider à part.
+
+### Petites améliorations
+- Réf : P70.07
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/hooks/useTenantWelcomeOnce.ts:6`, `takussan-web/src/components/chat-widget/useUnreadCount.ts:4`, `takussan-web/src/lib/queries/leases.ts:1`, `takussan-web/src/lib/queries/conversations.ts:1`, `takussan-web/src/i18n/namespaces.json`, `takussan-web/src/app/layout.tsx:88`, `takussan-web/src/app/(dashboard)/layout.tsx`, `takussan-web/src/app/(dashboard)/app/layout.tsx`
+- Constat :
+  - La coque embarque `lib/queries/leases.ts` (part de 2,1 Kio) et `lib/queries/conversations.ts` (2,8), deux modules `'use client'` de 42 et 37 exports, pour un seul crochet chacun (`useActiveLeaseSummaries` par `useTenantWelcomeOnce`, `useConversations` par `useUnreadCount`) (mesuré, `experimental-analyze` ; lu). Que l'élagage n'agisse pas sur ces modules est à vérifier.
+  - Chaque document de `/app` sérialise trois dictionnaires imbriqués : le layout racine (`.`, 8 espaces, 22,5 Kio bruts, 7,4 gzip), `(dashboard)` (11 espaces, 34,9 et 10,9) et `(dashboard)/app` (50 espaces, 235,0 et 70,1), chaque frontière portant l'ensemble cumulé de ses parents (mesuré, `node -e` sur `namespaces.json` et `messages/fr.json` ; lu, `messages.ts`). Sous `/app/agency`, il y en a un quatrième, de 276,1 et 82,3. Que la charge RSC servie porte bien ces copies, et ce qu'elles coûtent après la compression du document, est à vérifier sur un document servi.
+- Piste : importer seulement ce qu'il faut de ces deux modules (ou les scinder) ; mesurer la charge RSC d'un document `/app` servi avant de décider quoi que ce soit sur les dictionnaires (ADR-0022).
