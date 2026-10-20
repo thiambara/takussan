@@ -66,7 +66,7 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
   const [scheduledAt, setScheduledAt] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
-  // TCK-1012 (P50.04) — le relevé du mois du bailleur choisi, lu avant de reverser.
+  // TCK-1016 (P50.04) — le relevé du mois du bailleur choisi, lu avant de reverser.
   const [statementOpen, setStatementOpen] = useState(false);
 
   const owners = useApiQuery<PaginatedResponse<OwnerProfileSummary>>(

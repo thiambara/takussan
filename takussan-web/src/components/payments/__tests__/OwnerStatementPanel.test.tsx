@@ -75,7 +75,7 @@ describe('OwnerStatementPanel — le relevé à côté des versements (TCK-594)'
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer jeton-de-session');
   });
 
-  it('lit et télécharge le relevé du bailleur désigné, pour le personnel (TCK-1012)', async () => {
+  it('lit et télécharge le relevé du bailleur désigné, pour le personnel (TCK-1016)', async () => {
     fetchMock.mockResolvedValue(new Response(new Blob(['%PDF']), { status: 200 }));
     render(withIntl(<OwnerStatementPanel landlordId={42} initialMonth="2026-09" />));
 

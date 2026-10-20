@@ -1,5 +1,5 @@
 /**
- * TCK-1012 (P50.04) — le relevé de gérance d'un bailleur, lu par le personnel : `landlord_id` part
+ * TCK-1016 (P50.04) — le relevé de gérance d'un bailleur, lu par le personnel : `landlord_id` part
  * dans la requête et distingue la clé de cache ; sans lui, le relevé reste celui du lecteur.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';

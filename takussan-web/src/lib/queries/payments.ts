@@ -399,7 +399,7 @@ export function usePayoutCancel(payoutId: number) {
 /**
  * TCK-594 (ADR-0039 §3) — le relevé de gérance du lecteur (bailleur), pour un mois ou une année.
  * Sans `landlord_id`, l'API rend celui du lecteur ; l'autorisation est `OwnerStatementPolicy::view`.
- * TCK-1012 — avec `landlordId`, celui de ce bailleur, lu par le personnel tenant `payouts.create`.
+ * TCK-1016 — avec `landlordId`, celui de ce bailleur, lu par le personnel tenant `payouts.create`.
  */
 export function useOwnerStatement(period: string, landlordId?: number) {
   const extra: Record<string, string | number> = { period };

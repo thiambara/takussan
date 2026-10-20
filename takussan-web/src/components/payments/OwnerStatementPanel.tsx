@@ -22,7 +22,7 @@ import type { Locale } from '@/i18n/config';
  * Le PDF et le CSV lisent le MÊME calcul que l'écran : ils se téléchargent avec le jeton de session,
  * l'URL seule ne suffit pas.
  *
- * TCK-1012 — avec `landlordId`, le relevé de ce bailleur, ouvert au personnel depuis le dialogue de
+ * TCK-1016 — avec `landlordId`, le relevé de ce bailleur, ouvert au personnel depuis le dialogue de
  * reversement ; sans lui, celui du lecteur.
  */
 interface OwnerStatementPanelProps {

@@ -1,5 +1,5 @@
 ---
-id: TCK-1012
+id: TCK-1016
 title: "Le relevé d'un bailleur s'ouvre depuis le dialogue de reversement, une fois le bailleur choisi"
 status: done
 phase: P2
@@ -79,6 +79,6 @@ Routes existantes, inchangées : `GET /api/owner-statements`, `/pdf`, `/csv`, av
   `origin/pre-dev`, tests gardés → 3 rouges sur 12 (bouton absent du dialogue ; panneau sans
   `landlord_id` ; requête sans `landlord_id`) ; correctif remis → 22 verts (`PaymentsTabs` compris).
 - Le hook est mocké dans les tests du dialogue et du panneau : seul
-  `releve-d-un-bailleur.tck-1012.test.ts` garde que `landlord_id` part dans la requête.
+  `releve-d-un-bailleur.tck-1016.test.ts` garde que `landlord_id` part dans la requête.
 - Le panneau est remonté (`key`) quand le bailleur change : le mois et le choix « année » ne
   passent pas d'un bailleur à l'autre.
