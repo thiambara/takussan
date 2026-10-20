@@ -1,7 +1,7 @@
 ---
 id: TCK-1033
 title: "Le compte « N valeurs » de l'énumération sélectionnée retrouve son contraste (encre pleine)"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -29,7 +29,7 @@ text-primary-foreground`) ; son compte « N valeurs » y ajoute `opacity-75`, ce
 
 ## Décision du porteur (déléguée)
 
-> retirer l'`opacity-75` du compte « N valeurs » de `business-enums.tsx:46`, qui garde l'encre `primary-foreground` pleine du bouton sélectionné (5,06:1), sans texte neuf
+> retirer l'`opacity-75` du compte « N valeurs » de `business-enums.tsx:46`, qui garde l'encre `primary-foreground` pleine du bouton sélectionné (5,06:1), sans texte neuf ; reste : le couple de jetons des pastilles « Console » de `SuperAdminTopbar.tsx` et de visibilité publique de `PropertyList.tsx`, au porteur
 
 ## Reste à faire
 
@@ -41,16 +41,16 @@ Le compte de valeurs de l'entrée sélectionnée passe 4,5:1, sans couleur ni te
 
 ## Delta à produire
 
-- [ ] `business-enums.tsx` (`EnumList`) : retirer `opacity-75` du compte de valeurs.
-- [ ] Test : `src/components/admin/super/__tests__/business-enums.contraste.test.tsx`, qui compose
+- [x] `business-enums.tsx` (`EnumList`) : retirer `opacity-75` du compte de valeurs.
+- [x] Test : `src/components/admin/super/__tests__/business-enums.contraste.test.tsx`, qui compose
       l'encre rendue (alpha et opacité des ancêtres compris) sur le fond du bouton sélectionné et
       exige 4,5:1.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Le compte « N valeurs » de l'entrée sélectionnée rend au moins 4,5:1 sur `--primary`
+- [x] AC1 — Le compte « N valeurs » de l'entrée sélectionnée rend au moins 4,5:1 sur `--primary`
       dans le thème clair.
-- [ ] AC2 — Aucun texte ni jeton neuf.
+- [x] AC2 — Aucun texte ni jeton neuf.
 
 ## Hypothèses (mode sans humain)
 
@@ -64,4 +64,7 @@ Le compte de valeurs de l'entrée sélectionnée passe 4,5:1, sans couleur ni te
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Le test lit l'encre et le fond sur les classes du DOM rendu (jsdom n'a pas de moteur CSS) et
+  compose l'opacité de l'élément et de ses ancêtres : un `opacity-NN` remis plus haut dans l'arbre
+  rougit aussi.
+- Ablation : `opacity-75` remis → rouge (« 3,59:1 sur --primary ») ; retiré → vert.
