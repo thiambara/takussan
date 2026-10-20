@@ -222,7 +222,8 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label={t('more')}
+              // TCK-1035 (P68.08) — une icône par ligne : le nom porte le bien visé.
+              aria-label={t('moreFor', { title: property.title })}
               disabled={pending}
             >
               {pending ? (

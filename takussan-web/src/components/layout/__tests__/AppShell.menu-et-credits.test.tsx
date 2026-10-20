@@ -130,3 +130,15 @@ describe('TCK-642 — la pastille de la barre haute', () => {
     expect(entree).toHaveTextContent('12');
   });
 });
+
+describe('TCK-1035 (P68.08) — le bouton du menu dit si le tiroir est ouvert', () => {
+  it('aria-expanded suit l’ouverture du tiroir', async () => {
+    monter(['agency_admin']);
+    const bouton = screen.getByRole('button', { name: 'Ouvrir le menu' });
+    expect(bouton).toHaveAttribute('aria-expanded', 'false');
+
+    await ouvrirLeTiroir();
+    // Le tiroir modal rend la barre `inert` : on relit le même nœud, pas un `getByRole`.
+    expect(bouton).toHaveAttribute('aria-expanded', 'true');
+  });
+});

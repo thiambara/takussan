@@ -176,7 +176,9 @@ export function NotificationBell() {
         aria-label={t('center')}
         className="w-96 max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl bg-card p-0 text-card-foreground shadow-lg ring-border"
       >
-        <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        {/* TCK-1035 (P68.08) — un `div`, pas un `<header>` : rendu en portail sous `body`, il faisait
+            un second repère `banner` à côté de la barre haute (axe `landmark-no-duplicate-banner`). */}
+        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
           <div>
             <h2 className="text-sm font-semibold">{t('label')}</h2>
             <p className="text-xs text-muted-foreground">{t('unread', { count: unread })}</p>
@@ -191,7 +193,7 @@ export function NotificationBell() {
             <CheckCheck className="size-4" aria-hidden="true" />
             {t('markAllRead')}
           </Button>
-        </header>
+        </div>
 
         {localError ? (
           <p role="alert" className="px-4 py-2 text-sm text-destructive">
