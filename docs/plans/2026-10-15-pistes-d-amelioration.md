@@ -159,7 +159,7 @@ voie d'écriture (angle 13, puis 47).
 | 84 | Valeurs qu'ADR-0044 chiffre (RIB, NINEA, numéro de pièce, revenu) recopiées en clair ailleurs : `wizard_drafts.data` des autres parcours (bailleur, prestataire, hôte), `metadata`, `activity_log.properties`, `app_notifications.data` | fait |
 | 85 | Ce que le site public montre d'une agence `individual` : annuaire `/agencies`, fiche `/agencies/{slug}`, carte d'agence de la fiche bien (`PropertyResource.php:441-449`) — nom « Espace de {prénom} », slug, badge vérifié | fait |
 | 86 | Collaborateurs `co_owner` et `viewer` d'un bien (`property_collaborators`, laissés hors du périmètre par ADR-0031 § 2) : ce qu'ils lisent et écrivent réellement — bien, lots, baux, loyers, relevé, reversement | fait |
-| 87 | Tris alphabétiques sur colonnes texte sous la collation `C` (`sort=first_name`, `name`, `title` des listes de l'API et de la console) : minuscules et initiales accentuées rejetées après « Z » | à faire |
+| 87 | Tris alphabétiques sur colonnes texte sous la collation `C` (`sort=first_name`, `name`, `title` des listes de l'API et de la console) : minuscules et initiales accentuées rejetées après « Z » | fait |
 | 88 | Comptes `blocked` (`UserStatus::Blocked`), qui n'ouvrent plus de session : ce qu'ils reçoivent encore (notifications, e-mails, SMS) et les sélecteurs qui les proposent encore (participants, agent responsable, collaborateurs, destinataires) | à faire |
 | 89 | Commandes jouées par `release.sh` et `seed.sh` (`geo:sync-referential`, `tags:sync-catalog`, `alerts:ensure-ops-rules`, `membership:reconcile-system-roles`, `scout:import`) : code de sortie réel sur une erreur, face à ce que le script en conclut | à faire |
 | 90 | Écritures explicites dans l'index (`->searchable()` / `unsearchable()` de `PropertyTagController`, `BoostLifecycle`, `GeoReindexation`, `SyncAgencyPropertiesSearchIndex`) : appelées dans une transaction qui peut être annulée, face à `SCOUT_AFTER_COMMIT` et `SCOUT_QUEUE` de chaque environnement | à faire |
@@ -191,6 +191,8 @@ voie d'écriture (angle 13, puis 47).
 | 115 | Statuts d'enum qu'aucun chemin de `app/` n'écrit et que seuls les seeders posent (`LeaseStatus::Expired`, les autres enums de statut de `app/Models/Enums`) : gardes, filtres, tableaux de bord et écrans du front qui attendent un état que la production n'atteindra jamais | à faire |
 | 116 | Gestes d'agence jugés par le type de profil (`isAgencyAdminAt`, `isAgentAt` : une quarantaine d'appels dans `app/Http` et `app/Services`) au lieu d'une capacité (`canActAt`) : admin à qui un rôle personnalisé retire la capacité, membre à qui il la donne — le relevé de P82.04 et P82.05 sur le reste de l'API | à faire |
 | 117 | Clés de `metadata` des profils (`owner_profiles`, `agent_profiles`, `service_provider_profiles` : `kind`, `source`, `intervention_zones`, `visit_fee`, `availability`, `has_insurance`, `trades`) écrites par les assistants `Me\*ProfileController` : lues par qui, à l'API et dans les listes du front (`ServiceProvidersList`, `OwnersList`, `MaintenanceAssignmentBlock`) qui y retombent à défaut de colonne | à faire |
+| 118 | Listes paginées triées sur une colonne non unique sans départage par `id` (`orderBy` écrits à la main des contrôleurs `Admin\*`, `defaultSort('-created_at')` seul, `$requestSortable` sur `status`, `name`, `first_name`) : ligne rendue deux fois ou jamais d'une page à l'autre sous PostgreSQL | à faire |
+| 119 | Requêtes de base passées à `buildQuery()` ou à `QueryBuilder::for()` avec un `orWhere`/`orWhereHas` non groupé ou un `orderBy` en dur : filtres de la requête qui ne s'appliquent qu'à une branche, `sort=` relégué après le tri fixe — le relevé de P87.04 sur le reste de l'API | à faire |
 | 118 | Données personnelles gardées dans le stockage du navigateur après déconnexion ou changement de compte (`localStorage`/`sessionStorage` : `takussan.coordonnees` nom et téléphone, cache TanStack « persisté par certains écrans » selon `OwnersList.tsx:83`, `useInitiatePayment`, `attribution.ts`) : ce que lit le compte suivant sur un poste partagé |
 
 ---
@@ -8507,3 +8509,76 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
 - Piste : borner `ReceivedReviews` aux rôles qui répondent pour le bien ; rejuger l'éligibilité à la copie ; semer au moins un `co_owner` et un `viewer` pour que l'écran les montre.
 - Mesure (2026-10-20, b23ae0b4e, mesureur) : relu `ReceivedReviews.php:48-52` (tout bien où l'appelant a une ligne de collaborateur, sans rôle ni `accepted_at`), `PropertyDuplicationService.php:40-102` (`replicate()` garde `agency_id` : la copie ne change jamais d'agence, ce qui répond au « à vérifier » ; les lignes de collaborateurs sont recréées sans rejuger `CollaboratorEligibleForProperty`), `PropertyCollaboratorSeeder.php:40-52` (`agent` ou `manager` seulement), `grep -rn collaborators takussan-web/src` (aucun `POST`, `PUT` ni `DELETE` vers `…/collaborators`) → les quatre points tiennent à la lecture ; non exécutés. Classement : V7, borner la boîte d'avis et écarter à la copie un collaborateur devenu inéligible changent ce qu'un utilisateur voit ou garde, sans spec qui le dise ; seul le seeder serait sans choix.
 - Mesure (2026-10-20, 0581fca48, delegue) : relu `ReceivedReviews.php:44-60` (`targetsActor` : tout bien où l'appelant a une ligne de collaborateur, sans rôle), `PropertyDuplicationService.php:97-102` (lignes recréées par `only([...])`, sans `accepted_at`, sans rejuger l'éligibilité), `docs/models-spec.md:1020` (« changer le rôle rejuge l'éligibilité », rien sur la copie), P86.02 (sort de `co_owner` et `viewer` ouvert) → les trois points dépendent de P86.02 : le périmètre de la boîte d'avis suit ce que ces rôles peuvent lire (voisin de V2, comme P86.04), semer deux rôles qui pourraient être retirés serait défait, et rejuger à la copie demande de choisir entre écarter la ligne et refuser la copie. Recommandation : attendre P86.02, puis (a) borner `ReceivedReviews` aux rôles que `ReviewPolicy::reply` laisse répondre, comme pour la réponse, (b) à la copie, écarter sans erreur la ligne que `CollaboratorEligibleForProperty` refuserait, la copie se faisant à l'initiative de l'agence, (c) semer un `co_owner` et un `viewer` si les rôles restent ; manque : la décision de P86.02.
+
+## Angle 87 — Tris alphabétiques sous la collation `C`
+
+*Exploré le 2026-10-20 sur `pre-dev` a5e212eee, par l'explorateur. Tout est relu par l'explorateur
+lui-même, sans sous-agent. Les ordres sont mesurés de deux façons : un test temporaire sur la base
+de test PostgreSQL (charge 3,84 / 3,77 / 3,68 sur 8 cœurs, retiré ensuite), et des `SELECT` en
+transaction en lecture seule sur la base de développement (`datcollate` = `C`, mesuré), qui ne
+contient que des données semées. La règle de référence est l'amendement du 2026-10-19 d'ADR-0025 :
+une liste triée sur un nom de personne affiché trie en `COLLATE "und-x-icu"` ; les autres listes
+« suivent quand on les touche ». P51.05 (contacts de la messagerie, `fait · TCK-1007`) n'est pas
+repris ici : `App\Sorts\CollatedNameSort` n'a qu'un appelant, `MessagingContactController`.*
+
+### Les listes de membres, d'utilisateurs et de clients trient les prénoms et noms dans l'ordre des octets, hors de la règle d'ADR-0025
+- Réf : P87.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/User.php:152`, `takussan-api/app/Models/Customer.php:108`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:79-83`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:157-163`, `takussan-web/src/components/admin/AuditTrail.tsx:199`, `takussan-web/src/lib/queries/role-delegations.ts:162`, `takussan-web/src/components/admin/users/AdminUsersTable.tsx:141`, `takussan-web/src/lib/queries/leases.ts:132`
+- Constat :
+  - `sort=first_name` et `last_name` passent par `$requestSortable` (lu, `User.php:152`, `Customer.php:108`) : `allowedSorts()` de spatie, donc un `ORDER BY` nu (lu, `HasQueryBuilder.php:93`). `CollatedNameSort` n'est branché que sur les contacts de la messagerie (mesuré, `grep -rn CollatedNameSort takussan-api/app`).
+  - mesuré (test temporaire) : quatre agents « Zeynab », « awa », « Élodie », « Binta » → `GET /api/agencies/{id}/members?sort=first_name` → « Binta | Estefania | Zeynab | awa | Élodie ». C'est l'appel du filtre « Membre » du journal d'audit (lu, `AuditTrail.tsx:199`) et des candidats à une délégation de rôle (lu, `role-delegations.ts:162`).
+  - La console super-admin trie `/api/admin/users` par un `orderBy($field)` nu, `first_name` compris, sans départage par `id` (lu, `UserDetailController.php:79-83`) ; le tableau propose ce tri (lu, `AdminUsersTable.tsx:141`). L'équipe d'une agence vue du super-admin est triée en dur `first_name, last_name` (lu, `AgencyDetailController.php:162-163`).
+  - Le sélecteur de locataire d'un bail demande `sort=last_name,first_name` sur `/api/customers` (lu, `leases.ts:132`).
+  - mesuré (`SELECT` sur la base de dev) : « Aïssatou » sort après « Awa », « Astou » et « Aminata » en ordre `C`, et avant en ICU. Sur les 305 utilisateurs, 54 rangs diffèrent entre `ORDER BY first_name, id` et le même tri en `und-x-icu` ; sur 564 clients, 63 rangs pour `last_name, first_name, id`.
+  - Établi comment : lu, et mesuré par le test temporaire et les `SELECT`.
+- Piste : brancher `CollatedNameSort` sur les colonnes de nom de personne exposées par `HasQueryBuilder` (`first_name`, `last_name` de `User` et `Customer`), par exemple une liste de colonnes « à trier en collation » que `buildQuery()` traduit en `AllowedSort::custom` ; faire de même dans les tris écrits à la main de `UserDetailController` et `AgencyDetailController`. Test : une minuscule et une initiale accentuée, en tri montant et descendant. Une garde peut refuser une colonne de nom dans `$requestSortable` sans tri en collation.
+
+### Les rôles d'une agence sont rangés dans l'ordre des octets : un rôle créé en minuscule ou commençant par « É » passe après « Z »
+- Réf : P87.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Agency/RoleController.php:37-43`, `takussan-api/app/Models/AgencyRole.php:72`, `takussan-web/src/lib/queries/agency-roles.ts:72`
+- Constat :
+  - L'index trie `defaultSort('name')` (lu, `RoleController.php:42`), et le front demande aussi `sort=name` (lu, `agency-roles.ts:72`). Le nom d'un rôle personnalisé est saisi par l'administrateur de l'agence.
+  - mesuré (test temporaire) : rôles « Zélateur », « gérant », « Comptable », « Équipe terrain » créés dans une agence → `GET /api/agencies/{id}/roles` → « Administrateur | Agent | Comptable | Prestataire | Propriétaire | Zélateur | gérant | Équipe terrain ».
+  - La base de dev n'a aucun rôle dont le nom commence par une minuscule ou un accent (mesuré, `SELECT` : 0 sur 16) : le défaut ne se voit qu'avec un nom saisi.
+  - Établi comment : lu et mesuré.
+- Piste : trier les rôles en `COLLATE "und-x-icu"`, par la même classe de tri (P87.01), défaut compris. Test avec le jeu ci-dessus.
+
+### Un même catalogue sort dans deux ordres : ICU sur le site public, octets sur l'API connectée et dans la console
+- Réf : P87.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Public/GeoReferentialController.php:27,44-50`, `takussan-api/app/Http/Controllers/Api/TagController.php:36-39`, `takussan-api/app/Http/Controllers/Api/Admin/TagModerationAdminController.php:26`, `takussan-api/app/Http/Controllers/Api/Admin/GeoNeighborhoodAdminController.php:32,60`, `takussan-api/app/Models/Tag.php:36`, `takussan-api/app/Models/GeoNeighborhood.php:52`, `takussan-web/src/lib/queries/tags.ts:48`, `takussan-web/src/lib/queries/super-admin-propositions.ts:150-163`
+- Constat :
+  - Le référentiel public trie régions, villes, quartiers et équipements en `name COLLATE "und-x-icu"` (lu, `GeoReferentialController.php:27`, `amenities()` l. 44-50).
+  - Les mêmes lignes sortent en ordre `C` ailleurs : `/api/tags` trie `defaultSort('name')` (lu, `TagController.php:38`) et le front y demande `sort=name` par défaut (lu, `tags.ts:48`) ; les cibles de fusion de la console (`ciblesDeFusion`) demandent `sort=name` sur `/api/admin/geo/neighborhoods` et `/api/admin/tags/proposals` (lu, `super-admin-propositions.ts:155`), qui passent par `buildQuery()` et un `$requestSortable` nu (lu, `Tag.php:36`, `GeoNeighborhood.php:52`). Les quartiers « proches » d'une proposition sont aussi rangés par `orderBy('name')` (lu, `GeoNeighborhoodAdminController.php:60`).
+  - mesuré (`SELECT` sur la base de dev) : étiquettes en ordre `C` « Dépendance | Famille | Fibre optique | Forage | Étranger | Étudiant » ; les quatre derniers quartiers en ordre `C` sont « Zone B », « Zone De Captage », « Île Nord », « Île Sud ». 287 rangs de quartiers sur 362 et 30 étiquettes sur 40 changent de place entre les deux ordres.
+  - Établi comment : lu et mesuré (`SELECT`). L'écran de la console n'a pas été ouvert.
+- Piste : faire trier ces listes par la même classe de tri en `und-x-icu` (P87.01), pour que le référentiel ait un seul ordre partout. Test : un quartier en « Île » et une étiquette en « É » rangés avant « Z » sur `/api/tags` et sur la route d'administration des quartiers.
+
+### `GET /api/admin/agencies/{id}/team` : `filter[status]` ne s'applique qu'aux propriétaires, et un `sort=` ne vient qu'après le prénom
+- Réf : P87.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:157-166`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:178-181`, `takussan-web/src/lib/queries/super-admin.ts:129-141`
+- Constat :
+  - La base est `whereHas('agentProfiles', …)->orWhereHas('ownerProfiles', …)`, sans groupe, puis `orderBy('first_name')->orderBy('last_name')`, avant `User::buildQuery()` (lu, l. 159-165). `listMembers` groupe les deux branches dans un `where(function …)` (lu, `AgencyController.php:178-181`).
+  - mesuré (`php artisan tinker`, `toSql()` sur la même base avec `filter[status]=active&sort=email`) → `where (exists (agent_profiles …) or exists (owner_profiles …) and "users"."status" = ?) and "users"."deleted_at" is null order by "first_name" asc, "email" asc`. Le filtre ne vise que la branche des propriétaires : un agent bloqué est rendu quand on demande les actifs. Le tri demandé passe après le prénom.
+  - Le front n'envoie ni `filter` ni `sort` sur cette route (lu, `super-admin.ts:129-141`) : rien de faux ne s'affiche aujourd'hui. `status` et `added_by_id` sont pourtant filtrables (lu, `User.php:150`).
+  - Établi comment : lu, et SQL produit mesuré.
+- Piste : grouper les deux `whereHas` dans un `where(fn …)` comme `listMembers`, et passer le tri par défaut à `defaultSorts()` au lieu d'`orderBy()`. Test : un agent `blocked` et un propriétaire actif, `filter[status]=active` ne rend que le second.
+
+### Petites améliorations
+- Réf : P87.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:104-120`, `takussan-api/app/Http/Controllers/Api/Admin/AdminCreditWalletController.php:30`, `takussan-api/app/Http/Controllers/Api/ConversationContextController.php:77-81`, `takussan-api/app/Models/Property.php:112-114`, `takussan-web/src/lib/queries/leases.ts:106`, `takussan-web/src/lib/queries/reviews.ts:59`
+- Constat :
+  - Agences : la liste super-admin trie `sort=name` par `orderBy('agencies.name')` (lu, `AgencyModerationController.php:107-117`). Cette liste sert la page des agences (lu, `super-admin/agencies/page.tsx:48-49`), `AgencyCombobox` et le choix des agences d'une annonce (lu, `AgencyCombobox.tsx:87`, `announcements.tsx:146`). Les portefeuilles de crédits suivent `orderBy('name')` (lu, `AdminCreditWalletController.php:30`). Les 4 agences de la base de dev commencent toutes par une capitale ASCII (mesuré) : rien ne se voit en local.
+  - Titres de biens : le sélecteur de bien d'une conversation trie `defaultSort('title')` (lu, `ConversationContextController.php:79`) ; les sélecteurs de bien du bail et des avis demandent `sort=title` (lu, `leases.ts:106`, `reviews.ts:59`). mesuré (`SELECT`) : « Studio rénové à HLM » passe avant « Studio économique à Fann », « Boutique commerciale à HLM » avant « … à Hann Maristes 1 » ; 400 rangs de biens sur 856 diffèrent entre les deux ordres.
+  - Le tri `sort=first_name` de `/api/admin/users` et `sort=name` des agences n'a pas de départage par `id` (lu) : deux lignes de même prénom peuvent changer de page d'une requête à l'autre (à vérifier).
+  - Établi comment : lu, et mesuré par `SELECT` pour les titres.
+- Piste : étendre la classe de tri ICU aux noms d'agence et aux titres de biens quand on touche ces listes, et ajouter `id` en départage aux tris écrits à la main.
