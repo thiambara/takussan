@@ -48,7 +48,9 @@ class BookingController extends Controller
     {
         $data = $request->validated();
 
-        $property = Property::findOrFail($data['property_id']);
+        // TCK-1066 (P62.02) — un bien absent reçoit le refus d'un bien que l'appelant ne voit pas.
+        $property = Property::query()->find((int) $data['property_id']);
+        abort_code_if($property === null, 403, 'booking.property_unavailable');
         $booking = $this->bookings->create($property, $request->user(), $data);
 
         return $this->json([
