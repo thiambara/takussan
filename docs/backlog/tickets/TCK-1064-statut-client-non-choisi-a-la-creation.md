@@ -1,7 +1,7 @@
 ---
 id: TCK-1064
 title: "Le formulaire de création d'un client ne propose plus de statut, que l'API écartait (P80.01)"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -53,16 +53,16 @@ Réf : **P80.01** du fichier de pistes (angle 80), `validé (délégué)` (crit�
 
 ## Delta à produire
 
-- [ ] `CustomerForm` : le sélecteur `status` n'est rendu qu'en mode `edit`.
-- [ ] `lib/schemas/customer.ts` : `status` devient facultatif dans `CustomerFormPayload`, et
+- [x] `CustomerForm` : le sélecteur `status` n'est rendu qu'en mode `edit`.
+- [x] `lib/schemas/customer.ts` : `status` devient facultatif dans `CustomerFormPayload`, et
       `sansStatut()` retire la clé du corps de création.
-- [ ] Test : `CustomerForm.statut.test.tsx` (deux cas).
+- [x] Test : `CustomerForm.statut.test.tsx` (deux cas).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — en `create`, aucun champ « Statut » n'est rendu, et le corps passé à
+- [x] AC1 — en `create`, aucun champ « Statut » n'est rendu, et le corps passé à
       `createCustomerAction` n'a pas de clé `status`.
-- [ ] AC2 — en `edit`, le champ « Statut » est rendu et le corps d'édition porte le statut de la
+- [x] AC2 — en `edit`, le champ « Statut » est rendu et le corps d'édition porte le statut de la
       fiche.
 
 ## Hors périmètre
@@ -72,4 +72,5 @@ Réf : **P80.01** du fichier de pistes (angle 80), `validé (délégué)` (crit�
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : `sansStatut()` retiré de l'appel de création → 1 rouge (`expected { first_name: 'Awa', … } to not have property "status"`) ; avant tout correctif, le premier cas rougissait déjà sur le sélecteur rendu en création. Correctif remis → 15 verts sur les 5 fichiers de `customer-form/__tests__`.
+- `status` devient facultatif dans `CustomerFormPayload` plutôt qu'un second type de corps : `createCustomerAction` et `updateCustomerAction` partagent ce type, et l'API accepte `status` en édition seulement.
