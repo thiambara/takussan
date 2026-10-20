@@ -35,7 +35,7 @@ Réf : **P80.01** du fichier de pistes (angle 80), `validé (délégué)` (crit�
 
 ## Décision du porteur (déléguée)
 
-> retirer le sélecteur `status` du formulaire en mode `create` (il reste en `edit`), et ne plus envoyer `status` dans le corps de création ; `StoreCustomerRequest` inchangé, le contrôleur garde `CustomerStatus::Active` forcé, le défaut déjà en vigueur ; test : en `create` le sélecteur n'est pas rendu et le corps n'a pas de `status`, en `edit` il l'est
+> retirer le sélecteur `status` du formulaire en mode `create` (il reste en `edit`), et ne plus envoyer `status` dans le corps de création ; `StoreCustomerRequest` inchangé, le contrôleur garde `CustomerStatus::Active` forcé, le défaut déjà en vigueur ; test : en `create` le sélecteur n'est pas rendu et le corps n'a pas de `status`, en `edit` il l'est ; reste : créer un client directement `inactive` ou `blocked`, au porteur
 
 ## Reste à faire
 
