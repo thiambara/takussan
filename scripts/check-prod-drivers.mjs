@@ -24,7 +24,10 @@
  *    deux environnements comme hors dépôt — partout. Le catalogue se régénère par la commande de
  *    son `_mesure`.
  * 2. **Le catalogue contre la checklist §5.7 de `docs/configuration.md`** — celle-là est dans le
- *    dépôt, donc bloquante. C'est le seul endroit du dépôt qui prescrit des drivers de production.
+ *    dépôt, donc bloquante.
+ * 3. **Le catalogue contre la table de la tâche F3** du plan d'auto-hébergement, qui crée
+ *    l'environnement de production : chaque driver prescrit y a sa ligne, avec la même valeur
+ *    (P71.03, 2026-10-20).
  *
  * Elle ne vérifie **pas** que ces drivers fonctionnent : `.env.prod` déclare `CACHE_STORE=redis` et
  * `REDIS_HOST=127.0.0.1`, mais rien dans le dépôt ne prouve qu'un Redis écoute sur le serveur — et
@@ -144,6 +147,40 @@ if (debut === -1) {
       );
     } else {
       verifies.push(`configuration.md §5.7 : ${cle} = ${attendu.valeur}`);
+    }
+  }
+}
+
+// ── 3. Le catalogue contre la table F3 du plan, qui CRÉE l'environnement de production ─────────
+// P71.03 (2026-10-20) : F3 construit la production « à partir de l'environnement de la
+// préproduction, à ces différences près », et `MAIL_MAILER` n'y figurait pas — la production aurait
+// hérité du `log` de la préproduction et n'aurait envoyé aucun courriel. Chaque driver prescrit de la
+// production doit donc y avoir sa ligne, `| \`CLÉ\` | \`valeur\` …`, avec la valeur du catalogue.
+const PLAN = join(ROOT, 'docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md');
+const TACHE_F3 = '### Tâche F3';
+const plan = readFileSync(PLAN, 'utf8');
+const debutF3 = plan.indexOf(TACHE_F3);
+if (debutF3 === -1) {
+  erreurs.push(`docs/plans/…-auto-hebergement-vps-dokploy.md : section « ${TACHE_F3} » introuvable.`);
+} else {
+  const apresF3 = plan.slice(debutF3 + TACHE_F3.length);
+  const finF3 = apresF3.search(/^### /m);
+  const f3 = finF3 === -1 ? apresF3 : apresF3.slice(0, finF3);
+  const lignesF3 = new Map();
+  for (const m of f3.matchAll(/^\| `([A-Z0-9_]+)` \| `([^`]+)`/gm)) lignesF3.set(m[1], m[2]);
+  for (const [cle, attendu] of Object.entries(catalogue.environnements.production.drivers)) {
+    if (attendu.etat !== 'prescrit') continue;
+    if (!lignesF3.has(cle)) {
+      erreurs.push(
+        `plan, tâche F3 : aucune ligne \`${cle}\` dans la table de production. Sans elle, la production ` +
+          `hérite de la valeur de la préproduction ; le catalogue prescrit « ${attendu.valeur} ».`
+      );
+    } else if (lignesF3.get(cle) !== attendu.valeur) {
+      erreurs.push(
+        `plan, tâche F3 : \`${cle}\` = « ${lignesF3.get(cle)} » alors que le catalogue prescrit « ${attendu.valeur} »`
+      );
+    } else {
+      verifies.push(`plan F3 : ${cle} = ${attendu.valeur}`);
     }
   }
 }

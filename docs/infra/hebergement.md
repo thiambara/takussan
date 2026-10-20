@@ -174,7 +174,8 @@ vide) :
   `SCOUT_AFTER_COMMIT`, `MAIL_MAILER`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`,
   `MAIL_CONTACT_ADDRESS`, `RESEND_API_KEY`, `VITE_APP_NAME`, `GOOGLE_CLIENT_ID`,
   `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, et
-  les douze `SEED_*` (dont `SEED_DOWNLOAD_MEDIA=true` : le seed télécharge des médias) ;
+  les `SEED_*` — **treize** au relevé du 2026-10-20, et non douze (dont `SEED_DOWNLOAD_MEDIA=true` :
+  le seed télécharge des médias) ;
 - ajoutées le 2026-09-22 par TCK-541 (ADR-0029), **80 clés** au total : `MEDIA_PUBLIC_DISK`
   (`r2-media`), `MEDIA_PRIVATE_DISK` (`r2-private`), `MEDIA_QUEUE`, `R2_ACCESS_KEY_ID`,
   `R2_SECRET_ACCESS_KEY` (le jeton `takussan-preview-app`, *Object Read & Write* limité aux deux
@@ -185,10 +186,24 @@ vide) :
   revient dans la réponse, `otp_preview`, et le front l'affiche — sans effet hors `APP_ENV`
   `local`/`staging`). ⚠ **À éteindre avant que la préproduction reçoive des données réelles** :
   qui joint l'API y entre dans tout compte dont il connaît le numéro vérifié.
+- ajoutées le 2026-10-18 : les cinq jetons des webhooks entrants, chacun neuf pour la préproduction
+  et relu dans le conteneur (TCK-943, TCK-720) : `SMS_ORANGE_WEBHOOK_URL_TOKEN`,
+  `SMS_MTARGET_WEBHOOK_URL_TOKEN`, `SMS_LAM_WEBHOOK_URL_TOKEN`, `WHATSAPP_WEBHOOK_URL_TOKEN`,
+  `WHATSAPP_WEBHOOK_VERIFY_TOKEN` ; et `API_ALIAS` (`takussan-api-preview`, l'alias de la pile sur
+  `dokploy-network`, ADR-0069 § 4, TCK-880). Retirées par TCK-880 : `REDIS_HOST` et `REDIS_PORT`
+  (le Redis est celui de la pile, et Compose les pose).
+- **relevé du 2026-10-20 : 86 clés** (`compose.one` → `env`, noms seuls, par un script qui n'imprime
+  aucune valeur secrète). Valeurs non secrètes relues le même jour, dont F3 a besoin : `APP_ENV` =
+  `staging` (ADR-0060 a raison, le docblock d'`AddRobotsTagOutsideProduction` se trompait et est
+  corrigé), `APP_URL` = `https://preview.api.takussan.com`, `SESSION_DOMAIN` = `.takussan.com`,
+  `SESSION_COOKIE` = `takussan_session_preview`, `GOOGLE_REDIRECT_URI` =
+  `https://preview.takussan.com/auth/oauth/google/callback`, `PHONE_LOGIN_ENABLED` et
+  `OTP_PREVIEW_ENABLED` = `true`, `MAIL_MAILER` = `log`. Ni `CACHE_PREFIX` (TCK-720) ni aucune
+  `SMS_*_WEBHOOK_IPS` ne sont posées : en `staging`, une liste vide ne filtre pas (P71.04).
 
-Absentes de l'export, donc aux défauts de `config/` : `SMS_*`, `WHATSAPP_*`, `FACEBOOK_*`, `APPLE_*`,
-`CDN_*`, `BUNNY_*`. Une fonctionnalité qui en dépend ne marche pas en préproduction tant qu'on ne les
-pose pas.
+Absentes de l'export, donc aux défauts de `config/` : `SMS_*` et `WHATSAPP_*` **hors des cinq jetons
+de webhook posés le 2026-10-18**, `FACEBOOK_*`, `APPLE_*`, `CDN_*`, `BUNNY_*`. Une fonctionnalité qui
+en dépend ne marche pas en préproduction tant qu'on ne les pose pas.
 
 **Courriels.** Le transport `resend` de Laravel exige `resend/resend-php`, que le dépôt n'a eu qu'à
 partir du 2026-09-14 : jusque-là, chaque notification par courriel mourait dans le worker (`Class
