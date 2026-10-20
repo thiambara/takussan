@@ -6615,7 +6615,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### L'initiation d'un paiement appelle le fournisseur dans la transaction, sous le verrou de la ligne, jusqu'à 35 s (Orange Money) et 60 s (Lemon Squeezy)
 - Réf : P65.02
-- Statut : validé — un ticket dédié : initiation en trois temps (réserver sous verrou avec échéance, appeler le fournisseur hors transaction, enregistrer sous verrou en revérifiant, sur le modèle de `verify()`) et délais explicites aux deux appels Lemon Squeezy ; avant la mise en production (porteur, 2026-10-20)
+- Statut : fait · TCK-1075
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:150-226,257-266`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:53,76-81,168-173`, `takussan-api/app/Services/Payments/Drivers/LemonSqueezyDriver.php:48-80,197-213`, `vendor/lemonsqueezy/laravel/src/LemonSqueezy.php:59-63`, `vendor/laravel/framework/src/Illuminate/Http/Client/PendingRequest.php:267-272`
 - Constat :
@@ -6628,6 +6628,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - Établi comment : lu.
 - Piste : séparer l'initiation en trois temps : réserver sous verrou (marque « initiation en cours », avec une échéance), appeler le fournisseur hors transaction, puis enregistrer sous verrou en revérifiant l'état, sur le modèle de `verify()`. Donner un délai explicite aux deux appels Lemon Squeezy. Test : un faux fournisseur qui fait avancer l'horloge, et une seconde connexion qui constate que la ligne n'est pas verrouillée pendant l'appel.
 - Mesure (2026-10-20, eb4dde5a0, mesureur) : relu `PaymentGatewayService.php` : `initiate()` ouvre `DB::transaction` l. 155, `lockForUpdate` l. 156, `$driver->initiate()` l. 221 ; `verify()` garde l'appel hors transaction (l. 257-264) ; `OrangeMoneyDriver` jeton `connectTimeout(5)->timeout(15)` puis création `timeout(20)` ; `vendor/lemonsqueezy/laravel/src/LemonSqueezy.php:59-63` sans délai ; aucun commit sur ces fichiers depuis 0ba226223 → le constat tient (non rejoué en exécution). Classement : V1, le correctif réécrit la séquence d'écriture d'un paiement (réservation, échéance, enregistrement).
+- Mesure (2026-10-20, 98465b028, implementeur) : `PaymentInitiationOutsideTransactionTest` par la route `lease-payments/{id}/initiate`, pilote substitué qui relève `DB::transactionLevel()` et agit pendant l'appel (charge 2,11 sur 8 cœurs) : avant correctif, 3 rouges (pilote appelé dans la transaction, seconde initiation pendant l'appel acceptée avec un second checkout, checkout d'une échéance réglée pendant l'appel enregistré en 200) → réservation `metadata.gateway.initiating` sous verrou avec échéance (120 s), appel hors transaction, enregistrement sous verrou sur la ligne relue (409 `payment.not_payable` ou `payment.checkout_in_progress` sinon) : 5 verts ; `LemonSqueezyHttpTimeoutTest` : `connect_timeout` 10 (défaut) avant, 5 et `timeout` 15 sur `GET stores/{id}` et `POST checkouts` après ; ablations (service de `pre-dev` → 3 rouges ; levée de réservation sur échec retirée → rouge ; `POST checkouts` sans délai → rouge) ; 202 tests des classes de paiement verts. Un double clic pendant l'appel reçoit désormais 409 `payment.checkout_in_progress` au lieu d'attendre le verrou.
 
 ### Un délai dépassé chez Wave ou Orange Money rend 500 au lieu de 502 `payment.provider_unavailable`, à l'initiation comme à la vérification
 - Réf : P65.03
@@ -6647,7 +6648,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 
 ### Le client Resend n'a aucun délai, et des courriels partent dans la requête HTTP, dont un sous verrou
 - Réf : P65.04
-- Statut : validé — un transport `resend` de l'application sur un `GuzzleClient` borné (`connect_timeout` 5 s, `timeout` 10 s), garde par un test qui lit les options du client ; les envois de l'invitation restent dans la requête (TCK-367) (porteur, 2026-10-20)
+- Statut : fait · TCK-1074
 - Gravité : 🟠 risque ou dette
 - Où : `vendor/resend/resend-php/src/Resend.php:20-29`, `vendor/laravel/framework/src/Illuminate/Mail/MailManager.php:320-325`, `takussan-api/app/Services/Invitation/InvitationService.php:248,405-434,951-958`, `takussan-api/app/Mail/InvitationMailable.php:23`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:119-137`, `takussan-api/app/Notifications/LeaseSignatureCodeNotification.php:19,55-57`, `takussan-api/config/mail.php:64-66`
 - Constat :
@@ -6659,10 +6660,11 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
 - Piste : poser un délai au client Resend : un transport `resend` enregistré par l'application avec un `GuzzleClient` borné (`timeout`, `connect_timeout`), ou passer par SMTP avec `timeout`. Mettre en file les courriels qui n'ont pas besoin de partir dans la requête, l'invitation d'abord. Garde : un test qui lit les options du client construit par le gestionnaire de courriel.
 - Mesure (2026-10-20, eb4dde5a0, mesureur) : relu `vendor/resend/resend-php/src/Resend.php:20-29` (`new GuzzleClient()` sans option), `config/mail.php:64-66` (rien pour `resend`), `InvitationMailable` (`extends Mailable`, sans `ShouldQueue`), `InvitationService.php:248` (`afterCommit`), l. 413 (`lockForUpdate`) et l. 956 (`Mail::to`), `LeaseSignatureCodeNotification` sans file → le constat tient ; le délai par défaut de cURL n'est pas mesuré. Classement : V6, remplacer le transport du fournisseur ou mettre en file des envois que TCK-367 a voulus dans la requête est une décision structurelle.
 - Mesure (2026-10-20, 40b509849, delegue) : relu la `Piste` et TCK-367 § 2 (`resendInvitation()` est voulu dans `DB::transaction()` pour qu'un envoi en échec ne laisse pas d'invitation « zombie » `sent` sans lien reçu), `docs/adr/README.md` (aucun ADR sur le courriel ni la file) → la piste offre trois voies (transport `resend` borné, SMTP, mise en file), et la mise en file de la relance défait une décision écrite. Recommandation : enregistrer un transport `resend` de l'application sur un `GuzzleClient` borné (`timeout` et `connect_timeout`), garde par un test qui lit les options du client construit par le gestionnaire, et garder les envois de l'invitation dans la requête comme TCK-367 le veut ; la mise en file (invitation, code de signature) reste à part, parce qu'en file l'échec d'envoi ne se voit plus et que le zombie de TCK-367 revient. Pas validé : le transport est celui de la production (`MAIL_MAILER=resend`, `hebergement.md:198`), sans environnement où l'éprouver (la préproduction est en `log`), ce qui le rapproche de V5 ; les deux valeurs de délai ne sont écrites nulle part ; il manque au porteur de fixer ces valeurs et de dire si le gain d'un délai vaut un transport maintenu par l'application.
+- Mesure (2026-10-20, 98465b028, implementeur) : `ResendTransportTimeoutTest`, client Guzzle lu par réflexion dans le transport que rend `Mail::mailer('resend')` (charge 5,78 sur 8 cœurs) : avant correctif, `connect_timeout` null, 1 rouge → `BoundedResendClient` (Guzzle `connect_timeout` 5, `timeout` 10) enregistré par `Mail::extend('resend')` : 1 vert ; ablation (enregistrement retiré) → 1 rouge, remis → 1 vert. Les envois de l'invitation restent dans la requête.
 
 ### Les disques R2 n'ont aucun délai HTTP, et le téléversement de photos les écrit un à un pendant la requête
 - Réf : P65.05
-- Statut : validé — `http => ['connect_timeout' => 5, 'timeout' => 60]` sur les deux disques R2 ; test qui lit `@http` d'une commande du client des deux disques (porteur, 2026-10-20)
+- Statut : fait · TCK-1073
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/filesystems.php:60-84`, `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:43-90`, `takussan-api/app/Services/Admin/HealthcheckService.php:192-203`
 - Constat :
@@ -6673,6 +6675,7 @@ et la synchronisation de calendrier (10 s, hors verrou) le sont aussi.*
   - Établi comment : lu et mesuré en `tinker` (aucun appel réseau).
 - Piste : poser `http => ['timeout' => …, 'connect_timeout' => …]` sur les deux disques R2, dimensionné pour 25 Mio. Garde : un test qui lit `@http` d'une commande du client des deux disques.
 - Mesure (2026-10-20, eb4dde5a0, mesureur) : `tinker` : disques construits sur la configuration de `r2-media` et `r2-private` avec identifiants, endpoint et seau factices → clé `http` absente, `getCommand('HeadObject')['@http']` = `[]` pour les deux (aucun appel réseau) ; `HealthcheckService.php:198` borne toujours sa seule sonde ; `PropertyMediaController.php:43-90` écrit toujours chaque photo dans la boucle → le constat tient. Classement : V5, la valeur du délai pour un lot de 25 Mio vers R2 de production n'est écrite nulle part et se choisit.
+- Mesure (2026-10-20, 98465b028, implementeur) : `R2DiskHttpTimeoutTest`, disque construit par `Storage::build()` sur la configuration de `r2-media` et de `r2-private` avec identifiants factices (charge 5,78 sur 8 cœurs) : avant correctif, `getCommand('HeadObject')['@http']` sans `connect_timeout` ni `timeout`, 2 rouges → clé `http` `connect_timeout` 5, `timeout` 60 sur les deux disques : 2 verts ; ablation (configuration de `pre-dev`) → 2 rouges, remise → 2 verts ; `HealthcheckProbesTest` vert (la sonde garde ses 3 s).
 
 ## Angle 66 — Valeurs d'enum métier éditées par le super-admin : qui les lit hors de la console
 

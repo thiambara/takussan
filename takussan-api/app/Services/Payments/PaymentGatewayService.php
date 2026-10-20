@@ -145,25 +145,72 @@ class PaymentGatewayService
     /**
      * Initiate a checkout for `$payment` using `$provider`.
      *
+     * P65.02 (TCK-1075) — en trois temps, sur le modèle de {@see verify()} : l'appel au fournisseur
+     * (jusqu'à 35 s chez Orange Money, deux appels chez Lemon Squeezy) tenait la transaction et le
+     * verrou de la ligne, et le webhook comme la vérification du même paiement attendaient derrière.
+     *
+     *  1. sous verrou : les gardes (montant, payable, checkout ouvert, fournisseur), puis une
+     *     RÉSERVATION sur la ligne (`metadata.gateway.initiating`), avec une échéance ;
+     *  2. hors transaction : l'appel au fournisseur ;
+     *  3. sous verrou, sur la ligne relue : l'enregistrement, seulement si la ligne est encore
+     *     payable et que la réservation n'a pas été prise par une autre initiation.
+     *
+     * TCK-593 (vérification adverse, V2) — la réservation tient le rôle du verrou d'avant : deux
+     * requêtes simultanées (double clic, deux onglets) ouvraient deux checkouts, et le second
+     * écrasait le `transaction_id` du premier. Pendant la réservation, une seconde initiation
+     * reçoit le 409 `payment.checkout_in_progress`. Un checkout créé chez le fournisseur et non
+     * enregistré (étape 3 refusée) n'est jamais rendu : son lien ne sort pas.
+     *
      * @param  array<string,mixed>  $meta
      */
     public function initiate(Model $payment, PaymentProvider $provider, array $meta = []): CheckoutSession
     {
-        // TCK-593 (vérification adverse, V2) — sous verrou de la ligne : deux requêtes simultanées
-        // (double clic, deux onglets) ouvraient deux checkouts, et le second écrasait le
-        // `transaction_id` du premier — dont le webhook ne retrouvait plus rien.
-        return DB::transaction(function () use ($payment, $provider, $meta): CheckoutSession {
-            $payment->newQuery()->whereKey($payment->getKey())->lockForUpdate()->first();
-            $payment->refresh();
+        $reservation = DB::transaction(function () use ($payment, $provider): CheckoutSession|array {
+            $this->lockAndRefresh($payment);
 
-            return $this->initiateLocked($payment, $provider, $meta);
+            return $this->reserveInitiation($payment, $provider);
         });
+
+        if ($reservation instanceof CheckoutSession) {
+            return $reservation;
+        }
+
+        try {
+            $session = $reservation['driver']->initiate($payment, $reservation['amount_cents'], $reservation['currency'], $meta);
+        } catch (\Throwable $e) {
+            $this->releaseReservation($payment, $reservation['token']);
+
+            throw $e;
+        }
+
+        // L'issue se décide sous verrou, mais un refus ne s'y lève pas : il annulerait aussi la
+        // levée de la réservation.
+        $outcome = DB::transaction(function () use ($payment, $provider, $session, $reservation): CheckoutSession|ApiError {
+            $this->lockAndRefresh($payment);
+
+            return $this->recordReservedInitiation($payment, $provider, $session, $reservation);
+        });
+
+        if ($outcome instanceof ApiError) {
+            throw $outcome;
+        }
+
+        return $outcome;
+    }
+
+    private function lockAndRefresh(Model $payment): void
+    {
+        $payment->newQuery()->whereKey($payment->getKey())->lockForUpdate()->first();
+        $payment->refresh();
     }
 
     /**
-     * @param  array<string,mixed>  $meta
+     * Étape 1 de {@see initiate()}, sous verrou. Rend le checkout ouvert à réutiliser, ou la
+     * réservation posée sur la ligne.
+     *
+     * @return CheckoutSession|array{token: string, driver: PaymentDriverContract, integration: Integration, amount: float, amount_cents: int, currency: string, late_fee_included: bool, late_fee_amount: float}
      */
-    protected function initiateLocked(Model $payment, PaymentProvider $provider, array $meta): CheckoutSession
+    protected function reserveInitiation(Model $payment, PaymentProvider $provider): CheckoutSession|array
     {
         // TCK-588 / TCK-593 — un montant qu'on ne sait pas résoudre se juge EN PREMIER : rien ne
         // peut être encaissé, et ce n'est ni « déjà payé » ni « en cours ». Le message nommait la
@@ -188,6 +235,13 @@ class PaymentGatewayService
             }
 
             return new CheckoutSession((string) $open['checkout_url'], (string) $open['transaction_id'], $provider->value);
+        }
+
+        // P65.02 — une autre initiation attend son fournisseur : son checkout n'existe pas encore,
+        // et en ouvrir un second, c'est deux encaissements possibles.
+        $pending = $this->pendingReservation($payment);
+        if ($pending !== null) {
+            $this->refuseReservation($payment, $pending);
         }
 
         $agencyId = $this->paymentAgencyId($payment);
@@ -218,16 +272,169 @@ class PaymentGatewayService
         abort_code_if($amountCents <= 0, 409, 'payment.not_payable');
 
         $driver = $this->driverFor($integration);
-        $session = $driver->initiate($payment, $amountCents, $currency, $meta);
+
+        // Le montant et la part de pénalité sont FIGÉS ici, avec le montant demandé au
+        // fournisseur : l'étape 3 les enregistre tels quels, même si un réglage change entre-temps.
+        $lateFeeIncluded = $payment instanceof LeasePayment && $this->lateFeeIncluded($payment);
+        $token = bin2hex(random_bytes(16));
+        $now = now();
+
+        $metadata = is_array($payment->metadata ?? null) ? $payment->metadata : [];
+        $gateway = is_array($metadata['gateway'] ?? null) ? $metadata['gateway'] : [];
+        $gateway['initiating'] = [
+            'token' => $token,
+            'provider' => $provider->value,
+            'amount' => $amount,
+            'reserved_at' => $now->toIso8601String(),
+            'expires_at' => $now->copy()->addSeconds((int) config('payments.initiation_reservation_seconds', 120))->toIso8601String(),
+        ];
+        $metadata['gateway'] = $gateway;
+        // Un marqueur de travail, pas une écriture métier : ni observateur ni journal d'activité.
+        $payment->forceFill(['metadata' => $metadata])->saveQuietly();
+
+        return [
+            'token' => $token,
+            'driver' => $driver,
+            'integration' => $integration,
+            'amount' => $amount,
+            'amount_cents' => $amountCents,
+            'currency' => $currency,
+            'late_fee_included' => $lateFeeIncluded,
+            'late_fee_amount' => $lateFeeIncluded ? $this->roundToCurrencyUnit($payment->lateFeeOutstanding(), $payment) : 0.0,
+        ];
+    }
+
+    /**
+     * Étape 3 de {@see initiate()}, sous verrou, sur la ligne relue. Rend la session enregistrée,
+     * ou le refus à lever une fois la transaction validée.
+     *
+     * @param  array{token: string, integration: Integration, amount: float, late_fee_included: bool, late_fee_amount: float}  $reservation
+     */
+    protected function recordReservedInitiation(Model $payment, PaymentProvider $provider, CheckoutSession $session, array $reservation): CheckoutSession|ApiError
+    {
+        $ours = ($this->reservationOn($payment)['token'] ?? null) === $reservation['token'];
+
+        if (! $ours) {
+            // Notre réservation a échu, et une autre initiation l'a remplacée : la sienne fait foi.
+            $open = $this->openCheckout($payment);
+            $pending = $this->pendingReservation($payment);
+            if ($open !== null || $pending !== null) {
+                $this->logUnrecordedCheckout($payment, $provider, $session, 'reservation_taken');
+
+                try {
+                    $open !== null ? $this->refuseOpenCheckout($payment, $open) : $this->refuseReservation($payment, $pending);
+                } catch (ApiError $refusal) {
+                    return $refusal;
+                }
+            }
+        }
+
+        // Réglé, remboursé ou annulé pendant l'appel : le checkout n'est ni enregistré ni rendu.
+        if (! $this->isPayable($payment)) {
+            $this->clearReservation($payment, $reservation['token']);
+            $this->logUnrecordedCheckout($payment, $provider, $session, 'not_payable');
+
+            return new ApiError(409, 'payment.not_payable');
+        }
 
         // Persist the gateway hint on the payment so the verify endpoint
         // and the webhook can find this row again.
-        $this->recordInitiation($payment, $provider, $session, $amount, $integration);
+        $this->recordInitiation($payment, $provider, $session, $reservation['amount'], $reservation['integration'], [
+            'late_fee_included' => $reservation['late_fee_included'],
+            'late_fee_amount' => $reservation['late_fee_amount'],
+        ]);
 
         // Bump `last_used_at` for the integration UI surface.
-        $integration->forceFill(['last_used_at' => now()])->save();
+        $reservation['integration']->forceFill(['last_used_at' => now()])->save();
 
         return $session;
+    }
+
+    /**
+     * La réservation posée sur la ligne, échue ou non.
+     *
+     * @return array<string,mixed>|null
+     */
+    private function reservationOn(Model $payment): ?array
+    {
+        $gateway = is_array($payment->metadata ?? null) ? ($payment->metadata['gateway'] ?? null) : null;
+        $reservation = is_array($gateway) ? ($gateway['initiating'] ?? null) : null;
+
+        return is_array($reservation) && ! empty($reservation['expires_at']) ? $reservation : null;
+    }
+
+    /**
+     * P65.02 — la réservation d'une initiation qui attend encore son fournisseur, ou `null` si
+     * aucune ne vit. Une réservation échue (requête tuée pendant l'appel) ne bloque plus rien.
+     *
+     * @return array<string,mixed>|null
+     */
+    private function pendingReservation(Model $payment): ?array
+    {
+        $reservation = $this->reservationOn($payment);
+        if ($reservation === null || Carbon::parse($reservation['expires_at'])->lte(now())) {
+            return null;
+        }
+
+        return $reservation;
+    }
+
+    /**
+     * Le 409 `payment.checkout_in_progress` d'une initiation en cours, sous la forme de
+     * {@see refuseOpenCheckout()} : le front lit le même `checkout`. On réessaie après l'échéance.
+     *
+     * @param  array<string,mixed>  $reservation
+     */
+    private function refuseReservation(Model $payment, array $reservation): never
+    {
+        $reservedAt = Carbon::parse($reservation['reserved_at'] ?? now());
+
+        throw (new ApiError(409, 'payment.checkout_in_progress'))->with([
+            'checkout' => [
+                'amount' => isset($reservation['amount']) ? (float) $reservation['amount'] : null,
+                'currency' => $this->paymentCurrency($payment),
+                'provider' => $reservation['provider'] ?? null,
+                'initiated_at' => $reservedAt->toIso8601String(),
+                'age_minutes' => max(0, (int) $reservedAt->diffInMinutes(now())),
+                'retry_after' => Carbon::parse($reservation['expires_at'])->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /** Lève la réservation, si c'est encore la nôtre. Pose l'attribut et sauvegarde. */
+    private function clearReservation(Model $payment, string $token): void
+    {
+        if (($this->reservationOn($payment)['token'] ?? null) !== $token) {
+            return;
+        }
+
+        $metadata = $payment->metadata;
+        unset($metadata['gateway']['initiating']);
+        $payment->forceFill(['metadata' => $metadata])->saveQuietly();
+    }
+
+    /** Le fournisseur a échoué : la réservation est levée, et l'on peut réessayer aussitôt. */
+    private function releaseReservation(Model $payment, string $token): void
+    {
+        DB::transaction(function () use ($payment, $token): void {
+            $this->lockAndRefresh($payment);
+            $this->clearReservation($payment, $token);
+        });
+    }
+
+    /**
+     * Un checkout créé chez le fournisseur et laissé sans suite : son lien n'est rendu à personne,
+     * mais la trace dit qu'il existe (identifiants seulement).
+     */
+    private function logUnrecordedCheckout(Model $payment, PaymentProvider $provider, CheckoutSession $session, string $reason): void
+    {
+        Log::warning('[payments] checkout created but not recorded', [
+            'payable' => class_basename($payment),
+            'payable_id' => $payment->getKey(),
+            'provider' => $provider->value,
+            'transaction_id' => $session->transactionId,
+            'reason' => $reason,
+        ]);
     }
 
     /**
@@ -718,10 +925,14 @@ class PaymentGatewayService
         );
     }
 
-    protected function recordInitiation(Model $payment, PaymentProvider $provider, CheckoutSession $session, float $amount, ?Integration $integration = null): void
+    /**
+     * @param  array{late_fee_included: bool, late_fee_amount: float}|null  $frozen  la part de
+     *                                                                               pénalité figée avec le montant (P65.02)
+     */
+    protected function recordInitiation(Model $payment, PaymentProvider $provider, CheckoutSession $session, float $amount, ?Integration $integration = null, ?array $frozen = null): void
     {
         $existingMeta = is_array($payment->metadata ?? null) ? $payment->metadata : [];
-        $lateFeeIncluded = $payment instanceof LeasePayment && $this->lateFeeIncluded($payment);
+        $lateFeeIncluded = $frozen['late_fee_included'] ?? ($payment instanceof LeasePayment && $this->lateFeeIncluded($payment));
 
         // TCK-593 (V2) — l'historique des checkouts émis : le webhook d'un checkout antérieur
         // retrouve encore son payable, et le montant figé DE CE CHECKOUT.
@@ -737,7 +948,7 @@ class PaymentGatewayService
             'late_fee_included' => $lateFeeIncluded,
             // La part de pénalité de CE montant : un webhook tardif sur une pénalité réglée entre-temps
             // à l'agence la marque en double, à ce montant.
-            'late_fee_amount' => $lateFeeIncluded ? $this->roundToCurrencyUnit($payment->lateFeeOutstanding(), $payment) : 0.0,
+            'late_fee_amount' => $frozen['late_fee_amount'] ?? ($lateFeeIncluded ? $this->roundToCurrencyUnit($payment->lateFeeOutstanding(), $payment) : 0.0),
             'initiated_at' => now()->toIso8601String(),
         ];
 
