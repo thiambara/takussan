@@ -26,7 +26,6 @@ class ExistsSurRouteOuverteTest extends TestCase
         'Api/StoreLeaseRequest.php' => 'P62.01',
         'Api/StoreTaskRequest.php' => 'P62.03',
         'Api/StoreMaintenanceRequestRequest.php' => 'P62.06',
-        'Search/SearchQueryRequest.php' => 'P62.05',
         'Api/StorePropertyVisitRequest.php' => 'P62.06',
         'Api/IndexCalendarRequest.php' => 'P62.06, P62.07',
         'Api/StoreIntegrationRequest.php' => 'P62.07',
