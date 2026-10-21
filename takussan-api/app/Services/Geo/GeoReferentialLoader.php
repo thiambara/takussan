@@ -79,10 +79,13 @@ final class GeoReferentialLoader
     private function chargerRegion(array $donnees, array &$bilan): void
     {
         $r = $donnees['region'];
-        $region = GeoRegion::query()->updateOrCreate(
-            ['code' => $r['code']],
-            ['slug' => $r['slug'], 'name' => $r['name'], 'latitude' => $r['latitude'] ?? null, 'longitude' => $r['longitude'] ?? null],
-        );
+        $region = GeoRegion::query()->firstOrNew(['code' => $r['code']]);
+        $region->fill(['slug' => $r['slug'], 'name' => $r['name'], 'latitude' => $r['latitude'] ?? null, 'longitude' => $r['longitude'] ?? null]);
+        $renommee = $region->exists && $region->isDirty('name');
+        $region->save();
+        if ($renommee) {
+            $this->reecrireRegion($region);
+        }
         $bilan['regions']++;
 
         foreach ($donnees['cities'] as $v) {
@@ -205,5 +208,21 @@ final class GeoReferentialLoader
             $this->biensRenommes[] = (int) $id;
         }
         $adresses->update(['city' => $ville->name, 'updated_at' => now()]);
+    }
+
+    /**
+     * TCK-1165 (P99.03) — le texte `region` des adresses rattachées aux villes de la région, au
+     * nom que la règle 5 de `GeoAddressCanonicalizer` donne à une adresse neuve. Par une mise à
+     * jour SQL, pour la même raison que {@see self::reecrireVille()}.
+     */
+    private function reecrireRegion(GeoRegion $region): void
+    {
+        $adresses = Address::query()
+            ->whereIn('geo_city_id', GeoCity::query()->where('geo_region_id', $region->getKey())->select('id'))
+            ->where('region', '<>', $region->name);
+        foreach ((clone $adresses)->where('addressable_type', Property::class)->pluck('addressable_id') as $id) {
+            $this->biensRenommes[] = (int) $id;
+        }
+        $adresses->update(['region' => $region->name, 'updated_at' => now()]);
     }
 }

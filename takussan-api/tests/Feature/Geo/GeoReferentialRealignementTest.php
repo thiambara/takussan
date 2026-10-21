@@ -180,6 +180,34 @@ class GeoReferentialRealignementTest extends TestCase
         $this->assertSame([], $this->biensOu('city', 'Guédiawaye'));
     }
 
+    /**
+     * TCK-1165 (P99.03) — une région que le jeu renomme réécrit le texte `region` des adresses de
+     * ses villes, et réindexe : sans cela, l'adresse gardait l'ancien nom, une adresse neuve
+     * recevait le nouveau (règle 5 du canoniseur), et `region=<nouveau nom>` ne trouvait pas le bien.
+     */
+    public function test_une_region_renommee_par_le_jeu_reecrit_l_adresse_et_reindexe(): void
+    {
+        $this->charger(self::V1);
+        $bien = $this->bienA('Dakar', 'Point E');
+        $this->assertSame('Dakar', $bien->address()->firstOrFail()->region);
+        $this->indexProperties();
+
+        $renomme = $this->jeu(function (array $d) {
+            $d['region']['name'] = 'Dakar Région';
+
+            return $d;
+        });
+        $this->charger($renomme);
+        $this->charger($renomme);
+
+        $adresse = $bien->address()->firstOrFail();
+        $this->assertSame('Dakar Région', $adresse->region);
+        $this->assertSame('Dakar', $adresse->city);
+        $this->assertNotNull($adresse->geo_neighborhood_id);
+        $this->assertSame([$bien->id], $this->biensOu('region', 'Dakar Région'));
+        $this->assertSame([], $this->biensOu('region', 'Dakar'));
+    }
+
     public function test_un_quartier_ajoute_par_le_jeu_rattache_l_adresse_de_sa_ville(): void
     {
         $this->charger(self::V1);
