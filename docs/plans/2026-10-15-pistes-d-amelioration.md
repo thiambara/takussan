@@ -9831,7 +9831,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Une fenêtre de maintenance bloque la connexion, y compris celle de l'opérateur qui doit la lever
 - Réf : P98.09
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1174 — reste : `api/auth/logout` et le reste d'`api/auth/*`, toujours bloqués pendant la fenêtre
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/MaintenanceService.php:75-91`, `takussan-api/routes/api/auth.php:29,57`, `takussan-web/src/app/(super-admin)/super-admin/layout.tsx:43`
 - Constat :
@@ -9839,6 +9839,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - La console vérifie l'utilisateur par `getMeAction` → `/auth/me` (lu par le sous-agent, `layout.tsx:43`) : en `down`, un opérateur ne peut ni se connecter ni, probablement, charger la console pour annuler la fenêtre (à vérifier : chemin d'erreur de `getMeAction` sur 503 non suivi). En `read_only`, personne ne peut ouvrir de session.
 - Piste : exempter `api/auth/*` (au moins la connexion et `me`) ou la seule session d'un opérateur ; test par mode, connexion d'un super-admin pendant la fenêtre.
 - Mesure (2026-10-21, 43cf8fe51, mesureur) : relu `MaintenanceService::shouldBlock()` (l. 76-91, seules `api/maintenance/status` et `api/admin*` exemptées), `bootstrap/app.php:79` (`MaintenanceMode` en tête du groupe `api`) et la console, dont l'appel a bougé : `layout.tsx:52` → `getMeOperateurAction()` → `actions/auth.ts:135` `getMe` → `/api/auth/me`, qui ne redirige que sur 401 et relance toute autre erreur ; test temporaire (retiré), fenêtre active : `down` → `POST api/auth/login` 503, `GET api/auth/me` d'un super-admin 503, `GET api/admin/maintenance` 200 ; `read_only` → `login` 503, `logout` 503, `me` 200 ; sans fenêtre, `login` 200 → le constat tient : en `down` la console de l'opérateur ne charge pas, contrairement à TCK-218 (« un super-admin continue d'accéder à `/super-admin/*` »), et en `read_only` personne n'ouvre de session. Classement : V2, le correctif ouvre des routes d'authentification pendant la fenêtre, et qui exempter (toute connexion, ou la seule session d'un opérateur) est un choix.
+- Mesure (2026-10-21, d51663f12, implementeur) : avant correctif, fenêtre `down` active, `POST /api/auth/login` d'un super-admin rendait 503 (`MaintenanceModeTest`, rouge) → `shouldBlock()` exempte `POST api/auth/login` et `GET api/auth/me`, la voie la plus étroite (« au moins la connexion et `me` ») ; en `down` et en `read_only`, connexion 200 et `me` 200, `GET /api/properties` toujours 503 en `down` ; ablation : 1 rouge sur 6, correctif remis → 6/6.
 
 ### Petites améliorations
 - Réf : P98.10
