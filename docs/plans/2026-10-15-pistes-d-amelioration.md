@@ -8900,7 +8900,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### Garants : téléphone sans borne sur un `varchar(30)`, et cinq champs texte sans borne, dans trois requêtes
 - Réf : P91.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1108
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StoreGuarantorRequest.php:33-44`, `takussan-api/app/Http/Requests/Api/UpdateGuarantorRequest.php:38-49`, `takussan-api/app/Http/Requests/Api/AttachGuarantorLeaseRequest.php:40-51`, `takussan-api/database/migrations/2026_04_17_160007_create_guarantors_table.php:13-16`
 - Constat :
@@ -8910,6 +8910,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Le formulaire de garant du front borne `first_name` à 100 et le téléphone à 20 caractères (lu, `takussan-web/src/lib/schemas/lease.ts:116-118`, `common.ts:46-52`).
 - Piste : une liste de règles partagée par les trois requêtes, comme `ValidatesCustomerContactAndCriteria` pour les clients : `max:255` sur les champs texte, et sur `phone` soit `max:30`, soit l'alignement sur les clients (`TelephoneSaisi` + `TelephoneJoignable`). Ce second choix change ce qu'on accepte aujourd'hui. Un test par requête.
 - Mesure (2026-10-21, 3e5f55e7b, mesureur) : relu les trois requêtes (`StoreGuarantorRequest.php:33-44`, `UpdateGuarantorRequest.php:38-49`, `AttachGuarantorLeaseRequest.php:40-51`, toutes sans `max` ni règle de téléphone) ; test temporaire `TmpMesureurP91Test`, un appel par cas (charge 5,71 / 5,59 / 5,21 sur 8 cœurs, base créée par le test, retiré ensuite) → `POST /api/guarantors` : `phone` à deux numéros (31) → 500 `varchar(30)`, `first_name` 256 et `employer` 256 → 500 `varchar(255)` ; `PATCH /api/guarantors/{id}` `phone` 31 → 500 ; `POST /api/leases/{id}/guarantors` (non mesuré par l'explorateur) : `phone` 31 → 500, `first_name` 256 → 500. Correctif attendu : une liste de règles partagée par les trois requêtes, `max:255` sur les champs texte et l'adresse, `max:30` sur `phone` ; l'alignement sur `TelephoneSaisi` + `TelephoneJoignable` change ce qu'on accepte et reste hors de ce classement. Classement : A1, les colonnes fixent les bornes, seul le 500 devient 422, rien de ce qui est conservé ou exposé ne change.
+- Mesure (2026-10-21, b0c1cd999, implementeur) : `GuarantorFieldLengthTest` (charge 2,92 / 2,36 / 2,49 sur 8 cœurs) → avant correctif, 500 sur les trois voies (`POST /api/guarantors`, `PUT /api/guarantors/{id}`, `POST /api/leases/{id}/guarantors`) dès le `phone` à deux numéros (31 caractères) ; trait `BorneLesChampsDuGarant` partagé par les trois requêtes, `max:30` sur `phone` et `max:255` sur `first_name`, `last_name`, `occupation`, `employer`, `relationship_to_tenant` → 422 sur chacune des six clés, aucun garant écrit, et 201 ou 200 à la borne ; ablation (requêtes rendues à `HEAD`, trait retiré) → 3 rouges sur 3, correctif remis → 3/3 ; `GuarantorTest`, `LeaseGuarantorTest`, `GuarantorSensitiveDataTest`, `LeaseGuarantorListTest`, `CustomerAndGuarantorSensitiveReadTest` verts. L'adresse e-mail reste à P91.05.
 
 ### Fiche client : prénom, nom et profession sans borne, 500 à la création et à la modification
 - Réf : P91.04
