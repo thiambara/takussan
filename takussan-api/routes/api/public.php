@@ -82,15 +82,15 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
         ->name('properties.neighborhoods');
 
     Route::get('properties/compare', [PublicPropertyController::class, 'compare'])
-        ->middleware('throttle:30,1')
+        ->middleware('throttle:30,1,public-compare')
         ->name('properties.compare');
 
     Route::get('properties/by-ids', [PublicPropertyController::class, 'byIds'])
-        ->middleware('throttle:60,1')
+        ->middleware('throttle:60,1,public-by-ids')
         ->name('properties.by-ids');
 
     Route::get('properties/map', [PublicPropertyController::class, 'map'])
-        ->middleware('throttle:60,1')
+        ->middleware('throttle:60,1,public-map')
         ->name('properties.map');
 
     // TCK-341 refusait ici `public` et `etag`, pour trois raisons ; TCK-598 en a levé deux et
@@ -119,7 +119,7 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     // Reveals the owner's phone number — tighter limit than the group default
     // to curb bulk phone-number harvesting across enumerable slugs.
     Route::get('properties/{slug}/contact', [PublicPropertyController::class, 'contact'])
-        ->middleware('throttle:20,10')
+        ->middleware('throttle:20,10,public-contact')
         ->name('properties.contact');
 
     // TCK-596 §3B (ADR-0041) — les nuits occupées d'un bien public, pour le tunnel de réservation.
