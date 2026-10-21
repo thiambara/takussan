@@ -178,7 +178,7 @@ voie d'écriture (angle 13, puis 47).
 | 102 | État initial masqué au rendu serveur (`opacity-0`, `invisible`, `useReveal`, `animate-*` dépendant d'un effet) sur les autres listes et rangées publiques (`PropertyRow` de l'accueil, fiches agence et agent, favoris, biens similaires) : contenu présent dans le HTML et invisible jusqu'à l'hydratation, ou sans JS | fait |
 | 103 | Appels du navigateur à l'hydratation des pages publiques (`geo/cities`, `geo/regions`, `amenities`, `property-types`, `maintenance/status`, préflights CORS) : lesquels pourraient venir du rendu serveur ou du cache de données, et ce qu'ils coûtent sous 3G | fait |
 | 104 | Poids JS initial des écrans de la console `/super-admin` (`SuperAdminShell`, tableaux, dialogues importés statiquement, fichiers `index.ts` de `components/admin/super`) : le relevé de l'angle 70 sur l'autre console | fait |
-| 105 | Charge RSC d'un document `/app` servi : dictionnaires imbriqués de `layout.tsx`, `(dashboard)` et `(dashboard)/app` (et `/app/agency`) sérialisés chacun avec l'ensemble cumulé de ses parents, mesurés sur le document compressé | à faire |
+| 105 | Charge RSC d'un document `/app` servi : dictionnaires imbriqués de `layout.tsx`, `(dashboard)` et `(dashboard)/app` (et `/app/agency`) sérialisés chacun avec l'ensemble cumulé de ses parents, mesurés sur le document compressé | fait |
 | 106 | Branches que le code ne prend qu'en `APP_ENV=production` (`RestrictIpMiddleware` à liste vide, `DeletionStepUpService::sendCode`, `AddRobotsTagOutsideProduction` jugé sur `APP_URL`) : chacune éprouvée par un test en `production`, alors que la préproduction tourne en `staging` et ne les prend jamais ? | à faire |
 | 107 | Champs du profil que l'utilisateur déclare pour être joint (`phone_whatsapp`, `secondary_phone`, `secondary_phone_whatsapp`, `preferred_language`, heures calmes) : lus par les chemins qui envoient (canaux de notification, codes, relances), ou seulement affichés ? | à faire |
 | 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | à faire |
@@ -212,6 +212,7 @@ voie d'écriture (angle 13, puis 47).
 | 135 | Listes écrites à la main, hors `buildQuery` (`LeasePaymentController::index`, `ConversationController::index`, `ReviewController::index`, contrôleurs `Admin\*`) : `sort`, `page` et `per_page` envoyés par le front face à l'ordre et au plafond rendus, et lecteurs qui ne lisent que la première page — le relevé de P100.01 sur les autres listes | à faire |
 | 136 | Lectures du navigateur au chargement d'un écran `/app` et `/super-admin` (`useApiQuery` en parallèle, clés en double, `enabled` en cascade qui attend une première réponse, données déjà lues par le rendu serveur) : allers-retours avant l'écran utile, chacun précédé d'un préflight puisqu'il porte `Authorization` — le relevé de l'angle 103 sur la console | à faire |
 | 137 | Écrans qui importent le fichier `index.ts` de `components/forms` pour `FormError` ou `FormGlobalError` seuls (pages `(auth)` `verify-email` et `reset-password`, `DefiSecondFacteur`, `ConnexionParTelephone`, `IntegrationsManager`, `ChampsLieu`) : react-hook-form et react-day-picker chargés pour afficher un message d'erreur — le motif de P104.01 hors de la console | à faire |
+| 138 | Lectures de l'API dédoublées dans un même rendu serveur : server actions `*Action` (`fetchAgencyAction`, et leurs pareilles) appelées par des pages et des layouts serveur qui relisent une ressource déjà lue hors de `cache()` (`agenceDuRendu`, `getMeAction`), mesurées par requête sur un document servi | à faire |
 
 ---
 
@@ -10377,3 +10378,77 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - La coque de la console embarque `lib/queries/super-admin.ts` en entier (1 515 lignes) pour `fetchGlobalSearch` (recherche de la barre haute) et les quatre compteurs de files de la barre latérale (lu). Dans le morceau de coque de 28,9 Kio gzip qui le porte, le module garde ses **96** noms exportés : environ 24,9 Kio bruts et 4,5 Kio gzip, découpés du début du module à la fin du morceau (mesuré, `node -e` sur `.next/static/chunks/44hqerqx2pu89.js`). Le motif est celui de P70.07, ici sur un module sans `'use client'` ; le gain est faible.
 - Piste : mettre `fetchGlobalSearch` et les quatre lecteurs des files dans un module à part, réexporté par `super-admin.ts` (méthode de TCK-1042).
 - Mesure (2026-10-21, 711bafca3, mesureur) : relu `GlobalSearch.tsx:12` (`fetchGlobalSearch` pris à `@/lib/queries/super-admin`), `super-admin-queues.ts:1-6` (quatre lecteurs pris au même module) ; `wc -l` → 1 515 lignes, sans `'use client'` (l. 1-3) ; 97 lignes `export function|const` ; `GlobalSearch` et les files sont importés par `SuperAdminTopbar.tsx`, `SuperAdminSidebar.tsx` et `ConsoleQueues.tsx`, donc par la coque ; aucun ticket ni commit ne l'a traitée ; le morceau de coque (4,5 Kio gzip) n'est pas re-mesuré par un build. Classement : A2, `fetchGlobalSearch` et les quatre lecteurs sortis dans un module à part que `super-admin.ts` réexporte (méthode de TCK-1042), aucun appelant ni résultat changé.
+
+## Angle 105 — Charge RSC d'un document `/app` servi : les dictionnaires imbriqués
+
+*Exploré le 2026-10-21 sur `pre-dev` 711bafca3, par l'explorateur. Tout a été lancé et relu par
+l'explorateur lui-même, sans sous-agent. Documents servis par `next start` sur le build de
+production déjà présent dans l'arbre (construit à 23:30, après le dernier commit de
+`takussan-web/`, 28d065a6e), derrière une **API factice** locale (un serveur Node hors dépôt qui
+rend un utilisateur à `/api/auth/me` et une liste vide partout ailleurs) : ni la base de
+développement ni l'API réelle n'ont été touchées. Les données des écrans sont donc vides, et la
+part des dictionnaires est un **plafond** : sur un écran rempli, le reste du document pèse plus.
+Deux profils simulés : `tenant` (`/app/overview/tenant`, `/app/favorites`, `/app/profile`) et
+`agency_admin` (`/app/agency`, `/app/properties`). La charge RSC est relue dans les
+`self.__next_f.push` du document ; « gzip » est un `zlib.gzipSync` niveau 6, recoupé par l'octet
+servi (`/app/favorites` : 89 115 o sur le fil en `Content-Encoding: gzip`). La part d'un
+dictionnaire est la différence entre le document et le même document où chaque objet
+`"messages":{…}` est remplacé par `{}`. Les espaces « atteints » par un écran sont comptés par
+`espacesAtteignables` de `scripts/i18n-namespaces-scan.mjs`, sur la page et la chaîne de ses
+layouts, `loading` et `error` : c'est le même dérivateur que la table, appliqué page par page.
+Charge de la machine au départ : 4,99 / 4,15 / 4,84 sur 8 cœurs. Ce qui n'a pas donné d'entrée :
+le préchargement (`prefetch`) des liens vers `/app/agency` n'a pas été observé au navigateur.*
+
+### Les dictionnaires pèsent 82 à 88 % de chaque document `/app` compressé, et la moitié des espaces servis n'est lue par aucun composant de l'écran
+- Réf : P105.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/(dashboard)/app/layout.tsx`, `takussan-web/src/app/(dashboard)/app/agency/layout.tsx`, `takussan-web/src/i18n/messages.ts:37-44`, `takussan-web/src/i18n/namespaces.json`, `docs/adr/0022-le-dictionnaire-i18n-est-decoupe-par-groupe-de-routes.md`
+- Constat :
+  - Document gzip, puis le même sans dictionnaires (mesuré) : `/app/overview/tenant` 85,5 → 10,1 Kio (**88,2 %**) ; `/app/favorites` 86,8 → 11,2 (87,1 %) ; `/app/profile` 89,5 → 13,1 (85,4 %) ; `/app/properties` 94,1 → 16,8 (82,2 %) ; `/app/agency` 103,7 → 14,8 (85,7 %). Le document part en `Cache-Control: private, no-cache, no-store` (mesuré, `curl -D -`) : ces 75 à 89 Kio se repaient à chaque chargement de document.
+  - La frontière `(dashboard)/app` sert 50 espaces (235,2 Kio bruts, 71,8 gzip) sur les 78 du dictionnaire (356,3 et 107,4) ; `(dashboard)/app/agency` en sert 55 (276,3 et 84,3) (mesuré, `node -e` sur `namespaces.json` et `messages/fr.json`). Après le découpage d'ADR-0022, un document `/app` porte donc plus de dictionnaire (≈ 75 Kio gzip) que le document `/properties` d'avant le découpage, qui portait le dictionnaire entier (63 Kio gzip, ADR-0022 § Contexte 1).
+  - Les espaces atteints par l'écran lui-même, page et chaîne de layouts comprises (mesuré, `espacesAtteignables`) : `/app/overview/tenant` 25 sur 50 servis (32,8 Kio gzip sur 71,8) ; `/app/properties` 24 sur 50 (32,6) ; `/app/favorites` 28 (45,2) ; `/app/profile` 28 (49,2) ; `/app/agency` 26 sur 55 (41,5 sur 84,3). Un locataire reçoit ainsi `agentCrm`, `maintenance`, `serviceProviders`, `owners`, `inventory` et `commissions` sur son tableau de bord (lu, table).
+  - ADR-0022 § Contexte 3 écarte le grain de la page pour « 8 % de gain supplémentaire » ; sur ces écrans de `/app`, l'écart entre servi et atteint est d'environ la moitié du dictionnaire servi (mesuré ci-dessus). Que le chiffre de l'ADR ait été pris sur l'ensemble des routes, public compris, est à vérifier.
+- Piste : à décider sous ADR-0022, avec P69.05 (même défaut sur le site public) : frontières plus fines sous `(dashboard)/app` (par profil, ou par section : CRM, baux, maintenance), ou dictionnaire par page pour `/app`. Faire imprimer à `check-i18n-namespaces.mjs` la taille gzip servie et atteinte de chaque écran, pour chiffrer le gain avant l'amendement.
+
+### Une navigation dans l'application vers `/app/agency` retélécharge 47 espaces que le navigateur a déjà
+- Réf : P105.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/(dashboard)/app/agency/layout.tsx`, `takussan-web/src/i18n/IntlProvider.tsx:14-38`, `takussan-web/src/i18n/messages.ts:30-35`
+- Constat :
+  - Requête RSC d'une navigation client de `/app/properties` vers `/app/agency` (`RSC: 1`, `Next-Router-State-Tree` de `/app/properties`) : **283,5 Kio bruts, 86,4 gzip**, dont un objet `messages` de 276,3 Kio qui porte les **55** espaces de la frontière en entier, sans aucune référence (mesuré). Le même document, s'il ne portait que les 5 espaces propres à la section (`admin`, `adminSettings`, `billing`, `kyc`, `team`) : 15,7 Kio gzip ; sans aucun : 1,7 (mesuré, objet réécrit puis recompressé).
+  - Dans un même document, React Flight ne réémet pas un espace déjà sérialisé (P105.03), mais cette déduplication ne vaut qu'au sein d'une réponse : la navigation ne voit pas ce que le document initial a déjà livré (mesuré, 0 référence dans la réponse de navigation).
+  - Le chemin retour, de `/app/agency` vers `/app/properties`, rend 28,6 Kio bruts et 3,7 gzip, sans objet `messages` (mesuré) : le layout de `/app`, partagé, n'est pas rendu à nouveau.
+  - La table porte l'ensemble cumulé parce qu'un provider imbriqué remplace le dictionnaire de son parent au lieu de le compléter (lu, `IntlProvider.tsx:14-38` et `messages.ts:30-35`) : c'est ce choix qui fait renvoyer les 50 espaces du parent.
+- Piste : à décider sous ADR-0022 avec P105.01 : un provider de frontière qui fusionne côté client les messages du parent et les siens (`useMessages()` du parent + ceux de la frontière), la table ne portant plus que le différentiel ; ou une frontière `agency` qui ne monte plus de provider à elle. Mesurer avant et après la requête de navigation ; un test qui lit la taille de l'objet `messages` sérialisé par `(dashboard)/app/agency/layout.tsx` empêcherait le retour.
+
+### Les copies cumulées que P70.07 supposait ne sont pas dans le document : Flight les déduplique, par une identité d'objet que rien ne garde
+- Réf : P105.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/i18n/messages.ts:37-44`, `takussan-web/src/i18n/request.ts`, `takussan-web/src/i18n/__tests__/decoupage-du-dictionnaire.test.tsx:137-140`
+- Constat :
+  - Dans le document `/app/overview/tenant`, trois objets `messages` : la racine (8 espaces, 22 618 o), `(dashboard)/app` (50 espaces, 213 146 o, dont 8 références `$2:props:…:messages:<espace>` vers la racine) et `(dashboard)` (11 espaces, 701 o, **11 références** et aucune valeur) (mesuré). Même forme sur `/app/agency` : l'objet de `/app` y tient en 2 299 o, ses 50 espaces en références vers celui de la section. Le « reste » de P70.07 (« chaque frontière portant l'ensemble cumulé de ses parents ») ne tient donc pas pour un document ; il tient pour une navigation (P105.02).
+  - Cette déduplication repose sur l'identité des objets : `messagesPour` recopie la référence de chaque espace depuis `getMessages()` (`sousEnsemble[nom] = complet[nom]`, lu l. 41). Un clonage, une fusion profonde ou un repli de locale fait par frontière rendrait des objets neufs, et les copies reviendraient sans qu'aucun test ne rougisse : des dix fichiers de test qui citent `messagesPour`, seul `src/i18n/__tests__/decoupage-du-dictionnaire.test.tsx` en lit le résultat, et par `toEqual` (l. 139), qui passe sur une copie (lu ; `grep -rln messagesPour src`). Qu'un des chemins de locale de `request.ts` (fusion du `wo` sur le `fr`) rende déjà des objets distincts d'une frontière à l'autre n'est pas mesuré, seul le `fr` l'a été (à vérifier).
+- Piste : écrire cette dépendance dans l'en-tête de `messages.ts` ; un test qui appelle `messagesPour` pour deux frontières imbriquées et vérifie que chaque espace commun est le **même** objet (`toBe`), pour qu'un clonage rougisse.
+
+### Trois espaces lus seulement par le serveur sont sérialisés dans chaque document
+- Réf : P105.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/i18n/namespaces.json` (frontière `.`), `takussan-web/scripts/i18n-namespaces-scan.mjs:67-74`, `takussan-web/src/app/layout.tsx:56`, `takussan-web/src/app/actions/property.ts:35`, `takussan-web/src/app/actions/notifications.ts:26`
+- Constat :
+  - `meta`, `serverActions` et `publicLeadErrors` sont dans la frontière racine, donc dans le provider client de toutes les pages (lu, table). Aucun `useTranslations` ne les lit : ils ne sont lus que par `getTranslations` dans `generateMetadata` et les server actions, ou par un `tRacine` serveur (`actions/property.ts:35`) (mesuré, balayage des appels `useTranslations`/`getTranslations` de `src` hors tests ; `grep` de `meta.` hors `getTranslations` dans les `.tsx` : rien). Ensemble : 1,9 Kio gzip par document ; sous `(public)`, `legal` s'y ajoute (2,2).
+  - Le dérivateur compte `getTranslations` et `useTranslations` de la même façon (lu, `i18n-namespaces-scan.mjs:67-74`) : un espace lu par du code serveur seul entre dans le dictionnaire client.
+- Piste : faire distinguer au dérivateur les espaces atteints par du code serveur seul, et les retirer de la table ; un test sur la table refuserait un espace sans lecteur client. Le gain par écran de `/app` d'une telle distinction, au-delà de ces trois espaces, n'est pas mesuré.
+
+### Petites améliorations
+- Réf : P105.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/(dashboard)/app/overview/page.tsx`, `takussan-web/src/components/layout/AppSidebar.tsx:347`, `takussan-web/src/app/(dashboard)/app/agency/page.tsx:47`, `takussan-web/src/app/actions/admin-agency.ts:78-84`, `takussan-web/src/lib/access/server-guards.ts:95-109`
+- Constat :
+  - `/app/overview` n'est qu'un aiguillage (`redirect` selon le profil, lu), atteint par la barre latérale (`AppSidebar.tsx:347`) et par les gardes des sous-pages. Chargé en document, il rend d'abord les layouts : réponse **307** de 297 Kio bruts et 80,6 Kio gzip, dont 75,4 de dictionnaires, avec les appels à l'API des layouts (`/api/auth/me`, `/api/auth/me/deletion-request`) avant la redirection (mesuré, `curl -D -` et journal de l'API factice). Le navigateur suit l'en-tête `Location` ; ce corps est rendu et émis pour rien.
+  - Un rendu de `/app/agency` en `agency_admin` appelle **deux fois** `GET /api/agencies/{id}` avec la même URL (mesuré, journal de l'API factice sur une requête isolée) : une fois par `resolveAgencyOrNull` (`agenceDuRendu`, `cache()` de React), une fois par `fetchAgencyAction` de la page (`agency/page.tsx:47`), qui appelle `fetchAgency` sans ce cache (lu, `admin-agency.ts:84`). L'en-tête de `server-guards.ts:95-109` dit que ce doublon avait été retiré.
+- Piste : faire l'aiguillage de `/app/overview` dans `proxy.ts` ou pointer la barre latérale sur la destination du profil, qui est connue au rendu de la coque ; faire lire à la page de `/app/agency` l'agence par `resolveAgencyOrNull` (ou `agenceDuRendu`), et compter les appels dans un test de la page.
