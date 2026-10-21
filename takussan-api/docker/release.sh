@@ -21,7 +21,9 @@ php artisan membership:reconcile-system-roles \
 # échec garde les régions déjà validées, et annule le reste, que le déploiement suivant rejoue.
 SCOUT_QUEUE=false php artisan geo:sync-referential \
   || echo "AVERTISSEMENT : geo:sync-referential a échoué — les régions déjà validées sont chargées et indexées ; le reste du référentiel géographique sera rejoué au prochain déploiement." >&2
-php artisan tags:sync-catalog \
+# TCK-1161 (P89.04) — SCOUT_QUEUE=false pour la même raison : approuver une proposition réindexe
+# ses biens (`TagCatalog::assurer()`).
+SCOUT_QUEUE=false php artisan tags:sync-catalog \
   || echo "AVERTISSEMENT : tags:sync-catalog a échoué — catalogue des équipements inchangé jusqu'au prochain déploiement." >&2
 
 # TCK-768 (P14.03) — sans règle, une alerte `ops_*` ne part nulle part. Crée celles qui manquent,

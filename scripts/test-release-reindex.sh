@@ -38,6 +38,7 @@ fabrique() {
   cat > "$racine/bin/php" <<'EOF'
 #!/bin/sh
 echo "$*" >> "$JOURNAL"
+echo "SCOUT_QUEUE=${SCOUT_QUEUE:-} $*" >> "$JOURNAL.env"
 case "$*" in *"${ECHEC_SUR:-@@jamais@@}"*) exit 1 ;; esac
 exit 0
 EOF
@@ -47,7 +48,7 @@ EOF
 # jouer [VAR=valeur…] — un passage de $script ; le journal des appels dans $racine/journal.
 script=$RELEASE
 jouer() {
-  : > "$racine/journal"
+  : > "$racine/journal"; : > "$racine/journal.env"
   env SCOUT_DRIVER=meilisearch "$@" APP_ROOT="$racine/app" JOURNAL="$racine/journal" \
     PATH="$racine/bin:$PATH" sh "$script" >/dev/null 2>&1
 }
@@ -110,6 +111,12 @@ verifier "marqueur à jour et index peuplés : la vérification est jouée" 1 "$
 fabrique; jouer ECHEC_SUR="search:verify-indexes --depuis"; sortie=$?
 verifier "tâches d'importation échouées : le marqueur ne s'écrit pas" absent "$(marqueur)"
 verifier "tâches d'importation échouées : release continue" 0 "$sortie"
+
+# TCK-1161 (P89.04) : les référentiels réindexent des biens ; sous SCOUT_QUEUE=true (celui de
+# l'environnement), ces jobs partiraient vers l'ANCIEN worker. Le talon journalise la variable.
+fabrique; jouer SCOUT_DRIVER=collection SCOUT_QUEUE=true
+verifier "geo:sync-referential est joué sous SCOUT_QUEUE=false" 1 "$(grep -c '^SCOUT_QUEUE=false artisan geo:sync-referential' "$racine/journal.env" || true)"
+verifier "tags:sync-catalog est joué sous SCOUT_QUEUE=false" 1 "$(grep -c '^SCOUT_QUEUE=false artisan tags:sync-catalog' "$racine/journal.env" || true)"
 
 # ── seed.sh : la remise à zéro d'une préproduction ──
 script=$SEED
