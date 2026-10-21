@@ -9700,7 +9700,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Une annonce critique passe derrière toutes les autres, et le bandeau n'en montre qu'une
 - Réf : P98.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1126
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Announcements/AnnouncementResolver.php:22`, `takussan-api/database/migrations/2026_05_07_000224_create_announcements_table.php:16`, `takussan-web/src/components/announcements/GlobalAnnouncementBanner.tsx:47-51`
 - Constat :
@@ -9709,6 +9709,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Établi comment : lu et mesuré ; le cas à deux annonces n'a pas été joué (aucune annonce en base de dev).
 - Piste : trier sur un rang explicite (`CASE severity WHEN 'critical' THEN 0 …`) ou rendre toutes les annonces ; test à deux annonces (`info` puis `critical`) qui exige la critique en tête.
 - Mesure (2026-10-21, e7f741bf4, mesureur) : relu `AnnouncementResolver.php:22` (`orderByDesc('severity')`), la colonne `string` de la migration (l. 16) et `GlobalAnnouncementBanner.tsx:47` (`query.data?.data?.[0]` seul rendu) ; `tinker`, `select s from (values ('info'),('success'),('warning'),('critical')) t(s) order by s desc` → `warning, success, info, critical` → le constat tient, le cas à deux annonces reste non joué (aucune annonce en base). Classement : A1, le tri descendant sur la gravité dit l'intention du code et l'enum `AnnouncementSeverity` en donne l'ordre (`info`, `success`, `warning`, `critical`) : trier sur ce rang explicite, critique en tête, sans toucher au bandeau ; l'autre option (rendre toutes les annonces) serait un comportement visible neuf (V7) et n'est pas retenue.
+- Mesure (2026-10-21, cbf5fb1ef, implementeur) : cas à quatre annonces joué par `AnnouncementTest` (`info`, `success`, `critical`, `warning`, actives pour le même client) → `/api/announcements/active` rendait `warning, success, info, critical` ; `activeFor()` trie sur le rang des cas d'`AnnouncementSeverity` → `critical, warning, success, info` ; ablation : 1 rouge sur 10, correctif remis → 10/10. Le bandeau n'est pas touché.
 
 ### Gabarits éditables qu'aucun envoi ne lit : canal `push` partout, SMS de « Maintenance créée »
 - Réf : P98.03
