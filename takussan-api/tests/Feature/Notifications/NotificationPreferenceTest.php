@@ -168,6 +168,46 @@ class NotificationPreferenceTest extends TestCase
         $this->assertFalse($resolver->shouldSend($user, 'booking_request', 'sms'));
     }
 
+    /**
+     * TCK-1094 (P72.02) — un numéro déclaré sans WhatsApp verrouille la colonne WhatsApp, avec
+     * son motif (règle de TCK-588 : une case qu'aucun envoi ne peut honorer dit pourquoi) ; le
+     * SMS reste cochable.
+     */
+    public function test_matrix_locks_whatsapp_when_phone_declared_without_whatsapp(): void
+    {
+        $user = User::factory()->create(['phone' => '+221761234567', 'phone_verified_at' => now()]);
+        $user->forceFill(['phone_whatsapp' => false])->save();
+        Sanctum::actingAs($user);
+
+        $cells = collect($this->getJson('/api/me/notification-preferences')->assertOk()->json('data.preferences'))
+            ->keyBy(fn ($c) => "{$c['event_type']}|{$c['channel']}");
+
+        $whatsapp = $cells->get('lease_payment_overdue|whatsapp');
+        $this->assertTrue($whatsapp['locked']);
+        $this->assertFalse($whatsapp['enabled']);
+        $this->assertSame('phone_without_whatsapp', $whatsapp['reason']);
+
+        $sms = $cells->get('lease_payment_overdue|sms');
+        $this->assertFalse($sms['locked']);
+        $this->assertTrue($sms['enabled']);
+    }
+
+    public function test_matrix_leaves_whatsapp_open_when_phone_whatsapp_is_true_or_unknown(): void
+    {
+        foreach ([true, null] as $declared) {
+            $user = User::factory()->create(['phone' => '+22176123456'.($declared ? '8' : '9'), 'phone_verified_at' => now()]);
+            $user->forceFill(['phone_whatsapp' => $declared])->save();
+            Sanctum::actingAs($user);
+
+            $whatsapp = collect($this->getJson('/api/me/notification-preferences')->assertOk()->json('data.preferences'))
+                ->first(fn ($c) => $c['event_type'] === 'lease_payment_overdue' && $c['channel'] === 'whatsapp');
+
+            $this->assertFalse($whatsapp['locked'], 'phone_whatsapp = '.var_export($declared, true));
+            $this->assertTrue($whatsapp['enabled']);
+            $this->assertArrayNotHasKey('reason', $whatsapp);
+        }
+    }
+
     public function test_resolver_applies_defaults_for_missing_rows(): void
     {
         $user = User::factory()->create(['phone_verified_at' => now()]);

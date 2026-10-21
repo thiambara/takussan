@@ -200,3 +200,23 @@ describe('TCK-915 — la description d’agence résumée pour la méta', () => 
     expect((await generateMetadata({ params: params() })).description).not.toBe('');
   });
 });
+
+describe('TCK-1079 — le badge vérifié de la fiche d’agence', () => {
+  it('une agence vérifiée porte le badge, à côté du nom et hors du titre', async () => {
+    getAgencyMock.mockResolvedValue({ etat: 'trouve', agence: agence({ is_verified: true }) });
+
+    render(await Page({ params: params() }));
+
+    expect(screen.getByRole('img', { name: 'Profil vérifié' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Dakar Immo' })).toBeInTheDocument();
+  });
+
+  it('une agence non vérifiée ne le porte pas', async () => {
+    getAgencyMock.mockResolvedValue({ etat: 'trouve', agence: agence({ is_verified: false }) });
+
+    render(await Page({ params: params() }));
+
+    expect(screen.queryByRole('img', { name: 'Profil vérifié' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Dakar Immo' })).toBeInTheDocument();
+  });
+});

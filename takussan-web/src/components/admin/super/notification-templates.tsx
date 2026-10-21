@@ -19,7 +19,6 @@ import type { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
-const CHANNELS: NotificationTemplateChannel[] = ['email', 'sms', 'push'];
 const LOCALES: NotificationTemplateLocale[] = ['fr', 'en', 'wo'];
 
 export function NotificationEventList({
@@ -61,9 +60,12 @@ export function NotificationEventList({
 
 export function TemplateEditor({
   detail,
+  channels,
   onChannelSelect,
 }: {
   detail: NotificationTemplateDetail;
+  /** Les canaux que l'API sert pour l'événement : ceux qu'un envoi lit (TCK-1124). */
+  channels: NotificationTemplateChannel[];
   onChannelSelect: (channel: NotificationTemplateChannel) => void;
 }) {
   const t = useTranslations('superAdmin.templates');
@@ -130,7 +132,7 @@ export function TemplateEditor({
 
       <div className="space-y-4 p-4">
         <div className="flex flex-wrap gap-2">
-          {CHANNELS.map((value) => (
+          {channels.map((value) => (
             <Button
               key={value}
               type="button"

@@ -3,6 +3,8 @@
 namespace Tests\Feature\Notifications;
 
 use App\Events\Lease\LeaseRenewed;
+use App\Http\Resources\AppNotificationResource;
+use App\Models\AppNotification;
 use App\Models\Customer;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
@@ -10,6 +12,7 @@ use App\Models\NotificationPreference;
 use App\Models\User;
 use App\Notifications\LeaseRenewedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -54,6 +57,24 @@ class LeaseRenewedNotificationTest extends TestCase
 
         $this->assertContains('database', $channels);
         $this->assertContains('mail', $channels);
+    }
+
+    /**
+     * TCK-1134 (P75.05) — la ligne de cloche du renouvellement mène au bail enfant : la ressource
+     * rend la cible `lease` du nouveau bail, que `NotificationTarget::derive()` lit dans `lease_id`.
+     */
+    public function test_bell_row_targets_the_child_lease(): void
+    {
+        [$parent, $child, $tenantUser] = $this->scaffold();
+
+        $tenantUser->notify(new LeaseRenewedNotification($parent, $child, []));
+
+        $row = AppNotification::query()->where('user_id', $tenantUser->id)->sole();
+        $target = (new AppNotificationResource($row))->toArray(Request::create('/'))['target'];
+
+        $this->assertSame('lease', $target['kind'] ?? null);
+        $this->assertSame($child->id, $target['id'] ?? null);
+        $this->assertSame("/app/leases/{$child->id}", $target['path'] ?? null);
     }
 
     /**

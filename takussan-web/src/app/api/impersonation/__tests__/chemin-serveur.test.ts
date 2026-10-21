@@ -74,7 +74,9 @@ describe.each(GESTES)('%s', (_nom, geste, motif) => {
     const [url, enTetes] = appel(motif);
     expect(url.startsWith(`${INTERNE}/api/`)).toBe(true);
     expect(enTetes['X-Forwarded-For']).toBe(VISITEUR);
-    expect(enTetes['X-Forwarded-Host']).toBeTruthy();
+    expect(enTetes['X-Forwarded-Proto']).toBeTruthy();
+    // TCK-1058 (P73.01) — l'hôte des URL vient d'`APP_URL`, côté API : l'en-tête ne part plus.
+    expect(enTetes['X-Forwarded-Host']).toBeUndefined();
     expect(enTetes.Authorization).toMatch(/^Bearer /);
   });
 

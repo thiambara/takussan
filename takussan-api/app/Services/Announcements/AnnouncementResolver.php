@@ -19,11 +19,28 @@ class AnnouncementResolver
         return Announcement::query()
             ->currentlyVisible()
             ->whereDoesntHave('dismissals', fn (Builder $query) => $query->where('user_id', $user->id))
-            ->orderByDesc('severity')
+            ->tap(fn (Builder $query) => $this->orderBySeverity($query))
             ->orderBy('starts_at')
             ->get()
             ->filter(fn (Announcement $announcement) => $this->matches($announcement, $user))
             ->values();
+    }
+
+    /**
+     * TCK-1126 (P98.02) — de la plus grave à la moins grave, dans l'ordre des cas de
+     * {@see AnnouncementSeverity}. `orderByDesc('severity')` triait la chaîne : `critical` sortait
+     * la dernière, et le bandeau, qui ne rend que la première annonce, la cachait.
+     */
+    private function orderBySeverity(Builder $query): void
+    {
+        $cas = AnnouncementSeverity::cases();
+        $sql = 'CASE severity '.implode(' ', array_fill(0, count($cas), 'WHEN ? THEN ?')).' ELSE -1 END DESC';
+        $bindings = [];
+        foreach ($cas as $rang => $severite) {
+            array_push($bindings, $severite->value, $rang);
+        }
+
+        $query->orderByRaw($sql, $bindings);
     }
 
     public function dismiss(Announcement $announcement, User $user): ?AnnouncementDismissal

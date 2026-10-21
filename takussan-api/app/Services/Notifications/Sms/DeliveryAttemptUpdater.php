@@ -4,6 +4,7 @@ namespace App\Services\Notifications\Sms;
 
 use App\Models\NotificationDeliveryAttempt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * TCK-102 / TCK-110 — Apply a DLR webhook update to one row of
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\DB;
  */
 class DeliveryAttemptUpdater
 {
+    public function __construct(private readonly OtpLateFailureMemory $otpFailures = new OtpLateFailureMemory) {}
+
     /**
      * P36.02 (TCK-796) — la précédence des accusés SMS, poussés comme tirés : `failed` est le rang
      * le plus haut, puis `delivered`, puis `sent`. Un accusé de rang inférieur arrivé après (tardif,
@@ -36,6 +39,10 @@ class DeliveryAttemptUpdater
      *                                               be replayed by Meta, and by every SMS DLR path with
      *                                               {@see self::SMS_STATUS_PRECEDENCE}; payment callers omit it and keep
      *                                               last-write semantics.
+     * @param  (\Closure(NotificationDeliveryAttempt): void)|null  $onLateFailure  P72.01 (TCK-1092) —
+     *                                                                             appelé après la transaction, une seule
+     *                                                                             fois : quand la tentative PASSE à `failed`,
+     *                                                                             jamais sur un accusé rejoué.
      * @return bool true if a row was actually updated, false if the
      *              webhook payload didn't match any tracked attempt.
      */
@@ -47,13 +54,15 @@ class DeliveryAttemptUpdater
         ?string $failureReason = null,
         ?\DateTimeInterface $deliveredAt = null,
         ?array $statusPrecedence = null,
+        ?\Closure $onLateFailure = null,
     ): bool {
         if ($providerMessageId === '') {
             return false;
         }
 
-        return DB::transaction(function () use (
-            $provider, $providerMessageId, $newStatus, $hintNotificationId, $failureReason, $deliveredAt, $statusPrecedence
+        $failed = null;
+        $matched = DB::transaction(function () use (
+            $provider, $providerMessageId, $newStatus, $hintNotificationId, $failureReason, $deliveredAt, $statusPrecedence, &$failed
         ): bool {
             $query = NotificationDeliveryAttempt::query()
                 ->where('provider', $provider)
@@ -86,8 +95,37 @@ class DeliveryAttemptUpdater
                 'failure_reason' => $failureReason,
                 'delivered_at' => $deliveredAt,
             ])->save();
+            if ($newStatus === SmsResult::STATUS_FAILED) {
+                $failed = $attempt;
+            }
 
             return true;
         });
+
+        if ($failed !== null) {
+            $this->lateFailure($failed);
+            if ($onLateFailure !== null) {
+                $onLateFailure($failed);
+            }
+        }
+
+        return $matched;
+    }
+
+    /**
+     * P72.05 (TCK-1091) — un accusé `failed` arrive toujours après l'acceptation de l'envoi : sans
+     * cette ligne, l'échec ne se lisait nulle part. Fournisseur, motif et identifiant de tentative ;
+     * jamais le numéro.
+     */
+    private function lateFailure(NotificationDeliveryAttempt $attempt): void
+    {
+        Log::warning('[delivery] accusé failed reçu après coup', [
+            'provider' => $attempt->provider,
+            'failure_reason' => $attempt->failure_reason,
+            'attempt_id' => $attempt->id,
+        ]);
+
+        // P72.03 (TCK-1093) — un code à usage unique saute ce fournisseur à son renvoi.
+        $this->otpFailures->recordFailure($attempt->provider, $attempt->provider_message_id);
     }
 }

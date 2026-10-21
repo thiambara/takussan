@@ -48,6 +48,23 @@ class AgencyOnboardingTest extends TestCase
         );
     }
 
+    /**
+     * TCK-1130 (P83.01) — le champ libre « Type » de l'assistant n'avait aucun lecteur : il
+     * finissait dans `agencies.metadata.onboarding_type`, sans effet sur le `kind`. Un client
+     * qui l'envoie encore est accepté, et l'agence créée ne le porte plus.
+     */
+    public function test_agency_type_is_ignored_and_not_stored(): void
+    {
+        Notification::fake();
+        $this->actingAsRole('super_admin');
+
+        $response = $this->postJson('/api/admin/agencies', $this->payload(['agency' => ['type' => 'individual']]))
+            ->assertCreated();
+
+        $agency = Agency::query()->findOrFail($response->json('data.agency.id'));
+        $this->assertArrayNotHasKey('onboarding_type', $agency->metadata ?? []);
+    }
+
     public function test_agency_admin_cannot_onboard_agency(): void
     {
         $this->actingAsRole('agency_admin');

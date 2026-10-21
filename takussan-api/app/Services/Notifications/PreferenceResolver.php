@@ -179,6 +179,13 @@ class PreferenceResolver
             return false;
         }
 
+        // TCK-1094 (P72.02) — l'utilisateur a déclaré que son numéro ne reçoit pas WhatsApp
+        // (`models-spec.md` § 1) : aucune préférence ne le contredit. `null` (« non dit ») garde
+        // la préférence ou le défaut ; `resolveMobileChannel()` passe alors au SMS.
+        if ($channel === self::CHANNEL_WHATSAPP && $user->phone_whatsapp === false) {
+            return false;
+        }
+
         $pref = NotificationPreference::query()
             ->where('user_id', $user->id)
             ->where('event_type', $eventType)
@@ -316,6 +323,12 @@ class PreferenceResolver
                     $locked = true;
                     $enabled = false;
                     $reason = 'phone_not_verified';
+                } elseif ($channel === self::CHANNEL_WHATSAPP && $user->phone_whatsapp === false) {
+                    // TCK-1094 (P72.02) — même règle que `shouldSend()` : la case ne peut rien
+                    // honorer, elle se verrouille et dit pourquoi (TCK-588).
+                    $locked = true;
+                    $enabled = false;
+                    $reason = 'phone_without_whatsapp';
                 }
 
                 $cell = [

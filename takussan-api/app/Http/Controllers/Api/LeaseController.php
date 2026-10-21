@@ -53,7 +53,10 @@ class LeaseController extends Controller
     {
         $data = $request->validated();
 
-        $property = Property::findOrFail($data['property_id']);
+        // TCK-1068 (P62.01) — un bien absent reçoit le refus d'un bien sur lequel l'appelant ne peut
+        // pas ouvrir de bail (`LeaseService::create()`), et non un 404 qui dirait qu'il n'existe pas.
+        $property = Property::query()->find((int) $data['property_id']);
+        abort_if($property === null, 403);
         $lease = $this->leases->create($property, $request->user(), $data);
 
         return $this->json([

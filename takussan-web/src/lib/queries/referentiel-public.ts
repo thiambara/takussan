@@ -14,6 +14,9 @@ import type { GeoCity, GeoNeighborhood, GeoRegion } from '@/types/geo';
  *
  * ⚠ `useApiQuery` n'ajoute PAS `/api` : chaque chemin l'écrit (`takussan-web/CLAUDE.md`).
  * Les listes bougent peu : une heure de fraîcheur, et un seul appel pour le rail ET le tiroir.
+ *
+ * TCK-1088 (P69.06) — `actif` : faux tant que le panneau n'est pas visible (rail sous `lg`,
+ * tiroir fermé). Rien n'est alors demandé.
  */
 
 export type RegionDuReferentiel = GeoRegion;
@@ -44,20 +47,20 @@ export const referentielPublicQueryKeys = {
  * Les 14 régions — TCK-635 (ADR-0062 §8) : leur nom départage les villes homonymes, que la liste
  * des villes ne porte que par `region_id`.
  */
-export function useRegionsDuReferentiel() {
+export function useRegionsDuReferentiel(actif = true) {
   return useApiQuery<ListeDuReferentiel<RegionDuReferentiel>>(
     referentielPublicQueryKeys.regions(),
     '/api/public/geo/regions',
-    { staleTime: UNE_HEURE_MS },
+    { staleTime: UNE_HEURE_MS, enabled: actif },
   );
 }
 
 /** Toutes les villes du référentiel — le panneau ne demande pas de région d'abord. */
-export function useVillesDuReferentiel() {
+export function useVillesDuReferentiel(actif = true) {
   return useApiQuery<ListeDuReferentiel<VilleDuReferentiel>>(
     referentielPublicQueryKeys.villes(),
     '/api/public/geo/cities',
-    { staleTime: UNE_HEURE_MS },
+    { staleTime: UNE_HEURE_MS, enabled: actif },
   );
 }
 
@@ -75,10 +78,10 @@ export function useQuartiersDuReferentiel(villeId: number | null) {
 }
 
 /** Le catalogue approuvé des équipements, trié par nom côté serveur. */
-export function useEquipementsApprouves() {
+export function useEquipementsApprouves(actif = true) {
   return useApiQuery<ListeDuReferentiel<EquipementDuCatalogue>>(
     referentielPublicQueryKeys.equipements(),
     '/api/public/amenities',
-    { staleTime: UNE_HEURE_MS },
+    { staleTime: UNE_HEURE_MS, enabled: actif },
   );
 }

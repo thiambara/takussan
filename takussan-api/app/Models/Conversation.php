@@ -28,6 +28,20 @@ class Conversation extends AbstractModel
         'metadata' => 'array',
     ];
 
+    /**
+     * TCK-576, TCK-1127 (P95.02) — ce que rend le détail d'une conversation : le bien, et les
+     * membres ACTUELS avec leur avatar. `show` et les écritures qui rendent la conversation
+     * (renommage, changement de rôle) l'appellent tous : sans les participants, la feuille d'infos
+     * d'un groupe affichait « 0 participant » et cachait toute action d'administration.
+     */
+    public function loadForDetail(): static
+    {
+        return $this->loadMissing([
+            'property',
+            'participants' => fn ($q) => $q->wherePivotNull('left_at')->with('media'),
+        ]);
+    }
+
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);

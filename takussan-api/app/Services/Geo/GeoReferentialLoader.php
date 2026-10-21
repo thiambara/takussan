@@ -149,6 +149,13 @@ final class GeoReferentialLoader
         ];
         if ($existant->renamed_at === null) {
             $champs['name'] = $q['name'];
+            // TCK-1128 (P99.02) — comme `GeoNeighborhoodModeration::renommer()` (TCK-1080) :
+            // l'ancien nom reste un nom du quartier, et une recherche qui le porte le trouve
+            // encore. Sans `renamed_at`, que seul un renommage de la console pose : le jeu
+            // doit pouvoir le renommer encore.
+            if ($existant->name !== $q['name']) {
+                $champs['former_names'] = array_values(array_unique([...($existant->former_names ?? []), $existant->name]));
+            }
         }
         $existant->fill($champs);
         $renomme = $existant->isDirty('name');

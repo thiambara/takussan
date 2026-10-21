@@ -33,20 +33,6 @@ export const VISIT_LIST_FIELDS: string[] = [
   'created_at',
 ];
 
-export const VISIT_DETAIL_FIELDS: string[] = [
-  ...VISIT_LIST_FIELDS,
-  'customer_id',
-  'visitor_name',
-  'visitor_phone',
-  'visitor_email',
-  'cancelled_at',
-  'cancellation_reason',
-  'feedback',
-  'rating',
-  'notes',
-  'metadata',
-];
-
 export type UseVisitsParams = {
   status?: VisitStatus;
   type?: VisitType;
@@ -150,12 +136,6 @@ export function useVisits(params: UseVisitsParams = {}) {
 
 export function useVisit(id: number | null | undefined) {
   const spatieParams: SpatieQueryParams = {
-    fields: {
-      property_visits: VISIT_DETAIL_FIELDS,
-      properties: ['id', 'title', 'slug'],
-      users: ['id', 'first_name', 'last_name', 'email', 'phone'],
-      customers: ['id', 'user_id', 'first_name', 'last_name', 'email', 'phone'],
-    },
     include: ['property', 'agent', 'visitor', 'customer'],
   };
 

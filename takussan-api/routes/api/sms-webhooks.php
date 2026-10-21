@@ -31,6 +31,6 @@ Route::prefix('webhooks/sms')->group(function (): void {
         ->name('sms.webhook.mtarget');
 
     Route::get('lafricamobile/status/{token}/{notification}', LAfricaMobileSmsStatusController::class)
-        ->middleware(['throttle:webhook-sms-lafricamobile', 'webhook.journal:sms,lafricamobile', 'restrict.ip:lafricamobile', 'signed:'.implode(',', LAfricaMobileSmsStatusController::LAM_QUERY_PARAMS)])
+        ->middleware(['throttle:webhook-sms-lafricamobile', 'webhook.journal:sms,lafricamobile', 'restrict.ip:lafricamobile', 'signed:relative,'.implode(',', LAfricaMobileSmsStatusController::LAM_QUERY_PARAMS)])
         ->name('sms.webhook.lafricamobile');
 });

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Image from 'next/image';
-import { Building2, ShieldCheck } from 'lucide-react';
+import { BadgeCheck, Building2, ShieldCheck } from 'lucide-react';
 import { ErrorState } from '@/components/feedback';
 import { Navbar } from '@/components/home/Navbar';
 import { NavbarSpacer } from '@/components/home/NavbarSpacer';
@@ -129,6 +129,7 @@ async function agenceIndisponible() {
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const t = await getTranslations('agency.publicPage');
+  const tIndex = await getTranslations('publicProfileIndex');
   const { slug } = await params;
   const brutLocale = await getLocale();
   const locale = isLocale(brutLocale) ? brutLocale : 'fr';
@@ -143,7 +144,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const stats = agency.stats;
   const reviews = agency.reviews;
 
-  const eyebrowParts = [agency.city, agency.license_number ? null : null].filter(Boolean) as string[];
+  const eyebrowParts = [agency.city].filter(Boolean) as string[];
 
   const statsItems = stats
     ? [
@@ -206,9 +207,20 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                     {eyebrowParts.join(' · ')}
                   </p>
                 )}
-                <h1 className="mt-2 font-display text-4xl md:text-5xl font-semibold leading-tight tracking-tight text-foreground text-balance">
-                  {agency.name}
-                </h1>
+                {/* TCK-1079 — le badge de `ProfileCard`, hors du titre : le nom accessible du
+                    `h1` reste le nom de l'agence. */}
+                <div className="mt-2 flex items-center gap-2">
+                  <h1 className="font-display text-4xl md:text-5xl font-semibold leading-tight tracking-tight text-foreground text-balance">
+                    {agency.name}
+                  </h1>
+                  {agency.is_verified && (
+                    <BadgeCheck
+                      role="img"
+                      className="size-6 md:size-7 shrink-0 text-primary"
+                      aria-label={tIndex('card.verified')}
+                    />
+                  )}
+                </div>
                 {agency.license_number && (
                   <address className="not-italic mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground">
                     <ShieldCheck className="size-4" aria-hidden />

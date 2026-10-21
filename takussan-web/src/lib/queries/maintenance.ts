@@ -57,30 +57,8 @@ const LIST_FIELDS = [
   'created_at',
 ] as const;
 
-const DETAIL_FIELDS = [
-  ...LIST_FIELDS,
-  'description',
-  'estimated_cost',
-  'started_at',
-  'resolution_notes',
-  'quote_amount',
-  'quote_currency',
-  'quote_submitted_at',
-  'quote_decision_at',
-  'quote_decision_by_id',
-  'quote_rejection_reason',
-  'quote_lines',
-  'quote_valid_until',
-  'quote_estimated_duration_days',
-  'access_instructions',
-] as const;
-
-const PROPERTY_FIELDS = ['id', 'title', 'slug'] as const;
-
 /** TCK-592 (P17) — `agency_id` : sans lui, l'agence du bien ne se charge pas dans la liste. */
-const LIST_PROPERTY_FIELDS = [...PROPERTY_FIELDS, 'agency_id'] as const;
-
-const USER_FIELDS = ['id', 'first_name', 'last_name', 'username', 'email'] as const;
+const LIST_PROPERTY_FIELDS = ['id', 'title', 'slug', 'agency_id'] as const;
 
 export interface MaintenanceListParams {
   readonly status?: MaintenanceStatus;
@@ -158,11 +136,6 @@ export function useMaintenanceRequest(id: number | null) {
     cheminApi`/api/maintenance-requests/${id}`,
     {
       params: {
-        fields: {
-          maintenance_requests: [...DETAIL_FIELDS],
-          properties: [...PROPERTY_FIELDS],
-          users: [...USER_FIELDS],
-        },
         include: ['property', 'requester', 'assignee', 'quoteDecisionBy'],
       },
       enabled: id !== null && id > 0,

@@ -11,6 +11,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Services\Membership\AgencyRoleCapabilityCache;
+use App\Sorts\CollatedNameSort;
 use Database\Factories\AgencyRoleFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -18,7 +19,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Spatie\QueryBuilder\AllowedSort;
+use Spatie\QueryBuilder\QueryBuilder;
 
 /**
  * TCK-279 — rôle métier d'une agence (models-spec.md §52).
@@ -69,7 +73,8 @@ class AgencyRole extends AbstractModel
 
     protected static array $requestFilterablePartial = ['name'];
 
-    protected static array $requestSortable = ['id', 'name', 'created_at', 'base_profile_type'];
+    /** `name` se trie à part, par {@see self::nameSort()} (TCK-1118). */
+    protected static array $requestSortable = ['id', 'created_at', 'base_profile_type'];
 
     protected static array $requestLoadable = ['capabilities'];
 
@@ -79,6 +84,30 @@ class AgencyRole extends AbstractModel
         'id', 'agency_id', 'name', 'base_profile_type', 'description',
         'is_system', 'is_clonable', 'created_at', 'updated_at',
     ];
+
+    /**
+     * TCK-1118 (P87.02) — le nom d'un rôle se trie en `COLLATE "und-x-icu"` (ADR-0025, amendement
+     * du 2026-10-19) : sous `--locale=C`, un rôle saisi en minuscule ou commençant par « É » passait
+     * après « Z ». Partagé par le tri demandé (`sort=name`) et le défaut de `RoleController`.
+     */
+    public static function nameSort(): AllowedSort
+    {
+        return AllowedSort::custom('name', new CollatedNameSort, 'agency_roles.name');
+    }
+
+    /**
+     * Les tris déclarés, plus `name` par {@see self::nameSort()}.
+     *
+     * @param  Builder<static>|null  $baseQuery
+     */
+    public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
+    {
+        return QueryBuilder::for($baseQuery ?? static::class, $request)
+            ->allowedFilters(...static::getAllowedQueryFilters())
+            ->allowedFields(...static::getAllAllowedQueryFields())
+            ->allowedSorts(...static::$requestSortable, ...[static::nameSort()])
+            ->allowedIncludes(...static::getAllowedQueryIncludes());
+    }
 
     /**
      * Toute écriture sur un rôle invalide son cache de capacités. Placé sur

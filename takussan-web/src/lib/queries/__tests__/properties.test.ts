@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   DASHBOARD_PROPERTY_FIELDS,
-  DASHBOARD_PROPERTY_DETAIL_FIELDS,
   fetchDashboardProperties,
   fetchDashboardProperty,
   assignPropertyAgent,
@@ -91,14 +90,12 @@ describe('fetchDashboardProperties — spatie conventions', () => {
 });
 
 describe('fetchDashboardProperty', () => {
-  it('requests the detail sparse fieldset and unwraps { data }', async () => {
+  it('lit le `show` sans `fields` (P60.03) et déballe { data }', async () => {
     const fetchSpy = mockFetch({ data: { id: 5, title: 'Villa' } });
     const result = await fetchDashboardProperty('tok', 5);
     expect(result).toEqual({ id: 5, title: 'Villa' });
     const url = String(fetchSpy.mock.calls[0][0]);
-    expect(url).toContain(
-      `fields%5Bproperties%5D=${DASHBOARD_PROPERTY_DETAIL_FIELDS.join('%2C')}`,
-    );
+    expect(url).toMatch(/\/api\/properties\/5$/);
   });
 });
 

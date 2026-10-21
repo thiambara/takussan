@@ -41,7 +41,13 @@ export const passwordSchema = z
 /**
  * Phone — Senegal-friendly E.164-ish: optional `+`, country code then 8+
  * digits. We keep it permissive because agents sometimes enter local
- * formats like `77 123 45 67`. Normalisation to E.164 happens server-side.
+ * formats like `77 123 45 67`.
+ *
+ * L'API ne ramène pas tout téléphone à l'E.164 : elle le fait pour les clients
+ * (`TelephoneJoignable`) et les visites (`TelephoneSaisi`), pas pour les garants
+ * ni les agences, dont elle enregistre le numéro tel que saisi, borné à 30
+ * caractères (TCK-1106, TCK-1108). Ce schéma ne sert aujourd'hui qu'au garant
+ * (`lease.ts`) : la valeur envoyée est celle qui sera conservée (TCK-1112).
  */
 export const phoneSchema = z
   .string()

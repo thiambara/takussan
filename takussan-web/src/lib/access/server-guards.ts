@@ -70,6 +70,11 @@ const estPanneReseau = (e: Error): boolean => {
   // précisément pour empêcher.
   //
   // *Reconnaître une panne à des mots de son message, c'est reconnaître tout ce qui en parle.*
+  //
+  // TCK-1090 (P79.05) — un délai posé par `AbortSignal.timeout` rejette `fetch` avec la raison du
+  // signal, une `DOMException` `TimeoutError` sans `cause` : le même fait que
+  // `UND_ERR_HEADERS_TIMEOUT`. `AbortError` n'en est pas : un abandon voulu porte ce nom aussi.
+  if (e.name === 'TimeoutError') return true;
   if (e.name !== 'TypeError') return false;
   if (e.message === 'fetch failed') return true;
   const code = (e as { cause?: { code?: unknown } }).cause?.code;

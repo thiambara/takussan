@@ -136,6 +136,7 @@ class HealthcheckService
             'media_storage' => $this->check(fn (): array => $this->mediaStorage()),
             'mail' => $this->check(fn (): array => $this->mail()),
             'sms' => $this->check(fn (): array => $this->sms(), 'SMS driver unavailable'),
+            'whatsapp' => $this->check(fn (): array => $this->whatsapp()),
             'search' => $this->check(fn (): array => $this->search()),
             'queue' => $this->check(fn (): array => $this->queue()),
             'workers' => $this->check(fn (): array => $this->workers()),
@@ -258,6 +259,33 @@ class HealthcheckService
     }
 
     /**
+     * P72.05 (TCK-1091) — taux d'échec des tentatives WhatsApp, au même seuil que la sonde SMS. Il se
+     * compte sur `updated_at`, et non sur `created_at` : l'échec WhatsApp arrive par l'accusé de Meta,
+     * parfois des heures après l'envoi, et la sonde doit le voir dans l'heure où il est reçu. Seul
+     * `failed` est un échec : `deferred_to_fallback` dit que WhatsApp n'était pas permis (hors fenêtre,
+     * sans gabarit, contact retiré) et que le message est parti par SMS.
+     *
+     * @return array<string,mixed>
+     */
+    private function whatsapp(): array
+    {
+        $attempts = DB::table('notification_delivery_attempts')
+            ->where('updated_at', '>=', now()->subHour())
+            ->where('provider', 'like', 'whatsapp%')
+            ->selectRaw("count(*) as total, count(*) filter (where status = 'failed') as failed")
+            ->first();
+        $total = (int) $attempts->total;
+        $rate = $total > 0 ? round((int) $attempts->failed / $total, 3) : 0.0;
+
+        return [
+            ...($total >= self::SMS_MIN_SAMPLE && $rate >= self::SMS_DEGRADED_FAILURE_RATE ? ['status' => 'degraded'] : []),
+            'driver' => config('whatsapp.default_driver', 'cloud'),
+            'attempts_1h' => $total,
+            'failure_rate_1h' => $rate,
+        ];
+    }
+
+    /**
      * Santé de Meilisearch, et écart entre l'index des biens et `Property::public()`.
      *
      * @return array<string,mixed>
@@ -371,7 +399,8 @@ class HealthcheckService
 
         return [
             ...($age === null || $age >= self::SCHEDULER_FAILED_AFTER_SECONDS ? ['status' => 'failed'] : []),
-            'last_run_at' => $lastRunAt,
+            // TCK-1116 (P94.01) — la valeur brute n'a pas de fuseau : un instant ADR-0018.
+            'last_run_at' => $lastRunAt === null ? null : Carbon::parse($lastRunAt)->utc()->format(DATE_ATOM),
         ];
     }
 

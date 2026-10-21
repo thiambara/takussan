@@ -18,7 +18,6 @@ import type {
   PropertyConversationResolution,
 } from '@/types/message';
 import { cheminApi, requete } from '@/lib/chemin-api';
-import { CONVERSATION_LIST_FIELDS, CONVERSATION_PROPERTY_FIELDS } from './conversations-list';
 
 // TCK-1042 (P70.07) — la liste des conversations vit dans son propre fichier : la pastille de la
 // messagerie, montée par la coque de `/app`, l'importe de là sans embarquer les 37 exports de ce
@@ -78,16 +77,6 @@ export function usePropertyConversation(slug: string | null, options: { enabled?
 
 export function useConversation(id: number | null | undefined) {
   const spatieParams: SpatieQueryParams = {
-    fields: {
-      conversations: [
-        ...CONVERSATION_LIST_FIELDS,
-        'lease_id',
-        'maintenance_request_id',
-        'created_by',
-        'created_at',
-      ],
-      properties: CONVERSATION_PROPERTY_FIELDS,
-    },
     include: ['property', 'participants'],
   };
 

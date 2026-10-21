@@ -16,6 +16,7 @@ use App\Http\Requests\Api\UploadPhotosMaintenanceRequestRequest;
 use App\Http\Resources\MaintenanceRequestResource;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
+use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
@@ -88,7 +89,9 @@ class MaintenanceRequestController extends Controller
         $data = $request->validated();
 
         $user = $request->user();
-        $property = Property::findOrFail($data['property_id']);
+        // TCK-1072 (P62.06) — un bien absent reçoit le refus d'un bien tiers.
+        $property = Property::query()->find((int) $data['property_id']);
+        abort_if($property === null, 403);
 
         // TCK-445 — UNE seule définition du côté donneur d'ordre, partagée avec `update()`
         // (via l'ability `actAsPrincipal`). Elle était recopiée ici, et nulle part côté
@@ -102,6 +105,13 @@ class MaintenanceRequestController extends Controller
             ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
             ->exists();
         abort_unless($isStaff || $isActiveTenant, 403);
+
+        // TCK-1070 (P62.04) — le bail rattaché se juge ici, avec la réponse du refus : un bail
+        // absent et un bail que l'appelant ne voit pas reçoivent le même 403.
+        if (isset($data['lease_id'])) {
+            $lease = Lease::query()->find((int) $data['lease_id']);
+            abort_unless($lease !== null && $user->can('view', $lease), 403);
+        }
 
         $assigneeId = $isStaff ? ($data['assigned_to'] ?? null) : null;
         unset($data['assigned_to']);

@@ -18,7 +18,10 @@ class SearchQueryRequest extends FormRequest
     {
         return [
             'q' => ['required', 'string', 'min:2', 'max:200'],
-            'filter.conversation' => ['nullable', 'integer', 'exists:conversations,id'],
+            // TCK-1071 (P62.05) — pas d'`exists:conversations,id` : un fil absent rendait 422, un fil
+            // tiers une page vide. Le service borne la recherche aux fils de l'appelant, et rend la
+            // même page vide aux deux.
+            'filter.conversation' => ['nullable', 'integer'],
             'filter.type' => ['nullable', Rule::enum(DocumentType::class)],
             'filter.date_from' => ['nullable', 'date'],
             'filter.date_to' => ['nullable', 'date', 'after_or_equal:filter.date_from'],

@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\Payments\DisbursementDriverContract;
 use App\Http\Middleware\ThrottleRequestsByNetwork;
 use App\Listeners\Admin\DispatchAlerts;
+use App\Mail\Transport\BoundedResendClient;
 use App\Models\AccountDeletionRequest;
 use App\Models\Activity as AuditActivity;
 use App\Models\Address;
@@ -134,11 +135,13 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Transport\ResendTransport;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -211,6 +214,7 @@ class AppServiceProvider extends ServiceProvider
         // P71.02 — l'aperçu des codes SMS ne démarre jamais sur l'API de production.
         OtpPreview::refuserSurLaProduction();
         $this->loadRoutesFrom(base_path('routes/lemon-squeezy.php'));
+        $this->bootUrlRoot();
         $this->bootRequestMacros();
         $this->bootRateLimiters();
         // TCK-624 — la règle du mot de passe est CELLE du front (`passwordSchema`) : 8 à 72
@@ -256,6 +260,7 @@ class AppServiceProvider extends ServiceProvider
         // `tests/Feature/Events/EventListenerDuplicationTest.php` garde les deux sens.
         $this->bootAuthEventListeners();
         $this->bootNotificationChannels();
+        $this->bootMailTransports();
     }
 
     // -----------------------------------------------------------------
@@ -375,6 +380,27 @@ class AppServiceProvider extends ServiceProvider
     // -----------------------------------------------------------------
     // boot() helpers
     // -----------------------------------------------------------------
+
+    /**
+     * TCK-1058 (P73.01) — l'origine des URL que l'API rend (`url()`, `route()`, routes signées) est
+     * celle d'`APP_URL`, jamais celle de la requête. Le serveur Next joint l'API par son adresse
+     * interne (ADR-0052 § 5), et `X-Forwarded-Host` n'est plus cru (TCK-853) : sans cette racine,
+     * ces URL partaient au navigateur avec l'hôte interne, signature comprise. Aucun en-tête ne
+     * choisit donc l'hôte, et toute URL dépend de la justesse d'`APP_URL` dans chaque environnement.
+     * `RacineDesUrlTest` le garde.
+     */
+    private function bootUrlRoot(): void
+    {
+        $racine = rtrim((string) config('app.url'), '/');
+        $schema = parse_url($racine, PHP_URL_SCHEME);
+
+        if ($racine === '' || ! is_string($schema)) {
+            return;
+        }
+
+        URL::forceRootUrl($racine);
+        URL::forceScheme($schema);
+    }
 
     private function bootRequestMacros(): void
     {
@@ -911,6 +937,15 @@ class AppServiceProvider extends ServiceProvider
 
             return $frontend.'/auth/reset-password?token='.$token.'&email='.urlencode($notifiable->getEmailForPasswordReset());
         });
+    }
+
+    private function bootMailTransports(): void
+    {
+        // P65.04 (TCK-1074) — le transport `resend` de Laravel passe par `Resend::client()`, dont le
+        // Guzzle n'a aucun délai. Celui-ci est le même transport, sur un client borné.
+        Mail::extend('resend', fn (array $config) => new ResendTransport(
+            BoundedResendClient::make((string) ($config['key'] ?? config('services.resend.key'))),
+        ));
     }
 
     private function bootNotificationChannels(): void

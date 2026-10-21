@@ -28,38 +28,6 @@ const LIST_FIELDS: string[] = [
   'created_at',
 ];
 
-const DETAIL_FIELDS: string[] = [
-  ...LIST_FIELDS,
-  'agency_id',
-  'booking_id',
-  'guarantor_id',
-  'payment_frequency',
-  'payment_day',
-  'terms',
-  'special_conditions',
-  'signed_at',
-  'terminated_at',
-  'termination_reason',
-  // TCK-088 — deposit refund block (banner + modal pre-fill).
-  'deposit_refunded_amount',
-  'deposit_refunded_at',
-  'deposit_refund_reason',
-  // TCK-090 — early-termination workflow snapshot. Required by the
-  // `EarlyTerminationBanner` rendered on the lease detail page; without
-  // these fields in the sparse fieldset, `early_termination_effective_date`
-  // would be undefined and the banner would silently never render.
-  'early_termination_requested_at',
-  'early_termination_requested_by',
-  'early_termination_effective_date',
-  'early_termination_penalty_amount',
-  'early_termination_reason',
-  'early_termination_invoice_id',
-  'notice_period_days',
-  // TCK-596 §4B (ADR-0042) — le panneau de signature.
-  'contract_sha256',
-  'signature_requested_at',
-];
-
 export type UseLeasesParams = {
   status?: string;
   property_id?: number;
@@ -194,12 +162,6 @@ export type LeaseWithRelations = Lease & {
 
 export function useLease(id: number | null | undefined) {
   const spatieParams: SpatieQueryParams = {
-    fields: {
-      leases: DETAIL_FIELDS,
-      // `main_photo_url` is computed (Spatie media library), not a DB column —
-      // omit from sparse fieldset; PropertyResource emits it anyway.
-      properties: ['id', 'title', 'slug'],
-    },
     include: ['property'],
   };
 

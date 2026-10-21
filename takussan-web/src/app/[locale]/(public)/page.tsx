@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
+import { Suspense, use } from 'react';
 import { getLocale } from 'next-intl/server';
 
 import { HomepageDiscovery } from '@/components/property/HomepageDiscovery';
 import { alternatesPubliques } from '@/lib/alternates';
 import { decouverteDeLAccueil } from '@/lib/queries/public-discovery';
-import { raccourcisDeLAccueil } from '@/lib/queries/raccourcis-de-l-accueil';
+import { raccourcisDeLAccueil, type RaccourcisDeLAccueil } from '@/lib/queries/raccourcis-de-l-accueil';
+import type { HomepageDiscoveryData } from '@/types/property';
 import { isLocale } from '@/i18n/config';
 
 /**
@@ -58,10 +60,32 @@ export default async function Home() {
   // d'avant TCK-432 (squelette, appel, message d'erreur traduit). Cf. `decouverteDeLAccueil`.
   // TCK-628 — les sections de raccourcis, en parallèle ; chacune disparaît seule si son
   // endpoint tombe. Cf. `raccourcisDeLAccueil`.
-  const [rangees, raccourcis] = await Promise.all([
-    decouverteDeLAccueil(locale),
-    raccourcisDeLAccueil(locale),
-  ]);
+  //
+  // TCK-1087 (P69.03) — la promesse n'est PAS attendue ici. L'attendre retenait le premier octet
+  // de la réponse le temps de `discovery` (≈ 1 s de TTFB mesuré sur `/fr`, contre 0,04 à 0,19 s
+  // sur la liste). La frontière laisse partir la coque avec le squelette de l'accueil, et les
+  // rangées suivent dans la MÊME réponse diffusée : leurs titres et leurs liens
+  // `/properties/<slug>` restent dans le HTML servi (TCK-432, `accueil-diffuse-avant-ses-rangees`).
+  // Aucune des deux ne rejette : chacune rend `null` sur panne.
+  const donnees = Promise.all([decouverteDeLAccueil(locale), raccourcisDeLAccueil(locale)]);
 
+  // Le repli est l'accueil SANS données : son propre squelette (barre, rangées en chargement),
+  // sans `<h1>` — le repli et le contenu sont tous deux dans le HTML diffusé, et la page n'en
+  // garde qu'un (TCK-432). React n'hydrate pas le repli d'une frontière encore en attente : il attend son
+  // contenu, si bien que l'appel client de `useHomepageDiscovery` ne part pas du repli (lu dans le
+  // modèle d'hydratation de React 19, non mesuré au navigateur).
+  return (
+    <Suspense fallback={<HomepageDiscovery repli />}>
+      <AccueilServi donnees={donnees} />
+    </Suspense>
+  );
+}
+
+function AccueilServi({
+  donnees,
+}: {
+  readonly donnees: Promise<[HomepageDiscoveryData | null, RaccourcisDeLAccueil]>;
+}) {
+  const [rangees, raccourcis] = use(donnees);
   return <HomepageDiscovery donneesInitiales={rangees} raccourcis={raccourcis} />;
 }

@@ -65,7 +65,6 @@
       "noResult": "No agency matches",
       "loadMore": "Show more",
       "shown": "{shown} of {total}",
-      "openAria": "Open the agency list",
       "clearAria": "Clear the selected agency",
       "error": "The agency list could not be loaded.",
       "retry": "Retry",
@@ -8512,7 +8511,6 @@
         "name": "Agency name",
         "currency": "Currency",
         "slug": "Slug",
-        "type": "Type",
         "contactEmail": "Contact email",
         "phone": "Phone",
         "address": "Address",
@@ -9432,7 +9430,8 @@
       "reasons": {
         "inappAlwaysOn": "Always on so you miss nothing.",
         "phoneNotVerified": "Phone not verified.",
-        "channelUnavailable": "No message of this kind is sent on this channel."
+        "channelUnavailable": "No message of this kind is sent on this channel.",
+        "phoneWithoutWhatsapp": "Your number is declared as not on WhatsApp."
       }
     },
     "payoutMethods": {

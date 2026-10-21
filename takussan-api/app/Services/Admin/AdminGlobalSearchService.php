@@ -29,8 +29,8 @@ use Illuminate\Support\Collection;
  * « Diop »). Cinq résultats au plus par type.
  *
  * ⚠ Aucune colonne chiffrée n'y entre (coordination TCK-601) : ni RIB, ni pièce du bailleur, ni
- * `agency_upgrade_requests.ninea` (chiffrée par 601). Le NINEA se cherche dans
- * `agencies.metadata->legal_info`, en clair.
+ * `agency_upgrade_requests.ninea` (chiffrée par 601). Le NINEA se cherche dans la colonne
+ * `agencies.ninea`, en clair (TCK-959), et `agencies.metadata->legal_info` n'est plus qu'un repli.
  *
  * Raccord TCK-601 (ADR-0044 §4) : chaque compte RENDU se trace par
  * `PersonalDataAccessLogger::record($operateur, $compte, SURFACE_GLOBAL_SEARCH)` — après le tri et

@@ -7,6 +7,7 @@ use App\Http\Requests\Public\IndexPublicProfilesRequest;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Agency;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\UserStatus;
@@ -292,7 +293,10 @@ class PublicAgencyController extends Controller
         $professionnelsIci = $teamUserIds->isEmpty()
             ? collect()
             : AgentProfile::query()->active()->where('agency_id', $agency->id)->whereIn('user_id', $teamUserIds)->pluck('user_id')
-                ->merge(AgencyAdminProfile::query()->active()->where('agency_id', $agency->id)->whereIn('user_id', $teamUserIds)->pluck('user_id'))
+                // TCK-1077 — l'admin d'un espace `individual` en est l'hôte, pas un agent.
+                ->merge($agency->kind === AgencyKind::Standard
+                    ? AgencyAdminProfile::query()->active()->where('agency_id', $agency->id)->whereIn('user_id', $teamUserIds)->pluck('user_id')
+                    : collect())
                 ->map(fn ($id) => (int) $id)
                 ->flip();
 
@@ -345,7 +349,10 @@ class PublicAgencyController extends Controller
                 'name' => $agency->name,
                 'description' => $agency->description,
                 'license_number' => $agency->license_number,
-                'logo_url' => $agency->logo_url ?? null,
+                // TCK-1079 — comme `index()` : le badge de la fiche lit la même donnée que l'annuaire.
+                'is_verified' => (bool) $agency->is_verified,
+                // TCK-1076 — la collection `logo`, comme `index()` : `$agency->logo_url` n'existe pas.
+                'logo_url' => $agency->getFirstMediaUrl('logo') ?: null,
                 'email' => $agency->email,
                 'phone' => $agency->phone,
                 'city' => $agency->addresses->first()?->city,

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Enums\PaymentStatus;
+use App\Services\Export\ExportDataService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Support\LeaseDueFixture;
@@ -24,7 +25,7 @@ class LeasePaymentResourceContractTest extends TestCase
         'id', 'reference_number', 'lease_id', 'payer_id', 'collector_id',
         'amount', 'currency', 'payment_method', 'payment_type',
         'period_start', 'period_end', 'due_date', 'paid_at', 'status',
-        'paid_amount', 'remaining_amount',
+        'paid_amount', 'remaining_amount', 'refund_amount',
         'late_fee_amount', 'late_fee_applied_at', 'late_fee_paid_at',
         'late_fee_outstanding', 'late_fee_payable_online', 'amount_due', 'receipt_available',
         'notes', 'created_at',
@@ -38,6 +39,42 @@ class LeasePaymentResourceContractTest extends TestCase
         $row = $this->getJson("/api/leases/{$ctx['lease']->id}/payments")->assertOk()->json('data.0');
 
         $this->assertEqualsCanonicalizing(self::KEYS, array_keys($row));
+    }
+
+    /**
+     * TCK-1135 (P76.06) — le montant rendu d'une échéance, tel qu'en base : dans la ressource, sous
+     * la forme de `BookingPaymentResource`, et en dernière colonne de l'export des paiements.
+     */
+    public function test_une_echeance_remboursee_en_partie_rend_son_refund_amount(): void
+    {
+        $ctx = $this->leaseDue(null, [
+            'status' => PaymentStatus::Refunded,
+            'paid_at' => now()->subDays(5),
+            'late_fee_amount' => null,
+            'late_fee_applied_at' => null,
+            'refund_amount' => 40_000,
+        ]);
+        Sanctum::actingAs($ctx['tenant']);
+
+        $this->getJson("/api/leases/{$ctx['lease']->id}/payments")->assertOk()
+            ->assertJsonPath('data.0.refund_amount', 40000);
+
+        $export = app(ExportDataService::class)->payments($ctx['tenant']);
+        $this->assertSame('refund_amount', end($export['columns']));
+        $this->assertSame(40000.0, $export['rows'][0]['refund_amount']);
+        $this->assertSame(array_keys($export['rows'][0]), $export['columns']);
+    }
+
+    public function test_sans_remboursement_refund_amount_est_nul(): void
+    {
+        $ctx = $this->leaseDue();
+        Sanctum::actingAs($ctx['tenant']);
+
+        $this->getJson("/api/leases/{$ctx['lease']->id}/payments")->assertOk()
+            ->assertJsonPath('data.0.refund_amount', null);
+
+        $export = app(ExportDataService::class)->payments($ctx['tenant']);
+        $this->assertNull($export['rows'][0]['refund_amount']);
     }
 
     /** AC3 — réglage désactivé : la pénalité restant due est montrée, pas demandée. */

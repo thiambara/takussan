@@ -2,10 +2,10 @@
 
 namespace App\Services\Media;
 
+use App\Support\RelativeSignedUrl;
 use DateTimeInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -40,7 +40,7 @@ class PrivateMediaAccess
      */
     public function signedUrl(Media $media, ?DateTimeInterface $expiresAt = null): string
     {
-        return URL::temporarySignedRoute(
+        return RelativeSignedUrl::temporary(
             'media.private.show',
             $expiresAt ?? now()->addMinutes(self::SIGNED_ROUTE_TTL_MINUTES),
             ['media' => $media->getKey()],

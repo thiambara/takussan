@@ -48,8 +48,11 @@ class StoreConversationRequest extends BaseFormRequest
             // le tableau, dans `withValidator()`. Et AUCUNE règle sur `participants.*` : même
             // `integer` y rend « participants.0 » — la forme vient de l'astérisque, pas de la règle.
             'participants' => ['bail', 'required', 'array', 'min:1', new ParticipantIdsRule],
-            'property_id' => ['nullable', 'exists:properties,id'],
-            'lease_id' => ['nullable', 'exists:leases,id'],
+            // TCK-1070 (P62.04) — pas d'`exists:` : `guardContext()` rend déjà le même message à un
+            // contexte absent et à un contexte invisible, et `exists:` le précédait en séparant
+            // les deux. `integer` reste : un identifiant non entier partirait en SQL.
+            'property_id' => ['nullable', 'integer'],
+            'lease_id' => ['nullable', 'integer'],
             'initial_message' => ['nullable', 'string'],
         ];
     }

@@ -27,10 +27,13 @@ function apiUrl(): string {
 }
 
 /**
- * Sur le chemin interne, l'API ne connaît pas son nom public : les URL qu'elle fabrique depuis la
- * requête (`route()`, le lien d'un document publié) désigneraient l'hôte interne. Ces trois en-têtes,
- * dérivés de l'origine publique de l'API (`origineApi()`), sont **identiques pour tous les visiteurs** : ils ne fragmentent
- * aucun cache de données. Laravel les croit parce que l'appel vient d'un mandataire de confiance.
+ * Sur le chemin interne, le schéma et le port de l'origine publique de l'API (`origineApi()`),
+ * **identiques pour tous les visiteurs** : ils ne fragmentent aucun cache de données. Laravel les
+ * croit parce que l'appel vient d'un mandataire de confiance.
+ *
+ * TCK-1058 (P73.01) — plus de `X-Forwarded-Host` : l'API ne le croit plus (TCK-853), et elle tire
+ * l'origine des URL qu'elle fabrique (`route()`, liens signés) de son `APP_URL`, jamais de la
+ * requête. L'hôte interne n'y paraît donc plus.
  */
 function enTetesDuCheminInterne(): Record<string, string> {
   if (baseServeur() === undefined) return {};
@@ -38,7 +41,6 @@ function enTetesDuCheminInterne(): Record<string, string> {
     const publique = new URL(origineApi());
     const proto = publique.protocol.replace(/:$/, '');
     return {
-      'X-Forwarded-Host': publique.hostname,
       'X-Forwarded-Proto': proto,
       'X-Forwarded-Port': publique.port || (proto === 'https' ? '443' : '80'),
     };

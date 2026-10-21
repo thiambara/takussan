@@ -198,8 +198,7 @@ class ConversationController extends Controller
 
         $groups->rename($conversation, $user, $data['subject']);
 
-        $fresh = $conversation->fresh();
-        $fresh?->loadMissing('property');
+        $fresh = $conversation->fresh()?->loadForDetail();
 
         return $this->json([
             'data' => ConversationResource::make($fresh)->resolve($request),
@@ -232,12 +231,8 @@ class ConversationController extends Controller
         $this->ensureParticipant($request, $conversation);
 
         // TCK-576 (restes de TCK-565) — les membres ACTUELS : la feuille d'infos d'un groupe en
-        // dérive la liste, le rôle de l'utilisateur, et donc l'invitation par nom. Sans eux, elle
-        // affichait « 0 participant » et cachait toute action d'administration.
-        $conversation->loadMissing([
-            'property',
-            'participants' => fn ($q) => $q->wherePivotNull('left_at')->with('media'),
-        ]);
+        // dérive la liste, le rôle de l'utilisateur, et donc l'invitation par nom.
+        $conversation->loadForDetail();
 
         return $this->json([
             'data' => ConversationResource::make($conversation)->resolve($request),

@@ -31,6 +31,9 @@ use Illuminate\Support\Facades\Log;
  * - TCK-842 (P27.04) — the whole walk shares one time budget
  *   ({@see SmsTimeBudget}): no driver starts once it is spent, and the numbers
  *   left end with `time_budget_exhausted`.
+ * - P72.03 (TCK-1093) — a one-time code skips, for 15 minutes and per number,
+ *   the provider whose DLR came back `failed` ({@see OtpLateFailureMemory}),
+ *   unless that would skip the whole chain.
  */
 class SmsRouterDriver implements SmsDriverInterface
 {
@@ -44,6 +47,9 @@ class SmsRouterDriver implements SmsDriverInterface
         private readonly OrangeDailyCapTracker $orangeCap,
         private readonly IntegrationLocator $integrations,
         private readonly ConfigRepository $config,
+        // P72.03 (TCK-1093) — sans liaison propre : `AppServiceProvider` construit le routeur
+        // argument par argument, et la mémoire n'a d'autre dépendance que le cache.
+        private readonly OtpLateFailureMemory $otpFailures = new OtpLateFailureMemory,
     ) {}
 
     public function id(): string
@@ -124,6 +130,7 @@ class SmsRouterDriver implements SmsDriverInterface
         $isOtp = (bool) ($context['is_otp'] ?? false);
         $attemptIndex = array_fill_keys($numbers, 0);
         $remaining = $numbers;
+        $skipProviders = $isOtp ? $this->otpSkips($chain, $numbers) : [];
 
         foreach ($chain as $driverId) {
             if (empty($remaining)) {
@@ -140,9 +147,19 @@ class SmsRouterDriver implements SmsDriverInterface
             // exit the loop with the rest of $remaining.
             $callable = $remaining;
             $skippedDueToCap = [];
+            // P72.03 (TCK-1093) — un code dont l'accusé est revenu `failed` chez ce fournisseur
+            // passe au suivant, sans tentative écrite : il n'a pas été appelé.
+            $skippedAfterFailure = array_values(array_filter(
+                $callable,
+                fn (string $number): bool => in_array($driverId, $skipProviders[$number] ?? [], true),
+            ));
+            if ($skippedAfterFailure !== []) {
+                $callable = array_values(array_diff($callable, $skippedAfterFailure));
+            }
             if ($driverId === 'orange') {
+                $eligible = $callable;
                 $callable = [];
-                foreach ($remaining as $number) {
+                foreach ($eligible as $number) {
                     if (! $this->orangeCap->hasCapacity($number)) {
                         $attemptIndex[$number]++;
                         $deferred = SmsResult::deferred($number, 'orange', 'orange_daily_cap_reached');
@@ -161,14 +178,14 @@ class SmsRouterDriver implements SmsDriverInterface
             // $remaining (plus any cap-skipped ones) so the next
             // driver in the chain gets a chance.
             if (! $this->hasIntegrationFor($driverId, $context['agency_id'] ?? null)) {
-                $remaining = array_values(array_unique(array_merge($skippedDueToCap, $callable)));
+                $remaining = array_values(array_unique(array_merge($skippedAfterFailure, $skippedDueToCap, $callable)));
 
                 continue;
             }
 
             if (empty($callable)) {
                 // Cap drained the batch; deferred numbers continue.
-                $remaining = $skippedDueToCap;
+                $remaining = array_values(array_unique(array_merge($skippedAfterFailure, $skippedDueToCap)));
 
                 continue;
             }
@@ -189,7 +206,7 @@ class SmsRouterDriver implements SmsDriverInterface
                 }
             }
 
-            $next = $skippedDueToCap;
+            $next = array_merge($skippedAfterFailure, $skippedDueToCap);
             foreach ($callable as $n) {
                 $result = $batch[$n] ?? SmsResult::failed($n, $driverId, 'driver_no_result');
                 $attemptIndex[$n]++;
@@ -198,6 +215,9 @@ class SmsRouterDriver implements SmsDriverInterface
                 if ($result->isTerminalSuccess()) {
                     if ($driverId === 'orange') {
                         $this->orangeCap->increment($n);
+                    }
+                    if ($isOtp && $result->providerMessageId) {
+                        $this->otpFailures->rememberSent($driverId, $result->providerMessageId, $n);
                     }
                 } elseif (! $result->ambiguous || $isOtp) {
                     $next[] = $n;
@@ -227,6 +247,29 @@ class SmsRouterDriver implements SmsDriverInterface
         }
 
         return $finalResults;
+    }
+
+    /**
+     * P72.03 (TCK-1093) — par numéro, les fournisseurs de la chaîne à sauter pour un code. Quand ils
+     * le seraient tous, aucun ne l'est : mieux vaut retenter un fournisseur qui a échoué que ne rien
+     * envoyer.
+     *
+     * @param  list<string>  $chain
+     * @param  list<string>  $numbers
+     * @return array<string, list<string>>
+     */
+    private function otpSkips(array $chain, array $numbers): array
+    {
+        $skips = [];
+        foreach ($numbers as $number) {
+            $failed = array_values(array_intersect($chain, $this->otpFailures->failedProviders($number)));
+            $usable = array_diff(array_intersect($chain, array_keys($this->drivers)), $failed);
+            if ($failed !== [] && $usable !== []) {
+                $skips[$number] = $failed;
+            }
+        }
+
+        return $skips;
     }
 
     /**

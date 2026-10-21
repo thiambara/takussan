@@ -143,59 +143,12 @@ export async function fetchDashboardProperties(
   );
 }
 
-/**
- * Colonnes dont le formulaire d'édition a besoin, en plus de celles de la liste.
- *
- * ⚠ `views_count` et `favorites_count` y figuraient une SECONDE fois : le spread
- * `...DASHBOARD_PROPERTY_FIELDS` les apporte déjà, et la chaîne partait avec le doublon.
- * Sans effet côté serveur, mais une liste qui se répète est une liste que personne ne relit.
- *
- * ⚠⚠ `description` n'est PAS dans `Property::$queryFields`. Ça tient uniquement parce que
- * cette liste ne sert que la route SHOW, qui n'instancie pas `QueryBuilder` et ne valide donc
- * pas `fields[]` — mesuré le 2026-08-21 :
- *
- *     GET /api/properties/131?fields[properties]=…,description  → 200
- *     GET /api/properties?fields[properties]=id,title,description → 400 InvalidFieldQuery
- *
- * La retirer serait pire que la laisser : sous TCK-336 la ressource filtre sur les clés
- * demandées, et le formulaire d'édition perdrait la description. Réemployer cette liste sur
- * une route index rendrait en revanche 400 — `property-fields.coverage.test.ts` porte
- * l'exemption nommément, pour qu'elle soit un choix et non un oubli.
- */
-export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
-  // TCK-590 (passe 2, n4 ; passe 3, R2) — « Planifier une visite » se juge sur le profil actif
-  // DANS l'agence du bien. La ressource n'émet pas `agency_id` : la colonne est lue pour que le
-  // bloc `agency` de la route de détail se résolve, et la page lit `agency.id` (`agenceDuBien`).
-  // Elle vient du spread ci-dessous depuis TCK-603 : la répéter ici l'enverrait deux fois.
-  ...DASHBOARD_PROPERTY_FIELDS,
-  'description',
-  'bathrooms',
-  'furnished',
-  'title_type',
-  'condition',
-  'floor_number',
-  'total_floors',
-  'available_from',
-  'year_built',
-  'parking_spaces',
-  // TCK-598 — la page d'édition relit le coût d'entrée (`entry_cost`, calculé depuis ces quatre
-  // colonnes : non demandées, le bloc sort nul) et la visite virtuelle.
-  'deposit_months',
-  'advance_months',
-  'agency_fee_months',
-  'monthly_charges',
-  'virtual_tour_url',
-] as const;
-
 export async function fetchDashboardProperty(
   token: string,
   idOrSlug: string | number,
 ): Promise<PropertyDetail> {
-  const qs = buildQueryString({
-    fields: { properties: DASHBOARD_PROPERTY_DETAIL_FIELDS },
-  });
   const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    cheminApi`/api/properties/${idOrSlug}${requete(qs)}`,
+    cheminApi`/api/properties/${idOrSlug}`,
     { token },
   );
   return res.data;

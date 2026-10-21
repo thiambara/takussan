@@ -301,5 +301,5 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
 // au demandeur et échue avec l'export, porte l'autorisation (voir l'en-tête du contrôleur).
 Route::get('report-exports/{reportExport}/download', ReportExportDownloadController::class)
     ->whereNumber('reportExport')
-    ->middleware(['signed', 'throttle:60,1'])
+    ->middleware(['signed:relative', 'throttle:60,1'])
     ->name('report-exports.download');
