@@ -39,8 +39,10 @@ class UpdateTagRequest extends BaseFormRequest
         return [
             'name' => ['sometimes', 'string', 'max:100'],
             'type' => ['sometimes', Rule::enum(TagType::class)->except([TagType::Feature])],
-            'icon' => ['sometimes', 'nullable', 'string'],
-            'color' => ['sometimes', 'nullable', 'string', 'max:20'],
+            // TCK-1107 (P91.02) — les bornes des colonnes : `icon` en `varchar(255)`, `color` en
+            // `varchar(7)` ; au-delà, 422 sur la clé, et non le 500 de PostgreSQL.
+            'icon' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'color' => ['sometimes', 'nullable', 'string', 'max:7'],
             'description' => ['sometimes', 'nullable', 'string'],
         ];
     }

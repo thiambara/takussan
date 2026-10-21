@@ -21,7 +21,8 @@ class StoreAgencyOnboardingRequest extends BaseFormRequest
             'agency.slug' => ['nullable', 'string', 'max:255', 'alpha_dash:ascii', 'unique:agencies,slug'],
             'agency.type' => ['nullable', 'string', 'max:80'],
             'agency.email' => ['nullable', 'email', 'max:255'],
-            'agency.phone' => ['nullable', 'string', 'max:50'],
+            // TCK-1106 (P91.01) — `agencies.phone` est un `varchar(30)` : 50 laissait passer un 500.
+            'agency.phone' => ['nullable', 'string', 'max:30'],
             'agency.address' => ['nullable', 'string', 'max:500'],
             // TCK-270 — let the super-admin pick the agency display currency
             // at provisioning time instead of forcing a later edit. Falls back
