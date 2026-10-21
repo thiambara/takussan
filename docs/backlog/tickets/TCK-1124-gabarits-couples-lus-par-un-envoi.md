@@ -1,7 +1,7 @@
 ---
 id: TCK-1124
 title: "L'éditeur de gabarits ne sert que les couples événement × canal qu'un envoi lit"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -43,24 +43,24 @@ L'opérateur de la console n'édite que des gabarits qu'un envoi applique réell
 
 ## Delta à produire
 
-- [ ] `EditableNotificationEvents::channels($event)` dérive les canaux des codes dont
+- [x] `EditableNotificationEvents::channels($event)` dérive les canaux des codes dont
       `templateEvent()` rend l'événement (`email` ; `sms` si l'un est `mobile()`), à la place de
       la constante `CHANNELS`.
-- [ ] `NotificationTemplateService::all()` et `ensureEditable()` s'y bornent ; les lignes
+- [x] `NotificationTemplateService::all()` et `ensureEditable()` s'y bornent ; les lignes
       `notification_templates` existantes ne sont pas touchées.
-- [ ] `TemplateEditor` reçoit les canaux servis (`channels`) ; la page les tire des couples
+- [x] `TemplateEditor` reçoit les canaux servis (`channels`) ; la page les tire des couples
       rendus pour l'événement choisi.
-- [ ] Tests : `NotificationTemplateChannelsTest` (API), `TemplateEditor.test.tsx` (front).
+- [x] Tests : `NotificationTemplateChannelsTest` (API), `TemplateEditor.test.tsx` (front).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/admin/notification-templates` rend exactement `booking_confirmed/email`,
+- [x] AC1 — `GET /api/admin/notification-templates` rend exactement `booking_confirmed/email`,
       `booking_confirmed/sms`, `payment_received/email`, `payment_received/sms`,
       `maintenance_created/email`.
-- [ ] AC2 — `GET` et `PATCH` sur `maintenance_created/sms` et `*/push` → 422
+- [x] AC2 — `GET` et `PATCH` sur `maintenance_created/sms` et `*/push` → 422
       `notification_channel_not_editable`, sans écriture.
-- [ ] AC3 — pour chaque couple servi, un gabarit actif se retrouve dans le rendu de son canal.
-- [ ] AC4 — l'éditeur n'affiche que les onglets de canal servis.
+- [x] AC3 — pour chaque couple servi, un gabarit actif se retrouve dans le rendu de son canal.
+- [x] AC4 — l'éditeur n'affiche que les onglets de canal servis.
 
 ## Hors périmètre
 
@@ -71,4 +71,7 @@ L'opérateur de la console n'édite que des gabarits qu'un envoi applique réell
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : `app/` (deux fichiers) et `notification-templates.tsx` rendus à `pre-dev` → 3 rouges
+  sur 3 côté API, 1 rouge sur 2 côté front ; correctif remis → tout vert.
+- La table `notification_templates` porte aussi les gabarits WhatsApp semés par migration : le
+  test « sans écriture » compare le compte avant et après, et non à zéro.
