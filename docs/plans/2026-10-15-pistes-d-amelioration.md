@@ -7661,7 +7661,7 @@ le sous-réseau est P37.04.*
 
 ### La résiliation anticipée n'a aucun test qui asserte un destinataire, un canal ou une ligne de cloche
 - Réf : P75.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1129
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/LeaseEarlyTerminationNotification.php:45-61,91-107`, `takussan-api/app/Listeners/Lease/NotifyOnEarlyTermination.php:38-58`, `takussan-api/tests/Feature/Services/EarlyTerminationServiceTest.php:36`, `takussan-api/tests/Feature/Api/LeaseEarlyTerminationEndpointTest.php:28`, `takussan-api/tests/Feature/Jobs/ConfirmEarlyTerminationsJobTest.php:26`
 - Constat :
@@ -7672,6 +7672,7 @@ le sous-réseau est P37.04.*
   - Établi comment : lu et mesuré par `grep`.
 - Piste : un test par transition (`requested`, `cancelled`, `confirmed`) qui lance le service sans `Notification::fake()` et vérifie les lignes `app_notifications` du locataire et du bailleur (titre, cible `lease`) ; idem pour la révision de loyer. Garde : ces tests.
 - Mesure (2026-10-20, d08842ee3, mesureur) : `grep -rlw 'LeaseEarlyTerminationNotification\|NotifyOnEarlyTermination' tests` → `tests/impact-map.json` seul ; `LeaseRentReviewedNotification\|NotifyTenantOfRentReview` → l'impact-map et `NotificationAmountsTest` seuls ; `Notification::fake()` en l. 36, 28 et 26 des trois classes citées, aucun `assertSent*` dans aucune ; `NotifyOnEarlyTermination.php:38-58` envoie au `tenant.user` et au `landlord`, dédoublonnés ; le titre est `notifications.lease_early_termination.{transition}.subject` (`LeaseEarlyTerminationNotification.php:103`) et `toArray()` porte `lease_id` (l. 94) → le constat tient. Classement : A5, tests seuls qui gardent le comportement écrit de l'écouteur, sans changer de code ni de seuil.
+- Mesure (2026-10-21, 0d52a71ee, implementeur) : `grep -rlw` des quatre classes dans `tests` → `impact-map.json` et `NotificationAmountsTest` seuls, comme mesuré. `LeaseEarlyTerminationDeliveryTest` (sans `Notification::fake()`) : demande, annulation, confirmation → une ligne de cloche chez le locataire et le bailleur, aucune autre, titre traduit dans la langue du destinataire, cible `lease` du bail ; locataire sans compte → bailleur seul ; révision de loyer → locataire seul. 4 verts ; ablation : bailleur retiré de l'écouteur → 3 rouges, `lease_id` retiré de `toArray()` → 3 rouges, `NotifyTenantOfRentReview` muet → 1 rouge.
 
 ### Petites améliorations
 - Réf : P75.05
