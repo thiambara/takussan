@@ -3,6 +3,8 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
+use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
@@ -63,6 +65,52 @@ class AgencyMembersListTest extends TestCase
 
         $this->assertTrue($ids->contains($agentOnly->id), 'AgentProfile-only user must appear in members.');
         $this->assertTrue($ids->contains($ownerOnly->id), 'OwnerProfile-only user must appear in members.');
+    }
+
+    /**
+     * P88.03 (TCK-1096) — `filter[role]` juge le rôle DANS l'agence de la route, sans filtre de
+     * statut : l'onglet d'équipe garde l'agent suspendu, et ne présente plus comme agent un bailleur
+     * qui ne l'est qu'ailleurs. `filter[assignable]=1`, que seuls les sélecteurs de cible envoient,
+     * ne garde que le personnel joignable (`PersonnelDeLAgence::estPersonnel()`).
+     */
+    public function test_role_filter_is_bound_to_the_agency_and_assignable_keeps_reachable_staff(): void
+    {
+        [$admin, $agency] = $this->createAdminWithAgency();
+
+        $actif = User::factory()->create();
+        AgentProfile::factory()->create(['user_id' => $actif->id, 'agency_id' => $agency->id]);
+
+        $bloque = User::factory()->create();
+        AgentProfile::factory()->create(['user_id' => $bloque->id, 'agency_id' => $agency->id]);
+        $bloque->forceFill(['status' => UserStatus::Blocked])->save();
+
+        $suspendu = User::factory()->create();
+        AgentProfile::factory()->create([
+            'user_id' => $suspendu->id, 'agency_id' => $agency->id, 'status' => AgentProfileStatus::Suspended,
+        ]);
+
+        $bailleurAgentAilleurs = User::factory()->create();
+        OwnerProfile::factory()->create(['user_id' => $bailleurAgentAilleurs->id, 'agency_id' => $agency->id]);
+        AgentProfile::factory()->create(['user_id' => $bailleurAgentAilleurs->id, 'agency_id' => Agency::factory()->create()->id]);
+
+        Sanctum::actingAs($admin);
+        $ids = fn (string $qs) => collect($this->getJson("/api/agencies/{$agency->id}/members?{$qs}&fields[users]=id,first_name&per_page=100")
+            ->assertOk()
+            ->json('data'))
+            ->pluck('id');
+
+        $assignables = $ids('filter[role]=agent&filter[assignable]=1');
+        $this->assertTrue($assignables->contains($actif->id), "L'agent actif doit être proposé.");
+        $this->assertFalse($assignables->contains($bloque->id), 'Un compte bloqué ne doit pas être proposé.');
+        $this->assertFalse($assignables->contains($suspendu->id), 'Un agent suspendu ne doit pas être proposé.');
+        $this->assertFalse($assignables->contains($bailleurAgentAilleurs->id), "Un bailleur agent ailleurs n'est pas agent ici.");
+
+        $agents = $ids('filter[role]=agent');
+        $this->assertTrue($agents->contains($actif->id));
+        $this->assertTrue($agents->contains($suspendu->id), "L'onglet d'équipe garde l'agent suspendu.");
+        $this->assertFalse($agents->contains($bailleurAgentAilleurs->id), "Un bailleur agent ailleurs n'est pas agent ici.");
+
+        $this->assertTrue($ids('filter[role]=owner')->contains($bailleurAgentAilleurs->id));
     }
 
     public function test_non_admin_cannot_list_members(): void
