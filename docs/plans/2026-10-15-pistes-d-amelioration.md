@@ -171,7 +171,7 @@ voie d'écriture (angle 13, puis 47).
 | 96 | Règles `exists:` sans `whereNull('deleted_at')` sur une table à `SoftDeletes` (`exists:customers,id`, `exists:users,id`, `exists:leases,id`…) suivies d'un `find()` masqué par la portée : 404 ou 500 au lieu de 422, ou clé étrangère écrite vers une ligne supprimée | fait |
 | 97 | Liens d'action des courriels (`->action(…)` des `toMail()`, boutons des Mailables) : la route ou la page visée existe-t-elle, un clic depuis un client de courriel porte-t-il l'authentification qu'elle exige, et vise-t-il l'hôte du front ou celui de l'API | fait |
 | 98 | Autres écrans d'écriture de la console super-admin (modèles de notification `NotificationTemplateService`, annonces, intégrations, paramètres plateforme) : ce que chaque écran promet de changer est-il lu par le chemin qui envoie, affiche ou décide, hors de la console ? | fait |
-| 99 | Critères de ville et de région rangés par nom (`city`, `cities`, `region` des recherches sauvegardées et des alertes sans compte, `seeking_cities` du CRM) face à une ville renommée par le chargeur du référentiel (`GeoReferentialLoader`, TCK-787) : alertes et rapprochements muets ? | à faire |
+| 99 | Critères de ville et de région rangés par nom (`city`, `cities`, `region` des recherches sauvegardées et des alertes sans compte, `seeking_cities` du CRM) face à une ville renommée par le chargeur du référentiel (`GeoReferentialLoader`, TCK-787) : alertes et rapprochements muets ? | fait |
 | 98 | Supprimer, versionner ou partager un document que l'on ne fait que lire (`DocumentController::destroy`, `DocumentVersionController`, `DocumentShareLinkController`, `DocumentPolicy::share`) face aux règles écrites des tickets : locataire, bailleur invité, agent d'une autre agence, compte bloqué |
 | 100 | Constantes `*_FIELDS` et `fields[…]` écrits du front face aux `$queryFields` du modèle visé : colonne demandée que l'API refuse (400 `http.bad_request`), rattrapée en `null` ou en page d'erreur — `src/lib/queries/*.ts`, `src/app/actions/*` | à faire |
 | 101 | Passage axe au navigateur des écrans `/app` des autres profils (propriétaire, locataire, prestataire, agent) et des pages de détail `[id]` (bien, bail, client, paiement), derrière le faux API en lecture seule de l'angle 68 | à faire |
@@ -9808,3 +9808,84 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - `maintenance/status` sort en `Cache-Control: public, max-age=60` (relevé par le sous-agent) : l'annulation d'une fenêtre peut ne pas se voir avant une minute de plus que le cache serveur (à vérifier).
 - Piste : retirer `requires_restart` de la clé ; initialiser la bascule sur l'état évalué ; oublier le jeton en cache sur `IntegrationConfigChanged` ; réduire la durée publique du statut de maintenance.
 - Mesure (2026-10-21, 43cf8fe51, mesureur) : relu `EditablePlatformSettings.php:57-63` (`requires_restart: true`), `SessionTokenIssuer.php:41-43` (la valeur lue à chaque émission, pour le seul super-admin), `platform-settings.tsx:57` ; `feature-flags.tsx:166-172` (`useState(false)`, aucun état de session lu : seule `POST feature-flags/{key}/override` existe, `routes/api/admin.php:267`) et `grep -rn "useFeatureFlag(" src` → la seule définition, `FeatureFlagProvider.tsx:38` ; `OrangeMoneyDriver.php:166-188` (jeton en cache par intégration jusqu'à `expires_in` moins la marge) et `grep -rn IntegrationConfigChanged app` → l'événement et son seul émetteur, `IntegrationService.php:94` ; `MaintenanceStatusController.php:17` (`max-age=60, public`, gardé par `MaintenanceModeTest`), `MaintenanceService.php:18,71` (cache serveur de 60 s, oublié à l'annulation) et le relais `app/api/maintenance/status/route.ts` (`revalidate: 60`, en-tête recopié) → les quatre points tiennent ; le quatrième est inexact dans sa forme : le cache serveur est vidé à l'annulation, le retard vient du relais Next (60 s) puis du navigateur (60 s). Classement : V1 pour le jeton d'un pilote de paiement, V7 pour l'état initial de la bascule et la durée du statut public, que la piste ne fixe pas.
+
+## Angle 99 — Critères de ville et de région rangés par nom face au chargeur du référentiel
+
+*Exploré le 2026-10-21 sur `pre-dev` 061983a9f, par l'explorateur, seul (aucun sous-agent). Relu :
+`GeoReferentialLoader` (ville, région, quartier), `GeoAddressCanonicalizer` (règles 1 et 5),
+`PropertySearchService::buildFilter()` (`city`, `region`, `cities`), `SavedSearchCriteria`,
+`QuartierDuFiltre::idsDuReferentiel()`, `GeoNeighborhoodModeration::renommer()`,
+`ProspectMatcher` (`propertiesFor`, `customersFor`, `whereListAccepts`), `extract.mjs` et
+`corrections.json` du jeu, `docker/release.sh:21` (`geo:sync-referential` à chaque mise en
+service), ADR-0062 §3, §4 et §8, TCK-787 et TCK-1080 ; côté front `FilterSidebar`,
+`ChoixDuReferentiel` (`region` écrite pour une ville homonyme seulement) et `CustomerForm`
+(villes du prospect en texte libre). Mesures : un test temporaire, retiré, sur la base de test
+(charge 1,52 puis 1,49 sur 8 cœurs), qui charge le jeu `tests/fixtures/geo/v1` modifié par
+`geo:sync-referential` et rejoue `alertMatches(SavedSearchCriteria::toSearchParams(criteria))` —
+le chemin des alertes, comptes et sans compte (`RecordPublicSearchAlert` écrit un
+`SavedSearch`) — et `ProspectMatcher` dans les deux sens. `SELECT` par `tinker` sur la base de
+développement : 85 recherches sauvegardées, aucune avec `city`, `cities` ou `region` ; 564
+prospects, aucun avec `seeking_cities` ; 504 villes. Rien n'a été lu en préproduction, et aucun
+renommage n'a été observé dans le jeu versionné : les entrées décrivent ce que fera le prochain
+jeu qui renomme. Ce qui tient, et n'a pas d'entrée : une ville renommée par le jeu réécrit
+`addresses.city` et réindexe (TCK-787, mesuré : `city=<nouveau nom>` → 1) ; le sitemap tire ses
+villes des facettes de l'index et suit donc le nouveau nom.*
+
+### Une ville renommée par le jeu fait taire les alertes `city` / `cities` et le rapprochement CRM sur son ancien nom
+- Réf : P99.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:90-108`, `:186-193`, `takussan-api/app/Services/Search/PropertySearchService.php:491-505`, `takussan-api/app/Services/Crm/ProspectMatcher.php:102-109`, `:167`, `takussan-api/tests/Feature/Geo/GeoReferentialRealignementTest.php:125`
+- Constat :
+  - Le chargeur renomme la ville (`fill(['name' => …])`, l. 98) puis réécrit `addresses.city` au nouveau nom (l. 186-193) ; l'ancien nom n'est gardé nulle part : `geo_cities` n'a pas d'équivalent de `former_names`, que TCK-1080 n'a ajouté qu'aux quartiers (lu, migration `2026_10_20_220000`).
+  - Le filtre `city` et chaque terme de `cities` sont une égalité sur le texte indexé (lu, l. 491-492 et 500-504) ; le rapprochement CRM compare `seeking_cities` au texte `addresses.city`, replié par casse (lu, l. 102-109 et 167).
+  - Mesuré (test temporaire) : bien à « Guédiawaye » d'une agence, prospect de cette agence `seeking_cities = ["Guédiawaye"]` ; avant, `{city: "Guédiawaye"}` → 1, `{cities: ["Guédiawaye"]}` → 1, `propertiesFor` → 1, `customersFor` → 1 ; jeu rejoué avec la ville nommée « Guédiawaye Ville » (slug inchangé) → 0, 0, 0, 0, et `{city: "Guédiawaye Ville"}` → 1. L'alerte et le récapitulatif quotidien se taisent sans erreur.
+  - Le test de TCK-787 affirme lui-même `city=Guédiawaye` → `[]` après le renommage (lu, l. 125) : l'effet sur les critères rangés n'y est pas considéré.
+- Piste : appliquer aux villes la décision de TCK-1080 pour les quartiers : garder les anciens noms (`geo_cities.former_names`, écrit par `ville()` quand le nom change), et faire lire par `buildFilter()` (`city` et `cities` élargis aux villes dont un ancien nom a la même clé) et par `ProspectMatcher`. Garder par un test : charger, renommer par le jeu, rejouer `alertMatches` et `propertiesFor` sur l'ancien nom → 1.
+
+### Un quartier renommé par le jeu ne garde pas son ancien nom, contrairement au renommage de la console
+- Réf : P99.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:144-161`, `takussan-api/app/Services/Geo/GeoNeighborhoodModeration.php:73-74`, `takussan-api/app/Services/Search/QuartierDuFiltre.php:20-50`
+- Constat :
+  - La console range le nom d'avant dans `former_names` à chaque renommage (lu, `GeoNeighborhoodModeration.php:73-74`), et `idsDuReferentiel()` compte un ancien nom comme un nom du quartier (lu, docblock l. 24-25, code l. 43-47).
+  - Le chargeur renomme un quartier non renommé en console par `fill(['name' => …])` (lu, l. 150-156) sans toucher `former_names` ni `renamed_at`.
+  - Mesuré (test temporaire) : bien à « Point E », `{location: "Point E"}` → 1 ; jeu rejoué avec « Point E Amitié » → `{location: "Point E"}` → 0, `{location: "Point E Amitié"}` → 1, `former_names` = `null`.
+  - TCK-1080 vise le renommage « que la console a renommé » (lu, objectif du ticket) : le cas du jeu n'y est ni pris ni écarté.
+- Piste : dans `quartier()`, quand le nom change, ajouter l'ancien à `former_names` (sans doublon), comme `renommer()`. Garder par un cas de `GeoReferentialRealignementTest` : renommer par le jeu, puis `location=<ancien nom>` → le bien.
+
+### Une région renommée par le jeu laisse l'ancien nom dans `addresses.region` et dans l'index
+- Réf : P99.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:73-77`, `:186-193`, `takussan-api/app/Services/Geo/GeoAddressCanonicalizer.php:84-92`, `takussan-api/app/Models/Property.php:471`, `takussan-api/app/Services/Search/PropertySearchService.php:494-497`
+- Constat :
+  - La région est mise à jour par `updateOrCreate(['code' => …], ['name' => …])` (lu, l. 74-77) ; rien ne réécrit le texte `addresses.region`. `reecrireVille()` n'écrit que `city`, et seulement quand le nom de la ville change (lu, l. 99 et 192).
+  - Une adresse écrite ensuite reçoit le nouveau nom par la règle 5 du canoniseur (lu, l. 89) : deux textes pour une même région. ADR-0062 §4 veut que `region`, `city` et `neighborhood` « reçoivent les noms canoniques du référentiel » (lu).
+  - Mesuré (test temporaire) : bien à Dakar, `addresses.region` = « Dakar », `{city: "Dakar", region: "Dakar"}` → 1 ; jeu rejoué avec la région nommée « Dakar Région » (code inchangé) → `geo_regions.name` = « Dakar Région », `addresses.region` reste « Dakar », `{city: "Dakar", region: "Dakar Région"}` → 0, `{…, region: "Dakar"}` → 1.
+  - Effet sur la recherche : le panneau n'écrit `region` que pour une ville homonyme (lu, `ChoixDuReferentiel.tsx:131`, ADR-0062 §8), avec le nom de `/geo/regions` ; ces six villes ne trouveraient plus leurs biens existants (déduit, à vérifier sur une ville homonyme).
+- Piste : quand le nom d'une région change, réécrire `addresses.region` des adresses rattachées à ses villes (mise à jour SQL, comme `reecrireVille`, pour ne pas déclencher la règle 1) et ajouter leurs biens à `biensRenommes`. Garder par un test de `GeoReferentialRealignementTest` : région renommée, jeu rejoué deux fois, adresse et index au nouveau nom.
+
+### Une ville dont le jeu change le slug devient une seconde ville, et l'ancienne garde les adresses
+- Réf : P99.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:90-97`, `:114-136`, `takussan-api/database/data/geo/extract.mjs:138-141`, `takussan-api/database/data/geo/corrections.json`
+- Constat :
+  - Le chargeur retrouve une ville par son slug, puis par son nom replié, sinon il en crée une (lu, l. 92-96) ; les quartiers de même (l. 116-133). Rien n'est jamais supprimé (lu, docblock l. 27).
+  - L'extraction calcule le slug d'une ville à partir de son nom OSM (lu, `extract.mjs:139`) : un nom changé en amont change le slug, sauf si `corrections.json` le fige (`villes`, `renommer`, slugs « calculés AVANT correction », lu).
+  - Mesuré (test temporaire) : bien à « Guédiawaye » ; jeu rejoué avec la ville renommée « Ndiarème Limamoulaye » et le slug `ndiareme-limamoulaye` → trois villes au lieu de deux, l'ancienne gardée sous son nom avec l'adresse (`geo_city_id` inchangé), et « Golf Sud » présent deux fois, une fois par ville. Les deux villes sont servies par `/geo/cities` (lu, aucun filtre sur l'usage).
+  - L'extraction est relue à la main (`relu_par`, `relu_empreinte`, lu) ; qu'une telle relecture repère un slug disparu n'est écrit nulle part (à vérifier).
+- Piste : faire échouer le chargeur, ou `signer.mjs`, quand un slug de ville ou de quartier déjà en base n'apparaît plus dans le jeu et qu'une ville neuve porte les mêmes quartiers ; la correction passe alors par `corrections.json` (`villes`), qui garde le slug. Garder par un test du chargeur : jeu à slug changé → refus nommé, base inchangée.
+
+### Le rapprochement CRM ne reconnaît pas « Guediawaye » pour « Guédiawaye »
+- Réf : P99.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Crm/ProspectMatcher.php:102-109`, `:167`, `:232-250`, `takussan-web/src/components/customer-form/CustomerForm.tsx:380`
+- Constat :
+  - Les villes du prospect sont saisies en texte libre, séparées par des virgules (lu, `CustomerForm.tsx:103` et `:380`), et comparées à `addresses.city` par `CaseInsensitive`, qui ne replie que la casse (lu, l. 102-109 et 232-250). Le docblock le dit, et c'est délibéré : « Les villes se comparent repliées (ADR-0025), sans replier les accents » (lu, l. 29).
+  - Mesuré (test temporaire) : bien à « Guédiawaye » ; prospect `["Guediawaye"]` → `propertiesFor` 0 et absent de `customersFor` ; prospect `["guédiawaye"]` → 1 et présent.
+  - Les quartiers du prospect se comparent par `CleDeQuartier`, accents et tirets repliés, depuis TCK-1083 (P67.05) : les villes du même formulaire ne suivent pas cette règle (lu, l. 111-125).
+- Piste : rattacher la saisie au référentiel (`villeParNom` sur la clé repliée), ou comparer les villes par une clé repliée comme les quartiers ; dans les deux cas, revenir sur le choix écrit au docblock (l. 29). Garder par un test : `["Guediawaye", "thies"]` face à « Guédiawaye » et « Thiès ».
