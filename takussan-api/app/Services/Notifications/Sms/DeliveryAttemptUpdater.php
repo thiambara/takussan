@@ -37,6 +37,10 @@ class DeliveryAttemptUpdater
      *                                               be replayed by Meta, and by every SMS DLR path with
      *                                               {@see self::SMS_STATUS_PRECEDENCE}; payment callers omit it and keep
      *                                               last-write semantics.
+     * @param  (\Closure(NotificationDeliveryAttempt): void)|null  $onLateFailure  P72.01 (TCK-1092) —
+     *                                                                             appelé après la transaction, une seule
+     *                                                                             fois : quand la tentative PASSE à `failed`,
+     *                                                                             jamais sur un accusé rejoué.
      * @return bool true if a row was actually updated, false if the
      *              webhook payload didn't match any tracked attempt.
      */
@@ -48,6 +52,7 @@ class DeliveryAttemptUpdater
         ?string $failureReason = null,
         ?\DateTimeInterface $deliveredAt = null,
         ?array $statusPrecedence = null,
+        ?\Closure $onLateFailure = null,
     ): bool {
         if ($providerMessageId === '') {
             return false;
@@ -97,6 +102,9 @@ class DeliveryAttemptUpdater
 
         if ($failed !== null) {
             $this->lateFailure($failed);
+            if ($onLateFailure !== null) {
+                $onLateFailure($failed);
+            }
         }
 
         return $matched;

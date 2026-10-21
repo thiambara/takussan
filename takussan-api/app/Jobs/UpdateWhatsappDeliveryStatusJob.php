@@ -57,6 +57,12 @@ class UpdateWhatsappDeliveryStatusJob implements ShouldQueue
                 WhatsappResult::STATUS_DELIVERED,
                 WhatsappResult::STATUS_FAILED,
             ],
+            // P72.01 (TCK-1092) — un `failed` de Meta est un échec sûr : le SMS de la même
+            // notification part, aux conditions de {@see SendSmsAfterLateWhatsappFailureJob}.
+            onLateFailure: fn (NotificationDeliveryAttempt $attempt) => SendSmsAfterLateWhatsappFailureJob::dispatch(
+                $attempt->id,
+                CarbonImmutable::now()->getTimestamp(),
+            ),
         );
     }
 }
