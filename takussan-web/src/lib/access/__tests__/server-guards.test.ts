@@ -136,6 +136,27 @@ describe('ensureStandardAgencyOrRedirect', () => {
     expect(await refus(utilisateur(7))).toBe('/verification-indisponible');
   });
 
+  it('reconnaît le délai d’`AbortSignal.timeout` comme une panne — TCK-1090 (P79.05)', async () => {
+    // Un délai posé par `AbortSignal.timeout` rejette `fetch` avec la raison du signal : une
+    // `DOMException` `TimeoutError`, sans `cause`. C'est le même fait que
+    // `UND_ERR_HEADERS_TIMEOUT` (une API qui ne répond pas à temps), rangé parmi les pannes.
+    getToken.mockResolvedValue('tok');
+    const raison = await new Promise<unknown>((resoudre) => {
+      const signal = AbortSignal.timeout(1);
+      signal.addEventListener('abort', () => resoudre(signal.reason));
+    });
+    expect((raison as Error).name).toBe('TimeoutError');
+    fetchAgency.mockRejectedValue(raison);
+    expect(await refus(utilisateur(7))).toBe('/verification-indisponible');
+  });
+
+  it('un abandon voulu (`AbortError`) reste un bug — il ne se distingue pas d’un délai', async () => {
+    getToken.mockResolvedValue('tok');
+    const abandon = new DOMException('This operation was aborted', 'AbortError');
+    fetchAgency.mockRejectedValue(abandon);
+    await expect(ensureStandardAgencyOrRedirect(utilisateur(7))).rejects.toBe(abandon);
+  });
+
   it('un bug dont le message CONTIENT « timeout » reste un bug', async () => {
     // Le motif précédent cherchait /…|timeout/i dans n'importe quel message : un
     // `TypeError: Cannot read properties of undefined (reading 'timeout')` — bug ordinaire —

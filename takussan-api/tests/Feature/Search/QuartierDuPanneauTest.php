@@ -94,6 +94,41 @@ class QuartierDuPanneauTest extends ApiTestCase
         $this->assertSame([$bien->id], $alerte['properties']->pluck('id')->map(fn ($id) => (int) $id)->all());
     }
 
+    /**
+     * TCK-1080 (P67.02) — un ancien nom de quartier renommé désigne toujours ce quartier.
+     *
+     * `renommer()` écrivait le nouveau nom et réécrivait les adresses ; l'ancien ne survivait
+     * qu'au journal. Une recherche sauvegardée sur « Sicap Lib » se taisait sans erreur.
+     */
+    public function test_un_ancien_nom_renomme_designe_toujours_le_quartier(): void
+    {
+        $ville = GeoCity::factory()->create(['name' => 'Dakar', 'slug' => 'dakar']);
+        $quartier = GeoNeighborhood::factory()->create(['geo_city_id' => $ville->id, 'name' => 'Sicap Lib', 'slug' => 'sicap-lib']);
+        $bien = $this->bien('Dakar', 'Sicap Lib', $quartier->id);
+        $temoin = $this->bien('Dakar', 'Almadies');
+        $this->indexProperties();
+        $this->assertDeuxCotes([$bien->id], ['location' => 'Sicap Lib']);
+
+        $moderation = app(GeoNeighborhoodModeration::class);
+        $moderation->renommer($quartier, 'Sicap Liberté', User::factory()->create());
+        $moderation->renommer($quartier->refresh(), 'Sicap Liberté 1', User::factory()->create());
+        $this->indexProperties();
+
+        $this->assertDeuxCotes([$bien->id], ['location' => 'Sicap Liberté 1']);
+        $this->assertDeuxCotes([$bien->id], ['location' => 'Sicap Liberte']);
+        $this->assertDeuxCotes([$bien->id], ['location' => 'Sicap Lib']);
+        $this->assertDeuxCotes([$temoin->id], ['location' => 'Almadies']);
+        $this->assertSame(['Sicap Lib', 'Sicap Liberté'], $quartier->refresh()->former_names);
+
+        $alerte = app(PropertySearchService::class)->alertMatches(
+            SavedSearchCriteria::toSearchParams(['location' => 'Sicap Lib']),
+            null,
+            now(),
+        );
+        $this->assertSame(1, $alerte['total']);
+        $this->assertSame([$bien->id], $alerte['properties']->pluck('id')->map(fn ($id) => (int) $id)->all());
+    }
+
     private function bien(string $ville, ?string $quartier, ?int $quartierId = null): Property
     {
         $bien = Property::factory()->published()->create(['featured' => false, 'published_at' => now()->subHour()]);
