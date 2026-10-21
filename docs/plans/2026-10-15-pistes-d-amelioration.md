@@ -9109,7 +9109,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Les choix de slug et de profil ignorent les lignes supprimées que la contrainte compte encore
 - Réf : P92.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-1133
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:51,132`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:244,317`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:163-178`, `takussan-api/app/Services/Invitation/AgentInvitationService.php:240-255`
 - Constat :
@@ -9117,6 +9117,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Même motif rapporté pour les contrôles d'avant invitation, qui ignorent les profils supprimés (voir P92.02) (à vérifier).
 - Piste : `withTrashed()` dans ces recherches de disponibilité ; test avec une agence supprimée de même nom.
 - Mesure (2026-10-21, c9a22e0df, mesureur) : relu `AgencyProvisioningService::uniqueSlug` et `HostIndividualOnboardingService::uniqueSlug` (`Agency::query()->where('slug', …)->exists()`, que `SoftDeletes` borne aux agences vivantes), `agencies.slug` `unique()` sur toutes les lignes, et `StoreAgencyOnboardingRequest.php:21` (`unique:agencies,slug`, qui compte déjà les supprimées quand le slug est fourni) ; test temporaire `TmpMesureurP92Test` (base créée par le test, charge 2,09 / 2,51 / 3,36 sur 8 cœurs, retiré ensuite) → agence « Sunu Gestion » supprimée, `POST /api/admin/agencies` sans `slug` en super-admin : 500 `agencies_slug_unique`. Le chemin de l'hôte individuel, même code relu, n'a pas été rejoué. La partie « contrôles d'avant invitation » n'a pas été rejouée : `assertNoActiveOwnerInAgency` et `assertNoActiveAgentInAgency` ignorent bien les profils supprimés (relu), mais l'issue (restaurer ou non le profil) est la cause de P92.02, classée V2 ; seule la partie slug est retenue ici. Correctif attendu : `withTrashed()` dans les deux `uniqueSlug`, et un test de provisionnement et d'inscription d'hôte avec une agence supprimée de même nom. Classement : A1, la contrainte et la règle de la requête d'onboarding comptent déjà les supprimées, et seul le slug engendré d'un appel qui échoue aujourd'hui change.
+- Mesure (2026-10-21, 3c6c8301f, implementeur) : avant correctif, `GeneratedAgencySlugCountsDeletedAgenciesTest` (agence de même nom supprimée) rend 500 `agencies_slug_unique` sur `POST /api/admin/agencies` sans `slug` et sur `POST /api/host/individual/onboard` → `Agency::withTrashed()` dans les deux `uniqueSlug`, slugs `sunu-gestion-2` et `espace-de-amine-2` ; ablation : services rendus à `3c6c8301f` → 2 rouges sur 2, remis → 2/2 ; classes voisines (provisionnement, devise, inscription et auto-inscription de l'hôte) : 33 verts. Les contrôles d'avant invitation restent à P92.02.
 
 ### Petites améliorations
 - Réf : P92.09
