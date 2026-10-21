@@ -56,13 +56,13 @@ Aucun endpoint. Avec `app.frontend_url` posée sans barre finale, aucun lien ne 
       un destinataire de fabrique, avec `app.frontend_url` posée puis vide, et son chemin comparé à
       la constante `CHEMINS` ; les liens de `InvitationMailable` et du résumé ; toute classe à
       `->action(` éprouvée ou exemptée.
-- [x] `scripts/check-notification-target-paths.mjs` : résout aussi les chemins de `CHEMINS` en
-      pages du front, comme ceux de `NotificationTarget::PATHS`.
+- [x] `takussan-web/src/__tests__/liens-des-courriels.test.ts` : résout chaque chemin de
+      `CHEMINS` en page du front, comme la garde de `NotificationTarget::PATHS`.
 
 ## Critères d'acceptation
 
 - [x] AC1 — avec `app.frontend_url` posée, chaque bouton commence par elle et suit son chemin
-      déclaré ; chaque chemin déclaré résout une page de `takussan-web/src/app` (garde JS).
+      déclaré ; chaque chemin déclaré résout une page de `takussan-web/src/app` (test du front).
 - [x] AC2 — avec `app.frontend_url` vide, chaque bouton se replie sur `app.url` (plus de lien
       relatif) ; le résumé n'a plus de double barre.
 - [x] AC3 — une classe neuve de `app/Notifications` qui pose un bouton fait rougir le test tant
@@ -78,12 +78,14 @@ Aucun endpoint. Avec `app.frontend_url` posée sans barre finale, aucun lien ne 
 
 - Choix : le test PHP ne lit pas le front. Une première version y résolvait le chemin rendu
   dans `takussan-web/src/app` ; `check-ci-attestation.mjs` l'a refusée (lecture hors de la clé de
-  l'API, ADR-0063), et élargir `PERIMETRES.api` touche la CI, fermée à l'implémenteur. Le test
-  compare donc le chemin rendu à `CHEMINS`, et la garde JS (Repo CI, qui lit les deux arbres)
-  résout `CHEMINS` en pages.
+  l'API, ADR-0063), et élargir `PERIMETRES.api` touche la CI, fermée à l'implémenteur. Étendre
+  `check-notification-target-paths.mjs` est refusé aussi (une garde existante ne se modifie pas,
+  V9), et une garde neuve ne tournerait pas en CI sans `repo-ci.yml`. Le test PHP compare donc le
+  chemin rendu à `CHEMINS`, et un test Vitest du front — joué par web-ci, dont la clé couvre toute
+  l'API — résout `CHEMINS` en pages.
 - Avant correctif : 5 rouges — `AccountDeletionRequested/Reminder` et `CodedNotification` en lien
   relatif sous `app.frontend_url` vide, la vue du résumé en `…//app/notifications` et en lien
   relatif.
 - Ablation : `FrontendUrl::base()` sans repli sur `app.url` → les deux jeux « vide » rougissent ;
-  un chemin de `CHEMINS` rendu mort (`/app/overview-p97`) → le test (2 rouges) et la garde JS
-  rougissent ; remis → vert.
+  un chemin de `CHEMINS` rendu mort (`/app/overview-p97`) → le test PHP (2 rouges) et le test du
+  front (1 rouge) rougissent ; remis → vert.
