@@ -9297,7 +9297,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Quatre écrans de la console rendent un horodatage SQL sans fuseau, lu en heure locale par le navigateur
 - Réf : P94.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1116
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:120-151`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:35,48`, `takussan-api/app/Services/Admin/HealthcheckService.php:369-374`, `takussan-api/app/Services/Admin/FailedJobService.php:24,34,75`, `takussan-web/src/lib/format.ts:106-118`, `takussan-web/src/components/admin/super/scheduler.tsx:60`, `takussan-web/src/components/admin/super/failed-jobs.tsx:150,307`, `takussan-web/src/components/admin/super/agency-detail.tsx:441,535`
 - Constat :
@@ -9326,6 +9326,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   `iso()`), au plus près de la requête. Pour empêcher le retour, un test par route qui asserte la
   chaîne exacte (`…T21:54:01+00:00`).
 - Mesure (2026-10-21, 67b0ae83f, mesureur) : relu `AgencyDetailController.php:122-151` (`MAX(paid_at)` d'un `DB::selectOne` rendu tel quel l. 151), `ScheduledTaskInspector.php:35,47`, `HealthcheckService.php:369,374`, `FailedJobService.php:24,75` → les quatre clés sortent sans Carbon ; `tinker` en lecture : `max(last_run_at)` et `->value('last_run_at')` rendent `"2026-10-18 21:54:01"`, `MAX(lease_payments.paid_at)` rend `"2026-10-25 00:00:00"` ; `TZ=Europe/Paris node` sur le formateur de `format.ts:111-118` → `19:54` pour la forme SQL, `21:54` pour `…+00:00` ; le front lit ces clés par `fmt.dateTime`/`fmt.date` (`scheduler.tsx:60`, `failed-jobs.tsx:150,307`, `agency-detail.tsx:441,535`) ; aucun commit ni ticket ne l'a traité. Classement : A1, ADR-0018 (accepté) écrit déjà la forme d'un instant (`iso()` : UTC, `DATE_ATOM`) et le correctif ne change qu'un affichage faux, sans choix de produit.
+- Mesure (2026-10-21, 6e5cee59b, implementeur) : `ConsoleInstantFormatTest` avant correctif → 4 rouges sur 5, chacun `'2026-10-18 21:54:01'` au lieu de `'2026-10-18T21:54:01+00:00'` (santé d'agence, `/api/admin/scheduler`, `/api/admin/health`, liste et détail des jobs en échec) → les quatre sites passent par `Carbon::parse(…)->utc()->format(DATE_ATOM)` : 5/5 verts ; ablation (les quatre sites rendus à `HEAD`) → 4 rouges, le cas `null` reste vert ; remis → 5/5.
 
 ### Le calendrier agrégé repose sur la forme SQL sans fuseau, et le front en dépend
 - Réf : P94.02
