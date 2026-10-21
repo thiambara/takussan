@@ -226,6 +226,8 @@ export async function fetchAllLeasePayments(
   let derniere: PaginatedResponse<LeasePayment> | null = null;
   for (let page = 1; page <= LEASE_PAYMENTS_MAX_PAGES; page++) {
     const qs = buildQueryString({
+      // P100.05 (TCK-1186) — `fields` inerte : `LeasePaymentController::index` lit `sort` et `per_page` à la main
+      // (TCK-1178), sans `buildQuery` (`LeasePayment::$queryFields` vide).
       fields: { lease_payments: LEASE_PAYMENT_FIELDS },
       filter: { lease_id: leaseId },
       sort: ['due_date'],

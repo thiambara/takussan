@@ -4,7 +4,7 @@ import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * TCK-1184 (P100.04) — toute colonne que le front demande par `fields[<table>]` est dans le
+ * TCK-1184 (P100.04), TCK-1186 (P100.05) — toute colonne que le front demande par `fields[<table>]` est dans le
  * `$queryFields` d'un modèle de cette table.
  *
  * spatie refuse en 400 (`InvalidFieldQuery`) un `fields` qui nomme une colonne hors de la liste
@@ -199,6 +199,21 @@ describe('fields[…] du front face aux $queryFields de l’API (TCK-1184)', () 
       if (refusees.length) fautes.push(`${site} : fields[${table}] refusées → ${refusees.join(', ')}`);
     }
     expect(fautes).toEqual([]);
+  });
+
+  /**
+   * TCK-1186 (P100.05) — un `fields` envoyé à une liste qui ne le lit pas se dit dans le fichier
+   * qui l'envoie, comme `property-moderation.ts` : sinon il se lit comme une charge réduite.
+   */
+  it('chaque fichier qui envoie un fields inerte le dit', () => {
+    const muets = [
+      ...new Set(
+        toutes
+          .filter((d) => d.table in HORS_BUILD_QUERY || `${d.site}#${d.table}` in SITES_HORS_BUILD_QUERY)
+          .map((d) => d.site),
+      ),
+    ].filter((site) => !/fields[^\n]*(inerte|non lus?\b)|inerte[^\n]*fields/i.test(readFileSync(join(SRC, site), 'utf8')));
+    expect(muets).toEqual([]);
   });
 
   it('chaque exception nomme encore une demande réelle', () => {
