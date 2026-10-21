@@ -41,8 +41,10 @@ class StoreTagRequest extends BaseFormRequest
             // TCK-633 (ADR-0062 §7) — `feature` est fondu dans `amenity` ; le cas reste dans
             // l'enum pour lire une base qui n'aurait pas encore migré.
             'type' => ['required', Rule::enum(TagType::class)->except([TagType::Feature])],
-            'icon' => ['nullable', 'string'],
-            'color' => ['nullable', 'string', 'max:20'],
+            // TCK-1107 (P91.02) — les bornes des colonnes : `icon` en `varchar(255)`, `color` en
+            // `varchar(7)` ; au-delà, 422 sur la clé, et non le 500 de PostgreSQL.
+            'icon' => ['nullable', 'string', 'max:255'],
+            'color' => ['nullable', 'string', 'max:7'],
             'description' => ['nullable', 'string'],
         ];
     }
