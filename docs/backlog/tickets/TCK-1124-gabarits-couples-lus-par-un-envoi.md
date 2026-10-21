@@ -31,7 +31,7 @@ donc aucun SMS ne lit son gabarit.
 
 ## Décision du porteur (déléguée)
 
-ne servir à l'éditeur que les couples événement × canal qu'un envoi lit, dérivés en API des codes dont `templateEvent()` rend l'événement : `email` pour chacun, `sms` seulement si l'un de ces codes est `mobile()`, jamais `push` tant que D-65 tient ; `GET /api/admin/notification-templates` ne rend que ces couples, et `ensureEditable()` refuse les autres par l'erreur existante `notification_channel_not_editable` ; l'écran tire ses onglets des couples rendus au lieu de la constante `CHANNELS` ; les lignes `notification_templates` existantes ne sont ni supprimées ni réécrites ; aucun texte neuf ; test : pour chaque couple servi, un gabarit actif se retrouve dans le rendu de son canal, et `maintenance_created`/`sms` et `*/push` ne sont plus servis
+ne servir à l'éditeur que les couples événement × canal qu'un envoi lit, dérivés en API des codes dont `templateEvent()` rend l'événement : `email` pour chacun, `sms` seulement si l'un de ces codes est `mobile()`, jamais `push` tant que D-65 tient ; `GET /api/admin/notification-templates` ne rend que ces couples, et `ensureEditable()` refuse les autres par l'erreur existante `notification_channel_not_editable` ; l'écran tire ses onglets des couples rendus au lieu de la constante `CHANNELS` ; les lignes `notification_templates` existantes ne sont ni supprimées ni réécrites ; aucun texte neuf ; test : pour chaque couple servi, un gabarit actif se retrouve dans le rendu de son canal, et `maintenance_created`/`sms` et `*/push` ne sont plus servis ; reste : brancher `title`/`body` sur un gabarit `push`, au porteur
 
 ## Reste à faire
 
