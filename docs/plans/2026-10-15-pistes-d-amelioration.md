@@ -8863,7 +8863,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### Le téléphone, le nom et le numéro d'agrément d'une agence n'ont aucune borne : 500 à l'écriture
 - Réf : P91.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:50-54`, `takussan-api/app/Http/Requests/Api/StoreAgencyRequest.php:35-39`, `takussan-api/app/Http/Requests/Api/Admin/StoreAgencyOnboardingRequest.php:24`, `takussan-api/database/migrations/2026_04_17_160002_create_agencies_table.php:13-18`
 - Constat :
@@ -8873,10 +8873,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Mesuré : `POST /api/agencies` avec `phone` de 31 caractères → **500** ; avec `license_number` de 256 caractères → **500**. En super-admin, `POST /api/admin/agencies` avec `agency.phone` de 40 caractères (sous la borne de 50) → **500**, `varchar(30)`.
   - L'écran de l'agence borne le téléphone à 20 caractères et le nom à 255 (lu, `takussan-web/src/lib/schemas/agency.ts:12,36-42`). Aucun appel du front à `POST /api/agencies` n'a été trouvé (lu : `grep -rn "'/api/agencies'"` dans `takussan-web/src` → rien).
 - Piste : ajouter `max:255` à `name` et `max:30` à `phone` dans les deux requêtes, et ramener `agency.phone` à `max:30` dans l'onboarding. `license_number` peut reprendre la borne de 100 du front, ou `max:255`. Ajouter `TelephoneJoignable` au téléphone d'agence serait un choix de format, à part. Un test par voie qui attend 422 sur la clé et une base intacte.
+- Mesure (2026-10-21, 3e5f55e7b, mesureur) : relu `AgencyUpdateRequest.php:50-54` et `StoreAgencyRequest.php:35-39` (`name`, `license_number`, `phone` en `string` sans `max`), `StoreAgencyOnboardingRequest.php:24` (`max:50`) et la migration (`phone` 30, `name`, `license_number`, `email` 255, aucune migration ultérieure ne les modifie) ; test temporaire `TmpMesureurP91Test`, un appel par cas (charge 5,71 / 5,59 / 5,21 sur 8 cœurs, base créée par le test, retiré ensuite) → `PATCH /api/agencies/{id}` en admin d'agence : `phone` 31, `name` 256, `license_number` 256 → 500 22001 ; `POST /api/agencies` : `phone` 31, `license_number` 256 → 500 ; `POST /api/admin/agencies` en super-admin, `agency.phone` 40 → 500 `varchar(30)`. Correctif attendu : `max:255` sur `name` et `license_number`, `max:30` sur `phone` dans les deux requêtes, `agency.phone` ramené de `max:50` à `max:30` dans l'onboarding, sans `TelephoneJoignable` ni la borne 100 du front, qui changeraient ce qui passe aujourd'hui. Classement : A1, la longueur des colonnes fixe le contrat et seul un 500 devient 422, aucune valeur qui s'écrit aujourd'hui n'est refusée.
 
 ### Couleur d'étiquette bornée à 20 caractères sur une colonne de 7, et icône sans borne : 500
 - Réf : P91.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StoreTagRequest.php:44-45`, `takussan-api/app/Http/Requests/Api/UpdateTagRequest.php:42-43`, `takussan-api/database/migrations/2026_04_17_160004_create_tags_table.php:17`
 - Constat :
@@ -8884,10 +8885,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Mesuré (test temporaire), en super-admin : `POST /api/tags` avec `color: '#ff0000ff00'` (11 caractères) → **500** `varchar(7)` ; `PATCH /api/tags/{id}` avec `color: 'turquoise'` → **500** ; `POST /api/tags` avec une `icon` de 256 caractères → **500** `varchar(255)`.
   - Aucun envoi de `color` n'a été trouvé dans les actions du front (lu : `grep color takussan-web/src/app/actions/admin-tags.ts` → rien). Seuls les clients directs l'atteignent.
 - Piste : `color` en `regex:/^#[0-9a-fA-F]{6}$/` (ou `hex_color` puis `max:7`), `icon` en `max:255`, dans les deux requêtes. Un test qui attend 422 sur chacune.
+- Mesure (2026-10-21, 3e5f55e7b, mesureur) : relu `StoreTagRequest.php:44-45` et `UpdateTagRequest.php:42-43` (`color` en `max:20`, `icon` sans `max`) et la migration (`string('color', 7)`, l. 17) ; test temporaire `TmpMesureurP91Test`, un appel par cas (charge 5,71 / 5,59 / 5,21 sur 8 cœurs, base créée par le test, retiré ensuite) → en super-admin, `POST /api/tags` `color: '#ff0000ff00'` → 500 `varchar(7)`, `icon` 256 → 500 `varchar(255)` ; `PATCH /api/tags/{id}` `color: 'turquoise'` → 500 `varchar(7)`. Correctif attendu : `color` en `max:7` et `icon` en `max:255` dans les deux requêtes ; le format `#rrggbb` (`regex` ou `hex_color`) refuserait des valeurs courtes qui s'écrivent aujourd'hui, et reste hors de ce classement. Classement : A1, la colonne fixe la borne et seul le 500 devient 422.
 
 ### Garants : téléphone sans borne sur un `varchar(30)`, et cinq champs texte sans borne, dans trois requêtes
 - Réf : P91.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StoreGuarantorRequest.php:33-44`, `takussan-api/app/Http/Requests/Api/UpdateGuarantorRequest.php:38-49`, `takussan-api/app/Http/Requests/Api/AttachGuarantorLeaseRequest.php:40-51`, `takussan-api/database/migrations/2026_04_17_160007_create_guarantors_table.php:13-16`
 - Constat :
@@ -8896,10 +8898,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - `AttachGuarantorLeaseRequest` (ajout d'un garant neuf à un bail) porte les mêmes règles (lu). Son 500 n'a pas été mesuré (à vérifier).
   - Le formulaire de garant du front borne `first_name` à 100 et le téléphone à 20 caractères (lu, `takussan-web/src/lib/schemas/lease.ts:116-118`, `common.ts:46-52`).
 - Piste : une liste de règles partagée par les trois requêtes, comme `ValidatesCustomerContactAndCriteria` pour les clients : `max:255` sur les champs texte, et sur `phone` soit `max:30`, soit l'alignement sur les clients (`TelephoneSaisi` + `TelephoneJoignable`). Ce second choix change ce qu'on accepte aujourd'hui. Un test par requête.
+- Mesure (2026-10-21, 3e5f55e7b, mesureur) : relu les trois requêtes (`StoreGuarantorRequest.php:33-44`, `UpdateGuarantorRequest.php:38-49`, `AttachGuarantorLeaseRequest.php:40-51`, toutes sans `max` ni règle de téléphone) ; test temporaire `TmpMesureurP91Test`, un appel par cas (charge 5,71 / 5,59 / 5,21 sur 8 cœurs, base créée par le test, retiré ensuite) → `POST /api/guarantors` : `phone` à deux numéros (31) → 500 `varchar(30)`, `first_name` 256 et `employer` 256 → 500 `varchar(255)` ; `PATCH /api/guarantors/{id}` `phone` 31 → 500 ; `POST /api/leases/{id}/guarantors` (non mesuré par l'explorateur) : `phone` 31 → 500, `first_name` 256 → 500. Correctif attendu : une liste de règles partagée par les trois requêtes, `max:255` sur les champs texte et l'adresse, `max:30` sur `phone` ; l'alignement sur `TelephoneSaisi` + `TelephoneJoignable` change ce qu'on accepte et reste hors de ce classement. Classement : A1, les colonnes fixent les bornes, seul le 500 devient 422, rien de ce qui est conservé ou exposé ne change.
 
 ### Fiche client : prénom, nom et profession sans borne, 500 à la création et à la modification
 - Réf : P91.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StoreCustomerRequest.php:40-46`, `takussan-api/app/Http/Requests/Api/UpdateCustomerRequest.php:65-71`, `takussan-api/database/migrations/2026_04_17_160006_create_customers_table.php:16-18`
 - Constat :
@@ -8908,10 +8911,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - `UpdateCustomerRequest` porte les mêmes règles (lu). Son 500 n'a pas été mesuré (à vérifier).
   - Le formulaire client du front borne le prénom et la profession (120) (lu, `takussan-web/src/lib/schemas/customer.ts:47,68`).
 - Piste : `max:255` sur `first_name`, `last_name` et `occupation` dans les deux requêtes, ou dans `ValidatesCustomerContactAndCriteria` s'ils y rejoignent les contacts. Étendre le test de création et de modification d'un cas par clé.
+- Mesure (2026-10-21, 3e5f55e7b, mesureur) : relu `StoreCustomerRequest.php:40-46` et `UpdateCustomerRequest.php:65-71` (`first_name`, `last_name`, `email`, `occupation` sans `max`) ; test temporaire `TmpMesureurP91Test`, un appel par cas (charge 5,71 / 5,59 / 5,21 sur 8 cœurs, base créée par le test, retiré ensuite) → en agent, `POST /api/customers` : `first_name` 256 et `occupation` 256 → 500 `varchar(255)` ; `PUT /api/customers/{id}` (non mesuré par l'explorateur) : `last_name` 256 et `occupation` 256 → 500. Correctif attendu : `max:255` sur `first_name`, `last_name` et `occupation` dans les deux requêtes (l'adresse relève de P91.05), et un cas par clé dans les tests de création et de modification. Classement : A1, la colonne et la borne voisine de `emergency_contact_name` fixent le contrat, seul le 500 devient 422.
 
 ### La règle `email` ne borne pas la longueur : l'inscription publique rend 500 sur une adresse de plus de 255 caractères
 - Réf : P91.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Auth/RegisterRequest.php:28`, `takussan-api/app/Http/Requests/Api/StoreCustomerRequest.php:42`, `takussan-api/app/Http/Requests/Api/UpdateCustomerRequest.php:67`, `takussan-api/app/Http/Requests/Api/StoreGuarantorRequest.php:36`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:53`, `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:32`, `takussan-api/database/migrations/0001_01_01_000000_create_users_table.php:17`
 - Constat :
@@ -8920,20 +8924,22 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Dix-neuf règles `email` sans `max` (relevé du script) : `RegisterRequest`, `StoreCustomerRequest`, `UpdateCustomerRequest`, les trois requêtes de garant, `StoreAgencyRequest`, `AgencyUpdateRequest`, `CreateInvitationRequest`, `InviteOwnerRequest`, `InviteAgentRequest`, `InviteServiceProviderRequest`, `InviteSuperAdminRequest`, `AddAgentAgencyRequest`, `StorePropertyVisitRequest` (`visitor_email`) et les `recipients.emails.*` des règles d'alerte. Celles de `LoginRequest` et des deux requêtes de mot de passe ne font que chercher (lu), sans écrire. Le 500 des invitations et des garants n'a pas été mesuré (à vérifier).
   - Le front borne l'adresse à 255 caractères partout où il passe par `emailSchema` (lu, `takussan-web/src/lib/schemas/common.ts:20-26`).
 - Piste : ajouter `max:255` à chaque règle `email` qui écrit, en commençant par l'inscription, seule voie publique. Une règle partagée (`App\Rules\` ou une constante de règles) éviterait la vingtième. Un test par requête qui écrit.
+- Mesure (2026-10-21, 3e5f55e7b, mesureur) : relu `RegisterRequest.php:28` (`required`, `email`, `unique`, sans `max`) ; test temporaire `TmpMesureurP91Test`, un appel par cas (charge 5,71 / 5,59 / 5,21 sur 8 cœurs, base créée par le test, retiré ensuite), adresse valide de 297 caractères → `POST /api/auth/register` sans authentification → 500 `varchar(255)` ; même adresse : `POST /api/customers`, `PUT /api/customers/{id}`, `PATCH /api/agencies/{id}` et `POST /api/guarantors` → 500 `varchar(255)`. Le 500 des invitations n'a pas été obtenu : `POST /api/invitations` a rendu 422 sur `invitable_type`, charge utile incomplète, il reste à vérifier. Correctif attendu : `max:255` sur la règle `email` de chaque requête dont l'implémenteur établit qu'elle écrit dans un `varchar(255)` (mesurées : inscription, clients, garants, agences), en commençant par l'inscription ; une requête dont la colonne n'est pas un `varchar(255)` reste hors du lot. Classement : A1, la colonne fixe la borne ; V2 n'est pas touché, aucune inscription qui aboutit aujourd'hui n'est refusée, seul le 500 devient 422.
 
 ### La preuve de signature d'un bail écrit le domaine entier de l'e-mail dans un `varchar(120)`
 - Réf : P91.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : tronquer la preuve de signature ou élargir sa colonne
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/LeaseSignatureService.php:121,169,350-355`, `lease_signatures.otp_destination` (`varchar(120)`, `information_schema`)
 - Constat :
   - Sans téléphone vérifié, le code de signature part par e-mail, et `destination` vaut `maskEmail($user->email)` : la première lettre, `•••@`, puis **le domaine entier** (lu, l. 121 et 350-355). `sign()` recopie cette valeur dans `otp_destination` (lu, l. 169), qui est un `varchar(120)`.
   - Un compte peut porter une adresse au domaine de plus de 115 caractères : `UpdateProfileRequest` borne l'adresse à 255, et la règle `email` accepte un domaine de 185 caractères (mesuré, P91.05). La signature d'un tel compte échouerait alors à la dernière étape, code juste, en 22001. C'est déduit : le cas n'a pas été joué de bout en bout (à vérifier).
 - Piste : tronquer le domaine masqué (`mb_substr(…, 0, 120)`), comme `user_agent` l. 167, ou élargir la colonne (V4). Un test unitaire de `maskEmail` sur un domaine long, et un test de `sign()` qui attend 200.
+- Mesure (2026-10-21, 3e5f55e7b, mesureur) : relu `LeaseSignatureService.php:122` (`maskEmail` sans téléphone vérifié), `:169` (`otp_destination` recopié) et `:350-355` (domaine entier), migration `2026_10_08_020100` (`string('otp_destination', 120)`) ; méthode temporaire ajoutée à `LeaseSignatureTest` puis retirée (même charge), locataire sans téléphone vérifié à l'adresse `a@` + domaine de 124 caractères → le code part, puis `POST /api/leases/{id}/signature` avec le bon code → 500 `varchar(120)`. Le constat, déduit, est établi de bout en bout. Classement : V4, la `Piste` hésite entre élargir la colonne (migration) et tronquer la destination masquée d'une preuve de signature, ce qui ôte de la preuve une partie de ce qu'elle enregistre : un choix à trancher.
 
 ### Aucune garde ne confronte les bornes de longueur des règles au schéma
 - Réf : P91.07
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/`, `takussan-api/tests/Feature/Validation/ReglesNullableFaceAuSchemaTest.php`
 - Constat :
@@ -8941,10 +8947,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Le pendant « `nullable` » existe depuis TCK-982 (`ReglesNullableFaceAuSchemaTest`, voir P54.07) : il vérifie des couples (requête, clé, table, colonne) relevés à la main. Rien d'équivalent ne compare `max:` à `character_maximum_length`.
   - Le rapprochement par nom de cet angle a laissé 66 couples « `string` sans `max` » sur une clé homonyme d'une colonne `varchar`. Seuls ceux des entrées P91.01 à P91.05 sont établis : le reste demande la table écrite par chaque requête.
 - Piste : sur le modèle de `ReglesNullableFaceAuSchemaTest`, un test qui liste les couples (requête, clé, table, colonne) des entrées P91.01 à P91.05. Il vérifierait trois points : la longueur de la colonne dans `information_schema`, une règle `max:` présente et au plus égale, et la règle jouée seule sur une chaîne de N+1 caractères qui rend une erreur sur la clé. La variante générique (toute règle `string` d'une requête qui écrit) demande la même table requête → modèle que le reste de P54.07.
+- Mesure (2026-10-21, 3e5f55e7b, mesureur) : `grep -rln character_maximum_length takussan-api/tests scripts` → les deux mêmes fichiers (`CustomerIdNumberEncryptionTest`, `GuarantorSensitiveDataTest`), aucun ne lit un FormRequest ; `ReglesNullableFaceAuSchemaTest` ne vérifie aucune règle `max:` (`grep max:` → rien). Correctif attendu : sur le modèle de `ReglesNullableFaceAuSchemaTest`, un test qui liste les couples (requête, clé, table, colonne) de P91.01 à P91.05 et vérifie la longueur lue dans `information_schema`, une règle `max:` au plus égale, et une erreur sur la clé pour N+1 caractères ; il se livre avec les correctifs qu'il garde. Classement : A5, une garde ajoutée sans seuil touché, dans sa forme simple ; la variante générique reste à l'appréciation de l'implémenteur.
 
 ### Petites améliorations
 - Réf : P91.08
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/StoreForAgencyReviewRequest.php:48`, `takussan-api/app/Http/Requests/Api/StoreForPropertyReviewRequest.php:52`, `takussan-api/app/Http/Requests/Api/MarkPaidLeasePaymentRequest.php:67`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:51`, `takussan-api/app/Services/Model/LeasePaymentService.php:90`, `takussan-api/app/Services/Model/BookingPaymentService.php:41`, `takussan-web/src/lib/schemas/common.ts:44`
 - Constat :
@@ -8952,3 +8959,4 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Le `transaction_id` d'un encaissement manuel d'échéance ou de réservation est `string` sans `max` (lu), et il est recopié tel quel dans un `varchar(255)` (lu, `LeasePaymentService.php:90`, `BookingPaymentService.php:41`). Le 500 n'a pas été mesuré (à vérifier).
   - Le commentaire du front annonce que le téléphone est normalisé en E.164 côté serveur (lu, `common.ts:44`). C'est vrai pour les clients et les visites, faux pour les garants et les agences (P91.01, P91.03 : ni `TelephoneSaisi` ni `TelephoneJoignable`, lu).
 - Piste : `max:255` sur `title` et `transaction_id`. Corriger le commentaire du front, ou aligner les deux voies, selon ce que P91.03 décide.
+- Mesure (2026-10-21, 3e5f55e7b, mesureur) : relu `StoreForAgencyReviewRequest.php:48` et `StoreForPropertyReviewRequest.php:52` (`title` sans `max`, quand les requêtes d'avis d'agent et de prestataire portent `max:255`), `MarkPaidLeasePaymentRequest.php:67` et `StoreBookingPaymentRequest.php:51` (`transaction_id` sans `max`, colonnes `varchar(255)` des deux tables) ; test temporaire `TmpMesureurP91Test`, un appel par cas (charge 5,71 / 5,59 / 5,21 sur 8 cœurs, base créée par le test, retiré ensuite) → en super-admin, `POST /api/agencies/{id}/reviews` `title` 256 → 500 `varchar(255)` ; en agent, `POST /api/lease-payments/{id}/mark-paid` `transaction_id` 256 → 500 `varchar(255)`. Avis de bien et paiement de réservation non joués, même règle relue. Le commentaire `common.ts:44` reste inexact pour les garants et les agences (aucune règle de téléphone, relu). Correctif attendu : `max:255` sur `title` et `transaction_id` dans les quatre requêtes ; le commentaire du front corrigé pour dire que la normalisation E.164 vaut pour les clients et les visites. Classement : A1 et A6, les colonnes fixent les bornes sans changer aucun montant ni l'écriture d'un paiement qui aboutit aujourd'hui, et le commentaire est ramené à ce que fait le code.
