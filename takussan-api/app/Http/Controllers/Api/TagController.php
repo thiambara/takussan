@@ -90,16 +90,19 @@ class TagController extends Controller
         $tag->refresh()->fill($data);
         $visibiliteChangee = $tag->isDirty(['type', 'status']);
         $tag->save();
-        if ($visibiliteChangee) {
-            $reindexation->biens($tag->properties()->pluck('properties.id')->map(fn ($id) => (int) $id)->all());
-        }
 
+        // TCK-1098 (P90.03) — le journal avant l'index : un moteur injoignable fait lever la
+        // réindexation, et la modification, déjà écrite, doit rester tracée.
         activity('Admin')
             ->performedOn($tag)
             ->causedBy($request->user())
             ->withProperties(['tag_id' => $tag->id, 'changed' => array_keys($data)])
             ->event('super_admin_tag_updated')
             ->log('Tag plateforme modifié');
+
+        if ($visibiliteChangee) {
+            $reindexation->biens($tag->properties()->pluck('properties.id')->map(fn ($id) => (int) $id)->all());
+        }
 
         return $this->json(['data' => $this->format($tag->refresh())]);
     }
