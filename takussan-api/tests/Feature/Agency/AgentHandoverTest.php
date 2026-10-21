@@ -9,6 +9,7 @@ use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\RelationshipStatus;
 use App\Models\Enums\RelationshipType;
 use App\Models\Enums\TaskStatus;
+use App\Models\Enums\UserStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
@@ -182,6 +183,33 @@ class AgentHandoverTest extends ApiTestCase
                 ->assertJsonValidationErrors('successor_id');
         }
         $this->assertSame(3, Task::query()->where('assigned_to_id', $this->leaver->id)->whereIn('id', $this->ids['tasks'])->count());
+    }
+
+    /**
+     * P88.01 (TCK-1095) — un repreneur au compte bloqué ou supprimé n'est pas du personnel
+     * (`PersonnelDeLAgence::estPersonnel()`), même avec un profil d'agent actif : la passation le
+     * refuse sur son champ, et rien ne bouge. Il recevait la collaboration du sortant, marque
+     * `is_primary` comprise, et ses tâches.
+     */
+    public function test_a_blocked_or_deleted_account_is_never_a_successor(): void
+    {
+        foreach ([UserStatus::Blocked, UserStatus::Deleted] as $status) {
+            $candidate = $this->member('agent');
+            $candidate->forceFill(['status' => $status])->save();
+
+            $this->actingAsApi($this->admin)->apiPost($this->url('handover'), ['successor_id' => $candidate->id])
+                ->assertStatus(422)
+                ->assertJsonValidationErrors(['successor_id' => __('team_handover.handover.successor_not_staff')]);
+
+            $this->actingAsApi($this->admin)->apiPost($this->url('handover'), [
+                'successors' => ['tasks' => $candidate->id], 'leave_unassigned' => true,
+            ])->assertStatus(422)->assertJsonValidationErrors('successors.tasks');
+
+            $this->assertSame(0, Task::query()->where('assigned_to_id', $candidate->id)->count());
+            $this->assertSame(0, PropertyCollaborator::query()->where('user_id', $candidate->id)->count());
+        }
+        $this->assertSame(3, Task::query()->where('assigned_to_id', $this->leaver->id)->whereIn('id', $this->ids['tasks'])->count());
+        $this->assertSame(2, PropertyCollaborator::query()->where('user_id', $this->leaver->id)->count());
     }
 
     public function test_a_failure_halfway_moves_nothing(): void

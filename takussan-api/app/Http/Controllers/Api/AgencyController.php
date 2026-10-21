@@ -18,7 +18,6 @@ use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\Currency;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Billing\QuotaResolver;
@@ -161,13 +160,12 @@ class AgencyController extends Controller
 
     /**
      * List members of an agency. Supports spatie/laravel-query-builder
-     * filters (role, search) and sparse fieldsets.
+     * filters (role, assignable, search) and sparse fieldsets.
      *
-     * TCK-278 — the `role` filter is honoured post-query because a role is a
-     * polymorphic PROFILE (`OwnerProfile` / `AgentProfile` / …), not a column
-     * on `users`. It used to read « because spatie roles live on a separate
-     * pivot » — that pivot was dropped with `spatie/laravel-permission`
-     * (ADR-0002); the post-query step survived it for a different reason.
+     * P88.03 (TCK-1096) — `filter[role]` is resolved on the polymorphic
+     * profiles held IN this agency (`User::buildAgencyMembersQuery`), and
+     * `filter[assignable]=1` keeps only reachable active staff, for the
+     * target pickers.
      */
     public function listMembers(Request $request, Agency $agency): JsonResponse
     {
@@ -180,23 +178,15 @@ class AgencyController extends Controller
             $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agency->id))
                 ->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agency->id));
         });
-        $query = User::buildQuery($base, $request);
+        // P88.03 (TCK-1096) — `filter[role]` juge le profil DANS cette agence, et
+        // `filter[assignable]=1` ne garde que le personnel joignable (`User::buildAgencyMembersQuery`).
+        // Le filtre de rôle était résolu ici, après coup, par un `whereHas` sans agence : un
+        // bailleur de l'agence, agent ailleurs, sortait comme agent.
+        $query = User::buildAgencyMembersQuery($base, $request, (int) $agency->id);
         // TCK-281 — la recherche des membres bascule sur Meilisearch avec ce
         // ticket (le front lui envoie déjà `filter[search]`) : elle hérite
         // donc du classement par pertinence, comme la liste des agences.
         $query->defaultSorts(...User::defaultSortsWithRelevance('-created_at'));
-
-        // TCK-278 — Filtre `?filter[role]=...` désormais résolu via les
-        // profils polymorphes plutôt que la table spatie `roles`.
-        $role = $request->query('filter.role') ?? data_get($request->query('filter', []), 'role');
-        if ($role) {
-            match ($role) {
-                'agent' => $query->whereHas('agentProfiles'),
-                'agency_admin' => $query->whereHas('agencyAdminProfiles'),
-                'owner' => $query->whereHas('ownerProfiles'),
-                default => $query->whereRaw('1 = 0'),
-            };
-        }
 
         $paginator = $query->paginate($this->tailleDePage($request, 20));
 
