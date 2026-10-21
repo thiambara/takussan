@@ -9783,17 +9783,18 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Une fenêtre de maintenance bloque la connexion, y compris celle de l'opérateur qui doit la lever
 - Réf : P98.09
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : exempter des routes de connexion et de session du blocage de maintenance
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/MaintenanceService.php:75-91`, `takussan-api/routes/api/auth.php:29,57`, `takussan-web/src/app/(super-admin)/super-admin/layout.tsx:43`
 - Constat :
   - Seuls `api/maintenance/status` et `api/admin*` échappent au blocage (lu, `:77`). En mode `down`, `api/auth/login` et `GET api/auth/me` rendent 503 ; en mode `read_only`, tout `POST` est refusé, dont `api/auth/login` et `api/auth/logout` (lu, `:86-90`).
   - La console vérifie l'utilisateur par `getMeAction` → `/auth/me` (lu par le sous-agent, `layout.tsx:43`) : en `down`, un opérateur ne peut ni se connecter ni, probablement, charger la console pour annuler la fenêtre (à vérifier : chemin d'erreur de `getMeAction` sur 503 non suivi). En `read_only`, personne ne peut ouvrir de session.
 - Piste : exempter `api/auth/*` (au moins la connexion et `me`) ou la seule session d'un opérateur ; test par mode, connexion d'un super-admin pendant la fenêtre.
+- Mesure (2026-10-21, 43cf8fe51, mesureur) : relu `MaintenanceService::shouldBlock()` (l. 76-91, seules `api/maintenance/status` et `api/admin*` exemptées), `bootstrap/app.php:79` (`MaintenanceMode` en tête du groupe `api`) et la console, dont l'appel a bougé : `layout.tsx:52` → `getMeOperateurAction()` → `actions/auth.ts:135` `getMe` → `/api/auth/me`, qui ne redirige que sur 401 et relance toute autre erreur ; test temporaire (retiré), fenêtre active : `down` → `POST api/auth/login` 503, `GET api/auth/me` d'un super-admin 503, `GET api/admin/maintenance` 200 ; `read_only` → `login` 503, `logout` 503, `me` 200 ; sans fenêtre, `login` 200 → le constat tient : en `down` la console de l'opérateur ne charge pas, contrairement à TCK-218 (« un super-admin continue d'accéder à `/super-admin/*` »), et en `read_only` personne n'ouvre de session. Classement : V2, le correctif ouvre des routes d'authentification pendant la fenêtre, et qui exempter (toute connexion, ou la seule session d'un opérateur) est un choix.
 
 ### Petites améliorations
 - Réf : P98.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : jeton OAuth d'Orange Money gardé après rotation des identifiants ; V7 pour le reste
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Domain/Settings/EditablePlatformSettings.php:57-63`, `takussan-api/app/Services/Auth/SessionTokenIssuer.php:41-43`, `takussan-web/src/components/admin/super/feature-flags.tsx:166-172`, `takussan-web/src/components/providers/FeatureFlagProvider.tsx:38`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:166-188`, `takussan-api/app/Services/Admin/IntegrationService.php:93-94`, `takussan-api/app/Http/Controllers/Api/MaintenanceStatusController.php:17`
 - Constat :
@@ -9802,3 +9803,4 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Après rotation de `client_id`/`client_secret` Orange Money, le jeton OAuth en cache par intégration reste servi jusqu'à son expiration (lu, `OrangeMoneyDriver.php:166-188`) ; `IntegrationConfigChanged` n'a aucun écouteur (mesuré, `grep -rn IntegrationConfigChanged app` → l'événement et son émetteur).
   - `maintenance/status` sort en `Cache-Control: public, max-age=60` (relevé par le sous-agent) : l'annulation d'une fenêtre peut ne pas se voir avant une minute de plus que le cache serveur (à vérifier).
 - Piste : retirer `requires_restart` de la clé ; initialiser la bascule sur l'état évalué ; oublier le jeton en cache sur `IntegrationConfigChanged` ; réduire la durée publique du statut de maintenance.
+- Mesure (2026-10-21, 43cf8fe51, mesureur) : relu `EditablePlatformSettings.php:57-63` (`requires_restart: true`), `SessionTokenIssuer.php:41-43` (la valeur lue à chaque émission, pour le seul super-admin), `platform-settings.tsx:57` ; `feature-flags.tsx:166-172` (`useState(false)`, aucun état de session lu : seule `POST feature-flags/{key}/override` existe, `routes/api/admin.php:267`) et `grep -rn "useFeatureFlag(" src` → la seule définition, `FeatureFlagProvider.tsx:38` ; `OrangeMoneyDriver.php:166-188` (jeton en cache par intégration jusqu'à `expires_in` moins la marge) et `grep -rn IntegrationConfigChanged app` → l'événement et son seul émetteur, `IntegrationService.php:94` ; `MaintenanceStatusController.php:17` (`max-age=60, public`, gardé par `MaintenanceModeTest`), `MaintenanceService.php:18,71` (cache serveur de 60 s, oublié à l'annulation) et le relais `app/api/maintenance/status/route.ts` (`revalidate: 60`, en-tête recopié) → les quatre points tiennent ; le quatrième est inexact dans sa forme : le cache serveur est vidé à l'annulation, le retard vient du relais Next (60 s) puis du navigateur (60 s). Classement : V1 pour le jeton d'un pilote de paiement, V7 pour l'état initial de la bascule et la durée du statut public, que la piste ne fixe pas.
