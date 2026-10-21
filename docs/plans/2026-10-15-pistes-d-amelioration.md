@@ -6506,7 +6506,7 @@ d'export de l'angle 77.*
 
 ### Petites améliorations
 - Réf : P63.04
-- Statut : validé — les trois : retirer `download_url` de `toArray()`, lier le lien au demandeur (P63.01), purger les fichiers d'export d'audit à l'échéance du lien (porteur, 2026-10-20)
+- Statut : fait · TCK-1143
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/ActivityLogExportReadyNotification.php:23-26,43-50`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:59-71`, `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:42`
 - Constat :
@@ -6516,6 +6516,7 @@ d'export de l'angle 77.*
   - Établi comment : lu et grep.
 - Piste : retirer `toArray()`, ou n'y ranger que le nom du fichier ; lier le lien au demandeur (P63.01) ; purger les fichiers d'export d'audit à l'échéance du lien, dans le job de purge que retiendra l'angle 77.
 - Mesure (2026-10-20, eb4dde5a0, mesureur) : relu `ActivityLogExportReadyNotification.php` (`via()` → `['mail']`, `toArray()` range toujours `download_url`), `ActivityLogExportController::download()` (signature seule, puis `Storage::download`), `grep -rn "exports/" app routes config` → deux écrivains (`ExportActivityLogJob.php:39`, `CrossTenantAuditController.php:94`) et aucun effaceur ; l'angle 77 n'existe pas encore dans le fichier → les trois points tiennent. Classement : V3, purger les exports et lier le lien au demandeur décident de la conservation et de l'accès au journal (V2) ; seul le retrait de `toArray()` serait du code mort.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, `toArray()` rend `download_url` (rouge) et `grep -rn "exports/" app routes config` ne trouve aucun effaceur → `toArray()` sans `download_url` ; le lien lié au demandeur était déjà fait par TCK-1054 (`user`, `file`, `name` signés ensemble) ; purge par un job neuf, `PurgeExpiredActivityLogExports`, planifié chaque heure, qui supprime les fichiers de `exports/audit/` plus vieux que le lien de 24 h (le job de l'angle 77, P77.02, étant revenu au porteur) ; `ExportsDAuditEchusTest` : fichier de 25 h supprimé, fichier récent gardé, `toArray()` = `filename` et `row_count` ; ablation (notification d'origine, `handle()` vidé) → 2 rouges, remis → 2 verts.
 
 ## Angle 64 — Pièces KYC des profils à l'effacement, à la fin du profil et au re-téléversement
 
@@ -7803,7 +7804,7 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
 
 ### L'archive d'export RGPD survit à l'effacement du compte, et le super-admin qui l'a demandée la télécharge encore
 - Réf : P77.01
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1139
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:241-381`, `takussan-api/app/Http/Controllers/Api/DataExportDownloadController.php:15-38`, `takussan-api/app/Jobs/Privacy/PurgeExpiredDataExports.php:20-29`, `takussan-api/database/migrations/2026_05_07_000225_create_data_exports_table.php:14`
 - Constat :
@@ -7815,10 +7816,11 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : dans `anonymize()`, supprimer les archives des exports du compte (fichier et `archive_path`) et les passer à `expired`, comme le fait la purge. Test : un export `ready` d'un compte, puis `anonymize()` → fichier absent, et le téléchargement du super-admin rend 404 ou 410.
 - Mesure (2026-10-20, 82f697038, mesureur) : `grep -n "DataExport\|Storage" AccountDeletionService.php` → aucune ligne, `anonymize()` (l. 241) ignore toujours les exports ; `DataExportDownloadController.php:17-28` ne juge que propriété, échéance et statut ; test temporaire `tests/Feature/Tmp/MesureurTmp77Test.php` (retiré), charge 3,36 / 2,47 / 2,71 sur 8 cœurs : export demandé par un super-admin, `DataExportBuilder::build()`, puis `anonymize($sujet, false)` → statut `ready`, archive présente, `GET /api/data-exports/{id}/download` du super-admin → 200, `profile.json` porte l'e-mail d'origine → le constat tient en entier. Classement : V3, la piste supprime une donnée personnelle conservée et change ce que l'effacement retire.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, export `ready` demandé par un super-admin puis `anonymize($sujet, false)` → archive présente (`assertMissing` rouge) → `anonymize()` supprime l'archive des exports du compte, remet `archive_path` à `null` et passe l'export à `expired`, comme `PurgeExpiredDataExports` ; `AccountDeletionExecuteTest::test_l_effacement_supprime_les_archives_d_export_du_compte` : fichier absent, statut `expired`, téléchargement du super-admin → 404 ; ablation (service rendu à cdef5c26f) → 1 rouge, remis → 16/16.
 
 ### Les exports de rapport de la console ne sont jamais purgés, ni le fichier ni la ligne
 - Réf : P77.02
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : retenu · à valider — spec contredite : `docs/models-spec.md` § 62 énumère les statuts de `report_exports` (`queued` / `processing` / `ready` / `failed`), sans le `expired` que la piste écrit ; la spec, fermée à l'implémenteur, est à étendre d'abord (ou la ligne supprimée au lieu de passer `expired`). Ce n'est pas le V4 accordé : c'est la source de vérité qui ne connaît pas la valeur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:50-60`, `takussan-api/app/Http/Controllers/Api/Admin/ReportingController.php:111-120`, `takussan-api/routes/console.php:84`, `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:362-366`
 - Constat :
@@ -7830,6 +7832,7 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
 - Piste : étendre la purge planifiée aux `report_exports` échus (fichier supprimé, statut `expired`), et l'appliquer aussi aux `exports/audit/*` que retient P63.04. Test : un export échu, la purge → fichier absent et statut `expired` ; un export non échu reste.
 - Mesure (2026-10-20, 82f697038, mesureur) : `grep -rn "ReportExport" app routes` → le modèle, `ReportingController` (création, l. 111-120, ligne `ready` sans fichier sur le chemin synchrone), `GenerateReportExport` (écrit `reports/{report}-{id}.csv`, `expires_at` J+7, l. 50-60), `ReportExportDownloadController` (TCK-1051, P63.02 désormais fusionnée : sert le fichier, ne purge rien) et la notification ; `ls app/Jobs/*/ | grep -i purge` → `PurgeExpiredDataExports` et `PurgeCdnCacheJob` seuls ; `routes/console.php:84` ne planifie que la purge des `DataExport` ; `exports/audit/*` n'est effacé par aucun code → le constat tient. Classement : V4, la piste supprime des lignes et des fichiers par une tâche planifiée, et le sort de la ligne (statut `expired` ou suppression) reste à choisir.
 - Mesure (2026-10-20, 2c1077fcf, delegue) : relu `PurgeExpiredDataExports.php:18-29` (fichier supprimé, ligne gardée et passée `expired`), `GenerateReportExport.php:50-60`, `ReportingController.php:111-120` et la migration `2026_05_07_000227_create_report_exports_table.php:17` (statuts `queued | processing | ready | failed`, sans `expired`) ; `grep -n "Réf : P63.04" -A2` du fichier de pistes → la purge des fichiers d'audit à l'échéance du lien est déjà validée par le porteur (2026-10-20) → la purge des CSV n'est écrite nulle part, et elle supprime des fichiers et réécrit des statuts. Recommandation : étendre la purge sur le modèle de `PurgeExpiredDataExports` — les `report_exports` `ready` échus perdent leur fichier (`archive_path` remis à `null`) et passent à `expired`, la ligne reste (le journal `super_admin_report_exported` la désigne par `performedOn`) ; laisser les `exports/audit/*` à P63.04, déjà validée, pour ne pas les traiter deux fois ; pourquoi : c'est la forme déjà en place pour les exports RGPD, et garder la ligne laisse la décision réversible ; ce qui manque pour trancher : V4 n'est pas additif ici (suppression de fichiers, réécriture de statuts), et `expired` est une valeur neuve pour `report_exports.status`, que le porteur accepte ou remplace par une suppression de la ligne.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : `grep -rln "ReportExport" app routes` → modèle, requête, `ReportingController`, `ReportExportDownloadController`, `GenerateReportExport`, notification, `PlatformReportingService`, `routes/api/admin.php` : aucun effaceur, `routes/console.php` ne planifie que `PurgeExpiredDataExports` → le défaut tient ; `docs/models-spec.md` § 62 (ligne `status`) n'admet que `queued / processing / ready / failed` → reclassé avant toute ligne de code, la spec étant fermée à l'implémenteur.
 
 ### Une écriture refusée par le disque `local` passe pour un succès : l'export est annoncé prêt et son lien rend 404
 - Réf : P77.03
@@ -7853,7 +7856,7 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
 
 ### Petites améliorations
 - Réf : P77.04
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1145 — reste : purger les fichiers d'export sans ligne (après un `migrate:fresh`), qui s'écrit dans la purge de P77.02, revenue au porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:42`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:66-70`, `docs/configuration.md:138`, `:554`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3532`, `takussan-api/docker/seed.sh:16`, `takussan-api/app/Models/ReportExport.php:24`
 - Constat :
@@ -7863,6 +7866,7 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
   - Établi comment : lu et grep.
 - Piste : faire nommer `local` aux deux écrivains d'audit et à leur téléchargement. Corriger `docs/configuration.md` (l. 138, 554) pour dire `local`, et R2 pour les médias (ADR-0029). Purger aussi les fichiers sans ligne dans la purge de P77.02. Écrire `failure_reason` et le statut `failed` dans un `failed()` du job.
 - Mesure (2026-10-20, 82f697038, mesureur) : lu `ActivityLogExportController.php:66-70` (`Storage::exists` et `Storage::download`, disque par défaut) et `ExportActivityLogJob.php:42` (`Storage::put`) ; `docs/configuration.md:138` (« `FILESYSTEM_DISK=local # ou s3 en prod` ») et `:554` (« `FILESYSTEM_DISK=s3` + `AWS_*` ») contre le plan l. 3532 (`local`) ; `grep -n "FILESYSTEM\|AWS" docs/infra/prod-drivers.json` → rien, la valeur déployée n'est pas dans le dépôt ; `docker/seed.sh:16` fait `migrate:fresh`, `DatabaseSeeder.php:42` ne nettoie que `storage/app/public` ; `grep -n "failure_reason\|function failed"` dans `GenerateReportExport.php` → rien, et le job passe à `processing` (l. 29) → les quatre points tiennent. Classement : V5, la piste corrige la checklist de production et fige le disque d'une variable d'environnement dont la valeur déployée n'est pas mesurable ; la purge des orphelins dépend de P77.02 (V4).
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, disque par défaut posé sur `public` → l'export d'audit asynchrone et celui de la console n'écrivent rien sur `local`, la purge des exports d'audit (TCK-1143) ne lit pas `local`, et `GenerateReportExport::failed()` n'existe pas (`Error`) → les deux écrivains, le téléchargement et la purge nomment `local` (`ActivityLogExportController::DISK`), `failed()` écrit `failed` et `failure_reason`, `docs/configuration.md` l. 138 et 554 disent `local`, et R2 pour les médias ; `DisqueDesExportsTest` : 4 cas ; ablation (les cinq fichiers de production d'avant) → 4 rouges, remis → 4 verts ; `AgencyAuditScopeTest`, `CrossTenantAuditExportTest`, `EcritureRefuseeDesExportsTest`, `XlsxExportFormulaTest`, `ReportExportDownloadTest`, `PlatformReportingTest` verts. La purge des orphelins, qui s'écrit dans celle de P77.02, n'est pas faite.
 
 ## Angle 78 — Pic mémoire et durée des exports accumulés en tableau
 
@@ -8136,7 +8140,7 @@ n'ont pas été rouverts.*
 
 ### La pénalité de retard tombe aussi sur l'indemnité de résiliation et sur les lignes qui ne sont pas des loyers
 - Réf : P81.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1149
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:65-92`, `takussan-api/app/Services/Lease/LateFeeCalculator.php:78-111,172-178`, `takussan-api/app/Services/Model/LeaseService.php:306-318`
 - Constat :
@@ -8146,10 +8150,11 @@ n'ont pas été rouverts.*
   - Établi comment : lu, puis mesuré pour l'indemnité ; la caution et les charges sont lues, non exécutées.
 - Piste : borner la sélection aux types que la règle vise (`rent`, peut-être `charges`), par un filtre sur `payment_type` dans `candidateQuery` et `isApplicable` ; la liste des types est un choix (V1). Garde : un test par type exclu.
 - Mesure (2026-10-20, 04ec6c724, mesureur) : relu `ApplyLateFeesJob::candidateQuery` (seul `exceptDepositRefunds`) et `LateFeeCalculator::isApplicable` (aucune lecture de `payment_type`) ; même test temporaire que P81.01 (retiré) : indemnité de 200 000 posée par `terminate()` le 2026-10-20, au 2026-12-02 `ApplyLateFeesJob` lui applique 20 000 et la passe `late` → le constat tient. Classement : V1, borner la pénalité à `rent` (et peut-être `charges`) change un montant dû, et la liste des types n'est écrite nulle part.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, bail à 10 %, une échéance en retard de chaque type hors restitution de caution → `ApplyLateFeesJob` en pénalise 5 au lieu de 1 (rouge) → `candidateQuery()` ne sélectionne que `rent` et `isApplicable()` refuse tout autre type (liste la plus étroite : `rent` seul, `docs/features.md` § 1.4 parlant d'une « échéance de loyer ») ; `ApplyLateFeesJobTest::test_seul_le_loyer_porte_une_penalite_de_retard` : loyer pénalisé (10 000), `penalty`, `deposit`, `charges`, `regularization` restés `pending` sans pénalité ; ablation (job et calculateur d'avant) → 1 rouge, remis → 5/5 ; `LeasePaymentLateFeeMarkPaidTest`, `AgingBalanceTest`, `OwedRemainderTest`, `LeaseRenewalOverlapTest`, `LeaseContractTermsTest`, `PayoutBypassTest`, `CriticalJobFailureAlertTest`, `LeasePaymentLinkTest`, `PaymentGatewayInitiateTest` verts.
 
 ### Petites améliorations
 - Réf : P81.04
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1147 — reste : écrire dans TCK-957 si les types `regularization` et `charges` restent permis après la sortie, choix de produit que ni la piste ni la validation ne tranchent
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:37-47`, `takussan-api/app/Services/Account/AccountDeletionService.php:388-411`
 - Constat :
@@ -8158,6 +8163,7 @@ n'ont pas été rouverts.*
   - Établi comment : lu.
 - Piste : écrire dans TCK-957 si les types `regularization` et `charges` restent permis après la sortie ; juger les baux en cours de `collectOpenObligations` par `User::ACTIVE_TENANT_LEASE_STATUSES`.
 - Mesure (2026-10-20, 04ec6c724, mesureur) : relu `LeasePaymentController::store` (l. 38-47, refus hors `active`/`terminating`), TCK-957 « Hypothèses » (résilié et expiré refusés, rien sur `regularization` ni `charges` après la sortie), `AccountDeletionService` l. 390 et 410 (baux en cours : `active` et `pending_signature` seuls) et `HasProfiles.php:43` (`ACTIVE_TENANT_LEASE_STATUSES` = `active`, `terminating`) ; la PR #820 touche ce service sans changer ces deux listes → les deux parties tiennent. Classement : V3, élargir les baux qui bloquent l'effacement change ce qui retient des données personnelles, et permettre une régularisation après la sortie est un choix de produit (V7).
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, locataire au bail `terminating` sans échéance due → `POST /api/auth/me/deletion-request` 202 (rouge) → les deux requêtes de baux de `collectOpenObligations()` lisent `User::ACTIVE_TENANT_LEASE_STATUSES` plus `pending_signature` (qui bloquait déjà) ; `AccountDeletionRequestTest::test_blocked_by_a_terminating_lease_as_tenant_and_as_landlord` : 422 et obligation `lease` des deux côtés ; ablation (service d'avant) → 1 rouge, remis → 13/13 ; `AccountDeletionStepUpTest`, `AdminUserLifecycleTest`, `DashboardTenantDepositRefundTest`, `AccountDeletionScheduledTest` verts.
 
 ## Angle 82 — Bailleur et membre jugés en dur, hors de `landlordWrites` et des capacités
 
@@ -8262,7 +8268,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### L'effacement d'un compte laisse la ville et les intentions déclarées dans `users.preferences`
 - Réf : P83.02
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1141 — reste : la garde qui énumère les colonnes de `users` et exige, pour chacune, qu'elle soit effacée ou figure dans une liste « conservée, et pourquoi », liste à arrêter par le porteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:282-309`, `takussan-api/app/Http/Controllers/Api/Me/MeController.php:50-66`
 - Constat :
@@ -8273,6 +8279,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Établi comment : lu, et mesuré.
 - Piste : vider `preferences` dans `anonymize()`, avec un test qui sème les trois clés et assert `null` après effacement. Garde possible : un test qui énumère les colonnes de `users` et exige, pour chacune, qu'elle soit effacée ou qu'elle figure dans une liste « conservée, et pourquoi ».
 - Mesure (2026-10-20, e5f73559b, mesureur) : relu `AccountDeletionService::anonymize()` (le `forceFill`, aujourd'hui l. 282-309) : `metadata` à `null`, ni `preferences`, ni `timezone`, ni `preferred_language` ; `docs/models-spec.md:411` décrit `preferences` comme ville et intention choisies par l'utilisateur ; test temporaire retiré (charge 5,00 sur 8 cœurs) : compte aux `preferences` `{city: Ziguinchor, search_intent: buy, entry_intent: search}`, `anonymize($u, false)` → `first_name` vide, `metadata` nul, `preferences` intact, `timezone` `Africa/Dakar`, `preferred_language` `fr` → le constat tient. Classement : V3, le correctif change ce que l'effacement conserve, et la liste « effacé ou conservé » de la garde proposée est à arrêter par le porteur.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, compte aux `preferences` `{city: Ziguinchor, search_intent: buy, entry_intent: search}` puis `anonymize($u, false)` → `preferences` intact (rouge) → `'preferences' => null` dans le `forceFill` d'`anonymize()` ; `AccountDeletionExecuteTest::test_l_effacement_vide_les_preferences_declarees` : `preferences` nul en base ; ablation (ligne retirée) → 1 rouge, remise → 17/17. `timezone` et `preferred_language` restent.
 
 ### Trois colonnes `metadata` sans écrivain applicatif : `customers`, `leases`, `properties`
 - Réf : P83.03

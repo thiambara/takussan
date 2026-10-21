@@ -7,8 +7,10 @@ use App\Models\Activity;
 use App\Models\AlertSubscriber;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\DataExport;
 use App\Models\Document;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\DataExportStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeaseStatus;
@@ -29,6 +31,7 @@ use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -303,6 +306,9 @@ class AccountDeletionService
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
             'metadata' => null,
+            // TCK-1141 (P83.02) — la ville et les intentions déclarées (`city`, `search_intent`,
+            // `entry_intent`). `timezone` et `preferred_language` restent : ils n'identifient personne.
+            'preferences' => null,
             'status' => UserStatus::Deleted->value,
             'email' => sprintf('deleted-%d@takussan.local', $user->id),
             'email_verified_at' => null,
@@ -374,6 +380,23 @@ class AccountDeletionService
                 'updated_at' => now(),
             ]);
 
+        // TCK-1139 (P77.01) — l'archive d'export RGPD porte le profil en clair, et le compte n'étant
+        // que soft-deleted, la FK `data_exports.user_id` en cascade ne joue pas : l'archive part,
+        // la ligne reste et passe à `expired`, comme le fait `PurgeExpiredDataExports`. Un export
+        // encore en file échoue de lui-même : `DataExportBuilder` ne trouve plus le compte.
+        DataExport::query()
+            ->where('user_id', $user->id)
+            ->where(fn ($query) => $query
+                ->where('status', DataExportStatus::Ready)
+                ->orWhereNotNull('archive_path'))
+            ->get()
+            ->each(function (DataExport $export): void {
+                if ($export->archive_path) {
+                    Storage::disk('local')->delete($export->archive_path);
+                }
+                $export->update(['status' => DataExportStatus::Expired, 'archive_path' => null]);
+            });
+
         // TCK-1061 (P64.02) — les profils du compte reçoivent une date de fin (`deleted_at`), d'où
         // partira la purge à « fin + 5 ans » de la politique (TCK-537). Leurs pièces restent,
         // mais le nom de fichier choisi par la personne, sur la pièce et sur ses médias, cède la
@@ -406,6 +429,18 @@ class AccountDeletionService
     }
 
     /**
+     * TCK-1147 (P81.04) — les baux en cours qui bloquent l'effacement : ceux que
+     * `User::ACTIVE_TENANT_LEASE_STATUSES` juge en cours (préavis compris), et ceux qui attendent
+     * leur signature.
+     *
+     * @return list<string>
+     */
+    private static function openLeaseStatuses(): array
+    {
+        return [...User::ACTIVE_TENANT_LEASE_STATUSES, LeaseStatus::PendingSignature->value];
+    }
+
+    /**
      * Anti-escalade: list outstanding obligations preventing deletion.
      * Returned shape is consumable by the FormRequest as a 422 payload.
      *
@@ -418,7 +453,7 @@ class AccountDeletionService
         // Active leases as landlord.
         $activeLandlordLeases = Lease::query()
             ->where('landlord_id', $user->id)
-            ->whereIn('status', [LeaseStatus::Active->value, LeaseStatus::PendingSignature->value])
+            ->whereIn('status', self::openLeaseStatuses())
             ->get(['id', 'reference_number']);
         foreach ($activeLandlordLeases as $lease) {
             $obligations[] = [
@@ -438,7 +473,7 @@ class AccountDeletionService
         if ($tenantCustomerIds->isNotEmpty()) {
             $tenantLeases = Lease::query()
                 ->whereIn('tenant_id', $tenantCustomerIds)
-                ->whereIn('status', [LeaseStatus::Active->value, LeaseStatus::PendingSignature->value])
+                ->whereIn('status', self::openLeaseStatuses())
                 ->get(['id', 'reference_number']);
             foreach ($tenantLeases as $lease) {
                 $obligations[] = [

@@ -135,7 +135,7 @@ SESSION_DOMAIN=null
 CACHE_STORE=redis           # redis recommandé
 QUEUE_CONNECTION=database   # ou redis / sqs
 BROADCAST_CONNECTION=log    # log | pusher | ably | reverb
-FILESYSTEM_DISK=local       # ou s3 en prod
+FILESYSTEM_DISK=local       # local, comme le pose le plan d'hébergement : volume privé des exports ; les médias vont sur R2 (MEDIA_*_DISK, ADR-0029)
 
 # Redis
 REDIS_CLIENT=phpredis
@@ -551,7 +551,7 @@ npm run build
 #### e) S3 / Media library
 - Provisionner bucket (public ou privé selon les collections — voir `cdn.secure_collections`)
 - IAM user avec `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject` sur le bucket
-- `FILESYSTEM_DISK=s3` + `AWS_*` renseignées
+- `FILESYSTEM_DISK` reste `local` (volume privé des exports temporaires) ; les médias passent par `MEDIA_PUBLIC_DISK=r2-media`, `MEDIA_PRIVATE_DISK=r2-private` et les `R2_*` ([ADR-0029](adr/0029-medias-sur-r2-servis-par-cloudflare-transformations.md))
 - `php artisan media-library:regenerate` après bascule
 
 #### f) CDN (Bunny.net ou Cloudflare)

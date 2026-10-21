@@ -3,6 +3,7 @@
 namespace App\Jobs\Lease;
 
 use App\Jobs\Concerns\AlertsOnFirstFailure;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -68,9 +69,11 @@ class ApplyLateFeesJob implements ShouldQueue
 
         // TCK-594 (VERIF-594 passe 4, P4-7) — une caution rendue est due AU locataire : aucune
         // pénalité ne tombe sur elle, quoi que dure son approbation.
+        // TCK-1149 (P81.03) — et plus largement, seul un loyer porte une pénalité de retard
+        // (`LateFeeCalculator::isApplicable`) : la restitution de caution en sort avec les autres.
         return LeasePayment::query()
             ->with('lease')
-            ->exceptDepositRefunds()
+            ->where('payment_type', LeasePaymentType::Rent->value)
             ->whereHas('lease', function ($q) use ($agencyId) {
                 $q->whereNotNull('late_fee_percent')
                     ->where('late_fee_percent', '>', 0);

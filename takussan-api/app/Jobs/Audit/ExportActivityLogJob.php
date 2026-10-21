@@ -50,7 +50,7 @@ class ExportActivityLogJob implements ShouldQueue
         // TCK-1084 (P77.03) — le disque `local` rend `false` au lieu de lever : un lien envoyé
         // sur un fichier jamais écrit rendait 404, et le job ne laissait aucune trace d'échec.
         $path = ActivityLogExportController::storagePath($this->user->id, $file);
-        if (Storage::put($path, $content) !== true) {
+        if (Storage::disk(ActivityLogExportController::DISK)->put($path, $content) !== true) {
             throw new RuntimeException("L'export du journal d'activité n'a pas pu écrire {$path}.");
         }
 
@@ -58,7 +58,7 @@ class ExportActivityLogJob implements ShouldQueue
         // dossier du demandeur signé (`ActivityLogExportController::download`).
         $downloadUrl = URL::temporarySignedRoute(
             'activity-logs.export.download',
-            now()->addHours(24),
+            now()->addHours(ActivityLogExportController::LINK_TTL_HOURS),
             ['user' => $this->user->id, 'file' => $file, 'name' => $filename],
         );
 

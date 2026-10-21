@@ -74,19 +74,32 @@ class ActivityLogExportController extends Controller
         }
 
         $path = self::storagePath($userId, $file);
-        if (! Storage::exists($path)) {
+        if (! Storage::disk(self::DISK)->exists($path)) {
             abort(404);
         }
 
-        return Storage::download($path, (string) $request->query('name', $file));
+        return Storage::disk(self::DISK)->download($path, (string) $request->query('name', $file));
     }
 
     /** Le nom opaque que le job donne au fichier : un UUID et l'extension du format. */
     private const FICHIER = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(csv|xlsx)$/';
 
+    /**
+     * TCK-1145 (P77.04) — le disque des exports asynchrones, nommé comme celui des exports RGPD et
+     * de rapport : le disque par défaut suit `FILESYSTEM_DISK`, qu'un environnement peut viser
+     * ailleurs que le volume privé.
+     */
+    public const DISK = 'local';
+
+    /** TCK-1143 (P63.04) — la durée de vie du lien le plus long ; au-delà, le fichier est purgé. */
+    public const LINK_TTL_HOURS = 24;
+
+    /** TCK-1143 (P63.04) — la racine des exports asynchrones, que purge `PurgeExpiredActivityLogExports`. */
+    public const STORAGE_ROOT = 'exports/audit';
+
     /** Le chemin d'un export asynchrone : le dossier de son demandeur, puis le nom opaque. */
     public static function storagePath(int $userId, string $file): string
     {
-        return "exports/audit/{$userId}/{$file}";
+        return self::STORAGE_ROOT."/{$userId}/{$file}";
     }
 }

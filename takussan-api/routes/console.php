@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\Audit\PurgeExpiredActivityLogExports;
 use App\Jobs\Billing\ProcessTrialExpirations;
 use App\Jobs\Booking\ExpirePendingBookingsJob;
 use App\Jobs\Crm\SendProspectMatchDigest;
@@ -82,6 +83,9 @@ Schedule::command('tasks:send-due-reminders')->hourly()->withoutOverlapping(60);
 Schedule::command('account:execute-deletions')->hourly()->withoutOverlapping(60);
 // TCK-225 — RGPD portability archives expire after 7 days.
 Schedule::job(new PurgeExpiredDataExports)->dailyAt('02:30')->withoutOverlapping();
+// TCK-1143 (P63.04) — les exports du journal d'activité ne survivent pas à leur lien (24 h).
+// Idempotent : la purge ne supprime que des fichiers échus, et rien ne les recrée.
+Schedule::job(new PurgeExpiredActivityLogExports)->hourly()->withoutOverlapping(60);
 // TCK-601 (ADR-0044 §5) — KYC d'agence : relances J-30 / J-7 puis expiration le jour venu.
 Schedule::command('kyc:expire-dossiers')->dailyAt('06:00')->withoutOverlapping();
 // TCK-096 — Escalate urgent maintenance requests to agency managers

@@ -11,7 +11,9 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 /**
  * TCK-227 — Async report export. Triggered for matrices > 10k rows; serializes
@@ -66,6 +68,18 @@ class GenerateReportExport implements ShouldQueue
         ]);
 
         $export->requester?->notify(new ReportExportReadyNotification($export));
+    }
+
+    /**
+     * TCK-1145 (P77.04) — sans lui, un export dont le calcul ou l'écriture lève restait
+     * `processing`, et `failure_reason` n'était écrit par rien.
+     */
+    public function failed(Throwable $exception): void
+    {
+        ReportExport::query()->find($this->reportExportId)?->update([
+            'status' => 'failed',
+            'failure_reason' => Str::limit($exception->getMessage(), 1000),
+        ]);
     }
 
     private function toCsv(array $rows): string

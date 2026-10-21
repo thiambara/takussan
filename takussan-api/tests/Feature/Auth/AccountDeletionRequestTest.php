@@ -188,6 +188,24 @@ class AccountDeletionRequestTest extends TestCase
         $this->assertSame([['lease_payment', $payment->id]], $obligations);
     }
 
+    /**
+     * TCK-1147 (P81.04) — un bail en préavis (`terminating`) est encore en cours, comme le juge
+     * `User::ACTIVE_TENANT_LEASE_STATUSES` : il bloque l'effacement, côté locataire comme côté
+     * bailleur, même sans échéance due.
+     */
+    public function test_blocked_by_a_terminating_lease_as_tenant_and_as_landlord(): void
+    {
+        [$tenant, $customer] = $this->formerTenant();
+        $asTenant = Lease::factory()->create(['tenant_id' => $customer->id, 'status' => LeaseStatus::Terminating]);
+
+        $this->assertSame([['lease', $asTenant->id]], $this->refusedObligations($tenant));
+
+        [$landlord] = $this->formerTenant();
+        $asLandlord = Lease::factory()->for($landlord, 'landlord')->create(['status' => LeaseStatus::Terminating]);
+
+        $this->assertSame([['lease', $asLandlord->id]], $this->refusedObligations($landlord));
+    }
+
     /** TCK-698 (P12.02) — une facture envoyée et impayée, adressée au client lié au compte. */
     public function test_blocked_by_an_unpaid_invoice(): void
     {

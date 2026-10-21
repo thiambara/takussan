@@ -100,7 +100,7 @@ class CrossTenantAuditController extends Controller
         // TCK-1084 (P77.03) — le disque `local` rend `false` au lieu de lever : le lien rendu
         // aurait mené à un 404.
         $path = ActivityLogExportController::storagePath($request->user()->id, $file);
-        if (Storage::put($path, $exporter->csvContent($exporter->payloadForQuery($query->getEloquentBuilder(), $filename))) !== true) {
+        if (Storage::disk(ActivityLogExportController::DISK)->put($path, $exporter->csvContent($exporter->payloadForQuery($query->getEloquentBuilder(), $filename))) !== true) {
             throw new RuntimeException("L'export de l'audit de la console n'a pas pu écrire {$path}.");
         }
 
