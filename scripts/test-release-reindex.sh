@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #
 # test-release-reindex.sh — exerce la décision de réindexation de takussan-api/docker/release.sh.
+# Depuis TCK-1157 et TCK-1159 (P89.02, P89.03), il joue aussi seed.sh, le reseed d'une
+# préproduction, qui partage avec release.sh l'importation de lib.sh.
 #
 # Successeur de test-deploy-search-reindex.sh, retiré avec deploy.sh (ADR-0028). Même raison
 # d'être : ni PHPUnit ni vitest ne lisent du shell, et se tromper ici est muet des deux côtés —
@@ -91,6 +93,15 @@ verifier "règles d'alerte d'exploitation : alerts:ensure-ops-rules est joué" 1
 fabrique; jouer ECHEC_SUR=alerts:ensure-ops-rules
 verifier "règles d'alerte en échec : release continue" 0 "$?"
 
+# TCK-1163 (P89.05) : un référentiel qui échoue n'arrête pas le déploiement (release.sh, « un
+# échec n'arrête pas le déploiement ») ; les étapes suivantes sont jouées.
+fabrique; jouer ECHEC_SUR=geo:sync-referential
+verifier "référentiel géographique en échec : release continue" 0 "$?"
+verifier "référentiel géographique en échec : tags:sync-catalog est joué" 1 "$(grep -c '^artisan tags:sync-catalog' "$racine/journal" || true)"
+fabrique; jouer ECHEC_SUR=tags:sync-catalog
+verifier "catalogue des équipements en échec : release continue" 0 "$?"
+verifier "catalogue des équipements en échec : l'importation a lieu" 2 "$(imports)"
+
 # TCK-710 (P01.07) : des réglages d'index périmés font échouer la liste publique sans mot
 # (`sort=ranked_at:desc` → invalid_search_sort). Le déploiement s'arrête au lieu de servir cela.
 fabrique; jouer ECHEC_SUR=search:sync-index-settings
@@ -156,4 +167,4 @@ else
 fi
 
 [ "$echecs" = 0 ] || { echo "✗ $echecs échec(s)"; exit 1; }
-echo "✓ décision de réindexation de release.sh : 19 vérifications et une ablation"
+echo "✓ release.sh et seed.sh : 32 vérifications et une ablation"
