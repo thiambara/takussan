@@ -10001,7 +10001,7 @@ Limites :
 
 ### Cinq ressources affirment une valeur pour une colonne qu'un sparse fieldset n'a pas lue : `kind` « invoice », montants à 0, devise « XOF », booléens à faux
 - Réf : P100.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1182 — reste : les booléens `is_verified` et `moderation_required` d'`AgencyResource`, après recensement des agences rendues par `create()` sans `fresh()`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/InvoiceResource.php:23,33,36`, `takussan-api/app/Http/Resources/PayoutResource.php:33-36`, `takussan-api/app/Http/Resources/BookingResource.php:23`, `takussan-api/app/Http/Resources/AgencyResource.php:30,53,71`, `takussan-api/app/Http/Resources/LeasePaymentResource.php:23,32-33`
 - Constat :
@@ -10016,6 +10016,7 @@ Limites :
   - C'est la forme que P58.04 (TCK-1019) a corrigée pour `UserResource` seul, et qu'`IntegrationWebhookLogResource` évite par `whenHas` partout (lu).
 - Piste : passer par `whenHas` les clés dérivées de colonnes, au moins celles de montant, de nature et de devise, et étendre `UserResourceSparseFieldsTest` à ces cinq ressources. Le changement est visible pour tout appelant qui lit ces clés sans les demander ; vérifier d'abord ceux de l'API (exports, PDF, notifications).
 - Mesure (2026-10-21, 3c6c8301f, mesureur) : relu `InvoiceResource.php:23,33,36`, `PayoutResource.php:33-36`, `BookingResource.php:23`, `AgencyResource.php:30,53,71`, `LeasePaymentResource.php:23,32-33` (cast `(float)`, `(bool)` ou repli `?? 'invoice'` / `?? 'XOF'`) ; test temporaire `tests/Feature/Tmp/MesureP100Test.php`, retiré : modèle construit par `newFromBuilder(['id', 'created_at'])` puis `resolve()` → Invoice `kind` « invoice », `subtotal` et `total_amount` 0 ; Payout `gross_amount`, `commission_amount`, `net_amount` 0 ; Booking `total_amount` 0 ; Agency `currency` « XOF », `is_verified` et `moderation_required` false ; LeasePayment `amount`, `paid_amount`, `remaining_amount` 0. Le constat tient en entier ; qu'aucun écran n'y tombe n'est pas re-mesuré. Classement : V1, le changement porte sur des montants émis et peut retirer une clé à un appelant interne (modèle créé sans `refresh`, export, PDF) qu'il faut d'abord recenser.
+- Mesure (2026-10-21, e54bc4055, implementeur) : relu les cinq ressources (casts `(float)` et replis `?? 'invoice'`, `?? 'XOF'`), recensé leurs appelants hors HTTP (`grep` sur `app/` : commentaires seulement) et les créations (montants toujours posés ; `kind` et `currency` ont un défaut de modèle) ; `AmountResourcesSparseFieldsTest` avant correctif (charge 4,34 sur 8 cœurs) : modèle construit avec `id` et `created_at` seuls → les cinq jeux émettent les clés, 5 rouges → `whenHas` sur montants, nature et devise ; 10/10 verts, ablation (ressources d'avant) → 5 rouges ; 15 classes couvrant ces ressources vertes une à une (dont `AmountRepresentationTest`, `DateRepresentationTest`, `PayoutBypassTest`, `LeasePaymentResourceContractTest`).
 
 ### Aucune colonne demandée par le front n'est refusée aujourd'hui, et la garde générale reste à écrire
 - Réf : P100.04
