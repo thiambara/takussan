@@ -14,6 +14,7 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
 
@@ -148,7 +149,11 @@ class AgencyDetailController extends Controller
                 'properties_in_moderation' => (int) ($row->properties_in_moderation ?? 0),
                 'transactions_30d' => (int) ($row->transactions_30d ?? 0),
                 'revenue_30d' => (float) ($row->revenue_30d ?? 0),
-                'last_platform_payment_at' => $row->last_platform_payment_at,
+                // TCK-1116 (P94.01) — `MAX(paid_at)` sort de PostgreSQL sans fuseau (`2026-10-18 21:54:01`),
+                // que le front lirait dans le fuseau du navigateur : un instant ADR-0018.
+                'last_platform_payment_at' => $row->last_platform_payment_at === null
+                    ? null
+                    : Carbon::parse($row->last_platform_payment_at)->utc()->format(DATE_ATOM),
                 'open_complaints' => (int) ($row->open_complaints ?? 0),
             ],
         ]);

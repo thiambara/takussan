@@ -57,7 +57,8 @@ class GeoNeighborhoodAdminController extends Controller
             ->whereIn('geo_city_id', $propositions->pluck('geo_city_id')->unique()->values())
             ->where('status', ReferentialStatus::Approved)
             ->whereNull('merged_into_id')
-            ->orderBy('name')
+            // TCK-1119 (P87.03) — l'ordre ICU du référentiel public.
+            ->orderByRaw('name COLLATE "und-x-icu"')
             ->get(['id', 'geo_city_id', 'name'])
             ->groupBy(fn (GeoNeighborhood $q) => $q->geo_city_id.'|'.GeoNeighborhoodResolver::cleSansAccents($q->name));
 

@@ -40,7 +40,10 @@ class StorePropertyCollaboratorRequest extends BaseFormRequest
             'user_id' => [
                 'required',
                 'integer',
-                'exists:users,id',
+                // TCK-1117 (P96.01) — un compte supprimé en douceur suit le chemin d'un identifiant
+                // absent : `exists:` nu le laissait passer, et la règle d'éligibilité, qui ne le
+                // trouve pas par `find()`, s'en remet à celle-ci.
+                Rule::exists('users', 'id')->whereNull('deleted_at'),
                 new CollaboratorEligibleForProperty($this->route('property'), $this->input('role')),
             ],
             'role' => ['required', Rule::enum(CollaboratorRole::class)],

@@ -399,7 +399,8 @@ class HealthcheckService
 
         return [
             ...($age === null || $age >= self::SCHEDULER_FAILED_AFTER_SECONDS ? ['status' => 'failed'] : []),
-            'last_run_at' => $lastRunAt,
+            // TCK-1116 (P94.01) — la valeur brute n'a pas de fuseau : un instant ADR-0018.
+            'last_run_at' => $lastRunAt === null ? null : Carbon::parse($lastRunAt)->utc()->format(DATE_ATOM),
         ];
     }
 

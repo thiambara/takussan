@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class ScheduledTaskInspector
@@ -44,7 +45,10 @@ class ScheduledTaskInspector
             ->get()
             ->map(fn ($run) => [
                 'task' => $run->task,
-                'last_run_at' => $run->last_run_at,
+                // TCK-1116 (P94.01) — l'agrégat sort sans fuseau : un instant ADR-0018 (UTC, `DATE_ATOM`).
+                'last_run_at' => $run->last_run_at === null
+                    ? null
+                    : Carbon::parse($run->last_run_at)->utc()->format(DATE_ATOM),
                 'last_status' => $run->last_status,
                 'next_due_at' => null,
                 // `avg()` ignore les NULL : une tâche dont aucune exécution n'a été mesurée sur la
