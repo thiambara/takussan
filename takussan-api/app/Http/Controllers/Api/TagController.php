@@ -35,7 +35,8 @@ class TagController extends Controller
         // `format()` recomptait alors les biens étiquette par étiquette.
         $paginator = Tag::buildQuery($base, $request, $agencyId)
             ->withCount(['properties', 'customers'])
-            ->defaultSort('name')
+            // TCK-1119 (P87.03) — l'ordre ICU du référentiel public, au défaut aussi.
+            ->defaultSorts(Tag::nameSort())
             ->paginate();
 
         return $this->paginated($paginator, $paginator->getCollection()->map(fn (Tag $t) => $this->format($t, $agencyId))->values());
