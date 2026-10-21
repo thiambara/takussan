@@ -3,13 +3,18 @@
 namespace Tests\Feature\Reporting;
 
 use App\Models\Agency;
+use App\Models\CommissionEntry;
 use App\Models\Customer;
 use App\Models\Enums\AgencyKind;
+use App\Models\Enums\CollaboratorRole;
+use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\LeaseType;
 use App\Models\Enums\TaskStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
 use App\Models\Property;
+use App\Models\PropertyCollaborator;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
@@ -92,6 +97,70 @@ class TeamPerformanceTest extends ApiTestCase
         $this->assertSame(3, $rows[$a->id]['visits_completed']);
         $this->assertSame(0, $rows[$b->id]['leases_signed']);
         $this->assertSame(1, $rows[$b->id]['visits_completed']);
+    }
+
+    /**
+     * P93.07 (TCK-1179) — les quatre indicateurs que rien n'assertait, chacun sur une valeur non
+     * nulle et distincte des autres, avec un intrus par règle (hors période, autre agence, autre
+     * statut ou rôle).
+     */
+    public function test_p93_07_sales_customers_commissions_and_managed_properties_have_their_value(): void
+    {
+        $a = $this->agencyAgent($this->agency);
+        $other = Agency::factory()->create();
+
+        // Ventes signées : 1 (un bail résidentiel et une vente de juin n'en sont pas).
+        $lease = fn (LeaseType $type, string $at): Lease => Lease::factory()->create([
+            'property_id' => $this->property->id, 'agency_id' => $this->agency->id, 'agent_id' => $a->id,
+            'status' => LeaseStatus::Active, 'type' => $type, 'signed_at' => $at,
+        ]);
+        $lease(LeaseType::Sale, '2026-07-04 10:00:00');
+        $lease(LeaseType::ResidentialRent, '2026-07-05 10:00:00');
+        $lease(LeaseType::Sale, '2026-06-20 10:00:00');
+
+        // Clients ajoutés : 3 (juin et une autre agence n'en sont pas).
+        $customer = fn (int $agencyId, string $at) => Customer::factory()->create([
+            'agency_id' => $agencyId, 'added_by_id' => $a->id, 'created_at' => $at,
+        ]);
+        foreach (['2026-07-01', '2026-07-08', '2026-07-15'] as $day) {
+            $customer($this->agency->id, "{$day} 09:00:00");
+        }
+        $customer($this->agency->id, '2026-06-30 09:00:00');
+        $customer($other->id, '2026-07-08 09:00:00');
+
+        // Commissions gagnées : 55 000 (une annulée et une de juin n'en sont pas).
+        $commission = fn (float $amount, CommissionEntryStatus $status, string $at) => CommissionEntry::factory()->create([
+            'agency_id' => $this->agency->id, 'beneficiary_id' => $a->id,
+            // Une commission par (bail, bénéficiaire) : chacune sur un bail sans agent, hors des ventes.
+            'lease_id' => Lease::factory()->create(['property_id' => $this->property->id, 'agency_id' => $this->agency->id, 'agent_id' => null])->id,
+            'amount' => $amount, 'status' => $status, 'earned_at' => $at,
+        ]);
+        $commission(30_000, CommissionEntryStatus::Due, '2026-07-04 10:00:00');
+        $commission(25_000, CommissionEntryStatus::Paid, '2026-07-12 10:00:00');
+        $commission(70_000, CommissionEntryStatus::Cancelled, '2026-07-12 10:00:00');
+        $commission(90_000, CommissionEntryStatus::Due, '2026-06-12 10:00:00');
+
+        // Biens gérés : 4 — deux possédés, deux en collaboration `agent` ou `manager` ; le bien
+        // possédé ET collaboré ne compte qu'une fois, `viewer` et l'autre agence ne comptent pas.
+        $owned = Property::factory()->count(2)->create(['agency_id' => $this->agency->id, 'user_id' => $a->id]);
+        $collab = fn (Property $p, CollaboratorRole $role) => PropertyCollaborator::query()->create([
+            'property_id' => $p->id, 'user_id' => $a->id, 'role' => $role,
+        ]);
+        $collab(Property::factory()->create(['agency_id' => $this->agency->id]), CollaboratorRole::Agent);
+        $collab(Property::factory()->create(['agency_id' => $this->agency->id]), CollaboratorRole::Manager);
+        $collab($owned[0], CollaboratorRole::Agent);
+        $collab(Property::factory()->create(['agency_id' => $this->agency->id]), CollaboratorRole::Viewer);
+        $collab(Property::factory()->create(['agency_id' => $other->id]), CollaboratorRole::Agent);
+        Property::factory()->create(['agency_id' => $other->id, 'user_id' => $a->id]);
+
+        $this->actingAsApi($this->agencyAdmin($this->agency));
+        $row = $this->rows()[$a->id];
+
+        $this->assertSame(1, $row['sales_signed']);
+        $this->assertSame(1, $row['leases_signed']);
+        $this->assertSame(3, $row['customers_added']);
+        $this->assertEquals(55000, $row['commissions_earned']);
+        $this->assertSame(4, $row['properties_managed']);
     }
 
     public function test_ac17_the_query_count_does_not_depend_on_the_team_size(): void

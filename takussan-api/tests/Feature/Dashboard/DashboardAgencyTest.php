@@ -3,15 +3,19 @@
 namespace Tests\Feature\Dashboard;
 
 use App\Models\Agency;
+use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\BookingStatus;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Services\Dashboard\KpiResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -112,6 +116,58 @@ class DashboardAgencyTest extends ApiTestCase
 
         $this->assertSame(2, $response->json('data.properties.total'));
         $this->assertSame(1, $response->json('data.properties.published'));
+    }
+
+    /**
+     * P93.07 (TCK-1179) — les compteurs que seul `assertJsonStructure` voyait, chacun sur une valeur
+     * non nulle et distincte des autres, avec un intrus par règle (autre agence, autre statut).
+     */
+    public function test_p93_07_counters_have_their_value(): void
+    {
+        $agency = Agency::factory()->create(['status' => AgencyStatus::Active]);
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $agency->update(['primary_admin_id' => $admin->id]);
+        $other = Agency::factory()->create();
+
+        $bien = fn (PropertyStatus $status, ?Agency $a = null): Property => Property::factory()->create([
+            'agency_id' => ($a ?? $agency)->id, 'status' => $status,
+        ]);
+        $loues = [$bien(PropertyStatus::Rented), $bien(PropertyStatus::Rented)];
+        foreach (range(1, 3) as $_) {
+            $bien(PropertyStatus::Available);
+        }
+        $bien(PropertyStatus::Draft);
+        $ailleurs = $bien(PropertyStatus::Available, $other);
+
+        foreach (range(1, 4) as $_) {
+            Customer::factory()->create(['agency_id' => $agency->id]);
+        }
+        Customer::factory()->create(['agency_id' => $other->id]);
+
+        $reservation = fn (Property $p, BookingStatus $status) => Booking::factory()->create([
+            'property_id' => $p->id, 'agency_id' => $p->agency_id, 'status' => $status->value,
+        ]);
+        $reservation($loues[0], BookingStatus::Pending);
+        $reservation($loues[0], BookingStatus::Confirmed);
+        $reservation($ailleurs, BookingStatus::Pending);
+
+        $demande = fn (Property $p, MaintenanceStatus $status) => MaintenanceRequest::factory()->create([
+            'property_id' => $p->id, 'status' => $status,
+        ]);
+        foreach ([MaintenanceStatus::Open, MaintenanceStatus::Open, MaintenanceStatus::Open, MaintenanceStatus::InProgress, MaintenanceStatus::InProgress] as $status) {
+            $demande($loues[1], $status);
+        }
+        $demande($loues[1], MaintenanceStatus::Closed);
+        $demande($ailleurs, MaintenanceStatus::Open);
+
+        $data = $this->apiGet('/api/dashboard/agency')->assertOk()->json('data');
+
+        $this->assertSame(6, $data['properties']['total']);
+        $this->assertSame(2, $data['properties']['rented']);
+        $this->assertSame(3, $data['properties']['available']);
+        $this->assertSame(4, $data['customers_count']);
+        $this->assertSame(1, $data['bookings']['pending']);
+        $this->assertSame(5, $data['maintenance']['open']);
     }
 
     public function test_user_from_different_agency_is_denied(): void
