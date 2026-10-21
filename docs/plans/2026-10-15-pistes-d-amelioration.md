@@ -8747,7 +8747,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### `seed.sh` remet la base à zéro sans rejouer `alerts:ensure-ops-rules` : une préproduction reseedée n'a aucune règle d'alerte d'exploitation
 - Réf : P89.02
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1157
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/seed.sh:16-33`, `takussan-api/docker/release.sh:26-29`, `takussan-api/app/Console/Commands/EnsureOperationalAlertRules.php:26-50`, `docs/infra/hebergement.md:301-307`
 - Constat :
@@ -8757,6 +8757,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Établi comment : lecture des deux scripts et des seeders, plus le `SELECT` ci-dessus.
 - Piste : faire jouer à `seed.sh`, après `db:seed`, les commandes idempotentes du déploiement qu'aucun seeder ne couvre (`alerts:ensure-ops-rules` au moins), ou appeler `EnsureOperationalAlertRules` depuis `DatabaseSeeder`. Garde : étendre `scripts/test-release-reindex.sh` à `seed.sh`, et vérifier que la commande y est jouée.
 - Mesure (2026-10-21, d3a36896e, mesureur) : relu `seed.sh` (`migrate:fresh`, `scout:flush`, `db:seed`, `scout:import`, aucune commande de rattrapage) ; `grep -rln "AlertRule\|alert_rules\|EnsureOperationalAlertRules" database/seeders` → rien ; `SELECT count(*) FROM alert_rules` sur la base de développement (port 5433, base `takussan`, lecture) → 0 ; `hebergement.md` § « Remettre une préproduction à zéro » : reseed lancé à la main par `--profile seed run --rm seed`. Le constat tient (l'absence de règle en préproduction après un reseed est déduite, non relevée). Classement : V5, la piste offre deux voies, `docker/seed.sh` (procédure de préproduction) ou `DatabaseSeeder` (qui créerait aussi des règles d'alerte en développement), et le choix touche l'exploitation.
+- Mesure (2026-10-21, 464389140, implementeur) : avant correctif, `seed.sh` joué par `scripts/test-release-reindex.sh` (`DB_DATABASE=takussan_preview`, talon `php`) n'appelle que `db:seed`, jamais `alerts:ensure-ops-rules` : la prémisse tient → `seed.sh` la joue après `db:seed`, son échec toléré comme dans `release.sh` (voie retenue : `seed.sh`, la plus étroite, `DatabaseSeeder` aurait créé des règles en développement) ; deux vérifications ajoutées au harnais ; ablation (`seed.sh` à `HEAD`) → la vérification d'ordre rougit, correctif remis → vert.
 
 ### `seed.sh` écrit le marqueur de recherche sans lire l'issue des tâches d'importation, ce que TCK-995 a corrigé dans `release.sh` seulement
 - Réf : P89.03
