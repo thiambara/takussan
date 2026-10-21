@@ -58,22 +58,9 @@ if [ "${SCOUT_DRIVER:-}" = "meilisearch" ]; then
     fi
   fi
   if [ "$importer" = 1 ]; then
-    debut=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-    reussi=1
-    for modele in $(modeles_indexes); do
-      echo "Importation de $modele (synchrone, avec le code de CETTE image)…"
-      # SCOUT_QUEUE=false : sinon l'import ne ferait que POUSSER des jobs, exécutés ensuite par
-      # l'ANCIEN worker, avec l'ancien toSearchableArray() (revue de la PR 253). La configuration
-      # n'est pas en cache ici : la variable de processus l'emporte.
-      SCOUT_QUEUE=false php artisan scout:import "$modele" \
-        || { echo "AVERTISSEMENT : scout:import $modele a échoué." >&2; reussi=0; }
-    done
-    # TCK-995 (P52.02) : `scout:import` rend la main quand les documents sont MIS EN FILE. Un
-    # document refusé ne se voit que dans sa tâche : on attend la file, et on la lit.
-    php artisan search:verify-indexes --depuis="$debut" \
-      || { echo "AVERTISSEMENT : des tâches d'indexation ont échoué — le déploiement suivant réimportera." >&2; reussi=0; }
-    # Le marqueur ne s'écrit qu'après TOUTES les importations, et leurs tâches : un échec rejoue
-    # tout au déploiement suivant, au lieu de se croire à jour.
-    if [ "$reussi" = 1 ]; then echo "$forme" > "$marqueur"; fi
+    # Importer, relire les tâches, et n'écrire le marqueur qu'après TOUT : un échec rejoue tout au
+    # déploiement suivant, au lieu de se croire à jour. Le bloc vit dans lib.sh, partagé avec
+    # seed.sh (TCK-1159, P89.03). Un échec n'arrête pas le déploiement.
+    importer_index "$(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
   fi
 fi

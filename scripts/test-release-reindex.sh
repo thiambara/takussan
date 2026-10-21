@@ -122,12 +122,24 @@ verifier "seed : alerts:ensure-ops-rules est joué après db:seed" "db:seed aler
 fabrique; jouer DB_DATABASE=takussan_preview SCOUT_DRIVER=collection ECHEC_SUR=alerts:ensure-ops-rules
 verifier "seed : règles d'alerte en échec, le reseed continue" 0 "$?"
 
+# TCK-1159 (P89.03) : le reseed écrit le marqueur comme release.sh, après avoir relu les tâches
+# d'importation ; un échec le laisse absent, et le déploiement suivant réimporte tout.
+fabrique; jouer DB_DATABASE=takussan_preview
+verifier "seed : importe les deux modèles indexés" 2 "$(imports)"
+verifier "seed : relit les tâches d'indexation" 1 "$(grep -c '^artisan search:verify-indexes --depuis' "$racine/journal" || true)"
+verifier "seed : écrit le marqueur" forme-1 "$(marqueur)"
+fabrique; jouer DB_DATABASE=takussan_preview ECHEC_SUR="search:verify-indexes --depuis"
+verifier "seed : tâches d'indexation échouées, le marqueur ne s'écrit pas" absent "$(marqueur)"
+fabrique; jouer DB_DATABASE=takussan_preview ECHEC_SUR=Agency
+verifier "seed : une importation échoue, le marqueur ne s'écrit pas" absent "$(marqueur)"
+
 script=$RELEASE
 
 # ── ABLATION : sans l'écriture du marqueur, le second passage DOIT réimporter ──
-# shellcheck disable=SC2016 # `$marqueur` est le TEXTE cherché dans release.sh, pas une variable d'ici.
-sed '/> "\$marqueur"/d' "$RELEASE" > "$racine/release-ablation.sh"
-script="$racine/release-ablation.sh"
+# Le marqueur s'écrit dans lib.sh depuis TCK-1159 (P89.03), partagé par release.sh et seed.sh.
+sed '/\.search-shape-importee"$/d' "$LIB" > "$racine/lib-ablation.sh"
+LIB="$racine/lib-ablation.sh"
+script=$RELEASE
 fabrique; jouer; jouer
 if [ "$(imports)" = 0 ]; then
   echo "✗ ablation : sans l'écriture du marqueur, le second passage n'importe toujours rien — le harnais ne teste rien"
