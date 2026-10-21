@@ -66,6 +66,12 @@ class AgencyUpgradeRequest extends AbstractModel
      * super-admin) ; une colonne chiffrée ne se compare pas en SQL — la détection des identifiants
      * partagés compare en PHP ({@see SharedLegalIdentifierDetector}).
      */
+    /**
+     * TCK-1132 (P84.02, ADR-0044 §1) — chiffrées, donc cachées : aucun `toArray()` ne les rend en
+     * clair. La Resource lit les attributs un à un et n'en dépend pas.
+     */
+    protected $hidden = ['ninea', 'rib_pro'];
+
     protected $casts = [
         'ninea' => 'encrypted',
         'rib_pro' => 'encrypted',
