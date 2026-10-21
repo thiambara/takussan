@@ -527,6 +527,11 @@ class AppServiceProvider extends ServiceProvider
         // reset-token brute force. Keyed by IP (no authenticated user yet).
         RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(10)->by('ip:'.$this->clientNetwork($request)));
         RateLimiter::for('auth-password', fn (Request $request) => Limit::perMinute(5)->by('ip:'.$this->clientNetwork($request)));
+        // TCK-634 — la connexion et OAuth, chacun sur son compteur. En `throttle:5,10` et
+        // `throttle:60,1` sans préfixe, ils comptaient sous la même signature de visiteur : les
+        // appels à `oauth/providers` de la page de connexion épuisaient le quota de la connexion.
+        RateLimiter::for('auth-login', fn (Request $request) => Limit::perMinutes(10, 5)->by('login-ip:'.$this->clientNetwork($request)));
+        RateLimiter::for('auth-oauth', fn (Request $request) => Limit::perMinute(60)->by('oauth-ip:'.$this->clientNetwork($request)));
 
         // TCK-589 (ADR-0033 §6) — entrée par téléphone. L'envoi d'un code coûte un SMS
         // et vise un numéro : borné par NUMÉRO (3/15 min, 5/24 h — le plafond Orange

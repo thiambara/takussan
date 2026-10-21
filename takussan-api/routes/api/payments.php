@@ -42,10 +42,10 @@ Route::middleware('auth:sanctum')->group(function () {
 // TCK-602 (ADR-0051 §4) — le journal s'ouvre après le débit et AVANT la résolution du jeton et la
 // signature : un rejet laisse sa ligne. Le jeton n'y est jamais écrit, l'intégration qu'il résout oui.
 Route::post('webhooks/payments/{provider}/{token}', PaymentWebhookController::class)
-    ->middleware(['throttle:60,1', 'webhook.journal:payment'])
+    ->middleware(['throttle:60,1,payment-webhook', 'webhook.journal:payment'])
     ->name('payments.webhook');
 
 // TCK-293 (ADR-0046 §8) — l'ancienne URL sans jeton rend 410, sans rien lire ni muter.
 Route::post('webhooks/payments/{provider}', [PaymentWebhookController::class, 'gone'])
-    ->middleware('throttle:60,1')
+    ->middleware('throttle:60,1,payment-webhook-gone')
     ->name('payments.webhook.gone');
