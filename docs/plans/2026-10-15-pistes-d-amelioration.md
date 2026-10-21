@@ -7711,7 +7711,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 
 ### Un reversement de la plateforme clos avant un remboursement est approuvé et payé avec la ligne remboursée
 - Réf : P76.01
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1156 — reste : le signalement à la console d'un reversement déjà `paid` dont une ligne a été remboursée depuis (le choix entre signaler et compenser est celui de P39.07)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:109-169`, `:200-233`, `:236-343`
 - Constat :
@@ -7721,6 +7721,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - Établi comment : lu, puis mesuré de bout en bout par les routes `/api/admin/payouts/*`.
 - Piste : à `approve()` et `markPaid()`, refuser (422 `platform_payout.items_changed`) un reversement dont une ligne n'est plus `paid`, ce qui renvoie à `cancel()` puis à une nouvelle clôture ; pour un reversement déjà `paid`, au moins un signalement à la console (le choix entre signaler et compenser est celui de P39.07). Garde : le scénario mesuré en test.
 - Mesure (2026-10-20, 740c8247f, mesureur) : lu `PlatformPayoutService::approve()` (l. 109-136) et `markPaid()` (l. 144-170) : ni l'un ni l'autre ne relit les lignes, `cancel()` seul remet `platform_payout_id` à nul (l. 178-181), `breakdown()` agrège par `platform_payout_id` sans filtre de statut (l. 207-215) ; test temporaire `tests/Feature/Tmp/MesureurTmp76Test.php` (retiré), charge 2,85 / 3,26 / 3,19 sur 8 cœurs : loyer de 100 000 soldé par l'intégration globale, `close-period` → reversement `pending`, puis `applyEventToMatchingPayment` d'un remboursement de 100 000 → échéance `refunded`, `refund_amount = 100000`, `paid_amount = 0`, `platform_payout_id` toujours posé ; `approve` → 200, `mark-paid` → 200, reversement `paid` (le `breakdown` n'a pas été relu par la route) → le constat tient. Classement : V1, le correctif bloque le versement d'un reversement et touche à la suite d'un reversement déjà payé (signaler ou compenser, P39.07).
+- Mesure (2026-10-21, 464389140, implementeur) : avant correctif, loyer de 100 000 soldé par la plateforme, `close-period` puis échéance passée à `refunded` (`refund_amount = 100000`) → `approve` rend 200, et après approbation `mark-paid` rend 200 → `approve()` et `markPaid()` refusent désormais sous le verrou (422 `platform_payout.items_changed`) un reversement dont une ligne n'est plus `paid` ; `PlatformPayoutRefundedItemsTest` (3 cas, dont l'annulation qui libère la ligne) ; ablation : les deux appels retirés → 2 rouges, remis → 3/3 ; `PlatformPayoutTest`, `…SegregationTest`, `…FreezeTest`, `…ScopeTest` verts.
 
 ### Un remboursement partiel fait sortir toute la ligne de l'encaissé, de la clôture de la plateforme et du reversement au bailleur
 - Réf : P76.02
