@@ -368,6 +368,15 @@ class PlatformPayoutService
     }
 
     /**
+     * TCK-1160 (P76.04) — ce paiement a-t-il été soldé en ligne par une intégration globale, donc
+     * encaissé par la plateforme ? La lecture même de la clôture.
+     */
+    public function isSettledByPlatform(BookingPayment|LeasePayment $payment): bool
+    {
+        return $this->settledBy($payment, $this->globalIntegrationIds([$payment])) !== null;
+    }
+
+    /**
      * Les intégrations GLOBALES (`agency_id` nul, supprimées comprises) parmi celles qui ont initié
      * le règlement de ces paiements. Une requête pour toute la clôture.
      *

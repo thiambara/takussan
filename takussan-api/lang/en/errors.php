@@ -91,6 +91,7 @@ return [
         'receipt_unpaid' => 'The receipt is only available for a settled payment.',
         'refund_exceeds_paid' => 'The refund cannot exceed the amount paid.',
         'refund_fractional' => 'This amount has decimals the payment currency does not have.',
+        'refund_settled_by_platform' => 'This deposit was collected online by the platform: it is refunded through the payment provider.',
         'refund_unpaid' => 'Only a settled payment can be refunded.',
     ],
     'boost' => [
