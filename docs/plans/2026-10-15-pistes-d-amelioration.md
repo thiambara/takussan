@@ -9314,7 +9314,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 
 ### Petites améliorations : indicateurs servis sans test de valeur
 - Réf : P93.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-1179
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/tests/Feature/Reporting/TeamPerformanceTest.php:74-95`,
   `takussan-api/tests/Feature/Dashboard/DashboardAgencyTest.php:38-61`
@@ -9330,6 +9330,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 - Piste : un test de valeur par indicateur, sur un jeu où chaque clé a une valeur non nulle et
   distincte des autres. C'est un ajout de test seul (A5).
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : `grep -rl` de chaque clé sous `takussan-api/tests` → `sales_signed`, `customers_added`, `commissions_earned` : aucun fichier ; `properties_managed` n'est asserté qu'au tableau de bord de l'agent (`DashboardAgentScopeTest.php:131,157`, `DashboardAgentService`), jamais pour `TeamPerformanceService` ; `DashboardAgencyTest.php:38-47` n'a que `assertJsonStructure` pour `published`, `rented`, `available`, `customers_count`, `bookings.pending`, `maintenance.open` ; le constat tient, à cette précision près. Correctif attendu : un test de valeur par indicateur de la performance d'équipe et du tableau de bord d'agence, sur un jeu aux valeurs non nulles et distinctes, sauf `properties.published`, dont la valeur attendue dépend de P93.06. Classement : A5, ajout de tests seul, sans seuil.
+- Mesure (2026-10-21, 8d4869e9d, implementeur) : `grep` re-joué, le constat tient (aucune valeur assertée pour `sales_signed`, `customers_added`, `commissions_earned`, `properties_managed` côté équipe, ni pour `rented`, `available`, `customers_count`, `bookings.pending`, `maintenance.open`) → `TeamPerformanceTest::test_p93_07_…` (1, 3, 55 000, 4) et `DashboardAgencyTest::test_p93_07_counters_have_their_value` (6, 2, 3, 4, 1, 5), un intrus par règle ; ablation par mutation (filtre `cancelled` des commissions retiré : 125 000 ; `in_progress` retiré de la maintenance : 3) rouge, code rendu : 8/8 et 11/11.
 
 ## Angle 94 — Réponses composées à la main dans les contrôleurs : dates hors ADR-0018
 
