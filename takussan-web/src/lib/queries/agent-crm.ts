@@ -99,10 +99,14 @@ export async function fetchCustomerLinked(
   }));
 }
 
-/** Les agents de l'agence (liste réservée à l'administration : un 403 laisse « me désigner » seul). */
+/**
+ * Les agents de l'agence (liste réservée à l'administration : un 403 laisse « me désigner » seul).
+ * `assignable` ne garde que les cibles que l'API accepte : ni compte bloqué, ni profil suspendu, ni
+ * bailleur agent dans une autre agence (P88.03, TCK-1096).
+ */
 export async function fetchAgencyAgents(token: string, agencyId: number): Promise<AgencyStaffMember[]> {
   const qs = buildQueryString({
-    filter: { role: 'agent' },
+    filter: { role: 'agent', assignable: 1 },
     fields: { users: ['id', 'first_name', 'last_name'] },
     per_page: 100,
   });
