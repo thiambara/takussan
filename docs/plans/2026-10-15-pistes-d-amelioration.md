@@ -9506,7 +9506,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Un compte supprimé s'ajoute comme collaborateur d'un bien, avec sa part de commission
 - Réf : P96.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1117
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyCollaboratorRequest.php:39-45`, `takussan-api/app/Rules/CollaboratorEligibleForProperty.php:40-50`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:45-66`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:208-218`
 - Constat :
@@ -9518,6 +9518,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : faire échouer `CollaboratorEligibleForProperty` quand `find()` rend `null` (message `collaborators.not_in_agency`, celui d'un compte non éligible), ou borner la règle par `Rule::exists('users', 'id')->whereNull('deleted_at')`. Test : un agent de l'agence supprimé en douceur → 422 sur `user_id`, et aucune ligne écrite.
 - Mesure (2026-10-21, 127233826, mesureur) : relu `StorePropertyCollaboratorRequest.php:40-45` (`exists:users,id` nu), `CollaboratorEligibleForProperty.php:40-50` (`find()` rend `null` pour un compte supprimé en douceur et la règle rend sans échec), `PersonnelDeLAgence.php:40-43` et `PrimaryPropertyContact::joignable()` (l. 187-191, qui refuse un compte `Deleted`), puis lancé un test temporaire retiré depuis (charge `{ 6.41 6.38 5.22 }` sur 8 cœurs) : agent de l'agence puis `$user->delete()`, le bailleur poste `{user_id, role: agent, commission_share: 10}` → **201**, `"user": null`, `commission_share: "10.00"`, une ligne `property_collaborators` écrite ; aucun commit ni ticket ne l'a traité (`git log` des requêtes et règles depuis TCK-1097). Le volet « part immobilisée » reste déduit, non mesuré. Classement : A1, le contrat est écrit dans la règle elle-même (« introuvable : leurs propres règles refusent déjà ») et dans TCK-1097 (seul le personnel joignable est collaborateur), et le correctif refuse une entrée invalide en 422 sans calculer ni réécrire aucun montant.
+- Mesure (2026-10-21, 6e5cee59b, implementeur) : `CollaboratorDeletedAccountTest` avant correctif → 2 rouges sur 3 : agent de l'agence supprimé en douceur, ajouté en `agent` puis `viewer` → **201** au lieu de 422 → `user_id` passe à `Rule::exists('users', 'id')->whereNull('deleted_at')` : 3/3 verts (422 sur `user_id`, aucune ligne écrite, même message qu'un identifiant absent ; témoin non supprimé → 201) ; ablation (requête rendue à `HEAD`) → 2 rouges ; remis → 3/3. Le `PUT` d'un collaborateur dont le compte a été supprimé depuis n'est pas traité (même `find()` silencieux dans `UpdatePropertyCollaboratorRequest`).
 
 ### Une fiche ou un compte supprimés passent `exists:` puis rendent 404, là où un identifiant absent rend 422
 - Réf : P96.02
