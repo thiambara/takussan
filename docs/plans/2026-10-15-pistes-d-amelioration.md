@@ -166,7 +166,7 @@ voie d'écriture (angle 13, puis 47).
 | 91 | FormRequests dont la borne `max:` dépasse la longueur `varchar(N)` de la colonne écrite, ou qui n'en ont pas : 500 (`22001`) au lieu de 422 — le pendant « longueur » de l'angle 54 | fait |
 | 92 | Contraintes `UNIQUE` de la base sans règle `unique` ni verrou dans le FormRequest ou le service qui écrit : un doublon rend 500 (`23505`, que `bootstrap/app.php` ne traduit pas) au lieu de 422 ou 409 | fait |
 | 93 | Indicateurs calculés des tableaux de bord et rapports (`DashboardAgencyService`, `KpiResolver`, `PortfolioMetrics`, `TeamPerformanceService`, `OwnerStatementService`) dont les tests n'assertent que la structure JSON : valeur toujours nulle ou fausse sur des données réelles ? | fait |
-| 94 | Réponses assemblées à la main dans un contrôleur (`TaskController::format`, `Admin\AgencyUpgradeRequestController::show`, `Me\ServiceProviderProfileController::show`, 25 `toISOString()` sous `app/Http/Controllers`) : dates hors ADR-0018 et enums bruts, que `check-resource-date-format.mjs` ne lit pas | à faire |
+| 94 | Réponses assemblées à la main dans un contrôleur (`TaskController::format`, `Admin\AgencyUpgradeRequestController::show`, `Me\ServiceProviderProfileController::show`, 25 `toISOString()` sous `app/Http/Controllers`) : dates hors ADR-0018 et enums bruts, que `check-resource-date-format.mjs` ne lit pas | fait |
 | 95 | Réponse d'une écriture (`store`, `update`, action) face au `show` ou à la liste du même modèle : forme, ressource, types (`commission_share` en chaîne ou en nombre), clés — `PropertyCollaboratorController`, `CustomerController::setPrimaryContact`, `PropertyTagController::sync` | à faire |
 | 96 | Règles `exists:` sans `whereNull('deleted_at')` sur une table à `SoftDeletes` (`exists:customers,id`, `exists:users,id`, `exists:leases,id`…) suivies d'un `find()` masqué par la portée : 404 ou 500 au lieu de 422, ou clé étrangère écrite vers une ligne supprimée | à faire |
 | 97 | Liens d'action des courriels (`->action(…)` des `toMail()`, boutons des Mailables) : la route ou la page visée existe-t-elle, un clic depuis un client de courriel porte-t-il l'authentification qu'elle exige, et vise-t-il l'hôte du front ou celui de l'API | à faire |
@@ -202,6 +202,7 @@ voie d'écriture (angle 13, puis 47).
 | 125 | Téléphones écrits sans `TelephoneSaisi::normaliser` ni `TelephoneJoignable` (garants, agences, onboarding de la console, contacts sur place des biens) : numéro hors E.164 face aux lecteurs qui envoient un SMS, ouvrent un lien WhatsApp ou rapprochent un doublon | à faire |
 | 126 | Destinataires de notifications et de courriels choisis par un profil sans `->active()` (`MaintenanceParticipants.php:39`, autres `Notification::send` à l'équipe d'une agence) : agent ou admin suspendu ou archivé qui reçoit encore l'activité de l'agence — le relevé de P93.04 sur les autres envois | à faire |
 | 127 | Indicateurs de `DashboardAgentService`, `DashboardOwnerService` et des adaptateurs `*MeMetrics` de `/dashboard/me` : dénominateur nul rendu 0 au lieu de `null`, statut courant relu pour une période passée, clés que seul `assertJsonStructure` vérifie — le relevé de l'angle 93 sur les autres tableaux de bord | à faire |
+| 128 | Dates des charges utiles de notification (`toArray()` / `toDatabase()` de `app/Notifications`, `data` rendu par `AppNotificationResource`, diffusions) que l'ADR-0018 laisse hors de son périmètre : forme émise, et lecture par le centre de notifications du front | à faire |
 
 ---
 
@@ -9272,3 +9273,144 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 - Piste : un test de valeur par indicateur, sur un jeu où chaque clé a une valeur non nulle et
   distincte des autres. C'est un ajout de test seul (A5).
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : `grep -rl` de chaque clé sous `takussan-api/tests` → `sales_signed`, `customers_added`, `commissions_earned` : aucun fichier ; `properties_managed` n'est asserté qu'au tableau de bord de l'agent (`DashboardAgentScopeTest.php:131,157`, `DashboardAgentService`), jamais pour `TeamPerformanceService` ; `DashboardAgencyTest.php:38-47` n'a que `assertJsonStructure` pour `published`, `rented`, `available`, `customers_count`, `bookings.pending`, `maintenance.open` ; le constat tient, à cette précision près. Correctif attendu : un test de valeur par indicateur de la performance d'équipe et du tableau de bord d'agence, sur un jeu aux valeurs non nulles et distinctes, sauf `properties.published`, dont la valeur attendue dépend de P93.06. Classement : A5, ajout de tests seul, sans seuil.
+
+## Angle 94 — Réponses composées à la main dans les contrôleurs : dates hors ADR-0018
+
+*Exploré le 2026-10-21 sur `pre-dev` 4ac33ffcb, par l'explorateur. J'ai relu moi-même les sites
+cités : `TaskController::format`, `Admin\AgencyUpgradeRequestController::show`,
+`Me\ServiceProviderProfileController::show`, `AgencyDetailController`, `ScheduledTaskInspector`,
+`HealthcheckService::scheduler`, `FailedJobService::present`, `CalendarEventCollector`,
+`PaymentController::leaseRow`, `AuditLogController`, et côté front `lib/format.ts`,
+`calendar-date.ts`, `components/calendar/dates.ts`. Un sous-agent a balayé les services `Admin`,
+`Dashboard`, `Reporting` et les contrôleurs `Api/` à la recherche de valeurs SQL brutes. Il a
+trouvé `FailedJobService:75`, `CustomerController:208` et `AgentProfileController:39`, et je les ai
+relus tous les trois. Les types de colonne et les chaînes rendues par PostgreSQL ont été lus en
+`SELECT` sur la base de développement. Les contrôleurs hors `Api/` (`Public/`, iCal) n'ont pas été
+balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et je n'ai trouvé aucun
+écart de fond entre les contrôleurs et les ressources (voir P94.05).*
+
+### Quatre écrans de la console rendent un horodatage SQL sans fuseau, lu en heure locale par le navigateur
+- Réf : P94.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:120-151`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:35,48`, `takussan-api/app/Services/Admin/HealthcheckService.php:369-374`, `takussan-api/app/Services/Admin/FailedJobService.php:24,34,75`, `takussan-web/src/lib/format.ts:106-118`, `takussan-web/src/components/admin/super/scheduler.tsx:60`, `takussan-web/src/components/admin/super/failed-jobs.tsx:150,307`, `takussan-web/src/components/admin/super/agency-detail.tsx:441,535`
+- Constat :
+  - Quatre clés sortent telles que PostgreSQL les rend, sans passer par Carbon (lu) :
+    - `last_platform_payment_at` (`MAX(paid_at)` d'un `DB::selectOne`) ;
+    - `last_run_at` du planificateur (`max(last_run_at)` d'un `DB::table`), et le même champ dans
+      la santé (`->value('last_run_at')`) ;
+    - `failed_at` des jobs en échec (`DB::table('failed_jobs')`, liste et détail).
+  - Les colonnes sont en `timestamp without time zone`, et la valeur arrive en
+    `2026-10-18 21:54:01`, sans `T` ni fuseau (mesuré : `information_schema.columns` pour
+    `lease_payments.paid_at` et `failed_jobs.failed_at` ; `select max(last_run_at) from
+    scheduled_task_runs` → `"2026-10-18 21:54:01"`). C'est la « cinquième forme » qu'ADR-0018
+    décrit, dans son amendement, pour les ressources.
+  - Le front fait `new Date(value)` puis formate à `Africa/Dakar` (`format.ts:113-118`, lu). Une
+    chaîne sans fuseau est lue dans le fuseau du navigateur. Mesuré avec
+    `TZ=Europe/Paris node -e …` : `"2026-10-18 21:54:01"` s'affiche `18 oct. 2026, 19:54`, et
+    `"2026-10-18T21:54:01+00:00"` s'affiche `21:54`. Sous `TZ=UTC`, les deux affichent `21:54`. Un
+    opérateur dont le navigateur n'est pas en UTC lit donc une heure fausse de son décalage, sur la
+    dernière exécution du planificateur et sur l'heure d'échec d'un job.
+  - Les ressources de la même console convertissent déjà ces agrégats (lu) :
+    `AgencyResource.php:39-40` et `CreditWalletResource.php:19` passent par
+    `iso(Carbon::parse(…))`. La garde `check-resource-date-format.mjs` ne lit que
+    `app/Http/Resources/` (son en-tête, l. 110).
+  - Établi comment : lecture, `tinker` en `SELECT`, `node` sous deux fuseaux.
+- Piste : convertir les quatre clés par `Carbon::parse(…)->utc()->format(DATE_ATOM)` (la forme de
+  `iso()`), au plus près de la requête. Pour empêcher le retour, un test par route qui asserte la
+  chaîne exacte (`…T21:54:01+00:00`).
+
+### Le calendrier agrégé repose sur la forme SQL sans fuseau, et le front en dépend
+- Réf : P94.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Calendar/CalendarEventCollector.php:180-181,214-215,267-268,314-315,396-397`, `takussan-web/src/lib/calendar-date.ts:125-131`, `takussan-web/src/components/calendar/dates.ts`, `takussan-web/src/types/calendar.ts:33-36`
+- Constat :
+  - `GET /api/calendar` émet `start` et `end` par `toDateTimeString()` (`2026-08-17 12:34:56`).
+    C'est le cas pour les instants (visites `scheduled_at`, tâches `due_at`, maintenance) comme pour
+    les dates calendaires (séjours, jalons de bail) (lu). C'est le site qu'ADR-0018 l. 217-219 nomme
+    hors de son périmètre.
+  - Le front le lit délibérément en heure locale (`parseServerDate`, l. 125). Il formate ensuite
+    dans le fuseau du navigateur, et non à Dakar : le commentaire de `dates.ts` le justifie (lu).
+    L'agenda affiche donc l'heure murale UTC, quel que soit le fuseau du navigateur. Ailleurs, la
+    même visite est rendue en instant et formatée à Dakar. Les deux affichages coïncident tant que
+    Dakar est à UTC+0.
+  - Le risque est un correctif naïf. Passer le collecteur à `iso()`, comme le demande ADR-0018,
+    décalerait toutes les heures de l'agenda pour un navigateur hors UTC, sans aucun test rouge :
+    `parseServerDate` garde une chaîne qui contient déjà `T`, et `new Date` appliquerait alors le
+    fuseau (déduit de la lecture, à vérifier par un test).
+  - Établi comment : lecture.
+- Piste : choisir un contrat et l'écrire. Première voie : le collecteur émet `iso()` pour les
+  instants et `calendarDate()` pour les journées entières, et le front formate à Dakar comme
+  ailleurs. Seconde voie : la forme murale reste, et elle devient une exception écrite d'ADR-0018.
+  Dans les deux cas, un test front sur `parseServerDate` sous `TZ=Europe/Paris` empêche le retour.
+
+### Les dates des réponses composées à la main suivent trois formes, et aucune garde ne les lit
+- Réf : P94.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/` (25 `toISOString()` dans 12 fichiers, 55 `toIso8601String()` dans 30 fichiers), `takussan-api/app/Http/Controllers/Api/AuditLogController.php:70,179`, `takussan-api/app/Http/Controllers/Api/TaskController.php:186-190`, `takussan-api/app/Services/Review/ReviewReportService.php:56`, `scripts/check-resource-date-format.mjs:110`
+- Constat :
+  - Le compte se prend par `grep -rnF "toISOString()" app/Http/Controllers | wc -l` → 25, et par
+    `grep -rnF "toIso8601String()"` → 55 (mesuré).
+  - Les deux formes cohabitent sur des objets voisins (lu) :
+    - `TaskController::format`, `CustomerNoteController`, `GuarantorController`,
+      `DocumentShareLinkController`, `PaymentController::bookingRow/leaseRow` et
+      `Auth\SessionController` émettent `…T12:34:56.000000Z` ;
+    - `AgentAbsenceController`, `CalendarFeedController` et la console émettent
+      `…T12:34:56+00:00` ;
+    - `AgencyUpgradeRequestController::show` mêle les deux dans une même réponse : `iso()` vient
+      de la ressource, `toIso8601String()` du bloc `agency` ajouté à la main (l. 100).
+  - `AuditLogController` rend `created_at` en Carbon brut, sérialisé en
+    `2026-10-21T10:00:00.000000Z`. Mesuré par `tinker` sur une `Activity` neuve,
+    `json_encode(['c' => $a->created_at])`.
+  - `ReviewReportService:56` stocke `reported_at` en `toISOString()` dans `metadata`, que
+    `ReviewController:198` rend tel quel (rapport du sous-agent, ligne relue).
+  - Je n'ai trouvé aucun lecteur du front qui compare ces chaînes entre elles (`grep` de
+    `localeCompare` et de comparaisons `*_at <` sous `src`, vide). Le coût est donc un contrat à
+    trois formes, pas un affichage faux aujourd'hui.
+  - Établi comment : `grep`, lecture, `tinker`.
+- Piste : un `Base\Controller::instant()` et un `::calendarDate()` qui délèguent aux helpers de
+  `BaseResource`, et les ~80 sites convertis. La garde gagne un contrôle C sur
+  `app/Http/Controllers` et `app/Services/Admin` : la liste noire des conversions écrites à la
+  main, sans l'inventaire positif.
+
+### Des dates calendaires sortent en instant de minuit par trois contrôleurs
+- Réf : P94.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:258`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:208`, `takussan-api/app/Http/Controllers/Api/AgentProfileController.php:39`
+- Constat :
+  - `GET /api/payments/history` donne à une échéance de bail impayée la clé
+    `'date' => $p->period_start?->startOfDay()->toISOString()`, alors que `period_start` est casté
+    `date` (`LeasePayment.php:55`) : `…T00:00:00.000000Z` (lu). La même ligne émet aussi
+    `period_start` en `toDateString()` (l. 260). La clé sert de tri à `applySort`, avec les
+    `paid_at` des autres lignes.
+  - `CustomerController::setPrimaryContact` rend le modèle `UserCustomerRelationship` brut, dont
+    `started_at` et `ended_at` sont castés `date` (lu, l. 26-27).
+    `AgentProfileController::suspend` rend `$profile->toArray()`, dont `hire_date` et
+    `active_until` sont castés `date` (lu, l. 37-38). Mesuré par `tinker` : un `AgentProfile` à
+    `hire_date = 2026-10-21` donne `"2026-10-21T00:00:00.000000Z"`.
+  - Le défaut qu'ADR-0018 a mesuré sur `PlatformPayoutResource` est le même. Je n'ai pas vérifié
+    qu'un écran lise ces deux réponses d'écriture. La forme des réponses d'écriture relève de
+    l'angle 95, et les modèles bruts de l'angle 61 : cette entrée n'en retient que les dates.
+  - Établi comment : lecture ; `tinker`.
+- Piste : `toDateString()` pour les champs calendaires, ou passer par la ressource du modèle. Pour
+  `PaymentController:258`, choisir explicitement la date de tri d'une ligne impayée : la date
+  calendaire de début, mise à minuit UTC, et le dire.
+
+### Petites améliorations
+- Réf : P94.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyUpgradeRequestController.php:96-97,117`, `takussan-api/app/Http/Controllers/Api/Admin/SuperAdminInvitationController.php:48`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:119`
+- Constat :
+  - Les quatre lignes `?->value ?? (string) $x->status` rendent `""` et non `null` quand l'enum
+    est nul (lu). Ce n'est pas la forme de `BaseResource::enumValue()`.
+  - `Me\ServiceProviderProfileController::show` rend `hourly_rate` en chaîne (`decimal:2` →
+    `"15000.00"`) et `visit_fee` en nombre (lu, `ServiceProviderProfile.php:39`). Le front type
+    `number | string` et en tient compte (`ProfileServiceProviderSection.tsx:25,63`, lu) : ce n'est
+    pas une panne, c'est un écart de type entre deux montants voisins.
+  - Établi comment : lecture.
+- Piste : `?->value` seul pour les enums. `(float)` pour `hourly_rate`, comme les montants de
+  `PaymentController`.
