@@ -9120,7 +9120,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 
 ### L'occupation des mois passés s'efface quand un bien est archivé, vendu ou passé en vente aujourd'hui
 - Réf : P93.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : règle d'éligibilité d'un mois passé à choisir (la piste la laisse au porteur)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:23-26,48-54,65-120,322-339`
 - Constat :
@@ -9139,10 +9139,11 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   dénominateur d'un mois tout bien couvert par un bail ce mois-là, et n'exclure par statut que les mois
   postérieurs au passage en `archived` ou `sold`, si une date l'atteste. Le choix de la règle revient au
   porteur. Un test épingle la série d'un bien archivé après un bail terminé.
+- Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `PortfolioMetrics::eligibleSql` (statut, `contract_type` et `rent_period` courants, inchangés depuis 964dded11) ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → bail `expired` du 2026-01-01 au 2026-06-30, `setTestNow(2026-07-15)` : `longStayOccupancy` rend 100 de janvier à juin, puis 0 sur les six mois après `status = archived`, et 0 après retour à `available` avec `contract_type = sale` ; le constat tient tel qu'écrit (courte durée relue, non rejouée). Aucun ticket ni commit ne le traite. Classement : V7, la piste propose une règle (dénominateur par bail couvrant, exclusion datée) sans date de passage en `archived` ou `sold` aujourd'hui en base, et en laisse le choix au porteur.
 
 ### Le relevé du bailleur compte en « Impayés de la période » des loyers pas encore échus et ceux d'un bail supprimé
 - Réf : P93.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : montant « Impayés » du relevé du bailleur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payout/OwnerStatementService.php:137-153`,
   `takussan-api/lang/fr/money_out.php:27`, `takussan-api/resources/views/pdf/statements/owner.blade.php:82-83`
@@ -9163,10 +9164,11 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 - Piste : borner l'échéance à `< today` en plus de la période, et filtrer `leases.deleted_at`, en
   lisant `CollectedPayments::leaseOwed()` comme les autres lecteurs de l'impayé. Un test épingle les
   deux cas.
+- Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `OwnerStatementService::unpaid` (`whereBetween(due_date, période)`, aucune borne à aujourd'hui, aucun filtre `leases.deleted_at`) ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → `setTestNow(2026-07-03)`, 100 000 dus le 25 juillet et 70 000 dus le 1ᵉʳ juillet sur un bail supprimé : `statement(…, '2026-07')['unpaid']` = `{"count":2,"amount":170000}`, `PortfolioMetrics::overdue` de l'agence = `{"count":0,"amount":0}` ; le constat tient (cas annuel non rejoué). Aucun ticket ni commit ne le traite. Classement : V1, le correctif change un montant imprimé sur le relevé et l'attestation du bailleur.
 
 ### Le « taux d'impayés » dépasse 100 %, et vaut 0 % quand les impayés viennent d'un bail clos
 - Réf : P93.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1, V7 : définition du taux d'impayés à choisir
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:54-59,77,115`,
   `takussan-api/app/Services/Dashboard/KpiResolver.php:37`, `takussan-api/app/Models/ThresholdAlert.php:49`,
@@ -9188,10 +9190,11 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 - Piste : rapporter des grandeurs de même assiette, par exemple l'impayé des échéances échues sur
   12 mois ÷ le facturé échu des mêmes échéances. Rendre `null` sans dénominateur. Le choix de la
   définition revient au porteur (texte du produit). Un test épingle les deux cas mesurés.
+- Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `DashboardAgencyService::summary` (`unpaid_rate_percent` = impayé cumulé ÷ Σ `monthly_rent` des baux `active`, 0 sans bail actif) et `KpiResolver::forAgency` ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → bail actif à 100 000 avec trois loyers échus impayés plus un bail `terminated` à 50 000 impayés : `overdue_amount` 350 000, `unpaid_rate_percent` 350 ; agence au seul bail `terminated` à 50 000 impayés : `overdue_amount` 50 000, `unpaid_rate_percent` 0 ; le constat tient. Aucun ticket ni commit ne le traite. Classement : V1 et V7, c'est un ratio de montants dont la piste laisse la définition au porteur.
 
 ### Les alertes de seuil vont aussi aux admins d'agence suspendus ou archivés
 - Réf : P93.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Console/Commands/CheckThresholdAlertsCommand.php:54-56`
 - Constat :
@@ -9207,10 +9210,11 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   - Établi comment : lecture, puis le test temporaire ci-dessus.
 - Piste : `whereHas('agencyAdminProfiles', fn ($q) => $q->active()->where('agency_id', …))`. Un test
   avec un admin suspendu, qui rougit sans `active()`.
+- Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `CheckThresholdAlertsCommand` (`whereHas('agencyAdminProfiles', …agency_id…)` sans `active()`), `HasProfiles::isAgencyAdminAt` (`->active()`), `MessagingReach.php:224` (`$p->active()->where('agency_id', …)`) ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → deux admins dont l'un passé en `suspended`, alerte `occupancy_rate_percent < 50`, `dashboard:check-alerts` : `ThresholdAlertTriggered` envoyée 1 fois à l'admin actif et 1 fois au suspendu ; le constat tient. Aucun ticket ni commit ne le traite. Correctif attendu : `->active()` dans le `whereHas` des destinataires, et un test avec un admin suspendu qui rougit sans lui. Classement : A1, le code appelant (`isAgencyAdminAt`, `MessagingReach`) tient déjà qu'un admin d'agence est un profil actif, et seuls les destinataires d'une notification changent.
 
 ### Une agence sans bien de location reçoit l'alerte « occupation sous le seuil »
 - Réf : P93.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la tuile passe de 0 % à un tiret, et l'alerte cesse sur une valeur absente
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:212-214`,
   `takussan-api/app/Services/Dashboard/KpiResolver.php:38`,
@@ -9226,10 +9230,11 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   - Établi comment : lecture, puis le test temporaire ci-dessus.
 - Piste : rendre `null` sans dénominateur, et ne pas évaluer une alerte sur une valeur `null`. Le
   front affiche un tiret. Un test épingle l'agence sans bien.
+- Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `PortfolioMetrics::longStayOccupancyToday` (`0.0` sans bien éligible), `KpiResolver` (`?? 0.0`) et la commande (`?? 0.0`) ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → agence sans aucun bien : `occupancy` = `{"rate_percent":0,"short_stay_percent":null}`, et l'alerte `occupancy_rate_percent < 50` est envoyée à l'admin ; le constat tient (écran non relu). Aucun ticket ni commit ne le traite. Classement : V7, le correctif change ce que la tuile affiche et quand une alerte se déclenche.
 
 ### La tuile « Biens » compte comme « publiés » des biens vendus, loués, en revue ou refusés
 - Réf : P93.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : compter par le prédicat du catalogue ou renommer l'indice
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:46-49`,
   `takussan-api/app/Models/Property.php:536-548`, `takussan-web/src/messages/fr.json:2209`
@@ -9244,10 +9249,11 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   - Établi comment : lecture, puis le test temporaire ci-dessus.
 - Piste : compter `published` par le prédicat du catalogue (`Property::public()` borné à l'agence),
   ou renommer l'indice si le porteur veut « déjà publié une fois ». Un test épingle un bien vendu.
+- Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `DashboardAgencyService::summary` (`published_at` non nul et statut hors `draft`, `archived`) et `Property::scopePublic` ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → cinq biens publiés, un par statut `sold`, `rented`, `pending_review`, `rejected`, `available` : `properties` = `{"total":5,"published":5,"rented":1,"available":1}`, alors que `Property::public()` borné à l'agence en compte 1 ; le constat tient. Aucun ticket ni commit ne le traite. Classement : V7, la piste offre deux options (changer le compte ou le libellé) que le porteur choisit.
 
 ### Petites améliorations : indicateurs servis sans test de valeur
 - Réf : P93.07
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/tests/Feature/Reporting/TeamPerformanceTest.php:74-95`,
   `takussan-api/tests/Feature/Dashboard/DashboardAgencyTest.php:38-61`
@@ -9262,3 +9268,4 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   - Établi comment : lecture et `grep`.
 - Piste : un test de valeur par indicateur, sur un jeu où chaque clé a une valeur non nulle et
   distincte des autres. C'est un ajout de test seul (A5).
+- Mesure (2026-10-21, 58d0e8f22, mesureur) : `grep -rl` de chaque clé sous `takussan-api/tests` → `sales_signed`, `customers_added`, `commissions_earned` : aucun fichier ; `properties_managed` n'est asserté qu'au tableau de bord de l'agent (`DashboardAgentScopeTest.php:131,157`, `DashboardAgentService`), jamais pour `TeamPerformanceService` ; `DashboardAgencyTest.php:38-47` n'a que `assertJsonStructure` pour `published`, `rented`, `available`, `customers_count`, `bookings.pending`, `maintenance.open` ; le constat tient, à cette précision près. Correctif attendu : un test de valeur par indicateur de la performance d'équipe et du tableau de bord d'agence, sur un jeu aux valeurs non nulles et distinctes, sauf `properties.published`, dont la valeur attendue dépend de P93.06. Classement : A5, ajout de tests seul, sans seuil.
