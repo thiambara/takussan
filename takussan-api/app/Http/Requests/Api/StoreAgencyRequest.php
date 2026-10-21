@@ -37,7 +37,7 @@ class StoreAgencyRequest extends BaseFormRequest
             'name' => ['required', 'string', 'max:255'],
             'license_number' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'email' => ['nullable', 'email'],
+            'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
             'website' => ['nullable', 'url'],
             'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],

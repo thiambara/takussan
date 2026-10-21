@@ -41,7 +41,7 @@ class StoreCustomerRequest extends BaseFormRequest
             // `emergency_contact_name` : au-delà, 422 sur la clé, et non le 500 de PostgreSQL.
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email'],
+            'email' => ['nullable', 'email', 'max:255'],
             'id_type' => ['nullable', Rule::enum(IdType::class)],
             // TCK-953 — la valeur doit tenir dans le `varchar(255)` du `down()` (ADR-0070 § 2).
             'id_number' => ['nullable', 'string', 'max:100'],
