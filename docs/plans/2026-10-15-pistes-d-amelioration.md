@@ -8790,7 +8790,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### Petites améliorations
 - Réf : P89.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1163
 - Gravité : 🟢 amélioration
 - Où : `scripts/test-release-reindex.sh:76-100`, `takussan-api/docker/release.sh:21-24`, `takussan-api/app/Console/Commands/GeoSyncReferential.php:24-30`
 - Constat :
@@ -8799,6 +8799,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Établi comment : lecture et `grep`.
 - Piste : ajouter au harnais un passage `ECHEC_SUR=geo:sync-referential` et un passage `ECHEC_SUR=tags:sync-catalog` (release continue), et attraper aussi `JsonException` dans la commande.
 - Mesure (2026-10-21, d3a36896e, mesureur) : `grep -n "geo:\|tags:" scripts/test-release-reindex.sh` → rien (les passages `ECHEC_SUR=` couvrent `migrate`, `membership:reconcile`, `alerts:ensure-ops-rules`, `search:*`) ; relu `GeoSyncReferential::handle` (n'attrape que `RuntimeException`) ; test temporaire `TmpMesureurP89Test` (charge 4,80 / 4,49 / 5,19 sur 8 cœurs, retiré ensuite) → un fichier de région `{pas du json` fait sortir de la commande une `JsonException` « Syntax error » non attrapée ; même mesure, une `Meilisearch\Exceptions\CommunicationException` (hérite de `\Exception`) sort aussi sans message d'une ligne (P89.01). Le constat tient en entier. Classement : A5 et A1, deux passages ajoutés au harnais épinglent la tolérance que `release.sh:19-20` écrit déjà (« un échec n'arrête pas le déploiement »), et attraper `JsonException` suit le contrat de la commande (message d'une ligne et `FAILURE`), sans toucher `release.sh` ni le code de sortie.
+- Mesure (2026-10-21, 464389140, implementeur) : avant correctif, `grep -n "geo:\|tags:" scripts/test-release-reindex.sh` → rien, et `test_un_fichier_de_region_invalide_echoue_sur_un_message` (`GeoReferentialSeederTest`) rougit sur `JsonException: Syntax error` : la prémisse tient → `GeoSyncReferential` attrape `JsonException`, quatre vérifications au harnais (`release.sh` continue et joue l'étape suivante quand l'un des deux référentiels échoue) ; ablations : `|| exit 1` à la place des deux `|| echo` → 4 rouges, `catch` sans `JsonException` → 1 rouge ; correctifs remis → harnais vert (32 vérifications), classe 11/11.
 
 ## Angle 90 — Écritures explicites dans l'index face aux transactions et à `SCOUT_QUEUE`
 
