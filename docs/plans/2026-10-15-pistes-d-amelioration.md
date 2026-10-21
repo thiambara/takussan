@@ -9571,7 +9571,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Le bouton du courriel d'alerte de seuil mène à l'hôte de l'API, sur une page qui n'y existe pas
 - Réf : P97.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Notifications/ThresholdAlertTriggered.php:61`, `takussan-api/app/Console/Commands/CheckThresholdAlertsCommand.php:59`
 - Constat :
@@ -9581,10 +9581,11 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Aucun test ne lit le lien de ce courriel : `tests/Feature/Dashboard/ThresholdAlertTest.php` ne cite ni `overview` ni `actionUrl` (mesuré, `grep`).
   - Établi comment : lu et mesuré.
 - Piste : construire le lien sur `app.frontend_url`, comme les autres classes, en visant plutôt `/app/overview/alerts` si c'est là que l'alerte se règle. Garde : un test qui lit `actionUrl` du `toMail()` et exige l'hôte de `app.frontend_url` (voir P97.05).
+- Mesure (2026-10-21, 0e45ad7a0, mesureur) : relu `ThresholdAlertTriggered.php:61` (`url('/app/overview')`, inchangé) et `CheckThresholdAlertsCommand.php:59` (envoi depuis la commande) ; `php artisan tinker --execute="echo url('/app/overview'), PHP_EOL, config('app.frontend_url');"` → `http://localhost:8002/app/overview` et `http://localhost:3000` ; `php artisan route:list --path=app/overview` → « doesn't have any routes matching » ; `takussan-web/src/app/(dashboard)/app/overview/page.tsx` existe ; `git log` du fichier et `grep` des tickets → aucun correctif → le constat tient. Classement : A1, le libellé « Voir le tableau de bord » et les autres `toMail()` (`rtrim(config('app.frontend_url') ?: config('app.url'), '/')`) écrivent déjà le contrat ; le correctif garde le chemin `/app/overview` et change le seul hôte, sans trancher l'option `/alerts` de la piste.
 
 ### La garde de `/app` jette la chaîne de requête : le lien d'un courriel ouvert hors session perd sa conversation
 - Réf : P97.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/proxy.ts:90-94`, `takussan-web/src/lib/redirection-interne.ts` (`destinationInterne`), `takussan-api/app/Domain/Notifications/NotificationTarget.php:44-45`, `takussan-web/src/components/messages/MessagesPage.tsx:77`
 - Constat :
@@ -9595,10 +9596,11 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - `src/__tests__/proxy.test.ts:326-338` n'éprouve que des chemins sans requête (lu).
   - Établi comment : lu et mesuré.
 - Piste : écrire `redirect` = `pathname + search` dans `proxy.ts`, la destination restant filtrée par `destinationInterne` au retour. Garde : un cas de `proxy.test.ts` sur `/app/messages?conversation=42`.
+- Mesure (2026-10-21, 0e45ad7a0, mesureur) : relu `takussan-web/src/proxy.ts:90-94` (`searchParams.set('redirect', pathname)`) et `redirection-interne.ts:51` (`destinationInterne` rend `pathname + search + hash`) ; test Vitest temporaire, retiré depuis (charge `{ 2.31 2.42 2.99 }`, 8 cœurs), qui appelle `proxy()` sans cookie : `/app/messages?conversation=42` → `307 /auth/login?redirect=%2Fapp%2Fmessages`, `/app/leads?lead=7` → `…redirect=%2Fapp%2Fleads` → le constat tient. Classement : A1, la cible `conversation` de `NotificationTarget.php:43` et `MessagesPage` qui lit `conversation` fixent la destination attendue, et la vérification du jeton comme le filtre `destinationInterne` au retour restent inchangés (V2 non touché).
 
 ### La console super-admin renvoie toujours vers son accueil après connexion : le lien de la demande de passage en agence est perdu
 - Réf : P97.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : la garde de la console lit le jeton opérateur (TCK-600), et la piste propose deux voies
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(super-admin)/super-admin/layout.tsx:41-50`, `takussan-api/app/Notifications/AgencyUpgradeRequestSubmittedNotification.php:93-98`, `takussan-api/app/Domain/Notifications/NotificationTarget.php:47`
 - Constat :
@@ -9607,10 +9609,11 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Les courriels qui visent la console : la demande de passage en agence (`/super-admin/agency-upgrade-requests/{id}`, lu, `AgencyUpgradeRequestSubmittedNotification.php:97`) et la cible `kyc_review` (`/super-admin/kyc`, lu, `NotificationTarget.php:47`). Un opérateur qui clique hors session arrive, après connexion, sur l'accueil de la console, sans la demande à instruire (lu ; non mesuré par un rendu).
   - Établi comment : lu.
 - Piste : la mise en page ne connaît pas le chemin demandé (une mise en page Next ne reçoit pas `pathname`) : soit garder `/super-admin` dans le proxy comme `/app` (qui garde chemin et requête, voir P97.02), soit transmettre le chemin par un en-tête posé par le proxy. Garde : un test du proxy ou de la mise en page sur `/super-admin/agency-upgrade-requests/12`.
+- Mesure (2026-10-21, 0e45ad7a0, mesureur) : relu `(super-admin)/super-admin/layout.tsx:41-50` (`redirect('/auth/login?redirect=%2Fsuper-admin')` littéral, malgré le commentaire TCK-166) ; même test Vitest temporaire : `proxy()` sur `/super-admin/agency-upgrade-requests/12` sans cookie → 200 sans `location`, le proxy laisse passer et la mise en page décide seule → le constat tient. Classement : V2, déplacer la garde de la console dans le proxy ou y poser un en-tête touche la garde d'authentification de l'opérateur, qui lit un jeton distinct pendant une impersonation, et la piste laisse le choix entre deux mécanismes.
 
 ### La cible `lead` promet d'ouvrir la demande, et aucune page ne lit `?lead=`
 - Réf : P97.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ouvrir, mettre en avant ou filtrer la demande, ou retirer le paramètre
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Domain/Notifications/NotificationTarget.php:43-45`, `takussan-api/app/Services/Lead/ContactLeadService.php:370-374`, `takussan-web/src/app/(dashboard)/app/leads/page.tsx`, `takussan-web/src/components/leads/ContactLeadsInbox.tsx`
 - Constat :
@@ -9619,10 +9622,11 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - `scripts/check-notification-target-paths.mjs` retire la chaîne de requête avant de résoudre le chemin (lu, en-tête) : elle ne peut pas voir ce défaut.
   - Établi comment : lu et mesuré (`grep`).
 - Piste : faire lire `lead` par la boîte (défilement vers la demande et mise en avant, ou ouverture de son détail), ou retirer le paramètre et le commentaire s'il n'est pas voulu. Garde : un test de `ContactLeadsInbox` qui monte la page avec `?lead=` et attend la demande désignée.
+- Mesure (2026-10-21, 0e45ad7a0, mesureur) : relu `NotificationTarget.php:44-45` (`'lead' => '/app/leads?lead={id}'`, « ouverte sur la demande ») ; `grep -rln "useSearchParams\|searchParams" takussan-web/src/components/leads "takussan-web/src/app/(dashboard)/app/leads"` → rien ; la page rend `<ContactLeadsInbox />` sans argument (lu) → le constat tient. Classement : V7, la piste laisse ouverte la forme visible (défilement et mise en avant, ouverture d'un détail, ou retrait du paramètre), et TCK-590 ne l'écrit pas (grep).
 
 ### La garde des liens de notification ne lit ni les liens écrits à la main des courriels, ni les paramètres de requête
 - Réf : P97.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `scripts/check-notification-target-paths.mjs`, `takussan-api/app/Notifications/*.php` (`toMail()`), `takussan-api/app/Mail/InvitationMailable.php:47-48`, `takussan-api/resources/views/emails/notifications/notification-digest.blade.php:17`
 - Constat :
@@ -9632,10 +9636,11 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Trois écritures de la base coexistent : `config('app.frontend_url') ?: config('app.url')` (la plupart), `config('app.frontend_url', config('app.url'))` (suppression de compte, désabonnement, vue du résumé) et `config('app.frontend_url')` sans repli (`CodedNotification.php:209`). La deuxième ne se replie jamais, la clé étant toujours définie (lu, `config/app.php:57`).
   - Établi comment : lu et mesuré.
 - Piste : une seule fonction de l'API pour bâtir un lien du front (base, chemin, requête), et un test d'architecture qui rend chaque `toMail()` sur un destinataire de fabrique et vérifie que `actionUrl` commence par `app.frontend_url` et que son chemin est une page du front (même résolution que la garde actuelle).
+- Mesure (2026-10-21, 0e45ad7a0, mesureur) : `node scripts/check-notification-target-paths.mjs --report` → « 20 cibles de notification, chacune mène à une page du front » (seul `PATHS` est lu) ; `grep -rln actionUrl takussan-api/tests` → les quatre mêmes fichiers ; `grep -rn frontend_url app/Notifications app/Mail resources/views` → les trois écritures du constat coexistent, `config/app.php:57` définit toujours la clé → le constat tient. Classement : A5, une garde neuve sans seuil (chaque `toMail()` rendu sur un destinataire de fabrique, `actionUrl` sur l'hôte `app.frontend_url` et chemin résolu en page du front), la fonction commune reprenant la forme majoritaire `?:` sans changer de lien ; elle rougira tant que P97.01 n'est pas corrigé, et se livre donc avec lui.
 
 ### Le désabonnement du résumé est un GET qui écrit, signé sans échéance, sans en-tête `List-Unsubscribe`
 - Réf : P97.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : page de confirmation neuve et changement du parcours de désabonnement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/web.php:12-14`, `takussan-api/app/Http/Controllers/NotificationUnsubscribeController.php:20-31`, `takussan-api/app/Jobs/Notifications/BuildUserDigestJob.php:59`, `takussan-api/app/Mail/NotificationDigestMail.php`
 - Constat :
@@ -9644,13 +9649,15 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - La redirection finale vise `/app/profile/notifications?unsubscribed=1` (lu, l. 29-31) : aucun fichier du front ne lit `unsubscribed` (mesuré, `grep -rn unsubscribed takussan-web/src`), et hors session la garde de `/app` mène à la connexion en perdant le paramètre (P97.02). Le désabonnement a lieu, mais rien ne le confirme à l'écran.
   - Établi comment : lu et mesuré (`grep`) ; l'effet des analyseurs n'est pas mesuré.
 - Piste : aligner le résumé sur le modèle des alertes : page du front qui confirme, `POST` signé avec échéance, en-têtes `List-Unsubscribe` et `List-Unsubscribe-Post`. Garde : un test qui exige qu'un `GET` du lien n'écrive rien.
+- Mesure (2026-10-21, 0e45ad7a0, mesureur) : relu `routes/web.php:11-14` (`Route::get`, `signed:relative`) et `NotificationUnsubscribeController.php:20-31` (`RelativeSignedUrl::forever`, `email_frequency` à `off` dès le GET) ; `grep -n List-Unsub app/Mail/NotificationDigestMail.php app/Jobs/Notifications/BuildUserDigestJob.php` → rien ; `grep -rn unsubscribed takussan-web/src` → rien → le constat tient ; l'effet des analyseurs de liens reste non mesuré. Classement : V7, la piste ajoute une page de confirmation visible et change le parcours (POST, échéance du lien), que l'ADR-0050 ne prescrit que pour les alertes de recherche.
 
 ### Petites améliorations
 - Réf : P97.07
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/AccountDeletionRequestedNotification.php:36`, `takussan-api/app/Notifications/AccountDeletionReminderNotification.php:36`, `takussan-web/src/app/(dashboard)/layout.tsx:66-75`
 - Constat :
   - Le paramètre `cancel-deletion=1` des deux courriels de suppression de compte n'est lu par aucun fichier du front (mesuré, `grep -rn "cancel-deletion\|cancel_deletion\|cancelDeletion" takussan-web/src` → rien). Le parcours tient quand même : le bandeau d'annulation est rendu sur toute page de `/app` tant qu'une demande est en cours (lu, `layout.tsx:66-75`, `AccountDeletionBanner.tsx`), et le compte peut se connecter jusqu'à l'exécution (lu, `AccountDeletionService.php:306`, seul passage à `Deleted`). Le paramètre est donc mort.
   - Établi comment : lu et mesuré (`grep`).
 - Piste : retirer le paramètre, ou le faire lire par la page profil pour porter le regard sur le bandeau ; dans les deux cas, viser `/app/profile` hors de toute requête que P97.02 perdrait.
+- Mesure (2026-10-21, 0e45ad7a0, mesureur) : `grep -rn "cancel-deletion\|cancel_deletion\|cancelDeletion" takussan-web/src` → rien ; `grep -rn cancel-deletion takussan-api/tests` → rien ; relu `AccountDeletionRequestedNotification.php:36`, `AccountDeletionReminderNotification.php:36` et `(dashboard)/layout.tsx:66-75` (bandeau rendu tant qu'une demande est en cours) → le paramètre est mort. Classement : A3, retirer `?cancel-deletion=1` des deux liens, qui visent alors `/app/profile`, ne change rien à l'écran ; l'autre option de la piste (le faire lire) est écartée parce qu'elle serait un comportement visible neuf (V7).
