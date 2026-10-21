@@ -140,6 +140,28 @@ function sansTexteRecopie(cmd) {
   );
 }
 
+// Seulement des tests ciblés (porteur, 2026-10-21) : plusieurs agents partagent la machine, et une
+// sélection large chez l'un fait tomber les autres en « charge ». La CI de la PR joue tout le reste.
+// Jugé segment par segment, en position de commande : `grep "artisan test" docs/` reste une lecture.
+const PREFIXE = String.raw`^\s*\(?\s*(\w+=\S*\s+)*(time\s+|nohup\s+|exec\s+)?`;
+const TESTS_API = new RegExp(`${PREFIXE}(php\\s+(-d\\s*\\S+\\s+)*)?(artisan\\s+test|\\S*vendor/bin/(phpunit|pest|paratest)|\\S*vendor/phpunit/phpunit/phpunit)\\b`);
+const IMPACTES = new RegExp(`${PREFIXE}php\\s+(\\S*/)?bin/impacted-tests\\.php\\b`);
+const TESTS_FRONT = new RegExp(`${PREFIXE}((npm|pnpm|yarn)\\s+(run\\s+)?test(:[\\w-]+)?|(npx\\s+)?vitest)\\b`);
+function testsNonCibles(commande) {
+  for (const seg of commande.split(/;|&&|\|\||\||\n/)) {
+    if (TESTS_API.test(seg)) {
+      if (/\s--(parallel|coverage[\w-]*)\b|\s-p(\s|$)/.test(seg)) return 'pas de tests en parallèle ni de couverture : la CI de la PR les joue';
+      if (!/\btests\/\S|\w+Test(\.php)?\b|--filter\b/.test(seg)) return 'pas de suite entière : nomme les classes ou fichiers de test de tes pistes';
+    }
+    if (IMPACTES.test(seg) && /\s--run\b/.test(seg)) return "pas d'impacted-tests --run : les tests de tes pistes seulement, la CI joue le reste";
+    if (TESTS_FRONT.test(seg)) {
+      if (/\s--coverage\b/.test(seg)) return 'pas de couverture : la CI de la PR la joue';
+      if (!/\.(test|spec)\.[cm]?[jt]sx?\b|\bsrc\/\S|__tests__/.test(seg)) return 'pas de suite entière du front : nomme les fichiers de test de tes pistes';
+    }
+  }
+  return null;
+}
+
 function verifierCommande(cmd, cwd) {
   if (DEPOT && cwd && dans(normalize(cwd), DEPOT)) refuser("l'arbre principal du porteur est interdit (répertoire courant)", cwd);
   if (DEPOT && cmd.includes(DEPOT)) refuser("l'arbre principal du porteur est interdit", cmd);
@@ -157,6 +179,8 @@ function verifierCommande(cmd, cwd) {
     // Lire launchd est son métier ; le reste de launchctl reste refusé, à lui comme aux autres.
     commande = commande.replace(/\blaunchctl\s+(list|print)\b/g, 'lecture-launchd');
   }
+  const tests = testsNonCibles(commande);
+  if (tests) refuser(tests, cmd);
   for (const [motif, raison] of COMMANDES) {
     if (raison === "pas d'écriture HTTP" && recherche_locale_seule(commande)) continue;
     if (motif.test(commande)) refuser(raison, cmd);

@@ -527,6 +527,14 @@ releve() {
 
 # ─── état ─────────────────────────────────────────────────────────────────────────────────────
 
+# La cadence que launchd applique, lue chez lui : « 10 min » écrit en dur est resté faux après le
+# passage du fusionneur à 2 min (relevé le 2026-10-21).
+planification() {
+  local iv
+  iv="$(launchctl print "gui/$(id -u)/$LAUNCHD.$1" 2> /dev/null | sed -n 's/.*run interval = \([0-9]*\) seconds.*/\1/p' | head -n 1)"
+  if [ -n "$iv" ]; then echo "  planifié (launchd, toutes les $((iv / 60)) min)"; else echo "  non planifié"; fi
+}
+
 etat() {
   charger_config
   local role uid
@@ -538,17 +546,17 @@ etat() {
   echo "outils $OUTILS_SHA · fusion $FUSION · dépôt $GH_REPO"
   for role in $(for r in $ROLES; do noms_du_role "$r"; done); do
     printf '\n%s\n' "── $role"
-    if launchctl print "gui/$uid/$LAUNCHD.$role" > /dev/null 2>&1; then echo "  planifié (launchd)"; else echo "  non planifié"; fi
+    planification "$role"
     if [ -d "$BASE/verrous/$role" ]; then echo "  passage en cours (pid $(cat "$BASE/verrous/$role/pid" 2> /dev/null || echo '?'))"; fi
     if [ -f "$BASE/journal.tsv" ]; then
       awk -F '\t' -v r="$role" '$2 == r' "$BASE/journal.tsv" | tail -3 | sed 's/^/  /'
     fi
   done
   printf '\n%s\n' "── fusionneur"
-  if launchctl print "gui/$uid/$LAUNCHD.fusionneur" > /dev/null 2>&1; then echo "  planifié (launchd, 10 min)"; else echo "  non planifié"; fi
+  planification fusionneur
   if [ -f "$BASE/journal.tsv" ]; then awk -F '\t' '$2 == "fusionneur"' "$BASE/journal.tsv" | tail -3 | sed 's/^/  /'; fi
   printf '\n%s\n' "── superviseur"
-  if launchctl print "gui/$uid/$LAUNCHD.superviseur" > /dev/null 2>&1; then echo "  planifié (launchd)"; else echo "  non planifié"; fi
+  planification superviseur
   if [ -d "$BASE/verrous/superviseur" ]; then echo "  passage en cours (pid $(cat "$BASE/verrous/superviseur/pid" 2> /dev/null || echo '?'))"; fi
   if [ -f "$BASE/journal.tsv" ]; then awk -F '\t' '$2 == "superviseur"' "$BASE/journal.tsv" | tail -3 | sed 's/^/  /'; fi
   printf '\n%s\n' "── PR ouvertes vers pre-dev"
