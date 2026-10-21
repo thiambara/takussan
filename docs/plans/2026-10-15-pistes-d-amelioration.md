@@ -9501,7 +9501,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Un compte supprimé s'ajoute comme collaborateur d'un bien, avec sa part de commission
 - Réf : P96.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyCollaboratorRequest.php:39-45`, `takussan-api/app/Rules/CollaboratorEligibleForProperty.php:40-50`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:45-66`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:208-218`
 - Constat :
@@ -9512,10 +9512,11 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Même trou pour un compte bloqué ? Non : un compte bloqué est trouvé par `find()` et refusé (`CompteBloqueNonAttribuableTest`, lu). C'est la suppression seule qui échappe. Voir P86.01 pour les autres limites de cette règle.
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : faire échouer `CollaboratorEligibleForProperty` quand `find()` rend `null` (message `collaborators.not_in_agency`, celui d'un compte non éligible), ou borner la règle par `Rule::exists('users', 'id')->whereNull('deleted_at')`. Test : un agent de l'agence supprimé en douceur → 422 sur `user_id`, et aucune ligne écrite.
+- Mesure (2026-10-21, 127233826, mesureur) : relu `StorePropertyCollaboratorRequest.php:40-45` (`exists:users,id` nu), `CollaboratorEligibleForProperty.php:40-50` (`find()` rend `null` pour un compte supprimé en douceur et la règle rend sans échec), `PersonnelDeLAgence.php:40-43` et `PrimaryPropertyContact::joignable()` (l. 187-191, qui refuse un compte `Deleted`), puis lancé un test temporaire retiré depuis (charge `{ 6.41 6.38 5.22 }` sur 8 cœurs) : agent de l'agence puis `$user->delete()`, le bailleur poste `{user_id, role: agent, commission_share: 10}` → **201**, `"user": null`, `commission_share: "10.00"`, une ligne `property_collaborators` écrite ; aucun commit ni ticket ne l'a traité (`git log` des requêtes et règles depuis TCK-1097). Le volet « part immobilisée » reste déduit, non mesuré. Classement : A1, le contrat est écrit dans la règle elle-même (« introuvable : leurs propres règles refusent déjà ») et dans TCK-1097 (seul le personnel joignable est collaborateur), et le correctif refuse une entrée invalide en 422 sans calculer ni réécrire aucun montant.
 
 ### Une fiche ou un compte supprimés passent `exists:` puis rendent 404, là où un identifiant absent rend 422
 - Réf : P96.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : le bailleur effacé d'un reversement est à trancher à part
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:37` et `takussan-api/app/Http/Controllers/Api/InvoiceController.php:47` ; `takussan-api/app/Http/Requests/Api/AssignAgentPropertyRequest.php:36` et `takussan-api/app/Http/Controllers/Api/PropertyController.php:352` ; `takussan-api/app/Http/Requests/Agency/StoreAgentAbsenceRequest.php:30-31` et `takussan-api/app/Services/Agency/AgentAbsenceService.php:33-34` ; `takussan-api/app/Http/Requests/Permissions/StoreRoleDelegationRequest.php:25` et `takussan-api/app/Services/Permissions/RoleDelegationService.php:59` ; `takussan-api/app/Http/Requests/Api/AttachGuarantorLeaseRequest.php:41` et `takussan-api/app/Http/Controllers/Api/LeaseController.php:171` ; `takussan-api/app/Http/Requests/Api/AddAgentAgencyRequest.php:37` et `takussan-api/app/Http/Controllers/Api/AgencyController.php:246` ; `takussan-api/app/Http/Requests/Api/StorePayoutRequest.php:46`, `PreparePayoutRequest.php:23` et `PayoutController.php:53`, `PayoutPreparationController.php:27`
 - Constat :
@@ -9527,10 +9528,11 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Pour le bailleur d'un reversement, un compte effacé à qui l'agence doit encore de l'argent ne peut plus être préparé ni réglé par ces deux routes (déduit, à vérifier : `AccountDeletionService::collectOpenObligations` bloque peut-être l'effacement tant qu'un reversement est dû).
   - Établi comment : lu, et mesuré sur trois routes.
 - Piste : `Rule::exists(...)->whereNull('deleted_at')` (ou `->withoutTrashed()`, à vérifier sous Laravel 13) sur ces règles, pour que la ligne supprimée suive le chemin de l'identifiant absent ; le cas du bailleur effacé d'un reversement est à trancher à part. Test par route : ligne supprimée et identifiant absent, même 422 sur le même champ.
+- Mesure (2026-10-21, 127233826, mesureur) : relu `StoreInvoiceRequest.php:37` (`exists:customers,id`) et `InvoiceController.php:47` (`Customer::findOrFail`), puis lancé un test temporaire retiré depuis : `POST /api/invoices` en agent de l'agence, client supprimé en douceur → **404** `{"code":"http.not_found"}`, client `99999999` → **422** sur `customer_id` ; les autres routes citées ne sont pas re-mesurées ici. Classement : V1, la piste couvre `POST /api/payouts` et `GET /api/payouts/preparation`, où refuser le bailleur effacé décide si un reversement dû reste réglable, et laisse elle-même ce cas « à trancher à part ».
 
 ### Le super-admin écrit des lignes rattachées à une agence supprimée
 - Réf : P96.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le sort d'une agence supprimée n'est écrit nulle part
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreThresholdAlertRequest.php:43`, `StoreKpiConfigRequest.php:43`, `StoreIntegrationRequest.php:37`, `StorePropertyRequest.php:79`, `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:71`, `takussan-api/app/Http/Requests/Api/Admin/StoreAnnouncementRequest.php:31`, `UpdateAnnouncementRequest.php:25` ; `takussan-api/app/Http/Controllers/Api/AgencyController.php:147-158`
 - Constat :
@@ -9540,10 +9542,11 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - `ClosePlatformPayoutPeriodRequest.php:17` relit l'agence par `findOrFail()` (`PlatformPayoutController.php:43-44`) : 404 là, comme en P96.02 (lu).
   - Établi comment : lu.
 - Piste : `Rule::exists('agencies', 'id')->whereNull('deleted_at')` dans ces requêtes ; test d'une écriture super-admin vers une agence supprimée → 422 sur `agency_id`. Ce que doit devenir le reste d'une agence supprimée (membres, biens, invitations ouvertes) dépasse ces règles : voir l'angle 129.
+- Mesure (2026-10-21, 127233826, mesureur) : relu `StoreThresholdAlertRequest.php:43` et `ThresholdAlertController.php:39-51` (pour le super-admin, `agency_id` reçu est écrit tel quel), puis lancé un test temporaire retiré depuis : agence `->delete()`, super-admin `POST /api/threshold-alerts` avec cet `agency_id` → **201**, une ligne `threshold_alerts` écrite ; les six autres requêtes ne sont pas re-mesurées ; `grep` de `docs/features.md` ne rend aucune règle sur une agence supprimée. Classement : V7, la piste renvoie elle-même à l'angle 129 pour ce que devient une agence supprimée, et refuser les invitations ou biens vers elle en décide une partie.
 
 ### Rien n'empêche une règle `exists:` neuve sur une table à suppression douce
 - Réf : P96.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : une convention transversale sur les règles `exists:`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/tests/Unit/Architecture/ExistsSurRouteOuverteTest.php`, `takussan-api/app/Http/Requests/`
 - Constat :
@@ -9552,3 +9555,4 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Les règles maison qui supposent « introuvable = déjà refusé par `exists:` » sont la forme fautive de P96.01 (lu, `CollaboratorEligibleForProperty.php:47-50`).
   - Établi comment : lu.
 - Piste : un test d'architecture qui, pour chaque `exists:<table>` et `Rule::exists('<table>')` de `app/Http/Requests`, retrouve le modèle de la table et exige `whereNull('deleted_at')` quand il porte `SoftDeletes`, avec une liste d'exceptions motivées (le registre RGPD de `StorePrivacyRequestRequest`, qui vise légitimement un compte effacé).
+- Mesure (2026-10-21, 127233826, mesureur) : `grep -rl SoftDeletes app/Models | wc -l` → 27 ; `grep -rn "whereNull('deleted_at')\|withoutTrashed" app/Http/Requests` → la seule `UpdatePropertyRequest.php:75` ; `ExistsSurRouteOuverteTest.php` et `scripts/check-*.mjs` ne citent ni `deleted_at` ni `SoftDeletes` → le constat tient. Classement : V6, la garde imposerait à toutes les FormRequests une règle (exclure les lignes supprimées) que P96.02 et P96.03 laissent au porteur, avec une liste d'exceptions à décider.
