@@ -9197,7 +9197,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 
 ### Le relevé du bailleur compte en « Impayés de la période » des loyers pas encore échus et ceux d'un bail supprimé
 - Réf : P93.02
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1175
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payout/OwnerStatementService.php:137-153`,
   `takussan-api/lang/fr/money_out.php:27`, `takussan-api/resources/views/pdf/statements/owner.blade.php:82-83`
@@ -9219,6 +9219,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   lisant `CollectedPayments::leaseOwed()` comme les autres lecteurs de l'impayé. Un test épingle les
   deux cas.
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `OwnerStatementService::unpaid` (`whereBetween(due_date, période)`, aucune borne à aujourd'hui, aucun filtre `leases.deleted_at`) ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → `setTestNow(2026-07-03)`, 100 000 dus le 25 juillet et 70 000 dus le 1ᵉʳ juillet sur un bail supprimé : `statement(…, '2026-07')['unpaid']` = `{"count":2,"amount":170000}`, `PortfolioMetrics::overdue` de l'agence = `{"count":0,"amount":0}` ; le constat tient (cas annuel non rejoué). Aucun ticket ni commit ne le traite. Classement : V1, le correctif change un montant imprimé sur le relevé et l'attestation du bailleur.
+- Mesure (2026-10-21, 8d4869e9d, implementeur) : reproduit avant correctif par `OwnerStatementTest::test_p93_02_unpaid_counts_only_past_due_rents_of_live_leases` (au 2026-07-03 : 30 000 dus le 2 juillet, 100 000 dus le 25 juillet, 70 000 dus le 1ᵉʳ juillet sur un bail supprimé → `unpaid.count` 3) → `unpaid` lit `CollectedPayments::leaseOwed()`, `leases.deleted_at IS NULL` et `due_date < today`, types du relevé inchangés : `{count: 1, amount: 30000}` ; ablation rouge, remis 5/5 sur la classe.
 
 ### Le « taux d'impayés » dépasse 100 %, et vaut 0 % quand les impayés viennent d'un bail clos
 - Réf : P93.03
