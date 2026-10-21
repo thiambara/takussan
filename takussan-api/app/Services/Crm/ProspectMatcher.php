@@ -9,6 +9,7 @@ use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Services\Search\QuartierDuFiltre;
+use App\Services\Search\VilleDuFiltre;
 use App\Support\Search\CleDeQuartier;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -61,7 +62,10 @@ class ProspectMatcher
     /** @var array<string, list<string>>|null clé de ville → textes `addresses.city` qui l'ont */
     private ?array $villesParCle = null;
 
-    public function __construct(private readonly QuartierDuFiltre $quartiers) {}
+    public function __construct(
+        private readonly QuartierDuFiltre $quartiers,
+        private readonly VilleDuFiltre $villes,
+    ) {}
 
     public static function hasCriteria(Customer $customer): bool
     {
@@ -218,15 +222,19 @@ class ProspectMatcher
      */
     private function whereCityAccepts(Builder $query, int|string|null $agencyId, ?Address $address): void
     {
-        $cle = CleDeQuartier::de($address?->city);
+        // TCK-1169 (P99.01) — et les anciens noms de sa ville, quand le jeu l'a renommée.
+        $cles = array_values(array_filter([
+            CleDeQuartier::de($address?->city),
+            ...$this->villes->clesAnciennes($address?->geo_city_id !== null ? (int) $address->geo_city_id : null),
+        ]));
 
-        $acceptants = $cle === null ? [] : Customer::query()
+        $acceptants = $cles === [] ? [] : Customer::query()
             ->where('customers.agency_id', $agencyId)
             ->whereRaw("jsonb_array_length(COALESCE(customers.seeking_cities, '[]'::jsonb)) > 0")
             ->get(['customers.id', 'customers.seeking_cities'])
             ->filter(fn (Customer $c) => array_filter(
                 $this->saisies($c->seeking_cities),
-                fn (string $saisie) => CleDeQuartier::de($saisie) === $cle,
+                fn (string $saisie) => in_array(CleDeQuartier::de($saisie), $cles, true),
             ) !== [])
             ->map(fn (Customer $c) => (int) $c->id)
             ->values()
@@ -248,9 +256,14 @@ class ProspectMatcher
             ->map(static fn ($textes) => $textes->values()->all())
             ->all();
 
-        $cle = CleDeQuartier::de($saisie);
+        // TCK-1169 (P99.01) — un ancien nom désigne aussi les adresses au nom actuel de la ville.
+        $textes = [];
+        foreach ([$saisie, ...$this->villes->nomsActuels($saisie)] as $nom) {
+            $cle = CleDeQuartier::de($nom);
+            $textes = [...$textes, ...($cle === null ? [] : ($this->villesParCle[$cle] ?? []))];
+        }
 
-        return $cle === null ? [] : ($this->villesParCle[$cle] ?? []);
+        return array_values(array_unique($textes));
     }
 
     /** @return list<string> */

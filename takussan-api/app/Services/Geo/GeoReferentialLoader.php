@@ -108,6 +108,11 @@ final class GeoReferentialLoader
 
         $ville->fill(['name' => $v['name'], 'latitude' => $v['latitude'] ?? null, 'longitude' => $v['longitude'] ?? null]);
         $renommee = $ville->exists && $ville->isDirty('name');
+        // TCK-1169 (P99.01) — comme un quartier (TCK-1128) : l'ancien nom reste un nom de la ville,
+        // et une alerte ou un prospect qui le portent la désignent encore (`VilleDuFiltre`).
+        if ($renommee) {
+            $ville->former_names = array_values(array_unique([...($ville->former_names ?? []), (string) $ville->getOriginal('name')]));
+        }
         if (! $ville->exists || $ville->isDirty()) {
             $ville->save();
         }

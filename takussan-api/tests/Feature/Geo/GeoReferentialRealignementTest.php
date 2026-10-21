@@ -3,9 +3,15 @@
 namespace Tests\Feature\Geo;
 
 use App\Models\Address;
+use App\Models\Agency;
+use App\Models\Customer;
+use App\Models\Enums\CustomerPipelineStage;
 use App\Models\GeoCity;
 use App\Models\GeoNeighborhood;
 use App\Models\Property;
+use App\Services\Crm\ProspectMatcher;
+use App\Services\Search\PropertySearchService;
+use App\Support\SavedSearchCriteria;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
@@ -206,6 +212,46 @@ class GeoReferentialRealignementTest extends TestCase
         $this->assertNotNull($adresse->geo_neighborhood_id);
         $this->assertSame([$bien->id], $this->biensOu('region', 'Dakar Région'));
         $this->assertSame([], $this->biensOu('region', 'Dakar'));
+    }
+
+    /**
+     * TCK-1169 (P99.01) — comme un quartier (TCK-1080, TCK-1128), une ville que le jeu renomme
+     * garde son ancien nom : une alerte `city` / `cities` et un prospect qui le portent la
+     * désignent encore. Avant, les quatre rendaient 0, sans erreur.
+     */
+    public function test_une_ville_renommee_par_le_jeu_repond_encore_a_son_ancien_nom(): void
+    {
+        $this->charger(self::V1);
+        $agence = Agency::factory()->create();
+        $bien = $this->bienA('Guédiawaye', 'Golf Sud');
+        $bien->update(['agency_id' => $agence->id]);
+        $prospect = Customer::factory()->create([
+            'agency_id' => $agence->id,
+            'pipeline_stage' => CustomerPipelineStage::Prospect,
+            'seeking_cities' => ['Guédiawaye'],
+        ]);
+        $this->indexProperties();
+
+        $renomme = $this->jeu(function (array $d) {
+            $d['cities'][1]['name'] = 'Guédiawaye Ville';
+
+            return $d;
+        });
+        $this->charger($renomme);
+        $this->charger($renomme);
+
+        $recherche = app(PropertySearchService::class);
+        foreach ([['city' => 'Guédiawaye'], ['cities' => ['Guédiawaye']], ['city' => 'Guédiawaye Ville']] as $criteres) {
+            $this->assertSame(
+                [$bien->id],
+                $recherche->alertMatches(SavedSearchCriteria::toSearchParams($criteres), null, now())['properties']->pluck('id')->all(),
+                json_encode($criteres, JSON_UNESCAPED_UNICODE),
+            );
+        }
+        $matcher = app(ProspectMatcher::class);
+        $this->assertSame([$bien->id], $matcher->propertiesFor($prospect->fresh())->pluck('properties.id')->all());
+        $this->assertSame([$prospect->id], $matcher->customersFor($bien->fresh())->pluck('customers.id')->all());
+        $this->assertSame(['Guédiawaye'], GeoCity::query()->where('slug', 'guediawaye')->firstOrFail()->former_names);
     }
 
     public function test_un_quartier_ajoute_par_le_jeu_rattache_l_adresse_de_sa_ville(): void
