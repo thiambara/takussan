@@ -7,9 +7,10 @@
 #
 # Usage, depuis le dépôt :
 #   scripts/agents/pistes.sh installer [--sans-etiquettes]   # outils figés, réglages, étiquettes GitHub
-#   scripts/agents/pistes.sh planifier [X Y Z [W]]  # launchd : explorateur toutes les X min, mesureur Y,
-#                                                   # implémenteur Z, délégué W ; sans argument
-#                                                   # 30 20 5 20, W seul omis : 20 (porteur, 2026-10-19)
+#   scripts/agents/pistes.sh planifier [X Y Z [W [F]]]  # launchd : explorateur toutes les X min,
+#                                                   # mesureur Y, implémenteur Z, délégué W, fusionneur F ;
+#                                                   # sans argument 30 20 5 20 10, W omis : 20, F omis : 10
+#                                                   # (porteur, 2026-10-19) ; 1 min au moins (2026-10-21)
 #   scripts/agents/pistes.sh deplanifier
 # Puis, depuis n'importe où (copie figée) :
 #   ~/.takussan-agents/outils/pistes.sh lancer <rôle>   # un passage, à la main ou par launchd
@@ -207,21 +208,27 @@ PLIST
 
 planifier() {
   charger_config
-  [ $# -eq 0 ] || [ $# -eq 3 ] || [ $# -eq 4 ] || die "usage : planifier [<x> <y> <z> [w]]  (minutes : explorateur, mesureur, implementeur, délégué ; défaut 30 20 5 20)"
+  [ $# -eq 0 ] || { [ $# -ge 3 ] && [ $# -le 5 ]; } || die "usage : planifier [<x> <y> <z> [w [f]]]  (minutes : explorateur, mesureur, implementeur, délégué, fusionneur ; défaut 30 20 5 20 10)"
   local minutes role
   # Cadences par défaut, posées par le porteur le 2026-10-19 (ADR-0066, Q2).
   [ $# -gt 0 ] || set -- 30 20 5
-  set -- "$@" 20
-  for role in $ROLES; do
+  [ $# -ge 4 ] || set -- "$@" 20
+  [ $# -ge 5 ] || set -- "$@" 10
+  # 1 minute au moins (le porteur, 2026-10-21) : un passage à la fois par rôle (verrou), et launchd ne
+  # relance pas un job qui tourne encore ; une cadence d'une minute veut dire « repartir dès la fin ».
+  for role in $ROLES fusionneur; do
     minutes="$1"
     shift
     case "$minutes" in '' | *[!0-9]*) die "« $minutes » n'est pas un nombre de minutes" ;; esac
-    [ "$minutes" -ge 5 ] || die "$role : 5 minutes au moins entre deux passages"
-    poser_job "$role" $((minutes * 60)) lancer "$role"
-    info "$role : toutes les $minutes min"
+    [ "$minutes" -ge 1 ] || die "$role : 1 minute au moins entre deux passages"
+    if [ "$role" = fusionneur ]; then
+      poser_job fusionneur $((minutes * 60)) fusionner
+      info "fusionneur : toutes les $minutes min (sans modèle)"
+    else
+      poser_job "$role" $((minutes * 60)) lancer "$role"
+      info "$role : toutes les $minutes min"
+    fi
   done
-  poser_job fusionneur 600 fusionner
-  info "fusionneur : toutes les 10 min (sans modèle)"
 }
 
 deplanifier() {

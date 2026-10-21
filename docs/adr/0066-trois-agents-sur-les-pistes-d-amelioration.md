@@ -266,7 +266,9 @@ borne, même par une PR fusionnée.
     L'implémenteur ne s'arrête plus sur la CI de sa PR (§ 4, étape 2) : à 5 min, il enchaîne
     les passages, et `launchd` ne relance pas un passage en cours. L'explorateur produit environ
     8,6 pistes par angle, bien plus que l'implémenteur n'en livre : l'espacer laisse le temps de
-    valider ce qu'il a déjà relevé. Le plancher de `planifier` est passé de 10 à 5 min.
+    valider ce qu'il a déjà relevé. Le plancher de `planifier` est passé de 10 à 5 min, puis à
+    1 min le 2026-10-21 (le porteur : « si l'un termine, un autre prend sa place immédiatement ») ;
+    la cadence du fusionneur se règle depuis, en cinquième argument.
   - **L'implémenteur prend les 🔴 d'abord**, validées puis autonomes, puis les 🟠 validées, puis
     les 🟠 autonomes. Avant, il prenait toutes les validées dans l'ordre du fichier, et les défauts
     de sécurité validés passaient après des pistes d'ergonomie.
