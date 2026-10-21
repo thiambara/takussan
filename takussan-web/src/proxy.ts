@@ -86,8 +86,13 @@ function router(request: NextRequest): NextResponse {
   // il rend le 404 du routeur (son segment reste hors du schéma de langue, `SEGMENTS_NON_LOCALISES`,
   // sans quoi il partirait en 307 vers une URL préfixée d'une langue avant de rendre ce 404).
   const isAppPath = /^\/app(?:\/|$)/.test(pathname);
+  // P97.03 (TCK-1181) — la console super-admin aussi, sur le même cookie que lit sa mise en page
+  // (`getOperatorToken`) : celle-ci ne connaît pas le chemin demandé, et renvoyait vers la chaîne
+  // fixe `redirect=%2Fsuper-admin`. Avec un jeton, rien ne change : la mise en page juge seule
+  // l'opérateur (second facteur, `platform.console.access`).
+  const isConsolePath = /^\/super-admin(?:\/|$)/.test(pathname);
 
-  if (isAppPath && !token) {
+  if ((isAppPath || isConsolePath) && !token) {
     const loginUrl = new URL('/auth/login', request.url);
     // P97.02 (TCK-1121) — la chaîne de requête fait partie de la destination : le lien d'un
     // courriel (`/app/messages?conversation=42`) ouvert hors session la perdait. Le retour reste

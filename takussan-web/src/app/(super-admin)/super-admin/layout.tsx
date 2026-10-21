@@ -42,6 +42,9 @@ export default async function SuperAdminLayout({
   // visitor lands on /super-admin so they bounce back here after sign-in.
   // `getMeAction` would also redirect when the token is missing, but it
   // strips the path; intercept here while we still have the context.
+  // P97.03 (TCK-1181) — c'est désormais `src/proxy.ts` qui renvoie le visiteur sans jeton, avec le
+  // chemin et la requête demandés (une mise en page ne les connaît pas) ; cette branche ne reste
+  // qu'en défense en profondeur, si le proxy ne tournait pas.
   // TCK-600 (ADR-0055 §6) — la console lit TOUJOURS avec le jeton de l'opérateur, même pendant une
   // session d'impersonation : l'espace applicatif, lui, lit en tant que la cible.
   const token = await getOperatorToken();

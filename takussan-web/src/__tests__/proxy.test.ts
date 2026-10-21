@@ -345,6 +345,36 @@ describe('la garde d’authentification est intacte', () => {
     expect(url.searchParams.get('redirect')).toBe(chemin);
   });
 
+  // P97.03 (TCK-1181) — la console super-admin n'était gardée que par sa mise en page, qui ne
+  // connaît pas le chemin demandé et renvoyait vers la chaîne fixe `redirect=%2Fsuper-admin` :
+  // l'opérateur qui ouvrait hors session le lien d'une demande de passage en agence arrivait, une
+  // fois connecté, sur l'accueil de la console.
+  it.each([
+    ['/super-admin/agency-upgrade-requests/12'],
+    ['/super-admin/kyc'],
+    ['/super-admin/users?status=blocked&q=a%20b'],
+    ['/super-admin'],
+  ])('%s sans jeton : `redirect` garde le chemin et la requête', (chemin) => {
+    const r = proxy(requete(chemin));
+    expect(r.status).toBe(307);
+    const url = new URL(r.headers.get('location')!, 'http://localhost');
+    expect(url.pathname).toBe('/auth/login');
+    expect(url.searchParams.get('redirect')).toBe(chemin);
+  });
+
+  it('/super-admin avec un jeton passe : sa mise en page juge seule l’opérateur', () => {
+    const r = proxy(requete('/super-admin/agency-upgrade-requests/12', { cookies: { [AUTH_COOKIE_NAME]: 'jeton' } }));
+    expect(r.status).toBe(200);
+    expect(r.headers.get('location')).toBeNull();
+  });
+
+  it('les sosies de /super-admin ne partent pas sur la connexion', () => {
+    for (const chemin of ['/super-administrateurs', '/super-admins/x']) {
+      const location = proxy(requete(chemin)).headers.get('location');
+      expect(location ?? '', chemin).not.toContain('/auth/login');
+    }
+  });
+
   it('/app/agency sans jeton aussi — l’administration d’agence vit sous /app (TCK-649)', () => {
     const r = proxy(requete('/app/agency/team'));
     expect(r.status).toBe(307);
