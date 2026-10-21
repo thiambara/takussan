@@ -45,7 +45,7 @@ que chaque agent lit en premier : elles sont écrites une seule fois.
 |---|---|---|---|
 | `pistes-explorateur` | le tableau des angles | une section `## Angle N` ; la ligne de l'angle passe à `fait` ; 0 à 3 angles proposés | un angle |
 | `pistes-mesureur` | `--liste "à mesurer"` | `Statut` et `Mesure` des entrées traitées | 8 entrées au plus |
-| `pistes-implementeur` | `--liste "validé"`, puis `--liste "retenu · autonome"` | un ticket par piste, le code, ses tests ; `Statut` et `Mesure` | un lot de 1 à 4 pistes d'une même famille, en une PR (amendements du 2026-10-17) |
+| `pistes-implementeur` | `--liste "validé"`, puis `--liste "retenu · autonome"` | un ticket par piste, le code, ses tests ; `Statut` et `Mesure` | un lot de 1 à 10 pistes d'une même famille, en une PR (amendements du 2026-10-17 et du 2026-10-21) |
 
 ### 2. Le format du fichier de pistes
 
@@ -473,6 +473,30 @@ chaîne. Désormais, le même modèle propose, mesure, valide puis implémente, 
 répètent au lieu de se compenser. La réponse est double : les catégories où une erreur coûte cher
 restent hors délégation, garde à l'appui, et chaque délégation laisse une trace datée et
 réversible. Le relevé n'a de valeur que s'il est lu.
+
+## Amendement du 2026-10-21 — un lot compte jusqu'à 10 pistes
+
+**Relevé ce jour-là**, sur `~/.takussan-agents/journal.tsv` : les 11 passages de l'implémenteur
+qui ont publié une PR le 2026-10-21, en lots de 1 à 4 pistes, ont duré de 17 à 64 min (992 à
+3 835 s) et coûté de 2,62 à 5,58 USD. Le porteur venait de valider en bloc 84 pistes (#914) : à
+4 pistes par passage, une vingtaine de passages au moins.
+
+**Décision du porteur** : le plafond du lot passe **de 4 à 10 entrées** qui changent de statut,
+reclassements et caducs compris, et la consigne de taille de l'agent de l'équivalent de 4 S à
+l'équivalent de 10 S. `LOT_MAX` de `scripts/check-pistes.mjs` le garde. Ablation sur le fichier de pistes réel
+(`--role implementeur`, entrées reclassées) : 10 entrées passent, 11 sont refusées (« un lot compte
+au plus 10 entrées »), et les mêmes 10 entrées sont refusées avec l'ancien `LOT_MAX = 4`.
+
+**Ce qui ne change pas, et borne encore le lot** : la règle des 100 min (au-delà, l'agent ne
+commence plus de piste et publie ce qui est clos), le passage tué à 150 min
+(`DUREE_IMPLEMENTEUR=9000`) et le budget de 45 USD par passage. 10 est donc un plafond, pas une
+cible : un lot de 10 pistes S tient dans les 100 min seulement si elles vont aussi vite que les
+plus rapides des lots relevés. Le plafond de PR ouvertes de l'implémenteur n'est pas touché :
+`config.env` le pose à 10 depuis le 2026-10-15.
+
+**Ce que ça coûte** : une CI rouge sur une piste retient jusqu'à 10 pistes derrière elle, jusqu'à
+sa réparation ou son `git revert`, et la PR à relire est plus grosse. Le gain se relève sur le
+journal (pistes closes par heure de passage) après les premiers lots.
 
 ## Conséquences
 

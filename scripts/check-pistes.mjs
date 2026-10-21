@@ -29,8 +29,8 @@
  * s'accorde pas ce que son rôle n'a pas : l'explorateur ne classe pas, le mesureur n'implémente
  * pas, et aucun agent n'écrit `validé` seul, qui est la signature du porteur. Une piste `validé` ne
  * revient au porteur qu'avec une raison. Sa précision (`validé — …`) se retrouve mot pour mot dans
- * le ticket qui la passe à `fait`. Un passage de l'implémenteur fait changer de statut 4 entrées au
- * plus. Un lot de plusieurs tickets qui touche à la fois l'API et le front est une seule famille :
+ * le ticket qui la passe à `fait`. Un passage de l'implémenteur fait changer de statut 10 entrées
+ * au plus (amendement du 2026-10-21). Un lot de plusieurs tickets qui touche à la fois l'API et le front est une seule famille :
  * ses pistes faites se relient par un angle commun ou un fichier cité en commun (amendements du
  * 2026-10-17). Le délégué (amendement du 2026-10-18) n'écrit que `validé (délégué) — …`, et
  * seulement sur une entrée que le porteur n'a pas encore tranchée, dont TOUS les critères V sont
@@ -135,8 +135,8 @@ const GARDES = /^(scripts\/[^/]+\.mjs|docs\/backlog\/(gen-index|check-backlog)\.
 const TESTS = /^takussan-api\/tests\/|\.test\.tsx?$/;
 const MIGRATIONS = /^takussan-api\/database\/migrations\//;
 // Entrées qu'un passage de l'implémenteur peut faire changer de statut (amendement d'ADR-0066 du
-// 2026-10-17) : un lot de 4 pistes au plus, reclassements et caducs compris.
-const LOT_MAX = 4;
+// 2026-10-17, plafond relevé de 4 à 10 le 2026-10-21) : reclassements et caducs compris.
+const LOT_MAX = 10;
 
 const MESURE = /^- Mesure \((\d{4}-\d{2}-\d{2}), ([0-9a-f]{7,40}), (explorateur|mesureur|implementeur|delegue|humain)\) : (.+)$/;
 
