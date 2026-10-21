@@ -9586,7 +9586,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Le bouton du courriel d'alerte de seuil mène à l'hôte de l'API, sur une page qui n'y existe pas
 - Réf : P97.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1122
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Notifications/ThresholdAlertTriggered.php:61`, `takussan-api/app/Console/Commands/CheckThresholdAlertsCommand.php:59`
 - Constat :
@@ -9597,6 +9597,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Établi comment : lu et mesuré.
 - Piste : construire le lien sur `app.frontend_url`, comme les autres classes, en visant plutôt `/app/overview/alerts` si c'est là que l'alerte se règle. Garde : un test qui lit `actionUrl` du `toMail()` et exige l'hôte de `app.frontend_url` (voir P97.05).
 - Mesure (2026-10-21, 0e45ad7a0, mesureur) : relu `ThresholdAlertTriggered.php:61` (`url('/app/overview')`, inchangé) et `CheckThresholdAlertsCommand.php:59` (envoi depuis la commande) ; `php artisan tinker --execute="echo url('/app/overview'), PHP_EOL, config('app.frontend_url');"` → `http://localhost:8002/app/overview` et `http://localhost:3000` ; `php artisan route:list --path=app/overview` → « doesn't have any routes matching » ; `takussan-web/src/app/(dashboard)/app/overview/page.tsx` existe ; `git log` du fichier et `grep` des tickets → aucun correctif → le constat tient. Classement : A1, le libellé « Voir le tableau de bord » et les autres `toMail()` (`rtrim(config('app.frontend_url') ?: config('app.url'), '/')`) écrivent déjà le contrat ; le correctif garde le chemin `/app/overview` et change le seul hôte, sans trancher l'option `/alerts` de la piste.
+- Mesure (2026-10-21, beadbcb6a, implementeur) : relu `ThresholdAlertTriggered.php:61` (`url('/app/overview')`, inchangé) ; le test neuf `ThresholdAlertTest::test_mail_action_targets_the_front_dashboard` (`app.frontend_url` = `https://front.exemple.test/`) rendait `http://localhost/app/overview` → correctif sur la base `app.frontend_url ?: app.url`, chemin `/app/overview` gardé, 13/13 ; ablation → 1 rouge, remis → vert.
 
 ### La garde de `/app` jette la chaîne de requête : le lien d'un courriel ouvert hors session perd sa conversation
 - Réf : P97.02
