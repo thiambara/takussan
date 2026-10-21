@@ -7755,7 +7755,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 
 ### Un acompte soldé en ligne par la plateforme peut être déclaré remboursé par l'agence, et sort alors de la clôture
 - Réf : P76.04
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1160 — reste : la décision de produit sur qui rembourse un payable encaissé par la plateforme, au-delà du refus du geste manuel ; et l'autre voie, garder l'acompte dans la clôture à hauteur de ce qui reste dû à l'agence
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/BookingPaymentService.php:53-91`, `takussan-api/app/Http/Requests/Api/RefundBookingPaymentRequest.php:32-48`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:245-254`
 - Constat :
@@ -7764,6 +7764,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - Établi comment : lu.
 - Piste : décider qui rembourse un payable encaissé par la plateforme (V7) ; à défaut, refuser le geste manuel sur un acompte soldé par une intégration globale tant qu'aucun remboursement n'est reçu du fournisseur, ou le garder dans la clôture à hauteur de ce qui reste dû à l'agence. Garde : le cas en test.
 - Mesure (2026-10-20, 740c8247f, mesureur) : lu `BookingPaymentService::refund()` (l. 53-91) : il n'exige que `paid` et `refund_amount ≤ amount`, sans lire `metadata.gateway.settled_by` ni l'intégration ; `PlatformPayoutService.php:251` ne prend que les acomptes `paid` dans la clôture ; `grep -rln "P76\." docs/backlog/tickets` → aucun ticket → le constat tient sur le code ; qui rend un acompte encaissé par la plateforme reste non écrit (non rejoué de bout en bout). Classement : V7, la piste demande d'abord un choix de produit (qui rembourse), et chacune de ses options touche un paiement (V1).
+- Mesure (2026-10-21, 464389140, implementeur) : avant correctif, acompte de 10 000 soldé par l'intégration de la plateforme (`settled_by` sur une intégration globale), `POST /api/booking-payments/{id}/refund` par l'admin d'agence → 200 et acompte `refunded` → `BookingPaymentService::refund()` refuse désormais, sous le verrou, un acompte que la clôture lirait comme encaissé par la plateforme (422 `booking_payment.refund_settled_by_platform`, lecture `PlatformPayoutService::isSettledByPlatform()`, celle de la clôture) ; l'intégration propre à l'agence et le règlement hors ligne restent remboursables ; `BookingPaymentRefundSettledByPlatformTest` (3 cas) ; ablation : condition à `false` → 1 rouge, remise → 3/3 ; `BookingPaymentRefundAuthorizationTest`, `BookingRefundTaskTest`, `BookingPaymentTest`, `MoneyOutTwoFactorTest`, `PlatformPayoutRefundedItemsTest`, `PlatformPayoutScopeTest` verts.
 
 ### Un loyer remboursé n'est plus ni encaissé, ni dû, ni payable
 - Réf : P76.05
