@@ -161,7 +161,7 @@ voie d'écriture (angle 13, puis 47).
 | 86 | Collaborateurs `co_owner` et `viewer` d'un bien (`property_collaborators`, laissés hors du périmètre par ADR-0031 § 2) : ce qu'ils lisent et écrivent réellement — bien, lots, baux, loyers, relevé, reversement | fait |
 | 87 | Tris alphabétiques sur colonnes texte sous la collation `C` (`sort=first_name`, `name`, `title` des listes de l'API et de la console) : minuscules et initiales accentuées rejetées après « Z » | fait |
 | 88 | Comptes `blocked` (`UserStatus::Blocked`), qui n'ouvrent plus de session : ce qu'ils reçoivent encore (notifications, e-mails, SMS) et les sélecteurs qui les proposent encore (participants, agent responsable, collaborateurs, destinataires) | fait |
-| 89 | Commandes jouées par `release.sh` et `seed.sh` (`geo:sync-referential`, `tags:sync-catalog`, `alerts:ensure-ops-rules`, `membership:reconcile-system-roles`, `scout:import`) : code de sortie réel sur une erreur, face à ce que le script en conclut | à faire |
+| 89 | Commandes jouées par `release.sh` et `seed.sh` (`geo:sync-referential`, `tags:sync-catalog`, `alerts:ensure-ops-rules`, `membership:reconcile-system-roles`, `scout:import`) : code de sortie réel sur une erreur, face à ce que le script en conclut | fait |
 | 90 | Écritures explicites dans l'index (`->searchable()` / `unsearchable()` de `PropertyTagController`, `BoostLifecycle`, `GeoReindexation`, `SyncAgencyPropertiesSearchIndex`) : appelées dans une transaction qui peut être annulée, face à `SCOUT_AFTER_COMMIT` et `SCOUT_QUEUE` de chaque environnement | à faire |
 | 91 | FormRequests dont la borne `max:` dépasse la longueur `varchar(N)` de la colonne écrite, ou qui n'en ont pas : 500 (`22001`) au lieu de 422 — le pendant « longueur » de l'angle 54 | à faire |
 | 92 | Contraintes `UNIQUE` de la base sans règle `unique` ni verrou dans le FormRequest ou le service qui écrit : un doublon rend 500 (`23505`, que `bootstrap/app.php` ne traduit pas) au lieu de 422 ou 409 | à faire |
@@ -8691,3 +8691,69 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 - Piste : dans `NotificationService::send()` et `CodedNotification::via()`, ne rien envoyer à un compte non joignable sauf pour une liste fermée de codes de compte (blocage, réactivation, effacement). Écarter aussi `blocked` et `deleted` des requêtes des trois jobs planifiés. Test : compte `blocked` → aucun canal pour un code métier, `mail` conservé pour `AccountBlocked` ; rappel de tâche et alerte de recherche muets.
 - Mesure (2026-10-21, dd9075be1, mesureur) : relu `NotificationService::send` et `CodedNotification::via` (aucune lecture de `users.status`), `SendSavedSearchAlerts.php:96-99` et `SendFavoriteChangeAlerts.php:72-75` (sans statut) ; test temporaire `TmpMesureurP88Test` (base de test PostgreSQL, `Notification::fake()`, charge 4,15 / 3,77 / 7,23 sur 8 cœurs, retiré ensuite) → compte `blocked` au téléphone vérifié : `NotificationService::send(…, lease_payment.due_soon)` crée une ligne `app_notifications` et envoie `CodedNotification` par `["mail","whatsapp"]` ; tâche du bloqué due dans 23 h, `SendTaskDueReminders::handle()` → une `TaskDueReminderNotification` par `["database","mail","broadcast"]`. Les deux alertes et `NotifyNewMessageJob` ne sont pas exécutés (lus pour les deux premières). Le constat tient pour les chemins mesurés. Classement : V7, la liste des codes de compte qui passent encore (blocage, réactivation, effacement) et le silence des alertes sont un comportement visible neuf, sans spec.
 - Mesure (2026-10-21, cabebd7b9, delegue) : relu la Piste et les deux mesures de l'entrée, `UserLifecycleController.php:39-65` (`AccountBlocked` et `AccountReactivated` partent au moment du geste), `docs/features.md` (`grep -n bloqu` : rien sur ce qu'un compte bloqué reçoit) et les ADR qui citent le blocage (0031, 0053, 0068 : aucun ne parle des notifications) → rien d'écrit n'appuie la liste fermée des codes qui passent encore. Recommandation : suivre la Piste, soit ne rien envoyer à un compte non joignable (`PrimaryPropertyContact::joignable()`) depuis `NotificationService::send()` et `CodedNotification::via()`, sauf une liste fermée de codes de compte (blocage, réactivation, effacement), et écarter `blocked` et `deleted` des requêtes des trois jobs planifiés ; parce qu'un compte qui ne peut ouvrir aucune session (TCK-589) ne peut agir sur rien de ce qu'on lui annonce, et que le canal mobile coûte à chaque envoi. Ce qui manque pour trancher : savoir si un locataire bloqué doit encore recevoir les rappels d'échéance de loyer (`lease_payment.due_soon`, mesuré envoyé) et les avis de bail que son agence lui doit ; cette règle touche des échéances et la relation d'une agence avec son client, ce qui la sort d'un choix mineur.
+
+## Angle 89 — Commandes de `release.sh` et `seed.sh` : code de sortie et conclusion du script
+
+*Exploré le 2026-10-21 sur `pre-dev` 05baee08e, par l'explorateur. Relu par l'explorateur lui-même, sans sous-agent : `takussan-api/docker/release.sh`, `seed.sh` et `lib.sh` ; les commandes `GeoSyncReferential`, `TagsSyncCatalog`, `EnsureOperationalAlertRules`, `MembershipReconcileSystemRoles` et `SearchVerifyIndexes` ; `GeoReferentialSync`, `GeoReferentialLoader`, `GeoAddressAttacher`, `GeoReindexation` et `TagCatalog` ; `vendor/laravel/scout` (`ImportCommand`, `FlushCommand`, `MeilisearchEngine::flush()`) ; `scripts/test-release-reindex.sh` ; `deploy/takussan/compose.api.yml` et `smoke-api.sh` ; `docs/infra/prod-drivers.json` et `hebergement.md`. Une mesure par un test temporaire (moteur Scout en panne simulé, puis Meilisearch du port 7701, charge 7,43 sur 8 cœurs), retiré avant la fin. Une lecture `SELECT` de la base de développement (port 5433), qui est une base seedée et non la préproduction. Rien n'a été lu en préproduction : la valeur de `SCOUT_QUEUE` qui y est déployée reste inconnue (`hebergement.md:173` n'en cite que la clé). Les codes de sortie de `membership:reconcile-system-roles`, `alerts:ensure-ops-rules` et `scout:import` ont été relus et sont justes : une exception non attrapée sort en 1, et le rejeu au déploiement suivant rattrape bien, comme le script l'annonce. Ils ne font pas l'objet d'une entrée.*
+
+### Un `geo:sync-referential` qui échoue à la réindexation laisse l'index sur l'ancien nom pour toujours, et `release.sh` annonce « référentiel inchangé »
+- Réf : P89.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:57-61`, `takussan-api/app/Services/Geo/GeoReferentialSync.php:22-26`, `takussan-api/app/Services/Geo/GeoReferentialLoader.php:90-104`, `:144-157`, `takussan-api/docker/release.sh:16-22`, `takussan-api/app/Console/Commands/SearchVerifyIndexes.php:121-136`
+- Constat :
+  - Le chargeur valide une transaction par fichier de région (lu, `GeoReferentialLoader.php:59-61`). La réindexation des biens renommés ne vient qu'après tous les fichiers (lu, `GeoReferentialSync.php:22-26`). Quand elle échoue, les renommages sont déjà écrits en base.
+  - Au passage suivant, la ville ou le quartier porte déjà le nouveau nom : `isDirty('name')` est faux, rien n'est réécrit, `biensRenommes()` est vide, et rien n'est réindexé (lu, `GeoReferentialLoader.php:97-104`, `:150-157`).
+  - Mesuré par un test temporaire : le jeu v1 chargé, un bien « Point E » indexé, puis le jeu qui renomme le quartier en « Point E Amitié », joué avec un moteur Scout dont `update()` lève. Le premier passage sort en 1 (`meilisearch injoignable`), et l'adresse et le quartier sont pourtant déjà renommés en base. Le second passage, moteur rétabli, sort en 0 avec `biens_renommes : 0`. L'index rend alors `[]` sur « Point E Amitié » et `[1]` sur « Point E ».
+  - Le code de sortie est juste. C'est la conclusion du script qui est fausse : « référentiel géographique inchangé jusqu'au prochain déploiement » (lu, `release.sh:22`), alors que le référentiel a changé et que le prochain déploiement ne rattrape rien. La vérification de `release.sh:52` (`search:verify-indexes --documents`) ne compare que la présence de documents (lu, `SearchVerifyIndexes.php:121-136`). L'écart ne se referme qu'à une importation complète, donc à un changement de la forme des index.
+  - Même effet si un fichier de région suivant lève : les régions déjà validées ne sont jamais réindexées (lu ; non joué).
+  - Établi comment : lecture, puis le test temporaire ci-dessus.
+- Piste : rendre la réindexation rejouable. Une option : persister les biens à réindexer (une colonne ou une table de reprise), ou réindexer région par région dans le même passage, avant de valider la suivante, et faire rejouer `GeoReindexation::biens()` sur ce reste au passage suivant. Une autre option : sur échec, faire forcer par `release.sh` l'importation complète de `Property` au lieu de seulement avertir. Corriger le message de `release.sh:22` dans les deux cas. Garde : un test Feature qui joue le scénario mesuré ci-dessus (moteur en panne, puis second passage) et exige le nouveau nom dans l'index.
+
+### `seed.sh` remet la base à zéro sans rejouer `alerts:ensure-ops-rules` : une préproduction reseedée n'a aucune règle d'alerte d'exploitation
+- Réf : P89.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/docker/seed.sh:16-33`, `takussan-api/docker/release.sh:26-29`, `takussan-api/app/Console/Commands/EnsureOperationalAlertRules.php:26-50`, `docs/infra/hebergement.md:301-307`
+- Constat :
+  - `seed.sh` joue `migrate:fresh`, puis `db:seed`, puis l'importation (lu, l. 16-33). Il ne joue aucune des commandes de rattrapage de `release.sh`. Le géo, les étiquettes et les rôles système sont recréés par les seeders (lu, `GeoReferentialSeeder`, `TagSeeder`). Les règles `alert_rules`, elles, ne le sont par aucun : `grep -rln "AlertRule\|alert_rules" database/seeders` → rien.
+  - Mesuré sur la base de développement seedée : `select count(*) from alert_rules` → 0, pour 2 profils `super_admin`. `alerts:ensure-ops-rules` aurait donc créé les règles.
+  - Le reseed d'une préproduction se lance à la main, après le déploiement (lu, `hebergement.md:301-307`). Ce reseed vide la table que `release.sh:28` vient de remplir, et rien ne la remplit jusqu'au push suivant sur `preview`. Pendant ce temps, une alerte `ops_*` part au journal d'audit et nulle part ailleurs, ce qui est le défaut d'origine de TCK-768 (déduit de `TCK-768`, l. 22-25 ; non joué en préproduction).
+  - Établi comment : lecture des deux scripts et des seeders, plus le `SELECT` ci-dessus.
+- Piste : faire jouer à `seed.sh`, après `db:seed`, les commandes idempotentes du déploiement qu'aucun seeder ne couvre (`alerts:ensure-ops-rules` au moins), ou appeler `EnsureOperationalAlertRules` depuis `DatabaseSeeder`. Garde : étendre `scripts/test-release-reindex.sh` à `seed.sh`, et vérifier que la commande y est jouée.
+
+### `seed.sh` écrit le marqueur de recherche sans lire l'issue des tâches d'importation, ce que TCK-995 a corrigé dans `release.sh` seulement
+- Réf : P89.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/docker/seed.sh:18-33`, `takussan-api/docker/release.sh:48-76`, `takussan-api/vendor/laravel/scout/src/Engines/MeilisearchEngine.php:373-378`
+- Constat :
+  - `release.sh` attend la file et relit les tâches avant d'écrire le marqueur `.search-shape-importee` (`search:verify-indexes --depuis`, lu l. 70-76, TCK-995 et P52.02). `seed.sh` écrit ce marqueur par un `cp`, sans condition, dès que les `scout:import` rendent 0 (lu, l. 28-33).
+  - Or `scout:import` et `scout:flush` rendent 0 quand les tâches sont **mises en file** (lu, `MeilisearchEngine::flush()` : `deleteAllDocuments()` sans attente ; P52.02 pour `addDocuments`). Un échec de `scout:flush` est de plus toléré (lu, l. 20).
+  - Le déploiement suivant trouve donc un marqueur à jour. `search:verify-indexes --documents` ne refuse qu'un index **vide** (lu, `SearchVerifyIndexes.php:121-136`), et un index partiel ne serait jamais réimporté (déduit de la lecture, à vérifier : aucune tâche en échec n'a été provoquée). Après `migrate:fresh`, les identifiants repartent de 1. Un flush qui échoue laisse donc les documents de la base précédente sous des identifiants qui désignent d'autres lignes, ou aucune (déduit, à vérifier).
+  - `seed.sh` n'est joué par aucun test : `scripts/test-release-reindex.sh` ne fixe que `$RELEASE` (lu, l. 21 et 46).
+  - Établi comment : lecture des deux scripts, de Scout et du harnais.
+- Piste : faire suivre l'importation de `seed.sh` du même `search:verify-indexes --depuis="$debut"` que `release.sh`, et n'écrire le marqueur que sur son succès. Le plus simple est de déplacer le bloc d'importation dans une fonction de `lib.sh` partagée par les deux scripts. Garde : jouer `seed.sh` dans `test-release-reindex.sh` (tâches en échec → marqueur absent).
+
+### `tags:sync-catalog` réindexe sans `SCOUT_QUEUE=false`, à l'inverse de `geo:sync-referential` et pour la raison que `release.sh` écarte
+- Réf : P89.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/docker/release.sh:16-24`, `takussan-api/app/Services/Tags/TagCatalog.php:44-54`, `:118-123`, `takussan-api/config/scout.php:59`
+- Constat :
+  - `release.sh` lance `geo:sync-referential` sous `SCOUT_QUEUE=false`, « pour que la réindexation des biens rattachés se fasse avec le code de CETTE image, pas avec l'ancien worker » (lu, l. 18-21). La ligne suivante lance `tags:sync-catalog` sans cette variable (lu, l. 23).
+  - `TagCatalog::assurer()` réindexe pourtant les biens d'une proposition qu'il approuve (lu, l. 118-123), et le fait **dans** la transaction de `synchroniser()` (lu, l. 44).
+  - Si la préproduction déclare `SCOUT_QUEUE=true` (valeur non relevée, `hebergement.md:173` ; `.env.example:147` le recommande avec Meilisearch), ces jobs partent vers la file `database` (`prod-drivers.json:43-48`). Le worker encore en place les exécute alors avec l'ancien `toSearchableArray()`, et l'échec n'atteint jamais `release.sh` (déduit, à vérifier). Le volet « dans une transaction » relève de l'angle 90.
+  - Établi comment : lecture.
+- Piste : préfixer `tags:sync-catalog` de `SCOUT_QUEUE=false`, comme la ligne au-dessus, et l'épingler dans `test-release-reindex.sh` (la variable est visible du talon `php` par son environnement).
+
+### Petites améliorations
+- Réf : P89.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `scripts/test-release-reindex.sh:76-100`, `takussan-api/docker/release.sh:21-24`, `takussan-api/app/Console/Commands/GeoSyncReferential.php:24-30`
+- Constat :
+  - Le harnais joue l'échec de `migrate`, de `membership:reconcile`, d'`alerts:ensure-ops-rules` et des réglages d'index (lu, l. 76-100). Il ne joue ni `geo:sync-referential` ni `tags:sync-catalog` : `grep -n "geo:\|tags:" scripts/test-release-reindex.sh` → rien. La tolérance de leurs échecs n'est donc épinglée par aucun test.
+  - `GeoSyncReferential` n'attrape que `RuntimeException` (lu, l. 26). Un JSON de région invalide lève `JsonException` (`JSON_THROW_ON_ERROR`, `GeoReferentialLoader.php:58`), qui n'en hérite pas : la commande meurt sur une trace au lieu du message d'une ligne. Le code de sortie reste 1, et `release.sh` conclut juste (lu ; non joué).
+  - Établi comment : lecture et `grep`.
+- Piste : ajouter au harnais un passage `ECHEC_SUR=geo:sync-referential` et un passage `ECHEC_SUR=tags:sync-catalog` (release continue), et attraper aussi `JsonException` dans la commande.
