@@ -36,7 +36,7 @@ class StoreGuarantorRequest extends BaseFormRequest
             'first_name' => ['required', 'string'],
             'last_name' => ['required', 'string'],
             'phone' => ['nullable', 'string'],
-            'email' => ['nullable', 'email'],
+            'email' => ['nullable', 'email', 'max:255'],
             'id_type' => ['nullable', Rule::enum(IdType::class)],
             // TCK-954 — les deux valeurs doivent tenir dans `varchar(255)` et `numeric(14,2)`, les types
             // que rend le `down()` de la migration de chiffrement (ADR-0070 § 2).

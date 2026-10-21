@@ -41,7 +41,7 @@ class UpdateGuarantorRequest extends BaseFormRequest
             'first_name' => ['sometimes', 'string'],
             'last_name' => ['sometimes', 'string'],
             'phone' => ['sometimes', 'nullable', 'string'],
-            'email' => ['sometimes', 'nullable', 'email'],
+            'email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'id_type' => ['sometimes', 'nullable', Rule::enum(IdType::class)],
             // TCK-954 — les deux valeurs doivent tenir dans `varchar(255)` et `numeric(14,2)`, les types
             // que rend le `down()` de la migration de chiffrement (ADR-0070 § 2).

@@ -64,7 +64,7 @@ class MarkPaidLeasePaymentRequest extends BaseFormRequest
         return [
             'paid_at' => ['nullable', 'date'],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
-            'transaction_id' => ['nullable', 'string'],
+            'transaction_id' => ['nullable', 'string', 'max:255'],
             // Passe 2, M5 — passer outre au checkout ouvert, motif obligatoire.
             'override_open_checkout' => ['sometimes', 'boolean'],
             'override_reason' => ['nullable', 'string', 'max:500', 'required_if_accepted:override_open_checkout'],
