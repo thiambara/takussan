@@ -3,8 +3,9 @@ import { getTranslations } from 'next-intl/server';
 
 import { fetchOwnerDashboard } from '@/lib/queries/dashboard';
 import { StatCard } from '@/components/charts/StatCard';
+import { formatOccupancyRate } from '@/components/dashboard/occupancy';
 import { LineChart } from '@/components/charts/LineChart';
-import { formatCurrency, formatDate, formatNumber, formatPercent } from '@/lib/format';
+import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import { buttonVariants } from '@/components/ui/button';
 import Link from 'next/link';
 import { apiRequest, buildQueryString } from '@/lib/api';
@@ -100,8 +101,9 @@ export default async function OwnerDashboardPage() {
       <div className="grid grid-cols-1 gap-4 tabular-nums sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t('occupancy')}
-          // « 22,67 % » et non « 22.67% » : séparateur décimal et espace de la locale.
-          value={formatPercent((data.occupancy?.rate_percent ?? 0) / 100, locale)}
+          // « 22,67 % » et non « 22.67% » : séparateur décimal et espace de la locale ; un tiret
+          // sans bien éligible (TCK-1114).
+          value={formatOccupancyRate(data.occupancy?.rate_percent, locale)}
         />
         <StatCard
           label={t('pendingBookings')}

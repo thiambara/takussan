@@ -25,8 +25,13 @@ final class GeoReindexation
             return;
         }
 
-        Property::query()->whereKey(array_values(array_unique($ids)))->chunkById(200, function (Collection $biens) {
-            $biens->filter->shouldBeSearchable()->searchable();
-        });
+        // TCK-1100 (P90.05) — ce que `shouldBeSearchable()` et `toSearchableArray()` lisent, chargé
+        // d'avance comme dans `Property::makeAllSearchableUsing()` : sinon trois requêtes par bien.
+        Property::query()
+            ->with('address', 'tagsVisibles', 'agency')
+            ->whereKey(array_values(array_unique($ids)))
+            ->chunkById(200, function (Collection $biens) {
+                $biens->filter->shouldBeSearchable()->searchable();
+            });
     }
 }

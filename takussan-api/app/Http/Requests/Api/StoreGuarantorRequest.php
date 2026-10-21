@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\BorneLesChampsDuGarant;
 use App\Models\Enums\IdType;
 use Illuminate\Validation\Rule;
 
@@ -16,6 +17,8 @@ use Illuminate\Validation\Rule;
  */
 class StoreGuarantorRequest extends BaseFormRequest
 {
+    use BorneLesChampsDuGarant;
+
     /**
      * L'autorisation NE migre PAS ici : elle appartient au contrôleur puis aux policies
      * (principes non négociables 1 et 2, et TCK-306). `BaseFormRequest` refuse par défaut —
@@ -29,11 +32,11 @@ class StoreGuarantorRequest extends BaseFormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        return [
+        return $this->borneLesChampsDuGarant([
             'first_name' => ['required', 'string'],
             'last_name' => ['required', 'string'],
             'phone' => ['nullable', 'string'],
-            'email' => ['nullable', 'email'],
+            'email' => ['nullable', 'email', 'max:255'],
             'id_type' => ['nullable', Rule::enum(IdType::class)],
             // TCK-954 — les deux valeurs doivent tenir dans `varchar(255)` et `numeric(14,2)`, les types
             // que rend le `down()` de la migration de chiffrement (ADR-0070 § 2).
@@ -44,6 +47,6 @@ class StoreGuarantorRequest extends BaseFormRequest
             'relationship_to_tenant' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
             'metadata' => ['nullable', 'array'],
-        ];
+        ]);
     }
 }

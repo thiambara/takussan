@@ -65,6 +65,40 @@ class HealthcheckProbesTest extends TestCase
         $this->assertSame('ok', $this->sonder()['sms']['status']);
     }
 
+    /**
+     * TCK-1091 (P72.05) — la sonde WhatsApp compte sur `updated_at` : un accusé `failed` arrivé
+     * deux heures après l'envoi entre dans l'heure où il est reçu. Même seuil que la sonde SMS.
+     */
+    public function test_trente_pour_cent_d_accuses_whatsapp_failed_recus_dans_l_heure_degradent_la_sonde_whatsapp(): void
+    {
+        $this->tentativesSms(7, 3, now()->subHours(2), 'whatsapp_cloud', now());
+        $sonde = $this->sonder()['whatsapp'];
+
+        $this->assertSame('degraded', $sonde['status']);
+        $this->assertSame(10, $sonde['attempts_1h']);
+        $this->assertEqualsWithDelta(0.3, $sonde['failure_rate_1h'], 0.001);
+    }
+
+    /** Second chemin : des échecs SMS, des renvois au SMS (`deferred_to_fallback`) ou des accusés vieux de deux heures ne comptent pas. */
+    public function test_la_sonde_whatsapp_ignore_le_sms_les_renvois_et_les_accuses_anciens(): void
+    {
+        $this->tentativesSms(7, 3, now(), 'mtarget');
+        $this->tentativesSms(7, 3, now()->subHours(2), 'whatsapp_cloud', now()->subHours(2));
+        $this->tentativesSms(7, 0, now(), 'whatsapp_cloud');
+        $notification = AppNotification::factory()->create(['user_id' => User::factory()->create()->id]);
+        for ($i = 0; $i < 3; $i++) {
+            NotificationDeliveryAttempt::query()->create([
+                'app_notification_id' => $notification->id, 'attempt' => $i + 1,
+                'provider' => 'whatsapp_cloud', 'status' => 'deferred_to_fallback',
+            ]);
+        }
+
+        $sonde = $this->sonder()['whatsapp'];
+        $this->assertSame('ok', $sonde['status']);
+        $this->assertSame(10, $sonde['attempts_1h']);
+        $this->assertSame(0.0, (float) $sonde['failure_rate_1h']);
+    }
+
     public function test_un_disque_prive_de_medias_qui_leve_echoue_alors_que_local_repond(): void
     {
         $prive = $this->mock(Filesystem::class);
@@ -234,7 +268,7 @@ class HealthcheckProbesTest extends TestCase
         $this->assertTrue($evenements->contains(fn ($e) => str_contains((string) $e->command, 'health:probe') && $e->expression === '* * * * *'));
     }
 
-    private function tentativesSms(int $reussies, int $echouees, $quand = null, string $fournisseur = 'mtarget'): void
+    private function tentativesSms(int $reussies, int $echouees, $quand = null, string $fournisseur = 'mtarget', $misAJour = null): void
     {
         $notification = AppNotification::factory()->create(['user_id' => User::factory()->create()->id]);
         $n = 0;
@@ -247,7 +281,7 @@ class HealthcheckProbesTest extends TestCase
                     'status' => $statut,
                 ]);
                 if ($quand !== null) {
-                    $tentative->forceFill(['created_at' => $quand])->saveQuietly();
+                    $tentative->forceFill(['created_at' => $quand, 'updated_at' => $misAJour ?? $quand])->saveQuietly();
                 }
             }
         }

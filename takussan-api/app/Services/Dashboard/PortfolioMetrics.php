@@ -181,8 +181,12 @@ class PortfolioMetrics
         return $out;
     }
 
-    /** Occupation longue durée AUJOURD'HUI : biens éligibles couverts par un bail ce jour-là. */
-    public function longStayOccupancyToday(PortfolioScope $scope): float
+    /**
+     * Occupation longue durée AUJOURD'HUI : biens éligibles couverts par un bail ce jour-là.
+     * `null` sans bien éligible, comme l'occupation courte durée : « rien à occuper » n'est pas
+     * « tout est vacant » (TCK-1114).
+     */
+    public function longStayOccupancyToday(PortfolioScope $scope): ?float
     {
         [$eligibleSql, $eligibleBindings] = $this->eligibleSql($scope, [RentPeriod::Monthly, RentPeriod::Yearly]);
         $today = now()->toDateString();
@@ -211,7 +215,7 @@ class PortfolioMetrics
 
         $n = (int) ($row->n ?? 0);
 
-        return $n > 0 ? round(((int) $row->occupied / $n) * 100, 2) : 0.0;
+        return $n > 0 ? round(((int) $row->occupied / $n) * 100, 2) : null;
     }
 
     /**

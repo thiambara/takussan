@@ -45,7 +45,7 @@ class VisitRequestPublicPropertyRequest extends PublicPropertySlugRequest
             'duration_minutes' => ['nullable', 'integer', 'min:15', 'max:240'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'visitor_name' => [$presence, 'string', 'max:120'],
-            'visitor_email' => ['nullable', 'email'],
+            'visitor_email' => ['nullable', 'email', 'max:255'],
             'visitor_phone' => [$presence, 'string', 'max:30', new TelephoneJoignable, new TelephoneSaisi],
             'source' => ContactLeadPublicRequest::ATTRIBUTION,
             'medium' => ContactLeadPublicRequest::ATTRIBUTION,
