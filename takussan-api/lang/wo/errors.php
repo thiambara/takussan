@@ -394,6 +394,7 @@ return [
         'cannot_fail' => 'Reversement bii mënuñu ko màndargaal ni lu daanu ni mu nekke léegi.',
         'cannot_process' => 'Reversement bii mënuñu ko màndargaal ni lu ñu def ni mu nekke léegi.',
         'failure_reason_required' => 'Waxal lu tax mu daanu.',
+        'items_changed' => 'Une pièce de ce reversement n\'est plus payée depuis sa préparation : annulez-le, puis préparez-le à nouveau.',
         'issuer_forbidden' => 'Way agence walla administrateur yi rekk ñoo mën a génne reversement.',
         'landlord_not_in_agency' => 'Boroom kër gii bokkul ci sa agence.',
         'individual_third_party' => 'Agence bu benn nit du fey kenn ku dul boroom bi : platform bi mooy fey ñeneen ñi.',

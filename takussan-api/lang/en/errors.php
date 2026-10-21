@@ -394,6 +394,7 @@ return [
         'cannot_fail' => 'This payout cannot be marked failed in its current state.',
         'cannot_process' => 'This payout cannot be marked processed in its current state.',
         'failure_reason_required' => 'Provide the reason for the failure.',
+        'items_changed' => 'An item of this payout is no longer paid since it was prepared: cancel it, then prepare it again.',
         'issuer_forbidden' => 'Only agency members or administrators can issue payouts.',
         'landlord_not_in_agency' => 'This landlord does not belong to your agency.',
         'individual_third_party' => 'An individual agency only pays out to its host: a third party is paid by the platform.',

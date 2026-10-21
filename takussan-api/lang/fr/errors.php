@@ -394,6 +394,7 @@ return [
         'cannot_fail' => 'Ce reversement ne peut pas être marqué en échec dans son état actuel.',
         'cannot_process' => 'Ce reversement ne peut pas être marqué effectué dans son état actuel.',
         'failure_reason_required' => 'Indiquez le motif de l\'échec.',
+        'items_changed' => 'Une pièce de ce reversement n\'est plus payée depuis sa préparation : annulez-le, puis préparez-le à nouveau.',
         'issuer_forbidden' => 'Seuls les membres de l\'agence ou les administrateurs peuvent émettre un reversement.',
         'landlord_not_in_agency' => 'Ce bailleur n\'appartient pas à votre agence.',
         'individual_third_party' => 'Une agence individuelle ne reverse qu\'à son hôte : un tiers est payé par la plateforme.',
