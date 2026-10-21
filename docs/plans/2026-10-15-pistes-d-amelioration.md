@@ -9291,7 +9291,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Quatre écrans de la console rendent un horodatage SQL sans fuseau, lu en heure locale par le navigateur
 - Réf : P94.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:120-151`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:35,48`, `takussan-api/app/Services/Admin/HealthcheckService.php:369-374`, `takussan-api/app/Services/Admin/FailedJobService.php:24,34,75`, `takussan-web/src/lib/format.ts:106-118`, `takussan-web/src/components/admin/super/scheduler.tsx:60`, `takussan-web/src/components/admin/super/failed-jobs.tsx:150,307`, `takussan-web/src/components/admin/super/agency-detail.tsx:441,535`
 - Constat :
@@ -9319,10 +9319,11 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 - Piste : convertir les quatre clés par `Carbon::parse(…)->utc()->format(DATE_ATOM)` (la forme de
   `iso()`), au plus près de la requête. Pour empêcher le retour, un test par route qui asserte la
   chaîne exacte (`…T21:54:01+00:00`).
+- Mesure (2026-10-21, 67b0ae83f, mesureur) : relu `AgencyDetailController.php:122-151` (`MAX(paid_at)` d'un `DB::selectOne` rendu tel quel l. 151), `ScheduledTaskInspector.php:35,47`, `HealthcheckService.php:369,374`, `FailedJobService.php:24,75` → les quatre clés sortent sans Carbon ; `tinker` en lecture : `max(last_run_at)` et `->value('last_run_at')` rendent `"2026-10-18 21:54:01"`, `MAX(lease_payments.paid_at)` rend `"2026-10-25 00:00:00"` ; `TZ=Europe/Paris node` sur le formateur de `format.ts:111-118` → `19:54` pour la forme SQL, `21:54` pour `…+00:00` ; le front lit ces clés par `fmt.dateTime`/`fmt.date` (`scheduler.tsx:60`, `failed-jobs.tsx:150,307`, `agency-detail.tsx:441,535`) ; aucun commit ni ticket ne l'a traité. Classement : A1, ADR-0018 (accepté) écrit déjà la forme d'un instant (`iso()` : UTC, `DATE_ATOM`) et le correctif ne change qu'un affichage faux, sans choix de produit.
 
 ### Le calendrier agrégé repose sur la forme SQL sans fuseau, et le front en dépend
 - Réf : P94.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : choisir le contrat de date de l'agenda (instant à Dakar ou exception écrite d'ADR-0018)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Calendar/CalendarEventCollector.php:180-181,214-215,267-268,314-315,396-397`, `takussan-web/src/lib/calendar-date.ts:125-131`, `takussan-web/src/components/calendar/dates.ts`, `takussan-web/src/types/calendar.ts:33-36`
 - Constat :
@@ -9344,10 +9345,11 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   instants et `calendarDate()` pour les journées entières, et le front formate à Dakar comme
   ailleurs. Seconde voie : la forme murale reste, et elle devient une exception écrite d'ADR-0018.
   Dans les deux cas, un test front sur `parseServerDate` sous `TZ=Europe/Paris` empêche le retour.
+- Mesure (2026-10-21, 67b0ae83f, mesureur) : relu `CalendarEventCollector.php:180-181,214-215,267-268,314-315,396-397` (`toDateTimeString()` partout) et `calendar-date.ts:125-131` (`parseServerDate`) → inchangés ; `TZ=Europe/Paris node` avec la logique de `parseServerDate` : `"2026-10-18 21:54:01"` → 21 h, `"2026-10-18T21:54:01+00:00"` → 23 h, ce qui confirme qu'un passage naïf à `iso()` décalerait l'agenda d'un navigateur hors UTC. Classement : V6, la piste demande de choisir entre deux contrats et d'amender ADR-0018, ce qui est une décision structurelle.
 
 ### Les dates des réponses composées à la main suivent trois formes, et aucune garde ne les lit
 - Réf : P94.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : étendre le contrat d'ADR-0018 aux contrôleurs, hors de sa frontière assumée
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/` (25 `toISOString()` dans 12 fichiers, 55 `toIso8601String()` dans 30 fichiers), `takussan-api/app/Http/Controllers/Api/AuditLogController.php:70,179`, `takussan-api/app/Http/Controllers/Api/TaskController.php:186-190`, `takussan-api/app/Services/Review/ReviewReportService.php:56`, `scripts/check-resource-date-format.mjs:110`
 - Constat :
@@ -9374,10 +9376,11 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   `BaseResource`, et les ~80 sites convertis. La garde gagne un contrôle C sur
   `app/Http/Controllers` et `app/Services/Admin` : la liste noire des conversions écrites à la
   main, sans l'inventaire positif.
+- Mesure (2026-10-21, 67b0ae83f, mesureur) : `grep -rnF "toISOString()" app/Http/Controllers | wc -l` → 25, `toIso8601String()` → 55 ; relu `AuditLogController.php:70` (`created_at` en Carbon brut), `ReviewReportService.php:56` (`now()->toISOString()` stocké) → le constat tient. Classement : V6, ADR-0018 l. 217-220 déclare les contrôleurs hors de son périmètre (« frontière assumée ») ; y étendre le contrat, ajouter des helpers à `Base\Controller` et élargir la garde demandent un amendement d'ADR, et ~80 sites changent de forme sur le fil.
 
 ### Des dates calendaires sortent en instant de minuit par trois contrôleurs
 - Réf : P94.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : choisir la date de tri d'une échéance impayée dans l'historique des paiements
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:258`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:208`, `takussan-api/app/Http/Controllers/Api/AgentProfileController.php:39`
 - Constat :
@@ -9398,10 +9401,11 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 - Piste : `toDateString()` pour les champs calendaires, ou passer par la ressource du modèle. Pour
   `PaymentController:258`, choisir explicitement la date de tri d'une ligne impayée : la date
   calendaire de début, mise à minuit UTC, et le dire.
+- Mesure (2026-10-21, 67b0ae83f, mesureur) : relu `PaymentController.php:258` : la ligne est aujourd'hui `($p->paid_at ?? $p->period_start?->startOfDay() ?? $p->created_at)?->toISOString()` (le constat omet le repli sur `paid_at` en tête), `CustomerController.php:208` (`UserCustomerRelationship` brut, `started_at`/`ended_at` castés `date`), `AgentProfileController.php:39` (`toArray()`) ; `tinker` sans écriture : `AgentProfile` à `hire_date = 2026-10-21` → `"2026-10-21T00:00:00.000000Z"`, `LeasePayment` à `period_start = 2026-10-01` → `2026-10-01T00:00:00.000000Z` ; le seul appelant front de `primary-contact` (`agent-crm.ts:121`) type la réponse `unknown` et ne la lit pas. Classement : V7, la partie `PaymentController` demande un choix explicite de la date de tri (la piste le dit), les deux réponses d'écriture seules relèveraient de A1.
 
 ### Petites améliorations
 - Réf : P94.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : changer le type d'un montant sur le fil (`hourly_rate`)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyUpgradeRequestController.php:96-97,117`, `takussan-api/app/Http/Controllers/Api/Admin/SuperAdminInvitationController.php:48`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:119`
 - Constat :
@@ -9414,3 +9418,4 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Établi comment : lecture.
 - Piste : `?->value` seul pour les enums. `(float)` pour `hourly_rate`, comme les montants de
   `PaymentController`.
+- Mesure (2026-10-21, 67b0ae83f, mesureur) : relu les quatre `?->value ?? (string)` (`AgencyUpgradeRequestController.php:96,97,117`, `SuperAdminInvitationController.php:48`) ; `information_schema.columns` en lecture : `agencies.kind`, `agencies.status`, `users.status`, `documents.type` sont `NOT NULL`, donc la branche `""` ne s'atteint pas aujourd'hui et cette partie n'est qu'un écart de forme ; relu `ServiceProviderProfileController.php:119-120,169-170` et `ServiceProviderProfile.php:39` (`hourly_rate_min` en `decimal:2`, `visit_fee` en `(float)`) → la partie montant tient. Classement : V1, la seule partie qui tient change la forme d'un montant émis, et le doute classe à valider.
