@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
@@ -14,6 +15,7 @@ use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Services\Dashboard\KpiResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\ApiTestCase;
 
 /**
@@ -161,6 +163,47 @@ class DashboardAgencyTest extends ApiTestCase
         $this->assertSame(1, $data['finance']['overdue_count']);
         $this->assertEquals(100_000.0, $data['finance']['overdue_amount']);
         $this->assertGreaterThan(0, $data['finance']['unpaid_rate_percent']);
+    }
+
+    /**
+     * P93.03 (TCK-1177) — le taux d'impayés rapporte l'impayé des échéances échues sur 12 mois au
+     * facturé échu des mêmes échéances : borné à 100, juste quand l'impayé vient d'un bail clos, et
+     * `null` sans échéance échue.
+     */
+    public function test_p93_03_unpaid_rate_is_owed_over_billed_of_the_same_past_due_installments(): void
+    {
+        Carbon::setTestNow('2026-07-15 00:00:00');
+        $agency = Agency::factory()->create();
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $agency->update(['primary_admin_id' => $admin->id]);
+        $rate = fn (): mixed => $this->apiGet('/api/dashboard/agency')->assertOk()->json('data.finance.unpaid_rate_percent');
+
+        $this->assertNull($rate(), 'aucune échéance échue : pas de dénominateur');
+
+        $closed = Lease::factory()->create(['agency_id' => $agency->id, 'status' => LeaseStatus::Terminated, 'monthly_rent' => 50_000]);
+        $due = fn (Lease $l, float $amount, PaymentStatus $status, string $date) => LeasePayment::factory()->create([
+            'lease_id' => $l->id,
+            'amount' => $amount,
+            'status' => $status,
+            'paid_at' => $status === PaymentStatus::Paid ? $date : null,
+            'due_date' => $date,
+        ]);
+        $due($closed, 50_000, PaymentStatus::Pending, '2026-05-05');
+
+        $this->assertEquals(100.0, $rate(), 'seul bail terminé, impayé : 0 % avant');
+
+        $active = Lease::factory()->active()->create(['agency_id' => $agency->id, 'monthly_rent' => 100_000]);
+        foreach (['2026-04-05', '2026-05-05', '2026-06-05'] as $date) {
+            $due($active, 100_000, PaymentStatus::Late, $date);
+        }
+        $due($active, 100_000, PaymentStatus::Paid, '2026-03-05');
+        $due($active, 100_000, PaymentStatus::Pending, '2026-07-20');
+        $due($active, 100_000, PaymentStatus::Late, '2025-06-05');
+
+        $data = $this->apiGet('/api/dashboard/agency')->assertOk()->json('data.finance');
+        // 350 000 impayés sur 450 000 facturés échus depuis le 2025-07-15 (350 % avant).
+        $this->assertEquals(77.78, $data['unpaid_rate_percent']);
+        $this->assertEquals(450000.0, $data['overdue_amount'], 'l\'impayé cumulé, lui, ne change pas');
     }
 
     public function test_timeseries_returned_when_requested(): void

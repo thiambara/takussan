@@ -217,8 +217,9 @@ class DashboardOwnerMetricsTest extends ApiTestCase
         $this->assertEquals(200000.0, $data['finance']['deposits_held']);
         $this->assertSame(1, $data['finance']['overdue_count']);
         $this->assertEquals(50000.0, $data['finance']['overdue_amount']);
-        // 50 000 d'impayé sur 150 000 de loyers actifs attendus (L2).
-        $this->assertEquals(33.33, $data['finance']['unpaid_rate_percent']);
+        // TCK-1177 — 50 000 d'impayé sur 500 000 facturés échus sur 12 mois (L2 : loyer payé 150 000,
+        // caution 300 000, loyer en attente 50 000 ; les restitutions de caution n'en sont pas).
+        $this->assertEquals(10.0, $data['finance']['unpaid_rate_percent']);
 
         $ts = $this->apiGet('/api/dashboard/agency?include=timeseries&months=7')->assertOk()->json('timeseries');
         $this->assertEquals([66.67, 66.67, 84.95, 77.78, 66.67, 66.67, 33.33], $ts['occupancy']);

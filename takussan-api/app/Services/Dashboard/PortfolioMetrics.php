@@ -337,6 +337,43 @@ class PortfolioMetrics
     }
 
     /**
+     * Taux d'impayés (P93.03, TCK-1177) : l'impayé des échéances échues sur les 12 derniers mois ÷ le
+     * facturé des mêmes échéances, en points (0..100). Même assiette des deux côtés — échéances hors
+     * restitution de caution, dues dans `[aujourd'hui − 12 mois, aujourd'hui[`, de baux non supprimés,
+     * quel que soit leur statut de bail ; le facturé écarte les lignes `cancelled` et `failed`, qui ne
+     * sont pas dues. `null` sans échéance échue : « rien de facturé » n'est pas « 0 % d'impayés ».
+     *
+     * L'ancien taux rapportait l'impayé CUMULÉ au loyer MENSUEL des seuls baux `active` : 350 % pour
+     * trois loyers en retard, 0 % quand l'impayé venait d'un bail clos.
+     */
+    public function unpaidRate(PortfolioScope $scope): ?float
+    {
+        $today = now()->toDateString();
+        $owed = CollectedPayments::owedStatusValues();
+        $owedPlaceholders = implode(', ', array_fill(0, count($owed), '?'));
+
+        $row = LeasePayment::query()
+            ->exceptDepositRefunds()
+            ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
+            ->whereNull('leases.deleted_at')
+            ->where('leases.'.$scope->leaseColumn, $scope->id)
+            ->whereNotIn('lease_payments.status', [PaymentStatus::Cancelled->value, PaymentStatus::Failed->value])
+            ->whereDate('lease_payments.due_date', '>=', now()->subMonthsNoOverflow(12)->toDateString())
+            ->whereDate('lease_payments.due_date', '<', $today)
+            ->toBase()
+            ->selectRaw('COALESCE(SUM(lease_payments.amount), 0) AS billed')
+            ->selectRaw(
+                "COALESCE(SUM(CASE WHEN lease_payments.status IN ({$owedPlaceholders}) THEN ".CollectedPayments::OWED_REMAINING_SQL.' ELSE 0 END), 0) AS owed',
+                $owed,
+            )
+            ->first();
+
+        $billed = (float) ($row->billed ?? 0);
+
+        return $billed > 0 ? round(((float) $row->owed / $billed) * 100, 2) : null;
+    }
+
+    /**
      * La requête des biens du périmètre pour un ensemble de périodicités : feuilles de la périodicité,
      * et `is_current` vrai pour les biens « éligibles » aujourd'hui (location, statut hors exclusions).
      * Un bien qui ne l'est pas ne compte que pour les mois passés qu'un bail ou une réservation couvre.
