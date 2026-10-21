@@ -165,7 +165,7 @@ voie d'écriture (angle 13, puis 47).
 | 90 | Écritures explicites dans l'index (`->searchable()` / `unsearchable()` de `PropertyTagController`, `BoostLifecycle`, `GeoReindexation`, `SyncAgencyPropertiesSearchIndex`) : appelées dans une transaction qui peut être annulée, face à `SCOUT_AFTER_COMMIT` et `SCOUT_QUEUE` de chaque environnement | fait |
 | 91 | FormRequests dont la borne `max:` dépasse la longueur `varchar(N)` de la colonne écrite, ou qui n'en ont pas : 500 (`22001`) au lieu de 422 — le pendant « longueur » de l'angle 54 | fait |
 | 92 | Contraintes `UNIQUE` de la base sans règle `unique` ni verrou dans le FormRequest ou le service qui écrit : un doublon rend 500 (`23505`, que `bootstrap/app.php` ne traduit pas) au lieu de 422 ou 409 | fait |
-| 93 | Indicateurs calculés des tableaux de bord et rapports (`DashboardAgencyService`, `KpiResolver`, `PortfolioMetrics`, `TeamPerformanceService`, `OwnerStatementService`) dont les tests n'assertent que la structure JSON : valeur toujours nulle ou fausse sur des données réelles ? | à faire |
+| 93 | Indicateurs calculés des tableaux de bord et rapports (`DashboardAgencyService`, `KpiResolver`, `PortfolioMetrics`, `TeamPerformanceService`, `OwnerStatementService`) dont les tests n'assertent que la structure JSON : valeur toujours nulle ou fausse sur des données réelles ? | fait |
 | 94 | Réponses assemblées à la main dans un contrôleur (`TaskController::format`, `Admin\AgencyUpgradeRequestController::show`, `Me\ServiceProviderProfileController::show`, 25 `toISOString()` sous `app/Http/Controllers`) : dates hors ADR-0018 et enums bruts, que `check-resource-date-format.mjs` ne lit pas | à faire |
 | 95 | Réponse d'une écriture (`store`, `update`, action) face au `show` ou à la liste du même modèle : forme, ressource, types (`commission_share` en chaîne ou en nombre), clés — `PropertyCollaboratorController`, `CustomerController::setPrimaryContact`, `PropertyTagController::sync` | à faire |
 | 96 | Règles `exists:` sans `whereNull('deleted_at')` sur une table à `SoftDeletes` (`exists:customers,id`, `exists:users,id`, `exists:leases,id`…) suivies d'un `find()` masqué par la portée : 404 ou 500 au lieu de 422, ou clé étrangère écrite vers une ligne supprimée | à faire |
@@ -200,6 +200,8 @@ voie d'écriture (angle 13, puis 47).
 | 123 | Gestes validés en base suivis, hors transaction, d'un appel réseau qui peut lever (Meilisearch, CDN, revalidation du front, envoi synchrone) avant leur ligne `activity()` ou leur notification : réponse 500 pour un geste fait, trace d'audit absente — le relevé de P90.03 hors de la modération | à faire |
 | 124 | Colonnes `varchar(N)` remplies par une valeur dérivée ou recopiée d'une source plus longue (masques, concaténations, codes et messages d'erreur de fournisseur : `lease_signatures.otp_destination`, `notification_delivery_attempts.failure_reason`, `integration_webhook_logs.error_code`, `property_calendar_feeds.last_error`, `bookings.expiry_reason`) sans `mb_substr` : écriture en 22001 hors de toute requête validée | à faire |
 | 125 | Téléphones écrits sans `TelephoneSaisi::normaliser` ni `TelephoneJoignable` (garants, agences, onboarding de la console, contacts sur place des biens) : numéro hors E.164 face aux lecteurs qui envoient un SMS, ouvrent un lien WhatsApp ou rapprochent un doublon | à faire |
+| 126 | Destinataires de notifications et de courriels choisis par un profil sans `->active()` (`MaintenanceParticipants.php:39`, autres `Notification::send` à l'équipe d'une agence) : agent ou admin suspendu ou archivé qui reçoit encore l'activité de l'agence — le relevé de P93.04 sur les autres envois | à faire |
+| 127 | Indicateurs de `DashboardAgentService`, `DashboardOwnerService` et des adaptateurs `*MeMetrics` de `/dashboard/me` : dénominateur nul rendu 0 au lieu de `null`, statut courant relu pour une période passée, clés que seul `assertJsonStructure` vérifie — le relevé de l'angle 93 sur les autres tableaux de bord | à faire |
 
 ---
 
@@ -9096,3 +9098,163 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Rattachement des alertes : le nom de repli `"X #id"` n'est pas lui-même confronté aux noms pris (lu, l. 82-83 ; collision improbable).
 - Piste : un rendu de repli `UniqueConstraintViolationException` → 409 `http.conflict` pour `api/*` (sans le `DETAIL`), qui ne remplace pas les règles ; un nouvel essai sur la référence générée.
 - Mesure (2026-10-21, 964dded11, mesureur) : relu `bootstrap/app.php` (`render` : `FileCannotBeAdded`, `ApiError`, `HttpExceptionInterface`, sinon `null` ; seul le rapport d'une `QueryException` est remplacé), `HttpErrorCode` (409 → `http.conflict`, clé présente dans `lang/{fr,en}/errors.php`), `ReferenceNumberGenerator::payout` (`PO-Ym-` + 6 caractères de `Str::random`, aucun nouvel essai), `payouts.reference_number` `unique()`, `PayoutService::create` (tout `UniqueConstraintViolationException` → 409 `payout.already_paid_out`, référence comprise) et `createForBill` (aucune capture) ; la violation d'unicité non rendue a été mesurée en 500 ce jour par les tests temporaires de P92.05, P92.06, P92.08 et P92.07 → les trois parties tiennent : aucun filet, une collision de référence lue en 409 trompeur dans `create` et en 500 dans `createForBill` (lu, non rejoué ; collision improbable, 36⁶ tirages par mois), un nom de repli `"X #id"` non confronté aux noms pris (`SavedSearchController` l. 82-83, lu). Aucun ticket ni commit ne le traite. Classement : V1 pour la référence d'un versement, et V6 pour le filet, qui fixe le rendu de toute violation d'unicité non prévue sur l'ensemble des routes `api/*`.
+
+## Angle 93 — Indicateurs des tableaux de bord et du relevé : valeurs fausses sur des données réelles
+
+*Exploré le 2026-10-21 sur `pre-dev` 964dded11, par l'explorateur, sans sous-agent. Relu par
+l'explorateur : `DashboardAgencyService.php` (en entier), `KpiResolver.php`, `PortfolioMetrics.php`
+(en entier), `CollectedPayments.php`, `PortfolioScope.php`, `TeamPerformanceService.php` (en entier),
+`OwnerStatementService.php` (en entier), `PayoutCalculator.php:38-76`, `AgencyStatsController.php`,
+`CheckThresholdAlertsCommand.php`, `ThresholdAlert.php`, `AgencyMeMetrics.php`,
+`SendOwnerStatements.php:27-34`, `AgencyKpis.tsx:1-60`, le ticket TCK-595 (§ 5 bis, § 6, AC5, AC12) et
+les tests `DashboardAgencyTest`, `DashboardOwnerMetricsTest`, `TeamPerformanceTest`,
+`OwnerStatementTest`, `ThresholdAlertTest`. La prémisse de l'angle ne tient qu'en partie : TCK-595 a
+écrit des tests de valeur pour l'occupation, l'encaissé, l'impayé, le net reversé et les cautions. Les
+mesures viennent d'un test temporaire (`tests/Feature/TmpExplorateur/SondeAngle93Test.php`, retiré),
+lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `DashboardAgentService`,
+`DashboardOwnerService` et `AgingBalanceService` n'ont pas été relus au-delà de leurs appels.*
+
+### L'occupation des mois passés s'efface quand un bien est archivé, vendu ou passé en vente aujourd'hui
+- Réf : P93.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:23-26,48-54,65-120,322-339`
+- Constat :
+  - L'en-tête pose la règle « un chiffre ne se reconstruit pas depuis un statut courant » (lu,
+    l. 23-26). Mais le dénominateur et les jours couverts ne lisent que les biens « éligibles », jugés
+    sur le `status`, le `contract_type` et le `rent_period` **d'aujourd'hui** (lu, l. 331-335) : un bien
+    archivé ou vendu sort de toute la série, mois passés compris.
+  - mesuré (test temporaire, `setTestNow('2026-07-15')`) : un bien en location mensuelle, un bail
+    `expired` du 1ᵉʳ janvier au 30 juin. `longStayOccupancy` rend `100` de janvier à juin. Après
+    `status = archived`, elle rend `0` pour les six mois. Après retour à `available` et
+    `contract_type = sale`, elle rend aussi `0` pour les six mois.
+  - Le même prédicat sert la série du bailleur et celle de l'agence (`timeseries.occupancy`), ainsi que
+    l'occupation courte durée (l. 127-182 ; lu, non mesuré).
+  - Établi comment : lecture, puis le test temporaire ci-dessus.
+- Piste : juger l'éligibilité d'un mois passé sans le statut courant. Par exemple, garder dans le
+  dénominateur d'un mois tout bien couvert par un bail ce mois-là, et n'exclure par statut que les mois
+  postérieurs au passage en `archived` ou `sold`, si une date l'atteste. Le choix de la règle revient au
+  porteur. Un test épingle la série d'un bien archivé après un bail terminé.
+
+### Le relevé du bailleur compte en « Impayés de la période » des loyers pas encore échus et ceux d'un bail supprimé
+- Réf : P93.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Payout/OwnerStatementService.php:137-153`,
+  `takussan-api/lang/fr/money_out.php:27`, `takussan-api/resources/views/pdf/statements/owner.blade.php:82-83`
+- Constat :
+  - Le docblock promet « les loyers échus dans la période et non encaissés » (lu, l. 137). La requête
+    prend toute échéance dont la `due_date` tombe dans la période, sans borne au jour courant (lu,
+    l. 146). Elle ne filtre pas non plus `leases.deleted_at` (lu, l. 140-143), alors que
+    `PortfolioMetrics::overdue` le fait (lu, `PortfolioMetrics.php:306-308`).
+  - mesuré (test temporaire, `setTestNow('2026-07-03')`) : un loyer de 100 000 dû le 25 juillet, plus un
+    loyer de 70 000 dû le 1ᵉʳ juillet sur un bail supprimé. `statement(…, '2026-07')['unpaid']` rend
+    `{"count":2,"amount":170000}`. Pour le même bailleur, `PortfolioMetrics::overdue` rend
+    `{"count":0,"amount":0}`.
+  - Le libellé imprimé est « Impayés de la période » (lu). L'avis mensuel vise le mois précédent (lu,
+    `SendOwnerStatements.php:33`), où tout est échu. Le relevé du mois en cours et l'attestation
+    annuelle, que `GET /api/owner-statements?period=` sert à la demande, comptent l'avenir (pour
+    l'année : à vérifier, selon que les échéances sont générées d'avance).
+  - Établi comment : lecture, puis le test temporaire ci-dessus.
+- Piste : borner l'échéance à `< today` en plus de la période, et filtrer `leases.deleted_at`, en
+  lisant `CollectedPayments::leaseOwed()` comme les autres lecteurs de l'impayé. Un test épingle les
+  deux cas.
+
+### Le « taux d'impayés » dépasse 100 %, et vaut 0 % quand les impayés viennent d'un bail clos
+- Réf : P93.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:54-59,77,115`,
+  `takussan-api/app/Services/Dashboard/KpiResolver.php:37`, `takussan-api/app/Models/ThresholdAlert.php:49`,
+  `takussan-web/src/components/dashboard/admin/AgencyKpis.tsx:14`
+- Constat :
+  - Le numérateur est l'impayé **cumulé** à date, toutes échéances et tous baux du périmètre, clos
+    compris (lu, `PortfolioMetrics.php:302-314`). Le dénominateur est le loyer **mensuel** des seuls
+    baux `active` (lu, l. 54-59). Le rapport (l. 115) n'est donc pas borné à 100, et vaut 0 quand
+    aucun bail n'est actif.
+  - mesuré (test temporaire) : un bail actif à 100 000 avec trois loyers échus impayés, plus un bail
+    `terminated` avec 50 000 impayés → `overdue_amount` 350 000, `unpaid_rate_percent` **350**. Une
+    agence dont le seul bail est `terminated` avec 50 000 impayés → `overdue_amount` 50 000,
+    `unpaid_rate_percent` **0**.
+  - Le front l'affiche comme des « points (0..100) » (lu, `AgencyKpis.tsx:14`). Une alerte de seuil
+    `unpaid_rate_percent > N` (métrique permise, `ThresholdAlert.php:49`) ne se déclenche jamais pour
+    l'agence du second cas.
+  - TCK-595 AC5 ne fixe que le cas d'un impayé unique sur un bail actif (lu, ticket l. 607-610).
+  - Établi comment : lecture, puis le test temporaire ci-dessus.
+- Piste : rapporter des grandeurs de même assiette, par exemple l'impayé des échéances échues sur
+  12 mois ÷ le facturé échu des mêmes échéances. Rendre `null` sans dénominateur. Le choix de la
+  définition revient au porteur (texte du produit). Un test épingle les deux cas mesurés.
+
+### Les alertes de seuil vont aussi aux admins d'agence suspendus ou archivés
+- Réf : P93.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Console/Commands/CheckThresholdAlertsCommand.php:54-56`
+- Constat :
+  - Les destinataires sont les utilisateurs ayant **un** profil admin dans l'agence, quel qu'en soit
+    le statut (lu, l. 55 : `whereHas('agencyAdminProfiles', …agency_id…)`, sans `->active()`). Le
+    compte de l'équipe du même tableau de bord, lui, ne lit que les profils actifs (lu,
+    `DashboardAgencyService.php:158-159`).
+  - mesuré (test temporaire, `Notification::fake()`) : deux admins, dont l'un a son profil passé en
+    `suspended`, puis `dashboard:check-alerts` → `ThresholdAlertTriggered` est envoyée **aux deux**
+    (1 et 1).
+  - Distinct de l'angle 88, qui porte sur les comptes `blocked` : ici le compte est valide, c'est son
+    rôle dans l'agence qui a pris fin.
+  - Établi comment : lecture, puis le test temporaire ci-dessus.
+- Piste : `whereHas('agencyAdminProfiles', fn ($q) => $q->active()->where('agency_id', …))`. Un test
+  avec un admin suspendu, qui rougit sans `active()`.
+
+### Une agence sans bien de location reçoit l'alerte « occupation sous le seuil »
+- Réf : P93.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:212-214`,
+  `takussan-api/app/Services/Dashboard/KpiResolver.php:38`,
+  `takussan-api/app/Console/Commands/CheckThresholdAlertsCommand.php:48-50`
+- Constat :
+  - Sans bien éligible, `longStayOccupancyToday` rend `0.0`, pas `null` (lu, l. 214). L'occupation
+    courte durée, elle, rend `null` dans ce cas (lu, l. 178). `KpiResolver` remplace aussi toute clé
+    absente par 0 (lu, l. 25-38), et la commande fait de même (`?? 0.0`, l. 48).
+  - mesuré (test temporaire) : une agence **sans aucun bien**, une alerte
+    `occupancy_rate_percent < 50` activée → `dashboard:check-alerts` envoie la notification à l'admin.
+  - La tuile « Taux d'occupation » affiche alors 0 % (lu, `AgencyKpis.tsx` : `rate_percent / 100`),
+    sans distinguer « rien à occuper » de « tout est vacant » (à vérifier à l'écran).
+  - Établi comment : lecture, puis le test temporaire ci-dessus.
+- Piste : rendre `null` sans dénominateur, et ne pas évaluer une alerte sur une valeur `null`. Le
+  front affiche un tiret. Un test épingle l'agence sans bien.
+
+### La tuile « Biens » compte comme « publiés » des biens vendus, loués, en revue ou refusés
+- Réf : P93.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:46-49`,
+  `takussan-api/app/Models/Property.php:536-548`, `takussan-web/src/messages/fr.json:2209`
+- Constat :
+  - `published` = `published_at` non nul et statut hors `draft` et `archived` (lu, l. 47). Le
+    catalogue public exclut en plus `sold`, `rented`, `under_maintenance` et `unavailable`, et exige
+    `visibility = public` et `is_test = false` (lu, `Property::scopePublic`, l. 536-548). Le tableau
+    de bord n'exclut ni `pending_review` ni `rejected`.
+  - mesuré (test temporaire) : cinq biens publiés, un par statut `sold`, `rented`, `pending_review`,
+    `rejected`, `available` → `properties.published` = **5**. Le front l'imprime en « 5 publiés » (lu,
+    `publishedHint`).
+  - Établi comment : lecture, puis le test temporaire ci-dessus.
+- Piste : compter `published` par le prédicat du catalogue (`Property::public()` borné à l'agence),
+  ou renommer l'indice si le porteur veut « déjà publié une fois ». Un test épingle un bien vendu.
+
+### Petites améliorations : indicateurs servis sans test de valeur
+- Réf : P93.07
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/tests/Feature/Reporting/TeamPerformanceTest.php:74-95`,
+  `takussan-api/tests/Feature/Dashboard/DashboardAgencyTest.php:38-61`
+- Constat :
+  - Performance d'équipe : `sales_signed`, `customers_added`, `commissions_earned` et
+    `properties_managed` ne sont assertés par aucun test (mesuré : `grep` de chaque clé dans les
+    tests du tableau de bord et du reporting → aucun fichier). Seuls `leases_signed`,
+    `visits_completed` et `tasks_overdue` le sont.
+  - Tableau de bord d'agence : `properties.published`, `properties.rented`, `properties.available`,
+    `bookings.pending`, `maintenance.open` et `customers_count` ne sont vérifiés que par
+    `assertJsonStructure` (lu, l. 38-56 ; même `grep`). P93.06 est resté invisible pour cette raison.
+  - Établi comment : lecture et `grep`.
+- Piste : un test de valeur par indicateur, sur un jeu où chaque clé a une valeur non nulle et
+  distincte des autres. C'est un ajout de test seul (A5).
