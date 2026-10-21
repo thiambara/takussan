@@ -9133,7 +9133,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Petites améliorations
 - Réf : P92.09
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1162 — reste : le rendu de repli d'une `UniqueConstraintViolationException` en 409 `http.conflict` pour `api/*` (sans le `DETAIL`), décision structurelle qui s'écrit en ADR avant d'être codée (`docs/adr/` est fermé à l'implémenteur) ; il couvre aussi le nom de repli `"X #id"` de `SavedSearchController`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/bootstrap/app.php:131-169`, `takussan-api/app/Services/Model/ReferenceNumberGenerator.php`, `takussan-api/app/Services/Model/PayoutService.php:122-130,178`, `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:80-83`
 - Constat :
@@ -9142,6 +9142,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Rattachement des alertes : le nom de repli `"X #id"` n'est pas lui-même confronté aux noms pris (lu, l. 82-83 ; collision improbable).
 - Piste : un rendu de repli `UniqueConstraintViolationException` → 409 `http.conflict` pour `api/*` (sans le `DETAIL`), qui ne remplace pas les règles ; un nouvel essai sur la référence générée.
 - Mesure (2026-10-21, 964dded11, mesureur) : relu `bootstrap/app.php` (`render` : `FileCannotBeAdded`, `ApiError`, `HttpExceptionInterface`, sinon `null` ; seul le rapport d'une `QueryException` est remplacé), `HttpErrorCode` (409 → `http.conflict`, clé présente dans `lang/{fr,en}/errors.php`), `ReferenceNumberGenerator::payout` (`PO-Ym-` + 6 caractères de `Str::random`, aucun nouvel essai), `payouts.reference_number` `unique()`, `PayoutService::create` (tout `UniqueConstraintViolationException` → 409 `payout.already_paid_out`, référence comprise) et `createForBill` (aucune capture) ; la violation d'unicité non rendue a été mesurée en 500 ce jour par les tests temporaires de P92.05, P92.06, P92.08 et P92.07 → les trois parties tiennent : aucun filet, une collision de référence lue en 409 trompeur dans `create` et en 500 dans `createForBill` (lu, non rejoué ; collision improbable, 36⁶ tirages par mois), un nom de repli `"X #id"` non confronté aux noms pris (`SavedSearchController` l. 82-83, lu). Aucun ticket ni commit ne le traite. Classement : V1 pour la référence d'un versement, et V6 pour le filet, qui fixe le rendu de toute violation d'unicité non prévue sur l'ensemble des routes `api/*`.
+- Mesure (2026-10-21, 464389140, implementeur) : avant correctif, `PO-<Ym>-AAAAAA` déjà pris et le tirage forcé à `aaaaaa` puis `bbbbbb` (`Str::createRandomStringsUsingSequence`) → `ReferenceNumberGenerator::payout()` rend `PO-<Ym>-AAAAAA`, la référence prise → le générateur retire tant que la référence existe (suppressions douces comprises) ; `PayoutReferenceRetryTest` (2 cas) ; ablation : générateur d'avant → 1 rouge, remis → 2/2 ; `PayoutTest`, `ServiceProviderBillTest` verts. Le filet global n'est pas fait : V6 accordé, mais une décision structurelle s'écrit d'abord en ADR.
 
 ## Angle 93 — Indicateurs des tableaux de bord et du relevé : valeurs fausses sur des données réelles
 
