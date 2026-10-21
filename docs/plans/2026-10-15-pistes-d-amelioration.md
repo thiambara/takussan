@@ -9600,7 +9600,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### La garde de `/app` jette la chaîne de requête : le lien d'un courriel ouvert hors session perd sa conversation
 - Réf : P97.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1121
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/proxy.ts:90-94`, `takussan-web/src/lib/redirection-interne.ts` (`destinationInterne`), `takussan-api/app/Domain/Notifications/NotificationTarget.php:44-45`, `takussan-web/src/components/messages/MessagesPage.tsx:77`
 - Constat :
@@ -9612,6 +9612,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Établi comment : lu et mesuré.
 - Piste : écrire `redirect` = `pathname + search` dans `proxy.ts`, la destination restant filtrée par `destinationInterne` au retour. Garde : un cas de `proxy.test.ts` sur `/app/messages?conversation=42`.
 - Mesure (2026-10-21, 0e45ad7a0, mesureur) : relu `takussan-web/src/proxy.ts:90-94` (`searchParams.set('redirect', pathname)`) et `redirection-interne.ts:51` (`destinationInterne` rend `pathname + search + hash`) ; test Vitest temporaire, retiré depuis (charge `{ 2.31 2.42 2.99 }`, 8 cœurs), qui appelle `proxy()` sans cookie : `/app/messages?conversation=42` → `307 /auth/login?redirect=%2Fapp%2Fmessages`, `/app/leads?lead=7` → `…redirect=%2Fapp%2Fleads` → le constat tient. Classement : A1, la cible `conversation` de `NotificationTarget.php:43` et `MessagesPage` qui lit `conversation` fixent la destination attendue, et la vérification du jeton comme le filtre `destinationInterne` au retour restent inchangés (V2 non touché).
+- Mesure (2026-10-21, beadbcb6a, implementeur) : relu `proxy.ts:92` (`searchParams.set('redirect', pathname)`) ; le test neuf de `proxy.test.ts` sur `/app/messages?conversation=42`, `/app/leads?lead=7` et une requête à deux paramètres rendait `redirect` = le chemin seul (3 rouges) → correctif `pathname + request.nextUrl.search`, 39/39 ; ablation → 3 rouges, remis → vert.
 
 ### La console super-admin renvoie toujours vers son accueil après connexion : le lien de la demande de passage en agence est perdu
 - Réf : P97.03
