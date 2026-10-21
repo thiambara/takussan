@@ -4,7 +4,7 @@ title: "Reseed d'une préproduction : rejouer alerts:ensure-ops-rules après db:
 status: done
 phase: P2
 family: bug
-estimate: XS
+estimate: S
 wave: null
 created: 2026-10-21
 updated: 2026-10-21

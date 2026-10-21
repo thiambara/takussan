@@ -3,8 +3,8 @@ id: TCK-1163
 title: "Référentiels au déploiement : échecs tolérés épinglés, fichier de région invalide sur un message"
 status: done
 phase: P2
-family: chore
-estimate: XS
+family: technique
+estimate: S
 wave: null
 created: 2026-10-21
 updated: 2026-10-21

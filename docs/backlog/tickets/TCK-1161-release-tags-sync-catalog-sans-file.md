@@ -4,7 +4,7 @@ title: "release.sh : tags:sync-catalog joué sous SCOUT_QUEUE=false, comme geo:s
 status: done
 phase: P2
 family: bug
-estimate: XS
+estimate: S
 wave: null
 created: 2026-10-21
 updated: 2026-10-21
