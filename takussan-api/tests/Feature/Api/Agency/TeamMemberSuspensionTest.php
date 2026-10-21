@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\Agency;
 
 use App\Models\Agency;
+use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Enums\Capability;
@@ -18,6 +19,7 @@ use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Testing\TestResponse;
 use Spatie\Activitylog\Models\Activity;
 use Tests\ApiTestCase;
@@ -362,6 +364,43 @@ class TeamMemberSuspensionTest extends ApiTestCase
             $this->assertSame(0, $document->shareLinks()->count());
         }
         $this->postJson("/api/documents/{$dansB->id}/share", [])->assertCreated();
+    }
+
+    /**
+     * TCK-1142 (P82.02) — joindre un document est une écriture : le bailleur bloqué dans A ne
+     * rattache plus de pièce à son bail, son bien, sa réservation ni son état des lieux (404, la
+     * réponse d'un porteur interdit, TCK-732). Il lit toujours celles qui y sont, et joint encore
+     * dans B, où il est actif.
+     */
+    public function test_un_bailleur_bloque_ne_joint_plus_de_document(): void
+    {
+        [$bailleur, $bienA, $bienB] = $this->bailleurBloqueDansA();
+        $bailA = Lease::factory()->create(['property_id' => $bienA->id, 'landlord_id' => $bailleur->id, 'agency_id' => $this->agencyA->id]);
+        $reservationA = Booking::factory()->create(['property_id' => $bienA->id, 'agency_id' => $this->agencyA->id]);
+        $edlA = Inventory::factory()->create(['property_id' => $bienA->id, 'conducted_by' => $this->adminA->id]);
+        $existant = Document::factory()->create(['documentable_type' => Lease::class, 'documentable_id' => $bailA->id, 'uploaded_by' => $this->adminA->id]);
+        $joindre = fn (string $type, int $id) => $this->post('/api/documents', [
+            'documentable_type' => $type,
+            'documentable_id' => $id,
+            'name' => 'Pièce',
+            'type' => 'other',
+            'file' => UploadedFile::fake()->create('piece.pdf', 2, 'application/pdf'),
+        ], ['Accept' => 'application/json']);
+
+        foreach ([['lease', $bailA->id], ['property', $bienA->id], ['booking', $reservationA->id], ['inventory', $edlA->id]] as [$type, $id]) {
+            $joindre($type, $id)->assertNotFound();
+        }
+        $this->assertSame(1, Document::query()->count());
+        $this->getJson("/api/documents/{$existant->id}")->assertOk();
+        $joindre('property', $bienB->id)->assertCreated();
+
+        // Le locataire et le personnel de A joignent toujours au bail.
+        $locataire = User::factory()->create();
+        $bailA->update(['tenant_id' => Customer::factory()->create(['user_id' => $locataire->id, 'agency_id' => $this->agencyA->id])->id]);
+        $this->actingAsApi($locataire);
+        $joindre('lease', $bailA->id)->assertCreated();
+        $this->actingAsApi($this->adminA);
+        $joindre('lease', $bailA->id)->assertCreated();
     }
 
     /** N2 — la suppression : il la perdait par la seule règle du téléverseur. */
