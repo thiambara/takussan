@@ -49,8 +49,9 @@ use Tests\TestCase;
  *   · que `actionUrl` commence par la base du front (`app.frontend_url`, à défaut `app.url`) — y
  *     compris quand `app.frontend_url` est VIDE : `config('app.frontend_url', …)` ne se repliait
  *     jamais (la clé est toujours définie), et le lien sortait alors relatif ;
- *   · que son chemin suive celui que déclare {@see CHEMINS} — et la garde JS, qui lit les deux
- *     arbres, exige que chaque chemin déclaré mène à une page du front.
+ *   · que son chemin suive celui que déclare {@see CHEMINS} — et le test du front
+ *     `takussan-web/src/__tests__/liens-des-courriels.test.ts`, dont la clé d'attestation couvre
+ *     l'API, exige que chaque chemin déclaré mène à une page du front.
  *
  * Toute classe de `app/Notifications` qui pose un bouton (`->action(`) doit figurer dans
  * {@see cas()} ou dans {@see EXEMPTIONS}, avec sa raison : une classe neuve n'échappe pas au test.
@@ -65,10 +66,10 @@ class MailActionLinksTest extends TestCase
 
     /**
      * Le chemin de chaque lien, `{id}` pour un segment variable. ⚠ C'est
-     * `scripts/check-notification-target-paths.mjs` (Repo CI) qui les résout en pages de
-     * `takussan-web/src/app`, comme les cibles de `NotificationTarget::PATHS` : ce test-ci ne lit
-     * pas le front, l'attestation de l'API (ADR-0063) n'en portant pas la clé. Il vérifie que le
-     * lien rendu suit le chemin déclaré, la garde que le chemin déclaré mène à une page.
+     * `takussan-web/src/__tests__/liens-des-courriels.test.ts` qui les résout en pages de
+     * `takussan-web/src/app`, comme la garde des cibles de `NotificationTarget::PATHS` : ce test-ci
+     * ne lit pas le front, l'attestation de l'API (ADR-0063) n'en portant pas la clé. Il vérifie que
+     * le lien rendu suit le chemin déclaré, le test du front que le chemin déclaré mène à une page.
      */
     public const CHEMINS = [
         'ThresholdAlertTriggered' => '/app/overview',
