@@ -12,6 +12,7 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
+use App\Notifications\AccountDeletionReminderNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -256,5 +257,21 @@ class AccountDeletionRequestTest extends TestCase
             ->map(fn (array $o): array => [$o['type'], $o['id']])
             ->values()
             ->all();
+    }
+
+    /**
+     * P97.07 (TCK-1123) — les deux courriels de suppression de compte visent `/app/profile`, sans
+     * le paramètre `cancel-deletion=1` qu'aucune page ne lisait : le bandeau d'annulation est rendu
+     * sur toute page de `/app` tant qu'une demande est en cours.
+     */
+    public function test_deletion_mails_link_to_the_profile_without_a_dead_parameter(): void
+    {
+        config(['app.frontend_url' => 'https://front.exemple.test']);
+        $user = User::factory()->create();
+        $demande = (new AccountDeletionRequest)->forceFill(['user_id' => $user->id, 'scheduled_for' => now()->addDays(30)]);
+
+        foreach ([new AccountDeletionRequestedNotification($demande), new AccountDeletionReminderNotification($demande)] as $notification) {
+            $this->assertSame('https://front.exemple.test/app/profile', $notification->toMail($user)->actionUrl, $notification::class);
+        }
     }
 }

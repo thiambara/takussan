@@ -336,7 +336,7 @@ describe('la garde d’authentification est intacte', () => {
   it.each([
     ['/app/messages?conversation=42'],
     ['/app/leads?lead=7'],
-    ['/app/profile?cancel-deletion=1&x=a%20b'],
+    ['/app/customers?status=active&q=a%20b'],
   ])('%s sans jeton : `redirect` garde la chaîne de requête', (chemin) => {
     const r = proxy(requete(chemin));
     expect(r.status).toBe(307);
