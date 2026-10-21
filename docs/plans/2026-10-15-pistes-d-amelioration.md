@@ -169,7 +169,7 @@ voie d'écriture (angle 13, puis 47).
 | 94 | Réponses assemblées à la main dans un contrôleur (`TaskController::format`, `Admin\AgencyUpgradeRequestController::show`, `Me\ServiceProviderProfileController::show`, 25 `toISOString()` sous `app/Http/Controllers`) : dates hors ADR-0018 et enums bruts, que `check-resource-date-format.mjs` ne lit pas | fait |
 | 95 | Réponse d'une écriture (`store`, `update`, action) face au `show` ou à la liste du même modèle : forme, ressource, types (`commission_share` en chaîne ou en nombre), clés — `PropertyCollaboratorController`, `CustomerController::setPrimaryContact`, `PropertyTagController::sync` | fait |
 | 96 | Règles `exists:` sans `whereNull('deleted_at')` sur une table à `SoftDeletes` (`exists:customers,id`, `exists:users,id`, `exists:leases,id`…) suivies d'un `find()` masqué par la portée : 404 ou 500 au lieu de 422, ou clé étrangère écrite vers une ligne supprimée | fait |
-| 97 | Liens d'action des courriels (`->action(…)` des `toMail()`, boutons des Mailables) : la route ou la page visée existe-t-elle, un clic depuis un client de courriel porte-t-il l'authentification qu'elle exige, et vise-t-il l'hôte du front ou celui de l'API | à faire |
+| 97 | Liens d'action des courriels (`->action(…)` des `toMail()`, boutons des Mailables) : la route ou la page visée existe-t-elle, un clic depuis un client de courriel porte-t-il l'authentification qu'elle exige, et vise-t-il l'hôte du front ou celui de l'API | fait |
 | 98 | Autres écrans d'écriture de la console super-admin (modèles de notification `NotificationTemplateService`, annonces, intégrations, paramètres plateforme) : ce que chaque écran promet de changer est-il lu par le chemin qui envoie, affiche ou décide, hors de la console ? | à faire |
 | 99 | Critères de ville et de région rangés par nom (`city`, `cities`, `region` des recherches sauvegardées et des alertes sans compte, `seeking_cities` du CRM) face à une ville renommée par le chargeur du référentiel (`GeoReferentialLoader`, TCK-787) : alertes et rapprochements muets ? | à faire |
 | 98 | Supprimer, versionner ou partager un document que l'on ne fait que lire (`DocumentController::destroy`, `DocumentVersionController`, `DocumentShareLinkController`, `DocumentPolicy::share`) face aux règles écrites des tickets : locataire, bailleur invité, agent d'une autre agence, compte bloqué |
@@ -205,6 +205,8 @@ voie d'écriture (angle 13, puis 47).
 | 128 | Dates des charges utiles de notification (`toArray()` / `toDatabase()` de `app/Notifications`, `data` rendu par `AppNotificationResource`, diffusions) que l'ADR-0018 laisse hors de son périmètre : forme émise, et lecture par le centre de notifications du front | à faire |
 | 129 | Suppression douce d'une agence (`DELETE /api/agencies/{agency}`, `AgencyController::destroy`, `$agency->delete()` seul, ouvert à l'admin principal) : profils restés actifs et profil actif encore résolu, biens publiés, baux et échéances, abonnement, invitations ouvertes et tâches planifiées d'une agence supprimée | à faire |
 | 130 | Fiches supprimées en douceur et encore citées (`CustomerController::destroy`, `GuarantorController::destroy`, `PropertyController::destroy`) : baux, réservations, factures, relances, PDF et exports dont la relation `customer`, `guarantor` ou `property` rend `null` sous la portée `SoftDeletes` — 500, champ vide ou geste refusé ? | à faire |
+| 131 | Paramètres de requête des liens profonds émis par l'API ou le front (`?conversation=`, `?tab=`, `?id=`, `router.push('…?…')`, `href` des listes et des cloches) : lus par la page visée, et conservés à travers les redirections de connexion, d'onboarding et de changement de profil actif | à faire |
+| 132 | Liens portés par les SMS et WhatsApp (`payment_url`, `receipt_url`, lien d'invitation, gabarits WhatsApp à bouton) : hôte, durée de validité face au délai d'envoi des heures calmes, et page qu'ouvre un destinataire sans compte — le pendant de l'angle 97 hors du courriel | à faire |
 
 ---
 
@@ -9562,3 +9564,93 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 - Piste : un test d'architecture qui, pour chaque `exists:<table>` et `Rule::exists('<table>')` de `app/Http/Requests`, retrouve le modèle de la table et exige `whereNull('deleted_at')` quand il porte `SoftDeletes`, avec une liste d'exceptions motivées (le registre RGPD de `StorePrivacyRequestRequest`, qui vise légitimement un compte effacé).
 - Mesure (2026-10-21, 127233826, mesureur) : `grep -rl SoftDeletes app/Models | wc -l` → 27 ; `grep -rn "whereNull('deleted_at')\|withoutTrashed" app/Http/Requests` → la seule `UpdatePropertyRequest.php:75` ; `ExistsSurRouteOuverteTest.php` et `scripts/check-*.mjs` ne citent ni `deleted_at` ni `SoftDeletes` → le constat tient. Classement : V6, la garde imposerait à toutes les FormRequests une règle (exclure les lignes supprimées) que P96.02 et P96.03 laissent au porteur, avec une liste d'exceptions à décider.
 - Mesure (2026-10-21, 328f5e61c, delegue) : relu `tests/Unit/Architecture/ExistsSurRouteOuverteTest.php:25-53` (liste `EXCEPTIONS` rattachée chacune à sa Réf, échec sur un cas neuf comme sur une exception périmée) et les statuts de P96.02 (V1) et P96.03 (V7), tous deux au porteur → le test que propose la `Piste` échouerait aujourd'hui sur les 27 règles que ces deux entrées laissent ouvertes. Recommandation : le même cliquet que `ExistsSurRouteOuverteTest`, qui refuse toute règle `exists:` neuve sur une table à `SoftDeletes` sans `whereNull('deleted_at')` et liste les règles existantes en exceptions rattachées à P96.01, P96.02 ou P96.03 (plus `StorePrivacyRequestRequest`, légitime), parce qu'il garde sans rien trancher ; à décider après P96.02 et P96.03, dont les décisions fixent la liste d'exceptions, ce que le délégué ne peut pas anticiper.
+
+## Angle 97 — Liens d'action des courriels : page visée, authentification, hôte
+
+*Exploré le 2026-10-21 sur `pre-dev` 6e5cee59b, par l'explorateur. Relu par l'explorateur lui-même : l'inventaire `grep -rn -e '->action(' -e frontend_url -e "url(" -e "route(" -e SignedRoute app/Notifications app/Mail` (17 classes à lien, plus `CodedNotification` et ses 20 cibles de `NotificationTarget::PATHS`), les trois vues `resources/views/emails/*`, `AppServiceProvider.php:917-940` (liens de vérification et de réinitialisation), `routes/web.php`, puis côté front l'arborescence des `page.tsx`, `src/proxy.ts`, la mise en page de la console super-admin et les lecteurs de chaque paramètre de requête émis. Mesuré : `php artisan tinker` (hôte de `url()` hors requête), `php artisan route:list --path=app/overview`, et un test Vitest temporaire du proxy (`src/__tests__/expl97-temp.test.ts`, charge `{ 2.02 3.20 3.64 }` sur 8 cœurs), retiré depuis. Écarté parce que déjà traité : l'archive RGPD (TCK-575), l'export de rapport (`ReportExportDownloadTest`) et l'export du journal d'audit (ligne `Mesure` du 2026-10-20 sur `AgencyAuditScopeTest`). Les envois aux contacts sans compte ne portent pas de lien de console : les visites et l'accusé de demande passent `null` comme cible, et `ContactSansCompte::fromCustomer` ne porte pas d'e-mail (lu, `ContactSansCompte.php:39-48`). Hors périmètre : les liens des SMS et WhatsApp. Aucun sous-agent.*
+
+### Le bouton du courriel d'alerte de seuil mène à l'hôte de l'API, sur une page qui n'y existe pas
+- Réf : P97.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Notifications/ThresholdAlertTriggered.php:61`, `takussan-api/app/Console/Commands/CheckThresholdAlertsCommand.php:59`
+- Constat :
+  - Le bouton est `url('/app/overview')` (lu, l. 61). C'est la seule classe de `app/Notifications` qui construit un lien de console par `url()` ; toutes les autres partent de `app.frontend_url` (lu, inventaire ci-dessus).
+  - La notification part de la commande planifiée, hors de toute requête : `url()` y prend `APP_URL`. Mesuré : `php artisan tinker --execute="echo url('/app/overview');"` → `http://localhost:8002/app/overview`, l'API locale, alors que `config('app.frontend_url')` vaut `http://localhost:3000`. En préproduction, `APP_URL` est l'hôte de l'API (lu, `docs/infra/hebergement.md:198`).
+  - L'API n'a aucune route `app/overview` : `php artisan route:list --path=app/overview` → « doesn't have any routes matching » ; pas de `Route::fallback` dans `routes/` (mesuré, `grep -rn fallback routes bootstrap`). Le clic rend donc le 404 de Laravel.
+  - Aucun test ne lit le lien de ce courriel : `tests/Feature/Dashboard/ThresholdAlertTest.php` ne cite ni `overview` ni `actionUrl` (mesuré, `grep`).
+  - Établi comment : lu et mesuré.
+- Piste : construire le lien sur `app.frontend_url`, comme les autres classes, en visant plutôt `/app/overview/alerts` si c'est là que l'alerte se règle. Garde : un test qui lit `actionUrl` du `toMail()` et exige l'hôte de `app.frontend_url` (voir P97.05).
+
+### La garde de `/app` jette la chaîne de requête : le lien d'un courriel ouvert hors session perd sa conversation
+- Réf : P97.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/proxy.ts:90-94`, `takussan-web/src/lib/redirection-interne.ts` (`destinationInterne`), `takussan-api/app/Domain/Notifications/NotificationTarget.php:44-45`, `takussan-web/src/components/messages/MessagesPage.tsx:77`
+- Constat :
+  - Sans jeton, le proxy renvoie vers `/auth/login` avec `redirect` = `pathname` seul (lu, `proxy.ts:92`). La chaîne de requête est perdue, alors que `destinationInterne` la garderait (`${url.pathname}${url.search}${url.hash}`, lu).
+  - Mesuré, test temporaire qui appelle `proxy()` sans cookie : `/app/messages?conversation=42` → `307 /auth/login?redirect=%2Fapp%2Fmessages` ; `/app/leads?lead=7` → `…redirect=%2Fapp%2Fleads` ; `/app/profile?cancel-deletion=1` → `…redirect=%2Fapp%2Fprofile`.
+  - Les liens de courriel qui portent une requête : la cible `conversation` (`/app/messages?conversation={id}`) et `lead` de `CodedNotification` (lu, `NotificationTarget.php:44-45`, `CodedNotification.php:207-210`), l'annulation de suppression de compte (`AccountDeletionRequestedNotification.php:36`, `AccountDeletionReminderNotification.php:36`). `MessagesPage` lit bien `conversation` (lu, l. 77) : après connexion, le destinataire tombe sur la liste des messages, sans la conversation que le courriel annonçait.
+  - Un courriel s'ouvre souvent hors de la session du navigateur (client de messagerie mobile, autre appareil) : c'est le cas courant du clic, pas un cas limite (déduit, à vérifier sur la durée de vie du cookie).
+  - `src/__tests__/proxy.test.ts:326-338` n'éprouve que des chemins sans requête (lu).
+  - Établi comment : lu et mesuré.
+- Piste : écrire `redirect` = `pathname + search` dans `proxy.ts`, la destination restant filtrée par `destinationInterne` au retour. Garde : un cas de `proxy.test.ts` sur `/app/messages?conversation=42`.
+
+### La console super-admin renvoie toujours vers son accueil après connexion : le lien de la demande de passage en agence est perdu
+- Réf : P97.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/(super-admin)/super-admin/layout.tsx:41-50`, `takussan-api/app/Notifications/AgencyUpgradeRequestSubmittedNotification.php:93-98`, `takussan-api/app/Domain/Notifications/NotificationTarget.php:47`
+- Constat :
+  - Sans jeton opérateur, la mise en page redirige vers la chaîne fixe `/auth/login?redirect=%2Fsuper-admin` (lu, l. 49). Son commentaire dit pourtant vouloir « preserve the originally-requested URL » (lu, l. 41-42, TCK-166).
+  - `/super-admin` n'est pas sous la garde du proxy (seul `/app` l'est, lu, `proxy.ts:81-94`) : c'est cette mise en page qui décide seule.
+  - Les courriels qui visent la console : la demande de passage en agence (`/super-admin/agency-upgrade-requests/{id}`, lu, `AgencyUpgradeRequestSubmittedNotification.php:97`) et la cible `kyc_review` (`/super-admin/kyc`, lu, `NotificationTarget.php:47`). Un opérateur qui clique hors session arrive, après connexion, sur l'accueil de la console, sans la demande à instruire (lu ; non mesuré par un rendu).
+  - Établi comment : lu.
+- Piste : la mise en page ne connaît pas le chemin demandé (une mise en page Next ne reçoit pas `pathname`) : soit garder `/super-admin` dans le proxy comme `/app` (qui garde chemin et requête, voir P97.02), soit transmettre le chemin par un en-tête posé par le proxy. Garde : un test du proxy ou de la mise en page sur `/super-admin/agency-upgrade-requests/12`.
+
+### La cible `lead` promet d'ouvrir la demande, et aucune page ne lit `?lead=`
+- Réf : P97.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Domain/Notifications/NotificationTarget.php:43-45`, `takussan-api/app/Services/Lead/ContactLeadService.php:370-374`, `takussan-web/src/app/(dashboard)/app/leads/page.tsx`, `takussan-web/src/components/leads/ContactLeadsInbox.tsx`
+- Constat :
+  - La cible est `'lead' => '/app/leads?lead={id}'`, commentée « la boîte « Demandes », ouverte sur la demande » (lu, `NotificationTarget.php:44-45`, TCK-590). `LeadReceived` la porte (lu, `ContactLeadService.php:370-374`) : bouton du courriel et lien de la cloche.
+  - Ni la page ni `ContactLeadsInbox` ne lisent de paramètre de requête : `grep -rln "useSearchParams\|searchParams" src/components/leads "src/app/(dashboard)/app/leads"` → rien ; la page rend `<ContactLeadsInbox />` sans argument (lu). La demande n'est ni ouverte, ni mise en avant, ni filtrée.
+  - `scripts/check-notification-target-paths.mjs` retire la chaîne de requête avant de résoudre le chemin (lu, en-tête) : elle ne peut pas voir ce défaut.
+  - Établi comment : lu et mesuré (`grep`).
+- Piste : faire lire `lead` par la boîte (défilement vers la demande et mise en avant, ou ouverture de son détail), ou retirer le paramètre et le commentaire s'il n'est pas voulu. Garde : un test de `ContactLeadsInbox` qui monte la page avec `?lead=` et attend la demande désignée.
+
+### La garde des liens de notification ne lit ni les liens écrits à la main des courriels, ni les paramètres de requête
+- Réf : P97.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `scripts/check-notification-target-paths.mjs`, `takussan-api/app/Notifications/*.php` (`toMail()`), `takussan-api/app/Mail/InvitationMailable.php:47-48`, `takussan-api/resources/views/emails/notifications/notification-digest.blade.php:17`
+- Constat :
+  - La garde lit le seul tableau `NotificationTarget::PATHS` (lu, `lirePaths`, motif `public const PATHS`) : `node scripts/check-notification-target-paths.mjs --report` → « 20 cibles de notification, chacune mène à une page du front » (mesuré).
+  - Hors de ce tableau, une quinzaine de liens de console sont écrits à la main dans les `toMail()`, les vues et les Mailables (`/app/leases/onboarding-pending`, `/app/inventories`, `/app/settings/agency/upgrade`, `/super-admin/agency-upgrade-requests/{id}`, `/app/profile/notifications?unsubscribed=1`, `/invitations/accept`…). Tous mènent aujourd'hui à une page existante (relu un à un contre l'arborescence des `page.tsx`), sauf l'hôte de P97.01, qu'aucune garde ne voit.
+  - Seuls quatre fichiers de test lisent `actionUrl` (mesuré, `grep -rln actionUrl tests` → `AuthPasswordResetTest`, `AuthEmailVerificationTest`, `AgencyAdminActivationTest`, `ReportExportDownloadTest`).
+  - Trois écritures de la base coexistent : `config('app.frontend_url') ?: config('app.url')` (la plupart), `config('app.frontend_url', config('app.url'))` (suppression de compte, désabonnement, vue du résumé) et `config('app.frontend_url')` sans repli (`CodedNotification.php:209`). La deuxième ne se replie jamais, la clé étant toujours définie (lu, `config/app.php:57`).
+  - Établi comment : lu et mesuré.
+- Piste : une seule fonction de l'API pour bâtir un lien du front (base, chemin, requête), et un test d'architecture qui rend chaque `toMail()` sur un destinataire de fabrique et vérifie que `actionUrl` commence par `app.frontend_url` et que son chemin est une page du front (même résolution que la garde actuelle).
+
+### Le désabonnement du résumé est un GET qui écrit, signé sans échéance, sans en-tête `List-Unsubscribe`
+- Réf : P97.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/routes/web.php:12-14`, `takussan-api/app/Http/Controllers/NotificationUnsubscribeController.php:20-31`, `takussan-api/app/Jobs/Notifications/BuildUserDigestJob.php:59`, `takussan-api/app/Mail/NotificationDigestMail.php`
+- Constat :
+  - `GET notifications/unsubscribe/{user}` passe `email_frequency` à `off` dès l'ouverture du lien (lu, contrôleur l. 27), signé par `RelativeSignedUrl::forever` (lu, l. 22). Les analyseurs de liens des messageries d'entreprise ouvrent les URL d'un courriel avant le destinataire : le résumé serait coupé sans geste de l'utilisateur (déduit, à vérifier).
+  - Les alertes de recherche suivent l'autre modèle, écrit par ADR-0050 : page du front qui confirme, et `POST` en un clic annoncé par `List-Unsubscribe` et `List-Unsubscribe-Post` (lu, `SavedSearchMatchesNotification.php:105-110, 243-270`). Le résumé n'annonce aucun de ces en-têtes (mesuré, `grep -n "List-Unsub" app/Mail/NotificationDigestMail.php` → rien).
+  - La redirection finale vise `/app/profile/notifications?unsubscribed=1` (lu, l. 29-31) : aucun fichier du front ne lit `unsubscribed` (mesuré, `grep -rn unsubscribed takussan-web/src`), et hors session la garde de `/app` mène à la connexion en perdant le paramètre (P97.02). Le désabonnement a lieu, mais rien ne le confirme à l'écran.
+  - Établi comment : lu et mesuré (`grep`) ; l'effet des analyseurs n'est pas mesuré.
+- Piste : aligner le résumé sur le modèle des alertes : page du front qui confirme, `POST` signé avec échéance, en-têtes `List-Unsubscribe` et `List-Unsubscribe-Post`. Garde : un test qui exige qu'un `GET` du lien n'écrive rien.
+
+### Petites améliorations
+- Réf : P97.07
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Notifications/AccountDeletionRequestedNotification.php:36`, `takussan-api/app/Notifications/AccountDeletionReminderNotification.php:36`, `takussan-web/src/app/(dashboard)/layout.tsx:66-75`
+- Constat :
+  - Le paramètre `cancel-deletion=1` des deux courriels de suppression de compte n'est lu par aucun fichier du front (mesuré, `grep -rn "cancel-deletion\|cancel_deletion\|cancelDeletion" takussan-web/src` → rien). Le parcours tient quand même : le bandeau d'annulation est rendu sur toute page de `/app` tant qu'une demande est en cours (lu, `layout.tsx:66-75`, `AccountDeletionBanner.tsx`), et le compte peut se connecter jusqu'à l'exécution (lu, `AccountDeletionService.php:306`, seul passage à `Deleted`). Le paramètre est donc mort.
+  - Établi comment : lu et mesuré (`grep`).
+- Piste : retirer le paramètre, ou le faire lire par la page profil pour porter le regard sur le bandeau ; dans les deux cas, viser `/app/profile` hors de toute requête que P97.02 perdrait.
