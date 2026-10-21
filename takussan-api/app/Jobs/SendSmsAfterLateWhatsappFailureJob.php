@@ -11,6 +11,7 @@ use App\Services\Notifications\Sms\QuietHoursGuard;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use App\Services\Notifications\Whatsapp\WhatsappResult;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -33,8 +34,11 @@ use Illuminate\Support\Traits\Localizable;
  *
  * Le texte est celui du SMS de la notification, rendu depuis sa ligne (code et paramètres) dans la
  * langue du destinataire, comme {@see CodedNotification::toSms()}.
+ *
+ * Chiffré (`ShouldBeEncrypted`) comme tout job qui remet un SMS au pilote (TCK-678,
+ * `JobSmsChiffreTest`) : il ne porte que des identifiants, mais la règle ne distingue pas.
  */
-class SendSmsAfterLateWhatsappFailureJob implements ShouldQueue
+class SendSmsAfterLateWhatsappFailureJob implements ShouldBeEncrypted, ShouldQueue
 {
     use Localizable;
     use Queueable;
