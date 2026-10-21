@@ -9207,7 +9207,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 
 ### Les alertes de seuil vont aussi aux admins d'agence suspendus ou archivés
 - Réf : P93.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1113
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Console/Commands/CheckThresholdAlertsCommand.php:54-56`
 - Constat :
@@ -9224,10 +9224,11 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 - Piste : `whereHas('agencyAdminProfiles', fn ($q) => $q->active()->where('agency_id', …))`. Un test
   avec un admin suspendu, qui rougit sans `active()`.
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `CheckThresholdAlertsCommand` (`whereHas('agencyAdminProfiles', …agency_id…)` sans `active()`), `HasProfiles::isAgencyAdminAt` (`->active()`), `MessagingReach.php:224` (`$p->active()->where('agency_id', …)`) ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → deux admins dont l'un passé en `suspended`, alerte `occupancy_rate_percent < 50`, `dashboard:check-alerts` : `ThresholdAlertTriggered` envoyée 1 fois à l'admin actif et 1 fois au suspendu ; le constat tient. Aucun ticket ni commit ne le traite. Correctif attendu : `->active()` dans le `whereHas` des destinataires, et un test avec un admin suspendu qui rougit sans lui. Classement : A1, le code appelant (`isAgencyAdminAt`, `MessagingReach`) tient déjà qu'un admin d'agence est un profil actif, et seuls les destinataires d'une notification changent.
+- Mesure (2026-10-21, 127233826, implementeur) : reproduit avant correctif par `ThresholdAlertTest::test_alert_skips_suspended_and_archived_agency_admins` (trois admins `active`, `suspended`, `archived`, alerte `overdue_count > -1`) → rouge, `ThresholdAlertTriggered` envoyée à l'admin suspendu → `->active()` dans le `whereHas` des destinataires de `CheckThresholdAlertsCommand` : 11/11 sur la classe, la notification ne va plus qu'à l'admin actif.
 
 ### Une agence sans bien de location reçoit l'alerte « occupation sous le seuil »
 - Réf : P93.05
-- Statut : validé (délégué) — `occupancy.rate_percent` rend `null` sans bien éligible longue durée, comme `short_stay_percent` (TCK-595, contrat de données) ; `KpiResolver` garde ce `null` pour `occupancy_rate_percent`, et `dashboard:check-alerts` n'évalue pas une alerte dont la valeur est `null` ; le front type `rate_percent: number | null` et affiche un tiret sur la tuile « Taux d'occupation » de l'agence et du bailleur ; un test épingle l'agence sans bien (valeur `null`, aucune notification) ; reste : le `null` de `unpaid_rate_percent` sans dénominateur, qui relève de P93.03 et reste au porteur
+- Statut : fait · TCK-1114 — reste : le `null` de `unpaid_rate_percent` sans dénominateur, qui relève de P93.03 et reste au porteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:212-214`,
   `takussan-api/app/Services/Dashboard/KpiResolver.php:38`,
@@ -9245,10 +9246,11 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   front affiche un tiret. Un test épingle l'agence sans bien.
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `PortfolioMetrics::longStayOccupancyToday` (`0.0` sans bien éligible), `KpiResolver` (`?? 0.0`) et la commande (`?? 0.0`) ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → agence sans aucun bien : `occupancy` = `{"rate_percent":0,"short_stay_percent":null}`, et l'alerte `occupancy_rate_percent < 50` est envoyée à l'admin ; le constat tient (écran non relu). Aucun ticket ni commit ne le traite. Classement : V7, le correctif change ce que la tuile affiche et quand une alerte se déclenche.
 - Mesure (2026-10-21, b0c1cd999, delegue) : relu la ligne `Mesure` du mesureur, `KpiResolver::forAgency` (`occupancy_rate_percent` → `?? 0.0`), `CheckThresholdAlertsCommand.php:48` (`(float) (… ?? 0.0)`), TCK-595 § « Contrat de données » (l. 226-228 : `occupancy.short_stay_percent` « `null` sans bien courte durée »), et côté front `AgencyKpis.tsx:50`, `overview/owner/page.tsx:104` (`?? 0`), `dashboard-agency.ts:35` et `dashboard.ts:36` → l'occupation courte durée suit déjà la règle « `null` sans dénominateur », écrite au contrat ; la longue durée seule rend 0. Délégation : V7, choix mineur et réversible en un commit (une valeur absente affichée en tiret au lieu de 0 %, une alerte qui ne se juge pas sur une valeur absente), qui étend à la longue durée la règle déjà écrite pour la courte durée dans TCK-595 ; aucun montant, aucune donnée personnelle, aucun schéma touché, et `unpaid_rate_percent` laissé hors de la décision (P93.03 reste au porteur).
+- Mesure (2026-10-21, 127233826, implementeur) : reproduit avant correctif par trois tests neufs (agence sans bien : `occupancy.rate_percent` 0 et non `null` ; bailleur sans bien : 0 ; alerte `occupancy_rate_percent < 50` envoyée à l'admin) et un test de la tuile (« 0 % » et non « — ») → `longStayOccupancyToday` rend `null` sans bien éligible, `KpiResolver` le garde, la commande saute une métrique `null`, le front type `number | null` et affiche « — » par `formatOccupancyRate` (agence et bailleur) ; ablation API 3 rouges, front 2 rouges, remis : 34/34 et 8/8.
 
 ### La tuile « Biens » compte comme « publiés » des biens vendus, loués, en revue ou refusés
 - Réf : P93.06
-- Statut : validé (délégué) — compter `properties.published` par le prédicat du catalogue, `Property::query()->public()` borné à l'agence (même périmètre que `total`), sans changer le libellé « publiés » ; un test épingle un bien `sold` publié qui ne compte plus, et un bien `available` public qui compte
+- Statut : fait · TCK-1115
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:46-49`,
   `takussan-api/app/Models/Property.php:536-548`, `takussan-web/src/messages/fr.json:2209`
@@ -9265,6 +9267,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   ou renommer l'indice si le porteur veut « déjà publié une fois ». Un test épingle un bien vendu.
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `DashboardAgencyService::summary` (`published_at` non nul et statut hors `draft`, `archived`) et `Property::scopePublic` ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → cinq biens publiés, un par statut `sold`, `rented`, `pending_review`, `rejected`, `available` : `properties` = `{"total":5,"published":5,"rented":1,"available":1}`, alors que `Property::public()` borné à l'agence en compte 1 ; le constat tient. Aucun ticket ni commit ne le traite. Classement : V7, la piste offre deux options (changer le compte ou le libellé) que le porteur choisit.
 - Mesure (2026-10-21, b0c1cd999, delegue) : relu la ligne `Mesure` du mesureur, `DashboardAgencyService.php:47,91`, `Property::scopePublic`, `HealthcheckService.php:286` (le nombre d'annonces publiées attendu dans l'index = `Property::query()->public()->count()`) et `takussan-web/src/messages/fr.json:2209` (`publishedHint` : « # publiés ») → le dépôt compte déjà « publié » par le prédicat du catalogue ailleurs, et le libellé affiché dit « publiés », pas « publié une fois ». Délégation : V7, choix mineur et réversible en un commit : le compte se met en accord avec son libellé et avec le prédicat que la plateforme emploie déjà, sans texte neuf ni fonction neuve ; aucun montant, aucun schéma, aucune donnée personnelle touchés.
+- Mesure (2026-10-21, 127233826, implementeur) : reproduit avant correctif par `DashboardAgencyTest::test_published_count_follows_the_public_catalogue` (deux biens publiés et publics de l'agence, `available` et `sold`, plus un bien public d'une autre agence) → `properties.published` 2 au lieu de 1 → `published` compté par `Property::query()->public()` en sous-requête de l'agrégat : 1 ; ablation rouge, remis 9/9 sur la classe, `DashboardQueryBudgetTest` vert (aucune requête de plus).
 
 ### Petites améliorations : indicateurs servis sans test de valeur
 - Réf : P93.07

@@ -39,13 +39,19 @@ class DashboardAgencyService
         $scope = PortfolioScope::agency((int) $agency->id);
         $propertyIds = Property::query()->select('id')->where('agency_id', $agency->id);
 
+        // TCK-1115 — « publiés » = au catalogue public, par le prédicat du catalogue lui-même
+        // (`Property::public()`), et non « publié une fois » : un bien vendu, loué, en revue ou
+        // refusé n'y est plus. En sous-requête de l'agrégat : aucune requête de plus (budget de
+        // `DashboardQueryBudgetTest`).
+        $public = Property::query()->public()->select('properties.id')->toBase();
+
         $properties = Property::query()
             ->where('agency_id', $agency->id)
             ->toBase()
             ->selectRaw('COUNT(*) AS total')
             ->selectRaw(
-                'COUNT(*) FILTER (WHERE published_at IS NOT NULL AND status NOT IN (?, ?)) AS published',
-                [PropertyStatus::Draft->value, PropertyStatus::Archived->value],
+                'COUNT(*) FILTER (WHERE id IN ('.$public->toSql().')) AS published',
+                $public->getBindings(),
             )
             ->selectRaw('COUNT(*) FILTER (WHERE status = ?) AS rented', [PropertyStatus::Rented->value])
             ->selectRaw('COUNT(*) FILTER (WHERE status = ?) AS available', [PropertyStatus::Available->value])
