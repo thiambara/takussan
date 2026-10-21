@@ -6,7 +6,6 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreDocumentShareLinkRequest;
 use App\Models\Document;
 use App\Models\DocumentShareLink;
-use App\Models\User;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\DocumentShareLinkService;
 use Illuminate\Http\JsonResponse;
@@ -128,25 +127,19 @@ class DocumentShareLinkController extends Controller
         return is_string($password) ? $password : null;
     }
 
+    /**
+     * TCK-1144 (P82.03) — lister les liens (donc lire leurs jetons, l'URL publique du document) et
+     * en révoquer un se jugent par la règle de leur création, `DocumentPolicy::share`. La recopie
+     * qui vivait ici n'avait pas `landlordWrites` : le bailleur suspendu, refusé à la création,
+     * lisait encore les jetons et révoquait.
+     *
+     * Le helper reste un simple relais : `scripts/check-controller-authorization.mjs` porte une
+     * exemption à son nom, qui rougit si la méthode disparaît, et une garde existante ne se
+     * modifie pas dans ce ticket.
+     */
     protected function authorizeDocument(Request $request, Document $document): void
     {
-        $user = $request->user();
-        $documentable = $document->documentable;
-        $ok = $user->isSuperAdmin()
-            || $document->uploaded_by === $user->id
-            || ($documentable && isset($documentable->user_id) && $documentable->user_id === $user->id)
-            // TCK-587 — le PERSONNEL de l'agence du porteur, plus tout membre (ADR-0031) : un
-            // bailleur de l'agence partageait publiquement le document d'un autre.
-            || ($documentable && isset($documentable->agency_id) && $this->isStaffOfAgency($user, $documentable->agency_id));
-
-        abort_unless($ok, 403);
-    }
-
-    private function isStaffOfAgency(User $user, mixed $agencyId): bool
-    {
-        $staffAgencyId = $user->staffAgencyId();
-
-        return $staffAgencyId !== null && $staffAgencyId === (int) $agencyId;
+        $this->authorize('share', $document);
     }
 
     private function format(DocumentShareLink $link): array

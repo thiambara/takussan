@@ -18,6 +18,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Services\Model\DocumentShareLinkService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Testing\TestResponse;
@@ -401,6 +402,34 @@ class TeamMemberSuspensionTest extends ApiTestCase
         $joindre('lease', $bailA->id)->assertCreated();
         $this->actingAsApi($this->adminA);
         $joindre('lease', $bailA->id)->assertCreated();
+    }
+
+    /**
+     * TCK-1144 (P82.03) — lister les liens d'un document (et donc lire leurs jetons) et en révoquer
+     * un passent par la règle `share`, comme leur création : le bailleur bloqué dans A, téléverseur
+     * d'un document de son bail, reçoit 403 sur les deux, et le lien reste actif. Dans B, où il est
+     * actif, il liste et révoque ; le personnel de A aussi.
+     */
+    public function test_un_bailleur_bloque_ne_liste_ni_ne_revoque_les_liens_de_partage(): void
+    {
+        [$bailleur, $bienA, $bienB] = $this->bailleurBloqueDansA();
+        $bailA = Lease::factory()->create(['property_id' => $bienA->id, 'landlord_id' => $bailleur->id, 'agency_id' => $this->agencyA->id]);
+        $documentA = Document::factory()->create(['documentable_type' => Lease::class, 'documentable_id' => $bailA->id, 'uploaded_by' => $bailleur->id]);
+        $documentB = Document::factory()->create(['documentable_type' => Property::class, 'documentable_id' => $bienB->id, 'uploaded_by' => $bailleur->id]);
+        $service = app(DocumentShareLinkService::class);
+        $lienA = $service->create($documentA, $this->adminA);
+        $lienB = $service->create($documentB, $bailleur);
+
+        $this->getJson("/api/documents/{$documentA->id}/share-links")->assertForbidden();
+        $this->deleteJson("/api/documents/{$documentA->id}/share/{$lienA->id}")->assertForbidden();
+        $this->assertNull($lienA->fresh()->revoked_at);
+
+        $this->getJson("/api/documents/{$documentB->id}/share-links")->assertOk()->assertJsonCount(1, 'data');
+        $this->deleteJson("/api/documents/{$documentB->id}/share/{$lienB->id}")->assertNoContent();
+
+        $this->actingAsApi($this->adminA);
+        $this->getJson("/api/documents/{$documentA->id}/share-links")->assertOk()->assertJsonCount(1, 'data');
+        $this->deleteJson("/api/documents/{$documentA->id}/share/{$lienA->id}")->assertNoContent();
     }
 
     /** N2 — la suppression : il la perdait par la seule règle du téléverseur. */
