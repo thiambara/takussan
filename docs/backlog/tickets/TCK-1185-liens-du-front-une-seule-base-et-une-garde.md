@@ -53,13 +53,16 @@ Aucun endpoint. Avec `app.frontend_url` posée sans barre finale, aucun lien ne 
       `InvitationMailable`, les deux rappels de `AppServiceProvider` (vérification d'e-mail,
       réinitialisation), `NotificationUnsubscribeController` et la vue du résumé.
 - [x] `tests/Feature/Notifications/MailActionLinksTest.php` : chaque `toMail()` à bouton rendu sur
-      un destinataire de fabrique, avec `app.frontend_url` posée puis vide ; les liens de
-      `InvitationMailable` et du résumé ; toute classe à `->action(` éprouvée ou exemptée.
+      un destinataire de fabrique, avec `app.frontend_url` posée puis vide, et son chemin comparé à
+      la constante `CHEMINS` ; les liens de `InvitationMailable` et du résumé ; toute classe à
+      `->action(` éprouvée ou exemptée.
+- [x] `scripts/check-notification-target-paths.mjs` : résout aussi les chemins de `CHEMINS` en
+      pages du front, comme ceux de `NotificationTarget::PATHS`.
 
 ## Critères d'acceptation
 
-- [x] AC1 — avec `app.frontend_url` posée, chaque bouton commence par elle et son chemin résout une
-      page de `takussan-web/src/app`.
+- [x] AC1 — avec `app.frontend_url` posée, chaque bouton commence par elle et suit son chemin
+      déclaré ; chaque chemin déclaré résout une page de `takussan-web/src/app` (garde JS).
 - [x] AC2 — avec `app.frontend_url` vide, chaque bouton se replie sur `app.url` (plus de lien
       relatif) ; le résumé n'a plus de double barre.
 - [x] AC3 — une classe neuve de `app/Notifications` qui pose un bouton fait rougir le test tant
@@ -70,17 +73,17 @@ Aucun endpoint. Avec `app.frontend_url` posée sans barre finale, aucun lien ne 
 - Les liens du front hors courriel (`Services/Payments/*Driver`, `LeasePaymentLinkService`,
   `IcsCalendarRenderer`, `ErasedAccountListings`, `InvitationService`) : ils gardent leur écriture,
   signalé dans la PR.
-- Étendre la garde JS aux chemins des courriels : le test PHP la double sur les liens rendus, avec
-  le précédent de `SearchWolofReviewSheetTest`, qui lit déjà `takussan-web`.
 
 ## Notes d'implémentation
 
-- Choix : la résolution du chemin vit dans le test PHP, sur l'URL réellement rendue, plutôt que dans
-  `check-notification-target-paths.mjs`, qui aurait dû deviner des chemins bâtis par concaténation.
-  Revers : la clé d'attestation de l'API (ADR-0063) ne lit pas `takussan-web` ; une page retirée du
-  front ne fait rejouer ce test qu'au prochain changement de l'API.
+- Choix : le test PHP ne lit pas le front. Une première version y résolvait le chemin rendu
+  dans `takussan-web/src/app` ; `check-ci-attestation.mjs` l'a refusée (lecture hors de la clé de
+  l'API, ADR-0063), et élargir `PERIMETRES.api` touche la CI, fermée à l'implémenteur. Le test
+  compare donc le chemin rendu à `CHEMINS`, et la garde JS (Repo CI, qui lit les deux arbres)
+  résout `CHEMINS` en pages.
 - Avant correctif : 5 rouges — `AccountDeletionRequested/Reminder` et `CodedNotification` en lien
   relatif sous `app.frontend_url` vide, la vue du résumé en `…//app/notifications` et en lien
   relatif.
 - Ablation : `FrontendUrl::base()` sans repli sur `app.url` → les deux jeux « vide » rougissent ;
-  remis → vert.
+  un chemin de `CHEMINS` rendu mort (`/app/overview-p97`) → le test (2 rouges) et la garde JS
+  rougissent ; remis → vert.
