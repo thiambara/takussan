@@ -8609,7 +8609,7 @@ repris ici : `App\Sorts\CollatedNameSort` n'a qu'un appelant, `MessagingContactC
 
 ### `GET /api/admin/agencies/{id}/team` : `filter[status]` ne s'applique qu'aux propriétaires, et un `sort=` ne vient qu'après le prénom
 - Réf : P87.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1137
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:157-166`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:178-181`, `takussan-web/src/lib/queries/super-admin.ts:129-141`
 - Constat :
@@ -8619,6 +8619,7 @@ repris ici : `App\Sorts\CollatedNameSort` n'a qu'un appelant, `MessagingContactC
   - Établi comment : lu, et SQL produit mesuré.
 - Piste : grouper les deux `whereHas` dans un `where(fn …)` comme `listMembers`, et passer le tri par défaut à `defaultSorts()` au lieu d'`orderBy()`. Test : un agent `blocked` et un propriétaire actif, `filter[status]=active` ne rend que le second.
 - Mesure (2026-10-20, ba1919880, mesureur) : relu `AgencyDetailController.php:157-166` (`whereHas(...)->orWhereHas(...)` sans groupe, puis `orderBy('first_name')->orderBy('last_name')` avant `User::buildQuery`) et `AgencyController.php:178-181` (`listMembers` groupe les deux branches) ; test temporaire `TmpMesureurP87Test` (base de test PostgreSQL, charge 2,66 / 2,42 / 2,58 sur 8 cœurs, retiré ensuite) → un agent `blocked` et un propriétaire `active` de la même agence, super-admin : `GET /api/admin/agencies/{id}/team?filter[status]=active` rend les deux (« Agent:blocked | Proprio:active ») ; `?sort=email` rend « b@x.sn | a@x.sn », le prénom passant avant l'e-mail. Classement : A1, `status` est déclaré filtrable et `email` triable (`User.php:150-152`) et `listMembers` écrit déjà la forme groupée : le correctif suit ce contrat sans choix de produit.
+- Mesure (2026-10-21, 27b86c9, implementeur) : `AgencyTeamQueryTest` avant correctif → 3 rouges sur 3 : `filter[status]=active` rend l'agent bloqué avec le propriétaire actif, `sort=email` rend « b@x.sn | a@x.sn », le défaut rend « Agent | Proprio | Zeynab | awa | Élodie » → les deux `whereHas` groupés dans un `where(fn …)` et le défaut passé en `defaultSorts(...User::nameSorts(), 'id')` (TCK-1136) : 3/3 verts, et 13 verts avec `AgencyDetailTest` et `UserSearchTest` ; ablation (contrôleur rendu à `HEAD`) → 3 rouges ; remis → 3/3.
 
 ### Petites améliorations
 - Réf : P87.05
