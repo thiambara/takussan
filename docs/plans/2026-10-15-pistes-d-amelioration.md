@@ -9685,7 +9685,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Enregistrer un drapeau depuis la console l'éteint pour tout le monde
 - Réf : P98.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1125
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin/super/feature-flags.tsx:109-117,62`, `takussan-api/app/Http/Controllers/Api/Admin/FeatureFlagController.php:44`, `takussan-api/app/Services/Features/FeatureFlagEvaluator.php:42-66`, `takussan-api/app/Http/Controllers/HostAutoOnboardController.php:32`
 - Constat :
@@ -9696,6 +9696,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Le dialogue n'a pas de champ `agency_ids`, que la requête accepte et que l'évaluateur lit : un enregistrement depuis la console efface ceux posés autrement (lu, sous-agent, relu `UpdateFeatureFlagRequest.php`).
 - Piste : normaliser les segments vides en `[]` à l'écriture (contrôleur) ou les traiter comme « sans restriction » dans `evaluate()`, comme TCK-366 l'a fait pour les annonces ; test : enregistrer le corps exact du dialogue puis évaluer pour un utilisateur sans rôle ciblé et sans utilisateur.
 - Mesure (2026-10-21, e7f741bf4, mesureur) : relu `FeatureFlagEvaluator.php:42-66` (seul `segments === []` vaut sans restriction ; sans utilisateur, `false` dès qu'il y a des segments), `FeatureFlagController.php:44` (`segments` stocké tel quel), `feature-flags.tsx:109-117` (le dialogue envoie toujours `{roles, rollout_percentage: Number(rollout)}`, `rollout` à 0 par défaut, jamais `agency_ids`) et `:62` (« Global » à 0 %) ; `tinker` en lecture, `evaluate()` sur un `host_auto_space` activé non enregistré → `segments_json` nul : `true` avec et sans utilisateur ; `{"roles":[],"rollout_percentage":0}` : `false` avec et sans utilisateur → le constat tient en entier, `HostAutoOnboardController.php:32` lit toujours ce drapeau. Classement : A1, TCK-219 l. 27 écrit qu'un drapeau s'active « globalement ou pour un segment » et l'écran affiche « Global » pour ce corps : traiter des segments sans rôle, sans agence et à 0 % comme sans restriction (normalisés en `[]` à l'écriture), et renvoyer les `agency_ids` existants depuis le dialogue, ne demande aucun choix de produit.
+- Mesure (2026-10-21, cbf5fb1ef, implementeur) : avant correctif, `PATCH /api/admin/feature-flags/host_auto_space` avec `{roles: [], rollout_percentage: 0}` stockait l'objet tel quel (`FeatureFlagTest`, rouge), et le dialogue enregistrait sans les `agency_ids` posés (`FeatureFlags.test.tsx`, rouge) → `FeatureFlagEvaluator::normalizeSegments()` ramène à `[]` des segments qui ne ciblent rien, à l'écriture et à l'évaluation, et le dialogue renvoie les agences ; le drapeau est vrai pour un utilisateur quelconque et sans utilisateur, un ciblage par rôle reste un ciblage ; ablation : 1 rouge API, 1 rouge front, correctif remis → verts.
 
 ### Une annonce critique passe derrière toutes les autres, et le bandeau n'en montre qu'une
 - Réf : P98.02
