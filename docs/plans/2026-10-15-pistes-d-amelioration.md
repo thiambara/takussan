@@ -8233,7 +8233,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Dossier KYC de l'agence : on le soumet avec `agency.update_kyc`, on ne le lit qu'en étant admin
 - Réf : P82.05
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1148 — reste : retirer `authorizeAgencyAdmin()` (`Agency\KycController`) et `authorizeDocument()` (`KycDocumentController`) et leurs exemptions de `scripts/check-controller-authorization.mjs` (garde existante, fermée à l'implémenteur)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Agency/KycController.php:18-21`, `:57-69`, `takussan-api/app/Http/Controllers/Api/KycDocumentController.php:31-45`, `takussan-api/app/Policies/AgencyPolicy.php:114-128`
 - Constat :
@@ -8242,6 +8242,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - mesuré (test temporaire retiré) : agent dont le rôle porte toutes les capacités → `GET /api/agencies/{a}/kyc` 403, `POST …/kyc/submit` 422 (autorisé, dossier incomplet) ; admin sans aucune capacité → `GET` 200, `submit` 403.
 - Piste : juger `show` et la lecture des pièces par la même règle que `updateKyc` (ou une capacité de lecture, si le porteur veut les séparer), et retirer les deux helpers et leurs exemptions de `check-controller-authorization.mjs`. Test : membre qui tient `agency.update_kyc` lit le dossier qu'il soumet.
 - Mesure (2026-10-20, 979ae6e95, mesureur) : relu `Agency/KycController` (`show` par `authorizeAgencyAdmin`, l. 18-21 et 57-69 ; `upload` et `submit` par `updateKyc`, l. 30 et 48), `KycDocumentController::authorizeDocument` (l. 31-45, `isAgencyAdminAt`), `AgencyPolicy::updateKyc` (l. 114-128) ; même test temporaire retiré : agent qui tient toutes les capacités → `GET /api/agencies/{a}/kyc` 403, `POST …/kyc/submit` 422 (autorisé) ; admin sans aucune capacité → `GET` 200, `submit` 403 → le constat tient. Classement : V2, juger la lecture par `updateKyc` la retire à l'admin sans la capacité, appelant légitime aujourd'hui de pièces d'identité (V3 voisin), et la Piste laisse au porteur le choix d'une capacité de lecture.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, agent dont le rôle porte `agency.update_kyc` → `GET /api/agencies/{a}/kyc` 403, admin dont le rôle la retire → 200 (rouge) → les deux helpers délèguent à `AgencyPolicy::updateKyc` (une pièce d'un autre sujet reste au super-admin) ; `AgencyKycCapabilityTest::test_le_membre_qui_tient_la_capacite_lit_le_dossier_et_ses_pieces` vert (dossier et pièce 200 pour l'agent, 403 pour l'admin sans la capacité), l'assertion « la lecture reste à l'admin » du test voisin passe de 200 à 403 ; ablation (helpers d'avant) → 2 rouges, 82 verts sur les classes KYC et données personnelles. Les helpers restent des relais : leur disparition ferait rougir les exemptions de la garde, qui ne se modifie pas ici.
 
 ## Angle 83 — Clés des colonnes JSON hors `agencies.settings`
 
