@@ -7741,7 +7741,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 
 ### Un reversement au bailleur préparé avant un remboursement est versé sans relire ses lignes
 - Réf : P76.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1158
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/PayoutService.php:202-268`, `:269-337`, `:401-471`, `:508-537`
 - Constat :
@@ -7751,6 +7751,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - Établi comment : lu.
 - Piste : la même relecture que pour P76.01, à `approve()` et à `markProcessed()` (`payout.items_changed`), et le contrôle de statut repris dans `createLocked()`, sous le verrou. Garde : un test par geste.
 - Mesure (2026-10-20, 740c8247f, mesureur) : lu `PayoutService::createLocked()` (l. 405-433 : relit les lignes sous verrou sans revérifier `paid`), `assertItemsInScope()` (l. 519 et 534 : `paid` exigé, hors transaction) et `markProcessed()` (l. 288-294 : ne compare que `approved_net_amount`) ; test temporaire `tests/Feature/Tmp/MesureurTmp76Test.php` (retiré), charge 2,85 / 3,26 / 3,19 sur 8 cœurs : loyer de 100 000 soldé par l'intégration propre à l'agence, `POST /api/payouts` → 201 `pending`, remboursement de 100 000 par webhook sous l'autorité de cette intégration → échéance `refunded`, reversement toujours `pending` ; `mark-processed` → 200, reversement `completed`, net 100 000 → le scénario « à vérifier » est vérifié, le constat tient. Classement : V1, le correctif bloque le versement d'un reversement au bailleur.
+- Mesure (2026-10-21, 464389140, implementeur) : avant correctif, loyer de 150 000 rattaché à un reversement `pending` puis passé à `refunded` → `mark-processed` rend 200 ; reversement `awaiting_approval` au loyer remboursé → `approve` rend 200 ; loyer remboursé entre `assertItemsInScope()` et la relecture sous verrou (écouteur `retrieved`) → `POST /api/payouts` rend 201 → `approve()` et `markProcessed()` refusent sous le verrou (422 `payout.items_changed`), et `createLocked()` relit le statut après ses verrous (422 sur `lease_payment_ids`) ; `PayoutRefundedItemsTest` (3 cas) ; ablation : `PayoutService` d'avant → 3 rouges, remis → 3/3 ; `PayoutTest`, `PayoutApprovalTest`, `PayoutBypassTest`, `PayoutStepUpTest`, `PayoutReachesReconciliationTest`, `ServiceProviderBillTest` verts.
 
 ### Un acompte soldé en ligne par la plateforme peut être déclaré remboursé par l'agence, et sort alors de la clôture
 - Réf : P76.04
