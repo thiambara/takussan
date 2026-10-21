@@ -126,7 +126,7 @@ export function AgencyOnboardingDialog() {
 
   function reset() {
     setStep(0);
-    setAgency({ name: '', slug: '', type: '', currency: 'XOF', email: '', phone: '', address: '' });
+    setAgency({ name: '', slug: '', currency: 'XOF', email: '', phone: '', address: '' });
     setAdmin({ first_name: '', last_name: '', email: '', language: 'fr' });
     setCreatedAgencyId(null);
     setError(null);
