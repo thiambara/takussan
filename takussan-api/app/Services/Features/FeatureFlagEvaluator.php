@@ -39,7 +39,7 @@ class FeatureFlagEvaluator
             return false;
         }
 
-        $segments = $stored->segments_json ?? [];
+        $segments = self::normalizeSegments($stored->segments_json ?? []);
         if ($segments === []) {
             return true;
         }
@@ -64,6 +64,27 @@ class FeatureFlagEvaluator
         }
 
         return false;
+    }
+
+    /**
+     * TCK-1125 (P98.01) — des segments qui ne ciblent rien (aucun rôle, aucune agence, 0 %) ne
+     * restreignent rien : ils valent `[]`, « sans restriction ». C'est le corps que le dialogue de
+     * la console envoie sans ciblage, et que l'écran affiche « Global ».
+     *
+     * @param  array<string, mixed>  $segments
+     * @return array<string, mixed>
+     */
+    public static function normalizeSegments(array $segments): array
+    {
+        $roles = $segments['roles'] ?? [];
+        $agencyIds = $segments['agency_ids'] ?? [];
+        $percentage = (int) ($segments['rollout_percentage'] ?? 0);
+
+        $cible = (is_array($roles) && $roles !== [])
+            || (is_array($agencyIds) && $agencyIds !== [])
+            || $percentage > 0;
+
+        return $cible ? $segments : [];
     }
 
     /**

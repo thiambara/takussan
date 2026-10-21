@@ -41,7 +41,7 @@ class FeatureFlagController extends Controller
                 'label' => $key,
                 'description' => null,
                 'enabled' => $data['enabled'],
-                'segments_json' => $data['segments'] ?? [],
+                'segments_json' => FeatureFlagEvaluator::normalizeSegments($data['segments'] ?? []),
                 'updated_by_id' => $request->user()->id,
             ],
         );
