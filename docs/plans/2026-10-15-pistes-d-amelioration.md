@@ -8887,7 +8887,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### Couleur d'étiquette bornée à 20 caractères sur une colonne de 7, et icône sans borne : 500
 - Réf : P91.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1107
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StoreTagRequest.php:44-45`, `takussan-api/app/Http/Requests/Api/UpdateTagRequest.php:42-43`, `takussan-api/database/migrations/2026_04_17_160004_create_tags_table.php:17`
 - Constat :
@@ -8896,6 +8896,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Aucun envoi de `color` n'a été trouvé dans les actions du front (lu : `grep color takussan-web/src/app/actions/admin-tags.ts` → rien). Seuls les clients directs l'atteignent.
 - Piste : `color` en `regex:/^#[0-9a-fA-F]{6}$/` (ou `hex_color` puis `max:7`), `icon` en `max:255`, dans les deux requêtes. Un test qui attend 422 sur chacune.
 - Mesure (2026-10-21, 3e5f55e7b, mesureur) : relu `StoreTagRequest.php:44-45` et `UpdateTagRequest.php:42-43` (`color` en `max:20`, `icon` sans `max`) et la migration (`string('color', 7)`, l. 17) ; test temporaire `TmpMesureurP91Test`, un appel par cas (charge 5,71 / 5,59 / 5,21 sur 8 cœurs, base créée par le test, retiré ensuite) → en super-admin, `POST /api/tags` `color: '#ff0000ff00'` → 500 `varchar(7)`, `icon` 256 → 500 `varchar(255)` ; `PATCH /api/tags/{id}` `color: 'turquoise'` → 500 `varchar(7)`. Correctif attendu : `color` en `max:7` et `icon` en `max:255` dans les deux requêtes ; le format `#rrggbb` (`regex` ou `hex_color`) refuserait des valeurs courtes qui s'écrivent aujourd'hui, et reste hors de ce classement. Classement : A1, la colonne fixe la borne et seul le 500 devient 422.
+- Mesure (2026-10-21, b0c1cd999, implementeur) : `TagFieldLengthTest` (charge 2,92 / 2,36 / 2,49 sur 8 cœurs) → avant correctif, en super-admin, `POST /api/tags` (`color: '#ff0000ff00'`) et `PATCH /api/tags/{id}` (`color: 'turquoise'`) rendent 500 ; `color` en `max:7` et `icon` en `max:255` dans les deux requêtes → 422 sur la clé pour la couleur et pour une icône de 256, étiquette absente ou inchangée, et 201 ou 200 à la borne (`#ff0000`, icône de 255) ; ablation des deux FormRequest → 2 rouges sur 2, correctif remis → 2/2 ; `TagTest`, `TagWriteAuthorizationTest`, `TagModerationTest`, `TagVisibilityTest` verts.
 
 ### Garants : téléphone sans borne sur un `varchar(30)`, et cinq champs texte sans borne, dans trois requêtes
 - Réf : P91.03
