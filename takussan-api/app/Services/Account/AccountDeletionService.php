@@ -429,6 +429,18 @@ class AccountDeletionService
     }
 
     /**
+     * TCK-1147 (P81.04) — les baux en cours qui bloquent l'effacement : ceux que
+     * `User::ACTIVE_TENANT_LEASE_STATUSES` juge en cours (préavis compris), et ceux qui attendent
+     * leur signature.
+     *
+     * @return list<string>
+     */
+    private static function openLeaseStatuses(): array
+    {
+        return [...User::ACTIVE_TENANT_LEASE_STATUSES, LeaseStatus::PendingSignature->value];
+    }
+
+    /**
      * Anti-escalade: list outstanding obligations preventing deletion.
      * Returned shape is consumable by the FormRequest as a 422 payload.
      *
@@ -441,7 +453,7 @@ class AccountDeletionService
         // Active leases as landlord.
         $activeLandlordLeases = Lease::query()
             ->where('landlord_id', $user->id)
-            ->whereIn('status', [LeaseStatus::Active->value, LeaseStatus::PendingSignature->value])
+            ->whereIn('status', self::openLeaseStatuses())
             ->get(['id', 'reference_number']);
         foreach ($activeLandlordLeases as $lease) {
             $obligations[] = [
@@ -461,7 +473,7 @@ class AccountDeletionService
         if ($tenantCustomerIds->isNotEmpty()) {
             $tenantLeases = Lease::query()
                 ->whereIn('tenant_id', $tenantCustomerIds)
-                ->whereIn('status', [LeaseStatus::Active->value, LeaseStatus::PendingSignature->value])
+                ->whereIn('status', self::openLeaseStatuses())
                 ->get(['id', 'reference_number']);
             foreach ($tenantLeases as $lease) {
                 $obligations[] = [
