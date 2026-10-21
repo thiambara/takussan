@@ -17,8 +17,9 @@ set -uo pipefail
 cd "$(dirname "$0")/.." || exit 2
 
 RELEASE=takussan-api/docker/release.sh
+SEED=takussan-api/docker/seed.sh
 LIB=takussan-api/docker/lib.sh
-[ -f "$RELEASE" ] && [ -f "$LIB" ] || { echo "✗ $RELEASE ou $LIB introuvable" >&2; exit 2; }
+[ -f "$RELEASE" ] && [ -f "$SEED" ] && [ -f "$LIB" ] || { echo "✗ $RELEASE, $SEED ou $LIB introuvable" >&2; exit 2; }
 
 echecs=0
 racine=$(mktemp -d)
@@ -109,6 +110,19 @@ verifier "marqueur à jour et index peuplés : la vérification est jouée" 1 "$
 fabrique; jouer ECHEC_SUR="search:verify-indexes --depuis"; sortie=$?
 verifier "tâches d'importation échouées : le marqueur ne s'écrit pas" absent "$(marqueur)"
 verifier "tâches d'importation échouées : release continue" 0 "$sortie"
+
+# ── seed.sh : la remise à zéro d'une préproduction ──
+script=$SEED
+
+# TCK-1157 (P89.02) : `migrate:fresh` vide `alert_rules`, qu'aucun seeder ne remplit. Le reseed
+# rejoue donc la commande du déploiement, après `db:seed` ; son échec n'arrête pas le reseed.
+fabrique; jouer DB_DATABASE=takussan_preview SCOUT_DRIVER=collection
+verifier "seed : alerts:ensure-ops-rules est joué après db:seed" "db:seed alerts:ensure-ops-rules" \
+  "$(grep -E '^artisan (db:seed|alerts:ensure-ops-rules)' "$racine/journal" | cut -d' ' -f2 | paste -sd' ' -)"
+fabrique; jouer DB_DATABASE=takussan_preview SCOUT_DRIVER=collection ECHEC_SUR=alerts:ensure-ops-rules
+verifier "seed : règles d'alerte en échec, le reseed continue" 0 "$?"
+
+script=$RELEASE
 
 # ── ABLATION : sans l'écriture du marqueur, le second passage DOIT réimporter ──
 # shellcheck disable=SC2016 # `$marqueur` est le TEXTE cherché dans release.sh, pas une variable d'ici.

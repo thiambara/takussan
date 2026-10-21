@@ -25,6 +25,12 @@ fi
 # par une. On importe tout d'un bloc ensuite.
 SCOUT_DRIVER=null php artisan db:seed --force ${SEEDER_CLASS:+--class="$SEEDER_CLASS"}
 
+# TCK-1157 (P89.02) — `migrate:fresh` vient de vider `alert_rules`, qu'aucun seeder ne remplit :
+# sans cette ligne, une alerte `ops_*` ne partirait nulle part jusqu'au déploiement suivant. La
+# commande de release.sh, idempotente ; son échec n'arrête pas le reseed.
+php artisan alerts:ensure-ops-rules \
+  || echo "AVERTISSEMENT : alerts:ensure-ops-rules a échoué — les alertes d'exploitation sans règle ne partent nulle part jusqu'au prochain déploiement." >&2
+
 if [ "${SCOUT_DRIVER:-}" = "meilisearch" ]; then
   for modele in $(modeles_indexes); do
     SCOUT_QUEUE=false php artisan scout:import "$modele"
