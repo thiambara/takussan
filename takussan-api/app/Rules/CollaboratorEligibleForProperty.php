@@ -5,7 +5,6 @@ namespace App\Rules;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Property;
 use App\Models\User;
-use App\Services\Membership\MembershipCapabilityResolver;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
@@ -62,9 +61,9 @@ class CollaboratorEligibleForProperty implements ValidationRule
             return false;
         }
 
-        // TCK-587 — le prédicat « personnel de l'agence » d'ADR-0031, le même que juge
-        // `PropertyController::assignAgent` pour la cible d'une affectation.
-        $personnel = fn (): bool => app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $agencyId);
+        // TCK-587 — le prédicat « personnel de l'agence » d'ADR-0031, avec la joignabilité du
+        // compte (TCK-1097, `PersonnelDeLAgence::estPersonnel()`) : un compte bloqué ne collabore pas.
+        $personnel = fn (): bool => PersonnelDeLAgence::estPersonnel($user, $agencyId);
 
         return match ($role) {
             CollaboratorRole::Agent, CollaboratorRole::Manager => $personnel(),
