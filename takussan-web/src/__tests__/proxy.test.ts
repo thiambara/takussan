@@ -330,6 +330,21 @@ describe('la garde d’authentification est intacte', () => {
     expect(url.searchParams.get('redirect')).toBe('/app/overview');
   });
 
+  // P97.02 (TCK-1121) — le lien d'un courriel ouvert hors session (`/app/messages?conversation=42`,
+  // cible `conversation`) perdait sa requête : `redirect` ne gardait que le chemin, et la personne
+  // arrivait, connectée, sur la liste des messages sans la conversation annoncée.
+  it.each([
+    ['/app/messages?conversation=42'],
+    ['/app/leads?lead=7'],
+    ['/app/profile?cancel-deletion=1&x=a%20b'],
+  ])('%s sans jeton : `redirect` garde la chaîne de requête', (chemin) => {
+    const r = proxy(requete(chemin));
+    expect(r.status).toBe(307);
+    const url = new URL(r.headers.get('location')!, 'http://localhost');
+    expect(url.pathname).toBe('/auth/login');
+    expect(url.searchParams.get('redirect')).toBe(chemin);
+  });
+
   it('/app/agency sans jeton aussi — l’administration d’agence vit sous /app (TCK-649)', () => {
     const r = proxy(requete('/app/agency/team'));
     expect(r.status).toBe(307);
