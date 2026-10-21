@@ -168,7 +168,7 @@ voie d'écriture (angle 13, puis 47).
 | 93 | Indicateurs calculés des tableaux de bord et rapports (`DashboardAgencyService`, `KpiResolver`, `PortfolioMetrics`, `TeamPerformanceService`, `OwnerStatementService`) dont les tests n'assertent que la structure JSON : valeur toujours nulle ou fausse sur des données réelles ? | fait |
 | 94 | Réponses assemblées à la main dans un contrôleur (`TaskController::format`, `Admin\AgencyUpgradeRequestController::show`, `Me\ServiceProviderProfileController::show`, 25 `toISOString()` sous `app/Http/Controllers`) : dates hors ADR-0018 et enums bruts, que `check-resource-date-format.mjs` ne lit pas | fait |
 | 95 | Réponse d'une écriture (`store`, `update`, action) face au `show` ou à la liste du même modèle : forme, ressource, types (`commission_share` en chaîne ou en nombre), clés — `PropertyCollaboratorController`, `CustomerController::setPrimaryContact`, `PropertyTagController::sync` | fait |
-| 96 | Règles `exists:` sans `whereNull('deleted_at')` sur une table à `SoftDeletes` (`exists:customers,id`, `exists:users,id`, `exists:leases,id`…) suivies d'un `find()` masqué par la portée : 404 ou 500 au lieu de 422, ou clé étrangère écrite vers une ligne supprimée | à faire |
+| 96 | Règles `exists:` sans `whereNull('deleted_at')` sur une table à `SoftDeletes` (`exists:customers,id`, `exists:users,id`, `exists:leases,id`…) suivies d'un `find()` masqué par la portée : 404 ou 500 au lieu de 422, ou clé étrangère écrite vers une ligne supprimée | fait |
 | 97 | Liens d'action des courriels (`->action(…)` des `toMail()`, boutons des Mailables) : la route ou la page visée existe-t-elle, un clic depuis un client de courriel porte-t-il l'authentification qu'elle exige, et vise-t-il l'hôte du front ou celui de l'API | à faire |
 | 98 | Autres écrans d'écriture de la console super-admin (modèles de notification `NotificationTemplateService`, annonces, intégrations, paramètres plateforme) : ce que chaque écran promet de changer est-il lu par le chemin qui envoie, affiche ou décide, hors de la console ? | à faire |
 | 99 | Critères de ville et de région rangés par nom (`city`, `cities`, `region` des recherches sauvegardées et des alertes sans compte, `seeking_cities` du CRM) face à une ville renommée par le chargeur du référentiel (`GeoReferentialLoader`, TCK-787) : alertes et rapprochements muets ? | à faire |
@@ -203,6 +203,8 @@ voie d'écriture (angle 13, puis 47).
 | 126 | Destinataires de notifications et de courriels choisis par un profil sans `->active()` (`MaintenanceParticipants.php:39`, autres `Notification::send` à l'équipe d'une agence) : agent ou admin suspendu ou archivé qui reçoit encore l'activité de l'agence — le relevé de P93.04 sur les autres envois | à faire |
 | 127 | Indicateurs de `DashboardAgentService`, `DashboardOwnerService` et des adaptateurs `*MeMetrics` de `/dashboard/me` : dénominateur nul rendu 0 au lieu de `null`, statut courant relu pour une période passée, clés que seul `assertJsonStructure` vérifie — le relevé de l'angle 93 sur les autres tableaux de bord | à faire |
 | 128 | Dates des charges utiles de notification (`toArray()` / `toDatabase()` de `app/Notifications`, `data` rendu par `AppNotificationResource`, diffusions) que l'ADR-0018 laisse hors de son périmètre : forme émise, et lecture par le centre de notifications du front | à faire |
+| 129 | Suppression douce d'une agence (`DELETE /api/agencies/{agency}`, `AgencyController::destroy`, `$agency->delete()` seul, ouvert à l'admin principal) : profils restés actifs et profil actif encore résolu, biens publiés, baux et échéances, abonnement, invitations ouvertes et tâches planifiées d'une agence supprimée | à faire |
+| 130 | Fiches supprimées en douceur et encore citées (`CustomerController::destroy`, `GuarantorController::destroy`, `PropertyController::destroy`) : baux, réservations, factures, relances, PDF et exports dont la relation `customer`, `guarantor` ou `property` rend `null` sous la portée `SoftDeletes` — 500, champ vide ou geste refusé ? | à faire |
 
 ---
 
@@ -9492,3 +9494,61 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Établi comment : lu, sauf les points marqués.
 - Piste : `specialty` comme partout (ou ne rendre que `id`) ; une forme unique pour `moderate` (`204`, ou la ressource avec `deleted_at`) ; `updateAvailability` rend la même projection que `show` ; `ContactsSurPlaceDuBien` écrit `r.data` dans le cache, l'action rendant la réponse de l'API. Tests : la réponse de chaque écriture porte les clés du `show`.
 - Mesure (2026-10-21, 4934ec7d8, mesureur) : relu `ReviewController.php:163-171` (deux formes : `{id, deleted: true}` ou la ressource), `Me/AgentProfileController.php:150-183` (le corps reçu se nomme `specialization`, aussi dans `UpdateSpecializationAgentProfileRequest.php:50`, et la réponse le renvoie sous ce nom : c'est un écho du champ d'entrée, écrit dans le docblock l. 41 et 153, plus qu'une incohérence), `Me/ServiceProviderProfileController.php:198-203` (`{id, available_slots}`), `Admin/AgencySubscriptionController.php:37-44` (`data: null` sans abonnement) et `ContactsSurPlaceDuBien.tsx:64-77` (`setQueryData(queryKey, envoyes)`, la liste envoyée, alors que `replacePropertyContactsAction` rogne le libellé à `property-contacts.ts:24` et ne rend que `{ ok: true }`, l. 30) → les cinq points tiennent, celui sur `specialization` comme simple écart de nommage. Classement : V7, la piste propose plusieurs options (`204` ou la ressource pour `moderate`, `specialty` ou `id` seul) ; seul le volet `ContactsSurPlaceDuBien` se corrigerait sans choix, mais il demande que l'action rende la réponse de l'API.
+
+## Angle 96 — Règles `exists:` sur une table à suppression douce
+
+*Exploré le 2026-10-21 sur `pre-dev` 3246a9611, par l'explorateur. Relu par l'explorateur lui-même : l'inventaire `grep -rnE "exists:(users|agencies|properties|customers|leases|guarantors|conversations)|Rule::exists"` sur `app/` (tables dont le modèle porte `SoftDeletes`, relevées par `grep -rl SoftDeletes app/Models` et les migrations), puis, pour chaque règle restante, le contrôleur ou le service qui consomme l'identifiant, et les règles maison de `app/Rules/`. Les `exists:leases,id`, `exists:conversations,id` et `exists:properties,id` de l'angle 62 ont déjà été retirés (TCK-1069 à TCK-1072) ; seul `UpdatePropertyRequest.php:75` borne déjà sa règle par `->whereNull('deleted_at')`. Mesuré par un test temporaire `tests/Feature/TmpExplorateur/SondeAngle96Test.php` (base de test créée par le test, charge `{ 6.59 6.40 4.09 }` sur 8 cœurs), retiré depuis ; les comptes et agences y sont supprimés par `->delete()`, pas par `AccountDeletionService`. Aucun sous-agent. Hors périmètre : les contraintes `unique` face aux lignes supprimées (angle 92).*
+
+### Un compte supprimé s'ajoute comme collaborateur d'un bien, avec sa part de commission
+- Réf : P96.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/StorePropertyCollaboratorRequest.php:39-45`, `takussan-api/app/Rules/CollaboratorEligibleForProperty.php:40-50`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:45-66`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:208-218`
+- Constat :
+  - `user_id` porte `exists:users,id`, qui ne voit pas `deleted_at` : un compte supprimé en douceur passe (lu, l. 43).
+  - `CollaboratorEligibleForProperty` cherche le compte par `User::query()->find()`, que la portée `SoftDeletes` masque, et **rend sans échec** quand il est introuvable : « identifiant mal formé ou introuvable : leurs propres règles refusent déjà » (lu, l. 47-50). Le prédicat d'éligibilité (`PersonnelDeLAgence::estPersonnel`, qui refuse un compte supprimé depuis TCK-1097) n'est donc jamais appelé.
+  - Mesuré : un agent de l'agence, puis `$user->delete()` ; le bailleur du bien poste `{user_id, role: agent, commission_share: 10}` → **201**, la réponse porte `"user": null` et `commission_share: "10.00"`, une ligne `property_collaborators` est écrite ; `GET /api/properties/{id}/collaborators` la liste ensuite avec `"user": null`. En admin d'agence avec `role: viewer` → 201 aussi.
+  - La part reste comptée par le plafond de 100 % (`$property->collaborators()->sum('commission_share')`, lu, l. 208-212) alors que `CommissionLedgerService` ne la sert pas (`$collaborator->user instanceof User`, lu, `CommissionLedgerService.php:61`) : le compte supprimé immobilise une part que personne ne touche (déduit, à vérifier).
+  - Même trou pour un compte bloqué ? Non : un compte bloqué est trouvé par `find()` et refusé (`CompteBloqueNonAttribuableTest`, lu). C'est la suppression seule qui échappe. Voir P86.01 pour les autres limites de cette règle.
+  - Établi comment : lu, et mesuré par le test temporaire.
+- Piste : faire échouer `CollaboratorEligibleForProperty` quand `find()` rend `null` (message `collaborators.not_in_agency`, celui d'un compte non éligible), ou borner la règle par `Rule::exists('users', 'id')->whereNull('deleted_at')`. Test : un agent de l'agence supprimé en douceur → 422 sur `user_id`, et aucune ligne écrite.
+
+### Une fiche ou un compte supprimés passent `exists:` puis rendent 404, là où un identifiant absent rend 422
+- Réf : P96.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:37` et `takussan-api/app/Http/Controllers/Api/InvoiceController.php:47` ; `takussan-api/app/Http/Requests/Api/AssignAgentPropertyRequest.php:36` et `takussan-api/app/Http/Controllers/Api/PropertyController.php:352` ; `takussan-api/app/Http/Requests/Agency/StoreAgentAbsenceRequest.php:30-31` et `takussan-api/app/Services/Agency/AgentAbsenceService.php:33-34` ; `takussan-api/app/Http/Requests/Permissions/StoreRoleDelegationRequest.php:25` et `takussan-api/app/Services/Permissions/RoleDelegationService.php:59` ; `takussan-api/app/Http/Requests/Api/AttachGuarantorLeaseRequest.php:41` et `takussan-api/app/Http/Controllers/Api/LeaseController.php:171` ; `takussan-api/app/Http/Requests/Api/AddAgentAgencyRequest.php:37` et `takussan-api/app/Http/Controllers/Api/AgencyController.php:246` ; `takussan-api/app/Http/Requests/Api/StorePayoutRequest.php:46`, `PreparePayoutRequest.php:23` et `PayoutController.php:53`, `PayoutPreparationController.php:27`
+- Constat :
+  - Chacune de ces règles `exists:` accepte une ligne supprimée en douceur, puis le contrôleur ou le service la relit par `findOrFail()`, que la portée masque : `ModelNotFoundException`, rendue 404 `http.not_found` (lu, aux lignes citées).
+  - Mesuré : `POST /api/invoices` en agent de l'agence, client supprimé → **404** `{"code":"http.not_found"}` ; client `99999999` → **422** sur `customer_id`. `PUT /api/properties/{id}/assigned-agent` vers un agent supprimé → 404. `POST /api/agencies/{a}/absences` avec un absent supprimé → 404.
+  - Lu, non mesuré : garant supprimé sur `POST /api/leases/{id}/guarantors`, délégataire supprimé sur `POST /api/agencies/{a}/role-delegations`, membre supprimé sur `POST /api/agencies/{a}/members`, bailleur supprimé sur `POST /api/payouts` et `GET /api/payouts/preparation` : même suite `exists:` puis `findOrFail()`.
+  - Le formulaire reçoit une page « introuvable » au lieu d'une erreur sur le champ, et la réponse sépare « supprimé » (404) d'« inexistant » (422) (mesuré sur la facture).
+  - Ailleurs, la règle de l'appelant rend déjà 422 : la passation (`StoreAgentHandoverRequest.php:57-63`, `find()` puis erreur sur le champ), le référent client (`SetPrimaryContactCustomerRequest.php:53-61`), la modification d'une tâche (`TaskController::authorizeAssignee`, mesuré : 422 `task.assignee_not_staff`). C'est la forme attendue.
+  - Pour le bailleur d'un reversement, un compte effacé à qui l'agence doit encore de l'argent ne peut plus être préparé ni réglé par ces deux routes (déduit, à vérifier : `AccountDeletionService::collectOpenObligations` bloque peut-être l'effacement tant qu'un reversement est dû).
+  - Établi comment : lu, et mesuré sur trois routes.
+- Piste : `Rule::exists(...)->whereNull('deleted_at')` (ou `->withoutTrashed()`, à vérifier sous Laravel 13) sur ces règles, pour que la ligne supprimée suive le chemin de l'identifiant absent ; le cas du bailleur effacé d'un reversement est à trancher à part. Test par route : ligne supprimée et identifiant absent, même 422 sur le même champ.
+
+### Le super-admin écrit des lignes rattachées à une agence supprimée
+- Réf : P96.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreThresholdAlertRequest.php:43`, `StoreKpiConfigRequest.php:43`, `StoreIntegrationRequest.php:37`, `StorePropertyRequest.php:79`, `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:71`, `takussan-api/app/Http/Requests/Api/Admin/StoreAnnouncementRequest.php:31`, `UpdateAnnouncementRequest.php:25` ; `takussan-api/app/Http/Controllers/Api/AgencyController.php:147-158`
+- Constat :
+  - Une agence se supprime en douceur par `DELETE /api/agencies/{agency}`, ouvert au super-admin et à l'admin principal (lu, `AgencyController.php:147-158`, `$agency->delete()` seul).
+  - `agency_id` porte `exists:agencies,id` dans ces sept requêtes. Hors super-admin, l'agence est forcée ou comparée à l'agence active (lu, `ThresholdAlertController.php:42-47`, `KpiConfigController.php:46-53`, `IntegrationController.php:75-81`, `InvitationController.php:69-75`, `PropertyController.php:108-110`) ; pour le super-admin, la valeur reçue est écrite telle quelle : seuil d'alerte, configuration d'indicateur, intégration, bien, invitation et ciblage d'annonce rattachés à une agence supprimée (lu, non mesuré).
+  - Une invitation acceptée vers cette agence créerait un profil dans une agence supprimée (déduit, à vérifier dans `InvitationService` l. 700-780).
+  - `ClosePlatformPayoutPeriodRequest.php:17` relit l'agence par `findOrFail()` (`PlatformPayoutController.php:43-44`) : 404 là, comme en P96.02 (lu).
+  - Établi comment : lu.
+- Piste : `Rule::exists('agencies', 'id')->whereNull('deleted_at')` dans ces requêtes ; test d'une écriture super-admin vers une agence supprimée → 422 sur `agency_id`. Ce que doit devenir le reste d'une agence supprimée (membres, biens, invitations ouvertes) dépasse ces règles : voir l'angle 129.
+
+### Rien n'empêche une règle `exists:` neuve sur une table à suppression douce
+- Réf : P96.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/tests/Unit/Architecture/ExistsSurRouteOuverteTest.php`, `takussan-api/app/Http/Requests/`
+- Constat :
+  - 27 modèles portent `SoftDeletes` (lu, `grep -rl SoftDeletes app/Models`, hors le trait `HasProfiles` qui ne fait que le citer), et le dépôt n'a qu'un seul `exists` borné par `whereNull('deleted_at')` (`UpdatePropertyRequest.php:75`, lu) contre 27 règles qui ne le sont pas sur ces tables, commentaires exclus (lu, inventaire ci-dessus).
+  - `ExistsSurRouteOuverteTest` lit déjà les `exists:` des FormRequests, mais pour un autre motif (l'oracle d'existence de l'angle 62) ; aucun test ni garde ne compare la table d'un `exists:` à la présence de `SoftDeletes` sur son modèle (lu : aucun `check-*.mjs` ni test d'architecture ne le fait).
+  - Les règles maison qui supposent « introuvable = déjà refusé par `exists:` » sont la forme fautive de P96.01 (lu, `CollaboratorEligibleForProperty.php:47-50`).
+  - Établi comment : lu.
+- Piste : un test d'architecture qui, pour chaque `exists:<table>` et `Rule::exists('<table>')` de `app/Http/Requests`, retrouve le modèle de la table et exige `whereNull('deleted_at')` quand il porte `SoftDeletes`, avec une liste d'exceptions motivées (le registre RGPD de `StorePrivacyRequestRequest`, qui vise légitimement un compte effacé).
