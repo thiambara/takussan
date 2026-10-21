@@ -32,7 +32,7 @@ agences de même nom n'avaient pas d'ordre garanti.
 
 ## Décision du porteur (déléguée)
 
-ajouter `id` en départage aux tris écrits à la main de `AgencyModerationController` (liste des agences du super-admin) et `AdminCreditWalletController`, et y trier `name` en `COLLATE "und-x-icu"` ; test : deux agences « Zeta » et « École … » → « École » avant « Zeta », et deux agences de même nom rendues dans l'ordre de leur `id`
+ajouter `id` en départage aux tris écrits à la main de `AgencyModerationController` (liste des agences du super-admin) et `AdminCreditWalletController`, et y trier `name` en `COLLATE "und-x-icu"` ; test : deux agences « Zeta » et « École … » → « École » avant « Zeta », et deux agences de même nom rendues dans l'ordre de leur `id` ; reste : le tri ICU des titres de biens (`Property::$requestSortable` `title`, `ConversationContextController`), au porteur
 
 ## Reste à faire
 
