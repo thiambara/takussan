@@ -8914,7 +8914,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### Fiche client : prénom, nom et profession sans borne, 500 à la création et à la modification
 - Réf : P91.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1109
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StoreCustomerRequest.php:40-46`, `takussan-api/app/Http/Requests/Api/UpdateCustomerRequest.php:65-71`, `takussan-api/database/migrations/2026_04_17_160006_create_customers_table.php:16-18`
 - Constat :
@@ -8924,6 +8924,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Le formulaire client du front borne le prénom et la profession (120) (lu, `takussan-web/src/lib/schemas/customer.ts:47,68`).
 - Piste : `max:255` sur `first_name`, `last_name` et `occupation` dans les deux requêtes, ou dans `ValidatesCustomerContactAndCriteria` s'ils y rejoignent les contacts. Étendre le test de création et de modification d'un cas par clé.
 - Mesure (2026-10-21, 3e5f55e7b, mesureur) : relu `StoreCustomerRequest.php:40-46` et `UpdateCustomerRequest.php:65-71` (`first_name`, `last_name`, `email`, `occupation` sans `max`) ; test temporaire `TmpMesureurP91Test`, un appel par cas (charge 5,71 / 5,59 / 5,21 sur 8 cœurs, base créée par le test, retiré ensuite) → en agent, `POST /api/customers` : `first_name` 256 et `occupation` 256 → 500 `varchar(255)` ; `PUT /api/customers/{id}` (non mesuré par l'explorateur) : `last_name` 256 et `occupation` 256 → 500. Correctif attendu : `max:255` sur `first_name`, `last_name` et `occupation` dans les deux requêtes (l'adresse relève de P91.05), et un cas par clé dans les tests de création et de modification. Classement : A1, la colonne et la borne voisine de `emergency_contact_name` fixent le contrat, seul le 500 devient 422.
+- Mesure (2026-10-21, b0c1cd999, implementeur) : `CustomerFieldLengthTest` (charge 2,92 / 2,36 / 2,49 sur 8 cœurs) → avant correctif, en agent, `POST /api/customers` et `PUT /api/customers/{id}` rendent 500 dès `first_name` à 256 caractères ; `max:255` sur `first_name`, `last_name` et `occupation` dans les deux requêtes → 422 sur chacune des trois clés, fiche absente ou inchangée, et 201 ou 200 à 255 ; ablation des deux FormRequest → 2 rouges sur 2, correctif remis → 2/2 ; `CustomerTest`, `CustomerCrmTest`, `CustomerPipelineTest` verts. L'adresse e-mail reste à P91.05.
 
 ### La règle `email` ne borne pas la longueur : l'inscription publique rend 500 sur une adresse de plus de 255 caractères
 - Réf : P91.05
