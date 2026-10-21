@@ -224,7 +224,7 @@ poser_job() {
   uid="$(id -u)"
   for a in "$@"; do args="$args<string>$a</string>"; done
   plist="$HOME/Library/LaunchAgents/$LAUNCHD.$nom.plist"
-  cat > "$plist" << PLIST
+  cat > "$plist.nouveau" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -246,6 +246,15 @@ poser_job() {
 </dict>
 </plist>
 PLIST
+  # Un job chargé dont le plist ne change pas n'est pas rechargé : décharger un job tue son passage
+  # en cours, et `planifier` se relance pour ajouter un job sans toucher aux autres. Comparés après
+  # normalisation : PlistBuddy et un éditeur réécrivent la mise en forme sans changer le sens.
+  if [ -f "$plist" ] && launchctl print "gui/$uid/$LAUNCHD.$nom" > /dev/null 2>&1 \
+    && cmp -s <(plutil -convert xml1 -o - "$plist" 2> /dev/null) <(plutil -convert xml1 -o - "$plist.nouveau"); then
+    rm -f "$plist.nouveau"
+    return 0
+  fi
+  mv -f "$plist.nouveau" "$plist"
   charger_job "$nom" "$plist"
 }
 
