@@ -8,7 +8,9 @@ use App\Http\Requests\Api\UpdateTagRequest;
 use App\Models\Enums\ReferentialStatus;
 use App\Models\Tag;
 use App\Services\Geo\GeoReindexation;
+use App\Services\Tags\TagCatalog;
 use App\Services\Tags\TagModeration;
+use App\Support\CaseInsensitive;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -45,6 +47,16 @@ class TagController extends Controller
     {
 
         $data = $request->validated();
+
+        // TCK-1104 (P92.05) — les deux règles déjà écrites, que la création ignorait (500) : un
+        // nom pris à la casse près se refuse comme au renommage (`TagModeration::renommer`), et
+        // un nom distinct de même slug reçoit un slug suffixé, le slug d'un équipement du
+        // catalogue restant le sien (`TagCatalog::slugLibre`, TCK-847).
+        $pris = Tag::query()
+            ->whereRaw(CaseInsensitive::sql('name').' = ?', [CaseInsensitive::fold($data['name'])])
+            ->exists();
+        abort_code_if($pris, 409, 'tags.name_taken');
+        $data['slug'] = TagCatalog::slugLibre($data['name'], horsCatalogue: true);
 
         $tag = Tag::create($data);
 
