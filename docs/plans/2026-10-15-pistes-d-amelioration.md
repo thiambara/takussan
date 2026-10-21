@@ -8776,7 +8776,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### `tags:sync-catalog` réindexe sans `SCOUT_QUEUE=false`, à l'inverse de `geo:sync-referential` et pour la raison que `release.sh` écarte
 - Réf : P89.04
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1161
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/release.sh:16-24`, `takussan-api/app/Services/Tags/TagCatalog.php:44-54`, `:118-123`, `takussan-api/config/scout.php:59`
 - Constat :
@@ -8786,6 +8786,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Établi comment : lecture.
 - Piste : préfixer `tags:sync-catalog` de `SCOUT_QUEUE=false`, comme la ligne au-dessus, et l'épingler dans `test-release-reindex.sh` (la variable est visible du talon `php` par son environnement).
 - Mesure (2026-10-21, d3a36896e, mesureur) : relu `release.sh:21-24` (`SCOUT_QUEUE=false` devant `geo:sync-referential`, absent devant `tags:sync-catalog`), `TagCatalog::synchroniser` (une `DB::transaction` autour des `assurer()`) et `assurer()` (approuver une proposition réindexe ses biens par `GeoReindexation::biens`), `config/scout.php:59` (`env('SCOUT_QUEUE', false)`), `.env.example:147` (recommande `true` avec Meilisearch) et `prod-drivers.json` (`QUEUE_CONNECTION=database` mesuré le 2026-09-14 ; `SCOUT_QUEUE` non relevé). Le constat tient en lecture ; l'exécution par l'ancien worker reste déduite. Classement : V5, le correctif est une ligne de `docker/release.sh`, script de déploiement, et son effet dépend d'une variable de préproduction qu'aucun relevé ne donne.
+- Mesure (2026-10-21, 464389140, implementeur) : avant correctif, `release.sh` joué par `scripts/test-release-reindex.sh` sous `SCOUT_QUEUE=true`, talon `php` qui journalise la variable : `geo:sync-referential` la reçoit à `false`, `tags:sync-catalog` à `true` ; la prémisse tient → préfixe `SCOUT_QUEUE=false` ajouté, deux vérifications au harnais ; ablation (sans le préfixe) → la vérification de `tags:sync-catalog` rougit, préfixe remis → vert.
 
 ### Petites améliorations
 - Réf : P89.05
