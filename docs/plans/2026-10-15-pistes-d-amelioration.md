@@ -9059,7 +9059,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Contrôle puis insertion sans verrou : un double envoi rend 500 sur plusieurs gestes
 - Réf : P92.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : issue du second envoi à choisir par geste (refus lisible ou sans effet), et trois voies proposées
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Messaging/GroupConversationService.php:117-160`, `takussan-api/app/Services/Membership/AgencyRoleService.php:166-180`, `takussan-api/app/Services/Agency/AgencyUpgradeRequestService.php:71,195-207`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:37-52`, `takussan-api/app/Http/Controllers/Api/IntegrationController.php:87-101`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:49-59`, `takussan-api/app/Services/Invitation/InvitationService.php:755-776`
 - Constat :
@@ -9068,6 +9068,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Rapportés par sous-agent, non relus : demande de passage en agence (`one_pending_per_agency`), import d'un même relevé (`agency_id, file_hash`), création d'intégration (`integrations_provider_agency_live_unique`), ajout d'un collaborateur au bien (contrôle avant le verrou du bien, l. 49-50 contre 178), acceptation d'une collaboration de prestataire (à vérifier).
   - Aucun test n'envoie deux requêtes concurrentes sur ces contraintes (rapport).
 - Piste : verrouiller la ligne mère (conversation, rôle, agence, bien) avant le contrôle, ou `insertOrIgnore` + relecture ; à défaut, le filet de P92.09. Test par deux connexions, comme `ModerationQueueConcurrencyTest`.
+- Mesure (2026-10-21, 964dded11, mesureur) : relu les sept sites (lignes inchangées à quelques lignes près) : `GroupConversationService::addParticipants` (lecture des participants puis `exists()` puis `attach`, sans verrou), `AgencyRoleService::replaceCapabilities` (`delete()` puis `insert()`, sans verrou sur le rôle), `AgencyUpgradeRequestService::assertNoPendingRequest` (avant la transaction, index `agency_upgrade_requests_one_pending_per_agency`), `BankStatementController::store` (contrôle puis `create`, index `bank_statements_agency_hash_unique`), `IntegrationController` (`exists()` puis `create`, index `integrations_provider_agency_live_unique`), `PropertyCollaboratorController::store` (`exists()` l. 50 hors de la transaction qui verrouille le bien, `unique(property_id, user_id)`), `InvitationService::ensureServiceProviderCollaboration` (`first()` puis `create`, `sp_agency_collab_unique`) ; test temporaire `TmpMesureurP9207Test` (base créée par le test, charge 2,05 / 3,98 / 4,45 sur 8 cœurs, retiré ensuite), qui insère la ligne concurrente entre le contrôle et l'écriture par `DB::listen` → `addParticipants` lève `UniqueConstraintViolationException` `conversation_participants_conversation_id_user_id_unique`, `replaceCapabilities` lève `arc_role_capability_unique` ; `bootstrap/app.php` ne rend pas cette exception (voir P92.09), soit 500. Les cinq autres sites sont établis à la lecture seulement, sans course rejouée ; aucun test du dépôt n'envoie deux requêtes concurrentes, aucun ticket ni commit ne traite l'entrée. Classement : V7, la piste propose trois voies (verrou de la ligne mère, `insertOrIgnore` et relecture, filet global) et l'issue du second envoi (409, 422 déjà écrit pour la demande de passage, l'intégration et le collaborateur, ou ajout sans effet pour un participant) reste à choisir geste par geste.
 
 ### Les choix de slug et de profil ignorent les lignes supprimées que la contrainte compte encore
 - Réf : P92.08
@@ -9082,7 +9083,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Petites améliorations
 - Réf : P92.09
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : nouvel essai sur la référence générée d'un versement ; le filet 409 change la réponse de toutes les routes `api/*` (V6)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/bootstrap/app.php:131-169`, `takussan-api/app/Services/Model/ReferenceNumberGenerator.php`, `takussan-api/app/Services/Model/PayoutService.php:122-130,178`, `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:80-83`
 - Constat :
@@ -9090,3 +9091,4 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Référence de versement `PO-Ym-XXXXXX` aléatoire sans nouvel essai : une collision est rendue en 409 `payout.already_paid_out` dans `create`, en 500 dans `createForBill` (rapport de sous-agent, à vérifier).
   - Rattachement des alertes : le nom de repli `"X #id"` n'est pas lui-même confronté aux noms pris (lu, l. 82-83 ; collision improbable).
 - Piste : un rendu de repli `UniqueConstraintViolationException` → 409 `http.conflict` pour `api/*` (sans le `DETAIL`), qui ne remplace pas les règles ; un nouvel essai sur la référence générée.
+- Mesure (2026-10-21, 964dded11, mesureur) : relu `bootstrap/app.php` (`render` : `FileCannotBeAdded`, `ApiError`, `HttpExceptionInterface`, sinon `null` ; seul le rapport d'une `QueryException` est remplacé), `HttpErrorCode` (409 → `http.conflict`, clé présente dans `lang/{fr,en}/errors.php`), `ReferenceNumberGenerator::payout` (`PO-Ym-` + 6 caractères de `Str::random`, aucun nouvel essai), `payouts.reference_number` `unique()`, `PayoutService::create` (tout `UniqueConstraintViolationException` → 409 `payout.already_paid_out`, référence comprise) et `createForBill` (aucune capture) ; la violation d'unicité non rendue a été mesurée en 500 ce jour par les tests temporaires de P92.05, P92.06, P92.08 et P92.07 → les trois parties tiennent : aucun filet, une collision de référence lue en 409 trompeur dans `create` et en 500 dans `createForBill` (lu, non rejoué ; collision improbable, 36⁶ tirages par mois), un nom de repli `"X #id"` non confronté aux noms pris (`SavedSearchController` l. 82-83, lu). Aucun ticket ni commit ne le traite. Classement : V1 pour la référence d'un versement, et V6 pour le filet, qui fixe le rendu de toute violation d'unicité non prévue sur l'ensemble des routes `api/*`.
