@@ -107,6 +107,9 @@ class FeatureFlagTest extends TestCase
         // Une ligne déjà écrite sous cette forme se lit de même.
         $ecrite = new FeatureFlag(['key' => 'k_vide', 'enabled' => true, 'segments_json' => ['roles' => [], 'agency_ids' => [], 'rollout_percentage' => 0]]);
         $this->assertTrue($evaluator->evaluate($ecrite, null));
+        // Une clé inconnue n'est pas vide : le jugement reste fail-closed.
+        $inconnue = new FeatureFlag(['key' => 'k_inconnue', 'enabled' => true, 'segments_json' => ['roles' => [], 'plan' => 'pro']]);
+        $this->assertFalse($evaluator->evaluate($inconnue, null));
 
         // Un ciblage réel reste un ciblage.
         $this->patchJson('/api/admin/feature-flags/host_auto_space', [

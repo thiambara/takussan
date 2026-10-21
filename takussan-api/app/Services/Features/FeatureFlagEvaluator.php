@@ -69,22 +69,28 @@ class FeatureFlagEvaluator
     /**
      * TCK-1125 (P98.01) — des segments qui ne ciblent rien (aucun rôle, aucune agence, 0 %) ne
      * restreignent rien : ils valent `[]`, « sans restriction ». C'est le corps que le dialogue de
-     * la console envoie sans ciblage, et que l'écran affiche « Global ».
+     * la console envoie sans ciblage, et que l'écran affiche « Global ». Même règle que
+     * `AnnouncementResolver::declaresNoRestriction()` (TCK-366) : une clé inconnue n'est pas
+     * vide, et les segments restent tels quels (fail-closed).
      *
      * @param  array<string, mixed>  $segments
      * @return array<string, mixed>
      */
     public static function normalizeSegments(array $segments): array
     {
-        $roles = $segments['roles'] ?? [];
-        $agencyIds = $segments['agency_ids'] ?? [];
-        $percentage = (int) ($segments['rollout_percentage'] ?? 0);
+        foreach ($segments as $cle => $valeur) {
+            $vide = match ($cle) {
+                'roles', 'agency_ids' => ! is_array($valeur) || $valeur === [],
+                'rollout_percentage' => $valeur === null || (int) $valeur <= 0,
+                default => false,
+            };
 
-        $cible = (is_array($roles) && $roles !== [])
-            || (is_array($agencyIds) && $agencyIds !== [])
-            || $percentage > 0;
+            if (! $vide) {
+                return $segments;
+            }
+        }
 
-        return $cible ? $segments : [];
+        return [];
     }
 
     /**
