@@ -9673,7 +9673,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Petites améliorations
 - Réf : P97.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-1123
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/AccountDeletionRequestedNotification.php:36`, `takussan-api/app/Notifications/AccountDeletionReminderNotification.php:36`, `takussan-web/src/app/(dashboard)/layout.tsx:66-75`
 - Constat :
@@ -9681,6 +9681,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Établi comment : lu et mesuré (`grep`).
 - Piste : retirer le paramètre, ou le faire lire par la page profil pour porter le regard sur le bandeau ; dans les deux cas, viser `/app/profile` hors de toute requête que P97.02 perdrait.
 - Mesure (2026-10-21, 0e45ad7a0, mesureur) : `grep -rn "cancel-deletion\|cancel_deletion\|cancelDeletion" takussan-web/src` → rien ; `grep -rn cancel-deletion takussan-api/tests` → rien ; relu `AccountDeletionRequestedNotification.php:36`, `AccountDeletionReminderNotification.php:36` et `(dashboard)/layout.tsx:66-75` (bandeau rendu tant qu'une demande est en cours) → le paramètre est mort. Classement : A3, retirer `?cancel-deletion=1` des deux liens, qui visent alors `/app/profile`, ne change rien à l'écran ; l'autre option de la piste (le faire lire) est écartée parce qu'elle serait un comportement visible neuf (V7).
+- Mesure (2026-10-21, beadbcb6a, implementeur) : `grep -rn "cancel-deletion\|cancel_deletion\|cancelDeletion" takussan-web/src` → rien hors du test de TCK-1121 ; le test neuf `AccountDeletionRequestTest::test_deletion_mails_link_to_the_profile_without_a_dead_parameter` rendait `…/app/profile?cancel-deletion=1` → paramètre retiré des deux `toMail()`, 22/22 sur les trois classes de suppression de compte ; ablation de chacune des deux classes → rouge, remis → vert.
 
 ## Angle 98 — Écrans d'écriture de la console super-admin : ce qu'ils changent hors de la console
 
