@@ -72,6 +72,9 @@ class LeaseRenewedNotification extends Notification implements ShouldQueue
     public function toArray(object $notifiable): array
     {
         return [
+            // TCK-1134 (P75.05) — le bail enfant : `NotificationTarget::derive()` en fait la cible
+            // de la ligne de cloche (`/app/leases/{id}`).
+            'lease_id' => $this->child->id,
             'parent_lease_id' => $this->parent->id,
             'child_lease_id' => $this->child->id,
             'reference_number' => $this->child->reference_number,

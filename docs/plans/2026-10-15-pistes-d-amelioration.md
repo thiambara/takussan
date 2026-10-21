@@ -7677,7 +7677,7 @@ le sous-réseau est P37.04.*
 
 ### Petites améliorations
 - Réf : P75.05
-- Statut : validé (délégué) — ajouter `lease_id` (le bail enfant) aux données de `LeaseRenewedNotification::toArray()`, pour que la ligne de cloche du renouvellement mène à `/app/leases/{id}` par `NotificationTarget::derive()` ; test : la ressource de la ligne rend la cible `lease` du bail enfant ; reste : les cibles des factures, des tâches, des alertes de seuil, des `AgencyUpgrade*` et des `SuperAdmin*Broadcast`, le titre du rappel de tâche, et la langue figée des classes sans code (portage au catalogue), au porteur
+- Statut : fait · TCK-1134 — reste : les cibles des factures, des tâches, des alertes de seuil, des `AgencyUpgrade*` et des `SuperAdmin*Broadcast`, le titre du rappel de tâche, et la langue figée des classes sans code (portage au catalogue), au porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Domain/Notifications/NotificationTarget.php:121-147`, `takussan-api/app/Notifications/LeaseRenewedNotification.php:72-86`, `takussan-api/app/Notifications/InvoiceOverdueReminderNotification.php:84-97`, `takussan-api/app/Notifications/TaskDueReminderNotification.php:63-73`, `takussan-api/app/Notifications/ThresholdAlertTriggered.php:74-81`, `takussan-api/app/Http/Resources/AppNotificationResource.php:45-46`
 - Constat :
@@ -7688,6 +7688,7 @@ le sous-réseau est P37.04.*
 - Piste : ajouter `lease_id` (le bail enfant) aux données du renouvellement ; donner une cible aux autres là où une page existe (`team`, `agency_settings`, `/super-admin/…`) ; titrer le rappel de tâche par une clé de traduction. À terme, porter ces classes au catalogue `NotificationCode`, ce que le reste de P48 demande déjà pour quatre d'entre elles.
 - Mesure (2026-10-20, d08842ee3, mesureur) : lu `NotificationTarget::derive()` (l. 121-147) : ni `parent_lease_id`/`child_lease_id`, ni `invoice_id`, ni `task_id` (`LeaseRenewedNotification.php:75-76`, `InvoiceOverdueReminderNotification.php:87`, `TaskDueReminderNotification.php:66`) ; `TaskDueReminderNotification.php:69` range `task->title` comme titre ; `ThresholdAlertTriggered.php:78` met `metric` dans la clé de titre ; `AppNotificationResource.php:45-46` rend `title`/`body` tels quels sans code ; `grep -ln "'code'" app/Notifications` → `CodedNotification`, `PropertyApproved/Rejected`, `LeaseSignatureCode`, `NewBooking` seulement → les trois points tiennent (non rejoué par un envoi). Classement : V7, la cible de chaque ligne (quelle page) et le titre neuf du rappel de tâche sont des choix d'interface et de texte.
 - Mesure (2026-10-20, 89dbcf997, delegue) : relu le constat et la `Mesure` du mesureur, puis `NotificationTarget::derive()` l. 118-147 (la clé `lease_id` mène à `lease`), `NotificationTarget::PATHS` (`lease` → `/app/leases/{id}`, page présente : `takussan-web/src/app/(dashboard)/app/leases/[id]/page.tsx`), `LeaseRenewedNotification::toArray()` l. 72-86 (`parent_lease_id`, `child_lease_id`, sans `lease_id`) et TCK-588 l. 35 (« un clic dans la cloche m'emmène sur l'objet concerné », C11) → la cible du renouvellement est écrite et sa page existe ; les autres cibles (factures, tâches, alertes de seuil, `AgencyUpgrade*`, `SuperAdmin*Broadcast`) demandent de choisir une page, le titre du rappel de tâche est un texte neuf, et la langue figée relève du portage au catalogue. Délégation : V7, seule la partie dont la cible est écrite par TCK-588 (C11) et déjà servie par `PATHS` est validée ; elle ajoute une clé de données sans rien retirer et se défait en un commit ; le reste revient au porteur.
+- Mesure (2026-10-21, 3c6c8301f, implementeur) : avant correctif, une `LeaseRenewedNotification` envoyée au locataire donne une ligne dont `AppNotificationResource` rend `target` nul (`parent_lease_id`/`child_lease_id` inconnus de `derive()`) → `lease_id` du bail enfant ajouté à `toArray()`, la ressource rend `lease`, l'id du bail enfant et `/app/leases/{id}` ; ablation : notification rendue à `3c6c8301f` → 1 rouge, remise → 4/4 ; `LeaseRenewalServiceTest` et `LeaseContractTermsTest` : verts (48 tests en tout).
 
 ## Angle 76 — Effets aval d'un paiement soldé puis passé à `refunded`
 
@@ -7776,7 +7777,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 
 ### Petites améliorations
 - Réf : P76.06
-- Statut : validé (délégué) — ajouter `refund_amount` à `LeasePaymentResource`, sous la forme de `BookingPaymentResource` (`(float)` ou `null`), et une colonne `refund_amount` (la valeur en base, sans calcul ; pas de `net_amount`) en fin de colonnes de l'export des paiements d'`ExportDataService::payments()` ; test : une échéance remboursée en partie rend son `refund_amount` dans la ressource et dans l'export ; reste : l'affichage du montant rendu dans l'écran de l'historique, au porteur
+- Statut : fait · TCK-1135 — reste : l'affichage du montant rendu dans l'écran de l'historique, au porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Resources/LeasePaymentResource.php:32-33`, `takussan-api/app/Services/Export/ExportDataService.php:43-71`
 - Constat :
@@ -7786,6 +7787,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 - Piste : ajouter `refund_amount` à `LeasePaymentResource` et une colonne `refund_amount` (ou `net_amount`) à l'export des paiements.
 - Mesure (2026-10-20, 740c8247f, mesureur) : lu `LeasePaymentResource.php:23-41` (`amount`, `paid_amount`, `remaining_amount`, `late_fee_amount`, `amount_due`, pas de `refund_amount`) et `BookingPaymentResource.php:24` (qui l'expose) ; `ExportDataService.php` sélectionne et rend `amount` et `status` sans `refund_amount` (colonnes l. 46 et 71) → les deux points tiennent. Classement : V7, ni la spec ni un ticket n'écrivent ce champ ou cette colonne, et le choix entre `refund_amount` et `net_amount` à l'export reste ouvert.
 - Mesure (2026-10-20, 7a867b653, delegue) : relu `LeasePaymentResource.php:17-45` (sans `refund_amount`), `BookingPaymentResource.php:24` (`refund_amount` nullable en `float`), `ExportDataService::payments()` (l. 43-77 : `select` et colonnes sans `refund_amount`), `docs/models-spec.md:1473` (`lease_payments.refund_amount` existe, écrit par TCK-873) et TCK-873 § Hors périmètre, qui nomme « l'exposition de `refund_amount` d'une échéance par `LeasePaymentResource` et l'écran de l'historique » comme suite ; `grep -rn "P76.06" docs/backlog/tickets` → aucun ticket → la piste tient. Délégation : V7, champ en lecture seule d'une colonne déjà écrite, sur le modèle exact de `BookingPaymentResource` et annoncé par TCK-873 ; colonne d'export ajoutée en fin, sans calcul, qui se retire en un commit ; aucun montant n'est calculé ni écrit, le `net_amount`, qui en calculerait un, est laissé ; l'écran, comportement visible neuf, reste au porteur.
+- Mesure (2026-10-21, 3c6c8301f, implementeur) : avant correctif, une échéance au `refund_amount` de 40 000 rend une ressource sans la clé (`data.0.refund_amount` absent) et une ligne d'export sans colonne `refund_amount` (`ErrorException`, clé inconnue) → `refund_amount` ajouté à `LeasePaymentResource` (`(float)` ou `null`) et en dernière colonne de l'export, sans calcul ; `LeasePaymentResourceContractTest` : la clé entre au contrat, un cas remboursé (40000) et un cas nul ; ablation : ressource et service rendus à `3c6c8301f` → 3 rouges, remis → 8/8.
 
 ## Angle 77 — Fichiers du disque `local` dans le volume `storage`
 
@@ -8339,7 +8341,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### `AgencyUpgradeRequest` chiffre le RIB pro et le NINEA sans les cacher : tout `toArray()` les rend en clair
 - Réf : P84.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1132
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/AgencyUpgradeRequest.php:69-76`, `takussan-api/app/Models/DocumentShareLink.php:21-24`, `takussan-api/app/Models/DataExport.php`, `takussan-api/app/Models/ReportExport.php`
 - Constat :
@@ -8355,6 +8357,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Établi comment : lu et mesuré.
 - Piste : ajouter `protected $hidden = ['ninea', 'rib_pro']` à `AgencyUpgradeRequest`, et `token` à celui de `DocumentShareLink`. La Resource lit les attributs, pas `toArray()`, et resterait inchangée. Garde : un test qui parcourt `app/Models` et exige que toute colonne castée `encrypted*` soit dans `$hidden`, avec une liste d'exceptions motivées (`archive_path`, si l'on juge qu'un chemin n'est pas une donnée).
 - Mesure (2026-10-20, 1a5deccf6, mesureur) : `php artisan tinker` sans écriture → `new AgencyUpgradeRequest(['ninea'=>…,'rib_pro'=>…])->toArray()` rend les deux en clair, `new OwnerProfile(['rib'=>…])->toArray()` rend `[]`, un `DocumentShareLink` dont on pose `token` rend `{"token":…}` ; `AgencyUpgradeRequest.php` sans `$hidden`, `DocumentShareLink.php:21` `$hidden = ['password_hash', 'token_hash']` ; aucun appelant ne sérialise ces modèles bruts (les deux contrôleurs passent par `AgencyUpgradeRequestResource`, `DocumentShareLinkController::format()` lit `$link->token` attribut par attribut, `archive_path` n'est lu que par les deux contrôleurs de téléchargement et absent de `DataExportResource`) ; `$requestLoadable` d'`Agency` et de `Document` sans `upgradeRequests`/`shareLinks` → le constat tient, aucune réponse d'aujourd'hui ne changerait. Classement : A1 et A5, ADR-0044 § 1 écrit déjà qu'une donnée chiffrée ne sort pas en clair dans une réponse par défaut, et `$hidden` ne change aucune sortie actuelle.
+- Mesure (2026-10-21, 3c6c8301f, implementeur) : avant correctif, la garde neuve `EncryptedColumnsAreHiddenTest` (parcours de `app/Models`, tout cast `encrypted*` dans `$hidden`) rougit sur exactement `DocumentShareLink::$token`, `AgencyUpgradeRequest::$ninea` et `::$rib_pro`, et `toArray()` rend `ninea`, `rib_pro` et `token` en clair → `$hidden` ajouté aux deux modèles, `archive_path` de `DataExport`/`ReportExport` en exceptions motivées ; ablation : modèles rendus à `3c6c8301f` → 3 rouges sur 4, remis → 4/4 ; tests des deux modèles (ressource, partage, flip, revue, identifiants partagés) : 65 verts.
 
 ### Petites améliorations — angle 84
 - Réf : P84.03
@@ -9110,7 +9113,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Les choix de slug et de profil ignorent les lignes supprimées que la contrainte compte encore
 - Réf : P92.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-1133
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:51,132`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:244,317`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:163-178`, `takussan-api/app/Services/Invitation/AgentInvitationService.php:240-255`
 - Constat :
@@ -9118,6 +9121,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Même motif rapporté pour les contrôles d'avant invitation, qui ignorent les profils supprimés (voir P92.02) (à vérifier).
 - Piste : `withTrashed()` dans ces recherches de disponibilité ; test avec une agence supprimée de même nom.
 - Mesure (2026-10-21, c9a22e0df, mesureur) : relu `AgencyProvisioningService::uniqueSlug` et `HostIndividualOnboardingService::uniqueSlug` (`Agency::query()->where('slug', …)->exists()`, que `SoftDeletes` borne aux agences vivantes), `agencies.slug` `unique()` sur toutes les lignes, et `StoreAgencyOnboardingRequest.php:21` (`unique:agencies,slug`, qui compte déjà les supprimées quand le slug est fourni) ; test temporaire `TmpMesureurP92Test` (base créée par le test, charge 2,09 / 2,51 / 3,36 sur 8 cœurs, retiré ensuite) → agence « Sunu Gestion » supprimée, `POST /api/admin/agencies` sans `slug` en super-admin : 500 `agencies_slug_unique`. Le chemin de l'hôte individuel, même code relu, n'a pas été rejoué. La partie « contrôles d'avant invitation » n'a pas été rejouée : `assertNoActiveOwnerInAgency` et `assertNoActiveAgentInAgency` ignorent bien les profils supprimés (relu), mais l'issue (restaurer ou non le profil) est la cause de P92.02, classée V2 ; seule la partie slug est retenue ici. Correctif attendu : `withTrashed()` dans les deux `uniqueSlug`, et un test de provisionnement et d'inscription d'hôte avec une agence supprimée de même nom. Classement : A1, la contrainte et la règle de la requête d'onboarding comptent déjà les supprimées, et seul le slug engendré d'un appel qui échoue aujourd'hui change.
+- Mesure (2026-10-21, 3c6c8301f, implementeur) : avant correctif, `GeneratedAgencySlugCountsDeletedAgenciesTest` (agence de même nom supprimée) rend 500 `agencies_slug_unique` sur `POST /api/admin/agencies` sans `slug` et sur `POST /api/host/individual/onboard` → `Agency::withTrashed()` dans les deux `uniqueSlug`, slugs `sunu-gestion-2` et `espace-de-amine-2` ; ablation : services rendus à `3c6c8301f` → 2 rouges sur 2, remis → 2/2 ; classes voisines (provisionnement, devise, inscription et auto-inscription de l'hôte) : 33 verts. Les contrôles d'avant invitation restent à P92.02.
 
 ### Petites améliorations
 - Réf : P92.09
