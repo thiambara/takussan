@@ -3,6 +3,8 @@
 namespace Tests\Feature\Dashboard;
 
 use App\Models\Agency;
+use App\Models\Booking;
+use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenanceStatus;
@@ -88,6 +90,72 @@ class DashboardOwnerMetricsTest extends ApiTestCase
         Property::factory()->create($extra + ['contract_type' => ContractType::Rent, 'rent_period' => RentPeriod::Monthly]);
 
         $this->assertEquals(25.0, $this->apiGet('/api/dashboard/owner')->assertOk()->json('data.occupancy.rate_percent'));
+    }
+
+    /**
+     * P93.01 (TCK-1173) — un mois passé garde le bien qu'un bail y couvrait, quel que soit le statut
+     * ou le type de contrat d'aujourd'hui : archiver ou vendre ne réécrit pas l'occupation de janvier.
+     * Le mois en cours garde l'exclusion par statut courant.
+     */
+    public function test_p93_01_past_months_keep_a_leased_unit_archived_or_sold_today(): void
+    {
+        Carbon::setTestNow('2026-07-15 00:00:00');
+        $agency = Agency::factory()->create();
+        $owner = $this->apiActingAsRole('owner', ['agency' => $agency]);
+        $unit = Property::factory()->create([
+            'user_id' => $owner->id,
+            'agency_id' => $agency->id,
+            'contract_type' => ContractType::Rent,
+            'rent_period' => RentPeriod::Monthly,
+            'status' => PropertyStatus::Available,
+            'created_at' => '2025-12-01',
+        ]);
+        Lease::factory()->create([
+            'property_id' => $unit->id,
+            'landlord_id' => $owner->id,
+            'agency_id' => $agency->id,
+            'status' => LeaseStatus::Expired,
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-06-30',
+        ]);
+        $series = fn (): array => $this->apiGet('/api/dashboard/owner?include=timeseries&months=7')->assertOk()->json('timeseries.occupancy');
+
+        $this->assertEquals([100, 100, 100, 100, 100, 100, 0], $series());
+
+        $unit->forceFill(['status' => PropertyStatus::Archived])->save();
+        $this->assertEquals([100, 100, 100, 100, 100, 100, 0], $series(), 'archivé aujourd\'hui');
+
+        $unit->forceFill(['status' => PropertyStatus::Available, 'contract_type' => ContractType::Sale])->save();
+        $this->assertEquals([100, 100, 100, 100, 100, 100, 0], $series(), 'passé en vente aujourd\'hui');
+    }
+
+    /** P93.01 (TCK-1173) — même règle pour la courte durée : les nuitées d'un mois passé restent. */
+    public function test_p93_01_past_short_stay_months_keep_a_booked_unit_archived_today(): void
+    {
+        Carbon::setTestNow('2026-07-15 00:00:00');
+        $agency = Agency::factory()->create();
+        $owner = $this->apiActingAsRole('owner', ['agency' => $agency]);
+        $unit = Property::factory()->create([
+            'user_id' => $owner->id,
+            'agency_id' => $agency->id,
+            'contract_type' => ContractType::Rent,
+            'rent_period' => RentPeriod::Daily,
+            'status' => PropertyStatus::Available,
+            'created_at' => '2025-12-01',
+        ]);
+        Booking::factory()->create([
+            'property_id' => $unit->id,
+            'agency_id' => $agency->id,
+            'status' => BookingStatus::Completed->value,
+            'start_date' => '2026-06-01',
+            'end_date' => '2026-06-16',
+        ]);
+        $june = fn (): mixed => $this->apiGet('/api/dashboard/owner?include=timeseries&months=7')->assertOk()->json('timeseries.short_stay_occupancy.5');
+
+        $this->assertEquals(50.0, $june());
+
+        $unit->forceFill(['status' => PropertyStatus::Archived])->save();
+        $this->assertEquals(50.0, $june(), 'archivé aujourd\'hui');
     }
 
     public function test_ac3_short_stay_counts_nights_of_confirmed_bookings_only(): void
