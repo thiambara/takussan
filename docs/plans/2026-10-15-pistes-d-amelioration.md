@@ -8140,7 +8140,7 @@ n'ont pas été rouverts.*
 
 ### La pénalité de retard tombe aussi sur l'indemnité de résiliation et sur les lignes qui ne sont pas des loyers
 - Réf : P81.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1149
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:65-92`, `takussan-api/app/Services/Lease/LateFeeCalculator.php:78-111,172-178`, `takussan-api/app/Services/Model/LeaseService.php:306-318`
 - Constat :
@@ -8150,6 +8150,7 @@ n'ont pas été rouverts.*
   - Établi comment : lu, puis mesuré pour l'indemnité ; la caution et les charges sont lues, non exécutées.
 - Piste : borner la sélection aux types que la règle vise (`rent`, peut-être `charges`), par un filtre sur `payment_type` dans `candidateQuery` et `isApplicable` ; la liste des types est un choix (V1). Garde : un test par type exclu.
 - Mesure (2026-10-20, 04ec6c724, mesureur) : relu `ApplyLateFeesJob::candidateQuery` (seul `exceptDepositRefunds`) et `LateFeeCalculator::isApplicable` (aucune lecture de `payment_type`) ; même test temporaire que P81.01 (retiré) : indemnité de 200 000 posée par `terminate()` le 2026-10-20, au 2026-12-02 `ApplyLateFeesJob` lui applique 20 000 et la passe `late` → le constat tient. Classement : V1, borner la pénalité à `rent` (et peut-être `charges`) change un montant dû, et la liste des types n'est écrite nulle part.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, bail à 10 %, une échéance en retard de chaque type hors restitution de caution → `ApplyLateFeesJob` en pénalise 5 au lieu de 1 (rouge) → `candidateQuery()` ne sélectionne que `rent` et `isApplicable()` refuse tout autre type (liste la plus étroite : `rent` seul, `docs/features.md` § 1.4 parlant d'une « échéance de loyer ») ; `ApplyLateFeesJobTest::test_seul_le_loyer_porte_une_penalite_de_retard` : loyer pénalisé (10 000), `penalty`, `deposit`, `charges`, `regularization` restés `pending` sans pénalité ; ablation (job et calculateur d'avant) → 1 rouge, remis → 5/5 ; `LeasePaymentLateFeeMarkPaidTest`, `AgingBalanceTest`, `OwedRemainderTest`, `LeaseRenewalOverlapTest`, `LeaseContractTermsTest`, `PayoutBypassTest`, `CriticalJobFailureAlertTest`, `LeasePaymentLinkTest`, `PaymentGatewayInitiateTest` verts.
 
 ### Petites améliorations
 - Réf : P81.04
