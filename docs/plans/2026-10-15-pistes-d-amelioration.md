@@ -9658,7 +9658,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### La console super-admin renvoie toujours vers son accueil après connexion : le lien de la demande de passage en agence est perdu
 - Réf : P97.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1181
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(super-admin)/super-admin/layout.tsx:41-50`, `takussan-api/app/Notifications/AgencyUpgradeRequestSubmittedNotification.php:93-98`, `takussan-api/app/Domain/Notifications/NotificationTarget.php:47`
 - Constat :
@@ -9668,6 +9668,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Établi comment : lu.
 - Piste : la mise en page ne connaît pas le chemin demandé (une mise en page Next ne reçoit pas `pathname`) : soit garder `/super-admin` dans le proxy comme `/app` (qui garde chemin et requête, voir P97.02), soit transmettre le chemin par un en-tête posé par le proxy. Garde : un test du proxy ou de la mise en page sur `/super-admin/agency-upgrade-requests/12`.
 - Mesure (2026-10-21, 0e45ad7a0, mesureur) : relu `(super-admin)/super-admin/layout.tsx:41-50` (`redirect('/auth/login?redirect=%2Fsuper-admin')` littéral, malgré le commentaire TCK-166) ; même test Vitest temporaire : `proxy()` sur `/super-admin/agency-upgrade-requests/12` sans cookie → 200 sans `location`, le proxy laisse passer et la mise en page décide seule → le constat tient. Classement : V2, déplacer la garde de la console dans le proxy ou y poser un en-tête touche la garde d'authentification de l'opérateur, qui lit un jeton distinct pendant une impersonation, et la piste laisse le choix entre deux mécanismes.
+- Mesure (2026-10-21, e54bc4055, implementeur) : relu `(super-admin)/super-admin/layout.tsx:49` (`redirect('/auth/login?redirect=%2Fsuper-admin')`) et `proxy.ts` (seul `/app` gardé) ; les cas neufs de `proxy.test.ts` sur `/super-admin/agency-upgrade-requests/12`, `/super-admin/kyc`, `/super-admin` et une requête à deux paramètres sans cookie rendaient 200 sans `location` (4 rouges) → voie retenue : `/super-admin` gardé par le proxy comme `/app`, sur le même cookie que `getOperatorToken`, `redirect` = chemin + requête ; avec jeton, passage inchangé ; 45/45 ; ablation → 4 rouges, remis → vert.
 
 ### La cible `lead` promet d'ouvrir la demande, et aucune page ne lit `?lead=`
 - Réf : P97.04
