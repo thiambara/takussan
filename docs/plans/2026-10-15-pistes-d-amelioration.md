@@ -8625,7 +8625,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### La passation vers un repreneur bloqué en fait l'agent principal du bien, alors que la réponse annonce le bien « non attribué »
 - Réf : P88.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la Piste offre trois issues (retirer `is_primary`, supprimer la ligne, refuser le repreneur bloqué en 422), et aucune spec n'écrit laquelle
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Agency/AgentHandoverService.php:213-249`, `takussan-api/app/Http/Requests/Agency/StoreAgentHandoverRequest.php:55-62`, `takussan-api/app/Services/Property/PrimaryPropertyContact.php:186-207`
 - Constat :
@@ -8636,10 +8636,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - mesuré : `PrimaryPropertyContact::for()` du bien rend le bailleur, pas le bloqué. Le contact public est donc protégé ; c'est la marque `is_primary` et le compte rendu de la passation qui sont faux.
   - Établi comment : lu, puis mesuré.
 - Piste : dans `collaborations`, quand la ligne déplacée est principale et que `assignResponsible()` refuse le repreneur, retirer `is_primary` (ou supprimer la ligne) au lieu de la réécrire telle quelle. Et faire juger le repreneur par `PersonnelDeLAgence::estPersonnel()` (joignable + personnel), comme les visites. Test : repreneur `blocked` → 422 sur `successor_id`, et, à défaut, aucune ligne `is_primary` à son nom après la passation.
+- Mesure (2026-10-21, dd9075be1, mesureur) : relu `StoreAgentHandoverRequest.php:56-63` (repreneur jugé par `isStaffAt()` seul) et `AgentHandoverService.php`, branche `collaborations` (si `$taken` est faux, `$row->update(['user_id' => …])` sans rejuger `is_primary`) ; aucun commit depuis 3eff8de82 ne touche ces fichiers (`git log 3eff8de82..HEAD -- takussan-api/app`) ; test temporaire `TmpMesureurP88Test` (base de test PostgreSQL, `Notification::fake()`, charge 4,15 / 3,77 / 7,23 sur 8 cœurs, retiré ensuite) → `POST /api/agencies/{a}/members/{sortant}/handover` avec un repreneur `blocked` : 200, `moved = {responsible_properties: 0, collaborations: 1}`, `unassigned = {responsible_properties: 1}` ; ensuite, le collaborateur du bien est `{user_id: bloqué, is_primary: true}`, et `PrimaryPropertyContact::for()` rend le bailleur. Le constat tient en entier. Classement : V7, la Piste propose plusieurs correctifs, et refuser un repreneur bloqué est un comportement visible neuf que seul l'en-tête de `PersonnelDeLAgence` décrit, pas une spec.
 
 ### Tâche, référent client, remplaçant d'absence et collaborateur acceptent un compte bloqué ; seules les visites et les demandes le refusent
 - Réf : P88.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : aucune spec n'écrit qu'un compte bloqué cesse d'être attribuable hors des visites, des demandes et du contact ; la Piste laisse un point à décider
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/TaskController.php:91-133`, `takussan-api/app/Http/Requests/Api/SetPrimaryContactCustomerRequest.php:46-62`, `takussan-api/app/Services/Agency/AgentAbsenceService.php:31-42`, `takussan-api/app/Rules/CollaboratorEligibleForProperty.php:58-73`, `takussan-api/app/Rules/PersonnelDeLAgence.php:26-48`
 - Constat :
@@ -8655,10 +8656,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Aucune spec n'écrit qu'un compte bloqué cesse d'être attribuable hors des visites, des demandes et du contact (TCK-590, `docs/features.md:131`) (lu, `grep -n bloqué docs/features.md`).
   - Établi comment : lu, puis mesuré.
 - Piste : remplacer `isStaffAt()` par `PersonnelDeLAgence::estPersonnel()` dans ces quatre jugements de cible (et dans la passation, P88.01). Test : un cas « cible `blocked` → 422 » par chemin, avec le témoin « cible `inactive` → accepté ». Reste à décider si le blocage d'un compte doit aussi signaler aux admins de ses agences ce qui lui reste attribué.
+- Mesure (2026-10-21, dd9075be1, mesureur) : relu `TaskController::authorizeAssignee`, `SetPrimaryContactCustomerRequest::rules`, `AgentAbsenceService::declare` et `CollaboratorEligibleForProperty::eligible` (`isStaffAt()` seul, sans joignabilité) ; test temporaire `TmpMesureurP88Test` (base de test PostgreSQL, `Notification::fake()`, charge 4,15 / 3,77 / 7,23 sur 8 cœurs, retiré ensuite), admin d'agence, cible = agent de l'agence au compte `blocked` → `POST /api/tasks` 201, `POST /api/customers/{id}/primary-contact` 200, `POST /api/agencies/{a}/absences` (bloqué en `substitute_id`) 201 `active`, puis une tâche pour l'absent est assignée au bloqué en base, `POST /api/properties/{p}/collaborators` (`agent`) 201 ; le témoin `POST /api/property-visits` rend 422 sur `agent_id`. Le constat tient en entier. Classement : V7, refuser ces quatre cibles change ce que l'admin d'agence peut faire, sans spec qui l'écrive, et la Piste laisse ouvert le signalement aux admins.
 
 ### Le sélecteur d'agents propose les comptes bloqués, les profils suspendus et les bailleurs de l'agence qui sont agents ailleurs
 - Réf : P88.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ce que la liste des membres montre, et l'option `filter[assignable]`, sont des choix de produit
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:172-198`, `takussan-web/src/lib/queries/agent-crm.ts:102-114`, `takussan-web/src/components/crm/CustomerReferent.tsx:37`, `takussan-web/src/components/crm/HandoverWizard.tsx`, `takussan-web/src/components/crm/AgentAbsencesSection.tsx`
 - Constat :
@@ -8668,10 +8670,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Le même défaut de `filter[role]` a été corrigé sur `/api/users` (P03.02, TCK-665), pas sur cette route : la liste dit à l'admin de A qu'un de ses bailleurs est agent ailleurs.
   - Établi comment : lu, puis mesuré.
 - Piste : contraindre `filter[role]` à l'agence de la route et aux profils `active()`, et écarter `blocked` et `deleted` (`PrimaryPropertyContact::joignable`) quand la liste sert un choix de cible. Une option `filter[assignable]=1` éviterait de retirer de la liste d'équipe les membres qu'un admin doit voir. Test : les trois cas ci-dessus absents de `filter[role]=agent`, l'agent actif présent.
+- Mesure (2026-10-21, dd9075be1, mesureur) : relu `AgencyController::listMembers` (base groupée sans statut de profil ni de compte ; `filter[role]=agent` → `whereHas('agentProfiles')` sans agence ni statut) ; test temporaire `TmpMesureurP88Test` (base de test PostgreSQL, `Notification::fake()`, charge 4,15 / 3,77 / 7,23 sur 8 cœurs, retiré ensuite) → `GET /api/agencies/{a}/members?filter[role]=agent&fields[users]=id,first_name&per_page=100` : 200, avec l'agent actif, le compte `blocked`, l'agent au profil `suspended` et un bailleur de l'agence agent dans une autre agence. Le constat tient en entier. Classement : V7, borner `filter[role]` à l'agence de la route suivrait le précédent de P03.02 (TCK-665, A1), mais écarter les bloqués et les suspendus de la liste d'équipe, ou ajouter `filter[assignable]`, change ce que l'admin voit et demande un choix.
 
 ### Un compte bloqué reçoit toujours ses notifications : e-mail, WhatsApp ou SMS, rappels de tâche, alertes de recherche et de favoris
 - Réf : P88.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la liste fermée des codes qu'un compte bloqué reçoit encore est un choix de produit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/NotificationService.php:53-97`, `takussan-api/app/Notifications/CodedNotification.php:120-150`, `takussan-api/app/Services/Notifications/PreferenceResolver.php:158-192`, `takussan-api/app/Jobs/SendTaskDueReminders.php:41-85`, `takussan-api/app/Jobs/SendSavedSearchAlerts.php:95-100`, `takussan-api/app/Jobs/SendFavoriteChangeAlerts.php:71-84`
 - Constat :
@@ -8683,3 +8686,4 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Coût : le canal mobile part au tarif SMS ou WhatsApp pour un compte qui ne peut pas agir sur ce qu'on lui annonce (déduit, à vérifier sur `notification_delivery_attempts`).
   - Établi comment : lu, puis mesuré pour les deux premiers chemins.
 - Piste : dans `NotificationService::send()` et `CodedNotification::via()`, ne rien envoyer à un compte non joignable sauf pour une liste fermée de codes de compte (blocage, réactivation, effacement). Écarter aussi `blocked` et `deleted` des requêtes des trois jobs planifiés. Test : compte `blocked` → aucun canal pour un code métier, `mail` conservé pour `AccountBlocked` ; rappel de tâche et alerte de recherche muets.
+- Mesure (2026-10-21, dd9075be1, mesureur) : relu `NotificationService::send` et `CodedNotification::via` (aucune lecture de `users.status`), `SendSavedSearchAlerts.php:96-99` et `SendFavoriteChangeAlerts.php:72-75` (sans statut) ; test temporaire `TmpMesureurP88Test` (base de test PostgreSQL, `Notification::fake()`, charge 4,15 / 3,77 / 7,23 sur 8 cœurs, retiré ensuite) → compte `blocked` au téléphone vérifié : `NotificationService::send(…, lease_payment.due_soon)` crée une ligne `app_notifications` et envoie `CodedNotification` par `["mail","whatsapp"]` ; tâche du bloqué due dans 23 h, `SendTaskDueReminders::handle()` → une `TaskDueReminderNotification` par `["database","mail","broadcast"]`. Les deux alertes et `NotifyNewMessageJob` ne sont pas exécutés (lus pour les deux premières). Le constat tient pour les chemins mesurés. Classement : V7, la liste des codes de compte qui passent encore (blocage, réactivation, effacement) et le silence des alertes sont un comportement visible neuf, sans spec.
