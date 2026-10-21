@@ -5,7 +5,10 @@ namespace Tests\Feature\Dashboard;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\AgencyKind;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\PropertyVisibility;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
@@ -78,6 +81,35 @@ class DashboardAgencyTest extends ApiTestCase
         $this->assertNull($response->json('data.occupancy.rate_percent'));
         $this->assertArrayHasKey('rate_percent', $response->json('data.occupancy'));
         $this->assertNull(app(KpiResolver::class)->forAgency($agency)['occupancy_rate_percent']);
+    }
+
+    /**
+     * P93.06 (TCK-1115) — « publiés » compte par le prédicat du catalogue (`Property::public()`)
+     * borné à l'agence : un bien vendu, même publié, n'est plus au catalogue.
+     */
+    public function test_published_count_follows_the_public_catalogue(): void
+    {
+        $agency = Agency::factory()->create(['status' => AgencyStatus::Active]);
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $agency->update(['primary_admin_id' => $admin->id]);
+
+        $publie = [
+            'agency_id' => $agency->id,
+            'published_at' => now()->subDay(),
+            'visibility' => PropertyVisibility::Public,
+            'is_test' => false,
+        ];
+        $disponible = Property::factory()->create($publie + ['status' => PropertyStatus::Available]);
+        Property::factory()->create($publie + ['status' => PropertyStatus::Sold]);
+        // Un bien public d'une autre agence ne compte pas.
+        Property::factory()->create(['agency_id' => Agency::factory()->create(['status' => AgencyStatus::Active])->id] + $publie + ['status' => PropertyStatus::Available]);
+
+        $this->assertTrue(Property::query()->public()->whereKey($disponible->id)->exists());
+
+        $response = $this->apiGet('/api/dashboard/agency')->assertOk();
+
+        $this->assertSame(2, $response->json('data.properties.total'));
+        $this->assertSame(1, $response->json('data.properties.published'));
     }
 
     public function test_user_from_different_agency_is_denied(): void
