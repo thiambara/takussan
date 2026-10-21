@@ -434,6 +434,7 @@ return [
         'agency_frozen' => 'Cette agence n\'est pas active : ses reversements sont gelés.',
         'agency_unverified' => 'Une agence non vérifiée ne peut pas être payée.',
         'already_exists' => 'Un reversement existe déjà pour cette période.',
+        'items_changed' => 'Une ligne de ce reversement n\'est plus payée depuis la clôture : annulez-le, puis clôturez à nouveau la période.',
         'status_transition_invalid' => 'Ce changement de statut du reversement plateforme n\'est pas autorisé.',
     ],
     'privacy' => [

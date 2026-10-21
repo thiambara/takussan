@@ -434,6 +434,7 @@ return [
         'agency_frozen' => 'Bii agence du active : reversement yi dañu leen taxawal.',
         'agency_unverified' => 'Agence bu ñu vérifierul mënuñu ko fey.',
         'already_exists' => 'Am na reversement ci période bii ba noppi.',
+        'items_changed' => 'Une ligne de ce reversement n\'est plus payée depuis la clôture : annulez-le, puis clôturez à nouveau la période.',
         'status_transition_invalid' => 'Soppi statut reversement plateforme bii nangouñu ko.',
     ],
     'privacy' => [

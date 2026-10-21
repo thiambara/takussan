@@ -434,6 +434,7 @@ return [
         'agency_frozen' => 'This agency is not active: its payouts are frozen.',
         'agency_unverified' => 'An unverified agency cannot be paid.',
         'already_exists' => 'A payout already exists for this period.',
+        'items_changed' => 'A line of this payout is no longer paid since the period was closed: cancel it, then close the period again.',
         'status_transition_invalid' => 'This platform payout status change is not allowed.',
     ],
     'privacy' => [
