@@ -8761,7 +8761,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### `seed.sh` écrit le marqueur de recherche sans lire l'issue des tâches d'importation, ce que TCK-995 a corrigé dans `release.sh` seulement
 - Réf : P89.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1159
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/seed.sh:18-33`, `takussan-api/docker/release.sh:48-76`, `takussan-api/vendor/laravel/scout/src/Engines/MeilisearchEngine.php:373-378`
 - Constat :
@@ -8772,6 +8772,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Établi comment : lecture des deux scripts, de Scout et du harnais.
 - Piste : faire suivre l'importation de `seed.sh` du même `search:verify-indexes --depuis="$debut"` que `release.sh`, et n'écrire le marqueur que sur son succès. Le plus simple est de déplacer le bloc d'importation dans une fonction de `lib.sh` partagée par les deux scripts. Garde : jouer `seed.sh` dans `test-release-reindex.sh` (tâches en échec → marqueur absent).
 - Mesure (2026-10-21, d3a36896e, mesureur) : relu `seed.sh:17-33` (marqueur écrit par `cp` sans condition, échec de `scout:flush` toléré), `release.sh:57-76` (`search:verify-indexes --depuis` avant le marqueur), `MeilisearchEngine::flush()` (`deleteAllDocuments()` sans attente de tâche) et `SearchVerifyIndexes::indexVide` (ne refuse qu'un index à zéro document face à une table non vide) ; `test-release-reindex.sh:19,47` ne joue que `$RELEASE`. Le constat tient en lecture ; l'index partiel jamais réimporté et les documents orphelins après `migrate:fresh` restent déduits, aucune tâche en échec n'a été provoquée. Classement : V5, le correctif déplace le bloc d'importation dans les scripts du conteneur (`docker/seed.sh`, `docker/lib.sh`), comme les entrées précédentes sur `release.sh`.
+- Mesure (2026-10-21, 464389140, implementeur) : avant correctif, `seed.sh` joué par `scripts/test-release-reindex.sh` avec `SCOUT_DRIVER=meilisearch` n'appelle jamais `search:verify-indexes --depuis`, et écrit le marqueur même quand cette commande échoue : la prémisse tient → le bloc d'importation passe dans `importer_index` de `docker/lib.sh` (voie que la piste recommande), appelée par `release.sh` et `seed.sh`, qui prend son horodatage avant `scout:flush` ; cinq vérifications ajoutées au harnais, l'ablation finale portée sur `lib.sh` ; ablation (`seed.sh` à son état précédent) → 2 rouges, correctif remis → vert, les 19 vérifications de `release.sh` comprises.
 
 ### `tags:sync-catalog` réindexe sans `SCOUT_QUEUE=false`, à l'inverse de `geo:sync-referential` et pour la raison que `release.sh` écarte
 - Réf : P89.04
