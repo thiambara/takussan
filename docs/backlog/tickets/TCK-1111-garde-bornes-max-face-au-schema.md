@@ -1,7 +1,7 @@
 ---
 id: TCK-1111
 title: "Garde : les bornes `max:` des requêtes de l'angle 91 confrontées à la largeur de leur colonne"
-status: todo
+status: done
 phase: P1
 family: technique
 estimate: S
@@ -35,17 +35,17 @@ lieu de rendre un 500 à l'écriture.
 
 ## Delta à produire
 
-- [ ] Test `tests/Feature/Validation/BornesMaxFaceAuSchemaTest.php`, sur le modèle de
+- [x] Test `tests/Feature/Validation/BornesMaxFaceAuSchemaTest.php`, sur le modèle de
       `ReglesNullableFaceAuSchemaTest` : la liste des couples (requête, clé, table, colonne) de
       P91.01 à P91.05.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Pour chaque couple, la colonne est un `varchar` de largeur N (`information_schema`).
-- [ ] AC2 — La règle de la clé porte un `max:K` avec K ≤ N.
-- [ ] AC3 — La règle jouée seule échoue sur la clé pour une valeur de N+1 caractères (adresse
+- [x] AC1 — Pour chaque couple, la colonne est un `varchar` de largeur N (`information_schema`).
+- [x] AC2 — La règle de la clé porte un `max:K` avec K ≤ N.
+- [x] AC3 — La règle jouée seule échoue sur la clé pour une valeur de N+1 caractères (adresse
       valide pour une clé e-mail), et passe pour une valeur de K caractères.
-- [ ] AC4 — Retirer le correctif de TCK-1110 rougit les couples e-mail.
+- [x] AC4 — Retirer le correctif de TCK-1110 rougit les couples e-mail.
 
 ## Hors périmètre
 
@@ -55,4 +55,11 @@ lieu de rendre un 500 à l'écriture.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- 44 couples : les 7 champs de chacune des trois voies d'un garant, et 23 autres.
+- Ablation 1 : le correctif de TCK-1110 retiré → les 9 couples e-mail rougissent, 35 verts.
+- Ablation 2 : `StoreTagRequest.color` remis à `max:20` (l'état d'avant TCK-1107) → 1 rouge,
+  « borné à 20, au-delà de tags.color, varchar(7) ».
+- `VisitRequestPublicPropertyRequest` résout son bien par le slug dans `rules()` : la garde lui
+  donne une route liée au slug d'un bien publié, sinon `firstOrFail()` lève avant toute règle.
+- La valeur à la borne K doit passer : sans ce témoin, une clé e-mail refusée pour son format
+  passerait la vérification de N+1.
