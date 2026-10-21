@@ -8191,7 +8191,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Un bailleur suspendu joint encore des documents à son bail, son bien, sa réservation et son état des lieux
 - Réf : P82.02
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1142
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/DocumentPolicy.php:147-192`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:79`
 - Constat :
@@ -8201,6 +8201,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Établi comment : lecture, et la Gate interrogée dans le test. Le `POST /api/documents` lui-même n'a pas été rejoué (à vérifier).
 - Piste : remplacer les comparaisons d'identité de `attachTo()` par `landlordWrites($user, <colonne>, <agence du porteur>)`, comme le reste de la policy. Test : bailleur `blocked` → 403 sur `POST /api/documents` vers son bail et son bien ; le locataire et le personnel inchangés.
 - Mesure (2026-10-20, 979ae6e95, mesureur) : relu `DocumentPolicy::attachTo` (l. 147-192, comparaisons d'identité sans `landlordWrites`), `DocumentPolicy::view` (l. 37-54 : `return $documentable !== null && $this->attachTo(...)`) et `DocumentController::store` (l. 77-82 : `attachTo`, refus en 404 `document.owner_not_found`, TCK-732) ; test temporaire retiré : bailleur `blocked`, son bail → `can('update')` et `can('share')` `false`, `can('attachTo')` `true` sur le bail et le bien, et `POST /api/documents` vers son bail (PDF de 2 Ko) rend 201 → le constat tient, le POST est désormais rejoué. Inexact : la piste remplace les comparaisons dans `attachTo()`, que `view()` appelle, ce qui retirerait au bailleur suspendu la lecture des documents de son bail ; le refus attendu est 404, pas 403. Classement : V2, le correctif doit séparer le rattachement (écriture) de la lecture, par une ability neuve ou une branche de `store`, et ce découpage de l'autorisation n'est écrit nulle part.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, bailleur bloqué dans A, `POST /api/documents` vers son bail de A → 201 (rouge) → `DocumentPolicy` partage l'accès au porteur en `reaches()` à deux modes : `attachTo()` juge les branches du bailleur (bail, bien, réservation, état des lieux par le bien) par `landlordWrites`, `view()` garde la lecture ; `TeamMemberSuspensionTest::test_un_bailleur_bloque_ne_joint_plus_de_document` vert (404 sur les quatre porteurs de A, aucun document créé, lecture 200, 201 dans B, locataire et admin de A 201), ablation (policy d'avant) → rouge, 146 verts sur les classes des documents et des liens de partage.
 
 ### Les liens de partage d'un document se listent et se révoquent sans la règle `share` : le bailleur suspendu lit les jetons et révoque
 - Réf : P82.03
