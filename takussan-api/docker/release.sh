@@ -16,11 +16,14 @@ php artisan membership:reconcile-system-roles \
 # TCK-633 — les référentiels versionnés (ADR-0062 §3 et §7). La production ne lance AUCUN
 # seeder : sans ces lignes, la liste des quartiers et celle des équipements resteraient vides.
 # Idempotentes ; SCOUT_QUEUE=false pour que la réindexation des biens rattachés se fasse avec le
-# code de CETTE image, pas avec l'ancien worker. Un échec n'arrête pas le déploiement : la
-# version précédente du référentiel reste en place.
+# code de CETTE image, pas avec l'ancien worker. Un échec n'arrête pas le déploiement.
+# TCK-1155 (P89.01) : chaque région se valide avec sa réindexation, le rattachement aussi. Un
+# échec garde les régions déjà validées, et annule le reste, que le déploiement suivant rejoue.
 SCOUT_QUEUE=false php artisan geo:sync-referential \
-  || echo "AVERTISSEMENT : geo:sync-referential a échoué — référentiel géographique inchangé jusqu'au prochain déploiement." >&2
-php artisan tags:sync-catalog \
+  || echo "AVERTISSEMENT : geo:sync-referential a échoué — les régions déjà validées sont chargées et indexées ; le reste du référentiel géographique sera rejoué au prochain déploiement." >&2
+# TCK-1161 (P89.04) — SCOUT_QUEUE=false pour la même raison : approuver une proposition réindexe
+# ses biens (`TagCatalog::assurer()`).
+SCOUT_QUEUE=false php artisan tags:sync-catalog \
   || echo "AVERTISSEMENT : tags:sync-catalog a échoué — catalogue des équipements inchangé jusqu'au prochain déploiement." >&2
 
 # TCK-768 (P14.03) — sans règle, une alerte `ops_*` ne part nulle part. Crée celles qui manquent,
@@ -57,22 +60,9 @@ if [ "${SCOUT_DRIVER:-}" = "meilisearch" ]; then
     fi
   fi
   if [ "$importer" = 1 ]; then
-    debut=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-    reussi=1
-    for modele in $(modeles_indexes); do
-      echo "Importation de $modele (synchrone, avec le code de CETTE image)…"
-      # SCOUT_QUEUE=false : sinon l'import ne ferait que POUSSER des jobs, exécutés ensuite par
-      # l'ANCIEN worker, avec l'ancien toSearchableArray() (revue de la PR 253). La configuration
-      # n'est pas en cache ici : la variable de processus l'emporte.
-      SCOUT_QUEUE=false php artisan scout:import "$modele" \
-        || { echo "AVERTISSEMENT : scout:import $modele a échoué." >&2; reussi=0; }
-    done
-    # TCK-995 (P52.02) : `scout:import` rend la main quand les documents sont MIS EN FILE. Un
-    # document refusé ne se voit que dans sa tâche : on attend la file, et on la lit.
-    php artisan search:verify-indexes --depuis="$debut" \
-      || { echo "AVERTISSEMENT : des tâches d'indexation ont échoué — le déploiement suivant réimportera." >&2; reussi=0; }
-    # Le marqueur ne s'écrit qu'après TOUTES les importations, et leurs tâches : un échec rejoue
-    # tout au déploiement suivant, au lieu de se croire à jour.
-    if [ "$reussi" = 1 ]; then echo "$forme" > "$marqueur"; fi
+    # Importer, relire les tâches, et n'écrire le marqueur qu'après TOUT : un échec rejoue tout au
+    # déploiement suivant, au lieu de se croire à jour. Le bloc vit dans lib.sh, partagé avec
+    # seed.sh (TCK-1159, P89.03). Un échec n'arrête pas le déploiement.
+    importer_index "$(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
   fi
 fi

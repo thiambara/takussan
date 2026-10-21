@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\Geo\GeoReferentialSync;
 use Illuminate\Console\Command;
+use JsonException;
 use RuntimeException;
 
 /**
@@ -23,7 +24,8 @@ class GeoSyncReferential extends Command
 
         try {
             $bilan = $sync->executer($repertoire);
-        } catch (RuntimeException $e) {
+        } catch (RuntimeException|JsonException $e) {
+            // TCK-1163 (P89.05) — un fichier de région illisible : le message, pas une trace.
             $this->error($e->getMessage());
 
             return self::FAILURE;

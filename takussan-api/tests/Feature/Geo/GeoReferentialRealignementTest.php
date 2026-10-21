@@ -3,11 +3,20 @@
 namespace Tests\Feature\Geo;
 
 use App\Models\Address;
+use App\Models\Agency;
+use App\Models\Customer;
+use App\Models\Enums\CustomerPipelineStage;
 use App\Models\GeoCity;
 use App\Models\GeoNeighborhood;
 use App\Models\Property;
+use App\Services\Crm\ProspectMatcher;
+use App\Services\Search\PropertySearchService;
+use App\Support\SavedSearchCriteria;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use Laravel\Scout\EngineManager;
+use Meilisearch\Client;
 use Tests\Concerns\InteractsWithMeilisearch;
 use Tests\TestCase;
 
@@ -177,6 +186,104 @@ class GeoReferentialRealignementTest extends TestCase
         $this->assertSame([], $this->biensOu('city', 'Guédiawaye'));
     }
 
+    /**
+     * TCK-1165 (P99.03) — une région que le jeu renomme réécrit le texte `region` des adresses de
+     * ses villes, et réindexe : sans cela, l'adresse gardait l'ancien nom, une adresse neuve
+     * recevait le nouveau (règle 5 du canoniseur), et `region=<nouveau nom>` ne trouvait pas le bien.
+     */
+    public function test_une_region_renommee_par_le_jeu_reecrit_l_adresse_et_reindexe(): void
+    {
+        $this->charger(self::V1);
+        $bien = $this->bienA('Dakar', 'Point E');
+        $this->assertSame('Dakar', $bien->address()->firstOrFail()->region);
+        $this->indexProperties();
+
+        $renomme = $this->jeu(function (array $d) {
+            $d['region']['name'] = 'Dakar Région';
+
+            return $d;
+        });
+        $this->charger($renomme);
+        $this->charger($renomme);
+
+        $adresse = $bien->address()->firstOrFail();
+        $this->assertSame('Dakar Région', $adresse->region);
+        $this->assertSame('Dakar', $adresse->city);
+        $this->assertNotNull($adresse->geo_neighborhood_id);
+        $this->assertSame([$bien->id], $this->biensOu('region', 'Dakar Région'));
+        $this->assertSame([], $this->biensOu('region', 'Dakar'));
+    }
+
+    /**
+     * TCK-1169 (P99.01) — comme un quartier (TCK-1080, TCK-1128), une ville que le jeu renomme
+     * garde son ancien nom : une alerte `city` / `cities` et un prospect qui le portent la
+     * désignent encore. Avant, les quatre rendaient 0, sans erreur.
+     */
+    public function test_une_ville_renommee_par_le_jeu_repond_encore_a_son_ancien_nom(): void
+    {
+        $this->charger(self::V1);
+        $agence = Agency::factory()->create();
+        $bien = $this->bienA('Guédiawaye', 'Golf Sud');
+        $bien->update(['agency_id' => $agence->id]);
+        $prospect = Customer::factory()->create([
+            'agency_id' => $agence->id,
+            'pipeline_stage' => CustomerPipelineStage::Prospect,
+            'seeking_cities' => ['Guédiawaye'],
+        ]);
+        $this->indexProperties();
+
+        $renomme = $this->jeu(function (array $d) {
+            $d['cities'][1]['name'] = 'Guédiawaye Ville';
+
+            return $d;
+        });
+        $this->charger($renomme);
+        $this->charger($renomme);
+
+        $recherche = app(PropertySearchService::class);
+        foreach ([['city' => 'Guédiawaye'], ['cities' => ['Guédiawaye']], ['city' => 'Guédiawaye Ville']] as $criteres) {
+            $this->assertSame(
+                [$bien->id],
+                $recherche->alertMatches(SavedSearchCriteria::toSearchParams($criteres), null, now())['properties']->pluck('id')->all(),
+                json_encode($criteres, JSON_UNESCAPED_UNICODE),
+            );
+        }
+        $matcher = app(ProspectMatcher::class);
+        $this->assertSame([$bien->id], $matcher->propertiesFor($prospect->fresh())->pluck('properties.id')->all());
+        $this->assertSame([$prospect->id], $matcher->customersFor($bien->fresh())->pluck('customers.id')->all());
+        $this->assertSame(['Guédiawaye'], GeoCity::query()->where('slug', 'guediawaye')->firstOrFail()->former_names);
+    }
+
+    /**
+     * TCK-1171 (P99.04) — un jeu où une ville connue disparaît sous son slug, et où une ville neuve
+     * en reprend les quartiers, est un changement de slug en amont, pas une ville de plus : le
+     * chargeur refuse la région, en nommant les deux slugs. Avant, il créait une seconde ville
+     * (« Golf Sud » deux fois), et l'ancienne gardait les adresses.
+     */
+    public function test_une_ville_dont_le_jeu_change_le_slug_est_refusee(): void
+    {
+        $this->charger(self::V1);
+        $bien = $this->bienA('Guédiawaye', 'Golf Sud');
+        $ville = $bien->address()->firstOrFail()->geo_city_id;
+        $villes = GeoCity::query()->count();
+        $quartiers = GeoNeighborhood::query()->count();
+
+        $change = $this->jeu(function (array $d) {
+            $d['cities'][1]['name'] = 'Ndiarème Limamoulaye';
+            $d['cities'][1]['slug'] = 'ndiareme-limamoulaye';
+
+            return $d;
+        });
+        $this->artisan('geo:sync-referential', ['--dir' => $change])
+            ->expectsOutputToContain('ndiareme-limamoulaye')
+            ->assertFailed();
+
+        $this->assertSame($villes, GeoCity::query()->count());
+        $this->assertSame($quartiers, GeoNeighborhood::query()->count());
+        $this->assertSame($ville, $bien->address()->firstOrFail()->geo_city_id);
+        $this->assertSame('Guédiawaye', GeoCity::query()->whereKey($ville)->value('name'));
+    }
+
     public function test_un_quartier_ajoute_par_le_jeu_rattache_l_adresse_de_sa_ville(): void
     {
         $this->charger(self::V1);
@@ -194,6 +301,65 @@ class GeoReferentialRealignementTest extends TestCase
         $this->assertSame($liberte5, $relue->geo_neighborhood_id);
         $this->assertSame('Liberté 5', $relue->neighborhood);
         $this->assertSame([$bien->id], $this->biensOu('geo_neighborhood_id', $liberte5));
+    }
+
+    /**
+     * TCK-1155 (P89.01) — une réindexation qui échoue ne laisse pas les renommages écrits sans
+     * leur index : le passage suivant, moteur rétabli, réindexe. Avant, le premier passage
+     * validait le nouveau nom en base, le second ne voyait plus rien à renommer, et l'index
+     * gardait l'ancien nom pour toujours.
+     */
+    public function test_une_reindexation_en_echec_est_rejouee_au_passage_suivant(): void
+    {
+        $this->charger(self::V1);
+        $bien = $this->bienA('Dakar', 'Point E');
+        $this->indexProperties();
+
+        $renomme = $this->jeu(function (array $d) {
+            $d['cities'][0]['neighborhoods'][2]['name'] = 'Point E Amitié';
+
+            return $d;
+        });
+        $this->assertFalse($this->chargerMoteurEnPanne($renomme));
+        $this->charger($renomme);
+
+        $this->assertSame('Point E Amitié', $bien->address()->firstOrFail()->neighborhood);
+        $this->assertSame([$bien->id], $this->biensOu('neighborhood', 'Point E Amitié'));
+        $this->assertSame([], $this->biensOu('neighborhood', 'Point E'));
+    }
+
+    /** TCK-1155 (P89.01) — de même pour le rattachement d'une adresse à un quartier ajouté. */
+    public function test_un_rattachement_dont_la_reindexation_echoue_est_rejoue(): void
+    {
+        $this->charger(self::V1);
+        $bien = $this->bienA('Dakar', 'liberté 5');
+        $this->indexProperties();
+
+        $this->assertFalse($this->chargerMoteurEnPanne(__DIR__.'/../../fixtures/geo/v2'));
+        $this->charger(__DIR__.'/../../fixtures/geo/v2');
+
+        $liberte5 = $this->quartier('liberte-5')->id;
+        $this->assertSame($liberte5, $bien->address()->firstOrFail()->geo_neighborhood_id);
+        $this->assertSame([$bien->id], $this->biensOu('geo_neighborhood_id', $liberte5));
+    }
+
+    /**
+     * Joue la commande avec un client Meilisearch qui vise un hôte injoignable, puis rétablit le
+     * vrai. Rend vrai si la commande a réussi.
+     */
+    private function chargerMoteurEnPanne(string $repertoire): bool
+    {
+        $vrai = app(Client::class);
+        app()->instance(Client::class, new Client('http://127.0.0.1:1', 'cle'));
+        app(EngineManager::class)->forgetDrivers();
+        try {
+            return Artisan::call('geo:sync-referential', ['--dir' => $repertoire]) === 0;
+        } catch (\Throwable) {
+            return false;
+        } finally {
+            app()->instance(Client::class, $vrai);
+            app(EngineManager::class)->forgetDrivers();
+        }
     }
 
     public function test_un_quartier_inconnu_ne_cree_aucune_proposition(): void

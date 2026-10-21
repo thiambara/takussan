@@ -28,11 +28,17 @@ use RuntimeException;
  *
  * TCK-787 (P17.03, ADR-0062 §4) — un NOM que le jeu change réécrit le texte des adresses qui
  * pointent vers la ligne, comme la modération : sans cela, la fiche et l'index gardaient l'ancien
- * nom. Les biens touchés se lisent par {@see self::biensRenommes()} ; `GeoReferentialSync` les
- * réindexe après les transactions.
+ * nom. Les biens touchés se lisent par {@see self::biensRenommes()}.
+ *
+ * TCK-1155 (P89.01) — ils se réindexent DANS la transaction de leur région, avant qu'elle soit
+ * validée. Réindexés après toutes les régions, un échec du moteur laissait le nouveau nom écrit en
+ * base sans l'index : le passage suivant ne voyait plus rien à renommer, et l'index gardait
+ * l'ancien nom pour toujours. Désormais, l'échec annule la région, que le passage suivant rejoue.
  */
 final class GeoReferentialLoader
 {
+    public function __construct(private readonly GeoReindexation $reindexation) {}
+
     /** @var list<int> */
     private array $biensRenommes = [];
 
@@ -57,7 +63,9 @@ final class GeoReferentialLoader
             /** @var array{region: array<string, mixed>, cities: list<array<string, mixed>>} $donnees */
             $donnees = json_decode((string) file_get_contents($fichier), true, flags: JSON_THROW_ON_ERROR);
             DB::transaction(function () use ($donnees, &$bilan) {
+                $deja = count($this->biensRenommes);
                 $this->chargerRegion($donnees, $bilan);
+                $this->reindexation->biens(array_slice($this->biensRenommes, $deja));
             });
         }
 
@@ -71,17 +79,57 @@ final class GeoReferentialLoader
     private function chargerRegion(array $donnees, array &$bilan): void
     {
         $r = $donnees['region'];
-        $region = GeoRegion::query()->updateOrCreate(
-            ['code' => $r['code']],
-            ['slug' => $r['slug'], 'name' => $r['name'], 'latitude' => $r['latitude'] ?? null, 'longitude' => $r['longitude'] ?? null],
-        );
+        $region = GeoRegion::query()->firstOrNew(['code' => $r['code']]);
+        $region->fill(['slug' => $r['slug'], 'name' => $r['name'], 'latitude' => $r['latitude'] ?? null, 'longitude' => $r['longitude'] ?? null]);
+        $renommee = $region->exists && $region->isDirty('name');
+        $region->save();
+        if ($renommee) {
+            $this->reecrireRegion($region);
+        }
         $bilan['regions']++;
+        $this->refuserUnSlugDeVilleChange($region, $donnees['cities']);
 
         foreach ($donnees['cities'] as $v) {
             $ville = $this->ville($region, $v);
             $bilan['villes']++;
             foreach ($v['neighborhoods'] as $q) {
                 $this->quartier($ville, $q, $bilan);
+            }
+        }
+    }
+
+    /**
+     * TCK-1171 (P99.04) — l'extraction calcule le slug d'une ville depuis son nom OSM : un nom
+     * changé en amont change le slug. Le chargeur, qui retrouve une ville par son slug puis par son
+     * nom, en créait alors une seconde, et l'ancienne gardait les adresses. Une ville connue absente
+     * du jeu (ni par son slug, ni par son nom) dont une ville neuve reprend des quartiers fait donc
+     * refuser la région, dans sa transaction : la correction passe par `corrections.json`
+     * (`villes`), qui fige le slug.
+     *
+     * @param  list<array<string, mixed>>  $villes
+     */
+    private function refuserUnSlugDeVilleChange(GeoRegion $region, array $villes): void
+    {
+        $connues = GeoCity::query()->where('geo_region_id', $region->getKey())->with('neighborhoods:id,geo_city_id,slug')->get();
+        $estConnue = static fn (array $v): bool => $connues->contains(
+            static fn (GeoCity $c) => $c->slug === $v['slug'] || CaseInsensitive::fold($c->name) === CaseInsensitive::fold($v['name']),
+        );
+
+        foreach ($connues as $ancienne) {
+            $presente = array_filter($villes, static fn (array $v) => $v['slug'] === $ancienne->slug
+                || CaseInsensitive::fold($v['name']) === CaseInsensitive::fold($ancienne->name));
+            if ($presente !== []) {
+                continue;
+            }
+            $siens = $ancienne->neighborhoods->pluck('slug')->all();
+            foreach ($villes as $v) {
+                $communs = array_values(array_intersect($siens, array_column($v['neighborhoods'], 'slug')));
+                if ($communs !== [] && ! $estConnue($v)) {
+                    throw new RuntimeException(sprintf(
+                        'La ville « %s » (%s) a disparu du jeu, et la ville neuve « %s » (%s) reprend ses quartiers (%s) : un slug changé en amont ? Le figer dans corrections.json (villes).',
+                        $ancienne->name, $ancienne->slug, $v['name'], $v['slug'], implode(', ', $communs),
+                    ));
+                }
             }
         }
     }
@@ -97,6 +145,11 @@ final class GeoReferentialLoader
 
         $ville->fill(['name' => $v['name'], 'latitude' => $v['latitude'] ?? null, 'longitude' => $v['longitude'] ?? null]);
         $renommee = $ville->exists && $ville->isDirty('name');
+        // TCK-1169 (P99.01) — comme un quartier (TCK-1128) : l'ancien nom reste un nom de la ville,
+        // et une alerte ou un prospect qui le portent la désignent encore (`VilleDuFiltre`).
+        if ($renommee) {
+            $ville->former_names = array_values(array_unique([...($ville->former_names ?? []), (string) $ville->getOriginal('name')]));
+        }
         if (! $ville->exists || $ville->isDirty()) {
             $ville->save();
         }
@@ -197,5 +250,21 @@ final class GeoReferentialLoader
             $this->biensRenommes[] = (int) $id;
         }
         $adresses->update(['city' => $ville->name, 'updated_at' => now()]);
+    }
+
+    /**
+     * TCK-1165 (P99.03) — le texte `region` des adresses rattachées aux villes de la région, au
+     * nom que la règle 5 de `GeoAddressCanonicalizer` donne à une adresse neuve. Par une mise à
+     * jour SQL, pour la même raison que {@see self::reecrireVille()}.
+     */
+    private function reecrireRegion(GeoRegion $region): void
+    {
+        $adresses = Address::query()
+            ->whereIn('geo_city_id', GeoCity::query()->where('geo_region_id', $region->getKey())->select('id'))
+            ->where('region', '<>', $region->name);
+        foreach ((clone $adresses)->where('addressable_type', Property::class)->pluck('addressable_id') as $id) {
+            $this->biensRenommes[] = (int) $id;
+        }
+        $adresses->update(['region' => $region->name, 'updated_at' => now()]);
     }
 }
