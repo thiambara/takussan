@@ -7,11 +7,13 @@ use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Enums\Capability;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\MaintenanceRequest;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -430,6 +432,36 @@ class TeamMemberSuspensionTest extends ApiTestCase
         $this->actingAsApi($this->adminA);
         $this->getJson("/api/documents/{$documentA->id}/share-links")->assertOk()->assertJsonCount(1, 'data');
         $this->deleteJson("/api/documents/{$documentA->id}/share/{$lienA->id}")->assertNoContent();
+    }
+
+    /**
+     * TCK-1146 (P82.01, ADR-0031 §2) — le bailleur bloqué dans A n'est plus donneur d'ordre des
+     * interventions sur son bien de A : ni modification, ni devis, ni assignation, ni changement de
+     * statut. Il les lit toujours (`view`, `viewQuote`), et reste donneur d'ordre dans B.
+     */
+    public function test_un_bailleur_bloque_ne_commande_plus_les_interventions_de_son_bien(): void
+    {
+        [$bailleur, $bienA, $bienB] = $this->bailleurBloqueDansA();
+        $bailleur = $bailleur->fresh();
+        $demandeA = MaintenanceRequest::factory()->create(['property_id' => $bienA->id]);
+        $enAttenteA = MaintenanceRequest::factory()->create(['property_id' => $bienA->id, 'status' => MaintenanceStatus::AwaitingOwner]);
+        $demandeB = MaintenanceRequest::factory()->create(['property_id' => $bienB->id]);
+        $enAttenteB = MaintenanceRequest::factory()->create(['property_id' => $bienB->id, 'status' => MaintenanceStatus::AwaitingOwner]);
+
+        foreach (['update', 'manageQuotes', 'actAsPrincipal', 'decideQuote'] as $geste) {
+            $this->assertFalse($bailleur->can($geste, $demandeA), $geste);
+            $this->assertTrue($bailleur->can($geste, $demandeB), $geste);
+        }
+        $this->assertFalse($bailleur->can('decideQuote', $enAttenteA));
+        $this->assertTrue($bailleur->can('decideQuote', $enAttenteB));
+        $this->assertFalse($bailleur->can('transitionTo', [$demandeA, MaintenanceStatus::Cancelled]));
+        $this->assertTrue($bailleur->can('transitionTo', [$demandeB, MaintenanceStatus::Cancelled]));
+        $this->assertTrue($bailleur->can('view', $demandeA));
+        $this->assertTrue($bailleur->can('viewQuote', $demandeA));
+
+        $this->putJson("/api/maintenance-requests/{$demandeA->id}/status", ['status' => 'cancelled'])->assertForbidden();
+        $this->assertSame(MaintenanceStatus::Open, $demandeA->fresh()->status);
+        $this->getJson("/api/maintenance-requests/{$demandeA->id}")->assertOk();
     }
 
     /** N2 — la suppression : il la perdait par la seule règle du téléverseur. */
