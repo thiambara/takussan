@@ -10,6 +10,7 @@ use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
 use App\Services\Crm\CustomerPhoneNormalizer;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Sorts\CollatedNameSort;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,9 +18,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Http\Request;
 use Laravel\Scout\Searchable;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\AllowedSort;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class Customer extends AbstractModel
 {
@@ -105,13 +109,35 @@ class Customer extends AbstractModel
 
     protected static array $requestFilterable = ['user_id', 'agency_id', 'added_by_id', 'status', 'pipeline_stage'];
 
-    protected static array $requestSortable = ['id', 'created_at', 'updated_at', 'first_name', 'last_name', 'status'];
+    /** `first_name` et `last_name` se trient à part, en `COLLATE "und-x-icu"` (TCK-1136). */
+    protected static array $requestSortable = ['id', 'created_at', 'updated_at', 'status'];
 
     protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'documents', 'tasks'];
 
     protected static array $requestCountable = ['bookings', 'leases', 'notes', 'tasks'];
 
     protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'phone'];
+
+    /**
+     * TCK-1136 (P87.01) — les tris déclarés, plus prénom et nom en `COLLATE "und-x-icu"` (ADR-0025,
+     * amendement du 2026-10-19) : sous `--locale=C`, « diop » et « Écrivain » passaient après « Zola ».
+     *
+     * @param  Builder<static>|null  $baseQuery
+     */
+    public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
+    {
+        return QueryBuilder::for($baseQuery ?? static::class, $request)
+            ->allowedFilters(...static::getAllowedQueryFilters())
+            ->allowedFields(...static::getAllAllowedQueryFields())
+            ->allowedSorts(
+                ...static::$requestSortable,
+                ...[
+                    AllowedSort::custom('first_name', new CollatedNameSort, 'customers.first_name'),
+                    AllowedSort::custom('last_name', new CollatedNameSort, 'customers.last_name'),
+                ],
+            )
+            ->allowedIncludes(...static::getAllowedQueryIncludes());
+    }
 
     /** TCK-953 — sans `id_number` : `fields[customers]=…,id_number` rend 400 (ADR-0070 § 4). */
     protected static array $queryFields = [
