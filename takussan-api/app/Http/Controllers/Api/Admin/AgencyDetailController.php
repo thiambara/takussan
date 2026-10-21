@@ -161,13 +161,15 @@ class AgencyDetailController extends Controller
 
     public function team(Request $request, Agency $agency): JsonResponse
     {
-        $base = User::query()
-            ->whereHas('agentProfiles', fn ($q) => $q->where('agency_id', $agency->id))
-            ->orWhereHas('ownerProfiles', fn ($q) => $q->where('agency_id', $agency->id))
-            ->orderBy('first_name')
-            ->orderBy('last_name');
+        // TCK-1137 (P87.04) — les deux branches groupées, comme `AgencyController::listMembers` :
+        // sans groupe, un `filter[status]` ne s'appliquait qu'aux propriétaires. Le tri par défaut
+        // passe par `defaultSorts()`, pour qu'un `sort=` demandé l'emporte, et en ICU (TCK-1136).
+        $base = User::query()->where(fn ($q) => $q
+            ->whereHas('agentProfiles', fn ($p) => $p->where('agency_id', $agency->id))
+            ->orWhereHas('ownerProfiles', fn ($p) => $p->where('agency_id', $agency->id)));
 
         $users = User::buildQuery($base, $request)
+            ->defaultSorts(...[...User::nameSorts(), 'id'])
             ->with(['agencyAdminProfiles', 'agentProfiles', 'ownerProfiles', 'serviceProviderProfile', 'platformProfile'])
             ->paginate(min(max((int) $request->query('per_page', 15), 1), 100));
 
