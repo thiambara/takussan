@@ -87,19 +87,12 @@ export function useContactLeads(filtre: FiltreDesDemandes, page = 1) {
  * `GET /api/contact-leads/{id}` sous la même policy `view` que la liste. `null` : aucune lecture.
  */
 export function useContactLead(id: number | null) {
-  const params: SpatieQueryParams = {
-    fields: {
-      property_contact_leads: CONTACT_LEAD_FIELDS,
-      properties: ['id', 'title', 'slug'],
-      users: ['id', 'first_name', 'last_name'],
-    },
-    include: ['property', 'recipient'],
-  };
-
+  // Ni `fields` ni `include` : un `show` rend la ressource entière, `property` et `recipient`
+  // compris (`ContactLeadController::show`) — garde P60.03.
   return useApiQuery<ApiResponse<ContactLead>>(
     contactLeadsQueryKeys.detail(id ?? 0),
     cheminApi`/api/contact-leads/${id ?? 0}`,
-    { params, enabled: id !== null },
+    { enabled: id !== null },
   );
 }
 
