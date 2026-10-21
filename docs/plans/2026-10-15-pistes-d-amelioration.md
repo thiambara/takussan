@@ -8263,7 +8263,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### L'effacement d'un compte laisse la ville et les intentions déclarées dans `users.preferences`
 - Réf : P83.02
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1141 — reste : la garde qui énumère les colonnes de `users` et exige, pour chacune, qu'elle soit effacée ou figure dans une liste « conservée, et pourquoi », liste à arrêter par le porteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:282-309`, `takussan-api/app/Http/Controllers/Api/Me/MeController.php:50-66`
 - Constat :
@@ -8274,6 +8274,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Établi comment : lu, et mesuré.
 - Piste : vider `preferences` dans `anonymize()`, avec un test qui sème les trois clés et assert `null` après effacement. Garde possible : un test qui énumère les colonnes de `users` et exige, pour chacune, qu'elle soit effacée ou qu'elle figure dans une liste « conservée, et pourquoi ».
 - Mesure (2026-10-20, e5f73559b, mesureur) : relu `AccountDeletionService::anonymize()` (le `forceFill`, aujourd'hui l. 282-309) : `metadata` à `null`, ni `preferences`, ni `timezone`, ni `preferred_language` ; `docs/models-spec.md:411` décrit `preferences` comme ville et intention choisies par l'utilisateur ; test temporaire retiré (charge 5,00 sur 8 cœurs) : compte aux `preferences` `{city: Ziguinchor, search_intent: buy, entry_intent: search}`, `anonymize($u, false)` → `first_name` vide, `metadata` nul, `preferences` intact, `timezone` `Africa/Dakar`, `preferred_language` `fr` → le constat tient. Classement : V3, le correctif change ce que l'effacement conserve, et la liste « effacé ou conservé » de la garde proposée est à arrêter par le porteur.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, compte aux `preferences` `{city: Ziguinchor, search_intent: buy, entry_intent: search}` puis `anonymize($u, false)` → `preferences` intact (rouge) → `'preferences' => null` dans le `forceFill` d'`anonymize()` ; `AccountDeletionExecuteTest::test_l_effacement_vide_les_preferences_declarees` : `preferences` nul en base ; ablation (ligne retirée) → 1 rouge, remise → 17/17. `timezone` et `preferred_language` restent.
 
 ### Trois colonnes `metadata` sans écrivain applicatif : `customers`, `leases`, `properties`
 - Réf : P83.03
