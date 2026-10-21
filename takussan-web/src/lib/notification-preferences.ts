@@ -14,7 +14,7 @@ export type NotificationPreferenceCell = {
   channel: NotificationChannel;
   enabled: boolean;
   locked: boolean;
-  /** Present when `locked` is true — e.g. `inapp_always_on`, `phone_not_verified`. */
+  /** Present when `locked` is true — e.g. `inapp_always_on`, `phone_not_verified`, `phone_without_whatsapp`. */
   reason?: string;
 };
 

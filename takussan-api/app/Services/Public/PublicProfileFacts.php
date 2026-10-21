@@ -2,6 +2,7 @@
 
 namespace App\Services\Public;
 
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Profiles\AgencyAdminProfile;
@@ -281,7 +282,7 @@ final class PublicProfileFacts
      * ────────────────────────────────────────────────────────────────────────────────────────────
      *
      * `agent` pour un professionnel de l'immobilier en exercice — `AgentProfile` ou
-     * `AgencyAdminProfile` **actif** —, `owner` pour tout le reste. Le repli est `owner` et non `agent` parce que
+     * `AgencyAdminProfile` **actif**, ce dernier dans une agence `standard` seulement (TCK-1077) —, `owner` pour tout le reste. Le repli est `owner` et non `agent` parce que
      * chaque personne listée ici publie un bien dont elle est le bailleur (TCK-142) : c'est la
      * seule qualité que la surface puisse affirmer sans rien savoir d'autre. Un profil d'agent
      * suspendu ou inactif ne fait pas d'une personne un « agent immobilier » aux yeux du public.
@@ -301,7 +302,12 @@ final class PublicProfileFacts
             ->active()
             ->whereIn('user_id', $userIds)
             ->pluck('user_id')
-            ->merge(AgencyAdminProfile::query()->active()->whereIn('user_id', $userIds)->pluck('user_id'))
+            // TCK-1077 — l'admin d'un espace `individual` est l'hôte solo que « Publier » a créé
+            // (`features.md` § 1.12), pas un professionnel en exercice : seul l'admin d'une agence
+            // `standard` compte. Un `AgentProfile` n'existe pas dans un espace.
+            ->merge(AgencyAdminProfile::query()->active()->whereIn('user_id', $userIds)
+                ->whereHas('agency', fn (Builder $q) => $q->where('kind', AgencyKind::Standard->value))
+                ->pluck('user_id'))
             ->map(fn ($id) => (int) $id)
             ->flip();
 

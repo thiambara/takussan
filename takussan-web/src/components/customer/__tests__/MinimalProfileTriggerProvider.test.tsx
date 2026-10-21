@@ -4,6 +4,9 @@ import type { ReactNode } from 'react';
 import { NextIntlClientProvider } from 'next-intl';
 
 import { MinimalProfileTriggerProvider } from '../MinimalProfileTriggerProvider';
+// TCK-1089 — la feuille passe par `next/dynamic` : son module est importé ici pour que sa première
+// ouverture ne paie pas la transformation à froid sous vitest (piège de TCK-1041).
+import '../CustomerMinimalProfileSheet';
 import { useTriggerMinimalProfileOnce } from '@/hooks/useTriggerMinimalProfileOnce';
 import * as AuthContext from '@/context/AuthContext';
 import frMessages from '@/messages/fr.json';

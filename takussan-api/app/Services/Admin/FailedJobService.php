@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
@@ -72,7 +73,8 @@ class FailedJobService
             'queue' => $job->queue,
             'payload' => $truncate ? $this->truncate((string) $job->payload) : $job->payload,
             'exception' => $truncate ? $this->truncate((string) $job->exception) : $job->exception,
-            'failed_at' => $job->failed_at,
+            // TCK-1116 (P94.01) — `timestamp(0)` sans fuseau sur le fil : un instant ADR-0018.
+            'failed_at' => $job->failed_at === null ? null : Carbon::parse($job->failed_at)->utc()->format(DATE_ATOM),
         ];
     }
 

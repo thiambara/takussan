@@ -69,9 +69,9 @@ export function useAgencyStandardWelcomeOnce(): UseAgencyStandardWelcomeOnceResu
 
     void (async () => {
       try {
-        // Sparse fields per CLAUDE.md API conventions — we only need to
-        // know the kind + the welcome marker.
-        const agencyUrl = `/api/agencies/${agencyId}?fields[agencies]=id,kind,metadata`;
+        // P60.03 — pas de `fields[agencies]` : un `show` rend la ressource de détail entière.
+        // Seuls `kind` et le marqueur d'accueil sont lus.
+        const agencyUrl = `/api/agencies/${agencyId}`;
         const [agencyRes, seenRes] = await Promise.all([
           fetch(agencyUrl, {
             method: 'GET',

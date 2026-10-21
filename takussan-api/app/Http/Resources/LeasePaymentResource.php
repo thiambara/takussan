@@ -31,6 +31,8 @@ class LeasePaymentResource extends BaseResource
             'status' => $this->status?->value,
             'paid_amount' => (float) $this->paid_amount,
             'remaining_amount' => (float) $this->remaining_amount,
+            // TCK-1135 (P76.06) — le montant rendu, tel qu'en base, sous la forme de `BookingPaymentResource`.
+            'refund_amount' => $this->refund_amount !== null ? (float) $this->refund_amount : null,
             'late_fee_amount' => $this->late_fee_amount !== null ? (float) $this->late_fee_amount : null,
             'late_fee_applied_at' => $this->iso($this->late_fee_applied_at),
             // TCK-593 — ce que doit le locataire, calculé UNE fois (`PaymentGatewayService::amountDue`) :

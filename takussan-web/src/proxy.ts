@@ -89,7 +89,10 @@ function router(request: NextRequest): NextResponse {
 
   if (isAppPath && !token) {
     const loginUrl = new URL('/auth/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
+    // P97.02 (TCK-1121) — la chaîne de requête fait partie de la destination : le lien d'un
+    // courriel (`/app/messages?conversation=42`) ouvert hors session la perdait. Le retour reste
+    // filtré par `destinationInterne`, qui la garde déjà.
+    loginUrl.searchParams.set('redirect', `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(loginUrl);
   }
 

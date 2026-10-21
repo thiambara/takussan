@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Inbox, Mail, MessageCircle, Phone } from 'lucide-react';
 import {
@@ -9,6 +10,7 @@ import {
   type FiltreDesDemandes,
   useAssignLead,
   useContactLeads,
+  useContactLead,
   useConvertLead,
   useHandleLead,
 } from '@/lib/queries/contact-leads';
@@ -37,6 +39,13 @@ import type { User } from '@/types/user';
 
 const FILTRES: readonly FiltreDesDemandes[] = ['todo', 'handled', 'all'];
 
+/** `?lead={id}` (cible `lead`, TCK-590) : un entier positif, sinon rien n'est lu. */
+function demandeDesignee(brut: string | null | undefined): number | null {
+  if (!brut || !/^\d+$/.test(brut)) return null;
+  const id = Number(brut);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
 /**
  * TCK-590 — la boîte « Demandes ».
  *
@@ -50,6 +59,12 @@ export function ContactLeadsInbox() {
   const [filtre, setFiltre] = useState<FiltreDesDemandes>('todo');
   const [page, setPage] = useState(1);
   const query = useContactLeads(filtre, page);
+  // P97.04 (TCK-1120) — la cible `lead` promet « la boîte ouverte sur la demande » : la demande
+  // désignée est rendue en tête, quel que soit l'onglet ou la page. Une lecture refusée ou
+  // introuvable n'affiche rien de plus que la boîte.
+  const searchParams = useSearchParams();
+  const designee = useContactLead(demandeDesignee(searchParams?.get('lead')));
+  const enTete = designee.isError ? null : (designee.data?.data ?? null);
 
   return (
     <div className="space-y-4">
@@ -72,6 +87,12 @@ export function ContactLeadsInbox() {
         </TabsList>
       </Tabs>
 
+      {enTete ? (
+        <ul className="space-y-3">
+          <DemandeDeContact key={enTete.id} lead={enTete} designee />
+        </ul>
+      ) : null}
+
       {query.isLoading ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
@@ -80,7 +101,7 @@ export function ContactLeadsInbox() {
         </div>
       ) : query.isError || !query.data ? (
         <ErrorState message={t('error')} />
-      ) : query.data.data.length === 0 ? (
+      ) : query.data.data.length === 0 && !enTete ? (
         <EmptyState
           icon={<Inbox className="size-8" aria-hidden="true" />}
           title={t(`empty.${filtre}`)}
@@ -89,9 +110,11 @@ export function ContactLeadsInbox() {
       ) : (
         <>
           <ul className="space-y-3">
-            {query.data.data.map((lead) => (
-              <DemandeDeContact key={lead.id} lead={lead} />
-            ))}
+            {query.data.data
+              .filter((lead) => lead.id !== enTete?.id)
+              .map((lead) => (
+                <DemandeDeContact key={lead.id} lead={lead} />
+              ))}
           </ul>
           {query.data.meta.last_page > 1 && (
             <Pagination page={page} lastPage={query.data.meta.last_page} onChange={setPage} />
@@ -106,7 +129,7 @@ function nomComplet(u: { first_name?: string | null; last_name?: string | null }
   return [u?.first_name, u?.last_name].filter(Boolean).join(' ').trim();
 }
 
-function DemandeDeContact({ lead }: { lead: ContactLead }) {
+function DemandeDeContact({ lead, designee = false }: { readonly lead: ContactLead; readonly designee?: boolean }) {
   const t = useTranslations('contactLeads');
   const locale = useLocale() as Locale;
   const toast = useToast();
@@ -145,7 +168,10 @@ function DemandeDeContact({ lead }: { lead: ContactLead }) {
   }
 
   return (
-    <li className="space-y-3 rounded-xl border border-border bg-card p-4">
+    <li
+      aria-current={designee ? 'true' : undefined}
+      className={cn('space-y-3 rounded-xl border border-border bg-card p-4', designee && 'border-primary ring-2 ring-primary/30')}
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 space-y-0.5">
           <p className="font-semibold text-foreground">{nom}</p>

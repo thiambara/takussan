@@ -15,6 +15,7 @@ import { ChoixDeQuartier, ChoixDeVille, ChoixDEquipements } from '@/components/s
 import { AttenteDePuce } from '@/components/search/AttenteDePuce';
 import { conditionValues, titleTypeValues } from '@/lib/enums/property';
 import { filtersToParams } from '@/hooks/useSearch';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -592,7 +593,15 @@ export function FilterSidebar({
     .map((nom) => nom.trim())
     .filter((nom) => nom !== '');
 
-  const rendreCorps = (rappel?: React.ReactNode, lieu: 'rail' | 'tiroir' = 'rail') => (
+  // TCK-1088 (P69.06) — le référentiel (villes, régions, équipements) ne se demande que quand le
+  // panneau est VISIBLE : le tiroir n'est monté qu'ouvert ; le rail, lui, reste monté sous `lg`
+  // (`hidden lg:block`) et demandait les trois listes à l'hydratation, panneau fermé (`geo/cities`
+  // pèse 55 Kio). Même seuil que sa classe. Faux au rendu serveur, comme avant : rien n'y partait.
+  const railVisible = useMatchesMedia('(min-width: 1024px)');
+
+  const rendreCorps = (rappel?: React.ReactNode, lieu: 'rail' | 'tiroir' = 'rail') => {
+    const charger = lieu === 'tiroir' || railVisible;
+    return (
     <>
       {rappel}
 
@@ -666,6 +675,7 @@ export function FilterSidebar({
         <Section title={t(`sections.location`)}>
           <div className="space-y-2">
             <ChoixDeVille
+              charger={charger}
               valeur={filters.city}
               region={filters.region}
               onChange={(city, region) =>
@@ -677,6 +687,7 @@ export function FilterSidebar({
               }
             />
             <ChoixDeQuartier
+              charger={charger}
               ville={filters.city}
               region={filters.region}
               valeur={filters.location}
@@ -891,6 +902,7 @@ export function FilterSidebar({
               (décision 4 du porteur) : le bien offre TOUS les équipements choisis. */}
           <Section title={t(`sections.amenities`)}>
             <ChoixDEquipements
+              charger={charger}
               valeurs={equipementsChoisis}
               onChange={(noms) => set({ tags: noms.length > 0 ? noms.join(',') : undefined })}
             />
@@ -906,7 +918,8 @@ export function FilterSidebar({
 
       </div>
     </>
-  );
+    );
+  };
 
   return (
     <>

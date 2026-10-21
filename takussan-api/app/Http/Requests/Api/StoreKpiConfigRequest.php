@@ -41,12 +41,26 @@ class StoreKpiConfigRequest extends BaseFormRequest
     {
         return [
             'agency_id' => ['sometimes', 'integer', 'exists:agencies,id'],
-            'metric' => ['required', Rule::in(KpiConfig::allowedMetrics())],
+            // TCK-1102 (P92.03) — un indicateur au plus une fois par agence (`unique(agency_id,
+            // metric)`, models-spec § 64), jugé sur l'agence que `store` résoudra.
+            'metric' => [
+                'required',
+                Rule::in(KpiConfig::allowedMetrics()),
+                Rule::unique('kpi_configs', 'metric')->where('agency_id', $this->agenceVisee()),
+            ],
             'label' => ['required', 'string', 'max:120'],
             'format' => ['sometimes', Rule::in(['number', 'percent', 'currency'])],
             'sort_order' => ['sometimes', 'integer', 'min:0', 'max:999'],
             'is_enabled' => ['sometimes', 'boolean'],
             'settings' => ['sometimes', 'array'],
         ];
+    }
+
+    /** L'agence que `KpiConfigController::store` résout : celle désignée, sinon celle de l'appelant. */
+    private function agenceVisee(): ?int
+    {
+        $agencyId = $this->input('agency_id') ?? $this->user()?->agency_id;
+
+        return is_numeric($agencyId) ? (int) $agencyId : null;
     }
 }

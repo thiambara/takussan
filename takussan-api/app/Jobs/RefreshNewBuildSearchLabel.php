@@ -47,6 +47,8 @@ class RefreshNewBuildSearchLabel implements ShouldQueue
     {
         // `searchable()` sur un Builder réindexe par lots et filtre lui-même
         // par `shouldBeSearchable()` : un brouillon n'entre pas dans l'index.
-        static::scope()->searchable();
+        // TCK-1101 (P90.06) — ce que ce filtre et `toSearchableArray()` lisent, chargé d'avance
+        // comme dans `Property::makeAllSearchableUsing()` : sinon trois requêtes par bien.
+        static::scope()->with('address', 'tagsVisibles', 'agency')->searchable();
     }
 }

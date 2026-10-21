@@ -36,11 +36,6 @@ class AgencyProvisioningService
         return DB::transaction(function () use ($payload, $actor, $adminEmail): array {
             $agencyPayload = $payload['agency'];
             $adminPayload = $payload['admin'];
-            $metadata = [];
-            if (! empty($agencyPayload['type'])) {
-                $metadata['onboarding_type'] = $agencyPayload['type'];
-            }
-
             // TCK-270 — currency is now picked in step 1 of the wizard.
             // Default to Currency::default() (XOF) when omitted so legacy
             // callers keep working unchanged.
@@ -57,7 +52,6 @@ class AgencyProvisioningService
                 'status' => AgencyStatus::Active,
                 'is_verified' => false,
                 'verified_at' => null,
-                'metadata' => $metadata !== [] ? $metadata : null,
             ]);
 
             if (! empty($agencyPayload['address'])) {
@@ -129,7 +123,9 @@ class AgencyProvisioningService
         $slug = $base;
         $suffix = 2;
 
-        while (Agency::query()->where('slug', $slug)->exists()) {
+        // TCK-1133 (P92.08) — `agencies.slug` est unique sur toutes les lignes : une agence
+        // supprimée garde son slug, il faut donc la compter.
+        while (Agency::withTrashed()->where('slug', $slug)->exists()) {
             $slug = "{$base}-{$suffix}";
             $suffix++;
         }

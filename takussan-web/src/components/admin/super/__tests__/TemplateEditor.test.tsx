@@ -27,14 +27,14 @@ const detail: NotificationTemplateDetail = {
   },
 };
 
-function renderEditor() {
+function renderEditor(channels: NotificationTemplateDetail['channel'][] = ['email', 'sms']) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
   render(withIntl(
     <QueryClientProvider client={queryClient}>
-      <TemplateEditor detail={detail} onChannelSelect={vi.fn()} />
+      <TemplateEditor detail={detail} channels={channels} onChannelSelect={vi.fn()} />
     </QueryClientProvider>,
   ));
 }
@@ -62,5 +62,15 @@ describe('<TemplateEditor>', () => {
 
     await user.click(screen.getByRole('button', { name: /prévisualiser/i }));
     expect(await screen.findByText('Bonjour Awa')).toBeInTheDocument();
+  });
+
+  // TCK-1124 (P98.03) — les onglets de canal sont ceux que l'API sert pour l'événement : plus de
+  // constante `email`/`sms`/`push`, dont `push` qu'aucun envoi ne lit.
+  it('ne montre que les canaux servis pour l’événement', () => {
+    renderEditor(['email']);
+
+    expect(screen.getByRole('button', { name: 'EMAIL' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'SMS' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'PUSH' })).not.toBeInTheDocument();
   });
 });

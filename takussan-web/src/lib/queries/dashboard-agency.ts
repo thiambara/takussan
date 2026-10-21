@@ -32,7 +32,8 @@ export type DashboardAgencySummary = {
     overdue_amount: number;
     unpaid_rate_percent: number;
   };
-  occupancy: { rate_percent: number };
+  /** `null` sans bien éligible longue durée : pas de dénominateur (TCK-1114). */
+  occupancy: { rate_percent: number | null };
 };
 
 export type DashboardAgencyTimeseries = {

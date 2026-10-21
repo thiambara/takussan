@@ -30,6 +30,7 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use Laravel\Scout\ModelObserver;
 use Laravel\Scout\Searchable;
 use Spatie\Image\Enums\Fit;
 use Spatie\MediaLibrary\HasMedia;
@@ -513,6 +514,23 @@ class Property extends AbstractModel implements HasMedia
                 PropertyStatus::Rejected,
             ], true)
             && $this->agencyIsPublic();
+    }
+
+    /**
+     * TCK-1099 (P90.01) — réindexe le bien s'il doit l'être, l'en retire sinon. `searchable()` sur
+     * un modèle ne juge pas {@see shouldBeSearchable()} : appelé seul, il faisait entrer dans
+     * l'index un brouillon, un bien privé ou un bien d'agence non active.
+     *
+     * TCK-1101 (P90.06) — elle suit la synchronisation des modèles, comme `GeoReindexation` et
+     * `BoostLifecycle::writeProperty` : coupée (suite hors recherche, seed sous moteur coupé), elle
+     * ne fait rien.
+     */
+    public function reindexer(): void
+    {
+        if (ModelObserver::syncingDisabledFor(self::class)) {
+            return;
+        }
+        $this->shouldBeSearchable() ? $this->searchable() : $this->unsearchable();
     }
 
     /**

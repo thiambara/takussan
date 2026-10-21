@@ -65,7 +65,6 @@
       "noResult": "Amul ajaas bu ci mengoo",
       "loadMore": "Wone yeneen",
       "shown": "{shown} ci {total}",
-      "openAria": "Ubbi limu ajaas yi",
       "clearAria": "Faagaru ajaas bi ñu tànn",
       "error": "Mënuñu yeb limu ajaas yi.",
       "retry": "Jéemaat",
@@ -7864,7 +7863,6 @@
         "name": "Turu ajaans bi",
         "currency": "Xaalis",
         "slug": "Slug",
-        "type": "Xeet",
         "contactEmail": "Emailu jokkoo",
         "phone": "Telefon",
         "address": "Adres",
@@ -8784,7 +8782,8 @@
       "reasons": {
         "inappAlwaysOn": "Mu ngi dox saa su nekk ngir nga bañ a réer dara.",
         "phoneNotVerified": "Telefon bi ñu ko wóoralul.",
-        "channelUnavailable": "Benn bataaxal bu mel noonu du jaar ci yoon wii."
+        "channelUnavailable": "Benn bataaxal bu mel noonu du jaar ci yoon wii.",
+        "phoneWithoutWhatsapp": "Votre numéro est déclaré sans WhatsApp."
       }
     },
     "payoutMethods": {

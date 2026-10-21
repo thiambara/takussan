@@ -120,7 +120,9 @@ describe('relais BFF : chemin serveur, langue et IP du visiteur', () => {
     expect(urlAmont).toMatch(amont);
     expect(envoyes.get('accept-language')).toBe('en');
     expect(envoyes.get('x-forwarded-for')).toBe(VISITEUR);
-    expect(envoyes.get('x-forwarded-host')).toBe('localhost');
+    expect(envoyes.get('x-forwarded-proto')).toBeTruthy();
+    // TCK-1058 (P73.01) — l'hôte des URL vient d'`APP_URL`, côté API : l'en-tête ne part plus.
+    expect(envoyes.get('x-forwarded-host')).toBeNull();
     expect(envoyes.get('authorization')).toBe('Bearer 1|abc');
   });
 
@@ -130,7 +132,9 @@ describe('relais BFF : chemin serveur, langue et IP du visiteur', () => {
     expect(reponse.status).toBe(200);
     const [urlAmont, envoyes] = seulAppel();
     expect(urlAmont).toBe(`${INTERNE}/api/maintenance/status`);
-    expect(envoyes.get('x-forwarded-host')).toBe('localhost');
+    expect(envoyes.get('x-forwarded-proto')).toBeTruthy();
+    // TCK-1058 (P73.01) — l'hôte des URL vient d'`APP_URL`, côté API : l'en-tête ne part plus.
+    expect(envoyes.get('x-forwarded-host')).toBeNull();
     expect(envoyes.get('x-forwarded-for')).toBeNull();
     expect(envoyes.get('accept-language')).toBeNull();
   });

@@ -65,7 +65,6 @@
       "noResult": "Aucune agence ne correspond",
       "loadMore": "Afficher plus",
       "shown": "{shown} sur {total}",
-      "openAria": "Ouvrir la liste des agences",
       "clearAria": "Effacer l'agence sélectionnée",
       "error": "La liste des agences n'a pas pu être chargée.",
       "retry": "Réessayer",
@@ -8512,7 +8511,6 @@
         "name": "Nom de l’agence",
         "currency": "Devise",
         "slug": "Slug",
-        "type": "Type",
         "contactEmail": "Email contact",
         "phone": "Téléphone",
         "address": "Adresse",
@@ -9432,7 +9430,8 @@
       "reasons": {
         "inappAlwaysOn": "Toujours actif pour ne rien manquer.",
         "phoneNotVerified": "Téléphone non vérifié.",
-        "channelUnavailable": "Aucun message de ce type ne part sur ce canal."
+        "channelUnavailable": "Aucun message de ce type ne part sur ce canal.",
+        "phoneWithoutWhatsapp": "Votre numéro est déclaré sans WhatsApp."
       }
     },
     "payoutMethods": {

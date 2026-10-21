@@ -179,6 +179,25 @@ class AnnouncementTest extends TestCase
     /**
      * @param  array<string,mixed>  $attributes
      */
+    /**
+     * TCK-1126 (P98.02) — le bandeau ne rend que la première annonce : la critique, qu'on ne
+     * peut pas fermer, doit sortir en tête. `orderByDesc('severity')` triait la chaîne, et
+     * `critical` sortait la dernière (`warning, success, info, critical`).
+     */
+    public function test_les_annonces_actives_sortent_de_la_plus_grave_a_la_moins_grave(): void
+    {
+        $this->actingAsRole('customer');
+        $info = $this->announcement(['severity' => AnnouncementSeverity::Info, 'starts_at' => now()->subDays(3)]);
+        $succes = $this->announcement(['severity' => AnnouncementSeverity::Success, 'starts_at' => now()->subDays(2)]);
+        $critique = $this->announcement(['severity' => AnnouncementSeverity::Critical, 'starts_at' => now()->subHour()]);
+        $alerte = $this->announcement(['severity' => AnnouncementSeverity::Warning, 'starts_at' => now()->subDay()]);
+
+        $this->assertSame(
+            [$critique->id, $alerte->id, $succes->id, $info->id],
+            array_column($this->getJson('/api/announcements/active')->assertOk()->json('data'), 'id'),
+        );
+    }
+
     private function announcement(array $attributes = []): Announcement
     {
         return Announcement::query()->create(array_merge($this->payload(), $attributes));

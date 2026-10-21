@@ -3,6 +3,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/format';
 import type { DashboardAgencySummary } from '@/lib/queries/dashboard-agency';
+import { formatOccupancyRate } from '../occupancy';
 import { AgencyKpiTile } from './AgencyKpiTile';
 
 type Props = {
@@ -47,7 +48,7 @@ export function AgencyKpis({ summary }: Props) {
       />
       <AgencyKpiTile
         label={t('occupancyRate')}
-        value={formatPercent(summary.occupancy.rate_percent / 100, locale)}
+        value={formatOccupancyRate(summary.occupancy.rate_percent, locale)}
         hint={t('rentedHint', { count: summary.properties.rented })}
       />
       <AgencyKpiTile

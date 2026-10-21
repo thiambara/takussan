@@ -27,16 +27,6 @@ const LIST_FIELDS: string[] = [
   'agency_id',
 ];
 
-const DETAIL_FIELDS: string[] = [
-  ...LIST_FIELDS,
-  'confirmed_at',
-  'cancelled_at',
-  'expires_at',
-  'expired_at',
-  'cancellation_reason',
-  'notes',
-];
-
 export type UseBookingsParams = {
   status?: string;
   page?: number;
@@ -71,11 +61,6 @@ export function useBookings(params: UseBookingsParams = {}) {
 
 export function useBooking(id: number | null | undefined) {
   const spatieParams: SpatieQueryParams = {
-    fields: {
-      bookings: DETAIL_FIELDS,
-      properties: ['id', 'title', 'slug', 'price', 'currency', 'contract_type'],
-      customers: ['id', 'user_id'],
-    },
     include: ['property', 'booking_payments', 'customer'],
   };
 

@@ -19,6 +19,7 @@ use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Excel as ExcelType;
 use Maatwebsite\Excel\Facades\Excel;
+use RuntimeException;
 
 class ExportActivityLogJob implements ShouldQueue
 {
@@ -46,7 +47,12 @@ class ExportActivityLogJob implements ShouldQueue
         $file = Str::uuid()->toString().'.'.$format;
 
         $content = $this->generateContent($format, $payload);
-        Storage::put(ActivityLogExportController::storagePath($this->user->id, $file), $content);
+        // TCK-1084 (P77.03) — le disque `local` rend `false` au lieu de lever : un lien envoyé
+        // sur un fichier jamais écrit rendait 404, et le job ne laissait aucune trace d'échec.
+        $path = ActivityLogExportController::storagePath($this->user->id, $file);
+        if (Storage::put($path, $content) !== true) {
+            throw new RuntimeException("L'export du journal d'activité n'a pas pu écrire {$path}.");
+        }
 
         // La signature couvre le demandeur, le fichier et le nom : le téléchargement ne sert que le
         // dossier du demandeur signé (`ActivityLogExportController::download`).

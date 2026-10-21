@@ -88,19 +88,28 @@ describe('TCK-382 / TCK-442 — fiche de bail', () => {
 
 describe('TCK-382 / AC5 — le titre de la fiche de bail passe par le dictionnaire', () => {
   it('rend la référence quand l’API la donne', async () => {
-    apiRequestMock.mockResolvedValue({ data: { reference_number: 'BAI-2026-014' } });
+    apiRequestMock.mockResolvedValue({ data: [{ id: 7, reference_number: 'BAI-2026-014' }] });
     expect(await titre('7')).toEqual({ title: 'Bail BAI-2026-014' });
   });
 
   it('… et la rend EN ANGLAIS pour un lecteur anglophone', async () => {
     // L'assertion qui fait toute la différence : l'ancien code rendait « Bail … » ici aussi.
     LOCALE = 'en';
-    apiRequestMock.mockResolvedValue({ data: { reference_number: 'BAI-2026-014' } });
+    apiRequestMock.mockResolvedValue({ data: [{ id: 7, reference_number: 'BAI-2026-014' }] });
     expect(await titre('7')).toEqual({ title: 'Lease BAI-2026-014' });
   });
 
+  it('TCK-1067 (P60.03) — lit la LISTE filtrée par id, jamais le `show` du bail', async () => {
+    apiRequestMock.mockResolvedValue({ data: [{ id: 7, reference_number: 'BAI-2026-014' }] });
+    await titre('7');
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      '/api/leases?filter[id]=7&fields[leases]=id,reference_number&per_page=1',
+      expect.anything(),
+    );
+  });
+
   it('replie sur le numéro quand l’API ne rend pas de référence, dans la langue active', async () => {
-    apiRequestMock.mockResolvedValue({ data: {} });
+    apiRequestMock.mockResolvedValue({ data: [] });
     expect(await titre('7')).toEqual({ title: 'Bail #7' });
     LOCALE = 'en';
     expect(await titre('7')).toEqual({ title: 'Lease #7' });

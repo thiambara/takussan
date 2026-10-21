@@ -39,6 +39,11 @@ export interface ChoixDeVilleProps {
   readonly region?: string | undefined;
   /** `region` n'est rendue que pour une ville homonyme ; `undefined` partout ailleurs. */
   readonly onChange: (ville: string | undefined, region?: string) => void;
+  /**
+   * TCK-1088 (P69.06) — faux tant que le panneau n'est pas visible : la liste n'est pas demandée.
+   * Vrai par défaut.
+   */
+  readonly charger?: boolean;
 }
 
 export interface ChoixDeQuartierProps {
@@ -48,11 +53,21 @@ export interface ChoixDeQuartierProps {
   readonly region?: string | undefined;
   readonly valeur: string | undefined;
   readonly onChange: (valeur: string | undefined) => void;
+  /**
+   * TCK-1088 (P69.06) — faux tant que le panneau n'est pas visible : la liste n'est pas demandée.
+   * Vrai par défaut.
+   */
+  readonly charger?: boolean;
 }
 
 export interface ChoixDEquipementsProps {
   readonly valeurs: readonly string[];
   readonly onChange: (valeurs: string[]) => void;
+  /**
+   * TCK-1088 (P69.06) — faux tant que le panneau n'est pas visible : la liste n'est pas demandée.
+   * Vrai par défaut.
+   */
+  readonly charger?: boolean;
 }
 
 /** Un nom du référentiel en option de liste : la valeur EST le nom, que la recherche compare. */
@@ -201,10 +216,10 @@ function ChampDeListe({
   );
 }
 
-export function ChoixDeVille({ valeur, region, onChange }: ChoixDeVilleProps) {
+export function ChoixDeVille({ valeur, region, onChange, charger = true }: ChoixDeVilleProps) {
   const t = useTranslations('search.filters');
-  const villes = useVillesDuReferentiel();
-  const regions = useRegionsDuReferentiel();
+  const villes = useVillesDuReferentiel(charger);
+  const regions = useRegionsDuReferentiel(charger);
 
   return (
     <ChampDeListe
@@ -224,10 +239,10 @@ export function ChoixDeVille({ valeur, region, onChange }: ChoixDeVilleProps) {
   );
 }
 
-export function ChoixDeQuartier({ ville, region, valeur, onChange }: ChoixDeQuartierProps) {
+export function ChoixDeQuartier({ ville, region, valeur, onChange, charger = true }: ChoixDeQuartierProps) {
   const t = useTranslations('search.filters');
-  const villes = useVillesDuReferentiel();
-  const regions = useRegionsDuReferentiel();
+  const villes = useVillesDuReferentiel(charger);
+  const regions = useRegionsDuReferentiel(charger);
   const villeId = villeDuReferentiel(villes.data?.data ?? [], regions.data?.data ?? [], ville, region);
   const quartiers = useQuartiersDuReferentiel(villeId);
   const noms = (quartiers.data?.data ?? []).map((quartier) => quartier.name);
@@ -256,11 +271,11 @@ export function ChoixDeQuartier({ ville, region, valeur, onChange }: ChoixDeQuar
  * traduit pour un équipement du catalogue, tel quel pour un équipement d'annonceur
  * (`libelleEquipementParNom`). La primitive filtre sur le libellé : « pool » trouve « Swimming pool ».
  */
-export function ChoixDEquipements({ valeurs, onChange }: ChoixDEquipementsProps) {
+export function ChoixDEquipements({ valeurs, onChange, charger = true }: ChoixDEquipementsProps) {
   const t = useTranslations('search.filters');
   const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
   const locale = useLocale();
-  const equipements = useEquipementsApprouves();
+  const equipements = useEquipementsApprouves(charger);
   const catalogue = equipements.data?.data ?? [];
   const noms = catalogue.map((equipement) => equipement.name);
   const optionDe = (nom: string): OptionDeListe => ({

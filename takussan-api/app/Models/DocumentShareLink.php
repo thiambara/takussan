@@ -17,8 +17,9 @@ class DocumentShareLink extends AbstractModel
     ];
 
     // TCK-602 (ADR-0051 §7) — l'empreinte ne sort jamais ; le jeton, chiffré en base, se relit par
-    // qui gère le document (le format de l'API le choisit explicitement).
-    protected $hidden = ['password_hash', 'token_hash'];
+    // qui gère le document (le format de l'API le choisit explicitement). TCK-1132 (P84.02) : il est
+    // donc caché à `toArray()`, et ne se lit qu'attribut par attribut.
+    protected $hidden = ['password_hash', 'token_hash', 'token'];
 
     protected $casts = [
         'token' => 'encrypted',

@@ -48,6 +48,9 @@ class ThresholdAlertTriggered extends Notification
     {
         $direction = in_array($this->alert->operator, ['>', '>='], true) ? 'above' : 'below';
         $locale = app()->getLocale();
+        // P97.01 (TCK-1122) — le tableau de bord est une page du FRONT. `url()` prenait, depuis
+        // la commande planifiée hors requête, `APP_URL` : l'hôte de l'API, qui n'en sert aucune.
+        $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
 
         return (new MailMessage)
             ->subject(__('notifications.threshold_alert_mail.subject', ['metric' => $this->alert->metric]))
@@ -58,7 +61,7 @@ class ThresholdAlertTriggered extends Notification
                 'threshold' => Number::format((float) $this->alert->threshold, precision: 2, locale: $locale),
                 'severity' => $this->alert->severity,
             ]))
-            ->action(__('notifications.threshold_alert_mail.action'), url('/app/overview'))
+            ->action(__('notifications.threshold_alert_mail.action'), $frontend.'/app/overview')
             ->line(trans_choice('notifications.threshold_alert_mail.cooldown', (int) $this->alert->cooldown_hours, [
                 'hours' => (int) $this->alert->cooldown_hours,
             ]));

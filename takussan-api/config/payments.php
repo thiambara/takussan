@@ -11,6 +11,15 @@ return [
     'checkout_reuse_minutes' => 30,
 
     /*
+     * P65.02 (TCK-1075) — l'échéance, en secondes, de la réservation que pose une initiation avant
+     * d'appeler le fournisseur hors transaction. Pendant ce temps, une seconde initiation du même
+     * payable reçoit `payment.checkout_in_progress`. Plus longue que la borne d'une requête
+     * (`max_execution_time = 60`) : une requête tuée pendant l'appel ne bloque le payable que
+     * jusqu'à cette échéance.
+     */
+    'initiation_reservation_seconds' => 120,
+
+    /*
      * TCK-602 (ADR-0051 §1) — le lien porteur d'une échéance (`/pay/{jeton}`).
      *  - `ttl_days_after_due` : avant paiement, le lien vit jusqu'à la plus tardive de (aujourd'hui,
      *    échéance) + ce nombre de jours — le temps qu'une relance d'impayé a un sens ;

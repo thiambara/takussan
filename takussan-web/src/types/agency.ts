@@ -14,9 +14,10 @@ export type AgencyKind = 'standard' | 'individual';
 
 /**
  * TCK-269 — JSON metadata bag carried verbatim by `AgencyResource.metadata`.
- * `legal_info.*` is backfilled by the agency-upgrade flow when a
- * super-admin approves the request; `welcome.standard_unlocked_at` is
- * stamped at the same moment so the agency-admin welcome modale fires once.
+ * `legal_info.*` is no longer written by the agency-upgrade flow (TCK-960):
+ * the flip writes the legal columns of `agencies`, and `legal_info` only keeps
+ * values curated by hand before that migration. `welcome.standard_unlocked_at`
+ * is stamped by the flip so the agency-admin welcome modale fires once.
  *
  * TCK-601 (A2) — `legal_info.rib_pro` n'existe plus : le flip ne le recopie plus, la migration
  * l'a retiré des données et `AgencyResource` ne le rend jamais. La seule source du RIB pro est la

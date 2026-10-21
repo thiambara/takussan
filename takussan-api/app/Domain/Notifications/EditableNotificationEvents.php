@@ -4,7 +4,28 @@ namespace App\Domain\Notifications;
 
 class EditableNotificationEvents
 {
-    public const CHANNELS = ['email', 'sms', 'push'];
+    /**
+     * TCK-1124 (P98.03) — les canaux qu'un envoi lit pour cet événement, dérivés des codes dont
+     * {@see NotificationCode::templateEvent()} le rend : `email` pour chacun, `sms` si l'un d'eux
+     * est mobile. Jamais `push` : `NotificationRenderer` ne lit pas de gabarit pour la
+     * notification de l'application, tant que le broadcast part dans le journal (D-65).
+     *
+     * @return list<string>
+     */
+    public static function channels(string $event): array
+    {
+        $codes = array_filter(
+            NotificationCode::cases(),
+            fn (NotificationCode $code) => $code->templateEvent() === $event,
+        );
+        if ($codes === []) {
+            return [];
+        }
+
+        $mobile = array_filter($codes, fn (NotificationCode $code) => $code->mobile()) !== [];
+
+        return $mobile ? ['email', 'sms'] : ['email'];
+    }
 
     public static function all(): array
     {

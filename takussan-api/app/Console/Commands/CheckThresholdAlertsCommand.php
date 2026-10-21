@@ -45,6 +45,12 @@ class CheckThresholdAlertsCommand extends Command
             $metrics = $resolver->forAgency($agency);
 
             foreach ($agencyAlerts as $alert) {
+                // Une métrique sans dénominateur rend `null` (TCK-1114) : elle n'est ni sous
+                // ni au-dessus d'un seuil, l'alerte ne se juge pas.
+                if (array_key_exists($alert->metric, $metrics) && $metrics[$alert->metric] === null) {
+                    continue;
+                }
+
                 $value = (float) ($metrics[$alert->metric] ?? 0.0);
 
                 if (! $alert->shouldTrigger($value)) {
@@ -52,7 +58,7 @@ class CheckThresholdAlertsCommand extends Command
                 }
 
                 $recipients = User::query()
-                    ->whereHas('agencyAdminProfiles', fn ($qq) => $qq->where('agency_id', $agency->id))
+                    ->whereHas('agencyAdminProfiles', fn ($qq) => $qq->active()->where('agency_id', $agency->id))
                     ->get();
 
                 if ($recipients->isNotEmpty()) {

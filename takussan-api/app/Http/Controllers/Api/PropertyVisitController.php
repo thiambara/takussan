@@ -116,7 +116,9 @@ class PropertyVisitController extends Controller
     {
         $data = $request->validated();
 
-        $property = Property::findOrFail($data['property_id']);
+        // TCK-1072 (P62.06) — un bien absent reçoit le refus d'un bien fermé aux visites.
+        $property = $request->property();
+        abort_code_if($property === null, 403, 'visit.property_unavailable');
         $user = $request->user();
 
         if ($request->managesProperty()) {

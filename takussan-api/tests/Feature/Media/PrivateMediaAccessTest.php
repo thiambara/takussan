@@ -269,7 +269,8 @@ class PrivateMediaAccessTest extends ApiTestCase
         $this->assertIsString($url);
         $this->assertStringStartsWith(url("/api/media/{$media->id}/file?"), $url);
         $this->assertStringContainsString('signature=', $url);
-        $this->assertTrue(URL::hasValidSignature(request()->create($url)), "URL non signée : {$url}");
+        // TCK-1059 (P73.02) — signée en relatif, comme la route la vérifie (`signed:relative`).
+        $this->assertTrue(URL::hasValidSignature(request()->create($url), absolute: false), "URL non signée : {$url}");
     }
 
     private function document(?User $user = null): Document

@@ -60,6 +60,9 @@ export function ContactSheet({
     ? `mailto:${email}${subject ? `?subject=${encodeURIComponent(subject)}` : ''}`
     : null;
   const telHref = phone ? `tel:${phone.replace(/\s+/g, '')}` : null;
+  // TCK-1078 — sans aucune action, le déclencheur mobile ouvrirait un volet vide : il ne se rend
+  // pas, comme les boutons du grand écran (fiche d'un espace sans courriel ni téléphone).
+  const aUneAction = Boolean(agentSlug || mailHref || telHref);
 
   return (
     <>
@@ -93,70 +96,72 @@ export function ContactSheet({
       </div>
 
       {/* Mobile : 1 CTA primaire pleine largeur → bottom sheet */}
-      <div className="md:hidden">
-        <Sheet>
-          <SheetTrigger
-            render={
-              <Button size="lg" className="h-12 w-full">
-                <MessageSquareText aria-hidden />
-                {t('contact')}
-              </Button>
-            }
-          />
-          <SheetContent side="bottom" className="rounded-t-3xl pb-8">
-            <SheetHeader>
-              <SheetTitle className="font-display text-2xl">{name}</SheetTitle>
-              <SheetDescription>
-                {t('sheetDescription')}
-              </SheetDescription>
-            </SheetHeader>
-            <div className="mt-6 flex flex-col gap-3 px-4">
-              {agentSlug ? (
-                <Button
-                  size="lg"
-                  className="w-full min-h-14 justify-start gap-3 text-base"
-                  onClick={() => setLeadOpen(true)}
-                >
-                  <Mail aria-hidden className="size-5" />
-                  <span className="flex flex-col items-start leading-tight">
-                    <span>{t('email')}</span>
-                  </span>
+      {aUneAction && (
+        <div className="md:hidden">
+          <Sheet>
+            <SheetTrigger
+              render={
+                <Button size="lg" className="h-12 w-full">
+                  <MessageSquareText aria-hidden />
+                  {t('contact')}
                 </Button>
-              ) : (
-                mailHref && (
+              }
+            />
+            <SheetContent side="bottom" className="rounded-t-3xl pb-8">
+              <SheetHeader>
+                <SheetTitle className="font-display text-2xl">{name}</SheetTitle>
+                <SheetDescription>
+                  {t('sheetDescription')}
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-6 flex flex-col gap-3 px-4">
+                {agentSlug ? (
                   <Button
                     size="lg"
-                    nativeButton={false}
                     className="w-full min-h-14 justify-start gap-3 text-base"
-                    render={<a href={mailHref} />}
+                    onClick={() => setLeadOpen(true)}
                   >
                     <Mail aria-hidden className="size-5" />
                     <span className="flex flex-col items-start leading-tight">
                       <span>{t('email')}</span>
-                      <span className="text-xs font-normal opacity-80">{email}</span>
                     </span>
                   </Button>
-                )
-              )}
-              {telHref && (
-                <Button
-                  size="lg"
-                  variant="outline"
-                  nativeButton={false}
-                  className="w-full min-h-14 justify-start gap-3 text-base"
-                  render={<a href={telHref} />}
-                >
-                  <Phone aria-hidden className="size-5" />
-                  <span className="flex flex-col items-start leading-tight">
-                    <span>{t('call')}</span>
-                    <span className="text-xs font-normal opacity-80">{phone}</span>
-                  </span>
-                </Button>
-              )}
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
+                ) : (
+                  mailHref && (
+                    <Button
+                      size="lg"
+                      nativeButton={false}
+                      className="w-full min-h-14 justify-start gap-3 text-base"
+                      render={<a href={mailHref} />}
+                    >
+                      <Mail aria-hidden className="size-5" />
+                      <span className="flex flex-col items-start leading-tight">
+                        <span>{t('email')}</span>
+                        <span className="text-xs font-normal opacity-80">{email}</span>
+                      </span>
+                    </Button>
+                  )
+                )}
+                {telHref && (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    nativeButton={false}
+                    className="w-full min-h-14 justify-start gap-3 text-base"
+                    render={<a href={telHref} />}
+                  >
+                    <Phone aria-hidden className="size-5" />
+                    <span className="flex flex-col items-start leading-tight">
+                      <span>{t('call')}</span>
+                      <span className="text-xs font-normal opacity-80">{phone}</span>
+                    </span>
+                  </Button>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      )}
 
       {agentSlug && (
         <AnonymousLeadDialog

@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Enums\RoleDelegationStatus;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Permissions\RoleDelegationService;
 use Illuminate\Support\Carbon;
@@ -35,8 +36,14 @@ class AgentAbsenceService
         if ($absent->id === $substitute->id) {
             throw ValidationException::withMessages(['substitute_id' => __('team_handover.absences.same_person')]);
         }
-        foreach (['user_id' => $absent, 'substitute_id' => $substitute] as $field => $member) {
-            if (! $this->isStaffAt($member, (int) $agency->id)) {
+        // TCK-1097 — le remplaçant reçoit les tâches de l'absent : il est aussi joignable
+        // (`PersonnelDeLAgence::estPersonnel()`). L'absent n'est jugé que personnel.
+        $staff = [
+            'user_id' => $this->isStaffAt($absent, (int) $agency->id),
+            'substitute_id' => PersonnelDeLAgence::estPersonnel($substitute, (int) $agency->id),
+        ];
+        foreach ($staff as $field => $ok) {
+            if (! $ok) {
                 throw ValidationException::withMessages([$field => __('team_handover.absences.not_staff')]);
             }
         }

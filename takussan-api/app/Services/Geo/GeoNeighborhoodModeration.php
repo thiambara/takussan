@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\DB;
  *
  * Les adresses se réécrivent par `save()` : c'est le crochet d'`Address` qui aligne leur texte.
  * La réindexation suit la transaction — jamais dedans, où un rollback laisserait l'index en avance.
+ * Le journal la précède (TCK-1098, P90.03) : un moteur injoignable la fait lever, et le geste,
+ * déjà validé, doit rester tracé.
  */
 final class GeoNeighborhoodModeration
 {
@@ -66,12 +68,15 @@ final class GeoNeighborhoodModeration
                 ->whereRaw(CaseInsensitive::sql('name').' = ?', [CaseInsensitive::fold($nom)])
                 ->exists();
             abort_code_if($pris, 409, 'geo.name_taken');
-            $ligne->forceFill(['name' => $nom, 'renamed_at' => now()])->save();
+            // TCK-1080 (P67.02) — l'ancien nom reste un nom du quartier : une recherche
+            // sauvegardée qui le porte continue de le trouver (décision du porteur).
+            $anciens = array_values(array_unique([...($ligne->former_names ?? []), $ligne->name]));
+            $ligne->forceFill(['name' => $nom, 'renamed_at' => now(), 'former_names' => $anciens])->save();
 
             return $this->reecrireAdresses($ligne, $ligne);
         });
-        $this->reindexation->biens($biens);
         $this->journaliser($quartier, $par, 'super_admin_geo_neighborhood_renamed', ['from' => $ancien, 'to' => $nom], 'Quartier renommé');
+        $this->reindexation->biens($biens);
 
         return $quartier->refresh();
     }
@@ -99,8 +104,8 @@ final class GeoNeighborhoodModeration
 
             return $this->reecrireAdresses($src, $cbl);
         });
-        $this->reindexation->biens($biens);
         $this->journaliser($source, $par, 'super_admin_geo_neighborhood_merged', ['into_id' => $cible->getKey()], 'Quartier fusionné');
+        $this->reindexation->biens($biens);
 
         return $cible->refresh();
     }

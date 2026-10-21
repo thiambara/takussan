@@ -36,11 +36,13 @@ export async function generateMetadata({
   try {
     const token = await getToken();
     if (!token) return { title: t('metaTitleWithId', { id: leaseId }) };
-    const res = await apiRequest<{ data: { reference_number?: string | null } }>(
-      `/api/leases/${leaseId}?fields[leases]=id,reference_number`,
+    // TCK-1067 (P60.03) — la LISTE filtrée par id : un `show` rend la ressource de détail entière
+    // (bien, locataire, paiements, signatures), et `fields` n'y vaut rien.
+    const res = await apiRequest<{ data: { reference_number?: string | null }[] }>(
+      `/api/leases?filter[id]=${leaseId}&fields[leases]=id,reference_number&per_page=1`,
       { token },
     );
-    const ref = res.data?.reference_number;
+    const ref = res.data?.[0]?.reference_number;
     return {
       title: ref
         ? t('metaTitleWithReference', { reference: ref })

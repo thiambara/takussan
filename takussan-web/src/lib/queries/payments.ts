@@ -157,15 +157,10 @@ export function useInvoices(params: UseInvoicesParams = {}) {
 
 export function useInvoice(id: number | null | undefined) {
   // TCK-594 — `show` charge les avoirs (`credit_notes`) : l'avoir se lit sur la facture d'origine.
-  const query: SpatieQueryParams = {
-    fields: {
-      invoices: [...INVOICE_LIST_FIELDS, 'notes', 'invoiceable_type', 'invoiceable_id', 'kind', 'credited_invoice_id'],
-    },
-  };
   return useApiQuery<ApiResponse<Invoice>>(
     paymentsQueryKeys.invoiceDetail(id),
     cheminApi`/api/invoices/${id ?? 0}`,
-    { params: query, enabled: Boolean(id) },
+    { enabled: Boolean(id) },
   );
 }
 
@@ -273,13 +268,10 @@ export function usePayouts(params: UsePayoutsParams = {}) {
 }
 
 export function usePayout(id: number | null | undefined) {
-  const query: SpatieQueryParams = {
-    fields: { payouts: [...PAYOUT_LIST_FIELDS, 'transaction_id', 'failed_reason', 'notes'] },
-  };
   return useApiQuery<ApiResponse<Payout>>(
     paymentsQueryKeys.payoutDetail(id),
     cheminApi`/api/payouts/${id ?? 0}`,
-    { params: query, enabled: Boolean(id) },
+    { enabled: Boolean(id) },
   );
 }
 

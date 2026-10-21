@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\BorneLesChampsDuGarant;
 use App\Models\Enums\IdType;
 use Illuminate\Validation\Rule;
 
@@ -16,6 +17,8 @@ use Illuminate\Validation\Rule;
  */
 class UpdateGuarantorRequest extends BaseFormRequest
 {
+    use BorneLesChampsDuGarant;
+
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
@@ -34,11 +37,11 @@ class UpdateGuarantorRequest extends BaseFormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        return [
+        return $this->borneLesChampsDuGarant([
             'first_name' => ['sometimes', 'string'],
             'last_name' => ['sometimes', 'string'],
             'phone' => ['sometimes', 'nullable', 'string'],
-            'email' => ['sometimes', 'nullable', 'email'],
+            'email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'id_type' => ['sometimes', 'nullable', Rule::enum(IdType::class)],
             // TCK-954 — les deux valeurs doivent tenir dans `varchar(255)` et `numeric(14,2)`, les types
             // que rend le `down()` de la migration de chiffrement (ADR-0070 § 2).
@@ -48,6 +51,6 @@ class UpdateGuarantorRequest extends BaseFormRequest
             'monthly_income' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:999999999999.99'],
             'relationship_to_tenant' => ['sometimes', 'nullable', 'string'],
             'notes' => ['sometimes', 'nullable', 'string'],
-        ];
+        ]);
     }
 }

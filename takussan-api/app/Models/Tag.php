@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\ReferentialStatus;
 use App\Models\Enums\TagType;
+use App\Sorts\CollatedNameSort;
 use App\Sorts\TagUsageSort;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,11 +34,23 @@ class Tag extends AbstractModel
 
     protected static array $requestFilterable = ['type', 'status'];
 
-    protected static array $requestSortable = ['id', 'name', 'type', 'created_at'];
+    /** `name` se trie à part, par {@see self::nameSort()} (TCK-1119). */
+    protected static array $requestSortable = ['id', 'type', 'created_at'];
 
     protected static array $requestSearchFields = ['name'];
 
     protected static array $queryFields = ['id', 'name', 'slug', 'type', 'icon', 'color', 'description', 'status', 'created_by_id', 'created_at', 'updated_at'];
+
+    /**
+     * TCK-1119 (P87.03) — le nom d'une étiquette se trie en `COLLATE "und-x-icu"`, l'ordre que le
+     * référentiel public lui donne déjà (`GeoReferentialController::TRI`) : sous `--locale=C`,
+     * « étage » et « Étranger » passaient après « Zinc ». Partagé par `sort=name` et le défaut de
+     * `TagController::index()`.
+     */
+    public static function nameSort(): AllowedSort
+    {
+        return AllowedSort::custom('name', new CollatedNameSort, 'tags.name');
+    }
 
     /**
      * TCK-712 (P02.05) — les tris déclarés, plus `usage_count`, qui se calcule pour l'agence de
@@ -51,7 +64,7 @@ class Tag extends AbstractModel
         return QueryBuilder::for($baseQuery ?? static::class, $request)
             ->allowedFilters(...static::getAllowedQueryFilters())
             ->allowedFields(...static::getAllAllowedQueryFields())
-            ->allowedSorts(...static::$requestSortable, ...[AllowedSort::custom('usage_count', new TagUsageSort($agencyId))])
+            ->allowedSorts(...static::$requestSortable, ...[static::nameSort(), AllowedSort::custom('usage_count', new TagUsageSort($agencyId))])
             ->allowedIncludes(...static::getAllowedQueryIncludes());
     }
 

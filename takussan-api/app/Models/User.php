@@ -6,6 +6,7 @@ use App\Http\Includes\AgencyScopedRelationship;
 use App\Models\Concerns\HasMediaConversions;
 use App\Models\Concerns\HasProfiles;
 use App\Models\Concerns\HasQueryBuilder;
+use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\EmailFrequency;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\UserStatus;
@@ -13,6 +14,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Notifications\RegistrationConfirmationNotification;
 use App\Notifications\ResetPasswordNotification;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Auth\AccessTokenGate;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Membership\MembershipCapabilityResolver;
@@ -199,6 +201,59 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(...static::$requestSortable)
             ->allowedIncludes(...$includes);
+    }
+
+    /**
+     * P88.03 (TCK-1096) — la liste des membres d'une agence (`GET /api/agencies/{id}/members`).
+     *
+     * La liste blanche de {@see HasQueryBuilder::buildQuery()}, à deux écarts près :
+     * `filter[role]` (`agent`, `agency_admin`, `owner`) juge le profil DANS l'agence, sans statut,
+     * pour que l'onglet d'équipe garde les suspendus et ne présente pas comme agent un bailleur qui
+     * ne l'est qu'ailleurs ; `filter[assignable]=1` ne garde que le personnel joignable, la règle de
+     * {@see PersonnelDeLAgence::estPersonnel()} écrite en SQL, pour les sélecteurs de cible.
+     *
+     * @param  Builder<static>  $base
+     */
+    public static function buildAgencyMembersQuery(Builder $base, Request $request, int $agencyId): QueryBuilder
+    {
+        $filters = array_filter(
+            static::getAllowedQueryFilters(),
+            fn (AllowedFilter $filter) => $filter->getName() !== 'role',
+        );
+        $inAgency = fn (Builder $p) => $p->where('agency_id', $agencyId);
+
+        $role = AllowedFilter::callback(
+            'role',
+            fn (Builder $q, string $value) => match ($value) {
+                'agent' => $q->whereHas('agentProfiles', $inAgency),
+                'agency_admin' => $q->whereHas('agencyAdminProfiles', $inAgency),
+                'owner' => $q->whereHas('ownerProfiles', $inAgency),
+                default => $q->whereRaw('1 = 0'),
+            },
+        );
+
+        $assignable = AllowedFilter::callback(
+            'assignable',
+            function (Builder $q, mixed $value) use ($inAgency) {
+                if (! filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                    return;
+                }
+                $actif = fn (Builder $p) => $inAgency($p)->active();
+                $q->whereNotIn('users.status', [UserStatus::Blocked->value, UserStatus::Deleted->value])
+                    ->where(fn (Builder $w) => $w
+                        ->whereHas('agentProfiles', $actif)
+                        ->orWhereHas('agencyAdminProfiles', $actif)
+                        ->orWhereHas('roleDelegations', fn (Builder $d) => $inAgency($d)
+                            ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
+                            ->active()));
+            },
+        );
+
+        return QueryBuilder::for($base, $request)
+            ->allowedFilters(...[...array_values($filters), $role, $assignable])
+            ->allowedFields(...static::getAllAllowedQueryFields())
+            ->allowedSorts(...static::$requestSortable)
+            ->allowedIncludes(...static::getAllowedQueryIncludes());
     }
 
     /**

@@ -39,29 +39,6 @@ export const DASHBOARD_CUSTOMER_FIELDS = [
 // TCK-922 — le slug traduit une étiquette du catalogue CRM (`ESPACE_DES_ETIQUETTES_CRM`).
 export const TAG_FIELDS = ['id', 'name', 'slug', 'color'] as const;
 
-export const DASHBOARD_CUSTOMER_DETAIL_FIELDS = [
-  ...DASHBOARD_CUSTOMER_FIELDS,
-  'id_type',
-  // TCK-953 — pas d'`id_number` : l'API le refuse (400) et rend `id_number_masked` à la fiche.
-  'emergency_contact_name',
-  'emergency_contact_phone',
-  'added_by_id',
-  'user_id',
-  'agency_id',
-  'metadata',
-  'updated_at',
-  // TCK-921 — la langue des messages du client sans compte.
-  'locale',
-  // TCK-591 §5 — critères du prospect.
-  'seeking_contract_type',
-  'budget_min',
-  'budget_max',
-  'seeking_property_types',
-  'seeking_cities',
-  'seeking_neighborhoods',
-  'min_bedrooms',
-] as const;
-
 export interface DashboardCustomerFilters {
   readonly status?: string;
   readonly pipeline_stage?: string;
@@ -139,7 +116,6 @@ export async function fetchDashboardCustomer(
   customerId: number,
 ): Promise<CustomerDetail> {
   const qs = buildQueryString({
-    fields: { customers: DASHBOARD_CUSTOMER_DETAIL_FIELDS },
     // TCK-866 (P02.09) — pas `notes` : la fiche et le panneau du pipeline les lisent paginées par
     // `fetchCustomerNotes`, et rien ne lisait les notes sérialisées ici une seconde fois.
     include: ['documents', 'tags'],

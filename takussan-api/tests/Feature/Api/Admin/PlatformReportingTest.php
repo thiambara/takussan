@@ -12,6 +12,7 @@ use App\Services\Reporting\PlatformReportingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -651,6 +652,35 @@ class PlatformReportingTest extends TestCase
         $this->assertSame('ready', ReportExport::query()->first()?->status);
 
         Carbon::setTestNow();
+    }
+
+    /**
+     * TCK-1082 (P78.04) — le chemin asynchrone de TCK-227 (« l'export > 10k lignes passe en async
+     * et notifie par email »), atteint par la ROUTE. Aucun rapport réel n'approche le seuil (60
+     * lignes au plus) : seul un service substitué le franchit. Sans ce test, rien ne gardait le
+     * 202, la mise en file ni la ligne `queued` — les deux autres tests appellent `handle()`.
+     */
+    public function test_an_export_above_the_threshold_is_queued_by_the_route(): void
+    {
+        Queue::fake();
+        $actor = $this->actingAsRole('super_admin');
+        $this->app->instance(PlatformReportingService::class, new class extends PlatformReportingService
+        {
+            public function funnel(string $period): array
+            {
+                return ['rows' => array_fill(0, 10_001, ['stage' => 'visit', 'count' => 1]), 'totals' => [], 'period' => [], 'generated_at' => null];
+            }
+        });
+
+        $response = $this->getJson('/api/admin/reports/funnel/export?format=csv&period=30d')->assertStatus(202);
+
+        $export = ReportExport::query()->sole();
+        $response->assertJsonPath('data.export_id', $export->id)->assertJsonPath('data.status', 'queued');
+        $this->assertSame('queued', $export->status);
+        $this->assertSame(10_001, (int) $export->row_count);
+        $this->assertSame($actor->id, (int) $export->requested_by);
+        $this->assertNull($export->ready_at);
+        Queue::assertPushed(GenerateReportExport::class, 1);
     }
 
     public function test_second_report_csv_export_is_also_a_file(): void

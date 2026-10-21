@@ -4,9 +4,11 @@ namespace Tests\Feature\Dashboard;
 
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\ThresholdAlert;
 use App\Models\User;
 use App\Notifications\ThresholdAlertTriggered;
@@ -140,6 +142,99 @@ class ThresholdAlertTest extends ApiTestCase
         $alert->refresh();
         $this->assertNotNull($alert->last_triggered_at);
         $this->assertGreaterThan(0, (float) $alert->last_value);
+    }
+
+    /**
+     * P97.01 (TCK-1122) — le bouton du courriel mène au tableau de bord du FRONT. Il était
+     * `url('/app/overview')` : envoyé par la commande planifiée, hors requête, il prenait
+     * `APP_URL`, l'hôte de l'API, qui n'a aucune route `app/overview` (404).
+     */
+    public function test_mail_action_targets_the_front_dashboard(): void
+    {
+        config(['app.frontend_url' => 'https://front.exemple.test/']);
+
+        $agency = Agency::factory()->create();
+        $admin = User::factory()->create();
+        $alert = ThresholdAlert::create([
+            'agency_id' => $agency->id,
+            'metric' => 'unpaid_rate_percent',
+            'operator' => '>',
+            'threshold' => 10.0,
+            'severity' => 'critical',
+            'is_enabled' => true,
+            'cooldown_hours' => 24,
+        ]);
+
+        $mail = (new ThresholdAlertTriggered($alert, 42.0))->toMail($admin);
+
+        $this->assertSame('https://front.exemple.test/app/overview', $mail->actionUrl);
+    }
+
+    /**
+     * P93.04 (TCK-1113) — une alerte ne va qu'aux admins dont le profil est
+     * actif dans l'agence : un profil suspendu ou archivé n'en reçoit plus.
+     */
+    public function test_alert_skips_suspended_and_archived_agency_admins(): void
+    {
+        Notification::fake();
+
+        $agency = Agency::factory()->create();
+        $active = User::factory()->create();
+        $suspended = User::factory()->create();
+        $archived = User::factory()->create();
+        foreach ([$active, $suspended, $archived] as $user) {
+            $this->materializeRoleProfile($user, 'agency_admin', $agency);
+        }
+        AgencyAdminProfile::query()->where('user_id', $suspended->id)
+            ->update(['status' => AgencyAdminProfileStatus::Suspended->value]);
+        AgencyAdminProfile::query()->where('user_id', $archived->id)
+            ->update(['status' => AgencyAdminProfileStatus::Archived->value]);
+
+        ThresholdAlert::create([
+            'agency_id' => $agency->id,
+            'metric' => 'overdue_count',
+            'operator' => '>',
+            'threshold' => -1, // se déclenche toujours (overdue_count >= 0)
+            'severity' => 'warning',
+            'is_enabled' => true,
+            'cooldown_hours' => 24,
+        ]);
+
+        $this->artisan('dashboard:check-alerts')->assertExitCode(0);
+
+        Notification::assertSentTo($active, ThresholdAlertTriggered::class);
+        Notification::assertNotSentTo($suspended, ThresholdAlertTriggered::class);
+        Notification::assertNotSentTo($archived, ThresholdAlertTriggered::class);
+    }
+
+    /**
+     * P93.05 (TCK-1114) — une agence sans bien n'a pas de taux d'occupation : l'alerte
+     * « occupation sous le seuil » ne se juge pas sur une valeur absente.
+     */
+    public function test_alert_is_not_evaluated_on_a_null_metric(): void
+    {
+        Notification::fake();
+
+        $agency = Agency::factory()->create();
+        $admin = User::factory()->create();
+        $this->materializeRoleProfile($admin, 'agency_admin', $agency);
+
+        $alert = ThresholdAlert::create([
+            'agency_id' => $agency->id,
+            'metric' => 'occupancy_rate_percent',
+            'operator' => '<',
+            'threshold' => 50,
+            'severity' => 'warning',
+            'is_enabled' => true,
+            'cooldown_hours' => 24,
+        ]);
+
+        $this->artisan('dashboard:check-alerts')->assertExitCode(0);
+
+        Notification::assertNothingSent();
+        $alert->refresh();
+        $this->assertNull($alert->last_triggered_at);
+        $this->assertNull($alert->last_value);
     }
 
     public function test_alert_respects_cooldown_window(): void
