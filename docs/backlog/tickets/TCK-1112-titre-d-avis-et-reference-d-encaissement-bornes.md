@@ -1,7 +1,7 @@
 ---
 id: TCK-1112
 title: "Titre d'avis et référence d'encaissement bornés à leur colonne : 422 et non 500 ; commentaire du téléphone du front ramené au code"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -44,19 +44,19 @@ validation sur le champ, et non une panne serveur.
 
 ## Delta à produire
 
-- [ ] `max:255` sur `title` dans les deux requêtes d'avis, et sur `transaction_id` dans les deux
+- [x] `max:255` sur `title` dans les deux requêtes d'avis, et sur `transaction_id` dans les deux
       requêtes d'encaissement.
-- [ ] Les quatre couples ajoutés à `BornesMaxFaceAuSchemaTest` (TCK-1111).
-- [ ] Test `tests/Feature/Validation/AvisEtEncaissementFieldLengthTest.php`.
-- [ ] Commentaire de `phoneSchema` : la normalisation E.164 vaut pour les clients et les visites.
+- [x] Les quatre couples ajoutés à `BornesMaxFaceAuSchemaTest` (TCK-1111).
+- [x] Test `tests/Feature/Validation/AvisEtEncaissementFieldLengthTest.php`.
+- [x] Commentaire de `phoneSchema` : la normalisation E.164 vaut pour les clients et les visites.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `POST /api/agencies/{id}/reviews` et `POST /api/properties/{id}/reviews` avec un
+- [x] AC1 — `POST /api/agencies/{id}/reviews` et `POST /api/properties/{id}/reviews` avec un
       `title` de 256 caractères : 422 sur `title`, aucun avis ; à 255 : 201.
-- [ ] AC2 — `POST /api/lease-payments/{id}/mark-paid` avec un `transaction_id` de 256 : 422,
+- [x] AC2 — `POST /api/lease-payments/{id}/mark-paid` avec un `transaction_id` de 256 : 422,
       échéance inchangée ; à 255 : 200.
-- [ ] AC3 — `POST /api/bookings/{id}/payments` avec un `transaction_id` de 256 : 422, aucun
+- [x] AC3 — `POST /api/bookings/{id}/payments` avec un `transaction_id` de 256 : 422, aucun
       paiement ; à 255 : 201.
 
 ## Hors périmètre
@@ -66,4 +66,10 @@ validation sur le champ, et non une panne serveur.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Avant correctif, les quatre voies rendaient 500 `SQLSTATE[22001]` (relevé sous
+  `withoutExceptionHandling`) ; l'avis de bien et le paiement de réservation, que le mesureur
+  n'avait pas joués, compris.
+- Ablation : les quatre FormRequest rendues à `HEAD` → 8 rouges (les 4 tests HTTP et les 4
+  couples ajoutés à `BornesMaxFaceAuSchemaTest`), 44 verts ; correctif remis → 52/52.
+- `phoneSchema` n'est importé que par `lease.ts` (le garant) : le commentaire le dit, puisque
+  c'est justement la voie que l'API ne normalise pas.
