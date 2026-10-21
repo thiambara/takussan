@@ -8849,7 +8849,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### Petites améliorations
 - Réf : P90.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-1101
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyTagController.php:55-58`, `takussan-api/vendor/laravel/scout/src/Jobs/MakeSearchable.php:37-44`, `takussan-api/app/Jobs/RefreshNewBuildSearchLabel.php:46-51`
 - Constat :
@@ -8859,6 +8859,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Établi comment : lecture.
 - Piste : faire porter la garde `syncingDisabledFor` et le filtre `shouldBeSearchable()` par la méthode partagée de P90.01 ; ajouter `with('address', 'tagsVisibles', 'agency')` à `RefreshNewBuildSearchLabel::scope()`.
 - Mesure (2026-10-21, 1c496b042, mesureur) : relu `PropertyTagController` (aucun `ModelObserver::syncingDisabledFor`, contre `BoostLifecycle.php:230` et `GeoReindexation.php:24`), `vendor/laravel/scout/src/Jobs/MakeSearchable.php::handle` (pousse sans rejuger `shouldBeSearchable()`), `SearchableScope` (`chunkById` sans `with()`, `Property` ne redéfinit pas `makeSearchableUsing`) et `RefreshNewBuildSearchLabel::handle` (`static::scope()->searchable()`). Retenus : le premier et le troisième points, établis en lecture ; le deuxième (`SCOUT_QUEUE=true`) reste déduit, non joué, et son correctif demanderait de surcharger un job de Scout : il est écarté de ce classement. Classement : A1 et A2, la garde `syncingDisabledFor` suit le contrat que `GeoReindexation` écrit (« coupée, elle ne fait rien »), et `with()` dans `RefreshNewBuildSearchLabel::scope()` ne change aucun résultat.
+- Mesure (2026-10-21, 7b4d2af87, implementeur) : `TagSyncSynchronisationCoupeeTest` (synchronisation coupée par `Tests\TestCase`, moteur rebranché sur `http://127.0.0.1:9`) → avant correctif, `POST /api/properties/{id}/tags` et `DELETE …/tags/{tag}` rendent 500 (`CommunicationException` : l'écriture part malgré la coupure) ; `RefreshNewBuildSearchLabelRequetesTest` → le job fait 10 requêtes pour 3 biens, 31 pour 10 ; garde `syncingDisabledFor` dans `Property::reindexer()` (TCK-1099) et `with('address', 'tagsVisibles', 'agency')` dans `handle()` (pas dans `scope()`, que les tests lisent comme périmètre) → 200, 204 et un compte constant ; ablation de chaque moitié → ses rouges reviennent.
 
 ## Angle 91 — Bornes `max:` des FormRequests face aux `varchar(N)`
 
