@@ -8,6 +8,7 @@ use App\Jobs\ExpireBookings;
 use App\Jobs\Invoice\SendOverdueRemindersJob;
 use App\Jobs\Lease\ApplyLateFeesJob;
 use App\Jobs\Lease\ConfirmEarlyTerminationsJob;
+use App\Jobs\Lease\ExpireEndedLeasesJob;
 use App\Jobs\Notifications\SendNotificationDigestJob;
 use App\Jobs\Permissions\ProcessRoleDelegationsJob;
 use App\Jobs\Privacy\PurgeExpiredDataExports;
@@ -45,6 +46,9 @@ Schedule::job(new ProcessTrialExpirations)->dailyAt('02:15')->withoutOverlapping
 // penalty invoice is settled. Idempotent: unpaid penalties are skipped
 // silently and reprocessed on the next sweep.
 Schedule::job(new ConfirmEarlyTerminationsJob)->dailyAt('03:00')->withoutOverlapping();
+// TCK-1153 (P81.02) — un bail `active` dont la fin est passée, sans renouvellement en vigueur,
+// passe `expired` : sa caution se restitue. Idempotente (ne lit que des baux `active`).
+Schedule::job(new ExpireEndedLeasesJob)->dailyAt('03:15')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 // TCK-599 (ADR-0050) — alertes de recherche (comptes et abonnés confirmés), par le moteur de
 // `/properties`. Idempotent par la borne `last_notified_at`, RÉSERVÉE avant l'envoi et rendue
