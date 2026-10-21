@@ -8772,7 +8772,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### Synchroniser les équipements d'un bien l'indexe sans `shouldBeSearchable()` : brouillons et biens privés entrent dans l'index, un bien d'agence inactive revient compté dans la recherche publique
 - Réf : P90.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyTagController.php:55-58`, `:66-69`, `takussan-api/app/Models/Property.php:506-526`, `takussan-api/app/Services/Search/PropertySearchService.php:458-466`, `:805-823`, `takussan-api/app/Jobs/Search/SyncAgencyPropertiesSearchIndex.php:56-59`
 - Constat :
@@ -8783,10 +8783,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Le brouillon indexé n'apparaît pas en recherche publique (filtre moteur sur statut et visibilité). Il reste dans l'index, avec son texte, tant qu'il n'est pas publié ; ce qu'en font les listes internes depuis P01.01 (TCK-662) n'est pas relevé (à vérifier).
   - Établi comment : lecture, puis le test temporaire ci-dessus.
 - Piste : écrire `$property->shouldBeSearchable() ? $property->searchable() : $property->unsearchable()` aux deux endroits, comme `BoostLifecycle::writeProperty`. Mieux : une méthode `Property::reindexer()` que les sept appelants partagent, pour que le filtre ne s'oublie plus. Garde : un test qui synchronise les équipements d'un brouillon et d'un bien d'agence `inactive`, et exige l'absence du document ; un second qui exige `meta.total` égal au nombre de biens rendus.
+- Mesure (2026-10-21, 1c496b042, mesureur) : relu `PropertyTagController::sync` et `::destroy` (`$property->searchable()` sans condition, l. 57 et 68), `Searchable::queueMakeSearchable`/`syncMakeSearchable` (aucun appel à `shouldBeSearchable()`) et `PropertySearchService::publicFilter()` (visibilité, `is_test`, `published_at`, statut, rien sur l'agence) ; test temporaire `TmpMesureurP90Test` (charge 2,22 / 2,73 / 5,29 sur 8 cœurs, Meilisearch du port 7701, retiré ensuite) → brouillon privé absent de l'index, `POST /api/properties/{id}/tags` en 200, puis document présent avec `status=draft`, `visibility=private` ; bien publié d'une agence passée `inactive` et retiré de l'index, recherche publique `total=0`, synchronisation d'un équipement en 200, puis `meta.total=1` et `data=[]`. Le constat tient (les facettes de `SuggestService` et les listes internes restent non relevées). Classement : A1, `shouldBeSearchable()` et ADR-0048 (TCK-600) écrivent déjà qu'un brouillon, un bien privé ou un bien d'agence non active sort de l'index, et `BoostLifecycle::writeProperty` en donne la forme ; le correctif minimal ne demande aucun choix.
 
 ### Une écriture explicite dans l'index survit à l'annulation de sa transaction, et `SCOUT_AFTER_COMMIT` n'y change rien
 - Réf : P90.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : différer après commit toutes les écritures explicites dans l'index est un choix transversal, et le relevé de `SCOUT_QUEUE` en préproduction relève de V5
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/laravel/scout/src/ModelObserver.php:46`, `vendor/laravel/scout/src/Searchable.php:72-85`, `takussan-api/app/Services/Boost/BoostLifecycle.php:207-234`, `:115-133`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:54-85`, `:123-128`, `takussan-api/app/Observers/PropertyObserver.php:182-185`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:216-227`, `takussan-api/app/Services/Tags/TagCatalog.php:42-53`, `:118-123`, `takussan-api/.env.docker:210-211`
 - Constat :
@@ -8797,10 +8798,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Avec `SCOUT_QUEUE=true`, l'appel explicite met `MakeSearchable` en file (lu, `Searchable.php:82-84`), et les connexions de file portent `after_commit => true` depuis P05.05 (lu, `config/queue.php:51-80`) : le job serait abandonné avec la transaction (déduit du comportement de Laravel, non joué).
   - Établi comment : lecture, puis le test temporaire ci-dessus.
 - Piste : faire passer les écritures explicites par `DB::afterCommit()` (ou une méthode partagée qui le fait, voir P90.01), pour qu'elles suivent la même règle que l'observateur sous `SCOUT_AFTER_COMMIT=true`. Garde : un test qui annule une transaction après `writeProperty()` et exige l'index inchangé ; relever `SCOUT_QUEUE` et `SCOUT_AFTER_COMMIT` de la préproduction dans `hebergement.md`.
+- Mesure (2026-10-21, 1c496b042, mesureur) : relu `ModelObserver::__construct` (seul lecteur de `scout.after_commit`), `Searchable::queueMakeSearchable` (écriture immédiate sous `scout.queue=false`) et `BoostLifecycle::writeProperty` (`searchable()` l. 233) ; test temporaire `TmpMesureurP90Test` (charge 2,22 / 2,73 / 5,29 sur 8 cœurs, Meilisearch du port 7701, retiré ensuite) → bien indexé `featured=false`, `DB::transaction` qui appelle `writeProperty($p, ['featured' => true])` puis lève : base `featured=false`, index `featured=true`. Le mécanisme tient ; aucun chemin réel qui annule après l'écriture n'est établi, et la valeur de `SCOUT_QUEUE` en préproduction n'est pas relevée. Classement : V6, la piste fait passer les sept appelants explicites par `DB::afterCommit()` ou une méthode partagée, choix de structure dont le gain dépend d'une variable de préproduction inconnue (V5).
 
 ### Meilisearch injoignable : une modération d'équipement ou de quartier est validée en base, l'appelant reçoit une erreur et le journal d'audit n'est pas écrit
 - Réf : P90.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : rapporter l'échec d'index ou mettre la réindexation en file après commit, deux options de portée transversale
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Tags/TagModeration.php:25-41`, `:43-58`, `:60-85`, `:87-133`, `takussan-api/app/Services/Geo/GeoNeighborhoodModeration.php:76-77`, `:105-106`, `takussan-api/app/Services/Geo/GeoReindexation.php:22-31`, `takussan-api/app/Http/Controllers/Api/Admin/TagModerationAdminController.php:31-34`, `takussan-api/app/Http/Controllers/Api/TagController.php:84-100`
 - Constat :
@@ -8810,10 +8812,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Les biens ne sont pas réindexés non plus, et rien ne le rattrape : même effet que P89.01, par un autre chemin (déduit).
   - Établi comment : lecture, puis le test temporaire ci-dessus.
 - Piste : journaliser avant de réindexer, et ne pas laisser l'échec de l'index faire échouer un geste validé : `report()` de l'exception, ou réindexation mise en file après commit (un job par lot d'ids, qui se relance seul). Garde : un test qui coupe Meilisearch, joue chaque geste de modération, et exige la réponse 200 et la ligne `activity_log`.
+- Mesure (2026-10-21, 1c496b042, mesureur) : relu `TagModeration::approuver`, `rejeter`, `renommer`, `fusionner`, `GeoNeighborhoodModeration::renommer`/`fusionner` et `TagController::update` (transaction validée, puis `GeoReindexation::biens()`, puis seulement le journal) ; test temporaire `TmpMesureurP90Test` (charge 2,22 / 2,73 / 5,29 sur 8 cœurs, Meilisearch du port 7701, retiré ensuite), client Meilisearch rebranché sur `http://127.0.0.1:9` → `TagModeration::approuver()` lève `Meilisearch\Exceptions\CommunicationException`, la proposition est `approved` en base, `activity_log` +0 ; `POST /api/admin/tags/{id}/approve` → 500, proposition `approved`. Le constat tient. Classement : V6, journaliser avant de réindexer est sans choix, mais la suite de la piste choisit entre `report()` et un job de réindexation en file, qui vaudrait aussi pour P89.01 et les autres appelants de `GeoReindexation`.
 
 ### Meilisearch injoignable : l'achat d'un boost est refusé, et l'appel au moteur se fait sous les verrous de l'agence et du bien
 - Réf : P90.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : l'issue d'un achat de boost payé en crédits face à une panne du moteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:54-85`, `:151-156`, `:198`, `:253`, `:297`, `takussan-api/app/Services/Boost/BoostLifecycle.php:207-234`
 - Constat :
@@ -8823,10 +8826,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - `saveQuietly()` (l. 222) écarte l'observateur : cet appel est le seul à toucher l'index pendant l'achat (lu).
   - Établi comment : lecture, puis le test temporaire ci-dessus.
 - Piste : sortir l'écriture d'index de la transaction (`DB::afterCommit()`, voir P90.02), et ne pas laisser son échec annuler l'achat (`report()`, ou mise en file). Garde : un test d'achat moteur coupé qui exige le boost créé et le débit écrit.
+- Mesure (2026-10-21, 1c496b042, mesureur) : relu `BoostPurchaseService::purchaseOnce` (`lock()` verrouille agence et bien, puis `bump`/`featured`/`badge` dans la même transaction) et `BoostLifecycle::writeProperty` (`searchable()` avant le commit sous `scout.queue=false`) ; test temporaire `TmpMesureurP90Test` (charge 2,22 / 2,73 / 5,29 sur 8 cœurs, Meilisearch du port 7701, retiré ensuite), agence créditée de 500, bien publié, client Meilisearch rebranché sur `http://127.0.0.1:9`, `purchase()` d'une Vedette 7 jours → `CommunicationException`, 0 boost, bien `featured=false`. Le constat tient ; l'allongement des verrous reste déduit. Classement : V1, le correctif décide si un débit de crédits est écrit quand l'index échoue.
 
 ### `GeoReindexation::biens()` charge l'agence, l'adresse et les étiquettes bien par bien : trois requêtes par bien réindexé
 - Réf : P90.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Geo/GeoReindexation.php:28-30`, `takussan-api/app/Jobs/Search/SyncAgencyPropertiesSearchIndex.php:52-54`, `takussan-api/app/Models/Property.php:500-504`
 - Constat :
@@ -8835,10 +8839,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Ce chemin sert le renommage et la fusion de quartiers et d'équipements, la synchronisation du référentiel au déploiement (`GeoReferentialSync`) et `tags:sync-catalog` : un quartier de Dakar renommé réindexe tous ses biens (lu, `GeoNeighborhoodModeration.php:76`).
   - Établi comment : lecture, puis le test temporaire ci-dessus (journal des requêtes).
 - Piste : `Property::query()->with('address', 'tagsVisibles', 'agency')->whereKey(…)->chunkById(…)`, comme `SyncAgencyPropertiesSearchIndex`. Garde : un test qui borne le nombre de requêtes pour N biens, indépendamment de N.
+- Mesure (2026-10-21, 1c496b042, mesureur) : relu `GeoReindexation::biens` (`chunkById(200)` sans `with()`, l. 28) et `Property::makeAllSearchableUsing` (`with('address', 'tagsVisibles', 'agency')`) ; test temporaire `TmpMesureurP90Test` (charge 2,22 / 2,73 / 5,29 sur 8 cœurs, Meilisearch du port 7701, retiré ensuite), journal des requêtes → 5 biens : 11 requêtes, 20 biens : 41 requêtes, soit 1 + 2 par bien pour des biens de fabrique sans agence (le constat comptait 3 par bien avec l'agence, que `agencyIsPublic()` charge en plus). Le constat tient, à cette nuance près. Classement : A2, chargement anticipé sans changement de résultat, sur le modèle de `SyncAgencyPropertiesSearchIndex`.
 
 ### Petites améliorations
 - Réf : P90.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyTagController.php:55-58`, `takussan-api/vendor/laravel/scout/src/Jobs/MakeSearchable.php:37-44`, `takussan-api/app/Jobs/RefreshNewBuildSearchLabel.php:46-51`
 - Constat :
@@ -8847,3 +8852,4 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - `RefreshNewBuildSearchLabel` réindexe par `Builder::searchable()` sans `with()` (lu, l. 50) : même motif que P90.05, sur quelques dizaines de biens par jour.
   - Établi comment : lecture.
 - Piste : faire porter la garde `syncingDisabledFor` et le filtre `shouldBeSearchable()` par la méthode partagée de P90.01 ; ajouter `with('address', 'tagsVisibles', 'agency')` à `RefreshNewBuildSearchLabel::scope()`.
+- Mesure (2026-10-21, 1c496b042, mesureur) : relu `PropertyTagController` (aucun `ModelObserver::syncingDisabledFor`, contre `BoostLifecycle.php:230` et `GeoReindexation.php:24`), `vendor/laravel/scout/src/Jobs/MakeSearchable.php::handle` (pousse sans rejuger `shouldBeSearchable()`), `SearchableScope` (`chunkById` sans `with()`, `Property` ne redéfinit pas `makeSearchableUsing`) et `RefreshNewBuildSearchLabel::handle` (`static::scope()->searchable()`). Retenus : le premier et le troisième points, établis en lecture ; le deuxième (`SCOUT_QUEUE=true`) reste déduit, non joué, et son correctif demanderait de surcharger un job de Scout : il est écarté de ce classement. Classement : A1 et A2, la garde `syncingDisabledFor` suit le contrat que `GeoReindexation` écrit (« coupée, elle ne fait rien »), et `with()` dans `RefreshNewBuildSearchLabel::scope()` ne change aucun résultat.
