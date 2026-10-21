@@ -163,7 +163,7 @@ voie d'écriture (angle 13, puis 47).
 | 88 | Comptes `blocked` (`UserStatus::Blocked`), qui n'ouvrent plus de session : ce qu'ils reçoivent encore (notifications, e-mails, SMS) et les sélecteurs qui les proposent encore (participants, agent responsable, collaborateurs, destinataires) | fait |
 | 89 | Commandes jouées par `release.sh` et `seed.sh` (`geo:sync-referential`, `tags:sync-catalog`, `alerts:ensure-ops-rules`, `membership:reconcile-system-roles`, `scout:import`) : code de sortie réel sur une erreur, face à ce que le script en conclut | fait |
 | 90 | Écritures explicites dans l'index (`->searchable()` / `unsearchable()` de `PropertyTagController`, `BoostLifecycle`, `GeoReindexation`, `SyncAgencyPropertiesSearchIndex`) : appelées dans une transaction qui peut être annulée, face à `SCOUT_AFTER_COMMIT` et `SCOUT_QUEUE` de chaque environnement | fait |
-| 91 | FormRequests dont la borne `max:` dépasse la longueur `varchar(N)` de la colonne écrite, ou qui n'en ont pas : 500 (`22001`) au lieu de 422 — le pendant « longueur » de l'angle 54 | à faire |
+| 91 | FormRequests dont la borne `max:` dépasse la longueur `varchar(N)` de la colonne écrite, ou qui n'en ont pas : 500 (`22001`) au lieu de 422 — le pendant « longueur » de l'angle 54 | fait |
 | 92 | Contraintes `UNIQUE` de la base sans règle `unique` ni verrou dans le FormRequest ou le service qui écrit : un doublon rend 500 (`23505`, que `bootstrap/app.php` ne traduit pas) au lieu de 422 ou 409 | à faire |
 | 93 | Indicateurs calculés des tableaux de bord et rapports (`DashboardAgencyService`, `KpiResolver`, `PortfolioMetrics`, `TeamPerformanceService`, `OwnerStatementService`) dont les tests n'assertent que la structure JSON : valeur toujours nulle ou fausse sur des données réelles ? | à faire |
 | 94 | Réponses assemblées à la main dans un contrôleur (`TaskController::format`, `Admin\AgencyUpgradeRequestController::show`, `Me\ServiceProviderProfileController::show`, 25 `toISOString()` sous `app/Http/Controllers`) : dates hors ADR-0018 et enums bruts, que `check-resource-date-format.mjs` ne lit pas | à faire |
@@ -198,6 +198,8 @@ voie d'écriture (angle 13, puis 47).
 | 121 | Passation de portefeuille (`AgentHandoverService::move`) : chaque catégorie réécrite par `DB::table()->update` ou `update(['user_id'])` sans rejuger la règle de cible du geste unitaire (visites `PersonnelDeLAgence`, référent `crm.assign`, maintenance TCK-592, collaborations), et le compte rendu `moved` / `unassigned` face à l'état écrit | à faire |
 | 122 | Écritures qui changent un champ de `toSearchableArray()` sans passer par l'observateur Scout (`saveQuietly`, `Model::query()->update`, `DB::table()->update`, relations `address`, `tagsVisibles`, `agency`) sur les sept modèles `Searchable` : document resté périmé dans l'index | à faire |
 | 123 | Gestes validés en base suivis, hors transaction, d'un appel réseau qui peut lever (Meilisearch, CDN, revalidation du front, envoi synchrone) avant leur ligne `activity()` ou leur notification : réponse 500 pour un geste fait, trace d'audit absente — le relevé de P90.03 hors de la modération | à faire |
+| 124 | Colonnes `varchar(N)` remplies par une valeur dérivée ou recopiée d'une source plus longue (masques, concaténations, codes et messages d'erreur de fournisseur : `lease_signatures.otp_destination`, `notification_delivery_attempts.failure_reason`, `integration_webhook_logs.error_code`, `property_calendar_feeds.last_error`, `bookings.expiry_reason`) sans `mb_substr` : écriture en 22001 hors de toute requête validée | à faire |
+| 125 | Téléphones écrits sans `TelephoneSaisi::normaliser` ni `TelephoneJoignable` (garants, agences, onboarding de la console, contacts sur place des biens) : numéro hors E.164 face aux lecteurs qui envoient un SMS, ouvrent un lien WhatsApp ou rapprochent un doublon | à faire |
 
 ---
 
@@ -8847,3 +8849,99 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - `RefreshNewBuildSearchLabel` réindexe par `Builder::searchable()` sans `with()` (lu, l. 50) : même motif que P90.05, sur quelques dizaines de biens par jour.
   - Établi comment : lecture.
 - Piste : faire porter la garde `syncingDisabledFor` et le filtre `shouldBeSearchable()` par la méthode partagée de P90.01 ; ajouter `with('address', 'tagsVisibles', 'agency')` à `RefreshNewBuildSearchLabel::scope()`.
+
+## Angle 91 — Bornes `max:` des FormRequests face aux `varchar(N)`
+
+*Exploré le 2026-10-21 sur `pre-dev` 1c496b042, par l'explorateur, sans sous-agent. Méthode : les 394 colonnes `character varying` lues dans `information_schema.columns` de la base de développement (5433, en `SELECT` ; 264 en 255, 130 plus courtes), puis les règles de 269 FormRequests sur 288 instanciées par un script hors dépôt (les 19 autres exigent une route liée, relues à la main), rapprochées par nom de clé. Le rapprochement par nom est approximatif : il a donné 134 candidats, dont 66 couples « `string` sans `max` ». Seuls ceux qui visent la table écrite ont été relus jusqu'à l'écriture. Les 500 ont été établis par deux tests Feature temporaires, un cas par méthode, retirés depuis ; charge 2,90 / 2,65 / 4,57 puis 1,75 / 2,29 / 4,10 sur 8 cœurs. Le front de ce dépôt borne tous les champs ci-dessous avant l'envoi (lu, `src/lib/schemas/`). Le défaut touche donc les clients directs de l'API, comme à l'angle 54. Une `QueryException` n'est pas traduite par `bootstrap/app.php` (l. 129-131, voir P54.07) : chaque cas rend un 500 générique et un rapport d'erreur. Ce qui tient : tous les téléphones validés par `TelephoneJoignable` (clients, visites gérées, profil, `ResendPhoneVerificationRequest`) sont réduits à l'E.164, 16 caractères au plus (lu, `TelephoneJoignable.php`) ; la visite demandée par un non-gestionnaire prend nom et téléphone du compte, pas de la requête (lu, `PropertyVisitController.php:142-147`, noms bornés à 100) ; `platform_hold_reason` reçoit le `reason_code` requis (lu, `DecideModerationQueueRequest.php:37`) ; `POST /api/conversations` avec un `subject` de 256 caractères rend 422 (mesuré).*
+
+### Le téléphone, le nom et le numéro d'agrément d'une agence n'ont aucune borne : 500 à l'écriture
+- Réf : P91.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:50-54`, `takussan-api/app/Http/Requests/Api/StoreAgencyRequest.php:35-39`, `takussan-api/app/Http/Requests/Api/Admin/StoreAgencyOnboardingRequest.php:24`, `takussan-api/database/migrations/2026_04_17_160002_create_agencies_table.php:13-18`
+- Constat :
+  - `agencies.phone` est un `varchar(30)` ; `name`, `license_number` et `email` sont des `varchar(255)` (lu, migration, et `information_schema`).
+  - `AgencyUpdateRequest` et `StoreAgencyRequest` valident `phone`, `name` et `license_number` en `string` sans `max`, sans `TelephoneJoignable` (lu). L'assistant d'ouverture d'agence de la console borne `agency.phone` à `max:50` (lu, l. 24), au-delà des 30 de la colonne.
+  - Mesuré (test temporaire), en admin principal de l'agence : `PATCH /api/agencies/{id}` avec `phone` de 31 caractères → **500** `SQLSTATE[22001] value too long for type character varying(30)` ; `name` de 256 caractères → **500**, `varchar(255)`.
+  - Mesuré : `POST /api/agencies` avec `phone` de 31 caractères → **500** ; avec `license_number` de 256 caractères → **500**. En super-admin, `POST /api/admin/agencies` avec `agency.phone` de 40 caractères (sous la borne de 50) → **500**, `varchar(30)`.
+  - L'écran de l'agence borne le téléphone à 20 caractères et le nom à 255 (lu, `takussan-web/src/lib/schemas/agency.ts:12,36-42`). Aucun appel du front à `POST /api/agencies` n'a été trouvé (lu : `grep -rn "'/api/agencies'"` dans `takussan-web/src` → rien).
+- Piste : ajouter `max:255` à `name` et `max:30` à `phone` dans les deux requêtes, et ramener `agency.phone` à `max:30` dans l'onboarding. `license_number` peut reprendre la borne de 100 du front, ou `max:255`. Ajouter `TelephoneJoignable` au téléphone d'agence serait un choix de format, à part. Un test par voie qui attend 422 sur la clé et une base intacte.
+
+### Couleur d'étiquette bornée à 20 caractères sur une colonne de 7, et icône sans borne : 500
+- Réf : P91.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/StoreTagRequest.php:44-45`, `takussan-api/app/Http/Requests/Api/UpdateTagRequest.php:42-43`, `takussan-api/database/migrations/2026_04_17_160004_create_tags_table.php:17`
+- Constat :
+  - `tags.color` est un `string('color', 7)` (lu, l. 17), taillé pour `#rrggbb`. Les deux requêtes acceptent `max:20`, sans format (lu). `icon` est `string` sans `max`, sur un `varchar(255)` (lu).
+  - Mesuré (test temporaire), en super-admin : `POST /api/tags` avec `color: '#ff0000ff00'` (11 caractères) → **500** `varchar(7)` ; `PATCH /api/tags/{id}` avec `color: 'turquoise'` → **500** ; `POST /api/tags` avec une `icon` de 256 caractères → **500** `varchar(255)`.
+  - Aucun envoi de `color` n'a été trouvé dans les actions du front (lu : `grep color takussan-web/src/app/actions/admin-tags.ts` → rien). Seuls les clients directs l'atteignent.
+- Piste : `color` en `regex:/^#[0-9a-fA-F]{6}$/` (ou `hex_color` puis `max:7`), `icon` en `max:255`, dans les deux requêtes. Un test qui attend 422 sur chacune.
+
+### Garants : téléphone sans borne sur un `varchar(30)`, et cinq champs texte sans borne, dans trois requêtes
+- Réf : P91.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/StoreGuarantorRequest.php:33-44`, `takussan-api/app/Http/Requests/Api/UpdateGuarantorRequest.php:38-49`, `takussan-api/app/Http/Requests/Api/AttachGuarantorLeaseRequest.php:40-51`, `takussan-api/database/migrations/2026_04_17_160007_create_guarantors_table.php:13-16`
+- Constat :
+  - `guarantors.phone` est un `varchar(30)`, et `first_name`, `last_name`, `email`, `occupation`, `employer` et `relationship_to_tenant` sont des `varchar(255)` (lu, migration, et `information_schema`). Les trois requêtes les valident en `string` (ou `email`) sans `max`. `phone` ne passe ni par `TelephoneJoignable` ni par `TelephoneSaisi` (lu).
+  - Mesuré (test temporaire) : `POST /api/guarantors` avec `phone: '+221 77 000 00 01 / 78 000 00 02'` (31 caractères, deux numéros saisis dans le même champ) → **500** `varchar(30)` ; avec `first_name` de 256 caractères → **500** `varchar(255)` ; `PATCH /api/guarantors/{id}` avec `phone` de 31 caractères → **500**.
+  - `AttachGuarantorLeaseRequest` (ajout d'un garant neuf à un bail) porte les mêmes règles (lu). Son 500 n'a pas été mesuré (à vérifier).
+  - Le formulaire de garant du front borne `first_name` à 100 et le téléphone à 20 caractères (lu, `takussan-web/src/lib/schemas/lease.ts:116-118`, `common.ts:46-52`).
+- Piste : une liste de règles partagée par les trois requêtes, comme `ValidatesCustomerContactAndCriteria` pour les clients : `max:255` sur les champs texte, et sur `phone` soit `max:30`, soit l'alignement sur les clients (`TelephoneSaisi` + `TelephoneJoignable`). Ce second choix change ce qu'on accepte aujourd'hui. Un test par requête.
+
+### Fiche client : prénom, nom et profession sans borne, 500 à la création et à la modification
+- Réf : P91.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/StoreCustomerRequest.php:40-46`, `takussan-api/app/Http/Requests/Api/UpdateCustomerRequest.php:65-71`, `takussan-api/database/migrations/2026_04_17_160006_create_customers_table.php:16-18`
+- Constat :
+  - `customers.first_name`, `last_name`, `email` et `occupation` sont des `varchar(255)` (lu). Les deux requêtes les valident sans `max` (lu), alors que la même liste borne `id_number` à 100 pour TCK-953 (l. 44-45) et `emergency_contact_name` à 255 (`ValidatesCustomerContactAndCriteria.php:45`).
+  - Mesuré (test temporaire), en agent de l'agence : `POST /api/customers` avec `first_name` de 256 caractères → **500** `varchar(255)` ; avec `occupation` de 256 caractères → **500**.
+  - `UpdateCustomerRequest` porte les mêmes règles (lu). Son 500 n'a pas été mesuré (à vérifier).
+  - Le formulaire client du front borne le prénom et la profession (120) (lu, `takussan-web/src/lib/schemas/customer.ts:47,68`).
+- Piste : `max:255` sur `first_name`, `last_name` et `occupation` dans les deux requêtes, ou dans `ValidatesCustomerContactAndCriteria` s'ils y rejoignent les contacts. Étendre le test de création et de modification d'un cas par clé.
+
+### La règle `email` ne borne pas la longueur : l'inscription publique rend 500 sur une adresse de plus de 255 caractères
+- Réf : P91.05
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Auth/RegisterRequest.php:28`, `takussan-api/app/Http/Requests/Api/StoreCustomerRequest.php:42`, `takussan-api/app/Http/Requests/Api/UpdateCustomerRequest.php:67`, `takussan-api/app/Http/Requests/Api/StoreGuarantorRequest.php:36`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:53`, `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:32`, `takussan-api/database/migrations/0001_01_01_000000_create_users_table.php:17`
+- Constat :
+  - Laravel ne borne pas la longueur avec la règle `email`, ni avec `email:rfc`. Mesuré : une adresse de 246 caractères, au domaine de 185, passe `PATCH /api/agencies/{id}` → 200.
+  - Mesuré (test temporaire), **sans authentification** : `POST /api/auth/register` avec une adresse valide de 300 caractères → **500** `SQLSTATE[22001]`, `varchar(255)`. Mesuré en agent : `POST /api/customers` avec la même adresse → **500**.
+  - Dix-neuf règles `email` sans `max` (relevé du script) : `RegisterRequest`, `StoreCustomerRequest`, `UpdateCustomerRequest`, les trois requêtes de garant, `StoreAgencyRequest`, `AgencyUpdateRequest`, `CreateInvitationRequest`, `InviteOwnerRequest`, `InviteAgentRequest`, `InviteServiceProviderRequest`, `InviteSuperAdminRequest`, `AddAgentAgencyRequest`, `StorePropertyVisitRequest` (`visitor_email`) et les `recipients.emails.*` des règles d'alerte. Celles de `LoginRequest` et des deux requêtes de mot de passe ne font que chercher (lu), sans écrire. Le 500 des invitations et des garants n'a pas été mesuré (à vérifier).
+  - Le front borne l'adresse à 255 caractères partout où il passe par `emailSchema` (lu, `takussan-web/src/lib/schemas/common.ts:20-26`).
+- Piste : ajouter `max:255` à chaque règle `email` qui écrit, en commençant par l'inscription, seule voie publique. Une règle partagée (`App\Rules\` ou une constante de règles) éviterait la vingtième. Un test par requête qui écrit.
+
+### La preuve de signature d'un bail écrit le domaine entier de l'e-mail dans un `varchar(120)`
+- Réf : P91.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Lease/LeaseSignatureService.php:121,169,350-355`, `lease_signatures.otp_destination` (`varchar(120)`, `information_schema`)
+- Constat :
+  - Sans téléphone vérifié, le code de signature part par e-mail, et `destination` vaut `maskEmail($user->email)` : la première lettre, `•••@`, puis **le domaine entier** (lu, l. 121 et 350-355). `sign()` recopie cette valeur dans `otp_destination` (lu, l. 169), qui est un `varchar(120)`.
+  - Un compte peut porter une adresse au domaine de plus de 115 caractères : `UpdateProfileRequest` borne l'adresse à 255, et la règle `email` accepte un domaine de 185 caractères (mesuré, P91.05). La signature d'un tel compte échouerait alors à la dernière étape, code juste, en 22001. C'est déduit : le cas n'a pas été joué de bout en bout (à vérifier).
+- Piste : tronquer le domaine masqué (`mb_substr(…, 0, 120)`), comme `user_agent` l. 167, ou élargir la colonne (V4). Un test unitaire de `maskEmail` sur un domaine long, et un test de `sign()` qui attend 200.
+
+### Aucune garde ne confronte les bornes de longueur des règles au schéma
+- Réf : P91.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/`, `takussan-api/tests/Feature/Validation/ReglesNullableFaceAuSchemaTest.php`
+- Constat :
+  - `grep -rln character_maximum_length tests scripts` → 2 fichiers (`CustomerIdNumberEncryptionTest`, `GuarantorSensitiveDataTest`). Chacun épingle la longueur d'une colonne chiffrée, aucun ne lit un FormRequest (mesuré).
+  - Le pendant « `nullable` » existe depuis TCK-982 (`ReglesNullableFaceAuSchemaTest`, voir P54.07) : il vérifie des couples (requête, clé, table, colonne) relevés à la main. Rien d'équivalent ne compare `max:` à `character_maximum_length`.
+  - Le rapprochement par nom de cet angle a laissé 66 couples « `string` sans `max` » sur une clé homonyme d'une colonne `varchar`. Seuls ceux des entrées P91.01 à P91.05 sont établis : le reste demande la table écrite par chaque requête.
+- Piste : sur le modèle de `ReglesNullableFaceAuSchemaTest`, un test qui liste les couples (requête, clé, table, colonne) des entrées P91.01 à P91.05. Il vérifierait trois points : la longueur de la colonne dans `information_schema`, une règle `max:` présente et au plus égale, et la règle jouée seule sur une chaîne de N+1 caractères qui rend une erreur sur la clé. La variante générique (toute règle `string` d'une requête qui écrit) demande la même table requête → modèle que le reste de P54.07.
+
+### Petites améliorations
+- Réf : P91.08
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Api/StoreForAgencyReviewRequest.php:48`, `takussan-api/app/Http/Requests/Api/StoreForPropertyReviewRequest.php:52`, `takussan-api/app/Http/Requests/Api/MarkPaidLeasePaymentRequest.php:67`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:51`, `takussan-api/app/Services/Model/LeasePaymentService.php:90`, `takussan-api/app/Services/Model/BookingPaymentService.php:41`, `takussan-web/src/lib/schemas/common.ts:44`
+- Constat :
+  - Le `title` d'un avis (`reviews.title`, `varchar(255)`) est `string` sans `max` dans les deux requêtes (lu). L'écriture n'a pas été relue ni mesurée (à vérifier).
+  - Le `transaction_id` d'un encaissement manuel d'échéance ou de réservation est `string` sans `max` (lu), et il est recopié tel quel dans un `varchar(255)` (lu, `LeasePaymentService.php:90`, `BookingPaymentService.php:41`). Le 500 n'a pas été mesuré (à vérifier).
+  - Le commentaire du front annonce que le téléphone est normalisé en E.164 côté serveur (lu, `common.ts:44`). C'est vrai pour les clients et les visites, faux pour les garants et les agences (P91.01, P91.03 : ni `TelephoneSaisi` ni `TelephoneJoignable`, lu).
+- Piste : `max:255` sur `title` et `transaction_id`. Corriger le commentaire du front, ou aligner les deux voies, selon ce que P91.03 décide.
