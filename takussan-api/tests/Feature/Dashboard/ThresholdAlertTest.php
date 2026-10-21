@@ -4,9 +4,11 @@ namespace Tests\Feature\Dashboard;
 
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\ThresholdAlert;
 use App\Models\User;
 use App\Notifications\ThresholdAlertTriggered;
@@ -140,6 +142,43 @@ class ThresholdAlertTest extends ApiTestCase
         $alert->refresh();
         $this->assertNotNull($alert->last_triggered_at);
         $this->assertGreaterThan(0, (float) $alert->last_value);
+    }
+
+    /**
+     * P93.04 (TCK-1113) — une alerte ne va qu'aux admins dont le profil est
+     * actif dans l'agence : un profil suspendu ou archivé n'en reçoit plus.
+     */
+    public function test_alert_skips_suspended_and_archived_agency_admins(): void
+    {
+        Notification::fake();
+
+        $agency = Agency::factory()->create();
+        $active = User::factory()->create();
+        $suspended = User::factory()->create();
+        $archived = User::factory()->create();
+        foreach ([$active, $suspended, $archived] as $user) {
+            $this->materializeRoleProfile($user, 'agency_admin', $agency);
+        }
+        AgencyAdminProfile::query()->where('user_id', $suspended->id)
+            ->update(['status' => AgencyAdminProfileStatus::Suspended->value]);
+        AgencyAdminProfile::query()->where('user_id', $archived->id)
+            ->update(['status' => AgencyAdminProfileStatus::Archived->value]);
+
+        ThresholdAlert::create([
+            'agency_id' => $agency->id,
+            'metric' => 'overdue_count',
+            'operator' => '>',
+            'threshold' => -1, // se déclenche toujours (overdue_count >= 0)
+            'severity' => 'warning',
+            'is_enabled' => true,
+            'cooldown_hours' => 24,
+        ]);
+
+        $this->artisan('dashboard:check-alerts')->assertExitCode(0);
+
+        Notification::assertSentTo($active, ThresholdAlertTriggered::class);
+        Notification::assertNotSentTo($suspended, ThresholdAlertTriggered::class);
+        Notification::assertNotSentTo($archived, ThresholdAlertTriggered::class);
     }
 
     public function test_alert_respects_cooldown_window(): void
