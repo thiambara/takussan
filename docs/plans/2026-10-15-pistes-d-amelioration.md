@@ -8985,7 +8985,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Enregistrer deux fois la même recherche sous le nom proposé rend 500
 - Réf : P92.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1103 — reste : faire afficher par `SaveSearchDialog` l'erreur de nom déjà pris rendue en 422 (aujourd'hui l'erreur générique `t('error')`)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:31,46`, `takussan-api/app/Http/Requests/Api/StoreSavedSearchRequest.php:56`, `takussan-api/app/Http/Requests/Api/UpdateSavedSearchRequest.php:50`, `takussan-api/database/migrations/2026_04_17_160021_create_saved_searches_table.php:23`, `takussan-web/src/components/favorites/SaveSearchDialog.tsx:66-79,141-142`
 - Constat :
@@ -8995,6 +8995,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Établi comment : lecture des deux FormRequest et du contrôleur, test temporaire.
 - Piste : `Rule::unique('saved_searches', 'name')->where('user_id', …)` dans les deux FormRequest (`->ignore()` sur la modification), avec un code `saved_search.name_taken` que le dialogue affiche ; test des deux statuts 422.
 - Mesure (2026-10-21, c9a22e0df, mesureur) : relu `StoreSavedSearchRequest.php:56` et `UpdateSavedSearchRequest.php:50` (`name` sans règle d'unicité), `SavedSearchController.php:31,46` (`create`, `fill()->save()`) ; test temporaire `TmpMesureurP92Test` (base créée par le test, charge 2,09 / 2,51 / 3,36 sur 8 cœurs, retiré ensuite) → deux `POST /api/saved-searches` de même nom : 201 puis 500 `saved_searches_user_id_name_unique` ; `PATCH` d'une seconde recherche vers le nom de la première : 500, même contrainte (le renommage, non mesuré par l'explorateur, est donc établi). Aucun ticket ni commit ne le traite (`grep` des tickets, `git log -S`). Correctif attendu : `Rule::unique('saved_searches', 'name')->where('user_id', <appelant>)` dans les deux FormRequest (`->ignore()` de la recherche en modification), soit 422 sur `name` avec le message `validation.unique` existant, et un test des deux 422 ; aucun texte neuf, ni nom suffixé, ni dédoublonnage. Classement : A1, la contrainte `unique(user_id, name)` fixe déjà la règle et le correctif ne change que le statut rendu à un appel qui échoue aujourd'hui.
+- Mesure (2026-10-21, df625ed63, implementeur) : avant correctif, `SavedSearchDuplicateNameTest` (charge 4,00 / 3,66 / 3,54 sur 8 cœurs) rend 500 `saved_searches_user_id_name_unique` sur le second `POST` de même nom et sur le `PATCH` vers un nom pris → `Rule::unique('saved_searches', 'name')` borné au compte (`ignore()` de la recherche en modification) : 422 sur `name` avec le message `validation.unique`, une seule ligne en base, le même nom libre pour un autre compte et un `PATCH` qui garde son nom à 200 ; ablation des deux FormRequest → 2 rouges sur 3 (le témoin reste vert), correctif remis → 3/3 ; `SavedSearchTest`, `SavedSearchCriteriaVocabularyTest`, `SavedSearchAlertsTest` verts. Le dialogue du front affiche toujours son erreur générique sur ce 422 (lu, `SaveSearchDialog.tsx`).
 
 ### Repasser un membre d'agence à un rôle qu'il a déjà tenu rend 500
 - Réf : P92.02
