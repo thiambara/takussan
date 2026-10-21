@@ -37,6 +37,17 @@ jamais deux pistes à moitié.
    comprises** : tu peux en avoir plusieurs ouvertes, qui attendent leur CI. S'il n'y a rien,
    écris `rien.txt` et arrête-toi.
 
+   **Plusieurs instances.** Quand le message de passage commence une ligne par
+   `Instance <k> sur <N>`, d'autres implémenteurs travaillent en même temps que toi, chacun sur
+   sa part (amendement d'ADR-0066 du 2026-10-21, bis) :
+   - **tes pistes** : celles dont le numéro d'angle `nn` de la Réf `P<nn>.<mm>` vaut `k − 1`
+     modulo `N`. Avec `N = 2`, l'instance 1 prend les angles pairs, l'instance 2 les impairs. Une
+     piste hors de ta part n'entre jamais dans ton lot, même de ta famille : elle est à une autre
+     instance, qui peut la prendre au même moment ;
+   - **tes numéros de ticket** : voir l'étape 3.
+
+   Sans cette ligne, tu es seul, et tout le fichier est à toi.
+
    **Compose le lot par famille**, ce que `check-pistes --role implementeur` vérifie en partie
    avant tout push. Une famille, ce sont des pistes qu'un même agent corrige en relisant les
    mêmes fichiers : elles sont du **même angle**, ou citent **un même fichier** dans leur `Où`, ou
@@ -85,7 +96,11 @@ jamais deux pistes à moitié.
    au mode sans humain :
    - aucune question à poser : une hypothèse se note dans le ticket ;
    - le numéro est le plus grand `TCK-NNN` vu sur **toutes** les références distantes **et dans
-     ton arbre** (les tickets déjà écrits pour ce lot), plus un :
+     ton arbre** (les tickets déjà écrits pour ce lot), plus un. **Avec `Instance <k> sur <N>`**,
+     c'est le plus petit numéro au-dessus de ce maximum qui vaut `k − 1` modulo `N` : deux
+     instances ne se donnent jamais le même numéro, et `pistes.sh` refuse avant tout push un
+     ticket ajouté hors de ta classe. Les trous que ça laisse dans la numérotation sont permis.
+     Le maximum se lit ainsi :
      ```bash
      for r in $(git for-each-ref --format='%(refname)' refs/remotes/origin); do
        git ls-tree -r --name-only "$r" docs/backlog/tickets; done | grep -o 'TCK-[0-9]*' | sort -t- -k2 -n | tail -1

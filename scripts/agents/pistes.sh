@@ -7,13 +7,16 @@
 #
 # Usage, depuis le dépôt :
 #   scripts/agents/pistes.sh installer [--sans-etiquettes]   # outils figés, réglages, étiquettes GitHub
-#   scripts/agents/pistes.sh planifier [X Y Z [W [F]]]  # launchd : explorateur toutes les X min,
-#                                                   # mesureur Y, implémenteur Z, délégué W, fusionneur F ;
-#                                                   # sans argument 30 20 5 20 10, W omis : 20, F omis : 10
-#                                                   # (porteur, 2026-10-19) ; 1 min au moins (2026-10-21)
+#   scripts/agents/pistes.sh planifier [X Y Z [W [F [S]]]]  # launchd : explorateur toutes les X min,
+#                                                   # mesureur Y, implémenteur Z, délégué W, fusionneur F,
+#                                                   # superviseur S ; sans argument 30 20 5 20 10 120, W omis :
+#                                                   # 20, F omis : 10, S omis : 120 (porteur, 2026-10-19 et
+#                                                   # 2026-10-21) ; 1 min au moins (2026-10-21)
 #   scripts/agents/pistes.sh deplanifier
 # Puis, depuis n'importe où (copie figée) :
 #   ~/.takussan-agents/outils/pistes.sh lancer <rôle>   # un passage, à la main ou par launchd
+#   ~/.takussan-agents/outils/pistes.sh lancer implementeur <k>   # l'instance k sur
+#       # INSTANCES_IMPLEMENTEUR (config.env, 1 par défaut) ; sans <k>, l'instance 1
 #   ~/.takussan-agents/outils/pistes.sh lancer <rôle> --a-blanc
 #       # un passage complet SANS RIEN PUBLIER (ni push, ni PR, ni fusion) ; avec
 #       # PISTES_BASE_REF=<ref> il part d'une autre base que origin/pre-dev
@@ -21,6 +24,9 @@
 #   ~/.takussan-agents/outils/pistes.sh etat
 #   ~/.takussan-agents/outils/pistes.sh releve [jours]   # ce que le délégué a tranché (7 jours par défaut)
 #   ~/.takussan-agents/outils/pistes.sh pause | reprendre
+#   ~/.takussan-agents/outils/pistes.sh action <verbe> …   # les actions du superviseur (ou du porteur) :
+#       reposer <job> | balayer | purger | pause <rôle|tous> <raison> | reprendre <rôle|tous>
+#       | relancer-ci <run-id> | notifier <texte>
 #
 # Compatible bash 3.2 : launchd lance /bin/bash, celui de macOS.
 set -euo pipefail
@@ -41,8 +47,8 @@ info() { printf '%s  %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
 valider_role() {
   case "${1:-}" in
-    explorateur | mesureur | implementeur | delegue) ;;
-    *) die "rôle inconnu « ${1:-} » (explorateur, mesureur, implementeur, delegue)" ;;
+    explorateur | mesureur | implementeur | delegue | superviseur) ;;
+    *) die "rôle inconnu « ${1:-} » (explorateur, mesureur, implementeur, delegue, superviseur)" ;;
   esac
 }
 
@@ -56,6 +62,41 @@ charger_config() {
   # ont un défaut ici, qu'une ligne de config.env remplace.
   BUDGET_DELEGUE="${BUDGET_DELEGUE:-5}"
   DUREE_DELEGUE="${DUREE_DELEGUE:-1800}"
+  BUDGET_SUPERVISEUR="${BUDGET_SUPERVISEUR:-10}"
+  DUREE_SUPERVISEUR="${DUREE_SUPERVISEUR:-3600}"
+  # Implémenteurs en parallèle (amendement d'ADR-0066 du 2026-10-21, bis).
+  INSTANCES_IMPLEMENTEUR="${INSTANCES_IMPLEMENTEUR:-1}"
+  case "$INSTANCES_IMPLEMENTEUR" in '' | *[!0-9]* | 0) die "INSTANCES_IMPLEMENTEUR=« $INSTANCES_IMPLEMENTEUR » : un entier, 1 au moins" ;; esac
+}
+
+# Les noms de job, de verrou, d'arbre et de sortie d'un rôle : « implementeur » pour l'instance 1,
+# « implementeur-<k> » pour les suivantes. L'instance 1 garde ainsi les noms d'avant l'amendement.
+noms_du_role() {
+  local k=2
+  printf '%s\n' "$1"
+  if [ "$1" = implementeur ]; then
+    while [ "$k" -le "$INSTANCES_IMPLEMENTEUR" ]; do
+      printf '%s\n' "$1-$k"
+      k=$((k + 1))
+    done
+  fi
+}
+
+# L'instance qui possède une branche d'agent : le suffixe « -<k> » après l'horodatage, 1 sans
+# suffixe. Une instance au-delà du nombre courant (le porteur l'a réduit) revient à l'instance 1 :
+# ses PR ne restent pas sans personne pour les réparer.
+instance_de_branche() {
+  local k
+  k="$(printf '%s' "$1" | sed -nE 's#^agents/[a-z]+/[0-9]{8}-[0-9]{6}-([0-9]+)$#\1#p')"
+  if [ -z "$k" ] || [ "$k" -gt "$INSTANCES_IMPLEMENTEUR" ]; then k=1; fi
+  printf '%s' "$k"
+}
+
+# La part d'une instance : les pistes dont le numéro d'angle (P<nn>.…) vaut k−1 modulo N. Un angle
+# entier va à une seule instance, et sa famille avec lui. Lit des lignes dont la Réf ouvre la ligne.
+part_de_l_instance() {
+  awk -v n="$INSTANCES_IMPLEMENTEUR" -v k="$INSTANCE" '
+    match($0, /^P[0-9]+\./) { if ((substr($0, 2, RLENGTH - 2) + 0) % n == k - 1) print }'
 }
 
 # Valeur d'une variable de config propre au rôle : par_role BUDGET mesureur → $BUDGET_MESUREUR.
@@ -151,6 +192,8 @@ REPARATIONS_MAX=3
 PR_MAX_EXPLORATEUR=
 PR_MAX_MESUREUR=
 PR_MAX_IMPLEMENTEUR=
+# Implémenteurs en parallèle, qui se partagent les angles et les numéros de ticket ; vide = 1.
+INSTANCES_IMPLEMENTEUR=
 # Modèle ; vide = celui du compte.
 MODELE=
 CONFIG
@@ -162,6 +205,7 @@ CONFIG
     gh label create agent:mesureur --color 5319e7 --description "PR de l'agent mesureur (ADR-0066)" --force > /dev/null
     gh label create agent:implementeur --color b60205 --description "PR de l'agent implémenteur (ADR-0066)" --force > /dev/null
     gh label create agent:delegue --color fbca04 --description "PR du délégué du porteur (ADR-0066, amendement du 2026-10-18)" --force > /dev/null
+    gh label create agent:superviseur --color 0e8a16 --description "PR du superviseur des agents (ADR-0066, amendement du 2026-10-21)" --force > /dev/null
     gh label create agents:synchro --color c5def5 --description "Synchronisation dev → pre-dev (ADR-0066)" --force > /dev/null
   ); fi
 
@@ -180,7 +224,7 @@ poser_job() {
   uid="$(id -u)"
   for a in "$@"; do args="$args<string>$a</string>"; done
   plist="$HOME/Library/LaunchAgents/$LAUNCHD.$nom.plist"
-  cat > "$plist" << PLIST
+  cat > "$plist.nouveau" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -202,21 +246,52 @@ poser_job() {
 </dict>
 </plist>
 PLIST
+  # Un job chargé dont le plist ne change pas n'est pas rechargé : décharger un job tue son passage
+  # en cours, et `planifier` se relance pour ajouter un job sans toucher aux autres. Comparés après
+  # normalisation : PlistBuddy et un éditeur réécrivent la mise en forme sans changer le sens.
+  if [ -f "$plist" ] && launchctl print "gui/$uid/$LAUNCHD.$nom" > /dev/null 2>&1 \
+    && cmp -s <(plutil -convert xml1 -o - "$plist" 2> /dev/null) <(plutil -convert xml1 -o - "$plist.nouveau"); then
+    rm -f "$plist.nouveau"
+    return 0
+  fi
+  mv -f "$plist.nouveau" "$plist"
+  charger_job "$nom" "$plist"
+}
+
+# Décharge puis recharge un job. Relevé le 2026-10-21 à 20:51 : `bootstrap` juste après le
+# `bootout` d'un job dont le passage tournait encore a rendu « Bootstrap failed: 5: Input/output
+# error », et `planifier` s'est arrêté là : quatre jobs gardaient leur ancienne cadence. On attend
+# que launchd ait déchargé le job, puis on réessaie.
+charger_job() {
+  local nom="$1" plist="$2" uid essai
+  uid="$(id -u)"
   launchctl bootout "gui/$uid/$LAUNCHD.$nom" 2> /dev/null || true
-  launchctl bootstrap "gui/$uid" "$plist"
+  for essai in 1 2 3 4 5 6 7 8 9 10; do
+    launchctl print "gui/$uid/$LAUNCHD.$nom" > /dev/null 2>&1 || break
+    sleep 1
+  done
+  for essai in 1 2 3; do
+    if launchctl bootstrap "gui/$uid" "$plist" 2> /dev/null; then return 0; fi
+    sleep 3
+  done
+  die "launchd refuse de charger $nom ($plist)"
 }
 
 planifier() {
   charger_config
-  [ $# -eq 0 ] || { [ $# -ge 3 ] && [ $# -le 5 ]; } || die "usage : planifier [<x> <y> <z> [w [f]]]  (minutes : explorateur, mesureur, implementeur, délégué, fusionneur ; défaut 30 20 5 20 10)"
+  [ $# -eq 0 ] || { [ $# -ge 3 ] && [ $# -le 6 ]; } || die "usage : planifier [<x> <y> <z> [w [f [s]]]]  (minutes : explorateur, mesureur, implementeur, délégué, fusionneur, superviseur ; défaut 30 20 5 20 10 120)"
   local minutes role
   # Cadences par défaut, posées par le porteur le 2026-10-19 (ADR-0066, Q2).
   [ $# -gt 0 ] || set -- 30 20 5
   [ $# -ge 4 ] || set -- "$@" 20
   [ $# -ge 5 ] || set -- "$@" 10
+  # Le superviseur toutes les 2 h (porteur, 2026-10-21).
+  [ $# -ge 6 ] || set -- "$@" 120
   # 1 minute au moins (le porteur, 2026-10-21) : un passage à la fois par rôle (verrou), et launchd ne
   # relance pas un job qui tourne encore ; une cadence d'une minute veut dire « repartir dès la fin ».
-  for role in $ROLES fusionneur; do
+  local nom k plist uid
+  uid="$(id -u)"
+  for role in $ROLES fusionneur superviseur; do
     minutes="$1"
     shift
     case "$minutes" in '' | *[!0-9]*) die "« $minutes » n'est pas un nombre de minutes" ;; esac
@@ -224,19 +299,44 @@ planifier() {
     if [ "$role" = fusionneur ]; then
       poser_job fusionneur $((minutes * 60)) fusionner
       info "fusionneur : toutes les $minutes min (sans modèle)"
+    elif [ "$role" = implementeur ]; then
+      k=1
+      for nom in $(noms_du_role implementeur); do
+        if [ "$k" -eq 1 ]; then poser_job "$nom" $((minutes * 60)) lancer implementeur; else poser_job "$nom" $((minutes * 60)) lancer implementeur "$k"; fi
+        info "$nom : toutes les $minutes min"
+        k=$((k + 1))
+      done
     else
       poser_job "$role" $((minutes * 60)) lancer "$role"
       info "$role : toutes les $minutes min"
     fi
   done
+  # Les instances au-delà du nombre courant : le porteur l'a réduit, leurs jobs partent.
+  for plist in "$HOME/Library/LaunchAgents/$LAUNCHD".implementeur-*.plist; do
+    [ -f "$plist" ] || continue
+    nom="$(basename "$plist" .plist)"
+    nom="${nom#"$LAUNCHD".}"
+    k="${nom#implementeur-}"
+    case "$k" in '' | *[!0-9]*) continue ;; esac
+    [ "$k" -gt "$INSTANCES_IMPLEMENTEUR" ] || continue
+    launchctl bootout "gui/$uid/$LAUNCHD.$nom" 2> /dev/null || true
+    rm -f "$plist"
+    info "$nom : déplanifié (INSTANCES_IMPLEMENTEUR=$INSTANCES_IMPLEMENTEUR)"
+  done
 }
 
 deplanifier() {
-  local job uid
+  local job uid plist
   uid="$(id -u)"
-  for job in $ROLES fusionneur; do
+  for job in $ROLES fusionneur superviseur; do
     launchctl bootout "gui/$uid/$LAUNCHD.$job" 2> /dev/null || true
     rm -f "$HOME/Library/LaunchAgents/$LAUNCHD.$job.plist"
+  done
+  for plist in "$HOME/Library/LaunchAgents/$LAUNCHD".implementeur-*.plist; do
+    [ -f "$plist" ] || continue
+    job="$(basename "$plist" .plist)"
+    launchctl bootout "gui/$uid/$job" 2> /dev/null || true
+    rm -f "$plist"
   done
   info "déplanifié (les passages en cours finissent)"
 }
@@ -256,7 +356,7 @@ deplanifier() {
 # l'implémenteur essayait des PR que le fusionneur venait de fusionner, journalisait trois faux
 # refus « conflit » et appelait `update-branch` sur des PR fermées.
 essai_de_fusion() {
-  local num="$1" tete="$2" arbre="$BASE/arbres/essai-${ROLE:-fusionneur}" rapport cle g h echecs=0
+  local num="$1" tete="$2" arbre="$BASE/arbres/essai-${NOM:-fusionneur}" rapport cle g h echecs=0
   rapport="$BASE/sorties/essais/$num.txt"
   mkdir -p "$BASE/sorties/essais"
   avec_verrou_git git -C "$CLONE" fetch origin --prune --quiet || return 2
@@ -283,9 +383,9 @@ essai_de_fusion() {
       # `vendor/` est ignoré par git, donc épargné par le `clean -fdq` ci-dessus : il ne se réinstalle
       # que si le `composer.lock` de l'arbre fusionné change.
       h="$(shasum "$arbre/takussan-api/composer.lock" | cut -c1-40)"
-      if [ ! -f "$arbre/takussan-api/vendor/autoload.php" ] || [ "$h" != "$(cat "$BASE/etat/composer-essai-${ROLE:-fusionneur}" 2> /dev/null || true)" ]; then
+      if [ ! -f "$arbre/takussan-api/vendor/autoload.php" ] || [ "$h" != "$(cat "$BASE/etat/composer-essai-${NOM:-fusionneur}" 2> /dev/null || true)" ]; then
         if (cd "$arbre/takussan-api" && composer install --no-interaction --no-progress --quiet) > /dev/null 2>&1; then
-          printf '%s' "$h" > "$BASE/etat/composer-essai-${ROLE:-fusionneur}"
+          printf '%s' "$h" > "$BASE/etat/composer-essai-${NOM:-fusionneur}"
         else
           echo "✗ composer install dans l'arbre d'essai"
           echecs=$((echecs + 1))
@@ -311,7 +411,7 @@ essai_de_fusion() {
   if [ "$tete" != dev ]; then
     GH_REPO="$GH_REPO" gh pr update-branch "$num" > /dev/null 2>&1 || true
   fi
-  printf '%s\t%s\t-\trefuse\t%s\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "${ROLE:-fusionneur}" "$num" \
+  printf '%s\t%s\t-\trefuse\t%s\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "${NOM:-fusionneur}" "$num" \
     "essai de fusion rouge : $(grep '^✗' "$rapport" | tr '\n' ' ')" >> "$BASE/journal.tsv"
   return 1
 }
@@ -322,7 +422,7 @@ essai_de_fusion() {
 # l'explorateur), qui restait bloqué entre-temps (une PR ouverte par rôle). ADR-0066 § 4.
 fusionner() {
   charger_config
-  if [ -e "$BASE/PAUSE" ] || [ "$FUSION" != auto ]; then return 0; fi
+  if [ -e "$BASE/PAUSE" ] || [ -e "$BASE/PAUSE-fusionneur" ] || [ "$FUSION" != auto ]; then return 0; fi
   local verrou="$BASE/verrous/fusionneur" pid
   if ! mkdir "$verrou" 2> /dev/null; then
     pid="$(cat "$verrou/pid" 2> /dev/null || true)"
@@ -355,6 +455,10 @@ fusionner() {
     fi
     [ "$mergeable" != CONFLICTING ] || continue
     [ "$(etat_ci "$num")" = vert ] || continue
+    if [ "${tete#agents/superviseur/}" != "$tete" ] && ! sans_outils_des_agents "$tete"; then
+      info "#$num (superviseur) touche les outils des agents : elle attend le porteur"
+      continue
+    fi
     essai_de_fusion "$num" "$tete" || continue
     if [ "$tete" = dev ]; then
       # Jamais --delete-branch ici : la tête de cette PR est dev.
@@ -368,6 +472,19 @@ fusionner() {
   done
 }
 
+# Les chemins qui bornent les agents (ceux de la garde, `BORNES` de garde.mjs). Une PR du superviseur
+# qui les touche n'est jamais fusionnée par la chaîne : le porteur la lit, la fusionne, puis
+# réinstalle (amendement d'ADR-0066 du 2026-10-21, « le superviseur »).
+OUTILS_DES_AGENTS='^(\.agent/|\.claude/|scripts/agents/|scripts/check-pistes\.mjs$|\.github/|docs/adr/0066-)'
+
+# Rend 0 si la branche ne touche aucun de ces chemins. Le doute (lecture impossible) rend 1.
+sans_outils_des_agents() {
+  local fichiers
+  avec_verrou_git git -C "$CLONE" fetch origin --prune --quiet || return 1
+  fichiers="$(git -C "$CLONE" diff --name-only "$BASE_REF...origin/$1")" || return 1
+  ! printf '%s\n' "$fichiers" | grep -qE "$OUTILS_DES_AGENTS"
+}
+
 # Le travail d'un rôle fusionné, l'agent qui le reçoit part tout de suite au lieu d'attendre sa
 # cadence (amendement d'ADR-0066 du 2026-10-18) : l'explorateur écrit des « à mesurer », le
 # mesureur des « autonome » et des « à valider », le délégué des « validé (délégué) ». Les cadences
@@ -377,8 +494,8 @@ relancer_suivant() {
   local suivants suivant
   case "$1" in
     agents/explorateur/*) suivants=mesureur ;;
-    agents/mesureur/*) suivants="implementeur delegue" ;;
-    agents/delegue/*) suivants=implementeur ;;
+    agents/mesureur/*) suivants="$(noms_du_role implementeur) delegue" ;;
+    agents/delegue/*) suivants="$(noms_du_role implementeur)" ;;
     *) return 0 ;;
   esac
   for suivant in $suivants; do
@@ -414,9 +531,12 @@ etat() {
   charger_config
   local role uid
   uid="$(id -u)"
-  if [ -e "$BASE/PAUSE" ]; then echo "⏸  PAUSE active ($BASE/PAUSE)"; fi
+  if [ -e "$BASE/PAUSE" ]; then echo "⏸  PAUSE active ($BASE/PAUSE) $(head -c 160 "$BASE/PAUSE")"; fi
+  for role in "$BASE"/PAUSE-*; do
+    if [ -e "$role" ]; then echo "⏸  ${role##*/} : $(head -c 160 "$role")"; fi
+  done
   echo "outils $OUTILS_SHA · fusion $FUSION · dépôt $GH_REPO"
-  for role in $ROLES; do
+  for role in $(for r in $ROLES; do noms_du_role "$r"; done); do
     printf '\n%s\n' "── $role"
     if launchctl print "gui/$uid/$LAUNCHD.$role" > /dev/null 2>&1; then echo "  planifié (launchd)"; else echo "  non planifié"; fi
     if [ -d "$BASE/verrous/$role" ]; then echo "  passage en cours (pid $(cat "$BASE/verrous/$role/pid" 2> /dev/null || echo '?'))"; fi
@@ -427,6 +547,10 @@ etat() {
   printf '\n%s\n' "── fusionneur"
   if launchctl print "gui/$uid/$LAUNCHD.fusionneur" > /dev/null 2>&1; then echo "  planifié (launchd, 10 min)"; else echo "  non planifié"; fi
   if [ -f "$BASE/journal.tsv" ]; then awk -F '\t' '$2 == "fusionneur"' "$BASE/journal.tsv" | tail -3 | sed 's/^/  /'; fi
+  printf '\n%s\n' "── superviseur"
+  if launchctl print "gui/$uid/$LAUNCHD.superviseur" > /dev/null 2>&1; then echo "  planifié (launchd)"; else echo "  non planifié"; fi
+  if [ -d "$BASE/verrous/superviseur" ]; then echo "  passage en cours (pid $(cat "$BASE/verrous/superviseur/pid" 2> /dev/null || echo '?'))"; fi
+  if [ -f "$BASE/journal.tsv" ]; then awk -F '\t' '$2 == "superviseur"' "$BASE/journal.tsv" | tail -3 | sed 's/^/  /'; fi
   printf '\n%s\n' "── PR ouvertes vers pre-dev"
   GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --json number,title,labels \
     --jq '.[] | "  #\(.number)  \(.title)"'
@@ -435,6 +559,10 @@ etat() {
 # ─── un passage ───────────────────────────────────────────────────────────────────────────────
 
 ROLE=""
+# Le nom du passage : le rôle, ou « implementeur-<k> » pour l'instance k > 1 (verrou, arbre, sortie,
+# journal). Le rôle, lui, reste celui des étiquettes, de la garde et de la définition d'agent.
+NOM=""
+INSTANCE=1
 A_BLANC=0
 BASE_REF="${PISTES_BASE_REF:-origin/pre-dev}"
 MODE=""
@@ -449,7 +577,7 @@ journaliser() {
   local duree=$(($(date +%s) - DEBUT))
   # Une sortie par `set -e` (réseau, commande en échec) n'a pas de détail : le journal le dit.
   if [ "$RESULTAT" = erreur ] && [ -z "$DETAIL" ]; then DETAIL="sortie inattendue (commande en échec ou réseau) : voir passage.log"; fi
-  printf '%s\t%s\t%s\t%s\t%s\t%ss\t%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$ROLE" "${MODE:--}" \
+  printf '%s\t%s\t%s\t%s\t%s\t%ss\t%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$NOM" "${MODE:--}" \
     "$RESULTAT" "${PR:--}" "$duree" "${COUT:--}" "${TOURS:--}" "$DETAIL" >> "$BASE/journal.tsv"
 }
 
@@ -550,14 +678,14 @@ preparer_arbre() {
 installer_dependances() {
   local arbre="$1" h
   h="$(shasum "$arbre/takussan-api/composer.lock" | cut -c1-40)"
-  if [ ! -d "$arbre/takussan-api/vendor" ] || [ "$h" != "$(cat "$BASE/etat/composer-$ROLE" 2> /dev/null || true)" ]; then
+  if [ ! -d "$arbre/takussan-api/vendor" ] || [ "$h" != "$(cat "$BASE/etat/composer-$NOM" 2> /dev/null || true)" ]; then
     (cd "$arbre/takussan-api" && composer install --no-interaction --no-progress --quiet)
-    printf '%s' "$h" > "$BASE/etat/composer-$ROLE"
+    printf '%s' "$h" > "$BASE/etat/composer-$NOM"
   fi
   h="$(shasum "$arbre/takussan-web/package-lock.json" | cut -c1-40)"
-  if [ ! -d "$arbre/takussan-web/node_modules" ] || [ "$h" != "$(cat "$BASE/etat/npm-$ROLE" 2> /dev/null || true)" ]; then
+  if [ ! -d "$arbre/takussan-web/node_modules" ] || [ "$h" != "$(cat "$BASE/etat/npm-$NOM" 2> /dev/null || true)" ]; then
     (cd "$arbre/takussan-web" && npm ci --silent --no-audit --no-fund)
-    printf '%s' "$h" > "$BASE/etat/npm-$ROLE"
+    printf '%s' "$h" > "$BASE/etat/npm-$NOM"
   fi
   # Copies posées par « installer », jamais de lien vers l'arbre principal (illisible sous launchd).
   if [ -f "$BASE/env/takussan-api.env" ]; then cp "$BASE/env/takussan-api.env" "$arbre/takussan-api/.env"; fi
@@ -593,13 +721,21 @@ verifier() {
     info "✗ l'agent a laissé des modifications non commitées (non-commite.txt)"
     return 1
   fi
-  # La garde de périmètre jouée est celle d'origin/pre-dev, pas celle de la branche de l'agent.
-  git -C "$CLONE" show "$BASE_REF:scripts/check-pistes.mjs" > "$fige"
-  if ! (cd "$arbre" && CHECK_PISTES_RACINE="$arbre" node "$fige" --role "$ROLE" --base "$BASE_REF") > "$sortie/verif-pistes.txt" 2>&1; then
-    info "✗ check-pistes --role $ROLE (verif-pistes.txt)"
-    echecs=$((echecs + 1))
+  if [ "$ROLE" = superviseur ]; then
+    # Le superviseur n'a pas de pistes : il ne touche pas leur fichier, qui est aux autres rôles.
+    if git -C "$arbre" diff --name-only "$depart" HEAD | grep -qxF docs/plans/2026-10-15-pistes-d-amelioration.md; then
+      info "✗ le superviseur a touché le fichier de pistes"
+      echecs=$((echecs + 1))
+    fi
+  else
+    # La garde de périmètre jouée est celle d'origin/pre-dev, pas celle de la branche de l'agent.
+    git -C "$CLONE" show "$BASE_REF:scripts/check-pistes.mjs" > "$fige"
+    if ! (cd "$arbre" && CHECK_PISTES_RACINE="$arbre" node "$fige" --role "$ROLE" --base "$BASE_REF") > "$sortie/verif-pistes.txt" 2>&1; then
+      info "✗ check-pistes --role $ROLE (verif-pistes.txt)"
+      echecs=$((echecs + 1))
+    fi
   fi
-  if [ "$ROLE" = implementeur ]; then
+  if [ "$ROLE" = implementeur ] || [ "$ROLE" = superviseur ]; then
     local g php
     for g in "$arbre"/scripts/check-*.mjs; do
       if ! (cd "$arbre" && node "$g") >> "$sortie/verif-gardes.txt" 2>&1; then
@@ -612,6 +748,21 @@ verifier() {
     if ! (cd "$arbre" && node docs/backlog/gen-index.mjs --check && node docs/backlog/check-backlog.mjs) >> "$sortie/verif-gardes.txt" 2>&1; then
       info "✗ index ou backlog (verif-gardes.txt)"
       echecs=$((echecs + 1))
+    fi
+    # Deux instances qui numérotent chacune « le plus grand vu, plus un » se donnent le même numéro,
+    # et la seconde PR fusionnée rougit check-backlog (id en double). Chaque instance a sa classe
+    # de numéros modulo N : la règle de ses instructions, vérifiée ici sur les tickets ajoutés.
+    if [ "$INSTANCES_IMPLEMENTEUR" -gt 1 ]; then
+      local hors
+      hors="$(git -C "$arbre" diff --name-only --diff-filter=A "$depart" HEAD -- docs/backlog/tickets \
+        | sed -nE 's#^docs/backlog/tickets/TCK-0*([0-9]+)-.*#\1#p' \
+        | awk -v n="$INSTANCES_IMPLEMENTEUR" -v k="$INSTANCE" '($1 + 0) % n != k - 1 { printf "TCK-%s ", $1 }')"
+      if [ -n "$hors" ]; then
+        printf 'tickets hors de la classe de l'"'"'instance %s sur %s (numéro modulo %s = %s) : %s\n' \
+          "$INSTANCE" "$INSTANCES_IMPLEMENTEUR" "$INSTANCES_IMPLEMENTEUR" "$((INSTANCE - 1))" "$hors" > "$sortie/verif-instance.txt"
+        info "✗ numéros de ticket hors de la classe de l'instance (verif-instance.txt)"
+        echecs=$((echecs + 1))
+      fi
     fi
     php="$(git -C "$arbre" diff --name-only --diff-filter=AM "$depart" HEAD -- 'takussan-api/*.php' | sed 's#^takussan-api/##' | tr '\n' ' ')"
     if [ -n "$php" ]; then
@@ -651,6 +802,13 @@ etat_des_pr() {
   MODE=nouveau
   while IFS=$'\t' read -r num tete etat_fusion; do
     [ -n "$num" ] || continue
+    # Une PR d'une autre instance compte dans le plafond, qui est celui du rôle, mais c'est son
+    # instance qui la fusionne, la réconcilie ou la répare : deux réparations de la même PR à la
+    # fois écriraient chacune sur la branche de l'autre.
+    if [ "$(instance_de_branche "$tete")" != "$INSTANCE" ]; then
+      ouvertes=$((ouvertes + 1))
+      continue
+    fi
     ci_pr="$(etat_ci "$num")"
     conflit_pr=non
     # GitHub rend UNKNOWN après chaque fusion dans pre-dev, tant qu'on ne lui a pas redemandé, et
@@ -778,6 +936,10 @@ travail_disponible() {
     implementeur)
       liste="$(CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --liste "validé" \
         && CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --liste "retenu · autonome")" || return 0
+      if [ "$INSTANCES_IMPLEMENTEUR" -gt 1 ]; then
+        liste="$(printf '%s\n' "$liste" | part_de_l_instance)"
+        if [ -z "$liste" ]; then fin rien "sans modèle : rien à prendre dans la part de l'instance $INSTANCE sur $INSTANCES_IMPLEMENTEUR"; fi
+      fi
       corps="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --json title,body \
         --jq '.[] | "\(.title) \(.body // "")"')" || return 0
       pris="$(printf '%s\n' "$corps" | grep -oE 'P[0-9]+\.[0-9]+' | sort -u || true)"
@@ -810,19 +972,21 @@ SORTIES_JOURS="${SORTIES_JOURS:-7}"
 balayer_processus() {
   local pids
   pids="$(cd / && {
-    pgrep -f -- "$BASE/arbres/$ROLE/" || true
-    pgrep -f -- "$BASE/sorties/$ROLE/" || true
-    lsof -a -d cwd -Fpn 2> /dev/null | awk -v a="$BASE/arbres/$ROLE" -v s="$BASE/sorties/$ROLE/" '
+    pgrep -f -- "$BASE/arbres/$NOM/" || true
+    pgrep -f -- "$BASE/sorties/$NOM/" || true
+    lsof -a -d cwd -Fpn 2> /dev/null | awk -v a="$BASE/arbres/$NOM" -v s="$BASE/sorties/$NOM/" '
       /^p/ { p = substr($0, 2) }
       /^n/ { n = substr($0, 2); if (n == a || index(n, a "/") == 1 || index(n, s) == 1) print p }'
   } | sort -u | grep -vx "$$" || true)"
+  BALAYES=0
   if [ -z "$pids" ]; then return 0; fi
+  BALAYES="$(printf '%s\n' "$pids" | wc -l | tr -d ' ')"
   # shellcheck disable=SC2086 # une liste de pid, à découper
   kill $pids 2> /dev/null || true
   sleep 5
   # shellcheck disable=SC2086
   kill -9 $pids 2> /dev/null || true
-  info "processus laissés sous l'arbre ou les sorties de $ROLE arrêtés : $(printf '%s\n' "$pids" | wc -l | tr -d ' ')"
+  info "processus laissés sous l'arbre ou les sorties de $NOM arrêtés : $(printf '%s\n' "$pids" | wc -l | tr -d ' ')"
 }
 
 # En début de passage, sous verrou : les restes d'un passage précédent, les vieux dossiers de
@@ -830,7 +994,7 @@ balayer_processus() {
 entretenir() {
   local arbre="$1" sortie="$2" cache ko
   balayer_processus
-  find "$BASE/sorties/$ROLE" -mindepth 1 -maxdepth 1 -type d -mtime +"$SORTIES_JOURS" ! -path "$sortie" -exec rm -rf {} + 2> /dev/null || true
+  find "$BASE/sorties/$NOM" -mindepth 1 -maxdepth 1 -type d -mtime +"$SORTIES_JOURS" ! -path "$sortie" -exec rm -rf {} + 2> /dev/null || true
   cache="$arbre/takussan-web/.next/dev/cache"
   if [ -d "$cache" ]; then
     ko="$(du -sk "$cache" | cut -f1)"
@@ -845,18 +1009,31 @@ lancer() {
   ROLE="$1"
   valider_role "$ROLE"
   charger_config
+  INSTANCE="${2:-1}"
+  case "$INSTANCE" in '' | *[!0-9]* | 0) die "instance « $INSTANCE » : un entier, 1 au moins" ;; esac
+  if [ "$INSTANCE" -gt 1 ]; then
+    [ "$ROLE" = implementeur ] || die "seul l'implémenteur a plusieurs instances"
+    [ "$INSTANCE" -le "$INSTANCES_IMPLEMENTEUR" ] || die "instance $INSTANCE au-delà de INSTANCES_IMPLEMENTEUR=$INSTANCES_IMPLEMENTEUR"
+    NOM="$ROLE-$INSTANCE"
+  else
+    NOM="$ROLE"
+  fi
   DEBUT="$(date +%s)"
   local horo sortie arbre verrou
   horo="$(date +%Y%m%d-%H%M%S)"
-  sortie="$BASE/sorties/$ROLE/$horo"
-  arbre="$BASE/arbres/$ROLE"
-  verrou="$BASE/verrous/$ROLE"
+  sortie="$BASE/sorties/$NOM/$horo"
+  arbre="$BASE/arbres/$NOM"
+  verrou="$BASE/verrous/$NOM"
   mkdir -p "$sortie"
   exec >> "$sortie/passage.log" 2>&1
   trap journaliser EXIT
 
   # 1. Arrêts préalables, avant toute dépense.
-  if [ -e "$BASE/PAUSE" ]; then fin pause "fichier PAUSE présent"; fi
+  # Le superviseur passe sous SA pause (il doit pouvoir la lever), jamais sous celle du porteur.
+  if [ -e "$BASE/PAUSE" ] && ! { [ "$ROLE" = superviseur ] && pause_du_superviseur "$BASE/PAUSE"; }; then
+    fin pause "fichier PAUSE présent"
+  fi
+  if [ -e "$BASE/PAUSE-$ROLE" ]; then fin pause "PAUSE-$ROLE : $(head -c 150 "$BASE/PAUSE-$ROLE" | tr '\n' ' ')"; fi
   if ! mkdir "$verrou" 2> /dev/null; then
     local pid
     pid="$(cat "$verrou/pid" 2> /dev/null || true)"
@@ -872,17 +1049,26 @@ lancer() {
   local charge max
   charge="$(sysctl -n vm.loadavg | awk '{print $3}' | tr ',' '.')"
   max="${CHARGE_MAX:-$(($(sysctl -n hw.ncpu) * 3 / 2))}"
-  if awk -v c="$charge" -v m="$max" 'BEGIN { exit !(c > m) }'; then fin charge "charge $charge > $max"; fi
+  # Le superviseur part sous la charge : c'est une des choses qu'il doit voir.
+  if [ "$ROLE" != superviseur ] && awk -v c="$charge" -v m="$max" 'BEGIN { exit !(c > m) }'; then fin charge "charge $charge > $max"; fi
 
   avec_verrou_git recuperer
 
   # 2. Les PR du rôle (etat_des_pr).
   local branche depart ci="" conflit="" reparations=0
-  etat_des_pr
-  if [ "$MODE" = nouveau ]; then
+  if [ "$ROLE" = superviseur ]; then
+    # Il n'a ni pistes ni PR à réparer : chaque passage relève l'état et part de la base.
+    MODE=surveillance
     branche="agents/$ROLE/$horo"
+    if [ "$INSTANCE" -gt 1 ]; then branche="$branche-$INSTANCE"; fi
     depart="$BASE_REF"
-    travail_disponible
+  else
+    etat_des_pr
+    if [ "$MODE" = nouveau ]; then
+      branche="agents/$ROLE/$horo"
+      depart="$BASE_REF"
+      travail_disponible
+    fi
   fi
 
   # 3. L'arbre du rôle.
@@ -900,6 +1086,16 @@ Base du passage : $BASE_REF = $sha_pre_dev (partout où tes instructions écrive
 
 PR ouvertes vers pre-dev (ce qu'elles citent est pris) :
 ${autres:-(aucune)}"
+  if [ "$ROLE" = superviseur ]; then
+    message="$message
+
+Dossier des agents : $BASE (\$PISTES_BASE). Outils installés : $OUTILS_SHA. Cadences : le StartInterval des plists $HOME/Library/LaunchAgents/$LAUNCHD.*.plist."
+  fi
+  if [ "$INSTANCES_IMPLEMENTEUR" -gt 1 ]; then
+    message="$message
+
+Instance $INSTANCE sur $INSTANCES_IMPLEMENTEUR (implementeur.md, « Plusieurs instances ») : tu ne prends que les pistes P<nn>.… dont le numéro d'angle nn vaut $((INSTANCE - 1)) modulo $INSTANCES_IMPLEMENTEUR, et chaque ticket neuf prend le plus petit numéro au-dessus du plus grand vu qui vaut $((INSTANCE - 1)) modulo $INSTANCES_IMPLEMENTEUR."
+  fi
   if [ "$MODE" = reparation ]; then
     message="$message
 
@@ -920,7 +1116,7 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
   (
     cd "$arbre"
     export PISTES_ROLE="$ROLE" PISTES_ARBRE="$arbre" PISTES_SORTIE="$sortie" PISTES_DEPOT="$DEPOT" \
-      PISTES_JOURNAL="$BASE/journaux/garde.tsv"
+      PISTES_JOURNAL="$BASE/journaux/garde.tsv" PISTES_BASE="$BASE"
     lancer_claude "$(par_role DUREE "$ROLE")" "$CLAUDE_BIN" "${args[@]}" < /dev/null > "$sortie/claude.json" 2> "$sortie/claude.err"
   ) || statut=$?
   COUT="$(node -e 'try { const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); process.stdout.write(String(r.total_cost_usd ?? "")) } catch {}' "$sortie/claude.json")"
@@ -933,6 +1129,10 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
   avance="$(git -C "$arbre" rev-list --count "$depart..HEAD")"
   if [ "$avance" -eq 0 ]; then
     if [ -n "$(git -C "$arbre" status --porcelain)" ]; then fin refuse "modifications non commitées, aucun commit"; fi
+    if [ "$ROLE" = superviseur ]; then
+      if [ ! -s "$sortie/rapport.md" ]; then fin erreur "rapport.md absent"; fi
+      fin surveille "$(head -n 1 "$sortie/rapport.md" | head -c 200)"
+    fi
     if [ -f "$sortie/rien.txt" ]; then fin rien "$(head -c 200 "$sortie/rien.txt" | tr '\n' ' ')"; fi
     fin rien "aucun commit, sans rien.txt"
   fi
@@ -948,10 +1148,12 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
   if [ ! -s "$sortie/pr-corps.md" ]; then fin refuse "pr-corps.md absent"; fi
   if [ "$MODE" = nouveau ] && [ ! -s "$sortie/pr-titre.txt" ]; then fin refuse "pr-titre.txt absent"; fi
 
-  local pied verifs="" corps="$sortie/pr-corps-publie.md"
+  local pied verifs="" controle corps="$sortie/pr-corps-publie.md"
   if [ "$ROLE" = implementeur ]; then verifs=", gardes du dépôt, index du backlog et Pint verts"; fi
+  controle="\`check-pistes --role $ROLE --base $BASE_REF\` vert$verifs"
+  if [ "$ROLE" = superviseur ]; then controle="gardes du dépôt, index du backlog et Pint verts, fichier de pistes intouché"; fi
   pied="$(printf '%s\n' '' '---' \
-    "Vérifié avant push par \`scripts/agents/pistes.sh\` (outils $OUTILS_SHA) : \`check-pistes --role $ROLE --base $BASE_REF\` vert$verifs." \
+    "Vérifié avant push par \`scripts/agents/pistes.sh\` (outils $OUTILS_SHA) : $controle." \
     "Passage $horo · $(($(date +%s) - DEBUT)) s · ${COUT:-?} USD · ${TOURS:-?} tours · arbre de départ \`$sha_pre_dev\`." \
     '' '🤖 Generated with [Claude Code](https://claude.com/claude-code)')"
   { sed '/Generated with \[Claude Code\]/d' "$sortie/pr-corps.md"; printf '%s\n' "$pied"; } > "$corps"
@@ -963,10 +1165,183 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
   if [ "$MODE" = nouveau ]; then
     PR="$(GH_REPO="$GH_REPO" gh pr create --base pre-dev --head "$branche" --label "agent:$ROLE" \
       --title "$(head -n 1 "$sortie/pr-titre.txt")" --body-file "$corps" | sed 's#.*/##')"
+    if [ "$ROLE" = superviseur ]; then notifier "PR #$PR ouverte : $(head -n 1 "$sortie/pr-titre.txt")"; fi
     fin publie "PR #$PR ouverte"
   fi
   GH_REPO="$GH_REPO" gh pr comment "$PR" --body-file "$corps" > /dev/null
   fin repare "PR #$PR : réparation poussée"
+}
+
+# ─── actions du superviseur ───────────────────────────────────────────────────────────────────
+#
+# Amendement d'ADR-0066 du 2026-10-21, « le superviseur ». Le superviseur agit sur l'état des agents
+# par ces verbes, et par rien d'autre : la garde lui refuse `launchctl` hors lecture, `kill`,
+# `gh run rerun`, et toute écriture shell dans $BASE. Chaque verbe vérifie ses bornes ICI, dans
+# l'outil installé qu'aucun agent ne modifie, écrit une ligne au journal et, quand il change quelque
+# chose, prévient le porteur. Le porteur peut s'en servir à la main.
+
+# Une pause posée par le superviseur commence par « superviseur » ; celle du porteur (`pause`) est
+# un fichier vide, ou de sa main.
+pause_du_superviseur() {
+  [ "$(head -c 11 "$1" 2> /dev/null)" = superviseur ]
+}
+
+journaliser_action() {
+  printf '%s\tsuperviseur\t-\taction\t-\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$(printf '%s' "$*" | tr '\t\n' '  ' | head -c 300)" >> "$BASE/journal.tsv"
+}
+
+# Notification macOS (2a du porteur, 2026-10-21 : seulement quand le superviseur a corrigé ou mis en
+# pause quelque chose). Le texte passe en argument, jamais dans le source AppleScript.
+notifier() {
+  journaliser_action "notification : $*"
+  osascript -e 'on run argv' -e 'display notification (item 1 of argv) with title "Takussan · superviseur" sound name "Glass"' \
+    -e 'end run' "$*" > /dev/null 2>&1 || true
+}
+
+# Les noms de passage : un par arbre de rôle (les arbres d'essai du fusionneur n'en sont pas).
+noms_de_passage() {
+  local a n
+  for a in "$BASE"/arbres/*; do
+    [ -d "$a" ] || continue
+    n="${a##*/}"
+    case "$n" in essai-* | superviseur) continue ;; esac
+    printf '%s\n' "$n"
+  done
+}
+
+# Prend le verrou d'un passage le temps d'une action : un passage en cours le tient, et l'action
+# l'épargne ; un passage qui voudrait partir pendant l'action trouve le verrou pris et s'arrête en
+# « occupé ». Rend 1 si un passage vivant tient le verrou.
+prendre_verrou() {
+  local v="$BASE/verrous/$1" pid
+  if ! mkdir "$v" 2> /dev/null; then
+    pid="$(cat "$v/pid" 2> /dev/null || true)"
+    if [ -n "$pid" ] && kill -0 "$pid" 2> /dev/null; then return 1; fi
+    rm -rf "$v"
+    mkdir "$v" || return 1
+  fi
+  printf '%s' "$$" > "$v/pid"
+}
+
+action_reposer() {
+  local job="${1:-}" plist intervalle uid
+  uid="$(id -u)"
+  case "$job" in
+    '' | *[!a-z0-9-]*) die "reposer <job> : explorateur, mesureur, implementeur[-k], delegue, fusionneur" ;;
+    superviseur) die "le superviseur ne se repose pas lui-même" ;;
+  esac
+  plist="$HOME/Library/LaunchAgents/$LAUNCHD.$job.plist"
+  [ -f "$plist" ] || die "$job : aucun plist ($plist) — le porteur le pose par « planifier »"
+  intervalle="$(/usr/libexec/PlistBuddy -c 'Print :StartInterval' "$plist")"
+  # Décharger un job tue son passage en cours : on le laisse finir.
+  if launchctl print "gui/$uid/$LAUNCHD.$job" > /dev/null 2>&1; then
+    prendre_verrou "$job" || die "$job : un passage est en cours, il n'est pas interrompu ; réessayer à un passage suivant"
+    charger_job "$job" "$plist"
+    rm -rf "$BASE/verrous/$job"
+  else
+    charger_job "$job" "$plist"
+  fi
+  launchctl print "gui/$uid/$LAUNCHD.$job" 2> /dev/null | grep -q "run interval = $intervalle seconds" \
+    || die "$job rechargé, mais launchd ne rend pas la cadence de $intervalle s"
+  info "$job rechargé, toutes les $((intervalle / 60)) min"
+  notifier "job $job rechargé (toutes les $((intervalle / 60)) min)"
+}
+
+action_balayer() {
+  local n total=0
+  for n in $(noms_de_passage); do
+    if ! prendre_verrou "$n"; then
+      info "$n : passage en cours, épargné"
+      continue
+    fi
+    NOM="$n" balayer_processus
+    rm -rf "$BASE/verrous/$n"
+    total=$((total + BALAYES))
+  done
+  journaliser_action "balayer : $total processus visés"
+  if [ "$total" -gt 0 ]; then notifier "$total processus orphelins arrêtés"; fi
+  info "balayage fini ($total processus visés)"
+}
+
+action_purger() {
+  local n avant apres cache
+  avant="$(du -sk "$BASE" | cut -f1)"
+  for n in $(noms_de_passage); do
+    prendre_verrou "$n" || { info "$n : passage en cours, épargné"; continue; }
+    find "$BASE/sorties/$n" -mindepth 1 -maxdepth 1 -type d -mtime +"$SORTIES_JOURS" -exec rm -rf {} + 2> /dev/null || true
+    cache="$BASE/arbres/$n/takussan-web/.next/dev/cache"
+    if [ -d "$cache" ] && [ "$(du -sk "$cache" | cut -f1)" -gt "$NEXT_CACHE_MAX_KO" ]; then rm -rf "$cache"; fi
+    rm -rf "$BASE/verrous/$n"
+  done
+  find "$BASE/sorties/essais" -type f -mtime +"$SORTIES_JOURS" -delete 2> /dev/null || true
+  apres="$(du -sk "$BASE" | cut -f1)"
+  journaliser_action "purger : $(((avant - apres) / 1024)) Mo libérés"
+  if [ "$((avant - apres))" -gt 102400 ]; then notifier "$(((avant - apres) / 1024)) Mo libérés dans le dossier des agents"; fi
+  info "$(((avant - apres) / 1024)) Mo libérés ($((apres / 1024)) Mo restent)"
+}
+
+fichier_de_pause() {
+  case "${1:-}" in
+    tous) printf '%s' "$BASE/PAUSE" ;;
+    explorateur | mesureur | implementeur | delegue | fusionneur) printf '%s' "$BASE/PAUSE-$1" ;;
+    *) die "rôle « ${1:-} » : explorateur, mesureur, implementeur, delegue, fusionneur ou tous" ;;
+  esac
+}
+
+action_pause() {
+  local f raison="${2:-}"
+  f="$(fichier_de_pause "${1:-}")"
+  [ "${#raison}" -ge 10 ] || die "pause $1 « <raison> » : la raison dit la cause établie (10 caractères au moins)"
+  if [ -e "$f" ] && ! pause_du_superviseur "$f"; then
+    info "${f##*/} : déjà posée par le porteur, laissée telle quelle"
+    return 0
+  fi
+  printf 'superviseur %s : %s\n' "$(date '+%Y-%m-%d %H:%M')" "$raison" > "$f"
+  journaliser_action "pause $1 : $raison"
+  notifier "pause $1 : $raison"
+  info "${f##*/} posée"
+}
+
+action_reprendre() {
+  local f
+  f="$(fichier_de_pause "${1:-}")"
+  [ -e "$f" ] || { info "${f##*/} : aucune pause"; return 0; }
+  pause_du_superviseur "$f" || die "${f##*/} est une pause du porteur : elle ne se lève que par lui"
+  rm -f "$f"
+  journaliser_action "reprise $1"
+  notifier "reprise $1"
+  info "${f##*/} levée"
+}
+
+action_relancer_ci() {
+  local run="${1:-}" lu branche conclusion
+  case "$run" in '' | *[!0-9]*) die "relancer-ci <run-id>" ;; esac
+  [ ! -e "$BASE/etat/relance-ci-$run" ] || die "le run $run a déjà été relancé une fois : la cause n'est pas passagère"
+  lu="$(GH_REPO="$GH_REPO" gh run view "$run" --json headBranch,conclusion --jq '"\(.headBranch)\t\(.conclusion)"')" || die "run $run illisible"
+  IFS=$'\t' read -r branche conclusion <<< "$lu"
+  case "$branche" in pre-dev | agents/*) ;; *) die "run $run sur « $branche » : seuls pre-dev et les branches d'agents" ;; esac
+  case "$conclusion" in failure | cancelled | timed_out | startup_failure) ;; *) die "run $run : conclusion « $conclusion », rien à relancer" ;; esac
+  GH_REPO="$GH_REPO" gh run rerun "$run" --failed
+  touch "$BASE/etat/relance-ci-$run"
+  journaliser_action "relancer-ci $run ($branche, $conclusion)"
+  notifier "CI relancée : run $run ($branche)"
+  info "run $run relancé ($branche)"
+}
+
+action() {
+  charger_config
+  local verbe="${1:-}"
+  shift || true
+  case "$verbe" in
+    reposer) action_reposer "$@" ;;
+    balayer) action_balayer ;;
+    purger) action_purger ;;
+    pause) action_pause "$@" ;;
+    reprendre) action_reprendre "$@" ;;
+    relancer-ci) action_relancer_ci "$@" ;;
+    notifier) [ -n "${1:-}" ] || die "notifier <texte>"; notifier "$*" ;;
+    *) die "action <verbe> : reposer, balayer, purger, pause, reprendre, relancer-ci, notifier" ;;
+  esac
 }
 
 case "${1:-}" in
@@ -974,13 +1349,21 @@ case "${1:-}" in
   planifier) shift; planifier "$@" ;;
   deplanifier) deplanifier ;;
   lancer)
-    if [ "${3:-}" = --a-blanc ]; then A_BLANC=1; fi
-    lancer "${2:-}"
+    # lancer <rôle> [<k>] [--a-blanc]
+    instance=1
+    for a in "${@:3}"; do
+      case "$a" in
+        --a-blanc) A_BLANC=1 ;;
+        *) instance="$a" ;;
+      esac
+    done
+    lancer "${2:-}" "$instance"
     ;;
   etat) etat ;;
   releve) releve "${2:-}" ;;
   fusionner) fusionner ;;
   pause) mkdir -p "$BASE" && touch "$BASE/PAUSE" && info "pause : aucun passage ne démarre (« reprendre » pour lever)" ;;
   reprendre) rm -f "$BASE/PAUSE" && info "reprise" ;;
-  *) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  action) shift; action "$@" ;;
+  *) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
