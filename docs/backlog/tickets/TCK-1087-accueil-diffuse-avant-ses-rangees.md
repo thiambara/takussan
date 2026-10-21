@@ -36,8 +36,8 @@ Le premier octet de l'accueil n'attend plus l'API ; les rangées restent dans la
 
 - [x] `page.tsx` : la promesse des deux lectures n'est plus attendue ; `AccueilServi` la lit par
       `use()` sous `<Suspense fallback={<HomepageDiscovery repli />}>`.
-- [x] `HomepageDiscovery` : prop `repli` — sans `<h1>`, sans l'`id` du contenu principal,
-      `<main aria-busy>`.
+- [x] `HomepageDiscovery` : prop `repli` — sans `<h1>`, `<main aria-busy>` qui garde l'`id` du
+      contenu principal.
 - [x] Test `(public)/__tests__/accueil-diffuse-avant-ses-rangees.test.tsx`.
 
 ## Critères d'acceptation
@@ -79,3 +79,7 @@ Le premier octet de l'accueil n'attend plus l'API ; les rangées restent dans la
 - Ablations : page d'origine → AC1 rouge (« la page attend encore l'API ») ; frontière retirée,
   `use()` gardé → AC1 rouge (« la coque attend l'API ») ; repli sans `repli` → AC3 rouge (un
   `<h1>`). Correctif remis : 2 verts.
+- Réparation de la PR (CI) : la première version retirait l'`id` du contenu principal au repli ;
+  la garde statique de TCK-905 (`Navbar.lien-evitement.test`) exige `id={CONTENU_PRINCIPAL_ID}` sur
+  tout `<main>` d'une page qui monte la barre, et rougissait. L'`id` reste : pendant l'attente, le
+  contenu est dans un `<div hidden>` après le repli, et le lien d'évitement vise le `<main>` visible.

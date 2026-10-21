@@ -87,6 +87,8 @@ export function HomepageDiscovery({
    * TCK-1087 (P69.03) — rendu comme REPLI de la frontière `Suspense` de l'accueil, pendant que
    * `discovery` répond. Le repli et le contenu sont alors tous deux dans le HTML diffusé : sans
    * `<h1>` ici, la page n'en porte qu'un (TCK-432). `<main>` se dit occupé.
+   * Il garde l'`id` du contenu principal (TCK-905) : pendant l'attente, le contenu est dans un
+   * `<div hidden>` placé APRÈS le repli, et le lien d'évitement doit atterrir sur le `<main>` visible.
    */
   readonly repli?: boolean;
 } = {}) {
@@ -138,7 +140,7 @@ export function HomepageDiscovery({
           `<h1>` de 40 px et ses 48 px de marge), les sections sont à 40-48 px l'une de l'autre
           (80 avant), et le conteneur suit celui de la barre : 1920 px au plus, 24 px de gouttière
           à partir de `sm` (48 avant). La barre et la première carte commencent au même x. */}
-      <main id={repli ? undefined : CONTENU_PRINCIPAL_ID} aria-busy={repli || undefined} tabIndex={-1} className="max-w-[1920px] mx-auto px-4 sm:px-6 pt-4 md:pt-6 pb-16 md:pb-20 flex flex-col gap-10 md:gap-12 focus:outline-none">
+      <main id={CONTENU_PRINCIPAL_ID} aria-busy={repli || undefined} tabIndex={-1} className="max-w-[1920px] mx-auto px-4 sm:px-6 pt-4 md:pt-6 pb-16 md:pb-20 flex flex-col gap-10 md:gap-12 focus:outline-none">
         {/*
           TCK-432 — le `<h1>` de l'accueil, et il n'y en avait AUCUN (mesuré : `grep -o '<h1'`
           sur le HTML servi rendait 0). `docs/design-guidelines.md` § Typographie pose pourtant
