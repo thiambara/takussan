@@ -4,6 +4,7 @@ namespace App\Services\Notifications\Sms;
 
 use App\Models\NotificationDeliveryAttempt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * TCK-102 / TCK-110 — Apply a DLR webhook update to one row of
@@ -52,8 +53,9 @@ class DeliveryAttemptUpdater
             return false;
         }
 
-        return DB::transaction(function () use (
-            $provider, $providerMessageId, $newStatus, $hintNotificationId, $failureReason, $deliveredAt, $statusPrecedence
+        $failed = null;
+        $matched = DB::transaction(function () use (
+            $provider, $providerMessageId, $newStatus, $hintNotificationId, $failureReason, $deliveredAt, $statusPrecedence, &$failed
         ): bool {
             $query = NotificationDeliveryAttempt::query()
                 ->where('provider', $provider)
@@ -86,8 +88,31 @@ class DeliveryAttemptUpdater
                 'failure_reason' => $failureReason,
                 'delivered_at' => $deliveredAt,
             ])->save();
+            if ($newStatus === SmsResult::STATUS_FAILED) {
+                $failed = $attempt;
+            }
 
             return true;
         });
+
+        if ($failed !== null) {
+            $this->lateFailure($failed);
+        }
+
+        return $matched;
+    }
+
+    /**
+     * P72.05 (TCK-1091) — un accusé `failed` arrive toujours après l'acceptation de l'envoi : sans
+     * cette ligne, l'échec ne se lisait nulle part. Fournisseur, motif et identifiant de tentative ;
+     * jamais le numéro.
+     */
+    private function lateFailure(NotificationDeliveryAttempt $attempt): void
+    {
+        Log::warning('[delivery] accusé failed reçu après coup', [
+            'provider' => $attempt->provider,
+            'failure_reason' => $attempt->failure_reason,
+            'attempt_id' => $attempt->id,
+        ]);
     }
 }
