@@ -1,6 +1,10 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+import { useLocale } from 'next-intl';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
+import { useAuth } from '@/context/AuthContext';
+import { apiRequest, buildQueryString, type ApiError, type RequestOptions } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type { CustomerListItem } from '@/types/customer';
 import type { Guarantor, Lease, LeasePayment, LeaseSignatureRole } from '@/types/lease';
@@ -175,47 +179,82 @@ export function useLease(id: number | null | undefined) {
   );
 }
 
-export function useLeasePayments(leaseId: number | null | undefined) {
-  const spatieParams: SpatieQueryParams = {
-    fields: {
-      lease_payments: [
-        'id',
-        'lease_id',
-        'amount',
-        'currency',
-        'payment_method',
-        'payment_type',
-        'period_start',
-        'period_end',
-        'due_date',
-        'paid_at',
-        'status',
-        'paid_amount',
-        'remaining_amount',
-        'late_fee_amount',
-        'late_fee_applied_at',
-        'late_fee_paid_at',
-        'late_fee_outstanding',
-        'late_fee_payable_online',
-        'amount_due',
-        'receipt_available',
-        'reference_number',
-        'notes',
-      ],
-    },
-    filter: { lease_id: leaseId ?? 0 },
-    sort: ['due_date'],
-    per_page: 100,
-  };
+const LEASE_PAYMENT_FIELDS: string[] = [
+  'id',
+  'lease_id',
+  'amount',
+  'currency',
+  'payment_method',
+  'payment_type',
+  'period_start',
+  'period_end',
+  'due_date',
+  'paid_at',
+  'status',
+  'paid_amount',
+  'remaining_amount',
+  'late_fee_amount',
+  'late_fee_applied_at',
+  'late_fee_paid_at',
+  'late_fee_outstanding',
+  'late_fee_payable_online',
+  'amount_due',
+  'receipt_available',
+  'reference_number',
+  'notes',
+];
 
-  return useApiQuery<PaginatedResponse<LeasePayment>>(
-    ['leases', 'payments', leaseId],
-    cheminApi`/api/leases/${leaseId ?? 0}/payments`,
-    {
-      params: spatieParams,
-      enabled: Boolean(leaseId),
-    },
-  );
+/** La borne de l'API (`AbstractModel::PER_PAGE_MAX`). */
+export const LEASE_PAYMENTS_PER_PAGE = 100;
+
+/** Garde-fou de la boucle : 50 pages de 100, soit plus de 400 ans d'échéances mensuelles. */
+const LEASE_PAYMENTS_MAX_PAGES = 50;
+
+/**
+ * TCK-1178 (P100.01) — TOUTES les échéances d'un bail, de la plus ancienne à la plus récente.
+ *
+ * ⚠ Une seule page de 100 ne suffit pas : un bail à terme est généré en entier à l'activation (un
+ * bail mensuel de 9 ans en compte 108), et les échéances absentes de la page manquaient à
+ * l'échéancier, au compte des retards de la fiche et au dialogue d'encaissement. Les pages
+ * suivantes sont donc lues jusqu'à la dernière, et rendues sous la forme d'une seule page.
+ */
+export async function fetchAllLeasePayments(
+  leaseId: number,
+  options: Omit<RequestOptions, 'method' | 'body'> = {},
+): Promise<PaginatedResponse<LeasePayment>> {
+  const data: LeasePayment[] = [];
+  let derniere: PaginatedResponse<LeasePayment> | null = null;
+  for (let page = 1; page <= LEASE_PAYMENTS_MAX_PAGES; page++) {
+    const qs = buildQueryString({
+      fields: { lease_payments: LEASE_PAYMENT_FIELDS },
+      filter: { lease_id: leaseId },
+      sort: ['due_date'],
+      page,
+      per_page: LEASE_PAYMENTS_PER_PAGE,
+    });
+    derniere = await apiRequest<PaginatedResponse<LeasePayment>>(
+      `${cheminApi`/api/leases/${leaseId}/payments`}?${qs}`,
+      options,
+    );
+    data.push(...derniere.data);
+    if (page >= (derniere.meta?.last_page ?? 1)) break;
+  }
+  return {
+    data,
+    meta: { current_page: 1, last_page: 1, per_page: data.length, total: derniere?.meta?.total ?? data.length },
+  };
+}
+
+export function useLeasePayments(leaseId: number | null | undefined) {
+  const locale = useLocale();
+  const { token } = useAuth();
+
+  return useQuery<PaginatedResponse<LeasePayment>, ApiError>({
+    queryKey: ['leases', 'payments', leaseId],
+    queryFn: ({ signal }) =>
+      fetchAllLeasePayments(leaseId ?? 0, { token: token ?? undefined, locale, signal }),
+    enabled: Boolean(leaseId),
+  });
 }
 
 export type CreateLeasePayload = {
