@@ -6532,7 +6532,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
 
 ### Tout compte qui peut lire un document peut en téléverser et en restaurer une version, contre TCK-097 qui exige le droit de modifier
 - Réf : P64.01
-- Statut : retenu · à valider — V2 : retire l'ajout et la restauration de version au personnel d'agence et au bailleur du porteur, qui les ont aujourd'hui
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentVersionController.php:46-60,85-94`, `takussan-api/app/Policies/DocumentPolicy.php:37-80,140-160`, `docs/backlog/tickets/TCK-097-document-version-history.md:85-87`, `docs/backlog/tickets/TCK-306-autorisation-controleurs-vers-policies.md:109-118`
 - Constat :
@@ -7406,7 +7406,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### Un code à usage unique perdu en accusé `failed` ne laisse ni signal ni autre voie au destinataire
 - Réf : P72.04
-- Statut : retenu · à valider — spec muette : la décision écrit l'événement du code sur la tentative, pas son sujet ; le délai de renvoi est rangé sous trois clés de cache qu'on ne retrouve pas depuis la tentative (utilisateur ou portée × numéro, `deletion-step-up-cooldown:{user}`, bail × utilisateur × rôle), et le moyen de les retrouver (seconde colonne, ou correspondance en cache par identifiant fournisseur) n'est pas tranché ; le correctif dépasse M (migration, routeur, `DeliveryAttemptUpdater`, trois services)
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/PhoneVerificationService.php:303-336,394-420`, `takussan-api/app/Services/Account/DeletionStepUpService.php:65-108`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:112-141`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:340-355`
 - Constat :
@@ -7514,7 +7514,7 @@ Traefik, ni Cloudflare. Les hôtes réels ont été remplacés dans les tests pa
 
 ### Petites améliorations
 - Réf : P73.03
-- Statut : retenu · à valider — choix non tranché : TCK-546 laisse deux voies, une route BFF qui relaie `/api/kyc/documents/{media}` avec le jeton du cookie (le front réécrivant `signed_url` vers elle), ou une signature qui porte l'utilisateur et le profil actif et sort la route d'`auth:sanctum` sur le modèle de `media.private.show` ; la précision dit « traiter TCK-546 » sans en choisir une. Le critère V2 accordé n'est pas en cause
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/api/kyc.php:6-8`, `takussan-api/app/Http/Resources/DataExportResource.php:23`, `takussan-web/src/types/super-admin.ts:713`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:135-147`, `takussan-api/app/Notifications/LeaseSignatureCodeNotification.php`
 - Constat :
@@ -7632,7 +7632,7 @@ le sous-réseau est P37.04.*
 
 ### Cinq types d'événement des classes historiques n'ont pas d'interrupteur : leur e-mail ne se coupe pas
 - Réf : P75.02
-- Statut : retenu · à valider — V7 : interrupteur neuf ou envoi non désactivable, au cas par cas
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/PreferenceResolver.php:54-86,157-191,342-352`, `takussan-api/app/Notifications/BookingExpiredNotification.php:27-29`, `takussan-api/app/Notifications/LeaseDepositRefundNotification.php:40`, `takussan-api/app/Notifications/TenantWelcomeNotification.php:21-23,30`, `takussan-api/app/Notifications/PropertyApprovedNotification.php:22`, `takussan-api/app/Notifications/PropertyRejectedNotification.php:22`
 - Constat :
@@ -7647,7 +7647,7 @@ le sous-réseau est P37.04.*
 
 ### Le corps que quatre classes écrivent pour la cloche n'y arrive pas
 - Réf : P75.03
-- Statut : retenu · à valider — V7 : afficher dans la cloche un corps qu'elle n'a jamais montré
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/Channels/AppDatabaseChannel.php:172-187`, `takussan-api/app/Notifications/TenantWelcomeNotification.php:80`, `takussan-api/app/Notifications/TenantInventoryReminderNotification.php:72`, `takussan-api/app/Notifications/AgentTenantInventoryReminderNotification.php:83`, `takussan-api/app/Notifications/BookingExpiredNotification.php:94`, `takussan-web/src/components/notifications/texteNotification.ts:70-73`
 - Constat :
@@ -7711,7 +7711,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 
 ### Un reversement de la plateforme clos avant un remboursement est approuvé et payé avec la ligne remboursée
 - Réf : P76.01
-- Statut : retenu · à valider — V1 : refus d'approuver ou de payer un reversement de la plateforme
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:109-169`, `:200-233`, `:236-343`
 - Constat :
@@ -7724,7 +7724,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 
 ### Un remboursement partiel fait sortir toute la ligne de l'encaissé, de la clôture de la plateforme et du reversement au bailleur
 - Réf : P76.02
-- Statut : retenu · à valider — V1 : assiette de l'encaissé, de la clôture et du reversement ; choix d'ADR-0057 § 2
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:12-23`, `:50`, `:65-79`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:251`, `:263`, `takussan-api/app/Services/Payout/PayoutCalculator.php:63`, `:87`, `takussan-api/app/Services/Model/BookingPaymentService.php:64-82`
 - Constat :
@@ -7739,7 +7739,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 
 ### Un reversement au bailleur préparé avant un remboursement est versé sans relire ses lignes
 - Réf : P76.03
-- Statut : retenu · à valider — V1 : refus de verser un reversement au bailleur
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/PayoutService.php:202-268`, `:269-337`, `:401-471`, `:508-537`
 - Constat :
@@ -7752,7 +7752,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 
 ### Un acompte soldé en ligne par la plateforme peut être déclaré remboursé par l'agence, et sort alors de la clôture
 - Réf : P76.04
-- Statut : retenu · à valider — V7 : qui rembourse un acompte encaissé par la plateforme ; V1
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/BookingPaymentService.php:53-91`, `takussan-api/app/Http/Requests/Api/RefundBookingPaymentRequest.php:32-48`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:245-254`
 - Constat :
@@ -7764,7 +7764,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 
 ### Un loyer remboursé n'est plus ni encaissé, ni dû, ni payable
 - Réf : P76.05
-- Statut : retenu · à valider — V7 : sort d'un loyer remboursé ; V1
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:41`, `:83-91`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:94-96`, `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:121-128`
 - Constat :
@@ -7803,7 +7803,7 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
 
 ### L'archive d'export RGPD survit à l'effacement du compte, et le super-admin qui l'a demandée la télécharge encore
 - Réf : P77.01
-- Statut : retenu · à valider — V3 : suppression d'une archive de données personnelles à l'effacement
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:241-381`, `takussan-api/app/Http/Controllers/Api/DataExportDownloadController.php:15-38`, `takussan-api/app/Jobs/Privacy/PurgeExpiredDataExports.php:20-29`, `takussan-api/database/migrations/2026_05_07_000225_create_data_exports_table.php:14`
 - Constat :
@@ -7818,7 +7818,7 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
 
 ### Les exports de rapport de la console ne sont jamais purgés, ni le fichier ni la ligne
 - Réf : P77.02
-- Statut : retenu · à valider — V4 : purge planifiée de lignes `report_exports` et de fichiers
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:50-60`, `takussan-api/app/Http/Controllers/Api/Admin/ReportingController.php:111-120`, `takussan-api/routes/console.php:84`, `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:362-366`
 - Constat :
@@ -7853,7 +7853,7 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
 
 ### Petites améliorations
 - Réf : P77.04
-- Statut : retenu · à valider — V5 : disque des exports d'audit et checklist `FILESYSTEM_DISK` de production
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:42`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:66-70`, `docs/configuration.md:138`, `:554`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3532`, `takussan-api/docker/seed.sh:16`, `takussan-api/app/Models/ReportExport.php:24`
 - Constat :
@@ -7886,7 +7886,7 @@ l'angle 111.*
 
 ### L'export d'audit d'une agence fait deux requêtes par ligne : au-delà de 5 000 lignes, le job dépasse les 60 s du worker
 - Réf : P78.01
-- Statut : retenu · à valider — V5 : le `$timeout` du job se borne par `retry_after`, valeur d'environnement
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:42-49,135-155`, `takussan-api/app/Models/Concerns/HasProfiles.php:238-275,317-321`, `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:23-64`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:44-54`, `deploy/takussan/compose.api.yml:125`
 - Constat :
@@ -7902,7 +7902,7 @@ l'angle 111.*
 
 ### L'export d'audit de la console tourne dans la requête HTTP, jusqu'à 50 000 lignes et six requêtes par ligne
 - Réf : P78.02
-- Statut : retenu · à valider — V7 : abaisser le plafond ou passer l'export par le job change ce que voit la console
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:57,87-102`, `takussan-api/app/Services/Audit/ActivityLogExporter.php:73-79,83-96`, `takussan-api/docker/php.ini:11`
 - Constat :
@@ -7917,7 +7917,7 @@ l'angle 111.*
 
 ### Le XLSX de l'export d'audit est construit en entier par PhpSpreadsheet, sans borne de lignes
 - Réf : P78.03
-- Statut : retenu · à valider — V7 : la borne du XLSX, ou son repli en CSV, est un comportement visible
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:66-94`, `takussan-api/app/Http/Requests/Audit/ExportActivityLogRequest.php:19-45`, `takussan-api/docker/php.ini:3`
 - Constat :
@@ -7962,7 +7962,7 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
 
 ### Aucun appel du serveur Next vers l'API ne porte de délai : il attend jusqu'aux 300 s d'undici
 - Réf : P79.01
-- Statut : retenu · à valider — V7 : la borne par défaut, et celle des relais d'export et de téléversement, sont des valeurs à choisir ; une requête lente servie aujourd'hui échouerait
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/api.ts:129-132,734-741`, `takussan-web/src/lib/relais-api.ts:65`, `takussan-web/src/app/api/sante/route.ts:20,32`
 - Constat :
@@ -7977,7 +7977,7 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
 
 ### La mise en page racine attend `/auth/me` sans borne : un visiteur connecté ne reçoit aucun octet de quelque page que ce soit tant que l'API ne répond pas
 - Réf : P79.02
-- Statut : retenu · à valider — V7 : la borne de `getMe` est une valeur à choisir, et la changer change ce que voit un visiteur connecté sur une API lente
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/layout.tsx:66-80`, `takussan-web/src/lib/auth.ts:98-100`, `takussan-web/src/app/(dashboard)/layout.tsx:52`
 - Constat :
@@ -7993,7 +7993,7 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
 
 ### Les états « indisponible » prévus pour une API en panne ne sont atteints qu'après le délai d'undici
 - Réf : P79.03
-- Statut : retenu · à valider — V7 : le correctif est la borne de P79.01, dont la valeur reste à choisir
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/public-property.ts:73-105`, `takussan-web/src/lib/access/server-guards.ts:107`
 - Constat :
@@ -8007,7 +8007,7 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
 
 ### Les relais BFF ne transmettent pas l'abandon du navigateur, et 18 route handlers sur 22 lèvent sans réponse JSON quand l'API est injoignable
 - Réf : P79.04
-- Statut : retenu · à valider — V7 : abandonner l'appel amont d'une mutation quand le client part, et le statut 502/504 rendu, sont des comportements à choisir
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/relais-api.ts:46-75`, `takussan-web/src/app/api/export/[entity]/route.ts:46-56`, `takussan-web/src/app/api/maintenance/status/route.ts:4-17`, `takussan-web/src/app/api/feature-flags/me/route.ts:9`
 - Constat :
@@ -8033,7 +8033,7 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
 
 ### Petites améliorations
 - Réf : P79.06
-- Statut : retenu · à valider — V7 : le corps et le statut que rend le relais en panne suivent le choix de P79.04
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/api/maintenance/status/route.ts:7-17`, `takussan-web/src/components/maintenance/MaintenanceBanner.tsx:14-17,52`
 - Constat :
@@ -8085,7 +8085,7 @@ n'ont pas été rouverts.*
 - Mesure (2026-10-20, 88d019565, implementeur) : avant correctif, `BookingGuestsTest` neuf → 2 rouges : `guests=3` laissait `metadata` à `null`, et `guests=21` rendait 201 ; correctif (règle `['sometimes', 'integer', 'min:1', 'max:20']`, `guests` → `metadata.guests` dans `BookingService::create()`) → 3 verts, 38 sur les quatre classes de réservation ; ablation de la conversion dans le service → 1 rouge (`metadata` à `null`).
 ### Aucune garde ne signale une clé envoyée par le front que le FormRequest ignore
 - Réf : P80.03
-- Statut : retenu · à valider — V6 : signal transverse sur tous les FormRequest, avec liste d'exceptions
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/BaseFormRequest.php` (seuls `authorize`, `prepareForValidation`, `normalize`), `scripts/check-*.mjs`
 - Constat :
@@ -8103,7 +8103,7 @@ n'ont pas été rouverts.*
 
 ### La résiliation laisse dues toutes les échéances de loyer postérieures à la sortie : pénalités, relances et paiement continuent
 - Réf : P81.01
-- Statut : retenu · à valider — V1 : annuler des échéances de loyer, et le prorata de l'échéance à cheval est un choix
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/LeaseService.php:273-323`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:193-242`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:65-92`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:127-140`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1484-1500`, `takussan-api/app/Services/Model/LeasePaymentService.php:46-70`, `takussan-api/app/Services/Account/AccountDeletionService.php:423-430`
 - Constat :
@@ -8120,7 +8120,7 @@ n'ont pas été rouverts.*
 
 ### Rien n'écrit `expired` : un bail arrivé à son terme reste `active`, et sa caution ne se restitue pas depuis l'écran
 - Réf : P81.02
-- Statut : retenu · à valider — V7 : tâche d'expiration ou action « clore le bail », et sort des baux échus en base (V4)
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/Enums/LeaseStatus.php:10`, `takussan-api/app/Services/Lease/DepositRefundService.php:50-54`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:85-91`, `takussan-api/routes/api/leases.php:28`, `takussan-web/src/components/leases/DepositRefundBanner.tsx:34-38`, `takussan-api/database/seeders/Activity/LeaseSeeder.php:45`
 - Constat :
@@ -8136,7 +8136,7 @@ n'ont pas été rouverts.*
 
 ### La pénalité de retard tombe aussi sur l'indemnité de résiliation et sur les lignes qui ne sont pas des loyers
 - Réf : P81.03
-- Statut : retenu · à valider — V1 : liste des types de ligne qui portent une pénalité de retard
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:65-92`, `takussan-api/app/Services/Lease/LateFeeCalculator.php:78-111,172-178`, `takussan-api/app/Services/Model/LeaseService.php:306-318`
 - Constat :
@@ -8149,7 +8149,7 @@ n'ont pas été rouverts.*
 
 ### Petites améliorations
 - Réf : P81.04
-- Statut : retenu · à valider — V3 : ce qui bloque l'effacement du compte ; et V7 pour les lignes après la sortie
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:37-47`, `takussan-api/app/Services/Account/AccountDeletionService.php:388-411`
 - Constat :
@@ -8176,7 +8176,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Un bailleur suspendu reste donneur d'ordre des interventions sur ses biens : devis, statut, prestataire
 - Réf : P82.01
-- Statut : retenu · à valider — V2 : en `awaiting_owner` le bailleur seul tranche le devis, le lui retirer suspendu laisse la demande sans décideur
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:49-58`, `:126-155`, `:168-180`, `:270-283`
 - Constat :
@@ -8190,7 +8190,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Un bailleur suspendu joint encore des documents à son bail, son bien, sa réservation et son état des lieux
 - Réf : P82.02
-- Statut : retenu · à valider — V2 : `attachTo` sert aussi la lecture (`view`), la piste telle qu'écrite retirerait la lecture que l'ADR-0031 garde
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/DocumentPolicy.php:147-192`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:79`
 - Constat :
@@ -8203,7 +8203,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Les liens de partage d'un document se listent et se révoquent sans la règle `share` : le bailleur suspendu lit les jetons et révoque
 - Réf : P82.03
-- Statut : retenu · à valider — V2 : retirer la révocation au bailleur suspendu l'empêche de fermer un lien public vers son propre document
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentShareLinkController.php:30-32`, `:103-105`, `:131-150`
 - Constat :
@@ -8217,7 +8217,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Indicateurs et alertes de seuil : jugés par le type de profil admin, jamais par une capacité
 - Réf : P82.04
-- Statut : retenu · à valider — V2 : l'admin d'agence sans capacité crée aujourd'hui KPI et alertes ; la capacité à exiger est un choix
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreKpiConfigRequest.php:31-37`, `UpdateKpiConfigRequest.php:31-38`, `StoreThresholdAlertRequest.php:31-37`, `UpdateThresholdAlertRequest.php:31-38`, `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:87-94`, `ThresholdAlertController.php:72-79`
 - Constat :
@@ -8230,7 +8230,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Dossier KYC de l'agence : on le soumet avec `agency.update_kyc`, on ne le lit qu'en étant admin
 - Réf : P82.05
-- Statut : retenu · à valider — V2 : l'admin sans `agency.update_kyc` lit aujourd'hui le dossier KYC ; séparer ou non lecture et soumission est un choix
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Agency/KycController.php:18-21`, `:57-69`, `takussan-api/app/Http/Controllers/Api/KycDocumentController.php:31-45`, `takussan-api/app/Policies/AgencyPolicy.php:114-128`
 - Constat :
@@ -8262,7 +8262,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### L'effacement d'un compte laisse la ville et les intentions déclarées dans `users.preferences`
 - Réf : P83.02
-- Statut : retenu · à valider — V3 : ce que l'effacement conserve de `users.preferences` est une décision sur des données personnelles
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:282-309`, `takussan-api/app/Http/Controllers/Api/Me/MeController.php:50-66`
 - Constat :
@@ -8276,7 +8276,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Trois colonnes `metadata` sans écrivain applicatif : `customers`, `leases`, `properties`
 - Réf : P83.03
-- Statut : retenu · à valider — V7 : la spec promet à `properties.metadata` des attributs par type ; déclarer les trois colonnes réservées ou leur donner un usage est un choix
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Customer.php:70,83,122`, `takussan-api/app/Http/Resources/CustomerResource.php:19,56`, `takussan-web/src/lib/queries/customers.ts:51`, `takussan-web/src/types/customer.ts:48`, `takussan-api/app/Models/Lease.php:45,82,343,356`, `takussan-api/app/Models/Property.php:61,97`, `takussan-api/database/seeders/Catalog/PropertyMediaSeeder.php:39-41`, `takussan-api/database/seeders/Support/EdgeCaseSeeder.php:289-295`, `docs/models-spec.md:685,941,1390`
 - Constat :
@@ -8291,7 +8291,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### La console ne montre pas l'état que `users.metadata` porte, et « Débloquer » lève un verrou échu
 - Réf : P83.04
-- Statut : retenu · à valider — V7 : n'offrir « Débloquer » qu'à un compte verrouillé et montrer l'état du verrou change la console visible
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Resources/Api/Admin/UserDetailResource.php:15-57`, `takussan-web/src/components/admin/super/user-detail.tsx:174-203`, `takussan-api/app/Services/Admin/UserSupportService.php:28-45`, `takussan-api/app/Services/Auth/LoginLock.php:45-50,154-157`
 - Constat :
@@ -8323,7 +8323,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Le NINEA d'une agence est chiffré et masqué dans la demande, puis recopié en clair dans `agencies.ninea` par une décision qu'ADR-0044 n'écrit pas
 - Réf : P84.01
-- Statut : retenu · à valider — V3 : exposition du NINEA, deux options contraires
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:44-46`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:62-63`, `:94-105`, `takussan-api/app/Models/Agency.php:38-46`, `takussan-api/app/Http/Resources/AgencyResource.php:50`, `takussan-api/app/Http/Resources/AgencyUpgradeRequestResource.php:41`, `takussan-api/app/Support/Audit/PropertyRedactor.php:41`, `takussan-api/app/Services/Kyc/SharedLegalIdentifierDetector.php:25-27`
 - Constat :
@@ -8361,7 +8361,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Petites améliorations — angle 84
 - Réf : P84.03
-- Statut : retenu · à valider — V2 : vérification du téléphone, deux options
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/onboarding/OwnerOnboardingWizard.tsx:58`, `:240`, `takussan-web/src/components/onboarding/AgentOnboardingWizard.tsx:75`, `:268`, `takussan-web/src/components/onboarding/ServiceProviderOnboardingWizard.tsx:70`, `:306`, `takussan-web/src/components/onboarding/HostIndividualWizard.tsx:54`, `:505`, `takussan-web/src/hooks/useAutosaveBrouillon.ts:123`, `takussan-api/app/Services/Auth/PhoneVerificationService.php:24`, `:37`, `takussan-api/app/Console/Commands/PurgeOldWizardDrafts.php:19`
 - Constat :
@@ -8422,7 +8422,7 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
 
 ### Le nom et le slug de l'espace sont fixés dans la langue du compte à sa création, et servis tels quels à tous les visiteurs
 - Réf : P85.03
-- Statut : retenu · à valider — V7 : nom public de l'espace à décider
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:191-200`, `:244-246` ; `takussan-api/lang/en/onboarding.php:13` ; `docs/features.md:430`
 - Constat :
@@ -8436,7 +8436,7 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
 
 ### Une agence `individual` entre dans l'annuaire public des agences et reçoit une fiche d'agence, sous le nom « Espace de {prénom} »
 - Réf : P85.04
-- Statut : retenu · à valider — V7 : un espace individual dans l'annuaire des agences
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicAgencyController.php:118-125`, `:204-212`, `:377-380` ; `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyAgentCard.tsx:116-122`
 - Constat :
@@ -8482,7 +8482,7 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
 
 ### Un bailleur obtient le nom, le courriel et le téléphone de tout autre bailleur de son agence en l'ajoutant en `co_owner`, alors que `/api/owners` lui est refusé
 - Réf : P86.01
-- Statut : retenu · à valider — V2 : borner un ajout qu'un bailleur fait aujourd'hui, et que TCK-586 a voulu ; V3 : ce qu'un bailleur sait d'un co-indivisaire
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyCollaboratorRequest.php:30-50`, `takussan-api/app/Rules/CollaboratorEligibleForProperty.php:58-74`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:45-66`, `takussan-api/app/Policies/PropertyPolicy.php:143-146`, `takussan-api/app/Services/Membership/SystemRoleCapabilities.php:92-95`
 - Constat :
@@ -8500,7 +8500,7 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
 
 ### D-66 tient, et sa condition de réouverture est remplie : `co_owner` et `viewer` ne lisent rien du bien qui les nomme
 - Réf : P86.02
-- Statut : retenu · à valider — V7 : ouvrir une lecture à `co_owner` et `viewer`, ou retirer les deux rôles, est un choix de produit (D-66)
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/PropertyPolicy.php:45-58`, `docs/ardoise.md` (D-66), `docs/features.md:89`, `takussan-web/src/messages/fr.json:1426-1427`, `takussan-web/src/components/property-dashboard/PropertyCollaboratorsPanel.tsx:25`
 - Constat :
@@ -8515,7 +8515,7 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
 
 ### Une part de commission posée sur un `co_owner` ou un `viewer` compte dans le plafond de 100 % et n'est jamais versée
 - Réf : P86.03
-- Statut : retenu · à valider — V1 : le plafond et la ventilation des parts de commission
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:178-218`, `takussan-api/app/Http/Requests/Api/StorePropertyCollaboratorRequest.php:36-50`, `takussan-api/app/Services/Commission/CommissionLedgerService.php:52-71`
 - Constat :
@@ -8528,7 +8528,7 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
 
 ### Deux chemins donnent à tout collaborateur « accepté », `viewer` compris, ce que `PropertyPolicy` lui refuse : agenda et quittances
 - Réf : P86.04
-- Statut : retenu · à valider — V2 : retirer une branche d'autorisation que `ReceiptPdfTest` garde
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Calendar/CalendarEventCollector.php:152-164`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:155-172`, `takussan-api/tests/Feature/Api/ReceiptPdfTest.php:81-118`
 - Constat :
@@ -8541,7 +8541,7 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
 
 ### Petites améliorations
 - Réf : P86.05
-- Statut : retenu · à valider — V7 : le périmètre de la boîte d'avis et ce que la copie recopie sont des choix visibles
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Review/ReceivedReviews.php:48-52`, `takussan-api/app/Services/Property/PropertyDuplicationService.php:97-102`, `takussan-api/database/seeders/Catalog/PropertyCollaboratorSeeder.php:46-50`
 - Constat :
@@ -8707,7 +8707,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### Un compte bloqué reçoit toujours ses notifications : e-mail, WhatsApp ou SMS, rappels de tâche, alertes de recherche et de favoris
 - Réf : P88.04
-- Statut : retenu · à valider — V7 : la liste fermée des codes qu'un compte bloqué reçoit encore est un choix de produit
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/NotificationService.php:53-97`, `takussan-api/app/Notifications/CodedNotification.php:120-150`, `takussan-api/app/Services/Notifications/PreferenceResolver.php:158-192`, `takussan-api/app/Jobs/SendTaskDueReminders.php:41-85`, `takussan-api/app/Jobs/SendSavedSearchAlerts.php:95-100`, `takussan-api/app/Jobs/SendFavoriteChangeAlerts.php:71-84`
 - Constat :
@@ -8728,7 +8728,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### Un `geo:sync-referential` qui échoue à la réindexation laisse l'index sur l'ancien nom pour toujours, et `release.sh` annonce « référentiel inchangé »
 - Réf : P89.01
-- Statut : retenu · à valider — V5 : le correctif passe par `docker/release.sh` ou par une reprise persistée (V4)
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:57-61`, `takussan-api/app/Services/Geo/GeoReferentialSync.php:22-26`, `takussan-api/app/Services/Geo/GeoReferentialLoader.php:90-104`, `:144-157`, `takussan-api/docker/release.sh:16-22`, `takussan-api/app/Console/Commands/SearchVerifyIndexes.php:121-136`
 - Constat :
@@ -8743,7 +8743,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### `seed.sh` remet la base à zéro sans rejouer `alerts:ensure-ops-rules` : une préproduction reseedée n'a aucune règle d'alerte d'exploitation
 - Réf : P89.02
-- Statut : retenu · à valider — V5 : remplir l'état d'une préproduction reseedée, par `seed.sh` ou par le seeder
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/seed.sh:16-33`, `takussan-api/docker/release.sh:26-29`, `takussan-api/app/Console/Commands/EnsureOperationalAlertRules.php:26-50`, `docs/infra/hebergement.md:301-307`
 - Constat :
@@ -8756,7 +8756,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### `seed.sh` écrit le marqueur de recherche sans lire l'issue des tâches d'importation, ce que TCK-995 a corrigé dans `release.sh` seulement
 - Réf : P89.03
-- Statut : retenu · à valider — V5 : le correctif vit dans `docker/seed.sh` et `docker/lib.sh`
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/seed.sh:18-33`, `takussan-api/docker/release.sh:48-76`, `takussan-api/vendor/laravel/scout/src/Engines/MeilisearchEngine.php:373-378`
 - Constat :
@@ -8770,7 +8770,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### `tags:sync-catalog` réindexe sans `SCOUT_QUEUE=false`, à l'inverse de `geo:sync-referential` et pour la raison que `release.sh` écarte
 - Réf : P89.04
-- Statut : retenu · à valider — V5 : une ligne de `docker/release.sh`, et la valeur de `SCOUT_QUEUE` en préproduction n'est pas relevée
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/release.sh:16-24`, `takussan-api/app/Services/Tags/TagCatalog.php:44-54`, `:118-123`, `takussan-api/config/scout.php:59`
 - Constat :
@@ -8815,7 +8815,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### Une écriture explicite dans l'index survit à l'annulation de sa transaction, et `SCOUT_AFTER_COMMIT` n'y change rien
 - Réf : P90.02
-- Statut : retenu · à valider — V6 : différer après commit toutes les écritures explicites dans l'index est un choix transversal, et le relevé de `SCOUT_QUEUE` en préproduction relève de V5
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/laravel/scout/src/ModelObserver.php:46`, `vendor/laravel/scout/src/Searchable.php:72-85`, `takussan-api/app/Services/Boost/BoostLifecycle.php:207-234`, `:115-133`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:54-85`, `:123-128`, `takussan-api/app/Observers/PropertyObserver.php:182-185`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:216-227`, `takussan-api/app/Services/Tags/TagCatalog.php:42-53`, `:118-123`, `takussan-api/.env.docker:210-211`
 - Constat :
@@ -8846,7 +8846,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### Meilisearch injoignable : l'achat d'un boost est refusé, et l'appel au moteur se fait sous les verrous de l'agence et du bien
 - Réf : P90.04
-- Statut : retenu · à valider — V1 : l'issue d'un achat de boost payé en crédits face à une panne du moteur
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:54-85`, `:151-156`, `:198`, `:253`, `:297`, `takussan-api/app/Services/Boost/BoostLifecycle.php:207-234`
 - Constat :
@@ -8962,7 +8962,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### La preuve de signature d'un bail écrit le domaine entier de l'e-mail dans un `varchar(120)`
 - Réf : P91.06
-- Statut : retenu · à valider — V4 : tronquer la preuve de signature ou élargir sa colonne
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/LeaseSignatureService.php:121,169,350-355`, `lease_signatures.otp_destination` (`varchar(120)`, `information_schema`)
 - Constat :
@@ -9032,7 +9032,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Repasser un membre d'agence à un rôle qu'il a déjà tenu rend 500
 - Réf : P92.02
-- Statut : retenu · à valider — V2 : restaurer un profil supprimé ramène son rôle d'agence
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyMemberRoleController.php:120-146`, `takussan-api/app/Models/Profiles/AgentProfile.php:22`, `takussan-api/app/Models/Profiles/AgencyAdminProfile.php:28`, `takussan-api/database/migrations/2026_05_02_000002_create_agent_profiles_table.php:25`, `takussan-api/database/migrations/2026_05_10_170000_create_agency_admin_profiles_table.php:37`
 - Constat :
@@ -9087,7 +9087,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Connexion OAuth : un e-mail de casse différente d'un compte existant contourne le contrôle et rend 500
 - Réf : P92.06
-- Statut : retenu · à valider — V2 : contrôle anti-prise de compte de la connexion OAuth
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/OAuthProvisioningService.php:64-67,87`, `takussan-api/app/Models/User.php:89`
 - Constat :
@@ -9099,7 +9099,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Contrôle puis insertion sans verrou : un double envoi rend 500 sur plusieurs gestes
 - Réf : P92.07
-- Statut : retenu · à valider — V7 : issue du second envoi à choisir par geste (refus lisible ou sans effet), et trois voies proposées
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Messaging/GroupConversationService.php:117-160`, `takussan-api/app/Services/Membership/AgencyRoleService.php:166-180`, `takussan-api/app/Services/Agency/AgencyUpgradeRequestService.php:71,195-207`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:37-52`, `takussan-api/app/Http/Controllers/Api/IntegrationController.php:87-101`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:49-59`, `takussan-api/app/Services/Invitation/InvitationService.php:755-776`
 - Constat :
@@ -9125,7 +9125,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Petites améliorations
 - Réf : P92.09
-- Statut : retenu · à valider — V1 : nouvel essai sur la référence générée d'un versement ; le filet 409 change la réponse de toutes les routes `api/*` (V6)
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/bootstrap/app.php:131-169`, `takussan-api/app/Services/Model/ReferenceNumberGenerator.php`, `takussan-api/app/Services/Model/PayoutService.php:122-130,178`, `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:80-83`
 - Constat :
@@ -9152,7 +9152,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 
 ### L'occupation des mois passés s'efface quand un bien est archivé, vendu ou passé en vente aujourd'hui
 - Réf : P93.01
-- Statut : retenu · à valider — V7 : règle d'éligibilité d'un mois passé à choisir (la piste la laisse au porteur)
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:23-26,48-54,65-120,322-339`
 - Constat :
@@ -9176,7 +9176,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 
 ### Le relevé du bailleur compte en « Impayés de la période » des loyers pas encore échus et ceux d'un bail supprimé
 - Réf : P93.02
-- Statut : retenu · à valider — V1 : montant « Impayés » du relevé du bailleur
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payout/OwnerStatementService.php:137-153`,
   `takussan-api/lang/fr/money_out.php:27`, `takussan-api/resources/views/pdf/statements/owner.blade.php:82-83`
@@ -9201,7 +9201,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 
 ### Le « taux d'impayés » dépasse 100 %, et vaut 0 % quand les impayés viennent d'un bail clos
 - Réf : P93.03
-- Statut : retenu · à valider — V1, V7 : définition du taux d'impayés à choisir
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:54-59,77,115`,
   `takussan-api/app/Services/Dashboard/KpiResolver.php:37`, `takussan-api/app/Models/ThresholdAlert.php:49`,
@@ -9358,7 +9358,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Le calendrier agrégé repose sur la forme SQL sans fuseau, et le front en dépend
 - Réf : P94.02
-- Statut : retenu · à valider — V6 : choisir le contrat de date de l'agenda (instant à Dakar ou exception écrite d'ADR-0018)
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Calendar/CalendarEventCollector.php:180-181,214-215,267-268,314-315,396-397`, `takussan-web/src/lib/calendar-date.ts:125-131`, `takussan-web/src/components/calendar/dates.ts`, `takussan-web/src/types/calendar.ts:33-36`
 - Constat :
@@ -9385,7 +9385,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Les dates des réponses composées à la main suivent trois formes, et aucune garde ne les lit
 - Réf : P94.03
-- Statut : retenu · à valider — V6 : étendre le contrat d'ADR-0018 aux contrôleurs, hors de sa frontière assumée
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/` (25 `toISOString()` dans 12 fichiers, 55 `toIso8601String()` dans 30 fichiers), `takussan-api/app/Http/Controllers/Api/AuditLogController.php:70,179`, `takussan-api/app/Http/Controllers/Api/TaskController.php:186-190`, `takussan-api/app/Services/Review/ReviewReportService.php:56`, `scripts/check-resource-date-format.mjs:110`
 - Constat :
@@ -9417,7 +9417,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Des dates calendaires sortent en instant de minuit par trois contrôleurs
 - Réf : P94.04
-- Statut : retenu · à valider — V7 : choisir la date de tri d'une échéance impayée dans l'historique des paiements
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:258`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:208`, `takussan-api/app/Http/Controllers/Api/AgentProfileController.php:39`
 - Constat :
@@ -9443,7 +9443,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Petites améliorations
 - Réf : P94.05
-- Statut : retenu · à valider — V1 : changer le type d'un montant sur le fil (`hourly_rate`)
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyUpgradeRequestController.php:96-97,117`, `takussan-api/app/Http/Controllers/Api/Admin/SuperAdminInvitationController.php:48`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:119`
 - Constat :
@@ -9466,7 +9466,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Trois réponses d'écriture rendent `null` une valeur que le `show` rend, au lieu de l'omettre
 - Réf : P95.01
-- Statut : retenu · à valider — V7 : charger la destination ou omettre la clé, et rien n'écrit la forme d'une réponse d'écriture
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/PayoutResource.php:45`, `takussan-api/app/Http/Controllers/Api/PayoutController.php:60-81`, `takussan-api/app/Http/Controllers/Api/Admin/PlatformPayoutController.php:33-37,66-69`, `takussan-api/app/Http/Controllers/Api/TagController.php:54-60,161`
 - Constat :
@@ -9497,7 +9497,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Les actions de neuf contrôleurs rendent la ressource sans les relations et les clés que le `show` ajoute
 - Réf : P95.03
-- Statut : retenu · à valider — V6 : poser une règle de forme des écritures, ses exceptions et sa garde
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/BookingController.php:56-58,65-69,78-104`, `takussan-api/app/Http/Controllers/Api/InvoiceController.php:55-62,90-95`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:62-75,121-123`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:96-113,149-151`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:153-155`, `takussan-api/app/Http/Resources/PropertyResource.php:48-61`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:92-94,372`, `takussan-api/app/Http/Controllers/Api/ReviewController.php`, `takussan-api/app/Http/Controllers/Api/Admin/AgencySubscriptionController.php:36-44`
 - Constat :
@@ -9551,7 +9551,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Une fiche ou un compte supprimés passent `exists:` puis rendent 404, là où un identifiant absent rend 422
 - Réf : P96.02
-- Statut : retenu · à valider — V1 : le bailleur effacé d'un reversement est à trancher à part
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:37` et `takussan-api/app/Http/Controllers/Api/InvoiceController.php:47` ; `takussan-api/app/Http/Requests/Api/AssignAgentPropertyRequest.php:36` et `takussan-api/app/Http/Controllers/Api/PropertyController.php:352` ; `takussan-api/app/Http/Requests/Agency/StoreAgentAbsenceRequest.php:30-31` et `takussan-api/app/Services/Agency/AgentAbsenceService.php:33-34` ; `takussan-api/app/Http/Requests/Permissions/StoreRoleDelegationRequest.php:25` et `takussan-api/app/Services/Permissions/RoleDelegationService.php:59` ; `takussan-api/app/Http/Requests/Api/AttachGuarantorLeaseRequest.php:41` et `takussan-api/app/Http/Controllers/Api/LeaseController.php:171` ; `takussan-api/app/Http/Requests/Api/AddAgentAgencyRequest.php:37` et `takussan-api/app/Http/Controllers/Api/AgencyController.php:246` ; `takussan-api/app/Http/Requests/Api/StorePayoutRequest.php:46`, `PreparePayoutRequest.php:23` et `PayoutController.php:53`, `PayoutPreparationController.php:27`
 - Constat :
@@ -9567,7 +9567,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Le super-admin écrit des lignes rattachées à une agence supprimée
 - Réf : P96.03
-- Statut : retenu · à valider — V7 : le sort d'une agence supprimée n'est écrit nulle part
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreThresholdAlertRequest.php:43`, `StoreKpiConfigRequest.php:43`, `StoreIntegrationRequest.php:37`, `StorePropertyRequest.php:79`, `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:71`, `takussan-api/app/Http/Requests/Api/Admin/StoreAnnouncementRequest.php:31`, `UpdateAnnouncementRequest.php:25` ; `takussan-api/app/Http/Controllers/Api/AgencyController.php:147-158`
 - Constat :
@@ -9582,7 +9582,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Rien n'empêche une règle `exists:` neuve sur une table à suppression douce
 - Réf : P96.04
-- Statut : retenu · à valider — V6 : une convention transversale sur les règles `exists:`
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/tests/Unit/Architecture/ExistsSurRouteOuverteTest.php`, `takussan-api/app/Http/Requests/`
 - Constat :
@@ -9631,7 +9631,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### La console super-admin renvoie toujours vers son accueil après connexion : le lien de la demande de passage en agence est perdu
 - Réf : P97.03
-- Statut : retenu · à valider — V2 : la garde de la console lit le jeton opérateur (TCK-600), et la piste propose deux voies
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(super-admin)/super-admin/layout.tsx:41-50`, `takussan-api/app/Notifications/AgencyUpgradeRequestSubmittedNotification.php:93-98`, `takussan-api/app/Domain/Notifications/NotificationTarget.php:47`
 - Constat :
@@ -9673,7 +9673,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Le désabonnement du résumé est un GET qui écrit, signé sans échéance, sans en-tête `List-Unsubscribe`
 - Réf : P97.06
-- Statut : retenu · à valider — V7 : page de confirmation neuve et changement du parcours de désabonnement
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/web.php:12-14`, `takussan-api/app/Http/Controllers/NotificationUnsubscribeController.php:20-31`, `takussan-api/app/Jobs/Notifications/BuildUserDigestJob.php:59`, `takussan-api/app/Mail/NotificationDigestMail.php`
 - Constat :
@@ -9746,7 +9746,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### « Paiement reçu » ne s'applique pas aux paiements en ligne
 - Réf : P98.04
-- Statut : retenu · à valider — V7 : un seul gabarit pour les deux quittances, ou un nom qui dit la borne
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Domain/Notifications/NotificationCode.php:505-512`, `takussan-api/app/Services/Model/LeasePaymentService.php:103-120`
 - Constat :
@@ -9758,7 +9758,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### L'estimation de l'indemnité de résiliation anticipée ignore le réglage plateforme et celui de l'agence
 - Réf : P98.05
-- Statut : retenu · à valider — V1 : estimation affichée d'une indemnité de résiliation
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/EarlyTerminationDialog.tsx:30-32,85`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:287-305`, `takussan-api/app/Http/Resources/LeaseResource.php:68-70`
 - Constat :
@@ -9770,7 +9770,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Les fournisseurs SMS et WhatsApp ne se configurent pas depuis la console : le schéma ne porte qu'`api_key`, que nul pilote ne lit
 - Réf : P98.06
-- Statut : retenu · à valider — V7 : schéma et champs obligatoires de cinq fournisseurs dans la console
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Domain/Integrations/Providers/IntegrationProviderRegistry.php:8`, `takussan-api/app/Domain/Integrations/Providers/GenericProvider.php:25-29`, `takussan-api/app/Services/Admin/IntegrationService.php:58-66`, `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:56-66`, `takussan-web/src/components/admin/super/integrations.tsx:150,170-177`
 - Constat :
@@ -9784,7 +9784,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Les fournisseurs `mail`, `sms` et `stripe` du registre ne commandent aucun envoi ni aucun paiement
 - Réf : P98.07
-- Statut : retenu · à valider — V7 : retirer trois fournisseurs de la console, ou les y marquer non branchés
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Domain/Integrations/Providers/MailProvider.php:25-26`, `SmsProvider.php:25-26`, `StripeProvider.php:19-27`, `takussan-api/config/mail.php`, `takussan-api/app/Models/Enums/PaymentProvider.php:7-9`
 - Constat (relevé par le sous-agent, relu en partie) :
@@ -9796,7 +9796,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### La route de webhook Lemon Squeezy de la plateforme ne vérifie rien si le secret d'environnement manque, quoi qu'en dise la console
 - Réf : P98.08
-- Statut : retenu · à valider — V1 : webhook de paiement accepté sans signature si le secret d'environnement manque
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/lemon-squeezy.php:17-22`, `takussan-api/vendor/lemonsqueezy/laravel/src/Http/Controllers/WebhookController.php:43-47`, `takussan-api/config/lemon-squeezy.php:29`, `takussan-api/app/Services/Payments/Drivers/LemonSqueezyDriver.php:161-167`, `takussan-api/app/Listeners/Payments/MarkLemonSqueezyWebhookAuthenticated.php:16-27`
 - Constat :
@@ -9808,7 +9808,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Une fenêtre de maintenance bloque la connexion, y compris celle de l'opérateur qui doit la lever
 - Réf : P98.09
-- Statut : retenu · à valider — V2 : exempter des routes de connexion et de session du blocage de maintenance
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/MaintenanceService.php:75-91`, `takussan-api/routes/api/auth.php:29,57`, `takussan-web/src/app/(super-admin)/super-admin/layout.tsx:43`
 - Constat :
@@ -9819,7 +9819,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Petites améliorations
 - Réf : P98.10
-- Statut : retenu · à valider — V1 : jeton OAuth d'Orange Money gardé après rotation des identifiants ; V7 pour le reste
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Domain/Settings/EditablePlatformSettings.php:57-63`, `takussan-api/app/Services/Auth/SessionTokenIssuer.php:41-43`, `takussan-web/src/components/admin/super/feature-flags.tsx:166-172`, `takussan-web/src/components/providers/FeatureFlagProvider.tsx:38`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:166-188`, `takussan-api/app/Services/Admin/IntegrationService.php:93-94`, `takussan-api/app/Http/Controllers/Api/MaintenanceStatusController.php:17`
 - Constat :
@@ -9854,7 +9854,7 @@ villes des facettes de l'index et suit donc le nouveau nom.*
 
 ### Une ville renommée par le jeu fait taire les alertes `city` / `cities` et le rapprochement CRM sur son ancien nom
 - Réf : P99.01
-- Statut : retenu · à valider — V4 : colonne `geo_cities.former_names` à ajouter ; V7 : les anciens noms élargissent `city` et `cities`
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:90-108`, `:186-193`, `takussan-api/app/Services/Search/PropertySearchService.php:491-505`, `takussan-api/app/Services/Crm/ProspectMatcher.php:102-109`, `:167`, `takussan-api/tests/Feature/Geo/GeoReferentialRealignementTest.php:125`
 - Constat :
@@ -9883,7 +9883,7 @@ villes des facettes de l'index et suit donc le nouveau nom.*
 
 ### Une région renommée par le jeu laisse l'ancien nom dans `addresses.region` et dans l'index
 - Réf : P99.03
-- Statut : retenu · à valider — V4 : réécrire `addresses.region` des adresses existantes à chaque chargement
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:73-77`, `:186-193`, `takussan-api/app/Services/Geo/GeoAddressCanonicalizer.php:84-92`, `takussan-api/app/Models/Property.php:471`, `takussan-api/app/Services/Search/PropertySearchService.php:494-497`
 - Constat :
@@ -9897,7 +9897,7 @@ villes des facettes de l'index et suit donc le nouveau nom.*
 
 ### Une ville dont le jeu change le slug devient une seconde ville, et l'ancienne garde les adresses
 - Réf : P99.04
-- Statut : retenu · à valider — V7 : refuser un jeu au chargement bloque `geo:sync-referential`, joué à chaque mise en service
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:90-97`, `:114-136`, `takussan-api/database/data/geo/extract.mjs:138-141`, `takussan-api/database/data/geo/corrections.json`
 - Constat :
@@ -9911,7 +9911,7 @@ villes des facettes de l'index et suit donc le nouveau nom.*
 
 ### Le rapprochement CRM ne reconnaît pas « Guediawaye » pour « Guédiawaye »
 - Réf : P99.05
-- Statut : retenu · à valider — V7 : revenir sur le choix écrit au docblock de `ProspectMatcher` (villes sans repli d'accents)
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Crm/ProspectMatcher.php:102-109`, `:167`, `:232-250`, `takussan-web/src/components/customer-form/CustomerForm.tsx:380`
 - Constat :
@@ -9938,7 +9938,7 @@ Limites :
 
 ### L'échéancier d'un bail de plus de 100 échéances perd les plus anciennes : l'API ignore le `sort` que le front demande et ne rend que la première page
 - Réf : P100.01
-- Statut : retenu · à valider — V1 : l'échéancier et la liste des échéances à encaisser ; la piste laisse plusieurs voies (ordre côté API, pagination ou échéancier sans plafond)
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:22-36`, `takussan-web/src/lib/queries/leases.ts:178-221`, `takussan-web/src/components/leases/LeaseSchedule.tsx:93,180`, `takussan-web/src/components/leases/LeaseDetail.tsx:89-99`, `takussan-web/src/components/leases/LeasePaymentDialog.tsx:41-50`, `takussan-api/app/Services/Model/LeaseService.php:218-260`
 - Constat :
@@ -9956,7 +9956,7 @@ Limites :
 
 ### Les réservations lisent `deposit_paid`, `deposit_date`, `completion_date`, `rejection_date` et `expiration_date`, que l'API n'émet jamais
 - Réf : P100.02
-- Statut : retenu · à valider — V7 : `completion_date` et `rejection_date` n'ont aucune source, il faut soit une donnée neuve, soit retirer des événements affichés
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/bookings/BookingsList.tsx:141-143`, `takussan-web/src/components/bookings/BookingDetail.tsx:271-281,297-299,570-590`, `takussan-web/src/types/booking.ts:38-80`, `takussan-api/app/Http/Resources/BookingResource.php:14-46`, `takussan-api/app/Http/Controllers/Api/BookingController.php:65-69`
 - Constat :
@@ -9972,7 +9972,7 @@ Limites :
 
 ### Cinq ressources affirment une valeur pour une colonne qu'un sparse fieldset n'a pas lue : `kind` « invoice », montants à 0, devise « XOF », booléens à faux
 - Réf : P100.03
-- Statut : retenu · à valider — V1 : montants et nature de facture rendus par l'API ; passer en `whenHas` retire des clés de montant à tout appelant qui ne les charge pas
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/InvoiceResource.php:23,33,36`, `takussan-api/app/Http/Resources/PayoutResource.php:33-36`, `takussan-api/app/Http/Resources/BookingResource.php:23`, `takussan-api/app/Http/Resources/AgencyResource.php:30,53,71`, `takussan-api/app/Http/Resources/LeasePaymentResource.php:23,32-33`
 - Constat :
@@ -10007,7 +10007,7 @@ Limites :
 
 ### Petites améliorations : `fields[…]` envoyés à des listes qui ne les lisent pas
 - Réf : P100.05
-- Statut : retenu · à valider — V6 : porter ces listes sur `buildQuery` ou documenter le `fields` inerte, deux voies face à la règle « sparse fieldsets obligatoires »
+- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:27-70,247`, `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:18-22`, `takussan-api/app/Http/Controllers/Api/ReviewController.php:57-135`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:39-110`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:23-60`
 - Constat :
