@@ -175,7 +175,7 @@ voie d'écriture (angle 13, puis 47).
 | 98 | Supprimer, versionner ou partager un document que l'on ne fait que lire (`DocumentController::destroy`, `DocumentVersionController`, `DocumentShareLinkController`, `DocumentPolicy::share`) face aux règles écrites des tickets : locataire, bailleur invité, agent d'une autre agence, compte bloqué |
 | 100 | Constantes `*_FIELDS` et `fields[…]` écrits du front face aux `$queryFields` du modèle visé : colonne demandée que l'API refuse (400 `http.bad_request`), rattrapée en `null` ou en page d'erreur — `src/lib/queries/*.ts`, `src/app/actions/*` | fait |
 | 101 | Passage axe au navigateur des écrans `/app` des autres profils (propriétaire, locataire, prestataire, agent) et des pages de détail `[id]` (bien, bail, client, paiement), derrière le faux API en lecture seule de l'angle 68 | fait |
-| 102 | État initial masqué au rendu serveur (`opacity-0`, `invisible`, `useReveal`, `animate-*` dépendant d'un effet) sur les autres listes et rangées publiques (`PropertyRow` de l'accueil, fiches agence et agent, favoris, biens similaires) : contenu présent dans le HTML et invisible jusqu'à l'hydratation, ou sans JS | à faire |
+| 102 | État initial masqué au rendu serveur (`opacity-0`, `invisible`, `useReveal`, `animate-*` dépendant d'un effet) sur les autres listes et rangées publiques (`PropertyRow` de l'accueil, fiches agence et agent, favoris, biens similaires) : contenu présent dans le HTML et invisible jusqu'à l'hydratation, ou sans JS | fait |
 | 103 | Appels du navigateur à l'hydratation des pages publiques (`geo/cities`, `geo/regions`, `amenities`, `property-types`, `maintenance/status`, préflights CORS) : lesquels pourraient venir du rendu serveur ou du cache de données, et ce qu'ils coûtent sous 3G | à faire |
 | 104 | Poids JS initial des écrans de la console `/super-admin` (`SuperAdminShell`, tableaux, dialogues importés statiquement, fichiers `index.ts` de `components/admin/super`) : le relevé de l'angle 70 sur l'autre console | à faire |
 | 105 | Charge RSC d'un document `/app` servi : dictionnaires imbriqués de `layout.tsx`, `(dashboard)` et `(dashboard)/app` (et `/app/agency`) sérialisés chacun avec l'ensemble cumulé de ses parents, mesurés sur le document compressé | à faire |
@@ -10114,3 +10114,55 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : axe par CDP, code relu.
 - Piste : `aria-labelledby` du panneau vers son `h3` (le libellé du jour, déjà affiché), ou `section` au lieu d'`aside` ; aucun texte neuf.
 - Mesure (2026-10-21, dadb26e5c, mesureur) : relu `CalendarPage.tsx:449-494` (`<aside data-testid="calendar-selected-day">` sans `aria-label` ni `aria-labelledby` ; son `h3` l. 452 porte le libellé du jour, déjà affiché) et `AppSidebar.tsx:783` (`<aside>` sans nom) → deux repères `complementary` sans nom sur `/app/calendar` ; axe non relancé, le constat est relu. P68.08 a laissé au porteur les seuls `aside` de `/app/messages`, qui n'ont pas de titre à réutiliser. Classement : A4, aucun texte neuf : `aria-labelledby` du panneau vers un `id` posé sur son `h3`, et un test qui attend le repère nommé du libellé du jour.
+
+## Angle 102 — Cartes de bien masquées au rendu serveur hors de la grille de recherche
+
+*Exploré le 2026-10-21 sur `pre-dev` dadb26e5c, par l'explorateur. Tout a été relu par l'explorateur lui-même, sans sous-agent : `PropertyCard.tsx` et ses six appelants (`grep -rn "<PropertyCard\b" src`), les quatre variantes de `cards/` et `PropertyRow`, `HomepageDiscovery`, `PortfolioTabs` (fiches agence et agent), `IndexDeProfils`, `PublicFavoritesPage`, `FavoritesList`, `PropertySimilar`, `CompareClient`, `card-stagger.ts` et les animations de `globals.css`. Un test vitest temporaire, retiré, a rendu la page d'un bien retiré par `renderToString`. Rien n'a été mesuré au navigateur : ni LCP, ni rendu sans JS, ni position du pli. Écartés après lecture, parce que leur état initial ne dépend d'aucun effet : l'accueil (`PropertyRow` et ses quatre variantes en `animate-card-enter`, sections en `animate-section-enter`, CSS seul, données reçues du serveur), les fiches agence et agent (`PropertyCardStandard`), les index de profils (aucune animation), les favoris et les biens similaires de la fiche (données chargées au client, donc absentes du HTML de toute façon, et premières cartes en `priority`).*
+
+### La page d'un bien loué, vendu ou retiré sort du rendu serveur avec toutes ses cartes similaires en `opacity-0`, visibles seulement après l'hydratation
+- Réf : P102.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:65-73`, `takussan-web/src/components/property/PropertyCard.tsx:45-60`, `takussan-web/src/components/property/PropertyCard.tsx:156-158`, `takussan-web/src/components/property/PropertyCard.tsx:194-200`
+- Constat :
+  - `bienRetire()` rend `etat.similar` en `PropertyCard` avec `index` et sans `priority` (lu, l. 72). La racine de la carte reste en `opacity-0` tant que `useReveal(ref) || priority` est faux. `useReveal` ne passe à vrai que dans l'`IntersectionObserver` d'un `useEffect`, donc après l'hydratation (lu, `PropertyCard.tsx:45-60`, 158, 199).
+  - Mesuré : test vitest temporaire, `renderToString` de `bienRetire()` pour un bien `rented` et trois similaires → trois racines de carte, toutes en `opacity-0`, et trois `<img loading="lazy">`.
+  - Les données sont pourtant servies par le serveur (`etat.similar`, composant serveur), et ces cartes sont tout le contenu de la page sous le titre et le bouton (lu, l. 52-75). Le docblock de la page dit : « un message clair, puis immédiatement des biens similaires », et rappelle que « le lien d'un bien loué continue de circuler sur WhatsApp » (lu, l. 8-11). Sans JS, ou jusqu'à l'hydratation, ce lecteur voit un titre, un bouton et un vide. P69.01 a mesuré l'hydratation de la liste vers 8,3 s sous Fast 3G. Pour cette page, la durée n'est pas mesurée (à vérifier).
+  - Le contrat de la carte est écrit à la l. 156-157 : « Priority cards (above-the-fold) skip the initial hidden state so the browser can count their image as the LCP candidate immediately ». Sur cette page, les cartes du haut de la grille (1, 2 puis 3 colonnes, l. 70) sont au-dessus du pli au moins à partir de `lg`. Ce dernier point est déduit de la mise en page, pas mesuré (à vérifier).
+  - Établi comment : code relu, rendu serveur mesuré.
+- Piste : passer `priority={index < 3}` aux cartes de `bienRetire()`, autant que la grille a de colonnes au plus large, sur le modèle de `PublicFavoritesPage` (`priority={i < 3}`). Garde : un test de `bienRetire()` en `renderToString` qui refuse `opacity-0` sur les trois premières racines. Le correctif de fond reste le reste de P69.01 : ne plus masquer la carte au rendu serveur.
+
+### Sur la grille de recherche à cinq ou six colonnes, la fin de la première rangée reste masquée jusqu'à l'hydratation : le budget `priority` est fixé à 4
+- Réf : P102.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:51`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:590`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:630`
+- Constat :
+  - `CARTES_PRIORITAIRES = 4` (lu, l. 51). Les cartes qui le dépassent, emplacements compris (`emplacementsRendus + i < CARTES_PRIORITAIRES`, l. 630, TCK-1036), sortent en `opacity-0` (voir P102.01 pour le mécanisme).
+  - La grille passe à `2xl:grid-cols-5` (≥ 1 536 px) puis à `min-[112.5rem]:grid-cols-6` (≥ 1 800 px) (lu, l. 590). Sur ces deux paliers, la 5ᵉ carte, puis les 5ᵉ et 6ᵉ, sont dans la première rangée et sortent masquées. Le palier `xl:grid-cols-4` couvre exactement sa première rangée, rien de plus.
+  - Que la première rangée soit au-dessus du pli sur ces écrans est déduit de sa position en tête de grille, pas mesuré (à vérifier). P69.01 est passé à `fait · TCK-1036` sur la seule question des emplacements. Ce constat-ci, sur les colonnes, n'y figure pas.
+  - Établi comment : code relu.
+- Piste : porter `CARTES_PRIORITAIRES` au plus grand nombre de colonnes (6), ou sortir la question du JS (reste de P69.01). Garde : étendre `PropertiesDiscoveryPage.grille.test.tsx`, « sans emplacement, les quatre premiers biens restent prioritaires », au compte de colonnes du palier le plus large.
+
+### Les cartes de la page d'un bien retiré héritent des `sizes` de la grille de recherche, qui ne décrivent pas leur grille
+- Réf : P102.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:70-72`, `takussan-web/src/components/property/PropertyCard.tsx:139`, `takussan-web/src/components/property/card-image-sizes.ts:84-85`
+- Constat :
+  - `bienRetire()` ne passe pas `sizes` (lu, l. 72). La carte retombe sur `CARD_SIZES_SEARCH_GRID` (lu, `PropertyCard.tsx:139`), alors que son docblock dit que `sizes` « appartient à la grille appelante, pas à la carte » (lu, l. 75).
+  - `CARD_SIZES_SEARCH_GRID` décrit 1/3/4/5/6 colonnes pleine largeur : `31vw` sous 1 024 px, `22vw` jusqu'à 1 279 px, `17.5vw` puis `238px` (lu, `card-image-sizes.ts:85`). La grille de la page retirée a 1, 2 puis 3 colonnes dans `max-w-6xl` (lu, `bien-retire.tsx:53,70`). Entre 768 et 1 023 px, les cartes font environ la moitié de l'écran pour `31vw` annoncés. À partir de 1 280 px, elles font environ un tiers de 1 152 px pour 17,5 vw ou 238 px annoncés. Le navigateur choisirait donc une image trop petite. C'est déduit de la formule, aucune requête d'image n'a été mesurée (à vérifier).
+  - Établi comment : code relu.
+- Piste : une constante `CARD_SIZES_BIEN_RETIRE` dans `card-image-sizes.ts`, sur le patron des autres grilles, avec son relevé. Garde : les autres appelants passent tous `sizes` sauf `bien-retire.tsx`. Un test qui le refuse sur chaque appelant de `PropertyCard` empêcherait le retour.
+
+### Petites améliorations : trois commentaires décrivent encore les animations d'entrée en `both`, alors que `globals.css` les déclare en `backwards`
+- Réf : P102.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/property/card-stagger.ts:4-7`, `takussan-web/src/app/globals.css:519-522`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:166-171`
+- Constat :
+  - `.animate-fade-in-up`, `.animate-card-enter` et `.animate-section-enter` sont déclarées `backwards`, et le commentaire de la l. 418-421 dit pourquoi (« `backwards` et non `both` (revue design 2026-09-16) ») (lu, `globals.css:414-438`).
+  - Trois commentaires disent le contraire : « les deux animations d'entrée du dépôt (`fadeInUp` et `cardEnter`) sont déclarées en `both` » (lu, `card-stagger.ts:4-7`), « ⚠ `both` est ce qui rend la règle NÉCESSAIRE » (lu, `globals.css:519`), « `animate-fade-in-up` est déclarée `both` : le `transform` de fin reste posé » (lu, `PropertyDetailContent.tsx:168`). Le raisonnement des deux premiers tient encore avec `backwards`, qui maintient aussi l'état initial pendant le retard. Celui du troisième ne tient plus : c'est `both` qui laissait le `transform` posé.
+  - Sous `prefers-reduced-motion`, la règle des l. 533-541 rend `opacity: 1` aux classes `animate-*`, mais pas à l'état `opacity-0` de `PropertyCard`, qui n'est pas une animation. La carte attend donc l'hydratation sous mouvement réduit comme ailleurs (lu, `PropertyCard.tsx:199`). C'est le même défaut que P102.01, vu de ce côté.
+  - Établi comment : code relu.
+- Piste : réécrire les trois commentaires pour dire `backwards` (A6). Rien à garder par un test.
