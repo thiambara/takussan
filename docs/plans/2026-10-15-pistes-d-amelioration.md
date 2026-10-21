@@ -9223,7 +9223,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 
 ### Le « taux d'impayés » dépasse 100 %, et vaut 0 % quand les impayés viennent d'un bail clos
 - Réf : P93.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1177
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:54-59,77,115`,
   `takussan-api/app/Services/Dashboard/KpiResolver.php:37`, `takussan-api/app/Models/ThresholdAlert.php:49`,
@@ -9246,6 +9246,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   12 mois ÷ le facturé échu des mêmes échéances. Rendre `null` sans dénominateur. Le choix de la
   définition revient au porteur (texte du produit). Un test épingle les deux cas mesurés.
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `DashboardAgencyService::summary` (`unpaid_rate_percent` = impayé cumulé ÷ Σ `monthly_rent` des baux `active`, 0 sans bail actif) et `KpiResolver::forAgency` ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → bail actif à 100 000 avec trois loyers échus impayés plus un bail `terminated` à 50 000 impayés : `overdue_amount` 350 000, `unpaid_rate_percent` 350 ; agence au seul bail `terminated` à 50 000 impayés : `overdue_amount` 50 000, `unpaid_rate_percent` 0 ; le constat tient. Aucun ticket ni commit ne le traite. Classement : V1 et V7, c'est un ratio de montants dont la piste laisse la définition au porteur.
+- Mesure (2026-10-21, 8d4869e9d, implementeur) : reproduit avant correctif par `DashboardAgencyTest::test_p93_03_unpaid_rate_is_owed_over_billed_of_the_same_past_due_installments` (sans échéance : `0` au lieu de `null` ; seul bail `terminated` à 50 000 impayés : 0) → `PortfolioMetrics::unpaidRate()` = reste dû des échéances échues sur 12 mois (hors restitution de caution, baux non supprimés) ÷ leur montant facturé (hors `cancelled`, `failed`), `null` sans échéance : `null`, 100, puis 77,78 avec un bail actif à trois loyers en retard ; AC5 de TCK-595 recalculé (33,33 → 10) ; tuile front en « — » sans alerte quand `null` ; ablations API et front rouges, remis : `DashboardAgencyTest` 10/10, `DashboardOwnerMetricsTest`, `DashboardQueryBudgetTest`, `ThresholdAlertTest`, `DashboardAgencyAccessTest`, `AgencyKpis.test.tsx` et `overview/agency/page.test.tsx` verts.
 
 ### Les alertes de seuil vont aussi aux admins d'agence suspendus ou archivés
 - Réf : P93.04
