@@ -8337,7 +8337,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### `AgencyUpgradeRequest` chiffre le RIB pro et le NINEA sans les cacher : tout `toArray()` les rend en clair
 - Réf : P84.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1132
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/AgencyUpgradeRequest.php:69-76`, `takussan-api/app/Models/DocumentShareLink.php:21-24`, `takussan-api/app/Models/DataExport.php`, `takussan-api/app/Models/ReportExport.php`
 - Constat :
@@ -8353,6 +8353,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Établi comment : lu et mesuré.
 - Piste : ajouter `protected $hidden = ['ninea', 'rib_pro']` à `AgencyUpgradeRequest`, et `token` à celui de `DocumentShareLink`. La Resource lit les attributs, pas `toArray()`, et resterait inchangée. Garde : un test qui parcourt `app/Models` et exige que toute colonne castée `encrypted*` soit dans `$hidden`, avec une liste d'exceptions motivées (`archive_path`, si l'on juge qu'un chemin n'est pas une donnée).
 - Mesure (2026-10-20, 1a5deccf6, mesureur) : `php artisan tinker` sans écriture → `new AgencyUpgradeRequest(['ninea'=>…,'rib_pro'=>…])->toArray()` rend les deux en clair, `new OwnerProfile(['rib'=>…])->toArray()` rend `[]`, un `DocumentShareLink` dont on pose `token` rend `{"token":…}` ; `AgencyUpgradeRequest.php` sans `$hidden`, `DocumentShareLink.php:21` `$hidden = ['password_hash', 'token_hash']` ; aucun appelant ne sérialise ces modèles bruts (les deux contrôleurs passent par `AgencyUpgradeRequestResource`, `DocumentShareLinkController::format()` lit `$link->token` attribut par attribut, `archive_path` n'est lu que par les deux contrôleurs de téléchargement et absent de `DataExportResource`) ; `$requestLoadable` d'`Agency` et de `Document` sans `upgradeRequests`/`shareLinks` → le constat tient, aucune réponse d'aujourd'hui ne changerait. Classement : A1 et A5, ADR-0044 § 1 écrit déjà qu'une donnée chiffrée ne sort pas en clair dans une réponse par défaut, et `$hidden` ne change aucune sortie actuelle.
+- Mesure (2026-10-21, 3c6c8301f, implementeur) : avant correctif, la garde neuve `EncryptedColumnsAreHiddenTest` (parcours de `app/Models`, tout cast `encrypted*` dans `$hidden`) rougit sur exactement `DocumentShareLink::$token`, `AgencyUpgradeRequest::$ninea` et `::$rib_pro`, et `toArray()` rend `ninea`, `rib_pro` et `token` en clair → `$hidden` ajouté aux deux modèles, `archive_path` de `DataExport`/`ReportExport` en exceptions motivées ; ablation : modèles rendus à `3c6c8301f` → 3 rouges sur 4, remis → 4/4 ; tests des deux modèles (ressource, partage, flip, revue, identifiants partagés) : 65 verts.
 
 ### Petites améliorations — angle 84
 - Réf : P84.03
