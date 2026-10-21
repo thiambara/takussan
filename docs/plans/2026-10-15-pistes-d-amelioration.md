@@ -6532,7 +6532,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
 
 ### Tout compte qui peut lire un document peut en téléverser et en restaurer une version, contre TCK-097 qui exige le droit de modifier
 - Réf : P64.01
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1140
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentVersionController.php:46-60,85-94`, `takussan-api/app/Policies/DocumentPolicy.php:37-80,140-160`, `docs/backlog/tickets/TCK-097-document-version-history.md:85-87`, `docs/backlog/tickets/TCK-306-autorisation-controleurs-vers-policies.md:109-118`
 - Constat :
@@ -6542,6 +6542,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
   - Établi comment : test temporaire et lecture. Pour une pièce de profil, `view` ne s'ouvre qu'à l'auteur et au super-admin (lu, `attachTo` n'a pas de branche de profil) : le défaut ne touche pas les pièces KYC, mais tous les documents de bail, de bien, de client, de réservation et d'état des lieux.
 - Piste : autoriser `store` et `restore` par `update`, comme TCK-097 l'écrit, et garder `view` pour `index` et `download`. Un test : le locataire d'un bail reçoit 403 sur l'ajout et la restauration d'une version d'un document du bailleur ; l'auteur reçoit 201. Ablation → rouge.
 - Mesure (2026-10-20, 0ba226223, mesureur) : lu `DocumentVersionController.php:48` et `:87` (`authorize('view')`), `DocumentPolicy.php` `update()` (super-admin ou `landlordWrites` du téléverseur) et `attachTo()` (branche `Lease` : bailleur, personnel de l'agence, locataire), TCK-097 l. 85-87 ; test temporaire retiré (charge 4,22 sur 8 cœurs), bail, document du bailleur avec une version, locataire connecté → `DELETE /api/documents/{id}` 403, `POST …/versions` 201, `POST …/versions/{v1}/restore` 200. Le constat tient. Classement : V2, autoriser par `update` comme l'écrit TCK-097 retire aussi ces deux gestes au personnel de l'agence et au propriétaire du porteur qui ne sont pas le téléverseur, appelants légitimes aujourd'hui : qui garde le droit est à trancher.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, bail, document du bailleur avec une version, locataire connecté → `POST /api/documents/{id}/versions` 201 (rouge) → `DocumentVersionController::store` et `::restore` autorisent par `update` (`index` et `download` gardés sur `view`) ; `DocumentVersionTest::test_le_locataire_ne_televerse_ni_ne_restaure_une_version_du_document_du_bailleur` vert (locataire 403 sur l'ajout et la restauration, aucune version ajoutée, liste 200 ; bailleur 201 et 200), ablation (retour à `view`) → rouge, 130 verts sur les six classes qui touchent aux documents et à leurs versions.
 
 ### L'effacement du compte laisse les pièces de ses profils intactes : ligne, média, fichier et nom de fichier d'origine
 - Réf : P64.02
