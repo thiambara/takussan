@@ -24,16 +24,19 @@ RUN install-php-extensions pdo_pgsql pgsql intl bcmath gd zip exif pcntl opcache
 # extérieure qui consommait les réparations des agents. Même montage que l'archive PECL que posait
 # install-php-extensions, relevé sur l'image déployée (sha-8745592ad) : liblzf embarquée — le
 # sous-module de phpredis 6.3.0, que l'archive de GitHub n'inclut pas —, zstd et lz4 liées au
-# système ; `php -m` identique. Les deux archives sont vérifiées par leur empreinte.
+# système ; `php -m` identique. Les deux archives sont vérifiées par leur empreinte. Les paquets
+# de compilation sont figés comme ceux de deploy/postgres/Dockerfile (versions de bookworm lues le
+# 2026-10-21 dans l'image de base).
 ARG PHPREDIS_VERSION=6.3.0
 ARG PHPREDIS_SHA256=cb8f81df1a275599e4f8ddcfec7e1f65ed1953e6f5673649149fd680ebff4cad
 ARG LIBLZF_COMMIT=fb25820c3c0aeafd127956ae6c115063b47e459a
 ARG LIBLZF_SHA256=8e425b5bf7a569543e29cb4a16a913445d80c4efe83b371760ca798ca9b819ed
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libzstd-dev liblz4-dev \
+ && apt-get install -y --no-install-recommends libzstd-dev=1.5.4+dfsg2-5 liblz4-dev=1.9.4-1 \
  && curl -fsSL "https://codeload.github.com/phpredis/phpredis/tar.gz/refs/tags/${PHPREDIS_VERSION}" -o /tmp/phpredis.tgz \
  && curl -fsSL "https://codeload.github.com/nemequ/liblzf/tar.gz/${LIBLZF_COMMIT}" -o /tmp/liblzf.tgz \
- && printf '%s  %s\n' "$PHPREDIS_SHA256" /tmp/phpredis.tgz "$LIBLZF_SHA256" /tmp/liblzf.tgz | sha256sum -c - \
+ && printf '%s  %s\n' "$PHPREDIS_SHA256" /tmp/phpredis.tgz "$LIBLZF_SHA256" /tmp/liblzf.tgz > /tmp/empreintes \
+ && sha256sum -c /tmp/empreintes \
  && docker-php-source extract \
  && mkdir -p /usr/src/php/ext/redis/liblzf \
  && tar -xzf /tmp/phpredis.tgz --strip-components=1 -C /usr/src/php/ext/redis \
@@ -43,7 +46,7 @@ RUN apt-get update \
  && docker-php-source delete \
  && apt-mark manual libzstd1 liblz4-1 \
  && apt-get purge -y libzstd-dev liblz4-dev && apt-get autoremove -y \
- && rm -rf /var/lib/apt/lists/* /tmp/phpredis.tgz /tmp/liblzf.tgz
+ && rm -rf /var/lib/apt/lists/* /tmp/phpredis.tgz /tmp/liblzf.tgz /tmp/empreintes
 COPY docker/php.ini "$PHP_INI_DIR/conf.d/zz-takussan.ini"
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /app
