@@ -516,6 +516,16 @@ class Property extends AbstractModel implements HasMedia
     }
 
     /**
+     * TCK-1099 (P90.01) — réindexe le bien s'il doit l'être, l'en retire sinon. `searchable()` sur
+     * un modèle ne juge pas {@see shouldBeSearchable()} : appelé seul, il faisait entrer dans
+     * l'index un brouillon, un bien privé ou un bien d'agence non active.
+     */
+    public function reindexer(): void
+    {
+        $this->shouldBeSearchable() ? $this->searchable() : $this->unsearchable();
+    }
+
+    /**
      * TCK-600 (ADR-0048) — un bien d'agence n'est public que tant que son agence est `active` :
      * `suspended` et `inactive` le retirent de la liste, de la fiche, de la réservation et de
      * l'index. Même règle que l'annuaire des agences. Un bien sans agence n'en dépend pas.
