@@ -43,7 +43,7 @@ class ExportDataService
     public function payments(User $actor, array $filters = []): array
     {
         $query = LeasePayment::query()
-            ->select(['id', 'reference_number', 'lease_id', 'payer_id', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount'])
+            ->select(['id', 'reference_number', 'lease_id', 'payer_id', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount', 'refund_amount'])
             ->with(['lease:id,reference_number,agency_id,landlord_id', 'payer:id,first_name,last_name']);
 
         $this->scopeToActor($query, $actor, 'lease_payment');
@@ -64,11 +64,13 @@ class ExportDataService
                 'paid_at' => $p->paid_at?->toDateTimeString(),
                 'status' => $p->status?->value,
                 'late_fee_amount' => (float) $p->late_fee_amount,
+                // TCK-1135 (P76.06) — la valeur en base, sans calcul.
+                'refund_amount' => $p->refund_amount !== null ? (float) $p->refund_amount : null,
             ];
         })->all();
 
         return [
-            'columns' => ['id', 'reference', 'lease', 'payer', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount'],
+            'columns' => ['id', 'reference', 'lease', 'payer', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount', 'refund_amount'],
             'rows' => $rows,
             'filename' => 'payments-'.now()->format('Ymd-His'),
         ];
