@@ -49,9 +49,12 @@ class ParticipantRoleResponseShapeTest extends TestCase
             );
         }
 
-        foreach (['unread_count', 'last_message', 'property', 'participants'] as $nonCharge) {
+        // TCK-1127 (P95.02) — `property` et `participants` sont chargés comme sur `show`
+        // (`Conversation::loadForDetail()`) ; ce que `show` ne charge pas reste absent.
+        foreach (['unread_count', 'last_message'] as $nonCharge) {
             $response->assertJsonMissingPath("data.{$nonCharge}");
         }
+        $this->assertCount(2, $response->json('data.participants'));
         $this->assertIsString($response->json('data.updated_at'));
         $this->assertSame($conversation->id, $response->json('data.id'));
     }

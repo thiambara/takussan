@@ -100,6 +100,58 @@ class GeoReferentialRealignementTest extends TestCase
         $this->assertSame([], $this->biensOu('neighborhood', 'Point E'));
     }
 
+    /**
+     * TCK-1128 (P99.02) — comme le renommage de la console (TCK-1080), l'ancien nom que le jeu
+     * retire reste un nom du quartier : `location=<ancien nom>` trouve encore le bien. Sans
+     * `renamed_at` : le jeu peut le renommer encore, et chaque nom retiré s'ajoute, sans doublon.
+     */
+    public function test_un_quartier_renomme_par_le_jeu_garde_son_ancien_nom_en_recherche(): void
+    {
+        $this->charger(self::V1);
+        $bien = $this->bienA('Dakar', 'Point E');
+        $this->indexProperties();
+
+        $renomme = $this->jeu(function (array $d) {
+            $d['cities'][0]['neighborhoods'][2]['name'] = 'Point E Amitié';
+
+            return $d;
+        });
+        $this->charger($renomme);
+        $this->charger($renomme);
+
+        $quartier = $this->quartier('point-e');
+        $this->assertSame(['Point E'], $quartier->former_names);
+        $this->assertNull($quartier->renamed_at);
+        $this->assertSame([$bien->id], $this->biensDuFiltre('Point E'));
+        $this->assertSame([$bien->id], $this->biensDuFiltre('Point E Amitié'));
+
+        $encore = $this->jeu(function (array $d) {
+            $d['cities'][0]['neighborhoods'][2]['name'] = 'Point E Nord';
+
+            return $d;
+        });
+        $this->charger($encore);
+        $this->charger($renomme);
+
+        $quartier->refresh();
+        $this->assertSame('Point E Amitié', $quartier->name);
+        $this->assertSame(['Point E', 'Point E Amitié', 'Point E Nord'], $quartier->former_names);
+        $this->assertSame([$bien->id], $this->biensDuFiltre('Point E'));
+    }
+
+    /** @return list<int> */
+    private function biensDuFiltre(string $location): array
+    {
+        $ids = array_map('intval', array_column(
+            $this->getJson('/api/public/properties/search?'.http_build_query(['location' => $location, 'per_page' => 100]))
+                ->assertOk()->json('data') ?? [],
+            'id',
+        ));
+        sort($ids);
+
+        return $ids;
+    }
+
     public function test_une_ville_renommee_par_le_jeu_reecrit_l_adresse_sans_perdre_son_quartier(): void
     {
         $this->charger(self::V1);
