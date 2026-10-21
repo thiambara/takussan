@@ -11104,5 +11104,18 @@
     "errors": {
       "generic": "L’invitation n’a pas pu être acceptée. Réessayez."
     }
+  },
+  "digestUnsubscribe": {
+    "metaTitle": "Se désinscrire du résumé",
+    "title": "Ne plus recevoir le résumé par e-mail",
+    "body": "Le résumé de vos notifications ne vous sera plus envoyé par e-mail. Vos notifications restent dans votre espace.",
+    "button": "Me désinscrire",
+    "working": "Désinscription…",
+    "doneTitle": "C'est fait",
+    "doneBody": "Vous ne recevrez plus le résumé par e-mail. Vous pouvez le réactiver depuis vos préférences de notification.",
+    "invalidTitle": "Ce lien ne fonctionne plus",
+    "invalidBody": "Il est incomplet ou a expiré. Vous pouvez gérer le résumé depuis vos préférences de notification.",
+    "error": "L'opération n'a pas abouti. Réessayez.",
+    "preferences": "Mes préférences de notification"
   }
 }

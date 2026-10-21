@@ -354,7 +354,7 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     ).toBe('jamais');
   });
 
-  it('les DIX-HUIT pages publiques déclarent leur métadonnée sur place', () => {
+  it('les DIX-NEUF pages publiques déclarent leur métadonnée sur place', () => {
     // Le contrôle qui rend la règle positive tenable : si une page cessait de le faire, elle
     // deviendrait `'inconnu'` et le test de classement complet la nommerait. On le fige ici pour
     // que la raison soit lisible plutôt que déduite d'un rouge ailleurs.
@@ -373,7 +373,10 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     // Statiques (le jeton est dans la requête, pas dans le chemin) : elles n'entrent pas dans
     // ROUTES_DYNAMIQUES_PUBLIQUES, et l'équivalence de l'AC3 les tient hors du sitemap par leur
     // `noindex` — nommées ci-dessous.
-    expect(ROUTES.length).toBe(18);
+    // 18 → 19 : P97.06 (TCK-1183) ajoute `/notifications/unsubscribe`, `jamais` — le
+    // désabonnement du résumé par e-mail, dont l'URL porte la signature ; statique, comme les deux
+    // pages d'alerte.
+    expect(ROUTES.length).toBe(19);
     for (const route of ROUTES) {
       expect(route.indexabilite, `${route.chemin} (${route.fichier})`).not.toBe('inconnu');
     }

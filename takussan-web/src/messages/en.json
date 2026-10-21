@@ -11104,5 +11104,18 @@
     "errors": {
       "generic": "The invitation could not be accepted. Try again."
     }
+  },
+  "digestUnsubscribe": {
+    "metaTitle": "Unsubscribe from the digest",
+    "title": "Stop receiving the email digest",
+    "body": "Your notification digest will no longer be sent by email. Your notifications stay in your account.",
+    "button": "Unsubscribe",
+    "working": "Unsubscribing…",
+    "doneTitle": "Done",
+    "doneBody": "You will no longer receive the digest by email. You can turn it back on from your notification preferences.",
+    "invalidTitle": "This link no longer works",
+    "invalidBody": "It is incomplete or has expired. You can manage the digest from your notification preferences.",
+    "error": "Something went wrong. Please try again.",
+    "preferences": "My notification preferences"
   }
 }
