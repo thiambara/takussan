@@ -8835,7 +8835,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### `GeoReindexation::biens()` charge l'agence, l'adresse et les étiquettes bien par bien : trois requêtes par bien réindexé
 - Réf : P90.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1100
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Geo/GeoReindexation.php:28-30`, `takussan-api/app/Jobs/Search/SyncAgencyPropertiesSearchIndex.php:52-54`, `takussan-api/app/Models/Property.php:500-504`
 - Constat :
@@ -8845,6 +8845,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Établi comment : lecture, puis le test temporaire ci-dessus (journal des requêtes).
 - Piste : `Property::query()->with('address', 'tagsVisibles', 'agency')->whereKey(…)->chunkById(…)`, comme `SyncAgencyPropertiesSearchIndex`. Garde : un test qui borne le nombre de requêtes pour N biens, indépendamment de N.
 - Mesure (2026-10-21, 1c496b042, mesureur) : relu `GeoReindexation::biens` (`chunkById(200)` sans `with()`, l. 28) et `Property::makeAllSearchableUsing` (`with('address', 'tagsVisibles', 'agency')`) ; test temporaire `TmpMesureurP90Test` (charge 2,22 / 2,73 / 5,29 sur 8 cœurs, Meilisearch du port 7701, retiré ensuite), journal des requêtes → 5 biens : 11 requêtes, 20 biens : 41 requêtes, soit 1 + 2 par bien pour des biens de fabrique sans agence (le constat comptait 3 par bien avec l'agence, que `agencyIsPublic()` charge en plus). Le constat tient, à cette nuance près. Classement : A2, chargement anticipé sans changement de résultat, sur le modèle de `SyncAgencyPropertiesSearchIndex`.
+- Mesure (2026-10-21, 7b4d2af87, implementeur) : `GeoReindexationRequetesTest` (biens publiés d'une agence active, avec adresse) → avant correctif, `biens()` sur 3 biens : 10 requêtes, sur 10 biens : 31, soit 1 + 3 par bien ; `with('address', 'tagsVisibles', 'agency')` → même compte pour 3 et 10 biens, et les biens passés sont dans l'index ; ablation (`GeoReindexation.php` rendu à `HEAD`) → 10 contre 31, rouge.
 
 ### Petites améliorations
 - Réf : P90.06
