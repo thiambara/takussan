@@ -4,8 +4,8 @@ namespace App\Http\Requests\Agency;
 
 use App\Models\Agency;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Agency\AgentPortfolio;
-use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -15,8 +15,9 @@ use Illuminate\Validation\Validator;
  * (`successors.{catégorie}`, qui l'emporte), `leave_unassigned` pour assumer ce qui reste, et
  * `remove_after` pour retirer le membre dans la même transaction.
  *
- * Un repreneur est du PERSONNEL de l'agence (agent ou admin), et n'est pas le partant : un bailleur
- * n'est jamais repreneur.
+ * Un repreneur est du PERSONNEL de l'agence (agent ou admin) au sens de
+ * {@see PersonnelDeLAgence::estPersonnel()}, et n'est pas le partant : un bailleur, un compte bloqué
+ * ou supprimé ne sont jamais repreneurs.
  */
 class StoreAgentHandoverRequest extends FormRequest
 {
@@ -55,9 +56,9 @@ class StoreAgentHandoverRequest extends FormRequest
             $member = $this->route('user');
             foreach ($this->successorIds() as $field => $id) {
                 $candidate = User::query()->find($id);
-                // TCK-587 — le repreneur est PERSONNEL actif de l'agence (profil ou délégation actifs).
-                $staff = $candidate !== null
-                    && app(MembershipCapabilityResolver::class)->isStaffAt($candidate, (int) $agency->id);
+                // TCK-587 — le repreneur est PERSONNEL actif de l'agence (profil ou délégation actifs),
+                // et joignable (TCK-1095) : un compte bloqué ou supprimé ne reprend rien.
+                $staff = PersonnelDeLAgence::estPersonnel($candidate, (int) $agency->id);
                 if (! $staff || (int) $id === (int) $member->id) {
                     $v->errors()->add($field, __('team_handover.handover.successor_not_staff'));
                 }
