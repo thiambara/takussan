@@ -174,7 +174,7 @@ voie d'écriture (angle 13, puis 47).
 | 99 | Critères de ville et de région rangés par nom (`city`, `cities`, `region` des recherches sauvegardées et des alertes sans compte, `seeking_cities` du CRM) face à une ville renommée par le chargeur du référentiel (`GeoReferentialLoader`, TCK-787) : alertes et rapprochements muets ? | fait |
 | 98 | Supprimer, versionner ou partager un document que l'on ne fait que lire (`DocumentController::destroy`, `DocumentVersionController`, `DocumentShareLinkController`, `DocumentPolicy::share`) face aux règles écrites des tickets : locataire, bailleur invité, agent d'une autre agence, compte bloqué |
 | 100 | Constantes `*_FIELDS` et `fields[…]` écrits du front face aux `$queryFields` du modèle visé : colonne demandée que l'API refuse (400 `http.bad_request`), rattrapée en `null` ou en page d'erreur — `src/lib/queries/*.ts`, `src/app/actions/*` | fait |
-| 101 | Passage axe au navigateur des écrans `/app` des autres profils (propriétaire, locataire, prestataire, agent) et des pages de détail `[id]` (bien, bail, client, paiement), derrière le faux API en lecture seule de l'angle 68 | à faire |
+| 101 | Passage axe au navigateur des écrans `/app` des autres profils (propriétaire, locataire, prestataire, agent) et des pages de détail `[id]` (bien, bail, client, paiement), derrière le faux API en lecture seule de l'angle 68 | fait |
 | 102 | État initial masqué au rendu serveur (`opacity-0`, `invisible`, `useReveal`, `animate-*` dépendant d'un effet) sur les autres listes et rangées publiques (`PropertyRow` de l'accueil, fiches agence et agent, favoris, biens similaires) : contenu présent dans le HTML et invisible jusqu'à l'hydratation, ou sans JS | à faire |
 | 103 | Appels du navigateur à l'hydratation des pages publiques (`geo/cities`, `geo/regions`, `amenities`, `property-types`, `maintenance/status`, préflights CORS) : lesquels pourraient venir du rendu serveur ou du cache de données, et ce qu'ils coûtent sous 3G | à faire |
 | 104 | Poids JS initial des écrans de la console `/super-admin` (`SuperAdminShell`, tableaux, dialogues importés statiquement, fichiers `index.ts` de `components/admin/super`) : le relevé de l'angle 70 sur l'autre console | à faire |
@@ -10026,3 +10026,72 @@ Limites :
 - Piste : porter ces listes sur `buildQuery` quand la charge compte (conversations, sondées toutes les 10 s), ou retirer du front le `fields` inerte en le disant dans le fichier, comme `property-moderation.ts`.
 - Mesure (2026-10-21, 3c6c8301f, mesureur) : `grep -c buildQuery` → 0 dans `ConversationController`, `SavedSearchController`, `ReviewController`, `Admin/AgencyModerationController` et `Admin/UserDetailController` ; relu les envois de `fields` : `conversations-list.ts:64` (sondé toutes les 10 s, l. 81), `conversations.ts:129` et `:202`, `saved-searches.ts:71`, `reviews-moderation.ts:90`, `super-admin.ts:96`, `super-admin/users/page.tsx:152` ; `property-moderation.ts:104-124` documente déjà son `fields` inerte et l'envoie toujours. Le compte de 22 sites n'est pas re-mesuré. Classement : V6, la piste laisse deux voies (porter sur `buildQuery`, qui refuserait aujourd'hui tout `fields` sur cinq modèles au `$queryFields` vide, ou retirer ou documenter le paramètre), et l'une ou l'autre fixe la convention du dépôt pour les listes écrites à la main.
 - Mesure (2026-10-21, 27b86c9d0, delegue) : relu la décision du porteur sur P60.03 (TCK-1067 l. 31 : un `show` rend la ressource entière, `fields` et `include` ne valent que pour les listes, écrit dans `docs/spatie-query-builder.md:63-67`), l'en-tête de `property-moderation.ts:103-126` (le `fields` inerte d'une liste écrite à la main est gardé et documenté, en attendant un portage sur `buildQuery` « hors périmètre ») et le classement de P100.04 (la garde générale portera une liste motivée des endpoints hors `buildQuery`) → la règle écrite ne vaut que pour les `show` ; pour une liste, elle dit que `fields` doit valoir, et rien d'écrit ne choisit entre porter et documenter. Recommandation : documenter le `fields` inerte en tête de chaque fetcher, comme `property-moderation.ts`, et nommer ces cinq endpoints dans la liste motivée de la garde de P100.04 ; porter ensuite les seules conversations sur `buildQuery`, par une piste à part, parce qu'elles sont sondées toutes les 10 s. Ce qui manque pour trancher : le porteur, parce que porter `ConversationController` ou `UserDetailController` sur `buildQuery` demande d'écrire un `$queryFields` (vide aujourd'hui pour `Conversation`) et choisit les colonnes demandables d'une liste de la console (V3 possible) et le périmètre de lecture des conversations (V2 possible), en plus du V6 du mesureur.
+
+## Angle 101 — Axe au navigateur des écrans `/app` des autres profils et des pages de détail
+
+*Exploré le 2026-10-21 sur `pre-dev` 464389140, par l'explorateur. Tout a été lancé et relu par
+l'explorateur lui-même, sans sous-agent. Montage de l'angle 68 rejoué hors du dépôt : `next dev` de
+l'arbre (port 3298) devant l'API de l'arbre servie par `php -S` (connexion PostgreSQL en
+`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY`, toute méthode autre que `GET` refusée en
+405), utilisateur posé depuis le jeton `u<ID>`, Chrome 156 sans tête par CDP, un contexte isolé par
+passage, `axe-core` du front, règles `wcag2a/aa`, `wcag21a/aa`, `wcag22aa`, `best-practice`. Passé à
+1280 px : propriétaire u7 (18 pages), locataire u103 (13), prestataire u17 (9), agent u3 (12) ; pages
+de détail en admin d'agence u2 (`/app/properties/1`, `/app/customers/1`, `/app/maintenance/21`,
+`/app/inventories/1`, `/app/leases/1`, `/app/bookings/1`, `/app/visits/2387`, `/app/documents/1`),
+u7 (`/app/leases/29`, `/app/properties/1`) et u103 (`/app/leases/366`). **Limite payée en cours de
+passage** : sous l'API en lecture seule, le `POST /api/me/welcome-seen` est refusé, et la fenêtre de
+bienvenue (`WelcomeModal`) se rouvre à chaque page du propriétaire, du locataire et de l'agent. Axe
+ignore ce qu'elle rend inerte : le premier relevé de ces trois profils (zéro violation hors de la
+fenêtre) ne mesurait qu'elle, et a été repris en fermant la fenêtre par « Passer » sur quelques pages
+seulement (u7 : 4, u103 : 3, u3 : 3). Le reste de ces trois profils n'est donc **pas**
+relevé. Non relevés non plus : 390 px, dialogues des pages de détail, base de dev (peu de lignes).
+`region` (lien d'évitement hors repère) sort partout et relève de P68.08, non repris. **Sain** :
+la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien, client, maintenance,
+état des lieux, bail, réservation et visite hors `region`.*
+
+### Les vues mois et semaine du calendrier déclarent une `grid` sans `row` : 49 en-têtes et cellules hors de la structure exigée
+- Réf : P101.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/calendar/MonthView.tsx:58-71,82-86`, `takussan-web/src/components/calendar/WeekView.tsx:34-50,72-76`
+- Constat :
+  - `MonthView` pose `role="grid"` sur un `div` dont les enfants directs sont 7 `role="columnheader"` puis les jours en `role="gridcell"`, sans aucun `role="row"` (lu, l. 58-71 et 82-86). `WeekView` fait de même, ses en-têtes et ses cellules dans deux `div` de mise en page sans rôle (lu, l. 34-50 et 72-76). ARIA exige `grid > row > gridcell|columnheader`.
+  - axe rend `aria-required-children` (« critical ») sur la grille « Vue mois » et `aria-required-parent` (« critical ») sur 49 nœuds de `/app/calendar` (mesuré, `cdp.mjs` puis axe, pour u17, et pour u7 et u3 une fois la fenêtre de bienvenue fermée ; 49 = 7 en-têtes + 42 jours).
+  - La vue semaine n'a pas été passée au navigateur : le script de bascule n'a pas trouvé son bouton (mesuré, `cells: 0`) ; pour elle, le constat est lu, pas mesuré.
+  - Aucun `onKeyDown`, `tabIndex` ni `aria-selected` dans les deux fichiers (mesuré, `grep -n`) : le rôle `grid` annonce une navigation aux flèches que le composant n'offre pas, et un lecteur d'écran ne peut pas lire la grille par lignes et colonnes.
+  - Établi comment : axe par CDP, code relu.
+- Piste : envelopper chaque semaine dans un `div role="row"` (avec `display: contents` ou une grille par ligne pour garder la mise en page), en-têtes compris ; ou, faute de navigation aux flèches, renoncer à `grid` pour `role="table"` avec les mêmes `row`. Garde : test de rendu de `MonthView` et `WeekView` qui attend que chaque `gridcell` et chaque `columnheader` ait un parent `row` (ou `axe` sur le composant rendu).
+
+### Les écrans d'erreur et de chargement de deux fiches n'ont pas de `h1`, quand les autres fiches en gardent un
+- Réf : P101.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/leases/LeaseDetail.tsx:101-116`, `takussan-web/src/components/documents/DocumentDetailClient.tsx:46-65`, `takussan-web/src/components/bookings/BookingDetail.tsx:155-161`, `takussan-web/src/components/visits/VisitDetail.tsx:78`
+- Constat :
+  - `BookingDetail` et `VisitDetail` rendent un `h1` `sr-only` dans leur état d'erreur, avec le commentaire « l'écran d'erreur garde un h1 » (lu, `BookingDetail.tsx:158-161`, `VisitDetail.tsx:78`). `LeaseDetail` rend un `ErrorState` seul, ni en chargement ni en erreur aucun `h1` (lu, l. 101-116) ; `DocumentDetailClient` de même (lu, l. 46-65).
+  - `/app/documents/1` en u2 est resté sur « Chargement du document… » au moment du relevé, et axe y rend `page-has-heading-one` (mesuré) ; l'API avait rendu 200 aux deux appels (`GET /api/documents/1?fields[documents]=id` et `?include=versions`, mesuré dans le journal du faux API). Pourquoi la fiche n'était pas encore rendue n'est pas établi : lenteur du `php -S` à un seul processus, ou attente réelle (à vérifier).
+  - Un propriétaire qui ouvre un bail qui n'est pas le sien voit « Bail introuvable » sans titre de page (lu, l. 109-115 ; ce rendu a été vu au navigateur pour u7 sur `/app/leases/1`, dans le premier relevé masqué par la fenêtre de bienvenue, donc sans axe valable).
+  - Établi comment : code relu, axe par CDP pour la fiche document.
+- Piste : le même `h1` `sr-only` que `BookingDetail` dans les branches de chargement et d'erreur de `LeaseDetail` et de `DocumentDetailClient`, sur les clés de repli existantes (`fallbackReference` pour le bail ; pour le document, une clé existante à trouver, sinon c'est un texte neuf). Garde : test de rendu qui joue l'erreur de la requête et attend `getByRole('heading', { level: 1 })`.
+
+### Le locataire reçoit deux fenêtres de bienvenue modales montées ensemble
+- Réf : P101.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/layout/AppShell.tsx:138-145`, `takussan-web/src/hooks/useWelcomeOnce.ts`, `takussan-web/src/components/welcome/WelcomeModal.tsx:116-120`
+- Constat :
+  - `AppShell` monte `CustomerWelcomeWizard` et `TenantWelcomeWizard` sous la même condition `customerOnboardingActive`, et le commentaire assume qu'elles s'empilent (« Renders on top of (or after) the generic customer wizard ») ; un propriétaire qui est aussi client voit de même les deux siennes (commentaire l. 59-62) (lu).
+  - Chacune est un `Dialog` modal de `@base-ui/react` (lu, `WelcomeModal.tsx:116-120`) que `useWelcomeOnce` ouvre dès que sa clé manque à `GET /api/me/welcome-seen` (lu).
+  - Pour u103 sur `/app/payments`, après trois clics sur « Passer », un `role="dialog"` restait ouvert (mesuré, `act-skip.js`). Que ce soit la seconde fenêtre empilée et non une autre n'est pas établi, ni ce que deviennent le piège de focus et l'`aria-hidden` de deux modales ouvertes ensemble (à vérifier). Dans le montage, le `POST` de fermeture est refusé, donc la fenêtre revient à chaque page ; en vrai, chacune ne s'ouvre qu'une fois.
+  - Établi comment : code relu, une mesure CDP partielle.
+- Piste : n'ouvrir qu'une fenêtre de bienvenue à la fois (la suivante après la fermeture de la première, par une file dans `AppShell`), sans changer leur contenu. Garde : test de `AppShell` pour un locataire sans aucune clé vue, qui n'attend qu'un seul `dialog` ouvert.
+
+### Petites améliorations relevées sur le calendrier
+- Réf : P101.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/calendar/CalendarPage.tsx:449`, `takussan-web/src/components/layout/AppSidebar.tsx:783`
+- Constat :
+  - Le panneau du jour sélectionné est un second `aside` sans nom, à côté de celui de la barre latérale : axe rend `landmark-unique` (« moderate ») sur `/app/calendar`, pour u2, u3, u7 et u17 (mesuré) ; le même motif que les `aside` de `/app/messages` laissés au porteur par P68.08.
+  - Établi comment : axe par CDP, code relu.
+- Piste : `aria-labelledby` du panneau vers son `h3` (le libellé du jour, déjà affiché), ou `section` au lieu d'`aside` ; aucun texte neuf.
