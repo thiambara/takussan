@@ -33,7 +33,7 @@ class AccountDeletionReminderNotification extends Notification implements Should
     {
         $scheduledFor = $this->request->scheduled_for?->format('d/m/Y') ?? '';
         $daysRemaining = (string) max(0, $this->request->daysRemaining());
-        $cancelUrl = config('app.frontend_url', config('app.url')).'/app/profile?cancel-deletion=1';
+        $cancelUrl = config('app.frontend_url', config('app.url')).'/app/profile';
 
         return (new MailMessage)
             ->subject(__('notifications.account_deletion_reminder.subject', ['days' => $daysRemaining]))

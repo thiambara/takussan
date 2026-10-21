@@ -56,6 +56,7 @@ export type FiltreDesDemandes = 'todo' | 'handled' | 'all';
 
 export const contactLeadsQueryKeys = {
   list: (filtre: FiltreDesDemandes, page: number) => ['contact-leads', 'list', filtre, page] as const,
+  detail: (id: number) => ['contact-leads', 'detail', id] as const,
   /** Le compteur du menu : une clé à part, ce n'est pas une page de liste. */
   unhandledCount: () => ['contact-leads', 'unhandled-count'] as const,
 };
@@ -78,6 +79,20 @@ export function useContactLeads(filtre: FiltreDesDemandes, page = 1) {
     contactLeadsQueryKeys.list(filtre, page),
     '/api/contact-leads',
     { params },
+  );
+}
+
+/**
+ * P97.04 (TCK-1120) — la demande que désigne la cible `lead` (`/app/leads?lead={id}`), lue par
+ * `GET /api/contact-leads/{id}` sous la même policy `view` que la liste. `null` : aucune lecture.
+ */
+export function useContactLead(id: number | null) {
+  // Ni `fields` ni `include` : un `show` rend la ressource entière, `property` et `recipient`
+  // compris (`ContactLeadController::show`) — garde P60.03.
+  return useApiQuery<ApiResponse<ContactLead>>(
+    contactLeadsQueryKeys.detail(id ?? 0),
+    cheminApi`/api/contact-leads/${id ?? 0}`,
+    { enabled: id !== null },
   );
 }
 

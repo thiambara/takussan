@@ -33,7 +33,7 @@ class AccountDeletionRequestedNotification extends Notification implements Shoul
     public function toMail(object $notifiable): MailMessage
     {
         $scheduledFor = $this->request->scheduled_for?->format('d/m/Y') ?? '';
-        $cancelUrl = config('app.frontend_url', config('app.url')).'/app/profile?cancel-deletion=1';
+        $cancelUrl = config('app.frontend_url', config('app.url')).'/app/profile';
 
         return (new MailMessage)
             ->subject(__('notifications.account_deletion_requested.subject'))

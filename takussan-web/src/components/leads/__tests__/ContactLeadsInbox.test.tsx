@@ -13,6 +13,8 @@ const etat = vi.hoisted(() => ({
   leads: [] as ContactLead[],
   filtres: [] as string[],
   roles: ['agent'] as string[],
+  recherche: '',
+  designe: null as { id: number | null; data?: ContactLead; isError?: boolean } | null,
 }));
 const handle = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 const convert = { mutateAsync: vi.fn().mockResolvedValue({ customer: { id: 88 } }), isPending: false };
@@ -28,9 +30,19 @@ vi.mock('@/lib/queries/contact-leads', () => ({
       isError: false,
     };
   },
+  useContactLead: (id: number | null) => {
+    etat.designe = { ...(etat.designe ?? {}), id };
+    return id === null
+      ? { data: undefined, isError: false }
+      : { data: etat.designe.data ? { data: etat.designe.data } : undefined, isError: etat.designe.isError ?? false };
+  },
   useHandleLead: () => handle,
   useConvertLead: () => convert,
   useAssignLead: () => assign,
+}));
+
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(etat.recherche),
 }));
 
 vi.mock('@/hooks/useApiQuery', () => ({
@@ -80,6 +92,8 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
     etat.leads = [lead()];
     etat.filtres = [];
     etat.roles = ['agent'];
+    etat.recherche = '';
+    etat.designe = null;
   });
 
   it('le message se lit en entier, avec le téléphone, l’e-mail, le destinataire et la source', () => {
@@ -152,5 +166,48 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
     etat.leads = [];
     render(withIntl(<ContactLeadsInbox />));
     expect(screen.getByText('Aucune demande en attente.')).toBeInTheDocument();
+  });
+
+  describe('P97.04 — la cible `lead` ouvre la boîte sur la demande (`?lead={id}`)', () => {
+    it('la demande désignée, absente de la page, est rendue en tête et mise en avant', () => {
+      etat.recherche = 'lead=42';
+      etat.designe = { id: null, data: lead({ id: 42, name: 'Ousmane Sow', message: 'Demande du courriel' }) };
+      render(withIntl(<ContactLeadsInbox />));
+
+      expect(etat.designe?.id).toBe(42);
+      const items = screen.getAllByRole('listitem');
+      expect(items[0]).toHaveTextContent('Ousmane Sow');
+      expect(items[0]).toHaveAttribute('aria-current', 'true');
+      expect(items[1]).toHaveTextContent('Awa Diop');
+      expect(items[1]).not.toHaveAttribute('aria-current');
+    });
+
+    it('la demande désignée déjà dans la page n’y est pas rendue deux fois', () => {
+      etat.recherche = 'lead=1';
+      etat.designe = { id: null, data: lead() };
+      render(withIntl(<ContactLeadsInbox />));
+
+      expect(screen.getAllByText('Awa Diop')).toHaveLength(1);
+      expect(screen.getAllByRole('listitem')[0]).toHaveAttribute('aria-current', 'true');
+    });
+
+    it.each([['lead=abc'], ['lead=0'], ['lead=-3'], ['']])('« %s » : aucune lecture, la boîte se rend', (recherche) => {
+      etat.recherche = recherche;
+      render(withIntl(<ContactLeadsInbox />));
+
+      expect(etat.designe?.id ?? null).toBeNull();
+      expect(screen.getByText(MESSAGE)).toBeInTheDocument();
+      expect(screen.getAllByRole('listitem')[0]).not.toHaveAttribute('aria-current');
+    });
+
+    it('une lecture refusée est ignorée sans erreur', () => {
+      etat.recherche = 'lead=99';
+      etat.designe = { id: null, isError: true };
+      render(withIntl(<ContactLeadsInbox />));
+
+      expect(screen.getByText(MESSAGE)).toBeInTheDocument();
+      expect(screen.queryByText('Les demandes n’ont pas pu être chargées.')).not.toBeInTheDocument();
+      expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    });
   });
 });
