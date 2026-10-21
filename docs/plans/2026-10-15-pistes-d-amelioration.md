@@ -7803,7 +7803,7 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
 
 ### L'archive d'export RGPD survit à l'effacement du compte, et le super-admin qui l'a demandée la télécharge encore
 - Réf : P77.01
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1139
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:241-381`, `takussan-api/app/Http/Controllers/Api/DataExportDownloadController.php:15-38`, `takussan-api/app/Jobs/Privacy/PurgeExpiredDataExports.php:20-29`, `takussan-api/database/migrations/2026_05_07_000225_create_data_exports_table.php:14`
 - Constat :
@@ -7815,6 +7815,7 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : dans `anonymize()`, supprimer les archives des exports du compte (fichier et `archive_path`) et les passer à `expired`, comme le fait la purge. Test : un export `ready` d'un compte, puis `anonymize()` → fichier absent, et le téléchargement du super-admin rend 404 ou 410.
 - Mesure (2026-10-20, 82f697038, mesureur) : `grep -n "DataExport\|Storage" AccountDeletionService.php` → aucune ligne, `anonymize()` (l. 241) ignore toujours les exports ; `DataExportDownloadController.php:17-28` ne juge que propriété, échéance et statut ; test temporaire `tests/Feature/Tmp/MesureurTmp77Test.php` (retiré), charge 3,36 / 2,47 / 2,71 sur 8 cœurs : export demandé par un super-admin, `DataExportBuilder::build()`, puis `anonymize($sujet, false)` → statut `ready`, archive présente, `GET /api/data-exports/{id}/download` du super-admin → 200, `profile.json` porte l'e-mail d'origine → le constat tient en entier. Classement : V3, la piste supprime une donnée personnelle conservée et change ce que l'effacement retire.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, export `ready` demandé par un super-admin puis `anonymize($sujet, false)` → archive présente (`assertMissing` rouge) → `anonymize()` supprime l'archive des exports du compte, remet `archive_path` à `null` et passe l'export à `expired`, comme `PurgeExpiredDataExports` ; `AccountDeletionExecuteTest::test_l_effacement_supprime_les_archives_d_export_du_compte` : fichier absent, statut `expired`, téléchargement du super-admin → 404 ; ablation (service rendu à cdef5c26f) → 1 rouge, remis → 16/16.
 
 ### Les exports de rapport de la console ne sont jamais purgés, ni le fichier ni la ligne
 - Réf : P77.02
