@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\Route;
 // Public routes
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth-register');
-    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,10');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth-login');
 
     // TCK-589 (ADR-0033) — entrée par téléphone : le code SMS remplace le mot de
     // passe. 404 tant que `auth.phone_login.enabled` est éteint.
@@ -47,7 +47,7 @@ Route::prefix('auth')->group(function () {
     // TCK-624 — hors session : le lien s'ouvre là où la boîte est relevée, souvent un autre
     // appareil. La signature et le hash de l'adresse font la preuve (`VerifyEmailLinkRequest`).
     Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
-        ->middleware(['signed:relative', 'throttle:6,1'])
+        ->middleware(['signed:relative', 'throttle:6,1,verify-email'])
         ->name('verification.verify');
 });
 
@@ -144,12 +144,12 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
 // brute-forcing random state strings would otherwise be free. 60/min per
 // IP mirrors Laravel's default API throttle and leaves plenty of room
 // for retries while blocking cheap enumeration.
-Route::prefix('auth/oauth')->middleware('throttle:60,1')->group(function () {
+Route::prefix('auth/oauth')->middleware('throttle:auth-oauth')->group(function () {
     Route::get('/providers', OAuthProviderController::class);
     // TCK-589, vérification adverse B2 — le rappel d'un compte à 2FA rend un défi : le jeton
     // n'est émis qu'ici, contre un TOTP ou un code de secours.
-    // Préfixe propre : sans lui, la clé est celle du `throttle:60,1` du groupe, et chaque
-    // appel compterait deux fois.
+    // Préfixe propre : sans lui, la clé serait la signature du visiteur, partagée avec tout
+    // autre `throttle` numérique sans préfixe (TCK-634).
     Route::post('/2fa', OAuthTwoFactorController::class)
         ->middleware('throttle:10,1,oauth-2fa')
         ->name('auth.oauth.2fa');

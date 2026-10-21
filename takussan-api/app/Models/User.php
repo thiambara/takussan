@@ -19,6 +19,7 @@ use App\Services\Auth\AccessTokenGate;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Profiles\ActiveProfileResolver;
+use App\Sorts\CollatedNameSort;
 use App\Support\CaseInsensitive;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -44,6 +45,7 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedInclude;
+use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
 
 class User extends Authenticatable implements HasLocalePreference, HasMedia, MustVerifyEmail
@@ -151,7 +153,37 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
 
     protected static array $requestFilterable = ['status', 'added_by_id'];
 
-    protected static array $requestSortable = ['id', 'created_at', 'first_name', 'last_name', 'email', 'status'];
+    /** `first_name` et `last_name` se trient à part, par {@see self::nameSorts()} (TCK-1136). */
+    protected static array $requestSortable = ['id', 'created_at', 'email', 'status'];
+
+    /**
+     * TCK-1136 (P87.01) — prénom et nom se trient en `COLLATE "und-x-icu"` (ADR-0025, amendement du
+     * 2026-10-19) : sous `--locale=C`, une minuscule ou une initiale accentuée passait après « Z ».
+     * Partagé par les trois listes blanches du modèle et par les tris écrits à la main.
+     *
+     * @return list<AllowedSort>
+     */
+    public static function nameSorts(): array
+    {
+        return [
+            AllowedSort::custom('first_name', new CollatedNameSort, 'users.first_name'),
+            AllowedSort::custom('last_name', new CollatedNameSort, 'users.last_name'),
+        ];
+    }
+
+    /**
+     * Les tris déclarés, plus prénom et nom par {@see self::nameSorts()}.
+     *
+     * @param  Builder<static>|null  $baseQuery
+     */
+    public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
+    {
+        return QueryBuilder::for($baseQuery ?? static::class, $request)
+            ->allowedFilters(...static::getAllowedQueryFilters())
+            ->allowedFields(...static::getAllAllowedQueryFields())
+            ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
+            ->allowedIncludes(...static::getAllowedQueryIncludes());
+    }
 
     /**
      * TCK-147 / TCK-278 — expose les relations de profil pour rendre la
@@ -199,7 +231,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         return QueryBuilder::for($base, $request)
             ->allowedFilters(...[...array_values($filters), self::roleFilter($agencyId)])
             ->allowedFields(...static::getAllAllowedQueryFields())
-            ->allowedSorts(...static::$requestSortable)
+            ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
             ->allowedIncludes(...$includes);
     }
 
@@ -252,7 +284,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         return QueryBuilder::for($base, $request)
             ->allowedFilters(...[...array_values($filters), $role, $assignable])
             ->allowedFields(...static::getAllAllowedQueryFields())
-            ->allowedSorts(...static::$requestSortable)
+            ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
             ->allowedIncludes(...static::getAllowedQueryIncludes());
     }
 

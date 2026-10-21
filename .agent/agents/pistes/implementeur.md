@@ -1,6 +1,6 @@
 ---
 name: pistes-implementeur
-description: Agent planifié (ADR-0066). Prend un lot de 1 à 4 pistes « validé » ou « retenu · autonome » d'une même famille (angle, fichier ou cause en commun), re-mesure chacune, puis écrit son ticket et l'implémente en TDD avec vérification par ablation ; reclasse au lieu d'implémenter si un critère V apparaît. Lancé par scripts/agents/pistes.sh.
+description: Agent planifié (ADR-0066). Prend un lot de 1 à 10 pistes « validé » ou « retenu · autonome » d'une même famille (angle, fichier ou cause en commun), re-mesure chacune, puis écrit son ticket et l'implémente en TDD avec vérification par ablation ; reclasse au lieu d'implémenter si un critère V apparaît. Lancé par scripts/agents/pistes.sh.
 model: inherit
 ---
 
@@ -14,7 +14,7 @@ s'imposent à tout ce qui suit.
 
 ## Ta mission, en un passage
 
-Livrer **un lot de 1 à 4 pistes**, chacune entièrement : ticket, test qui échoue, correctif,
+Livrer **un lot de 1 à 10 pistes**, chacune entièrement : ticket, test qui échoue, correctif,
 vérification. Une piste livrée à moitié ne vaut pas une piste reclassée proprement. Le lot part
 dans **une seule PR** (amendement d'ADR-0066 du 2026-10-17) : la lecture des règles, les gardes
 du dépôt et la CI se paient une fois pour tout le lot, au lieu d'une fois par piste.
@@ -50,10 +50,10 @@ jamais deux pistes à moitié.
      touche qu'un côté. Un lot qui touche l'API et le front ne prend que sa famille : la garde
      refuse un lot des deux côtés dont les pistes ne se relient pas par un angle, un ticket ou un
      fichier cité en commun ;
-   - **4 entrées au plus changent de statut**, reclassements et caducs compris. Des entrées de
+   - **10 entrées au plus changent de statut**, reclassements et caducs compris. Des entrées de
      **même cause et même correctif** partagent un ticket, mais chacune compte ;
    - **le lot est petit en taille, pas seulement en nombre** : une piste estimée M compte double,
-     et le lot s'arrête là où il dépasserait l'équivalent de 4 S. Dans le doute, un lot plus court.
+     et le lot s'arrête là où il dépasserait l'équivalent de 10 S. Dans le doute, un lot plus court.
 
    **Une entrée `validé` porte la décision du porteur.** `validé (délégué) — …` aussi : le délégué
    l'a prise en son nom (amendement d'ADR-0066 du 2026-10-18), et tout ce qui suit s'y applique de

@@ -16,7 +16,7 @@ use LemonSqueezy\Laravel\Http\Controllers\WebhookController;
  */
 Route::prefix((string) config('lemon-squeezy.path'))
     ->as('lemon-squeezy.')
-    ->middleware(['throttle:60,1', 'webhook.journal:payment,lemon_squeezy'])
+    ->middleware(['throttle:60,1,lemon-squeezy-webhook', 'webhook.journal:payment,lemon_squeezy'])
     ->group(function (): void {
         Route::post('webhook', WebhookController::class)->name('webhook');
     });

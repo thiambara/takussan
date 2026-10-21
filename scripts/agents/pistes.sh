@@ -786,6 +786,54 @@ travail_disponible() {
   if [ -z "$liste" ]; then fin rien "sans modèle : rien à prendre sur $BASE_REF"; fi
 }
 
+# Entretien du dossier des agents. Relevé le 2026-10-21 : 23 Go, dont 8 Go de cache de `next dev`
+# dans l'arbre de l'explorateur, et 6,3 Go de copies `base/` (620, une par passage, ~11 Mo de
+# tickets chacune) que rien ne supprimait ; des serveurs d'un passage du 2026-10-16 tournaient encore.
+
+# Au-delà, le cache de `next dev` d'un arbre est vidé au début du passage (il se reconstruit seul).
+NEXT_CACHE_MAX_KO="${NEXT_CACHE_MAX_KO:-2097152}"
+# Les dossiers de passage plus vieux que ce nombre de jours sont purgés.
+SORTIES_JOURS="${SORTIES_JOURS:-7}"
+
+# Les serveurs qu'un passage lance en arrière-plan (`next dev`, `php -S`, Chrome headless) quittent le
+# groupe de processus de claude : le TERM de `lancer_claude` ne les atteint pas. On les retrouve par
+# leur ligne de commande ou leur répertoire courant, sous l'arbre ou les sorties du rôle. Un seul
+# passage par rôle (verrou) : rien d'autre n'y vit. La collecte se fait depuis `/`, et le script
+# lui-même est exclu, pour ne pas se compter.
+balayer_processus() {
+  local pids
+  pids="$(cd / && {
+    pgrep -f -- "$BASE/arbres/$ROLE/" || true
+    pgrep -f -- "$BASE/sorties/$ROLE/" || true
+    lsof -a -d cwd -Fpn 2> /dev/null | awk -v a="$BASE/arbres/$ROLE" -v s="$BASE/sorties/$ROLE/" '
+      /^p/ { p = substr($0, 2) }
+      /^n/ { n = substr($0, 2); if (n == a || index(n, a "/") == 1 || index(n, s) == 1) print p }'
+  } | sort -u | grep -vx "$$" || true)"
+  if [ -z "$pids" ]; then return 0; fi
+  # shellcheck disable=SC2086 # une liste de pid, à découper
+  kill $pids 2> /dev/null || true
+  sleep 5
+  # shellcheck disable=SC2086
+  kill -9 $pids 2> /dev/null || true
+  info "processus laissés sous l'arbre ou les sorties de $ROLE arrêtés : $(printf '%s\n' "$pids" | wc -l | tr -d ' ')"
+}
+
+# En début de passage, sous verrou : les restes d'un passage précédent, les vieux dossiers de
+# passage du rôle et un cache de `next dev` trop gros.
+entretenir() {
+  local arbre="$1" sortie="$2" cache ko
+  balayer_processus
+  find "$BASE/sorties/$ROLE" -mindepth 1 -maxdepth 1 -type d -mtime +"$SORTIES_JOURS" ! -path "$sortie" -exec rm -rf {} + 2> /dev/null || true
+  cache="$arbre/takussan-web/.next/dev/cache"
+  if [ -d "$cache" ]; then
+    ko="$(du -sk "$cache" | cut -f1)"
+    if [ "$ko" -gt "$NEXT_CACHE_MAX_KO" ]; then
+      rm -rf "$cache"
+      info "cache de next dev vidé ($((ko / 1024)) Mo)"
+    fi
+  fi
+}
+
 lancer() {
   ROLE="$1"
   valider_role "$ROLE"
@@ -810,7 +858,9 @@ lancer() {
     mkdir "$verrou"
   fi
   printf '%s' "$$" > "$verrou/pid"
-  trap 'rm -rf "$verrou"; journaliser' EXIT
+  # La copie `base/` de `travail_disponible` ne sert qu'à lire la liste : elle part avec le passage.
+  trap 'balayer_processus; rm -rf "$sortie/base" "$verrou"; journaliser' EXIT
+  entretenir "$arbre" "$sortie"
 
   local charge max
   charge="$(sysctl -n vm.loadavg | awk '{print $3}' | tr ',' '.')"

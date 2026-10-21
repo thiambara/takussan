@@ -8,6 +8,7 @@ use App\Http\Resources\Api\Admin\UserListResource;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\User;
 use App\Services\Privacy\PersonalDataAccessLogger;
+use App\Sorts\CollatedNameSort;
 use App\Support\Audit\PropertyRedactor;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
@@ -80,7 +81,14 @@ class UserDetailController extends Controller
         $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
         $field = ltrim($sort, '-');
         $sorts = ['created_at', 'first_name', 'last_name', 'email', 'status', 'last_login_at'];
-        $query->orderBy(in_array($field, $sorts, true) ? $field : 'created_at', $direction);
+        $field = in_array($field, $sorts, true) ? $field : 'created_at';
+        // TCK-1136 (P87.01) — prénom et nom en `COLLATE "und-x-icu"` (ADR-0025, amendement du
+        // 2026-10-19), et `id` en départage : deux homonymes ne changent plus de page d'une requête
+        // à l'autre.
+        in_array($field, ['first_name', 'last_name'], true)
+            ? (new CollatedNameSort)($query, $direction === 'desc', 'users.'.$field)
+            : $query->orderBy($field, $direction);
+        $query->orderBy('users.id');
 
         $paginator = $query->paginate(min(max((int) $request->query('per_page', 20), 1), 100));
         $users = $paginator->getCollection()->load([
