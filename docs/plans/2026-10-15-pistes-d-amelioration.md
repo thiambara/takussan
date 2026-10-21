@@ -9965,7 +9965,7 @@ Limites :
 
 ### L'échéancier d'un bail de plus de 100 échéances perd les plus anciennes : l'API ignore le `sort` que le front demande et ne rend que la première page
 - Réf : P100.01
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1178
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:22-36`, `takussan-web/src/lib/queries/leases.ts:178-221`, `takussan-web/src/components/leases/LeaseSchedule.tsx:93,180`, `takussan-web/src/components/leases/LeaseDetail.tsx:89-99`, `takussan-web/src/components/leases/LeasePaymentDialog.tsx:41-50`, `takussan-api/app/Services/Model/LeaseService.php:218-260`
 - Constat :
@@ -9980,6 +9980,7 @@ Limites :
   - En base de développement, le plus long échéancier compte 14 lignes (mesuré, `SELECT max(count)` sur `lease_payments` par bail → 14, 0 bail au-delà de 100) : les données de démonstration ne le montrent pas.
 - Piste : faire honorer par l'API l'ordre que l'écran attend (`due_date` croissant, ou `buildQuery` sur `LeasePayment` avec ses `$queryFields` et `$requestSortable`), et faire paginer le front, ou rendre l'échéancier sans plafond. Test : bail de plus de 100 échéances, la plus ancienne en retard est rendue et comptée.
 - Mesure (2026-10-21, 3c6c8301f, mesureur) : relu `LeasePaymentController::index` (tri en dur `period_start desc`, `tailleDePage` plafonné à 100, aucun `buildQuery`), `leases.ts` `useLeasePayments` (`sort=due_date`, `per_page=100`, aucune page suivante), `LeaseDetail.tsx` (`latePaymentsCount`, l. 89-99) et `LeasePaymentDialog.tsx:45-50`, `LeaseService.php` (plafond de 12 seulement sans `end_date`) ; test temporaire `tests/Feature/Tmp/MesureP100Test.php`, retiré (charge 2,73 sur 8 cœurs) : bail de 110 échéances mensuelles, la plus ancienne en `late`, appelé avec `fields`, `filter[lease_id]`, `sort=due_date` et `per_page=100` → 100 lignes sur un total de 110, de 2024-02-05 à 2015-11-05 (ordre décroissant), 25 clés par ligne, 0 échéance en retard dans la page. Le constat tient en entier ; aucun commit ni ticket ne l'a traité (`git log` du contrôleur, `grep` des tickets). Classement : V1, le correctif change ce que l'échéancier et le dialogue d'encaissement listent comme dû, et la piste propose plusieurs voies.
+- Mesure (2026-10-21, e54bc4055, implementeur) : relu `LeasePaymentController::index` (tri en dur `period_start desc`, `sort` ignoré) et `useLeasePayments` (une page de 100, jamais de suivante) ; `LeasePaymentIndexSortTest` avant correctif (charge 2,45 sur 8 cœurs) : bail de 110 échéances, les 3 plus anciennes en `late`, `sort=due_date&per_page=100` → la première ligne est la plus récente, rouge → l'API honore `sort` (`due_date`, `-due_date`, `period_start`, `-period_start`, défaut inchangé) et le front lit toutes les pages (`fetchAllLeasePayments`) ; 3/3 verts, ablation du contrôleur → rouge ; `echeancier-toutes-les-pages.tck-1178.test.ts` 1/1, ablation (une page seulement) → « expected length 110 but got 100 ».
 
 ### Les réservations lisent `deposit_paid`, `deposit_date`, `completion_date`, `rejection_date` et `expiration_date`, que l'API n'émet jamais
 - Réf : P100.02
