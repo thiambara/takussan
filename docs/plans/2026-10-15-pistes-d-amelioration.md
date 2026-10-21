@@ -9764,7 +9764,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### « Paiement reçu » ne s'applique pas aux paiements en ligne
 - Réf : P98.04
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1168
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Domain/Notifications/NotificationCode.php:505-512`, `takussan-api/app/Services/Model/LeasePaymentService.php:103-120`
 - Constat :
@@ -9773,6 +9773,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 - Piste : soit rattacher aussi `LeasePaymentSettledOnline` à `payment_received`, soit nommer l'événement pour ce qu'il couvre ; dans les deux cas, un test par code rattaché.
 - Mesure (2026-10-21, e7f741bf4, mesureur) : relu `NotificationCode::templateEvent()` (l. 505-512 : `LeasePaymentRecorded => 'payment_received'`, pas de `LeasePaymentSettledOnline`) et `EditableNotificationEvents.php` (« Paiement reçu », domaine « Paiement ») → le constat tient. Classement : V7, le constat lui-même laisse ouvert ce que le produit veut, et la piste propose deux options visibles (élargir le gabarit ou renommer l'événement).
 - Mesure (2026-10-21, 061983a9f, delegue) : relu le constat, la `Piste` et la `Mesure` du mesureur, puis `NotificationCode.php:330-332` (`LeasePaymentRecorded` et `LeasePaymentSettledOnline` portent les mêmes paramètres `amount`, `property`, et `receipt_url` l. 422-424), `:269` (les deux sous la préférence `lease_payment_received`), `lang/fr/notifications.php:316-334` (« Paiement enregistré » contre « Paiement reçu : :property ») et `grep -rn payment_received docs` → TCK-215 l. 88 et TCK-588 AC11 nomment l'événement sans dire quels codes il couvre. Recommandation : rattacher `LeasePaymentSettledOnline` à `payment_received` dans `templateEvent()`, parce que les deux codes ont les mêmes paramètres, la même préférence et que le titre du paiement en ligne est déjà « Paiement reçu », avec un test par code rattaché ; non validé parce qu'aucun texte écrit ne dit si le produit veut un gabarit commun, et qu'un gabarit actif rédigé pour la saisie par l'agence partirait alors aussi aux locataires qui ont payé en ligne.
+- Mesure (2026-10-21, d51663f12, implementeur) : avant correctif, un gabarit `payment_received` actif ne changeait pas l'e-mail `LeasePaymentSettledOnline` (`NotificationTemplateOverrideTest`, rouge : sujet « Paiement reçu : Villa Almadies » de la clé de langue) → `templateEvent()` rattache aussi `LeasePaymentSettledOnline` à `payment_received` (voie recommandée par le délégué et la plus étroite ; le renommage n'est pas fait) ; ablation : 1 rouge sur 3, correctif remis → 3/3, et les classes des gabarits et des quittances vertes.
 
 ### L'estimation de l'indemnité de résiliation anticipée ignore le réglage plateforme et celui de l'agence
 - Réf : P98.05
