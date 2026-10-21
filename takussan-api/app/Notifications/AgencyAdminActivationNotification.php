@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Services\Admin\AgencyProvisioningService;
+use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -39,7 +40,7 @@ class AgencyAdminActivationNotification extends Notification implements ShouldBe
 
     public function toMail(object $notifiable): MailMessage
     {
-        $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+        $frontend = FrontendUrl::base();
         $url = $frontend.'/auth/reset-password?token='.$this->token
             .'&email='.urlencode($notifiable->getEmailForPasswordReset())
             .'&activation=1';

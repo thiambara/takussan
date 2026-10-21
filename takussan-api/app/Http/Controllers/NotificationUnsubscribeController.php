@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Base\Controller;
 use App\Models\Enums\EmailFrequency;
 use App\Models\User;
+use App\Support\FrontendUrl;
 use App\Support\RelativeSignedUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -46,7 +47,7 @@ class NotificationUnsubscribeController extends Controller
         $locale = in_array($user->preferredLocale(), self::PUBLIC_LOCALES, true)
             ? $user->preferredLocale()
             : self::PUBLIC_LOCALES[0];
-        $front = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+        $front = FrontendUrl::base();
 
         return [
             'page' => $front.'/'.$locale.'/notifications/unsubscribe?user='.$user->id.'&'.$query,

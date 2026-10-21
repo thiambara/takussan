@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\DataExport;
+use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -43,7 +44,7 @@ class DataExportReadyNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+        $frontend = FrontendUrl::base();
 
         $mail = (new MailMessage)
             ->subject(__('notifications.data_export_ready.subject'))

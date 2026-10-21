@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\NotificationType;
 use App\Notifications\Channels\AppDatabaseChannel;
+use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -70,7 +71,7 @@ class AgencyUpgradeRejectedNotification extends Notification implements ShouldQu
 
     protected function resubmitUrl(): string
     {
-        $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+        $frontend = FrontendUrl::base();
 
         return $frontend.'/app/settings/agency/upgrade';
     }

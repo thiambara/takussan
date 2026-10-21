@@ -125,6 +125,7 @@ use App\Services\Payout\Disbursement\ManualDisbursementDriver;
 use App\Services\Reporting\PlatformReportingService;
 use App\Services\Review\ReviewModerationScope;
 use App\Services\Webhooks\WebhookJournal;
+use App\Support\FrontendUrl;
 use App\Support\ImpersonationContext;
 use App\Support\Logging\SanitizingFailedJobProvider;
 use App\Support\TelephoneSaisi;
@@ -920,7 +921,7 @@ class AppServiceProvider extends ServiceProvider
         // TCK-230 — the email opens on the frontend, but the signature is
         // generated for the API route that ultimately validates it.
         VerifyEmail::createUrlUsing(function (object $notifiable): string {
-            $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+            $frontend = FrontendUrl::base();
             $apiPath = URL::temporarySignedRoute(
                 'verification.verify',
                 now()->addMinutes(config('auth.verification.expire', 60)),
@@ -938,7 +939,7 @@ class AppServiceProvider extends ServiceProvider
         // frontend URL — avoids depending on a named route defined in
         // another host (`password.reset`).
         ResetPassword::createUrlUsing(function (object $notifiable, string $token): string {
-            $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+            $frontend = FrontendUrl::base();
 
             return $frontend.'/auth/reset-password?token='.$token.'&email='.urlencode($notifiable->getEmailForPasswordReset());
         });

@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Lease;
 use App\Services\Notifications\PreferenceResolver;
+use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -54,7 +55,7 @@ class TenantWelcomeNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $reference = $this->lease->reference_number ?? '#'.$this->lease->id;
-        $url = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/').'/app';
+        $url = FrontendUrl::base().'/app';
 
         return (new MailMessage)
             ->subject(__('notifications.tenant_welcome.subject', ['reference' => $reference]))

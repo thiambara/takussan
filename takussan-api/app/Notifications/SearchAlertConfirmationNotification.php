@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\AlertSubscriber;
+use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -32,7 +33,7 @@ class SearchAlertConfirmationNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $locale = in_array($notifiable->locale ?? null, self::PUBLIC_LOCALES, true) ? $notifiable->locale : 'fr';
-        $url = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/')
+        $url = FrontendUrl::base()
             .'/'.$locale.'/search-alerts/confirm?token='.rawurlencode($this->token);
 
         return (new MailMessage)
