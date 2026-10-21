@@ -9202,7 +9202,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 
 ### Les alertes de seuil vont aussi aux admins d'agence suspendus ou archivés
 - Réf : P93.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1113
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Console/Commands/CheckThresholdAlertsCommand.php:54-56`
 - Constat :
@@ -9219,6 +9219,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 - Piste : `whereHas('agencyAdminProfiles', fn ($q) => $q->active()->where('agency_id', …))`. Un test
   avec un admin suspendu, qui rougit sans `active()`.
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `CheckThresholdAlertsCommand` (`whereHas('agencyAdminProfiles', …agency_id…)` sans `active()`), `HasProfiles::isAgencyAdminAt` (`->active()`), `MessagingReach.php:224` (`$p->active()->where('agency_id', …)`) ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → deux admins dont l'un passé en `suspended`, alerte `occupancy_rate_percent < 50`, `dashboard:check-alerts` : `ThresholdAlertTriggered` envoyée 1 fois à l'admin actif et 1 fois au suspendu ; le constat tient. Aucun ticket ni commit ne le traite. Correctif attendu : `->active()` dans le `whereHas` des destinataires, et un test avec un admin suspendu qui rougit sans lui. Classement : A1, le code appelant (`isAgencyAdminAt`, `MessagingReach`) tient déjà qu'un admin d'agence est un profil actif, et seuls les destinataires d'une notification changent.
+- Mesure (2026-10-21, 127233826, implementeur) : reproduit avant correctif par `ThresholdAlertTest::test_alert_skips_suspended_and_archived_agency_admins` (trois admins `active`, `suspended`, `archived`, alerte `overdue_count > -1`) → rouge, `ThresholdAlertTriggered` envoyée à l'admin suspendu → `->active()` dans le `whereHas` des destinataires de `CheckThresholdAlertsCommand` : 11/11 sur la classe, la notification ne va plus qu'à l'admin actif.
 
 ### Une agence sans bien de location reçoit l'alerte « occupation sous le seuil »
 - Réf : P93.05
