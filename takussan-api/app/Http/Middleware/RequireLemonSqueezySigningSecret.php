@@ -18,7 +18,7 @@ class RequireLemonSqueezySigningSecret
 {
     public function handle(Request $request, Closure $next): Response
     {
-        abort_if((string) config('lemon-squeezy.signing_secret', '') === '', 403, 'Invalid signature.');
+        abort_code_if((string) config('lemon-squeezy.signing_secret', '') === '', 403, 'webhook.signature_not_configured');
 
         return $next($request);
     }
