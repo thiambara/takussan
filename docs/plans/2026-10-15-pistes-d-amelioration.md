@@ -10123,7 +10123,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### La page d'un bien loué, vendu ou retiré sort du rendu serveur avec toutes ses cartes similaires en `opacity-0`, visibles seulement après l'hydratation
 - Réf : P102.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:65-73`, `takussan-web/src/components/property/PropertyCard.tsx:45-60`, `takussan-web/src/components/property/PropertyCard.tsx:156-158`, `takussan-web/src/components/property/PropertyCard.tsx:194-200`
 - Constat :
@@ -10133,10 +10133,11 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Le contrat de la carte est écrit à la l. 156-157 : « Priority cards (above-the-fold) skip the initial hidden state so the browser can count their image as the LCP candidate immediately ». Sur cette page, les cartes du haut de la grille (1, 2 puis 3 colonnes, l. 70) sont au-dessus du pli au moins à partir de `lg`. Ce dernier point est déduit de la mise en page, pas mesuré (à vérifier).
   - Établi comment : code relu, rendu serveur mesuré.
 - Piste : passer `priority={index < 3}` aux cartes de `bienRetire()`, autant que la grille a de colonnes au plus large, sur le modèle de `PublicFavoritesPage` (`priority={i < 3}`). Garde : un test de `bienRetire()` en `renderToString` qui refuse `opacity-0` sur les trois premières racines. Le correctif de fond reste le reste de P69.01 : ne plus masquer la carte au rendu serveur.
+- Mesure (2026-10-21, 0acc2203f, mesureur) : relu `bien-retire.tsx:67-74` (`<PropertyCard key property index />`, ni `priority` ni `sizes`, inchangé) et `PropertyCard.tsx` (`useReveal` dans un `useEffect`, l. 45-60 ; `visible = useReveal(ref) || priority`, l. 156-158 ; racine en `opacity-0` sinon, l. 194-200) ; `git log` des fichiers et `grep` des tickets → rien depuis l'exploration ; test vitest temporaire, retiré, `renderToString` de `bienRetire()` pour un bien `rented` et trois similaires avec photo, sous les fournisseurs réels (`withIntl`, `CompareProvider`, `ToastProvider`) → trois racines de carte en `opacity-0` et trois `<img loading="lazy">`. Que la première rangée soit au-dessus du pli reste déduit des classes (sous la barre, `py-12`, le titre, le texte, le bouton et le `h2`), pas mesuré au navigateur, ni la durée d'hydratation ; le défaut retenu est la partie mesurée : des données servies par le serveur et masquées jusqu'à l'hydratation. Classement : A1, le contrat est écrit dans la carte (« Priority cards (above-the-fold) skip the initial hidden state ») et appliqué tel quel par `PublicFavoritesPage` (`priority={i < 3}`) et par TCK-1036 (P69.01) : `priority={index < 3}` dans `bienRetire()`, et un test `renderToString` qui refuse `opacity-0` sur les trois premières racines ; l'apparition en CSS seul reste le reste de P69.01, hors de ce classement.
 
 ### Sur la grille de recherche à cinq ou six colonnes, la fin de la première rangée reste masquée jusqu'à l'hydratation : le budget `priority` est fixé à 4
 - Réf : P102.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux options, et précharger six images sur tout écran se paie sur mobile
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:51`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:590`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:630`
 - Constat :
@@ -10145,10 +10146,11 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Que la première rangée soit au-dessus du pli sur ces écrans est déduit de sa position en tête de grille, pas mesuré (à vérifier). P69.01 est passé à `fait · TCK-1036` sur la seule question des emplacements. Ce constat-ci, sur les colonnes, n'y figure pas.
   - Établi comment : code relu.
 - Piste : porter `CARTES_PRIORITAIRES` au plus grand nombre de colonnes (6), ou sortir la question du JS (reste de P69.01). Garde : étendre `PropertiesDiscoveryPage.grille.test.tsx`, « sans emplacement, les quatre premiers biens restent prioritaires », au compte de colonnes du palier le plus large.
+- Mesure (2026-10-21, 0acc2203f, mesureur) : relu `PropertiesDiscoveryPage.tsx` → `CARTES_PRIORITAIRES = 4` (l. 51), grille `md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[112.5rem]:grid-cols-6` (l. 590), budget consommé par les emplacements puis par les biens (`emplacementsRendus + i < CARTES_PRIORITAIRES`, l. 630, TCK-1036) ; `PropertiesDiscoveryPage.grille.test.tsx:178` garde « les quatre premiers biens restent prioritaires » ; le mécanisme `opacity-0` est celui mesuré en P102.01. La 5ᵉ carte (≥ 1 536 px) puis la 6ᵉ (≥ 1 800 px) de la première rangée sortent donc masquées : lu, pas rendu ; leur position au-dessus du pli n'est pas mesurée. Classement : V7, la `Piste` offre deux options (budget porté à 6, ou apparition en CSS seul, reste de P69.01), et un budget de 6 précharge six images à toutes les largeurs, y compris le téléphone à une colonne où une seule est visible : ce compromis de chargement revient au porteur.
 
 ### Les cartes de la page d'un bien retiré héritent des `sizes` de la grille de recherche, qui ne décrivent pas leur grille
 - Réf : P102.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:70-72`, `takussan-web/src/components/property/PropertyCard.tsx:139`, `takussan-web/src/components/property/card-image-sizes.ts:84-85`
 - Constat :
@@ -10156,10 +10158,11 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - `CARD_SIZES_SEARCH_GRID` décrit 1/3/4/5/6 colonnes pleine largeur : `31vw` sous 1 024 px, `22vw` jusqu'à 1 279 px, `17.5vw` puis `238px` (lu, `card-image-sizes.ts:85`). La grille de la page retirée a 1, 2 puis 3 colonnes dans `max-w-6xl` (lu, `bien-retire.tsx:53,70`). Entre 768 et 1 023 px, les cartes font environ la moitié de l'écran pour `31vw` annoncés. À partir de 1 280 px, elles font environ un tiers de 1 152 px pour 17,5 vw ou 238 px annoncés. Le navigateur choisirait donc une image trop petite. C'est déduit de la formule, aucune requête d'image n'a été mesurée (à vérifier).
   - Établi comment : code relu.
 - Piste : une constante `CARD_SIZES_BIEN_RETIRE` dans `card-image-sizes.ts`, sur le patron des autres grilles, avec son relevé. Garde : les autres appelants passent tous `sizes` sauf `bien-retire.tsx`. Un test qui le refuse sur chaque appelant de `PropertyCard` empêcherait le retour.
+- Mesure (2026-10-21, 0acc2203f, mesureur) : relu `bien-retire.tsx:70-72` (aucun `sizes`), `PropertyCard.tsx:139` (`sizes = CARD_SIZES_SEARCH_GRID`) et son docblock l. 75-79 (« appartient à la grille appelante, pas à la carte », constante et relevé dans `card-image-sizes.ts`) ; même test temporaire qu'en P102.01, retiré → les trois `<img>` portent `sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1023px) 31vw, (max-width: 1279px) 22vw, (max-width: 1535px) 17.5vw, …, 238px"`. Calculé depuis les classes (`max-w-6xl px-4 sm:px-6 lg:px-8`, `sm:grid-cols-2 lg:grid-cols-3`, `gap-4`), méthode du fichier : à 900 px un emplacement fait environ (900 − 48 − 16) / 2 = 418 px pour 31vw = 279 px déclarés ; à 1 440 px, (1 152 − 64 − 32) / 3 = 352 px pour 17,5vw = 252 px : sous-déclaré, donc image trop petite (le défaut « qui rend flou » du docblock de `card-image-sizes.ts`) ; aucune requête d'image mesurée au navigateur. Classement : A1 et A2, le contrat est écrit dans la carte et chaque autre grille a sa constante : une constante `CARD_SIZES_BIEN_RETIRE` dans `card-image-sizes.ts` avec son relevé, passée par `bienRetire()`, et son test sur le patron de `card-image-sizes.test.ts`.
 
 ### Petites améliorations : trois commentaires décrivent encore les animations d'entrée en `both`, alors que `globals.css` les déclare en `backwards`
 - Réf : P102.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/property/card-stagger.ts:4-7`, `takussan-web/src/app/globals.css:519-522`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:166-171`
 - Constat :
@@ -10168,3 +10171,4 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Sous `prefers-reduced-motion`, la règle des l. 533-541 rend `opacity: 1` aux classes `animate-*`, mais pas à l'état `opacity-0` de `PropertyCard`, qui n'est pas une animation. La carte attend donc l'hydratation sous mouvement réduit comme ailleurs (lu, `PropertyCard.tsx:199`). C'est le même défaut que P102.01, vu de ce côté.
   - Établi comment : code relu.
 - Piste : réécrire les trois commentaires pour dire `backwards` (A6). Rien à garder par un test.
+- Mesure (2026-10-21, 0acc2203f, mesureur) : `grep -n 'both\|backwards' globals.css` → `.animate-fade-in-up`, `.animate-card-enter` et `.animate-section-enter` en `backwards` (l. 423, 431, 439, motif l. 418-421) ; les trois commentaires cités disent toujours `both` (`card-stagger.ts:4-7`, `globals.css:519`, `PropertyDetailContent.tsx:168`), et un quatrième, non relevé, aussi : `globals.css:450` (« Pas de `both` ici, contrairement aux trois autres »). Le point sur `prefers-reduced-motion` relève du défaut de P102.01 et n'est pas retenu ici. Classement : A6, des commentaires qui contredisent le CSS mesuré, réécrits pour dire `backwards` (les quatre), sans code ni test.
