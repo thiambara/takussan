@@ -10020,7 +10020,7 @@ Limites :
 
 ### Aucune colonne demandée par le front n'est refusée aujourd'hui, et la garde générale reste à écrire
 - Réf : P100.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1184
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/__tests__/agency-upgrade.fields.tck-1029.test.ts`, `takussan-web/src/lib/queries/*.ts`, `takussan-api/app/Models/Concerns/HasQueryBuilder.php:82-140`
 - Constat :
@@ -10034,6 +10034,7 @@ Limites :
     Elle lève aussi 5 modèles au `$queryFields` vide : `Conversation`, `Message`, `LeasePayment`, `Review`, `SavedSearch`. La garde doit donc relier le site à sa route, ou porter une liste d'exceptions motivées.
 - Piste : écrire la garde générale (le reste de P68.01). Elle lit les constantes `*_FIELDS` et les `fields:` littéraux, et elle juge contre le `$queryFields` exporté par l'API, avec les imbrications de `$requestLoadable`. Exporter ce `$queryFields` en JSON par une commande, plutôt que de relire le PHP comme le test de TCK-1029.
 - Mesure (2026-10-21, 3c6c8301f, mesureur) : relu `takussan-web/src/lib/queries/__tests__/` : seules `agency-upgrade.fields.tck-1029.test.ts` (une constante, `$queryFields` lu dans le PHP) et `property-fields.coverage.test.ts` (TCK-336, couverture des lectures de `properties`) jugent des `fields` ; aucune commande ni script n'exporte `$queryFields` (`grep -rln queryFields` sur `app/Console` et `scripts` → rien) ; `grep -c queryFields` → 0 dans `Conversation`, `Message`, `LeasePayment`, `Review` et `SavedSearch` ; aucun `buildQuery` dans `AgencyModerationController` ni `UserDetailController` (les deux faux positifs nommés ; la page des utilisateurs lit désormais `fields[users]` l. 152, et non 151) ; P68.01 est `fait · TCK-1029 — reste :` cette garde. Que les 54 sites sur `buildQuery` ne demandent aucune colonne refusée n'est pas re-mesuré : la garde le dira. Classement : A5, garde ajoutée sans seuil resserré ; le correctif attendu est un test vitest qui lit le `$queryFields` des modèles dans le PHP, comme celui de TCK-1029, sans commande d'export ni changement de CI, et qui porte la liste motivée des endpoints hors `buildQuery`.
+- Mesure (2026-10-21, e54bc4055, implementeur) : relu `agency-upgrade.fields.tck-1029.test.ts` (seule garde, une constante) et `HasQueryBuilder::getAllAllowedQueryFields` (imbriquées = `$queryFields` du modèle lié, préfixé de sa table) ; garde écrite `fields-demandables.tck-1184.test.ts` : 50 tables lues, 86 demandes dont 84 aux colonnes résolues, aucune colonne refusée hors exceptions — les 3 faux positifs nommés et les 5 modèles au `$queryFields` vide, plus 3 tables sans modèle trouvées en route (`profiles` de `MeProfilesController`, `personal_access_tokens` de `UserDetailController::sessions`, `moderation` de `ModerationQueueController`, tous sans `buildQuery`) ; 3/3 verts, ablation (`ninea` remis dans `AGENCY_UPGRADE_REQUEST_FIELDS`) → rouge.
 
 ### Petites améliorations : `fields[…]` envoyés à des listes qui ne les lisent pas
 - Réf : P100.05
