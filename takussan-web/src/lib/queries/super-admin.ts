@@ -333,7 +333,6 @@ export type AgencyOnboardingPayload = {
   agency: {
     name: string;
     slug?: string;
-    type?: string;
     email?: string;
     phone?: string;
     address?: string;

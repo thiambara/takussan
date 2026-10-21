@@ -57,7 +57,6 @@ export function AgencyOnboardingDialog() {
   const [agency, setAgency] = useState({
     name: '',
     slug: '',
-    type: '',
     // TCK-270 — XOF is the V1 default; super-admin can override per-agency.
     currency: 'XOF',
     email: '',
@@ -84,7 +83,6 @@ export function AgencyOnboardingDialog() {
     agency: compact({
       name: agency.name,
       slug: agency.slug || suggestedSlug,
-      type: agency.type,
       // TCK-270 — Always send the picked currency (defaulted to XOF) so the
       // recap card and back-end response reflect the same value the
       // super-admin chose, even when they didn't touch the dropdown.
@@ -128,7 +126,7 @@ export function AgencyOnboardingDialog() {
 
   function reset() {
     setStep(0);
-    setAgency({ name: '', slug: '', type: '', currency: 'XOF', email: '', phone: '', address: '' });
+    setAgency({ name: '', slug: '', currency: 'XOF', email: '', phone: '', address: '' });
     setAdmin({ first_name: '', last_name: '', email: '', language: 'fr' });
     setCreatedAgencyId(null);
     setError(null);
@@ -193,9 +191,6 @@ export function AgencyOnboardingDialog() {
                   placeholder={suggestedSlug}
                   onChange={(e) => setAgency({ ...agency, slug: e.target.value })}
                 />
-              </Field>
-              <Field label={t('fields.type')}>
-                <Input value={agency.type} onChange={(e) => setAgency({ ...agency, type: e.target.value })} />
               </Field>
               <Field label={t('fields.contactEmail')}>
                 <Input type="email" value={agency.email} onChange={(e) => setAgency({ ...agency, email: e.target.value })} />

@@ -55,8 +55,9 @@ class FlipAgencyKindOnUpgradeApproved
             // Direct dispatch path failed — surface for observability but
             // don't kill the worker; the activity log will be missing the
             // entry and operators can re-run the flip manually.
-            // TCK-601 — le flip écrit `metadata.legal_info` : le message d'une erreur SQL en
-            // recopierait les valeurs. La forme sûre seulement (ADR-0044 §2).
+            // TCK-601 — le flip écrit les mentions légales dans les colonnes d'`agencies` (TCK-960),
+            // NINEA compris, en clair : le message d'une erreur SQL en recopierait les valeurs.
+            // La forme sûre seulement (ADR-0044 §2).
             Log::error('FlipAgencyKindOnUpgradeApproved: flip failed', [
                 'upgrade_request_id' => $request->id,
                 'agency_id' => $agency->id,

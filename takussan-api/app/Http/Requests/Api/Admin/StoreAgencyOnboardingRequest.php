@@ -19,7 +19,6 @@ class StoreAgencyOnboardingRequest extends BaseFormRequest
             'agency' => ['required', 'array'],
             'agency.name' => ['required', 'string', 'max:255'],
             'agency.slug' => ['nullable', 'string', 'max:255', 'alpha_dash:ascii', 'unique:agencies,slug'],
-            'agency.type' => ['nullable', 'string', 'max:80'],
             'agency.email' => ['nullable', 'email', 'max:255'],
             // TCK-1106 (P91.01) — `agencies.phone` est un `varchar(30)` : 50 laissait passer un 500.
             'agency.phone' => ['nullable', 'string', 'max:30'],

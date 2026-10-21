@@ -8244,7 +8244,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Le champ « Type » de l'assistant de création d'agence du super-admin est enregistré, et rien ne le lit
 - Réf : P83.01
-- Statut : validé (délégué) — retirer le champ « Type » de l'assistant de création d'agence (`AgencyOnboardingDialog`, sa clé de libellé si plus rien ne la lit), la règle `agency.type` de `StoreAgencyOnboardingRequest` et l'écriture de `metadata.onboarding_type` dans `AgencyProvisioningService` ; les `metadata` déjà écrites ne sont pas réécrites ; test : `POST /api/admin/agencies` avec `agency.type` → 201, l'agence ne porte pas `onboarding_type`
+- Statut : fait · TCK-1130
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/AgencyOnboardingDialog.tsx:197-198`, `takussan-api/app/Http/Requests/Api/Admin/StoreAgencyOnboardingRequest.php:22`, `takussan-api/app/Services/Admin/AgencyProvisioningService.php:39-42,51-61`
 - Constat :
@@ -8256,6 +8256,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 - Piste : retirer le champ de l'assistant et l'écriture du service, ou en faire un choix fermé qui pose une colonne lue (le `kind`, par exemple). C'est un choix de produit. Dans les deux cas, un test qui confronte les champs de `StoreAgencyOnboardingRequest` à ce que l'agence créée porte empêcherait le retour.
 - Mesure (2026-10-20, e5f73559b, mesureur) : relu `AgencyOnboardingDialog.tsx:197-198` (champ libre `fields.type`), `StoreAgencyOnboardingRequest.php:22` (`agency.type` chaîne de 80), `AgencyProvisioningService.php:39-42` (`metadata.onboarding_type`) ; `grep -rn onboarding_type` dans `takussan-api/app`, `database`, `tests` et `takussan-web/src` → la seule écriture du service ; test temporaire retiré (charge 5,00 sur 8 cœurs) : super-admin, `POST /api/admin/agencies` avec `agency.type = individual` → 201, agence `kind = standard`, `metadata = {"onboarding_type":"individual"}` → le constat tient. Classement : V7, la Piste offre deux options (retrait d'un champ visible, ou choix fermé posant le `kind`) et aucune n'est écrite dans une spec.
 - Mesure (2026-10-20, b4eb809ba, delegue) : relu `AgencyOnboardingDialog.tsx:197-198` (champ libre `fields.type`), `StoreAgencyOnboardingRequest.php:22`, `AgencyProvisioningService.php:39-42` (seul écrivain de `metadata.onboarding_type`), `docs/models-spec.md:515` (`kind` : `individual` est l'agence d'hôte solo créée par le CTA « Publier », `standard` l'agence multi-membres) et `features.md:435` (passage `individual` → `standard` par la seule demande d'upgrade) → l'option « choix fermé qui pose le `kind` » contredit la spec, qui ne fait pas créer d'agence `individual` par la console ; reste le retrait d'un champ sans lecteur. Délégation : V7, retirer un champ qu'aucun code ne lit est le cas mineur et réversible de la délégation, l'autre option est écartée par `models-spec.md:515` et `features.md:435` ; aucune donnée existante réécrite, aucune colonne touchée.
+- Mesure (2026-10-21, 51a00558a, implementeur) : `grep -rn onboarding_type` dans `takussan-api/app`, `database`, `tests` et `takussan-web/src` → la seule écriture d'`AgencyProvisioningService` ; nouveau test `AgencyOnboardingTest::test_agency_type_is_ignored_and_not_stored` (`agency.type = individual`) rouge avant correctif (`onboarding_type` présent dans `metadata`) → règle `agency.type`, écriture du service, champ « Type » et clé `fields.type` retirés ; test `AgencyOnboardingDialog` « no longer offers the free « Type » field » ; ablation : `app/` rendu à `pre-dev` → 1 rouge sur 6, dialogue et `fr.json` rendus à `pre-dev` → 1 rouge sur 2 ; correctif remis → 6/6 et 2/2.
 
 ### L'effacement d'un compte laisse la ville et les intentions déclarées dans `users.preferences`
 - Réf : P83.02
@@ -8301,7 +8302,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Petites améliorations
 - Réf : P83.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1131 — reste : lister les clés de `agencies.metadata` lues par le code (`welcome.standard_unlocked_at`, `slug_changed_at`, `legal_info` en repli) dans `docs/models-spec.md` § 2, sur le modèle de la table `users` : la spec est fermée à l'implémenteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:31-33`, `takussan-api/app/Listeners/Agency/FlipAgencyKindOnUpgradeApproved.php:58-59`, `takussan-web/src/types/agency.ts:16-19`, `docs/models-spec.md:545`
 - Constat :
@@ -8312,6 +8313,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Établi comment : lu.
 - Piste : corriger les trois commentaires pour dire ce que fait le code, et lister les clés de `agencies.metadata` dans la spec, sur le modèle de `users`.
 - Mesure (2026-10-20, e5f73559b, mesureur) : relu `AdminGlobalSearchService.php:31-33` (« Le NINEA se cherche dans `agencies.metadata->legal_info` ») contre l. 124-128 (`where('ninea', …)` puis repli `metadata->'legal_info'`) ; `FlipAgencyKindOnUpgradeApproved.php:58` (« le flip écrit `metadata.legal_info` ») contre `AgencyKindFlipService.php:39` (« the flip writes only there [colonnes]. `metadata.legal_info` is read, never » écrit) ; `takussan-web/src/types/agency.ts:17-19` (« backfilled by the agency-upgrade flow ») ; `docs/models-spec.md:545` sans clés, alors que `Agency.php:245-257` lit `slug_changed_at` et `welcome.standard_unlocked_at` et `AgencyController.php:124` écrit la première → le constat tient. Classement : A6, trois commentaires et une ligne de spec corrigés pour dire ce que fait le code, sans changement de comportement.
+- Mesure (2026-10-21, 51a00558a, implementeur) : relu `AdminGlobalSearchService.php:31-33` (« Le NINEA se cherche dans `agencies.metadata->legal_info` ») contre `byToken()` (`where('ninea', …)` puis repli `metadata->'legal_info'`), `FlipAgencyKindOnUpgradeApproved.php:58` (« le flip écrit `metadata.legal_info` ») contre `AgencyKindFlipService::LEGAL_FIELDS` (« the flip writes only there »), `types/agency.ts:17-19` (« backfilled by the agency-upgrade flow ») → les trois tiennent ; corrigés pour dire ce que fait le code, sans test ni ablation (commentaires seuls) ; la liste des clés dans `models-spec.md` reste, la spec étant fermée à l'implémenteur.
 
 ## Angle 84 — Valeurs chiffrées par ADR-0044 recopiées en clair ailleurs
 

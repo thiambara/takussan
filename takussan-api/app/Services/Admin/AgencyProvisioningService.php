@@ -36,11 +36,6 @@ class AgencyProvisioningService
         return DB::transaction(function () use ($payload, $actor, $adminEmail): array {
             $agencyPayload = $payload['agency'];
             $adminPayload = $payload['admin'];
-            $metadata = [];
-            if (! empty($agencyPayload['type'])) {
-                $metadata['onboarding_type'] = $agencyPayload['type'];
-            }
-
             // TCK-270 — currency is now picked in step 1 of the wizard.
             // Default to Currency::default() (XOF) when omitted so legacy
             // callers keep working unchanged.
@@ -57,7 +52,6 @@ class AgencyProvisioningService
                 'status' => AgencyStatus::Active,
                 'is_verified' => false,
                 'verified_at' => null,
-                'metadata' => $metadata !== [] ? $metadata : null,
             ]);
 
             if (! empty($agencyPayload['address'])) {
