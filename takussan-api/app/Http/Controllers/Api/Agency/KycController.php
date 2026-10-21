@@ -54,17 +54,15 @@ class KycController extends Controller
         ]);
     }
 
+    /**
+     * TCK-1148 (P82.05) — lire le dossier se juge par la règle du dépôt et de la soumission,
+     * {@see AgencyPolicy::updateKyc()} : le membre qui tient `agency.update_kyc` lit ce qu'il
+     * soumet, l'admin dont le rôle la retire ne le lit plus. Le helper n'est plus qu'un relais :
+     * `scripts/check-controller-authorization.mjs` porte une exemption à son nom, qui rougit si la
+     * méthode disparaît.
+     */
     private function authorizeAgencyAdmin(Request $request, Agency $agency): void
     {
-        $user = $request->user();
-
-        abort_unless(
-            $user->isSuperAdmin()
-            || (
-                $request->activeProfile()?->agency_id === $agency->id
-                && $user->isAgencyAdminAt((int) $agency->id)
-            ),
-            403,
-        );
+        $this->authorize('updateKyc', $agency);
     }
 }

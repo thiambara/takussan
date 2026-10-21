@@ -75,8 +75,41 @@ class AgencyKycCapabilityTest extends ApiTestCase
         $headers = ['X-Profile-Id' => "agency_admin:{$profile->id}"];
         $this->upload($agency, $headers)->assertForbidden();
         $this->apiPost("/api/agencies/{$agency->id}/kyc/submit", [], $headers)->assertForbidden();
-        // La lecture reste à l'admin.
-        $this->apiGet("/api/agencies/{$agency->id}/kyc", $headers)->assertOk();
+        // TCK-1148 (P82.05) — la lecture suit la même règle que le dépôt : sans la capacité, l'admin
+        // ne lit plus le dossier. Avant, « la lecture reste à l'admin » (200).
+        $this->apiGet("/api/agencies/{$agency->id}/kyc", $headers)->assertForbidden();
+    }
+
+    /**
+     * TCK-1148 (P82.05) — le membre qui tient `agency.update_kyc` lit le dossier qu'il soumet, et
+     * ses pièces ; l'admin dont le rôle retire la capacité ne lit ni l'un ni les autres.
+     */
+    public function test_le_membre_qui_tient_la_capacite_lit_le_dossier_et_ses_pieces(): void
+    {
+        $agency = Agency::factory()->create();
+        $user = User::factory()->create();
+        $profile = AgentProfile::factory()->create([
+            'user_id' => $user->id,
+            'agency_id' => $agency->id,
+            'agency_role_id' => $this->customRole($agency, AgencyRoleBaseType::Agent, [Capability::AgencyUpdateKyc])->id,
+        ]);
+        $this->actingAs($user, 'sanctum');
+        $headers = ['X-Profile-Id' => "agent:{$profile->id}"];
+        $url = $this->upload($agency, $headers)->assertCreated()->json('data.documents.0.signed_url');
+
+        $this->apiGet("/api/agencies/{$agency->id}/kyc", $headers)->assertOk()->assertJsonCount(1, 'data.documents');
+        $this->get($url, $headers)->assertOk();
+
+        $admin = User::factory()->create(['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET]);
+        $adminProfile = AgencyAdminProfile::factory()->create([
+            'user_id' => $admin->id,
+            'agency_id' => $agency->id,
+            'agency_role_id' => $this->customRole($agency, AgencyRoleBaseType::AgencyAdmin, [Capability::AgencyUpdate])->id,
+        ]);
+        $this->actingAs($admin, 'sanctum');
+        $adminHeaders = ['X-Profile-Id' => "agency_admin:{$adminProfile->id}"];
+        $this->apiGet("/api/agencies/{$agency->id}/kyc", $adminHeaders)->assertForbidden();
+        $this->get($url, $adminHeaders)->assertForbidden();
     }
 
     public function test_l_admin_du_role_systeme_garde_le_depot(): void

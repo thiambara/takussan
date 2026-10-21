@@ -50,7 +50,7 @@ class DocumentPolicy extends BasePolicy
 
         $documentable = $model->documentable;
 
-        return $documentable !== null && $this->attachTo($user, $documentable);
+        return $documentable !== null && $this->reaches($user, $documentable, writing: false);
     }
 
     /**
@@ -143,20 +143,38 @@ class DocumentPolicy extends BasePolicy
      * TCK-587 (ADR-0031) — chaque « périmètre d'agence » est le PERSONNEL de l'agence : un bailleur
      * de l'agence lisait les documents des biens, baux, réservations, clients et de l'agence d'un
      * autre bailleur.
+     *
+     * TCK-1142 (P82.02, ADR-0031 §2) — joindre un document est une ÉCRITURE : le bailleur suspendu
+     * dans l'agence du porteur n'y rattache plus de pièce (`landlordWrites`). La LECTURE (`view()`)
+     * lui reste, d'où le partage en `reaches()` : remplacer les comparaisons dans cette seule
+     * méthode, que `view()` appelait, lui aurait aussi retiré la lecture des documents de son bail.
      */
     public function attachTo(User $user, Model $documentable): bool
+    {
+        return $this->reaches($user, $documentable, writing: true);
+    }
+
+    /**
+     * L'accès au porteur, en lecture (`view()`) ou en écriture (`attachTo()`). Les deux ne
+     * diffèrent que sur les branches du bailleur : en écriture, elles passent par `landlordWrites`.
+     */
+    private function reaches(User $user, Model $documentable, bool $writing): bool
     {
         if ($user->isSuperAdmin()) {
             return true;
         }
 
+        $bailleur = fn (mixed $authorId, mixed $agencyId): bool => $writing
+            ? $this->landlordWrites($user, $authorId, $agencyId)
+            : $authorId !== null && (int) $authorId === $user->id;
+
         if ($documentable instanceof Property) {
-            return $documentable->user_id === $user->id
+            return $bailleur($documentable->user_id, $documentable->agency_id)
                 || $this->isStaffOf($user, $documentable->agency_id);
         }
 
         if ($documentable instanceof Lease) {
-            return $documentable->landlord_id === $user->id
+            return $bailleur($documentable->landlord_id, $documentable->agency_id)
                 || $this->isStaffOf($user, $documentable->agency_id)
                 || ($documentable->tenant && $documentable->tenant->user_id === $user->id);
         }
@@ -165,7 +183,7 @@ class DocumentPolicy extends BasePolicy
             $property = $documentable->property;
 
             return $documentable->created_by_id === $user->id
-                || ($property && $property->user_id === $user->id)
+                || ($property && $bailleur($property->user_id, $property->agency_id))
                 || $this->isStaffOf($user, $documentable->agency_id);
         }
 
@@ -186,7 +204,7 @@ class DocumentPolicy extends BasePolicy
 
         if ($documentable instanceof Inventory) {
             return $documentable->conducted_by === $user->id
-                || ($documentable->property && $documentable->property->user_id === $user->id)
+                || ($documentable->property && $bailleur($documentable->property->user_id, $documentable->property->agency_id))
                 || ($documentable->property && $this->isStaffOf($user, $documentable->property->agency_id));
         }
 

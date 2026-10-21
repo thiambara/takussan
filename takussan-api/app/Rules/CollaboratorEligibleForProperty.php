@@ -26,12 +26,19 @@ use Illuminate\Contracts\Validation\ValidationRule;
  *
  * Un bien sans agence n'a aucun éligible. Les profils supprimés ne comptent pas.
  * La règle vit ICI, une fois : les deux FormRequests de collaborateurs l'appellent.
+ *
+ * TCK-1152 (P86.01, ADR-0031 §2) — un BAILLEUR n'est éligible (`co_owner`, `viewer`) que si
+ * l'auteur du geste peut déjà lire les bailleurs de l'agence : son personnel, ou le super-admin.
+ * Le bailleur du bien, à qui `/api/owners` est refusé, désignait tout autre bailleur et en recevait
+ * le nom, le courriel et le téléphone ; le refus est le même 422 que pour un compte hors de
+ * l'agence, pour ne pas dire qui est bailleur. `$actor` nul garde la règle d'avant.
  */
 class CollaboratorEligibleForProperty implements ValidationRule
 {
     public function __construct(
         private readonly Property $property,
         private readonly ?string $role,
+        private readonly ?User $actor = null,
     ) {}
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
@@ -64,11 +71,19 @@ class CollaboratorEligibleForProperty implements ValidationRule
         // TCK-587 — le prédicat « personnel de l'agence » d'ADR-0031, avec la joignabilité du
         // compte (TCK-1097, `PersonnelDeLAgence::estPersonnel()`) : un compte bloqué ne collabore pas.
         $personnel = fn (): bool => PersonnelDeLAgence::estPersonnel($user, $agencyId);
+        $bailleur = fn (): bool => $this->actorMayDesignateOwners($agencyId) && $user->isOwnerAt($agencyId);
 
         return match ($role) {
             CollaboratorRole::Agent, CollaboratorRole::Manager => $personnel(),
-            CollaboratorRole::CoOwner => $user->isOwnerAt($agencyId),
-            CollaboratorRole::Viewer => $personnel() || $user->isOwnerAt($agencyId),
+            CollaboratorRole::CoOwner => $bailleur(),
+            CollaboratorRole::Viewer => $personnel() || $bailleur(),
         };
+    }
+
+    private function actorMayDesignateOwners(int $agencyId): bool
+    {
+        return $this->actor === null
+            || $this->actor->isSuperAdmin()
+            || PersonnelDeLAgence::estPersonnel($this->actor, $agencyId);
     }
 }
