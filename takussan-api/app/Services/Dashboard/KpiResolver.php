@@ -15,7 +15,9 @@ class KpiResolver
     public function __construct(private readonly DashboardAgencyService $agencyService) {}
 
     /**
-     * @return array<string, float|int>
+     * `occupancy_rate_percent` est `null` sans bien éligible (TCK-1114) : il n'a pas de dénominateur.
+     *
+     * @return array<string, float|int|null>
      */
     public function forAgency(Agency $agency): array
     {
@@ -35,7 +37,7 @@ class KpiResolver
             'overdue_count' => $s['finance']['overdue_count'] ?? 0,
             'overdue_amount' => $s['finance']['overdue_amount'] ?? 0.0,
             'unpaid_rate_percent' => $s['finance']['unpaid_rate_percent'] ?? 0.0,
-            'occupancy_rate_percent' => $s['occupancy']['rate_percent'] ?? 0.0,
+            'occupancy_rate_percent' => $s['occupancy']['rate_percent'] ?? null,
         ];
     }
 }

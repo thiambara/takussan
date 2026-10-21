@@ -9,6 +9,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
+use App\Services\Dashboard\KpiResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\ApiTestCase;
 
@@ -59,6 +60,24 @@ class DashboardAgencyTest extends ApiTestCase
         $this->assertSame($agency->id, $response->json('data.agency_id'));
         $this->assertSame(3, $response->json('data.properties.total'));
         $this->assertSame(1, $response->json('data.leases.active'));
+    }
+
+    /**
+     * P93.05 (TCK-1114) — sans bien éligible longue durée, le taux d'occupation n'a pas de
+     * dénominateur : `null`, comme `short_stay_percent` (TCK-595), et non 0 %.
+     */
+    public function test_occupancy_rate_is_null_without_any_eligible_property(): void
+    {
+        $agency = Agency::factory()->create();
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $agency->update(['primary_admin_id' => $admin->id]);
+
+        $response = $this->apiGet('/api/dashboard/agency')->assertOk();
+
+        $this->assertSame(0, $response->json('data.properties.total'));
+        $this->assertNull($response->json('data.occupancy.rate_percent'));
+        $this->assertArrayHasKey('rate_percent', $response->json('data.occupancy'));
+        $this->assertNull(app(KpiResolver::class)->forAgency($agency)['occupancy_rate_percent']);
     }
 
     public function test_user_from_different_agency_is_denied(): void

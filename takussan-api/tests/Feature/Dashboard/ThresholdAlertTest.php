@@ -181,6 +181,36 @@ class ThresholdAlertTest extends ApiTestCase
         Notification::assertNotSentTo($archived, ThresholdAlertTriggered::class);
     }
 
+    /**
+     * P93.05 (TCK-1114) — une agence sans bien n'a pas de taux d'occupation : l'alerte
+     * « occupation sous le seuil » ne se juge pas sur une valeur absente.
+     */
+    public function test_alert_is_not_evaluated_on_a_null_metric(): void
+    {
+        Notification::fake();
+
+        $agency = Agency::factory()->create();
+        $admin = User::factory()->create();
+        $this->materializeRoleProfile($admin, 'agency_admin', $agency);
+
+        $alert = ThresholdAlert::create([
+            'agency_id' => $agency->id,
+            'metric' => 'occupancy_rate_percent',
+            'operator' => '<',
+            'threshold' => 50,
+            'severity' => 'warning',
+            'is_enabled' => true,
+            'cooldown_hours' => 24,
+        ]);
+
+        $this->artisan('dashboard:check-alerts')->assertExitCode(0);
+
+        Notification::assertNothingSent();
+        $alert->refresh();
+        $this->assertNull($alert->last_triggered_at);
+        $this->assertNull($alert->last_value);
+    }
+
     public function test_alert_respects_cooldown_window(): void
     {
         Notification::fake();

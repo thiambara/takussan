@@ -56,6 +56,18 @@ class DashboardOwnerTest extends ApiTestCase
         $this->assertEquals(120_000.0, $response->json('data.finance.cashflow_month'));
     }
 
+    /** P93.05 (TCK-1114) — un bailleur sans bien n'a pas de taux d'occupation : `null`, pas 0 %. */
+    public function test_occupancy_rate_is_null_without_any_eligible_property(): void
+    {
+        $this->apiActingAsRole('owner');
+
+        $response = $this->apiGet('/api/dashboard/owner')->assertOk();
+
+        $this->assertSame(0, $response->json('data.portfolio.total'));
+        $this->assertArrayHasKey('rate_percent', $response->json('data.occupancy'));
+        $this->assertNull($response->json('data.occupancy.rate_percent'));
+    }
+
     public function test_other_owners_leases_are_excluded(): void
     {
         $owner = $this->apiActingAsRole('owner');
