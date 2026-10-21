@@ -58,8 +58,9 @@ class EditablePlatformSettings
                 'category' => 'limits',
                 'type' => 'integer',
                 'default' => 480,
+                // P98.10 (TCK-1176) — sans `requires_restart` : lu à chaque émission de jeton d'un
+                // super-admin (`SessionTokenIssuer`), derrière le cache du catalogue.
                 'public' => false,
-                'requires_restart' => true,
                 'rules' => ['required', 'integer', 'min:15', 'max:1440'],
             ],
             // TCK-633 lot F (ADR-0061 §6) — crédits et mise en avant. Lus par `App\Services\Boost\BoostSettings`.

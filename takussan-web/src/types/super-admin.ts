@@ -625,6 +625,8 @@ export type AdminFeatureFlag = {
     rollout_percentage?: number;
   };
   updated_at: string | null;
+  /** P98.10 — l'état évalué pour l'opérateur, bascule de session comprise. */
+  enabled_for_me?: boolean;
 };
 
 export type AdminFeatureFlagsResponse = { data: AdminFeatureFlag[] };

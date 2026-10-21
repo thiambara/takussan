@@ -167,7 +167,8 @@ export function FeatureFlagSegmentDialog({
 
 export function SessionOverrideToggle({ flag }: { flag: AdminFeatureFlag }) {
   const t = useTranslations('superAdmin.featureFlags');
-  const [enabled, setEnabled] = useState(false);
+  // P98.10 (TCK-1176) — part de l'état évalué pour l'opérateur, bascule de session comprise.
+  const [enabled, setEnabled] = useState(flag.enabled_for_me ?? false);
   const mutation = useMutation({
     mutationFn: () => overrideAdminFeatureFlag(flag.key, !enabled),
     onSuccess: (response) => setEnabled(response.data.enabled),

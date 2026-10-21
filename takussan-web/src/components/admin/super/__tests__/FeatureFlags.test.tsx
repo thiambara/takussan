@@ -50,6 +50,13 @@ describe('<FeatureFlagTable>', () => {
     }));
   });
 
+  // P98.10 (TCK-1176) — la bascule part de l'état évalué pour l'opérateur, plus de « éteint ».
+  it('starts the session toggle from the state evaluated for the operator', () => {
+    renderTable([{ ...flag, enabled: true, enabled_for_me: true }]);
+
+    expect(screen.getByRole('button', { name: /vous testez/i })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('toggles a session override', async () => {
     vi.mocked(overrideAdminFeatureFlag).mockResolvedValue({ data: { key: 'property_compare', enabled: true } });
     const user = userEvent.setup();
