@@ -217,6 +217,11 @@ class EarlyTerminationService
                 ])->status(422);
             }
 
+            // TCK-1151 (P81.01) — le loyer reste dû jusqu'à la date d'effet, pas au-delà : les
+            // échéances dont la période commence après elle s'annulent ; une échéance postérieure
+            // déjà engagée fait refuser la confirmation (409), le bail reste en préavis.
+            app(LeaseExitScheduleService::class)->cancelAfterExit($lease, $effective ?? now()->startOfDay(), $actor);
+
             $lease->forceFill([
                 'status' => LeaseStatus::Terminated,
                 'terminated_at' => now(),
