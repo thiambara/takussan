@@ -129,7 +129,9 @@ class AgencyProvisioningService
         $slug = $base;
         $suffix = 2;
 
-        while (Agency::query()->where('slug', $slug)->exists()) {
+        // TCK-1133 (P92.08) — `agencies.slug` est unique sur toutes les lignes : une agence
+        // supprimée garde son slug, il faut donc la compter.
+        while (Agency::withTrashed()->where('slug', $slug)->exists()) {
             $slug = "{$base}-{$suffix}";
             $suffix++;
         }
