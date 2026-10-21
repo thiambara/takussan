@@ -12,6 +12,7 @@ use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\KycDossierStatus;
 use App\Services\Lead\ContactLeadService;
 use App\Services\Model\NotificationService;
+use App\Sorts\CollatedNameSort;
 use App\Support\CaseInsensitive;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -113,11 +114,16 @@ class AgencyModerationController extends Controller
             'properties_count' => 'live_properties_count',
         ];
 
-        if (isset($sorts[$field])) {
+        // TCK-1138 (P87.05) — `name` en `COLLATE "und-x-icu"` (ADR-0025, amendement du 2026-10-19),
+        // et `id` en départage de tout tri : deux agences de même nom ne changent plus de page.
+        if ($field === 'name') {
+            (new CollatedNameSort)($query, $direction === 'desc', 'agencies.name');
+        } elseif (isset($sorts[$field])) {
             $query->orderBy($sorts[$field], $direction);
         } else {
             $query->orderByDesc('agencies.created_at');
         }
+        $query->orderBy('agencies.id');
 
         $agencies = $query->paginate($this->tailleDePage($request, 15));
 

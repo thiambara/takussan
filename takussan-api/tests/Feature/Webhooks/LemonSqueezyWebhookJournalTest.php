@@ -34,7 +34,8 @@ class LemonSqueezyWebhookJournalTest extends TestCase
         $this->assertNotNull($route);
         $this->assertSame(trim((string) config('lemon-squeezy.path'), '/').'/webhook', $route->uri());
         $this->assertContains('webhook.journal:payment,lemon_squeezy', $route->gatherMiddleware());
-        $this->assertContains('throttle:60,1', $route->gatherMiddleware());
+        // TCK-634 — préfixé : sans préfixe, il partageait le compteur de tout autre `throttle` numérique.
+        $this->assertContains('throttle:60,1,lemon-squeezy-webhook', $route->gatherMiddleware());
         $this->assertCount(1, array_filter(
             Route::getRoutes()->getRoutes(),
             fn ($r) => $r->uri() === $route->uri() && in_array('POST', $r->methods(), true),

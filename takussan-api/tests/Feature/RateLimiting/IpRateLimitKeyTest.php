@@ -32,6 +32,8 @@ class IpRateLimitKeyTest extends ApiTestCase
         return array_map(fn (string $nom) => [$nom], [
             'auth-register' => 'auth-register',
             'auth-password' => 'auth-password',
+            'auth-login' => 'auth-login',
+            'auth-oauth' => 'auth-oauth',
             'auth-phone-send' => 'auth-phone-send',
             'ical-export' => 'ical-export',
             'calendar-feed' => 'calendar-feed',
