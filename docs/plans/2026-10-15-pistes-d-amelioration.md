@@ -8177,7 +8177,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Un bailleur suspendu reste donneur d'ordre des interventions sur ses biens : devis, statut, prestataire
 - Réf : P82.01
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1146
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:49-58`, `:126-155`, `:168-180`, `:270-283`
 - Constat :
@@ -8188,6 +8188,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Établi comment : lecture de la policy, et la Gate interrogée dans le test.
 - Piste : faire passer la branche bailleur de `isPrincipalFor()` par la même règle que `landlordWrites` (bailleur non suspendu dans l'agence du bien) pour les gestes d'écriture, en gardant la lecture (`view`, `viewQuote`), comme ADR-0031 § 2 la garde. Test : bailleur `blocked` refusé sur l'approbation de devis et un changement de statut, lecture conservée.
 - Mesure (2026-10-20, 979ae6e95, mesureur) : relu `MaintenanceRequestPolicy::isPrincipalFor` (l. 270-292 : `property.user_id === user.id` sans lecture du statut), `actAsPrincipal` (l. 168-180), `decideQuote` (l. 148-156 : en `awaiting_owner`, le seul `property.user_id`) et `BasePolicy::landlordWrites` (l. 119-140) ; test temporaire retiré (charge 2,70 sur 8 cœurs) : bailleur `blocked` dans l'agence de son bien, demande `open` → `update`, `manageQuotes`, `actAsPrincipal`, `decideQuote`, `transitionTo(cancelled)`, `view` et `viewQuote` rendent tous `true` ; aucun commit ni ticket ne l'a traité (`grep -rln isPrincipalFor docs/backlog/tickets` : TCK-592, TCK-900, TCK-445, sans la suspension) → le constat tient, lignes inchangées. Classement : V2, ADR-0031 § 2 appuie le retrait des écritures, mais en `awaiting_owner` aucun autre acteur ne décide du devis (ADR-0037), et qui tranche quand le bailleur est suspendu est un choix.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, bailleur bloqué dans A, demande `open` de son bien de A → `can('update')` vrai (rouge) → `MaintenanceRequestPolicy::principalWrites()` (`isPrincipalFor` sauf le bailleur suspendu dans l'agence du bien, règle de `landlordWrites`) garde `update`, `actAsPrincipal` (donc `manageQuotes` et `decideQuote`), `decideQuote` en `awaiting_owner`, `actorsOf` (donc `transitionTo`) et `respondToResolution` ; `view` et `viewQuote` inchangés ; `TeamMemberSuspensionTest::test_un_bailleur_bloque_ne_commande_plus_les_interventions_de_son_bien` vert (gestes refusés dans A, accordés dans B, `PUT …/status` 403 et statut inchangé, lecture 200), ablation (policy d'avant) → rouge, 253 verts sur les classes des interventions et des devis. En `awaiting_owner`, seul le super-admin tranche tant que dure la suspension.
 
 ### Un bailleur suspendu joint encore des documents à son bail, son bien, sa réservation et son état des lieux
 - Réf : P82.02
