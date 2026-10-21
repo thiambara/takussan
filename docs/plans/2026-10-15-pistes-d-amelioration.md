@@ -9818,7 +9818,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### La route de webhook Lemon Squeezy de la plateforme ne vérifie rien si le secret d'environnement manque, quoi qu'en dise la console
 - Réf : P98.08
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1172
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/lemon-squeezy.php:17-22`, `takussan-api/vendor/lemonsqueezy/laravel/src/Http/Controllers/WebhookController.php:43-47`, `takussan-api/config/lemon-squeezy.php:29`, `takussan-api/app/Services/Payments/Drivers/LemonSqueezyDriver.php:161-167`, `takussan-api/app/Listeners/Payments/MarkLemonSqueezyWebhookAuthenticated.php:16-27`
 - Constat :
@@ -9827,6 +9827,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - La console présente le `signing_secret` comme obligatoire (lu, `LemonSqueezyProvider.php:33`) ; un opérateur qui le renseigne croit la route plateforme signée. Les valeurs des environnements ne se voient pas d'ici.
 - Piste : refuser la route (ou ne rien traiter) quand le secret de configuration est vide, et le signaler par une sonde de santé ; test : POST non signé, secret vide, aucune échéance soldée.
 - Mesure (2026-10-21, e7f741bf4, mesureur) : relu vendor `WebhookController.php:43-47` (le middleware de signature n'est posé que si `config('lemon-squeezy.signing_secret')` est rempli), `LemonSqueezyDriver.php:161-167` (`configurePackage()` seul à y pousser le secret de la console, appelé par les seuls appels sortants l. 59 et 112) et `PaymentGatewayService::handleWebhookEvent()` (l. 544-577 : `order_created` → `TYPE_PAID`, sans autre contrôle) ; test temporaire, secret vide, intégration plateforme active, `POST` signé `faux` : sans `custom_data` → 400 `InvalidCustomPayload` du gestionnaire du paquet ; avec un `billable` d'agence → le gestionnaire écrit en base et la transaction de test s'abandonne sur une erreur SQL → la signature n'est pas vérifiée et le corps non signé atteint le gestionnaire ; l'arrivée jusqu'à `handleWebhookEvent` avec un corps complet n'est pas jouée (test retiré). Classement : V1, la piste touche le traitement des webhooks de paiement, et le secret vient d'une variable d'environnement (V5).
+- Mesure (2026-10-21, d51663f12, implementeur) : avant correctif, secret de configuration vide et intégration de plateforme active, un `POST` non signé rendait 200 (`LemonSqueezyWebhookJournalTest`, rouge) et aucune sonde ne le signalait (`HealthcheckProbesTest`, rouge : clé `lemon_squeezy_webhook` absente) → `RequireLemonSqueezySigningSecret`, après le journal, refuse en 403 (ligne `rejected`, `WebhookReceived` non émis), et la sonde `lemon_squeezy_webhook` passe `degraded` (`signing_secret_missing`) ; ablation : 1 rouge par classe, correctif remis → 5/5 et 18/18. Un environnement sans `LEMON_SQUEEZY_SIGNING_SECRET` refuse désormais ces webhooks : à vérifier en préproduction.
 
 ### Une fenêtre de maintenance bloque la connexion, y compris celle de l'opérateur qui doit la lever
 - Réf : P98.09
