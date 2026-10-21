@@ -6506,7 +6506,7 @@ d'export de l'angle 77.*
 
 ### Petites améliorations
 - Réf : P63.04
-- Statut : validé — les trois : retirer `download_url` de `toArray()`, lier le lien au demandeur (P63.01), purger les fichiers d'export d'audit à l'échéance du lien (porteur, 2026-10-20)
+- Statut : fait · TCK-1143
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/ActivityLogExportReadyNotification.php:23-26,43-50`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:59-71`, `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:42`
 - Constat :
@@ -6516,6 +6516,7 @@ d'export de l'angle 77.*
   - Établi comment : lu et grep.
 - Piste : retirer `toArray()`, ou n'y ranger que le nom du fichier ; lier le lien au demandeur (P63.01) ; purger les fichiers d'export d'audit à l'échéance du lien, dans le job de purge que retiendra l'angle 77.
 - Mesure (2026-10-20, eb4dde5a0, mesureur) : relu `ActivityLogExportReadyNotification.php` (`via()` → `['mail']`, `toArray()` range toujours `download_url`), `ActivityLogExportController::download()` (signature seule, puis `Storage::download`), `grep -rn "exports/" app routes config` → deux écrivains (`ExportActivityLogJob.php:39`, `CrossTenantAuditController.php:94`) et aucun effaceur ; l'angle 77 n'existe pas encore dans le fichier → les trois points tiennent. Classement : V3, purger les exports et lier le lien au demandeur décident de la conservation et de l'accès au journal (V2) ; seul le retrait de `toArray()` serait du code mort.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, `toArray()` rend `download_url` (rouge) et `grep -rn "exports/" app routes config` ne trouve aucun effaceur → `toArray()` sans `download_url` ; le lien lié au demandeur était déjà fait par TCK-1054 (`user`, `file`, `name` signés ensemble) ; purge par un job neuf, `PurgeExpiredActivityLogExports`, planifié chaque heure, qui supprime les fichiers de `exports/audit/` plus vieux que le lien de 24 h (le job de l'angle 77, P77.02, étant revenu au porteur) ; `ExportsDAuditEchusTest` : fichier de 25 h supprimé, fichier récent gardé, `toArray()` = `filename` et `row_count` ; ablation (notification d'origine, `handle()` vidé) → 2 rouges, remis → 2 verts.
 
 ## Angle 64 — Pièces KYC des profils à l'effacement, à la fin du profil et au re-téléversement
 
