@@ -8153,7 +8153,7 @@ n'ont pas été rouverts.*
 
 ### Petites améliorations
 - Réf : P81.04
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1147 — reste : écrire dans TCK-957 si les types `regularization` et `charges` restent permis après la sortie, choix de produit que ni la piste ni la validation ne tranchent
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:37-47`, `takussan-api/app/Services/Account/AccountDeletionService.php:388-411`
 - Constat :
@@ -8162,6 +8162,7 @@ n'ont pas été rouverts.*
   - Établi comment : lu.
 - Piste : écrire dans TCK-957 si les types `regularization` et `charges` restent permis après la sortie ; juger les baux en cours de `collectOpenObligations` par `User::ACTIVE_TENANT_LEASE_STATUSES`.
 - Mesure (2026-10-20, 04ec6c724, mesureur) : relu `LeasePaymentController::store` (l. 38-47, refus hors `active`/`terminating`), TCK-957 « Hypothèses » (résilié et expiré refusés, rien sur `regularization` ni `charges` après la sortie), `AccountDeletionService` l. 390 et 410 (baux en cours : `active` et `pending_signature` seuls) et `HasProfiles.php:43` (`ACTIVE_TENANT_LEASE_STATUSES` = `active`, `terminating`) ; la PR #820 touche ce service sans changer ces deux listes → les deux parties tiennent. Classement : V3, élargir les baux qui bloquent l'effacement change ce qui retient des données personnelles, et permettre une régularisation après la sortie est un choix de produit (V7).
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, locataire au bail `terminating` sans échéance due → `POST /api/auth/me/deletion-request` 202 (rouge) → les deux requêtes de baux de `collectOpenObligations()` lisent `User::ACTIVE_TENANT_LEASE_STATUSES` plus `pending_signature` (qui bloquait déjà) ; `AccountDeletionRequestTest::test_blocked_by_a_terminating_lease_as_tenant_and_as_landlord` : 422 et obligation `lease` des deux côtés ; ablation (service d'avant) → 1 rouge, remis → 13/13 ; `AccountDeletionStepUpTest`, `AdminUserLifecycleTest`, `DashboardTenantDepositRefundTest`, `AccountDeletionScheduledTest` verts.
 
 ## Angle 82 — Bailleur et membre jugés en dur, hors de `landlordWrites` et des capacités
 
