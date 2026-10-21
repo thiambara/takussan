@@ -10058,7 +10058,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Les vues mois et semaine du calendrier déclarent une `grid` sans `row` : 49 en-têtes et cellules hors de la structure exigée
 - Réf : P101.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/calendar/MonthView.tsx:58-71,82-86`, `takussan-web/src/components/calendar/WeekView.tsx:34-50,72-76`
 - Constat :
@@ -10068,10 +10068,11 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Aucun `onKeyDown`, `tabIndex` ni `aria-selected` dans les deux fichiers (mesuré, `grep -n`) : le rôle `grid` annonce une navigation aux flèches que le composant n'offre pas, et un lecteur d'écran ne peut pas lire la grille par lignes et colonnes.
   - Établi comment : axe par CDP, code relu.
 - Piste : envelopper chaque semaine dans un `div role="row"` (avec `display: contents` ou une grille par ligne pour garder la mise en page), en-têtes compris ; ou, faute de navigation aux flèches, renoncer à `grid` pour `role="table"` avec les mêmes `row`. Garde : test de rendu de `MonthView` et `WeekView` qui attend que chaque `gridcell` et chaque `columnheader` ait un parent `row` (ou `axe` sur le composant rendu).
+- Mesure (2026-10-21, dadb26e5c, mesureur) : relu `MonthView.tsx:58-86` et `WeekView.tsx:35-76` (lignes inchangées : `role="grid"`, `columnheader` et `gridcell` sans aucun `role="row"`, ni `onKeyDown`, `tabIndex` ou `aria-selected`) ; test vitest temporaire, retiré depuis, qui rend les deux vues et passe `axe-core` (règles `aria-required-children`, `aria-required-parent`) → mois : 49 nœuds sur 49 sans parent `row`, `aria-required-children` critique sur la grille et `aria-required-parent` critique sur 49 nœuds ; semaine : 14 sur 14, mêmes deux règles (1 et 14 nœuds), donc la vue semaine est désormais mesurée, plus seulement lue ; aucun commit ni ticket ne la traite (`git log` des deux fichiers, `grep` des tickets). Classement : A4, structure ARIA sans texte neuf ni changement visible : envelopper en-têtes et chaque semaine dans un `div role="row"` en `display: contents` (ou une grille par ligne), le rôle `grid` gardé, et un test qui attend un parent `row` à chaque `gridcell` et `columnheader`.
 
 ### Les écrans d'erreur et de chargement de deux fiches n'ont pas de `h1`, quand les autres fiches en gardent un
 - Réf : P101.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/LeaseDetail.tsx:101-116`, `takussan-web/src/components/documents/DocumentDetailClient.tsx:46-65`, `takussan-web/src/components/bookings/BookingDetail.tsx:155-161`, `takussan-web/src/components/visits/VisitDetail.tsx:78`
 - Constat :
@@ -10080,10 +10081,11 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Un propriétaire qui ouvre un bail qui n'est pas le sien voit « Bail introuvable » sans titre de page (lu, l. 109-115 ; ce rendu a été vu au navigateur pour u7 sur `/app/leases/1`, dans le premier relevé masqué par la fenêtre de bienvenue, donc sans axe valable).
   - Établi comment : code relu, axe par CDP pour la fiche document.
 - Piste : le même `h1` `sr-only` que `BookingDetail` dans les branches de chargement et d'erreur de `LeaseDetail` et de `DocumentDetailClient`, sur les clés de repli existantes (`fallbackReference` pour le bail ; pour le document, une clé existante à trouver, sinon c'est un texte neuf). Garde : test de rendu qui joue l'erreur de la requête et attend `getByRole('heading', { level: 1 })`.
+- Mesure (2026-10-21, dadb26e5c, mesureur) : relu `LeaseDetail.tsx:101-116` et `DocumentDetailClient.tsx:46-65` (lignes inchangées), ainsi que les deux `page.tsx`, qui ne rendent aucun `h1` autour ; `BookingDetail.tsx:158-161` et `VisitDetail.tsx:78` gardent le `h1` `sr-only` ; test vitest temporaire, retiré depuis, requêtes simulées en chargement puis en erreur → `h1` = 0 dans les quatre cas (« Bail introuvable. », « Document introuvable. », les deux squelettes) ; clés existantes dans les trois langues : `lease.fallbackReference` (« Bail #{id} ») et `dashboard.pages.documentDetail.metaTitle` (« Fiche document »). Pourquoi la fiche document restait en chargement dans le relevé n'a pas été re-mesuré, et n'entre pas dans le classement. Classement : A4 et A1, le motif est déjà écrit dans `BookingDetail` et `VisitDetail`, et ces deux clés évitent tout texte neuf : `h1` `sr-only` dans les branches de chargement et d'erreur des deux fiches, et un test `getByRole('heading', { level: 1 })` sur l'erreur.
 
 ### Le locataire reçoit deux fenêtres de bienvenue modales montées ensemble
 - Réf : P101.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : l'ordre d'apparition des fenêtres de bienvenue est un parcours visible
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/layout/AppShell.tsx:138-145`, `takussan-web/src/hooks/useWelcomeOnce.ts`, `takussan-web/src/components/welcome/WelcomeModal.tsx:116-120`
 - Constat :
@@ -10092,13 +10094,15 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Pour u103 sur `/app/payments`, après trois clics sur « Passer », un `role="dialog"` restait ouvert (mesuré, `act-skip.js`). Que ce soit la seconde fenêtre empilée et non une autre n'est pas établi, ni ce que deviennent le piège de focus et l'`aria-hidden` de deux modales ouvertes ensemble (à vérifier). Dans le montage, le `POST` de fermeture est refusé, donc la fenêtre revient à chaque page ; en vrai, chacune ne s'ouvre qu'une fois.
   - Établi comment : code relu, une mesure CDP partielle.
 - Piste : n'ouvrir qu'une fenêtre de bienvenue à la fois (la suivante après la fermeture de la première, par une file dans `AppShell`), sans changer leur contenu. Garde : test de `AppShell` pour un locataire sans aucune clé vue, qui n'attend qu'un seul `dialog` ouvert.
+- Mesure (2026-10-21, dadb26e5c, mesureur) : relu `AppShell.tsx:138-145` (`CustomerWelcomeWizard` et `TenantWelcomeWizard` sous la même condition `customerOnboardingActive`, et le commentaire « Renders on top of (or after) ») et `useTenantWelcomeOnce.ts` (s'ouvre dès qu'un bail actif n'a pas sa clé `tenant-welcome-<id>`, sans regarder l'autre fenêtre) ; test vitest temporaire, retiré depuis, qui monte les deux parcours, leurs hooks remplacés par une modale ouverte → 2 `role="dialog"` rendus ensemble (« Trouvez le bien parfait… » et « Vos paiements… »). Le piège de focus et l'`aria-hidden` à deux modales n'ont pas été mesurés. Classement : V7, ouvrir une seule fenêtre à la fois oblige à choisir laquelle passe d'abord, pour le locataire comme pour le propriétaire-client (commentaire l. 59-62), et le code assume aujourd'hui l'empilement.
 
 ### Petites améliorations relevées sur le calendrier
 - Réf : P101.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/calendar/CalendarPage.tsx:449`, `takussan-web/src/components/layout/AppSidebar.tsx:783`
 - Constat :
   - Le panneau du jour sélectionné est un second `aside` sans nom, à côté de celui de la barre latérale : axe rend `landmark-unique` (« moderate ») sur `/app/calendar`, pour u2, u3, u7 et u17 (mesuré) ; le même motif que les `aside` de `/app/messages` laissés au porteur par P68.08.
   - Établi comment : axe par CDP, code relu.
 - Piste : `aria-labelledby` du panneau vers son `h3` (le libellé du jour, déjà affiché), ou `section` au lieu d'`aside` ; aucun texte neuf.
+- Mesure (2026-10-21, dadb26e5c, mesureur) : relu `CalendarPage.tsx:449-494` (`<aside data-testid="calendar-selected-day">` sans `aria-label` ni `aria-labelledby` ; son `h3` l. 452 porte le libellé du jour, déjà affiché) et `AppSidebar.tsx:783` (`<aside>` sans nom) → deux repères `complementary` sans nom sur `/app/calendar` ; axe non relancé, le constat est relu. P68.08 a laissé au porteur les seuls `aside` de `/app/messages`, qui n'ont pas de titre à réutiliser. Classement : A4, aucun texte neuf : `aria-labelledby` du panneau vers un `id` posé sur son `h3`, et un test qui attend le repère nommé du libellé du jour.
