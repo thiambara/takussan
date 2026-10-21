@@ -65,7 +65,6 @@
       "noResult": "Aucune agence ne correspond",
       "loadMore": "Afficher plus",
       "shown": "{shown} sur {total}",
-      "openAria": "Ouvrir la liste des agences",
       "clearAria": "Effacer l'agence sélectionnée",
       "error": "La liste des agences n'a pas pu être chargée.",
       "retry": "Réessayer",

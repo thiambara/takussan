@@ -218,6 +218,9 @@ export function PropertyRow({
           viewAllHref && (
             <LienLocalise
               href={viewAllHref}
+              // TCK-1086 (P69.02) — « Voir tout » mène à une liste rendue à la demande : préchargé,
+              // il coûtait au serveur une recherche de 40 biens par rangée de l'accueil.
+              prefetch={false}
               className="inline-flex min-h-11 items-center gap-0.5 whitespace-nowrap text-[14px] font-semibold text-foreground underline-offset-4 hover:underline hover:text-primary transition-colors"
             >
               {viewAllLabel ?? t('viewAll')}

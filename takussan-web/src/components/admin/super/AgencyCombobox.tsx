@@ -187,12 +187,17 @@ export function AgencyCombobox({
           >
             <X aria-hidden className="size-4" />
           </Combobox.Clear>
-          <Combobox.Trigger
-            aria-label={t('openAria')}
-            className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
-          >
+          {/*
+            Un chevron DÉCORATIF, plus un `Combobox.Trigger` (TCK-1085, P68.06), comme dans
+            `ui/combobox.tsx` : la saisie ouvre la liste au clic (`openOnInputClick`, vrai par
+            défaut). Liste ouverte, Base UI rend `aria-hidden` tout ce qui est hors de la saisie et
+            du popup, ce `div` compris : le déclencheur y gardait le focus (axe :
+            `aria-hidden-focus`). `Combobox.Clear` y reste, mais Base UI le rend en `tabindex=-1`,
+            hors de l'ordre de tabulation (gardé par `AgencyCombobox.sans-masquage.test.tsx`).
+          */}
+          <span className="pointer-events-none flex size-7 items-center justify-center">
             <ChevronDown aria-hidden className="size-4" />
-          </Combobox.Trigger>
+          </span>
         </div>
       </Combobox.InputGroup>
 
