@@ -443,7 +443,10 @@ export function verifierRole(role, base, tete, fichiers, { racine = ROOT } = {})
     erreurs.push(`un passage du délégué tranche au plus ${DELEGATION_MAX} entrées ; ${basculees.length} touchées (${basculees.join(', ')})`);
   }
   if (role === 'implementeur') {
-    if (basculees.length > LOT_MAX) {
+    // Un angle entier se prend d'un bloc, quel que soit son nombre d'entrées (porteur, 2026-10-21) :
+    // le plafond ne compte que les lots de plusieurs angles.
+    const angles = new Set(basculees.map((r) => r.match(/^P(\d+)\./)?.[1] ?? r));
+    if (angles.size > 1 && basculees.length > LOT_MAX) {
       erreurs.push(`un lot compte au plus ${LOT_MAX} entrées ; ${basculees.length} ont changé de statut (${basculees.join(', ')})`);
     }
     const cotes = ['takussan-api/', 'takussan-web/'].filter((c) => touche.some((f) => f.startsWith(c)));

@@ -616,6 +616,45 @@ modifier, et toutes réversibles :
 La garde lit le texte d'une commande. Un script écrit puis exécuté la traverse, comme pour tout
 rôle (§ 5). La consigne porte ce que la garde ne voit pas, et le rapport en garde la trace.
 
+## Amendement du 2026-10-21 (quater) — des tests ciblés seulement, un angle entier par lot
+
+**Relevé à 21:39**, deux implémenteurs, l'explorateur et le délégué en route : charge de 11 à 14
+sur 8 cœurs, juste sous le seuil de 12. Le mesureur et le délégué s'arrêtaient en `charge` un
+passage sur deux. Les tests lancés étaient bien ciblés, mais rien ne l'imposait, et chaque lot
+finissait par `impacted-tests --run --parallel` : quatre processus, sur une sélection plus large
+que les pistes du lot.
+
+**Décision du porteur** :
+
+1. **Des tests ciblés seulement.** Un agent ne lance que les classes et fichiers de test de ses
+   pistes, nommés. Ni suite entière, ni `--parallel`, ni `impacted-tests --run`, ni couverture :
+   la CI de la PR joue tout le reste sur GitHub. **Ceci remplace le troisième amendement du
+   2026-10-17** (`impacted-tests` une fois par lot). La garde le tient, pour tous les rôles et en
+   position de commande :
+   - `artisan test`, `phpunit`, `pest` ou `paratest` sans fichier de test, sans classe et sans
+     `--filter` ;
+   - `--parallel`, `-p` ou `--coverage` ;
+   - `bin/impacted-tests.php --run` ;
+   - `npm run test` ou `vitest` sans fichier de test.
+
+   Éprouvé par un banc de 27 commandes, où l'ancienne garde laisse passer 13 refus. Le lint du
+   front se joue sur les fichiers touchés ; `tsc --noEmit` reste, une fois par lot.
+2. **Un angle entier par lot.** L'implémenteur prend toutes les entrées libres de l'angle de la
+   première entrée, quel que soit leur nombre ou leur taille. Il ne complète par famille, dans la
+   limite de 10 entrées et de l'équivalent de 10 S, que si l'angle en laisse la place.
+   `check-pistes` ne compte plus les entrées d'un lot d'un seul angle. Ablation sur le fichier
+   réel (angle 6, 14 entrées) :
+
+   | Lot | Nouvelle règle | Ancienne règle |
+   |---|---|---|
+   | 11 entrées d'un seul angle | acceptées | refusées |
+   | 10 entrées + 1 d'un autre angle | refusées | refusées |
+
+   Au relevé, l'angle ouvert le plus gros compte 7 entrées. La règle des 100 min et le passage tué
+   à 150 min bornent toujours le lot : ce qui n'est pas commencé reste libre pour le passage
+   suivant. La partition entre implémenteurs (amendement bis) se fait déjà par angle, donc un angle
+   entier ne déborde jamais sur l'autre instance.
+
 ## Conséquences
 
 - **Ce que ça rend possible** :
