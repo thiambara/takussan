@@ -177,7 +177,7 @@ voie d'écriture (angle 13, puis 47).
 | 101 | Passage axe au navigateur des écrans `/app` des autres profils (propriétaire, locataire, prestataire, agent) et des pages de détail `[id]` (bien, bail, client, paiement), derrière le faux API en lecture seule de l'angle 68 | fait |
 | 102 | État initial masqué au rendu serveur (`opacity-0`, `invisible`, `useReveal`, `animate-*` dépendant d'un effet) sur les autres listes et rangées publiques (`PropertyRow` de l'accueil, fiches agence et agent, favoris, biens similaires) : contenu présent dans le HTML et invisible jusqu'à l'hydratation, ou sans JS | fait |
 | 103 | Appels du navigateur à l'hydratation des pages publiques (`geo/cities`, `geo/regions`, `amenities`, `property-types`, `maintenance/status`, préflights CORS) : lesquels pourraient venir du rendu serveur ou du cache de données, et ce qu'ils coûtent sous 3G | fait |
-| 104 | Poids JS initial des écrans de la console `/super-admin` (`SuperAdminShell`, tableaux, dialogues importés statiquement, fichiers `index.ts` de `components/admin/super`) : le relevé de l'angle 70 sur l'autre console | à faire |
+| 104 | Poids JS initial des écrans de la console `/super-admin` (`SuperAdminShell`, tableaux, dialogues importés statiquement, fichiers `index.ts` de `components/admin/super`) : le relevé de l'angle 70 sur l'autre console | fait |
 | 105 | Charge RSC d'un document `/app` servi : dictionnaires imbriqués de `layout.tsx`, `(dashboard)` et `(dashboard)/app` (et `/app/agency`) sérialisés chacun avec l'ensemble cumulé de ses parents, mesurés sur le document compressé | à faire |
 | 106 | Branches que le code ne prend qu'en `APP_ENV=production` (`RestrictIpMiddleware` à liste vide, `DeletionStepUpService::sendCode`, `AddRobotsTagOutsideProduction` jugé sur `APP_URL`) : chacune éprouvée par un test en `production`, alors que la préproduction tourne en `staging` et ne les prend jamais ? | à faire |
 | 107 | Champs du profil que l'utilisateur déclare pour être joint (`phone_whatsapp`, `secondary_phone`, `secondary_phone_whatsapp`, `preferred_language`, heures calmes) : lus par les chemins qui envoient (canaux de notification, codes, relances), ou seulement affichés ? | à faire |
@@ -211,6 +211,7 @@ voie d'écriture (angle 13, puis 47).
 | 134 | Tris `orderBy` / `orderByDesc` sur une colonne d'enum rangée en chaîne (`severity`, `priority`, `status`, `level` des annonces, alertes, maintenances, tâches) : ordre alphabétique pris pour un ordre métier dans une liste ou un « premier élément » affiché | à faire |
 | 135 | Listes écrites à la main, hors `buildQuery` (`LeasePaymentController::index`, `ConversationController::index`, `ReviewController::index`, contrôleurs `Admin\*`) : `sort`, `page` et `per_page` envoyés par le front face à l'ordre et au plafond rendus, et lecteurs qui ne lisent que la première page — le relevé de P100.01 sur les autres listes | à faire |
 | 136 | Lectures du navigateur au chargement d'un écran `/app` et `/super-admin` (`useApiQuery` en parallèle, clés en double, `enabled` en cascade qui attend une première réponse, données déjà lues par le rendu serveur) : allers-retours avant l'écran utile, chacun précédé d'un préflight puisqu'il porte `Authorization` — le relevé de l'angle 103 sur la console | à faire |
+| 137 | Écrans qui importent le fichier `index.ts` de `components/forms` pour `FormError` ou `FormGlobalError` seuls (pages `(auth)` `verify-email` et `reset-password`, `DefiSecondFacteur`, `ConnexionParTelephone`, `IntegrationsManager`, `ChampsLieu`) : react-hook-form et react-day-picker chargés pour afficher un message d'erreur — le motif de P104.01 hors de la console | à faire |
 
 ---
 
@@ -10272,3 +10273,75 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - `MaintenanceBanner` interroge `/api/maintenance/status` toutes les 60 s sur toutes les pages, visiteur anonyme compris (lu, l. 52, `refetchInterval: 60_000` sans `enabled`), et encore au retour sur l'onglet (`refetchOnWindowFocus` laissé actif, lu, `query-client.ts:11`). Le relais met la réponse en cache 60 s (lu, `app/api/maintenance/status/route.ts:9`) : l'API n'est pas touchée, mais un onglet mobile ouvert envoie une requête par minute. `refetchIntervalInBackground` n'est pas posé, donc l'interrogation s'arrête onglet masqué (comportement de TanStack Query, non mesuré).
   - Établi comment : code relu.
 - Piste : un intervalle plus long pour un visiteur anonyme, ou aucun intervalle hors de la console, le statut étant relu au chargement de chaque page. À trancher avec P79.06 et P98.10, qui touchent déjà ce bandeau et la durée de son statut.
+
+## Angle 104 — Poids JS initial des écrans de la console `/super-admin`
+
+*Exploré le 2026-10-21 sur `pre-dev` 71e1c1286, par l'explorateur. Tout a été lancé et relu par
+l'explorateur lui-même, sans sous-agent. Deux `next build` de production (Turbopack,
+`takussan-web/`, charge 5,4 puis 2,5 sur 8 cœurs au départ, 11 min chacun) : l'arbre tel quel, puis
+une build d'ablation où quatre retraits temporaires portent chacun sur un écran différent, retirés
+depuis (`git checkout -- src`). Le JS initial est compté comme `scripts/poids-des-routes.mjs` le
+fait (union des `rootMainFiles` et des `entryJSFiles`, gzip 6), par un script temporaire hors dépôt
+qui sépare aussi la coque (tout sauf l'entrée de la page) et la part propre à la page. Les chemins
+d'import viennent de `src/test/graphe-client.ts`, appelé hors de Vitest sur les 37 pages et le
+layout ; c'est un plancher, la mesure est celle du build. Aucune page n'a été servie : ni durée de
+chargement, ni charge RSC. Ce qui n'a pas donné d'entrée : il n'existe **aucun** fichier `index.ts`
+sous `components/admin/super` (mesuré, `find`), contrairement à ce que l'intitulé de l'angle
+supposait ; la coque pèse 310,8 à 310,9 Kio sur chacun des 37 écrans, moins que celle de `/app`
+(P70.05), et `TotpEnrollment` y est comme dans `/app` (voir P70.05, classée V2) ; deux ablations sont
+restées dans la marge : `PayoutDetailPanel` remplacé par `() => null` sur `/super-admin/payouts`
+(388,4 → 385,1, react-day-picker reste par un autre chemin, non relevé) et `AgencyOnboardingDialog`
+sur `/super-admin/agencies` (380,6 → 377,2) ; les graphiques de `/super-admin/reports` ouvrent sur
+l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
+
+### L'écran des étiquettes charge react-hook-form et le calendrier pour afficher deux messages d'erreur, par le fichier `index.ts` de `components/forms`
+- Réf : P104.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/admin-tags/TagsManager.tsx:25,28`, `takussan-web/src/components/forms/index.ts`, `takussan-web/src/hooks/useApiForm.ts:162-164`
+- Constat :
+  - `TagsManager` importe `FormError` et `FormGlobalError` depuis `@/components/forms`, dont le fichier `index.ts` réexporte aussi `FormInput`, `FormSelect`, `FormDatePicker`, `FormDateTimePicker` et cinq autres champs liés à react-hook-form (lu). Il importe `useTraducteurValidation` depuis `hooks/useApiForm.ts`, module qui importe `react-hook-form` et `@hookform/resolvers/zod`, alors que ce crochet n'est que `useTranslations()` (lu, l. 162-164). Le composant n'emploie ni react-hook-form ni aucun sélecteur de date : son formulaire est tenu par `useState` (lu, l. 362-390).
+  - Par ces deux imports, le graphe client de `tags/page.tsx` atteint `react-hook-form` (huit chemins), `react-day-picker` et `date-fns` (par `FormDateTimePicker → ui/date-time-picker → ui/calendar`) (mesuré, `graphe-client.ts`).
+  - `/super-admin/tags` est l'écran le plus lourd de la console : **452,2 Kio** gzip, dont 141,3 propres à la page, contre 315 à 389 pour les 36 autres (mesuré). Ablation, `FormError` importé de `@/components/forms/FormError` et `useTraducteurValidation` remplacé par `useTranslations()` : **452,2 → 399,6 Kio** (−52,6), react-day-picker sorti ; zod reste (P104.02) (mesuré).
+- Piste : importer `FormError` depuis son propre fichier, et sortir `useTraducteurValidation` dans un module sans react-hook-form, que `useApiForm.ts` réexporte. Garde : P104.04.
+
+### L'écran des étiquettes est le seul de la console à charger zod, pour une validation faite à l'envoi d'un dialogue fermé
+- Réf : P104.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/admin-tags/TagsManager.tsx:35-40,145,345-346`, `takussan-web/src/lib/schemas/tag.ts:1,17,19`
+- Constat :
+  - Parmi les 37 pages et le layout de `(super-admin)`, seule `tags/page.tsx` atteint zod, par `TagsManager → lib/schemas/tag.ts` (mesuré, `graphe-client.ts`). Dans le build, un morceau de **64,2 Kio** gzip qui porte les marques `$ZodType`, `$ZodError` est propre à cette page (mesuré).
+  - `TagsManager` lit dans ce module `tagTypeValues`, un tableau `as const`, et `tagFormSchema`, dont le seul usage est `safeParse` dans `handleCreate`, appelé à l'envoi de `CreateTagDialog`, fermé au chargement (lu, l. 145, 345-346).
+  - Le gain d'un chargement différé n'est pas mesuré : l'ablation de P104.01 a laissé zod en place (à vérifier).
+- Piste : mettre `tagTypeValues` dans `lib/enums/tag.ts`, que `schemas/tag.ts` réexporte (patron de TCK-744 et TCK-1039), et charger le schéma à l'envoi (`await import('@/lib/schemas/tag')`) ou monter `CreateTagDialog` par `next/dynamic` à sa première ouverture (`useDejaOuvert`, TCK-1041). Mesurer avant et après par `poids-des-routes.mjs`.
+
+### Les demandes de confidentialité chargent le calendrier pour le formulaire de création, monté seulement quand on ouvre son dialogue
+- Réf : P104.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/admin/super/PrivacyRequestsConsole.tsx:19,371-373,421,528`
+- Constat :
+  - `DatePicker` est importé statiquement (l. 19) et n'est rendu que dans `CreatePrivacyRequestForm` (l. 421, 528), monté sous `{creating ? … : null}` dans un `Dialog` fermé au chargement (l. 371-373) (lu).
+  - C'est le seul chemin de la page vers `react-day-picker` et `date-fns` (mesuré, `graphe-client.ts`).
+  - Ablation, `DatePicker` remplacé par un composant vide dans ce seul fichier : `/super-admin/privacy-requests` **376,1 → 344,2 Kio** (−31,9), react-day-picker sorti (mesuré).
+- Piste : monter `CreatePrivacyRequestForm` par `next/dynamic` à la première ouverture du dialogue, comme TCK-1041 l'a fait pour `CreateInvoiceDialog` ; mesurer avant et après.
+
+### Aucune garde ne trace le graphe client des écrans de `/super-admin`
+- Réf : P104.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/(dashboard)/__tests__/zod-hors-des-ecrans-de-lecture.test.ts:26-30`, `takussan-web/src/app/(super-admin)/super-admin/__tests__/`
+- Constat :
+  - Le test qui refuse zod, react-hook-form et `@hookform/resolvers` dans les écrans de lecture ne lit que les pages sous `(dashboard)/app` (lu, l. 26-30). Les trois tests de `(super-admin)/super-admin/__tests__` ne tracent aucun graphe (mesuré, `grep -rln graphe-client` : aucun test sous `(super-admin)` ni nommé `super`).
+  - `poids-des-routes.mjs` imprime bien les écrans de `/super-admin` depuis P70.06, sans seuil (mesuré, sortie du build) : P104.01 et P104.02 n'y cassent rien.
+- Piste : une garde du même patron sur les pages de `(super-admin)` qui n'affichent aucun formulaire au chargement, `tags/page.tsx` comprise une fois P104.01 et P104.02 traitées.
+
+### Petites améliorations
+- Réf : P104.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/admin/super/GlobalSearch.tsx:12`, `takussan-web/src/lib/queries/super-admin-queues.ts:1-6`, `takussan-web/src/lib/queries/super-admin.ts`
+- Constat :
+  - La coque de la console embarque `lib/queries/super-admin.ts` en entier (1 515 lignes) pour `fetchGlobalSearch` (recherche de la barre haute) et les quatre compteurs de files de la barre latérale (lu). Dans le morceau de coque de 28,9 Kio gzip qui le porte, le module garde ses **96** noms exportés : environ 24,9 Kio bruts et 4,5 Kio gzip, découpés du début du module à la fin du morceau (mesuré, `node -e` sur `.next/static/chunks/44hqerqx2pu89.js`). Le motif est celui de P70.07, ici sur un module sans `'use client'` ; le gain est faible.
+- Piste : mettre `fetchGlobalSearch` et les quatre lecteurs des files dans un module à part, réexporté par `super-admin.ts` (méthode de TCK-1042).
