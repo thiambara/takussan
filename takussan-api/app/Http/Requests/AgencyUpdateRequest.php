@@ -50,7 +50,12 @@ class AgencyUpdateRequest extends BaseFormRequest
             // TCK-1106 (P91.01) — les bornes des colonnes (`name`, `license_number` en 255,
             // `phone` en 30) : au-delà, 422 sur la clé, et non le 500 de PostgreSQL.
             'name' => ['sometimes', 'string', 'max:255'],
-            'license_number' => ['sometimes', 'nullable', 'string', 'max:255'],
+            // TCK-1105 (P92.04) — unique sur toutes les lignes, supprimées comprises, comme la
+            // contrainte ; l'agence modifiée ne se compte pas elle-même.
+            'license_number' => [
+                'sometimes', 'nullable', 'string', 'max:255',
+                Rule::unique('agencies', 'license_number')->ignore($this->route('agency')),
+            ],
             'description' => ['sometimes', 'nullable', 'string'],
             'email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:30'],

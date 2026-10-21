@@ -35,7 +35,9 @@ class StoreAgencyRequest extends BaseFormRequest
             // TCK-1106 (P91.01) — les bornes des colonnes (`name`, `license_number` en 255,
             // `phone` en 30) : au-delà, 422 sur la clé, et non le 500 de PostgreSQL.
             'name' => ['required', 'string', 'max:255'],
-            'license_number' => ['nullable', 'string', 'max:255'],
+            // TCK-1105 (P92.04) — `agencies.license_number` est unique sur toutes les lignes,
+            // supprimées comprises : la règle les compte de même (422, plus le 500 de la contrainte).
+            'license_number' => ['nullable', 'string', 'max:255', Rule::unique('agencies', 'license_number')],
             'description' => ['nullable', 'string'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],

@@ -41,7 +41,15 @@ class UpdateKpiConfigRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'metric' => ['sometimes', Rule::in(KpiConfig::allowedMetrics())],
+            // TCK-1102 (P92.03) — un indicateur au plus une fois par agence (`unique(agency_id,
+            // metric)`, models-spec § 64) ; l'indicateur modifié ne se compte pas lui-même.
+            'metric' => [
+                'sometimes',
+                Rule::in(KpiConfig::allowedMetrics()),
+                Rule::unique('kpi_configs', 'metric')
+                    ->where('agency_id', $this->route('kpi_config')->agency_id)
+                    ->ignore($this->route('kpi_config')),
+            ],
             'label' => ['sometimes', 'string', 'max:120'],
             'format' => ['sometimes', Rule::in(['number', 'percent', 'currency'])],
             'sort_order' => ['sometimes', 'integer', 'min:0', 'max:999'],
