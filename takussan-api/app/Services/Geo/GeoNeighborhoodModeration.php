@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\DB;
  *
  * Les adresses se réécrivent par `save()` : c'est le crochet d'`Address` qui aligne leur texte.
  * La réindexation suit la transaction — jamais dedans, où un rollback laisserait l'index en avance.
+ * Le journal la précède (TCK-1098, P90.03) : un moteur injoignable la fait lever, et le geste,
+ * déjà validé, doit rester tracé.
  */
 final class GeoNeighborhoodModeration
 {
@@ -73,8 +75,8 @@ final class GeoNeighborhoodModeration
 
             return $this->reecrireAdresses($ligne, $ligne);
         });
-        $this->reindexation->biens($biens);
         $this->journaliser($quartier, $par, 'super_admin_geo_neighborhood_renamed', ['from' => $ancien, 'to' => $nom], 'Quartier renommé');
+        $this->reindexation->biens($biens);
 
         return $quartier->refresh();
     }
@@ -102,8 +104,8 @@ final class GeoNeighborhoodModeration
 
             return $this->reecrireAdresses($src, $cbl);
         });
-        $this->reindexation->biens($biens);
         $this->journaliser($source, $par, 'super_admin_geo_neighborhood_merged', ['into_id' => $cible->getKey()], 'Quartier fusionné');
+        $this->reindexation->biens($biens);
 
         return $cible->refresh();
     }

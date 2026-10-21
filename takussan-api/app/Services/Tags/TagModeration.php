@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\DB;
  * TCK-633 (ADR-0062 §7) — les décisions de la file des équipements. La recherche indexe les NOMS
  * des étiquettes VISIBLES d'un bien (`Property::toSearchableArray`, `tagsVisibles`) : une
  * approbation, un refus, un renommage et une fusion réindexent les biens touchés, APRÈS la
- * transaction.
+ * transaction. Le journal s'écrit entre les deux (TCK-1098, P90.03) : un moteur injoignable fait
+ * lever la réindexation, et le geste, déjà validé, doit rester tracé.
  */
 final class TagModeration
 {
@@ -34,8 +35,8 @@ final class TagModeration
 
             return $this->biensDe($ligne);
         });
-        $this->reindexation->biens($biens);
         $this->journaliser($tag, $par, 'super_admin_tag_approved', [], 'Équipement approuvé');
+        $this->reindexation->biens($biens);
 
         return $tag->refresh();
     }
@@ -51,8 +52,8 @@ final class TagModeration
 
             return $biens;
         });
-        $this->reindexation->biens($biens);
         $this->journaliser($tag, $par, 'super_admin_tag_rejected', [], 'Équipement refusé');
+        $this->reindexation->biens($biens);
 
         return $tag->refresh();
     }
@@ -78,8 +79,8 @@ final class TagModeration
 
             return $this->biensDe($ligne);
         });
-        $this->reindexation->biens($biens);
         $this->journaliser($tag, $par, 'super_admin_tag_renamed', ['from' => $ancien, 'to' => $nom], 'Équipement renommé');
+        $this->reindexation->biens($biens);
 
         return $tag->refresh();
     }
@@ -126,8 +127,8 @@ final class TagModeration
 
             return $biens;
         });
-        $this->reindexation->biens($biens);
         $this->journaliser($cible, $par, 'super_admin_tag_merged', ['from_id' => $source->getKey(), 'from_name' => $source->name], 'Équipement fusionné');
+        $this->reindexation->biens($biens);
 
         return $cible->refresh();
     }

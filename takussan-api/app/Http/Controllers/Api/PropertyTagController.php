@@ -53,8 +53,10 @@ class PropertyTagController extends Controller
 
         // TCK-633 (lot E) — le filtre Équipements lit l'index, et cette route ne touche pas la ligne
         // `properties` : sans réindexation, le bien restait introuvable par ses équipements.
+        // TCK-1099 (P90.01) — `reindexer()`, pas `searchable()` : un brouillon ou un bien d'agence
+        // non active n'a rien à faire dans l'index.
         if (array_filter($changements) !== []) {
-            $property->searchable();
+            $property->reindexer();
         }
 
         return $this->json(['data' => $property->tags()->get()]);
@@ -65,7 +67,7 @@ class PropertyTagController extends Controller
         $this->authorize('update', $property);
 
         if ($property->tags()->detach($tag->id) > 0) {
-            $property->searchable();
+            $property->reindexer();
         }
 
         return $this->json(null, 204);
