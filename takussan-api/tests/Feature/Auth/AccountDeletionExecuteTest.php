@@ -8,7 +8,9 @@ use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Customer;
+use App\Models\DataExport;
 use App\Models\Document;
+use App\Models\Enums\DataExportStatus;
 use App\Models\Enums\DocumentType;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\UserStatus;
@@ -26,10 +28,12 @@ use App\Models\WhatsappContact;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Services\Account\AccountDeletionService;
 use App\Services\Notifications\Sms\SmsRouterDriver;
+use App\Services\Privacy\DataExportBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -506,6 +510,37 @@ class AccountDeletionExecuteTest extends TestCase
             'to' => $to,
             'status' => 'sent',
         ]);
+    }
+
+    /**
+     * TCK-1139 (P77.01) — l'archive d'export RGPD porte le profil en clair : elle part avec le
+     * compte, et le super-admin qui l'a demandée ne la télécharge plus.
+     */
+    public function test_l_effacement_supprime_les_archives_d_export_du_compte(): void
+    {
+        Notification::fake();
+        Storage::fake('local');
+
+        $sujet = User::factory()->create(['email' => 'sujet.temoin@example.test']);
+        $superAdmin = $this->actingAsRole('super_admin');
+        $export = app(DataExportBuilder::class)->build(DataExport::query()->create([
+            'user_id' => $sujet->id,
+            'requested_by' => $superAdmin->id,
+            'reason' => 'Demande de la personne',
+            'status' => DataExportStatus::Queued,
+            'requested_at' => now(),
+        ]));
+        $chemin = $export->archive_path;
+        Storage::disk('local')->assertExists($chemin);
+
+        app(AccountDeletionService::class)->anonymize($sujet, false);
+
+        $export->refresh();
+        Storage::disk('local')->assertMissing($chemin);
+        $this->assertSame(DataExportStatus::Expired, $export->status);
+        $this->assertNull($export->archive_path);
+
+        $this->getJson("/api/data-exports/{$export->id}/download")->assertNotFound();
     }
 
     public function test_execute_is_idempotent(): void

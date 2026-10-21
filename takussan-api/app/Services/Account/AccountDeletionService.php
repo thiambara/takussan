@@ -7,8 +7,10 @@ use App\Models\Activity;
 use App\Models\AlertSubscriber;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\DataExport;
 use App\Models\Document;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\DataExportStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeaseStatus;
@@ -29,6 +31,7 @@ use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -373,6 +376,23 @@ class AccountDeletionService
                 'phone' => null,
                 'updated_at' => now(),
             ]);
+
+        // TCK-1139 (P77.01) — l'archive d'export RGPD porte le profil en clair, et le compte n'étant
+        // que soft-deleted, la FK `data_exports.user_id` en cascade ne joue pas : l'archive part,
+        // la ligne reste et passe à `expired`, comme le fait `PurgeExpiredDataExports`. Un export
+        // encore en file échoue de lui-même : `DataExportBuilder` ne trouve plus le compte.
+        DataExport::query()
+            ->where('user_id', $user->id)
+            ->where(fn ($query) => $query
+                ->where('status', DataExportStatus::Ready)
+                ->orWhereNotNull('archive_path'))
+            ->get()
+            ->each(function (DataExport $export): void {
+                if ($export->archive_path) {
+                    Storage::disk('local')->delete($export->archive_path);
+                }
+                $export->update(['status' => DataExportStatus::Expired, 'archive_path' => null]);
+            });
 
         // TCK-1061 (P64.02) — les profils du compte reçoivent une date de fin (`deleted_at`), d'où
         // partira la purge à « fin + 5 ans » de la politique (TCK-537). Leurs pièces restent,
