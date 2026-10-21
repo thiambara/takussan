@@ -3,7 +3,7 @@ id: TCK-1131
 title: "Trois commentaires disent encore que le NINEA et les mentions légales vivent dans `metadata.legal_info`"
 status: done
 phase: P2
-family: chore
+family: technique
 estimate: S
 wave: null
 created: 2026-10-21
