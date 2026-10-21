@@ -9,10 +9,8 @@ use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Services\Search\QuartierDuFiltre;
-use App\Support\CaseInsensitive;
 use App\Support\Search\CleDeQuartier;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-591 §5 — rapproche les prospects d'une agence et ses biens, dans les deux sens.
@@ -26,7 +24,9 @@ use Illuminate\Support\Facades\DB;
  * correspond à rien : il correspondrait sinon à tout le portefeuille, et le récapitulatif
  * quotidien deviendrait du bruit.
  *
- * Les villes se comparent repliées (ADR-0025), sans replier les accents. Les quartiers suivent la
+ * Les villes se comparent par leur clé {@see CleDeQuartier}, accents compris : la saisie du
+ * prospect est libre, et « Guediawaye » désigne « Guédiawaye » (TCK-1167, P99.05, comme les
+ * quartiers depuis TCK-1083). Les quartiers suivent la
  * règle du filtre `location` de la recherche publique ({@see QuartierDuFiltre}, TCK-663) : une
  * adresse rattachée au référentiel se juge par son `geo_neighborhood_id`, fusion suivie, et une
  * adresse non rattachée par la clé {@see CleDeQuartier} de son texte, qui ramène accents et tirets
@@ -57,6 +57,9 @@ class ProspectMatcher
 
     /** @var array<string, list<string>> saisie → textes d'adresses non rattachées de même clé */
     private array $textesParSaisie = [];
+
+    /** @var array<string, list<string>>|null clé de ville → textes `addresses.city` qui l'ont */
+    private ?array $villesParCle = null;
 
     public function __construct(private readonly QuartierDuFiltre $quartiers) {}
 
@@ -99,13 +102,15 @@ class ProspectMatcher
             $query->where('properties.bedrooms', '>=', $customer->min_bedrooms);
         }
 
-        $cities = array_values(array_filter(array_map(
-            fn ($v) => is_string($v) ? CaseInsensitive::fold(trim($v)) : null,
-            (array) ($customer->seeking_cities ?? []),
-        )));
+        // TCK-1167 (P99.05) — les textes de ville des adresses qui ont la clé d'une saisie.
+        $cities = $this->saisies($customer->seeking_cities);
         if ($cities !== []) {
+            $textes = [];
+            foreach ($cities as $saisie) {
+                $textes = [...$textes, ...$this->villesDe($saisie)];
+            }
             $query->whereExists(fn ($sub) => $this->adresseDuBien($sub)
-                ->whereIn(DB::raw(CaseInsensitive::sql('addresses.city')), $cities));
+                ->whereIn('addresses.city', array_values(array_unique($textes))));
         }
 
         // TCK-1083 (P67.04, P67.05) — la règle de `QuartierDuFiltre`, comme la recherche publique.
@@ -161,10 +166,10 @@ class ProspectMatcher
         $query->where(fn (Builder $q) => $q->whereNull('customers.min_bedrooms')
             ->orWhere('customers.min_bedrooms', 0)
             ->orWhere('customers.min_bedrooms', '<=', (int) ($property->bedrooms ?? -1)));
-        $this->whereListAccepts($query, 'seeking_property_types', $value($property->type), folded: false);
+        $this->whereListAccepts($query, 'seeking_property_types', $value($property->type));
 
         $address = $property->address()->first();
-        $this->whereListAccepts($query, 'seeking_cities', $address?->city);
+        $this->whereCityAccepts($query, $property->agency_id, $address);
         $this->whereNeighborhoodAccepts($query, $property->agency_id, $address);
 
         return $query;
@@ -207,6 +212,47 @@ class ProspectMatcher
             ->orWhereIn('customers.id', $acceptants));
     }
 
+    /**
+     * TCK-1167 (P99.05) — le sens inverse : les prospects de l'agence dont une ville saisie a la
+     * clé de la ville du bien, jugés en PHP comme les quartiers (pas d'`unaccent`).
+     */
+    private function whereCityAccepts(Builder $query, int|string|null $agencyId, ?Address $address): void
+    {
+        $cle = CleDeQuartier::de($address?->city);
+
+        $acceptants = $cle === null ? [] : Customer::query()
+            ->where('customers.agency_id', $agencyId)
+            ->whereRaw("jsonb_array_length(COALESCE(customers.seeking_cities, '[]'::jsonb)) > 0")
+            ->get(['customers.id', 'customers.seeking_cities'])
+            ->filter(fn (Customer $c) => array_filter(
+                $this->saisies($c->seeking_cities),
+                fn (string $saisie) => CleDeQuartier::de($saisie) === $cle,
+            ) !== [])
+            ->map(fn (Customer $c) => (int) $c->id)
+            ->values()
+            ->all();
+
+        $query->where(fn (Builder $q) => $q
+            ->whereRaw("jsonb_array_length(COALESCE(customers.seeking_cities, '[]'::jsonb)) = 0")
+            ->orWhereIn('customers.id', $acceptants));
+    }
+
+    /** @return list<string> les textes `addresses.city` qui ont la clé de la saisie */
+    private function villesDe(string $saisie): array
+    {
+        $this->villesParCle ??= Address::query()
+            ->whereNotNull('city')
+            ->distinct()
+            ->pluck('city')
+            ->groupBy(static fn (string $texte) => (string) CleDeQuartier::de($texte))
+            ->map(static fn ($textes) => $textes->values()->all())
+            ->all();
+
+        $cle = CleDeQuartier::de($saisie);
+
+        return $cle === null ? [] : ($this->villesParCle[$cle] ?? []);
+    }
+
     /** @return list<string> */
     private function saisies(mixed $liste): array
     {
@@ -229,21 +275,15 @@ class ProspectMatcher
     }
 
     /** Une liste vide ou absente accepte tout ; sinon elle doit contenir la valeur. */
-    private function whereListAccepts(Builder $query, string $column, ?string $candidate, bool $folded = true): void
+    private function whereListAccepts(Builder $query, string $column, ?string $candidate): void
     {
-        $query->where(function (Builder $q) use ($column, $candidate, $folded) {
+        $query->where(function (Builder $q) use ($column, $candidate) {
             $q->whereRaw("jsonb_array_length(COALESCE(customers.{$column}, '[]'::jsonb)) = 0");
             if ($candidate === null || trim($candidate) === '') {
                 return;
             }
 
-            $folded
-                ? $q->orWhereRaw(
-                    "EXISTS (SELECT 1 FROM jsonb_array_elements_text(customers.{$column}) AS wanted(v) WHERE "
-                    .CaseInsensitive::sql('wanted.v').' = ?)',
-                    [CaseInsensitive::fold(trim($candidate))],
-                )
-                : $q->orWhereRaw("customers.{$column} @> ?::jsonb", [json_encode([$candidate])]);
+            $q->orWhereRaw("customers.{$column} @> ?::jsonb", [json_encode([$candidate])]);
         });
     }
 }
