@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Support\SavedSearchCriteria;
+use Illuminate\Validation\Rule;
 
 /**
  * TCK-305 — extrait de SavedSearchController::store(), où les règles étaient écrites en ligne.
@@ -53,7 +54,12 @@ class StoreSavedSearchRequest extends BaseFormRequest
         // modification, écrite une seule fois. Toute clé hors `SavedSearchCriteria::KEYS` rend 422.
         return SavedSearchCriteria::rules('required') + [
             // verif-599 m12 — 100, comme le front : le titre de la cloche (255) cite le nom.
-            'name' => ['required', 'string', 'max:100'],
+            // TCK-1103 (P92.01) — `unique(user_id, name)` : un nom déjà pris par le compte rend 422,
+            // plus le 500 de la contrainte.
+            'name' => [
+                'required', 'string', 'max:100',
+                Rule::unique('saved_searches', 'name')->where('user_id', $this->user()?->id),
+            ],
             'notification_frequency' => ['sometimes', 'in:off,daily,weekly'],
         ];
     }
