@@ -10314,7 +10314,7 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
 
 ### L'écran des étiquettes charge react-hook-form et le calendrier pour afficher deux messages d'erreur, par le fichier `index.ts` de `components/forms`
 - Réf : P104.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin-tags/TagsManager.tsx:25,28`, `takussan-web/src/components/forms/index.ts`, `takussan-web/src/hooks/useApiForm.ts:162-164`
 - Constat :
@@ -10322,10 +10322,11 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - Par ces deux imports, le graphe client de `tags/page.tsx` atteint `react-hook-form` (huit chemins), `react-day-picker` et `date-fns` (par `FormDateTimePicker → ui/date-time-picker → ui/calendar`) (mesuré, `graphe-client.ts`).
   - `/super-admin/tags` est l'écran le plus lourd de la console : **452,2 Kio** gzip, dont 141,3 propres à la page, contre 315 à 389 pour les 36 autres (mesuré). Ablation, `FormError` importé de `@/components/forms/FormError` et `useTraducteurValidation` remplacé par `useTranslations()` : **452,2 → 399,6 Kio** (−52,6), react-day-picker sorti ; zod reste (P104.02) (mesuré).
 - Piste : importer `FormError` depuis son propre fichier, et sortir `useTraducteurValidation` dans un module sans react-hook-form, que `useApiForm.ts` réexporte. Garde : P104.04.
+- Mesure (2026-10-21, 711bafca3, mesureur) : relu `TagsManager.tsx:25,28` (`FormError`, `FormGlobalError` par `@/components/forms`, `useTraducteurValidation` par `@/hooks/useApiForm`), `components/forms/index.ts` (neuf `export *`, dont `FormDatePicker` et `FormDateTimePicker`), `useApiForm.ts:1-17` (`react-hook-form`, `@hookform/resolvers/zod`) et l. 164-166 (le crochet n'est que `useTranslations()`, deux lignes plus bas que cité) ; `FormGlobalError` vit bien dans `FormError.tsx:67` ; test Vitest temporaire, retiré depuis, qui appelle `paquetsDuGrapheClient` sur les 37 pages et le layout de `(super-admin)` → `tags/page.tsx` atteint `react-hook-form` (huit chemins : sept champs de `forms/index.ts` et `useApiForm.ts`), `@hookform/resolvers`, `react-day-picker` (par `FormDateTimePicker → ui/date-time-picker → ui/calendar`) et `date-fns`, et c'est la seule page de la console à atteindre `react-hook-form` ; aucun ticket ni commit ne l'a traitée ; le poids du build (452,2 → 399,6 Kio) n'est pas re-mesuré. Classement : A2, deux imports à prendre à leur fichier propre (`@/components/forms/FormError`, et `useTraducteurValidation` sorti dans un module sans react-hook-form que `useApiForm.ts` réexporte, ses trois autres appelants inchangés), sans aucun changement de rendu ni de comportement.
 
 ### L'écran des étiquettes est le seul de la console à charger zod, pour une validation faite à l'envoi d'un dialogue fermé
 - Réf : P104.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin-tags/TagsManager.tsx:35-40,145,345-346`, `takussan-web/src/lib/schemas/tag.ts:1,17,19`
 - Constat :
@@ -10333,10 +10334,11 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - `TagsManager` lit dans ce module `tagTypeValues`, un tableau `as const`, et `tagFormSchema`, dont le seul usage est `safeParse` dans `handleCreate`, appelé à l'envoi de `CreateTagDialog`, fermé au chargement (lu, l. 145, 345-346).
   - Le gain d'un chargement différé n'est pas mesuré : l'ablation de P104.01 a laissé zod en place (à vérifier).
 - Piste : mettre `tagTypeValues` dans `lib/enums/tag.ts`, que `schemas/tag.ts` réexporte (patron de TCK-744 et TCK-1039), et charger le schéma à l'envoi (`await import('@/lib/schemas/tag')`) ou monter `CreateTagDialog` par `next/dynamic` à sa première ouverture (`useDejaOuvert`, TCK-1041). Mesurer avant et après par `poids-des-routes.mjs`.
+- Mesure (2026-10-21, 711bafca3, mesureur) : même test temporaire du graphe client → parmi les 37 pages et le layout de `(super-admin)`, seule `tags/page.tsx` atteint `zod`, par un seul chemin, `lib/schemas/tag.ts ← TagsManager.tsx` (`useApiForm.ts` n'en importe que `type ZodType`, non suivi) : l'ablation de P104.01 laisse donc bien zod en place, ce que le constat laissait « à vérifier » ; relu `TagsManager.tsx:35-40` (`tagFormSchema`, `tagTypeValues`), l. 145 (`tagFormSchema.safeParse` dans `handleCreate`), l. 345-349 (`CreateTagDialog` monté avec `open={isCreateOpen}`, `false` au départ l. 74) et l. 188, 366 (`tagTypeValues` lu au rendu) ; `lib/enums/` ne porte que `customer.ts` et `property.ts` ; le morceau de 64,2 Kio n'est pas re-mesuré par un build. Classement : A2, `tagTypeValues` passe dans `lib/enums/tag.ts` que `schemas/tag.ts` réexporte (patron TCK-1039), et le schéma se charge à l'envoi (`await import('@/lib/schemas/tag')` dans `handleCreate`), même validation et mêmes messages, sans choix de produit.
 
 ### Les demandes de confidentialité chargent le calendrier pour le formulaire de création, monté seulement quand on ouvre son dialogue
 - Réf : P104.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/PrivacyRequestsConsole.tsx:19,371-373,421,528`
 - Constat :
@@ -10344,22 +10346,25 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - C'est le seul chemin de la page vers `react-day-picker` et `date-fns` (mesuré, `graphe-client.ts`).
   - Ablation, `DatePicker` remplacé par un composant vide dans ce seul fichier : `/super-admin/privacy-requests` **376,1 → 344,2 Kio** (−31,9), react-day-picker sorti (mesuré).
 - Piste : monter `CreatePrivacyRequestForm` par `next/dynamic` à la première ouverture du dialogue, comme TCK-1041 l'a fait pour `CreateInvoiceDialog` ; mesurer avant et après.
+- Mesure (2026-10-21, 711bafca3, mesureur) : relu `PrivacyRequestsConsole.tsx:19` (`DatePicker` importé statiquement), l. 116 (`creating` à `false`), l. 371-372 (`{creating ? <CreatePrivacyRequestForm … /> : null}` dans un `Dialog`), l. 421 et 528 (seul rendu de `DatePicker`) ; test temporaire du graphe client → les quatre chemins de `privacy-requests/page.tsx` vers `react-day-picker` et `date-fns` passent tous par `ui/date-picker.tsx ← PrivacyRequestsConsole.tsx` ; aucun ticket ni commit ne l'a traitée ; le gain de 31,9 Kio n'est pas re-mesuré par un build. Classement : A2, `CreatePrivacyRequestForm` sorti dans son fichier et monté par `next/dynamic` à la première ouverture du dialogue (patron TCK-1041, `useDejaOuvert`), même formulaire et même comportement.
 
 ### Aucune garde ne trace le graphe client des écrans de `/super-admin`
 - Réf : P104.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(dashboard)/__tests__/zod-hors-des-ecrans-de-lecture.test.ts:26-30`, `takussan-web/src/app/(super-admin)/super-admin/__tests__/`
 - Constat :
   - Le test qui refuse zod, react-hook-form et `@hookform/resolvers` dans les écrans de lecture ne lit que les pages sous `(dashboard)/app` (lu, l. 26-30). Les trois tests de `(super-admin)/super-admin/__tests__` ne tracent aucun graphe (mesuré, `grep -rln graphe-client` : aucun test sous `(super-admin)` ni nommé `super`).
   - `poids-des-routes.mjs` imprime bien les écrans de `/super-admin` depuis P70.06, sans seuil (mesuré, sortie du build) : P104.01 et P104.02 n'y cassent rien.
 - Piste : une garde du même patron sur les pages de `(super-admin)` qui n'affichent aucun formulaire au chargement, `tags/page.tsx` comprise une fois P104.01 et P104.02 traitées.
+- Mesure (2026-10-21, 711bafca3, mesureur) : relu `(dashboard)/__tests__/zod-hors-des-ecrans-de-lecture.test.ts:27-39` (n'énumère que des écrans de `(dashboard)/app`) ; `ls (super-admin)/super-admin/__tests__` → `console-home.test.tsx`, `garde-double-facteur.test.tsx`, `jeton-operateur.test.ts`, et `grep -rln graphe-client src` ne rend aucun test sous `(super-admin)` ; test temporaire du graphe client → aujourd'hui seule `tags/page.tsx` atteint `zod`, `react-hook-form` ou `@hookform/resolvers` parmi les 37 pages et le layout de la console. Classement : A5, une garde neuve du patron de TCK-1038 sur les pages de `(super-admin)` sans formulaire au chargement, sans seuil existant resserré ; les 36 autres pages et le layout y passent dès aujourd'hui, `tags/page.tsx` s'y ajoute avec P104.01 et P104.02.
 
 ### Petites améliorations
 - Réf : P104.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/super/GlobalSearch.tsx:12`, `takussan-web/src/lib/queries/super-admin-queues.ts:1-6`, `takussan-web/src/lib/queries/super-admin.ts`
 - Constat :
   - La coque de la console embarque `lib/queries/super-admin.ts` en entier (1 515 lignes) pour `fetchGlobalSearch` (recherche de la barre haute) et les quatre compteurs de files de la barre latérale (lu). Dans le morceau de coque de 28,9 Kio gzip qui le porte, le module garde ses **96** noms exportés : environ 24,9 Kio bruts et 4,5 Kio gzip, découpés du début du module à la fin du morceau (mesuré, `node -e` sur `.next/static/chunks/44hqerqx2pu89.js`). Le motif est celui de P70.07, ici sur un module sans `'use client'` ; le gain est faible.
 - Piste : mettre `fetchGlobalSearch` et les quatre lecteurs des files dans un module à part, réexporté par `super-admin.ts` (méthode de TCK-1042).
+- Mesure (2026-10-21, 711bafca3, mesureur) : relu `GlobalSearch.tsx:12` (`fetchGlobalSearch` pris à `@/lib/queries/super-admin`), `super-admin-queues.ts:1-6` (quatre lecteurs pris au même module) ; `wc -l` → 1 515 lignes, sans `'use client'` (l. 1-3) ; 97 lignes `export function|const` ; `GlobalSearch` et les files sont importés par `SuperAdminTopbar.tsx`, `SuperAdminSidebar.tsx` et `ConsoleQueues.tsx`, donc par la coque ; aucun ticket ni commit ne l'a traitée ; le morceau de coque (4,5 Kio gzip) n'est pas re-mesuré par un build. Classement : A2, `fetchGlobalSearch` et les quatre lecteurs sortis dans un module à part que `super-admin.ts` réexporte (méthode de TCK-1042), aucun appelant ni résultat changé.
