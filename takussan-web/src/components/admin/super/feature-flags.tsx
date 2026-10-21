@@ -113,6 +113,8 @@ export function FeatureFlagSegmentDialog({
       enabled,
       segments: {
         roles: roles.split(',').map((role) => role.trim()).filter(Boolean),
+        // TCK-1125 — sans champ d'agences ici, celles déjà posées sont renvoyées, pas effacées.
+        ...(flag?.segments.agency_ids?.length ? { agency_ids: flag.segments.agency_ids } : {}),
         rollout_percentage: Number(rollout),
       },
     }),

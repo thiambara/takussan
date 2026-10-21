@@ -34,6 +34,8 @@ export default function SuperAdminTemplatesPage() {
   const selected = items.find((item) => item.event === activeEvent && item.channel === selectedChannel)
     ?? items.find((item) => item.event === activeEvent)
     ?? null;
+  // TCK-1124 — les canaux de l'événement sont ceux que l'API sert : ceux qu'un envoi lit.
+  const channels = items.filter((item) => item.event === selected?.event).map((item) => item.channel);
 
   return (
     <div className="space-y-6">
@@ -65,6 +67,7 @@ export default function SuperAdminTemplatesPage() {
           <TemplateEditor
             key={`${selected.event}:${selected.channel}`}
             detail={selected}
+            channels={channels}
             onChannelSelect={setSelectedChannel}
           />
         </div>
