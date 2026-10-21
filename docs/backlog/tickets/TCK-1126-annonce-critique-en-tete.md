@@ -1,7 +1,7 @@
 ---
 id: TCK-1126
 title: "Les annonces actives sortent de la plus grave à la moins grave, la critique en tête"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -33,13 +33,13 @@ Une annonce critique s'affiche dans le bandeau dès qu'elle est active pour l'ut
 
 ## Delta à produire
 
-- [ ] `AnnouncementResolver::activeFor()` trie sur le rang des cas de `AnnouncementSeverity`,
+- [x] `AnnouncementResolver::activeFor()` trie sur le rang des cas de `AnnouncementSeverity`,
       du plus grave au moins grave, puis `starts_at`.
-- [ ] Test dans `AnnouncementTest`.
+- [x] Test dans `AnnouncementTest`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — quatre annonces `info`, `success`, `critical`, `warning` sortent de
+- [x] AC1 — quatre annonces `info`, `success`, `critical`, `warning` sortent de
       `/api/announcements/active` dans l'ordre `critical`, `warning`, `success`, `info`.
 
 ## Hors périmètre
@@ -49,4 +49,7 @@ Une annonce critique s'affiche dans le bandeau dès qu'elle est active pour l'ut
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : `AnnouncementResolver.php` rendu à `pre-dev` → 1 rouge sur 10 (ordre rendu
+  `warning, success, info, critical`) ; correctif remis → 10/10.
+- Le rang se lit dans l'ordre des cas de l'enum, lié par paramètres : un cas ajouté prend sa
+  place sans toucher la requête.
