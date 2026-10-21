@@ -9628,7 +9628,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### La cible `lead` promet d'ouvrir la demande, et aucune page ne lit `?lead=`
 - Réf : P97.04
-- Statut : validé (délégué) — garder le paramètre et le faire lire par la boîte : `ContactLeadsInbox` lit `?lead={id}`, charge la demande par `GET /api/contact-leads/{id}` (route et policy existantes) et la rend en tête de liste, mise en avant, quel que soit l'onglet ou la page ; un identifiant invalide ou refusé est ignoré sans erreur ; garde : un test de `ContactLeadsInbox` monté avec `?lead=` qui attend la demande désignée
+- Statut : fait · TCK-1120
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Domain/Notifications/NotificationTarget.php:43-45`, `takussan-api/app/Services/Lead/ContactLeadService.php:370-374`, `takussan-web/src/app/(dashboard)/app/leads/page.tsx`, `takussan-web/src/components/leads/ContactLeadsInbox.tsx`
 - Constat :
@@ -9639,6 +9639,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 - Piste : faire lire `lead` par la boîte (défilement vers la demande et mise en avant, ou ouverture de son détail), ou retirer le paramètre et le commentaire s'il n'est pas voulu. Garde : un test de `ContactLeadsInbox` qui monte la page avec `?lead=` et attend la demande désignée.
 - Mesure (2026-10-21, 0e45ad7a0, mesureur) : relu `NotificationTarget.php:44-45` (`'lead' => '/app/leads?lead={id}'`, « ouverte sur la demande ») ; `grep -rln "useSearchParams\|searchParams" takussan-web/src/components/leads "takussan-web/src/app/(dashboard)/app/leads"` → rien ; la page rend `<ContactLeadsInbox />` sans argument (lu) → le constat tient. Classement : V7, la piste laisse ouverte la forme visible (défilement et mise en avant, ouverture d'un détail, ou retrait du paramètre), et TCK-590 ne l'écrit pas (grep).
 - Mesure (2026-10-21, b626b83ae, delegue) : relu `NotificationTarget.php:36-45` (commentaire TCK-590 « la boîte « Demandes », ouverte sur la demande »), `ContactLeadsInbox.tsx:48-100` (onglet `todo` et pagination en état local, aucun paramètre lu), `routes/api/contact-leads.php:9` (`GET contact-leads/{lead}` existe) et le précédent `MessagesPage.tsx:76-81`, qui lit `?conversation={id}` de la cible voisine `conversation` → l'intention est écrite deux fois (cible et commentaire TCK-590), seule sa lecture manque ; retirer le paramètre ferait mentir le courriel et la cloche. Délégation : V7, choix mineur et réversible en un commit qui tient la promesse déjà écrite par TCK-590 sur le modèle de `?conversation=`, sans route, autorisation ni texte neufs ; aucun autre critère : ni argent, ni schéma, ni autorisation neuve (la lecture passe par la policy `view` existante).
+- Mesure (2026-10-21, beadbcb6a, implementeur) : `grep -rln "useSearchParams\|searchParams" takussan-web/src/components/leads "takussan-web/src/app/(dashboard)/app/leads"` → rien, la boîte ne lisait pas `?lead=` → `ContactLeadsInbox.test.tsx` (7 cas neufs) : `?lead=42` rend la demande 42 en tête, `aria-current`, hors de la page de la liste ; sans doublon si elle y figure ; identifiant invalide ou lecture refusée ignorés sans erreur ; ablation du composant → 2 rouges, remis → 15/15.
 
 ### La garde des liens de notification ne lit ni les liens écrits à la main des courriels, ni les paramètres de requête
 - Réf : P97.05
