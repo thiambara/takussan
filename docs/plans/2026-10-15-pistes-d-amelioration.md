@@ -9932,7 +9932,7 @@ Limites :
 
 ### L'échéancier d'un bail de plus de 100 échéances perd les plus anciennes : l'API ignore le `sort` que le front demande et ne rend que la première page
 - Réf : P100.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : l'échéancier et la liste des échéances à encaisser ; la piste laisse plusieurs voies (ordre côté API, pagination ou échéancier sans plafond)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:22-36`, `takussan-web/src/lib/queries/leases.ts:178-221`, `takussan-web/src/components/leases/LeaseSchedule.tsx:93,180`, `takussan-web/src/components/leases/LeaseDetail.tsx:89-99`, `takussan-web/src/components/leases/LeasePaymentDialog.tsx:41-50`, `takussan-api/app/Services/Model/LeaseService.php:218-260`
 - Constat :
@@ -9946,10 +9946,11 @@ Limites :
   - Un bail à terme est généré en entier d'un coup : le plafond de 12 échéances ne vaut que sans `end_date` (lu, `LeaseService.php:232-260`). Un bail mensuel de 9 ans en produit donc 108 dès l'activation. Ses 8 premières échéances, celles qui tombent les premières, manquent alors à l'échéancier comme au dialogue (déduit de la mesure, à vérifier sur un bail réel).
   - En base de développement, le plus long échéancier compte 14 lignes (mesuré, `SELECT max(count)` sur `lease_payments` par bail → 14, 0 bail au-delà de 100) : les données de démonstration ne le montrent pas.
 - Piste : faire honorer par l'API l'ordre que l'écran attend (`due_date` croissant, ou `buildQuery` sur `LeasePayment` avec ses `$queryFields` et `$requestSortable`), et faire paginer le front, ou rendre l'échéancier sans plafond. Test : bail de plus de 100 échéances, la plus ancienne en retard est rendue et comptée.
+- Mesure (2026-10-21, 3c6c8301f, mesureur) : relu `LeasePaymentController::index` (tri en dur `period_start desc`, `tailleDePage` plafonné à 100, aucun `buildQuery`), `leases.ts` `useLeasePayments` (`sort=due_date`, `per_page=100`, aucune page suivante), `LeaseDetail.tsx` (`latePaymentsCount`, l. 89-99) et `LeasePaymentDialog.tsx:45-50`, `LeaseService.php` (plafond de 12 seulement sans `end_date`) ; test temporaire `tests/Feature/Tmp/MesureP100Test.php`, retiré (charge 2,73 sur 8 cœurs) : bail de 110 échéances mensuelles, la plus ancienne en `late`, appelé avec `fields`, `filter[lease_id]`, `sort=due_date` et `per_page=100` → 100 lignes sur un total de 110, de 2024-02-05 à 2015-11-05 (ordre décroissant), 25 clés par ligne, 0 échéance en retard dans la page. Le constat tient en entier ; aucun commit ni ticket ne l'a traité (`git log` du contrôleur, `grep` des tickets). Classement : V1, le correctif change ce que l'échéancier et le dialogue d'encaissement listent comme dû, et la piste propose plusieurs voies.
 
 ### Les réservations lisent `deposit_paid`, `deposit_date`, `completion_date`, `rejection_date` et `expiration_date`, que l'API n'émet jamais
 - Réf : P100.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : `completion_date` et `rejection_date` n'ont aucune source, il faut soit une donnée neuve, soit retirer des événements affichés
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/bookings/BookingsList.tsx:141-143`, `takussan-web/src/components/bookings/BookingDetail.tsx:271-281,297-299,570-590`, `takussan-web/src/types/booking.ts:38-80`, `takussan-api/app/Http/Resources/BookingResource.php:14-46`, `takussan-api/app/Http/Controllers/Api/BookingController.php:65-69`
 - Constat :
@@ -9960,10 +9961,11 @@ Limites :
     - les événements « Acompte payé », « Soldé » et « Refusé » de la chronologie (lu, l. 577-583), qui n'apparaissent jamais ; les autres ont un repli sur une clé émise (`confirmed_at`, `cancelled_at`, `expires_at`).
   - Ce n'est pas un `fields[]` trop court : ces clés n'existent ni en colonne ni dans la ressource. Ajouter la colonne au `fields` ne changerait rien (lu, `Booking::$queryFields`).
 - Piste : rendre ces faits depuis l'API, en dérivant `deposit_paid` des `booking_payments` déjà chargés au `show` ou en les lisant au front depuis `booking_payments`, et lire `expires_at` au lieu d'`expiration_date`. Retirer du type les clés sans source. Garde : un test de contrat de `BookingResource` qui fige ses clés, comme `LeasePaymentResourceContractTest`.
+- Mesure (2026-10-21, 3c6c8301f, mesureur) : relu `BookingResource::toArray` (aucune des cinq clés ; `expires_at` émis) et `BookingController::show` (même ressource, `payments` chargés, plus `can_refund`), `Booking::$queryFields` (ni colonne `deposit_paid`, ni `completion_date`, ni `rejection_date`), les lectures du front (`BookingsList.tsx:141`, `BookingDetail.tsx:272-281`, `:297`, `:577-584`) ; `grep -rnE 'deposit_paid|completion_date|rejection_date|expiration_date'` sur `app`, `database` et `routes` de l'API → rien ; test temporaire `tests/Feature/Tmp/MesureP100Test.php`, retiré (charge 2,73 sur 8 cœurs) : `GET /api/bookings/{id}` en agent → 200, 24 clés, aucune des cinq. La chronologie lit aussi `expired_at`, que la ressource n'émet pas, mais elle se replie sur `expires_at`. Le constat tient en entier. Classement : V7, rendre « Soldé » et « Refusé » demande une donnée qui n'existe pas (schéma) ou le retrait d'événements visibles, et `deposit_paid` se dérive au front ou à l'API, au choix.
 
 ### Cinq ressources affirment une valeur pour une colonne qu'un sparse fieldset n'a pas lue : `kind` « invoice », montants à 0, devise « XOF », booléens à faux
 - Réf : P100.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : montants et nature de facture rendus par l'API ; passer en `whenHas` retire des clés de montant à tout appelant qui ne les charge pas
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/InvoiceResource.php:23,33,36`, `takussan-api/app/Http/Resources/PayoutResource.php:33-36`, `takussan-api/app/Http/Resources/BookingResource.php:23`, `takussan-api/app/Http/Resources/AgencyResource.php:30,53,71`, `takussan-api/app/Http/Resources/LeasePaymentResource.php:23,32-33`
 - Constat :
@@ -9977,10 +9979,11 @@ Limites :
   - Aucun écran ne tombe dedans aujourd'hui : les composants des dix listes relues ne lisent que des colonnes demandées (sous-agent, puis relu par l'explorateur pour les factures, les versements et les réservations).
   - C'est la forme que P58.04 (TCK-1019) a corrigée pour `UserResource` seul, et qu'`IntegrationWebhookLogResource` évite par `whenHas` partout (lu).
 - Piste : passer par `whenHas` les clés dérivées de colonnes, au moins celles de montant, de nature et de devise, et étendre `UserResourceSparseFieldsTest` à ces cinq ressources. Le changement est visible pour tout appelant qui lit ces clés sans les demander ; vérifier d'abord ceux de l'API (exports, PDF, notifications).
+- Mesure (2026-10-21, 3c6c8301f, mesureur) : relu `InvoiceResource.php:23,33,36`, `PayoutResource.php:33-36`, `BookingResource.php:23`, `AgencyResource.php:30,53,71`, `LeasePaymentResource.php:23,32-33` (cast `(float)`, `(bool)` ou repli `?? 'invoice'` / `?? 'XOF'`) ; test temporaire `tests/Feature/Tmp/MesureP100Test.php`, retiré : modèle construit par `newFromBuilder(['id', 'created_at'])` puis `resolve()` → Invoice `kind` « invoice », `subtotal` et `total_amount` 0 ; Payout `gross_amount`, `commission_amount`, `net_amount` 0 ; Booking `total_amount` 0 ; Agency `currency` « XOF », `is_verified` et `moderation_required` false ; LeasePayment `amount`, `paid_amount`, `remaining_amount` 0. Le constat tient en entier ; qu'aucun écran n'y tombe n'est pas re-mesuré. Classement : V1, le changement porte sur des montants émis et peut retirer une clé à un appelant interne (modèle créé sans `refresh`, export, PDF) qu'il faut d'abord recenser.
 
 ### Aucune colonne demandée par le front n'est refusée aujourd'hui, et la garde générale reste à écrire
 - Réf : P100.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/__tests__/agency-upgrade.fields.tck-1029.test.ts`, `takussan-web/src/lib/queries/*.ts`, `takussan-api/app/Models/Concerns/HasQueryBuilder.php:82-140`
 - Constat :
@@ -9993,10 +9996,11 @@ Limites :
 
     Elle lève aussi 5 modèles au `$queryFields` vide : `Conversation`, `Message`, `LeasePayment`, `Review`, `SavedSearch`. La garde doit donc relier le site à sa route, ou porter une liste d'exceptions motivées.
 - Piste : écrire la garde générale (le reste de P68.01). Elle lit les constantes `*_FIELDS` et les `fields:` littéraux, et elle juge contre le `$queryFields` exporté par l'API, avec les imbrications de `$requestLoadable`. Exporter ce `$queryFields` en JSON par une commande, plutôt que de relire le PHP comme le test de TCK-1029.
+- Mesure (2026-10-21, 3c6c8301f, mesureur) : relu `takussan-web/src/lib/queries/__tests__/` : seules `agency-upgrade.fields.tck-1029.test.ts` (une constante, `$queryFields` lu dans le PHP) et `property-fields.coverage.test.ts` (TCK-336, couverture des lectures de `properties`) jugent des `fields` ; aucune commande ni script n'exporte `$queryFields` (`grep -rln queryFields` sur `app/Console` et `scripts` → rien) ; `grep -c queryFields` → 0 dans `Conversation`, `Message`, `LeasePayment`, `Review` et `SavedSearch` ; aucun `buildQuery` dans `AgencyModerationController` ni `UserDetailController` (les deux faux positifs nommés ; la page des utilisateurs lit désormais `fields[users]` l. 152, et non 151) ; P68.01 est `fait · TCK-1029 — reste :` cette garde. Que les 54 sites sur `buildQuery` ne demandent aucune colonne refusée n'est pas re-mesuré : la garde le dira. Classement : A5, garde ajoutée sans seuil resserré ; le correctif attendu est un test vitest qui lit le `$queryFields` des modèles dans le PHP, comme celui de TCK-1029, sans commande d'export ni changement de CI, et qui porte la liste motivée des endpoints hors `buildQuery`.
 
 ### Petites améliorations : `fields[…]` envoyés à des listes qui ne les lisent pas
 - Réf : P100.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : porter ces listes sur `buildQuery` ou documenter le `fields` inerte, deux voies face à la règle « sparse fieldsets obligatoires »
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:27-70,247`, `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:18-22`, `takussan-api/app/Http/Controllers/Api/ReviewController.php:57-135`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:39-110`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:23-60`
 - Constat :
@@ -10010,3 +10014,4 @@ Limites :
     - la page des utilisateurs de la console.
   - `ConversationContextController`, `MessagingContactController`, `AgencyController::listMembers` (forme relevée par P58.04) et les `show` (P60.03) relèvent du même constat, sans autre effet relevé.
 - Piste : porter ces listes sur `buildQuery` quand la charge compte (conversations, sondées toutes les 10 s), ou retirer du front le `fields` inerte en le disant dans le fichier, comme `property-moderation.ts`.
+- Mesure (2026-10-21, 3c6c8301f, mesureur) : `grep -c buildQuery` → 0 dans `ConversationController`, `SavedSearchController`, `ReviewController`, `Admin/AgencyModerationController` et `Admin/UserDetailController` ; relu les envois de `fields` : `conversations-list.ts:64` (sondé toutes les 10 s, l. 81), `conversations.ts:129` et `:202`, `saved-searches.ts:71`, `reviews-moderation.ts:90`, `super-admin.ts:96`, `super-admin/users/page.tsx:152` ; `property-moderation.ts:104-124` documente déjà son `fields` inerte et l'envoie toujours. Le compte de 22 sites n'est pas re-mesuré. Classement : V6, la piste laisse deux voies (porter sur `buildQuery`, qui refuserait aujourd'hui tout `fields` sur cinq modèles au `$queryFields` vide, ou retirer ou documenter le paramètre), et l'une ou l'autre fixe la convention du dépôt pour les listes écrites à la main.
