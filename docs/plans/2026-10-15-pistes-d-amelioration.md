@@ -8566,7 +8566,7 @@ repris ici : `App\Sorts\CollatedNameSort` n'a qu'un appelant, `MessagingContactC
 
 ### Les rôles d'une agence sont rangés dans l'ordre des octets : un rôle créé en minuscule ou commençant par « É » passe après « Z »
 - Réf : P87.02
-- Statut : validé (délégué) — trier les rôles d'une agence en `COLLATE "und-x-icu"` par `CollatedNameSort` (`AllowedSort::custom('name', …, 'agency_roles.name')` dans `AgencyRole`, et le défaut `defaultSort('name')` de `RoleController::index()` par la même classe), départage par `id` ; test : « Zélateur », « gérant », « Comptable », « Équipe terrain » → « Comptable » et « Équipe terrain » et « gérant » avant « Zélateur », en tri montant et descendant
+- Statut : fait · TCK-1118
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Agency/RoleController.php:37-43`, `takussan-api/app/Models/AgencyRole.php:72`, `takussan-web/src/lib/queries/agency-roles.ts:72`
 - Constat :
@@ -8577,6 +8577,7 @@ repris ici : `App\Sorts\CollatedNameSort` n'a qu'un appelant, `MessagingContactC
 - Piste : trier les rôles en `COLLATE "und-x-icu"`, par la même classe de tri (P87.01), défaut compris. Test avec le jeu ci-dessus.
 - Mesure (2026-10-20, ba1919880, mesureur) : relu `RoleController.php:37-43` (`defaultSort('name')` après `buildQuery`) et `AgencyRole.php:72` (`name` dans `$requestSortable` nu) ; test temporaire `TmpMesureurP87Test` (base de test PostgreSQL, charge 2,66 / 2,42 / 2,58 sur 8 cœurs, retiré ensuite) → rôles « Zélateur », « gérant », « Comptable », « Équipe terrain » créés : `GET /api/agencies/{id}/roles` rend « Administrateur | Agent | Comptable | Prestataire | Propriétaire | Zélateur | gérant | Équipe terrain ». Le constat tient. Classement : V7, l'amendement d'ADR-0025 ne vise que les noms de personnes et renvoie les autres listes à « quand on les touche » : changer l'ordre visible des rôles est un choix que rien n'écrit.
 - Mesure (2026-10-20, 046f73172, delegue) : relu le constat et la mesure du 2026-10-20, `RoleController.php:35-44` (`AgencyRole::buildQuery(...)->defaultSort('name')`), `app/Sorts/CollatedNameSort.php` (classe générique : colonne contrôlée, `COLLATE "und-x-icu"`), l'amendement du 2026-10-19 d'ADR-0025 (« les autres listes de noms suivent quand on les touche ») et P87.01 (`retenu · autonome`, même classe, même famille) → une seule liste, une seule option sensée (personne ne veut « gérant » après « Zélateur »), aucune donnée réécrite, défaite en un commit. Délégation : V7, choix mineur et réversible : l'ordre alphabétique d'une liste déjà triée par nom, ramené à l'ordre que l'ADR-0025 amendé fixe pour les noms, par la classe qu'il prescrit ; P87.01 touche la même classe.
+- Mesure (2026-10-21, 6e5cee59b, implementeur) : `AgencyRoleCollatedSortTest` avant correctif → 3 rouges sur 3, l'ordre rendu étant « Comptable | Zélateur | gérant | Équipe terrain » au défaut → `AgencyRole::nameSort()` (`CollatedNameSort` sur `agency_roles.name`) dans `buildQuery()` et `defaultSorts(AgencyRole::nameSort(), 'id')` dans `RoleController::index()` : 3/3 verts (défaut, `sort=name`, `sort=-name`) ; ablation (modèle et contrôleur rendus à `HEAD`) → 3 rouges ; remis → 3/3.
 
 ### Un même catalogue sort dans deux ordres : ICU sur le site public, octets sur l'API connectée et dans la console
 - Réf : P87.03
