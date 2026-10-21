@@ -34,7 +34,7 @@ personnel » pour l'attribution.
 
 ### Décision du porteur (déléguée)
 
-> remplacer `isStaffAt()` par `PersonnelDeLAgence::estPersonnel()` dans les quatre jugements de cible : `TaskController::authorizeAssignee`, `SetPrimaryContactCustomerRequest` (le référent), `AgentAbsenceService::declare` (le remplaçant `substitute_id`) et le prédicat `$personnel` de `CollaboratorEligibleForProperty` ; les attributions existantes ne sont pas réécrites ; test : un cas « cible `blocked` → 422 » par chemin, et le témoin « cible `inactive` → accepté »
+> remplacer `isStaffAt()` par `PersonnelDeLAgence::estPersonnel()` dans les quatre jugements de cible : `TaskController::authorizeAssignee`, `SetPrimaryContactCustomerRequest` (le référent), `AgentAbsenceService::declare` (le remplaçant `substitute_id`) et le prédicat `$personnel` de `CollaboratorEligibleForProperty` ; les attributions existantes ne sont pas réécrites ; test : un cas « cible `blocked` → 422 » par chemin, et le témoin « cible `inactive` → accepté » ; reste : signaler aux admins, au blocage d'un compte, ce qui lui reste attribué ; le routage `routeToSubstitute` vers un remplaçant bloqué après la déclaration de l'absence ; `PropertyController::assignAgent`, que la Piste ne nomme pas
 
 ### Reste à faire
 
