@@ -9805,7 +9805,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Les fournisseurs `mail`, `sms` et `stripe` du registre ne commandent aucun envoi ni aucun paiement
 - Réf : P98.07
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1170 — reste : `stripe` (gardé au registre par `features.md` § 1.5, au porteur) et `mailgun` (sans lecteur, proposé par l'écran d'intégrations de l'agence)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Domain/Integrations/Providers/MailProvider.php:25-26`, `SmsProvider.php:25-26`, `StripeProvider.php:19-27`, `takussan-api/config/mail.php`, `takussan-api/app/Models/Enums/PaymentProvider.php:7-9`
 - Constat (relevé par le sous-agent, relu en partie) :
@@ -9814,6 +9814,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 - Piste : retirer du registre ce qu'aucun pilote ne lit, ou le marquer comme non branché à l'écran ; garde qui exige un lecteur pour chaque clé du registre.
 - Mesure (2026-10-21, e7f741bf4, mesureur) : relu `MailProvider.php`, `SmsProvider.php`, `StripeProvider.php` (clés `mail`, `sms`, `stripe`, `stripe` en `payments`, donc critique par `AbstractProvider.php:11`) et l'enum `PaymentProvider` (Wave, Orange Money, Lemon Squeezy) ; `grep -rn "where('provider'" app` → aucun lecteur de ces trois clés, les envois lisent `wave`, `orange_money`, `lemon_squeezy`, et les SMS les clés `sms_*` → le constat tient. Classement : V7, les deux options de la piste retirent une entrée visible de la console ou y ajoutent une mention neuve.
 - Mesure (2026-10-21, 061983a9f, delegue) : relu le constat, la `Piste` et la `Mesure` du mesureur, puis `IntegrationProviderRegistry::all()` (les six fournisseurs nommés, dont `StripeProvider`, `SmsProvider`, `MailProvider`, et les cinq clés génériques) et `docs/features.md:224` (« Stripe n'a qu'une fiche d'identifiants au registre des intégrations », écrit tel quel par TCK-602) → le constat tient, et la spec décrit la fiche Stripe comme un état assumé. Recommandation : retirer `mail` et `sms` du registre (aucun lecteur, l'envoi lit `MAIL_*` et les clés `sms_*`), et pour `stripe` le sortir des fournisseurs critiques de la sonde plutôt que de la console, puisque `features.md:224` le garde ; ce qui manque pour trancher : le sort des lignes `integrations` déjà enregistrées sous ces clés (les supprimer serait V4) et la mention « non branché » si on la veut à l'écran, texte neuf (V7) ; `stripe` touche aussi la santé des paiements (V1), réservé.
+- Mesure (2026-10-21, d51663f12, implementeur) : avant correctif, `IntegrationRegistryReadersTest` rouge (« `sms` est au registre, mais aucun pilote ne lit sa ligne ») → `mail` et `sms` retirés du registre, `MailProvider` et `SmsProvider` supprimés, et la garde exige un pilote lecteur pour chaque clé, `stripe` et `mailgun` exemptés avec leur raison ; aucune ligne `integrations` supprimée ; ablation : 1 rouge sur 3, correctif remis → 3/3, et les sept classes des intégrations vertes.
 
 ### La route de webhook Lemon Squeezy de la plateforme ne vérifie rien si le secret d'environnement manque, quoi qu'en dise la console
 - Réf : P98.08
