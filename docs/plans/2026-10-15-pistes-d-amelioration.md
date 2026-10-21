@@ -162,7 +162,7 @@ voie d'écriture (angle 13, puis 47).
 | 87 | Tris alphabétiques sur colonnes texte sous la collation `C` (`sort=first_name`, `name`, `title` des listes de l'API et de la console) : minuscules et initiales accentuées rejetées après « Z » | fait |
 | 88 | Comptes `blocked` (`UserStatus::Blocked`), qui n'ouvrent plus de session : ce qu'ils reçoivent encore (notifications, e-mails, SMS) et les sélecteurs qui les proposent encore (participants, agent responsable, collaborateurs, destinataires) | fait |
 | 89 | Commandes jouées par `release.sh` et `seed.sh` (`geo:sync-referential`, `tags:sync-catalog`, `alerts:ensure-ops-rules`, `membership:reconcile-system-roles`, `scout:import`) : code de sortie réel sur une erreur, face à ce que le script en conclut | fait |
-| 90 | Écritures explicites dans l'index (`->searchable()` / `unsearchable()` de `PropertyTagController`, `BoostLifecycle`, `GeoReindexation`, `SyncAgencyPropertiesSearchIndex`) : appelées dans une transaction qui peut être annulée, face à `SCOUT_AFTER_COMMIT` et `SCOUT_QUEUE` de chaque environnement | à faire |
+| 90 | Écritures explicites dans l'index (`->searchable()` / `unsearchable()` de `PropertyTagController`, `BoostLifecycle`, `GeoReindexation`, `SyncAgencyPropertiesSearchIndex`) : appelées dans une transaction qui peut être annulée, face à `SCOUT_AFTER_COMMIT` et `SCOUT_QUEUE` de chaque environnement | fait |
 | 91 | FormRequests dont la borne `max:` dépasse la longueur `varchar(N)` de la colonne écrite, ou qui n'en ont pas : 500 (`22001`) au lieu de 422 — le pendant « longueur » de l'angle 54 | à faire |
 | 92 | Contraintes `UNIQUE` de la base sans règle `unique` ni verrou dans le FormRequest ou le service qui écrit : un doublon rend 500 (`23505`, que `bootstrap/app.php` ne traduit pas) au lieu de 422 ou 409 | à faire |
 | 93 | Indicateurs calculés des tableaux de bord et rapports (`DashboardAgencyService`, `KpiResolver`, `PortfolioMetrics`, `TeamPerformanceService`, `OwnerStatementService`) dont les tests n'assertent que la structure JSON : valeur toujours nulle ou fausse sur des données réelles ? | à faire |
@@ -196,6 +196,8 @@ voie d'écriture (angle 13, puis 47).
 | 118 | Données personnelles gardées dans le stockage du navigateur après déconnexion ou changement de compte (`localStorage`/`sessionStorage` : `takussan.coordonnees` nom et téléphone, cache TanStack « persisté par certains écrans » selon `OwnersList.tsx:83`, `useInitiatePayment`, `attribution.ts`) : ce que lit le compte suivant sur un poste partagé |
 | 120 | Listes de personnes servies aux sélecteurs du front (`fetchAgencyAgents`, `role-delegations.ts`, `ContactLeadsInbox`, `AuditTrail`, `ParticipantPicker`) face au prédicat que l'API juge ensuite à l'écriture (`isStaffAt`, `PersonnelDeLAgence::estPersonnel`, `CollaboratorEligibleForProperty`) : candidat proposé puis refusé en 422, candidat légitime absent | à faire |
 | 121 | Passation de portefeuille (`AgentHandoverService::move`) : chaque catégorie réécrite par `DB::table()->update` ou `update(['user_id'])` sans rejuger la règle de cible du geste unitaire (visites `PersonnelDeLAgence`, référent `crm.assign`, maintenance TCK-592, collaborations), et le compte rendu `moved` / `unassigned` face à l'état écrit | à faire |
+| 122 | Écritures qui changent un champ de `toSearchableArray()` sans passer par l'observateur Scout (`saveQuietly`, `Model::query()->update`, `DB::table()->update`, relations `address`, `tagsVisibles`, `agency`) sur les sept modèles `Searchable` : document resté périmé dans l'index | à faire |
+| 123 | Gestes validés en base suivis, hors transaction, d'un appel réseau qui peut lever (Meilisearch, CDN, revalidation du front, envoi synchrone) avant leur ligne `activity()` ou leur notification : réponse 500 pour un geste fait, trace d'audit absente — le relevé de P90.03 hors de la modération | à faire |
 
 ---
 
@@ -8762,3 +8764,85 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Établi comment : lecture et `grep`.
 - Piste : ajouter au harnais un passage `ECHEC_SUR=geo:sync-referential` et un passage `ECHEC_SUR=tags:sync-catalog` (release continue), et attraper aussi `JsonException` dans la commande.
 - Mesure (2026-10-21, d3a36896e, mesureur) : `grep -n "geo:\|tags:" scripts/test-release-reindex.sh` → rien (les passages `ECHEC_SUR=` couvrent `migrate`, `membership:reconcile`, `alerts:ensure-ops-rules`, `search:*`) ; relu `GeoSyncReferential::handle` (n'attrape que `RuntimeException`) ; test temporaire `TmpMesureurP89Test` (charge 4,80 / 4,49 / 5,19 sur 8 cœurs, retiré ensuite) → un fichier de région `{pas du json` fait sortir de la commande une `JsonException` « Syntax error » non attrapée ; même mesure, une `Meilisearch\Exceptions\CommunicationException` (hérite de `\Exception`) sort aussi sans message d'une ligne (P89.01). Le constat tient en entier. Classement : A5 et A1, deux passages ajoutés au harnais épinglent la tolérance que `release.sh:19-20` écrit déjà (« un échec n'arrête pas le déploiement »), et attraper `JsonException` suit le contrat de la commande (message d'une ligne et `FAILURE`), sans toucher `release.sh` ni le code de sortie.
+
+## Angle 90 — Écritures explicites dans l'index face aux transactions et à `SCOUT_QUEUE`
+
+*Exploré le 2026-10-21 sur `pre-dev` b3ea9be21, par l'explorateur. Relu par l'explorateur lui-même, sans sous-agent : les sept appels explicites de `app/` (`PropertyTagController`, `BoostLifecycle::writeProperty`, `GeoReindexation`, `SyncAgencyPropertiesSearchIndex`, `RefreshNewBuildSearchLabel`) et leurs appelants (`BoostPurchaseService`, `PropertyObserver`, `AgencyBoostObserver`, `AgencyObserver`, `TagModeration`, `GeoNeighborhoodModeration`, `TagCatalog`, `TagController`, `PropertyController::update`) ; `vendor/laravel/scout` (`Searchable`, `SearchableScope`, `ModelObserver`, `Jobs/MakeSearchable`, `MeilisearchEngine::update`) ; `config/scout.php`, `config/queue.php`, `.env.docker`, `phpunit.xml`, `hebergement.md`. Mesures par un test temporaire `TmpExplorateurP90Test` (base de test PostgreSQL, Meilisearch du port 7701, charge 4,33 / 3,78 / 7,29 sur 8 cœurs, retiré ensuite), sous la configuration de la suite (`SCOUT_QUEUE=false`). La valeur de `SCOUT_QUEUE` en préproduction n'est pas relevée (`hebergement.md:173` nomme la clé, sans valeur) : tout ce qui suit vaut pour `SCOUT_QUEUE=false`, défaut de `config/scout.php:59` et valeur de `.env.docker:210`.*
+
+### Synchroniser les équipements d'un bien l'indexe sans `shouldBeSearchable()` : brouillons et biens privés entrent dans l'index, un bien d'agence inactive revient compté dans la recherche publique
+- Réf : P90.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyTagController.php:55-58`, `:66-69`, `takussan-api/app/Models/Property.php:506-526`, `takussan-api/app/Services/Search/PropertySearchService.php:458-466`, `:805-823`, `takussan-api/app/Jobs/Search/SyncAgencyPropertiesSearchIndex.php:56-59`
+- Constat :
+  - `sync()` et `destroy()` appellent `$property->searchable()` dès qu'une liaison change, sans condition (lu, l. 57 et 68). Or `searchable()` d'une collection n'appelle pas `shouldBeSearchable()` (lu, `vendor/laravel/scout/src/Searchable.php:72-85`, `MeilisearchEngine::update` l. 55-80). Le code le sait ailleurs : `SyncAgencyPropertiesSearchIndex` filtre explicitement, commentaire à l'appui (l. 56-59), et `BoostLifecycle::writeProperty` choisit entre `searchable()` et `unsearchable()` (l. 233).
+  - Mesuré : bien `draft`, `private`, non publié, absent de l'index ; `POST /api/properties/{id}/tags` par son propriétaire → 200, puis le document existe dans l'index avec `status: draft`, `visibility: private` et ses étiquettes.
+  - Mesuré : bien public d'une agence passée `inactive` (absent de l'index, `shouldBeSearchable()` faux). `GET /api/public/properties/search` rend `total=0`. L'admin de l'agence synchronise un équipement → 200 (une agence `inactive` n'est pas verrouillée en écriture, `EnsureAgencyWritable`), le document revient. La même recherche rend alors **`meta.total = 1` et `data = []`**.
+  - La cause du second effet : `publicFilter()` ne transpose pas `ofPublicAgency()` (lu, l. 458-466 : visibilité, `is_test`, `published_at`, statut). Seule l'absence du document écarte un bien d'agence non active. `hydrate()` le rattrape par `->public()` (l. 819), mais le compte vient du moteur. Les facettes de `SuggestService`, comptées sous le même `publicFilter()` (lu, `SuggestService.php:119`, `:178`), compteraient ce bien (déduit, à vérifier).
+  - Le brouillon indexé n'apparaît pas en recherche publique (filtre moteur sur statut et visibilité). Il reste dans l'index, avec son texte, tant qu'il n'est pas publié ; ce qu'en font les listes internes depuis P01.01 (TCK-662) n'est pas relevé (à vérifier).
+  - Établi comment : lecture, puis le test temporaire ci-dessus.
+- Piste : écrire `$property->shouldBeSearchable() ? $property->searchable() : $property->unsearchable()` aux deux endroits, comme `BoostLifecycle::writeProperty`. Mieux : une méthode `Property::reindexer()` que les sept appelants partagent, pour que le filtre ne s'oublie plus. Garde : un test qui synchronise les équipements d'un brouillon et d'un bien d'agence `inactive`, et exige l'absence du document ; un second qui exige `meta.total` égal au nombre de biens rendus.
+
+### Une écriture explicite dans l'index survit à l'annulation de sa transaction, et `SCOUT_AFTER_COMMIT` n'y change rien
+- Réf : P90.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/vendor/laravel/scout/src/ModelObserver.php:46`, `vendor/laravel/scout/src/Searchable.php:72-85`, `takussan-api/app/Services/Boost/BoostLifecycle.php:207-234`, `:115-133`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:54-85`, `:123-128`, `takussan-api/app/Observers/PropertyObserver.php:182-185`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:216-227`, `takussan-api/app/Services/Tags/TagCatalog.php:42-53`, `:118-123`, `takussan-api/.env.docker:210-211`
+- Constat :
+  - `SCOUT_AFTER_COMMIT` n'est lu que par l'observateur de modèle (lu, `ModelObserver.php:46`). Avec `SCOUT_QUEUE=false`, un `searchable()` explicite écrit dans Meilisearch sur-le-champ (lu, `Searchable.php:78-80`), transaction ouverte ou non. `.env.docker` pose justement `SCOUT_QUEUE=false` et `SCOUT_AFTER_COMMIT=true` (lu, l. 210-211) : l'observateur attend le commit, les écritures explicites non.
+  - Mesuré : bien public indexé, `featured=false`. `DB::transaction` qui appelle `BoostLifecycle::writeProperty($p, ['featured' => true])` puis lève → la base rend `featured=false`, l'index `featured=true`.
+  - Appels explicites faits dans une transaction (lu) : achat et offre d'un boost (`purchaseOnce` l. 54-85 → `bump`/`featured`/`badge` → `writeProperty`/`project`, `offerFeatured` l. 123-128), annulation (`cancel` l. 117-131), `PropertyObserver::updated` → `reconcile()` → `project()` (l. 182-185) sur toute sauvegarde de bien faite dans une transaction, dont `PropertyController::update` (l. 216-227 : bien, puis adresse) ; `TagCatalog::synchroniser`, qui réindexe dans sa transaction à chaque proposition approuvée (l. 44, 122 ; voir P89.04).
+  - Ce qui annulerait ces transactions après l'écriture dans l'index n'est pas établi : dans `purchaseOnce`, il ne reste que `Cache::put` et le commit ; dans `PropertyController::update`, la mise à jour d'adresse, que le FormRequest borne (lu, `UpdatePropertyRequest.php:78-90`). Le défaut est donc mesuré dans son mécanisme, pas sur un chemin réel (à vérifier).
+  - Avec `SCOUT_QUEUE=true`, l'appel explicite met `MakeSearchable` en file (lu, `Searchable.php:82-84`), et les connexions de file portent `after_commit => true` depuis P05.05 (lu, `config/queue.php:51-80`) : le job serait abandonné avec la transaction (déduit du comportement de Laravel, non joué).
+  - Établi comment : lecture, puis le test temporaire ci-dessus.
+- Piste : faire passer les écritures explicites par `DB::afterCommit()` (ou une méthode partagée qui le fait, voir P90.01), pour qu'elles suivent la même règle que l'observateur sous `SCOUT_AFTER_COMMIT=true`. Garde : un test qui annule une transaction après `writeProperty()` et exige l'index inchangé ; relever `SCOUT_QUEUE` et `SCOUT_AFTER_COMMIT` de la préproduction dans `hebergement.md`.
+
+### Meilisearch injoignable : une modération d'équipement ou de quartier est validée en base, l'appelant reçoit une erreur et le journal d'audit n'est pas écrit
+- Réf : P90.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Tags/TagModeration.php:25-41`, `:43-58`, `:60-85`, `:87-133`, `takussan-api/app/Services/Geo/GeoNeighborhoodModeration.php:76-77`, `:105-106`, `takussan-api/app/Services/Geo/GeoReindexation.php:22-31`, `takussan-api/app/Http/Controllers/Api/Admin/TagModerationAdminController.php:31-34`, `takussan-api/app/Http/Controllers/Api/TagController.php:84-100`
+- Constat :
+  - Chaque geste de modération valide sa transaction, réindexe ensuite par `GeoReindexation::biens()`, puis seulement journalise (lu, `TagModeration.php:36-38`, `:54-55`, `:81-82`, `:129-130` ; `GeoNeighborhoodModeration.php:76-77`, `:105-106`). Sous `SCOUT_QUEUE=false`, la réindexation appelle Meilisearch dans la requête.
+  - Mesuré : proposition `pending` rattachée à un bien publié, client Meilisearch remplacé par un hôte injoignable, `TagModeration::approuver()` → lève `Meilisearch\Exceptions\CommunicationException`. La proposition est pourtant `approved` en base, et `activity_log` n'a reçu aucune ligne.
+  - Le contrôleur ne rattrape rien (lu, `TagModerationAdminController.php:33`) : le super-admin reçoit une erreur 500 pour un geste fait, et rien ne le trace. Rejouer le geste rend alors 409/422 (`exigerEnAttente`, déduit de la lecture). `TagController::update` a le même ordre : réindexation (l. 94), puis `activity('Admin')` (l. 97) (lu).
+  - Les biens ne sont pas réindexés non plus, et rien ne le rattrape : même effet que P89.01, par un autre chemin (déduit).
+  - Établi comment : lecture, puis le test temporaire ci-dessus.
+- Piste : journaliser avant de réindexer, et ne pas laisser l'échec de l'index faire échouer un geste validé : `report()` de l'exception, ou réindexation mise en file après commit (un job par lot d'ids, qui se relance seul). Garde : un test qui coupe Meilisearch, joue chaque geste de modération, et exige la réponse 200 et la ligne `activity_log`.
+
+### Meilisearch injoignable : l'achat d'un boost est refusé, et l'appel au moteur se fait sous les verrous de l'agence et du bien
+- Réf : P90.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:54-85`, `:151-156`, `:198`, `:253`, `:297`, `takussan-api/app/Services/Boost/BoostLifecycle.php:207-234`
+- Constat :
+  - `purchaseOnce()` verrouille la ligne de l'agence et celle du bien (`lockForUpdate`, lu l. 153-154), débite, puis écrit le bien par `writeProperty()`/`project()`, qui appelle Meilisearch avant le commit sous `SCOUT_QUEUE=false` (lu, `BoostLifecycle.php:233`).
+  - Mesuré : agence créditée de 100, bien publié, client Meilisearch injoignable, `purchase()` d'une Vedette 7 jours → `CommunicationException`. Aucun boost n'est créé, et le bien reste `featured=false` : la transaction entière est annulée.
+  - Une panne du moteur de recherche refuse donc une dépense de crédits. Le temps de réponse de Meilisearch, délai de connexion compris, s'ajoute aussi à la durée des verrous de l'agence : les autres achats de la même agence attendent (déduit de la lecture, non mesuré).
+  - `saveQuietly()` (l. 222) écarte l'observateur : cet appel est le seul à toucher l'index pendant l'achat (lu).
+  - Établi comment : lecture, puis le test temporaire ci-dessus.
+- Piste : sortir l'écriture d'index de la transaction (`DB::afterCommit()`, voir P90.02), et ne pas laisser son échec annuler l'achat (`report()`, ou mise en file). Garde : un test d'achat moteur coupé qui exige le boost créé et le débit écrit.
+
+### `GeoReindexation::biens()` charge l'agence, l'adresse et les étiquettes bien par bien : trois requêtes par bien réindexé
+- Réf : P90.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Geo/GeoReindexation.php:28-30`, `takussan-api/app/Jobs/Search/SyncAgencyPropertiesSearchIndex.php:52-54`, `takussan-api/app/Models/Property.php:500-504`
+- Constat :
+  - `chunkById(200)` sans `with()` (lu, l. 28). `shouldBeSearchable()` lit `agency`, `toSearchableArray()` lit `address` et `tagsVisibles` (lu, `Property.php:418`, `:480`, `:525`). `SyncAgencyPropertiesSearchIndex` et `makeAllSearchableUsing()` chargent ces trois relations d'avance (lu).
+  - Mesuré : `biens()` sur 5 biens → 16 requêtes ; sur 20 biens → 61 requêtes, soit 1 + 3 par bien.
+  - Ce chemin sert le renommage et la fusion de quartiers et d'équipements, la synchronisation du référentiel au déploiement (`GeoReferentialSync`) et `tags:sync-catalog` : un quartier de Dakar renommé réindexe tous ses biens (lu, `GeoNeighborhoodModeration.php:76`).
+  - Établi comment : lecture, puis le test temporaire ci-dessus (journal des requêtes).
+- Piste : `Property::query()->with('address', 'tagsVisibles', 'agency')->whereKey(…)->chunkById(…)`, comme `SyncAgencyPropertiesSearchIndex`. Garde : un test qui borne le nombre de requêtes pour N biens, indépendamment de N.
+
+### Petites améliorations
+- Réf : P90.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyTagController.php:55-58`, `takussan-api/vendor/laravel/scout/src/Jobs/MakeSearchable.php:37-44`, `takussan-api/app/Jobs/RefreshNewBuildSearchLabel.php:46-51`
+- Constat :
+  - `PropertyTagController` est le seul appelant explicite qui ne consulte pas `ModelObserver::syncingDisabledFor()` (lu ; `BoostLifecycle.php:230`, `GeoReindexation.php:24` le font). Il écrit donc dans l'index quand la synchronisation est coupée (suite de tests hors recherche, seed sous moteur coupé), ce qui est la cause de P53.01 sur ce chemin (lu).
+  - Sous `SCOUT_QUEUE=true`, `shouldBeSearchable()` est jugé à la mise en file. `MakeSearchable::handle()` pousse ensuite les modèles rechargés sans le rejuger (lu, l. 37-44) : un bien passé privé entre les deux reviendrait dans l'index (déduit, à vérifier).
+  - `RefreshNewBuildSearchLabel` réindexe par `Builder::searchable()` sans `with()` (lu, l. 50) : même motif que P90.05, sur quelques dizaines de biens par jour.
+  - Établi comment : lecture.
+- Piste : faire porter la garde `syncingDisabledFor` et le filtre `shouldBeSearchable()` par la méthode partagée de P90.01 ; ajouter `with('address', 'tagsVisibles', 'agency')` à `RefreshNewBuildSearchLabel::scope()`.
