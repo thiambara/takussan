@@ -39,7 +39,8 @@ class RoleController extends Controller
             AgencyRole::query()->where('agency_id', $agency->id)->with('capabilities'),
             $request,
         )
-            ->defaultSort('name')
+            // TCK-1118 (P87.02) — l'ordre ICU des noms, départagé par `id`.
+            ->defaultSorts(AgencyRole::nameSort(), 'id')
             ->paginate($this->tailleDePage($request, 50));
 
         return $this->paginated($paginator, AgencyRoleResource::collection($paginator)->toArray($request));

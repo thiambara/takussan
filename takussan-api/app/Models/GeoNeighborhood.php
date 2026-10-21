@@ -5,11 +5,15 @@ namespace App\Models;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\GeoNeighborhoodOrigin;
 use App\Models\Enums\ReferentialStatus;
+use App\Sorts\CollatedNameSort;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Spatie\QueryBuilder\AllowedSort;
+use Spatie\QueryBuilder\QueryBuilder;
 
 /**
  * TCK-633 (ADR-0062 §4) — un quartier, venu du jeu de données (`dataset`, approuvé d'office) ou
@@ -51,7 +55,8 @@ class GeoNeighborhood extends AbstractModel
 
     protected static array $requestFilterable = ['status', 'geo_city_id', 'origin'];
 
-    protected static array $requestSortable = ['id', 'name', 'created_at'];
+    /** `name` se trie à part, en `COLLATE "und-x-icu"` (TCK-1119) : voir {@see self::buildQuery()}. */
+    protected static array $requestSortable = ['id', 'created_at'];
 
     protected static array $requestSearchFields = ['name'];
 
@@ -59,6 +64,22 @@ class GeoNeighborhood extends AbstractModel
         'id', 'geo_city_id', 'slug', 'name', 'latitude', 'longitude', 'status', 'origin',
         'created_by_id', 'merged_into_id', 'created_at',
     ];
+
+    /**
+     * TCK-1119 (P87.03) — les tris déclarés, plus `name` en `COLLATE "und-x-icu"`, l'ordre que le
+     * référentiel public donne déjà aux quartiers (`GeoReferentialController::TRI`) : les cibles de
+     * fusion de la console les demandent par `sort=name`, et « Île Nord » passait après « Zone B ».
+     *
+     * @param  Builder<static>|null  $baseQuery
+     */
+    public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
+    {
+        return QueryBuilder::for($baseQuery ?? static::class, $request)
+            ->allowedFilters(...static::getAllowedQueryFilters())
+            ->allowedFields(...static::getAllAllowedQueryFields())
+            ->allowedSorts(...static::$requestSortable, ...[AllowedSort::custom('name', new CollatedNameSort, 'geo_neighborhoods.name')])
+            ->allowedIncludes(...static::getAllowedQueryIncludes());
+    }
 
     public function city(): BelongsTo
     {
