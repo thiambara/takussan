@@ -9776,7 +9776,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### L'estimation de l'indemnité de résiliation anticipée ignore le réglage plateforme et celui de l'agence
 - Réf : P98.05
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1164
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/EarlyTerminationDialog.tsx:30-32,85`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:287-305`, `takussan-api/app/Http/Resources/LeaseResource.php:68-70`
 - Constat :
@@ -9785,6 +9785,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Le commentaire « Aligned with backend default » dit la recopie (lu, `:30`).
 - Piste : exposer sur le bail le nombre de mois que `penaltyMonthsFor()` rend, et le faire lire par le dialogue ; test du dialogue avec un bail à 3 mois. Montant affiché, pas écrit : à classer au regard de V1.
 - Mesure (2026-10-21, e7f741bf4, mesureur) : relu `EarlyTerminationDialog.tsx:30-32,85` (`DEFAULT_PENALTY_MONTHS = 2` en dur dans le calcul), `EarlyTerminationService.php:287-305` (bail, puis agence, puis catalogue) et `LeaseResource.php:68-75` (`early_termination_requested_at`, `_requested_by`, `_effective_date`, `_penalty_amount`, `_reason`, `_invoice_id` : pas de nombre de mois) → le constat tient ; la ressource expose aussi le montant de la pénalité une fois calculé, que le constat ne citait pas. Classement : V1, la piste change le calcul d'un montant de pénalité montré au locataire avant sa demande.
+- Mesure (2026-10-21, d51663f12, implementeur) : avant correctif, `GET /api/leases/{id}` ne rendait pas `early_termination_penalty_months` (`LeaseContractTermsTest`, rouge : clé absente) et le dialogue d'un bail à 3 mois affichait « 2 mois » (`EarlyTerminationDialog.test.tsx`, rouge) → le détail rend `penaltyMonthsFor()` (bail figé à 3 → 3, bail non figé → le réglage, 4) et le dialogue estime sur lui ; ablation : 1 rouge API, 1 rouge front, correctif remis → 36/36 et 5/5.
 
 ### Les fournisseurs SMS et WhatsApp ne se configurent pas depuis la console : le schéma ne porte qu'`api_key`, que nul pilote ne lit
 - Réf : P98.06
