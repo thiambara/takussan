@@ -9027,7 +9027,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Un numéro d'agrément déjà porté par une autre agence rend 500
 - Réf : P92.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1105
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreAgencyRequest.php:36`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:51`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:60,128` (rapport), `takussan-api/database/migrations/2026_04_17_160002_create_agencies_table.php:15`
 - Constat :
@@ -9036,6 +9036,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Les écritures `create` et `fill()->save()` sont citées par un sous-agent (à vérifier).
 - Piste : `Rule::unique('agencies', 'license_number')` (`->ignore($agency)` en modification) ; test 422. Le cas de l'agence supprimée qui garde son numéro relève peut-être d'un choix (libérer le numéro à la suppression).
 - Mesure (2026-10-21, c9a22e0df, mesureur) : relu `StoreAgencyRequest.php:36` et `AgencyUpdateRequest.php:51` (`['nullable', 'string']`), `AgencyController.php` (`Agency::create`, `fill($data)->save()`), `agencies.license_number` `unique()` ; test temporaire `TmpMesureurP92Test` (base créée par le test, charge 2,09 / 2,51 / 3,36 sur 8 cœurs, retiré ensuite) → `POST /api/agencies` avec le numéro d'une agence vivante : 500 `agencies_license_number_unique` ; avec celui d'une agence supprimée : 500, même contrainte ; `PUT /api/agencies/{id}` en admin de l'agence vers un numéro pris : 500. Le constat, déduit, est établi dans ses trois cas. Correctif attendu : `Rule::unique('agencies', 'license_number')` (sans exclure les supprimées, comme la contrainte) dans les deux FormRequest, `->ignore($agency)` en modification, soit 422 sur `license_number`, et un test des trois cas ; le numéro d'une agence supprimée n'est pas libéré. Classement : A1, la contrainte fixe la règle et aucun appel qui aboutit aujourd'hui ne change.
+- Mesure (2026-10-21, df625ed63, implementeur) : avant correctif, `AgencyLicenseNumberUniqueTest` (charge 3,89 / 4,85 / 4,24 sur 8 cœurs) rend 500 `agencies_license_number_unique` sur ses trois cas (création avec le numéro d'une agence vivante, d'une agence supprimée, modification vers un numéro pris) → `Rule::unique('agencies', 'license_number')` sans exclure les supprimées, `ignore()` de l'agence en modification : 422 sur `license_number`, un numéro libre à 201 et un `PATCH` qui garde son numéro à 200 ; ablation des deux FormRequest → 3 rouges sur 3, correctif remis → 3/3 ; `AgencyTest`, `AgencySettingsMergeTest`, `AgencyCurrencySupportedTest`, `WelcomeCreditOnAgencyStoreTest` verts.
 
 ### Une étiquette créée à la console sous un nom pris, à la casse près, rend 500
 - Réf : P92.05
