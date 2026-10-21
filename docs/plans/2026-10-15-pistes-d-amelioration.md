@@ -8698,7 +8698,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### Un `geo:sync-referential` qui échoue à la réindexation laisse l'index sur l'ancien nom pour toujours, et `release.sh` annonce « référentiel inchangé »
 - Réf : P89.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : le correctif passe par `docker/release.sh` ou par une reprise persistée (V4)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:57-61`, `takussan-api/app/Services/Geo/GeoReferentialSync.php:22-26`, `takussan-api/app/Services/Geo/GeoReferentialLoader.php:90-104`, `:144-157`, `takussan-api/docker/release.sh:16-22`, `takussan-api/app/Console/Commands/SearchVerifyIndexes.php:121-136`
 - Constat :
@@ -8709,10 +8709,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Même effet si un fichier de région suivant lève : les régions déjà validées ne sont jamais réindexées (lu ; non joué).
   - Établi comment : lecture, puis le test temporaire ci-dessus.
 - Piste : rendre la réindexation rejouable. Une option : persister les biens à réindexer (une colonne ou une table de reprise), ou réindexer région par région dans le même passage, avant de valider la suivante, et faire rejouer `GeoReindexation::biens()` sur ce reste au passage suivant. Une autre option : sur échec, faire forcer par `release.sh` l'importation complète de `Property` au lieu de seulement avertir. Corriger le message de `release.sh:22` dans les deux cas. Garde : un test Feature qui joue le scénario mesuré ci-dessus (moteur en panne, puis second passage) et exige le nouveau nom dans l'index.
+- Mesure (2026-10-21, d3a36896e, mesureur) : relu `GeoReferentialLoader::charger` (une `DB::transaction` par fichier, l. 56-61), `GeoReferentialSync::executer` (réindexation après tous les fichiers), `quartier()` (`isDirty('name')`) et `release.sh:21-22` ; `git log 05baee08e..HEAD` sur ces fichiers → aucun commit ; test temporaire `TmpMesureurP89Test` (base de test PostgreSQL, Meilisearch du port 7701, client Meilisearch remplacé par un hôte injoignable au premier passage, charge 4,80 / 4,49 / 5,19 sur 8 cœurs, retiré ensuite) → premier passage : `CommunicationException` qui sort de la commande sans être attrapée (elle n'hérite pas de `RuntimeException`, donc une trace et non le message d'une ligne), adresse et quartier déjà « Point E Amitié » en base ; second passage, client rétabli : code 0, `biens_renommes : 0` ; index : `[]` sur « Point E Amitié », `[1]` sur « Point E ». Le constat tient en entier. Classement : V5, les deux options de la piste passent par `docker/release.sh` (forcer l'importation, corriger le message) ou par une table de reprise (V4), et le choix entre elles revient au porteur.
 
 ### `seed.sh` remet la base à zéro sans rejouer `alerts:ensure-ops-rules` : une préproduction reseedée n'a aucune règle d'alerte d'exploitation
 - Réf : P89.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : remplir l'état d'une préproduction reseedée, par `seed.sh` ou par le seeder
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/seed.sh:16-33`, `takussan-api/docker/release.sh:26-29`, `takussan-api/app/Console/Commands/EnsureOperationalAlertRules.php:26-50`, `docs/infra/hebergement.md:301-307`
 - Constat :
@@ -8721,10 +8722,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Le reseed d'une préproduction se lance à la main, après le déploiement (lu, `hebergement.md:301-307`). Ce reseed vide la table que `release.sh:28` vient de remplir, et rien ne la remplit jusqu'au push suivant sur `preview`. Pendant ce temps, une alerte `ops_*` part au journal d'audit et nulle part ailleurs, ce qui est le défaut d'origine de TCK-768 (déduit de `TCK-768`, l. 22-25 ; non joué en préproduction).
   - Établi comment : lecture des deux scripts et des seeders, plus le `SELECT` ci-dessus.
 - Piste : faire jouer à `seed.sh`, après `db:seed`, les commandes idempotentes du déploiement qu'aucun seeder ne couvre (`alerts:ensure-ops-rules` au moins), ou appeler `EnsureOperationalAlertRules` depuis `DatabaseSeeder`. Garde : étendre `scripts/test-release-reindex.sh` à `seed.sh`, et vérifier que la commande y est jouée.
+- Mesure (2026-10-21, d3a36896e, mesureur) : relu `seed.sh` (`migrate:fresh`, `scout:flush`, `db:seed`, `scout:import`, aucune commande de rattrapage) ; `grep -rln "AlertRule\|alert_rules\|EnsureOperationalAlertRules" database/seeders` → rien ; `SELECT count(*) FROM alert_rules` sur la base de développement (port 5433, base `takussan`, lecture) → 0 ; `hebergement.md` § « Remettre une préproduction à zéro » : reseed lancé à la main par `--profile seed run --rm seed`. Le constat tient (l'absence de règle en préproduction après un reseed est déduite, non relevée). Classement : V5, la piste offre deux voies, `docker/seed.sh` (procédure de préproduction) ou `DatabaseSeeder` (qui créerait aussi des règles d'alerte en développement), et le choix touche l'exploitation.
 
 ### `seed.sh` écrit le marqueur de recherche sans lire l'issue des tâches d'importation, ce que TCK-995 a corrigé dans `release.sh` seulement
 - Réf : P89.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : le correctif vit dans `docker/seed.sh` et `docker/lib.sh`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/seed.sh:18-33`, `takussan-api/docker/release.sh:48-76`, `takussan-api/vendor/laravel/scout/src/Engines/MeilisearchEngine.php:373-378`
 - Constat :
@@ -8734,10 +8736,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - `seed.sh` n'est joué par aucun test : `scripts/test-release-reindex.sh` ne fixe que `$RELEASE` (lu, l. 21 et 46).
   - Établi comment : lecture des deux scripts, de Scout et du harnais.
 - Piste : faire suivre l'importation de `seed.sh` du même `search:verify-indexes --depuis="$debut"` que `release.sh`, et n'écrire le marqueur que sur son succès. Le plus simple est de déplacer le bloc d'importation dans une fonction de `lib.sh` partagée par les deux scripts. Garde : jouer `seed.sh` dans `test-release-reindex.sh` (tâches en échec → marqueur absent).
+- Mesure (2026-10-21, d3a36896e, mesureur) : relu `seed.sh:17-33` (marqueur écrit par `cp` sans condition, échec de `scout:flush` toléré), `release.sh:57-76` (`search:verify-indexes --depuis` avant le marqueur), `MeilisearchEngine::flush()` (`deleteAllDocuments()` sans attente de tâche) et `SearchVerifyIndexes::indexVide` (ne refuse qu'un index à zéro document face à une table non vide) ; `test-release-reindex.sh:19,47` ne joue que `$RELEASE`. Le constat tient en lecture ; l'index partiel jamais réimporté et les documents orphelins après `migrate:fresh` restent déduits, aucune tâche en échec n'a été provoquée. Classement : V5, le correctif déplace le bloc d'importation dans les scripts du conteneur (`docker/seed.sh`, `docker/lib.sh`), comme les entrées précédentes sur `release.sh`.
 
 ### `tags:sync-catalog` réindexe sans `SCOUT_QUEUE=false`, à l'inverse de `geo:sync-referential` et pour la raison que `release.sh` écarte
 - Réf : P89.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : une ligne de `docker/release.sh`, et la valeur de `SCOUT_QUEUE` en préproduction n'est pas relevée
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/release.sh:16-24`, `takussan-api/app/Services/Tags/TagCatalog.php:44-54`, `:118-123`, `takussan-api/config/scout.php:59`
 - Constat :
@@ -8746,10 +8749,11 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Si la préproduction déclare `SCOUT_QUEUE=true` (valeur non relevée, `hebergement.md:173` ; `.env.example:147` le recommande avec Meilisearch), ces jobs partent vers la file `database` (`prod-drivers.json:43-48`). Le worker encore en place les exécute alors avec l'ancien `toSearchableArray()`, et l'échec n'atteint jamais `release.sh` (déduit, à vérifier). Le volet « dans une transaction » relève de l'angle 90.
   - Établi comment : lecture.
 - Piste : préfixer `tags:sync-catalog` de `SCOUT_QUEUE=false`, comme la ligne au-dessus, et l'épingler dans `test-release-reindex.sh` (la variable est visible du talon `php` par son environnement).
+- Mesure (2026-10-21, d3a36896e, mesureur) : relu `release.sh:21-24` (`SCOUT_QUEUE=false` devant `geo:sync-referential`, absent devant `tags:sync-catalog`), `TagCatalog::synchroniser` (une `DB::transaction` autour des `assurer()`) et `assurer()` (approuver une proposition réindexe ses biens par `GeoReindexation::biens`), `config/scout.php:59` (`env('SCOUT_QUEUE', false)`), `.env.example:147` (recommande `true` avec Meilisearch) et `prod-drivers.json` (`QUEUE_CONNECTION=database` mesuré le 2026-09-14 ; `SCOUT_QUEUE` non relevé). Le constat tient en lecture ; l'exécution par l'ancien worker reste déduite. Classement : V5, le correctif est une ligne de `docker/release.sh`, script de déploiement, et son effet dépend d'une variable de préproduction qu'aucun relevé ne donne.
 
 ### Petites améliorations
 - Réf : P89.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `scripts/test-release-reindex.sh:76-100`, `takussan-api/docker/release.sh:21-24`, `takussan-api/app/Console/Commands/GeoSyncReferential.php:24-30`
 - Constat :
@@ -8757,3 +8761,4 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - `GeoSyncReferential` n'attrape que `RuntimeException` (lu, l. 26). Un JSON de région invalide lève `JsonException` (`JSON_THROW_ON_ERROR`, `GeoReferentialLoader.php:58`), qui n'en hérite pas : la commande meurt sur une trace au lieu du message d'une ligne. Le code de sortie reste 1, et `release.sh` conclut juste (lu ; non joué).
   - Établi comment : lecture et `grep`.
 - Piste : ajouter au harnais un passage `ECHEC_SUR=geo:sync-referential` et un passage `ECHEC_SUR=tags:sync-catalog` (release continue), et attraper aussi `JsonException` dans la commande.
+- Mesure (2026-10-21, d3a36896e, mesureur) : `grep -n "geo:\|tags:" scripts/test-release-reindex.sh` → rien (les passages `ECHEC_SUR=` couvrent `migrate`, `membership:reconcile`, `alerts:ensure-ops-rules`, `search:*`) ; relu `GeoSyncReferential::handle` (n'attrape que `RuntimeException`) ; test temporaire `TmpMesureurP89Test` (charge 4,80 / 4,49 / 5,19 sur 8 cœurs, retiré ensuite) → un fichier de région `{pas du json` fait sortir de la commande une `JsonException` « Syntax error » non attrapée ; même mesure, une `Meilisearch\Exceptions\CommunicationException` (hérite de `\Exception`) sort aussi sans message d'une ligne (P89.01). Le constat tient en entier. Classement : A5 et A1, deux passages ajoutés au harnais épinglent la tolérance que `release.sh:19-20` écrit déjà (« un échec n'arrête pas le déploiement »), et attraper `JsonException` suit le contrat de la commande (message d'une ligne et `FAILURE`), sans toucher `release.sh` ni le code de sortie.
