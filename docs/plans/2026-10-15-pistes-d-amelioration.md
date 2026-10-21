@@ -8955,7 +8955,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### Aucune garde ne confronte les bornes de longueur des règles au schéma
 - Réf : P91.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-1111
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/`, `takussan-api/tests/Feature/Validation/ReglesNullableFaceAuSchemaTest.php`
 - Constat :
@@ -8964,6 +8964,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Le rapprochement par nom de cet angle a laissé 66 couples « `string` sans `max` » sur une clé homonyme d'une colonne `varchar`. Seuls ceux des entrées P91.01 à P91.05 sont établis : le reste demande la table écrite par chaque requête.
 - Piste : sur le modèle de `ReglesNullableFaceAuSchemaTest`, un test qui liste les couples (requête, clé, table, colonne) des entrées P91.01 à P91.05. Il vérifierait trois points : la longueur de la colonne dans `information_schema`, une règle `max:` présente et au plus égale, et la règle jouée seule sur une chaîne de N+1 caractères qui rend une erreur sur la clé. La variante générique (toute règle `string` d'une requête qui écrit) demande la même table requête → modèle que le reste de P54.07.
 - Mesure (2026-10-21, 3e5f55e7b, mesureur) : `grep -rln character_maximum_length takussan-api/tests scripts` → les deux mêmes fichiers (`CustomerIdNumberEncryptionTest`, `GuarantorSensitiveDataTest`), aucun ne lit un FormRequest ; `ReglesNullableFaceAuSchemaTest` ne vérifie aucune règle `max:` (`grep max:` → rien). Correctif attendu : sur le modèle de `ReglesNullableFaceAuSchemaTest`, un test qui liste les couples (requête, clé, table, colonne) de P91.01 à P91.05 et vérifie la longueur lue dans `information_schema`, une règle `max:` au plus égale, et une erreur sur la clé pour N+1 caractères ; il se livre avec les correctifs qu'il garde. Classement : A5, une garde ajoutée sans seuil touché, dans sa forme simple ; la variante générique reste à l'appréciation de l'implémenteur.
+- Mesure (2026-10-21, 3246a9611, implementeur) : `grep -rln character_maximum_length takussan-api/tests` → les deux mêmes fichiers, aucune garde des `max:` (défaut tenu) ; `BornesMaxFaceAuSchemaTest`, 44 couples (requête, clé, table, colonne) de P91.01 à P91.05, vérifie la colonne `varchar(N)` dans `information_schema`, un `max:K` avec K ≤ N, un refus sur la clé à N+1 caractères (adresse valide pour une clé e-mail) et un passage à K → 44 verts ; ablation : correctif de TCK-1110 retiré → 9 rouges (les couples e-mail), `StoreTagRequest.color` remis à `max:20` → 1 rouge (« borné à 20, au-delà de tags.color, varchar(7) ») ; correctif remis → 44/44. La variante générique n'est pas faite.
 
 ### Petites améliorations
 - Réf : P91.08
