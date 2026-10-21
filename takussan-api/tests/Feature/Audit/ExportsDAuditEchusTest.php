@@ -20,18 +20,18 @@ class ExportsDAuditEchusTest extends TestCase
 
     public function test_la_purge_supprime_les_exports_d_audit_dont_le_lien_est_echu(): void
     {
-        Storage::fake();
+        Storage::fake('local');
         $echu = ActivityLogExportController::storagePath(7, '11111111-1111-4111-8111-111111111111.csv');
-        Storage::put($echu, 'ancien');
-        touch(Storage::path($echu), now()->subHours(ActivityLogExportController::LINK_TTL_HOURS + 1)->getTimestamp());
+        Storage::disk('local')->put($echu, 'ancien');
+        touch(Storage::disk('local')->path($echu), now()->subHours(ActivityLogExportController::LINK_TTL_HOURS + 1)->getTimestamp());
 
         $recent = ActivityLogExportController::storagePath(7, '22222222-2222-4222-8222-222222222222.csv');
-        Storage::put($recent, 'récent');
+        Storage::disk('local')->put($recent, 'récent');
 
         (new PurgeExpiredActivityLogExports)->handle();
 
-        Storage::assertMissing($echu);
-        Storage::assertExists($recent);
+        Storage::disk('local')->assertMissing($echu);
+        Storage::disk('local')->assertExists($recent);
     }
 
     public function test_la_notification_ne_range_pas_l_url_signee(): void

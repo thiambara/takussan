@@ -23,7 +23,7 @@ class PurgeExpiredActivityLogExports implements ShouldQueue
     public function handle(): void
     {
         $limite = now()->subHours(ActivityLogExportController::LINK_TTL_HOURS)->getTimestamp();
-        $disque = Storage::disk();
+        $disque = Storage::disk(ActivityLogExportController::DISK);
 
         foreach ($disque->allFiles(ActivityLogExportController::STORAGE_ROOT) as $chemin) {
             if ($disque->lastModified($chemin) <= $limite) {
