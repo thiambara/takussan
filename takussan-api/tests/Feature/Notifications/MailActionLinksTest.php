@@ -49,9 +49,8 @@ use Tests\TestCase;
  *   · que `actionUrl` commence par la base du front (`app.frontend_url`, à défaut `app.url`) — y
  *     compris quand `app.frontend_url` est VIDE : `config('app.frontend_url', …)` ne se repliait
  *     jamais (la clé est toujours définie), et le lien sortait alors relatif ;
- *   · que son chemin soit une page de `takussan-web/src/app`, résolue comme la garde JS : un groupe
- *     `(x)` est transparent, un segment dynamique `[x]` prend tout segment, un catch-all `[...x]` ne
- *     compte pas, et le dossier atteint porte un `page.tsx`.
+ *   · que son chemin suive celui que déclare {@see CHEMINS} — et la garde JS, qui lit les deux
+ *     arbres, exige que chaque chemin déclaré mène à une page du front.
  *
  * Toute classe de `app/Notifications` qui pose un bouton (`->action(`) doit figurer dans
  * {@see cas()} ou dans {@see EXEMPTIONS}, avec sa raison : une classe neuve n'échappe pas au test.
@@ -63,6 +62,35 @@ class MailActionLinksTest extends TestCase
     private const API = 'https://api.exemple.test';
 
     private const FRONT = 'https://front.exemple.test';
+
+    /**
+     * Le chemin de chaque lien, `{id}` pour un segment variable. ⚠ C'est
+     * `scripts/check-notification-target-paths.mjs` (Repo CI) qui les résout en pages de
+     * `takussan-web/src/app`, comme les cibles de `NotificationTarget::PATHS` : ce test-ci ne lit
+     * pas le front, l'attestation de l'API (ADR-0063) n'en portant pas la clé. Il vérifie que le
+     * lien rendu suit le chemin déclaré, la garde que le chemin déclaré mène à une page.
+     */
+    public const CHEMINS = [
+        'ThresholdAlertTriggered' => '/app/overview',
+        'AgencyAdminActivationNotification' => '/auth/reset-password',
+        'DataExportReadyNotification' => '/app/account/privacy',
+        'FavoriteChangesNotification' => '/app/favorites',
+        'TenantWelcomeNotification' => '/app',
+        'TenantInventoryReminderNotification' => '/app/inventories',
+        'AgentTenantInventoryReminderNotification' => '/app/leases/onboarding-pending',
+        'AgencyUpgradeApprovedNotification' => '/app',
+        'AgencyUpgradeRejectedNotification' => '/app/settings/agency/upgrade',
+        'AgencyUpgradeRequestSubmittedNotification' => '/super-admin/agency-upgrade-requests/{id}',
+        'SearchAlertConfirmationNotification' => '/{id}/search-alerts/confirm',
+        'AccountDeletionRequestedNotification' => '/app/profile',
+        'AccountDeletionReminderNotification' => '/app/profile',
+        'CodedNotification' => '/app/messages',
+        'ResetPasswordNotification' => '/auth/reset-password',
+        'RegistrationConfirmationNotification' => '/auth/verify-email/{id}/{id}',
+        'InvitationMailable' => '/invitations/accept',
+        'NotificationDigestMail' => '/app/notifications',
+        'NotificationDigestMail (désabonnement)' => '/{id}/notifications/unsubscribe',
+    ];
 
     /** Les boutons qui ne visent pas le front, et pourquoi. */
     private const EXEMPTIONS = [
@@ -130,7 +158,7 @@ class MailActionLinksTest extends TestCase
             [$notification, $destinataire] = $fabrique();
             $mail = $notification->toMail($destinataire);
             $this->assertInstanceOf(MailMessage::class, $mail, $classe);
-            if (($faute = $this->fauteDe((string) $mail->actionUrl, $base)) !== null) {
+            if (($faute = $this->fauteDe($classe, (string) $mail->actionUrl, $base)) !== null) {
                 $fautes[] = "{$classe} → {$mail->actionUrl} : {$faute}";
             }
         }
@@ -146,7 +174,7 @@ class MailActionLinksTest extends TestCase
 
         $invitation = Invitation::factory()->create();
         $accept = (string) (new InvitationMailable($invitation))->content()->with['acceptUrl'];
-        if (($faute = $this->fauteDe($accept, $base)) !== null) {
+        if (($faute = $this->fauteDe('InvitationMailable', $accept, $base)) !== null) {
             $fautes[] = "InvitationMailable → {$accept} : {$faute}";
         }
 
@@ -161,13 +189,11 @@ class MailActionLinksTest extends TestCase
         ]);
         $digest = new NotificationDigestMail($user, collect(['system' => collect([$notification])]), truncated: true);
         $html = $digest->render();
-        foreach (['/app/notifications', '/fr/notifications/unsubscribe'] as $chemin) {
+        foreach ([self::CHEMINS['NotificationDigestMail'], '/fr/notifications/unsubscribe'] as $chemin) {
             if (! str_contains($html, e($base.$chemin))) {
                 $fautes[] = "NotificationDigestMail : aucun lien {$base}{$chemin}";
             }
         }
-        $this->assertNull($this->fauteDe($base.'/app/notifications', $base));
-        $this->assertNull($this->fauteDe($base.'/fr/notifications/unsubscribe', $base));
 
         $this->assertSame([], $fautes);
     }
@@ -188,70 +214,18 @@ class MailActionLinksTest extends TestCase
         $this->assertSame([], array_values(array_diff(array_keys(self::EXEMPTIONS), $avecBouton)), 'exemption sans classe à bouton');
     }
 
-    public function test_la_resolution_refuse_un_chemin_mort_et_le_catch_all(): void
-    {
-        $this->assertNull($this->pageDe('/app/overview/inexistante-p97'));
-        $this->assertNull($this->pageDe('/app/une-page-qui-n-existe-pas'), 'le catch-all `[...introuvable]` ne compte pas');
-        $this->assertNotNull($this->pageDe('/super-admin/agency-upgrade-requests/12'));
-        $this->assertNotNull($this->pageDe('/en/search-alerts/confirm?token=x'));
-    }
-
-    private function fauteDe(string $url, string $base): ?string
+    private function fauteDe(string $classe, string $url, string $base): ?string
     {
         if (! str_starts_with($url, $base.'/')) {
             return "n'est pas sur la base du front {$base}";
         }
+        $attendu = self::CHEMINS[$classe] ?? null;
+        if ($attendu === null) {
+            return 'aucun chemin déclaré dans CHEMINS';
+        }
         $chemin = (string) parse_url($url, PHP_URL_PATH);
+        $motif = '#^'.str_replace(preg_quote('{id}', '#'), '[^/]+', preg_quote($attendu, '#')).'$#';
 
-        return $this->pageDe($chemin) === null ? "{$chemin} ne mène à aucune page de takussan-web/src/app" : null;
-    }
-
-    private function pageDe(string $chemin): ?string
-    {
-        $segments = array_values(array_filter(
-            explode('/', explode('?', $chemin)[0]),
-            fn (string $s) => $s !== '',
-        ));
-        foreach ($this->resoudre(base_path('../takussan-web/src/app'), $segments) as $dossier) {
-            if (is_file($dossier.'/page.tsx')) {
-                return $dossier.'/page.tsx';
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param  list<string>  $segments
-     * @return list<string>
-     */
-    private function resoudre(string $dossier, array $segments): array
-    {
-        $this->assertDirectoryExists(base_path('../takussan-web/src/app'), 'le test lit l\'arborescence du front');
-        $sous = array_values(array_filter(
-            scandir($dossier) ?: [],
-            fn (string $n) => $n[0] !== '.' && is_dir($dossier.'/'.$n),
-        ));
-
-        $viaGroupes = [];
-        foreach ($sous as $n) {
-            if (str_starts_with($n, '(') && str_ends_with($n, ')')) {
-                $viaGroupes = [...$viaGroupes, ...$this->resoudre($dossier.'/'.$n, $segments)];
-            }
-        }
-        if ($segments === []) {
-            return [$dossier, ...$viaGroupes];
-        }
-
-        [$tete, $reste] = [$segments[0], array_slice($segments, 1)];
-        $suivants = [];
-        foreach ($sous as $n) {
-            // Dynamique simple ; jamais un catch-all `[...x]`.
-            if ($n === $tete || preg_match('/^\[[^.\]][^\]]*\]$/', $n) === 1) {
-                $suivants = [...$suivants, ...$this->resoudre($dossier.'/'.$n, $reste)];
-            }
-        }
-
-        return [...$suivants, ...$viaGroupes];
+        return preg_match($motif, $chemin) === 1 ? null : "le chemin {$chemin} n'est pas {$attendu}";
     }
 }

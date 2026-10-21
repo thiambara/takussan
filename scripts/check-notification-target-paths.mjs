@@ -20,6 +20,12 @@
  * `[...x]` NE COMPTENT PAS : `app/(dashboard)/app/[...introuvable]` attrape toute adresse inconnue
  * pour rendre un 404 maison. Le laisser résoudre aurait rendu tout chemin « valide ».
  *
+ * P97.05 (TCK-1185) — elle lit AUSSI les chemins des boutons de courriel écrits à la main, que
+ * déclare `MailActionLinksTest::CHEMINS` (`takussan-api/tests/Feature/Notifications/`). Ce test
+ * rend chaque `toMail()` et exige que le lien suive le chemin déclaré ; il ne lit pas le front,
+ * dont l'attestation de l'API ne porte pas la clé (ADR-0063). C'est ici, où les deux arbres sont
+ * lus, que le chemin déclaré se résout en page.
+ *
  * Usage :
  *   node scripts/check-notification-target-paths.mjs            # sort en 1 au moindre chemin mort
  *   node scripts/check-notification-target-paths.mjs --report   # + la résolution de chaque chemin
@@ -32,6 +38,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPORT = process.argv.includes('--report');
 const SOURCE = join(ROOT, 'takussan-api', 'app', 'Domain', 'Notifications', 'NotificationTarget.php');
 const APP = join(ROOT, 'takussan-web', 'src', 'app');
+const SOURCE_COURRIELS = join(ROOT, 'takussan-api', 'tests', 'Feature', 'Notifications', 'MailActionLinksTest.php');
 
 /** Les entrées `'kind' => '/chemin'` du tableau `PATHS`, et elles seules. */
 export function lirePaths(php) {
@@ -39,6 +46,15 @@ export function lirePaths(php) {
   if (!bloc) throw new Error('PATHS introuvable dans NotificationTarget.php — la garde ne sait plus lire sa source.');
   const sortie = [];
   for (const m of bloc[1].matchAll(/^\s*'([a-z_]+)'\s*=>\s*'([^']+)'/gm)) sortie.push({ kind: m[1], chemin: m[2] });
+  return sortie;
+}
+
+/** Les entrées `'Classe' => '/chemin'` de la constante `CHEMINS` du test des boutons de courriel. */
+export function lireChemins(php) {
+  const bloc = php.match(/public const CHEMINS = \[([\s\S]*?)\n\s*\];/);
+  if (!bloc) throw new Error('CHEMINS introuvable dans MailActionLinksTest.php — la garde ne sait plus lire sa source.');
+  const sortie = [];
+  for (const m of bloc[1].matchAll(/^\s*'([^']+)'\s*=>\s*'([^']+)'/gm)) sortie.push({ kind: m[1], chemin: m[2] });
   return sortie;
 }
 
@@ -67,8 +83,11 @@ export function pageDe(chemin, app = APP) {
 }
 
 function main() {
-  const paths = lirePaths(readFileSync(SOURCE, 'utf8'));
-  if (paths.length === 0) throw new Error('PATHS est vide — la garde ne lit plus rien, elle ne prouverait rien.');
+  const cibles = lirePaths(readFileSync(SOURCE, 'utf8'));
+  if (cibles.length === 0) throw new Error('PATHS est vide — la garde ne lit plus rien, elle ne prouverait rien.');
+  const courriels = lireChemins(readFileSync(SOURCE_COURRIELS, 'utf8'));
+  if (courriels.length === 0) throw new Error('CHEMINS est vide — la garde ne lit plus rien, elle ne prouverait rien.');
+  const paths = [...cibles, ...courriels];
   const morts = [];
   for (const { kind, chemin } of paths) {
     const page = pageDe(chemin);
@@ -78,11 +97,11 @@ function main() {
   if (morts.length > 0) {
     console.error(`✗ ${morts.length} cible(s) de notification sans page dans takussan-web/src/app :`);
     for (const m of morts) console.error(`    ${m}`);
-    console.error('  Corriger NotificationTarget::PATHS, ou créer la page. Une notification qui mène à un 404 est un lien peint sur un mur.');
+    console.error('  Corriger NotificationTarget::PATHS ou MailActionLinksTest::CHEMINS (et le lien qu’il éprouve), ou créer la page. Une notification qui mène à un 404 est un lien peint sur un mur.');
     process.exitCode = 1;
     return;
   }
-  console.log(`✓ ${paths.length} cibles de notification, chacune mène à une page du front.`);
+  console.log(`✓ ${cibles.length} cibles de notification et ${courriels.length} liens de courriel, chacun mène à une page du front.`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) main();
