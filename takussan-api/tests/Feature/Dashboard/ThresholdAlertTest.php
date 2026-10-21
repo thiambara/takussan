@@ -145,6 +145,32 @@ class ThresholdAlertTest extends ApiTestCase
     }
 
     /**
+     * P97.01 (TCK-1122) — le bouton du courriel mène au tableau de bord du FRONT. Il était
+     * `url('/app/overview')` : envoyé par la commande planifiée, hors requête, il prenait
+     * `APP_URL`, l'hôte de l'API, qui n'a aucune route `app/overview` (404).
+     */
+    public function test_mail_action_targets_the_front_dashboard(): void
+    {
+        config(['app.frontend_url' => 'https://front.exemple.test/']);
+
+        $agency = Agency::factory()->create();
+        $admin = User::factory()->create();
+        $alert = ThresholdAlert::create([
+            'agency_id' => $agency->id,
+            'metric' => 'unpaid_rate_percent',
+            'operator' => '>',
+            'threshold' => 10.0,
+            'severity' => 'critical',
+            'is_enabled' => true,
+            'cooldown_hours' => 24,
+        ]);
+
+        $mail = (new ThresholdAlertTriggered($alert, 42.0))->toMail($admin);
+
+        $this->assertSame('https://front.exemple.test/app/overview', $mail->actionUrl);
+    }
+
+    /**
      * P93.04 (TCK-1113) — une alerte ne va qu'aux admins dont le profil est
      * actif dans l'agence : un profil suspendu ou archivé n'en reçoit plus.
      */
