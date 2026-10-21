@@ -4,11 +4,13 @@ namespace Tests\Feature\Jobs;
 
 use App\Jobs\Lease\ApplyLateFeesJob;
 use App\Models\Agency;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\SettingScope;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Setting;
+use App\Services\Lease\LateFeeCalculator;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -118,6 +120,41 @@ class ApplyLateFeesJobTest extends TestCase
         $this->assertSame(2, $applied);
         $this->assertSame('5000.00', (string) $paymentA->fresh()->late_fee_amount);
         $this->assertSame('20000.00', (string) $paymentB->fresh()->late_fee_amount);
+    }
+
+    /**
+     * TCK-1149 (P81.03) — la pénalité de retard est celle d'une échéance de loyer : l'indemnité de
+     * résiliation, la caution, les charges et une régularisation n'en portent pas. Le loyer en est
+     * le témoin : sans lui, une sélection vide rendrait les cinq cas exclus verts.
+     */
+    public function test_seul_le_loyer_porte_une_penalite_de_retard(): void
+    {
+        $lease = Lease::factory()->create(['late_fee_percent' => 10, 'late_fee_grace_days' => 0]);
+        $echeances = collect(LeasePaymentType::cases())
+            ->reject(fn (LeasePaymentType $type) => $type === LeasePaymentType::DepositRefund)
+            ->mapWithKeys(fn (LeasePaymentType $type) => [$type->value => LeasePayment::factory()->create([
+                'lease_id' => $lease->id,
+                'payment_type' => $type,
+                'amount' => 100_000,
+                'due_date' => now()->subDays(7)->toDateString(),
+                'status' => PaymentStatus::Pending,
+                'late_fee_amount' => null,
+                'late_fee_applied_at' => null,
+            ])]);
+
+        $this->assertSame(1, app()->call([new ApplyLateFeesJob, 'handle']));
+
+        foreach ($echeances as $type => $echeance) {
+            $echeance->refresh();
+            if ($type === LeasePaymentType::Rent->value) {
+                $this->assertSame('10000.00', (string) $echeance->late_fee_amount);
+
+                continue;
+            }
+            $this->assertNull($echeance->late_fee_applied_at, "une échéance {$type} a été pénalisée");
+            $this->assertSame(PaymentStatus::Pending, $echeance->status, "une échéance {$type} est passée en retard");
+            $this->assertFalse(app(LateFeeCalculator::class)->isApplicable($echeance), "{$type} jugée pénalisable");
+        }
     }
 
     public function test_skips_leases_without_late_fee_percent(): void
