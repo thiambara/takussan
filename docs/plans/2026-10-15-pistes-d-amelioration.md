@@ -8299,7 +8299,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Petites améliorations
 - Réf : P83.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1131 — reste : lister les clés de `agencies.metadata` lues par le code (`welcome.standard_unlocked_at`, `slug_changed_at`, `legal_info` en repli) dans `docs/models-spec.md` § 2, sur le modèle de la table `users` : la spec est fermée à l'implémenteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:31-33`, `takussan-api/app/Listeners/Agency/FlipAgencyKindOnUpgradeApproved.php:58-59`, `takussan-web/src/types/agency.ts:16-19`, `docs/models-spec.md:545`
 - Constat :
@@ -8310,6 +8310,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Établi comment : lu.
 - Piste : corriger les trois commentaires pour dire ce que fait le code, et lister les clés de `agencies.metadata` dans la spec, sur le modèle de `users`.
 - Mesure (2026-10-20, e5f73559b, mesureur) : relu `AdminGlobalSearchService.php:31-33` (« Le NINEA se cherche dans `agencies.metadata->legal_info` ») contre l. 124-128 (`where('ninea', …)` puis repli `metadata->'legal_info'`) ; `FlipAgencyKindOnUpgradeApproved.php:58` (« le flip écrit `metadata.legal_info` ») contre `AgencyKindFlipService.php:39` (« the flip writes only there [colonnes]. `metadata.legal_info` is read, never » écrit) ; `takussan-web/src/types/agency.ts:17-19` (« backfilled by the agency-upgrade flow ») ; `docs/models-spec.md:545` sans clés, alors que `Agency.php:245-257` lit `slug_changed_at` et `welcome.standard_unlocked_at` et `AgencyController.php:124` écrit la première → le constat tient. Classement : A6, trois commentaires et une ligne de spec corrigés pour dire ce que fait le code, sans changement de comportement.
+- Mesure (2026-10-21, 51a00558a, implementeur) : relu `AdminGlobalSearchService.php:31-33` (« Le NINEA se cherche dans `agencies.metadata->legal_info` ») contre `byToken()` (`where('ninea', …)` puis repli `metadata->'legal_info'`), `FlipAgencyKindOnUpgradeApproved.php:58` (« le flip écrit `metadata.legal_info` ») contre `AgencyKindFlipService::LEGAL_FIELDS` (« the flip writes only there »), `types/agency.ts:17-19` (« backfilled by the agency-upgrade flow ») → les trois tiennent ; corrigés pour dire ce que fait le code, sans test ni ablation (commentaires seuls) ; la liste des clés dans `models-spec.md` reste, la spec étant fermée à l'implémenteur.
 
 ## Angle 84 — Valeurs chiffrées par ADR-0044 recopiées en clair ailleurs
 
