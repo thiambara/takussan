@@ -20,13 +20,13 @@ const flag: AdminFeatureFlag = {
   updated_at: null,
 };
 
-function renderTable() {
+function renderTable(flags: AdminFeatureFlag[] = [flag]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   render(withIntl(
     <QueryClientProvider client={queryClient}>
-      <FeatureFlagTable flags={[flag]} />
+      <FeatureFlagTable flags={flags} />
     </QueryClientProvider>,
   ));
 }
@@ -58,5 +58,21 @@ describe('<FeatureFlagTable>', () => {
     await user.click(screen.getByRole('button', { name: /^tester$/i }));
 
     expect(await screen.findByRole('button', { name: /vous testez/i })).toBeInTheDocument();
+  });
+
+  // TCK-1125 (P98.01) — le dialogue n'a pas de champ d'agences : il renvoie celles déjà posées,
+  // au lieu de les effacer à chaque enregistrement.
+  it('garde les agences ciblées à l’enregistrement', async () => {
+    vi.mocked(patchAdminFeatureFlag).mockResolvedValue({ data: [] });
+    const user = userEvent.setup();
+    renderTable([{ ...flag, enabled: true, segments: { agency_ids: [7, 9] } }]);
+
+    await user.click(screen.getByRole('button', { name: /configurer/i }));
+    await user.click(screen.getByRole('button', { name: /enregistrer/i }));
+
+    await waitFor(() => expect(patchAdminFeatureFlag).toHaveBeenCalledWith('property_compare', {
+      enabled: true,
+      segments: { roles: [], agency_ids: [7, 9], rollout_percentage: 0 },
+    }));
   });
 });

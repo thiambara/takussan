@@ -83,4 +83,41 @@ class FeatureFlagTest extends TestCase
         $this->actingAsRole('agency_admin');
         $this->patchJson('/api/admin/feature-flags/property_compare', ['enabled' => true])->assertForbidden();
     }
+
+    /**
+     * TCK-1125 (P98.01) — le dialogue « Configurer » envoie toujours `roles` et
+     * `rollout_percentage`, vides et à 0 sans ciblage. Ce corps, que l'écran affiche « Global »,
+     * éteignait le drapeau pour tout le monde : seul `[]` valait « sans restriction ».
+     */
+    public function test_le_corps_du_dialogue_sans_ciblage_reste_global(): void
+    {
+        $superAdmin = $this->actingAsRole('super_admin');
+        $evaluator = app(FeatureFlagEvaluator::class);
+
+        $this->patchJson('/api/admin/feature-flags/host_auto_space', [
+            'enabled' => true,
+            'segments' => ['roles' => [], 'rollout_percentage' => 0],
+        ])->assertOk();
+
+        $this->assertSame([], FeatureFlag::query()->where('key', 'host_auto_space')->first()->segments_json);
+        $this->assertTrue($evaluator->isEnabled('host_auto_space', User::factory()->create()));
+        $this->assertTrue($evaluator->isEnabled('host_auto_space', null));
+        $this->assertTrue($evaluator->isEnabled('host_auto_space', $superAdmin));
+
+        // Une ligne déjà écrite sous cette forme se lit de même.
+        $ecrite = new FeatureFlag(['key' => 'k_vide', 'enabled' => true, 'segments_json' => ['roles' => [], 'agency_ids' => [], 'rollout_percentage' => 0]]);
+        $this->assertTrue($evaluator->evaluate($ecrite, null));
+        // Une clé inconnue n'est pas vide : le jugement reste fail-closed.
+        $inconnue = new FeatureFlag(['key' => 'k_inconnue', 'enabled' => true, 'segments_json' => ['roles' => [], 'plan' => 'pro']]);
+        $this->assertFalse($evaluator->evaluate($inconnue, null));
+
+        // Un ciblage réel reste un ciblage.
+        $this->patchJson('/api/admin/feature-flags/host_auto_space', [
+            'enabled' => true,
+            'segments' => ['roles' => ['agency_admin'], 'rollout_percentage' => 0],
+        ])->assertOk();
+        $this->assertSame(['roles' => ['agency_admin'], 'rollout_percentage' => 0], FeatureFlag::query()->where('key', 'host_auto_space')->first()->segments_json);
+        $this->assertFalse($evaluator->isEnabled('host_auto_space', User::factory()->create()));
+        $this->assertFalse($evaluator->isEnabled('host_auto_space', null));
+    }
 }

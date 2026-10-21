@@ -14,7 +14,7 @@ class NotificationTemplateService
     public function all(): array
     {
         return collect(EditableNotificationEvents::all())
-            ->flatMap(fn (array $definition, string $event) => collect(EditableNotificationEvents::CHANNELS)
+            ->flatMap(fn (array $definition, string $event) => collect(EditableNotificationEvents::channels($event))
                 ->map(fn (string $channel) => $this->get($event, $channel)))
             ->values()
             ->all();
@@ -141,7 +141,7 @@ class NotificationTemplateService
         if (! EditableNotificationEvents::has($event)) {
             throw ValidationException::withMessages(['event' => 'notification_event_not_editable']);
         }
-        if (! in_array($channel, EditableNotificationEvents::CHANNELS, true)) {
+        if (! in_array($channel, EditableNotificationEvents::channels($event), true)) {
             throw ValidationException::withMessages(['channel' => 'notification_channel_not_editable']);
         }
     }
