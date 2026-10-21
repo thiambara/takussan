@@ -31,7 +31,7 @@ agence sans aucun bien recevait l'alerte « occupation sous le seuil », et la t
 
 ## Décision du porteur (déléguée)
 
-`occupancy.rate_percent` rend `null` sans bien éligible longue durée, comme `short_stay_percent` (TCK-595, contrat de données) ; `KpiResolver` garde ce `null` pour `occupancy_rate_percent`, et `dashboard:check-alerts` n'évalue pas une alerte dont la valeur est `null` ; le front type `rate_percent: number | null` et affiche un tiret sur la tuile « Taux d'occupation » de l'agence et du bailleur ; un test épingle l'agence sans bien (valeur `null`, aucune notification)
+`occupancy.rate_percent` rend `null` sans bien éligible longue durée, comme `short_stay_percent` (TCK-595, contrat de données) ; `KpiResolver` garde ce `null` pour `occupancy_rate_percent`, et `dashboard:check-alerts` n'évalue pas une alerte dont la valeur est `null` ; le front type `rate_percent: number | null` et affiche un tiret sur la tuile « Taux d'occupation » de l'agence et du bailleur ; un test épingle l'agence sans bien (valeur `null`, aucune notification) ; reste : le `null` de `unpaid_rate_percent` sans dénominateur, qui relève de P93.03 et reste au porteur
 
 ## Reste à faire
 
