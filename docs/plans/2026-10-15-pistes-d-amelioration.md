@@ -176,7 +176,7 @@ voie d'écriture (angle 13, puis 47).
 | 100 | Constantes `*_FIELDS` et `fields[…]` écrits du front face aux `$queryFields` du modèle visé : colonne demandée que l'API refuse (400 `http.bad_request`), rattrapée en `null` ou en page d'erreur — `src/lib/queries/*.ts`, `src/app/actions/*` | fait |
 | 101 | Passage axe au navigateur des écrans `/app` des autres profils (propriétaire, locataire, prestataire, agent) et des pages de détail `[id]` (bien, bail, client, paiement), derrière le faux API en lecture seule de l'angle 68 | fait |
 | 102 | État initial masqué au rendu serveur (`opacity-0`, `invisible`, `useReveal`, `animate-*` dépendant d'un effet) sur les autres listes et rangées publiques (`PropertyRow` de l'accueil, fiches agence et agent, favoris, biens similaires) : contenu présent dans le HTML et invisible jusqu'à l'hydratation, ou sans JS | fait |
-| 103 | Appels du navigateur à l'hydratation des pages publiques (`geo/cities`, `geo/regions`, `amenities`, `property-types`, `maintenance/status`, préflights CORS) : lesquels pourraient venir du rendu serveur ou du cache de données, et ce qu'ils coûtent sous 3G | à faire |
+| 103 | Appels du navigateur à l'hydratation des pages publiques (`geo/cities`, `geo/regions`, `amenities`, `property-types`, `maintenance/status`, préflights CORS) : lesquels pourraient venir du rendu serveur ou du cache de données, et ce qu'ils coûtent sous 3G | fait |
 | 104 | Poids JS initial des écrans de la console `/super-admin` (`SuperAdminShell`, tableaux, dialogues importés statiquement, fichiers `index.ts` de `components/admin/super`) : le relevé de l'angle 70 sur l'autre console | à faire |
 | 105 | Charge RSC d'un document `/app` servi : dictionnaires imbriqués de `layout.tsx`, `(dashboard)` et `(dashboard)/app` (et `/app/agency`) sérialisés chacun avec l'ensemble cumulé de ses parents, mesurés sur le document compressé | à faire |
 | 106 | Branches que le code ne prend qu'en `APP_ENV=production` (`RestrictIpMiddleware` à liste vide, `DeletionStepUpService::sendCode`, `AddRobotsTagOutsideProduction` jugé sur `APP_URL`) : chacune éprouvée par un test en `production`, alors que la préproduction tourne en `staging` et ne les prend jamais ? | à faire |
@@ -210,6 +210,7 @@ voie d'écriture (angle 13, puis 47).
 | 133 | Estimations et aperçus calculés au front par une constante qui recopie un réglage ou un calcul de l'API (`DEFAULT_*` des dialogues de bail : indemnité de résiliation, préavis de 30 jours, pénalités de retard, révision de loyer, échéancier) : chiffre affiché qui diverge du réglage de la plateforme, de l'agence ou du bail | à faire |
 | 134 | Tris `orderBy` / `orderByDesc` sur une colonne d'enum rangée en chaîne (`severity`, `priority`, `status`, `level` des annonces, alertes, maintenances, tâches) : ordre alphabétique pris pour un ordre métier dans une liste ou un « premier élément » affiché | à faire |
 | 135 | Listes écrites à la main, hors `buildQuery` (`LeasePaymentController::index`, `ConversationController::index`, `ReviewController::index`, contrôleurs `Admin\*`) : `sort`, `page` et `per_page` envoyés par le front face à l'ordre et au plafond rendus, et lecteurs qui ne lisent que la première page — le relevé de P100.01 sur les autres listes | à faire |
+| 136 | Lectures du navigateur au chargement d'un écran `/app` et `/super-admin` (`useApiQuery` en parallèle, clés en double, `enabled` en cascade qui attend une première réponse, données déjà lues par le rendu serveur) : allers-retours avant l'écran utile, chacun précédé d'un préflight puisqu'il porte `Authorization` — le relevé de l'angle 103 sur la console | à faire |
 
 ---
 
@@ -10174,3 +10175,100 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : code relu.
 - Piste : réécrire les trois commentaires pour dire `backwards` (A6). Rien à garder par un test.
 - Mesure (2026-10-21, 0acc2203f, mesureur) : `grep -n 'both\|backwards' globals.css` → `.animate-fade-in-up`, `.animate-card-enter` et `.animate-section-enter` en `backwards` (l. 423, 431, 439, motif l. 418-421) ; les trois commentaires cités disent toujours `both` (`card-stagger.ts:4-7`, `globals.css:519`, `PropertyDetailContent.tsx:168`), et un quatrième, non relevé, aussi : `globals.css:450` (« Pas de `both` ici, contrairement aux trois autres »). Le point sur `prefers-reduced-motion` relève du défaut de P102.01 et n'est pas retenu ici. Classement : A6, des commentaires qui contredisent le CSS mesuré, réécrits pour dire `backwards` (les quatre), sans code ni test.
+
+## Angle 103 — Appels du navigateur à l'hydratation des pages publiques
+
+*Exploré le 2026-10-21 sur `pre-dev` 0acc2203f, par l'explorateur. Tout a été relu par l'explorateur lui-même, sans sous-agent : le layout racine et ses fournisseurs montés pour tout le site (`UserLocationProvider`, `FeatureFlagProvider`, `AuthProvider`, `BandeauxDuSite`, `MaintenanceBanner`, `GlobalAnnouncementBanner`), `Navbar`, `HomepageDiscovery` et `useHomepageDiscovery`, `PropertySimilar`, `usePropertyReviews`, `useSuggest`, `referentiel-public.ts`, `apiFetch` et `apiRequest` (`src/lib/api.ts`), `config/cors.php`, `routes/api/geo.php`, `routes/api/public.php`, `PublicPropertyTypeController`, `HomepageDiscoveryService::resolveNearRow()`. Mesures par trois tests PHPUnit temporaires, retirés, sur la base de test (charge 9,00 / 6,45 / 7,14 sur 8 cœurs). Ni le front ni l'API ne tournaient : aucune frise réseau n'a été relevée, les durées sous Fast 3G citées viennent de l'angle 69 (P69.06). Ce que P69.06 a déjà traité (le référentiel du panneau chargé à la seule visibilité, TCK-1088) n'a pas d'entrée.*
+
+### L'API répond aux préflights CORS avec `Access-Control-Max-Age: 0` : le navigateur ne les garde jamais, et chaque appel non simple coûte deux allers-retours
+- Réf : P103.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/config/cors.php:31`
+- Constat :
+  - `'max_age' => 0` (lu, l. 31). Aucun ADR, document d'infrastructure ni test ne dit pourquoi (`grep -rn "max_age\|Max-Age\|preflight" docs/adr docs/infra takussan-api/tests` → rien qui porte sur CORS).
+  - Mesuré (test temporaire, `OPTIONS` avec `Origin`, `Access-Control-Request-Method: GET` et `Access-Control-Request-Headers: accept-language,content-type`) sur `public/geo/cities`, `public/geo/regions`, `public/amenities`, `public/property-types` et `maintenance/status` → 204, `Access-Control-Max-Age: 0` à chaque fois.
+  - Le navigateur ne met donc aucun préflight en cache : chaque appel non simple vers l'origine de l'API est précédé de son `OPTIONS`, même répété dans la seconde (déduit de l'en-tête, à vérifier sur une frise réseau). P69.06 a mesuré un tel préflight à 562 ms sous Fast 3G.
+  - Tout appel connecté du navigateur porte `Authorization` (lu, `src/lib/api.ts:700-702`) et n'est donc jamais simple : la console `/app` paie ce préflight sur chacune de ses lectures, pas seulement les pages publiques (déduit, à vérifier).
+- Piste : donner à `max_age` une valeur positive (Chrome la plafonne à 7 200 s, à vérifier), à fixer avec P103.02. Garde : un test de fonctionnalité qui envoie un préflight sur une route publique et exige un `Access-Control-Max-Age` strictement positif.
+
+### `apiRequest` pose `Content-Type: application/json` sur tout GET sans corps : chaque lecture du navigateur par `useApiQuery` déclenche un préflight, frappe de l'autocomplétion comprise
+- Réf : P103.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/api.ts:696-698`, `takussan-web/src/hooks/useApiQuery.ts:64`, `takussan-web/src/hooks/useSuggest.ts:17-24`, `takussan-web/src/lib/queries/referentiel-public.ts:49-66`
+- Constat :
+  - `if (!formData) requestHeaders['Content-Type'] = 'application/json'` s'applique quelle que soit la méthode (lu, l. 696-698), donc à un `GET` qui n'a pas de corps. `application/json` n'est pas un type de contenu admis pour une requête simple : la requête passe par un préflight (règle CORS, non mesurée ici).
+  - Les autres en-têtes d'un visiteur anonyme ne le demanderaient pas : `Accept: application/json` et `Accept-Language: fr` sont admis, `Authorization` et `X-Active-Profile-Hint` absents sans session (lu, l. 690-711). `apiFetch`, lui, ne pose pas `Content-Type` (lu, l. 112-117) : `property-types`, `discovery`, `similar` et `search` partent sans préflight.
+  - Passent par `useApiQuery`, donc par `apiRequest`, sur les pages publiques : les trois listes du référentiel (lu, `referentiel-public.ts`) et l'autocomplétion de la barre de recherche, une requête par saisie après 150 ms d'attente (lu, `useSuggest.ts:17-24`). Avec P103.01, chaque frappe retenue coûte un `OPTIONS` puis un `GET`.
+  - P69.06 avait relevé que « trois de ces appels passent par un préflight » sans en nommer la cause : c'est cet en-tête.
+- Piste : ne poser `Content-Type` que lorsqu'un corps part (`body !== undefined && !formData`). Garde : un test vitest de `apiRequest` qui, pour un `GET` sans corps, exige l'absence de `Content-Type` dans les en-têtes passés à `fetch`.
+
+### Les listes du référentiel public (`geo/cities`, `geo/regions`, `amenities`, `property-types`) sortent en `no-cache, private` sans `ETag` : le navigateur les retélécharge en entier à chaque chargement de page
+- Réf : P103.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/routes/api/geo.php:13-22`, `takussan-api/routes/api/public.php:13-14`, `takussan-api/routes/api/enums.php:7`
+- Constat :
+  - Mesuré (test temporaire, `GET` anonyme) : `public/geo/cities`, `public/geo/regions`, `public/amenities` et `public/property-types` → 200, `Cache-Control: no-cache, private`, aucun `ETag`, aucun `Vary`.
+  - Aucune de ces routes ne porte `cache.headers` (lu, `geo.php:13-22`, `public.php:13-14`), alors que les énumérations, liste fermée du même genre, sont servies en `cache.headers:public;max_age=300;etag` (lu, `enums.php:7`). Les corps ne dépendent ni de la langue ni de l'appelant : noms du référentiel et compte par type (lu, `GeoReferentialController`, `PublicPropertyTypeController`).
+  - Le `staleTime` d'une heure de `referentiel-public.ts` ne vit qu'en mémoire : chaque chargement complet d'une page de recherche au-delà de 1 024 px redemande les 55 Kio de `geo/cities` mesurés par P69.06 (déduit, à vérifier sur une frise).
+  - Le rendu serveur lit déjà les domaines de facettes avec un cache de données d'une heure (lu, `facettes.ts:69-71`) : ce sont deux lectures du même genre, l'une en cache et l'autre non.
+- Piste : `cache.headers:public;max_age=…;etag` sur ces quatre routes, sur le modèle de `enums.php`, avec une durée à choisir (le référentiel change par la modération des quartiers, ADR-0062). Garde : un test par route sur `Cache-Control` et `ETag`, comme `HomepageDiscoveryTest::test_response_is_publicly_cacheable`.
+
+### La barre publique demande `/public/property-types` à chaque montage, sur toutes les pages, pour des comptes qu'elle n'affiche que dans un menu fermé et absent sous 1 024 px
+- Réf : P103.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/home/Navbar.tsx:271-284`, `takussan-web/src/components/home/Navbar.tsx:421`, `takussan-web/src/components/home/Navbar.tsx:504-509`, `takussan-api/app/Http/Controllers/Public/PublicPropertyTypeController.php`
+- Constat :
+  - Un `useEffect` sans dépendance appelle `apiFetch('/public/property-types')` au montage, sans cache de requête (lu, l. 271-284).
+  - Les comptes ne servent qu'au menu « Plus » (lu, l. 509, seul lecteur de `typeCounts`), rendu seulement quand il est ouvert (lu, l. 504), et le bandeau de catégories qui le porte est dans un bloc `hidden lg:flex` (lu, l. 421) : sur mobile, l'appel part et rien ne l'affiche.
+  - La `Navbar` est montée par chaque page et non par un layout (lu, `grep -rln "<Navbar" src` → 19 fichiers, dont l'accueil, la liste, la fiche, les fiches agence et agent, les pages légales) : une navigation d'une page publique à une autre la remonte et refait l'appel (déduit, à vérifier).
+  - Côté API, chaque appel joue un `GROUP BY type` sur les biens publics (lu, `PublicPropertyTypeController.php`), servi `no-cache, private` (mesuré, voir P103.03), et compte dans le seau `throttle:public-read` du visiteur.
+- Piste : demander les comptes à la première ouverture du menu (`useApiQuery` ou `useQuery` avec `enabled: moreOpen`, et un `staleTime`), ou les recevoir du rendu serveur. Garde : un test vitest qui rend la `Navbar` menu fermé et exige qu'aucun appel à `property-types` ne parte.
+
+### `UserLocationProvider` interroge ipapi.co depuis le layout racine, sur toutes les pages, alors que quatre écrans seulement lisent la ville devinée
+- Réf : P103.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/layout.tsx:104-121`, `takussan-web/src/components/providers/UserLocationProvider.tsx:73-145`
+- Constat :
+  - Le fournisseur est monté à la racine (lu, `layout.tsx`) et son effet appelle `fetch('https://ipapi.co/json/')` dès le montage quand le `localStorage` n'a pas de réponse de moins de 24 h (lu, l. 104-125).
+  - Lecteurs de `useUserLocation()` (lu, `grep -rn useUserLocation src`) : l'accueil (`HomepageDiscovery`), le parcours d'hôte de l'onboarding (`HostIndividualWizard`), l'étape « Lieu » du formulaire de bien (par `useGeoSuggestion`) et la page `playground`. La fiche, la liste, les pages agence et agent, `/auth`, la console : aucun lecteur, et l'appel part quand même.
+  - Le premier contact d'un visiteur venu par un lien de fiche (P102.01 rappelle que ces liens circulent sur WhatsApp) paie donc une résolution DNS, une poignée TLS et une requête vers un tiers après l'hydratation, et transmet son IP à ce tiers sans qu'aucun écran ne s'en serve (déduit de la lecture ; le coût n'a pas été mesuré, l'appel sortant vers ipapi.co n'a pas été joué). La politique de confidentialité le déclare (lu, `content/legal/privacy.ts:109`).
+- Piste : ne lancer la résolution qu'au premier abonnement d'un lecteur (le fournisseur expose une fonction de démarrage, ou le crochet la déclenche), en gardant le cache de 24 h. Garde : un test vitest qui monte le fournisseur sans lecteur et exige qu'aucun `fetch` vers `ipapi.co` ne parte.
+
+### Pour un visiteur deviné à Dakar, l'accueil redemande `discovery` après l'hydratation et reçoit les mêmes rangées que le rendu serveur
+- Réf : P103.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/hooks/useHomepageDiscovery.ts:97-130`, `takussan-web/src/components/property/HomepageDiscovery.tsx:97-108`, `takussan-api/app/Services/Property/HomepageDiscoveryService.php:136-158`
+- Constat :
+  - Le rendu serveur demande `discovery` sans ville ; le client la redemande avec `near_city` dès qu'une ville est devinée (lu, `useHomepageDiscovery.ts:100-130`). Le docblock pose la règle : « La relance n'a lieu que lorsqu'il y a quelque chose de neuf à demander » et « le second, lui, rapporte une réponse différente » (lu, l. 85-93).
+  - Sans ville, l'API sert la ville de référence, `Dakar` (lu, `HomepageDiscoveryService.php:35`, `:152-158`). Avec `near_city=Dakar`, `resolveNearRow()` sert les candidats de la même ville (lu, l. 140-148).
+  - Mesuré (test temporaire, 30 biens publiés à Dakar et 10 à Thiès, `per_row=12`) : les rangées `near`, `rent`, `featured` et `latest` sont identiques, au même ordre, entre les deux appels ; seul `near.requested_city` passe de `null` à `"Dakar"`, et `fallback` reste faux. Le corps fait 36,8 Kio non compressé.
+  - L'appel serveur de `discovery` a été mesuré entre 789 et 1 022 ms (P69.03) : pour le marché principal, l'accueil rejoue après l'hydratation une requête d'environ une seconde dont la réponse ne change rien à l'écran. La part des visiteurs devinés à Dakar n'est pas connue (à vérifier).
+- Piste : ne relancer que si la ville devinée diffère de `donneesInitiales.near.city`, comparée sans casse (`toLocaleLowerCase`, comme `CaseInsensitive::fold` côté API). Garde : un test vitest du crochet, rangées semées pour `Dakar` et ville devinée `Dakar`, qui exige qu'aucun `fetch` ne parte.
+
+### La fiche demande les biens similaires et les avis au navigateur après l'hydratation, alors que la page d'un bien retiré reçoit déjà ses similaires du serveur
+- Réf : P103.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertySimilar.tsx:14-50`, `takussan-web/src/hooks/useSimilarProperties.ts:13-33`, `takussan-web/src/hooks/usePropertyReviews.ts:14-33`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:225,262`, `takussan-web/src/lib/queries/public-property.ts:106-112`
+- Constat :
+  - `useSimilarProperties` et `usePropertyReviews` appellent `apiFetch` dans un `useEffect` au montage (lu), sans condition de visibilité. Les deux sections sont en bas de la fiche (lu, `PropertyDetailContent.tsx:225`, `:262`), et `PropertySimilar` rend quatre squelettes tant que la réponse n'est pas là (lu, l. 40-50).
+  - Le HTML servi ne porte donc ni les liens vers les biens similaires ni les avis : ils n'existent qu'après l'hydratation, que P69.01 a mesurée vers 8,3 s sous Fast 3G sur la liste (non mesuré pour la fiche, à vérifier).
+  - La page d'un bien loué, vendu ou retiré reçoit au contraire ses similaires du rendu serveur, dans `EtatPublicDuBien.similar` (lu, `public-property.ts:106-112`) : la voie serveur existe déjà pour la même donnée.
+  - Mesuré (test temporaire) : `public/properties/{slug}/similar` et `/reviews` sortent en `no-cache, private`, sans `ETag`.
+- Piste : lire les similaires (et le résumé des avis, si le porteur le veut dans le HTML) avec la fiche côté serveur et les passer en données initiales, sur le modèle de `donneesInitiales` de l'accueil (TCK-432) ; à défaut, ne les demander qu'à l'approche de la section. Garde : un test de rendu serveur de la fiche qui exige un lien `/properties/<slug>` d'un bien similaire dans le HTML.
+
+### Petites améliorations
+- Réf : P103.08
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/maintenance/MaintenanceBanner.tsx:14-17,52`, `takussan-web/src/lib/query-client.ts:11-19`
+- Constat :
+  - `MaintenanceBanner` interroge `/api/maintenance/status` toutes les 60 s sur toutes les pages, visiteur anonyme compris (lu, l. 52, `refetchInterval: 60_000` sans `enabled`), et encore au retour sur l'onglet (`refetchOnWindowFocus` laissé actif, lu, `query-client.ts:11`). Le relais met la réponse en cache 60 s (lu, `app/api/maintenance/status/route.ts:9`) : l'API n'est pas touchée, mais un onglet mobile ouvert envoie une requête par minute. `refetchIntervalInBackground` n'est pas posé, donc l'interrogation s'arrête onglet masqué (comportement de TanStack Query, non mesuré).
+  - Établi comment : code relu.
+- Piste : un intervalle plus long pour un visiteur anonyme, ou aucun intervalle hors de la console, le statut étant relu au chargement de chaque page. À trancher avec P79.06 et P98.10, qui touchent déjà ce bandeau et la durée de son statut.
