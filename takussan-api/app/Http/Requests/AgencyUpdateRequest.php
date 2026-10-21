@@ -48,7 +48,12 @@ class AgencyUpdateRequest extends BaseFormRequest
     {
         return [
             'name' => ['sometimes', 'string'],
-            'license_number' => ['sometimes', 'nullable', 'string'],
+            // TCK-1105 (P92.04) — unique sur toutes les lignes, supprimées comprises, comme la
+            // contrainte ; l'agence modifiée ne se compte pas elle-même.
+            'license_number' => [
+                'sometimes', 'nullable', 'string',
+                Rule::unique('agencies', 'license_number')->ignore($this->route('agency')),
+            ],
             'description' => ['sometimes', 'nullable', 'string'],
             'email' => ['sometimes', 'nullable', 'email'],
             'phone' => ['sometimes', 'nullable', 'string'],

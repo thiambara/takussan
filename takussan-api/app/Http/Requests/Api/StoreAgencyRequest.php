@@ -33,7 +33,9 @@ class StoreAgencyRequest extends BaseFormRequest
     {
         return [
             'name' => ['required', 'string'],
-            'license_number' => ['nullable', 'string'],
+            // TCK-1105 (P92.04) — `agencies.license_number` est unique sur toutes les lignes,
+            // supprimées comprises : la règle les compte de même (422, plus le 500 de la contrainte).
+            'license_number' => ['nullable', 'string', Rule::unique('agencies', 'license_number')],
             'description' => ['nullable', 'string'],
             'email' => ['nullable', 'email'],
             'phone' => ['nullable', 'string'],
