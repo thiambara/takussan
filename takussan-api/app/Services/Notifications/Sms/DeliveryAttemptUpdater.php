@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Log;
  */
 class DeliveryAttemptUpdater
 {
+    public function __construct(private readonly OtpLateFailureMemory $otpFailures = new OtpLateFailureMemory) {}
+
     /**
      * P36.02 (TCK-796) — la précédence des accusés SMS, poussés comme tirés : `failed` est le rang
      * le plus haut, puis `delivered`, puis `sent`. Un accusé de rang inférieur arrivé après (tardif,
@@ -122,5 +124,8 @@ class DeliveryAttemptUpdater
             'failure_reason' => $attempt->failure_reason,
             'attempt_id' => $attempt->id,
         ]);
+
+        // P72.03 (TCK-1093) — un code à usage unique saute ce fournisseur à son renvoi.
+        $this->otpFailures->recordFailure($attempt->provider, $attempt->provider_message_id);
     }
 }
