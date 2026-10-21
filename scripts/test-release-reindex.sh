@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #
 # test-release-reindex.sh — exerce la décision de réindexation de takussan-api/docker/release.sh.
+# Depuis TCK-1157 et TCK-1159 (P89.02, P89.03), il joue aussi seed.sh, le reseed d'une
+# préproduction, qui partage avec release.sh l'importation de lib.sh.
 #
 # Successeur de test-deploy-search-reindex.sh, retiré avec deploy.sh (ADR-0028). Même raison
 # d'être : ni PHPUnit ni vitest ne lisent du shell, et se tromper ici est muet des deux côtés —
@@ -17,8 +19,9 @@ set -uo pipefail
 cd "$(dirname "$0")/.." || exit 2
 
 RELEASE=takussan-api/docker/release.sh
+SEED=takussan-api/docker/seed.sh
 LIB=takussan-api/docker/lib.sh
-[ -f "$RELEASE" ] && [ -f "$LIB" ] || { echo "✗ $RELEASE ou $LIB introuvable" >&2; exit 2; }
+[ -f "$RELEASE" ] && [ -f "$SEED" ] && [ -f "$LIB" ] || { echo "✗ $RELEASE, $SEED ou $LIB introuvable" >&2; exit 2; }
 
 echecs=0
 racine=$(mktemp -d)
@@ -37,6 +40,7 @@ fabrique() {
   cat > "$racine/bin/php" <<'EOF'
 #!/bin/sh
 echo "$*" >> "$JOURNAL"
+echo "SCOUT_QUEUE=${SCOUT_QUEUE:-} $*" >> "$JOURNAL.env"
 case "$*" in *"${ECHEC_SUR:-@@jamais@@}"*) exit 1 ;; esac
 exit 0
 EOF
@@ -46,7 +50,7 @@ EOF
 # jouer [VAR=valeur…] — un passage de $script ; le journal des appels dans $racine/journal.
 script=$RELEASE
 jouer() {
-  : > "$racine/journal"
+  : > "$racine/journal"; : > "$racine/journal.env"
   env SCOUT_DRIVER=meilisearch "$@" APP_ROOT="$racine/app" JOURNAL="$racine/journal" \
     PATH="$racine/bin:$PATH" sh "$script" >/dev/null 2>&1
 }
@@ -89,6 +93,15 @@ verifier "règles d'alerte d'exploitation : alerts:ensure-ops-rules est joué" 1
 fabrique; jouer ECHEC_SUR=alerts:ensure-ops-rules
 verifier "règles d'alerte en échec : release continue" 0 "$?"
 
+# TCK-1163 (P89.05) : un référentiel qui échoue n'arrête pas le déploiement (release.sh, « un
+# échec n'arrête pas le déploiement ») ; les étapes suivantes sont jouées.
+fabrique; jouer ECHEC_SUR=geo:sync-referential
+verifier "référentiel géographique en échec : release continue" 0 "$?"
+verifier "référentiel géographique en échec : tags:sync-catalog est joué" 1 "$(grep -c '^artisan tags:sync-catalog' "$racine/journal" || true)"
+fabrique; jouer ECHEC_SUR=tags:sync-catalog
+verifier "catalogue des équipements en échec : release continue" 0 "$?"
+verifier "catalogue des équipements en échec : l'importation a lieu" 2 "$(imports)"
+
 # TCK-710 (P01.07) : des réglages d'index périmés font échouer la liste publique sans mot
 # (`sort=ranked_at:desc` → invalid_search_sort). Le déploiement s'arrête au lieu de servir cela.
 fabrique; jouer ECHEC_SUR=search:sync-index-settings
@@ -110,10 +123,41 @@ fabrique; jouer ECHEC_SUR="search:verify-indexes --depuis"; sortie=$?
 verifier "tâches d'importation échouées : le marqueur ne s'écrit pas" absent "$(marqueur)"
 verifier "tâches d'importation échouées : release continue" 0 "$sortie"
 
+# TCK-1161 (P89.04) : les référentiels réindexent des biens ; sous SCOUT_QUEUE=true (celui de
+# l'environnement), ces jobs partiraient vers l'ANCIEN worker. Le talon journalise la variable.
+fabrique; jouer SCOUT_DRIVER=collection SCOUT_QUEUE=true
+verifier "geo:sync-referential est joué sous SCOUT_QUEUE=false" 1 "$(grep -c '^SCOUT_QUEUE=false artisan geo:sync-referential' "$racine/journal.env" || true)"
+verifier "tags:sync-catalog est joué sous SCOUT_QUEUE=false" 1 "$(grep -c '^SCOUT_QUEUE=false artisan tags:sync-catalog' "$racine/journal.env" || true)"
+
+# ── seed.sh : la remise à zéro d'une préproduction ──
+script=$SEED
+
+# TCK-1157 (P89.02) : `migrate:fresh` vide `alert_rules`, qu'aucun seeder ne remplit. Le reseed
+# rejoue donc la commande du déploiement, après `db:seed` ; son échec n'arrête pas le reseed.
+fabrique; jouer DB_DATABASE=takussan_preview SCOUT_DRIVER=collection
+verifier "seed : alerts:ensure-ops-rules est joué après db:seed" "db:seed alerts:ensure-ops-rules" \
+  "$(grep -E '^artisan (db:seed|alerts:ensure-ops-rules)' "$racine/journal" | cut -d' ' -f2 | paste -sd' ' -)"
+fabrique; jouer DB_DATABASE=takussan_preview SCOUT_DRIVER=collection ECHEC_SUR=alerts:ensure-ops-rules
+verifier "seed : règles d'alerte en échec, le reseed continue" 0 "$?"
+
+# TCK-1159 (P89.03) : le reseed écrit le marqueur comme release.sh, après avoir relu les tâches
+# d'importation ; un échec le laisse absent, et le déploiement suivant réimporte tout.
+fabrique; jouer DB_DATABASE=takussan_preview
+verifier "seed : importe les deux modèles indexés" 2 "$(imports)"
+verifier "seed : relit les tâches d'indexation" 1 "$(grep -c '^artisan search:verify-indexes --depuis' "$racine/journal" || true)"
+verifier "seed : écrit le marqueur" forme-1 "$(marqueur)"
+fabrique; jouer DB_DATABASE=takussan_preview ECHEC_SUR="search:verify-indexes --depuis"
+verifier "seed : tâches d'indexation échouées, le marqueur ne s'écrit pas" absent "$(marqueur)"
+fabrique; jouer DB_DATABASE=takussan_preview ECHEC_SUR=Agency
+verifier "seed : une importation échoue, le marqueur ne s'écrit pas" absent "$(marqueur)"
+
+script=$RELEASE
+
 # ── ABLATION : sans l'écriture du marqueur, le second passage DOIT réimporter ──
-# shellcheck disable=SC2016 # `$marqueur` est le TEXTE cherché dans release.sh, pas une variable d'ici.
-sed '/> "\$marqueur"/d' "$RELEASE" > "$racine/release-ablation.sh"
-script="$racine/release-ablation.sh"
+# Le marqueur s'écrit dans lib.sh depuis TCK-1159 (P89.03), partagé par release.sh et seed.sh.
+sed '/\.search-shape-importee"$/d' "$LIB" > "$racine/lib-ablation.sh"
+LIB="$racine/lib-ablation.sh"
+script=$RELEASE
 fabrique; jouer; jouer
 if [ "$(imports)" = 0 ]; then
   echo "✗ ablation : sans l'écriture du marqueur, le second passage n'importe toujours rien — le harnais ne teste rien"
@@ -123,4 +167,4 @@ else
 fi
 
 [ "$echecs" = 0 ] || { echo "✗ $echecs échec(s)"; exit 1; }
-echo "✓ décision de réindexation de release.sh : 19 vérifications et une ablation"
+echo "✓ release.sh et seed.sh : 32 vérifications et une ablation"

@@ -173,6 +173,27 @@ class GeoReferentialSeederTest extends TestCase
         rmdir($vide);
     }
 
+    /**
+     * TCK-1163 (P89.05) — un fichier de région illisible échoue comme un répertoire vide : le
+     * message d'une ligne et `FAILURE`, pas une trace. `JsonException` n'hérite pas de
+     * `RuntimeException`.
+     */
+    public function test_un_fichier_de_region_invalide_echoue_sur_un_message(): void
+    {
+        $repertoire = sys_get_temp_dir().'/geo-invalide-'.uniqid();
+        mkdir($repertoire);
+        file_put_contents($repertoire.'/sn-dk.json', '{pas du json');
+
+        try {
+            $this->artisan('geo:sync-referential', ['--dir' => $repertoire])
+                ->expectsOutputToContain('Syntax error')
+                ->assertFailed();
+        } finally {
+            unlink($repertoire.'/sn-dk.json');
+            rmdir($repertoire);
+        }
+    }
+
     public function test_le_seeder_charge_les_quatorze_regions_versionnees(): void
     {
         $this->seed(GeoReferentialSeeder::class);
