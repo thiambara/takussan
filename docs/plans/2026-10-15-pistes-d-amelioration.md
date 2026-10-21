@@ -8205,7 +8205,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Les liens de partage d'un document se listent et se révoquent sans la règle `share` : le bailleur suspendu lit les jetons et révoque
 - Réf : P82.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1144 — reste : retirer `authorizeDocument()` de `DocumentShareLinkController` et son exemption de `scripts/check-controller-authorization.mjs` (garde existante, fermée à l'implémenteur)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentShareLinkController.php:30-32`, `:103-105`, `:131-150`
 - Constat :
@@ -8216,6 +8216,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - La ligne 98 en double du tableau des angles (documents « que l'on ne fait que lire ») cite ce contrôleur ; aucune section ne la porte (lu).
 - Piste : autoriser `index` et `destroy` par `can('share', $document)` et retirer `authorizeDocument()` et son exemption. Test : bailleur `blocked` → 403 sur la liste et la révocation ; personnel et téléverseur actif inchangés.
 - Mesure (2026-10-20, 979ae6e95, mesureur) : relu `DocumentShareLinkController::authorizeDocument` (l. 131-143, sans `landlordWrites`), `index` et `destroy` (l. 30-32, 103-105), `format()` (l. 152-165, rend `token`), `DocumentPolicy::share` (l. 90-103) et l'exemption de `scripts/check-controller-authorization.mjs:143` ; test temporaire retiré : bailleur `blocked`, téléverseur d'un document de son bail avec un lien actif → `POST …/share` 403, `GET …/share-links` 200 avec le jeton, `DELETE …/share/{link}` 204 et `revoked_at` posé → le constat tient. Relu : `share` ne diffère d'`authorizeDocument` que pour le bailleur suspendu (mêmes branches téléverseur, `user_id` du porteur, personnel de l'agence). Classement : V2, `index` par `share` suit ADR-0031 § 2, mais refuser au bailleur suspendu la révocation d'un lien public vers son propre bail est un choix (exposition de ses données) que l'ADR ne tranche pas.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, bailleur bloqué dans A, téléverseur d'un document de son bail avec un lien actif → `GET …/share-links` 200 (rouge) → `authorizeDocument()` délègue à `DocumentPolicy::share` ; `TeamMemberSuspensionTest::test_un_bailleur_bloque_ne_liste_ni_ne_revoque_les_liens_de_partage` vert (liste et révocation 403, lien actif ; dans B et pour l'admin de A, 200 et 204), ablation (ancienne règle du helper) → rouge, verts sur les quatre classes des liens de partage. Le helper reste un relais : sa disparition ferait rougir l'exemption de la garde, qui ne se modifie pas ici.
 
 ### Indicateurs et alertes de seuil : jugés par le type de profil admin, jamais par une capacité
 - Réf : P82.04
