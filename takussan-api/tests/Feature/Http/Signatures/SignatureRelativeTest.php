@@ -8,6 +8,7 @@ use App\Models\Enums\EmailFrequency;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Media\PrivateMediaAccess;
+use App\Support\RelativeSignedUrl;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Tests\Support\UrlSigneeDerriereTraefik;
@@ -52,8 +53,18 @@ class SignatureRelativeTest extends TestCase
     {
         $user = User::factory()->create(['email_frequency' => EmailFrequency::Daily]);
 
-        $this->presenterHorsDesMandataires(NotificationUnsubscribeController::signedUrl($user))->assertRedirect();
+        // P97.06 (TCK-1183) — le lien déjà envoyé (GET, sans échéance) passe la signature et
+        // n'écrit rien ; c'est le POST, signé lui aussi en relatif, qui désinscrit.
+        $ancien = RelativeSignedUrl::forever('notifications.unsubscribe', ['user' => $user->id]);
+        $this->presenterHorsDesMandataires($ancien)->assertRedirect();
+        $this->assertSame(EmailFrequency::Daily, $user->fresh()->email_frequency);
 
+        $oneClick = NotificationUnsubscribeController::links($user)['one_click'];
+        $this->assertStringStartsWith(self::ORIGINE_PUBLIQUE.'/', $oneClick);
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.7'])
+            ->withHeaders(['X-Forwarded-Proto' => 'https'])
+            ->post('http://api-publique.example'.substr($oneClick, strlen(self::ORIGINE_PUBLIQUE)))
+            ->assertOk();
         $this->assertSame(EmailFrequency::Off, $user->fresh()->email_frequency);
     }
 }

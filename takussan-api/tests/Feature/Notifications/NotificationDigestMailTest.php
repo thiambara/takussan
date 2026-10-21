@@ -110,15 +110,13 @@ class NotificationDigestMailTest extends TestCase
     {
         $user = User::factory()->create(['email' => 'unsub@example.com']);
         $grouped = collect(['system' => collect([$this->makeNotification($user)])]);
-        $url = RelativeSignedUrl::forever('notifications.unsubscribe', ['user' => $user->id]);
-
-        $mail = new NotificationDigestMail($user, $grouped, $url);
+        $mail = new NotificationDigestMail($user, $grouped);
         $rendered = $mail->render();
 
         $this->assertStringContainsString('unsubscribe', $rendered);
     }
 
-    public function test_unsubscribe_signed_route_sets_email_frequency_off(): void
+    public function test_unsubscribe_signed_route_no_longer_writes_on_get(): void
     {
         $user = User::factory()->create([
             'email_frequency' => EmailFrequency::Daily,
@@ -127,9 +125,10 @@ class NotificationDigestMailTest extends TestCase
 
         $url = RelativeSignedUrl::forever('notifications.unsubscribe', ['user' => $user->id]);
 
+        // P97.06 (TCK-1183) — la page du front confirme ; le détail est dans DigestUnsubscribeTest.
         $this->get($url)->assertRedirect();
 
-        $this->assertSame(EmailFrequency::Off, $user->fresh()->email_frequency);
+        $this->assertSame(EmailFrequency::Daily, $user->fresh()->email_frequency);
     }
 
     public function test_skips_instant_user(): void

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\NotificationPreferenceController;
+use App\Http\Controllers\NotificationUnsubscribeController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -20,3 +21,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('announcements/active', [AnnouncementController::class, 'active'])->name('announcements.active');
     Route::post('announcements/{announcement}/dismiss', [AnnouncementController::class, 'dismiss'])->name('announcements.dismiss');
 });
+
+// P97.06 (TCK-1183, ADR-0050) — le désabonnement du résumé, hors session : la page du front le
+// rejoue sur un clic, le client de messagerie par `List-Unsubscribe-Post`. URL signée RELATIVE et à
+// échéance ; POST seulement, un GET ne désinscrit jamais.
+Route::post('notifications/digest/unsubscribe/{user}', [NotificationUnsubscribeController::class, 'confirm'])
+    ->middleware(['signed:relative', 'throttle:public-search-alert'])
+    ->name('notifications.digest.unsubscribe');
