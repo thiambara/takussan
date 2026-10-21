@@ -100,6 +100,12 @@ Sans objet : ticket backend.
 - Une borne de connexion par adresse e-mail en plus de l'IP : le verrou de compte la tient déjà.
 - Les limiteurs des routes authentifiées (clé par utilisateur, non partagée avec un visiteur).
 
+## Reste sur dev
+
+- AC1 au navigateur : afficher `/auth/login` en préproduction après le déploiement de #916, puis une
+  première connexion au mauvais mot de passe doit rendre « identifiants incorrects », pas « Trop de
+  tentatives ». Le ticket passe `done` sur ce relevé.
+
 ## Notes d'implémentation
 
 - **Clé par réseau, pas par IP brute** : `auth-login` et `auth-oauth` se clés par
