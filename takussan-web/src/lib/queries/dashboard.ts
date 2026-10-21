@@ -33,7 +33,8 @@ export type OwnerDashboard = {
     net_paid_out_month?: number;
     deposits_held?: number;
   };
-  occupancy?: { rate_percent: number; short_stay_percent?: number | null };
+  /** `rate_percent` est `null` sans bien éligible longue durée (TCK-1114). */
+  occupancy?: { rate_percent: number | null; short_stay_percent?: number | null };
   /** TCK-595 (AC8) — les nombres des cartes actionnables. */
   maintenance?: { quotes_pending: number };
   visits?: { to_confirm: number };

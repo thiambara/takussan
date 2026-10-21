@@ -59,6 +59,16 @@ describe('<AgencyKpis>', () => {
     expect(screen.getByText(/^Commissions : 154\s?000\s*F\s?CFA$/)).toBeInTheDocument();
   });
 
+  // P93.05 (TCK-1114) — sans bien éligible, l'API rend `rate_percent: null` : « rien à occuper »
+  // s'affiche en tiret, jamais en « 0 % », qui dirait « tout est vacant ».
+  it('affiche un tiret, et non 0 %, quand le taux d’occupation est null', () => {
+    render(withIntl(<AgencyKpis summary={buildSummary({ occupancy: { rate_percent: null } })} />));
+
+    const tuile = screen.getByText("Taux d'occupation").parentElement as HTMLElement;
+    expect(tuile.textContent).toContain('—');
+    expect(tuile.textContent).not.toMatch(/0\s*%/);
+  });
+
   it('marks the unpaid rate tile as warning when ≥ 10 %', () => {
     const { container } = render(withIntl(<AgencyKpis
         summary={buildSummary({
