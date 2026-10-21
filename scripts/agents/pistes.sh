@@ -14,6 +14,8 @@
 #   scripts/agents/pistes.sh deplanifier
 # Puis, depuis n'importe où (copie figée) :
 #   ~/.takussan-agents/outils/pistes.sh lancer <rôle>   # un passage, à la main ou par launchd
+#   ~/.takussan-agents/outils/pistes.sh lancer implementeur <k>   # l'instance k sur
+#       # INSTANCES_IMPLEMENTEUR (config.env, 1 par défaut) ; sans <k>, l'instance 1
 #   ~/.takussan-agents/outils/pistes.sh lancer <rôle> --a-blanc
 #       # un passage complet SANS RIEN PUBLIER (ni push, ni PR, ni fusion) ; avec
 #       # PISTES_BASE_REF=<ref> il part d'une autre base que origin/pre-dev
@@ -56,6 +58,39 @@ charger_config() {
   # ont un défaut ici, qu'une ligne de config.env remplace.
   BUDGET_DELEGUE="${BUDGET_DELEGUE:-5}"
   DUREE_DELEGUE="${DUREE_DELEGUE:-1800}"
+  # Implémenteurs en parallèle (amendement d'ADR-0066 du 2026-10-21, bis).
+  INSTANCES_IMPLEMENTEUR="${INSTANCES_IMPLEMENTEUR:-1}"
+  case "$INSTANCES_IMPLEMENTEUR" in '' | *[!0-9]* | 0) die "INSTANCES_IMPLEMENTEUR=« $INSTANCES_IMPLEMENTEUR » : un entier, 1 au moins" ;; esac
+}
+
+# Les noms de job, de verrou, d'arbre et de sortie d'un rôle : « implementeur » pour l'instance 1,
+# « implementeur-<k> » pour les suivantes. L'instance 1 garde ainsi les noms d'avant l'amendement.
+noms_du_role() {
+  local k=2
+  printf '%s\n' "$1"
+  if [ "$1" = implementeur ]; then
+    while [ "$k" -le "$INSTANCES_IMPLEMENTEUR" ]; do
+      printf '%s\n' "$1-$k"
+      k=$((k + 1))
+    done
+  fi
+}
+
+# L'instance qui possède une branche d'agent : le suffixe « -<k> » après l'horodatage, 1 sans
+# suffixe. Une instance au-delà du nombre courant (le porteur l'a réduit) revient à l'instance 1 :
+# ses PR ne restent pas sans personne pour les réparer.
+instance_de_branche() {
+  local k
+  k="$(printf '%s' "$1" | sed -nE 's#^agents/[a-z]+/[0-9]{8}-[0-9]{6}-([0-9]+)$#\1#p')"
+  if [ -z "$k" ] || [ "$k" -gt "$INSTANCES_IMPLEMENTEUR" ]; then k=1; fi
+  printf '%s' "$k"
+}
+
+# La part d'une instance : les pistes dont le numéro d'angle (P<nn>.…) vaut k−1 modulo N. Un angle
+# entier va à une seule instance, et sa famille avec lui. Lit des lignes dont la Réf ouvre la ligne.
+part_de_l_instance() {
+  awk -v n="$INSTANCES_IMPLEMENTEUR" -v k="$INSTANCE" '
+    match($0, /^P[0-9]+\./) { if ((substr($0, 2, RLENGTH - 2) + 0) % n == k - 1) print }'
 }
 
 # Valeur d'une variable de config propre au rôle : par_role BUDGET mesureur → $BUDGET_MESUREUR.
@@ -151,6 +186,8 @@ REPARATIONS_MAX=3
 PR_MAX_EXPLORATEUR=
 PR_MAX_MESUREUR=
 PR_MAX_IMPLEMENTEUR=
+# Implémenteurs en parallèle, qui se partagent les angles et les numéros de ticket ; vide = 1.
+INSTANCES_IMPLEMENTEUR=
 # Modèle ; vide = celui du compte.
 MODELE=
 CONFIG
@@ -216,6 +253,8 @@ planifier() {
   [ $# -ge 5 ] || set -- "$@" 10
   # 1 minute au moins (le porteur, 2026-10-21) : un passage à la fois par rôle (verrou), et launchd ne
   # relance pas un job qui tourne encore ; une cadence d'une minute veut dire « repartir dès la fin ».
+  local nom k plist uid
+  uid="$(id -u)"
   for role in $ROLES fusionneur; do
     minutes="$1"
     shift
@@ -224,19 +263,44 @@ planifier() {
     if [ "$role" = fusionneur ]; then
       poser_job fusionneur $((minutes * 60)) fusionner
       info "fusionneur : toutes les $minutes min (sans modèle)"
+    elif [ "$role" = implementeur ]; then
+      k=1
+      for nom in $(noms_du_role implementeur); do
+        if [ "$k" -eq 1 ]; then poser_job "$nom" $((minutes * 60)) lancer implementeur; else poser_job "$nom" $((minutes * 60)) lancer implementeur "$k"; fi
+        info "$nom : toutes les $minutes min"
+        k=$((k + 1))
+      done
     else
       poser_job "$role" $((minutes * 60)) lancer "$role"
       info "$role : toutes les $minutes min"
     fi
   done
+  # Les instances au-delà du nombre courant : le porteur l'a réduit, leurs jobs partent.
+  for plist in "$HOME/Library/LaunchAgents/$LAUNCHD".implementeur-*.plist; do
+    [ -f "$plist" ] || continue
+    nom="$(basename "$plist" .plist)"
+    nom="${nom#"$LAUNCHD".}"
+    k="${nom#implementeur-}"
+    case "$k" in '' | *[!0-9]*) continue ;; esac
+    [ "$k" -gt "$INSTANCES_IMPLEMENTEUR" ] || continue
+    launchctl bootout "gui/$uid/$LAUNCHD.$nom" 2> /dev/null || true
+    rm -f "$plist"
+    info "$nom : déplanifié (INSTANCES_IMPLEMENTEUR=$INSTANCES_IMPLEMENTEUR)"
+  done
 }
 
 deplanifier() {
-  local job uid
+  local job uid plist
   uid="$(id -u)"
   for job in $ROLES fusionneur; do
     launchctl bootout "gui/$uid/$LAUNCHD.$job" 2> /dev/null || true
     rm -f "$HOME/Library/LaunchAgents/$LAUNCHD.$job.plist"
+  done
+  for plist in "$HOME/Library/LaunchAgents/$LAUNCHD".implementeur-*.plist; do
+    [ -f "$plist" ] || continue
+    job="$(basename "$plist" .plist)"
+    launchctl bootout "gui/$uid/$job" 2> /dev/null || true
+    rm -f "$plist"
   done
   info "déplanifié (les passages en cours finissent)"
 }
@@ -256,7 +320,7 @@ deplanifier() {
 # l'implémenteur essayait des PR que le fusionneur venait de fusionner, journalisait trois faux
 # refus « conflit » et appelait `update-branch` sur des PR fermées.
 essai_de_fusion() {
-  local num="$1" tete="$2" arbre="$BASE/arbres/essai-${ROLE:-fusionneur}" rapport cle g h echecs=0
+  local num="$1" tete="$2" arbre="$BASE/arbres/essai-${NOM:-fusionneur}" rapport cle g h echecs=0
   rapport="$BASE/sorties/essais/$num.txt"
   mkdir -p "$BASE/sorties/essais"
   avec_verrou_git git -C "$CLONE" fetch origin --prune --quiet || return 2
@@ -283,9 +347,9 @@ essai_de_fusion() {
       # `vendor/` est ignoré par git, donc épargné par le `clean -fdq` ci-dessus : il ne se réinstalle
       # que si le `composer.lock` de l'arbre fusionné change.
       h="$(shasum "$arbre/takussan-api/composer.lock" | cut -c1-40)"
-      if [ ! -f "$arbre/takussan-api/vendor/autoload.php" ] || [ "$h" != "$(cat "$BASE/etat/composer-essai-${ROLE:-fusionneur}" 2> /dev/null || true)" ]; then
+      if [ ! -f "$arbre/takussan-api/vendor/autoload.php" ] || [ "$h" != "$(cat "$BASE/etat/composer-essai-${NOM:-fusionneur}" 2> /dev/null || true)" ]; then
         if (cd "$arbre/takussan-api" && composer install --no-interaction --no-progress --quiet) > /dev/null 2>&1; then
-          printf '%s' "$h" > "$BASE/etat/composer-essai-${ROLE:-fusionneur}"
+          printf '%s' "$h" > "$BASE/etat/composer-essai-${NOM:-fusionneur}"
         else
           echo "✗ composer install dans l'arbre d'essai"
           echecs=$((echecs + 1))
@@ -311,7 +375,7 @@ essai_de_fusion() {
   if [ "$tete" != dev ]; then
     GH_REPO="$GH_REPO" gh pr update-branch "$num" > /dev/null 2>&1 || true
   fi
-  printf '%s\t%s\t-\trefuse\t%s\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "${ROLE:-fusionneur}" "$num" \
+  printf '%s\t%s\t-\trefuse\t%s\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "${NOM:-fusionneur}" "$num" \
     "essai de fusion rouge : $(grep '^✗' "$rapport" | tr '\n' ' ')" >> "$BASE/journal.tsv"
   return 1
 }
@@ -377,8 +441,8 @@ relancer_suivant() {
   local suivants suivant
   case "$1" in
     agents/explorateur/*) suivants=mesureur ;;
-    agents/mesureur/*) suivants="implementeur delegue" ;;
-    agents/delegue/*) suivants=implementeur ;;
+    agents/mesureur/*) suivants="$(noms_du_role implementeur) delegue" ;;
+    agents/delegue/*) suivants="$(noms_du_role implementeur)" ;;
     *) return 0 ;;
   esac
   for suivant in $suivants; do
@@ -416,7 +480,7 @@ etat() {
   uid="$(id -u)"
   if [ -e "$BASE/PAUSE" ]; then echo "⏸  PAUSE active ($BASE/PAUSE)"; fi
   echo "outils $OUTILS_SHA · fusion $FUSION · dépôt $GH_REPO"
-  for role in $ROLES; do
+  for role in $(for r in $ROLES; do noms_du_role "$r"; done); do
     printf '\n%s\n' "── $role"
     if launchctl print "gui/$uid/$LAUNCHD.$role" > /dev/null 2>&1; then echo "  planifié (launchd)"; else echo "  non planifié"; fi
     if [ -d "$BASE/verrous/$role" ]; then echo "  passage en cours (pid $(cat "$BASE/verrous/$role/pid" 2> /dev/null || echo '?'))"; fi
@@ -435,6 +499,10 @@ etat() {
 # ─── un passage ───────────────────────────────────────────────────────────────────────────────
 
 ROLE=""
+# Le nom du passage : le rôle, ou « implementeur-<k> » pour l'instance k > 1 (verrou, arbre, sortie,
+# journal). Le rôle, lui, reste celui des étiquettes, de la garde et de la définition d'agent.
+NOM=""
+INSTANCE=1
 A_BLANC=0
 BASE_REF="${PISTES_BASE_REF:-origin/pre-dev}"
 MODE=""
@@ -449,7 +517,7 @@ journaliser() {
   local duree=$(($(date +%s) - DEBUT))
   # Une sortie par `set -e` (réseau, commande en échec) n'a pas de détail : le journal le dit.
   if [ "$RESULTAT" = erreur ] && [ -z "$DETAIL" ]; then DETAIL="sortie inattendue (commande en échec ou réseau) : voir passage.log"; fi
-  printf '%s\t%s\t%s\t%s\t%s\t%ss\t%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$ROLE" "${MODE:--}" \
+  printf '%s\t%s\t%s\t%s\t%s\t%ss\t%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$NOM" "${MODE:--}" \
     "$RESULTAT" "${PR:--}" "$duree" "${COUT:--}" "${TOURS:--}" "$DETAIL" >> "$BASE/journal.tsv"
 }
 
@@ -550,14 +618,14 @@ preparer_arbre() {
 installer_dependances() {
   local arbre="$1" h
   h="$(shasum "$arbre/takussan-api/composer.lock" | cut -c1-40)"
-  if [ ! -d "$arbre/takussan-api/vendor" ] || [ "$h" != "$(cat "$BASE/etat/composer-$ROLE" 2> /dev/null || true)" ]; then
+  if [ ! -d "$arbre/takussan-api/vendor" ] || [ "$h" != "$(cat "$BASE/etat/composer-$NOM" 2> /dev/null || true)" ]; then
     (cd "$arbre/takussan-api" && composer install --no-interaction --no-progress --quiet)
-    printf '%s' "$h" > "$BASE/etat/composer-$ROLE"
+    printf '%s' "$h" > "$BASE/etat/composer-$NOM"
   fi
   h="$(shasum "$arbre/takussan-web/package-lock.json" | cut -c1-40)"
-  if [ ! -d "$arbre/takussan-web/node_modules" ] || [ "$h" != "$(cat "$BASE/etat/npm-$ROLE" 2> /dev/null || true)" ]; then
+  if [ ! -d "$arbre/takussan-web/node_modules" ] || [ "$h" != "$(cat "$BASE/etat/npm-$NOM" 2> /dev/null || true)" ]; then
     (cd "$arbre/takussan-web" && npm ci --silent --no-audit --no-fund)
-    printf '%s' "$h" > "$BASE/etat/npm-$ROLE"
+    printf '%s' "$h" > "$BASE/etat/npm-$NOM"
   fi
   # Copies posées par « installer », jamais de lien vers l'arbre principal (illisible sous launchd).
   if [ -f "$BASE/env/takussan-api.env" ]; then cp "$BASE/env/takussan-api.env" "$arbre/takussan-api/.env"; fi
@@ -613,6 +681,21 @@ verifier() {
       info "✗ index ou backlog (verif-gardes.txt)"
       echecs=$((echecs + 1))
     fi
+    # Deux instances qui numérotent chacune « le plus grand vu, plus un » se donnent le même numéro,
+    # et la seconde PR fusionnée rougit check-backlog (id en double). Chaque instance a sa classe
+    # de numéros modulo N : la règle de ses instructions, vérifiée ici sur les tickets ajoutés.
+    if [ "$INSTANCES_IMPLEMENTEUR" -gt 1 ]; then
+      local hors
+      hors="$(git -C "$arbre" diff --name-only --diff-filter=A "$depart" HEAD -- docs/backlog/tickets \
+        | sed -nE 's#^docs/backlog/tickets/TCK-0*([0-9]+)-.*#\1#p' \
+        | awk -v n="$INSTANCES_IMPLEMENTEUR" -v k="$INSTANCE" '($1 + 0) % n != k - 1 { printf "TCK-%s ", $1 }')"
+      if [ -n "$hors" ]; then
+        printf 'tickets hors de la classe de l'"'"'instance %s sur %s (numéro modulo %s = %s) : %s\n' \
+          "$INSTANCE" "$INSTANCES_IMPLEMENTEUR" "$INSTANCES_IMPLEMENTEUR" "$((INSTANCE - 1))" "$hors" > "$sortie/verif-instance.txt"
+        info "✗ numéros de ticket hors de la classe de l'instance (verif-instance.txt)"
+        echecs=$((echecs + 1))
+      fi
+    fi
     php="$(git -C "$arbre" diff --name-only --diff-filter=AM "$depart" HEAD -- 'takussan-api/*.php' | sed 's#^takussan-api/##' | tr '\n' ' ')"
     if [ -n "$php" ]; then
       # shellcheck disable=SC2086 # liste de fichiers, découpée à dessein
@@ -651,6 +734,13 @@ etat_des_pr() {
   MODE=nouveau
   while IFS=$'\t' read -r num tete etat_fusion; do
     [ -n "$num" ] || continue
+    # Une PR d'une autre instance compte dans le plafond, qui est celui du rôle, mais c'est son
+    # instance qui la fusionne, la réconcilie ou la répare : deux réparations de la même PR à la
+    # fois écriraient chacune sur la branche de l'autre.
+    if [ "$(instance_de_branche "$tete")" != "$INSTANCE" ]; then
+      ouvertes=$((ouvertes + 1))
+      continue
+    fi
     ci_pr="$(etat_ci "$num")"
     conflit_pr=non
     # GitHub rend UNKNOWN après chaque fusion dans pre-dev, tant qu'on ne lui a pas redemandé, et
@@ -778,6 +868,10 @@ travail_disponible() {
     implementeur)
       liste="$(CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --liste "validé" \
         && CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --liste "retenu · autonome")" || return 0
+      if [ "$INSTANCES_IMPLEMENTEUR" -gt 1 ]; then
+        liste="$(printf '%s\n' "$liste" | part_de_l_instance)"
+        if [ -z "$liste" ]; then fin rien "sans modèle : rien à prendre dans la part de l'instance $INSTANCE sur $INSTANCES_IMPLEMENTEUR"; fi
+      fi
       corps="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --json title,body \
         --jq '.[] | "\(.title) \(.body // "")"')" || return 0
       pris="$(printf '%s\n' "$corps" | grep -oE 'P[0-9]+\.[0-9]+' | sort -u || true)"
@@ -810,9 +904,9 @@ SORTIES_JOURS="${SORTIES_JOURS:-7}"
 balayer_processus() {
   local pids
   pids="$(cd / && {
-    pgrep -f -- "$BASE/arbres/$ROLE/" || true
-    pgrep -f -- "$BASE/sorties/$ROLE/" || true
-    lsof -a -d cwd -Fpn 2> /dev/null | awk -v a="$BASE/arbres/$ROLE" -v s="$BASE/sorties/$ROLE/" '
+    pgrep -f -- "$BASE/arbres/$NOM/" || true
+    pgrep -f -- "$BASE/sorties/$NOM/" || true
+    lsof -a -d cwd -Fpn 2> /dev/null | awk -v a="$BASE/arbres/$NOM" -v s="$BASE/sorties/$NOM/" '
       /^p/ { p = substr($0, 2) }
       /^n/ { n = substr($0, 2); if (n == a || index(n, a "/") == 1 || index(n, s) == 1) print p }'
   } | sort -u | grep -vx "$$" || true)"
@@ -822,7 +916,7 @@ balayer_processus() {
   sleep 5
   # shellcheck disable=SC2086
   kill -9 $pids 2> /dev/null || true
-  info "processus laissés sous l'arbre ou les sorties de $ROLE arrêtés : $(printf '%s\n' "$pids" | wc -l | tr -d ' ')"
+  info "processus laissés sous l'arbre ou les sorties de $NOM arrêtés : $(printf '%s\n' "$pids" | wc -l | tr -d ' ')"
 }
 
 # En début de passage, sous verrou : les restes d'un passage précédent, les vieux dossiers de
@@ -830,7 +924,7 @@ balayer_processus() {
 entretenir() {
   local arbre="$1" sortie="$2" cache ko
   balayer_processus
-  find "$BASE/sorties/$ROLE" -mindepth 1 -maxdepth 1 -type d -mtime +"$SORTIES_JOURS" ! -path "$sortie" -exec rm -rf {} + 2> /dev/null || true
+  find "$BASE/sorties/$NOM" -mindepth 1 -maxdepth 1 -type d -mtime +"$SORTIES_JOURS" ! -path "$sortie" -exec rm -rf {} + 2> /dev/null || true
   cache="$arbre/takussan-web/.next/dev/cache"
   if [ -d "$cache" ]; then
     ko="$(du -sk "$cache" | cut -f1)"
@@ -845,12 +939,21 @@ lancer() {
   ROLE="$1"
   valider_role "$ROLE"
   charger_config
+  INSTANCE="${2:-1}"
+  case "$INSTANCE" in '' | *[!0-9]* | 0) die "instance « $INSTANCE » : un entier, 1 au moins" ;; esac
+  if [ "$INSTANCE" -gt 1 ]; then
+    [ "$ROLE" = implementeur ] || die "seul l'implémenteur a plusieurs instances"
+    [ "$INSTANCE" -le "$INSTANCES_IMPLEMENTEUR" ] || die "instance $INSTANCE au-delà de INSTANCES_IMPLEMENTEUR=$INSTANCES_IMPLEMENTEUR"
+    NOM="$ROLE-$INSTANCE"
+  else
+    NOM="$ROLE"
+  fi
   DEBUT="$(date +%s)"
   local horo sortie arbre verrou
   horo="$(date +%Y%m%d-%H%M%S)"
-  sortie="$BASE/sorties/$ROLE/$horo"
-  arbre="$BASE/arbres/$ROLE"
-  verrou="$BASE/verrous/$ROLE"
+  sortie="$BASE/sorties/$NOM/$horo"
+  arbre="$BASE/arbres/$NOM"
+  verrou="$BASE/verrous/$NOM"
   mkdir -p "$sortie"
   exec >> "$sortie/passage.log" 2>&1
   trap journaliser EXIT
@@ -881,6 +984,7 @@ lancer() {
   etat_des_pr
   if [ "$MODE" = nouveau ]; then
     branche="agents/$ROLE/$horo"
+    if [ "$INSTANCE" -gt 1 ]; then branche="$branche-$INSTANCE"; fi
     depart="$BASE_REF"
     travail_disponible
   fi
@@ -900,6 +1004,11 @@ Base du passage : $BASE_REF = $sha_pre_dev (partout où tes instructions écrive
 
 PR ouvertes vers pre-dev (ce qu'elles citent est pris) :
 ${autres:-(aucune)}"
+  if [ "$INSTANCES_IMPLEMENTEUR" -gt 1 ]; then
+    message="$message
+
+Instance $INSTANCE sur $INSTANCES_IMPLEMENTEUR (implementeur.md, « Plusieurs instances ») : tu ne prends que les pistes P<nn>.… dont le numéro d'angle nn vaut $((INSTANCE - 1)) modulo $INSTANCES_IMPLEMENTEUR, et chaque ticket neuf prend le plus petit numéro au-dessus du plus grand vu qui vaut $((INSTANCE - 1)) modulo $INSTANCES_IMPLEMENTEUR."
+  fi
   if [ "$MODE" = reparation ]; then
     message="$message
 
@@ -974,8 +1083,15 @@ case "${1:-}" in
   planifier) shift; planifier "$@" ;;
   deplanifier) deplanifier ;;
   lancer)
-    if [ "${3:-}" = --a-blanc ]; then A_BLANC=1; fi
-    lancer "${2:-}"
+    # lancer <rôle> [<k>] [--a-blanc]
+    instance=1
+    for a in "${@:3}"; do
+      case "$a" in
+        --a-blanc) A_BLANC=1 ;;
+        *) instance="$a" ;;
+      esac
+    done
+    lancer "${2:-}" "$instance"
     ;;
   etat) etat ;;
   releve) releve "${2:-}" ;;

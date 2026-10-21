@@ -149,7 +149,7 @@ d'implémenter.
 [`scripts/agents/pistes.sh`](../../scripts/agents/pistes.sh) déroule chaque passage :
 
 1. **Arrêts préalables**, sans dépense : le fichier `PAUSE`, un verrou par rôle (un passage à la
-   fois), et la charge de la machine (au-delà de 1,5 × le nombre de cœurs, l'implémenteur et le
+   fois ; par instance pour l'implémenteur, amendement du 2026-10-21 bis), et la charge de la machine (au-delà de 1,5 × le nombre de cœurs, l'implémenteur et le
    mesureur ne démarrent pas).
 2. **État de ses PR** : un agent a au plus `PR_MAX` PR ouvertes vers `pre-dev`, 1 pour
    l'explorateur et le mesureur, 3 pour l'implémenteur (`config.env`). Elles se lisent de la plus
@@ -499,6 +499,52 @@ plus rapides des lots relevés. Le plafond de PR ouvertes de l'implémenteur n'e
 **Ce que ça coûte** : une CI rouge sur une piste retient jusqu'à 10 pistes derrière elle, jusqu'à
 sa réparation ou son `git revert`, et la PR à relire est plus grosse. Le gain se relève sur le
 journal (pistes closes par heure de passage) après les premiers lots.
+
+## Amendement du 2026-10-21 (bis) — plusieurs implémenteurs en parallèle
+
+**Relevé ce soir-là, à 20 h 41** : 92 pistes à prendre (88 `validé`, 4 `retenu · autonome`), un
+seul implémenteur, un passage à la fois (verrou du rôle), de 17 à 64 min chacun. Le porteur
+demandait quatre implémenteurs simultanés ; il en a retenu **deux**, sur une machine de 8 cœurs et
+16 Go dont l'implémenteur occupe PostgreSQL, Meilisearch et les suites ciblées.
+
+**Deux collisions rendaient un second implémenteur nuisible sans règle** :
+- **la même piste**, prise par deux passages partis avant que l'un ait ouvert sa PR — la liste
+  « citée par une PR ouverte » ne voit pas un lot en cours ;
+- **le même numéro de ticket** : chacun prend « le plus grand vu, plus un », et la seconde PR
+  fusionnée rougit `check-backlog` (id en double), puis l'essai de fusion la refuse.
+
+**Décision** : `INSTANCES_IMPLEMENTEUR` (`config.env`, 1 par défaut) lance `N` implémenteurs, et
+chacun a sa **part**, sans rien partager à l'exécution :
+- **les pistes** : l'instance `k` (de 1 à `N`) ne prend que les pistes `P<nn>.…` dont le numéro
+  d'angle `nn` vaut `k − 1` modulo `N`. Un angle entier va à une seule instance, et la famille
+  par angle avec lui. Relevé sur la liste de 20 h 41 : 50 pistes pour l'instance 1 (angles
+  pairs), 42 pour l'instance 2 ;
+- **les numéros de ticket** : le plus petit numéro au-dessus du plus grand vu qui vaut `k − 1`
+  modulo `N`. Les trous dans la numérotation sont permis (`check-backlog` ne refuse que le
+  doublon) ;
+- **les PR** : le plafond `PR_MAX_IMPLEMENTEUR` reste celui du rôle et compte toutes les PR
+  `agent:implementeur` ; une instance ne fusionne, ne réconcilie et ne répare que **les siennes**,
+  reconnues au suffixe `-<k>` de leur branche (`agents/implementeur/<horodatage>-<k>`, aucun
+  suffixe pour l'instance 1). Une PR d'une instance au-delà de `N` (le porteur a réduit le
+  nombre) revient à l'instance 1.
+
+**Application** (`scripts/agents/pistes.sh`) : `lancer implementeur <k>` ; l'instance `k > 1` a
+son nom, `implementeur-<k>`, pour son job launchd, son verrou, son arbre, ses sorties, ses
+empreintes de dépendances, son arbre d'essai et sa colonne du journal. Le rôle — étiquette,
+garde `check-pistes --role`, définition d'agent, `PISTES_ROLE` — reste `implementeur`.
+`travail_disponible` ne lit que la part de l'instance ; le message de passage lui donne sa règle
+(`Instance <k> sur <N>`, consigne dans `implementeur.md`) ; `verifier` refuse avant tout push un
+ticket ajouté hors de sa classe de numéros. `planifier` pose un job par instance, et retire ceux
+au-delà de `N` ; `deplanifier`, `etat` et la relance après fusion les comptent.
+
+**L'instance 1 avec `N = 1` se comporte exactement comme avant** : mêmes chemins, même branche,
+même message, mêmes appels. Vérifié dans un bac à sable (faux `gh`, `launchctl` et `claude`) par
+un passage complet de l'ancien et du nouveau script, diffés, et par `planifier`, dont les plists
+sont identiques octet pour octet.
+
+**Ce qui n'est pas gardé** : la part des pistes n'est qu'une consigne et une liste filtrée. Rien
+n'arrête avant le push une instance qui sortirait de sa part : deux PR peuvent alors porter la même
+piste, et c'est à la relecture ou à la fusion qu'on le voit.
 
 ## Conséquences
 
