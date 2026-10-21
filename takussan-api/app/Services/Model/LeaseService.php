@@ -20,6 +20,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Lease\EarlyTerminationService;
+use App\Services\Lease\LeaseExitScheduleService;
 use App\Services\Lease\LeaseRenewalService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -307,6 +308,10 @@ class LeaseService
             $penaltyAmount = $locked->status === LeaseStatus::Active
                 ? app(EarlyTerminationService::class)->computePenalty($locked, now())
                 : 0.0;
+
+            // TCK-1151 (P81.01) — les loyers dont la période commence après aujourd'hui ne sont plus
+            // dus ; un loyer postérieur déjà engagé fait refuser la résiliation (409).
+            app(LeaseExitScheduleService::class)->cancelAfterExit($locked, now()->startOfDay(), $user);
 
             $locked->update([
                 'status' => LeaseStatus::Terminated,

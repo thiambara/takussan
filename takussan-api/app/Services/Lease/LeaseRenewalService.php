@@ -309,7 +309,11 @@ class LeaseRenewalService
             ->get();
     }
 
-    protected function isEngaged(LeasePayment $due): bool
+    /**
+     * Réglée, en partie réglée, pénalité payée, ou paiement en ligne ouvert. Public pour la sortie
+     * du locataire (TCK-1151), qui refuse comme la relève.
+     */
+    public function isEngaged(LeasePayment $due): bool
     {
         if (in_array($due->status, [PaymentStatus::Paid, PaymentStatus::PartiallyPaid], true)
             || (float) $due->paid_amount > 0
