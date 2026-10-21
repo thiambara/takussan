@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Lease;
 
+use App\Exceptions\ApiError;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Services\Lease\EarlyTerminationService;
@@ -47,6 +48,14 @@ class ConfirmEarlyTerminationsJob implements ShouldQueue
                     } catch (ValidationException $e) {
                         // Penalty unpaid or window not yet open — leave the
                         // lease in `terminating` for the next sweep.
+                        continue;
+                    } catch (ApiError $e) {
+                        // TCK-1151 — un loyer postérieur à la date d'effet est déjà réglé ou en
+                        // cours de paiement : le bail reste en préavis jusqu'au remboursement.
+                        if ($e->errorCode !== 'lease.termination_overlaps_paid_schedule') {
+                            throw $e;
+                        }
+
                         continue;
                     }
                 }
