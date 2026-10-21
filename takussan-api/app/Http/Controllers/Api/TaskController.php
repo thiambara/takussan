@@ -11,6 +11,7 @@ use App\Models\Enums\TaskStatus;
 use App\Models\Property;
 use App\Models\Task;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Agency\AgentAvailability;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Model;
@@ -107,9 +108,9 @@ class TaskController extends Controller
         }
 
         $assignee = $agencyId !== null ? User::find($assigneeId) : null;
-        // TCK-587 — l'assigné est PERSONNEL actif de l'agence du parent.
-        $ok = $assignee !== null
-            && app(MembershipCapabilityResolver::class)->isStaffAt($assignee, (int) $agencyId);
+        // TCK-587 — l'assigné est PERSONNEL actif de l'agence du parent, et joignable (TCK-1097) :
+        // un compte bloqué ou supprimé ne lira jamais la tâche.
+        $ok = PersonnelDeLAgence::estPersonnel($assignee, $agencyId);
 
         abort_code_unless($ok, 422, 'task.assignee_not_staff');
     }
