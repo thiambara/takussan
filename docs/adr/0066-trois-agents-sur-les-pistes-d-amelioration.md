@@ -500,6 +500,76 @@ plus rapides des lots relevés. Le plafond de PR ouvertes de l'implémenteur n'e
 sa réparation ou son `git revert`, et la PR à relire est plus grosse. Le gain se relève sur le
 journal (pistes closes par heure de passage) après les premiers lots.
 
+## Amendement du 2026-10-21 — le superviseur
+
+**Constat**, le 2026-10-21 au soir : chaque défaut de la chaîne a été vu par la session du porteur,
+jamais par la chaîne elle-même.
+- PECL a rendu des 504 : l'image de #916 était rouge, et rien ne relançait le job.
+- 16 processus orphelins tournaient encore, et le dossier des agents pesait 23 Go (#918).
+- À 20:51, `planifier` s'est arrêté au deuxième job sur un `Bootstrap failed: 5` de launchd : quatre
+  jobs gardaient leur ancienne cadence, sans autre signe que cette ligne.
+
+Le porteur veut faire tourner les agents la nuit. Personne ne regarde alors.
+
+**Décision du porteur** :
+
+1. **Un cinquième rôle planifié, `superviseur`** (`.agent/agents/pistes/superviseur.md`), toutes les
+   **2 h** (6ᵉ argument de `planifier`, 120 par défaut). Il relève l'état en douze points :
+   - pauses, jobs launchd et leur cadence ;
+   - journal, erreurs, refus de la garde ;
+   - CI de `pre-dev`, PR d'agents ;
+   - verrous, processus, disque, charge, dépense.
+
+   Il écrit un rapport à chaque passage, puis corrige ce qui relève de lui. Budget 10 USD,
+   durée 60 min. Contrairement aux autres rôles, il part **sous une charge forte**, qui est ce
+   qu'il doit voir.
+2. **Il agit sur l'état des agents par `pistes.sh action`, et par rien d'autre.** Les verbes :
+   - `reposer` : recharge un job à la cadence de son plist, jamais à une autre ;
+   - `balayer` : processus d'un rôle **sans passage en cours** ;
+   - `purger` ;
+   - `pause` et `reprendre`, par rôle (`PAUSE-<rôle>`) ou pour tout : il ne lève que **ses**
+     pauses, dont le fichier commence par `superviseur`. Une pause du porteur l'arrête lui aussi ;
+   - `relancer-ci` : une fois par run, seulement pour `pre-dev` ou une branche `agents/*` ;
+   - `notifier`.
+
+   Chaque verbe vérifie ses bornes lui-même, écrit une ligne `superviseur action` au journal et,
+   quand il change quelque chose, prévient le porteur par une notification macOS.
+3. **Le code passe par une PR, comme pour tout agent.**
+   - `pre-dev` rouge pour une cause du dépôt : sa PR est fusionnée par le fusionneur quand sa CI
+     est verte.
+   - Un correctif des **outils des agents** (les chemins de la garde : `.agent/`, `.claude/`,
+     `scripts/agents/`, `scripts/check-pistes.mjs`, `.github/`, ADR-0066) : il peut l'écrire dans
+     son arbre, mais **le fusionneur ne fusionne jamais une PR du superviseur qui touche ces
+     chemins**. Rien ne réinstalle les outils à la place du porteur, et le superviseur met en pause
+     le rôle concerné en attendant.
+4. **La garde**, outre ces droits :
+   - lui ouvre `launchctl list|print` ;
+   - lui refuse `kill` et `gh run rerun` en direct, qui passent par les verbes ;
+   - lui refuse `pistes.sh action` par un autre chemin que l'outil installé, et le fichier de
+     pistes, que `pistes.sh` refuse aussi au push.
+
+   Pour **tous** les rôles, elle refuse désormais :
+   - les sous-commandes de pilotage de `pistes.sh` (`installer`, `planifier`, `pause`, `lancer`…) ;
+   - l'écriture shell dans l'état des agents (outils installés, `config.env`, pauses, verrous,
+     `~/Library/LaunchAgents`). Jusqu'ici, une redirection shell y atteignait.
+5. **Ce qui lui reste interdit** :
+   - changer une cadence, un plafond, un budget ou `config.env` (V9) ;
+   - tuer un passage en cours ;
+   - écrire le fichier de pistes ;
+   - promouvoir, ou toucher à la préproduction ou aux secrets (V5) ;
+   - trancher V1, V2, V3, V5 ou V9 ;
+   - réinstaller ou replanifier.
+
+**Ce qui change dans le risque** : c'est le premier agent qui agit sur la chaîne plutôt que sur le
+dépôt. Ses actions sont donc des verbes fermés, vérifiés par l'outil installé, qu'il ne peut pas
+modifier, et toutes réversibles :
+- un job se repose ;
+- une pause se lève ;
+- un processus balayé appartenait à un passage déjà fini.
+
+La garde lit le texte d'une commande. Un script écrit puis exécuté la traverse, comme pour tout
+rôle (§ 5). La consigne porte ce que la garde ne voit pas, et le rapport en garde la trace.
+
 ## Conséquences
 
 - **Ce que ça rend possible** :
