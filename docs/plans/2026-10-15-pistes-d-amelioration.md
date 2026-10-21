@@ -8982,7 +8982,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Enregistrer deux fois la même recherche sous le nom proposé rend 500
 - Réf : P92.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:31,46`, `takussan-api/app/Http/Requests/Api/StoreSavedSearchRequest.php:56`, `takussan-api/app/Http/Requests/Api/UpdateSavedSearchRequest.php:50`, `takussan-api/database/migrations/2026_04_17_160021_create_saved_searches_table.php:23`, `takussan-web/src/components/favorites/SaveSearchDialog.tsx:66-79,141-142`
 - Constat :
@@ -8991,10 +8991,11 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Le dialogue du front pré-remplit le nom à partir des filtres (`suggestName`, l. 66-79) : enregistrer deux fois la même recherche produit le même nom par défaut, et le 500 s'affiche en erreur générique `t('error')` sous le champ (lu). Le renommage vers un nom pris passe par le même chemin sans règle (lu ; non mesuré, le premier 500 abandonnant la transaction du test).
   - Établi comment : lecture des deux FormRequest et du contrôleur, test temporaire.
 - Piste : `Rule::unique('saved_searches', 'name')->where('user_id', …)` dans les deux FormRequest (`->ignore()` sur la modification), avec un code `saved_search.name_taken` que le dialogue affiche ; test des deux statuts 422.
+- Mesure (2026-10-21, c9a22e0df, mesureur) : relu `StoreSavedSearchRequest.php:56` et `UpdateSavedSearchRequest.php:50` (`name` sans règle d'unicité), `SavedSearchController.php:31,46` (`create`, `fill()->save()`) ; test temporaire `TmpMesureurP92Test` (base créée par le test, charge 2,09 / 2,51 / 3,36 sur 8 cœurs, retiré ensuite) → deux `POST /api/saved-searches` de même nom : 201 puis 500 `saved_searches_user_id_name_unique` ; `PATCH` d'une seconde recherche vers le nom de la première : 500, même contrainte (le renommage, non mesuré par l'explorateur, est donc établi). Aucun ticket ni commit ne le traite (`grep` des tickets, `git log -S`). Correctif attendu : `Rule::unique('saved_searches', 'name')->where('user_id', <appelant>)` dans les deux FormRequest (`->ignore()` de la recherche en modification), soit 422 sur `name` avec le message `validation.unique` existant, et un test des deux 422 ; aucun texte neuf, ni nom suffixé, ni dédoublonnage. Classement : A1, la contrainte `unique(user_id, name)` fixe déjà la règle et le correctif ne change que le statut rendu à un appel qui échoue aujourd'hui.
 
 ### Repasser un membre d'agence à un rôle qu'il a déjà tenu rend 500
 - Réf : P92.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : restaurer un profil supprimé ramène son rôle d'agence
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyMemberRoleController.php:120-146`, `takussan-api/app/Models/Profiles/AgentProfile.php:22`, `takussan-api/app/Models/Profiles/AgencyAdminProfile.php:28`, `takussan-api/database/migrations/2026_05_02_000002_create_agent_profiles_table.php:25`, `takussan-api/database/migrations/2026_05_10_170000_create_agency_admin_profiles_table.php:37`
 - Constat :
@@ -9004,10 +9005,11 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - `UserRoleController.php:192-206` (`materializeOrRestore`, `withTrashed` + `restore`) résout déjà ce cas pour l'autre route (rapport de sous-agent, à vérifier).
   - Même cause rapportée, non relue : réajouter un membre retiré (`AgencyMemberRemovalService.php:78,82` puis `AgencyController.php:273,280`) et accepter une invitation d'une personne déjà profilée ou retirée de l'agence (`InvitationService.php:696-707`) (à vérifier).
 - Piste : un seul chemin de matérialisation des profils qui restaure le profil supprimé (celui de `UserRoleController`), employé par les trois écrivains ; test aller-retour agent → admin → agent, et retrait puis réajout.
+- Mesure (2026-10-21, c9a22e0df, mesureur) : relu `AgencyMemberRoleController.php` (`setAgencyAdmin`, `setAgent`, `setOwner` : `delete()` doux puis `firstOrCreate`), la contrainte pleine `unique(user_id, agency_id)` des deux migrations (aucune migration ultérieure ne la rend partielle, `grep` de `deleted_at IS NULL`), et `UserRoleController::materializeOrRestore` (`withTrashed()` puis `restore()`, docblock TCK-278) ; test temporaire `TmpMesureurP92Test` (base créée par le test, charge 2,09 / 2,51 / 3,36 sur 8 cœurs, retiré ensuite) → en admin d'agence, `PUT /api/agencies/{a}/members/{m}/role` agent → `agency_admin` : 200, puis → `agent` : 500 `agent_profiles_user_id_agency_id_unique`. Le réajout d'un membre retiré et l'invitation n'ont pas été rejoués. Classement : V2, restaurer le profil supprimé lui rend son `agency_role_id` d'avant (colonne non nulle depuis `2026_08_16_120400`), donc ses capacités, ce qui est un choix d'autorisation et non un simple 500 à fermer.
 
 ### Un indicateur déjà configuré pour l'agence, créé ou choisi à nouveau, rend 500
 - Réf : P92.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : refuser le doublon ou écraser l'objectif existant
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:55,67`, `takussan-api/app/Http/Requests/Api/StoreKpiConfigRequest.php:44`, `takussan-api/app/Http/Requests/Api/UpdateKpiConfigRequest.php:44`, `takussan-api/database/migrations/2026_04_23_120000_create_kpi_configs_table.php:33`
 - Constat :
@@ -9015,10 +9017,11 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Un second objectif pour la même métrique de la même agence n'est arrêté par aucune règle et atteint la contrainte, que `bootstrap/app.php` ne rend pas en code : 500 (lu : règle, `create`, contrainte et gestionnaire d'exceptions ; non mesuré par un test).
   - Aucun test de doublon (rapport de sous-agent).
 - Piste : `Rule::unique('kpi_configs', 'metric')->where('agency_id', …)` (`->ignore()` en modification), ou un `updateOrCreate` si le produit veut qu'on écrase ; test 422.
+- Mesure (2026-10-21, c9a22e0df, mesureur) : relu `StoreKpiConfigRequest.php:44` et `UpdateKpiConfigRequest.php:44` (`metric` validé par `Rule::in` seul), `KpiConfigController.php` (`KpiConfig::create`, `update`) ; test temporaire `TmpMesureurP92Test` (base créée par le test, charge 2,09 / 2,51 / 3,36 sur 8 cœurs, retiré ensuite) → en admin d'agence, deux `POST /api/kpi-configs` de même métrique : 201 puis 500 `kpi_configs_agency_id_metric_unique` ; `PUT` d'un second indicateur vers la métrique du premier : 500, même contrainte (le constat, non mesuré, est établi). Aucun ticket ni commit ne le traite. Classement : V7, la piste laisse ouverts deux comportements visibles (422, ou `updateOrCreate` qui écrase l'objectif déjà configuré), et ce choix revient au produit.
 
 ### Un numéro d'agrément déjà porté par une autre agence rend 500
 - Réf : P92.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreAgencyRequest.php:36`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:51`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:60,128` (rapport), `takussan-api/database/migrations/2026_04_17_160002_create_agencies_table.php:15`
 - Constat :
@@ -9026,10 +9029,11 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Une agence qui saisit le numéro d'une autre, supprimée comprise (la contrainte compte les lignes supprimées), atteint la contrainte : 500 (déduit, à vérifier par un test).
   - Les écritures `create` et `fill()->save()` sont citées par un sous-agent (à vérifier).
 - Piste : `Rule::unique('agencies', 'license_number')` (`->ignore($agency)` en modification) ; test 422. Le cas de l'agence supprimée qui garde son numéro relève peut-être d'un choix (libérer le numéro à la suppression).
+- Mesure (2026-10-21, c9a22e0df, mesureur) : relu `StoreAgencyRequest.php:36` et `AgencyUpdateRequest.php:51` (`['nullable', 'string']`), `AgencyController.php` (`Agency::create`, `fill($data)->save()`), `agencies.license_number` `unique()` ; test temporaire `TmpMesureurP92Test` (base créée par le test, charge 2,09 / 2,51 / 3,36 sur 8 cœurs, retiré ensuite) → `POST /api/agencies` avec le numéro d'une agence vivante : 500 `agencies_license_number_unique` ; avec celui d'une agence supprimée : 500, même contrainte ; `PUT /api/agencies/{id}` en admin de l'agence vers un numéro pris : 500. Le constat, déduit, est établi dans ses trois cas. Correctif attendu : `Rule::unique('agencies', 'license_number')` (sans exclure les supprimées, comme la contrainte) dans les deux FormRequest, `->ignore($agency)` en modification, soit 422 sur `license_number`, et un test des trois cas ; le numéro d'une agence supprimée n'est pas libéré. Classement : A1, la contrainte fixe la règle et aucun appel qui aboutit aujourd'hui ne change.
 
 ### Une étiquette créée à la console sous un nom pris, à la casse près, rend 500
 - Réf : P92.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux noms distincts de même slug (refuser ou suffixer)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreTagRequest.php:40`, `takussan-api/app/Http/Controllers/Api/TagController.php:49` (rapport), `takussan-api/app/Models/Tag.php:60-62` (rapport), `takussan-api/database/migrations/2026_04_17_160004_create_tags_table.php:13-14`, `takussan-api/database/migrations/2026_08_21_130000_add_case_insensitive_unique_indexes.php:79`
 - Constat :
@@ -9037,10 +9041,11 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Une étiquette de même nom, ou de casse différente, atteint la contrainte : 500 (déduit, à vérifier). Le renommage, lui, juge le nom sans casse et rend 409 (`TagModeration.php:62-77`, rapport de sous-agent).
   - Le slug dérivé du nom (`Str::slug`) ferait aussi échouer deux noms distincts de même slug (« Vue mer », « Vue-mer ») (rapport de sous-agent, à vérifier).
 - Piste : reprendre à la création le jugement sans casse de `TagModeration` (409 `tag.name_taken` ou équivalent) et un slug libre ; test des deux cas.
+- Mesure (2026-10-21, c9a22e0df, mesureur) : relu `StoreTagRequest.php:40` (`['required', 'string', 'max:100']`), `TagController.php:49` (`Tag::create`), `Tag.php` (`creating` : `slug = Str::slug(name)`), `TagModeration::renommer` (409 `tags.name_taken` par `CaseInsensitive`) ; test temporaire `TmpMesureurP92Test` (base créée par le test, charge 2,09 / 2,51 / 3,36 sur 8 cœurs, retiré ensuite) → en super-admin, `POST /api/tags` « Piscine » sur « Piscine » : 500 `tags_name_unique` ; « piscine » sur « Piscine » : 500 `tags_slug_unique` (le slug heurte avant l'index `LOWER(name)`) ; « Vue-mer » sur « Vue mer » : 500 `tags_slug_unique`. Les deux premiers cas relèvent du jugement déjà écrit de `TagModeration` (409 `tags.name_taken`). Classement : V7, le troisième cas demande de choisir entre refuser un nom distinct et lui donner un slug suffixé, que le front emploie pour traduire les équipements du catalogue (`TagModeration.php`, commentaire TCK-729).
 
 ### Connexion OAuth : un e-mail de casse différente d'un compte existant contourne le contrôle et rend 500
 - Réf : P92.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : contrôle anti-prise de compte de la connexion OAuth
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/OAuthProvisioningService.php:64-67,87`, `takussan-api/app/Models/User.php:89`
 - Constat :
@@ -9048,6 +9053,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Le modèle replie l'e-mail en minuscules à l'écriture et l'index est sur `LOWER(email)` (rapport de sous-agent pour `User.php:89` ; index lu dans la migration) : `John@Gmail.com` face à `john@gmail.com` passerait le contrôle puis heurterait l'index, 500 au lieu du refus prévu (à vérifier par un test).
   - Les tests OAuth n'emploient que des e-mails en minuscules (rapport, à vérifier).
 - Piste : comparer par `App\Support\CaseInsensitive` (ou l'e-mail replié) ; test avec un e-mail de fournisseur en casse mixte. V2 probable : chemin d'authentification.
+- Mesure (2026-10-21, c9a22e0df, mesureur) : relu `OAuthProvisioningService.php` (`User::where('email', $email)->exists()` sur l'e-mail du fournisseur tel quel, puis `User::create`) et `User::setEmailAttribute` (repli par `CaseInsensitive::fold` à l'écriture) ; test temporaire `TmpMesureurP92Test` (base créée par le test, charge 2,09 / 2,51 / 3,36 sur 8 cœurs, retiré ensuite) → compte `john@gmail.com` existant, `provision('google', …)` avec `John@Gmail.com` : le contrôle ne refuse pas (pas de 409 `auth.oauth_email_taken`), et `create` lève `UniqueConstraintViolationException` `users_email_unique`, soit 500. Aucun ticket ni commit ne le traite. Classement : V2, le correctif touche le chemin d'authentification et sa défense contre la prise de compte.
 
 ### Contrôle puis insertion sans verrou : un double envoi rend 500 sur plusieurs gestes
 - Réf : P92.07
@@ -9063,13 +9069,14 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Les choix de slug et de profil ignorent les lignes supprimées que la contrainte compte encore
 - Réf : P92.08
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:51,132`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:244,317`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:163-178`, `takussan-api/app/Services/Invitation/AgentInvitationService.php:240-255`
 - Constat :
   - Rapport de sous-agent, non relu : le slug d'agence libre se cherche par `Agency::query()->where('slug')->exists()`, que la portée `SoftDeletes` borne aux agences vivantes, alors que `agencies.slug` est unique sur toutes les lignes ; un nom dont le slug appartient à une agence supprimée rendrait 500 à l'inscription d'un hôte ou au provisionnement (à vérifier).
   - Même motif rapporté pour les contrôles d'avant invitation, qui ignorent les profils supprimés (voir P92.02) (à vérifier).
 - Piste : `withTrashed()` dans ces recherches de disponibilité ; test avec une agence supprimée de même nom.
+- Mesure (2026-10-21, c9a22e0df, mesureur) : relu `AgencyProvisioningService::uniqueSlug` et `HostIndividualOnboardingService::uniqueSlug` (`Agency::query()->where('slug', …)->exists()`, que `SoftDeletes` borne aux agences vivantes), `agencies.slug` `unique()` sur toutes les lignes, et `StoreAgencyOnboardingRequest.php:21` (`unique:agencies,slug`, qui compte déjà les supprimées quand le slug est fourni) ; test temporaire `TmpMesureurP92Test` (base créée par le test, charge 2,09 / 2,51 / 3,36 sur 8 cœurs, retiré ensuite) → agence « Sunu Gestion » supprimée, `POST /api/admin/agencies` sans `slug` en super-admin : 500 `agencies_slug_unique`. Le chemin de l'hôte individuel, même code relu, n'a pas été rejoué. La partie « contrôles d'avant invitation » n'a pas été rejouée : `assertNoActiveOwnerInAgency` et `assertNoActiveAgentInAgency` ignorent bien les profils supprimés (relu), mais l'issue (restaurer ou non le profil) est la cause de P92.02, classée V2 ; seule la partie slug est retenue ici. Correctif attendu : `withTrashed()` dans les deux `uniqueSlug`, et un test de provisionnement et d'inscription d'hôte avec une agence supprimée de même nom. Classement : A1, la contrainte et la règle de la requête d'onboarding comptent déjà les supprimées, et seul le slug engendré d'un appel qui échoue aujourd'hui change.
 
 ### Petites améliorations
 - Réf : P92.09
