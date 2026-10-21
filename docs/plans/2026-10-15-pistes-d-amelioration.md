@@ -7371,7 +7371,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 
 ### Un échec tardif ne change aucun routage suivant
 - Réf : P72.03
-- Statut : validé — pour les seuls codes à usage unique (`is_otp`), retenir en cache, par numéro et pendant 15 minutes, le fournisseur (ou WhatsApp) dont l'accusé est revenu `failed`, et le sauter au renvoi ; aucune colonne neuve ; test : un `failed` tardif, puis un renvoi qui part par le fournisseur suivant (porteur, 2026-10-20)
+- Statut : fait · TCK-1093
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:72,100-108`, `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:30-63`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:142-162`
 - Constat :
@@ -7381,6 +7381,7 @@ dépend. Les webhooks eux-mêmes (jeton, signature, précédence des statuts) so
 - Piste : retenir, par numéro et pour une durée bornée, le dernier échec tardif d'un fournisseur ou de WhatsApp, et le faire sauter au prochain envoi ; au minimum pour les codes à usage unique (`is_otp`). Test : un `failed` tardif, puis un renvoi qui part par le fournisseur suivant.
 - Mesure (2026-10-20, 14ba88061, mesureur) : relu `SmsRouterDriver::resolveChain()` (chaîne lue telle quelle dans `sms.fallback_chains`, seul le plafond Orange la fait sauter, en-tête l. 23-26) et `UpdateWhatsappDeliveryStatusJob` (n'écrit que la tentative, ni `whatsapp_contacts` ni préférence) ; aucun code ne retient un échec tardif (`grep -rln "last_failed\|dernier échec" app` → paiements seulement) → tient. Classement : V7 et V6, la piste demande un état neuf (par numéro, durée bornée) dont la durée, le lieu de stockage et la portée sont des choix à faire.
 - Mesure (2026-10-20, efd268620, delegue) : relu `SmsRouterDriver::resolveChain()` et `UpdateWhatsappDeliveryStatusJob` sur l'arbre (inchangés depuis la mesure), `grep -rn "porteur (" ` du fichier sur les angles SMS et WhatsApp → aucune décision sur un état de routage ; TCK-766 n'a tranché que l'échec synchrone ambigu → la piste tient. Recommandation : commencer par les seuls codes à usage unique (`is_otp`), en retenant par numéro et pour une durée courte (de l'ordre du délai de renvoi) le fournisseur dont l'accusé est revenu `failed`, sans colonne neuve (cache) ; c'est la voie la plus étroite et la plus utile, liée à P72.04. Ce qui manque pour trancher : la durée, le lieu de l'état (cache ou table, V4 si table), et s'il vaut pour WhatsApp ou seulement pour la chaîne SMS : un état neuf du routage, que rien d'écrit n'appuie (V6, V7).
+- Mesure (2026-10-21, fc25d5ff5, implementeur) : avant correctif, `OtpLateFailureRoutingTest` : code (`is_otp`) à un numéro Orange accepté par `orange`, accusé `failed` par `DeliveryAttemptUpdater`, renvoi → reparti par `orange` (rouge). Correctif : le routeur retient en cache, 15 minutes, les codes acceptés ; l'accusé `failed` inscrit leur fournisseur pour le numéro, 15 minutes, et le renvoi le saute (toute la chaîne inscrite → rejouée entière) ; aucun code ne part par WhatsApp, rien n'est retenu pour lui ; 4 verts ; ablation (`recordFailure()` retiré) → 2 rouges.
 
 ### Un code à usage unique perdu en accusé `failed` ne laisse ni signal ni autre voie au destinataire
 - Réf : P72.04
