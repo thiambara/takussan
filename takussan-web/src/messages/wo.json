@@ -8783,7 +8783,8 @@
       "reasons": {
         "inappAlwaysOn": "Mu ngi dox saa su nekk ngir nga bañ a réer dara.",
         "phoneNotVerified": "Telefon bi ñu ko wóoralul.",
-        "channelUnavailable": "Benn bataaxal bu mel noonu du jaar ci yoon wii."
+        "channelUnavailable": "Benn bataaxal bu mel noonu du jaar ci yoon wii.",
+        "phoneWithoutWhatsapp": "Votre numéro est déclaré sans WhatsApp."
       }
     },
     "payoutMethods": {
