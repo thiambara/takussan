@@ -231,7 +231,9 @@ export function NotificationPreferencesMatrix() {
               ? t('reasons.phoneNotVerified')
               : cell.reason === 'channel_unavailable'
                 ? t('reasons.channelUnavailable')
-                : undefined;
+                : cell.reason === 'phone_without_whatsapp'
+                  ? t('reasons.phoneWithoutWhatsapp')
+                  : undefined;
         return (
           <label
             className={

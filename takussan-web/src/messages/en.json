@@ -9431,7 +9431,8 @@
       "reasons": {
         "inappAlwaysOn": "Always on so you miss nothing.",
         "phoneNotVerified": "Phone not verified.",
-        "channelUnavailable": "No message of this kind is sent on this channel."
+        "channelUnavailable": "No message of this kind is sent on this channel.",
+        "phoneWithoutWhatsapp": "Your number is declared as not on WhatsApp."
       }
     },
     "payoutMethods": {

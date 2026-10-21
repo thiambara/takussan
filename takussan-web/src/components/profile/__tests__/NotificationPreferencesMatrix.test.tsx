@@ -234,6 +234,34 @@ describe('<NotificationPreferencesMatrix>', () => {
     expect(box.closest('label')).toHaveAttribute('title', 'Aucun message de ce type ne part sur ce canal.');
   });
 
+  it('TCK-1094 — un numéro déclaré sans WhatsApp verrouille la case WhatsApp et dit pourquoi', async () => {
+    const grid = buildGrid();
+    getMock.mockResolvedValue({
+      ok: true,
+      data: {
+        ...grid,
+        channels: [...grid.channels, 'whatsapp'],
+        preferences: [
+          ...grid.preferences,
+          {
+            event_type: 'message_received',
+            channel: 'whatsapp',
+            enabled: false,
+            locked: true,
+            reason: 'phone_without_whatsapp',
+          },
+        ],
+      },
+    });
+    render(wrap(<NotificationPreferencesMatrix />));
+    await waitFor(() => screen.getByText('Nouveau message'));
+
+    const box = screen.getByRole('checkbox', { name: /Nouveau message.*WhatsApp/i }) as HTMLInputElement;
+    expect(box).toBeDisabled();
+    expect(box.checked).toBe(false);
+    expect(box.closest('label')).toHaveAttribute('title', 'Votre numéro est déclaré sans WhatsApp.');
+  });
+
   it('surfaces the server error from the query', async () => {
     getMock.mockResolvedValue({ ok: false, message: 'Preference endpoint down.' });
     render(wrap(<NotificationPreferencesMatrix />));
