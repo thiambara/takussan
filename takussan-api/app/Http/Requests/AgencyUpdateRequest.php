@@ -47,11 +47,13 @@ class AgencyUpdateRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'name' => ['sometimes', 'string'],
-            'license_number' => ['sometimes', 'nullable', 'string'],
+            // TCK-1106 (P91.01) — les bornes des colonnes (`name`, `license_number` en 255,
+            // `phone` en 30) : au-delà, 422 sur la clé, et non le 500 de PostgreSQL.
+            'name' => ['sometimes', 'string', 'max:255'],
+            'license_number' => ['sometimes', 'nullable', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string'],
             'email' => ['sometimes', 'nullable', 'email'],
-            'phone' => ['sometimes', 'nullable', 'string'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'website' => ['sometimes', 'nullable', 'url'],
             'commission_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             // TCK-600 — les devises que la plateforme accepte (`currency.supported`), pas tout l'enum.
