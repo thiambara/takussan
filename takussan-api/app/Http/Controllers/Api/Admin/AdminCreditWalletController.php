@@ -13,6 +13,7 @@ use App\Models\CreditMovement;
 use App\Services\Boost\BoostSettings;
 use App\Services\Credits\CreditLedger;
 use App\Services\Credits\InsufficientCredits;
+use App\Sorts\CollatedNameSort;
 use App\Support\CaseInsensitive;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,7 +28,9 @@ class AdminCreditWalletController extends Controller
         $paginator = Agency::query()
             ->whereIn('id', CreditLot::query()->select('agency_id'))
             ->when($search !== '', fn ($q) => $q->whereRaw(CaseInsensitive::sql('name').' LIKE ?', ['%'.CaseInsensitive::fold($search).'%']))
-            ->orderBy('name')
+            // TCK-1138 (P87.05) — `name` en `COLLATE "und-x-icu"` (ADR-0025), `id` en départage.
+            ->tap(fn ($q) => (new CollatedNameSort)($q, false, 'agencies.name'))
+            ->orderBy('agencies.id')
             ->paginate(min(100, max(1, (int) $request->input('per_page', 25))));
 
         $agencies = collect($paginator->items());
