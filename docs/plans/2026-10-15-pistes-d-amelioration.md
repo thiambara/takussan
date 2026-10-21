@@ -164,7 +164,7 @@ voie d'écriture (angle 13, puis 47).
 | 89 | Commandes jouées par `release.sh` et `seed.sh` (`geo:sync-referential`, `tags:sync-catalog`, `alerts:ensure-ops-rules`, `membership:reconcile-system-roles`, `scout:import`) : code de sortie réel sur une erreur, face à ce que le script en conclut | fait |
 | 90 | Écritures explicites dans l'index (`->searchable()` / `unsearchable()` de `PropertyTagController`, `BoostLifecycle`, `GeoReindexation`, `SyncAgencyPropertiesSearchIndex`) : appelées dans une transaction qui peut être annulée, face à `SCOUT_AFTER_COMMIT` et `SCOUT_QUEUE` de chaque environnement | fait |
 | 91 | FormRequests dont la borne `max:` dépasse la longueur `varchar(N)` de la colonne écrite, ou qui n'en ont pas : 500 (`22001`) au lieu de 422 — le pendant « longueur » de l'angle 54 | fait |
-| 92 | Contraintes `UNIQUE` de la base sans règle `unique` ni verrou dans le FormRequest ou le service qui écrit : un doublon rend 500 (`23505`, que `bootstrap/app.php` ne traduit pas) au lieu de 422 ou 409 | à faire |
+| 92 | Contraintes `UNIQUE` de la base sans règle `unique` ni verrou dans le FormRequest ou le service qui écrit : un doublon rend 500 (`23505`, que `bootstrap/app.php` ne traduit pas) au lieu de 422 ou 409 | fait |
 | 93 | Indicateurs calculés des tableaux de bord et rapports (`DashboardAgencyService`, `KpiResolver`, `PortfolioMetrics`, `TeamPerformanceService`, `OwnerStatementService`) dont les tests n'assertent que la structure JSON : valeur toujours nulle ou fausse sur des données réelles ? | à faire |
 | 94 | Réponses assemblées à la main dans un contrôleur (`TaskController::format`, `Admin\AgencyUpgradeRequestController::show`, `Me\ServiceProviderProfileController::show`, 25 `toISOString()` sous `app/Http/Controllers`) : dates hors ADR-0018 et enums bruts, que `check-resource-date-format.mjs` ne lit pas | à faire |
 | 95 | Réponse d'une écriture (`store`, `update`, action) face au `show` ou à la liste du même modèle : forme, ressource, types (`commission_share` en chaîne ou en nombre), clés — `PropertyCollaboratorController`, `CustomerController::setPrimaryContact`, `PropertyTagController::sync` | à faire |
@@ -8961,3 +8961,123 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Le commentaire du front annonce que le téléphone est normalisé en E.164 côté serveur (lu, `common.ts:44`). C'est vrai pour les clients et les visites, faux pour les garants et les agences (P91.01, P91.03 : ni `TelephoneSaisi` ni `TelephoneJoignable`, lu).
 - Piste : `max:255` sur `title` et `transaction_id`. Corriger le commentaire du front, ou aligner les deux voies, selon ce que P91.03 décide.
 - Mesure (2026-10-21, 3e5f55e7b, mesureur) : relu `StoreForAgencyReviewRequest.php:48` et `StoreForPropertyReviewRequest.php:52` (`title` sans `max`, quand les requêtes d'avis d'agent et de prestataire portent `max:255`), `MarkPaidLeasePaymentRequest.php:67` et `StoreBookingPaymentRequest.php:51` (`transaction_id` sans `max`, colonnes `varchar(255)` des deux tables) ; test temporaire `TmpMesureurP91Test`, un appel par cas (charge 5,71 / 5,59 / 5,21 sur 8 cœurs, base créée par le test, retiré ensuite) → en super-admin, `POST /api/agencies/{id}/reviews` `title` 256 → 500 `varchar(255)` ; en agent, `POST /api/lease-payments/{id}/mark-paid` `transaction_id` 256 → 500 `varchar(255)`. Avis de bien et paiement de réservation non joués, même règle relue. Le commentaire `common.ts:44` reste inexact pour les garants et les agences (aucune règle de téléphone, relu). Correctif attendu : `max:255` sur `title` et `transaction_id` dans les quatre requêtes ; le commentaire du front corrigé pour dire que la normalisation E.164 vaut pour les clients et les visites. Classement : A1 et A6, les colonnes fixent les bornes sans changer aucun montant ni l'écriture d'un paiement qui aboutit aujourd'hui, et le commentaire est ramené à ce que fait le code.
+
+## Angle 92 — Contraintes `UNIQUE` sans garde : doublon rendu en 500
+
+*Exploré le 2026-10-21 sur `pre-dev` 50b3bab4d, par l'explorateur. Relu par l'explorateur :
+`bootstrap/app.php:131-178` (aucun rendu de `UniqueConstraintViolationException` : seule une
+`ApiError` ou une `HttpException` est traduite, l. 129-130), `SavedSearchController.php:29-48`,
+`StoreSavedSearchRequest.php:50-60`, `UpdateSavedSearchRequest.php:46-55`,
+`SaveSearchDialog.tsx:66-79,103,141-142`, `AgencyMemberRoleController.php:120-146`, `SoftDeletes` des
+deux profils, `StoreKpiConfigRequest.php:44`, `UpdateKpiConfigRequest.php:44`,
+`KpiConfigController.php:50-56`, les règles `license_number`, `StoreTagRequest.php:40`,
+`OAuthProvisioningService.php:64-67`, `GroupConversationService.php:117-160`,
+`AgencyRoleService.php:166-180`, et l'inventaire des index uniques des migrations (`grep`). Le reste
+vient de trois sous-agents en lecture seule (inventaire des écrivains, 60 contraintes) ; ce qu'il
+en reste non relu est écrit « à vérifier ». Mesure : un test temporaire (retiré) sur la base de test
+PostgreSQL, charge `3.09 4.12 4.86` sur 8 cœurs. Hors de l'angle : `firstOrCreate` et
+`updateOrCreate` de Laravel 13.25 rattrapent la course par `createOrFirst` (rapport de sous-agent,
+`vendor/…/Eloquent/Builder.php:710-750`, à vérifier), donc les écrivains qui les emploient sur un
+modèle sans `SoftDeletes` n'ont pas été retenus.*
+
+### Enregistrer deux fois la même recherche sous le nom proposé rend 500
+- Réf : P92.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:31,46`, `takussan-api/app/Http/Requests/Api/StoreSavedSearchRequest.php:56`, `takussan-api/app/Http/Requests/Api/UpdateSavedSearchRequest.php:50`, `takussan-api/database/migrations/2026_04_17_160021_create_saved_searches_table.php:23`, `takussan-web/src/components/favorites/SaveSearchDialog.tsx:66-79,141-142`
+- Constat :
+  - `saved_searches` porte `unique(user_id, name)` ; ni la création ni la modification ne valident l'unicité du nom (`'name' => ['required', 'string', 'max:100']`) (lu).
+  - Deux `POST /api/saved-searches` de même nom pour un même compte : 201 puis **500** `SQLSTATE[23505] … saved_searches_user_id_name_unique` (mesuré : test temporaire, retiré).
+  - Le dialogue du front pré-remplit le nom à partir des filtres (`suggestName`, l. 66-79) : enregistrer deux fois la même recherche produit le même nom par défaut, et le 500 s'affiche en erreur générique `t('error')` sous le champ (lu). Le renommage vers un nom pris passe par le même chemin sans règle (lu ; non mesuré, le premier 500 abandonnant la transaction du test).
+  - Établi comment : lecture des deux FormRequest et du contrôleur, test temporaire.
+- Piste : `Rule::unique('saved_searches', 'name')->where('user_id', …)` dans les deux FormRequest (`->ignore()` sur la modification), avec un code `saved_search.name_taken` que le dialogue affiche ; test des deux statuts 422.
+
+### Repasser un membre d'agence à un rôle qu'il a déjà tenu rend 500
+- Réf : P92.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/AgencyMemberRoleController.php:120-146`, `takussan-api/app/Models/Profiles/AgentProfile.php:22`, `takussan-api/app/Models/Profiles/AgencyAdminProfile.php:28`, `takussan-api/database/migrations/2026_05_02_000002_create_agent_profiles_table.php:25`, `takussan-api/database/migrations/2026_05_10_170000_create_agency_admin_profiles_table.php:37`
+- Constat :
+  - `setAgencyAdmin`, `setAgent`, `setOwner` suppriment (douce) les autres profils de l'agence, puis `firstOrCreate(['user_id', 'agency_id'])` le profil visé (lu).
+  - Les profils portent `SoftDeletes` (lu) et la contrainte `unique(user_id, agency_id)` est pleine, sans `WHERE deleted_at IS NULL` (lu dans les migrations ; aucune migration ultérieure ne la rend partielle d'après le `grep` des index).
+  - Agent → admin → agent : le `first()` de `firstOrCreate` ne voit pas le profil agent supprimé, l'insertion lève 23505, la relecture de `createOrFirst` ne le voit pas non plus et relance l'exception → 500 (lu pour les deux premiers temps ; la relecture vient d'un sous-agent, à vérifier par un test).
+  - `UserRoleController.php:192-206` (`materializeOrRestore`, `withTrashed` + `restore`) résout déjà ce cas pour l'autre route (rapport de sous-agent, à vérifier).
+  - Même cause rapportée, non relue : réajouter un membre retiré (`AgencyMemberRemovalService.php:78,82` puis `AgencyController.php:273,280`) et accepter une invitation d'une personne déjà profilée ou retirée de l'agence (`InvitationService.php:696-707`) (à vérifier).
+- Piste : un seul chemin de matérialisation des profils qui restaure le profil supprimé (celui de `UserRoleController`), employé par les trois écrivains ; test aller-retour agent → admin → agent, et retrait puis réajout.
+
+### Un indicateur déjà configuré pour l'agence, créé ou choisi à nouveau, rend 500
+- Réf : P92.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:55,67`, `takussan-api/app/Http/Requests/Api/StoreKpiConfigRequest.php:44`, `takussan-api/app/Http/Requests/Api/UpdateKpiConfigRequest.php:44`, `takussan-api/database/migrations/2026_04_23_120000_create_kpi_configs_table.php:33`
+- Constat :
+  - `kpi_configs` porte `unique(agency_id, metric)` ; `metric` n'est validé que par `Rule::in(KpiConfig::allowedMetrics())`, à la création comme à la modification, puis `KpiConfig::create($validated)` (lu).
+  - Un second objectif pour la même métrique de la même agence n'est arrêté par aucune règle et atteint la contrainte, que `bootstrap/app.php` ne rend pas en code : 500 (lu : règle, `create`, contrainte et gestionnaire d'exceptions ; non mesuré par un test).
+  - Aucun test de doublon (rapport de sous-agent).
+- Piste : `Rule::unique('kpi_configs', 'metric')->where('agency_id', …)` (`->ignore()` en modification), ou un `updateOrCreate` si le produit veut qu'on écrase ; test 422.
+
+### Un numéro d'agrément déjà porté par une autre agence rend 500
+- Réf : P92.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreAgencyRequest.php:36`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:51`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:60,128` (rapport), `takussan-api/database/migrations/2026_04_17_160002_create_agencies_table.php:15`
+- Constat :
+  - `agencies.license_number` est `unique()` ; les deux règles se limitent à `['nullable', 'string']` (lu).
+  - Une agence qui saisit le numéro d'une autre, supprimée comprise (la contrainte compte les lignes supprimées), atteint la contrainte : 500 (déduit, à vérifier par un test).
+  - Les écritures `create` et `fill()->save()` sont citées par un sous-agent (à vérifier).
+- Piste : `Rule::unique('agencies', 'license_number')` (`->ignore($agency)` en modification) ; test 422. Le cas de l'agence supprimée qui garde son numéro relève peut-être d'un choix (libérer le numéro à la suppression).
+
+### Une étiquette créée à la console sous un nom pris, à la casse près, rend 500
+- Réf : P92.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreTagRequest.php:40`, `takussan-api/app/Http/Controllers/Api/TagController.php:49` (rapport), `takussan-api/app/Models/Tag.php:60-62` (rapport), `takussan-api/database/migrations/2026_04_17_160004_create_tags_table.php:13-14`, `takussan-api/database/migrations/2026_08_21_130000_add_case_insensitive_unique_indexes.php:79`
+- Constat :
+  - `tags` porte `name unique`, `slug unique` et un index unique sur `LOWER(name)` ; la règle de création est `['required', 'string', 'max:100']` (lu).
+  - Une étiquette de même nom, ou de casse différente, atteint la contrainte : 500 (déduit, à vérifier). Le renommage, lui, juge le nom sans casse et rend 409 (`TagModeration.php:62-77`, rapport de sous-agent).
+  - Le slug dérivé du nom (`Str::slug`) ferait aussi échouer deux noms distincts de même slug (« Vue mer », « Vue-mer ») (rapport de sous-agent, à vérifier).
+- Piste : reprendre à la création le jugement sans casse de `TagModeration` (409 `tag.name_taken` ou équivalent) et un slug libre ; test des deux cas.
+
+### Connexion OAuth : un e-mail de casse différente d'un compte existant contourne le contrôle et rend 500
+- Réf : P92.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Auth/OAuthProvisioningService.php:64-67,87`, `takussan-api/app/Models/User.php:89`
+- Constat :
+  - Le contrôle anti-prise de compte compare `User::where('email', $email)` avec l'e-mail du fournisseur tel quel (lu, l. 66).
+  - Le modèle replie l'e-mail en minuscules à l'écriture et l'index est sur `LOWER(email)` (rapport de sous-agent pour `User.php:89` ; index lu dans la migration) : `John@Gmail.com` face à `john@gmail.com` passerait le contrôle puis heurterait l'index, 500 au lieu du refus prévu (à vérifier par un test).
+  - Les tests OAuth n'emploient que des e-mails en minuscules (rapport, à vérifier).
+- Piste : comparer par `App\Support\CaseInsensitive` (ou l'e-mail replié) ; test avec un e-mail de fournisseur en casse mixte. V2 probable : chemin d'authentification.
+
+### Contrôle puis insertion sans verrou : un double envoi rend 500 sur plusieurs gestes
+- Réf : P92.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Messaging/GroupConversationService.php:117-160`, `takussan-api/app/Services/Membership/AgencyRoleService.php:166-180`, `takussan-api/app/Services/Agency/AgencyUpgradeRequestService.php:71,195-207`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:37-52`, `takussan-api/app/Http/Controllers/Api/IntegrationController.php:87-101`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:49-59`, `takussan-api/app/Services/Invitation/InvitationService.php:755-776`
+- Constat :
+  - Ajout de participants : lecture des participants (`exists()`) puis `attach($uid)` dans une transaction, sans verrou sur la conversation (lu) ; deux ajouts simultanés du même membre heurtent `conversation_participants (conversation_id, user_id)` (déduit, à vérifier).
+  - Capacités d'un rôle : `delete()` puis `insert()` en transaction, sans verrou sur le rôle (lu) ; deux enregistrements simultanés peuvent heurter `arc_role_capability_unique` sous `READ COMMITTED` (déduit, à vérifier).
+  - Rapportés par sous-agent, non relus : demande de passage en agence (`one_pending_per_agency`), import d'un même relevé (`agency_id, file_hash`), création d'intégration (`integrations_provider_agency_live_unique`), ajout d'un collaborateur au bien (contrôle avant le verrou du bien, l. 49-50 contre 178), acceptation d'une collaboration de prestataire (à vérifier).
+  - Aucun test n'envoie deux requêtes concurrentes sur ces contraintes (rapport).
+- Piste : verrouiller la ligne mère (conversation, rôle, agence, bien) avant le contrôle, ou `insertOrIgnore` + relecture ; à défaut, le filet de P92.09. Test par deux connexions, comme `ModerationQueueConcurrencyTest`.
+
+### Les choix de slug et de profil ignorent les lignes supprimées que la contrainte compte encore
+- Réf : P92.08
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:51,132`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:244,317`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:163-178`, `takussan-api/app/Services/Invitation/AgentInvitationService.php:240-255`
+- Constat :
+  - Rapport de sous-agent, non relu : le slug d'agence libre se cherche par `Agency::query()->where('slug')->exists()`, que la portée `SoftDeletes` borne aux agences vivantes, alors que `agencies.slug` est unique sur toutes les lignes ; un nom dont le slug appartient à une agence supprimée rendrait 500 à l'inscription d'un hôte ou au provisionnement (à vérifier).
+  - Même motif rapporté pour les contrôles d'avant invitation, qui ignorent les profils supprimés (voir P92.02) (à vérifier).
+- Piste : `withTrashed()` dans ces recherches de disponibilité ; test avec une agence supprimée de même nom.
+
+### Petites améliorations
+- Réf : P92.09
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/bootstrap/app.php:131-169`, `takussan-api/app/Services/Model/ReferenceNumberGenerator.php`, `takussan-api/app/Services/Model/PayoutService.php:122-130,178`, `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:80-83`
+- Constat :
+  - Aucun filet : une `UniqueConstraintViolationException` qui sort d'une route `api/*` n'est pas rendue en code (lu, l. 129-130 et 131-169) ; elle tombe dans le 500 générique, et chaque oubli ci-dessus se lit comme une panne serveur.
+  - Référence de versement `PO-Ym-XXXXXX` aléatoire sans nouvel essai : une collision est rendue en 409 `payout.already_paid_out` dans `create`, en 500 dans `createForBill` (rapport de sous-agent, à vérifier).
+  - Rattachement des alertes : le nom de repli `"X #id"` n'est pas lui-même confronté aux noms pris (lu, l. 82-83 ; collision improbable).
+- Piste : un rendu de repli `UniqueConstraintViolationException` → 409 `http.conflict` pour `api/*` (sans le `DETAIL`), qui ne remplace pas les règles ; un nouvel essai sur la référence générée.
