@@ -170,7 +170,7 @@ voie d'écriture (angle 13, puis 47).
 | 95 | Réponse d'une écriture (`store`, `update`, action) face au `show` ou à la liste du même modèle : forme, ressource, types (`commission_share` en chaîne ou en nombre), clés — `PropertyCollaboratorController`, `CustomerController::setPrimaryContact`, `PropertyTagController::sync` | fait |
 | 96 | Règles `exists:` sans `whereNull('deleted_at')` sur une table à `SoftDeletes` (`exists:customers,id`, `exists:users,id`, `exists:leases,id`…) suivies d'un `find()` masqué par la portée : 404 ou 500 au lieu de 422, ou clé étrangère écrite vers une ligne supprimée | fait |
 | 97 | Liens d'action des courriels (`->action(…)` des `toMail()`, boutons des Mailables) : la route ou la page visée existe-t-elle, un clic depuis un client de courriel porte-t-il l'authentification qu'elle exige, et vise-t-il l'hôte du front ou celui de l'API | fait |
-| 98 | Autres écrans d'écriture de la console super-admin (modèles de notification `NotificationTemplateService`, annonces, intégrations, paramètres plateforme) : ce que chaque écran promet de changer est-il lu par le chemin qui envoie, affiche ou décide, hors de la console ? | à faire |
+| 98 | Autres écrans d'écriture de la console super-admin (modèles de notification `NotificationTemplateService`, annonces, intégrations, paramètres plateforme) : ce que chaque écran promet de changer est-il lu par le chemin qui envoie, affiche ou décide, hors de la console ? | fait |
 | 99 | Critères de ville et de région rangés par nom (`city`, `cities`, `region` des recherches sauvegardées et des alertes sans compte, `seeking_cities` du CRM) face à une ville renommée par le chargeur du référentiel (`GeoReferentialLoader`, TCK-787) : alertes et rapprochements muets ? | à faire |
 | 98 | Supprimer, versionner ou partager un document que l'on ne fait que lire (`DocumentController::destroy`, `DocumentVersionController`, `DocumentShareLinkController`, `DocumentPolicy::share`) face aux règles écrites des tickets : locataire, bailleur invité, agent d'une autre agence, compte bloqué |
 | 100 | Constantes `*_FIELDS` et `fields[…]` écrits du front face aux `$queryFields` du modèle visé : colonne demandée que l'API refuse (400 `http.bad_request`), rattrapée en `null` ou en page d'erreur — `src/lib/queries/*.ts`, `src/app/actions/*` | à faire |
@@ -207,6 +207,8 @@ voie d'écriture (angle 13, puis 47).
 | 130 | Fiches supprimées en douceur et encore citées (`CustomerController::destroy`, `GuarantorController::destroy`, `PropertyController::destroy`) : baux, réservations, factures, relances, PDF et exports dont la relation `customer`, `guarantor` ou `property` rend `null` sous la portée `SoftDeletes` — 500, champ vide ou geste refusé ? | à faire |
 | 131 | Paramètres de requête des liens profonds émis par l'API ou le front (`?conversation=`, `?tab=`, `?id=`, `router.push('…?…')`, `href` des listes et des cloches) : lus par la page visée, et conservés à travers les redirections de connexion, d'onboarding et de changement de profil actif | à faire |
 | 132 | Liens portés par les SMS et WhatsApp (`payment_url`, `receipt_url`, lien d'invitation, gabarits WhatsApp à bouton) : hôte, durée de validité face au délai d'envoi des heures calmes, et page qu'ouvre un destinataire sans compte — le pendant de l'angle 97 hors du courriel | à faire |
+| 133 | Estimations et aperçus calculés au front par une constante qui recopie un réglage ou un calcul de l'API (`DEFAULT_*` des dialogues de bail : indemnité de résiliation, préavis de 30 jours, pénalités de retard, révision de loyer, échéancier) : chiffre affiché qui diverge du réglage de la plateforme, de l'agence ou du bail | à faire |
+| 134 | Tris `orderBy` / `orderByDesc` sur une colonne d'enum rangée en chaîne (`severity`, `priority`, `status`, `level` des annonces, alertes, maintenances, tâches) : ordre alphabétique pris pour un ordre métier dans une liste ou un « premier élément » affiché | à faire |
 
 ---
 
@@ -9672,3 +9674,119 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Établi comment : lu et mesuré (`grep`).
 - Piste : retirer le paramètre, ou le faire lire par la page profil pour porter le regard sur le bandeau ; dans les deux cas, viser `/app/profile` hors de toute requête que P97.02 perdrait.
 - Mesure (2026-10-21, 0e45ad7a0, mesureur) : `grep -rn "cancel-deletion\|cancel_deletion\|cancelDeletion" takussan-web/src` → rien ; `grep -rn cancel-deletion takussan-api/tests` → rien ; relu `AccountDeletionRequestedNotification.php:36`, `AccountDeletionReminderNotification.php:36` et `(dashboard)/layout.tsx:66-75` (bandeau rendu tant qu'une demande est en cours) → le paramètre est mort. Classement : A3, retirer `?cancel-deletion=1` des deux liens, qui visent alors `/app/profile`, ne change rien à l'écran ; l'autre option de la piste (le faire lire) est écartée parce qu'elle serait un comportement visible neuf (V7).
+
+## Angle 98 — Écrans d'écriture de la console super-admin : ce qu'ils changent hors de la console
+
+*Exploré le 2026-10-21 sur `pre-dev` ff503b661, par l'explorateur. Relus par l'explorateur lui-même : les réglages plateforme (catalogue `EditablePlatformSettings`, chaque clé suivie jusqu'à son lecteur), les modèles de notification (`NotificationTemplateService`, `NotificationRenderer`, `NotificationCode`), l'évaluation des drapeaux, le tri des annonces, le schéma des intégrations et les pilotes SMS, la route de webhook Lemon Squeezy et `shouldBlock` de la maintenance. Deux sous-agents en lecture seule ont balayé annonces, drapeaux et maintenance d'une part, intégrations de l'autre ; chaque 🔴 ci-dessous a été relu à la source. Mesures par `tinker` en lecture sur la base de développement : une ligne `feature_flags` (`host_auto_space`, `segments_json` nul), aucune annonce, l'évaluation faite sur des modèles non enregistrés. Les valeurs réelles des environnements (secret Lemon Squeezy, intégrations de préproduction) ne se voient pas d'ici. Déjà couverts et non repris : P66.* (enums métier), les libellés mêlés des schémas (entrée sur `MailProvider`), les langues des gabarits (TCK-748), la route `settings/public` sans appelant, D-64.*
+
+### Enregistrer un drapeau depuis la console l'éteint pour tout le monde
+- Réf : P98.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/admin/super/feature-flags.tsx:109-117,62`, `takussan-api/app/Http/Controllers/Api/Admin/FeatureFlagController.php:44`, `takussan-api/app/Services/Features/FeatureFlagEvaluator.php:42-66`, `takussan-api/app/Http/Controllers/HostAutoOnboardController.php:32`
+- Constat :
+  - Le dialogue « Configurer » envoie toujours `segments: {roles: [...], rollout_percentage: Number(rollout)}`, `rollout` valant 0 par défaut (lu, `feature-flags.tsx:109,113-117`). Le contrôleur stocke l'objet tel quel (lu, `FeatureFlagController.php:44`).
+  - L'évaluateur ne traite en « sans restriction » que `segments === []`. Sur l'objet de la console, rôles vides, pas d'`agency_ids`, pourcentage 0 : il rend `false` ; sans utilisateur, il rend `false` dès que des segments existent (lu, `FeatureFlagEvaluator.php:42-66`).
+  - Mesuré : `tinker`, `evaluate()` sur un `host_auto_space` activé, pour le premier utilisateur de la base → `segments_json` nul : `true` ; `{"roles":[],"rollout_percentage":0}` : `false` ; même objet sans utilisateur : `false`.
+  - Conséquences : ouvrir `host_auto_space` (activé par migration, segments nuls) et enregistrer sans rien toucher fait répondre 403 `onboarding.auto_space_disabled` à tout le monde (lu, `HostAutoOnboardController.php:32`) ; `media_watermark`, lu sans utilisateur (lu, `AgencyWatermarkContext.php:36`), ne peut plus s'allumer depuis la console. La colonne « Segments » affiche « Global » quand le pourcentage vaut 0 (lu, `feature-flags.tsx:62`) : l'écran dit global, le serveur dit éteint.
+  - Le dialogue n'a pas de champ `agency_ids`, que la requête accepte et que l'évaluateur lit : un enregistrement depuis la console efface ceux posés autrement (lu, sous-agent, relu `UpdateFeatureFlagRequest.php`).
+- Piste : normaliser les segments vides en `[]` à l'écriture (contrôleur) ou les traiter comme « sans restriction » dans `evaluate()`, comme TCK-366 l'a fait pour les annonces ; test : enregistrer le corps exact du dialogue puis évaluer pour un utilisateur sans rôle ciblé et sans utilisateur.
+
+### Une annonce critique passe derrière toutes les autres, et le bandeau n'en montre qu'une
+- Réf : P98.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Announcements/AnnouncementResolver.php:22`, `takussan-api/database/migrations/2026_05_07_000224_create_announcements_table.php:16`, `takussan-web/src/components/announcements/GlobalAnnouncementBanner.tsx:47-51`
+- Constat :
+  - Les annonces actives sont triées par `orderByDesc('severity')` sur une colonne `string` (lu). Mesuré : `select … order by s desc` sur `info, success, warning, critical` dans la base de développement → `warning, success, info, critical` : la gravité critique sort la dernière.
+  - Le bandeau ne rend que `data[0]` (lu, `GlobalAnnouncementBanner.tsx:47`). Une annonce critique, que l'utilisateur ne peut pas fermer, reste donc cachée tant qu'une annonce `info`, `success` ou `warning` est visible pour lui et qu'il ne l'a pas fermée.
+  - Établi comment : lu et mesuré ; le cas à deux annonces n'a pas été joué (aucune annonce en base de dev).
+- Piste : trier sur un rang explicite (`CASE severity WHEN 'critical' THEN 0 …`) ou rendre toutes les annonces ; test à deux annonces (`info` puis `critical`) qui exige la critique en tête.
+
+### Gabarits éditables qu'aucun envoi ne lit : canal `push` partout, SMS de « Maintenance créée »
+- Réf : P98.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Domain/Notifications/EditableNotificationEvents.php:7`, `takussan-web/src/components/admin/super/notification-templates.tsx:22`, `takussan-api/app/Services/Notifications/NotificationRenderer.php:201-216`, `takussan-api/app/Domain/Notifications/NotificationCode.php:461-480,505-512`
+- Constat :
+  - L'éditeur propose trois canaux, `email`, `sms`, `push`, pour chacun des trois événements (lu, `EditableNotificationEvents.php:7`, `notification-templates.tsx:22`).
+  - Le seul lecteur des gabarits actifs, `NotificationRenderer::fromTemplate()`, ne s'applique qu'aux surfaces `mail_subject`, `mail_body` et `sms` (lu, `:210`) : les surfaces `title` et `body` (notification de l'application, poussée) n'y passent jamais. Un gabarit `push` enregistré et actif n'est lu par rien (`grep -rn renderActive app` → ce seul appelant).
+  - `MaintenanceCreated` n'est pas un code mobile (lu, `NotificationCode::mobile()`, `:461-480`) : aucun SMS n'est envoyé pour lui, et le gabarit SMS de `maintenance_created` n'est lu par aucun envoi.
+  - `LeasePaymentRecorded` n'est mobile que vers un contact sans compte (lu, `LeasePaymentService.php:115-119`, `mobileBorne: false` pour un compte) : le SMS de « Paiement reçu » ne part que vers un locataire sans compte.
+- Piste : ne servir à l'éditeur que les couples événement × canal qu'un envoi lit (le catalogue le dérive de `templateEvent()` et des canaux du code), ou brancher `title`/`body` sur le gabarit `push` ; test qui, pour chaque couple éditable, active un gabarit et exige de le retrouver dans le rendu du canal.
+
+### « Paiement reçu » ne s'applique pas aux paiements en ligne
+- Réf : P98.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Domain/Notifications/NotificationCode.php:505-512`, `takussan-api/app/Services/Model/LeasePaymentService.php:103-120`
+- Constat :
+  - L'événement éditable `payment_received` n'est rattaché qu'à `LeasePaymentRecorded`, l'échéance que l'agence marque payée (lu, `templateEvent()`, `LeasePaymentService.php:115`). La quittance d'un paiement en ligne part sous `LeasePaymentSettledOnline`, qui n'a pas de `templateEvent()` (lu) : un super-admin qui réécrit « Paiement reçu » ne change pas ce que reçoit le locataire qui a payé en ligne.
+  - Le nom de l'événement (« Paiement reçu », domaine « Paiement ») ne dit pas cette borne (lu, `EditableNotificationEvents.php`). Que le produit veuille un seul gabarit pour les deux est à vérifier.
+- Piste : soit rattacher aussi `LeasePaymentSettledOnline` à `payment_received`, soit nommer l'événement pour ce qu'il couvre ; dans les deux cas, un test par code rattaché.
+
+### L'estimation de l'indemnité de résiliation anticipée ignore le réglage plateforme et celui de l'agence
+- Réf : P98.05
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/EarlyTerminationDialog.tsx:30-32,85`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:287-305`, `takussan-api/app/Http/Resources/LeaseResource.php:68-70`
+- Constat :
+  - La console édite `lease.early_termination_penalty_months` (défaut 2), que le serveur lit, après la valeur figée sur le bail et le réglage de l'agence (lu, `penaltyMonthsFor()` et `resolvePenaltyMonths()`).
+  - Le dialogue de demande calcule son estimation avec `DEFAULT_PENALTY_MONTHS = 2` en dur (lu, `:32,85`) ; `LeaseResource` n'expose pas `early_termination_penalty_months` (mesuré, `grep -n "early_termination" LeaseResource.php` → seulement `requested_at`, `requested_by`, `effective_date`). Un réglage passé à 3 mois, ou un bail signé à 1 mois, affiche une estimation à 2 mois à celui qui demande la résiliation.
+  - Le commentaire « Aligned with backend default » dit la recopie (lu, `:30`).
+- Piste : exposer sur le bail le nombre de mois que `penaltyMonthsFor()` rend, et le faire lire par le dialogue ; test du dialogue avec un bail à 3 mois. Montant affiché, pas écrit : à classer au regard de V1.
+
+### Les fournisseurs SMS et WhatsApp ne se configurent pas depuis la console : le schéma ne porte qu'`api_key`, que nul pilote ne lit
+- Réf : P98.06
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Domain/Integrations/Providers/IntegrationProviderRegistry.php:8`, `takussan-api/app/Domain/Integrations/Providers/GenericProvider.php:25-29`, `takussan-api/app/Services/Admin/IntegrationService.php:58-66`, `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:56-66`, `takussan-web/src/components/admin/super/integrations.tsx:150,170-177`
+- Constat :
+  - `sms_orange`, `sms_mtarget`, `sms_lafricamobile`, `whatsapp_cloud` et `mailgun` sont servis par `GenericProvider`, dont le schéma n'a qu'un champ obligatoire `api_key` (lu).
+  - Le pilote Orange lit `sender_address` (identifiants ou `metadata`), `sender_name` et un jeton OAuth tiré de `client_id`/`client_secret` (lu, `OrangeSmsDriver.php:56-66`). Selon le sous-agent, Mtarget lit `username`/`password`/`service_id`, LAfricaMobile `accountid`/`password`/`host`, WhatsApp Cloud `phone_number_id`/`access_token` (à vérifier pour ces trois).
+  - L'écran ne rend et n'envoie que les champs du schéma, et jamais `metadata` ni `is_active` (lu par le sous-agent, `integrations.tsx:150,170-177`) ; l'API, elle, accepterait d'autres clés (`array_replace`, lu `IntegrationService.php:60`). Depuis la console, on exige donc un `api_key` inutile et on ne peut saisir aucun identifiant réel.
+  - Le « Test » ne contacte pas le fournisseur : il vérifie que les champs du schéma sont remplis et que la ligne est active (lu, `AbstractProvider.php:27-36`). Une ligne SMS à `api_key` factice ressort `healthy`.
+- Piste : donner à chaque fournisseur générique son schéma propre, tiré des clés que son pilote lit (et `metadata` éditable), et un test d'écran ↔ pilote qui exige que chaque clé lue par le pilote soit dans le schéma.
+
+### Les fournisseurs `mail`, `sms` et `stripe` du registre ne commandent aucun envoi ni aucun paiement
+- Réf : P98.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Domain/Integrations/Providers/MailProvider.php:25-26`, `SmsProvider.php:25-26`, `StripeProvider.php:19-27`, `takussan-api/config/mail.php`, `takussan-api/app/Models/Enums/PaymentProvider.php:7-9`
+- Constat (relevé par le sous-agent, relu en partie) :
+  - `MailProvider` (`api_key`, `from_email`) et `SmsProvider` (`api_key`, `sender`) n'ont aucun lecteur hors de `Providers/` ; l'envoi de courriel lit `MAIL_*` et `MAIL_FROM_ADDRESS` (à vérifier par `grep -rn "'mail'\|'sms'" app`).
+  - `stripe` est rangé en `payments`, donc critique, alors que `PaymentProvider` ne connaît que Wave, Orange Money et Lemon Squeezy (lu, enum) : son test peut sortir `healthy` sans qu'aucun paiement ne puisse passer par lui.
+- Piste : retirer du registre ce qu'aucun pilote ne lit, ou le marquer comme non branché à l'écran ; garde qui exige un lecteur pour chaque clé du registre.
+
+### La route de webhook Lemon Squeezy de la plateforme ne vérifie rien si le secret d'environnement manque, quoi qu'en dise la console
+- Réf : P98.08
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/routes/lemon-squeezy.php:17-22`, `takussan-api/vendor/lemonsqueezy/laravel/src/Http/Controllers/WebhookController.php:43-47`, `takussan-api/config/lemon-squeezy.php:29`, `takussan-api/app/Services/Payments/Drivers/LemonSqueezyDriver.php:161-167`, `takussan-api/app/Listeners/Payments/MarkLemonSqueezyWebhookAuthenticated.php:16-27`
+- Constat :
+  - Le contrôleur du paquet n'ajoute son middleware de signature que si `config('lemon-squeezy.signing_secret')` est non vide (lu, vendor `:45-46`). Cette valeur vient de `LEMON_SQUEEZY_SIGNING_SECRET` (lu) ; le `signing_secret` saisi dans la console n'y est poussé que par `configurePackage()`, appelé par les appels sortants du pilote, pas sur la route entrante (lu). ADR-0046 § 6 assume que cette route porte le secret de la configuration.
+  - L'écouteur d'authentification le dit lui-même : sans secret, « le paquet ne vérifie rien » ; la ligne reste non authentifiée (lu, `:16-27`). Que les événements soient malgré tout traités par `LemonSqueezyEventListener` puis `PaymentGatewayService::handleWebhookEvent` est relevé par le sous-agent, et à vérifier.
+  - La console présente le `signing_secret` comme obligatoire (lu, `LemonSqueezyProvider.php:33`) ; un opérateur qui le renseigne croit la route plateforme signée. Les valeurs des environnements ne se voient pas d'ici.
+- Piste : refuser la route (ou ne rien traiter) quand le secret de configuration est vide, et le signaler par une sonde de santé ; test : POST non signé, secret vide, aucune échéance soldée.
+
+### Une fenêtre de maintenance bloque la connexion, y compris celle de l'opérateur qui doit la lever
+- Réf : P98.09
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Admin/MaintenanceService.php:75-91`, `takussan-api/routes/api/auth.php:29,57`, `takussan-web/src/app/(super-admin)/super-admin/layout.tsx:43`
+- Constat :
+  - Seuls `api/maintenance/status` et `api/admin*` échappent au blocage (lu, `:77`). En mode `down`, `api/auth/login` et `GET api/auth/me` rendent 503 ; en mode `read_only`, tout `POST` est refusé, dont `api/auth/login` et `api/auth/logout` (lu, `:86-90`).
+  - La console vérifie l'utilisateur par `getMeAction` → `/auth/me` (lu par le sous-agent, `layout.tsx:43`) : en `down`, un opérateur ne peut ni se connecter ni, probablement, charger la console pour annuler la fenêtre (à vérifier : chemin d'erreur de `getMeAction` sur 503 non suivi). En `read_only`, personne ne peut ouvrir de session.
+- Piste : exempter `api/auth/*` (au moins la connexion et `me`) ou la seule session d'un opérateur ; test par mode, connexion d'un super-admin pendant la fenêtre.
+
+### Petites améliorations
+- Réf : P98.10
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Domain/Settings/EditablePlatformSettings.php:57-63`, `takussan-api/app/Services/Auth/SessionTokenIssuer.php:41-43`, `takussan-web/src/components/admin/super/feature-flags.tsx:166-172`, `takussan-web/src/components/providers/FeatureFlagProvider.tsx:38`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:166-188`, `takussan-api/app/Services/Admin/IntegrationService.php:93-94`, `takussan-api/app/Http/Controllers/Api/MaintenanceStatusController.php:17`
+- Constat :
+  - `platform.session_max_minutes` porte `requires_restart: true` (lu) et l'écran l'affiche (lu, `platform-settings.tsx:57`), mais la valeur est lue à chaque émission de jeton, derrière un cache de 10 minutes (lu, `SessionTokenIssuer.php:41-43`, `PlatformSettingService.php:89`) : aucun redémarrage n'est nécessaire. Elle ne vaut que pour les sessions de super-admin, ce que la clé ne dit pas.
+  - Le bouton « Test » de session d'un drapeau part toujours de « éteint », quoi qu'il soit stocké (lu, `feature-flags.tsx:168`), et `useFeatureFlag` n'a aucun appelant dans `src` (mesuré, `grep -rn "useFeatureFlag(" src`) : la bascule n'a d'effet que côté serveur.
+  - Après rotation de `client_id`/`client_secret` Orange Money, le jeton OAuth en cache par intégration reste servi jusqu'à son expiration (lu, `OrangeMoneyDriver.php:166-188`) ; `IntegrationConfigChanged` n'a aucun écouteur (mesuré, `grep -rn IntegrationConfigChanged app` → l'événement et son émetteur).
+  - `maintenance/status` sort en `Cache-Control: public, max-age=60` (relevé par le sous-agent) : l'annulation d'une fenêtre peut ne pas se voir avant une minute de plus que le cache serveur (à vérifier).
+- Piste : retirer `requires_restart` de la clé ; initialiser la bascule sur l'état évalué ; oublier le jeton en cache sur `IntegrationConfigChanged` ; réduire la durée publique du statut de maintenance.
