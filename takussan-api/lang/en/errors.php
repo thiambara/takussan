@@ -91,6 +91,7 @@ return [
         'receipt_unpaid' => 'The receipt is only available for a settled payment.',
         'refund_exceeds_paid' => 'The refund cannot exceed the amount paid.',
         'refund_fractional' => 'This amount has decimals the payment currency does not have.',
+        'refund_settled_by_platform' => 'This deposit was collected online by the platform: it is refunded through the payment provider.',
         'refund_unpaid' => 'Only a settled payment can be refunded.',
     ],
     'boost' => [
@@ -395,6 +396,7 @@ return [
         'cannot_fail' => 'This payout cannot be marked failed in its current state.',
         'cannot_process' => 'This payout cannot be marked processed in its current state.',
         'failure_reason_required' => 'Provide the reason for the failure.',
+        'items_changed' => 'An item of this payout is no longer paid since it was prepared: cancel it, then prepare it again.',
         'issuer_forbidden' => 'Only agency members or administrators can issue payouts.',
         'landlord_not_in_agency' => 'This landlord does not belong to your agency.',
         'individual_third_party' => 'An individual agency only pays out to its host: a third party is paid by the platform.',
@@ -435,6 +437,7 @@ return [
         'agency_frozen' => 'This agency is not active: its payouts are frozen.',
         'agency_unverified' => 'An unverified agency cannot be paid.',
         'already_exists' => 'A payout already exists for this period.',
+        'items_changed' => 'A line of this payout is no longer paid since the period was closed: cancel it, then close the period again.',
         'status_transition_invalid' => 'This platform payout status change is not allowed.',
     ],
     'privacy' => [
