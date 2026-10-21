@@ -9245,7 +9245,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 
 ### La tuile « Biens » compte comme « publiés » des biens vendus, loués, en revue ou refusés
 - Réf : P93.06
-- Statut : validé (délégué) — compter `properties.published` par le prédicat du catalogue, `Property::query()->public()` borné à l'agence (même périmètre que `total`), sans changer le libellé « publiés » ; un test épingle un bien `sold` publié qui ne compte plus, et un bien `available` public qui compte
+- Statut : fait · TCK-1115
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:46-49`,
   `takussan-api/app/Models/Property.php:536-548`, `takussan-web/src/messages/fr.json:2209`
@@ -9262,6 +9262,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   ou renommer l'indice si le porteur veut « déjà publié une fois ». Un test épingle un bien vendu.
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `DashboardAgencyService::summary` (`published_at` non nul et statut hors `draft`, `archived`) et `Property::scopePublic` ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → cinq biens publiés, un par statut `sold`, `rented`, `pending_review`, `rejected`, `available` : `properties` = `{"total":5,"published":5,"rented":1,"available":1}`, alors que `Property::public()` borné à l'agence en compte 1 ; le constat tient. Aucun ticket ni commit ne le traite. Classement : V7, la piste offre deux options (changer le compte ou le libellé) que le porteur choisit.
 - Mesure (2026-10-21, b0c1cd999, delegue) : relu la ligne `Mesure` du mesureur, `DashboardAgencyService.php:47,91`, `Property::scopePublic`, `HealthcheckService.php:286` (le nombre d'annonces publiées attendu dans l'index = `Property::query()->public()->count()`) et `takussan-web/src/messages/fr.json:2209` (`publishedHint` : « # publiés ») → le dépôt compte déjà « publié » par le prédicat du catalogue ailleurs, et le libellé affiché dit « publiés », pas « publié une fois ». Délégation : V7, choix mineur et réversible en un commit : le compte se met en accord avec son libellé et avec le prédicat que la plateforme emploie déjà, sans texte neuf ni fonction neuve ; aucun montant, aucun schéma, aucune donnée personnelle touchés.
+- Mesure (2026-10-21, 127233826, implementeur) : reproduit avant correctif par `DashboardAgencyTest::test_published_count_follows_the_public_catalogue` (deux biens publiés et publics de l'agence, `available` et `sold`, plus un bien public d'une autre agence) → `properties.published` 2 au lieu de 1 → `published` compté par `Property::query()->public()` en sous-requête de l'agrégat : 1 ; ablation rouge, remis 9/9 sur la classe, `DashboardQueryBudgetTest` vert (aucune requête de plus).
 
 ### Petites améliorations : indicateurs servis sans test de valeur
 - Réf : P93.07
