@@ -7856,7 +7856,7 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
 
 ### Petites améliorations
 - Réf : P77.04
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1145 — reste : purger les fichiers d'export sans ligne (après un `migrate:fresh`), qui s'écrit dans la purge de P77.02, revenue au porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:42`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:66-70`, `docs/configuration.md:138`, `:554`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3532`, `takussan-api/docker/seed.sh:16`, `takussan-api/app/Models/ReportExport.php:24`
 - Constat :
@@ -7866,6 +7866,7 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
   - Établi comment : lu et grep.
 - Piste : faire nommer `local` aux deux écrivains d'audit et à leur téléchargement. Corriger `docs/configuration.md` (l. 138, 554) pour dire `local`, et R2 pour les médias (ADR-0029). Purger aussi les fichiers sans ligne dans la purge de P77.02. Écrire `failure_reason` et le statut `failed` dans un `failed()` du job.
 - Mesure (2026-10-20, 82f697038, mesureur) : lu `ActivityLogExportController.php:66-70` (`Storage::exists` et `Storage::download`, disque par défaut) et `ExportActivityLogJob.php:42` (`Storage::put`) ; `docs/configuration.md:138` (« `FILESYSTEM_DISK=local # ou s3 en prod` ») et `:554` (« `FILESYSTEM_DISK=s3` + `AWS_*` ») contre le plan l. 3532 (`local`) ; `grep -n "FILESYSTEM\|AWS" docs/infra/prod-drivers.json` → rien, la valeur déployée n'est pas dans le dépôt ; `docker/seed.sh:16` fait `migrate:fresh`, `DatabaseSeeder.php:42` ne nettoie que `storage/app/public` ; `grep -n "failure_reason\|function failed"` dans `GenerateReportExport.php` → rien, et le job passe à `processing` (l. 29) → les quatre points tiennent. Classement : V5, la piste corrige la checklist de production et fige le disque d'une variable d'environnement dont la valeur déployée n'est pas mesurable ; la purge des orphelins dépend de P77.02 (V4).
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, disque par défaut posé sur `public` → l'export d'audit asynchrone et celui de la console n'écrivent rien sur `local`, la purge des exports d'audit (TCK-1143) ne lit pas `local`, et `GenerateReportExport::failed()` n'existe pas (`Error`) → les deux écrivains, le téléchargement et la purge nomment `local` (`ActivityLogExportController::DISK`), `failed()` écrit `failed` et `failure_reason`, `docs/configuration.md` l. 138 et 554 disent `local`, et R2 pour les médias ; `DisqueDesExportsTest` : 4 cas ; ablation (les cinq fichiers de production d'avant) → 4 rouges, remis → 4 verts ; `AgencyAuditScopeTest`, `CrossTenantAuditExportTest`, `EcritureRefuseeDesExportsTest`, `XlsxExportFormulaTest`, `ReportExportDownloadTest`, `PlatformReportingTest` verts. La purge des orphelins, qui s'écrit dans celle de P77.02, n'est pas faite.
 
 ## Angle 78 — Pic mémoire et durée des exports accumulés en tableau
 
