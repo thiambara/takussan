@@ -45,7 +45,9 @@ class DocumentVersionController extends Controller
      */
     public function store(UploadDocumentVersionRequest $request, Document $document): JsonResponse
     {
-        $this->authorize('view', $document);
+        // TCK-1140 (P64.01) — ajouter une version, c'est modifier le document (TCK-097) : `update`,
+        // pas `view`. Le locataire d'un bail lisait le document du bailleur, et en remplaçait le fichier.
+        $this->authorize('update', $document);
 
         $media = $this->service->uploadVersion(
             $document,
@@ -84,7 +86,8 @@ class DocumentVersionController extends Controller
      */
     public function restore(Request $request, Document $document, int $versionId): JsonResponse
     {
-        $this->authorize('view', $document);
+        // TCK-1140 (P64.01) — restaurer une version : le même accès que la modifier (TCK-097).
+        $this->authorize('update', $document);
 
         $media = $this->service->restoreVersion($document, $versionId, $request->user());
 
@@ -100,6 +103,10 @@ class DocumentVersionController extends Controller
     //
     // ⚠ Ses DEUX helpers déléguaient à `ensureCanActOn()`, c'est-à-dire à la règle de LECTURE :
     // `authorizeManage` y était donc plus large que celui de `DocumentController` (téléverseur
-    // seul). Les appels ci-dessus pointent tous sur `view` pour cette raison — les mapper sur
+    // seul). Les appels ci-dessus pointaient tous sur `view` pour cette raison — les mapper sur
     // `update` aurait rendu 403 là où l'endpoint répondait 200.
+    //
+    // TCK-1140 (P64.01) — `store` et `restore` passent désormais par `update`, comme TCK-097
+    // l'écrit : ce 403 est voulu (validation du porteur, 2026-10-21). `index` et `download`
+    // restent sur `view`.
 }

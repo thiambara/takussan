@@ -3,21 +3,26 @@
 namespace Tests\Feature\Api\Agency;
 
 use App\Models\Agency;
+use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Enums\Capability;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\MaintenanceRequest;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Services\Model\DocumentShareLinkService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Testing\TestResponse;
 use Spatie\Activitylog\Models\Activity;
 use Tests\ApiTestCase;
@@ -362,6 +367,101 @@ class TeamMemberSuspensionTest extends ApiTestCase
             $this->assertSame(0, $document->shareLinks()->count());
         }
         $this->postJson("/api/documents/{$dansB->id}/share", [])->assertCreated();
+    }
+
+    /**
+     * TCK-1142 (P82.02) — joindre un document est une écriture : le bailleur bloqué dans A ne
+     * rattache plus de pièce à son bail, son bien, sa réservation ni son état des lieux (404, la
+     * réponse d'un porteur interdit, TCK-732). Il lit toujours celles qui y sont, et joint encore
+     * dans B, où il est actif.
+     */
+    public function test_un_bailleur_bloque_ne_joint_plus_de_document(): void
+    {
+        [$bailleur, $bienA, $bienB] = $this->bailleurBloqueDansA();
+        $bailA = Lease::factory()->create(['property_id' => $bienA->id, 'landlord_id' => $bailleur->id, 'agency_id' => $this->agencyA->id]);
+        $reservationA = Booking::factory()->create(['property_id' => $bienA->id, 'agency_id' => $this->agencyA->id]);
+        $edlA = Inventory::factory()->create(['property_id' => $bienA->id, 'conducted_by' => $this->adminA->id]);
+        $existant = Document::factory()->create(['documentable_type' => Lease::class, 'documentable_id' => $bailA->id, 'uploaded_by' => $this->adminA->id]);
+        $joindre = fn (string $type, int $id) => $this->post('/api/documents', [
+            'documentable_type' => $type,
+            'documentable_id' => $id,
+            'name' => 'Pièce',
+            'type' => 'other',
+            'file' => UploadedFile::fake()->create('piece.pdf', 2, 'application/pdf'),
+        ], ['Accept' => 'application/json']);
+
+        foreach ([['lease', $bailA->id], ['property', $bienA->id], ['booking', $reservationA->id], ['inventory', $edlA->id]] as [$type, $id]) {
+            $joindre($type, $id)->assertNotFound();
+        }
+        $this->assertSame(1, Document::query()->count());
+        $this->getJson("/api/documents/{$existant->id}")->assertOk();
+        $joindre('property', $bienB->id)->assertCreated();
+
+        // Le locataire et le personnel de A joignent toujours au bail.
+        $locataire = User::factory()->create();
+        $bailA->update(['tenant_id' => Customer::factory()->create(['user_id' => $locataire->id, 'agency_id' => $this->agencyA->id])->id]);
+        $this->actingAsApi($locataire);
+        $joindre('lease', $bailA->id)->assertCreated();
+        $this->actingAsApi($this->adminA);
+        $joindre('lease', $bailA->id)->assertCreated();
+    }
+
+    /**
+     * TCK-1144 (P82.03) — lister les liens d'un document (et donc lire leurs jetons) et en révoquer
+     * un passent par la règle `share`, comme leur création : le bailleur bloqué dans A, téléverseur
+     * d'un document de son bail, reçoit 403 sur les deux, et le lien reste actif. Dans B, où il est
+     * actif, il liste et révoque ; le personnel de A aussi.
+     */
+    public function test_un_bailleur_bloque_ne_liste_ni_ne_revoque_les_liens_de_partage(): void
+    {
+        [$bailleur, $bienA, $bienB] = $this->bailleurBloqueDansA();
+        $bailA = Lease::factory()->create(['property_id' => $bienA->id, 'landlord_id' => $bailleur->id, 'agency_id' => $this->agencyA->id]);
+        $documentA = Document::factory()->create(['documentable_type' => Lease::class, 'documentable_id' => $bailA->id, 'uploaded_by' => $bailleur->id]);
+        $documentB = Document::factory()->create(['documentable_type' => Property::class, 'documentable_id' => $bienB->id, 'uploaded_by' => $bailleur->id]);
+        $service = app(DocumentShareLinkService::class);
+        $lienA = $service->create($documentA, $this->adminA);
+        $lienB = $service->create($documentB, $bailleur);
+
+        $this->getJson("/api/documents/{$documentA->id}/share-links")->assertForbidden();
+        $this->deleteJson("/api/documents/{$documentA->id}/share/{$lienA->id}")->assertForbidden();
+        $this->assertNull($lienA->fresh()->revoked_at);
+
+        $this->getJson("/api/documents/{$documentB->id}/share-links")->assertOk()->assertJsonCount(1, 'data');
+        $this->deleteJson("/api/documents/{$documentB->id}/share/{$lienB->id}")->assertNoContent();
+
+        $this->actingAsApi($this->adminA);
+        $this->getJson("/api/documents/{$documentA->id}/share-links")->assertOk()->assertJsonCount(1, 'data');
+        $this->deleteJson("/api/documents/{$documentA->id}/share/{$lienA->id}")->assertNoContent();
+    }
+
+    /**
+     * TCK-1146 (P82.01, ADR-0031 §2) — le bailleur bloqué dans A n'est plus donneur d'ordre des
+     * interventions sur son bien de A : ni modification, ni devis, ni assignation, ni changement de
+     * statut. Il les lit toujours (`view`, `viewQuote`), et reste donneur d'ordre dans B.
+     */
+    public function test_un_bailleur_bloque_ne_commande_plus_les_interventions_de_son_bien(): void
+    {
+        [$bailleur, $bienA, $bienB] = $this->bailleurBloqueDansA();
+        $bailleur = $bailleur->fresh();
+        $demandeA = MaintenanceRequest::factory()->create(['property_id' => $bienA->id]);
+        $enAttenteA = MaintenanceRequest::factory()->create(['property_id' => $bienA->id, 'status' => MaintenanceStatus::AwaitingOwner]);
+        $demandeB = MaintenanceRequest::factory()->create(['property_id' => $bienB->id]);
+        $enAttenteB = MaintenanceRequest::factory()->create(['property_id' => $bienB->id, 'status' => MaintenanceStatus::AwaitingOwner]);
+
+        foreach (['update', 'manageQuotes', 'actAsPrincipal', 'decideQuote'] as $geste) {
+            $this->assertFalse($bailleur->can($geste, $demandeA), $geste);
+            $this->assertTrue($bailleur->can($geste, $demandeB), $geste);
+        }
+        $this->assertFalse($bailleur->can('decideQuote', $enAttenteA));
+        $this->assertTrue($bailleur->can('decideQuote', $enAttenteB));
+        $this->assertFalse($bailleur->can('transitionTo', [$demandeA, MaintenanceStatus::Cancelled]));
+        $this->assertTrue($bailleur->can('transitionTo', [$demandeB, MaintenanceStatus::Cancelled]));
+        $this->assertTrue($bailleur->can('view', $demandeA));
+        $this->assertTrue($bailleur->can('viewQuote', $demandeA));
+
+        $this->putJson("/api/maintenance-requests/{$demandeA->id}/status", ['status' => 'cancelled'])->assertForbidden();
+        $this->assertSame(MaintenanceStatus::Open, $demandeA->fresh()->status);
+        $this->getJson("/api/maintenance-requests/{$demandeA->id}")->assertOk();
     }
 
     /** N2 — la suppression : il la perdait par la seule règle du téléverseur. */

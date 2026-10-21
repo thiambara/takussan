@@ -8,6 +8,8 @@ use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\VisitStatus;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\PropertyVisit;
@@ -162,11 +164,19 @@ class CalendarTest extends TestCase
         $this->assertSame($propertyA->id, $response->json('data.0.property_id'));
     }
 
+    /**
+     * TCK-1154 (P86.04) — la branche « collaborateur accepté » de l'agenda ne vaut que pour un
+     * collaborateur `agent` ou `manager` encore personnel de l'agence du bien, comme
+     * `BookingStakeholders::collaboratorsOf`. Jusque-là, ce test y faisait entrer un compte sans
+     * aucun profil. Le collaborateur tient ici des profils d'agent dans deux agences : sans profil
+     * actif, l'agenda ne le borne à aucune, et seule la branche collaborateur lui ouvre le bien.
+     */
     public function test_calendar_includes_properties_for_accepted_collaborators(): void
     {
-        $owner = User::factory()->create();
+        [$property, $agency] = $this->bienDAgence();
         $collaborator = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
+        AgentProfile::factory()->create(['user_id' => $collaborator->id, 'agency_id' => $agency->id]);
+        AgentProfile::factory()->create(['user_id' => $collaborator->id, 'agency_id' => Agency::factory()->create()->id]);
 
         PropertyCollaborator::create([
             'property_id' => $property->id,
@@ -175,18 +185,51 @@ class CalendarTest extends TestCase
             'accepted_at' => now(),
         ]);
 
-        Booking::factory()->create([
-            'property_id' => $property->id,
-            'status' => BookingStatus::Confirmed,
-            'start_date' => now()->addDay()->toDateString(),
-            'end_date' => now()->addDays(3)->toDateString(),
-        ]);
-
         Sanctum::actingAs($collaborator);
 
         $this->getJson('/api/calendar?start_date='.now()->toDateString().'&end_date='.now()->addWeek()->toDateString())
             ->assertOk()
             ->assertJsonCount(1, 'data');
+    }
+
+    /**
+     * TCK-1154 (P86.04) — un `viewer` ou un `co_owner` accepté (bailleur de l'agence), ou un agent
+     * qui n'est plus du personnel de l'agence, ne voit pas l'agenda du bien qui le nomme :
+     * `PropertyPolicy` lui refuse le bien.
+     */
+    public function test_calendar_excludes_accepted_collaborators_outside_the_staff(): void
+    {
+        [$property, $agency] = $this->bienDAgence();
+        $viewer = User::factory()->create();
+        OwnerProfile::factory()->create(['user_id' => $viewer->id, 'agency_id' => $agency->id]);
+        $ancienAgent = User::factory()->create();
+
+        foreach ([[$viewer, CollaboratorRole::Viewer], [$ancienAgent, CollaboratorRole::Agent]] as [$user, $role]) {
+            PropertyCollaborator::create(['property_id' => $property->id, 'user_id' => $user->id, 'role' => $role, 'accepted_at' => now()]);
+        }
+
+        foreach ([$viewer, $ancienAgent] as $user) {
+            Sanctum::actingAs($user);
+            $this->getJson('/api/calendar?types[]=booking&start_date='.now()->toDateString().'&end_date='.now()->addWeek()->toDateString())
+                ->assertOk()
+                ->assertJsonCount(0, 'data');
+        }
+    }
+
+    /** @return array{0: Property, 1: Agency} un bien d'agence, d'un bailleur, avec une réservation confirmée */
+    private function bienDAgence(): array
+    {
+        $agency = Agency::factory()->create();
+        $property = Property::factory()->create(['user_id' => User::factory()->create()->id, 'agency_id' => $agency->id]);
+        Booking::factory()->create([
+            'property_id' => $property->id,
+            'agency_id' => $agency->id,
+            'status' => BookingStatus::Confirmed,
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addDays(3)->toDateString(),
+        ]);
+
+        return [$property, $agency];
     }
 
     public function test_calendar_excludes_non_accepted_collaborators(): void

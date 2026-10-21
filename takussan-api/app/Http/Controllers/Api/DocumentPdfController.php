@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -163,10 +165,17 @@ class DocumentPdfController extends Controller
         // téléchargeait la quittance. La branche collaborateur, propre à ce geste, reste.
         $staffAgencyId = $user->staffAgencyId();
         $isAgency = $staffAgencyId !== null && $staffAgencyId === (int) $lease->agency_id;
-        $isCollab = (bool) $lease->property?->collaborators()
-            ->where('user_id', $user->id)
-            ->whereNotNull('accepted_at')
-            ->exists();
+        // TCK-1154 (P86.04) — le collaborateur `agent` ou `manager` accepté, encore personnel de
+        // l'agence du bail, comme `BookingStakeholders::collaboratorsOf`. Sans condition de rôle, un
+        // `viewer` accepté téléchargeait la quittance d'un bien que `PropertyPolicy` lui refuse.
+        $collabAgencyId = $lease->agency_id ?? $lease->property?->agency_id;
+        $isCollab = $collabAgencyId !== null
+            && (bool) $lease->property?->collaborators()
+                ->where('user_id', $user->id)
+                ->whereNotNull('accepted_at')
+                ->whereIn('role', [CollaboratorRole::Agent->value, CollaboratorRole::Manager->value])
+                ->exists()
+            && app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $collabAgencyId);
         $isAdmin = $user->isSuperAdmin();
 
         abort_unless($isAdmin || $isTenant || $isLandlord || $isAgency || $isCollab, 403);

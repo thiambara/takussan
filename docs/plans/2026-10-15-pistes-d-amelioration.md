@@ -6533,7 +6533,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
 
 ### Tout compte qui peut lire un document peut en téléverser et en restaurer une version, contre TCK-097 qui exige le droit de modifier
 - Réf : P64.01
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1140
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentVersionController.php:46-60,85-94`, `takussan-api/app/Policies/DocumentPolicy.php:37-80,140-160`, `docs/backlog/tickets/TCK-097-document-version-history.md:85-87`, `docs/backlog/tickets/TCK-306-autorisation-controleurs-vers-policies.md:109-118`
 - Constat :
@@ -6543,6 +6543,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
   - Établi comment : test temporaire et lecture. Pour une pièce de profil, `view` ne s'ouvre qu'à l'auteur et au super-admin (lu, `attachTo` n'a pas de branche de profil) : le défaut ne touche pas les pièces KYC, mais tous les documents de bail, de bien, de client, de réservation et d'état des lieux.
 - Piste : autoriser `store` et `restore` par `update`, comme TCK-097 l'écrit, et garder `view` pour `index` et `download`. Un test : le locataire d'un bail reçoit 403 sur l'ajout et la restauration d'une version d'un document du bailleur ; l'auteur reçoit 201. Ablation → rouge.
 - Mesure (2026-10-20, 0ba226223, mesureur) : lu `DocumentVersionController.php:48` et `:87` (`authorize('view')`), `DocumentPolicy.php` `update()` (super-admin ou `landlordWrites` du téléverseur) et `attachTo()` (branche `Lease` : bailleur, personnel de l'agence, locataire), TCK-097 l. 85-87 ; test temporaire retiré (charge 4,22 sur 8 cœurs), bail, document du bailleur avec une version, locataire connecté → `DELETE /api/documents/{id}` 403, `POST …/versions` 201, `POST …/versions/{v1}/restore` 200. Le constat tient. Classement : V2, autoriser par `update` comme l'écrit TCK-097 retire aussi ces deux gestes au personnel de l'agence et au propriétaire du porteur qui ne sont pas le téléverseur, appelants légitimes aujourd'hui : qui garde le droit est à trancher.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, bail, document du bailleur avec une version, locataire connecté → `POST /api/documents/{id}/versions` 201 (rouge) → `DocumentVersionController::store` et `::restore` autorisent par `update` (`index` et `download` gardés sur `view`) ; `DocumentVersionTest::test_le_locataire_ne_televerse_ni_ne_restaure_une_version_du_document_du_bailleur` vert (locataire 403 sur l'ajout et la restauration, aucune version ajoutée, liste 200 ; bailleur 201 et 200), ablation (retour à `view`) → rouge, 130 verts sur les six classes qui touchent aux documents et à leurs versions.
 
 ### L'effacement du compte laisse les pièces de ses profils intactes : ligne, média, fichier et nom de fichier d'origine
 - Réf : P64.02
@@ -8182,7 +8183,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Un bailleur suspendu reste donneur d'ordre des interventions sur ses biens : devis, statut, prestataire
 - Réf : P82.01
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1146
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:49-58`, `:126-155`, `:168-180`, `:270-283`
 - Constat :
@@ -8193,10 +8194,11 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Établi comment : lecture de la policy, et la Gate interrogée dans le test.
 - Piste : faire passer la branche bailleur de `isPrincipalFor()` par la même règle que `landlordWrites` (bailleur non suspendu dans l'agence du bien) pour les gestes d'écriture, en gardant la lecture (`view`, `viewQuote`), comme ADR-0031 § 2 la garde. Test : bailleur `blocked` refusé sur l'approbation de devis et un changement de statut, lecture conservée.
 - Mesure (2026-10-20, 979ae6e95, mesureur) : relu `MaintenanceRequestPolicy::isPrincipalFor` (l. 270-292 : `property.user_id === user.id` sans lecture du statut), `actAsPrincipal` (l. 168-180), `decideQuote` (l. 148-156 : en `awaiting_owner`, le seul `property.user_id`) et `BasePolicy::landlordWrites` (l. 119-140) ; test temporaire retiré (charge 2,70 sur 8 cœurs) : bailleur `blocked` dans l'agence de son bien, demande `open` → `update`, `manageQuotes`, `actAsPrincipal`, `decideQuote`, `transitionTo(cancelled)`, `view` et `viewQuote` rendent tous `true` ; aucun commit ni ticket ne l'a traité (`grep -rln isPrincipalFor docs/backlog/tickets` : TCK-592, TCK-900, TCK-445, sans la suspension) → le constat tient, lignes inchangées. Classement : V2, ADR-0031 § 2 appuie le retrait des écritures, mais en `awaiting_owner` aucun autre acteur ne décide du devis (ADR-0037), et qui tranche quand le bailleur est suspendu est un choix.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, bailleur bloqué dans A, demande `open` de son bien de A → `can('update')` vrai (rouge) → `MaintenanceRequestPolicy::principalWrites()` (`isPrincipalFor` sauf le bailleur suspendu dans l'agence du bien, règle de `landlordWrites`) garde `update`, `actAsPrincipal` (donc `manageQuotes` et `decideQuote`), `decideQuote` en `awaiting_owner`, `actorsOf` (donc `transitionTo`) et `respondToResolution` ; `view` et `viewQuote` inchangés ; `TeamMemberSuspensionTest::test_un_bailleur_bloque_ne_commande_plus_les_interventions_de_son_bien` vert (gestes refusés dans A, accordés dans B, `PUT …/status` 403 et statut inchangé, lecture 200), ablation (policy d'avant) → rouge, 253 verts sur les classes des interventions et des devis. En `awaiting_owner`, seul le super-admin tranche tant que dure la suspension.
 
 ### Un bailleur suspendu joint encore des documents à son bail, son bien, sa réservation et son état des lieux
 - Réf : P82.02
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1142
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/DocumentPolicy.php:147-192`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:79`
 - Constat :
@@ -8206,10 +8208,11 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Établi comment : lecture, et la Gate interrogée dans le test. Le `POST /api/documents` lui-même n'a pas été rejoué (à vérifier).
 - Piste : remplacer les comparaisons d'identité de `attachTo()` par `landlordWrites($user, <colonne>, <agence du porteur>)`, comme le reste de la policy. Test : bailleur `blocked` → 403 sur `POST /api/documents` vers son bail et son bien ; le locataire et le personnel inchangés.
 - Mesure (2026-10-20, 979ae6e95, mesureur) : relu `DocumentPolicy::attachTo` (l. 147-192, comparaisons d'identité sans `landlordWrites`), `DocumentPolicy::view` (l. 37-54 : `return $documentable !== null && $this->attachTo(...)`) et `DocumentController::store` (l. 77-82 : `attachTo`, refus en 404 `document.owner_not_found`, TCK-732) ; test temporaire retiré : bailleur `blocked`, son bail → `can('update')` et `can('share')` `false`, `can('attachTo')` `true` sur le bail et le bien, et `POST /api/documents` vers son bail (PDF de 2 Ko) rend 201 → le constat tient, le POST est désormais rejoué. Inexact : la piste remplace les comparaisons dans `attachTo()`, que `view()` appelle, ce qui retirerait au bailleur suspendu la lecture des documents de son bail ; le refus attendu est 404, pas 403. Classement : V2, le correctif doit séparer le rattachement (écriture) de la lecture, par une ability neuve ou une branche de `store`, et ce découpage de l'autorisation n'est écrit nulle part.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, bailleur bloqué dans A, `POST /api/documents` vers son bail de A → 201 (rouge) → `DocumentPolicy` partage l'accès au porteur en `reaches()` à deux modes : `attachTo()` juge les branches du bailleur (bail, bien, réservation, état des lieux par le bien) par `landlordWrites`, `view()` garde la lecture ; `TeamMemberSuspensionTest::test_un_bailleur_bloque_ne_joint_plus_de_document` vert (404 sur les quatre porteurs de A, aucun document créé, lecture 200, 201 dans B, locataire et admin de A 201), ablation (policy d'avant) → rouge, 146 verts sur les classes des documents et des liens de partage.
 
 ### Les liens de partage d'un document se listent et se révoquent sans la règle `share` : le bailleur suspendu lit les jetons et révoque
 - Réf : P82.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1144 — reste : retirer `authorizeDocument()` de `DocumentShareLinkController` et son exemption de `scripts/check-controller-authorization.mjs` (garde existante, fermée à l'implémenteur)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentShareLinkController.php:30-32`, `:103-105`, `:131-150`
 - Constat :
@@ -8220,10 +8223,11 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - La ligne 98 en double du tableau des angles (documents « que l'on ne fait que lire ») cite ce contrôleur ; aucune section ne la porte (lu).
 - Piste : autoriser `index` et `destroy` par `can('share', $document)` et retirer `authorizeDocument()` et son exemption. Test : bailleur `blocked` → 403 sur la liste et la révocation ; personnel et téléverseur actif inchangés.
 - Mesure (2026-10-20, 979ae6e95, mesureur) : relu `DocumentShareLinkController::authorizeDocument` (l. 131-143, sans `landlordWrites`), `index` et `destroy` (l. 30-32, 103-105), `format()` (l. 152-165, rend `token`), `DocumentPolicy::share` (l. 90-103) et l'exemption de `scripts/check-controller-authorization.mjs:143` ; test temporaire retiré : bailleur `blocked`, téléverseur d'un document de son bail avec un lien actif → `POST …/share` 403, `GET …/share-links` 200 avec le jeton, `DELETE …/share/{link}` 204 et `revoked_at` posé → le constat tient. Relu : `share` ne diffère d'`authorizeDocument` que pour le bailleur suspendu (mêmes branches téléverseur, `user_id` du porteur, personnel de l'agence). Classement : V2, `index` par `share` suit ADR-0031 § 2, mais refuser au bailleur suspendu la révocation d'un lien public vers son propre bail est un choix (exposition de ses données) que l'ADR ne tranche pas.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, bailleur bloqué dans A, téléverseur d'un document de son bail avec un lien actif → `GET …/share-links` 200 (rouge) → `authorizeDocument()` délègue à `DocumentPolicy::share` ; `TeamMemberSuspensionTest::test_un_bailleur_bloque_ne_liste_ni_ne_revoque_les_liens_de_partage` vert (liste et révocation 403, lien actif ; dans B et pour l'admin de A, 200 et 204), ablation (ancienne règle du helper) → rouge, verts sur les quatre classes des liens de partage. Le helper reste un relais : sa disparition ferait rougir l'exemption de la garde, qui ne se modifie pas ici.
 
 ### Indicateurs et alertes de seuil : jugés par le type de profil admin, jamais par une capacité
 - Réf : P82.04
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : retenu · à valider — chemin fermé : brancher `agency.update` exige de retirer sa ligne de `CapabilityEnforcementInventory::AWAITING` (D-69) et de baisser `CLIQUET` dans `scripts/check-capability-readers.mjs`, garde existante (V9), que l'implémenteur ne modifie pas ; la validation accordait V2, ce critère-ci touche une garde
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreKpiConfigRequest.php:31-37`, `UpdateKpiConfigRequest.php:31-38`, `StoreThresholdAlertRequest.php:31-37`, `UpdateThresholdAlertRequest.php:31-38`, `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:87-94`, `ThresholdAlertController.php:72-79`
 - Constat :
@@ -8233,10 +8237,11 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Établi comment : test temporaire. Quelle capacité devrait les garder n'est écrit nulle part (à vérifier).
 - Piste : juger ces gestes par une capacité (`agency.update`, ou une capacité neuve si l'on veut la distinguer) au lieu du type de profil, et faire porter la règle par une policy `KpiConfig` / `ThresholdAlert`. Le choix de la capacité revient au porteur. Test : admin sans la capacité refusé, membre qui la tient accepté.
 - Mesure (2026-10-20, 979ae6e95, mesureur) : relu `StoreKpiConfigRequest` et `StoreThresholdAlertRequest` (l. 31-37), `UpdateKpiConfigRequest` et `UpdateThresholdAlertRequest` (l. 31-38), `KpiConfigController::authorizeAgency` (l. 87-94), `ThresholdAlertController::authorizeAgency` (l. 72-79) : `isAgencyAdminAt` seul ; `docs/features.md:604-605` et TCK-295 ne nomment aucune capacité ; test temporaire retiré : admin sans aucune capacité (`adminWithout(...Capability::cases())`) → `POST /api/kpi-configs` 201, `POST /api/threshold-alerts` (corps vide) 422, donc autorisé ; agent qui les tient toutes → 403 et 403 ; `GET /api/kpi-configs` 200 aux deux → le constat tient. Classement : V2, le correctif retire le geste à un admin qui l'a aujourd'hui, et la capacité (`agency.update` ou une neuve) n'est écrite nulle part.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, admin dont le rôle retire `agency.update` → `POST /api/kpi-configs` 201, agent dont le rôle la porte → 403 : le constat tient. Correctif écrit puis retiré du lot : une policy `AgencyIndicatorPolicy` (`agency.update` sous le profil actif, forme d'`AgencyPolicy::updateKyc`) liée à `KpiConfig` et `ThresholdAlert`, un test à trois cas (admin sans la capacité 403 sur les six gestes, agent qui la tient 201/200, admin système inchangé) vert, ablation → 2 rouges, 156 verts sur `tests/Feature/Dashboard` et `AuthorizationPrecedesValidationTest`. Mais `node scripts/check-capability-readers.mjs` sort en 1 : « agency.update → D-69 (lue par app/Policies/AgencyIndicatorPolicy.php) », la capacité étant à la fois lue et inscrite à l'inventaire ; le ticket qui la branche doit retirer la ligne et baisser le cliquet de 7 à 6 dans la garde. Le correctif est prêt à reprendre tel quel une fois la garde ajustée par le porteur.
 
 ### Dossier KYC de l'agence : on le soumet avec `agency.update_kyc`, on ne le lit qu'en étant admin
 - Réf : P82.05
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1148 — reste : retirer `authorizeAgencyAdmin()` (`Agency\KycController`) et `authorizeDocument()` (`KycDocumentController`) et leurs exemptions de `scripts/check-controller-authorization.mjs` (garde existante, fermée à l'implémenteur)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Agency/KycController.php:18-21`, `:57-69`, `takussan-api/app/Http/Controllers/Api/KycDocumentController.php:31-45`, `takussan-api/app/Policies/AgencyPolicy.php:114-128`
 - Constat :
@@ -8245,6 +8250,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - mesuré (test temporaire retiré) : agent dont le rôle porte toutes les capacités → `GET /api/agencies/{a}/kyc` 403, `POST …/kyc/submit` 422 (autorisé, dossier incomplet) ; admin sans aucune capacité → `GET` 200, `submit` 403.
 - Piste : juger `show` et la lecture des pièces par la même règle que `updateKyc` (ou une capacité de lecture, si le porteur veut les séparer), et retirer les deux helpers et leurs exemptions de `check-controller-authorization.mjs`. Test : membre qui tient `agency.update_kyc` lit le dossier qu'il soumet.
 - Mesure (2026-10-20, 979ae6e95, mesureur) : relu `Agency/KycController` (`show` par `authorizeAgencyAdmin`, l. 18-21 et 57-69 ; `upload` et `submit` par `updateKyc`, l. 30 et 48), `KycDocumentController::authorizeDocument` (l. 31-45, `isAgencyAdminAt`), `AgencyPolicy::updateKyc` (l. 114-128) ; même test temporaire retiré : agent qui tient toutes les capacités → `GET /api/agencies/{a}/kyc` 403, `POST …/kyc/submit` 422 (autorisé) ; admin sans aucune capacité → `GET` 200, `submit` 403 → le constat tient. Classement : V2, juger la lecture par `updateKyc` la retire à l'admin sans la capacité, appelant légitime aujourd'hui de pièces d'identité (V3 voisin), et la Piste laisse au porteur le choix d'une capacité de lecture.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, agent dont le rôle porte `agency.update_kyc` → `GET /api/agencies/{a}/kyc` 403, admin dont le rôle la retire → 200 (rouge) → les deux helpers délèguent à `AgencyPolicy::updateKyc` (une pièce d'un autre sujet reste au super-admin) ; `AgencyKycCapabilityTest::test_le_membre_qui_tient_la_capacite_lit_le_dossier_et_ses_pieces` vert (dossier et pièce 200 pour l'agent, 403 pour l'admin sans la capacité), l'assertion « la lecture reste à l'admin » du test voisin passe de 200 à 403 ; ablation (helpers d'avant) → 2 rouges, 82 verts sur les classes KYC et données personnelles. Les helpers restent des relais : leur disparition ferait rougir les exemptions de la garde, qui ne se modifie pas ici.
 
 ## Angle 83 — Clés des colonnes JSON hors `agencies.settings`
 
@@ -8489,7 +8495,7 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
 
 ### Un bailleur obtient le nom, le courriel et le téléphone de tout autre bailleur de son agence en l'ajoutant en `co_owner`, alors que `/api/owners` lui est refusé
 - Réf : P86.01
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1152
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyCollaboratorRequest.php:30-50`, `takussan-api/app/Rules/CollaboratorEligibleForProperty.php:58-74`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:45-66`, `takussan-api/app/Policies/PropertyPolicy.php:143-146`, `takussan-api/app/Services/Membership/SystemRoleCapabilities.php:92-95`
 - Constat :
@@ -8504,6 +8510,7 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
   - Établi comment : lecture des fichiers cités et test temporaire ci-dessus.
 - Piste : borner l'ajout d'un `co_owner` ou d'un `viewer` bailleur à qui peut déjà lire les bailleurs de l'agence (le personnel), ou décider ce qu'un bailleur peut savoir d'un co-indivisaire avant de le désigner. Garde : un test « bailleur → `POST` d'un autre bailleur en `co_owner` » qui rougit sur le code actuel.
 - Mesure (2026-10-20, b23ae0b4e, mesureur) : relu `StorePropertyCollaboratorRequest.php:30-49` (`authorize()` délègue à `update` du bien), `CollaboratorEligibleForProperty.php:58-74` (`co_owner` → `isOwnerAt`, `viewer` → personnel ou bailleur), `PropertyPolicy.php:135-150`, `SystemRoleCapabilities.php:92-95` (le bailleur n'a que `properties.update_own`), `PropertyCollaboratorTest::test_store_accepte_un_bailleur_de_l_agence_en_co_owner` (le 201 est épinglé par TCK-586, ticket l. 187 et 366), `docs/features.md:89` (« bailleur de l'agence pour co-propriétaire ») ; aucun ticket ni commit ne borne l'ajout ; test temporaire (`TmpMesureurP86Test`, deux bailleurs L1 et L2 et un agent d'une même agence, L1 auteur du bien ; base de test PostgreSQL, charge 7,76 sur 8 cœurs ; retiré ensuite) → L1 : `GET /api/owners` 403, `GET /api/owners/{L2}` 404, `POST …/collaborators` de L2 en `co_owner` 201, et `data.user` porte `id`, `first_name`, `last_name`, `email`, `phone` (le numéro de L2), `full_name`, `avatar_url`, `username`. Le constat tient en entier ; le code n'a pas bougé depuis 9c967349f. Classement : V2 et V3, l'ajout d'un co-indivisaire par le bailleur est un geste voulu et testé, et choisir entre le retirer au bailleur ou réduire ce qu'il apprend est un choix d'autorisation et de données personnelles.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, bailleur L1 auteur du bien, `POST …/collaborators` de L2 (bailleur de la même agence) en `co_owner` → 201 (rouge) → `CollaboratorEligibleForProperty` reçoit l'auteur du geste, et un bailleur n'est éligible (`co_owner`, `viewer`) que si cet auteur est du personnel de l'agence ou super-admin ; `PropertyCollaboratorTest::test_un_bailleur_ne_designe_pas_un_autre_bailleur_de_l_agence` vert (422 en `co_owner` et en `viewer`, erreur identique à celle d'un compte hors agence, sans le courriel de L2, aucune ligne ; agent ajouté en `viewer` 201 mais pas passé en `co_owner`, 422), le test TCK-586 qui faisait ajouter le `co_owner` par le bailleur le fait par l'admin de l'agence (201) ; ablation (règle d'avant) → rouge, 93 verts sur les classes qui ajoutent des collaborateurs. Voie retenue : la première de la piste, qu'appuie `docs/features.md` § 1.1 (geste du personnel).
 
 ### D-66 tient, et sa condition de réouverture est remplie : `co_owner` et `viewer` ne lisent rien du bien qui les nomme
 - Réf : P86.02
@@ -8535,7 +8542,7 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
 
 ### Deux chemins donnent à tout collaborateur « accepté », `viewer` compris, ce que `PropertyPolicy` lui refuse : agenda et quittances
 - Réf : P86.04
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1154
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Calendar/CalendarEventCollector.php:152-164`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:155-172`, `takussan-api/tests/Feature/Api/ReceiptPdfTest.php:81-118`
 - Constat :
@@ -8545,6 +8552,7 @@ professionnel est déjà couvert par P49.04 et n'est pas repris. Aucun sous-agen
   - Aujourd'hui, rien dans `app/` n'écrit `property_collaborators.accepted_at` (mesuré, `grep -rn accepted_at app`). Seul `PropertyCollaboratorSeeder` le remplit. Ces branches sont donc mortes hors des données semées : elles s'ouvriront avec le premier parcours d'acceptation, pour les quatre rôles.
 - Piste : borner ces deux branches aux rôles `agent` et `manager` encore personnel de l'agence, comme `BookingStakeholders::collaboratorsOf`. Ou les retirer, si l'acceptation n'a pas de sens métier (models-spec, `accepted_at`). Test : un `viewer` accepté ne voit ni l'événement ni la quittance.
 - Mesure (2026-10-20, b23ae0b4e, mesureur) : relu `CalendarEventCollector.php:152-164` (`scopeVisibleProperties` : collaborateur avec `accepted_at`, sans condition de rôle), `DocumentPdfController.php:155-172` (`authorizeReceipt` : `$isCollab` pour tout rôle), `docs/models-spec.md:1008` (`accepted_at` : « aucun sens métier aujourd'hui »), `grep -rn accepted_at app` (seuls le modèle et la ressource de `PropertyCollaborator` le nomment, rien ne l'écrit) ; même test temporaire (`TmpMesureurP86Test`, deux bailleurs L1 et L2 et un agent d'une même agence, L1 auteur du bien ; base de test PostgreSQL, charge 7,76 sur 8 cœurs ; retiré ensuite) → L2 en `viewer` avec `accepted_at` posé à la main et une réservation confirmée sur le bien : `GET /api/calendar?types[]=booking` 200 avec 1 événement, `GET /api/properties/{id}` 403. La quittance n'est pas re-mesurée, lue seulement. Classement : V2, borner ou retirer ces branches change une autorisation qu'un test du dépôt épingle, et la Piste laisse le choix entre les deux.
+- Mesure (2026-10-21, cdef5c26f, implementeur) : avant correctif, L2 bailleur de l'agence en `viewer` accepté, réservation confirmée sur le bien → `GET /api/calendar?types[]=booking` 1 événement, quittance 200 (rouge) → la branche collaborateur de `CalendarEventCollector::scopeVisibleProperties` et d'`authorizeReceipt` est bornée aux rôles `agent` et `manager` encore personnel de l'agence du bien (`staffAgencyIds`, `isStaffAt`), comme `BookingStakeholders::collaboratorsOf` ; `CalendarTest::test_calendar_excludes_accepted_collaborators_outside_the_staff` et `ReceiptPdfTest::test_accepted_collaborator_outside_the_staff_cannot_download_receipt` verts (`viewer` et ancien agent : 0 événement, 403), les deux tests qui ouvraient ces gestes à un compte sans profil passent par un agent du personnel ; ablation (les deux fichiers d'avant) → 2 rouges, 224 verts sur les classes de l'agenda, du flux iCalendar et des quittances. Voie retenue : la première de la piste (borner) ; les branches ne sont pas retirées.
 
 ### Petites améliorations
 - Réf : P86.05
@@ -10058,7 +10066,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Les vues mois et semaine du calendrier déclarent une `grid` sans `row` : 49 en-têtes et cellules hors de la structure exigée
 - Réf : P101.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/calendar/MonthView.tsx:58-71,82-86`, `takussan-web/src/components/calendar/WeekView.tsx:34-50,72-76`
 - Constat :
@@ -10068,10 +10076,11 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Aucun `onKeyDown`, `tabIndex` ni `aria-selected` dans les deux fichiers (mesuré, `grep -n`) : le rôle `grid` annonce une navigation aux flèches que le composant n'offre pas, et un lecteur d'écran ne peut pas lire la grille par lignes et colonnes.
   - Établi comment : axe par CDP, code relu.
 - Piste : envelopper chaque semaine dans un `div role="row"` (avec `display: contents` ou une grille par ligne pour garder la mise en page), en-têtes compris ; ou, faute de navigation aux flèches, renoncer à `grid` pour `role="table"` avec les mêmes `row`. Garde : test de rendu de `MonthView` et `WeekView` qui attend que chaque `gridcell` et chaque `columnheader` ait un parent `row` (ou `axe` sur le composant rendu).
+- Mesure (2026-10-21, dadb26e5c, mesureur) : relu `MonthView.tsx:58-86` et `WeekView.tsx:35-76` (lignes inchangées : `role="grid"`, `columnheader` et `gridcell` sans aucun `role="row"`, ni `onKeyDown`, `tabIndex` ou `aria-selected`) ; test vitest temporaire, retiré depuis, qui rend les deux vues et passe `axe-core` (règles `aria-required-children`, `aria-required-parent`) → mois : 49 nœuds sur 49 sans parent `row`, `aria-required-children` critique sur la grille et `aria-required-parent` critique sur 49 nœuds ; semaine : 14 sur 14, mêmes deux règles (1 et 14 nœuds), donc la vue semaine est désormais mesurée, plus seulement lue ; aucun commit ni ticket ne la traite (`git log` des deux fichiers, `grep` des tickets). Classement : A4, structure ARIA sans texte neuf ni changement visible : envelopper en-têtes et chaque semaine dans un `div role="row"` en `display: contents` (ou une grille par ligne), le rôle `grid` gardé, et un test qui attend un parent `row` à chaque `gridcell` et `columnheader`.
 
 ### Les écrans d'erreur et de chargement de deux fiches n'ont pas de `h1`, quand les autres fiches en gardent un
 - Réf : P101.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/LeaseDetail.tsx:101-116`, `takussan-web/src/components/documents/DocumentDetailClient.tsx:46-65`, `takussan-web/src/components/bookings/BookingDetail.tsx:155-161`, `takussan-web/src/components/visits/VisitDetail.tsx:78`
 - Constat :
@@ -10080,10 +10089,11 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Un propriétaire qui ouvre un bail qui n'est pas le sien voit « Bail introuvable » sans titre de page (lu, l. 109-115 ; ce rendu a été vu au navigateur pour u7 sur `/app/leases/1`, dans le premier relevé masqué par la fenêtre de bienvenue, donc sans axe valable).
   - Établi comment : code relu, axe par CDP pour la fiche document.
 - Piste : le même `h1` `sr-only` que `BookingDetail` dans les branches de chargement et d'erreur de `LeaseDetail` et de `DocumentDetailClient`, sur les clés de repli existantes (`fallbackReference` pour le bail ; pour le document, une clé existante à trouver, sinon c'est un texte neuf). Garde : test de rendu qui joue l'erreur de la requête et attend `getByRole('heading', { level: 1 })`.
+- Mesure (2026-10-21, dadb26e5c, mesureur) : relu `LeaseDetail.tsx:101-116` et `DocumentDetailClient.tsx:46-65` (lignes inchangées), ainsi que les deux `page.tsx`, qui ne rendent aucun `h1` autour ; `BookingDetail.tsx:158-161` et `VisitDetail.tsx:78` gardent le `h1` `sr-only` ; test vitest temporaire, retiré depuis, requêtes simulées en chargement puis en erreur → `h1` = 0 dans les quatre cas (« Bail introuvable. », « Document introuvable. », les deux squelettes) ; clés existantes dans les trois langues : `lease.fallbackReference` (« Bail #{id} ») et `dashboard.pages.documentDetail.metaTitle` (« Fiche document »). Pourquoi la fiche document restait en chargement dans le relevé n'a pas été re-mesuré, et n'entre pas dans le classement. Classement : A4 et A1, le motif est déjà écrit dans `BookingDetail` et `VisitDetail`, et ces deux clés évitent tout texte neuf : `h1` `sr-only` dans les branches de chargement et d'erreur des deux fiches, et un test `getByRole('heading', { level: 1 })` sur l'erreur.
 
 ### Le locataire reçoit deux fenêtres de bienvenue modales montées ensemble
 - Réf : P101.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : l'ordre d'apparition des fenêtres de bienvenue est un parcours visible
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/layout/AppShell.tsx:138-145`, `takussan-web/src/hooks/useWelcomeOnce.ts`, `takussan-web/src/components/welcome/WelcomeModal.tsx:116-120`
 - Constat :
@@ -10092,16 +10102,18 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Pour u103 sur `/app/payments`, après trois clics sur « Passer », un `role="dialog"` restait ouvert (mesuré, `act-skip.js`). Que ce soit la seconde fenêtre empilée et non une autre n'est pas établi, ni ce que deviennent le piège de focus et l'`aria-hidden` de deux modales ouvertes ensemble (à vérifier). Dans le montage, le `POST` de fermeture est refusé, donc la fenêtre revient à chaque page ; en vrai, chacune ne s'ouvre qu'une fois.
   - Établi comment : code relu, une mesure CDP partielle.
 - Piste : n'ouvrir qu'une fenêtre de bienvenue à la fois (la suivante après la fermeture de la première, par une file dans `AppShell`), sans changer leur contenu. Garde : test de `AppShell` pour un locataire sans aucune clé vue, qui n'attend qu'un seul `dialog` ouvert.
+- Mesure (2026-10-21, dadb26e5c, mesureur) : relu `AppShell.tsx:138-145` (`CustomerWelcomeWizard` et `TenantWelcomeWizard` sous la même condition `customerOnboardingActive`, et le commentaire « Renders on top of (or after) ») et `useTenantWelcomeOnce.ts` (s'ouvre dès qu'un bail actif n'a pas sa clé `tenant-welcome-<id>`, sans regarder l'autre fenêtre) ; test vitest temporaire, retiré depuis, qui monte les deux parcours, leurs hooks remplacés par une modale ouverte → 2 `role="dialog"` rendus ensemble (« Trouvez le bien parfait… » et « Vos paiements… »). Le piège de focus et l'`aria-hidden` à deux modales n'ont pas été mesurés. Classement : V7, ouvrir une seule fenêtre à la fois oblige à choisir laquelle passe d'abord, pour le locataire comme pour le propriétaire-client (commentaire l. 59-62), et le code assume aujourd'hui l'empilement.
 
 ### Petites améliorations relevées sur le calendrier
 - Réf : P101.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/calendar/CalendarPage.tsx:449`, `takussan-web/src/components/layout/AppSidebar.tsx:783`
 - Constat :
   - Le panneau du jour sélectionné est un second `aside` sans nom, à côté de celui de la barre latérale : axe rend `landmark-unique` (« moderate ») sur `/app/calendar`, pour u2, u3, u7 et u17 (mesuré) ; le même motif que les `aside` de `/app/messages` laissés au porteur par P68.08.
   - Établi comment : axe par CDP, code relu.
 - Piste : `aria-labelledby` du panneau vers son `h3` (le libellé du jour, déjà affiché), ou `section` au lieu d'`aside` ; aucun texte neuf.
+- Mesure (2026-10-21, dadb26e5c, mesureur) : relu `CalendarPage.tsx:449-494` (`<aside data-testid="calendar-selected-day">` sans `aria-label` ni `aria-labelledby` ; son `h3` l. 452 porte le libellé du jour, déjà affiché) et `AppSidebar.tsx:783` (`<aside>` sans nom) → deux repères `complementary` sans nom sur `/app/calendar` ; axe non relancé, le constat est relu. P68.08 a laissé au porteur les seuls `aside` de `/app/messages`, qui n'ont pas de titre à réutiliser. Classement : A4, aucun texte neuf : `aria-labelledby` du panneau vers un `id` posé sur son `h3`, et un test qui attend le repère nommé du libellé du jour.
 
 ## Angle 102 — Cartes de bien masquées au rendu serveur hors de la grille de recherche
 

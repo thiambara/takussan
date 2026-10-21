@@ -358,17 +358,54 @@ class PropertyCollaboratorTest extends TestCase
         $this->assertDatabaseCount('property_collaborators', 2);
     }
 
+    /**
+     * TCK-1152 (P86.01) — c'est le PERSONNEL de l'agence qui désigne un bailleur en `co_owner` :
+     * jusque-là, ce test faisait ajouter l'autre bailleur par le bailleur du bien (201).
+     */
     public function test_store_accepte_un_bailleur_de_l_agence_en_co_owner(): void
     {
-        [$bailleur, $property] = $this->bienDUnBailleur();
+        [, $property] = $this->bienDUnBailleur();
         $autreBailleur = User::factory()->create();
         OwnerProfile::factory()->create(['user_id' => $autreBailleur->id, 'agency_id' => $property->agency_id]);
 
-        Sanctum::actingAs($bailleur);
+        $admin = User::factory()->withTwoFactor()->create();
+        AgencyAdminProfile::factory()->create(['user_id' => $admin->id, 'agency_id' => $property->agency_id]);
+        Sanctum::actingAs($admin);
 
         $this->ajouter($property, $autreBailleur, CollaboratorRole::CoOwner)
             ->assertCreated()
             ->assertJsonPath('data.role', CollaboratorRole::CoOwner->value);
+    }
+
+    /**
+     * TCK-1152 (P86.01, ADR-0031 §2) — un bailleur, à qui `/api/owners` est refusé, ne désigne pas un
+     * autre bailleur de l'agence en `co_owner` ni en `viewer` : la réponse est le 422 d'un compte
+     * hors de l'agence, mot pour mot, pour que le refus n'apprenne pas qui est bailleur, et rien de
+     * l'autre bailleur n'est rendu. Changer le rôle d'un collaborateur vers `co_owner` suit la même
+     * règle.
+     */
+    public function test_un_bailleur_ne_designe_pas_un_autre_bailleur_de_l_agence(): void
+    {
+        [$bailleur, $property] = $this->bienDUnBailleur();
+        $autreBailleur = User::factory()->create();
+        OwnerProfile::factory()->create(['user_id' => $autreBailleur->id, 'agency_id' => $property->agency_id]);
+        $tiers = User::factory()->create();
+
+        Sanctum::actingAs($bailleur);
+
+        $horsAgence = $this->ajouter($property, $tiers, CollaboratorRole::Viewer)->assertStatus(422)->json('errors.user_id');
+        foreach ([CollaboratorRole::CoOwner, CollaboratorRole::Viewer] as $role) {
+            $reponse = $this->ajouter($property, $autreBailleur, $role)->assertStatus(422);
+            $this->assertSame($horsAgence, $reponse->json('errors.user_id'));
+            $this->assertStringNotContainsString((string) $autreBailleur->email, $reponse->getContent());
+        }
+        $this->assertSame(0, $property->collaborators()->count());
+
+        // Le bailleur ajoute toujours un agent de l'agence, mais ne le passe pas en `co_owner`.
+        $agent = $this->agentDe($property->agency_id);
+        $id = $this->ajouter($property, $agent, CollaboratorRole::Viewer)->assertCreated()->json('data.id');
+        $this->putJson("/api/properties/{$property->id}/collaborators/{$id}", ['role' => CollaboratorRole::CoOwner->value])
+            ->assertStatus(422);
     }
 
     public function test_store_refuse_tout_collaborateur_sur_un_bien_sans_agence(): void

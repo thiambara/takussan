@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Models\Agency;
 use App\Models\KycDossier;
+use App\Policies\AgencyPolicy;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use Illuminate\Http\Request;
@@ -29,18 +30,18 @@ class KycDocumentController extends Controller
         return $access->stream($media, 'inline');
     }
 
+    /**
+     * TCK-1148 (P82.05) — une pièce du dossier d'agence se lit sous la règle du dossier,
+     * {@see AgencyPolicy::updateKyc()} ; un dossier d'un autre sujet, par le seul
+     * super-admin. Relais gardé pour l'exemption de `scripts/check-controller-authorization.mjs`.
+     */
     private function authorizeDocument(Request $request, KycDossier $dossier): void
     {
-        $user = $request->user();
         $subject = $dossier->subject;
 
         abort_unless(
-            $user->isSuperAdmin()
-            || (
-                $subject instanceof Agency
-                && $request->activeProfile()?->agency_id === $subject->id
-                && $user->isAgencyAdminAt((int) $subject->id)
-            ),
+            $request->user()->isSuperAdmin()
+            || ($subject instanceof Agency && $request->user()->can('updateKyc', $subject)),
             403,
         );
     }
