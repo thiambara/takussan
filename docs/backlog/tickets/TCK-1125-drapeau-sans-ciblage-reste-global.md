@@ -1,7 +1,7 @@
 ---
 id: TCK-1125
 title: "Un drapeau enregistré depuis la console sans ciblage reste global"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -35,19 +35,19 @@ Le super-admin qui active un drapeau sans ciblage l'active pour tous, comme l'é
 
 ## Delta à produire
 
-- [ ] `FeatureFlagEvaluator::normalizeSegments()` : des segments sans rôle, sans agence et à 0 %
+- [x] `FeatureFlagEvaluator::normalizeSegments()` : des segments sans rôle, sans agence et à 0 %
       valent `[]` ; `evaluate()` l'applique (lignes déjà écrites comprises).
-- [ ] `FeatureFlagController::update()` stocke les segments normalisés.
-- [ ] `FeatureFlagSegmentDialog` renvoie les `agency_ids` déjà posés.
-- [ ] Tests : `FeatureFlagTest` (API), `FeatureFlags.test.tsx` (front).
+- [x] `FeatureFlagController::update()` stocke les segments normalisés.
+- [x] `FeatureFlagSegmentDialog` renvoie les `agency_ids` déjà posés.
+- [x] Tests : `FeatureFlagTest` (API), `FeatureFlags.test.tsx` (front).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `PATCH /api/admin/feature-flags/host_auto_space` avec le corps du dialogue sans
+- [x] AC1 — `PATCH /api/admin/feature-flags/host_auto_space` avec le corps du dialogue sans
       ciblage stocke `[]`, et le drapeau est vrai pour un utilisateur quelconque et sans utilisateur.
-- [ ] AC2 — une ligne déjà écrite `{roles: [], agency_ids: [], rollout_percentage: 0}` s'évalue vraie.
-- [ ] AC3 — un ciblage par rôle reste un ciblage (stocké tel quel, faux hors du rôle).
-- [ ] AC4 — enregistrer depuis le dialogue un drapeau qui porte des `agency_ids` les renvoie.
+- [x] AC2 — une ligne déjà écrite `{roles: [], agency_ids: [], rollout_percentage: 0}` s'évalue vraie.
+- [x] AC3 — un ciblage par rôle reste un ciblage (stocké tel quel, faux hors du rôle).
+- [x] AC4 — enregistrer depuis le dialogue un drapeau qui porte des `agency_ids` les renvoie.
 
 ## Hors périmètre
 
@@ -56,4 +56,7 @@ Le super-admin qui active un drapeau sans ciblage l'active pour tous, comme l'é
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : `FeatureFlagEvaluator.php`, `FeatureFlagController.php` et `feature-flags.tsx` rendus
+  à `pre-dev` → 1 rouge API (6 tests) et 1 rouge front (3 tests) ; correctif remis → verts.
+- `->value('segments_json')` rend la chaîne JSON brute, sans le cast du modèle : le test lit la
+  colonne par `->first()`.
