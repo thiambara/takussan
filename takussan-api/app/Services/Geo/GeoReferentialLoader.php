@@ -87,12 +87,49 @@ final class GeoReferentialLoader
             $this->reecrireRegion($region);
         }
         $bilan['regions']++;
+        $this->refuserUnSlugDeVilleChange($region, $donnees['cities']);
 
         foreach ($donnees['cities'] as $v) {
             $ville = $this->ville($region, $v);
             $bilan['villes']++;
             foreach ($v['neighborhoods'] as $q) {
                 $this->quartier($ville, $q, $bilan);
+            }
+        }
+    }
+
+    /**
+     * TCK-1171 (P99.04) — l'extraction calcule le slug d'une ville depuis son nom OSM : un nom
+     * changé en amont change le slug. Le chargeur, qui retrouve une ville par son slug puis par son
+     * nom, en créait alors une seconde, et l'ancienne gardait les adresses. Une ville connue absente
+     * du jeu (ni par son slug, ni par son nom) dont une ville neuve reprend des quartiers fait donc
+     * refuser la région, dans sa transaction : la correction passe par `corrections.json`
+     * (`villes`), qui fige le slug.
+     *
+     * @param  list<array<string, mixed>>  $villes
+     */
+    private function refuserUnSlugDeVilleChange(GeoRegion $region, array $villes): void
+    {
+        $connues = GeoCity::query()->where('geo_region_id', $region->getKey())->with('neighborhoods:id,geo_city_id,slug')->get();
+        $estConnue = static fn (array $v): bool => $connues->contains(
+            static fn (GeoCity $c) => $c->slug === $v['slug'] || CaseInsensitive::fold($c->name) === CaseInsensitive::fold($v['name']),
+        );
+
+        foreach ($connues as $ancienne) {
+            $presente = array_filter($villes, static fn (array $v) => $v['slug'] === $ancienne->slug
+                || CaseInsensitive::fold($v['name']) === CaseInsensitive::fold($ancienne->name));
+            if ($presente !== []) {
+                continue;
+            }
+            $siens = $ancienne->neighborhoods->pluck('slug')->all();
+            foreach ($villes as $v) {
+                $communs = array_values(array_intersect($siens, array_column($v['neighborhoods'], 'slug')));
+                if ($communs !== [] && ! $estConnue($v)) {
+                    throw new RuntimeException(sprintf(
+                        'La ville « %s » (%s) a disparu du jeu, et la ville neuve « %s » (%s) reprend ses quartiers (%s) : un slug changé en amont ? Le figer dans corrections.json (villes).',
+                        $ancienne->name, $ancienne->slug, $v['name'], $v['slug'], implode(', ', $communs),
+                    ));
+                }
             }
         }
     }

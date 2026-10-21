@@ -254,6 +254,36 @@ class GeoReferentialRealignementTest extends TestCase
         $this->assertSame(['Guédiawaye'], GeoCity::query()->where('slug', 'guediawaye')->firstOrFail()->former_names);
     }
 
+    /**
+     * TCK-1171 (P99.04) — un jeu où une ville connue disparaît sous son slug, et où une ville neuve
+     * en reprend les quartiers, est un changement de slug en amont, pas une ville de plus : le
+     * chargeur refuse la région, en nommant les deux slugs. Avant, il créait une seconde ville
+     * (« Golf Sud » deux fois), et l'ancienne gardait les adresses.
+     */
+    public function test_une_ville_dont_le_jeu_change_le_slug_est_refusee(): void
+    {
+        $this->charger(self::V1);
+        $bien = $this->bienA('Guédiawaye', 'Golf Sud');
+        $ville = $bien->address()->firstOrFail()->geo_city_id;
+        $villes = GeoCity::query()->count();
+        $quartiers = GeoNeighborhood::query()->count();
+
+        $change = $this->jeu(function (array $d) {
+            $d['cities'][1]['name'] = 'Ndiarème Limamoulaye';
+            $d['cities'][1]['slug'] = 'ndiareme-limamoulaye';
+
+            return $d;
+        });
+        $this->artisan('geo:sync-referential', ['--dir' => $change])
+            ->expectsOutputToContain('ndiareme-limamoulaye')
+            ->assertFailed();
+
+        $this->assertSame($villes, GeoCity::query()->count());
+        $this->assertSame($quartiers, GeoNeighborhood::query()->count());
+        $this->assertSame($ville, $bien->address()->firstOrFail()->geo_city_id);
+        $this->assertSame('Guédiawaye', GeoCity::query()->whereKey($ville)->value('name'));
+    }
+
     public function test_un_quartier_ajoute_par_le_jeu_rattache_l_adresse_de_sa_ville(): void
     {
         $this->charger(self::V1);
