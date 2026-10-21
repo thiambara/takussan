@@ -306,6 +306,9 @@ class AccountDeletionService
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
             'metadata' => null,
+            // TCK-1141 (P83.02) — la ville et les intentions déclarées (`city`, `search_intent`,
+            // `entry_intent`). `timezone` et `preferred_language` restent : ils n'identifient personne.
+            'preferences' => null,
             'status' => UserStatus::Deleted->value,
             'email' => sprintf('deleted-%d@takussan.local', $user->id),
             'email_verified_at' => null,

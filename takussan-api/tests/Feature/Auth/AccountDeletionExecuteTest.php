@@ -543,6 +543,24 @@ class AccountDeletionExecuteTest extends TestCase
         $this->getJson("/api/data-exports/{$export->id}/download")->assertNotFound();
     }
 
+    /**
+     * TCK-1141 (P83.02) — `preferences` porte la ville et les intentions que la personne a
+     * déclarées : elles partent avec le compte.
+     */
+    public function test_l_effacement_vide_les_preferences_declarees(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'preferences' => ['city' => 'Ziguinchor', 'search_intent' => 'buy', 'entry_intent' => 'search'],
+        ]);
+
+        app(AccountDeletionService::class)->anonymize($user, false);
+
+        $this->assertNull(User::withTrashed()->find($user->id)->preferences);
+        $this->assertNull(DB::table('users')->where('id', $user->id)->value('preferences'));
+    }
+
     public function test_execute_is_idempotent(): void
     {
         Notification::fake();
