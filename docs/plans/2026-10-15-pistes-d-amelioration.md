@@ -9837,7 +9837,7 @@ villes des facettes de l'index et suit donc le nouveau nom.*
 
 ### Une ville renommée par le jeu fait taire les alertes `city` / `cities` et le rapprochement CRM sur son ancien nom
 - Réf : P99.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : colonne `geo_cities.former_names` à ajouter ; V7 : les anciens noms élargissent `city` et `cities`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:90-108`, `:186-193`, `takussan-api/app/Services/Search/PropertySearchService.php:491-505`, `takussan-api/app/Services/Crm/ProspectMatcher.php:102-109`, `:167`, `takussan-api/tests/Feature/Geo/GeoReferentialRealignementTest.php:125`
 - Constat :
@@ -9846,10 +9846,11 @@ villes des facettes de l'index et suit donc le nouveau nom.*
   - Mesuré (test temporaire) : bien à « Guédiawaye » d'une agence, prospect de cette agence `seeking_cities = ["Guédiawaye"]` ; avant, `{city: "Guédiawaye"}` → 1, `{cities: ["Guédiawaye"]}` → 1, `propertiesFor` → 1, `customersFor` → 1 ; jeu rejoué avec la ville nommée « Guédiawaye Ville » (slug inchangé) → 0, 0, 0, 0, et `{city: "Guédiawaye Ville"}` → 1. L'alerte et le récapitulatif quotidien se taisent sans erreur.
   - Le test de TCK-787 affirme lui-même `city=Guédiawaye` → `[]` après le renommage (lu, l. 125) : l'effet sur les critères rangés n'y est pas considéré.
 - Piste : appliquer aux villes la décision de TCK-1080 pour les quartiers : garder les anciens noms (`geo_cities.former_names`, écrit par `ville()` quand le nom change), et faire lire par `buildFilter()` (`city` et `cities` élargis aux villes dont un ancien nom a la même clé) et par `ProspectMatcher`. Garder par un test : charger, renommer par le jeu, rejouer `alertMatches` et `propertiesFor` sur l'ancien nom → 1.
+- Mesure (2026-10-21, 6f559cb0f, mesureur) : relu `GeoReferentialLoader.php:90-108` (`fill(['name' …])` l. 98, `reecrireVille()` l. 186-193) et `PropertySearchService.php:491-505` (égalité sur `city`, OU sur `cities`), `ProspectMatcher.php:102-109` (repli de casse seul) ; test temporaire `tests/Feature/Tmp/MesureP99Test.php`, retiré (charge 3,53 sur 8 cœurs, Meilisearch réel, jeu `tests/fixtures/geo/v1` modifié et rechargé par `geo:sync-referential`) : bien et prospect `["Guédiawaye"]` d'une agence, avant [`city`, `cities`, `propertiesFor`, `customersFor`] = [1, 1, 1, 1], après la ville nommée « Guédiawaye Ville » = [0, 0, 0, 0] et `city=Guédiawaye Ville` → 1 ; colonnes de `geo_cities` : `id, geo_region_id, slug, name, latitude, longitude, created_at, updated_at` (aucun ancien nom) ; `git log -S former_names` → TCK-1080 seul, borné aux quartiers. Le constat tient en entier. Classement : V4, le correctif ajoute une colonne (migration autre qu'un index), et V7, faire répondre l'ancien nom d'une ville étend aux villes une décision du porteur prise pour les seuls quartiers.
 
 ### Un quartier renommé par le jeu ne garde pas son ancien nom, contrairement au renommage de la console
 - Réf : P99.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la décision de TCK-1080 vise `renommer()` de la console, pas le chargeur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:144-161`, `takussan-api/app/Services/Geo/GeoNeighborhoodModeration.php:73-74`, `takussan-api/app/Services/Search/QuartierDuFiltre.php:20-50`
 - Constat :
@@ -9858,10 +9859,11 @@ villes des facettes de l'index et suit donc le nouveau nom.*
   - Mesuré (test temporaire) : bien à « Point E », `{location: "Point E"}` → 1 ; jeu rejoué avec « Point E Amitié » → `{location: "Point E"}` → 0, `{location: "Point E Amitié"}` → 1, `former_names` = `null`.
   - TCK-1080 vise le renommage « que la console a renommé » (lu, objectif du ticket) : le cas du jeu n'y est ni pris ni écarté.
 - Piste : dans `quartier()`, quand le nom change, ajouter l'ancien à `former_names` (sans doublon), comme `renommer()`. Garder par un cas de `GeoReferentialRealignementTest` : renommer par le jeu, puis `location=<ancien nom>` → le bien.
+- Mesure (2026-10-21, 6f559cb0f, mesureur) : relu `GeoReferentialLoader.php:144-161` (nom remplacé si `renamed_at` est nul, `former_names` non touché), `GeoNeighborhoodModeration.php:73-74` (l'ancien nom rangé), `QuartierDuFiltre.php:41-47` ; test temporaire `tests/Feature/Tmp/MesureP99Test.php`, retiré (charge 3,53 sur 8 cœurs, Meilisearch réel, jeu `tests/fixtures/geo/v1` modifié et rechargé par `geo:sync-referential`) : bien à « Point E », `location=Point E` → 1 ; quartier nommé « Point E Amitié » par le jeu → `location=Point E` 0, `location=Point E Amitié` 1, `former_names` = `null`. TCK-1080, « Décision du porteur » : « écrite par `renommer()` » ; le chargeur n'y est ni pris ni écarté. Le constat tient en entier. Classement : V7, étendre au jeu une décision accordée pour la console change ce que rend la recherche sur un nom retiré par l'amont, et la décision écrite ne le couvre pas (le doute classe à valider).
 
 ### Une région renommée par le jeu laisse l'ancien nom dans `addresses.region` et dans l'index
 - Réf : P99.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : réécrire `addresses.region` des adresses existantes à chaque chargement
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:73-77`, `:186-193`, `takussan-api/app/Services/Geo/GeoAddressCanonicalizer.php:84-92`, `takussan-api/app/Models/Property.php:471`, `takussan-api/app/Services/Search/PropertySearchService.php:494-497`
 - Constat :
@@ -9870,10 +9872,11 @@ villes des facettes de l'index et suit donc le nouveau nom.*
   - Mesuré (test temporaire) : bien à Dakar, `addresses.region` = « Dakar », `{city: "Dakar", region: "Dakar"}` → 1 ; jeu rejoué avec la région nommée « Dakar Région » (code inchangé) → `geo_regions.name` = « Dakar Région », `addresses.region` reste « Dakar », `{city: "Dakar", region: "Dakar Région"}` → 0, `{…, region: "Dakar"}` → 1.
   - Effet sur la recherche : le panneau n'écrit `region` que pour une ville homonyme (lu, `ChoixDuReferentiel.tsx:131`, ADR-0062 §8), avec le nom de `/geo/regions` ; ces six villes ne trouveraient plus leurs biens existants (déduit, à vérifier sur une ville homonyme).
 - Piste : quand le nom d'une région change, réécrire `addresses.region` des adresses rattachées à ses villes (mise à jour SQL, comme `reecrireVille`, pour ne pas déclencher la règle 1) et ajouter leurs biens à `biensRenommes`. Garder par un test de `GeoReferentialRealignementTest` : région renommée, jeu rejoué deux fois, adresse et index au nouveau nom.
+- Mesure (2026-10-21, 6f559cb0f, mesureur) : relu `GeoReferentialLoader.php:73-77` (`updateOrCreate` de la région, rien sur `addresses.region`) et `:186-193` (`city` seul) ; ADR-0062 §4 (« reçoivent les noms canoniques du référentiel ») ; test temporaire `tests/Feature/Tmp/MesureP99Test.php`, retiré (charge 3,53 sur 8 cœurs, Meilisearch réel, jeu `tests/fixtures/geo/v1` modifié et rechargé par `geo:sync-referential`) : bien à Dakar, `addresses.region` = « Dakar », `{city: Dakar, region: Dakar}` → 1 ; région nommée « Dakar Région » → l'adresse garde « Dakar », une adresse créée ensuite reçoit « Dakar Région », `{…, region: Dakar Région}` → 0 et `{…, region: Dakar}` → 1. Le constat tient ; l'effet sur les six villes homonymes reste déduit, non mesuré. Classement : V4, comme P17.03 (mesure du 2026-10-15) : le correctif réécrit des données existantes à chaque chargement, même si ADR-0062 §4 en décrit l'intention.
 
 ### Une ville dont le jeu change le slug devient une seconde ville, et l'ancienne garde les adresses
 - Réf : P99.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : refuser un jeu au chargement bloque `geo:sync-referential`, joué à chaque mise en service
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:90-97`, `:114-136`, `takussan-api/database/data/geo/extract.mjs:138-141`, `takussan-api/database/data/geo/corrections.json`
 - Constat :
@@ -9882,10 +9885,11 @@ villes des facettes de l'index et suit donc le nouveau nom.*
   - Mesuré (test temporaire) : bien à « Guédiawaye » ; jeu rejoué avec la ville renommée « Ndiarème Limamoulaye » et le slug `ndiareme-limamoulaye` → trois villes au lieu de deux, l'ancienne gardée sous son nom avec l'adresse (`geo_city_id` inchangé), et « Golf Sud » présent deux fois, une fois par ville. Les deux villes sont servies par `/geo/cities` (lu, aucun filtre sur l'usage).
   - L'extraction est relue à la main (`relu_par`, `relu_empreinte`, lu) ; qu'une telle relecture repère un slug disparu n'est écrit nulle part (à vérifier).
 - Piste : faire échouer le chargeur, ou `signer.mjs`, quand un slug de ville ou de quartier déjà en base n'apparaît plus dans le jeu et qu'une ville neuve porte les mêmes quartiers ; la correction passe alors par `corrections.json` (`villes`), qui garde le slug. Garder par un test du chargeur : jeu à slug changé → refus nommé, base inchangée.
+- Mesure (2026-10-21, 6f559cb0f, mesureur) : relu `GeoReferentialLoader.php:90-97` (slug, puis nom replié, sinon création) et `:114-136`, docblock l. 27 (rien n'est supprimé) ; test temporaire `tests/Feature/Tmp/MesureP99Test.php`, retiré (charge 3,53 sur 8 cœurs, Meilisearch réel, jeu `tests/fixtures/geo/v1` modifié et rechargé par `geo:sync-referential`) : bien à « Guédiawaye », ville rejouée en « Ndiarème Limamoulaye » / `ndiareme-limamoulaye` → trois villes (`dakar`, `guediawaye` gardée sous son nom, `ndiareme-limamoulaye`), `geo_city_id` de l'adresse inchangé, `golf-sud` présent deux fois. Que la relecture humaine du jeu repère un slug disparu n'est pas re-mesuré. Classement : V7, la piste propose deux lieux de refus (chargeur ou `signer.mjs`) et le refus au chargeur arrêterait une mise en service (`docker/release.sh:21`), choix qui revient au porteur.
 
 ### Le rapprochement CRM ne reconnaît pas « Guediawaye » pour « Guédiawaye »
 - Réf : P99.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : revenir sur le choix écrit au docblock de `ProspectMatcher` (villes sans repli d'accents)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Crm/ProspectMatcher.php:102-109`, `:167`, `:232-250`, `takussan-web/src/components/customer-form/CustomerForm.tsx:380`
 - Constat :
@@ -9893,3 +9897,4 @@ villes des facettes de l'index et suit donc le nouveau nom.*
   - Mesuré (test temporaire) : bien à « Guédiawaye » ; prospect `["Guediawaye"]` → `propertiesFor` 0 et absent de `customersFor` ; prospect `["guédiawaye"]` → 1 et présent.
   - Les quartiers du prospect se comparent par `CleDeQuartier`, accents et tirets repliés, depuis TCK-1083 (P67.05) : les villes du même formulaire ne suivent pas cette règle (lu, l. 111-125).
 - Piste : rattacher la saisie au référentiel (`villeParNom` sur la clé repliée), ou comparer les villes par une clé repliée comme les quartiers ; dans les deux cas, revenir sur le choix écrit au docblock (l. 29). Garder par un test : `["Guediawaye", "thies"]` face à « Guédiawaye » et « Thiès ».
+- Mesure (2026-10-21, 6f559cb0f, mesureur) : relu `ProspectMatcher.php:29` (« sans replier les accents »), `:102-109` et `:232-250` (`CaseInsensitive` seul) ; test temporaire `tests/Feature/Tmp/MesureP99Test.php`, retiré (charge 3,53 sur 8 cœurs, Meilisearch réel, jeu `tests/fixtures/geo/v1` modifié et rechargé par `geo:sync-referential`) : bien à « Guédiawaye » d'une agence, prospect `["Guediawaye"]` → `propertiesFor` 0 et absent de `customersFor`, prospect `["guédiawaye"]` → 1 et présent. Le constat tient en entier. Classement : V7, la piste propose deux voies (rattacher la saisie au référentiel, ou comparer par clé repliée) et revient sur un choix écrit dans le code.
