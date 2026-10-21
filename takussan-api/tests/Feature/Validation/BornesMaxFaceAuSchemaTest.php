@@ -5,8 +5,12 @@ namespace Tests\Feature\Validation;
 use App\Http\Requests\AgencyUpdateRequest;
 use App\Http\Requests\Api\Admin\StoreAgencyOnboardingRequest;
 use App\Http\Requests\Api\AttachGuarantorLeaseRequest;
+use App\Http\Requests\Api\MarkPaidLeasePaymentRequest;
 use App\Http\Requests\Api\StoreAgencyRequest;
+use App\Http\Requests\Api\StoreBookingPaymentRequest;
 use App\Http\Requests\Api\StoreCustomerRequest;
+use App\Http\Requests\Api\StoreForAgencyReviewRequest;
+use App\Http\Requests\Api\StoreForPropertyReviewRequest;
 use App\Http\Requests\Api\StoreGuarantorRequest;
 use App\Http\Requests\Api\StoreTagRequest;
 use App\Http\Requests\Api\UpdateCustomerRequest;
@@ -78,6 +82,11 @@ class BornesMaxFaceAuSchemaTest extends TestCase
             'agence, création, e-mail' => [StoreAgencyRequest::class, 'email', 'agencies', 'email'],
             'agence, modification, e-mail' => [AgencyUpdateRequest::class, 'email', 'agencies', 'email'],
             'visite publique, e-mail' => [VisitRequestPublicPropertyRequest::class, 'visitor_email', 'property_visits', 'visitor_email'],
+            // TCK-1112 (P91.08)
+            'avis d\'agence, titre' => [StoreForAgencyReviewRequest::class, 'title', 'reviews', 'title'],
+            'avis de bien, titre' => [StoreForPropertyReviewRequest::class, 'title', 'reviews', 'title'],
+            'encaissement d\'échéance, référence' => [MarkPaidLeasePaymentRequest::class, 'transaction_id', 'lease_payments', 'transaction_id'],
+            'paiement de réservation, référence' => [StoreBookingPaymentRequest::class, 'transaction_id', 'booking_payments', 'transaction_id'],
         ];
 
         // TCK-1108 (P91.03), et TCK-1110 (P91.05) pour l'adresse : les trois voies d'un garant.
