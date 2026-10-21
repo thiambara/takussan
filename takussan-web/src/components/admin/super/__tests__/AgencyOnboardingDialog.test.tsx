@@ -26,6 +26,18 @@ function renderDialog() {
 }
 
 describe('<AgencyOnboardingDialog>', () => {
+  // TCK-1130 (P83.01) — le champ libre « Type » n'avait aucun lecteur, ni à l'API ni à la
+  // console : il est retiré de l'assistant, et l'API ne l'accepte plus.
+  it('no longer offers the free « Type » field on the agency step', async () => {
+    renderDialog();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /nouvelle agence/i }));
+
+    expect(screen.getByText('Nom de l’agence')).toBeInTheDocument();
+    expect(screen.queryByText('Type')).not.toBeInTheDocument();
+  });
+
   it('keeps the final submit non-repeatable while the creation is pending', async () => {
     vi.mocked(postAgencyOnboarding).mockReturnValue(new Promise(() => {}));
     renderDialog();
@@ -35,7 +47,7 @@ describe('<AgencyOnboardingDialog>', () => {
 
     const agencyInputs = screen.getAllByRole('textbox');
     await user.type(agencyInputs[0], 'Sunu Gestion');
-    await user.type(agencyInputs[3], 'contact@sunu.test');
+    await user.type(agencyInputs[2], 'contact@sunu.test');
     await user.click(screen.getByRole('button', { name: /continuer/i }));
 
     const adminInputs = screen.getAllByRole('textbox');

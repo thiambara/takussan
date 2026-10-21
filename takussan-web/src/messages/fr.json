@@ -8511,7 +8511,6 @@
         "name": "Nom de l’agence",
         "currency": "Devise",
         "slug": "Slug",
-        "type": "Type",
         "contactEmail": "Email contact",
         "phone": "Téléphone",
         "address": "Adresse",
