@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\BorneLesChampsDuGarant;
 use App\Models\Enums\IdType;
 use Illuminate\Validation\Rule;
 
@@ -16,6 +17,8 @@ use Illuminate\Validation\Rule;
  */
 class AttachGuarantorLeaseRequest extends BaseFormRequest
 {
+    use BorneLesChampsDuGarant;
+
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
@@ -34,7 +37,7 @@ class AttachGuarantorLeaseRequest extends BaseFormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        return [
+        return $this->borneLesChampsDuGarant([
             'guarantor_id' => ['nullable', 'exists:guarantors,id'],
             'role' => ['nullable', 'string', 'max:50'],
             'first_name' => ['required_without:guarantor_id', 'string'],
@@ -50,6 +53,6 @@ class AttachGuarantorLeaseRequest extends BaseFormRequest
             'monthly_income' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
             'relationship_to_tenant' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
-        ];
+        ]);
     }
 }

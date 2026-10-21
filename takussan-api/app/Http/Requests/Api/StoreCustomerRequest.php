@@ -37,13 +37,15 @@ class StoreCustomerRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'first_name' => ['required', 'string'],
-            'last_name' => ['required', 'string'],
+            // TCK-1109 (P91.04) — les bornes des colonnes `varchar(255)`, comme
+            // `emergency_contact_name` : au-delà, 422 sur la clé, et non le 500 de PostgreSQL.
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email'],
             'id_type' => ['nullable', Rule::enum(IdType::class)],
             // TCK-953 — la valeur doit tenir dans le `varchar(255)` du `down()` (ADR-0070 § 2).
             'id_number' => ['nullable', 'string', 'max:100'],
-            'occupation' => ['nullable', 'string'],
+            'occupation' => ['nullable', 'string', 'max:255'],
             'pipeline_stage' => ['nullable', Rule::enum(CustomerPipelineStage::class)],
             'notes' => ['nullable', 'string'],
             ...$this->contactAndCriteriaRules(''),

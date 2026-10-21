@@ -62,13 +62,15 @@ class UpdateCustomerRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'first_name' => ['sometimes', 'string'],
-            'last_name' => ['sometimes', 'string'],
+            // TCK-1109 (P91.04) — les bornes des colonnes `varchar(255)`, comme
+            // `emergency_contact_name` : au-delà, 422 sur la clé, et non le 500 de PostgreSQL.
+            'first_name' => ['sometimes', 'string', 'max:255'],
+            'last_name' => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'nullable', 'email'],
             'id_type' => ['sometimes', 'nullable', Rule::enum(IdType::class)],
             // TCK-953 — la valeur doit tenir dans le `varchar(255)` du `down()` (ADR-0070 § 2).
             'id_number' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'occupation' => ['sometimes', 'nullable', 'string'],
+            'occupation' => ['sometimes', 'nullable', 'string', 'max:255'],
             'pipeline_stage' => ['sometimes', Rule::enum(CustomerPipelineStage::class)],
             'status' => ['sometimes', Rule::enum(CustomerStatus::class)],
             'notes' => ['sometimes', 'nullable', 'string'],
