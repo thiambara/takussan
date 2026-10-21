@@ -91,6 +91,7 @@ return [
         'receipt_unpaid' => 'Quittance bi, fay bu ñu fay ba noppi rekk la.',
         'refund_exceeds_paid' => 'Delloo bi mënul a ëpp xaalis bi ñu fay.',
         'refund_fractional' => 'Limu bii am na ay ñaari lim yu xaalis bi amul.',
+        'refund_settled_by_platform' => 'Cet acompte a été encaissé en ligne par la plateforme : son remboursement passe par le fournisseur de paiement.',
         'refund_unpaid' => 'Fay bu ñu fay ba noppi rekk lañu mën a delloo.',
     ],
     'boost' => [
@@ -395,6 +396,7 @@ return [
         'cannot_fail' => 'Reversement bii mënuñu ko màndargaal ni lu daanu ni mu nekke léegi.',
         'cannot_process' => 'Reversement bii mënuñu ko màndargaal ni lu ñu def ni mu nekke léegi.',
         'failure_reason_required' => 'Waxal lu tax mu daanu.',
+        'items_changed' => 'Une pièce de ce reversement n\'est plus payée depuis sa préparation : annulez-le, puis préparez-le à nouveau.',
         'issuer_forbidden' => 'Way agence walla administrateur yi rekk ñoo mën a génne reversement.',
         'landlord_not_in_agency' => 'Boroom kër gii bokkul ci sa agence.',
         'individual_third_party' => 'Agence bu benn nit du fey kenn ku dul boroom bi : platform bi mooy fey ñeneen ñi.',
@@ -435,6 +437,7 @@ return [
         'agency_frozen' => 'Bii agence du active : reversement yi dañu leen taxawal.',
         'agency_unverified' => 'Agence bu ñu vérifierul mënuñu ko fey.',
         'already_exists' => 'Am na reversement ci période bii ba noppi.',
+        'items_changed' => 'Une ligne de ce reversement n\'est plus payée depuis la clôture : annulez-le, puis clôturez à nouveau la période.',
         'status_transition_invalid' => 'Soppi statut reversement plateforme bii nangouñu ko.',
     ],
     'privacy' => [

@@ -2,6 +2,7 @@
 
 namespace App\Services\Model;
 
+use App\Models\Payout;
 use Illuminate\Support\Str;
 
 class ReferenceNumberGenerator
@@ -36,8 +37,17 @@ class ReferenceNumberGenerator
         return 'INV-'.now()->format('Ym').'-'.strtoupper(Str::random(6));
     }
 
+    /**
+     * TCK-1162 (P92.09) — `payouts.reference_number` est unique : un tirage déjà pris se refait.
+     * Sans cela, la collision remontait en violation d'unicité, lue comme une pièce déjà reversée
+     * (409) dans `PayoutService::create` et en 500 dans `createForBill`.
+     */
     public static function payout(): string
     {
-        return 'PO-'.now()->format('Ym').'-'.strtoupper(Str::random(6));
+        do {
+            $reference = 'PO-'.now()->format('Ym').'-'.strtoupper(Str::random(6));
+        } while (Payout::withTrashed()->where('reference_number', $reference)->exists());
+
+        return $reference;
     }
 }

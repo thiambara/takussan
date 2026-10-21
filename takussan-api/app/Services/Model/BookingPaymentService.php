@@ -7,12 +7,16 @@ use App\Models\BookingPayment;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\User;
+use App\Services\Billing\PlatformPayoutService;
 use App\Services\Booking\BookingRefundTaskService;
 use Illuminate\Support\Facades\DB;
 
 class BookingPaymentService
 {
-    public function __construct(private readonly BookingRefundTaskService $refundTasks) {}
+    public function __construct(
+        private readonly BookingRefundTaskService $refundTasks,
+        private readonly PlatformPayoutService $platformPayouts,
+    ) {}
 
     /**
      * @param  array<string,mixed>  $data
@@ -59,6 +63,15 @@ class BookingPaymentService
                 $payment->status === PaymentStatus::Paid,
                 422,
                 'booking_payment.refund_unpaid'
+            );
+
+            // TCK-1160 (P76.04) — un acompte soldé par une intégration de la PLATEFORME est chez
+            // elle, et elle le reverse à l'agence à la clôture : son remboursement passe par le
+            // fournisseur (webhook), jamais par une déclaration de l'agence.
+            abort_code_if(
+                $this->platformPayouts->isSettledByPlatform($payment),
+                422,
+                'booking_payment.refund_settled_by_platform'
             );
 
             abort_code_if(

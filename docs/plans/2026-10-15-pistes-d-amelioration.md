@@ -7715,7 +7715,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 
 ### Un reversement de la plateforme clos avant un remboursement est approuvé et payé avec la ligne remboursée
 - Réf : P76.01
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1156 — reste : le signalement à la console d'un reversement déjà `paid` dont une ligne a été remboursée depuis (le choix entre signaler et compenser est celui de P39.07)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:109-169`, `:200-233`, `:236-343`
 - Constat :
@@ -7725,10 +7725,11 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - Établi comment : lu, puis mesuré de bout en bout par les routes `/api/admin/payouts/*`.
 - Piste : à `approve()` et `markPaid()`, refuser (422 `platform_payout.items_changed`) un reversement dont une ligne n'est plus `paid`, ce qui renvoie à `cancel()` puis à une nouvelle clôture ; pour un reversement déjà `paid`, au moins un signalement à la console (le choix entre signaler et compenser est celui de P39.07). Garde : le scénario mesuré en test.
 - Mesure (2026-10-20, 740c8247f, mesureur) : lu `PlatformPayoutService::approve()` (l. 109-136) et `markPaid()` (l. 144-170) : ni l'un ni l'autre ne relit les lignes, `cancel()` seul remet `platform_payout_id` à nul (l. 178-181), `breakdown()` agrège par `platform_payout_id` sans filtre de statut (l. 207-215) ; test temporaire `tests/Feature/Tmp/MesureurTmp76Test.php` (retiré), charge 2,85 / 3,26 / 3,19 sur 8 cœurs : loyer de 100 000 soldé par l'intégration globale, `close-period` → reversement `pending`, puis `applyEventToMatchingPayment` d'un remboursement de 100 000 → échéance `refunded`, `refund_amount = 100000`, `paid_amount = 0`, `platform_payout_id` toujours posé ; `approve` → 200, `mark-paid` → 200, reversement `paid` (le `breakdown` n'a pas été relu par la route) → le constat tient. Classement : V1, le correctif bloque le versement d'un reversement et touche à la suite d'un reversement déjà payé (signaler ou compenser, P39.07).
+- Mesure (2026-10-21, 464389140, implementeur) : avant correctif, loyer de 100 000 soldé par la plateforme, `close-period` puis échéance passée à `refunded` (`refund_amount = 100000`) → `approve` rend 200, et après approbation `mark-paid` rend 200 → `approve()` et `markPaid()` refusent désormais sous le verrou (422 `platform_payout.items_changed`) un reversement dont une ligne n'est plus `paid` ; `PlatformPayoutRefundedItemsTest` (3 cas, dont l'annulation qui libère la ligne) ; ablation : les deux appels retirés → 2 rouges, remis → 3/3 ; `PlatformPayoutTest`, `…SegregationTest`, `…FreezeTest`, `…ScopeTest` verts.
 
 ### Un remboursement partiel fait sortir toute la ligne de l'encaissé, de la clôture de la plateforme et du reversement au bailleur
 - Réf : P76.02
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : retenu · à valider — chemin fermé : `docs/adr/0057` § 2 ; les deux options réécrivent la définition de l'*Encaissé* qu'il fixe (« `LeasePayment` payés », « `BookingPayment` `paid` (montant − `refund_amount`) »), un critère autre que V1 accordé (V6, décision structurelle écrite dans un ADR), et le correctif touche sept lecteurs, au-delà de M
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:12-23`, `:50`, `:65-79`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:251`, `:263`, `takussan-api/app/Services/Payout/PayoutCalculator.php:63`, `:87`, `takussan-api/app/Services/Model/BookingPaymentService.php:64-82`
 - Constat :
@@ -7740,10 +7741,11 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - Établi comment : lu, puis mesuré par le test temporaire.
 - Piste : faire compter une ligne `refunded` à hauteur de `amount − refund_amount` partout où `paid` compte (encaissé, clôture, `PayoutCalculator`, avec la commission sur cette base), ou ne passer à `refunded` qu'un remboursement total et garder la ligne `paid` avec son `refund_amount` pour un partiel. Le choix touche ADR-0057 § 2. Garde : les deux scénarios mesurés en test, sur chacun des trois lecteurs.
 - Mesure (2026-10-20, 740c8247f, mesureur) : lu `CollectedPayments::leaseIncome()`/`bookingIncome()` (filtre `paid`), `BOOKING_NET_SQL` (l. 50), `PlatformPayoutService.php:251` et `:263`, `PayoutCalculator.php:63` et `:87` (tous `status = paid`) ; `reportedRefundAmount` est désormais en `PaymentGatewayService.php:1125-1139` et s'applique l. 1180-1181 ; test temporaire `tests/Feature/Tmp/MesureurTmp76Test.php` (retiré), charge 2,85 / 3,26 / 3,19 sur 8 cœurs : loyer de 150 000 soldé par la plateforme, remboursé de 40 000 → `refunded`, `paid_amount = 110000`, `remaining_amount = 40000`, `close-period` → 201, `data = []`, `leaseIncome` → 0 ligne ; acompte de 50 000, `BookingPaymentService::refund` de 20 000 → `refunded`, `paid_amount = 30000`, `SUM(BOOKING_NET_SQL)` de 50 000 à 0 → le constat tient (`PayoutCalculator` lu, non rejoué). Classement : V1, l'assiette de l'encaissé, de la clôture et des reversements change, et la piste offre deux options qui touchent ADR-0057 § 2.
+- Mesure (2026-10-21, 464389140, implementeur) : lu `BookingPaymentService::refund()` (passe à `refunded` tout remboursement `≤ amount`), `CollectedPayments::leaseIncome()`/`bookingIncome()` (filtre `paid`), la clôture `PlatformPayoutService::closeForAgency()` (`status = paid`), `PayoutCalculator::leasePayments()`/`bookingPayments()` (`status = paid`), et `docs/adr/0057-instantanes-quotidiens-des-metriques-plateforme.md:48-51` (l'*Encaissé* : « `LeasePayment` payés », « `BookingPayment` `paid` (montant − `refund_amount`) ») → le constat tient sur le code. Option (a) (une ligne `refunded` compte `amount − refund_amount`) contredit la définition de l'ADR, qui ne prend que les lignes payées ; option (b) (un partiel reste `paid`) la tient pour les acomptes mais lui ajoute une soustraction côté loyers, et change le statut affiché d'un remboursement partiel. Les deux réécrivent ADR-0057 § 2, chemin fermé à l'implémenteur, et touchent l'encaissé (trois lecteurs de `PortfolioMetrics` et `PlatformMetricsSnapshotter`), la clôture, `PayoutCalculator` et sa commission, le webhook et le geste manuel. Classement : chemin fermé (`docs/adr/`), V6, critère autre que le V1 accordé ; non implémenté.
 
 ### Un reversement au bailleur préparé avant un remboursement est versé sans relire ses lignes
 - Réf : P76.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1158
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/PayoutService.php:202-268`, `:269-337`, `:401-471`, `:508-537`
 - Constat :
@@ -7753,10 +7755,11 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - Établi comment : lu.
 - Piste : la même relecture que pour P76.01, à `approve()` et à `markProcessed()` (`payout.items_changed`), et le contrôle de statut repris dans `createLocked()`, sous le verrou. Garde : un test par geste.
 - Mesure (2026-10-20, 740c8247f, mesureur) : lu `PayoutService::createLocked()` (l. 405-433 : relit les lignes sous verrou sans revérifier `paid`), `assertItemsInScope()` (l. 519 et 534 : `paid` exigé, hors transaction) et `markProcessed()` (l. 288-294 : ne compare que `approved_net_amount`) ; test temporaire `tests/Feature/Tmp/MesureurTmp76Test.php` (retiré), charge 2,85 / 3,26 / 3,19 sur 8 cœurs : loyer de 100 000 soldé par l'intégration propre à l'agence, `POST /api/payouts` → 201 `pending`, remboursement de 100 000 par webhook sous l'autorité de cette intégration → échéance `refunded`, reversement toujours `pending` ; `mark-processed` → 200, reversement `completed`, net 100 000 → le scénario « à vérifier » est vérifié, le constat tient. Classement : V1, le correctif bloque le versement d'un reversement au bailleur.
+- Mesure (2026-10-21, 464389140, implementeur) : avant correctif, loyer de 150 000 rattaché à un reversement `pending` puis passé à `refunded` → `mark-processed` rend 200 ; reversement `awaiting_approval` au loyer remboursé → `approve` rend 200 ; loyer remboursé entre `assertItemsInScope()` et la relecture sous verrou (écouteur `retrieved`) → `POST /api/payouts` rend 201 → `approve()` et `markProcessed()` refusent sous le verrou (422 `payout.items_changed`), et `createLocked()` relit le statut après ses verrous (422 sur `lease_payment_ids`) ; `PayoutRefundedItemsTest` (3 cas) ; ablation : `PayoutService` d'avant → 3 rouges, remis → 3/3 ; `PayoutTest`, `PayoutApprovalTest`, `PayoutBypassTest`, `PayoutStepUpTest`, `PayoutReachesReconciliationTest`, `ServiceProviderBillTest` verts.
 
 ### Un acompte soldé en ligne par la plateforme peut être déclaré remboursé par l'agence, et sort alors de la clôture
 - Réf : P76.04
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1160 — reste : la décision de produit sur qui rembourse un payable encaissé par la plateforme, au-delà du refus du geste manuel ; et l'autre voie, garder l'acompte dans la clôture à hauteur de ce qui reste dû à l'agence
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/BookingPaymentService.php:53-91`, `takussan-api/app/Http/Requests/Api/RefundBookingPaymentRequest.php:32-48`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:245-254`
 - Constat :
@@ -7765,10 +7768,11 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - Établi comment : lu.
 - Piste : décider qui rembourse un payable encaissé par la plateforme (V7) ; à défaut, refuser le geste manuel sur un acompte soldé par une intégration globale tant qu'aucun remboursement n'est reçu du fournisseur, ou le garder dans la clôture à hauteur de ce qui reste dû à l'agence. Garde : le cas en test.
 - Mesure (2026-10-20, 740c8247f, mesureur) : lu `BookingPaymentService::refund()` (l. 53-91) : il n'exige que `paid` et `refund_amount ≤ amount`, sans lire `metadata.gateway.settled_by` ni l'intégration ; `PlatformPayoutService.php:251` ne prend que les acomptes `paid` dans la clôture ; `grep -rln "P76\." docs/backlog/tickets` → aucun ticket → le constat tient sur le code ; qui rend un acompte encaissé par la plateforme reste non écrit (non rejoué de bout en bout). Classement : V7, la piste demande d'abord un choix de produit (qui rembourse), et chacune de ses options touche un paiement (V1).
+- Mesure (2026-10-21, 464389140, implementeur) : avant correctif, acompte de 10 000 soldé par l'intégration de la plateforme (`settled_by` sur une intégration globale), `POST /api/booking-payments/{id}/refund` par l'admin d'agence → 200 et acompte `refunded` → `BookingPaymentService::refund()` refuse désormais, sous le verrou, un acompte que la clôture lirait comme encaissé par la plateforme (422 `booking_payment.refund_settled_by_platform`, lecture `PlatformPayoutService::isSettledByPlatform()`, celle de la clôture) ; l'intégration propre à l'agence et le règlement hors ligne restent remboursables ; `BookingPaymentRefundSettledByPlatformTest` (3 cas) ; ablation : condition à `false` → 1 rouge, remise → 3/3 ; `BookingPaymentRefundAuthorizationTest`, `BookingRefundTaskTest`, `BookingPaymentTest`, `MoneyOutTwoFactorTest`, `PlatformPayoutRefundedItemsTest`, `PlatformPayoutScopeTest` verts.
 
 ### Un loyer remboursé n'est plus ni encaissé, ni dû, ni payable
 - Réf : P76.05
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : retenu · à valider — choix non tranché : rouverte, annulée avec trace, remplacée ; la voie la plus étroite dépend du statut d'un remboursement partiel, que P76.02 laisse au porteur, et chacune rend dû, ou non, un loyer remboursé pour corriger un double encaissement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:41`, `:83-91`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:94-96`, `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:121-128`
 - Constat :
@@ -7778,6 +7782,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
   - Établi comment : lu, et mesuré pour le remboursement partiel.
 - Piste : choisir ce que devient l'échéance d'un loyer remboursé (V7) : rouverte (dû `= refund_amount`), annulée avec trace, ou remplacée par une échéance neuve. Garde : un test sur `leaseOwed` et `isPayable` pour le choix retenu.
 - Mesure (2026-10-20, 740c8247f, mesureur) : lu `CollectedPayments::OWED_STATUSES` (l. 41, sans `refunded`) et la matrice `HasPaymentAttributes` (`Refunded` terminal, l. 94) ; test temporaire `tests/Feature/Tmp/MesureurTmp76Test.php` (retiré), charge 2,85 / 3,26 / 3,19 sur 8 cœurs : échéance de 150 000 soldée puis remboursée de 40 000 → `refunded`, `remaining_amount = 40000`, `leaseOwed` → 0 ligne → le constat tient. Classement : V7, la piste demande de choisir ce que devient l'échéance (rouverte, annulée, remplacée), et chaque option touche une échéance due (V1).
+- Mesure (2026-10-21, 464389140, implementeur) : lu `CollectedPayments::OWED_STATUSES` (sans `refunded`), la matrice de `HasPaymentAttributes` (`refunded` terminal) et `LeasePaymentLinkService::isPayableByNature()` → le constat tient. La précision du porteur demande la voie recommandée, à défaut la plus étroite : la piste n'en recommande aucune, et aucune n'est plus étroite qu'une autre. Rouvrir l'échéance remet en marche relances et pénalités sur un loyer remboursé ; l'annuler retire `refunded`, que lit P76.01 ; la remplacer crée une dette neuve. Un remboursement qui corrige un double encaissement ne doit rendre aucun loyer dû, celui d'un loyer contesté peut-être : le choix est un choix de produit, pas une largeur de code. Il dépend aussi de P76.02 : sous son option (b), un remboursement partiel reste `paid` et sort de cette piste. Classement : choix non tranché, à reprendre avec P76.02 ; non implémenté.
 
 ### Petites améliorations
 - Réf : P76.06
@@ -9147,7 +9152,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Petites améliorations
 - Réf : P92.09
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1162 — reste : le rendu de repli d'une `UniqueConstraintViolationException` en 409 `http.conflict` pour `api/*` (sans le `DETAIL`), décision structurelle qui s'écrit en ADR avant d'être codée (`docs/adr/` est fermé à l'implémenteur) ; il couvre aussi le nom de repli `"X #id"` de `SavedSearchController`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/bootstrap/app.php:131-169`, `takussan-api/app/Services/Model/ReferenceNumberGenerator.php`, `takussan-api/app/Services/Model/PayoutService.php:122-130,178`, `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:80-83`
 - Constat :
@@ -9156,6 +9161,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Rattachement des alertes : le nom de repli `"X #id"` n'est pas lui-même confronté aux noms pris (lu, l. 82-83 ; collision improbable).
 - Piste : un rendu de repli `UniqueConstraintViolationException` → 409 `http.conflict` pour `api/*` (sans le `DETAIL`), qui ne remplace pas les règles ; un nouvel essai sur la référence générée.
 - Mesure (2026-10-21, 964dded11, mesureur) : relu `bootstrap/app.php` (`render` : `FileCannotBeAdded`, `ApiError`, `HttpExceptionInterface`, sinon `null` ; seul le rapport d'une `QueryException` est remplacé), `HttpErrorCode` (409 → `http.conflict`, clé présente dans `lang/{fr,en}/errors.php`), `ReferenceNumberGenerator::payout` (`PO-Ym-` + 6 caractères de `Str::random`, aucun nouvel essai), `payouts.reference_number` `unique()`, `PayoutService::create` (tout `UniqueConstraintViolationException` → 409 `payout.already_paid_out`, référence comprise) et `createForBill` (aucune capture) ; la violation d'unicité non rendue a été mesurée en 500 ce jour par les tests temporaires de P92.05, P92.06, P92.08 et P92.07 → les trois parties tiennent : aucun filet, une collision de référence lue en 409 trompeur dans `create` et en 500 dans `createForBill` (lu, non rejoué ; collision improbable, 36⁶ tirages par mois), un nom de repli `"X #id"` non confronté aux noms pris (`SavedSearchController` l. 82-83, lu). Aucun ticket ni commit ne le traite. Classement : V1 pour la référence d'un versement, et V6 pour le filet, qui fixe le rendu de toute violation d'unicité non prévue sur l'ensemble des routes `api/*`.
+- Mesure (2026-10-21, 464389140, implementeur) : avant correctif, `PO-<Ym>-AAAAAA` déjà pris et le tirage forcé à `aaaaaa` puis `bbbbbb` (`Str::createRandomStringsUsingSequence`) → `ReferenceNumberGenerator::payout()` rend `PO-<Ym>-AAAAAA`, la référence prise → le générateur retire tant que la référence existe (suppressions douces comprises) ; `PayoutReferenceRetryTest` (2 cas) ; ablation : générateur d'avant → 1 rouge, remis → 2/2 ; `PayoutTest`, `ServiceProviderBillTest` verts. Le filet global n'est pas fait : V6 accordé, mais une décision structurelle s'écrit d'abord en ADR.
 
 ## Angle 93 — Indicateurs des tableaux de bord et du relevé : valeurs fausses sur des données réelles
 
@@ -10183,7 +10189,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### L'API répond aux préflights CORS avec `Access-Control-Max-Age: 0` : le navigateur ne les garde jamais, et chaque appel non simple coûte deux allers-retours
 - Réf : P103.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/cors.php:31`
 - Constat :
@@ -10192,10 +10198,11 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Le navigateur ne met donc aucun préflight en cache : chaque appel non simple vers l'origine de l'API est précédé de son `OPTIONS`, même répété dans la seconde (déduit de l'en-tête, à vérifier sur une frise réseau). P69.06 a mesuré un tel préflight à 562 ms sous Fast 3G.
   - Tout appel connecté du navigateur porte `Authorization` (lu, `src/lib/api.ts:700-702`) et n'est donc jamais simple : la console `/app` paie ce préflight sur chacune de ses lectures, pas seulement les pages publiques (déduit, à vérifier).
 - Piste : donner à `max_age` une valeur positive (Chrome la plafonne à 7 200 s, à vérifier), à fixer avec P103.02. Garde : un test de fonctionnalité qui envoie un préflight sur une route publique et exige un `Access-Control-Max-Age` strictement positif.
+- Mesure (2026-10-21, 71e1c1286, mesureur) : `grep -n max_age takussan-api/config/cors.php` → `'max_age' => 0` (l. 31, inchangé depuis TCK-842) ; test temporaire retiré (`OPTIONS` avec `Origin: http://localhost:3000`, `Access-Control-Request-Method: GET`, `Access-Control-Request-Headers: accept-language,content-type`, charge 5,84 sur 8 cœurs) sur `public/geo/cities`, `public/geo/regions`, `public/amenities`, `public/property-types`, `maintenance/status` → 204 et `Access-Control-Max-Age: 0` à chaque fois ; aucun test, ADR ni ticket ne fixe cette valeur (`grep -rn 'Access-Control\|max_age' takussan-api/tests docs/adr docs/infra docs/backlog/tickets` → rien sur le CORS). Le coût côté navigateur reste déduit, sans frise réseau. Classement : A2, une valeur positive de mise en cache du préflight ne change aucune réponse, seulement le nombre d'`OPTIONS`.
 
 ### `apiRequest` pose `Content-Type: application/json` sur tout GET sans corps : chaque lecture du navigateur par `useApiQuery` déclenche un préflight, frappe de l'autocomplétion comprise
 - Réf : P103.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/api.ts:696-698`, `takussan-web/src/hooks/useApiQuery.ts:64`, `takussan-web/src/hooks/useSuggest.ts:17-24`, `takussan-web/src/lib/queries/referentiel-public.ts:49-66`
 - Constat :
@@ -10204,10 +10211,11 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Passent par `useApiQuery`, donc par `apiRequest`, sur les pages publiques : les trois listes du référentiel (lu, `referentiel-public.ts`) et l'autocomplétion de la barre de recherche, une requête par saisie après 150 ms d'attente (lu, `useSuggest.ts:17-24`). Avec P103.01, chaque frappe retenue coûte un `OPTIONS` puis un `GET`.
   - P69.06 avait relevé que « trois de ces appels passent par un préflight » sans en nommer la cause : c'est cet en-tête.
 - Piste : ne poser `Content-Type` que lorsqu'un corps part (`body !== undefined && !formData`). Garde : un test vitest de `apiRequest` qui, pour un `GET` sans corps, exige l'absence de `Content-Type` dans les en-têtes passés à `fetch`.
+- Mesure (2026-10-21, 71e1c1286, mesureur) : lu `takussan-web/src/lib/api.ts:696-698` : `if (!formData) requestHeaders['Content-Type'] = 'application/json'`, quelle que soit la méthode et même sans `body` (le corps n'est sérialisé qu'à `body !== undefined`, l. 739-741) ; les autres en-têtes posés dans le navigateur d'un anonyme sont admis (`enTetesDuCheminInterne()` et `resolveVisitorIp()` ne valent que côté serveur, l. 38-50 et 633-642) ; `grep -rn "isJson\|headers->get('Content-Type')" takussan-api/app takussan-api/bootstrap` → rien : l'API ne lit pas le `Content-Type` d'une requête. Classement : A2, ne poser `Content-Type` que lorsqu'un corps part supprime le préflight des GET anonymes sans changer aucune réponse.
 
 ### Les listes du référentiel public (`geo/cities`, `geo/regions`, `amenities`, `property-types`) sortent en `no-cache, private` sans `ETag` : le navigateur les retélécharge en entier à chaque chargement de page
 - Réf : P103.03
-- Statut : à mesurer
+- Statut : validé (délégué) — `cache.headers:public;max_age=300;etag` sur les quatre routes (`public/geo/cities`, `public/geo/regions`, `public/amenities`, `public/property-types`), sur le modèle et avec la durée de `routes/api/enums.php:7` ; un test par route sur `Cache-Control` et `ETag`, comme `HomepageDiscoveryTest::test_response_is_publicly_cacheable`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/geo.php:13-22`, `takussan-api/routes/api/public.php:13-14`, `takussan-api/routes/api/enums.php:7`
 - Constat :
@@ -10216,10 +10224,12 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Le `staleTime` d'une heure de `referentiel-public.ts` ne vit qu'en mémoire : chaque chargement complet d'une page de recherche au-delà de 1 024 px redemande les 55 Kio de `geo/cities` mesurés par P69.06 (déduit, à vérifier sur une frise).
   - Le rendu serveur lit déjà les domaines de facettes avec un cache de données d'une heure (lu, `facettes.ts:69-71`) : ce sont deux lectures du même genre, l'une en cache et l'autre non.
 - Piste : `cache.headers:public;max_age=…;etag` sur ces quatre routes, sur le modèle de `enums.php`, avec une durée à choisir (le référentiel change par la modération des quartiers, ADR-0062). Garde : un test par route sur `Cache-Control` et `ETag`, comme `HomepageDiscoveryTest::test_response_is_publicly_cacheable`.
+- Mesure (2026-10-21, 71e1c1286, mesureur) : test temporaire retiré (`GET` anonyme, charge 5,84 sur 8 cœurs) → `public/geo/cities`, `public/geo/regions`, `public/amenities`, `public/property-types` : 200, `Cache-Control: no-cache, private`, aucun `ETag`, aucun `Vary` ; lu `routes/api/geo.php:13-22` et `routes/api/public.php:13-14`, sans `cache.headers`, contre `cache.headers:public;max_age=300;etag` à `routes/api/enums.php:7`. Le constat tient tel qu'écrit. Classement : V7, la piste demande une durée `max_age` à choisir, qui fixe combien de temps un quartier modéré (ADR-0062) reste invisible ; un `etag` seul, sans fraîcheur, serait sans choix mais n'est pas la piste écrite.
+- Mesure (2026-10-21, e54bc4055, delegue) : relu l'entrée, `routes/api/geo.php:13-22` et `routes/api/public.php` (aucun `cache.headers` sur ces routes ; le refus de `public` sur `properties/search` tient au corps qui varie avec l'appelant, l. 37-47), `GeoReferentialController::regions()`, `amenities()`, `cities()` et `PublicPropertyTypeController::index()` (corps sans utilisateur ni langue : noms, slugs, comptes de biens publics ; `q` et `region` vont dans l'URL, donc dans la clé de cache), `routes/api/enums.php:7` (`public;max_age=300;etag`) ; `grep -n "porteur ("` du fichier → aucune décision sur ces durées → le constat tient. Délégation : V7, la durée suit celle que le dépôt sert déjà pour une liste fermée du même genre (`enums.php`), elle ne touche ni montant, ni autorisation, ni donnée personnelle, retarde au plus de cinq minutes un équipement approuvé ou une ville renommée (les quartiers modérés d'ADR-0062 ne sont pas dans ces routes), et se défait en un commit.
 
 ### La barre publique demande `/public/property-types` à chaque montage, sur toutes les pages, pour des comptes qu'elle n'affiche que dans un menu fermé et absent sous 1 024 px
 - Réf : P103.04
-- Statut : à mesurer
+- Statut : validé (délégué) — demander les comptes à la première ouverture du menu « Plus » (`useApiQuery` ou `useQuery` avec `enabled: moreOpen` et le `staleTime` de `referentiel-public.ts`) ; le menu reste rendu sans comptes tant qu'ils ne sont pas là, comme aujourd'hui sur un échec ; garde : un test vitest qui rend la `Navbar` menu fermé et exige qu'aucun appel à `property-types` ne parte ; reste : la voie du rendu serveur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/home/Navbar.tsx:271-284`, `takussan-web/src/components/home/Navbar.tsx:421`, `takussan-web/src/components/home/Navbar.tsx:504-509`, `takussan-api/app/Http/Controllers/Public/PublicPropertyTypeController.php`
 - Constat :
@@ -10228,10 +10238,12 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - La `Navbar` est montée par chaque page et non par un layout (lu, `grep -rln "<Navbar" src` → 19 fichiers, dont l'accueil, la liste, la fiche, les fiches agence et agent, les pages légales) : une navigation d'une page publique à une autre la remonte et refait l'appel (déduit, à vérifier).
   - Côté API, chaque appel joue un `GROUP BY type` sur les biens publics (lu, `PublicPropertyTypeController.php`), servi `no-cache, private` (mesuré, voir P103.03), et compte dans le seau `throttle:public-read` du visiteur.
 - Piste : demander les comptes à la première ouverture du menu (`useApiQuery` ou `useQuery` avec `enabled: moreOpen`, et un `staleTime`), ou les recevoir du rendu serveur. Garde : un test vitest qui rend la `Navbar` menu fermé et exige qu'aucun appel à `property-types` ne parte.
+- Mesure (2026-10-21, 71e1c1286, mesureur) : lu `takussan-web/src/components/home/Navbar.tsx:271-284` (un `useEffect` sans dépendance appelle `apiFetch('/public/property-types')` au montage), l. 504-509 (`typeCounts` lu seulement dans le menu ouvert), l. 421 (`hidden lg:flex`) ; `grep -rln '<Navbar' src` hors tests → 19 fichiers de page ou de composant de page, aucun layout ; aucun commit depuis 0acc2203f sur ces fichiers. Le constat tient. Classement : V7, la piste propose deux voies, et la voie à la demande change ce que voit le visiteur (menu ouvert d'abord sans comptes).
+- Mesure (2026-10-21, e54bc4055, delegue) : relu l'entrée, `takussan-web/src/components/home/Navbar.tsx:270-284` (appel au montage, repli silencieux « dropdown renders without counts ») et l. 504-528 (le compte ne s'affiche que si `count !== undefined`) ; relu P69.06 / TCK-1088 (le référentiel du panneau de filtres chargé à la seule visibilité, sur recommandation du délégué, sans désaveu) → le constat tient. Délégation : V7, la voie à la demande suit la décision prise pour le même genre de lecture en P69.06 (TCK-1088), et c'est la plus étroite des deux ; le seul effet visible est un compte qui arrive un instant après l'ouverture, état que le menu sait déjà rendre ; aucun critère réservé, et la décision se défait en un commit.
 
 ### `UserLocationProvider` interroge ipapi.co depuis le layout racine, sur toutes les pages, alors que quatre écrans seulement lisent la ville devinée
 - Réf : P103.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : IP du visiteur transmise à ipapi.co, et deux voies
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/layout.tsx:104-121`, `takussan-web/src/components/providers/UserLocationProvider.tsx:73-145`
 - Constat :
@@ -10239,10 +10251,11 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Lecteurs de `useUserLocation()` (lu, `grep -rn useUserLocation src`) : l'accueil (`HomepageDiscovery`), le parcours d'hôte de l'onboarding (`HostIndividualWizard`), l'étape « Lieu » du formulaire de bien (par `useGeoSuggestion`) et la page `playground`. La fiche, la liste, les pages agence et agent, `/auth`, la console : aucun lecteur, et l'appel part quand même.
   - Le premier contact d'un visiteur venu par un lien de fiche (P102.01 rappelle que ces liens circulent sur WhatsApp) paie donc une résolution DNS, une poignée TLS et une requête vers un tiers après l'hydratation, et transmet son IP à ce tiers sans qu'aucun écran ne s'en serve (déduit de la lecture ; le coût n'a pas été mesuré, l'appel sortant vers ipapi.co n'a pas été joué). La politique de confidentialité le déclare (lu, `content/legal/privacy.ts:109`).
 - Piste : ne lancer la résolution qu'au premier abonnement d'un lecteur (le fournisseur expose une fonction de démarrage, ou le crochet la déclenche), en gardant le cache de 24 h. Garde : un test vitest qui monte le fournisseur sans lecteur et exige qu'aucun `fetch` vers `ipapi.co` ne parte.
+- Mesure (2026-10-21, 71e1c1286, mesureur) : lu `takussan-web/src/app/layout.tsx:104-121` (fournisseur monté à la racine) et `UserLocationProvider.tsx:70-125` (appel à `https://ipapi.co/json/` au montage sans réponse de moins de 24 h en `localStorage`) ; `grep -rln useUserLocation src` hors tests → `HomepageDiscovery.tsx`, `HostIndividualWizard.tsx`, `useGeoSuggestion.ts`, `PlaygroundClient.tsx`, comme écrit ; l'appel sortant n'a pas été joué. Classement : V3, le correctif décide quand l'IP du visiteur part chez un tiers déclaré par la politique de confidentialité (`content/legal/privacy.ts`), et la piste laisse deux formes de démarrage.
 
 ### Pour un visiteur deviné à Dakar, l'accueil redemande `discovery` après l'hydratation et reçoit les mêmes rangées que le rendu serveur
 - Réf : P103.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/hooks/useHomepageDiscovery.ts:97-130`, `takussan-web/src/components/property/HomepageDiscovery.tsx:97-108`, `takussan-api/app/Services/Property/HomepageDiscoveryService.php:136-158`
 - Constat :
@@ -10251,10 +10264,11 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Mesuré (test temporaire, 30 biens publiés à Dakar et 10 à Thiès, `per_row=12`) : les rangées `near`, `rent`, `featured` et `latest` sont identiques, au même ordre, entre les deux appels ; seul `near.requested_city` passe de `null` à `"Dakar"`, et `fallback` reste faux. Le corps fait 36,8 Kio non compressé.
   - L'appel serveur de `discovery` a été mesuré entre 789 et 1 022 ms (P69.03) : pour le marché principal, l'accueil rejoue après l'hydratation une requête d'environ une seconde dont la réponse ne change rien à l'écran. La part des visiteurs devinés à Dakar n'est pas connue (à vérifier).
 - Piste : ne relancer que si la ville devinée diffère de `donneesInitiales.near.city`, comparée sans casse (`toLocaleLowerCase`, comme `CaseInsensitive::fold` côté API). Garde : un test vitest du crochet, rangées semées pour `Dakar` et ville devinée `Dakar`, qui exige qu'aucun `fetch` ne parte.
+- Mesure (2026-10-21, 71e1c1286, mesureur) : lu `takussan-web/src/hooks/useHomepageDiscovery.ts:83-130` : au premier passage, avec `donneesInitiales`, l'effet ne s'arrête que si `nearCity` est vide, et relance donc pour `Dakar` ; lu `HomepageDiscoveryService.php:136-158` : `near_city=Dakar` vaut la ville de référence (`$isReference`), mêmes candidats que sans ville, et `near_city` n'est lu nulle part ailleurs dans le service (`grep -n requestedCity`), donc `rent`, `featured` et `latest` sont les mêmes ; côté front, `near.requested_city` n'est lu que sous `fallback` (lu, `HomepageDiscovery.tsx:120-125`), faux dans les deux cas. Le test de rangées identiques de l'explorateur n'a pas été rejoué. Classement : A1, le docblock du crochet (l. 90-93) écrit déjà la règle attendue : ne relancer que s'il y a quelque chose de neuf à demander, ici une ville devinée dont le repli de casse diffère de `donneesInitiales.near.city`.
 
 ### La fiche demande les biens similaires et les avis au navigateur après l'hydratation, alors que la page d'un bien retiré reçoit déjà ses similaires du serveur
 - Réf : P103.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : avis dans le HTML « si le porteur le veut », et deux voies
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertySimilar.tsx:14-50`, `takussan-web/src/hooks/useSimilarProperties.ts:13-33`, `takussan-web/src/hooks/usePropertyReviews.ts:14-33`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:225,262`, `takussan-web/src/lib/queries/public-property.ts:106-112`
 - Constat :
@@ -10263,16 +10277,20 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - La page d'un bien loué, vendu ou retiré reçoit au contraire ses similaires du rendu serveur, dans `EtatPublicDuBien.similar` (lu, `public-property.ts:106-112`) : la voie serveur existe déjà pour la même donnée.
   - Mesuré (test temporaire) : `public/properties/{slug}/similar` et `/reviews` sortent en `no-cache, private`, sans `ETag`.
 - Piste : lire les similaires (et le résumé des avis, si le porteur le veut dans le HTML) avec la fiche côté serveur et les passer en données initiales, sur le modèle de `donneesInitiales` de l'accueil (TCK-432) ; à défaut, ne les demander qu'à l'approche de la section. Garde : un test de rendu serveur de la fiche qui exige un lien `/properties/<slug>` d'un bien similaire dans le HTML.
+- Mesure (2026-10-21, 71e1c1286, mesureur) : lu `takussan-web/src/hooks/useSimilarProperties.ts:17-20` et `usePropertyReviews.ts:19-22` (`apiFetch` dans un `useEffect` au montage, sans condition de visibilité), `PropertyDetailContent.tsx:225` et `:262` (sections montées en bas de fiche), `public-property.ts:111` (`similar` déjà reçu du serveur pour un bien non public) ; les en-têtes `no-cache, private` des deux routes n'ont pas été re-mesurés. Le constat tient. Classement : V7, la piste laisse au porteur le choix des avis dans le HTML et propose deux voies (rendu serveur ou demande à l'approche).
+- Mesure (2026-10-21, e54bc4055, delegue) : relu l'entrée, `public-property.ts:80-130` (la fiche lue avec `revalidate: FRAICHEUR_FICHE_SECONDES` et l'étiquette `property:{slug}`, invalidée par l'API quand CE bien change ; `getEtatDuBien` lu hors cache, sur un 404 seulement), P69.06 / TCK-1088 → le constat tient ; aucun écrit ne dit si les similaires et les avis doivent être dans le HTML. Recommandation : rendre les seuls similaires côté serveur avec la fiche et les passer en données initiales, et ne demander les avis qu'à l'approche de leur section, parce que les liens vers d'autres fiches servent l'indexation alors que les avis n'en ont pas besoin ; à ne pas valider sans le porteur : la voie serveur ajoute une lecture au rendu de chaque fiche et demande une fraîcheur propre aux similaires (l'étiquette de la fiche ne suit pas les autres biens), choix de cache qu'aucun écrit ne fixe ; la voie « à l'approche » seule, plus étroite, laisse le HTML sans liens.
 
 ### Petites améliorations
 - Réf : P103.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : intervalle du statut de maintenance pour un anonyme, à trancher avec P79.06 et P98.10
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/maintenance/MaintenanceBanner.tsx:14-17,52`, `takussan-web/src/lib/query-client.ts:11-19`
 - Constat :
   - `MaintenanceBanner` interroge `/api/maintenance/status` toutes les 60 s sur toutes les pages, visiteur anonyme compris (lu, l. 52, `refetchInterval: 60_000` sans `enabled`), et encore au retour sur l'onglet (`refetchOnWindowFocus` laissé actif, lu, `query-client.ts:11`). Le relais met la réponse en cache 60 s (lu, `app/api/maintenance/status/route.ts:9`) : l'API n'est pas touchée, mais un onglet mobile ouvert envoie une requête par minute. `refetchIntervalInBackground` n'est pas posé, donc l'interrogation s'arrête onglet masqué (comportement de TanStack Query, non mesuré).
   - Établi comment : code relu.
 - Piste : un intervalle plus long pour un visiteur anonyme, ou aucun intervalle hors de la console, le statut étant relu au chargement de chaque page. À trancher avec P79.06 et P98.10, qui touchent déjà ce bandeau et la durée de son statut.
+- Mesure (2026-10-21, 71e1c1286, mesureur) : lu `takussan-web/src/components/maintenance/MaintenanceBanner.tsx:52` (`useQuery` avec `refetchInterval: 60_000`, sans `enabled`), `src/lib/query-client.ts:11` (`refetchOnWindowFocus` laissé actif), `src/app/api/maintenance/status/route.ts:9` (`revalidate: 60`) ; P79.06 et P98.10 sont `validé` et touchent ce bandeau. Classement : V7, la piste laisse le choix entre un intervalle plus long et aucun intervalle hors console, ce qui fixe le délai avant qu'un visiteur voie une maintenance annoncée.
+- Mesure (2026-10-21, e54bc4055, delegue) : relu l'entrée, `MaintenanceBanner.tsx:52`, P79.06 (validé en bloc le 2026-10-21) et P98.10 (validé en bloc, en cours dans la PR #939, qui réduit la durée publique du statut de maintenance) → le constat tient, mais la durée du statut change sous elle. Recommandation : garder l'intervalle de 60 s dans la console et le porter à 5 minutes pour un visiteur sans session, `refetchOnWindowFocus` laissé actif, plutôt qu'aucun intervalle hors console, parce qu'un onglet public laissé ouvert verrait encore une maintenance annoncée ; à trancher après la fusion de #939 (P98.10), dont la durée de cache borne ce délai, et parce que le délai avant qu'un visiteur voie une maintenance est un choix de produit qu'aucun écrit ne fixe.
 
 ## Angle 104 — Poids JS initial des écrans de la console `/super-admin`
 

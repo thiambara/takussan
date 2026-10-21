@@ -111,6 +111,7 @@ class PlatformPayoutService
         DB::transaction(function () use ($payout, $actor): void {
             $locked = PlatformPayout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
             $this->assertTransition($locked, PlatformPayoutStatus::Approved);
+            $this->assertItemsStillPaid($locked);
             $agency = $this->payableAgency($locked);
 
             abort_code_if(
@@ -146,6 +147,7 @@ class PlatformPayoutService
         DB::transaction(function () use ($payout, $actor, $processedAt, $reference, $metadata): void {
             $locked = PlatformPayout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
             $this->assertTransition($locked, PlatformPayoutStatus::Paid);
+            $this->assertItemsStillPaid($locked);
             $agency = $this->payableAgency($locked);
 
             $this->assertNotBeneficiary($actor, $agency, SegregationOfDuties::STEP_PAY);
@@ -167,6 +169,19 @@ class PlatformPayoutService
         $this->logAction($payout, $actor, 'super_admin_payout_marked_paid', ['payment_reference' => $payout->payment_reference]);
 
         return $payout;
+    }
+
+    /**
+     * TCK-1156 (P76.01) — les montants sont figés à la clôture : une ligne qui n'est plus `paid`
+     * depuis (remboursée, le plus souvent) ferait verser à l'agence de l'argent rendu au locataire.
+     * Le reversement s'annule alors, et une nouvelle clôture le recompose.
+     */
+    private function assertItemsStillPaid(PlatformPayout $payout): void
+    {
+        $changed = BookingPayment::query()->where('platform_payout_id', $payout->id)->where('status', '!=', PaymentStatus::Paid->value)->exists()
+            || LeasePayment::query()->where('platform_payout_id', $payout->id)->where('status', '!=', PaymentStatus::Paid->value)->exists();
+
+        abort_code_if($changed, 422, 'platform_payout.items_changed');
     }
 
     public function cancel(PlatformPayout $payout, User $actor, string $reason): PlatformPayout
@@ -350,6 +365,15 @@ class PlatformPayoutService
         ]);
 
         return $payout;
+    }
+
+    /**
+     * TCK-1160 (P76.04) — ce paiement a-t-il été soldé en ligne par une intégration globale, donc
+     * encaissé par la plateforme ? La lecture même de la clôture.
+     */
+    public function isSettledByPlatform(BookingPayment|LeasePayment $payment): bool
+    {
+        return $this->settledBy($payment, $this->globalIntegrationIds([$payment])) !== null;
     }
 
     /**
