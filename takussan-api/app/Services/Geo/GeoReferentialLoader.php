@@ -28,11 +28,17 @@ use RuntimeException;
  *
  * TCK-787 (P17.03, ADR-0062 §4) — un NOM que le jeu change réécrit le texte des adresses qui
  * pointent vers la ligne, comme la modération : sans cela, la fiche et l'index gardaient l'ancien
- * nom. Les biens touchés se lisent par {@see self::biensRenommes()} ; `GeoReferentialSync` les
- * réindexe après les transactions.
+ * nom. Les biens touchés se lisent par {@see self::biensRenommes()}.
+ *
+ * TCK-1155 (P89.01) — ils se réindexent DANS la transaction de leur région, avant qu'elle soit
+ * validée. Réindexés après toutes les régions, un échec du moteur laissait le nouveau nom écrit en
+ * base sans l'index : le passage suivant ne voyait plus rien à renommer, et l'index gardait
+ * l'ancien nom pour toujours. Désormais, l'échec annule la région, que le passage suivant rejoue.
  */
 final class GeoReferentialLoader
 {
+    public function __construct(private readonly GeoReindexation $reindexation) {}
+
     /** @var list<int> */
     private array $biensRenommes = [];
 
@@ -57,7 +63,9 @@ final class GeoReferentialLoader
             /** @var array{region: array<string, mixed>, cities: list<array<string, mixed>>} $donnees */
             $donnees = json_decode((string) file_get_contents($fichier), true, flags: JSON_THROW_ON_ERROR);
             DB::transaction(function () use ($donnees, &$bilan) {
+                $deja = count($this->biensRenommes);
                 $this->chargerRegion($donnees, $bilan);
+                $this->reindexation->biens(array_slice($this->biensRenommes, $deja));
             });
         }
 

@@ -7,7 +7,10 @@ use App\Models\GeoCity;
 use App\Models\GeoNeighborhood;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use Laravel\Scout\EngineManager;
+use Meilisearch\Client;
 use Tests\Concerns\InteractsWithMeilisearch;
 use Tests\TestCase;
 
@@ -194,6 +197,65 @@ class GeoReferentialRealignementTest extends TestCase
         $this->assertSame($liberte5, $relue->geo_neighborhood_id);
         $this->assertSame('Liberté 5', $relue->neighborhood);
         $this->assertSame([$bien->id], $this->biensOu('geo_neighborhood_id', $liberte5));
+    }
+
+    /**
+     * TCK-1155 (P89.01) — une réindexation qui échoue ne laisse pas les renommages écrits sans
+     * leur index : le passage suivant, moteur rétabli, réindexe. Avant, le premier passage
+     * validait le nouveau nom en base, le second ne voyait plus rien à renommer, et l'index
+     * gardait l'ancien nom pour toujours.
+     */
+    public function test_une_reindexation_en_echec_est_rejouee_au_passage_suivant(): void
+    {
+        $this->charger(self::V1);
+        $bien = $this->bienA('Dakar', 'Point E');
+        $this->indexProperties();
+
+        $renomme = $this->jeu(function (array $d) {
+            $d['cities'][0]['neighborhoods'][2]['name'] = 'Point E Amitié';
+
+            return $d;
+        });
+        $this->assertFalse($this->chargerMoteurEnPanne($renomme));
+        $this->charger($renomme);
+
+        $this->assertSame('Point E Amitié', $bien->address()->firstOrFail()->neighborhood);
+        $this->assertSame([$bien->id], $this->biensOu('neighborhood', 'Point E Amitié'));
+        $this->assertSame([], $this->biensOu('neighborhood', 'Point E'));
+    }
+
+    /** TCK-1155 (P89.01) — de même pour le rattachement d'une adresse à un quartier ajouté. */
+    public function test_un_rattachement_dont_la_reindexation_echoue_est_rejoue(): void
+    {
+        $this->charger(self::V1);
+        $bien = $this->bienA('Dakar', 'liberté 5');
+        $this->indexProperties();
+
+        $this->assertFalse($this->chargerMoteurEnPanne(__DIR__.'/../../fixtures/geo/v2'));
+        $this->charger(__DIR__.'/../../fixtures/geo/v2');
+
+        $liberte5 = $this->quartier('liberte-5')->id;
+        $this->assertSame($liberte5, $bien->address()->firstOrFail()->geo_neighborhood_id);
+        $this->assertSame([$bien->id], $this->biensOu('geo_neighborhood_id', $liberte5));
+    }
+
+    /**
+     * Joue la commande avec un client Meilisearch qui vise un hôte injoignable, puis rétablit le
+     * vrai. Rend vrai si la commande a réussi.
+     */
+    private function chargerMoteurEnPanne(string $repertoire): bool
+    {
+        $vrai = app(Client::class);
+        app()->instance(Client::class, new Client('http://127.0.0.1:1', 'cle'));
+        app(EngineManager::class)->forgetDrivers();
+        try {
+            return Artisan::call('geo:sync-referential', ['--dir' => $repertoire]) === 0;
+        } catch (\Throwable) {
+            return false;
+        } finally {
+            app()->instance(Client::class, $vrai);
+            app(EngineManager::class)->forgetDrivers();
+        }
     }
 
     public function test_un_quartier_inconnu_ne_cree_aucune_proposition(): void

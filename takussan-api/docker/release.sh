@@ -16,10 +16,11 @@ php artisan membership:reconcile-system-roles \
 # TCK-633 — les référentiels versionnés (ADR-0062 §3 et §7). La production ne lance AUCUN
 # seeder : sans ces lignes, la liste des quartiers et celle des équipements resteraient vides.
 # Idempotentes ; SCOUT_QUEUE=false pour que la réindexation des biens rattachés se fasse avec le
-# code de CETTE image, pas avec l'ancien worker. Un échec n'arrête pas le déploiement : la
-# version précédente du référentiel reste en place.
+# code de CETTE image, pas avec l'ancien worker. Un échec n'arrête pas le déploiement.
+# TCK-1155 (P89.01) : chaque région se valide avec sa réindexation, le rattachement aussi. Un
+# échec garde les régions déjà validées, et annule le reste, que le déploiement suivant rejoue.
 SCOUT_QUEUE=false php artisan geo:sync-referential \
-  || echo "AVERTISSEMENT : geo:sync-referential a échoué — référentiel géographique inchangé jusqu'au prochain déploiement." >&2
+  || echo "AVERTISSEMENT : geo:sync-referential a échoué — les régions déjà validées sont chargées et indexées ; le reste du référentiel géographique sera rejoué au prochain déploiement." >&2
 php artisan tags:sync-catalog \
   || echo "AVERTISSEMENT : tags:sync-catalog a échoué — catalogue des équipements inchangé jusqu'au prochain déploiement." >&2
 
