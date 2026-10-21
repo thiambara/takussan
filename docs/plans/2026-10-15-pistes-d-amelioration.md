@@ -173,7 +173,7 @@ voie d'écriture (angle 13, puis 47).
 | 98 | Autres écrans d'écriture de la console super-admin (modèles de notification `NotificationTemplateService`, annonces, intégrations, paramètres plateforme) : ce que chaque écran promet de changer est-il lu par le chemin qui envoie, affiche ou décide, hors de la console ? | fait |
 | 99 | Critères de ville et de région rangés par nom (`city`, `cities`, `region` des recherches sauvegardées et des alertes sans compte, `seeking_cities` du CRM) face à une ville renommée par le chargeur du référentiel (`GeoReferentialLoader`, TCK-787) : alertes et rapprochements muets ? | fait |
 | 98 | Supprimer, versionner ou partager un document que l'on ne fait que lire (`DocumentController::destroy`, `DocumentVersionController`, `DocumentShareLinkController`, `DocumentPolicy::share`) face aux règles écrites des tickets : locataire, bailleur invité, agent d'une autre agence, compte bloqué |
-| 100 | Constantes `*_FIELDS` et `fields[…]` écrits du front face aux `$queryFields` du modèle visé : colonne demandée que l'API refuse (400 `http.bad_request`), rattrapée en `null` ou en page d'erreur — `src/lib/queries/*.ts`, `src/app/actions/*` | à faire |
+| 100 | Constantes `*_FIELDS` et `fields[…]` écrits du front face aux `$queryFields` du modèle visé : colonne demandée que l'API refuse (400 `http.bad_request`), rattrapée en `null` ou en page d'erreur — `src/lib/queries/*.ts`, `src/app/actions/*` | fait |
 | 101 | Passage axe au navigateur des écrans `/app` des autres profils (propriétaire, locataire, prestataire, agent) et des pages de détail `[id]` (bien, bail, client, paiement), derrière le faux API en lecture seule de l'angle 68 | à faire |
 | 102 | État initial masqué au rendu serveur (`opacity-0`, `invisible`, `useReveal`, `animate-*` dépendant d'un effet) sur les autres listes et rangées publiques (`PropertyRow` de l'accueil, fiches agence et agent, favoris, biens similaires) : contenu présent dans le HTML et invisible jusqu'à l'hydratation, ou sans JS | à faire |
 | 103 | Appels du navigateur à l'hydratation des pages publiques (`geo/cities`, `geo/regions`, `amenities`, `property-types`, `maintenance/status`, préflights CORS) : lesquels pourraient venir du rendu serveur ou du cache de données, et ce qu'ils coûtent sous 3G | à faire |
@@ -209,6 +209,7 @@ voie d'écriture (angle 13, puis 47).
 | 132 | Liens portés par les SMS et WhatsApp (`payment_url`, `receipt_url`, lien d'invitation, gabarits WhatsApp à bouton) : hôte, durée de validité face au délai d'envoi des heures calmes, et page qu'ouvre un destinataire sans compte — le pendant de l'angle 97 hors du courriel | à faire |
 | 133 | Estimations et aperçus calculés au front par une constante qui recopie un réglage ou un calcul de l'API (`DEFAULT_*` des dialogues de bail : indemnité de résiliation, préavis de 30 jours, pénalités de retard, révision de loyer, échéancier) : chiffre affiché qui diverge du réglage de la plateforme, de l'agence ou du bail | à faire |
 | 134 | Tris `orderBy` / `orderByDesc` sur une colonne d'enum rangée en chaîne (`severity`, `priority`, `status`, `level` des annonces, alertes, maintenances, tâches) : ordre alphabétique pris pour un ordre métier dans une liste ou un « premier élément » affiché | à faire |
+| 135 | Listes écrites à la main, hors `buildQuery` (`LeasePaymentController::index`, `ConversationController::index`, `ReviewController::index`, contrôleurs `Admin\*`) : `sort`, `page` et `per_page` envoyés par le front face à l'ordre et au plafond rendus, et lecteurs qui ne lisent que la première page — le relevé de P100.01 sur les autres listes | à faire |
 
 ---
 
@@ -9914,3 +9915,98 @@ villes des facettes de l'index et suit donc le nouveau nom.*
 - Piste : rattacher la saisie au référentiel (`villeParNom` sur la clé repliée), ou comparer les villes par une clé repliée comme les quartiers ; dans les deux cas, revenir sur le choix écrit au docblock (l. 29). Garder par un test : `["Guediawaye", "thies"]` face à « Guédiawaye » et « Thiès ».
 - Mesure (2026-10-21, 6f559cb0f, mesureur) : relu `ProspectMatcher.php:29` (« sans replier les accents »), `:102-109` et `:232-250` (`CaseInsensitive` seul) ; test temporaire `tests/Feature/Tmp/MesureP99Test.php`, retiré (charge 3,53 sur 8 cœurs, Meilisearch réel, jeu `tests/fixtures/geo/v1` modifié et rechargé par `geo:sync-referential`) : bien à « Guédiawaye » d'une agence, prospect `["Guediawaye"]` → `propertiesFor` 0 et absent de `customersFor`, prospect `["guédiawaye"]` → 1 et présent. Le constat tient en entier. Classement : V7, la piste propose deux voies (rattacher la saisie au référentiel, ou comparer par clé repliée) et revient sur un choix écrit dans le code.
 - Mesure (2026-10-21, 6e44a0b91, delegue) : relu le constat, la `Piste`, le docblock de `ProspectMatcher` (l. 29 : « Les villes se comparent repliées (ADR-0025), sans replier les accents »), TCK-1083 (hypothèse : « Les villes gardent leur comparaison repliée par casse (ADR-0025) : la décision ne porte que sur les quartiers ») et la décision du porteur sur P67.05 (clé `CleDeQuartier` au CRM, en PHP sans `unaccent`) → le constat tient. Recommandation : comparer les villes du prospect par une clé repliée accents compris, en PHP comme les quartiers (textes d'`addresses.city` de même clé pour `propertiesFor`, prospects de l'agence filtrés en PHP pour `customersFor`), et corriger le docblock, parce que c'est la règle que le porteur a retenue pour les quartiers du même formulaire et qu'elle n'ajoute aucun schéma ; rattacher la saisie au référentiel (`villeParNom`) serait plus juste mais change le formulaire. Pas validé : deux voies, et un choix écrit (ADR-0025 cité au docblock, reconduit par TCK-1083) que seul le porteur a levé, pour les seuls quartiers ; à trancher avec P99.01.
+
+## Angle 100 — `fields[…]` du front face aux `$queryFields`, et ce que l'écran lit hors de sa demande
+
+*Exploré le 2026-10-21 sur `pre-dev` 6e44a0b91, par l'explorateur. Relu et mesuré par l'explorateur lui-même :
+- l'inventaire des `fields[…]` du front, extrait par l'API du compilateur TypeScript, constantes importées résolues : 97 occurrences, 82 sites d'appel, `__tests__` exclus ;
+- les listes blanches réelles de l'API, prises par réflexion dans `tinker` sur les 95 modèles (`getAllAllowedQueryFields`, imbriquées comprises) ;
+- l'endpoint de chaque site, relié par `route:list` au contrôleur et à son `buildQuery`.
+
+Ce qui vient d'un sous-agent, relu ensuite : il a lu les composants de dix listes, et c'est lui qui a relevé `deposit_paid`, que l'explorateur a revérifié avant d'écrire P100.02.
+
+Limites :
+- la résolution est statique, et 4 sites aux colonnes calculées ont été relus à la main ;
+- le rapprochement chemin → route est fait par proximité dans le fichier, puis revérifié pour les sites ambigus ;
+- les mesures sont prises sur une base de test et sur la base de développement en `SELECT`.*
+
+### L'échéancier d'un bail de plus de 100 échéances perd les plus anciennes : l'API ignore le `sort` que le front demande et ne rend que la première page
+- Réf : P100.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:22-36`, `takussan-web/src/lib/queries/leases.ts:178-221`, `takussan-web/src/components/leases/LeaseSchedule.tsx:93,180`, `takussan-web/src/components/leases/LeaseDetail.tsx:89-99`, `takussan-web/src/components/leases/LeasePaymentDialog.tsx:41-50`, `takussan-api/app/Services/Model/LeaseService.php:218-260`
+- Constat :
+  - `useLeasePayments` envoie `fields[lease_payments]`, `filter[lease_id]`, `sort=due_date` et `per_page=100`, et ne demande jamais de page suivante (lu, `leases.ts:178-221`).
+  - Le contrôleur ne passe pas par `buildQuery`. Il trie en dur par `period_start` décroissant, et seul `per_page` est lu, plafonné à 100 (lu, `LeasePaymentController.php:27-29`, `Controller::tailleDePage`).
+  - Mesuré (test temporaire, retiré) : bail de 110 échéances mensuelles, dont les 3 plus anciennes en `late`, appelé avec la requête exacte du front → 100 lignes sur `meta.total` = 110, de la plus récente à la plus ancienne, 25 clés par ligne (le `fields` est ignoré), et aucune des 3 échéances en retard dans la page.
+  - Les trois lecteurs ne lisent que cette page :
+    - l'échéancier, rendu dans l'ordre reçu (lu, `LeaseSchedule.tsx:180`) ;
+    - le compte des retards de la fiche (lu, `LeaseDetail.tsx:89-99`) ;
+    - la liste des échéances à régler du dialogue d'encaissement (lu, `LeasePaymentDialog.tsx:45-50`).
+  - Un bail à terme est généré en entier d'un coup : le plafond de 12 échéances ne vaut que sans `end_date` (lu, `LeaseService.php:232-260`). Un bail mensuel de 9 ans en produit donc 108 dès l'activation. Ses 8 premières échéances, celles qui tombent les premières, manquent alors à l'échéancier comme au dialogue (déduit de la mesure, à vérifier sur un bail réel).
+  - En base de développement, le plus long échéancier compte 14 lignes (mesuré, `SELECT max(count)` sur `lease_payments` par bail → 14, 0 bail au-delà de 100) : les données de démonstration ne le montrent pas.
+- Piste : faire honorer par l'API l'ordre que l'écran attend (`due_date` croissant, ou `buildQuery` sur `LeasePayment` avec ses `$queryFields` et `$requestSortable`), et faire paginer le front, ou rendre l'échéancier sans plafond. Test : bail de plus de 100 échéances, la plus ancienne en retard est rendue et comptée.
+
+### Les réservations lisent `deposit_paid`, `deposit_date`, `completion_date`, `rejection_date` et `expiration_date`, que l'API n'émet jamais
+- Réf : P100.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/bookings/BookingsList.tsx:141-143`, `takussan-web/src/components/bookings/BookingDetail.tsx:271-281,297-299,570-590`, `takussan-web/src/types/booking.ts:38-80`, `takussan-api/app/Http/Resources/BookingResource.php:14-46`, `takussan-api/app/Http/Controllers/Api/BookingController.php:65-69`
+- Constat :
+  - `BookingResource` émet 23 clés (lu, l. 14-46). Aucune ne s'appelle `deposit_paid`, `deposit_date`, `completion_date`, `rejection_date` ou `expiration_date`, et `grep -rn deposit_paid takussan-api/app takussan-api/database takussan-api/routes` ne rend rien (mesuré). Le `show` rend la même ressource, plus `can_refund` (lu, `BookingController.php:65-69`).
+  - Le type `Booking` du front les déclare (lu, `types/booking.ts:69` pour `deposit_paid: boolean`), et les écrans les lisent :
+    - le badge « Acompte payé » de la liste (lu, `BookingsList.tsx:141`) et le badge « Payé » du détail (lu, `BookingDetail.tsx:297`), qui ne s'affichent jamais ;
+    - le bloc « Expire le » du détail, conditionné à `expiration_date` seul (lu, l. 272-281), qui ne s'affiche jamais alors que l'API rend `expires_at` ;
+    - les événements « Acompte payé », « Soldé » et « Refusé » de la chronologie (lu, l. 577-583), qui n'apparaissent jamais ; les autres ont un repli sur une clé émise (`confirmed_at`, `cancelled_at`, `expires_at`).
+  - Ce n'est pas un `fields[]` trop court : ces clés n'existent ni en colonne ni dans la ressource. Ajouter la colonne au `fields` ne changerait rien (lu, `Booking::$queryFields`).
+- Piste : rendre ces faits depuis l'API, en dérivant `deposit_paid` des `booking_payments` déjà chargés au `show` ou en les lisant au front depuis `booking_payments`, et lire `expires_at` au lieu d'`expiration_date`. Retirer du type les clés sans source. Garde : un test de contrat de `BookingResource` qui fige ses clés, comme `LeasePaymentResourceContractTest`.
+
+### Cinq ressources affirment une valeur pour une colonne qu'un sparse fieldset n'a pas lue : `kind` « invoice », montants à 0, devise « XOF », booléens à faux
+- Réf : P100.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Resources/InvoiceResource.php:23,33,36`, `takussan-api/app/Http/Resources/PayoutResource.php:33-36`, `takussan-api/app/Http/Resources/BookingResource.php:23`, `takussan-api/app/Http/Resources/AgencyResource.php:30,53,71`, `takussan-api/app/Http/Resources/LeasePaymentResource.php:23,32-33`
+- Constat :
+  - Mesuré (`tinker`, modèle construit par `newFromBuilder` avec `id` et `created_at` seuls, sans écriture), ce qui revient à un `select` restreint :
+    - `InvoiceResource` → `kind` = `"invoice"`, `subtotal` et `total_amount` = 0 ;
+    - `PayoutResource` → `gross_amount`, `commission_amount` et `net_amount` = 0 ;
+    - `BookingResource` → `total_amount` = 0 ;
+    - `AgencyResource` → `currency` = `"XOF"`, `is_verified` et `moderation_required` = `false` ;
+    - `LeasePaymentResource` → `amount`, `paid_amount` et `remaining_amount` = 0.
+  - Toutes ces colonnes sont dans le `$queryFields` de leur modèle (mesuré, réflexion). Un appelant qui ne les demande pas reçoit donc une valeur plausible au lieu d'une clé absente : un avoir rendu comme une facture, un versement à 0 FCFA.
+  - Aucun écran ne tombe dedans aujourd'hui : les composants des dix listes relues ne lisent que des colonnes demandées (sous-agent, puis relu par l'explorateur pour les factures, les versements et les réservations).
+  - C'est la forme que P58.04 (TCK-1019) a corrigée pour `UserResource` seul, et qu'`IntegrationWebhookLogResource` évite par `whenHas` partout (lu).
+- Piste : passer par `whenHas` les clés dérivées de colonnes, au moins celles de montant, de nature et de devise, et étendre `UserResourceSparseFieldsTest` à ces cinq ressources. Le changement est visible pour tout appelant qui lit ces clés sans les demander ; vérifier d'abord ceux de l'API (exports, PDF, notifications).
+
+### Aucune colonne demandée par le front n'est refusée aujourd'hui, et la garde générale reste à écrire
+- Réf : P100.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/lib/queries/__tests__/agency-upgrade.fields.tck-1029.test.ts`, `takussan-web/src/lib/queries/*.ts`, `takussan-api/app/Models/Concerns/HasQueryBuilder.php:82-140`
+- Constat :
+  - Mesuré : sur 82 sites d'appel, 54 visent un endpoint bâti sur `buildQuery`. Pour chacun, toutes les colonnes demandées sont dans la liste blanche du modèle de l'endpoint, imbriquées comprises : aucun 400 `InvalidFieldQuery` en vue. Sont compris les 4 sites aux colonnes calculées : `inventory.ts:69`, `maintenance.ts:86`, `agent-crm.ts:87` et `PlanifierUneVisite.tsx:104`.
+  - Seule `AGENCY_UPGRADE_REQUEST_FIELDS` est gardée, par le test de TCK-1029. Son reste, sur P68.01, nomme la garde générale.
+  - Une garde naïve, qui jugerait chaque clé de table contre les modèles de même table, lève 3 faux positifs, tous sur des listes écrites à la main qui ignorent `fields` :
+    - `super-admin.ts:96` (`AgencyModerationController::index`) ;
+    - `property-moderation.ts:136` ;
+    - `super-admin/users/page.tsx:151` (`UserDetailController::index`).
+
+    Elle lève aussi 5 modèles au `$queryFields` vide : `Conversation`, `Message`, `LeasePayment`, `Review`, `SavedSearch`. La garde doit donc relier le site à sa route, ou porter une liste d'exceptions motivées.
+- Piste : écrire la garde générale (le reste de P68.01). Elle lit les constantes `*_FIELDS` et les `fields:` littéraux, et elle juge contre le `$queryFields` exporté par l'API, avec les imbrications de `$requestLoadable`. Exporter ce `$queryFields` en JSON par une commande, plutôt que de relire le PHP comme le test de TCK-1029.
+
+### Petites améliorations : `fields[…]` envoyés à des listes qui ne les lisent pas
+- Réf : P100.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:27-70,247`, `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:18-22`, `takussan-api/app/Http/Controllers/Api/ReviewController.php:57-135`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:39-110`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:23-60`
+- Constat :
+  - 22 sites d'appel envoient `fields[…]` à un endpoint qui ne passe pas par `buildQuery` (mesuré, rapprochement par `route:list`). Le paramètre y est inerte, ni honoré ni refusé : la charge utile ne diminue pas.
+  - Deux des fichiers du front le disent déjà en tête : `property-moderation.ts:112-125` et `recherche-publique.ts:25-33`. Les autres ne le disent pas :
+    - `conversations-list.ts:64` : `include` et `sort` sont inertes eux aussi, `filter` ne sert à aucun appelant (lu) ;
+    - `conversations.ts:129` ;
+    - `saved-searches.ts:71` ;
+    - `reviews-moderation.ts:90` : ses filtres et son tri sont lus à la main (lu, l. 82-135) ;
+    - `super-admin.ts:96` ;
+    - la page des utilisateurs de la console.
+  - `ConversationContextController`, `MessagingContactController`, `AgencyController::listMembers` (forme relevée par P58.04) et les `show` (P60.03) relèvent du même constat, sans autre effet relevé.
+- Piste : porter ces listes sur `buildQuery` quand la charge compte (conversations, sondées toutes les 10 s), ou retirer du front le `fields` inerte en le disant dans le fichier, comme `property-moderation.ts`.
