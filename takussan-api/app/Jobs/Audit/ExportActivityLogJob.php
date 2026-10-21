@@ -58,7 +58,7 @@ class ExportActivityLogJob implements ShouldQueue
         // dossier du demandeur signé (`ActivityLogExportController::download`).
         $downloadUrl = URL::temporarySignedRoute(
             'activity-logs.export.download',
-            now()->addHours(24),
+            now()->addHours(ActivityLogExportController::LINK_TTL_HOURS),
             ['user' => $this->user->id, 'file' => $file, 'name' => $filename],
         );
 

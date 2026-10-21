@@ -38,12 +38,14 @@ class ActivityLogExportReadyNotification extends Notification implements ShouldQ
     }
 
     /**
+     * TCK-1143 (P63.04) — sans l'URL signée : rangée ici, elle passerait dans `app_notifications`
+     * le jour où la cloche s'ajoute à `via()`, comme avant TCK-821.
+     *
      * @return array<string,mixed>
      */
     public function toArray(object $notifiable): array
     {
         return [
-            'download_url' => $this->downloadUrl,
             'filename' => $this->filename,
             'row_count' => $this->rowCount,
         ];
