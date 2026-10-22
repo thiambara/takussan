@@ -143,6 +143,8 @@ export function useCreateBookingPayment(bookingId: number) {
   return useApiMutation<ApiResponse<BookingPayment>, CreateBookingPaymentPayload>(
     { path: cheminApi`/api/bookings/${bookingId}/payments`, method: 'POST' },
     {
+      // TCK-1400 (ADR-0072) — renvoyé après une réponse perdue, l'acompte n'est encaissé qu'une fois.
+      idempotence: true,
       invalidate: [
         ['bookings', 'detail', bookingId],
         ['bookings', 'list'],

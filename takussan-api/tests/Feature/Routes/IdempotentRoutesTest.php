@@ -18,6 +18,8 @@ class IdempotentRoutesTest extends TestCase
         return [
             // TCK-1398 (P144.02) — texte et note vocale.
             'conversations.messages.store' => ['conversations.messages.store'],
+            // TCK-1400 (P144.04) — l'acompte enregistré par le personnel.
+            'bookings.payments.store' => ['bookings.payments.store'],
         ];
     }
 

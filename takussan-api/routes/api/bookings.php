@@ -22,7 +22,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Nested payments
     Route::get('bookings/{booking}/payments', [BookingPaymentController::class, 'index'])
         ->name('bookings.payments.index');
+    // TCK-1400 (ADR-0072) — un acompte rejoué sous la même clé n'est encaissé qu'une fois.
     Route::post('bookings/{booking}/payments', [BookingPaymentController::class, 'store'])
+        ->middleware('idempotent')
         ->name('bookings.payments.store');
     Route::post('booking-payments/{payment}/refund', [BookingPaymentController::class, 'refund'])
         ->name('booking-payments.refund');
