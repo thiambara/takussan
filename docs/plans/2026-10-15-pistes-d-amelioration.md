@@ -13247,7 +13247,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
 
 ### `apiRequest` donne à chaque appel serveur un `X-Request-Id` neuf : la mémoïsation de `fetch` par Next ne dédoublonne plus aucune lecture, seul `cache()` le fait
 - Réf : P138.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1386 — reste : la même règle dans « Couche réseau » de `takussan-web/CLAUDE.md`, chemin fermé à l'implémenteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/api.ts:733-738`, `takussan-web/node_modules/next/dist/server/lib/dedupe-fetch.js:65-84,118`, `takussan-web/src/lib/access/server-guards.ts:95-109`
 - Constat :
@@ -13259,6 +13259,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : lecture de `api.ts` et de `dedupe-fetch.js`, journal de l'API factice.
 - Piste : écrire dans l'en-tête de `apiRequest` et dans `takussan-web/CLAUDE.md` (« Couche réseau ») que la seule déduplication des lectures serveur est `cache()` de React, et que l'identifiant d'appel l'exclut par construction ; garder l'identifiant. Garde : un test de rendu qui compte les appels d'une page (patron de P105.05) plutôt qu'une confiance dans Next.
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/lib/api.ts` (l. 736-737 : `X-Request-Id = crypto.randomUUID()` sur tout appel serveur, toujours là, lignes inchangées) et `node_modules/next/dist/server/lib/dedupe-fetch.js` de Next 16.3.1 (l. 60-84 : la clé contient tous les en-têtes sauf `traceparent`/`tracestate` ; l. 88-97 : un `signal` passé désactive en plus toute déduplication) ; les autres en-têtes d'`apiRequest` (`enTetesDuCheminInterne`, l. 38-50, locale, indice, `X-Forwarded-For`, `User-Agent`) sont déterministes dans un même rendu, donc sans l'identifiant la clé serait identique (lu, non lancé) ; `grep -n 'dédoubl\|dedup' takussan-web/CLAUDE.md` → rien ; `git log -S` et `docs/backlog/tickets` → aucun traitement. Le constat tient. Classement : A5, documenter dans l'en-tête d'`apiRequest` et dans « Couche réseau » que seule `cache()` de React dédoublonne une lecture serveur (l'identifiant d'appel, et tout `signal`, excluent la mémoïsation de Next) et poser un test qui compte les appels d'une page, sans choix de produit ni seuil touché.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : `grep -n 'cache()' src/lib/api.ts` → rien, et `dedupe-fetch.js:65-84` met toujours tous les en-têtes dans la clé ; `src/lib/__tests__/api.deduplication-serveur.tck-1386.test.ts` → deux `apiRequest` identiques côté serveur ont deux clés de Next, qui ne diffèrent que par `X-Request-Id` (vert), et l'en-tête d'`apiRequest` ne le disait pas (rouge) → docblock écrit, l'identifiant gardé ; ablation (`api.ts` d'avant) → 1 rouge, remis → 2 verts. Les tests qui comptent les appels d'un rendu sont ceux de TCK-1374 à TCK-1384 ; la ligne de `takussan-web/CLAUDE.md` reste, chemin fermé.
 
 ### Chaque document de `/app` et de `/super-admin` appelle `GET /api/auth/me` deux fois : la mise en page racine le lit hors de `cache()`
 - Réf : P138.02
