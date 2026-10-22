@@ -14976,7 +14976,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Petites améliorations de l'import des relevés
 - Réf : P157.08
-- Statut : validé (délégué) — lire `CURDEF` par `STMTRS` : chaque transaction prend la devise du relevé de compte qui la contient, la devise de l'agence à défaut ; test : deux `STMTRS` en `XOF` puis `EUR` dans `StatementParserTest` ; reste : les lignes à montant nul et le `TRNTYPE` qui contredit le signe
+- Statut : fait · TCK-1475 — reste : les lignes à montant nul et le `TRNTYPE` qui contredit le signe
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Accounting/StatementParser/CsvDriver.php:116-120`, `takussan-api/app/Services/Accounting/StatementParser/OfxDriver.php:27-34,85-88`
 - Constat :
@@ -14987,6 +14987,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 - Piste : sauter et compter une ligne à montant nul ; lire `CURDEF` par `STMTRS` ; signaler (ou sauter) une ligne dont `TRNTYPE` contredit le signe. Chaque point avec son test dans `StatementParserTest`.
 - Mesure (2026-10-22, 86f20c94b, mesureur) : relu `CsvDriver.php:116-120`, `OfxDriver.php:27-34,85-88` ; sonde Feature temporaire (retirée) : `<TRNAMT>0` → crédit de `0.00` `unmatched` ; `TRNTYPE=DEBIT` avec `TRNAMT` positif → crédit de 5 000 ; deux `STMTRS` en `XOF` puis `EUR` → les deux lignes en `XOF` → les trois points tiennent, les deux « déduits » du constat sont désormais mesurés ; ce que prescrit la norme OFX pour le signe reste non vérifié. Classement : V7, la Piste laisse le choix entre signaler et sauter, et faire disparaître une ligne du relevé change ce que voit l'agence.
 - Mesure (2026-10-22, 0ceb6b27c, delegue) : relu `OfxDriver.php:27-34` (un seul `<CURDEF>` pris pour tout le fichier, toutes les `<STMTTRN>` parcourues) et `:85-88` (sens porté par le seul signe de `TRNAMT`), `CsvDriver.php:116-120`, `tests/fixtures/bank/sample.ofx:29-30` (`CURDEF` porté par `STMTRS`) ; la `Mesure` du mesureur a mesuré les deux `STMTRS` `XOF` puis `EUR` → deux lignes `XOF`. Délégation : V7, seule la lecture de `CURDEF` par `STMTRS` est validée : c'est la devise que le fichier déclare lui-même pour chaque compte, sans choix de produit, et une ligne `EUR` lue `XOF` peut s'apparier à un paiement XOF ; elle se défait en un commit. Le reste reste au porteur, avec cette recommandation : sauter et compter une ligne à montant nul (aucun paiement ne peut s'y apparier), et ne pas signaler un `TRNTYPE` contradictoire tant que la norme n'est pas vérifiée (le signe de `TRNAMT` fait foi dans le pilote, D-67).
+- Mesure (2026-10-22, 52247ce4f, implementeur) : `test_chaque_compte_ofx_garde_sa_devise` et `test_un_compte_ofx_sans_curdef_prend_la_devise_de_l_agence` (`StatementParserTest`) écrits avant le correctif → 2 rouges, deux `STMTRS` `XOF` puis `EUR` rendent deux lignes `XOF` ; transactions lues par `STMTRS`/`CCSTMTRS`, `CURDEF` du compte ou devise de l'agence → `XOF`, `EUR` et repli sur l'agence, 14/14 verts ; ablation (`CURDEF` relu sur le fichier entier) → 2 rouges ; `OfxDeuxAImportTest`, `OfxJeuDeCaracteresTest` verts.
 
 ## Angle 158 — Fiches client créées hors de `CustomerController::store`
 
