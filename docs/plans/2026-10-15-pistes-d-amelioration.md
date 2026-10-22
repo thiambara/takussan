@@ -12084,7 +12084,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### Le rappel d'échéance d'une tâche part à son assigné, même suspendu de l'agence
 - Réf : P126.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le repli quand l'assigné n'est plus personnel (admins actifs, ou aucun rappel) est un choix de produit que la piste laisse ouvert
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/SendTaskDueReminders.php:45-81`, `takussan-api/app/Services/Agency/TeamMemberSuspensionService.php:73-118`
 - Constat :
@@ -12094,10 +12094,11 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - ADR-0031 § 3 : un profil suspendu ne confère ni capacité ni périmètre. Le rappel mène donc à une tâche que le destinataire ne peut plus ouvrir, et l'agence n'est prévenue de rien.
   - Établi comment : lu, puis mesuré.
 - Piste : ne rappeler que si l'assigné est personnel actif de l'agence du dossier (`MembershipCapabilityResolver::isStaffAt`, agence lue par `Task::parentRecord()`). Le repli (rappel aux admins actifs, ou rien) est un choix de produit, à écrire. Test : assigné suspendu → aucun rappel ; assigné actif → un rappel.
+- Mesure (2026-10-22, 230f917df, mesureur) : relu `SendTaskDueReminders.php:41-81` (aucun jugement de l'assigné ni de l'agence), `TeamMemberSuspensionService` vit sous `app/Services/Membership/` et non `Agency/` ; aucun ticket ni commit sur `P126` (`grep -rln P126 docs/backlog/tickets`, `git log 64db86d28..HEAD -- takussan-api/app` vide) ; test temporaire `TmpMesureurP126Test` (charge 1,86/2,34/2,37 sur 8 cœurs, retiré) : agent au profil `suspended` (`isStaffAt` faux), tâche ouverte sur un client de l'agence à 24 h → `TaskDueReminderNotification` envoyée 1 fois à l'agent suspendu. Le constat tient. Classement : V7, écarter l'assigné suspendu exige de choisir le repli, que la piste déclare à écrire.
 
 ### Le rappel de visite part à l'agent de la visite sans le jugement que `VisitNotifier` applique au même agent
 - Réf : P126.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : router le rappel par `agencyRecipients` fait recevoir aux admins un rappel qu'ils ne reçoivent pas aujourd'hui
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/SendPropertyVisitReminders.php:106-136`, `takussan-api/app/Services/Visit/VisitNotifier.php:136-168`
 - Constat :
@@ -12106,10 +12107,11 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - mesuré (test temporaire) : visite `confirmed` à J+1 dont l'agent a son profil `suspended` → `VisitReminder` envoyé 1 fois à l'agent suspendu. Aucun admin n'est prévenu à sa place.
   - Établi comment : lu, puis mesuré.
 - Piste : faire passer la part « agence » du rappel par `VisitNotifier::agencyRecipients($visit)`, qui porte déjà la règle et son repli. Test : agent suspendu → le rappel va aux admins actifs et pas à lui.
+- Mesure (2026-10-22, 230f917df, mesureur) : relu `SendPropertyVisitReminders.php:106-113` (`$fresh->agent` retenu sans jugement) et `VisitNotifier::agencyRecipients` l. 136-170 (agent retenu seulement `PersonnelDeLAgence::estPersonnel` ou joignable, repli admins/`crm.view_all`/contact principal) ; test temporaire (mêmes conditions) : visite `confirmed` à J+1, agent `suspended`, un admin actif de l'agence → `VisitReminder` 1 fois à l'agent, rien à l'admin. Le constat tient. Classement : V7, écarter l'agent est porté par une règle écrite (A1), mais le repli sur les admins pour un rappel est un envoi visible neuf, dans le doute à valider.
 
 ### Le rappel d'un reversement échu ne va qu'à son émetteur, même suspendu
 - Réf : P126.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le repli vers les détenteurs de `payouts.*` est un choix de produit, sur un avis de reversement (V1 voisin)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Console/Commands/Payouts/RemindDuePayouts.php:31-52`
 - Constat :
@@ -12119,10 +12121,11 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - Conséquence : le seul rappel d'un reversement dû au bailleur part chez quelqu'un qui n'a plus accès à `finances`. L'équipe active n'en sait rien.
   - Établi comment : lu, puis mesuré.
 - Piste : rappeler l'émetteur s'il est encore personnel actif tenant `payouts.*`, sinon les détenteurs de la capacité (`PayoutApprovers::holders`). Le choix du repli est à écrire. Test : émetteur suspendu → le rappel va à un détenteur actif.
+- Mesure (2026-10-22, 230f917df, mesureur) : relu `RemindDuePayouts.php:31-52` (`User::find($payout->issued_by_id)` sans jugement, marqueur posé avant l'envoi) ; test temporaire (mêmes conditions) : reversement `scheduled` échu la veille, émis par un agent `suspended` → `payouts:remind-due` envoie 1 notification, à lui seul (`assertCount(1)`). Le constat tient. Classement : V7, la piste déclare elle-même le choix du repli à écrire, et l'avis porte sur un reversement.
 
 ### Le créateur du bien (`properties.user_id`) est prévenu comme bailleur, même agent suspendu ou parti de l'agence
 - Réf : P126.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : sans repli, `estProprietaire` retire aussi l'agent actif créateur du bien de la notification d'avis reçu, du flux iCal et du devis `awaiting_owner`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Maintenance/MaintenanceParticipants.php:30`, `takussan-api/app/Services/Booking/BookingStakeholders.php:39,75`, `takussan-api/app/Services/Review/ReviewNotifier.php:54`, `takussan-api/app/Services/Booking/PropertyCalendarSyncService.php:174-178`, `takussan-api/app/Services/Booking/BookingExpirationService.php:283-285`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:133,147`, `takussan-api/app/Listeners/Maintenance/NotifyMaintenanceParticipants.php:88`
 - Constat :
@@ -12143,10 +12146,11 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - Le devis `awaiting_owner` part aussi à `$mr->property?->owner` (lu, `NotifyMaintenanceParticipants.php:88`). Qui tranche alors à la place du bailleur est à vérifier (angle 160 proposé).
   - Établi comment : lu, puis mesuré pour les trois premiers sites.
 - Piste : remplacer `$property->owner` par `PrimaryPropertyContact::estProprietaire($property->owner, $property) ? $property->owner : null` partout où il désigne un destinataire, au mieux derrière une méthode unique (`PrimaryPropertyContact::proprietaireJoignable()`). Garde possible : un test qui crée un bien d'agence au `user_id` d'un agent suspendu, et vérifie qu'aucun des sites ci-dessus ne le prévient.
+- Mesure (2026-10-22, 230f917df, mesureur) : relu `MaintenanceParticipants.php:30` (`$property->owner` avant le filtre `isStaffAt`), `BookingStakeholders.php:39,75`, `ReviewNotifier.php:53` (`whereKey($subject->user_id)`), `PropertyCalendarSyncService.php:173-178`, `BookingExpirationService.php:282-285`, `MaintenanceRequestController.php:133,146-147`, `NotifyMaintenanceParticipants.php:88`, `PrimaryPropertyContact::estProprietaire` l. 157-163 ; `grep` des appelants : tous ne servent qu'à notifier ; test temporaire (mêmes conditions) : bien d'agence au `user_id` d'un agent `suspended` → `principals` `[agent]`, `propertyTeam` `[agent]`, `ReviewNotifier::received` 1 notification à l'agent. Le constat tient. Classement : V7, la règle existe (A1) mais l'appliquer telle que la piste l'écrit laisse sans destinataire l'avis reçu et le devis à trancher, et retire l'agent actif créateur du bien sur ces sites : un repli est à choisir.
 
 ### Petites améliorations
 - Réf : P126.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le choix de la source unique et du filtre `joignable` recoupe P88.04 (validé, compte bloqué), à arbitrer
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Listeners/Accounting/NotifyStatementImported.php:15-29`, `takussan-api/app/Services/Lead/ContactLeadService.php:137-152`, `takussan-api/app/Services/Kyc/KycExpiryService.php:100-111`, `takussan-api/app/Services/Governance/GovernanceAlertService.php:107-117`
 - Constat :
@@ -12157,6 +12161,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
     Elles disent toutes « admin actif », mais une seule écarte le compte bloqué.
   - Établi comment : lu.
 - Piste : une seule source, `ContactLeadService::agencyAdmins` ou une méthode de `MembershipCapabilityResolver`, pour toutes les listes d'admins destinataires. Un test qui exige `->active()` et `joignable` une seule fois.
+- Mesure (2026-10-22, 230f917df, mesureur) : relu `NotifyStatementImported.php:15-29` (`uploadedBy` sans jugement) ; `grep -n 'active()\|joignable'` : `KycExpiryService:104`, `GovernanceAlertService:111`, `ReviewNotifier:68`, `PropertyModerationNotifier:30`, `PropertyController:368` portent `->active()` sans `joignable`, seul `ContactLeadService::agencyAdmins` (l. 137-152) filtre `PrimaryPropertyContact::joignable`. Les deux points tiennent, le premier n'appelle aucun correctif. Classement : V7, ajouter `joignable` à cinq listes change qui reçoit, et P88.04 (validé) traite le compte bloqué au niveau de l'envoi : la voie est à arbitrer avec lui.
 
 ## Angle 127 — Indicateurs des tableaux de bord de l'agent, du bailleur et de `/dashboard/me`
 
