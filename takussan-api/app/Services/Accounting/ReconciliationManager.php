@@ -12,9 +12,11 @@ use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PayoutStatus;
+use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Models\PlatformPayout;
 use App\Models\User;
 use App\Services\Billing\PlatformPayoutService;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -30,6 +32,8 @@ class ReconciliationManager
         Invoice::class,
         // TCK-593 — un reversement émis, rapproché d'un débit.
         Payout::class,
+        // TCK-1421 (P141.02) — le virement de clôture de la plateforme, rapproché d'un crédit.
+        PlatformPayout::class,
     ];
 
     public function __construct(
@@ -74,6 +78,13 @@ class ReconciliationManager
         if ($isPayout && $payment->status !== PayoutStatus::Completed) {
             throw ValidationException::withMessages([
                 'payment_id' => [__('reconciliation.validation.payout_not_completed')],
+            ]);
+        }
+
+        // TCK-1421 (P141.02) — un crédit ne se rapproche que d'un virement de la plateforme PAYÉ.
+        if ($payment instanceof PlatformPayout && $payment->status !== PlatformPayoutStatus::Paid) {
+            throw ValidationException::withMessages([
+                'payment_id' => [__('reconciliation.validation.platform_payout_not_paid')],
             ]);
         }
 
@@ -186,7 +197,7 @@ class ReconciliationManager
         return match (true) {
             $payment instanceof LeasePayment => $payment->expectedBankAmount(),
             $payment instanceof Invoice => (float) $payment->total_amount,
-            $payment instanceof Payout => (float) $payment->net_amount,
+            $payment instanceof Payout, $payment instanceof PlatformPayout => (float) $payment->net_amount,
             default => (float) $payment->amount,
         };
     }
@@ -330,7 +341,7 @@ class ReconciliationManager
             return $payment->booking?->agency_id;
         }
 
-        if ($payment instanceof Payout) {
+        if ($payment instanceof Payout || $payment instanceof PlatformPayout) {
             return $payment->agency_id;
         }
 

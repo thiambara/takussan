@@ -6,9 +6,11 @@ use App\Models\BankStatementLine;
 use App\Models\BookingPayment;
 use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\PayoutStatus;
+use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Models\PlatformPayout;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -48,7 +50,8 @@ class ReconciliationMatcher
 
         $candidates = $line->direction === BankStatementLineDirection::Debit
             ? $this->fetchPayoutCandidates($agencyId, $amount, $currency, $windowStart, $windowEnd)
-            : $this->fetchCandidates($agencyId, $amount, $currency, $windowStart, $windowEnd);
+            : $this->fetchCandidates($agencyId, $amount, $currency, $windowStart, $windowEnd)
+                ->merge($this->fetchPlatformPayoutCandidates($agencyId, $amount, $currency, $windowStart, $windowEnd));
 
         if ($candidates->isEmpty()) {
             return null;
@@ -137,6 +140,33 @@ class ReconciliationMatcher
                 'type' => Payout::class,
                 'id' => $row->id,
                 'reference_number' => $row->reference_number,
+                'paid_at' => $row->processed_at,
+                'payer_name' => null,
+                'model' => $row,
+            ]);
+    }
+
+    /**
+     * TCK-1421 (P141.02) — un crédit du relevé peut être le virement de clôture de la plateforme :
+     * `PlatformPayout` `paid` de l'agence, au `net_amount` exact, dans la fenêtre autour de
+     * `processed_at`, sa `payment_reference` portant la règle de référence.
+     *
+     * @return Collection<int, object{type: string, id: int, reference_number: ?string, paid_at: ?Carbon, payer_name: ?string}>
+     */
+    private function fetchPlatformPayoutCandidates(int $agencyId, float $amount, string $currency, $windowStart, $windowEnd): Collection
+    {
+        return PlatformPayout::query()
+            ->whereNull('bank_reconciled_at')
+            ->where('status', PlatformPayoutStatus::Paid)
+            ->where('agency_id', $agencyId)
+            ->where('currency', $currency)
+            ->whereRaw('ABS(net_amount - ?) < 0.01', [$amount])
+            ->whereBetween('processed_at', [$windowStart, $windowEnd])
+            ->get(['id', 'net_amount', 'currency', 'payment_reference', 'processed_at'])
+            ->map(fn (PlatformPayout $row) => (object) [
+                'type' => PlatformPayout::class,
+                'id' => $row->id,
+                'reference_number' => $row->payment_reference,
                 'paid_at' => $row->processed_at,
                 'payer_name' => null,
                 'model' => $row,

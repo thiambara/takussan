@@ -6,9 +6,11 @@ use App\Models\Agency;
 use App\Models\BookingPayment;
 use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\PayoutStatus;
+use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Models\PlatformPayout;
 use Illuminate\Support\Collection;
 
 class PaymentSearchService
@@ -18,6 +20,7 @@ class PaymentSearchService
         LeasePayment::class => 'lease_payment',
         Invoice::class => 'invoice',
         Payout::class => 'payout',
+        PlatformPayout::class => 'platform_payout',
     ];
 
     /**
@@ -36,6 +39,8 @@ class PaymentSearchService
             $candidates = $candidates->merge($this->searchBookingPayments($agency, $query, $amountHint));
             $candidates = $candidates->merge($this->searchLeasePayments($agency, $query, $amountHint));
             $candidates = $candidates->merge($this->searchInvoices($agency, $query, $amountHint));
+            // TCK-1421 (P141.02) — le virement de clôture de la plateforme est un crédit.
+            $candidates = $candidates->merge($this->searchPlatformPayouts($agency, $query, $amountHint));
         }
 
         if ($direction !== BankStatementLineDirection::Credit) {
@@ -154,6 +159,34 @@ class PaymentSearchService
             reference: $p->reference_number,
             paidAt: $p->processed_at?->toDateString(),
             payerName: $p->landlord?->full_name,
+        ));
+    }
+
+    /** @return Collection<int, MatchCandidate> */
+    private function searchPlatformPayouts(Agency $agency, string $query, ?float $amountHint): Collection
+    {
+        $base = PlatformPayout::query()
+            ->whereNull('bank_reconciled_at')
+            ->where('status', PlatformPayoutStatus::Paid)
+            ->where('agency_id', $agency->id);
+
+        if ($query !== '') {
+            $base->where('payment_reference', 'like', "%{$query}%");
+        }
+
+        if ($amountHint !== null) {
+            $base->whereRaw('ABS(net_amount - ?) < 1', [$amountHint]);
+        }
+
+        return $base->limit(10)->get()->map(fn (PlatformPayout $p) => new MatchCandidate(
+            id: $p->id,
+            type: 'platform_payout',
+            label: "Platform payout {$p->payment_reference}",
+            amount: (string) $p->net_amount,
+            currency: (string) $p->currency,
+            reference: $p->payment_reference,
+            paidAt: $p->processed_at?->toDateString(),
+            payerName: null,
         ));
     }
 

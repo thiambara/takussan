@@ -11,6 +11,7 @@ use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
+use App\Models\PlatformPayout;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Accounting\ReconciliationMatcher;
@@ -131,6 +132,84 @@ class PlatformSettledReconciliationTest extends TestCase
         $this->assertSame([['lease_payment', $payment->id]], $this->search(150_000));
     }
 
+    // ─── P141.02 (TCK-1421) ─────────────────────────────────────
+
+    public function test_le_virement_de_la_plateforme_est_suggere_sur_le_credit_et_rapproche_une_fois(): void
+    {
+        $payout = $this->paidPlatformPayout(142_500, '2026-05-02 10:00:00', 'VIR-PLAT-1');
+        $line = $this->creditLine(142_500, '2026-05-03', 'VIR-PLAT-1');
+
+        $suggestion = app(ReconciliationMatcher::class)->suggestFor($line);
+        $this->assertSame([PlatformPayout::class, $payout->id, 95], [$suggestion?->paymentType, $suggestion?->paymentId, $suggestion?->confidence]);
+        $this->assertSame([['platform_payout', $payout->id]], $this->search(142_500));
+
+        $this->actingAs($this->admin)
+            ->postJson("/api/bank-statement-lines/{$line->id}/match", [
+                'payment_type' => 'platform_payout',
+                'payment_id' => $payout->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.match_status', 'confirmed')
+            ->assertJsonPath('data.matched_payment_type', 'platform_payout');
+
+        $payout->refresh();
+        $this->assertSame('2026-05-03', $payout->bank_reconciled_at?->toDateString());
+        $this->assertSame($line->id, $payout->bank_statement_line_id);
+
+        // Rapproché, il ne se propose plus, et ne se confirme pas une seconde fois.
+        $second = $this->creditLine(142_500, '2026-05-03', 'VIR-PLAT-1');
+        $this->assertNull(app(ReconciliationMatcher::class)->suggestFor($second));
+        $this->assertSame([], $this->search(142_500));
+        $this->actingAs($this->admin)
+            ->postJson("/api/bank-statement-lines/{$second->id}/match", [
+                'payment_type' => 'platform_payout',
+                'payment_id' => $payout->id,
+            ])
+            ->assertStatus(422);
+
+        // Défaire le rapprochement le rend au matcher.
+        $this->actingAs($this->admin)->deleteJson("/api/bank-statement-lines/{$line->id}/match")->assertOk();
+        $this->assertNull($payout->fresh()->bank_statement_line_id);
+    }
+
+    public function test_un_reversement_de_la_plateforme_non_paye_hors_fenetre_ou_d_une_autre_agence_n_est_pas_candidat(): void
+    {
+        $approved = PlatformPayout::factory()->approved()->create([
+            'agency_id' => $this->agency->id, 'net_amount' => 142_500, 'currency' => 'XOF',
+            'period_start' => '2026-04-01', 'period_end' => '2026-04-15',
+        ]);
+        $this->paidPlatformPayout(142_500, '2026-03-01 10:00:00', null);
+        PlatformPayout::factory()->paid()->create([
+            'agency_id' => Agency::factory()->create()->id, 'net_amount' => 142_500, 'currency' => 'XOF',
+            'processed_at' => '2026-05-02 10:00:00',
+        ]);
+        $line = $this->creditLine(142_500, '2026-05-03');
+
+        $this->assertNull(app(ReconciliationMatcher::class)->suggestFor($line));
+        $this->actingAs($this->admin)
+            ->postJson("/api/bank-statement-lines/{$line->id}/match", [
+                'payment_type' => 'platform_payout',
+                'payment_id' => $approved->id,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('payment_id');
+    }
+
+    public function test_un_debit_ne_se_rapproche_pas_d_un_reversement_de_la_plateforme(): void
+    {
+        $payout = $this->paidPlatformPayout(142_500, '2026-05-02 10:00:00', 'VIR-PLAT-1');
+        $debit = $this->creditLine(142_500, '2026-05-03', 'VIR-PLAT-1', BankStatementLineDirection::Debit);
+
+        $this->assertNull(app(ReconciliationMatcher::class)->suggestFor($debit));
+        $this->actingAs($this->admin)
+            ->postJson("/api/bank-statement-lines/{$debit->id}/match", [
+                'payment_type' => 'platform_payout',
+                'payment_id' => $payout->id,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('payment_type');
+    }
+
     // ─── P141.04 (TCK-1417) ─────────────────────────────────────
 
     public function test_l_agence_d_un_acompte_est_celle_de_la_reservation_partout(): void
@@ -204,7 +283,23 @@ class PlatformSettledReconciliationTest extends TestCase
         return $payment;
     }
 
-    private function creditLine(int $amount, string $postedAt): BankStatementLine
+    private function paidPlatformPayout(int $net, string $processedAt, ?string $reference): PlatformPayout
+    {
+        return PlatformPayout::factory()->paid()->create([
+            'agency_id' => $this->agency->id,
+            'gross_amount' => $net,
+            'platform_fee_amount' => 0,
+            'net_amount' => $net,
+            'currency' => 'XOF',
+            'processed_at' => $processedAt,
+            'payment_reference' => $reference,
+            // Une période ouverte par agence et par fin de période : la veille du virement.
+            'period_start' => Carbon::parse($processedAt)->subMonth()->toDateString(),
+            'period_end' => Carbon::parse($processedAt)->subDay()->toDateString(),
+        ]);
+    }
+
+    private function creditLine(int $amount, string $postedAt, ?string $reference = null, BankStatementLineDirection $direction = BankStatementLineDirection::Credit): BankStatementLine
     {
         $statement = BankStatement::factory()->create([
             'agency_id' => $this->agency->id,
@@ -214,11 +309,11 @@ class PlatformSettledReconciliationTest extends TestCase
 
         return BankStatementLine::factory()->create([
             'bank_statement_id' => $statement->id,
-            'direction' => BankStatementLineDirection::Credit,
+            'direction' => $direction,
             'amount' => $amount,
             'currency' => 'XOF',
             'posted_at' => $postedAt,
-            'reference' => null,
+            'reference' => $reference,
             'counterparty' => null,
         ]);
     }
