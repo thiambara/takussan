@@ -10625,7 +10625,7 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
 
 ### Le `user_agent` des demandes de contact par formulaire est celui du serveur Next (`node`), jamais celui du visiteur
 - Réf : P108.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/api.ts:686-736`, `takussan-web/src/app/actions/property.ts:226-270`, `takussan-api/app/Services/Lead/ContactLeadService.php:300-316`, `takussan-api/app/Models/PropertyContactLead.php:16,37`, `docs/models-spec.md:3538`
 - Constat :
@@ -10636,10 +10636,11 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
   - La spec décrit la colonne comme « User-agent source — anti-abus » (lu, `models-spec.md:3538`). Écrite ainsi, elle ne distingue aucun visiteur d'un autre. Aucun lecteur dans `app/` aujourd'hui (lu, `grep -rn user_agent app`), donc rien ne casse : la donnée est fausse en silence, et le sera pour le premier qui s'en servira.
   - Les clics WhatsApp / Appeler (`recordClick`, l. 204-216) partent du navigateur (`contact-click.ts`, lu) et portent le bon agent. La signature de bail aussi (`leases.ts:295`, `useApiMutation`, lu) : son `user_agent`, pièce de preuve, n'est pas touché.
 - Piste : relayer le `User-Agent` du visiteur dans `apiRequest` côté serveur, comme `apiFetch` le fait (même exception pour un appel partagé), et dans `enTetesServeurAmont` pour les relais. Garde : un test de `apiRequest` côté serveur qui exige l'agent entrant, et un test de l'API qui poste une demande avec un `User-Agent` et le relit sur la ligne.
+- Mesure (2026-10-22, a49b315a0, mesureur) : lu `takussan-web/src/lib/api.ts:686-736` (`apiRequest` pose `X-Forwarded-For`, la langue et `X-Request-Id`, aucun `User-Agent`), l. 124-129 (`apiFetch` le relaie, TCK-792) et l. 176-184 (`enTetesServeurAmont` non plus) ; `property.ts:1,226-270` (`'use server'`, les deux `submit…ContactLead` passent par `apiRequest`) ; `ContactLeadService.php:314` écrit `$request->userAgent()` ; `fetch` de Node 24.18 vers un écouteur local → `user-agent: node` ; `SELECT … FROM property_contact_leads` en développement → table vide, aucune ligne à relire ; `grep -rn "userAgent()" app` → les leads, `CountBoostImpressions`, `LeaseSignatureService` (appelé du navigateur) → le constat tient, aux numéros de ligne près. Classement : A1, la spec écrit la colonne « User-agent source » (`models-spec.md`) et `apiFetch` relaie déjà l'agent du visiteur (TCK-792) : le correctif recopie ce contrat dans `apiRequest` côté serveur et `enTetesServeurAmont`, sans rien collecter que la spec ne décide déjà (pas de V3).
 
 ### L'export du journal d'activité annonce une colonne `ip_address` qu'aucun chemin n'écrit
 - Réf : P108.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : écrire l'IP au journal ou retirer la colonne de l'export, choix de données personnelles
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:16-27,161`, `docs/models-spec.md:1301`
 - Constat :
@@ -10649,10 +10650,11 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
   - Mesuré, base de développement : `activity_log` → 25 597 lignes, 0 dont `properties` porte `ip` (`jsonb_exists(properties::jsonb, 'ip')`). Base de seeders : à confirmer sur un environnement servi.
   - La colonne sort donc vide dans tout fichier d'export, et la spec décrit un champ qui n'existe pas. Sur le chemin interne, la remplir par `$request->ip()` donnerait d'ailleurs l'IP du visiteur seulement là où le front relaie `X-Forwarded-For` (déduit).
 - Piste : soit retirer `ip_address` des colonnes et de la spec (aucun écrivain), soit écrire l'IP dans le journal par un `tapActivity` commun. Le second est un choix de données personnelles. Garde : un test de l'exporteur qui n'accepte pas une colonne toujours nulle sur un journal écrit par un geste HTTP.
+- Mesure (2026-10-22, a49b315a0, mesureur) : lu `ActivityLogExporter.php:26,161` (`ip_address` ← `properties->ip`) et `TCK-104` l. 58 (« `properties->ip` si présent ») ; `grep -rn "'ip'" app` → leads, journal du limiteur de webhooks (`AppServiceProvider.php:516`, un `Log::warning`), `SafeOutboundUrl`, `UserDetailController.php:138` (`null`) ; aucun `withProperties()` ni `tapActivity` n'écrit `ip` ; `SELECT count(*), count(*) FILTER (WHERE jsonb_exists(properties::jsonb,'ip')) FROM activity_log` en développement → 25 597 / 0 → le constat tient. Classement : V3, la piste offre deux voies, dont l'une conserve l'IP de chaque geste au journal, et l'autre retire une colonne d'un export décrit par la spec et TCK-104.
 
 ### Cinq listes rendent l'enveloppe de pagination de Laravel, hors de `PaginationMeta`, avec des URL tirées de l'hôte de la requête
 - Réf : P108.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:158-160`, `takussan-api/app/Http/Controllers/Public/PublicAgencyController.php:383-400`, `takussan-api/app/Http/Controllers/Public/PublicAgentController.php:361-380`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:26-28`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementLineController.php:32-34`, `takussan-api/vendor/laravel/framework/src/Illuminate/Pagination/PaginationState.php:17`
 - Constat :
@@ -10661,10 +10663,11 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
   - Mesuré (test temporaire, retiré) : `GET http://api-interne:8080/api/public/agencies/{slug}/properties?per_page=1` depuis `127.0.0.1`, `X-Forwarded-Proto: https`, `-Port: 443` → `links.next` = `https://api-interne/api/public/agencies/…/properties?page=2`, `meta.path` = `https://api-interne/…`, alors que `url('/x')` rend l'origine d'`APP_URL` dans la même exécution.
   - Aucun lecteur au front (mesuré : `grep -rnE "links\??\.(next|prev|first|last)|next_page_url|meta\??\.path|meta\.links" takussan-web/src` → vide). Les cinq sont appelées du navigateur (`PortfolioTabs.tsx`, `'use client'` ; `useProperties.ts:66` ; écrans de rapprochement), sauf sous impersonation, où le relais sert l'hôte interne au navigateur (lu, `impersonation/proxy`). Rien ne casse : ce sont des octets morts qui portent l'hôte interne.
 - Piste : rendre ces cinq listes par `$this->paginated($paginator, XResource::collection($paginator)->toArray($request))`, comme le reste de l'API. Garde : étendre `check-pagination-envelope.mjs` à la forme `return …Resource::collection(` sur un paginateur, ou un test qui refuse `links` dans la réponse de ces cinq routes.
+- Mesure (2026-10-22, a49b315a0, mesureur) : `grep -rnE "return [A-Za-z]+Resource::collection\(" app` → les cinq actions citées rendent un paginateur tel quel (`PublicPropertyController.php:160`, `PublicAgencyController.php:400`, `PublicAgentController.php:380`, `BankStatementController.php:26`, `BankStatementLineController.php:32`), les deux autres (`PublicPropertyController.php:713`, `PaymentSearchController.php:27`) et `PropertySearchService.php:851` hors constat ; `Base\Controller::paginated()` l. 44-54 rend `{ data, meta }` par `PaginationMeta` ; `grep -rnE "links\??\.(next|prev|first|last)|next_page_url|meta\??\.(path|links|from|to)" takussan-web/src` → aucun lecteur ; `grep -rlnE "'links'|links\.next|meta\.path" tests` → aucun test ne garde la forme Laravel ; la mesure par test temporaire de l'explorateur n'a pas été rejouée → le constat tient. Classement : A1, la forme canonique est écrite dans `takussan-api/CLAUDE.md` § « Pagination » (TCK-304) et les quatre clés de `meta` restent : le correctif passe les cinq actions à `$this->paginated($paginator, XResource::collection($paginator)->toArray($request))`, avec un test qui refuse `links` sur ces routes.
 
 ### Petites améliorations
 - Réf : P108.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer la route ou la brancher au front, et la forme d'une redirection rendue par les relais, sont des choix
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/api/documents.php:23`, `takussan-api/app/Http/Controllers/Api/DocumentVersionController.php:64-82`, `takussan-web/src/lib/relais-api.ts:65`, `takussan-web/src/app/api/data-exports/[id]/download/route.ts:16-29`
 - Constat :
@@ -10672,3 +10675,4 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
   - **Les relais suivent les redirections en silence.** `relayerVersApi` et le relais d'export RGPD appellent `fetch` sans `redirect:` (lu) : `follow` par défaut. Aucune route relayée ne redirige aujourd'hui (voir l'en-tête de cette section). Le jour où une le fera, une URL présignée R2 serait suivie par le serveur Next, et les octets traverseraient le VPS, ce que `PrivateMediaAccess::redirect()` existe pour éviter (déduit ; à vérifier : l'en-tête `Authorization` est-il retiré par undici sur une redirection vers une autre origine ?).
   - **Le relais d'export RGPD charge l'archive entière en mémoire** (`upstream.arrayBuffer()`, l. 23) avant de la rendre, au lieu d'en relayer le flux (lu). Taille des archives réelles non mesurée.
 - Piste : retirer la route sans appelant (ou la faire servir par le front, s'il doit l'appeler) ; poser `redirect: 'manual'` dans `relayerVersApi` et rendre la redirection telle quelle au navigateur ; relayer `upstream.body` en flux. Garde : un test vitest du relais qui exige qu'une réponse 302 de l'API soit rendue en 302.
+- Mesure (2026-10-22, a49b315a0, mesureur) : `routes/api/documents.php:23` porte toujours `document-versions.download` ; `grep -rn "versions" takussan-web/src | grep -i download` → rien, les seuls appelants sont deux tests de l'API (`DocumentPieceAccessTest.php:80`, `PrivateMediaAccessTest.php:161`), qui l'emploient pour éprouver le contrôle d'accès ; `relais-api.ts:65` et `data-exports/[id]/download/route.ts:16` appellent `fetch` sans `redirect:` ; `route.ts:23` lit `upstream.arrayBuffer()` ; `grep -rn redirect` dans les relais → rien → les trois points tiennent ; la question d'undici sur `Authorization` après une redirection d'origine croisée n'a pas été mesurée. Classement : V7, la piste laisse deux voies pour la route (retrait, ou branchement au front), et rendre une 302 au navigateur au lieu de la suivre change la forme des réponses des relais ; seul le passage de l'export en flux (A2) serait autonome seul.
