@@ -10976,7 +10976,7 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
 
 ### Un export RGPD en échec bloque une nouvelle demande pendant 24 h
 - Réf : P111.02
-- Statut : validé — porteur (2026-10-22) : ne compter dans la limite de 24 h que les demandes `queued`, `processing` et `ready`, et l'écrire dans `features.md:475`
+- Statut : fait · TCK-1503 — reste : écrire la règle dans `docs/features.md:475`, fichier fermé à l'implémenteur (au `/sync-specs` qui suit la fusion)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/DataExportController.php:29-50`, `docs/features.md:475`
 - Constat :
@@ -10987,6 +10987,7 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
 - Piste : ne compter que les demandes `queued`, `processing` ou `ready` dans la limite, ou laisser la règle et l'écrire dans la spec. C'est un choix de produit.
 - Mesure (2026-10-22, f396fa470, mesureur) : relu `DataExportController::store()` (filtre `requested_at > now()->subDay()`, aucun filtre sur `status`) et `features.md:475` (« une demande par 24 h ») ; test temporaire (retiré) → export du titulaire `failed` il y a une heure, `POST /api/me/data-exports` rend `429 data_export_throttled`. Classement : V7, la `Piste` laisse deux options (filtrer par statut, ou écrire la règle dans la spec), et la spec ne dit pas laquelle.
 - Mesure (2026-10-22, 3ecddb6ad, delegue) : relu `DataExportController::store()` (l. 29-34, filtre sur `requested_at` seul), `docs/features.md:475` (« une demande par 24 h ») et ADR-0044 (une demande d'export crée une entrée `portability` au registre des droits, l. 140). Recommandation : ne compter dans la limite que les demandes `queued`, `processing` et `ready`, et l'écrire dans `features.md:475`, parce qu'une demande échouée n'a rien rendu et que la limite borne la charge, pas l'exercice du droit d'accès ; à ne pas valider par délégation : la règle touche l'exercice d'un droit RGPD et le registre d'ADR-0044, où chaque nouvel essai ouvrira une entrée `portability` de plus (V3, que le mesureur n'avait pas cité) ; manque : le choix du porteur, et ce que devient au registre l'entrée d'une demande échouée.
+- Mesure (2026-10-22, 2e04f2136, implementeur) : test neuf de `DataExportTest`, une demande du titulaire d'il y a une heure par statut, rouge avant correctif (`429` au lieu de `202` sur `failed`) → filtre `whereIn('status', [queued, processing, ready])` dans `DataExportController::store()` ; vert (`202` pour `failed` et `expired`, `429` pour les trois autres) ; ablation du filtre → rouge, remise → vert ; `DataExportTest` 9/9, `PrivacyRequestRegistryTest` 7/7, `DataExportReadyNotificationTest` 11/11. `expired` ne compte pas, la décision ne nommant que trois statuts.
 
 ### Quand le courriel « prête » échoue, le job d'export reconstruit tout à chaque essai, et le rapport `ready` repasse à `failed`
 - Réf : P111.03
