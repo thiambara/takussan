@@ -3,7 +3,7 @@ id: TCK-1340
 title: "Garde : aucune règle exists neuve sur une table à suppression douce sans écarter les lignes supprimées"
 status: done
 phase: P2
-family: chore
+family: technique
 estimate: S
 wave: null
 created: 2026-10-22
