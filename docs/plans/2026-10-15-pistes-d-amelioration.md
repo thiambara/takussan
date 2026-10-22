@@ -13319,7 +13319,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
 
 ### `/app/settings/agency/upgrade` lit deux fois les demandes de passage au plan supérieur
 - Réf : P138.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-1380
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(dashboard)/app/layout.tsx:40`, `takussan-web/src/app/(dashboard)/app/settings/agency/upgrade/page.tsx:42-45`, `takussan-web/src/lib/queries/agency-upgrade.ts:50-58`
 - Constat :
@@ -13327,6 +13327,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : journal de l'API factice.
 - Piste : une lecture mémoïsée par rendu (`cache()`) partagée par le layout et la page, en gardant l'avalement d'erreur du layout (`.catch(() => null)`) hors de la promesse partagée.
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/app/(dashboard)/app/layout.tsx:39` (`fetchAgencyUpgradeRequests(token, user.agency_id).catch(() => null)`), `settings/agency/upgrade/page.tsx:42-45` (même appel, mêmes arguments) et `src/lib/queries/agency-upgrade.ts:48-58` (`apiRequest` direct, aucun `cache` dans le module, `grep`) ; P138.01 exclut toute fusion par Next. Le constat tient. Classement : A2, une lecture mémoïsée par rendu partagée par le layout et la page, l'avalement d'erreur restant du côté du layout, sans changement de résultat.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : `src/lib/queries/__tests__/agency-upgrade.lecture-du-rendu.tck-1380.test.ts` avant correctif → deux `fetchAgencyUpgradeRequests('jeton', 1)` d'un même rendu font deux `apiRequest` (rouge : `called 2 times`) → la fonction passe sous `cache()`, l'avalement du layout restant hors de la promesse (la page reçoit toujours l'erreur) ; ablation (`cache` remplacé par l'identité) → 1 rouge, remis → 2 verts.
 
 ### Le tableau de bord agent d'un admin relit ses capacités sans indice de profil, hors de la lecture mémoïsée du layout
 - Réf : P138.07
