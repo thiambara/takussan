@@ -29,7 +29,7 @@ les `unread_count` de ces 30.
 
 ## Décision du porteur
 
-> défilement infini de la liste (`useInfiniteQuery`, comme `ChatView`) et total des non-lus calculé par l'API (`meta.unread_total`), avec P136.01
+> porteur (2026-10-22) : défilement infini de la liste (`useInfiniteQuery`, comme `ChatView`) et total des non-lus calculé par l'API (`meta.unread_total`), avec P136.01
 
 ## Objectif utilisateur
 
