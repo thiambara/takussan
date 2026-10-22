@@ -1,7 +1,7 @@
 ---
 id: TCK-1231
 title: "L'accueil ne redemande pas `discovery` quand la ville devinée est celle que le serveur a déjà servie"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -37,15 +37,15 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] `useHomepageDiscovery` : au premier passage avec des rangées semées, pas de relance si la
+- [x] `useHomepageDiscovery` : au premier passage avec des rangées semées, pas de relance si la
       ville devinée, repliée par `toLocaleLowerCase()`, vaut `donneesInitiales.near.city` repliée.
-- [ ] Test vitest : rangées semées pour `Dakar`, ville devinée `dakar` → aucun `fetch` ; ville
+- [x] Test vitest : rangées semées pour `Dakar`, ville devinée `dakar` → aucun `fetch` ; ville
       devinée `Thiès` → une relance.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Ville devinée égale, sans casse, à la ville semée : aucun appel.
-- [ ] AC2 — Ville devinée différente : une relance, comme avant.
+- [x] AC1 — Ville devinée égale, sans casse, à la ville semée : aucun appel.
+- [x] AC2 — Ville devinée différente : une relance, comme avant.
 
 ## Hors périmètre
 
@@ -53,4 +53,7 @@ Aucun.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- La ville semée est lue dans un `useRef`, comme la consommation des rangées semées : elle ne vaut
+  que pour le premier passage de l'effet.
+- Ablation : `useHomepageDiscovery.ts` rendu à `HEAD` → 1 rouge (une relance pour `dakar`) ;
+  correctif remis → 2/2 verts, 29/29 avec les tests du crochet et de `HomepageDiscovery`.
