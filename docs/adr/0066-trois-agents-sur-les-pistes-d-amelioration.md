@@ -761,6 +761,31 @@ Le banc a trouvé deux défauts, corrigés avant la PR :
 - Une PR qui touche le fichier d'un test commun le garde pour elle, même quand elle ne l'a pas
   cassé.
 
+## Amendement du 2026-10-22 (bis) — le superviseur ferme ses propres PR devenues redondantes
+
+**Constat**, le 2026-10-22 :
+- À 12:02 UTC, le superviseur ouvre #1097 pour réparer deux tests d'invitation rouges sur `pre-dev`.
+- Le même correctif, aa10613e0, était déjà commité à 11:57 et entre sur `pre-dev` à 12:40 par #1077.
+- #1097 devient redondante et en conflit. Le fusionneur la refuse ensuite à chaque tour, de 14:20 à
+  21:55 (« conflit de fusion »).
+- Le superviseur la voit redondante dès 14:06 et le redit à chaque passage. Mais aucun de ses verbes
+  ne ferme une PR, et la garde refuse `gh pr close` à tous les rôles.
+- Le porteur la remarque onze heures plus tard et la fait fermer.
+
+**Décision du porteur** (1a) : un verbe de plus, `pistes.sh action fermer <num> "<raison>"`. Il ferme
+la PR, supprime sa branche, laisse la raison en commentaire, journalise et prévient le porteur. Les
+bornes sont vérifiées par l'outil installé :
+- la PR est **ouverte**, vise `pre-dev`, et sa tête est une branche **`agents/superviseur/*`**. Le
+  superviseur ne ferme que ses propres PR, jamais celles d'un autre rôle ni du porteur ;
+- la raison compte 10 caractères au moins et dit pourquoi la PR n'a plus d'objet, par exemple le
+  commit de `pre-dev` qui porte déjà le correctif.
+
+La garde continue de refuser `gh pr close` en direct, et indique le verbe au superviseur.
+
+**Ce qui change dans le risque** : fermer est réversible, car une PR fermée se rouvre et sa branche
+se restaure depuis la PR. Le verbe ne touche ni le code de `pre-dev` ni le travail d'un autre rôle.
+Le porteur reste prévenu par une notification.
+
 ## Conséquences
 
 - **Ce que ça rend possible** :

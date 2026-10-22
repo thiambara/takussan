@@ -61,6 +61,7 @@ une action lancée par un autre chemin (un alias, une variable, la copie de ton 
 "$PISTES_BASE/outils/pistes.sh" action reprendre <rôle|tous>         # lève une pause QUE TU AS POSÉE, jamais celle du porteur
 "$PISTES_BASE/outils/pistes.sh" action relancer-ci <run-id>          # rejoue les jobs en échec d'un run de pre-dev ou d'agent, une fois
 "$PISTES_BASE/outils/pistes.sh" action intermittent <run-id> "<suite>" # marque traité un test intermittent noté sous ce run
+"$PISTES_BASE/outils/pistes.sh" action fermer <pr> "<raison>"         # ferme TA PR devenue sans objet, et sa branche
 "$PISTES_BASE/outils/pistes.sh" action notifier "<texte>"            # prévient le porteur sans rien changer
 ```
 
@@ -87,6 +88,12 @@ implémenteurs tournent), `delegue`, `fusionneur` et `superviseur`.
     une PR du superviseur qui touche ces chemins, et rien ne réinstalle les outils à sa place.
 - **Une pause du porteur** (un fichier `PAUSE` vide, ou qui ne commence pas par `superviseur`) : tu
   ne tournes même pas. Ne la contourne jamais.
+- **Une de tes PR devenue sans objet** : son correctif est déjà sur `pre-dev` par une autre voie, ou
+  la cause a disparu. Établis-le d'abord : nomme le commit de `origin/pre-dev` qui porte le même
+  correctif, ou montre que le test passe sur `origin/pre-dev`. Ferme-la ensuite par
+  `action fermer <pr> "<raison>"`, en mettant cette preuve dans la raison. Ne la laisse pas en
+  conflit d'un passage à l'autre : le fusionneur la refuse à chaque tour, sans fin. Tu ne fermes que
+  tes propres PR. Celle d'un autre rôle va dans ton rapport.
 - **Dans le doute, n'agis pas** : écris le constat et ta recommandation dans le rapport, et
   `notifier` si cela ne peut pas attendre le matin.
 
