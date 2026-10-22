@@ -1,7 +1,7 @@
 ---
 id: TCK-1227
 title: "Le bandeau de maintenance relit son statut toutes les 5 minutes pour un visiteur sans session"
-status: todo
+status: done
 phase: P3
 family: technique
 estimate: S
@@ -48,14 +48,14 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] `refetchInterval` : 60 s avec une session, 5 min sans ; `refetchOnWindowFocus` inchangé.
-- [ ] Test vitest à minuterie simulée : sans session, aucune relecture à 61 s, une à 5 min ; avec
+- [x] `refetchInterval` : 60 s avec une session, 5 min sans ; `refetchOnWindowFocus` inchangé.
+- [x] Test vitest à minuterie simulée : sans session, aucune relecture à 61 s, une à 5 min ; avec
       session, une à 61 s.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Sans session, le statut n'est pas relu avant 5 minutes.
-- [ ] AC2 — Avec session, il l'est toutes les 60 s.
+- [x] AC1 — Sans session, le statut n'est pas relu avant 5 minutes.
+- [x] AC2 — Avec session, il l'est toutes les 60 s.
 
 ## Hors périmètre
 
@@ -63,4 +63,7 @@ Aucun.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Test à minuterie simulée (`setTimeout`/`setInterval` seulement) et `useAuth` remplacé : le
+  bandeau ne lit que `user`.
+- Ablation : `MaintenanceBanner.tsx` rendu à l'état de TCK-1221 → 1 rouge (relecture à 61 s sans
+  session) ; correctif remis → 2/2 verts, 30/30 sur les tests du bandeau et de la maintenance.
