@@ -12985,7 +12985,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### Les capacités du profil actif, lues par le layout serveur pour un administrateur d'agence, sont relues par le navigateur avant que les gestes de l'écran s'affichent
 - Réf : P136.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1278
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/layout.tsx:72`, `takussan-web/src/lib/access/pages-admin-server.ts:41-56`, `takussan-web/src/lib/access/pages-admin-server.ts:64-98`, `takussan-web/src/hooks/useCan.ts:36`, `takussan-web/src/hooks/useCan.ts:46-60`, `takussan-web/src/components/payments/PaymentsTabs.tsx:53-59`, `takussan-web/src/components/payments/PaymentsTabs.tsx:89-99`, `takussan-web/src/components/admin/TeamConsole.tsx:112`, `takussan-web/src/components/admin/TeamConsole.tsx:191-210`
 - Constat :
@@ -12996,6 +12996,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Pour un agent ou un bailleur, le layout ne lit pas les capacités (lu, `pages-admin-server.ts:71`) : la lecture du navigateur est alors la seule.
 - Piste : passer au client les capacités que le rendu serveur a déjà lues (amorcer la clé `['me','capabilities','active']` par `initialData` ou une hydratation du cache, depuis la même lecture `cache()`ée), pour que les gestes s'affichent au premier rendu. Garde : un test vitest de `PaymentsTabs` sous un cache amorcé, qui exige les boutons sans squelette et aucun appel à `/api/me/capabilities`.
 - Mesure (2026-10-22, 20d495dfd, mesureur) : relu `layout.tsx:72` (`accesAdmin(user)` à chaque rendu), `pages-admin-server.ts:41-98` (`capacitesDuRendu` `cache()`ée, ne rend que `capabilities` et jette `agency_id` ; besoins `TOUT` ; aucune lecture pour un non-admin ni un super-admin), `useCan.ts:36,46-60` (clé `['me','capabilities', agencyId ?? 'active']`, `useApiQuery` direct sans `initialData`) ; aucun commit ni ticket n'amorce ce cache (`grep -rln me/capabilities docs/backlog/tickets` → TCK-278, TCK-279, TCK-649, sans hydratation). Le constat tient ; « deux formes de clé montées ensemble » reste non vérifié et n'entre pas dans le correctif. Classement : A2, amorcer la seule clé `['me','capabilities','active']` depuis la lecture serveur déjà faite (avec son `agency_id`), pour un `agency_admin`, rend les mêmes capacités plus tôt, sans choix de produit ; l'API reste seule juge de l'autorisation, aucun critère V n'est touché.
+- Mesure (2026-10-22, 4e69ef6bd, implementeur) : test neuf `PaymentsTabs.capacites-amorcees.tck-1278.test.tsx` (vrais `useCan` et `useApiQuery`, `apiRequest` espionné) et cas neufs du layout et de `pages-admin-server` → rouges sur l'arbre d'origine (aucune amorce : squelette et un `GET /api/me/capabilities`) → lecture du rendu gardée entière avec son heure, `capacitesAmorcees` pour un `agency_admin`, `HydrationBoundary` sur la seule clé `['me','capabilities','active']` autour de la coque ; ablation (amorce inerte, puis layout et lecture serveur à `HEAD`) → rouges, correctif remis → 22/22 verts.
 
 ### Chaque assistant de bienvenue relit `/api/me/welcome-seen` par son propre `fetch`, et celui de l'agence relit en entier une agence que le layout vient de lire
 - Réf : P136.03
