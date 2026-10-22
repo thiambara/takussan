@@ -7962,7 +7962,7 @@ l'angle 111.*
 
 ### L'export d'audit d'une agence fait deux requêtes par ligne : au-delà de 5 000 lignes, le job dépasse les 60 s du worker
 - Réf : P78.01
-- Statut : fait · TCK-1414 — reste : le XLSX de plus de ~25 000 lignes dépasse encore les 85 s du job (64 s mesurées à 20 000 lignes), ce que traite P78.03
+- Statut : fait · TCK-1414
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:42-49,135-155`, `takussan-api/app/Models/Concerns/HasProfiles.php:238-275,317-321`, `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:23-64`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:44-54`, `deploy/takussan/compose.api.yml:125`
 - Constat :
