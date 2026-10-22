@@ -159,6 +159,8 @@ class MigratedAuthorizationRulesTest extends TestCase
         $createur = $this->quidam();
         $clientUser = $this->quidam();
         $proprietaire = $this->quidam();
+        // TCK-1707 (P153.02) — le propriétaire d'un bien d'agence y a un profil de bailleur.
+        $this->materializeRoleProfile($proprietaire, 'owner', $this->agency);
         $customer = Customer::factory()->create([
             'user_id' => $clientUser->id,
             'agency_id' => $this->agency->id,

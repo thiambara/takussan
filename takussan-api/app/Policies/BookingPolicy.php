@@ -4,6 +4,8 @@ namespace App\Policies;
 
 use App\Models\Booking;
 use App\Models\Enums\Capability;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\Property;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 
@@ -33,7 +35,7 @@ class BookingPolicy extends BasePolicy
 
         return $user->isSuperAdmin()
             || $model->created_by_id === $user->id
-            || ($property && $property->user_id === $user->id)
+            || $this->ownerOfProperty($user, $property)
             || $this->isStaffOf($user, $model->agency_id)
             || ($model->customer && $model->customer->user_id === $user->id);
     }
@@ -48,7 +50,7 @@ class BookingPolicy extends BasePolicy
         $property = $model->property;
 
         return $user->isSuperAdmin()
-            || ($property && $property->user_id === $user->id)
+            || $this->ownerOfProperty($user, $property)
             || $this->isStaffOf($user, $model->agency_id);
     }
 
@@ -93,7 +95,22 @@ class BookingPolicy extends BasePolicy
     {
         $property = $booking->property;
 
-        return $property !== null
+        return $this->ownerOfProperty($user, $property)
             && $this->landlordWrites($user, $property->user_id, $booking->agency_id ?? $property->agency_id);
+    }
+
+    /**
+     * TCK-1707 (P153.02) — `property.user_id` est le CRÉATEUR du bien : sur un bien d'agence, souvent
+     * l'agent qui l'a saisi (vérification adverse M7, `PrimaryPropertyContact::estProprietaire`). Il ne
+     * vaut propriétaire que si le bien n'a pas d'agence, ou s'il détient un profil de bailleur dans
+     * l'agence du bien, DE TOUT STATUT : le bailleur suspendu reste partie et garde la lecture
+     * (ADR-0031 §2) ; ses gestes, `landlordWrites` les lui refuse. L'agent retiré, qui n'a plus aucun
+     * profil, n'y entre plus.
+     */
+    private function ownerOfProperty(User $user, ?Property $property): bool
+    {
+        return $property !== null
+            && (int) $property->user_id === (int) $user->id
+            && ($property->agency_id === null || $user->hasProfileAt((int) $property->agency_id, OwnerProfile::class));
     }
 }
