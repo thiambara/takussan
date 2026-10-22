@@ -2,6 +2,7 @@
 
 namespace App\Services\Notifications;
 
+use App\Domain\Integrations\Providers\IntegrationProviderRegistry;
 use App\Domain\Notifications\NotificationCode;
 use App\Models\Enums\Currency;
 use App\Services\Admin\NotificationTemplateService;
@@ -92,6 +93,7 @@ class NotificationRenderer
                 NotificationCode::PARAM_URL => is_string($value) && $value !== '' ? $value : '—',
                 NotificationCode::PARAM_REASON_CODE => $this->reasonCode($value, $params['reason'] ?? null, $locale, $textMax),
                 NotificationCode::PARAM_ROLE => $this->role($value, $locale, $textMax),
+                NotificationCode::PARAM_PROVIDER => $this->provider($value, $textMax),
                 default => is_scalar($value) && (string) $value !== '' ? $this->text((string) $value, $textMax) : '—',
             };
         }
@@ -171,6 +173,16 @@ class NotificationRenderer
         $key = 'invitations.roles.'.$code;
 
         return $this->text(trans()->has($key, $locale) ? __($key, [], $locale) : $code, $max);
+    }
+
+    /** P164.01 (TCK-1468) — le libellé du fournisseur d'intégration, jamais son code. */
+    private function provider(mixed $code, ?int $max): string
+    {
+        if (! is_string($code) || $code === '') {
+            return '—';
+        }
+
+        return $this->text(app(IntegrationProviderRegistry::class)->get($code)->label(), $max);
     }
 
     private function text(string $value, ?int $max): string

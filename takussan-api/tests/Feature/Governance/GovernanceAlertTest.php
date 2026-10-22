@@ -134,7 +134,9 @@ class GovernanceAlertTest extends ApiTestCase
         $this->assertSame(0, $this->recus(NotificationCode::GovernanceIntegrationChanged)[$this->auteur->id]);
         $this->assertSame(0, $this->recus(NotificationCode::GovernanceIntegrationChanged)[$this->ailleurs->id]);
         foreach (AppNotification::query()->where('user_id', $this->collegue->id)->get() as $notification) {
-            $this->assertStringContainsString('wave', $notification->body);
+            // P164.01 (TCK-1468) — le code est rangé, le libellé est rendu.
+            $this->assertSame('wave', $notification->params['provider']);
+            $this->assertStringContainsString('Wave', $notification->body);
         }
     }
 
@@ -148,7 +150,7 @@ class GovernanceAlertTest extends ApiTestCase
         $this->postJson("/api/integrations/{$integration->id}/webhook-endpoint")->assertOk();
 
         $this->seulLeCollegue(NotificationCode::GovernanceIntegrationChanged);
-        $this->assertStringContainsString('wave', AppNotification::query()->where('user_id', $this->collegue->id)->sole()->body);
+        $this->assertStringContainsString('Wave', AppNotification::query()->where('user_id', $this->collegue->id)->sole()->body);
     }
 
     /** Une écriture sans auteur (seeder, commande) n'est pas un acte de membre : aucune alerte. */

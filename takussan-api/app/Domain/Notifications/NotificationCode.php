@@ -2,6 +2,7 @@
 
 namespace App\Domain\Notifications;
 
+use App\Domain\Integrations\Providers\IntegrationProvider;
 use App\Models\Enums\NotificationType;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\NotificationRenderer;
@@ -217,6 +218,12 @@ enum NotificationCode: string
      */
     public const PARAM_ROLE = 'role';
 
+    /**
+     * P164.01 (TCK-1468) — un fournisseur d'intégration CODÉ (`orange_money`, `wave`…), rendu par
+     * son libellé ({@see IntegrationProvider::label()}) ; le code reste rangé tel quel.
+     */
+    public const PARAM_PROVIDER = 'provider';
+
     public function type(): NotificationType
     {
         return match ($this) {
@@ -361,7 +368,7 @@ enum NotificationCode: string
             self::GovernanceRoleCapabilitiesChanged => ['role' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
             self::GovernanceAdminAdded => ['member' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
             self::GovernanceDataExported, self::GovernanceApprovalThresholdChanged => ['actor' => self::PARAM_TEXT],
-            self::GovernanceIntegrationChanged => ['provider' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
+            self::GovernanceIntegrationChanged => ['provider' => self::PARAM_PROVIDER, 'actor' => self::PARAM_TEXT],
             self::RoleDelegationActivated => ['role' => self::PARAM_ROLE, 'ends_at' => self::PARAM_DATE],
             self::RoleDelegationExpired, self::RoleDelegationRevoked => ['role' => self::PARAM_ROLE],
             self::RoleDelegationActivatedDelegator, self::RoleDelegationExpiredDelegator,
