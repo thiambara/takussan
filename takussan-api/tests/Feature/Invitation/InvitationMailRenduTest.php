@@ -58,7 +58,9 @@ class InvitationMailRenduTest extends TestCase
 
     public function test_le_rappel_part_et_se_marque(): void
     {
-        $invitation = Invitation::factory()->create(['created_at' => now()->subDays(4)]);
+        $invitation = Invitation::factory()->create();
+        // P132.02 (TCK-1252) — le délai du rappel part de `expires_at` − TTL, plus de `created_at`.
+        $this->travel(InvitationService::REMINDER_OFFSET_DAYS + 1)->days();
 
         app(InvitationService::class)->remindPending();
 

@@ -70,7 +70,9 @@ class InvitationTachesEnPanneTest extends TestCase
 
     public function test_les_rappels_continuent_apres_un_envoi_qui_echoue(): void
     {
-        $dues = Invitation::factory()->count(3)->create(['created_at' => now()->subDays(4)]);
+        $dues = Invitation::factory()->count(3)->create();
+        // P132.02 (TCK-1252) — le délai du rappel part de `expires_at` − TTL, plus de `created_at`.
+        $this->travel(InvitationService::REMINDER_OFFSET_DAYS + 1)->days();
 
         $traitees = app(InvitationService::class)->remindPending();
 
