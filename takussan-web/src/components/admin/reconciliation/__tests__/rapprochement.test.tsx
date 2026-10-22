@@ -164,6 +164,7 @@ function ligne(surcharge: Partial<BankStatementLine>): BankStatementLine {
     match_status: 'suggested',
     matched_payment_type: 'lease_payment',
     matched_payment_id: 12,
+    matched_payment_status: 'pending',
     match_confidence: 0.92,
     ...surcharge,
   };
@@ -199,6 +200,24 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
     expect(within(suggeree).getByText('Loyer n° 12')).toBeInTheDocument();
     expect(texte(within(suggeree).getByText(/Confiance/).textContent)).toBe('Confiance : 92 %');
     expect(within(screen.getByTestId('ligne-101')).getByText(fr.admin.reconciliation.directions.debit)).toBeInTheDocument();
+  });
+
+  // TCK-1522 (P110.02) — un encaissement rapproché puis remboursé garde sa ligne : la ligne le dit.
+  it('montre le statut du payable rapproché, remboursé compris', () => {
+    q.useBankStatementLines.mockReturnValue(
+      ok({
+        data: [
+          ligne({ id: 102, match_status: 'confirmed', match_confidence: null, matched_payment_type: 'booking_payment', matched_payment_status: 'refunded' }),
+          ligne({ id: 103, match_status: 'confirmed', match_confidence: null, matched_payment_type: 'invoice', matched_payment_status: 'paid' }),
+          ligne({ id: 104, match_status: 'unmatched', matched_payment_type: null, matched_payment_id: null, matched_payment_status: null }),
+        ],
+        meta: { current_page: 1, last_page: 1, per_page: 50, total: 3 },
+      }),
+    );
+    render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+    expect(within(screen.getByTestId('ligne-102')).getByTestId('statut-payable-102')).toHaveTextContent(fr.payments.status.refunded);
+    expect(within(screen.getByTestId('ligne-103')).getByTestId('statut-payable-103')).toHaveTextContent(fr.payments.invoiceStatus.paid);
+    expect(within(screen.getByTestId('ligne-104')).queryByTestId('statut-payable-104')).toBeNull();
   });
 
   it('valide la suggestion d’un geste', async () => {

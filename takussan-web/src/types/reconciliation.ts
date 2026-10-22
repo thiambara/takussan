@@ -63,6 +63,11 @@ export interface BankStatementLine {
   match_status: BankLineMatchStatus | null;
   matched_payment_type: MatchedPaymentType | null;
   matched_payment_id: number | null;
+  /**
+   * TCK-1522 (P110.02) — le statut du payable rapproché ou proposé, relu à chaque lecture (un
+   * encaissement remboursé après rapprochement le dit). Valeur de l'enum de statut de son type.
+   */
+  matched_payment_status?: string | null;
   /** 0–1 (ou 0–100 selon l'API) — normalisé à l'affichage. */
   match_confidence: number | string | null;
 }
