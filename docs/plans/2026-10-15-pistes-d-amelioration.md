@@ -12626,7 +12626,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### L'annulation ou l'échec d'un paiement Wave ou Orange Money ramène sur « Lien de retour incorrect »
 - Réf : P131.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1291
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/payments/PaymentProviderPicker.tsx:108-114`, `takussan-web/src/hooks/useInitiatePayment.ts:76-80`, `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:79-80`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:73-74`, `takussan-web/src/app/(dashboard)/app/payments/return/PaymentReturnClient.tsx:44-47,90-102`
 - Constat :
@@ -12637,6 +12637,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu. Le parcours au navigateur chez un fournisseur réel n'a pas été joué.
 - Piste : envoyer depuis `PaymentProviderPicker` un `cancelUrl` qui porte les mêmes `payment_type` et `payment_id` avec `status=failed`. Garde : un test de `PaymentProviderPicker` qui attend `cancel_url` dans le corps de l'appel, et un cas de `PaymentReturnClient` sur `?status=failed&payment_type=…&payment_id=…`.
 - Mesure (2026-10-22, 1a9420e6e, mesureur) : relu `PaymentProviderPicker.tsx` (`handleConfirm` n'envoie que `returnUrl`, porteur de `payment_type` et `payment_id`), `grep -rn "cancelUrl\|cancel_url" takussan-web/src` hors tests → le seul type et le corps de `useInitiatePayment.ts:24,79`, `PaymentGatewayController::initiate` (`cancel_url` nul transmis, l. 39), `WaveDriver.php:80` et `OrangeMoneyDriver.php:74` (repli `…/app/payments/return?status=failed`) ; test temporaire (retiré) montant `PaymentReturnClient` sur `?status=failed` seul → texte rendu « Paramètres invalides / Lien de retour incorrect. / Retour aux paiements », sans « Paiement échoué ». Le constat tient tel qu'écrit, lignes inchangées ; le parcours chez un fournisseur réel n'est pas joué. Classement : A1, le contrat est écrit par la page de retour (qui exige `payment_type` et `payment_id` et sait rendre `status=failed`) et par le lien public qui fournit déjà ses deux adresses ; le correctif ne touche ni montant ni écriture de paiement, seulement l'adresse de retour en échec.
+- Mesure (2026-10-22, f41a867fe, implementeur) : relu `PaymentProviderPicker.tsx:108-114` (seul `returnUrl` envoyé) et `InitiatePaymentRequest` (`cancel_url` : `nullable`, `url`) ; test neuf du sélecteur (`PaymentProviderPicker.test.tsx`, « adresses de retour ») → rouge avant correctif, `cancelUrl` absent de l'appel ; test neuf de la page de retour (`PaymentReturnClient.echec.test.tsx`) sur `?status=failed&payment_type=lease-payments&payment_id=12`, échéance encore `pending` → « Paiement échoué » (vert sans correctif : la destination tenait, l'adresse manquait). Correctif : `cancelUrl` à `status=failed` avec la même référence → 3/3 verts ; ablation (`PaymentProviderPicker.tsx` rendu à `HEAD`) → 1 rouge, remis → 3 verts. Parcours chez un fournisseur réel non joué.
 
 ### La tuile « Vendus / loués » ouvre les seuls vendus, et les tuiles jettent le filtre « mes biens »
 - Réf : P131.02
