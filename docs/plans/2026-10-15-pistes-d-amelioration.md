@@ -12587,7 +12587,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Les interventions ouvertes d'un bien supprimé disparaissent pour l'agence, et restent ouvertes pour le locataire
 - Réf : P130.03
-- Statut : validé — porteur (2026-10-22) : annuler les interventions non terminées à la suppression du bien (observateur `deleted`, motif tracé)
+- Statut : fait · TCK-1330
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:33-43`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:292-300`, `takussan-api/app/Models/MaintenanceRequest.php:129-135`
 - Constat :
@@ -12597,6 +12597,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu et mesuré.
 - Piste : la garde de P130.02 ferme le cas d'un bien loué ; pour le reste, annuler les interventions non terminées à la suppression du bien (observateur `deleted`, motif tracé), ou lire le bien `withTrashed()` dans `isPrincipalFor` et `scopeVisibleTo`. Test : bien supprimé avec une intervention ouverte → l'équipe la voit close ou annulée, jamais orpheline.
 - Mesure (2026-10-22, d94868488, mesureur) : relu `MaintenanceRequestPolicy::view` et `update` (équipe seulement par `isPrincipalFor` / `principalWrites` sur `$model->property`), `isPrincipalFor` (`false` sur un bien `null`), `MaintenanceRequest::scopeVisibleTo` (`whereHas('property', …)`), inchangés ; test temporaire (retiré) : intervention `open` d'un bien supprimé, en admin d'agence `GET /api/maintenance-requests/{id}` → 403 (témoin 200), liste → 0 (témoin 1), `PATCH` → 403 ; en locataire demandeur → 200, statut `open`. Le constat tient, y compris le `update` refusé qu'il laissait « à vérifier ». Classement : V2 et V7, la piste propose deux options sans trancher, l'une élargit une règle d'autorisation, l'autre annule des demandes avec un motif neuf.
+- Mesure (2026-10-22, 4382e9f60, implementeur) : `MaintenanceDUnBienSupprimeTest` (neuf) : bien supprimé portant des interventions `open`, `in_progress`, `completed` et `closed` → avant correctif, `open` reste `open` (rouge à la première assertion) ; `PropertyObserver::deleted` annule par `MaintenanceRequestService::transition()` celles que la machine d'état laisse aller à `cancelled` et trace `maintenance.cancelled_property_deleted` (motif `property_deleted`, id du bien) → `open` et `in_progress` annulées, `completed`, `closed` et l'intervention d'un autre bien intactes, le locataire lit `cancelled` ; ablation (appel commenté) → rouge, remis → vert. `PropertyObserverTest`, `PdfDUnBienSupprimeTest`, `MaintenanceNotificationsTest`, `MaintenanceStatusChangedEventTest`, `PropertyBulkArchiveTest`, `PropertyModerationGateTest` verts.
 
 ### Réservations confirmées et visites programmées d'un bien supprimé gardent leur statut
 - Réf : P130.04
