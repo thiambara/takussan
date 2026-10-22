@@ -15,7 +15,7 @@ spec_refs:
     - "docs/features.md#25-reporting--tableaux-de-bord"
     - "docs/features.md#16-crm--relation-client"
   pistes:
-    - "docs/plans/2026-10-15-pistes-d-amelioration.md#angle-134--ordre-des-listes-écrites-à-la-main"
+    - "docs/plans/2026-10-15-pistes-d-amelioration.md#angle-134--tris-sur-une-colonne-denum-rangée-en-chaîne"
 tags: [api, dashboard, taches, tri, pistes]
 ---
 
