@@ -12506,7 +12506,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Une invitation ouverte d'une agence supprimée est encore relancée et s'accepte
 - Réf : P129.03
-- Statut : validé — porteur (2026-10-22) : révoquer les invitations `sent` de l'agence à sa suppression et refuser l'acceptation d'une invitation dont l'agence n'existe plus (410)
+- Statut : fait · TCK-1339
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:522-545,553-575`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:156`
 - Constat :
@@ -12517,6 +12517,7 @@ l'angle 160 : il n'est pas repris ici.*
 - Piste : révoquer les invitations `sent` de l'agence à sa suppression, et refuser l'acceptation (410) d'une invitation dont l'agence n'existe plus. Test : invitation ouverte, suppression, acceptation → 410, et `invitations:remind` ne l'envoie pas.
 - Mesure (2026-10-22, 487aba964, mesureur) : relu `InvitationService::remindPending` (statut, `created_at`, `expires_at`, `last_reminded_at` seuls) et `lookupActiveInvitation` (jeton, statut, échéance) ; test temporaire (retiré) par le vrai parcours d'invitation d'un prestataire (`POST /api/agencies/{id}/service-providers/invite` → 201), puis suppression : `invitations:remind` → `last_reminded_at` posé, `POST /api/invitations/{token}/accept` → 200, `status = accepted`, et la collaboration `service_provider_agency_collaborations` de l'agence supprimée passe à `active`. Le constat tient, et la question laissée ouverte est tranchée pour le prestataire : l'acceptation active un lien vers l'agence supprimée. Classement : V7, le code d'erreur (410) et la révocation à la suppression sont des comportements neufs qui suivent la décision de P129.01.
 - Mesure (2026-10-22, 788016695, delegue) : relu l'entrée, la ligne `Mesure` du mesureur et P129.01 (🔴, `retenu · à valider — V6 … V2`, sans décision du porteur) ; `grep -n "porteur ("` de l'angle 129 → aucune décision ; `grep -i "agence supprim"` dans `docs/features.md` et les ADR → rien. Recommandation : révoquer les invitations `sent` de l'agence à sa suppression et refuser l'acceptation d'une invitation dont l'agence n'existe plus (410), quel que soit le sens retenu pour P129.01 — une agence supprimée ne doit pas pouvoir activer un lien neuf (mesuré : la collaboration de prestataire passe à `active`) ; ce n'est pas délégué parce que le code d'erreur et le texte vus par l'invité sont un comportement neuf, et que P129.01, dont il dépend, porte V2 et V6, réservés au porteur ; il manque la décision de P129.01.
+- Mesure (2026-10-22, 89453739b, implementeur) : relu `AgencyController::destroy()` (suppression seule) et `lookupActiveInvitation()` (jeton, statut, échéance) ; le test neuf `InvitationAgenceSupprimeeTest` : `DELETE /api/agencies/{id}` puis acceptation → invitation `sent` et 200 (2 rouges) → `revokeOpenForAgency()` dans la transaction de la suppression et 410 `invitation.token_revoked` (code existant) quand l'agence n'existe plus ; `remindPending()` à J+4 ne la relance pas, aucun compte créé, 2/2 ; ablation → 2 rouges, remis → vert.
 
 ### Les biens d'une agence supprimée restent dans l'index de recherche et dans le cache des pages publiques
 - Réf : P129.04
