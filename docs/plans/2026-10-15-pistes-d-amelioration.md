@@ -10905,7 +10905,7 @@ déjà relevée).*
 
 ### Un encaissement rapproché puis remboursé garde son rapprochement, et ni la ligne ni le payable ne le disent
 - Réf : P110.02
-- Statut : validé — porteur (2026-10-22) : signaler, ne pas refuser : le statut du payable rapproché est rendu par `BankStatementLineResource` et affiché sur la ligne
+- Statut : fait · TCK-1522
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:796-811,1388-1393`, `takussan-api/app/Services/Model/BookingPaymentService.php:57-100`, `takussan-api/app/Http/Resources/Accounting/BankStatementLineResource.php:33-41`, `takussan-web/src/components/admin/reconciliation/StatementDetail.tsx:200-206`
 - Constat :
@@ -10916,6 +10916,7 @@ déjà relevée).*
   - Établi comment : lu, puis mesuré.
 - Piste : le crédit a bien eu lieu, et la ligne n'a pas à être défaite. Ce qui manque est le signal : statut du payable rapproché rendu par `BankStatementLineResource` (une relation chargée, sous sparse fieldsets) et affiché, ou trace sur la ligne au remboursement. Le choix entre signaler et refuser rejoint P39.07. Garde : le scénario mesuré, avec le statut lu dans la réponse du relevé.
 - Mesure (2026-10-22, 728be0ac7, mesureur) : test Feature temporaire `tests/Feature/TmpMesureur/SondeP110Test.php` (retiré), par les services, charge 3,92 / 3,31 / 3,63 sur 8 cœurs ; aucun commit sur les fichiers cités depuis 6d216605a (`git log 6d216605a..HEAD`), aucun ticket → acompte de 90 000 rapproché d'un crédit de 90 000, relevé finalisé `reconciled`, puis remboursé : `status=refunded`, `refund_amount=90000.00`, `bank_reconciled_at=2026-06-11` conservé, ligne `confirmed`, relevé toujours `reconciled` ; `BankStatementLineResource.php:33-41` ne rend toujours ni statut ni `bank_reconciled_at` du payable (lu). Classement : V1, le choix entre signaler et refuser un remboursement d'encaissement rapproché reste ouvert (P39.07), et le signal est un affichage neuf (V7).
+- Mesure (2026-10-22, 88c684c67, implementeur) : `ReconciledPaymentStatusTest` (charge 4,13 / 3,41 / 3,10 sur 8 cœurs) → avant correctif, la réponse de `match` ne portait aucun `matched_payment_status` ; acompte de 100 000 rapproché puis remboursé par `BookingPaymentService::refund` : `bank_reconciled_at` conservé, ligne `confirmed`. Après : `matched_payment_status` rendu (`paid` au rapprochement, `refunded` à la liste des lignes, `null` sans payable), affiché en badge par `StatementDetail` (`rapprochement.test.tsx`). Ablations : chargement retiré du contrôleur → rouge ; ancien `morphTo('matched_payment')` remis → rouge (la relation chargée d'avance se rangeait sous `matched_payment`, `matchedPayment` restait nulle) ; badge retiré de l'écran → rouge.
 
 ### Un crédit confirmé sur une facture envoyée ne la solde pas : elle reste relancée, et s'annule par avoir avec sa ligne toujours rapprochée
 - Réf : P110.03
