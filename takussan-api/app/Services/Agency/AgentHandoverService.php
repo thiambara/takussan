@@ -4,6 +4,7 @@ namespace App\Services\Agency;
 
 use App\Exceptions\ApiError;
 use App\Models\Agency;
+use App\Models\Enums\CollaboratorRole;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
@@ -37,8 +38,9 @@ use Illuminate\Support\Facades\DB;
  *    jamais vers un repreneur qui porte un profil propriétaire de l'agence — désassigné ;
  *  - `collaborations` : la ligne du partant passe au repreneur ; si le repreneur collabore déjà au
  *    bien (unicité `property_id, user_id`), sa ligne est conservée et celle du partant supprimée —
+ *    la ligne du repreneur passe en `agent` et reprend la part de commission du partant (TCK-1331),
  *    et si celle du partant portait la marque, elle passe d'abord au repreneur (ADR-0053,
- *    « Conséquences ») ; si le repreneur des biens a été refusé pour ce bien, la ligne réécrite
+ *    « Conséquences ») ; un repreneur co-propriétaire du bien laisse la collaboration DÉSASSIGNÉE ; si le repreneur des biens a été refusé pour ce bien, la ligne réécrite
  *    perd sa marque, qui tombe dans le repli (ADR-0059 §3, TCK-1253) ;
  *  - `customers` : le référent (`is_primary`) passe au repreneur ; s'il a déjà une relation de même
  *    type avec le client, elle devient la principale et celle du partant est supprimée.
@@ -245,21 +247,26 @@ class AgentHandoverService
             case 'collaborations':
                 $dropped = [];
                 foreach (PropertyCollaborator::query()->whereIn('id', $ids)->get() as $row) {
-                    $taken = PropertyCollaborator::query()
+                    $theirs = PropertyCollaborator::query()
                         ->where('property_id', $row->property_id)
                         ->where('user_id', $successor->id)
-                        ->exists();
-                    if ($taken && $row->is_primary
-                        && ! $this->assignResponsible(Property::query()->findOrFail($row->property_id), $successor, $actor)) {
+                        ->first();
+                    if ($theirs === null) {
+                        if ($row->is_primary && in_array((int) $row->property_id, $refusedMarks, true)) {
+                            // TCK-1253 (ADR-0059 § 3) — le repreneur des biens a été refusé : la marque
+                            // tombe dans le repli, et la réécriture ne la donne jamais au repreneur des
+                            // collaborations. Le bien reste compté dans `unassigned.responsible_properties`.
+                            $row->forceFill(['is_primary' => false])->save();
+                        }
+                        $row->update(['user_id' => $successor->id]);
+
+                        continue;
+                    }
+
+                    if (! $this->takeOverCollaboration($row, $theirs, $successor, $actor)) {
                         $dropped[] = (int) $row->id;
                     }
-                    if (! $taken && $row->is_primary && in_array((int) $row->property_id, $refusedMarks, true)) {
-                        // TCK-1253 (ADR-0059 § 3) — le repreneur des biens a été refusé : la marque
-                        // tombe dans le repli, et la réécriture ne la donne jamais au repreneur des
-                        // collaborations. Le bien reste compté dans `unassigned.responsible_properties`.
-                        $row->forceFill(['is_primary' => false])->save();
-                    }
-                    $taken ? $row->delete() : $row->update(['user_id' => $successor->id]);
+                    $row->delete();
                 }
 
                 return [array_values(array_diff($ids, $dropped)), $dropped];
@@ -283,6 +290,35 @@ class AgentHandoverService
         }
 
         return [[], []];
+    }
+
+    /**
+     * TCK-1331 (P121.02, décision du porteur) — le repreneur collabore déjà au bien : SA ligne
+     * reprend la collaboration d'agent du partant, avant que celle-ci ne soit supprimée. Elle passe
+     * en `agent` comme dans {@see ResponsibleAgentAssigner} (`viewer`, `manager`), reçoit la marque
+     * si la ligne du partant la portait, et la `commission_share` du partant lui est reportée.
+     * `false` — rien n'est repris, la collaboration est désassignée — quand le repreneur est
+     * co-propriétaire du bien, ou que le service refuse de lui passer la marque.
+     */
+    private function takeOverCollaboration(PropertyCollaborator $row, PropertyCollaborator $theirs, User $successor, User $actor): bool
+    {
+        if ($row->is_primary) {
+            // ADR-0053 « Conséquences » — la marque passe à la ligne du repreneur, promue par le service.
+            if (! $this->assignResponsible(Property::query()->findOrFail($row->property_id), $successor, $actor)) {
+                return false;
+            }
+            $theirs->refresh();
+        } elseif ($theirs->role === CollaboratorRole::CoOwner) {
+            return false;
+        } elseif ($theirs->role !== CollaboratorRole::Agent) {
+            $theirs->update(['role' => CollaboratorRole::Agent]);
+        }
+
+        if ($row->commission_share !== null) {
+            $theirs->update(['commission_share' => $row->commission_share]);
+        }
+
+        return true;
     }
 
     /**

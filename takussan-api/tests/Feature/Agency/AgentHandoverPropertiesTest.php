@@ -192,6 +192,61 @@ class AgentHandoverPropertiesTest extends ApiTestCase
         $this->assertSame(0, PropertyCollaborator::query()->where('property_id', $this->deB->id)->where('is_primary', true)->count());
     }
 
+    /**
+     * TCK-1331 (P121.02, décision du porteur) — le repreneur collabore déjà au bien comme lecteur :
+     * sa ligne passe en `agent`, comme dans `ResponsibleAgentAssigner`, et reprend la part de
+     * commission du partant. Le bien n'était pas marqué au nom du partant : la marque ne bouge pas.
+     */
+    public function test_un_repreneur_lecteur_du_bien_devient_agent_et_reprend_la_part_du_partant(): void
+    {
+        $bien = $this->bienDe($this->agency, $this->b);
+        app(PrimaryAgentDesignator::class)->designate($bien, $this->collaborateur($bien, $this->personnel($this->agency)), $this->admin);
+        $this->collaborateur($bien, $this->leaver)->update(['commission_share' => 30]);
+        PropertyCollaborator::query()->create([
+            'property_id' => $bien->id, 'user_id' => $this->successor->id, 'role' => CollaboratorRole::Viewer, 'invited_at' => now(),
+        ]);
+
+        $this->actingAsApi($this->admin)->apiPost($this->url('handover'), [
+            'successors' => ['collaborations' => $this->successor->id],
+            'leave_unassigned' => true,
+        ])->assertOk()
+            ->assertJsonPath('data.moved.collaborations', 2)
+            ->assertJsonMissingPath('data.unassigned.collaborations');
+
+        $ligne = PropertyCollaborator::query()->where('property_id', $bien->id)->where('user_id', $this->successor->id)->sole();
+        $this->assertSame(CollaboratorRole::Agent, $ligne->role);
+        $this->assertSame('30.00', (string) $ligne->commission_share);
+        $this->assertFalse($ligne->is_primary);
+        $this->assertDatabaseMissing('property_collaborators', ['property_id' => $bien->id, 'user_id' => $this->leaver->id]);
+    }
+
+    /**
+     * TCK-1331 (P121.02) — le repreneur est co-propriétaire du bien : sa ligne ne devient pas
+     * `agent`, et la ligne d'agent du partant est rangée en `unassigned.collaborations`, plus
+     * comptée « déplacée ».
+     */
+    public function test_un_repreneur_co_proprietaire_du_bien_laisse_la_collaboration_non_attribuee(): void
+    {
+        $bien = $this->bienDe($this->agency, $this->b);
+        $duPartant = $this->collaborateur($bien, $this->leaver);
+        PropertyCollaborator::query()->create([
+            'property_id' => $bien->id, 'user_id' => $this->successor->id, 'role' => CollaboratorRole::CoOwner, 'invited_at' => now(),
+        ]);
+
+        $this->actingAsApi($this->admin)->apiPost($this->url('handover'), [
+            'successors' => ['collaborations' => $this->successor->id],
+            'leave_unassigned' => true,
+        ])->assertOk()
+            ->assertJsonPath('data.moved.collaborations', 1)
+            ->assertJsonPath('data.unassigned.collaborations', 1);
+
+        $this->assertDatabaseHas('property_collaborators', [
+            'property_id' => $bien->id, 'user_id' => $this->successor->id, 'role' => 'co_owner',
+        ]);
+        $journal = Activity::query()->where('log_name', 'AgentHandover')->where('event', 'collaborations')->sole();
+        $this->assertSame([$duPartant->id], $journal->properties['unassigned_ids']);
+    }
+
     /** ADR-0036 question 2 — jamais d'un bailleur, jamais vers un bailleur. */
     public function test_les_biens_d_un_bailleur_ne_changent_jamais_de_titulaire(): void
     {
