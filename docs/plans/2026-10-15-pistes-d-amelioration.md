@@ -11483,10 +11483,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### La section « Profil professionnel » de l'agent est une maquette : deux champs saisissables qu'aucun geste n'enregistre, et une agence toujours « Non affilié »
 - Réf : P117.04
-- Statut : validé — porteur (2026-10-22) : afficher en lecture seule l'agence du profil actif, la licence et la spécialité (ajoutées à `ProfileResource` pour le seul profil d'agent) ; retirer les champs saisissables sans enregistrement
+- Statut : fait · TCK-1317
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/profile/ProfileAgentSection.tsx:18-38`, `takussan-web/src/app/(dashboard)/app/profile/page.tsx:41`, `takussan-web/src/components/profile/ProfileOwnerSection.tsx:19-31`
 - Constat :
+- Mesure (2026-10-22, 1c871e3c0, implementeur) : reproduit avant correctif par `ProfilesEndpointTest::test_agent_profile_carries_license_and_specialty_and_others_do_not` (`Undefined array key "license_number"` : la ressource ne rend ni licence ni spécialité) et par `ProfileAgentSection.test.tsx` (ancien composant : 3 rouges, agence vide et `input`/`textarea` saisissables) → `ProfileResource` rend `license_number` et `specialty` au seul profil d'agent, la section les affiche en lecture seule avec l'agence ; ablation des deux côtés : rouge sans le correctif, vert avec ; `DateInventoryByValueTest` vert.
   - La section est rendue à tout compte `agent` sur `/app/profile` (lu, `page.tsx:41`).
   - « Bio professionnelle » (`Textarea` `defaultValue`) et « Numéro de licence » (`Input`) sont saisissables, sans `name`, sans formulaire, sans action ni bouton (lu, `:21-25,33`). Ce qu'on y tape se perd. La bio s'édite par ailleurs dans `ProfileHeader.tsx:48` ; la licence, elle, est écrite en base par l'assistant (`AgentProfileController.php:166-168`).
   - « Spécialisations » est un champ désactivé « Bientôt disponible » (lu, `:29`), alors que l'API tient `agent_profiles.specialty` et les zones de P117.03.
