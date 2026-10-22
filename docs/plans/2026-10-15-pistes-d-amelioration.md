@@ -211,7 +211,7 @@ voie d'écriture (angle 13, puis 47).
 | 134 | Tris `orderBy` / `orderByDesc` sur une colonne d'enum rangée en chaîne (`severity`, `priority`, `status`, `level` des annonces, alertes, maintenances, tâches) : ordre alphabétique pris pour un ordre métier dans une liste ou un « premier élément » affiché | fait |
 | 135 | Listes écrites à la main, hors `buildQuery` (`LeasePaymentController::index`, `ConversationController::index`, `ReviewController::index`, contrôleurs `Admin\*`) : `sort`, `page` et `per_page` envoyés par le front face à l'ordre et au plafond rendus, et lecteurs qui ne lisent que la première page — le relevé de P100.01 sur les autres listes | fait |
 | 136 | Lectures du navigateur au chargement d'un écran `/app` et `/super-admin` (`useApiQuery` en parallèle, clés en double, `enabled` en cascade qui attend une première réponse, données déjà lues par le rendu serveur) : allers-retours avant l'écran utile, chacun précédé d'un préflight puisqu'il porte `Authorization` — le relevé de l'angle 103 sur la console | fait |
-| 137 | Écrans qui importent le fichier `index.ts` de `components/forms` pour `FormError` ou `FormGlobalError` seuls (pages `(auth)` `verify-email` et `reset-password`, `DefiSecondFacteur`, `ConnexionParTelephone`, `IntegrationsManager`, `ChampsLieu`) : react-hook-form et react-day-picker chargés pour afficher un message d'erreur — le motif de P104.01 hors de la console | à faire |
+| 137 | Écrans qui importent le fichier `index.ts` de `components/forms` pour `FormError` ou `FormGlobalError` seuls (pages `(auth)` `verify-email` et `reset-password`, `DefiSecondFacteur`, `ConnexionParTelephone`, `IntegrationsManager`, `ChampsLieu`) : react-hook-form et react-day-picker chargés pour afficher un message d'erreur — le motif de P104.01 hors de la console | fait |
 | 138 | Lectures de l'API dédoublées dans un même rendu serveur : server actions `*Action` (`fetchAgencyAction`, et leurs pareilles) appelées par des pages et des layouts serveur qui relisent une ressource déjà lue hors de `cache()` (`agenceDuRendu`, `getMeAction`), mesurées par requête sur un document servi | à faire |
 | 139 | Colonnes déclarées par les exporteurs (`ActivityLogExporter::COLUMNS`, constructeurs d'entité d'`ExportController`, exports de rapports, archive RGPD `DataExportBuilder`) qu'aucun chemin n'écrit, ou qui lisent une clé que l'écrivain nomme autrement : colonne toujours vide dans le fichier rendu — le relevé de P108.02 sur les autres exports | à faire |
 | 140 | PDF figés face aux PDF recomposés à chaque téléchargement (`DocumentPdfService::store`, `signed_contract` de `LeaseSignatureService`, contre `InventoryController::downloadPdf`, `DocumentPdfController::stream*`, quittance publique `PublicPaymentLinkController::receipt`) : ce qu'un document signé ou acquitté imprime après un changement de l'agence, du bien, du locataire, d'un réglage ou d'un gabarit | à faire |
@@ -247,6 +247,7 @@ voie d'écriture (angle 13, puis 47).
 | 170 | Montants envoyés par le navigateur et pris tels quels par l'API là où elle pourrait les dériver (`amount` de `POST /api/bookings/{id}/payments`, `subtotal` de `POST /api/invoices`, `amount` des paiements enregistrés et de `mark-paid`, montants des reversements et des restitutions) : montant que le payeur ou l'émetteur fixe à la place du calcul du serveur — né de P133.02 et P133.05 | à faire |
 | 171 | Sélecteurs et listes sans pagination nourris par la taille de page par défaut (appels `useApiQuery`, `apiRequest` et server actions sans `per_page` ni `page`, rendus en `EntitySelect`, `<select>` ou liste de liens sous `/app`), hors personnes (angle 120) : élément au-delà de la 20ᵉ ligne qu'on ne peut pas choisir ni ouvrir — le relevé de l'angle 135 sous 50 lignes | à faire |
 | 172 | Lectures du navigateur faites par `fetch` dans un `useEffect`, hors de TanStack Query (`useWelcomeOnce`, `useTenantWelcomeOnce`, `useAgencyStandardWelcomeOnce`, `MinimalProfileTriggerProvider`, `AuthContext`, `useSimilarProperties`, `usePropertyReviews`, `Navbar`) : ni cache ni dédoublonnage entre lecteurs, aucune relecture à l'invalidation, réponse tardive appliquée après un changement de compte ou de profil actif — né de P136.03 | à faire |
+| 173 | Autres fichiers `index.ts` réexportateurs (`components/feedback`, `components/map`, `components/media`, `components/console`, `components/property-form`, `components/customer-form`, `components/floating-dock`) : paquets lourds (carte, téléversement, éditeurs) qu'un écran charge pour un seul composant léger qu'il y prend — le relevé de l'angle 137 hors de `components/forms` | à faire |
 
 ---
 
@@ -12971,3 +12972,63 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Établi comment : code relu.
 - Piste : ne lire les favoris qu'au premier lecteur du magasin, ou hors de `/app` et `/super-admin` ; lire côté serveur ce que l'accueil de `/super-admin` et la mise en service affichent en premier, et le passer en données initiales.
 - Mesure (2026-10-22, 20d495dfd, mesureur) : relu `AuthContext.tsx:109-133` (`fetchAllFavoritePropertyIds` à chaque connexion, puis `invalidateQueries(['favorites'])`), `favorites.ts:91-114` (50 par page, 40 pages au plus, en série), `super-admin/page.tsx` (rendu sans donnée, `ConsoleQueues`, `SystemMetricsGrid`, `ConsoleRecentActivity` lisent au client), `MiseEnService.tsx:74-78` (`useApiQuery` de `setup-status`, `null` tant que rien n'est reçu). Les trois parties tiennent ; le décalage de mise en page et la relance sur `/app/favorites` restent non vérifiés. Classement : V7, la Piste offre deux bornes pour les favoris (premier lecteur, ou hors de `/app` et `/super-admin`) qui changent quand un cœur s'affiche rempli, et trois chantiers distincts dont le choix revient au porteur.
+
+## Angle 137 — Écrans qui chargent les champs de formulaire et le calendrier par le fichier `index.ts` de `components/forms`
+
+*Exploré le 2026-10-22 sur `pre-dev` 20d495dfd, par l'explorateur. Tout est relu par l'explorateur lui-même, sans sous-agent. La mesure est celle du graphe client statique (`src/test/graphe-client.ts`), par un test Vitest temporaire retiré depuis : il balaie les 180 `page.tsx` et `layout.tsx` de `src/app`, puis rejoue le même parcours en renvoyant chaque import de `@/components/forms` au fichier propre de chaque nom importé (et, pour `useTraducteurValidation`, `@/hooks/useApiForm` à `hooks/useTraducteurValidation.ts`). C'est un plancher, pas un poids : aucun build n'a été lancé, et les Kio ne sont pas mesurés. `next.config.ts` ne déclare ni `optimizePackageImports` ni `sideEffects` (lu), et l'ablation de P104.01 sur un build a montré que ce même `index.ts` n'est pas élagué (−52,6 Kio). Des six importeurs que l'intitulé nomme, `ChampsLieu` (comme `ChampsPosition`, `NombreEnListe` et `PropertyWizard`) ne change rien : les pages qui le montent chargent déjà react-hook-form et `FormDatePicker` pour le formulaire du bien (mesuré, aucune différence).*
+
+### Trois pages d'authentification chargent react-hook-form et le calendrier pour afficher un message d'erreur
+- Réf : P137.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/(auth)/auth/verify-email/page.tsx:9`, `takussan-web/src/app/(auth)/auth/reset-password/page.tsx:11`, `takussan-web/src/components/auth/DefiSecondFacteur.tsx:9`, `takussan-web/src/app/(auth)/auth/oauth/[provider]/callback/page.tsx:13`, `takussan-web/src/components/forms/index.ts`
+- Constat :
+  - `verify-email` importe `FormGlobalError`, `reset-password` `FormError` et `FormGlobalError`, `DefiSecondFacteur` `FormGlobalError`, tous trois depuis `@/components/forms`, dont l'`index.ts` réexporte par `export *` les neuf fichiers du dossier, `FormDatePicker` et `FormDateTimePicker` compris (lu). `FormError.tsx` n'importe que `react`, `lucide-react` et `@/lib/utils` (lu, l. 1-4).
+  - Graphe client : `verify-email`, `reset-password` et le retour OAuth (`oauth/[provider]/callback`, qui monte `DefiSecondFacteur`) atteignent `react-hook-form`, `react-day-picker` et `date-fns` ; imports pris au fichier propre → **aucun des trois** (mesuré, test temporaire). Sur `verify-email`, 14 des 27 modules du graphe client sont les neuf champs, l'`index.ts`, `ui/calendar`, `ui/date-picker`, `ui/date-time-picker` et `lib/format/dateFnsLocale.ts` (mesuré, `modulesDuGrapheClient`).
+  - Établi comment : code relu, graphe client mesuré avant et après le renvoi simulé.
+- Piste : prendre `FormError` et `FormGlobalError` à `@/components/forms/FormError` dans ces trois fichiers, sans changement de rendu. Garde du patron de `graphe-client-de-la-console.test.ts` sur ces trois pages : ni react-hook-form ni react-day-picker ni date-fns.
+
+### L'écran des intégrations charge react-hook-form, son résolveur et le calendrier sans en employer aucun
+- Réf : P137.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/admin-settings/IntegrationsManager.tsx:21,23,185,213`, `takussan-web/src/components/admin-settings/IntegrationWebhookEndpoint.tsx:9`, `takussan-web/src/hooks/useApiForm.ts:20,155`
+- Constat :
+  - `IntegrationsManager` prend `FormError` et `FormGlobalError` à `@/components/forms` (l. 21) et `useTraducteurValidation` à `@/hooks/useApiForm` (l. 23), module qui importe react-hook-form et `@hookform/resolvers/zod` ; `IntegrationWebhookEndpoint` prend `FormError` au même `index.ts` (l. 9) (lu). Depuis TCK-1194, `useTraducteurValidation` vit dans `hooks/useTraducteurValidation.ts` (`next-intl` et un type seulement) et `useApiForm.ts` le réexporte (lu, l. 20, 155) : `TagsManager` a été migré, pas ces appelants.
+  - Le formulaire est validé à la main par `integrationFormSchema.safeParse` (lu, l. 185, 213), sans `useForm`.
+  - Graphe client de `/app/agency/integrations` : `react-hook-form`, `@hookform/resolvers`, `react-day-picker`, `date-fns`, `zod` ; imports pris au fichier propre (`FormError` et `useTraducteurValidation`) → `zod` seul (mesuré, test temporaire). zod reste par `lib/schemas/setting.ts` (mesuré) ; qu'il puisse se charger à l'envoi, comme TCK-1196 l'a fait pour les étiquettes, est à vérifier (`isPaymentProvider`, `hasWebhookEndpoint` et `normaliseIntegrationForm` sont pris au même module, l. 24-31).
+  - Établi comment : code relu, graphe client mesuré.
+- Piste : deux imports pris à leur fichier propre (`@/components/forms/FormError`, `@/hooks/useTraducteurValidation`) ; garde sur `integrations/page.tsx` : ni react-hook-form, ni `@hookform/resolvers`, ni calendrier.
+
+### Six autres écrans chargent le calendrier par l'`index.ts` sans afficher aucun sélecteur de date
+- Réf : P137.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/(auth)/auth/login/page.tsx:14`, `takussan-web/src/app/(auth)/auth/register/page.tsx:13-17`, `takussan-web/src/components/auth/ConnexionParTelephone.tsx:11`, `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:17,30`, `takussan-web/src/components/customer-form/CustomerForm.tsx:17`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:27`, `takussan-web/src/components/bookings/BookingPaymentDialog.tsx:12`, `takussan-web/src/components/bookings/BookingRefundPanel.tsx:13`
+- Constat :
+  - `login` (`FormInput`, `FormGlobalError`), `register` (`FormInput`, `FormCheckbox`, `FormGlobalError`) et les formulaires de `/app/agency`, `/app/customers/new`, `/app/maintenance/new` et `/app/bookings/[id]` prennent leurs champs à `@/components/forms` ; aucun ne nomme `FormDatePicker` ni `FormDateTimePicker` (lu, `grep`).
+  - Graphe client, imports pris au fichier propre de chaque nom : ces six pages perdent `react-day-picker` et `date-fns`, et gardent react-hook-form (mesuré, test temporaire). Sur `/app/agency`, `AgencyConfigForm` prend aussi `useTraducteurValidation` à `@/hooks/useApiForm` (l. 30) : pris à son module, `@hookform/resolvers` sort de la page (mesuré).
+  - Sur 180 pages et layouts, ce renvoi ne change le graphe de rien d'autre que ces six pages et les quatre de P137.01 et P137.02 (mesuré).
+  - Établi comment : code relu, graphe client mesuré.
+- Piste : prendre chaque champ à son fichier dans les 32 importeurs de `@/components/forms` (`grep -rn "from '@/components/forms'"`, lu), ou retirer `FormDatePicker` et `FormDateTimePicker` de l'`index.ts` ; garde qui refuse tout import de `@/components/forms` par son `index.ts`, ou qui exige des pages ci-dessus qu'elles n'atteignent pas react-day-picker.
+
+### Connexion et inscription chargent les onze modules de schémas pour un seul schéma
+- Réf : P137.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/(auth)/auth/login/page.tsx:15`, `takussan-web/src/app/(auth)/auth/register/page.tsx:18`, `takussan-web/src/lib/schemas/index.ts`, `takussan-web/src/lib/schemas/auth.ts:1-7`
+- Constat :
+  - Les deux pages prennent `loginSchema` et `registerSchema` à `@/lib/schemas`, dont l'`index.ts` réexporte onze modules (lu) ; `auth.ts` n'importe que `zod`, `./common` et `./messages` (lu, l. 1-7). Ce sont les deux seuls importeurs de `@/lib/schemas` sous `src` hors tests (mesuré, `grep -rn`).
+  - Graphe client de `login` : 13 modules `lib/schemas/*` sur 76, dont `property`, `lease`, `inventory`, `maintenance`, `booking`, `payment`, `document`, `customer`, `message` (mesuré, `modulesDuGrapheClient`) ; ces dix modules et `common` comptent 1 345 lignes (mesuré, `wc -l`). zod est chargé de toute façon : le gain est le code des schémas seul, son poids n'est pas mesuré (à vérifier).
+  - Établi comment : code relu, graphe client mesuré.
+- Piste : importer de `@/lib/schemas/auth` dans ces deux pages ; l'`index.ts`, sans autre importeur, peut alors se retirer (à mesurer côté tests).
+
+### Aucune garde de graphe client ne lit les pages `(auth)`
+- Réf : P137.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/__tests__/graphe-client-de-la-console.test.ts`, `takussan-web/src/app/(dashboard)/__tests__/zod-hors-des-ecrans-de-lecture.test.ts`, `takussan-web/src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts`
+- Constat :
+  - `paquetsDuGrapheClient` n'est appelé que par quatre tests : la console super-admin, les écrans de lecture de `(dashboard)/app`, les pages publiques et le layout racine (mesuré, `grep -rln paquetsDuGrapheClient src`). Aucun ne part de `(auth)`, dont les tests sous `(auth)/__tests__` et `(auth)/auth/__tests__` sont des tests de rendu et de titres (lu, `ls`).
+  - Établi comment : `grep` et lecture des listes de tests.
+- Piste : une garde du patron de TCK-1200 qui trouve les pages de `(auth)` et refuse react-day-picker et date-fns partout, et react-hook-form sur celles qui n'ont pas de formulaire au chargement (`verify-email`, retour OAuth), avec une liste déclarée et motivée des exceptions.
