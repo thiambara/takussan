@@ -12012,7 +12012,7 @@ est déjà P91.06.*
 
 ### Petites améliorations des colonnes bornées
 - Réf : P124.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1258
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Webhooks/WebhookJournal.php:139-151`, `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:88-97`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:524,597`
 - Constat :
@@ -12021,6 +12021,7 @@ est déjà P91.06.*
   - Établi comment : lu.
 - Piste : borner `event_type` comme `external_id` dans `annotate()`. Les correctifs de P124.01 à P124.03 portent chacun un test qui écrit N+1 caractères, ou un caractère multioctet à la limite, et attend l'écriture.
 - Mesure (2026-10-22, 9662e2ff4, mesureur) : relu `WebhookJournal.php:148-149` (`external_id` borné à 191, `event_type` écrit tel quel), `OrangeSmsStatusController.php:97`, `PaymentGatewayService.php:524,597` ; méthode temporaire dans `WebhookJournalTest` (retirée) : accusé Orange accepté (liste d'IP vide, jeton d'URL valide) dont `deliveryStatus` fait 300 caractères → **500**, `value too long for type character varying(255)` au journal PostgreSQL. Le « à vérifier » du constat porte sur la probabilité (chemin après authentification), pas sur le défaut, qui est mesuré. Classement : A1, la colonne et la borne voisine du même appel fixent le comportement attendu ; le correctif est `mb_substr((string) $facts['event_type'], 0, 255)` dans `annotate()`, avec un test d'accusé à 300 caractères qui attend la réponse habituelle.
+- Mesure (2026-10-22, c072bdc37, implementeur) : test ajouté à `WebhookJournalTest`, accusé Orange apparié au `deliveryStatus` de 300 `é` → 500 avant correctif ; `annotate()` borne `event_type` par `mb_substr(…, 0, 255)` → 200, `event_type` de 255 caractères, 11/11 verts ; ablation (classe remise à `c072bdc37`) → 1 rouge.
 
 ## Angle 125 — Téléphones écrits sans normalisation, et leurs lecteurs
 
