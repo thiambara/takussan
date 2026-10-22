@@ -2464,7 +2464,8 @@
         "save": "Denc",
         "saving": "Mungiy denc…",
         "saved": "Denc nañu ko.",
-        "failed": "Dénk bi deñu ko denc."
+        "failed": "Dénk bi deñu ko denc.",
+        "insured": "Assuré"
       },
       "gallery": {
         "title": "Nataal ak kayit",
@@ -3458,7 +3459,8 @@
       "actions": {
         "resend": "Yónnee waaru fi",
         "revoke": "Far ko"
-      }
+      },
+      "insured": "Assuré"
     },
     "invite": {
       "title": "Wow benn prestataire",
@@ -8733,14 +8735,11 @@
     "agent": {
       "title": "Profilu liggéey",
       "subtitle": "Say xibaar ci ajaŋu kër.",
-      "bioLabel": "Bio bu liggéey",
-      "bioPlaceholder": "Waxal sa xam-xam ak say wàll yu rafet",
       "specialtiesLabel": "Wàll yi nga gën a xam",
-      "comingSoon": "Mu ngi ñëw",
       "licenseLabel": "Nomboro lisaas",
-      "licensePlaceholder": "Misaal: AGC-2025-0001",
       "agencyLabel": "Ajaas bi mu boole",
-      "noAgency": "Boolewul"
+      "noAgency": "Boolewul",
+      "notProvided": "Non renseigné"
     },
     "owner": {
       "title": "Barabu boroom kër",

@@ -55,6 +55,9 @@ export type Profile = {
   agency?: ProfileAgencySummary;
   status: string | null;
   created_at: string | null;
+  /** TCK-1317 (P117.04) — rendus pour le seul profil d'agent (`ProfileResource`). */
+  license_number?: string | null;
+  specialty?: string | null;
 };
 
 export type MyProfilesResponse = {
