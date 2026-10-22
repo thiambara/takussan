@@ -50,7 +50,7 @@ export async function fetchVersApi(
 ): Promise<Response> {
   const delai = new AbortController();
   const minuterie = setTimeout(
-    () => delai.abort(new DOMException("l'API n'a pas répondu dans le délai", 'TimeoutError')),
+    () => delai.abort(new DOMException('upstream_timeout', 'TimeoutError')),
     delaiMs,
   );
   const signaux = [delai.signal];
@@ -60,7 +60,7 @@ export async function fetchVersApi(
     return await fetch(url, { ...init, signal: AbortSignal.any(signaux) });
   } catch (erreur) {
     const horsDelai = delai.signal.aborted;
-    if (!requete?.signal.aborted) console.error('[BFF] API sans réponse', String(url), erreur);
+    if (!requete?.signal.aborted) console.error('[BFF] fetchVersApi', String(url), erreur);
     return Response.json(
       { code: horsDelai ? 'upstream_timeout' : 'upstream_unavailable' },
       { status: horsDelai ? 504 : 502 },
