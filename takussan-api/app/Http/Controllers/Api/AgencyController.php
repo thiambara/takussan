@@ -172,12 +172,10 @@ class AgencyController extends Controller
         $this->authorizeAdmin($request, $agency);
 
         // TCK-142 — "members" of an agency are users with any agency-scoped
-        // profile (owner or agent) at that agency, replacing the old direct
-        // foreign-key filter on the user.
-        $base = User::query()->where(function ($q) use ($agency) {
-            $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agency->id))
-                ->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agency->id));
-        });
+        // profile at that agency, replacing the old direct foreign-key filter
+        // on the user. P120.02 (TCK-1244) — administrators included: a member
+        // promoted to `agency_admin` keeps only that profile.
+        $base = User::query()->membreDe((int) $agency->id);
         // P88.03 (TCK-1096) — `filter[role]` juge le profil DANS cette agence, et
         // `filter[assignable]=1` ne garde que le personnel joignable (`User::buildAgencyMembersQuery`).
         // Le filtre de rôle était résolu ici, après coup, par un `whereHas` sans agence : un

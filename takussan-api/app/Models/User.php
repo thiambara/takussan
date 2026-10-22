@@ -236,6 +236,24 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     }
 
     /**
+     * P120.02 (TCK-1244) — « personne qui tient un profil dans l'agence » : agent, bailleur ou
+     * administrateur, sans statut. Les trois branches de `UserAdminController` (TCK-277) : le
+     * passage à `agency_admin` supprime les profils d'agent et de bailleur, et un admin pur sortait
+     * de la liste des membres et de l'équipe de la console.
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopeMembreDe(Builder $query, int $agencyId): void
+    {
+        $inAgency = fn (Builder $p) => $p->where('agency_id', $agencyId);
+
+        $query->where(fn (Builder $q) => $q
+            ->whereHas('agentProfiles', $inAgency)
+            ->orWhereHas('ownerProfiles', $inAgency)
+            ->orWhereHas('agencyAdminProfiles', $inAgency));
+    }
+
+    /**
      * P88.03 (TCK-1096) — la liste des membres d'une agence (`GET /api/agencies/{id}/members`).
      *
      * La liste blanche de {@see HasQueryBuilder::buildQuery()}, à deux écarts près :
@@ -254,14 +272,21 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         );
         $inAgency = fn (Builder $p) => $p->where('agency_id', $agencyId);
 
+        // P120.02 (TCK-1244) — plusieurs rôles séparés par une virgule se lisent en OU :
+        // `filter[role]=agent,owner` rend la condition de `RoleDelegationService::create`
+        // (profil d'agent ou de bailleur, sans statut), pour les candidats à une délégation.
         $role = AllowedFilter::callback(
             'role',
-            fn (Builder $q, string $value) => match ($value) {
-                'agent' => $q->whereHas('agentProfiles', $inAgency),
-                'agency_admin' => $q->whereHas('agencyAdminProfiles', $inAgency),
-                'owner' => $q->whereHas('ownerProfiles', $inAgency),
-                default => $q->whereRaw('1 = 0'),
-            },
+            fn (Builder $q, string|array $value) => $q->where(function (Builder $w) use ($value, $inAgency) {
+                foreach ((array) $value as $role) {
+                    match ($role) {
+                        'agent' => $w->orWhereHas('agentProfiles', $inAgency),
+                        'agency_admin' => $w->orWhereHas('agencyAdminProfiles', $inAgency),
+                        'owner' => $w->orWhereHas('ownerProfiles', $inAgency),
+                        default => $w->orWhereRaw('1 = 0'),
+                    };
+                }
+            }),
         );
 
         $assignable = AllowedFilter::callback(
