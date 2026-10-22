@@ -11439,10 +11439,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Un prestataire qui vide ses métiers ou ses zones reprend, dans le carnet de l'agence, ceux de son invitation
 - Réf : P117.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1319
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/ServiceProviderInvitationService.php:108-121`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:139-162`, `takussan-api/app/Http/Resources/ServiceProviderDirectoryResource.php:22`, `takussan-web/src/components/service-providers/ServiceProvidersList.tsx:136,155`
 - Constat :
+- Mesure (2026-10-22, 1c871e3c0, implementeur) : reproduit avant correctif par `ServiceProvidersList.copie-invitation.test.tsx` (prestataire `active`, `specialties`/`service_areas` à `null`, copie `plumbing`/`Dakar` en `metadata` → « Plomberie » et « Dakar » affichés sur sa ligne) → le carnet ne retombe sur `metadata` que pour un `draft` ; ablation : repli inconditionnel → rouge, correctif → vert ; le brouillon garde la copie dans les deux cas. Voie du front retenue : aucune donnée réécrite.
   - L'invitation écrit les métiers et les zones deux fois : dans les colonnes `specialties` et `service_areas`, et en copie dans `metadata.trades` et `metadata.intervention_zones` (lu, `:108-121`).
   - `PATCH /api/me/profiles/{id}/trades` écrit une liste vide en `null` dans la colonne (lu, `:156-157`) et ne touche jamais à la copie de `metadata` (lu, `:146-161`, seul `visit_fee` y change).
   - Le carnet lit `sp.specialties ?? sp.metadata?.trades` et `sp.service_areas ?? sp.metadata?.intervention_zones` (lu, `ServiceProvidersList.tsx:136,155`). Un `null` en colonne fait donc reparaître la copie de l'invitation.
