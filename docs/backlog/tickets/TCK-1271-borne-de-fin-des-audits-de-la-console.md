@@ -1,7 +1,7 @@
 ---
 id: TCK-1271
 title: "Audit de la console et activité d'un compte : une date de fin seule couvre tout le jour choisi"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -35,21 +35,21 @@ de l'agence.
 
 ## Delta à produire
 
-- [ ] `AuditLogController::normalizeRangeBoundary()` extraite dans un filtre commun
+- [x] `AuditLogController::normalizeRangeBoundary()` extraite dans un filtre commun
       (`App\Http\Filters\DateBoundaryFilter`), à l'identique : date seule → début ou fin du jour,
       date et heure → telle quelle.
-- [ ] Le filtre sous `date_from`/`date_to` de `AuditLogController::index`,
+- [x] Le filtre sous `date_from`/`date_to` de `AuditLogController::index`,
       `CrossTenantAuditController::filteredQuery()` et `UserDetailController::activity()` ; les
       paramètres plats `from`/`to` du journal de l'agence par la même normalisation.
-- [ ] Test : une ligne à midi, plage du jour au jour → 1 ligne, sur l'audit de la console et sur
+- [x] Test : une ligne à midi, plage du jour au jour → 1 ligne, sur l'audit de la console et sur
       l'activité d'un compte.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/admin/audit?filter[date_from]=J&filter[date_to]=J` rend une ligne écrite
+- [x] AC1 — `GET /api/admin/audit?filter[date_from]=J&filter[date_to]=J` rend une ligne écrite
       le jour J à midi.
-- [ ] AC2 — `GET /api/admin/users/{id}/activity?filter[date_from]=J&filter[date_to]=J` de même.
-- [ ] AC3 — Le journal de l'agence garde son comportement (ses tests restent verts).
+- [x] AC2 — `GET /api/admin/users/{id}/activity?filter[date_from]=J&filter[date_to]=J` de même.
+- [x] AC3 — Le journal de l'agence garde son comportement (ses tests restent verts).
 
 ## Hors périmètre
 
@@ -58,4 +58,10 @@ de l'agence.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Test : `tests/Feature/Audit/BornesDeDateDeLaConsoleTest.php`. Avant correctif : 0 ligne au
+  lieu de 1 sur les deux routes.
+- Ablation : `DateBoundaryFilter` remis à la valeur brute → les deux tests rouges ; remis → verts.
+  `AuditLogTest`, `ActivityLogEndpointTest` (bornes du journal de l'agence) et
+  `CrossTenantAuditExportTest` restent verts.
+- La normalisation est reprise à l'identique (`toDateTimeString()`, seconde pleine) : la borne
+  haute vaut `23:59:59`, comme au journal de l'agence.
