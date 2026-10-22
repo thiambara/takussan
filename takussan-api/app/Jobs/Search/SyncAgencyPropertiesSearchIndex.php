@@ -43,11 +43,13 @@ class SyncAgencyPropertiesSearchIndex implements ShouldQueue
 
     public function handle(): void
     {
-        $agence = Agency::query()->find($this->agencyId);
+        // P129.04 (TCK-1277) — `withTrashed()` : une agence supprimée se juge non publique, au
+        // lieu d'être introuvable et de laisser ses biens dans l'index.
+        $agence = Agency::withTrashed()->find($this->agencyId);
         if ($agence === null) {
             return;
         }
-        $publique = $agence->status === AgencyStatus::Active;
+        $publique = ! $agence->trashed() && $agence->status === AgencyStatus::Active;
 
         Property::query()
             ->where('agency_id', $agence->id)
