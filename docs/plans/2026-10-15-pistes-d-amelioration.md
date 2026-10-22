@@ -14094,7 +14094,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Passer un bien en statut actif par `PATCH` ou `PUT …/status` ne juge pas le quota d'annonces
 - Réf : P147.04
-- Statut : validé — porteur (2026-10-22) : juger le quota au seul point commun, l'observateur `updating`
+- Statut : fait · TCK-1433
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:112-114,187-236,256-259,294-327`, `takussan-api/app/Services/Billing/QuotaResolver.php:66-70`
 - Constat :
@@ -14102,6 +14102,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - `update` et `updateStatus` ne l'appellent pas (lu, `grep -n assertCanCreateActiveListing` → les deux seules lignes 113 et 258). Un brouillon passé `available` ou `pending` par l'un de ces chemins entre donc dans le compte sans être jugé (déduit du code, non mesuré : à vérifier avec une agence à sa limite).
 - Piste : juger le quota au passage d'un statut hors `ACTIVE_LISTING_STATUSES` vers l'un d'eux, sur les deux chemins (ou au seul point commun, l'observateur `updating`) ; un test d'agence à la limite par chemin.
 - Mesure (2026-10-22, 2e3d6840c, mesureur) : `grep -rn assertCanCreateActiveListing app` → deux appels seulement (`PropertyController.php:113` dans `store`, `:258` dans `publish`) ; `QuotaResolver::ACTIVE_LISTING_STATUSES` compte quatre statuts, `pending_review` compris (le constat en cite trois) ; charge `{ 4.97 5.06 4.07 }` sur 8 cœurs, test temporaire retiré → agence au forfait `max_active_listings = 1` avec un bien `available` : `POST …/publish` d'un brouillon → 422 `quota.listings_exceeded`, `PATCH {status: available}` d'un autre → 200, `PUT …/status` `pending` d'un troisième → 200, soit trois annonces actives pour une limite de 1 → tient, le « à vérifier » est levé. Classement : V1, c'est la borne d'un forfait payant, et le point où la juger (les deux chemins ou l'observateur `updating`) reste un choix.
+- Mesure (2026-10-22, e2959c84c, implementeur) : test neuf `QuotaDAnnoncesAuChangementDeStatutTest`, agence au forfait `max_active_listings = 1` avec un bien `available` → avant correctif `PATCH {status: available}` d'un brouillon 200 et `PUT …/status` `pending` 200 (2 rouges) → `PropertyObserver::updating` appelle `assertCanCreateActiveListing` quand le statut entre dans `ACTIVE_LISTING_STATUSES` → 422 `quota.listings_exceeded`, brouillon inchangé, `available` → `pending` toujours 200, 4/4 ; ablation → 2 rouges, remis → vert ; `BillingPlansTest`, `PropertyModerationTest`, `PropertySubmittedForReviewNotificationTest`, `PropertyModerationGateTest`, `PropertyObserverTest` verts. Effet hors du `PATCH`, voulu par la décision et écrit dans le ticket : `resubmit` (`rejected` → `pending_review`) est jugé lui aussi.
 
 ### Les statuts de modération se posent à la main, sans motif ni horodatage
 - Réf : P147.05
