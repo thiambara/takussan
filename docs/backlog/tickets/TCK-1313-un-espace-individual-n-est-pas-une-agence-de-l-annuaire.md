@@ -1,7 +1,7 @@
 ---
 id: TCK-1313
 title: "Un espace `individual` n'entre plus dans l'annuaire public des agences et n'a plus de fiche d'agence"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -76,3 +76,14 @@ slug que TCK-1004 garde.
 - Le formulaire anonyme vers l'admin d'un espace (reste de P85.05) : sans fiche, il n'a plus lieu.
 
 ## Notes d'implémentation
+
+- Ablation API : contrôleur rendu à 53f6599d7 → 2 rouges sur `PublicIndividualSpaceIsNotAnAgencyTest` ;
+  remis → 2 verts. Ablation front : `PropertyAgentCard` d'origine → 2 rouges sur 3
+  (`PropertyAgentCard.tck-1313.test.tsx`, le cas `standard` reste vert) ; remis → 3 verts.
+- Piège : deux tests de `PublicRoleTest` (TCK-1077) lisaient l'équipe d'un espace sur sa fiche
+  d'agence ; ils attendent désormais 404, leurs assertions sur la personne sont gardées.
+- Classes voisines vertes (une à une) : `PublicRoleTest`, `AgencySlugAfterUpgradeTest`,
+  `AgencySuspensionTest`, `PublicAgencyLogoTest`, `PublicProfileTest`, `PublicProfileIndexTest`,
+  `PropertyCollaboratorsNotExposedTest`, `PublicPortfolioPredicateTest`, `AgentContactLeadTest`,
+  `NumeroPublieVerifieTest`, `PublicAgencyIsVerifiedTest`,
+  `EnveloppeDePaginationDesListesDeRessourcesTest` ; les sept fichiers `PropertyAgentCard.*.test.tsx`.
