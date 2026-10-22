@@ -13550,7 +13550,7 @@ générique est P112.01.*
 
 ### Le socle commun : après toute erreur autre qu'un 422, le formulaire garde sa saisie et le bouton se réactive, et une seule route de l'API sait reconnaître un rejeu
 - Réf : P144.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : brique commune d'idempotence (intergiciel et option de mutation), forme et fenêtre à choisir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/hooks/useApiForm.ts:262-298`, `takussan-web/src/lib/query-client.ts:27-29`, `takussan-web/src/lib/api.ts:752-765`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:49-93`, `takussan-api/app/Http/Requests/Credits/StorePropertyBoostRequest.php:28-31`
 - Constat :
@@ -13560,10 +13560,11 @@ générique est P112.01.*
   - La seule clé d'idempotence de l'API est celle des boosts : un en-tête `Idempotency-Key` lu par le FormRequest et rangé en cache par agence (24 h) dans `BoostPurchaseService` (lu ; `grep -rn -i idempotency app routes` → ces deux fichiers seuls, hors webhooks). Aucun intergiciel ni aucune option de `useApiMutation` ne permet à une autre route de la reprendre. CORS accepte déjà tout en-tête (`allowed_headers => ['*']`, lu `config/cors.php:27`).
   - Établi comment : lu.
 - Piste : une brique commune — intergiciel `Idempotency-Key` (clé par utilisateur et route, réponse rangée et rejouée telle quelle, refus d'une même clé pour un autre corps), et une option de `useApiMutation` qui engendre la clé à l'ouverture du formulaire et la garde jusqu'au succès —, puis l'appliquer aux routes des entrées qui suivent. La forme (cache ou table, fenêtre) est à choisir. Garde : un test par route qui rejoue la même clé et compte une seule ligne.
+- Mesure (2026-10-22, 83f10e21d, mesureur) : relu `useApiForm.ts:262-299` (`setIsSubmitting(false)` en `finally`, `globalError` hors 422, aucune remise à zéro sur échec), `query-client.ts:28` (`retry: false` des mutations), `BoostPurchaseService::purchaseOnce()` (clé rangée en cache par agence, 24 h) ; `grep -rn -i idempotency app routes` hors webhooks → `StorePropertyBoostRequest` et `BoostPurchaseService` seuls ; `git log -S 'Idempotency-Key'` → TCK-822 (boost) seul ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : messages, réservations, acompte, facture, intervention, contact → tous 201 et 201, deux lignes → le constat tient. Classement : V6, un intergiciel transverse dont la forme (cache ou table, fenêtre, portée de la clé) reste à choisir est une décision structurelle qui demande un ADR.
 
 ### Un message rejoué après une erreur s'écrit deux fois dans le fil
 - Réf : P144.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : dépend de la brique de P144.01, ou d'un `client_id` rangé sur le message (V4)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:289-330`, `takussan-web/src/lib/queries/conversations.ts:265-327`, `takussan-web/src/components/messages/ChatView.tsx:211-218,368`
 - Constat :
@@ -13573,10 +13574,11 @@ générique est P112.01.*
   - Le limiteur `throttle:conversation-message` (lu, `routes/api/conversations.php:33`) borne le débit, pas le doublon.
   - Établi comment : lu, mesuré.
 - Piste : un identifiant client par message composé (`Idempotency-Key`, ou un `client_id` rangé sur le message), rejoué en 200 avec le message déjà écrit ; le front le garde tant que le message n'est pas parti. Garde : le scénario mesuré en test, plus un test vitest qui renvoie la même clé après un échec.
+- Mesure (2026-10-22, 83f10e21d, mesureur) : relu `ConversationController::sendMessage()` (création à chaque appel, sans clé ni rapprochement), `ChatView.tsx:368` (`sendDisabled={sendMessage.isPending}`) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : deux `POST /api/conversations/{id}/messages` `{content: "Je passe demain"}` → 201 et 201, 2 lignes dans `messages` → le constat tient. Classement : V6, la `Piste` passe par la brique commune de P144.01 (non décidée), et sa variante `client_id` est une colonne neuve (V4).
 
 ### Une demande de réservation rejouée crée une seconde réservation en attente, et prévient de nouveau le bailleur
 - Réf : P144.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : refuser ou rendre la réservation `pending` déjà ouverte est une règle neuve ; sinon la brique de P144.01 (V6)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/BookingService.php:119-136`, `takussan-api/app/Services/Booking/PropertyAvailabilityService.php:40-44`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:946-1048`, `takussan-web/src/components/bookings/BookingTunnel.tsx:145-175,446`, `takussan-web/src/hooks/useBookingRequest.ts:14-28`, `takussan-web/src/app/actions/property.ts:131-149,182-199`
 - Constat :
@@ -13586,10 +13588,11 @@ générique est P112.01.*
   - Chaque réservation `pending` expire à 7 jours et compte dans les files de l'agence : le doublon reste à traiter à la main (déduit, à vérifier).
   - Établi comment : lu, mesuré.
 - Piste : clé d'idempotence sur `POST /api/bookings` et `booking-request` (P144.01) ; à défaut, refuser ou rendre la réservation `pending` déjà ouverte par le même client sur le même bien et les mêmes dates. Garde : le scénario mesuré, une seule réservation et une seule notification.
+- Mesure (2026-10-22, 83f10e21d, mesureur) : relu `PropertyAvailabilityService::assertAvailable()` (seuls une réservation confirmée ou un blocage refusent), `BookingTunnel.tsx:446` (`disabled={createBooking.isPending}`) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : deux `POST /api/bookings` → 201 et 201, 2 réservations `pending,pending`, 2 notifications au bailleur ; deux `POST /api/public/properties/{slug}/booking-request` → 201 et 201, 2 réservations pour 1 client, 2 notifications ; l'expiration à 7 jours et la charge des files n'ont pas été re-mesurées. Classement : V7, rapprocher un même client, un même bien et des mêmes dates change ce que voit le visiteur, et la voie par clé dépend de P144.01 (V6).
 
 ### Un acompte enregistré par le personnel puis rejoué compte deux encaissements `paid`
 - Réf : P144.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : encaissement d'acompte, montant écrit deux fois
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/BookingPaymentController.php:35-59`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-48`, `takussan-web/src/components/bookings/BookingPaymentDialog.tsx:60-67,120`
 - Constat :
@@ -13599,10 +13602,11 @@ générique est P112.01.*
   - Que les deux reçus et le double encaissement se retrouvent dans les totaux, les reversements et les tableaux de bord est déduit (à vérifier).
   - Établi comment : lu, mesuré.
 - Piste : clé d'idempotence sur la route (P144.01). Garde : le scénario mesuré, une seule ligne `paid`.
+- Mesure (2026-10-22, 83f10e21d, mesureur) : relu `BookingPaymentService::create()` (ligne `paid` par défaut, nouveaux numéros de référence et de reçu à chaque appel, aucune comparaison aux paiements existants) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : bailleur, deux `POST /api/bookings/{id}/payments` `{amount: 100000, payment_type: deposit, payment_method: cash}` → 201 et 201, 2 lignes `paid,paid`, reçus `RCP-1PPKS1` et `RCP-L3N1ME` → le constat tient ; la reprise dans les totaux et reversements n'a pas été mesurée. Classement : V1, l'écriture d'un paiement.
 
 ### Une facture rejouée est émise deux fois, sous deux numéros
 - Réf : P144.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : création de facture ; le doublon est un brouillon, sans numéro légal
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/InvoiceController.php:43-53`, `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:72-95,288`, `takussan-web/src/lib/queries/payments.ts:179-184`
 - Constat :
@@ -13611,10 +13615,11 @@ générique est P112.01.*
   - Une facture numérotée ne se supprime pas sans trace : défaire le doublon passe par un avoir (ADR-0039, à vérifier sur le chemin d'annulation d'un brouillon).
   - Établi comment : lu, mesuré.
 - Piste : clé d'idempotence sur `POST /api/invoices` (P144.01). Garde : le scénario mesuré, une seule facture.
+- Mesure (2026-10-22, 83f10e21d, mesureur) : relu `InvoiceService::create()` (statut `draft`, `reference_number` tiré à chaque appel), `send()` (le numéro légal `sequence_number` n'est attribué qu'à l'émission, ADR-0039 §7), `cancel()` (un brouillon s'annule par simple changement de statut, sans avoir) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : agent, deux `POST /api/invoices` `{customer_id, issue_date, subtotal: 100000}` → 201 et 201, deux factures `draft` `INV-202610-JAEXVD` et `INV-202610-90RAEU`, `sequence_number` nul sur les deux → le doublon tient, mais le constat est inexact : ce sont deux brouillons, pas deux factures émises, et l'annulation du doublon ne demande pas d'avoir. Classement : V1, la création d'une facture, et la voie passe par la brique de P144.01 (V6).
 
 ### Une demande d'intervention rejouée ouvre deux interventions et prévient deux fois
 - Réf : P144.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : dépend de la brique d'idempotence de P144.01
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:87-130`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:78-96,179`
 - Constat :
@@ -13622,10 +13627,11 @@ générique est P112.01.*
   - `MaintenanceForm` ne navigue vers la fiche qu'en `onSuccess` ; après une erreur, la saisie et les photos choisies restent et le bouton se réactive (lu, l. 78-96, 179).
   - Établi comment : lu, mesuré.
 - Piste : clé d'idempotence sur la route (P144.01). Garde : le scénario mesuré.
+- Mesure (2026-10-22, 83f10e21d, mesureur) : relu `MaintenanceForm.tsx:96` (navigation en `onSuccess` seulement) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : locataire en bail actif, deux `POST /api/maintenance-requests` identiques → 201 et 201, 2 interventions, 2 notifications au bailleur → le constat tient. Classement : V6, la seule `Piste` est la clé commune de P144.01, non décidée.
 
 ### Le délai par défaut que P79.01 pose sur les appels du serveur Next couvrira aussi les écritures des actions serveur
 - Réf : P144.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : clé d'idempotence ou délai plus long pour les écritures, à choisir avec P79.01
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/property.ts:112-149,182-270`, `takussan-web/src/lib/api.ts:690-765`
 - Constat :
@@ -13633,10 +13639,11 @@ générique est P112.01.*
   - Une écriture que l'API termine après le délai sera rendue au navigateur comme un échec (`{ ok: false }`), puis rejouée par le visiteur, comme en P144.03 (déduit, à vérifier une fois P79.01 livré).
   - Établi comment : lu.
 - Piste : à l'implémentation de P79.01, porter une clé d'idempotence sur ces `POST` (P144.01), ou un délai plus long pour les écritures ; le choix se fait avec P79.01. Garde : un test vitest de l'action qui vérifie que la clé part et reste la même d'un essai à l'autre.
+- Mesure (2026-10-22, 83f10e21d, mesureur) : relu `src/lib/api.ts` sur l'arbre (aucun délai par défaut : seul le `signal` de l'appelant) et `src/app/actions/property.ts` (visite, réservation, offre, message, contact en `POST` par `apiRequest`) ; `gh pr diff 972` (P79.01, TCK-1215, ouverte) → `signalBorneServeur` pose 30 s sur tout appel serveur d'`apiRequest`, 90 s pour un `formData`, sans distinguer lecture et écriture → le risque décrit se réalise à la fusion de #972 ; une écriture finie après le délai puis rejouée reste déduite, non mesurée. Classement : V7, la `Piste` laisse deux voies (clé, ou délai propre aux écritures) dont le choix revient au porteur avec P79.01.
 
 ### Petites améliorations
 - Réf : P144.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : rapprochement des visites par créneau, règle neuve ; sinon la brique de P144.01 (V6)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Visit/VisitSchedulingService.php:30,214-287`, `takussan-web/src/app/actions/property.ts:112-129`
 - Constat :
@@ -13644,6 +13651,7 @@ générique est P112.01.*
   - Le contact public (`contact-lead`) n'est borné que par son limiteur `public-contact-lead` (5 par 10 min, lu dans `takussan-api/CLAUDE.md`) : un rejeu crée une seconde demande (déduit du code, à vérifier).
   - Établi comment : lu.
 - Piste : la clé de P144.01 sur ces routes, ou un rapprochement par (visiteur, bien, créneau) pour les visites. Garde : le rejeu en test.
+- Mesure (2026-10-22, 83f10e21d, mesureur) : relu `VisitSchedulingService` (quota `MAX_ACTIVE_VISITS_PER_CUSTOMER = 3` par visiteur et par bien, aucun contrôle de créneau à la demande) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : trois `POST …/visit-request` au même créneau puis un quatrième à un autre → 201, 201, 201, 422, 3 visites → les doublons consomment le quota et la demande légitime est refusée (le « à vérifier » tient) ; deux `POST …/contact-lead` identiques → 201 et 201, 2 demandes. Classement : V7, rapprocher les visites par (visiteur, bien, créneau) est une règle visible neuve, et la voie par clé dépend de P144.01 (V6).
 
 ## Angle 145 — Champs écartés par `validated()`, reste de l'angle 114
 
