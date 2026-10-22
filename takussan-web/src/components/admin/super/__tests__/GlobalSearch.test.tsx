@@ -50,15 +50,19 @@ describe('<GlobalSearch>', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('Ctrl+K ouvre ; sous 2 caractères, aucun appel', async () => {
+  it('Ctrl+K ouvre ; à deux caractères, aucun appel (TCK-1447 : le seuil du texte libre)', async () => {
     rendre(SUPPORT);
     const u = userEvent.setup();
     await u.keyboard('{Control>}k{/Control}');
     const champ = await screen.findByRole('combobox');
-    await u.type(champ, 'f');
-    expect(screen.getByText('Au moins 2 caractères.')).toBeInTheDocument();
+    await u.type(champ, 'Ba');
+    expect(screen.getByText('Au moins 3 caractères.')).toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 400));
     expect(fetchMock).not.toHaveBeenCalled();
+
+    await u.type(champ, 'i');
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(String(fetchMock.mock.calls[0][0])).toBe('/api/super-admin/search?q=Bai');
   });
 
   it('classe par type, se parcourt aux flèches et ouvre à Entrée', async () => {

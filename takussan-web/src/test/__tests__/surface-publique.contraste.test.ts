@@ -372,8 +372,15 @@ const FICHIERS_HORS_JETONS = 5;
  * le texte d'explication (`text-muted-foreground`, ligne 78) sur la carte `bg-card` posée par son
  * parent. Relevé en filtrant la liste des encres inverses sur les deux fichiers neufs ; c'est la
  * seule différence avec `origin/pre-dev`, où le test est vert à 265.
+ *
+ * **266 → 263 le 2026-10-22 (TCK-1461, P137.03).** L'index de `components/forms` ne réexporte
+ * plus `FormDateTimePicker` : `forms/FormDateTimePicker.tsx` et `ui/date-time-picker.tsx` sortent
+ * de la clôture d'import des pages publiques, et avec eux les 3 entrées du second (lignes 171,
+ * 199 et 219, `text-muted-foreground`). Aucun couple n'a changé : c'est le périmètre qui rétrécit.
+ * Relevé en comparant la liste des encres inverses et la surface avec et sans les fichiers du lot ;
+ * ce sont les seules différences avec `origin/pre-dev`, où le test est vert à 266.
  */
-const ENCRES_INVERSES = 266;
+const ENCRES_INVERSES = 263;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);
