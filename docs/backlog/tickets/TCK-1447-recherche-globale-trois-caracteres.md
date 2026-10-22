@@ -36,7 +36,7 @@ libre du service ne commence qu'à `FREE_TEXT_MIN = 3` et les voies exactes plus
 
 ## Décision du porteur (déléguée)
 
-> monter l'écran et la requête à 3 caractères, sur le seuil du texte libre que TCK-600 a écrit : `MIN = 3` dans `GlobalSearch.tsx` (l'écran n'interroge pas en dessous), `min:3` dans `GlobalSearchRequest`, aide « Au moins 3 caractères. » en `fr` et « At least 3 characters. » en `en` (le `wo` n'est pas réécrit, pause du wolof) ; test : `q=Ba` rend 422 et l'écran n'appelle pas l'API à deux caractères
+> monter l'écran et la requête à 3 caractères, sur le seuil du texte libre que TCK-600 a écrit : `MIN = 3` dans `GlobalSearch.tsx` (l'écran n'interroge pas en dessous), `min:3` dans `GlobalSearchRequest`, aide « Au moins 3 caractères. » en `fr` et « At least 3 characters. » en `en` (le `wo` n'est pas réécrit, pause du wolof) ; test : `q=Ba` rend 422 et l'écran n'appelle pas l'API à deux caractères ; reste : abaisser le texte libre à 2 caractères pour les noms courts (Ba, Sy, Ka), après mesure du coût d'un `LIKE` sur deux lettres
 
 ## Hypothèses (mode sans humain)
 
