@@ -3,7 +3,7 @@ id: TCK-1389
 title: "La liste des conversations est départagée par id, et le fetcher sans appelant de l'historique des prix est retiré"
 status: done
 phase: P2
-family: chore
+family: technique
 estimate: S
 wave: null
 created: 2026-10-22
