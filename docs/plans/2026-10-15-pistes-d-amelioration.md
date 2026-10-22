@@ -182,7 +182,7 @@ voie d'écriture (angle 13, puis 47).
 | 106 | Branches que le code ne prend qu'en `APP_ENV=production` (`RestrictIpMiddleware` à liste vide, `DeletionStepUpService::sendCode`, `AddRobotsTagOutsideProduction` jugé sur `APP_URL`) : chacune éprouvée par un test en `production`, alors que la préproduction tourne en `staging` et ne les prend jamais ? | fait |
 | 107 | Champs du profil que l'utilisateur déclare pour être joint (`phone_whatsapp`, `secondary_phone`, `secondary_phone_whatsapp`, `preferred_language`, heures calmes) : lus par les chemins qui envoient (canaux de notification, codes, relances), ou seulement affichés ? | fait |
 | 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | fait |
-| 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | à faire |
+| 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | fait |
 | 110 | Rapprochement bancaire (`bank_reconciled_at`, `bank_statement_line_id`, `Accounting\ReconciliationManager`) d'une échéance, d'un acompte ou d'une facture passés à `refunded` après rapprochement : la ligne de relevé reste-t-elle rapprochée, et le remboursement sortant a-t-il un pendant | à faire |
 | 111 | Jobs en file qui posent un statut de suivi (`processing`, `queued`) sur une ligne (`ReportExport`, `DataExport`, `ParseBankStatementJob`, versements) sans `failed()` — 7 jobs sur 43 en ont un : ce que voit l'utilisateur après l'échec définitif ou un arrêt brutal du worker, et ce qui bloque une nouvelle demande | à faire |
 | 112 | Exports synchrones de `ExportController` (`GET /api/exports/{entity}`, jusqu'à 10 000 lignes, 2 000 en PDF) et de `PrivacyRequestController` : requêtes par ligne des constructeurs d'entité, mémoire et durée dans la requête HTTP — le relevé de l'angle 78 sur les exports qui ne passent pas par un job | à faire |
@@ -214,6 +214,7 @@ voie d'écriture (angle 13, puis 47).
 | 137 | Écrans qui importent le fichier `index.ts` de `components/forms` pour `FormError` ou `FormGlobalError` seuls (pages `(auth)` `verify-email` et `reset-password`, `DefiSecondFacteur`, `ConnexionParTelephone`, `IntegrationsManager`, `ChampsLieu`) : react-hook-form et react-day-picker chargés pour afficher un message d'erreur — le motif de P104.01 hors de la console | à faire |
 | 138 | Lectures de l'API dédoublées dans un même rendu serveur : server actions `*Action` (`fetchAgencyAction`, et leurs pareilles) appelées par des pages et des layouts serveur qui relisent une ressource déjà lue hors de `cache()` (`agenceDuRendu`, `getMeAction`), mesurées par requête sur un document servi | à faire |
 | 139 | Colonnes déclarées par les exporteurs (`ActivityLogExporter::COLUMNS`, constructeurs d'entité d'`ExportController`, exports de rapports, archive RGPD `DataExportBuilder`) qu'aucun chemin n'écrit, ou qui lisent une clé que l'écrivain nomme autrement : colonne toujours vide dans le fichier rendu — le relevé de P108.02 sur les autres exports | à faire |
+| 140 | PDF figés face aux PDF recomposés à chaque téléchargement (`DocumentPdfService::store`, `signed_contract` de `LeaseSignatureService`, contre `InventoryController::downloadPdf`, `DocumentPdfController::stream*`, quittance publique `PublicPaymentLinkController::receipt`) : ce qu'un document signé ou acquitté imprime après un changement de l'agence, du bien, du locataire, d'un réglage ou d'un gabarit | à faire |
 
 ---
 
@@ -10677,3 +10678,73 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
 - Piste : retirer la route sans appelant (ou la faire servir par le front, s'il doit l'appeler) ; poser `redirect: 'manual'` dans `relayerVersApi` et rendre la redirection telle quelle au navigateur ; relayer `upstream.body` en flux. Garde : un test vitest du relais qui exige qu'une réponse 302 de l'API soit rendue en 302.
 - Mesure (2026-10-22, a49b315a0, mesureur) : `routes/api/documents.php:23` porte toujours `document-versions.download` ; `grep -rn "versions" takussan-web/src | grep -i download` → rien, les seuls appelants sont deux tests de l'API (`DocumentPieceAccessTest.php:80`, `PrivateMediaAccessTest.php:161`), qui l'emploient pour éprouver le contrôle d'accès ; `relais-api.ts:65` et `data-exports/[id]/download/route.ts:16` appellent `fetch` sans `redirect:` ; `route.ts:23` lit `upstream.arrayBuffer()` ; `grep -rn redirect` dans les relais → rien → les trois points tiennent ; la question d'undici sur `Authorization` après une redirection d'origine croisée n'a pas été mesurée. Classement : V7, la piste laisse deux voies pour la route (retrait, ou branchement au front), et rendre une 302 au navigateur au lieu de la suivre change la forme des réponses des relais ; seul le passage de l'export en flux (A2) serait autonome seul.
 - Mesure (2026-10-22, 063cba6d9, delegue) : lu `DocumentVersionController.php:64-82` (la route juge `view`, puis `recordPlatformPieceRead()` au l. 79 avant `PrivateMediaAccess::redirect(…, 'attachment')`) ; `grep -rn recordPlatformPieceRead app` → `DocumentVersionController.php:79` et `DocumentController.php:105` seulement, rien sur `media.private.show` (`routes/api/media.php:24`), que le front suit par `version.url` ; `TCK-097` l. 46 écrit la route au contrat ; `PrivateMediaAccessTest.php:161` éprouve son 302 présigné en `attachment` → la route n'est pas morte au sens d'A3 : c'est le seul chemin de téléchargement d'une version qui laisse la trace TCK-820 d'une lecture plateforme, et la retirer ou y brancher le front change ce qui est tracé des lectures de pièces. Recommandation : garder la route (écrite dans TCK-097, porteuse de la trace TCK-820), décider à part si le panneau Versions doit la suivre plutôt que `version.url`, ce qui est V3 (trace d'accès aux données personnelles, découvert ici et non vu par le mesureur) ; prendre dès maintenant le relais d'export en flux (`upstream.body` au lieu d'`arrayBuffer()`, A2 seul) et `redirect: 'manual'` dans `relayerVersApi` et le relais d'export, sans effet aujourd'hui puisqu'aucune route relayée ne redirige, avec le test vitest d'une 302 rendue en 302 ; ce qui manque pour trancher : la décision du porteur sur la trace des lectures plateforme par `media.private.show`, et la mesure d'undici sur `Authorization` après une redirection d'origine croisée.
+
+## Angle 109 — Images des PDF rendus par dompdf
+
+*Exploré le 2026-10-22 sur `pre-dev` a49b315a0, par l'explorateur, sans sous-agent. Relus par
+l'explorateur : `DocumentPdfService`, `PdfImageEmbedder`, `PaymentReceiptPdf`, les huit vues de
+`resources/views/pdf/`, `InventoryController::downloadPdf` et `groupRoomPhotos`,
+`InventorySignRequest`, `LeaseSignatureService::request`, `MediaUploadRequest`, `Agency::registerMediaCollections`,
+la configuration du paquet (`vendor/spatie/laravel-pdf/config/laravel-pdf.php`, aucun
+`config/laravel-pdf.php` dans le dépôt), `DomPdfDriver` et, dans dompdf 3, `Image\Cache::resolve_url`,
+`Css\Style` (`display`) et le rendu de `alt`. Mesures par scripts PHP hors du dépôt (`/tmp`),
+rendu en mémoire, base de développement lue en `SELECT` (4 agences, 4 logos `image/png` sur le
+disque `public`). Le pilote de la préproduction n'est pas relevé : `LARAVEL_PDF_DRIVER` y est une
+clé « fixée par le plan » (`docs/infra/hebergement.md:169`), que le plan d'auto-hébergement pose à
+`dompdf` (`docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3532`) ; sa valeur dans Dokploy
+n'est pas relue. `.env.example`, `.env.docker` et `phpunit.xml` déclarent `dompdf`. Déjà fermé et
+non repris : les photos d'état des lieux, embarquées en URI `data:` depuis le disque privé
+(TCK-538, `MediaDiskPrivatePhotosTest`), et les signatures, stockées en URI `data:image/png`
+(`InventorySignRequest`) ; la photo HEIC absente du PDF est P10.06 (`PdfImageEmbedder.php:30`,
+déjà relevée).*
+
+### Le logo d'agence n'apparaît sur aucun PDF rendu par dompdf : seul le nom de l'agence s'imprime à sa place
+- Réf : P109.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Pdf/DocumentPdfService.php:136-156`, `takussan-api/resources/views/pdf/layouts/base.blade.php:91-92`, `takussan-api/vendor/spatie/laravel-pdf/config/laravel-pdf.php:108`, `takussan-api/app/Models/Agency.php:158`, `takussan-api/tests/Feature/Services/DocumentPdfServiceTest.php:126-150`
+- Constat :
+  - `prepareData()` passe au gabarit `$agency->getFirstMediaUrl('logo')`, une URL `http(s)` du disque public (`public` en développement, `r2-media` en préproduction) ; le gabarit commun la pose telle quelle en `<img src>` (lu).
+  - `is_remote_enabled` vaut `env('LARAVEL_PDF_DOMPDF_REMOTE_ENABLED', false)` dans la configuration du paquet, et aucune des trois sources d'environnement du dépôt ne déclare cette clé (lu : `git grep DOMPDF_REMOTE` → rien hors du fichier de pistes).
+  - Mesuré : agence #1 de la base de développement, son URL de logo réelle (`http://localhost:8002/storage/1/….png?v=…`), gabarit `pdf.layouts.base` rendu par `Pdf::html(…)->generatePdfContent()` sous `laravel-pdf.driver=dompdf` → 0 objet `/Subtype /Image` dans le PDF, avertissement dompdf « Remote file requested, but remote file download is disabled » ; même rendu avec le même logo en URI `data:` → 1 objet image. Même résultat pour une URL `https://pub-….r2.dev/…`.
+  - dompdf remplace l'image introuvable par son texte `alt` (`FrameDecorator/Image.php:63`, `Renderer/Image.php:41`, lu), ici le nom de l'agence : le PDF ne montre aucune erreur, le logo manque en silence. L'avertissement reste dans un global de dompdf que rien ne journalise (lu).
+  - Les sept gabarits étendent `pdf.layouts.base` (lu) : quittances de loyer et de réservation, facture, contrat de bail, état des lieux, relevé du bailleur, devis de maintenance. Le contrat envoyé en signature est figé tel quel dans `signed_contract` avec son empreinte (`LeaseSignatureService.php:62-95`, lu) : il garde l'absence de logo pour toujours.
+  - Le seul test du logo (`DocumentPdfServiceTest.php:126-150`) lit le HTML de la vue, jamais le PDF : il reste vert quel que soit le moteur (lu).
+- Établi comment : lecture du chemin, puis rendu mesuré sur la base de développement, sans écriture.
+- Piste : ne pas ouvrir `is_remote_enabled` (le moteur irait chercher toute URL du HTML, et l'original du logo peut peser 10 Mo, `MediaUploadRequest.php:14`, sans conversion déclarée sur `Agency`), mais embarquer le logo en URI `data:` par `PdfImageEmbedder::dataUri()` lu depuis le disque, comme les photos de TCK-538. Garde : un test qui rend un vrai PDF sous dompdf pour une agence à logo et compte les objets image (ou intercepte l'URI passée au gabarit et vérifie le préfixe `data:`), rouge sur le code actuel.
+
+### Le pied de page de tout PDF rendu par dompdf imprime « Page 1 sur 0 »
+- Réf : P109.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/resources/views/pdf/layouts/base.blade.php:84-85,104-107`, `takussan-api/tests/Feature/Services/DocumentPdfServiceTest.php:121-123`
+- Constat :
+  - Le pied de page commun écrit « Page <counter(page)> sur <counter(pages)> » par deux règles CSS `:before` (lu).
+  - Mesuré : document de 7 pages rendu par dompdf 3 (`Options` du paquet, compression coupée pour lire le flux) avec ces deux règles et ce pied `position: fixed` → les chaînes rendues sont « Page 1 sur 0 », « Page 2 sur 0 », « Page 3 sur 0 »… : `counter(page)` est compté, `counter(pages)` vaut 0. La mesure emploie une police de base au lieu de DejaVu pour lire le texte ; les compteurs ne dépendent pas de la police (à vérifier sur un gabarit réel).
+  - Le test du gabarit vérifie que la classe `page-total` est dans le HTML (`DocumentPdfServiceTest.php:123`), pas ce que le PDF imprime (lu).
+- Établi comment : rendu mesuré par script, hors du dépôt.
+- Piste : écrire le total par le canevas de dompdf (`page_text` avec `{PAGE_COUNT}`, que `Canvas.php:179` remplace), ce qui demande d'atteindre le canevas depuis le pilote de `spatie/laravel-pdf`, ou retirer « sur N » ; à trancher selon le moteur retenu pour la production. Garde : un test qui rend un document de deux pages sous dompdf et lit « sur 2 ».
+
+### L'en-tête et le pied de page communs sont mis en page en flexbox, que dompdf rend en blocs empilés
+- Réf : P109.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/resources/views/pdf/layouts/base.blade.php:34-47,72-83`
+- Constat :
+  - `header.pdf-header` et `footer.pdf-footer` sont en `display: flex; justify-content: space-between` (lu). dompdf 3 ramène `flex` à `block` (`Css/Style.php:2888-2894`, lu) et ignore `justify-content`, `align-items`, `box-sizing` et `font-variant-numeric` (mesuré : avertissements « 'justify_content' is not a recognized CSS property » au rendu du gabarit commun).
+  - Conséquence lue, non vue : dans l'en-tête, le badge `.label` (un `div`) passe sous le logo ou le nom, sur toute la largeur de la page, au lieu d'être aligné à droite ; dans le pied, la note et la pagination se suivent sur une ligne sans écart (à vérifier sur un rendu).
+  - `.env.example:256` dit l'écart de rendu « avec la production » assumé ; le plan pose pourtant `dompdf` en préproduction (voir l'en-tête de l'angle) : le gabarit est écrit pour un moteur navigateur que ni le développement, ni les tests, ni la préproduction prévue n'emploient.
+- Établi comment : lecture de dompdf, avertissements mesurés.
+- Piste : réécrire l'en-tête et le pied en tableau à deux cellules (ce que dompdf et un navigateur rendent pareil), après avoir regardé un PDF rendu. Pas de garde automatique simple : un rendu de référence relu une fois.
+
+### Petites améliorations des images des PDF
+- Réf : P109.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/InventorySignRequest.php:21-25`, `takussan-api/database/factories/InventoryFactory.php:53,57`, `docs/configuration.md:68,350`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:185-225`
+- Constat :
+  - **Commentaire de `InventorySignRequest` dépassé** : « even with `is_remote_enabled=false`, dompdf still resolves local file paths ». Mesuré : `/tmp/…/x.png` et `file:///tmp/…/x.png`, fichiers existants, sont refusés (« The file could not be found under the paths specified by Options::chroot ») ; seul un fichier sous `vendor/dompdf/dompdf` est lu, `chroot` n'étant pas réglé. La validation stricte reste juste, son motif est à nuancer.
+  - **Signatures de la fabrique** : `base64_encode('tenant-sig')` n'est pas un PNG (lu) ; tout test qui rendrait un PDF d'état des lieux signé par la fabrique imprimerait le texte `alt` au lieu de l'image, sans rougir.
+  - **`docs/configuration.md`** prescrit `LARAVEL_PDF_DRIVER=cloudflare` (§ 3.11, l. 350) quand `.env.example`, `.env.docker`, `phpunit.xml` et le plan d'auto-hébergement disent `dompdf` (lu).
+  - **État des lieux recomposé au téléchargement** (`InventoryController::downloadPdf`, lu) : une fois le logo embarqué (P109.01), le PDF d'un état des lieux signé changera avec le logo courant de l'agence ; l'empreinte imprimée ne couvre pas le logo (à vérifier dans `InventorySignatureService::traceabilityHash`).
+- Piste : corriger le commentaire (A6), donner à la fabrique un vrai PNG d'un pixel, aligner `docs/configuration.md` sur le pilote déclaré, et décider si le logo d'un état des lieux signé se fige.
