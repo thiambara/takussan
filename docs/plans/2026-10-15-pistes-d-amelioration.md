@@ -14681,7 +14681,7 @@ mais les valeurs mises en cache relues sont des scalaires et des tableaux, sans 
 
 ### La file `sync` de la suite n'attend pas le commit : un job mis en file dans une transaction s'y exécute avant la fin, et son échec annule le geste
 - Réf : P156.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : régime de file de toute la suite, écart écrit par TCK-746
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/phpunit.xml:51`, `takussan-api/config/queue.php:42-44`, `:51`, `takussan-api/tests/Feature/Queue/QueueAfterCommitTest.php:26-39`
 - Constat :
@@ -14692,10 +14692,11 @@ mais les valeurs mises en cache relues sont des scalaires et des tableaux, sans 
   - Aucun cas actuel où le job lirait une écriture faite après lui dans la même transaction n'a été trouvé (sous-agent, non relu cas par cas : deux voisins, `SendTaskDueReminders.php:66-96` et `SendPropertyVisitReminders.php:90-147`, écrivent la marque après l'envoi, mais la notification ne la lit pas). Le défaut est le régime, pas encore un résultat faux.
   - Établi comment : lecture, puis le test temporaire.
 - Piste : poser `'after_commit' => true` sur la connexion `sync` de `config/queue.php`, pour que la suite joue l'ordre du worker, puis lancer la suite entière pour voir quels tests reposaient sur l'ancien ordre. Garde : `QueueAfterCommitTest` étendu à `sync` (un job mis en file dans une transaction s'exécute après le commit, et son échec ne l'annule pas).
+- Mesure (2026-10-22, 5b942c15d, mesureur) : relu `config/queue.php` (connexion `sync` sans `after_commit`, `database` à `true`), `phpunit.xml:51` (`QUEUE_CONNECTION=sync`), `QueueAfterCommitTest.php:26` (`TRANSPORTS` écarte `sync`) et `TCK-746-files-apres-commit.md:46` (écart de `sync` écrit par le ticket) ; `git log -3 -- config/queue.php phpunit.xml` → rien depuis TCK-746 ; test temporaire (retiré), charge 7,9 / 4,6 / 3,7 sur 8 cœurs : job `ShouldQueue` mis en file dans `DB::transaction()` → `["job(level=2)","apres-dispatch"]`, et un job qui lève annule la ligne `users` écrite avant lui (delta 0) → le constat tient tel qu'écrit. Classement : V6, poser `after_commit` sur `sync` change le régime de toute la suite, revient sur un écart que TCK-746 a écrit, et l'ampleur des tests à reprendre ne se connaît qu'en lançant la suite entière.
 
 ### `MediaConversionTest` garde une réponse de téléversement que seule la file `sync` produit : en développement et en préproduction, `preview` et `full` y sont nulles
 - Réf : P156.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/tests/Feature/Media/MediaConversionTest.php:37-67`, `takussan-api/app/Http/Controllers/Api/MediaController.php:54-57`, `takussan-api/app/Http/Resources/MediaResource.php:123-138`, `takussan-api/config/media-library.php:61`, `:74`, `:79`
 - Constat :
@@ -14705,10 +14706,11 @@ mais les valeurs mises en cache relues sont des scalaires et des tableaux, sans 
   - Le front ne lit pas `conversions` de cette réponse (lu, `grep -rn conversions takussan-web/src` : aucun usage) : rien de visible aujourd'hui, mais le test garde un contrat que la route ne tient pas.
   - Établi comment : lecture, puis le test lancé sous les deux régimes de file.
 - Piste : écrire le contrat réel (la réponse du téléversement ne promet que `thumbnail`, les deux autres arrivent avec le worker) dans le test, joué sous la file `database`, et corriger le commentaire de `MediaController::store()`. Si P156.01 est retenu, ce test rougit avec lui et se corrige du même pas.
+- Mesure (2026-10-22, 5b942c15d, mesureur) : relu `MediaController::store()` (commentaire « generated_conversions written by the sync conversion job », toujours là) et `MediaConversionTest.php:37-67` ; `php artisan test tests/Feature/Media/MediaConversionTest.php` → 3/3 ; `QUEUE_CONNECTION=database php artisan test tests/Feature/Media/MediaConversionTest.php` → `test_uploading_image_generates_thumbnail_preview_full_urls` rouge (« false is true », `hasGeneratedConversion('preview')`), les deux autres verts ; `git log -S` sur le commentaire → seuls TCK-050 et l'explorateur → le constat tient ; la réponse servie hors suite reste déduite, comme le disait le constat. Classement : A6, le test et le commentaire décrivent un régime que le développement et la préproduction n'ont pas, et le front ne lit pas `conversions` : les ramener à ce que fait le code ne change aucun comportement.
 
 ### Petites améliorations
 - Réf : P156.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : régime de débogage de toute la suite, et choix entre commenter et aligner
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/phpunit.xml:20-52`, `takussan-api/.env.example:7`, `takussan-api/config/app.php:42`, `takussan-api/tests/Feature/Api/ApiErrorFormatTest.php:89-104`, `scripts/check-env-parity.mjs:16-17`
 - Constat :
@@ -14716,3 +14718,4 @@ mais les valeurs mises en cache relues sont des scalaires et des tableaux, sans 
   - **Rien ne compare les valeurs** : `check-env-parity.mjs` ne compare que les noms de clés, par choix écrit (lu, l. 16-17). Les écarts de valeur entre `phpunit.xml`, `.env.docker` et `.env.example` qui changent un comportement (`QUEUE_CONNECTION`, `CACHE_STORE`, `SESSION_DRIVER`, `SCOUT_*`, `MAIL_MAILER`) ne portent leur raison dans `phpunit.xml` que pour `SCOUT_PREFIX`, `MEILISEARCH_*`, `DB_*` et `SMS_*` (lu, l. 20-52, 104-105 : `QUEUE_CONNECTION` et `SCOUT_*` sans commentaire).
   - Établi comment : lu.
 - Piste : poser `APP_DEBUG=false` dans `phpunit.xml`, comme en préproduction, et laisser `true` aux seuls tests qui le demandent ; écrire à côté de chaque valeur de régime de `phpunit.xml` (file, cache, session, Scout) la raison de l'écart avec le développement, ou l'aligner.
+- Mesure (2026-10-22, 5b942c15d, mesureur) : `grep APP_DEBUG phpunit.xml` → rien ; test temporaire (retiré) → `config('app.debug')` vaut `true` dans la suite ; `docs/configuration.md:599` et `hebergement.md:163` posent `false` en préproduction (relevés écrits, non mesurés) ; `grep -rn app.debug tests` → le seul `ApiErrorFormatTest.php:97`, et 10 fichiers attendent un 500 (lui compris) ; `check-env-parity.mjs:16-17` ne compare que les noms, par choix écrit ; `phpunit.xml:51-52` (`QUEUE_CONNECTION`, `SESSION_DRIVER`) et `:26` (`CACHE_STORE`) sans commentaire → les deux parties tiennent ; la copie de `.env.example` par la CI n'est pas relue (`.github/` fermé au mesureur). Classement : V6, poser `APP_DEBUG=false` change le régime de toute la suite, et la seconde partie laisse le choix entre commenter et aligner chaque valeur.
