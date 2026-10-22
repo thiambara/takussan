@@ -2,12 +2,15 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
+use App\Models\PropertyCollaborator;
 use App\Models\PropertyPriceHistory;
 use App\Models\User;
+use App\Services\Property\PropertyDuplicationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -154,5 +157,37 @@ class PropertyDuplicationTest extends TestCase
                 ->where('causer_id', $owner->id)
                 ->exists()
         );
+    }
+
+    /**
+     * TCK-1478 (P86.05) — la copie rejuge chaque collaborateur par `CollaboratorEligibleForProperty`,
+     * avec celui qui duplique pour auteur, et écarte sans erreur la ligne que la règle refuserait.
+     * Avant, un agent sorti de l'agence ou un `co_owner` qui n'y est plus bailleur se recopiait.
+     */
+    public function test_duplicate_drops_collaborators_no_longer_eligible(): void
+    {
+        $agency = Agency::factory()->create();
+        $admin = User::factory()->create();
+        $this->materializeRoleProfile($admin, 'agency_admin', $agency);
+        $agent = User::factory()->create();
+        $this->materializeRoleProfile($agent, 'agent', $agency);
+        $owner = User::factory()->create();
+        $this->materializeRoleProfile($owner, 'owner', $agency);
+        $formerAgent = User::factory()->create();
+        $formerOwner = User::factory()->create();
+
+        $source = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $admin->id]);
+        foreach ([[$agent, 'agent'], [$owner, 'co_owner'], [$formerAgent, 'agent'], [$formerOwner, 'co_owner']] as [$user, $role]) {
+            PropertyCollaborator::create(['property_id' => $source->id, 'user_id' => $user->id, 'role' => $role]);
+        }
+
+        $clone = app(PropertyDuplicationService::class)->duplicate($source->fresh(), $admin, ['copy_collaborators' => true]);
+
+        $this->assertEqualsCanonicalizing(
+            [[$agent->id, 'agent'], [$owner->id, 'co_owner']],
+            PropertyCollaborator::query()->where('property_id', $clone->id)->get()
+                ->map(fn (PropertyCollaborator $c) => [$c->user_id, $c->role->value])->all(),
+        );
+        $this->assertSame(4, PropertyCollaborator::query()->where('property_id', $source->id)->count(), 'la source garde ses lignes');
     }
 }
