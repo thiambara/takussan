@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
+use App\Support\CaseInsensitive;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
@@ -63,8 +64,12 @@ class OAuthProvisioningService
         //    never linked to this provider. We refuse to auto-link to prevent
         //    account takeover when a provider returns an unverified or
         //    attacker-controlled email.
+        //    TCK-1288 (P92.06) — comparé replié, comme `User::setEmailAttribute` l'écrit : une
+        //    casse mixte passait le contrôle puis heurtait l'index unique (500).
         $email = $socialUser->getEmail();
-        if ($email !== null && User::where('email', $email)->exists()) {
+        if ($email !== null && User::query()
+            ->whereRaw(CaseInsensitive::sql('email').' = ?', [CaseInsensitive::fold(trim($email))])
+            ->exists()) {
             abort_code(409, 'auth.oauth_email_taken');
         }
 
