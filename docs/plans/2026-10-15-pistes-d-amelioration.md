@@ -10603,7 +10603,7 @@ et `production` compris) et la signature WhatsApp (`WhatsappStatusWebhookTest.ph
 
 ### `DeletionStepUpService::sendCode` rend le code hors production pour les seuls tests, et en production son `null` ne distingue plus « délai de renvoi » de « code envoyé »
 - Réf : P106.02
-- Statut : validé — `sendCode` rend un booléen « code émis » dans tous les environnements, la branche sur `APP_ENV` retirée ; les tests lisent le code par `Notification::fake` ou le pilote SMS de test, comme `OtpPreviewTest` ; un test du `false` sous délai de renvoi garde le contrat (porteur, 2026-10-22)
+- Statut : fait · TCK-1356
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Account/DeletionStepUpService.php:59-108`, `takussan-api/app/Http/Controllers/Api/Auth/AccountDeletionController.php:84-101`, `takussan-api/tests/Feature/Auth/AccountDeletionStepUpTest.php:104`
 - Constat :
@@ -10613,6 +10613,7 @@ et `production` compris) et la signature WhatsApp (`WhatsappStatusWebhookTest.ph
   - En `staging` et en `local`, le code d'un e-mail est rendu à l'appelant PHP, ce qu'ADR-0060 n'accorde qu'au code d'un SMS, et sous drapeau (lu, `OtpPreview.php:10-18`, et le commentaire l. 97-99 du service). Rien ne l'expose aujourd'hui en HTTP (lu, contrôleur l. 95-100) : le risque est celui d'un appelant futur qui s'y fierait.
 - Piste : faire rendre à `sendCode` un booléen « code émis » dans tous les environnements, et faire lire le code aux tests par `Notification::fake` / le pilote SMS de test (comme `OtpPreviewTest`) ou par `OtpPreview`, ce qui retire la branche sur `APP_ENV` ; un test du `false` sous délai de renvoi garde le contrat.
 - Mesure (2026-10-22, cb29105b6, mesureur) : lu `DeletionStepUpService.php:59-109` (docblock l. 59-64, `return app()->environment('production') ? null : $code;` l. 108) et `AccountDeletionController.php:95` (`$stepUp->sendCode($user);`, valeur ignorée) ; `grep -rn "sendCode(" app tests` → seuls les tests lisent la valeur (`AccountDeletionStepUpTest` ×8, `AmbiguousSmsFailureTest.php:178`) ; ablation, l. 108 → `return $code;` → `AccountDeletionStepUpTest` 17 verts, `AmbiguousSmsFailureTest` 8 verts, puis code remis : le constat tient en entier. Classement : V2, la piste change le contrat d'un service de step-up et la façon dont ses tests obtiennent le code, et l'effet sur la réponse HTTP invariante demande un regard du porteur.
+- Mesure (2026-10-22, 45fd976b2, implementeur) : avant correctif, `sendCode()` rendait encore `app()->environment('production') ? null : $code` (l. 108) ; `AccountDeletionStepUpTest` : `APP_ENV=production` → `null` au lieu de `true` (rouge), second appel sous le délai → `null` au lieu de `false` (rouge). Correctif : `sendCode(): bool`, branche sur `APP_ENV` retirée, les huit tests qui lisaient la valeur rendue lisent le code dans la notification simulée ; 19 verts ; ablation (service remis) → 10 rouges.
 
 ### « Être la production » se juge sur deux critères : `APP_ENV` pour le filtre d'IP, l'origine d'`APP_URL` pour le seul refus de démarrer
 - Réf : P106.03
