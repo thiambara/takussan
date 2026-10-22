@@ -105,10 +105,18 @@ class OfxDriver implements StatementParserInterface
 
         // Parse date: YYYYMMDD or YYYYMMDDHHMMSS or YYYYMMDDHHMMSS.XXX[TZ]
         $dateStr = substr($dtPosted, 0, 8);
-        $postedAt = CarbonImmutable::createFromFormat('Ymd', $dateStr);
+        try {
+            $postedAt = CarbonImmutable::createFromFormat('Ymd', $dateStr);
+        } catch (\Throwable) {
+            $postedAt = null;
+        }
 
-        if (! $postedAt) {
-            throw new \RuntimeException("Invalid OFX date: {$dtPosted}");
+        // TCK-1473 (P157.02) — même règle que `CsvDriver` (TCK-593) : `createFromFormat` DÉBORDE sans
+        // erreur (`20261332` devient le 2027-02-01). La date relue doit redonner la chaîne d'origine,
+        // sinon la ligne est sautée et comptée. Le message ne porte pas la valeur : il finirait dans
+        // un journal.
+        if (! $postedAt || $postedAt->format('Ymd') !== $dateStr) {
+            throw new \RuntimeException('Invalid OFX date');
         }
 
         $amount = $this->parseAmount($trnAmt);
