@@ -217,7 +217,7 @@ voie d'écriture (angle 13, puis 47).
 | 140 | PDF figés face aux PDF recomposés à chaque téléchargement (`DocumentPdfService::store`, `signed_contract` de `LeaseSignatureService`, contre `InventoryController::downloadPdf`, `DocumentPdfController::stream*`, quittance publique `PublicPaymentLinkController::receipt`) : ce qu'un document signé ou acquitté imprime après un changement de l'agence, du bien, du locataire, d'un réglage ou d'un gabarit | fait |
 | 141 | Encaissements soldés par une intégration de la plateforme (`PlatformPayoutService::isSettledByPlatform`) face au relevé de l'agence : proposés un à un par `ReconciliationMatcher` à un crédit qui ne les porte pas, et virement de clôture `PlatformPayout` qu'aucun candidat (`ALLOWED_PAYMENT_TYPES`, `fetchCandidates`) ne représente | fait |
 | 142 | Notifications, Mailables et écouteurs en file (`ShouldQueue`, une quarantaine hors de `CodedNotification` : `TenantWelcomeNotification`, `ResetPasswordNotification`, `ActivityLogExportReadyNotification`, écouteurs `Lease\*` et `Accounting\*`) sans `backoff` ni `failed()` face au `--tries=3` sans délai des workers : ce qu'une panne du fournisseur de quelques secondes fait perdre, et la trace laissée — le relevé de P11.10 hors des notifications codées | fait |
-| 143 | PDF à lignes variables rendus par dompdf pendant la requête HTTP (`DocumentPdfService` : relevé de gérance `pdf/statements/owner`, état des lieux `pdf/inventories/report` et ses photos en URI `data:`, factures et devis à nombreuses lignes) : mémoire et durée face à `memory_limit = 256M` et `max_execution_time = 60` — le relevé de P112.01 hors de l'export générique | à faire |
+| 143 | PDF à lignes variables rendus par dompdf pendant la requête HTTP (`DocumentPdfService` : relevé de gérance `pdf/statements/owner`, état des lieux `pdf/inventories/report` et ses photos en URI `data:`, factures et devis à nombreuses lignes) : mémoire et durée face à `memory_limit = 256M` et `max_execution_time = 60` — le relevé de P112.01 hors de l'export générique | fait |
 | 144 | Écritures du navigateur qu'une réponse perdue invite à rejouer (envoi de message, création de réservation, de demande de maintenance, de facture, initiation de paiement : `POST` sans clé d'idempotence, hors les seuls boosts) : bouton réactivé après une erreur réseau ou un délai, doublon créé côté API — le pendant, hors des achats de crédits, des angles 4 et 24 | à faire |
 | 145 | Champs écartés par `validated()` sur ce que l'angle 114 n'a pas relevé : `lib/queries` `properties-server.ts`, `visits.ts`, `settings.ts`, `property-calendar.ts` et les modules à une ou deux mutations, les server actions `property.ts` (avis, signalements, contacts d'agent), `invitations.ts`, `account-deletion.ts`, `admin-tags.ts`, `super-admin-cooptation.ts`, `auth.ts`, et les écritures directes des composants | à faire |
 | 146 | Unions de statut et options de filtre du front (`src/types/*.ts`, `Record<…Status, …>`, `STATUS_VALUES`, `KNOWN_STATUSES`) face aux cas des enums de l'API : valeurs que l'API n'émet jamais (`banned`, agence `pending`), valeurs émises absentes (utilisateur `blocked`) — le relevé de P115.02 sur tous les types | à faire |
@@ -254,6 +254,8 @@ voie d'écriture (angle 13, puis 47).
 | 177 | Relevés de gérance d'une période close recalculés à chaque lecture (`OwnerStatementController`, `OwnerStatementService`, PDF `pdf/statements/owner`, avis mensuel `SendOwnerStatements`) face aux remboursements, annulations, rapprochements et reversements écrits après la clôture : relevé envoyé au bailleur que plus rien ne reproduit — le pendant des relevés de l'angle 140 | à faire |
 | 178 | Loyers et acomptes encaissés par la plateforme et pas encore reversés, comptés comme argent de l'agence (`PayoutCalculator` et la préparation des reversements au bailleur, `CollectedPayments` et tableaux de bord, relevé de gérance `OwnerStatementService`) : reversement au bailleur d'un argent que la plateforme détient encore, ou qu'elle a rendu — né de P141.01 | à faire |
 | 179 | `try`/`catch` qui entourent un envoi en file et promettent un repli (`AgencyProvisioningService::sendActivationLink`, `SendSavedSearchAlerts.php:141`, `SendFavoriteChangeAlerts.php:164`, et leurs pareils autour de `notify()`, `Notification::send()` ou `Mail::send()` d'une classe `ShouldQueue`) : 502, annulation, statut d'échec ou marque de reprise que le `catch` ne peut jamais poser, l'envoi n'ayant lieu qu'au worker — né de P142.01 | à faire |
+| 180 | Téléversements d'images sans `PixelsAuPlus` hors de ceux que P143.02 relève (`MediaUploadRequest` collections `photos` et `avatars`, photos de maintenance, pièces jointes de messages et de litiges, documents image) face aux décodages GD qui les suivent (conversions `nonQueued`, `AvatarReencode`, `PdfImageEmbedder`) : RSS hors de `memory_limit` face au `mem_limit` du conteneur — né de P143.02 | à faire |
+| 181 | Tableaux reçus sans `max:` par les FormRequests et rangés en `jsonb` (`rooms` d'état des lieux hors du PDF, `metadata`, critères de recherches enregistrées, brouillons d'assistant, réglages) puis relus en entier : taille de ligne, de réponse JSON et de rendu sans borne — le relevé de P143.01 hors du PDF | à faire |
 
 ---
 
@@ -13466,3 +13468,64 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - **Bienvenue rejouée** : si l'écouteur lève après `Notification::send()` (journal d'activité ou `save()` de la l. 55), le worker le rejoue et met en file une seconde bienvenue, la marque n'étant pas encore posée (lu, déduit pour la fréquence).
   - **Régime de la suite** : `QUEUE_CONNECTION=sync` fait lever dans la requête ce que la production met en file (mesuré en P142.01 : 500 contre 201) ; aucun test ne joue l'échec d'un envoi sous la file `database`.
 - Piste : canal de la cloche ou liste des exports pour le lien ; marque posée avant l'envoi dans l'écouteur, ou dédoublonnage ; un test d'échec de transport sous la file `database` par famille d'envoi.
+
+## Angle 143 — PDF à contenu variable rendus par dompdf dans la requête HTTP
+
+*Exploré le 2026-10-22 sur `pre-dev` 3452fbaaf, par l'explorateur, sans sous-agent. Relus par
+l'explorateur : `DocumentPdfService`, `PdfImageEmbedder`, `InventoryController::downloadPdf` et
+`groupRoomPhotos`, `OwnerStatementController` et `OwnerStatementService::statement`,
+`DocumentPdfController` (quittance, facture, bail), `MaintenanceQuoteController::pdf`, les gabarits
+`pdf/inventories/report`, `pdf/statements/owner`, `pdf/invoices/default`, `pdf/maintenance/quote`,
+`InventoryStoreRequest`, `InventoryUpdateRequest`, `UploadRoomPhotosInventoryRequest`,
+`MediaUploadRequest`, `MediaController::store`, `PixelsAuPlus`, `Inventory` et `Agency`
+(`registerMediaCollections`), `docker/php.ini`, `deploy/takussan/compose.api.yml`, et
+`InventoryPdfButton` et `schemas/inventory.ts` côté front. Mesures par un test temporaire (retiré)
+lancé par `XDEBUG_MODE=off php -d memory_limit=256M vendor/bin/phpunit <fichier>`, sur la base de
+test PostgreSQL locale et les disques de médias simulés (`Storage::fake`), charge 1,4 à 2,8 sur
+8 cœurs relevée avant chaque passe ; images produites par GD hors du dépôt (`/tmp`, supprimées). Le
+RSS est celui du processus PHPUnit entier (`/usr/bin/time -l`), pas celui d'un fil FrankenPHP : il
+se lit en écart à un témoin. Durées du poste, sans le temps de lecture sur R2 de la préproduction.
+**Écartés, sans entrée** : le relevé de gérance n'imprime qu'une ligne par bien et une par
+reversement (`owner.blade.php:39-77`), le détail par encaissement n'allant qu'au CSV ; la facture
+n'imprime qu'une ligne, le contrôleur ne passant pas `$lines` (`default.blade.php:11-16`,
+`DocumentPdfController::invoice`) ; le devis est borné à 50 lignes (`SubmitQuoteRequest.php:33`) ;
+quittances, reçus et bail ont un contenu borné, et le bail signé est servi figé. L'export PDF
+générique est P112.01.*
+
+### Un état des lieux à plus de ~1 500 lignes d'éléments ne se télécharge plus : dompdf épuise `memory_limit`, et rien ne borne les pièces ni les éléments
+- Réf : P143.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/InventoryStoreRequest.php:42-49`, `takussan-api/app/Http/Requests/InventoryUpdateRequest.php:29-36`, `takussan-api/resources/views/pdf/inventories/report.blade.php:109-153`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:185-225`, `takussan-api/docker/php.ini:3,11`, `takussan-web/src/lib/schemas/inventory.ts:51,72`
+- Constat :
+  - `rooms` et `rooms.*.elements` sont des `array` sans `max:`, et les `notes` des `string` sans `max:` (lu, les deux FormRequests). Le schéma du front ne borne pas davantage (lu, `inventory.ts:51,72`).
+  - Le gabarit imprime chaque pièce dans un bloc, et chaque élément en ligne d'un tableau (lu, `report.blade.php:109-153`). Le PDF est recomposé par dompdf à chaque téléchargement (lu, `downloadPdf`).
+  - Mesuré, état des lieux signé de la fabrique, éléments à notes de 50 caractères, `GET /api/inventories/{id}/pdf` sous `-d memory_limit=256M` : 10 × 20 (200 lignes) → 200, 2,2 s, 50 Mo de surcroît ; 30 × 30 (900) → 200, 17,8 s, 114 Mo ; 40 × 30 (1 200) → 200, 29,4 s, 142 Mo ; **40 × 40 (1 600) et 50 × 50 (2 500) → `Allowed memory size of 268435456 bytes exhausted`** dans `dompdf` (`FrameReflower/Text.php`, `FrameTree.php`, `Css/Style.php`). La durée croît plus vite que les lignes (×4,5 de lignes, ×8 de durée entre 200 et 900).
+  - Un état des lieux signé ne se modifie plus (lu, `InventoryController::update`, l. 123-128) : le PDF contractuel d'un état trop long reste en 500 à chaque essai (déduit de ce qui précède).
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : borner `rooms` et `rooms.*.elements` (`max:`), avec le même plafond dans le schéma du front, à une valeur mesurée sous 256M avec marge ; borner `notes`. Garde : un test qui rend le PDF au plafond sous `ini_set('memory_limit', '256M')`.
+
+### Photo d'état des lieux et logo d'agence : aucune borne de pixels, et l'original est décodé par GD à chaque PDF, hors de `memory_limit`
+- Réf : P143.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:38-39`, `takussan-api/app/Http/Requests/MediaUploadRequest.php:38-47`, `takussan-api/app/Services/Media/PdfImageEmbedder.php:36-45,80-104`, `takussan-api/app/Services/Pdf/DocumentPdfService.php:147-156`, `takussan-api/app/Models/Inventory.php:69-75`, `takussan-api/app/Models/Agency.php:155-158`, `takussan-api/app/Rules/PixelsAuPlus.php:24`, `deploy/takussan/compose.api.yml:95`
+- Constat :
+  - TCK-677 (voir P10.02) a posé `PixelsAuPlus` (20 Mpx) sur les photos de bien et l'avatar seulement (lu, `grep -rn PixelsAuPlus app`). Les photos d'état des lieux (`image`, `mimes`, `max:5120`) et le logo d'agence (`MediaUploadRequest`, `max:10240`) n'ont aucune borne de pixels (lu).
+  - Ni `Inventory` ni `Agency` ne déclarent de conversion (lu) : `PdfImageEmbedder::dataUri()` tombe sur `reducedOriginal()`, qui charge l'original entier dans GD (lu, l. 45 et 97). Cela se refait à chaque PDF : pour chaque photo de l'état des lieux, et pour le logo de **tout** PDF de l'agence (`prepareData`), quittance du lien de paiement public comprise.
+  - Mesuré, JPEG uni de 10 000 × 10 000 (1,5 Mo, sous les deux plafonds de taille) : en photo d'état des lieux, `GET /api/inventories/{id}/pdf` → 200, 4,4 s, RSS maximal 621 Mo contre 203 Mo pour le même test sans photo (+418 Mo) ; en logo, facture rendue par `DocumentPdfService::render` → 3,97 s, RSS 564 Mo contre 145 Mo sans logo (+419 Mo). `memory_get_peak_usage(true)` n'en voit que 22 à 28 Mo : GD alloue hors de `memory_limit`, qui ne protège donc rien ici. Un JPEG de 7 000 × 7 000 (0,75 Mo) → +158 Mo.
+  - Le conteneur `api` a `mem_limit: 384m` (lu). Que le noyau y tue le processus, et avec lui les requêtes en cours, sur un tel PDF est déduit, non mesuré dans l'image (à vérifier).
+  - Établi comment : lu, mesuré par test temporaire et `/usr/bin/time -l`.
+- Piste : `new PixelsAuPlus` sur `photos.*` d'`UploadRoomPhotosInventoryRequest` et sur les images de `MediaUploadRequest` (sans doute avec un plafond plus bas pour un logo) ; et ne plus réduire l'original au rendu (voir P143.03). Garde : un test qui refuse à l'envoi un en-tête de 10 000 × 10 000 (`Tests\Support\ImageEnTete`) sur ces deux routes.
+
+### Chaque photo d'état des lieux est réduite par GD à chaque téléchargement du PDF, sans plafond du nombre de photos : 0,46 s par photo, 60 s dépassées vers 130 photos
+- Réf : P143.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/InventoryController.php:254-269,283-294`, `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:38`, `takussan-api/app/Services/Media/PdfImageEmbedder.php:36-45,80-104`, `takussan-api/app/Models/Inventory.php:69-75`, `takussan-api/docker/php.ini:11`
+- Constat :
+  - `photos` est un `array` sans `max:`, et l'envoi se répète par pièce et par appel, sans total (lu). `groupRoomPhotos` appelle `dataUri()` sur chaque photo à chaque téléchargement (lu) ; sans conversion déclarée sur `Inventory`, chacune est relue entière sur le disque (R2 en préproduction) puis réduite à 600 px par GD (lu).
+  - Mesuré, photos JPEG 4 000 × 3 000 distinctes (≈ 1 Mo), sous `memory_limit=256M` : une réduction → 0,45 à 0,48 s ; 30 photos → 15,5 s, 38 Mo de surcroît, PDF de 1,5 Mo ; 60 → 29,9 s, 48 Mo, 3 Mo ; 100 (identiques) → 50,8 s. Avec `-d max_execution_time=60`, 130 photos → `Maximum execution time of 60 seconds exceeded` dans `spatie/image` `GdDriver.php:89` (le minuteur couvre aussi la mise en place du test, quelques secondes).
+  - Rien n'est gardé d'un téléchargement à l'autre : la même dépense revient à chaque clic sur « Télécharger », et sur un état signé dont les photos ne changent plus (lu, `assertDraft` sur `uploadRoomPhotos`).
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : une conversion `preview` en file sur `room_photos` (et `logo`), que `PdfImageEmbedder` prend déjà en premier ; ou ranger le PDF signé une fois (P140.02) ; plafonner le nombre de photos par pièce et par état des lieux. Garde : un test qui compte les appels à `reducedOriginal` (ou au pilote d'image) pendant un téléchargement.
