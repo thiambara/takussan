@@ -46,6 +46,8 @@ function visite(overrides: Partial<PropertyVisit> = {}): PropertyVisit {
     scheduled_at: PASSEE,
     duration_minutes: 30,
     property: { id: 10, title: 'Villa à Almadies', slug: 'villa-almadies' },
+    // P152.04 — le personnel de l'agence du bien : l'API le laisse gérer la visite.
+    abilities: { manage: true },
     ...overrides,
   };
 }
@@ -86,7 +88,7 @@ describe('<VisitDetail> — absent (TCK-1375)', () => {
 
   it('ne le propose pas au visiteur', () => {
     etat.user = { id: 99, roles: ['customer'] };
-    etat.visit = visite({ visitor_id: 99 });
+    etat.visit = visite({ visitor_id: 99, abilities: { manage: false } });
     render(withIntl(<VisitDetail id={1} />));
     expect(screen.queryByRole('button', { name: 'Marquer absent' })).toBeNull();
   });
