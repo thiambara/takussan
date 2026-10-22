@@ -13636,7 +13636,7 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
 
 ### Les commissions d'un bail sont calculées par un écouteur en file sans `failed()` ni autre appelant : un échec laisse le bail sans ligne de commission, sans alerte
 - Réf : P142.04
-- Statut : validé — porteur (2026-10-22) : `AlertsOnFirstFailure` (ou son pendant) et un `backoff` sur les deux écouteurs des commissions
+- Statut : fait · TCK-1392
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Listeners/Lease/GenerateCommissionEntries.php:17-29`, `takussan-api/app/Services/Commission/CommissionLedgerService.php:41-107`, `takussan-api/app/Jobs/Concerns/AlertsOnFirstFailure.php:8-32`, `takussan-api/app/Listeners/Lease/CreateTenantOnboardingChecklist.php`
 - Constat :
@@ -13647,6 +13647,7 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - Établi comment : lu et `grep`.
 - Piste : `AlertsOnFirstFailure` (ou son pendant) et un `backoff` sur les deux écouteurs ; test : `failed()` de l'écouteur écrit `ops_critical_job_failed`.
 - Mesure (2026-10-22, af5be0846, mesureur) : relu `GenerateCommissionEntries` (`ShouldQueue`, ni `$tries`, ni `backoff`, ni `failed()`), `grep -rn 'generateFor(' app` → l'écouteur seul (plus un docblock de `CommissionEntry`), `CommissionLedgerService:107` (`insertOrIgnore`), `grep -rln AlertsOnFirstFailure app` → trois jobs (`SendLeasePaymentReminders`, `ApplyLateFeesJob`, `SendOverdueRemindersJob`) plus le trait et `AlertableEvents`, aucun écouteur ; `CreateTenantOnboardingChecklist` `ShouldQueue` sans `failed()` → le constat tient. Classement : V1, l'écouteur est le seul chemin qui écrit une commission, et changer sa reprise touche l'écriture d'un montant, même si l'ajout d'une alerte est proche de A5.
+- Mesure (2026-10-22, 034d400b2, implementeur) : `EcouteursDuBailEnEchecTest` avant correctif : `event(new LeaseActivated(…))` sous `Queue::fake()` → le `CallQueuedListener` de chaque écouteur sans `backoff`, et `failed()` du job sérialisé → aucune activité `ops_critical_job_failed` (4 rouges). Trait `AlertsOnFirstListenerFailure` (`backoff()` `[60, 300, 900]`, `failed($event, $e)` qui écrit l'activité alertable, le trait des jobs prenant l'exception en premier argument) sur `GenerateCommissionEntries` et `CreateTenantOnboardingChecklist` → 4 verts ; ablation (écouteurs remis à `034d400b2`) → 4 rouges, remis → verts ; `CommissionLedgerTest`, `TenantOnboardingChecklistTest`, `EventListenerDuplicationTest`, `CriticalJobFailureAlertTest` verts.
 
 ### Les notifications en file hors `CodedNotification` n'ont aucun `backoff` ni `failed()`, et un même délai ne vaut pas pour toutes : le code de suppression de compte expire en 5 minutes
 - Réf : P142.05
