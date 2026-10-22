@@ -10239,7 +10239,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### `apiRequest` pose `Content-Type: application/json` sur tout GET sans corps : chaque lecture du navigateur par `useApiQuery` déclenche un préflight, frappe de l'autocomplétion comprise
 - Réf : P103.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1223
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/api.ts:696-698`, `takussan-web/src/hooks/useApiQuery.ts:64`, `takussan-web/src/hooks/useSuggest.ts:17-24`, `takussan-web/src/lib/queries/referentiel-public.ts:49-66`
 - Constat :
@@ -10249,6 +10249,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - P69.06 avait relevé que « trois de ces appels passent par un préflight » sans en nommer la cause : c'est cet en-tête.
 - Piste : ne poser `Content-Type` que lorsqu'un corps part (`body !== undefined && !formData`). Garde : un test vitest de `apiRequest` qui, pour un `GET` sans corps, exige l'absence de `Content-Type` dans les en-têtes passés à `fetch`.
 - Mesure (2026-10-21, 71e1c1286, mesureur) : lu `takussan-web/src/lib/api.ts:696-698` : `if (!formData) requestHeaders['Content-Type'] = 'application/json'`, quelle que soit la méthode et même sans `body` (le corps n'est sérialisé qu'à `body !== undefined`, l. 739-741) ; les autres en-têtes posés dans le navigateur d'un anonyme sont admis (`enTetesDuCheminInterne()` et `resolveVisitorIp()` ne valent que côté serveur, l. 38-50 et 633-642) ; `grep -rn "isJson\|headers->get('Content-Type')" takussan-api/app takussan-api/bootstrap` → rien : l'API ne lit pas le `Content-Type` d'une requête. Classement : A2, ne poser `Content-Type` que lorsqu'un corps part supprime le préflight des GET anonymes sans changer aucune réponse.
+- Mesure (2026-10-22, 6d216605a, implementeur) : relu `src/lib/api.ts` (`if (!formData)` pose `Content-Type: application/json` sans regarder `body`) ; test neuf `src/lib/__tests__/api.content-type.test.ts` (jsdom) → avant correctif, un `GET` sans corps part avec `content-type: application/json`, 1 rouge ; correctif : `Content-Type` seulement si `body !== undefined` → 2/2 verts (le `POST` à corps JSON le garde), 52/52 sur les tests qui lisent les en-têtes envoyés ; ablation → le même rouge, correctif remis → vert. Le préflight lui-même n'est pas observé dans un navigateur.
 
 ### Les listes du référentiel public (`geo/cities`, `geo/regions`, `amenities`, `property-types`) sortent en `no-cache, private` sans `ETag` : le navigateur les retélécharge en entier à chaque chargement de page
 - Réf : P103.03
