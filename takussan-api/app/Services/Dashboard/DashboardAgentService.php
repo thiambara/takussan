@@ -20,6 +20,7 @@ use App\Models\PropertyCollaborator;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
+use App\Sorts\TaskPrioritySort;
 use App\Support\DayRange;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -120,7 +121,8 @@ class DashboardAgentService
             ->whereIn('status', [TaskStatus::Open, TaskStatus::InProgress])
             ->with('taskable')
             ->orderByRaw('due_at IS NULL, due_at asc')
-            ->orderByDesc('priority')
+            // P134.01 (TCK-1260) — sur le rang de l'enum, pas sur la chaîne.
+            ->tap(fn ($query) => TaskPrioritySort::apply($query, descending: true))
             ->limit(5)
             ->get()
             ->map(fn (Task $task) => [
