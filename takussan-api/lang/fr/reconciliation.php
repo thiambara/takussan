@@ -22,6 +22,7 @@ return [
         'csv_column' => 'Une colonne se désigne par son nom d\'en-tête ou par sa position.',
         'payout_not_completed' => 'Seul un reversement émis peut être rapproché d\'un débit.',
         'invoice_not_reconcilable' => 'Seule une facture envoyée, en retard ou payée peut être rapprochée d\'un crédit.',
+        'settled_by_platform' => 'Ce paiement a été encaissé par la plateforme : il arrive sur votre compte avec son reversement, pas seul.',
         'file_not_utf8' => 'Le fichier n\'est pas encodé en UTF-8 : réexportez-le en UTF-8 depuis votre banque ou votre tableur.',
     ],
 

@@ -80,6 +80,12 @@ class ReconciliationMatcher
                 Invoice::class => $query->where('agency_id', $agencyId)->reconcilable(),
             };
 
+            // TCK-1415 (P141.01) — un paiement encaissé par la plateforme n'arrive pas seul sur le
+            // compte de l'agence : il y arrive fondu dans le net du reversement de la plateforme.
+            if ($modelClass !== Invoice::class) {
+                $query->whereNotSettledByPlatform();
+            }
+
             // Amount filter with small tolerance for rounding. Invoices store the
             // total in `total_amount`; booking/lease payments use `amount`.
             $amountColumn = $modelClass === Invoice::class ? 'total_amount' : 'amount';

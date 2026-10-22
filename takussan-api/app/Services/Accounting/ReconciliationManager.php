@@ -16,6 +16,7 @@ use App\Models\Invoice;
 use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\User;
+use App\Services\Billing\PlatformPayoutService;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +32,10 @@ class ReconciliationManager
         Payout::class,
     ];
 
-    public function __construct(private readonly Dispatcher $events) {}
+    public function __construct(
+        private readonly Dispatcher $events,
+        private readonly PlatformPayoutService $platformPayouts,
+    ) {}
 
     /**
      * Confirm a match between a bank statement line and a payment.
@@ -78,6 +82,16 @@ class ReconciliationManager
         if ($payment instanceof Invoice && ! in_array($payment->status, Invoice::RECONCILABLE_STATUSES, true)) {
             throw ValidationException::withMessages([
                 'payment_id' => [__('reconciliation.validation.invoice_not_reconcilable')],
+            ]);
+        }
+
+        // TCK-1415 (P141.01) — un encaissement de la plateforme n'arrive pas seul sur le compte de
+        // l'agence : il y arrive fondu dans le net du reversement de la plateforme. La lecture de la
+        // clôture (`PlatformPayoutService::isSettledByPlatform`).
+        if (($payment instanceof BookingPayment || $payment instanceof LeasePayment)
+            && $this->platformPayouts->isSettledByPlatform($payment)) {
+            throw ValidationException::withMessages([
+                'payment_id' => [__('reconciliation.validation.settled_by_platform')],
             ]);
         }
 

@@ -55,7 +55,9 @@ class PaymentSearchService
     {
         $base = BookingPayment::query()
             ->whereNull('bank_reconciled_at')
-            ->whereHas('booking', fn ($q) => $q->whereHas('property', fn ($q2) => $q2->where('agency_id', $agency->id)));
+            ->whereHas('booking', fn ($q) => $q->whereHas('property', fn ($q2) => $q2->where('agency_id', $agency->id)))
+            // TCK-1415 (P141.01) — un acompte encaissé par la plateforme, comme le matcher.
+            ->whereNotSettledByPlatform();
 
         $this->applySearch($base, $query, $amountHint);
 
@@ -79,7 +81,9 @@ class PaymentSearchService
         $base = LeasePayment::query()
             ->whereNull('bank_reconciled_at')
             ->whereHas('lease', fn ($q) => $q->where('agency_id', $agency->id))
-            ->exceptDepositRefunds();
+            ->exceptDepositRefunds()
+            // TCK-1415 (P141.01) — un loyer encaissé par la plateforme, comme le matcher.
+            ->whereNotSettledByPlatform();
 
         // TCK-715 (P25.01) — le montant attendu sur le compte, celui que compare le matcher : une
         // échéance payée en ligne pénalité comprise arrive pour 157 500, pas pour `amount`.
