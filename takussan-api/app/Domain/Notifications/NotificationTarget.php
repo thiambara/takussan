@@ -39,6 +39,9 @@ final class NotificationTarget
         // TCK-1467 (P161.01) — l'onglet des reversements, où leur émetteur non admin les a programmés :
         // `finances` est fermée à qui n'est pas admin de l'agence.
         'payouts' => '/app/payments?tab=payouts',
+        // TCK-1469 (P161.02) — la file « À approuver », où le geste se fait (TCK-594, ADR-0039 § 4),
+        // pour tout détenteur de `payouts.approve`, admins compris.
+        'payout_approvals' => '/app/payments?tab=approvals',
         'booking' => '/app/bookings/{id}',
         'visit' => '/app/visits/{id}',
         'maintenance' => '/app/maintenance/{id}',
