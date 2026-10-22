@@ -14150,10 +14150,11 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Les dates « Soumise du / au » de la file des demandes de passage en agence rendent la liste en erreur
 - Réf : P150.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1282
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyUpgradeRequestController.php:40-55`, `takussan-api/app/Models/AgencyUpgradeRequest.php:84`, `takussan-web/src/lib/queries/super-admin.ts:1365-1366`, `takussan-web/src/app/(super-admin)/super-admin/agency-upgrade-requests/page.tsx:93-113,247-272`
 - Constat :
+- Mesure (2026-10-22, a2398e474, implementeur) : test neuf `AgencyUpgradeRequestSubmittedRangeTest` avant correctif, super-admin : `filter[submitted_from]` et `filter[submitted_to]`, ensemble ou seuls, avec le `filter[status]`, le `sort` et l'`include` de la page → 400 (3 rouges) → les deux bornes déclarées par `AgencyUpgradeRequest::customQueryFilters()` (`whereDate` `>=` / `<=`, vide ignorée) et lecture à la main retirée du contrôleur : 3/3 verts, seules les demandes de la période sortent, bornes incluses ; ablation (modèle et contrôleur à `HEAD`) → 3 rouges, correctif remis → verts ; `AgencyUpgradeRequestReviewTest` et `AgencyUpgradeRequestEncryptionTest` verts.
   - La page `/super-admin/agency-upgrade-requests` montre deux `DatePicker`, « Soumise du » et « au » (lu, `page.tsx:247-272`). Leur valeur part en `filter[submitted_from]` et `filter[submitted_to]` (lu, `super-admin.ts:1365-1366`).
   - Le contrôleur lit ces deux filtres à la main pour poser un `whereDate` sur sa requête de base, puis passe la même requête HTTP à `AgencyUpgradeRequest::buildQuery()` (lu, `AgencyUpgradeRequestController.php:44-51`). Or ce `buildQuery()` n'autorise que `status`, `agency_id`, `submitted_by` et `reviewed_by` (lu, `AgencyUpgradeRequest.php:84`) : spatie refuse donc le filtre que le contrôleur vient d'appliquer.
   - mesuré, test temporaire, super-admin : `GET /api/admin/agency-upgrade-requests?filter[submitted_from]=2026-01-01` → **400** `http.bad_request` ; `filter[submitted_to]=2026-12-31` → **400** ; `include=agency,submitter`, `sort=-submitted_at`, `filter[status]=pending` et le `fields[…]` de la page, chacun seul → 200.
