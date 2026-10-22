@@ -191,7 +191,7 @@ voie d'écriture (angle 13, puis 47).
 | 115 | Statuts d'enum qu'aucun chemin de `app/` n'écrit et que seuls les seeders posent (`LeaseStatus::Expired`, les autres enums de statut de `app/Models/Enums`) : gardes, filtres, tableaux de bord et écrans du front qui attendent un état que la production n'atteindra jamais | fait |
 | 116 | Gestes d'agence jugés par le type de profil (`isAgencyAdminAt`, `isAgentAt` : une quarantaine d'appels dans `app/Http` et `app/Services`) au lieu d'une capacité (`canActAt`) : admin à qui un rôle personnalisé retire la capacité, membre à qui il la donne — le relevé de P82.04 et P82.05 sur le reste de l'API | fait |
 | 117 | Clés de `metadata` des profils (`owner_profiles`, `agent_profiles`, `service_provider_profiles` : `kind`, `source`, `intervention_zones`, `visit_fee`, `availability`, `has_insurance`, `trades`) écrites par les assistants `Me\*ProfileController` : lues par qui, à l'API et dans les listes du front (`ServiceProvidersList`, `OwnersList`, `MaintenanceAssignmentBlock`) qui y retombent à défaut de colonne | fait |
-| 118 | Listes paginées triées sur une colonne non unique sans départage par `id` (`orderBy` écrits à la main des contrôleurs `Admin\*`, `defaultSort('-created_at')` seul, `$requestSortable` sur `status`, `name`, `first_name`) : ligne rendue deux fois ou jamais d'une page à l'autre sous PostgreSQL | à faire |
+| 118 | Listes paginées triées sur une colonne non unique sans départage par `id` (`orderBy` écrits à la main des contrôleurs `Admin\*`, `defaultSort('-created_at')` seul, `$requestSortable` sur `status`, `name`, `first_name`) : ligne rendue deux fois ou jamais d'une page à l'autre sous PostgreSQL | fait |
 | 119 | Requêtes de base passées à `buildQuery()` ou à `QueryBuilder::for()` avec un `orWhere`/`orWhereHas` non groupé ou un `orderBy` en dur : filtres de la requête qui ne s'appliquent qu'à une branche, `sort=` relégué après le tri fixe — le relevé de P87.04 sur le reste de l'API | à faire |
 | 118 | Données personnelles gardées dans le stockage du navigateur après déconnexion ou changement de compte (`localStorage`/`sessionStorage` : `takussan.coordonnees` nom et téléphone, cache TanStack « persisté par certains écrans » selon `OwnersList.tsx:83`, `useInitiatePayment`, `attribution.ts`) : ce que lit le compte suivant sur un poste partagé |
 | 120 | Listes de personnes servies aux sélecteurs du front (`fetchAgencyAgents`, `role-delegations.ts`, `ContactLeadsInbox`, `AuditTrail`, `ParticipantPicker`) face au prédicat que l'API juge ensuite à l'écriture (`isStaffAt`, `PersonnelDeLAgence::estPersonnel`, `CollaboratorEligibleForProperty`) : candidat proposé puis refusé en 422, candidat légitime absent | à faire |
@@ -224,6 +224,7 @@ voie d'écriture (angle 13, puis 47).
 | 147 | Statuts posés librement par un `Rule::enum` entier dans une requête de mise à jour (`UpdateCustomerRequest` `status` jusqu'à `blocked` et `deleted`, `UpdatePropertyRequest`, `StoreAgencyRequest`, `UpdatePrivacyRequestRequest`) : transitions que le geste dédié refuserait, et état posé à la main que rien d'autre ne lit | à faire |
 | 148 | Section `/app/agency/*` du front gardée par `isAdmin(user.roles)` (`(dashboard)/app/agency/layout.tsx:28`) et `PAGES_ADMIN` face aux gestes que l'API ouvre par capacité à un agent (`team.invite`, `team.assign_role`, `team.suspend`, `payouts.approve`, `agency.update_kyc`) : membre qui tient la capacité sans écran pour l'exercer, et admin sans elle à qui l'écran s'ouvre sur des 403 | à faire |
 | 149 | Champs `nullable` d'un `PATCH` partiel dont le `null` qu'envoie le front pour un champ vidé est lu comme « garder » (`!== null ? … : $model->x`, `?? $model->x`, `array_filter` du payload dans les contrôleurs et services de mise à jour) : valeur impossible à effacer, réponse 200 qui rend l'ancienne — le relevé de P117.02 sur le reste de l'API | à faire |
+| 150 | Paramètres `sort=`, `filter[…]` et `include=` écrits par le front (`src/lib/queries/*.ts`, `src/app/actions/*`, `buildQueryString`) face aux `$requestSortable`, `$requestFilterable` et inclusions du modèle visé : requête refusée en 400 `http.bad_request` et écran en erreur — le pendant de l'angle 100 hors de `fields[]`, né de P118.01 | à faire |
 
 ---
 
@@ -11447,3 +11448,75 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - `documents.metadata.kind` et `.source`, posés par les trois `uploadKyc` (lu), n'ont aucun lecteur (`grep` des deux clés sur l'API et le front, lu). `documents.type` porte déjà le genre de la pièce.
 - Piste : comparer l'heure à la plage dans `worksOn` ; décider du téléphone du brouillon avec P21.06 ; laisser `kind`/`source` en l'état ou cesser de les écrire. Chacune est petite.
 - Mesure (2026-10-22, f1c28db8d, mesureur) : relu `MaintenanceAssignmentBlock.tsx:170-176` (`worksOn` ne compare que `slot.day`), `ServiceProviderDirectoryResource.php:22` (`phone` hors de `METADATA_KEYS`), `AgentProfileController.php:73`, `OwnerProfileController.php:65`, `ServiceProviderProfileController.php:63` (`metadata.kind`/`source`) ; `grep -rnE "metadata(\?)?(\.|\[')(kind|source)"` sur l'API et le front → aucun lecteur de ces clés de `documents` (le seul `metadata.kind` lu est celui des `Task`). Les trois points tiennent. Classement : V7, l'avertissement horaire est un comportement visible neuf et le téléphone du brouillon est à trancher avec P21.06.
+
+## Angle 118 — Listes paginées triées sur une colonne non unique
+
+*Exploré le 2026-10-22 sur `pre-dev` f1c28db8d, par l'explorateur. Tout relu par l'explorateur, sans sous-agent. Deux mesures : des `SELECT` sur la base de développement (données des seeders, dont les `created_at` se partagent par lots), et un test temporaire `tests/Feature/Tmp/ExplorateurTmp118Test.php` sur la base de test PostgreSQL, charge 2,63 / 1,95 / 1,90 sur 8 cœurs, retiré ensuite. Seuls `InvoiceController`, les deux `PlatformPayoutController` et `BankStatementLineController` ont été exécutés ; les autres listes sont lues. Les tris par nom (angle 87) et les listes écrites à la main hors `buildQuery` (angle 135) ne sont pas repris.*
+
+### L'écran des lignes d'un relevé bancaire reçoit toujours un 400 : le front trie sur `posted_at`, que le modèle ne déclare pas triable
+- Réf : P118.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/lib/queries/reconciliation.ts:62-79`, `takussan-api/app/Models/BankStatementLine.php:35-42`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementLineController.php:30-32`, `takussan-web/src/components/admin/reconciliation/StatementDetail.tsx:62`
+- Constat :
+  - `useBankStatementLines` envoie `sort: 'posted_at'`, `per_page: 50` et les `fields[bank_statement_lines]` de `BANK_LINE_FIELDS` (lu, `reconciliation.ts:74-76`) ; c'est la seule lecture des lignes de l'écran `/app/agency/finances/reconciliation/[statementId]` (lu, `StatementDetail.tsx:62`).
+  - `BankStatementLine` déclare `$requestFilterable`, `$requestRangeFilters`, `$requestSearchFields` et `$queryFields`, mais aucun `$requestSortable` (lu, `:35-42`) : `buildQuery()` appelle donc `allowedSorts()` sans rien (lu, `HasQueryBuilder.php:93`).
+  - mesuré : test temporaire, relevé de 5 lignes, admin principal de l'agence → `GET /api/bank-statements/{id}/lines?per_page=50&page=1&sort=posted_at` → **400** `http.bad_request` ; même requête sans `sort` → 200 ; avec les treize champs de `BANK_LINE_FIELDS` et sans `sort` → 200. C'est le `sort` seul qui fait refuser la requête.
+  - Le `sort` est là depuis la création de l'écran (`git log -S"sort: 'posted_at'"` → ed4b626d3, 2026-10-07, TCK-593). Le test du module ne vérifie que le chemin et le filtre (lu, `__tests__/reconciliation.test.ts:28-41`), et ceux de l'API appellent `/lines` sans `sort` (lu, `BankReconciliationTest.php:210`).
+  - Établi comment : lu, puis mesuré par le test temporaire.
+- Piste : déclarer `$requestSortable = ['id', 'posted_at', 'amount']` sur `BankStatementLine` et poser un ordre par défaut total (`defaultSorts('posted_at', 'id')`) dans `BankStatementLineController::index`. Test : `GET …/lines?sort=posted_at` → 200, lignes rangées par date puis par `id`. Pour empêcher le retour, l'angle 150 propose le relevé des `sort=` du front face aux listes blanches.
+
+### Les listes de `buildQuery()` qui trient par défaut sur une seule colonne rendent des lignes deux fois et d'autres jamais d'une page à l'autre
+- Réf : P118.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/PlatformPayoutController.php:23-25`, `takussan-api/app/Http/Controllers/Api/InvoiceController.php:36-38`, et les `defaultSort('<colonne>')` seuls de `LeaseController.php:46`, `BookingController.php:41`, `PayoutController.php:43`, `GuarantorController.php:33`, `TaskController.php:48`, `CommissionEntryController.php:38`, `PropertyVisitController.php:75`, `InventoryController.php:64,77`, `ContactLeadController.php:49`, `InvitationController.php:43`, `Admin/KycController.php:27`, `Admin/PrivacyRequestController.php:36`, `Admin/AnnouncementController.php:18`, `Admin/WebhookLogController.php:24`, `Me/PlatformPayoutController.php:29` et une vingtaine d'autres (relevé : `grep -rn "defaultSort(" app | grep -v "'id'"` → 44 lignes, dont seuls `PublicAgentController.php:144`, `PublicAgencyController.php:158` et `ConversationContextController.php:82,128` posent ensuite un `orderBy` sur l'`id`)
+- Constat :
+  - `buildQuery()` ne pose aucun départage (lu, `HasQueryBuilder.php:82-95`), et ces contrôleurs enchaînent `defaultSort('-created_at')` ou une date métier directement sur `paginate()` (lu, sites ci-dessus).
+  - Les colonnes de tri se partagent par construction : `created_at` est `timestamp(0)` (mesuré, `information_schema.columns` → `datetime_precision = 0` sur `invoices`, `leases`, `bookings`, `guarantors`, `tasks`, `platform_payouts`) ; `platform_payouts.period_end` est une `date` commune à toutes les agences d'une même période (lu, migration `2026_05_07_000223…:17,39`, un reversement ouvert par agence et par `period_end`).
+  - mesuré, base de dev : 745 factures de l'agence 1 pour 14 `created_at` distincts ; les 50 pages de 15 lues par `ORDER BY created_at DESC LIMIT 15 OFFSET k*15`, la requête de `InvoiceController::index`, rendent 745 lignes dont **611 distinctes** : 134 factures n'apparaissent sur aucune page. Le plan est un `Sort` sur `Bitmap Heap Scan`, sans index pour départager.
+  - mesuré, test temporaire, super-admin : 200 reversements de même `period_end`, un tiers mis à jour ensuite (`net_amount`), puis 10 pages de 20 de `GET /api/admin/payouts` → 200 lignes rendues, **197 distinctes**. 150 factures de même seconde, un tiers mis à jour, 10 pages de 15 de `GET /api/invoices` → **147 distinctes**. Sans les mises à jour, l'ordre physique d'insertion départage par hasard et les pages tombent juste (60/60) : le défaut apparaît avec la vie normale des lignes.
+  - Établi comment : lu, puis mesuré sur la base de dev et par le test temporaire. Les autres listes de la liste « Où » sont lues, non exécutées.
+- Piste : un départage par la clé primaire posé en un seul endroit, après les tris de spatie (qui les applique dès `defaultSort()`/`allowedSorts()`, mesuré par TCK-431 et écrit dans `PublicAgencyController.php:109-118`) : par exemple une méthode de `HasQueryBuilder` appelée juste avant `paginate()`, ou un `QueryBuilder` dérivé dont `paginate()` ajoute `orderBy(<table>.id)`. Garde : un test qui parcourt toutes les pages d'une liste aux clés de tri égales après mise à jour d'une partie des lignes, et compte des `id` distincts ; ablation en retirant le départage.
+
+### Les tris demandés par `sort=` sur une colonne non unique n'ont pas non plus de départage, et le front en envoie plusieurs
+- Réf : P118.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:93`, `$requestSortable` de `Task.php:64` (`priority`, `status`, `due_at`), `MaintenanceRequest.php:76`, `Booking.php:46` (`start_date`, `status`), `PropertyVisit.php:47`, `Customer.php:113`, `Invitation.php:87`, `Inventory.php:56`, `IntegrationWebhookLog.php:80` ; appelants : `takussan-web/src/lib/queries/agent-crm.ts:67,74,81`, `pipeline.ts:122`, `commissions.ts:64`, `super-admin.ts:979`, `components/visits/VisitsList.tsx:49-75`, `components/maintenance/MaintenanceList.tsx:63`
+- Constat :
+  - Un `sort=` explicite remplace le `defaultSort` (comportement de spatie, écrit dans le docblock `HasQueryBuilder.php:156-158` ; non rejoué ici) et passe par `allowedSorts()` nu : `ORDER BY <colonne>` seul (lu, `:93`). P118.02 ne couvre donc pas ce cas, même si le contrôleur posait un départage dans son seul tri par défaut.
+  - Le front demande des tris sur des colonnes qui se partagent : `-start_date` des baux et des réservations (date calendaire, lu `agent-crm.ts:74,81`), `scheduled_at` des visites (lu `VisitsList.tsx:49-75`), `due_at` des tâches (lu `pipeline.ts:122`), `-period_end` des reversements (lu `super-admin.ts:979`, rejoint P118.02), `-earned_at` des commissions (lu `commissions.ts:64`).
+  - `id` est triable sur la plupart des modèles (`$requestSortable` commence par `'id'`, lu sur les fichiers ci-dessus), mais aucun appelant du front n'envoie `sort=<colonne>,id` (`grep -rhoE "sort[\"']?\s*[:=,]\s*[\"'\`][-a-z_,.]+" takussan-web/src` → aucun tri composé).
+  - Rendre une ligne deux fois sur ces écrans est à vérifier écran par écran : seuls ceux qui demandent une page suivante sont touchés (à vérifier).
+- Piste : le même départage que P118.02, posé après tout tri, explicite ou par défaut. Le test de P118.02 se décline avec `sort=status` ou `sort=-start_date`.
+
+### Les relevés et les lignes de relevé n'ont aucun ordre quand le front n'en demande pas
+- Réf : P118.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:26`, `BankStatementLineController.php:32`, `takussan-api/app/Models/BankStatement.php:41`, `BankStatement.php:74-77`
+- Constat :
+  - Ni `BankStatementController::index` ni `BankStatementLineController::index` ne posent de `defaultSort` ou d'`orderBy`, et la relation `lines()` n'en porte pas (lu) : sans `sort=`, PostgreSQL rend l'ordre du plan, que rien ne fixe. Ce sont les deux seules listes de `buildQuery()` dans ce cas (mesuré : `grep -L "defaultSort\|orderBy\|latest()\|oldest()"` sur les fichiers qui appellent `buildQuery(` → ces deux contrôleurs et `PropertyResource.php`).
+  - Le front envoie `sort=-created_at` pour les relevés (lu, `reconciliation.ts:35`) ; `BankStatement::$requestSortable` liste à la fois `created_at` et `-created_at` (lu, `:41`), forme qu'aucun autre modèle n'écrit (à vérifier sur ce que spatie en fait).
+  - Établi comment : lu.
+- Piste : poser `defaultSorts('-created_at', '-id')` sur les relevés et `defaultSorts('posted_at', 'id')` sur les lignes (rejoint P118.01) ; ramener `$requestSortable` des relevés à la forme des autres modèles.
+
+### La file de modération des biens trie sur `submitted_at` seul
+- Réf : P118.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:55-58`
+- Constat :
+  - `$query->orderBy('submitted_at')` puis `paginate($perPage)` à 20 par défaut, sans départage (lu). Les autres listes écrites à la main de `Admin\*` en ont un depuis TCK-1138 (`AgencyModerationController.php:125`, `AdminCreditWalletController.php:55-56`, `AdminBoostController.php:30-31`, lu).
+  - Des biens soumis dans la même seconde, ou dont `submitted_at` est `null`, se départagent au hasard du plan (à vérifier : la colonne et la façon dont elle est remplie ne sont pas relues).
+- Piste : ajouter `->orderBy('properties.id')` après `submitted_at`, ou passer par le mécanisme commun de P118.02.
+
+### Petites améliorations
+- Réf : P118.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/SuperAdminInvitationController.php:69`, `takussan-api/app/Http/Controllers/Api/Admin/PrivacyRequestController.php:83`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:129-130`
+- Constat :
+  - Trois lectures non paginées trient sur une colonne non unique sans `id` : invitations de super-admin `orderByDesc('created_at')->get()`, export des demandes RGPD `orderBy('due_at')->get()`, sessions d'un utilisateur `orderByDesc('last_used_at')->orderByDesc('created_at')` (lu). Sans page, aucune ligne ne se perd ; seul l'ordre de deux lignes égales peut changer d'un appel à l'autre, ce qui compte pour un export qu'on compare (à vérifier).
+- Piste : ajouter l'`id` en dernier tri quand on touche ces fichiers ; rien à faire en lot.
