@@ -8,6 +8,7 @@ enum BankStatementStatus: string
     case ReadyForReview = 'ready_for_review';
     case PartiallyReconciled = 'partially_reconciled';
     case Reconciled = 'reconciled';
+    /** Réservé (TCK-1307, P115.07) : aucun chemin de `app/` ne le pose ; lu par `isClosed()` et l'écran de rapprochement. */
     case Archived = 'archived';
     // TCK-593 — l'analyse a échoué, ou aucune ligne d'un fichier non vide n'a pu être lue. Un
     // relevé ne reste plus `processing` à vie, ni `ready_for_review` à zéro ligne.

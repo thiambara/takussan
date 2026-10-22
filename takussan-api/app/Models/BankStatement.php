@@ -81,14 +81,6 @@ class BankStatement extends AbstractModel implements HasMedia
         return $query->where('agency_id', $agencyId);
     }
 
-    public function scopeOpen(Builder $query): Builder
-    {
-        return $query->whereNotIn('status', [
-            BankStatementStatus::Reconciled->value,
-            BankStatementStatus::Archived->value,
-        ]);
-    }
-
     /**
      * TCK-988 (P58.03) — précharge les comptes que lit {@see self::getReconciledRatioAttribute()} :
      * une liste ne lance plus une requête de lignes par relevé.

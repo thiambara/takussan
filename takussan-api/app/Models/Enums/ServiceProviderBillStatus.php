@@ -11,5 +11,6 @@ enum ServiceProviderBillStatus: string
     case Validated = 'validated';
     case Rejected = 'rejected';
     case Paid = 'paid';
+    /** Réservé (TCK-1307, P115.07) : aucun chemin de `app/` ne le pose : une facture de prestataire n'a que validation, rejet et paiement. */
     case Cancelled = 'cancelled';
 }
