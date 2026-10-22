@@ -205,8 +205,15 @@ class PropertyController extends Controller
         // déjà public ne change rien à sa mise en ligne (seul `publish()` pose `published_at`). Ce
         // qui la rouvre sur un bien retiré par son statut, c'est le statut — la branche suivante.
         // (Le formulaire d'édition n'envoie pas `visibility` : `PropertyUpdatePayload` n'en a pas.)
-        $rendPublic = ($visibiliteDemandee === PropertyVisibility::Public && $property->visibility !== PropertyVisibility::Public)
-            || (isset($data['status']) && $readiness->statusPutsOnline($property, PropertyStatus::from($data['status']), $visibiliteDemandee));
+        // P147.03 (TCK-1429) — ce passage est une PUBLICATION : `publish()` le fait, comme pour
+        // `PUT …/visibility` (refus d'un bien vendu ou loué, quota, `published_at`). Le `PATCH`
+        // écrivait `visibility=public` seul : un bien `sold` public, ou « public » hors catalogue.
+        $passeAPublic = $visibiliteDemandee === PropertyVisibility::Public && $property->visibility !== PropertyVisibility::Public;
+        if ($passeAPublic) {
+            unset($data['visibility']);
+        }
+        $rendPublic = ! $passeAPublic
+            && isset($data['status']) && $readiness->statusPutsOnline($property, PropertyStatus::from($data['status']), $visibiliteDemandee);
         if ($rendPublic) {
             $readiness->ensureForProperty($property, $request->user(), $request->boolean('accept_terms'));
         }
@@ -220,7 +227,7 @@ class PropertyController extends Controller
             );
         }
 
-        DB::transaction(function () use ($data, $property) {
+        DB::transaction(function () use ($data, $property, $passeAPublic, $request) {
             $addressData = $data['address'] ?? null;
             unset($data['address']);
 
@@ -230,6 +237,11 @@ class PropertyController extends Controller
                 $property->address
                     ? $property->address->update($addressData)
                     : $property->address()->create($addressData);
+            }
+
+            // Dans la transaction : un refus de `publish()` annule le PATCH entier.
+            if ($passeAPublic) {
+                $this->publish($request, $property);
             }
         });
 
