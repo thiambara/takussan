@@ -8,7 +8,7 @@ import { Suspense, useState } from 'react';
 import { Eye, EyeOff, Loader2, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { FormError, FormGlobalError } from '@/components/forms';
+import { FormError, FormGlobalError } from '@/components/forms/FormError';
 import { BASCULE_MOT_DE_PASSE, CIBLE_LIEN_EN_LIGNE } from '@/components/auth/cibles';
 import { useTranslations } from 'next-intl';
 import { avecRedirection } from '@/lib/redirection-interne';
