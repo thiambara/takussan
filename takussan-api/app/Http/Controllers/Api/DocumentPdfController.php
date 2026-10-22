@@ -49,7 +49,13 @@ class DocumentPdfController extends Controller
      */
     public static function streamRentReceipt(DocumentPdfService $pdf, Lease $lease, LeasePayment $payment): Response
     {
-        $lease->loadMissing(['property.address', 'tenant', 'agency']);
+        // P130.02 (TCK-1250) — le bien supprimé (suppression douce) reste celui du bail : le gabarit
+        // le lit, au lieu de rendre 500 sur `$property->id`. La policy a pu déjà charger la relation,
+        // à `null` sous la portée `SoftDeletes` : `loadMissing` ne la relirait pas.
+        if ($lease->relationLoaded('property') && $lease->property === null) {
+            $lease->unsetRelation('property');
+        }
+        $lease->loadMissing(['property' => fn ($q) => $q->withTrashed(), 'property.address', 'tenant', 'agency']);
         $wording = self::receiptWording($payment->payment_type);
 
         return $pdf->stream('pdf.receipts.rent', [
@@ -135,7 +141,13 @@ class DocumentPdfController extends Controller
             ]);
         }
 
-        $lease->loadMissing(['property.address', 'tenant', 'landlord', 'agency', 'guarantors']);
+        // P130.02 (TCK-1250) — le bien supprimé (suppression douce) reste celui du bail : le gabarit
+        // le lit, au lieu de rendre 500 sur `$property->id`. La policy a pu déjà charger la relation,
+        // à `null` sous la portée `SoftDeletes` : `loadMissing` ne la relirait pas.
+        if ($lease->relationLoaded('property') && $lease->property === null) {
+            $lease->unsetRelation('property');
+        }
+        $lease->loadMissing(['property' => fn ($q) => $q->withTrashed(), 'property.address', 'tenant', 'landlord', 'agency', 'guarantors']);
 
         return $this->pdf->stream('pdf.leases.contract', [
             'title' => 'Contrat de bail '.($lease->reference_number ?? $lease->id),
