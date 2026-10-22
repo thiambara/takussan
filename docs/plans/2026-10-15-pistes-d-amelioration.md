@@ -12908,7 +12908,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### Le widget de messagerie relit toutes les 10 s la liste complète des conversations, sur chaque page connectée, pour une pastille de non-lus
 - Réf : P136.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : cadence de la pastille hors de la messagerie, et forme de la lecture (route de compte neuve ou liste étroite)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/chat-widget/CorpsDuWidget.tsx:71`, `takussan-web/src/components/chat-widget/useUnreadCount.ts:25-44`, `takussan-web/src/lib/queries/conversations-list.ts:48-86`, `takussan-web/src/components/layout/AppSidebar.tsx:735`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:39-67`
 - Constat :
@@ -12919,10 +12919,11 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - L'API n'a aucune route de compte de non-lus (lu, `grep -rn unread takussan-api/routes/api` → seule la route des notifications).
   - P100.05 (le `fields` inerte de cette liste) et P135.02 (la pastille ne compte que les 30 premiers fils) portent sur la même requête, pas sur sa cadence hors de la messagerie : une lecture étroite du compte réglerait aussi P135.02.
 - Piste : servir la pastille par une lecture étroite (un compte de non-lus, ou la liste sans `include` ni médias), à une cadence plus lente hors de `/app/messages`, et garder la liste complète à 10 s pour la seule messagerie ouverte. Garde : un test vitest qui monte la coque hors de `/app/messages` et exige que l'appel interrogé ne demande ni `include=participants` ni `last_message`.
+- Mesure (2026-10-22, 20d495dfd, mesureur) : relu `CorpsDuWidget.tsx` (`useUnreadCount()` sans argument, l. 71), `useUnreadCount.ts:25-44` (ne lit que `unread_count` et le pivot du lecteur), `conversations-list.ts:48-86` (`include=property,participants,last_message`, `per_page=30`, `refetchInterval: 10_000`, `staleTime: 0`) ; `grep -rn unread takussan-api/routes/` → la seule route des notifications ; `git log` des fichiers du widget → dernier changement TCK-1186 (commentaire du `fields` inerte), aucun sur la cadence ; la mesure SQL et d'octets de l'explorateur n'a pas été rejouée. Le constat tient. Classement : V7, ralentir la pastille hors de `/app/messages` change ce que voit l'utilisateur, et la Piste laisse le choix entre une route de compte neuve et une liste étroite, choix que P135.02 (à valider, V7) porte déjà.
 
 ### Les capacités du profil actif, lues par le layout serveur pour un administrateur d'agence, sont relues par le navigateur avant que les gestes de l'écran s'affichent
 - Réf : P136.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/layout.tsx:72`, `takussan-web/src/lib/access/pages-admin-server.ts:41-56`, `takussan-web/src/lib/access/pages-admin-server.ts:64-98`, `takussan-web/src/hooks/useCan.ts:36`, `takussan-web/src/hooks/useCan.ts:46-60`, `takussan-web/src/components/payments/PaymentsTabs.tsx:53-59`, `takussan-web/src/components/payments/PaymentsTabs.tsx:89-99`, `takussan-web/src/components/admin/TeamConsole.tsx:112`, `takussan-web/src/components/admin/TeamConsole.tsx:191-210`
 - Constat :
@@ -12932,10 +12933,11 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - La clé est `['me','capabilities', agencyId ?? 'active']` (lu, `useCan.ts:36`) : la même question posée avec et sans `agencyId` fait deux entrées de cache et deux requêtes. Aucun écran relu ne monte les deux formes ensemble (à vérifier sur les écrans non relus).
   - Pour un agent ou un bailleur, le layout ne lit pas les capacités (lu, `pages-admin-server.ts:71`) : la lecture du navigateur est alors la seule.
 - Piste : passer au client les capacités que le rendu serveur a déjà lues (amorcer la clé `['me','capabilities','active']` par `initialData` ou une hydratation du cache, depuis la même lecture `cache()`ée), pour que les gestes s'affichent au premier rendu. Garde : un test vitest de `PaymentsTabs` sous un cache amorcé, qui exige les boutons sans squelette et aucun appel à `/api/me/capabilities`.
+- Mesure (2026-10-22, 20d495dfd, mesureur) : relu `layout.tsx:72` (`accesAdmin(user)` à chaque rendu), `pages-admin-server.ts:41-98` (`capacitesDuRendu` `cache()`ée, ne rend que `capabilities` et jette `agency_id` ; besoins `TOUT` ; aucune lecture pour un non-admin ni un super-admin), `useCan.ts:36,46-60` (clé `['me','capabilities', agencyId ?? 'active']`, `useApiQuery` direct sans `initialData`) ; aucun commit ni ticket n'amorce ce cache (`grep -rln me/capabilities docs/backlog/tickets` → TCK-278, TCK-279, TCK-649, sans hydratation). Le constat tient ; « deux formes de clé montées ensemble » reste non vérifié et n'entre pas dans le correctif. Classement : A2, amorcer la seule clé `['me','capabilities','active']` depuis la lecture serveur déjà faite (avec son `agency_id`), pour un `agency_admin`, rend les mêmes capacités plus tôt, sans choix de produit ; l'API reste seule juge de l'autorisation, aucun critère V n'est touché.
 
 ### Chaque assistant de bienvenue relit `/api/me/welcome-seen` par son propre `fetch`, et celui de l'agence relit en entier une agence que le layout vient de lire
 - Réf : P136.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/layout/AppShell.tsx:138-145`, `takussan-web/src/hooks/useWelcomeOnce.ts:40-64`, `takussan-web/src/hooks/useTenantWelcomeOnce.ts:44`, `takussan-web/src/hooks/useTenantWelcomeOnce.ts:58`, `takussan-web/src/hooks/useAgencyStandardWelcomeOnce.ts:72-86`, `takussan-web/src/components/customer/MinimalProfileTriggerProvider.tsx:57-75`, `takussan-web/src/app/(dashboard)/app/layout.tsx:37-41`
 - Constat :
@@ -12944,10 +12946,11 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Pour tout `agency_admin`, `useAgencyStandardWelcomeOnce` lit aussi `GET /api/agencies/{id}`, la ressource de détail entière, pour n'en lire que `kind` et `metadata.welcome.standard_unlocked_at` (lu, l. 72-97). Le layout `/app` vient de lire la même agence côté serveur (`resolveAgencyOrNull`, lu, `layout.tsx:37-41`) ; que sa lecture porte `metadata` n'a pas été vérifié.
   - P101.03 (validé) range ces fenêtres dans une file d'`AppShell` : c'est le même endroit, mais la piste ne parle pas de leurs lectures.
 - Piste : une seule lecture de `welcome-seen` par chargement, partagée (une clé TanStack commune, ou la liste passée par `AppShell` à la file de P101.03), et le marqueur d'accueil de l'agence passé par le layout qui l'a déjà. Garde : un test vitest qui monte `AppShell` pour un client seul et exige un seul appel à `/api/me/welcome-seen`.
+- Mesure (2026-10-22, 20d495dfd, mesureur) : `grep -rn "welcome-seen'" hooks components lib` → quatre `GET` par `fetch` dans un `useEffect` (`useWelcomeOnce.ts:47`, `useTenantWelcomeOnce.ts:58`, `useAgencyStandardWelcomeOnce.ts:81`, `MinimalProfileTriggerProvider.tsx:71`), hors de TanStack ; `AppShell.tsx:58,138-141` monte les trois lecteurs du client seul sous `isCustomerOnly` ; `useAgencyStandardWelcomeOnce.ts:72-97` relit `/api/agencies/{id}` pour `kind` et `metadata.welcome.standard_unlocked_at`. Le « à vérifier » est levé : `AgencyController::show` (l. 71-76) ignore `fields` et rend toute `AgencyResource`, `metadata` comprise (l. 72), donc la lecture `resolveAgencyOrNull` du layout (`layout.tsx:35-41`, même condition `agency_admin` que le hook, `AppShell.tsx:73`) porte déjà le marqueur. Le constat tient. Classement : A2, une clé TanStack commune pour `GET /api/me/welcome-seen` et le marqueur d'agence passé par le layout suppriment des lectures identiques sans changer quelle fenêtre s'ouvre ; la file de P101.03 (validé) est au même endroit mais n'en dépend pas.
 
 ### L'écran Équipe attend la liste des membres pour demander leurs rôles : deux allers-retours en série avant la colonne « Rôle »
 - Réf : P136.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : rôle d'agence dans la liste des membres, ou lecture de toute l'agence sous un seuil à fixer
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/TeamConsole.tsx:157-174`, `takussan-web/src/lib/queries/agency-roles.ts:92-103`, `takussan-web/src/lib/queries/admin-users.ts:65`
 - Constat :
@@ -12955,10 +12958,11 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - La colonne des rôles arrive donc après deux allers-retours en série, le second précédé d'un préflight (P103.01), à chaque changement de page ou de filtre (la clé porte les identifiants, lu, l. 96). Le docblock justifie la requête séparée (`UserResource` n'expose pas le profil d'agence, lu, `TeamConsole.tsx:166-171`), pas l'attente.
   - Établi comment : code relu ; la durée n'a pas été mesurée.
 - Piste : faire rendre les affectations de rôle par la liste des membres de l'agence (une inclusion côté API, bornée à la page), ou les demander en parallèle pour toute l'agence quand elle est petite. Garde : un test vitest qui rend la console et exige que l'appel des rôles parte sans attendre la réponse des membres, ou qu'un seul appel suffise.
+- Mesure (2026-10-22, 20d495dfd, mesureur) : relu `TeamConsole.tsx:157-174` (`usersQuery` puis `useAgencyRoleAssignments(agencyId, visibleUserIds)`), `agency-roles.ts:94-104` (`enabled: … userIds.length > 0`, clé portant les identifiants, appel direct) : les deux lectures sont en série à chaque page ou filtre ; la durée n'a pas été mesurée. Le constat tient. Classement : V7, les deux options de la Piste demandent un choix : exposer le rôle dans la liste des membres touche ce que le docblock (l. 165-169) dit être un choix « pour tout le produit », et lire toute l'agence demande un seuil de taille que rien n'écrit.
 
 ### Petites améliorations
 - Réf : P136.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : quand les cœurs se remplissent sous `/app` et `/super-admin`, et quelles lectures passent au serveur
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/context/AuthContext.tsx:109-133`, `takussan-web/src/lib/queries/favorites.ts:91-114`, `takussan-web/src/app/(super-admin)/super-admin/page.tsx`, `takussan-web/src/components/admin/super/SystemMetricsGrid.tsx:71-75`, `takussan-web/src/components/admin/super/ConsoleRecentActivity.tsx:35-39`, `takussan-web/src/components/dashboard/admin/MiseEnService.tsx:74-78`
 - Constat :
@@ -12967,6 +12971,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Le tableau de bord d'agence est rendu par le serveur, mais la mise en service (`/api/agencies/{id}/setup-status`) et le compte d'invitations partent du navigateur en appels directs à l'API (lu, `MiseEnService.tsx:74-78`, `agency-queues.ts:107-118`) : la carte de mise en service, placée en tête de page, apparaît après coup et décale ce qui la suit (déduit, à vérifier à l'écran).
   - Établi comment : code relu.
 - Piste : ne lire les favoris qu'au premier lecteur du magasin, ou hors de `/app` et `/super-admin` ; lire côté serveur ce que l'accueil de `/super-admin` et la mise en service affichent en premier, et le passer en données initiales.
+- Mesure (2026-10-22, 20d495dfd, mesureur) : relu `AuthContext.tsx:109-133` (`fetchAllFavoritePropertyIds` à chaque connexion, puis `invalidateQueries(['favorites'])`), `favorites.ts:91-114` (50 par page, 40 pages au plus, en série), `super-admin/page.tsx` (rendu sans donnée, `ConsoleQueues`, `SystemMetricsGrid`, `ConsoleRecentActivity` lisent au client), `MiseEnService.tsx:74-78` (`useApiQuery` de `setup-status`, `null` tant que rien n'est reçu). Les trois parties tiennent ; le décalage de mise en page et la relance sur `/app/favorites` restent non vérifiés. Classement : V7, la Piste offre deux bornes pour les favoris (premier lecteur, ou hors de `/app` et `/super-admin`) qui changent quand un cœur s'affiche rempli, et trois chantiers distincts dont le choix revient au porteur.
 
 ## Angle 137 — Écrans qui chargent les champs de formulaire et le calendrier par le fichier `index.ts` de `components/forms`
 
