@@ -13770,7 +13770,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Un paiement de réservation en échec s'affiche `failed`, en brut et sur un ton neutre
 - Réf : P146.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1266
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/types/booking.ts:16`, `takussan-web/src/components/bookings/BookingDetail.tsx:67-73,355-361`, `takussan-web/src/components/bookings/booking-status.ts:33-39`, `takussan-web/src/lib/queries/bookings.ts:97`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:792-794`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:49`
 - Constat :
@@ -13780,6 +13780,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu. Le rendu à l'écran n'a pas été vu.
 - Piste : aligner `BookingPaymentStatus`, les deux tables et le dictionnaire sur `PaymentStatus` (`failed` en `danger`, avec ses trois traductions, `wo` = texte français) ; retirer `cancelled` du type de charge. Garde : un test qui rend `BookingDetail` avec un paiement `failed` et attend le libellé traduit.
 - Mesure (2026-10-22, 55ac201ff, mesureur) : relu `types/booking.ts:16` (`'pending' | 'paid' | 'refunded' | 'cancelled'`), `PAYMENT_STATUS_LABEL_KEY` (`BookingDetail.tsx:67-73`) et `BOOKING_PAYMENT_STATUS_TONE` (`booking-status.ts:33-39`) sans `failed` ni `late`, le badge `BookingDetail.tsx:355-361` qui retombe sur `p.status` brut et le ton `neutral` ; `PaymentGatewayService.php:792-794` écrit `Failed` sur tout payable hors `LeasePayment` (la branche loyer, l. 770, ne l'écrit pas) ; `StoreBookingPaymentRequest.php:49` exclut `cancelled` que `CreateBookingPaymentPayload.status` (`bookings.ts:97`) propose ; `node -e` sur `fr.json` → `bookings.paymentStatus` = `pending paid partially_paid refunded cancelled`, mais `payments.status.failed` = « Échec » existe, et `components/payments/constants.ts:65` pose déjà `failed: 'danger'` → le défaut tient tel qu'écrit ; rien d'exécuté. Classement : A4, la clé `bookings.paymentStatus.failed` manque et reprend le libellé existant « Échec » de `payments.status.failed` avec le ton `danger` déjà employé, sans texte neuf ; aligner les types sur `PaymentStatus` relève de A1.
+- Mesure (2026-10-22, 4e69ef6bd, implementeur) : test neuf `BookingDetail.paiement-en-echec.tck-1266.test.tsx` sur l'arbre d'origine → 3 rouges : « Échec » et « En retard » introuvables (badge brut `failed`/`late`), dictionnaire sans `failed` ni `late` → type aligné sur les sept cas de `PaymentStatus`, `failed` et `late` en `danger` avec les libellés de `payments.status` (`wo` = texte français), `cancelled` retiré du type de charge ; ablation (composant, tons et type de charge rendus à `HEAD`) → 2 rouges vitest et `tsc` en erreur (`Unused '@ts-expect-error'`), correctif remis → 4/4 verts, `tsc` propre.
 
 ### L'échéancier d'un bail affiche « Autre » pour une échéance remboursée ou en échec
 - Réf : P146.02
