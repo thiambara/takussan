@@ -583,6 +583,16 @@ export function messageErreurApi(
 
   // `fetch` ne lève un `TypeError` que lorsque la requête n'a pas abouti du tout.
   if (erreur instanceof Error && erreur.name === 'TypeError') return t(CLE_I18N_ERREUR_API.network);
+  // TCK-1295 (P113.04) — un appel abandonné par sa borne (`AbortSignal.timeout`) est une panne
+  // réseau pour l'utilisateur. Lu par le nom seul : selon l'environnement, la `DOMException` n'est
+  // pas toujours un `Error` (jsdom), et son message est anglais (« signal timed out »).
+  if (
+    erreur !== null &&
+    typeof erreur === 'object' &&
+    (erreur as { name?: unknown }).name === 'TimeoutError'
+  ) {
+    return t(CLE_I18N_ERREUR_API.network);
+  }
 
   if (erreur instanceof Error) {
     // Un `Error` NU sert ici de transport à un message DÉJÀ traduit : plusieurs hooks font
