@@ -44,6 +44,53 @@ class LeaseTest extends TestCase
         $this->assertDatabaseCount('leases', 1);
     }
 
+    /**
+     * TCK-1240 (P114.01) — le formulaire de création envoie `special_conditions` ; sans règle dans
+     * `StoreLeaseRequest`, `validated()` l'écartait et la ligne naissait à `NULL`.
+     */
+    public function test_create_lease_keeps_special_conditions(): void
+    {
+        [$landlord, $payload] = $this->leaseCreationPayload();
+        Sanctum::actingAs($landlord);
+
+        $this->postJson('/api/leases', $payload + [
+            'terms' => 'Conditions générales',
+            'special_conditions' => 'Animaux interdits',
+        ])->assertCreated();
+
+        $lease = Lease::query()->sole();
+        $this->assertSame('Conditions générales', $lease->terms);
+        $this->assertSame('Animaux interdits', $lease->special_conditions);
+    }
+
+    /** TCK-1240 (P114.01) — la borne est celle du schéma du front (`lib/schemas/lease.ts`, 5 000). */
+    public function test_create_lease_refuses_special_conditions_beyond_5000_characters(): void
+    {
+        [$landlord, $payload] = $this->leaseCreationPayload();
+        Sanctum::actingAs($landlord);
+
+        $this->postJson('/api/leases', $payload + [
+            'special_conditions' => str_repeat('a', 5001),
+        ])->assertUnprocessable()->assertJsonValidationErrors('special_conditions');
+    }
+
+    /** @return array{0: User, 1: array<string, mixed>} */
+    private function leaseCreationPayload(): array
+    {
+        $landlord = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $landlord->id]);
+        $tenant = Customer::factory()->create(['added_by_id' => $landlord->id]);
+
+        return [$landlord, [
+            'property_id' => $property->id,
+            'tenant_id' => $tenant->id,
+            'type' => 'residential_rent',
+            'start_date' => now()->toDateString(),
+            'monthly_rent' => 400000,
+            'currency' => 'XOF',
+        ]];
+    }
+
     public function test_activate_and_terminate_lease(): void
     {
         $landlord = User::factory()->create();
