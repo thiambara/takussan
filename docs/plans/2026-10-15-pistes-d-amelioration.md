@@ -8406,7 +8406,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Le NINEA d'une agence est chiffré et masqué dans la demande, puis recopié en clair dans `agencies.ninea` par une décision qu'ADR-0044 n'écrit pas
 - Réf : P84.01
-- Statut : retenu · à valider — chemin fermé : docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md (l'option que la Piste détaille écrit l'exception dans ADR-0044 § 1 ; l'autre, cesser de masquer le NINEA de la demande, en est le contraire et ne se choisit pas à sa place) ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : écrire l'exception dans ADR-0044 § 1 : le NINEA d'une personne morale est une mention légale publique, en clair dans `agencies.ninea`, chiffré dans la demande le temps de la revue
+- Statut : validé — porteur (2026-10-22) : l'exception écrite dans ADR-0044 (amendement du 2026-10-22) : le NINEA d'une agence `standard` est en clair dans `agencies.ninea`, chiffré dans la demande le temps de la revue ; au journal, la clé `ninea` sort de l'expurgation pour le seul sujet `Agency`
 - Gravité : 🟠 risque ou dette
 - Où : `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:44-46`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:62-63`, `:94-105`, `takussan-api/app/Models/Agency.php:38-46`, `takussan-api/app/Http/Resources/AgencyResource.php:50`, `takussan-api/app/Http/Resources/AgencyUpgradeRequestResource.php:41`, `takussan-api/app/Support/Audit/PropertyRedactor.php:41`, `takussan-api/app/Services/Kyc/SharedLegalIdentifierDetector.php:25-27`
 - Constat :
@@ -9599,7 +9599,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Les actions de neuf contrôleurs rendent la ressource sans les relations et les clés que le `show` ajoute
 - Réf : P95.03
-- Statut : retenu · à valider — chemin fermé : docs/adr/ (la règle « une écriture rend la projection de son `show` » est une décision structurelle, à écrire en ADR avant l'implémentation, CLAUDE.md racine) ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : ADR « une écriture rend la projection de son `show`, sauf exception écrite dans le docblock de la ressource », gardé par un test de contrat par modèle, en commençant par la réservation et la facture
+- Statut : validé — porteur (2026-10-22) : appliquer ADR-0071 : un seul chemin de présentation pour le `show` et les écritures, exception écrite dans le docblock de la ressource, test de contrat de forme par modèle ; la réservation d'abord, puis la facture
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/BookingController.php:56-58,65-69,78-104`, `takussan-api/app/Http/Controllers/Api/InvoiceController.php:55-62,90-95`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:62-75,121-123`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:96-113,149-151`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:153-155`, `takussan-api/app/Http/Resources/PropertyResource.php:48-61`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:92-94,372`, `takussan-api/app/Http/Controllers/Api/ReviewController.php`, `takussan-api/app/Http/Controllers/Api/Admin/AgencySubscriptionController.php:36-44`
 - Constat :
@@ -12471,7 +12471,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Les loyers d'une agence supprimée continuent de prendre des pénalités et de relancer le locataire
 - Réf : P129.02
-- Statut : retenu · à valider — V1 : faire sauter les agences supprimées par les jobs de pénalité et de relance touche des montants ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : réglé par P129.06 (plus de suppression d'agence) ; après son ADR
+- Statut : validé — porteur (2026-10-22) : réglée par P129.06 (ADR-0048, amendement du 2026-10-22) : aucune agence ne se supprime plus ; rien à implémenter à part
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:36-41,74-91`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:132-143`, `takussan-api/app/Jobs/Invoice/SendOverdueRemindersJob.php:29-35`
 - Constat :
@@ -12514,7 +12514,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### L'abonnement d'une agence supprimée suit son cours, période d'essai comprise
 - Réf : P129.05
-- Statut : retenu · à valider — V1 : annuler un abonnement ou bloquer la fin d'essai est une écriture de facturation ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : réglé par P129.06 (plus de suppression d'agence) ; après son ADR
+- Statut : validé — porteur (2026-10-22) : réglée par P129.06 (ADR-0048, amendement du 2026-10-22) : aucune agence ne se supprime plus ; la fin d'essai d'une agence `inactive` ou `suspended` reste une question à part (V1)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/AgencySubscriptionService.php:86-109`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:156`, `takussan-api/app/Http/Controllers/Api/Admin/AgencySubscriptionController.php:39`
 - Constat :
@@ -12527,7 +12527,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### La suppression n'a ni appelant au front, ni restauration, ni vue dans la console, et contourne le cycle de vie d'ADR-0048
 - Réf : P129.06
-- Statut : retenu · à valider — V7 : retirer la route ou en faire une transition du cycle de vie est un choix de produit et de structure ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : retirer la route `DELETE /api/agencies/{id}` ; la fin d'activité passe par le statut d'ADR-0048 (`inactive` ou `suspended`), amendement à écrire
+- Statut : validé — porteur (2026-10-22) : appliquer ADR-0048 (amendement du 2026-10-22) : retirer `DELETE /api/agencies/{agency}`, `AgencyController::destroy` et ses deux tests, avec le test de routes qui exige qu'elle ne revienne pas
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/agencies.php:30`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:147-159`, `takussan-api/tests/Feature/Api/AgencyTest.php:190-210`, `docs/adr/0048-effet-d-une-suspension-d-agence.md`
 - Constat :
@@ -12615,7 +12615,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Petites améliorations
 - Réf : P130.06
-- Statut : retenu · à valider — V3 : imprimer le nom d'un client supprimé décide de ce qu'on expose d'une fiche retirée
+- Statut : validé — porteur (2026-10-22) : lire le client et le bien `withTrashed()` dans les documents qui attestent un fait passé (facture, quittance) : le nom du client supprimé y est imprimé
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Resources/LeaseResource.php:83-84`, `takussan-api/resources/views/pdf/invoices/default.blade.php:70-81`, `takussan-api/resources/views/pdf/receipts/rent.blade.php:54-60`
 - Constat :
@@ -13674,7 +13674,7 @@ générique est P112.01.*
 
 ### Le socle commun : après toute erreur autre qu'un 422, le formulaire garde sa saisie et le bouton se réactive, et une seule route de l'API sait reconnaître un rejeu
 - Réf : P144.01
-- Statut : retenu · à valider — V6 : brique commune d'idempotence (intergiciel et option de mutation), forme et fenêtre à choisir ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : ADR de la brique `Idempotency-Key` : intergiciel sur le modèle de TCK-822 (clé par utilisateur et route, 24 h, réponse rangée rejouée, 422 sur une même clé pour un autre corps) et option de `useApiMutation`
+- Statut : validé — porteur (2026-10-22) : appliquer ADR-0072, lot 1 : l'intergiciel `idempotent` et l'option `idempotence` de `useApiMutation`, avec les messages
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/hooks/useApiForm.ts:262-298`, `takussan-web/src/lib/query-client.ts:27-29`, `takussan-web/src/lib/api.ts:752-765`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:49-93`, `takussan-api/app/Http/Requests/Credits/StorePropertyBoostRequest.php:28-31`
 - Constat :
@@ -13689,7 +13689,7 @@ générique est P112.01.*
 
 ### Un message rejoué après une erreur s'écrit deux fois dans le fil
 - Réf : P144.02
-- Statut : retenu · à valider — V6 : dépend de la brique de P144.01, ou d'un `client_id` rangé sur le message (V4) ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : la brique de P144.01 sur les messages, sans `client_id` propre ; après l'ADR de P144.01
+- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 1 : la clé sur les messages, notes vocales comprises, sans `client_id` propre
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:289-330`, `takussan-web/src/lib/queries/conversations.ts:265-327`, `takussan-web/src/components/messages/ChatView.tsx:211-218,368`
 - Constat :
@@ -13704,7 +13704,7 @@ générique est P112.01.*
 
 ### Une demande de réservation rejouée crée une seconde réservation en attente, et prévient de nouveau le bailleur
 - Réf : P144.03
-- Statut : retenu · à valider — V7 : refuser ou rendre la réservation `pending` déjà ouverte est une règle neuve ; sinon la brique de P144.01 (V6) ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : la clé de P144.01 sur `POST /api/bookings` et `booking-request`, sans règle de rapprochement ; après l'ADR de P144.01
+- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 2 : la clé sur `POST /api/bookings`, et lot 3 sur l'action serveur `booking-request`, sans règle de rapprochement
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/BookingService.php:119-136`, `takussan-api/app/Services/Booking/PropertyAvailabilityService.php:40-44`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:946-1048`, `takussan-web/src/components/bookings/BookingTunnel.tsx:145-175,446`, `takussan-web/src/hooks/useBookingRequest.ts:14-28`, `takussan-web/src/app/actions/property.ts:131-149,182-199`
 - Constat :
@@ -13719,7 +13719,7 @@ générique est P112.01.*
 
 ### Un acompte enregistré par le personnel puis rejoué compte deux encaissements `paid`
 - Réf : P144.04
-- Statut : retenu · à valider — V1 : encaissement d'acompte, montant écrit deux fois ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : la clé de P144.01 sur la route d'acompte ; après l'ADR de P144.01
+- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 2 : la clé sur la route d'acompte
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/BookingPaymentController.php:35-59`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-48`, `takussan-web/src/components/bookings/BookingPaymentDialog.tsx:60-67,120`
 - Constat :
@@ -13733,7 +13733,7 @@ générique est P112.01.*
 
 ### Une facture rejouée est émise deux fois, sous deux numéros
 - Réf : P144.05
-- Statut : retenu · à valider — V1 : création de facture ; le doublon est un brouillon, sans numéro légal ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : la clé de P144.01 sur `POST /api/invoices` ; après l'ADR de P144.01
+- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 2 : la clé sur `POST /api/invoices`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/InvoiceController.php:43-53`, `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:72-95,288`, `takussan-web/src/lib/queries/payments.ts:179-184`
 - Constat :
@@ -13746,7 +13746,7 @@ générique est P112.01.*
 
 ### Une demande d'intervention rejouée ouvre deux interventions et prévient deux fois
 - Réf : P144.06
-- Statut : retenu · à valider — V6 : dépend de la brique d'idempotence de P144.01 ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : la clé de P144.01 sur `POST /api/maintenance-requests` ; après l'ADR de P144.01
+- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 2 : la clé sur `POST /api/maintenance-requests`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:87-130`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:78-96,179`
 - Constat :
@@ -13759,7 +13759,7 @@ générique est P112.01.*
 
 ### Le délai par défaut que P79.01 pose sur les appels du serveur Next couvrira aussi les écritures des actions serveur
 - Réf : P144.07
-- Statut : retenu · à valider — V7 : clé d'idempotence ou délai plus long pour les écritures, à choisir avec P79.01 ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : la clé de P144.01 sur les `POST` des actions serveur de `property.ts`, engendrée une fois par soumission, plutôt qu'un délai plus long ; après l'ADR de P144.01
+- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 3 : les actions serveur de `property.ts` reçoivent la clé du composant client, une par soumission, plutôt qu'un délai plus long
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/property.ts:112-149,182-270`, `takussan-web/src/lib/api.ts:690-765`
 - Constat :
