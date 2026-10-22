@@ -129,6 +129,7 @@ use App\Services\Webhooks\WebhookJournal;
 use App\Support\ImpersonationContext;
 use App\Support\LienFront;
 use App\Support\Logging\SanitizingFailedJobProvider;
+use App\Support\ProductionOrigin;
 use App\Support\TelephoneSaisi;
 use App\Support\VisitorFingerprint;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -219,6 +220,8 @@ class AppServiceProvider extends ServiceProvider
     {
         // P71.02 — l'aperçu des codes SMS ne démarre jamais sur l'API de production.
         OtpPreview::refuserSurLaProduction();
+        // P106.03 (TCK-1358) — ni sous un autre `APP_ENV` que `production`.
+        ProductionOrigin::refuserUnAutreAppEnv();
         $this->loadRoutesFrom(base_path('routes/lemon-squeezy.php'));
         $this->bootUrlRoot();
         $this->bootRequestMacros();

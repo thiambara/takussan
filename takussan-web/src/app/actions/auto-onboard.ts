@@ -21,16 +21,16 @@ export type ResultatCreationAuto =
 
 type Reponse = { data: { created: boolean; active_profile_id: string } };
 
-export async function autoOnboardAction(primaryCity?: string | null): Promise<ResultatCreationAuto> {
+// TCK-1372 (P114.05) — sans ville : le contrôleur crée l'espace sans lire le corps (TCK-966).
+export async function autoOnboardAction(): Promise<ResultatCreationAuto> {
   const token = await getToken();
   if (!token) return { ok: false, reason: 'unauthenticated' };
 
-  const ville = typeof primaryCity === 'string' ? primaryCity.trim().slice(0, 120) : '';
   try {
     const res = await apiRequest<Reponse>('/api/host/individual/auto-onboard', {
       method: 'POST',
       token,
-      body: ville ? { primary_city: ville } : {},
+      body: {},
     });
     const cookieStore = await cookies();
     cookieStore.set(ACTIVE_PROFILE_COOKIE, res.data.active_profile_id, {

@@ -136,11 +136,11 @@ class ActivityLogExporter
     {
         $causer = $log->causer;
         // TCK-601 (AC13b) — expurgé avant toute mise en forme : la colonne est un JSON libre.
-        $props = collect(PropertyRedactor::redact($log->properties) ?? []);
+        $props = collect(PropertyRedactor::redact($log->properties, $log->subject_type) ?? []);
         // TCK-692 — activitylog v5 range l'avant/après d'un modèle dans `attribute_changes`, et
         // `properties` reste vide : il se lit là d'abord, expurgé de même. `properties` garde les
         // lignes écrites à la main (`withProperties`) et celles d'avant la v5.
-        $attributeChanges = collect(PropertyRedactor::redact($log->attribute_changes) ?? []);
+        $attributeChanges = collect(PropertyRedactor::redact($log->attribute_changes, $log->subject_type) ?? []);
         $diff = $attributeChanges->has('attributes') || $attributeChanges->has('old') ? $attributeChanges : $props;
 
         $hasAttributeDiff = $diff->has('attributes') || $diff->has('old');

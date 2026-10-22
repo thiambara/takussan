@@ -4189,7 +4189,7 @@
         "title": "Reject the quote",
         "reason_label": "Rejection reason",
         "reason_placeholder": "Please explain why this quote is refused...",
-        "reason_min": "The reason must be at least 5 characters long",
+        "reason_min_length": "The reason must be at least 10 characters long",
         "confirm": "Confirm the rejection"
       }
     },

@@ -265,7 +265,9 @@ function PhoneStep({ data, setData }: StepProps) {
         });
         return;
       }
-      setData({ ...data, phone: { ...data.phone, verified: true } });
+      // TCK-1362 (P84.03) — le code vérifié quitte l'état : sinon le brouillon serveur, gardé
+      // jusqu'à 90 jours, en gardait la seule copie en clair (l'API le garde haché, 5 min).
+      setData({ ...data, phone: { ...data.phone, code: '', verified: true } });
       toast.add({
         title: t('verified.title'),
         description: t('verified.body'),

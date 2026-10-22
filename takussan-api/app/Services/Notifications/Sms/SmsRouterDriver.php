@@ -34,6 +34,8 @@ use Illuminate\Support\Facades\Log;
  * - P72.03 (TCK-1093) — a one-time code skips, for 15 minutes and per number,
  *   the provider whose DLR came back `failed` ({@see OtpLateFailureMemory}),
  *   unless that would skip the whole chain.
+ * - P72.04 (TCK-1354) — the same DLR lifts the code's resend cooldown, named by
+ *   the sender in `otp_resend_key`.
  */
 class SmsRouterDriver implements SmsDriverInterface
 {
@@ -217,7 +219,8 @@ class SmsRouterDriver implements SmsDriverInterface
                         $this->orangeCap->increment($n);
                     }
                     if ($isOtp && $result->providerMessageId) {
-                        $this->otpFailures->rememberSent($driverId, $result->providerMessageId, $n);
+                        $resendKey = $context['otp_resend_key'] ?? null;
+                        $this->otpFailures->rememberSent($driverId, $result->providerMessageId, $n, is_string($resendKey) ? $resendKey : null);
                     }
                 } elseif (! $result->ambiguous || $isOtp) {
                     $next[] = $n;

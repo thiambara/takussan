@@ -58,14 +58,19 @@ class DeletionStepUpService
 
     /**
      * Génère + stocke un code frais, applique le cooldown, et notifie.
-     * Rend le code hors production (les tests en ont besoin), jamais en
-     * production. Rend `null` si le cooldown court encore — l'appelant
-     * répond quand même 202 pour ne rien divulguer par le timing.
+     * Rend `true` si un code est émis, `false` si le cooldown court encore ou si
+     * la porte des codes SMS refuse — l'appelant répond quand même 202 pour ne
+     * rien divulguer par le timing.
+     *
+     * P106.02 (TCK-1356) — ne rend jamais le code, dans aucun environnement : il
+     * le rendait hors production pour les tests, et en production son `null`
+     * valait aussi « code émis ». Les tests le lisent dans la notification
+     * simulée ou le routeur SMS de test.
      */
-    public function sendCode(User $user): ?string
+    public function sendCode(User $user): bool
     {
         if (! $this->canResend($user)) {
-            return null;
+            return false;
         }
 
         // TCK-589 — un compte créé par téléphone n'a pas d'e-mail : le code part par
@@ -77,7 +82,7 @@ class DeletionStepUpService
         // Passe 2 (p2-2) — ce SMS passe la MÊME porte que tout code : indicatif servi et plafond
         // global du jour. Refusé, rien n'est émis ni rangé ; la réponse reste le 202 invariant.
         if ($bySms && ! $this->phones->reserveCodeDelivery((string) $user->phone)) {
-            return null;
+            return false;
         }
 
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
@@ -93,6 +98,8 @@ class DeletionStepUpService
                 'event_type' => 'account_deletion_step_up',
                 'is_critical' => true,
                 'is_otp' => true,
+                // P72.04 (TCK-1354) — un accusé `failed` lève ce délai de renvoi.
+                'otp_resend_key' => $this->cooldownKey($user),
                 'bypass_quiet_hours' => true,
             ]);
             // TCK-620 (ADR-0060) — le code parti par SMS revient aussi dans la réponse, hors
@@ -105,7 +112,7 @@ class DeletionStepUpService
             ));
         }
 
-        return app()->environment('production') ? null : $code;
+        return true;
     }
 
     /** Vérifie SANS consommer. Comparaison à temps constant. */

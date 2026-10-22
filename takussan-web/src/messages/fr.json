@@ -4160,7 +4160,7 @@
         "title": "Rejeter le devis",
         "reason_label": "Motif du rejet",
         "reason_placeholder": "Veuillez expliquer pourquoi ce devis est refusé...",
-        "reason_min": "Le motif doit contenir au moins 5 caractères",
+        "reason_min_length": "Le motif doit contenir au moins 10 caractères",
         "confirm": "Confirmer le rejet"
       }
     },

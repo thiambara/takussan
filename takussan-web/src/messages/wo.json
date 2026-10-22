@@ -2429,7 +2429,7 @@
         "title": "Bañ dewi bi",
         "reason_label": "Lu tax ñu ko bañ",
         "reason_placeholder": "Leeralal lu tax nga bañ dewi bii...",
-        "reason_min": "Lu tax bi war na am ci 5 araf ba kaw",
+        "reason_min_length": "Le motif doit contenir au moins 10 caractères",
         "confirm": "Dëgglu bañ bi"
       }
     },

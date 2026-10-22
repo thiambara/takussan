@@ -135,6 +135,7 @@ class LeaseSignatureService
             (string) ($lease->reference_number ?? $lease->id),
             (int) (LeaseSignatureOtpService::CODE_TTL_SECONDS / 60),
             $channel,
+            $this->otp->resendKey($lease, $user, $role),
         );
         $user->notify($notification);
         // TCK-799 (P11.05) — un code qui n'est pas parti ne se dit pas envoyé.

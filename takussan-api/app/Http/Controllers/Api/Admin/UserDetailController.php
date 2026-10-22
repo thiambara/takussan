@@ -190,7 +190,7 @@ class UserDetailController extends Controller
                 'causer_id' => $log->causer_id,
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
-                'properties' => PropertyRedactor::redact($log->properties),
+                'properties' => PropertyRedactor::redact($log->properties, $log->subject_type),
                 'impersonator' => $log->impersonator_id === null ? null : [
                     'id' => (int) $log->impersonator_id,
                     'name' => $operateurs->get($log->impersonator_id)?->full_name,
