@@ -11077,7 +11077,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Les conditions particulières saisies à la création d'un bail ne sont jamais enregistrées
 - Réf : P114.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:85-89,316-321`, `takussan-web/src/lib/queries/leases.ts:277`, `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:34-63`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:54`, `takussan-api/app/Services/Model/LeaseService.php:89`
 - Constat :
@@ -11086,10 +11086,11 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - La colonne existe et est `fillable` (lu, `Lease.php:44`). Le renouvellement la recopie depuis le bail parent (sous-agent, `LeaseRenewalService.php:133`) : un bail renouvelé hérite donc d'une valeur vide.
   - Établi comment : lu et mesuré par `grep` ; le parcours dans le service vient du sous-agent.
 - Piste : ajouter `special_conditions` (`nullable|string`, avec une borne) à `StoreLeaseRequest`. Un test qui crée un bail avec `special_conditions` et relit la ligne le garde.
+- Mesure (2026-10-22, 135b23834, mesureur) : relu `StoreLeaseRequest::rules()` (aucune règle `special_conditions`, `terms` seul), `LeaseController::store()` (`validated()` → `LeaseService::create()`, `Lease::create(array_merge($data, …))`), `CreateLeaseForm.tsx:85,318` (champ affiché et envoyé), `RenewLeaseRequest.php:46` (`'special_conditions' => ['sometimes', 'nullable', 'string']`) ; aucun commit ni ticket ne l'a traitée (`git log -S`, `grep` des tickets) ; test temporaire (retiré), `POST /api/leases` avec `terms` et `special_conditions` → 201, ligne relue : `terms='T'`, `special_conditions=NULL`. Classement : A1, la colonne est décrite (`models-spec`, « Conditions particulières »), le formulaire l'envoie et le renouvellement la valide déjà en `nullable|string` : la règle se recopie sans choix de produit.
 
 ### Modifier une règle d'alerte de la console la réactive toujours
 - Réf : P114.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/alerts.tsx:158-168`, `takussan-api/app/Services/Admin/AlertRuleService.php:35-46`
 - Constat :
@@ -11098,10 +11099,11 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Aucun autre écrivain de `is_active` n'existe dans ce composant (mesuré : `grep -n is_active alerts.tsx` → la seule ligne 166). Qu'une règle puisse être désactivée ailleurs, par l'API seule ou par un seeder, reste à vérifier.
   - Établi comment : lu.
 - Piste : n'envoyer `is_active` qu'en création, ou reprendre `rule.is_active` en modification. Un test du composant qui modifie une règle inactive et lit le corps envoyé le garde.
+- Mesure (2026-10-22, 135b23834, mesureur) : relu `alerts.tsx:158-168` (`is_active: true` en dur, création comme modification), `AlertRuleService::update` (`$payload['is_active'] ?? $rule->is_active`) et `:76` (seules les règles actives sont déclenchées) ; la console n'affiche ni ne modifie l'état (seule occurrence `is_active` : `:166`), une règle ne se désactive que par `PATCH /api/admin/alert-rules/<built-in function id>` (`AlertRuleRequest.php:54`) ; test vitest temporaire (retiré), `AlertRuleDialog` sur une règle `is_active: false`, enregistrer sans rien changer → `patchAlertRule` reçoit `is_active: true`. Classement : A1, le contrat de `update()` garde l'état quand la clé manque : le correctif n'envoie plus `is_active` en modification (la création reste à `true`), sans comportement visible neuf.
 
 ### Deux motifs acceptés par le front puis refusés en 422 par l'API
 - Réf : P114.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le message affiché cite la borne, et sa version wolof est gelée
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/maintenance/QuoteRejectionModal.tsx:21`, `takussan-api/app/Http/Requests/Maintenance/RejectQuoteRequest.php:27`, `takussan-web/src/components/billing/PayoutDetailPanel.tsx:168`, `takussan-api/app/Http/Requests/Api/Admin/CancelPlatformPayoutRequest.php:17`
 - Constat :
@@ -11109,10 +11111,11 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Annulation d'un reversement de plateforme : le bouton ne se désactive que sur un motif vide (lu, `disabled={!reason || …}`), l'API en exige 3 (lu, `'min:3'`).
   - Établi comment : lu ; le message affiché sur le 422 n'a pas été vu.
 - Piste : aligner la borne du front sur la règle de l'API (ou l'inverse, si 10 est un choix de produit). Un test du composant à la borne garde chacun des deux.
+- Mesure (2026-10-22, 135b23834, mesureur) : relu `QuoteRejectionModal.tsx:21` (`z.string().min(5, t('reason_min'))`) contre `RejectQuoteRequest.php:27` (`'min:10'`), et `PayoutDetailPanel.tsx:168` (`disabled={!reason || …}`) contre `CancelPlatformPayoutRequest.php:17` (`'min:3'`) : les deux écarts tiennent ; TCK-095 écrit 10 caractères pour le motif de rejet d'un devis, des deux côtés (l. 81, 110, AC4). Classement : V7, `reason_min` dit « 5 caractères » en fr, en et wo (« 5 araf »), le texte wolof ne peut pas être réécrit, et le reversement n'a aucun message de borne aujourd'hui : il faut trancher le texte affiché (clé neuve ou non), même si la borne 10 est déjà écrite.
 
 ### Le numéro saisi à l'étape téléphone de l'assistant hôte est exigé puis ignoré
 - Réf : P114.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : vérification du téléphone à l'onboarding, et deux options
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Onboarding/HostIndividualOnboardRequest.php:53-61`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:80-87,302-304`, `takussan-web/src/components/onboarding/HostIndividualWizard.tsx:202-206`
 - Constat :
@@ -11121,10 +11124,11 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Si l'utilisateur tape un autre numéro que celui de son compte, c'est celui du compte qui devient « vérifié ». Que le code ait été envoyé au numéro saisi ou à celui du compte est à vérifier (`verifyOtp`, `PhoneVerificationService`).
   - Établi comment : lu pour l'API ; l'envoi du front vient du sous-agent.
 - Piste : soit retirer le champ et la règle si le numéro du compte fait foi, soit écrire le numéro saisi avant de le marquer vérifié. Un test qui envoie un numéro différent de celui du compte et relit `users.phone` le garde.
+- Mesure (2026-10-22, 135b23834, mesureur) : relu `HostIndividualOnboardRequest.php:53-54` (`phone_otp.phone` requis), `HostIndividualOnboardingService.php:80-81,210-214,305` (seul `phone_otp.code` est lu, vérifié contre `$user->phone` et marqué sur lui), puis le « à vérifier » : l'envoi du code passe par `phoneSendOtpAction(phone)` (`HostIndividualWizard.tsx:461-468`) → `PhoneVerificationController::resend()`, qui écrit le numéro saisi dans `users.phone` (`:55-76`, `PhoneChangeGuard` compris) puis envoie le code à `$user->phone` (`PhoneVerificationService::sendOtp`, `:78-84`). Le numéro marqué vérifié est donc celui qui a reçu le code : la partie « un autre numéro devient vérifié » ne tient pas. Ne tient que le champ `phone_otp.phone`, exigé et ignoré (lu ; non exécuté). L'option « écrire le numéro saisi » contournerait `PhoneChangeGuard`. Classement : V2, le correctif touche la vérification du téléphone, et la Piste offre deux options, dont une à écarter.
 
 ### Petites améliorations : clés envoyées pour rien
 - Réf : P114.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : garder ou retirer à l'écran des champs obligatoires de l'assistant
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:130-131,146`, `takussan-web/src/app/publish/page.tsx:47`, `takussan-api/app/Http/Controllers/HostAutoOnboardController.php:34-35`, `takussan-web/src/lib/schemas/setting.ts:208`, `takussan-api/app/Http/Requests/Api/UpdateIntegrationRequest.php:51-53`
 - Constat (tous du sous-agent, à vérifier) :
@@ -11132,6 +11136,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - `POST /api/host/individual/auto-onboard` : `primary_city` est validé et envoyé, et le contrôleur appelle `autoOnboard($user)` sans le corps. C'est assumé (TCK-966), mais l'envoi est mort. Même chose pour `agency.primary_city` et `preferences.primary_property_type` de l'assistant hôte, exigés puis abandonnés (docblock TCK-966, `HostIndividualOnboardingService.php:235-237`) : un champ obligatoire qui n'a aucun effet.
   - `PATCH /api/integrations/{id}` : `provider` est toujours envoyé, sans règle. C'est inoffensif, car le champ est désactivé en édition.
 - Piste : retirer du corps ce que l'API ne lit pas ; pour les champs obligatoires de l'assistant, décider s'ils restent à l'écran.
+- Mesure (2026-10-22, 135b23834, mesureur) : relu, les quatre écarts tiennent : `landlord_id` envoyé (`CreateLeaseForm.tsx:75,130-131,146`) sans règle dans `StoreLeaseRequest`, le service le recalcule (`LeaseService.php`, `'landlord_id' => $property->user_id`) ; `primary_city` est envoyé par `auto-onboard.ts:33` (la ligne citée `publish/page.tsx:47` n'en passe que la valeur à `autoOnboardAction`), validé (`HostAutoOnboardRequest.php:19`) et ignoré (`HostAutoOnboardController.php:34-35`) ; `agency.primary_city` et `preferences.primary_property_type` requis (`HostIndividualOnboardRequest.php:46,67`) et non enregistrés (`HostIndividualOnboardingService.php`, docblock TCK-966 de `createAgency`) ; `provider` toujours dans le corps (`setting.ts:208`) sans règle dans `UpdateIntegrationRequest::rules()`. Classement : V7, la Piste demande de décider si les champs obligatoires de l'assistant restent à l'écran ; le retrait des seules clés mortes (`landlord_id`, `provider`, `primary_city` de l'auto-onboard) serait A3.
 
 ## Angle 115 — Statuts d'enum qu'aucun chemin de `app/` n'écrit
 
