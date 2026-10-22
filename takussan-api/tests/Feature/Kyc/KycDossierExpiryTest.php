@@ -8,6 +8,7 @@ use App\Models\Agency;
 use App\Models\AppNotification;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\KycDossierStatus;
+use App\Models\Enums\UserStatus;
 use App\Models\KycDossier;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
@@ -97,6 +98,9 @@ class KycDossierExpiryTest extends ApiTestCase
         AgencyAdminProfile::factory()->create(['user_id' => $admin1->id, 'agency_id' => $agency->id]);
         AgencyAdminProfile::factory()->create(['user_id' => $admin2->id, 'agency_id' => $agency->id]);
         AgencyAdminProfile::factory()->suspended()->create(['user_id' => $suspended->id, 'agency_id' => $agency->id]);
+        // TCK-1318 (P126.05) — admin actif au compte bloqué : jamais relancé.
+        $blocked = User::factory()->create(['status' => UserStatus::Blocked]);
+        AgencyAdminProfile::factory()->create(['user_id' => $blocked->id, 'agency_id' => $agency->id]);
         $dossier = $this->verifiedDossier($agency, '2026-11-15 00:00:00');
 
         // J-45 : rien.
@@ -111,6 +115,7 @@ class KycDossierExpiryTest extends ApiTestCase
         $this->assertSame(1, $this->remindersFor($admin1));
         $this->assertSame(1, $this->remindersFor($admin2));
         $this->assertSame(0, $this->remindersFor($suspended));
+        $this->assertSame(0, $this->remindersFor($blocked));
 
         // J-7 : la seconde, une seule fois.
         $this->travelTo(now()->setDate(2026, 11, 8));

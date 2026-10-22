@@ -7,11 +7,11 @@ use App\Domain\Notifications\NotificationTarget;
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\ReviewStatus;
-use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Model\NotificationService;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Support\Collection;
@@ -66,9 +66,8 @@ class ReviewNotifier
     /** @return Collection<int, User> */
     private function agencyAdmins(int $agencyId): Collection
     {
-        return User::query()
-            ->whereIn('id', AgencyAdminProfile::query()->active()->where('agency_id', $agencyId)->select('user_id'))
-            ->get();
+        // TCK-1318 — la liste unique : profil actif et compte joignable.
+        return AdminsDeLAgence::destinataires($agencyId);
     }
 
     /** @param  Collection<int, User>  $recipients */

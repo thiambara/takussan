@@ -15,11 +15,11 @@ use App\Http\Requests\UpdatePropertyRequest;
 use App\Http\Resources\PropertyResource;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
-use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Notifications\PropertyProposedNotification;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyBulkArchiveService;
@@ -376,12 +376,8 @@ class PropertyController extends Controller
      */
     private function notifyAgencyAdminsOfProposal(Property $property): void
     {
-        $admins = User::query()
-            ->whereIn('id', AgencyAdminProfile::query()
-                ->where('agency_id', $property->agency_id)
-                ->active()
-                ->select('user_id'))
-            ->get();
+        // TCK-1318 — la liste unique : profil actif et compte joignable.
+        $admins = AdminsDeLAgence::destinataires((int) $property->agency_id);
 
         Notification::send($admins, new PropertyProposedNotification($property));
     }
