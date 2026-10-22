@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Messaging\PropertyConversationResolver;
+use App\Services\Model\MaintenanceRequestService;
 use App\Services\Property\ResponsibleAgentAssigner;
 use Illuminate\Support\Facades\DB;
 
@@ -24,8 +25,9 @@ use Illuminate\Support\Facades\DB;
  *
  * Les règles de chaque catégorie :
  *  - `tasks`, `visits` : réassignées ;
- *  - `maintenance` : réassignée si le repreneur y est éligible, sinon DÉSASSIGNÉE et comptée comme
- *    telle (règle d'éligibilité de TCK-592, {@see ProviderEligibility}). La requête n'admet que le
+ *  - `maintenance` : réassignée par `MaintenanceRequestService::assign()` (TCK-1329), devis du
+ *    partant gardé, si le repreneur y est éligible, sinon DÉSASSIGNÉE et comptée comme telle
+ *    (règle d'éligibilité de TCK-592, {@see ProviderEligibility}). La requête n'admet que le
  *    personnel de l'agence, toujours éligible : la branche désassignée ne sert qu'à un appel direct ;
  *  - `responsible_properties` (TCK-603) : la marque d'agent principal passe au repreneur par
  *    {@see ResponsibleAgentAssigner} — jamais `user_id` ; un repreneur que le service refuse (co-
@@ -53,6 +55,7 @@ class AgentHandoverService
         private readonly AgencyMemberRemovalService $removal,
         private readonly ResponsibleAgentAssigner $assigner,
         private readonly PropertyConversationResolver $conversations,
+        private readonly MaintenanceRequestService $maintenance,
     ) {}
 
     /** Les catégories qui touchent un bien, et dont les biens se verrouillent avant toute ligne. */
@@ -204,14 +207,16 @@ class AgentHandoverService
                 return [$ids, []];
 
             case 'maintenance':
-                if ($this->eligibleForMaintenance($successor, (int) $agency->id)) {
-                    MaintenanceRequest::query()->whereIn('id', $ids)->update(['assigned_to' => $successor->id]);
-
-                    return [$ids, []];
+                // TCK-1329 (P121.01) — le chemin du geste unitaire, intervention par intervention :
+                // l'acceptation du partant tombe, `MaintenanceStatusChanged` part après la
+                // transaction (le fil change de prestataire, l'assigné est prévenu). Le devis du
+                // partant reste (décision du porteur, 2026-10-22).
+                $eligible = $this->eligibleForMaintenance($successor, (int) $agency->id);
+                foreach (MaintenanceRequest::query()->whereIn('id', $ids)->orderBy('id')->get() as $mr) {
+                    $this->maintenance->assign($mr, $eligible ? $successor : null, $actor, keepQuote: true);
                 }
-                MaintenanceRequest::query()->whereIn('id', $ids)->update(['assigned_to' => null]);
 
-                return [[], $ids];
+                return $eligible ? [$ids, []] : [[], $ids];
 
             case 'responsible_properties':
                 $moved = [];

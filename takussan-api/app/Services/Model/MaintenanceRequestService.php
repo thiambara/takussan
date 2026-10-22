@@ -103,8 +103,12 @@ class MaintenanceRequestService
      *
      * Remet `accepted_at` à `null` : une acceptation vaut pour un prestataire, pas pour la demande.
      * Le statut ne bouge pas. Sans changement de personne, rien n'est écrit ni émis.
+     *
+     * `$keepQuote` (TCK-1329, P121.01, décision du porteur) : la passation du portefeuille d'un
+     * membre qui quitte l'agence garde le devis du partant — l'agence le reprend, elle ne le
+     * redemande pas. Tout le reste du chemin (acceptation remise à nul, événement, fil) s'applique.
      */
-    public function assign(MaintenanceRequest $mr, ?User $assignee, ?User $actor): MaintenanceRequest
+    public function assign(MaintenanceRequest $mr, ?User $assignee, ?User $actor, bool $keepQuote = false): MaintenanceRequest
     {
         // TCK-592 (verif-592, M2) — assigner une demande annulée ouvrait au nouveau prestataire la
         // fiche, le fil et ses notifications.
@@ -123,7 +127,7 @@ class MaintenanceRequestService
 
         $mr->assigned_to = $assignee?->id;
         $mr->accepted_at = null;
-        if ($previous !== null) {
+        if ($previous !== null && ! $keepQuote) {
             $this->resetQuoteOfPreviousProvider($mr, $previous);
         }
         $mr->save();
