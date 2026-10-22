@@ -165,7 +165,9 @@ function PayoutActions({ payout, onClose }: { payout: PlatformPayout; onClose: (
             <Button
               type="button"
               variant="destructive"
-              disabled={!reason || cancel.isPending}
+              // TCK-1370 (P114.03) — la borne de l'API (`CancelPlatformPayoutRequest` : `min:3`, après
+              // le trim de Laravel) : un motif plus court partait, puis revenait en 422.
+              disabled={reason.trim().length < 3 || cancel.isPending}
               onClick={() => cancel.mutate()}
             >
               {cancel.isPending ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : null}
