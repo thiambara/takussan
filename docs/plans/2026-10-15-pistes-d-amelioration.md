@@ -213,7 +213,7 @@ voie d'écriture (angle 13, puis 47).
 | 136 | Lectures du navigateur au chargement d'un écran `/app` et `/super-admin` (`useApiQuery` en parallèle, clés en double, `enabled` en cascade qui attend une première réponse, données déjà lues par le rendu serveur) : allers-retours avant l'écran utile, chacun précédé d'un préflight puisqu'il porte `Authorization` — le relevé de l'angle 103 sur la console | fait |
 | 137 | Écrans qui importent le fichier `index.ts` de `components/forms` pour `FormError` ou `FormGlobalError` seuls (pages `(auth)` `verify-email` et `reset-password`, `DefiSecondFacteur`, `ConnexionParTelephone`, `IntegrationsManager`, `ChampsLieu`) : react-hook-form et react-day-picker chargés pour afficher un message d'erreur — le motif de P104.01 hors de la console | fait |
 | 138 | Lectures de l'API dédoublées dans un même rendu serveur : server actions `*Action` (`fetchAgencyAction`, et leurs pareilles) appelées par des pages et des layouts serveur qui relisent une ressource déjà lue hors de `cache()` (`agenceDuRendu`, `getMeAction`), mesurées par requête sur un document servi | fait |
-| 139 | Colonnes déclarées par les exporteurs (`ActivityLogExporter::COLUMNS`, constructeurs d'entité d'`ExportController`, exports de rapports, archive RGPD `DataExportBuilder`) qu'aucun chemin n'écrit, ou qui lisent une clé que l'écrivain nomme autrement : colonne toujours vide dans le fichier rendu — le relevé de P108.02 sur les autres exports | à faire |
+| 139 | Colonnes déclarées par les exporteurs (`ActivityLogExporter::COLUMNS`, constructeurs d'entité d'`ExportController`, exports de rapports, archive RGPD `DataExportBuilder`) qu'aucun chemin n'écrit, ou qui lisent une clé que l'écrivain nomme autrement : colonne toujours vide dans le fichier rendu — le relevé de P108.02 sur les autres exports | fait |
 | 140 | PDF figés face aux PDF recomposés à chaque téléchargement (`DocumentPdfService::store`, `signed_contract` de `LeaseSignatureService`, contre `InventoryController::downloadPdf`, `DocumentPdfController::stream*`, quittance publique `PublicPaymentLinkController::receipt`) : ce qu'un document signé ou acquitté imprime après un changement de l'agence, du bien, du locataire, d'un réglage ou d'un gabarit | à faire |
 | 141 | Encaissements soldés par une intégration de la plateforme (`PlatformPayoutService::isSettledByPlatform`) face au relevé de l'agence : proposés un à un par `ReconciliationMatcher` à un crédit qui ne les porte pas, et virement de clôture `PlatformPayout` qu'aucun candidat (`ALLOWED_PAYMENT_TYPES`, `fetchCandidates`) ne représente | à faire |
 | 142 | Notifications, Mailables et écouteurs en file (`ShouldQueue`, une quarantaine hors de `CodedNotification` : `TenantWelcomeNotification`, `ResetPasswordNotification`, `ActivityLogExportReadyNotification`, écouteurs `Lease\*` et `Accounting\*`) sans `backoff` ni `failed()` face au `--tries=3` sans délai des workers : ce qu'une panne du fournisseur de quelques secondes fait perdre, et la trace laissée — le relevé de P11.10 hors des notifications codées | à faire |
@@ -249,6 +249,8 @@ voie d'écriture (angle 13, puis 47).
 | 172 | Lectures du navigateur faites par `fetch` dans un `useEffect`, hors de TanStack Query (`useWelcomeOnce`, `useTenantWelcomeOnce`, `useAgencyStandardWelcomeOnce`, `MinimalProfileTriggerProvider`, `AuthContext`, `useSimilarProperties`, `usePropertyReviews`, `Navbar`) : ni cache ni dédoublonnage entre lecteurs, aucune relecture à l'invalidation, réponse tardive appliquée après un changement de compte ou de profil actif — né de P136.03 | à faire |
 | 173 | Autres fichiers `index.ts` réexportateurs (`components/feedback`, `components/map`, `components/media`, `components/console`, `components/property-form`, `components/customer-form`, `components/floating-dock`) : paquets lourds (carte, téléversement, éditeurs) qu'un écran charge pour un seul composant léger qu'il y prend — le relevé de l'angle 137 hors de `components/forms` | à faire |
 | 174 | Lectures serveur `apiRequest` qui ne transmettent pas le profil actif (`activeProfileId` absent : racine `getMe`, `sonderExistence`, `fetchDashboardProperty`, `fetchDashboardCustomer`, `fetchDashboardMe`, `fetchAgencyUpgradeRequests`, `getAccountDeletionRequestAction`, `fetchMyCapabilities`, et leurs pareilles sous `src/lib/queries` et `src/app/actions`) face aux lectures du navigateur, qui le portent : pour un compte présent dans plusieurs agences, rendu serveur sans profil actif (404 ou 403 d'une fiche, liste vide, agence nulle) — né de P138.03 | à faire |
+| 175 | Relations vers un `User` supprimé en douceur par la suppression de compte (`causer`, `author`, `sender`, `issued_by`, `collector`, `handler`, `landlord` : portée `SoftDeletes` d'un `belongsTo` ou `morphTo` nu) lues dans les listes, les exports, les PDF et les notifications : auteur rendu « système », vide, ou 500 là où la ligne reste lisible — le pendant pour le compte des angles 130 et 165, né de P139.01 | à faire |
+| 176 | Rôles lus toutes agences confondues par `profileTypes()` là où l'écran montre le rôle dans une agence donnée (`AgencyDetailController.php:184` de la console, `UserRoleController.php:90`, `UserResource.php:90` rendu dans les listes d'équipe, ciblage par rôle de `AnnouncementResolver` et `FeatureFlagEvaluator`) : rôle d'une autre agence affiché ou appliqué — né de P139.02 | à faire |
 
 ---
 
@@ -13159,3 +13161,77 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : journal de l'API factice.
 - Piste : prendre « Total » dans `meta.total` de la liste quand aucun filtre n'est posé ; faire compter par une lecture sans `include` (un `countProperties` qui appelle `apiRequest` avec `per_page=1` et `fields[properties]=id`).
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:101-127` (la liste et cinq `countProperties`, dont « Total » avec le seul `user_id`) et l. 212-231 (`countProperties` passe par `fetchDashboardProperties` à `per_page=1`), `src/lib/queries/properties-server.ts:123-131` (`include: ['address', 'owner', 'collaborators']` et `fields[properties]` de la liste sur chaque appel). Le constat tient. Classement : A2, prendre « Total » dans `response.meta.total` quand aucun filtre autre que `user_id` ni `include_archived` n'est posé, et faire compter par un appel `per_page=1`, `fields[properties]=id`, sans `include`, mêmes filtres, donc mêmes totaux.
+
+## Angle 139 — Colonnes des exports qu'aucun chemin n'écrit, ou qui lisent une clé nommée autrement
+
+*Exploré le 2026-10-22 sur `pre-dev` fe8f1ef28, par l'explorateur. Tout a été lu et lancé par
+l'explorateur lui-même, sans sous-agent. Relus : `ActivityLogExporter` (export d'agence et export
+de la console, `CrossTenantAuditController::export`), les neuf constructeurs d'`ExportDataService`,
+`ExportWriter`, le registre RGPD de `PrivacyRequestController::export`, le CSV du relevé de gérance
+(`OwnerStatementController::csv` et `PayoutCalculator::compute`), les deux chemins des rapports de
+la console (`ReportingController::downloadPayload`, `GenerateReportExport`), et
+`DataExportBuilder::payloads()`. Pour chaque colonne des constructeurs d'entité, l'écrivain a été
+cherché dans `app/` (`signed_at`, `refund_amount`, `late_fee_amount`, `tax_amount`, `approved_at`,
+`paid_at` des commissions) : tous ont un écrivain, et aucune colonne n'y lit une clé absente. Les
+taux de remplissage pris dans la base de développement décrivent les seeders, pas un usage réel.
+Mesures par un test temporaire (retiré), charge 1,23 / 1,65 / 1,88 sur 8 cœurs. L'`ip_address`
+toujours vide de l'export du journal est déjà P108.02, et la lenteur de `causer_role` P78.01 : ni
+l'une ni l'autre n'est reprise ici.*
+
+### L'export du journal d'activité attribue au « système » les actes d'un compte supprimé
+- Réf : P139.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:45,151-155`, `takussan-api/vendor/spatie/laravel-activitylog/src/Models/Activity.php:61-64`, `takussan-api/app/Services/Account/AccountDeletionService.php:313,324`, `takussan-web/src/components/admin/AuditTrail.tsx:550-556`
+- Constat :
+  - `mapRow()` écrit `causer_email` = `$causer?->email ?? 'system'` et `causer_role` = `… ?? 'system'` (lu, l. 154-155). La valeur `system` y désigne une ligne sans causeur.
+  - La relation `causer()` d'activitylog est un `morphTo()` nu (lu, `Activity.php:61-64`) : la portée `SoftDeletes` de `User` s'y applique. La suppression de compte anonymise puis supprime le compte en douceur (lu, `AccountDeletionService.php:313,324`). Ses lignes du journal gardent leur `causer_id`, mais la relation rend `null`.
+  - Mesuré (test temporaire, retiré) : un compte cause une ligne sur l'agence, puis il est supprimé en douceur. `buildPayload()` de l'admin de l'agence rend `causer_email: "system"` et `causer_role: "system"` sur cette ligne.
+  - L'écran du journal fait la distinction : sans causeur chargé mais avec un `causer_id`, il affiche `deletedCauser #id`, et `system` seulement sans `causer_id` (lu, `AuditTrail.tsx:550-556`). L'export dit donc qu'aucune personne n'a agi là où l'écran nomme un compte supprimé. L'export de la console passe par le même `mapRow()` (lu, `payloadForQuery()`, l. 74-79).
+- Piste : rendre un marqueur distinct du système quand `causer_id` est posé et que le causeur ne se charge pas (`deleted#<id>`, comme l'écran), ou charger le causeur `withTrashed()` et rendre l'adresse anonymisée. Garde : un test de l'exporteur avec un causeur supprimé en douceur, qui refuse `system`.
+
+### La colonne `causer_role` de l'export d'une agence donne le premier rôle du compte, toutes agences confondues
+- Réf : P139.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:45,155`, `takussan-api/app/Models/Concerns/HasProfiles.php:238-260`
+- Constat :
+  - `causer_role` vaut `$causer?->profileTypes()->first()` (lu, l. 155). `profileTypes()` empile les types de profil du compte dans toutes ses agences, dans un ordre fixe : `super_admin`, `agency_admin`, `agent`, `owner`, `service_provider`, puis les rôles dérivés (lu, `HasProfiles.php:238-260`). Rien n'y est jugé pour l'agence de l'export.
+  - Le préchargement d'`buildPayload()` porte les profils de toutes les agences (`causer.agencyAdminProfiles`, `causer.agentProfiles`, `causer.ownerProfiles`, lu l. 45), sans filtre sur l'agence.
+  - Mesuré (test temporaire, retiré) : un compte est agent dans l'agence A et admin de l'agence B. Une ligne qu'il cause sur l'agence A sort dans l'export de l'agence A avec `causer_role: "agency_admin"`. `profileTypes()` de ce compte rend `["agency_admin","agent","owner","customer"]`.
+  - L'admin de l'agence A lit donc qu'un administrateur a agi chez lui, là où il n'y a qu'un agent. Et un rôle tenu dans une autre agence lui est révélé.
+  - P78.01 (validé) touche la même ligne pour la performance : calculer `causer_role` une fois par auteur. Si l'implémenteur suit cette voie, il garde la valeur fausse.
+- Piste : juger le rôle dans l'agence de l'export (`$agencyId` est déjà passé à `buildPayload()`), par les profils de cette agence seule. Pour l'export de la console, sans agence, rendre l'agence de la ligne, ou la liste. Garde : le test ci-dessus, un compte à deux agences.
+
+### Le journal d'audit lit `causer->name`, que `User` n'a pas : l'écran montre l'adresse à la place du nom
+- Réf : P139.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/AuditLogController.php:171-175`, `takussan-api/app/Models/User.php:327`, `takussan-web/src/components/admin/AuditTrail.tsx:557-565`
+- Constat :
+  - `index()` rend `causer.name` = `$log->causer->name ?? null` (lu, l. 173). La table `users` n'a pas de colonne `name` (mesuré : `Schema::hasColumn('users','name')` → faux), et le modèle n'a pas d'accesseur `name`. Il a `getFullNameAttribute()` (lu, `User.php:327`). Mesuré par `tinker` : `User::query()->first()?->name` → `NULL`.
+  - `causer.name` est donc toujours nul. L'écran du journal (`/api/activity-log`, lu `lib/queries/audit-logs.ts:48`) affiche alors `log.causer.email` en titre, et jamais le nom avec l'adresse dessous (lu, `AuditTrail.tsx:560-563`).
+  - Le fil d'activité du client lit le même journal et rend bien le nom, par `getFullNameAttribute()` (lu, `CustomerActivityFeed.php:84-85`). La clé visée existe donc ailleurs.
+- Piste : rendre `full_name` sous la clé `name` (ou `name` ← `full_name`, comme `CustomerActivityFeed`). Garde : un test de `GET /api/activity-log` qui exige le nom du causeur.
+
+### L'archive RGPD ne porte pas les avis reçus comme prestataire
+- Réf : P139.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:133-137`, `takussan-api/app/Services/Review/ReceivedReviews.php:44-58`, `takussan-api/app/Models/Profiles/ServiceProviderProfile.php:71-74`
+- Constat :
+  - `reviews.json` prend les avis écrits par le titulaire, et ceux dont la cible est `User::class` avec son id (lu, l. 133-137).
+  - Un avis sur un prestataire vise son `ServiceProviderProfile` (lu, `ServiceProviderProfile::reviews()`, morph `reviewable`). « Mes avis reçus » compte les trois cibles : ses biens, son compte, et son profil de prestataire (lu, `ReceivedReviews::targetsActor()`, l. 44-58).
+  - Mesuré (test temporaire, retiré) : un prestataire reçoit un avis sur son profil et un sur son compte. `payloads($prestataire)['reviews.json']` ne rend que celui du compte (`[["App\\Models\\User", 4]]`, pour deux avis en base).
+  - La note et le texte de ces avis décrivent le titulaire et sont rattachés à son profil. Les inclure, ou non, relève du périmètre du droit d'accès (à vérifier contre ADR-0070 et `features.md`).
+- Piste : ajouter à `reviews.json` les avis dont la cible est un profil de prestataire du titulaire, par la même règle que `ReceivedReviews`. Les avis sur ses biens restent un choix à trancher. Garde : un test de `DataExportBuilder` avec un avis sur le profil.
+
+### Petites améliorations
+- Réf : P139.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Agency/AgentAbsenceService.php:85-89`, `takussan-api/app/Services/Tenant/TenantOnboardingService.php:57-114`, `takussan-api/app/Listeners/Lease/SendTenantWelcomeNotification.php:49-53`, `takussan-api/app/Services/Booking/BookingExpirationService.php:248-256`, `takussan-api/app/Services/Permissions/RoleDelegationService.php:119-144`, `takussan-api/app/Services/Audit/ActivityLogExporter.php:118-120`, `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:35-53`
+- Constat :
+  - Neuf écritures `activity()->…->log('<code>')` ne posent pas `->event()` (lu : `AgentAbsenceService:85`, trois dans `TenantOnboardingService`, `SendTenantWelcomeNotification:49`, `BookingExpirationService:248`, deux dans `RoleDelegationService:119,140`). Leurs sœurs `activated`/`expired` le posent (l. 163, 183). La colonne `event` de l'export sort vide sur ces lignes (mesuré, test temporaire : `absence.declared` → `"event": null`), et `filter[event]` de l'export ne peut pas les retenir (lu, l. 118-120).
+  - `GenerateReportExport` relit `metric`, `period` et `granularity` dans `parameters`, mais ni `starts_at` ni `ends_at`, que le contrôleur y range (lu, job l. 36-44, contrôleur l. 115). Il écrit aussi toujours un CSV, quel que soit le `format` demandé (lu, l. 53-54). Le chemin n'est atteint par aucun rapport aujourd'hui (P78.04) : à reprendre avec lui s'il reste.
+- Piste : poser `->event()` sur ces neuf écritures (le code de `log()`, ou un verbe) ; passer les deux bornes et le format au job, ou le retirer avec P78.04.
