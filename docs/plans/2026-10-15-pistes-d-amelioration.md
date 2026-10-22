@@ -10340,7 +10340,7 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
 
 ### L'écran des étiquettes est le seul de la console à charger zod, pour une validation faite à l'envoi d'un dialogue fermé
 - Réf : P104.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1196
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin-tags/TagsManager.tsx:35-40,145,345-346`, `takussan-web/src/lib/schemas/tag.ts:1,17,19`
 - Constat :
@@ -10349,6 +10349,7 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - Le gain d'un chargement différé n'est pas mesuré : l'ablation de P104.01 a laissé zod en place (à vérifier).
 - Piste : mettre `tagTypeValues` dans `lib/enums/tag.ts`, que `schemas/tag.ts` réexporte (patron de TCK-744 et TCK-1039), et charger le schéma à l'envoi (`await import('@/lib/schemas/tag')`) ou monter `CreateTagDialog` par `next/dynamic` à sa première ouverture (`useDejaOuvert`, TCK-1041). Mesurer avant et après par `poids-des-routes.mjs`.
 - Mesure (2026-10-21, 711bafca3, mesureur) : même test temporaire du graphe client → parmi les 37 pages et le layout de `(super-admin)`, seule `tags/page.tsx` atteint `zod`, par un seul chemin, `lib/schemas/tag.ts ← TagsManager.tsx` (`useApiForm.ts` n'en importe que `type ZodType`, non suivi) : l'ablation de P104.01 laisse donc bien zod en place, ce que le constat laissait « à vérifier » ; relu `TagsManager.tsx:35-40` (`tagFormSchema`, `tagTypeValues`), l. 145 (`tagFormSchema.safeParse` dans `handleCreate`), l. 345-349 (`CreateTagDialog` monté avec `open={isCreateOpen}`, `false` au départ l. 74) et l. 188, 366 (`tagTypeValues` lu au rendu) ; `lib/enums/` ne porte que `customer.ts` et `property.ts` ; le morceau de 64,2 Kio n'est pas re-mesuré par un build. Classement : A2, `tagTypeValues` passe dans `lib/enums/tag.ts` que `schemas/tag.ts` réexporte (patron TCK-1039), et le schéma se charge à l'envoi (`await import('@/lib/schemas/tag')` dans `handleCreate`), même validation et mêmes messages, sans choix de produit.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : garde `graphe-client-de-la-console.test.ts`, cas zod de `tags/page.tsx` → avant correctif, un chemin, `zod ← lib/schemas/tag.ts ← components/admin-tags/TagsManager.tsx` (rouge) ; `tagTypeValues` dans `lib/enums/tag.ts` réexporté par `schemas/tag.ts`, schéma chargé à l'envoi par `await import('@/lib/schemas/tag')` dans `handleCreate` (TCK-1196) → vert ; ablation, `TagsManager.tsx` rendu à l'état de TCK-1194 → rouge, remis → vert ; `TagsManager.test.tsx` (6/6, l'attente de l'appel passée par `waitFor`), `traducteurs-de-messages.test.ts` et `admin-schemas.test.ts` verts. Le poids du build n'est pas re-mesuré.
 
 ### Les demandes de confidentialité chargent le calendrier pour le formulaire de création, monté seulement quand on ouvre son dialogue
 - Réf : P104.03
