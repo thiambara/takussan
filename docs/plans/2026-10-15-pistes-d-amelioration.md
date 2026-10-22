@@ -12696,7 +12696,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Le lien vers la facture de résiliation ouvre l'historique des paiements, sans la facture
 - Réf : P131.03
-- Statut : validé — porteur (2026-10-22) : un `Link` vers `/app/payments?tab=invoices` pour l'équipe, et vers `CustomerPayments` pour le client
+- Statut : fait · TCK-1365
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:151-163`, `takussan-web/src/app/(dashboard)/app/payments/page.tsx`, `takussan-web/src/components/payments/PaymentsTabs.tsx:44-47`, `takussan-web/src/components/payments/InvoicesTable.tsx:31-37`
 - Constat :
@@ -12707,6 +12707,7 @@ l'angle 160 : il n'est pas repris ici.*
 - Piste : mener le lien à l'onglet des factures, filtré ou ouvert sur la facture désignée (ce que la table sait faire : à choisir), par un `Link`. Garde : un test du bandeau sur le `href`, et un test de la page de destination qui monte `?invoice=` et attend la facture.
 - Mesure (2026-10-22, 1a9420e6e, mesureur) : relu `EarlyTerminationBanner.tsx:151-163` (un `<a>` vers `/app/payments?invoice=…`), `payments/page.tsx` (rend `PaymentsTabs` ou `CustomerPayments` sans argument), `PaymentsTabs.tsx:44-47` (lit `tab`, défaut `history`) ; `grep -rn "get('invoice')\|params.invoice" takussan-web/src` hors tests → rien ; aucune page `/app/…/invoices/[id]` (`find` sous `(dashboard)/app`). Le constat tient tel qu'écrit. Classement : V7, la Piste elle-même laisse « à choisir » entre l'onglet filtré et la facture ouverte, et aucune page de facture n'existe à viser.
 - Mesure (2026-10-22, f92b80db1, delegue) : relu `EarlyTerminationBanner.tsx:151-163`, `payments/page.tsx` (le client reçoit `CustomerPayments`, sans onglets ni lecture de paramètre ; l'équipe reçoit `PaymentsTabs`, `?tab=invoices` borné à `TAB_VALUES`), `InvoicesTable.tsx:31-37` (filtre `invoice_status` seulement) et `Invoice::$requestFilterable` (aucun filtre `id`) → le bandeau sert deux publics qui n'ont pas la même page de paiements, et aucune des deux ne sait ouvrir une facture désignée. Recommandation : un `Link` vers `/app/payments?tab=invoices` pour l'équipe, et pour le client un lien vers `CustomerPayments`, où la pénalité apparaît comme une somme due, parce que c'est la seule destination qui existe sans page neuve ; reste au porteur parce que la destination du client et l'éventuelle facture ouverte (filtre ou page `/app/…/invoices/[id]` neufs) sont des choix d'écran que rien n'écrit.
+- Mesure (2026-10-22, 45fd976b2, implementeur) : relu `EarlyTerminationBanner.tsx:157-162` (un `<a>` vers `/app/payments?invoice=42`) ; test neuf `EarlyTerminationBanner.lien-facture.test.tsx` (équipe → `/app/payments?tab=invoices`, client seul → `/app/payments`) → 2 rouges avant correctif, `href` reçu `/app/payments?invoice=42`. Correctif : `Link` dont le `href` suit `isCustomerOnly` des rôles de `useAuth()` → 5/5 verts avec le test historique du bandeau ; ablation (`EarlyTerminationBanner.tsx` rendu à `HEAD`) → 3 rouges, remis → 5 verts.
 
 ### Petites améliorations
 - Réf : P131.04
