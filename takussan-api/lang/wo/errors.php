@@ -210,6 +210,11 @@ return [
         'unprocessable' => 'Laaj bi mënuñu ko def.',
         'unsupported_media_type' => 'Xeetu fichier bii nangouñu ko.',
     ],
+    'idempotency' => [
+        'in_progress' => 'Cette demande est déjà en cours d’envoi. Patientez quelques secondes, puis réessayez.',
+        'key_invalid' => 'Cette clé d’envoi n’a pas la forme attendue.',
+        'key_reused' => 'Cette demande a déjà été envoyée avec un autre contenu. Rechargez la page, puis renvoyez-la.',
+    ],
     'impersonation' => [
         'no_session' => 'Amul jël-bopp bu ubbeeku.',
         'query_refused' => 'Ubbi walla tëj ab impersonation du jël benn paramètre ci adrees bi.',

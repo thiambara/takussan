@@ -210,6 +210,11 @@ return [
         'unprocessable' => 'La demande ne peut pas être traitée.',
         'unsupported_media_type' => 'Ce type de fichier n\'est pas pris en charge.',
     ],
+    'idempotency' => [
+        'in_progress' => 'Cette demande est déjà en cours d’envoi. Patientez quelques secondes, puis réessayez.',
+        'key_invalid' => 'Cette clé d’envoi n’a pas la forme attendue.',
+        'key_reused' => 'Cette demande a déjà été envoyée avec un autre contenu. Rechargez la page, puis renvoyez-la.',
+    ],
     'impersonation' => [
         'no_session' => 'Aucune session d\'impersonation n\'est ouverte.',
         'query_refused' => 'Ouvrir ou fermer une impersonation ne prend aucun paramètre dans l\'adresse.',
