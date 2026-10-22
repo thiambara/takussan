@@ -174,13 +174,21 @@ function providerName(p: ServiceProviderProfileSummary): string {
   return name || p.user?.email || p.metadata?.email || String(p.user_id);
 }
 
-/** Sans disponibilités déclarées, rien n'est signalé : l'absence n'est pas un refus. */
+/**
+ * Sans disponibilités déclarées, rien n'est signalé : l'absence n'est pas un refus.
+ *
+ * TCK-1327 (P117.07) — l'heure se compare aussi à la plage `from`–`to` du créneau (`HH:MM`, validée
+ * par l'API, TCK-261). Un créneau sans heures garde la seule comparaison du jour.
+ */
 function worksOn(p: ServiceProviderProfileSummary, localValue: string): boolean {
-  const slots = (p.metadata as { availability?: { day: string }[] } | null)?.availability;
+  const slots = (p.metadata as { availability?: { day: string; from?: string; to?: string }[] } | null)?.availability;
   if (!slots || slots.length === 0) return true;
   const date = parseISO(localValue);
   if (!isValid(date)) return true;
-  return slots.some((slot) => slot.day === WEEKDAYS[date.getDay()]);
+  const heure = format(date, 'HH:mm');
+  return slots.some((slot) => slot.day === WEEKDAYS[date.getDay()]
+    && (!slot.from || heure >= slot.from)
+    && (!slot.to || heure <= slot.to));
 }
 
 function zonesOf(request: MaintenanceRequest): string[] {

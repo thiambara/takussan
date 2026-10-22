@@ -52,3 +52,31 @@ describe('<MaintenanceAssignmentBlock> — TCK-1325 (P117.06), badge « Assuré 
     expect(screen.queryByTestId('assignee-insured')).not.toBeInTheDocument();
   });
 });
+
+describe('<MaintenanceAssignmentBlock> — TCK-1327 (P117.07), la plage horaire', () => {
+  const lundiMatin = { availability: [{ day: 'monday', from: '08:00', to: '12:00' }] } as never;
+  const avertissement = /ne déclare pas travailler ce jour-là/;
+
+  // 2026-10-19 est un lundi ; les heures sont locales (`toLocalValue`), d'où un ISO sans fuseau.
+  it('lundi 18 h chez un prestataire disponible le lundi de 08:00 à 12:00 → avertissement', () => {
+    monter(prestataire({ metadata: lundiMatin }), '2026-10-19T18:00:00');
+    expect(screen.getByText(avertissement)).toBeInTheDocument();
+  });
+
+  it('lundi 10 h, dans la plage → aucun avertissement', () => {
+    monter(prestataire({ metadata: lundiMatin }), '2026-10-19T10:00:00');
+    expect(screen.queryByText(avertissement)).not.toBeInTheDocument();
+  });
+
+  it('un créneau sans heures garde la comparaison du seul jour', () => {
+    monter(prestataire({ metadata: { availability: [{ day: 'monday' }] } as never }), '2026-10-19T18:00:00');
+    expect(screen.queryByText(avertissement)).not.toBeInTheDocument();
+  });
+});
+
+describe('<MaintenanceAssignmentBlock> — le jour, contrôle', () => {
+  it('mardi chez un prestataire du seul lundi → avertissement (le motif cherché est bien le texte rendu)', () => {
+    monter(prestataire({ metadata: { availability: [{ day: 'monday', from: '08:00', to: '12:00' }] } as never }), '2026-10-20T10:00:00');
+    expect(screen.getByText(/ne déclare pas travailler ce jour-là/)).toBeInTheDocument();
+  });
+});
