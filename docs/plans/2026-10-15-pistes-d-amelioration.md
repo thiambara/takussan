@@ -15060,7 +15060,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Petites améliorations
 - Réf : P159.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1451
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/messages/fr.json:409,551` (`auth.register.passwordPlaceholder`, `auth.resetPassword.passwordPlaceholder`), `takussan-web/src/app/(auth)/auth/reset-password/page.tsx:111,116`, `takussan-api/app/Providers/AppServiceProvider.php:233`, `takussan-web/src/messages/en.json:6702,6706,6816,6818,6820,9722`
 - Constat :
@@ -15069,6 +15069,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu.
 - Piste : reprendre le texte de `invitationAccept.passwordHint` pour les deux placeholders (`fr`/`en` ; le texte `wo` existant reste tel quel, wolof en pause), et écrire « MB » dans `en.json`. Test : rendu de la page de réinitialisation qui montre l'exigence de lettre et de chiffre.
 - Mesure (2026-10-22, e5cb792e4, mesureur) : relu `fr.json:409,551` et `en.json:438,580` (« Au moins 8 caractères », les lignes `en` citées ont bougé), `reset-password/page.tsx:111,116` (seul `minLength={8}`, placeholder `passwordPlaceholder`), `AppServiceProvider.php:233` (`min(8)->letters()->numbers()`), `ResetPasswordPasswordResetRequest.php:34` (`Password::defaults()`), `fr.json:11116`/`en.json:11116` (`invitationAccept.passwordHint`, texte existant) ; `tinker` en lecture : `motdepasse` contre `Password::defaults()` → « must contain at least one number » (le 422 « à vérifier » tient) ; `grep -n " Mo" en.json` → l. 6702, 6706, 6816, 6818, 6820, 9722 → les deux points tiennent. Classement : A4, i18n sans texte de produit neuf : les placeholders reprennent un texte déjà écrit, et « Mo » devient l'unité anglaise « MB ».
+- Mesure (2026-10-22, 58c404ecf, implementeur) : relu `fr.json` et `en.json` (`auth.register.passwordPlaceholder` et `auth.resetPassword.passwordPlaceholder` : « Au moins 8 caractères », six textes `en` en « Mo ») ; tests neufs `auth-form-ux.test.tsx` (placeholder de la réinitialisation et de l'inscription) et `messages.test.ts` (aucune taille `en` en « Mo ») avant correctif → 2 rouges → placeholders repris de `invitationAccept.passwordHint` en `fr` et `en` (`wo` non réécrit), « MB » dans les six textes `en` → 74 verts ; ablation : `messages` remis à l'état antérieur → 2 rouges, rétabli → verts.
 
 ## Angle 160 — `properties.user_id` lu comme le bailleur dans une décision métier
 
