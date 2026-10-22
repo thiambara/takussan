@@ -199,7 +199,7 @@ voie d'écriture (angle 13, puis 47).
 | 122 | Écritures qui changent un champ de `toSearchableArray()` sans passer par l'observateur Scout (`saveQuietly`, `Model::query()->update`, `DB::table()->update`, relations `address`, `tagsVisibles`, `agency`) sur les sept modèles `Searchable` : document resté périmé dans l'index | fait |
 | 123 | Gestes validés en base suivis, hors transaction, d'un appel réseau qui peut lever (Meilisearch, CDN, revalidation du front, envoi synchrone) avant leur ligne `activity()` ou leur notification : réponse 500 pour un geste fait, trace d'audit absente — le relevé de P90.03 hors de la modération | fait |
 | 124 | Colonnes `varchar(N)` remplies par une valeur dérivée ou recopiée d'une source plus longue (masques, concaténations, codes et messages d'erreur de fournisseur : `lease_signatures.otp_destination`, `notification_delivery_attempts.failure_reason`, `integration_webhook_logs.error_code`, `property_calendar_feeds.last_error`, `bookings.expiry_reason`) sans `mb_substr` : écriture en 22001 hors de toute requête validée | fait |
-| 125 | Téléphones écrits sans `TelephoneSaisi::normaliser` ni `TelephoneJoignable` (garants, agences, onboarding de la console, contacts sur place des biens) : numéro hors E.164 face aux lecteurs qui envoient un SMS, ouvrent un lien WhatsApp ou rapprochent un doublon | à faire |
+| 125 | Téléphones écrits sans `TelephoneSaisi::normaliser` ni `TelephoneJoignable` (garants, agences, onboarding de la console, contacts sur place des biens) : numéro hors E.164 face aux lecteurs qui envoient un SMS, ouvrent un lien WhatsApp ou rapprochent un doublon | fait |
 | 126 | Destinataires de notifications et de courriels choisis par un profil sans `->active()` (`MaintenanceParticipants.php:39`, autres `Notification::send` à l'équipe d'une agence) : agent ou admin suspendu ou archivé qui reçoit encore l'activité de l'agence — le relevé de P93.04 sur les autres envois | à faire |
 | 127 | Indicateurs de `DashboardAgentService`, `DashboardOwnerService` et des adaptateurs `*MeMetrics` de `/dashboard/me` : dénominateur nul rendu 0 au lieu de `null`, statut courant relu pour une période passée, clés que seul `assertJsonStructure` vérifie — le relevé de l'angle 93 sur les autres tableaux de bord | à faire |
 | 128 | Dates des charges utiles de notification (`toArray()` / `toDatabase()` de `app/Notifications`, `data` rendu par `AppNotificationResource`, diffusions) que l'ADR-0018 laisse hors de son périmètre : forme émise, et lecture par le centre de notifications du front | à faire |
@@ -232,6 +232,8 @@ voie d'écriture (angle 13, puis 47).
 | 155 | Mailables et notifications que la suite ne rend jamais (tests sous `Mail::fake()` ou `Notification::fake()` seuls ; gabarits `resources/views/emails/*` rendus par `view:` qui s'appuient sur les composants `mail::`, `toMail()` sans test qui appelle `render()`) : courriel qui lève au rendu en production pendant que la suite est verte — né de P123.01 | à faire |
 | 156 | Variables d'environnement dont `phpunit.xml`, `.env.docker` et `.env.example` posent des valeurs différentes (`SCOUT_AFTER_COMMIT`, `SCOUT_QUEUE`, et leurs pareilles) : comportement que la suite éprouve face à celui du développement et de la préproduction, et tests qui ne jouent qu'un régime — né de P123.03 | à faire |
 | 157 | Lignes de relevé importées face au rapprochement : `currency` lue dans le fichier (`CsvDriver.php:126-128`) puis comparée telle quelle par `ReconciliationMatcher::fetchCandidates` (`where('currency', …)`), devise de trois lettres autre que celle de l'agence (`CFA`, `XAF`, `EUR`), sens et montants lus, `FITID` répété d'un relevé à l'autre : lignes importées qu'aucun candidat ne peut jamais apparier, sans le dire — né de P124.01 | à faire |
+| 158 | Fiches client créées hors de `CustomerController::store` (`ContactLeadService::convert`, `CustomerService::findOrCreateFromUser`, invitations et onboardings qui créent un `Customer`, visites) face à `CustomerDuplicateDetector` : fiche en double dans le CRM d'une agence, sans le dire — né de P125.02 | à faire |
+| 159 | Exemples et formats montrés à la saisie (messages de `lang/*/validation.php` qui citent un exemple, `placeholder` des champs et clés `*Placeholder`, aides sous les champs) face à la règle de l'API qui jugera la valeur : exemple que la règle refuse — né de P125.03 et P125.04 | à faire |
 
 ---
 
@@ -11970,3 +11972,99 @@ est déjà P91.06.*
   - Établi comment : lu.
 - Piste : borner `event_type` comme `external_id` dans `annotate()`. Les correctifs de P124.01 à P124.03 portent chacun un test qui écrit N+1 caractères, ou un caractère multioctet à la limite, et attend l'écriture.
 - Mesure (2026-10-22, 9662e2ff4, mesureur) : relu `WebhookJournal.php:148-149` (`external_id` borné à 191, `event_type` écrit tel quel), `OrangeSmsStatusController.php:97`, `PaymentGatewayService.php:524,597` ; méthode temporaire dans `WebhookJournalTest` (retirée) : accusé Orange accepté (liste d'IP vide, jeton d'URL valide) dont `deliveryStatus` fait 300 caractères → **500**, `value too long for type character varying(255)` au journal PostgreSQL. Le « à vérifier » du constat porte sur la probabilité (chemin après authentification), pas sur le défaut, qui est mesuré. Classement : A1, la colonne et la borne voisine du même appel fixent le comportement attendu ; le correctif est `mb_substr((string) $facts['event_type'], 0, 255)` dans `annotate()`, avec un test d'accusé à 300 caractères qui attend la réponse habituelle.
+
+## Angle 125 — Téléphones écrits sans normalisation, et leurs lecteurs
+
+*Exploré le 2026-10-22 sur `pre-dev` 9662e2ff4, par l'explorateur. Tout est relu par l'explorateur
+lui-même, sans sous-agent. Les colonnes viennent des migrations (le conteneur PostgreSQL du dépôt
+n'était pas lancé : `information_schema` non relu). Les cinq normaliseurs ont été comparés par un
+`php -r` hors application sur neuf saisies. Trois tests Feature temporaires, retirés depuis, ont
+tourné sur leur propre base (charge 3,67 / 2,68 / 2,21 puis 1,70 / 2,33 / 2,13 sur 8 cœurs). Ce qui
+tient, et a été écarté après lecture : les contacts sur place des biens (`ReplacePropertyContactsRequest.php:27`,
+regex E.164 + `TelephoneJoignable`, saisis par `PhoneInput`), le numéro principal et secondaire du
+compte (`UpdateMeRequest.php:42`, `SecondaryPhoneRequest.php:20`), les clients (`CustomerPhoneNormalizer`
+en `prepareForValidation` et dans le mutateur du modèle), les visites et demandes de contact
+(`TelephoneSaisi`). Les numéros qui partent en SMS ou WhatsApp sont donc tous en E.164, et le
+bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:37-44`). Les garants
+(P91.03) n'ont aucun lecteur SMS ou WhatsApp : le front les saisit par `PhoneInput` depuis TCK-913
+(`GuarantorSection.tsx:198-207`).*
+
+### La recherche globale de la console ne retrouve jamais une agence par son téléphone tel que le formulaire l'enregistre
+- Réf : P125.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:92-101,159-178`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:61`, `takussan-api/app/Http/Requests/Api/StoreAgencyRequest.php:43`, `takussan-api/app/Http/Requests/Api/Admin/StoreAgencyOnboardingRequest.php:24`, `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:302-308`, `takussan-web/src/lib/schemas/agency.ts:36-42`, `takussan-web/src/components/admin/super/AgencyOnboardingDialog.tsx:198-199`
+- Constat :
+  - `byPhone()` ramène la saisie à l'E.164 (`phoneCandidate`), puis compare par égalité stricte : `Agency::query()->where('phone', $phone)` (lu, l. 99-100).
+  - `agencies.phone` est écrit tel que saisi par les trois voies : `string`, `max:30`, sans normalisation ni règle de format, et le modèle n'a pas de mutateur (lu). Le formulaire de l'agence propose `+221 77 123 45 67` en exemple, accepte espaces, points, tirets et parenthèses (lu, `agency.ts:40`), et envoie la valeur telle quelle. Le dialogue d'ouverture d'agence de la console est un `Input` libre (lu).
+  - Mesuré : test temporaire, trois agences aux numéros `+221 77 123 45 67`, `77 123 45 68` et `+221771234569`, recherche par un opérateur support → `q=+221 77 123 45 67`, `q=+221771234567`, `q=77 123 45 67`, `q=77 123 45 68`, `q=+221771234568` rendent toutes `[]` en agences ; seule `q=771234569` retrouve l'agence enregistrée en E.164.
+  - Les comptes, eux, sont retrouvés : `users.phone` est en E.164 strict (lu, `AdminGlobalSearchTest.php:52-62`). Le test ne sème aucune agence par téléphone.
+  - Établi comment : lu et mesuré.
+- Piste : comparer par la forme canonique des deux côtés, comme l'entrée par téléphone (`CanonicalPhone::sql('phone') = CanonicalPhone::fold(...)`, `PhoneLoginService.php:151`), ce qui ne change aucune donnée ; ou normaliser `agencies.phone` à l'écriture (`TelephoneSaisi::normaliser` dans les trois requêtes, `PhoneInput` au front) et rattraper les lignes existantes, ce qui change ce qu'on accepte. Test : une agence enregistrée `+221 77 123 45 67` se retrouve par `77 123 45 67`.
+
+### Convertir une demande de contact crée une seconde fiche client quand le numéro en a déjà une
+- Réf : P125.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Lead/ContactLeadService.php:248-282`, `takussan-api/app/Services/Model/CustomerService.php:12-18`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:58-60,95-111`, `takussan-api/app/Services/Crm/CustomerDuplicateDetector.php:25-58`
+- Constat :
+  - `convert()` crée la fiche par `CustomerService::create()`, qui fait un `Customer::create` sans consulter `CustomerDuplicateDetector` (lu). Le docblock dit « TCK-591 possède le dédoublonnage des fiches », mais aucun chemin de la conversion ne l'appelle (lu).
+  - La création à la main le consulte, et refuse en 409 `customer.duplicate` sauf `allow_duplicate` (lu, `CustomerController.php:58-60`).
+  - Mesuré : test temporaire, fiche existante dans l'agence au téléphone saisi `77 123 45 67` (rangé `+221771234567` par le mutateur), demande de contact au `+221771234567` → `POST /api/contact-leads/{id}/convert` rend 201 et l'agence compte 2 fiches ; `POST /api/customers` au même numéro rend 409 `customer.duplicate`.
+  - La réponse de la conversion ne signale pas la fiche existante (lu, l. 266-282) : l'agent ne sait pas qu'il vient de doubler un client.
+  - Établi comment : lu et mesuré.
+- Piste : consulter le détecteur dans `convert()` : rattacher la demande à la fiche trouvée, ou rendre 409 avec `existing` comme la création, au choix du produit. Test : fiche existante au même numéro, conversion → une seule fiche dans l'agence.
+
+### La feuille de profil minimal envoie un numéro au format de son propre exemple, que l'API refuse
+- Réf : P125.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/customer/CustomerMinimalProfileSheet.tsx:86-88,126-134`, `takussan-web/src/components/customer/MinimalProfileTriggerProvider.tsx:124-136`, `takussan-web/src/messages/fr.json:4682`, `takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php:42`
+- Constat :
+  - Le champ est un `Input` libre dont l'exemple est `+221 77 000 00 00` (lu, `fr.json:4682`). La valeur part seulement `trim()`ée vers `PATCH /api/me` (lu).
+  - `UpdateMeRequest` exige `^(?:\+[1-9]\d{6,14})?$` puis `TelephoneJoignable`, sans normaliser (lu).
+  - Mesuré : test temporaire, compte sans numéro → `PATCH /api/me` `phone=+221 77 000 00 01` → 422 ; `77 000 00 02` → 422 ; `+221770000003` → 200.
+  - Le 422 n'atteint pas le champ : `handleSave` lève `save_failed` sur tout `!res.ok` (lu, `MinimalProfileTriggerProvider.tsx:131-135`). La feuille affiche une erreur générique. Le client qui recopie la forme de l'exemple ne peut pas enregistrer son numéro, et ne sait pas pourquoi.
+  - Établi comment : lu et mesuré.
+- Piste : saisir le numéro par `PhoneInput`, comme les autres formulaires du compte (`SecondaryPhoneSection.tsx:103`), ou normaliser avant l'envoi (`normalizePhoneInput`, `ProfileContactSection.tsx:301`) ; remonter l'erreur de champ du 422. Test : saisie `+221 77 000 00 00` → corps envoyé `+221770000000`.
+
+### Les trois invitations par téléphone refusent la forme nationale et la forme espacée, que leur message d'erreur donne en exemple
+- Réf : P125.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Invitation/InviteAgentRequest.php:37-39`, `InviteOwnerRequest.php:35`, `InviteServiceProviderRequest.php:38`, `takussan-api/lang/fr/validation.php:177`, `takussan-api/lang/en/validation.php:21`, `takussan-web/src/components/admin/InviteAgentDialog.tsx:61,104,203-209`, `takussan-web/src/components/owners/InviteOwnerSheet.tsx:142,225-229`, `takussan-web/src/components/service-providers/InviteServiceProviderSheet.tsx:200,285-289`
+- Constat :
+  - Les trois requêtes valident `phone` par `TelephoneJoignable` sur la valeur brute, sans `TelephoneSaisi::normaliser` (lu). `InvitationService::send` ne retire les espaces qu'après (lu, `InvitationService.php:156`).
+  - Les trois écrans saisissent le numéro dans un champ libre `type="tel"`, sans `PhoneInput` ni normalisation (lu).
+  - Mesuré : `TelephoneJoignable::defaut()` → `+221 77 123 45 67` et `77 123 45 67` rendent `validation.rules.phone_e164`, `+221771234567` rend `null`.
+  - Le message de ce refus cite en exemple « +221 77 123 45 67 » (lu, `validation.php`), une forme que la même règle refuse. Le profil minimal (P125.03) rend le même message.
+  - Le visiteur d'une fiche de bien, lui, peut taper `77 123 45 67` : la visite et la demande de contact normalisent (lu, `TelephoneSaisi`).
+  - Établi comment : lu et mesuré (règle seule ; le parcours des trois écrans n'a pas été joué).
+- Piste : normaliser par `TelephoneSaisi::normaliser` dans `prepareForValidation` des trois requêtes, ou saisir par `PhoneInput` ; écrire l'exemple du message sans espaces, ou accepter les espaces partout où il s'affiche. Test : une invitation à `77 123 45 67` part au `+221771234567`.
+
+### Cinq normaliseurs de téléphone, et ils ne rendent pas le même numéro
+- Réf : P125.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Support/TelephoneSaisi.php:41,43-61`, `takussan-api/app/Services/Crm/CustomerPhoneNormalizer.php:23-48`, `takussan-api/app/Support/CanonicalPhone.php:33-50`, `takussan-api/app/Services/Notifications/Sms/PhoneNumber.php:55-63`, `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:159-178`
+- Constat :
+  - P13.10 notait que la recherche de la console et `CustomerPhoneNormalizer` ne normalisent pas pareil ; ils sont cinq. Mesuré par `php -r` sur neuf saisies :
+    - `30 123 45 67` : `TelephoneSaisi` → `301234567` (refusé ensuite par `TelephoneJoignable`) ; `CustomerPhoneNormalizer`, `CanonicalPhone` et la recherche → `+221301234567`. La fiche client accepte ce fixe, la visite et la demande de contact le refusent. Que `30` soit un indicatif fixe sénégalais attribué est à vérifier (plan de numérotation de l'ARTP).
+    - `77/123/45/67` : `TelephoneSaisi` et `CustomerPhoneNormalizer` → `+221771234567` ; `CanonicalPhone::fold` le rend tel quel, et la recherche rend `null`.
+    - `123456789` : `CanonicalPhone::fold` → `+221123456789`, les autres le laissent.
+    - `+221 77-123-45-67` : `PhoneNumber::normalize` lève (il ne retire que les blancs), les quatre autres → `+221771234567`.
+  - Chaque comparaison de numéros choisit l'un des cinq : l'entrée par téléphone et les invitations `CanonicalPhone` (lu, `PhoneLoginService.php:151`, `InvitationService.php:925`), les alertes de recherche `PhoneNumber` (lu, `AlertSubscriber.php:69-74`), le dédoublonnage des clients `CustomerPhoneNormalizer` (lu, `CustomerDuplicateDetector.php:31`).
+  - Établi comment : mesuré pour les sorties ; les conséquences par parcours sont déduites, à vérifier une à une.
+- Piste : un seul normaliseur (la forme de `TelephoneSaisi`, avec la liste d'indicatifs de `CustomerPhoneNormalizer` si `30` est confirmé), que les quatre autres appellent ; un test unitaire qui joue la même table de saisies contre chaque point d'entrée.
+
+### Petites améliorations
+- Réf : P125.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Onboarding/HostIndividualOnboardRequest.php:54`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:297-306`, `takussan-api/app/Http/Requests/Api/StorePublicSearchAlertRequest.php:37-44`, `takussan-web/src/components/public/profile/ContactSheet.tsx:62`, `takussan-web/src/lib/jsonld-profil.ts:106`
+- Constat :
+  - `phone_otp.phone` est exigé et validé (`max:32`) par l'onboarding de l'hôte particulier, puis jamais lu : le service marque vérifié `$user->phone` (lu). Si le numéro du formulaire peut différer de celui du compte au moment de l'envoi, la valeur affichée par l'assistant n'est pas celle qui est vérifiée (à vérifier sur `HostIndividualWizard.tsx:459-470`).
+  - L'alerte de recherche par WhatsApp n'accepte que l'E.164 (`PhoneNumber::isValid` après retrait des blancs) et ne refuse pas le `0` de préfixe national : `+330612345678` passe, quand `TelephoneJoignable` le refuse partout ailleurs (lu, l. 40). Le front saisit par `PhoneInput` (lu, `PublicSearchAlertForm.tsx:225`) : seul un client direct est touché.
+  - La fiche publique d'une agence émet le numéro brut dans le JSON-LD (`telephone`) et en `tel:` après le seul retrait des blancs (lu). Une agence enregistrée `77 123 45 67` publie `tel:771234567`, qui n'aboutit pas depuis l'étranger (déduit, à vérifier). Disparaît avec la normalisation à l'écriture de P125.01.
+  - Établi comment : lu.
+- Piste : retirer `phone_otp.phone` de la requête ou le comparer au numéro du compte ; ajouter `TelephoneJoignable` à l'alerte WhatsApp ; publier l'E.164 dans le JSON-LD et le `tel:`.
