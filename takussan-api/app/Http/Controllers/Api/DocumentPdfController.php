@@ -52,10 +52,19 @@ class DocumentPdfController extends Controller
         // P130.02 (TCK-1250) — le bien supprimé (suppression douce) reste celui du bail : le gabarit
         // le lit, au lieu de rendre 500 sur `$property->id`. La policy a pu déjà charger la relation,
         // à `null` sous la portée `SoftDeletes` : `loadMissing` ne la relirait pas.
-        if ($lease->relationLoaded('property') && $lease->property === null) {
-            $lease->unsetRelation('property');
+        // P130.06 (TCK-1334) — de même pour le locataire : la quittance atteste un paiement passé,
+        // elle imprime la fiche qui l'a fait, même supprimée depuis.
+        foreach (['property', 'tenant'] as $relation) {
+            if ($lease->relationLoaded($relation) && $lease->{$relation} === null) {
+                $lease->unsetRelation($relation);
+            }
         }
-        $lease->loadMissing(['property' => fn ($q) => $q->withTrashed(), 'property.address', 'tenant', 'agency']);
+        $lease->loadMissing([
+            'property' => fn ($q) => $q->withTrashed(),
+            'property.address',
+            'tenant' => fn ($q) => $q->withTrashed(),
+            'agency',
+        ]);
         $wording = self::receiptWording($payment->payment_type);
 
         return $pdf->stream('pdf.receipts.rent', [
@@ -106,7 +115,13 @@ class DocumentPdfController extends Controller
         // TCK-587 — la règle de `InvoicePolicy::view`, que l'ancien helper recopiait à l'identique.
         $this->authorize('view', $invoice);
 
-        $invoice->loadMissing(['customer', 'agency', 'creditedInvoice']);
+        // P130.06 (TCK-1334) — une facture atteste un fait passé : elle imprime le client qu'elle
+        // désignait, même supprimé depuis (suppression douce), au lieu de « — ». La policy a pu
+        // charger la relation à `null` : `loadMissing` ne la relirait pas.
+        if ($invoice->relationLoaded('customer') && $invoice->customer === null) {
+            $invoice->unsetRelation('customer');
+        }
+        $invoice->loadMissing(['customer' => fn ($q) => $q->withTrashed(), 'agency', 'creditedInvoice']);
         $label = ($invoice->kind?->value ?? 'invoice') === 'credit_note' ? 'Avoir' : 'Facture';
 
         return $this->pdf->stream('pdf.invoices.default', [

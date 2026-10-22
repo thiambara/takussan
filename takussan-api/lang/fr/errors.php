@@ -130,6 +130,7 @@ return [
         'participant_required' => 'Il faut au moins un autre participant.',
     ],
     'customer' => [
+        'attached_to_open_lease' => 'Ce client est titulaire d\'un bail en attente de signature ou en cours : il ne peut pas être supprimé tant que ce bail est ouvert.',
         'duplicate' => 'Un client de votre agence porte déjà ce numéro ou cette adresse e-mail.',
         'pipeline_stage_invalid' => 'Étape de suivi invalide.',
     ],

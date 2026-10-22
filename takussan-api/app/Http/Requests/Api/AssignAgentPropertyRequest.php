@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * TCK-305 — extrait de PropertyController::assignAgent(), où les règles étaient écrites en ligne.
@@ -33,7 +34,7 @@ class AssignAgentPropertyRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'user_id' => ['required', 'integer', Rule::exists('users', 'id')->withoutTrashed()],
         ];
     }
 }

@@ -34,7 +34,7 @@ class StoreInvoiceRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'customer_id' => ['required', 'exists:customers,id'],
+            'customer_id' => ['required', Rule::exists('customers', 'id')->withoutTrashed()],
             'invoiceable_type' => ['nullable', 'string', 'required_with:invoiceable_id'],
             'invoiceable_id' => ['nullable', 'integer', 'required_with:invoiceable_type'],
             'issue_date' => ['required', 'date'],
