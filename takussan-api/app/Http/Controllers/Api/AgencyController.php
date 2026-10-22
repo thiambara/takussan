@@ -59,7 +59,7 @@ class AgencyController extends Controller
         $agency = Agency::create(array_merge($data, [
             'primary_admin_id' => $user->id,
             'currency' => $data['currency'] ?? Currency::default()->value,
-            'status' => $data['status'] ?? AgencyStatus::Active->value,
+            'status' => AgencyStatus::Active->value,
         ]));
         // TCK-633 lot F (ADR-0061 §3) — un espace qui naît ici, d'un titulaire au numéro déjà
         // vérifié, reçoit sa bienvenue : aucun `PhoneVerified` ne viendra plus la rattraper.
