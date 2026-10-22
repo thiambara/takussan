@@ -167,7 +167,9 @@ class BookingPaymentTest extends TestCase
             ->assertStatus(422);
     }
 
-    public function test_owner_can_refund_paid_payment(): void
+    // TCK-1214 (P76.02, option (b)) — un remboursement partiel laisse la ligne `paid`, avec son
+    // `refund_amount` ; seul un remboursement total la passe à `refunded`.
+    public function test_owner_can_partially_refund_paid_payment(): void
     {
         $owner = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $owner->id]);
@@ -183,8 +185,15 @@ class BookingPaymentTest extends TestCase
             'refund_amount' => 50000,
             'refund_reason' => 'partial cancellation',
         ])->assertOk()
-            ->assertJsonPath('data.status', 'refunded')
+            ->assertJsonPath('data.status', 'paid')
             ->assertJsonPath('data.refund_amount', 50000);
+
+        $this->postJson("/api/booking-payments/{$payment->id}/refund", [
+            'refund_amount' => 50000,
+            'refund_reason' => 'full cancellation',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'refunded')
+            ->assertJsonPath('data.refund_amount', 100000);
     }
 
     public function test_cannot_refund_more_than_paid(): void

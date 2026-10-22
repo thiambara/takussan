@@ -232,8 +232,9 @@ class PaymentWebhookRefundTest extends TestCase
 
         $this->refundEvent('spy_txn_1', 40_000);
 
+        // TCK-1214 (P76.02, option (b)) — un remboursement partiel laisse l'échéance `paid`.
         $payment = $ctx['payment']->refresh();
-        $this->assertSame(PaymentStatus::Refunded, $payment->status);
+        $this->assertSame(PaymentStatus::Paid, $payment->status);
         $this->assertEquals(40_000, $payment->refund_amount);
         $this->assertEquals(110_000, $payment->paid_amount);
     }

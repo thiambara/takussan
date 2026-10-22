@@ -206,7 +206,8 @@ trait HasPaymentAttributes
     /**
      * Effective amount already received for this payment row.
      *
-     * - `paid`     → full `amount` (unless overridden by metadata.paid_amount)
+     * - `paid`     → full `amount` (unless overridden by metadata.paid_amount), minus a partial
+     *                `refund_amount` (TCK-1214)
      * - `refunded` → `amount - refund_amount` (when `refund_amount` exists)
      * - `partially_paid` → metadata.paid_amount (must be provided)
      * - any other status → metadata.paid_amount (fallback to 0)
@@ -225,7 +226,11 @@ trait HasPaymentAttributes
             // cause `metadata.paid_amount > amount` legitimately. `remaining_amount`
             // still floors at 0 so UIs don't go negative.
             if ($status === PaymentStatus::Paid) {
-                return $metaPaid > 0 ? $metaPaid : $amount;
+                // TCK-1214 (P76.02) — un remboursement partiel laisse la ligne `paid` : ce qui a été
+                // rendu ne compte plus comme reçu, comme pour une ligne `refunded`.
+                $refund = (float) ($this->attributes['refund_amount'] ?? 0);
+
+                return max(0.0, ($metaPaid > 0 ? $metaPaid : $amount) - $refund);
             }
 
             if ($status === PaymentStatus::Refunded) {

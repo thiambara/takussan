@@ -49,8 +49,8 @@ class BookingPaymentService
 
     /**
      * TCK-596 — la ligne du paiement est verrouillée puis relue : deux remboursements concurrents
-     * du même acompte ne passent pas tous deux le contrôle `paid`. Le dernier paiement remboursé
-     * clôt la tâche « remboursement à traiter ».
+     * du même acompte ne passent pas tous deux le contrôle `paid`. Le dernier paiement remboursé,
+     * même en partie (TCK-1214), clôt la tâche « remboursement à traiter ».
      *
      * @param  array<string,mixed>  $data
      */
@@ -74,8 +74,11 @@ class BookingPaymentService
                 'booking_payment.refund_settled_by_platform'
             );
 
+            // TCK-1214 (P76.02) — un remboursement partiel laisse l'acompte `paid` : le suivant
+            // s'ajoute au premier, dans la limite du montant.
+            $alreadyRefunded = (float) ($payment->refund_amount ?? 0);
             abort_code_if(
-                (float) $data['refund_amount'] > (float) $payment->amount,
+                $alreadyRefunded + (float) $data['refund_amount'] > (float) $payment->amount,
                 422,
                 'booking_payment.refund_exceeds_paid'
             );
@@ -88,10 +91,13 @@ class BookingPaymentService
                 'booking_payment.refund_fractional'
             );
 
+            // TCK-1214 (P76.02, option (b)) — seul un remboursement total passe l'acompte à
+            // `refunded` ; un partiel le laisse `paid`, compté à `montant − refund_amount`.
+            $refunded = $alreadyRefunded + (float) $data['refund_amount'];
             $payment->update([
-                'status' => PaymentStatus::Refunded->value,
-                'refund_amount' => $data['refund_amount'],
-                'refund_reason' => $data['refund_reason'] ?? null,
+                'status' => ($refunded >= (float) $payment->amount ? PaymentStatus::Refunded : PaymentStatus::Paid)->value,
+                'refund_amount' => $refunded,
+                'refund_reason' => $data['refund_reason'] ?? $payment->refund_reason,
             ]);
 
             return $payment->refresh();

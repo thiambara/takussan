@@ -40,12 +40,13 @@ class PlatformMetricsSnapshotter
      */
     public function flowsBetween(?CarbonInterface $from, CarbonInterface $to): array
     {
+        $leaseNet = CollectedPayments::LEASE_NET_SQL;
         $lease = CollectedPayments::leaseIncome()
             ->when($from !== null, fn ($q) => $q->where('lease_payments.paid_at', '>=', $from))
             ->where('lease_payments.paid_at', '<=', $to)
             ->toBase()
-            ->selectRaw('COALESCE(SUM(lease_payments.amount), 0) AS gmv, '
-                .'COALESCE(SUM(lease_payments.amount * COALESCE(lease_payments.platform_fee_pct_at_payment, 0) / 100), 0) AS fees')
+            ->selectRaw("COALESCE(SUM({$leaseNet}), 0) AS gmv, "
+                ."COALESCE(SUM(({$leaseNet}) * COALESCE(lease_payments.platform_fee_pct_at_payment, 0) / 100), 0) AS fees")
             ->first();
 
         $net = CollectedPayments::BOOKING_NET_SQL;

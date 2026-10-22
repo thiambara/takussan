@@ -14,8 +14,11 @@ use Illuminate\Database\Eloquent\Builder;
  * plateforme.
  *
  * - *Encaissé* = `LeasePayment` payés de type `rent | charges | regularization | penalty`, plus
- *   `BookingPayment` `paid`, montant − `refund_amount`. Jamais `deposit` (de l'argent détenu, pas un
- *   revenu) ni `deposit_refund` (de l'argent qui SORT vers le locataire, TCK-594).
+ *   `BookingPayment` `paid`, chacun pour montant − `refund_amount`. Jamais `deposit` (de l'argent
+ *   détenu, pas un revenu) ni `deposit_refund` (de l'argent qui SORT vers le locataire, TCK-594).
+ *   TCK-1214 (P76.02, option (b) du porteur) : seul un remboursement total passe une ligne à
+ *   `refunded` ; un partiel la laisse `paid` avec son `refund_amount`, que les deux côtés soustraient
+ *   ({@see self::LEASE_NET_SQL}, {@see self::BOOKING_NET_SQL}).
  * - *Impayé* = `LeasePayment` `pending | partially_paid | late` échus, hors `deposit_refund`, quel que
  *   soit le statut `late` ou non : un bail sans pénalité ne passe jamais `late` (`LateFeeCalculator`).
  *   Il se compte au RESTE DÛ ({@see self::OWED_REMAINING_SQL}), pas au montant facial.
@@ -46,6 +49,9 @@ final class CollectedPayments
      */
     public const OWED_REMAINING_SQL = "GREATEST(lease_payments.amount - COALESCE((lease_payments.metadata->>'paid_amount')::numeric, 0), 0)";
 
+    /** Montant encaissé d'une échéance : ce qui a été payé, moins ce qui a été rendu (TCK-1214). */
+    public const LEASE_NET_SQL = 'lease_payments.amount - COALESCE(lease_payments.refund_amount, 0)';
+
     /** Montant encaissé d'une ligne de réservation : ce qui a été payé, moins ce qui a été rendu. */
     public const BOOKING_NET_SQL = 'booking_payments.amount - COALESCE(booking_payments.refund_amount, 0)';
 
@@ -61,7 +67,7 @@ final class CollectedPayments
         return array_map(static fn (PaymentStatus $s): string => $s->value, self::OWED_STATUSES);
     }
 
-    /** Loyers encaissés : payés, de type revenu. */
+    /** Loyers encaissés : payés, de type revenu. À sommer par {@see self::LEASE_NET_SQL}. */
     public static function leaseIncome(?Builder $query = null): Builder
     {
         $query ??= LeasePayment::query();
