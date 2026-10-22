@@ -11642,7 +11642,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Le dialogue d'attribution d'une demande de contact propose les bailleurs, les comptes bloqués et les agents suspendus, que l'API refuse ensuite en 422
 - Réf : P120.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1246 — reste : le tri `sort=first_name` du dialogue d'attribution, laissé à P120.05 par la mesure
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leads/ContactLeadsInbox.tsx:259-305`, `takussan-api/app/Http/Requests/Api/AssignContactLeadRequest.php:21-28`, `takussan-api/app/Rules/PersonnelDeLAgence.php:37-44`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:177-179`
 - Constat :
@@ -11654,6 +11654,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Établi comment : lu, puis mesuré.
 - Piste : envoyer `filter[assignable]=1` depuis `AttribuerDialog` (et, faute de tri, `sort=first_name`, comme les autres sélecteurs). Test front : l'URL du dialogue porte `filter[assignable]=1`. Le candidat légitime absent relève de P120.02.
 - Mesure (2026-10-22, 851bd88b9, mesureur) : relu `ContactLeadsInbox.tsx:264-268` (`AttribuerDialog` : `fields[users]` et `per_page=100`, ni `filter[role]` ni `filter[assignable]`, ni `sort`), `AgencyController.php:177-179` (base agent OU bailleur, sans statut), `PersonnelDeLAgence::estPersonnel()` (joignable + `isStaffAt()`), `User::buildAgencyMembersQuery()` (filtre `assignable` = ce prédicat en SQL, docblock « pour les sélecteurs de cible ») ; lancé `ContactLeadInboxTest` (`test_attribuer_exige_crm_assign_et_vise_le_personnel`, `test_m4_une_demande_ne_s_attribue_pas_a_un_agent_suspendu`) et `AgencyMembersListTest::test_member_listing_includes_users_with_only_agent_profile_and_only_owner_profile`, charge 2,66/2,01/1,80 sur 8 cœurs → 3 verts : la liste sans filtre rend le bailleur seul, et `assign` le refuse en 422, comme le suspendu ; `AgencyMembersListTest::test_role_filter_is_bound_to_the_agency_and_assignable_keeps_reachable_staff` épingle déjà ce que rend `filter[assignable]=1`. Le constat tient ; inexact sur un point : `fetchAgencyAgents` n'envoie pas de `sort` (lu, `agent-crm.ts:107-111`), « comme les autres sélecteurs » ne vaut donc pas pour le tri, laissé à P120.05. Classement : A1, la cible attendue est déjà écrite par `PersonnelDeLAgence` et par le filtre `assignable` de TCK-1096, et le correctif retire seulement des options que l'API refuse toujours en 422.
+- Mesure (2026-10-22, f92b80db1, implementeur) : `AttribuerDialog` lit toujours `/members` sans filtre (lu, `ContactLeadsInbox.tsx:264-268`) ; test `ContactLeadsInbox.test.tsx` « la liste ne propose que les cibles que l'API accepte » rouge avant correctif (`filter` indéfini), vert avec `filter[assignable]=1` (16/16) ; ablation : composant remis à `HEAD` → rouge, remis → vert. Avec TCK-1244, l'admin seul que l'API accepte y figure désormais.
 
 ### Un membre promu administrateur d'agence disparaît de `/members`, donc de tous les sélecteurs, alors que l'API l'accepte comme cible
 - Réf : P120.02
