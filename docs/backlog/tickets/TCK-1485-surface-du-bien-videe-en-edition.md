@@ -1,7 +1,7 @@
 ---
 id: TCK-1485
 title: "Vider la surface d'un bien en édition l'efface au lieu d'être refusé"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -43,17 +43,17 @@ Le bailleur qui vide la surface d'un bien en édition l'efface.
 
 ## Delta à produire
 
-- [ ] `area` passe par `nombreFacultatif` dans `propertyFormSchema`.
-- [ ] `area` entre dans `CHAMPS_EFFACABLES`, et sort des « non traités » de
+- [x] `area` passe par `nombreFacultatif` dans `propertyFormSchema`.
+- [x] `area` entre dans `CHAMPS_EFFACABLES`, et sort des « non traités » de
       `champs-effaces.tck-1353.test.ts`.
-- [ ] Test : `area: ''` → absent ; vidé et modifié → `area: null` dans le corps ; `0` toujours
+- [x] Test : `area: ''` → absent ; vidé et modifié → `area: null` dans le corps ; `0` toujours
       refusé.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `area: ''` passe le schéma, sans valeur.
-- [ ] AC2 — vidée en édition, la surface part en `null`.
-- [ ] AC3 — `0` et `12.5` restent refusés.
+- [x] AC1 — `area: ''` passe le schéma, sans valeur.
+- [x] AC2 — vidée en édition, la surface part en `null`.
+- [x] AC3 — `0` et `12.5` restent refusés.
 
 ## Hors périmètre
 
@@ -61,4 +61,7 @@ Le bailleur qui vide la surface d'un bien en édition l'efface.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : `schemas/property.ts` rendu à `pre-dev` → les deux premiers cas de
+  `surface-videe.tck-1485.test.ts` rouges (refus `areaPositive`, aucun `null`) ; remis → 3/3.
+- `champs-effaces.tck-1353.test.ts` classe chaque champ facultatif du schéma : `area` y passe des
+  « non traités » aux effaçables, sans quoi il rougirait.
