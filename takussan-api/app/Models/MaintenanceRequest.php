@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\TypedExactFilter;
 use App\Http\Middleware\EnsureAgencyWritable;
 use App\Models\Bases\AbstractModel;
 use App\Models\Contracts\HasAuditAgency;
@@ -73,6 +74,9 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
     ];
 
     protected static array $requestFilterable = ['property_id', 'lease_id', 'requester_id', 'assigned_to', 'category', 'priority', 'status'];
+
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['assigned_to' => TypedExactFilter::IDENTIFIANT];
 
     protected static array $requestSortable = ['id', 'created_at', 'scheduled_at', 'priority', 'status'];
 

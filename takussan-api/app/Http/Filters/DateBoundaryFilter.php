@@ -29,9 +29,19 @@ class DateBoundaryFilter implements Filter
         // P119.03 (TCK-1273) — une date illisible, ou une liste (spatie découpe sur la virgule),
         // rend 422 par la règle `date` des requêtes d'export, au lieu de lever en 500 dans
         // `Carbon::parse()` ou dans PostgreSQL.
-        Validator::make(['filter' => [$property => $value]], ["filter.{$property}" => ['string', 'date']])->validate();
+        self::exiger($value, $property);
 
         $query->where($this->column, $this->isUpperBound ? '<=' : '>=', self::normalize($value, $this->isUpperBound));
+    }
+
+    /**
+     * La règle `date`, pour une borne de date lue hors de ce filtre (P151.04, TCK-1405 : les biens,
+     * l'historique des paiements, la modération des agences) : 422 sur une valeur illisible ou une
+     * liste, au lieu d'un 500 levé par `Carbon::parse()` ou par PostgreSQL.
+     */
+    public static function exiger(mixed $value, string $property): void
+    {
+        Validator::make(['filter' => [$property => $value]], ["filter.{$property}" => ['string', 'date']])->validate();
     }
 
     public static function normalize(string $value, bool $isUpperBound): string

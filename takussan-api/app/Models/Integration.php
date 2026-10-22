@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\PaymentProvider;
@@ -44,6 +45,9 @@ class Integration extends AbstractModel
     ];
 
     protected static array $requestFilterable = ['agency_id', 'provider', 'is_active', 'health_status'];
+
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['is_active' => TypedExactFilter::BOOLEEN];
 
     protected static array $requestSortable = ['id', 'created_at', 'provider'];
 

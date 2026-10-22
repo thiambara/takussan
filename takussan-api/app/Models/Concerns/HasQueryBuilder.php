@@ -4,6 +4,7 @@ namespace App\Models\Concerns;
 
 use App\Http\Filters\ExactIdentifierFilter;
 use App\Http\Filters\RangeFilter;
+use App\Http\Filters\TypedExactFilter;
 use App\Sorts\SearchRelevanceSort;
 use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
@@ -192,10 +193,16 @@ trait HasQueryBuilder
 
         // Une colonne d'identifiant refuse en 400 une valeur non entière : PostgreSQL en ferait
         // une 500 (`ExactIdentifierFilter`).
+        // TCK-1411 (P151.03) — une colonne typée qui ne se reconnaît pas à son nom se déclare dans
+        // `$requestFilterableTypes` : identifiant (400), entier ou booléen (422, `TypedExactFilter`).
+        $types = static::$requestFilterableTypes ?? [];
         $exact = array_map(
-            fn (string $field) => ExactIdentifierFilter::garde($field)
-                ? AllowedFilter::custom($field, new ExactIdentifierFilter)
-                : AllowedFilter::exact($field),
+            fn (string $field) => match (true) {
+                ExactIdentifierFilter::garde($field),
+                ($types[$field] ?? null) === TypedExactFilter::IDENTIFIANT => AllowedFilter::custom($field, new ExactIdentifierFilter),
+                isset($types[$field]) => AllowedFilter::custom($field, new TypedExactFilter($types[$field])),
+                default => AllowedFilter::exact($field),
+            },
             static::$requestFilterable ?? []
         );
 
@@ -263,7 +270,8 @@ trait HasQueryBuilder
                         $inner->orWhere($field, 'like', '%'.$value.'%');
                     }
                 });
-            });
+                // TCK-1401 (P151.01) — texte libre : sans délimiteur, spatie découpe « Diop, Awa » en tableau.
+            })->delimiter('');
         }
 
         // TCK-147 — extension point for callback filters that aren't tied to a

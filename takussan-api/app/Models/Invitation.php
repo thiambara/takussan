@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\InvitationStatus;
 use App\Support\CaseInsensitive;
@@ -83,6 +84,9 @@ class Invitation extends AbstractModel
     }
 
     protected static array $requestFilterable = ['status', 'agency_id', 'role', 'email', 'invited_by'];
+
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['invited_by' => TypedExactFilter::IDENTIFIANT];
 
     protected static array $requestSortable = ['id', 'created_at', 'expires_at', 'status'];
 

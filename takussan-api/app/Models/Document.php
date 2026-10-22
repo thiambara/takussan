@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\DocumentType;
 use App\Models\Profiles\AgencyAdminProfile;
@@ -55,6 +56,9 @@ class Document extends AbstractModel implements HasMedia
     ];
 
     protected static array $requestFilterable = ['documentable_id', 'documentable_type', 'uploaded_by', 'type', 'is_verified'];
+
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['uploaded_by' => TypedExactFilter::IDENTIFIANT, 'is_verified' => TypedExactFilter::BOOLEEN];
 
     protected static array $requestSortable = ['id', 'created_at', 'expiry_date', 'name'];
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Sorts\ThresholdAlertSeveritySort;
 use Carbon\Carbon;
@@ -29,6 +30,9 @@ class ThresholdAlert extends AbstractModel
     ];
 
     protected static array $requestFilterable = ['agency_id', 'metric', 'severity', 'is_enabled'];
+
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['is_enabled' => TypedExactFilter::BOOLEEN];
 
     // `severity` se trie par rang : voir `customQuerySorts()`.
     protected static array $requestSortable = ['id', 'metric', 'created_at'];

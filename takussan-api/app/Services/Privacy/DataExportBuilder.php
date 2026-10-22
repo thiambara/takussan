@@ -13,6 +13,7 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Message;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Messaging\ConversationAccess;
@@ -133,6 +134,11 @@ class DataExportBuilder
             'reviews.json' => Review::query()
                 ->where('author_id', $user->id)
                 ->orWhere(fn ($query) => $query->where('reviewable_type', User::class)->where('reviewable_id', $user->id))
+                // TCK-1397 (P139.04) — les avis sur son profil de prestataire le décrivent aussi
+                // (même cible que `ReceivedReviews`) ; ceux sur ses biens restent hors de l'archive.
+                ->orWhere(fn ($query) => $query
+                    ->where('reviewable_type', ServiceProviderProfile::class)
+                    ->whereIn('reviewable_id', ServiceProviderProfile::query()->select('id')->where('user_id', $user->id)))
                 ->get()
                 ->toArray(),
             'notifications.json' => AppNotification::query()->where('user_id', $user->id)->get()->toArray(),

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Agency;
 
+use App\Models\Activity;
 use App\Models\Agency;
 use App\Models\AppNotification;
 use App\Models\Customer;
@@ -86,6 +87,24 @@ class AgentAbsenceTest extends ApiTestCase
         }
 
         return $map;
+    }
+
+    /**
+     * TCK-1399 (P139.05) — la déclaration pose `event` = son code de journal : la colonne de
+     * l'export n'est plus vide, et `filter[event]` de l'export la retient.
+     */
+    public function test_la_declaration_pose_son_evenement_et_l_export_la_retient(): void
+    {
+        $this->declare($this->admin)->assertCreated();
+
+        $entry = Activity::query()->where('description', 'absence.declared')->sole();
+        $this->assertSame('absence.declared', $entry->event);
+
+        $csv = $this->actingAsApi($this->admin)
+            ->apiGet('/api/activity-logs/export?format=csv&filter[event]=absence.declared')
+            ->assertOk()
+            ->streamedContent();
+        $this->assertStringContainsString(',absence.declared,', $csv);
     }
 
     public function test_the_substitute_sees_and_ticks_the_absent_tasks_until_the_end(): void

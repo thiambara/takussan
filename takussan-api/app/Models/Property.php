@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Http\Filters\DateBoundaryFilter;
+use App\Http\Filters\ExactIdentifierFilter;
+use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\AgencyStatus;
@@ -106,8 +109,11 @@ class Property extends AbstractModel implements HasMedia
     protected static array $requestFilterable = [
         'user_id', 'agency_id', 'type', 'contract_type', 'rent_period',
         'status', 'visibility', 'title_type', 'condition', 'price', 'bedrooms', 'bathrooms',
-        'area', 'currency', 'featured', 'furnished', 'published_at',
+        'area', 'currency', 'featured', 'furnished',
     ];
+
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['bedrooms' => TypedExactFilter::ENTIER, 'bathrooms' => TypedExactFilter::ENTIER, 'area' => TypedExactFilter::ENTIER, 'featured' => TypedExactFilter::BOOLEEN, 'furnished' => TypedExactFilter::BOOLEEN];
 
     /** @var array<int,string> */
     protected static array $requestSortable = [
@@ -661,6 +667,9 @@ class Property extends AbstractModel implements HasMedia
                 return;
             }
 
+            // TCK-1403 (P151.05) — hors de `null`, un identifiant : 400 comme tout filtre `*_id`.
+            ExactIdentifierFilter::exiger($value, 'parent_id');
+
             if (is_array($value)) {
                 $q->whereIn('parent_id', $value);
 
@@ -677,17 +686,20 @@ class Property extends AbstractModel implements HasMedia
             }
 
             $q->whereHas('address', fn (Builder $address) => $address->where('city', 'like', '%'.$city.'%'));
-        });
+            // TCK-1401 (P151.01) — texte libre : sans délimiteur, spatie découpe « Diop, Awa » en tableau.
+        })->delimiter('');
 
         $filters[] = AllowedFilter::callback('created_from', function (Builder $q, mixed $value): void {
             if ($value !== null && $value !== '') {
-                $q->where('created_at', '>=', DayRange::start((string) $value));
+                DateBoundaryFilter::exiger($value, 'created_from');
+                $q->where('created_at', '>=', DayRange::start($value));
             }
         });
 
         $filters[] = AllowedFilter::callback('created_to', function (Builder $q, mixed $value): void {
             if ($value !== null && $value !== '') {
-                $q->where('created_at', '<', DayRange::after((string) $value));
+                DateBoundaryFilter::exiger($value, 'created_to');
+                $q->where('created_at', '<', DayRange::after($value));
             }
         });
 

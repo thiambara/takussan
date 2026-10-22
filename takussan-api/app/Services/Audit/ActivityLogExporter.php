@@ -135,6 +135,11 @@ class ActivityLogExporter
     private function mapRow(Activity $log): array
     {
         $causer = $log->causer;
+        // TCK-1395 (P139.01) — un `causer_id` dont le causeur ne se charge plus est un compte
+        // supprimé (portée `SoftDeletes` sur le `morphTo()`), pas le système : l'export le dit
+        // comme l'écran du journal (`AuditTrail.tsx`), et `system` reste aux lignes sans causeur.
+        $deletedCauser = $causer === null && $log->causer_id !== null;
+        $absentCauser = $deletedCauser ? "deleted#{$log->causer_id}" : 'system';
         // TCK-601 (AC13b) — expurgé avant toute mise en forme : la colonne est un JSON libre.
         $props = collect(PropertyRedactor::redact($log->properties, $log->subject_type) ?? []);
         // TCK-692 — activitylog v5 range l'avant/après d'un modèle dans `attribute_changes`, et
@@ -151,8 +156,8 @@ class ActivityLogExporter
         return [
             'id' => $log->id,
             'logged_at' => $log->created_at?->toIso8601String(),
-            'causer_email' => $causer?->email ?? 'system',
-            'causer_role' => $causer?->profileTypes()->first() ?? 'system',
+            'causer_email' => $causer?->email ?? $absentCauser,
+            'causer_role' => $causer?->profileTypes()->first() ?? ($deletedCauser ? 'deleted' : 'system'),
             'event' => $log->event,
             'subject_type' => $log->subject_type ? class_basename($log->subject_type) : null,
             'subject_id' => $log->subject_id,

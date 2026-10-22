@@ -150,7 +150,8 @@ class AuditLogController extends Controller
                 AllowedFilter::custom('date_to', new DateBoundaryFilter('created_at', true)),
                 AllowedFilter::callback('search', function (Builder $q, string $value): void {
                     $q->where('description', 'like', '%'.$value.'%');
-                }),
+                    // TCK-1401 (P151.01) — texte libre : sans délimiteur, spatie découpe « Diop, Awa » en tableau.
+                })->delimiter(''),
             );
 
         $order = ($filters['order'] ?? 'desc') === 'asc' ? 'asc' : 'desc';

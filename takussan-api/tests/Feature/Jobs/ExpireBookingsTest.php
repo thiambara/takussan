@@ -42,6 +42,8 @@ class ExpireBookingsTest extends TestCase
             'subject_type' => $booking->getMorphClass(),
             'subject_id' => $booking->id,
             'description' => 'booking_expired',
+            // TCK-1399 (P139.05) — `event` = le code du journal, lisible et filtrable par l'export.
+            'event' => 'booking_expired',
         ]);
     }
 

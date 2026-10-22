@@ -90,7 +90,8 @@ class ReviewController extends Controller
                 'approved' => ReviewStatus::Approved,
                 'rejected' => ReviewStatus::Rejected,
             ];
-            if (isset($statusMap[$status])) {
+            // TCK-1407 (P151.06) — une liste (`filter[moderation_status][]=`) est ignorée, comme un statut inconnu.
+            if (is_string($status) && isset($statusMap[$status])) {
                 $query->where('status', $statusMap[$status]->value);
             }
         }

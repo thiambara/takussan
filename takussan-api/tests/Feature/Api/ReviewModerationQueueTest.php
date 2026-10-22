@@ -176,4 +176,15 @@ class ReviewModerationQueueTest extends TestCase
             'decision' => 'approve',
         ])->assertForbidden();
     }
+
+    /** TCK-1407 (P151.06) — une liste (`filter[moderation_status][]=`) est ignorée comme un statut inconnu. */
+    public function test_a_list_moderation_status_is_ignored(): void
+    {
+        Review::factory()->create(['status' => ReviewStatus::Pending]);
+        Review::factory()->create(['status' => ReviewStatus::Approved]);
+
+        Sanctum::actingAs($this->admin());
+
+        $this->assertSame(2, $this->getJson('/api/reviews?filter[moderation_status][]=pending')->assertOk()->json('meta.total'));
+    }
 }

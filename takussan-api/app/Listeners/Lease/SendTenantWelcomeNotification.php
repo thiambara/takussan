@@ -55,6 +55,7 @@ class SendTenantWelcomeNotification implements ShouldQueue
             ->causedBy($tenantUser)
             ->performedOn($lease)
             ->withProperties(['lease_id' => $lease->id])
+            ->event('tenant_welcomed')
             ->log('tenant_welcomed');
     }
 }

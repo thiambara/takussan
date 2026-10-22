@@ -255,6 +255,7 @@ class BookingExpirationService
                 'previous_status' => BookingStatus::Pending->value,
                 'new_status' => BookingStatus::Expired->value,
             ])
+            ->event('booking_expired')
             ->log('booking_expired');
     }
 

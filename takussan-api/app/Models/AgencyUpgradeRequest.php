@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
 use App\Services\Kyc\SharedLegalIdentifierDetector;
@@ -83,6 +84,9 @@ class AgencyUpgradeRequest extends AbstractModel
     ];
 
     protected static array $requestFilterable = ['status', 'agency_id', 'submitted_by', 'reviewed_by'];
+
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['submitted_by' => TypedExactFilter::IDENTIFIANT, 'reviewed_by' => TypedExactFilter::IDENTIFIANT];
 
     protected static array $requestSortable = ['id', 'submitted_at', 'reviewed_at', 'status', 'created_at'];
 

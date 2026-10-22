@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\AgencyRoleBaseType;
@@ -71,6 +72,9 @@ class AgencyRole extends AbstractModel
     ];
 
     protected static array $requestFilterable = ['agency_id', 'base_profile_type', 'is_system', 'is_clonable'];
+
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['is_system' => TypedExactFilter::BOOLEEN, 'is_clonable' => TypedExactFilter::BOOLEEN];
 
     protected static array $requestFilterablePartial = ['name'];
 

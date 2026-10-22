@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -22,6 +23,9 @@ class KpiConfig extends AbstractModel
     ];
 
     protected static array $requestFilterable = ['agency_id', 'metric', 'is_enabled'];
+
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['is_enabled' => TypedExactFilter::BOOLEEN];
 
     protected static array $requestSortable = ['id', 'sort_order', 'created_at'];
 

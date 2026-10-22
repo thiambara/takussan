@@ -58,6 +58,7 @@ class TenantOnboardingService
                 ->causedBy($tenantUser)
                 ->performedOn($checklist)
                 ->withProperties(['lease_id' => $lease->id])
+                ->event('tenant_checklist_created')
                 ->log('tenant_checklist_created');
         }
 
@@ -104,6 +105,7 @@ class TenantOnboardingService
                 'lease_id' => $checklist->lease_id,
                 'item' => $item,
             ])
+            ->event('tenant_checklist_item_completed')
             ->log('tenant_checklist_item_completed');
 
         if ($justCompleted) {
@@ -111,6 +113,7 @@ class TenantOnboardingService
                 ->causedBy($causer)
                 ->performedOn($checklist)
                 ->withProperties(['lease_id' => $checklist->lease_id])
+                ->event('tenant_checklist_completed')
                 ->log('tenant_checklist_completed');
         }
 
