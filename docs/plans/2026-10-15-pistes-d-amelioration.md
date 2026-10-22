@@ -13505,7 +13505,7 @@ générique est P112.01.*
 
 ### Un état des lieux à plus de ~1 500 lignes d'éléments ne se télécharge plus : dompdf épuise `memory_limit`, et rien ne borne les pièces ni les éléments
 - Réf : P143.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le plafond de pièces et d'éléments est un refus neuf, à chiffrer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/InventoryStoreRequest.php:42-49`, `takussan-api/app/Http/Requests/InventoryUpdateRequest.php:29-36`, `takussan-api/resources/views/pdf/inventories/report.blade.php:109-153`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:185-225`, `takussan-api/docker/php.ini:3,11`, `takussan-web/src/lib/schemas/inventory.ts:51,72`
 - Constat :
@@ -13515,10 +13515,11 @@ générique est P112.01.*
   - Un état des lieux signé ne se modifie plus (lu, `InventoryController::update`, l. 123-128) : le PDF contractuel d'un état trop long reste en 500 à chaque essai (déduit de ce qui précède).
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : borner `rooms` et `rooms.*.elements` (`max:`), avec le même plafond dans le schéma du front, à une valeur mesurée sous 256M avec marge ; borner `notes`. Garde : un test qui rend le PDF au plafond sous `ini_set('memory_limit', '256M')`.
+- Mesure (2026-10-22, c9060d7f9, mesureur) : relu `InventoryStoreRequest`/`InventoryUpdateRequest` (`rooms`, `rooms.*.elements` en `array` sans `max:`, `notes` sans `max:`), `inventory.ts` (`z.array(inventoryRoomSchema).min(1)`, `elements` sans `.max`), `report.blade.php` (une ligne de tableau par élément), aucun commit sur ces fichiers depuis 3452fbaaf ; test temporaire (retiré), `XDEBUG_MODE=off php -d memory_limit=256M vendor/bin/phpunit`, charge 2,1 sur 8 cœurs : `POST /api/inventories` à 40 × 40 éléments → 201, `GET /api/inventories/{id}/pdf` signé à 10 × 20 → 200 en 3,6 s, à 40 × 40 → `Allowed memory size of 268435456 bytes exhausted` dans `dompdf/src/Css/Style.php:2286` → le constat tient. Classement : V7, borner refuse à l'envoi un état des lieux accepté aujourd'hui, et la valeur du plafond (ou un autre rendu) est un choix que rien n'écrit.
 
 ### Photo d'état des lieux et logo d'agence : aucune borne de pixels, et l'original est décodé par GD à chaque PDF, hors de `memory_limit`
 - Réf : P143.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : refus neuf à l'envoi, plafond du logo à choisir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:38-39`, `takussan-api/app/Http/Requests/MediaUploadRequest.php:38-47`, `takussan-api/app/Services/Media/PdfImageEmbedder.php:36-45,80-104`, `takussan-api/app/Services/Pdf/DocumentPdfService.php:147-156`, `takussan-api/app/Models/Inventory.php:69-75`, `takussan-api/app/Models/Agency.php:155-158`, `takussan-api/app/Rules/PixelsAuPlus.php:24`, `deploy/takussan/compose.api.yml:95`
 - Constat :
@@ -13528,10 +13529,11 @@ générique est P112.01.*
   - Le conteneur `api` a `mem_limit: 384m` (lu). Que le noyau y tue le processus, et avec lui les requêtes en cours, sur un tel PDF est déduit, non mesuré dans l'image (à vérifier).
   - Établi comment : lu, mesuré par test temporaire et `/usr/bin/time -l`.
 - Piste : `new PixelsAuPlus` sur `photos.*` d'`UploadRoomPhotosInventoryRequest` et sur les images de `MediaUploadRequest` (sans doute avec un plafond plus bas pour un logo) ; et ne plus réduire l'original au rendu (voir P143.03). Garde : un test qui refuse à l'envoi un en-tête de 10 000 × 10 000 (`Tests\Support\ImageEnTete`) sur ces deux routes.
+- Mesure (2026-10-22, c9060d7f9, mesureur) : `grep -rn PixelsAuPlus app` → `StorePropertyMediaRequest` et `UpdateProfileRequest` seuls ; relu `UploadRoomPhotosInventoryRequest` et `MediaUploadRequest` (sans borne de pixels), `Inventory`/`Agency::registerMediaCollections()` (aucune conversion), `PdfImageEmbedder::dataUri()` (repli sur `reducedOriginal`), `DocumentPdfService::prepareData()` (logo embarqué par `dataUri`, TCK-1233), `compose.api.yml` (`api` : `mem_limit: 384m`) ; TCK-677 range ces deux envois en « Hors périmètre » ; test temporaire (retiré) : `POST /api/inventories/{id}/room-photos` d'un en-tête JPEG 10 000 × 10 000 (`ImageEnTete::jpeg`) → 200 ; réduction GD seule d'un JPEG 7 000 × 7 000 par `spatie/image` sous `memory_limit=256M`, `/usr/bin/time -l` → RSS 244 Mo contre 38 Mo sans réduction, `memory_get_peak_usage(true)` 21 Mo → le constat tient ; la mort du processus sous 384m dans l'image reste non mesurée. Classement : V7, refuser à l'envoi des images acceptées aujourd'hui, et choisir un plafond propre au logo, sont des choix que TCK-677 a laissés ouverts.
 
 ### Chaque photo d'état des lieux est réduite par GD à chaque téléchargement du PDF, sans plafond du nombre de photos : 0,46 s par photo, 60 s dépassées vers 130 photos
 - Réf : P143.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : trois options (conversion, PDF rangé, plafond de photos), aucune écrite
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/InventoryController.php:254-269,283-294`, `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:38`, `takussan-api/app/Services/Media/PdfImageEmbedder.php:36-45,80-104`, `takussan-api/app/Models/Inventory.php:69-75`, `takussan-api/docker/php.ini:11`
 - Constat :
@@ -13540,6 +13542,7 @@ générique est P112.01.*
   - Rien n'est gardé d'un téléchargement à l'autre : la même dépense revient à chaque clic sur « Télécharger », et sur un état signé dont les photos ne changent plus (lu, `assertDraft` sur `uploadRoomPhotos`).
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : une conversion `preview` en file sur `room_photos` (et `logo`), que `PdfImageEmbedder` prend déjà en premier ; ou ranger le PDF signé une fois (P140.02) ; plafonner le nombre de photos par pièce et par état des lieux. Garde : un test qui compte les appels à `reducedOriginal` (ou au pilote d'image) pendant un téléchargement.
+- Mesure (2026-10-22, c9060d7f9, mesureur) : relu `InventoryController::groupRoomPhotos()` (`dataUri()` par photo à chaque `downloadPdf`), `UploadRoomPhotosInventoryRequest` (`photos` sans `max:`), `Inventory::registerMediaCollections()` (aucune conversion, donc `reducedOriginal` à chaque fois) ; test temporaire (retiré), charge 2,1 sur 8 cœurs : 5 photos 4 000 × 3 000 sur un état signé, deux téléchargements successifs → 200 en 2,80 s puis 2,87 s, contre 0,7 s sans photo, soit ≈ 0,4 s par photo refaites au second clic → le constat tient. Classement : V7, la `Piste` propose trois voies (conversion en file, PDF signé rangé — lié à P140.02 —, plafond du nombre de photos) dont le choix, et un plafond visible, reviennent au porteur.
 
 ## Angle 144 — Écritures du navigateur qu'une réponse perdue invite à rejouer
 
