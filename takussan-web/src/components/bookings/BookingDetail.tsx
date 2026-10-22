@@ -67,7 +67,9 @@ const PAYMENT_TYPE_LABEL_KEY: Record<string, string> = {
 const PAYMENT_STATUS_LABEL_KEY: Record<string, string> = {
   pending: 'paymentStatus.pending',
   paid: 'paymentStatus.paid',
+  late: 'paymentStatus.late',
   partially_paid: 'paymentStatus.partially_paid',
+  failed: 'paymentStatus.failed',
   refunded: 'paymentStatus.refunded',
   cancelled: 'paymentStatus.cancelled',
 };

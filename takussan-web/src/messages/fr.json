@@ -3841,7 +3841,10 @@
         "late": "En retard",
         "pending": "À venir",
         "other": "Autre",
-        "cancelled": "Annulée"
+        "cancelled": "Annulée",
+        "partially_paid": "Partiellement payé",
+        "failed": "Échec",
+        "refunded": "Remboursé"
       },
       "listLabel": "Échéances du bail",
       "dueOn": "Échéance : {date}",
@@ -6720,6 +6723,8 @@
       "insurance": "Assurance",
       "inventory_report": "État des lieux",
       "photo": "Photo",
+      "rib": "RIB",
+      "ninea": "NINEA",
       "other": "Autre"
     },
     "entities": {
@@ -6969,7 +6974,9 @@
       "paid": "Payé",
       "partially_paid": "Partiel",
       "refunded": "Remboursé",
-      "cancelled": "Annulé"
+      "cancelled": "Annulé",
+      "late": "En retard",
+      "failed": "Échec"
     },
     "paymentMethod": {
       "cash": "Espèces",

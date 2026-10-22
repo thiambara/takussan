@@ -33,7 +33,9 @@ export const BOOKING_STATUS_TONE: Record<BookingStatus, StatusTone> = {
 export const BOOKING_PAYMENT_STATUS_TONE: Record<string, StatusTone> = {
   pending: 'attention',
   paid: 'success',
+  late: 'danger',
   partially_paid: 'attention',
+  failed: 'danger',
   refunded: 'info',
   cancelled: 'neutral',
 };

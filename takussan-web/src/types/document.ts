@@ -13,6 +13,9 @@ export type DocumentType =
   | 'insurance'
   | 'inventory_report'
   | 'photo'
+  // TCK-1272 (P134.02) — pièces du bailleur, posées par son accueil (`DocumentType::Rib`, `Ninea`).
+  | 'rib'
+  | 'ninea'
   | 'other';
 
 /**

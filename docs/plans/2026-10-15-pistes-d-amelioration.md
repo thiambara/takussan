@@ -10242,7 +10242,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Sur la grille de recherche à cinq ou six colonnes, la fin de la première rangée reste masquée jusqu'à l'hydratation : le budget `priority` est fixé à 4
 - Réf : P102.02
-- Statut : validé — (c) : séparer les deux effets de `priority` dans `PropertyCard` : un budget de révélation de 6 cartes, qui ne fait que sauter l'état `opacity-0`, et le budget d'images préchargées laissé à 4 ; garde : `PropertiesDiscoveryPage.grille.test.tsx` étendu aux six cartes révélées et aux quatre images prioritaires (porteur, 2026-10-22)
+- Statut : fait · TCK-1276
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:51`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:590`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:630`
 - Constat :
@@ -10253,6 +10253,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 - Piste : porter `CARTES_PRIORITAIRES` au plus grand nombre de colonnes (6), ou sortir la question du JS (reste de P69.01). Garde : étendre `PropertiesDiscoveryPage.grille.test.tsx`, « sans emplacement, les quatre premiers biens restent prioritaires », au compte de colonnes du palier le plus large.
 - Mesure (2026-10-21, 0acc2203f, mesureur) : relu `PropertiesDiscoveryPage.tsx` → `CARTES_PRIORITAIRES = 4` (l. 51), grille `md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[112.5rem]:grid-cols-6` (l. 590), budget consommé par les emplacements puis par les biens (`emplacementsRendus + i < CARTES_PRIORITAIRES`, l. 630, TCK-1036) ; `PropertiesDiscoveryPage.grille.test.tsx:178` garde « les quatre premiers biens restent prioritaires » ; le mécanisme `opacity-0` est celui mesuré en P102.01. La 5ᵉ carte (≥ 1 536 px) puis la 6ᵉ (≥ 1 800 px) de la première rangée sortent donc masquées : lu, pas rendu ; leur position au-dessus du pli n'est pas mesurée. Classement : V7, la `Piste` offre deux options (budget porté à 6, ou apparition en CSS seul, reste de P69.01), et un budget de 6 précharge six images à toutes les largeurs, y compris le téléphone à une colonne où une seule est visible : ce compromis de chargement revient au porteur.
 - Mesure (2026-10-21, 8d4869e9d, delegue) : relu `PropertiesDiscoveryPage.tsx:51,590,630` (inchangé : `CARTES_PRIORITAIRES = 4`, grille jusqu'à six colonnes) et `PropertyCard.tsx:159,211` (un seul `priority` commande à la fois la racine visible au rendu serveur, `useReveal(ref) || priority`, et le `priority` de l'image Next) ; P69.01 (`fait · TCK-1036`) ne garde l'apparition en CSS seul qu'en reste écrit par l'implémenteur, sans décision du porteur ; aucune décision du porteur sur ce budget dans le fichier, les tickets ou les ADR → les deux options de la `Piste` ont chacune un coût que rien d'écrit ne tranche. Recommandation : ni l'une ni l'autre telle quelle, mais séparer les deux effets de `priority` dans `PropertyCard` (un budget de révélation de 6, qui ne fait que sauter l'état `opacity-0`, et le budget d'image préchargée laissé à 4), parce que la 5ᵉ et la 6ᵉ carte cessent d'être masquées au rendu serveur sans précharger deux images de plus sur le téléphone à une colonne ; à défaut, l'apparition en CSS seul (reste de P69.01), qui règle toutes les grilles d'un coup mais touche l'animation de toutes les cartes ; ce qui manque pour trancher : le choix du porteur entre une troisième option que la `Piste` n'écrit pas et le correctif de fond, et une mesure au navigateur de la première rangée au-dessus du pli à 1 536 et 1 800 px.
+- Mesure (2026-10-22, 4e69ef6bd, implementeur) : tests étendus de `PropertiesDiscoveryPage.grille.test.tsx` et neufs de `PropertyCard.revelee.tck-1276.test.tsx` sur l'arbre d'origine → 3 rouges : 5ᵉ et 6ᵉ cellules non révélées, et une carte ne sort visible que par `priority` → prop `revelee` qui saute le seul état `opacity-0`, budget de révélation de 6 et budget d'images laissé à 4, consommés depuis la tête de grille ; ablation (trois fichiers sources rendus à `HEAD`) → les 3 rouges, correctif remis → 15/15 verts.
 
 ### Les cartes de la page d'un bien retiré héritent des `sizes` de la grille de recherche, qui ne décrivent pas leur grille
 - Réf : P102.03
@@ -12876,7 +12877,7 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
 
 ### La bibliothèque de documents range les pièces RIB et NINEA en tête, sous un titre de groupe sans libellé
 - Réf : P134.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1272 — reste : proposer `rib` et `ninea` au téléversement de la bibliothèque, geste neuf que la Piste ne tranche pas
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/documents/DocumentsLibrary.tsx:106-117,201-206`, `takussan-web/src/components/documents/constants.ts:13-23`, `takussan-web/src/types/document.ts:7-16`, `takussan-api/app/Models/Enums/DocumentType.php:15-17`, `takussan-api/app/Http/Requests/Api/Me/UploadKycOwnerProfileRequest.php:49-50`, `takussan-web/src/i18n/erreurs.ts:35-40`
 - Constat :
@@ -12888,6 +12889,7 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
   - Établi comment : lu ; l'écran n'a pas été rendu avec une pièce `rib`.
 - Piste : ajouter `rib` et `ninea` à l'union, à `DOCUMENT_TYPE_ORDER` (près de `id_card`) et aux libellés `documents.types` des trois langues (`wo` en français tel quel) ; ranger un type inconnu en dernier (`indexOf` négatif ramené à `Infinity`). Garde : un test de composant avec un document `rib` (titre lu, groupe après « Contrat de bail »), et un test qui compare `DOCUMENT_TYPE_ORDER` aux cas de l'enum de l'API, comme les autres tests de parité d'enum du front.
 - Mesure (2026-10-22, 294f70acc, mesureur) : relu `DocumentsLibrary.tsx:106-118` (tri des groupes par `DOCUMENT_TYPE_ORDER.indexOf`) et l. 205 (`tTypes(category)`), `constants.ts:13-23` et `types/document.ts:7-16` (ni `rib` ni `ninea`), `DocumentType.php:16-17` (les deux cas), `UploadKycOwnerProfileRequest.php:49-50` et `Kyc/ProfilePieces.php:48` (`uploaded_by` = le bailleur), `DocumentController.php:44` (`where('uploaded_by', …)`, les pièces de profil exclues sous impersonation seulement) ; `node -e` sur `documents.types` de `fr`, `en`, `wo` → neuf clés chacun, sans `rib` ni `ninea` ; `erreurs.ts:35-40` lève sur `MISSING_MESSAGE` hors production → le constat tient ; l'écran n'a pas été rendu, l'effet d'affichage se déduit de `erreurs.ts` lu. Les libellés existent déjà dans les trois langues sous d'autres clés (`fr.json:4800-4801` « RIB », « NINEA » ; `en.json:4800-4801` « Bank details (RIB) », « NINEA »). Classement : A4 et A1, clé manquante pour des valeurs que l'enum de l'API émet déjà, libellés repris de l'existant sans texte neuf.
+- Mesure (2026-10-22, 4e69ef6bd, implementeur) : trois tests neufs de `DocumentsLibrary.test.tsx` sur l'arbre d'origine → 3 rouges : titre `documents.types.rib` (`MISSING_MESSAGE`) et groupe RIB rangé avant « Contrat de bail », type inconnu en tête, `DOCUMENT_TYPE_ORDER` à 9 cas contre 11 dans `DocumentType.php` → union et ordre à onze cas, rang d'un inconnu ramené en dernier, libellés repris de `owners.onboarding.kyc.labels` (`wo` = texte français), téléversement gardé à ses neuf catégories ; ablation (quatre fichiers sources rendus à `HEAD`, traductions gardées) → 3 rouges, correctif remis → 7/7 verts.
 
 ### Des tris déclarés sur une colonne d'enum rendent l'ordre alphabétique de la valeur
 - Réf : P134.03
@@ -13034,7 +13036,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### Les capacités du profil actif, lues par le layout serveur pour un administrateur d'agence, sont relues par le navigateur avant que les gestes de l'écran s'affichent
 - Réf : P136.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1278
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/layout.tsx:72`, `takussan-web/src/lib/access/pages-admin-server.ts:41-56`, `takussan-web/src/lib/access/pages-admin-server.ts:64-98`, `takussan-web/src/hooks/useCan.ts:36`, `takussan-web/src/hooks/useCan.ts:46-60`, `takussan-web/src/components/payments/PaymentsTabs.tsx:53-59`, `takussan-web/src/components/payments/PaymentsTabs.tsx:89-99`, `takussan-web/src/components/admin/TeamConsole.tsx:112`, `takussan-web/src/components/admin/TeamConsole.tsx:191-210`
 - Constat :
@@ -13045,6 +13047,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Pour un agent ou un bailleur, le layout ne lit pas les capacités (lu, `pages-admin-server.ts:71`) : la lecture du navigateur est alors la seule.
 - Piste : passer au client les capacités que le rendu serveur a déjà lues (amorcer la clé `['me','capabilities','active']` par `initialData` ou une hydratation du cache, depuis la même lecture `cache()`ée), pour que les gestes s'affichent au premier rendu. Garde : un test vitest de `PaymentsTabs` sous un cache amorcé, qui exige les boutons sans squelette et aucun appel à `/api/me/capabilities`.
 - Mesure (2026-10-22, 20d495dfd, mesureur) : relu `layout.tsx:72` (`accesAdmin(user)` à chaque rendu), `pages-admin-server.ts:41-98` (`capacitesDuRendu` `cache()`ée, ne rend que `capabilities` et jette `agency_id` ; besoins `TOUT` ; aucune lecture pour un non-admin ni un super-admin), `useCan.ts:36,46-60` (clé `['me','capabilities', agencyId ?? 'active']`, `useApiQuery` direct sans `initialData`) ; aucun commit ni ticket n'amorce ce cache (`grep -rln me/capabilities docs/backlog/tickets` → TCK-278, TCK-279, TCK-649, sans hydratation). Le constat tient ; « deux formes de clé montées ensemble » reste non vérifié et n'entre pas dans le correctif. Classement : A2, amorcer la seule clé `['me','capabilities','active']` depuis la lecture serveur déjà faite (avec son `agency_id`), pour un `agency_admin`, rend les mêmes capacités plus tôt, sans choix de produit ; l'API reste seule juge de l'autorisation, aucun critère V n'est touché.
+- Mesure (2026-10-22, 4e69ef6bd, implementeur) : test neuf `PaymentsTabs.capacites-amorcees.tck-1278.test.tsx` (vrais `useCan` et `useApiQuery`, `apiRequest` espionné) et cas neufs du layout et de `pages-admin-server` → rouges sur l'arbre d'origine (aucune amorce : squelette et un `GET /api/me/capabilities`) → lecture du rendu gardée entière avec son heure, `capacitesAmorcees` pour un `agency_admin`, `HydrationBoundary` sur la seule clé `['me','capabilities','active']` autour de la coque ; ablation (amorce inerte, puis layout et lecture serveur à `HEAD`) → rouges, correctif remis → 22/22 verts.
 
 ### Chaque assistant de bienvenue relit `/api/me/welcome-seen` par son propre `fetch`, et celui de l'agence relit en entier une agence que le layout vient de lire
 - Réf : P136.03
@@ -13834,7 +13837,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Un paiement de réservation en échec s'affiche `failed`, en brut et sur un ton neutre
 - Réf : P146.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1266
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/types/booking.ts:16`, `takussan-web/src/components/bookings/BookingDetail.tsx:67-73,355-361`, `takussan-web/src/components/bookings/booking-status.ts:33-39`, `takussan-web/src/lib/queries/bookings.ts:97`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:792-794`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:49`
 - Constat :
@@ -13844,10 +13847,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu. Le rendu à l'écran n'a pas été vu.
 - Piste : aligner `BookingPaymentStatus`, les deux tables et le dictionnaire sur `PaymentStatus` (`failed` en `danger`, avec ses trois traductions, `wo` = texte français) ; retirer `cancelled` du type de charge. Garde : un test qui rend `BookingDetail` avec un paiement `failed` et attend le libellé traduit.
 - Mesure (2026-10-22, 55ac201ff, mesureur) : relu `types/booking.ts:16` (`'pending' | 'paid' | 'refunded' | 'cancelled'`), `PAYMENT_STATUS_LABEL_KEY` (`BookingDetail.tsx:67-73`) et `BOOKING_PAYMENT_STATUS_TONE` (`booking-status.ts:33-39`) sans `failed` ni `late`, le badge `BookingDetail.tsx:355-361` qui retombe sur `p.status` brut et le ton `neutral` ; `PaymentGatewayService.php:792-794` écrit `Failed` sur tout payable hors `LeasePayment` (la branche loyer, l. 770, ne l'écrit pas) ; `StoreBookingPaymentRequest.php:49` exclut `cancelled` que `CreateBookingPaymentPayload.status` (`bookings.ts:97`) propose ; `node -e` sur `fr.json` → `bookings.paymentStatus` = `pending paid partially_paid refunded cancelled`, mais `payments.status.failed` = « Échec » existe, et `components/payments/constants.ts:65` pose déjà `failed: 'danger'` → le défaut tient tel qu'écrit ; rien d'exécuté. Classement : A4, la clé `bookings.paymentStatus.failed` manque et reprend le libellé existant « Échec » de `payments.status.failed` avec le ton `danger` déjà employé, sans texte neuf ; aligner les types sur `PaymentStatus` relève de A1.
+- Mesure (2026-10-22, 4e69ef6bd, implementeur) : test neuf `BookingDetail.paiement-en-echec.tck-1266.test.tsx` sur l'arbre d'origine → 3 rouges : « Échec » et « En retard » introuvables (badge brut `failed`/`late`), dictionnaire sans `failed` ni `late` → type aligné sur les sept cas de `PaymentStatus`, `failed` et `late` en `danger` avec les libellés de `payments.status` (`wo` = texte français), `cancelled` retiré du type de charge ; ablation (composant, tons et type de charge rendus à `HEAD`) → 2 rouges vitest et `tsc` en erreur (`Unused '@ts-expect-error'`), correctif remis → 4/4 verts, `tsc` propre.
 
 ### L'échéancier d'un bail affiche « Autre » pour une échéance remboursée ou en échec
 - Réf : P146.02
-- Statut : validé (délégué) — faire suivre à `displayStatus` les statuts `refunded`, `failed` et `partially_paid` de `PaymentStatus`, avec les libellés existants de `payments.status` (`Remboursé`, `Échec`, `Partiellement payé`) recopiés sous `lease.schedule.status` (`wo` = texte français) ; une ligne `deposit_refund` ne passe jamais `late`, elle garde son statut ; garde : un test de `LeaseSchedule` par statut de l'enum et un test d'une restitution `pending` échue qui n'affiche pas « En retard »
+- Statut : fait · TCK-1264
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseSchedule.tsx:44-56,226-230`, `takussan-web/src/messages/fr.json` (`lease.schedule.status`), `takussan-api/app/Services/Payments/PaymentGatewayService.php:803-806,1388-1390`, `takussan-api/app/Services/Model/PayoutService.php:777-778,798-810`
 - Constat :
@@ -13858,10 +13862,11 @@ qui a été relevé. Rien n'a été exécuté.*
 - Piste : faire suivre à `displayStatus` les statuts de `PaymentStatus` (`refunded`, `failed`, `partially_paid`) avec leurs libellés. Une restitution ne passe jamais `late` côté client. Garde : un test de `LeaseSchedule` par statut de l'enum.
 - Mesure (2026-10-22, 55ac201ff, mesureur) : relu `displayStatus` (`LeaseSchedule.tsx:44-56`, inchangé : `cancelled`, `paid`, `late`, `pending`, sinon `other`) ; `node -e` sur `fr.json` → `lease.schedule.status` = `paid late pending other cancelled` ; `PaymentGatewayService.php:796-806` (branche `REFUNDED`, sans distinction du loyer) et `:1388-1390` écrivent `Refunded` ; `PayoutService.php:777-778` écrit `Failed` sur la ligne `deposit_refund` (`depositRefundLine`, `:798-810`) ; le « à vérifier » tient à la lecture : `LeasePaymentController::index` (l. 30-40) ne filtre pas `payment_type`, et `fetchLeasePayments` (`queries/leases.ts:228-238`) ne passe qu'un `filter[lease_id]` → une restitution `pending` échue passe `late` dans `displayStatus` ; rien d'exécuté, aucun écran rendu. Classement : V7, les libellés `refunded`/`failed` relèveraient seuls de A4, mais la règle « une restitution ne passe jamais `late` » choisit ce que le locataire voit d'une somme que l'agence lui doit.
 - Mesure (2026-10-22, 3ecddb6ad, delegue) : relu `LeaseSchedule.tsx:44-56` (`displayStatus` inchangé) ; `node -e` sur `fr.json` → `payments.status` porte déjà `refunded` « Remboursé », `failed` « Échec », `partially_paid` « Partiellement payé », `lease.schedule.status` ne les a pas ; `docs/features.md:592` → « une restitution de caution n'est jamais présentée comme une échéance à payer (TCK-595) », et TCK-595 (passe de correction) a déjà retiré les `deposit_refund` des impayés du client pour ce motif. Délégation : V7, la règle « une restitution ne passe jamais `late` » est déjà écrite dans la spec (features.md:592) et appliquée par TCK-595 à l'accueil du client, les libellés existent, aucun texte neuf ; affichage seul, sans calcul ni écriture de montant, réversible en un commit.
+- Mesure (2026-10-22, 4e69ef6bd, implementeur) : test neuf de `LeaseSchedule.test.tsx` (un cas par statut de `PaymentStatus`, plus une restitution `deposit_refund` `pending` échue) sur l'arbre d'origine → 4 rouges : `partially_paid`, `failed` et `refunded` rendus « Autre », la restitution rendue « En retard » → `displayStatus` suit les sept cas et ne dérive plus `late` sur une restitution, libellés `lease.schedule.status` repris de `payments.status` (`wo` = texte français) ; ablation (composant rendu à `HEAD`) → les 4 mêmes rouges, correctif remis → 29/29 verts.
 
 ### Les filtres de statut des biens ne proposent ni « en revue », ni « refusé », ni « publié », trois statuts que l'API écrit
 - Réf : P146.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1268
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/enums/property.ts:33-42`, `takussan-web/src/components/property-form/options.ts:93`, `takussan-web/src/components/property-dashboard/PropertyListFilters.tsx:616-624,771`, `takussan-web/src/components/admin/super/SuperAdminPropertiesFilters.tsx:118-123`, `takussan-web/src/components/property-dashboard/PropertyStatusBadge.tsx:49-51,67-79`, `takussan-api/app/Models/Enums/PropertyStatus.php`
 - Constat :
@@ -13872,6 +13877,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu et `grep`.
 - Piste : une liste de filtre distincte de la liste des gestes, qui reprend les onze cas de l'enum ; corriger le docblock du badge. Garde : un test qui confronte les options du filtre aux cas servis par l'API.
 - Mesure (2026-10-22, 55ac201ff, mesureur) : relu `propertyStatusValues` (`lib/enums/property.ts:33-42`, 8 cas) contre l'enum (`PropertyStatus.php:7-17`, 11 cas) ; `propertyStatusOptions` (`options.ts:93`) en dérive, lu par `PropertyListFilters.tsx:623` et `SuperAdminPropertiesFilters.tsx:123` ; la puce l. 771 passe par `enumLabel` sur `propertyStatusValues` et rendrait donc `pending_review` brut ; les gestes lisent la même liste (`PropertyRowActions.tsx:171`, `PropertyHeaderActions.tsx:169`) ; le docblock de `PropertyStatusBadge.tsx:49-51` dit encore « pas des valeurs » de l'enum ; `node -e` sur `fr.json` → `property.status` nomme déjà `published`, `pending_review` et `rejected` ; l'API écrit `published` par `PUT …/status` (`UpdateStatusPropertyRequest.php:40`) → tout tient ; rien d'exécuté. Classement : A1, l'enum de l'API fixe les onze valeurs filtrables et les libellés existent ; le docblock relève de A6.
+- Mesure (2026-10-22, 4e69ef6bd, implementeur) : test neuf `property-status-filtre.tck-1268.test.tsx` (lit `PropertyStatus.php`) sur l'arbre d'origine → 3 rouges, dont la puce d'un `?status=pending_review` rendue brute → liste de filtre `propertyStatusFilterValues` à onze cas lue par les deux filtres et la puce, gestes inchangés à huit, docblock du badge corrigé ; ablation (cinq fichiers sources rendus à `HEAD`) → 3 rouges, correctif remis → 4/4 verts, `SuperAdminPropertiesFilters.test.tsx` et `PropertyListFilters.mobile.tck-644.test.tsx` verts.
 
 ### Aucune garde ne confronte les statuts du front aux enums de l'API, et dix tables de tons sont typées `Record<string, …>`
 - Réf : P146.04
@@ -13888,7 +13894,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Petites améliorations : statuts rendus bruts ou déclarés deux fois
 - Réf : P146.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1270 — reste : ajouter `blocked` à `STATUS_TONES` d'`AdminUsersTable.tsx`, avec P115.02 (renommage de la clé `admin.users.status.banned` en `blocked`)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/users/AdminUsersTable.tsx:43-46,226-227`, `takussan-web/src/components/admin/super/integrations.tsx:231-234`, `takussan-web/src/types/agency-upgrade.ts:8`, `takussan-web/src/lib/queries/super-admin.ts:1273`
 - Constat (lu) :
@@ -13897,6 +13903,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - `AgencyUpgradeRequestStatus` est déclaré deux fois, à l'identique (`types/agency-upgrade.ts:8` et `lib/queries/super-admin.ts:1273`).
 - Piste : ajouter `blocked` à la table du tableau, avec P115.02 ; traduire le statut du journal par le dictionnaire existant ; garder une seule déclaration du type de demande de passage.
 - Mesure (2026-10-22, b6bd2210f, mesureur) : relu `AdminUsersTable.tsx:43-47` (`STATUS_TONES` = `active`, `inactive`, `banned`) et `:226-227` (libellé brut hors table), `UserStatus.php` de l'API (`active`, `inactive`, `blocked`, `deleted`), `integrations.tsx:231-234` (`<Badge>{log.status}</Badge>`), `IntegrationWebhookLog.php:20-26` (quatre constantes) ; `node -e` sur `fr`/`en`/`wo.json` → `superAdmin.payments.journal.statuses` a `received processed rejected failed` dans les trois langues, déjà rendu par `payments.tsx:294` ; `types/agency-upgrade.ts:8` et `lib/queries/super-admin.ts:1273` déclarent le même `AgencyUpgradeRequestStatus` à quatre cas → tient en entier ; rien d'exécuté. Classement : A1, le contrat est l'enum de l'API et le dictionnaire existant ; le correctif passe `banned` à `blocked` dans `STATUS_TONES` avec P115.02 (même clé « Bloqué »), rend le statut du journal par `superAdmin.payments.journal.statuses` (repli brut sur un cas inconnu), et fait importer à `super-admin.ts` le type de `types/agency-upgrade.ts` (A3), sans texte neuf.
+- Mesure (2026-10-22, 4e69ef6bd, implementeur) : test neuf `WebhookTrailTable.statuts.tck-1270.test.tsx` sur l'arbre d'origine → 2 rouges : badges du journal bruts (`received`, `processed`…), deux déclarations de `AgencyUpgradeRequestStatus` → statut traduit par `superAdmin.payments.journal.statuses` (repli brut sur un inconnu), type importé de `types/agency-upgrade.ts` ; ablation → 2 rouges, correctif remis → 2/2 verts. Le volet `blocked` d'`AdminUsersTable` est laissé à P115.02 (angle 115, autre instance), dont il partage la clé de libellé.
 
 ## Angle 147 — Statuts posés par un `Rule::enum` entier dans les requêtes d'écriture
 
@@ -14063,7 +14070,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### `/app/agency/roles` et `/app/agency/kyc` s'ouvrent à l'admin sans la capacité que l'API exige pour leur lecture : la page entière est en erreur
 - Réf : P148.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1274
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/access/pages-admin.ts:65,72,76-80`, `takussan-web/src/components/admin/roles/AgencyRolesConsole.tsx:90-93`, `takussan-web/src/components/kyc/AgencyKycClient.tsx:24-31`, `takussan-api/app/Policies/AgencyRolePolicy.php:29-39`, `takussan-api/app/Http/Controllers/Api/Agency/KycController.php:64-67`
 - Constat :
@@ -14073,6 +14080,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - L'admin au rôle système porte toutes les capacités (lu, `SystemRoleCapabilities::agencyAdmin`) : le défaut ne touche que les rôles personnalisés de base `agency_admin`, que la règle du dernier admin n'interdit pas (lu, `AgencyRoleService::assertNotLastAdminLosingControl`).
 - Piste : poser `capacite: 'team.assign_role'` sur `/app/agency/roles` et `capacite: 'agency.update_kyc'` sur `/app/agency/kyc` dans `PAGES_ADMIN`, comme `billing` ; le test de la table (`pages-admin`) avec un contexte d'admin sans capacité empêcherait le retour. Les pages restantes (`audit`, `moderation`, `finances`, `integrations`, `/app/agency`) n'ont pas été confrontées une à une à la garde de leur lecture (à vérifier).
 - Mesure (2026-10-22, 55ac201ff, mesureur) : relu `PAGES_ADMIN` (`pages-admin.ts:65` `roles` et `:72` `kyc` sans `capacite`, `:76-80` `billing` avec), les deux états d'erreur (`AgencyRolesConsole.tsx:90-96`, `AgencyKycClient.tsx:24-31`) et les pages qui ne se gardent que par `garderPageAdmin` ; même test temporaire (retiré) → admin au rôle personnalisé sans capacité : `GET /api/agencies/{id}/roles` → 403, `GET /api/agencies/{id}/kyc` → 403 → le constat tient. Classement : A1, la lecture que l'API exige (`AgencyRolePolicy::viewAny` → `team.assign_role`, `KycController` → `updateKyc` → `agency.update_kyc`) fixe l'attendu, et `billing` montre déjà la forme : poser `capacite` sur les deux lignes de `PAGES_ADMIN`.
+- Mesure (2026-10-22, 4e69ef6bd, implementeur) : test neuf de `pages-admin.test.ts` (admin standard aux seules capacités `agency.update_billing`) sur l'arbre d'origine → rouge : `/app/agency/roles` et `/app/agency/kyc` accessibles → `capacite` posée sur les deux lignes de `PAGES_ADMIN`, comme `billing` ; ablation (`pages-admin.ts` rendu à `HEAD`) → 2 rouges, correctif remis → 21/21 verts ; quatre fixtures d'admin portent désormais les capacités du rôle système. Pages restantes de la section non confrontées (hors Piste).
 
 ## Angle 149 — Champs vidés d'un `PATCH` partiel lus comme « garder »
 

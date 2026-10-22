@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select';
 import {
   PROPERTY_ENUM_NAMESPACES,
-  propertyStatusOptions,
+  propertyStatusFilterOptions,
   propertyTypeOptions,
   propertyVisibilityOptions,
 } from '@/components/property-form/options';
@@ -120,7 +120,7 @@ export function SuperAdminPropertiesFilters({ total, busy }: SuperAdminPropertie
         label={t('status')}
         value={currentStatus || ALL}
         onChange={(v) => updateParam('filter[status]', v === ALL ? null : v)}
-        options={[{ value: ALL, label: t('allStatuses') }, ...propertyStatusOptions(tStatus)]}
+        options={[{ value: ALL, label: t('allStatuses') }, ...propertyStatusFilterOptions(tStatus)]}
       />
       <FilterSelect
         label={t('type')}

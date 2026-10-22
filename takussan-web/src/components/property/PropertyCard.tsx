@@ -66,6 +66,11 @@ export interface PropertyCardProps {
   readonly index?: number;
   /** Next/Image `priority` prop — set true on above-the-fold cards only. */
   readonly priority?: boolean;
+  /**
+   * TCK-1276 (P102.02) — la carte sort du rendu serveur visible, sans l'état masqué de
+   * l'apparition, mais son image n'est pas préchargée (c'est `priority` qui le décide).
+   */
+  readonly revelee?: boolean;
   readonly className?: string;
   /** Hide the favorite button (e.g. when the card is already inside a favourites list). */
   readonly hideFavorite?: boolean;
@@ -133,6 +138,7 @@ export function PropertyCard({
   property,
   index = 0,
   priority = false,
+  revelee = false,
   className,
   hideFavorite = false,
   hideCompare = false,
@@ -155,8 +161,9 @@ export function PropertyCard({
   const tEtats = useTranslations(PROPERTY_ENUM_NAMESPACES.condition);
   const ref = useRef<HTMLDivElement>(null);
   // Priority cards (above-the-fold) skip the initial hidden state so the
-  // browser can count their image as the LCP candidate immediately.
-  const visible = useReveal(ref) || priority;
+  // browser can count their image as the LCP candidate immediately. TCK-1276 — `revelee` skips it
+  // too, without preloading the image.
+  const visible = useReveal(ref) || priority || revelee;
 
   const location = [property.location.quarter, property.location.city]
     .filter(Boolean)

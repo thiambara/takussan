@@ -3870,7 +3870,10 @@
         "late": "Overdue",
         "pending": "Upcoming",
         "other": "Other",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "partially_paid": "Partially paid",
+        "failed": "Failed",
+        "refunded": "Refunded"
       },
       "listLabel": "Lease instalments",
       "dueOn": "Due: {date}",
@@ -6720,6 +6723,8 @@
       "insurance": "Insurance",
       "inventory_report": "Inventory report",
       "photo": "Photo",
+      "rib": "Bank details (RIB)",
+      "ninea": "NINEA",
       "other": "Other"
     },
     "entities": {
@@ -6969,7 +6974,9 @@
       "paid": "Paid",
       "partially_paid": "Partial",
       "refunded": "Refunded",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "late": "Late",
+      "failed": "Failed"
     },
     "paymentMethod": {
       "cash": "Cash",

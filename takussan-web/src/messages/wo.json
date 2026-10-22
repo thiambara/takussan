@@ -2113,7 +2113,10 @@
         "late": "Yeex na",
         "pending": "Di ñëw",
         "other": "Weneen",
-        "cancelled": "Neenal nañu ko"
+        "cancelled": "Neenal nañu ko",
+        "partially_paid": "Partiellement payé",
+        "failed": "Échec",
+        "refunded": "Remboursé"
       },
       "listLabel": "Bési fey yu kontaraa bi",
       "dueOn": "Bisu pey : {date}",
@@ -6072,6 +6075,8 @@
       "insurance": "Asiraas",
       "inventory_report": "Limu kër",
       "photo": "Nataal",
+      "rib": "RIB",
+      "ninea": "NINEA",
       "other": "Beneen"
     },
     "entities": {
@@ -6321,7 +6326,9 @@
       "paid": "Fey nañu ko",
       "partially_paid": "Ci wàll",
       "refunded": "Delloo nañu ko",
-      "cancelled": "Ñu ko neenal"
+      "cancelled": "Ñu ko neenal",
+      "late": "En retard",
+      "failed": "Échec"
     },
     "paymentMethod": {
       "cash": "Xaalis ci loxo",

@@ -66,7 +66,7 @@ interface Profil {
 
 const profil = (roles: UserRole[], kind: 'standard' | 'individual' | null, agencyIsStandard?: boolean): Profil => ({
   roles,
-  ctx: { roles, agence: kind ? { kind } : null, capacites: ['agency.update_billing'] },
+  ctx: { roles, agence: kind ? { kind } : null, capacites: ['agency.update_billing', 'agency.update_kyc', 'team.assign_role'] },
   agencyIsStandard,
 });
 

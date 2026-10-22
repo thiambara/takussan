@@ -13,7 +13,16 @@ export type BookingStatus =
 
 export type BookingPaymentType = 'deposit' | 'advance' | 'fee';
 
-export type BookingPaymentStatus = 'pending' | 'paid' | 'refunded' | 'cancelled';
+// TCK-1266 (P146.01) — les cas de `PaymentStatus` côté API, à l'identique : l'échec d'un paiement
+// en ligne écrit `failed` sur un `BookingPayment`.
+export type BookingPaymentStatus =
+  | 'pending'
+  | 'paid'
+  | 'late'
+  | 'partially_paid'
+  | 'failed'
+  | 'refunded'
+  | 'cancelled';
 
 export type BookingPaymentMethod = 'cash' | 'bank_transfer' | 'mobile_money' | 'card';
 
