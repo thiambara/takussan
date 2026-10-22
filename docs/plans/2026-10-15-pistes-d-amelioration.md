@@ -14177,7 +14177,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Vider sa présentation dans le profil n'efface rien : l'action serveur retire `bio` du corps
 - Réf : P149.03
-- Statut : validé — porteur (2026-10-22) : relayer `bio` dès que le formulaire le porte (`formData.has('bio')`), chaîne vide comprise
+- Statut : fait · TCK-1351
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/actions/auth.ts:52-54`, `takussan-web/src/lib/auth.ts:114`, `takussan-web/src/components/profile/ProfileContactSection.tsx:99,112`, `takussan-web/src/components/profile/ProfileHeader.tsx:108`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:170`
 - Constat :
@@ -14188,6 +14188,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lecture des quatre fichiers, puis le test temporaire.
 - Piste : relayer `bio` dès que le formulaire le porte (`formData.has('bio')`), comme `phone` quatre lignes plus bas, chaîne vide comprise. Test de `updateProfileAction` : `bio=''` → `updateProfile` reçoit `bio: ''`. Ablation sur la ligne 53.
 - Mesure (2026-10-22, 1b5063805, mesureur) : relu `actions/auth.ts:52-54` (`(formData.get('bio') as string) || undefined`) et `lib/auth.ts:114` (`bio` ajouté au FormData seulement s'il n'est pas `undefined`), `AuthController.php:170` (`$request->only([... 'bio'])`), `UpdateProfileRequest.php:36` (`bio` `nullable`) ; test Vitest temporaire (retiré, `apiRequest` simulé comme dans `auth.preuve-numero.test.ts`) : FormData `bio=''` → corps envoyé `_method,first_name,last_name,phone`, sans `bio` → le constat tient. Classement : V3, le correctif (relayer `bio` dès que `formData.has('bio')`) est mécanique, mais il change ce qui s'efface d'une donnée personnelle ; dans le doute, au porteur.
+- Mesure (2026-10-22, 1800d4d36, implementeur) : test neuf `auth.bio.tck-1351` (chemin réel jusqu'à `apiRequest`) rouge avant correctif : FormData `bio=''` → corps sans `bio` → `updateProfileAction` relaie `bio` dès que le formulaire la porte, chaîne vide comprise ; 3 verts, ablation (`|| undefined` remis) → 1 rouge, remis → verts.
 
 ### Vider la surface d'un bien en édition est refusé : « la surface doit être positive »
 - Réf : P149.04
