@@ -727,7 +727,10 @@ export async function apiRequest<T>(
     ...headers,
   };
 
-  if (!formData) {
+  // TCK-1223 (P103.02) — seulement quand un corps part : `application/json` n'est pas admis pour une
+  // requête CORS simple, et posé sur un `GET` il faisait précéder chaque lecture du navigateur d'un
+  // préflight. L'API ne lit pas le `Content-Type` d'une requête sans corps.
+  if (!formData && body !== undefined) {
     requestHeaders['Content-Type'] = 'application/json';
   }
 
