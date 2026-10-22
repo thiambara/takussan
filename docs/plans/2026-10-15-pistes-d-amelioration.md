@@ -10712,7 +10712,7 @@ déjà relevée).*
 
 ### Le logo d'agence n'apparaît sur aucun PDF rendu par dompdf : seul le nom de l'agence s'imprime à sa place
 - Réf : P109.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1233
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Pdf/DocumentPdfService.php:136-156`, `takussan-api/resources/views/pdf/layouts/base.blade.php:91-92`, `takussan-api/vendor/spatie/laravel-pdf/config/laravel-pdf.php:108`, `takussan-api/app/Models/Agency.php:158`, `takussan-api/tests/Feature/Services/DocumentPdfServiceTest.php:126-150`
 - Constat :
@@ -10725,6 +10725,7 @@ déjà relevée).*
 - Établi comment : lecture du chemin, puis rendu mesuré sur la base de développement, sans écriture.
 - Piste : ne pas ouvrir `is_remote_enabled` (le moteur irait chercher toute URL du HTML, et l'original du logo peut peser 10 Mo, `MediaUploadRequest.php:14`, sans conversion déclarée sur `Agency`), mais embarquer le logo en URI `data:` par `PdfImageEmbedder::dataUri()` lu depuis le disque, comme les photos de TCK-538. Garde : un test qui rend un vrai PDF sous dompdf pour une agence à logo et compte les objets image (ou intercepte l'URI passée au gabarit et vérifie le préfixe `data:`), rouge sur le code actuel.
 - Mesure (2026-10-22, 6d216605a, mesureur) : relu `DocumentPdfService::prepareData()` (`getFirstMediaUrl('logo')` passé tel quel), `base.blade.php` (`<img src="{{ $agency_logo_url }}" alt=…>`, contrat du gabarit l. 9 : « rendered in the header »), `is_remote_enabled` à `env('LARAVEL_PDF_DOMPDF_REMOTE_ENABLED', false)` dans la configuration du paquet, aucun `config/laravel-pdf.php` ; `git log` des deux fichiers : rien depuis TCK-672 ; rendu par `tinker` en mémoire du gabarit commun avec `prepareData()` de l'agence #1 (logo `http://localhost:8002/storage/1/….png`) → 0 objet `/Subtype /Image`, avertissement « Remote file requested, but remote file download is disabled », et le texte `alt` « Dakar Immo » en 18 pt à la place du logo ; une URI `data:` du même moteur rend l'image. Classement : A1, le gabarit écrit que le logo s'imprime en en-tête et `PdfImageEmbedder::dataUri()` (TCK-538) existe déjà pour lire un média par son disque : passer au gabarit l'URI `data:` du logo, sans ouvrir `is_remote_enabled`, ne demande aucun choix de produit.
+- Mesure (2026-10-22, e78a4439b, implementeur) : reproduit par `DocumentPdfDompdfRenderTest` avant correctif — agence à logo PNG 800×200 sur le disque public, facture rendue sous dompdf → le gabarit reçoit `/storage/1/logo.png?v=…`, rouge sur le préfixe `data:` ; logo lu par le disque et passé par `PdfImageEmbedder::dataUri()` en PNG de 320 px au plus (le JPEG perdait la transparence) → URI `data:image/png`, PDF à objet `/Subtype /Image` (image et `/SMask`), agence sans logo à 0 image ; ablation (`getFirstMediaUrl` remis) → 1 rouge, correctif remis → 2/2 verts.
 
 ### Le pied de page de tout PDF rendu par dompdf imprime « Page 1 sur 0 »
 - Réf : P109.02
