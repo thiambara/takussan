@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\RequireLemonSqueezySigningSecret;
 use Illuminate\Support\Facades\Route;
 use LemonSqueezy\Laravel\Http\Controllers\WebhookController;
 
@@ -13,10 +14,13 @@ use LemonSqueezy\Laravel\Http\Controllers\WebhookController;
  *
  * `authenticated_at` est posé par `App\Listeners\Payments\MarkLemonSqueezyWebhookAuthenticated`,
  * à l'événement `WebhookReceived` que le paquet n'émet qu'après la signature.
+ *
+ * P98.08 (TCK-1172) — sans `lemon-squeezy.signing_secret`, le paquet ne vérifie rien : la route
+ * refuse alors tout, après le journal (`RequireLemonSqueezySigningSecret`).
  */
 Route::prefix((string) config('lemon-squeezy.path'))
     ->as('lemon-squeezy.')
-    ->middleware(['throttle:60,1,lemon-squeezy-webhook', 'webhook.journal:payment,lemon_squeezy'])
+    ->middleware(['throttle:60,1,lemon-squeezy-webhook', 'webhook.journal:payment,lemon_squeezy', RequireLemonSqueezySigningSecret::class])
     ->group(function (): void {
         Route::post('webhook', WebhookController::class)->name('webhook');
     });

@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\LeaseSignature;
 use App\Models\User;
+use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Lease\LeaseSignatureService;
 use Illuminate\Http\Request;
@@ -74,6 +75,11 @@ class LeaseResource extends BaseResource
             'early_termination_reason' => $this->early_termination_reason,
             'early_termination_invoice_id' => $this->early_termination_invoice_id,
             'notice_period_days' => $this->notice_period_days,
+            // P98.05 — le nombre de mois que la résiliation exécutera (figé sur le bail, sinon le
+            // réglage), pour l'estimation du dialogue de demande. Sur le détail seul (`forViewer`) :
+            // à défaut de valeur figée, il lit le réglage de l'agence, une requête par bail.
+            'early_termination_penalty_months' => $this->when($this->viewer !== null,
+                fn (): int => app(EarlyTerminationService::class)->penaltyMonthsFor($this->resource)),
             'property' => $this->whenLoaded('property', fn () => PropertyResource::make($this->property)),
             'tenant' => $this->whenLoaded('tenant', fn () => CustomerResource::make($this->tenant)),
             'renewed_from' => $this->whenLoaded('renewedFrom', fn () => self::make($this->renewedFrom)),
