@@ -10142,7 +10142,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### La page d'un bien loué, vendu ou retiré sort du rendu serveur avec toutes ses cartes similaires en `opacity-0`, visibles seulement après l'hydratation
 - Réf : P102.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1188
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:65-73`, `takussan-web/src/components/property/PropertyCard.tsx:45-60`, `takussan-web/src/components/property/PropertyCard.tsx:156-158`, `takussan-web/src/components/property/PropertyCard.tsx:194-200`
 - Constat :
@@ -10153,6 +10153,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : code relu, rendu serveur mesuré.
 - Piste : passer `priority={index < 3}` aux cartes de `bienRetire()`, autant que la grille a de colonnes au plus large, sur le modèle de `PublicFavoritesPage` (`priority={i < 3}`). Garde : un test de `bienRetire()` en `renderToString` qui refuse `opacity-0` sur les trois premières racines. Le correctif de fond reste le reste de P69.01 : ne plus masquer la carte au rendu serveur.
 - Mesure (2026-10-21, 0acc2203f, mesureur) : relu `bien-retire.tsx:67-74` (`<PropertyCard key property index />`, ni `priority` ni `sizes`, inchangé) et `PropertyCard.tsx` (`useReveal` dans un `useEffect`, l. 45-60 ; `visible = useReveal(ref) || priority`, l. 156-158 ; racine en `opacity-0` sinon, l. 194-200) ; `git log` des fichiers et `grep` des tickets → rien depuis l'exploration ; test vitest temporaire, retiré, `renderToString` de `bienRetire()` pour un bien `rented` et trois similaires avec photo, sous les fournisseurs réels (`withIntl`, `CompareProvider`, `ToastProvider`) → trois racines de carte en `opacity-0` et trois `<img loading="lazy">`. Que la première rangée soit au-dessus du pli reste déduit des classes (sous la barre, `py-12`, le titre, le texte, le bouton et le `h2`), pas mesuré au navigateur, ni la durée d'hydratation ; le défaut retenu est la partie mesurée : des données servies par le serveur et masquées jusqu'à l'hydratation. Classement : A1, le contrat est écrit dans la carte (« Priority cards (above-the-fold) skip the initial hidden state ») et appliqué tel quel par `PublicFavoritesPage` (`priority={i < 3}`) et par TCK-1036 (P69.01) : `priority={index < 3}` dans `bienRetire()`, et un test `renderToString` qui refuse `opacity-0` sur les trois premières racines ; l'apparition en CSS seul reste le reste de P69.01, hors de ce classement.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : test `bien-retire.rendu-serveur.test.tsx`, `renderToString` de `bienRetire()` avec la vraie `PropertyCard` sous `withIntl`, `ToastProvider` et `CompareProvider`, quatre similaires avec photo → avant correctif, les trois premières racines en `opacity-0` et trois `<img loading="lazy">` (rouge) ; `priority={index < 3}` dans `bienRetire()` (TCK-1188) → 2/2 verts ; ablation, `bien-retire.tsx` rendu à `pre-dev` → 2/2 rouges, correctif remis → verts ; `page.server.test.tsx` reste vert (15/15). La première rangée au-dessus du pli reste déduite, pas mesurée au navigateur.
 
 ### Sur la grille de recherche à cinq ou six colonnes, la fin de la première rangée reste masquée jusqu'à l'hydratation : le budget `priority` est fixé à 4
 - Réf : P102.02
