@@ -12043,7 +12043,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### La recherche globale de la console ne retrouve jamais une agence par son téléphone tel que le formulaire l'enregistre
 - Réf : P125.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1257
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:92-101,159-178`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:61`, `takussan-api/app/Http/Requests/Api/StoreAgencyRequest.php:43`, `takussan-api/app/Http/Requests/Api/Admin/StoreAgencyOnboardingRequest.php:24`, `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:302-308`, `takussan-web/src/lib/schemas/agency.ts:36-42`, `takussan-web/src/components/admin/super/AgencyOnboardingDialog.tsx:198-199`
 - Constat :
@@ -12054,6 +12054,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - Établi comment : lu et mesuré.
 - Piste : comparer par la forme canonique des deux côtés, comme l'entrée par téléphone (`CanonicalPhone::sql('phone') = CanonicalPhone::fold(...)`, `PhoneLoginService.php:151`), ce qui ne change aucune donnée ; ou normaliser `agencies.phone` à l'écriture (`TelephoneSaisi::normaliser` dans les trois requêtes, `PhoneInput` au front) et rattraper les lignes existantes, ce qui change ce qu'on accepte. Test : une agence enregistrée `+221 77 123 45 67` se retrouve par `77 123 45 67`.
 - Mesure (2026-10-22, 64db86d28, mesureur) : relu `AdminGlobalSearchService.php:92-101` (toujours `Agency::query()->where('phone', $phone)` après `phoneCandidate`), les trois requêtes (`phone` en `string`, `max:30`, sans normalisation) et `Agency.php` (aucun mutateur) ; test Feature temporaire, retiré, deux agences `+221 77 123 45 67` et `+221771234569`, opérateur support (charge 2,76 / 2,13 / 2,02 sur 8 cœurs) → `q=+221 77 123 45 67`, `q=77 123 45 67` et `q=+221771234567` rendent `[]` en agences, seule `q=771234569` retrouve la seconde ; aucun commit ni ticket ne cite P125.01. Classement : A1, la recherche par téléphone « comptes et agences » est écrite (TCK-600, l. 863-864) et le correctif — comparer `CanonicalPhone::sql('phone') = ?` au candidat E.164 pour les agences, sans toucher aux données ni à ce qu'on accepte à l'écriture — ne demande aucun choix ; la seconde option de la piste (normaliser à l'écriture et rattraper les lignes) relève de V4 et n'est pas couverte.
+- Mesure (2026-10-22, 1b5063805, implementeur) : test neuf `AdminGlobalSearchTest::test_le_telephone_d_une_agence_se_trouve_tel_que_le_formulaire_l_enregistre` (agences `+221 77 123 45 67`, `77 123 45 68`, `+221771234569`) rouge avant correctif : `q=+221 77 123 45 67` → `[]` en agences → `byPhone()` compare `CanonicalPhone::sql('phone') = CanonicalPhone::fold(…)` pour les agences, les comptes gardent l'égalité stricte ; vert, ablation (`where('phone', …)` remis) → rouge, remise → vert ; `AdminGlobalSearchTest` 12/12.
 
 ### Convertir une demande de contact crée une seconde fiche client quand le numéro en a déjà une
 - Réf : P125.02
