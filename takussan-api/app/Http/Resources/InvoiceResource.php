@@ -20,7 +20,9 @@ class InvoiceResource extends BaseResource
             'status' => $this->status?->value,
             // TCK-594 (ADR-0039 §7) — facture ou avoir, la facture annulée, et les avoirs reçus
             // (le front affiche l'avoir sur l'originale).
-            'kind' => $this->kind?->value ?? 'invoice',
+            // TCK-1182 (P100.03) — `whenHas` : sous un sparse fieldset qui ne lit pas la colonne, la clé
+            // est omise au lieu d'une valeur inventée (montant à 0, nature ou devise par défaut).
+            'kind' => $this->whenHas('kind', fn () => $this->kind?->value ?? 'invoice'),
             'credited_invoice_id' => $this->credited_invoice_id,
             'credit_notes' => $this->whenLoaded('creditNotes', fn () => $this->creditNotes->map(fn ($note) => [
                 'id' => $note->id,
@@ -30,10 +32,10 @@ class InvoiceResource extends BaseResource
             ])->values()->all()),
             'issue_date' => $this->calendarDate($this->issue_date),
             'due_date' => $this->calendarDate($this->due_date),
-            'subtotal' => (float) $this->subtotal,
+            'subtotal' => $this->whenHas('subtotal', fn () => (float) $this->subtotal),
             'tax_rate' => $this->tax_rate !== null ? (float) $this->tax_rate : null,
             'tax_amount' => $this->tax_amount !== null ? (float) $this->tax_amount : null,
-            'total_amount' => (float) $this->total_amount,
+            'total_amount' => $this->whenHas('total_amount', fn () => (float) $this->total_amount),
             'currency' => $this->currency?->value,
             'notes' => $this->notes,
             'created_at' => $this->iso($this->created_at),

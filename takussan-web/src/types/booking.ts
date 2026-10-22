@@ -29,6 +29,8 @@ export type BookingPayment = {
   status: BookingPaymentStatus;
   payment_date: string | null;
   confirmed_date: string | null;
+  /** TCK-1180 — ce que `BookingPaymentResource` émet : la date du règlement. */
+  paid_at?: string | null;
   receipt_number: string | null;
   notes: string | null;
   created_at: string;
@@ -47,11 +49,8 @@ export type Booking = {
   booking_date: string;
   start_date: string | null;
   end_date: string | null;
-  expiration_date: string | null;
   confirmation_date: string | null;
-  rejection_date: string | null;
   cancellation_date: string | null;
-  completion_date: string | null;
   /** Backend canonical timestamps (BookingResource). */
   confirmed_at?: string | null;
   cancelled_at?: string | null;
@@ -66,8 +65,6 @@ export type Booking = {
   price_at_booking: number | null;
   total_amount: number | null;
   deposit_amount: number | null;
-  deposit_paid: boolean;
-  deposit_date: string | null;
   notes: string | null;
   reason_for_rejection: string | null;
   reason_for_cancellation: string | null;

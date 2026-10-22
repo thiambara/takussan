@@ -12,6 +12,8 @@ const PROFILE_FIELDS = ['id', 'type', 'numeric_id', 'agency_id', 'status', 'crea
 const AGENCY_FIELDS = ['id', 'name', 'slug', 'kind'].join(',');
 
 const profilesQuery = buildQueryString({
+  // P100.05 (TCK-1186) — `fields` inerte : `MeProfilesController::index` assemble les profils à la main,
+  // sans `buildQuery`.
   fields: { profiles: PROFILE_FIELDS, agencies: AGENCY_FIELDS },
   include: 'agency',
 });

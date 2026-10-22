@@ -148,6 +148,7 @@ async function fetchUsers(params: UsersParams): Promise<UsersResponse> {
   if (params.twoFactor) qs.set('filter[two_factor_enabled]', params.twoFactor);
   qs.set('page', String(params.page));
   qs.set('per_page', '20');
+  // P100.05 (TCK-1186) — `fields` inerte : `Admin\UserDetailController::index` est une liste écrite à la main.
   qs.set(
     'fields[users]',
     'id,first_name,last_name,email,phone,status,email_verified_at,two_factor_enabled,last_login_at,created_at',

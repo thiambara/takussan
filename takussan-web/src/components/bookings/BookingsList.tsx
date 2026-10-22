@@ -138,9 +138,6 @@ function BookingRow({ booking, locale }: { booking: Booking; locale: Locale }) {
               <p className="text-sm font-semibold tabular-nums text-foreground">
                 {formatCurrency(booking.total_amount, locale)}
               </p>
-              {booking.deposit_paid && (
-                <p className="text-xs text-success">{t('list.depositPaid')}</p>
-              )}
             </div>
           )}
         </div>

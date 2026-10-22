@@ -126,6 +126,8 @@ export function useMessagesInfinite(conversationId: number | null | undefined) {
     staleTime: 0,
     queryFn: async ({ pageParam, signal }) => {
       const params: SpatieQueryParams = {
+        // P100.05 (TCK-1186) — `fields` inerte : les messages sont lus à la main par `ConversationController`,
+        // sans `buildQuery` (`Message::$queryFields` vide).
         fields: { messages: MESSAGE_LIST_FIELDS },
         include: ['sender', 'attachments'],
         per_page: MESSAGES_PAGE_SIZE,
@@ -199,6 +201,8 @@ export function useNewMessagesPolling(
     {
       enabled,
       params: {
+        // P100.05 (TCK-1186) — `fields` inerte : les messages sont lus à la main par `ConversationController`,
+        // sans `buildQuery` (`Message::$queryFields` vide).
         fields: { messages: MESSAGE_LIST_FIELDS },
         include: ['sender', 'attachments'],
         extra: anchorId != null ? { after_id: anchorId } : undefined,
