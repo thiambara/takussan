@@ -7,6 +7,7 @@ use App\Models\Address;
 use App\Models\AppNotification;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Enums\UserStatus;
 use App\Models\NotificationPreference;
 use App\Models\Property;
 use App\Models\SavedSearch;
@@ -133,6 +134,21 @@ class SavedSearchAlertsTest extends TestCase
 
         $this->assertCount(1, $this->notificationsDe($user), 'le second passage ne doit rien ajouter');
         $this->assertTrue($recherche->refresh()->last_notified_at->isBefore(now()));
+    }
+
+    /** TCK-1350 (P88.04) — la recherche d'un compte bloqué ne déclenche plus d'alerte. */
+    public function test_la_recherche_d_un_compte_bloque_ne_notifie_pas(): void
+    {
+        $this->freezeTime();
+        $user = User::factory()->create(['status' => UserStatus::Blocked]);
+        $this->bienPublieLe(now()->subDay());
+        $this->recherche($user);
+        $this->indexProperties();
+
+        $this->lancerLeJob();
+
+        $this->assertCount(0, $this->notificationsDe($user));
+        $this->assertSame([], $this->emailsA((string) $user->email));
     }
 
     /**

@@ -12,6 +12,7 @@ use App\Notifications\CodedNotification;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\Sms\DeferredSmsGuard;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use LogicException;
@@ -65,6 +66,13 @@ class NotificationService
     ): ?AppNotification {
         if ($to instanceof ContactSansCompte) {
             $this->sendToContact($to, $code, $params, $target, $mobileBorne, $deferredSmsGuard);
+
+            return null;
+        }
+
+        // TCK-1350 (P88.04) — un compte bloqué ou supprimé ne reçoit que les codes de son compte.
+        if (! PrimaryPropertyContact::joignable($to) && ! $code->reachesUnreachableAccount()) {
+            Log::info('[notifications] compte non joignable — rien n\'est envoyé', ['code' => $code->value, 'user_id' => $to->id]);
 
             return null;
         }

@@ -13,6 +13,7 @@ use App\Services\Notifications\PreferenceResolver;
 use App\Services\Notifications\Sms\SmsTimeBudget;
 use App\Services\Notifications\Whatsapp\TemplateResolver;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
+use App\Services\Property\PrimaryPropertyContact;
 use App\Support\LienFront;
 use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Bus\Queueable;
@@ -126,6 +127,10 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
     {
         if (! $notifiable instanceof User) {
             return $this->contactChannels($notifiable);
+        }
+        // TCK-1350 (P88.04) — même règle que `NotificationService::send()`, pour un envoi direct.
+        if (! PrimaryPropertyContact::joignable($notifiable) && ! $this->code->reachesUnreachableAccount()) {
+            return [];
         }
 
         $resolver = app(PreferenceResolver::class);
