@@ -1,4 +1,5 @@
-import { join } from 'node:path';
+import { readdirSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
@@ -22,8 +23,30 @@ import { paquetsDuGrapheClient } from '@/test/graphe-client';
  * date-fns : 31,9 Kio gzip, mesure de l'explorateur) pour le seul `DatePicker` du formulaire de
  * création, monté quand on ouvre son dialogue. Le formulaire vit dans son fichier, chargé par
  * `next/dynamic` à l'ouverture.
+ *
+ * TCK-1200 (P104.04) — la garde générale, du patron de TCK-1038 (`zod-hors-des-ecrans-de-lecture`,
+ * qui ne lit que `(dashboard)/app`) : aucune page de la console, ni son layout, n'atteint zod,
+ * react-hook-form ni `@hookform/resolvers` au chargement. Les pages sont TROUVÉES, pas énumérées :
+ * une page neuve y entre d'elle-même. Mesuré le 2026-10-22 : les 37 pages et le layout y passent,
+ * `tags/page.tsx` depuis TCK-1194 et TCK-1196. Une page qui EST un formulaire au chargement se
+ * déclare dans {@link FORMULAIRES_AU_CHARGEMENT}, avec sa raison.
  */
 const CONSOLE = join(RACINE_SRC, 'app', '(super-admin)', 'super-admin');
+
+const PAQUETS_DE_FORMULAIRE = ['zod', 'react-hook-form', '@hookform/resolvers'];
+
+/** Les pages de la console qui affichent un formulaire dès le chargement : aucune aujourd'hui. */
+const FORMULAIRES_AU_CHARGEMENT: readonly string[] = [];
+
+function entrees(dossier: string): string[] {
+  return readdirSync(dossier).flatMap((nom) => {
+    const chemin = join(dossier, nom);
+    if (statSync(chemin).isDirectory()) return nom === '__tests__' ? [] : entrees(chemin);
+    return nom === 'page.tsx' || nom === 'layout.tsx' ? [relative(CONSOLE, chemin)] : [];
+  });
+}
+
+const ENTREES = entrees(CONSOLE).filter((e) => !FORMULAIRES_AU_CHARGEMENT.includes(e));
 
 const FORMULAIRES_ET_DATES = ['react-hook-form', '@hookform/resolvers', 'react-day-picker', 'date-fns'];
 
@@ -40,5 +63,15 @@ describe('graphe client de la console super-admin', () => {
 
   it('TCK-1194 — tags : ni react-hook-form ni sélecteur de date', () => {
     expect(paquetsDuGrapheClient(join(CONSOLE, 'tags', 'page.tsx'), FORMULAIRES_ET_DATES)).toEqual([]);
+  });
+
+  it('TCK-1200 — témoin : le balayage trouve les pages et le layout de la console', () => {
+    expect(ENTREES).toContain('layout.tsx');
+    expect(ENTREES).toContain('tags/page.tsx');
+    expect(ENTREES.length).toBeGreaterThanOrEqual(38);
+  });
+
+  it.each(ENTREES)('TCK-1200 — %s : aucun chemin vers zod ni react-hook-form', (entree) => {
+    expect(paquetsDuGrapheClient(join(CONSOLE, entree), PAQUETS_DE_FORMULAIRE)).toEqual([]);
   });
 });
