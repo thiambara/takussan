@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -8,9 +8,19 @@ import { withIntl } from '@/test/intl';
  * Des mocks à IDENTITÉ STABLE, comme les vrais hooks : un objet neuf à chaque appel casserait le
  * cache du React Compiler et rendrait un FAUX VERT sous compilation (mesuré, TCK-564 E-repair-1).
  */
-const MUTATION = vi.hoisted(() => ({ mutateAsync: async () => ({ data: { id: 1 } }) }));
+const MUTATION = vi.hoisted(() => ({
+  mutateAsync: vi.fn(async (_payload: unknown) => ({ data: { id: 1 } })),
+}));
 vi.mock('@/lib/queries/payments', () => ({
   useCreateInvoice: () => MUTATION,
+}));
+
+/** P133.01 / P133.03 — les réglages de l'agence de l'émetteur ; par défaut, aucune agence. */
+const AGENCE = vi.hoisted(() => ({
+  valeur: { taxRate: null as number | null, ready: false },
+}));
+vi.mock('@/hooks/useAgencyInvoiceDefaults', () => ({
+  useAgencyInvoiceDefaults: () => AGENCE.valeur,
 }));
 
 import { CreateInvoiceDialog } from '../CreateInvoiceDialog';
@@ -81,5 +91,79 @@ describe('CreateInvoiceDialog — les totaux suivent la saisie (TCK-571)', () =>
     await user.click(await screen.findByRole('option', { name: 'EUR (€)' }));
 
     expect(sansEspaces(recap('Total'))).toBe('1500,00€');
+  });
+});
+
+/** La charge utile du dernier envoi. */
+function envoye(): Record<string, unknown> {
+  const appels = MUTATION.mutateAsync.mock.calls;
+  expect(appels.length).toBeGreaterThan(0);
+  return appels[appels.length - 1]![0] as Record<string, unknown>;
+}
+
+async function remplir(prix: string) {
+  await saisir(screen.getByLabelText(/ID client/), '7');
+  await saisir(screen.getByPlaceholderText('Description'), 'Frais de dossier');
+  await saisir(screen.getByPlaceholderText('Prix unitaire'), prix);
+}
+
+async function envoyer() {
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Créer la facture' }));
+}
+
+async function remplirEtEnvoyer(prix: string) {
+  await remplir(prix);
+  await envoyer();
+}
+
+describe('CreateInvoiceDialog — le taux de TVA affiché est celui qui part (P133.01, TCK-1375)', () => {
+  beforeEach(() => {
+    MUTATION.mutateAsync.mockClear();
+    AGENCE.valeur = { taxRate: null, ready: false };
+  });
+
+  it('un taux affiché à 0 part à 0 : l’API n’y substitue plus celui de l’agence', async () => {
+    render(withIntl(<CreateInvoiceDialog open onOpenChange={() => {}} />));
+    expect(sansEspaces(recap('TVA'))).toBe('0FCFA');
+
+    await remplirEtEnvoyer('100000');
+
+    expect(envoye()).toHaveProperty('tax_rate', 0);
+  });
+
+  it('le taux par défaut de l’agence pré-remplit le champ, l’aperçu et l’envoi', async () => {
+    AGENCE.valeur = { taxRate: 18, ready: true };
+    render(withIntl(<CreateInvoiceDialog open onOpenChange={() => {}} />));
+
+    expect(screen.getByLabelText('TVA (%)')).toHaveValue(18);
+    await remplir('100000');
+    expect(sansEspaces(recap('TVA'))).toBe('18000FCFA');
+    expect(sansEspaces(recap('Total'))).toBe('118000FCFA');
+
+    await envoyer();
+    expect(envoye()).toHaveProperty('tax_rate', 18);
+  });
+
+  it('remis à 0 par la personne, le taux part à 0 même pour une agence à 18 %', async () => {
+    AGENCE.valeur = { taxRate: 18, ready: true };
+    render(withIntl(<CreateInvoiceDialog open onOpenChange={() => {}} />));
+
+    await saisir(screen.getByLabelText('TVA (%)'), '0');
+    await remplirEtEnvoyer('100000');
+
+    expect(envoye()).toHaveProperty('tax_rate', 0);
+  });
+
+  it('l’aperçu arrondit la TVA à l’unité de la devise, comme l’API (10,50 € à 18 % → 1,89 €)', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<CreateInvoiceDialog open onOpenChange={() => {}} />));
+
+    await saisir(screen.getByPlaceholderText('Prix unitaire'), '10.5');
+    await user.click(screen.getByRole('combobox', { name: 'Devise' }));
+    await user.click(await screen.findByRole('option', { name: 'EUR (€)' }));
+    await saisir(screen.getByLabelText('TVA (%)'), '18');
+
+    expect(sansEspaces(recap('TVA'))).toBe('1,89€');
+    expect(sansEspaces(recap('Total'))).toBe('12,39€');
   });
 });
