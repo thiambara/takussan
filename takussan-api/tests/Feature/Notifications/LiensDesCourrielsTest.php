@@ -36,18 +36,23 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
- * P97.05 (TCK-1245) — le bouton de chaque courriel mène au front, sur une page qui existe.
+ * P97.05 (TCK-1245) — le bouton de chaque courriel mène au front, sur la page attendue.
  *
- * `scripts/check-notification-target-paths.mjs` ne lit que `NotificationTarget::PATHS` : une
+ * `scripts/check-notification-target-paths.mjs` ne lisait que `NotificationTarget::PATHS` : une
  * quinzaine de liens de console écrits à la main dans les `toMail()` lui échappaient, et le bouton
  * de l'alerte de seuil a mené à l'hôte de l'API sans que rien rougisse (P97.01). Ce test REND chaque
  * `toMail()` qui porte un bouton, sur un destinataire de fabrique, et exige :
  *
  *   · un `actionUrl` sur la base du front (`app.frontend_url`), posée ici AVEC une barre finale :
  *     c'est la forme qui révélait les écritures sans `rtrim` (`…//app/profile`) ;
- *   · un chemin qui résout une `page.tsx` de `takussan-web/src/app`, par la résolution de la garde
- *     des cibles (groupes transparents ; un segment sans dossier littéral prend un dossier
- *     dynamique simple, jamais un catch-all).
+ *   · un chemin égal à celui que déclare {@see self::CHEMINS_DU_FRONT} (identifiants rendus
+ *     `{id}`, langue rendue `{locale}`).
+ *
+ * ⚠ La page n'est PAS cherchée ici : la suite de l'API ne lit pas `takussan-web/` (sa clé
+ * d'attestation, ADR-0063, ne le couvre pas). C'est la garde du dépôt
+ * `scripts/check-mail-button-paths.mjs` qui lit {@see self::CHEMINS_DU_FRONT} et résout
+ * chaque chemin en `page.tsx`, par la résolution de la garde des cibles (`PATHS`). Les deux ensemble : le test dit où
+ * mène le bouton, la garde dit que la page existe.
  *
  * Une classe neuve de `app/Notifications` qui écrit `->action(` sans entrée ici fait rougir
  * l'inventaire : on la rend, ou on écrit pourquoi son lien n'est pas une page du front.
@@ -57,6 +62,31 @@ class LiensDesCourrielsTest extends TestCase
     use RefreshDatabase;
 
     private const FRONT = 'https://front.exemple.test';
+
+    /**
+     * Le chemin du front où mène le bouton de chaque courriel. ⚠ Lu par
+     * `scripts/check-mail-button-paths.mjs` : une entrée par ligne, `'Classe' => '/chemin'`.
+     *
+     * @var array<string, string>
+     */
+    public const CHEMINS_DU_FRONT = [
+        'AccountDeletionReminderNotification' => '/app/profile',
+        'AccountDeletionRequestedNotification' => '/app/profile',
+        'AgencyAdminActivationNotification' => '/auth/reset-password',
+        'AgencyUpgradeApprovedNotification' => '/app',
+        'AgencyUpgradeRejectedNotification' => '/app/settings/agency/upgrade',
+        'AgencyUpgradeRequestSubmittedNotification' => '/super-admin/agency-upgrade-requests/{id}',
+        'AgentTenantInventoryReminderNotification' => '/app/leases/onboarding-pending',
+        'CodedNotification' => '/app/messages',
+        'DataExportReadyNotification' => '/app/account/privacy',
+        'FavoriteChangesNotification' => '/app/favorites',
+        'ResetPasswordNotification' => '/auth/reset-password',
+        'SearchAlertConfirmationNotification' => '/{locale}/search-alerts/confirm',
+        'TenantInventoryReminderNotification' => '/app/inventories',
+        'TenantWelcomeNotification' => '/app',
+        'ThresholdAlertTriggered' => '/app/overview',
+        'VerifyEmail' => '/auth/verify-email/{id}/{id}',
+    ];
 
     /**
      * Boutons qui ne mènent PAS au front, et pourquoi. Par nom de classe.
@@ -77,6 +107,7 @@ class LiensDesCourrielsTest extends TestCase
     /** @return array<string, array{0: Closure(User): array{0: Notification, 1: object}}> */
     public static function courriels(): array
     {
+        // Les clés sont celles de `CHEMINS_DU_FRONT`, et le nom de chaque cas.
         $lease = fn (): Lease => (new Lease)->forceFill(['id' => 7, 'reference_number' => 'BAIL-7']);
 
         return [
@@ -102,8 +133,9 @@ class LiensDesCourrielsTest extends TestCase
 
     /** @param  Closure(User): array{0: Notification, 1: object}  $fabrique */
     #[DataProvider('courriels')]
-    public function test_le_bouton_du_courriel_mene_a_une_page_du_front(Closure $fabrique): void
+    public function test_le_bouton_du_courriel_mene_a_sa_page_du_front(Closure $fabrique): void
     {
+        $nom = (string) $this->dataName();
         [$notification, $destinataire] = $fabrique(User::factory()->create(['email' => 'dest@exemple.test']));
 
         $mail = $notification->toMail($destinataire);
@@ -113,7 +145,22 @@ class LiensDesCourrielsTest extends TestCase
         $this->assertStringStartsWith(self::FRONT.'/', $url, "le bouton doit mener au front : {$url}");
         $chemin = (string) parse_url($url, PHP_URL_PATH);
         $this->assertStringNotContainsString('//', $chemin, "chemin à double barre : {$url}");
-        $this->assertNotNull(self::pageDe($chemin), "aucune page.tsx du front pour {$chemin} ({$url})");
+        $this->assertSame(self::CHEMINS_DU_FRONT[$nom] ?? null, self::forme($chemin), "chemin du bouton de {$nom} ({$url})");
+    }
+
+    /** `/fr/x/42/ab12…` → `/{locale}/x/{id}/{id}` : identifiants et langue, rendus génériques. */
+    private static function forme(string $chemin): string
+    {
+        $segments = explode('/', ltrim($chemin, '/'));
+        foreach ($segments as $i => $segment) {
+            if ($i === 0 && in_array($segment, ['fr', 'en', 'wo'], true)) {
+                $segments[$i] = '{locale}';
+            } elseif (preg_match('/^(\d+|[0-9a-f]{20,})$/', $segment) === 1) {
+                $segments[$i] = '{id}';
+            }
+        }
+
+        return '/'.implode('/', $segments);
     }
 
     /**
@@ -136,6 +183,7 @@ class LiensDesCourrielsTest extends TestCase
         }
 
         $this->assertSame([], $oublies, 'courriel à bouton ni rendu ni excusé dans LiensDesCourrielsTest');
+        $this->assertEqualsCanonicalizing(array_keys(self::CHEMINS_DU_FRONT), $rendus, 'chaque cas rendu déclare son chemin');
         $this->assertGreaterThanOrEqual(14, count($rendus), "l'inventaire ne lit plus rien");
     }
 
@@ -152,58 +200,5 @@ class LiensDesCourrielsTest extends TestCase
         $mail = (new CodedNotification(NotificationCode::VisitRequested, [], NotificationTarget::of('conversation', 42)->toArray()))
             ->toMail(User::factory()->create());
         $this->assertSame('https://api.exemple.test/app/messages?conversation=42', $mail->actionUrl);
-    }
-
-    public function test_la_resolution_des_pages_distingue_un_chemin_mort(): void
-    {
-        $this->assertNotNull(self::pageDe('/app/overview'));
-        $this->assertNotNull(self::pageDe('/fr/search-alerts/confirm'));
-        $this->assertNull(self::pageDe('/app/page-qui-n-existe-pas'));
-        $this->assertNull(self::pageDe('//app/profile'));
-    }
-
-    /** La `page.tsx` que sert `$chemin`, ou `null`. Même résolution que la garde des cibles. */
-    private static function pageDe(string $chemin): ?string
-    {
-        if (str_starts_with($chemin, '//')) {
-            return null;
-        }
-        $segments = array_values(array_filter(explode('/', $chemin), fn ($s) => $s !== ''));
-
-        foreach (self::resoudre(base_path('../takussan-web/src/app'), $segments) as $dossier) {
-            if (is_file($dossier.'/page.tsx')) {
-                return $dossier.'/page.tsx';
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param  list<string>  $segments
-     * @return list<string>
-     */
-    private static function resoudre(string $dossier, array $segments): array
-    {
-        $sous = array_values(array_filter(scandir($dossier) ?: [], fn ($n) => $n[0] !== '.' && is_dir($dossier.'/'.$n)));
-        $viaGroupes = [];
-        foreach ($sous as $n) {
-            if (str_starts_with($n, '(') && str_ends_with($n, ')')) {
-                $viaGroupes = [...$viaGroupes, ...self::resoudre($dossier.'/'.$n, $segments)];
-            }
-        }
-        if ($segments === []) {
-            return [$dossier, ...$viaGroupes];
-        }
-        [$tete, $reste] = [$segments[0], array_slice($segments, 1)];
-        $suivants = in_array($tete, $sous, true)
-            ? [$tete]
-            : array_values(array_filter($sous, fn ($n) => preg_match('/^\[[^.\]][^\]]*\]$/', $n) === 1));
-        $atteints = [];
-        foreach ($suivants as $n) {
-            $atteints = [...$atteints, ...self::resoudre($dossier.'/'.$n, $reste)];
-        }
-
-        return [...$atteints, ...$viaGroupes];
     }
 }
