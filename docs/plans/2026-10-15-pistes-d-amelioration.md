@@ -11597,10 +11597,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Petites améliorations
 - Réf : P118.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-1292
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/SuperAdminInvitationController.php:69`, `takussan-api/app/Http/Controllers/Api/Admin/PrivacyRequestController.php:83`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:129-130`
 - Constat :
+- Mesure (2026-10-22, a2398e474, implementeur) : relu `SuperAdminInvitationController.php:69-70`, `PrivacyRequestController::export` et `UserDetailController::sessions` (aucun départage par `id`) ; test neuf `TriDepartageParIdTest` avant correctif : trois lignes égales sur la clé de tri, dont une réécrite (elle part en fin de table) → invitations, export et sessions rendus dans l'ordre physique, 3 rouges → `id` en dernier tri dans le sens du tri principal : 3/3 verts ; ablation (trois contrôleurs à `HEAD`) → 3 rouges, correctif remis → verts ; `PrivacyRequestRegistryTest`, `PersonalDataAccessLogTest`, `SuperAdminInvitationLifecycleTest`, `UserDetailTest` verts.
   - Trois lectures non paginées trient sur une colonne non unique sans `id` : invitations de super-admin `orderByDesc('created_at')->get()`, export des demandes RGPD `orderBy('due_at')->get()`, sessions d'un utilisateur `orderByDesc('last_used_at')->orderByDesc('created_at')` (lu). Sans page, aucune ligne ne se perd ; seul l'ordre de deux lignes égales peut changer d'un appel à l'autre, ce qui compte pour un export qu'on compare (à vérifier).
 - Piste : ajouter l'`id` en dernier tri quand on touche ces fichiers ; rien à faire en lot.
 - Mesure (2026-10-22, fc967bccf, mesureur) : relu `SuperAdminInvitationController.php:69-70` (`orderByDesc('created_at')->get()`), `PrivacyRequestController::export` (`orderBy('due_at')->get()`), `UserDetailController::sessions` (`orderByDesc('last_used_at')->orderByDesc('created_at')->paginate(…)`). Le constat est inexact sur un point : les sessions **sont paginées**, et relèvent donc du défaut de P118.02 (une ligne peut manquer d'une page à l'autre) ; les deux autres lectures ne perdent aucune ligne, seul l'ordre de deux lignes égales n'est pas fixé. Classement : A1, le correctif attendu est d'ajouter l'`id` en dernier tri sur ces trois lectures, ce qui ne change l'ordre que des lignes égales et ne demande aucun choix de produit.
