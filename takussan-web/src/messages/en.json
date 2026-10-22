@@ -4221,7 +4221,8 @@
         "save": "Save",
         "saving": "Saving…",
         "saved": "Saved.",
-        "failed": "The assignment was not saved."
+        "failed": "The assignment was not saved.",
+        "insured": "Insured"
       },
       "gallery": {
         "title": "Photos and files",
@@ -5216,7 +5217,8 @@
       "actions": {
         "resend": "Resend invitation",
         "revoke": "Revoke"
-      }
+      },
+      "insured": "Insured"
     },
     "invite": {
       "title": "Invite a provider",

@@ -4192,7 +4192,8 @@
         "save": "Enregistrer",
         "saving": "Enregistrement…",
         "saved": "Enregistré.",
-        "failed": "L'assignation n'a pas été enregistrée."
+        "failed": "L'assignation n'a pas été enregistrée.",
+        "insured": "Assuré"
       },
       "gallery": {
         "title": "Photos et pièces",
@@ -5216,7 +5217,8 @@
       "actions": {
         "resend": "Renvoyer l'invitation",
         "revoke": "Révoquer"
-      }
+      },
+      "insured": "Assuré"
     },
     "invite": {
       "title": "Inviter un prestataire",

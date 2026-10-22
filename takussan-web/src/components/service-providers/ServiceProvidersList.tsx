@@ -126,7 +126,13 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       id: 'name',
       header: tList('columns.name'),
       className: 'font-semibold text-foreground',
-      cell: (sp) => nomDe(sp) || '—',
+      cell: (sp) => (
+        <span className="inline-flex flex-wrap items-center gap-2">
+          {nomDe(sp) || '—'}
+          {/* TCK-1325 (P117.06) — dérivé de la pièce d'assurance vivante, côté API. */}
+          {sp.insured ? <Badge variant="outline">{tList('insured')}</Badge> : null}
+        </span>
+      ),
     },
     {
       id: 'trades',

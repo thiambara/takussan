@@ -51,6 +51,11 @@ export type ServiceProviderProfileSummary = {
     readonly intervention_zones?: readonly string[];
   } | null;
   readonly created_at: string | null;
+  /**
+   * TCK-1325 (P117.06) — une pièce d'assurance vivante existe (non supprimée, non expirée, fichier
+   * présent). Calculé par l'API (`withExists`), jamais recopié en `metadata`.
+   */
+  readonly insured?: boolean;
   readonly user?: {
     readonly id: number;
     readonly first_name: string;
