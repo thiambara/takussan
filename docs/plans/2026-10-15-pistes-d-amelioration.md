@@ -12627,7 +12627,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Petites améliorations
 - Réf : P130.06
-- Statut : validé — porteur (2026-10-22) : lire le client et le bien `withTrashed()` dans les documents qui attestent un fait passé (facture, quittance) : le nom du client supprimé y est imprimé
+- Statut : fait · TCK-1334
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Resources/LeaseResource.php:83-84`, `takussan-api/resources/views/pdf/invoices/default.blade.php:70-81`, `takussan-api/resources/views/pdf/receipts/rent.blade.php:54-60`
 - Constat :
@@ -12636,6 +12636,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu et mesuré.
 - Piste : lire le client et le bien `withTrashed()` dans les documents qui attestent un fait passé (facture, quittance), parce que la fiche existait quand le fait a eu lieu ; test : facture d'un client supprimé → son nom imprimé.
 - Mesure (2026-10-22, d94868488, mesureur) : relu `pdf/invoices/default.blade.php:70` (« — » à défaut de nom) et `pdf/receipts/rent.blade.php:54` (nom vide), `DocumentPdfController` (`loadMissing(['customer', …])` sans `withTrashed()`), `LeaseResource.php:83-84` ; test temporaire (retiré) : client supprimé, facture PDF en admin → 200, quittance PDF en admin → 200, `data.tenant` du bail = `null`. Le texte imprimé n'a pas été extrait du PDF, seulement lu dans le gabarit ; le rendu du front n'est pas vérifié. Classement : V3, relire une fiche supprimée pour l'imprimer dans un document touche l'exposition de données personnelles retirées, à trancher par le porteur.
+- Mesure (2026-10-22, 4382e9f60, implementeur) : `PdfDUnClientSupprimeTest` (neuf), HTML du gabarit capturé par `View::composer` : facture d'un client supprimé rendue à son émetteur → nom et e-mail absents avant correctif (rouge) ; quittance d'un locataire supprimé rendue au bailleur → nom absent (rouge). `DocumentPdfController::invoice` lit `customer` et `streamRentReceipt` lit `tenant` `withTrashed()`, la relation déjà chargée à `null` par la policy étant retirée d'abord (piège de TCK-1250) ; le bien de la quittance l'était déjà, la facture n'en imprime aucun → 2/2 verts ; ablation (contrôleur remis à `HEAD`) → 2 rouges. `PdfDUnBienSupprimeTest`, `ReceiptPdfTest`, `InvoicePdfTest`, `LeaseContractPdfTest`, `PublicPaymentLinkTest`, `FactureDesignationTest`, `OwnerIsolationWithinAgencyTest` verts. `LeaseResource` rend toujours `tenant` à `null` : hors de la décision.
 
 ## Angle 131 — Paramètres de requête des liens profonds, et leur survie aux redirections
 
