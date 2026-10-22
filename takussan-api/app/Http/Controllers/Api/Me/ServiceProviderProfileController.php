@@ -70,13 +70,9 @@ class ServiceProviderProfileController extends Controller
             ->usingName($file->getClientOriginalName() ?: $kind)
             ->toMediaCollection('file');
 
-        // Mirror insurance presence onto SP metadata so the wizard recap
-        // and the `Assuré` badge can read it without a join.
-        if ($kind === 'insurance') {
-            $metadata = $sp_profile->metadata ?? [];
-            $metadata['has_insurance'] = true;
-            $sp_profile->forceFill(['metadata' => $metadata])->save();
-        }
+        // TCK-1325 (P117.06) — plus de `metadata.has_insurance` : le badge « Assuré » se dérive de
+        // la pièce vivante (`ServiceProviderProfile::liveInsuranceDocuments()`). Le drapeau n'avait
+        // aucun lecteur et ne se remettait jamais à faux.
 
         activity('Onboarding')
             ->performedOn($sp_profile)
@@ -155,8 +151,9 @@ class ServiceProviderProfileController extends Controller
         $sp_profile->forceFill([
             'specialties' => $trades !== [] ? $trades : null,
             'service_areas' => $zones !== [] ? $zones : null,
-            'hourly_rate_min' => array_key_exists('hourly_rate', $validated) && $validated['hourly_rate'] !== null
-                ? (float) $validated['hourly_rate']
+            // TCK-1315 (P117.02) — comme `visit_fee` : clé absente, on garde ; `null`, on efface.
+            'hourly_rate_min' => array_key_exists('hourly_rate', $validated)
+                ? ($validated['hourly_rate'] !== null ? (float) $validated['hourly_rate'] : null)
                 : $sp_profile->hourly_rate_min,
             'metadata' => $metadata,
         ])->save();

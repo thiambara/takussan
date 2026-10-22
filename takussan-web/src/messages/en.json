@@ -4221,7 +4221,8 @@
         "save": "Save",
         "saving": "Saving…",
         "saved": "Saved.",
-        "failed": "The assignment was not saved."
+        "failed": "The assignment was not saved.",
+        "insured": "Insured"
       },
       "gallery": {
         "title": "Photos and files",
@@ -4691,7 +4692,6 @@
       "title": "Help us tailor your search",
       "description": "Three quick pieces of info — all optional — to personalise your results. You can finish later from your profile.",
       "phoneLabel": "Phone (optional)",
-      "phonePlaceholder": "+221 77 000 00 00",
       "cityLabel": "Preferred city (optional)",
       "cityPlaceholder": "Dakar, Saint-Louis…",
       "intentLabel": "Search type (optional)",
@@ -5216,7 +5216,8 @@
       "actions": {
         "resend": "Resend invitation",
         "revoke": "Revoke"
-      }
+      },
+      "insured": "Insured"
     },
     "invite": {
       "title": "Invite a provider",
@@ -6438,7 +6439,7 @@
       "status": {
         "active": "Active",
         "inactive": "Inactive",
-        "banned": "Blocked"
+        "blocked": "Blocked"
       },
       "roles": {
         "agency_admin": "Administrator",
@@ -8059,8 +8060,7 @@
           "all": "All statuses",
           "active": "Active",
           "blocked": "Blocked",
-          "inactive": "Inactive",
-          "banned": "Banned"
+          "inactive": "Inactive"
         },
         "emailFilter": {
           "all": "Email: all",
@@ -9383,14 +9383,11 @@
     "agent": {
       "title": "Professional profile",
       "subtitle": "Your real estate agent information.",
-      "bioLabel": "Professional bio",
-      "bioPlaceholder": "Describe your expertise and your specialities",
       "specialtiesLabel": "Specialities",
-      "comingSoon": "Coming soon",
       "licenseLabel": "Licence number",
-      "licensePlaceholder": "e.g. AGC-2025-0001",
       "agencyLabel": "Linked agency",
-      "noAgency": "Not affiliated"
+      "noAgency": "Not affiliated",
+      "notProvided": "Not provided"
     },
     "owner": {
       "title": "Landlord area",

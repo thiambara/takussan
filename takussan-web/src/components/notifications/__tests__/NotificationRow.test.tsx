@@ -28,7 +28,8 @@ function notification(overrides: Partial<AppNotification> = {}): AppNotification
     body: 'Corps écrit par l’API',
     is_read: false,
     read_at: null,
-    created_at: '2026-10-06T08:00:00.000000Z',
+    // ADR-0018 : un instant sort des ressources en `+00:00`, plus en `…000000Z`.
+    created_at: '2026-10-06T08:00:00+00:00',
     ...overrides,
   };
 }
@@ -73,6 +74,24 @@ describe('NotificationRow', () => {
     expect(texte).not.toContain('personal_data');
   });
 
+  // TCK-1322 (P128.02) — le rôle d'une délégation arrive CODÉ (`agency_admin`) : il se lit par
+  // son libellé traduit, jamais par le code brut.
+  it.each([
+    ['fr', /Admin agence/],
+    ['en', /Agency admin/],
+  ] as const)('traduit le rôle délégué (%s)', (locale, libelle) => {
+    renderRow(notification({
+      type: 'system',
+      code: 'role_delegation.activated',
+      params: { role: 'agency_admin', ends_at: '2026-10-25' },
+      target: null,
+    }), locale);
+
+    const texte = document.body.textContent ?? '';
+    expect(texte).toMatch(libelle);
+    expect(texte).not.toContain('agency_admin');
+  });
+
   it('formate le montant et la date, sans « 150000.00 » ni « XOF » bruts', () => {
     renderRow(notification());
 
@@ -80,6 +99,24 @@ describe('NotificationRow', () => {
     expect(corps).toMatch(/150\s000\sF\sCFA/u);
     expect(corps).toContain('29 sept. 2026');
     expect(corps).not.toContain('150000.00');
+  });
+
+  // TCK-1328 (P128.06) — un paramètre `datetime` (instant ISO à décalage) se rend en date ET
+  // heure, à Dakar ; une `date` seule (`due_date`, cas ci-dessus) sans heure.
+  it.each([
+    ['fr', /25 oct\. 2026.*14:30/],
+    ['en', /25 Oct 2026, 14:30/],
+  ] as const)('formate un instant en date et heure (%s)', (locale, attendu) => {
+    renderRow(notification({
+      type: 'visit',
+      code: 'visit.confirmed',
+      params: { property: 'Villa Almadies', scheduled_at: '2026-10-25T14:30:00+00:00', timezone: 'Africa/Dakar' },
+      target: null,
+    }), locale);
+
+    const corps = screen.getByText(/Villa Almadies.*2026/).textContent ?? '';
+    expect(corps).toMatch(attendu);
+    expect(corps).not.toContain('2026-10-25T14:30');
   });
 
   it('la ligne entière est un lien vers la cible, et l’ouvrir la signale', async () => {

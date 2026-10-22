@@ -140,9 +140,7 @@ class VisitNotifier
         $property?->loadMissing(PrimaryPropertyContact::eagerLoads());
 
         $recipients = collect();
-        $agentUtilisable = $visit->agent !== null && ($property?->agency_id === null
-            ? PrimaryPropertyContact::joignable($visit->agent)
-            : PersonnelDeLAgence::estPersonnel($visit->agent, $property->agency_id));
+        $agentUtilisable = $this->agentUtilisable($visit);
         if ($agentUtilisable) {
             $recipients->push($visit->agent);
         }
@@ -167,6 +165,27 @@ class VisitNotifier
         }
 
         return $recipients->filter()->unique('id')->values();
+    }
+
+    /**
+     * L'agent assigné peut-il encore recevoir un avis de cette visite (M2) : personnel de l'agence
+     * du bien ({@see PersonnelDeLAgence::estPersonnel()}), ou, sur un bien sans agence, joignable.
+     * Faux pour une visite non attribuée. Le rappel planifié juge l'agent par ce même prédicat
+     * (TCK-1314).
+     */
+    public function agentUtilisable(PropertyVisit $visit): bool
+    {
+        $visit->loadMissing(['agent', 'property']);
+        $agent = $visit->agent;
+        if ($agent === null) {
+            return false;
+        }
+
+        $agencyId = $visit->property?->agency_id;
+
+        return $agencyId === null
+            ? PrimaryPropertyContact::joignable($agent)
+            : PersonnelDeLAgence::estPersonnel($agent, $agencyId);
     }
 
     private function toAgency(PropertyVisit $visit, NotificationCode $code, bool $withPrimaryAndOwner = false): void

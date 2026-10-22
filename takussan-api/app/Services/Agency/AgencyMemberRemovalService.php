@@ -6,6 +6,8 @@ use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\Enums\RoleDelegationStatus;
 use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Property;
+use App\Models\PropertyCollaborator;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Services\Calendar\CalendarFeedService;
@@ -28,7 +30,8 @@ use Illuminate\Support\Facades\DB;
  *    `agency_member.portfolio_not_empty`, avec les comptes) ;
  *  - un journal `activity('Membership')` : `agent_removed` / `agency_admin_removed` ;
  *  - l'extinction de ce que la présence ouvrait : flux iCalendar du membre dans l'agence (ADR-0034),
- *    délégations et absences où il figure (ADR-0035).
+ *    délégations et absences où il figure (ADR-0035), marque d'agent principal de ses lignes de
+ *    collaboration (TCK-1333 — la ligne reste).
  */
 class AgencyMemberRemovalService
 {
@@ -91,6 +94,7 @@ class AgencyMemberRemovalService
                 ->each(fn (RoleDelegation $d) => $this->delegations->revoke($d, $actor));
 
             $this->feeds->revoke($member, $agencyId);
+            $this->dropPrimaryMarks($member, $agencyId);
 
             activity('Membership')
                 ->causedBy($actor)
@@ -106,5 +110,29 @@ class AgencyMemberRemovalService
 
             return $removed;
         });
+    }
+
+    /**
+     * TCK-1333 (P121.04, décision du porteur) — un non-membre ne porte plus la marque d'agent
+     * principal d'un bien de l'agence : elle tombe dans le repli, comme pour un repreneur refusé
+     * (TCK-1253). La ligne reste — seule la marque part. Les biens sont verrouillés d'abord, par
+     * identifiant croissant (ADR-0059 §3 : bien → lignes, l'ordre de `PrimaryAgentDesignator`).
+     */
+    private function dropPrimaryMarks(User $member, int $agencyId): void
+    {
+        $marked = fn () => PropertyCollaborator::query()
+            ->where('user_id', $member->id)
+            ->where('is_primary', true)
+            ->whereIn('property_id', Property::withTrashed()->where('agency_id', $agencyId)->select('id'));
+
+        $propertyIds = $marked()->pluck('property_id')->all();
+        if ($propertyIds === []) {
+            return;
+        }
+        Property::withTrashed()->whereIn('id', $propertyIds)->orderBy('id')->lockForUpdate()->pluck('id');
+
+        foreach ($marked()->get() as $row) {
+            $row->forceFill(['is_primary' => false])->save();
+        }
     }
 }

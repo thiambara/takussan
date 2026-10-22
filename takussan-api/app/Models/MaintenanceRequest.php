@@ -11,6 +11,7 @@ use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Sorts\MaintenancePrioritySort;
+use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -92,7 +93,7 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
     {
         $subject = $baseQuery ?? static::class;
 
-        return QueryBuilder::for($subject, $request)
+        return DepartageQueryBuilder::for($subject, $request)
             ->allowedFilters(...static::getAllowedQueryFilters())
             ->allowedSorts(
                 'id',

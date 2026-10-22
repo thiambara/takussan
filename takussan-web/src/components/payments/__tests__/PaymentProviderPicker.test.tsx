@@ -11,10 +11,14 @@ import { ApiError } from '@/lib/api';
 import { PaymentProviderPicker } from '../PaymentProviderPicker';
 
 let refus: ApiError | null = null;
+const appels: Array<Record<string, unknown>> = [];
 vi.mock('@/hooks/useInitiatePayment', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/useInitiatePayment')>()),
   useInitiatePayment: () => ({
-    mutateAsync: () => (refus ? Promise.reject(refus) : Promise.resolve({ data: {} })),
+    mutateAsync: (variables: Record<string, unknown>) => {
+      appels.push(variables);
+      return refus ? Promise.reject(refus) : Promise.resolve({ data: {} });
+    },
     isPending: false,
   }),
 }));
@@ -34,6 +38,7 @@ function rendre() {
 
 beforeEach(() => {
   refus = null;
+  appels.length = 0;
 });
 
 function refuser(erreur: ApiError) {
@@ -61,5 +66,24 @@ describe('PaymentProviderPicker — checkout déjà en cours (N2)', () => {
     rendre();
 
     expect(texte((await screen.findByRole('alert')).textContent)).toBe('Ce paiement n’est plus payable en ligne.');
+  });
+});
+
+/**
+ * TCK-1291 (P131.01) — sans adresse d'annulation, Wave et Orange Money ramenaient l'annulation ou
+ * l'échec sur leur repli `…/app/payments/return?status=failed`, sans référence du paiement : la page
+ * de retour rendait « Lien de retour incorrect ».
+ */
+describe('PaymentProviderPicker — adresses de retour', () => {
+  it('envoie une adresse d’annulation qui porte la référence du paiement', async () => {
+    rendre();
+    await vi.waitFor(() => expect(appels).toHaveLength(1));
+
+    const origine = window.location.origin;
+    expect(appels[0]).toMatchObject({
+      provider: 'wave',
+      returnUrl: `${origine}/app/payments/return?status=pending&payment_type=lease-payments&payment_id=12`,
+      cancelUrl: `${origine}/app/payments/return?status=failed&payment_type=lease-payments&payment_id=12`,
+    });
   });
 });

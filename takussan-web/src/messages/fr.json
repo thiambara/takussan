@@ -4192,7 +4192,8 @@
         "save": "Enregistrer",
         "saving": "Enregistrement…",
         "saved": "Enregistré.",
-        "failed": "L'assignation n'a pas été enregistrée."
+        "failed": "L'assignation n'a pas été enregistrée.",
+        "insured": "Assuré"
       },
       "gallery": {
         "title": "Photos et pièces",
@@ -4691,7 +4692,6 @@
       "title": "Aidez-nous à mieux vous accompagner",
       "description": "Trois infos rapides — toutes optionnelles — pour personnaliser vos résultats. Vous pouvez compléter plus tard depuis votre profil.",
       "phoneLabel": "Téléphone (optionnel)",
-      "phonePlaceholder": "+221 77 000 00 00",
       "cityLabel": "Ville recherchée (optionnel)",
       "cityPlaceholder": "Dakar, Saint-Louis…",
       "intentLabel": "Type de recherche (optionnel)",
@@ -5216,7 +5216,8 @@
       "actions": {
         "resend": "Renvoyer l'invitation",
         "revoke": "Révoquer"
-      }
+      },
+      "insured": "Assuré"
     },
     "invite": {
       "title": "Inviter un prestataire",
@@ -6438,7 +6439,7 @@
       "status": {
         "active": "Actif",
         "inactive": "Inactif",
-        "banned": "Bloqué"
+        "blocked": "Bloqué"
       },
       "roles": {
         "agency_admin": "Administrateur",
@@ -8059,8 +8060,7 @@
           "all": "Tous statuts",
           "active": "Actif",
           "blocked": "Bloqué",
-          "inactive": "Inactif",
-          "banned": "Banni"
+          "inactive": "Inactif"
         },
         "emailFilter": {
           "all": "Email : tous",
@@ -9383,14 +9383,11 @@
     "agent": {
       "title": "Profil professionnel",
       "subtitle": "Vos informations d'agent immobilier.",
-      "bioLabel": "Bio professionnelle",
-      "bioPlaceholder": "Décrivez votre expertise et vos spécialités",
       "specialtiesLabel": "Spécialisations",
-      "comingSoon": "Bientôt disponible",
       "licenseLabel": "Numéro de licence",
-      "licensePlaceholder": "Ex: AGC-2025-0001",
       "agencyLabel": "Agence liée",
-      "noAgency": "Non affilié"
+      "noAgency": "Non affilié",
+      "notProvided": "Non renseigné"
     },
     "owner": {
       "title": "Espace bailleur",

@@ -4,7 +4,7 @@ import { cheminApi, requete } from '@/lib/chemin-api';
 
 export const ACTIVE_PROFILE_COOKIE = 'active_profile_id';
 
-const PROFILE_FIELDS = ['id', 'type', 'numeric_id', 'agency_id', 'status', 'created_at'].join(',');
+const PROFILE_FIELDS = ['id', 'type', 'numeric_id', 'agency_id', 'status', 'created_at', 'license_number', 'specialty'].join(',');
 // TCK-497 — `kind` fait partie du sparse fieldset, faute de quoi il ne revient
 // PAS. `ProfileResource` construit son bloc `agency` à la main depuis le modèle :
 // une colonne absente du `fields[agencies]` rend `null`, sans erreur ni trace, et

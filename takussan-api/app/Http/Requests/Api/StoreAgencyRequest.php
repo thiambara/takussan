@@ -4,7 +4,6 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\AgencyUpdateRequest;
 use App\Http\Requests\BaseFormRequest;
-use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Currency;
 use Illuminate\Validation\Rule;
 
@@ -45,7 +44,8 @@ class StoreAgencyRequest extends BaseFormRequest
             'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             // TCK-600 — les devises que la plateforme accepte (`currency.supported`), pas tout l'enum.
             'currency' => ['nullable', Rule::enum(Currency::class), Rule::in(AgencyUpdateRequest::supportedCurrencies())],
-            'status' => ['nullable', Rule::enum(AgencyStatus::class)],
+            // P147.07 (TCK-1279) — pas de `status` : l'agence naît `active`, et seuls les gestes de
+            // la console (`suspend`, `unverify`, `reinstate`) le changent.
         ];
     }
 }

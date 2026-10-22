@@ -9,6 +9,7 @@ use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
@@ -129,6 +130,9 @@ class PropertyAuthorizationTest extends ApiTestCase
             'status' => AgencyAdminProfileStatus::Suspended,
         ]);
         $ailleurs = $this->agencyAdmin(Agency::factory()->create());
+        // TCK-1318 (P126.05) — admin actif au compte bloqué : jamais notifié.
+        $bloque = User::factory()->create(['status' => UserStatus::Blocked]);
+        AgencyAdminProfile::factory()->create(['user_id' => $bloque->id, 'agency_id' => $this->agency->id]);
 
         $id = $this->actingAsApi(User::factory()->withOwnerProfile($this->agency)->create())
             ->postJson('/api/properties', $this->payload())
@@ -143,6 +147,7 @@ class PropertyAuthorizationTest extends ApiTestCase
         }
         $this->assertSame(0, AppNotification::query()->where('user_id', $suspendu->id)->count());
         $this->assertSame(0, AppNotification::query()->where('user_id', $ailleurs->id)->count());
+        $this->assertSame(0, AppNotification::query()->where('user_id', $bloque->id)->count());
     }
 
     public function test_un_bien_cree_par_le_personnel_ne_notifie_personne(): void

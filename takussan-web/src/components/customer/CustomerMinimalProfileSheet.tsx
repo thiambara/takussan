@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PhoneInput } from '@/components/ui/phone-input';
 import {
   Select,
   SelectContent,
@@ -124,14 +125,12 @@ export function CustomerMinimalProfileSheet({
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <div className="space-y-1.5">
             <Label htmlFor="cmp-phone">{t('phoneLabel')}</Label>
-            <Input
+            {/* P125.03 (TCK-1281) — `PATCH /api/me` n'accepte que l'E.164 : `PhoneInput`
+                compose la valeur (`+221770000000`) quelle que soit la frappe. */}
+            <PhoneInput
               id="cmp-phone"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder={t('phonePlaceholder')}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onValueChange={setPhone}
               disabled={pending}
             />
           </div>

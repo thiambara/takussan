@@ -7,10 +7,12 @@ use App\Jobs\SyncPropertyCalendarFeedsJob;
 use App\Models\Agency;
 use App\Models\AppNotification;
 use App\Models\Booking;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyCalendarFeed;
 use App\Models\PropertyUnavailability;
@@ -331,6 +333,27 @@ class SyncPropertyCalendarFeedsTest extends TestCase
         $this->assertSame(1, $alerts());
         $this->assertSame(5, $this->feed()->consecutive_failures);
         $this->assertNotNull($this->feed()->failing_since);
+    }
+
+    /** TCK-1316 (P126.04) — le créateur du bien suspendu de l'agence n'est plus averti. */
+    public function test_a_failing_feed_does_not_warn_a_creator_suspended_from_the_agency(): void
+    {
+        Http::fake(['cal.example.com/*' => Http::response('', 503)]);
+        $this->register()->assertCreated();
+        $suspended = User::factory()->create();
+        AgentProfile::factory()->create([
+            'user_id' => $suspended->id,
+            'agency_id' => $this->agency->id,
+            'status' => AgentProfileStatus::Suspended,
+        ]);
+        $this->property->forceFill(['user_id' => $suspended->id])->save();
+
+        $this->sync();
+        $this->sync();
+
+        // L'inscription a fait la première synchronisation : le seuil (3) est atteint.
+        $this->assertSame(PropertyCalendarFeed::FAILURES_BEFORE_ALERT, $this->feed()->consecutive_failures);
+        $this->assertSame(0, AppNotification::query()->where('code', 'property.calendar_feed_failing')->count());
     }
 
     public function test_a_success_resets_the_failure_count(): void

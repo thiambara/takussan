@@ -4,8 +4,12 @@ namespace Tests\Feature\Api;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Jobs\SendPropertyVisitReminders;
+use App\Models\Agency;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
@@ -216,6 +220,86 @@ class PropertyVisitWorkflowTest extends TestCase
         (new SendPropertyVisitReminders)->handle();
 
         Notification::assertSentToTimes($visitor, CodedNotification::class, 1);
+    }
+
+    /**
+     * TCK-1314 (P126.02) — l'agent de la visite suspendu de l'agence du bien ne reçoit plus le
+     * rappel : les admins actifs de l'agence le reçoivent à sa place.
+     */
+    public function test_reminder_skips_a_suspended_agent_and_reminds_the_active_admins(): void
+    {
+        Notification::fake();
+
+        [$agency, $admin] = $this->agencyWithAdmin();
+        $agent = $this->agentOf($agency, AgentProfileStatus::Suspended);
+        $visitor = $this->confirmedVisitTomorrow($agency, $agent);
+
+        (new SendPropertyVisitReminders)->handle();
+
+        Notification::assertSentToTimes($visitor, CodedNotification::class, 1);
+        Notification::assertNotSentTo($agent, CodedNotification::class);
+        Notification::assertSentTo($admin, CodedNotification::class, fn (CodedNotification $n) => $n->code === NotificationCode::VisitReminder);
+    }
+
+    public function test_reminder_goes_to_an_active_agent_and_not_to_the_admins(): void
+    {
+        Notification::fake();
+
+        [$agency, $admin] = $this->agencyWithAdmin();
+        $agent = $this->agentOf($agency, AgentProfileStatus::Active);
+        $this->confirmedVisitTomorrow($agency, $agent);
+
+        (new SendPropertyVisitReminders)->handle();
+
+        Notification::assertSentTo($agent, CodedNotification::class, fn (CodedNotification $n) => $n->code === NotificationCode::VisitReminder);
+        Notification::assertNotSentTo($admin, CodedNotification::class);
+    }
+
+    public function test_reminder_of_an_unassigned_visit_reminds_no_admin(): void
+    {
+        Notification::fake();
+
+        [$agency, $admin] = $this->agencyWithAdmin();
+        $visitor = $this->confirmedVisitTomorrow($agency, null);
+
+        (new SendPropertyVisitReminders)->handle();
+
+        Notification::assertSentToTimes($visitor, CodedNotification::class, 1);
+        Notification::assertNotSentTo($admin, CodedNotification::class);
+    }
+
+    /** @return array{0: Agency, 1: User} */
+    private function agencyWithAdmin(): array
+    {
+        $agency = Agency::factory()->create();
+        $admin = User::factory()->create();
+        AgencyAdminProfile::factory()->create(['user_id' => $admin->id, 'agency_id' => $agency->id]);
+
+        return [$agency, $admin];
+    }
+
+    private function agentOf(Agency $agency, AgentProfileStatus $status): User
+    {
+        $user = User::factory()->create();
+        AgentProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $agency->id, 'status' => $status]);
+
+        return $user;
+    }
+
+    private function confirmedVisitTomorrow(Agency $agency, ?User $agent): User
+    {
+        $visitor = User::factory()->create();
+        $property = Property::factory()->create(['agency_id' => $agency->id]);
+        PropertyVisit::factory()->create([
+            'property_id' => $property->id,
+            'visitor_id' => $visitor->id,
+            'agent_id' => $agent?->id,
+            'status' => VisitStatus::Confirmed,
+            'scheduled_at' => now()->addHours(24),
+            'duration_minutes' => 30,
+        ]);
+
+        return $visitor;
     }
 
     public function test_visitor_can_submit_feedback_after_completion(): void

@@ -50,12 +50,13 @@ describe('<AdminUsersFilters>', () => {
     render(withIntl(<AdminUsersFilters />));
 
     await user.click(screen.getByLabelText('Statut'));
-    const bannedOption = await screen.findByRole('option', { name: /Bloqu/i });
-    await user.click(bannedOption);
+    const blockedOption = await screen.findByRole('option', { name: /Bloqu/i });
+    await user.click(blockedOption);
 
     const replaced = String(mockReplace.mock.calls[0][0]);
     expect(replaced).not.toContain('page=4');
-    expect(replaced).toContain('filter%5Bstatus%5D=banned');
+    // P115.02 (TCK-1287) — « Bloqué » filtre sur la valeur que l'API écrit au blocage.
+    expect(replaced).toContain('filter%5Bstatus%5D=blocked');
   });
 
   it('debounces search via form submit so each keystroke does not refetch', () => {

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Agency;
 
+use App\Listeners\Maintenance\SyncMaintenanceConversation;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\CollaborationStatus;
@@ -22,6 +23,8 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Services\Agency\AgentHandoverService;
+use App\Services\Messaging\ConversationAccess;
+use App\Services\Model\MaintenanceRequestService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
@@ -336,5 +339,41 @@ class AgentHandoverTest extends ApiTestCase
         $result = app(AgentHandoverService::class)->transfer($this->agency, $provider, ['maintenance' => $stranger], $this->admin);
         $this->assertSame($this->ids['maintenance'], $result['unassigned']['maintenance']);
         $this->assertNull(MaintenanceRequest::query()->find($this->ids['maintenance'][0])->assigned_to);
+    }
+
+    /**
+     * TCK-1329 (P121.01) — une intervention passe par `MaintenanceRequestService::assign()`, le
+     * chemin du geste unitaire : le repreneur entre dans le fil et le partant en sort,
+     * l'acceptation du partant tombe, et — décision du porteur — le devis du partant reste.
+     */
+    public function test_an_intervention_is_handed_over_through_the_assignment_path_and_keeps_its_quote(): void
+    {
+        $property = Property::factory()->create(['agency_id' => $this->agency->id]);
+        $mr = MaintenanceRequest::factory()->create(['property_id' => $property->id, 'status' => MaintenanceStatus::Open]);
+        app(MaintenanceRequestService::class)->assign($mr, $this->leaver, $this->admin);
+        $mr->refresh()->forceFill([
+            'accepted_at' => now(),
+            'status' => MaintenanceStatus::QuoteSubmitted,
+            'quote_amount' => 150000,
+            'quote_submitted_at' => now(),
+        ])->save();
+        $conversation = SyncMaintenanceConversation::conversationFor($mr);
+        $this->assertNotNull($conversation);
+
+        $this->actingAsApi($this->admin)->apiPost($this->url('handover'), [
+            'successor_id' => $this->successor->id,
+        ])->assertOk()->assertJsonPath('data.moved.maintenance', 2);
+
+        $mr->refresh();
+        $this->assertSame($this->successor->id, $mr->assigned_to);
+        $this->assertNull($mr->accepted_at);
+        $this->assertSame(MaintenanceStatus::QuoteSubmitted, $mr->status);
+        $this->assertSame('150000.00', (string) $mr->quote_amount);
+        $this->assertNotNull($mr->quote_submitted_at);
+
+        $access = app(ConversationAccess::class);
+        $this->assertTrue($access->allows($this->successor->fresh(), $conversation->fresh()));
+        $this->assertFalse($access->allows($this->leaver->fresh(), $conversation->fresh()));
+        $this->actingAsApi($this->successor)->apiGet("/api/conversations/{$conversation->id}/messages")->assertOk();
     }
 }

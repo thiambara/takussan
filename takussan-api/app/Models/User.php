@@ -21,6 +21,7 @@ use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Profiles\ActiveProfileResolver;
 use App\Sorts\CollatedNameSort;
 use App\Support\CaseInsensitive;
+use App\Support\Query\DepartageQueryBuilder;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
@@ -181,7 +182,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
      */
     public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
     {
-        return QueryBuilder::for($baseQuery ?? static::class, $request)
+        return DepartageQueryBuilder::for($baseQuery ?? static::class, $request)
             ->allowedFilters(...static::getAllowedQueryFilters())
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
@@ -231,7 +232,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             ['agentProfiles', 'ownerProfiles', 'agencyAdminProfiles'],
         );
 
-        return QueryBuilder::for($base, $request)
+        return DepartageQueryBuilder::for($base, $request)
             ->allowedFilters(...[...array_values($filters), self::roleFilter($agencyId)])
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
@@ -309,7 +310,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             },
         );
 
-        return QueryBuilder::for($base, $request)
+        return DepartageQueryBuilder::for($base, $request)
             ->allowedFilters(...[...array_values($filters), $role, $assignable])
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(...static::$requestSortable, ...static::nameSorts())

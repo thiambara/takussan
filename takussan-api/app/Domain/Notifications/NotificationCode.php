@@ -211,6 +211,12 @@ enum NotificationCode: string
      */
     public const PARAM_REASON_CODE = 'reason_code';
 
+    /**
+     * TCK-1322 (P128.02) — un rôle délégable CODÉ (`agency_admin`, `agent`, `owner`), traduit au
+     * rendu sous `invitations.roles.<code>` ; un code sans libellé est rendu tel quel.
+     */
+    public const PARAM_ROLE = 'role';
+
     public function type(): NotificationType
     {
         return match ($this) {
@@ -356,10 +362,10 @@ enum NotificationCode: string
             self::GovernanceAdminAdded => ['member' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
             self::GovernanceDataExported, self::GovernanceApprovalThresholdChanged => ['actor' => self::PARAM_TEXT],
             self::GovernanceIntegrationChanged => ['provider' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
-            self::RoleDelegationActivated => ['role' => self::PARAM_TEXT, 'ends_at' => self::PARAM_DATE],
-            self::RoleDelegationExpired, self::RoleDelegationRevoked => ['role' => self::PARAM_TEXT],
+            self::RoleDelegationActivated => ['role' => self::PARAM_ROLE, 'ends_at' => self::PARAM_DATE],
+            self::RoleDelegationExpired, self::RoleDelegationRevoked => ['role' => self::PARAM_ROLE],
             self::RoleDelegationActivatedDelegator, self::RoleDelegationExpiredDelegator,
-            self::RoleDelegationRevokedDelegator => ['role' => self::PARAM_TEXT, 'beneficiary' => self::PARAM_TEXT],
+            self::RoleDelegationRevokedDelegator => ['role' => self::PARAM_ROLE, 'beneficiary' => self::PARAM_TEXT],
             self::BankStatementImported => ['bank' => self::PARAM_TEXT, 'lines' => self::PARAM_COUNT],
             self::BankStatementFinalized => ['period_start' => self::PARAM_DATE, 'period_end' => self::PARAM_DATE, 'confirmed' => self::PARAM_COUNT, 'total' => self::PARAM_COUNT],
             self::MaintenanceCreated => ['property' => self::PARAM_TEXT, 'reference' => self::PARAM_TEXT],

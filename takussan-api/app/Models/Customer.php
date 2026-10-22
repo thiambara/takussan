@@ -11,6 +11,7 @@ use App\Models\Enums\IdType;
 use App\Services\Crm\CustomerPhoneNormalizer;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Sorts\CollatedNameSort;
+use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -126,7 +127,7 @@ class Customer extends AbstractModel
      */
     public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
     {
-        return QueryBuilder::for($baseQuery ?? static::class, $request)
+        return DepartageQueryBuilder::for($baseQuery ?? static::class, $request)
             ->allowedFilters(...static::getAllowedQueryFilters())
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(

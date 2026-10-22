@@ -52,7 +52,9 @@ class PropertyModerationController extends Controller
             });
         }
 
-        $query->orderBy('submitted_at');
+        // TCK-1300 (P118.05) — un ordre total : des biens soumis dans la même seconde, ou sans
+        // `submitted_at`, se départagent par l'`id`, comme les autres files de `Admin\*` (TCK-1138).
+        $query->orderBy('submitted_at')->orderBy('properties.id');
 
         $perPage = $this->tailleDePage($request, 20);
         $paginator = $query->paginate($perPage);

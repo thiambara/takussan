@@ -191,8 +191,9 @@ class ServiceProviderOnboardingTest extends TestCase
             ->where('documentable_id', $sp->id)
             ->count());
 
+        // TCK-1325 (P117.06) — le drapeau recopié n'est plus écrit : le badge lit la pièce vivante.
         $sp->refresh();
-        $this->assertTrue((bool) data_get($sp->metadata, 'has_insurance'));
+        $this->assertArrayNotHasKey('has_insurance', $sp->metadata ?? []);
 
         // Activity log
         $this->assertTrue(Activity::query()
