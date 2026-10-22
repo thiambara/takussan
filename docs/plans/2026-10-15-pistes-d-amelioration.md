@@ -10645,7 +10645,7 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
 
 ### Le `user_agent` des demandes de contact par formulaire est celui du serveur Next (`node`), jamais celui du visiteur
 - Réf : P108.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1218
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/api.ts:686-736`, `takussan-web/src/app/actions/property.ts:226-270`, `takussan-api/app/Services/Lead/ContactLeadService.php:300-316`, `takussan-api/app/Models/PropertyContactLead.php:16,37`, `docs/models-spec.md:3538`
 - Constat :
@@ -10657,6 +10657,7 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
   - Les clics WhatsApp / Appeler (`recordClick`, l. 204-216) partent du navigateur (`contact-click.ts`, lu) et portent le bon agent. La signature de bail aussi (`leases.ts:295`, `useApiMutation`, lu) : son `user_agent`, pièce de preuve, n'est pas touché.
 - Piste : relayer le `User-Agent` du visiteur dans `apiRequest` côté serveur, comme `apiFetch` le fait (même exception pour un appel partagé), et dans `enTetesServeurAmont` pour les relais. Garde : un test de `apiRequest` côté serveur qui exige l'agent entrant, et un test de l'API qui poste une demande avec un `User-Agent` et le relit sur la ligne.
 - Mesure (2026-10-22, a49b315a0, mesureur) : lu `takussan-web/src/lib/api.ts:686-736` (`apiRequest` pose `X-Forwarded-For`, la langue et `X-Request-Id`, aucun `User-Agent`), l. 124-129 (`apiFetch` le relaie, TCK-792) et l. 176-184 (`enTetesServeurAmont` non plus) ; `property.ts:1,226-270` (`'use server'`, les deux `submit…ContactLead` passent par `apiRequest`) ; `ContactLeadService.php:314` écrit `$request->userAgent()` ; `fetch` de Node 24.18 vers un écouteur local → `user-agent: node` ; `SELECT … FROM property_contact_leads` en développement → table vide, aucune ligne à relire ; `grep -rn "userAgent()" app` → les leads, `CountBoostImpressions`, `LeaseSignatureService` (appelé du navigateur) → le constat tient, aux numéros de ligne près. Classement : A1, la spec écrit la colonne « User-agent source » (`models-spec.md`) et `apiFetch` relaie déjà l'agent du visiteur (TCK-792) : le correctif recopie ce contrat dans `apiRequest` côté serveur et `enTetesServeurAmont`, sans rien collecter que la spec ne décide déjà (pas de V3).
+- Mesure (2026-10-22, 8b3058a55, implementeur) : relu `takussan-web/src/lib/api.ts` (`apiRequest` l. 686-752, `enTetesServeurAmont` l. 176-184 : aucun `User-Agent`) ; test neuf de `api.agent-du-visiteur.test.ts` rouge avant correctif (`apiRequest` côté serveur et `enTetesServeurAmont` rendaient `undefined` pour un visiteur Firefox) → les deux posent l'agent du visiteur, sauf appel partagé et agent fourni par l'appelant (9/9 vert) ; ablation : `api.ts` rendu à `pre-dev` → 2 rouges, remis → vert ; côté API, un test par formulaire (`PropertyContactLeadTest`, `AgentContactLeadTest`) relit l'agent posté sur la ligne, rouge si `ContactLeadService` ne l'écrit plus.
 
 ### L'export du journal d'activité annonce une colonne `ip_address` qu'aucun chemin n'écrit
 - Réf : P108.02
@@ -10674,7 +10675,7 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
 
 ### Cinq listes rendent l'enveloppe de pagination de Laravel, hors de `PaginationMeta`, avec des URL tirées de l'hôte de la requête
 - Réf : P108.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1220
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:158-160`, `takussan-api/app/Http/Controllers/Public/PublicAgencyController.php:383-400`, `takussan-api/app/Http/Controllers/Public/PublicAgentController.php:361-380`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:26-28`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementLineController.php:32-34`, `takussan-api/vendor/laravel/framework/src/Illuminate/Pagination/PaginationState.php:17`
 - Constat :
@@ -10684,6 +10685,7 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
   - Aucun lecteur au front (mesuré : `grep -rnE "links\??\.(next|prev|first|last)|next_page_url|meta\??\.path|meta\.links" takussan-web/src` → vide). Les cinq sont appelées du navigateur (`PortfolioTabs.tsx`, `'use client'` ; `useProperties.ts:66` ; écrans de rapprochement), sauf sous impersonation, où le relais sert l'hôte interne au navigateur (lu, `impersonation/proxy`). Rien ne casse : ce sont des octets morts qui portent l'hôte interne.
 - Piste : rendre ces cinq listes par `$this->paginated($paginator, XResource::collection($paginator)->toArray($request))`, comme le reste de l'API. Garde : étendre `check-pagination-envelope.mjs` à la forme `return …Resource::collection(` sur un paginateur, ou un test qui refuse `links` dans la réponse de ces cinq routes.
 - Mesure (2026-10-22, a49b315a0, mesureur) : `grep -rnE "return [A-Za-z]+Resource::collection\(" app` → les cinq actions citées rendent un paginateur tel quel (`PublicPropertyController.php:160`, `PublicAgencyController.php:400`, `PublicAgentController.php:380`, `BankStatementController.php:26`, `BankStatementLineController.php:32`), les deux autres (`PublicPropertyController.php:713`, `PaymentSearchController.php:27`) et `PropertySearchService.php:851` hors constat ; `Base\Controller::paginated()` l. 44-54 rend `{ data, meta }` par `PaginationMeta` ; `grep -rnE "links\??\.(next|prev|first|last)|next_page_url|meta\??\.(path|links|from|to)" takussan-web/src` → aucun lecteur ; `grep -rlnE "'links'|links\.next|meta\.path" tests` → aucun test ne garde la forme Laravel ; la mesure par test temporaire de l'explorateur n'a pas été rejouée → le constat tient. Classement : A1, la forme canonique est écrite dans `takussan-api/CLAUDE.md` § « Pagination » (TCK-304) et les quatre clés de `meta` restent : le correctif passe les cinq actions à `$this->paginated($paginator, XResource::collection($paginator)->toArray($request))`, avec un test qui refuse `links` sur ces routes.
+- Mesure (2026-10-22, 8b3058a55, implementeur) : `grep -rnE "return [A-Za-z]+Resource::collection\(" app` → les cinq actions rendent toujours un paginateur tel quel ; test neuf `EnveloppeDePaginationDesListesDeRessourcesTest` rouge avant correctif sur les cinq routes (racines `data, links, meta`) → les cinq passent par `$this->paginated(…, XResource::collection($paginator)->toArray($request))`, `BankStatementController` et `BankStatementLineController` ramenés sur `Base\Controller` ; `data` comparé avant et après par capture temporaire : mêmes clés ; ablation : `app/` rendu à `pre-dev` → 4 rouges, remis → 4 verts ; 32 classes existantes qui frappent ces routes, vertes. Garde retenue : le test, plutôt que d'étendre `check-pagination-envelope.mjs`.
 
 ### Petites améliorations
 - Réf : P108.04
@@ -11262,7 +11264,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Changer le rôle système d'un membre se juge « être admin », pas `team.assign_role`
 - Réf : P116.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : retire un geste d'autorisation à l'admin qui l'a aujourd'hui
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/UpdateUserRoleRequest.php:30-37`, `takussan-api/app/Http/Requests/Api/UpdateAgencyMemberRoleRequest.php:30-38`, `takussan-api/app/Policies/AgencyRolePolicy.php:31`, `:38`, `:87`
 - Constat :
@@ -11271,10 +11273,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - mesuré (test temporaire retiré) : admin dont le rôle retire `team.assign_role` → `PUT /api/users/{agent}/role {role: agency_admin}` 200, `PUT …/members/{bailleur}/role {role: agent}` 200. Agent dont le rôle porte `team.assign_role` → 403 et 403.
   - Établi comment : test temporaire. Que l'admin sans la capacité promeuve un agent admin d'agence alors que `AgencyRoleService` (l. 287-311) protège le dernier détenteur de `team.assign_role` n'a pas été confronté (à vérifier).
 - Piste : porter la règle par une policy qui juge `team.assign_role` (comme `AgencyRolePolicy::assign`), et retirer les deux reprises. Test : admin sans la capacité refusé, agent qui la tient accepté, admin principal et super-admin inchangés.
+- Mesure (2026-10-22, efa6796ea, mesureur) : relu `UpdateUserRoleRequest.php:30-37` et `UpdateAgencyMemberRoleRequest.php:30-38` (super-admin, admin principal ou `isAgencyAdminAt`, aucune capacité), `AgencyRolePolicy.php:31`, `:38`, `:87` (`canActAt(TeamAssignRole)`) ; `git diff 3390f9116 efa6796ea -- takussan-api/app takussan-api/routes` ne touche aucun de ces fichiers ; aucun ticket ne porte la conversion (`grep` des tickets) ; test temporaire retiré (`tests/Feature/Tmp`, charge 1,88 sur 8 cœurs), admin au rôle sans `team.assign_role`/`agency.update`/`team.invite`/`properties.publish` contre agent au rôle qui les porte → `PUT /api/users/{agent}/role` 200 pour l'admin, 403 pour l'agent. Le constat tient ; le cas du dernier détenteur reste non confronté. Classement : V2, la règle retire à l'admin sans la capacité un geste qu'il exerce aujourd'hui.
 
 ### `agency.update` est inscrite « sans geste », alors que la fiche de l'agence, ses réglages et ses intégrations en sont les gestes, tous jugés par le type de profil
 - Réf : P116.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : retire fiche, réglages et intégrations à l'admin sans `agency.update`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/AgencyPolicy.php:46-58`, `takussan-api/app/Http/Controllers/Api/SettingController.php:26`, `:91`, `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php:50`, `UpdateSettingRequest.php:44`, `takussan-api/app/Http/Controllers/Api/IntegrationController.php:25`, `:46`, `:78`, `:192`, `:214`, `UpdateIntegrationRequest.php:44`, `takussan-api/app/Services/Membership/CapabilityEnforcementInventory.php:30`, `docs/ardoise.md:2955-2967`
 - Constat :
@@ -11282,10 +11285,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - mesuré (test temporaire retiré) : admin dont le rôle retire `agency.update` → `PATCH /api/agencies/{a}` 200, `GET /api/settings` 200, `GET /api/integrations` 200. Agent dont le rôle la porte → 403, 403 et 403.
   - P82.04 est `validé` pour brancher `agency.update` sur les indicateurs et les alertes (lu). Après ce ticket, un admin sans la capacité perdrait les indicateurs et garderait la fiche de l'agence, ses réglages et ses intégrations (déduit, à vérifier).
 - Piste : faire juger ces gestes par `agency.update` (ou la scinder, si le porteur veut séparer intégrations et réglages), dans le ticket qui retire `agency.update` de l'inventaire, et corriger D-69. Test : admin sans la capacité refusé sur les trois écritures, agent qui la tient accepté.
+- Mesure (2026-10-22, efa6796ea, mesureur) : relu `AgencyPolicy.php:46-58`, `SettingController.php:26`, `:91`, `StoreSettingRequest.php:50`, `UpdateSettingRequest.php:44`, `IntegrationController.php:25`, `:46`, `:78`, `:192`, `:214`, `UpdateIntegrationRequest.php:44` (tous `isAgencyAdminAt`), et `CapabilityEnforcementInventory.php:33` (`agency.update` => D-69, la ligne a bougé de 30 à 33) ; test temporaire retiré (`tests/Feature/Tmp`, charge 1,88 sur 8 cœurs), admin au rôle sans `team.assign_role`/`agency.update`/`team.invite`/`properties.publish` contre agent au rôle qui les porte → admin : `PATCH /api/agencies/{a}` 200, `GET /api/settings` 200, `GET /api/integrations` 200 ; agent : 403, 403, 403. Le constat tient. Classement : V2, le correctif retire trois gestes à l'admin sans la capacité, et la Piste laisse ouverte une scission de la capacité (V7).
 
 ### Invitations : la liste et la création jugent le type de profil, la révocation la capacité, et retirer `team.invite` à un admin ne change rien
 - Réf : P116.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : retirer la branche admin des invitations est un choix du porteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/InvitationPolicy.php:27-55`, `:89-102`, `takussan-api/app/Http/Controllers/Api/InvitationController.php:145-158`, `takussan-api/app/Policies/AgentProfilePolicy.php:70-93`, `takussan-api/app/Policies/OwnerProfilePolicy.php:70-92`, `takussan-api/app/Policies/Profiles/ServiceProviderProfilePolicy.php:118-135`
 - Constat :
@@ -11297,10 +11301,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Le front garde les deux boutons par `useCan('team.invite')` (lu, `TeamConsole.tsx:205`, `PendingInvitationsSection.tsx:64-72`).
   - Établi comment : la Gate interrogée et la liste rejouée dans le test.
 - Piste : juger les cinq abilities et la portée de la liste par `team.invite` seul, admin compris, comme `AgencyPolicy::updateKyc`. Le retrait de la branche `isAgencyAdminAt` retire un geste à l'admin sans la capacité, et le choix revient au porteur. Test : agent qui tient la capacité liste les invitations de l'agence, admin sans elle refusé.
+- Mesure (2026-10-22, efa6796ea, mesureur) : relu `InvitationPolicy.php:27-54` (`viewAny`, `view`, `create` : `isAgencyAdminAt`) et `:87-101` (`revoke` : admin ou `canActAt(TeamInvite)`), `InvitationController.php:152`, `AgentProfilePolicy.php:80-92`, `OwnerProfilePolicy.php:79-91`, `ServiceProviderProfilePolicy.php:122-134` (même forme `isAgencyAdminAt || canActAt(TeamInvite)`) ; test temporaire retiré (`tests/Feature/Tmp`, charge 1,88 sur 8 cœurs), admin au rôle sans `team.assign_role`/`agency.update`/`team.invite`/`properties.publish` contre agent au rôle qui les porte → `GET /api/invitations` 200 pour l'un et l'autre (le contenu rendu à l'agent n'a pas été relu cette fois). Le constat lu tient. Classement : V2, la Piste retire un geste à l'admin sans la capacité et le dit elle-même choix du porteur.
 
 ### Expirer une réservation à la main : admin sans `bookings.cancel` accepté, agent qui la tient refusé
 - Réf : P116.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : juger par `bookings.cancel` ou retirer la route, choix ouvert
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/BookingController.php:28-45`
 - Constat :
@@ -11308,10 +11313,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - mesuré (test temporaire retiré) : admin dont le rôle retire `bookings.cancel` → 200, réservation expirée ; agent dont le rôle la porte → 403 `auth.insufficient_privileges`.
   - `grep -rn "expire-now" takussan-web/src` → rien : aucun appelant au front (mesuré).
 - Piste : porter la règle dans `BookingPolicy` sous `bookings.cancel`, ou retirer la route si elle n'a pas d'appelant (A3, à mesurer côté scripts et tâches). Test : admin sans la capacité refusé, agent qui la tient accepté.
+- Mesure (2026-10-22, efa6796ea, mesureur) : relu `Admin/BookingController.php:28-45` (`abort_code_unless` super-admin ou `isAgencyAdminAt`, aucune capacité), route `routes/api/bookings.php:19-20` ; `grep -rn "expire-now\|expireNow"` dans `takussan-web/src` et `takussan-api/app/Console` → rien ; pas rejoué par un test (le prédicat lu est inchangé depuis 3390f9116). Le constat tient. Classement : V2, la règle retire le geste à l'admin sans la capacité, et la Piste hésite avec un retrait de route (V7).
 
 ### Approuver un bien en attente le publie sans `properties.publish`
 - Réf : P116.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : la règle de la modération d'agence est un choix du porteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/PropertyModerationPolicy.php:44-58`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:31-33`, `takussan-api/app/Policies/PropertyPolicy.php:169`
 - Constat :
@@ -11319,10 +11325,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - mesuré (test temporaire retiré) : admin dont le rôle retire `properties.publish` → file 200, `POST /api/properties/{p}/approve` 200 et le bien passe de `pending_review` à `available`. Agent dont le rôle la porte → 403 et 403, le bien reste `pending_review`.
   - Le front appelle ces routes (lu, `takussan-web/src/lib/queries/property-moderation.ts:144`, `:158`, page `/app/agency/moderation/properties`).
 - Piste : juger la modération d'agence par `properties.publish` (`properties.moderate` est réservée à la plateforme, `CapabilityEnforcementInventory.php:28`), ou écrire que la modération reste un geste d'admin. C'est un choix du porteur. Test : la règle retenue, admin sans la capacité et agent qui la tient.
+- Mesure (2026-10-22, efa6796ea, mesureur) : relu `PropertyModerationPolicy.php:43-58` (`canModerate` : `isAgencyAdminAt` sur l'agence du bien), `PropertyPolicy.php:167-170` (`publish` par `agencyGesture(…, PropertiesPublish)`) ; test temporaire retiré (`tests/Feature/Tmp`, charge 1,88 sur 8 cœurs), admin au rôle sans `team.assign_role`/`agency.update`/`team.invite`/`properties.publish` contre agent au rôle qui les porte → `GET /api/properties/moderation` 200 pour l'admin, 403 pour l'agent. Le constat tient (l'approbation elle-même n'a pas été rejouée). Classement : V2, la Piste propose deux règles et le dit choix du porteur.
 
 ### Supprimer un média d'agence : l'admin sans `properties.update_any` le peut, l'agent qui la tient non
 - Réf : P116.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : retire la suppression de média à l'admin sans `properties.update_any`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/MediaPolicy.php:51-82`, `:91-127`, `takussan-api/app/Http/Controllers/Api/MediaController.php:70`
 - Constat :
@@ -11330,16 +11337,18 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - mesuré (test temporaire retiré), photo d'un bien d'un bailleur de l'agence : admin dont le rôle retire `properties.update_any` → `can('update', $property)` `false`, mais `DELETE /api/media/{m}` 204. Agent dont le rôle la porte → `can('update', $property)` `true`, mais `DELETE /api/media/{m}` 403.
   - `grep -rn "/api/media" takussan-web/src` → aucun appel de suppression. Le front supprime par `DELETE /api/properties/{p}/media/{id}`, jugé par `PropertyPolicy::update` (lu, `PropertyMediaController.php:149`). Un autre appelant n'a pas été cherché (à vérifier).
 - Piste : juger `delete` par la règle d'écriture du porteur du média (`PropertyPolicy::update` pour un bien), ou retirer la route si elle n'a pas d'appelant. Test : admin sans `properties.update_any` refusé sur `DELETE /api/media/{m}`, agent qui la tient accepté.
+- Mesure (2026-10-22, efa6796ea, mesureur) : relu `MediaPolicy.php:91-127` (`sign` délègue à `delete`, qui n'exige que `isAgencyAdminAt` pour un média d'agence), route `routes/api/media.php:12` (`DELETE media/{media}`) et `:15` (`sign`) ; `grep -rn "/api/media" takussan-web/src` → seul `agencies.ts:144`, un `POST` d'envoi, aucune suppression ni signature ; pas rejoué par un test. Le constat tient. Classement : V2, juger `delete` (et donc `sign`) autrement change qui lit et supprime un média aujourd'hui, et la Piste hésite avec un retrait de route.
 
 ### Petites améliorations : gestes d'admin sans capacité au catalogue
 - Réf : P116.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : déclarer ces gestes réservés ou leur choisir une capacité
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Policies/BankStatementPolicy.php:11-18`, `takussan-api/app/Http/Controllers/Api/AuditLogController.php:27`, `takussan-api/app/Http/Requests/Api/IndexAuditLogRequest.php:34`, `takussan-api/app/Policies/ActivityLogPolicy.php:12`, `takussan-api/app/Http/Controllers/Api/DashboardOwnerController.php:21-26`, `takussan-api/app/Http/Controllers/Api/IntegrationController.php:42-46`
 - Constat :
   - Le rapprochement bancaire (relevés, lignes, clôture), le journal d'audit de l'agence et le tableau de bord du bailleur ouvert à l'admin se jugent par `isAgencyAdminAt` (lu). Aucune capacité du catalogue ne les nomme (lu, `Capability.php`). Ils sont donc hors de portée de l'éditeur de rôles, sans que l'éditeur le dise. Non mesuré.
   - `GET /api/integrations/payment-providers` recopie le prédicat de la liste au lieu de l'appeler (lu, `:42-46`).
 - Piste : rien à corriger sans décision. Si le porteur veut ces gestes délégables, il choisit une capacité (`payments.record`, `reports.view_agency`…) ; sinon, une phrase dans `docs/features.md` qui les déclare réservés à l'admin.
+- Mesure (2026-10-22, efa6796ea, mesureur) : relu `BankStatementPolicy.php:11-18`, `AuditLogController.php:27`, `IndexAuditLogRequest.php:34`, `ActivityLogPolicy.php:12`, `DashboardOwnerController.php:21-26` (tous `isAgencyAdminAt`, aucune capacité lue), `IntegrationController.php:42-46` (prédicat de la liste recopié, `:25`) ; `Capability.php` a `payments.record` et `reports.view_agency`, qu'aucun de ces gestes ne lit. Le constat tient. Classement : V7, la Piste demande une décision (capacité ou réserve écrite) ; seul le prédicat recopié serait mécanique.
 
 ## Angle 117 — Clés de `metadata` des profils écrites par les assistants
 

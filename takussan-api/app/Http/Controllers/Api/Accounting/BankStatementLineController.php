@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api\Accounting;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Accounting\MatchBankStatementLineRequest;
 use App\Http\Resources\Accounting\BankStatementLineResource;
 use App\Models\BankStatement;
@@ -29,9 +29,10 @@ class BankStatementLineController extends Controller
 
         $query = $statement->lines()->getQuery();
 
-        return BankStatementLineResource::collection(
-            BankStatementLine::buildQuery($query, $request)->paginate()
-        );
+        $paginator = BankStatementLine::buildQuery($query, $request)->paginate();
+
+        // TCK-1220 (P108.03) — l'enveloppe canonique `{ data, meta }`, et non celle de Laravel.
+        return $this->paginated($paginator, BankStatementLineResource::collection($paginator)->toArray($request));
     }
 
     public function match(BankStatementLine $line, MatchBankStatementLineRequest $request, ReconciliationManager $manager)

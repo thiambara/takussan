@@ -13,6 +13,7 @@ vi.mock('next/headers', () => ({ headers: vi.fn() }));
 
 import { headers } from 'next/headers';
 
+import { apiRequest, enTetesServeurAmont } from '../api';
 import { decouverteDeLAccueil } from '../queries/public-discovery';
 import { rechercherBiensPublics } from '../queries/public-search';
 import { villesDuCatalogue } from '../queries/facettes';
@@ -73,5 +74,47 @@ describe('le rendu serveur transmet l’agent du visiteur à l’API', () => {
     await villesDuCatalogue();
     expect(headersMock).not.toHaveBeenCalled();
     expect(entetesEnvoyes()[0]!['User-Agent']).toBeUndefined();
+  });
+});
+
+/**
+ * P108.01 — `apiRequest` côté serveur (les actions `'use server'`, dont les deux formulaires de
+ * contact du site public) et `enTetesServeurAmont` (les relais BFF) relaient l'agent du visiteur
+ * comme `apiFetch`. Sans lui, le `fetch` de Node pose `user-agent: node`, et l'API écrit `node`
+ * dans le `user_agent` de chaque demande de contact.
+ */
+describe('les appels serveur hors apiFetch transmettent l’agent du visiteur', () => {
+  const FIREFOX = 'Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0';
+
+  it('apiRequest côté serveur (demande de contact par action serveur)', async () => {
+    requeteEntrante(FIREFOX);
+    await apiRequest('/api/public/properties/villa/contact-lead', { method: 'POST', body: { name: 'Awa' } });
+    expect(entetesEnvoyes()[0]!['User-Agent']).toBe(FIREFOX);
+  });
+
+  it('apiRequest sans agent entrant n’en invente aucun', async () => {
+    requeteEntrante(null);
+    await apiRequest('/api/public/properties/villa/contact-lead', { method: 'POST', body: { name: 'Awa' } });
+    expect(entetesEnvoyes()[0]!['User-Agent']).toBeUndefined();
+  });
+
+  it('un User-Agent passé par l’appelant n’est pas écrasé', async () => {
+    requeteEntrante(FIREFOX);
+    await apiRequest('/api/x', { headers: { 'User-Agent': 'appelant' } });
+    expect(entetesEnvoyes()[0]!['User-Agent']).toBe('appelant');
+  });
+
+  it('enTetesServeurAmont (relais BFF) porte l’agent du visiteur', async () => {
+    requeteEntrante(FIREFOX);
+    expect((await enTetesServeurAmont())['User-Agent']).toBe(FIREFOX);
+  });
+
+  it('enTetesServeurAmont partagé ne lit pas les en-têtes entrants et ne porte aucun agent', async () => {
+    headersMock.mockImplementation(() => {
+      throw new Error('next/headers lu par un appel PARTAGÉ');
+    });
+    const enTetes = await enTetesServeurAmont({ partage: true });
+    expect(headersMock).not.toHaveBeenCalled();
+    expect(enTetes['User-Agent']).toBeUndefined();
   });
 });
