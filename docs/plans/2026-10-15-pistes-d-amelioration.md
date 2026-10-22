@@ -12383,7 +12383,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Une délégation de rôle annoncée « jusqu'au 25 octobre » est retirée à 00:00 le 25 octobre
 - Réf : P128.01
-- Statut : validé — porteur (2026-10-22) : la fin d'une délégation est inclusive : « jusqu'au 25 » est retirée à la fin du 25, heure de Dakar
+- Statut : fait · TCK-1320
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin/roles/CreateDelegationDialog.tsx:245-251`, `takussan-api/app/Services/Permissions/RoleDelegationService.php:106`, `takussan-api/app/Models/RoleDelegation.php:45,129-130,151`, `takussan-api/app/Listeners/Permissions/NotifyDelegationActivated.php:35-38`, `takussan-api/app/Domain/Notifications/NotificationCode.php:359`, `takussan-api/lang/fr/notifications.php:524-528`
 - Constat :
@@ -12393,6 +12393,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu, puis mesuré par le test temporaire.
 - Piste : dire ce que « Fin » veut dire et le tenir des deux côtés : soit l'API range une date seule en fin de journée (dans le fuseau de l'agence ou de Dakar), soit le texte et le libellé du champ disent « jusqu'au 24 inclus » / « fin le 25 à 00:00 ». Test : délégation créée avec une date seule, encore active à midi le jour choisi (ou texte qui nomme le jour exclu), et rendu de la notification qui annonce le même dernier jour que celui où le job l'expire.
 - Mesure (2026-10-22, 045f8ae56, mesureur) : relu `CreateDelegationDialog.tsx:122,169,245-251` (`<input type="date">`, `ends_at` envoyé tel quel), `RoleDelegationService.php:106`, cast `datetime` `RoleDelegation.php:45`, expiration `ends_at <= now()` l. 151, `NotifyDelegationActivated.php:37` (`toDateString()`) ; `git log 1f9dea9cd..HEAD` → aucun commit de code ; test temporaire `TmpMesureurP128Test` (temps figé au 2026-10-20 10:00, charge 1,66 / 1,57 / 1,77 sur 8 cœurs, retiré) → `POST …/role-delegations` `ends_at=2026-10-25` 201, base `2026-10-25 00:00:00`, corps « Vous avez reçu le rôle agency_admin jusqu'au 25 octobre 2026. », `ProcessRoleDelegationsJob` à 2026-10-24 23:00 → `active`, à 2026-10-25 00:00:01 → `expired`. Le constat tient. Classement : V2 et V7, la piste propose deux voies (prolonger le droit jusqu'à la fin du jour choisi, ou changer le texte et le libellé), et la première change le moment où une autorisation tombe.
+- Mesure (2026-10-22, 4382e9f60, implementeur) : reproduit avant correctif par `RoleDelegationFinInclusiveTest` (temps figé au 2026-10-20 10:00, `POST …/role-delegations` `ends_at=2026-10-25`) → rangée `2026-10-25 00:00:00`, rouge ; `RoleDelegationService::create` range une date seule à 23:59:59 de ce jour, heure de Dakar → la délégation reste active à 12:00 et 23:59 le 25, expire le 26 à 00:00:01, notification `params.ends_at = 2026-10-25`, un instant explicite rangé tel quel ; ablation (`ends_at` brut remis) → rouge, correctif remis → vert.
 
 ### Le rôle délégué s'affiche par son code brut (« agency_admin ») dans les six notifications de délégation
 - Réf : P128.02
