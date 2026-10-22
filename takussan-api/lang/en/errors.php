@@ -460,6 +460,8 @@ return [
         'cannot_unpublish' => 'Only available properties can be unpublished.',
         'collaborator_exists' => 'This collaborator is already added to this property.',
         'collaborator_not_found' => 'This collaborator is not part of this property.',
+        'has_confirmed_booking' => 'This property has a confirmed booking: cancel it before deleting the property.',
+        'has_upcoming_visit' => 'This property has an upcoming visit: cancel it before deleting the property.',
         'not_found' => 'Property not found.',
         'not_pending_moderation' => 'The property is not awaiting moderation.',
         'primary_not_eligible' => 'Only an active agent of the property\'s agency can be its primary agent.',
