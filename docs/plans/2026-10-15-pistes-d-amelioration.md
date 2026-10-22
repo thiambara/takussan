@@ -11539,7 +11539,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### L'écran des lignes d'un relevé bancaire reçoit toujours un 400 : le front trie sur `posted_at`, que le modèle ne déclare pas triable
 - Réf : P118.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1294
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/reconciliation.ts:62-79`, `takussan-api/app/Models/BankStatementLine.php:35-42`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementLineController.php:30-32`, `takussan-web/src/components/admin/reconciliation/StatementDetail.tsx:62`
 - Constat :
@@ -11550,6 +11550,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Établi comment : lu, puis mesuré par le test temporaire.
 - Piste : déclarer `$requestSortable = ['id', 'posted_at', 'amount']` sur `BankStatementLine` et poser un ordre par défaut total (`defaultSorts('posted_at', 'id')`) dans `BankStatementLineController::index`. Test : `GET …/lines?sort=posted_at` → 200, lignes rangées par date puis par `id`. Pour empêcher le retour, l'angle 150 propose le relevé des `sort=` du front face aux listes blanches.
 - Mesure (2026-10-22, fc967bccf, mesureur) : relu `reconciliation.ts:74` (`sort: 'posted_at'`), `BankStatementLine.php:34-46` (aucun `$requestSortable`), `HasQueryBuilder.php:93` (`allowedSorts()` nu), `BankStatementLineController::index` (ni `defaultSort` ni `orderBy`) ; `git log` des trois fichiers et `grep -rn P118 docs/backlog/tickets` → rien ne l'a traité ; test temporaire retiré ensuite (charge 1,90 / 1,89 / 1,88 sur 8 cœurs), relevé de 5 lignes, admin principal → `GET …/lines?per_page=50&page=1&sort=posted_at` → **400** `http.bad_request`, sans `sort` → 200, avec les champs de `BANK_LINE_FIELDS` sans `sort` → 200. Le constat tient. Classement : A1, le tri attendu est écrit par l'appelant du front, et le corriger ne demande aucun choix de produit.
+- Mesure (2026-10-22, e6ee5d5f5, implementeur) : `BankStatementLineSortTest` avant correctif → `GET …/lines?per_page=50&page=1&sort=posted_at` rend **400**, et sans `sort=` les lignes sortent dans l'ordre physique (une ligne mise à jour passe en dernier) ; `$requestSortable = ['id', 'posted_at', 'amount']` et `defaultSorts('posted_at', 'id')` → 2/2 verts ; ablation (modèle et contrôleur rendus à `HEAD`) → 2 rouges, remis → verts.
 
 ### Les listes de `buildQuery()` qui trient par défaut sur une seule colonne rendent des lignes deux fois et d'autres jamais d'une page à l'autre
 - Réf : P118.02
