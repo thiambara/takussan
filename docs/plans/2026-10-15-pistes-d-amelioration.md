@@ -14079,7 +14079,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le `PATCH` rend public un bien que `publish` refuse, et écrit un état « public » sans publication
 - Réf : P147.03
-- Statut : validé — porteur (2026-10-22) : un passage à `public` par le `PATCH` appelle `publish()`, comme `updateVisibility`
+- Statut : fait · TCK-1429
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:187-236,247-283`, `takussan-api/app/Models/Property.php:507-517,554-569`, `takussan-api/app/Services/Search/PropertySearchService.php:459-466`
 - Constat :
@@ -14089,6 +14089,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Un tel bien est rendu `available`/`public` à la console sans être au catalogue (`scopePublic` et `publicFilter` exigent `published_at`, lu). `shouldBeSearchable` ne lit pas `published_at` (lu, `Property.php:507-517`) : il est donc indexé, et seule la clause `published_at IS NOT NULL` de la recherche le tient hors des résultats (déduit, à vérifier dans l'index).
 - Piste : avec P147.01, faire d'un passage à `public` par le `PATCH` un appel à `publish()` (comme `updateVisibility`, l. 333-343) ou le refuser ; un test par cas (`sold`, brouillon de bailleur).
 - Mesure (2026-10-22, 2e3d6840c, mesureur) : relu `publish` (l. 246-283 : 422 `property.cannot_publish` sur `sold`/`rented`, pose `published_at`) et `update` (ne refuse ni l'un ni l'autre, ne pose pas `published_at`) ; charge `{ 4.97 5.06 4.07 }` sur 8 cœurs, test temporaire retiré → bien `sold` privé : `POST …/publish` 422, `PATCH {visibility: public}` 200, rendu `sold`/`public`, `published_at` nul, hors de `Property::public()` ; bailleur, sa proposition en brouillon : `PUT …/visibility` `public` 403, `PATCH {status: available, visibility: public, accept_terms: true}` 200, rendu `available`/`public`, `published_at` nul, hors de `Property::public()` → tient ; la présence dans l'index Meilisearch n'a pas été vérifiée. Classement : V2, le correctif ferme au bailleur un chemin que `PUT …/visibility` lui refuse, et sa forme dépend du choix ouvert par P147.01.
+- Mesure (2026-10-22, e2959c84c, implementeur) : test neuf `PropertyPatchVersPublicTest` → avant correctif, bien `sold` privé `PATCH {visibility: public}` 200 (attendu 422 `property.cannot_publish`), brouillon `PATCH {visibility: public}` resté `draft` sans `published_at` → `PropertyController::update` appelle `publish()` dans la transaction du `PATCH` pour tout passage à `public` → 4/4 (dont le brouillon du bailleur 403, par TCK-1427, et un bien déjà public dont `published_at` ne bouge pas) ; ablation → 2 rouges, remis → vert ; `PublishReadinessTest`, `PropertyAuthorizationTest`, `PropertyModerationGateTest`, `PropertyCrudTest` verts.
 
 ### Passer un bien en statut actif par `PATCH` ou `PUT …/status` ne juge pas le quota d'annonces
 - Réf : P147.04
