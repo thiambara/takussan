@@ -2,6 +2,7 @@
 
 use App\Jobs\Audit\PurgeExpiredActivityLogExports;
 use App\Jobs\Billing\ProcessTrialExpirations;
+use App\Jobs\Billing\RenewAgencySubscriptionPeriods;
 use App\Jobs\Booking\CompleteEndedBookingsJob;
 use App\Jobs\Booking\ExpirePendingBookingsJob;
 use App\Jobs\Crm\SendProspectMatchDigest;
@@ -45,6 +46,9 @@ Schedule::job(new ExpireBookings)->hourly()->withoutOverlapping(60);
 Schedule::job(new SyncPropertyCalendarFeedsJob)->hourly()->withoutOverlapping(60);
 Schedule::job(new ApplyLateFeesJob)->dailyAt('02:00')->withoutOverlapping();
 Schedule::job(new ProcessTrialExpirations)->dailyAt('02:15')->withoutOverlapping();
+// TCK-1303 (P115.03) — la période d'un abonnement `active` échue est reconduite d'un mois (rattrapée
+// jusqu'à celle qui contient maintenant). Idempotente : seules les périodes échues sont relues.
+Schedule::job(new RenewAgencySubscriptionPeriods)->dailyAt('02:20')->withoutOverlapping();
 // TCK-090 — Closes leases whose effective_date has passed AND whose
 // penalty invoice is settled. Idempotent: unpaid penalties are skipped
 // silently and reprocessed on the next sweep.
