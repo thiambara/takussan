@@ -4,7 +4,7 @@ import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { RACINE_SRC } from '@/test/analyse-statique';
-import { paquetsDuGrapheClient } from '@/test/graphe-client';
+import { modulesDuGrapheClient, paquetsDuGrapheClient } from '@/test/graphe-client';
 
 /**
  * Le graphe client des écrans de la console super-admin (angle 104 du fichier de pistes).
@@ -30,6 +30,11 @@ import { paquetsDuGrapheClient } from '@/test/graphe-client';
  * une page neuve y entre d'elle-même. Mesuré le 2026-10-22 : les 37 pages et le layout y passent,
  * `tags/page.tsx` depuis TCK-1194 et TCK-1196. Une page qui EST un formulaire au chargement se
  * déclare dans {@link FORMULAIRES_AU_CHARGEMENT}, avec sa raison.
+ *
+ * TCK-1202 (P104.05) — la coque de la console (son layout) embarquait `lib/queries/super-admin.ts`
+ * en entier (1 515 lignes, 96 exports que le bundler n'élague pas) pour `fetchGlobalSearch` (barre
+ * haute) et les quatre lecteurs des files (barre latérale). Ils vivent dans
+ * `lib/queries/super-admin-coque.ts`, que `super-admin.ts` réexporte (méthode de TCK-1042).
  */
 const CONSOLE = join(RACINE_SRC, 'app', '(super-admin)', 'super-admin');
 
@@ -73,5 +78,11 @@ describe('graphe client de la console super-admin', () => {
 
   it.each(ENTREES)('TCK-1200 — %s : aucun chemin vers zod ni react-hook-form', (entree) => {
     expect(paquetsDuGrapheClient(join(CONSOLE, entree), PAQUETS_DE_FORMULAIRE)).toEqual([]);
+  });
+
+  it('TCK-1202 — la coque de la console n’embarque pas lib/queries/super-admin.ts', () => {
+    const modules = modulesDuGrapheClient(join(CONSOLE, 'layout.tsx'));
+    expect(modules.size).toBeGreaterThan(20);
+    expect(modules.has('lib/queries/super-admin.ts')).toBe(false);
   });
 });
