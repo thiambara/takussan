@@ -11214,7 +11214,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Le numéro saisi à l'étape téléphone de l'assistant hôte est exigé puis ignoré
 - Réf : P114.04
-- Statut : validé — porteur (2026-10-22) : le numéro saisi s'écrit sur le compte puis se vérifie par code (OTP), jamais marqué vérifié sans code ; pré-rempli s'il existe
+- Statut : fait · TCK-1368 — reste : `phone_otp.phone`, exigé à la soumission de l'assistant hôte, n'est toujours lu par rien : le retirer, ou le comparer à `users.phone`, est à décider
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Onboarding/HostIndividualOnboardRequest.php:53-61`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:80-87,302-304`, `takussan-web/src/components/onboarding/HostIndividualWizard.tsx:202-206`
 - Constat :
@@ -11224,6 +11224,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Établi comment : lu pour l'API ; l'envoi du front vient du sous-agent.
 - Piste : soit retirer le champ et la règle si le numéro du compte fait foi, soit écrire le numéro saisi avant de le marquer vérifié. Un test qui envoie un numéro différent de celui du compte et relit `users.phone` le garde.
 - Mesure (2026-10-22, 135b23834, mesureur) : relu `HostIndividualOnboardRequest.php:53-54` (`phone_otp.phone` requis), `HostIndividualOnboardingService.php:80-81,210-214,305` (seul `phone_otp.code` est lu, vérifié contre `$user->phone` et marqué sur lui), puis le « à vérifier » : l'envoi du code passe par `phoneSendOtpAction(phone)` (`HostIndividualWizard.tsx:461-468`) → `PhoneVerificationController::resend()`, qui écrit le numéro saisi dans `users.phone` (`:55-76`, `PhoneChangeGuard` compris) puis envoie le code à `$user->phone` (`PhoneVerificationService::sendOtp`, `:78-84`). Le numéro marqué vérifié est donc celui qui a reçu le code : la partie « un autre numéro devient vérifié » ne tient pas. Ne tient que le champ `phone_otp.phone`, exigé et ignoré (lu ; non exécuté). L'option « écrire le numéro saisi » contournerait `PhoneChangeGuard`. Classement : V2, le correctif touche la vérification du téléphone, et la Piste offre deux options, dont une à écarter.
+- Mesure (2026-10-22, 45fd976b2, implementeur) : la décision décrit le code en place — `POST /api/auth/phone/send-otp` écrit le numéro saisi sur `users.phone` avant d'y envoyer le code, la soumission le vérifie contre ce numéro, le champ est pré-rempli ; aucun test ne le gardait. `HostIndividualOnboardingTest` (deux cas neufs) : compte au numéro A, code demandé pour B → `users.phone` = B, aucun SMS vers A, soumission avec le code de B → 201 et vérifié ; mauvais code → 422, rien de vérifié ; verts d'emblée ; ablation (écriture du numéro retirée de `PhoneVerificationController::resend()`) → 2 rouges. Code inchangé.
 
 ### Petites améliorations : clés envoyées pour rien
 - Réf : P114.05
