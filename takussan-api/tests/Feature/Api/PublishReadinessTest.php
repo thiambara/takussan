@@ -187,7 +187,8 @@ class PublishReadinessTest extends TestCase
      */
     public static function statutsAffichables(): array
     {
-        return ['available' => ['available'], 'published' => ['published'], 'pending' => ['pending']];
+        // P147.05 (TCK-1341) — `published` ne se pose plus à la main (422) : PropertyStatutsDeModerationTest.
+        return ['available' => ['available'], 'pending' => ['pending']];
     }
 
     #[DataProvider('statutsAffichables')]

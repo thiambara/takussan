@@ -4,6 +4,7 @@ namespace App\Services\Invitation;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Mail\InvitationMailable;
+use App\Models\Agency;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
@@ -355,6 +356,26 @@ class InvitationService
     }
 
     /**
+     * P129.03 (TCK-1339) — à la suppression d'une agence, ses invitations
+     * ouvertes (`sent`) sont révoquées : elles ne sont plus relancées, et
+     * leur lien ne s'accepte plus. Une ligne `invitation_revoked` par
+     * invitation, causée par qui supprime.
+     */
+    public function revokeOpenForAgency(Agency $agency, User $actor): int
+    {
+        $open = Invitation::query()
+            ->where('agency_id', $agency->getKey())
+            ->where('status', InvitationStatus::Sent->value)
+            ->get();
+
+        foreach ($open as $invitation) {
+            $this->revoke($invitation, $actor);
+        }
+
+        return $open->count();
+    }
+
+    /**
      * Resend: regenerate token, push `expires_at` forward by the default
      * TTL, clear the reminder marker (so the recipient gets one again at
      * J+2 from "now") and re-send the email.
@@ -592,6 +613,13 @@ class InvitationService
             abort_code(410, 'invitation.token_expired');
         }
 
+        // P129.03 (TCK-1339) — une agence supprimée n'ouvre plus de lien neuf,
+        // même par une invitation restée ouverte (supprimée avant la révocation
+        // de `revokeOpenForAgency`, ou hors de la route).
+        if ($invitation->agency_id !== null && ! Agency::query()->whereKey($invitation->agency_id)->exists()) {
+            abort_code(410, 'invitation.token_revoked');
+        }
+
         return $invitation;
     }
 
@@ -654,8 +682,10 @@ class InvitationService
      * Single source of truth for the "happy path" tail: attach the role
      * (scoped to agency_id), flip the polymorphic profile, flip the
      * invitation, log activity, notify the inviter. The whole tail is
-     * called from inside an outer transaction so a failure here rolls
-     * the User creation back too.
+     * called from inside an outer transaction so a failure of these
+     * writes rolls the User creation back too. The inviter's notice is
+     * not one of them: it is queued after the commit (TCK-1335), so a
+     * mail outage never keeps the invitee out.
      */
     protected function finalizeAccept(Invitation $invitation, User $user): Invitation
     {
@@ -752,9 +782,13 @@ class InvitationService
             ->event('invitation_accepted')
             ->log('invitation_accepted');
 
+        // TCK-1335 (P123.02) — l'avis à l'invitant part après le commit, et
+        // en file : un courriel en panne, ou refusé à l'adresse de
+        // l'invitant, n'empêche plus l'invité d'entrer.
         $inviter = $invitation->inviter;
         if ($inviter !== null) {
-            $inviter->notify(new InvitationAcceptedNotification($invitation->fresh()));
+            $accepted = $invitation->fresh();
+            DB::afterCommit(fn () => $inviter->notify(new InvitationAcceptedNotification($accepted)));
         }
 
         return $invitation->fresh();

@@ -11978,7 +11978,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Accepter une invitation est impossible tant que le courriel est en panne : la notification de l'invitant part dans la transaction
 - Réf : P123.02
-- Statut : validé — porteur (2026-10-22) : l'avis à l'invitant part après le commit (`DB::afterCommit`) et en file (`ShouldQueue`) : son échec n'empêche plus l'invité d'entrer ; docblock corrigé
+- Statut : fait · TCK-1335
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:582-584`, `:622-626`, `:636-737`, `takussan-api/app/Notifications/InvitationAcceptedNotification.php:14`, `:23`
 - Constat :
@@ -11989,10 +11989,11 @@ masse relève de l'angle 122 et n'est pas repris.*
 - Piste : envoyer l'avis après le commit (`DB::afterCommit`) et en file (`ShouldQueue`), comme les autres notifications de l'invitation. Garde : un test d'acceptation sous un transport qui lève, qui exige 200, le compte créé et l'invitation `accepted`.
 - Mesure (2026-10-22, 86138895e, mesureur) : relu `acceptAsNewUser()`/`acceptForUser()` (`DB::transaction` autour de `finalizeAccept()`, l. 584 et 624), `finalizeAccept()` (`$inviter->notify(new InvitationAcceptedNotification(…))`, l. 733) et la notification (`extends Notification`, sans `ShouldQueue`) ; test temporaire retiré : invitation `sent` d'un propriétaire, transport qui lève, `POST /api/invitations/{token}/accept` → 500, invitation `sent`, 0 compte, profil `draft` → le constat tient. Classement : V7, rendre l'acceptation indépendante de l'avis à l'invitant contredit le choix que le docblock écrit (« a failure here rolls the User creation back too ») ; c'est au porteur de le défaire.
 - Mesure (2026-10-22, a8174784f, delegue) : relu l'entrée, `InvitationService::finalizeAccept()` et son docblock (l. 629-634 : « a failure here rolls the User creation back too »), `app/Notifications/` (aucune des trois notifications d'invitation n'implémente `ShouldQueue` : « comme les autres notifications de l'invitation » de la Piste ne s'appuie sur rien de mesuré) et `grep -rln afterCommit docs/adr` (seul ADR-0044, sans rapport) → aucune décision écrite ne tranche contre le docblock. Recommandation : envoyer l'avis à l'invitant après le commit (`DB::afterCommit`) et en file (`ShouldQueue`), avec la garde de la Piste (transport qui lève → 200, compte créé, invitation `accepted`) ; parce qu'un avis de courtoisie à un tiers ne devrait pas empêcher l'invité d'entrer, et que le docblock vise les écritures ; manque : défaire le choix écrit du docblock, et le chemin est celui de la création de compte par invitation, cooptation du super-admin comprise (TCK-264) : critère V2 possible, qui reste au porteur.
+- Mesure (2026-10-22, 89453739b, implementeur) : relu `finalizeAccept()` (`$inviter->notify(…)` synchrone dans la transaction) ; le test neuf `InvitationAcceptEnPanneDeCourrielTest` (file `database`, transport qui lève) : `POST /api/invitations/{token}/accept` → 500 `Transport indisponible` → avis par `DB::afterCommit()` et `ShouldQueue`, 200, compte créé, invitation `accepted`, profil `active`, un travail en file ; sous la file `sync`, l'invitant reçoit l'avis ; 2/2 ; ablation → 1 rouge, remis → vert. Aucun V2 : l'autorisation de l'acceptation est inchangée, seul l'avis au tiers change de moment.
 
 ### Meilisearch injoignable sous `SCOUT_AFTER_COMMIT=true` : le geste est validé, la réponse est 500, et ce qui suit la transaction ne s'exécute pas
 - Réf : P123.03
-- Statut : validé — porteur (2026-10-22) : aligner `SCOUT_QUEUE` et `SCOUT_AFTER_COMMIT` de `.env.docker` et `phpunit.xml` sur la préproduction
+- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.docker` (`.env*`), et la valeur de préproduction ne se relève que dans Dokploy, hors du poste
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/laravel/scout/src/ModelObserver.php:16`, `:46`, `takussan-api/.env.docker:210-211`, `takussan-api/phpunit.xml:104-105`, `takussan-api/app/Services/Property/PropertyModerationService.php:46-71`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:304-342`
 - Constat :
@@ -12004,6 +12005,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lecture, puis le test temporaire joué sous les deux valeurs.
 - Piste : ne pas laisser l'échec de l'index faire échouer un geste validé (`report()` de l'exception de l'observateur, ou `SCOUT_QUEUE=true` pour que l'écriture parte en file après commit) ; à trancher avec le reste de P90.03 et P90.02. Relever `SCOUT_QUEUE` et `SCOUT_AFTER_COMMIT` de la préproduction, et aligner `phpunit.xml` sur la valeur retenue. Garde : un test par régime qui coupe le moteur et exige le geste fait, sa notification envoyée et une réponse 2xx.
 - Mesure (2026-10-22, 86138895e, mesureur) : relu `ModelObserver::__construct()` (lit `scout.after_commit`), `.env.docker:210-211` (`false`/`true`) et `phpunit.xml:104-105` (`false`/`false`) ; test temporaire retiré, Meilisearch rebranché sur `http://127.0.0.1:9` : `DB::transaction(fn () => Customer::factory()->create())` sous `after_commit=true` → `CommunicationException` et le client écrit (+1), sous `after_commit=false` → la même exception et rien d'écrit (+0) → le mécanisme tient sous les deux régimes ; les deux gestes cités (modération, message) n'ont pas été rejoués, leur code après la transaction est relu inchangé (`PropertyModerationService::approve()`, `ConversationController::sendMessage()`). Classement : V5, le correctif passe par des variables d'environnement et une valeur de préproduction non relevée ; le choix entre `report()` et la file est aussi à trancher avec P90.02 et P90.03.
+- Mesure (2026-10-22, 89453739b, implementeur) : `git grep` → `.env.docker:210-211` `SCOUT_QUEUE=false`, `SCOUT_AFTER_COMMIT=true` ; `phpunit.xml:104-105` `false`, `false` ; `.env.example:147-148` `true`, `true` en commentaire → le constat tient. Non implémenté : la décision du porteur passe par `.env.docker`, chemin fermé à l'implémenteur, et la valeur cible (préproduction) n'est relevée nulle part dans le dépôt (`hebergement.md:173-174` nomme les clés sans valeur) ; aligner `phpunit.xml` seul sur une valeur non relevée serait deviner.
 
 ### Les deux tâches horaires des invitations s'arrêtent au premier courriel qui échoue
 - Réf : P123.04
@@ -12034,7 +12036,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Petites améliorations
 - Réf : P123.06
-- Statut : validé — porteur (2026-10-22) : ne compter la fenêtre de renvoi qu'après un envoi réussi ; la valeur de `SCOUT_*` alignée sur la préproduction (P123.03), écrite à un seul endroit avec sa raison
+- Statut : fait · TCK-1337 — reste : la valeur de `SCOUT_*` alignée sur la préproduction (P123.03), écrite à un seul endroit avec sa raison ; chemin fermé (`.env*`) et valeur de préproduction à relever dans Dokploy
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Lease/LeaseSignatureService.php:112-141`, `takussan-api/.env.example:147-148`
 - Constat :
@@ -12043,6 +12045,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lu.
 - Piste : ne compter la fenêtre de renvoi qu'après un envoi réussi, ou rattraper l'échec du courriel en 503 comme le SMS ; écrire la valeur retenue de `SCOUT_*` à un seul endroit, avec sa raison.
 - Mesure (2026-10-22, 86138895e, mesureur) : relu `LeaseSignatureService::sendCode()` (`issue()` pose le délai de renvoi avant `notify()`, seul le SMS est rattrapé en 503) et `LeaseSignatureOtpService::issue()` ; test temporaire retiré (ajouté puis retiré de `LeaseSignatureTest`) : locataire sans téléphone vérifié, transport qui lève, `POST /api/leases/{id}/signature/otp` → 500, puis aussitôt → 429 `lease_signature.resend_too_soon` → la partie « à vérifier » tient ; `.env.example:147-148`, `.env.docker:210-211` et `phpunit.xml:104-105` relus, trois réponses comme dit. Classement : V5, l'écriture de la valeur de `SCOUT_*` touche les variables d'environnement ; la voie courriel seule relèverait de A1 (TCK-799 : « un code qui n'est pas parti ne se dit pas envoyé »), mais un code d'erreur neuf demande son texte au front.
+- Mesure (2026-10-22, 89453739b, implementeur) : relu `sendCode()` (`issue()` pose la fenêtre avant `notify()`) ; deux tests neufs dans `LeaseSignatureTest` : courriel qui lève → 500 puis 429 `resend_too_soon`, SMS non parti → 503 puis 429 (2 rouges) → `releaseResend()` quand l'envoi lève ou que le SMS n'est pas parti : 500 puis 202, 503 puis 202, la fenêtre de 60 s tient après un envoi réussi ; 51/51 ; ablation → 2 rouges, remis → vert. `SCOUT_*` non touché : `.env*` est un chemin fermé.
 
 ## Angle 124 — Colonnes bornées remplies par une valeur dérivée ou recopiée
 
@@ -12553,7 +12556,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Une invitation ouverte d'une agence supprimée est encore relancée et s'accepte
 - Réf : P129.03
-- Statut : validé — porteur (2026-10-22) : révoquer les invitations `sent` de l'agence à sa suppression et refuser l'acceptation d'une invitation dont l'agence n'existe plus (410)
+- Statut : fait · TCK-1339
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:522-545,553-575`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:156`
 - Constat :
@@ -12564,6 +12567,7 @@ l'angle 160 : il n'est pas repris ici.*
 - Piste : révoquer les invitations `sent` de l'agence à sa suppression, et refuser l'acceptation (410) d'une invitation dont l'agence n'existe plus. Test : invitation ouverte, suppression, acceptation → 410, et `invitations:remind` ne l'envoie pas.
 - Mesure (2026-10-22, 487aba964, mesureur) : relu `InvitationService::remindPending` (statut, `created_at`, `expires_at`, `last_reminded_at` seuls) et `lookupActiveInvitation` (jeton, statut, échéance) ; test temporaire (retiré) par le vrai parcours d'invitation d'un prestataire (`POST /api/agencies/{id}/service-providers/invite` → 201), puis suppression : `invitations:remind` → `last_reminded_at` posé, `POST /api/invitations/{token}/accept` → 200, `status = accepted`, et la collaboration `service_provider_agency_collaborations` de l'agence supprimée passe à `active`. Le constat tient, et la question laissée ouverte est tranchée pour le prestataire : l'acceptation active un lien vers l'agence supprimée. Classement : V7, le code d'erreur (410) et la révocation à la suppression sont des comportements neufs qui suivent la décision de P129.01.
 - Mesure (2026-10-22, 788016695, delegue) : relu l'entrée, la ligne `Mesure` du mesureur et P129.01 (🔴, `retenu · à valider — V6 … V2`, sans décision du porteur) ; `grep -n "porteur ("` de l'angle 129 → aucune décision ; `grep -i "agence supprim"` dans `docs/features.md` et les ADR → rien. Recommandation : révoquer les invitations `sent` de l'agence à sa suppression et refuser l'acceptation d'une invitation dont l'agence n'existe plus (410), quel que soit le sens retenu pour P129.01 — une agence supprimée ne doit pas pouvoir activer un lien neuf (mesuré : la collaboration de prestataire passe à `active`) ; ce n'est pas délégué parce que le code d'erreur et le texte vus par l'invité sont un comportement neuf, et que P129.01, dont il dépend, porte V2 et V6, réservés au porteur ; il manque la décision de P129.01.
+- Mesure (2026-10-22, 89453739b, implementeur) : relu `AgencyController::destroy()` (suppression seule) et `lookupActiveInvitation()` (jeton, statut, échéance) ; le test neuf `InvitationAgenceSupprimeeTest` : `DELETE /api/agencies/{id}` puis acceptation → invitation `sent` et 200 (2 rouges) → `revokeOpenForAgency()` dans la transaction de la suppression et 410 `invitation.token_revoked` (code existant) quand l'agence n'existe plus ; `remindPending()` à J+4 ne la relance pas, aucun compte créé, 2/2 ; ablation → 2 rouges, remis → vert.
 
 ### Les biens d'une agence supprimée restent dans l'index de recherche et dans le cache des pages publiques
 - Réf : P129.04
@@ -14087,7 +14091,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Les statuts de modération se posent à la main, sans motif ni horodatage
 - Réf : P147.05
-- Statut : validé — porteur (2026-10-22) : retirer `pending_review`, `rejected` et `published` des valeurs qu'acceptent les deux requêtes
+- Statut : fait · TCK-1341
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:56`, `takussan-api/app/Http/Requests/Api/UpdateStatusPropertyRequest.php:48`, `takussan-api/app/Services/Property/PropertyModerationService.php:82-95,121-137`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:37,55`
 - Constat :
@@ -14096,6 +14100,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - mesuré : bailleur, sur sa proposition, `PATCH` `{status: rejected}` → 200, `rejected_at` nul ; puis `{status: pending_review}` → 200, `submitted_at` nul. La file de `PropertyModerationController` lit `status = pending_review` et trie par `submitted_at` (lu, l. 37 et 55) : le bien y entre sans date de soumission. Le passage par `PUT …/status` n'a pas été rejoué (lu seulement).
 - Piste : retirer `pending_review` et `rejected` (et `published`, qu'aucun geste ne lit à part) des valeurs qu'acceptent les deux requêtes, pour que seuls `resubmit`, `reject` et l'observateur les posent ; un test qui refuse chaque valeur.
 - Mesure (2026-10-22, 2e3d6840c, mesureur) : relu `UpdatePropertyRequest.php:56` (tout l'enum) et `UpdateStatusPropertyRequest.php:38-41` (ne réserve que `available` et `published` à `can('publish')`) ; charge `{ 4.97 5.06 4.07 }` sur 8 cœurs, test temporaire retiré → bailleur, sa proposition en brouillon : `PATCH {status: rejected}` 200, `rejected_at` nul ; `PUT …/status` `pending_review` 200, `submitted_at` nul ; `PUT …/status` `rejected` 200, `rejected_at` nul → tient, y compris par `PUT …/status`, que l'explorateur n'avait pas rejoué. Classement : V2, retirer ces valeurs ferme un geste aux deux requêtes, et retirer `published` touche `PUT …/status`, qui l'écrit aujourd'hui pour qui a `properties.publish`.
+- Mesure (2026-10-22, 89453739b, implementeur) : relu `UpdatePropertyRequest.php:56` et `UpdateStatusPropertyRequest.php` (`Rule::enum` entier) ; le test neuf `PropertyStatutsDeModerationTest` (admin d'agence, bien en brouillon) : `PATCH` et `PUT …/status` × `pending_review`, `rejected`, `published` → 200 (6 rouges) → `Rule::enum(...)->except(PropertyStatus::NOT_SETTABLE_BY_HAND)`, 422 et statut inchangé, `archived` et `unavailable` toujours acceptés, 7/7 ; ablation → 6 rouges, remis → vert. Deux cas existants qui posaient `published` par `PUT …/status` retirés (`PropertyAuthorizationTest`, `PublishReadinessTest`).
 
 ### Un client se marque `blocked` ou `deleted` par le formulaire, et rien ne lit ces deux statuts
 - Réf : P147.06

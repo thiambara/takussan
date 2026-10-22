@@ -21,6 +21,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Invitation\InvitationService;
 use App\Services\Payout\PayoutApprovalThreshold;
 use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Builder;
@@ -153,7 +154,11 @@ class AgencyController extends Controller
         );
         // destroy is intentionally restricted to super_admin and primary_admin_id — agency_admin can edit but not delete.
 
-        $agency->delete();
+        // P129.03 (TCK-1339) — ses invitations ouvertes tombent avec elle.
+        DB::transaction(function () use ($agency, $user): void {
+            app(InvitationService::class)->revokeOpenForAgency($agency, $user);
+            $agency->delete();
+        });
 
         return $this->json(null, 204);
     }
