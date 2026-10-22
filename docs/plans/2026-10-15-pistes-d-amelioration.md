@@ -12754,7 +12754,7 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
 
 ### Le tableau de bord de l'agent range les tâches sans échéance haute priorité en dernier
 - Réf : P134.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:119-125`, `takussan-api/app/Models/Enums/TaskPriority.php`, `takussan-api/database/migrations/2026_04_17_160029_create_tasks_table.php:21`, `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:166-170`
 - Constat :
@@ -12765,10 +12765,11 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
   - Aucun test ne porte sur l'ordre de `tasks.items` : `DashboardAgentTest.php:121` lit `items.0` d'une liste à une tâche (lu, `grep -n "priority\|items" tests/Feature/Dashboard/DashboardAgent*.php`).
   - Établi comment : lu, et ordre mesuré sur PostgreSQL.
 - Piste : trier sur le rang de l'enum, comme TCK-1126 l'a fait pour les annonces (`CASE priority WHEN … END`, rangs pris de `TaskPriority::cases()`), dans une classe réutilisable par `sort=priority` (voir P134.03). Test : deux tâches sans échéance, `low` et `high`, la `high` sort la première ; ablation par le retour à `orderByDesc('priority')`.
+- Mesure (2026-10-22, 294f70acc, mesureur) : relu `DashboardAgentService.php:119-125` (`orderByRaw('due_at IS NULL, due_at asc')` puis `orderByDesc('priority')`, `limit(5)`), `TaskPriority.php` (`low`, `medium`, `high`), migration `create_tasks_table.php:21` (`string('priority')`), `StoreTaskRequest.php:55` (`due_at` `nullable`) ; `php artisan tinker` en lecture, `select p from (values ('low'),('medium'),('high')) t(p) order by p desc` → `["medium","low","high"]` ; `DashboardAgentTest.php:121` ne lit que `items.0` d'une liste à une tâche ; `git log` du service → aucun correctif depuis → le constat tient, lignes inchangées. Classement : A1, l'intention « la plus haute priorité d'abord » est écrite par l'appel `orderByDesc('priority')` lui-même et TCK-1126 a tranché la même forme pour les annonces ; le correctif ne touche ni montant, ni droit, ni schéma.
 
 ### La bibliothèque de documents range les pièces RIB et NINEA en tête, sous un titre de groupe sans libellé
 - Réf : P134.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/documents/DocumentsLibrary.tsx:106-117,201-206`, `takussan-web/src/components/documents/constants.ts:13-23`, `takussan-web/src/types/document.ts:7-16`, `takussan-api/app/Models/Enums/DocumentType.php:15-17`, `takussan-api/app/Http/Requests/Api/Me/UploadKycOwnerProfileRequest.php:49-50`, `takussan-web/src/i18n/erreurs.ts:35-40`
 - Constat :
@@ -12779,10 +12780,11 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
   - L'union `DocumentType` du front n'a pas non plus ces deux valeurs (lu, `types/document.ts:7-16`) ; le `as DocumentType` de la l. 111 le masque au typage. Le relevé des unions entières est l'angle 146.
   - Établi comment : lu ; l'écran n'a pas été rendu avec une pièce `rib`.
 - Piste : ajouter `rib` et `ninea` à l'union, à `DOCUMENT_TYPE_ORDER` (près de `id_card`) et aux libellés `documents.types` des trois langues (`wo` en français tel quel) ; ranger un type inconnu en dernier (`indexOf` négatif ramené à `Infinity`). Garde : un test de composant avec un document `rib` (titre lu, groupe après « Contrat de bail »), et un test qui compare `DOCUMENT_TYPE_ORDER` aux cas de l'enum de l'API, comme les autres tests de parité d'enum du front.
+- Mesure (2026-10-22, 294f70acc, mesureur) : relu `DocumentsLibrary.tsx:106-118` (tri des groupes par `DOCUMENT_TYPE_ORDER.indexOf`) et l. 205 (`tTypes(category)`), `constants.ts:13-23` et `types/document.ts:7-16` (ni `rib` ni `ninea`), `DocumentType.php:16-17` (les deux cas), `UploadKycOwnerProfileRequest.php:49-50` et `Kyc/ProfilePieces.php:48` (`uploaded_by` = le bailleur), `DocumentController.php:44` (`where('uploaded_by', …)`, les pièces de profil exclues sous impersonation seulement) ; `node -e` sur `documents.types` de `fr`, `en`, `wo` → neuf clés chacun, sans `rib` ni `ninea` ; `erreurs.ts:35-40` lève sur `MISSING_MESSAGE` hors production → le constat tient ; l'écran n'a pas été rendu, l'effet d'affichage se déduit de `erreurs.ts` lu. Les libellés existent déjà dans les trois langues sous d'autres clés (`fr.json:4800-4801` « RIB », « NINEA » ; `en.json:4800-4801` « Bank details (RIB) », « NINEA »). Classement : A4 et A1, clé manquante pour des valeurs que l'enum de l'API émet déjà, libellés repris de l'existant sans texte neuf.
 
 ### Des tris déclarés sur une colonne d'enum rendent l'ordre alphabétique de la valeur
 - Réf : P134.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : tri par rang ou retrait des tris `status`, et rang d'un cycle de vie, à choisir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Task.php:64`, `takussan-api/app/Models/ThresholdAlert.php:31`, `takussan-api/app/Models/MaintenanceRequest.php:101`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:83-90`, `takussan-api/app/Models/Profiles/PlatformProfile.php:42`
 - Constat :
@@ -12793,13 +12795,15 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
   - Aucun écran ne les demande aujourd'hui : `grep` des `sort:`/`sort=`/`sortKey` de `takussan-web/src` ne rend aucun tri sur `priority`, `severity`, `status` ou `level` (mesuré) ; les tâches sont lues en `due_at` ou `-created_at` (lu, `agent-crm.ts:279`, `pipeline.ts:119`). Le premier écran qui en posera un héritera de l'ordre alphabétique sans le voir.
   - Seul `MaintenanceRequest` trie `priority` par rang (lu, `MaintenancePrioritySort.php`).
 - Piste : pour chaque tri gardé, un tri par rang dérivé des cas de l'enum (une classe `App\Sorts\EnumRankSort` paramétrée par l'enum, qui servirait aussi à P134.01 et pourrait reprendre `MaintenancePrioritySort` et l'`orderBySeverity` de TCK-1126) ; ou retirer de `$requestSortable` les tris sans appelant ni sens (`status`). Garde : une vérification que toute colonne castée en enum et déclarée triable passe par un tri par rang.
+- Mesure (2026-10-22, 294f70acc, mesureur) : relu `Task.php:64` (`priority`, `status` triables, aucun `AllowedSort::custom`), `ThresholdAlert.php:31` (`severity`) et sa migration l. 25 (`string`, `info|warning|critical`), `MaintenanceRequest.php:76` et `:97-103` (`status` brut, `priority` par `MaintenancePrioritySort` — la l. 101 citée est la liste de `allowedSorts`), `UserDetailController.php:83-90` (`status` en `orderBy` brut), `PlatformProfile.php:42` (`level`) ; `tinker` en lecture, `order by s` sur `info`, `warning`, `critical` → `["critical","info","warning"]`, et `order by p desc` sur les priorités de tâche → `["medium","low","high"]` ; `grep` des `sort=`/`sort:` sur `priority|severity|status|level` dans `takussan-web/src` → rien → le constat tient. Classement : V7, la piste offre deux options (tri par rang générique, ou retrait des tris `status` de l'API) et ordonner un `status` par cycle de vie demande un ordre que ni la spec ni le code n'écrivent.
 
 ### Petites améliorations
 - Réf : P134.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Sorts/MaintenancePrioritySort.php:15-23`, `takussan-api/app/Services/Announcements/AnnouncementResolver.php:34-44`
 - Constat :
   - `MaintenancePrioritySort` recopie les valeurs de `MaintenancePriority` en dur dans son `CASE` (lu, l. 15-23) : un cas ajouté à l'enum tomberait dans `ELSE 5`, sans erreur. `AnnouncementResolver::orderBySeverity` dérive au contraire ses rangs de `cases()` (lu) : deux façons d'écrire le même tri.
   - Aucun test n'appelle `sort=priority` ni `sort=-priority` sur les maintenances (mesuré : `grep -rln "sort=-\?priority\|MaintenancePrioritySort" tests` → `tests/impact-map.json` seul), et aucun écran ne le demande (lu, `MaintenanceList.tsx:63`, `maintenance.ts:92`) : le seul tri par rang du dépôt n'est gardé par rien.
 - Piste : dériver le `CASE` de `MaintenancePriority::cases()` (ou passer par la classe générique de P134.03) et l'épingler par un test `sort=-priority` sur quatre demandes.
+- Mesure (2026-10-22, 294f70acc, mesureur) : relu `MaintenancePrioritySort.php:15-23` (`CASE` en dur, `urgent`→1 … `low`→4, `ELSE 5`), `MaintenancePriority.php` (cas déclarés `low`, `normal`, `high`, `urgent`, donc l'ordre de `cases()` est le rang croissant) et `AnnouncementResolver.php:34-37` (rangs dérivés de `cases()`) ; `grep -rln "sort=-\?priority\|MaintenancePrioritySort" tests` → `tests/impact-map.json` seul → le constat tient. Classement : A5, épingler par un test le tri existant et en dériver les rangs de l'enum ne change aucun résultat ; la classe générique évoquée relève de P134.03, laissée au porteur.
