@@ -13260,7 +13260,7 @@ l'une ni l'autre n'est reprise ici.*
 
 ### Le journal d'audit lit `causer->name`, que `User` n'a pas : l'écran montre l'adresse à la place du nom
 - Réf : P139.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1261
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/AuditLogController.php:171-175`, `takussan-api/app/Models/User.php:327`, `takussan-web/src/components/admin/AuditTrail.tsx:557-565`
 - Constat :
@@ -13269,6 +13269,7 @@ l'une ni l'autre n'est reprise ici.*
   - Le fil d'activité du client lit le même journal et rend bien le nom, par `getFullNameAttribute()` (lu, `CustomerActivityFeed.php:84-85`). La clé visée existe donc ailleurs.
 - Piste : rendre `full_name` sous la clé `name` (ou `name` ← `full_name`, comme `CustomerActivityFeed`). Garde : un test de `GET /api/activity-log` qui exige le nom du causeur.
 - Mesure (2026-10-22, a518e2cd2, mesureur) : lu `AuditLogController::index()` (`'name' => $log->causer->name ?? null`, l. 173), `User` sans accesseur `name` mais `getFullNameAttribute()` (l. 327), l'écran qui attend `causer.name` puis l'adresse dessous (`AuditTrail.tsx:557-565`) et `CustomerActivityFeed` qui rend `name` ← `getFullNameAttribute()` (l. 85) ; test temporaire retiré : `GET /api/activity-log` d'un admin d'agence → 200, `causer: {"name":null,"email":…}` alors que `full_name` vaut « Alfonzo Braun » → le constat tient. Classement : A1, le contrat de l'appelant (`causer.name` lu par `AuditTrail.tsx`) et le fil client écrivent déjà la valeur attendue, sans choix de produit.
+- Mesure (2026-10-22, 1b5063805, implementeur) : test neuf `ActivityLogEndpointTest::test_the_causer_is_named_by_his_full_name` rouge avant correctif : causeur « Awa Ndiaye », `GET /api/activity-log` → `causer.name = null` → `causer.name` ← `full_name` pour un causeur `User`, nul s'il est vide ; vert, ablation (lecture de `name` remise) → rouge, remise → vert ; `ActivityLogEndpointTest` 9/9, `AgencyAuditScopeTest` 13/13, `CrossTenantAuditTest` 3/3.
 
 ### L'archive RGPD ne porte pas les avis reçus comme prestataire
 - Réf : P139.04
