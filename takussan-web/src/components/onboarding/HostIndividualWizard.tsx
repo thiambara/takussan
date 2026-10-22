@@ -502,7 +502,9 @@ function PhoneOtpField({ data, setData }: StepProps) {
       }
       setData({
         ...data,
-        phone_otp: { ...data.phone_otp, verified: true },
+        // TCK-1362 (P84.03) — le code vérifié quitte l'état : sinon le brouillon serveur, gardé
+        // jusqu'à 90 jours, en gardait la seule copie en clair (l'API le garde haché, 5 min).
+        phone_otp: { ...data.phone_otp, code: '', verified: true },
       });
       toast.add({
         title: t('otp.verifiedTitle'),
