@@ -79,4 +79,33 @@ class FiltreIdentifiantTest extends TestCase
         $this->expectException(ApiError::class);
         User::buildQuery(request: $request)->get();
     }
+
+    /**
+     * TCK-1403 (P151.05) — `parent_id` des biens est un rappel écrit à la main (pour accepter
+     * `null`) : sa branche non nulle juge la valeur comme tout filtre d'identifiant.
+     */
+    #[DataProvider('valeursInvalides')]
+    public function test_le_parent_d_un_bien_refuse_une_valeur_non_entiere_en_400(string $valeur): void
+    {
+        $agency = Agency::factory()->create();
+        Sanctum::actingAs(User::factory()->withAgentProfile($agency)->create());
+
+        $this->getJson('/api/properties?filter[parent_id]='.urlencode($valeur))
+            ->assertStatus(400)
+            ->assertJsonPath('code', 'filter.identifier_invalid')
+            ->assertJsonPath('params.filter', 'parent_id');
+        $this->getJson('/api/properties?filter[parent_id]=null')->assertOk();
+    }
+
+    /**
+     * TCK-1403 (P151.05) — le titulaire des moyens de reversement se cherche avant la règle
+     * `integer` : un identifiant illisible est un titulaire introuvable, donc 403, plus un 500.
+     */
+    public function test_le_titulaire_des_moyens_de_reversement_illisible_est_refuse(): void
+    {
+        $agency = Agency::factory()->create();
+        Sanctum::actingAs(User::factory()->withAgentProfile($agency)->create());
+
+        $this->getJson('/api/payout-methods?filter[user_id]=abc')->assertForbidden();
+    }
 }

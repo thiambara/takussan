@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\ExactIdentifierFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\AgencyStatus;
@@ -660,6 +661,9 @@ class Property extends AbstractModel implements HasMedia
 
                 return;
             }
+
+            // TCK-1403 (P151.05) — hors de `null`, un identifiant : 400 comme tout filtre `*_id`.
+            ExactIdentifierFilter::exiger($value, 'parent_id');
 
             if (is_array($value)) {
                 $q->whereIn('parent_id', $value);
