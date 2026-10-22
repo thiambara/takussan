@@ -65,6 +65,8 @@ Hypothèses (aucune question possible en mode sans humain) :
 - L'ADR de la convention (`docs/adr/`, chemin fermé à l'implémenteur), si le porteur veut l'écrire.
 - Relever les signaux d'une exécution de la suite et décider : liste d'exceptions, correction des
   écarts, puis éventuelle bascule vers l'échec sous `testing`.
+- L'écart voisin du constat : `AddParticipantsRequest` valide `role`, que
+  `ConversationParticipantController` ne lit pas (hors du signal : la règle existe).
 
 ## Delta produit
 
