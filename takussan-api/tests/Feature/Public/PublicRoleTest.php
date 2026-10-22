@@ -310,11 +310,9 @@ class PublicRoleTest extends TestCase
         $this->assertSame('owner', $index['awa-hote'] ?? null);
         $this->assertSame('agent', $index['moussa-admin'] ?? null);
 
-        $this->getJson('/api/public/agencies/espace-de-awa')
-            ->assertOk()
-            ->assertJsonPath('data.agents.0.slug', 'awa-hote')
-            ->assertJsonPath('data.agents.0.public_role', 'owner')
-            ->assertJsonPath('data.stats.agents', 0);
+        // TCK-1313 (P85.04) — l'espace n'a plus de fiche d'agence : l'hôte n'y figure donc plus
+        // en équipe, et sa propre fiche le dit propriétaire (ci-dessus).
+        $this->getJson('/api/public/agencies/espace-de-awa')->assertNotFound();
         $this->getJson('/api/public/agencies/agence-standard')
             ->assertOk()
             ->assertJsonPath('data.agents.0.public_role', 'agent')
@@ -336,10 +334,8 @@ class PublicRoleTest extends TestCase
         AgencyAdminProfile::factory()->create(['user_id' => $hote->id, 'agency_id' => $espace->id]);
         AgentProfile::factory()->create(['user_id' => $hote->id, 'agency_id' => $ailleurs->id]);
 
-        $this->getJson('/api/public/agencies/espace-de-fatou')
-            ->assertOk()
-            ->assertJsonPath('data.agents.0.public_role', 'owner')
-            ->assertJsonPath('data.stats.agents', 0);
+        // TCK-1313 (P85.04) — l'espace n'a plus de fiche d'agence où l'hôte serait présenté.
+        $this->getJson('/api/public/agencies/espace-de-fatou')->assertNotFound();
 
         $this->getJson('/api/public/agents/fatou-hote')->assertJsonPath('data.public_role', 'agent');
     }
