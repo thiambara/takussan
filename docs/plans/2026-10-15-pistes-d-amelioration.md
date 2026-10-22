@@ -13935,7 +13935,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### `POST /api/agencies` laisse le créateur choisir le statut de son agence, sanction de la plateforme comprise
 - Réf : P147.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-1279
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreAgencyRequest.php:26-29,48`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:46-69`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:203-238`, `takussan-api/app/Http/Middleware/EnsureAgencyWritable.php:46`
 - Constat :
@@ -13945,6 +13945,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Aucun appel du front à `POST /api/agencies` (lu, déjà relevé par P91.01) : la clé ne sert à aucun écran.
 - Piste : retirer `status` de `StoreAgencyRequest` (l'agence naît `active`, et seuls les gestes de la console la font changer) ; un test qui envoie `suspended` et lit `active`.
 - Mesure (2026-10-22, 2e3d6840c, mesureur) : relu `StoreAgencyRequest.php:26-29` (`authorize()` rend `true`) et `:48` (`status` sur tout `AgencyStatus`), `AgencyController::store` l. 62 (`$data['status'] ?? active`) ; `suspended` ne se pose que par `AgencyModerationController::suspend` (l. 203, avec motif) et n'en sort que par `reinstate` (l. 212-215) ; aucun test ni écran n'envoie `status` à `POST /api/agencies` (`grep` dans `tests` et `takussan-web/src`) ; charge `{ 4.97 5.06 4.07 }` sur 8 cœurs, test temporaire retiré → compte sans agence, `POST /api/agencies {name, status: suspended}` → 201, agence `suspended` → tient. Classement : A1, la sanction et sa sortie sont écrites dans les gestes de la console, et `active` est déjà le défaut du contrôleur : retirer la clé ne change rien pour aucun appelant connu (qu'une agence doive naître non vérifiée, `verify` posant aussi `active`, est une autre question, hors de cette piste).
+- Mesure (2026-10-22, d0eabf19d, implementeur) : test `CreationDAgenceSansStatutTest` (charge 2,8 sur 8 cœurs), compte sans agence, `POST /api/agencies {name, status: suspended}` → avant correctif 201 et agence `suspended`, rouge ; règle `status` retirée de `StoreAgencyRequest` et `active` posé par le contrôleur → 201 et agence `active`, vert ; ablation (règle et `?? ` remis) → rouge, retirés → vert ; `AgencyTest`, `AgencyFieldLengthTest`, `BornesMaxFaceAuSchemaTest` verts.
 
 ### Le registre des droits se clôt à la main pendant que la demande liée suit son cours
 - Réf : P147.08
