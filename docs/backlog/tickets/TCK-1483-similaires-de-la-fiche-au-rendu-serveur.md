@@ -1,7 +1,7 @@
 ---
 id: TCK-1483
 title: "Les biens similaires de la fiche lus au rendu serveur, les avis demandés à l'approche"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
@@ -56,19 +56,19 @@ lecture est **partagée** (aucun en-tête propre au visiteur).
 
 ## Delta à produire
 
-- [ ] Lecture serveur partagée et mémoïsée des similaires dans `lib/queries/public-property.ts`.
-- [ ] La page passe la liste à la fiche, la fiche au carrousel, le carrousel au hook en données
+- [x] Lecture serveur partagée et mémoïsée des similaires dans `lib/queries/public-property.ts`.
+- [x] La page passe la liste à la fiche, la fiche au carrousel, le carrousel au hook en données
       initiales : aucune requête du navigateur quand elles sont là.
-- [ ] `usePropertyReviews` attend un signal « à l'approche » de `PropertyReviews`.
-- [ ] Tests : rendu serveur de la fiche qui exige un lien `/properties/<slug>` d'un bien similaire ;
+- [x] `usePropertyReviews` attend un signal « à l'approche » de `PropertyReviews`.
+- [x] Tests : rendu serveur de la fiche qui exige un lien `/properties/<slug>` d'un bien similaire ;
       hook des similaires sans requête avec données initiales ; avis sans requête avant l'approche.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — le HTML servi de la fiche contient un lien `/properties/<slug>` d'un bien similaire.
-- [ ] AC2 — avec des données initiales, le navigateur ne redemande pas les similaires.
-- [ ] AC3 — les avis ne sont demandés qu'à l'approche de leur section.
-- [ ] AC4 — lecture serveur en échec : la fiche se rend, le carrousel lit au navigateur.
+- [x] AC1 — le HTML servi de la fiche contient un lien `/properties/<slug>` d'un bien similaire.
+- [x] AC2 — avec des données initiales, le navigateur ne redemande pas les similaires.
+- [x] AC3 — les avis ne sont demandés qu'à l'approche de leur section.
+- [x] AC4 — lecture serveur en échec : la fiche se rend, le carrousel lit au navigateur.
 
 ## Hors périmètre
 
@@ -77,4 +77,15 @@ lecture est **partagée** (aucun en-tête propre au visiteur).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation, un volet à la fois rendu à `pre-dev` : `page.tsx` → `similaires.rendu-serveur`
+  rouge (aucun lien dans le HTML) ; `useSimilarProperties.ts` → `donnees-initiales` et
+  `similaires.rendu-serveur` rouges ; `PropertyReviews.tsx` → `PropertyReviews.approche` rouge
+  (requête au montage) ; remis → 5/5 verts.
+- La garde rend la VRAIE page et la vraie fiche par `renderToString`, seules la barre, le pied,
+  le compteur de vue et les lectures serveur simulées.
+- Les similaires partent en `Promise.all` avec les domaines du fil d'Ariane : aucune attente de
+  plus en série au rendu.
+- `page.server.test.tsx` simule `public-property` en entier : `getBiensSimilaires` y est ajouté
+  (rend `null`).
+- Avis : l'état « approchée » se fige à la première intersection (la section ne se décharge pas
+  en remontant) ; sans `IntersectionObserver`, la lecture part au montage, comme avant.
