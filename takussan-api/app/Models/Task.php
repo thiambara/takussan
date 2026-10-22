@@ -100,7 +100,8 @@ class Task extends AbstractModel
                 $startOfDay = $now->copy()->startOfDay()->utc();
                 $endOfDay = $now->copy()->endOfDay()->utc();
 
-                match ((string) $value) {
+                // TCK-1407 (P151.06) — une liste (`filter[due][]=`) est une valeur inconnue : rien.
+                match (is_string($value) ? $value : null) {
                     'overdue' => $query->where('due_at', '<', $startOfDay)
                         ->whereIn('status', array_map(fn (TaskStatus $s) => $s->value, self::OPEN_STATUSES)),
                     'today' => $query->whereBetween('due_at', [$startOfDay, $endOfDay]),

@@ -46,4 +46,12 @@ class DateIllisibleDansUnFiltreTest extends ApiTestCase
         $this->apiGet('/api/admin/agencies?filter[created_to]=abc')->assertStatus(422);
         $this->apiGet('/api/admin/agencies?filter[created_from]=2026-10-22')->assertOk();
     }
+
+    /** TCK-1407 (P151.06) — une liste là où une date est attendue : 422, plus `Array to string conversion`. */
+    public function test_une_liste_de_dates_est_refusee_en_422(): void
+    {
+        $this->apiActingAsRole('agency_admin', ['agency' => Agency::factory()->create()]);
+
+        $this->apiGet('/api/properties?filter[created_to][]=2026-10-22')->assertStatus(422);
+    }
 }
