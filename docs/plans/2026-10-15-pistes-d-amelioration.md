@@ -12301,7 +12301,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### Le rappel d'un reversement échu ne va qu'à son émetteur, même suspendu
 - Réf : P126.03
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1706
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Console/Commands/Payouts/RemindDuePayouts.php:31-52`
 - Constat :
@@ -12312,6 +12312,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - Établi comment : lu, puis mesuré.
 - Piste : rappeler l'émetteur s'il est encore personnel actif tenant `payouts.*`, sinon les détenteurs de la capacité (`PayoutApprovers::holders`). Le choix du repli est à écrire. Test : émetteur suspendu → le rappel va à un détenteur actif.
 - Mesure (2026-10-22, 230f917df, mesureur) : relu `RemindDuePayouts.php:31-52` (`User::find($payout->issued_by_id)` sans jugement, marqueur posé avant l'envoi) ; test temporaire (mêmes conditions) : reversement `scheduled` échu la veille, émis par un agent `suspended` → `payouts:remind-due` envoie 1 notification, à lui seul (`assertCount(1)`). Le constat tient. Classement : V7, la piste déclare elle-même le choix du repli à écrire, et l'avis porte sur un reversement.
+- Mesure (2026-10-22, 43c553036, implementeur) : avant correctif, `RemindDuePayoutsCommandTest::test_un_emetteur_suspendu_cede_le_rappel_aux_detenteurs_actifs` (reversement `scheduled` échu de la veille, émis par un agent `suspended`, admin et agent actifs dans l'agence) → `PayoutDue` envoyé 1 fois au suspendu, rouge ; `RemindDuePayouts` rappelle l'émetteur s'il est parmi `PayoutApprovers::holders($agency, payouts.create)`, sinon ces détenteurs hors bénéficiaire (capacité retenue : `payouts.create`, celle de `PayoutPolicy::update`) → admin et agent rappelés une fois chacun, rien au suspendu ; ablation (commande remise à `43c553036`) → 2 rouges, remise → 4/4 verts. Deux tests existants ajustés : AC20 crée des émetteurs agents actifs, et l'admin d'une autre agence cède son rappel aux détenteurs de l'agence du reversement.
 
 ### Le créateur du bien (`properties.user_id`) est prévenu comme bailleur, même agent suspendu ou parti de l'agence
 - Réf : P126.04
