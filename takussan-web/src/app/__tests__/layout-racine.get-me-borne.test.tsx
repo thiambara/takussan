@@ -8,7 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  *
  * Elle est au-dessus de toute page : tant que son `await getMe(…)` ne rend pas, aucune page ne
  * part, publique comprise. Son repli anonyme (`initialUser = null`) n'était atteint qu'au rejet de
- * `fetch`. `getMe` reçoit désormais un signal borné à `DELAI_ME_RACINE_MS`.
+ * `fetch`. La lecture est désormais bornée par un signal à `DELAI_ME_RACINE_MS` (TCK-1374 : la
+ * borne ne l’abandonne plus, elle la met en course, la lecture étant partagée avec `getMeAction`).
  *
  * Le délai réel (5 s) n'est pas attendu : `AbortSignal.timeout` est épié, la valeur relevée.
  */
