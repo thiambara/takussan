@@ -10638,7 +10638,7 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
 
 ### Le `user_agent` des demandes de contact par formulaire est celui du serveur Next (`node`), jamais celui du visiteur
 - Réf : P108.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1218
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/api.ts:686-736`, `takussan-web/src/app/actions/property.ts:226-270`, `takussan-api/app/Services/Lead/ContactLeadService.php:300-316`, `takussan-api/app/Models/PropertyContactLead.php:16,37`, `docs/models-spec.md:3538`
 - Constat :
@@ -10650,6 +10650,7 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
   - Les clics WhatsApp / Appeler (`recordClick`, l. 204-216) partent du navigateur (`contact-click.ts`, lu) et portent le bon agent. La signature de bail aussi (`leases.ts:295`, `useApiMutation`, lu) : son `user_agent`, pièce de preuve, n'est pas touché.
 - Piste : relayer le `User-Agent` du visiteur dans `apiRequest` côté serveur, comme `apiFetch` le fait (même exception pour un appel partagé), et dans `enTetesServeurAmont` pour les relais. Garde : un test de `apiRequest` côté serveur qui exige l'agent entrant, et un test de l'API qui poste une demande avec un `User-Agent` et le relit sur la ligne.
 - Mesure (2026-10-22, a49b315a0, mesureur) : lu `takussan-web/src/lib/api.ts:686-736` (`apiRequest` pose `X-Forwarded-For`, la langue et `X-Request-Id`, aucun `User-Agent`), l. 124-129 (`apiFetch` le relaie, TCK-792) et l. 176-184 (`enTetesServeurAmont` non plus) ; `property.ts:1,226-270` (`'use server'`, les deux `submit…ContactLead` passent par `apiRequest`) ; `ContactLeadService.php:314` écrit `$request->userAgent()` ; `fetch` de Node 24.18 vers un écouteur local → `user-agent: node` ; `SELECT … FROM property_contact_leads` en développement → table vide, aucune ligne à relire ; `grep -rn "userAgent()" app` → les leads, `CountBoostImpressions`, `LeaseSignatureService` (appelé du navigateur) → le constat tient, aux numéros de ligne près. Classement : A1, la spec écrit la colonne « User-agent source » (`models-spec.md`) et `apiFetch` relaie déjà l'agent du visiteur (TCK-792) : le correctif recopie ce contrat dans `apiRequest` côté serveur et `enTetesServeurAmont`, sans rien collecter que la spec ne décide déjà (pas de V3).
+- Mesure (2026-10-22, 8b3058a55, implementeur) : relu `takussan-web/src/lib/api.ts` (`apiRequest` l. 686-752, `enTetesServeurAmont` l. 176-184 : aucun `User-Agent`) ; test neuf de `api.agent-du-visiteur.test.ts` rouge avant correctif (`apiRequest` côté serveur et `enTetesServeurAmont` rendaient `undefined` pour un visiteur Firefox) → les deux posent l'agent du visiteur, sauf appel partagé et agent fourni par l'appelant (9/9 vert) ; ablation : `api.ts` rendu à `pre-dev` → 2 rouges, remis → vert ; côté API, un test par formulaire (`PropertyContactLeadTest`, `AgentContactLeadTest`) relit l'agent posté sur la ligne, rouge si `ContactLeadService` ne l'écrit plus.
 
 ### L'export du journal d'activité annonce une colonne `ip_address` qu'aucun chemin n'écrit
 - Réf : P108.02
