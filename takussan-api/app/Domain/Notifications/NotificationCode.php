@@ -446,6 +446,21 @@ enum NotificationCode: string
     }
 
     /**
+     * P164.06 (TCK-1472) — les paramètres dont l'absence (nul ou vide) fait choisir la variante
+     * `<surface>_unnamed` : la phrase existante privée du nom, au lieu de « — ».
+     *
+     * @return list<string>
+     */
+    public function unnamedParams(): array
+    {
+        return match ($this) {
+            self::BankStatementImported => ['bank'],
+            self::GovernanceRoleCapabilitiesChanged => ['role'],
+            default => [],
+        };
+    }
+
+    /**
      * TCK-602 (VERIF-602 M2, ADR-0051 §1) — les paramètres qui portent un LIEN PORTEUR (`/pay/{jeton}`) :
      * qui le détient paie l'échéance et lit sa quittance. Il ne part que par un canal sortant vers
      * un contact SANS compte, et n'est jamais persisté : `NotificationService` le retire de tout

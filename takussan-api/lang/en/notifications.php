@@ -472,6 +472,8 @@ return [
                 'title' => 'Role permissions changed',
                 'body' => 'The permissions of the role :role were changed by :actor.',
                 'sms' => 'Takussan: role :role permissions changed by :actor.',
+                'body_unnamed' => 'The permissions of a role were changed by :actor.',
+                'sms_unnamed' => 'Takussan: role permissions changed by :actor.',
             ],
             'admin_added' => [
                 'title' => 'New administrator',
@@ -553,6 +555,8 @@ return [
                 'title' => 'Statement imported',
                 'body' => '{1} Your statement :bank (:lines line) is ready for reconciliation.|[0,*] Your statement :bank (:lines lines) is ready for reconciliation.',
                 'sms' => 'Takussan: statement :bank imported.',
+                'body_unnamed' => '{1} Your statement (:lines line) is ready for reconciliation.|[0,*] Your statement (:lines lines) is ready for reconciliation.',
+                'sms_unnamed' => 'Takussan: statement imported.',
             ],
             'finalized' => [
                 'title' => 'Statement finalized',
