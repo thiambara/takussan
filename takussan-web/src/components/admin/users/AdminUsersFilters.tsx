@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Search } from 'lucide-react';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
+import type { UserStatus } from '@/types/user';
 import {
   Select,
   SelectContent,
@@ -16,7 +17,7 @@ import {
 const ALL = '__all__';
 
 /** TCK-292 — la donnée porte la clé, le rendu la résout (`admin.users.*`). */
-const STATUS_VALUES = ['active', 'inactive', 'banned'] as const;
+const STATUS_VALUES = ['active', 'inactive', 'blocked'] as const satisfies readonly UserStatus[];
 
 const ROLE_VALUES = [
   'agency_admin',

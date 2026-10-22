@@ -2934,7 +2934,6 @@
       "title": "Dimbali nu ci sa wuti",
       "description": "Ñetti laaj yu gaaw — ngir personnaliser sa wuti. Mën nga ko mottali ci sa profil ci kanam.",
       "phoneLabel": "Telefón (mën dem)",
-      "phonePlaceholder": "+221 77 000 00 00",
       "cityLabel": "Dëkk bi nga wut (mën dem)",
       "cityPlaceholder": "Dakar, Saint-Louis…",
       "intentLabel": "Xeetu wuti (mën dem)",
@@ -4681,7 +4680,7 @@
       "status": {
         "active": "Mu ngi dox",
         "inactive": "Du dox",
-        "banned": "Ñu ko tere"
+        "blocked": "Ñu ko tere"
       },
       "roles": {
         "agency_admin": "Njiit",
@@ -7416,8 +7415,7 @@
           "all": "Nekkin yépp",
           "active": "Dox na",
           "blocked": "Téye na",
-          "inactive": "Doxul",
-          "banned": "Dàq nañu ko"
+          "inactive": "Doxul"
         },
         "emailFilter": {
           "all": "Email : yépp",
