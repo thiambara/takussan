@@ -6,14 +6,17 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { useSimilarProperties } from '@/hooks/useSimilarProperties';
 import { CARD_SIZES_SIMILAR_CAROUSEL } from '@/components/property/card-image-sizes';
+import type { PropertyListItem } from '@/types/property';
 
 interface PropertySimilarProps {
   slug: string;
+  /** TCK-1483 (P103.07) — les similaires lus par le serveur : aucune requête du navigateur. */
+  donneesInitiales?: PropertyListItem[] | null;
 }
 
-export function PropertySimilar({ slug }: PropertySimilarProps) {
+export function PropertySimilar({ slug, donneesInitiales = null }: PropertySimilarProps) {
   const t = useTranslations('property.detail');
-  const { data, loading } = useSimilarProperties(slug);
+  const { data, loading } = useSimilarProperties(slug, donneesInitiales);
   const [emblaRef, emblaApi] = useEmblaCarousel({ align: 'start', slidesToScroll: 1 });
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
