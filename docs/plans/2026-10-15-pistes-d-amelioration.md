@@ -10934,7 +10934,7 @@ déjà relevée).*
 
 ### Petites améliorations
 - Réf : P110.04
-- Statut : validé — porteur (2026-10-22) : rendre le statut du payable dans `MatchCandidate`, sa ressource et la suggestion, affiché en badge avec les libellés déjà traduits, sans écarter le candidat ni refuser la confirmation (versant affichage de P110.02)
+- Statut : fait · TCK-1526
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:65-121`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:53-100`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:183-219`
 - Constat :
@@ -10944,6 +10944,7 @@ déjà relevée).*
 - Piste : rendre le statut du candidat dans la suggestion et dans `MatchCandidate` (le front l'affiche), plutôt que l'écarter : c'est la même lecture que P110.02, à faire ensemble.
 - Mesure (2026-10-22, 728be0ac7, mesureur) : test Feature temporaire `tests/Feature/TmpMesureur/SondeP110Test.php` (retiré), par les services, charge 3,92 / 3,31 / 3,63 sur 8 cœurs ; aucun commit sur les fichiers cités depuis 6d216605a (`git log 6d216605a..HEAD`), aucun ticket → acompte de 70 000 remboursé avant l'import, crédit de 70 000 à J+1 : `suggestFor` rend `BookingPayment` confiance 70, sans statut ; `unmatch` (`ReconciliationManager.php:183-219`) remet toujours `bank_reconciled_at` et `bank_statement_line_id` à `null` sans regarder le statut (lu). Classement : V7, rendre et afficher le statut du candidat est un comportement visible neuf, à décider avec P110.02 et P25.07.
 - Mesure (2026-10-22, e45988a50, delegue) : relu le constat, la `Piste` et la `Mesure` du mesureur, puis `MatchCandidate.php:7-15` et `MatchCandidateResource.php:12-21` (ni statut ni `bank_reconciled_at` rendus), les statuts de P110.02 (`retenu · à valider — V1`, sans décision) et de P39.07 (`porteur (2026-10-18) : plus tard, après l'angle 76`), et `grep -rn` dans `docs/backlog/tickets` et `docs/features.md` → aucune décision écrite sur le statut d'un candidat au rapprochement ; la `Piste` se dit elle-même « la même lecture que P110.02, à faire ensemble ». Recommandation : rendre le statut du payable (`status`) dans `MatchCandidate`, sa ressource et la suggestion, et l'afficher en badge avec les libellés de statut déjà traduits, sans écarter le candidat ni refuser la confirmation ; ne pas la valider seule, parce qu'elle est le versant affichage de P110.02 (V1) et du choix « signaler ou refuser » de P39.07 que le porteur a remis à plus tard : ce qui manque pour trancher est sa décision sur P110.02, avec laquelle celle-ci se prend.
+- Mesure (2026-10-22, 88c684c67, implementeur) : `MatchCandidateStatusTest` (charge 1,96 / 1,96 / 2,33 sur 8 cœurs) → avant correctif, la recherche manuelle rendait l'acompte remboursé (70 000) sans `status` (rouge) ; la suggestion sur ce même acompte rendait déjà `matched_payment_status = refunded` par sa ligne depuis TCK-1522 (vert, gardé). Après : `status` rendu par `MatchCandidate` et sa ressource pour les cinq types (`refunded`, `sent`), affiché en badge dans `PaymentSearchDialog`, candidat toujours choisissable (`rapprochement.test.tsx`). Ablations : `status` retiré de la ressource → rouge ; badge absent du dialogue → rouge. Non fait : `unmatch` qui libère un payable remboursé, constat mineur hors de la décision.
 
 ## Angle 111 — Jobs à statut de suivi sans `failed()`
 
