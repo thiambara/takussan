@@ -219,7 +219,7 @@ voie d'écriture (angle 13, puis 47).
 | 142 | Notifications, Mailables et écouteurs en file (`ShouldQueue`, une quarantaine hors de `CodedNotification` : `TenantWelcomeNotification`, `ResetPasswordNotification`, `ActivityLogExportReadyNotification`, écouteurs `Lease\*` et `Accounting\*`) sans `backoff` ni `failed()` face au `--tries=3` sans délai des workers : ce qu'une panne du fournisseur de quelques secondes fait perdre, et la trace laissée — le relevé de P11.10 hors des notifications codées | fait |
 | 143 | PDF à lignes variables rendus par dompdf pendant la requête HTTP (`DocumentPdfService` : relevé de gérance `pdf/statements/owner`, état des lieux `pdf/inventories/report` et ses photos en URI `data:`, factures et devis à nombreuses lignes) : mémoire et durée face à `memory_limit = 256M` et `max_execution_time = 60` — le relevé de P112.01 hors de l'export générique | fait |
 | 144 | Écritures du navigateur qu'une réponse perdue invite à rejouer (envoi de message, création de réservation, de demande de maintenance, de facture, initiation de paiement : `POST` sans clé d'idempotence, hors les seuls boosts) : bouton réactivé après une erreur réseau ou un délai, doublon créé côté API — le pendant, hors des achats de crédits, des angles 4 et 24 | fait |
-| 145 | Champs écartés par `validated()` sur ce que l'angle 114 n'a pas relevé : `lib/queries` `properties-server.ts`, `visits.ts`, `settings.ts`, `property-calendar.ts` et les modules à une ou deux mutations, les server actions `property.ts` (avis, signalements, contacts d'agent), `invitations.ts`, `account-deletion.ts`, `admin-tags.ts`, `super-admin-cooptation.ts`, `auth.ts`, et les écritures directes des composants | à faire |
+| 145 | Champs écartés par `validated()` sur ce que l'angle 114 n'a pas relevé : `lib/queries` `properties-server.ts`, `visits.ts`, `settings.ts`, `property-calendar.ts` et les modules à une ou deux mutations, les server actions `property.ts` (avis, signalements, contacts d'agent), `invitations.ts`, `account-deletion.ts`, `admin-tags.ts`, `super-admin-cooptation.ts`, `auth.ts`, et les écritures directes des composants | fait |
 | 146 | Unions de statut et options de filtre du front (`src/types/*.ts`, `Record<…Status, …>`, `STATUS_VALUES`, `KNOWN_STATUSES`) face aux cas des enums de l'API : valeurs que l'API n'émet jamais (`banned`, agence `pending`), valeurs émises absentes (utilisateur `blocked`) — le relevé de P115.02 sur tous les types | à faire |
 | 147 | Statuts posés librement par un `Rule::enum` entier dans une requête de mise à jour (`UpdateCustomerRequest` `status` jusqu'à `blocked` et `deleted`, `UpdatePropertyRequest`, `StoreAgencyRequest`, `UpdatePrivacyRequestRequest`) : transitions que le geste dédié refuserait, et état posé à la main que rien d'autre ne lit | à faire |
 | 148 | Section `/app/agency/*` du front gardée par `isAdmin(user.roles)` (`(dashboard)/app/agency/layout.tsx:28`) et `PAGES_ADMIN` face aux gestes que l'API ouvre par capacité à un agent (`team.invite`, `team.assign_role`, `team.suspend`, `payouts.approve`, `agency.update_kyc`) : membre qui tient la capacité sans écran pour l'exercer, et admin sans elle à qui l'écran s'ouvre sur des 403 | à faire |
@@ -13644,3 +13644,54 @@ générique est P112.01.*
   - Le contact public (`contact-lead`) n'est borné que par son limiteur `public-contact-lead` (5 par 10 min, lu dans `takussan-api/CLAUDE.md`) : un rejeu crée une seconde demande (déduit du code, à vérifier).
   - Établi comment : lu.
 - Piste : la clé de P144.01 sur ces routes, ou un rapprochement par (visiteur, bien, créneau) pour les visites. Garde : le rejeu en test.
+
+## Angle 145 — Champs écartés par `validated()`, reste de l'angle 114
+
+*Exploré le 2026-10-22 sur `pre-dev` 83f10e21d, par l'explorateur. Trois sous-agents en lecture
+seule : les server actions (`property.ts`, `property-contacts.ts`, `invitations.ts`,
+`account-deletion.ts`, `admin-tags.ts`, `super-admin-cooptation.ts`, `auth.ts`,
+`contact-preferences.ts`, `secondary-phone.ts`, `alerts.ts`, `kpis.ts`, `locale.ts`,
+`notification-preferences.ts`, `security.ts`, `profiles.ts`), les écritures directes de 41
+composants et hooks, et les modules `lib/queries` `properties-server`, `visits`, `settings`,
+`property-calendar` et les petits modules (une trentaine de mutations ; restent non comparés les
+messages de `conversations` et les clés de `criteria` des recherches enregistrées). L'explorateur a relu lui-même
+`DepositRefundModal` et `ProfileServiceProviderSection` (aucun écart neuf : le taux horaire qu'on
+ne peut pas vider est déjà dans l'angle 117), ainsi que chaque entrée ci-dessous, aux lignes
+citées. Aucune clé envoyée puis perdue faute de règle (type de P114.01) n'a été trouvée dans ce
+qui a été relevé. Rien n'a été exécuté.*
+
+### Le téléphone de la feuille de profil minimal est refusé au format même que montre son exemple, avec un message générique
+- Réf : P145.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/customer/CustomerMinimalProfileSheet.tsx:86-88,126-132`, `takussan-web/src/components/customer/MinimalProfileTriggerProvider.tsx:124-136`, `takussan-web/src/messages/fr.json` (`customer.minimalProfile.phonePlaceholder`), `takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php:42,66`
+- Constat :
+  - La feuille envoie `phone.trim()` tel quel, sans normaliser (lu, `CustomerMinimalProfileSheet.tsx:86-88`). Son exemple affiché est `+221 77 000 00 00` (mesuré : `node -e` sur `fr.json`).
+  - `UpdateMeRequest` exige `regex:/^(?:\+[1-9]\d{6,14})?$/`, sans espace, et ne normalise rien avant (lu, `:42` ; aucun `prepareForValidation`, mesuré par `grep`). Un numéro saisi comme l'exemple, ou au format local (`77 123 45 67`), rend donc un 422.
+  - Le relais remplace toute réponse non `ok` par `Error('save_failed')` (lu, `MinimalProfileTriggerProvider.tsx:131-135`) : le message `phone_e164` de l'API (`:66`) n'atteint pas l'utilisateur, qui ne sait pas que le format est en cause.
+  - Un client dont le téléphone est déjà vérifié serait refusé en 403 par `PhoneChangeGuard` (la feuille n'envoie ni `current_password` ni code) : sous-agent, à vérifier.
+  - Établi comment : lu ; le 422 n'a pas été provoqué.
+- Piste : normaliser le numéro avant l'envoi (retirer les espaces, comme les autres champs téléphone du front s'ils le font) ou dans `prepareForValidation`, et rendre le message de validation du champ au lieu d'un échec générique. Garde : un test qui envoie `+221 77 000 00 00` et attend l'enregistrement, et un test du relais sur un 422.
+
+### Le motif d'un signalement d'avis n'est contrôlé contre aucune liste, à l'inverse de celui d'une annonce
+- Réf : P145.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/reports/ReviewReportButton.tsx:10-18`, `takussan-api/app/Http/Requests/Public/ReportPublicReviewRequest.php:25`, `takussan-api/app/Http/Requests/Public/ReportPublicPropertyRequest.php:26`, `takussan-api/app/Services/Review/ReviewReportService.php:52-56`
+- Constat :
+  - Le front n'envoie qu'un des sept codes de `REVIEW_REPORT_REASONS` (lu, `:10-18`).
+  - L'API accepte toute chaîne de 500 caractères au plus (lu, `ReportPublicReviewRequest.php:25`), alors que le signalement d'annonce passe par `Rule::in` (lu, `ReportPublicPropertyRequest.php:26`).
+  - Le service range le motif tel quel dans `metadata.reports` (sous-agent, `ReviewReportService.php:52-56`, à vérifier) : un appel direct y écrit un texte libre que la modération ne sait ni traduire ni compter.
+  - Établi comment : lu pour les deux règles et la liste du front.
+- Piste : `Rule::in` sur les sept codes du front, partagés par une constante de l'API. Garde : un test qui envoie un motif hors liste et attend 422.
+
+### Petites améliorations : bornes du front plus étroites ou absentes face aux règles de l'API
+- Réf : P145.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx:232,238-244,382-388`, `takussan-api/app/Http/Requests/Public/BookingRequestPublicPropertyRequest.php:26,31-32`, `takussan-web/src/components/public/AnonymousLeadDialog.tsx:100`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:260-275`, `takussan-web/src/app/(dashboard)/app/overview/kpis/KpiConfigList.tsx`
+- Constat :
+  - Année de construction d'un bien : le schéma du front accepte jusqu'à 2100 (lu, `takussan-web/src/lib/schemas/property.ts:207`), l'API s'arrête à l'année en cours + 3 (lu, `StorePropertyRequest.php:76`, `UpdatePropertyRequest.php:66`) : 2030 à 2100 passent le formulaire puis rendent un 422.
+  - Voyageurs d'une réservation : le champ plafonne à 20 (lu, `max={20}`, `:232`), l'API accepte jusqu'à 50 (lu, `'max:50'`, `:31`).
+  - Sans `maxLength` au front, l'utilisateur ne découvre la borne qu'au 422 : message de réservation et d'offre (1000), message de contact sans compte (2000), nom du visiteur (120), libellé d'un indicateur (120). Commentaire de retour de visite de même (2000, `VisitFeedbackForm.tsx:89-96`). Sous-agent, à vérifier ligne par ligne.
+- Piste : aligner la borne de l'année sur celle de l'API (`max` calculé), celle des voyageurs sur celle de l'API (ou l'inverse, choix de produit) et poser les `maxLength` sur les règles existantes.
