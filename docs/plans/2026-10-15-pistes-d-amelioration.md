@@ -11633,7 +11633,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Une valeur de filtre mal formée rend 500 sur la console des utilisateurs et sur l'audit
 - Réf : P119.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1273 — reste : la page `/super-admin/users` qui recopie `?agency=` de son URL sans le lire comme un nombre (elle reçoit désormais un 400 lisible au lieu d'un 500)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:63-68,160-161`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:140-141`, `takussan-web/src/app/(super-admin)/super-admin/users/page.tsx:145,218`
 - Constat :
@@ -11643,6 +11643,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Établi comment : lu, test temporaire.
 - Piste : `ExactIdentifierFilter` (ou un `ctype_digit` qui rend une liste vide) pour `filter[agency_id]` ; une date non lisible rend 400 ou est ignorée, au choix déjà fait par `ExactIdentifierFilter` pour les identifiants. Test : les deux requêtes ci-dessus ne rendent plus 500. Le même relevé sur le reste de l'API est l'angle 151.
 - Mesure (2026-10-22, cf4986336, mesureur) : relu `UserDetailController.php:63-66` (`filter[agency_id]` comparé brut sous `whereHas`), les rappels `date_from`/`date_to` de `UserDetailController::activity()` et de `CrossTenantAuditController::filteredQuery()`, et `App\Http\Filters\ExactIdentifierFilter` (400 `filter.identifier_invalid` sur un identifiant non entier) ; test temporaire (retiré ensuite), super-admin → `GET /api/admin/users?filter[agency_id]=abc` **500**, `GET /api/admin/users/{id}/activity?filter[date_from]=nawak` **500**, et en plus du constat `GET /api/admin/audit?filter[date_to]=nawak` **500** → le constat tient, et vaut aussi pour l'audit. Le choix « 400 ou ignoré » de la piste est déjà tranché dans le code : 400 `filter.identifier_invalid` pour un identifiant (`ExactIdentifierFilter`), et la règle `date` des `FormRequest` (`ExportActivityLogRequest.php:23-24`, `SearchQueryRequest.php:26-27`) pour une date. À noter pour P119.02 : `AuditLogController::normalizeRangeBoundary()` passe par `Carbon::parse()`, qui lève sur une date illisible (lu, non exécuté). Classement : A1, les deux réponses attendues sont déjà écrites par des précédents du dépôt, et seule une requête fautive change de réponse (500 → 400/422).
+- Mesure (2026-10-22, d0eabf19d, implementeur) : test `FiltresMalFormesDeLaConsoleTest` (charge 2,6 sur 8 cœurs), super-admin → `GET /api/admin/users?filter[agency_id]=abc` rendait 200 sur une liste vide (la portée `membreDe((int) …)` de TCK-1269 avait déjà retiré le 500), `…/activity?filter[date_from]=nawak` et `/api/admin/audit?filter[date_to]=nawak` rendaient 500 (`InvalidFormatException`) ; rouge sur les trois. `ExactIdentifierFilter::exiger()` sous `filter[agency_id]` → 400 `filter.identifier_invalid` ; règle `string`+`date` dans `DateBoundaryFilter` (TCK-1271), donc aussi sur le journal de l'agence → 422 sur `filter.date_*`, liste comprise ; vert. Ablation (les deux appels commentés) → trois rouges, remis → verts ; `FiltreIdentifiantTest` vert.
 
 ### Petites améliorations
 - Réf : P119.04
