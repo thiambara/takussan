@@ -4,6 +4,7 @@ namespace App\Services\Model;
 
 use App\Models\Booking;
 use App\Models\BookingPayment;
+use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\User;
@@ -45,6 +46,29 @@ class BookingPaymentService
             'transaction_id' => $data['transaction_id'] ?? null,
             'notes' => $data['notes'] ?? null,
         ]);
+    }
+
+    /**
+     * TCK-1309 (P133.05, décision du porteur) — ce que le client doit payer maintenant, dérivé par
+     * l'API : l'acompte tant qu'aucun paiement n'est acquitté (s'il y en a un), sinon le reste dû
+     * (total moins les lignes `paid`). Le navigateur faisait ce calcul et l'API écrivait son
+     * résultat tel quel. Même règle que celle du navigateur, déplacée : les lignes
+     * `partially_paid` et `refunded` ne comptent pas.
+     *
+     * @return array{0: float, 1: string} le montant et le `payment_type`
+     */
+    public function dueFromCustomer(Booking $booking): array
+    {
+        $paid = (float) $booking->payments()->where('status', PaymentStatus::Paid->value)->sum('amount');
+        $remaining = max((float) $booking->total_amount - $paid, 0.0);
+        abort_code_if($remaining <= 0, 422, 'booking_payment.nothing_due');
+
+        $deposit = (float) $booking->deposit_amount;
+        if ($paid <= 0 && $deposit > 0) {
+            return [$deposit, BookingPaymentType::Deposit->value];
+        }
+
+        return [$remaining, BookingPaymentType::Advance->value];
     }
 
     /**

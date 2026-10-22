@@ -2,6 +2,8 @@
 
 use App\Jobs\Audit\PurgeExpiredActivityLogExports;
 use App\Jobs\Billing\ProcessTrialExpirations;
+use App\Jobs\Billing\RenewAgencySubscriptionPeriods;
+use App\Jobs\Booking\CompleteEndedBookingsJob;
 use App\Jobs\Booking\ExpirePendingBookingsJob;
 use App\Jobs\Crm\SendProspectMatchDigest;
 use App\Jobs\EscalateUrgentMaintenanceJob;
@@ -44,6 +46,9 @@ Schedule::job(new ExpireBookings)->hourly()->withoutOverlapping(60);
 Schedule::job(new SyncPropertyCalendarFeedsJob)->hourly()->withoutOverlapping(60);
 Schedule::job(new ApplyLateFeesJob)->dailyAt('02:00')->withoutOverlapping();
 Schedule::job(new ProcessTrialExpirations)->dailyAt('02:15')->withoutOverlapping();
+// TCK-1303 (P115.03) — la période d'un abonnement `active` échue est reconduite d'un mois (rattrapée
+// jusqu'à celle qui contient maintenant). Idempotente : seules les périodes échues sont relues.
+Schedule::job(new RenewAgencySubscriptionPeriods)->dailyAt('02:20')->withoutOverlapping();
 // TCK-090 — Closes leases whose effective_date has passed AND whose
 // penalty invoice is settled. Idempotent: unpaid penalties are skipped
 // silently and reprocessed on the next sweep.
@@ -51,6 +56,9 @@ Schedule::job(new ConfirmEarlyTerminationsJob)->dailyAt('03:00')->withoutOverlap
 // TCK-1153 (P81.02) — un bail `active` dont la fin est passée, sans renouvellement en vigueur,
 // passe `expired` : sa caution se restitue. Idempotente (ne lit que des baux `active`).
 Schedule::job(new ExpireEndedLeasesJob)->dailyAt('03:15')->withoutOverlapping();
+// TCK-1301 (P115.01) — une réservation `confirmed` dont la fin est passée passe `completed` : le
+// séjour mené ne s'annule plus. Idempotente (ne lit que des réservations `confirmed`).
+Schedule::job(new CompleteEndedBookingsJob)->dailyAt('03:30')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 // TCK-599 (ADR-0050) — alertes de recherche (comptes et abonnés confirmés), par le moteur de
 // `/properties`. Idempotent par la borne `last_notified_at`, RÉSERVÉE avant l'envoi et rendue

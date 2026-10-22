@@ -11259,7 +11259,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Une réservation confirmée dont le séjour est fini s'annule encore, et ouvre une tâche de remboursement de l'acompte
 - Réf : P115.01
-- Statut : validé — porteur (2026-10-22) : une tâche quotidienne passe `completed` les réservations `confirmed` dont `end_date` est passée, et `cancel()` refuse l'annulation d'un séjour commencé (bouton caché au front)
+- Statut : fait · TCK-1301
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/Enums/BookingStatus.php:11`, `takussan-api/app/Services/Model/BookingService.php:42-47,262-303`, `takussan-api/app/Services/Review/ReviewEligibility.php:36`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:64`, `takussan-web/src/components/bookings/BookingDetail.tsx:186-188`
 - Constat :
@@ -11271,6 +11271,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : écrire `completed`, soit par une tâche quotidienne qui clôt les réservations `confirmed` dont `end_date` est passée, soit au départ du client ; à défaut, refuser l'annulation d'un séjour commencé dans `cancel()` et cacher le bouton au front. Le choix (et le sort des réservations passées déjà en base) est une décision. Garde : un test qui annule une réservation au séjour fini et attend `422 booking.cannot_cancel`, sans tâche de remboursement.
 - Mesure (2026-10-22, 3390f9116, mesureur) : relu `BookingService.php:42-47` (`TERMINAL_CANCEL_STATUSES`) et `:271-290` (`cancel()` ne lit aucune date), `grep -rn "BookingStatus::Completed" app` → trois listes lues (`BookingService.php:44`, `PortfolioMetrics.php:64`, `ReviewEligibility.php:36`), aucun littéral `'completed'` pour une réservation, les deux jobs (`app/Jobs/ExpireBookings.php`, `ExpirePendingBookingsJob`) ne visent que `pending` (`BookingExpirationService.php:219`) ; test temporaire (retiré), charge `1.87 2.07 2.35` sur 8 cœurs : réservation `confirmed` du J-10 au J-3, acompte `paid` de 10 000, `POST /api/bookings/{id}/cancel` par le client → `200`, statut `cancelled`, une tâche `booking_refund` ; le bouton tient (`BookingDetail.tsx:186-188`). Le constat tient en entier. Classement : V1, le correctif décide si l'acompte d'un séjour passé ouvre un remboursement, et la Piste laisse trois options (tâche de clôture, départ, refus) et le sort des réservations en base (V7).
+- Mesure (2026-10-22, fbf2acedf, implementeur) : reproduit avant correctif par `BookingRefundTaskTest` (réservation `confirmed` du J-10 au J-3, acompte `paid`, annulation par le client → 200 au lieu de 422 ; premier jour du séjour, par l'agent → 200) → `CompleteEndedBookingsJob` quotidien (03:30) passe `completed` les `confirmed` finies la veille (ni `BookingClosed`, ni tâche ; les réservations déjà en base reprises au premier passage), `cancel()` rend 422 `booking.cannot_cancel` dès le premier jour d'un séjour `confirmed`, bouton caché au front ; ablation : garde retirée → 2 rouges, entrée du planificateur retirée → 1 rouge, front avant correctif → 2 rouges sur 4 ; remis → verts.
 
 ### La console d'équipe filtre les comptes « Bloqué » sur `banned`, une valeur que l'API n'écrit jamais
 - Réf : P115.02
@@ -11290,7 +11291,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### L'abonnement d'une agence garde à vie la période de son attribution, et `past_due` / `suspended` n'existent qu'à l'écran
 - Réf : P115.03
-- Statut : validé — porteur (2026-10-22) : une tâche quotidienne reconduit la période tant que l'abonnement est `active` ; `past_due` et `suspended` sortent de l'enum tant qu'aucun encaissement d'abonnement ne les pose
+- Statut : fait · TCK-1303 — reste : `past_due` et `suspended` sortent de l'enum : `docs/models-spec.md` (§ 44 et table des enums) et ADR-0057 (MRR des abonnements `active` ou `past_due`) les nomment, et ni la spec ni l'ADR ne sont ouverts à l'implémenteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/AgencySubscriptionService.php:30-42,85-108`, `takussan-api/app/Models/Enums/AgencySubscriptionStatus.php`, `takussan-api/app/Services/Reporting/PlatformReportingService.php:435-465`, `takussan-web/src/components/billing/SubscriptionSummary.tsx:15-21,53-55`, `takussan-web/src/types/super-admin.ts:173`
 - Constat :
@@ -11299,6 +11300,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Établi comment : lu et `grep` ; qu'aucune facturation d'abonnement ne soit prévue avant la production est à vérifier dans le plan.
 - Piste : soit faire avancer la période (tâche quotidienne qui la reconduit tant que l'abonnement est `active`), soit ne plus l'afficher comme période en cours ; décider si `past_due` et `suspended` restent dans l'enum tant qu'aucun encaissement d'abonnement ne les pose. Choix de produit.
 - Mesure (2026-10-22, 3390f9116, mesureur) : relu `AgencySubscriptionService.php:40-41` (période posée à l'attribution, maintenant → + 1 mois) ; `grep -rn current_period_end app` → seuls lecteurs : `AgencySubscriptionResource.php:21-22`, `PlatformReportingService.php:460`, `QuotaResolver.php:26` (tri) ; `grep` → `AgencySubscriptionStatus::PastDue` lu par le seul MRR (`PlatformReportingService.php:464`), `Suspended` nulle part ; `SubscriptionSummary.tsx:18-19,54` donne un ton aux deux et affiche la période. Le constat tient ; le plan d'encaissement des abonnements n'a pas été relu. Classement : V1, la période et les statuts sont ceux d'un abonnement payant et entrent dans le MRR, et la Piste offre deux options (V7).
+- Mesure (2026-10-22, fbf2acedf, implementeur) : reproduit avant correctif par `RenewAgencySubscriptionPeriodsTest` (abonnement `active` attribué le 2026-09-01, au 2026-11-02 sa période reste celle du 1er septembre au 1er octobre) → `AgencySubscriptionService::renewPeriods()`, quotidien à 02:20, reconduit d'un mois la période échue des seuls `active` non clos, rattrapée jusqu'à celle qui contient maintenant (`addMonthNoOverflow`) ; ablation : écriture neutralisée → 2 rouges sur 3, remise → vert ; `BillingPlansTest` vert. Le retrait de `past_due` et `suspended` n'est pas fait : `docs/models-spec.md:2592,4725` les listent et ADR-0057 l. 56-58 compte `past_due` dans le MRR, deux chemins fermés à l'implémenteur.
 
 ### Le profil prestataire `suspended` que gardent TCK-592 et la liste du front n'est posé par aucun chemin, ni `inactive`
 - Réf : P115.04
@@ -11316,7 +11318,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Une visite manquée ne peut être que « terminée » ou « annulée » : `no_show` n'a pas de geste
 - Réf : P115.05
-- Statut : validé — porteur (2026-10-22) : garder `no_show` et lui donner un écrivain : le geste « absent » (`POST property-visits/{visit}/no-show` depuis `scheduled`/`confirmed`, l'heure passée), pas le passage automatique à 24 h
+- Statut : fait · TCK-1375
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Enums/VisitStatus.php:11`, `takussan-api/routes/api/property-visits.php:16-21`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:218-224`, `takussan-api/app/Services/Dashboard/DashboardAgentService.php:144`, `takussan-web/src/components/visits/visit-status.ts:13,27`, `takussan-web/src/components/crm/CustomerLinkedRecords.tsx:23`
 - Constat :
@@ -11326,6 +11328,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 - Piste : un geste `POST property-visits/{visit}/no-show` depuis `scheduled`/`confirmed` une fois l'heure passée, ou le retrait du cas et de son libellé. Choix de produit.
 - Mesure (2026-10-22, 3390f9116, mesureur) : `grep -rn "VisitStatus::NoShow\|'no_show'" app` → lu par `DashboardAgentService.php:144` seulement ; relu `routes/api/property-visits.php:16-22` (`confirm`, `complete`, `cancel`, `claim`, `reschedule`, `feedback`, aucune route d'absence) et les écritures de statut du contrôleur (`PropertyVisitController.php:155,333,359` : `Scheduled`, `Completed`, `Cancelled`) ; le « à vérifier » tient : `ReviewEligibility.php:187` ouvre la note sur les seules visites `Completed`, et `TeamPerformanceService.php:64` les compte. Le constat tient. Classement : V7, la Piste offre un geste visible neuf ou le retrait d'un statut affiché.
 - Mesure (2026-10-22, 786700b41, delegue) : relu l'entrée, `docs/models-spec.md:4751` (`no_show` parmi les statuts de `VisitStatus`) et TCK-075 l. 60 (« `no_show` si ni customer ni agent n'ont marqué comme completed dans les 24h suivant l'heure prévue »), TCK-595 (l. 122, 236, 461 : les tableaux de bord excluent déjà `no_show`) ; aucune décision `porteur (` sur l'angle 115 → le statut est écrit et voulu, mais la règle de TCK-075 n'a jamais été construite. Recommandation : garder le statut et lui donner un écrivain, de préférence le geste « absent » (`POST property-visits/{visit}/no-show` depuis `scheduled`/`confirmed` une fois l'heure passée, hors note et hors visites menées) plutôt que le passage automatique à 24 h de TCK-075, qui marquerait absente toute visite simplement non clôturée ; retirer le statut contredirait models-spec et TCK-075 ; manque : le choix entre geste manuel, passage automatique ou les deux, qui est une fonction neuve et non un choix mineur.
+- Mesure (2026-10-22, fbf2acedf, implementeur) : reproduit avant correctif par `PropertyVisitNoShowTest` (`POST property-visits/{id}/no-show` → 404, aucune route ; `grep VisitStatus::NoShow app` → un seul lecteur) → route `property-visits.no-show` (`PropertyVisitController::noShow`) : `no_show` depuis `scheduled`/`confirmed` une fois l'heure passée, par qui agit pour le bien ; 422 `visit.cannot_mark_no_show` sinon, 403 au visiteur ; bouton « Marquer absent » au front ; ablation : garde neutralisée → 2 rouges sur 5, front avant correctif → 2 rouges sur 5 ; remis → verts.
 
 ### `features.md` promet à tous les profils une machine à états `draft → pending → active → suspended | expired | archived` qu'aucun n'a
 - Réf : P115.06
@@ -11342,7 +11345,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Petites améliorations : cas d'enum sans écrivain, lus par une garde ou un écran
 - Réf : P115.07
-- Statut : validé — porteur (2026-10-22) : en deux temps : retirer d'abord ce qui est sans choix (`scopeOpen()` de `BankStatement`, `pending` du type `AgencyStatus` du front), puis déclarer réservés les cas sans écrivain
+- Statut : fait · TCK-1307
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Enums/ConversationStatus.php`, `takussan-api/app/Models/Enums/BankStatementStatus.php:11-19`, `takussan-api/app/Models/BankStatement.php:84-90`, `takussan-api/app/Models/Enums/PayoutStatus.php`, `takussan-api/app/Services/Model/PayoutService.php:276-281`, `takussan-api/app/Models/Enums/ServiceProviderBillStatus.php`, `takussan-api/app/Models/Enums/RelationshipStatus.php`, `takussan-web/src/types/agency.ts:9`, `takussan-web/src/components/admin/reconciliation/format.ts:24`
 - Constat (lu et `grep`, chaque cas sans écrivain dans `app/`) :
@@ -11355,6 +11358,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 - Piste : retirer les cas sans écrivain (et leurs types au front), ou les documenter comme réservés ; aligner `scopeOpen()` sur `isClosed()` ou le retirer (A3).
 - Mesure (2026-10-22, 3390f9116, mesureur) : `grep` hors `Models/Enums` → aucune écriture de `ConversationStatus::Archived`/`Closed` (`ConversationController.php:99` n'écrit que `Active`), `ServiceProviderBillStatus::Cancelled`, `RelationshipStatus::Ended`/`Suspended` ; `PayoutStatus::Processing` seulement lu (`PayoutService.php:278`, `PayoutApprovalRule.php:57`) ; `BankStatementStatus::Archived` lu par `scopeOpen()` (`BankStatement.php:84-90`), qui n'a aucun appelant (`->open()` ne vise que `PropertyModerationService.php:180` et `ImpersonationService.php:124`) et range `failed` parmi les ouverts quand `isClosed()` le dit clos (`BankStatementStatus.php:16-19`) ; `types/agency.ts:9` ajoute `pending` à `active inactive suspended`. Le constat tient. Classement : V7, la Piste laisse le choix entre retrait et réserve sur des statuts que le front affiche ; seule la partie `scopeOpen()` serait A3.
 - Mesure (2026-10-22, 25e65b600, delegue) : relu l'entrée, la `Mesure` du mesureur, ADR-0007 (pas d'enum SQL : une valeur est une ligne de PHP) et `grep -n "porteur ("` du fichier → aucune décision sur des cas d'enum réservés. Recommandation : en deux temps — d'abord ce qui est A3 ou A1 sans choix : retirer `scopeOpen()` de `BankStatement` (sans appelant, et en désaccord avec `isClosed()` sur `failed`) et retirer `pending` du type `AgencyStatus` du front (l'API ne l'a pas) ; puis, pour les cas sans écrivain, les déclarer réservés par un docblock plutôt que les retirer, tant qu'aucun geste n'est décidé (`ConversationStatus::Archived`/`Closed`, `RelationshipStatus::Ended`/`Suspended`). Pas de délégation : `PayoutStatus::Processing`, admis par le traitement d'un reversement et la règle d'approbation, et `ServiceProviderBillStatus::Cancelled`, d'une facture de prestataire, touchent l'argent (V1, que le mesureur n'avait pas nommé) ; et l'entrée mêle retrait et réserve de statuts affichés (V7).
+- Mesure (2026-10-22, fbf2acedf, implementeur) : re-mesuré par `grep` (aucune écriture des sept cas hors `app/Models/Enums`, aucune règle `Rule::enum` sur ces statuts ; `->open()` ne vise que `PropertyReport` et `ImpersonationSession`) et par `CasDEnumReservesTest`, rouge avant correctif (cas sans marque, `scopeOpen()` présent) → `BankStatement::scopeOpen()` et `pending` d'`AgencyStatus` retirés (`tsc --noEmit` propre), docblock « Réservé (TCK-1307, P115.07) » sur `ConversationStatus::Archived`/`Closed`, `BankStatementStatus::Archived`, `PayoutStatus::Processing`, `ServiceProviderBillStatus::Cancelled`, `RelationshipStatus::Ended`/`Suspended` ; la garde rougit aussi sur toute écriture neuve d'un de ces cas par la constante ; ablation : marque retirée → 1 rouge, écriture temporaire dans `app/` → 1 rouge, remis → vert.
 
 ## Angle 116 — Gestes d'agence jugés par le type de profil au lieu d'une capacité
 
@@ -12909,7 +12913,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Le montant d'un paiement de réservation est calculé par le navigateur, et l'API l'accepte tel quel
 - Réf : P133.05
-- Statut : validé — porteur (2026-10-22) : l'API dérive le montant d'un paiement de réservation ; le navigateur ne l'envoie plus
+- Statut : fait · TCK-1309
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/bookings/BookingDetail.tsx:529-546`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:45`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-48`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1657-1659`
 - Constat :
@@ -12920,6 +12924,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Voisin de P13.05 (fait, TCK-684), qui portait le statut sur une autre route ; ici, le statut est bien forcé à `pending` (lu, `BookingPaymentController.php:48-52`), mais le montant reste libre.
 - Piste : pour un payeur client, dériver le montant côté API (acompte de la réservation, puis reste dû) et refuser un montant fourni qui s'en écarte ; le front ne fait plus qu'afficher. Garde : un test API par cas (acompte, solde, montant hors borne → 422).
 - Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `BookingDetail.tsx:529-546` (`CustomerPayCta` : reste = total − lignes `paid`, acompte ou solde, montant posté), `StoreBookingPaymentRequest.php:45` (`amount` en `required|numeric|min:0`), `BookingPaymentController.php:40-56` (pour un client, seuls statut, `paid_at`, méthode et transaction sont forcés), `BookingPaymentService::create` (`'amount' => $data['amount']`) → le montant reste libre, établi par lecture ; test temporaire de l'explorateur (`1` et `999 999 999` → 201) non rejoué. Le traitement des lignes `partially_paid` et `refunded` côté API reste à vérifier. Classement : V1, le correctif fixe le montant encaissé par la passerelle et refuse des paiements aujourd'hui acceptés.
+- Mesure (2026-10-22, fbf2acedf, implementeur) : reproduit avant correctif par `BookingPaymentAmountDerivedTest` (réservation à 100 000, acompte 30 000 : le client poste `amount = 1` puis `999 999 999` → lignes à ces montants ; sans `amount` → 422) → `BookingPaymentService::dueFromCustomer()` fixe pour le client non encaisseur l'acompte tant qu'aucune ligne n'est `paid`, puis le reste dû (total − lignes `paid`, la règle du navigateur déplacée), 422 `booking_payment.nothing_due` sur une réservation soldée ; le montant envoyé est ignoré, le personnel garde sa saisie ; le front poste `{ status: 'pending' }` ; ablation : dérivation retirée → 5 rouges sur 6, front avant correctif → 2 rouges ; remis → verts. Le poids des lignes `partially_paid` et `refunded` dans le reste dû n'est pas tranché (règle du navigateur gardée).
 
 ### Petites améliorations
 - Réf : P133.06
@@ -14129,7 +14134,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Petites améliorations
 - Réf : P147.09
-- Statut : validé — porteur (2026-10-22) : poser `completed_at` à la naissance ou au passage `done` d'une tâche, à nul à la réouverture ; le statut d'un paiement créé à la main borné à `paid`, `pending` et `partially_paid`
+- Statut : fait · TCK-1311
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/StoreTaskRequest.php:56`, `takussan-api/app/Http/Controllers/Api/TaskController.php:74-78,156-158`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:49`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-47`
 - Constat :
@@ -14137,6 +14142,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Paiement de réservation : pour le personnel, `status` accepte tout `PaymentStatus` sauf `cancelled` (lu, l. 49), donc une ligne créée directement `refunded`, `failed` ou `late`, hors du geste `refund` (`BookingPaymentService::refund`, qui exige `paid`, lu l. 57-64). Ce que les relevés et le reste à payer font d'une telle ligne n'a pas été suivi (à vérifier ; touche l'argent).
 - Piste : poser `completed_at` dès qu'une tâche naît ou passe `done`, le remettre à nul à la réouverture ; borner le statut d'un paiement créé à la main à `paid`, `pending` et `partially_paid`, si le porteur le veut.
 - Mesure (2026-10-22, b6bd2210f, mesureur) : relu `TaskController::store` (l. 75-79 : `Task::create` pose `status` tel que reçu, jamais `completed_at`), `::update` (l. 156-158 : `completed_at` posé au seul passage à `done` s'il est nul, jamais remis à nul), `BookingRefundTaskService.php:86` (pose les deux ensemble), `StoreTaskRequest.php:56` (`Rule::enum(TaskStatus)` entier), `StoreBookingPaymentRequest.php:49` (`PaymentStatus` sauf `cancelled`), `BookingPaymentService::create` (l. 24-47 : statut recopié, `paid_at` nul hors `paid`) et `::refund` (exige `paid`) ; aucun commit ni ticket ne les a touchés depuis l'exploration (`git log` sur les quatre fichiers) → les deux parties tiennent ; rien d'exécuté, l'effet d'une ligne `refunded`/`failed`/`late` sur les relevés reste non suivi. Classement : V1, la partie paiement borne les statuts d'une écriture d'argent et la `Piste` la laisse au porteur (« si le porteur le veut ») ; la partie tâche seule serait A1 (contrat de `BookingRefundTaskService`).
+- Mesure (2026-10-22, fbf2acedf, implementeur) : reproduit avant correctif par `TaskCompletedAtTest` (tâche créée `done` → `completed_at` nul ; `done` → `open` ou `in_progress` → `completed_at` gardé) et `BookingPaymentManualStatusTest` (le personnel crée une ligne `refunded`, `failed`, `late` → 201) → `TaskController` pose `completed_at` à la naissance `done` et le remet à nul à la réouverture (`open`, `in_progress`), `StoreBookingPaymentRequest` borne `status` à `paid`, `pending`, `partially_paid` (type du front aligné) ; ablation : écritures retirées → 2 rouges sur 3, borne remise → 1 rouge sur 2 ; remis → verts.
 
 ## Angle 148 — Section `/app/agency` gardée par le rôle, gestes jugés par la capacité
 

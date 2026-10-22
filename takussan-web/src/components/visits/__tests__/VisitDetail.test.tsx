@@ -51,6 +51,7 @@ vi.mock('@/lib/queries/visits', () => ({
   useUpdateVisit: () => updateMutation,
   useClaimVisit: () => claimMutation,
   useProposeVisitSlot: () => proposeMutation,
+  useMarkVisitNoShow: () => mutation,
 }));
 
 function renderDetail() {

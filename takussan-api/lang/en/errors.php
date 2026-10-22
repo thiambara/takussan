@@ -88,6 +88,7 @@ return [
         'property_unavailable' => 'This property is not available for booking.',
     ],
     'booking_payment' => [
+        'nothing_due' => 'This booking is fully paid: nothing is left to pay.',
         'receipt_unpaid' => 'The receipt is only available for a settled payment.',
         'refund_exceeds_paid' => 'The refund cannot exceed the amount paid.',
         'refund_fractional' => 'This amount has decimals the payment currency does not have.',
@@ -587,6 +588,7 @@ return [
         'already_assigned' => 'This visit is already handled by another member of the agency.',
         'cannot_cancel' => 'This visit cannot be cancelled in its current state.',
         'cannot_complete' => 'This visit cannot be completed in its current state.',
+        'cannot_mark_no_show' => 'Only a scheduled or confirmed visit whose time has passed can be marked as a no-show.',
         'closed' => 'A completed or cancelled visit can no longer be changed.',
         'feedback_agent_only' => 'Only the agent in charge can give the agent feedback.',
         'feedback_not_completed' => 'Feedback is only possible once the visit is completed.',

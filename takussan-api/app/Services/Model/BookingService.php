@@ -277,6 +277,17 @@ class BookingService
                 422,
                 'booking.cannot_cancel'
             );
+            // TCK-1301 (P115.01, décision du porteur) — un séjour commencé ne s'annule plus : une
+            // réservation `confirmed` dont le premier jour est arrivé reste au calendrier, et passe
+            // `completed` au lendemain de sa fin (`CompleteEndedBookingsJob`). Son annulation
+            // ouvrait une tâche de remboursement de l'acompte d'un séjour mené.
+            abort_code_if(
+                $locked->status === BookingStatus::Confirmed
+                    && $locked->start_date !== null
+                    && $locked->start_date->toDateString() <= now()->toDateString(),
+                422,
+                'booking.cannot_cancel'
+            );
 
             $property = $locked->property;
             if ($user->id === $locked->customer?->user_id) {

@@ -88,6 +88,7 @@ return [
         'property_unavailable' => 'Kër gii nekkul ci woote.',
     ],
     'booking_payment' => [
+        'nothing_due' => 'Cette réservation est soldée : il ne reste rien à payer.',
         'receipt_unpaid' => 'Quittance bi, fay bu ñu fay ba noppi rekk la.',
         'refund_exceeds_paid' => 'Delloo bi mënul a ëpp xaalis bi ñu fay.',
         'refund_fractional' => 'Limu bii am na ay ñaari lim yu xaalis bi amul.',
@@ -587,6 +588,7 @@ return [
         'already_assigned' => 'Seetaan bii, keneen ci ajaans bi moo ko jël.',
         'cannot_cancel' => 'Seeti bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_complete' => 'Seeti bii mënuñu ko jeexal ni mu nekke léegi.',
+        'cannot_mark_no_show' => 'Seule une visite planifiée ou confirmée dont l\'heure est passée peut être marquée absente.',
         'closed' => 'Seeti bu jeex walla bu ñu neenal, mënatuñu ko soppi.',
         'feedback_agent_only' => 'Agent bi ko yor rekk moo mën a joxe xalaatu agent bi.',
         'feedback_not_completed' => 'Xalaat bi, su seeti bi jeexee rekk lañu ko mën a joxe.',

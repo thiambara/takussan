@@ -88,6 +88,7 @@ return [
         'property_unavailable' => 'Ce bien n\'est pas disponible à la réservation.',
     ],
     'booking_payment' => [
+        'nothing_due' => 'Cette réservation est soldée : il ne reste rien à payer.',
         'receipt_unpaid' => 'La quittance est disponible uniquement pour un paiement acquitté.',
         'refund_exceeds_paid' => 'Le remboursement ne peut pas dépasser le montant payé.',
         'refund_fractional' => 'Ce montant comporte des décimales que la devise du paiement n\'a pas.',
@@ -587,6 +588,7 @@ return [
         'already_assigned' => 'Cette visite est déjà prise en charge par un autre membre de l\'agence.',
         'cannot_cancel' => 'Cette visite ne peut pas être annulée dans son état actuel.',
         'cannot_complete' => 'Cette visite ne peut pas être terminée dans son état actuel.',
+        'cannot_mark_no_show' => 'Seule une visite planifiée ou confirmée dont l\'heure est passée peut être marquée absente.',
         'closed' => 'Une visite terminée ou annulée ne peut plus être modifiée.',
         'feedback_agent_only' => 'Seul l\'agent en charge peut donner l\'avis de l\'agent.',
         'feedback_not_completed' => 'L\'avis n\'est possible qu\'une fois la visite terminée.',

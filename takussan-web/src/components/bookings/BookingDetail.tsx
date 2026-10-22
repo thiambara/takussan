@@ -29,6 +29,7 @@ import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { useCanAll } from '@/hooks/useCan';
 import { isAgent, isAdmin, isOwner } from '@/lib/roles';
+import { formatISODate } from '@/lib/calendar-date';
 import type { Locale } from '@/i18n/config';
 import type { Booking, BookingPayment } from '@/types/booking';
 import {
@@ -185,9 +186,16 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const staffMay = (granted: boolean) =>
     isDashboardAgent && (capabilitiesLoading ? true : granted);
 
+  // TCK-1301 (P115.01) — un séjour confirmé dont le premier jour est arrivé ne
+  // s'annule plus : l'API le refuse (`booking.cannot_cancel`).
+  const stayStarted =
+    booking.status === 'confirmed' &&
+    !!booking.start_date &&
+    booking.start_date.slice(0, 10) <= formatISODate(new Date());
   const canCancel =
     (isCustomer || staffMay(canCancelBookings)) &&
-    (booking.status === 'pending' || booking.status === 'confirmed');
+    (booking.status === 'pending' || booking.status === 'confirmed') &&
+    !stayStarted;
   const canConfirm = staffMay(canValidateBookings) && booking.status === 'pending';
   const canReject = staffMay(canValidateBookings) && booking.status === 'pending';
   const canRegisterPayment = staffMay(canRecordPayments);
@@ -537,16 +545,12 @@ function CustomerPayCta({
 
   const depositAmount = Number(booking.deposit_amount ?? 0);
   const isDepositStep = succeededTotal === 0 && depositAmount > 0;
-  const amount = isDepositStep ? depositAmount : remaining;
-  const paymentType: 'deposit' | 'advance' = isDepositStep ? 'deposit' : 'advance';
   const label = isDepositStep ? t('payCta.deposit') : t('payCta.balance');
 
+  // TCK-1309 (P133.05) — le montant et sa nature sont dérivés par l'API (acompte, puis reste
+  // dû) : le calcul ci-dessus ne sert plus qu'au libellé.
   async function handleClick() {
-    await createPayment.mutateAsync({
-      amount,
-      payment_type: paymentType,
-      status: 'pending',
-    });
+    await createPayment.mutateAsync({ status: 'pending' });
   }
 
   return (

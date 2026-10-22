@@ -36,6 +36,7 @@ vi.mock('@/lib/queries/visits', () => ({
   useUpdateVisit: () => mutation,
   useClaimVisit: () => claim,
   useProposeVisitSlot: () => propose,
+  useMarkVisitNoShow: () => mutation,
 }));
 
 function visite(overrides: Partial<PropertyVisit> = {}): PropertyVisit {
