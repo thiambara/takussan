@@ -449,6 +449,7 @@ return [
     ],
     'privacy' => [
         'request_closed' => 'Laaj bii tëju na : bindal beneen.',
+        'request_linked_pending' => 'Cette demande suit son cours dans l\'application, qui la répondra : elle ne se clôt pas à la main.',
     ],
     'profile' => [
         'not_accessible' => 'Profil bii, sañuloo ko jëfandikoo.',

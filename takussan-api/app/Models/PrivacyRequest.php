@@ -4,9 +4,11 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
+use App\Models\Enums\DataExportStatus;
 use App\Models\Enums\PrivacyRequestChannel;
 use App\Models\Enums\PrivacyRequestStatus;
 use App\Models\Enums\PrivacyRequestType;
+use App\Observers\Privacy\PrivacyRegistryObserver;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -146,5 +148,24 @@ class PrivacyRequest extends AbstractModel implements HasMedia
     public function isOverdue(): bool
     {
         return $this->status?->isOpen() === true && $this->due_at !== null && $this->due_at->isPast();
+    }
+
+    /**
+     * P147.08 (TCK-1435) — la demande de l'application à laquelle l'entrée est liée vit encore :
+     * un effacement pas encore exécuté (annulé, il est supprimé), un export en file ou en
+     * préparation. C'est alors l'application qui répond l'entrée ({@see PrivacyRegistryObserver}).
+     * Un export en échec ou expiré ne répondra plus : l'entrée revient à la main.
+     */
+    public function linkedRequestIsPending(): bool
+    {
+        if ($this->account_deletion_request_id !== null
+            && AccountDeletionRequest::query()->whereKey($this->account_deletion_request_id)->whereNull('executed_at')->exists()) {
+            return true;
+        }
+
+        return $this->data_export_id !== null
+            && DataExport::query()->whereKey($this->data_export_id)
+                ->whereIn('status', [DataExportStatus::Queued->value, DataExportStatus::Processing->value])
+                ->exists();
     }
 }

@@ -449,6 +449,7 @@ return [
     ],
     'privacy' => [
         'request_closed' => 'Cette demande est close : enregistrez-en une nouvelle.',
+        'request_linked_pending' => 'Cette demande suit son cours dans l\'application, qui la répondra : elle ne se clôt pas à la main.',
     ],
     'profile' => [
         'not_accessible' => 'Ce profil ne vous est pas accessible.',

@@ -449,6 +449,7 @@ return [
     ],
     'privacy' => [
         'request_closed' => 'This request is closed: record a new one.',
+        'request_linked_pending' => 'This request is still being processed by the application, which will answer it: it cannot be closed by hand.',
     ],
     'profile' => [
         'not_accessible' => 'This profile is not accessible to you.',
