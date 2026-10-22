@@ -15676,7 +15676,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Changer le type ou le statut des états des lieux garde la page courante : la liste s'affiche vide, sans pagination pour en sortir
 - Réf : P168.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1518
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/inventory/InventoryList.tsx:51-58,75,96,123-141,174-200`
 - Constat :
@@ -15686,6 +15686,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu et mesuré (Vitest ciblé, charge 2,73 / 2,84 / 2,67 sur 8 cœurs).
 - Piste : remettre la page à 1 dans les deux `onValueChange`, comme `MaintenanceList`. Garde : un test de `InventoryList` qui avance d'une page, change le statut et attend `page: 1` dans l'appel.
 - Mesure (2026-10-22, b62079cad, mesureur) : relu `InventoryList.tsx:52-54` (type, statut, page en `useState`), l. 76 et 97 (`onValueChange` n'appellent que `setType`/`setStatus`, sans `setPage(1)`), l. 125-141 (état vide sans pagination) et l. 174 (barre rendue pour `last_page > 1` seulement), `InventoryController::index` (`->paginate()`) ; test Vitest temporaire, retiré (`useInventories` bouchonné sur `last_page: 3`, clic « Suivant », statut « Brouillon », charge 4,54 / 3,73 / 3,28 sur 8 cœurs) → dernier appel `{"status":"draft","page":2}` ; aucun commit sur ces fichiers depuis 11a127594, aucun ticket ouvert → le constat tient, lignes décalées d'une. Classement : A1, remettre la page à 1 au changement de filtre est le contrat déjà tenu par `MaintenanceList`, `AuditTrail` et `CommissionsLedger`, sans texte ni choix de produit.
+- Mesure (2026-10-22, 4573b29fe, implementeur) : `InventoryListPagination.test.tsx` (page 2 puis statut « Brouillon », page 2 puis un type) rouge avant correctif, appel resté en `page: 2` → `setPage(1)` dans les deux `onValueChange` ; ablation : composant d'origine remis → 2 rouges, correctif remis → 2/2 verts.
 
 ### Les onglets « À louer » et « À vendre » d'un profil public se montrent vides, sans « Voir plus », quand leurs biens ne sont pas dans les 24 premiers
 - Réf : P168.02
