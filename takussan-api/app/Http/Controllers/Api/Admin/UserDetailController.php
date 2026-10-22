@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Filters\DateBoundaryFilter;
 use App\Http\Resources\Api\Admin\UserDetailResource;
 use App\Http\Resources\Api\Admin\UserListResource;
 use App\Models\Enums\PlatformProfileLevel;
@@ -156,8 +157,9 @@ class UserDetailController extends Controller
             })
             ->allowedFilters(
                 AllowedFilter::exact('event'),
-                AllowedFilter::callback('date_from', fn ($q, $value) => $q->where('created_at', '>=', $value)),
-                AllowedFilter::callback('date_to', fn ($q, $value) => $q->where('created_at', '<=', $value)),
+                // P119.02 (TCK-1271) — une date seule couvre le jour entier, comme au journal de l'agence.
+                AllowedFilter::custom('date_from', new DateBoundaryFilter('created_at', false)),
+                AllowedFilter::custom('date_to', new DateBoundaryFilter('created_at', true)),
             )
             ->allowedSorts('created_at', 'event')
             ->defaultSort('-created_at');
