@@ -29,6 +29,9 @@ class DataExportController extends Controller
         $recent = DataExport::query()
             ->where('user_id', $request->user()->id)
             ->where('requested_by', $request->user()->id)
+            // P111.02 (TCK-1503) — seule une demande en cours ou prête compte : une demande en
+            // échec ou expirée n'a rien rendu, et la limite borne la charge, pas le droit d'accès.
+            ->whereIn('status', [DataExportStatus::Queued, DataExportStatus::Processing, DataExportStatus::Ready])
             ->where('requested_at', '>', now()->subDay())
             ->latest('requested_at')
             ->first();
