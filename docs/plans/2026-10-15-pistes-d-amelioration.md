@@ -11454,10 +11454,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Le taux horaire du prestataire ne s'efface pas : `hourly_rate: null` garde l'ancien, quand `visit_fee: null` efface
 - Réf : P117.02
-- Statut : validé — porteur (2026-10-22) : `hourly_rate` comme `visit_fee` : clé absente, on garde ; `null`, on efface
+- Statut : fait · TCK-1315
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:147-160,169`, `takussan-web/src/components/profile/ProfileServiceProviderSection.tsx:63,93-98`
 - Constat :
+- Mesure (2026-10-22, 1c871e3c0, implementeur) : reproduit avant correctif par `ServiceProviderTradesPartialUpdateTest::test_null_hourly_rate_clears_it_and_an_absent_key_keeps_it` (`hourly_rate_min` 5000, `PATCH …/trades {hourly_rate: null, visit_fee: null}` → `data.hourly_rate` `'5000.00'`) → `null` explicite écrit `null`, clé absente garde ; ablation : ancien ternaire → rouge, correctif → vert ; `ServiceProviderOnboardingTest` vert.
   - Le formulaire « Tarifs » envoie `hourly_rate: null` quand le champ est vidé (lu, `ProfileServiceProviderSection.tsx:96`).
   - L'API lit ce `null` comme « garder » : `array_key_exists('hourly_rate', …) && … !== null ? (float) … : $sp_profile->hourly_rate_min` (lu, `:158-160`). Le commentaire de TCK-592 (`:136-138`) ne prévoit le « garder » que pour une clé **absente**.
   - La clé voisine, `visit_fee`, distingue bien les deux cas : `null` retire la clé (lu, `:147-153`).
