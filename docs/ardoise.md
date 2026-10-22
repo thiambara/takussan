@@ -2919,6 +2919,12 @@ visites, maintenance et loyers — c'était la fonction la plus demandée du rap
 des bailleurs d'une même agence) fusionné — c'est le même endroit des policies, et ouvrir des accès
 avant d'avoir fermé ceux qui fuient serait les ouvrir sur une base fausse.*
 
+**Condition de réouverture remplie, la décision revient au porteur** (P86.02, TCK-1476,
+2026-10-22) : TCK-587 est `done`, et `co_owner` comme `viewer` ne lisent toujours rien du bien
+qui les nomme (`PropertyPolicy::view`). Reste à choisir entre ouvrir une lecture (bien, baux,
+loyers) et retirer les deux rôles. D'ici là, le front n'affiche plus `viewer` sous « Lecture
+seule », qui promettait une lecture que l'API ne donne pas, mais sous « Lecteur (sans accès) ».
+
 ### D-67 — Aucun relevé Wave Business ni Orange Money réel n'a servi à régler l'import des relevés
 
 Le rapprochement bancaire lit un CSV par un mapping de colonnes (`takussan-api/app/Services/Accounting/StatementParser/CsvDriver.php:12`,

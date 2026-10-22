@@ -122,6 +122,35 @@ class ReceivedReviewsTest extends ApiTestCase
         $this->getJson('/api/reviews/received?per_page=51')->assertStatus(422);
     }
 
+    /**
+     * TCK-1478 (P86.05) — la branche « collaborateur » de la boîte suit la règle de réponse
+     * (`ReviewPolicy::reply` : le personnel de l'agence du bien). Avant, un `co_owner` ou un
+     * `viewer` bailleur, et un ancien agent resté en ligne, lisaient dans leur boîte les avis d'un
+     * bien qu'ils ne peuvent ni ouvrir ni y répondre.
+     */
+    public function test_a_collaborator_outside_the_staff_does_not_receive_the_property_reviews(): void
+    {
+        $review = $this->review($this->mine);
+
+        $coOwner = User::factory()->create();
+        $this->materializeRoleProfile($coOwner, 'owner', $this->agency);
+        $viewer = User::factory()->create();
+        $this->materializeRoleProfile($viewer, 'owner', $this->agency);
+        $former = User::factory()->create();
+        $staffViewer = User::factory()->create();
+        $this->materializeRoleProfile($staffViewer, 'agent', $this->agency);
+
+        foreach ([[$coOwner, 'co_owner'], [$viewer, 'viewer'], [$former, 'agent'], [$staffViewer, 'viewer']] as [$user, $role]) {
+            PropertyCollaborator::create(['property_id' => $this->mine->id, 'user_id' => $user->id, 'role' => $role]);
+        }
+
+        $this->assertSame([], $this->ids($coOwner));
+        $this->assertSame([], $this->ids($viewer));
+        $this->assertSame([], $this->ids($former));
+        // Un collaborateur du personnel, quel que soit son rôle de collaborateur, répond : il le reçoit.
+        $this->assertSame([$review->id], $this->ids($staffViewer));
+    }
+
     public function test_a_stranger_sees_nothing(): void
     {
         $this->review($this->mine);
@@ -151,7 +180,9 @@ class ReceivedReviewsTest extends ApiTestCase
         };
 
         $this->assertTrue($canReply($this->agent));
-        $this->assertFalse($canReply($outsider));
+        // TCK-1478 (P86.05) — le collaborateur d'une autre agence ne reçoit plus l'avis : la boîte
+        // suit la règle de réponse au lieu d'offrir un avis marqué `can_reply = false`.
+        $this->assertNull($canReply($outsider));
         $this->postJson("/api/reviews/{$review->id}/reply", ['reply_content' => 'x'])->assertForbidden();
 
         // Le publieur retiré de l'agence : l'avis reste dans sa boîte, la réponse ne lui est plus ouverte.

@@ -7,6 +7,7 @@ use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
+use App\Rules\CollaboratorEligibleForProperty;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -96,6 +97,12 @@ class PropertyDuplicationService
 
             if ($copyCollaborators) {
                 foreach ($source->collaborators as $collab) {
+                    // TCK-1478 (P86.05) — la ligne se rejuge comme un ajout fait par `$actor` : un
+                    // agent sorti de l'agence, ou un `co_owner` qui n'y est plus bailleur, est écarté
+                    // sans erreur (la copie est à l'initiative de l'agence).
+                    if (! $this->stillEligible($clone, $collab, $actor)) {
+                        continue;
+                    }
                     $clone->collaborators()->create($collab->only([
                         'user_id', 'role', 'commission_share', 'invited_at', 'metadata',
                     ]));
@@ -145,5 +152,16 @@ class PropertyDuplicationService
         }
 
         return $clone->refresh();
+    }
+
+    private function stillEligible(Property $clone, PropertyCollaborator $collab, User $actor): bool
+    {
+        $rule = new CollaboratorEligibleForProperty($clone, $collab->role?->value, $actor);
+        $eligible = true;
+        $rule->validate('user_id', $collab->user_id, function () use (&$eligible): void {
+            $eligible = false;
+        });
+
+        return $eligible;
     }
 }

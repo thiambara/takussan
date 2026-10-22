@@ -1424,7 +1424,7 @@
           "agent": "Agent",
           "manager": "Gestionnaire",
           "co_owner": "Copropriétaire",
-          "viewer": "Lecture seule"
+          "viewer": "Lecteur (sans accès)"
         },
         "designate": "Désigner comme principal",
         "designateFor": "Désigner {name} comme agent principal",

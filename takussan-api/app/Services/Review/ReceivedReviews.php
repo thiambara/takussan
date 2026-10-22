@@ -8,6 +8,7 @@ use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -41,15 +42,26 @@ class ReceivedReviews
             });
     }
 
-    /** @param  Builder<Review>  $query */
+    /**
+     * TCK-1478 (P86.05) — la branche « collaborateur » ne vaut que sur les biens d'une agence dont
+     * l'appelant est personnel : c'est la règle de `ReviewPolicy::reply` pour un bien. Un `co_owner`
+     * ou un `viewer` bailleur, ou un ancien agent resté en ligne, n'y lit plus les avis d'un bien
+     * qu'il ne peut ni ouvrir ni y répondre (D-66).
+     *
+     * @param  Builder<Review>  $query
+     */
     private function targetsActor(Builder $query, User $user): void
     {
+        $staffAgencyIds = app(MembershipCapabilityResolver::class)->staffAgencyIds($user);
+
         $query
             ->where(fn (Builder $q) => $q
                 ->where('reviews.reviewable_type', Property::class)
                 ->whereIn('reviews.reviewable_id', Property::query()->select('id')->where(fn (Builder $p) => $p
                     ->where('user_id', $user->id)
-                    ->orWhereIn('id', PropertyCollaborator::query()->select('property_id')->where('user_id', $user->id)))))
+                    ->orWhere(fn (Builder $collab) => $collab
+                        ->whereIn('agency_id', $staffAgencyIds)
+                        ->whereIn('id', PropertyCollaborator::query()->select('property_id')->where('user_id', $user->id))))))
             ->orWhere(fn (Builder $q) => $q
                 ->where('reviews.reviewable_type', User::class)
                 ->where('reviews.reviewable_id', $user->id))
