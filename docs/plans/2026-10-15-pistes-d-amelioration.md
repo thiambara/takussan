@@ -10295,7 +10295,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Pour un visiteur deviné à Dakar, l'accueil redemande `discovery` après l'hydratation et reçoit les mêmes rangées que le rendu serveur
 - Réf : P103.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-1231
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/hooks/useHomepageDiscovery.ts:97-130`, `takussan-web/src/components/property/HomepageDiscovery.tsx:97-108`, `takussan-api/app/Services/Property/HomepageDiscoveryService.php:136-158`
 - Constat :
@@ -10305,6 +10305,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - L'appel serveur de `discovery` a été mesuré entre 789 et 1 022 ms (P69.03) : pour le marché principal, l'accueil rejoue après l'hydratation une requête d'environ une seconde dont la réponse ne change rien à l'écran. La part des visiteurs devinés à Dakar n'est pas connue (à vérifier).
 - Piste : ne relancer que si la ville devinée diffère de `donneesInitiales.near.city`, comparée sans casse (`toLocaleLowerCase`, comme `CaseInsensitive::fold` côté API). Garde : un test vitest du crochet, rangées semées pour `Dakar` et ville devinée `Dakar`, qui exige qu'aucun `fetch` ne parte.
 - Mesure (2026-10-21, 71e1c1286, mesureur) : lu `takussan-web/src/hooks/useHomepageDiscovery.ts:83-130` : au premier passage, avec `donneesInitiales`, l'effet ne s'arrête que si `nearCity` est vide, et relance donc pour `Dakar` ; lu `HomepageDiscoveryService.php:136-158` : `near_city=Dakar` vaut la ville de référence (`$isReference`), mêmes candidats que sans ville, et `near_city` n'est lu nulle part ailleurs dans le service (`grep -n requestedCity`), donc `rent`, `featured` et `latest` sont les mêmes ; côté front, `near.requested_city` n'est lu que sous `fallback` (lu, `HomepageDiscovery.tsx:120-125`), faux dans les deux cas. Le test de rangées identiques de l'explorateur n'a pas été rejoué. Classement : A1, le docblock du crochet (l. 90-93) écrit déjà la règle attendue : ne relancer que s'il y a quelque chose de neuf à demander, ici une ville devinée dont le repli de casse diffère de `donneesInitiales.near.city`.
+- Mesure (2026-10-22, 6d216605a, implementeur) : relu `useHomepageDiscovery.ts` (au premier passage semé, l'effet ne s'arrête que sans ville) ; test neuf `useHomepageDiscovery.ville-deja-servie.test.ts` → avant correctif, rangées semées pour `Dakar` et ville devinée `dakar` → une relance, 1 rouge ; correctif : pas de relance au premier passage quand la ville devinée, repliée par `toLocaleLowerCase()`, vaut `donneesInitiales.near.city` repliée → 2/2 verts (`Thiès` relance toujours), 29/29 avec les tests du crochet et de `HomepageDiscovery` ; ablation → le même rouge, correctif remis → vert. Le test de rangées identiques côté API n'a pas été rejoué.
 
 ### La fiche demande les biens similaires et les avis au navigateur après l'hydratation, alors que la page d'un bien retiré reçoit déjà ses similaires du serveur
 - Réf : P103.07
