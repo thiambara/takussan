@@ -179,7 +179,7 @@ voie d'écriture (angle 13, puis 47).
 | 103 | Appels du navigateur à l'hydratation des pages publiques (`geo/cities`, `geo/regions`, `amenities`, `property-types`, `maintenance/status`, préflights CORS) : lesquels pourraient venir du rendu serveur ou du cache de données, et ce qu'ils coûtent sous 3G | fait |
 | 104 | Poids JS initial des écrans de la console `/super-admin` (`SuperAdminShell`, tableaux, dialogues importés statiquement, fichiers `index.ts` de `components/admin/super`) : le relevé de l'angle 70 sur l'autre console | fait |
 | 105 | Charge RSC d'un document `/app` servi : dictionnaires imbriqués de `layout.tsx`, `(dashboard)` et `(dashboard)/app` (et `/app/agency`) sérialisés chacun avec l'ensemble cumulé de ses parents, mesurés sur le document compressé | fait |
-| 106 | Branches que le code ne prend qu'en `APP_ENV=production` (`RestrictIpMiddleware` à liste vide, `DeletionStepUpService::sendCode`, `AddRobotsTagOutsideProduction` jugé sur `APP_URL`) : chacune éprouvée par un test en `production`, alors que la préproduction tourne en `staging` et ne les prend jamais ? | à faire |
+| 106 | Branches que le code ne prend qu'en `APP_ENV=production` (`RestrictIpMiddleware` à liste vide, `DeletionStepUpService::sendCode`, `AddRobotsTagOutsideProduction` jugé sur `APP_URL`) : chacune éprouvée par un test en `production`, alors que la préproduction tourne en `staging` et ne les prend jamais ? | fait |
 | 107 | Champs du profil que l'utilisateur déclare pour être joint (`phone_whatsapp`, `secondary_phone`, `secondary_phone_whatsapp`, `preferred_language`, heures calmes) : lus par les chemins qui envoient (canaux de notification, codes, relances), ou seulement affichés ? | à faire |
 | 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | à faire |
 | 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | à faire |
@@ -9186,7 +9186,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 
 ### L'occupation des mois passés s'efface quand un bien est archivé, vendu ou passé en vente aujourd'hui
 - Réf : P93.01
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1173
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:23-26,48-54,65-120,322-339`
 - Constat :
@@ -9207,10 +9207,11 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   porteur. Un test épingle la série d'un bien archivé après un bail terminé.
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `PortfolioMetrics::eligibleSql` (statut, `contract_type` et `rent_period` courants, inchangés depuis 964dded11) ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → bail `expired` du 2026-01-01 au 2026-06-30, `setTestNow(2026-07-15)` : `longStayOccupancy` rend 100 de janvier à juin, puis 0 sur les six mois après `status = archived`, et 0 après retour à `available` avec `contract_type = sale` ; le constat tient tel qu'écrit (courte durée relue, non rejouée). Aucun ticket ni commit ne le traite. Classement : V7, la piste propose une règle (dénominateur par bail couvrant, exclusion datée) sans date de passage en `archived` ou `sold` aujourd'hui en base, et en laisse le choix au porteur.
 - Mesure (2026-10-21, b0c1cd999, delegue) : relu la ligne `Mesure` du mesureur, `PortfolioMetrics.php` cité, et TCK-595 § « Contraintes strictes » (l. 286-292 : « l'occupation d'un mois passé se lit dans les dates des baux […] jamais dans `status=active` d'aujourd'hui », mais les biens éligibles y sont définis « hors `draft/archived/pending_review/rejected/sold` » sans date) ; `grep` de `porteur (` sur l'angle 93 et des tickets → aucune règle d'éligibilité datée n'est écrite, et aucune date de passage en `archived` ou `sold` n'existe en base. Recommandation : pour un mois passé, garder dans le dénominateur tout bien feuille couvert par un bail (hors `draft` et `pending_signature`) au moins un jour du mois, quel que soit son statut ou son `contract_type` d'aujourd'hui, en plus des biens éligibles aujourd'hui ; n'appliquer l'exclusion par statut courant qu'au mois en cours, et ne pas ajouter de date de changement de statut (ce serait un V4 et une règle de plus) ; pourquoi : c'est la seule lecture qui tient la règle déjà écrite de TCK-595 sans donnée neuve, et elle rend exactement la série d'avant l'archivage dans le cas mesuré ; ce qui manque pour trancher : la règle contredit la définition écrite des biens éligibles de TCK-595, et un bien vacant tout un mois passé puis archivé sort encore du dénominateur — choix de produit que le porteur fait ou amende.
+- Mesure (2026-10-21, 8d4869e9d, implementeur) : reproduit avant correctif par `DashboardOwnerMetricsTest::test_p93_01_past_months_keep_a_leased_unit_archived_or_sold_today` (bail `expired` du 2026-01-01 au 2026-06-30, au 2026-07-15 : série 100 × 6 puis 0, puis 0 × 7 après `archived`) et `…_past_short_stay_months_keep_a_booked_unit_archived_today` (juin 50, puis `null` après `archived`) → un mois passé garde tout bien feuille de la périodicité qu'un bail ou une réservation y couvrait, quel que soit son statut ou son `contract_type` d'aujourd'hui, le mois en cours gardant l'exclusion par statut ; ablation rouge sur les deux, remis 10/10 sur la classe, `DashboardOwnerTest`, `DashboardAgencyTest`, `DashboardQueryBudgetTest`, `DashboardAgentScopeTest`, `DashboardAgentTest` verts.
 
 ### Le relevé du bailleur compte en « Impayés de la période » des loyers pas encore échus et ceux d'un bail supprimé
 - Réf : P93.02
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1175
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payout/OwnerStatementService.php:137-153`,
   `takussan-api/lang/fr/money_out.php:27`, `takussan-api/resources/views/pdf/statements/owner.blade.php:82-83`
@@ -9232,10 +9233,11 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   lisant `CollectedPayments::leaseOwed()` comme les autres lecteurs de l'impayé. Un test épingle les
   deux cas.
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `OwnerStatementService::unpaid` (`whereBetween(due_date, période)`, aucune borne à aujourd'hui, aucun filtre `leases.deleted_at`) ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → `setTestNow(2026-07-03)`, 100 000 dus le 25 juillet et 70 000 dus le 1ᵉʳ juillet sur un bail supprimé : `statement(…, '2026-07')['unpaid']` = `{"count":2,"amount":170000}`, `PortfolioMetrics::overdue` de l'agence = `{"count":0,"amount":0}` ; le constat tient (cas annuel non rejoué). Aucun ticket ni commit ne le traite. Classement : V1, le correctif change un montant imprimé sur le relevé et l'attestation du bailleur.
+- Mesure (2026-10-21, 8d4869e9d, implementeur) : reproduit avant correctif par `OwnerStatementTest::test_p93_02_unpaid_counts_only_past_due_rents_of_live_leases` (au 2026-07-03 : 30 000 dus le 2 juillet, 100 000 dus le 25 juillet, 70 000 dus le 1ᵉʳ juillet sur un bail supprimé → `unpaid.count` 3) → `unpaid` lit `CollectedPayments::leaseOwed()`, `leases.deleted_at IS NULL` et `due_date < today`, types du relevé inchangés : `{count: 1, amount: 30000}` ; ablation rouge, remis 5/5 sur la classe.
 
 ### Le « taux d'impayés » dépasse 100 %, et vaut 0 % quand les impayés viennent d'un bail clos
 - Réf : P93.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1177
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:54-59,77,115`,
   `takussan-api/app/Services/Dashboard/KpiResolver.php:37`, `takussan-api/app/Models/ThresholdAlert.php:49`,
@@ -9258,6 +9260,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   12 mois ÷ le facturé échu des mêmes échéances. Rendre `null` sans dénominateur. Le choix de la
   définition revient au porteur (texte du produit). Un test épingle les deux cas mesurés.
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `DashboardAgencyService::summary` (`unpaid_rate_percent` = impayé cumulé ÷ Σ `monthly_rent` des baux `active`, 0 sans bail actif) et `KpiResolver::forAgency` ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → bail actif à 100 000 avec trois loyers échus impayés plus un bail `terminated` à 50 000 impayés : `overdue_amount` 350 000, `unpaid_rate_percent` 350 ; agence au seul bail `terminated` à 50 000 impayés : `overdue_amount` 50 000, `unpaid_rate_percent` 0 ; le constat tient. Aucun ticket ni commit ne le traite. Classement : V1 et V7, c'est un ratio de montants dont la piste laisse la définition au porteur.
+- Mesure (2026-10-21, 8d4869e9d, implementeur) : reproduit avant correctif par `DashboardAgencyTest::test_p93_03_unpaid_rate_is_owed_over_billed_of_the_same_past_due_installments` (sans échéance : `0` au lieu de `null` ; seul bail `terminated` à 50 000 impayés : 0) → `PortfolioMetrics::unpaidRate()` = reste dû des échéances échues sur 12 mois (hors restitution de caution, baux non supprimés) ÷ leur montant facturé (hors `cancelled`, `failed`), `null` sans échéance : `null`, 100, puis 77,78 avec un bail actif à trois loyers en retard ; AC5 de TCK-595 recalculé (33,33 → 10) ; tuile front en « — » sans alerte quand `null` ; ablations API et front rouges, remis : `DashboardAgencyTest` 10/10, `DashboardOwnerMetricsTest`, `DashboardQueryBudgetTest`, `ThresholdAlertTest`, `DashboardAgencyAccessTest`, `AgencyKpis.test.tsx` et `overview/agency/page.test.tsx` verts.
 
 ### Les alertes de seuil vont aussi aux admins d'agence suspendus ou archivés
 - Réf : P93.04
@@ -9325,7 +9328,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 
 ### Petites améliorations : indicateurs servis sans test de valeur
 - Réf : P93.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-1179
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/tests/Feature/Reporting/TeamPerformanceTest.php:74-95`,
   `takussan-api/tests/Feature/Dashboard/DashboardAgencyTest.php:38-61`
@@ -9341,6 +9344,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 - Piste : un test de valeur par indicateur, sur un jeu où chaque clé a une valeur non nulle et
   distincte des autres. C'est un ajout de test seul (A5).
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : `grep -rl` de chaque clé sous `takussan-api/tests` → `sales_signed`, `customers_added`, `commissions_earned` : aucun fichier ; `properties_managed` n'est asserté qu'au tableau de bord de l'agent (`DashboardAgentScopeTest.php:131,157`, `DashboardAgentService`), jamais pour `TeamPerformanceService` ; `DashboardAgencyTest.php:38-47` n'a que `assertJsonStructure` pour `published`, `rented`, `available`, `customers_count`, `bookings.pending`, `maintenance.open` ; le constat tient, à cette précision près. Correctif attendu : un test de valeur par indicateur de la performance d'équipe et du tableau de bord d'agence, sur un jeu aux valeurs non nulles et distinctes, sauf `properties.published`, dont la valeur attendue dépend de P93.06. Classement : A5, ajout de tests seul, sans seuil.
+- Mesure (2026-10-21, 8d4869e9d, implementeur) : `grep` re-joué, le constat tient (aucune valeur assertée pour `sales_signed`, `customers_added`, `commissions_earned`, `properties_managed` côté équipe, ni pour `rented`, `available`, `customers_count`, `bookings.pending`, `maintenance.open`) → `TeamPerformanceTest::test_p93_07_…` (1, 3, 55 000, 4) et `DashboardAgencyTest::test_p93_07_counters_have_their_value` (6, 2, 3, 4, 1, 5), un intrus par règle ; ablation par mutation (filtre `cancelled` des commissions retiré : 125 000 ; `in_progress` retiré de la maintenance : 3) rouge, code rendu : 8/8 et 11/11.
 
 ## Angle 94 — Réponses composées à la main dans les contrôleurs : dates hors ADR-0018
 
@@ -10461,3 +10465,54 @@ le préchargement (`prefetch`) des liens vers `/app/agency` n'a pas été observ
 - Piste : faire l'aiguillage de `/app/overview` dans `proxy.ts` ou pointer la barre latérale sur la destination du profil, qui est connue au rendu de la coque ; faire lire à la page de `/app/agency` l'agence par `resolveAgencyOrNull` (ou `agenceDuRendu`), et compter les appels dans un test de la page.
 - Mesure (2026-10-21, 34ddbb0b1, mesureur) : lu `app/(dashboard)/app/overview/page.tsx` (un `redirect` par profil, après `getMeAction` et, pour l'admin, `resolveAgencyOrNull`), `AppSidebar.tsx:347` (lien `/app/overview` pour `occupeUnLogement`) : l'aiguillage tient, la réponse 307 et sa taille n'ont pas été remesurées ; lu `(dashboard)/app/layout.tsx:39,64` (`resolveAgencyOrNull`, mis en cache par `agenceDuRendu`) et `agency/page.tsx:47` → `fetchAgencyAction` → `admin-agency.ts:84` `fetchAgency` sans `cache()` : le doublon tient par lecture, et c'est le layout de `/app` (pas celui d'`agency`) qui porte la première requête ; le commentaire de `(dashboard)/app/layout.tsx:60` (« la page qui relit l'agence ne paie pas ») et l'en-tête de `server-guards.ts:95-109` le contredisent. Classement : V7, la moitié aiguillage propose deux voies (`proxy.ts` ou la cible de la barre latérale) ; le doublon d'appel seul relèverait de A2, à condition que la page garde le message d'erreur que `fetchAgencyAction` lui rend.
 - Mesure (2026-10-21, 0ce7416ea, delegue) : relu l'entrée, la mesure du mesureur, `app/(dashboard)/app/overview/page.tsx` (aiguillage qui, pour l'admin, dépend de `agency.kind` résolu par l'API), `AppSidebar.tsx:184-188,346-348`, `(dashboard)/app/layout.tsx:35-39,58-65` (`resolveAgencyOrNull`, commentaire « la page qui relit l'agence ne paie pas un second appel »), `server-guards.ts:95-144` (`agenceDuRendu`, « UNE requête d'agence par rendu ») et `agency/page.tsx:47` → `admin-agency.ts:78-88` (`fetchAgency` hors cache, erreur rendue par `mapError`) → le doublon tient, et la règle d'une requête d'agence par rendu est déjà écrite dans l'en-tête de `server-guards.ts` et le commentaire du layout ; l'aiguillage tient aussi, mais aucune des deux voies n'est écrite : la cible de la barre latérale demande, pour l'admin, de recopier côté client la décision sur `agency.kind`, et `proxy.ts` ne connaît ni les rôles ni l'agence sans appel à l'API. Délégation : V7, A2, seule la moitié doublon est tranchée : elle suit la règle écrite d'une requête par rendu, ne change ni l'écran ni le message d'erreur, et se défait en un commit ; l'aiguillage reste au porteur.
+
+## Angle 106 — Branches que le code ne prend qu'en `APP_ENV=production`
+
+*Exploré le 2026-10-21 sur `pre-dev` 34ddbb0b1, par l'explorateur. Tout a été lu et lancé par
+l'explorateur lui-même, sans sous-agent : les lecteurs de l'environnement dans `app/`, `bootstrap/`,
+`config/` et `routes/` (`grep -rnE "environment\(|isProduction\(|'production'"` → quatre sites
+d'`APP_ENV` et deux d'`APP_URL`), `takussan-api/docker/release.sh` (aucune commande `Confirmable`),
+et côté front les branches sur `NODE_ENV` (préproduction et production servent toutes deux un
+`next build`, donc les prennent ensemble : rien à signaler). Ablation : les deux branches
+`production` de l'API retirées ensemble, puis les huit classes qui citent leurs fichiers lancées une
+à une (charge 3,38 / 3,22 / 3,85 sur 8 cœurs), puis le code remis. Limite : la sélection des classes
+vient d'un `grep` sur les tests, non de la carte d'impact. Réponse à la question de l'angle :
+`AddRobotsTagOutsideProduction` (`AddRobotsTagOutsideProductionTest.php:38-57`), `OtpPreview::enabled()`
+(`OtpPreviewTest.php:115-123`), le pilote `log` de `config/sms.php` (`SmsLogFallbackTest`, `staging`
+et `production` compris) et la signature WhatsApp (`WhatsappStatusWebhookTest.php:217-229`) sont
+éprouvés dans leur environnement ; les deux branches ci-dessous ne le sont pas.*
+
+### Le refus en 403 d'une liste d'IP vide en `production` n'est gardé par aucun test : le retirer laisse tout vert
+- Réf : P106.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:29-35`, `takussan-api/routes/api/sms-webhooks.php:26-34`, `takussan-api/tests/Feature/Http/Webhook/OrangeSmsWebhookTest.php:21`, `takussan-api/tests/Feature/Http/Webhook/WebhookThrottleTest.php:26`
+- Constat :
+  - Liste vide et `app()->environment('production')` → `abort_code(403, 'webhook.ip_allowlist_not_configured')` ; liste vide ailleurs → la requête passe (lu, l. 29-35).
+  - `grep -rn "ip_allowlist_not_configured" tests` → rien (mesuré). Les classes de webhook SMS posent une liste vide (`OrangeSmsWebhookTest.php:21`, `MtargetSmsWebhookTest.php:21`, `LAfricaMobileSmsWebhookTest.php:27`, `WebhookThrottleTest.php:26`, `SmsWebhookTokenPerProviderTest.php:32`) et tournent en `testing`, où la branche n'est jamais prise (lu).
+  - Établi comment : ablation, l'appel `abort_code(403, …)` remplacé par un commentaire → `OrangeSmsWebhookTest` 8 verts, `MtargetSmsWebhookTest` 13, `LAfricaMobileSmsWebhookTest` 10, `WebhookThrottleTest` 3, `SmsWebhookTokenPerProviderTest` 5, `TrustedProxiesTest` 4 : aucun rouge (mesuré : `php artisan test <fichier>`, une classe à la fois).
+  - Cette branche est la seule défense de la production si les `SMS_*_WEBHOOK_IPS` y manquent : P71.04 laisse leur pose « au moment de F3 » (reste de TCK-1050), et la préproduction, en `staging`, ne la prend jamais (lu, `docs/infra/hebergement.md:202`).
+- Piste : un test qui pose `$this->app['env'] = 'production'` (précédent : `WhatsappStatusWebhookTest.php:222-223`) et une liste vide, et attend 403 `webhook.ip_allowlist_not_configured` sur chacune des trois routes `restrict.ip:{fournisseur}`, sans effet sur l'accusé (tentative inchangée) ; vérifié par la même ablation.
+
+### `DeletionStepUpService::sendCode` rend le code hors production pour les seuls tests, et en production son `null` ne distingue plus « délai de renvoi » de « code envoyé »
+- Réf : P106.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Account/DeletionStepUpService.php:59-108`, `takussan-api/app/Http/Controllers/Api/Auth/AccountDeletionController.php:84-101`, `takussan-api/tests/Feature/Auth/AccountDeletionStepUpTest.php:104`
+- Constat :
+  - Le docblock dit : « Rend le code hors production (les tests en ont besoin), jamais en production. Rend `null` si le cooldown court encore » (lu, l. 59-64). La dernière ligne rend `app()->environment('production') ? null : $code` (lu, l. 108) : en production, `null` vaut aussi pour un code émis, et le contrat du docblock n'y tient plus.
+  - Le seul appelant de `app/` ignore la valeur rendue (`$stepUp->sendCode($user);`, lu, `AccountDeletionController.php:95`). `grep -rn "sendCode(" app` → trois sites, dont un seul sur ce service (mesuré). La valeur ne sert qu'aux tests : `AccountDeletionStepUpTest` la lit huit fois (l. 104, 123, 145, 187, 219, 244, 280, 322), `AmbiguousSmsFailureTest.php:178` l'appelle (mesuré, `grep`).
+  - La branche `production` n'est éprouvée par aucun test. Établi comment : ablation, l. 108 remplacée par `return $code;` → `AccountDeletionStepUpTest` 17 verts, `AmbiguousSmsFailureTest` 8 verts (mesuré).
+  - En `staging` et en `local`, le code d'un e-mail est rendu à l'appelant PHP, ce qu'ADR-0060 n'accorde qu'au code d'un SMS, et sous drapeau (lu, `OtpPreview.php:10-18`, et le commentaire l. 97-99 du service). Rien ne l'expose aujourd'hui en HTTP (lu, contrôleur l. 95-100) : le risque est celui d'un appelant futur qui s'y fierait.
+- Piste : faire rendre à `sendCode` un booléen « code émis » dans tous les environnements, et faire lire le code aux tests par `Notification::fake` / le pilote SMS de test (comme `OtpPreviewTest`) ou par `OtpPreview`, ce qui retire la branche sur `APP_ENV` ; un test du `false` sous délai de renvoi garde le contrat.
+
+### « Être la production » se juge sur deux critères : `APP_ENV` pour le filtre d'IP, l'origine d'`APP_URL` pour le seul refus de démarrer
+- Réf : P106.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:30`, `takussan-api/app/Services/Account/DeletionStepUpService.php:108`, `takussan-api/app/Services/Auth/OtpPreview.php:28-53`, `takussan-api/app/Http/Middleware/AddRobotsTagOutsideProduction.php:29-44`, `takussan-api/app/Providers/AppServiceProvider.php:214-215`, `takussan-api/config/sms.php:44-47`
+- Constat :
+  - Jugés sur `APP_ENV` : le filtre d'IP des accusés SMS (`environment('production')`, liste d'exclusion : seul le nom exact `production` ferme), le retour du code de suppression, l'aperçu des codes SMS (`OtpPreview::ENVIRONMENTS`, liste d'autorisation) et le pilote `log` (`config/sms.php:47`, liste d'autorisation) (lu).
+  - Jugés sur l'origine d'`APP_URL` : `X-Robots-Tag` (`AddRobotsTagOutsideProduction::isProduction`) et le refus de démarrer d'`OtpPreview::refuserSurLaProduction()`, appelé au démarrage (lu, `AppServiceProvider.php:215`). Ce refus ne regarde que le drapeau `OTP_PREVIEW_ENABLED` (lu, `OtpPreview.php:43-53`).
+  - Une API servie sur `https://api.takussan.com` avec un `APP_ENV` resté `staging` — le cas que P71.02 a constaté dans le plan F3 — démarre donc, sans aperçu des codes, mais avec le filtre d'IP ouvert à tout appelant tant qu'une liste manque (déduit de la lecture des deux critères ; à vérifier par un test qui démarre l'application ainsi, sur le modèle d'`OtpPreviewTest.php:55`). Un `APP_ENV` mal orthographié (`prod`, `Production`) a le même effet, à l'inverse du choix écrit pour l'aperçu : « un environnement mal nommé reste fermé » (lu, `OtpPreview.php:27`).
+- Piste : au démarrage, refuser un `APP_URL` d'origine production avec un `APP_ENV` autre que `production` (à côté de `refuserSurLaProduction`, même test par `bootstrap/app.php`) ; ou faire juger `RestrictIpMiddleware` par une liste d'autorisation des environnements où une liste vide laisse passer (`local`, `testing`, `staging`), comme `OtpPreview`.
