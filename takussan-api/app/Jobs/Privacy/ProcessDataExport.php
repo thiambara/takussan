@@ -22,7 +22,14 @@ class ProcessDataExport implements ShouldQueue
     public function handle(DataExportBuilder $builder): void
     {
         $export = $builder->build(DataExport::query()->findOrFail($this->dataExportId));
-        $export->user?->notify(new DataExportReadyNotification($export));
+        // TCK-1267 (P111.03) — l'export est prêt, et l'écran « Mes données » le montre : un courriel
+        // qui échoue se signale sans faire lever le job, que le worker rejouerait en reconstruisant
+        // l'archive à chaque essai.
+        try {
+            $export->user?->notify(new DataExportReadyNotification($export));
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**
