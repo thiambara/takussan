@@ -16,6 +16,7 @@ use App\Models\Conversation;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
 use App\Models\Enums\MessageType;
+use App\Models\Message;
 use App\Services\Messaging\ConversationAccess;
 use App\Services\Messaging\GroupConversationService;
 use Illuminate\Http\JsonResponse;
@@ -37,21 +38,18 @@ class ConversationController extends Controller
         // TCK-671 (P06.02) — `lastMessage` : le front dérive l'aperçu d'un avis système de son `metadata.event`.
         // TCK-861 (P38.07) — les membres ACTUELS seuls, comme `show()` : le nom et l'avatar d'un
         // ancien membre partaient dans la liste de chacun.
-        $paginator = Conversation::with([
-            'property.media',
-            'participants' => fn ($q) => $q->wherePivotNull('left_at')->with('media'),
-            'lastMessage',
-        ])
-            ->withCount(['messages as unread_count' => function ($q) use ($user) {
-                $q->where('messages.type', '!=', MessageType::System->value)
-                    ->where(fn ($w) => $w->whereNull('messages.sender_id')->orWhere('messages.sender_id', '!=', $user->id))
-                    ->whereExists(fn ($p) => $p->selectRaw('1')
-                        ->from('conversation_participants as lecteur')
-                        ->whereColumn('lecteur.conversation_id', 'messages.conversation_id')
-                        ->where('lecteur.user_id', $user->id)
-                        ->where(fn ($l) => $l->whereNull('lecteur.last_read_at')
-                            ->orWhereColumn('lecteur.last_read_at', '<', 'messages.created_at')));
-            }])
+        $nonLus = function ($q) use ($user) {
+            $q->where('messages.type', '!=', MessageType::System->value)
+                ->where(fn ($w) => $w->whereNull('messages.sender_id')->orWhere('messages.sender_id', '!=', $user->id))
+                ->whereExists(fn ($p) => $p->selectRaw('1')
+                    ->from('conversation_participants as lecteur')
+                    ->whereColumn('lecteur.conversation_id', 'messages.conversation_id')
+                    ->where('lecteur.user_id', $user->id)
+                    ->where(fn ($l) => $l->whereNull('lecteur.last_read_at')
+                        ->orWhereColumn('lecteur.last_read_at', '<', 'messages.created_at')));
+        };
+
+        $liste = Conversation::query()
             ->whereHas('participants', function ($q) use ($user, $includeArchived) {
                 $q->where('user_id', $user->id);
                 // TCK-085 — participants who left a group no longer see it.
@@ -63,11 +61,35 @@ class ConversationController extends Controller
                 }
             })
             // TCK-592 (verif-592, B2) — un fil d'intervention inaccessible n'apparaît pas.
-            ->tap(fn ($q) => app(ConversationAccess::class)->constrainListing($q, $user))
+            ->tap(fn ($q) => app(ConversationAccess::class)->constrainListing($q, $user));
+
+        $paginator = (clone $liste)
+            ->with([
+                'property.media',
+                'participants' => fn ($q) => $q->wherePivotNull('left_at')->with('media'),
+                'lastMessage',
+            ])
+            ->withCount(['messages as unread_count' => $nonLus])
             ->orderByDesc('last_message_at')
             ->paginate($this->tailleDePage($request, 20));
 
-        return $this->paginated($paginator, ConversationResource::collection($paginator)->toArray($request));
+        // TCK-1387 (P135.02) — le total des non-lus de TOUTE la liste, et non de la page : la pastille
+        // additionnait les `unread_count` des 30 premiers fils, et un non-lu plus ancien ne comptait
+        // pas. Hors fils en sourdine, la règle que `useUnreadCount` appliquait à la page.
+        $unreadTotal = Message::query()
+            ->whereIn('messages.conversation_id', (clone $liste)
+                ->whereHas('participants', fn ($q) => $q
+                    ->where('conversation_participants.user_id', $user->id)
+                    ->where('conversation_participants.is_muted', false))
+                ->select('conversations.id'))
+            ->tap($nonLus)
+            ->count();
+
+        return $this->paginated(
+            $paginator,
+            ConversationResource::collection($paginator)->toArray($request),
+            ['unread_total' => $unreadTotal],
+        );
     }
 
     public function store(StoreConversationRequest $request, GroupConversationService $groups): JsonResponse

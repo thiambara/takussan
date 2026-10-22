@@ -38,6 +38,31 @@ export const CONVERSATION_LIST_FIELDS: string[] = [
  */
 export const CONVERSATION_PROPERTY_FIELDS: string[] = ['id', 'title', 'slug'];
 
+/**
+ * TCK-1387 (P135.02) — `meta.unread_total` : les non-lus de TOUTE la liste du lecteur, hors fils en
+ * sourdine, comptés par l'API. La pastille le lit au lieu d'additionner les `unread_count` de la
+ * page, qui ignoraient les fils au-delà des 30 premiers.
+ */
+export type ConversationListPage = PaginatedResponse<Conversation> & {
+  meta: PaginatedResponse<Conversation>['meta'] & { unread_total?: number };
+};
+
+/** Les paramètres d'une page de la liste, partagés par la pastille et le défilement infini. */
+export function conversationListParams(page: number, perPage: number): SpatieQueryParams {
+  return {
+    // P100.05 (TCK-1186) — `fields` inerte : `ConversationController::index` ne passe pas par `buildQuery`
+    // (`Conversation::$queryFields` vide) ; il ne réduit pas la charge. Gardé pour déclarer ce que lit l'écran.
+    fields: {
+      conversations: CONVERSATION_LIST_FIELDS,
+      properties: CONVERSATION_PROPERTY_FIELDS,
+    },
+    include: ['property', 'participants', 'last_message'],
+    sort: ['-last_message_at'],
+    page,
+    per_page: perPage,
+  };
+}
+
 // P150.05 (TCK-1286) — ni `status` ni `property_id` : `ConversationController::index` ne lit aucun
 // `filter[…]` (il lit `?archived=`) ; un filtre « archivées » aurait rendu les actives sans le dire.
 export type UseConversationsParams = {
@@ -56,20 +81,9 @@ export function useConversations(
   const { user } = useAuth();
   const enabled = (options.enabled ?? true) && Boolean(user);
 
-  const spatieParams: SpatieQueryParams = {
-    // P100.05 (TCK-1186) — `fields` inerte : `ConversationController::index` ne passe pas par `buildQuery`
-    // (`Conversation::$queryFields` vide) ; il ne réduit pas la charge. Gardé pour déclarer ce que lit l'écran.
-    fields: {
-      conversations: CONVERSATION_LIST_FIELDS,
-      properties: CONVERSATION_PROPERTY_FIELDS,
-    },
-    include: ['property', 'participants', 'last_message'],
-    sort: ['-last_message_at'],
-    page: params.page ?? 1,
-    per_page: params.per_page ?? 30,
-  };
+  const spatieParams = conversationListParams(params.page ?? 1, params.per_page ?? 30);
 
-  return useApiQuery<PaginatedResponse<Conversation>>(
+  return useApiQuery<ConversationListPage>(
     ['conversations', 'list', params],
     '/api/conversations',
     {

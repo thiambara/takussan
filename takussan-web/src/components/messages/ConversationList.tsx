@@ -8,8 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/feedback';
+import { useEffect, useMemo, useRef } from 'react';
 import { formatDate } from '@/lib/format';
-import { useConversations } from '@/lib/queries/conversations';
+import { useConversationsInfinite } from '@/lib/queries/conversations';
+import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/i18n/config';
@@ -26,7 +28,27 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
   const locale = useLocale() as Locale;
   const { user } = useAuth();
   // List polls every 10 s to surface new conversations / unread badges.
-  const { data, isLoading, isError } = useConversations();
+  // TCK-1387 (P135.02) — défilement infini : la liste ne lisait que ses 30 premiers fils.
+  const { data, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    useConversationsInfinite();
+  const loadMoreRef = useRef<HTMLLIElement | null>(null);
+  const isSentinelVisible = useIntersectionObserver(loadMoreRef, {
+    rootMargin: '0px 0px 120px 0px',
+    enabled: Boolean(hasNextPage) && !isLoading,
+  });
+  useEffect(() => {
+    if (!isSentinelVisible || !hasNextPage || isFetchingNextPage || isLoading) return;
+    void fetchNextPage();
+  }, [isSentinelVisible, hasNextPage, isFetchingNextPage, isLoading, fetchNextPage]);
+
+  // Les pages sont relues l'une après l'autre : un fil qui remonte en tête entre deux lectures peut
+  // figurer dans deux pages. Il n'est rendu qu'une fois, à sa place la plus récente.
+  const conversations = useMemo(() => {
+    const vus = new Set<number>();
+    return (data?.pages ?? [])
+      .flatMap((p) => p.data)
+      .filter((c) => (vus.has(c.id) ? false : (vus.add(c.id), true)));
+  }, [data]);
 
   if (isLoading) {
     return (
@@ -52,8 +74,6 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
       </div>
     );
   }
-
-  const conversations = data?.data ?? [];
 
   if (conversations.length === 0) {
     // TCK-645 — la liste EST déjà la surface : l'état vide n'y pose pas un second cadre (le
@@ -89,6 +109,15 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
           currentUserId={user?.id}
         />
       ))}
+      <li
+        ref={loadMoreRef}
+        aria-hidden={!hasNextPage}
+        className={cn('flex justify-center', hasNextPage ? 'py-2' : 'py-0')}
+      >
+        {isFetchingNextPage ? (
+          <span className="text-xs text-muted-foreground">{t('chat.loadingMore')}</span>
+        ) : null}
+      </li>
     </ul>
   );
 }
