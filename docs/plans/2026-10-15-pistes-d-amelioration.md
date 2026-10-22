@@ -8313,7 +8313,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Indicateurs et alertes de seuil : jugés par le type de profil admin, jamais par une capacité
 - Réf : P82.04
-- Statut : retenu · à valider — chemin fermé : scripts/check-capability-readers.mjs (le correctif accordé exige de baisser `CLIQUET` de 7 à 6 dans cette garde, et `check-pistes --role implementeur` refuse toute modification d'une garde existante : le porteur l'applique lui-même, le correctif du 2026-10-21 est prêt à reprendre)
+- Statut : fait · TCK-1701
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreKpiConfigRequest.php:31-37`, `UpdateKpiConfigRequest.php:31-38`, `StoreThresholdAlertRequest.php:31-37`, `UpdateThresholdAlertRequest.php:31-38`, `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:87-94`, `ThresholdAlertController.php:72-79`
 - Constat :
