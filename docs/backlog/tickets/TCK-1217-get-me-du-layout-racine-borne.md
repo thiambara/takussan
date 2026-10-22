@@ -1,7 +1,7 @@
 ---
 id: TCK-1217
 title: "La mise en page racine borne `getMe` à 5 s et rend le visiteur anonyme au-delà"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -58,14 +58,14 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] `getMe` accepte un `signal` facultatif, transmis à `apiRequest`.
-- [ ] `RootLayout` le passe, borné à `DELAI_ME_RACINE_MS`.
-- [ ] Test de la mise en page racine avec un `getMe` qui ne se résout jamais.
+- [x] `getMe` accepte un `signal` facultatif, transmis à `apiRequest`.
+- [x] `RootLayout` le passe, borné à `DELAI_ME_RACINE_MS`.
+- [x] Test de la mise en page racine avec un `getMe` qui ne se résout jamais.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Sur un `getMe` figé, `RootLayout` se résout sous la borne avec `initialUser = null`.
-- [ ] AC2 — La borne demandée vaut 5 s.
+- [x] AC1 — Sur un `getMe` figé, `RootLayout` se résout sous la borne avec `initialUser = null`.
+- [x] AC2 — La borne demandée vaut 5 s.
 
 ## Hors périmètre
 
@@ -73,4 +73,10 @@ Aucun.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- La constante vit dans `src/lib/auth.ts`, pas dans `layout.tsx` : Next refuse à un fichier de
+  mise en page toute exportation hors de sa liste (`metadata`, `generateMetadata`…).
+- Le test appelle `RootLayout` comme une fonction et cherche `AuthProvider` dans l'arbre rendu ;
+  polices, cookies, next-intl et dictionnaires sont remplacés, `getMe` ne rejette qu'à l'abandon de
+  son signal.
+- Ablation : `src/app/layout.tsx` rendu à `HEAD` → 1 rouge (« toujours en attente après
+  1000 ms ») ; correctif remis → 2/2 verts.
