@@ -10917,7 +10917,7 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
 
 ### L'export RGPD n'a pas de `failed()` : un job tué laisse l'export « en préparation » pour toujours, et l'écran relance la liste toutes les 10 s
 - Réf : P111.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1265
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Privacy/ProcessDataExport.php:14-25`, `takussan-api/app/Services/Privacy/DataExportBuilder.php:50-82`, `takussan-api/app/Jobs/Privacy/PurgeExpiredDataExports.php`, `takussan-web/src/components/privacy/DataExportsPanel.tsx:35,45,72`
 - Constat :
@@ -10928,6 +10928,7 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
   - Établi comment : lu. Qu'un export réel dépasse 60 s ou la mémoire n'est pas mesuré (angle 78 : 2,9 s pour 20 000 lignes) ; le déclencheur reste donc la mort du worker, à vérifier.
 - Piste : un `failed()` qui passe à `failed` un export encore `queued` ou `processing`, sur le modèle de `GenerateReportExport::failed()`. Test : `failed()` appelé sur un export `processing` le rend `failed`, ablation comprise.
 - Mesure (2026-10-22, f396fa470, mesureur) : relu `ProcessDataExport.php` (25 lignes, ni `failed()`, ni `$tries`, ni `$timeout`), `DataExportBuilder::build()` (passage à `failed` dans le seul `catch`), `PurgeExpiredDataExports` (ne lit que `ready` échus) et `DataExportsPanel.tsx` (`EN_PREPARATION` = `queued`, `processing`, l. 35 ; `refetchInterval` l. 72) ; `git log` sur le job et `grep` des tickets → aucun correctif ; test temporaire (retiré, charge 4,78 / 5,16 / 4,45 sur 8 cœurs) → `method_exists(ProcessDataExport, 'failed')` faux, un export `processing` le reste. La mort réelle du worker n'est pas reproduite, comme dans le constat. Classement : A1, le contrat est déjà écrit par le `catch` de `build()` (une exception passe l'export à `failed`) et par `GenerateReportExport::failed()` (TCK-1145), dont le correctif est la copie, sans texte ni statut neufs.
+- Mesure (2026-10-22, 1b5063805, implementeur) : `method_exists(ProcessDataExport, 'failed')` faux avant correctif, les deux tests neufs de `ProcessDataExportFailureTest` en erreur → `ProcessDataExport::failed()` passe à `failed` l'export encore `queued` ou `processing` ; vert (un export `queued` ou `processing` devient `failed`, un `ready` le reste) ; ablation de l'écriture → rouge, de la condition sur le statut → rouge, remise → vert ; `DataExportTest` 7/7.
 
 ### Un export RGPD en échec bloque une nouvelle demande pendant 24 h
 - Réf : P111.02
