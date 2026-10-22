@@ -10591,7 +10591,8 @@
       "governance": {
         "role_capabilities_changed": {
           "title": "Droits d'un rôle modifiés",
-          "body": "Les droits du rôle {role} ont été modifiés par {actor}."
+          "body": "Les droits du rôle {role} ont été modifiés par {actor}.",
+          "body_unnamed": "Les droits d'un rôle ont été modifiés par {actor}."
         },
         "admin_added": {
           "title": "Nouvel administrateur",
@@ -10657,7 +10658,8 @@
       "bank_statement": {
         "imported": {
           "title": "Relevé importé",
-          "body": "{lines, plural, one {Votre relevé {bank} (# ligne) est prêt à être rapproché.} other {Votre relevé {bank} (# lignes) est prêt à être rapproché.}}"
+          "body": "{lines, plural, one {Votre relevé {bank} (# ligne) est prêt à être rapproché.} other {Votre relevé {bank} (# lignes) est prêt à être rapproché.}}",
+          "body_unnamed": "{lines, plural, one {Votre relevé (# ligne) est prêt à être rapproché.} other {Votre relevé (# lignes) est prêt à être rapproché.}}"
         },
         "finalized": {
           "title": "Relevé clôturé",

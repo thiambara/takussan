@@ -56,6 +56,23 @@ const PARAMS_MOIS: Readonly<Record<string, readonly string[]>> = {
 };
 const MOIS = /^\d{4}-(0[1-9]|1[0-2])$/;
 
+/**
+ * P164.06 (TCK-1472) — le miroir de `NotificationCode::unnamedParams()` : quand l'un de ces
+ * paramètres est nul ou vide, le corps se lit sous `<code>.body_unnamed`, la phrase privée du nom,
+ * au lieu de « — ».
+ */
+const PARAMS_NOMMES: Readonly<Record<string, readonly string[]>> = {
+  'bank_statement.imported': ['bank'],
+  'governance.role_capabilities_changed': ['role'],
+};
+
+function nomAbsent(code: string, params: AppNotification['params']): boolean {
+  return (PARAMS_NOMMES[code] ?? []).some((nom) => {
+    const valeur = params?.[nom];
+    return valeur === null || valeur === undefined || (typeof valeur === 'string' && valeur.trim() === '');
+  });
+}
+
 function libelleGeneriqueFournisseur(code: string): string {
   return code
     .split('_')
@@ -126,9 +143,12 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
     const role = code.startsWith(CODES_A_ROLE_CODE) ? libelleRole : undefined;
     const fournisseur = CODES_A_FOURNISSEUR.has(code) ? libelleFournisseur : undefined;
     const valeurs = valeursDeNotification(notification.params, fmt, motif, role, fournisseur, PARAMS_MOIS[code]);
+    const cleCorps = nomAbsent(code, notification.params) && t.has(`${code}.body_unnamed`)
+      ? `${code}.body_unnamed`
+      : `${code}.body`;
     return {
       titre: t(`${code}.title`, valeurs),
-      corps: t.has(`${code}.body`) ? t(`${code}.body`, valeurs) : repli.corps,
+      corps: t.has(cleCorps) ? t(cleCorps, valeurs) : repli.corps,
     };
   };
 }

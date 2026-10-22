@@ -10591,7 +10591,8 @@
       "governance": {
         "role_capabilities_changed": {
           "title": "Sañ-sañu ab warugar soppiku na",
-          "body": "Sañ-sañu warugar {role} soppiku na, {actor} moo ko def."
+          "body": "Sañ-sañu warugar {role} soppiku na, {actor} moo ko def.",
+          "body_unnamed": "Les droits d'un rôle ont été modifiés par {actor}."
         },
         "admin_added": {
           "title": "Saytukat bu bees",
@@ -10657,7 +10658,8 @@
       "bank_statement": {
         "imported": {
           "title": "Relevé bi dugg na",
-          "body": "Sa relevé {bank} ({lines} rëdd) pare na ngir rapprochement."
+          "body": "Sa relevé {bank} ({lines} rëdd) pare na ngir rapprochement.",
+          "body_unnamed": "{lines, plural, one {Votre relevé (# ligne) est prêt à être rapproché.} other {Votre relevé (# lignes) est prêt à être rapproché.}}"
         },
         "finalized": {
           "title": "Relevé bi tëj nañu ko",

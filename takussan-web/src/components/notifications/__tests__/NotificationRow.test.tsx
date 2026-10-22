@@ -139,6 +139,26 @@ describe('NotificationRow', () => {
     expect(document.body.textContent ?? '').not.toContain('2026-09');
   });
 
+  // P164.06 (TCK-1472) — sans nom de banque ni de rôle, la cloche choisit la variante sans le
+  // nom (`body_unnamed`), comme l'API : ni « — » ni double espace.
+  it.each([
+    ['fr', 'bank_statement.imported', { bank: null, lines: 12 }, 'Votre relevé (12 lignes) est prêt à être rapproché.'],
+    ['en', 'bank_statement.imported', { bank: '', lines: 1 }, 'Your statement (1 line) is ready for reconciliation.'],
+    ['fr', 'governance.role_capabilities_changed', { role: '', actor: 'Awa Diop' }, "Les droits d'un rôle ont été modifiés par Awa Diop."],
+    ['en', 'governance.role_capabilities_changed', { role: null, actor: 'Awa Diop' }, 'The permissions of a role were changed by Awa Diop.'],
+  ] as const)('rend la variante sans le nom (%s, %s)', (locale, code, params, corps) => {
+    renderRow(notification({ type: 'system', code, params: { ...params }, target: null }), locale);
+
+    expect(screen.getByText(corps)).toBeInTheDocument();
+    expect(document.body.textContent ?? '').not.toContain('—');
+  });
+
+  it('garde la phrase d’origine quand le nom est là', () => {
+    renderRow(notification({ type: 'system', code: 'bank_statement.imported', params: { bank: 'CBAO', lines: 12 }, target: null }));
+
+    expect(screen.getByText('Votre relevé CBAO (12 lignes) est prêt à être rapproché.')).toBeInTheDocument();
+  });
+
   it('formate le montant et la date, sans « 150000.00 » ni « XOF » bruts', () => {
     renderRow(notification());
 
