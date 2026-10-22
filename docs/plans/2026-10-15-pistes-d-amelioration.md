@@ -13715,7 +13715,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Un paiement de réservation en échec s'affiche `failed`, en brut et sur un ton neutre
 - Réf : P146.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/types/booking.ts:16`, `takussan-web/src/components/bookings/BookingDetail.tsx:67-73,355-361`, `takussan-web/src/components/bookings/booking-status.ts:33-39`, `takussan-web/src/lib/queries/bookings.ts:97`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:792-794`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:49`
 - Constat :
@@ -13724,10 +13724,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - `StoreBookingPaymentRequest` accepte tout `PaymentStatus` sauf `cancelled` (lu, `:49`) ; le type de charge du front propose `cancelled`, que l'API refuse, et ignore `late` et `failed` (lu, `bookings.ts:97`).
   - Établi comment : lu. Le rendu à l'écran n'a pas été vu.
 - Piste : aligner `BookingPaymentStatus`, les deux tables et le dictionnaire sur `PaymentStatus` (`failed` en `danger`, avec ses trois traductions, `wo` = texte français) ; retirer `cancelled` du type de charge. Garde : un test qui rend `BookingDetail` avec un paiement `failed` et attend le libellé traduit.
+- Mesure (2026-10-22, 55ac201ff, mesureur) : relu `types/booking.ts:16` (`'pending' | 'paid' | 'refunded' | 'cancelled'`), `PAYMENT_STATUS_LABEL_KEY` (`BookingDetail.tsx:67-73`) et `BOOKING_PAYMENT_STATUS_TONE` (`booking-status.ts:33-39`) sans `failed` ni `late`, le badge `BookingDetail.tsx:355-361` qui retombe sur `p.status` brut et le ton `neutral` ; `PaymentGatewayService.php:792-794` écrit `Failed` sur tout payable hors `LeasePayment` (la branche loyer, l. 770, ne l'écrit pas) ; `StoreBookingPaymentRequest.php:49` exclut `cancelled` que `CreateBookingPaymentPayload.status` (`bookings.ts:97`) propose ; `node -e` sur `fr.json` → `bookings.paymentStatus` = `pending paid partially_paid refunded cancelled`, mais `payments.status.failed` = « Échec » existe, et `components/payments/constants.ts:65` pose déjà `failed: 'danger'` → le défaut tient tel qu'écrit ; rien d'exécuté. Classement : A4, la clé `bookings.paymentStatus.failed` manque et reprend le libellé existant « Échec » de `payments.status.failed` avec le ton `danger` déjà employé, sans texte neuf ; aligner les types sur `PaymentStatus` relève de A1.
 
 ### L'échéancier d'un bail affiche « Autre » pour une échéance remboursée ou en échec
 - Réf : P146.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : comment l'échéancier présente une restitution de dépôt (ligne `deposit_refund`) au locataire
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseSchedule.tsx:44-56,226-230`, `takussan-web/src/messages/fr.json` (`lease.schedule.status`), `takussan-api/app/Services/Payments/PaymentGatewayService.php:803-806,1388-1390`, `takussan-api/app/Services/Model/PayoutService.php:777-778,798-810`
 - Constat :
@@ -13736,10 +13737,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Une échéance remboursée s'affiche donc « Autre », sur le badge `outline`, sans rien qui dise le remboursement.
   - À vérifier : l'échéancier liste sans doute aussi les lignes `deposit_refund`, puisque la liste des échéances d'un bail ne filtre pas le type (lu, `LeasePaymentController.php:20-40`, aucun `where`). Dans ce cas, une restitution `pending` dont l'échéance est passée s'afficherait « En retard », en rouge, alors que c'est l'agence qui la doit. Ce cas n'a pas été rendu.
 - Piste : faire suivre à `displayStatus` les statuts de `PaymentStatus` (`refunded`, `failed`, `partially_paid`) avec leurs libellés. Une restitution ne passe jamais `late` côté client. Garde : un test de `LeaseSchedule` par statut de l'enum.
+- Mesure (2026-10-22, 55ac201ff, mesureur) : relu `displayStatus` (`LeaseSchedule.tsx:44-56`, inchangé : `cancelled`, `paid`, `late`, `pending`, sinon `other`) ; `node -e` sur `fr.json` → `lease.schedule.status` = `paid late pending other cancelled` ; `PaymentGatewayService.php:796-806` (branche `REFUNDED`, sans distinction du loyer) et `:1388-1390` écrivent `Refunded` ; `PayoutService.php:777-778` écrit `Failed` sur la ligne `deposit_refund` (`depositRefundLine`, `:798-810`) ; le « à vérifier » tient à la lecture : `LeasePaymentController::index` (l. 30-40) ne filtre pas `payment_type`, et `fetchLeasePayments` (`queries/leases.ts:228-238`) ne passe qu'un `filter[lease_id]` → une restitution `pending` échue passe `late` dans `displayStatus` ; rien d'exécuté, aucun écran rendu. Classement : V7, les libellés `refunded`/`failed` relèveraient seuls de A4, mais la règle « une restitution ne passe jamais `late` » choisit ce que le locataire voit d'une somme que l'agence lui doit.
 
 ### Les filtres de statut des biens ne proposent ni « en revue », ni « refusé », ni « publié », trois statuts que l'API écrit
 - Réf : P146.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/enums/property.ts:33-42`, `takussan-web/src/components/property-form/options.ts:93`, `takussan-web/src/components/property-dashboard/PropertyListFilters.tsx:616-624,771`, `takussan-web/src/components/admin/super/SuperAdminPropertiesFilters.tsx:118-123`, `takussan-web/src/components/property-dashboard/PropertyStatusBadge.tsx:49-51,67-79`, `takussan-api/app/Models/Enums/PropertyStatus.php`
 - Constat :
@@ -13749,6 +13751,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - La même liste sert aussi aux gestes de changement de statut (lu, `PropertyRowActions.tsx:171`, `PropertyHeaderActions.tsx:169`). L'ajouter telle quelle aux filtres offrirait ces trois statuts en gestes : il faut deux listes.
   - Établi comment : lu et `grep`.
 - Piste : une liste de filtre distincte de la liste des gestes, qui reprend les onze cas de l'enum ; corriger le docblock du badge. Garde : un test qui confronte les options du filtre aux cas servis par l'API.
+- Mesure (2026-10-22, 55ac201ff, mesureur) : relu `propertyStatusValues` (`lib/enums/property.ts:33-42`, 8 cas) contre l'enum (`PropertyStatus.php:7-17`, 11 cas) ; `propertyStatusOptions` (`options.ts:93`) en dérive, lu par `PropertyListFilters.tsx:623` et `SuperAdminPropertiesFilters.tsx:123` ; la puce l. 771 passe par `enumLabel` sur `propertyStatusValues` et rendrait donc `pending_review` brut ; les gestes lisent la même liste (`PropertyRowActions.tsx:171`, `PropertyHeaderActions.tsx:169`) ; le docblock de `PropertyStatusBadge.tsx:49-51` dit encore « pas des valeurs » de l'enum ; `node -e` sur `fr.json` → `property.status` nomme déjà `published`, `pending_review` et `rejected` ; l'API écrit `published` par `PUT …/status` (`UpdateStatusPropertyRequest.php:40`) → tout tient ; rien d'exécuté. Classement : A1, l'enum de l'API fixe les onze valeurs filtrables et les libellés existent ; le docblock relève de A6.
 
 ### Aucune garde ne confronte les statuts du front aux enums de l'API, et dix tables de tons sont typées `Record<string, …>`
 - Réf : P146.04
@@ -13778,7 +13781,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### `PATCH /api/properties/{id}` remet un bien au catalogue sans `properties.publish`, que `PUT …/status` exige
 - Réf : P147.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : resserre l'autorisation du `PATCH`, par la règle de `PUT …/status` ou par le retrait des champs
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:56-57`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:187-236`, `takussan-api/app/Http/Requests/Api/UpdateStatusPropertyRequest.php:29-42`, `takussan-api/app/Services/Property/PublishReadiness.php:58-66,94-98`, `takussan-api/tests/Feature/Api/PropertyAuthorizationTest.php:102-119,219-257`
 - Constat :
@@ -13789,6 +13792,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - `PropertyAuthorizationTest` éprouve `publish`, `PUT …/visibility` et `PUT …/status` (lu, `cheminsDePublication`, l. 219-227, et l. 102-119) ; le `PATCH` n'y figure qu'avec `title`.
   - Le formulaire d'édition du front n'envoie ni `status` ni `visibility` (lu, `property-form/payload.ts:100-103` ; la création force `draft`/`private`, l. 150-154) : l'écran ne passe pas par ce chemin, un appel direct à l'API si. D'autres appelants du `PATCH` avec `status` n'ont pas été cherchés (à vérifier).
 - Piste : appliquer au `PATCH` la règle de `PUT …/status` (un `status` affichable ou une `visibility=public` demande `can('publish')`), ou retirer `status` et `visibility` d'`UpdatePropertyRequest` pour que chaque transition passe par son geste ; ajouter le `PATCH` à `cheminsDePublication` et au test du bailleur, pour que le cinquième chemin ne se rouvre pas.
+- Mesure (2026-10-22, 55ac201ff, mesureur) : relu `UpdatePropertyRequest.php:36-41` (`can('update')` seul) et `:56-57` (`status`, `visibility` sur tout l'enum), `UpdateStatusPropertyRequest.php:38-41` (TCK-587, `can('publish')`), `PropertyController::update` (l. 187-236 : seul `PublishReadiness::ensureForProperty`) ; charge `{ 2.99 2.63 2.16 }` sur 8 cœurs, test temporaire retiré → agent `agentWithout(PropertiesPublish)` rendu publiable, bien `unavailable` public : `PUT …/status` `available` → 403, `PATCH /api/properties/{id}` `{status: available}` → 200, et le bien est dans `Property::public()` ; le front édite par `PUT` (`properties-server.ts:169-182`, même action `update`) sans `status` ni `visibility` ; cas du bailleur non rejoué. Classement : V2, la `Piste` propose deux corrections qui ne ferment pas le même contrat (juger `can('publish')` ou retirer les deux champs de la requête) : le choix revient au porteur.
 
 ### Archiver par `PATCH` ne fait pas ce que fait l'archivage : le bien reste public et publié
 - Réf : P147.02
@@ -13886,7 +13890,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Une délégation du rôle `agency_admin` accorde toutes les capacités d'administration, mais n'ouvre aucune page de `/app/agency`
 - Réf : P148.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : ce qu'une délégation `agency_admin` ouvre à l'écran et à l'API
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(dashboard)/app/agency/layout.tsx:28`, `takussan-web/src/lib/access/pages-admin.ts:130-134`, `takussan-api/app/Models/Concerns/HasProfiles.php:238-275`, `takussan-api/app/Services/Membership/MembershipCapabilityResolver.php:276-305`, `takussan-api/config/role_delegations.php`
 - Constat :
@@ -13896,10 +13900,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Même délégation : `GET /api/agencies/{id}/roles` → 200, `GET /api/agencies/{id}/kyc` → 200, mais `GET /api/users` → 403 et `GET /api/agencies/{id}/members` → 403 (gardés par `isAgencyAdminAt`, qui ne lit que les profils : `UserAdminController.php:16-26`, `AgencyPolicy::update` l. 45-56). L'API elle-même est partagée : ouvrir la section ne suffirait pas à la page Équipe.
   - `RoleDelegationCapabilityTest` éprouve qu'un délégataire invite par l'API (lu) ; aucun test ne regarde ce que le front lui montre (à vérifier par `grep` sur `__tests__`, non fait).
 - Piste : décider ce qu'une délégation `agency_admin` ouvre à l'écran. Soit `GET /api/auth/me` expose les rôles délégués actifs de l'agence du profil actif (ou un champ à part que `isAdmin` et `pageAccessible` lisent), soit la section se juge par capacité (`/api/me/capabilities`, déjà lu par `garderPageAdmin`). Aligner alors `UserAdminController::index` et `AgencyPolicy::update` sur la même règle. Un test de `pages-admin` avec un contexte « délégataire » et un test API du `me` d'un délégataire empêcheraient le retour.
+- Mesure (2026-10-22, 55ac201ff, mesureur) : relu `layout.tsx:28` (`isAdmin(user.roles)`) et `pageAccessible` (`pages-admin.ts:126-140`) ; charge `{ 3.37 2.71 2.21 }` sur 8 cœurs, test temporaire retiré → agent délégataire `agency_admin` d'un admin au rôle système : `GET /api/auth/me` → `roles = ["agent","customer"]`, `GET /api/me/capabilities` → toutes les capacités d'admin (`team.invite`, `team.assign_role`, `agency.update_kyc`…), `GET …/roles` → 200, `GET …/kyc` → 200, `GET /api/users` → 403, `GET …/members` → 403 → le constat tient. Classement : V2, la `Piste` demande de décider ce qu'une délégation ouvre (rôles délégués dans `me` ou section jugée par capacité) et d'aligner `UserAdminController::index` et `AgencyPolicy::update`, une autorisation à arbitrer.
 
 ### Un agent à qui un rôle personnalisé donne `team.invite`, `team.assign_role` ou `team.suspend` n'a aucun écran pour le geste
 - Réf : P148.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ouvrir `team` et `roles` par capacité, ou cesser d'offrir ces capacités à un rôle de base `agent`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin/roles/CapabilityMatrix.tsx:79-82`, `takussan-api/app/Http/Requests/Agency/SyncCapabilitiesRequest.php`, `takussan-api/app/Services/Membership/AgencyRoleService.php:226-240`, `takussan-web/src/app/(dashboard)/app/agency/layout.tsx:28`, `takussan-web/src/lib/access/pages-admin.ts:63-65`
 - Constat :
@@ -13908,10 +13913,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - mesuré (test temporaire) : agent au rôle personnalisé `[team.invite]` → `roles = ["agent","customer"]`, `POST /api/agencies/{id}/agents/invite` → **201**. Les seuls boutons d'invitation, d'attribution de rôle et de suspension vivent sous `/app/agency/team` (`team/page.tsx:71`, `TeamConsole.tsx:191-210`, lu), que `layout.tsx:28` lui ferme.
   - Même limite côté API qu'en P148.01 : la liste de l'équipe (`GET /api/users`) lui serait refusée, `isAgencyAdminAt` ne lisant que le profil (lu, mesuré 403 pour le délégataire).
 - Piste : soit la section `team` (et `roles`) s'ouvre par capacité (`team.invite` OU `team.assign_role` OU `team.suspend`) avec une liste d'équipe lisible par la même capacité, soit la matrice cesse d'offrir à un rôle de base `agent` les capacités dont aucun écran ne lui donne l'usage — choix du porteur. Un test qui croise les capacités offertes par rôle de base et les pages qui les exercent garderait l'accord.
+- Mesure (2026-10-22, 55ac201ff, mesureur) : relu `CapabilityMatrix.tsx:79-82` et `layout.tsx:28` ; même test temporaire (retiré) → agent au rôle personnalisé de base `agent` `[team.invite]` : `roles = ["agent","customer"]`, `POST /api/agencies/{id}/agents/invite` → 201, `GET /api/users` → 403 → le constat tient : le geste passe à l'API et la section qui le porte lui est fermée. Classement : V7, la `Piste` laisse au porteur le choix entre deux comportements visibles opposés.
 
 ### « Inviter » est montré à l'admin dont le rôle ne porte pas `team.invite`, et rend 403
 - Réf : P148.03
-- Statut : à mesurer
+- Statut : caduc — l'invitation n'est pas refusée : `AgentProfilePolicy::canManageTeamIn` laisse inviter tout admin d'agence par son profil
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(dashboard)/app/agency/team/page.tsx:71`, `takussan-web/src/components/admin/InviteMemberButton.tsx:46-70`, `takussan-web/src/components/admin/TeamConsole.tsx:205`, `takussan-web/src/components/admin/PendingInvitationsSection.tsx:64`
 - Constat :
@@ -13919,10 +13925,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - mesuré (test temporaire) : admin au rôle personnalisé de base `agency_admin` sans capacité → `roles = ["agency_admin","customer"]` (la page s'ouvre, `PAGES_ADMIN` n'exige pour `/app/agency/team` que le rôle et `standard`), `GET /api/users` → 200, `POST /api/agencies/{id}/agents/invite` → **403**.
   - « Ajouter un compte existant » (`POST …/members`) est jugé par `AgencyPolicy::update`, c'est-à-dire par le profil (lu) : ce second bouton reste juste pour lui.
 - Piste : ne monter « Inviter » que sous `useCan('team.invite', agencyId)`, comme `PendingInvitationsSection` ; un test de `InviteMemberButton` (ou de la page) avec capacité refusée garderait la règle.
+- Mesure (2026-10-22, 55ac201ff, mesureur) : relu `team/page.tsx:71` (`InviteMemberButton` sans condition) et `TeamConsole.tsx:205` (`useCan('team.invite')`) ; même test temporaire (retiré), agence `standard` neuve → admin au rôle personnalisé de base `agency_admin` sans aucune capacité, 2FA posée : `canActAt(TeamInvite)` → `false`, `roles = ["agency_admin","customer"]`, `GET /api/users` → 200, `POST /api/agencies/{id}/agents/invite` → **201**, et non 403 ; la route passe par `AgentProfilePolicy::invite` → `canManageTeamIn` (l. 71-92), qui rend `true` sur `isAgencyAdminAt` avant de lire `team.invite` ; le 403 de l'exploration venait sans doute d'un admin sans 2FA (`RequireTwoFactor`), à vérifier. Le bouton dit donc vrai ; l'incohérence qui reste est l'inverse (l'API n'exige pas `team.invite` d'un admin, que la section des invitations exige), hors de ce constat. Classement : aucun, le défaut décrit n'existe pas.
 
 ### `/app/agency/roles` et `/app/agency/kyc` s'ouvrent à l'admin sans la capacité que l'API exige pour leur lecture : la page entière est en erreur
 - Réf : P148.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/access/pages-admin.ts:65,72,76-80`, `takussan-web/src/components/admin/roles/AgencyRolesConsole.tsx:90-93`, `takussan-web/src/components/kyc/AgencyKycClient.tsx:24-31`, `takussan-api/app/Policies/AgencyRolePolicy.php:29-39`, `takussan-api/app/Http/Controllers/Api/Agency/KycController.php:64-67`
 - Constat :
@@ -13931,3 +13938,4 @@ qui a été relevé. Rien n'a été exécuté.*
   - mesuré (test temporaire) : admin au rôle personnalisé sans capacité → `GET /api/agencies/{id}/roles` → **403**, `GET /api/agencies/{id}/kyc` → **403**, `POST …/kyc/submit` → 403. Les deux écrans rendent alors leur seul état d'erreur de chargement (lu, `AgencyRolesConsole.tsx:90-93`, `AgencyKycClient.tsx:24-31`), et les deux entrées restent au menu.
   - L'admin au rôle système porte toutes les capacités (lu, `SystemRoleCapabilities::agencyAdmin`) : le défaut ne touche que les rôles personnalisés de base `agency_admin`, que la règle du dernier admin n'interdit pas (lu, `AgencyRoleService::assertNotLastAdminLosingControl`).
 - Piste : poser `capacite: 'team.assign_role'` sur `/app/agency/roles` et `capacite: 'agency.update_kyc'` sur `/app/agency/kyc` dans `PAGES_ADMIN`, comme `billing` ; le test de la table (`pages-admin`) avec un contexte d'admin sans capacité empêcherait le retour. Les pages restantes (`audit`, `moderation`, `finances`, `integrations`, `/app/agency`) n'ont pas été confrontées une à une à la garde de leur lecture (à vérifier).
+- Mesure (2026-10-22, 55ac201ff, mesureur) : relu `PAGES_ADMIN` (`pages-admin.ts:65` `roles` et `:72` `kyc` sans `capacite`, `:76-80` `billing` avec), les deux états d'erreur (`AgencyRolesConsole.tsx:90-96`, `AgencyKycClient.tsx:24-31`) et les pages qui ne se gardent que par `garderPageAdmin` ; même test temporaire (retiré) → admin au rôle personnalisé sans capacité : `GET /api/agencies/{id}/roles` → 403, `GET /api/agencies/{id}/kyc` → 403 → le constat tient. Classement : A1, la lecture que l'API exige (`AgencyRolePolicy::viewAny` → `team.assign_role`, `KycController` → `updateKyc` → `agency.update_kyc`) fixe l'attendu, et `billing` montre déjà la forme : poser `capacite` sur les deux lignes de `PAGES_ADMIN`.
