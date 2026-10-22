@@ -155,8 +155,9 @@ class ServiceProviderProfileController extends Controller
         $sp_profile->forceFill([
             'specialties' => $trades !== [] ? $trades : null,
             'service_areas' => $zones !== [] ? $zones : null,
-            'hourly_rate_min' => array_key_exists('hourly_rate', $validated) && $validated['hourly_rate'] !== null
-                ? (float) $validated['hourly_rate']
+            // TCK-1315 (P117.02) — comme `visit_fee` : clé absente, on garde ; `null`, on efface.
+            'hourly_rate_min' => array_key_exists('hourly_rate', $validated)
+                ? ($validated['hourly_rate'] !== null ? (float) $validated['hourly_rate'] : null)
                 : $sp_profile->hourly_rate_min,
             'metadata' => $metadata,
         ])->save();
