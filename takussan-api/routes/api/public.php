@@ -10,7 +10,10 @@ use App\Http\Controllers\Public\PublicReviewController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('public')->name('public.')->middleware('throttle:public-read')->group(function () {
+    // TCK-1207 (P103.03) — noms et comptes de biens publics, sans appelant ni langue : cache
+    // public de cinq minutes et `ETag`, comme les énumérations (`enums.php`).
     Route::get('property-types', [PublicPropertyTypeController::class, 'index'])
+        ->middleware('cache.headers:public;max_age=300;etag')
         ->name('property-types.index');
 
     Route::get('properties', [PublicPropertyController::class, 'index'])
