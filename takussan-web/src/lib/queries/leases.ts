@@ -1,11 +1,16 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+import { useLocale } from 'next-intl';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
+import { useAuth } from '@/context/AuthContext';
+import { apiRequest, buildQueryString, type ApiError, type RequestOptions } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type { CustomerListItem } from '@/types/customer';
 import type { Guarantor, Lease, LeasePayment, LeaseSignatureRole } from '@/types/lease';
 import type { PropertyListItem } from '@/types/property';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
+import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
 
 /**
  * React Query hooks for the Lease resource.
@@ -28,13 +33,13 @@ const LIST_FIELDS: string[] = [
   'created_at',
 ];
 
+// P150.03 (TCK-1284) — pas de `search` : `GET /api/leases` ne déclare aucun `filter[search]` (400).
 export type UseLeasesParams = {
   status?: string;
   property_id?: number;
   tenant_id?: number;
   page?: number;
   per_page?: number;
-  search?: string;
 };
 
 export function useLeases(params: UseLeasesParams = {}) {
@@ -42,7 +47,6 @@ export function useLeases(params: UseLeasesParams = {}) {
   if (params.status) filter.status = params.status;
   if (params.property_id) filter.property_id = params.property_id;
   if (params.tenant_id) filter.tenant_id = params.tenant_id;
-  if (params.search) filter.search = params.search;
 
   const spatieParams: SpatieQueryParams = {
     fields: {
@@ -85,7 +89,13 @@ export const STATUTS_BIEN_POUR_UN_BAIL = [
   'rejected',
 ] as const;
 
+/**
+ * TCK-1371 (P135.04) — TOUS les biens louables, page par page. Une seule page de 100, sans
+ * recherche, laissait hors du sélecteur les biens qui venaient après dans l'ordre alphabétique.
+ */
 export function useLeasePropertyOptions() {
+  const locale = useLocale();
+  const { token } = useAuth();
   const spatieParams: SpatieQueryParams = {
     fields: {
       properties: [
@@ -104,14 +114,48 @@ export function useLeasePropertyOptions() {
     },
     filter: { status: STATUTS_BIEN_POUR_UN_BAIL },
     sort: ['title'],
-    per_page: 100,
   };
 
-  return useApiQuery<PaginatedResponse<PropertyListItem>>(
-    ['leases', 'property-options'],
-    '/api/properties',
-    { params: spatieParams },
-  );
+  return useQuery<PaginatedResponse<PropertyListItem>, ApiError>({
+    queryKey: ['leases', 'property-options'],
+    queryFn: ({ signal }) =>
+      lireToutesLesPages((page) =>
+        apiRequest<PaginatedResponse<PropertyListItem>>(
+          cheminApi`/api/properties${requete(buildQueryString({ ...spatieParams, page, per_page: PAR_PAGE_MAX }))}`,
+          { token: token ?? undefined, locale, signal },
+        ),
+      ),
+  });
+}
+
+/**
+ * TCK-1371 (P135.04) — TOUS les baux en cours, page par page, pour le choix du bail d'un état des
+ * lieux. Une page de 50 laissait les plus anciens hors de l'écran, sans recherche.
+ * TCK-1438 (P162.05) — en cours : `active` et `terminating`, dont l'état des lieux de sortie approche.
+ */
+export function useAllOngoingLeases() {
+  const locale = useLocale();
+  const { token } = useAuth();
+
+  return useQuery<PaginatedResponse<Lease>, ApiError>({
+    queryKey: ['leases', 'list', { status: 'active,terminating', toutes: true }],
+    queryFn: ({ signal }) =>
+      lireToutesLesPages((page) =>
+        apiRequest<PaginatedResponse<Lease>>(
+          cheminApi`/api/leases${requete(
+            buildQueryString({
+              fields: { leases: LIST_FIELDS, properties: ['id', 'title', 'slug'] },
+              filter: { status: 'active,terminating' },
+              include: ['property'],
+              sort: ['-created_at'],
+              page,
+              per_page: PAR_PAGE_MAX,
+            }),
+          )}`,
+          { token: token ?? undefined, locale, signal },
+        ),
+      ),
+  });
 }
 
 export function useLeaseCustomerOptions(search?: string) {
@@ -175,53 +219,89 @@ export function useLease(id: number | null | undefined) {
   );
 }
 
-export function useLeasePayments(leaseId: number | null | undefined) {
-  const spatieParams: SpatieQueryParams = {
-    fields: {
-      lease_payments: [
-        'id',
-        'lease_id',
-        'amount',
-        'currency',
-        'payment_method',
-        'payment_type',
-        'period_start',
-        'period_end',
-        'due_date',
-        'paid_at',
-        'status',
-        'paid_amount',
-        'remaining_amount',
-        'late_fee_amount',
-        'late_fee_applied_at',
-        'late_fee_paid_at',
-        'late_fee_outstanding',
-        'late_fee_payable_online',
-        'amount_due',
-        'receipt_available',
-        'reference_number',
-        'notes',
-      ],
-    },
-    filter: { lease_id: leaseId ?? 0 },
-    sort: ['due_date'],
-    per_page: 100,
-  };
+const LEASE_PAYMENT_FIELDS: string[] = [
+  'id',
+  'lease_id',
+  'amount',
+  'currency',
+  'payment_method',
+  'payment_type',
+  'period_start',
+  'period_end',
+  'due_date',
+  'paid_at',
+  'status',
+  'paid_amount',
+  'remaining_amount',
+  'late_fee_amount',
+  'late_fee_applied_at',
+  'late_fee_paid_at',
+  'late_fee_outstanding',
+  'late_fee_payable_online',
+  'amount_due',
+  'receipt_available',
+  'reference_number',
+  'notes',
+];
 
-  return useApiQuery<PaginatedResponse<LeasePayment>>(
-    ['leases', 'payments', leaseId],
-    cheminApi`/api/leases/${leaseId ?? 0}/payments`,
-    {
-      params: spatieParams,
-      enabled: Boolean(leaseId),
-    },
-  );
+/** La borne de l'API (`AbstractModel::PER_PAGE_MAX`). */
+export const LEASE_PAYMENTS_PER_PAGE = 100;
+
+/** Garde-fou de la boucle : 50 pages de 100, soit plus de 400 ans d'échéances mensuelles. */
+const LEASE_PAYMENTS_MAX_PAGES = 50;
+
+/**
+ * TCK-1178 (P100.01) — TOUTES les échéances d'un bail, de la plus ancienne à la plus récente.
+ *
+ * ⚠ Une seule page de 100 ne suffit pas : un bail à terme est généré en entier à l'activation (un
+ * bail mensuel de 9 ans en compte 108), et les échéances absentes de la page manquaient à
+ * l'échéancier, au compte des retards de la fiche et au dialogue d'encaissement. Les pages
+ * suivantes sont donc lues jusqu'à la dernière, et rendues sous la forme d'une seule page.
+ */
+export async function fetchAllLeasePayments(
+  leaseId: number,
+  options: Omit<RequestOptions, 'method' | 'body'> = {},
+): Promise<PaginatedResponse<LeasePayment>> {
+  const data: LeasePayment[] = [];
+  let derniere: PaginatedResponse<LeasePayment> | null = null;
+  for (let page = 1; page <= LEASE_PAYMENTS_MAX_PAGES; page++) {
+    const qs = buildQueryString({
+      // P100.05 (TCK-1186) — `fields` inerte : `LeasePaymentController::index` lit `sort` et `per_page` à la main
+      // (TCK-1178), sans `buildQuery` (`LeasePayment::$queryFields` vide).
+      fields: { lease_payments: LEASE_PAYMENT_FIELDS },
+      filter: { lease_id: leaseId },
+      sort: ['due_date'],
+      page,
+      per_page: LEASE_PAYMENTS_PER_PAGE,
+    });
+    derniere = await apiRequest<PaginatedResponse<LeasePayment>>(
+      `${cheminApi`/api/leases/${leaseId}/payments`}?${qs}`,
+      options,
+    );
+    data.push(...derniere.data);
+    if (page >= (derniere.meta?.last_page ?? 1)) break;
+  }
+  return {
+    data,
+    meta: { current_page: 1, last_page: 1, per_page: data.length, total: derniere?.meta?.total ?? data.length },
+  };
+}
+
+export function useLeasePayments(leaseId: number | null | undefined) {
+  const locale = useLocale();
+  const { token } = useAuth();
+
+  return useQuery<PaginatedResponse<LeasePayment>, ApiError>({
+    queryKey: ['leases', 'payments', leaseId],
+    queryFn: ({ signal }) =>
+      fetchAllLeasePayments(leaseId ?? 0, { token: token ?? undefined, locale, signal }),
+    enabled: Boolean(leaseId),
+  });
 }
 
 export type CreateLeasePayload = {
   property_id: number;
   tenant_id: number;
-  landlord_id: number;
   agency_id?: number;
   type: 'residential_rent' | 'commercial_rent' | 'seasonal_rent' | 'sale';
   start_date: string;

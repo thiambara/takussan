@@ -170,6 +170,23 @@ export const CHAMPS_EFFACABLES_TCK598 = [
 ] as const;
 
 /**
+ * TCK-1353 (P149.01) — même défaut sur les nombres en liste (« Non précisé » rend `undefined`), la
+ * description et la date de disponibilité. La liste complète est tenue face au schéma par
+ * `champs-effaces.tck-1353.test.ts` : tout champ facultatif y est classé.
+ */
+export const CHAMPS_EFFACABLES = [
+  ...CHAMPS_EFFACABLES_TCK598,
+  'bedrooms',
+  'bathrooms',
+  'year_built',
+  'floor_number',
+  'parking_spaces',
+  'total_floors',
+  'description',
+  'available_from',
+] as const;
+
+/**
  * Pose `null` sur chacun de ces champs que l'utilisateur a MODIFIÉ (`dirtyFields`) et laissé vide.
  * Un champ jamais touché reste omis : un enregistrement n'efface rien de ce que l'écran n'a pas
  * changé. Un `null` déjà posé par la matrice (contexte non pertinent) traverse intact.
@@ -181,7 +198,7 @@ export function withClearedFields(
 ): PropertyUpdatePayload {
   const sortie: Record<string, unknown> = { ...corps };
   const source = values as unknown as Record<string, unknown>;
-  for (const cle of CHAMPS_EFFACABLES_TCK598) {
+  for (const cle of CHAMPS_EFFACABLES) {
     if (!dirtyFields[cle]) continue;
     if (source[cle] !== undefined && source[cle] !== '') continue;
     if (sortie[cle] === undefined) sortie[cle] = null;

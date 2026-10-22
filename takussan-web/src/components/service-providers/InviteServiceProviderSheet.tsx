@@ -32,6 +32,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import {
   inviteServiceProvider,
   type InviteServiceProviderPayload,
@@ -108,6 +110,8 @@ export function InviteServiceProviderSheet({
   const toast = useToast();
   const queryClient = useQueryClient();
   const { token } = useAuth();
+  // TCK-1203 — inviter un prestataire exige la 2FA de l'agence (`ServiceProviderInvitationController`).
+  const garde = useGardeDoubleFacteur();
   const [form, setForm] = useState<FormState>(() =>
     emptyForm(prefilledTrades, prefilledZones),
   );
@@ -122,7 +126,7 @@ export function InviteServiceProviderSheet({
       if (!token) {
         throw new ApiError(401, { message: tErr('missingToken') });
       }
-      return inviteServiceProvider(token, agencyId, payload);
+      return avecGardeDoubleFacteur(() => inviteServiceProvider(token, agencyId, payload), garde);
     },
     onSuccess: async (response) => {
       const otherAgency = response.meta?.existing_sp_other_agency === true;

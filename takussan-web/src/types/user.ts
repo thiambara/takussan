@@ -36,7 +36,14 @@ export const USER_ROLES = [
 
 export type UserRole = (typeof USER_ROLES)[number];
 
-export type UserStatus = 'active' | 'inactive' | 'banned';
+/**
+ * P115.02 (TCK-1287) — les statuts que l'API connaît (`App\Models\Enums\UserStatus`) : `blocked`
+ * au blocage, `deleted` à l'effacement. `banned` n'a jamais été écrit ; la parité est gardée par
+ * `__tests__/user-status.parity.test.ts`.
+ */
+export const USER_STATUSES = ['active', 'inactive', 'blocked', 'deleted'] as const;
+
+export type UserStatus = (typeof USER_STATUSES)[number];
 
 /**
  * TCK-253 — Opt-in personalisation hints stored in `users.preferences`

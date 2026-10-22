@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { UserPlus } from 'lucide-react';
 
 import { InviteServiceProviderSheet } from '@/components/service-providers/InviteServiceProviderSheet';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import {
@@ -93,10 +94,17 @@ export function MaintenanceAssignmentBlock({ request }: { readonly request: Main
             <SelectContent>
               <SelectItem value={NONE}>{t('nobody')}</SelectItem>
               {options.map((o) => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                  {o.insured ? <Badge variant="outline" className="ml-2">{t('insured')}</Badge> : null}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {/* TCK-1325 (P117.06) — le prestataire retenu est-il assuré ? Dérivé de sa pièce vivante. */}
+          {chosen?.insured ? (
+            <Badge variant="outline" className="mt-1.5 self-start" data-testid="assignee-insured">{t('insured')}</Badge>
+          ) : null}
           {providers.isError ? (
             <p className="mt-1 text-xs text-muted-foreground">{t('directory_unavailable')}</p>
           ) : null}
@@ -143,10 +151,10 @@ export function MaintenanceAssignmentBlock({ request }: { readonly request: Main
 function providerOptions(
   profiles: readonly ServiceProviderProfileSummary[],
   request: MaintenanceRequest,
-): { value: string; label: string }[] {
-  const options = profiles
+): { value: string; label: string; insured?: boolean }[] {
+  const options: { value: string; label: string; insured?: boolean }[] = profiles
     .filter((p) => p.user_id !== null)
-    .map((p) => ({ value: String(p.user_id), label: providerName(p) }));
+    .map((p) => ({ value: String(p.user_id), label: providerName(p), insured: p.insured === true }));
 
   // L'assigné actuel reste sélectionnable même s'il n'est pas dans la page du carnet.
   if (request.assigned_to !== null && !options.some((o) => o.value === String(request.assigned_to))) {
@@ -166,13 +174,21 @@ function providerName(p: ServiceProviderProfileSummary): string {
   return name || p.user?.email || p.metadata?.email || String(p.user_id);
 }
 
-/** Sans disponibilités déclarées, rien n'est signalé : l'absence n'est pas un refus. */
+/**
+ * Sans disponibilités déclarées, rien n'est signalé : l'absence n'est pas un refus.
+ *
+ * TCK-1327 (P117.07) — l'heure se compare aussi à la plage `from`–`to` du créneau (`HH:MM`, validée
+ * par l'API, TCK-261). Un créneau sans heures garde la seule comparaison du jour.
+ */
 function worksOn(p: ServiceProviderProfileSummary, localValue: string): boolean {
-  const slots = (p.metadata as { availability?: { day: string }[] } | null)?.availability;
+  const slots = (p.metadata as { availability?: { day: string; from?: string; to?: string }[] } | null)?.availability;
   if (!slots || slots.length === 0) return true;
   const date = parseISO(localValue);
   if (!isValid(date)) return true;
-  return slots.some((slot) => slot.day === WEEKDAYS[date.getDay()]);
+  const heure = format(date, 'HH:mm');
+  return slots.some((slot) => slot.day === WEEKDAYS[date.getDay()]
+    && (!slot.from || heure >= slot.from)
+    && (!slot.to || heure <= slot.to));
 }
 
 function zonesOf(request: MaintenanceRequest): string[] {

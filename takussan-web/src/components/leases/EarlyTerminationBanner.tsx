@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,8 @@ import { useToast } from '@/components/ui/toast';
 import { useCancelEarlyTermination } from '@/lib/queries/leases';
 import type { Lease } from '@/types/lease';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useAuth } from '@/context/AuthContext';
+import { isCustomerOnly } from '@/lib/roles';
 
 interface EarlyTerminationBannerProps {
   readonly lease: Lease;
@@ -47,6 +50,11 @@ export function EarlyTerminationBanner({ lease, canCancel = true }: EarlyTermina
   const cancel = useCancelEarlyTermination(lease.id);
   const toast = useToast();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const { user } = useAuth();
+  // TCK-1365 (P131.03) — rien ne lit `?invoice=` : l'équipe va à l'onglet des factures, le client à
+  // sa page de paiements (`CustomerPayments`, qui ignore `tab`), où la pénalité est une somme due.
+  const lienFacture =
+    user && isCustomerOnly(user.roles) ? '/app/payments' : '/app/payments?tab=invoices';
 
   const remaining = useMemo(() => {
     if (!lease.early_termination_effective_date) return null;
@@ -154,12 +162,12 @@ export function EarlyTerminationBanner({ lease, canCancel = true }: EarlyTermina
               {t('banner_invoice_label')}
             </dt>
             <dd className="mt-0.5">
-              <a
+              <Link
                 className="font-semibold text-warning underline underline-offset-2 hover:text-warning"
-                href={`/app/payments?invoice=${lease.early_termination_invoice_id}`}
+                href={lienFacture}
               >
                 #{lease.early_termination_invoice_id}
-              </a>
+              </Link>
             </dd>
           </div>
         )}

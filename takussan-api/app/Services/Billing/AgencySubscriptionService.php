@@ -83,6 +83,55 @@ class AgencySubscriptionService
         });
     }
 
+    /**
+     * TCK-1303 (P115.03, décision du porteur) — la période d'un abonnement `active` se reconduit
+     * mois par mois tant qu'il le reste : sans cela, elle n'était écrite qu'à l'attribution, et
+     * l'écran de facturation affichait un mois après une période échue comme période en cours.
+     *
+     * Une période échue depuis plusieurs mois (tâche arrêtée, abonnement ancien) est rattrapée
+     * jusqu'à celle qui contient maintenant. Le mois ne déborde pas (`addMonthNoOverflow`) : une
+     * période du 31 août finit le 30 septembre, pas le 1er octobre. Idempotente : seules les
+     * périodes échues sont relues, chacune sous son verrou. Rend le nombre d'abonnements reconduits.
+     */
+    public function renewPeriods(): int
+    {
+        $ids = AgencySubscription::query()
+            ->where('status', AgencySubscriptionStatus::Active)
+            ->whereNull('ended_at')
+            ->whereNotNull('current_period_end')
+            ->where('current_period_end', '<=', now())
+            ->pluck('id');
+
+        $count = 0;
+        foreach ($ids as $id) {
+            $renewed = DB::transaction(function () use ($id): bool {
+                $subscription = AgencySubscription::query()->whereKey($id)->lockForUpdate()->first();
+                if (! $subscription
+                    || $subscription->status !== AgencySubscriptionStatus::Active
+                    || $subscription->ended_at !== null
+                    || $subscription->current_period_end === null
+                    || $subscription->current_period_end->isFuture()) {
+                    return false;
+                }
+
+                $start = $subscription->current_period_end->copy();
+                $end = $start->copy()->addMonthNoOverflow();
+                while ($end->lessThanOrEqualTo(now())) {
+                    $start = $end;
+                    $end = $start->copy()->addMonthNoOverflow();
+                }
+
+                $subscription->update(['current_period_start' => $start, 'current_period_end' => $end]);
+
+                return true;
+            });
+
+            $count += $renewed ? 1 : 0;
+        }
+
+        return $count;
+    }
+
     public function processTrialExpirations(): int
     {
         // Snapshot the IDs first: chunkById while mutating the `status` filter

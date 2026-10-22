@@ -3,8 +3,10 @@
 namespace App\Jobs;
 
 use App\Models\Enums\TaskStatus;
+use App\Models\Enums\UserStatus;
 use App\Models\Task;
 use App\Notifications\TaskDueReminderNotification;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -27,6 +29,11 @@ use Illuminate\Support\Facades\Notification;
  * this job runs hourly, not every 5 minutes — without it, a reminder
  * scheduled for, say, 15:30 next day would never overlap with a 15:00 or
  * 16:00 hourly tick.
+ *
+ * P126.01 (TCK-1248) — sur un dossier d'agence, le rappel ne part qu'à un assigné qui est encore
+ * personnel actif de cette agence (`isStaffAt`) : un profil suspendu ne confère plus aucun
+ * périmètre (ADR-0031 § 3), la tâche ne lui est plus ouverte. Sans repli : personne d'autre n'est
+ * prévenu à sa place, et le marqueur n'est pas posé.
  */
 class SendTaskDueReminders implements ShouldQueue
 {
@@ -48,6 +55,8 @@ class SendTaskDueReminders implements ShouldQueue
             ->whereNotNull('due_at')
             ->whereBetween('due_at', [$from, $to])
             ->whereNotNull('assigned_to_id')
+            // TCK-1350 (P88.04) — ni compte bloqué ni compte supprimé.
+            ->whereHas('assignee', fn ($q) => $q->whereNotIn('status', [UserStatus::Blocked->value, UserStatus::Deleted->value]))
             ->chunkById(100, function ($tasks) {
                 foreach ($tasks as $task) {
                     $this->notifyFor($task);
@@ -75,6 +84,12 @@ class SendTaskDueReminders implements ShouldQueue
 
             $fresh->loadMissing('assignee');
             if (! $fresh->assignee) {
+                return;
+            }
+
+            $agencyId = $fresh->parentAgencyId();
+            if ($agencyId !== null
+                && ! app(MembershipCapabilityResolver::class)->isStaffAt($fresh->assignee, $agencyId)) {
                 return;
             }
 

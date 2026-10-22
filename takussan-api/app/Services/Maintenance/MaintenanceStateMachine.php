@@ -66,6 +66,14 @@ final class MaintenanceStateMachine
 
     public const TERMINAL = ['closed', 'cancelled'];
 
+    /**
+     * TCK-1434 — un devis en attente de décision : soumis, ou au-delà du plafond et laissé au seul
+     * bailleur (ADR-0037). Lue par « Devis à valider » du bailleur et par `can_decide_quote`.
+     *
+     * @var list<MaintenanceStatus>
+     */
+    public const AWAITING_QUOTE_DECISION = [MaintenanceStatus::QuoteSubmitted, MaintenanceStatus::AwaitingOwner];
+
     public function canTransition(MaintenanceStatus $from, MaintenanceStatus $to): bool
     {
         return in_array($to->value, self::TRANSITIONS[$from->value] ?? [], true);

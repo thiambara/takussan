@@ -15,6 +15,9 @@ import {
   useHandleLead,
 } from '@/lib/queries/contact-leads';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { useCan } from '@/hooks/useCan';
+import { ApiError } from '@/lib/api';
+import type { CustomerDuplicateMatch } from '@/app/actions/dashboard-customers';
 import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
 import { isAdmin } from '@/lib/roles';
@@ -125,12 +128,21 @@ export function ContactLeadsInbox() {
   );
 }
 
+/** TCK-1343 — les fiches existantes d'un 409 `customer.duplicate`, sinon `null`. */
+function doublonsDe(e: unknown): CustomerDuplicateMatch[] | null {
+  if (!(e instanceof ApiError) || e.status !== 409) return null;
+  const data = e.data as { code?: unknown; existing?: unknown } | null;
+  if (!data || data.code !== 'customer.duplicate' || !Array.isArray(data.existing)) return null;
+  return data.existing as CustomerDuplicateMatch[];
+}
+
 function nomComplet(u: { first_name?: string | null; last_name?: string | null } | null | undefined): string {
   return [u?.first_name, u?.last_name].filter(Boolean).join(' ').trim();
 }
 
 function DemandeDeContact({ lead, designee = false }: { readonly lead: ContactLead; readonly designee?: boolean }) {
   const t = useTranslations('contactLeads');
+  const tDoublon = useTranslations('agentCrm.form.duplicate');
   const locale = useLocale() as Locale;
   const toast = useToast();
   const { user } = useAuth();
@@ -138,6 +150,9 @@ function DemandeDeContact({ lead, designee = false }: { readonly lead: ContactLe
   const convert = useConvertLead();
   const [customerId, setCustomerId] = useState<number | null>(lead.customer_id);
   const [attribuer, setAttribuer] = useState(false);
+  // TCK-1343 — un doublon n'est pas une erreur mais une aide, comme dans `CustomerForm` : on
+  // montre la fiche existante, et « Convertir quand même » renvoie avec `allow_duplicate`.
+  const [doublons, setDoublons] = useState<CustomerDuplicateMatch[] | null>(null);
 
   const nom = lead.name?.trim() || t('anonymous');
   const telephone = lead.phone?.replace(/\D/g, '') ?? '';
@@ -146,7 +161,11 @@ function DemandeDeContact({ lead, designee = false }: { readonly lead: ContactLe
     : t('whatsappReply', { name: nom });
   // La liste des collègues (`GET /agencies/{id}/members`) est réservée à l'administrateur de
   // l'agence : un agent détient `crm.assign`, mais le menu qu'on lui ouvrirait serait vide.
-  const peutAttribuer = user ? isAdmin(user.roles) : false;
+  // P152.05 — et `PropertyContactLeadPolicy::assign` exige `crm.assign` dans l'agence de la
+  // demande, sans branche d'admin : un admin dont le rôle ne la porte pas recevait 403.
+  const estAdmin = user ? isAdmin(user.roles) : false;
+  const { can: tientCrmAssign } = useCan('crm.assign', lead.agency_id ?? undefined, estAdmin);
+  const peutAttribuer = estAdmin && tientCrmAssign;
 
   async function marquerTraitee() {
     try {
@@ -157,12 +176,18 @@ function DemandeDeContact({ lead, designee = false }: { readonly lead: ContactLe
     }
   }
 
-  async function convertir() {
+  async function convertir(forcer = false) {
     try {
-      const res = await convert.mutateAsync({ id: lead.id });
+      const res = await convert.mutateAsync(forcer ? { id: lead.id, allow_duplicate: true } : { id: lead.id });
+      setDoublons(null);
       setCustomerId(res.customer.id);
       toast.add({ title: t('toasts.converted'), type: 'success' });
-    } catch {
+    } catch (e) {
+      const trouves = doublonsDe(e);
+      if (trouves) {
+        setDoublons(trouves);
+        return;
+      }
       toast.add({ title: t('toasts.error'), type: 'error' });
     }
   }
@@ -203,6 +228,31 @@ function DemandeDeContact({ lead, designee = false }: { readonly lead: ContactLe
         {lead.recipient ? <span>{t('recipient', { name: nomComplet(lead.recipient) })}</span> : null}
         {lead.source ? <span>{t('source', { source: lead.source })}</span> : null}
       </div>
+
+      {doublons && !customerId ? (
+        <div role="status" className="space-y-2 rounded-lg border border-accent/40 bg-accent/10 p-3 text-sm">
+          <p className="font-medium text-foreground">{tDoublon('title')}</p>
+          <ul className="space-y-1">
+            {doublons.map((d, i) => (
+              <li key={d.id ?? `hidden-${i}`} className="flex flex-wrap items-center gap-x-2">
+                <span>
+                  {d.name ?? tDoublon('hidden')}
+                  {' · '}
+                  {tDoublon(`matchedOn.${d.matched_on}`)}
+                </span>
+                {d.id !== null ? (
+                  <Link href={`/app/customers/${d.id}`} className="underline underline-offset-2">
+                    {tDoublon('open')}
+                  </Link>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          <Button variant="outline" size="sm" onClick={() => void convertir(true)} disabled={convert.isPending}>
+            {t('actions.convertAnyway')}
+          </Button>
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:flex-wrap">
         {telephone ? (
@@ -261,10 +311,13 @@ function AttribuerDialog({ leadId, agencyId, onClose }: { leadId: number; agency
   const toast = useToast();
   const assign = useAssignLead();
   const [choisi, setChoisi] = useState<number | null>(null);
+  // P120.01 (TCK-1246) — `filter[assignable]=1` ne garde que le personnel joignable de l'agence,
+  // la règle de `PersonnelDeLAgence` qui juge la cible : sans lui, la liste offrait les bailleurs,
+  // les comptes bloqués et les agents suspendus, refusés ensuite en 422.
   const membres = useApiQuery<PaginatedResponse<User>>(
     ['agency-members', agencyId, 'assign'],
     `/api/agencies/${agencyId}/members`,
-    { params: { fields: { users: ['id', 'first_name', 'last_name'] }, per_page: 100 } },
+    { params: { fields: { users: ['id', 'first_name', 'last_name'] }, filter: { assignable: 1 }, per_page: 100 } },
   );
 
   async function valider(e: React.FormEvent) {

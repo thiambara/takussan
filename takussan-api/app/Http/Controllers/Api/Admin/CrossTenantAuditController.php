@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\ActivityLogExportController;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Filters\DateBoundaryFilter;
 use App\Http\Filters\ExactIdentifierFilter;
 use App\Models\Activity;
 use App\Services\Audit\ActivityLogExporter;
@@ -54,8 +55,15 @@ class CrossTenantAuditController extends Controller
         'export',
     ];
 
-    /** Au-delà, l'export se resserre par les filtres : un fichier de la console n'est pas un dump. */
-    public const EXPORT_MAX_ROWS = 50_000;
+    /**
+     * Au-delà, l'export se resserre par les filtres : un fichier de la console n'est pas un dump.
+     *
+     * TCK-1416 (P78.02) — 50 000 avant ce ticket (TCK-601), une valeur que la requête ne tenait
+     * pas : le CSV se bâtit dans la requête. Mesuré après le préchargement de `profileTypes()` :
+     * 50 000 lignes, 46,6 s et 217 Mo de surcroît, au bord des 256 Mo de `memory_limit` et des 60 s
+     * de `max_execution_time` (`docker/php.ini`) ; 25 000 lignes, 22,5 s et 105 Mo.
+     */
+    public const EXPORT_MAX_ROWS = 25_000;
 
     public function index(Request $request): JsonResponse
     {
@@ -73,7 +81,7 @@ class CrossTenantAuditController extends Controller
                 'causer_id' => $log->causer_id,
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
-                'properties' => PropertyRedactor::redact($log->properties),
+                'properties' => PropertyRedactor::redact($log->properties, $log->subject_type),
                 'created_at' => $log->created_at?->toIso8601String(),
             ])->all(),
             'meta' => $this->paginationMeta($paginator),
@@ -100,7 +108,7 @@ class CrossTenantAuditController extends Controller
         // TCK-1084 (P77.03) — le disque `local` rend `false` au lieu de lever : le lien rendu
         // aurait mené à un 404.
         $path = ActivityLogExportController::storagePath($request->user()->id, $file);
-        if (Storage::put($path, $exporter->csvContent($exporter->payloadForQuery($query->getEloquentBuilder(), $filename))) !== true) {
+        if (Storage::disk(ActivityLogExportController::DISK)->put($path, $exporter->csvContent($exporter->payloadForQuery($query->getEloquentBuilder(), $filename))) !== true) {
             throw new RuntimeException("L'export de l'audit de la console n'a pas pu écrire {$path}.");
         }
 
@@ -137,8 +145,9 @@ class CrossTenantAuditController extends Controller
                 AllowedFilter::exact('causer_type'),
                 AllowedFilter::custom('subject_id', new ExactIdentifierFilter),
                 AllowedFilter::partial('subject_type'),
-                AllowedFilter::callback('date_from', fn ($q, $value) => $q->where('created_at', '>=', $value)),
-                AllowedFilter::callback('date_to', fn ($q, $value) => $q->where('created_at', '<=', $value)),
+                // P119.02 (TCK-1271) — une date seule couvre le jour entier, comme au journal de l'agence.
+                AllowedFilter::custom('date_from', new DateBoundaryFilter('created_at', false)),
+                AllowedFilter::custom('date_to', new DateBoundaryFilter('created_at', true)),
                 AllowedFilter::callback('sensitive', function ($q, $value): void {
                     if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
                         $q->whereIn('log_name', self::SENSITIVE_LOG_NAMES);

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { AnonymousLeadDialog } from '@/components/public/AnonymousLeadDialog';
 import { submitAgentContactLead } from '@/app/actions/property';
+import { telephonePublie } from '@/lib/phone';
 import {
   Sheet,
   SheetContent,
@@ -59,7 +60,7 @@ export function ContactSheet({
   const mailHref = email
     ? `mailto:${email}${subject ? `?subject=${encodeURIComponent(subject)}` : ''}`
     : null;
-  const telHref = phone ? `tel:${phone.replace(/\s+/g, '')}` : null;
+  const telHref = phone ? `tel:${telephonePublie(phone)}` : null;
   // TCK-1078 — sans aucune action, le déclencheur mobile ouvrirait un volet vide : il ne se rend
   // pas, comme les boutons du grand écran (fiche d'un espace sans courriel ni téléphone).
   const aUneAction = Boolean(agentSlug || mailHref || telHref);
@@ -171,7 +172,7 @@ export function ContactSheet({
           title={name}
           description={estAgent ? t('leadDescriptionAgent') : t('leadDescriptionOwner')}
           successBody={estAgent ? t('leadSuccessAgent') : t('leadSuccessOwner')}
-          onSubmit={(payload) => submitAgentContactLead(agentSlug, payload)}
+          onSubmit={(payload, cle) => submitAgentContactLead(agentSlug, payload, cle)}
         />
       )}
     </>

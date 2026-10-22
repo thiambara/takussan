@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Enums\NotificationType;
 use App\Models\User;
 use App\Notifications\Channels\AppDatabaseChannel;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -23,6 +24,7 @@ use Illuminate\Notifications\Notification;
 class SuperAdminAcceptedBroadcast extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public function __construct(public readonly User $newSuperAdmin) {}
 

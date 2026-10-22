@@ -45,7 +45,8 @@ class UpdateStatusPropertyRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'status' => ['required', Rule::enum(PropertyStatus::class)],
+            // P147.05 (TCK-1341) — les statuts de modération ne se posent pas à la main.
+            'status' => ['required', Rule::enum(PropertyStatus::class)->except(PropertyStatus::NOT_SETTABLE_BY_HAND)],
         ];
     }
 }

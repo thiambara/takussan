@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api\Accounting;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Accounting\MatchBankStatementLineRequest;
 use App\Http\Resources\Accounting\BankStatementLineResource;
 use App\Models\BankStatement;
@@ -11,6 +11,7 @@ use App\Models\BookingPayment;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Models\PlatformPayout;
 use App\Services\Accounting\ReconciliationManager;
 use Illuminate\Http\Request;
 
@@ -21,6 +22,8 @@ class BankStatementLineController extends Controller
         'lease_payment' => LeasePayment::class,
         'invoice' => Invoice::class,
         'payout' => Payout::class,
+        // TCK-1421 (P141.02) — le virement de clôture de la plateforme.
+        'platform_payout' => PlatformPayout::class,
     ];
 
     public function index(BankStatement $statement, Request $request)
@@ -29,9 +32,13 @@ class BankStatementLineController extends Controller
 
         $query = $statement->lines()->getQuery();
 
-        return BankStatementLineResource::collection(
-            BankStatementLine::buildQuery($query, $request)->paginate()
-        );
+        // TCK-1294 (P118.01) — un ordre total à défaut de `sort=` : la date comptable, puis l'`id`.
+        $paginator = BankStatementLine::buildQuery($query, $request)
+            ->defaultSorts('posted_at', 'id')
+            ->paginate();
+
+        // TCK-1220 (P108.03) — l'enveloppe canonique `{ data, meta }`, et non celle de Laravel.
+        return $this->paginated($paginator, BankStatementLineResource::collection($paginator)->toArray($request));
     }
 
     public function match(BankStatementLine $line, MatchBankStatementLineRequest $request, ReconciliationManager $manager)

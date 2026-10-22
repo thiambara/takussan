@@ -9,16 +9,17 @@ use App\Http\Requests\Api\Admin\UpdateFeatureFlagRequest;
 use App\Models\FeatureFlag;
 use App\Services\Features\FeatureFlagEvaluator;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class FeatureFlagController extends Controller
 {
     public function __construct(private readonly FeatureFlagEvaluator $evaluator) {}
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $stored = FeatureFlag::query()->get()->keyBy('key');
 
-        return $this->json(['data' => collect(Flag::catalogue())->map(function (array $flag) use ($stored) {
+        return $this->json(['data' => collect(Flag::catalogue())->map(function (array $flag) use ($stored, $request) {
             $row = $stored[$flag['key']] ?? null;
 
             return [
@@ -26,6 +27,9 @@ class FeatureFlagController extends Controller
                 'enabled' => (bool) ($row?->enabled ?? false),
                 'segments' => $row?->segments_json ?? [],
                 'updated_at' => $row?->updated_at?->toISOString(),
+                // P98.10 (TCK-1176) — l'état évalué pour l'opérateur, bascule de session comprise :
+                // le bouton « Test » de la console part de lui.
+                'enabled_for_me' => $this->evaluator->isEnabled($flag['key'], $request->user()),
             ];
         })->values()->all()]);
     }
@@ -53,7 +57,7 @@ class FeatureFlagController extends Controller
             ->event('super_admin_feature_flag_updated')
             ->log('Feature flag modifié');
 
-        return $this->index();
+        return $this->index($request);
     }
 
     public function override(OverrideFeatureFlagRequest $request, string $key): JsonResponse

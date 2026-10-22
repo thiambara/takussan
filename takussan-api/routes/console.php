@@ -1,6 +1,9 @@
 <?php
 
+use App\Jobs\Audit\PurgeExpiredActivityLogExports;
 use App\Jobs\Billing\ProcessTrialExpirations;
+use App\Jobs\Billing\RenewAgencySubscriptionPeriods;
+use App\Jobs\Booking\CompleteEndedBookingsJob;
 use App\Jobs\Booking\ExpirePendingBookingsJob;
 use App\Jobs\Crm\SendProspectMatchDigest;
 use App\Jobs\EscalateUrgentMaintenanceJob;
@@ -8,11 +11,13 @@ use App\Jobs\ExpireBookings;
 use App\Jobs\Invoice\SendOverdueRemindersJob;
 use App\Jobs\Lease\ApplyLateFeesJob;
 use App\Jobs\Lease\ConfirmEarlyTerminationsJob;
+use App\Jobs\Lease\ExpireEndedLeasesJob;
 use App\Jobs\Notifications\SendNotificationDigestJob;
 use App\Jobs\Permissions\ProcessRoleDelegationsJob;
 use App\Jobs\Privacy\PurgeExpiredDataExports;
 use App\Jobs\RecordQueueHeartbeat;
 use App\Jobs\RefreshNewBuildSearchLabel;
+use App\Jobs\Reporting\PurgeExpiredReportExports;
 use App\Jobs\Reporting\SnapshotPlatformMetricsJob;
 use App\Jobs\SendFavoriteChangeAlerts;
 use App\Jobs\SendLeasePaymentReminders;
@@ -41,10 +46,19 @@ Schedule::job(new ExpireBookings)->hourly()->withoutOverlapping(60);
 Schedule::job(new SyncPropertyCalendarFeedsJob)->hourly()->withoutOverlapping(60);
 Schedule::job(new ApplyLateFeesJob)->dailyAt('02:00')->withoutOverlapping();
 Schedule::job(new ProcessTrialExpirations)->dailyAt('02:15')->withoutOverlapping();
+// TCK-1303 (P115.03) — la période d'un abonnement `active` échue est reconduite d'un mois (rattrapée
+// jusqu'à celle qui contient maintenant). Idempotente : seules les périodes échues sont relues.
+Schedule::job(new RenewAgencySubscriptionPeriods)->dailyAt('02:20')->withoutOverlapping();
 // TCK-090 — Closes leases whose effective_date has passed AND whose
 // penalty invoice is settled. Idempotent: unpaid penalties are skipped
 // silently and reprocessed on the next sweep.
 Schedule::job(new ConfirmEarlyTerminationsJob)->dailyAt('03:00')->withoutOverlapping();
+// TCK-1153 (P81.02) — un bail `active` dont la fin est passée, sans renouvellement en vigueur,
+// passe `expired` : sa caution se restitue. Idempotente (ne lit que des baux `active`).
+Schedule::job(new ExpireEndedLeasesJob)->dailyAt('03:15')->withoutOverlapping();
+// TCK-1301 (P115.01) — une réservation `confirmed` dont la fin est passée passe `completed` : le
+// séjour mené ne s'annule plus. Idempotente (ne lit que des réservations `confirmed`).
+Schedule::job(new CompleteEndedBookingsJob)->dailyAt('03:30')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 // TCK-599 (ADR-0050) — alertes de recherche (comptes et abonnés confirmés), par le moteur de
 // `/properties`. Idempotent par la borne `last_notified_at`, RÉSERVÉE avant l'envoi et rendue
@@ -82,6 +96,12 @@ Schedule::command('tasks:send-due-reminders')->hourly()->withoutOverlapping(60);
 Schedule::command('account:execute-deletions')->hourly()->withoutOverlapping(60);
 // TCK-225 — RGPD portability archives expire after 7 days.
 Schedule::job(new PurgeExpiredDataExports)->dailyAt('02:30')->withoutOverlapping();
+// TCK-1213 (P77.02) — les exports de rapport de la console expirent à J+7 : fichier supprimé,
+// ligne gardée et passée `expired`. Idempotent : seules les lignes `ready` échues sont relues.
+Schedule::job(new PurgeExpiredReportExports)->dailyAt('02:40')->withoutOverlapping();
+// TCK-1143 (P63.04) — les exports du journal d'activité ne survivent pas à leur lien (24 h).
+// Idempotent : la purge ne supprime que des fichiers échus, et rien ne les recrée.
+Schedule::job(new PurgeExpiredActivityLogExports)->hourly()->withoutOverlapping(60);
 // TCK-601 (ADR-0044 §5) — KYC d'agence : relances J-30 / J-7 puis expiration le jour venu.
 Schedule::command('kyc:expire-dossiers')->dailyAt('06:00')->withoutOverlapping();
 // TCK-096 — Escalate urgent maintenance requests to agency managers

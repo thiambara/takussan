@@ -193,7 +193,8 @@ export default async function OwnerDashboardPage() {
                 },
                 {
                   name: t('chartOccupancy'),
-                  values: (ts.occupancy as number[]) ?? [],
+                  // `null` pour un mois sans bien à occuper : le tracé s'y coupe (P127.02, TCK-1355).
+                  values: (ts.occupancy as (number | null)[]) ?? [],
                   color: 'stroke-chart-2',
                 },
               ],

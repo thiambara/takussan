@@ -16,9 +16,13 @@ import { z } from 'zod';
  * où `t` existe. Le patron « clé portée par le schéma » du lot J vise `src/lib/schemas/`, partagé
  * entre serveur et client ; ce schéma-ci est local à un composant client, et n'en a pas besoin.
  */
+// TCK-1370 (P114.03) — 10 caractères, la borne de l'API (`RejectQuoteRequest`, TCK-095) : le
+// formulaire en acceptait 5, et un motif de 5 à 9 caractères revenait en 422.
+const MOTIF_MIN = 10;
+
 function construireSchema(t: (cle: string) => string) {
   return z.object({
-    reason: z.string().min(5, t('reason_min')).max(1000),
+    reason: z.string().min(MOTIF_MIN, t('reason_min_length')).max(1000),
   });
 }
 

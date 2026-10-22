@@ -132,7 +132,7 @@ export type TenantDashboard = {
 
 export type TimeseriesPayload = {
   months: string[];
-} & Record<string, number[] | string[]>;
+} & Record<string, number[] | (number | null)[] | string[]>;
 
 export type DashboardEnvelope<T> = { data: T; timeseries?: TimeseriesPayload };
 
@@ -171,24 +171,4 @@ export function fetchAgentDashboard(opts?: FetchOpts) {
 
 export function fetchTenantDashboard(opts?: FetchOpts) {
   return call<TenantDashboard>('tenant', opts);
-}
-
-/**
- * TCK-595 — les capacités de l'utilisateur dans son agence active, lues côté serveur
- * (`GET /api/me/capabilities`, le même point que `useCan`). La vue agent n'offre la bascule
- * « Agence » qu'à qui détient `reports.view_agency` : un bouton qui mène à un 403 n'est pas une
- * option. Une erreur rend la liste vide — la bascule disparaît, la vue personnelle reste.
- */
-export async function fetchMyCapabilities(): Promise<readonly string[]> {
-  const token = await getToken();
-  if (!token) return [];
-  try {
-    const response = await apiRequest<{ data: { capabilities: readonly string[] } }>(
-      '/api/me/capabilities',
-      { token },
-    );
-    return response.data.capabilities ?? [];
-  } catch {
-    return [];
-  }
 }

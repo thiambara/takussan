@@ -117,6 +117,30 @@ class OAuthCallbackTest extends TestCase
         $this->assertDatabaseMissing('users', ['google_id' => 'attacker-google-id']);
     }
 
+    /**
+     * TCK-1288 (P92.06) — l'e-mail est replié à l'écriture : le fournisseur qui rend la même
+     * adresse en casse mixte heurtait l'index unique (500) au lieu du refus prévu.
+     */
+    public function test_callback_rejects_email_collision_whatever_the_provider_casing(): void
+    {
+        User::factory()->create(['email' => 'victim@example.com', 'google_id' => null]);
+        Cache::put('oauth_state:valid', ['provider' => 'google'], now()->addMinutes(5));
+
+        $socialUser = Mockery::mock(SocialiteUser::class);
+        $socialUser->shouldReceive('getId')->andReturn('attacker-google-id');
+        $socialUser->shouldReceive('getEmail')->andReturn(' Victim@Example.COM ');
+        $socialUser->shouldReceive('getName')->andReturn('Attacker');
+
+        Socialite::shouldReceive('driver->stateless->user')->andReturn($socialUser);
+
+        $this->getJson('/api/auth/oauth/google/callback?code=abc&state=valid')
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'auth.oauth_email_taken');
+
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseMissing('users', ['google_id' => 'attacker-google-id']);
+    }
+
     public function test_callback_marks_new_oauth_user_email_as_verified(): void
     {
         Cache::put('oauth_state:valid', ['provider' => 'google'], now()->addMinutes(5));

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useFieldArray, useWatch } from 'react-hook-form';
 import { useLocale, useTranslations } from 'next-intl';
 import { Plus, Trash2 } from 'lucide-react';
@@ -26,6 +27,8 @@ import {
   type CreateInvoiceFormValues,
 } from '@/lib/schemas/payment';
 import { formatCurrency } from '@/lib/format';
+import { CURRENCY_METADATA, type CurrencyCode } from '@/lib/format/currency';
+import { useAgencyInvoiceDefaults } from '@/hooks/useAgencyInvoiceDefaults';
 import type { Locale } from '@/i18n/config';
 import { CURRENCY_OPTIONS } from './constants';
 
@@ -54,6 +57,32 @@ const DEFAULT_VALUES: CreateInvoiceFormValues = {
   notes: '',
 };
 
+/**
+ * P133.01 (TCK-1413) — la TVA de l'aperçu s'arrondit à l'unité de la devise, comme
+ * `Currency::roundAmount` côté API (`InvoiceService::create`) : 10,50 € à 18 % font 1,89 €, pas 2.
+ */
+function arrondiDevise(montant: number, devise: string): number {
+  const decimales = CURRENCY_METADATA[devise as CurrencyCode]?.decimalPlaces ?? 0;
+  // D'abord au dix-millième (deux facteurs à 2 décimales tiennent en 4, comme le `bcmul` de
+  // l'API), pour que `1,005 × 100` ne tombe pas à `100,4999…` ; puis à l'unité de la devise.
+  const dixMillionieme = Math.round(montant * 10_000);
+  return Math.round(dixMillionieme / 10 ** (4 - decimales)) / 10 ** decimales;
+}
+
+/**
+ * P133.02 (TCK-1377) — le sous-total de l'aperçu se compte comme l'API le recompte
+ * (`InvoiceService::priceLines`) : chaque ligne arrondie à l'unité de la devise, puis la somme.
+ */
+function sousTotal(
+  lignes: ReadonlyArray<{ quantity?: number; unit_price?: number } | undefined>,
+  devise: string,
+): number {
+  return lignes.reduce(
+    (somme, ligne) => somme + arrondiDevise((ligne?.quantity ?? 0) * (ligne?.unit_price ?? 0), devise),
+    0,
+  );
+}
+
 export function CreateInvoiceDialog({
   open,
   onOpenChange,
@@ -62,6 +91,17 @@ export function CreateInvoiceDialog({
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.invoiceDialog');
   const createInvoice = useCreateInvoice();
+  // P133.01 (TCK-1413) — le taux de l'agence pré-remplit le champ : c'est celui que l'API prenait
+  // en silence quand le dialogue n'envoyait rien.
+  const agence = useAgencyInvoiceDefaults();
+  const valeursInitiales: CreateInvoiceFormValues = agence.ready
+    ? {
+        ...DEFAULT_VALUES,
+        tax_rate: agence.taxRate ?? 0,
+        // P133.03 (TCK-1379) — la devise de l'agence (P04.09), modifiable.
+        currency: agence.currency ?? DEFAULT_VALUES.currency,
+      }
+    : DEFAULT_VALUES;
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<
     CreateInvoiceFormValues,
@@ -70,25 +110,29 @@ export function CreateInvoiceDialog({
     schema: createInvoiceSchema,
     defaultValues: DEFAULT_VALUES,
     onSubmit: async (values) => {
-      const subtotal = values.items.reduce(
-        (sum, item) => sum + item.quantity * item.unit_price,
-        0,
-      );
       const res = await createInvoice.mutateAsync({
         customer_id: values.customer_id,
         invoiceable_type: values.invoiceable_type,
         invoiceable_id: values.invoiceable_id,
         issue_date: values.issue_date,
         due_date: values.due_date || undefined,
-        subtotal,
-        tax_rate: values.tax_rate || undefined,
+        // P133.02 (TCK-1377) — les lignes saisies, dont l'API recompte le sous-total et qu'elle
+        // imprime ; le sous-total du navigateur ne part plus.
+        items: values.items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+        })),
+        // P133.01 (TCK-1413) — le taux affiché part tel quel, `0` compris : `|| undefined` faisait
+        // tomber le 0, et l'API appliquait alors `agencies.default_tax_rate`.
+        tax_rate: values.tax_rate ?? 0,
         currency: values.currency,
         notes: values.notes || undefined,
       });
       return { id: res.data.id };
     },
     onSuccess: (result) => {
-      form.reset(DEFAULT_VALUES);
+      form.reset(valeursInitiales);
       onOpenChange(false);
       if (onCreated && result?.id) onCreated(result.id);
     },
@@ -102,11 +146,8 @@ export function CreateInvoiceDialog({
   const taxRate = useWatch({ control: form.control, name: 'tax_rate' }) ?? 0;
   const currency = useWatch({ control: form.control, name: 'currency' }) ?? 'XOF';
 
-  const subtotal = (items ?? []).reduce(
-    (sum, item) => sum + (item?.quantity ?? 0) * (item?.unit_price ?? 0),
-    0,
-  );
-  const taxAmount = Math.round((subtotal * (taxRate ?? 0)) / 100);
+  const subtotal = sousTotal(items ?? [], currency);
+  const taxAmount = arrondiDevise((subtotal * (taxRate ?? 0)) / 100, currency);
   const total = subtotal + taxAmount;
 
   const { fields, append, remove } = useFieldArray({
@@ -114,8 +155,21 @@ export function CreateInvoiceDialog({
     name: 'items',
   });
 
+  // Les réglages de l'agence arrivent après le premier rendu : ils remplacent la valeur initiale
+  // tant que la personne n'a pas touché au champ.
+  const tauxAgence = agence.ready ? (agence.taxRate ?? 0) : null;
+  useEffect(() => {
+    if (tauxAgence === null || form.getFieldState('tax_rate').isDirty) return;
+    form.setValue('tax_rate', tauxAgence);
+  }, [tauxAgence, form]);
+  const deviseAgence = agence.ready ? agence.currency : null;
+  useEffect(() => {
+    if (deviseAgence === null || form.getFieldState('currency').isDirty) return;
+    form.setValue('currency', deviseAgence);
+  }, [deviseAgence, form]);
+
   const handleOpenChange = (next: boolean) => {
-    if (!next) form.reset(DEFAULT_VALUES);
+    if (!next) form.reset(valeursInitiales);
     onOpenChange(next);
   };
 

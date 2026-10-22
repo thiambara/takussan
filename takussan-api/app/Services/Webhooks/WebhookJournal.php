@@ -146,7 +146,8 @@ class WebhookJournal
 
         $this->log->forceFill(array_filter([
             'external_id' => isset($facts['external_id']) ? mb_substr((string) $facts['external_id'], 0, 191) : null,
-            'event_type' => $facts['event_type'] ?? null,
+            // P124.04 (TCK-1258) — lu dans le corps du fournisseur : borné à la colonne, comme `external_id`.
+            'event_type' => isset($facts['event_type']) ? mb_substr((string) $facts['event_type'], 0, 255) : null,
             'matched_count' => $facts['matched_count'] ?? null,
         ], fn ($value) => $value !== null))->save();
     }

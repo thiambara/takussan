@@ -54,7 +54,7 @@ class ReviewAggregateTest extends ApiTestCase
 
         // Un signalement anonyme range l'avis dans la file : il ne touche pas la moyenne.
         $this->app['auth']->forgetGuards();
-        $this->postJson("/api/public/reviews/{$one->id}/report", ['reason' => 'Faux'])->assertOk();
+        $this->postJson("/api/public/reviews/{$one->id}/report", ['reason' => 'fraud'])->assertOk();
         $this->assertSame(ReviewStatus::Reported, $one->refresh()->status);
         $this->assertAggregate($admin, $agency, 1.0, 1);
     }

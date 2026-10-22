@@ -6,6 +6,7 @@ use App\Http\Middleware\AddRobotsTagOutsideProduction;
 use App\Http\Middleware\CountBoostImpressions;
 use App\Http\Middleware\EnforceImpersonationReadOnly;
 use App\Http\Middleware\EnsureAgencyWritable;
+use App\Http\Middleware\EnsureIdempotentWrite;
 use App\Http\Middleware\EnsurePlatformAbility;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\ExposeOtpPreview;
@@ -116,6 +117,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'platform-can' => EnsurePlatformAbility::class,
             // TCK-708 (P01.04) — les impressions sponsorisées, comptées une fois la réponse connue.
             'boost.impressions' => CountBoostImpressions::class,
+            // TCK-1396 (ADR-0072) — une écriture rejouée sous la même `Idempotency-Key`, après `throttle`.
+            'idempotent' => EnsureIdempotentWrite::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

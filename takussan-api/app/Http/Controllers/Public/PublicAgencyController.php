@@ -120,6 +120,10 @@ class PublicAgencyController extends Controller
     {
         $base = Agency::query()
             ->where('agencies.status', AgencyStatus::Active)
+            // TCK-1313 (P85.04) — un espace `individual` n'est pas une agence de l'annuaire : la
+            // personne y a déjà sa fiche sous `/agents/{slug}`. Même filtre dans `show()` et
+            // `properties()`, sans quoi l'annuaire et la fiche se contrediraient.
+            ->where('agencies.kind', AgencyKind::Standard)
             ->whereHas('properties', fn (Builder $q) => $q->publicPortfolio())
             // `withCount` produit une sous-requête corrélée nommée : c'est ce qui rend
             // `sort=-portfolio_count` possible sans jointure ni `GROUP BY` sur la page.
@@ -209,6 +213,7 @@ class PublicAgencyController extends Controller
         $agency = Agency::query()
             ->where('slug', $slug)
             ->where('status', AgencyStatus::Active)
+            ->where('kind', AgencyKind::Standard)
             ->with('addresses')
             ->first();
 
@@ -383,7 +388,11 @@ class PublicAgencyController extends Controller
      */
     public function properties(Request $request, string $slug)
     {
-        $agency = Agency::query()->where('slug', $slug)->where('status', AgencyStatus::Active)->first();
+        $agency = Agency::query()
+            ->where('slug', $slug)
+            ->where('status', AgencyStatus::Active)
+            ->where('kind', AgencyKind::Standard)
+            ->first();
 
         abort_if($agency === null, 404);
 
@@ -397,6 +406,8 @@ class PublicAgencyController extends Controller
             ->orderByDesc('created_at')
             ->paginate($perPage);
 
-        return PropertyResource::collection($properties);
+        // TCK-1220 (P108.03) — l'enveloppe canonique `{ data, meta }`, et non celle de Laravel
+        // (`links`, `meta.path`…), dont les URL portent l'hôte de la requête.
+        return $this->paginated($properties, PropertyResource::collection($properties)->toArray($request));
     }
 }

@@ -51,6 +51,7 @@ vi.mock('@/lib/queries/visits', () => ({
   useUpdateVisit: () => updateMutation,
   useClaimVisit: () => claimMutation,
   useProposeVisitSlot: () => proposeMutation,
+  useMarkVisitNoShow: () => mutation,
 }));
 
 function renderDetail() {
@@ -81,6 +82,8 @@ function makeVisit(overrides: Partial<PropertyVisit> = {}): PropertyVisit {
     scheduled_at: '2026-05-10T10:00:00Z',
     duration_minutes: 30,
     property: { id: 10, title: 'Villa à Almadies', slug: 'villa-almadies' },
+    // P152.04 — le personnel de l'agence du bien : l'API le laisse gérer la visite.
+    abilities: { manage: true },
     ...overrides,
   };
 }

@@ -223,6 +223,21 @@ class WebhookJournalTest extends TestCase
     }
 
     /**
+     * P124.04 (TCK-1258) — `event_type` vient du corps du fournisseur, sans borne : un statut de
+     * plus de 255 caractères faisait rendre 500 à l'accusé. Il est borné comme `external_id`.
+     */
+    public function test_an_event_type_longer_than_the_column_is_bounded(): void
+    {
+        $this->orangeAttempt('orange-long-602');
+        $dlr = $this->orangeDlr('orange-long-602');
+        $dlr['deliveryInfoNotification']['deliveryInfo']['deliveryStatus'] = str_repeat('é', 300);
+
+        $this->postJson('/api/webhooks/sms/orange/status/sms-url-token-602', $dlr)->assertOk();
+
+        $this->assertSame(str_repeat('é', 255), IntegrationWebhookLog::query()->sole()->event_type);
+    }
+
+    /**
      * AC7 — le segment `{token}` des URL SMS et WhatsApp, et la signature d'URL LAfricaMobile,
      * n'apparaissent dans AUCUNE colonne d'une ligne de journal (corps déchiffré compris).
      */

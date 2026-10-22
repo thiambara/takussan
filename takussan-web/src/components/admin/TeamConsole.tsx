@@ -27,6 +27,8 @@ import { agencyInvitationKeys } from '@/lib/queries/agency-invitations';
 import { useCan } from '@/hooks/useCan';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import type { AgencyRoleAssignment } from '@/types/agency-role';
 import type {
   AdminAgencyUserRow,
@@ -74,6 +76,13 @@ interface TeamConsoleProps {
    * « Suspendre de l'agence » (l'API le refuse en 422). `null` quand l'agence n'a pas pu être lue.
    */
   readonly primaryAdminId?: number | null;
+  /**
+   * TCK-1412 (P148.02) — le compte a-t-il un rôle d'administration ? Sans lui, la page ne s'ouvre
+   * que par capacité (`team.invite`, `team.assign_role` ou `team.suspend`) : « Ajouter » (un compte
+   * existant, `AgencyPolicy::update`, jugé par le profil) disparaît, et « Retirer de l'agence »
+   * exige `team.remove`, comme `AgencyPolicy::removeMember`.
+   */
+  readonly estAdmin?: boolean;
 }
 
 /**
@@ -92,6 +101,7 @@ export function TeamConsole({
   currentUserId,
   agencyKind = null,
   primaryAdminId = null,
+  estAdmin = true,
 }: TeamConsoleProps) {
   const t = useTranslations('team.page');
   const tConsole = useTranslations('admin.team.console');
@@ -101,6 +111,8 @@ export function TeamConsole({
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { token } = useAuth();
+  // TCK-1203 — suspendre ou réactiver un membre exige la 2FA de l'agence (`TeamMemberSuspensionController`).
+  const garde = useGardeDoubleFacteur();
 
   const currentRole = searchParams.get('filter[role]') ?? '';
   // TCK-595 — la performance d'équipe : agences `standard`, et `reports.view_agency` (la même garde
@@ -204,6 +216,9 @@ export function TeamConsole({
   // coupait de toutes ses agences, et il est réservé au super-admin. Elle le suspend DANS
   // l'agence, geste jugé côté serveur par `team.suspend` (`SuspendTeamMemberRequest`).
   const { can: canSuspend } = useCan('team.suspend', agencyId);
+  // TCK-1412 — l'admin garde « Retirer » comme avant ; un non-admin seulement sous `team.remove`.
+  const { can: canRemove } = useCan('team.remove', agencyId);
+  const retirer = estAdmin || canRemove ? (u: AdminAgencyUserRow) => setRemoving(u) : undefined;
   const suspensionFor = useCallback(
     (row: AdminAgencyUserRow) =>
       canSuspend ? suspensionOffer(row, agencyId, currentUserId, primaryAdminId) : null,
@@ -224,7 +239,7 @@ export function TeamConsole({
 
   const suspensionMutation = useMutation({
     mutationFn: ({ member, action }: { member: AdminAgencyUserRow; action: TeamSuspensionAction }) =>
-      postTeamSuspension(agencyId, member.id, action, token ?? ''),
+      avecGardeDoubleFacteur(() => postTeamSuspension(agencyId, member.id, action, token ?? ''), garde),
     onSuccess: () => {
       setActionError(null);
       setSuspending(null);
@@ -317,7 +332,7 @@ export function TeamConsole({
                   hasActiveFilters ? t('empty_filtered_description') : t('empty_description')
                 }
                 action={
-                  hasActiveFilters ? undefined : (
+                  hasActiveFilters || !estAdmin ? undefined : (
                     <Button onClick={() => setInviteOpen(true)}>
                       <UserPlus className="mr-1 size-4" aria-hidden="true" />
                       {t('add')}
@@ -337,7 +352,7 @@ export function TeamConsole({
                   onSelect={(u) => setDrawerUser(u)}
                   suspensionFor={suspensionFor}
                   onSuspension={(member, action) => setSuspending({ member, action })}
-                  onRemove={(u) => setRemoving(u)}
+                  onRemove={retirer}
                 />
                 <Pagination
                   page={usersQuery.data.meta.current_page}
@@ -359,7 +374,7 @@ export function TeamConsole({
         suspension={drawerUser ? suspensionFor(drawerUser) : null}
         onSuspension={(member, action) => setSuspending({ member, action })}
         onOpenChange={(open) => !open && setDrawerUser(null)}
-        onRemove={(u) => setRemoving(u)}
+        onRemove={retirer}
         isRemoving={removing !== null}
       />
 

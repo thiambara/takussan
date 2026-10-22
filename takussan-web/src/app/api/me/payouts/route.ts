@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif, profilActifEspaceApplicatif } from '@/lib/impersonation';
 import { urlApiServeur } from '@/lib/api';
-import { enTetesDuRelais } from '@/lib/relais-api';
+import { enTetesDuRelais, fetchVersApi } from '@/lib/relais-api';
 
 /**
  * TCK-223 — agency-side platform payouts. The active-profile header lets the
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   const activeProfileId = profilActifEspaceApplicatif(request.cookies);
   if (activeProfileId) headers['X-Active-Profile-Hint'] = activeProfileId;
 
-  const upstream = await fetch(urlApiServeur(`/me/payouts${request.nextUrl.search}`), { headers });
+  const upstream = await fetchVersApi(urlApiServeur(`/me/payouts${request.nextUrl.search}`), { headers }, { requete: request });
   return new NextResponse(await upstream.text(), {
     status: upstream.status,
     headers: { 'Content-Type': upstream.headers.get('content-type') ?? 'application/json' },

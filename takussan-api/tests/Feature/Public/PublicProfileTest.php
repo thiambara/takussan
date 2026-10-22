@@ -311,6 +311,27 @@ class PublicProfileTest extends TestCase
             ->assertJsonCount(1, 'data.reviews.recent');
     }
 
+    /**
+     * TCK-1321 (P117.03) — les zones que l'agent saisit à l'assistant (`metadata.intervention_zones`)
+     * s'affichent en lecture seule sur sa page publique, à côté de `specialty`.
+     */
+    public function test_public_agent_profile_exposes_intervention_zones(): void
+    {
+        $agency = Agency::factory()->create();
+        $agent = User::factory()->create(['username' => 'moussa-fall', 'status' => UserStatus::Active]);
+        AgentProfile::factory()->create([
+            'user_id' => $agent->id,
+            'agency_id' => $agency->id,
+            'specialty' => 'Location',
+            'metadata' => ['intervention_zones' => ['Plateau', 'Almadies']],
+        ]);
+
+        $this->getJson('/api/public/agents/moussa-fall')
+            ->assertOk()
+            ->assertJsonPath('data.specialty', 'Location')
+            ->assertJsonPath('data.intervention_zones', ['Plateau', 'Almadies']);
+    }
+
     public function test_public_agent_profile_handles_missing_profile_and_addresses(): void
     {
         $agent = User::factory()->create([
@@ -325,6 +346,7 @@ class PublicProfileTest extends TestCase
             ->assertJsonPath('data.bio', null)
             ->assertJsonPath('data.city', null)
             ->assertJsonPath('data.specialty', null)
+            ->assertJsonPath('data.intervention_zones', [])
             ->assertJsonPath('data.years_of_experience', null)
             ->assertJsonPath('data.stats.rent_count', 0)
             ->assertJsonPath('data.stats.sale_count', 0)

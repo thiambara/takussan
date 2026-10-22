@@ -7,6 +7,7 @@ use App\Models\BookingPayment;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Models\PlatformPayout;
 use Illuminate\Http\Request;
 
 class BankStatementLineResource extends BaseResource
@@ -16,6 +17,7 @@ class BankStatementLineResource extends BaseResource
         LeasePayment::class => 'lease_payment',
         Invoice::class => 'invoice',
         Payout::class => 'payout',
+        PlatformPayout::class => 'platform_payout',
     ];
 
     public function toArray(Request $request): array

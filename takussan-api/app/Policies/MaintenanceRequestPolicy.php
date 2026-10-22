@@ -4,7 +4,6 @@ namespace App\Policies;
 
 use App\Http\Controllers\Api\MediaController;
 use App\Models\Enums\Capability;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
@@ -54,7 +53,7 @@ class MaintenanceRequestPolicy extends BasePolicy
 
         return $user->isSuperAdmin()
             || $this->isAssignedProvider($user, $model)
-            || self::isPrincipalFor($user, $model->property);
+            || $this->principalWrites($user, $model->property);
     }
 
     /**
@@ -86,8 +85,9 @@ class MaintenanceRequestPolicy extends BasePolicy
         }
 
         return Property::query()->where('user_id', $user->id)->exists()
+            // TCK-1436 — la même liste que `store()` (TCK-1001) : un bail en préavis compte.
             || Lease::query()
-                ->where('status', LeaseStatus::Active)
+                ->whereIn('status', User::ACTIVE_TENANT_LEASE_STATUSES)
                 ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
                 ->exists();
     }
@@ -114,7 +114,7 @@ class MaintenanceRequestPolicy extends BasePolicy
 
         $isRequester = $request->requester_id !== null && $request->requester_id === $user->id;
 
-        return ($isRequester || self::isPrincipalFor($user, $request->property))
+        return ($isRequester || $this->principalWrites($user, $request->property))
             && $this->transitionTo($user, $request, $target);
     }
 
@@ -149,7 +149,8 @@ class MaintenanceRequestPolicy extends BasePolicy
     {
         if ($request->status === MaintenanceStatus::AwaitingOwner) {
             return $user->isSuperAdmin()
-                || ($request->property !== null && $request->property->user_id === $user->id);
+                || ($request->property !== null
+                    && $this->landlordWrites($user, $request->property->user_id, $request->property->agency_id));
         }
 
         return $this->manageQuotes($user, $request);
@@ -168,7 +169,7 @@ class MaintenanceRequestPolicy extends BasePolicy
     public function actAsPrincipal(User $user, MaintenanceRequest $request): bool
     {
         $property = $request->property;
-        if (! self::isPrincipalFor($user, $property)) {
+        if (! $this->principalWrites($user, $property)) {
             return false;
         }
 
@@ -219,7 +220,7 @@ class MaintenanceRequestPolicy extends BasePolicy
         if ($this->isAssignedProvider($user, $request)) {
             $actors[] = MaintenanceStateMachine::ACTOR_PROVIDER;
         }
-        if (self::isPrincipalFor($user, $request->property)) {
+        if ($this->principalWrites($user, $request->property)) {
             $actors[] = MaintenanceStateMachine::ACTOR_PRINCIPAL;
         }
         if ($request->requester_id === $user->id) {
@@ -227,6 +228,27 @@ class MaintenanceRequestPolicy extends BasePolicy
         }
 
         return $actors;
+    }
+
+    /**
+     * TCK-1146 (P82.01, ADR-0031 §2) — donneur d'ordre pour ÉCRIRE : `isPrincipalFor`, sauf le
+     * bailleur du bien suspendu (`blocked`) dans l'agence du bien, qui garde la lecture (`view`,
+     * `viewQuote`) et perd les gestes — modifier, assigner, commander ou trancher un devis, changer
+     * le statut. La règle est celle de `BasePolicy::landlordWrites` : s'il est aussi personnel actif
+     * de l'agence, il agit en tant que personnel. En `awaiting_owner`, plus personne d'autre que le
+     * super-admin ne tranche le devis tant que la suspension dure (validation du porteur, 2026-10-21).
+     */
+    private function principalWrites(User $user, ?Property $property): bool
+    {
+        if (! self::isPrincipalFor($user, $property)) {
+            return false;
+        }
+
+        if ($user->isSuperAdmin() || $property->user_id !== $user->id) {
+            return true;
+        }
+
+        return $this->landlordWrites($user, $property->user_id, $property->agency_id);
     }
 
     /**

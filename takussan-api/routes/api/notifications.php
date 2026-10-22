@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\NotificationPreferenceController;
+use App\Http\Controllers\NotificationUnsubscribeController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -20,3 +21,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('announcements/active', [AnnouncementController::class, 'active'])->name('announcements.active');
     Route::post('announcements/{announcement}/dismiss', [AnnouncementController::class, 'dismiss'])->name('announcements.dismiss');
 });
+
+// P97.06 (TCK-1243, ADR-0050) — hors session : se désabonner du résumé par courriel, depuis la page
+// du front ou le client de messagerie (RFC 8058). URL signée RELATIVE, `POST` seulement.
+Route::post('notifications/digest/unsubscribe/{user}', [NotificationUnsubscribeController::class, 'unsubscribe'])
+    ->middleware(['signed:relative', 'throttle:public-search-alert'])
+    ->name('notifications.digest.unsubscribe');

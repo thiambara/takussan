@@ -21,7 +21,9 @@ import { ChoixDeLangue } from '@/components/shared/ChoixDeLangue';
 import { BarreDeChargement } from '@/components/shared/BarreDeChargement';
 import { hrefConnexion } from '@/components/auth/lien-connexion';
 import { FavoritesPopover } from '@/components/favorites/FavoritesPopover';
+import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
+import { referentielPublicQueryKeys, UNE_HEURE_MS } from '@/lib/queries/referentiel-public';
 import { parametreDe } from '@/types/search';
 import { hrefLocalise, localeDuChemin } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/config';
@@ -236,7 +238,6 @@ export function Navbar({ className }: NavbarProps) {
   const libellesTransaction = { groupe: t('transactionPlaceholder'), sale: t('buy'), rent: t('rent') };
   const transactionImposee = { [parametreDe('contract_type')]: transaction };
   const [moreOpen, setMoreOpen] = useState(false);
-  const [typeCounts, setTypeCounts] = useState<Record<string, number> | null>(null);
   const moreRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -267,21 +268,21 @@ export function Navbar({ className }: NavbarProps) {
   const plusEnAttente =
     categorieEnAttente !== undefined && moreCategories.some((c) => c.type === categorieEnAttente);
 
-  // Fetch real property counts for the "+ More" dropdown.
-  useEffect(() => {
-    let cancelled = false;
-    apiFetch<PropertyTypeCountsResponse>('/public/property-types')
-      .then((res) => {
-        if (cancelled) return;
-        const map: Record<string, number> = {};
-        for (const entry of res.data) map[entry.value] = entry.count;
-        setTypeCounts(map);
-      })
-      .catch(() => {
-        // Silent fallback: dropdown renders without counts.
-      });
-    return () => { cancelled = true; };
-  }, []);
+  // TCK-1229 (P103.04) — les comptes du menu « Plus », demandés à sa PREMIÈRE ouverture seulement :
+  // la barre les demandait à chaque montage, sur toutes les pages, pour un menu fermé par défaut et
+  // absent sous 1 024 px. D'ici là, et sur un échec, le menu se rend sans comptes.
+  const [plusOuvertUneFois, setPlusOuvertUneFois] = useState(false);
+  const { data: typeCounts } = useQuery({
+    queryKey: referentielPublicQueryKeys.typesDeBien(),
+    queryFn: async () => {
+      const res = await apiFetch<PropertyTypeCountsResponse>('/public/property-types');
+      const map: Record<string, number> = {};
+      for (const entry of res.data) map[entry.value] = entry.count;
+      return map;
+    },
+    enabled: plusOuvertUneFois,
+    staleTime: UNE_HEURE_MS,
+  });
 
   // Close more dropdown when clicking outside
   useEffect(() => {
@@ -483,7 +484,10 @@ export function Navbar({ className }: NavbarProps) {
             <div className="relative shrink-0" ref={moreRef}>
               <button
                 type="button"
-                onClick={() => setMoreOpen((o) => !o)}
+                onClick={() => {
+                  setMoreOpen((o) => !o);
+                  setPlusOuvertUneFois(true);
+                }}
                 aria-expanded={moreOpen}
                 className={`flex flex-col items-center gap-1 px-1.5 xl:px-2.5 py-2 border-b-2 rounded-t-lg transition-colors duration-150 ${moreHasActive
                   ? 'border-primary text-primary'

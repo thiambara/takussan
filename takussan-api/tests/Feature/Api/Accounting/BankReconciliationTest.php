@@ -454,7 +454,7 @@ class BankReconciliationTest extends TestCase
 
         $property = Property::factory()->create(['agency_id' => $this->agency->id]);
         $bookingPayment = BookingPayment::factory()->paid()->create([
-            'booking_id' => Booking::factory()->create(['property_id' => $property->id])->id,
+            'booking_id' => Booking::factory()->create(['property_id' => $property->id, 'agency_id' => $this->agency->id])->id,
             'payer_id' => $payer->id, 'amount' => 160_000, 'currency' => 'XOF', 'paid_at' => $paidAt,
         ]);
 

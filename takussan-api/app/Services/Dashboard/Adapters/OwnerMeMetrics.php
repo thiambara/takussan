@@ -29,7 +29,7 @@ class OwnerMeMetrics implements DashboardMetrics
             'expected_monthly' => $s['finance']['expected_monthly'] ?? 0.0,
             'overdue_count' => $s['finance']['overdue_count'] ?? 0,
             'overdue_amount' => $s['finance']['overdue_amount'] ?? 0.0,
-            'occupancy_rate_percent' => $s['occupancy']['rate_percent'] ?? 0.0,
+            'occupancy_rate_percent' => $s['occupancy']['rate_percent'] ?? null,
         ];
     }
 

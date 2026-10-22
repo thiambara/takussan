@@ -46,6 +46,15 @@ class LeaseSignatureOtpService
      * Émet un code frais (le précédent meurt) et pose le délai de renvoi. Le canal et la
      * destination masquée voyagent avec le code : ils iront dans la preuve.
      */
+    /**
+     * TCK-1337 (P123.06) — un code qui n'est pas parti n'ouvre pas la fenêtre de renvoi : le
+     * signataire peut en redemander un aussitôt. Le compteur d'essais n'est pas touché.
+     */
+    public function releaseResend(Lease $lease, User $user, string $role): void
+    {
+        $this->cache->forget($this->key('cooldown', $lease, $user, $role));
+    }
+
     public function issue(Lease $lease, User $user, string $role, string $channel, string $destination): string
     {
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
@@ -100,6 +109,12 @@ class LeaseSignatureOtpService
         }
 
         return null;
+    }
+
+    /** P72.04 (TCK-1354) — la clé du délai de renvoi, qu'un accusé `failed` du SMS du code lève. */
+    public function resendKey(Lease $lease, User $user, string $role): string
+    {
+        return $this->key('cooldown', $lease, $user, $role);
     }
 
     private function key(string $kind, Lease $lease, User $user, string $role): string

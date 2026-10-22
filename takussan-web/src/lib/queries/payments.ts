@@ -126,10 +126,10 @@ export const INVOICE_LIST_FIELDS = [
   'created_at',
 ] as const;
 
+// P150.03 (TCK-1284) — pas de `search` : `GET /api/invoices` ne déclare aucun `filter[search]` (400).
 export type UseInvoicesParams = {
   readonly status?: InvoiceStatus;
   readonly customer_id?: number;
-  readonly search?: string;
   readonly page?: number;
   readonly per_page?: number;
 };
@@ -138,7 +138,6 @@ export function useInvoices(params: UseInvoicesParams = {}) {
   const filter: Record<string, string | number> = {};
   if (params.status) filter.status = params.status;
   if (params.customer_id) filter.customer_id = params.customer_id;
-  if (params.search) filter.search = params.search;
 
   const query: SpatieQueryParams = {
     fields: { invoices: INVOICE_LIST_FIELDS },
@@ -170,7 +169,9 @@ export type CreateInvoicePayload = {
   invoiceable_id?: number;
   issue_date: string;
   due_date?: string;
-  subtotal: number;
+  /** P133.02 (TCK-1377) — sans `items` seulement : avec elles, l'API recompte le sous-total. */
+  subtotal?: number;
+  items?: ReadonlyArray<{ description: string; quantity: number; unit_price: number }>;
   tax_rate?: number;
   currency?: 'XOF' | 'XAF' | 'EUR' | 'USD';
   notes?: string;
@@ -179,7 +180,8 @@ export type CreateInvoicePayload = {
 export function useCreateInvoice() {
   return useApiMutation<ApiResponse<Invoice>, CreateInvoicePayload>(
     { path: '/api/invoices', method: 'POST' },
-    { invalidate: [['invoices']] },
+    // TCK-1402 (ADR-0072) — renvoyée après une réponse perdue, la facture n'est créée qu'une fois.
+    { idempotence: true, invalidate: [['invoices']] },
   );
 }
 

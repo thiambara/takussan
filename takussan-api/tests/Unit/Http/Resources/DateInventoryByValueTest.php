@@ -57,6 +57,9 @@ class DateInventoryByValueTest extends TestCase
     private const CLES_JAMAIS_ATTEINTES = [
         'App\Http\Resources\AgencyUpgradeRequestResource::shared_identifiers' => '`when(super-admin)` — des listes '
             .'`{id, name}` d\'agences (TCK-601), jamais une date. Le parcours ne lit pas en super-admin.',
+        'App\Http\Resources\Api\Admin\PlatformPayoutResource::breakdown' => '`when()` sur un `additional()` que seul '
+            .'`PlatformPayoutController::presenter()` pose (TCK-1205) : `PlatformPayoutService::breakdown()`, '
+            .'`{booking, lease}` × `{count, gross, fees}` — un ENTIER et deux montants, jamais une date.',
         'App\Http\Resources\ConversationResource::unread_count' => "`whenHas('unread_count')` — un compteur ENTIER "
             .'(`(int)`), jamais une date. Il vient du seul `withCount` de `ConversationController::index` '
             .'(TCK-579) ; le sujet vient d\'une factory, pas de cette requête.',
@@ -68,15 +71,21 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\InventoryResource::sign_on_behalf_of' => '`when()` sur le même lecteur que `can_sign_as` '
             .'(TCK-596) : un identifiant et un nom, jamais une date.',
         'App\Http\Resources\KycDossierResource::shared_identifiers' => '`when(super-admin)` — même forme, même absence de date (TCK-601).',
+        'App\Http\Resources\LeaseResource::abilities' => '`when()` sur le lecteur de `forViewer()` (P152.02) : '
+            .'quatre booléens, jamais une date.',
         'App\Http\Resources\LeaseResource::can_activate_on_paper' => '`when()` sur le même lecteur (VERIF-596 M1) : '
             .'un booléen, jamais une date.',
         'App\Http\Resources\LeaseResource::can_request_signature' => '`when()` sur un lecteur posé par `forViewer()`, '
             .'que seuls `LeaseController::show` et `LeaseSignatureController` appellent (TCK-596 §4B) : un booléen, jamais une date.',
         'App\Http\Resources\LeaseResource::can_sign_as' => '`when()` sur le même lecteur (TCK-596 §4B) : une liste de rôles '
             .'(`tenant`, `landlord`), jamais une date.',
+        'App\Http\Resources\LeaseResource::early_termination_penalty_months' => '`when()` sur le même lecteur posé par '
+            .'`forViewer()` (P98.05, TCK-1166) : un nombre de mois ENTIER (`penaltyMonthsFor(): int`), jamais une date.',
         'App\Http\Resources\PropertyResource::primary_contact_source' => '`when()` refusé sur `public.*` (TCK-603, '
             .'ADR-0059 §6) — or la route du second appelant répond « oui » à tout `routeIs()`, `public.*` compris. '
             .'Un vocabulaire fermé (`designated`, `invitation_order`, `owner`, `null`), jamais une date.',
+        'App\Http\Resources\PropertyVisitResource::abilities' => '`when()` sur la seule visite de la route (P152.04) : '
+            .'un booléen, jamais une date.',
     ];
 
     /** Profondeur maximale du parcours — un garde-fou contre un graphe cyclique, pas une limite métier. */

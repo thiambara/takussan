@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\TypedExactFilter;
 use App\Http\Middleware\EnsureAgencyWritable;
 use App\Models\Bases\AbstractModel;
 use App\Models\Contracts\HasAuditAgency;
@@ -11,6 +12,7 @@ use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Sorts\MaintenancePrioritySort;
+use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -73,6 +75,9 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
 
     protected static array $requestFilterable = ['property_id', 'lease_id', 'requester_id', 'assigned_to', 'category', 'priority', 'status'];
 
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['assigned_to' => TypedExactFilter::IDENTIFIANT];
+
     protected static array $requestSortable = ['id', 'created_at', 'scheduled_at', 'priority', 'status'];
 
     protected static array $requestLoadable = ['property', 'lease', 'requester', 'assignee', 'quoteDecisionBy'];
@@ -92,7 +97,7 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
     {
         $subject = $baseQuery ?? static::class;
 
-        return QueryBuilder::for($subject, $request)
+        return DepartageQueryBuilder::for($subject, $request)
             ->allowedFilters(...static::getAllowedQueryFilters())
             ->allowedSorts(
                 'id',
@@ -103,6 +108,32 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
             )
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedIncludes(...static::getAllowedQueryIncludes());
+    }
+
+    /**
+     * Les états où une intervention n'attend plus l'équipe : terminée (en attente de la seule
+     * confirmation du demandeur), close, annulée ou refusée. Mêmes quatre que
+     * `AgentPortfolio::CLOSED_MAINTENANCE` et le calendrier (TCK-591).
+     */
+    public const FINISHED_STATUSES = [
+        MaintenanceStatus::Completed,
+        MaintenanceStatus::Closed,
+        MaintenanceStatus::Cancelled,
+        MaintenanceStatus::Rejected,
+    ];
+
+    /**
+     * P127.03 (TCK-1357) — « interventions ouvertes », LE prédicat des tableaux de bord : tout état
+     * hors {@see self::FINISHED_STATUSES} (décision du porteur, 2026-10-22). Les tableaux de bord
+     * comptaient `open` et `in_progress` seuls, et une demande `acknowledged` ou `assigned` sortait
+     * du compteur au moment où elle avançait.
+     */
+    public function scopeOpen(Builder $query): Builder
+    {
+        return $query->whereNotIn('status', array_map(
+            static fn (MaintenanceStatus $s): string => $s->value,
+            self::FINISHED_STATUSES,
+        ));
     }
 
     /**

@@ -98,6 +98,13 @@ export function useHomepageDiscovery({
    */
   const rangeesSansVilleDejaServies = useRef(donneesInitiales !== null);
 
+  /**
+   * TCK-1231 (P103.06) — la ville que les rangées semées servent déjà (la ville de référence de
+   * l'API, Dakar, quand le serveur a demandé sans ville). Une ville devinée qui ne s'en distingue
+   * que par la casse n'a rien de neuf à demander : l'API rendrait les mêmes rangées.
+   */
+  const villeDejaServie = useRef(donneesInitiales?.near.city ?? null);
+
   useEffect(() => {
     if (!enabled) return;
 
@@ -107,6 +114,7 @@ export function useHomepageDiscovery({
       // sur les rangées semées alors que l'écran, lui, aurait changé de titre.
       rangeesSansVilleDejaServies.current = false;
       if (!nearCity) return;
+      if (villeDejaServie.current !== null && replie(nearCity) === replie(villeDejaServie.current)) return;
     }
 
     let cancelled = false;
@@ -133,4 +141,9 @@ export function useHomepageDiscovery({
   }, [nearCity, perRow, enabled]);
 
   return state;
+}
+
+/** Le repli de casse de `CaseInsensitive::fold` côté API, pour comparer deux noms de ville. */
+function replie(ville: string): string {
+  return ville.trim().toLocaleLowerCase();
 }

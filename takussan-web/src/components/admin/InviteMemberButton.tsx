@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { InviteAgentDialog } from '@/components/admin/InviteAgentDialog';
 import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
 import { agencyInvitationKeys } from '@/lib/queries/agency-invitations';
+import { useCan } from '@/hooks/useCan';
 
 /**
  * Le déclencheur « Inviter » de `/app/agency/team`, autoportant.
@@ -43,8 +44,21 @@ import { agencyInvitationKeys } from '@/lib/queries/agency-invitations';
  * y fera apparaître une ligne, `['agency-invitations']` parce que l'invitation s'y
  * affiche immédiatement.
  */
-export function InviteMemberButton({ agencyId }: { readonly agencyId: number }) {
+interface InviteMemberButtonProps {
+  readonly agencyId: number;
+  /**
+   * TCK-1412 (P148.02) — le compte a-t-il un rôle d'administration ? Sans lui, la page Équipe ne
+   * s'ouvre que par capacité : « Inviter » exige alors `team.invite` (l'API le juge ainsi,
+   * `AgentProfilePolicy::invite`), et « Ajouter un compte existant » disparaît — il passe par
+   * `AgencyPolicy::update`, qui juge le profil d'admin. L'admin garde les deux, comme avant.
+   */
+  readonly estAdmin?: boolean;
+}
+
+export function InviteMemberButton({ agencyId, estAdmin = true }: InviteMemberButtonProps) {
   const t = useTranslations('admin.team.console');
+  const { can: canInvite } = useCan('team.invite', agencyId);
+  const montreInviter = estAdmin || canInvite;
   const queryClient = useQueryClient();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [addExistingOpen, setAddExistingOpen] = useState(false);
@@ -54,19 +68,25 @@ export function InviteMemberButton({ agencyId }: { readonly agencyId: number }) 
     void queryClient.invalidateQueries({ queryKey: agencyInvitationKeys.all });
   };
 
+  if (!montreInviter) return null;
+
   return (
     <>
       {/* `lg:flex-nowrap` : à côté du titre (coque `lg:flex-row`), les deux boutons passaient
           l'un SOUS l'autre, « Inviter » décroché au-dessus de son voisin. */}
       <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
-        <Button size="sm" onClick={() => setInviteOpen(true)}>
-          <UserPlus className="size-4" aria-hidden="true" />
-          {t('inviteAgent')}
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => setAddExistingOpen(true)}>
-          <UserCheck className="size-4" aria-hidden="true" />
-          {t('addExisting')}
-        </Button>
+        {montreInviter ? (
+          <Button size="sm" onClick={() => setInviteOpen(true)}>
+            <UserPlus className="size-4" aria-hidden="true" />
+            {t('inviteAgent')}
+          </Button>
+        ) : null}
+        {estAdmin ? (
+          <Button size="sm" variant="outline" onClick={() => setAddExistingOpen(true)}>
+            <UserCheck className="size-4" aria-hidden="true" />
+            {t('addExisting')}
+          </Button>
+        ) : null}
       </div>
       <InviteAgentDialog
         agencyId={agencyId}

@@ -87,7 +87,7 @@ describe('<EarlyTerminationBanner>', () => {
     expect(banner).toHaveTextContent(/Fin dans/i);
     expect(banner).toHaveTextContent(/Pénalité/i);
     // Invoice link
-    expect(banner.querySelector('a[href*="invoice=42"]')).not.toBeNull();
+    expect(banner.querySelector('a[href="/app/payments?tab=invoices"]')).not.toBeNull();
     expect(banner).toHaveTextContent(/Job relocation/);
   });
 

@@ -11,7 +11,10 @@ use App\Services\Model\NotificationService;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
 use App\Services\Notifications\Sms\SmsTimeBudget;
+use App\Services\Notifications\Whatsapp\TemplateResolver;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
+use App\Services\Property\PrimaryPropertyContact;
+use App\Support\LienFront;
 use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
@@ -63,6 +66,9 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
         // TCK-590 — cf. {@see NotificationService::send()} : null, règles du code ; true, borné en
         // amont (les canaux ne recomptent pas) ; false, aucun canal mobile.
         public readonly ?bool $mobileBorne = null,
+        // TCK-1346 (P132.04) — ce qu'un SMS reporté par les heures calmes relit avant de partir
+        // ({@see \App\Services\Notifications\Sms\DeferredSmsGuard}).
+        public readonly ?array $deferredSmsGuard = null,
     ) {}
 
     /**
@@ -121,6 +127,10 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
     {
         if (! $notifiable instanceof User) {
             return $this->contactChannels($notifiable);
+        }
+        // TCK-1350 (P88.04) — même règle que `NotificationService::send()`, pour un envoi direct.
+        if (! PrimaryPropertyContact::joignable($notifiable) && ! $this->code->reachesUnreachableAccount()) {
+            return [];
         }
 
         $resolver = app(PreferenceResolver::class);
@@ -206,7 +216,7 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
 
         $path = $this->target['path'] ?? null;
         if (is_string($path) && $path !== '') {
-            $mail->action(__('notifications.open'), rtrim((string) config('app.frontend_url'), '/').$path);
+            $mail->action(__('notifications.open'), LienFront::base().$path);
         }
 
         return $mail->salutation(__('notifications.salutation'));
@@ -266,18 +276,26 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
     }
 
     /**
-     * Les variables du gabarit Meta, dans l'ordre de {@see NotificationCode::params()}.
+     * Les variables du gabarit Meta : TCK-1348 (P132.03) — celles que nomme `meta_variables` de la
+     * ligne approuvée, dans cet ordre ; un paramètre absent vaut `—`, comme au rendu. Sans ligne ni
+     * noms, l'ordre de {@see NotificationCode::params()} puis `optionalParams()`.
      *
      * @return list<string>
      */
     public function whatsappTemplateParams(object $notifiable): array
     {
-        return array_values(app(NotificationRenderer::class)->format(
+        $formatted = app(NotificationRenderer::class)->format(
             $this->code,
             $this->params,
             app()->getLocale(),
             $notifiable instanceof User && $notifiable->timezone ? $notifiable->timezone : NotificationRenderer::DEFAULT_TIMEZONE,
-        ));
+        );
+        $names = app(TemplateResolver::class)->approved($this->whatsappTemplateEvent(), app()->getLocale())?->metaVariables() ?? [];
+        if ($names === []) {
+            return array_values($formatted);
+        }
+
+        return array_map(fn (string $name): string => $formatted[$name] ?? '—', array_values($names));
     }
 
     public function appNotificationIdFor(object $notifiable): ?int

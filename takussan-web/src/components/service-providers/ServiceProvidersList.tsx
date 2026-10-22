@@ -23,6 +23,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest, ApiError, buildQueryString } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import {
   fetchServiceProviders,
   resendInvitation,
@@ -60,6 +62,8 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
   const toast = useToast();
   const queryClient = useQueryClient();
   const { token } = useAuth();
+  // TCK-1203 — relancer ou révoquer une invitation exige la 2FA de l'agence (`InvitationController`).
+  const garde = useGardeDoubleFacteur();
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const providersQuery = useQuery({
@@ -79,7 +83,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       const id = await resolveInvitationId(token, sp, agencyId);
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
-      return resendInvitation(token, id);
+      return avecGardeDoubleFacteur(() => resendInvitation(token, id), garde);
     },
     onSuccess: () => {
       toast.add({ title: tInvite('toasts.resend_success'), type: 'success' });
@@ -98,7 +102,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       const id = await resolveInvitationId(token, sp, agencyId);
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
-      return revokeInvitation(token, id);
+      return avecGardeDoubleFacteur(() => revokeInvitation(token, id), garde);
     },
     onSuccess: async () => {
       toast.add({ title: tInvite('toasts.revoke_success'), type: 'success' });
@@ -122,14 +126,22 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       id: 'name',
       header: tList('columns.name'),
       className: 'font-semibold text-foreground',
-      cell: (sp) => nomDe(sp) || '—',
+      cell: (sp) => (
+        <span className="inline-flex flex-wrap items-center gap-2">
+          {nomDe(sp) || '—'}
+          {/* TCK-1325 (P117.06) — dérivé de la pièce d'assurance vivante, côté API. */}
+          {sp.insured ? <Badge variant="outline">{tList('insured')}</Badge> : null}
+        </span>
+      ),
     },
     {
       id: 'trades',
       header: tList('columns.trades'),
       className: 'text-muted-foreground',
       cell: (sp) => {
-        const trades = sp.specialties ?? sp.metadata?.trades ?? [];
+        // TCK-1319 (P117.01) — la colonne fait foi ; la copie de l'invitation en `metadata` ne sert
+        // qu'au brouillon. Un actif qui a vidé ses métiers (colonne `null`) ne la reprend pas.
+        const trades = sp.specialties ?? (sp.status === 'draft' ? sp.metadata?.trades : null) ?? [];
         return trades.length === 0 ? (
           '—'
         ) : (
@@ -148,7 +160,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       header: tList('columns.zones'),
       className: 'text-muted-foreground',
       cell: (sp) => {
-        const zones = sp.service_areas ?? sp.metadata?.intervention_zones ?? [];
+        const zones = sp.service_areas ?? (sp.status === 'draft' ? sp.metadata?.intervention_zones : null) ?? [];
         return zones.length === 0 ? '—' : zones.join(', ');
       },
     },

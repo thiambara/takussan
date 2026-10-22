@@ -319,6 +319,31 @@ class PropertyContactLeadTest extends TestCase
         $this->assertStringContainsString('+221771234567', $title);
     }
 
+    /**
+     * TCK-1218 (P108.01) — la demande garde l'agent qui l'a portée (« User-agent source —
+     * anti-abus », `models-spec.md`). Le front le relaie depuis l'action serveur ; l'API l'écrit
+     * tel qu'elle le reçoit, borné à 255 caractères.
+     */
+    public function test_l_agent_de_la_requete_est_ecrit_sur_la_demande(): void
+    {
+        $property = Property::factory()->published()->create();
+        $firefox = 'Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0';
+
+        $this->withHeaders(['User-Agent' => $firefox])
+            ->postJson("/api/public/properties/{$property->slug}/contact-lead", [
+                'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Disponible ce samedi ?',
+            ])->assertCreated();
+
+        $this->assertSame($firefox, PropertyContactLead::query()->latest('id')->value('user_agent'));
+
+        $this->withHeaders(['User-Agent' => str_repeat('a', 300)])
+            ->postJson("/api/public/properties/{$property->slug}/contact-lead", [
+                'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Et dimanche ?',
+            ])->assertCreated();
+
+        $this->assertSame(str_repeat('a', 255), PropertyContactLead::query()->latest('id')->value('user_agent'));
+    }
+
     /** AC21 — la source d'arrivée accompagne la piste. */
     public function test_la_source_d_arrivee_est_enregistree(): void
     {
@@ -439,5 +464,24 @@ class PropertyContactLeadTest extends TestCase
         $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
             'name' => 'Awa Diop', 'phone' => '+221771231002', 'message' => 'Disponible ce samedi ?',
         ])->assertStatus(409)->assertJsonPath('code', 'lead.contact_unavailable');
+    }
+
+    /** P124.03 (TCK-1256) — même borne, en caractères, sur le formulaire de contact. */
+    public function test_un_agent_utilisateur_multioctet_a_la_borne_est_coupe_sur_un_caractere(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->published()->create(['user_id' => $owner->id]);
+
+        $this->withHeader('User-Agent', str_repeat('a', 254).'éé')
+            ->postJson("/api/public/properties/{$property->slug}/contact-lead", [
+                'name' => 'Awa Diop',
+                'email' => 'awa@example.com',
+                'phone' => '+221 77 123 45 67',
+                'message' => 'Bonjour, ce bien est-il disponible ?',
+            ])->assertCreated();
+
+        $ua = PropertyContactLead::query()->sole()->user_agent;
+        $this->assertSame(str_repeat('a', 254).'é', $ua);
+        $this->assertTrue(mb_check_encoding($ua, 'UTF-8'));
     }
 }

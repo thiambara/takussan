@@ -3,17 +3,23 @@
 namespace Tests\Feature\Dashboard;
 
 use App\Models\Agency;
+use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\BookingStatus;
+use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Services\Dashboard\KpiResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\ApiTestCase;
 
 /**
@@ -112,6 +118,58 @@ class DashboardAgencyTest extends ApiTestCase
         $this->assertSame(1, $response->json('data.properties.published'));
     }
 
+    /**
+     * P93.07 (TCK-1179) — les compteurs que seul `assertJsonStructure` voyait, chacun sur une valeur
+     * non nulle et distincte des autres, avec un intrus par règle (autre agence, autre statut).
+     */
+    public function test_p93_07_counters_have_their_value(): void
+    {
+        $agency = Agency::factory()->create(['status' => AgencyStatus::Active]);
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $agency->update(['primary_admin_id' => $admin->id]);
+        $other = Agency::factory()->create();
+
+        $bien = fn (PropertyStatus $status, ?Agency $a = null): Property => Property::factory()->create([
+            'agency_id' => ($a ?? $agency)->id, 'status' => $status,
+        ]);
+        $loues = [$bien(PropertyStatus::Rented), $bien(PropertyStatus::Rented)];
+        foreach (range(1, 3) as $_) {
+            $bien(PropertyStatus::Available);
+        }
+        $bien(PropertyStatus::Draft);
+        $ailleurs = $bien(PropertyStatus::Available, $other);
+
+        foreach (range(1, 4) as $_) {
+            Customer::factory()->create(['agency_id' => $agency->id]);
+        }
+        Customer::factory()->create(['agency_id' => $other->id]);
+
+        $reservation = fn (Property $p, BookingStatus $status) => Booking::factory()->create([
+            'property_id' => $p->id, 'agency_id' => $p->agency_id, 'status' => $status->value,
+        ]);
+        $reservation($loues[0], BookingStatus::Pending);
+        $reservation($loues[0], BookingStatus::Confirmed);
+        $reservation($ailleurs, BookingStatus::Pending);
+
+        $demande = fn (Property $p, MaintenanceStatus $status) => MaintenanceRequest::factory()->create([
+            'property_id' => $p->id, 'status' => $status,
+        ]);
+        foreach ([MaintenanceStatus::Open, MaintenanceStatus::Open, MaintenanceStatus::Open, MaintenanceStatus::InProgress, MaintenanceStatus::InProgress] as $status) {
+            $demande($loues[1], $status);
+        }
+        $demande($loues[1], MaintenanceStatus::Closed);
+        $demande($ailleurs, MaintenanceStatus::Open);
+
+        $data = $this->apiGet('/api/dashboard/agency')->assertOk()->json('data');
+
+        $this->assertSame(6, $data['properties']['total']);
+        $this->assertSame(2, $data['properties']['rented']);
+        $this->assertSame(3, $data['properties']['available']);
+        $this->assertSame(4, $data['customers_count']);
+        $this->assertSame(1, $data['bookings']['pending']);
+        $this->assertSame(5, $data['maintenance']['open']);
+    }
+
     public function test_user_from_different_agency_is_denied(): void
     {
         $agency = Agency::factory()->create();
@@ -161,6 +219,47 @@ class DashboardAgencyTest extends ApiTestCase
         $this->assertSame(1, $data['finance']['overdue_count']);
         $this->assertEquals(100_000.0, $data['finance']['overdue_amount']);
         $this->assertGreaterThan(0, $data['finance']['unpaid_rate_percent']);
+    }
+
+    /**
+     * P93.03 (TCK-1177) — le taux d'impayés rapporte l'impayé des échéances échues sur 12 mois au
+     * facturé échu des mêmes échéances : borné à 100, juste quand l'impayé vient d'un bail clos, et
+     * `null` sans échéance échue.
+     */
+    public function test_p93_03_unpaid_rate_is_owed_over_billed_of_the_same_past_due_installments(): void
+    {
+        Carbon::setTestNow('2026-07-15 00:00:00');
+        $agency = Agency::factory()->create();
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $agency->update(['primary_admin_id' => $admin->id]);
+        $rate = fn (): mixed => $this->apiGet('/api/dashboard/agency')->assertOk()->json('data.finance.unpaid_rate_percent');
+
+        $this->assertNull($rate(), 'aucune échéance échue : pas de dénominateur');
+
+        $closed = Lease::factory()->create(['agency_id' => $agency->id, 'status' => LeaseStatus::Terminated, 'monthly_rent' => 50_000]);
+        $due = fn (Lease $l, float $amount, PaymentStatus $status, string $date) => LeasePayment::factory()->create([
+            'lease_id' => $l->id,
+            'amount' => $amount,
+            'status' => $status,
+            'paid_at' => $status === PaymentStatus::Paid ? $date : null,
+            'due_date' => $date,
+        ]);
+        $due($closed, 50_000, PaymentStatus::Pending, '2026-05-05');
+
+        $this->assertEquals(100.0, $rate(), 'seul bail terminé, impayé : 0 % avant');
+
+        $active = Lease::factory()->active()->create(['agency_id' => $agency->id, 'monthly_rent' => 100_000]);
+        foreach (['2026-04-05', '2026-05-05', '2026-06-05'] as $date) {
+            $due($active, 100_000, PaymentStatus::Late, $date);
+        }
+        $due($active, 100_000, PaymentStatus::Paid, '2026-03-05');
+        $due($active, 100_000, PaymentStatus::Pending, '2026-07-20');
+        $due($active, 100_000, PaymentStatus::Late, '2025-06-05');
+
+        $data = $this->apiGet('/api/dashboard/agency')->assertOk()->json('data.finance');
+        // 350 000 impayés sur 450 000 facturés échus depuis le 2025-07-15 (350 % avant).
+        $this->assertEquals(77.78, $data['unpaid_rate_percent']);
+        $this->assertEquals(450000.0, $data['overdue_amount'], 'l\'impayé cumulé, lui, ne change pas');
     }
 
     public function test_timeseries_returned_when_requested(): void

@@ -1,10 +1,13 @@
 /**
  * TCK-274 — Floating chat widget.
  *
- * `useUnreadCount` derives the global unread badge from the cached
- * conversation list (no extra endpoint). Only conversations the current user
- * has *not muted* contribute. Cap is `9+` for display, but the hook returns
- * the raw integer — formatting lives in the badge component.
+ * `useUnreadCount` reads the global unread badge from the cached conversation
+ * list (no extra endpoint). Cap is `9+` for display, but the hook returns the
+ * raw integer — formatting lives in the badge component.
+ *
+ * TCK-1387 (P135.02) — the value is `meta.unread_total`, counted by the API
+ * over the WHOLE list (muted conversations excluded, server side), and no
+ * longer the sum of `unread_count` over the first page.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
@@ -12,7 +15,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useUnreadCount } from '../useUnreadCount';
 import type { Conversation } from '@/types/message';
 
-type ListShape = { data: Conversation[] };
+type ListShape = { data: Conversation[]; meta?: { unread_total?: number } };
 
 const useConversationsMock = vi.fn<() => { data: ListShape | undefined; isLoading: boolean }>();
 
@@ -61,75 +64,17 @@ function mkConv(overrides: Partial<Conversation>): Conversation {
 
 describe('useUnreadCount', () => {
   it('returns 0 when there are no conversations', () => {
-    useConversationsMock.mockReturnValue({ data: { data: [] }, isLoading: false });
+    useConversationsMock.mockReturnValue({ data: { data: [], meta: { unread_total: 0 } }, isLoading: false });
     const { result } = renderHook(() => useUnreadCount(), { wrapper: ({ children }) => wrap(children) });
     expect(result.current).toBe(0);
   });
 
-  it('sums unread_count across conversations', () => {
+  it('lit le total de l’API, et non la somme de la page (TCK-1387)', () => {
+    // La page ne porte aucun non-lu : le seul est dans un fil hors des 30 premiers.
     useConversationsMock.mockReturnValue({
       data: {
-        data: [
-          mkConv({ id: 1, unread_count: 3 }),
-          mkConv({ id: 2, unread_count: 5 }),
-          mkConv({ id: 3, unread_count: 0 }),
-        ],
-      },
-      isLoading: false,
-    });
-    const { result } = renderHook(() => useUnreadCount(), { wrapper: ({ children }) => wrap(children) });
-    expect(result.current).toBe(8);
-  });
-
-  it('ignores muted conversations for the current user', () => {
-    useConversationsMock.mockReturnValue({
-      data: {
-        data: [
-          mkConv({ id: 1, unread_count: 3 }),
-          mkConv({
-            id: 2,
-            unread_count: 99,
-            participants: [
-              {
-                id: 22,
-                user_id: 1,
-                role: 'member',
-                is_muted: true,
-                last_read_at: null,
-                joined_at: '2026-05-13T10:00:00Z',
-                left_at: null,
-              },
-            ],
-          }),
-        ],
-      },
-      isLoading: false,
-    });
-    const { result } = renderHook(() => useUnreadCount(), { wrapper: ({ children }) => wrap(children) });
-    expect(result.current).toBe(3);
-  });
-
-  it('ignores conversations the user has left', () => {
-    useConversationsMock.mockReturnValue({
-      data: {
-        data: [
-          mkConv({ id: 1, unread_count: 4 }),
-          mkConv({
-            id: 2,
-            unread_count: 7,
-            participants: [
-              {
-                id: 33,
-                user_id: 1,
-                role: 'member',
-                is_muted: false,
-                last_read_at: null,
-                joined_at: '2026-05-13T10:00:00Z',
-                left_at: '2026-05-13T11:00:00Z',
-              },
-            ],
-          }),
-        ],
+        data: [mkConv({ id: 1, unread_count: 0 }), mkConv({ id: 2, unread_count: 0 })],
+        meta: { unread_total: 4 },
       },
       isLoading: false,
     });
@@ -137,9 +82,29 @@ describe('useUnreadCount', () => {
     expect(result.current).toBe(4);
   });
 
+  it('n’additionne plus la page : la sourdine est jugée par l’API', () => {
+    useConversationsMock.mockReturnValue({
+      data: {
+        data: [mkConv({ id: 1, unread_count: 3 }), mkConv({ id: 2, unread_count: 99 })],
+        meta: { unread_total: 3 },
+      },
+      isLoading: false,
+    });
+    const { result } = renderHook(() => useUnreadCount(), { wrapper: ({ children }) => wrap(children) });
+    expect(result.current).toBe(3);
+  });
+
   it('returns 0 while the query is loading', () => {
     useConversationsMock.mockReturnValue({ data: undefined, isLoading: true });
     const { result } = renderHook(() => useUnreadCount(), { wrapper: ({ children }) => wrap(children) });
+    expect(result.current).toBe(0);
+  });
+
+  it('returns 0 when disabled', () => {
+    useConversationsMock.mockReturnValue({ data: { data: [], meta: { unread_total: 5 } }, isLoading: false });
+    const { result } = renderHook(() => useUnreadCount({ enabled: false }), {
+      wrapper: ({ children }) => wrap(children),
+    });
     expect(result.current).toBe(0);
   });
 });

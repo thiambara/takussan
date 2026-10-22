@@ -18,6 +18,7 @@ use App\Models\Enums\VisitType;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Policies\PropertyVisitPolicy;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Property\PrimaryPropertyContact;
@@ -155,7 +156,10 @@ class PropertyVisitController extends Controller
             'status' => VisitStatus::Scheduled->value,
         ]);
 
-        $this->notifier->requested($visit->fresh(['property', 'agent']));
+        // TCK-1410 — une demande rejouée au même créneau rend la visite déjà ouverte : déjà prévenue.
+        if ($visit->wasRecentlyCreated) {
+            $this->notifier->requested($visit->fresh(['property', 'agent']));
+        }
 
         return $this->json([
             'data' => PropertyVisitResource::make($visit)->resolve($request),
@@ -337,6 +341,31 @@ class PropertyVisitController extends Controller
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
     }
 
+    /**
+     * TCK-1375 (P115.05, décision du porteur) — le geste « absent » : le visiteur n'est pas venu.
+     * Rien n'écrivait `no_show` ; l'agent devait déclarer la visite terminée (comptée parmi les
+     * visites menées, ouverte à l'avis du visiteur) ou l'annuler. Geste de l'agence, comme
+     * `complete`, depuis `scheduled` ou `confirmed`, une fois l'heure de la visite passée. Pas de
+     * passage automatique : une visite simplement non clôturée n'est pas une absence.
+     */
+    public function noShow(Request $request, PropertyVisit $visit): JsonResponse
+    {
+        $this->authorize('update', $visit);
+        abort_code_unless($this->agitPourLeBien($request->user(), $visit), 403, 'visit.staff_only');
+
+        abort_code_unless(
+            in_array($visit->status, [VisitStatus::Scheduled, VisitStatus::Confirmed], true)
+                && $visit->scheduled_at !== null
+                && $visit->scheduled_at->lessThanOrEqualTo(now()),
+            422,
+            'visit.cannot_mark_no_show'
+        );
+
+        $visit->update(['status' => VisitStatus::NoShow]);
+
+        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
+    }
+
     public function cancel(CancelPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
         // TCK-590 — `cancel` ne prévenait personne. Le visiteur qui annule prévient l'agence ;
@@ -459,23 +488,6 @@ class PropertyVisitController extends Controller
     }
 
     /**
-     * L'appelant agit-il au nom de ceux qui gèrent le bien — et peut-il donc confirmer, clore,
-     * annuler ou déplacer une visite, et en prévenir le visiteur ?
-     *
-     *   · **bien d'agence** : le super-admin et le personnel ACTIF de l'agence du bien, rien
-     *     d'autre. Le bailleur n'est pas « l'agence » de la contrainte 4 ;
-     *   · **bien sans agence** : le super-admin, l'agent de la visite s'il est joignable, et le
-     *     propriétaire (cf. `PrimaryPropertyContact::estProprietaire`).
-     *
-     * Vérification adverse (M3, puis passe 2 : M7 et écart b) — un bailleur de l'agence annulait
-     * ou déplaçait la visite du bien d'un AUTRE bailleur, l'agent parti créateur du bien celle de
-     * « son » bien, et chaque déplacement partait en SMS au visiteur (le relais B2′). Depuis la
-     * fusion de TCK-587, `PropertyVisitPolicy::update` refuse le bailleur tiers ; elle garde le
-     * propriétaire d'un bien d'agence (`landlordWrites`), que cette règle refuse ici (écart b,
-     * décision de la session). Les deux gardes se recouvrent pour le bailleur tiers : l'ablation
-     * de l'une seule laisse le test vert, celle des deux le rougit.
-     */
-    /**
      * Passe 3 (R1) — le sort du SMS au visiteur, dit à l'appelant : `sms_sent` quand un SMS était
      * prévu ; s'il a été retenu par une borne, un code et son libellé. Le front affiche le sien
      * pour le code (`visits.smsWithheld`).
@@ -498,22 +510,10 @@ class PropertyVisitController extends Controller
         return $payload;
     }
 
+    /** P152.04 — la règle vit dans {@see PropertyVisitPolicy::agitPourLeBien}, que la ressource lit aussi. */
     private function agitPourLeBien(User $user, PropertyVisit $visit): bool
     {
-        $property = $visit->property;
-
-        if ($user->isSuperAdmin()) {
-            return true;
-        }
-        if ($property === null) {
-            return $visit->agent_id === $user->id;
-        }
-        if ($property->agency_id !== null) {
-            return PersonnelDeLAgence::personnelActifDe($user, $property->agency_id);
-        }
-
-        return ($visit->agent_id === $user->id && PrimaryPropertyContact::joignable($user))
-            || PrimaryPropertyContact::estProprietaire($user, $property);
+        return PropertyVisitPolicy::agitPourLeBien($user, $visit);
     }
 
     /** `crm.assign` dans l'agence du bien de la visite. */

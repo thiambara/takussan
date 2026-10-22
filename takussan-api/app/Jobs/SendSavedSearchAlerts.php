@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\Enums\UserStatus;
 use App\Models\SavedSearch;
 use App\Notifications\SavedSearchMatchesNotification;
 use App\Services\Model\SearchService;
@@ -97,6 +98,10 @@ class SendSavedSearchAlerts implements ShouldQueue
             ->where(fn (Builder $q) => $q
                 ->whereNotNull('user_id')
                 ->orWhereHas('alertSubscriber', fn (Builder $s) => $s->whereNotNull('confirmed_at')))
+            // TCK-1350 (P88.04) — la recherche d'un compte bloqué ou supprimé ne notifie plus.
+            ->where(fn (Builder $q) => $q
+                ->whereNull('user_id')
+                ->orWhereHas('user', fn (Builder $u) => $u->whereNotIn('status', [UserStatus::Blocked->value, UserStatus::Deleted->value])))
             ->each(function (SavedSearch $search) use ($searchService): void {
                 try {
                     $this->traiter($search, $searchService);

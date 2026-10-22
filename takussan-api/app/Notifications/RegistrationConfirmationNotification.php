@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\RetriesWithBackoff;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -17,6 +18,13 @@ use Illuminate\Notifications\Messages\MailMessage;
 class RegistrationConfirmationNotification extends VerifyEmail implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
+
+    /** TCK-1352 (P142.05) — le lien ne se livre pas périmé : aucun essai au-delà de sa durée de vie. */
+    public function retryUntil(): \DateTimeInterface
+    {
+        return now()->addMinutes((int) config('auth.verification.expire', 60));
+    }
 
     /** TCK-747 (P11.04) — les e-mails du compte partent par la file urgente, hors de la requête. */
     public function viaQueues(): array

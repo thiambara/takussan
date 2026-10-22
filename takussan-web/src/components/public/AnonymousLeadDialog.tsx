@@ -19,19 +19,25 @@ import { MentionDeConfidentialite } from '@/components/public/MentionDeConfident
 import { arrivee } from '@/lib/attribution';
 import { lireCoordonnees, retenirCoordonnees } from '@/lib/coordonnees-retenues';
 import type { AnonymousLeadPayload } from '@/types/contact-lead';
+import { useCleIdempotence } from '@/hooks/useCleIdempotence';
 
 export type { AnonymousLeadPayload };
 
 export interface AnonymousLeadResult {
   readonly ok: boolean;
   readonly message?: string;
+  readonly code?: string;
 }
 
 interface AnonymousLeadDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   /** À qui la piste est destinée — bien, agent… Le dialogue ne le sait pas et n'a pas à le savoir. */
-  readonly onSubmit: (payload: AnonymousLeadPayload) => Promise<AnonymousLeadResult>;
+  /**
+   * TCK-1410 (ADR-0072) — `cleIdempotence` est engendrée par le dialogue, gardée tant que l'envoi
+   * échoue et renouvelée sur succès : l'action la transmet telle quelle à l'API.
+   */
+  readonly onSubmit: (payload: AnonymousLeadPayload, cleIdempotence: string) => Promise<AnonymousLeadResult>;
   /** Préfixe des `id` de champ : deux instances montées ensemble produiraient des `id` dupliqués. */
   readonly idPrefix?: string;
   readonly title?: string;
@@ -85,6 +91,8 @@ export function AnonymousLeadDialog({
   const [message, setMessage] = useState(defaultMessage ?? '');
   const [company, setCompany] = useState(''); // honeypot
   const [submitting, setSubmitting] = useState(false);
+  // TCK-1410 (ADR-0072) — renvoyée après une réponse perdue, la demande ne s'écrit qu'une fois.
+  const idempotence = useCleIdempotence();
   const [errors, setErrors] = useState<
     Partial<Record<'name' | 'email' | 'phone' | 'contact' | 'message', string>>
   >({});
@@ -107,14 +115,18 @@ export function AnonymousLeadDialog({
     e.preventDefault();
     if (!validate()) return;
     setSubmitting(true);
-    const res = await onSubmit({
-      name: name.trim(),
-      email: email.trim() || undefined,
-      phone: phone || undefined,
-      message: message.trim(),
-      company: company || undefined,
-      ...arrivee(),
-    });
+    const res = await onSubmit(
+      {
+        name: name.trim(),
+        email: email.trim() || undefined,
+        phone: phone || undefined,
+        message: message.trim(),
+        company: company || undefined,
+        ...arrivee(),
+      },
+      idempotence.cle(),
+    );
+    idempotence.apres(res);
     setSubmitting(false);
     if (res.ok) {
       retenirCoordonnees({ name: name.trim(), phone });

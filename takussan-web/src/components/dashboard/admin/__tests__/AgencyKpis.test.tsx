@@ -69,6 +69,27 @@ describe('<AgencyKpis>', () => {
     expect(tuile.textContent).not.toMatch(/0\s*%/);
   });
 
+  // P93.03 (TCK-1177) — sans échéance échue sur 12 mois, l'API rend `unpaid_rate_percent: null` :
+  // pas de dénominateur, donc un tiret et aucun ton d'alerte, jamais « 0 % ».
+  it('affiche un tiret, sans alerte, quand le taux d’impayés est null', () => {
+    const { container } = render(withIntl(<AgencyKpis
+        summary={buildSummary({
+          finance: {
+            revenue_month: 0,
+            commission_month: 0,
+            overdue_count: 0,
+            overdue_amount: 0,
+            unpaid_rate_percent: null,
+          },
+        })}
+      />));
+
+    const tuile = screen.getByText("Taux d'impayés").parentElement as HTMLElement;
+    expect(tuile.textContent).toContain('—');
+    expect(tuile.textContent).not.toMatch(/0\s*%/);
+    expect(container.querySelector('[class*="bg-warning/"]')).toBeNull();
+  });
+
   it('marks the unpaid rate tile as warning when ≥ 10 %', () => {
     const { container } = render(withIntl(<AgencyKpis
         summary={buildSummary({

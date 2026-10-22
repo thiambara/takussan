@@ -15,11 +15,11 @@ use App\Http\Requests\UpdatePropertyRequest;
 use App\Http\Resources\PropertyResource;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
-use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Notifications\PropertyProposedNotification;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyBulkArchiveService;
@@ -145,6 +145,13 @@ class PropertyController extends Controller
                 return $property;
             });
 
+            // P122.01, P122.02 (TCK-1262) — l'observateur de Scout a indexé le bien à son `save()`,
+            // AVANT l'adresse : sous `SCOUT_AFTER_COMMIT=false`, le document gardait l'adresse
+            // d'avant, ou aucune. Réindexé après la transaction, adresse rechargée.
+            if (! empty($data['address'])) {
+                $property->load('address')->reindexer();
+            }
+
             if ($publieALaCreation) {
                 app(PublishReadiness::class)->recordTerms($request->user(), $request->boolean('accept_terms'));
             }
@@ -225,6 +232,13 @@ class PropertyController extends Controller
                     : $property->address()->create($addressData);
             }
         });
+
+        // P122.01, P122.02 (TCK-1262) — l'observateur de Scout a indexé le bien à son `save()`,
+        // AVANT l'adresse : sous `SCOUT_AFTER_COMMIT=false`, le document gardait l'adresse
+        // d'avant, ou aucune. Réindexé après la transaction, adresse rechargée.
+        if (($data['address'] ?? null) !== null) {
+            $property->load('address')->reindexer();
+        }
 
         if ($rendPublic) {
             $readiness->recordTerms($request->user(), $request->boolean('accept_terms'));
@@ -362,12 +376,8 @@ class PropertyController extends Controller
      */
     private function notifyAgencyAdminsOfProposal(Property $property): void
     {
-        $admins = User::query()
-            ->whereIn('id', AgencyAdminProfile::query()
-                ->where('agency_id', $property->agency_id)
-                ->active()
-                ->select('user_id'))
-            ->get();
+        // TCK-1318 — la liste unique : profil actif et compte joignable.
+        $admins = AdminsDeLAgence::destinataires((int) $property->agency_id);
 
         Notification::send($admins, new PropertyProposedNotification($property));
     }

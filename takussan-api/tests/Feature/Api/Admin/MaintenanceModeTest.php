@@ -38,6 +38,35 @@ class MaintenanceModeTest extends TestCase
         $this->getJson('/api/properties')->assertOk();
     }
 
+    /**
+     * P98.09 (TCK-1174) — la connexion et `GET /api/auth/me` échappent à la fenêtre, dans les deux
+     * modes : l'opérateur qui doit la lever se connecte, et la console, qui lit `/auth/me` avant de
+     * se rendre, se charge. Avant, `down` rendait 503 aux deux, `read_only` à la connexion.
+     */
+    public function test_a_super_admin_signs_in_and_loads_the_console_during_a_window(): void
+    {
+        foreach (['down', 'read_only'] as $mode) {
+            MaintenanceWindow::query()->delete();
+            Cache::flush();
+            $this->window($mode, now()->subMinute(), now()->addHour());
+
+            $operator = $this->actingAsRole('super_admin', ['password' => bcrypt('motdepasse-98-09')]);
+            $this->app['auth']->forgetGuards();
+
+            // La connexion passe la fenêtre : 200, le jeton ou la demande du second facteur du compte.
+            $login = $this->postJson('/api/auth/login', ['email' => $operator->email, 'password' => 'motdepasse-98-09'])
+                ->assertOk();
+            $this->assertTrue($login->json('token') !== null || $login->json('requires_2fa') === true, $mode);
+
+            $token = $operator->createToken('p98-09')->plainTextToken;
+            $this->app['auth']->forgetGuards();
+            $this->withToken($token)->getJson('/api/auth/me')->assertOk();
+            if ($mode === 'down') {
+                $this->withToken($token)->getJson('/api/properties')->assertStatus(503);
+            }
+        }
+    }
+
     public function test_public_status_shows_banner_30_minutes_before_window(): void
     {
         $this->window('banner', now()->addMinutes(20), now()->addHour());

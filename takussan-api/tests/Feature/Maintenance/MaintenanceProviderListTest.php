@@ -3,7 +3,9 @@
 namespace Tests\Feature\Maintenance;
 
 use App\Models\Address;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenanceStatus;
+use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -66,5 +68,31 @@ class MaintenanceProviderListTest extends TestCase
 
         Sanctum::actingAs($landlord);
         $this->getJson('/api/maintenance-requests')->assertOk()->assertJsonPath('meta.abilities.can_create', true);
+    }
+
+    /**
+     * TCK-1436 (P162.04) — le locataire en préavis (`terminating`) habite encore le logement :
+     * `store()` l'admet depuis TCK-1001, « Nouvelle demande » doit donc lui être proposée.
+     */
+    public function test_a_tenant_under_notice_is_offered_a_new_request(): void
+    {
+        ['tenant' => $tenant, 'property' => $property] = $this->maintenanceScenario();
+        Lease::query()->where('property_id', $property->id)->update(['status' => LeaseStatus::Terminating]);
+
+        Sanctum::actingAs($tenant);
+        $this->getJson('/api/maintenance-requests')->assertOk()->assertJsonPath('meta.abilities.can_create', true);
+
+        // Ce que le lanceur demande : la liste `active,terminating` rend le bail en préavis.
+        $this->getJson('/api/leases?filter[status]=active,terminating')->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.status', 'terminating');
+
+        // Le témoin : ce que le bouton produit.
+        $this->postJson('/api/maintenance-requests', [
+            'property_id' => $property->id,
+            'title' => 'Fuite',
+            'description' => 'Fuite sous l\'évier de la cuisine.',
+            'category' => 'plumbing',
+        ])->assertCreated();
     }
 }

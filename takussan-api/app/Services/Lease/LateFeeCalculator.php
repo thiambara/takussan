@@ -5,6 +5,7 @@ namespace App\Services\Lease;
 use App\Domain\Settings\EditablePlatformSettings;
 use App\Events\Lease\LeasePaymentLateFeeApplied;
 use App\Models\Enums\Currency;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -78,6 +79,13 @@ class LateFeeCalculator
     public function isApplicable(LeasePayment $payment, ?CarbonInterface $now = null): bool
     {
         if ($payment->late_fee_applied_at !== null) {
+            return false;
+        }
+
+        // TCK-1149 (P81.03) — la pénalité est celle d'une échéance de loyer (`docs/features.md`
+        // § 1.4) : ni l'indemnité de résiliation, ni la caution, ni les charges, ni une
+        // régularisation n'en portent.
+        if ($payment->payment_type !== LeasePaymentType::Rent) {
             return false;
         }
 

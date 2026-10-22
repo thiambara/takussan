@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api\Permissions;
 
+use App\Models\Activity;
 use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\Enums\AgencyKind;
@@ -240,6 +241,28 @@ class RoleDelegationActivityWindowTest extends TestCase
             "Une délégation à `starts_at` futur naît `Active` : l'abandon de la clause `starts_at` "
             ."dans la fenêtre d'activité ouvre alors un privilège avant sa date de début.",
         );
+    }
+
+    /**
+     * TCK-1399 (P139.05) — la création et la révocation posent `event`, comme leurs sœurs
+     * `activated` et `expired` du même service : `created` et `revoked`.
+     */
+    public function test_creation_et_revocation_posent_leur_evenement(): void
+    {
+        $service = app(RoleDelegationService::class);
+        $delegation = $service->create($this->agency, $this->delegant, [
+            'user_id' => $this->agentMembre()->id,
+            'role' => 'agent',
+            'starts_at' => now()->addDay(),
+            'ends_at' => now()->addWeek(),
+        ]);
+        $service->revoke($delegation, $this->delegant);
+
+        $events = Activity::query()
+            ->whereIn('description', ['role_delegation.created', 'role_delegation.revoked'])
+            ->pluck('event', 'description')
+            ->all();
+        $this->assertSame(['role_delegation.created' => 'created', 'role_delegation.revoked' => 'revoked'], $events);
     }
 
     // ---------------------------------------------------------------- outillage

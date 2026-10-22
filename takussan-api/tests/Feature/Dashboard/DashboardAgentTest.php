@@ -124,6 +124,35 @@ class DashboardAgentTest extends ApiTestCase
             ->assertJsonPath('data.recent_activity.0.label', 'Relancer Awa');
     }
 
+    /**
+     * P134.01 (TCK-1260) — à échéance égale (ici, aucune), la tâche la plus prioritaire sort la
+     * première. `orderByDesc('priority')` triait la chaîne : `medium`, `low`, puis `high`.
+     */
+    public function test_tasks_without_due_date_come_highest_priority_first(): void
+    {
+        $agency = Agency::factory()->create();
+        $agent = $this->apiActingAsRole('agent', ['agency' => $agency]);
+        $customer = Customer::factory()->create(['agency_id' => $agency->id]);
+
+        foreach ([TaskPriority::Low, TaskPriority::Medium, TaskPriority::High] as $priority) {
+            Task::create([
+                'title' => 'Tâche '.$priority->value,
+                'taskable_type' => Customer::class,
+                'taskable_id' => $customer->id,
+                'assigned_to_id' => $agent->id,
+                'created_by_id' => $agent->id,
+                'due_at' => null,
+                'status' => TaskStatus::Open,
+                'priority' => $priority,
+            ]);
+        }
+
+        $this->apiGet('/api/dashboard/agent')->assertOk()
+            ->assertJsonPath('data.tasks.items.0.priority', 'high')
+            ->assertJsonPath('data.tasks.items.1.priority', 'medium')
+            ->assertJsonPath('data.tasks.items.2.priority', 'low');
+    }
+
     public function test_customer_is_denied(): void
     {
         $this->apiActingAsRole('customer');

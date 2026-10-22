@@ -72,10 +72,13 @@ class TaskController extends Controller
             $data['assigned_to_id'] = $this->routeToSubstitute($user, (int) $data['assigned_to_id'], $parent);
         }
 
+        $status = $data['status'] ?? TaskStatus::Open->value;
         $task = Task::create(array_merge($data, [
             'created_by_id' => $user->id,
-            'status' => $data['status'] ?? TaskStatus::Open->value,
+            'status' => $status,
             'priority' => $data['priority'] ?? TaskPriority::Medium->value,
+            // TCK-1311 (P147.09) — une tâche qui naît `done` porte sa date d'achèvement.
+            'completed_at' => TaskStatus::from($status) === TaskStatus::Done ? now() : null,
         ]));
 
         return $this->json(['data' => $this->format($task->load(['assignee', 'creator', 'taskable']), $user)], 201);
@@ -155,6 +158,10 @@ class TaskController extends Controller
 
         if (isset($data['status']) && TaskStatus::from($data['status']) === TaskStatus::Done && $task->completed_at === null) {
             $data['completed_at'] = now();
+        }
+        // TCK-1311 (P147.09) — rouverte, une tâche n'est plus achevée : sa date d'achèvement tombe.
+        if (isset($data['status']) && in_array(TaskStatus::from($data['status']), [TaskStatus::Open, TaskStatus::InProgress], true)) {
+            $data['completed_at'] = null;
         }
 
         $task->fill($data)->save();

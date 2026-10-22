@@ -3,6 +3,7 @@
 import { ApiError, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
+import { codeDoubleFacteur, type CodeDoubleFacteur } from '@/lib/double-facteur';
 import {
   listActiveSessions,
   phoneChangeCode,
@@ -45,7 +46,7 @@ function requireToken(
 
 type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; message: string };
+  | { ok: false; message: string; code?: CodeDoubleFacteur };
 
 /** Clés de repli de `serverActions.security` — l'union tient lieu de contrôle de frappe. */
 type CleRepli =
@@ -58,7 +59,10 @@ type CleRepli =
   | 'sessionsFailed'
   | 'revokeSessionFailed';
 
-async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; message: string }> {
+async function failure(
+  err: unknown,
+  cleRepli: CleRepli,
+): Promise<{ ok: false; message: string; code?: CodeDoubleFacteur }> {
   journaliserErreurInattendue('security', err);
   const t = await getTranslations('serverActions.security');
   const repli = t(cleRepli);
@@ -66,7 +70,14 @@ async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; m
     // ⚠️ C'était `err.displayMessage || repli`, et le repli était MORT : `displayMessage` rendait
     // une clé i18n, et une clé est *truthy*. Un module `'use server'` traduit avec
     // `getTranslations`, jamais en lisant un libellé pré-calculé sur l'erreur.
-    return { ok: false, message: messageErreurApi(err, await getTranslations(), repli) };
+    // TCK-1203 — le refus de second facteur garde son code : sans lui, `avecGardeDoubleFacteurAction`
+    // ne peut pas demander le TOTP, et l'écran n'affiche qu'un « code requis » sans champ.
+    const code = codeDoubleFacteur(err);
+    return {
+      ok: false,
+      message: messageErreurApi(err, await getTranslations(), repli),
+      ...(code ? { code } : {}),
+    };
   }
   return { ok: false, message: repli };
 }

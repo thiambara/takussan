@@ -66,24 +66,18 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const reviewRent = useReviewLeaseRent(leaseId);
   const toast = useToast();
 
-  // TCK-088 — display the refund action only to roles that hold
-  // `leases.refund_deposit` server-side. Backend re-checks scope
-  // (landlord_id / agency_id) and will 403 if it doesn't match.
-  const canRefundDeposit = useMemo(() => {
+  // TCK-173 — les gestes de gestion qu'aucune capacité ne juge (document, échéancier, garants,
+  // préavis) ne se montrent pas au locataire : tout rôle de gestion les voit.
+  //
+  // P152.02 — renouveler, réviser le loyer, encaisser et restituer le dépôt NE suivent PLUS ce
+  // rôle : `LeasePolicy` les juge par capacité (`leases.renew`, `leases.rent_review`,
+  // `payments.record`, `leases.refund_deposit`), et le détail rend son verdict dans `abilities`.
+  const isAgentSurface = useMemo(() => {
     const roles = user?.roles ?? [];
     return roles.some((r) =>
       ['super_admin', 'agency_admin', 'agent', 'owner'].includes(r),
     );
   }, [user]);
-
-  // TCK-173 — agent-only management CTAs (add document, generate schedule,
-  // record a manual payment, add a guarantor) must not surface to a tenant.
-  // The same role gate as refund_deposit is reused: anyone with a managing
-  // role can act, the tenant cannot.
-  const isAgentSurface = canRefundDeposit;
-
-  // TCK-089 — same role gate as refund_deposit (server checks `leases.renew`).
-  const canRenew = canRefundDeposit;
 
 
   const latePaymentsCount = useMemo(() => {
@@ -98,9 +92,15 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
     }).length;
   }, [paymentsData]);
 
+  // TCK-1189 (P101.02) — le seul titre de la page est celui du bail : les écrans de chargement
+  // et d'erreur gardent un h1, comme `BookingDetail`.
+  const titreDeRepli = (
+    <h1 className="sr-only">{tLease('fallbackReference', { id: String(leaseId) })}</h1>
+  );
   if (isLoading) {
     return (
       <div className="space-y-6" aria-busy="true">
+        {titreDeRepli}
         <Skeleton className="h-16 w-64 rounded-xl" />
         <Skeleton className="h-60 rounded-xl" />
       </div>
@@ -108,11 +108,14 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   }
   if (isError || !data) {
     return (
-      <ErrorState
-        message={t('error')}
-        onRetry={() => void leaseQuery.refetch()}
-        retryLabel={tCommon('actions.retry')}
-      />
+      <>
+        {titreDeRepli}
+        <ErrorState
+          message={t('error')}
+          onRetry={() => void leaseQuery.refetch()}
+          retryLabel={tCommon('actions.retry')}
+        />
+      </>
     );
   }
 
@@ -122,7 +125,11 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   // est vérifié juste avant le rendu du bouton.
   const isLeaseTenant =
     user != null && lease.tenant?.user_id != null && lease.tenant.user_id === user.id;
-  const canRequestTermination = canRefundDeposit || isLeaseTenant;
+  const canRequestTermination = isAgentSurface || isLeaseTenant;
+  const canRenew = lease.abilities?.renew === true;
+  const canReviewRent = lease.abilities?.review_rent === true;
+  const canRecordPayment = lease.abilities?.record_payment === true;
+  const canRefundDeposit = lease.abilities?.refund_deposit === true;
   const rentOrPrice = lease.type === 'sale' ? lease.sale_price : lease.monthly_rent;
 
   async function handleRentReview() {
@@ -183,20 +190,22 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
               >
                 {generateSchedule.isPending ? t('generating') : t('generateSchedule')}
               </Button>
-              {lease.status === 'active' && lease.type !== 'sale' && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleRentReview}
-                  disabled={reviewRent.isPending}
-                >
-                  {t('reviewRent')}
-                </Button>
-              )}
-              <Button type="button" onClick={() => setPaymentOpen(true)}>
-                {t('recordPayment')}
-              </Button>
             </>
+          )}
+          {canReviewRent && lease.status === 'active' && lease.type !== 'sale' && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleRentReview}
+              disabled={reviewRent.isPending}
+            >
+              {t('reviewRent')}
+            </Button>
+          )}
+          {canRecordPayment && (
+            <Button type="button" onClick={() => setPaymentOpen(true)}>
+              {t('recordPayment')}
+            </Button>
           )}
           {!isAgentSurface && (
             <BoutonTelechargement
@@ -283,6 +292,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
           agencyId={lease.agency_id ?? null}
           landlordId={lease.landlord_id}
           canManage={isAgentSurface}
+          canRecordPayment={canRecordPayment}
         />
       </section>
 

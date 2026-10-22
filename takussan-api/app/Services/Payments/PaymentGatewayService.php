@@ -803,13 +803,10 @@ class PaymentGatewayService
                 if ($current === PaymentStatus::Paid
                     && $this->isSettledBy($existingMeta, $transactionId)
                     && ! $this->isMarkedDuplicate($existingMeta, $transactionId)) {
-                    $this->writeStatus($payment, PaymentStatus::Refunded);
                     // TCK-873 (P39.03) — la même écriture que le geste manuel
                     // (`BookingPaymentService::refund`) : sans `refund_amount`, le payable remboursé
                     // comptait son montant entier comme reçu (`paid_amount`).
-                    if ($this->hasColumn($payment, 'refund_amount')) {
-                        $payment->refund_amount = $this->reportedRefundAmount($payment, $metadata);
-                    }
+                    $this->applyRefund($payment, $metadata);
                 } elseif (! $this->isMarkedDuplicate($existingMeta, $transactionId)
                     && ! (in_array($current, [PaymentStatus::Paid, PaymentStatus::Refunded], true) && $this->isSettledBy($existingMeta, $transactionId))) {
                     // TCK-889 (P39.04) — un remboursement reçu AVANT le paiement de sa transaction
@@ -1333,6 +1330,29 @@ class PaymentGatewayService
      *
      * @param  array<string,mixed>  $metadata
      */
+    /**
+     * TCK-1214 (P76.02, option (b)) — seul un remboursement TOTAL passe le payable à `refunded`. Un
+     * remboursement partiel le laisse `paid` avec son `refund_amount` : l'encaissé, la clôture de la
+     * plateforme et `PayoutCalculator` le comptent alors à hauteur de `montant − refund_amount`. Un
+     * payable sans colonne `refund_amount` ne connaît que le remboursement total.
+     *
+     * @param  array<string,mixed>  $metadata
+     */
+    protected function applyRefund(Model $payment, array $metadata): void
+    {
+        if (! $this->hasColumn($payment, 'refund_amount')) {
+            $this->writeStatus($payment, PaymentStatus::Refunded);
+
+            return;
+        }
+
+        $refund = $this->reportedRefundAmount($payment, $metadata);
+        $payment->refund_amount = $refund;
+        if ($refund >= (float) $payment->amount) {
+            $this->writeStatus($payment, PaymentStatus::Refunded);
+        }
+    }
+
     protected function reportedRefundAmount(Model $payment, array $metadata): float
     {
         $amount = (float) $payment->amount;
@@ -1387,10 +1407,7 @@ class PaymentGatewayService
 
         if ($this->currentPaymentStatus($payment) === PaymentStatus::Paid && ($gateway['settled_by'] ?? null) === $transactionId) {
             $payment->save();
-            $this->writeStatus($payment, PaymentStatus::Refunded);
-            if ($this->hasColumn($payment, 'refund_amount')) {
-                $payment->refund_amount = $this->reportedRefundAmount($payment, $refund);
-            }
+            $this->applyRefund($payment, $refund);
         }
 
         return $meta;

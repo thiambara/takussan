@@ -6,6 +6,8 @@ use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\NotificationType;
 use App\Models\User;
 use App\Notifications\Channels\AppDatabaseChannel;
+use App\Notifications\Concerns\RetriesWithBackoff;
+use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -22,6 +24,7 @@ use Illuminate\Notifications\Notification;
 class AgencyUpgradeRequestSubmittedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public function __construct(
         public readonly AgencyUpgradeRequest $upgradeRequest,
@@ -92,7 +95,7 @@ class AgencyUpgradeRequestSubmittedNotification extends Notification implements 
      */
     protected function reviewUrl(): string
     {
-        $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+        $frontend = LienFront::base();
 
         return $frontend.'/super-admin/agency-upgrade-requests/'.$this->upgradeRequest->id;
     }

@@ -8,6 +8,7 @@ use App\Models\Activity;
 use App\Models\Integration;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
+use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Model\NotificationService;
 
 /**
@@ -106,13 +107,8 @@ class GovernanceAlertService
     /** @return iterable<User> */
     private function recipients(int $agencyId, int $authorId): iterable
     {
-        return AgencyAdminProfile::query()
-            ->where('agency_id', $agencyId)
-            ->active()
-            ->with('user')
-            ->get()
-            ->pluck('user')
-            ->filter(fn (?User $user) => $user !== null && $user->id !== $authorId)
-            ->unique('id');
+        // TCK-1318 — la liste unique (profil actif, compte joignable), moins l'auteur du geste.
+        return AdminsDeLAgence::destinataires($agencyId)
+            ->reject(fn (User $user): bool => $user->id === $authorId);
     }
 }

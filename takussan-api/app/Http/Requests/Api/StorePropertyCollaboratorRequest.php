@@ -44,7 +44,7 @@ class StorePropertyCollaboratorRequest extends BaseFormRequest
                 // absent : `exists:` nu le laissait passer, et la règle d'éligibilité, qui ne le
                 // trouve pas par `find()`, s'en remet à celle-ci.
                 Rule::exists('users', 'id')->whereNull('deleted_at'),
-                new CollaboratorEligibleForProperty($this->route('property'), $this->input('role')),
+                new CollaboratorEligibleForProperty($this->route('property'), $this->input('role'), $this->user()),
             ],
             'role' => ['required', Rule::enum(CollaboratorRole::class)],
             'commission_share' => ['nullable', 'numeric', 'min:0', 'max:100'],

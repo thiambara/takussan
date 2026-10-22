@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Filters\DateBoundaryFilter;
 use App\Http\Requests\Admin\ReinstateAgencyRequest;
 use App\Http\Requests\Admin\SuspendAgencyRequest;
 use App\Http\Resources\Api\Admin\AgencyResource;
@@ -95,10 +96,12 @@ class AgencyModerationController extends Controller
         }
 
         if ($createdFrom = $request->string('filter.created_from')->trim()->value()) {
+            DateBoundaryFilter::exiger($createdFrom, 'created_from');
             $query->whereDate('agencies.created_at', '>=', $createdFrom);
         }
 
         if ($createdTo = $request->string('filter.created_to')->trim()->value()) {
+            DateBoundaryFilter::exiger($createdTo, 'created_to');
             $query->whereDate('agencies.created_at', '<=', $createdTo);
         }
 

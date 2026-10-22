@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Filters\DateBoundaryFilter;
 use App\Http\Filters\ExactIdentifierFilter;
 use App\Http\Requests\Api\IndexAuditLogRequest;
 use App\Models\Activity;
+use App\Models\User;
 use App\Services\Audit\AuditScope;
 use App\Support\AgencyKindGuard;
 use App\Support\Audit\PropertyRedactor;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -66,7 +67,7 @@ class AuditLogController extends Controller
                 'causer_id' => $log->causer_id,
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
-                'properties' => PropertyRedactor::redact($log->properties),
+                'properties' => PropertyRedactor::redact($log->properties, $log->subject_type),
                 'created_at' => $log->created_at,
             ])->all(),
             'meta' => $this->paginationMeta($paginator),
@@ -127,11 +128,11 @@ class AuditLogController extends Controller
         }
 
         if (! empty($filters['from'])) {
-            $baseQuery->where('created_at', '>=', $this->normalizeRangeBoundary($filters['from'], false));
+            $baseQuery->where('created_at', '>=', DateBoundaryFilter::normalize($filters['from'], false));
         }
 
         if (! empty($filters['to'])) {
-            $baseQuery->where('created_at', '<=', $this->normalizeRangeBoundary($filters['to'], true));
+            $baseQuery->where('created_at', '<=', DateBoundaryFilter::normalize($filters['to'], true));
         }
 
         // Spatie-style nested filters: allow `filter[causer_id]=`, `filter[event]=`,
@@ -145,15 +146,12 @@ class AuditLogController extends Controller
                 AllowedFilter::exact('causer_type'),
                 AllowedFilter::exact('subject_type'),
                 AllowedFilter::custom('subject_id', new ExactIdentifierFilter),
-                AllowedFilter::callback('date_from', function (Builder $q, string $value): void {
-                    $q->where('created_at', '>=', $this->normalizeRangeBoundary($value, false));
-                }),
-                AllowedFilter::callback('date_to', function (Builder $q, string $value): void {
-                    $q->where('created_at', '<=', $this->normalizeRangeBoundary($value, true));
-                }),
+                AllowedFilter::custom('date_from', new DateBoundaryFilter('created_at', false)),
+                AllowedFilter::custom('date_to', new DateBoundaryFilter('created_at', true)),
                 AllowedFilter::callback('search', function (Builder $q, string $value): void {
                     $q->where('description', 'like', '%'.$value.'%');
-                }),
+                    // TCK-1401 (P151.01) — texte libre : sans délimiteur, spatie découpe « Diop, Awa » en tableau.
+                })->delimiter(''),
             );
 
         $order = ($filters['order'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
@@ -170,35 +168,18 @@ class AuditLogController extends Controller
                 'causer_id' => $log->causer_id,
                 'causer' => $log->causer ? [
                     'id' => $log->causer->getKey(),
-                    'name' => $log->causer->name ?? null,
+                    // TCK-1261 — `users` n'a pas de colonne `name` : le nom est `full_name`,
+                    // nul s'il est vide pour que l'écran retombe sur l'adresse.
+                    'name' => ($log->causer instanceof User ? $log->causer->full_name : ($log->causer->name ?? null)) ?: null,
                     'email' => $log->causer->email ?? null,
                 ] : null,
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
-                'properties' => PropertyRedactor::redact($log->properties),
+                'properties' => PropertyRedactor::redact($log->properties, $log->subject_type),
                 'created_at' => $log->created_at,
             ];
         })->all();
 
         return $this->paginated($paginator, $data);
-    }
-
-    /**
-     * Normalize a date-range boundary so date-only inputs cover the full day.
-     *
-     * `?to=2026-04-22` would otherwise compile to `created_at <= 2026-04-22 00:00:00`
-     * and silently drop every row from that day. When the caller passes a
-     * date-only value (no time component), expand it to start/end-of-day based
-     * on whether it is a lower or upper bound. Full datetimes pass through.
-     */
-    private function normalizeRangeBoundary(string $value, bool $isUpperBound): string
-    {
-        $parsed = Carbon::parse($value);
-
-        if (! str_contains($value, ':')) {
-            return ($isUpperBound ? $parsed->endOfDay() : $parsed->startOfDay())->toDateTimeString();
-        }
-
-        return $parsed->toDateTimeString();
     }
 }

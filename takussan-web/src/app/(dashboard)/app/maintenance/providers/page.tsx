@@ -6,6 +6,7 @@ import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchServiceProviders } from '@/lib/queries/service-providers';
 import { ServiceProvidersList } from '@/components/service-providers/ServiceProvidersList';
 import { isAdmin } from '@/lib/roles';
+import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
 import { getTranslations } from 'next-intl/server';
 import { ShieldOff } from 'lucide-react';
 
@@ -26,11 +27,9 @@ export const dynamic = 'force-dynamic';
  *  - l'agence est `standard` OU `individual` (le carnet est ouvert aux
  *    deux typologies — un host individual a aussi besoin de ses
  *    prestataires) ;
- *  - et l'acteur est `agency_admin` / `super_admin` / `admin` ou un
- *    agent à qui la permission `invite_service_provider` a été
- *    déléguée. La détection de la permission déléguée côté front est
- *    laissée à TCK-262/261 (pour l'instant le toast 403 sert de garde-
- *    fou côté backend).
+ *  - et l'acteur est admin de l'agence (`agency_admin` / `super_admin`), ou
+ *    tient la capacité `team.invite` dans l'agence du profil actif (P152.01,
+ *    lue par `capacitesDuProfilActif`).
  */
 export default async function Page() {
   const user = await getMeAction();
@@ -46,12 +45,13 @@ export default async function Page() {
   // y inviter (`ServiceProviderProfilePolicy::viewAny` avec agence). Un agent sans cette
   // délégation recevait un 403 NON rattrapé : la page tombait dans la frontière d'erreur
   // (« Une erreur est survenue »), c'est-à-dire qu'un refus attendu se lisait comme une panne.
-  const [agency, providers] = await Promise.all([
+  const [agency, providers, capacites] = await Promise.all([
     resolveAgencyOrNull(token, agencyId, 'maintenance/providers'),
     fetchServiceProviders(token, { agencyId }).catch((error: unknown) => {
       if (error instanceof ApiError && error.status === 403) return null;
       throw error;
     }),
+    isAdmin(user.roles) ? Promise.resolve(null) : capacitesDuProfilActif(),
   ]);
 
   if (providers === null) {
@@ -82,9 +82,9 @@ export default async function Page() {
   // `individual` est explicitement autorisé (cf. ticket).
   const canInvite =
     (agency?.kind === 'standard' || agency?.kind === 'individual') &&
-    (user.roles.includes('agency_admin') ||
-      isAdmin(user.roles) ||
-      user.roles.includes('super_admin'));
+    // P152.01 — la règle de `ServiceProviderProfilePolicy::canInviteIn` : l'admin de l'agence, ou
+    // qui tient `team.invite` dans l'agence du profil actif. Une lecture en panne ne montre rien.
+    (isAdmin(user.roles) || (capacites ?? []).includes('team.invite'));
 
   return (
     <ServiceProvidersList

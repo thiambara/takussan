@@ -23,7 +23,7 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 | Permissions | ~~spatie/laravel-permission~~ — **retiré en TCK-278**, remplacé par les profils polymorphes (cf. Règle 5 de `models-spec.md`) | — |
 | Audit log | spatie/laravel-activitylog | ^5.0 |
 | Médias | spatie/laravel-medialibrary | ^11.0 |
-| PDF | spatie/laravel-pdf | ^2.0 (driver `cloudflare` par défaut, `dompdf` / `browsershot` / `gotenberg` possibles) |
+| PDF | spatie/laravel-pdf | ^2.0 (driver `dompdf` déclaré par `.env.example`, `.env.docker` et `phpunit.xml` ; `cloudflare` / `browsershot` / `gotenberg` possibles) |
 | Query API | spatie/laravel-query-builder | ^7.2 (cf. `docs/spatie-query-builder.md`) |
 | Image processing | intervention/image | ^4.2 — **majeure montée le 2026-08-17** (TCK-319, PR #181). v4 remplace `read()` par `decodePath()`, `create()` par `createImage()`, et `place($img, $pos, $x, $y, 0-100)` par `insert($img, $x, $y, $pos, 0,0-1,0)` : l'unité d'opacité change en même temps que la méthode. Un seul fichier l'importe, `app/Services/Media/WatermarkService.php`. |
 | Excel / CSV | maatwebsite/excel | ^4.0 + league/csv ^9.16 |
@@ -65,7 +65,7 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 | **OAuth Facebook** | Meta for Developers | ⚠️ (si SSO Facebook) | `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `FACEBOOK_REDIRECT_URI` |
 | **OAuth Apple** | Apple Developer (Services ID + .p8) | ⚠️ (si SSO Apple) | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_PATH`, `APPLE_REDIRECT_URI` |
 | **CDN images** | Bunny.net ou Cloudflare | ⚠️ (prod) | `CDN_ENABLED=true`, `CDN_PROVIDER`, `CDN_BASE_URL`, `CDN_PULL_ZONE`, `CDN_SIGNING_KEY`, `BUNNY_*` ou `CLOUDFLARE_*` |
-| **PDF** | Cloudflare Browser Rendering / Gotenberg / Browsershot / DomPDF | ✅ | `LARAVEL_PDF_DRIVER` |
+| **PDF** | DomPDF (déclaré), ou Cloudflare Browser Rendering / Gotenberg / Browsershot | ✅ | `LARAVEL_PDF_DRIVER` |
 | **SMS** | Orange API SN, mTarget, lAfricaMobile (fallback chain) | ✅ (notifs) | `SMS_DEFAULT_DRIVER`, `SMS_*_SEND_URL`, `SMS_WEBHOOK_URL_TOKEN`, `SMS_*_WEBHOOK_IPS` (clefs par-agence stockées en DB sur `Integration`) |
 | **Paiements** | Lemon Squeezy | ⚠️ (option) | `LEMON_SQUEEZY_*` (cf. `config/lemon-squeezy.php`) |
 | **Broadcasting** | Pusher / Ably / Reverb | ⚠️ (option realtime) | `BROADCAST_CONNECTION`, `PUSHER_*` ou `REVERB_*` ou `ABLY_KEY` |
@@ -135,7 +135,7 @@ SESSION_DOMAIN=null
 CACHE_STORE=redis           # redis recommandé
 QUEUE_CONNECTION=database   # ou redis / sqs
 BROADCAST_CONNECTION=log    # log | pusher | ably | reverb
-FILESYSTEM_DISK=local       # ou s3 en prod
+FILESYSTEM_DISK=local       # local, comme le pose le plan d'hébergement : volume privé des exports ; les médias vont sur R2 (MEDIA_*_DISK, ADR-0029)
 
 # Redis
 REDIS_CLIENT=phpredis
@@ -347,7 +347,7 @@ CLOUDFLARE_API_TOKEN=
 ### 3.11 PDF (spatie/laravel-pdf)
 
 ```env
-LARAVEL_PDF_DRIVER=cloudflare   # cloudflare | browsershot | gotenberg | dompdf
+LARAVEL_PDF_DRIVER=dompdf       # dompdf | cloudflare | browsershot | gotenberg | chrome | weasyprint
 ```
 
 ### 3.12 SMS (TCK-102 — multi-provider Sénégal)
@@ -551,7 +551,7 @@ npm run build
 #### e) S3 / Media library
 - Provisionner bucket (public ou privé selon les collections — voir `cdn.secure_collections`)
 - IAM user avec `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject` sur le bucket
-- `FILESYSTEM_DISK=s3` + `AWS_*` renseignées
+- `FILESYSTEM_DISK` reste `local` (volume privé des exports temporaires) ; les médias passent par `MEDIA_PUBLIC_DISK=r2-media`, `MEDIA_PRIVATE_DISK=r2-private` et les `R2_*` ([ADR-0029](adr/0029-medias-sur-r2-servis-par-cloudflare-transformations.md))
 - `php artisan media-library:regenerate` après bascule
 
 #### f) CDN (Bunny.net ou Cloudflare)

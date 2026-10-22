@@ -8,6 +8,7 @@ use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Membership\MembershipCapabilityResolver;
 
 /**
  * TCK-502 — **qui répond pour ce bien.** Une seule définition, pour tout le monde.
@@ -160,6 +161,29 @@ class PrimaryPropertyContact
             && (int) $property->user_id === (int) $user->id
             && self::joignable($user)
             && ($property->agency_id === null || PersonnelDeLAgence::estBailleur($user, $property->agency_id));
+    }
+
+    /**
+     * TCK-1316 (P126.04, porteur 2026-10-22) — le créateur du bien (`properties.user_id`) comme
+     * DESTINATAIRE d'un avis : gardé s'il est propriétaire ({@see self::estProprietaire()}) ou
+     * personnel actif de l'agence du bien (`isStaffAt`), écarté sinon — l'agent suspendu ou parti
+     * de l'agence n'est plus prévenu comme bailleur. Sans repli : l'appelant garde le sien.
+     */
+    public static function createurDestinataire(Property $property): ?User
+    {
+        $createur = $property->owner;
+        if ($createur === null) {
+            return null;
+        }
+
+        if (self::estProprietaire($createur, $property)) {
+            return $createur;
+        }
+
+        return $property->agency_id !== null
+            && app(MembershipCapabilityResolver::class)->isStaffAt($createur, (int) $property->agency_id)
+            ? $createur
+            : null;
     }
 
     /**

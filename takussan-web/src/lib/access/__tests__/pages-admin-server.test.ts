@@ -42,7 +42,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 const { ApiError } = await import('@/lib/api');
-const { accesAdmin, garderPageAdmin } = await import('../pages-admin-server');
+const { accesAdmin, capacitesAmorcees, garderPageAdmin } = await import('../pages-admin-server');
 
 const moi = (roles: UserRole[], agency_id: number | null = 7) =>
   ({ id: 1, roles, agency_id }) as unknown as User;
@@ -56,7 +56,8 @@ beforeEach(() => {
   getToken.mockResolvedValue('jeton');
   getActiveProfileId.mockResolvedValue('agency_admin:12');
   resolveAgency.mockResolvedValue({ id: 7, kind: 'standard' });
-  capacites(['agency.update_billing']);
+  // TCK-1274 — un admin au rôle système : les capacités de lecture des rôles et du KYC comprises.
+  capacites(['agency.update_billing', 'agency.update_kyc', 'team.assign_role']);
 });
 
 describe('garderPageAdmin — une page refusée renvoie à la première accessible', () => {
@@ -152,6 +153,37 @@ describe('garderPageAdmin — la capacité', () => {
   });
 });
 
+// TCK-1412 (P148.01, P148.02) — un profil sans rôle d'administration ouvre la page que sa capacité
+// ouvre : la garde lit donc ses capacités, et ne le renvoie plus d'office.
+describe('garderPageAdmin — un profil sans rôle d’admin, jugé par capacité (TCK-1412)', () => {
+  it('un agent qui tient team.invite ouvre /app/agency/team, capacités lues avec le hint de profil', async () => {
+    getMe.mockResolvedValue(moi(['agent', 'customer']));
+    getActiveProfileId.mockResolvedValue('agent:4');
+    capacites(['team.invite']);
+    await expect(garderPageAdmin('/app/agency/team')).resolves.toBeUndefined();
+    expect(apiRequest).toHaveBeenCalledWith('/api/me/capabilities', { token: 'jeton', activeProfileId: 'agent:4' });
+    expect(resolveAgency).toHaveBeenCalled();
+  });
+
+  it('le même agent est renvoyé de /app/agency (aucune capacité ne l’ouvre) vers sa page', async () => {
+    getMe.mockResolvedValue(moi(['agent', 'customer']));
+    capacites(['team.invite']);
+    await expect(garderPageAdmin('/app/agency')).rejects.toThrow(/^NEXT_REDIRECT \/app\/agency\/team$/);
+  });
+
+  it('un agent sans capacité qui ouvre une page est renvoyé vers /app', async () => {
+    getMe.mockResolvedValue(moi(['agent', 'customer']));
+    capacites(['leases.create']);
+    await expect(garderPageAdmin('/app/agency/team')).rejects.toThrow(/^NEXT_REDIRECT \/app$/);
+  });
+
+  it("sans agence rattachée, rien n'est lu et rien ne s'ouvre", async () => {
+    getMe.mockResolvedValue(moi(['customer'], null));
+    expect((await accesAdmin(moi(['customer'], null))).chemins).toEqual([]);
+    expect(apiRequest).not.toHaveBeenCalled();
+  });
+});
+
 describe('accesAdmin', () => {
   it('rend les pages du solo et « espace individuel », agence lue pour AFFICHER', async () => {
     getMe.mockResolvedValue(moi(['agency_admin']));
@@ -173,5 +205,40 @@ describe('accesAdmin', () => {
   it("prend l'utilisateur qu'on lui passe, sans relire la session", async () => {
     await accesAdmin(moi(['agency_admin']));
     expect(getMe).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * TCK-1278 (P136.02) — la lecture des capacités du rendu, rendue au layout pour amorcer le cache du
+ * navigateur. Seulement quand elle a RÉPONDU : un refus ou une panne n'amorce rien, et le navigateur
+ * lit comme avant.
+ */
+describe('capacitesAmorcees (TCK-1278)', () => {
+  it('un admin d’agence : la réponse de /api/me/capabilities, agence comprise, et son heure', async () => {
+    apiRequest.mockResolvedValue({ data: { agency_id: 7, capabilities: ['invoices.create'] } });
+    const avant = Date.now();
+    const lecture = await capacitesAmorcees(moi(['agency_admin']));
+    expect(lecture?.reponse).toEqual({ agency_id: 7, capabilities: ['invoices.create'] });
+    expect(lecture?.lueA).toBeGreaterThanOrEqual(avant);
+    expect(apiRequest).toHaveBeenCalledWith('/api/me/capabilities', { token: 'jeton', activeProfileId: 'agency_admin:12' });
+  });
+
+  it('ni un agent ni le super-admin : aucune lecture, rien à amorcer', async () => {
+    expect(await capacitesAmorcees(moi(['agent', 'customer']))).toBeNull();
+    expect(await capacitesAmorcees(moi(['super_admin']))).toBeNull();
+    expect(apiRequest).not.toHaveBeenCalled();
+  });
+
+  it('un refus ou une panne : rien à amorcer', async () => {
+    apiRequest.mockRejectedValueOnce(new ApiError(403, null));
+    expect(await capacitesAmorcees(moi(['agency_admin']))).toBeNull();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    apiRequest.mockRejectedValueOnce(new ApiError(500, null));
+    expect(await capacitesAmorcees(moi(['agency_admin']))).toBeNull();
+  });
+
+  it('les capacités de la garde restent celles de la même réponse', async () => {
+    capacites(['agency.update_billing', 'agency.update_kyc', 'team.assign_role']);
+    expect((await accesAdmin(moi(['agency_admin']))).chemins).toContain('/app/agency/billing');
   });
 });

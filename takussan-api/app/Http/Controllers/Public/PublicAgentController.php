@@ -292,6 +292,13 @@ class PublicAgentController extends Controller
                 'city' => $agent->addresses->first()?->city,
                 'preferred_language' => $agent->preferred_language,
                 'specialty' => $profile?->specialty,
+                // TCK-1321 (P117.03) — les zones saisies à l'assistant de l'agent, en lecture seule à
+                // côté de la spécialité. Seules les chaînes passent : `metadata` n'est pas validée
+                // au-delà de l'écrivain (`AgentProfileController::updateSpecialization`).
+                'intervention_zones' => array_values(array_filter(
+                    (array) ($profile?->metadata['intervention_zones'] ?? []),
+                    fn ($zone) => is_string($zone) && $zone !== '',
+                )),
                 'years_of_experience' => $yearsOfExperience,
                 'agency' => $agent->agency ? [
                     'id' => $agent->agency->id,
@@ -377,7 +384,9 @@ class PublicAgentController extends Controller
             ->orderByDesc('created_at')
             ->paginate($perPage);
 
-        return PropertyResource::collection($properties);
+        // TCK-1220 (P108.03) — l'enveloppe canonique `{ data, meta }`, et non celle de Laravel
+        // (`links`, `meta.path`…), dont les URL portent l'hôte de la requête.
+        return $this->paginated($properties, PropertyResource::collection($properties)->toArray($request));
     }
 
     /**

@@ -25,6 +25,16 @@ class ExportActivityLogJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /**
+     * TCK-1414 (P78.01) — sans délai propre, le job héritait des 60 s par défaut de `queue:work`
+     * (le worker `default` tourne sans `--timeout`). Mesuré après le préchargement de
+     * `ActivityLogExporter::buildPayload()`, sur 20 000 lignes : 12 s en CSV, 64 s en XLSX. Le
+     * délai reste sous `retry_after` (90 s par défaut, `config/queue.php`) : au-delà, une seconde
+     * copie démarrerait pendant que la première tourne. Le XLSX de plus de ~25 000 lignes reste
+     * hors de portée (P78.03).
+     */
+    public int $timeout = 85;
+
     public function __construct(
         public readonly User $user,
         public readonly array $filters,
@@ -50,7 +60,7 @@ class ExportActivityLogJob implements ShouldQueue
         // TCK-1084 (P77.03) — le disque `local` rend `false` au lieu de lever : un lien envoyé
         // sur un fichier jamais écrit rendait 404, et le job ne laissait aucune trace d'échec.
         $path = ActivityLogExportController::storagePath($this->user->id, $file);
-        if (Storage::put($path, $content) !== true) {
+        if (Storage::disk(ActivityLogExportController::DISK)->put($path, $content) !== true) {
             throw new RuntimeException("L'export du journal d'activité n'a pas pu écrire {$path}.");
         }
 
@@ -58,7 +68,7 @@ class ExportActivityLogJob implements ShouldQueue
         // dossier du demandeur signé (`ActivityLogExportController::download`).
         $downloadUrl = URL::temporarySignedRoute(
             'activity-logs.export.download',
-            now()->addHours(24),
+            now()->addHours(ActivityLogExportController::LINK_TTL_HOURS),
             ['user' => $this->user->id, 'file' => $file, 'name' => $filename],
         );
 

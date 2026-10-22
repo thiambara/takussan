@@ -9,6 +9,7 @@ use App\Models\Favorite;
 use App\Models\User;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\PreferenceResolver;
+use App\Support\LienFront;
 use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -78,7 +79,7 @@ class FavoriteChangesNotification extends Notification
         }
 
         return $mail
-            ->action(__('favorite_alerts.mail.action'), rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/').'/app/favorites')
+            ->action(__('favorite_alerts.mail.action'), LienFront::base().'/app/favorites')
             ->salutation(__('notifications.salutation'));
     }
 

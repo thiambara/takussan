@@ -22,7 +22,7 @@ class StoreRoleDelegationRequest extends FormRequest
         $maxEndDate = now()->addDays($maxDuration)->toIso8601String();
 
         return [
-            'user_id' => ['required', 'integer', Rule::exists('users', 'id')],
+            'user_id' => ['required', 'integer', Rule::exists('users', 'id')->withoutTrashed()],
             'role' => ['required', 'string', Rule::in(config('role_delegations.delegable_roles', []))],
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['required', 'date', 'after:starts_at', "before_or_equal:$maxEndDate"],

@@ -4,10 +4,10 @@ namespace App\Services\Property;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
-use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Observers\PropertyObserver;
+use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Model\NotificationService;
 
 /**
@@ -26,10 +26,9 @@ class PropertyModerationNotifier
             return;
         }
 
-        User::query()
-            ->whereIn('id', AgencyAdminProfile::query()->active()->where('agency_id', $property->agency_id)->select('user_id'))
-            ->when($actor !== null, fn ($query) => $query->whereKeyNot($actor->id))
-            ->get()
+        // TCK-1318 — la liste unique (profil actif, compte joignable), moins l'auteur du geste.
+        AdminsDeLAgence::destinataires((int) $property->agency_id)
+            ->reject(fn (User $admin): bool => $actor !== null && $admin->id === $actor->id)
             ->each(fn (User $admin) => $this->notifications->send(
                 $admin,
                 NotificationCode::PropertySubmittedForReview,

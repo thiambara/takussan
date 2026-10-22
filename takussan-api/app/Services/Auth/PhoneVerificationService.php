@@ -6,6 +6,7 @@ use App\Events\Auth\PhoneVerified;
 use App\Exceptions\SmsCodeUndelivered;
 use App\Models\User;
 use App\Services\Account\DeletionStepUpService;
+use App\Services\Notifications\Sms\OtpLateFailureMemory;
 use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use App\Support\CanonicalPhone;
@@ -319,7 +320,7 @@ class PhoneVerificationService
         ], self::CODE_TTL_SECONDS);
         $this->holdCooldown($subject);
 
-        $delivered = $this->deliver($phone, $code, $locale);
+        $delivered = $this->deliver($phone, $code, $locale, $this->cooldownKey($subject));
         // TCK-620 (ADR-0060) — hors production et drapeau allumé, le code revient aussi dans la
         // réponse. Résolu à l'appel : `OtpPreview` est SCOPED, ce service ne doit pas le retenir.
         app(OtpPreview::class)->record($code);
@@ -390,8 +391,11 @@ class PhoneVerificationService
         return false;
     }
 
-    /** `false` si aucun fournisseur n'a accepté le SMS. */
-    private function deliver(string $phone, string $code, ?string $locale): bool
+    /**
+     * `false` si aucun fournisseur n'a accepté le SMS. P72.04 (TCK-1354) — `$resendKey` est le délai de
+     * renvoi du sujet : un accusé `failed` le lève ({@see OtpLateFailureMemory}).
+     */
+    private function deliver(string $phone, string $code, ?string $locale, string $resendKey): bool
     {
         $results = $this->sms->send($phone, __('auth.phone.sms_code', [
             'code' => $code,
@@ -400,6 +404,7 @@ class PhoneVerificationService
             'event_type' => 'phone_otp',
             'is_critical' => true,
             'is_otp' => true,
+            'otp_resend_key' => $resendKey,
             'bypass_quiet_hours' => true,
         ]);
 

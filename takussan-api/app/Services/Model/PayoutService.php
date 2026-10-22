@@ -206,6 +206,7 @@ class PayoutService
             $locked = Payout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
 
             abort_code_unless($locked->status === PayoutStatus::AwaitingApproval, 422, 'payout.not_awaiting_approval');
+            $this->assertItemsStillPaid($locked);
 
             SegregationOfDuties::assertDistinct(
                 $actor,
@@ -278,6 +279,7 @@ class PayoutService
                 422,
                 'payout.cannot_process',
             );
+            $this->assertItemsStillPaid($locked);
 
             SegregationOfDuties::assertDistinct(
                 $actor,
@@ -423,6 +425,21 @@ class PayoutService
         // le cumul des nets non approuvés vers ce bailleur se lit sous son verrou.
         $agency = $this->lockAgency($agency);
 
+        // TCK-1158 (P76.03) — `assertItemsInScope()` a lu le statut hors transaction : une pièce
+        // remboursée depuis ne se reverse pas. Relu sous les verrous des lignes parentes.
+        $leasePayments = LeasePayment::query()->whereIn('id', $leaseIds)->get();
+        $bookingPayments = BookingPayment::query()->whereIn('id', $bookingIds)->get();
+        foreach ($leasePayments as $payment) {
+            if ($payment->status !== PaymentStatus::Paid) {
+                $this->ineligibleItem('lease_payment_ids', (int) $payment->id);
+            }
+        }
+        foreach ($bookingPayments as $payment) {
+            if ($payment->status !== PaymentStatus::Paid) {
+                $this->ineligibleItem('booking_payment_ids', (int) $payment->id);
+            }
+        }
+
         // Relu sous verrou : une pièce reversée entre la vérification et le verrou rend 409. La
         // course que ce test ne voit pas, l'index unique la refuse — et elle devient 409 aussi.
         $alreadyOut = ($leaseIds !== [] && DB::table('payout_lease_payment')->whereIn('lease_payment_id', $leaseIds)->exists())
@@ -554,6 +571,38 @@ class PayoutService
     private function foreignItem(string $field, int $id): never
     {
         throw ValidationException::withMessages([$field => __('money_out.payout.foreign_item', ['id' => $id])]);
+    }
+
+    /**
+     * TCK-1158 (P76.03) — le net est figé à la préparation : une pièce rattachée qui n'est plus
+     * `paid` depuis (remboursée, le plus souvent) ferait verser au bailleur de l'argent rendu au
+     * locataire. Le reversement s'annule, et se prépare à nouveau.
+     */
+    private function assertItemsStillPaid(Payout $payout): void
+    {
+        $changed = $payout->leasePayments()->where('lease_payments.status', '!=', PaymentStatus::Paid->value)->exists()
+            || $payout->bookingPayments()->where('booking_payments.status', '!=', PaymentStatus::Paid->value)->exists();
+
+        abort_code_if($changed || $this->refundedSincePreparation($payout), 422, 'payout.items_changed');
+    }
+
+    /**
+     * TCK-1214 (P76.02) — un remboursement partiel laisse la pièce `paid` : il ne se voit qu'au brut.
+     * Le brut des pièces, relu à `montant − refund_amount` comme `PayoutCalculator`, ne retombe plus
+     * sur celui de la préparation. Lu seulement quand une pièce porte un remboursement.
+     */
+    private function refundedSincePreparation(Payout $payout): bool
+    {
+        $leases = $payout->leasePayments()->get(['lease_payments.amount', 'lease_payments.refund_amount']);
+        $bookings = $payout->bookingPayments()->get(['booking_payments.amount', 'booking_payments.refund_amount']);
+        $items = $leases->concat($bookings);
+        if (! $items->contains(fn ($item): bool => (float) ($item->refund_amount ?? 0) > 0)) {
+            return false;
+        }
+
+        $gross = $items->sum(fn ($item): float => max(0.0, (float) $item->amount - (float) ($item->refund_amount ?? 0)));
+
+        return Currency::roundAmount($gross, $payout->currency) < (float) $payout->gross_amount;
     }
 
     private function ineligibleItem(string $field, int $id): never

@@ -8,14 +8,15 @@ import {
   fetchAdminKycQueue,
   fetchFailedJobs,
   fetchModerationQueue,
-} from '@/lib/queries/super-admin';
+} from '@/lib/queries/super-admin-coque';
 import { SuperAdminSidebar } from '../SuperAdminSidebar';
 import { withIntl } from '@/test/intl';
 import { avecGestes } from '@/test/habilitations';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/super-admin' }));
 
-vi.mock('@/lib/queries/super-admin', () => ({
+// TCK-1202 — les lecteurs des files vivent dans le module de la coque.
+vi.mock('@/lib/queries/super-admin-coque', () => ({
   fetchAdminAgencyUpgradePendingCount: vi.fn(),
   fetchAdminKycQueue: vi.fn(),
   fetchFailedJobs: vi.fn(),

@@ -59,6 +59,9 @@ class StoreLeaseRequest extends BaseFormRequest
             'payment_day' => ['nullable', 'integer', 'between:1,28'],
             'currency' => ['nullable', Rule::enum(Currency::class)],
             'terms' => ['nullable', 'string'],
+            // TCK-1240 (P114.01) — le formulaire de création l'envoie ; absente des règles, `validated()`
+            // l'écartait et le bail naissait sans ses conditions particulières. Borne du schéma du front.
+            'special_conditions' => ['nullable', 'string', 'max:5000'],
         ];
     }
 

@@ -388,4 +388,23 @@ class MtargetDlrPullingTest extends TestCase
             && ! array_key_exists('record', $c))->once();
         Log::shouldNotHaveReceived('warning', [\Mockery::any(), \Mockery::on(fn ($c) => str_contains((string) json_encode($c), '221771234567'))]);
     }
+
+    /** P124.02 (TCK-1254) — même borne pour le `StatusText` d'un rapport relevé. */
+    public function test_a_pulled_status_text_longer_than_the_column_is_bounded_and_written(): void
+    {
+        $this->makeIntegration();
+        $attempt = $this->makeAttempt('mtg-long|+221771111111');
+        $this->fakeSequence([[
+            'MsgId' => 'mtg-long',
+            'DestinationAdress' => '221771111111',
+            'Status' => 6,
+            'StatusText' => str_repeat('é', 300),
+        ]]);
+
+        $this->artisan('sms:pull-mtarget-dlr')->assertExitCode(0);
+
+        $attempt->refresh();
+        $this->assertSame(SmsResult::STATUS_FAILED, $attempt->status);
+        $this->assertSame(str_repeat('é', 255), $attempt->failure_reason);
+    }
 }

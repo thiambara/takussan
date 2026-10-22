@@ -72,6 +72,7 @@ use LogicException;
  * `app_notifications` exige `user_id`, `type` et `title` (le reste est nullable).
  *
  *   · `title` — lu dans `toArray()['title']`, que 23 des 29 classes portent déjà.
+ *   · `body`  — lu dans `toArray()['body']` s'il y est (TCK-1195), sous ce nom et nul autre.
  *   · `type`  — lu dans {@see self::TYPES}, **jamais dans `toArray()['type']`** : cette
  *     clé existe dans plusieurs classes et n'y désigne pas le type de notification mais
  *     celui de l'objet métier (la notification de visite d'avant TCK-590 y mettait le type de la visite).
@@ -182,6 +183,10 @@ class AppDatabaseChannel
             ));
         }
 
-        return ['type' => $type, 'title' => $title, 'data' => $data];
+        // TCK-1195 (P75.03) — le corps que `toArray()` porte va dans la colonne que la cloche lit
+        // (`body ?? content`, jamais `data`) ; il restait seulement dans `data`.
+        $body = is_string($data['body'] ?? null) && $data['body'] !== '' ? $data['body'] : null;
+
+        return ['type' => $type, 'title' => $title, 'body' => $body, 'data' => $data];
     }
 }

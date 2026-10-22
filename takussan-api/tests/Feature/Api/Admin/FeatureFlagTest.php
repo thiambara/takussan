@@ -64,6 +64,25 @@ class FeatureFlagTest extends TestCase
         );
     }
 
+    /**
+     * P98.10 (TCK-1176) — chaque ligne porte l'état évalué pour l'opérateur, bascule de session
+     * comprise : le bouton « Test » part de là, et non plus de « éteint » quoi qu'il soit stocké.
+     */
+    public function test_each_flag_carries_its_state_evaluated_for_the_operator(): void
+    {
+        $this->actingAsRole('super_admin');
+        FeatureFlag::query()->updateOrCreate(['key' => Flag::HostAutoSpace->value], ['label' => Flag::HostAutoSpace->value, 'enabled' => true, 'segments_json' => null]);
+        FeatureFlag::query()->updateOrCreate(['key' => Flag::MediaWatermark->value], ['label' => Flag::MediaWatermark->value, 'enabled' => false, 'segments_json' => null]);
+
+        $etat = fn (): array => array_column($this->getJson('/api/admin/feature-flags')->assertOk()->json('data'), 'enabled_for_me', 'key');
+
+        $this->assertSame(true, $etat()[Flag::HostAutoSpace->value]);
+        $this->assertSame(false, $etat()[Flag::MediaWatermark->value]);
+
+        $this->postJson('/api/admin/feature-flags/'.Flag::MediaWatermark->value.'/override', ['enabled' => true])->assertOk();
+        $this->assertSame(true, $etat()[Flag::MediaWatermark->value]);
+    }
+
     public function test_any_key_is_unknown_to_the_console(): void
     {
         $this->actingAsRole('super_admin');

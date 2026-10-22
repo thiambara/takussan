@@ -344,3 +344,25 @@ describe('fiche publique — le numéro ne sort que vérifié (TCK-633, D10)', (
     expect(donneesStructurees(container)[0]).toHaveProperty('telephone', '+221 77 000 00 00');
   });
 });
+
+describe("TCK-1321 (P117.03) — les zones d'intervention de l'agent", () => {
+  it('sont affichées à côté de la spécialité', async () => {
+    getAgentMock.mockResolvedValue({
+      etat: 'trouve',
+      agent: agent({ intervention_zones: ['Plateau', 'Almadies'] }),
+    });
+
+    render(withIntl(await Page({ params: params() })));
+
+    expect(screen.getByText(/Location · Plateau, Almadies/)).toBeInTheDocument();
+  });
+
+  it("sans zone, l'eyebrow ne change pas", async () => {
+    getAgentMock.mockResolvedValue({ etat: 'trouve', agent: agent({ intervention_zones: [] }) });
+
+    render(withIntl(await Page({ params: params() })));
+
+    expect(screen.getByText(/Dakar · Location · /)).toBeInTheDocument();
+    expect(screen.queryByText(/Plateau/)).not.toBeInTheDocument();
+  });
+});

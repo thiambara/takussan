@@ -94,4 +94,13 @@ class TaskDueFilterTest extends ApiTestCase
     {
         $this->assertSame([], $this->ids('someday'));
     }
+
+    /** TCK-1407 (P151.06) — une liste (`filter[due][]=`) est une valeur inconnue : rien, plus un 500. */
+    public function test_a_list_value_returns_nothing(): void
+    {
+        $this->actingAsApi($this->agent)
+            ->apiGet('/api/tasks?filter[due][]=today')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
 }

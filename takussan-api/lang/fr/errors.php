@@ -88,9 +88,11 @@ return [
         'property_unavailable' => 'Ce bien n\'est pas disponible à la réservation.',
     ],
     'booking_payment' => [
+        'nothing_due' => 'Cette réservation est soldée : il ne reste rien à payer.',
         'receipt_unpaid' => 'La quittance est disponible uniquement pour un paiement acquitté.',
         'refund_exceeds_paid' => 'Le remboursement ne peut pas dépasser le montant payé.',
         'refund_fractional' => 'Ce montant comporte des décimales que la devise du paiement n\'a pas.',
+        'refund_settled_by_platform' => 'Cet acompte a été encaissé en ligne par la plateforme : son remboursement passe par le fournisseur de paiement.',
         'refund_unpaid' => 'Seul un paiement acquitté peut être remboursé.',
     ],
     'boost' => [
@@ -129,6 +131,7 @@ return [
         'participant_required' => 'Il faut au moins un autre participant.',
     ],
     'customer' => [
+        'attached_to_open_lease' => 'Ce client est titulaire d\'un bail en attente de signature ou en cours : il ne peut pas être supprimé tant que ce bail est ouvert.',
         'duplicate' => 'Un client de votre agence porte déjà ce numéro ou cette adresse e-mail.',
         'pipeline_stage_invalid' => 'Étape de suivi invalide.',
     ],
@@ -208,6 +211,11 @@ return [
         'unprocessable' => 'La demande ne peut pas être traitée.',
         'unsupported_media_type' => 'Ce type de fichier n\'est pas pris en charge.',
     ],
+    'idempotency' => [
+        'in_progress' => 'Cette demande est déjà en cours d’envoi. Patientez quelques secondes, puis réessayez.',
+        'key_invalid' => 'Cette clé d’envoi n’a pas la forme attendue.',
+        'key_reused' => 'Cette demande a déjà été envoyée avec un autre contenu. Rechargez la page, puis renvoyez-la.',
+    ],
     'impersonation' => [
         'no_session' => 'Aucune session d\'impersonation n\'est ouverte.',
         'query_refused' => 'Ouvrir ou fermer une impersonation ne prend aucun paramètre dans l\'adresse.',
@@ -243,6 +251,7 @@ return [
         'token_sent' => 'Cette invitation est encore en attente d\'acceptation.',
     ],
     'invoice' => [
+        'amount_too_large' => 'Le montant total de la facture dépasse le maximum enregistrable.',
         'cannot_cancel' => 'Cette facture ne peut pas être annulée dans son état actuel.',
         'cannot_mark_paid' => 'Cette facture ne peut pas être marquée payée dans son état actuel.',
         'foreign_target' => 'Ce bail ou cette réservation ne relève pas de l\'agence de la facture.',
@@ -275,6 +284,7 @@ return [
         'not_found' => 'Bail introuvable.',
         'rent_review_above_contract_cap' => 'Le contrat signé plafonne la révision du loyer à :max % : ce plafond ne se force pas. Passez par un renouvellement ou un avenant signé.',
         'renewal_overlaps_paid_schedule' => 'Une échéance du bail en cours, dans la période que le renouvellement reprend, est déjà réglée ou en cours de règlement : le renouvellement ne l\'annule pas. Remboursez-la, ou faites commencer le renouvellement après elle ; un renouvellement déjà en attente de signature se résilie, puis s\'en crée un autre.',
+        'termination_overlaps_paid_schedule' => 'Une échéance de loyer postérieure à la date de sortie est déjà réglée ou en cours de règlement : la résiliation ne l\'annule pas. Remboursez-la, puis résiliez.',
         'renewal_parent_not_renewable' => 'Le bail renouvelé n\'est plus en cours (préavis ou résiliation) : ce renouvellement ne peut plus prendre effet. Résiliez-le, puis créez-en un autre si besoin.',
         'schedule_exists' => 'L\'échéancier a déjà été généré.',
         'terms_locked' => 'Les conditions d\'un bail signé ne se modifient plus : établissez un avenant ou un nouveau bail.',
@@ -394,6 +404,7 @@ return [
         'cannot_fail' => 'Ce reversement ne peut pas être marqué en échec dans son état actuel.',
         'cannot_process' => 'Ce reversement ne peut pas être marqué effectué dans son état actuel.',
         'failure_reason_required' => 'Indiquez le motif de l\'échec.',
+        'items_changed' => 'Une pièce de ce reversement n\'est plus payée depuis sa préparation : annulez-le, puis préparez-le à nouveau.',
         'issuer_forbidden' => 'Seuls les membres de l\'agence ou les administrateurs peuvent émettre un reversement.',
         'landlord_not_in_agency' => 'Ce bailleur n\'appartient pas à votre agence.',
         'individual_third_party' => 'Une agence individuelle ne reverse qu\'à son hôte : un tiers est payé par la plateforme.',
@@ -434,6 +445,7 @@ return [
         'agency_frozen' => 'Cette agence n\'est pas active : ses reversements sont gelés.',
         'agency_unverified' => 'Une agence non vérifiée ne peut pas être payée.',
         'already_exists' => 'Un reversement existe déjà pour cette période.',
+        'items_changed' => 'Une ligne de ce reversement n\'est plus payée depuis la clôture : annulez-le, puis clôturez à nouveau la période.',
         'status_transition_invalid' => 'Ce changement de statut du reversement plateforme n\'est pas autorisé.',
     ],
     'privacy' => [
@@ -582,6 +594,7 @@ return [
         'already_assigned' => 'Cette visite est déjà prise en charge par un autre membre de l\'agence.',
         'cannot_cancel' => 'Cette visite ne peut pas être annulée dans son état actuel.',
         'cannot_complete' => 'Cette visite ne peut pas être terminée dans son état actuel.',
+        'cannot_mark_no_show' => 'Seule une visite planifiée ou confirmée dont l\'heure est passée peut être marquée absente.',
         'closed' => 'Une visite terminée ou annulée ne peut plus être modifiée.',
         'feedback_agent_only' => 'Seul l\'agent en charge peut donner l\'avis de l\'agent.',
         'feedback_not_completed' => 'L\'avis n\'est possible qu\'une fois la visite terminée.',

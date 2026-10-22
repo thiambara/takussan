@@ -52,7 +52,14 @@ class SignatureRelativeTest extends TestCase
     {
         $user = User::factory()->create(['email_frequency' => EmailFrequency::Daily]);
 
-        $this->presenterHorsDesMandataires(NotificationUnsubscribeController::signedUrl($user))->assertRedirect();
+        $url = NotificationUnsubscribeController::liens($user)['one_click'];
+        $this->assertStringStartsWith(self::ORIGINE_PUBLIQUE.'/', $url);
+
+        // P97.06 (TCK-1243) — le désabonnement est un `POST` : présenté comme Traefik le transmet.
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.7'])
+            ->withHeaders(['X-Forwarded-Proto' => 'https'])
+            ->postJson('http://api-publique.example'.substr($url, strlen(self::ORIGINE_PUBLIQUE)))
+            ->assertOk();
 
         $this->assertSame(EmailFrequency::Off, $user->fresh()->email_frequency);
     }

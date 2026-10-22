@@ -56,11 +56,13 @@ vi.mock('next/navigation', () => ({
 // wizard hydrates with empty state and we can step through synchronously.
 // TCK-566 — piloté par test : le brouillon RELU est le sujet du dernier cas.
 let brouillon: { step: number; data: Record<string, unknown> } | null = null;
+// TCK-1362 — espion stable : le corps écrit dans le brouillon est le sujet d'un cas.
+const sauverBrouillon = vi.fn();
 vi.mock('@/hooks/useWizardDraft', () => ({
   useWizardDraft: () => ({
     draft: brouillon,
     isLoading: false,
-    save: vi.fn(),
+    save: sauverBrouillon,
     // TCK-475 — cette doublure rendait `undefined`, et c'était FAUX depuis
     // TCK-465 : `flush()` rend un `ResultatEcritureBrouillon`, plus
     // `Promise<void>`. `undefined` ne simule pas le silence d'avant — c'est une
@@ -202,6 +204,29 @@ describe('<AgentOnboardingWizard> — saisie du téléphone (TCK-566)', () => {
   afterEach(() => {
     utilisateur = UTILISATEUR_VERIFIE;
     brouillon = null;
+  });
+
+  // TCK-1362 (P84.03) — le code est HACHÉ et à usage unique côté API ; le brouillon serveur, gardé
+  // jusqu'à 90 jours, n'en garde pas la copie en clair une fois le numéro vérifié.
+  it('le code vérifié ne reste pas dans le brouillon serveur', async () => {
+    phoneVerifyOtpAction.mockResolvedValue({ ok: true, data: {} });
+    const user = userEvent.setup();
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} />));
+
+    await user.type(await screen.findByLabelText(PHONE.fields.phone), '770000000', {
+      initialSelectionStart: 0,
+      initialSelectionEnd: 0,
+    });
+    await user.click(screen.getByRole('button', { name: PHONE.sendCta }));
+    await user.type(await screen.findByLabelText(PHONE.fields.code), '123456');
+    await user.click(screen.getByRole('button', { name: PHONE.verifyCta }));
+
+    await waitFor(() => expect(phoneVerifyOtpAction).toHaveBeenCalledWith('123456'));
+    await waitFor(() => {
+      const dernier = sauverBrouillon.mock.calls.at(-1) as [number, Record<string, { verified?: boolean }>];
+      expect(dernier[1].phone?.verified).toBe(true);
+    });
+    expect(JSON.stringify(sauverBrouillon.mock.calls.at(-1))).not.toContain('123456');
   });
 
   it('envoie le code au numéro TAPÉ, indicatif en tête', async () => {

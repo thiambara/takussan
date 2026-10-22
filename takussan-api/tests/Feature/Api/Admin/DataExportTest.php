@@ -8,6 +8,9 @@ use App\Models\Customer;
 use App\Models\DataExport;
 use App\Models\Enums\DataExportStatus;
 use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\ServiceProviderProfile;
+use App\Models\Property;
+use App\Models\Review;
 use App\Models\User;
 use App\Services\Privacy\DataExportBuilder;
 use App\Support\Audit\PropertyRedactor;
@@ -166,5 +169,30 @@ class DataExportTest extends TestCase
 
         Storage::disk('local')->assertMissing($path);
         $this->assertSame(DataExportStatus::Expired, $export->refresh()->status);
+    }
+
+    /**
+     * TCK-1397 (P139.04) — l'archive porte les avis reçus sur le profil de prestataire du
+     * titulaire, à côté de ceux sur son compte ; pas ceux sur ses biens (décision du porteur), ni
+     * ceux sur le profil d'un autre prestataire.
+     */
+    public function test_l_archive_porte_les_avis_recus_sur_le_profil_de_prestataire(): void
+    {
+        $provider = User::factory()->create();
+        $profile = ServiceProviderProfile::factory()->create(['user_id' => $provider->id]);
+        $other = ServiceProviderProfile::factory()->create();
+        $property = Property::factory()->create(['user_id' => $provider->id]);
+
+        $onProfile = Review::factory()->create(['reviewable_type' => ServiceProviderProfile::class, 'reviewable_id' => $profile->id]);
+        $onAccount = Review::factory()->create(['reviewable_type' => User::class, 'reviewable_id' => $provider->id]);
+        Review::factory()->create(['reviewable_type' => ServiceProviderProfile::class, 'reviewable_id' => $other->id]);
+        Review::factory()->create(['reviewable_type' => Property::class, 'reviewable_id' => $property->id]);
+
+        $ids = array_column(app(DataExportBuilder::class)->payloads($provider)['reviews.json'], 'id');
+
+        sort($ids);
+        $expected = [$onProfile->id, $onAccount->id];
+        sort($expected);
+        $this->assertSame($expected, $ids);
     }
 }

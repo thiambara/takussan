@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Agency;
 
+use App\Listeners\Maintenance\SyncMaintenanceConversation;
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\RelationshipStatus;
@@ -12,12 +14,17 @@ use App\Models\Enums\TaskStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\MaintenanceRequest;
+use App\Models\Profiles\ServiceProviderAgencyCollaboration;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
+use App\Services\Agency\AgentHandoverService;
+use App\Services\Messaging\ConversationAccess;
+use App\Services\Model\MaintenanceRequestService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
@@ -304,5 +311,69 @@ class AgentHandoverTest extends ApiTestCase
         $this->actingAsApi($this->admin)->apiPost($this->url('handover'), ['successor_id' => $this->successor->id])
             ->assertOk()->assertJsonPath('data.moved.collaborations', 2);
         $this->assertSame($this->leaver->id, $leaversCoOwnership->fresh()->user_id);
+    }
+
+    /**
+     * TCK-1255 (P121.05, TCK-592) — l'éligibilité d'une intervention est celle de
+     * `ProviderEligibility::isAssignable()` : un prestataire actif de l'agence la reçoit. La requête
+     * HTTP n'admet que le personnel ; le service, appelé seul, juge par la règle de TCK-592.
+     */
+    public function test_the_maintenance_eligibility_is_the_rule_of_provider_eligibility(): void
+    {
+        $provider = User::factory()->create();
+        ServiceProviderAgencyCollaboration::create([
+            'service_provider_profile_id' => ServiceProviderProfile::factory()->create(['user_id' => $provider->id])->id,
+            'agency_id' => $this->agency->id,
+            'status' => CollaborationStatus::Active,
+            'started_at' => now()->toDateString(),
+        ]);
+
+        $result = app(AgentHandoverService::class)->transfer($this->agency, $this->leaver, ['maintenance' => $provider], $this->admin);
+
+        $this->assertSame($this->ids['maintenance'], $result['moved']['maintenance']);
+        $this->assertArrayNotHasKey('maintenance', $result['unassigned']);
+        $this->assertSame($provider->id, MaintenanceRequest::query()->find($this->ids['maintenance'][0])->assigned_to);
+
+        // Ni personnel ni prestataire de l'agence : désassignée, comptée comme telle.
+        $stranger = User::factory()->create();
+        $result = app(AgentHandoverService::class)->transfer($this->agency, $provider, ['maintenance' => $stranger], $this->admin);
+        $this->assertSame($this->ids['maintenance'], $result['unassigned']['maintenance']);
+        $this->assertNull(MaintenanceRequest::query()->find($this->ids['maintenance'][0])->assigned_to);
+    }
+
+    /**
+     * TCK-1329 (P121.01) — une intervention passe par `MaintenanceRequestService::assign()`, le
+     * chemin du geste unitaire : le repreneur entre dans le fil et le partant en sort,
+     * l'acceptation du partant tombe, et — décision du porteur — le devis du partant reste.
+     */
+    public function test_an_intervention_is_handed_over_through_the_assignment_path_and_keeps_its_quote(): void
+    {
+        $property = Property::factory()->create(['agency_id' => $this->agency->id]);
+        $mr = MaintenanceRequest::factory()->create(['property_id' => $property->id, 'status' => MaintenanceStatus::Open]);
+        app(MaintenanceRequestService::class)->assign($mr, $this->leaver, $this->admin);
+        $mr->refresh()->forceFill([
+            'accepted_at' => now(),
+            'status' => MaintenanceStatus::QuoteSubmitted,
+            'quote_amount' => 150000,
+            'quote_submitted_at' => now(),
+        ])->save();
+        $conversation = SyncMaintenanceConversation::conversationFor($mr);
+        $this->assertNotNull($conversation);
+
+        $this->actingAsApi($this->admin)->apiPost($this->url('handover'), [
+            'successor_id' => $this->successor->id,
+        ])->assertOk()->assertJsonPath('data.moved.maintenance', 2);
+
+        $mr->refresh();
+        $this->assertSame($this->successor->id, $mr->assigned_to);
+        $this->assertNull($mr->accepted_at);
+        $this->assertSame(MaintenanceStatus::QuoteSubmitted, $mr->status);
+        $this->assertSame('150000.00', (string) $mr->quote_amount);
+        $this->assertNotNull($mr->quote_submitted_at);
+
+        $access = app(ConversationAccess::class);
+        $this->assertTrue($access->allows($this->successor->fresh(), $conversation->fresh()));
+        $this->assertFalse($access->allows($this->leaver->fresh(), $conversation->fresh()));
+        $this->actingAsApi($this->successor)->apiGet("/api/conversations/{$conversation->id}/messages")->assertOk();
     }
 }

@@ -4,15 +4,20 @@ namespace App\Services\Model;
 
 use App\Models\Booking;
 use App\Models\BookingPayment;
+use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\User;
+use App\Services\Billing\PlatformPayoutService;
 use App\Services\Booking\BookingRefundTaskService;
 use Illuminate\Support\Facades\DB;
 
 class BookingPaymentService
 {
-    public function __construct(private readonly BookingRefundTaskService $refundTasks) {}
+    public function __construct(
+        private readonly BookingRefundTaskService $refundTasks,
+        private readonly PlatformPayoutService $platformPayouts,
+    ) {}
 
     /**
      * @param  array<string,mixed>  $data
@@ -44,9 +49,32 @@ class BookingPaymentService
     }
 
     /**
+     * TCK-1309 (P133.05, décision du porteur) — ce que le client doit payer maintenant, dérivé par
+     * l'API : l'acompte tant qu'aucun paiement n'est acquitté (s'il y en a un), sinon le reste dû
+     * (total moins les lignes `paid`). Le navigateur faisait ce calcul et l'API écrivait son
+     * résultat tel quel. Même règle que celle du navigateur, déplacée : les lignes
+     * `partially_paid` et `refunded` ne comptent pas.
+     *
+     * @return array{0: float, 1: string} le montant et le `payment_type`
+     */
+    public function dueFromCustomer(Booking $booking): array
+    {
+        $paid = (float) $booking->payments()->where('status', PaymentStatus::Paid->value)->sum('amount');
+        $remaining = max((float) $booking->total_amount - $paid, 0.0);
+        abort_code_if($remaining <= 0, 422, 'booking_payment.nothing_due');
+
+        $deposit = (float) $booking->deposit_amount;
+        if ($paid <= 0 && $deposit > 0) {
+            return [$deposit, BookingPaymentType::Deposit->value];
+        }
+
+        return [$remaining, BookingPaymentType::Advance->value];
+    }
+
+    /**
      * TCK-596 — la ligne du paiement est verrouillée puis relue : deux remboursements concurrents
-     * du même acompte ne passent pas tous deux le contrôle `paid`. Le dernier paiement remboursé
-     * clôt la tâche « remboursement à traiter ».
+     * du même acompte ne passent pas tous deux le contrôle `paid`. Le dernier paiement remboursé,
+     * même en partie (TCK-1214), clôt la tâche « remboursement à traiter ».
      *
      * @param  array<string,mixed>  $data
      */
@@ -61,8 +89,20 @@ class BookingPaymentService
                 'booking_payment.refund_unpaid'
             );
 
+            // TCK-1160 (P76.04) — un acompte soldé par une intégration de la PLATEFORME est chez
+            // elle, et elle le reverse à l'agence à la clôture : son remboursement passe par le
+            // fournisseur (webhook), jamais par une déclaration de l'agence.
             abort_code_if(
-                (float) $data['refund_amount'] > (float) $payment->amount,
+                $this->platformPayouts->isSettledByPlatform($payment),
+                422,
+                'booking_payment.refund_settled_by_platform'
+            );
+
+            // TCK-1214 (P76.02) — un remboursement partiel laisse l'acompte `paid` : le suivant
+            // s'ajoute au premier, dans la limite du montant.
+            $alreadyRefunded = (float) ($payment->refund_amount ?? 0);
+            abort_code_if(
+                $alreadyRefunded + (float) $data['refund_amount'] > (float) $payment->amount,
                 422,
                 'booking_payment.refund_exceeds_paid'
             );
@@ -75,10 +115,13 @@ class BookingPaymentService
                 'booking_payment.refund_fractional'
             );
 
+            // TCK-1214 (P76.02, option (b)) — seul un remboursement total passe l'acompte à
+            // `refunded` ; un partiel le laisse `paid`, compté à `montant − refund_amount`.
+            $refunded = $alreadyRefunded + (float) $data['refund_amount'];
             $payment->update([
-                'status' => PaymentStatus::Refunded->value,
-                'refund_amount' => $data['refund_amount'],
-                'refund_reason' => $data['refund_reason'] ?? null,
+                'status' => ($refunded >= (float) $payment->amount ? PaymentStatus::Refunded : PaymentStatus::Paid)->value,
+                'refund_amount' => $refunded,
+                'refund_reason' => $data['refund_reason'] ?? $payment->refund_reason,
             ]);
 
             return $payment->refresh();

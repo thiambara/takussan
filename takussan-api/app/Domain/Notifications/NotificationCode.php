@@ -211,6 +211,12 @@ enum NotificationCode: string
      */
     public const PARAM_REASON_CODE = 'reason_code';
 
+    /**
+     * TCK-1322 (P128.02) — un rôle délégable CODÉ (`agency_admin`, `agent`, `owner`), traduit au
+     * rendu sous `invitations.roles.<code>` ; un code sans libellé est rendu tel quel.
+     */
+    public const PARAM_ROLE = 'role';
+
     public function type(): NotificationType
     {
         return match ($this) {
@@ -356,10 +362,10 @@ enum NotificationCode: string
             self::GovernanceAdminAdded => ['member' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
             self::GovernanceDataExported, self::GovernanceApprovalThresholdChanged => ['actor' => self::PARAM_TEXT],
             self::GovernanceIntegrationChanged => ['provider' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
-            self::RoleDelegationActivated => ['role' => self::PARAM_TEXT, 'ends_at' => self::PARAM_DATE],
-            self::RoleDelegationExpired, self::RoleDelegationRevoked => ['role' => self::PARAM_TEXT],
+            self::RoleDelegationActivated => ['role' => self::PARAM_ROLE, 'ends_at' => self::PARAM_DATE],
+            self::RoleDelegationExpired, self::RoleDelegationRevoked => ['role' => self::PARAM_ROLE],
             self::RoleDelegationActivatedDelegator, self::RoleDelegationExpiredDelegator,
-            self::RoleDelegationRevokedDelegator => ['role' => self::PARAM_TEXT, 'beneficiary' => self::PARAM_TEXT],
+            self::RoleDelegationRevokedDelegator => ['role' => self::PARAM_ROLE, 'beneficiary' => self::PARAM_TEXT],
             self::BankStatementImported => ['bank' => self::PARAM_TEXT, 'lines' => self::PARAM_COUNT],
             self::BankStatementFinalized => ['period_start' => self::PARAM_DATE, 'period_end' => self::PARAM_DATE, 'confirmed' => self::PARAM_COUNT, 'total' => self::PARAM_COUNT],
             self::MaintenanceCreated => ['property' => self::PARAM_TEXT, 'reference' => self::PARAM_TEXT],
@@ -481,6 +487,18 @@ enum NotificationCode: string
     }
 
     /**
+     * TCK-1350 (P88.04) — les codes qui atteignent encore un compte bloqué ou supprimé : ceux qui
+     * lui annoncent l'état du compte lui-même. Tout autre code se tait pour lui (un compte qui ne
+     * peut ouvrir aucune session ne peut agir sur rien de ce qu'on lui annonce). La fin d'une
+     * consultation de son compte par la plateforme en est : le blocage la clôt, et le titulaire en
+     * est prévenu (`ImpersonationLifecycleTest`).
+     */
+    public function reachesUnreachableAccount(): bool
+    {
+        return in_array($this, [self::AccountBlocked, self::AccountReactivated, self::ImpersonationEnded], true);
+    }
+
+    /**
      * Le code peut viser un contact sans compte : transactionnel seulement (exécution du bail,
      * demande de visite, lien d'une invitation adressée à un numéro — TCK-589). Jamais un
      * message non transactionnel (ADR-0032 §3).
@@ -506,7 +524,9 @@ enum NotificationCode: string
     {
         return match ($this) {
             self::BookingConfirmed => 'booking_confirmed',
-            self::LeasePaymentRecorded => 'payment_received',
+            // P98.04 (TCK-1168) — « Paiement reçu » couvre la quittance en ligne : mêmes paramètres,
+            // même préférence, et son titre est déjà « Paiement reçu ».
+            self::LeasePaymentRecorded, self::LeasePaymentSettledOnline => 'payment_received',
             self::MaintenanceCreated => 'maintenance_created',
             default => null,
         };

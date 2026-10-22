@@ -23,6 +23,9 @@ use Illuminate\Support\Facades\DB;
 
 class PlatformPayoutService
 {
+    /** TCK-1214 (P76.02) — le montant d'une ligne que la plateforme garde : payé moins rendu. */
+    private const NET_SQL = 'amount - COALESCE(refund_amount, 0)';
+
     /**
      * Allowed transitions matrix for PlatformPayoutStatus.
      *
@@ -111,6 +114,7 @@ class PlatformPayoutService
         DB::transaction(function () use ($payout, $actor): void {
             $locked = PlatformPayout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
             $this->assertTransition($locked, PlatformPayoutStatus::Approved);
+            $this->assertItemsStillPaid($locked);
             $agency = $this->payableAgency($locked);
 
             abort_code_if(
@@ -146,6 +150,7 @@ class PlatformPayoutService
         DB::transaction(function () use ($payout, $actor, $processedAt, $reference, $metadata): void {
             $locked = PlatformPayout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
             $this->assertTransition($locked, PlatformPayoutStatus::Paid);
+            $this->assertItemsStillPaid($locked);
             $agency = $this->payableAgency($locked);
 
             $this->assertNotBeneficiary($actor, $agency, SegregationOfDuties::STEP_PAY);
@@ -167,6 +172,38 @@ class PlatformPayoutService
         $this->logAction($payout, $actor, 'super_admin_payout_marked_paid', ['payment_reference' => $payout->payment_reference]);
 
         return $payout;
+    }
+
+    /**
+     * TCK-1156 (P76.01) — les montants sont figés à la clôture : une ligne qui n'est plus `paid`
+     * depuis (remboursée, le plus souvent) ferait verser à l'agence de l'argent rendu au locataire.
+     * Le reversement s'annule alors, et une nouvelle clôture le recompose.
+     */
+    private function assertItemsStillPaid(PlatformPayout $payout): void
+    {
+        $changed = BookingPayment::query()->where('platform_payout_id', $payout->id)->where('status', '!=', PaymentStatus::Paid->value)->exists()
+            || LeasePayment::query()->where('platform_payout_id', $payout->id)->where('status', '!=', PaymentStatus::Paid->value)->exists();
+
+        abort_code_if($changed || $this->refundedSinceClosing($payout), 422, 'platform_payout.items_changed');
+    }
+
+    /**
+     * TCK-1214 (P76.02) — un remboursement partiel laisse la ligne `paid` : il ne se voit qu'au brut.
+     * Le brut des lignes, relu à `montant − refund_amount` plus la pénalité figée, ne retombe plus
+     * sur celui de la clôture. Lu seulement quand une ligne porte un remboursement.
+     */
+    private function refundedSinceClosing(PlatformPayout $payout): bool
+    {
+        $refunded = fn (string $model): bool => $model::query()->where('platform_payout_id', $payout->id)->where('refund_amount', '>', 0)->exists();
+        if (! $refunded(BookingPayment::class) && ! $refunded(LeasePayment::class)) {
+            return false;
+        }
+
+        $gross = (float) BookingPayment::query()->where('platform_payout_id', $payout->id)->sum(DB::raw(self::NET_SQL))
+            + (float) LeasePayment::query()->where('platform_payout_id', $payout->id)->sum(DB::raw(self::NET_SQL))
+            + (float) (($payout->metadata ?? [])['late_fees_gross'] ?? 0);
+
+        return Currency::roundAmount($gross, $payout->currency) < (float) $payout->gross_amount;
     }
 
     public function cancel(PlatformPayout $payout, User $actor, string $reason): PlatformPayout
@@ -203,7 +240,9 @@ class PlatformPayoutService
         // à la clôture : un `SUM` brut des commissions ne retomberait pas sur le montant figé.
         $currency = $payout->currency;
         $places = Currency::decimalPlacesOf($currency);
-        $aggregate = 'COUNT(*) as count, COALESCE(SUM(amount), 0) as gross, COALESCE(SUM(ROUND(amount * platform_fee_pct_at_payment / 100, ?)), 0) as fees';
+        // TCK-1214 (P76.02) — une ligne remboursée en partie compte pour `montant − refund_amount`.
+        $net = self::NET_SQL;
+        $aggregate = "COUNT(*) as count, COALESCE(SUM({$net}), 0) as gross, COALESCE(SUM(ROUND(({$net}) * platform_fee_pct_at_payment / 100, ?)), 0) as fees";
 
         $booking = BookingPayment::query()
             ->where('platform_payout_id', $payout->id)
@@ -253,7 +292,7 @@ class PlatformPayoutService
             ->where('paid_at', '<=', $periodEnd)
             ->whereNull('platform_payout_id')
             ->lockForUpdate()
-            ->get(['id', 'amount', 'platform_fee_pct_at_payment', 'paid_at', 'currency', 'transaction_id', 'metadata']);
+            ->get(['id', 'amount', 'refund_amount', 'platform_fee_pct_at_payment', 'paid_at', 'currency', 'transaction_id', 'metadata']);
 
         // VERIF-594 passe 3, P3-2 — une ligne `deposit_refund` payée est une caution RENDUE au
         // locataire, une sortie : elle n'entre jamais dans ce que la plateforme reverse à l'agence.
@@ -265,7 +304,7 @@ class PlatformPayoutService
             ->where('paid_at', '<=', $periodEnd)
             ->whereNull('platform_payout_id')
             ->lockForUpdate()
-            ->get(['id', 'amount', 'platform_fee_pct_at_payment', 'paid_at', 'currency', 'transaction_id', 'metadata', 'late_fee_amount']);
+            ->get(['id', 'amount', 'refund_amount', 'platform_fee_pct_at_payment', 'paid_at', 'currency', 'transaction_id', 'metadata', 'late_fee_amount']);
 
         // TCK-733 (P04.05) — la plateforme ne reverse que ce qu'elle a encaissé : un paiement soldé
         // par une intégration GLOBALE. Espèces, virement, intégration propre à l'agence : l'argent
@@ -293,7 +332,9 @@ class PlatformPayoutService
         $lateFeesFee = 0.0;
         foreach ($eligible as $row) {
             $pct = (float) ($row->platform_fee_pct_at_payment ?? 0);
-            $amount = (float) $row->amount;
+            // TCK-1214 (P76.02, option (b)) — un remboursement partiel laisse la ligne `paid` : la
+            // plateforme reverse ce qu'elle garde, `montant − refund_amount`, commission comprise.
+            $amount = max(0.0, (float) $row->amount - (float) ($row->refund_amount ?? 0));
             $gross += $amount;
             $fees += Currency::roundAmount($amount * $pct / 100, $currencyValue);
 
@@ -350,6 +391,15 @@ class PlatformPayoutService
         ]);
 
         return $payout;
+    }
+
+    /**
+     * TCK-1160 (P76.04) — ce paiement a-t-il été soldé en ligne par une intégration globale, donc
+     * encaissé par la plateforme ? La lecture même de la clôture.
+     */
+    public function isSettledByPlatform(BookingPayment|LeasePayment $payment): bool
+    {
+        return $this->settledBy($payment, $this->globalIntegrationIds([$payment])) !== null;
     }
 
     /**

@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -47,7 +49,22 @@ class DocumentPdfController extends Controller
      */
     public static function streamRentReceipt(DocumentPdfService $pdf, Lease $lease, LeasePayment $payment): Response
     {
-        $lease->loadMissing(['property.address', 'tenant', 'agency']);
+        // P130.02 (TCK-1250) — le bien supprimé (suppression douce) reste celui du bail : le gabarit
+        // le lit, au lieu de rendre 500 sur `$property->id`. La policy a pu déjà charger la relation,
+        // à `null` sous la portée `SoftDeletes` : `loadMissing` ne la relirait pas.
+        // P130.06 (TCK-1334) — de même pour le locataire : la quittance atteste un paiement passé,
+        // elle imprime la fiche qui l'a fait, même supprimée depuis.
+        foreach (['property', 'tenant'] as $relation) {
+            if ($lease->relationLoaded($relation) && $lease->{$relation} === null) {
+                $lease->unsetRelation($relation);
+            }
+        }
+        $lease->loadMissing([
+            'property' => fn ($q) => $q->withTrashed(),
+            'property.address',
+            'tenant' => fn ($q) => $q->withTrashed(),
+            'agency',
+        ]);
         $wording = self::receiptWording($payment->payment_type);
 
         return $pdf->stream('pdf.receipts.rent', [
@@ -98,13 +115,21 @@ class DocumentPdfController extends Controller
         // TCK-587 — la règle de `InvoicePolicy::view`, que l'ancien helper recopiait à l'identique.
         $this->authorize('view', $invoice);
 
-        $invoice->loadMissing(['customer', 'agency', 'creditedInvoice']);
+        // P130.06 (TCK-1334) — une facture atteste un fait passé : elle imprime le client qu'elle
+        // désignait, même supprimé depuis (suppression douce), au lieu de « — ». La policy a pu
+        // charger la relation à `null` : `loadMissing` ne la relirait pas.
+        if ($invoice->relationLoaded('customer') && $invoice->customer === null) {
+            $invoice->unsetRelation('customer');
+        }
+        $invoice->loadMissing(['customer' => fn ($q) => $q->withTrashed(), 'agency', 'creditedInvoice']);
         $label = ($invoice->kind?->value ?? 'invoice') === 'credit_note' ? 'Avoir' : 'Facture';
 
         return $this->pdf->stream('pdf.invoices.default', [
             'title' => $label.' '.($invoice->reference_number ?? $invoice->id),
             'document_label' => $label,
             'invoice' => $invoice,
+            // P133.02 (TCK-1377) — les lignes saisies ; sans elles, le gabarit imprime la désignation.
+            'lines' => $invoice->lines(),
             'customer' => $invoice->customer,
             'agency' => $invoice->agency,
             'filename' => sprintf('facture-%s.pdf', $invoice->reference_number ?? $invoice->id),
@@ -133,7 +158,13 @@ class DocumentPdfController extends Controller
             ]);
         }
 
-        $lease->loadMissing(['property.address', 'tenant', 'landlord', 'agency', 'guarantors']);
+        // P130.02 (TCK-1250) — le bien supprimé (suppression douce) reste celui du bail : le gabarit
+        // le lit, au lieu de rendre 500 sur `$property->id`. La policy a pu déjà charger la relation,
+        // à `null` sous la portée `SoftDeletes` : `loadMissing` ne la relirait pas.
+        if ($lease->relationLoaded('property') && $lease->property === null) {
+            $lease->unsetRelation('property');
+        }
+        $lease->loadMissing(['property' => fn ($q) => $q->withTrashed(), 'property.address', 'tenant', 'landlord', 'agency', 'guarantors']);
 
         return $this->pdf->stream('pdf.leases.contract', [
             'title' => 'Contrat de bail '.($lease->reference_number ?? $lease->id),
@@ -163,10 +194,17 @@ class DocumentPdfController extends Controller
         // téléchargeait la quittance. La branche collaborateur, propre à ce geste, reste.
         $staffAgencyId = $user->staffAgencyId();
         $isAgency = $staffAgencyId !== null && $staffAgencyId === (int) $lease->agency_id;
-        $isCollab = (bool) $lease->property?->collaborators()
-            ->where('user_id', $user->id)
-            ->whereNotNull('accepted_at')
-            ->exists();
+        // TCK-1154 (P86.04) — le collaborateur `agent` ou `manager` accepté, encore personnel de
+        // l'agence du bail, comme `BookingStakeholders::collaboratorsOf`. Sans condition de rôle, un
+        // `viewer` accepté téléchargeait la quittance d'un bien que `PropertyPolicy` lui refuse.
+        $collabAgencyId = $lease->agency_id ?? $lease->property?->agency_id;
+        $isCollab = $collabAgencyId !== null
+            && (bool) $lease->property?->collaborators()
+                ->where('user_id', $user->id)
+                ->whereNotNull('accepted_at')
+                ->whereIn('role', [CollaboratorRole::Agent->value, CollaboratorRole::Manager->value])
+                ->exists()
+            && app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $collabAgencyId);
         $isAdmin = $user->isSuperAdmin();
 
         abort_unless($isAdmin || $isTenant || $isLandlord || $isAgency || $isCollab, 403);

@@ -108,6 +108,15 @@ const agenceDuRendu = cache(
     fetchAgency(token, agencyId, activeProfileId),
 );
 
+/**
+ * TCK-1378 (P138.05) — la même lecture, exposée AVEC son erreur : pour un appelant qui rend le
+ * message de l'API (`fetchAgencyAction`) au lieu du `null` de `resolveAgencyOrNull`. Même clé de
+ * cache, donc même requête que le layout de `/app` dans un même rendu.
+ */
+export async function lireAgenceDuRendu(token: string, agencyId: number, activeProfileId?: string): Promise<Agency> {
+  return agenceDuRendu(token, agencyId, activeProfileId);
+}
+
 /** Où l'on renvoie quand on n'a pas PU vérifier — distinct de `/app`, qui veut dire « non ». */
 export const ROUTE_VERIF_INDISPONIBLE = '/verification-indisponible';
 

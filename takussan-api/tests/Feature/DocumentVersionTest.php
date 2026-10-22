@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Customer;
 use App\Models\Document;
+use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Document\DocumentVersionService;
@@ -250,6 +252,47 @@ class DocumentVersionTest extends TestCase
         $this->actingAs($stranger)->postJson(
             "/api/documents/{$document->id}/versions/{$v1->id}/restore",
         )->assertStatus(403);
+    }
+
+    /**
+     * TCK-1140 (P64.01) — ajouter ou restaurer une version, c'est modifier le document (TCK-097) :
+     * le locataire du bail, qui le lit, ne remplace pas le fichier du bailleur. L'auteur garde le
+     * geste, et la liste des versions reste ouverte au locataire.
+     */
+    public function test_le_locataire_ne_televerse_ni_ne_restaure_une_version_du_document_du_bailleur(): void
+    {
+        $landlord = User::factory()->create();
+        $tenantUser = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $landlord->id]);
+        $lease = Lease::factory()->create([
+            'property_id' => $property->id,
+            'landlord_id' => $landlord->id,
+            'tenant_id' => Customer::factory()->create(['user_id' => $tenantUser->id])->id,
+        ]);
+        $document = Document::factory()->create([
+            'documentable_id' => $lease->id,
+            'documentable_type' => Lease::class,
+            'uploaded_by' => $landlord->id,
+        ]);
+        $v1 = $this->service->uploadVersion($document, UploadedFile::fake()->create('v1.pdf', 100, 'application/pdf'), $landlord);
+
+        $this->actingAs($tenantUser)->getJson("/api/documents/{$document->id}/versions")->assertOk();
+        $this->actingAs($tenantUser)->postJson(
+            "/api/documents/{$document->id}/versions",
+            ['file' => UploadedFile::fake()->create('locataire.pdf', 100, 'application/pdf')],
+        )->assertStatus(403);
+        $this->actingAs($tenantUser)->postJson(
+            "/api/documents/{$document->id}/versions/{$v1->id}/restore",
+        )->assertStatus(403);
+        $this->assertCount(1, $document->refresh()->getMedia('versions'));
+
+        $this->actingAs($landlord)->postJson(
+            "/api/documents/{$document->id}/versions",
+            ['file' => UploadedFile::fake()->create('v2.pdf', 100, 'application/pdf')],
+        )->assertStatus(201);
+        $this->actingAs($landlord)->postJson(
+            "/api/documents/{$document->id}/versions/{$v1->id}/restore",
+        )->assertOk();
     }
 
     // ─────────────────────────────────────────────────────────────────────────

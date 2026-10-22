@@ -25,10 +25,14 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
+use Symfony\Component\Mailer\Exception\TransportException;
+use Symfony\Component\Mailer\SentMessage;
+use Symfony\Component\Mailer\Transport\AbstractTransport;
 use Tests\Concerns\CreatesAgencyMembers;
 use Tests\TestCase;
 
@@ -416,6 +420,52 @@ class LeaseSignatureTest extends TestCase
             ->assertJsonPath('code', 'lease_signature.sms_not_sent');
     }
 
+    /**
+     * TCK-1337 (P123.06) — la fenêtre de renvoi ne compte qu'après un envoi réussi : un courriel
+     * qui lève laisse renvoyer aussitôt, au lieu de buter sur `resend_too_soon`.
+     */
+    public function test_a_mail_code_that_failed_does_not_start_the_resend_window(): void
+    {
+        $this->requestSignature()->assertOk();
+        $this->realNotifications();
+        Mail::extend('panne', fn () => new class extends AbstractTransport
+        {
+            protected function doSend(SentMessage $message): void
+            {
+                throw new TransportException('Transport indisponible (test).');
+            }
+
+            public function __toString(): string
+            {
+                return 'panne://';
+            }
+        });
+        config(['mail.mailers.panne' => ['transport' => 'panne'], 'mail.default' => 'panne']);
+        Mail::purge('panne');
+
+        $this->sendCode($this->tenantUser, 'tenant')->assertStatus(500);
+
+        config(['mail.default' => 'array']);
+        $this->sendCode($this->tenantUser, 'tenant')->assertStatus(202)->assertJsonPath('data.channel', 'mail');
+    }
+
+    /** TCK-1337 (P123.06) — de même pour un SMS qui n'est pas parti (503). */
+    public function test_a_sms_code_that_did_not_leave_does_not_start_the_resend_window(): void
+    {
+        $this->owner->forceFill(['phone' => '+221771234567', 'phone_verified_at' => now()])->save();
+        $this->requestSignature()->assertOk();
+        $this->realNotifications();
+        $this->mock(SmsRouterDriver::class, function ($mock) {
+            $mock->shouldReceive('send')->twice()->andReturn(
+                ['+221771234567' => SmsResult::failed('+221771234567', 'router', 'no_provider_available')],
+                ['+221771234567' => SmsResult::sent('+221771234567', 'lafricamobile', 'lam-2')],
+            );
+        });
+
+        $this->sendCode($this->owner, 'landlord')->assertStatus(503);
+        $this->sendCode($this->owner, 'landlord')->assertStatus(202)->assertJsonPath('data.channel', 'sms');
+    }
+
     public function test_a_sms_code_that_left_answers_202(): void
     {
         $this->owner->forceFill(['phone' => '+221771234567', 'phone_verified_at' => now()])->save();
@@ -607,6 +657,25 @@ class LeaseSignatureTest extends TestCase
         $show = $this->getJson("/api/leases/{$this->lease->id}")->assertOk();
         $this->assertStringNotContainsString('203.0.113.7', $show->getContent());
         $show->assertJsonPath('data.can_sign_as', ['landlord'])->assertJsonPath('data.can_request_signature', true);
+    }
+
+    /**
+     * TCK-1263 (P91.06) — `otp_destination` est un `varchar(120)` : la destination masquée d'une
+     * adresse au long domaine se borne à 120 caractères, dès l'envoi, pour que la preuve enregistre
+     * ce que le signataire a lu, et que la signature aboutisse au lieu d'un 500.
+     */
+    public function test_a_long_email_domain_is_bounded_in_the_destination_and_the_proof(): void
+    {
+        $domain = str_repeat('a', 60).'.'.str_repeat('b', 60).'.sn';
+        $this->tenantUser->forceFill(['email' => 'awa@'.$domain, 'phone_verified_at' => null])->save();
+        $this->requestSignature()->assertOk();
+
+        $displayed = $this->sendCode($this->tenantUser, 'tenant')->assertStatus(202)->json('data.destination');
+        $this->assertSame(120, mb_strlen($displayed));
+        $this->assertStringStartsWith('a•••@'.str_repeat('a', 60), $displayed);
+
+        $this->sign($this->tenantUser, 'tenant', $this->lastCode($this->tenantUser))->assertOk();
+        $this->assertSame($displayed, LeaseSignature::query()->sole()->otp_destination);
     }
 
     // ─── Qui signe ───────────────────────────────────────────────────────────────────────────

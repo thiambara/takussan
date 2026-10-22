@@ -10,7 +10,7 @@ use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\LeaseStatus;
-use App\Models\Enums\MaintenanceStatus;
+use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\TaskStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
@@ -20,9 +20,11 @@ use App\Models\PropertyCollaborator;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
+use App\Sorts\TaskPrioritySort;
 use App\Support\DayRange;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -35,7 +37,8 @@ use Illuminate\Support\Facades\DB;
  *  - `agency` : toute l'agence, sous `reports.view_agency` (le contrôleur l'autorise), avec la règle
  *    de la tuile d'agence pour les commissions (ADR-0049 §5).
  *
- * Les tâches, visites et interventions restent personnelles dans les deux périmètres. L'ancien
+ * Les tâches, visites et interventions restent personnelles dans les deux périmètres, bornées à
+ * l'agence active par leur parent (P127.05, TCK-1361). L'ancien
  * calcul rendait à tout agent le chiffre de l'agence sous le libellé « Mes commissions ».
  */
 class DashboardAgentService
@@ -50,9 +53,13 @@ class DashboardAgentService
         $monthEnd = now()->endOfMonth();
         $agency = $scope === self::SCOPE_AGENCY && $agencyId !== null;
 
-        $managedPropertyIds = $this->propertyScope($agent, $scope, $agencyId)->pluck('properties.id');
+        $managed = $this->propertyScope($agent, $scope, $agencyId)->toBase()->get(['properties.id', 'properties.status']);
+        $managedPropertyIds = $managed->pluck('id');
 
-        $propertiesManaged = $managedPropertyIds->count();
+        // P127.04 (TCK-1359) — les biens gérés sont ceux du portefeuille : un bien archivé ou vendu
+        // n'en est plus. Les autres lectures du périmètre (réservations…) gardent tous les biens.
+        $outOfPortfolio = array_map(static fn (PropertyStatus $s): string => $s->value, Property::OUT_OF_PORTFOLIO_STATUSES);
+        $propertiesManaged = $managed->whereNotIn('status', $outOfPortfolio)->count();
 
         $pipelineScope = Customer::query();
         if ($agency) {
@@ -79,8 +86,20 @@ class DashboardAgentService
             ->where('status', BookingStatus::Pending)
             ->count();
 
+        // P127.05 (TCK-1361) — tâches, visites et interventions restent celles de l'agent, mais
+        // bornées à l'agence active par leur parent, comme ses clients et ses baux : une tâche sur un
+        // client d'une autre agence n'est pas à côté des chiffres de celle-ci. Une tâche n'a pas
+        // d'agence : elle se lit sur son parent (client, bien, ou réservation pour une tâche de
+        // remboursement), comme `TeamPerformanceService` ; sans parent, elle n'est d'aucune agence.
+        // Un parent supprimé en douceur garde son agence : seule la frontière d'agence change.
+        $inAgency = fn (Builder $parent) => $parent->withoutGlobalScope(SoftDeletingScope::class)->where('agency_id', $agencyId);
+        $taskInAgency = fn (Builder $q) => $agencyId === null ? $q
+            : $q->whereHasMorph('taskable', [Customer::class, Property::class, Booking::class], $inAgency);
+        $propertyInAgency = fn (Builder $q) => $agencyId === null ? $q : $q->whereHas('property', $inAgency);
+
         // Une visite confirmée est à venir autant qu'une visite planifiée.
         $upcomingVisits = PropertyVisit::where('agent_id', $agent->id)
+            ->tap($propertyInAgency)
             ->whereIn('status', [VisitStatus::Scheduled->value, VisitStatus::Confirmed->value])
             ->whereBetween('scheduled_at', [now(), now()->addDays(7)])
             ->count();
@@ -101,26 +120,31 @@ class DashboardAgentService
 
         // Tasks owned by the agent
         $openTasks = Task::where('assigned_to_id', $agent->id)
+            ->tap($taskInAgency)
             ->whereIn('status', [TaskStatus::Open, TaskStatus::InProgress])
             ->count();
 
         $overdueTasks = Task::where('assigned_to_id', $agent->id)
+            ->tap($taskInAgency)
             ->whereIn('status', [TaskStatus::Open, TaskStatus::InProgress])
             ->whereNotNull('due_at')
             ->where('due_at', '<', now())
             ->count();
 
         $tasksToday = Task::where('assigned_to_id', $agent->id)
+            ->tap($taskInAgency)
             ->whereIn('status', [TaskStatus::Open, TaskStatus::InProgress])
             ->where('due_at', '>=', DayRange::start(today()))
             ->where('due_at', '<', DayRange::after(today()))
             ->count();
 
         $taskList = Task::where('assigned_to_id', $agent->id)
+            ->tap($taskInAgency)
             ->whereIn('status', [TaskStatus::Open, TaskStatus::InProgress])
             ->with('taskable')
             ->orderByRaw('due_at IS NULL, due_at asc')
-            ->orderByDesc('priority')
+            // P134.01 (TCK-1260) — sur le rang de l'enum, pas sur la chaîne.
+            ->tap(fn ($query) => TaskPrioritySort::apply($query, descending: true))
             ->limit(5)
             ->get()
             ->map(fn (Task $task) => [
@@ -139,6 +163,7 @@ class DashboardAgentService
             ->all();
 
         $visitsToday = PropertyVisit::where('agent_id', $agent->id)
+            ->tap($propertyInAgency)
             ->where('scheduled_at', '>=', DayRange::start(today()))
             ->where('scheduled_at', '<', DayRange::after(today()))
             ->whereNotIn('status', [VisitStatus::Cancelled->value, VisitStatus::NoShow->value])
@@ -161,6 +186,7 @@ class DashboardAgentService
             ->all();
 
         $recentActivity = Task::where('assigned_to_id', $agent->id)
+            ->tap($taskInAgency)
             ->latest('updated_at')
             ->limit(5)
             ->get()
@@ -174,7 +200,8 @@ class DashboardAgentService
             ->all();
 
         $openMaintenance = MaintenanceRequest::where('assigned_to', $agent->id)
-            ->whereIn('status', [MaintenanceStatus::Open, MaintenanceStatus::InProgress])
+            ->tap($propertyInAgency)
+            ->open()
             ->count();
 
         return [

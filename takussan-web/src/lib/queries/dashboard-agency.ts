@@ -30,7 +30,8 @@ export type DashboardAgencySummary = {
     commission_month: number;
     overdue_count: number;
     overdue_amount: number;
-    unpaid_rate_percent: number;
+    /** Impayé ÷ facturé des échéances échues sur 12 mois, en points ; `null` sans échéance (TCK-1177). */
+    unpaid_rate_percent: number | null;
   };
   /** `null` sans bien éligible longue durée : pas de dénominateur (TCK-1114). */
   occupancy: { rate_percent: number | null };
@@ -39,7 +40,8 @@ export type DashboardAgencySummary = {
 export type DashboardAgencyTimeseries = {
   months: string[];
   revenue: number[];
-  occupancy: number[];
+  /** `null` pour un mois sans bien éligible longue durée (P127.02, TCK-1355). */
+  occupancy: (number | null)[];
 };
 
 export type DashboardAgencyPayload = {

@@ -16,6 +16,7 @@ use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * TCK-596 §4B (ADR-0042) — la signature d'un bail.
@@ -32,6 +33,9 @@ use Illuminate\Support\Facades\DB;
  */
 class LeaseSignatureService
 {
+    /** La longueur de `lease_signatures.otp_destination` (migration `2026_10_08_020100`). */
+    public const DESTINATION_MAX_LENGTH = 120;
+
     public function __construct(
         private readonly DocumentPdfService $pdf,
         private readonly LeaseSignatureOtpService $otp,
@@ -132,10 +136,21 @@ class LeaseSignatureService
             (string) ($lease->reference_number ?? $lease->id),
             (int) (LeaseSignatureOtpService::CODE_TTL_SECONDS / 60),
             $channel,
+            $this->otp->resendKey($lease, $user, $role),
         );
-        $user->notify($notification);
+        // TCK-1337 (P123.06) — la fenêtre de renvoi ne compte qu'après un envoi réussi.
+        try {
+            $user->notify($notification);
+        } catch (Throwable $e) {
+            $this->otp->releaseResend($lease, $user, $role);
+
+            throw $e;
+        }
         // TCK-799 (P11.05) — un code qui n'est pas parti ne se dit pas envoyé.
-        abort_code_if($notification->smsLeft() === false, 503, 'lease_signature.sms_not_sent');
+        if ($notification->smsLeft() === false) {
+            $this->otp->releaseResend($lease, $user, $role);
+            abort_code(503, 'lease_signature.sms_not_sent');
+        }
 
         return ['channel' => $channel, 'destination' => $destination];
     }
@@ -347,10 +362,15 @@ class LeaseSignatureService
         return strlen($digits) <= 2 ? '••' : str_repeat('•', max(strlen($digits) - 2, 0)).substr($digits, -2);
     }
 
+    /**
+     * TCK-1263 (P91.06) — bornée à `lease_signatures.otp_destination` (`varchar(120)`) dès
+     * l'envoi : la preuve enregistre la destination que le signataire a lue, et un domaine de plus
+     * de 115 caractères ne fait plus échouer la signature en 22001.
+     */
     public static function maskEmail(string $email): string
     {
         [$local, $domain] = array_pad(explode('@', $email, 2), 2, '');
 
-        return mb_substr($local, 0, 1).'•••@'.$domain;
+        return mb_substr(mb_substr($local, 0, 1).'•••@'.$domain, 0, self::DESTINATION_MAX_LENGTH);
     }
 }

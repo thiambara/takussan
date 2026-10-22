@@ -63,6 +63,12 @@ export interface PropertyVisit {
     phone?: string | null;
   } | null;
   created_at?: string | null;
+  /**
+   * P152.04 — rendu sur la seule visite de la route : `manage` dit si l'utilisateur courant peut la
+   * confirmer, la clore, la déclarer manquée, la déplacer ou l'annuler au nom de ceux qui gèrent le
+   * bien (`PropertyVisitPolicy::update` et `agitPourLeBien`). Absent, rien n'est offert.
+   */
+  abilities?: { readonly manage: boolean };
 }
 
 export interface VisitFeedbackPayload {

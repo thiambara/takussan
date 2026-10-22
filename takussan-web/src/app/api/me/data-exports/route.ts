@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { urlApiServeur } from '@/lib/api';
-import { enTetesDuRelais } from '@/lib/relais-api';
+import { enTetesDuRelais, fetchVersApi } from '@/lib/relais-api';
 
 async function forward(request: NextRequest): Promise<NextResponse> {
   const token = jetonEspaceApplicatif(request.cookies);
@@ -12,10 +12,10 @@ async function forward(request: NextRequest): Promise<NextResponse> {
     Accept: 'application/json',
     Authorization: `Bearer ${token}`,
   };
-  const upstream = await fetch(urlApiServeur(`/me/data-exports${request.nextUrl.search}`), {
+  const upstream = await fetchVersApi(urlApiServeur(`/me/data-exports${request.nextUrl.search}`), {
     method: request.method,
     headers,
-  });
+  }, { requete: request });
   const body = await upstream.text();
   const ct = upstream.headers.get('content-type');
   return new NextResponse(body, { status: upstream.status, headers: ct ? { 'Content-Type': ct } : undefined });

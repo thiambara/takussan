@@ -113,6 +113,46 @@ class AgencyMembersListTest extends TestCase
         $this->assertTrue($ids('filter[role]=owner')->contains($bailleurAgentAilleurs->id));
     }
 
+    /**
+     * P120.02 (TCK-1244) — le passage à `agency_admin` supprime les profils d'agent et de bailleur :
+     * le promu ne tient plus que son profil d'admin. Il reste un membre de l'agence (`/members`,
+     * `filter[assignable]=1`, `filter[role]=agency_admin`, l'équipe de la console), et sort des
+     * candidats à une délégation (`filter[role]=agent,owner`), que `RoleDelegationService::create`
+     * lui refuse.
+     */
+    public function test_un_agent_promu_administrateur_reste_membre_sans_devenir_candidat_a_une_delegation(): void
+    {
+        [$admin, $agency] = $this->createAdminWithAgency();
+
+        $promu = User::factory()->create();
+        AgentProfile::factory()->create(['user_id' => $promu->id, 'agency_id' => $agency->id]);
+
+        $bailleur = User::factory()->create();
+        OwnerProfile::factory()->create(['user_id' => $bailleur->id, 'agency_id' => $agency->id]);
+
+        Sanctum::actingAs($admin);
+        $this->putJson("/api/agencies/{$agency->id}/members/{$promu->id}/role", ['role' => 'agency_admin'])->assertOk();
+        $this->assertFalse($promu->refresh()->agentProfiles()->where('agency_id', $agency->id)->exists());
+
+        $ids = fn (string $qs) => collect($this->getJson("/api/agencies/{$agency->id}/members?{$qs}&fields[users]=id,first_name&per_page=100")
+            ->assertOk()
+            ->json('data'))
+            ->pluck('id');
+
+        $this->assertTrue($ids('')->contains($promu->id), "L'admin promu reste dans la liste des membres.");
+        $this->assertTrue($ids('filter[assignable]=1')->contains($promu->id), "L'API l'accepte comme cible : il est proposé.");
+        $this->assertTrue($ids('filter[role]=agency_admin')->contains($promu->id));
+        $this->assertFalse($ids('filter[role]=agent')->contains($promu->id));
+
+        $candidats = $ids('filter[role]=agent,owner');
+        $this->assertFalse($candidats->contains($promu->id), "L'admin seul n'est pas candidat à une délégation.");
+        $this->assertTrue($candidats->contains($bailleur->id), 'Un bailleur de l\'agence reste candidat.');
+
+        $this->assertContains($promu->id, $this->getJson("/api/admin/agencies/{$agency->id}/team?per_page=100")
+            ->assertOk()
+            ->json('data.*.id'), "L'équipe de la console montre l'admin promu.");
+    }
+
     public function test_non_admin_cannot_list_members(): void
     {
         [$admin, $agency] = $this->createAdminWithAgency();

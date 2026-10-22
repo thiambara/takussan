@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\PayoutMethodKind;
 use App\Support\Masking;
@@ -41,6 +42,9 @@ class PayoutMethod extends AbstractModel
     ];
 
     protected static array $requestFilterable = ['user_id', 'kind', 'is_default'];
+
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['is_default' => TypedExactFilter::BOOLEEN];
 
     protected static array $requestSortable = ['id', 'created_at'];
 

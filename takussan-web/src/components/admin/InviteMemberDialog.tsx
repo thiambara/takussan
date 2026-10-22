@@ -9,6 +9,8 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { addAgencyMember, type AgencyMemberRole } from '@/lib/queries/agency-members';
 import { useApiForm } from '@/hooks/useApiForm';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -57,6 +59,9 @@ export function InviteMemberDialog({
   const t = useTranslations('admin.inviteMember');
   const tCommon = useTranslations('common.actions');
   const { token } = useAuth();
+  // TCK-1203 — ajouter un membre exige la 2FA de l'agence (`AgencyController@addAgent`) : `useApiForm`
+  // ne connaît pas la garde, l'appel lui est donc confié ici.
+  const garde = useGardeDoubleFacteur();
   const schema = buildSchema(t('emailInvalid'));
   const roleOptions = ROLE_KEYS.map((k) => ({ value: k, label: t(`roles.${k}`) }));
 
@@ -66,13 +71,16 @@ export function InviteMemberDialog({
   >({
     schema,
     defaultValues: { email: '', role: 'agent' },
-    onSubmit: async (values) => {
-      return addAgencyMember(
-        agencyId,
-        { email: values.email, role: values.role as AgencyMemberRole },
-        token ?? '',
-      );
-    },
+    onSubmit: async (values) =>
+      avecGardeDoubleFacteur(
+        () =>
+          addAgencyMember(
+            agencyId,
+            { email: values.email, role: values.role as AgencyMemberRole },
+            token ?? '',
+          ),
+        garde,
+      ),
     onSuccess: () => {
       onSuccess?.();
       onOpenChange(false);

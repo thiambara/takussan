@@ -232,6 +232,30 @@ describe('<HostIndividualWizard> — saisie du téléphone (TCK-566)', () => {
     phoneSendOtpAction.mockResolvedValue({ ok: true, data: { sent: true } });
   });
 
+  // TCK-1362 (P84.03) — le code est HACHÉ et à usage unique côté API ; le brouillon serveur, gardé
+  // jusqu'à 90 jours, n'en garde pas la copie en clair une fois le numéro vérifié.
+  it('le code vérifié ne reste pas dans le brouillon serveur', async () => {
+    phoneVerifyOtpAction.mockResolvedValue({ ok: true, data: {} });
+    const user = userEvent.setup();
+    render(withIntl(<HostIndividualWizard />));
+    await user.click(screen.getByRole('button', { name: /Suivant/i })); // intent → identité
+
+    await user.type(screen.getByLabelText(CHAMPS.fields.phone), '780143710', {
+      initialSelectionStart: 0,
+      initialSelectionEnd: 0,
+    });
+    await user.click(screen.getByRole('button', { name: CHAMPS.otp.sendCta }));
+    await user.type(await screen.findByLabelText(CHAMPS.fields.otpCode), '123456');
+    await user.click(screen.getByRole('button', { name: CHAMPS.otp.verifyCta }));
+
+    await waitFor(() => expect(phoneVerifyOtpAction).toHaveBeenCalledWith('123456'));
+    await waitFor(() => {
+      const dernier = sauverBrouillon.mock.calls.at(-1) as [number, Record<string, { verified?: boolean }>];
+      expect(dernier[1].phone_otp?.verified).toBe(true);
+    });
+    expect(JSON.stringify(sauverBrouillon.mock.calls.at(-1))).not.toContain('123456');
+  });
+
   it('un curseur posé en tête du champ n’envoie pas « 780143710+221 » au serveur', async () => {
     const user = userEvent.setup();
     render(withIntl(<HostIndividualWizard />));

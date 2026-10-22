@@ -34,6 +34,8 @@ export interface AgentDto {
   city?: string | null;
   preferred_language?: string | null;
   specialty?: string | null;
+  /** TCK-1321 (P117.03) — zones saisies à l'assistant de l'agent, affichées à côté de `specialty`. */
+  intervention_zones?: string[];
   years_of_experience?: number | null;
   avatar_url: string | null;
   agency: { id: number; name: string; slug: string } | null;

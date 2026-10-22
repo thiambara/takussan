@@ -9,6 +9,7 @@ use App\Support\Audit\PropertyRedactor;
 use App\Support\Export\CsvCell;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ActivityLogExporter
 {
@@ -42,7 +43,7 @@ class ActivityLogExporter
     public function buildPayload(User $user, array $filters, ?int $agencyId): array
     {
         $rows = $this->baseQuery($user, $filters, $agencyId)
-            ->with(['causer', 'causer.platformProfile', 'causer.agencyAdminProfiles', 'causer.agentProfiles', 'causer.ownerProfiles'])
+            ->with(self::auteurEtSonRole())
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (Activity $log) => $this->mapRow($log))
@@ -74,7 +75,11 @@ class ActivityLogExporter
     {
         return [
             'columns' => self::COLUMNS,
-            'rows' => $query->with('causer')->get()->map(fn (Activity $log) => $this->mapRow($log))->all(),
+            // TCK-1416 (P78.02) — le même préchargement que l'export d'agence : avec le seul
+            // `causer`, `profileTypes()` émettait six requêtes par ligne.
+            'rows' => $query
+                ->with(self::auteurEtSonRole())
+                ->get()->map(fn (Activity $log) => $this->mapRow($log))->all(),
             'filename' => $filename,
         ];
     }
@@ -135,12 +140,17 @@ class ActivityLogExporter
     private function mapRow(Activity $log): array
     {
         $causer = $log->causer;
+        // TCK-1395 (P139.01) — un `causer_id` dont le causeur ne se charge plus est un compte
+        // supprimé (portée `SoftDeletes` sur le `morphTo()`), pas le système : l'export le dit
+        // comme l'écran du journal (`AuditTrail.tsx`), et `system` reste aux lignes sans causeur.
+        $deletedCauser = $causer === null && $log->causer_id !== null;
+        $absentCauser = $deletedCauser ? "deleted#{$log->causer_id}" : 'system';
         // TCK-601 (AC13b) — expurgé avant toute mise en forme : la colonne est un JSON libre.
-        $props = collect(PropertyRedactor::redact($log->properties) ?? []);
+        $props = collect(PropertyRedactor::redact($log->properties, $log->subject_type) ?? []);
         // TCK-692 — activitylog v5 range l'avant/après d'un modèle dans `attribute_changes`, et
         // `properties` reste vide : il se lit là d'abord, expurgé de même. `properties` garde les
         // lignes écrites à la main (`withProperties`) et celles d'avant la v5.
-        $attributeChanges = collect(PropertyRedactor::redact($log->attribute_changes) ?? []);
+        $attributeChanges = collect(PropertyRedactor::redact($log->attribute_changes, $log->subject_type) ?? []);
         $diff = $attributeChanges->has('attributes') || $attributeChanges->has('old') ? $attributeChanges : $props;
 
         $hasAttributeDiff = $diff->has('attributes') || $diff->has('old');
@@ -151,8 +161,8 @@ class ActivityLogExporter
         return [
             'id' => $log->id,
             'logged_at' => $log->created_at?->toIso8601String(),
-            'causer_email' => $causer?->email ?? 'system',
-            'causer_role' => $causer?->profileTypes()->first() ?? 'system',
+            'causer_email' => $causer?->email ?? $absentCauser,
+            'causer_role' => $causer?->profileTypes()->first() ?? ($deletedCauser ? 'deleted' : 'system'),
             'event' => $log->event,
             'subject_type' => $log->subject_type ? class_basename($log->subject_type) : null,
             'subject_id' => $log->subject_id,
@@ -160,5 +170,26 @@ class ActivityLogExporter
             'properties_diff' => $changes,
             'ip_address' => $props->get('ip'),
         ];
+    }
+
+    /**
+     * TCK-1414 (P78.01), TCK-1416 (P78.02) — tout ce que lit `profileTypes()` pour `causer_role`,
+     * préchargé sur l'auteur quand c'est un `User` (`morphWith` : un auteur d'un autre type n'a pas
+     * ces relations). Sans `serviceProviderProfile` ni `tenantLeases`, chaque ligne émettait deux
+     * `exists()` (six avec le seul `causer`). `tenantLeases` est restreinte aux baux en cours,
+     * comme dans `AgencyController::listMembers` (`hasActiveTenantLease` refiltre en mémoire).
+     *
+     * @return array<string, \Closure>
+     */
+    private static function auteurEtSonRole(): array
+    {
+        return ['causer' => fn (MorphTo $causer) => $causer->morphWith([User::class => [
+            'platformProfile',
+            'agencyAdminProfiles',
+            'agentProfiles',
+            'ownerProfiles',
+            'serviceProviderProfile',
+            'tenantLeases' => fn ($q) => $q->whereIn('leases.status', User::ACTIVE_TENANT_LEASE_STATUSES),
+        ]])];
     }
 }

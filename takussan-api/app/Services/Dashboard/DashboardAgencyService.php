@@ -8,7 +8,6 @@ use App\Models\CommissionEntry;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\LeaseStatus;
-use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
@@ -61,7 +60,7 @@ class DashboardAgencyService
             ->where('agency_id', $agency->id)
             ->where('status', LeaseStatus::Active->value)
             ->toBase()
-            ->selectRaw('COUNT(*) AS active, COALESCE(SUM(monthly_rent), 0) AS expected')
+            ->selectRaw('COUNT(*) AS active')
             ->first();
 
         $customersCount = Customer::where('agency_id', $agency->id)->count();
@@ -73,7 +72,7 @@ class DashboardAgencyService
 
         $openMaintenance = MaintenanceRequest::query()
             ->whereIn('property_id', $propertyIds)
-            ->whereIn('status', [MaintenanceStatus::Open->value, MaintenanceStatus::InProgress->value])
+            ->open()
             ->count();
 
         $leaseIncome = $this->metrics->leaseIncomeByMonth($scope, $monthStart, $monthEnd);
@@ -84,7 +83,6 @@ class DashboardAgencyService
 
         $leaseIncomeMonth = $leaseIncome[$month] ?? 0.0;
         $bookingIncomeMonth = $bookingIncome[$month] ?? 0.0;
-        $expected = (float) $leases->expected;
 
         return [
             'agency_id' => $agency->id,
@@ -118,7 +116,8 @@ class DashboardAgencyService
                 'commission_month' => self::commissionMonth((int) $agency->id),
                 'overdue_count' => $overdue['count'],
                 'overdue_amount' => $overdue['amount'],
-                'unpaid_rate_percent' => $expected > 0 ? round(($overdue['amount'] / $expected) * 100, 2) : 0.0,
+                // P93.03 (TCK-1177) — impayé ÷ facturé des échéances échues sur 12 mois, `null` sans échéance.
+                'unpaid_rate_percent' => $this->metrics->unpaidRate($scope),
             ],
             'occupancy' => [
                 'rate_percent' => $this->metrics->longStayOccupancyToday($scope),
@@ -130,7 +129,7 @@ class DashboardAgencyService
     /**
      * Monthly time-series: revenue (encaissé) and long-stay occupancy, one grouped query each.
      *
-     * @return array{months: array<int,string>, revenue: array<int,float>, occupancy: array<int,float>, short_stay_occupancy: array<int,float|null>}
+     * @return array{months: array<int,string>, revenue: array<int,float>, occupancy: array<int,float|null>, short_stay_occupancy: array<int,float|null>}
      */
     public function monthlyTimeseries(Agency $agency, int $months = 12): array
     {
@@ -149,7 +148,7 @@ class DashboardAgencyService
         return [
             'months' => $labels,
             'revenue' => array_map(static fn (string $m): float => round($leaseIncome[$m] + ($bookingIncome[$m] ?? 0.0), 2), $labels),
-            'occupancy' => array_map(static fn (string $m): float => $occupancy[$m] ?? 0.0, $labels),
+            'occupancy' => array_map(static fn (string $m): ?float => $occupancy[$m] ?? null, $labels),
             'short_stay_occupancy' => array_map(static fn (string $m): ?float => $shortStay[$m] ?? null, $labels),
         ];
     }

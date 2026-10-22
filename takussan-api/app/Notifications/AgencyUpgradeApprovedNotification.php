@@ -5,6 +5,8 @@ namespace App\Notifications;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\NotificationType;
 use App\Notifications\Channels\AppDatabaseChannel;
+use App\Notifications\Concerns\RetriesWithBackoff;
+use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -21,6 +23,7 @@ use Illuminate\Notifications\Notification;
 class AgencyUpgradeApprovedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public function __construct(public readonly AgencyUpgradeRequest $upgradeRequest) {}
 
@@ -69,7 +72,7 @@ class AgencyUpgradeApprovedNotification extends Notification implements ShouldQu
 
     protected function dashboardUrl(): string
     {
-        $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+        $frontend = LienFront::base();
 
         return $frontend.'/app';
     }

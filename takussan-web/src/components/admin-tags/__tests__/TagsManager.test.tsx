@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { withIntl } from '@/test/intl';
 import { attendAucuneCleBrute } from '@/test/cles-brutes';
@@ -112,7 +112,8 @@ describe('<TagsManager />', () => {
     await user.type(nameInput, 'Climatisation');
     await user.click(screen.getByRole('button', { name: 'Créer le tag' }));
 
-    expect(createMock).toHaveBeenCalledTimes(1);
+    // TCK-1196 — le schéma se charge à l'envoi (`import()`) : l'appel suit d'un tour de promesse.
+    await waitFor(() => expect(createMock).toHaveBeenCalledTimes(1));
     const payload = createMock.mock.calls[0][0];
     expect(payload).toMatchObject({ name: 'Climatisation', type: 'amenity' });
   });

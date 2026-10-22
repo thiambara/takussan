@@ -2,13 +2,18 @@
 
 namespace App\Observers;
 
+use App\Events\Maintenance\MaintenanceStatusChanged;
 use App\Models\Agency;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\PropertyPriceHistory;
 use App\Models\User;
 use App\Services\Boost\BoostLifecycle;
+use App\Services\Maintenance\MaintenanceStateMachine;
+use App\Services\Model\MaintenanceRequestService;
 use App\Services\Property\PropertyModerationNotifier;
 use App\Services\Property\SimilarPropertiesService;
 
@@ -216,6 +221,43 @@ class PropertyObserver
         app(BoostLifecycle::class)->reconcile($property, $this->actor());
 
         app(SimilarPropertiesService::class)->invalidateForProperty($property);
+
+        $this->cancelOpenMaintenance($property);
+    }
+
+    /**
+     * P130.03 (TCK-1330) — une intervention ne survit pas à son bien. La policy et `scopeVisibleTo`
+     * ne laissent passer l'équipe que par le bien, que la suppression douce rend nul : l'agence ne
+     * la voyait plus, le locataire la voyait encore ouverte, et plus personne ne la close.
+     *
+     * Annulées : celles que la machine d'état laisse aller à `cancelled`. Une intervention
+     * `completed` n'y va pas (travaux faits, en attente du demandeur) ; la clôture automatique la
+     * ferme. Chaque annulation passe par `transition()` (l'événement prévient prestataire et
+     * demandeur) et laisse sa trace, motif compris.
+     */
+    private function cancelOpenMaintenance(Property $property): void
+    {
+        $machine = app(MaintenanceStateMachine::class);
+        $service = app(MaintenanceRequestService::class);
+        $actor = $this->actor();
+
+        $property->maintenanceRequests()
+            ->orderBy('id')
+            ->each(function (MaintenanceRequest $mr) use ($machine, $service, $actor, $property): void {
+                if (! $machine->canTransition($mr->status ?? MaintenanceStatus::Open, MaintenanceStatus::Cancelled)) {
+                    return;
+                }
+
+                $context = ['reason' => 'property_deleted', 'property_id' => $property->id];
+                $service->transition($mr, MaintenanceStatus::Cancelled, $actor, MaintenanceStatusChanged::CAUSE_TRANSITION, $context);
+
+                activity()
+                    ->performedOn($mr)
+                    ->causedBy($actor)
+                    ->event('maintenance.cancelled_property_deleted')
+                    ->withProperties($context)
+                    ->log('Maintenance request cancelled: property deleted');
+            });
     }
 
     private function actor(): ?User

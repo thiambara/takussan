@@ -62,6 +62,24 @@ class AdminGlobalSearchTest extends TestCase
         $this->assertSame([$fatou->id], $this->ids($this->chercher(strtoupper($fatou->email)), 'user'));
     }
 
+    /**
+     * TCK-1257 (P125.01) — `agencies.phone` s'écrit tel que saisi : la recherche compare la forme
+     * canonique des deux côtés (`CanonicalPhone`), comme l'entrée par téléphone.
+     */
+    public function test_le_telephone_d_une_agence_se_trouve_tel_que_le_formulaire_l_enregistre(): void
+    {
+        $espacee = Agency::factory()->create(['phone' => '+221 77 123 45 67']);
+        $nationale = Agency::factory()->create(['phone' => '77 123 45 68']);
+        $e164 = Agency::factory()->create(['phone' => '+221771234569']);
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $this->assertSame([$espacee->id], $this->ids($this->chercher('+221 77 123 45 67'), 'agency'));
+        $this->assertSame([$espacee->id], $this->ids($this->chercher('77 123 45 67'), 'agency'));
+        $this->assertSame([$espacee->id], $this->ids($this->chercher('+221771234567'), 'agency'));
+        $this->assertSame([$nationale->id], $this->ids($this->chercher('+221771234568'), 'agency'));
+        $this->assertSame([$e164->id], $this->ids($this->chercher('771234569'), 'agency'));
+    }
+
     /** Second chemin de l'e-mail : l'agence n'est cherchée en texte libre que par nom et slug. */
     public function test_l_e_mail_d_une_agence_se_trouve_quelle_que_soit_la_casse(): void
     {

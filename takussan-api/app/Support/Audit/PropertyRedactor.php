@@ -2,6 +2,7 @@
 
 namespace App\Support\Audit;
 
+use App\Models\Agency;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -21,6 +22,10 @@ use Illuminate\Support\Str;
  * perdaient leur frontière de segment une fois en minuscules. Une chaîne qui porte un objet ou une
  * liste JSON est décodée, expurgée et réencodée.
  * La clé reste, sa valeur devient `[REDACTED]`.
+ *
+ * P84.01 (TCK-1364, ADR-0044, amendement du 2026-10-22) — le NINEA d'une agence est une mention
+ * légale publique de personne morale : la clé `ninea` d'une ligne dont le sujet est une `Agency`
+ * sort en clair. Toute autre clé de cette ligne, et `ninea` sous tout autre sujet, reste expurgée.
  */
 final class PropertyRedactor
 {
@@ -49,7 +54,17 @@ final class PropertyRedactor
      */
     private const CONTACT_LAST_SEGMENTS = ['email', 'phone'];
 
-    public static function redact(mixed $properties): mixed
+    /**
+     * Clés rendues en clair selon le sujet de la ligne du journal (`subject_type`).
+     *
+     * @var array<class-string, list<string>>
+     */
+    private const PUBLIC_KEYS_BY_SUBJECT = [
+        Agency::class => ['ninea'],
+    ];
+
+    /** @param  string|null  $subjectType  le `subject_type` de la ligne du journal lue */
+    public static function redact(mixed $properties, ?string $subjectType = null): mixed
     {
         if ($properties === null) {
             return null;
@@ -57,7 +72,7 @@ final class PropertyRedactor
 
         $array = $properties instanceof Collection ? $properties->toArray() : (array) $properties;
 
-        return self::walk($array);
+        return self::walk($array, self::PUBLIC_KEYS_BY_SUBJECT[$subjectType ?? ''] ?? []);
     }
 
     /**
@@ -66,17 +81,21 @@ final class PropertyRedactor
      * jugeait `old` et `new`, jamais `rib`, et rendait les deux valeurs en clair.
      *
      * @param  array<mixed>  $array
+     * @param  list<string>  $publicKeys  clés exactes rendues en clair pour le sujet de la ligne
      * @return array<mixed>
      */
-    private static function walk(array $array): array
+    private static function walk(array $array, array $publicKeys = []): array
     {
         foreach ($array as $key => $value) {
+            if (is_string($key) && in_array($key, $publicKeys, true)) {
+                continue;
+            }
             if (is_string($key) && self::isSensitive($key)) {
                 $array[$key] = self::REDACTED;
             } elseif (is_array($value)) {
-                $array[$key] = self::walk($value);
+                $array[$key] = self::walk($value, $publicKeys);
             } elseif (is_string($value)) {
-                $array[$key] = self::walkJson($value);
+                $array[$key] = self::walkJson($value, $publicKeys);
             }
         }
 
@@ -84,7 +103,8 @@ final class PropertyRedactor
     }
 
     /** Une charge JSON recopiée en chaîne (`'payload' => '{"rib":…}'`) ; toute autre chaîne reste telle quelle. */
-    private static function walkJson(string $value): string
+    /** @param  list<string>  $publicKeys */
+    private static function walkJson(string $value, array $publicKeys = []): string
     {
         if ($value === '' || ($value[0] !== '{' && $value[0] !== '[')) {
             return $value;
@@ -93,7 +113,7 @@ final class PropertyRedactor
         $decoded = json_decode($value, true);
 
         return is_array($decoded)
-            ? (string) json_encode(self::walk($decoded), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            ? (string) json_encode(self::walk($decoded, $publicKeys), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
             : $value;
     }
 

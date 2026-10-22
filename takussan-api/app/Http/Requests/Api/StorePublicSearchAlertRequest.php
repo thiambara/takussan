@@ -4,7 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\AlertSubscriber;
-use App\Services\Notifications\Sms\PhoneNumber;
+use App\Rules\TelephoneJoignable;
 use App\Support\SavedSearchCriteria;
 use Closure;
 
@@ -36,9 +36,15 @@ class StorePublicSearchAlertRequest extends BaseFormRequest
             'email' => ['required_if:channel,'.AlertSubscriber::CHANNEL_EMAIL, 'nullable', 'email:rfc', 'max:254'],
             'phone' => [
                 'required_if:channel,'.AlertSubscriber::CHANNEL_WHATSAPP, 'nullable', 'string', 'max:20',
+                // TCK-1345 (P125.06) — jugé comme partout ailleurs (`TelephoneJoignable`) : la forme
+                // E.164 seule laissait passer `+330612345678`, qu'aucun réseau n'achemine.
                 function (string $attribute, mixed $value, Closure $fail): void {
-                    if (is_string($value) && $value !== '' && ! PhoneNumber::isValid(preg_replace('/\s+/', '', $value) ?? '')) {
-                        $fail('validation.rules.phone_e164')->translate();
+                    if (! is_string($value) || $value === '') {
+                        return;
+                    }
+                    $cle = TelephoneJoignable::defaut(preg_replace('/\s+/', '', $value) ?? '');
+                    if ($cle !== null) {
+                        $fail($cle)->translate();
                     }
                 },
             ],

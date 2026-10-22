@@ -27,7 +27,9 @@ class AgencyResource extends BaseResource
             'phone' => $this->phone,
             'website' => $this->website,
             'commission_rate' => $this->commission_rate !== null ? (float) $this->commission_rate : null,
-            'currency' => $this->currency?->value ?? 'XOF',
+            // TCK-1182 (P100.03) — `whenHas` : sous un sparse fieldset qui ne lit pas la colonne, la clé
+            // est omise au lieu d'une valeur inventée (montant à 0, nature ou devise par défaut).
+            'currency' => $this->whenHas('currency', fn () => $this->currency?->value ?? 'XOF'),
             // TCK-594 (ADR-0039 §4, §5) — le seuil des quatre yeux (`null` = désactivé), la TVA par
             // défaut des factures et les mentions légales que le PDF imprime.
             // VERIF-594 m-2 — le seuil ne se lit que par qui prépare ou approuve les reversements de

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Dashboard;
 
 use App\Models\Agency;
+use App\Models\AppNotification;
 use App\Models\Customer;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\PaymentStatus;
@@ -13,7 +14,11 @@ use App\Models\ThresholdAlert;
 use App\Models\User;
 use App\Notifications\ThresholdAlertTriggered;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Symfony\Component\Mailer\Exception\TransportException;
+use Symfony\Component\Mailer\SentMessage;
+use Symfony\Component\Mailer\Transport\AbstractTransport;
 use Tests\ApiTestCase;
 
 /**
@@ -174,6 +179,65 @@ class ThresholdAlertTest extends ApiTestCase
      * P93.04 (TCK-1113) — une alerte ne va qu'aux admins dont le profil est
      * actif dans l'agence : un profil suspendu ou archivé n'en reçoit plus.
      */
+    /**
+     * P123.05 (TCK-1249) — un courriel qui échoue n'arrête plus la tâche et ne fait plus récrire la
+     * cloche : l'alerte est marquée avant l'envoi, et l'échec rattrapé alerte par alerte. Avant,
+     * `Notification::send()` levait avant `last_triggered_at` : la seconde agence n'était jamais
+     * jugée, et chaque passage horaire récrivait la cloche de la première.
+     */
+    public function test_un_courriel_qui_echoue_n_arrete_pas_la_tache_ni_ne_fait_recrire_la_cloche(): void
+    {
+        Mail::extend('panne', fn () => new class extends AbstractTransport
+        {
+            protected function doSend(SentMessage $message): void
+            {
+                throw new TransportException('Transport indisponible (test).');
+            }
+
+            public function __toString(): string
+            {
+                return 'panne://';
+            }
+        });
+        config(['mail.mailers.panne' => ['transport' => 'panne'], 'mail.default' => 'panne']);
+        Mail::purge('panne');
+
+        $alertes = [];
+        $admins = [];
+        foreach ([1, 2] as $_) {
+            $agency = Agency::factory()->create();
+            $admin = User::factory()->create(['email' => fake()->unique()->safeEmail()]);
+            $this->materializeRoleProfile($admin, 'agency_admin', $agency);
+            $lease = Lease::factory()->active()->create(['agency_id' => $agency->id, 'monthly_rent' => 100_000]);
+            LeasePayment::factory()->create([
+                'lease_id' => $lease->id,
+                'payer_id' => Customer::factory()->create(['agency_id' => $agency->id])->id,
+                'amount' => 80_000,
+                'status' => PaymentStatus::Late,
+                'paid_at' => null,
+                'due_date' => now()->subDays(5)->toDateString(),
+            ]);
+            $alertes[] = ThresholdAlert::create([
+                'agency_id' => $agency->id,
+                'metric' => 'unpaid_rate_percent',
+                'operator' => '>',
+                'threshold' => 10.0,
+                'severity' => 'critical',
+                'is_enabled' => true,
+                'cooldown_hours' => 24,
+            ]);
+            $admins[] = $admin;
+        }
+
+        $this->artisan('dashboard:check-alerts')->assertExitCode(0);
+        $this->artisan('dashboard:check-alerts')->assertExitCode(0);
+
+        foreach ($alertes as $i => $alerte) {
+            $this->assertNotNull($alerte->fresh()->last_triggered_at, "alerte {$i} jugée et marquée");
+            $this->assertSame(1, AppNotification::query()->where('user_id', $admins[$i]->id)->count(), "une seule cloche pour l'admin {$i}");
+        }
+    }
+
     public function test_alert_skips_suspended_and_archived_agency_admins(): void
     {
         Notification::fake();

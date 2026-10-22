@@ -3,6 +3,7 @@
 namespace App\Listeners\Lease;
 
 use App\Events\Lease\LeaseActivated;
+use App\Listeners\Concerns\AlertsOnFirstListenerFailure;
 use App\Services\Tenant\TenantOnboardingService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
@@ -16,9 +17,14 @@ use Illuminate\Contracts\Queue\ShouldQueue;
  * même événement : le message d'accueil peut être coupé par une préférence de
  * notification, la checklist doit être créée dans tous les cas. Deux écouteurs
  * distincts sur `LeaseActivated` ne sont donc pas un doublon (TCK-443).
+ *
+ * TCK-1392 (P142.04) — seul chemin qui crée la checklist d'entrée : un délai entre deux
+ * essais, et une alerte dès le premier échec final ({@see AlertsOnFirstListenerFailure}).
  */
 class CreateTenantOnboardingChecklist implements ShouldQueue
 {
+    use AlertsOnFirstListenerFailure;
+
     public function __construct(private readonly TenantOnboardingService $service) {}
 
     public function handle(LeaseActivated $event): void

@@ -45,7 +45,7 @@ class SuperAdminInvitationController extends Controller
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'email' => $user->email,
-                'status' => $user->status?->value ?? (string) $user->status,
+                'status' => $user->status?->value,
                 'two_factor_enabled' => (bool) $user->two_factor_enabled,
                 'force_2fa_at_first_login' => (bool) $user->force_2fa_at_first_login,
                 'last_login_at' => $user->last_login_at?->toIso8601String(),
@@ -67,6 +67,7 @@ class SuperAdminInvitationController extends Controller
                 InvitationStatus::Expired->value,
             ])
             ->orderByDesc('created_at')
+            ->orderByDesc('id') // TCK-1292 — départage les invitations de même seconde
             ->get();
 
         return $this->json([

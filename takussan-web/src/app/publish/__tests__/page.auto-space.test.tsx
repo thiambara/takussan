@@ -51,7 +51,8 @@ describe('/publish — création automatique de l’espace (TCK-633)', () => {
     monter();
 
     await waitFor(() => expect(routeur.replace).toHaveBeenCalledWith('/app/properties/new'));
-    expect(autoOnboard).toHaveBeenCalledWith('Thiès');
+    // TCK-1372 (P114.05) — plus de ville : l'API ne la lit pas (TCK-966).
+    expect(autoOnboard).toHaveBeenCalledWith();
     expect(routeur.replace).not.toHaveBeenCalledWith('/onboarding/host');
     expect(screen.getByText('Création de votre espace…')).toBeInTheDocument();
   });

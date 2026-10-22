@@ -16,6 +16,14 @@ use Spatie\Activitylog\Models\Activity;
 
 class ActivityLogExportController extends Controller
 {
+    /**
+     * TCK-1418 (P78.03) — PhpSpreadsheet bâtit la feuille XLSX entière en mémoire. Mesuré après le
+     * préchargement de TCK-1414 : 20 000 lignes, 64 s (sous les 85 s du job,
+     * `ExportActivityLogJob::$timeout`) et 118 Mo de surcroît (sous les 256 Mo de `memory_limit`).
+     * Au-delà, le refus déjà connu de l'export : le CSV reste servi.
+     */
+    public const XLSX_MAX_ROWS = 20_000;
+
     public function __construct(
         private readonly ActivityLogExporter $exporter,
         private readonly ExportWriter $writer,
@@ -33,6 +41,9 @@ class ActivityLogExportController extends Controller
         $format = $request->validated('format');
 
         $count = $this->exporter->count($user, $filters, $agencyId);
+        if ($format === 'xlsx' && $count > self::XLSX_MAX_ROWS) {
+            abort_code(422, 'activity_log.export_too_large');
+        }
 
         // Log the export action itself (AC7).
         activity()
@@ -74,19 +85,32 @@ class ActivityLogExportController extends Controller
         }
 
         $path = self::storagePath($userId, $file);
-        if (! Storage::exists($path)) {
+        if (! Storage::disk(self::DISK)->exists($path)) {
             abort(404);
         }
 
-        return Storage::download($path, (string) $request->query('name', $file));
+        return Storage::disk(self::DISK)->download($path, (string) $request->query('name', $file));
     }
 
     /** Le nom opaque que le job donne au fichier : un UUID et l'extension du format. */
     private const FICHIER = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(csv|xlsx)$/';
 
+    /**
+     * TCK-1145 (P77.04) — le disque des exports asynchrones, nommé comme celui des exports RGPD et
+     * de rapport : le disque par défaut suit `FILESYSTEM_DISK`, qu'un environnement peut viser
+     * ailleurs que le volume privé.
+     */
+    public const DISK = 'local';
+
+    /** TCK-1143 (P63.04) — la durée de vie du lien le plus long ; au-delà, le fichier est purgé. */
+    public const LINK_TTL_HOURS = 24;
+
+    /** TCK-1143 (P63.04) — la racine des exports asynchrones, que purge `PurgeExpiredActivityLogExports`. */
+    public const STORAGE_ROOT = 'exports/audit';
+
     /** Le chemin d'un export asynchrone : le dossier de son demandeur, puis le nom opaque. */
     public static function storagePath(int $userId, string $file): string
     {
-        return "exports/audit/{$userId}/{$file}";
+        return self::STORAGE_ROOT."/{$userId}/{$file}";
     }
 }

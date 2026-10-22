@@ -11,15 +11,18 @@ use Illuminate\Support\Facades\Route;
 | `public.`, limiteur `public-read`.
 */
 Route::prefix('public/geo')->name('public.geo.')->middleware('throttle:public-read')->group(function () {
-    Route::get('regions', [GeoReferentialController::class, 'regions'])->name('regions');
-    Route::get('cities', [GeoReferentialController::class, 'cities'])->name('cities');
+    // TCK-1207 (P103.03) — listes fermées, sans appelant ni langue dans le corps : cache public de
+    // cinq minutes et `ETag`, comme les énumérations (`enums.php`).
+    Route::get('regions', [GeoReferentialController::class, 'regions'])->middleware('cache.headers:public;max_age=300;etag')->name('regions');
+    Route::get('cities', [GeoReferentialController::class, 'cities'])->middleware('cache.headers:public;max_age=300;etag')->name('cities');
     Route::get('cities/{city}', [GeoReferentialController::class, 'city'])->whereNumber('city')->name('cities.show');
     Route::get('neighborhoods', [GeoReferentialController::class, 'neighborhoods'])->name('neighborhoods');
 });
 
 // TCK-633 (addendum du plan maître, interface D → E) — le catalogue approuvé des équipements, lu
 // sans compte par les filtres de la recherche publique (`/api/tags` exige un compte).
-Route::middleware('throttle:public-read')->get('public/amenities', [GeoReferentialController::class, 'amenities'])->name('public.amenities');
+// TCK-1207 (P103.03) — même cache public que les énumérations.
+Route::middleware(['throttle:public-read', 'cache.headers:public;max_age=300;etag'])->get('public/amenities', [GeoReferentialController::class, 'amenities'])->name('public.amenities');
 
 // TCK-633 (AC9) — un lien court collé : requête SORTANTE, d'où le compte exigé et le limiteur serré.
 Route::middleware(['auth:sanctum', 'throttle:20,1'])->post('geo/resolve-link', GeoLinkController::class)->name('geo.resolve-link');

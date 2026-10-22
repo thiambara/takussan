@@ -3,7 +3,9 @@
 namespace App\Notifications;
 
 use App\Models\Lease;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Notifications\PreferenceResolver;
+use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -18,6 +20,7 @@ use Illuminate\Notifications\Notification;
 class AgentTenantInventoryReminderNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public const EVENT_TYPE = 'tenant_inventory_reminder';
 
@@ -46,7 +49,7 @@ class AgentTenantInventoryReminderNotification extends Notification implements S
     public function toMail(object $notifiable): MailMessage
     {
         $reference = $this->lease->reference_number ?? '#'.$this->lease->id;
-        $url = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/')
+        $url = LienFront::base()
             .'/app/leases/onboarding-pending';
 
         $tenantName = trim(

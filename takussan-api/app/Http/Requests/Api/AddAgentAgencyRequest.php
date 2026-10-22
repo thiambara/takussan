@@ -34,7 +34,7 @@ class AddAgentAgencyRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'user_id' => ['nullable', 'integer', 'exists:users,id', 'required_without:email'],
+            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->withoutTrashed(), 'required_without:email'],
             'email' => ['nullable', 'email', 'required_without:user_id'],
             'role' => ['nullable', 'string', Rule::in(['agent', 'agency_admin'])],
         ];

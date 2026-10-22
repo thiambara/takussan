@@ -4,6 +4,8 @@ namespace Tests\Feature\Dashboard;
 
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Enums\ContractType;
+use App\Models\Enums\RentPeriod;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
@@ -84,6 +86,30 @@ class DashboardMeTest extends ApiTestCase
 
         $this->assertSame('owner', $data['role']);
         $this->assertSame(2, $data['metrics']['portfolio_total']);
+    }
+
+    /**
+     * TCK-1259 (P127.01, TCK-1114) — rien à occuper n'est pas « tout est vacant » : sans bien
+     * éligible, `/dashboard/me` rend `null`, comme `/dashboard/owner`, et la même valeur sinon.
+     */
+    public function test_owner_occupancy_is_null_without_an_eligible_property_like_dashboard_owner(): void
+    {
+        $owner = $this->apiActingAsRole('owner');
+
+        $me = $this->apiGet('/api/dashboard/me')->assertOk()->json('data');
+        $this->assertSame('owner', $me['role']);
+        $this->assertArrayHasKey('occupancy_rate_percent', $me['metrics']);
+        $this->assertNull($me['metrics']['occupancy_rate_percent']);
+        $this->assertNull($this->apiGet('/api/dashboard/owner')->assertOk()->json('data.occupancy.rate_percent'));
+
+        // Un bien éligible, sans bail : 0 %, et la même valeur sur les deux tableaux.
+        Property::factory()->create([
+            'user_id' => $owner->id, 'contract_type' => ContractType::Rent, 'rent_period' => RentPeriod::Monthly,
+            'created_at' => now()->subDay(),
+        ]);
+        $owned = $this->apiGet('/api/dashboard/owner')->assertOk()->json('data.occupancy.rate_percent');
+        $this->assertNotNull($owned);
+        $this->assertEquals($owned, $this->apiGet('/api/dashboard/me')->assertOk()->json('data.metrics.occupancy_rate_percent'));
     }
 
     public function test_user_with_only_properties_resolves_to_owner(): void

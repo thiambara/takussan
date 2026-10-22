@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
 import { urlApiServeur } from '@/lib/api';
-import { enTetesDuRelais } from '@/lib/relais-api';
+import { enTetesDuRelais, fetchVersApi } from '@/lib/relais-api';
 
 
 /**
@@ -30,7 +30,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Params }): Promise<
   }
 
   const body = await req.text();
-  const upstream = await fetch(urlApiServeur(`/me/agent-profiles/${id}/specialization`), {
+  const upstream = await fetchVersApi(urlApiServeur(`/me/agent-profiles/${id}/specialization`), {
     method: 'PATCH',
     body,
     headers: {
@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Params }): Promise<
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
-  });
+  }, { requete: req });
 
   const text = await upstream.text();
   return new NextResponse(text, {
