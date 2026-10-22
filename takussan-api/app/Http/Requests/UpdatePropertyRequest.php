@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Api\UpdateStatusPropertyRequest;
 use App\Models\Agency;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
@@ -37,8 +38,16 @@ class UpdatePropertyRequest extends BaseFormRequest
     {
         $bien = $this->route('property');
 
-        return $bien instanceof Property
-            && $this->user()?->can('update', $bien) === true;
+        if (! $bien instanceof Property || $this->user()?->can('update', $bien) !== true) {
+            return false;
+        }
+
+        // P147.01 (TCK-1427) — la règle de `PUT …/status` (TCK-587) : un statut qui met au
+        // catalogue, ou `visibility=public`, c'est publier. Le `PATCH` le faisait sans `publish`.
+        $publie = in_array($this->input('status'), UpdateStatusPropertyRequest::STATUTS_QUI_PUBLIENT, true)
+            || $this->input('visibility') === PropertyVisibility::Public->value;
+
+        return ! $publie || $this->user()->can('publish', $bien);
     }
 
     public function rules(): array

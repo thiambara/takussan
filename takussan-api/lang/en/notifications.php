@@ -839,6 +839,21 @@ return [
         'below' => ':metric: :value is below :threshold (severity: :severity).',
         'action' => 'Open the dashboard',
         'cooldown' => '{1} This alert will not be sent again for :hours hour.|[0,*] This alert will not be sent again for :hours hours.',
+        // P155.04 (TCK-1439) — libellés des écrans d'origine (`dashboard.kpis.metrics`,
+        // `dashboard.alerts.severities`), au lieu des codes.
+        'metrics' => [
+            'unpaid_rate_percent' => 'Unpaid rate',
+            'occupancy_rate_percent' => 'Occupancy rate',
+            'overdue_count' => 'Overdue (count)',
+            'overdue_amount' => 'Overdue (amount)',
+            'bookings_pending' => 'Pending bookings',
+            'maintenance_open' => 'Open maintenance',
+        ],
+        'severities' => [
+            'info' => 'Info',
+            'warning' => 'Warning',
+            'critical' => 'Critical',
+        ],
     ],
     'urgent_maintenance' => [
         'subject' => 'URGENT: :title',
@@ -864,6 +879,13 @@ return [
         'intro' => 'The export of the report ":report" is ready for download.',
         'action' => 'Download',
         'expires' => 'This link expires in 7 days.',
+        // P155.04 (TCK-1439) — libellés de `reporting.tabs`, au lieu des codes.
+        'reports' => [
+            'growth' => 'Growth',
+            'revenue' => 'Revenue',
+            'cohorts' => 'Cohorts',
+            'funnel' => 'Funnel',
+        ],
     ],
 
     // TCK-587 — un bailleur rattaché propose un bien à son agence (brouillon privé à relire).

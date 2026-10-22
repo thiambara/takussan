@@ -40,7 +40,7 @@ class SuperAdminAcceptedBroadcast extends Notification implements ShouldQueue
             ->subject(__('super_admins.cooptation.notifications.accepted.subject', [
                 'name' => $this->nomAffiche(),
             ]))
-            ->greeting(__('notifications.salutation'))
+            ->greeting(__('notifications.greeting'))
             ->line(__('super_admins.cooptation.notifications.accepted.body', [
                 'name' => $this->nomAffiche(),
                 'email' => $this->newSuperAdmin->email,

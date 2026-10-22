@@ -17,6 +17,12 @@ use Illuminate\Validation\Rule;
 class UpdateStatusPropertyRequest extends BaseFormRequest
 {
     /**
+     * TCK-587 — les statuts qui mettent un bien au catalogue : les poser, c'est publier. Relu par
+     * `UpdatePropertyRequest` (P147.01, TCK-1427), pour que le `PATCH` juge la même règle.
+     */
+    public const STATUTS_QUI_PUBLIENT = [PropertyStatus::Available->value, PropertyStatus::Published->value];
+
+    /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
      * Le contrôleur autorisait avant de valider ; un FormRequest valide avant le corps du
@@ -37,7 +43,7 @@ class UpdateStatusPropertyRequest extends BaseFormRequest
 
         // TCK-587 — passer un bien en `available` / `published` le met au catalogue : c'est publier,
         // et `PUT …/status` était un contournement de `publish`.
-        return ! in_array($this->input('status'), [PropertyStatus::Available->value, PropertyStatus::Published->value], true)
+        return ! in_array($this->input('status'), self::STATUTS_QUI_PUBLIENT, true)
             || $user->can('publish', $property);
     }
 

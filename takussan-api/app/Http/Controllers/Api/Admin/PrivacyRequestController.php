@@ -59,6 +59,12 @@ class PrivacyRequestController extends Controller
             abort_code(422, 'privacy.request_closed');
         }
 
+        // P147.08 (TCK-1435) — une entrée liée ne se clôt pas à la main tant que sa demande vit :
+        // l'effacement s'exécutait ensuite, et le registre gardait le statut posé à la main.
+        if ($status !== null && ! $status->isOpen() && $privacyRequest->status->isOpen() && $privacyRequest->linkedRequestIsPending()) {
+            abort_code(422, 'privacy.request_linked_pending');
+        }
+
         $privacyRequest->fill($request->safe()->only(['response_summary']));
         $privacyRequest->handled_by = $request->user()->id;
         if ($status !== null) {

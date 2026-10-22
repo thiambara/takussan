@@ -19,7 +19,9 @@ class StoreBankStatementRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => ['required', 'file', 'max:10240', 'mimes:csv,txt,ofx'],
+            // P157.05 (TCK-1445) — un OFX 2 commence par une déclaration XML : `finfo` y lit
+            // `text/xml`. Admis pour le seul format `ofx`, que le pilote lit en 1.x comme en 2.x.
+            'file' => ['required', 'file', 'max:10240', $this->input('source_format') === 'ofx' ? 'mimes:csv,txt,ofx,xml' : 'mimes:csv,txt,ofx'],
             // TCK-979 (P54.04) — colonne NOT NULL sans défaut : le format est déduit plus bas quand
             // il n'est pas fourni, il est donc toujours présent ici.
             'source_format' => ['required', new Enum(BankStatementSourceFormat::class)],
