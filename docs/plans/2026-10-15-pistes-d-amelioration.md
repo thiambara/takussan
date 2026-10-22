@@ -231,7 +231,7 @@ voie d'écriture (angle 13, puis 47).
 | 154 | Relations lues puis écrites dans la même requête par `relation()->create()` ou `associate()` sans `setRelation()` ni `load()` (`$model->address ? … : $model->address()->create()`, et leurs pareilles dans les contrôleurs et services) : relation restée nulle ou périmée en mémoire, lue ensuite par un observateur, une notification, un job ou la ressource rendue — le motif de P122.01 hors de l'index | fait |
 | 155 | Mailables et notifications que la suite ne rend jamais (tests sous `Mail::fake()` ou `Notification::fake()` seuls ; gabarits `resources/views/emails/*` rendus par `view:` qui s'appuient sur les composants `mail::`, `toMail()` sans test qui appelle `render()`) : courriel qui lève au rendu en production pendant que la suite est verte — né de P123.01 | fait |
 | 156 | Variables d'environnement dont `phpunit.xml`, `.env.docker` et `.env.example` posent des valeurs différentes (`SCOUT_AFTER_COMMIT`, `SCOUT_QUEUE`, et leurs pareilles) : comportement que la suite éprouve face à celui du développement et de la préproduction, et tests qui ne jouent qu'un régime — né de P123.03 | fait |
-| 157 | Lignes de relevé importées face au rapprochement : `currency` lue dans le fichier (`CsvDriver.php:126-128`) puis comparée telle quelle par `ReconciliationMatcher::fetchCandidates` (`where('currency', …)`), devise de trois lettres autre que celle de l'agence (`CFA`, `XAF`, `EUR`), sens et montants lus, `FITID` répété d'un relevé à l'autre : lignes importées qu'aucun candidat ne peut jamais apparier, sans le dire — né de P124.01 | à faire |
+| 157 | Lignes de relevé importées face au rapprochement : `currency` lue dans le fichier (`CsvDriver.php:126-128`) puis comparée telle quelle par `ReconciliationMatcher::fetchCandidates` (`where('currency', …)`), devise de trois lettres autre que celle de l'agence (`CFA`, `XAF`, `EUR`), sens et montants lus, `FITID` répété d'un relevé à l'autre : lignes importées qu'aucun candidat ne peut jamais apparier, sans le dire — né de P124.01 | fait |
 | 158 | Fiches client créées hors de `CustomerController::store` (`ContactLeadService::convert`, `CustomerService::findOrCreateFromUser`, invitations et onboardings qui créent un `Customer`, visites) face à `CustomerDuplicateDetector` : fiche en double dans le CRM d'une agence, sans le dire — né de P125.02 | à faire |
 | 159 | Exemples et formats montrés à la saisie (messages de `lang/*/validation.php` qui citent un exemple, `placeholder` des champs et clés `*Placeholder`, aides sous les champs) face à la règle de l'API qui jugera la valeur : exemple que la règle refuse — né de P125.03 et P125.04 | à faire |
 | 160 | `properties.user_id` (le créateur du bien) lu comme le bailleur dans une décision métier sur un bien d'agence saisi par un agent : `OwnerApprovalThreshold::isLandlord` et `MaintenanceQuoteWorkflow` (plafond de travaux d'ADR-0037, devis `awaiting_owner`), `BookingExpirationService::resolveAgent`, `BookingRefundTaskService` — qui tranche, et qui est prévenu, à la place du bailleur — né de P126.04 | à faire |
@@ -268,6 +268,7 @@ voie d'écriture (angle 13, puis 47).
 | 191 | Fils rattachés à un bail ou à une réservation (`conversations.lease_id`, groupes à contexte de bail, type `lease` et `booking`) face à la policy du porteur : `ConversationAccess` ne juge que la participation hors intervention et fil de prospect, si bien qu'un locataire sorti, un bailleur remplacé ou un agent suspendu qui y reste participant lit et écrit encore — né de P153.04 | à faire |
 | 192 | Libellés que l'API résout par une clé bâtie sur une valeur (`__('invitations.roles.'.$role)`, `enumLabel()` de `BaseResource`, gabarits PDF, exports CSV, `__("…{$this->kind}…")`) face aux valeurs que la validation, les constantes et les enums acceptent réellement : clé brute rendue sans erreur au lecteur — né de P155.01 | à faire |
 | 193 | Avis et textes bâtis sur l'e-mail d'un compte ou d'une invitation (`:email` des notifications, `toMail()` et `routeNotificationForMail`, exports, journaux d'équipe) face aux comptes et invitations sans e-mail depuis TCK-589 (`PHONE_LOGIN_ENABLED`) : texte à trou, courriel vers une adresse nulle, ou personne nommée par rien — né de P155.03 | à faire |
+| 194 | Règles `mimes:` et `mimetypes:` des téléversements (`StoreBankStatementRequest`, documents, pièces jointes, imports ; 13 sous `app/Http/Requests`) face au type que `finfo` lit dans un fichier réel (OFX 2 lu `xml`, CSV à point-virgule, PDF ou image d'un téléphone), et tests qui déposent par `UploadedFile::fake()`, dont le type se déduit du nom : format annoncé à l'écran refusé en 422 sans qu'aucun test le voie — né de P157.05 | à faire |
 
 ---
 
@@ -14722,3 +14723,119 @@ mais les valeurs mises en cache relues sont des scalaires et des tableaux, sans 
   - Établi comment : lu.
 - Piste : poser `APP_DEBUG=false` dans `phpunit.xml`, comme en préproduction, et laisser `true` aux seuls tests qui le demandent ; écrire à côté de chaque valeur de régime de `phpunit.xml` (file, cache, session, Scout) la raison de l'écart avec le développement, ou l'aligner.
 - Mesure (2026-10-22, 5b942c15d, mesureur) : `grep APP_DEBUG phpunit.xml` → rien ; test temporaire (retiré) → `config('app.debug')` vaut `true` dans la suite ; `docs/configuration.md:599` et `hebergement.md:163` posent `false` en préproduction (relevés écrits, non mesurés) ; `grep -rn app.debug tests` → le seul `ApiErrorFormatTest.php:97`, et 10 fichiers attendent un 500 (lui compris) ; `check-env-parity.mjs:16-17` ne compare que les noms, par choix écrit ; `phpunit.xml:51-52` (`QUEUE_CONNECTION`, `SESSION_DRIVER`) et `:26` (`CACHE_STORE`) sans commentaire → les deux parties tiennent ; la copie de `.env.example` par la CI n'est pas relue (`.github/` fermé au mesureur). Classement : V6, poser `APP_DEBUG=false` change le régime de toute la suite, et la seconde partie laisse le choix entre commenter et aligner chaque valeur.
+
+## Angle 157 — Lignes de relevé importées face au rapprochement
+
+*Exploré le 2026-10-22 sur `pre-dev` 4b1384d0b, par l'explorateur, sans sous-agent. Relu par
+l'explorateur lui-même : `CsvDriver`, `OfxDriver`, `ParsedLine`, `ParseTally`,
+`ParseBankStatementJob`, `StoreBankStatementRequest`, `UpdateBankCsvMappingRequest`,
+`ReconciliationMatcher`, `ReconciliationManager::confirmMatch`, `PaymentSearchService`, la
+migration de `bank_statement_lines`, et côté front `StatementDetail.tsx`, `ImportStatementForm.tsx`
+et `lib/format/currency.ts`. Mesuré par un test Feature temporaire
+`tests/Feature/TmpExplorateur/SondeAngle157Test.php` (retiré), sur la base de test PostgreSQL,
+charge 3,57 / 3,10 / 3,35 sur 8 cœurs : agence en XOF, admin d'agence, échéance `LeasePayment`
+de 150 000 XOF payée le 2026-04-01 (`LP-77`), relevés déposés par `POST
+/api/agencies/{agency}/bank-statements` puis analysés et rapprochés en ligne (`QUEUE_CONNECTION=sync`).
+Les fichiers sont déposés comme `UploadedFile` réels en mode test, pour que la règle `mimes:` lise le
+type par `finfo` : `UploadedFile::fake()` le déduit du nom et refusait tout `.ofx` de la sonde. Le
+type que `finfo` rend est celui du PHP de développement (macOS) ; celui du conteneur n'est pas
+mesuré. Hors du relevé : la devise de quatre lettres (`FCFA`) et les cellules de plus de 255
+caractères, qui font échouer le relevé entier (P124.01).*
+
+### Une devise de trois lettres qui n'est pas celle des paiements (`CFA`, cellule vide, `<CURDEF>EUR`) entre telle quelle : la ligne ne s'apparie jamais, sa confirmation rend 422, et l'écran l'affiche en « F CFA »
+- Réf : P157.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Accounting/StatementParser/CsvDriver.php:126-129`, `takussan-api/app/Services/Accounting/StatementParser/OfxDriver.php:27-31`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:70-72,138`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:84-93`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:54-130`, `takussan-web/src/components/admin/reconciliation/StatementDetail.tsx:95-96`, `takussan-web/src/lib/format/currency.ts:61-65`
+- Constat :
+  - Le pilote CSV recopie la cellule de `currency_column` passée en majuscules, sans la confronter à rien ; `isset()` est vrai pour une cellule vide, qui devient la devise `''` (lu, `CsvDriver.php:126-129`). Le pilote OFX prend tout `<CURDEF>` de trois lettres (lu, `OfxDriver.php:29-31`). La colonne est un `char(3)` (lu, migration `2026_04_28_000002`).
+  - Le matcher ne cherche que des paiements de la devise de la ligne (`where('currency', $currency)`, lu, `ReconciliationMatcher.php:72` et `:138`), et `confirmMatch()` refuse une devise différente (lu, `:84-93`). La recherche manuelle, elle, ne filtre pas la devise (lu, `PaymentSearchService.php`) : elle propose le paiement que la confirmation refusera.
+  - mesuré (sonde) : mapping `currency_column = devise`, trois lignes de 150 000 au 2026-04-01 → `CFA` : ligne `CFA`, `unmatched` ; cellule vide : ligne stockée `'   '` (`octet_length` 3, `length` 0), `unmatched` ; `xof` : `XOF`, suggérée à 70. Relevé `ready_for_review`, `skipped_lines_count = 0`.
+  - mesuré (sonde) : sur la ligne `CFA`, `payment-search?amount=150000&direction=credit` → `200`, l'échéance `LP-77` en XOF ; `POST /api/bank-statement-lines/{id}/match` → `422` « Line currency (CFA) does not match payment currency (XOF). ». La ligne ne peut qu'être ignorée.
+  - mesuré (sonde) : OFX `<CURDEF>EUR`, crédit de 150 000 → ligne `EUR`, `unmatched`, relevé `ready_for_review`.
+  - L'API rend `currency: "CFA"` et `currency: "   "` (mesuré, `GET /api/bank-statements/{id}/lines`). Le front formate par `getMetadata()`, qui retombe sur XOF pour un code inconnu (lu, `currency.ts:61-65`) : les deux lignes s'affichent « 150 000 F CFA », comme une ligne XOF (déduit de la lecture, non rendu). XAF partage le même symbole « F CFA » (lu, l. 46-47).
+  - Établi comment : lu, puis mesuré par la sonde.
+- Piste : juger la devise lue face à celle de l'agence, dans les deux pilotes : une cellule vide prend la devise par défaut ; un code qui n'est pas un cas de `Currency`, ou qui n'est pas celui de l'agence, fait sauter la ligne et la compte (`ParseTally`), ou bien est ramené à la devise de l'agence. Le choix relève du porteur, avec celui de P124.01 (même décision). La recherche manuelle filtre la devise de la ligne. Garde : les trois cellules de la sonde, et un OFX `EUR`, en test dans `BankStatementPipelineTest`.
+
+### Une date OFX qui déborde (`20261332`) entre décalée au 2027-02-01, la garde de TCK-593 n'existant que dans le pilote CSV
+- Réf : P157.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Accounting/StatementParser/OfxDriver.php:76-82`, `takussan-api/app/Services/Accounting/StatementParser/CsvDriver.php:106-112`
+- Constat :
+  - Le pilote CSV relit la date dans son format et saute la ligne si elle ne redonne pas la chaîne d'origine, parce que `createFromFormat` déborde sans erreur (lu, `CsvDriver.php:106-112`, TCK-593). Le pilote OFX appelle `createFromFormat('Ymd', …)` et ne teste que `false` (lu, `OfxDriver.php:77-82`).
+  - mesuré (sonde) : `<DTPOSTED>20261332` → ligne datée `2027-02-01`, relevé `ready_for_review`, `skipped_lines_count = 0`. La date décalée entre aussi dans `period_end` (lu, `ParseBankStatementJob.php:109-110`) et dans la fenêtre de ±7 jours du matcher.
+  - Établi comment : lu et mesuré.
+- Piste : la même relecture que le pilote CSV (`format('Ymd') !== $dateStr` → ligne sautée et comptée), et un test « date débordante » pour l'OFX, à côté de `test_une_date_debordante_est_sautee_et_non_decalee` de `StatementParserTest`.
+
+### Un montant OFX `150,000` est lu 150, et `abc` est lu 0 : la ligne entre, sans être comptée comme sautée
+- Réf : P157.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Accounting/StatementParser/OfxDriver.php:128-147`, `takussan-api/app/Services/Accounting/StatementParser/CsvDriver.php:171-207`
+- Constat :
+  - Le pilote OFX devine encore le séparateur : une virgule seule devient la décimale, et le reste passe par `(float)` sans contrôle (lu, `OfxDriver.php:128-147`). TCK-593 a retiré cette devinette du pilote CSV et y fait sauter tout reste non numérique (lu, `CsvDriver.php:181-207`, regex l. 202).
+  - mesuré (sonde) : `<TRNAMT>150,000` → crédit de `150.00` ; `<TRNAMT>abc` → crédit de `0.00` ; `<TRNAMT>150 000` → 150 000 (espace ASCII retiré). Les quatre lignes du fichier sont lues, `skipped_lines_count = 0`.
+  - La spécification OFX prescrit le point décimal (à vérifier sur la norme ; aucun relevé réel dans le dépôt, D-67).
+  - Établi comment : lu et mesuré.
+- Piste : un montant OFX qui ne correspond pas à `^[+-]?\d+([.,]\d+)?$` après retrait des espaces (insécables compris) fait sauter la ligne, comptée ; trancher si la virgule reste admise comme décimale. Test : `150,000`, `abc` et `1.234,56` dans `StatementParserTest`.
+
+### Un OFX en `CHARSET:1252` dont un libellé porte un accent fait échouer le relevé entier, alors que la validation le dispense du contrôle d'encodage parce qu'il « déclare son jeu de caractères »
+- Réf : P157.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php:48-57`, `takussan-api/app/Services/Accounting/StatementParser/OfxDriver.php:21-34,112-120`, `takussan-api/app/Jobs/Accounting/ParseBankStatementJob.php:156-184`
+- Constat :
+  - La validation refuse un CSV qui n'est pas de l'UTF-8 et laisse passer l'OFX : « L'OFX déclare son jeu de caractères dans son en-tête : il n'est pas jugé ici » (lu, `StoreBankStatementRequest.php:48-57`). Le pilote OFX ne lit pourtant pas l'en-tête `CHARSET` et ne convertit rien (lu, `OfxDriver.php:21-34`).
+  - mesuré (sonde) : OFX 1.02 `CHARSET:1252`, deux transactions dont la première a pour `NAME` `SOCIÉTÉ DIOP` en Windows-1252 → `QueryException` sqlstate 22021 à l'insertion, relevé passé `failed`, la seconde transaction perdue aussi. Sous `sync`, le dépôt rend 500 ; en file, le relevé finit `failed` sans motif lisible (lu, l. 156-184).
+  - `CHARSET:1252` est l'en-tête courant des OFX 1.x (à vérifier sur des relevés réels, D-67).
+  - Établi comment : lu et mesuré.
+- Piste : convertir le contenu OFX en UTF-8 selon l'en-tête `CHARSET` (ou `encoding` de la déclaration XML), avec Windows-1252 par défaut pour un OFX 1.x non UTF-8 ; sinon refuser à l'import comme le CSV. Test : le fichier de la sonde, importé et lu `SOCIÉTÉ DIOP`.
+
+### Un OFX 2.x (XML) est refusé à l'import en 422, alors que le pilote se dit capable de le lire
+- Réf : P157.05
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php:22`, `takussan-api/app/Services/Accounting/StatementParser/OfxDriver.php:9-15`, `takussan-web/src/components/admin/reconciliation/ImportStatementForm.tsx:19,63`
+- Constat :
+  - La règle est `mimes:csv,txt,ofx` (lu, l. 22), qui juge l'extension déduite du type que `finfo` lit dans le contenu. Le docblock du pilote annonce : « OFX 2.x (XML) files also work » (lu, `OfxDriver.php:12-14`), et le front propose le format `ofx` pour tout fichier `.ofx` (lu, `ImportStatementForm.tsx:19,63`).
+  - mesuré (sonde) : un OFX 2.11 commençant par `<?xml version="1.0"?>` et `<?OFX OFXHEADER="200" …?>`, en `UploadedFile` réel → `finfo` : `text/xml` → `xml` ; `POST …/bank-statements` → `422` « The file field must be a file of type: csv, txt, ofx. ». Un OFX 1.02 SGML à en-tête multiligne → `text/plain` → `txt` → `202`.
+  - Les tests existants ne déposent aucun `.ofx` par HTTP : seul `StatementParserTest` lit `tests/fixtures/bank/sample.ofx`, sans passer par la validation (lu, `grep -rln ofx tests`). `UploadedFile::fake()` déduit le type du nom : il ne mesure pas cette règle.
+  - Limite : `finfo` de développement (macOS) ; celui de l'image de l'API n'est pas mesuré.
+  - Établi comment : lu et mesuré.
+- Piste : admettre `xml` pour le format `ofx` (ou juger l'extension cliente et le contenu `<OFX>` au lieu du seul type), et retirer la promesse du docblock si l'OFX 2 n'est pas voulu. Garde : un test HTTP qui dépose les deux variantes d'OFX en `UploadedFile` réel.
+
+### La même transaction présente dans deux relevés qui se chevauchent donne deux lignes suggérées sur le même paiement ; après la première confirmation, la seconde reste « suggérée » et sa confirmation rend 422
+- Réf : P157.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php:59-68`, `takussan-api/app/Jobs/Accounting/ParseBankStatementJob.php:88-121`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:70-71`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:95-100`
+- Constat :
+  - Le seul dédoublonnage est le hachage du fichier entier (lu, `StoreBankStatementRequest.php:59-68`). Ni le job ni le modèle ne rapprochent une ligne d'une ligne déjà importée par sa référence (`FITID` en OFX), sa date et son montant (lu, `ParseBankStatementJob.php:88-121`).
+  - mesuré (sonde) : relevé 1 avec le crédit `FITID=F1` de 150 000 ; relevé 2 avec le même `F1` et un autre crédit → deux lignes `F1`, toutes deux `suggested` à 70 sur la même échéance. Confirmation de la première → `200` ; confirmation de la seconde → `422` « This payment is already reconciled to another line. ». La seconde ligne reste `suggested`, sur un paiement rapproché ailleurs.
+  - Un export mensuel puis un export « depuis le début du mois » se chevauchent de la sorte (déduit, à vérifier sur l'usage réel). P25.07 relève le même paiement suggéré deux fois **dans un relevé** ; ici, c'est d'un relevé à l'autre, et la ligne vise une transaction déjà comptée.
+- Piste : à l'analyse, marquer (ou sauter et compter) une ligne dont la référence, la date, le montant et le sens égalent ceux d'une ligne déjà importée pour l'agence ; et retirer la suggestion des lignes qui visent un paiement à la confirmation de l'une d'elles. Le choix entre marquer et sauter relève du porteur.
+
+### En OFX, la référence du virement portée par `MEMO` n'atteint ni la référence ni le libellé de la ligne : la règle 95 ne s'applique jamais à un relevé OFX
+- Réf : P157.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Accounting/StatementParser/OfxDriver.php:90-100`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:189-194`
+- Constat :
+  - Le pilote met `FITID` dans `reference`, `NAME` (ou à défaut `MEMO`) dans `label`, et `NAME` en contrepartie seulement si `MEMO` existe (lu, `OfxDriver.php:90-100`). `FITID` est l'identifiant de la transaction chez la banque ; la règle 95 compare `reference` au `reference_number` du paiement (lu, `ReconciliationMatcher.php:189-194`).
+  - mesuré (sonde) : deux échéances de 150 000 (`LP-77`, `LP-88`) payées le 2026-04-01 ; crédit OFX de 150 000 au 2026-04-02, `FITID=BANK-9981`, `NAME=VIR DIOP`, `MEMO=LP-77` → ligne `reference = BANK-9981`, `label = VIR DIOP`, `unmatched` (deux candidats à 70, ambiguïté de TCK-827). Le `MEMO` ne vit plus que dans `raw_payload`.
+  - Que la banque mette le libellé saisi par le payeur dans `MEMO` est l'usage courant (à vérifier sur des relevés réels, D-67).
+  - Établi comment : lu et mesuré ; la suggestion à 95 qu'un `MEMO` lu rendrait est déduite.
+- Piste : chercher la référence du paiement dans `MEMO` (et dans le libellé du CSV) en plus de `reference`, ou garder `MEMO` dans le libellé ; la règle de lecture est à trancher sans relevé réel (D-67). Test : le cas de la sonde, suggéré à 95 sur `LP-77`.
+
+### Petites améliorations de l'import des relevés
+- Réf : P157.08
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Accounting/StatementParser/CsvDriver.php:116-120`, `takussan-api/app/Services/Accounting/StatementParser/OfxDriver.php:27-34,85-88`
+- Constat :
+  - **Ligne à montant nul** : un montant `0` devient un crédit de 0 dans les deux pilotes (lu, `CsvDriver.php:117`, `OfxDriver.php:85-87`) ; aucun paiement ne s'y apparie, et la ligne reste à ignorer à la main.
+  - **Un seul `CURDEF` par fichier** : le pilote prend le premier `<CURDEF>` et parcourt tous les `<STMTTRN>` du fichier (lu, `OfxDriver.php:29-34`). Un OFX à plusieurs comptes (`STMTRS` répétés, devises différentes) donne à toutes ses lignes la devise du premier (déduit, à vérifier).
+  - **`TRNTYPE` ignoré pour le sens** : seul le signe de `TRNAMT` le porte (lu, l. 85-87). Un `TRNTYPE=DEBIT` à montant positif entre en crédit (déduit ; la norme prescrit le signe, à vérifier sur des relevés réels).
+  - Établi comment : lu.
+- Piste : sauter et compter une ligne à montant nul ; lire `CURDEF` par `STMTRS` ; signaler (ou sauter) une ligne dont `TRNTYPE` contredit le signe. Chaque point avec son test dans `StatementParserTest`.
