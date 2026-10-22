@@ -70,13 +70,9 @@ class ServiceProviderProfileController extends Controller
             ->usingName($file->getClientOriginalName() ?: $kind)
             ->toMediaCollection('file');
 
-        // Mirror insurance presence onto SP metadata so the wizard recap
-        // and the `Assuré` badge can read it without a join.
-        if ($kind === 'insurance') {
-            $metadata = $sp_profile->metadata ?? [];
-            $metadata['has_insurance'] = true;
-            $sp_profile->forceFill(['metadata' => $metadata])->save();
-        }
+        // TCK-1325 (P117.06) — plus de `metadata.has_insurance` : le badge « Assuré » se dérive de
+        // la pièce vivante (`ServiceProviderProfile::liveInsuranceDocuments()`). Le drapeau n'avait
+        // aucun lecteur et ne se remettait jamais à faux.
 
         activity('Onboarding')
             ->performedOn($sp_profile)
