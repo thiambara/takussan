@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\DateBoundaryFilter;
 use App\Http\Filters\ExactIdentifierFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
@@ -686,13 +687,15 @@ class Property extends AbstractModel implements HasMedia
 
         $filters[] = AllowedFilter::callback('created_from', function (Builder $q, mixed $value): void {
             if ($value !== null && $value !== '') {
-                $q->where('created_at', '>=', DayRange::start((string) $value));
+                DateBoundaryFilter::exiger($value, 'created_from');
+                $q->where('created_at', '>=', DayRange::start($value));
             }
         });
 
         $filters[] = AllowedFilter::callback('created_to', function (Builder $q, mixed $value): void {
             if ($value !== null && $value !== '') {
-                $q->where('created_at', '<', DayRange::after((string) $value));
+                DateBoundaryFilter::exiger($value, 'created_to');
+                $q->where('created_at', '<', DayRange::after($value));
             }
         });
 
