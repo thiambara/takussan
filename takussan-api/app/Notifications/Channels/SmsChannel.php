@@ -83,6 +83,8 @@ class SmsChannel
             'is_critical' => $isCritical,
             // TCK-766 — un code à usage unique garde le repli sur un échec ambigu.
             'is_otp' => method_exists($notification, 'isOtpSms') && $notification->isOtpSms(),
+            // P72.04 (TCK-1354) — le délai de renvoi qu'un accusé `failed` du code lève.
+            'otp_resend_key' => method_exists($notification, 'otpResendKey') ? $notification->otpResendKey() : null,
             'event_type' => $this->resolveEventType($notification),
             'agency_id' => $this->resolveAgencyId($notifiable),
             'notification_id' => $this->resolveAppNotificationId($notifiable, $notification),

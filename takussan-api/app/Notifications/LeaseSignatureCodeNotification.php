@@ -38,6 +38,8 @@ class LeaseSignatureCodeNotification extends Notification implements SupportsSms
         public readonly string $reference,
         public readonly int $expiresInMinutes,
         public readonly string $channel,
+        // P72.04 (TCK-1354) — le délai de renvoi du signataire, levé par un accusé `failed`.
+        public readonly ?string $resendKey = null,
     ) {
         $this->outcome = new \ArrayObject;
     }
@@ -111,5 +113,11 @@ class LeaseSignatureCodeNotification extends Notification implements SupportsSms
     public function isOtpSms(): bool
     {
         return true;
+    }
+
+    /** P72.04 (TCK-1354) — lu par `SmsChannel`, passé au routeur en `otp_resend_key`. */
+    public function otpResendKey(): ?string
+    {
+        return $this->resendKey;
     }
 }

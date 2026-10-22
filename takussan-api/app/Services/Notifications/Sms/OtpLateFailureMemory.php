@@ -17,14 +17,24 @@ use Illuminate\Support\Facades\Cache;
  *
  * Les codes ne partent que par SMS (`SmsChannel`, envois directs au routeur) : WhatsApp n'a rien à
  * retenir ici.
+ *
+ * P72.04 (TCK-1354) — l'envoi d'un code nomme aussi la clé de cache de son délai de renvoi
+ * (`otp_resend_key` du contexte du routeur) : l'accusé `failed` la retire, et le destinataire peut
+ * redemander un code tout de suite, au lieu d'attendre la fin d'un délai posé pour un code qui
+ * n'arrivera pas. Une fois par code : l'entrée de l'envoi est consommée par le premier `failed`.
+ * Les autres bornes (plafond par numéro, plafond du jour, limiteurs de route) restent.
  */
 class OtpLateFailureMemory
 {
     public const TTL_SECONDS = 900;
 
-    public function rememberSent(string $provider, string $providerMessageId, string $number): void
+    public function rememberSent(string $provider, string $providerMessageId, string $number, ?string $resendKey = null): void
     {
-        Cache::put(self::sentKey($provider, $providerMessageId), $number, self::TTL_SECONDS);
+        Cache::put(
+            self::sentKey($provider, $providerMessageId),
+            ['number' => $number, 'resend_key' => $resendKey],
+            self::TTL_SECONDS,
+        );
     }
 
     /** Appelé au passage d'une tentative à `failed` : sans effet si elle ne portait pas un code. */
@@ -33,9 +43,15 @@ class OtpLateFailureMemory
         if ($providerMessageId === null || $providerMessageId === '') {
             return;
         }
-        $number = Cache::pull(self::sentKey($provider, $providerMessageId));
+        $sent = Cache::pull(self::sentKey($provider, $providerMessageId));
+        // Une entrée écrite avant TCK-1354 ne porte que le numéro.
+        $number = is_array($sent) ? ($sent['number'] ?? null) : $sent;
         if (! is_string($number) || $number === '') {
             return;
+        }
+        $resendKey = is_array($sent) ? ($sent['resend_key'] ?? null) : null;
+        if (is_string($resendKey) && $resendKey !== '') {
+            Cache::forget($resendKey);
         }
         $failed = $this->failedProviders($number);
         if (! in_array($provider, $failed, true)) {

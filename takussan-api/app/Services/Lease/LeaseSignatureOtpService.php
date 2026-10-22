@@ -102,6 +102,12 @@ class LeaseSignatureOtpService
         return null;
     }
 
+    /** P72.04 (TCK-1354) — la clé du délai de renvoi, qu'un accusé `failed` du SMS du code lève. */
+    public function resendKey(Lease $lease, User $user, string $role): string
+    {
+        return $this->key('cooldown', $lease, $user, $role);
+    }
+
     private function key(string $kind, Lease $lease, User $user, string $role): string
     {
         return "lease-signature-{$kind}:{$lease->id}:{$user->id}:{$role}";
