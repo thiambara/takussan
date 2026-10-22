@@ -37,11 +37,30 @@ export type LibelleRole = (code: string) => string | null;
 /** Les codes dont le paramètre `role` est un code de rôle délégable, et non un nom libre. */
 const CODES_A_ROLE_CODE = 'role_delegation.';
 
+/**
+ * P164.01 (TCK-1468) — le fournisseur d'une intégration arrive CODÉ (`orange_money`) : il s'affiche
+ * par son libellé. Un code sans libellé au dictionnaire suit la règle de `GenericProvider::label()`
+ * de l'API (« sms_orange » → « Sms Orange »), pour que la cloche et le courriel disent le même nom.
+ */
+export type LibelleFournisseur = (code: string) => string | null;
+
+/** Les codes dont le paramètre `provider` est un code de fournisseur d'intégration (`PARAM_PROVIDER`). */
+const CODES_A_FOURNISSEUR = new Set(['governance.integration_changed']);
+
+function libelleGeneriqueFournisseur(code: string): string {
+  return code
+    .split('_')
+    .filter((mot) => mot !== '')
+    .map((mot) => mot.charAt(0).toUpperCase() + mot.slice(1))
+    .join(' ');
+}
+
 export function valeursDeNotification(
   params: Record<string, NotificationParam> | null | undefined,
   fmt: Formatteurs,
   motif?: LibelleMotif,
   role?: LibelleRole,
+  fournisseur?: LibelleFournisseur,
 ): ValeursNotification {
   const valeurs: ValeursNotification = {};
   for (const [nom, valeur] of Object.entries(params ?? {})) {
@@ -51,6 +70,8 @@ export function valeursDeNotification(
       valeurs[nom] = typeof detail === 'string' && detail !== '' ? `${libelle} (${detail})` : libelle;
     } else if (nom === 'role' && role && typeof valeur === 'string' && valeur !== '') {
       valeurs[nom] = role(valeur) ?? valeur;
+    } else if (nom === 'provider' && fournisseur && typeof valeur === 'string' && valeur !== '') {
+      valeurs[nom] = fournisseur(valeur) ?? libelleGeneriqueFournisseur(valeur);
     } else if (valeur === null || valeur === undefined || valeur === '') {
       valeurs[nom] = VALEUR_ABSENTE;
     } else if (typeof valeur === 'number') {
@@ -79,6 +100,8 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
   const motif: LibelleMotif = (code) => (tMotifs.has(code) ? tMotifs(code) : null);
   const tRoles = useTranslations('profile.roles');
   const libelleRole: LibelleRole = (code) => (tRoles.has(code) ? tRoles(code) : null);
+  const tFournisseurs = useTranslations('adminSettings.integrations.webhookEndpoint.providers');
+  const libelleFournisseur: LibelleFournisseur = (code) => (tFournisseurs.has(code) ? tFournisseurs(code) : null);
 
   return (notification) => {
     const repli: TexteNotification = {
@@ -89,7 +112,8 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
     if (!code || !t.has(`${code}.title`)) return repli;
 
     const role = code.startsWith(CODES_A_ROLE_CODE) ? libelleRole : undefined;
-    const valeurs = valeursDeNotification(notification.params, fmt, motif, role);
+    const fournisseur = CODES_A_FOURNISSEUR.has(code) ? libelleFournisseur : undefined;
+    const valeurs = valeursDeNotification(notification.params, fmt, motif, role, fournisseur);
     return {
       titre: t(`${code}.title`, valeurs),
       corps: t.has(`${code}.body`) ? t(`${code}.body`, valeurs) : repli.corps,

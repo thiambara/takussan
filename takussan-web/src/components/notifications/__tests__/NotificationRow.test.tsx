@@ -92,6 +92,36 @@ describe('NotificationRow', () => {
     expect(texte).not.toContain('agency_admin');
   });
 
+  // P164.01 (TCK-1468) — le fournisseur d'une intégration arrive CODÉ (`orange_money`) : il se
+  // lit par son libellé, jamais par le code brut ; un code sans libellé suit celui de l'API.
+  it.each([
+    ['fr', 'orange_money', /L'intégration Orange Money a été modifiée par Awa Diop\./],
+    ['en', 'orange_money', /The Orange Money integration was changed by Awa Diop\./],
+    ['fr', 'lemon_squeezy', /L'intégration Lemon Squeezy a été modifiée/],
+    ['fr', 'sms_orange', /L'intégration Sms Orange a été modifiée/],
+  ] as const)('nomme le fournisseur de l’intégration (%s, %s)', (locale, code, corps) => {
+    renderRow(notification({
+      type: 'system',
+      code: 'governance.integration_changed',
+      params: { provider: code, actor: 'Awa Diop' },
+      target: null,
+    }), locale);
+
+    const texte = screen.getByText(corps).textContent ?? '';
+    expect(texte).not.toContain(code);
+  });
+
+  it('laisse tel quel le prestataire d’une intervention, qui n’est pas un fournisseur d’intégration', () => {
+    renderRow(notification({
+      type: 'maintenance',
+      code: 'maintenance.accepted',
+      params: { request: 'MR-12', provider: 'plomberie_diop' },
+      target: null,
+    }));
+
+    expect(document.body.textContent ?? '').toContain('plomberie_diop');
+  });
+
   it('formate le montant et la date, sans « 150000.00 » ni « XOF » bruts', () => {
     renderRow(notification());
 
