@@ -12653,7 +12653,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Un client titulaire d'un bail actif se supprime sans garde, et son locataire perd l'accès à son bail, à ses quittances et à ses factures
 - Réf : P130.01
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : caduc — la garde `422 customer.attached_to_open_lease` de `CustomerController::destroy` est posée par TCK-1332 (P130.05), sur un bail `pending_signature` ou `active`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/CustomerController.php:179-186`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:94-112`, `takussan-api/app/Policies/LeasePolicy.php:76`, `takussan-api/app/Policies/InvoicePolicy.php:41`, `takussan-api/app/Http/Resources/LeaseResource.php:84`
 - Constat :
@@ -12664,6 +12664,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu et mesuré.
 - Piste : refuser la suppression d'un client que porte un bail `pending_signature` ou `active` (ou une réservation non terminée), par la même forme que le garant (`422 customer.attached_to_open_lease`) ; test : client titulaire d'un bail actif → 422 et fiche intacte, client sans bail → 204.
 - Mesure (2026-10-22, d94868488, mesureur) : relu `CustomerController::destroy` (toujours `authorize('delete')` puis `delete()`, aucune garde), `CustomerPolicy::delete` (ni bail ni réservation), la garde `guarantor.attached_to_open_lease` de `GuarantorController::destroy`, `LeasePolicy.php:76` et `InvoicePolicy.php:41` (inchangés) ; `git log -S` et `grep` des tickets → aucun correctif ; test temporaire (retiré, charge `{ 2.17 1.97 1.91 }` sur 8 cœurs) : client à compte titulaire d'un bail actif, `DELETE /api/customers/{id}` en admin d'agence → 204, bail toujours `active` ; ensuite `GET /api/leases/{id}?include=tenant` en admin → 200, `data.tenant` = `null` ; en locataire : bail → 403, quittance PDF → 403, facture → 403. Le constat tient en entier. Classement : V7, `docs/features.md` n'écrit aucune règle de suppression d'un client sous bail : le refus en 422 est un comportement visible neuf, et la piste ne dit pas si une réservation non terminée bloque aussi.
+- Mesure (2026-10-22, 43c553036, implementeur) : relu `CustomerController::destroy` → `abort_code_if` sur `$customer->leases()` en `pending_signature` ou `active`, `422 customer.attached_to_open_lease` (TCK-1332, P130.05), clé traduite en `fr`/`en`/`wo` dans `lang/*/errors.php:134` ; `php artisan test tests/Feature/Api/CustomerSousBailTest.php` → 2/2 verts (fiche sous bail actif ou en attente de signature → 422 et fiche intacte, sans bail ouvert → 204). Le défaut est fermé ; la réservation non terminée, que la piste ne cite qu'entre parenthèses, n'est pas retenue (voie la plus étroite).
 
 ### Un bien sous bail actif se supprime sans garde, et sa quittance, son contrat et son état des lieux signé rendent 500
 - Réf : P130.02
