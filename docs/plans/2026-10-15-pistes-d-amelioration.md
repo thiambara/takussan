@@ -13337,7 +13337,7 @@ les angles 25 et 110 (rapprochement), 76 (remboursement d'un payable de la plate
 
 ### Un encaissement soldé par la plateforme est suggéré, puis confirmé, sur un crédit du relevé de l'agence
 - Réf : P141.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : écarter un encaissement du rapprochement de l'agence touche l'écriture de `bank_reconciled_at` d'un paiement, sans règle écrite
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:65-124`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:31-51,75-101,166-178`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:39-118`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:285-290,374-377`
 - Constat :
@@ -13348,10 +13348,11 @@ les angles 25 et 110 (rapprochement), 76 (remboursement d'un payable de la plate
   - mesuré (sonde) : après la clôture, l'échéance est rattachée au reversement (`platform_payout_id = 1`) et reste candidate : crédit de 150 000 au 2026-04-15 → `LeasePayment#1 conf=60` ; `payment-search?amount=150000&direction=credit` → `[["lease_payment",1]]`.
   - Établi comment : code lu, puis sonde par les services et par HTTP en admin d'agence.
 - Piste : écarter des candidats d'un crédit (matcher, recherche manuelle) et refuser à la confirmation un `BookingPayment`/`LeasePayment` que `isSettledByPlatform()` lit comme encaissé par la plateforme — la même lecture que la clôture et que TCK-1160. Le choix de ce qui le représente sur le relevé relève de P141.02. Garde : le cas de la sonde en test, `suggestFor` nul, recherche vide et 422 à la confirmation, et l'intégration propre à l'agence toujours rapprochable.
+- Mesure (2026-10-22, 11d89e33f, mesureur) : `git diff --stat cc061fbb7 HEAD -- takussan-api/app` → vide ; relu `ReconciliationMatcher::fetchCandidates` (filtres agence, devise, montant, ±7 j, `whereNull('bank_reconciled_at')`, rien sur `settled_by` ni `platform_payout_id`), `PaymentSearchService::searchLeasePayments`/`searchBookingPayments` et `ReconciliationManager::confirmMatch` (aucune garde « encaissé par la plateforme ») ; sonde temporaire `tests/Feature/TmpMesureur/SondeP141Test.php` (retirée, charge 1,79/1,83/1,85 sur 8 cœurs) : loyer de 150 000 payé le 2026-04-10, `soldeParLaPlateforme` → `isSettledByPlatform = true` ; `closePeriod` au 2026-04-30 → `platform_payout_id = 1` ; crédit 150 000 au 2026-04-11 → `suggestFor` `LeasePayment#1 conf=70`, au 2026-04-15 → `conf=60` ; `payment-search?amount=150000&direction=credit` → `200 [["lease_payment",1]]` ; `POST /api/bank-statement-lines/{id}/match` (`lease_payment`) → `200`, `bank_reconciled_at = 2026-04-11` → le constat tient en entier. Classement : V1, la Piste refuse le rapprochement d'un encaissement, et aucun texte ne dit comment l'agence rapproche l'argent que la plateforme détient (ADR-0039 ne prévoit que le `Payout`).
 
 ### Le virement de clôture de la plateforme ne peut être rapproché d'aucun crédit du relevé
 - Réf : P141.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1, V4 : le représentant du virement de la plateforme sur le relevé est à choisir, et une des voies ajoute des colonnes à `platform_payouts`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/ReconciliationManager.php:26-32`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:26-30,49-51,132-150`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:16-21,35-43`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementLineController.php:19-24`, `takussan-api/app/Http/Requests/Accounting/MatchBankStatementLineRequest.php:19`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:267-290` (finalisation)
 - Constat :
@@ -13361,10 +13362,11 @@ les angles 25 et 110 (rapprochement), 76 (remboursement d'un payable de la plate
   - mesuré (sonde) : ce crédit resté `unmatched`, `POST /api/bank-statements/{id}/finalize` → `200`, relevé `partially_reconciled`. Seul « ignorer » le sort de la liste.
   - L'agence ne peut pas non plus confirmer ce crédit sur l'une des échéances du reversement sans tomber dans P141.01 : le montant diffère de la commission.
 - Piste : décider ce qui représente, sur le relevé de l'agence, l'argent que la plateforme reverse (V1, V4) : le `PlatformPayout` `paid` comme candidat d'un crédit au `net_amount`, dans une fenêtre autour de `processed_at`, avec la règle de référence sur `payment_reference` (colonnes `bank_reconciled_at`/`bank_statement_line_id` sur `platform_payouts`, type `platform_payout` dans les quatre listes et le type `MatchedPaymentType` du front) ; ou un rapprochement qui solde d'un coup les échéances rattachées. Garde : le crédit de la sonde suggéré à 95 et confirmable une seule fois.
+- Mesure (2026-10-22, 11d89e33f, mesureur) : relu `MatchBankStatementLineRequest::rules` (`Rule::in(['booking_payment','lease_payment','invoice','payout'])`), `ReconciliationManager::ALLOWED_PAYMENT_TYPES`, `PaymentSearchService::TYPE_MAP`, `ReconciliationMatcher::PAYMENT_MODELS` → aucun `PlatformPayout` ; même sonde (retirée) : reversement de clôture `gross = net = 150 000` (sans abonnement, commission nulle, statut `pending`), crédit au net le 2026-05-03 référencé `VIR-PLAT-1`, contrepartie `TAKUSSAN` → `suggestFor` `null` ; `payment-search?amount=150000&direction=credit` → ne rend que `lease_payment#1`, jamais le reversement ; `POST …/match` `payment_type = platform_payout` → `422` « The selected payment type is invalid. » ; `finalize` → `200`, `partially_reconciled` → le constat tient (le cas à 142 500 et le reversement `paid` de la sonde de l'explorateur non rejoués). Classement : V1 et V4, la Piste propose deux voies, dont une migration de colonnes, sur un rapprochement d'argent.
 
 ### L'agence ne voit ni quels encaissements la plateforme détient, ni ce qu'un virement de la plateforme couvre
 - Réf : P141.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : exposer le contenu d'un reversement et notifier l'agence est un comportement visible et un texte neufs
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/PlatformPayoutController.php:14-33`, `takussan-api/app/Http/Resources/Api/Admin/PlatformPayoutResource.php:10-37`, `takussan-api/app/Http/Controllers/Api/Admin/PlatformPayoutController.php:36`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:145-172`
 - Constat :
@@ -13372,16 +13374,18 @@ les angles 25 et 110 (rapprochement), 76 (remboursement d'un payable de la plate
   - Aucune ressource de l'API n'émet `platform_payout_id`, `settled_by` ni l'intégration qui a soldé un paiement (lu, `grep -rn "platform_payout_id\|settled_by\|'gateway'" app/Http/Resources` → rien). Sur l'écran de rapprochement, rien ne distingue un loyer encaissé par la plateforme d'un loyer encaissé par l'agence (déduit de la même lecture, à vérifier côté front).
   - Aucune notification ne part vers l'agence quand un reversement de la plateforme passe `paid` : aucune classe sous `app/Notifications`, `app/Listeners` ou `app/Events` ne nomme `PlatformPayout` (lu, `grep -rln PlatformPayout app`) ; `markPaid` ne fait que journaliser (lu, `PlatformPayoutService.php:145-172`). L'agence apprend le virement par son relevé.
 - Piste : rendre à l'agence ce qu'un reversement couvre (`breakdown` ou liste des échéances sur `/api/me/payouts/{id}`) et le règlement d'un paiement (encaissé par la plateforme ou non, reversement de rattachement) ; prévenir l'agence au `markPaid` (V7, texte neuf). Garde : un test qui lit `/api/me/payouts` et y trouve les échéances du reversement.
+- Mesure (2026-10-22, 11d89e33f, mesureur) : relu `Api/Me/PlatformPayoutController` (seule action `index`, aucune route `me/payouts/{id}`), `PlatformPayoutResource:34` (`breakdown` lu de `additional`, rempli seulement par `Admin/PlatformPayoutController:36`) ; `grep -rn "platform_payout_id\|settled_by\|'gateway'" app/Http/Resources` → rien ; `grep -rnE "platform_payout|settled_by|settledBy" takussan-web/src` → seuls les `fields[platform_payouts]` de la console super-admin, rien sur l'écran de rapprochement (le « à vérifier côté front » tient) ; `grep -rln PlatformPayout app` sous `Notifications|Listeners|Events|Mail` → rien, la seule autre mention est `AlertableEvents` (`super_admin_payout_marked_paid`), une alerte de la console, pas un message à l'agence → le constat tient. Classement : V7, la Piste rend à l'agence des données et un avis qu'elle n'a pas aujourd'hui, avec un texte neuf.
 
 ### Petites améliorations du rapprochement
 - Réf : P141.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : le scope partagé est le support de l'exclusion de P141.01, et la colonne d'agence d'un acompte reste à choisir
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/BookingPayment.php:82-85`, `takussan-api/app/Models/LeasePayment.php:111-114`, `takussan-api/app/Models/Invoice.php:187-190`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:76`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:313-316`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:265`
 - Constat :
   - `scopeWhereNotReconciled` existe sur trois modèles et n'a aucun appelant : matcher et recherche écrivent `whereNull('bank_reconciled_at')` à la main (lu, `grep -rn "whereNotReconciled" app` → les seules définitions). C'est l'endroit naturel d'une exclusion partagée des encaissements de la plateforme (P141.01).
   - L'agence d'un acompte se lit par `booking.property.agency_id` dans le matcher (`ReconciliationMatcher.php:76`), la recherche (`PaymentSearchService.php:58`) et la garde d'agence de la confirmation (`ReconciliationManager.php:313-316`), mais par `bookings.agency_id` dans la clôture plateforme (`PlatformPayoutService.php:265`, `whereHas('booking', … agency_id)`) et dans `BookingPayment::auditAgencyId`. Les deux ne diffèrent que si une réservation et son bien n'ont pas la même agence (à vérifier : aucun chemin qui l'écrive n'a été cherché).
 - Piste : faire passer matcher et recherche par un scope partagé, et lire l'agence d'un acompte par une seule colonne (A3/A5 pour le scope ; le choix de colonne après mesure).
+- Mesure (2026-10-22, 11d89e33f, mesureur) : `grep -rn "whereNotReconciled\|WhereNotReconciled" app` → les trois définitions seules (`LeasePayment:111`, `Invoice:187`, `BookingPayment:82`) ; relu `ReconciliationMatcher:76` et `PaymentSearchService:58` (`booking.property.agency_id`), `PlatformPayoutService:265` (`booking.agency_id`), `BookingPayment::auditAgencyId` (`booking()->value('agency_id')`) ; les trois créations de `Booking` (`BookingService:126`, `PublicPropertyController:~994,~1028`) écrivent `'agency_id' => $property->agency_id`, aucun chemin d'écriture divergent trouvé, sans recherche exhaustive d'un changement d'agence d'un bien → le scope mort tient, l'écart de colonne reste latent. Classement : V1, le scope partagé n'a de sens que porteur de l'exclusion de P141.01 (à valider), et le choix de colonne est laissé ouvert par la Piste.
 
 ## Angle 142 — Notifications et écouteurs en file sans `backoff` ni `failed()`, hors `CodedNotification`
 
@@ -13397,7 +13401,7 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
 
 ### Le provisionnement d'une agence promet un 502 et une annulation si l'e-mail d'activation échoue, mais l'e-mail part en file : l'agence est créée, et l'échec arrive plus tard, sans trace ni renvoi
 - Réf : P142.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la Piste laisse le choix entre deux contrats (envoi synchrone, ou file + trace + geste de renvoi)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:36,84,104-118`, `takussan-api/app/Notifications/AgencyAdminActivationNotification.php:22-32`, `takussan-api/tests/Feature/Api/Admin/AgencyOnboardingTest.php:96-113`
 - Constat :
@@ -13408,10 +13412,11 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - Une fois en file, l'envoi a trois essais sans délai (`--tries=3`, `compose.api.yml:125`), et la notification n'a ni `backoff` ni `failed()` (lu). Aucune route ne renvoie l'activation d'un gérant provisionné (`grep -rn resend routes/api` → invitations, super-admins, e-mail et téléphone seuls).
   - Établi comment : lu, et mesuré pour la réponse de la requête dans les deux régimes de file.
 - Piste : choisir l'un des deux contrats et l'écrire — envoi synchrone (sans `ShouldQueue`) pour que le 502 et l'annulation tiennent, ou envoi en file avec `backoff`, `failed()` qui laisse une trace lisible par la console, et un geste « renvoyer l'activation » ; corriger le docblock en conséquence. Test : transport qui lève, sans remplacer `sendActivationLink()`, sous la file `database`.
+- Mesure (2026-10-22, af5be0846, mesureur) : relu `AgencyProvisioningService::sendActivationLink()` (`try` autour de `notify()`, `abort_code(502, …)`, docblock « un échec d'envoi rend 502 et annule ») appelé dans le `DB::transaction` de `provision()`, `AgencyAdminActivationNotification` (`ShouldQueue`, file `notifications-urgent`, ni `backoff` ni `failed()`), `config/queue.php` (`database` en `after_commit => true`), `compose.api.yml:125` (`--tries=3` sans `--backoff`), `grep -rn resend routes/api` (invitations, super-admins, e-mail, téléphone : rien pour l'activation) ; test temporaire (retiré, charge 3,52 / 2,45 / 2,09 sur 8 cœurs) `Queue::fake()` + `Mail::shouldReceive('send')->never()` puis `POST /api/admin/agencies` → **201**, `SendQueuedNotifications` poussé, agence en base : l'envoi n'a pas lieu dans la requête, le `catch` ne peut voir qu'un échec de mise en file ; aucun commit depuis 2662d382c sur ces fichiers → le constat tient (le 500 sous `sync` n'a pas été rejoué). Classement : V7, le correctif exige de choisir entre deux contrats visibles (502 et annulation synchrones, ou file avec renvoi d'activation), et le geste de renvoi est une fonction neuve.
 
 ### Une marque « envoyé » est posée dès la mise en file : un échec du fournisseur perd la bienvenue du locataire, les rappels de tâche et d'état des lieux, et la relance de facture, que rien ne renvoie
 - Réf : P142.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : plusieurs options (retirer la marque, journaliser, poser la marque depuis la notification) dont le renvoi d'un e-mail perdu
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Listeners/Lease/SendTenantWelcomeNotification.php:33,47,55`, `takussan-api/app/Jobs/SendTaskDueReminders.php:71-84`, `takussan-api/app/Console/Commands/RemindTenantOnboarding.php:45-76`, `takussan-api/app/Services/Invoice/OverdueReminderService.php:151-229`
 - Constat :
@@ -13421,10 +13426,11 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - Même mécanisme que P111.04 pour le résumé, ici sur quatre autres envois.
   - Établi comment : lu.
 - Piste : `backoff` sur ces notifications (motif de `CodedNotification::backoff()`), et un `failed()` qui retire ou corrige la marque, ou qui écrit une activité alertable ; ou poser la marque depuis la notification elle-même une fois l'envoi fait. Test : transport qui lève jusqu'à épuisement → marque absente, ou trace d'échec écrite.
+- Mesure (2026-10-22, af5be0846, mesureur) : relu `SendTenantWelcomeNotification` (garde `tenant_welcomed_at !== null`, `Notification::send()` puis `tenant_welcomed_at = now()`), `SendTaskDueReminders::notifyFor()` (marque `META_MARKER` posée après `Notification::send()` dans la transaction), `RemindTenantOnboarding` (`reminders_sent` complété après les deux envois), `OverdueReminderService` (activité `invoice_reminder_sent` `channel => email_inapp` dans la transaction l. 151-216, `Notification::send()` l. 229) ; comptage par fichier de `backoff`, `function failed`, `$tries|retryUntil` sur les 28 `ShouldQueue` de `app/Notifications` → 0 partout sauf `CodedNotification` ; aucun commit depuis 2662d382c → le constat tient, la survie de la cloche par canal reste à vérifier. Classement : V7, la Piste propose trois corrections au comportement différent (renvoi ou non, trace seule), et la relance de facture touche une trace de recouvrement (V1 en bordure).
 
 ### Le rappel J-7 avant suppression du compte est marqué envoyé à la mise en file, en e-mail seul : un échec du fournisseur fait supprimer le compte sans rappel
 - Réf : P142.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : le correctif décide si une suppression de compte peut s'exécuter sans rappel parvenu (renvoi ou report)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:38-43`, `takussan-api/app/Services/Account/AccountDeletionService.php:550-562`, `takussan-api/app/Notifications/AccountDeletionReminderNotification.php:14-30`
 - Constat :
@@ -13432,10 +13438,11 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - `dueForReminder()` ne relit que `reminder_sent_at IS NULL` (lu, l. 556-561) : le rappel perdu ne repart pas, et la suppression s'exécute à `scheduled_for`. Il n'y a pas de cloche pour compenser : le canal est l'e-mail seul.
   - Établi comment : lu. La perte par épuisement des essais est déduite du `--tries=3` sans délai (à vérifier par un transport qui lève sous la file `database`).
 - Piste : `backoff` sur la notification et un `failed()` qui remet `reminder_sent_at` à nul (le passage suivant le renvoie), ou qui reporte l'exécution ; test : transport qui lève → `reminder_sent_at` nul après `failed()`.
+- Mesure (2026-10-22, af5be0846, mesureur) : relu `ExecuteScheduledAccountDeletions::handle()` (`notify(new AccountDeletionReminderNotification(...))` puis `reminder_sent_at = now()` aussitôt), `AccountDeletionService::dueForReminder()` (l. 550-562, ne relit que `reminder_sent_at IS NULL`), `AccountDeletionReminderNotification` (`ShouldQueue`, `via()` → `['mail']`, file `notifications-urgent`, ni `backoff` ni `failed()`) ; aucun commit depuis 2662d382c → le constat tient en lecture, la perte par épuisement des essais sous la file `database` n'a pas été jouée. Classement : V3, la Piste laisse le choix entre renvoyer le rappel et reporter l'exécution, ce qui décide de la suppression de données personnelles.
 
 ### Les commissions d'un bail sont calculées par un écouteur en file sans `failed()` ni autre appelant : un échec laisse le bail sans ligne de commission, sans alerte
 - Réf : P142.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : écouteur qui écrit les lignes de commission d'un bail
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Listeners/Lease/GenerateCommissionEntries.php:17-29`, `takussan-api/app/Services/Commission/CommissionLedgerService.php:41-107`, `takussan-api/app/Jobs/Concerns/AlertsOnFirstFailure.php:8-32`, `takussan-api/app/Listeners/Lease/CreateTenantOnboardingChecklist.php`
 - Constat :
@@ -13445,10 +13452,11 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - `CreateTenantOnboardingChecklist` est dans le même cas (rejouable par `firstOrCreate`, sans `failed()` ni autre appelant), sur un effet moins grave.
   - Établi comment : lu et `grep`.
 - Piste : `AlertsOnFirstFailure` (ou son pendant) et un `backoff` sur les deux écouteurs ; test : `failed()` de l'écouteur écrit `ops_critical_job_failed`.
+- Mesure (2026-10-22, af5be0846, mesureur) : relu `GenerateCommissionEntries` (`ShouldQueue`, ni `$tries`, ni `backoff`, ni `failed()`), `grep -rn 'generateFor(' app` → l'écouteur seul (plus un docblock de `CommissionEntry`), `CommissionLedgerService:107` (`insertOrIgnore`), `grep -rln AlertsOnFirstFailure app` → trois jobs (`SendLeasePaymentReminders`, `ApplyLateFeesJob`, `SendOverdueRemindersJob`) plus le trait et `AlertableEvents`, aucun écouteur ; `CreateTenantOnboardingChecklist` `ShouldQueue` sans `failed()` → le constat tient. Classement : V1, l'écouteur est le seul chemin qui écrit une commission, et changer sa reprise touche l'écriture d'un montant, même si l'ajout d'une alerte est proche de A5.
 
 ### Les notifications en file hors `CodedNotification` n'ont aucun `backoff` ni `failed()`, et un même délai ne vaut pas pour toutes : le code de suppression de compte expire en 5 minutes
 - Réf : P142.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : délais de reprise à choisir par famille (code de suppression à 5 min, activation à 7 jours)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/*.php` (25 classes `extends Notification` en `ShouldQueue` hors `CodedNotification`, plus `ResetPasswordNotification` et `RegistrationConfirmationNotification`), `takussan-api/app/Notifications/CodedNotification.php:76-110`, `takussan-api/app/Services/Account/DeletionStepUpService.php:44,101-105`, `deploy/takussan/compose.api.yml:125,131`
 - Constat :
@@ -13457,10 +13465,11 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - Les e-mails de compte (`ResetPasswordNotification`, `RegistrationConfirmationNotification`, `AgencyAdminActivationNotification`, `AccountDeletionStepUpCodeNotification`, file `notifications-urgent`) ont des durées de vie différentes : 60 min pour la réinitialisation, 7 jours pour l'activation (lu, `config/auth.php:99,110`), **5 min** pour le code de suppression (lu, `CODE_TTL_SECONDS = 300`). Le délai `[60, 300, 900]` de `CodedNotification` livrerait le troisième essai d'un code déjà expiré : un trait commun ne peut pas recopier ces valeurs telles quelles (déduit).
   - Établi comment : mesuré pour les comptes, lu pour le reste.
 - Piste : un trait partagé (`backoff` + `failed()` qui journalise la classe et le canal, sur le modèle de `CodedNotification`), avec un délai court ou un `retryUntil()` borné par la durée de vie pour les codes et liens à courte échéance ; une garde qui refuse une notification `ShouldQueue` sans ce trait. Test : `backoff()` et `failed()` présents sur chaque classe `ShouldQueue` de `app/Notifications`.
+- Mesure (2026-10-22, af5be0846, mesureur) : `for f in $(grep -rln ShouldQueue app/Notifications)` avec compte de `backoff`, `function failed`, `$tries|retryUntil` → 28 fichiers, `CodedNotification` seule à `backoff`/`failed()` (l. 81, 98), 27 à 0 ; `grep -rn 'function backoff\|function failed' app` → aucun trait partagé hors `CodedNotification` et les jobs ; relu `DeletionStepUpService::CODE_TTL_SECONDS = 300`, `config/auth.php:99` (60) et `:110` (7 jours), `routes/console.php:196` (`queue:prune-failed --hours=720`), `compose.api.yml:125,131` (`--tries=3` sans `--backoff`) → le constat tient entièrement. Classement : V7, les délais et la borne `retryUntil()` par famille d'e-mails sont des choix (dont celui de livrer ou non un code expiré), et la garde neuve qui l'imposerait suit ce choix.
 
 ### Petites améliorations
 - Réf : P142.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : chaque point demande un choix (canal ou liste des exports, ordre de la marque, régime de test)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:50-69`, `takussan-api/app/Notifications/ActivityLogExportReadyNotification.php:25`, `takussan-api/app/Listeners/Lease/SendTenantWelcomeNotification.php:47-55`
 - Constat :
@@ -13468,6 +13477,7 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - **Bienvenue rejouée** : si l'écouteur lève après `Notification::send()` (journal d'activité ou `save()` de la l. 55), le worker le rejoue et met en file une seconde bienvenue, la marque n'étant pas encore posée (lu, déduit pour la fréquence).
   - **Régime de la suite** : `QUEUE_CONNECTION=sync` fait lever dans la requête ce que la production met en file (mesuré en P142.01 : 500 contre 201) ; aucun test ne joue l'échec d'un envoi sous la file `database`.
 - Piste : canal de la cloche ou liste des exports pour le lien ; marque posée avant l'envoi dans l'écouteur, ou dédoublonnage ; un test d'échec de transport sous la file `database` par famille d'envoi.
+- Mesure (2026-10-22, af5be0846, mesureur) : relu `ExportActivityLogJob::handle()` (fichier écrit, puis lien signé envoyé par `ActivityLogExportReadyNotification`, `via()` → `['mail']`), `routes/api/audit-log.php` (export et téléchargement signé seuls, aucune liste des exports), `SendTenantWelcomeNotification` (activité et `save()` de la marque après `Notification::send()`), `phpunit.xml` (`QUEUE_CONNECTION=sync`, le 201 sous file mesuré en P142.01) → les trois points tiennent, la fréquence d'une bienvenue rejouée reste déduite. Classement : V7, ajouter la cloche ou une liste des exports est un comportement visible neuf, et les deux autres points dépendent des choix de P142.01 et P142.02.
 
 ## Angle 143 — PDF à contenu variable rendus par dompdf dans la requête HTTP
 
