@@ -204,7 +204,7 @@ voie d'écriture (angle 13, puis 47).
 | 127 | Indicateurs de `DashboardAgentService`, `DashboardOwnerService` et des adaptateurs `*MeMetrics` de `/dashboard/me` : dénominateur nul rendu 0 au lieu de `null`, statut courant relu pour une période passée, clés que seul `assertJsonStructure` vérifie — le relevé de l'angle 93 sur les autres tableaux de bord | fait |
 | 128 | Dates des charges utiles de notification (`toArray()` / `toDatabase()` de `app/Notifications`, `data` rendu par `AppNotificationResource`, diffusions) que l'ADR-0018 laisse hors de son périmètre : forme émise, et lecture par le centre de notifications du front | fait |
 | 129 | Suppression douce d'une agence (`DELETE /api/agencies/{agency}`, `AgencyController::destroy`, `$agency->delete()` seul, ouvert à l'admin principal) : profils restés actifs et profil actif encore résolu, biens publiés, baux et échéances, abonnement, invitations ouvertes et tâches planifiées d'une agence supprimée | fait |
-| 130 | Fiches supprimées en douceur et encore citées (`CustomerController::destroy`, `GuarantorController::destroy`, `PropertyController::destroy`) : baux, réservations, factures, relances, PDF et exports dont la relation `customer`, `guarantor` ou `property` rend `null` sous la portée `SoftDeletes` — 500, champ vide ou geste refusé ? | à faire |
+| 130 | Fiches supprimées en douceur et encore citées (`CustomerController::destroy`, `GuarantorController::destroy`, `PropertyController::destroy`) : baux, réservations, factures, relances, PDF et exports dont la relation `customer`, `guarantor` ou `property` rend `null` sous la portée `SoftDeletes` — 500, champ vide ou geste refusé ? | fait |
 | 131 | Paramètres de requête des liens profonds émis par l'API ou le front (`?conversation=`, `?tab=`, `?id=`, `router.push('…?…')`, `href` des listes et des cloches) : lus par la page visée, et conservés à travers les redirections de connexion, d'onboarding et de changement de profil actif | à faire |
 | 132 | Liens portés par les SMS et WhatsApp (`payment_url`, `receipt_url`, lien d'invitation, gabarits WhatsApp à bouton) : hôte, durée de validité face au délai d'envoi des heures calmes, et page qu'ouvre un destinataire sans compte — le pendant de l'angle 97 hors du courriel | à faire |
 | 133 | Estimations et aperçus calculés au front par une constante qui recopie un réglage ou un calcul de l'API (`DEFAULT_*` des dialogues de bail : indemnité de résiliation, préavis de 30 jours, pénalités de retard, révision de loyer, échéancier) : chiffre affiché qui diverge du réglage de la plateforme, de l'agence ou du bail | à faire |
@@ -240,6 +240,7 @@ voie d'écriture (angle 13, puis 47).
 | 163 | Bornes de fin saisies en date seule (`<input type="date">`) et rangées dans une colonne `datetime` (délégations de rôle, absences d'agent `StoreAgentAbsenceRequest`, annonces, fenêtres de maintenance, abonnements d'agence) : fin à minuit UTC au début du jour choisi face au libellé « Fin », aux textes « jusqu'au » et aux jobs d'expiration — né de P128.01 | à faire |
 | 164 | Paramètres `text` des notifications codées qui portent un code ou une valeur d'enum (`role` des délégations, statuts, types, motifs hors `reason_code`) : valeur rendue brute par `NotificationRenderer` et par `valeursDeNotification` du front, dans la cloche, le courriel et le SMS — né de P128.02 | à faire |
 | 165 | Lectures `->agency->…` sans `?->` (une vingtaine sous `app/` : `MaintenanceRequestResource.php:302`, `PropertyBoostResource.php:34`, notifications, PDF et gabarits) sur les lignes d'une agence supprimée en douceur, que la portée `SoftDeletes` rend nulle : 500 ou champ vide là où la ligne reste lisible — le pendant pour l'agence de l'angle 130, né de P129.01 | à faire |
+| 166 | Notifications, jobs et écouteurs en file qui portent un modèle à `SoftDeletes` par `SerializesModels` (`PropertyApprovedNotification`, `PropertyRejectedNotification`, `PropertyProposedNotification`, et leurs pareilles sur `Customer`, `Lease`, `Booking`) : fiche supprimée entre l'envoi et le traitement, `ModelNotFoundException` au déroulement, essais perdus et trace laissée — né de P130.02 | à faire |
 
 ---
 
@@ -12423,3 +12424,81 @@ l'angle 160 : il n'est pas repris ici.*
   - ADR-0048 range la fin d'activité dans `status` (`suspended` verrouille l'écriture, `inactive` et `suspended` masquent le public, l'index suit l'observateur) ; la suppression ne passe par aucun de ces états (lu).
   - Établi comment : lu.
 - Piste : soit retirer la route (aucun appelant au front) et laisser la fin d'activité au statut d'ADR-0048, soit l'écrire comme une transition de ce cycle de vie, avec une vue des agences supprimées dans la console. Choix de produit et de structure (ADR) : la piste ne tranche pas.
+
+## Angle 130 — Fiches client, garant et bien supprimées en douceur et encore citées
+
+*Exploré le 2026-10-22 sur `pre-dev` 487aba964, par l'explorateur. Relu par l'explorateur lui-même : `CustomerController::destroy`, `GuarantorController::destroy` (sa garde VERIF-596), `PropertyController::destroy`, `Property::booted` (`deleting`), `PropertyObserver::deleted`, `CustomerPolicy::delete`, `LeasePolicy::view`, `MaintenanceRequestPolicy::view` et `isPrincipalFor`, `MaintenanceRequest::scopeVisibleTo`, `DocumentPdfController::streamRentReceipt`, `invoice` et `leaseContract`, `PublicPaymentLinkController::receipt`, les gabarits `pdf/receipts/rent`, `pdf/leases/contract`, `pdf/inventories/report` et `pdf/invoices/default`, `SendLeasePaymentReminders::notifyTenant`, `ApplyLateFeesJob`, `PropertyVisitResource`, et le relevé `grep` des lectures `->customer->`, `->property->`, `->guarantor->` et `->tenant->` sans `?->` sous `app/` et `resources/views` (la plupart sont gardées par un `&&` ou un ternaire). Mesuré par un test temporaire `tests/Feature/TmpExplorateur/SondeAngle130Test.php` (base créée par le test, charge `{ 1.77 1.92 1.98 }` sur 8 cœurs), retiré depuis : une agence avec un admin, un bailleur, un locataire à compte, un bien, un bail actif, une échéance payée, une facture, une intervention ouverte, un état des lieux signé, une réservation confirmée et une visite programmée, joués **avec** et **sans** la suppression (témoin), toujours par l'admin de l'agence. Aucun sous-agent. Hors périmètre : les règles `exists:` qui laissent écrire vers une fiche supprimée (angle 96) et l'agence supprimée (angles 129 et 165). Le garant n'a pas été sondé : sa suppression est refusée tant qu'un bail ouvert le porte (lu, `GuarantorController.php:98-107`).*
+
+### Un client titulaire d'un bail actif se supprime sans garde, et son locataire perd l'accès à son bail, à ses quittances et à ses factures
+- Réf : P130.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/CustomerController.php:179-186`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:94-112`, `takussan-api/app/Policies/LeasePolicy.php:76`, `takussan-api/app/Policies/InvoicePolicy.php:41`, `takussan-api/app/Http/Resources/LeaseResource.php:84`
+- Constat :
+  - `destroy` n'écrit que `$customer->delete()` après `authorize('delete')` (lu, l. 181-183), et `CustomerPolicy::delete` ne regarde ni bail ni réservation (lu, l. 65-87). Le garant, lui, est refusé en 422 `guarantor.attached_to_open_lease` tant qu'un bail `pending_signature` ou `active` le porte (lu, l. 101-107).
+  - mesuré : client lié à un compte, titulaire d'un bail actif → `DELETE /api/customers/{id}` en admin d'agence → **204**. Le bail reste `active`.
+  - mesuré, après la suppression : `GET /api/leases/{id}` en admin → 200, `data.tenant` = `null` (témoin : la fiche) ; en locataire → **403** `http.forbidden` (témoin : 200) ; `GET /api/leases/{id}/receipts/{payment}/pdf` en locataire → **403** (témoin : 200 PDF) ; `GET /api/invoices/{id}` en locataire → **403** (témoin : 200).
+  - La règle du locataire passe par la fiche : `$model->tenant && $model->tenant->user_id === $user->id` (lu, `LeasePolicy.php:76`, de même `InvoicePolicy.php:41`), que la portée `SoftDeletes` rend nulle.
+  - Établi comment : lu et mesuré.
+- Piste : refuser la suppression d'un client que porte un bail `pending_signature` ou `active` (ou une réservation non terminée), par la même forme que le garant (`422 customer.attached_to_open_lease`) ; test : client titulaire d'un bail actif → 422 et fiche intacte, client sans bail → 204.
+
+### Un bien sous bail actif se supprime sans garde, et sa quittance, son contrat et son état des lieux signé rendent 500
+- Réf : P130.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:238-244`, `takussan-api/resources/views/pdf/receipts/rent.blade.php:42`, `takussan-api/resources/views/pdf/leases/contract.blade.php:70`, `takussan-api/resources/views/pdf/inventories/report.blade.php:43`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:50-55`, `takussan-api/app/Http/Controllers/Api/PublicPaymentLinkController.php:72`
+- Constat :
+  - `destroy` n'écrit que `$property->delete()` (lu, l. 240-241). Le `deleting` du modèle ne détache que les biens enfants (lu, `Property.php:196-198`), et `PropertyObserver::deleted` ne touche que le compteur de l'agence, les boosts et le cache des biens semblables (lu, l. 208-219) : ni bail, ni réservation, ni visite, ni intervention.
+  - mesuré : bien portant un bail actif → `DELETE /api/properties/{id}` en admin d'agence → **204**.
+  - mesuré, après la suppression : `GET /api/leases/{id}/receipts/{payment}/pdf` → **500** « Attempt to read property "id" on null (View: …/pdf/receipts/rent.blade.php) » ; `GET /api/leases/{id}/contract/pdf` (contrat non figé) → **500**, même message sur `pdf/leases/contract.blade.php` ; `GET /api/inventories/{id}/pdf` d'un état des lieux signé → **500**. Témoin sans suppression : 200 PDF pour les trois.
+  - Les trois gabarits finissent par `'Bien n°'.$property->id`, hors de la portée du `??` (lu, aux lignes citées).
+  - La quittance du lien de paiement public passe par la même `streamRentReceipt` (lu, `PublicPaymentLinkController.php:72`) : même 500 attendu pour le locataire sans compte (à vérifier, non rejoué).
+  - `GET /api/leases/{id}` rend encore 200 au bailleur et à l'admin (mesuré), sans le bien.
+  - Établi comment : lu et mesuré.
+- Piste : refuser la suppression d'un bien qui porte un bail `pending_signature` ou `active` (422), comme le garant ; et, pour les baux terminés qui restent consultables, faire lire aux trois gabarits le bien `withTrashed()` (`loadMissing(['property' => fn ($q) => $q->withTrashed()])` dans `streamRentReceipt`, `leaseContract` et `InventoryController::downloadPdf`). Test : quittance, contrat et état des lieux d'un bail dont le bien est supprimé → 200 PDF.
+
+### Les interventions ouvertes d'un bien supprimé disparaissent pour l'agence, et restent ouvertes pour le locataire
+- Réf : P130.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:33-43`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:292-300`, `takussan-api/app/Models/MaintenanceRequest.php:129-135`
+- Constat :
+  - `view` ne laisse passer l'équipe que par `isPrincipalFor($user, $model->property)`, qui rend `false` sur un bien `null` (lu, l. 42 et 298-300) ; `scopeVisibleTo` ne la laisse passer que par `whereHas('property', …)` (lu, l. 129-135), que la portée `SoftDeletes` borne aux biens vivants.
+  - mesuré : intervention `open` d'un bien supprimé → `GET /api/maintenance-requests/{id}` en admin d'agence → **403** (témoin : 200) ; `GET /api/maintenance-requests` → liste **vide** (témoin : 1) ; en locataire demandeur → 200, statut toujours `open`.
+  - Plus personne côté agence ne peut donc assigner, clore ou annuler cette demande, que le locataire voit encore ouverte (déduit de `update`, qui passe par `principalWrites($user, $model->property)`, l. 57 ; à vérifier).
+  - Établi comment : lu et mesuré.
+- Piste : la garde de P130.02 ferme le cas d'un bien loué ; pour le reste, annuler les interventions non terminées à la suppression du bien (observateur `deleted`, motif tracé), ou lire le bien `withTrashed()` dans `isPrincipalFor` et `scopeVisibleTo`. Test : bien supprimé avec une intervention ouverte → l'équipe la voit close ou annulée, jamais orpheline.
+
+### Réservations confirmées et visites programmées d'un bien supprimé gardent leur statut
+- Réf : P130.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Observers/PropertyObserver.php:208-219`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:238-244`
+- Constat :
+  - mesuré : réservation `confirmed` d'un bien supprimé → toujours `confirmed` ; `GET /api/bookings/{id}` → 200 au client et à l'admin. Visite `scheduled` d'un bien supprimé → `GET /api/property-visits/{id}` en visiteur → 200, statut `scheduled`.
+  - Aucun code ne les annule ni ne prévient le client ou le visiteur (lu : `destroy` et `PropertyObserver::deleted`). Une réservation confirmée porte un acompte : ce que devient l'argent versé n'est pas écrit (à vérifier, non cherché dans `BookingRefundTaskService`).
+  - Établi comment : lu et mesuré.
+- Piste : décider (choix de produit) si un bien à réservation confirmée ou visite à venir se supprime : refus en 422 comme pour le bail, ou annulation avec notification et tâche de remboursement par le chemin d'annulation existant ; test qui suit l'issue choisie.
+
+### Le bail d'un locataire supprimé continue de courir : relances vers personne, pénalités qui s'appliquent
+- Réf : P130.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/SendLeasePaymentReminders.php:179-210`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:74-93`
+- Constat :
+  - `notifyTenant` lit `$lease?->tenant`, nul pour une fiche supprimée, et finit sur `Log::info('[lease-reminders] locataire injoignable …')` (lu, l. 182 et 205-208) : aucune relance ne part, et rien ne prévient l'agence.
+  - `ApplyLateFeesJob` choisit les échéances par le seul bail (`late_fee_percent`, agence, statut, `due_date`), sans regarder le locataire (lu, l. 74-93) : un loyer échu d'un bail dont la fiche est supprimée prend sa pénalité (déduit, à vérifier).
+  - Le bail reste `active` après la suppression du client (mesuré, P130.01).
+  - Établi comment : lu ; la pénalité est déduite.
+- Piste : la garde de P130.01 ferme le cas à la source ; pour les fiches déjà supprimées sous bail actif, un relevé (`SELECT` des baux `active` dont `tenant_id` vise une fiche `deleted_at` non nulle) dira s'il en existe avant tout choix de reprise.
+
+### Petites améliorations
+- Réf : P130.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Resources/LeaseResource.php:83-84`, `takussan-api/resources/views/pdf/invoices/default.blade.php:70-81`, `takussan-api/resources/views/pdf/receipts/rent.blade.php:54-60`
+- Constat :
+  - `LeaseResource` rend `tenant` et `property` à `null` quand la fiche est supprimée (mesuré, `data.tenant` = `null`), sans indiquer qu'elle a existé : le front affiche un bail sans locataire (rendu du front non vérifié).
+  - La facture PDF d'un client supprimé rend 200 (mesuré) et imprime « — » à la place du nom, sans e-mail ni téléphone (lu, l. 70-81) ; la quittance d'un locataire supprimé, rendue à l'admin, 200 (mesuré), imprime un nom vide (lu, l. 54).
+  - Établi comment : lu et mesuré.
+- Piste : lire le client et le bien `withTrashed()` dans les documents qui attestent un fait passé (facture, quittance), parce que la fiche existait quand le fait a eu lieu ; test : facture d'un client supprimé → son nom imprimé.
