@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-import { enTetesServeurAmont, urlApiServeur } from '@/lib/api';
+import {
+  DELAI_API_SERVEUR_ENVOI_MS,
+  DELAI_API_SERVEUR_MS,
+  enTetesServeurAmont,
+  urlApiServeur,
+} from '@/lib/api';
 import { statutSansCorps } from '@/lib/statut-sans-corps';
 
 export type OptionsRelais = {
@@ -13,6 +18,57 @@ export type OptionsRelais = {
   /** Options de `fetch` côté Next (`cache`, `next.revalidate`). */
   init?: Pick<RequestInit, 'cache'> & { next?: { revalidate?: number | false } };
 };
+
+/**
+ * TCK-1219 (P79.04) — le délai d'un relais qui transporte un fichier : l'export
+ * (`export/[entity]`), les téléversements KYC et le téléchargement d'un export de données.
+ */
+export const DELAI_RELAIS_FICHIER_MS = DELAI_API_SERVEUR_ENVOI_MS;
+
+export type OptionsAmont = {
+  /** La requête du navigateur : son abandon abandonne l'appel amont, pour une lecture seulement. */
+  requete?: Request;
+  /** La borne de l'attente des en-têtes de la réponse ; par défaut celle de TCK-1215 (30 s). */
+  delaiMs?: number;
+};
+
+/**
+ * TCK-1219 (P79.04) — le `fetch` d'un relais BFF vers l'API, qui ne lève jamais.
+ *
+ * - **Borne** : l'attente des EN-TÊTES de la réponse, comme le `headersTimeout` d'undici (300 s)
+ *   qu'elle remplace ; un fichier qui se télécharge n'est pas coupé en route.
+ * - **Abandon** : celui du navigateur remonte à l'API pour un `GET` ou un `HEAD`, jamais pour une
+ *   écriture, qu'elle pourrait avoir appliquée sans que l'appelant le sache.
+ * - **Panne** : un rejet devient une réponse JSON portant un code BFF — 504 `upstream_timeout` au
+ *   délai, 502 `upstream_unavailable` sinon —, que le relais recopie comme toute réponse de l'API.
+ *   Avant, le handler levait, et le navigateur recevait la 500 de Next, sans code.
+ */
+export async function fetchVersApi(
+  url: string | URL,
+  init: RequestInit,
+  { requete, delaiMs = DELAI_API_SERVEUR_MS }: OptionsAmont = {},
+): Promise<Response> {
+  const delai = new AbortController();
+  const minuterie = setTimeout(
+    () => delai.abort(new DOMException("l'API n'a pas répondu dans le délai", 'TimeoutError')),
+    delaiMs,
+  );
+  const signaux = [delai.signal];
+  if (requete && ['GET', 'HEAD'].includes(requete.method)) signaux.push(requete.signal);
+
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.any(signaux) });
+  } catch (erreur) {
+    const horsDelai = delai.signal.aborted;
+    if (!requete?.signal.aborted) console.error('[BFF] API sans réponse', String(url), erreur);
+    return Response.json(
+      { code: horsDelai ? 'upstream_timeout' : 'upstream_unavailable' },
+      { status: horsDelai ? 504 : 502 },
+    );
+  } finally {
+    clearTimeout(minuterie);
+  }
+}
 
 const EN_TETES_DE_REPONSE = ['content-type', 'content-disposition', 'cache-control'] as const;
 
@@ -38,6 +94,8 @@ export async function enTetesDuRelais(request: Request): Promise<Record<string, 
  * - `content-type` et `accept-language` de la requête — sans la langue, le `fetch` de Node envoie
  *   `accept-language: *`, que l'API ne retient pas ;
  * - le corps en OCTETS (TCK-601 : `text()` décode en UTF-8 et corrompt un fichier) ;
+ * - un délai, l’abandon d’une lecture et une réponse 502/504 JSON sur une API sans réponse
+ *   (`fetchVersApi`, TCK-1219) ;
  * - un corps `null` sur 204/205/304 (TCK-848), et `content-type`, `content-disposition`,
  *   `cache-control` de la réponse.
  *
@@ -62,7 +120,7 @@ export async function relayerVersApi(
     init.body = await request.arrayBuffer();
   }
 
-  const amont = await fetch(urlApiServeur(cheminAmont), init);
+  const amont = await fetchVersApi(urlApiServeur(cheminAmont), init, { requete: request });
   const enTetesReponse: Record<string, string> = {};
   for (const nom of EN_TETES_DE_REPONSE) {
     const valeur = amont.headers.get(nom);

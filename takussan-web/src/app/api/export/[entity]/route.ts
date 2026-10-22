@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
 import { urlApiServeur } from '@/lib/api';
-import { enTetesDuRelais } from '@/lib/relais-api';
+import { DELAI_RELAIS_FICHIER_MS, enTetesDuRelais, fetchVersApi } from '@/lib/relais-api';
 
 const ALLOWED_ENTITIES = new Set([
   'payments',
@@ -43,9 +43,9 @@ export async function GET(
     if (v !== null && v !== '') upstream.searchParams.set(key, v);
   }
 
-  const res = await fetch(upstream, {
+  const res = await fetchVersApi(upstream, {
     headers: { ...(await enTetesDuRelais(request)), Authorization: `Bearer ${token}`, Accept: '*/*' },
-  });
+  }, { requete: request, delaiMs: DELAI_RELAIS_FICHIER_MS });
 
   const headers = new Headers();
   for (const h of ['content-type', 'content-disposition', 'content-length', 'cache-control']) {

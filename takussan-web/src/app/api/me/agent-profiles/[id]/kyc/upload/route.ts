@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
 import { urlApiServeur } from '@/lib/api';
-import { enTetesDuRelais } from '@/lib/relais-api';
+import { DELAI_RELAIS_FICHIER_MS, enTetesDuRelais, fetchVersApi } from '@/lib/relais-api';
 
 
 /**
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, ctx: { params: Params }): Promise<N
     return NextResponse.json({ code: 'invalid_profile_id' }, { status: 400 });
   }
 
-  const upstream = await fetch(urlApiServeur(`/me/agent-profiles/${id}/kyc/upload`), {
+  const upstream = await fetchVersApi(urlApiServeur(`/me/agent-profiles/${id}/kyc/upload`), {
     method: 'POST',
     body: req.body,
     // @ts-expect-error — Next supports `duplex: 'half'` to stream a request body
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, ctx: { params: Params }): Promise<N
         ? { 'Content-Type': req.headers.get('content-type')! }
         : {}),
     },
-  });
+  }, { requete: req, delaiMs: DELAI_RELAIS_FICHIER_MS });
 
   const text = await upstream.text();
   return new NextResponse(text, {

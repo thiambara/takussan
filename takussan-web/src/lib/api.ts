@@ -259,6 +259,9 @@ export const CODES_ERREUR_BFF = [
   'not_found',
   // TCK-600 (verif-600 B1) — un segment de route dynamique qui réécrirait l'URL de l'API.
   'invalid_path',
+  // TCK-1219 (P79.04) — l'API n'a pas répondu au relais : injoignable (502) ou hors délai (504).
+  'upstream_unavailable',
+  'upstream_timeout',
 ] as const;
 
 export type CodeErreurBff = (typeof CODES_ERREUR_BFF)[number];
@@ -273,6 +276,9 @@ export const CLE_I18N_ERREUR_BFF: Record<CodeErreurBff, string> = {
   server_error: 'errors.api.serverError',
   not_found: 'errors.notFound',
   invalid_path: 'errors.notFound',
+  // TCK-1219 — le libellé existant d'une panne du serveur : aucun texte neuf.
+  upstream_unavailable: 'errors.api.serverError',
+  upstream_timeout: 'errors.api.serverError',
 };
 
 /** Clé du libellé générique, quand rien de plus précis n'est connu. */
