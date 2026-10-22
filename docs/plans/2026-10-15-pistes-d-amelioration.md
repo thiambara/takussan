@@ -11430,7 +11430,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Expirer une réservation à la main : admin sans `bookings.cancel` accepté, agent qui la tient refusé
 - Réf : P116.04
-- Statut : validé — porteur (2026-10-22) : juger l'expiration manuelle par `bookings.cancel` dans `BookingPolicy`
+- Statut : fait · TCK-1494
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/BookingController.php:28-45`
 - Constat :
@@ -11439,6 +11439,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - `grep -rn "expire-now" takussan-web/src` → rien : aucun appelant au front (mesuré).
 - Piste : porter la règle dans `BookingPolicy` sous `bookings.cancel`, ou retirer la route si elle n'a pas d'appelant (A3, à mesurer côté scripts et tâches). Test : admin sans la capacité refusé, agent qui la tient accepté.
 - Mesure (2026-10-22, efa6796ea, mesureur) : relu `Admin/BookingController.php:28-45` (`abort_code_unless` super-admin ou `isAgencyAdminAt`, aucune capacité), route `routes/api/bookings.php:19-20` ; `grep -rn "expire-now\|expireNow"` dans `takussan-web/src` et `takussan-api/app/Console` → rien ; pas rejoué par un test (le prédicat lu est inchangé depuis 3390f9116). Le constat tient. Classement : V2, la règle retire le geste à l'admin sans la capacité, et la Piste hésite avec un retrait de route (V7).
+- Mesure (2026-10-22, d2575fb11, implementeur) : test neuf `ExpireNowCapabilityTest` avant correctif : admin dont le rôle retire `bookings.cancel` → 200 au lieu de 403, agent du rôle système → 403 au lieu de 200 → `BookingPolicy::expire` (personnel de l'agence de la réservation tenant `bookings.cancel`), appelée par `expireNow` ; 5/5 verts ; ablation (contrôleur remis à `d2575fb11`) → 2 rouges, remis → 5/5 ; `MigratedAuthorizationRulesTest`, `BranchedCapabilitiesTest`, `BookingRefundTaskTest`, `BookingPaymentRefundAuthorizationTest`, `BookingOverlapAndExpirationTest` verts.
 
 ### Approuver un bien en attente le publie sans `properties.publish`
 - Réf : P116.05
