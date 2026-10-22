@@ -201,7 +201,7 @@ voie d'écriture (angle 13, puis 47).
 | 124 | Colonnes `varchar(N)` remplies par une valeur dérivée ou recopiée d'une source plus longue (masques, concaténations, codes et messages d'erreur de fournisseur : `lease_signatures.otp_destination`, `notification_delivery_attempts.failure_reason`, `integration_webhook_logs.error_code`, `property_calendar_feeds.last_error`, `bookings.expiry_reason`) sans `mb_substr` : écriture en 22001 hors de toute requête validée | fait |
 | 125 | Téléphones écrits sans `TelephoneSaisi::normaliser` ni `TelephoneJoignable` (garants, agences, onboarding de la console, contacts sur place des biens) : numéro hors E.164 face aux lecteurs qui envoient un SMS, ouvrent un lien WhatsApp ou rapprochent un doublon | fait |
 | 126 | Destinataires de notifications et de courriels choisis par un profil sans `->active()` (`MaintenanceParticipants.php:39`, autres `Notification::send` à l'équipe d'une agence) : agent ou admin suspendu ou archivé qui reçoit encore l'activité de l'agence — le relevé de P93.04 sur les autres envois | fait |
-| 127 | Indicateurs de `DashboardAgentService`, `DashboardOwnerService` et des adaptateurs `*MeMetrics` de `/dashboard/me` : dénominateur nul rendu 0 au lieu de `null`, statut courant relu pour une période passée, clés que seul `assertJsonStructure` vérifie — le relevé de l'angle 93 sur les autres tableaux de bord | à faire |
+| 127 | Indicateurs de `DashboardAgentService`, `DashboardOwnerService` et des adaptateurs `*MeMetrics` de `/dashboard/me` : dénominateur nul rendu 0 au lieu de `null`, statut courant relu pour une période passée, clés que seul `assertJsonStructure` vérifie — le relevé de l'angle 93 sur les autres tableaux de bord | fait |
 | 128 | Dates des charges utiles de notification (`toArray()` / `toDatabase()` de `app/Notifications`, `data` rendu par `AppNotificationResource`, diffusions) que l'ADR-0018 laisse hors de son périmètre : forme émise, et lecture par le centre de notifications du front | à faire |
 | 129 | Suppression douce d'une agence (`DELETE /api/agencies/{agency}`, `AgencyController::destroy`, `$agency->delete()` seul, ouvert à l'admin principal) : profils restés actifs et profil actif encore résolu, biens publiés, baux et échéances, abonnement, invitations ouvertes et tâches planifiées d'une agence supprimée | à faire |
 | 130 | Fiches supprimées en douceur et encore citées (`CustomerController::destroy`, `GuarantorController::destroy`, `PropertyController::destroy`) : baux, réservations, factures, relances, PDF et exports dont la relation `customer`, `guarantor` ou `property` rend `null` sous la portée `SoftDeletes` — 500, champ vide ou geste refusé ? | à faire |
@@ -236,6 +236,7 @@ voie d'écriture (angle 13, puis 47).
 | 159 | Exemples et formats montrés à la saisie (messages de `lang/*/validation.php` qui citent un exemple, `placeholder` des champs et clés `*Placeholder`, aides sous les champs) face à la règle de l'API qui jugera la valeur : exemple que la règle refuse — né de P125.03 et P125.04 | à faire |
 | 160 | `properties.user_id` (le créateur du bien) lu comme le bailleur dans une décision métier sur un bien d'agence saisi par un agent : `OwnerApprovalThreshold::isLandlord` et `MaintenanceQuoteWorkflow` (plafond de travaux d'ADR-0037, devis `awaiting_owner`), `BookingExpirationService::resolveAgent`, `BookingRefundTaskService` — qui tranche, et qui est prévenu, à la place du bailleur — né de P126.04 | à faire |
 | 161 | Notifications dont la `NotificationTarget` ouvre un écran que la capacité ou le profil du destinataire ferme (`finances` de `PayoutDue` et `BankStatementImported`, `agency_settings`, `audit`, `review_moderation`, `kyc_review`) : destinataire choisi par une colonne (`issued_by_id`, `uploaded_by_id`) ou par un rôle, et clic qui mène à un 403 — né de P126.03 | à faire |
+| 162 | Compteurs « ouverts », « en cours » ou « à traiter » écrits par une liste de statuts à la main (`whereIn('status', [Open, InProgress])` et leurs pareilles sur interventions, tâches, réservations, baux, litiges) face aux états non terminaux de la machine à états ou de l'enum : élément qui avance d'un état et sort du compteur, ou état terminal encore compté — né de P127.03 | à faire |
 
 ---
 
@@ -12156,3 +12157,95 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
     Elles disent toutes « admin actif », mais une seule écarte le compte bloqué.
   - Établi comment : lu.
 - Piste : une seule source, `ContactLeadService::agencyAdmins` ou une méthode de `MembershipCapabilityResolver`, pour toutes les listes d'admins destinataires. Un test qui exige `->active()` et `joignable` une seule fois.
+
+## Angle 127 — Indicateurs des tableaux de bord de l'agent, du bailleur et de `/dashboard/me`
+
+*Exploré le 2026-10-22 sur `pre-dev` 230f917df, par l'explorateur, sans sous-agent. Relu par
+l'explorateur : `DashboardAgentService.php` et `DashboardOwnerService.php` (en entier), les quatre
+adaptateurs `Adapters/*MeMetrics.php`, `KpiResolver.php`, `PortfolioScope.php`,
+`PortfolioMetrics.php:40-135,200-240,380-410`, `DashboardAgencyService.php:35-85,140-155`,
+`TeamPerformanceService.php:85-110`, `DashboardTenantService.php:105-108`,
+`MaintenanceStateMachine.php:67-90`, `DashboardMeKpis.tsx`, `overview/owner/page.tsx:100-200`, et les
+assertions de `DashboardAgentTest`, `DashboardAgentScopeTest`, `DashboardOwnerTest`,
+`DashboardOwnerMetricsTest`, `DashboardMeTest`. Les mesures viennent d'un test temporaire
+(`tests/Feature/TmpExplorateur/SondeAngle127Test.php`, retiré), lancé sur la base de test PostgreSQL,
+charge 1,45 / 2,02 / 2,23 sur 8 cœurs. Le bailleur lu par `properties.user_id` relève de P126.04 et de
+l'angle 160 : il n'est pas repris ici.*
+
+### `/dashboard/me` rend 0 % d'occupation au bailleur qui n'a aucun bien à occuper, là où `/dashboard/owner` rend `null`
+- Réf : P127.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Dashboard/Adapters/OwnerMeMetrics.php:32`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:207-237`, `takussan-api/app/Services/Dashboard/KpiResolver.php:41`
+- Constat :
+  - `longStayOccupancyToday` rend `null` sans bien éligible, « rien à occuper n'est pas tout est vacant » (lu, `PortfolioMetrics.php:204-207,237`, TCK-1114).
+  - L'adaptateur du bailleur écrit `'occupancy_rate_percent' => $s['occupancy']['rate_percent'] ?? 0.0` : le `null` devient `0.0` (lu, `OwnerMeMetrics.php:32`). L'adaptateur de l'agence garde le `null` (lu, `KpiResolver.php:41`, `?? null`).
+  - Mesuré : bailleur sans bien, `GET /api/dashboard/me` → `role=owner`, `metrics.occupancy_rate_percent = 0` ; `GET /api/dashboard/owner` → `occupancy.rate_percent = null`, pour le même compte.
+  - Aucun test n'assert cette clé sous `/dashboard/me` (lu, `DashboardMeTest.php` : `portfolio_total` seul pour le bailleur). Aucun écran du front ne la lit aujourd'hui (mesuré, `grep -rn occupancy_rate_percent takussan-web/src` → les listes de seuils d'alerte et de KPI d'agence seulement) : le défaut est dans le contrat de l'API.
+  - Établi comment : lu, et mesuré par le test temporaire.
+- Piste : `?? null` dans `OwnerMeMetrics`, comme `KpiResolver`. Un test `DashboardMeTest` qui exige `null` sans bien éligible et la même valeur que `/dashboard/owner` avec un bien loué.
+
+### La série mensuelle d'occupation rend 0 % pour les mois où le portefeuille n'avait aucun bien éligible
+- Réf : P127.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:68-71,125-129`, `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:145`, `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:152`, `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:196`, `takussan-web/src/lib/queries/dashboard-agency.ts:43`
+- Constat :
+  - `longStayOccupancy` rend `capacity > 0 ? … : 0.0` (lu, `PortfolioMetrics.php:128`), et son type annoncé est `array<string, float>` (lu, l. 69). La série courte durée, elle, rend `null` sans capacité (lu, l. 137, 196), comme l'occupation du jour (P127.01).
+  - Les deux tableaux de bord recopient la série avec `?? 0.0` (lu, `DashboardOwnerService.php:145`, `DashboardAgencyService.php:152`), à côté de `short_stay_occupancy` en `?? null` (l. 146, 153).
+  - Mesuré : bailleur dont le seul bien (location mensuelle, `available`) est créé ce mois-ci, `GET /api/dashboard/owner?include=timeseries&months=3` → `occupancy: [0, 0, 0]`, `short_stay_occupancy: [null, null, null]`. Août et septembre n'avaient aucun bien : ils sont tracés « tout vacant ».
+  - Le graphique du bailleur trace ces valeurs telles quelles (lu, `overview/owner/page.tsx:196`, `ts.occupancy as number[]`), et le type de la série d'agence est `number[]` (lu, `dashboard-agency.ts:43`).
+  - Établi comment : lu, et mesuré par le test temporaire.
+- Piste : `null` sans capacité dans `longStayOccupancy`, `?? null` dans les deux tableaux de bord, types du front en `(number | null)[]` et graphique qui saute le point. Un test de valeur sur un mois antérieur à la création du premier bien.
+
+### « Interventions ouvertes » ne compte que `open` et `in_progress`, et oublie sept états non terminaux
+- Réf : P127.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:176-178`, `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:74-77`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:105-108`, `takussan-api/app/Services/Maintenance/MaintenanceStateMachine.php:67`, `takussan-api/app/Models/Enums/MaintenanceStatus.php:7-19`
+- Constat :
+  - La machine à états ne tient pour terminaux que `closed` et `cancelled` (lu, `MaintenanceStateMachine.php:67`). L'enum compte douze états, dont `acknowledged`, `quote_requested`, `quote_submitted`, `awaiting_owner`, `approved`, `assigned` et `completed` (lu, `MaintenanceStatus.php:7-19`).
+  - Les trois tableaux de bord comptent « ouvert » par `whereIn('status', [Open, InProgress])` écrit à la main (lu, `DashboardAgentService.php:177`, `DashboardAgencyService.php:76`, `DashboardTenantService.php:107`). La clé `maintenance_open` des KPI et des alertes de seuil d'agence en hérite (lu, `KpiResolver.php:35`).
+  - Mesuré : six interventions assignées à l'agent, en `open`, `acknowledged`, `assigned`, `awaiting_owner`, `quote_submitted` et `in_progress` → `GET /api/dashboard/agent` rend `maintenance.open = 2`, et `/dashboard/me` `maintenance_open = 2`.
+  - Une demande que l'agence a prise en compte (`acknowledged`) ou confiée à un prestataire (`assigned`) sort donc du compteur du locataire (« interventions ouvertes », `docs/features.md:593`) au moment même où elle avance. Pour le locataire et l'agence : lu, même clause ; seul le tableau de l'agent est mesuré.
+  - Établi comment : lu, et mesuré par le test temporaire.
+- Piste : un seul prédicat, « non terminal » au sens de `MaintenanceStateMachine::TERMINAL` (scope `MaintenanceRequest::open()`, ou méthode de la machine), lu par les trois tableaux de bord. Ce qu'on fait de `completed` (en attente de clôture par le demandeur) est un choix à écrire. Un test par tableau de bord avec une demande `assigned`.
+
+### Le « portefeuille » du bailleur et les « biens gérés » de l'agent comptent les biens archivés, vendus et en brouillon
+- Réf : P127.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:37-43`, `takussan-api/app/Services/Dashboard/Adapters/OwnerMeMetrics.php:23`, `takussan-api/app/Services/Dashboard/DashboardAgentService.php:53-55,275-288`, `takussan-web/src/components/dashboard/DashboardMeKpis.tsx:74,91`
+- Constat :
+  - `portfolio.total` est `COUNT(*)` des biens `user_id = bailleur`, sans condition de statut (lu, `DashboardOwnerService.php:37-40`) ; `properties_managed` de l'agent compte de même tout le périmètre (lu, `DashboardAgentService.php:55,281-287`).
+  - Mesuré : bailleur avec quatre biens `archived`, `sold`, `draft` et `available` → `portfolio = {total: 4, rented: 0, available: 1}`, et `/dashboard/me` `portfolio_total = 4`, affiché sous le libellé « Portefeuille » de l'accueil (lu, `DashboardMeKpis.tsx:74`).
+  - Le même service écarte ces statuts pour l'occupation (lu, `PortfolioMetrics.php:54-60`, `EXCLUDED_PROPERTY_STATUSES`), et l'angle 93 a resserré « publiés » côté agence (P93.06, TCK-1115) : le tableau du bailleur garde la lecture la plus large.
+  - Ce qu'un « portefeuille » doit compter (un bien vendu, un brouillon) n'est écrit nulle part (à vérifier dans `docs/features.md`).
+  - Établi comment : lu, et mesuré par le test temporaire.
+- Piste : décider de la définition, puis l'écrire dans `docs/features.md` et l'appliquer aux deux compteurs (par exemple hors `archived` et `sold`). Un test de valeur avec un bien de chaque statut.
+
+### Les tâches, visites et interventions du tableau de bord de l'agent ne sont pas bornées à l'agence active
+- Réf : P127.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:83-86,103-178`, `takussan-api/app/Services/Reporting/TeamPerformanceService.php:104-110`
+- Constat :
+  - Les biens, clients et baux du tableau de l'agent sont bornés à `$agencyId` (lu, l. 62, 88-92, 282). Les tâches (`assigned_to_id`), les visites (`agent_id`) et les interventions (`assigned_to`) ne le sont pas (lu, l. 83-86, 103-178). Le docblock dit qu'elles « restent personnelles dans les deux périmètres » (lu, l. 38).
+  - `TeamPerformanceService` a tranché l'inverse pour le même compteur : « une tâche d'une autre agence […] n'est pas l'activité de cette équipe », bornée par l'agence du parent (lu, `TeamPerformanceService.php:104-108`, verif-595 m3).
+  - Mesuré : agent de l'agence A, tâche en retard sur un client de l'agence B → `GET /api/dashboard/agent` (agence active A, `agency_id` = A) rend `tasks.open = 1`, `tasks.overdue = 1`, et la liste porte le nom du client de B. En `scope=agency`, ces chiffres s'affichent donc à côté des chiffres d'agence de A.
+  - Ce qu'un agent de deux agences doit voir est un choix (principe n° 2 du `CLAUDE.md` racine contre le docblock) : à vérifier auprès du porteur.
+  - Établi comment : lu, et mesuré par le test temporaire.
+- Piste : borner tâches, visites et interventions à l'agence active par leur parent (bien ou client), comme `TeamPerformanceService`, ou écrire dans le docblock et `docs/features.md` que l'accueil de l'agent est transverse. Un test avec un agent de deux agences.
+
+### Petites améliorations : clés servies sans test de valeur, et chiffres de l'accueil formatés en français pour tous
+- Réf : P127.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/tests/Feature/Dashboard/DashboardAgentTest.php:79-124`, `takussan-api/tests/Feature/Dashboard/DashboardOwnerTest.php:41-84`, `takussan-api/tests/Feature/Dashboard/DashboardMeTest.php:65-121`, `takussan-web/src/components/dashboard/DashboardMeKpis.tsx:25,30,114-115,122`
+- Constat :
+  - Agent : `tasks.overdue`, `maintenance.open` et `finance.commissions_year` ne sont assertés en valeur par aucun test, et `tasks.open` ne l'est que par `assertGreaterThanOrEqual(1, …)` (lu, `DashboardAgentTest.php:74,82` ; `grep` des assertions de `DashboardAgentTest`, `DashboardAgentScopeTest`, `DashboardAgentVisitsTest`).
+  - Bailleur : `portfolio.rented`, `portfolio.available` et `bookings.pending` n'ont que `assertJsonStructure` ; `leases.active` et `expected_monthly` ne sont assertés qu'à 0 (lu, `DashboardOwnerTest.php:41-56,83-84`).
+  - `/dashboard/me` : pour l'agent, seule la clé `role` est assertée ; aucun des neuf indicateurs d'`AgentMeMetrics` ne l'est (lu, `DashboardMeTest.php:65-73,111-121`). Un renommage dans `DashboardAgentService` rendrait 0 en silence, par les `?? 0` de l'adaptateur (lu, `AgentMeMetrics.php`).
+  - Les tuiles de l'accueil formatent nombres, montants et dates avec la locale `'fr'` écrite en dur (lu, `DashboardMeKpis.tsx:25,30,114,115,122`), quelle que soit la langue de l'interface.
+  - Établi comment : lu.
+- Piste : un test de valeur par clé sur un jeu aux valeurs non nulles et distinctes, pour `/dashboard/agent`, `/dashboard/owner` et les adaptateurs de `/dashboard/me` ; la locale de la requête dans `DashboardMeKpis`, comme `overview/owner/page.tsx:35-39` (`localeDeLaRequete`).
