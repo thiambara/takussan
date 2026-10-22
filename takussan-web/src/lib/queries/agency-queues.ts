@@ -1,4 +1,5 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
+import { STATUTS_INVITATION_SANS_REPONSE } from '@/lib/queries/agency-invitations';
 import { fetchAgencyKyc } from '@/lib/queries/kyc';
 import { fetchPropertyModerationQueue } from '@/lib/queries/property-moderation';
 import type { PaginatedResponse } from '@/types/api';
@@ -97,19 +98,20 @@ export async function fetchPropertyModerationCount(token: string): Promise<numbe
  *     visibleScope()` borne déjà la requête d'un `agency_admin` à son agence. Envoyer le filtre
  *     ne resserrerait rien et suggérerait que la portée est un choix du front — alors qu'elle
  *     est la frontière d'isolation (CLAUDE.md, principe n°2).
- *  3. **`sent` inclut les invitations périmées jusqu'à une heure.** `Invitation::scopePending()`
- *     ajoute `expires_at > now()`, mais `expires_at` n'est PAS dans `$requestFilterable`
- *     (`['status','agency_id','role','email','invited_by']`) : le front ne peut pas l'exprimer.
- *     Le cron `invitations:expire` (horaire, `routes/console.php:69`) bascule `sent → expired`,
- *     donc l'écart est borné par sa cadence — et c'est la même donnée que celle de la console
- *     Équipe, ce qui est la propriété qui compte : les deux écrans ne peuvent pas se contredire.
+ *  3. **Le compte prend `sent` ET `expired`** (TCK-1517, P167.06), la règle de la section des
+ *     invitations de `/app/agency/team` où mène la file : depuis TCK-368, une invitation périmée
+ *     y reste à l'écran, marquée et relançable. Les deux lectures tirent leur `filter[status]` de
+ *     `STATUTS_INVITATION_SANS_REPONSE` : c'est la même donnée, ce qui est la propriété qui
+ *     compte — les deux écrans ne peuvent pas se contredire. (Avant TCK-1517, la file ne comptait
+ *     que `sent` alors que la section listait aussi les expirées, et ce docblock affirmait déjà
+ *     « la même donnée ».)
  */
 export async function fetchPendingInvitationsCount(token: string): Promise<number> {
   const qs = buildQueryString({
     // Sparse fieldset minimal : on ne lit que `meta`, mais l'API refuse un `fields` vide et le
     // contrat du dépôt exige qu'une lecture nomme ses colonnes.
     fields: { invitations: ['id'] },
-    filter: { status: 'sent' },
+    filter: { status: STATUTS_INVITATION_SANS_REPONSE },
     per_page: 1,
   });
   const response = await apiRequest<PaginatedResponse<{ id: number }>>(

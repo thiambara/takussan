@@ -95,6 +95,14 @@ export interface FetchPendingAgencyInvitationsParams {
   readonly perPage?: number;
 }
 
+/**
+ * TCK-1517 (P167.06) — les statuts d'une invitation « sans réponse » : celles que la section des
+ * invitations de `/app/agency/team` liste (voir `buildParams`), et que la file « Invitations sans
+ * réponse » de l'aperçu d'agence compte (`fetchPendingInvitationsCount`). Une seule constante, pour
+ * que le nombre et la liste qu'il ouvre ne se contredisent pas.
+ */
+export const STATUTS_INVITATION_SANS_REPONSE = 'sent,expired';
+
 function buildParams({
   page,
   perPage,
@@ -115,7 +123,7 @@ function buildParams({
     // `accepted` (devenue un membre, elle est dans le tableau) et `revoked`
     // (annulée par un geste explicite) restent dehors : elles, l'admin les a
     // déjà vues sortir.
-    filter: { status: 'sent,expired' },
+    filter: { status: STATUTS_INVITATION_SANS_REPONSE },
     sort: '-created_at',
     page: page ?? 1,
     per_page: perPage ?? DEFAULT_PER_PAGE,
