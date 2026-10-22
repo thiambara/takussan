@@ -13869,7 +13869,7 @@ générique est P112.01.*
 
 ### Petites améliorations
 - Réf : P144.08
-- Statut : validé — porteur (2026-10-22) : les visites se rapprochent par (visiteur, bien, créneau) dans `VisitSchedulingService::createOrFail`, en rendant la visite active déjà ouverte ; `contact-lead` attend la clé de P144.01
+- Statut : fait · TCK-1410 — reste : rapprocher une demande de visite anonyme (sans compte ni fiche client), que `createOrFail` ne sait pas identifier
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Visit/VisitSchedulingService.php:30,214-287`, `takussan-web/src/app/actions/property.ts:112-129`
 - Constat :
@@ -13879,6 +13879,7 @@ générique est P112.01.*
 - Piste : la clé de P144.01 sur ces routes, ou un rapprochement par (visiteur, bien, créneau) pour les visites. Garde : le rejeu en test.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `VisitSchedulingService` (quota `MAX_ACTIVE_VISITS_PER_CUSTOMER = 3` par visiteur et par bien, aucun contrôle de créneau à la demande) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : trois `POST …/visit-request` au même créneau puis un quatrième à un autre → 201, 201, 201, 422, 3 visites → les doublons consomment le quota et la demande légitime est refusée (le « à vérifier » tient) ; deux `POST …/contact-lead` identiques → 201 et 201, 2 demandes. Classement : V7, rapprocher les visites par (visiteur, bien, créneau) est une règle visible neuve, et la voie par clé dépend de P144.01 (V6).
 - Mesure (2026-10-22, 94cf4eeaa, delegue) : relu l'entrée, la `Mesure` du mesureur (rejeu mesuré : 201, 201, 201, puis 422 sur un autre créneau) et P144.01 (`retenu · à valider`, V6, brique d'idempotence non tranchée) ; `grep -n "porteur ("` de l'angle 144 → aucune décision. Recommandation : pour les visites, rapprocher par (visiteur, bien, créneau) dans `VisitSchedulingService::createOrFail` en rendant la visite active déjà ouverte au lieu d'en créer une seconde, parce que cela ne dépend pas de P144.01 et rend au visiteur son quota de trois ; pour `contact-lead`, attendre la clé de P144.01 ; non validé : rendre une visite existante au lieu d'en créer une est une règle visible neuve, que rien d'écrit n'appuie, et la seconde voie dépend d'un choix V6 ; manque : la décision du porteur sur la règle, et sur P144.01.
+- Mesure (2026-10-22, e72d2ad69, implementeur) : avant correctif, `VisiteRejoueeTest` (visiteur connecté, trois `POST …/visit-request` au même créneau) → 3 visites, et `DemandeDeContactRejoueeTest` (deux `POST …/contact-lead` identiques sous la même clé, bien et agent) → 2 demandes chacun → `createOrFail` rend sous le verrou du bien la visite active du même visiteur au même créneau (les appelants ne préviennent que sur `wasRecentlyCreated`), `contact-lead` du bien et de l'agent équipés de `idempotent` et la clé engendrée par `AnonymousLeadDialog` ; ablation : retour anticipé neutralisé → rouge, routes sans l'intergiciel → 2 rouges, clé figée ou absente côté front → rouge ; remis → une visite, aucune notification de plus, le quota libre pour un autre créneau, une demande de contact.
 
 ### Signalements et avis rejoués, hors des lots d'ADR-0072
 - Réf : P144.09
