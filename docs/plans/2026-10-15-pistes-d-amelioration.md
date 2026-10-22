@@ -15762,7 +15762,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Une visite reportée garde ses marques de rappel : le nouveau créneau ne reçoit ni le rappel de la veille ni celui de l'heure
 - Réf : P169.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1527
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/SendPropertyVisitReminders.php:43-46,98-103,145-146`, `takussan-api/app/Services/Visit/VisitSchedulingService.php:356-375`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:253-261,294-296`
 - Constat :
@@ -15774,6 +15774,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu, et mesuré.
 - Piste : retirer les deux marques quand `scheduled_at` change (dans `rescheduleOrFail` et dans `update`, ou en un seul point sur le modèle), ou ranger dans la marque l'heure qu'elle rappelle et ne la tenir pour posée que si elle égale `scheduled_at`. Garde : un test « rappels partis, report, nouvelle confirmation » qui attend les deux rappels du nouveau créneau, par chacun des deux chemins.
 - Mesure (2026-10-22, b3f03fbdd, mesureur) : relu `SendPropertyVisitReminders.php:43-46,98-101,145-146` (marques `reminder_24h_sent_at`/`reminder_1h_sent_at` lues sans regard pour `scheduled_at`), `VisitSchedulingService::rescheduleOrFail` (l. 356-375, n'écrit que `scheduled_at` et `status`), `PropertyVisitController::update` (`fill($data)->save()`, l. 253-254) et `PropertyVisitObserver` (seul `created`) ; `git log 88c684c67..HEAD` sur ces fichiers → vide ; test temporaire `SondeMesureur169Test` (retiré, charge 3,29 / 3,17 / 3,00 sur 8 cœurs) : visite confirmée à J+1, job à H-24 puis H-1 → 2 rappels et deux marques ; `rescheduleOrFail` à J+3 10:00 puis `confirmOrFail` → `confirmed`, marques inchangées ; job à H-24 et H-1 du nouveau créneau → 0 rappel → le constat tient ; la réaffectation d'agent (« à vérifier ») n'est pas mesurée et reste hors de ce classement. Classement : A1, `docs/features.md:166` et TCK-588 écrivent « rappels automatiques avant visite, 24 h et 1 h avant », et retirer les deux marques quand `scheduled_at` change (service et `update`) rend ce comportement sans choix de produit ni migration.
+- Mesure (2026-10-22, 614ec950e, implementeur) : reproduit avant correctif par `RappelsDeVisiteApresReportTest` (charge 3,37 / 3,04 / 2,73 sur 8 cœurs) : visite confirmée rappelée à H-24 et H-1, puis reportée par le visiteur et confirmée, ou déplacée par l'agence (`PATCH`) → 0 rappel à H-24 du nouveau créneau, deux rouges → `PropertyVisit` retire les deux marques quand `scheduled_at` change (crochet `updating`, un seul point pour les deux chemins) ; 3/3 verts, dont un cas sans changement d'heure qui garde les marques ; ablation du crochet → les deux mêmes rouges, remis → vert ; `PropertyVisitWorkflowTest` 17/17. La réaffectation d'agent après rappel (« à vérifier ») n'est pas traitée.
 
 ### Une tâche repoussée ou réassignée après son rappel n'est plus jamais rappelée
 - Réf : P169.02
