@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
 import { urlApiServeur } from '@/lib/api';
-import { enTetesDuRelais } from '@/lib/relais-api';
+import { enTetesDuRelais, fetchVersApi } from '@/lib/relais-api';
 
 
 /**
@@ -29,14 +29,14 @@ export async function POST(req: NextRequest, ctx: { params: Params }): Promise<N
     return NextResponse.json({ code: 'invalid_profile_id' }, { status: 400 });
   }
 
-  const upstream = await fetch(urlApiServeur(`/me/owner-profiles/${id}/kyc/submit`), {
+  const upstream = await fetchVersApi(urlApiServeur(`/me/owner-profiles/${id}/kyc/submit`), {
     method: 'POST',
     headers: {
       ...(await enTetesDuRelais(req)),
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
     },
-  });
+  }, { requete: req });
 
   const text = await upstream.text();
   return new NextResponse(text, {

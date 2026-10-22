@@ -3,10 +3,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 /**
- * Géo-IP de l'utilisateur — résolu une fois au chargement du site via
- * ipapi.co, mis en cache 24h dans localStorage, exposé à toute l'app via
- * le Context. N'importe quel composant peut consommer ces infos avec
+ * Géo-IP de l'utilisateur — résolu une fois via ipapi.co, mis en cache 24h dans localStorage,
+ * exposé à toute l'app via le Context. N'importe quel composant peut consommer ces infos avec
  * `useUserLocation()` sans déclencher un nouveau fetch.
+ *
+ * TCK-1225 (P103.05) — la résolution ne part qu'au PREMIER LECTEUR : `useUserLocation()` la
+ * demande à son montage. Le fournisseur est monté par la mise en page racine, donc sur toute page,
+ * et l'appelait dès son montage : l'IP du visiteur partait chez ce tiers sur la fiche, la liste ou
+ * la console, qu'aucun écran n'en lise rien.
  *
  * La forme du payload reflète la réponse ipapi (https://ipapi.co/json/).
  * Tous les champs sont optionnels — on n'assume jamais qu'un champ est
@@ -49,6 +53,8 @@ type UserLocationContextValue = {
   loading: boolean;
   /** Raccourci pratique : `location.city` avec fallback Dakar — toujours safe à afficher. */
   city: string;
+  /** TCK-1225 — demande la résolution ; appelée par `useUserLocation()`, idempotente. */
+  demarrer: () => void;
 };
 
 const STORAGE_KEY = 'takussan:user-location';
@@ -59,6 +65,7 @@ const UserLocationContext = createContext<UserLocationContextValue>({
   location: null,
   loading: true,
   city: FALLBACK_CITY,
+  demarrer: () => {},
 });
 
 type Cached = { data: UserLocation; at: number };
@@ -66,8 +73,10 @@ type Cached = { data: UserLocation; at: number };
 export function UserLocationProvider({ children }: { children: ReactNode }) {
   const [location, setLocation] = useState<UserLocation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [demandee, setDemandee] = useState(false);
 
   useEffect(() => {
+    if (!demandee) return;
     let cancelled = false;
 
     // Le cache et le fetch passent par le MÊME flux asynchrone, et c'est délibéré.
@@ -140,18 +149,23 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [demandee]);
 
   const city =
     location?.city && location.city.trim() ? location.city.trim() : FALLBACK_CITY;
 
   return (
-    <UserLocationContext.Provider value={{ location, loading, city }}>
+    <UserLocationContext.Provider value={{ location, loading, city, demarrer: () => setDemandee(true) }}>
       {children}
     </UserLocationContext.Provider>
   );
 }
 
 export function useUserLocation(): UserLocationContextValue {
-  return useContext(UserLocationContext);
+  const valeur = useContext(UserLocationContext);
+  const { demarrer } = valeur;
+  useEffect(() => {
+    demarrer();
+  }, [demarrer]);
+  return valeur;
 }

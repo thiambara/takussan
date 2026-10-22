@@ -11,8 +11,11 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
 import type { MaintenanceStatusResponse, MaintenanceWindow } from '@/types/super-admin';
 
-async function fetchStatus(): Promise<MaintenanceStatusResponse> {
+async function fetchStatus(): Promise<MaintenanceStatusResponse | null> {
   const res = await fetch('/api/maintenance/status');
+  // TCK-1221 (P79.06) — une réponse en échec (le 502 `{ code }` du relais quand l'API ne répond
+  // pas) n'est pas un statut : elle est ignorée, sans lever, et le bandeau ne s'affiche pas.
+  if (!res.ok) return null;
   return res.json() as Promise<MaintenanceStatusResponse>;
 }
 
@@ -49,7 +52,13 @@ export function MaintenanceBanner() {
   const t = useTranslations('announcements');
   const locale = useLocale();
   const { dateTime } = useFormatteurs();
-  const query = useQuery({ queryKey: ['maintenance-status'], queryFn: fetchStatus, refetchInterval: 60_000 });
+  // TCK-1227 (P103.08) — 60 s avec une session, 5 minutes pour un visiteur sans session
+  // (décision du porteur, 2026-10-22) ; `refetchOnWindowFocus` reste celui du client.
+  const query = useQuery({
+    queryKey: ['maintenance-status'],
+    queryFn: fetchStatus,
+    refetchInterval: user ? 60_000 : 300_000,
+  });
   const status = query.data?.data;
   const fenetre = status?.window;
   const isSuperAdmin = user?.roles?.includes('super_admin') ?? false;
