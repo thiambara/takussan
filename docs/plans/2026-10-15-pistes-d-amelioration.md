@@ -15390,7 +15390,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### L'avis « intégration modifiée » nomme le fournisseur par son code (« L'intégration orange_money a été modifiée »)
 - Réf : P164.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Governance/GovernanceAlertService.php:99-102`, `takussan-api/app/Domain/Notifications/NotificationCode.php:364`, `takussan-api/app/Domain/Integrations/Providers/WaveProvider.php:7-15`, `OrangeMoneyProvider.php`, `GenericProvider.php:9-17`, `takussan-api/lang/fr/notifications.php:491-495`, `takussan-web/src/components/notifications/texteNotification.ts:64-65`
 - Constat :
@@ -15400,10 +15400,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - L'avis part aux administrateurs actifs de l'agence à chaque création, modification, suppression d'intégration et rotation du jeton de webhook (lu, `EVENTS`, `SUBJECT_EVENTS`).
   - Établi comment : lu, puis mesuré côté API ; lu côté front.
 - Piste : ranger le code tel quel et le rendre par une nature de paramètre « fournisseur » (comme `PARAM_ROLE`) : côté API par `IntegrationProviderRegistry::get($code)->label()`, côté front par une des clés existantes ; les lignes déjà écrites se traduisent à la lecture. Test : rendu fr et en de `governance.integration_changed` pour `orange_money` → « Orange Money », sans `orange_money`, et le même cas dans `NotificationRow.test.tsx`.
+- Mesure (2026-10-22, 8d288b234, mesureur) : aucun commit sur ces chemins depuis 9beb64329 hors TCK-1424/1428 (sans rapport) ; relu `GovernanceAlertService::paramsFor` (`provider` = `$subject->provider` ou l'ancien `provider` du journal), `NotificationCode.php:364` (`provider` en `PARAM_TEXT`), `IntegrationProviderRegistry::get` (repli `GenericProvider`, dont `label()` rend le code en `headline`), `texteNotification.ts:44-68` (branche `valeurs[nom] = valeur`), `fr.json` (`orange_money` → « Orange Money », plusieurs groupes) ; test temporaire `SondeMesureur164Test` (retiré ; charge 4,37 / 3,71 / 3,25 sur 8 cœurs), `NotificationRenderer::render` en fr et en, surfaces title/body/sms → « L'intégration orange_money a été modifiée par Awa Diop. », « The orange_money integration was changed by Awa Diop. », SMS « Takussan : intégration orange_money modifiée par Awa Diop. » → le constat tient en entier. Classement : A4, le libellé existe des deux côtés (`label()` de chaque fournisseur, clés du front) et la `Piste` n'en propose qu'une forme : une nature « fournisseur » rendue par `IntegrationProviderRegistry::get($code)->label()` à l'API et par une clé existante au front, le code restant rangé tel quel, sans texte neuf.
 
 ### L'avis « relevé de gérance disponible » écrit la période en `2026-09`, dans toutes les langues et sur toutes les surfaces
 - Réf : P164.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Console/Commands/Payouts/SendOwnerStatements.php:33,57`, `takussan-api/app/Domain/Notifications/NotificationCode.php:399`, `takussan-api/lang/fr/notifications.php:796-801`, `takussan-web/src/components/notifications/texteNotification.ts:20-21,60-65`
 - Constat :
@@ -15413,10 +15414,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - L'avis part chaque mois à chaque bailleur payé dans la période (lu, l. 37-57).
   - Établi comment : lu, puis mesuré côté API ; lu côté front.
 - Piste : une nature de paramètre « mois » (`Y-m`), rendue « septembre 2026 » / « September 2026 » par `isoFormat('MMMM YYYY')` côté API et par `Intl.DateTimeFormat` (`{ month: 'long', year: 'numeric' }`) côté front, le paramètre restant rangé en `Y-m`. Test : rendu fr et en d'`owner_statement.available` pour `2026-09` → sans `2026-09`, avec le mois écrit.
+- Mesure (2026-10-22, 8d288b234, mesureur) : aucun commit sur ces chemins depuis 9beb64329 hors TCK-1424/1428 (sans rapport) ; relu `SendOwnerStatements.php:33,57` (`now()->subMonthNoOverflow()->format('Y-m')`, `['period' => $period]`), `NotificationCode.php:399` (`period` en `PARAM_TEXT`), `NotificationRenderer::format` (branche `default`, rendu tel quel), `texteNotification.ts:20-21` (`DATE_SEULE` `^\d{4}-\d{2}-\d{2}$`, que `2026-09` ne satisfait pas) ; test temporaire `SondeMesureur164Test` (retiré ; charge 4,37 / 3,71 / 3,25 sur 8 cœurs), `NotificationRenderer::render` en fr et en, surfaces title/body/sms → titre fr « Relevé de gérance 2026-09 disponible », titre en « Your 2026-09 management statement is available », SMS « Takussan : relevé de gérance 2026-09 disponible. » → le constat tient en entier. Classement : A4, mettre en forme un mois dans la langue du lecteur (`isoFormat('MMMM YYYY')`, `Intl.DateTimeFormat` `{ month: 'long', year: 'numeric' }`) est de l'i18n sans texte de produit neuf, la valeur rangée restant `Y-m`, et la `Piste` n'a qu'une option.
 
 ### Le titre in-app de l'alerte de seuil est rangé avec la métrique en code (« Alerte KPI — occupancy_rate_percent »)
 - Réf : P164.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux options, dont la première dépend des clés de P155.04 encore en PR
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Notifications/ThresholdAlertTriggered.php:78-85`, `takussan-api/lang/fr/notifications.php:237-239`, `takussan-api/lang/en/notifications.php:234-236`, `takussan-api/app/Models/ThresholdAlert.php:46-56`
 - Constat :
@@ -15424,10 +15426,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - C'est le reste que la validation déléguée de P155.04 laisse « avec l'angle 164 » : le correctif de P155.04 (PR #1157 ouverte) ne vise que les `toMail()`.
   - Établi comment : lu ; non rendu (la forme suit du gabarit et du paramètre, lus tous deux).
 - Piste : lire, pour la métrique du titre, le même libellé que P155.04 pose pour le courriel (une seule clé par métrique dans `lang/`) ; ou faire passer l'alerte à un code, ce que garde le reste de P75.05. Test : `toAppNotification()` d'une alerte `occupancy_rate_percent` → titre sans le code.
+- Mesure (2026-10-22, 8d288b234, mesureur) : aucun commit sur ces chemins depuis 9beb64329 hors TCK-1424/1428 (sans rapport) ; relu `ThresholdAlertTriggered.php:78-85` (`title` = `__('notifications.threshold_alert.title', ['metric' => $this->alert->metric])`), `lang/fr/notifications.php:237-239` (« Alerte KPI — :metric ») ; `grep -rn "occupancy_rate_percent" takussan-api/lang` → rien : aucun libellé de métrique n'existe sur `pre-dev` ; `gh pr diff 1157` → les clés `threshold_alert_mail.metrics.<code>` y sont posées pour les seuls `toMail()`, le titre in-app laissé en reste → le constat tient (non rendu : la forme suit du gabarit et du paramètre lus). Classement : V7, la `Piste` laisse le choix entre lire les libellés de P155.04 (non fusionnés) et faire passer l'alerte à un code (reste de P75.05).
 
 ### Les noms des rôles système sont rangés en français, et l'avis « droits d'un rôle modifiés » les rend tels quels en anglais
 - Réf : P164.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la Piste propose de traduire le nom ou de renommer les rôles système
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Enums/AgencyRoleBaseType.php:38-46`, `takussan-api/app/Services/Membership/AgencySystemRoleSeeder.php:76-82`, `takussan-api/app/Services/Governance/GovernanceAlertService.php:97`, `takussan-api/app/Http/Resources/Agency/AgencyRoleResource.php:29`, `takussan-web/src/components/admin/roles/AgencyRolesList.tsx:99-103`
 - Constat :
@@ -15437,10 +15440,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Un nom de rôle créé par l'agence est une saisie libre, qui doit rester telle quelle (lu, `AgencyRoleService.php:83`).
   - Établi comment : lu, mesuré en `SELECT` et par rendu.
 - Piste : rendre le nom d'un rôle système par son `base_profile_type` (libellé de langue), à l'API pour la notification et la ressource, et garder `name` pour les rôles créés ; ou renommer les rôles système, choix de produit. Test : rendu en de l'avis pour un rôle système `agency_admin` → sans « Administrateur ».
+- Mesure (2026-10-22, 8d288b234, mesureur) : aucun commit sur ces chemins depuis 9beb64329 hors TCK-1424/1428 (sans rapport) ; relu `AgencyRoleBaseType::defaultRoleName` (« Agent », « Administrateur », « Propriétaire », « Prestataire » ; son docblock dit « l'UI traduit sur `base_profile_type` »), `AgencyRolePolicy::update` (un rôle système n'est jamais éditable : son `name` est toujours le défaut), `GovernanceAlertService::paramsFor` (`role` = `$subject->name`), `AgencyRolesList.tsx:103` (`role.name` brut) ; test temporaire `SondeMesureur164Test` (retiré ; charge 4,37 / 3,71 / 3,25 sur 8 cœurs), `NotificationRenderer::render` en fr et en, surfaces title/body/sms → en « The permissions of the role Administrateur were changed by Awa Diop. », SMS en « Takussan: role Administrateur permissions changed by Awa Diop. » → le constat tient ; le docblock contredit la console, qui ne traduit pas. Classement : V7, la `Piste` laisse un choix de produit (libellé de langue par `base_profile_type`, ou rôles système renommés) et change aussi le nom affiché dans la console des rôles.
 
 ### La cloche devine la nature d'un paramètre par la forme de sa valeur et par le préfixe du code, et rien ne la compare au catalogue de l'API
 - Réf : P164.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : forme du contrat de nature des paramètres (champ d'API ou fichier dérivé gardé)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/notifications/texteNotification.ts:20-21,38,44-68,91`, `takussan-api/app/Domain/Notifications/NotificationCode.php:195-218,329-411`, `takussan-api/app/Http/Resources/AppNotificationResource.php`
 - Constat :
@@ -15449,10 +15453,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - `grep -rln "PARAM_TEXT\|PARAM_REASON_CODE" takussan-api/tests scripts` → rien : aucun test ni garde ne relie la nature déclarée côté API à la branche que le front emprunte. P128.06 (fait) a posé la garde pour les seules dates.
   - Établi comment : lu, et mesuré par `grep`.
 - Piste : exporter la nature des paramètres par code (un fichier dérivé de `NotificationCode::params()`, vérifié par une garde comme `check-notification-target-paths.mjs`, ou un champ `param_types` dans `AppNotificationResource`), et faire choisir la branche de `valeursDeNotification` par elle. Test : chaque paramètre `role`, `reason_code`, `date`, `datetime`, `money` d'un code du catalogue est rendu par sa branche ; un `text` à forme de date reste tel quel.
+- Mesure (2026-10-22, 8d288b234, mesureur) : aucun commit sur ces chemins depuis 9beb64329 hors TCK-1424/1428 (sans rapport) ; relu `texteNotification.ts:20-21,38,44-68,91` (`role` traduit pour les seuls codes `role_delegation.`, dates reconnues par leur forme), `NotificationCode.php:195-218` (natures déclarées), `AppNotificationResource.php:28,43` (rend `params`, aucune nature) ; `grep -rln "PARAM_TEXT\|PARAM_REASON_CODE\|PARAM_ROLE" takussan-api/tests scripts` → rien → le constat tient ; la reformulation d'un `text` à forme de date reste déduite (aucun émetteur relevé). Classement : V6, la `Piste` laisse le choix entre un champ `param_types` dans la ressource et un fichier dérivé vérifié par une garde, deux contrats entre l'API et le front.
 
 ### Petites améliorations
 - Réf : P164.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : une variante de texte neuve sans le nom de la banque
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Listeners/Accounting/NotifyStatementImported.php:25-28`, `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php:26`, `takussan-api/lang/fr/notifications.php:557-561`, `takussan-web/src/components/admin/reconciliation/StatementsList.tsx:85`, `takussan-api/app/Services/Governance/GovernanceAlertService.php:97-101`
 - Constat :
@@ -15460,3 +15465,4 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - **Sujet supprimé.** Pour une intégration supprimée, `provider` est lu dans `attribute_changes.old` ; pour un rôle supprimé entre le geste et l'avis, `role` vaut `''` et l'avis rend « Les droits du rôle — ont été modifiés » (lu, `paramsFor` ; le cas n'est pas mesuré).
   - Établi comment : lu.
 - Piste : une variante de clé sans `:bank` (comme les variantes `_link` de `optionalParams()`), choisie quand le nom manque ; même traitement pour un `role` vide. Test : rendu de `bank_statement.imported` avec `bank` nul → ni « — » ni double espace.
+- Mesure (2026-10-22, 8d288b234, mesureur) : aucun commit sur ces chemins depuis 9beb64329 hors TCK-1424/1428 (sans rapport) ; relu `NotifyStatementImported.php:25-28`, `StoreBankStatementRequest.php:26` (`bank_name` `nullable`), `lang/fr/notifications.php:556-561` ; test temporaire `SondeMesureur164Test` (retiré ; charge 4,37 / 3,71 / 3,25 sur 8 cœurs), `NotificationRenderer::render` en fr et en, surfaces title/body/sms → `bank_statement.imported` avec `bank` nul : « Votre relevé — (12 lignes) est prêt à être rapproché. », « Takussan : relevé — importé. », en « Your statement — (12 lines) is ready for reconciliation. » ; `governance.role_capabilities_changed` avec `role` vide : « Les droits du rôle — ont été modifiés par Awa Diop. » → les deux parties tiennent, la première passe de déduite à mesurée. Classement : V7, le correctif écrit des phrases neuves (variantes sans `:bank` et sans `:role`) en fr et en.
