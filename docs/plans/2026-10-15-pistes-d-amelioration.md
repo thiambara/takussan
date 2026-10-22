@@ -14641,7 +14641,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le membre retiré reste donneur d'ordre des interventions sur les biens qu'il a saisis : lecture, statut, devis
 - Réf : P153.03
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1709
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:292-312`
 - Constat :
@@ -14650,6 +14650,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu, puis mesuré par `Gate` et pour la lecture.
 - Piste : même règle que P153.01 pour la branche du titulaire de `isPrincipalFor` (`estProprietaire` ou personnel de l'agence) ; voir l'angle 160 proposé pour qui tranche à la place du bailleur. Test : retrait en `leave_unassigned` → `GET` en 403, `decideQuote` faux.
 - Mesure (2026-10-22, c3d06aff0, mesureur) : relu `MaintenanceRequestPolicy::isPrincipalFor` (l. 292-312 : `property.user_id === user.id` rend vrai avant tout jugement d'agence) ; test temporaire (retiré), charge 2,00 / 2,40 / 3,06 sur 8 cœurs, même fixture que l'explorateur (agence, admin, agent A retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, `staffAgencyId()` → null) → intervention `open` du bien saisi : `can` view/update/actAsPrincipal/decideQuote tous vrais, `GET /api/maintenance-requests/{id}` → 200 → le constat tient ; la décision de devis par la route n'est toujours pas mesurée. Classement : V2, et V1 par `decideQuote` (accepter un devis engage un montant), la piste renvoie en outre à l'angle 160 pour qui tranche à la place du bailleur.
+- Mesure (2026-10-22, b3e71d6d9, implementeur) : test neuf `MembreRetireInterventionsTest` (charge 2,3 sur 8 cœurs) : bien d'agence saisi par l'agent, intervention `open` et une autre `awaiting_owner`, agent retiré en `leave_unassigned` → avant correctif `can('view')` vrai, rouge → `isPrincipalFor` passe par `authorHolds` (bien sans agence, ou profil de tout statut dans l'agence, la règle de TCK-1705), et `decideQuote` en `awaiting_owner` l'exige avant `landlordWrites` → `view`, `update`, `actAsPrincipal`, `decideQuote` faux, `GET /api/maintenance-requests/{id}` 403 ; témoin bailleur auteur vert ; la ressource de liste mémorise l'appartenance par requête (`MaintenanceRequestListQueryBudgetTest` vert). Ablation de la policy → rouge, de la seule condition de `decideQuote` → rouge, remis → 2/2. Trois fixtures à propriétaire sans profil reçoivent un profil de bailleur (`MigratedAuthorizationRulesTest` 16/16, `MaintenancePrincipalFieldsTest` 9/9) ; `MaintenanceAbilitiesTest`, `MaintenanceCapabilitiesTest`, `MaintenanceGuardedBranchesTest`, `MaintenanceOwnerIsolationTest`, `MaintenanceOwnerApprovalThresholdTest`, `MaintenanceStaffPredicateTest`, `MaintenanceStructuredQuoteTest`, `MaintenanceRequestTest`, `MaintenanceAssignmentTest`, `MaintenanceStatusTest` verts.
 
 ### Le membre retiré lit et écrit encore dans le fil d'un bail que la policy du bail lui refuse
 - Réf : P153.04
