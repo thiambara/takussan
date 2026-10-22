@@ -7995,7 +7995,7 @@ l'angle 111.*
 
 ### Le XLSX de l'export d'audit est construit en entier par PhpSpreadsheet, sans borne de lignes
 - Réf : P78.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1418
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:66-94`, `takussan-api/app/Http/Requests/Audit/ExportActivityLogRequest.php:19-45`, `takussan-api/docker/php.ini:3`
 - Constat :
@@ -8006,6 +8006,7 @@ l'angle 111.*
 - Piste : borner les lignes du format `xlsx` (refus en 422 au-delà, ou repli en CSV), ou écrire la feuille par morceaux. Le choix de la borne est un comportement visible. Test : un export `xlsx` au-delà de la borne est refusé ou servi en CSV.
 - Mesure (2026-10-20, 8e6c7ef17, mesureur) : relu `ExportActivityLogJob.php:66-94` (`Excel::raw()` d'un `FromArray` de toutes les lignes) et `ExportActivityLogRequest.php:35-46` (seule la plage d'un an est bornée) ; test temporaire (retiré) qui appelle `handle()` du job sur 3 000 lignes à diff d'environ 250 octets, `memory_limit=-1` → surcroît 18 Mo en CSV, 40 Mo en XLSX : l'écart tient ; l'extrapolation à 256 Mo vers 40 000 lignes reste déduite, non re-mesurée. Classement : V7, la piste le dit elle-même : refuser au-delà d'une borne ou servir un CSV à la place est un choix de produit.
 - Mesure (2026-10-20, a54446ee9, delegue) : relu `ExportActivityLogJob.php:66-94` (`Excel::raw()` d'un `FromArray`), `ActivityLogExportController.php:36-54` (le compte `$count` est déjà connu avant la mise en file, seuil 5 000), `ExportActivityLogRequest.php:19-46` (format `csv`|`xlsx`, plage d'un an), `TCK-104-audit-trail-export.md:24,34,92,119` (le XLSX est un format promis, sans borne écrite) → aucune borne ni repli n'est écrit nulle part, et l'écriture par morceaux n'est pas établie : `maatwebsite/excel` reconstruit la feuille PhpSpreadsheet à chaque morceau (déduit, à vérifier). Recommandation : refuser `xlsx` en 422 au-delà d'une borne (code d'erreur neuf, message qui invite au CSV), vérifiée dans le contrôleur avec le `$count` déjà calculé, à une valeur mesurée sous `memory_limit=256M` après le préchargement de P78.01 (20 000 lignes y tiennent à 118 Mo) ; préféré au repli silencieux en CSV, qui rendrait un autre format que celui demandé ; manque au porteur : le choix entre refus et repli, et la valeur de la borne.
+- Mesure (2026-10-22, 174d6e0f2, implementeur) : test neuf `ExportAuditXlsxBorneTest` sur l'arbre d'origine → 20 001 lignes d'agence en `format=xlsx` rendent 202 et partent en file, rouge. Voie retenue, la plus étroite : refus en 422 `activity_log.export_too_large` (code et message existants) au-delà de `XLSX_MAX_ROWS = 20 000`, jugé sur le `$count` du contrôleur ; borne mesurée après le préchargement de TCK-1414 (job XLSX 20 000 lignes : 64,1 s, sous les 85 s du job ; 117,7 Mo mesurés par le mesureur). Le CSV de la même plage part toujours (202). Ablation du contrôleur → rouge ; remis → vert.
 
 ### `GenerateReportExport` n'est atteint par aucun rapport : le seuil de 10 000 lignes dépasse le plus long rapport, 60 lignes
 - Réf : P78.04
