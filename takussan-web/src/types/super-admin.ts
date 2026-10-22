@@ -711,7 +711,6 @@ export type DataExport = {
   ready_at: string | null;
   expires_at: string | null;
   last_downloaded_at: string | null;
-  download_url: string | null;
 };
 
 export type DataExportsResponse = {

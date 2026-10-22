@@ -1,13 +1,13 @@
 ---
 id: TCK-546
 title: "Ouvrir une pièce KYC depuis la console rend 401 : le lien signé exige un jeton Bearer qu'un lien de navigateur n'envoie pas"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: S
 wave: 67
 created: 2026-09-21
-updated: 2026-09-21
+updated: 2026-10-22
 depends_on: []
 blocks: []
 spec_refs:
@@ -77,3 +77,11 @@ Rendre le lien ouvrable par un navigateur **sans affaiblir** les trois gardes de
       hors KYC ; admin d'une autre agence ; membre non admin ; admin sous un autre profil) restent
       des refus dans le nouveau parcours.
 - [ ] `./vendor/bin/pint` propre ; tests des classes touchées verts.
+
+## Réalisé par TCK-1519
+
+Voie retenue : la route BFF (`takussan-web/src/app/api/kyc/documents/[media]/route.ts`), les liens
+réécrits par `lienPieceKyc`. L'API n'est pas touchée : les refus de `KycDocumentAccessTest`
+restent ceux de `KycDocumentController`. Le parcours du navigateur est rejoué côté front (relais
+sans jeton → 401 sans appel ; avec jeton → Bearer, profil actif et signature transmis), pas par
+un test de l'API.
