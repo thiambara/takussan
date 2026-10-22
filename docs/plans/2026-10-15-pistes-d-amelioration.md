@@ -13855,7 +13855,7 @@ générique est P112.01.*
 
 ### Le délai par défaut que P79.01 pose sur les appels du serveur Next couvrira aussi les écritures des actions serveur
 - Réf : P144.07
-- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 3 : les actions serveur de `property.ts` reçoivent la clé du composant client, une par soumission, plutôt qu'un délai plus long
+- Statut : fait · TCK-1408
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/property.ts:112-149,182-270`, `takussan-web/src/lib/api.ts:690-765`
 - Constat :
@@ -13865,6 +13865,7 @@ générique est P112.01.*
 - Piste : à l'implémentation de P79.01, porter une clé d'idempotence sur ces `POST` (P144.01), ou un délai plus long pour les écritures ; le choix se fait avec P79.01. Garde : un test vitest de l'action qui vérifie que la clé part et reste la même d'un essai à l'autre.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `src/lib/api.ts` sur l'arbre (aucun délai par défaut : seul le `signal` de l'appelant) et `src/app/actions/property.ts` (visite, réservation, offre, message, contact en `POST` par `apiRequest`) ; `gh pr diff 972` (P79.01, TCK-1215, ouverte) → `signalBorneServeur` pose 30 s sur tout appel serveur d'`apiRequest`, 90 s pour un `formData`, sans distinguer lecture et écriture → le risque décrit se réalise à la fusion de #972 ; une écriture finie après le délai puis rejouée reste déduite, non mesurée. Classement : V7, la `Piste` laisse deux voies (clé, ou délai propre aux écritures) dont le choix revient au porteur avec P79.01.
 - Mesure (2026-10-22, 792dc1bf0, delegue) : `gh pr view 972` → fusionnée (P79.01 est `fait · TCK-1215`, 30 s par appel serveur d'`apiRequest`, 90 s pour un `formData`) ; relu l'entrée et P144.01. Recommandation : porter la clé de P144.01 sur les `POST` des actions serveur de `property.ts` (visite, réservation, offre, message, contact), engendrée une fois par soumission et renvoyée telle quelle au second essai, plutôt qu'un délai plus long pour les écritures, qui ne fait que déplacer le seuil où l'écriture finie est rendue comme un échec ; non délégué : l'option dépend de la brique de P144.01 (V6, ADR) ; manque : la décision du porteur sur P144.01.
+- Mesure (2026-10-22, e72d2ad69, implementeur) : avant correctif, `MessageDeLaFicheRejoueTest` (visiteur connecté, deux `POST /api/public/properties/{slug}/contact-message` identiques à 30 s d'écart sous la même `Idempotency-Key`) → 2 messages, et aucune action de `property.ts` ne prenait de clé → `submitBookingRequest`, `submitPurchaseOffer` (TCK-1406) et `submitContactMessage` reçoivent `cleIdempotence` de leur composant client (`useCleIdempotence`) et l'envoient telle quelle, route `contact-message` équipée ; `contact-lead` est porté par TCK-1410 (P144.08), la visite se rapproche sans clé (ADR-0072 § 8) ; ablation : action sans en-tête → rouge vitest, clé non passée par l'un des deux appelants → rouge, route sans l'intergiciel → rouge ; remis → un message, même clé d'un essai à l'autre.
 
 ### Petites améliorations
 - Réf : P144.08
