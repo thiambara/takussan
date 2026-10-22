@@ -9181,10 +9181,11 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Connexion OAuth : un e-mail de casse différente d'un compte existant contourne le contrôle et rend 500
 - Réf : P92.06
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1288
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/OAuthProvisioningService.php:64-67,87`, `takussan-api/app/Models/User.php:89`
 - Constat :
+- Mesure (2026-10-22, a2398e474, implementeur) : test neuf `OAuthCallbackTest::test_callback_rejects_email_collision_whatever_the_provider_casing` avant correctif : compte `victim@example.com`, fournisseur `' Victim@Example.COM '` → 500 au lieu de 409 → contrôle de collision par `CaseInsensitive::sql('email') = CaseInsensitive::fold(trim($email))` : 409 `auth.oauth_email_taken`, aucun compte créé, 8/8 verts ; ablation (service à `HEAD`) → 1 rouge (500), correctif remis → vert ; `FacebookOAuthTest`, `AppleOAuthTest`, `OAuthSecondFactorTest` verts.
   - Le contrôle anti-prise de compte compare `User::where('email', $email)` avec l'e-mail du fournisseur tel quel (lu, l. 66).
   - Le modèle replie l'e-mail en minuscules à l'écriture et l'index est sur `LOWER(email)` (rapport de sous-agent pour `User.php:89` ; index lu dans la migration) : `John@Gmail.com` face à `john@gmail.com` passerait le contrôle puis heurterait l'index, 500 au lieu du refus prévu (à vérifier par un test).
   - Les tests OAuth n'emploient que des e-mails en minuscules (rapport, à vérifier).
