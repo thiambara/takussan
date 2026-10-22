@@ -8451,7 +8451,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Petites améliorations — angle 84
 - Réf : P84.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1362 — reste : le code tapé et non encore vérifié part encore dans le brouillon (retirer `code` des données de l'assistant pour un état local de l'étape le fermerait)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/onboarding/OwnerOnboardingWizard.tsx:58`, `:240`, `takussan-web/src/components/onboarding/AgentOnboardingWizard.tsx:75`, `:268`, `takussan-web/src/components/onboarding/ServiceProviderOnboardingWizard.tsx:70`, `:306`, `takussan-web/src/components/onboarding/HostIndividualWizard.tsx:54`, `:505`, `takussan-web/src/hooks/useAutosaveBrouillon.ts:123`, `takussan-api/app/Services/Auth/PhoneVerificationService.php:24`, `:37`, `takussan-api/app/Console/Commands/PurgeOldWizardDrafts.php:19`
 - Constat :
@@ -8465,6 +8465,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
   - Établi comment : lu. Non mesuré en base (0 brouillon en développement).
 - Piste : retirer `code` des données de l'assistant et le garder dans un état local de l'étape, ou le vider au passage de `verified` à vrai. Garde : le test de chaque assistant vérifie que le corps du `PUT` du brouillon ne contient pas `code`.
 - Mesure (2026-10-20, 1a5deccf6, mesureur) : relu les quatre assistants (`code: string` dans le type, l. 58, 75, 70, 54 ; `verified: true` sans vider `code`, l. 240, 268, 306, 505), `WizardReprenable.tsx:193-201` qui passe `data` entier à `useAutosaveBrouillon`, `PhoneVerificationService.php:24`, `:37` (TTL 300 s, HMAC) et `PurgeOldWizardDrafts.php:19` (90 jours) → le constat tient. Le constat omet que `HostIndividualWizard.tsx:204` renvoie `phone_otp.code` à la soumission finale, et que `HostIndividualOnboardRequest.php:60-64` l'exige tant que `phone_verified_at` est nul : retirer `code` de l'état demande d'adapter cet envoi. Précédent : `lib/agency-upgrade-brouillon.ts:43-50` exclut `ninea` et `rib_pro` du brouillon par « décision du porteur ». Classement : V2, la Piste touche le parcours de vérification du téléphone, propose deux options, et le précédent voisin a été tranché par le porteur.
+- Mesure (2026-10-22, 45fd976b2, implementeur) : avant correctif, un test par assistant (propriétaire, agent, prestataire, hôte : numéro saisi, code envoyé, `123456` saisi et vérifié, action simulée en succès) → le dernier corps écrit dans le brouillon porte `verified: true` et `code: "123456"`, 4 rouges. Correctif, la voie la plus étroite : `code: ''` au passage de `verified` à vrai ; la soumission de l'hôte envoie alors un code vide, que `HostIndividualOnboardRequest` accepte (`nullable` une fois `phone_verified_at` posé) ; 29 verts ; ablation (assistants remis) → les 4 mêmes rouges.
 
 ## Angle 85 — Ce que le site public montre d'une agence `individual`
 
