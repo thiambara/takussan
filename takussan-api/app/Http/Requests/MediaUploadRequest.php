@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\PixelsAuPlus;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -43,6 +44,9 @@ class MediaUploadRequest extends FormRequest
                 'image',
                 'mimes:jpg,jpeg,png,webp',
                 'max:'.self::MAX_PHOTO_KB,
+                // TCK-1423 (P143.02) — 20 Mpx au plus : un logo est décodé dans GD à chaque PDF de
+                // l'agence, hors de `memory_limit`.
+                new PixelsAuPlus,
             ];
         }
 
