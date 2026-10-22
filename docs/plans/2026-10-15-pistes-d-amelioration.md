@@ -15239,7 +15239,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### « Devis à valider » du bailleur ne compte pas les devis `awaiting_owner`, les seuls que lui seul peut trancher
 - Réf : P162.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1434
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:102-107`, `takussan-api/app/Services/Maintenance/MaintenanceStateMachine.php:47-50`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:143-156`, `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:139-143`
 - Constat :
@@ -15249,6 +15249,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : compter `quote_submitted` et `awaiting_owner` par une constante de la machine à états (« devis en attente de décision »), lue aussi par `MaintenanceRequestResource.php:206`, qui pose déjà la même paire en dur. Test : un devis `awaiting_owner` compté.
 - Mesure (2026-10-22, 5c7c12b8a, mesureur) : `git log --oneline e2959c84c..5c7c12b8a -- takussan-api/app takussan-web/src` → aucun commit ; relu `DashboardOwnerService.php:102-107` (`where('status', QuoteSubmitted)` seul), `MaintenanceStateMachine.php:49-50` et `MaintenanceRequestPolicy::decideQuote` (l. 143-156, en `awaiting_owner` seul le bailleur tranche), `MaintenanceRequestResource.php:205-206` (`can_decide_quote` sur la paire `QuoteSubmitted`/`AwaitingOwner`) ; test temporaire (retiré, charge 4,8 sur 8 cœurs) : bailleur avec une intervention `awaiting_owner` et une `quote_submitted` sur son bien → `GET /api/dashboard/owner` rend `maintenance.quotes_pending = 1` → le constat tient. Classement : A1, la paire « devis en attente de décision » est déjà écrite par ADR-0037 et par `can_decide_quote`, le compteur s'y aligne sans choix de produit ni montant.
+- Mesure (2026-10-22, bba57a9e0, implementeur) : test neuf `DashboardOwnerMetricsTest::test_p162_01_quotes_pending_counts_quotes_awaiting_the_landlord` avant correctif : sur un bien du bailleur, `quote_submitted` + `awaiting_owner` + `quote_requested` + `approved`, et une `awaiting_owner` sur un autre bien → `quotes_pending = 1` → rouge ; constante `MaintenanceStateMachine::AWAITING_QUOTE_DECISION` lue par le tableau de bord et par `can_decide_quote` → 2, vert (12 tests de la classe, `MaintenanceAbilitiesTest` 8 verts) ; ablation du service → rouge, remis → vert.
 
 ### Un bail en préavis (`terminating`) sort des baux actifs et du loyer attendu chez le bailleur et l'agence
 - Réf : P162.02
