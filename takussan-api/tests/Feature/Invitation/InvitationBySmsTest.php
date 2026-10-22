@@ -61,6 +61,22 @@ class InvitationBySmsTest extends TestCase
         $this->assertNull($user->email_verified_at);
     }
 
+    /**
+     * TCK-1344 (P132.05) — le compte qui naît de l'invitation garde la langue dans laquelle elle
+     * est partie (`metadata.locale`), au lieu du défaut `fr` de la colonne.
+     */
+    public function test_le_compte_ne_de_l_invitation_garde_sa_langue(): void
+    {
+        $this->inviter()->assertCreated();
+        $invitation = Invitation::query()->sole();
+        $invitation->forceFill(['metadata' => [...($invitation->metadata ?? []), 'locale' => 'en']])->save();
+
+        $this->app['auth']->forgetGuards();
+        $this->postJson("/api/invitations/{$this->jetonDuDernierSms()}/accept", ['first_name' => 'Awa', 'last_name' => 'Ndiaye'])->assertOk();
+
+        $this->assertSame('en', User::query()->where('phone', self::NUMERO)->sole()->preferred_language);
+    }
+
     public function test_un_numero_porte_par_un_compte_non_verifie_recoit_quand_meme_le_sms(): void
     {
         $porteur = User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => null]);

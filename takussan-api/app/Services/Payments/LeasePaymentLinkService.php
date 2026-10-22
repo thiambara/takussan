@@ -30,9 +30,13 @@ class LeasePaymentLinkService
     /** La forme d'un jeton émis ici ; la route la contraint. */
     public const TOKEN_PATTERN = '[A-Za-z0-9_-]{43}';
 
-    public function urlFor(LeasePayment $payment, ?User $by = null): string
+    /**
+     * TCK-1344 (P132.05) — `$locale` : la langue du message qui porte le lien (`/{locale}/pay/…`),
+     * pour que la page s'ouvre dans la langue du SMS. Sans elle, le front choisit.
+     */
+    public function urlFor(LeasePayment $payment, ?User $by = null, ?string $locale = null): string
     {
-        return $this->url($this->tokenFor($payment, $by, false));
+        return $this->url($this->tokenFor($payment, $by, false), $locale);
     }
 
     public function regenerate(LeasePayment $payment, ?User $by = null): string
@@ -168,9 +172,14 @@ class LeasePaymentLinkService
         });
     }
 
-    private function url(string $token): string
+    /** Les langues de la surface publique du front (`takussan-web/src/i18n/config.ts`). */
+    private const LOCALES = ['fr', 'en', 'wo'];
+
+    private function url(string $token, ?string $locale = null): string
     {
-        return rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/').'/pay/'.$token;
+        $prefix = in_array($locale, self::LOCALES, true) ? '/'.$locale : '';
+
+        return rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/').$prefix.'/pay/'.$token;
     }
 
     /** L'URL de retour du fournisseur : la page du lien, jamais une URL fournie par la requête. */

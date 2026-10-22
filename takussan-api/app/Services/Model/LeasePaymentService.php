@@ -119,7 +119,7 @@ class LeasePaymentService
             } elseif ($lease->tenant !== null && ($contact = ContactSansCompte::fromCustomer($lease->tenant))->hasPhone()) {
                 // TCK-1002 (P48.02) — le locataire sans compte reçoit le lien `/pay/{jeton}` de sa
                 // quittance, comme après un paiement en ligne (`SendRentReceiptAfterOnlinePayment`).
-                $this->notifications->send($contact, NotificationCode::LeasePaymentRecorded, $params + ['receipt_url' => $this->links->urlFor($payment)], $target);
+                $this->notifications->send($contact, NotificationCode::LeasePaymentRecorded, $params + ['receipt_url' => $this->links->urlFor($payment, locale: $contact->locale)], $target);
             } else {
                 Log::info('[pay-link] paiement enregistré non notifié — locataire sans compte ni téléphone valide', [
                     'lease_payment_id' => $payment->id,

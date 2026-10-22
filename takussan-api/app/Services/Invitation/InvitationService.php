@@ -615,6 +615,9 @@ class InvitationService
                     // without leaking auth-bypass semantics.
                     : bcrypt(Str::random(40)),
                 'email_verified_at' => $invitation->email !== null ? now() : null,
+                // TCK-1344 (P132.05) — la langue dans laquelle l'invitation est partie : les envois
+                // suivants gardent celle du premier message, au lieu du défaut `fr` de la colonne.
+                'preferred_language' => $this->preferredLocale(null, $invitation),
             ]);
 
             // TCK-589 — le lien est arrivé par SMS sur ce numéro : il est vérifié, par

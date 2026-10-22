@@ -195,7 +195,7 @@ class SendLeasePaymentReminders implements ShouldQueue
             // chaque relance, seulement si l'échéance se paie en ligne (un fournisseur au moins).
             $gateway = app(PaymentGatewayService::class);
             if ($gateway->isPayable($payment) && $gateway->availableProviders($payment) !== []) {
-                $params['payment_url'] = app(LeasePaymentLinkService::class)->urlFor($payment);
+                $params['payment_url'] = app(LeasePaymentLinkService::class)->urlFor($payment, locale: $contact->locale);
             }
             $notifications->send($contact, $code, $params, $target);
 
