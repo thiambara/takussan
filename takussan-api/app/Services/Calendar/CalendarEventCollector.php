@@ -45,6 +45,15 @@ use Illuminate\Support\Collection;
  *
  * Les tâches sont personnelles (même règle que `TaskPolicy::view`) ; les interventions planifiées
  * suivent le périmètre des biens, plus celles assignées à l'appelant (le prestataire).
+ *
+ * ## La forme des dates : heure murale UTC, exception délibérée à ADR-0018 (TCK-1502, P94.02)
+ *
+ * `start` et `end` sortent en `toDateTimeString()` (`2026-10-18 21:54:01`, sans `T` ni fuseau),
+ * instants et journées entières confondus. Le front (`parseServerDate`) lit cette forme en heure
+ * LOCALE du navigateur, et toute la grille raisonne en dates locales : l'agenda affiche l'heure
+ * murale, quel que soit le fuseau. Passer ici à `iso()` décalerait toutes les heures de l'agenda
+ * d'un navigateur hors UTC. Changer de contrat se fait des deux côtés à la fois ; les deux tests
+ * qui l'épinglent : `CalendarWallClockFormTest` et `calendar-date.heure-murale.test.ts`.
  */
 class CalendarEventCollector
 {
