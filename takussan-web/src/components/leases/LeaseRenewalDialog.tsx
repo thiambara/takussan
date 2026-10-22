@@ -53,6 +53,11 @@ function defaultEndDate(start: string): string {
   return end.toISOString().slice(0, 10);
 }
 
+/** P133.04 (TCK-1381) — une valeur du parent en texte de champ, vide si elle manque. */
+function texteOuVide(value: number | null | undefined): string {
+  return value !== null && value !== undefined ? String(value) : '';
+}
+
 function num(value: string): number | undefined {
   if (value === '') return undefined;
   const n = Number(value);
@@ -85,8 +90,8 @@ export function LeaseRenewalDialog({
     end_date: defaultEndDate(initialStart),
     monthly_rent: parent.monthly_rent !== null ? String(parent.monthly_rent) : '',
     deposit_amount: parent.deposit_amount !== null ? String(parent.deposit_amount) : '',
-    late_fee_percent: '',
-    late_fee_grace_days: '',
+    late_fee_percent: texteOuVide(parent.late_fee_percent),
+    late_fee_grace_days: texteOuVide(parent.late_fee_grace_days),
     terms: parent.terms ?? '',
   });
 
@@ -102,8 +107,14 @@ export function LeaseRenewalDialog({
       end_date: form.end_date !== (parent.end_date ?? ''),
       monthly_rent: num(form.monthly_rent) !== parent.monthly_rent,
       deposit_amount: num(form.deposit_amount) !== parent.deposit_amount,
-      late_fee_percent: num(form.late_fee_percent) !== undefined,
-      late_fee_grace_days: num(form.late_fee_grace_days) !== undefined,
+      // P133.04 (TCK-1381) — un champ vide n'est pas envoyé, et l'API reprend alors la valeur du
+      // parent : seule une valeur saisie qui en diffère est une modification.
+      late_fee_percent:
+        num(form.late_fee_percent) !== undefined &&
+        num(form.late_fee_percent) !== (parent.late_fee_percent ?? undefined),
+      late_fee_grace_days:
+        num(form.late_fee_grace_days) !== undefined &&
+        num(form.late_fee_grace_days) !== (parent.late_fee_grace_days ?? undefined),
       terms: (form.terms || null) !== parent.terms,
     }),
     [form, parent],
@@ -118,8 +129,8 @@ export function LeaseRenewalDialog({
       end_date: defaultEndDate(start),
       monthly_rent: parent.monthly_rent !== null ? String(parent.monthly_rent) : '',
       deposit_amount: parent.deposit_amount !== null ? String(parent.deposit_amount) : '',
-      late_fee_percent: '',
-      late_fee_grace_days: '',
+      late_fee_percent: texteOuVide(parent.late_fee_percent),
+      late_fee_grace_days: texteOuVide(parent.late_fee_grace_days),
       terms: parent.terms ?? '',
     });
   }
@@ -323,14 +334,14 @@ export function LeaseRenewalDialog({
             />
             <RenewalDiffRow
               label={t('field_late_fee_percent')}
-              from="—"
-              to={form.late_fee_percent || '—'}
+              from={texteOuVide(parent.late_fee_percent) || '—'}
+              to={form.late_fee_percent || texteOuVide(parent.late_fee_percent) || '—'}
               modified={diffs.late_fee_percent}
             />
             <RenewalDiffRow
               label={t('field_late_fee_grace_days')}
-              from="—"
-              to={form.late_fee_grace_days || '—'}
+              from={texteOuVide(parent.late_fee_grace_days) || '—'}
+              to={form.late_fee_grace_days || texteOuVide(parent.late_fee_grace_days) || '—'}
               modified={diffs.late_fee_grace_days}
             />
             <RenewalDiffRow

@@ -74,6 +74,12 @@ export type Lease = {
   commission_rate: number | null;
   payment_frequency: PaymentFrequency;
   payment_day: number | null;
+  /**
+   * P133.04 (TCK-1381) — pénalité de retard (%) et délai de grâce (jours) ; le renouvellement
+   * les reprend du bail d'origine. Optionnels : une liste en champs choisis ne les rend pas.
+   */
+  late_fee_percent?: number | null;
+  late_fee_grace_days?: number | null;
   terms: string | null;
   special_conditions: string | null;
   guarantor_id: number | null;

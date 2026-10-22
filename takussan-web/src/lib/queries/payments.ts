@@ -169,7 +169,9 @@ export type CreateInvoicePayload = {
   invoiceable_id?: number;
   issue_date: string;
   due_date?: string;
-  subtotal: number;
+  /** P133.02 (TCK-1377) — sans `items` seulement : avec elles, l'API recompte le sous-total. */
+  subtotal?: number;
+  items?: ReadonlyArray<{ description: string; quantity: number; unit_price: number }>;
   tax_rate?: number;
   currency?: 'XOF' | 'XAF' | 'EUR' | 'USD';
   notes?: string;

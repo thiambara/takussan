@@ -60,6 +60,10 @@ class LeaseResource extends BaseResource
             'commission_amount' => $this->commission_amount !== null ? (float) $this->commission_amount : null,
             'payment_frequency' => $this->payment_frequency?->value,
             'payment_day' => $this->payment_day,
+            // P133.04 (TCK-1381) — la pénalité de retard et son délai de grâce, que le renouvellement
+            // reprend du bail d'origine : le dialogue de renouvellement les pré-remplit et les montre.
+            'late_fee_percent' => $this->late_fee_percent !== null ? (float) $this->late_fee_percent : null,
+            'late_fee_grace_days' => $this->late_fee_grace_days,
             'signed_at' => $this->iso($this->signed_at),
             'terminated_at' => $this->iso($this->terminated_at),
             // TCK-090 — early termination workflow exposed for the dashboard

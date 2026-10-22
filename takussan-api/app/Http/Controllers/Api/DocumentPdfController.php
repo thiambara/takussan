@@ -128,6 +128,8 @@ class DocumentPdfController extends Controller
             'title' => $label.' '.($invoice->reference_number ?? $invoice->id),
             'document_label' => $label,
             'invoice' => $invoice,
+            // P133.02 (TCK-1377) — les lignes saisies ; sans elles, le gabarit imprime la désignation.
+            'lines' => $invoice->lines(),
             'customer' => $invoice->customer,
             'agency' => $invoice->agency,
             'filename' => sprintf('facture-%s.pdf', $invoice->reference_number ?? $invoice->id),

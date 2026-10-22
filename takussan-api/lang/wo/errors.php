@@ -251,6 +251,7 @@ return [
         'token_sent' => 'Lëkkalekaay bi ngir xaar la.',
     ],
     'invoice' => [
+        'amount_too_large' => 'Le montant total de la facture dépasse le maximum enregistrable.',
         'cannot_cancel' => 'Facture bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_mark_paid' => 'Facture bii mënuñu ko màndargaal ni lu ñu fay ni mu nekke léegi.',
         'foreign_target' => 'Bii bail walla bii réservation bokkul ci agence bu facture bi.',

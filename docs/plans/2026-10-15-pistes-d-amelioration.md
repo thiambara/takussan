@@ -12865,7 +12865,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Le dialogue de facture affiche une TVA à 0 %, mais n'envoie pas ce 0 : l'API applique le taux de l'agence
 - Réf : P133.01
-- Statut : validé — porteur (2026-10-22) : envoyer le taux de TVA affiché, 0 % compris
+- Statut : fait · TCK-1413
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:52,84,109-110`, `takussan-api/app/Services/Model/InvoiceService.php:59-66`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:43`
 - Constat :
@@ -12876,10 +12876,11 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Écart plus petit sur l'arrondi : l'aperçu arrondit la TVA à l'unité (`Math.round`, l. 109), l'API à l'unité de la devise (`Currency::roundAmount`, `InvoiceService.php:66`). En EUR ou en USD, 10,50 à 18 % s'affiche 2 et s'enregistre 1,89 (lu).
 - Piste : pré-remplir le taux avec `default_tax_rate` de l'agence de l'émetteur et envoyer le taux tel quel, `0` compris (`?? undefined` au lieu de `|| undefined`) ; arrondir l'aperçu par les décimales de `CURRENCY_METADATA`. Garde : un test du dialogue qui vérifie que `tax_rate: 0` part dans la charge utile, et un autre sur l'aperçu d'une agence à 18 %.
 - Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `CreateInvoiceDialog.tsx` (`tax_rate: 0` en valeur initiale l. 52, `tax_rate: values.tax_rate || undefined` l. 84, aperçu `Math.round(subtotal * taxRate / 100)` l. 109-110), `InvoiceService.php:59-66` (sans `tax_rate`, `agencies.default_tax_rate` ; TVA par `Currency::roundAmount`) et `StoreInvoiceRequest.php:43` ; lancé `php artisan test tests/Feature/Api/InvoiceLegalMentionsTest.php --filter=test_ac14_the_default_tax_rate` (charge 1,61 sur 8 cœurs) → 1 vert, 4 assertions : sans clé le taux de l'agence s'applique, un `0` explicite donne 0. Aucun commit ni ticket n'a touché le dialogue depuis TCK-670 (`git log` du fichier). Le constat tient tel qu'écrit, lignes inchangées. Classement : V1, le correctif change le montant de TVA et le total écrits sur la facture, et le taux à pré-remplir (celui de l'agence ou 0) est un choix.
+- Mesure (2026-10-22, a2c7af2, implementeur) : test du dialogue avant correctif : taux affiché à 0, envoi → la charge utile n'a pas de `tax_rate` (rouge) ; 10,50 € à 18 % → aperçu `2,00€` (rouge). Correctif : `tax_rate` envoyé tel quel (`?? 0`), champ pré-rempli par `default_tax_rate` de l'agence de l'émetteur (`useAgencyInvoiceDefaults`) tant qu'il n'est pas touché, TVA de l'aperçu arrondie par les décimales de la devise → `CreateInvoiceDialog.test.tsx` 7 verts, `useAgencyInvoiceDefaults.test.tsx` 3 verts ; ablation (dialogue remis à a2c7af2) → 4 rouges.
 
 ### Les lignes saisies dans le dialogue de facture ne partent jamais : seul le sous-total calculé au front arrive à l'API
 - Réf : P133.02
-- Statut : validé — porteur (2026-10-22) : envoyer les lignes saisies, et l'API recalcule le sous-total depuis elles
+- Statut : fait · TCK-1377
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:72-87`, `takussan-web/src/lib/queries/payments.ts:167-177`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:36-46`, `takussan-api/resources/views/pdf/invoices/default.blade.php:10-13`
 - Constat :
@@ -12890,10 +12891,11 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Établi comment : lu, de la saisie à l'impression ; le PDF n'a pas été rendu.
 - Piste : envoyer les lignes, les valider et les ranger côté API (colonne ou `metadata.lines`), recalculer le sous-total depuis elles comme `MaintenanceQuoteWorkflow::priceLines`, et les passer au gabarit ; ou, à défaut, ne plus faire saisir de lignes. Garde : un test API qui crée une facture à deux lignes et lit le sous-total recalculé et les lignes du PDF.
 - Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `CreateInvoiceDialog.tsx:72-87` (somme des `items` au navigateur, seul `subtotal` part), `CreateInvoicePayload` (`payments.ts:167-177`, aucun champ de lignes), `StoreInvoiceRequest.php:36-46` (ni `items` ni `lines`), `DocumentPdfController.php:106-113` (le gabarit est rendu sans `lines`) et `default.blade.php:10-15` (repli sur une ligne `designation() ?? 'Prestation'`) → le constat tient, établi par lecture, PDF non rendu. Classement : V1, recalculer le sous-total côté API change le montant d'une facture ; la Piste propose deux options (envoyer les lignes, ou ne plus les faire saisir), dont le choix est de produit (V7), et leur rangement peut demander une colonne (V4).
+- Mesure (2026-10-22, a2c7af2, implementeur) : test API avant correctif : `POST /api/invoices` avec deux lignes (1 × 25 000, 2 × 10 000) et `subtotal: 1` → facture créée à 1 de sous-total, `items` inconnu de la validation (rouge) ; test du dialogue : la charge n'a pas d'`items` (rouge). Correctif : `items` validé, sous-total recompté ligne à ligne à l'unité de la devise, lignes rangées dans `metadata.lines` et passées au gabarit, 422 `invoice.amount_too_large` au-delà de la colonne ; le dialogue envoie les lignes et arrondit son aperçu comme l'API → `InvoiceLinesTest` 5 verts, `CreateInvoiceDialog.test.tsx` 9 verts, `InvoiceTest`, `InvoicePdfTest`, `InvoiceLegalMentionsTest`, `InvoiceStoreAuthorizationTest`, `InvoiceTargetScopeTest`, `PdfDUnClientSupprimeTest` verts ; ablation API → 5 rouges, ablation front → 2 rouges.
 
 ### Le dialogue de facture envoie toujours `XOF` : le repli sur la devise de l'agence (P04.09) ne joue jamais depuis la console
 - Réf : P133.03
-- Statut : validé — porteur (2026-10-22) : pré-remplir la devise avec celle de l'agence (P04.09), modifiable
+- Statut : fait · TCK-1379
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:53,85`, `takussan-api/app/Services/Model/InvoiceService.php:47-51`
 - Constat :
@@ -12902,10 +12904,11 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Même valeur en dur dans `CreateLeaseForm.tsx:81`, face à `LeaseService.php:94` (`?? 'XOF'`) : là, les deux côtés concordent, mais ni l'un ni l'autre ne lit la devise de l'agence ou du bien (à vérifier : ce que le produit attend).
 - Piste : pré-remplir la devise avec celle de l'agence de l'émetteur, ou ne l'envoyer que si la personne l'a choisie. Garde : un test du dialogue pour une agence en EUR.
 - Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `CreateInvoiceDialog.tsx:53,85` (`currency: 'XOF'` en valeur initiale, toujours envoyée), `InvoiceService.php:47-51` (repli `??=` sur `agencies.currency`, TCK-738), `CreateLeaseForm.tsx:81` (`currency: 'XOF'`) face à `LeaseService.php:94` (`?? 'XOF'`) → le constat tient : depuis la console, le repli sur la devise de l'agence ne joue jamais. Classement : V1, la devise fixe le montant et son arrondi sur la facture ; la Piste offre deux options (pré-remplir avec la devise de l'agence, ou n'envoyer que la devise choisie) et le constat laisse ouvert ce que le produit attend pour le bail.
+- Mesure (2026-10-22, a2c7af2, implementeur) : test du dialogue avant correctif : agence en EUR, sélecteur non touché → aperçu `1500FCFA` et `currency: 'XOF'` envoyé (rouge). Correctif : `useAgencyInvoiceDefaults` lit `agencies.currency`, le dialogue en pré-remplit le sélecteur tant qu'il n'est pas touché → `CreateInvoiceDialog.test.tsx` 11 verts (dont XOF choisi à la main → XOF), `useAgencyInvoiceDefaults.test.tsx` 4 verts ; ablation → 1 rouge. Hors périmètre : `CreateLeaseForm.tsx:81` (XOF en dur, concordant avec `LeaseService`).
 
 ### Le récapitulatif du renouvellement dit « — » pour la pénalité de retard et le délai de grâce, que le nouveau bail hérite pourtant du parent
 - Réf : P133.04
-- Statut : validé — porteur (2026-10-22) : le bail renouvelé reprend la pénalité de retard et le délai de grâce du bail d'origine
+- Statut : fait · TCK-1381
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseRenewalDialog.tsx:88-89,105-106,136-141,324-335`, `takussan-api/app/Services/Lease/LeaseRenewalService.php:124-125`, `takussan-api/app/Http/Resources/LeaseResource.php`
 - Constat :
@@ -12915,6 +12918,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Vider le champ ne retire pas la pénalité : un champ vide n'est pas envoyé, et l'API le lit comme « hériter » (lu, l. 136-141 du dialogue et l. 124-125 du service).
 - Piste : exposer `late_fee_percent` et `late_fee_grace_days` sur le détail du bail, pré-remplir le dialogue avec eux comme le loyer et la caution, et montrer la valeur du parent dans le récapitulatif. Garde : un test du dialogue sur un parent à 5 %, et un test de contrat de `LeaseResource`.
 - Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `LeaseRenewalDialog.tsx` (champs vides l. 88-89, `from="—"` en dur l. 326 et l. 332, envoi conditionnel l. 136-141), `LeaseRenewalService.php:124-125` (`$data['late_fee_*'] ?? $parent->late_fee_*`), `LeaseResource.php` (`grep late_fee` → rien ; `grep -rn late_fee_percent app/Http` ne rend que `RenewLeaseRequest` et `UpdateLeaseRequest`), `LeaseController::show` (rend `LeaseResource`) → le détail du bail n'expose pas la pénalité, et le récapitulatif ne peut pas montrer l'héritée ; test temporaire de l'explorateur non rejoué. Le constat tient. Classement : V1, la pénalité de retard est un montant ; exposer la valeur héritée est sûr, mais permettre de la retirer au renouvellement (champ vide) est un comportement neuf à décider (V7).
+- Mesure (2026-10-22, a2c7af2, implementeur) : tests avant correctif : bail à 5 % et 7 jours, `GET /api/leases/{id}` → ni `late_fee_percent` ni `late_fee_grace_days` (rouge, `LeaseLateFeeExposedTest`) ; dialogue de renouvellement sur ce parent → champs vides et récapitulatif « Pénalité de retard (%) — — » (rouge). Correctif : `LeaseResource` rend les deux valeurs, le dialogue les pré-remplit depuis le parent et le récapitulatif montre la valeur héritée, surlignée seulement si elle change → `LeaseLateFeeExposedTest` 2 verts, `LeaseRenewalDialog.test.tsx` 7 verts, `LeaseResourceUnloadedRelationsTest`, `LeaseRenewalEndpointTest`, `LeaseChainEndpointTest`, `LeaseTest`, `AmountRepresentationTest`, `DateRepresentationTest`, `DateInventoryByValueTest` verts ; ablation API → 2 rouges, ablation front → 3 rouges.
 
 ### Le montant d'un paiement de réservation est calculé par le navigateur, et l'API l'accepte tel quel
 - Réf : P133.05

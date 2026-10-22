@@ -138,6 +138,20 @@ class Invoice extends AbstractModel
         return is_string($designation) && trim($designation) !== '' ? trim($designation) : null;
     }
 
+    /**
+     * P133.02 (TCK-1377) — les lignes saisies à la création (`metadata.lines`, posées par
+     * `InvoiceService::create`), au format du gabarit : `label`, `qty`, `unit_price`, `total`.
+     * `null` sans lignes : le gabarit imprime alors la désignation.
+     *
+     * @return list<array{label: string, qty: string, unit_price: string, total: string}>|null
+     */
+    public function lines(): ?array
+    {
+        $lines = is_array($this->metadata) ? ($this->metadata['lines'] ?? null) : null;
+
+        return is_array($lines) && $lines !== [] ? array_values($lines) : null;
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
