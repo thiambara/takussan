@@ -3,6 +3,7 @@
 namespace Tests\Feature\Payments;
 
 use App\Domain\Notifications\NotificationCode;
+use App\Jobs\SendDeferredSmsJob;
 use App\Models\Enums\PaymentStatus;
 use App\Models\NotificationPreference;
 use App\Notifications\CodedNotification;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\Support\EnvoisParCode;
+use Tests\Support\FakeSmsRouter;
 use Tests\Support\LeaseDueFixture;
 use Tests\TestCase;
 
@@ -90,6 +92,27 @@ class LeasePaymentRecordedToContactTest extends TestCase
 
         [$notification] = self::envoisALaDemande(NotificationCode::LeasePaymentRecorded)->sole();
         $this->assertMatchesRegularExpression('#^https://front\.test/en/pay/[A-Za-z0-9_-]{43}$#', $notification->params['receipt_url']);
+    }
+
+    /**
+     * TCK-1346 (P132.04) — le SMS de quittance porte de quoi relire son lien au matin : reporté par
+     * les heures calmes, il n'est pas envoyé si l'agence a régénéré le lien pendant la nuit.
+     */
+    public function test_a_deferred_receipt_sms_is_dropped_when_its_link_was_regenerated_overnight(): void
+    {
+        $ctx = $this->leaseDue();
+        $ctx['lease']->tenant->forceFill(['user_id' => null, 'phone' => '+221771234567'])->save();
+        app(LeasePaymentService::class)->markPaid($ctx['payment']->fresh(), [], $ctx['agent']);
+        [$notification] = self::envoisALaDemande(NotificationCode::LeasePaymentRecorded)->sole();
+        $sms = FakeSmsRouter::install();
+        $context = ['deferred_guard' => $notification->deferredSmsGuard];
+
+        app()->call([new SendDeferredSmsJob(['+221771234567'], 'quittance', $context), 'handle']);
+        $this->assertCount(1, $sms->sent);
+
+        app(LeasePaymentLinkService::class)->regenerate($ctx['payment']->fresh());
+        app()->call([new SendDeferredSmsJob(['+221771234567'], 'quittance', $context), 'handle']);
+        $this->assertCount(1, $sms->sent);
     }
 
     public function test_a_tenant_with_account_receives_it_on_the_account_without_the_bearer_link(): void

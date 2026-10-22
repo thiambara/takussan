@@ -18,6 +18,7 @@ use App\Services\Auth\PhoneVerificationService;
 use App\Services\Auth\SuperAdminCooptationService;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
+use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
@@ -990,6 +991,8 @@ class InvitationService
                 // Même lien que le courriel (`InvitationMailable`).
                 'url' => LienFront::vers('/invitations/accept?token='.$invitation->token),
             ],
+            // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit l'invitation avant de partir.
+            deferredSmsGuard: DeferredSmsGuard::forInvitation($invitation),
         );
     }
 

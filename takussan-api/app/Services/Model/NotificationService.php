@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\CodedNotification;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
+use App\Services\Notifications\Sms\DeferredSmsGuard;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use LogicException;
@@ -47,6 +48,9 @@ class NotificationService
      * AVANT l'envoi. Une clé d'idempotence s'y pose : écrite après, un envoi qui échoue en route la
      * laissait absente, et le rejeu renvoyait. Ignoré pour un contact sans compte (aucune ligne).
      *
+     * TCK-1346 (P132.04) — `$deferredSmsGuard` : pour un contact sans compte, ce que son SMS relit
+     * s'il est reporté par les heures calmes ({@see DeferredSmsGuard}). Un compte n'a pas de lien porteur.
+     *
      * @param  array<string, mixed>  $params  paramètres BRUTS (cf. {@see NotificationCode::params()})
      * @param  array<string, mixed>|null  $data
      */
@@ -57,9 +61,10 @@ class NotificationService
         ?NotificationTarget $target = null,
         ?bool $mobileBorne = null,
         ?array $data = null,
+        ?array $deferredSmsGuard = null,
     ): ?AppNotification {
         if ($to instanceof ContactSansCompte) {
-            $this->sendToContact($to, $code, $params, $target, $mobileBorne);
+            $this->sendToContact($to, $code, $params, $target, $mobileBorne, $deferredSmsGuard);
 
             return null;
         }
@@ -96,7 +101,7 @@ class NotificationService
         return $notification;
     }
 
-    private function sendToContact(ContactSansCompte $to, NotificationCode $code, array $params, ?NotificationTarget $target, ?bool $mobileBorne = null): void
+    private function sendToContact(ContactSansCompte $to, NotificationCode $code, array $params, ?NotificationTarget $target, ?bool $mobileBorne = null, ?array $deferredSmsGuard = null): void
     {
         if (! $code->reachesContacts()) {
             throw new LogicException(sprintf(
@@ -121,6 +126,6 @@ class NotificationService
             'whatsapp' => $to->phone,
         ]);
         Notification::routes($routes)
-            ->notify((new CodedNotification($code, $params, $target?->toArray(), null, $mobileBorne))->locale($to->locale));
+            ->notify((new CodedNotification($code, $params, $target?->toArray(), null, $mobileBorne, $deferredSmsGuard))->locale($to->locale));
     }
 }

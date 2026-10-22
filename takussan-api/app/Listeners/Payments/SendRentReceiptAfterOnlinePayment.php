@@ -9,6 +9,7 @@ use App\Models\LeasePayment;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
+use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Payments\LeasePaymentLinkService;
 use Illuminate\Support\Facades\Log;
 
@@ -42,7 +43,9 @@ class SendRentReceiptAfterOnlinePayment
             // VERIF-602 M2 — un compte lit sa quittance dans son espace : jamais le lien porteur.
             $this->notifications->send($tenant->user, NotificationCode::LeasePaymentSettledOnline, $params, $target);
         } elseif ($tenant !== null && ($contact = ContactSansCompte::fromCustomer($tenant))->hasPhone()) {
-            $this->notifications->send($contact, NotificationCode::LeasePaymentSettledOnline, $params + ['receipt_url' => $this->links->urlFor($payment, locale: $contact->locale)], $target);
+            $url = $this->links->urlFor($payment, locale: $contact->locale);
+            // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit son lien avant de partir.
+            $this->notifications->send($contact, NotificationCode::LeasePaymentSettledOnline, $params + ['receipt_url' => $url], $target, deferredSmsGuard: DeferredSmsGuard::forPayLink($url));
         } else {
             Log::info('[pay-link] quittance non envoyée — locataire sans compte ni téléphone valide', [
                 'lease_payment_id' => $payment->id,

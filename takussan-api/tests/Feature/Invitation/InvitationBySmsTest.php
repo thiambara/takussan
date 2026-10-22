@@ -2,11 +2,13 @@
 
 namespace Tests\Feature\Invitation;
 
+use App\Jobs\SendDeferredSmsJob;
 use App\Models\Agency;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Services\Invitation\InvitationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -75,6 +77,48 @@ class InvitationBySmsTest extends TestCase
         $this->postJson("/api/invitations/{$this->jetonDuDernierSms()}/accept", ['first_name' => 'Awa', 'last_name' => 'Ndiaye'])->assertOk();
 
         $this->assertSame('en', User::query()->where('phone', self::NUMERO)->sole()->preferred_language);
+    }
+
+    /**
+     * TCK-1346 (P132.04) — un SMS d'invitation reporté par les heures calmes (le job reçoit le
+     * texte et le contexte que le canal a remis au routeur) n'est pas envoyé au matin si
+     * l'invitation a été révoquée ou relancée (jeton neuf) pendant la nuit ; l'abandon s'écrit.
+     */
+    public function test_un_sms_reporte_n_est_pas_envoye_si_l_invitation_a_ete_revoquee_la_nuit(): void
+    {
+        $this->inviter()->assertCreated();
+        $nuit = end($this->sms->sent);
+        $job = new SendDeferredSmsJob([$nuit['to']], $nuit['message'], $nuit['context']);
+
+        $this->postJson('/api/invitations/'.Invitation::query()->sole()->id.'/revoke')->assertOk();
+        Log::spy();
+        app()->call([$job, 'handle']);
+
+        $this->assertCount(1, $this->sms->sentTo(self::NUMERO));
+        Log::shouldHaveReceived('info')->withArgs(fn (string $m) => str_contains($m, '[sms.deferred]'))->once();
+    }
+
+    public function test_un_sms_reporte_n_est_pas_envoye_si_l_invitation_a_ete_relancee_la_nuit(): void
+    {
+        $this->inviter()->assertCreated();
+        $nuit = end($this->sms->sent);
+        $job = new SendDeferredSmsJob([$nuit['to']], $nuit['message'], $nuit['context']);
+
+        $this->postJson('/api/invitations/'.Invitation::query()->sole()->id.'/resend')->assertOk();
+        $this->assertCount(2, $this->sms->sentTo(self::NUMERO));
+        app()->call([$job, 'handle']);
+
+        $this->assertCount(2, $this->sms->sentTo(self::NUMERO));
+    }
+
+    public function test_un_sms_reporte_d_une_invitation_toujours_valide_part_au_matin(): void
+    {
+        $this->inviter()->assertCreated();
+        $nuit = end($this->sms->sent);
+
+        app()->call([new SendDeferredSmsJob([$nuit['to']], $nuit['message'], $nuit['context']), 'handle']);
+
+        $this->assertCount(2, $this->sms->sentTo(self::NUMERO));
     }
 
     public function test_un_numero_porte_par_un_compte_non_verifie_recoit_quand_meme_le_sms(): void

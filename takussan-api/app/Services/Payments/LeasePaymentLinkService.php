@@ -82,6 +82,21 @@ class LeasePaymentLinkService
         return $link;
     }
 
+    /**
+     * TCK-1346 (P132.04) — le lien de ce jeton haché sert-il encore ? Les règles de `resolve()`,
+     * sans lever ni compter de lecture : un SMS reporté à la fin de la nuit le relit avant de partir.
+     */
+    public function isLive(string $tokenHash): bool
+    {
+        $link = LeasePaymentLink::query()->where('token_hash', $tokenHash)->first();
+        if ($link === null) {
+            return false;
+        }
+        $payment = $link->leasePayment()->with('lease')->first();
+
+        return ! $this->isGone($link, $payment);
+    }
+
     /** Une lecture publique du lien : compteur et date, jamais le jeton. */
     public function touch(LeasePaymentLink $link): void
     {

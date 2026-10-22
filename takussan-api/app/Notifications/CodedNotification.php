@@ -64,6 +64,9 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
         // TCK-590 — cf. {@see NotificationService::send()} : null, règles du code ; true, borné en
         // amont (les canaux ne recomptent pas) ; false, aucun canal mobile.
         public readonly ?bool $mobileBorne = null,
+        // TCK-1346 (P132.04) — ce qu'un SMS reporté par les heures calmes relit avant de partir
+        // ({@see \App\Services\Notifications\Sms\DeferredSmsGuard}).
+        public readonly ?array $deferredSmsGuard = null,
     ) {}
 
     /**
