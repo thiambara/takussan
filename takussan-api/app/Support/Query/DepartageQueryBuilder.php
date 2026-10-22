@@ -57,7 +57,10 @@ class DepartageQueryBuilder extends QueryBuilder
         }
 
         $dernier = end($base->orders);
-        $sens = strtolower((string) ($dernier['direction'] ?? 'asc')) === 'desc' ? 'desc' : 'asc';
+        // Un tri brut (rang d'enum, pertinence) n'a pas de `direction` : son sens se lit à la fin du SQL.
+        $sens = isset($dernier['direction'])
+            ? (strtolower((string) $dernier['direction']) === 'desc' ? 'desc' : 'asc')
+            : (preg_match('/\bdesc\s*$/i', (string) ($dernier['sql'] ?? '')) === 1 ? 'desc' : 'asc');
 
         $eloquent->orderBy($qualifiee, $sens);
 
