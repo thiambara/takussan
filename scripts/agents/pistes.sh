@@ -1159,7 +1159,11 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
   # réparation »), et l'exiger refusait toute réparation juste — 9 refus du 2026-10-17 au 2026-10-20,
   # dont les trois de #815.
   if [ ! -s "$sortie/pr-corps.md" ]; then fin refuse "pr-corps.md absent"; fi
-  if [ "$MODE" = nouveau ] && [ ! -s "$sortie/pr-titre.txt" ]; then fin refuse "pr-titre.txt absent"; fi
+  # Le superviseur publie en mode `surveillance` : seule une réparation commente une PR existante.
+  # Avant le 2026-10-22, la création était réservée à `nouveau` : le passage du superviseur de 01:21
+  # a poussé sa branche, puis commenté la PR « $PR » vide, et gh est sorti en « could not determine
+  # current branch » : aucune PR, le correctif n'a atteint le porteur que par le rapport.
+  if [ "$MODE" != reparation ] && [ ! -s "$sortie/pr-titre.txt" ]; then fin refuse "pr-titre.txt absent"; fi
 
   local pied verifs="" controle corps="$sortie/pr-corps-publie.md"
   if [ "$ROLE" = implementeur ]; then verifs=", gardes du dépôt, index du backlog et Pint verts"; fi
@@ -1175,7 +1179,7 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
     fin a-blanc "aurait poussé $branche ($avance commits) et publié « $(head -n 1 "$sortie/pr-titre.txt" 2> /dev/null || echo "réparation de #$PR") » ; corps dans $corps"
   fi
   git -C "$arbre" push --quiet -u origin "HEAD:refs/heads/$branche"
-  if [ "$MODE" = nouveau ]; then
+  if [ "$MODE" != reparation ]; then
     PR="$(GH_REPO="$GH_REPO" gh pr create --base pre-dev --head "$branche" --label "agent:$ROLE" \
       --title "$(head -n 1 "$sortie/pr-titre.txt")" --body-file "$corps" | sed 's#.*/##')"
     if [ "$ROLE" = superviseur ]; then notifier "PR #$PR ouverte : $(head -n 1 "$sortie/pr-titre.txt")"; fi
