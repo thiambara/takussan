@@ -30,7 +30,7 @@ publiques restent en cache.
 
 ## Décision du porteur (déléguée)
 
-« validé (délégué) — `AgencyObserver` met en file `SyncAgencyPropertiesSearchIndex` sur `deleted` et sur `restored`, et le job relit l'agence par `withTrashed()` et la juge publique seulement si elle est `active` et non supprimée : à la suppression, ses biens sortent de l'index et leurs pages publiques sont revalidées, comme à une suspension (ADR-0048 § 2) ; test sous le moteur `collection` : agence supprimée → aucun de ses biens dans `totalHits` »
+« validé (délégué) — `AgencyObserver` met en file `SyncAgencyPropertiesSearchIndex` sur `deleted` et sur `restored`, et le job relit l'agence par `withTrashed()` et la juge publique seulement si elle est `active` et non supprimée : à la suppression, ses biens sortent de l'index et leurs pages publiques sont revalidées, comme à une suspension (ADR-0048 § 2) ; test sous le moteur `collection` : agence supprimée → aucun de ses biens dans `totalHits` ; reste : le sens de la suppression d'agence (P129.01) »
 
 Critère accordé : V6.
 
