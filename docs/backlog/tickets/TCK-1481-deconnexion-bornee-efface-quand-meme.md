@@ -1,7 +1,7 @@
 ---
 id: TCK-1481
 title: "La déconnexion borne son attente de l'API et efface la session quand même"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -50,18 +50,18 @@ Aucun endpoint neuf : `POST /api/auth/logout` (relais Next), `POST /api/auth/log
 
 ## Delta à produire
 
-- [ ] Relais `src/app/api/auth/logout/route.ts` : échéance commune aux deux appels.
-- [ ] `logout(token)` de `src/lib/auth.ts` accepte un signal.
-- [ ] `AuthContext.logout()` : attente bornée, effacement quand même.
-- [ ] Tests : relais dont l'API ne répond jamais → cookies effacés sous la borne ; `AuthProvider`
+- [x] Relais `src/app/api/auth/logout/route.ts` : échéance commune aux deux appels.
+- [x] `logout(token)` de `src/lib/auth.ts` accepte un signal.
+- [x] `AuthContext.logout()` : attente bornée, effacement quand même.
+- [x] Tests : relais dont l'API ne répond jamais → cookies effacés sous la borne ; `AuthProvider`
       dont le `fetch` de déconnexion ne répond jamais → `user` à `null` sous la borne.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — API figée : le relais rend sa réponse et efface `auth_token`, `active_profile_id` et la
+- [x] AC1 — API figée : le relais rend sa réponse et efface `auth_token`, `active_profile_id` et la
       session d'impersonation au bout de 3 s.
-- [ ] AC2 — relais figé : `user` repasse à `null` au bout de 5 s.
-- [ ] AC3 — API qui répond : comportement inchangé (révocation puis effacement).
+- [x] AC2 — relais figé : `user` repasse à `null` au bout de 5 s.
+- [x] AC3 — API qui répond : comportement inchangé (révocation puis effacement).
 
 ## Hors périmètre
 
@@ -70,4 +70,13 @@ Aucun endpoint neuf : `POST /api/auth/logout` (relais Next), `POST /api/auth/log
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : `route.ts` rendu à `pre-dev` → `route.borne.test.ts` rouge (aucune réponse à
+  l'échéance) ; `AuthContext.tsx` rendu à `pre-dev` → `AuthContext.deconnexion-bornee.test.tsx`
+  rouge (`user` toujours présent) ; remis → 4/4 verts avec `route.test.ts`.
+- Piège : à l'échéance, le second appel (`logout`) reçoit un signal **déjà** abandonné, dont
+  l'événement `abort` ne se redéclenche pas. La borne teste `signal.aborted` avant d'écouter.
+- Les échéances vivent dans `src/lib/delais-deconnexion.ts`, sans dépendance : un `route.ts` de
+  Next n'exporte que ses champs reconnus, et `route.test.ts` simule `@/lib/auth` en entier.
+- Minuteur et `AbortController` plutôt qu'`AbortSignal.timeout`, que les faux minuteurs de vitest
+  ne pilotent pas.
+- `route.test.ts` : l'appel attendu de `logout` porte désormais le signal de l'échéance.
