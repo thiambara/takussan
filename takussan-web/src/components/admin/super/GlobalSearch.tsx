@@ -13,8 +13,11 @@ import { fetchGlobalSearch, type GlobalSearchHit } from '@/lib/queries/super-adm
 import { cn } from '@/lib/utils';
 import { usePlatformAbilities } from './PlatformAbilitiesProvider';
 
-/** Le minimum de l'API (`GlobalSearchRequest` : `q` 2..100). */
-const MIN = 2;
+/**
+ * Le minimum de l'API (`GlobalSearchRequest` : `q` 3..100), seuil du texte libre : en dessous,
+ * l'écran n'interroge pas (TCK-1447).
+ */
+const MIN = 3;
 
 /**
  * Les résultats rangés par type, dans l'ordre où l'API les rend : ses correspondances EXACTES

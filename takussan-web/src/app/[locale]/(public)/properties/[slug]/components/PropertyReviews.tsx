@@ -1,10 +1,11 @@
 'use client';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Star, MessageSquareReply, Pencil } from 'lucide-react';
 import { usePropertyReviews } from '@/hooks/usePropertyReviews';
+import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 import { useAuth } from '@/context/AuthContext';
 import { getReviewEligibility } from '@/app/actions/property';
 import { PropertyReviewForm } from './PropertyReviewForm';
@@ -216,7 +217,18 @@ export function PropertyReviews({
 }: PropertyReviewsProps) {
   const t = useTranslations('property.reviews');
   const { user } = useAuth();
-  const { data, loading, error, submit, reply } = usePropertyReviews(slug, propertyId);
+  // TCK-1483 (P103.07) — les avis ne sont demandés qu'à l'approche de leur section (400 px), et
+  // une fois approchée elle le reste. Sans `IntersectionObserver`, la lecture part au montage.
+  const sectionRef = useRef<HTMLElement>(null);
+  const [sansObservateur] = useState(() => typeof IntersectionObserver === 'undefined');
+  const enApproche = useIntersectionObserver(sectionRef, { rootMargin: '400px' });
+  const [approchee, setApprochee] = useState(false);
+  if (enApproche && !approchee) setApprochee(true);
+  const { data, loading, error, submit, reply } = usePropertyReviews(
+    slug,
+    propertyId,
+    approchee || sansObservateur,
+  );
 
   // TCK-180 — gate the review form on history. The endpoint requires
   // auth, so anonymous users skip the call and simply never see the form.
@@ -258,7 +270,7 @@ export function PropertyReviews({
     !activeEligibility.alreadyReviewed;
 
   return (
-    <section id="avis" className="space-y-4 scroll-mt-24">
+    <section ref={sectionRef} id="avis" className="space-y-4 scroll-mt-24">
       <div className="flex items-baseline justify-between gap-2 flex-wrap">
         <h2 className="text-xl font-semibold text-foreground">
           {t('title')} {reviewsCount > 0 && <span className="text-muted-foreground text-base">({reviewsCount})</span>}

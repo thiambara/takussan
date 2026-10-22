@@ -10,12 +10,22 @@ type State = {
   error: string | null;
 };
 
-export function useSimilarProperties(slug: string) {
+/**
+ * TCK-1483 (P103.07) — `donneesInitiales` : les similaires lus par le serveur avec la fiche
+ * (modèle `donneesInitiales` de l'accueil, TCK-432). Présentes, elles sont rendues tout de suite
+ * et le navigateur ne les redemande pas ; `null`, il les lit comme avant.
+ */
+export function useSimilarProperties(slug: string, donneesInitiales: PropertyListItem[] | null = null) {
   const t = useTranslations('property.detail');
-  const [state, setState] = useState<State>({ data: [], loading: true, error: null });
+  const [state, setState] = useState<State>(
+    donneesInitiales !== null
+      ? { data: donneesInitiales, loading: false, error: null }
+      : { data: [], loading: true, error: null },
+  );
+  const dejaServies = donneesInitiales !== null;
 
   useEffect(() => {
-    if (!slug) return;
+    if (!slug || dejaServies) return;
     let cancelled = false;
     apiFetch<{ data: PropertyListItem[] }>(`/public/properties/${slug}/similar`)
       .then((res) => {
@@ -28,7 +38,7 @@ export function useSimilarProperties(slug: string) {
     return () => {
       cancelled = true;
     };
-  }, [slug, t]);
+  }, [slug, t, dejaServies]);
 
   return state;
 }

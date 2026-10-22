@@ -104,4 +104,21 @@ describe('auth form UX', () => {
     );
     expect(confirmation).toHaveAttribute('type', 'text');
   });
+
+  // TCK-1451 (P159.04) — `Password::defaults()` exige une lettre et un chiffre : l'aide le dit.
+  it('annonce la lettre et le chiffre exigés, à la réinitialisation comme à l\'inscription', () => {
+    searchParams = new URLSearchParams('token=reset-token&email=agent1%40dakarimmo.sn');
+    const { unmount } = render(withIntl(<ResetPasswordPage />));
+    expect(screen.getByLabelText('Nouveau mot de passe')).toHaveAttribute(
+      'placeholder',
+      '8 caractères minimum, avec une lettre et un chiffre.',
+    );
+    unmount();
+
+    render(withIntl(<RegisterPage />));
+    expect(screen.getByLabelText('Mot de passe*')).toHaveAttribute(
+      'placeholder',
+      '8 caractères minimum, avec une lettre et un chiffre.',
+    );
+  });
 });

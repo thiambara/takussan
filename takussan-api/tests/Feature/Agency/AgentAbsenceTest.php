@@ -13,6 +13,7 @@ use App\Models\RoleDelegation;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\Agency\AgentAvailability;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\ApiTestCase;
@@ -105,6 +106,31 @@ class AgentAbsenceTest extends ApiTestCase
             ->assertOk()
             ->streamedContent();
         $this->assertStringContainsString(',absence.declared,', $csv);
+    }
+
+    /**
+     * TCK-1455 (P163.03) — une fin donnée en date seule est INCLUSIVE, comme celle d'une délégation
+     * (TCK-1320) : l'absence vaut jusqu'à la fin du jour choisi, heure de Dakar, et non jusqu'à
+     * 00:00 au début de ce jour. Un instant explicite, celui que l'écran envoie, est rangé tel quel.
+     */
+    public function test_une_fin_en_date_seule_vaut_jusqu_a_la_fin_du_jour_choisi(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-20 10:00:00', 'Africa/Dakar'));
+
+        $this->declare($this->admin, ['ends_at' => '2026-10-22'])->assertCreated();
+        $absence = RoleDelegation::query()->absences()->sole();
+        $this->assertSame(
+            '2026-10-22 23:59:59',
+            $absence->ends_at->copy()->setTimezone('Africa/Dakar')->format('Y-m-d H:i:s'),
+        );
+
+        $this->travelTo(Carbon::parse('2026-10-22 12:00:00', 'Africa/Dakar'));
+        $this->assertTrue($absence->fresh()->ends_at->isFuture(), 'encore active à midi le jour choisi');
+
+        $absence->delete();
+        $this->travelTo(Carbon::parse('2026-10-20 10:00:00', 'Africa/Dakar'));
+        $this->declare($this->admin, ['ends_at' => '2026-10-24 23:59:59'])->assertCreated();
+        $this->assertSame('2026-10-24 23:59:59', RoleDelegation::query()->absences()->sole()->ends_at->format('Y-m-d H:i:s'));
     }
 
     public function test_the_substitute_sees_and_ticks_the_absent_tasks_until_the_end(): void

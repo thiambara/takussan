@@ -32,6 +32,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Scout\ModelObserver;
 use Laravel\Scout\Searchable;
@@ -538,13 +539,19 @@ class Property extends AbstractModel implements HasMedia
      * TCK-1101 (P90.06) — elle suit la synchronisation des modèles, comme `GeoReindexation` et
      * `BoostLifecycle::writeProperty` : coupée (suite hors recherche, seed sous moteur coupé), elle
      * ne fait rien.
+     *
+     * TCK-1452 (P90.02) — l'écriture attend le commit de la transaction ouverte, s'il y en a une
+     * (`DB::afterCommit()` exécute sur-le-champ hors transaction) : sous `SCOUT_QUEUE=false`, un
+     * appel explicite écrivait dans Meilisearch aussitôt, et une transaction annulée ensuite
+     * laissait l'index dire ce que la base ne disait pas. `SCOUT_AFTER_COMMIT` ne règle que
+     * l'observateur de Scout, jamais ces appels.
      */
     public function reindexer(): void
     {
         if (ModelObserver::syncingDisabledFor(self::class)) {
             return;
         }
-        $this->shouldBeSearchable() ? $this->searchable() : $this->unsearchable();
+        DB::afterCommit(fn () => $this->shouldBeSearchable() ? $this->searchable() : $this->unsearchable());
     }
 
     /**

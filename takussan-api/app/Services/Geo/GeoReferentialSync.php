@@ -30,7 +30,7 @@ final class GeoReferentialSync
         // voyait plus à rattacher, et l'index restait sans le quartier.
         $biens = DB::transaction(function () {
             $biens = $this->rattacheur->rattacher();
-            $this->reindexation->biens($biens);
+            $this->reindexation->biensDansLaTransaction($biens);
 
             return $biens;
         });

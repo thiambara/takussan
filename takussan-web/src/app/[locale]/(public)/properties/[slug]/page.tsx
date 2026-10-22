@@ -15,7 +15,7 @@ import { jsonLdFilDAriane, maillonsDeFiche } from '@/lib/fil-d-ariane';
 import { hrefDeLaVille, hrefDuQuartier } from '@/lib/fil-d-ariane-quartier';
 import { domainesDeLaListe } from '@/lib/queries/facettes';
 import { jsonLdRealEstateListing } from '@/lib/jsonld-property';
-import { getEtatDuBien, getProperty } from '@/lib/queries/public-property';
+import { getBiensSimilaires, getEtatDuBien, getProperty } from '@/lib/queries/public-property';
 
 import { PropertyDetailContent } from './PropertyDetailContent';
 import { bienRetire, estRetire } from './bien-retire';
@@ -190,12 +190,16 @@ export default async function PropertyDetailPage({ params }: Props) {
   // seuil de sa page. Domaines PARTAGÉS, en cache de données (une heure) : aucun appel propre au
   // visiteur.
   const lieu = resultat.etat === 'trouve' ? resultat.bien.location : null;
-  const domainesDuFil =
+  // TCK-1483 (P103.07) — les similaires, lus EN MÊME TEMPS que les domaines du fil : le HTML porte
+  // leurs liens. `null` sur une panne : le carrousel les demande alors au navigateur.
+  const [domainesDuFil, similaires] = await Promise.all([
     resultat.etat === 'trouve' && lieu?.city
-      ? await domainesDeLaListe(
+      ? domainesDeLaListe(
           new URLSearchParams(lieu.quarter ? { city: lieu.city, location: lieu.quarter } : { city: lieu.city }),
         )
-      : null;
+      : null,
+    resultat.etat === 'trouve' ? getBiensSimilaires(slug, locale) : null,
+  ]);
   const hrefQuartier =
     resultat.etat === 'trouve' && domainesDuFil ? hrefDuQuartier(resultat.bien, domainesDuFil) : undefined;
   const hrefVille =
@@ -218,7 +222,12 @@ export default async function PropertyDetailPage({ params }: Props) {
             locale,
           )}
         />
-        <PropertyDetailContent property={resultat.bien} hrefQuartier={hrefQuartier} hrefVille={hrefVille} />
+        <PropertyDetailContent
+          property={resultat.bien}
+          hrefQuartier={hrefQuartier}
+          hrefVille={hrefVille}
+          similairesInitiaux={similaires}
+        />
         <CompteurDeVue slug={resultat.bien.slug} />
       </>
     );

@@ -11,6 +11,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
+use App\Services\Membership\ProfileMaterializer;
 use App\Support\AgencyKindGuard;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -121,7 +122,8 @@ class AgencyMemberRoleController extends Controller
     {
         $user->agentProfiles()->where('agency_id', $agencyId)->delete();
         $user->ownerProfiles()->where('agency_id', $agencyId)->delete();
-        AgencyAdminProfile::query()->firstOrCreate(
+        ProfileMaterializer::materializeOrRestore(
+            AgencyAdminProfile::class,
             ['user_id' => $user->id, 'agency_id' => $agencyId],
             ['status' => AgencyAdminProfileStatus::Active->value],
         );
@@ -131,7 +133,8 @@ class AgencyMemberRoleController extends Controller
     {
         $user->agencyAdminProfiles()->where('agency_id', $agencyId)->delete();
         $user->ownerProfiles()->where('agency_id', $agencyId)->delete();
-        AgentProfile::query()->firstOrCreate(
+        ProfileMaterializer::materializeOrRestore(
+            AgentProfile::class,
             ['user_id' => $user->id, 'agency_id' => $agencyId],
             ['status' => AgentProfileStatus::Active->value],
         );
@@ -141,7 +144,8 @@ class AgencyMemberRoleController extends Controller
     {
         $user->agencyAdminProfiles()->where('agency_id', $agencyId)->delete();
         $user->agentProfiles()->where('agency_id', $agencyId)->delete();
-        OwnerProfile::query()->firstOrCreate(
+        ProfileMaterializer::materializeOrRestore(
+            OwnerProfile::class,
             ['user_id' => $user->id, 'agency_id' => $agencyId],
         );
     }

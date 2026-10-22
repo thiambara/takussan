@@ -156,6 +156,19 @@ class AdminGlobalSearchTest extends TestCase
     }
 
     /**
+     * TCK-1447 (P159.01) — deux caractères n'atteignent aucune voie : le texte libre commence à
+     * `FREE_TEXT_MIN`, les voies exactes plus loin encore. La requête refuse donc sous ce seuil, au
+     * lieu de rendre une liste vide que l'opérateur lit « personne de ce nom ».
+     */
+    public function test_q_sous_le_seuil_du_texte_libre_est_refuse(): void
+    {
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $this->getJson('/api/admin/search?q=Ba')->assertUnprocessable();
+        $this->getJson('/api/admin/search?q='.urlencode('Ba Sy'))->assertOk();
+    }
+
+    /**
      * Raccord TCK-601 (ADR-0044 §4) — un compte RENDU par la recherche est une consultation tracée,
      * au nom de l'opérateur ; un compte écarté (non trouvé, ou au-delà des cinq) ne l'est pas, une
      * recherche refusée n'écrit rien, et un rafraîchissement dans la fenêtre ne double pas la trace.

@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { Mail, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { FormGlobalError } from '@/components/forms';
+import { FormGlobalError } from '@/components/forms/FormError';
 import { avecRedirection } from '@/lib/redirection-interne';
 import { useTranslations } from 'next-intl';
 
