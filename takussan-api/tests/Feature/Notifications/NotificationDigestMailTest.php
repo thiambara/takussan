@@ -13,7 +13,9 @@ use App\Models\User;
 use App\Services\Notifications\DigestBuilderService;
 use App\Support\RelativeSignedUrl;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Mail\SendQueuedMailable;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class NotificationDigestMailTest extends TestCase
@@ -69,6 +71,33 @@ class NotificationDigestMailTest extends TestCase
 
         (new BuildUserDigestJob($user))->handle(app(DigestBuilderService::class));
 
+        $this->assertNotNull($n->fresh()->digested_at);
+    }
+
+    /**
+     * P111.04 (TCK-1505) — le courriel du résumé part dans un job à part (`SendQueuedMailable`) :
+     * il attend avant de réessayer, comme `CodedNotification` (TCK-800), au lieu d'épuiser les
+     * trois essais du worker en quelques secondes sur une panne brève du fournisseur.
+     * `digested_at` reste posé à la mise en file.
+     */
+    public function test_le_courriel_du_resume_mis_en_file_attend_avant_de_reessayer(): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create([
+            'email_frequency' => EmailFrequency::Daily,
+            'email' => 'backoff@example.com',
+        ]);
+
+        $n = $this->makeNotification($user);
+
+        (new BuildUserDigestJob($user))->handle(app(DigestBuilderService::class));
+
+        Queue::assertPushed(
+            SendQueuedMailable::class,
+            fn (SendQueuedMailable $job): bool => $job->mailable instanceof NotificationDigestMail
+                && $job->backoff() === [60, 300, 900],
+        );
         $this->assertNotNull($n->fresh()->digested_at);
     }
 
