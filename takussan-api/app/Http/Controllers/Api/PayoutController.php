@@ -54,7 +54,7 @@ class PayoutController extends Controller
         $payout = $this->payouts->create($request->user(), $landlord, $data);
 
         return $this->json([
-            'data' => PayoutResource::make($payout)->resolve($request),
+            'data' => $this->presenter($payout, $request),
         ], 201);
     }
 
@@ -63,8 +63,7 @@ class PayoutController extends Controller
         $this->authorize('view', $payout);
 
         return $this->json([
-            // TCK-594 — l'approbateur lit qui a préparé avant d'engager l'argent.
-            'data' => PayoutResource::make($payout->load(['issuer', 'payoutMethod:id,masked_identifier']))->resolve($request),
+            'data' => $this->presenter($payout, $request),
         ]);
     }
 
@@ -76,7 +75,7 @@ class PayoutController extends Controller
         $payout = $this->payouts->approve($payout, $request->user(), $request->validated('payout_method_id'));
 
         return $this->json([
-            'data' => PayoutResource::make($payout)->resolve($request),
+            'data' => $this->presenter($payout, $request),
         ]);
     }
 
@@ -88,7 +87,7 @@ class PayoutController extends Controller
         $payout = $this->payouts->markProcessed($payout, $data, $request->user());
 
         return $this->json([
-            'data' => PayoutResource::make($payout)->resolve($request),
+            'data' => $this->presenter($payout, $request),
         ]);
     }
 
@@ -100,7 +99,7 @@ class PayoutController extends Controller
         $payout = $this->payouts->markFailed($payout, $data, $request->user());
 
         return $this->json([
-            'data' => PayoutResource::make($payout)->resolve($request),
+            'data' => $this->presenter($payout, $request),
         ]);
     }
 
@@ -110,7 +109,20 @@ class PayoutController extends Controller
         $payout = $this->payouts->cancel($payout, $request->user());
 
         return $this->json([
-            'data' => PayoutResource::make($payout)->resolve($request),
+            'data' => $this->presenter($payout, $request),
         ]);
+    }
+
+    /**
+     * TCK-1205 (P95.01) — la projection du `show`, rendue aussi par chaque écriture : sans le
+     * chargement, `payout_method_masked` sortait nul (« aucune destination ») d'un reversement qui
+     * en a une, et `issuer` manquait.
+     *
+     * @return array<string, mixed>
+     */
+    private function presenter(Payout $payout, Request $request): array
+    {
+        // TCK-594 — l'approbateur lit qui a préparé avant d'engager l'argent.
+        return PayoutResource::make($payout->load(['issuer', 'payoutMethod:id,masked_identifier']))->resolve($request);
     }
 }
