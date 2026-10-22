@@ -38,6 +38,9 @@ export function rechercheDuQuartier(etat: EtatPublicDuBien): string {
   return requete === '' ? '/properties' : `/properties?${requete}`;
 }
 
+/** Autant de cartes que la grille des similaires a de colonnes au plus large (`lg:grid-cols-3`). */
+const CARTES_PRIORITAIRES = 3;
+
 /** Une FONCTION qui rend du JSX, pas un composant `async` : testable sous jsdom (patron de la page). */
 export async function bienRetire(etat: EtatRetire) {
   const t = await getTranslations('property.retired');
@@ -68,8 +71,16 @@ export async function bienRetire(etat: EtatRetire) {
         <section className="mt-12 space-y-4">
           <h2 className="text-xl font-semibold text-foreground">{t('similarTitle')}</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* TCK-1188 (P102.01) — la première rangée, au plus large (`lg:grid-cols-3`), sort
+                visible du rendu serveur : ces données sont servies par le serveur, et une carte
+                non `priority` reste en `opacity-0` jusqu'à l'hydratation. */}
             {etat.similar.map((bien, index) => (
-              <PropertyCard key={bien.id} property={bien} index={index} />
+              <PropertyCard
+                key={bien.id}
+                property={bien}
+                index={index}
+                priority={index < CARTES_PRIORITAIRES}
+              />
             ))}
           </div>
         </section>
