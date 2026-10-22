@@ -4,6 +4,8 @@ namespace App\Models\Profiles;
 
 use App\Models\Agency;
 use App\Models\Bases\AbstractModel;
+use App\Models\Document;
+use App\Models\Enums\DocumentType;
 use App\Models\Enums\ServiceProviderProfileStatus;
 use App\Models\Invitation;
 use App\Models\Review;
@@ -71,6 +73,20 @@ class ServiceProviderProfile extends AbstractModel
     public function reviews(): MorphMany
     {
         return $this->morphMany(Review::class, 'reviewable');
+    }
+
+    /**
+     * TCK-1325 (P117.06) — la pièce d'assurance VIVANTE du profil : non supprimée (`SoftDeletes`),
+     * non expirée, et dont le fichier est présent. C'est d'elle que se dérive le badge « Assuré »
+     * du carnet (`withExists`), et non d'un drapeau recopié en `metadata`, qui ne se remettait
+     * jamais à faux.
+     */
+    public function liveInsuranceDocuments(): MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentable')
+            ->where('type', DocumentType::Insurance)
+            ->where(fn (Builder $q) => $q->whereNull('expiry_date')->orWhereDate('expiry_date', '>=', now()->toDateString()))
+            ->whereHas('media', fn (Builder $q) => $q->where('collection_name', 'file'));
     }
 
     /**

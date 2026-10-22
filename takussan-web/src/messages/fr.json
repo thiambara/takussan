@@ -4192,7 +4192,8 @@
         "save": "Enregistrer",
         "saving": "Enregistrement…",
         "saved": "Enregistré.",
-        "failed": "L'assignation n'a pas été enregistrée."
+        "failed": "L'assignation n'a pas été enregistrée.",
+        "insured": "Assuré"
       },
       "gallery": {
         "title": "Photos et pièces",
@@ -5215,7 +5216,8 @@
       "actions": {
         "resend": "Renvoyer l'invitation",
         "revoke": "Révoquer"
-      }
+      },
+      "insured": "Assuré"
     },
     "invite": {
       "title": "Inviter un prestataire",
@@ -9381,14 +9383,11 @@
     "agent": {
       "title": "Profil professionnel",
       "subtitle": "Vos informations d'agent immobilier.",
-      "bioLabel": "Bio professionnelle",
-      "bioPlaceholder": "Décrivez votre expertise et vos spécialités",
       "specialtiesLabel": "Spécialisations",
-      "comingSoon": "Bientôt disponible",
       "licenseLabel": "Numéro de licence",
-      "licensePlaceholder": "Ex: AGC-2025-0001",
       "agencyLabel": "Agence liée",
-      "noAgency": "Non affilié"
+      "noAgency": "Non affilié",
+      "notProvided": "Non renseigné"
     },
     "owner": {
       "title": "Espace bailleur",

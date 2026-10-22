@@ -54,11 +54,22 @@ export type NotificationsQuery = {
   unread?: boolean;
 };
 
+/**
+ * TCK-1326 (P128.05) — les seules colonnes que la cloche et l'historique lisent (règle des champs
+ * clairsemés). Ni `data` — que la ressource enrichit à la lecture, pièces signées comprises — ni
+ * `sent_at`.
+ */
+const CHAMPS_NOTIFICATION = 'id,type,code,params,target,title,body,is_read,read_at,created_at';
+
 export async function fetchNotifications(
   token: string,
   { page = 1, perPage = 10, unread = false }: NotificationsQuery = {},
 ): Promise<NotificationsResponse> {
-  const search = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  const search = new URLSearchParams({
+    page: String(page),
+    per_page: String(perPage),
+    'fields[app_notifications]': CHAMPS_NOTIFICATION,
+  });
   if (unread) search.set('filter[unread]', '1');
 
   return apiRequest<NotificationsResponse>(cheminApi`/api/notifications?${search.toString()}`, {

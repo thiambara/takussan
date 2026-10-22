@@ -201,15 +201,19 @@ class DocumentPdfDompdfRenderTest extends TestCase
      * ce qu'écrit l'adaptateur CPDF de dompdf (`Tc` : l'espacement des lettres). Une police Unicode (DejaVu) écrit l'UTF-16BE, une
      * police de base le Windows-1252.
      *
+     * Chaque flux se coupe à son `/Length`, jamais à `endstream` : un flux compressé qui finit par
+     * l'octet `\r` le perdait dans la fin de ligne, `gzuncompress` échouait et la page entière
+     * disparaissait — selon la minute imprimée au pied, environ un rendu sur vingt.
+     *
      * @return list<array{x: float, y: float, text: string}>
      */
     private function textRuns(string $pdf): array
     {
-        preg_match_all('#stream\r?\n(.*?)\r?\nendstream#s', $pdf, $streams);
+        preg_match_all('#/Length (\d+)\s*>>\s*stream\r?\n#', $pdf, $heads, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
 
         $runs = [];
-        foreach ($streams[1] as $stream) {
-            $content = @gzuncompress($stream);
+        foreach ($heads as [$head, $length]) {
+            $content = @gzuncompress(substr($pdf, $head[1] + strlen($head[0]), (int) $length[0]));
             if (! is_string($content)) {
                 continue;
             }
