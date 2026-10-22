@@ -244,7 +244,7 @@ voie d'écriture (angle 13, puis 47).
 | 167 | Tuiles, compteurs et lignes cliquables des tableaux de bord (bandeau `PropertyKpiStrip` de `/app/properties`, `DashboardLinkLine` des aperçus, files `AgencyQueues`, tuiles de la console) : filtre posé par le lien face à celui qui a compté le nombre affiché (statuts additionnés, portée « mes biens » ou agent, période) — la liste ouverte ne montre pas ce que la tuile comptait, né de P131.02 | fait |
 | 168 | Onglets, filtres et pagination des listes de la console tenus en état local (`useState`) au lieu de l'URL (`BookingsList.tsx:35`, et leurs pareilles sous `components/*`) : retour arrière depuis un détail qui ramène au premier onglet, rechargement ou lien partagé qui perd la vue, paramètre `?status=` d'un lien entrant ignoré — né de P131.03 | fait |
 | 169 | Rappels programmés à marque unique (`last_reminded_at`, `reminder_sent_at` et leurs pareilles : invitations, visites, échéances, reversements dus, relances de documents) face aux gestes qui remettent la marque à zéro sans déplacer la date de référence (relance, report, renouvellement) : rappel parti dans l'heure qui suit le geste, ou jamais renvoyé — né de P132.03 | fait |
-| 170 | Montants envoyés par le navigateur et pris tels quels par l'API là où elle pourrait les dériver (`amount` de `POST /api/bookings/{id}/payments`, `subtotal` de `POST /api/invoices`, `amount` des paiements enregistrés et de `mark-paid`, montants des reversements et des restitutions) : montant que le payeur ou l'émetteur fixe à la place du calcul du serveur — né de P133.02 et P133.05 | à faire |
+| 170 | Montants envoyés par le navigateur et pris tels quels par l'API là où elle pourrait les dériver (`amount` de `POST /api/bookings/{id}/payments`, `subtotal` de `POST /api/invoices`, `amount` des paiements enregistrés et de `mark-paid`, montants des reversements et des restitutions) : montant que le payeur ou l'émetteur fixe à la place du calcul du serveur — né de P133.02 et P133.05 | fait |
 | 171 | Sélecteurs et listes sans pagination nourris par la taille de page par défaut (appels `useApiQuery`, `apiRequest` et server actions sans `per_page` ni `page`, rendus en `EntitySelect`, `<select>` ou liste de liens sous `/app`), hors personnes (angle 120) : élément au-delà de la 20ᵉ ligne qu'on ne peut pas choisir ni ouvrir — le relevé de l'angle 135 sous 50 lignes | à faire |
 | 172 | Lectures du navigateur faites par `fetch` dans un `useEffect`, hors de TanStack Query (`useWelcomeOnce`, `useTenantWelcomeOnce`, `useAgencyStandardWelcomeOnce`, `MinimalProfileTriggerProvider`, `AuthContext`, `useSimilarProperties`, `usePropertyReviews`, `Navbar`) : ni cache ni dédoublonnage entre lecteurs, aucune relecture à l'invalidation, réponse tardive appliquée après un changement de compte ou de profil actif — né de P136.03 | à faire |
 | 173 | Autres fichiers `index.ts` réexportateurs (`components/feedback`, `components/map`, `components/media`, `components/console`, `components/property-form`, `components/customer-form`, `components/floating-dock`) : paquets lourds (carte, téléversement, éditeurs) qu'un écran charge pour un seul composant léger qu'il y prend — le relevé de l'angle 137 hors de `components/forms` | à faire |
@@ -274,6 +274,7 @@ voie d'écriture (angle 13, puis 47).
 | 197 | Clés TanStack Query des lectures portées par l'agence du profil actif sans l'agence ni le profil dans la clé (`PROPERTY_MODERATION_COUNT_KEY`, `AGENCY_INVITATIONS_COUNT_KEY` d'`agency-queues.ts`, et leurs pareilles sous `src/lib/queries`) face au changement de profil actif, qui n'invalide que `profiles`, `roles` et `permissions` (`useProfiles.ts:109-117`) : compte ou liste de l'agence quittée servis depuis le cache — né de l'angle 167 | à faire |
 | 198 | Un même mot compté par des règles différentes d'un écran à l'autre (« publié » : `status = published` du `PlatformMetricsSnapshotter`, `available`+`published` de `STATUTS_QUI_PUBLIENT` et de la santé d'agence, `visibility=public` de la tuile de `/app/properties` ; et leurs pareils pour « actif », « ouvert », « en retard ») : deux nombres sous un même libellé qui ne se rejoignent pas — né de P167.07 | à faire |
 | 199 | Listes chargées par morceaux (« Voir plus », `useInfiniteQuery` : `ConversationList`, `CustomerActivityFeed`, `PipelineKanban`/`PipelineColumn`, `announcements`, `AgencyCombobox`) puis triées, filtrées ou comptées côté client sur les seules pages chargées : colonne, onglet ou recherche vide alors que le total de l'API en compte, et chargement de la suite qu'aucun bouton n'offre plus — né de P168.02 | à faire |
+| 200 | Gestes d'argent qui créent ou encaissent une ligne sans juger l'état de son parent (`BookingPaymentController::store` et `PaymentGatewayService::isPayable` face à `BookingStatus`, `POST /api/invoices` d'un `invoiceable` annulé ou terminé, liens de paiement `LeasePaymentLinkService` d'un bail sorti, reversement d'une ligne dont la réservation a été annulée après encaissement) : paiement ouvert ou encaissé sur un dossier clos, que seul l'écran empêche — né de P170.01 | à faire |
 
 ---
 
@@ -15804,3 +15805,96 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu, et mesuré.
 - Piste : dater le passage en urgent (marque posée par `store` et par `update` quand `priority` devient `urgent`, ou une date dédiée) et faire courir les 30 minutes depuis elle ; envoyer l'alerte d'urgence au passage en urgent par `update` comme par `store`, et retirer `escalated_at` quand la priorité quitte `urgent`. Garde : un test « passage en urgent, job à +2 min » qui n'attend aucune escalade, et à +31 min qui en attend une.
 - Mesure (2026-10-22, b3f03fbdd, mesureur) : relu `EscalateUrgentMaintenanceJob.php:19-38` (filtre sur `created_at` ≤ now-30 min, `escalated_at` jamais retiré), `MaintenanceRequestController.php:137-145` (alerte dans `store` seul) et `::update` (`fill($data)->save()`, l. ~211), `routes/console.php:108` (horaire), `lang/fr/notifications.php:873` ; `git log 88c684c67..HEAD` → vide ; test temporaire `SondeMesureur169Test` (retiré, même charge) : demande `normal` créée il y a 3 jours, passée `urgent` par `fill()->save()` → 0 alerte ; job à +2 min → 1 notification à l'admin principal, `isEscalation = true` → le constat tient ; le cas « ramenée à `high` puis remise à `urgent` » est lu, non joué. Classement : V7, envoyer au passage en urgent une alerte dont le texte dit « a été soumise » (`notifications.php:871`), choisir d'où courent les 30 minutes et ré-escalader après un retour à `urgent` sont des comportements visibles neufs et un texte à reprendre.
+
+## Angle 170 — Montants envoyés par le navigateur et pris tels quels par l'API
+
+*Exploré le 2026-10-22 sur `pre-dev` 5a015cfa1, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : les FormRequests qui reçoivent un montant
+(`grep` de `amount|cost|price|fee|total|subtotal` sous `app/Http/Requests`), `BookingPaymentController`,
+`BookingPaymentService`, `LeasePaymentController`, `LeasePaymentService`, `InvoiceService`,
+`DepositRefundService`, `PayoutController` et `StorePayoutRequest`, `PayoutCalculator::bookingPayments`,
+`PaymentGatewayService::isPayable`, `LeaseService::create`, et côté front `BookingPaymentDialog`,
+`BookingDetail` (`CustomerPayCta`) et `lib/queries/leases.ts`. Les comportements viennent d'un test
+temporaire (`tests/Feature/TmpExplo170/SondeAngle170Test.php`, base de test PostgreSQL, charge 4,31
+puis 3,14 sur 8 cœurs), retiré avant la fin. Écarté parce que déjà dérivé ou borné par l'API : le
+paiement de réservation du client (P133.05, TCK-1309), le sous-total d'une facture à lignes
+(P133.02), le brut, la commission et les frais d'un reversement (`prohibited`, TCK-594), le montant
+de `mark-paid` et de la pénalité réglée (aucun champ de montant), le remboursement d'un acompte (borné
+par le payé, TCK-1214), le coût réel d'une intervention (plafond du bailleur, `OwnerApprovalThreshold`),
+le devis (`amount` `prohibited`, lignes recomptées), le boost (prix lu du produit), le total et
+l'acompte d'une réservation (`BookingQuote`, TCK-530). La restitution d'une caution bornée par la
+caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
+
+### Le client d'une réservation annulée peut encore ouvrir un paiement : l'API dérive le reste dû sans lire le statut de la réservation
+- Réf : P170.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/BookingPaymentController.php:34-58`, `takussan-api/app/Services/Model/BookingPaymentService.php:60-71`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1712-1728`, `takussan-web/src/components/bookings/BookingDetail.tsx:536`
+- Constat :
+  - Le bouton de paiement du client ne s'affiche que sur une réservation `pending` ou `confirmed` (lu, `BookingDetail.tsx:536`). Cette règle n'existe qu'au navigateur.
+  - `store` force le statut et dérive le montant pour le client (TCK-1309), mais ni le contrôleur ni `dueFromCustomer()` ne lisent `bookings.status` (lu).
+  - Mesuré, test temporaire : réservation `cancelled` à 100 000 (acompte 30 000), le personnel y enregistre 50 000 ; le client poste `{}` → `201`, ligne `pending` de 50 000.
+  - La passerelle juge la seule ligne : `isPayable()` refuse `paid`, `refunded`, `cancelled` sur la ligne, et `grep BookingStatus` sur `PaymentGatewayService.php` et `PaymentGatewayController.php` ne rend rien (lu). Que l'initiation aboutisse sur cette ligne est déduit, à vérifier (aucune intégration montée dans le test).
+  - La spec dit qu'une réservation annulée appelle un remboursement, pas un paiement (lu, `docs/features.md:161`).
+  - Établi comment : lu, mesuré.
+- Piste : refuser dans `BookingPaymentController::store` (ou `dueFromCustomer`) une réservation hors `pending`/`confirmed` par un 422 codé, et faire juger le même statut par `isPayable()` pour une `BookingPayment`. Garde : un test par statut terminal (`cancelled`, `rejected`, `expired`) côté client, et un test d'initiation refusée.
+
+### Le personnel enregistre un paiement de réservation `paid` d'un montant sans borne, et il entre au reversement du bailleur
+- Réf : P170.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:65,72`, `takussan-api/app/Services/Model/BookingPaymentService.php:25-48`, `takussan-api/app/Services/Payout/PayoutCalculator.php:80-99`, `takussan-web/src/components/bookings/BookingPaymentDialog.tsx:51-66`, `takussan-web/src/lib/schemas/booking.ts:64-66`
+- Constat :
+  - Pour le personnel ou le bailleur direct, `amount` est `numeric|min:0`, et le statut vaut `paid` par défaut (lu, `StoreBookingPaymentRequest.php:65`, `BookingPaymentService.php:26-28`). Le dialogue n'envoie pas de statut et ne borne le montant que par `positive()` (lu).
+  - Rien ne compare le montant au reste dû de la réservation (lu, `create()` écrit `$data['amount']`).
+  - Mesuré, test temporaire : agent, réservation `confirmed` à 100 000, `{amount: 999999999, payment_type: advance, payment_method: cash}` → `201`, ligne `paid` à 999 999 999.
+  - Le même test lit `PayoutCalculator::bookingPayments(agence, bailleur)` → somme 999 999 999 : la ligne entre au brut du prochain reversement.
+  - Mesuré aussi : la même saisie sur une réservation `cancelled` → `201` `paid` (voir P170.01).
+  - Une saisie fautive (un zéro de trop) devient donc un reversement au bailleur d'un argent jamais reçu, sans autre garde que le seuil d'approbation de l'agence (déduit, à vérifier).
+- Piste : borner le montant d'une ligne posée par le personnel par le reste dû (total − lignes `paid`), 422 codé au-delà, et refuser une réservation hors `pending`/`confirmed`/`completed` ; ou, si un trop-perçu doit pouvoir s'enregistrer, l'écrire comme tel et l'exclure du reversement. Garde : un test API au-delà du reste dû.
+
+### Une ligne `partially_paid` posée par le personnel n'est comptée nulle part : le client se voit redemander l'acompte entier
+- Réf : P170.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:72`, `takussan-api/app/Services/Model/BookingPaymentService.php:31-33,60-71`, `takussan-api/app/Services/Payout/PayoutCalculator.php:87`
+- Constat :
+  - Le personnel peut poser `status: partially_paid` (lu, `Rule::enum(…)->only([Paid, Pending, PartiallyPaid])`, l. 72). La ligne naît sans `paid_at` (lu, l. 31-33).
+  - `dueFromCustomer()` ne compte que les lignes `paid` (lu, l. 62). Mesuré, test temporaire : réservation à 100 000 (acompte 30 000), le personnel pose 30 000 en `deposit` `partially_paid` → `201`, `paid_at` nul ; le client poste `{}` → `201`, ligne `pending` de 30 000 en `deposit`.
+  - Le reversement ne la prend pas non plus (`status = paid` et `paid_at` non nul, lu, l. 87-89 ; mesuré : 0 ligne).
+  - Ce que représente le montant d'une ligne `partially_paid` (la part reçue, ou le dû dont une partie est reçue) n'est écrit nulle part : à vérifier. P133.05 laissait ce point ouvert côté client.
+- Piste : soit retirer `partially_paid` des statuts que le personnel peut poser (une part reçue est une ligne `paid` de son montant), soit écrire son sens et le compter dans `dueFromCustomer()` et dans le reversement. Garde : le scénario mesuré.
+
+### Une échéance de bail créée à la main prend tout montant, et un second loyer sur la même période, sans rapport au loyer ni à la caution du bail
+- Réf : P170.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreLeasePaymentRequest.php:44-52`, `takussan-api/app/Services/Model/LeasePaymentService.php:30-42`, `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:54-72`, `takussan-web/src/lib/queries/leases.ts:404-408`
+- Constat :
+  - `amount` est `numeric|gt:0` quel que soit `payment_type` (lu). `create()` écrit les données telles quelles, sans comparer `rent` à `monthly_rent`, `deposit` à `deposit_amount`, ni la période aux échéances existantes (lu).
+  - Mesuré, test temporaire : bail `active` à 400 000 de loyer et 800 000 de caution, bailleur ; trois `POST /api/leases/{id}/payments` sur `2026-01-01`→`2026-01-31` : `rent` 1, `rent` 400 000, `deposit` 5 → `201` trois fois, trois lignes `pending`.
+  - Une ligne ainsi posée est payable en ligne par le locataire (`isPayable` ne juge que le statut et le type `deposit_refund`, lu), et une caution `deposit` de 5 réglée compte 5 dans les cautions détenues (`PortfolioMetrics::depositsHeld`, lu) quand la restitution reste bornée à 800 000 (P04.10).
+  - Le front n'appelle plus cette route : `lib/queries/leases.ts:404-408` le dit, et `grep` des `POST` sur `/api/leases/${…}/payments` hors tests ne rend que `generate-schedule` (mesuré). Seul un appel direct l'atteint.
+- Piste : décider si la route reste (charges, régularisations, pénalités) ; si oui, refuser `rent` et `deposit` (l'échéancier les pose, `generate-schedule`) ou les dériver du bail, et refuser un loyer sur une période déjà échue au bail ; sinon, la retirer (sans appelant au front, à vérifier côté autres clients). Garde : un test par type.
+
+### Une facture sans lignes prend un sous-total ni arrondi à la devise ni borné : 10,5 XOF est émis, et un grand nombre rend 500
+- Réf : P170.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:45`, `takussan-api/app/Services/Model/InvoiceService.php:65-72`, `takussan-api/app/Services/Maintenance/CurrencyUnit.php:24`
+- Constat :
+  - Depuis TCK-1377, le sous-total d'une facture à lignes est recompté et arrondi ligne à ligne ; sans `items`, `subtotal` reste requis, en `numeric|min:0`, sans `max:` ni `decimal:` (lu, l. 45), et le service le prend tel quel (`(float) $data['subtotal']`, lu, l. 66). Seule la TVA est arrondie à la devise (lu, l. 71).
+  - Mesuré, test temporaire : administrateur d'agence, `POST /api/invoices` en XOF sans lignes, `subtotal: 10.5` → `201`, `subtotal` et `total_amount` à 10,5 ; `subtotal: 999999999999999` → `500` `numeric field overflow` (colonne `decimal(14,2)`).
+  - Le front envoie désormais des lignes (P133.02) : seul un appel direct passe par cette voie.
+  - Les lignes, elles, sont bornées (`max:1000000000`, `decimal:0,2`) et le total est refusé au-delà de `CurrencyUnit::MAX_COLUMN` (lu, `InvoiceService.php:123`).
+- Piste : appliquer au `subtotal` sans lignes les mêmes bornes et le même arrondi que les lignes (`decimal:0,2`, `max:` de la colonne, `Currency::roundAmount`), ou exiger des lignes. Garde : les deux cas mesurés (10,5 XOF, et le grand nombre → 422).
+
+### Petites améliorations
+- Réf : P170.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Model/LeaseService.php:82-87`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:65`
+- Constat :
+  - Commission d'une vente dérivée « prix × taux » : `round(…, 2)`, et non `Currency::roundAmount` (lu, `LeaseService.php:86`). Un prix de 1 234 567 XOF à 2,5 % donne 30 864,18 XOF (calcul, non mesuré), un montant à sous-unité dans une devise qui n'en a pas (ADR-0009).
+  - Paiement de réservation du personnel : `amount` admet `0` (`min:0`, lu, l. 65), quand la ligne de bail exige `gt:0` (P46.05, TCK-958) ; une ligne `paid` à 0 reçoit un numéro de reçu (lu, `BookingPaymentService.php:40`). Non mesuré.
+- Piste : arrondir la commission par la devise du bail ; passer `amount` à `gt:0` pour le personnel. Un test par point.
