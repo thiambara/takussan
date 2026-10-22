@@ -10848,7 +10848,7 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
 
 ### L'export RGPD n'a pas de `failed()` : un job tué laisse l'export « en préparation » pour toujours, et l'écran relance la liste toutes les 10 s
 - Réf : P111.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Privacy/ProcessDataExport.php:14-25`, `takussan-api/app/Services/Privacy/DataExportBuilder.php:50-82`, `takussan-api/app/Jobs/Privacy/PurgeExpiredDataExports.php`, `takussan-web/src/components/privacy/DataExportsPanel.tsx:35,45,72`
 - Constat :
@@ -10858,10 +10858,11 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
   - L'écran du compte relance la liste toutes les 10 s tant qu'un export est `queued` ou `processing` (lu, `DataExportsPanel.tsx:35,45,72`) : il le fait sans fin sur une ligne bloquée, tant que la page est ouverte.
   - Établi comment : lu. Qu'un export réel dépasse 60 s ou la mémoire n'est pas mesuré (angle 78 : 2,9 s pour 20 000 lignes) ; le déclencheur reste donc la mort du worker, à vérifier.
 - Piste : un `failed()` qui passe à `failed` un export encore `queued` ou `processing`, sur le modèle de `GenerateReportExport::failed()`. Test : `failed()` appelé sur un export `processing` le rend `failed`, ablation comprise.
+- Mesure (2026-10-22, f396fa470, mesureur) : relu `ProcessDataExport.php` (25 lignes, ni `failed()`, ni `$tries`, ni `$timeout`), `DataExportBuilder::build()` (passage à `failed` dans le seul `catch`), `PurgeExpiredDataExports` (ne lit que `ready` échus) et `DataExportsPanel.tsx` (`EN_PREPARATION` = `queued`, `processing`, l. 35 ; `refetchInterval` l. 72) ; `git log` sur le job et `grep` des tickets → aucun correctif ; test temporaire (retiré, charge 4,78 / 5,16 / 4,45 sur 8 cœurs) → `method_exists(ProcessDataExport, 'failed')` faux, un export `processing` le reste. La mort réelle du worker n'est pas reproduite, comme dans le constat. Classement : A1, le contrat est déjà écrit par le `catch` de `build()` (une exception passe l'export à `failed`) et par `GenerateReportExport::failed()` (TCK-1145), dont le correctif est la copie, sans texte ni statut neufs.
 
 ### Un export RGPD en échec bloque une nouvelle demande pendant 24 h
 - Réf : P111.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : compter ou non une demande échouée dans la limite de 24 h est un choix de produit que la spec ne tranche pas
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/DataExportController.php:29-50`, `docs/features.md:475`
 - Constat :
@@ -10870,10 +10871,11 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
   - La spec écrit « une demande par 24 h » (lu, `features.md:475`), sans dire si une demande échouée compte.
   - Établi comment : lu et mesuré.
 - Piste : ne compter que les demandes `queued`, `processing` ou `ready` dans la limite, ou laisser la règle et l'écrire dans la spec. C'est un choix de produit.
+- Mesure (2026-10-22, f396fa470, mesureur) : relu `DataExportController::store()` (filtre `requested_at > now()->subDay()`, aucun filtre sur `status`) et `features.md:475` (« une demande par 24 h ») ; test temporaire (retiré) → export du titulaire `failed` il y a une heure, `POST /api/me/data-exports` rend `429 data_export_throttled`. Classement : V7, la `Piste` laisse deux options (filtrer par statut, ou écrire la règle dans la spec), et la spec ne dit pas laquelle.
 
 ### Quand le courriel « prête » échoue, le job d'export reconstruit tout à chaque essai, et le rapport `ready` repasse à `failed`
 - Réf : P111.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:61-83`, `takussan-api/app/Notifications/ReportExportReadyNotification.php:11-20`, `takussan-api/app/Jobs/Privacy/ProcessDataExport.php:22-23`, `takussan-api/app/Notifications/DataExportReadyNotification.php:30-42`, `takussan-api/app/Http/Controllers/Api/ReportExportDownloadController.php:39-48`
 - Constat :
@@ -10883,10 +10885,11 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
   - La portée du rapport est faible : aucun rapport n'atteint aujourd'hui le seuil asynchrone (P78.04).
   - Établi comment : mesuré pour l'état après `handle()` et après `failed()`, lu pour la reprise par le worker.
 - Piste : mettre la notification en file (`ShouldQueue`, avec `backoff`), ou attraper l'échec du courriel après `ready` pour que le job ne lève plus ; et faire que `GenerateReportExport::failed()` ne touche qu'un export encore `queued` ou `processing`. Test : canal `mail` qui lève → export `ready`, job sans exception, ou `failed()` sans effet sur un `ready`.
+- Mesure (2026-10-22, f396fa470, mesureur) : relu les deux notifications « prête » (ni `ShouldQueue`, canal `mail` seul), `GenerateReportExport::handle()` (notifie après l'écriture de `ready`) et `failed()` (met `failed` sans condition sur le statut) ; test temporaire (retiré), canal `mail` remplacé par un canal qui lève → rapport : `ready` et exception `smtp down` après `handle()`, puis `failed` avec `failure_reason` = `smtp down` après `failed()` ; export RGPD : `ready` et exception levée après `handle()`. La reconstruction aux essais suivants est lue (`build()` repasse à `processing`), non rejouée. Classement : A1, le commentaire de `failed()` (TCK-1145) borne son rôle à un calcul ou une écriture qui lève, et `ready` promet un fichier téléchargeable ; le correctif ne touche ni texte ni statut.
 
 ### Le résumé de notifications est marqué « envoyé » avant l'envoi, qui part dans un job à part sans `backoff` : un échec du fournisseur le perd en silence
 - Réf : P111.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le commentaire du job choisit de perdre un résumé plutôt que de le renvoyer deux fois, et revenir sur ce choix change ce que reçoit l'utilisateur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Notifications/BuildUserDigestJob.php:61-72`, `takussan-api/app/Mail/NotificationDigestMail.php:21`, `takussan-api/app/Services/Notifications/DigestBuilderService.php:26-54`
 - Constat :
@@ -10896,3 +10899,4 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
   - Le commentaire de la l. 69-70 dit éviter un double envoi ; avec la mise en file, ce cas n'existe plus dans ce `try`.
   - Établi comment : lu.
 - Piste : `backoff` sur `NotificationDigestMail`, et poser `digested_at` après l'envoi réel (dans le Mailable, ou en envoyant de façon synchrone dans le job), ou le retirer dans un `failed()`. Test : un transport qui lève trois fois laisse les notifications sans `digested_at`.
+- Mesure (2026-10-22, f396fa470, mesureur) : relu `BuildUserDigestJob::handle()` (`Mail::to()->send()` dans un `try`, `markDigested()` dans le `finally`), `NotificationDigestMail` (`ShouldQueue`, sans `$tries`, `backoff` ni `failed()`), `DigestBuilderService::buildForUser()` (`whereNull('digested_at')`) et `deploy/takussan/compose.api.yml:125` (`--tries=3`) ; `prod-drivers.json` → `QUEUE_CONNECTION=database` mesuré en préproduction ; test temporaire (retiré), file simulée → `SendQueuedMailable` mis en file et `digested_at` posé aussitôt. Classement : V7, la `Piste` laisse trois façons de faire, et toutes reviennent sur le choix écrit l. 69-70 (pas de double envoi), ce qui peut doubler un résumé si une panne survient après l'envoi.
