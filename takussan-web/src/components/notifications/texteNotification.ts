@@ -47,6 +47,15 @@ export type LibelleFournisseur = (code: string) => string | null;
 /** Les codes dont le paramètre `provider` est un code de fournisseur d'intégration (`PARAM_PROVIDER`). */
 const CODES_A_FOURNISSEUR = new Set(['governance.integration_changed']);
 
+/**
+ * P164.02 (TCK-1470) — les paramètres de nature `month` côté API (`PARAM_MONTH`) : un mois rangé
+ * `Y-m`, écrit en toutes lettres (« septembre 2026 »). Une valeur d'une autre forme reste telle quelle.
+ */
+const PARAMS_MOIS: Readonly<Record<string, readonly string[]>> = {
+  'owner_statement.available': ['period'],
+};
+const MOIS = /^\d{4}-(0[1-9]|1[0-2])$/;
+
 function libelleGeneriqueFournisseur(code: string): string {
   return code
     .split('_')
@@ -61,6 +70,7 @@ export function valeursDeNotification(
   motif?: LibelleMotif,
   role?: LibelleRole,
   fournisseur?: LibelleFournisseur,
+  mois: readonly string[] = [],
 ): ValeursNotification {
   const valeurs: ValeursNotification = {};
   for (const [nom, valeur] of Object.entries(params ?? {})) {
@@ -72,6 +82,8 @@ export function valeursDeNotification(
       valeurs[nom] = role(valeur) ?? valeur;
     } else if (nom === 'provider' && fournisseur && typeof valeur === 'string' && valeur !== '') {
       valeurs[nom] = fournisseur(valeur) ?? libelleGeneriqueFournisseur(valeur);
+    } else if (mois.includes(nom) && typeof valeur === 'string' && MOIS.test(valeur)) {
+      valeurs[nom] = fmt.date(`${valeur}-01`, { month: 'long', year: 'numeric' });
     } else if (valeur === null || valeur === undefined || valeur === '') {
       valeurs[nom] = VALEUR_ABSENTE;
     } else if (typeof valeur === 'number') {
@@ -113,7 +125,7 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
 
     const role = code.startsWith(CODES_A_ROLE_CODE) ? libelleRole : undefined;
     const fournisseur = CODES_A_FOURNISSEUR.has(code) ? libelleFournisseur : undefined;
-    const valeurs = valeursDeNotification(notification.params, fmt, motif, role, fournisseur);
+    const valeurs = valeursDeNotification(notification.params, fmt, motif, role, fournisseur, PARAMS_MOIS[code]);
     return {
       titre: t(`${code}.title`, valeurs),
       corps: t.has(`${code}.body`) ? t(`${code}.body`, valeurs) : repli.corps,

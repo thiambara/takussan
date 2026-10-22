@@ -122,6 +122,23 @@ describe('NotificationRow', () => {
     expect(document.body.textContent ?? '').toContain('plomberie_diop');
   });
 
+  // P164.02 (TCK-1470) — la période d'un relevé de gérance arrive en `Y-m` (`2026-09`) : elle se
+  // lit en mois écrit, jamais brute.
+  it.each([
+    ['fr', 'Relevé de gérance septembre 2026 disponible'],
+    ['en', 'Your September 2026 management statement is available'],
+  ] as const)('écrit le mois du relevé de gérance (%s)', (locale, titre) => {
+    renderRow(notification({
+      type: 'payment',
+      code: 'owner_statement.available',
+      params: { period: '2026-09' },
+      target: null,
+    }), locale);
+
+    expect(screen.getByText(titre)).toBeInTheDocument();
+    expect(document.body.textContent ?? '').not.toContain('2026-09');
+  });
+
   it('formate le montant et la date, sans « 150000.00 » ni « XOF » bruts', () => {
     renderRow(notification());
 
