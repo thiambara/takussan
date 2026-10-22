@@ -218,7 +218,12 @@ class CustomerController extends Controller
 
         $relationship->update(['is_primary' => true]);
 
-        return $this->json(['data' => $relationship]);
+        // TCK-1500 (P94.04) — `started_at` et `ended_at` sont castés `date` : ils sortent en
+        // `Y-m-d` (ADR-0018), et non en instant de minuit comme le rendait le modèle brut.
+        return $this->json(['data' => array_merge($relationship->toArray(), [
+            'started_at' => $relationship->started_at?->toDateString(),
+            'ended_at' => $relationship->ended_at?->toDateString(),
+        ])]);
     }
 
     public function relationships(Request $request, Customer $customer): JsonResponse
