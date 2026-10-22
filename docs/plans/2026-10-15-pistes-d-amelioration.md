@@ -11915,7 +11915,7 @@ est déjà P91.06.*
 
 ### Un relevé bancaire CSV dont la colonne devise dit « FCFA », ou dont une référence dépasse 255 caractères, échoue en entier
 - Réf : P124.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : devise inconnue, sauter la ligne ou refuser le relevé, et alias FCFA→XOF
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Accounting/StatementParser/CsvDriver.php:126-138`, `takussan-api/app/Services/Accounting/StatementParser/OfxDriver.php:90-100`, `takussan-api/app/Jobs/Accounting/ParseBankStatementJob.php:91-121,156-171`
 - Constat :
@@ -11929,10 +11929,11 @@ est déjà P91.06.*
   - « FCFA » est l'écriture courante de la devise sur les relevés des banques sénégalaises (à vérifier sur des relevés réels ; aucun échantillon dans le dépôt).
   - Établi comment : lu et mesuré.
 - Piste : borner `reference` et `counterparty` par `mb_substr(…, 0, 255)` dans les deux pilotes, comme `IcalReader` le fait pour l'UID. Pour la devise, ramener les écritures connues (`FCFA`, `F CFA`, `CFA`) à `XOF`, et faire sauter une ligne dont la devise n'est pas un code de trois lettres, en la comptant dans `skipped` comme une ligne au sens illisible (`ParseTally`), plutôt que de faire échouer le relevé entier. Le choix entre « sauter » et « refuser le relevé » pour une devise inconnue peut relever du porteur. Un test par pilote : cellule de 256 caractères → ligne importée et tronquée ; devise `FCFA` → ligne en `XOF`.
+- Mesure (2026-10-22, 9662e2ff4, mesureur) : relu `CsvDriver.php:126-138`, `OfxDriver.php:90-100` et `ParseBankStatementJob.php:77-121` (inchangés depuis 86138895e, `git log 86138895e..HEAD -- takussan-api/app` vide) ; aucun ticket ni commit ne borne ces champs ; trois méthodes temporaires dans `BankStatementPipelineTest` (retirées), mapping `currency_column=Devise` puis `ParseBankStatementJob::handle()` (charge 3,94 / 2,47 / 2,07 sur 8 cœurs) → `FCFA` : relevé `failed`, 0 ligne, 22001 (`value too long for type character(3)` au journal PostgreSQL) ; `XOF` : `ready_for_review`, 1 ligne ; `reference` de 300 caractères sur la première de deux lignes : `failed`, 0 ligne, 22001 sur `varchar(255)`. Le constat tient en entier. Classement : V7 et V1, la borne de `reference`/`counterparty` serait A1 seule, mais la piste lie la devise inconnue à un choix (sauter la ligne ou refuser le relevé) que l'explorateur renvoie lui-même au porteur, et la devise ramenée à `XOF` change ce que le rapprochement apparie.
 
 ### Un accusé SMS en échec dont le texte du fournisseur dépasse 255 caractères rend 500, et la tentative reste « envoyée »
 - Réf : P124.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:77,95`, `takussan-api/app/Http/Controllers/Webhook/MtargetSmsStatusController.php:71,97`, `takussan-api/app/Services/Notifications/Sms/Dlr/DlrReportApplier.php:82-91`, `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:93-97`, `takussan-api/app/Console/Commands/SmsPullMtargetDlr.php:68-70`
 - Constat :
@@ -11942,10 +11943,11 @@ est déjà P91.06.*
   - Pour la relève, `SmsPullMtargetDlr` applique les rapports d'une page sans `try` (lu, l. 68-70). Un rapport fautif arrête donc la commande, et les comptes des agences suivantes ne sont pas relevés. Le docblock du puller décrit une file que la relève vide (lu, `MtargetDlrPuller.php:20`) : les rapports restants de la page seraient alors perdus (déduit, à vérifier).
   - Établi comment : lu, et mesuré pour LAM.
 - Piste : borner `failureReason` à 255 caractères dans `DeliveryAttemptUpdater::applyStatus()`, le point de passage commun, avec `mb_substr`. Cela couvre les trois voies SMS et laisse la borne WhatsApp redondante mais juste. Un test par voie (LAM, Mtarget poussé, Mtarget relevé) avec un texte de 300 caractères, qui attend 200 et la tentative `failed`.
+- Mesure (2026-10-22, 9662e2ff4, mesureur) : relu `DeliveryAttemptUpdater.php:93-97` (`failure_reason` écrit sans borne), `LAfricaMobileSmsStatusController.php:77,95`, `MtargetSmsStatusController.php:71,97`, `DlrReportApplier.php:82-91`, `SmsPullMtargetDlr.php:68-70` ; aucun ticket ni commit sur ces voies (TCK-1046 ne borne que WhatsApp) ; méthode temporaire dans `LAfricaMobileSmsWebhookTest` (retirée), rappel signé émis par le pilote, `status=2`, `text` de 300 caractères → **500**, `value too long for type character varying(255)` au journal PostgreSQL. Statut de la tentative après le 500 et voies Mtarget non rejouées : lues seulement. Classement : A1, la colonne est un `varchar(255)` et la voie sœur WhatsApp borne déjà le même motif à 255 (TCK-1046) ; le correctif attendu est un `mb_substr($failureReason, 0, 255)` dans `DeliveryAttemptUpdater::applyStatus()`, avec un test par voie qui attend 200 et la tentative `failed`, sans choix de produit.
 
 ### Le `user_agent` d'une demande de contact est coupé à 255 octets et peut tomber au milieu d'un caractère : 500 sur la voie publique
 - Réf : P124.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Lead/ContactLeadService.php:215,314`
 - Constat :
@@ -11955,10 +11957,11 @@ est déjà P91.06.*
   - Un agent utilisateur non ASCII au-delà de 254 octets reste rare (à vérifier ; aucune mesure de trafic dans le dépôt). Quand il se présente, le visiteur perd sa demande, sans message utile.
   - Établi comment : lu et mesuré.
 - Piste : `mb_substr(…, 0, 255)` aux deux lignes. Un test de chaque voie publique avec un agent utilisateur de 254 octets ASCII suivis d'un caractère accentué, qui attend 204 (clic) ou 201 (demande) et une valeur valide en UTF-8. Une garde de forme, sur le modèle des `check-*.mjs`, pourrait refuser un `substr(` appliqué à un `userAgent()` ou à une valeur écrite en base.
+- Mesure (2026-10-22, 9662e2ff4, mesureur) : relu `ContactLeadService.php:215,314`, toujours `substr((string) $request->userAgent(), 0, 255)` ; `git log -S` ne rend que son introduction (91cbd0cc9, TCK-590) ; test temporaire (retiré) `POST /api/public/properties/{slug}/contact-click` sans authentification, `User-Agent` de 254 `a` suivis de `é` → **500**, `SQLSTATE[22021] invalid byte sequence for encoding "UTF8": 0xc3`. Voie `contact-lead` lue, non jouée. Classement : A1, le contrat est déjà écrit dans le dépôt (`FailedJobService::truncate()` corrige ce même défaut, `LeaseSignatureService.php:167` écrit le même en-tête avec `mb_substr`) ; le correctif est `mb_substr(…, 0, 255)` aux deux lignes, avec un test par voie publique, et ne change ni ce qui est conservé ni la longueur gardée (V3 non touché). La garde de forme suggérée en fin de piste reste facultative.
 
 ### Petites améliorations des colonnes bornées
 - Réf : P124.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Webhooks/WebhookJournal.php:139-151`, `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:88-97`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:524,597`
 - Constat :
@@ -11966,3 +11969,4 @@ est déjà P91.06.*
   - Aucune garde ne relève une écriture dérivée face à la longueur de sa colonne. `BornesMaxFaceAuSchemaTest` (P91.07) ne voit que les règles `max:` des FormRequest, et les bornes de cet angle ne sont tenues que voie par voie, dans cinq fichiers.
   - Établi comment : lu.
 - Piste : borner `event_type` comme `external_id` dans `annotate()`. Les correctifs de P124.01 à P124.03 portent chacun un test qui écrit N+1 caractères, ou un caractère multioctet à la limite, et attend l'écriture.
+- Mesure (2026-10-22, 9662e2ff4, mesureur) : relu `WebhookJournal.php:148-149` (`external_id` borné à 191, `event_type` écrit tel quel), `OrangeSmsStatusController.php:97`, `PaymentGatewayService.php:524,597` ; méthode temporaire dans `WebhookJournalTest` (retirée) : accusé Orange accepté (liste d'IP vide, jeton d'URL valide) dont `deliveryStatus` fait 300 caractères → **500**, `value too long for type character varying(255)` au journal PostgreSQL. Le « à vérifier » du constat porte sur la probabilité (chemin après authentification), pas sur le défaut, qui est mesuré. Classement : A1, la colonne et la borne voisine du même appel fixent le comportement attendu ; le correctif est `mb_substr((string) $facts['event_type'], 0, 255)` dans `annotate()`, avec un test d'accusé à 300 caractères qui attend la réponse habituelle.
