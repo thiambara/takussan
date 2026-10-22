@@ -13,6 +13,7 @@ use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Model\NotificationService;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Support\Collection;
 
 /**
@@ -51,7 +52,8 @@ class ReviewNotifier
         $subject = $review->reviewable;
 
         $recipients = match (true) {
-            $subject instanceof Property => User::query()->whereKey($subject->user_id)->get(),
+            // TCK-1316 — le créateur du bien, s'il compte encore (bailleur ou personnel actif).
+            $subject instanceof Property => collect([PrimaryPropertyContact::createurDestinataire($subject)])->filter(),
             $subject instanceof User => collect([$subject]),
             $subject instanceof Agency => $this->agencyAdmins($subject->id),
             $subject instanceof ServiceProviderProfile => User::query()->whereKey($subject->user_id)->get(),
