@@ -1,7 +1,7 @@
 ---
 id: TCK-1221
 title: "Le relais de maintenance rend un JSON sur une API sans réponse, et le bandeau ignore une réponse en échec"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -52,16 +52,16 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] `maintenance/status/route.ts` emploie `fetchVersApi`.
-- [ ] `MaintenanceBanner` : `fetchStatus` rend `null` sur une réponse non `ok`.
-- [ ] Tests : le relais sur un `fetch` qui rejette ; le bandeau sur une réponse 502.
+- [x] `maintenance/status/route.ts` emploie `fetchVersApi`.
+- [x] `MaintenanceBanner` : `fetchStatus` rend `null` sur une réponse non `ok`.
+- [x] Tests : le relais sur un `fetch` qui rejette ; le bandeau sur une réponse 502.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/maintenance/status` rend 502 `{ code: 'upstream_unavailable' }` quand l'API
+- [x] AC1 — `GET /api/maintenance/status` rend 502 `{ code: 'upstream_unavailable' }` quand l'API
       est injoignable.
-- [ ] AC2 — Sur une réponse non `ok`, le bandeau ne s'affiche pas et la requête n'est pas en erreur.
-- [ ] AC3 — L'exception `maintenance/status` sort du test statique de TCK-1219.
+- [x] AC2 — Sur une réponse non `ok`, le bandeau ne s'affiche pas et la requête n'est pas en erreur.
+- [x] AC3 — L'exception `maintenance/status` sort du test statique de TCK-1219.
 
 ## Hors périmètre
 
@@ -69,4 +69,8 @@ Aucun.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Les faux `fetch` de `MaintenanceBanner.test.tsx` ne portaient pas `ok` : ils prennent `ok: true`
+  par défaut, sans quoi le correctif masquait le bandeau de tous les cas existants.
+- Ablation : `MaintenanceBanner.tsx` et `maintenance/status/route.ts` rendus à `HEAD` → 3 rouges
+  (route qui lève, bandeau affiché sur un 502, test statique de TCK-1219 sans exception) ;
+  correctif remis → 21/21 verts.
