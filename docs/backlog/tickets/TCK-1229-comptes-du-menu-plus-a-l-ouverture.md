@@ -1,7 +1,7 @@
 ---
 id: TCK-1229
 title: "La barre publique ne demande les comptes par type qu'à la première ouverture du menu « Plus »"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -50,15 +50,15 @@ Aucun : `GET /api/public/property-types` inchangé.
 
 ## Delta à produire
 
-- [ ] `referentiel-public.ts` : `UNE_HEURE_MS` exportée et une clé `typesDeBien()`.
-- [ ] `Navbar` : `useQuery` activé à la première ouverture du menu, à la place de l'effet de montage.
-- [ ] Test vitest : menu fermé → aucun appel à `property-types` ; menu ouvert → un appel, et les
+- [x] `referentiel-public.ts` : `UNE_HEURE_MS` exportée et une clé `typesDeBien()`.
+- [x] `Navbar` : `useQuery` activé à la première ouverture du menu, à la place de l'effet de montage.
+- [x] Test vitest : menu fermé → aucun appel à `property-types` ; menu ouvert → un appel, et les
       comptes affichés.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `Navbar` rendue menu fermé : aucun appel à `property-types`.
-- [ ] AC2 — À l'ouverture, les comptes arrivent ; le menu s'affiche sans eux d'ici là.
+- [x] AC1 — `Navbar` rendue menu fermé : aucun appel à `property-types`.
+- [x] AC2 — À l'ouverture, les comptes arrivent ; le menu s'affiche sans eux d'ici là.
 
 ## Hors périmètre
 
@@ -66,4 +66,7 @@ Aucun : `GET /api/public/property-types` inchangé.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- L'activation se pose au clic du bouton « Plus » (`plusOuvertUneFois`), pas sur `moreOpen` :
+  refermer le menu ne désactive pas la requête.
+- Ablation : `Navbar.tsx` rendu à `HEAD` → 1 rouge (un appel à `property-types` menu fermé) ;
+  correctif remis → 2/2 verts, 120/120 sur les tests de la `Navbar` et du JS initial du layout.
