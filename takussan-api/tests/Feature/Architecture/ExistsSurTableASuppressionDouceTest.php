@@ -143,7 +143,7 @@ class ExistsSurTableASuppressionDouceTest extends TestCase
         }
 
         // Forme objet : `Rule::exists('<table>', …)` et la chaîne d'appels qui la suit.
-        $chaine = "(?:\\s*->\\s*\\w+\\s*\\((?:[^()]|\\((?:[^()]|\\([^()]*\\))*\\))*\\))*";
+        $chaine = '(?:\\s*->\\s*\\w+\\s*\\((?:[^()]|\\((?:[^()]|\\([^()]*\\))*\\))*\\))*';
         preg_match_all("/Rule::exists\\(\\s*['\"]([a-z_]+)['\"][^)]*\\)({$chaine})/", $code, $m, PREG_SET_ORDER);
         foreach ($m as [, $table, $appels]) {
             if (! preg_match("/->\\s*withoutTrashed\\s*\\(|->\\s*whereNull\\s*\\(\\s*['\"]deleted_at['\"]/", $appels)) {
