@@ -11808,7 +11808,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Ajouter une adresse à un bien public déjà en ligne ne la fait jamais entrer dans l'index : ville, quartier et coordonnées restent absents de la recherche et de la carte
 - Réf : P122.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1262
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:217-227`, `takussan-api/app/Models/Property.php:417-420`, `:466-490`
 - Constat :
@@ -11819,10 +11819,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lu, puis mesuré.
 - Piste : après l'écriture de l'adresse, réindexer le bien par `Property::reindexer()` sur une instance dont la relation est rechargée (`$property->load('address')`), ou poser `$property->setRelation('address', …)` sur l'adresse créée. Test sous `InteractsWithMeilisearch` : bien public sans adresse, `PUT` avec adresse → le document porte `city` et `_geo` ; rouge sur le code d'aujourd'hui.
 - Mesure (2026-10-22, 2abc59353, mesureur) : relu `PropertyController::update` (`$property->address ? …->update() : $property->address()->create()` après `fill()->save()`, inchangé hors numéros) et `Property::toSearchableArray()` (lit `$this->address`), aucun observateur d'`Address` ne réindexe (`Address::booted` canonise seulement ; `Address::saved` n'invalide que le cache public), `git log -S` et `docs/backlog/tickets` sans correctif ; test temporaire retiré (charge 2,04 / 1,94 / 1,80 sur 8 cœurs) : bien publié sans adresse, indexé, `PUT /api/properties/{id}` avec `address.city = Thies` et coordonnées → 200, base `Thies`, document `city = null` sans `_geo` → le constat tient. Classement : A1, le document doit refléter le bien (contrat de `toSearchableArray()`, et ADR-0062 §4 réindexe déjà toute écriture d'adresse du référentiel) ; réindexer après l'écriture de l'adresse ne demande aucun choix.
+- Mesure (2026-10-22, c072bdc37, implementeur) : `AdresseDuBienDansLIndexTest` (neuf, `InteractsWithMeilisearch`, réglage de la suite) : bien public en ligne sans adresse, `PATCH` avec Thiès et coordonnées → document `city` nul et sans `_geo` avant correctif ; `PropertyController::update` (et `store`) réindexent le bien par `load('address')->reindexer()` après la transaction → `Thies` et `_geo`, 3/3 verts ; ablation (contrôleur remis à `c072bdc37`) → 3 rouges. Ticket partagé avec P122.02.
 
 ### Sous `SCOUT_AFTER_COMMIT=false`, le défaut de `config/scout.php` et le réglage de la suite, un bien indexé garde l'ancienne adresse après un changement, et un bien créé public est indexé sans adresse
 - Réf : P122.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1262 — reste : relever les valeurs de `SCOUT_AFTER_COMMIT` et `SCOUT_QUEUE` en préproduction, hors du poste de l'implémenteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:133-145`, `:217-227`, `takussan-api/config/scout.php:59,72`, `takussan-api/phpunit.xml:104-105`, `takussan-api/.env.docker:210-211`, `takussan-api/vendor/laravel/scout/src/ModelObserver.php` (`saved`)
 - Constat :
@@ -11834,6 +11835,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lu, puis mesuré ; la préproduction n'est pas relevée.
 - Piste : ne plus dépendre du réglage, en réindexant le bien après l'écriture de l'adresse (le même correctif que P122.01, voir P122.01), dans `store()` comme dans `update()`. Relever les deux valeurs en préproduction. Test : modification et création publique sous le réglage de la suite → le document porte la nouvelle ville ; rouge aujourd'hui.
 - Mesure (2026-10-22, 2abc59353, mesureur) : relu `PropertyController::store` (`Property::create` puis `address()->create`, dans la transaction) et `::update`, `config/scout.php:72` (`after_commit` faux par défaut), `phpunit.xml:105` (`SCOUT_AFTER_COMMIT=false`) ; test temporaire retiré, réglage de la suite : bien publié à Dakar (Almadies), indexé, `PUT` avec Thiès (Randoulene) → base `Thies`, document `city = Dakar`, `neighborhood = Almadies` → le constat tient pour la modification ; la création n'a été que relue (même mécanisme). Classement : A1, même correctif que P122.01 dans `store()` et `update()`, indépendant du réglage ; le relevé des deux valeurs en préproduction sort du poste et n'est pas pour l'implémenteur (reste au porteur).
+- Mesure (2026-10-22, c072bdc37, implementeur) : même test que P122.01 : bien public à Dakar (Almadies), `PATCH` vers Thiès (Randoulene) → document resté `Dakar` avant correctif ; `POST` d'un bien public avec adresse à Thiès → document sans `city` ni `_geo` ; avec la réindexation après la transaction dans `store()` et `update()` → `Thies`, `Randoulene`, `_geo` ; ablation → rouge. Le relevé en préproduction n'est pas fait (hors du poste).
 
 ### `crm:normalize-customer-phones` réécrit `customers.phone` par `toBase()->update()` : l'index des clients garde l'ancien format du numéro
 - Réf : P122.03
