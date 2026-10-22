@@ -12884,7 +12884,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Le récapitulatif du renouvellement dit « — » pour la pénalité de retard et le délai de grâce, que le nouveau bail hérite pourtant du parent
 - Réf : P133.04
-- Statut : validé — porteur (2026-10-22) : le bail renouvelé reprend la pénalité de retard et le délai de grâce du bail d'origine
+- Statut : fait · TCK-1381
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseRenewalDialog.tsx:88-89,105-106,136-141,324-335`, `takussan-api/app/Services/Lease/LeaseRenewalService.php:124-125`, `takussan-api/app/Http/Resources/LeaseResource.php`
 - Constat :
@@ -12894,6 +12894,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Vider le champ ne retire pas la pénalité : un champ vide n'est pas envoyé, et l'API le lit comme « hériter » (lu, l. 136-141 du dialogue et l. 124-125 du service).
 - Piste : exposer `late_fee_percent` et `late_fee_grace_days` sur le détail du bail, pré-remplir le dialogue avec eux comme le loyer et la caution, et montrer la valeur du parent dans le récapitulatif. Garde : un test du dialogue sur un parent à 5 %, et un test de contrat de `LeaseResource`.
 - Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `LeaseRenewalDialog.tsx` (champs vides l. 88-89, `from="—"` en dur l. 326 et l. 332, envoi conditionnel l. 136-141), `LeaseRenewalService.php:124-125` (`$data['late_fee_*'] ?? $parent->late_fee_*`), `LeaseResource.php` (`grep late_fee` → rien ; `grep -rn late_fee_percent app/Http` ne rend que `RenewLeaseRequest` et `UpdateLeaseRequest`), `LeaseController::show` (rend `LeaseResource`) → le détail du bail n'expose pas la pénalité, et le récapitulatif ne peut pas montrer l'héritée ; test temporaire de l'explorateur non rejoué. Le constat tient. Classement : V1, la pénalité de retard est un montant ; exposer la valeur héritée est sûr, mais permettre de la retirer au renouvellement (champ vide) est un comportement neuf à décider (V7).
+- Mesure (2026-10-22, a2c7af2, implementeur) : tests avant correctif : bail à 5 % et 7 jours, `GET /api/leases/{id}` → ni `late_fee_percent` ni `late_fee_grace_days` (rouge, `LeaseLateFeeExposedTest`) ; dialogue de renouvellement sur ce parent → champs vides et récapitulatif « Pénalité de retard (%) — — » (rouge). Correctif : `LeaseResource` rend les deux valeurs, le dialogue les pré-remplit depuis le parent et le récapitulatif montre la valeur héritée, surlignée seulement si elle change → `LeaseLateFeeExposedTest` 2 verts, `LeaseRenewalDialog.test.tsx` 7 verts, `LeaseResourceUnloadedRelationsTest`, `LeaseRenewalEndpointTest`, `LeaseChainEndpointTest`, `LeaseTest`, `AmountRepresentationTest`, `DateRepresentationTest`, `DateInventoryByValueTest` verts ; ablation API → 2 rouges, ablation front → 3 rouges.
 
 ### Le montant d'un paiement de réservation est calculé par le navigateur, et l'API l'accepte tel quel
 - Réf : P133.05
