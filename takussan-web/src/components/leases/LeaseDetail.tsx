@@ -98,9 +98,15 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
     }).length;
   }, [paymentsData]);
 
+  // TCK-1189 (P101.02) — le seul titre de la page est celui du bail : les écrans de chargement
+  // et d'erreur gardent un h1, comme `BookingDetail`.
+  const titreDeRepli = (
+    <h1 className="sr-only">{tLease('fallbackReference', { id: String(leaseId) })}</h1>
+  );
   if (isLoading) {
     return (
       <div className="space-y-6" aria-busy="true">
+        {titreDeRepli}
         <Skeleton className="h-16 w-64 rounded-xl" />
         <Skeleton className="h-60 rounded-xl" />
       </div>
@@ -108,11 +114,14 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   }
   if (isError || !data) {
     return (
-      <ErrorState
-        message={t('error')}
-        onRetry={() => void leaseQuery.refetch()}
-        retryLabel={tCommon('actions.retry')}
-      />
+      <>
+        {titreDeRepli}
+        <ErrorState
+          message={t('error')}
+          onRetry={() => void leaseQuery.refetch()}
+          retryLabel={tCommon('actions.retry')}
+        />
+      </>
     );
   }
 
