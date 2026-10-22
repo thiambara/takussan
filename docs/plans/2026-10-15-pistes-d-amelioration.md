@@ -14107,7 +14107,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### La console Équipe rend une erreur dès qu'on trie par « Dernière connexion » : l'API refuse `sort=last_login_at`
 - Réf : P150.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin/users/AdminUsersTable.tsx:126-134,251-256`, `takussan-web/src/components/console/DataTable.tsx:209-232`, `takussan-web/src/lib/queries/admin-users.ts:61`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:26`, `takussan-api/app/Models/User.php:157,166-172,184,287`, `takussan-api/app/Http/Controllers/Api/UserAdminController.php:57-62`
 - Constat :
@@ -14117,10 +14117,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - La colonne triable date de TCK-373 (`git log -S"sortKey: 'last_login_at'"` → 2e3fb1181, 2026-08-26). L'URL garde le tri : recharger la page ou partager le lien reproduit l'erreur (déduit de la lecture de `:126`, à vérifier à l'écran).
   - Établi comment : lu, puis mesuré par le test temporaire.
 - Piste : ajouter `last_login_at` à `User::$requestSortable`, que lisent les trois constructeurs de `User`, et vérifier que le super-admin n'en est pas gêné (sa console trie par `-created_at` seul). Sinon, retirer `sortKey` de la colonne. Test côté API : `GET /api/users?sort=-last_login_at` → 200, lignes rangées. Garde contre le retour : P150.04.
+- Mesure (2026-10-22, 09ad70d08, mesureur) : relu `User.php:157` (`$requestSortable` = `id, created_at, email, status`, plus `nameSorts()`, lus par `buildQuery()` `:184`, `buildAgencyTeamQuery()` `:234` et le troisième constructeur `:312`) et `AdminUsersTable.tsx:253` (`sortKey: 'last_login_at'`) ; test temporaire `tests/Feature/Tmp/MesureurTmp150Test.php` (retiré, charge 3,15 / 3,23 / 3,30 sur 8 cœurs) : administrateur d'agence `GET /api/users?sort=last_login_at` → 400, `sort=-last_login_at&filter[role]=agent&filter[status]=active` → 400, `sort=first_name` et `sort=-created_at` → 200 ; super-admin `sort=-last_login_at` → 400 aussi ; `git show 2e3fb1181` montre que le tri par dernière connexion existait déjà avant TCK-373 (`onSortClick('last_login_at')`), que TCK-373 dit conserver (« mêmes tris », AC6) → le constat tient. Classement : A1, le front écrit ce tri depuis avant TCK-373 et son ticket en fait un geste à conserver ; le correctif attendu ajoute `last_login_at` à `User::$requestSortable`, sans retirer la colonne ni rien exposer de neuf (la date est déjà affichée), avec un test `GET /api/users?sort=-last_login_at` → 200, lignes rangées.
 
 ### Les dates « Soumise du / au » de la file des demandes de passage en agence rendent la liste en erreur
 - Réf : P150.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyUpgradeRequestController.php:40-55`, `takussan-api/app/Models/AgencyUpgradeRequest.php:84`, `takussan-web/src/lib/queries/super-admin.ts:1365-1366`, `takussan-web/src/app/(super-admin)/super-admin/agency-upgrade-requests/page.tsx:93-113,247-272`
 - Constat :
@@ -14131,10 +14132,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Le filtre existe depuis la création de la console (`git log -S"submitted_from"` → ecdd07c01, TCK-268).
   - Établi comment : lu, puis mesuré par le test temporaire.
 - Piste : déclarer les deux bornes comme filtres du modèle (`customQueryFilters()` qui renvoie deux `AllowedFilter::callback`, `>=` et `<=` sur la date), et retirer la lecture à la main du contrôleur. La borne de fin et la valeur mal formée relèvent de l'angle 151. Test : `GET …?filter[submitted_from]=…&filter[submitted_to]=…` → 200, et seules les demandes de la période sortent.
+- Mesure (2026-10-22, 09ad70d08, mesureur) : relu `AgencyUpgradeRequestController.php:44-49` (lecture à la main de `filter.submitted_from` / `filter.submitted_to`, puis `buildQuery($base, $request)` `:51`) et `AgencyUpgradeRequest.php:84` (`$requestFilterable` sans ces deux clés), `super-admin.ts:1365-1366` (inchangées) ; même test temporaire, super-admin : `filter[submitted_from]=2026-01-01` → 400, `filter[submitted_to]=2026-12-31` → 400, `filter[status]=pending&sort=-submitted_at&include=agency,submitter` → 200 → le constat tient. Classement : A1, le contrôleur écrit déjà la sémantique attendue (`>=` / `<=` sur `submitted_at`, depuis TCK-268) et l'écran l'envoie ; le correctif attendu déplace ces deux bornes dans `customQueryFilters()` du modèle (`AllowedFilter::callback`, même `whereDate`) et retire la lecture à la main, avec un test de période → 200 et seules les demandes de la période ; la borne de fin et la valeur mal formée restent à l'angle 151.
 
 ### Les hooks des baux, des réservations et des factures envoient un `filter[search]` que l'API refuse, prêt pour le premier écran qui s'en servira
 - Réf : P150.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/leases.ts:41,49`, `takussan-web/src/lib/queries/bookings.ts:34,47`, `takussan-web/src/lib/queries/payments.ts:132,141`, `takussan-api/app/Models/Lease.php:89`, `takussan-api/app/Models/Booking.php:44`, `takussan-api/app/Models/Invoice.php:62`
 - Constat :
@@ -14144,10 +14146,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Aucun appelant ne passe `search` aujourd'hui : `LeasesList.tsx:71-75`, `InventoryLeasePicker.tsx:28` et `MaintenanceNewLauncher.tsx:36` pour les baux, `BookingsList.tsx:69` pour les réservations, `InvoicesTable.tsx:33-40` pour les factures (lu). Le défaut est latent : le type promet une recherche que l'API refuse.
   - Établi comment : lu, puis mesuré par le test temporaire.
 - Piste : retirer `search` des trois types de paramètres tant que l'API ne la sert pas. L'ajouter côté API serait un choix de produit (quels champs, Meilisearch ou `LIKE`). Le test de P150.04 couvre ces hooks.
+- Mesure (2026-10-22, 09ad70d08, mesureur) : relu `leases.ts:41,49`, `bookings.ts:34,47`, `payments.ts:132,141` (paramètre `search` posé en `filter[search]`) ; `grep requestSearchFields` sur `Lease.php`, `Booking.php`, `Invoice.php` → aucune ligne ; même test temporaire, administrateur d'agence : `/api/leases`, `/api/bookings`, `/api/invoices` avec `filter[search]=x` → 400 tous trois, sans → 200 ; `grep` des appelants : `LeasesList.tsx:71-75`, `InventoryLeasePicker.tsx:28`, `MaintenanceNewLauncher.tsx:36`, `BookingsList.tsx:69`, `InvoicesTable.tsx:32-41` ne passent jamais `search` → le constat tient, le défaut est latent. Classement : A3, le paramètre `search` de ces trois hooks n'a aucun appelant et ne peut que rendre 400 ; le correctif attendu le retire des trois types et de leur sérialisation, sans toucher l'API (y ajouter une recherche serait un choix de produit).
 
 ### Rien ne confronte les paramètres écrits par le front aux listes blanches de l'API, et les écarts vivent des semaines
 - Réf : P150.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : forme du contrat front ↔ API (fichier généré ou tenu à la main) à décider
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/*.ts` (leurs tests ne vérifient que le chemin et la chaîne produite, par exemple `__tests__/reconciliation.test.ts:28-41`), `takussan-api/tests/Feature/**`
 - Constat :
@@ -14156,13 +14159,15 @@ qui a été relevé. Rien n'a été exécuté.*
   - Sur environ 75 requêtes rejouées, seules celles de P150.01 à P150.03 rendent 400 (mesuré, test temporaire) : la plupart des appelants restent dans les listes blanches, et c'est l'absence de garde, non le nombre d'écarts, qui fait le risque.
   - Établi comment : lu, et mesuré pour le décompte.
 - Piste : un test de contrat côté API, alimenté par un fichier généré par le front (ou tenu à la main), qui liste chaque requête de lecture avec ses `sort`, `filter`, `include` et `fields`, et qui vérifie qu'aucune ne rend 400. Il rend en clair le test temporaire de cet angle. Ablation : remettre `sort=last_login_at` sans le déclarer, et constater le rouge.
+- Mesure (2026-10-22, 09ad70d08, mesureur) : relu `takussan-web/src/lib/queries/__tests__/reconciliation.test.ts` (chaîne de requête seule) ; le test temporaire de ce passage reproduit les 400 de P150.01 à P150.03 sans qu'aucun test du dépôt ne rougisse (aucun test ne rejoue `sort=last_login_at` ni `filter[submitted_*]` : `grep` dans `takussan-api/tests` → aucun) → le constat tient. Classement : V6, la piste demande un mécanisme neuf qui relie les deux applications (fichier généré par le front ou tenu à la main, son lieu, son branchement en CI), choix structurel que A5 ne couvre pas.
 
 ### Petites améliorations
 - Réf : P150.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/conversations-list.ts:41-73`, `takussan-api/app/Http/Controllers/Api/ConversationController.php` (`index`), `takussan-web/src/lib/queries/bookings.ts:62-64`, `takussan-api/app/Http/Controllers/Api/BookingController.php` (`show`)
 - Constat :
   - `useConversations` accepte `status` (`active`, `archived`, `closed`) et `property_id`, et les envoie en `filter[…]` avec `sort=-last_message_at` et `include=property,participants,last_message` (lu). `ConversationController::index` ne lit ni `filter[status]` ni `filter[property_id]` : il lit `?archived=` et trie toujours par `last_message_at` (lu). mesuré : la requête complète → 200. Aucun appelant ne passe ces filtres aujourd'hui (`ConversationList.tsx:29`, `useUnreadCount.ts:28`, lu) : un filtre « archivées » posé demain rendrait les actives sans le dire.
   - `useBooking` demande `include=property,booking_payments,customer`. `show` charge `property.address`, `customer` et `payments` quoi qu'on demande (lu), et `booking_payments` n'est pas une relation (mesuré → 200, le paramètre est ignoré). L'écran lit bien `booking_payments` (lu, `BookingDetail.tsx:106,332`), qui sort de `BookingResource` (lu, `:43`) : rien de faux, mais le paramètre trompe le lecteur.
 - Piste : retirer du type `UseConversationsParams` les filtres que l'API ne sert pas, ou les brancher sur `archived`. Retirer `booking_payments` de l'`include` de `useBooking`, en commentant que `show` charge ses relations lui-même. Le relevé complet de ces paramètres ignorés est l'angle 186.
+- Mesure (2026-10-22, 09ad70d08, mesureur) : relu `conversations-list.ts:41-73` (`filter[status]`, `filter[property_id]`) et `ConversationController.php:30,60-67` (lit `?archived=` et trie par `last_message_at` en dur) ; même test temporaire : la requête complète de `useConversations` avec `filter[status]=archived&filter[property_id]=1` → 200, filtres ignorés ; appelants `ConversationList.tsx:29` et `useUnreadCount.ts:28` sans filtre ; `bookings.ts:64` demande `include=property,booking_payments,customer`, `BookingController.php:65` charge `property.address, customer, payments` quoi qu'on demande → les deux lectures tiennent. Classement : A3, les deux filtres du type `UseConversationsParams` et l'`include` `booking_payments` n'ont aucun effet ni appelant ; le correctif attendu les retire (option « retirer » de la piste, pas le branchement sur `archived`, qui serait un comportement neuf), avec un commentaire sur `useBooking` disant que `show` charge ses relations.
