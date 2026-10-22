@@ -8406,7 +8406,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Le NINEA d'une agence est chiffré et masqué dans la demande, puis recopié en clair dans `agencies.ninea` par une décision qu'ADR-0044 n'écrit pas
 - Réf : P84.01
-- Statut : retenu · à valider — chemin fermé : docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md (l'option que la Piste détaille écrit l'exception dans ADR-0044 § 1 ; l'autre, cesser de masquer le NINEA de la demande, en est le contraire et ne se choisit pas à sa place)
+- Statut : retenu · à valider — chemin fermé : docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md (l'option que la Piste détaille écrit l'exception dans ADR-0044 § 1 ; l'autre, cesser de masquer le NINEA de la demande, en est le contraire et ne se choisit pas à sa place) ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : écrire l'exception dans ADR-0044 § 1 : le NINEA d'une personne morale est une mention légale publique, en clair dans `agencies.ninea`, chiffré dans la demande le temps de la revue
 - Gravité : 🟠 risque ou dette
 - Où : `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:44-46`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:62-63`, `:94-105`, `takussan-api/app/Models/Agency.php:38-46`, `takussan-api/app/Http/Resources/AgencyResource.php:50`, `takussan-api/app/Http/Resources/AgencyUpgradeRequestResource.php:41`, `takussan-api/app/Support/Audit/PropertyRedactor.php:41`, `takussan-api/app/Services/Kyc/SharedLegalIdentifierDetector.php:25-27`
 - Constat :
@@ -9599,7 +9599,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Les actions de neuf contrôleurs rendent la ressource sans les relations et les clés que le `show` ajoute
 - Réf : P95.03
-- Statut : retenu · à valider — chemin fermé : docs/adr/ (la règle « une écriture rend la projection de son `show` » est une décision structurelle, à écrire en ADR avant l'implémentation, CLAUDE.md racine)
+- Statut : retenu · à valider — chemin fermé : docs/adr/ (la règle « une écriture rend la projection de son `show` » est une décision structurelle, à écrire en ADR avant l'implémentation, CLAUDE.md racine) ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : ADR « une écriture rend la projection de son `show`, sauf exception écrite dans le docblock de la ressource », gardé par un test de contrat par modèle, en commençant par la réservation et la facture
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/BookingController.php:56-58,65-69,78-104`, `takussan-api/app/Http/Controllers/Api/InvoiceController.php:55-62,90-95`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:62-75,121-123`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:96-113,149-151`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:153-155`, `takussan-api/app/Http/Resources/PropertyResource.php:48-61`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:92-94,372`, `takussan-api/app/Http/Controllers/Api/ReviewController.php`, `takussan-api/app/Http/Controllers/Api/Admin/AgencySubscriptionController.php:36-44`
 - Constat :
@@ -10637,7 +10637,7 @@ Le résumé et `email_frequency` sont déjà relevés par P11.08.*
 
 ### Un locataire ou un visiteur qui a un compte au téléphone non vérifié ne reçoit plus aucun SMS, et le numéro de sa fiche n'est plus lu
 - Réf : P107.01
-- Statut : retenu · à valider — V7 : repli SMS vers la fiche ou avis à l'agence, choix de produit
+- Statut : validé — porteur (2026-10-22) : sans téléphone vérifié sur le compte, le canal mobile part au contact de la fiche (`ContactSansCompte::fromCustomer` ou `fromVisit`), pour les seuls codes de `reachesContacts()`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendLeasePaymentReminders.php:185-201`, `takussan-api/app/Listeners/Payments/SendRentReceiptAfterOnlinePayment.php:41-45`, `takussan-api/app/Services/Model/LeasePaymentService.php:106-116`, `takussan-api/app/Jobs/SendPropertyVisitReminders.php:107-112`, `takussan-api/app/Services/Visit/VisitNotifier.php:203`, `takussan-api/app/Notifications/Channels/SmsChannel.php:66-68`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:87-89`
 - Constat :
@@ -10652,7 +10652,7 @@ Le résumé et `email_frequency` sont déjà relevés par P11.08.*
 
 ### Les trois drapeaux plats `notifications_*_enabled` s'écrivent et se relisent, mais aucun envoi ne lit ceux du SMS et du push
 - Réf : P107.02
-- Statut : retenu · à valider — V7 : retirer le drapeau e-mail retire le seul réglage que lit le résumé
+- Statut : validé — porteur (2026-10-22) : retirer de la requête et de la réponse `notifications_sms_enabled` et `notifications_push_enabled`, sans lecteur ; garder `notifications_email_enabled` tant que P11.08 n'est pas tranchée ; colonnes gardées, `models-spec.md` corrigé
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/NotificationPreferenceController.php:16-18,39-46,62-65`, `takussan-api/app/Http/Requests/Api/Me/UpdateNotificationPreferencesRequest.php:38-51`, `takussan-api/app/Models/User.php:73`
 - Constat :
@@ -10666,7 +10666,7 @@ Le résumé et `email_frequency` sont déjà relevés par P11.08.*
 
 ### `users.timezone` n'a aucun écrivain : tous les comptes sont à Dakar, et les rendus qui le lisent ne lisent qu'un défaut
 - Réf : P107.03
-- Statut : retenu · à valider — V7 : accepter le fuseau par compte ou poser Dakar, deux voies
+- Statut : validé — porteur (2026-10-22) : un fuseau par compte : `timezone` (`timezone:all`) accepté sur `PATCH /api/me` avec un champ au profil ; le bloc mort de `SetLocaleMiddleware.php:47-53` retiré sans l'activer
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/database/migrations/2026_04_15_210400_add_fields_to_users_table.php:29`, `takussan-api/app/Http/Middleware/SetLocaleMiddleware.php:47-53`, `takussan-api/app/Jobs/Notifications/SendNotificationDigestJob.php:54`, `takussan-api/app/Notifications/CodedNotification.php:191,279`, `takussan-api/app/Services/Model/NotificationService.php:69`, `takussan-api/app/Services/Visit/VisitNotifier.php:179,212`
 - Constat :
@@ -10723,7 +10723,7 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
 
 ### L'export du journal d'activité annonce une colonne `ip_address` qu'aucun chemin n'écrit
 - Réf : P108.02
-- Statut : retenu · à valider — V3 : écrire l'IP au journal ou retirer la colonne de l'export, choix de données personnelles
+- Statut : validé — porteur (2026-10-22) : retirer `ip_address` des colonnes de l'export et de la spec (aucun écrivain) ; l'IP ne s'écrit pas au journal
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:16-27,161`, `docs/models-spec.md:1301`
 - Constat :
@@ -10751,7 +10751,7 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
 
 ### Petites améliorations
 - Réf : P108.04
-- Statut : retenu · à valider — V7 : retirer la route ou la brancher au front, et la forme d'une redirection rendue par les relais, sont des choix
+- Statut : validé — porteur (2026-10-22) : garder la route ; `redirect: 'manual'` et relais en flux dans `relayerVersApi` comme l'écrit la Piste ; le suivi de la route par le panneau Versions (V3) reste à trancher à part
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/api/documents.php:23`, `takussan-api/app/Http/Controllers/Api/DocumentVersionController.php:64-82`, `takussan-web/src/lib/relais-api.ts:65`, `takussan-web/src/app/api/data-exports/[id]/download/route.ts:16-29`
 - Constat :
@@ -10849,7 +10849,7 @@ déjà relevée).*
 
 ### Le débit d'un remboursement d'acompte ou de loyer n'a rien à quoi se rapprocher : le relevé ne peut plus se clore « rapproché » qu'en ignorant la ligne
 - Réf : P110.01
-- Statut : retenu · à valider — V1 : ce qui représente un remboursement sortant au relevé
+- Statut : validé — porteur (2026-10-22) : un remboursement sortant est représenté au relevé par un `Payout`, comme la caution rendue (ADR-0039)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/ReconciliationManager.php:55-74`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:49-51,132-150`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:35-43,140-165`, `takussan-api/app/Services/Model/BookingPaymentService.php:57-100`
 - Constat :
@@ -10863,7 +10863,7 @@ déjà relevée).*
 
 ### Un encaissement rapproché puis remboursé garde son rapprochement, et ni la ligne ni le payable ne le disent
 - Réf : P110.02
-- Statut : retenu · à valider — V1 : signaler ou refuser le remboursement d'un encaissement rapproché (P39.07)
+- Statut : validé — porteur (2026-10-22) : signaler, ne pas refuser : le statut du payable rapproché est rendu par `BankStatementLineResource` et affiché sur la ligne
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:796-811,1388-1393`, `takussan-api/app/Services/Model/BookingPaymentService.php:57-100`, `takussan-api/app/Http/Resources/Accounting/BankStatementLineResource.php:33-41`, `takussan-web/src/components/admin/reconciliation/StatementDetail.tsx:200-206`
 - Constat :
@@ -10877,7 +10877,7 @@ déjà relevée).*
 
 ### Un crédit confirmé sur une facture envoyée ne la solde pas : elle reste relancée, et s'annule par avoir avec sa ligne toujours rapprochée
 - Réf : P110.03
-- Statut : retenu · à valider — V1 : un crédit confirmé vaut-il règlement de la facture
+- Statut : validé — porteur (2026-10-22) : un crédit confirmé sur une facture `sent` ou `overdue` vaut règlement : `markPaid` dans la transaction de `confirmMatch`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/ReconciliationManager.php:76-82,139-142`, `takussan-api/app/Models/Invoice.php:180-185`, `takussan-api/app/Services/Model/InvoiceService.php:107-147`, `takussan-api/app/Services/Invoice/OverdueReminderService.php:52-56,286`
 - Constat :
@@ -10890,7 +10890,7 @@ déjà relevée).*
 
 ### Petites améliorations
 - Réf : P110.04
-- Statut : retenu · à valider — V7 : afficher le statut du candidat dans la suggestion et la recherche
+- Statut : validé — porteur (2026-10-22) : rendre le statut du payable dans `MatchCandidate`, sa ressource et la suggestion, affiché en badge avec les libellés déjà traduits, sans écarter le candidat ni refuser la confirmation (versant affichage de P110.02)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:65-121`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:53-100`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:183-219`
 - Constat :
@@ -10939,7 +10939,7 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
 
 ### Un export RGPD en échec bloque une nouvelle demande pendant 24 h
 - Réf : P111.02
-- Statut : retenu · à valider — V7 : compter ou non une demande échouée dans la limite de 24 h est un choix de produit que la spec ne tranche pas
+- Statut : validé — porteur (2026-10-22) : ne compter dans la limite de 24 h que les demandes `queued`, `processing` et `ready`, et l'écrire dans `features.md:475`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/DataExportController.php:29-50`, `docs/features.md:475`
 - Constat :
@@ -11003,7 +11003,7 @@ passe par un job (angle 78).*
 
 ### L'export PDF ne tient pas dans `memory_limit = 256M` au-delà de quelques centaines de lignes, alors que son plafond et son défaut sont 2 000
 - Réf : P112.01
-- Statut : retenu · à valider — V7 : abaisser le plafond PDF (et le dire à l'écran) ou passer le PDF en file change ce que l'utilisateur obtient, et revient sur le plafond de 2 000 retenu par TCK-713
+- Statut : validé — porteur (2026-10-22) : `MAX_ROWS_PDF` ramené à 200 et dit à l'écran avec la coupure de P112.03, garde de mémoire comprise ; le PDF en file reste à faire ensuite
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Export/ExportWriter.php:80-140`, `takussan-api/app/Services/Export/ExportDataService.php:36,488-500`, `takussan-api/app/Http/Requests/Api/ShowExportRequest.php:36`, `takussan-api/docker/php.ini:3,11`, `takussan-web/src/lib/queries/exports.ts:33-40`, `takussan-web/src/app/(dashboard)/app/overview/exports/ExportForm.tsx:71-86`
 - Constat :
@@ -11018,7 +11018,7 @@ passe par un job (angle 78).*
 
 ### L'export XLSX de 10 000 lignes est bâti en entier en mémoire pendant la requête : 19 s et près de 100 Mo pour 13 colonnes
 - Réf : P112.02
-- Statut : retenu · à valider — V7 : abaisser le plafond XLSX ou passer en file change ce que reçoit l'utilisateur ; la `Piste` laisse trois voies
+- Statut : validé — porteur (2026-10-22) : d'abord la seule garde de mémoire au plafond XLSX sur l'entité la plus large, sans toucher au plafond ; puis le remède retenu pour P78.03
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Export/ExportWriter.php:57-78`, `takussan-api/app/Services/Export/ExportDataService.php:34,53-70`, `takussan-api/docker/php.ini:3,11`
 - Constat :
@@ -11031,7 +11031,7 @@ passe par un job (angle 78).*
 
 ### L'export rend au plus 5 000 lignes (2 000 en PDF) sans le signaler : une période plus longue est coupée en silence
 - Réf : P112.03
-- Statut : retenu · à valider — V7 : signaler la coupure à l'écran est un comportement visible et un texte neufs, que TCK-713 a laissés hors périmètre
+- Statut : validé — porteur (2026-10-22) : demander plafond + 1 lignes, signaler la coupure par un en-tête `X-Export-Truncated` lu par le relais et le formulaire, et dire le plafond à l'écran, sans ligne ajoutée au fichier
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Export/ExportDataService.php:38,53,488-494`, `takussan-api/app/Http/Controllers/Api/ExportController.php:82-95`, `takussan-api/app/Services/Export/ExportWriter.php:31-55`, `takussan-web/src/lib/queries/exports.ts:33-40`, `takussan-web/src/app/(dashboard)/app/overview/exports/ExportForm.tsx:71-86`
 - Constat :
@@ -11045,7 +11045,7 @@ passe par un job (angle 78).*
 
 ### Petites améliorations
 - Réf : P112.04
-- Statut : retenu · à valider — V6 : diffuser le CSV d'un curseur change le contrat `{columns, rows}` des neuf constructeurs et le `row_count` du journal ; le délai du relais est dans la PR #972 ouverte
+- Statut : validé — porteur (2026-10-22) : ne pas diffuser le CSV depuis un curseur pour l'instant ; le contrat `{columns, rows}` reste tel quel
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/api/export/[entity]/route.ts:46-48`, `takussan-api/app/Services/Export/ExportDataService.php:350-366`, `takussan-api/app/Services/Export/ExportWriter.php:31-55`
 - Constat :
@@ -11105,7 +11105,7 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
 
 ### Une mutation lancée hors ligne reste en attente sans le dire, puis part seule à la reconnexion, minutes plus tard — initiation de paiement comprise
 - Réf : P113.03
-- Statut : retenu · à valider — V7 : la Piste propose deux comportements hors ligne (`networkMode: 'always'` ou un état « hors ligne » lu par `isPaused`), à choisir
+- Statut : validé — porteur (2026-10-22) : `networkMode: 'always'` pour les seules mutations dans `createQueryClient` : une mutation hors ligne échoue tout de suite au lieu de partir seule à la reconnexion
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/query-client.ts:14-31`, `takussan-web/src/components/payments/PaymentProviderPicker.tsx:104-118,213-220`, `takussan-web/src/hooks/useInitiatePayment.ts:72-83`
 - Constat :
@@ -11134,7 +11134,7 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
 
 ### La déconnexion attend la réponse de l'API sans borne : le menu ne ferme pas la session tant que l'API ne répond pas
 - Réf : P113.05
-- Statut : retenu · à valider — V2 : fermer la session sans attendre la révocation côté API change le déroulé de la déconnexion
+- Statut : validé — porteur (2026-10-22) : effacer l'état local et les cookies sans attendre la révocation côté API : attente bornée à quelques secondes, effacement quand même
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/context/AuthContext.tsx:257-269`, `takussan-web/src/app/api/auth/logout/route.ts:13-27`, `takussan-web/src/components/layout/UserMenu.tsx:94-104`, `takussan-web/src/components/home/Navbar.tsx:312-317`
 - Constat :
@@ -11199,7 +11199,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Le numéro saisi à l'étape téléphone de l'assistant hôte est exigé puis ignoré
 - Réf : P114.04
-- Statut : retenu · à valider — V2 : vérification du téléphone à l'onboarding, et deux options
+- Statut : validé — porteur (2026-10-22) : le numéro saisi s'écrit sur le compte puis se vérifie par code (OTP), jamais marqué vérifié sans code ; pré-rempli s'il existe
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Onboarding/HostIndividualOnboardRequest.php:53-61`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:80-87,302-304`, `takussan-web/src/components/onboarding/HostIndividualWizard.tsx:202-206`
 - Constat :
@@ -11229,7 +11229,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Une réservation confirmée dont le séjour est fini s'annule encore, et ouvre une tâche de remboursement de l'acompte
 - Réf : P115.01
-- Statut : retenu · à valider — V1 : l'annulation ouvre le remboursement d'un acompte, et clore ou refuser est un choix de produit (V7)
+- Statut : validé — porteur (2026-10-22) : une tâche quotidienne passe `completed` les réservations `confirmed` dont `end_date` est passée, et `cancel()` refuse l'annulation d'un séjour commencé (bouton caché au front)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/Enums/BookingStatus.php:11`, `takussan-api/app/Services/Model/BookingService.php:42-47,262-303`, `takussan-api/app/Services/Review/ReviewEligibility.php:36`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:64`, `takussan-web/src/components/bookings/BookingDetail.tsx:186-188`
 - Constat :
@@ -11259,7 +11259,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### L'abonnement d'une agence garde à vie la période de son attribution, et `past_due` / `suspended` n'existent qu'à l'écran
 - Réf : P115.03
-- Statut : retenu · à valider — V1 : période et statuts d'un abonnement facturé ; reconduire ou cacher est un choix de produit
+- Statut : validé — porteur (2026-10-22) : une tâche quotidienne reconduit la période tant que l'abonnement est `active` ; `past_due` et `suspended` sortent de l'enum tant qu'aucun encaissement d'abonnement ne les pose
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/AgencySubscriptionService.php:30-42,85-108`, `takussan-api/app/Models/Enums/AgencySubscriptionStatus.php`, `takussan-api/app/Services/Reporting/PlatformReportingService.php:435-465`, `takussan-web/src/components/billing/SubscriptionSummary.tsx:15-21,53-55`, `takussan-web/src/types/super-admin.ts:173`
 - Constat :
@@ -11285,7 +11285,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Une visite manquée ne peut être que « terminée » ou « annulée » : `no_show` n'a pas de geste
 - Réf : P115.05
-- Statut : retenu · à valider — V7 : geste « absent » neuf ou retrait du statut
+- Statut : validé — porteur (2026-10-22) : garder `no_show` et lui donner un écrivain : le geste « absent » (`POST property-visits/{visit}/no-show` depuis `scheduled`/`confirmed`, l'heure passée), pas le passage automatique à 24 h
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Enums/VisitStatus.php:11`, `takussan-api/routes/api/property-visits.php:16-21`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:218-224`, `takussan-api/app/Services/Dashboard/DashboardAgentService.php:144`, `takussan-web/src/components/visits/visit-status.ts:13,27`, `takussan-web/src/components/crm/CustomerLinkedRecords.tsx:23`
 - Constat :
@@ -11310,7 +11310,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Petites améliorations : cas d'enum sans écrivain, lus par une garde ou un écran
 - Réf : P115.07
-- Statut : retenu · à valider — V7 : retirer des cas d'enum affichés ou les déclarer réservés
+- Statut : validé — porteur (2026-10-22) : en deux temps : retirer d'abord ce qui est sans choix (`scopeOpen()` de `BankStatement`, `pending` du type `AgencyStatus` du front), puis déclarer réservés les cas sans écrivain
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Enums/ConversationStatus.php`, `takussan-api/app/Models/Enums/BankStatementStatus.php:11-19`, `takussan-api/app/Models/BankStatement.php:84-90`, `takussan-api/app/Models/Enums/PayoutStatus.php`, `takussan-api/app/Services/Model/PayoutService.php:276-281`, `takussan-api/app/Models/Enums/ServiceProviderBillStatus.php`, `takussan-api/app/Models/Enums/RelationshipStatus.php`, `takussan-web/src/types/agency.ts:9`, `takussan-web/src/components/admin/reconciliation/format.ts:24`
 - Constat (lu et `grep`, chaque cas sans écrivain dans `app/`) :
@@ -11343,7 +11343,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Changer le rôle système d'un membre se juge « être admin », pas `team.assign_role`
 - Réf : P116.01
-- Statut : retenu · à valider — V2 : retire un geste d'autorisation à l'admin qui l'a aujourd'hui
+- Statut : validé — porteur (2026-10-22) : juger par `team.assign_role` par une policy (comme `AgencyRolePolicy::assign`) et retirer les deux reprises
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/UpdateUserRoleRequest.php:30-37`, `takussan-api/app/Http/Requests/Api/UpdateAgencyMemberRoleRequest.php:30-38`, `takussan-api/app/Policies/AgencyRolePolicy.php:31`, `:38`, `:87`
 - Constat :
@@ -11356,7 +11356,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### `agency.update` est inscrite « sans geste », alors que la fiche de l'agence, ses réglages et ses intégrations en sont les gestes, tous jugés par le type de profil
 - Réf : P116.02
-- Statut : retenu · à valider — V2 : retire fiche, réglages et intégrations à l'admin sans `agency.update`
+- Statut : validé — porteur (2026-10-22) : juger fiche, réglages et intégrations par `agency.update`, et corriger D-69
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/AgencyPolicy.php:46-58`, `takussan-api/app/Http/Controllers/Api/SettingController.php:26`, `:91`, `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php:50`, `UpdateSettingRequest.php:44`, `takussan-api/app/Http/Controllers/Api/IntegrationController.php:25`, `:46`, `:78`, `:192`, `:214`, `UpdateIntegrationRequest.php:44`, `takussan-api/app/Services/Membership/CapabilityEnforcementInventory.php:30`, `docs/ardoise.md:2955-2967`
 - Constat :
@@ -11384,7 +11384,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Expirer une réservation à la main : admin sans `bookings.cancel` accepté, agent qui la tient refusé
 - Réf : P116.04
-- Statut : retenu · à valider — V2 : juger par `bookings.cancel` ou retirer la route, choix ouvert
+- Statut : validé — porteur (2026-10-22) : juger l'expiration manuelle par `bookings.cancel` dans `BookingPolicy`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/BookingController.php:28-45`
 - Constat :
@@ -11408,7 +11408,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Supprimer un média d'agence : l'admin sans `properties.update_any` le peut, l'agent qui la tient non
 - Réf : P116.06
-- Statut : retenu · à valider — V2 : retire la suppression de média à l'admin sans `properties.update_any`
+- Statut : validé — porteur (2026-10-22) : juger `DELETE /api/media/{m}` par la règle d'écriture du porteur du média (`PropertyPolicy::update` pour un bien)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/MediaPolicy.php:51-82`, `:91-127`, `takussan-api/app/Http/Controllers/Api/MediaController.php:70`
 - Constat :
@@ -11420,7 +11420,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Petites améliorations : gestes d'admin sans capacité au catalogue
 - Réf : P116.07
-- Statut : retenu · à valider — V7 : déclarer ces gestes réservés ou leur choisir une capacité
+- Statut : validé — porteur (2026-10-22) : juger ces gestes par une capacité du catalogue, comme P82.04 : `payments.record` pour le rapprochement bancaire, `reports.view_agency` pour le journal d'audit et le tableau de bord du bailleur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Policies/BankStatementPolicy.php:11-18`, `takussan-api/app/Http/Controllers/Api/AuditLogController.php:27`, `takussan-api/app/Http/Requests/Api/IndexAuditLogRequest.php:34`, `takussan-api/app/Policies/ActivityLogPolicy.php:12`, `takussan-api/app/Http/Controllers/Api/DashboardOwnerController.php:21-26`, `takussan-api/app/Http/Controllers/Api/IntegrationController.php:42-46`
 - Constat :
@@ -11451,7 +11451,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Le taux horaire du prestataire ne s'efface pas : `hourly_rate: null` garde l'ancien, quand `visit_fee: null` efface
 - Réf : P117.02
-- Statut : retenu · à valider — V1 : écriture d'un montant (le tarif horaire)
+- Statut : validé — porteur (2026-10-22) : `hourly_rate` comme `visit_fee` : clé absente, on garde ; `null`, on efface
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:147-160,169`, `takussan-web/src/components/profile/ProfileServiceProviderSection.tsx:63,93-98`
 - Constat :
@@ -11465,7 +11465,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Les zones d'intervention de l'agent sont écrites, et rien ne les relit
 - Réf : P117.03
-- Statut : retenu · à valider — V7 : à quoi servent les zones de l'agent, ou retrait de l'étape
+- Statut : validé — porteur (2026-10-22) : garder l'étape et afficher les zones en lecture seule sur la page publique de l'agent, à côté de `specialty`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:44-46,161-169`, `takussan-web/src/components/onboarding/AgentOnboardingWizard.tsx:467`, `docs/features.md:509`
 - Constat :
@@ -11479,7 +11479,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### La section « Profil professionnel » de l'agent est une maquette : deux champs saisissables qu'aucun geste n'enregistre, et une agence toujours « Non affilié »
 - Réf : P117.04
-- Statut : retenu · à valider — V7 : afficher en lecture seule ou retirer la section
+- Statut : validé — porteur (2026-10-22) : afficher en lecture seule l'agence du profil actif, la licence et la spécialité (ajoutées à `ProfileResource` pour le seul profil d'agent) ; retirer les champs saisissables sans enregistrement
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/profile/ProfileAgentSection.tsx:18-38`, `takussan-web/src/app/(dashboard)/app/profile/page.tsx:41`, `takussan-web/src/components/profile/ProfileOwnerSection.tsx:19-31`
 - Constat :
@@ -11495,7 +11495,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Le type de bailleur et la raison sociale, exigés à l'invitation, ne sont relus nulle part
 - Réf : P117.05
-- Statut : retenu · à valider — V7 : afficher la raison sociale ou cesser de l'exiger (V4 si colonne)
+- Statut : validé — porteur (2026-10-22) : garder l'exigence et afficher la raison sociale (`metadata.company_name`) dans le carnet des bailleurs, sans colonne neuve pour l'instant
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Invitation/InviteOwnerRequest.php:38-39`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:67-72,84-94`, `takussan-web/src/components/owners/OwnersList.tsx:371-374`, `takussan-web/src/components/owners/InviteOwnerSheet.tsx:241-275`
 - Constat :
@@ -11509,7 +11509,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Tarifs et assurance du prestataire : saisis par lui, lus par personne d'autre ; `has_insurance` n'est jamais lu ni remis à faux
 - Réf : P117.06
-- Statut : retenu · à valider — V7 : montrer tarifs et badge « assuré », ou retirer `has_insurance`
+- Statut : validé — porteur (2026-10-22) : construire le badge « Assuré » dans le carnet et à l'attribution, dérivé du `Document` d'assurance vivant, puis retirer `has_insurance`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:73-79,110-124`, `takussan-api/app/Http/Resources/ServiceProviderDirectoryResource.php:22`, `takussan-web/src/lib/queries/service-providers.ts:23-31`
 - Constat :
@@ -11522,7 +11522,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Petites améliorations
 - Réf : P117.07
-- Statut : retenu · à valider — V7 : heure dans `worksOn`, téléphone du brouillon avec P21.06
+- Statut : validé — porteur (2026-10-22) : comparer l'heure de l'intervention à la plage `from`–`to` dans `worksOn`, même avertissement et même texte
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/maintenance/MaintenanceAssignmentBlock.tsx:170-176`, `takussan-api/app/Http/Resources/ServiceProviderDirectoryResource.php:22`, `takussan-api/app/Services/Invitation/ServiceProviderInvitationService.php:117`, `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:73`, `OwnerProfileController.php:65`, `ServiceProviderProfileController.php:63`
 - Constat :
@@ -11725,7 +11725,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Le choix du bénéficiaire d'un reversement ne lit que les profils de bailleur actifs, alors que l'API accepte tout profil de l'agence, de tout statut
 - Réf : P120.04
-- Statut : retenu · à valider — V1 : choix du bénéficiaire d'un reversement
+- Statut : validé — porteur (2026-10-22) : lire les bailleurs `active` et `inactive` qui ont des lignes à reverser dans ce dialogue
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/payments/CreatePayoutDialog.tsx:72-84,179-185`, `takussan-api/app/Services/Model/PayoutService.php:84-105`, `takussan-api/app/Http/Requests/Api/StorePayoutRequest.php:46`
 - Constat :
@@ -11738,7 +11738,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Petites améliorations des sélecteurs de personnes
 - Réf : P120.05
-- Statut : retenu · à valider — V2 : ouvrir à l'agent une lecture des cibles et le bouton « Attribuer »
+- Statut : validé — porteur (2026-10-22) : `sort=first_name` dans le dialogue, et ouvrir à l'agent `crm.assign` une lecture des cibles bornée au personnel ; docblocks corrigés avec P120.02
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leads/ContactLeadsInbox.tsx:147-149,264-268`, `takussan-web/src/lib/queries/role-delegations.ts:138-145`, `takussan-web/src/components/admin/roles/CreateDelegationDialog.tsx:90-95`
 - Constat :
@@ -11770,7 +11770,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### La passation d'une intervention ne fait pas entrer le repreneur dans le fil de l'intervention, ne le prévient pas et lui laisse l'acceptation du partant
 - Réf : P121.01
-- Statut : retenu · à valider — V1 : passer par assign() archive et vide le devis du partant
+- Statut : validé — porteur (2026-10-22) : passer chaque intervention par `MaintenanceRequestService::assign()` dans la transaction de la passation, en gardant le devis du partant
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Agency/AgentHandoverService.php:203-211`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:107-142`, `takussan-api/app/Listeners/Maintenance/SyncMaintenanceConversation.php:90-108`, `takussan-api/app/Services/Messaging/ConversationAccess.php:38-50`
 - Constat :
@@ -11787,7 +11787,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Un repreneur déjà lecteur, gestionnaire ou co-propriétaire du bien fait disparaître la collaboration d'agent du partant, que la réponse compte « déplacée »
 - Réf : P121.02
-- Statut : retenu · à valider — V1 : le sort de la part de commission du partant est à décider
+- Statut : validé — porteur (2026-10-22) : la ligne du repreneur passe en `agent` comme dans `ResponsibleAgentAssigner`, `co_owner` rangé en `unassigned` ; la `commission_share` du partant est reportée au repreneur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Agency/AgentHandoverService.php:237-251`, `takussan-api/app/Services/Property/ResponsibleAgentAssigner.php:68-86`
 - Constat :
@@ -11817,7 +11817,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### `leave_unassigned` avec `remove_after` laisse au membre retiré la marque d'agent principal et le titre des biens saisis, que la réponse dit « non attribués »
 - Réf : P121.04
-- Statut : retenu · à valider — V7 : ce qu'« assumer » laisse au retiré n'est écrit nulle part
+- Statut : validé — porteur (2026-10-22) : au retrait, retirer `is_primary` de la ligne `collaborations` du retiré, comme P121.03, sans supprimer la ligne ; séparer dans la réponse « laissé au retiré » de « désassigné »
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Agency/AgentHandoverService.php:224-228`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:54-84`, `takussan-api/tests/Feature/Agency/AgentHandoverPropertiesTest.php:184-187`
 - Constat :
@@ -11894,7 +11894,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Petites améliorations
 - Réf : P122.04
-- Statut : retenu · à valider — V5 : la règle proposée vit dans `docker/release.sh` ou le gabarit de migration, deux options
+- Statut : validé — porteur (2026-10-22) : réindexer les biens touchés dans `LegacyFeaturedConversion`, et écrire la règle dans `takussan-api/CLAUDE.md` § Recherche et dans le gabarit de migration
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Boost/LegacyFeaturedConversion.php:34-36`, `takussan-api/database/migrations/2026_10_12_500400_seed_boost_catalogue_and_convert_featured.php:16`, `takussan-api/database/seeders/System/OfferedFeaturedSeeder.php:15`, `takussan-api/Dockerfile:101-103`, `takussan-api/docker/release.sh:44-58`, `takussan-api/app/Services/Search/PropertySearchService.php:749-765`
 - Constat :
@@ -11926,7 +11926,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Accepter une invitation est impossible tant que le courriel est en panne : la notification de l'invitant part dans la transaction
 - Réf : P123.02
-- Statut : retenu · à valider — V7 : le docblock de `finalizeAccept()` écrit le choix inverse (l'échec annule la création du compte)
+- Statut : validé — porteur (2026-10-22) : l'avis à l'invitant part après le commit (`DB::afterCommit`) et en file (`ShouldQueue`) : son échec n'empêche plus l'invité d'entrer ; docblock corrigé
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:582-584`, `:622-626`, `:636-737`, `takussan-api/app/Notifications/InvitationAcceptedNotification.php:14`, `:23`
 - Constat :
@@ -11940,7 +11940,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Meilisearch injoignable sous `SCOUT_AFTER_COMMIT=true` : le geste est validé, la réponse est 500, et ce qui suit la transaction ne s'exécute pas
 - Réf : P123.03
-- Statut : retenu · à valider — V5 : la piste aligne `SCOUT_QUEUE`/`SCOUT_AFTER_COMMIT` entre `.env.docker`, `phpunit.xml` et la préproduction
+- Statut : validé — porteur (2026-10-22) : aligner `SCOUT_QUEUE` et `SCOUT_AFTER_COMMIT` de `.env.docker` et `phpunit.xml` sur la préproduction
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/laravel/scout/src/ModelObserver.php:16`, `:46`, `takussan-api/.env.docker:210-211`, `takussan-api/phpunit.xml:104-105`, `takussan-api/app/Services/Property/PropertyModerationService.php:46-71`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:304-342`
 - Constat :
@@ -11982,7 +11982,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Petites améliorations
 - Réf : P123.06
-- Statut : retenu · à valider — V5 : la seconde partie fixe la valeur de `SCOUT_*` entre environnements
+- Statut : validé — porteur (2026-10-22) : ne compter la fenêtre de renvoi qu'après un envoi réussi ; la valeur de `SCOUT_*` alignée sur la préproduction (P123.03), écrite à un seul endroit avec sa raison
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Lease/LeaseSignatureService.php:112-141`, `takussan-api/.env.example:147-148`
 - Constat :
@@ -12102,7 +12102,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### Convertir une demande de contact crée une seconde fiche client quand le numéro en a déjà une
 - Réf : P125.02
-- Statut : retenu · à valider — V7 : rattacher la demande à la fiche existante ou refuser en 409, choix du produit
+- Statut : validé — porteur (2026-10-22) : consulter `CustomerDuplicateDetector` dans `convert()` et rendre 409 `customer.duplicate` avec `existing`, `allow_duplicate` accepté ; la boîte des demandes présente le doublon comme `CustomerForm`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Lead/ContactLeadService.php:248-282`, `takussan-api/app/Services/Model/CustomerService.php:12-18`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:58-60,95-111`, `takussan-api/app/Services/Crm/CustomerDuplicateDetector.php:25-58`
 - Constat :
@@ -12163,7 +12163,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### Petites améliorations
 - Réf : P125.06
-- Statut : retenu · à valider — V2 : `phone_otp.phone` touche la vérification du téléphone à l'onboarding
+- Statut : validé — porteur (2026-10-22) : comparer `phone_otp.phone` au numéro du compte (refus s'il diffère), avec P114.04 ; le reste de la Piste tel qu'écrit
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Onboarding/HostIndividualOnboardRequest.php:54`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:297-306`, `takussan-api/app/Http/Requests/Api/StorePublicSearchAlertRequest.php:37-44`, `takussan-web/src/components/public/profile/ContactSheet.tsx:62`, `takussan-web/src/lib/jsonld-profil.ts:106`
 - Constat :
@@ -12196,7 +12196,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### Le rappel de visite part à l'agent de la visite sans le jugement que `VisitNotifier` applique au même agent
 - Réf : P126.02
-- Statut : retenu · à valider — V7 : router le rappel par `agencyRecipients` fait recevoir aux admins un rappel qu'ils ne reçoivent pas aujourd'hui
+- Statut : validé — porteur (2026-10-22) : écarter l'agent qui n'est plus utilisable par le prédicat d'`agencyRecipients`, et ne rappeler les admins actifs que si un agent était assigné et ne compte plus ; la visite non attribuée garde son comportement
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/SendPropertyVisitReminders.php:106-136`, `takussan-api/app/Services/Visit/VisitNotifier.php:136-168`
 - Constat :
@@ -12224,7 +12224,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### Le créateur du bien (`properties.user_id`) est prévenu comme bailleur, même agent suspendu ou parti de l'agence
 - Réf : P126.04
-- Statut : retenu · à valider — V7 : sans repli, `estProprietaire` retire aussi l'agent actif créateur du bien de la notification d'avis reçu, du flux iCal et du devis `awaiting_owner`
+- Statut : validé — porteur (2026-10-22) : une méthode unique qui garde `properties.user_id` s'il est `estProprietaire` ou personnel actif de l'agence du bien (`isStaffAt`), et l'écarte sinon, appliquée aux sites listés hors devis `awaiting_owner`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Maintenance/MaintenanceParticipants.php:30`, `takussan-api/app/Services/Booking/BookingStakeholders.php:39,75`, `takussan-api/app/Services/Review/ReviewNotifier.php:54`, `takussan-api/app/Services/Booking/PropertyCalendarSyncService.php:174-178`, `takussan-api/app/Services/Booking/BookingExpirationService.php:283-285`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:133,147`, `takussan-api/app/Listeners/Maintenance/NotifyMaintenanceParticipants.php:88`
 - Constat :
@@ -12295,7 +12295,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### La série mensuelle d'occupation rend 0 % pour les mois où le portefeuille n'avait aucun bien éligible
 - Réf : P127.02
-- Statut : retenu · à valider — V7 : le graphique doit choisir comment tracer un mois sans bien
+- Statut : validé — porteur (2026-10-22) : `null` pour un mois sans bien, types en `(number | null)[]`, et `LineChart` coupe le tracé sur un point `null`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:68-71,125-129`, `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:145`, `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:152`, `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:196`, `takussan-web/src/lib/queries/dashboard-agency.ts:43`
 - Constat :
@@ -12310,7 +12310,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### « Interventions ouvertes » ne compte que `open` et `in_progress`, et oublie sept états non terminaux
 - Réf : P127.03
-- Statut : retenu · à valider — V7 : ce que compte « ouvert », `completed` compris
+- Statut : validé — porteur (2026-10-22) : un seul prédicat partagé (scope `MaintenanceRequest::open()`) qui exclut `completed`, `closed`, `cancelled` et `rejected`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:176-178`, `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:74-77`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:105-108`, `takussan-api/app/Services/Maintenance/MaintenanceStateMachine.php:67`, `takussan-api/app/Models/Enums/MaintenanceStatus.php:7-19`
 - Constat :
@@ -12325,7 +12325,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Le « portefeuille » du bailleur et les « biens gérés » de l'agent comptent les biens archivés, vendus et en brouillon
 - Réf : P127.04
-- Statut : retenu · à valider — V7 : définir ce que compte un portefeuille
+- Statut : validé — porteur (2026-10-22) : le portefeuille compte les biens hors `archived` et `sold`, `draft`, `pending_review` et `rejected` gardés ; écrit dans `docs/features.md`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:37-43`, `takussan-api/app/Services/Dashboard/Adapters/OwnerMeMetrics.php:23`, `takussan-api/app/Services/Dashboard/DashboardAgentService.php:53-55,275-288`, `takussan-web/src/components/dashboard/DashboardMeKpis.tsx:74,91`
 - Constat :
@@ -12340,7 +12340,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Les tâches, visites et interventions du tableau de bord de l'agent ne sont pas bornées à l'agence active
 - Réf : P127.05
-- Statut : retenu · à valider — V7 : accueil de l'agent borné à l'agence active, ou transverse
+- Statut : validé — porteur (2026-10-22) : tâches, visites et interventions bornées à l'agence active par leur parent (bien ou client), comme les clients et les baux du même tableau
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:83-86,103-178`, `takussan-api/app/Services/Reporting/TeamPerformanceService.php:104-110`
 - Constat :
@@ -12373,7 +12373,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Une délégation de rôle annoncée « jusqu'au 25 octobre » est retirée à 00:00 le 25 octobre
 - Réf : P128.01
-- Statut : retenu · à valider — V2 : la fin d'un droit délégué, et V7 : deux sens possibles de « Fin »
+- Statut : validé — porteur (2026-10-22) : la fin d'une délégation est inclusive : « jusqu'au 25 » est retirée à la fin du 25, heure de Dakar
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin/roles/CreateDelegationDialog.tsx:245-251`, `takussan-api/app/Services/Permissions/RoleDelegationService.php:106`, `takussan-api/app/Models/RoleDelegation.php:45,129-130,151`, `takussan-api/app/Listeners/Permissions/NotifyDelegationActivated.php:35-38`, `takussan-api/app/Domain/Notifications/NotificationCode.php:359`, `takussan-api/lang/fr/notifications.php:524-528`
 - Constat :
@@ -12471,7 +12471,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Les loyers d'une agence supprimée continuent de prendre des pénalités et de relancer le locataire
 - Réf : P129.02
-- Statut : retenu · à valider — V1 : faire sauter les agences supprimées par les jobs de pénalité et de relance touche des montants
+- Statut : retenu · à valider — V1 : faire sauter les agences supprimées par les jobs de pénalité et de relance touche des montants ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : réglé par P129.06 (plus de suppression d'agence) ; après son ADR
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:36-41,74-91`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:132-143`, `takussan-api/app/Jobs/Invoice/SendOverdueRemindersJob.php:29-35`
 - Constat :
@@ -12484,7 +12484,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Une invitation ouverte d'une agence supprimée est encore relancée et s'accepte
 - Réf : P129.03
-- Statut : retenu · à valider — V7 : refuser une invitation d'agence supprimée dépend du sens de la suppression (P129.01)
+- Statut : validé — porteur (2026-10-22) : révoquer les invitations `sent` de l'agence à sa suppression et refuser l'acceptation d'une invitation dont l'agence n'existe plus (410)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:522-545,553-575`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:156`
 - Constat :
@@ -12514,7 +12514,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### L'abonnement d'une agence supprimée suit son cours, période d'essai comprise
 - Réf : P129.05
-- Statut : retenu · à valider — V1 : annuler un abonnement ou bloquer la fin d'essai est une écriture de facturation
+- Statut : retenu · à valider — V1 : annuler un abonnement ou bloquer la fin d'essai est une écriture de facturation ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : réglé par P129.06 (plus de suppression d'agence) ; après son ADR
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/AgencySubscriptionService.php:86-109`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:156`, `takussan-api/app/Http/Controllers/Api/Admin/AgencySubscriptionController.php:39`
 - Constat :
@@ -12527,7 +12527,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### La suppression n'a ni appelant au front, ni restauration, ni vue dans la console, et contourne le cycle de vie d'ADR-0048
 - Réf : P129.06
-- Statut : retenu · à valider — V7 : retirer la route ou en faire une transition du cycle de vie est un choix de produit et de structure
+- Statut : retenu · à valider — V7 : retirer la route ou en faire une transition du cycle de vie est un choix de produit et de structure ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : retirer la route `DELETE /api/agencies/{id}` ; la fin d'activité passe par le statut d'ADR-0048 (`inactive` ou `suspended`), amendement à écrire
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/agencies.php:30`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:147-159`, `takussan-api/tests/Feature/Api/AgencyTest.php:190-210`, `docs/adr/0048-effet-d-une-suspension-d-agence.md`
 - Constat :
@@ -12577,7 +12577,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Les interventions ouvertes d'un bien supprimé disparaissent pour l'agence, et restent ouvertes pour le locataire
 - Réf : P130.03
-- Statut : retenu · à valider — V2 et V7 : rouvrir l'intervention à l'équipe par `withTrashed()` dans `isPrincipalFor` touche une autorisation, l'annuler à la suppression est un choix de produit
+- Statut : validé — porteur (2026-10-22) : annuler les interventions non terminées à la suppression du bien (observateur `deleted`, motif tracé)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:33-43`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:292-300`, `takussan-api/app/Models/MaintenanceRequest.php:129-135`
 - Constat :
@@ -12602,7 +12602,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Le bail d'un locataire supprimé continue de courir : relances vers personne, pénalités qui s'appliquent
 - Réf : P130.05
-- Statut : retenu · à valider — V1 : une pénalité qui s'applique et sa reprise éventuelle sont des écritures d'argent
+- Statut : validé — porteur (2026-10-22) : la garde de P130.01 (refus de supprimer une fiche sous bail actif) ferme le cas ; un relevé des fiches déjà supprimées sous bail actif précède tout choix de reprise
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendLeasePaymentReminders.php:179-210`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:74-93`
 - Constat :
@@ -12658,7 +12658,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Le lien vers la facture de résiliation ouvre l'historique des paiements, sans la facture
 - Réf : P131.03
-- Statut : retenu · à valider — V7 : la destination du lien (onglet des factures filtré, ou facture ouverte) est à choisir
+- Statut : validé — porteur (2026-10-22) : un `Link` vers `/app/payments?tab=invoices` pour l'équipe, et vers `CustomerPayments` pour le client
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:151-163`, `takussan-web/src/app/(dashboard)/app/payments/page.tsx`, `takussan-web/src/components/payments/PaymentsTabs.tsx:44-47`, `takussan-web/src/components/payments/InvoicesTable.tsx:31-37`
 - Constat :
@@ -12688,7 +12688,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Une quittance enregistrée avec une date de paiement de plus de 30 jours part par SMS avec un lien déjà mort
 - Réf : P132.01
-- Statut : retenu · à valider — V7 : la Piste laisse à choisir la date d'où court la fenêtre de quittance (colonne neuve, donc V4, ou `updated_at`, ou ne pas envoyer de lien)
+- Statut : validé — porteur (2026-10-22) : la fenêtre court depuis le plus tardif de `paid_at` et du passage à `paid`, posé par `markPaid` dans une colonne neuve (V4 additif)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:90-100,103-117`, `takussan-api/app/Services/Model/LeasePaymentService.php:88,119`, `takussan-api/app/Http/Requests/Api/MarkPaidLeasePaymentRequest.php:65`, `takussan-web/src/components/leases/LeasePaymentDialog.tsx:112-116`
 - Constat :
@@ -12719,7 +12719,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Les gabarits WhatsApp inscrits au registre ne correspondent pas aux paramètres envoyés, et ne portent jamais le lien de paiement
 - Réf : P132.03
-- Statut : retenu · à valider — V4 : le correctif réécrit les lignes `whatsapp` du registre (corps et `meta_variables`), et leur texte est un texte métier soumis à Meta (V7)
+- Statut : validé — porteur (2026-10-22) : une migration neuve avec son `down()` réécrit les neuf lignes `whatsapp` (corps, `meta_variables` égal aux paramètres envoyés), `whatsappTemplateParams` lit `meta_variables`, avec la garde de la Piste
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/migrations/2026_10_07_100100_seed_whatsapp_templates_for_coded_notifications.php` (`body()`, `meta_variables`), `takussan-api/app/Notifications/CodedNotification.php:273-281`, `takussan-api/app/Services/Notifications/NotificationRenderer.php:82-99`, `takussan-api/app/Services/Notifications/Whatsapp/CloudApiWhatsappDriver.php:124-131`, `takussan-api/app/Models/NotificationTemplate.php:42`
 - Constat :
@@ -12737,7 +12737,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Un SMS reporté par les heures calmes part au matin avec un lien que la nuit a révoqué
 - Réf : P132.04
-- Statut : retenu · à valider — V7 : abandonner un SMS différé est un comportement neuf, et la fréquence du cas n'est pas mesurée
+- Statut : validé — porteur (2026-10-22) : commencer par les invitations : le job relit `revoked_at` et le jeton avant d'envoyer, et l'abandon s'écrit au journal ; puis les liens de paiement sur le même modèle
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:305-318`, `takussan-api/app/Jobs/SendDeferredSmsJob.php`, `takussan-api/app/Services/Invitation/InvitationService.php:325-345,425-430`, `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:37-50`
 - Constat :
@@ -12751,7 +12751,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Petites améliorations
 - Réf : P132.05
-- Statut : retenu · à valider — V7 : la langue de la page ouverte et du compte créé est un comportement visible neuf
+- Statut : validé — porteur (2026-10-22) : préfixer le lien de paiement par la langue du SMS (`/{locale}/pay/…`), et écrire `preferred_language` depuis `metadata.locale` de l'invitation à la création du compte
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:162-165`, `takussan-web/src/proxy.ts:163-180`, `takussan-api/app/Services/Invitation/InvitationService.php:585-597,1014-1018`
 - Constat :
@@ -12780,7 +12780,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Le dialogue de facture affiche une TVA à 0 %, mais n'envoie pas ce 0 : l'API applique le taux de l'agence
 - Réf : P133.01
-- Statut : retenu · à valider — V1 : le taux de TVA envoyé change le montant de la facture émise
+- Statut : validé — porteur (2026-10-22) : envoyer le taux de TVA affiché, 0 % compris
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:52,84,109-110`, `takussan-api/app/Services/Model/InvoiceService.php:59-66`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:43`
 - Constat :
@@ -12794,7 +12794,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Les lignes saisies dans le dialogue de facture ne partent jamais : seul le sous-total calculé au front arrive à l'API
 - Réf : P133.02
-- Statut : retenu · à valider — V1 : recompter le sous-total depuis des lignes change le montant facturé, et V4 si les lignes se rangent en colonne
+- Statut : validé — porteur (2026-10-22) : envoyer les lignes saisies, et l'API recalcule le sous-total depuis elles
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:72-87`, `takussan-web/src/lib/queries/payments.ts:167-177`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:36-46`, `takussan-api/resources/views/pdf/invoices/default.blade.php:10-13`
 - Constat :
@@ -12808,7 +12808,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Le dialogue de facture envoie toujours `XOF` : le repli sur la devise de l'agence (P04.09) ne joue jamais depuis la console
 - Réf : P133.03
-- Statut : retenu · à valider — V1 : la devise de la facture émise change, et le pré-remplissage est un choix (V7)
+- Statut : validé — porteur (2026-10-22) : pré-remplir la devise avec celle de l'agence (P04.09), modifiable
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:53,85`, `takussan-api/app/Services/Model/InvoiceService.php:47-51`
 - Constat :
@@ -12820,7 +12820,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Le récapitulatif du renouvellement dit « — » pour la pénalité de retard et le délai de grâce, que le nouveau bail hérite pourtant du parent
 - Réf : P133.04
-- Statut : retenu · à valider — V1 : la pénalité de retard du bail renouvelé est un montant, et la vider demande un comportement neuf (V7)
+- Statut : validé — porteur (2026-10-22) : le bail renouvelé reprend la pénalité de retard et le délai de grâce du bail d'origine
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseRenewalDialog.tsx:88-89,105-106,136-141,324-335`, `takussan-api/app/Services/Lease/LeaseRenewalService.php:124-125`, `takussan-api/app/Http/Resources/LeaseResource.php`
 - Constat :
@@ -12833,7 +12833,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Le montant d'un paiement de réservation est calculé par le navigateur, et l'API l'accepte tel quel
 - Réf : P133.05
-- Statut : retenu · à valider — V1 : borner ou dériver le montant d'un paiement de réservation
+- Statut : validé — porteur (2026-10-22) : l'API dérive le montant d'un paiement de réservation ; le navigateur ne l'envoie plus
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/bookings/BookingDetail.tsx:529-546`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:45`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-48`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1657-1659`
 - Constat :
@@ -12957,7 +12957,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### La messagerie ne montre que les 30 conversations les plus récentes, et la pastille ne compte que leurs non-lus
 - Réf : P135.02
-- Statut : retenu · à valider — V7 : pagination ou défilement de la liste, compte des non-lus par l'API
+- Statut : validé — porteur (2026-10-22) : défilement infini de la liste (`useInfiniteQuery`, comme `ChatView`) et total des non-lus calculé par l'API (`meta.unread_total`), avec P136.01
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:39-68`, `takussan-web/src/lib/queries/conversations-list.ts:48-80`, `takussan-web/src/components/messages/ConversationList.tsx:29,61`, `takussan-web/src/components/chat-widget/useUnreadCount.ts:25-44`
 - Constat :
@@ -13027,7 +13027,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### Le widget de messagerie relit toutes les 10 s la liste complète des conversations, sur chaque page connectée, pour une pastille de non-lus
 - Réf : P136.01
-- Statut : retenu · à valider — V7 : cadence de la pastille hors de la messagerie, et forme de la lecture (route de compte neuve ou liste étroite)
+- Statut : validé — porteur (2026-10-22) : l'API rend `meta.unread_total` sur `GET /api/conversations` ; hors de `/app/messages`, la pastille le lit par une lecture étroite (`per_page=1`, sans `include`) à une cadence plus lente ; la liste complète garde ses 10 s dans la seule messagerie
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/chat-widget/CorpsDuWidget.tsx:71`, `takussan-web/src/components/chat-widget/useUnreadCount.ts:25-44`, `takussan-web/src/lib/queries/conversations-list.ts:48-86`, `takussan-web/src/components/layout/AppSidebar.tsx:735`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:39-67`
 - Constat :
@@ -13071,7 +13071,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### L'écran Équipe attend la liste des membres pour demander leurs rôles : deux allers-retours en série avant la colonne « Rôle »
 - Réf : P136.04
-- Statut : retenu · à valider — V7 : rôle d'agence dans la liste des membres, ou lecture de toute l'agence sous un seuil à fixer
+- Statut : validé — porteur (2026-10-22) : inclure les affectations de rôle, bornées à la page, dans la liste des membres, jugées par la règle de lecture des rôles d'aujourd'hui ; test « un seul appel suffit »
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/TeamConsole.tsx:157-174`, `takussan-web/src/lib/queries/agency-roles.ts:92-103`, `takussan-web/src/lib/queries/admin-users.ts:65`
 - Constat :
@@ -13084,7 +13084,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### Petites améliorations
 - Réf : P136.05
-- Statut : retenu · à valider — V7 : quand les cœurs se remplissent sous `/app` et `/super-admin`, et quelles lectures passent au serveur
+- Statut : validé — porteur (2026-10-22) : trois tickets : les favoris lus au premier abonné du magasin, les lectures de premier affichage passées au serveur, le reste comme l'écrit la recommandation du délégué
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/context/AuthContext.tsx:109-133`, `takussan-web/src/lib/queries/favorites.ts:91-114`, `takussan-web/src/app/(super-admin)/super-admin/page.tsx`, `takussan-web/src/components/admin/super/SystemMetricsGrid.tsx:71-75`, `takussan-web/src/components/admin/super/ConsoleRecentActivity.tsx:35-39`, `takussan-web/src/components/dashboard/admin/MiseEnService.tsx:74-78`
 - Constat :
@@ -13195,7 +13195,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
 
 ### Chaque document de `/app` et de `/super-admin` appelle `GET /api/auth/me` deux fois : la mise en page racine le lit hors de `cache()`
 - Réf : P138.02
-- Statut : retenu · à valider — V2 : partager la lecture de la racine avec `getMeAction` change le profil sous lequel l'utilisateur du client est lu (P138.03)
+- Statut : validé — porteur (2026-10-22) : la racine lit l'utilisateur par la même promesse mémoïsée que `getMeAction` ; un seul `/api/auth/me` par document
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/layout.tsx:72-80`, `takussan-web/src/app/actions/auth.ts:104-127`, `takussan-web/src/app/(dashboard)/layout.tsx:21-23,52`, `takussan-web/src/app/(super-admin)/super-admin/layout.tsx:53`
 - Constat :
@@ -13209,7 +13209,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
 
 ### Le `user` que la racine remet à `AuthProvider` est lu sans profil actif : pour un compte présent dans plusieurs agences, `agency_id` y vaut `null` alors que le serveur rend la page pour l'agence active
 - Réf : P138.03
-- Statut : retenu · à valider — V2 : profil actif sous lequel l'utilisateur du client est lu
+- Statut : validé — porteur (2026-10-22) : l'utilisateur de la racine se lit sous le profil actif (`getActiveProfileId()`, ou la promesse de P138.02)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/layout.tsx:72-80`, `takussan-web/src/lib/auth.ts:98-100`, `takussan-web/src/lib/api.ts:714-716`, `takussan-api/app/Http/Middleware/ResolveActiveProfile.php:107-140`, `takussan-api/app/Models/User.php:417-432`, `takussan-web/src/context/AuthContext.tsx:135-136`
 - Constat :
@@ -13260,7 +13260,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
 
 ### Le tableau de bord agent d'un admin relit ses capacités sans indice de profil, hors de la lecture mémoïsée du layout
 - Réf : P138.07
-- Statut : retenu · à valider — V2 : la bascule « Agence » serait jugée sous le profil actif, et une panne ne rendrait plus `[]`
+- Statut : validé — porteur (2026-10-22) : la page lit les capacités par la lecture mémoïsée qui porte l'indice (`capacitesDuRendu`), et `fetchMyCapabilities` est retiré s'il n'a plus d'appelant
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:52`, `takussan-web/src/lib/queries/dashboard.ts:176-194`, `takussan-web/src/lib/access/pages-admin-server.ts:33-55`
 - Constat :
@@ -13300,7 +13300,7 @@ l'une ni l'autre n'est reprise ici.*
 
 ### L'export du journal d'activité attribue au « système » les actes d'un compte supprimé
 - Réf : P139.01
-- Statut : retenu · à valider — V7 : deux marqueurs possibles dans l'export (`deleted#<id>` ou adresse anonymisée par `withTrashed()`), choix de ce que lit l'admin
+- Statut : validé — porteur (2026-10-22) : `causer_email` = `deleted#<causer_id>` et `causer_role` = `deleted` quand le causeur ne se charge plus ; `system` réservé aux lignes sans `causer_id`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:45,151-155`, `takussan-api/vendor/spatie/laravel-activitylog/src/Models/Activity.php:61-64`, `takussan-api/app/Services/Account/AccountDeletionService.php:313,324`, `takussan-web/src/components/admin/AuditTrail.tsx:550-556`
 - Constat :
@@ -13341,7 +13341,7 @@ l'une ni l'autre n'est reprise ici.*
 
 ### L'archive RGPD ne porte pas les avis reçus comme prestataire
 - Réf : P139.04
-- Statut : retenu · à valider — V3 : le périmètre de l'archive du droit d'accès (avis sur le profil de prestataire, et ceux sur ses biens)
+- Statut : validé — porteur (2026-10-22) : ajouter à `reviews.json` les avis sur le profil de prestataire du titulaire ; pas les avis sur ses biens
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:133-137`, `takussan-api/app/Services/Review/ReceivedReviews.php:44-58`, `takussan-api/app/Models/Profiles/ServiceProviderProfile.php:71-74`
 - Constat :
@@ -13455,7 +13455,7 @@ les angles 25 et 110 (rapprochement), 76 (remboursement d'un payable de la plate
 
 ### Un encaissement soldé par la plateforme est suggéré, puis confirmé, sur un crédit du relevé de l'agence
 - Réf : P141.01
-- Statut : retenu · à valider — V1 : écarter un encaissement du rapprochement de l'agence touche l'écriture de `bank_reconciled_at` d'un paiement, sans règle écrite
+- Statut : validé — porteur (2026-10-22) : écarter des candidats d'un crédit et refuser à la confirmation un paiement que `isSettledByPlatform()` lit comme encaissé par la plateforme
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:65-124`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:31-51,75-101,166-178`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:39-118`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:285-290,374-377`
 - Constat :
@@ -13470,7 +13470,7 @@ les angles 25 et 110 (rapprochement), 76 (remboursement d'un payable de la plate
 
 ### Le virement de clôture de la plateforme ne peut être rapproché d'aucun crédit du relevé
 - Réf : P141.02
-- Statut : retenu · à valider — V1, V4 : le représentant du virement de la plateforme sur le relevé est à choisir, et une des voies ajoute des colonnes à `platform_payouts`
+- Statut : validé — porteur (2026-10-22) : le `PlatformPayout` `paid` devient candidat d'un crédit au `net_amount`, dans une fenêtre autour de `processed_at`, avec la règle de référence sur `payment_reference` (colonnes neuves, V4)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/ReconciliationManager.php:26-32`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:26-30,49-51,132-150`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:16-21,35-43`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementLineController.php:19-24`, `takussan-api/app/Http/Requests/Accounting/MatchBankStatementLineRequest.php:19`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:267-290` (finalisation)
 - Constat :
@@ -13484,7 +13484,7 @@ les angles 25 et 110 (rapprochement), 76 (remboursement d'un payable de la plate
 
 ### L'agence ne voit ni quels encaissements la plateforme détient, ni ce qu'un virement de la plateforme couvre
 - Réf : P141.03
-- Statut : retenu · à valider — V7 : exposer le contenu d'un reversement et notifier l'agence est un comportement visible et un texte neufs
+- Statut : validé — porteur (2026-10-22) : d'abord `GET /api/me/payouts/{id}` sous `viewPlatformPayouts`, qui rend le `breakdown` déjà calculé ; l'avis à l'agence au `markPaid` et l'indication « encaissé par la plateforme » ensuite
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/PlatformPayoutController.php:14-33`, `takussan-api/app/Http/Resources/Api/Admin/PlatformPayoutResource.php:10-37`, `takussan-api/app/Http/Controllers/Api/Admin/PlatformPayoutController.php:36`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:145-172`
 - Constat :
@@ -13497,7 +13497,7 @@ les angles 25 et 110 (rapprochement), 76 (remboursement d'un payable de la plate
 
 ### Petites améliorations du rapprochement
 - Réf : P141.04
-- Statut : retenu · à valider — V1 : le scope partagé est le support de l'exclusion de P141.01, et la colonne d'agence d'un acompte reste à choisir
+- Statut : validé — porteur (2026-10-22) : matcher et recherche passent par un scope partagé ; l'agence d'un acompte se lit par une seule colonne, choisie après mesure
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/BookingPayment.php:82-85`, `takussan-api/app/Models/LeasePayment.php:111-114`, `takussan-api/app/Models/Invoice.php:187-190`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:76`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:313-316`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:265`
 - Constat :
@@ -13520,7 +13520,7 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
 
 ### Le provisionnement d'une agence promet un 502 et une annulation si l'e-mail d'activation échoue, mais l'e-mail part en file : l'agence est créée, et l'échec arrive plus tard, sans trace ni renvoi
 - Réf : P142.01
-- Statut : retenu · à valider — V7 : la Piste laisse le choix entre deux contrats (envoi synchrone, ou file + trace + geste de renvoi)
+- Statut : validé — porteur (2026-10-22) : garder la file de TCK-747, corriger le docblock de `sendActivationLink()` et retirer la promesse du 502 ; `backoff` et `failed()` qui journalise sur la notification
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:36,84,104-118`, `takussan-api/app/Notifications/AgencyAdminActivationNotification.php:22-32`, `takussan-api/tests/Feature/Api/Admin/AgencyOnboardingTest.php:96-113`
 - Constat :
@@ -13550,7 +13550,7 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
 
 ### Le rappel J-7 avant suppression du compte est marqué envoyé à la mise en file, en e-mail seul : un échec du fournisseur fait supprimer le compte sans rappel
 - Réf : P142.03
-- Statut : retenu · à valider — V3 : le correctif décide si une suppression de compte peut s'exécuter sans rappel parvenu (renvoi ou report)
+- Statut : validé — porteur (2026-10-22) : `backoff` sur la notification et un `failed()` qui remet `reminder_sent_at` à nul : le rappel repart, et la suppression est reportée d'autant
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:38-43`, `takussan-api/app/Services/Account/AccountDeletionService.php:550-562`, `takussan-api/app/Notifications/AccountDeletionReminderNotification.php:14-30`
 - Constat :
@@ -13562,7 +13562,7 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
 
 ### Les commissions d'un bail sont calculées par un écouteur en file sans `failed()` ni autre appelant : un échec laisse le bail sans ligne de commission, sans alerte
 - Réf : P142.04
-- Statut : retenu · à valider — V1 : écouteur qui écrit les lignes de commission d'un bail
+- Statut : validé — porteur (2026-10-22) : `AlertsOnFirstFailure` (ou son pendant) et un `backoff` sur les deux écouteurs des commissions
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Listeners/Lease/GenerateCommissionEntries.php:17-29`, `takussan-api/app/Services/Commission/CommissionLedgerService.php:41-107`, `takussan-api/app/Jobs/Concerns/AlertsOnFirstFailure.php:8-32`, `takussan-api/app/Listeners/Lease/CreateTenantOnboardingChecklist.php`
 - Constat :
@@ -13576,7 +13576,7 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
 
 ### Les notifications en file hors `CodedNotification` n'ont aucun `backoff` ni `failed()`, et un même délai ne vaut pas pour toutes : le code de suppression de compte expire en 5 minutes
 - Réf : P142.05
-- Statut : retenu · à valider — V7 : délais de reprise à choisir par famille (code de suppression à 5 min, activation à 7 jours)
+- Statut : validé — porteur (2026-10-22) : un trait commun qui reprend `failed()` de `CodedNotification` et son délai `[60, 300, 900]`, et un `retryUntil()` égal à la durée de vie pour les codes et liens courts
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/*.php` (25 classes `extends Notification` en `ShouldQueue` hors `CodedNotification`, plus `ResetPasswordNotification` et `RegistrationConfirmationNotification`), `takussan-api/app/Notifications/CodedNotification.php:76-110`, `takussan-api/app/Services/Account/DeletionStepUpService.php:44,101-105`, `deploy/takussan/compose.api.yml:125,131`
 - Constat :
@@ -13590,7 +13590,7 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
 
 ### Petites améliorations
 - Réf : P142.06
-- Statut : retenu · à valider — V7 : chaque point demande un choix (canal ou liste des exports, ordre de la marque, régime de test)
+- Statut : validé — porteur (2026-10-22) : la cloche (`database`) ajoutée au `via()` d'`ActivityLogExportReadyNotification` ; `tenant_welcomed_at` posé dans l'écouteur avant l'envoi
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:50-69`, `takussan-api/app/Notifications/ActivityLogExportReadyNotification.php:25`, `takussan-api/app/Listeners/Lease/SendTenantWelcomeNotification.php:47-55`
 - Constat :
@@ -13626,7 +13626,7 @@ générique est P112.01.*
 
 ### Un état des lieux à plus de ~1 500 lignes d'éléments ne se télécharge plus : dompdf épuise `memory_limit`, et rien ne borne les pièces ni les éléments
 - Réf : P143.01
-- Statut : retenu · à valider — V7 : le plafond de pièces et d'éléments est un refus neuf, à chiffrer
+- Statut : validé — porteur (2026-10-22) : borner `rooms` à 30 et `rooms.*.elements` à 30, le même plafond dans le schéma du front, `notes` à 1 000 caractères, avec la garde du PDF au plafond sous 256M
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/InventoryStoreRequest.php:42-49`, `takussan-api/app/Http/Requests/InventoryUpdateRequest.php:29-36`, `takussan-api/resources/views/pdf/inventories/report.blade.php:109-153`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:185-225`, `takussan-api/docker/php.ini:3,11`, `takussan-web/src/lib/schemas/inventory.ts:51,72`
 - Constat :
@@ -13674,7 +13674,7 @@ générique est P112.01.*
 
 ### Le socle commun : après toute erreur autre qu'un 422, le formulaire garde sa saisie et le bouton se réactive, et une seule route de l'API sait reconnaître un rejeu
 - Réf : P144.01
-- Statut : retenu · à valider — V6 : brique commune d'idempotence (intergiciel et option de mutation), forme et fenêtre à choisir
+- Statut : retenu · à valider — V6 : brique commune d'idempotence (intergiciel et option de mutation), forme et fenêtre à choisir ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : ADR de la brique `Idempotency-Key` : intergiciel sur le modèle de TCK-822 (clé par utilisateur et route, 24 h, réponse rangée rejouée, 422 sur une même clé pour un autre corps) et option de `useApiMutation`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/hooks/useApiForm.ts:262-298`, `takussan-web/src/lib/query-client.ts:27-29`, `takussan-web/src/lib/api.ts:752-765`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:49-93`, `takussan-api/app/Http/Requests/Credits/StorePropertyBoostRequest.php:28-31`
 - Constat :
@@ -13689,7 +13689,7 @@ générique est P112.01.*
 
 ### Un message rejoué après une erreur s'écrit deux fois dans le fil
 - Réf : P144.02
-- Statut : retenu · à valider — V6 : dépend de la brique de P144.01, ou d'un `client_id` rangé sur le message (V4)
+- Statut : retenu · à valider — V6 : dépend de la brique de P144.01, ou d'un `client_id` rangé sur le message (V4) ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : la brique de P144.01 sur les messages, sans `client_id` propre ; après l'ADR de P144.01
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:289-330`, `takussan-web/src/lib/queries/conversations.ts:265-327`, `takussan-web/src/components/messages/ChatView.tsx:211-218,368`
 - Constat :
@@ -13704,7 +13704,7 @@ générique est P112.01.*
 
 ### Une demande de réservation rejouée crée une seconde réservation en attente, et prévient de nouveau le bailleur
 - Réf : P144.03
-- Statut : retenu · à valider — V7 : refuser ou rendre la réservation `pending` déjà ouverte est une règle neuve ; sinon la brique de P144.01 (V6)
+- Statut : retenu · à valider — V7 : refuser ou rendre la réservation `pending` déjà ouverte est une règle neuve ; sinon la brique de P144.01 (V6) ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : la clé de P144.01 sur `POST /api/bookings` et `booking-request`, sans règle de rapprochement ; après l'ADR de P144.01
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/BookingService.php:119-136`, `takussan-api/app/Services/Booking/PropertyAvailabilityService.php:40-44`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:946-1048`, `takussan-web/src/components/bookings/BookingTunnel.tsx:145-175,446`, `takussan-web/src/hooks/useBookingRequest.ts:14-28`, `takussan-web/src/app/actions/property.ts:131-149,182-199`
 - Constat :
@@ -13719,7 +13719,7 @@ générique est P112.01.*
 
 ### Un acompte enregistré par le personnel puis rejoué compte deux encaissements `paid`
 - Réf : P144.04
-- Statut : retenu · à valider — V1 : encaissement d'acompte, montant écrit deux fois
+- Statut : retenu · à valider — V1 : encaissement d'acompte, montant écrit deux fois ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : la clé de P144.01 sur la route d'acompte ; après l'ADR de P144.01
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/BookingPaymentController.php:35-59`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-48`, `takussan-web/src/components/bookings/BookingPaymentDialog.tsx:60-67,120`
 - Constat :
@@ -13733,7 +13733,7 @@ générique est P112.01.*
 
 ### Une facture rejouée est émise deux fois, sous deux numéros
 - Réf : P144.05
-- Statut : retenu · à valider — V1 : création de facture ; le doublon est un brouillon, sans numéro légal
+- Statut : retenu · à valider — V1 : création de facture ; le doublon est un brouillon, sans numéro légal ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : la clé de P144.01 sur `POST /api/invoices` ; après l'ADR de P144.01
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/InvoiceController.php:43-53`, `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:72-95,288`, `takussan-web/src/lib/queries/payments.ts:179-184`
 - Constat :
@@ -13746,7 +13746,7 @@ générique est P112.01.*
 
 ### Une demande d'intervention rejouée ouvre deux interventions et prévient deux fois
 - Réf : P144.06
-- Statut : retenu · à valider — V6 : dépend de la brique d'idempotence de P144.01
+- Statut : retenu · à valider — V6 : dépend de la brique d'idempotence de P144.01 ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : la clé de P144.01 sur `POST /api/maintenance-requests` ; après l'ADR de P144.01
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:87-130`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:78-96,179`
 - Constat :
@@ -13759,7 +13759,7 @@ générique est P112.01.*
 
 ### Le délai par défaut que P79.01 pose sur les appels du serveur Next couvrira aussi les écritures des actions serveur
 - Réf : P144.07
-- Statut : retenu · à valider — V7 : clé d'idempotence ou délai plus long pour les écritures, à choisir avec P79.01
+- Statut : retenu · à valider — V7 : clé d'idempotence ou délai plus long pour les écritures, à choisir avec P79.01 ; porteur (2026-10-22) : validé sur le fond, ADR à écrire hors agents, en session, avant toute implémentation : la clé de P144.01 sur les `POST` des actions serveur de `property.ts`, engendrée une fois par soumission, plutôt qu'un délai plus long ; après l'ADR de P144.01
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/property.ts:112-149,182-270`, `takussan-web/src/lib/api.ts:690-765`
 - Constat :
@@ -13772,7 +13772,7 @@ générique est P112.01.*
 
 ### Petites améliorations
 - Réf : P144.08
-- Statut : retenu · à valider — V7 : rapprochement des visites par créneau, règle neuve ; sinon la brique de P144.01 (V6)
+- Statut : validé — porteur (2026-10-22) : les visites se rapprochent par (visiteur, bien, créneau) dans `VisitSchedulingService::createOrFail`, en rendant la visite active déjà ouverte ; `contact-lead` attend la clé de P144.01
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Visit/VisitSchedulingService.php:30,214-287`, `takussan-web/src/app/actions/property.ts:112-129`
 - Constat :
@@ -13918,7 +13918,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### `PATCH /api/properties/{id}` remet un bien au catalogue sans `properties.publish`, que `PUT …/status` exige
 - Réf : P147.01
-- Statut : retenu · à valider — V2 : resserre l'autorisation du `PATCH`, par la règle de `PUT …/status` ou par le retrait des champs
+- Statut : validé — porteur (2026-10-22) : le `PATCH` applique la règle de `PUT …/status` (un `status` affichable ou `visibility=public` demande `can('publish')`), et rejoint `cheminsDePublication`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:56-57`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:187-236`, `takussan-api/app/Http/Requests/Api/UpdateStatusPropertyRequest.php:29-42`, `takussan-api/app/Services/Property/PublishReadiness.php:58-66,94-98`, `takussan-api/tests/Feature/Api/PropertyAuthorizationTest.php:102-119,219-257`
 - Constat :
@@ -13933,7 +13933,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Archiver par `PATCH` ne fait pas ce que fait l'archivage : le bien reste public et publié
 - Réf : P147.02
-- Statut : retenu · à valider — V7 : passer l'archivage du `PATCH` par `PropertyPublication` ou le refuser, choix lié à P147.01
+- Statut : validé — porteur (2026-10-22) : `status=archived` et la sortie d'archive du `PATCH` passent par `PropertyPublication`, avec un test qui compare les colonnes écrites par les deux chemins
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:220-230,312-319`, `takussan-api/app/Services/Property/PropertyPublication.php:38-46`
 - Constat :
@@ -13947,7 +13947,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le `PATCH` rend public un bien que `publish` refuse, et écrit un état « public » sans publication
 - Réf : P147.03
-- Statut : retenu · à valider — V2 : le `PATCH` publie sans les règles de `publish`, correctif lié à P147.01
+- Statut : validé — porteur (2026-10-22) : un passage à `public` par le `PATCH` appelle `publish()`, comme `updateVisibility`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:187-236,247-283`, `takussan-api/app/Models/Property.php:507-517,554-569`, `takussan-api/app/Services/Search/PropertySearchService.php:459-466`
 - Constat :
@@ -13960,7 +13960,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Passer un bien en statut actif par `PATCH` ou `PUT …/status` ne juge pas le quota d'annonces
 - Réf : P147.04
-- Statut : retenu · à valider — V1 : borne du forfait d'abonnement, à juger sur deux chemins ou dans l'observateur
+- Statut : validé — porteur (2026-10-22) : juger le quota au seul point commun, l'observateur `updating`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:112-114,187-236,256-259,294-327`, `takussan-api/app/Services/Billing/QuotaResolver.php:66-70`
 - Constat :
@@ -13971,7 +13971,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Les statuts de modération se posent à la main, sans motif ni horodatage
 - Réf : P147.05
-- Statut : retenu · à valider — V2 : quels statuts de modération, et `published`, retirer des deux requêtes
+- Statut : validé — porteur (2026-10-22) : retirer `pending_review`, `rejected` et `published` des valeurs qu'acceptent les deux requêtes
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:56`, `takussan-api/app/Http/Requests/Api/UpdateStatusPropertyRequest.php:48`, `takussan-api/app/Services/Property/PropertyModerationService.php:82-95,121-137`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:37,55`
 - Constat :
@@ -13983,7 +13983,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Un client se marque `blocked` ou `deleted` par le formulaire, et rien ne lit ces deux statuts
 - Réf : P147.06
-- Statut : retenu · à valider — V7 : ce que `blocked` et `deleted` empêchent, ou leur retrait
+- Statut : validé — porteur (2026-10-22) : retirer `deleted` de la règle d'`UpdateCustomerRequest` et du formulaire ; `blocked` est lu par les gestes qui contactent le client, sinon retiré
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/UpdateCustomerRequest.php:75`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:29-45,150-176,178-186`, `takussan-api/app/Services/Crm/PipelineStatsService.php:59-64`, `takussan-api/app/Services/Crm/ProspectMatcher.php:141-145`, `takussan-web/src/lib/enums/customer.ts:12-17`, `takussan-web/src/components/customer-form/CustomerForm.tsx:141,309-317`
 - Constat :
@@ -14011,7 +14011,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le registre des droits se clôt à la main pendant que la demande liée suit son cours
 - Réf : P147.08
-- Statut : retenu · à valider — V3 : quelles clôtures manuelles refuser sur une entrée liée du registre
+- Statut : validé — porteur (2026-10-22) : refuser toute clôture manuelle d'une entrée liée du registre tant que sa demande vit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/Admin/UpdatePrivacyRequestRequest.php:27`, `takussan-api/app/Http/Controllers/Api/Admin/PrivacyRequestController.php:53-77`, `takussan-api/app/Observers/Privacy/PrivacyRegistryObserver.php:47-90`, `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:135-143`
 - Constat :
@@ -14023,7 +14023,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Petites améliorations
 - Réf : P147.09
-- Statut : retenu · à valider — V1 : borner le statut d'un paiement de réservation créé à la main
+- Statut : validé — porteur (2026-10-22) : poser `completed_at` à la naissance ou au passage `done` d'une tâche, à nul à la réouverture ; le statut d'un paiement créé à la main borné à `paid`, `pending` et `partially_paid`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/StoreTaskRequest.php:56`, `takussan-api/app/Http/Controllers/Api/TaskController.php:74-78,156-158`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:49`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-47`
 - Constat :
@@ -14038,7 +14038,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Une délégation du rôle `agency_admin` accorde toutes les capacités d'administration, mais n'ouvre aucune page de `/app/agency`
 - Réf : P148.01
-- Statut : retenu · à valider — V2 : ce qu'une délégation `agency_admin` ouvre à l'écran et à l'API
+- Statut : validé — porteur (2026-10-22) : la section se juge par capacité (`/api/me/capabilities`), délégations comprises
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(dashboard)/app/agency/layout.tsx:28`, `takussan-web/src/lib/access/pages-admin.ts:130-134`, `takussan-api/app/Models/Concerns/HasProfiles.php:238-275`, `takussan-api/app/Services/Membership/MembershipCapabilityResolver.php:276-305`, `takussan-api/config/role_delegations.php`
 - Constat :
@@ -14052,7 +14052,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Un agent à qui un rôle personnalisé donne `team.invite`, `team.assign_role` ou `team.suspend` n'a aucun écran pour le geste
 - Réf : P148.02
-- Statut : retenu · à valider — V7 : ouvrir `team` et `roles` par capacité, ou cesser d'offrir ces capacités à un rôle de base `agent`
+- Statut : validé — porteur (2026-10-22) : ouvrir la section `team` par capacité (`team.invite`, `team.assign_role` ou `team.suspend`), avec une liste d'équipe lisible sous la même capacité
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin/roles/CapabilityMatrix.tsx:79-82`, `takussan-api/app/Http/Requests/Agency/SyncCapabilitiesRequest.php`, `takussan-api/app/Services/Membership/AgencyRoleService.php:226-240`, `takussan-web/src/app/(dashboard)/app/agency/layout.tsx:28`, `takussan-web/src/lib/access/pages-admin.ts:63-65`
 - Constat :
@@ -14111,7 +14111,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### La fiche client modifiée garde l'e-mail, le téléphone, la profession et le type de pièce qu'on vient de vider
 - Réf : P149.02
-- Statut : retenu · à valider — V3 : effacement de données personnelles du client (e-mail, téléphone, pièce)
+- Statut : validé — porteur (2026-10-22) : en édition, un champ modifié et laissé vide envoie `null` (`email`, `phone`, `occupation`, `id_type`) ; `id_number` omis tant qu'il n'est pas touché
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/schemas/customer.ts:187-206`, `takussan-web/src/components/customer-form/CustomerForm.tsx:154-165`, `takussan-api/app/Http/Requests/Api/UpdateCustomerRequest.php:69-73`, `takussan-api/app/Services/Model/CustomerService.php:23`
 - Constat :
@@ -14126,7 +14126,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Vider sa présentation dans le profil n'efface rien : l'action serveur retire `bio` du corps
 - Réf : P149.03
-- Statut : retenu · à valider — V3 : effacement d'une donnée de profil de l'utilisateur
+- Statut : validé — porteur (2026-10-22) : relayer `bio` dès que le formulaire le porte (`formData.has('bio')`), chaîne vide comprise
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/actions/auth.ts:52-54`, `takussan-web/src/lib/auth.ts:114`, `takussan-web/src/components/profile/ProfileContactSection.tsx:99,112`, `takussan-web/src/components/profile/ProfileHeader.tsx:108`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:170`
 - Constat :
@@ -14153,7 +14153,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Petites lectures « `null` = garder » dans l'API
 - Réf : P149.05
-- Statut : retenu · à valider — V7 : contrat des notes de clôture non écrit ; retrait du numéro de carte à décider
+- Statut : validé — porteur (2026-10-22) : ne valider que la carte : `array_key_exists` seul côté API (`null` efface) et le wizard envoie `null` pour un champ vidé ; les notes de clôture gardent « `null` = garder »
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:170-172`, `takussan-api/app/Http/Requests/Api/Me/UpdateSpecializationAgentProfileRequest.php:53`, `takussan-web/src/components/onboarding/AgentOnboardingWizard.tsx:468`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:320-322`
 - Constat :
@@ -14213,7 +14213,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Rien ne confronte les paramètres écrits par le front aux listes blanches de l'API, et les écarts vivent des semaines
 - Réf : P150.04
-- Statut : retenu · à valider — V6 : forme du contrat front ↔ API (fichier généré ou tenu à la main) à décider
+- Statut : validé — porteur (2026-10-22) : un fichier dérivé, généré depuis les hooks de `src/lib/queries` et versionné, avec un mode `--check`, que rejoue un test Feature de l'API (aucune requête ne rend 400)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/*.ts` (leurs tests ne vérifient que le chemin et la chaîne produite, par exemple `__tests__/reconciliation.test.ts:28-41`), `takussan-api/tests/Feature/**`
 - Constat :
