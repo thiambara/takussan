@@ -40,12 +40,14 @@ vi.mock('@/components/property/PropertyCard', () => ({
     robe,
     badge,
     priority,
+    revelee,
   }: {
     property: { id: number };
     transactionFiltree?: string;
     robe?: string;
     badge?: string | null;
     priority?: boolean;
+    revelee?: boolean;
   }) => (
     <article
       data-testid={`carte-${property.id}`}
@@ -53,6 +55,7 @@ vi.mock('@/components/property/PropertyCard', () => ({
       data-robe={robe}
       data-badge={badge ?? undefined}
       data-priority={priority ? 'oui' : 'non'}
+      data-revelee={revelee || priority ? 'oui' : 'non'}
     />
   ),
 }));
@@ -216,5 +219,54 @@ describe('TCK-635 — la taille de page vit avec la pagination', () => {
     expect(pied).not.toBeNull();
     expect(pied).toContainElement(screen.getByRole('navigation', { name: 'Pagination' }));
     expect(parPage.closest('[data-rangee-outils]')).toBeNull();
+  });
+});
+
+/**
+ * TCK-1276 (P102.02) — la grille passe à cinq colonnes à 1 536 px et à six à 1 800 px : la 5ᵉ et la
+ * 6ᵉ carte de la première rangée sortaient masquées (`opacity-0`) jusqu'à l'hydratation. Les six
+ * premières cellules sont révélées d'emblée ; les images préchargées restent quatre.
+ */
+describe('TCK-1276 — six cellules révélées, quatre images prioritaires', () => {
+  const huit = [22, 23, 24, 25, 26, 27, 28, 29].map((id) => ({ id, title: `Bien ${id}`, contract_type: 'rent' }));
+
+  it('sans emplacement : les six premiers biens révélés, les quatre premiers prioritaires', async () => {
+    parametres = new URLSearchParams('');
+    mockApiFetch.mockResolvedValue({
+      data: huit,
+      meta: { total: 8, per_page: 40, current_page: 1, last_page: 1 },
+      search: { strategy: 'all', terms_unmatched: [], widened_total: null },
+    });
+    render(withIntl(<PropertiesDiscoveryPage />));
+    await screen.findByTestId('carte-22');
+    const ids = huit.map((b) => b.id);
+    expect(ids.map((id) => screen.getByTestId(`carte-${id}`).getAttribute('data-revelee'))).toEqual(
+      ['oui', 'oui', 'oui', 'oui', 'oui', 'oui', 'non', 'non'],
+    );
+    expect(ids.map((id) => screen.getByTestId(`carte-${id}`).getAttribute('data-priority'))).toEqual(
+      ['oui', 'oui', 'oui', 'oui', 'non', 'non', 'non', 'non'],
+    );
+  });
+
+  it('deux emplacements : ils consomment les deux budgets, en tête de grille', async () => {
+    parametres = new URLSearchParams('');
+    mockApiFetch.mockResolvedValue({
+      data: huit.slice(0, 5),
+      sponsored: [
+        { id: 90, title: 'Sponsorisé 1', slug: 'bien-90', contract_type: 'sale', badge: null },
+        { id: 91, title: 'Sponsorisé 2', slug: 'bien-91', contract_type: 'sale', badge: null },
+      ],
+      meta: { total: 5, per_page: 40, current_page: 1, last_page: 1 },
+      search: { strategy: 'all', terms_unmatched: [], widened_total: null },
+    });
+    render(withIntl(<PropertiesDiscoveryPage />));
+    await screen.findByTestId('carte-22');
+    const ids = [90, 91, 22, 23, 24, 25, 26];
+    expect(ids.map((id) => screen.getByTestId(`carte-${id}`).getAttribute('data-revelee'))).toEqual(
+      ['oui', 'oui', 'oui', 'oui', 'oui', 'oui', 'non'],
+    );
+    expect(ids.map((id) => screen.getByTestId(`carte-${id}`).getAttribute('data-priority'))).toEqual(
+      ['oui', 'oui', 'oui', 'oui', 'non', 'non', 'non'],
+    );
   });
 });
