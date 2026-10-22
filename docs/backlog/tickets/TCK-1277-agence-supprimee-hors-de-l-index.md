@@ -1,7 +1,7 @@
 ---
 id: TCK-1277
 title: "Les biens d'une agence supprimée sortent de l'index de recherche, et leurs pages publiques sont revalidées"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -45,19 +45,19 @@ les y remet, comme la levée d'une suspension.
 
 ## Delta à produire
 
-- [ ] `AgencyObserver::deleted()` et `restored()` mettent `SyncAgencyPropertiesSearchIndex` en
+- [x] `AgencyObserver::deleted()` et `restored()` mettent `SyncAgencyPropertiesSearchIndex` en
       file (`afterCommit`).
-- [ ] Le job relit l'agence par `withTrashed()` ; publique = `active` et non supprimée.
-- [ ] Tests : agence supprimée → ses biens retirés du moteur (espion), aucun dans `totalHits`
+- [x] Le job relit l'agence par `withTrashed()` ; publique = `active` et non supprimée.
+- [x] Tests : agence supprimée → ses biens retirés du moteur (espion), aucun dans `totalHits`
       sous le moteur `collection` ; restaurée → ses biens publics réindexés.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Après `$agence->delete()`, le moteur reçoit le retrait de tous ses biens, et aucun
+- [x] AC1 — Après `$agence->delete()`, le moteur reçoit le retrait de tous ses biens, et aucun
       ceux d'une autre agence.
-- [ ] AC2 — Sous le moteur `collection`, une recherche publique ne compte aucun bien de l'agence
+- [x] AC2 — Sous le moteur `collection`, une recherche publique ne compte aucun bien de l'agence
       supprimée dans `totalHits`.
-- [ ] AC3 — Après `restore()`, les biens publics de l'agence sont réindexés.
+- [x] AC3 — Après `restore()`, les biens publics de l'agence sont réindexés.
 
 ## Hors périmètre
 
@@ -65,4 +65,11 @@ les y remet, comme la levée d'une suspension.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Test : `tests/Feature/Search/AgencyDeletionSearchIndexTest.php`. Avant correctif, le moteur
+  espion ne reçoit aucun retrait à la suppression.
+- Ablations, chacune seule : `withTrashed()` retiré du job → rouge ; `deleted()` vidé → rouge ;
+  remis → vert. `AgencySuspensionSearchIndexTest`, `AgencySearchTest`, `AgencyTest` verts.
+- Le cas sous le moteur `collection` (demandé par la décision) est **vert sans le correctif** : ce
+  moteur relit la base et réévalue `shouldBeSearchable()` à chaque recherche, et
+  `agencyIsPublic()` écarte déjà l'agence supprimée. Il garde le compte ; c'est le moteur espion
+  qui garde le correctif (même raison que `AgencySuspensionSearchIndexTest`).
