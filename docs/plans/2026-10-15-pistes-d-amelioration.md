@@ -11229,7 +11229,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Une réservation confirmée dont le séjour est fini s'annule encore, et ouvre une tâche de remboursement de l'acompte
 - Réf : P115.01
-- Statut : validé — porteur (2026-10-22) : une tâche quotidienne passe `completed` les réservations `confirmed` dont `end_date` est passée, et `cancel()` refuse l'annulation d'un séjour commencé (bouton caché au front)
+- Statut : fait · TCK-1301
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/Enums/BookingStatus.php:11`, `takussan-api/app/Services/Model/BookingService.php:42-47,262-303`, `takussan-api/app/Services/Review/ReviewEligibility.php:36`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:64`, `takussan-web/src/components/bookings/BookingDetail.tsx:186-188`
 - Constat :
@@ -11241,6 +11241,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : écrire `completed`, soit par une tâche quotidienne qui clôt les réservations `confirmed` dont `end_date` est passée, soit au départ du client ; à défaut, refuser l'annulation d'un séjour commencé dans `cancel()` et cacher le bouton au front. Le choix (et le sort des réservations passées déjà en base) est une décision. Garde : un test qui annule une réservation au séjour fini et attend `422 booking.cannot_cancel`, sans tâche de remboursement.
 - Mesure (2026-10-22, 3390f9116, mesureur) : relu `BookingService.php:42-47` (`TERMINAL_CANCEL_STATUSES`) et `:271-290` (`cancel()` ne lit aucune date), `grep -rn "BookingStatus::Completed" app` → trois listes lues (`BookingService.php:44`, `PortfolioMetrics.php:64`, `ReviewEligibility.php:36`), aucun littéral `'completed'` pour une réservation, les deux jobs (`app/Jobs/ExpireBookings.php`, `ExpirePendingBookingsJob`) ne visent que `pending` (`BookingExpirationService.php:219`) ; test temporaire (retiré), charge `1.87 2.07 2.35` sur 8 cœurs : réservation `confirmed` du J-10 au J-3, acompte `paid` de 10 000, `POST /api/bookings/{id}/cancel` par le client → `200`, statut `cancelled`, une tâche `booking_refund` ; le bouton tient (`BookingDetail.tsx:186-188`). Le constat tient en entier. Classement : V1, le correctif décide si l'acompte d'un séjour passé ouvre un remboursement, et la Piste laisse trois options (tâche de clôture, départ, refus) et le sort des réservations en base (V7).
+- Mesure (2026-10-22, fbf2acedf, implementeur) : reproduit avant correctif par `BookingRefundTaskTest` (réservation `confirmed` du J-10 au J-3, acompte `paid`, annulation par le client → 200 au lieu de 422 ; premier jour du séjour, par l'agent → 200) → `CompleteEndedBookingsJob` quotidien (03:30) passe `completed` les `confirmed` finies la veille (ni `BookingClosed`, ni tâche ; les réservations déjà en base reprises au premier passage), `cancel()` rend 422 `booking.cannot_cancel` dès le premier jour d'un séjour `confirmed`, bouton caché au front ; ablation : garde retirée → 2 rouges, entrée du planificateur retirée → 1 rouge, front avant correctif → 2 rouges sur 4 ; remis → verts.
 
 ### La console d'équipe filtre les comptes « Bloqué » sur `banned`, une valeur que l'API n'écrit jamais
 - Réf : P115.02
