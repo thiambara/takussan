@@ -22,7 +22,7 @@ tags: [front, network, pistes]
 
 Réf : **P113.01** du fichier de pistes, `validé (délégué)` (V7 accordé).
 
-Décision du porteur (déléguée) : borne de 30 s sur les seules lectures (`GET`) d'`apiRequest` côté navigateur, par `AbortSignal.any([signal de l'appelant, AbortSignal.timeout(30 s)])`, la valeur de `DELAI_API_SERVEUR_MS` (TCK-1215), livrée avec P113.04 pour que le délai s'affiche comme une panne réseau
+Décision du porteur (déléguée) : borne de 30 s sur les seules lectures (`GET`) d'`apiRequest` côté navigateur, par `AbortSignal.any([signal de l'appelant, AbortSignal.timeout(30 s)])`, la valeur de `DELAI_API_SERVEUR_MS` (TCK-1215), livrée avec P113.04 pour que le délai s'affiche comme une panne réseau ; reste : les écritures (`useApiMutation`, `useMutation`), les téléversements et les 39 `fetch` directs, à décider avec P144.07
 
 Reste à faire : les écritures (`useApiMutation`, `useMutation`), les téléversements et les 39 `fetch` directs, à décider avec P144.07
 
