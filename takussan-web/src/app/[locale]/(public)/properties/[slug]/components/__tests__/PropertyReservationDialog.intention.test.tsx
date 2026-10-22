@@ -121,3 +121,33 @@ describe('réouverture par l’intention', () => {
     expect(ouvrir).not.toHaveBeenCalled();
   });
 });
+
+/** TCK-1491 (P145.03) — le message de réservation et celui d'offre portent la borne de l'API (1000). */
+describe('bornes de l’API', () => {
+  it('message de réservation : maxLength 1000', () => {
+    utilisateur = { id: 5 };
+    const { container } = render(
+      withIntl(<PropertyReservationDialog property={bien} open onOpenChange={() => {}} />),
+    );
+    const zones = Array.from(document.querySelectorAll('textarea'));
+    expect(container).toBeTruthy();
+    expect(zones.length).toBeGreaterThan(0);
+    for (const zone of zones) expect(zone.maxLength).toBe(1000);
+  });
+
+  it('message d’offre d’achat : maxLength 1000', () => {
+    utilisateur = { id: 5 };
+    render(
+      withIntl(
+        <PropertyReservationDialog
+          property={{ ...bien, contract_type: 'sale', rent_period: null } as unknown as PropertyDetail}
+          open
+          onOpenChange={() => {}}
+        />,
+      ),
+    );
+    const zones = Array.from(document.querySelectorAll('textarea'));
+    expect(zones.length).toBeGreaterThan(0);
+    for (const zone of zones) expect(zone.maxLength).toBe(1000);
+  });
+});

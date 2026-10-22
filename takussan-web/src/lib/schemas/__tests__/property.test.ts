@@ -93,3 +93,18 @@ describe('propertyFormSchema', () => {
     }
   });
 });
+
+/**
+ * TCK-1491 (P145.03) — l'année de construction s'arrête où l'API s'arrête : l'année en cours + 3
+ * (`StorePropertyRequest`, `UpdatePropertyRequest`). Le schéma acceptait jusqu'à 2100.
+ */
+describe('propertyFormSchema — année de construction (TCK-1491)', () => {
+  const BASE = { title: 'Appartement à Mermoz', type: 'apartment', price: 300_000, city: 'Dakar', contract_type: 'rent', rent_period: 'monthly' };
+  const annee = new Date().getFullYear();
+
+  it('l’année en cours + 3 passe, + 4 est refusée', () => {
+    expect(propertyFormSchema.safeParse({ ...BASE, year_built: annee + 3 }).success).toBe(true);
+    expect(propertyFormSchema.safeParse({ ...BASE, year_built: annee + 4 }).success).toBe(false);
+    expect(propertyFormSchema.safeParse({ ...BASE, year_built: 2100 }).success).toBe(false);
+  });
+});

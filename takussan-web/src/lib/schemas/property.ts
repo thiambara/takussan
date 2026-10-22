@@ -207,7 +207,9 @@ export const propertyFormSchema = z.object({
     .number()
     .int(msgValidation('property.integerExpected'))
     .min(1800, msgValidation('property.yearInvalid'))
-    .max(2100, msgValidation('property.yearInvalid'))
+    // TCK-1491 (P145.03) — la borne de l'API (`StorePropertyRequest`, `UpdatePropertyRequest`) :
+    // l'année en cours + 3. 2100 laissait passer au formulaire ce que l'API refuse en 422.
+    .max(new Date().getFullYear() + 3, msgValidation('property.yearInvalid'))
     .optional(),
   parking_spaces: z.coerce
     .number()

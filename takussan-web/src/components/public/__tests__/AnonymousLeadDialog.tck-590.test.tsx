@@ -72,3 +72,11 @@ describe('<AnonymousLeadDialog> — TCK-590', () => {
     expect(screen.getByLabelText('Nom complet')).toHaveValue('Awa Diop');
   });
 });
+
+/** TCK-1491 (P145.03) — le message de contact sans compte porte la borne de l'API (2000). */
+describe('<AnonymousLeadDialog> — bornes de l’API (TCK-1491)', () => {
+  it('message : maxLength 2000', () => {
+    render(withIntl(<AnonymousLeadDialog open onOpenChange={() => {}} onSubmit={vi.fn()} />));
+    expect((document.querySelector('textarea') as HTMLTextAreaElement).maxLength).toBe(2000);
+  });
+});

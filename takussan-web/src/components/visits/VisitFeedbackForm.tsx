@@ -90,6 +90,8 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
           rows={3}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
+          // TCK-1491 — la borne de l'API (`FeedbackPropertyVisitRequest`, max:2000).
+          maxLength={2000}
           placeholder={
             role === 'customer' ? t('placeholderCustomer') : t('placeholderAgent')
           }
