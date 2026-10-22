@@ -13791,7 +13791,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le motif d'un signalement d'avis n'est contrôlé contre aucune liste, à l'inverse de celui d'une annonce
 - Réf : P145.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1285
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/reports/ReviewReportButton.tsx:10-18`, `takussan-api/app/Http/Requests/Public/ReportPublicReviewRequest.php:25`, `takussan-api/app/Http/Requests/Public/ReportPublicPropertyRequest.php:26`, `takussan-api/app/Services/Review/ReviewReportService.php:52-56`
 - Constat :
@@ -13801,6 +13801,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu pour les deux règles et la liste du front.
 - Piste : `Rule::in` sur les sept codes du front, partagés par une constante de l'API. Garde : un test qui envoie un motif hors liste et attend 422.
 - Mesure (2026-10-22, ccdde535d, mesureur) : relu `ReviewReportButton.tsx:10-18` (7 codes), `ReportPublicReviewRequest.php:25` (`string max:500`), `ReportPublicPropertyRequest.php:26` (`Rule::in`), `ReviewReportService.php:52-56` (motif rangé tel quel) ; test temporaire retiré → `POST /api/public/reviews/{id}/report` avec un texte libre rend 200 et `metadata.reports[0].reason` vaut ce texte (le « à vérifier » tient) ; seul appelant du front : `submitReviewReport` (route publique) ; la route authentifiée `reviews/{review}/report` (`ReportReviewRequest.php:31`) accepte aussi du texte libre et ses tests en envoient (`ReviewReportAndDocSearchTest`), `ModerationDetail.tsx:221` affiche le motif brut ; `ReviewAggregateTest.php:57` envoie `'Faux'` à la route publique et sera à adapter. Classement : A1, le contrat de l'unique appelant (les 7 codes de TCK-597) fixe l'attendu : `Rule::in` sur ces codes par une constante de l'API, sur la route publique seule.
+- Mesure (2026-10-22, a2398e474, implementeur) : test neuf `PublicReportTest::test_a_reason_outside_the_list_is_refused` rouge avant correctif : `reason = "Texte libre"` → 200 → `ReportPublicReviewRequest::REASONS` (les sept codes de `REVIEW_REPORT_REASONS`) et `Rule::in` sur `reason` ; 422 `reason`, `reported_count` inchangé, et les sept codes rendent 200 ; ablation (`string|max:500` remis) → rouge, remise → vert ; les textes libres de `PublicReportTest` et de `ReviewAggregateTest.php:57` deviennent des codes, 10/10 et 1/1. La route authentifiée n'est pas touchée.
 
 ### Petites améliorations : bornes du front plus étroites ou absentes face aux règles de l'API
 - Réf : P145.03
