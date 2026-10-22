@@ -7,6 +7,7 @@ use App\Models\Activity;
 use App\Models\Agency;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\ApiTestCase;
 
@@ -108,5 +109,27 @@ class CrossTenantAuditExportTest extends ApiTestCase
 
         $this->assertStringContainsString("'=HYPERLINK", $content);
         $this->assertDoesNotMatchRegularExpression('/(^|,)"?=HYPERLINK/m', $content);
+    }
+
+    /**
+     * TCK-1416 (P78.02) — le plafond suit ce que la requête tient. Mesuré après le préchargement de
+     * `profileTypes()` : 50 000 lignes demandaient 46,6 s et 217 Mo de surcroît (sous 60 s de
+     * `max_execution_time`, mais au bord des 256 Mo de `memory_limit`) ; 25 000 lignes, 22,5 s et
+     * 105 Mo. Au-delà, le refus déjà connu de la console.
+     */
+    public function test_l_export_est_refuse_au_dela_de_25_000_lignes(): void
+    {
+        $now = now();
+        foreach (array_chunk(range(1, 25_001), 1000) as $lot) {
+            DB::table('activity_log')->insert(array_map(fn () => [
+                'log_name' => 'Property', 'description' => 'temoin', 'event' => 'updated',
+                'created_at' => $now, 'updated_at' => $now,
+            ], $lot));
+        }
+        $this->apiActingAsRole('super_admin');
+
+        $this->apiGet('/api/admin/audit/export')
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'activity_log.export_too_large');
     }
 }

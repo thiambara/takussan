@@ -77,4 +77,31 @@ class ExportAuditRequetesParLigneTest extends TestCase
         }
         $this->assertSame('agency_admin', $lignes[0]['causer_role']);
     }
+
+    /**
+     * TCK-1416 (P78.02) — l'export de la console (`payloadForQuery`) précharge de même : avec le
+     * seul `causer`, six requêtes par ligne (602 pour 100 lignes).
+     */
+    public function test_l_export_de_la_console_ne_fait_pas_de_requete_par_ligne(): void
+    {
+        $agency = Agency::factory()->create();
+        $admin = $this->actingAsRole('agency_admin', ['agency' => $agency]);
+        $exporter = app(ActivityLogExporter::class);
+        $compter = function () use ($exporter, $admin): int {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $exporter->payloadForQuery(Activity::query()->where('causer_id', $admin->id), 'audit');
+            $n = count(DB::getQueryLog());
+            DB::disableQueryLog();
+
+            return $n;
+        };
+
+        $this->journal($admin, $agency, 10);
+        $pour10 = $compter();
+        $this->journal($admin, $agency, 90);
+        $pour100 = $compter();
+
+        $this->assertSame($pour10, $pour100, "10 lignes : {$pour10} requêtes ; 100 lignes : {$pour100}.");
+    }
 }
