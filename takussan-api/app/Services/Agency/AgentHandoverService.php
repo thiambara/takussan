@@ -9,7 +9,7 @@ use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
-use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Property\ResponsibleAgentAssigner;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +25,8 @@ use Illuminate\Support\Facades\DB;
  * Les règles de chaque catégorie :
  *  - `tasks`, `visits` : réassignées ;
  *  - `maintenance` : réassignée si le repreneur y est éligible, sinon DÉSASSIGNÉE et comptée comme
- *    telle (règle d'éligibilité de TCK-592 ; avant sa fusion, le personnel de l'agence) ;
+ *    telle (règle d'éligibilité de TCK-592, {@see ProviderEligibility}). La requête n'admet que le
+ *    personnel de l'agence, toujours éligible : la branche désassignée ne sert qu'à un appel direct ;
  *  - `responsible_properties` (TCK-603) : la marque d'agent principal passe au repreneur par
  *    {@see ResponsibleAgentAssigner} — jamais `user_id` ; un repreneur que le service refuse (co-
  *    propriétaire du bien) laisse le bien DÉSASSIGNÉ, compté comme tel ;
@@ -298,9 +299,15 @@ class AgentHandoverService
         return true;
     }
 
-    /** TCK-592 — règle d'éligibilité d'une intervention ; avant sa fusion, le personnel actif de l'agence (TCK-587). */
+    /**
+     * TCK-592 — la règle d'éligibilité d'une intervention, {@see ProviderEligibility::isAssignable()},
+     * jugée pour l'agence de la passation : le portefeuille ne retient que les interventions des biens
+     * de cette agence (TCK-1255).
+     */
     private function eligibleForMaintenance(User $user, int $agencyId): bool
     {
-        return app(MembershipCapabilityResolver::class)->isStaffAt($user, $agencyId);
+        $eligibility = app(ProviderEligibility::class);
+
+        return $eligibility->isActiveProviderAt($user, $agencyId) || $eligibility->isStaffAt($user, $agencyId);
     }
 }
