@@ -208,7 +208,10 @@ class PropertyController extends Controller
         // P147.03 (TCK-1429) — ce passage est une PUBLICATION : `publish()` le fait, comme pour
         // `PUT …/visibility` (refus d'un bien vendu ou loué, quota, `published_at`). Le `PATCH`
         // écrivait `visibility=public` seul : un bien `sold` public, ou « public » hors catalogue.
-        $passeAPublic = $visibiliteDemandee === PropertyVisibility::Public && $property->visibility !== PropertyVisibility::Public;
+        // P147.02 (TCK-1431) — archiver l'emporte : le bien archivé est privé.
+        $archive = ($data['status'] ?? null) === PropertyStatus::Archived->value;
+        $passeAPublic = ! $archive
+            && $visibiliteDemandee === PropertyVisibility::Public && $property->visibility !== PropertyVisibility::Public;
         if ($passeAPublic) {
             unset($data['visibility']);
         }
@@ -225,6 +228,11 @@ class PropertyController extends Controller
                 Gate::forUser($request->user())->allows('updateParent', [$property, $newParent]),
                 403
             );
+        }
+
+        // P147.02 (TCK-1431) — un statut écrit à la main écrit ce qu'écrit `PUT …/status`.
+        if (isset($data['status'])) {
+            $data = array_merge($data, app(PropertyPublication::class)->statusAttributes($property, PropertyStatus::from($data['status'])));
         }
 
         DB::transaction(function () use ($data, $property, $passeAPublic, $request) {
@@ -323,7 +331,6 @@ class PropertyController extends Controller
         $data = $request->validated();
 
         $status = PropertyStatus::from($data['status']);
-        $updates = ['status' => $status];
 
         // TCK-633 (lot C, vérification adverse S2) — rendre un statut affichable à un bien publié
         // puis retiré par son statut le remet en ligne : c'est une publication, gardée comme
@@ -335,16 +342,9 @@ class PropertyController extends Controller
             $readiness->ensureForProperty($property, $request->user(), $accepte);
         }
 
-        if ($status === PropertyStatus::Archived) {
-            // TCK-591 (verif-591 M3) — l'écriture partagée avec `bulk-archive`.
-            $updates = app(PropertyPublication::class)->archivedAttributes();
-        }
-
-        if ($property->status === PropertyStatus::Archived && $status !== PropertyStatus::Archived) {
-            $updates['archived_at'] = null;
-        }
-
-        $property->update($updates);
+        // TCK-591 (verif-591 M3) — l'écriture d'archivage partagée avec `bulk-archive` ; P147.02
+        // (TCK-1431) — et avec le `PATCH` du bien.
+        $property->update(app(PropertyPublication::class)->statusAttributes($property, $status));
         if ($remetEnLigne) {
             $readiness->recordTerms($request->user(), $accepte);
         }

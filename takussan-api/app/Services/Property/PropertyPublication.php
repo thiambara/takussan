@@ -44,4 +44,23 @@ class PropertyPublication
             'archived_at' => now(),
         ];
     }
+
+    /**
+     * P147.02 (TCK-1431) — ce qu'écrit un changement de statut à la main, par `PUT …/status` ou par
+     * le `PATCH` du bien : archiver écrit {@see archivedAttributes()}, sortir d'archive remet
+     * `archived_at` à nul. Le `PATCH` n'écrivait que le statut : un bien archivé restait public et
+     * publié, et un retour à `available` le remettait au catalogue sans republication.
+     *
+     * @return array<string, mixed>
+     */
+    public function statusAttributes(Property $property, PropertyStatus $status): array
+    {
+        $updates = $status === PropertyStatus::Archived ? $this->archivedAttributes() : ['status' => $status];
+
+        if ($property->status === PropertyStatus::Archived && $status !== PropertyStatus::Archived) {
+            $updates['archived_at'] = null;
+        }
+
+        return $updates;
+    }
 }
