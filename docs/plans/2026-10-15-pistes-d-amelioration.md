@@ -13826,7 +13826,7 @@ générique est P112.01.*
 
 ### Une facture rejouée est émise deux fois, sous deux numéros
 - Réf : P144.05
-- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 2 : la clé sur `POST /api/invoices`
+- Statut : fait · TCK-1402
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/InvoiceController.php:43-53`, `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:72-95,288`, `takussan-web/src/lib/queries/payments.ts:179-184`
 - Constat :
@@ -13836,6 +13836,7 @@ générique est P112.01.*
   - Établi comment : lu, mesuré.
 - Piste : clé d'idempotence sur `POST /api/invoices` (P144.01). Garde : le scénario mesuré, une seule facture.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `InvoiceService::create()` (statut `draft`, `reference_number` tiré à chaque appel), `send()` (le numéro légal `sequence_number` n'est attribué qu'à l'émission, ADR-0039 §7), `cancel()` (un brouillon s'annule par simple changement de statut, sans avoir) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : agent, deux `POST /api/invoices` `{customer_id, issue_date, subtotal: 100000}` → 201 et 201, deux factures `draft` `INV-202610-JAEXVD` et `INV-202610-90RAEU`, `sequence_number` nul sur les deux → le doublon tient, mais le constat est inexact : ce sont deux brouillons, pas deux factures émises, et l'annulation du doublon ne demande pas d'avoir. Classement : V1, la création d'une facture, et la voie passe par la brique de P144.01 (V6).
+- Mesure (2026-10-22, e72d2ad69, implementeur) : avant correctif, `FactureRejoueeTest` (agent, deux `POST /api/invoices` `{customer_id, issue_date, subtotal: 100000}` à 30 s d'écart sous la même `Idempotency-Key`) → 2 factures → route équipée de `idempotent`, `useCreateInvoice` en `idempotence: true` ; ablation : route sans l'intergiciel → rouge, option retirée → rouge vitest ; remis → une facture, le même `id` rendu.
 
 ### Une demande d'intervention rejouée ouvre deux interventions et prévient deux fois
 - Réf : P144.06
