@@ -10480,7 +10480,7 @@ et `production` compris) et la signature WhatsApp (`WhatsappStatusWebhookTest.ph
 
 ### Le refus en 403 d'une liste d'IP vide en `production` n'est gardé par aucun test : le retirer laisse tout vert
 - Réf : P106.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:29-35`, `takussan-api/routes/api/sms-webhooks.php:26-34`, `takussan-api/tests/Feature/Http/Webhook/OrangeSmsWebhookTest.php:21`, `takussan-api/tests/Feature/Http/Webhook/WebhookThrottleTest.php:26`
 - Constat :
@@ -10489,10 +10489,11 @@ et `production` compris) et la signature WhatsApp (`WhatsappStatusWebhookTest.ph
   - Établi comment : ablation, l'appel `abort_code(403, …)` remplacé par un commentaire → `OrangeSmsWebhookTest` 8 verts, `MtargetSmsWebhookTest` 13, `LAfricaMobileSmsWebhookTest` 10, `WebhookThrottleTest` 3, `SmsWebhookTokenPerProviderTest` 5, `TrustedProxiesTest` 4 : aucun rouge (mesuré : `php artisan test <fichier>`, une classe à la fois).
   - Cette branche est la seule défense de la production si les `SMS_*_WEBHOOK_IPS` y manquent : P71.04 laisse leur pose « au moment de F3 » (reste de TCK-1050), et la préproduction, en `staging`, ne la prend jamais (lu, `docs/infra/hebergement.md:202`).
 - Piste : un test qui pose `$this->app['env'] = 'production'` (précédent : `WhatsappStatusWebhookTest.php:222-223`) et une liste vide, et attend 403 `webhook.ip_allowlist_not_configured` sur chacune des trois routes `restrict.ip:{fournisseur}`, sans effet sur l'accusé (tentative inchangée) ; vérifié par la même ablation.
+- Mesure (2026-10-22, cb29105b6, mesureur) : lu `RestrictIpMiddleware.php:29-35` (liste vide + `environment('production')` → `abort_code(403, 'webhook.ip_allowlist_not_configured')`), inchangé depuis TCK-853 ; `grep -rn ip_allowlist_not_configured tests` → rien ; ablation de l'`abort_code` (charge 2,85 / 3,23 / 3,60 sur 8 cœurs) → `WebhookJournalTest` 10 verts, `WebhookPayloadRedactionTest` 3 verts, `OrangeSmsWebhookTest` 8 verts, puis code remis : le constat tient, et deux classes de plus que celles qu'il cite (`WebhookJournalTest`, `WebhookPayloadRedactionTest`) frappent ces routes sans voir la branche. Classement : A5, un test ajouté qui garde un comportement déjà écrit (code et docblock l. 15-16), sans toucher au code ni à un seuil.
 
 ### `DeletionStepUpService::sendCode` rend le code hors production pour les seuls tests, et en production son `null` ne distingue plus « délai de renvoi » de « code envoyé »
 - Réf : P106.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : contrat du code de step-up de suppression de compte
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Account/DeletionStepUpService.php:59-108`, `takussan-api/app/Http/Controllers/Api/Auth/AccountDeletionController.php:84-101`, `takussan-api/tests/Feature/Auth/AccountDeletionStepUpTest.php:104`
 - Constat :
@@ -10501,10 +10502,11 @@ et `production` compris) et la signature WhatsApp (`WhatsappStatusWebhookTest.ph
   - La branche `production` n'est éprouvée par aucun test. Établi comment : ablation, l. 108 remplacée par `return $code;` → `AccountDeletionStepUpTest` 17 verts, `AmbiguousSmsFailureTest` 8 verts (mesuré).
   - En `staging` et en `local`, le code d'un e-mail est rendu à l'appelant PHP, ce qu'ADR-0060 n'accorde qu'au code d'un SMS, et sous drapeau (lu, `OtpPreview.php:10-18`, et le commentaire l. 97-99 du service). Rien ne l'expose aujourd'hui en HTTP (lu, contrôleur l. 95-100) : le risque est celui d'un appelant futur qui s'y fierait.
 - Piste : faire rendre à `sendCode` un booléen « code émis » dans tous les environnements, et faire lire le code aux tests par `Notification::fake` / le pilote SMS de test (comme `OtpPreviewTest`) ou par `OtpPreview`, ce qui retire la branche sur `APP_ENV` ; un test du `false` sous délai de renvoi garde le contrat.
+- Mesure (2026-10-22, cb29105b6, mesureur) : lu `DeletionStepUpService.php:59-109` (docblock l. 59-64, `return app()->environment('production') ? null : $code;` l. 108) et `AccountDeletionController.php:95` (`$stepUp->sendCode($user);`, valeur ignorée) ; `grep -rn "sendCode(" app tests` → seuls les tests lisent la valeur (`AccountDeletionStepUpTest` ×8, `AmbiguousSmsFailureTest.php:178`) ; ablation, l. 108 → `return $code;` → `AccountDeletionStepUpTest` 17 verts, `AmbiguousSmsFailureTest` 8 verts, puis code remis : le constat tient en entier. Classement : V2, la piste change le contrat d'un service de step-up et la façon dont ses tests obtiennent le code, et l'effet sur la réponse HTTP invariante demande un regard du porteur.
 
 ### « Être la production » se juge sur deux critères : `APP_ENV` pour le filtre d'IP, l'origine d'`APP_URL` pour le seul refus de démarrer
 - Réf : P106.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : critère « production » au démarrage, deux voies proposées
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:30`, `takussan-api/app/Services/Account/DeletionStepUpService.php:108`, `takussan-api/app/Services/Auth/OtpPreview.php:28-53`, `takussan-api/app/Http/Middleware/AddRobotsTagOutsideProduction.php:29-44`, `takussan-api/app/Providers/AppServiceProvider.php:214-215`, `takussan-api/config/sms.php:44-47`
 - Constat :
@@ -10512,3 +10514,4 @@ et `production` compris) et la signature WhatsApp (`WhatsappStatusWebhookTest.ph
   - Jugés sur l'origine d'`APP_URL` : `X-Robots-Tag` (`AddRobotsTagOutsideProduction::isProduction`) et le refus de démarrer d'`OtpPreview::refuserSurLaProduction()`, appelé au démarrage (lu, `AppServiceProvider.php:215`). Ce refus ne regarde que le drapeau `OTP_PREVIEW_ENABLED` (lu, `OtpPreview.php:43-53`).
   - Une API servie sur `https://api.takussan.com` avec un `APP_ENV` resté `staging` — le cas que P71.02 a constaté dans le plan F3 — démarre donc, sans aperçu des codes, mais avec le filtre d'IP ouvert à tout appelant tant qu'une liste manque (déduit de la lecture des deux critères ; à vérifier par un test qui démarre l'application ainsi, sur le modèle d'`OtpPreviewTest.php:55`). Un `APP_ENV` mal orthographié (`prod`, `Production`) a le même effet, à l'inverse du choix écrit pour l'aperçu : « un environnement mal nommé reste fermé » (lu, `OtpPreview.php:27`).
 - Piste : au démarrage, refuser un `APP_URL` d'origine production avec un `APP_ENV` autre que `production` (à côté de `refuserSurLaProduction`, même test par `bootstrap/app.php`) ; ou faire juger `RestrictIpMiddleware` par une liste d'autorisation des environnements où une liste vide laisse passer (`local`, `testing`, `staging`), comme `OtpPreview`.
+- Mesure (2026-10-22, cb29105b6, mesureur) : lu les quatre lecteurs d'`APP_ENV` et les deux d'`APP_URL` cités (lignes inchangées) ; test temporaire retiré ensuite (`app.url` = `AddRobotsTagOutsideProduction::PRODUCTION_ORIGIN`, liste d'IP `orange` vide, `POST` sur l'accusé Orange) → `APP_ENV` `staging`, `prod` et `Production` : 404 `http.not_found` (le filtre laisse passer, le contrôleur répond), sans `X-Robots-Tag` ; `production` : 403 `webhook.ip_allowlist_not_configured` : le « à vérifier » du constat est vérifié, le filtre est ouvert sur l'origine de production dès qu'`APP_ENV` n'est pas exactement `production`. Classement : V5, la piste porte sur la règle qui décide de la production au démarrage (variables d'environnement du déploiement) et propose deux voies.
