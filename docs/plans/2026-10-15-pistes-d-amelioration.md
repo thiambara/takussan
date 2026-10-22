@@ -12437,7 +12437,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Un client titulaire d'un bail actif se supprime sans garde, et son locataire perd l'accès à son bail, à ses quittances et à ses factures
 - Réf : P130.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : refuser la suppression d'un client sous bail est une règle de produit neuve (nouveau refus visible), et l'autre voie touche l'autorisation du locataire (V2)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/CustomerController.php:179-186`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:94-112`, `takussan-api/app/Policies/LeasePolicy.php:76`, `takussan-api/app/Policies/InvoicePolicy.php:41`, `takussan-api/app/Http/Resources/LeaseResource.php:84`
 - Constat :
@@ -12447,10 +12447,11 @@ l'angle 160 : il n'est pas repris ici.*
   - La règle du locataire passe par la fiche : `$model->tenant && $model->tenant->user_id === $user->id` (lu, `LeasePolicy.php:76`, de même `InvoicePolicy.php:41`), que la portée `SoftDeletes` rend nulle.
   - Établi comment : lu et mesuré.
 - Piste : refuser la suppression d'un client que porte un bail `pending_signature` ou `active` (ou une réservation non terminée), par la même forme que le garant (`422 customer.attached_to_open_lease`) ; test : client titulaire d'un bail actif → 422 et fiche intacte, client sans bail → 204.
+- Mesure (2026-10-22, d94868488, mesureur) : relu `CustomerController::destroy` (toujours `authorize('delete')` puis `delete()`, aucune garde), `CustomerPolicy::delete` (ni bail ni réservation), la garde `guarantor.attached_to_open_lease` de `GuarantorController::destroy`, `LeasePolicy.php:76` et `InvoicePolicy.php:41` (inchangés) ; `git log -S` et `grep` des tickets → aucun correctif ; test temporaire (retiré, charge `{ 2.17 1.97 1.91 }` sur 8 cœurs) : client à compte titulaire d'un bail actif, `DELETE /api/customers/{id}` en admin d'agence → 204, bail toujours `active` ; ensuite `GET /api/leases/{id}?include=tenant` en admin → 200, `data.tenant` = `null` ; en locataire : bail → 403, quittance PDF → 403, facture → 403. Le constat tient en entier. Classement : V7, `docs/features.md` n'écrit aucune règle de suppression d'un client sous bail : le refus en 422 est un comportement visible neuf, et la piste ne dit pas si une réservation non terminée bloque aussi.
 
 ### Un bien sous bail actif se supprime sans garde, et sa quittance, son contrat et son état des lieux signé rendent 500
 - Réf : P130.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : refuser la suppression d'un bien loué est une règle de produit neuve ; seule la lecture `withTrashed()` des trois gabarits est sans choix
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:238-244`, `takussan-api/resources/views/pdf/receipts/rent.blade.php:42`, `takussan-api/resources/views/pdf/leases/contract.blade.php:70`, `takussan-api/resources/views/pdf/inventories/report.blade.php:43`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:50-55`, `takussan-api/app/Http/Controllers/Api/PublicPaymentLinkController.php:72`
 - Constat :
@@ -12462,10 +12463,11 @@ l'angle 160 : il n'est pas repris ici.*
   - `GET /api/leases/{id}` rend encore 200 au bailleur et à l'admin (mesuré), sans le bien.
   - Établi comment : lu et mesuré.
 - Piste : refuser la suppression d'un bien qui porte un bail `pending_signature` ou `active` (422), comme le garant ; et, pour les baux terminés qui restent consultables, faire lire aux trois gabarits le bien `withTrashed()` (`loadMissing(['property' => fn ($q) => $q->withTrashed()])` dans `streamRentReceipt`, `leaseContract` et `InventoryController::downloadPdf`). Test : quittance, contrat et état des lieux d'un bail dont le bien est supprimé → 200 PDF.
+- Mesure (2026-10-22, d94868488, mesureur) : relu `PropertyController::destroy` (`delete()` seul), `Property::booted` (`deleting` ne détache que les enfants), `PropertyObserver::deleted` (compteur, boosts, cache des semblables), et les trois gabarits (`'Bien n°'.$property->id` hors du `??`, l. 42, 70 et 43 inchangées) ; test temporaire (retiré) : bail actif, `DELETE /api/properties/{id}` en admin d'agence → 204 ; quittance PDF → 500 « Attempt to read property "id" on null » sur `pdf/receipts/rent.blade.php`, contrat PDF → 500 (témoin : 200 et 200). L'état des lieux signé diffère du constat : en admin d'agence il rend **403** après la suppression (témoin 200), parce que `InventoryPolicy::view` ne laisse passer l'équipe que par le bien ; c'est en **locataire** qu'il rend 500. La quittance du lien public n'est pas rejouée. Classement : V7, la garde en 422 est un refus visible neuf sans règle écrite (`docs/features.md:78` dit seulement « soft delete ») ; la lecture `withTrashed()` des gabarits relèverait seule de A1, mais la piste lie les deux.
 
 ### Les interventions ouvertes d'un bien supprimé disparaissent pour l'agence, et restent ouvertes pour le locataire
 - Réf : P130.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 et V7 : rouvrir l'intervention à l'équipe par `withTrashed()` dans `isPrincipalFor` touche une autorisation, l'annuler à la suppression est un choix de produit
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:33-43`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:292-300`, `takussan-api/app/Models/MaintenanceRequest.php:129-135`
 - Constat :
@@ -12474,10 +12476,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Plus personne côté agence ne peut donc assigner, clore ou annuler cette demande, que le locataire voit encore ouverte (déduit de `update`, qui passe par `principalWrites($user, $model->property)`, l. 57 ; à vérifier).
   - Établi comment : lu et mesuré.
 - Piste : la garde de P130.02 ferme le cas d'un bien loué ; pour le reste, annuler les interventions non terminées à la suppression du bien (observateur `deleted`, motif tracé), ou lire le bien `withTrashed()` dans `isPrincipalFor` et `scopeVisibleTo`. Test : bien supprimé avec une intervention ouverte → l'équipe la voit close ou annulée, jamais orpheline.
+- Mesure (2026-10-22, d94868488, mesureur) : relu `MaintenanceRequestPolicy::view` et `update` (équipe seulement par `isPrincipalFor` / `principalWrites` sur `$model->property`), `isPrincipalFor` (`false` sur un bien `null`), `MaintenanceRequest::scopeVisibleTo` (`whereHas('property', …)`), inchangés ; test temporaire (retiré) : intervention `open` d'un bien supprimé, en admin d'agence `GET /api/maintenance-requests/{id}` → 403 (témoin 200), liste → 0 (témoin 1), `PATCH` → 403 ; en locataire demandeur → 200, statut `open`. Le constat tient, y compris le `update` refusé qu'il laissait « à vérifier ». Classement : V2 et V7, la piste propose deux options sans trancher, l'une élargit une règle d'autorisation, l'autre annule des demandes avec un motif neuf.
 
 ### Réservations confirmées et visites programmées d'un bien supprimé gardent leur statut
 - Réf : P130.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 et V1 : la piste demande elle-même un choix de produit, et l'acompte d'une réservation confirmée est de l'argent
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Observers/PropertyObserver.php:208-219`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:238-244`
 - Constat :
@@ -12485,10 +12488,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Aucun code ne les annule ni ne prévient le client ou le visiteur (lu : `destroy` et `PropertyObserver::deleted`). Une réservation confirmée porte un acompte : ce que devient l'argent versé n'est pas écrit (à vérifier, non cherché dans `BookingRefundTaskService`).
   - Établi comment : lu et mesuré.
 - Piste : décider (choix de produit) si un bien à réservation confirmée ou visite à venir se supprime : refus en 422 comme pour le bail, ou annulation avec notification et tâche de remboursement par le chemin d'annulation existant ; test qui suit l'issue choisie.
+- Mesure (2026-10-22, d94868488, mesureur) : relu `PropertyController::destroy` et `PropertyObserver::deleted` (ni réservation ni visite) ; test temporaire (retiré) : réservation `confirmed` d'un bien supprimé → toujours `confirmed`. La visite programmée n'est pas rejouée dans ce passage, et le sort de l'acompte n'est pas cherché. Le constat tient pour la réservation. Classement : V7 et V1, refus ou annulation avec remboursement est un choix de produit écrit comme tel par la piste.
 
 ### Le bail d'un locataire supprimé continue de courir : relances vers personne, pénalités qui s'appliquent
 - Réf : P130.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : une pénalité qui s'applique et sa reprise éventuelle sont des écritures d'argent
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendLeasePaymentReminders.php:179-210`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:74-93`
 - Constat :
@@ -12497,10 +12501,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Le bail reste `active` après la suppression du client (mesuré, P130.01).
   - Établi comment : lu ; la pénalité est déduite.
 - Piste : la garde de P130.01 ferme le cas à la source ; pour les fiches déjà supprimées sous bail actif, un relevé (`SELECT` des baux `active` dont `tenant_id` vise une fiche `deleted_at` non nulle) dira s'il en existe avant tout choix de reprise.
+- Mesure (2026-10-22, d94868488, mesureur) : relu `SendLeasePaymentReminders::notifyTenant` (`$lease?->tenant` nul → `Log::info` « locataire injoignable », aucun avis à l'agence) et `ApplyLateFeesJob` (choix des échéances par le bail seul) ; test temporaire (retiré) : client supprimé sous bail actif à `late_fee_percent` 10, loyer `late` échu de 20 jours, `ApplyLateFeesJob::handle` → `late_fee_applied_at` posé : la pénalité s'applique, ce que le constat laissait déduit. Le relevé `SELECT` proposé n'est pas fait : il n'a de sens que sur une base de production, qui n'existe pas pour l'API. Classement : V1, sauter ou reprendre une pénalité est une écriture de montant.
 
 ### Petites améliorations
 - Réf : P130.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : imprimer le nom d'un client supprimé décide de ce qu'on expose d'une fiche retirée
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Resources/LeaseResource.php:83-84`, `takussan-api/resources/views/pdf/invoices/default.blade.php:70-81`, `takussan-api/resources/views/pdf/receipts/rent.blade.php:54-60`
 - Constat :
@@ -12508,3 +12513,4 @@ l'angle 160 : il n'est pas repris ici.*
   - La facture PDF d'un client supprimé rend 200 (mesuré) et imprime « — » à la place du nom, sans e-mail ni téléphone (lu, l. 70-81) ; la quittance d'un locataire supprimé, rendue à l'admin, 200 (mesuré), imprime un nom vide (lu, l. 54).
   - Établi comment : lu et mesuré.
 - Piste : lire le client et le bien `withTrashed()` dans les documents qui attestent un fait passé (facture, quittance), parce que la fiche existait quand le fait a eu lieu ; test : facture d'un client supprimé → son nom imprimé.
+- Mesure (2026-10-22, d94868488, mesureur) : relu `pdf/invoices/default.blade.php:70` (« — » à défaut de nom) et `pdf/receipts/rent.blade.php:54` (nom vide), `DocumentPdfController` (`loadMissing(['customer', …])` sans `withTrashed()`), `LeaseResource.php:83-84` ; test temporaire (retiré) : client supprimé, facture PDF en admin → 200, quittance PDF en admin → 200, `data.tenant` du bail = `null`. Le texte imprimé n'a pas été extrait du PDF, seulement lu dans le gabarit ; le rendu du front n'est pas vérifié. Classement : V3, relire une fiche supprimée pour l'imprimer dans un document touche l'exposition de données personnelles retirées, à trancher par le porteur.
