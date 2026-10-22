@@ -187,7 +187,7 @@ voie d'écriture (angle 13, puis 47).
 | 111 | Jobs en file qui posent un statut de suivi (`processing`, `queued`) sur une ligne (`ReportExport`, `DataExport`, `ParseBankStatementJob`, versements) sans `failed()` — 7 jobs sur 43 en ont un : ce que voit l'utilisateur après l'échec définitif ou un arrêt brutal du worker, et ce qui bloque une nouvelle demande | fait |
 | 112 | Exports synchrones de `ExportController` (`GET /api/exports/{entity}`, jusqu'à 10 000 lignes, 2 000 en PDF) et de `PrivacyRequestController` : requêtes par ligne des constructeurs d'entité, mémoire et durée dans la requête HTTP — le relevé de l'angle 78 sur les exports qui ne passent pas par un job | fait |
 | 113 | Appels du navigateur vers l'API sans délai (`useApiQuery`, `apiRequest` client, mutations TanStack, `fetch` direct des composants) : bouton `isPending` figé et requête jamais abandonnée sur un réseau mobile qui ne coupe pas — le pendant client de l'angle 79 | fait |
-| 114 | Champs écartés par `validated()` sur les modules `src/lib/queries/*.ts` de l à z et les server actions `src/app/actions/*.ts` : la moitié de l'angle 80 laissée sans relevé | à faire |
+| 114 | Champs écartés par `validated()` sur les modules `src/lib/queries/*.ts` de l à z et les server actions `src/app/actions/*.ts` : la moitié de l'angle 80 laissée sans relevé | fait |
 | 115 | Statuts d'enum qu'aucun chemin de `app/` n'écrit et que seuls les seeders posent (`LeaseStatus::Expired`, les autres enums de statut de `app/Models/Enums`) : gardes, filtres, tableaux de bord et écrans du front qui attendent un état que la production n'atteindra jamais | à faire |
 | 116 | Gestes d'agence jugés par le type de profil (`isAgencyAdminAt`, `isAgentAt` : une quarantaine d'appels dans `app/Http` et `app/Services`) au lieu d'une capacité (`canActAt`) : admin à qui un rôle personnalisé retire la capacité, membre à qui il la donne — le relevé de P82.04 et P82.05 sur le reste de l'API | à faire |
 | 117 | Clés de `metadata` des profils (`owner_profiles`, `agent_profiles`, `service_provider_profiles` : `kind`, `source`, `intervention_zones`, `visit_fee`, `availability`, `has_insurance`, `trades`) écrites par les assistants `Me\*ProfileController` : lues par qui, à l'API et dans les listes du front (`ServiceProvidersList`, `OwnersList`, `MaintenanceAssignmentBlock`) qui y retombent à défaut de colonne | à faire |
@@ -219,6 +219,7 @@ voie d'écriture (angle 13, puis 47).
 | 142 | Notifications, Mailables et écouteurs en file (`ShouldQueue`, une quarantaine hors de `CodedNotification` : `TenantWelcomeNotification`, `ResetPasswordNotification`, `ActivityLogExportReadyNotification`, écouteurs `Lease\*` et `Accounting\*`) sans `backoff` ni `failed()` face au `--tries=3` sans délai des workers : ce qu'une panne du fournisseur de quelques secondes fait perdre, et la trace laissée — le relevé de P11.10 hors des notifications codées | à faire |
 | 143 | PDF à lignes variables rendus par dompdf pendant la requête HTTP (`DocumentPdfService` : relevé de gérance `pdf/statements/owner`, état des lieux `pdf/inventories/report` et ses photos en URI `data:`, factures et devis à nombreuses lignes) : mémoire et durée face à `memory_limit = 256M` et `max_execution_time = 60` — le relevé de P112.01 hors de l'export générique | à faire |
 | 144 | Écritures du navigateur qu'une réponse perdue invite à rejouer (envoi de message, création de réservation, de demande de maintenance, de facture, initiation de paiement : `POST` sans clé d'idempotence, hors les seuls boosts) : bouton réactivé après une erreur réseau ou un délai, doublon créé côté API — le pendant, hors des achats de crédits, des angles 4 et 24 | à faire |
+| 145 | Champs écartés par `validated()` sur ce que l'angle 114 n'a pas relevé : `lib/queries` `properties-server.ts`, `visits.ts`, `settings.ts`, `property-calendar.ts` et les modules à une ou deux mutations, les server actions `property.ts` (avis, signalements, contacts d'agent), `invitations.ts`, `account-deletion.ts`, `admin-tags.ts`, `super-admin-cooptation.ts`, `auth.ts`, et les écritures directes des composants | à faire |
 
 ---
 
@@ -11060,3 +11061,72 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
   - Établi comment : lu.
 - Piste : effacer l'état local et les cookies sans attendre la révocation côté API (le relais rend sa réponse puis révoque, ou le client borne son attente à quelques secondes et efface quand même) ; garde : un test d'`AuthProvider` dont le `fetch` de déconnexion ne répond jamais, qui exige `user` à `null` sous la borne.
 - Mesure (2026-10-22, c6abf5343, mesureur) : relu `AuthContext.tsx:257-269` (`await fetch('/api/auth/logout')` sans délai avant `setUser(null)`), `logout/route.ts:13-27`, `UserMenu.tsx:99-103`, `Navbar.tsx:315-317` (inchangés ; #972 touche `Navbar.tsx` ailleurs, pour les comptes du menu) ; test vitest temporaire (retiré), `AuthProvider` avec `initialUser` et un `fetch` qui ne se résout jamais → après 1,5 s, `logout()` non résolu et `user` toujours présent. Classement : V2, la Piste choisit entre effacer avant la révocation et borner l'attente, sur le chemin de la session.
+
+## Angle 114 — Champs écartés par `validated()`, modules de l à z et server actions
+
+*Exploré le 2026-10-22 sur `pre-dev` c6abf5343, par l'explorateur. Le balayage vient de quatre
+sous-agents : `super-admin.ts` (30 mutations, aucun écart de clé), les modules d'argent et de baux
+(`payments`, `maintenance`, `leases`, `pay-link`, `reconciliation`, `owners`, `pipeline`), et une
+partie des server actions. Le quatrième, sur `properties-server`, `visits`, `settings`,
+`property-calendar` et les petits modules, a été arrêté avant son rapport, faute de budget : ce
+reste est proposé en angle 145. Chaque entrée ci-dessous a été relue par l'explorateur aux lignes
+citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà connus (angle 80, P13
+`LeasePaymentDialog`, `settings` et `slug` d'agence, D-70 `processed_at`) n'ont pas été rouverts.*
+
+### Les conditions particulières saisies à la création d'un bail ne sont jamais enregistrées
+- Réf : P114.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:85-89,316-321`, `takussan-web/src/lib/queries/leases.ts:277`, `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:34-63`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:54`, `takussan-api/app/Services/Model/LeaseService.php:89`
+- Constat :
+  - Le formulaire de création affiche un champ `special_conditions`, l'initialise à `''` et passe `values` tel quel à `createLease.mutateAsync` (lu, `CreateLeaseForm.tsx:85-89,318`).
+  - `StoreLeaseRequest` n'a aucune règle `special_conditions` (mesuré : `grep -n special_conditions StoreLeaseRequest.php` → rien). Le contrôleur passe `validated()` au service, qui fait `Lease::create(array_merge($data, …))` (sous-agent, `LeaseController.php:54`, `LeaseService.php:89`).
+  - La colonne existe et est `fillable` (lu, `Lease.php:44`). Le renouvellement la recopie depuis le bail parent (sous-agent, `LeaseRenewalService.php:133`) : un bail renouvelé hérite donc d'une valeur vide.
+  - Établi comment : lu et mesuré par `grep` ; le parcours dans le service vient du sous-agent.
+- Piste : ajouter `special_conditions` (`nullable|string`, avec une borne) à `StoreLeaseRequest`. Un test qui crée un bail avec `special_conditions` et relit la ligne le garde.
+
+### Modifier une règle d'alerte de la console la réactive toujours
+- Réf : P114.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/admin/super/alerts.tsx:158-168`, `takussan-api/app/Services/Admin/AlertRuleService.php:35-46`
+- Constat :
+  - Le dialogue de la règle construit son corps avec `is_active: true` en dur, en création comme en modification (lu, `alerts.tsx:166-168`).
+  - `AlertRuleService::update` écrit `is_active` dès qu'il est présent (lu, `:41`). Une règle désactivée qu'on modifie est donc réactivée sans qu'on l'ait demandé.
+  - Aucun autre écrivain de `is_active` n'existe dans ce composant (mesuré : `grep -n is_active alerts.tsx` → la seule ligne 166). Qu'une règle puisse être désactivée ailleurs, par l'API seule ou par un seeder, reste à vérifier.
+  - Établi comment : lu.
+- Piste : n'envoyer `is_active` qu'en création, ou reprendre `rule.is_active` en modification. Un test du composant qui modifie une règle inactive et lit le corps envoyé le garde.
+
+### Deux motifs acceptés par le front puis refusés en 422 par l'API
+- Réf : P114.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/maintenance/QuoteRejectionModal.tsx:21`, `takussan-api/app/Http/Requests/Maintenance/RejectQuoteRequest.php:27`, `takussan-web/src/components/billing/PayoutDetailPanel.tsx:168`, `takussan-api/app/Http/Requests/Api/Admin/CancelPlatformPayoutRequest.php:17`
+- Constat :
+  - Rejet d'un devis de maintenance : le schéma du front accepte un motif dès 5 caractères (lu, `z.string().min(5)`), l'API en exige 10 (lu, `'min:10'`). Un motif de 5 à 9 caractères passe le formulaire puis rend un 422.
+  - Annulation d'un reversement de plateforme : le bouton ne se désactive que sur un motif vide (lu, `disabled={!reason || …}`), l'API en exige 3 (lu, `'min:3'`).
+  - Établi comment : lu ; le message affiché sur le 422 n'a pas été vu.
+- Piste : aligner la borne du front sur la règle de l'API (ou l'inverse, si 10 est un choix de produit). Un test du composant à la borne garde chacun des deux.
+
+### Le numéro saisi à l'étape téléphone de l'assistant hôte est exigé puis ignoré
+- Réf : P114.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Onboarding/HostIndividualOnboardRequest.php:53-61`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:80-87,302-304`, `takussan-web/src/components/onboarding/HostIndividualWizard.tsx:202-206`
+- Constat :
+  - `phone_otp.phone` est `required` (lu, `:54`) et l'assistant l'envoie (sous-agent, `HostIndividualWizard.tsx:202-206`).
+  - Le service ne lit que `phone_otp.code` (lu, `:80`) et marque vérifié `$user->phone`, pas le numéro envoyé (lu, `:304`).
+  - Si l'utilisateur tape un autre numéro que celui de son compte, c'est celui du compte qui devient « vérifié ». Que le code ait été envoyé au numéro saisi ou à celui du compte est à vérifier (`verifyOtp`, `PhoneVerificationService`).
+  - Établi comment : lu pour l'API ; l'envoi du front vient du sous-agent.
+- Piste : soit retirer le champ et la règle si le numéro du compte fait foi, soit écrire le numéro saisi avant de le marquer vérifié. Un test qui envoie un numéro différent de celui du compte et relit `users.phone` le garde.
+
+### Petites améliorations : clés envoyées pour rien
+- Réf : P114.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:130-131,146`, `takussan-web/src/app/publish/page.tsx:47`, `takussan-api/app/Http/Controllers/HostAutoOnboardController.php:34-35`, `takussan-web/src/lib/schemas/setting.ts:208`, `takussan-api/app/Http/Requests/Api/UpdateIntegrationRequest.php:51-53`
+- Constat (tous du sous-agent, à vérifier) :
+  - `POST /api/leases` : le front envoie `landlord_id = user.id`, sans règle. Le service recalcule bailleur et agence depuis le bien (`LeaseService.php:91-92`) : rien n'est perdu, mais le champ trompe le lecteur.
+  - `POST /api/host/individual/auto-onboard` : `primary_city` est validé et envoyé, et le contrôleur appelle `autoOnboard($user)` sans le corps. C'est assumé (TCK-966), mais l'envoi est mort. Même chose pour `agency.primary_city` et `preferences.primary_property_type` de l'assistant hôte, exigés puis abandonnés (docblock TCK-966, `HostIndividualOnboardingService.php:235-237`) : un champ obligatoire qui n'a aucun effet.
+  - `PATCH /api/integrations/{id}` : `provider` est toujours envoyé, sans règle. C'est inoffensif, car le champ est désactivé en édition.
+- Piste : retirer du corps ce que l'API ne lit pas ; pour les champs obligatoires de l'assistant, décider s'ils restent à l'écran.
