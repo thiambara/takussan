@@ -12270,7 +12270,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Une délégation de rôle annoncée « jusqu'au 25 octobre » est retirée à 00:00 le 25 octobre
 - Réf : P128.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : la fin d'un droit délégué, et V7 : deux sens possibles de « Fin »
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin/roles/CreateDelegationDialog.tsx:245-251`, `takussan-api/app/Services/Permissions/RoleDelegationService.php:106`, `takussan-api/app/Models/RoleDelegation.php:45,129-130,151`, `takussan-api/app/Listeners/Permissions/NotifyDelegationActivated.php:35-38`, `takussan-api/app/Domain/Notifications/NotificationCode.php:359`, `takussan-api/lang/fr/notifications.php:524-528`
 - Constat :
@@ -12279,10 +12279,11 @@ l'angle 160 : il n'est pas repris ici.*
   - mesuré : test temporaire, temps figé au 2026-10-20 10:00, `POST /api/agencies/{id}/role-delegations` avec `ends_at = '2026-10-25'` → 201, base `ends_at = 2026-10-25 00:00:00`, `params = {"role":"agency_admin","ends_at":"2026-10-25"}`, corps rendu « Vous avez reçu le rôle agency_admin jusqu'au 25 octobre 2026. » (en : « until October 25, 2026 ») ; `ProcessRoleDelegationsJob` à 2026-10-24 23:00 → active, à 2026-10-25 00:00:01 → `expired`, plus aucun droit le 25 à midi.
   - Établi comment : lu, puis mesuré par le test temporaire.
 - Piste : dire ce que « Fin » veut dire et le tenir des deux côtés : soit l'API range une date seule en fin de journée (dans le fuseau de l'agence ou de Dakar), soit le texte et le libellé du champ disent « jusqu'au 24 inclus » / « fin le 25 à 00:00 ». Test : délégation créée avec une date seule, encore active à midi le jour choisi (ou texte qui nomme le jour exclu), et rendu de la notification qui annonce le même dernier jour que celui où le job l'expire.
+- Mesure (2026-10-22, 045f8ae56, mesureur) : relu `CreateDelegationDialog.tsx:122,169,245-251` (`<input type="date">`, `ends_at` envoyé tel quel), `RoleDelegationService.php:106`, cast `datetime` `RoleDelegation.php:45`, expiration `ends_at <= now()` l. 151, `NotifyDelegationActivated.php:37` (`toDateString()`) ; `git log 1f9dea9cd..HEAD` → aucun commit de code ; test temporaire `TmpMesureurP128Test` (temps figé au 2026-10-20 10:00, charge 1,66 / 1,57 / 1,77 sur 8 cœurs, retiré) → `POST …/role-delegations` `ends_at=2026-10-25` 201, base `2026-10-25 00:00:00`, corps « Vous avez reçu le rôle agency_admin jusqu'au 25 octobre 2026. », `ProcessRoleDelegationsJob` à 2026-10-24 23:00 → `active`, à 2026-10-25 00:00:01 → `expired`. Le constat tient. Classement : V2 et V7, la piste propose deux voies (prolonger le droit jusqu'à la fin du jour choisi, ou changer le texte et le libellé), et la première change le moment où une autorisation tombe.
 
 ### Le rôle délégué s'affiche par son code brut (« agency_admin ») dans les six notifications de délégation
 - Réf : P128.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Domain/Notifications/NotificationCode.php:359-362`, `takussan-api/app/Listeners/Permissions/NotifyDelegationActivated.php:36,43`, `NotifyDelegationExpired.php:35,40`, `NotifyDelegationRevoked.php:35,40`, `takussan-web/src/components/notifications/texteNotification.ts:52-53`, `takussan-api/app/Http/Resources/Permissions/RoleDelegationResource.php:33,48-55`
 - Constat :
@@ -12291,10 +12292,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Le libellé existe ailleurs : `RoleDelegationResource::translateRole()` rend « Administrateur d'agence » (lu, l. 48-55), en français seulement.
   - Établi comment : lu, puis mesuré.
 - Piste : un type de paramètre « rôle » (ou un code traduit, comme `PARAM_REASON_CODE`) rendu par une clé de langue des deux côtés ; les lignes déjà écrites gardent leur code brut et se traduisent à la lecture. Test : le rendu fr et en d'un `role_delegation.activated` ne contient pas `agency_admin`.
+- Mesure (2026-10-22, 045f8ae56, mesureur) : relu `NotificationCode.php:359-362` (`role` en `PARAM_TEXT`), `NotifyDelegationActivated.php:36`, `NotifyDelegationExpired.php:35`, `NotifyDelegationRevoked.php:35` (`$delegation->role` brut) ; même test temporaire → corps fr « Vous avez reçu le rôle agency_admin jusqu'au 25 octobre 2026. », en « You have been granted the agency_admin role until October 25, 2026. », `params.role = agency_admin` ; les libellés existent déjà des deux côtés : `lang/{fr,en}/invitations.php:4-7` (`roles.owner/agent/agency_admin`) et plusieurs clés `agency_admin` de `src/messages/{fr,en}.json`. Le constat tient. Classement : A4, traduction d'un code par des libellés de rôle existants (un type de paramètre « rôle » rendu par la clé de langue côté API et côté front), sans texte neuf.
 
 ### Les courriels des classes historiques écrivent leurs dates en `2026-10-22`, `2026-10-22 14:00` ou `22/10/2026`, quelle que soit la langue
 - Réf : P128.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux voies, dont le portage au catalogue réservé au porteur (reste de P75.05), et le fuseau du rappel de tâche suspendu à P107.03
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/LeaseRenewedNotification.php:63-64`, `LeaseEarlyTerminationNotification.php:66,77`, `InvoiceOverdueReminderNotification.php:64,72`, `LeaseRentReviewedNotification.php:69`, `TaskDueReminderNotification.php:55`, `AccountDeletionRequestedNotification.php:35`, `AccountDeletionReminderNotification.php:34`, `takussan-api/app/Services/Notifications/NotificationRenderer.php:181-191`
 - Constat :
@@ -12302,10 +12304,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Le rappel de tâche n'emploie pas `users.timezone`, que le rendu par code lit (lu) ; l'écart ne se voit pas tant que tous les comptes sont à Dakar (P107.03).
   - Établi comment : lu ; aucun courriel rendu.
 - Piste : passer ces dates par le formateur du rendu par code (date calendaire en `LL`, instant en `LLL` dans le fuseau du destinataire), ou faire passer ces classes à un code. Test : le courriel anglais d'un renouvellement et d'une suppression de compte ne contient ni `\d{4}-\d{2}-\d{2}` ni `\d{2}/\d{2}/\d{4}`.
+- Mesure (2026-10-22, 045f8ae56, mesureur) : relu `LeaseRenewedNotification.php:63-64`, `LeaseEarlyTerminationNotification.php:66,77`, `InvoiceOverdueReminderNotification.php:64,72` (`toDateString()`), `LeaseRentReviewedNotification.php:69` (`effectiveDate` brut), `TaskDueReminderNotification.php:55` (`format('Y-m-d H:i')`), `AccountDeletionRequestedNotification.php:35` et `AccountDeletionReminderNotification.php:34` (`format('d/m/Y')`), `lang/en/notifications.php:109` (« executed on :date »), `NotificationRenderer.php:181-192` (`isoFormat` `LL`/`LLL`) ; aucun courriel rendu. Le constat tient. Classement : V7, la piste laisse le choix entre le formateur et le passage à un code, que le reste de P75.05 (« la langue figée des classes sans code ») garde au porteur, et l'heure du rappel de tâche dépend du fuseau par compte, encore à valider en P107.03.
 
 ### Le seeder écrit 9 409 notifications sans code, au texte français figé : le rendu par code n'apparaît jamais en développement
 - Réf : P128.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la notification « Nouveau bail » du seeder n'a aucun code au catalogue
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/seeders/Engagement/AppNotificationSeeder.php:30-55,94`
 - Constat :
@@ -12313,10 +12316,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Sans `code`, `AppNotificationResource` rend les colonnes stockées et le front retombe sur elles (lu, `AppNotificationResource.php:45-46`, `texteNotification.ts:70-75`) : en développement, la cloche reste en français dans une interface `en`, et aucun des formats de date de `valeursDeNotification` n'est jamais exercé à l'écran.
   - Établi comment : mesuré en `SELECT`, et lu.
 - Piste : faire écrire au seeder des lignes par code et paramètres bruts, comme `AppDatabaseChannel` (par exemple par `NotificationService::send` ou une fabrique à `code`). Garde : un test du seeder qui exige un `code` sur chaque ligne qu'il crée.
+- Mesure (2026-10-22, 045f8ae56, mesureur) : `SELECT count(*), count(code), count(data) FROM app_notifications` (base de développement, lecture) → `9409|0|9409` ; relu `AppNotificationSeeder.php:42-43,74-75,93-94,118-119,142-143,165-166` (six familles de titres et corps français, dates `d/m/Y`) ; `grep "case " NotificationCode.php` → des codes existent pour la visite, le paiement, le rappel de loyer, la réservation et la maintenance, aucun pour un bail créé ; `grep -rln AppNotificationSeeder tests` → aucun test. Le constat tient. Classement : V7, faire écrire le seeder par code demande de retirer la famille « Nouveau bail » ou de créer un code et son texte neuf.
 
 ### `GET /api/notifications` rend `data`, que le front ne lit pas, et resigne les pièces d'une retenue sur caution à chaque interrogation de la cloche
 - Réf : P128.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/notifications.ts:19-37,56-66`, `takussan-web/src/components/layout/NotificationBell.tsx:57-64`, `takussan-api/app/Http/Resources/AppNotificationResource.php:28-30,47,79-87`, `takussan-api/app/Notifications/LeaseDepositRefundNotification.php:126-148`
 - Constat :
@@ -12325,10 +12329,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Pour chaque ligne de retenue sur caution, `dataAtRead` relit le bail, juge `LeasePolicy::view`, charge les médias et signe une URL (lu, `LeaseDepositRefundNotification.php:133-145`) ; la cloche relit la page toutes les 30 s (lu, `NotificationBell.tsx:64`). Le coût en requêtes n'est pas mesuré (à vérifier).
   - Établi comment : lu, et mesuré pour la forme de la réponse.
 - Piste : demander `fields[app_notifications]=id,type,code,params,target,title,body,is_read,read_at,created_at` depuis `fetchNotifications`, conformément à la règle des champs clairsemés. Test front : l'URL appelée porte `fields[app_notifications]` sans `data`.
+- Mesure (2026-10-22, 045f8ae56, mesureur) : relu `lib/notifications.ts:19-37` (type sans `data`) et l. 57-66 (`fetchNotifications` sans `fields[app_notifications]`), seul appelant `app/actions/notifications.ts:51`, `NotificationBell.tsx:64` (`refetchInterval: 30_000`), `AppNotificationResource.php:28-31,47,79-87` (`FIELDS`, `dataAtRead`) ; `grep attachments` dans `components/notifications` et `NotificationBell.tsx` → rien ; même test temporaire → `GET /api/notifications` rend `id,type,code,params,target,title,body,data,is_read,read_at,sent_at,created_at`. Le constat tient ; le coût en requêtes de `dataAtRead` reste non mesuré. Classement : A1 et A2, la règle des champs clairsemés est écrite (`CLAUDE.md`, `docs/spatie-query-builder.md`) et le correctif ne change rien de ce que le front affiche.
 
 ### Petites améliorations
 - Réf : P128.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le fuseau des courriels de visite et l'écart entre les deux rendus de date sont des choix de texte
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/notifications/texteNotification.ts:20-21,48-51`, `takussan-web/src/components/notifications/__tests__/NotificationRow.test.tsx:23,31`, `takussan-api/app/Services/Notifications/NotificationRenderer.php:181-191`, `takussan-web/src/lib/format.ts:104-137`, `takussan-api/lang/fr/notifications.php:416-428`, `takussan-api/app/Notifications/Credits/CreditsExpiringNotification.php:35`, `CreditsGrantedNotification.php:36`
 - Constat :
@@ -12338,6 +12343,7 @@ l'angle 160 : il n'est pas repris ici.*
   - **Crédits.** Les deux notifications de crédits figent la date d'expiration dans la langue d'envoi (`isoFormat('LL')` dans `body`) ; ce sont des classes hors de `AppDatabaseChannel::TYPES`, que P75.05 ne compte pas (lu).
   - Établi comment : lu.
 - Piste : un test d'API qui envoie chaque code à paramètre daté par son émetteur réel et vérifie la forme rangée (`Y-m-d` pour `date`, instant ISO pour `datetime`) ; le cas date et heure dans `NotificationRow.test.tsx`, fixtures en `+00:00` ; le fuseau par son nom lisible ou retiré du texte ; les crédits par un code (voir P75.05).
+- Mesure (2026-10-22, 045f8ae56, mesureur) : `grep -rln PARAM_DATE tests` → rien ; relu `texteNotification.ts:20-21,48`, `NotificationRow.test.tsx:23,31` (`due_date` seul, `created_at` en `…T08:00:00.000000Z`), `format.ts:117,132` (`dateStyle: 'medium'`), `lang/fr/notifications.php:416-428` (« (fuseau :timezone) »), `CreditsGrantedNotification.php:36` et `CreditsExpiringNotification.php:35` (`isoFormat('LL')` dans la langue d'envoi). Les quatre points tiennent. Classement : V7, les tests de forme relèveraient de A5, mais l'entrée mêle le texte du fuseau, le choix d'un rendu de date unique et le passage des crédits à un code, que le reste de P75.05 garde au porteur.
 
 ## Angle 129 — Suppression douce d'une agence
 
