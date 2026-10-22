@@ -12,7 +12,7 @@ depends_on: []
 blocks: []
 spec_refs:
   features:
-    - "docs/features.md#14-location-longue-durée-baux"
+    - "docs/features.md#18-maintenance--interventions"
   pistes:
     - "docs/plans/2026-10-15-pistes-d-amelioration.md#angle-130--fiches-client-garant-et-bien-supprimées-en-douceur-et-encore-citées"
 tags: [api, maintenance, suppression-douce, pistes]
