@@ -44,8 +44,11 @@ class InvitationMailable extends Mailable
         // Le lien public d'acceptation, sur le front (P97.05, `LienFront`).
         $acceptUrl = LienFront::vers('/invitations/accept?token='.$this->invitation->token);
 
+        // P123.01 (TCK-1247) — `markdown:`, pas `view:` : le gabarit est écrit en composants
+        // `mail::`, que seul le rendu Markdown déclare. Rendu par `view:`, il levait
+        // `No hint path defined for [mail]` : aucune invitation par e-mail ne partait.
         return new Content(
-            view: 'emails.invitation',
+            markdown: 'emails.invitation',
             with: [
                 'invitation' => $this->invitation,
                 'acceptUrl' => $acceptUrl,
