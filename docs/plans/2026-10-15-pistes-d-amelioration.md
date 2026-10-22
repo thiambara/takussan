@@ -14908,7 +14908,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Une candidature ou une réservation par un compte qui a un profil dans l'agence crée une seconde fiche du même client dans son CRM
 - Réf : P158.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : rattacher la fiche trouvée au compte et choisir l'agence où elle naît se décide avec P15.01
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/CustomerService.php:33-48`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:987`, `takussan-api/app/Services/Model/BookingService.php:98-101`, `takussan-api/app/Models/User.php:446-473`, `takussan-api/app/Services/Crm/CustomerDuplicateDetector.php:25-58`
 - Constat :
@@ -14919,10 +14919,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Pour un visiteur sans profil d'agence, la fiche naît avec `agency_id` nul : hors du CRM, et la fiche que l'agence a déjà au même numéro reste sans lien (mesuré dans le même test). C'est le cas de P15.01, qui n'est pas repris ici.
   - Établi comment : lu et mesuré.
 - Piste : dans `findOrCreateFromUser`, avant de créer dans une agence, consulter `CustomerDuplicateDetector` sur l'agence visée et rattacher la fiche trouvée (poser `user_id` si elle n'en a pas) plutôt que d'en créer une seconde ; la question de l'agence où la fiche doit naître (celle du bien) reste celle de P15.01, et les deux se décident ensemble. Test : fiche existante au même numéro dans l'agence, candidature d'un compte de cette agence → une seule fiche.
+- Mesure (2026-10-22, ae194722a, mesureur) : relu `CustomerService.php:33-48` (recherche par `user_id` seul, puis `Customer::create` avec `agency_id` = `$user->agency_id`, sans détecteur), `PublicPropertyController.php:987`, `BookingService.php:98-101` ; `git log ccfd4f947..ae194722a` sur ces fichiers, `CustomerController.php` et `ContactLeadService.php` → aucun commit ; test temporaire `TmpMesureurP158Test` (retiré, charge 4,13 / 3,59 / 3,38 sur 8 cœurs) : agence A, fiche `77 123 45 67` / `AWA@example.test` sans compte, compte `+221771234567` / `awa@example.test` avec un `OwnerProfile` dans A, `POST /api/public/properties/{slug}/booking-request` sur un bien de A → 201, et A compte deux fiches au `+221771234567` (la seconde `user_id` et `added_by_id` = le candidat) → le constat tient tel qu'écrit. Classement : V7, la Piste rattache la fiche existante au compte (le compte voit alors ce que l'agence y a saisi) et renvoie le choix de l'agence de naissance à P15.01, déjà `à valider` en V7.
 
 ### Rien ne sérialise la recherche de doublon et la création : deux créations simultanées passent toutes deux
 - Réf : P158.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : sérialiser trois chemins de création (verrou consultatif ou contrainte, V4) est un choix de concurrence transverse
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/CustomerController.php:48-73`, `takussan-api/app/Services/Lead/ContactLeadService.php:244-299`, `takussan-api/app/Services/Model/CustomerService.php:33-48`, `takussan-api/database/migrations/2026_10_07_591200_add_search_criteria_to_customers_table.php:32`
 - Constat :
@@ -14931,10 +14932,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Le front désactive ses boutons pendant l'envoi (`CustomerForm.tsx:426`, `ContactLeadsInbox.tsx:246,281`, lu) : le double clic d'un même écran est couvert, pas deux écrans ni deux agents.
   - Établi comment : lu ; la course n'est pas reproduite.
 - Piste : sérialiser par un verrou consultatif PostgreSQL sur `(agency_id, téléphone normalisé)` (`pg_advisory_xact_lock`) dans une transaction qui couvre la détection et la création, et par la ligne `users` pour `findOrCreateFromUser`. Test : deux créations entrelacées (détection jouée pour les deux avant la première écriture) → une seule fiche, 409 pour la seconde.
+- Mesure (2026-10-22, ae194722a, mesureur) : relu `CustomerController.php:47-73` (`refuseDuplicate` puis `Customer::create`, sans transaction ni verrou), `ContactLeadService.php:244-299` (`lockForUpdate` sur la seule demande), `2026_04_17_160006_create_customers_table.php:13` et `2026_10_18_050000_index_customers_on_user_id.php:20` (aucune unicité sur `user_id`) ; test temporaire (retiré) : deux lectures `Customer::where('user_id')` rendent toutes deux `null`, `findOrCreateFromUser` crée la fiche, puis l'écriture qu'aurait faite la seconde requête est acceptée → deux fiches au même `user_id` ; la course entre deux processus réels n'est pas reproduite, seul l'entrelacement l'est. Le dépôt a un précédent de verrou consultatif (`SuperAdminCooptationService`). Classement : V6, le choix entre verrou consultatif sur trois chemins et contrainte d'unicité (V4) est transverse, et la clé du verrou de `findOrCreateFromUser` dépend de ce que P158.01 décidera.
 
 ### Petites améliorations
 - Réf : P158.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la Piste inclut l'offre « rattacher à cette fiche » dans la boîte des demandes, et un service de domaine neuf
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Model/CustomerService.php:11-26`, `takussan-api/app/Services/Lead/ContactLeadService.php:285-299`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:82-114`
 - Constat :
@@ -14943,3 +14945,4 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Après un 409 `customer.duplicate` à la conversion, la demande ne peut être que marquée traitée ou convertie « quand même » : aucune route ne la rattache à la fiche trouvée (`routes/api/contact-leads.php`, lu), et `customer_id` reste nul (voir P125.02, dont la `Piste` laissait le rattachement au choix du produit).
   - Établi comment : lu.
 - Piste : porter la création et la sonde dans un seul service de domaine (`Crm\`) que les trois chemins appellent, sans repli sur l'agence de l'acteur ; retirer `CustomerService::update` s'il reste sans appelant ; décider au produit si la boîte des demandes offre « rattacher à cette fiche ».
+- Mesure (2026-10-22, ae194722a, mesureur) : `grep -rnE "customers->update\(|CustomerService\)->update|customerService->update" app tests/Feature tests/Unit` → rien : `CustomerService::update` reste sans appelant ; relu `CustomerService.php:16` (repli sur `$actor->agency_id`), les deux `refuseDuplicate` (`CustomerController.php` et `ContactLeadService.php:285-299`), `routes/api/contact-leads.php` (cinq routes, aucune de rattachement) → les trois points tiennent. Classement : V7, la Piste demande une décision de produit (« rattacher à cette fiche ») et un service de domaine qui touche les trois créateurs ; seul le retrait de `CustomerService::update` relèverait d'A3.
