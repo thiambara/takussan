@@ -48,7 +48,8 @@ export async function GET(
   }, { requete: request, delaiMs: DELAI_RELAIS_FICHIER_MS });
 
   const headers = new Headers();
-  for (const h of ['content-type', 'content-disposition', 'content-length', 'cache-control']) {
+  // TCK-1308 (P112.03) — `x-export-truncated` : l'API a coupé l'export au plafond, l'écran le dit.
+  for (const h of ['content-type', 'content-disposition', 'content-length', 'cache-control', 'x-export-truncated']) {
     const v = res.headers.get(h);
     if (v) headers.set(h, v);
   }
