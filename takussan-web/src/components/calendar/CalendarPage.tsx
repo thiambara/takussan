@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ErrorState } from '@/components/feedback';
@@ -444,12 +444,19 @@ function SelectedDayPanel({
     day: 'numeric',
     month: 'long',
   });
+  // TCK-1191 (P101.04) — second `aside` de la page après la barre latérale : il prend le nom
+  // de son titre, le jour déjà affiché, pour que les deux repères se distinguent.
+  const titreId = useId();
 
   return (
-    <aside className="rounded-xl border border-border bg-card" data-testid="calendar-selected-day">
+    <aside
+      aria-labelledby={titreId}
+      className="rounded-xl border border-border bg-card"
+      data-testid="calendar-selected-day"
+    >
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div>
-          <h3 className="font-display text-sm font-semibold tracking-tight first-letter:uppercase text-foreground">{label}</h3>
+          <h3 id={titreId} className="font-display text-sm font-semibold tracking-tight first-letter:uppercase text-foreground">{label}</h3>
           <p className="text-xs tabular-nums text-muted-foreground">{t('eventCount', { count: events.length })}</p>
         </div>
         <Button type="button" variant="outline" size="sm" className="h-9 sm:h-7" onClick={onOpenDay}>

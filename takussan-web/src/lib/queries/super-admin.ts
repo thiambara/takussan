@@ -96,6 +96,7 @@ export async function fetchAdminAgencies(params: {
   perPage?: number;
 } = {}): Promise<AdminAgenciesResponse> {
   const qs = new URLSearchParams();
+  // P100.05 (TCK-1186) — `fields` inerte : `Admin\AgencyModerationController::index` est une liste écrite à la main.
   qs.set('fields[agencies]', 'id,name,slug,status,is_verified,verified_at,primary_admin_id,license_number,email,phone,logo_url,properties_count,members_count,last_activity_at,created_at');
   if (params.status) qs.set('filter[status]', params.status);
   if (params.isVerified !== undefined) qs.set('filter[is_verified]', params.isVerified ? '1' : '0');
@@ -320,6 +321,7 @@ export async function fetchAdminUserDetail(userId: number): Promise<AdminUserDet
 
 export async function fetchAdminUserSessions(userId: number): Promise<AdminUserSessionsResponse> {
   const qs = new URLSearchParams();
+  // P100.05 (TCK-1186) — `fields` inerte : `Admin\UserDetailController::sessions` est une liste écrite à la main.
   qs.set('fields[personal_access_tokens]', 'id,name,last_used_at,created_at,expires_at');
   qs.set('per_page', '20');
   const res = await fetch(cheminApi`/api/super-admin/users/${userId}/sessions?${qs.toString()}`, {

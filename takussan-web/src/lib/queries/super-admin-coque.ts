@@ -103,6 +103,7 @@ export async function fetchModerationQueue(params: {
   perPage?: number;
 } = {}): Promise<AdminModerationResponse> {
   const qs = new URLSearchParams();
+  // P100.05 (TCK-1186) — `fields` inerte : `Admin\ModerationQueueController::index` assemble la file à la main.
   qs.set('fields[moderation]', 'id,type,status,subject_type,subject_id,agency_id,reported_at,reason');
   qs.set('include', 'subject,reporter');
   if (params.type) qs.set('filter[type]', params.type);

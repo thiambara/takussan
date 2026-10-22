@@ -111,6 +111,22 @@ describe('<EarlyTerminationDialog>', () => {
     expect(estimate.textContent ?? '').toMatch(/800[\s,]?000/);
   });
 
+  it('estimates on the penalty months the API exposes for the lease (P98.05)', () => {
+    render(
+      withProviders(
+        <EarlyTerminationDialog
+          open
+          onOpenChange={() => {}}
+          lease={makeLease({ early_termination_penalty_months: 3 })}
+        />,
+      ),
+    );
+
+    const estimate = screen.getByTestId('penalty-estimate');
+    expect(estimate).toHaveTextContent('3 mois');
+    expect(estimate.textContent ?? '').toMatch(/1[\s,\u202f]?200[\s,\u202f]?000/);
+  });
+
   it('disables submit when effective_date is below the notice minimum', () => {
     render(withProviders(<EarlyTerminationDialog open onOpenChange={() => {}} lease={makeLease()} />));
 

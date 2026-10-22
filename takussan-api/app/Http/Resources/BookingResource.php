@@ -20,7 +20,9 @@ class BookingResource extends BaseResource
             'customer_id' => $this->customer_id,
             'agency_id' => $this->agency_id,
             'status' => $this->status?->value,
-            'total_amount' => (float) $this->total_amount,
+            // TCK-1182 (P100.03) — `whenHas` : sous un sparse fieldset qui ne lit pas la colonne, la clé
+            // est omise au lieu d'une valeur inventée (montant à 0, nature ou devise par défaut).
+            'total_amount' => $this->whenHas('total_amount', fn () => (float) $this->total_amount),
             'deposit_amount' => $this->deposit_amount !== null ? (float) $this->deposit_amount : null,
             'currency' => $this->currency?->value,
             'start_date' => $this->calendarDate($this->start_date),

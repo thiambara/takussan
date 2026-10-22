@@ -61,6 +61,8 @@ export function useConversations(
   if (params.property_id) filter.property_id = params.property_id;
 
   const spatieParams: SpatieQueryParams = {
+    // P100.05 (TCK-1186) — `fields` inerte : `ConversationController::index` ne passe pas par `buildQuery`
+    // (`Conversation::$queryFields` vide) ; il ne réduit pas la charge. Gardé pour déclarer ce que lit l'écran.
     fields: {
       conversations: CONVERSATION_LIST_FIELDS,
       properties: CONVERSATION_PROPERTY_FIELDS,

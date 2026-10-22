@@ -506,7 +506,9 @@ enum NotificationCode: string
     {
         return match ($this) {
             self::BookingConfirmed => 'booking_confirmed',
-            self::LeasePaymentRecorded => 'payment_received',
+            // P98.04 (TCK-1168) — « Paiement reçu » couvre la quittance en ligne : mêmes paramètres,
+            // même préférence, et son titre est déjà « Paiement reçu ».
+            self::LeasePaymentRecorded, self::LeasePaymentSettledOnline => 'payment_received',
             self::MaintenanceCreated => 'maintenance_created',
             default => null,
         };

@@ -20,7 +20,9 @@ class LeasePaymentResource extends BaseResource
             'lease_id' => $this->lease_id,
             'payer_id' => $this->payer_id,
             'collector_id' => $this->collector_id,
-            'amount' => (float) $this->amount,
+            // TCK-1182 (P100.03) — `whenHas` : sous un sparse fieldset qui ne lit pas la colonne, la clé
+            // est omise au lieu d'une valeur inventée (montant à 0, nature ou devise par défaut).
+            'amount' => $this->whenHas('amount', fn () => (float) $this->amount),
             'currency' => $this->currency?->value,
             'payment_method' => $this->payment_method?->value,
             'payment_type' => $this->payment_type?->value,
@@ -29,8 +31,9 @@ class LeasePaymentResource extends BaseResource
             'due_date' => $this->calendarDate($this->due_date),
             'paid_at' => $this->iso($this->paid_at),
             'status' => $this->status?->value,
-            'paid_amount' => (float) $this->paid_amount,
-            'remaining_amount' => (float) $this->remaining_amount,
+            // `paid_amount` et `remaining_amount` se dérivent d'`amount` (`HasPaymentAttributes`).
+            'paid_amount' => $this->whenHas('amount', fn () => (float) $this->paid_amount),
+            'remaining_amount' => $this->whenHas('amount', fn () => (float) $this->remaining_amount),
             // TCK-1135 (P76.06) — le montant rendu, tel qu'en base, sous la forme de `BookingPaymentResource`.
             'refund_amount' => $this->refund_amount !== null ? (float) $this->refund_amount : null,
             'late_fee_amount' => $this->late_fee_amount !== null ? (float) $this->late_fee_amount : null,

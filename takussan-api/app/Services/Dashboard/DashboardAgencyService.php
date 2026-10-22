@@ -61,7 +61,7 @@ class DashboardAgencyService
             ->where('agency_id', $agency->id)
             ->where('status', LeaseStatus::Active->value)
             ->toBase()
-            ->selectRaw('COUNT(*) AS active, COALESCE(SUM(monthly_rent), 0) AS expected')
+            ->selectRaw('COUNT(*) AS active')
             ->first();
 
         $customersCount = Customer::where('agency_id', $agency->id)->count();
@@ -84,7 +84,6 @@ class DashboardAgencyService
 
         $leaseIncomeMonth = $leaseIncome[$month] ?? 0.0;
         $bookingIncomeMonth = $bookingIncome[$month] ?? 0.0;
-        $expected = (float) $leases->expected;
 
         return [
             'agency_id' => $agency->id,
@@ -118,7 +117,8 @@ class DashboardAgencyService
                 'commission_month' => self::commissionMonth((int) $agency->id),
                 'overdue_count' => $overdue['count'],
                 'overdue_amount' => $overdue['amount'],
-                'unpaid_rate_percent' => $expected > 0 ? round(($overdue['amount'] / $expected) * 100, 2) : 0.0,
+                // P93.03 (TCK-1177) — impayé ÷ facturé des échéances échues sur 12 mois, `null` sans échéance.
+                'unpaid_rate_percent' => $this->metrics->unpaidRate($scope),
             ],
             'occupancy' => [
                 'rate_percent' => $this->metrics->longStayOccupancyToday($scope),
