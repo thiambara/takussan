@@ -182,7 +182,9 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     // ── /TCK-590 ───────────────────────────────────────────────────────────────────────────
 
     Route::middleware('auth:sanctum')->group(function () {
+        // TCK-1406 (ADR-0072) — réservation et offre d'achat rejouées sous la même clé : une seule.
         Route::post('properties/{slug}/booking-request', [PublicPropertyController::class, 'bookingRequest'])
+            ->middleware('idempotent')
             ->name('properties.booking-request');
 
         Route::post('properties/{slug}/contact-message', [PublicPropertyController::class, 'contactMessage'])

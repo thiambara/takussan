@@ -86,7 +86,8 @@ export type CreateBookingPayload = {
 export function useCreateBooking() {
   return useApiMutation<ApiResponse<Booking>, CreateBookingPayload>(
     { path: '/api/bookings', method: 'POST' },
-    { invalidate: [['bookings', 'list']] },
+    // TCK-1406 (ADR-0072) — renvoyée après une réponse perdue, la réservation n'est créée qu'une fois.
+    { idempotence: true, invalidate: [['bookings', 'list']] },
   );
 }
 

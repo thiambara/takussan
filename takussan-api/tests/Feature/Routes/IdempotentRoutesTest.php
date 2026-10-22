@@ -24,6 +24,9 @@ class IdempotentRoutesTest extends TestCase
             'invoices.store' => ['invoices.store'],
             // TCK-1404 (P144.06) — la demande d'intervention.
             'maintenance-requests.store' => ['maintenance-requests.store'],
+            // TCK-1406 (P144.03) — la réservation du personnel, puis la demande publique (réservation et offre).
+            'bookings.store' => ['bookings.store'],
+            'public.properties.booking-request' => ['public.properties.booking-request'],
         ];
     }
 

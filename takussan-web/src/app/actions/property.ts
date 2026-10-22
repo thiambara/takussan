@@ -16,11 +16,19 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 type ActionResult<T = undefined> =
   | { ok: true; data?: T }
-  | { ok: false; status?: number; message: string; errors?: Record<string, string[]> };
+  | { ok: false; status?: number; code?: string; message: string; errors?: Record<string, string[]> };
+
+/**
+ * TCK-1406 (ADR-0072 § 7) — la clé d'idempotence REÇUE du composant client part telle quelle dans
+ * l'en-tête : l'action ne l'engendre jamais (neuve à chaque appel, elle ne protégerait de rien).
+ */
+function enTeteIdempotence(cleIdempotence: string | undefined): { headers?: Record<string, string> } {
+  return cleIdempotence ? { headers: { 'Idempotency-Key': cleIdempotence } } : {};
+}
 
 async function errorFromApi(
   e: unknown,
-): Promise<{ status?: number; message: string; errors?: Record<string, string[]> }> {
+): Promise<{ status?: number; code?: string; message: string; errors?: Record<string, string[]> }> {
   journaliserErreurInattendue('property', e);
   const [tRacine, t] = await Promise.all([
     getTranslations(),
@@ -36,6 +44,8 @@ async function errorFromApi(
     }
     return {
       status: e.status,
+      // TCK-1406 — le composant renouvelle sa clé sur `idempotency.key_reused` (ADR-0072 § 7).
+      ...(data.code === 'idempotency.key_reused' ? { code: data.code } : {}),
       // ⚠️ C'était `data.message ?? t('apiError', …)`, et `data.message` relayait TEL QUEL le
       // « Unauthenticated. » anglais de Laravel — le cas le plus fréquent d'un 401. Le repli
       // `Erreur (404).` est un gabarit interpolé, donc invisible au scanner de check-i18n ;
@@ -131,6 +141,7 @@ export async function submitVisitRequest(
 export async function submitBookingRequest(
   slug: string,
   payload: BookingRequestPayload,
+  cleIdempotence?: string,
 ): Promise<ActionResult> {
   const segment = segmentDeSlug(slug);
   if (segment === null) return bienIntrouvable();
@@ -141,6 +152,7 @@ export async function submitBookingRequest(
       method: 'POST',
       body: payload,
       token,
+      ...enTeteIdempotence(cleIdempotence),
     });
     return { ok: true };
   } catch (e) {
@@ -182,6 +194,7 @@ export async function getReviewEligibility(
 export async function submitPurchaseOffer(
   slug: string,
   payload: OfferRequestPayload,
+  cleIdempotence?: string,
 ): Promise<ActionResult> {
   const segment = segmentDeSlug(slug);
   if (segment === null) return bienIntrouvable();
@@ -192,6 +205,7 @@ export async function submitPurchaseOffer(
       method: 'POST',
       body: payload,
       token,
+      ...enTeteIdempotence(cleIdempotence),
     });
     return { ok: true };
   } catch (e) {

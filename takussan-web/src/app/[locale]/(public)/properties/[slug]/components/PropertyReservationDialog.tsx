@@ -17,6 +17,7 @@ import { useBookingRequest } from '@/hooks/useBookingRequest';
 import { usePropertyAvailability } from '@/hooks/usePropertyAvailability';
 import { isNightOccupied, isStayFree } from '@/lib/occupancy';
 import { submitPurchaseOffer } from '@/app/actions/property';
+import { useCleIdempotence } from '@/hooks/useCleIdempotence';
 import { formatMontant } from '@/lib/format/currency';
 import { getPrimaryCtaForProperty } from '@/lib/property-cta';
 import { quoteBooking } from '@/lib/booking-quote';
@@ -309,6 +310,9 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // TCK-1406 (ADR-0072) — la même clé d'un essai à l'autre : une offre renvoyée après une
+  // réponse perdue n'en crée pas une seconde.
+  const idempotence = useCleIdempotence();
 
   const minExpiry = useMemo(() => {
     const tomorrow = new Date();
@@ -326,12 +330,17 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
         setError(t('offerForm.invalidAmount'));
         return;
       }
-      const res = await submitPurchaseOffer(property.slug, {
-        offer_amount: amount,
-        offer_expires_at: offerExpiresAt,
-        terms_accepted: true,
-        message: message || undefined,
-      });
+      const res = await submitPurchaseOffer(
+        property.slug,
+        {
+          offer_amount: amount,
+          offer_expires_at: offerExpiresAt,
+          terms_accepted: true,
+          message: message || undefined,
+        },
+        idempotence.cle(),
+      );
+      idempotence.apres(res);
       if (!res.ok) {
         setError(res.message);
         return;
