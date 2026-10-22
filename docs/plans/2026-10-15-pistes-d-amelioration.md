@@ -13227,7 +13227,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### Six autres écrans chargent le calendrier par l'`index.ts` sans afficher aucun sélecteur de date
 - Réf : P137.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1461
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(auth)/auth/login/page.tsx:14`, `takussan-web/src/app/(auth)/auth/register/page.tsx:13-17`, `takussan-web/src/components/auth/ConnexionParTelephone.tsx:11`, `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:17,30`, `takussan-web/src/components/customer-form/CustomerForm.tsx:17`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:27`, `takussan-web/src/components/bookings/BookingPaymentDialog.tsx:12`, `takussan-web/src/components/bookings/BookingRefundPanel.tsx:13`
 - Constat :
@@ -13237,6 +13237,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Établi comment : code relu, graphe client mesuré.
 - Piste : prendre chaque champ à son fichier dans les 32 importeurs de `@/components/forms` (`grep -rn "from '@/components/forms'"`, lu), ou retirer `FormDatePicker` et `FormDateTimePicker` de l'`index.ts` ; garde qui refuse tout import de `@/components/forms` par son `index.ts`, ou qui exige des pages ci-dessus qu'elles n'atteignent pas react-day-picker.
 - Mesure (2026-10-22, f42212ee7, mesureur) : relu les imports de `login/page.tsx:14`, `register/page.tsx:17`, `ConnexionParTelephone.tsx:11`, `AgencyConfigForm.tsx:17,18,30`, `CustomerForm.tsx:17`, `MaintenanceForm.tsx:27`, `BookingPaymentDialog.tsx:12`, `BookingRefundPanel.tsx:13` (tous par `@/components/forms`) ; test temporaire du graphe client, retiré depuis, avec `FormDatePicker` et `FormDateTimePicker` retirés de l'`index.ts` à titre d'essai, puis remis → `login`, `register`, `/app/agency`, `/app/customers/new`, `/app/maintenance/new` et `/app/bookings/[id]` perdent `react-day-picker` et `date-fns` et gardent `react-hook-form` (7 modules de moins chacune). Constat inexact sur un point : `useTraducteurValidation` pris à son module ne fait **pas** sortir `@hookform/resolvers` de `/app/agency`, car `AgencyConfigForm.tsx:18` importe aussi `useApiForm`, qui importe `zodResolver` (`useApiForm.ts:15`) (mesuré). Classement : A2, chaque nom pris à son fichier propre (`@/components/forms/<Champ>`) dans les huit fichiers cités, même rendu, avec une garde sur ces six pages contre `react-day-picker` et `date-fns`. Des deux options de la Piste, celle-ci ne touche pas l'`index.ts` ni ses autres importeurs.
+- Mesure (2026-10-22, 58c404ecf, implementeur) : relu `components/forms/index.ts` (`FormDatePicker` et `FormDateTimePicker` réexportés) et les imports des six pages ; garde neuve `index-sans-selecteur-de-date.test.ts` avant correctif → 7 rouges (l'index, et `login`, `register`, `/app/agency`, `/app/customers/new`, `/app/maintenance/new`, `/app/bookings/[id]` qui atteignent `react-day-picker` et `date-fns`) → voie retenue : les deux sélecteurs retirés de l'`index.ts`, pris à leur fichier par leurs 8 importeurs → 7 verts, `tsc` propre, 11 fichiers de test des importeurs verts (84 tests) ; ablation : `index.ts` seul remis → 7 rouges, rétabli → verts.
 
 ### Connexion et inscription chargent les onze modules de schémas pour un seul schéma
 - Réf : P137.04
