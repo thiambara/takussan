@@ -28,7 +28,7 @@ venir, sortent de la page, et le calendrier montre libres des nuits réservées.
 
 ## Décision du porteur (déléguée)
 
-> le calendrier lit toutes les pages des séjours confirmés du bien (`sort=start_date`, `per_page=100`, pages suivantes jusqu'à `meta.last_page`), comme `fetchAllLeasePayments` de TCK-1178, sans filtre de date neuf dans l'API ; test : bien à 100 séjours confirmés passés et 1 à venir, le séjour à venir est peint
+> le calendrier lit toutes les pages des séjours confirmés du bien (`sort=start_date`, `per_page=100`, pages suivantes jusqu'à `meta.last_page`), comme `fetchAllLeasePayments` de TCK-1178, sans filtre de date neuf dans l'API ; test : bien à 100 séjours confirmés passés et 1 à venir, le séjour à venir est peint ; reste : le passage des séjours finis de `confirmed` à `completed`, et toute borne de date côté API
 
 ## Reste à faire
 
@@ -65,5 +65,7 @@ Aucun changement d'API : `GET /api/bookings` avec `filter[property_id]`, `filter
   de cellule voit bien la classe `booked`.
 - `useApiQuery` ne sait lire qu'une page : le hook passe à `useQuery` + `apiRequest`, comme
   `useLeasePayments` (TCK-1178), sous la même clé de cache (les invalidations restent justes).
+- Le séjour « à venir » du test commence aujourd'hui (nuit d'aujourd'hui) : un séjour plus lointain
+  tomberait hors du mois affiché selon le jour où le test tourne.
 - Ablation : `property-calendar.ts` rendu à `HEAD` → 1 rouge sur 1 (nuit d'aujourd'hui non peinte,
   une seule page lue) ; correctif remis → vert.
