@@ -126,10 +126,10 @@ export const INVOICE_LIST_FIELDS = [
   'created_at',
 ] as const;
 
+// P150.03 (TCK-1284) — pas de `search` : `GET /api/invoices` ne déclare aucun `filter[search]` (400).
 export type UseInvoicesParams = {
   readonly status?: InvoiceStatus;
   readonly customer_id?: number;
-  readonly search?: string;
   readonly page?: number;
   readonly per_page?: number;
 };
@@ -138,7 +138,6 @@ export function useInvoices(params: UseInvoicesParams = {}) {
   const filter: Record<string, string | number> = {};
   if (params.status) filter.status = params.status;
   if (params.customer_id) filter.customer_id = params.customer_id;
-  if (params.search) filter.search = params.search;
 
   const query: SpatieQueryParams = {
     fields: { invoices: INVOICE_LIST_FIELDS },

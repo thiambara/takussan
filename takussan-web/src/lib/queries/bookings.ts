@@ -27,11 +27,11 @@ const LIST_FIELDS: string[] = [
   'agency_id',
 ];
 
+// P150.03 (TCK-1284) — pas de `search` : `GET /api/bookings` ne déclare aucun `filter[search]` (400).
 export type UseBookingsParams = {
   status?: string;
   page?: number;
   per_page?: number;
-  search?: string;
 };
 
 export function useBookings(params: UseBookingsParams = {}) {
@@ -44,7 +44,6 @@ export function useBookings(params: UseBookingsParams = {}) {
     },
     filter: {
       ...(params.status ? { status: params.status } : {}),
-      ...(params.search ? { search: params.search } : {}),
     },
     include: ['property'],
     sort: ['-created_at'],
