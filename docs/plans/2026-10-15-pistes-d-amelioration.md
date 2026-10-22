@@ -11531,10 +11531,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Petites améliorations
 - Réf : P117.07
-- Statut : validé — porteur (2026-10-22) : comparer l'heure de l'intervention à la plage `from`–`to` dans `worksOn`, même avertissement et même texte
+- Statut : fait · TCK-1327 — reste : décider avec P21.06 si le téléphone d'un prestataire en brouillon (`metadata.phone`) est rendu à l'agence dans le carnet (V3) ; `documents.metadata.kind` et `.source` laissés en l'état
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/maintenance/MaintenanceAssignmentBlock.tsx:170-176`, `takussan-api/app/Http/Resources/ServiceProviderDirectoryResource.php:22`, `takussan-api/app/Services/Invitation/ServiceProviderInvitationService.php:117`, `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:73`, `OwnerProfileController.php:65`, `ServiceProviderProfileController.php:63`
 - Constat :
+- Mesure (2026-10-22, 1c871e3c0, implementeur) : reproduit avant correctif par `MaintenanceAssignmentBlock.test.tsx` (prestataire disponible le lundi 08:00–12:00, intervention le lundi 2026-10-19 à 18 h → aucun avertissement) → `worksOn` compare aussi l'heure locale à `from`–`to`, une borne absente ne contraint pas ; même texte ; ablation : `worksOn` d'avant → rouge, correctif → vert ; le cas mardi garde que le texte cherché est bien celui rendu.
   - L'avertissement « ne travaille pas ce jour-là » ne compare que le jour : `from` et `to` de `metadata.availability` sont validés (`UpdateAvailabilityServiceProviderProfileRequest`, regex `HH:MM`) puis ignorés (lu, `:170-176`). Une intervention un lundi à 18 h chez un prestataire disponible le lundi de 8 h à 12 h ne déclenche rien.
   - Le téléphone saisi par l'agence à l'invitation d'un prestataire (`metadata.phone`, lu `:117`) est retiré du carnet par `METADATA_KEYS` (lu). Pour un brouillon, sans `User`, l'agence ne retrouve donc pas le numéro qu'elle a saisi. Voulu par P21.06 pour ne pas exposer `metadata` : à trancher avec lui.
   - `documents.metadata.kind` et `.source`, posés par les trois `uploadKyc` (lu), n'ont aucun lecteur (`grep` des deux clés sur l'API et le front, lu). `documents.type` porte déjà le genre de la pièce.
