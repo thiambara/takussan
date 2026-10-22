@@ -198,7 +198,7 @@ voie d'écriture (angle 13, puis 47).
 | 121 | Passation de portefeuille (`AgentHandoverService::move`) : chaque catégorie réécrite par `DB::table()->update` ou `update(['user_id'])` sans rejuger la règle de cible du geste unitaire (visites `PersonnelDeLAgence`, référent `crm.assign`, maintenance TCK-592, collaborations), et le compte rendu `moved` / `unassigned` face à l'état écrit | fait |
 | 122 | Écritures qui changent un champ de `toSearchableArray()` sans passer par l'observateur Scout (`saveQuietly`, `Model::query()->update`, `DB::table()->update`, relations `address`, `tagsVisibles`, `agency`) sur les sept modèles `Searchable` : document resté périmé dans l'index | fait |
 | 123 | Gestes validés en base suivis, hors transaction, d'un appel réseau qui peut lever (Meilisearch, CDN, revalidation du front, envoi synchrone) avant leur ligne `activity()` ou leur notification : réponse 500 pour un geste fait, trace d'audit absente — le relevé de P90.03 hors de la modération | fait |
-| 124 | Colonnes `varchar(N)` remplies par une valeur dérivée ou recopiée d'une source plus longue (masques, concaténations, codes et messages d'erreur de fournisseur : `lease_signatures.otp_destination`, `notification_delivery_attempts.failure_reason`, `integration_webhook_logs.error_code`, `property_calendar_feeds.last_error`, `bookings.expiry_reason`) sans `mb_substr` : écriture en 22001 hors de toute requête validée | à faire |
+| 124 | Colonnes `varchar(N)` remplies par une valeur dérivée ou recopiée d'une source plus longue (masques, concaténations, codes et messages d'erreur de fournisseur : `lease_signatures.otp_destination`, `notification_delivery_attempts.failure_reason`, `integration_webhook_logs.error_code`, `property_calendar_feeds.last_error`, `bookings.expiry_reason`) sans `mb_substr` : écriture en 22001 hors de toute requête validée | fait |
 | 125 | Téléphones écrits sans `TelephoneSaisi::normaliser` ni `TelephoneJoignable` (garants, agences, onboarding de la console, contacts sur place des biens) : numéro hors E.164 face aux lecteurs qui envoient un SMS, ouvrent un lien WhatsApp ou rapprochent un doublon | à faire |
 | 126 | Destinataires de notifications et de courriels choisis par un profil sans `->active()` (`MaintenanceParticipants.php:39`, autres `Notification::send` à l'équipe d'une agence) : agent ou admin suspendu ou archivé qui reçoit encore l'activité de l'agence — le relevé de P93.04 sur les autres envois | à faire |
 | 127 | Indicateurs de `DashboardAgentService`, `DashboardOwnerService` et des adaptateurs `*MeMetrics` de `/dashboard/me` : dénominateur nul rendu 0 au lieu de `null`, statut courant relu pour une période passée, clés que seul `assertJsonStructure` vérifie — le relevé de l'angle 93 sur les autres tableaux de bord | à faire |
@@ -231,6 +231,7 @@ voie d'écriture (angle 13, puis 47).
 | 154 | Relations lues puis écrites dans la même requête par `relation()->create()` ou `associate()` sans `setRelation()` ni `load()` (`$model->address ? … : $model->address()->create()`, et leurs pareilles dans les contrôleurs et services) : relation restée nulle ou périmée en mémoire, lue ensuite par un observateur, une notification, un job ou la ressource rendue — le motif de P122.01 hors de l'index | à faire |
 | 155 | Mailables et notifications que la suite ne rend jamais (tests sous `Mail::fake()` ou `Notification::fake()` seuls ; gabarits `resources/views/emails/*` rendus par `view:` qui s'appuient sur les composants `mail::`, `toMail()` sans test qui appelle `render()`) : courriel qui lève au rendu en production pendant que la suite est verte — né de P123.01 | à faire |
 | 156 | Variables d'environnement dont `phpunit.xml`, `.env.docker` et `.env.example` posent des valeurs différentes (`SCOUT_AFTER_COMMIT`, `SCOUT_QUEUE`, et leurs pareilles) : comportement que la suite éprouve face à celui du développement et de la préproduction, et tests qui ne jouent qu'un régime — né de P123.03 | à faire |
+| 157 | Lignes de relevé importées face au rapprochement : `currency` lue dans le fichier (`CsvDriver.php:126-128`) puis comparée telle quelle par `ReconciliationMatcher::fetchCandidates` (`where('currency', …)`), devise de trois lettres autre que celle de l'agence (`CFA`, `XAF`, `EUR`), sens et montants lus, `FITID` répété d'un relevé à l'autre : lignes importées qu'aucun candidat ne peut jamais apparier, sans le dire — né de P124.01 | à faire |
 
 ---
 
@@ -11889,3 +11890,73 @@ masse relève de l'angle 122 et n'est pas repris.*
   - `.env.example` recommande `SCOUT_QUEUE=true` et `SCOUT_AFTER_COMMIT=true` en commentaire (lu, l. 147-148), quand `.env.docker` pose `false` et `true` et `phpunit.xml` `false` et `false` : trois réponses pour un réglage qui décide du sort d'un geste quand le moteur tombe (voir P123.03).
   - Établi comment : lu.
 - Piste : ne compter la fenêtre de renvoi qu'après un envoi réussi, ou rattraper l'échec du courriel en 503 comme le SMS ; écrire la valeur retenue de `SCOUT_*` à un seul endroit, avec sa raison.
+
+## Angle 124 — Colonnes bornées remplies par une valeur dérivée ou recopiée
+
+*Exploré le 2026-10-22 sur `pre-dev` 86138895e, par l'explorateur. Tout est relu par
+l'explorateur lui-même, sans sous-agent. Les longueurs viennent d'`information_schema` sur la base de
+développement (242 lignes dans `migrations`, lue en `SELECT` seulement ; D-48), et les relevés de
+code de `grep` sur `takussan-api/app`. Trois tests temporaires, ajoutés puis retirés, ont tourné sur
+leur propre base (charge 1,51 / 1,93 / 1,97 sur 8 cœurs). Écartés après lecture, déjà bornés :
+`property_calendar_feeds.last_error` (`mb_substr(…, 0, 60)`, `PropertyCalendarSyncService.php:166`),
+`property_unavailabilities.external_uid` (`IcalReader.php:88`), `integration_webhook_logs.external_id`
+(`WebhookJournal.php:148`), le motif WhatsApp (`WhatsappStatusController.php:166`, TCK-1046),
+`payout_methods.masked_identifier` (`Masking::tail`, identifiant borné à 64), le nom et le slug d'un
+quartier proposé (`GeoNeighborhood::NOM_MAX`, `slugLibre` borné à 130). `bookings.expiry_reason` et
+`integration_webhook_logs.error_code` ne reçoivent que des constantes ou des codes internes (lu,
+`BookingExpirationService.php:31-35`, `WebhookJournal.php:208-218`). `lease_signatures.otp_destination`
+est déjà P91.06.*
+
+### Un relevé bancaire CSV dont la colonne devise dit « FCFA », ou dont une référence dépasse 255 caractères, échoue en entier
+- Réf : P124.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Accounting/StatementParser/CsvDriver.php:126-138`, `takussan-api/app/Services/Accounting/StatementParser/OfxDriver.php:90-100`, `takussan-api/app/Jobs/Accounting/ParseBankStatementJob.php:91-121,156-171`
+- Constat :
+  - Quand le mapping déclare une `currency_column`, la cellule est recopiée telle quelle, passée en majuscules et rognée, sans contrôle de longueur ni de valeur (lu, `CsvDriver.php:127-128`). La colonne est un `char(3)` (mesuré, `information_schema` : `bank_statement_lines.currency`, `character`, 3).
+  - `reference` et `counterparty` viennent de la cellule sans borne (lu, l. 137-138), vers des `varchar(255)` (mesuré, `information_schema`). Côté OFX, `FITID` et `NAME` vont de même dans `reference` et `counterparty` (lu, `OfxDriver.php:90-100`).
+  - Les lignes sont insérées par paquets dans une seule transaction (lu, `ParseBankStatementJob.php:77-121`). Une seule cellule trop longue fait lever l'insertion : le relevé entier passe `failed`, sans ligne et sans motif qui nomme la cellule (lu, l. 156-171 ; le message est assaini à dessein, TCK-593).
+  - Mesuré (test temporaire, retiré), en admin d'agence, mapping enregistré par `PUT …/bank-statements/csv-mapping`, import par `POST …/bank-statements`, puis `ParseBankStatementJob::handle()` :
+    - colonne `Devise` à `FCFA` → `RuntimeException` « parse failed (QueryException, sqlstate 22001) », relevé `failed` ;
+    - même fichier avec `XOF` → `ready_for_review`, une ligne ;
+    - colonne `Ref` de 300 caractères sur la première de deux lignes → 22001, relevé `failed`, la seconde ligne perdue aussi.
+  - « FCFA » est l'écriture courante de la devise sur les relevés des banques sénégalaises (à vérifier sur des relevés réels ; aucun échantillon dans le dépôt).
+  - Établi comment : lu et mesuré.
+- Piste : borner `reference` et `counterparty` par `mb_substr(…, 0, 255)` dans les deux pilotes, comme `IcalReader` le fait pour l'UID. Pour la devise, ramener les écritures connues (`FCFA`, `F CFA`, `CFA`) à `XOF`, et faire sauter une ligne dont la devise n'est pas un code de trois lettres, en la comptant dans `skipped` comme une ligne au sens illisible (`ParseTally`), plutôt que de faire échouer le relevé entier. Le choix entre « sauter » et « refuser le relevé » pour une devise inconnue peut relever du porteur. Un test par pilote : cellule de 256 caractères → ligne importée et tronquée ; devise `FCFA` → ligne en `XOF`.
+
+### Un accusé SMS en échec dont le texte du fournisseur dépasse 255 caractères rend 500, et la tentative reste « envoyée »
+- Réf : P124.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:77,95`, `takussan-api/app/Http/Controllers/Webhook/MtargetSmsStatusController.php:71,97`, `takussan-api/app/Services/Notifications/Sms/Dlr/DlrReportApplier.php:82-91`, `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:93-97`, `takussan-api/app/Console/Commands/SmsPullMtargetDlr.php:68-70`
+- Constat :
+  - LAM passe le paramètre `text`, Mtarget le champ `StatusText`, en `failureReason` tels quels (lu, LAM l. 77 et 95, Mtarget l. 71 et 97). La relève Mtarget fait de même avec `statusText` (lu, `DlrReportApplier.php:83`). `DeliveryAttemptUpdater::applyStatus()` l'écrit sans borne dans `notification_delivery_attempts.failure_reason`, un `varchar(255)` (lu, l. 93-97 ; mesuré, `information_schema`).
+  - Le pendant WhatsApp a été borné à 255 par TCK-1046, après qu'un titre Meta de 400 caractères a fait répondre 500 au webhook (lu, P72.06 et `WhatsappStatusController.php:166`). Les trois voies SMS ne l'ont pas été.
+  - Mesuré (méthode temporaire ajoutée à `LAfricaMobileSmsWebhookTest`, puis retirée) : rappel signé émis par le pilote, `status=2` et `text` de 300 caractères → **500**, et la tentative reste `sent`. L'échec n'est donc jamais écrit, et `lateFailure()` (journal, saut du fournisseur pour le renvoi d'un code, P72.03) ne s'exécute pas.
+  - Pour la relève, `SmsPullMtargetDlr` applique les rapports d'une page sans `try` (lu, l. 68-70). Un rapport fautif arrête donc la commande, et les comptes des agences suivantes ne sont pas relevés. Le docblock du puller décrit une file que la relève vide (lu, `MtargetDlrPuller.php:20`) : les rapports restants de la page seraient alors perdus (déduit, à vérifier).
+  - Établi comment : lu, et mesuré pour LAM.
+- Piste : borner `failureReason` à 255 caractères dans `DeliveryAttemptUpdater::applyStatus()`, le point de passage commun, avec `mb_substr`. Cela couvre les trois voies SMS et laisse la borne WhatsApp redondante mais juste. Un test par voie (LAM, Mtarget poussé, Mtarget relevé) avec un texte de 300 caractères, qui attend 200 et la tentative `failed`.
+
+### Le `user_agent` d'une demande de contact est coupé à 255 octets et peut tomber au milieu d'un caractère : 500 sur la voie publique
+- Réf : P124.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Lead/ContactLeadService.php:215,314`
+- Constat :
+  - `recordClick()` (clic WhatsApp ou Appeler) et `attributes()`, dont se servent `forProperty()` et `forAgent()` (formulaire de contact), écrivent `substr((string) $request->userAgent(), 0, 255)` (lu, l. 215 et 314). Le `substr` d'octets peut couper une séquence UTF-8, et la chaîne écrite devient invalide.
+  - Mesuré (méthode temporaire ajoutée à `PropertyContactClickTest`, puis retirée) : `POST /api/public/properties/{slug}/contact-click`, sans authentification, en-tête `User-Agent` de 254 `a` suivis de `é` → **500**, `SQLSTATE[22021] invalid byte sequence for encoding "UTF8": 0xc3`. Aucun clic n'est écrit. La demande de contact (`contact-lead`) passe par la même ligne 314 (lu, non jouée).
+  - Le dépôt a déjà payé ce défaut ailleurs : `FailedJobService::truncate()` explique que `substr()` coupait une séquence UTF-8 et faisait rendre 500 (lu, `FailedJobService.php:82-90`). `LeaseSignatureService.php:167` écrit le même en-tête avec `mb_substr`.
+  - Un agent utilisateur non ASCII au-delà de 254 octets reste rare (à vérifier ; aucune mesure de trafic dans le dépôt). Quand il se présente, le visiteur perd sa demande, sans message utile.
+  - Établi comment : lu et mesuré.
+- Piste : `mb_substr(…, 0, 255)` aux deux lignes. Un test de chaque voie publique avec un agent utilisateur de 254 octets ASCII suivis d'un caractère accentué, qui attend 204 (clic) ou 201 (demande) et une valeur valide en UTF-8. Une garde de forme, sur le modèle des `check-*.mjs`, pourrait refuser un `substr(` appliqué à un `userAgent()` ou à une valeur écrite en base.
+
+### Petites améliorations des colonnes bornées
+- Réf : P124.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Webhooks/WebhookJournal.php:139-151`, `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:88-97`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:524,597`
+- Constat :
+  - `annotate()` borne `external_id` à 191 mais écrit `event_type` tel quel (lu, `WebhookJournal.php:148-149`) dans un `varchar(255)` (mesuré, `information_schema`). `event_type` reçoit le `deliveryStatus` d'Orange (lu, `OrangeSmsStatusController.php:89,97`) et le `type` d'un événement de paiement (lu, `PaymentGatewayService.php:524,597`), tous deux lus dans un corps venu du fournisseur. Le chemin n'est atteint qu'après l'authentification du webhook : le risque est faible (déduit, à vérifier). Un statut de plus de 255 caractères ferait rendre 500 à l'accusé, et le fournisseur le renverrait.
+  - Aucune garde ne relève une écriture dérivée face à la longueur de sa colonne. `BornesMaxFaceAuSchemaTest` (P91.07) ne voit que les règles `max:` des FormRequest, et les bornes de cet angle ne sont tenues que voie par voie, dans cinq fichiers.
+  - Établi comment : lu.
+- Piste : borner `event_type` comme `external_id` dans `annotate()`. Les correctifs de P124.01 à P124.03 portent chacun un test qui écrit N+1 caractères, ou un caractère multioctet à la limite, et attend l'écriture.
