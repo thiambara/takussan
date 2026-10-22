@@ -15589,7 +15589,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### « Avis sans réponse » ouvre la boîte de tous les avis reçus, répondus et en attente compris
 - Réf : P167.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1515
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:149-153`, `takussan-web/src/components/profile/ProfileReviewsList.tsx:355-367`, `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:117-123`
 - Constat :
@@ -15599,6 +15599,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu.
 - Piste : mener la ligne à `/app/profile/reviews?replied=0&subject_type=property` (noms à choisir sur ceux de la boîte), et faire lire ces paramètres par `ReceivedReviewsInbox`. Garde : un test de la boîte montée sur ces paramètres, qui attend `filter[replied]=0` dans l'appel.
 - Mesure (2026-10-22, 2e04f2136, mesureur) : relu `overview/owner/page.tsx:150` (`href="/app/profile/reviews"` nu), `ProfileReviewsList.tsx:355-367` (quatre filtres en `useState(ALL)`, aucun `useSearchParams`), `DashboardOwnerService.php:117-123` (avis `Property` des biens dont `user_id` = le bailleur, `is_approved`, `reply_content` nul), `ReviewController::received` (`filter[replied]` → `reply_content` nul, `filter[subject_type]=property` → `reviewable_type` `Property`) et `ReceivedReviews::for` (hors agence administrée, seuls les avis `is_approved` sur les biens dont il est titulaire ou collaborateur) → le constat tient ; les filtres « Sans réponse » et « Bien » existent déjà dans la boîte, seul le lien et leur lecture manquent ; reste un écart que le lien ne comble pas, les biens dont le bailleur n'est que collaborateur, que la boîte montre et que le nombre ne compte pas (lu, non mesuré sur un jeu). Classement : A1, le contrat est écrit par l'appelant (la ligne « Avis sans réponse » et le nombre qu'elle porte) et les deux filtres existent déjà dans la boîte, comme pour la portée des tuiles de TCK-1289 ; le correctif ne crée ni filtre ni libellé.
+- Mesure (2026-10-22, 11a127594, implementeur) : relu `overview/owner/page.tsx:150` (`href="/app/profile/reviews"` nu) et `ProfileReviewsList.tsx:357-360` (quatre filtres en `useState(ALL)`, aucun `useSearchParams`) ; `page.liens.test.tsx` rendait le `href` nu et `ProfileReviewsList.filtres-url.test.tsx` une requête sans `filter[replied]` → lien porté à `?reply=unreplied&subject=property` (noms et valeurs des options de la boîte), lus à l'ouverture et bornés aux options ; ablation (les deux fichiers rendus à `pre-dev`) → les deux tests rouges, remis → verts (14/14 avec `ProfileReviewsList.test.tsx`). L'écart des biens en collaboration, relevé par le mesureur, n'est pas comblé par le lien et reste hors de cette piste.
 
 ### « Baux à signer » de l'agent ouvre tous les baux, tous statuts, de toute l'agence
 - Réf : P167.03
