@@ -216,7 +216,7 @@ voie d'écriture (angle 13, puis 47).
 | 139 | Colonnes déclarées par les exporteurs (`ActivityLogExporter::COLUMNS`, constructeurs d'entité d'`ExportController`, exports de rapports, archive RGPD `DataExportBuilder`) qu'aucun chemin n'écrit, ou qui lisent une clé que l'écrivain nomme autrement : colonne toujours vide dans le fichier rendu — le relevé de P108.02 sur les autres exports | fait |
 | 140 | PDF figés face aux PDF recomposés à chaque téléchargement (`DocumentPdfService::store`, `signed_contract` de `LeaseSignatureService`, contre `InventoryController::downloadPdf`, `DocumentPdfController::stream*`, quittance publique `PublicPaymentLinkController::receipt`) : ce qu'un document signé ou acquitté imprime après un changement de l'agence, du bien, du locataire, d'un réglage ou d'un gabarit | fait |
 | 141 | Encaissements soldés par une intégration de la plateforme (`PlatformPayoutService::isSettledByPlatform`) face au relevé de l'agence : proposés un à un par `ReconciliationMatcher` à un crédit qui ne les porte pas, et virement de clôture `PlatformPayout` qu'aucun candidat (`ALLOWED_PAYMENT_TYPES`, `fetchCandidates`) ne représente | fait |
-| 142 | Notifications, Mailables et écouteurs en file (`ShouldQueue`, une quarantaine hors de `CodedNotification` : `TenantWelcomeNotification`, `ResetPasswordNotification`, `ActivityLogExportReadyNotification`, écouteurs `Lease\*` et `Accounting\*`) sans `backoff` ni `failed()` face au `--tries=3` sans délai des workers : ce qu'une panne du fournisseur de quelques secondes fait perdre, et la trace laissée — le relevé de P11.10 hors des notifications codées | à faire |
+| 142 | Notifications, Mailables et écouteurs en file (`ShouldQueue`, une quarantaine hors de `CodedNotification` : `TenantWelcomeNotification`, `ResetPasswordNotification`, `ActivityLogExportReadyNotification`, écouteurs `Lease\*` et `Accounting\*`) sans `backoff` ni `failed()` face au `--tries=3` sans délai des workers : ce qu'une panne du fournisseur de quelques secondes fait perdre, et la trace laissée — le relevé de P11.10 hors des notifications codées | fait |
 | 143 | PDF à lignes variables rendus par dompdf pendant la requête HTTP (`DocumentPdfService` : relevé de gérance `pdf/statements/owner`, état des lieux `pdf/inventories/report` et ses photos en URI `data:`, factures et devis à nombreuses lignes) : mémoire et durée face à `memory_limit = 256M` et `max_execution_time = 60` — le relevé de P112.01 hors de l'export générique | à faire |
 | 144 | Écritures du navigateur qu'une réponse perdue invite à rejouer (envoi de message, création de réservation, de demande de maintenance, de facture, initiation de paiement : `POST` sans clé d'idempotence, hors les seuls boosts) : bouton réactivé après une erreur réseau ou un délai, doublon créé côté API — le pendant, hors des achats de crédits, des angles 4 et 24 | à faire |
 | 145 | Champs écartés par `validated()` sur ce que l'angle 114 n'a pas relevé : `lib/queries` `properties-server.ts`, `visits.ts`, `settings.ts`, `property-calendar.ts` et les modules à une ou deux mutations, les server actions `property.ts` (avis, signalements, contacts d'agent), `invitations.ts`, `account-deletion.ts`, `admin-tags.ts`, `super-admin-cooptation.ts`, `auth.ts`, et les écritures directes des composants | à faire |
@@ -253,6 +253,7 @@ voie d'écriture (angle 13, puis 47).
 | 176 | Rôles lus toutes agences confondues par `profileTypes()` là où l'écran montre le rôle dans une agence donnée (`AgencyDetailController.php:184` de la console, `UserRoleController.php:90`, `UserResource.php:90` rendu dans les listes d'équipe, ciblage par rôle de `AnnouncementResolver` et `FeatureFlagEvaluator`) : rôle d'une autre agence affiché ou appliqué — né de P139.02 | à faire |
 | 177 | Relevés de gérance d'une période close recalculés à chaque lecture (`OwnerStatementController`, `OwnerStatementService`, PDF `pdf/statements/owner`, avis mensuel `SendOwnerStatements`) face aux remboursements, annulations, rapprochements et reversements écrits après la clôture : relevé envoyé au bailleur que plus rien ne reproduit — le pendant des relevés de l'angle 140 | à faire |
 | 178 | Loyers et acomptes encaissés par la plateforme et pas encore reversés, comptés comme argent de l'agence (`PayoutCalculator` et la préparation des reversements au bailleur, `CollectedPayments` et tableaux de bord, relevé de gérance `OwnerStatementService`) : reversement au bailleur d'un argent que la plateforme détient encore, ou qu'elle a rendu — né de P141.01 | à faire |
+| 179 | `try`/`catch` qui entourent un envoi en file et promettent un repli (`AgencyProvisioningService::sendActivationLink`, `SendSavedSearchAlerts.php:141`, `SendFavoriteChangeAlerts.php:164`, et leurs pareils autour de `notify()`, `Notification::send()` ou `Mail::send()` d'une classe `ShouldQueue`) : 502, annulation, statut d'échec ou marque de reprise que le `catch` ne peut jamais poser, l'envoi n'ayant lieu qu'au worker — né de P142.01 | à faire |
 
 ---
 
@@ -13383,3 +13384,89 @@ les angles 25 et 110 (rapprochement), 76 (remboursement d'un payable de la plate
   - L'agence d'un acompte se lit par `booking.property.agency_id` dans le matcher (`ReconciliationMatcher.php:76`), la recherche (`PaymentSearchService.php:58`) et la garde d'agence de la confirmation (`ReconciliationManager.php:313-316`), mais par `bookings.agency_id` dans la clôture plateforme (`PlatformPayoutService.php:265`, `whereHas('booking', … agency_id)`) et dans `BookingPayment::auditAgencyId`. Les deux ne diffèrent que si une réservation et son bien n'ont pas la même agence (à vérifier : aucun chemin qui l'écrive n'a été cherché).
 - Piste : faire passer matcher et recherche par un scope partagé, et lire l'agence d'un acompte par une seule colonne (A3/A5 pour le scope ; le choix de colonne après mesure).
 - Mesure (2026-10-22, 11d89e33f, mesureur) : `grep -rn "whereNotReconciled\|WhereNotReconciled" app` → les trois définitions seules (`LeasePayment:111`, `Invoice:187`, `BookingPayment:82`) ; relu `ReconciliationMatcher:76` et `PaymentSearchService:58` (`booking.property.agency_id`), `PlatformPayoutService:265` (`booking.agency_id`), `BookingPayment::auditAgencyId` (`booking()->value('agency_id')`) ; les trois créations de `Booking` (`BookingService:126`, `PublicPropertyController:~994,~1028`) écrivent `'agency_id' => $property->agency_id`, aucun chemin d'écriture divergent trouvé, sans recherche exhaustive d'un changement d'agence d'un bien → le scope mort tient, l'écart de colonne reste latent. Classement : V1, le scope partagé n'a de sens que porteur de l'exclusion de P141.01 (à valider), et le choix de colonne est laissé ouvert par la Piste.
+
+## Angle 142 — Notifications et écouteurs en file sans `backoff` ni `failed()`, hors `CodedNotification`
+
+*Exploré le 2026-10-22 sur `pre-dev` 2662d382c, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : les 41 fichiers `ShouldQueue` hors `app/Jobs`
+(`grep -rln ShouldQueue app | grep -v app/Jobs`, avec pour chacun le compte de `backoff`,
+`function failed` et `$tries`), les douze écouteurs, l'appelant de chaque notification à marque,
+`AgencyProvisioningService`, `CodedNotification`, `AlertsOnFirstFailure`, `config/queue.php` et
+`deploy/takussan/compose.api.yml`. Une mesure par test temporaire (retiré), charge 1,59 / 1,95 / 1,90
+sur 8 cœurs, transport SMTP pointé sur `127.0.0.1:1` : elle établit ce que rend la requête, pas ce
+que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`). Hors du relevé :
+`NotificationDigestMail` (P111.04) et la sérialisation de modèles supprimés (angle 166).*
+
+### Le provisionnement d'une agence promet un 502 et une annulation si l'e-mail d'activation échoue, mais l'e-mail part en file : l'agence est créée, et l'échec arrive plus tard, sans trace ni renvoi
+- Réf : P142.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:36,84,104-118`, `takussan-api/app/Notifications/AgencyAdminActivationNotification.php:22-32`, `takussan-api/tests/Feature/Api/Admin/AgencyOnboardingTest.php:96-113`
+- Constat :
+  - Le docblock de `sendActivationLink()` dit : « Un échec d'envoi rend 502 et annule le provisionnement (transaction englobante) » ; le `try` entoure `$admin->notify(new AgencyAdminActivationNotification($token))` et le `catch` appelle `abort_code(502, 'mail.invitation_not_sent')` (lu, l. 104-118, appelé l. 84 dans le `DB::transaction` de la l. 36).
+  - `AgencyAdminActivationNotification` est `ShouldQueue` (file `notifications-urgent`) : `notify()` ne fait que mettre en file, et la connexion `database` est `after_commit => true` (lu, `config/queue.php:51`). Le `catch` ne voit donc jamais un échec du transport.
+  - Mesuré (test temporaire, retiré) : `QUEUE_CONNECTION=database`, SMTP injoignable, `POST /api/admin/agencies` → **201**, agence créée, deux lignes dans `jobs` (files `default` et `notifications-urgent`). Sous la file `sync` de `phpunit.xml`, la même requête rend **500**, le message brut du transport (« Connection could not be established with host "127.0.0.1:1"… ») et l'agence annulée : ni l'un ni l'autre régime ne rend le 502 promis.
+  - Le seul test du 502 (`test_invitation_failure_rolls_back_agency_and_admin`) remplace `sendActivationLink()` entier par une méthode qui lève : il ne passe jamais par la notification (lu, l. 96-113).
+  - Une fois en file, l'envoi a trois essais sans délai (`--tries=3`, `compose.api.yml:125`), et la notification n'a ni `backoff` ni `failed()` (lu). Aucune route ne renvoie l'activation d'un gérant provisionné (`grep -rn resend routes/api` → invitations, super-admins, e-mail et téléphone seuls).
+  - Établi comment : lu, et mesuré pour la réponse de la requête dans les deux régimes de file.
+- Piste : choisir l'un des deux contrats et l'écrire — envoi synchrone (sans `ShouldQueue`) pour que le 502 et l'annulation tiennent, ou envoi en file avec `backoff`, `failed()` qui laisse une trace lisible par la console, et un geste « renvoyer l'activation » ; corriger le docblock en conséquence. Test : transport qui lève, sans remplacer `sendActivationLink()`, sous la file `database`.
+
+### Une marque « envoyé » est posée dès la mise en file : un échec du fournisseur perd la bienvenue du locataire, les rappels de tâche et d'état des lieux, et la relance de facture, que rien ne renvoie
+- Réf : P142.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Listeners/Lease/SendTenantWelcomeNotification.php:33,47,55`, `takussan-api/app/Jobs/SendTaskDueReminders.php:71-84`, `takussan-api/app/Console/Commands/RemindTenantOnboarding.php:45-76`, `takussan-api/app/Services/Invoice/OverdueReminderService.php:151-229`
+- Constat :
+  - Les quatre notifications visées (`TenantWelcomeNotification`, `TaskDueReminderNotification`, `TenantInventoryReminderNotification` et `AgentTenantInventoryReminderNotification`, `InvoiceOverdueReminderNotification`) sont `ShouldQueue`, sans `backoff` ni `failed()` (lu).
+  - Chaque appelant pose sa marque juste après `Notification::send()`, qui ne fait que mettre en file : `tenant_welcomed_at` (l. 55, après l. 47), la marque de `metadata` de la tâche (l. 81-84), `reminders_sent` de la checklist (l. 70-74). La relance de facture incrémente ses compteurs et journalise `invoice_reminder_sent` avec `channel => email_inapp` dans la transaction (l. 151-216), avant la mise en file (l. 229) (lu).
+  - Chaque lecteur saute ce que sa marque couvre (`tenant_welcomed_at !== null` l. 33, `META_MARKER`, `alreadyReminded()`) : l'e-mail perdu après trois essais sans délai ne repart jamais, et la trace dit qu'il est parti. Laravel met en file une copie par canal : la cloche (`database`) survit à l'échec du seul e-mail (lu pour le mécanisme, `NotificationSender::queueNotification` ; à vérifier par canal).
+  - Même mécanisme que P111.04 pour le résumé, ici sur quatre autres envois.
+  - Établi comment : lu.
+- Piste : `backoff` sur ces notifications (motif de `CodedNotification::backoff()`), et un `failed()` qui retire ou corrige la marque, ou qui écrit une activité alertable ; ou poser la marque depuis la notification elle-même une fois l'envoi fait. Test : transport qui lève jusqu'à épuisement → marque absente, ou trace d'échec écrite.
+
+### Le rappel J-7 avant suppression du compte est marqué envoyé à la mise en file, en e-mail seul : un échec du fournisseur fait supprimer le compte sans rappel
+- Réf : P142.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:38-43`, `takussan-api/app/Services/Account/AccountDeletionService.php:550-562`, `takussan-api/app/Notifications/AccountDeletionReminderNotification.php:14-30`
+- Constat :
+  - `notify(new AccountDeletionReminderNotification(...))` puis `reminder_sent_at = now()` aussitôt (lu, l. 40-41) ; la notification est `ShouldQueue`, canal `mail` seul, file `notifications-urgent`, sans `backoff` ni `failed()` (lu, l. 14-30).
+  - `dueForReminder()` ne relit que `reminder_sent_at IS NULL` (lu, l. 556-561) : le rappel perdu ne repart pas, et la suppression s'exécute à `scheduled_for`. Il n'y a pas de cloche pour compenser : le canal est l'e-mail seul.
+  - Établi comment : lu. La perte par épuisement des essais est déduite du `--tries=3` sans délai (à vérifier par un transport qui lève sous la file `database`).
+- Piste : `backoff` sur la notification et un `failed()` qui remet `reminder_sent_at` à nul (le passage suivant le renvoie), ou qui reporte l'exécution ; test : transport qui lève → `reminder_sent_at` nul après `failed()`.
+
+### Les commissions d'un bail sont calculées par un écouteur en file sans `failed()` ni autre appelant : un échec laisse le bail sans ligne de commission, sans alerte
+- Réf : P142.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Listeners/Lease/GenerateCommissionEntries.php:17-29`, `takussan-api/app/Services/Commission/CommissionLedgerService.php:41-107`, `takussan-api/app/Jobs/Concerns/AlertsOnFirstFailure.php:8-32`, `takussan-api/app/Listeners/Lease/CreateTenantOnboardingChecklist.php`
+- Constat :
+  - `GenerateCommissionEntries` est `ShouldQueue` sur `LeaseActivated`, sans `$tries`, `backoff` ni `failed()` (lu). `generateFor()` n'a pas d'autre appelant (mesuré : `grep -rn "generateFor(" app` → l'écouteur seul) : aucune commande ni geste ne régénère les lignes.
+  - `generateFor()` est rejouable (`insertOrIgnore`, l. 107) : une reprise différée serait sans risque de doublon (lu).
+  - `AlertsOnFirstFailure` existe pour que les jobs d'argent et de bail alertent dès le premier échec, parce que `ops_failed_jobs_spike` n'alerte qu'à 20 échecs par heure (lu, docblock l. 8-15) ; il n'est porté que par trois jobs (mesuré : `grep -rln AlertsOnFirstFailure app`), aucun écouteur. Un échec de cet écouteur ne laisse qu'une ligne de `failed_jobs`.
+  - `CreateTenantOnboardingChecklist` est dans le même cas (rejouable par `firstOrCreate`, sans `failed()` ni autre appelant), sur un effet moins grave.
+  - Établi comment : lu et `grep`.
+- Piste : `AlertsOnFirstFailure` (ou son pendant) et un `backoff` sur les deux écouteurs ; test : `failed()` de l'écouteur écrit `ops_critical_job_failed`.
+
+### Les notifications en file hors `CodedNotification` n'ont aucun `backoff` ni `failed()`, et un même délai ne vaut pas pour toutes : le code de suppression de compte expire en 5 minutes
+- Réf : P142.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Notifications/*.php` (25 classes `extends Notification` en `ShouldQueue` hors `CodedNotification`, plus `ResetPasswordNotification` et `RegistrationConfirmationNotification`), `takussan-api/app/Notifications/CodedNotification.php:76-110`, `takussan-api/app/Services/Account/DeletionStepUpService.php:44,101-105`, `deploy/takussan/compose.api.yml:125,131`
+- Constat :
+  - Mesuré : sur les 28 notifications qui implémentent `ShouldQueue` dans `app/Notifications`, seule `CodedNotification` déclare `backoff()` et `failed()` (TCK-800) ; les 27 autres n'ont ni l'un ni l'autre, ni `$tries` (`grep -c` par fichier). Les workers passent `--tries=3` sans `--backoff` (lu) : trois essais en quelques secondes.
+  - L'échec final ne laisse qu'une ligne de `failed_jobs` (purgée après 720 h, `routes/console.php:196`), sans journal nommant la notification ni le canal, contrairement à `CodedNotification::failed()` (lu).
+  - Les e-mails de compte (`ResetPasswordNotification`, `RegistrationConfirmationNotification`, `AgencyAdminActivationNotification`, `AccountDeletionStepUpCodeNotification`, file `notifications-urgent`) ont des durées de vie différentes : 60 min pour la réinitialisation, 7 jours pour l'activation (lu, `config/auth.php:99,110`), **5 min** pour le code de suppression (lu, `CODE_TTL_SECONDS = 300`). Le délai `[60, 300, 900]` de `CodedNotification` livrerait le troisième essai d'un code déjà expiré : un trait commun ne peut pas recopier ces valeurs telles quelles (déduit).
+  - Établi comment : mesuré pour les comptes, lu pour le reste.
+- Piste : un trait partagé (`backoff` + `failed()` qui journalise la classe et le canal, sur le modèle de `CodedNotification`), avec un délai court ou un `retryUntil()` borné par la durée de vie pour les codes et liens à courte échéance ; une garde qui refuse une notification `ShouldQueue` sans ce trait. Test : `backoff()` et `failed()` présents sur chaque classe `ShouldQueue` de `app/Notifications`.
+
+### Petites améliorations
+- Réf : P142.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:50-69`, `takussan-api/app/Notifications/ActivityLogExportReadyNotification.php:25`, `takussan-api/app/Listeners/Lease/SendTenantWelcomeNotification.php:47-55`
+- Constat :
+  - **Export du journal d'activité** : le fichier est écrit, puis le seul lien signé part par un e-mail en file (`via()` → `['mail']`, lu). Si cet e-mail échoue, le demandeur n'a aucun autre chemin vers le fichier (aucune liste des exports, lu `routes/api/audit-log.php:18-24`) ; le job, lui, a réussi.
+  - **Bienvenue rejouée** : si l'écouteur lève après `Notification::send()` (journal d'activité ou `save()` de la l. 55), le worker le rejoue et met en file une seconde bienvenue, la marque n'étant pas encore posée (lu, déduit pour la fréquence).
+  - **Régime de la suite** : `QUEUE_CONNECTION=sync` fait lever dans la requête ce que la production met en file (mesuré en P142.01 : 500 contre 201) ; aucun test ne joue l'échec d'un envoi sous la file `database`.
+- Piste : canal de la cloche ou liste des exports pour le lien ; marque posée avant l'envoi dans l'écouteur, ou dédoublonnage ; un test d'échec de transport sous la file `database` par famille d'envoi.
