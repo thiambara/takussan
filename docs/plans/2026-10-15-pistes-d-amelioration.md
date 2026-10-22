@@ -14418,7 +14418,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### `filter[parent_id]` des biens et `filter[user_id]` des moyens de reversement comparent un identifiant brut
 - Réf : P151.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1403
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Property.php:645-663`, `takussan-api/app/Http/Requests/Api/ListPayoutMethodsRequest.php:17`
 - Constat :
@@ -14427,6 +14427,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu, test temporaire.
 - Piste : appeler `ExactIdentifierFilter` dans la branche non nulle de `parent_id` ; dans `ListPayoutMethodsRequest`, une règle `filter.user_id => required|integer` jugée avant `find()` (ou `ctype_digit` dans `authorize()`, 404/403 sinon). Test : les deux requêtes ne rendent plus 500.
 - Mesure (2026-10-22, f41a867fe, mesureur) : relu `Property.php:645-663` (branche non nulle de `parent_id` : `where('parent_id', $value)` brut) et `ListPayoutMethodsRequest.php:17` (`find($this->input('filter.user_id'))` dans `authorize()`, avant la règle `integer` de `rules()`) ; test temporaire `tests/Feature/Tmp/TmpMesureur151Test.php` (retiré ensuite), une requête par cas, charge 2,6 sur 8 cœurs, d'abord sans gestionnaire d'exceptions pour lire l'exception, puis avec : 30 des 33 requêtes rendent 500 ; ici, admin d'agence, `/api/properties?filter[parent_id]=abc` → 500 `22P02 bigint`, `/api/payout-methods?filter[user_id]=abc` → 500 `22P02` → le constat tient. Classement : A1, les deux comportements attendus sont écrits : 400 `filter.identifier_invalid` d'`ExactIdentifierFilter` pour un identifiant, et le refus (403) qu'`authorize()` rend déjà pour un titulaire introuvable ; le correctif attendu juge la branche non nulle de `parent_id` par `ExactIdentifierFilter`, et ne fait le `find()` que sur une chaîne de chiffres (titulaire nul, donc 403, sinon), sans toucher à la politique `viewHolder`.
+- Mesure (2026-10-22, e72d2ad69, implementeur) : deux tests neufs de `FiltreIdentifiantTest` rouges avant correctif (6) : `/api/properties?filter[parent_id]=abc` → 500 (et `-1` → 200), `/api/payout-methods?filter[user_id]=abc` → 500 → branche non nulle de `parent_id` jugée par `ExactIdentifierFilter::exiger()` (400 `filter.identifier_invalid`, `null` → 200), `find()` de `ListPayoutMethodsRequest::authorize()` sur une chaîne de chiffres seulement (403 sinon) ; `FiltreIdentifiantTest` 13/13, ablation → 6 rouges, remis → verts ; `PayoutMethodTest` 8/8, `PayoutBypassTest` 43/43.
 
 ### Petites améliorations
 - Réf : P151.06
