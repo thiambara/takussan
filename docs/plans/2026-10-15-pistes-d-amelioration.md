@@ -12390,7 +12390,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Petites améliorations : clés servies sans test de valeur, et chiffres de l'accueil formatés en français pour tous
 - Réf : P127.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-1363
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/tests/Feature/Dashboard/DashboardAgentTest.php:79-124`, `takussan-api/tests/Feature/Dashboard/DashboardOwnerTest.php:41-84`, `takussan-api/tests/Feature/Dashboard/DashboardMeTest.php:65-121`, `takussan-web/src/components/dashboard/DashboardMeKpis.tsx:25,30,114-115,122`
 - Constat :
@@ -12401,6 +12401,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu.
 - Piste : un test de valeur par clé sur un jeu aux valeurs non nulles et distinctes, pour `/dashboard/agent`, `/dashboard/owner` et les adaptateurs de `/dashboard/me` ; la locale de la requête dans `DashboardMeKpis`, comme `overview/owner/page.tsx:35-39` (`localeDeLaRequete`).
 - Mesure (2026-10-22, 1f9dea9cd, mesureur) : `grep` des assertions de `DashboardAgentTest`, `DashboardAgentScopeTest`, `DashboardAgentVisitsTest` → `tasks.open` par `assertGreaterThanOrEqual(1)` (l. 82), `maintenance.open` en structure seule (l. 74), ni `tasks.overdue` ni `commissions_year` en valeur ; `DashboardOwnerTest` → `rented`, `available`, `bookings.pending` en structure (l. 46-49), `expected_monthly` à 0 (l. 84) ; `DashboardMeTest` → pour l'agent, `role` et deux `assertArrayHasKey` (l. 72-74) ; `DashboardMeKpis.tsx:25,30,114,115,122` passent `'fr'` en dur. Les constats tiennent. Classement : A5 et A4, tests de valeur sans seuil et locale de l'interface au lieu de `'fr'`, sans texte neuf.
+- Mesure (2026-10-22, 3dd2a8205, implementeur) : `DashboardKeyValuesTest` (neuf), jeu aux valeurs non nulles et distinctes → chaque clé de `/dashboard/agent` (dont `tasks.overdue = 2`, `maintenance.open = 6`, `commissions_year = 90 000`), les neuf d'`AgentMeMetrics`, et `portfolio`, `leases.active`, `bookings.pending`, `expected_monthly` du bailleur et leur copie `/dashboard/me` assertées en valeur ; ablation (une clé lue sous un autre nom dans `AgentMeMetrics` et dans `OwnerMeMetrics`) → 2 rouges (`0`), remis → verts. `DashboardMeKpis.tsx` : test en anglais rouge avant correctif (`12,345` introuvable) ; locale active par `useLocale` → vert ; ablation → rouge, remis → vert.
 
 ## Angle 128 — Dates des charges utiles de notification, et leur lecture par le front
 
