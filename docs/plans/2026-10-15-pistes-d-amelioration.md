@@ -13799,7 +13799,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Les filtres de statut des biens ne proposent ni « en revue », ni « refusé », ni « publié », trois statuts que l'API écrit
 - Réf : P146.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1268
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/enums/property.ts:33-42`, `takussan-web/src/components/property-form/options.ts:93`, `takussan-web/src/components/property-dashboard/PropertyListFilters.tsx:616-624,771`, `takussan-web/src/components/admin/super/SuperAdminPropertiesFilters.tsx:118-123`, `takussan-web/src/components/property-dashboard/PropertyStatusBadge.tsx:49-51,67-79`, `takussan-api/app/Models/Enums/PropertyStatus.php`
 - Constat :
@@ -13810,6 +13810,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu et `grep`.
 - Piste : une liste de filtre distincte de la liste des gestes, qui reprend les onze cas de l'enum ; corriger le docblock du badge. Garde : un test qui confronte les options du filtre aux cas servis par l'API.
 - Mesure (2026-10-22, 55ac201ff, mesureur) : relu `propertyStatusValues` (`lib/enums/property.ts:33-42`, 8 cas) contre l'enum (`PropertyStatus.php:7-17`, 11 cas) ; `propertyStatusOptions` (`options.ts:93`) en dérive, lu par `PropertyListFilters.tsx:623` et `SuperAdminPropertiesFilters.tsx:123` ; la puce l. 771 passe par `enumLabel` sur `propertyStatusValues` et rendrait donc `pending_review` brut ; les gestes lisent la même liste (`PropertyRowActions.tsx:171`, `PropertyHeaderActions.tsx:169`) ; le docblock de `PropertyStatusBadge.tsx:49-51` dit encore « pas des valeurs » de l'enum ; `node -e` sur `fr.json` → `property.status` nomme déjà `published`, `pending_review` et `rejected` ; l'API écrit `published` par `PUT …/status` (`UpdateStatusPropertyRequest.php:40`) → tout tient ; rien d'exécuté. Classement : A1, l'enum de l'API fixe les onze valeurs filtrables et les libellés existent ; le docblock relève de A6.
+- Mesure (2026-10-22, 4e69ef6bd, implementeur) : test neuf `property-status-filtre.tck-1268.test.tsx` (lit `PropertyStatus.php`) sur l'arbre d'origine → 3 rouges, dont la puce d'un `?status=pending_review` rendue brute → liste de filtre `propertyStatusFilterValues` à onze cas lue par les deux filtres et la puce, gestes inchangés à huit, docblock du badge corrigé ; ablation (cinq fichiers sources rendus à `HEAD`) → 3 rouges, correctif remis → 4/4 verts, `SuperAdminPropertiesFilters.test.tsx` et `PropertyListFilters.mobile.tck-644.test.tsx` verts.
 
 ### Aucune garde ne confronte les statuts du front aux enums de l'API, et dix tables de tons sont typées `Record<string, …>`
 - Réf : P146.04
