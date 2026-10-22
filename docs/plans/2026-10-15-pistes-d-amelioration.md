@@ -13200,7 +13200,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### Trois pages d'authentification chargent react-hook-form et le calendrier pour afficher un message d'erreur
 - Réf : P137.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1457
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(auth)/auth/verify-email/page.tsx:9`, `takussan-web/src/app/(auth)/auth/reset-password/page.tsx:11`, `takussan-web/src/components/auth/DefiSecondFacteur.tsx:9`, `takussan-web/src/app/(auth)/auth/oauth/[provider]/callback/page.tsx:13`, `takussan-web/src/components/forms/index.ts`
 - Constat :
@@ -13209,6 +13209,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Établi comment : code relu, graphe client mesuré avant et après le renvoi simulé.
 - Piste : prendre `FormError` et `FormGlobalError` à `@/components/forms/FormError` dans ces trois fichiers, sans changement de rendu. Garde du patron de `graphe-client-de-la-console.test.ts` sur ces trois pages : ni react-hook-form ni react-day-picker ni date-fns.
 - Mesure (2026-10-22, f42212ee7, mesureur) : relu `verify-email/page.tsx:9`, `reset-password/page.tsx:11`, `DefiSecondFacteur.tsx:9` (toujours `@/components/forms`), `components/forms/index.ts` (neuf `export *`, dont `FormDatePicker` et `FormDateTimePicker`) et `FormError.tsx:1-4` (`react`, `lucide-react`, `@/lib/utils`) ; `git log` sur `components/forms/index.ts` : rien depuis TCK-564, aucun ticket ne cite P137 ; test Vitest temporaire, retiré depuis, sur `modulesDuGrapheClient` et `paquetsDuGrapheClient` → `verify-email` 27 modules dont 10 de `components/forms`, et les trois pages atteignent `react-hook-form`, `react-day-picker` et `date-fns` ; les trois imports réécrits à titre d'essai vers `@/components/forms/FormError`, puis remis → `verify-email` 6 modules, `reset-password` 14 (au lieu de 33), retour OAuth 24 (au lieu de 43), aucun des trois paquets ; le poids du build n'est pas mesuré. Classement : A2, trois imports pris à `@/components/forms/FormError`, même rendu et même comportement, plus la garde de graphe client sur ces trois pages (patron TCK-1200).
+- Mesure (2026-10-22, 58c404ecf, implementeur) : relu `verify-email/page.tsx:9`, `reset-password/page.tsx:11`, `DefiSecondFacteur.tsx:9` (toujours `@/components/forms`) ; garde neuve `graphe-client-de-l-authentification.test.ts` avant correctif → 3 rouges, `date-fns ← … ← components/forms/index.ts ← app/(auth)/auth/verify-email/page.tsx` → trois imports pris à `@/components/forms/FormError` → 3 verts, tests de rendu `auth-form-ux`, `transactional-links`, `oauth-callback-*` et `AuthContext.session` verts ; ablation : imports remis → 3 rouges, rétablis → verts.
 
 ### L'écran des intégrations charge react-hook-form, son résolveur et le calendrier sans en employer aucun
 - Réf : P137.02
