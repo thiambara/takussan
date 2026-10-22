@@ -12102,7 +12102,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### La feuille de profil minimal envoie un numéro au format de son propre exemple, que l'API refuse
 - Réf : P125.03
-- Statut : validé (délégué) — saisir le numéro de la feuille de profil minimal par `PhoneInput`, comme les quatorze autres formulaires qui saisissent un téléphone (`SecondaryPhoneSection`, `CustomerForm`, les assistants d'onboarding), pour que la valeur envoyée à `PATCH /api/me` soit l'E.164 ; aucune normalisation silencieuse côté API ; reste : remonter l'erreur de champ du 422 sous le champ (texte et forme du message)
+- Statut : fait · TCK-1281 — reste : remonter l'erreur de champ du 422 sous le champ (texte et forme du message)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/customer/CustomerMinimalProfileSheet.tsx:86-88,126-134`, `takussan-web/src/components/customer/MinimalProfileTriggerProvider.tsx:124-136`, `takussan-web/src/messages/fr.json:4682`, `takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php:42`
 - Constat :
@@ -12114,6 +12114,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 - Piste : saisir le numéro par `PhoneInput`, comme les autres formulaires du compte (`SecondaryPhoneSection.tsx:103`), ou normaliser avant l'envoi (`normalizePhoneInput`, `ProfileContactSection.tsx:301`) ; remonter l'erreur de champ du 422. Test : saisie `+221 77 000 00 00` → corps envoyé `+221770000000`.
 - Mesure (2026-10-22, 64db86d28, mesureur) : relu `CustomerMinimalProfileSheet.tsx:86-88,126-134` (`Input` libre, valeur `trim()`ée), `fr.json:4682` (`+221 77 000 00 00`), `MinimalProfileTriggerProvider.tsx:124-136` (`save_failed` sur tout `!res.ok`) et `UpdateMeRequest.php:42` (regex E.164 sans `prepareForValidation`) ; test Feature temporaire, retiré → `PATCH /api/me` `+221 77 000 00 01` 422, `77 000 00 02` 422, `+221770000003` 200. Le `normalizePhoneInput` que cite la piste ne suffit pas : il rend `770000002` pour la forme nationale, que l'API refuse encore. Classement : V7, le correctif change le champ visible (`PhoneInput`) ou demande un message d'erreur de champ, deux choix d'écran.
 - Mesure (2026-10-22, 348258c0b, delegue) : relu le constat, la `Piste` et la mesure du mesureur, `CustomerMinimalProfileSheet.tsx:83-136` (`Input` libre, valeur `trim()`ée), `grep -rl "<PhoneInput" takussan-web/src` → 14 composants hors tests (dont `SecondaryPhoneSection.tsx`, `CustomerForm.tsx`, `ConnexionParTelephone.tsx`, les quatre assistants d'onboarding), TCK-574 (contrat de `<PhoneInput>`, AC4) et P125.04 (`retenu · autonome`, normalisation des invitations côté API, distincte) → la feuille est le seul formulaire de compte qui saisit un téléphone hors `PhoneInput`. Délégation : V7, aligner un champ sur le composant que tous les autres formulaires emploient est un choix mineur et réversible en un commit, appuyé par TCK-574 et quatorze précédents ; le message d'erreur de champ, texte neuf, est laissé au porteur.
+- Mesure (2026-10-22, a2398e474, implementeur) : test neuf `MinimalProfileTriggerProvider.test.tsx` (« envoie la saisie … en E.164 ») rouge avant correctif : saisie `77 000 00 00` → corps `{"phone":"77 000 00 00"}`, saisie `+221 77 000 00 01` → `{"phone":"+221 77 000 00 01"}` → le champ de `CustomerMinimalProfileSheet` devient `PhoneInput`, la clé `phonePlaceholder` sans lecteur est retirée des trois dictionnaires ; vert (`+221770000000`, `+221770000001`), ablation (`Input` libre remis) → 2 rouges, remise → 6/6 verts ; l'API n'est pas touchée.
 
 ### Les trois invitations par téléphone refusent la forme nationale et la forme espacée, que leur message d'erreur donne en exemple
 - Réf : P125.04
@@ -13774,7 +13775,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le téléphone de la feuille de profil minimal est refusé au format même que montre son exemple, avec un message générique
 - Réf : P145.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1281 — reste : rendre sous le champ le message de validation `phone` du 422 au lieu de l'échec générique, gardé par le porteur sur P125.03 (texte et forme du message)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/customer/CustomerMinimalProfileSheet.tsx:86-88,126-132`, `takussan-web/src/components/customer/MinimalProfileTriggerProvider.tsx:124-136`, `takussan-web/src/messages/fr.json` (`customer.minimalProfile.phonePlaceholder`), `takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php:42,66`
 - Constat :
@@ -13785,6 +13786,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu ; le 422 n'a pas été provoqué.
 - Piste : normaliser le numéro avant l'envoi (retirer les espaces, comme les autres champs téléphone du front s'ils le font) ou dans `prepareForValidation`, et rendre le message de validation du champ au lieu d'un échec générique. Garde : un test qui envoie `+221 77 000 00 00` et attend l'enregistrement, et un test du relais sur un 422.
 - Mesure (2026-10-22, ccdde535d, mesureur) : relu `CustomerMinimalProfileSheet.tsx:86-88` (`phone.trim()` envoyé tel quel), `MinimalProfileTriggerProvider.tsx:124-136` (tout non-`ok` → `Error('save_failed')`), `UpdateMeRequest.php:42` (regex E.164 sans espace, aucun `prepareForValidation` propre) ; test temporaire retiré (`PATCH /api/me`, charge 1,63 sur 8 cœurs) → `+221 77 000 00 00` et `77 123 45 67` rendent 422 `phone_e164`, `+221770000000` rend 200 ; le 403 d'un numéro déjà vérifié est déjà épinglé par `PhoneChangeProofTest::test_les_trois_ecrivains_refusent_sans_preuve` (`patchJson('/api/me')` → 403), il tient mais la `Piste` n'y touche pas ; `normalizePhoneInput` (`src/lib/phone.ts:29`) existe et sert déjà le champ du profil (`ProfileContactSection.tsx:301`). Classement : A1, l'exemple affiché et le contrat E.164 de l'API écrivent l'attendu : normaliser par `normalizePhoneInput` avant l'envoi et rendre sur un 422 `phone` une clé existante (`phoneFormatError` ou `phoneInvalid`), sans texte neuf ni toucher à la preuve de `PhoneChangeGuard`.
+- Mesure (2026-10-22, a2398e474, implementeur) : même cause et même correctif que P125.03, ticket partagé TCK-1281 : le test neuf `MinimalProfileTriggerProvider.test.tsx` envoie `+221 77 000 00 01` (la forme de l'exemple) et `77 000 00 00`, rouges avant correctif (corps tel que tapé), verts une fois le champ passé à `PhoneInput` (`+221770000001`, `+221770000000`) ; ablation → 2 rouges, remise → vert. Le message d'erreur de champ n'est pas fait : le porteur l'a gardé pour lui dans la précision de P125.03.
 
 ### Le motif d'un signalement d'avis n'est contrôlé contre aucune liste, à l'inverse de celui d'une annonce
 - Réf : P145.02
