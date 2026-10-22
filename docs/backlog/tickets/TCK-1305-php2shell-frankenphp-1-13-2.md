@@ -64,3 +64,8 @@ attendant le correctif, et ôterait la seule borne mémoire par requête.
       rend `PHP 8.4.27`, `ini_get('session.upload_progress.enabled')` y rend `"0"`.
 - [ ] Après promotion vers `preview` : `X-Build-Sha` de `preview.api.takussan.com` rend le commit,
       et `php -v` **dans chacun des quatre conteneurs en marche** rend 8.4.27.
+
+## Reste sur dev
+
+- AC2 : promouvoir `dev` vers `preview`, puis relever `X-Build-Sha` de `preview.api.takussan.com` et
+  `php -v` dans `api`, `worker`, `worker-media` et `scheduler`. Le ticket passe `done` sur ce relevé.
