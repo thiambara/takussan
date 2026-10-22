@@ -221,7 +221,7 @@ voie d'écriture (angle 13, puis 47).
 | 144 | Écritures du navigateur qu'une réponse perdue invite à rejouer (envoi de message, création de réservation, de demande de maintenance, de facture, initiation de paiement : `POST` sans clé d'idempotence, hors les seuls boosts) : bouton réactivé après une erreur réseau ou un délai, doublon créé côté API — le pendant, hors des achats de crédits, des angles 4 et 24 | fait |
 | 145 | Champs écartés par `validated()` sur ce que l'angle 114 n'a pas relevé : `lib/queries` `properties-server.ts`, `visits.ts`, `settings.ts`, `property-calendar.ts` et les modules à une ou deux mutations, les server actions `property.ts` (avis, signalements, contacts d'agent), `invitations.ts`, `account-deletion.ts`, `admin-tags.ts`, `super-admin-cooptation.ts`, `auth.ts`, et les écritures directes des composants | fait |
 | 146 | Unions de statut et options de filtre du front (`src/types/*.ts`, `Record<…Status, …>`, `STATUS_VALUES`, `KNOWN_STATUSES`) face aux cas des enums de l'API : valeurs que l'API n'émet jamais (`banned`, agence `pending`), valeurs émises absentes (utilisateur `blocked`) — le relevé de P115.02 sur tous les types | fait |
-| 147 | Statuts posés librement par un `Rule::enum` entier dans une requête de mise à jour (`UpdateCustomerRequest` `status` jusqu'à `blocked` et `deleted`, `UpdatePropertyRequest`, `StoreAgencyRequest`, `UpdatePrivacyRequestRequest`) : transitions que le geste dédié refuserait, et état posé à la main que rien d'autre ne lit | à faire |
+| 147 | Statuts posés librement par un `Rule::enum` entier dans une requête de mise à jour (`UpdateCustomerRequest` `status` jusqu'à `blocked` et `deleted`, `UpdatePropertyRequest`, `StoreAgencyRequest`, `UpdatePrivacyRequestRequest`) : transitions que le geste dédié refuserait, et état posé à la main que rien d'autre ne lit | fait |
 | 148 | Section `/app/agency/*` du front gardée par `isAdmin(user.roles)` (`(dashboard)/app/agency/layout.tsx:28`) et `PAGES_ADMIN` face aux gestes que l'API ouvre par capacité à un agent (`team.invite`, `team.assign_role`, `team.suspend`, `payouts.approve`, `agency.update_kyc`) : membre qui tient la capacité sans écran pour l'exercer, et admin sans elle à qui l'écran s'ouvre sur des 403 | à faire |
 | 149 | Champs `nullable` d'un `PATCH` partiel dont le `null` qu'envoie le front pour un champ vidé est lu comme « garder » (`!== null ? … : $model->x`, `?? $model->x`, `array_filter` du payload dans les contrôleurs et services de mise à jour) : valeur impossible à effacer, réponse 200 qui rend l'ancienne — le relevé de P117.02 sur le reste de l'API | à faire |
 | 150 | Paramètres `sort=`, `filter[…]` et `include=` écrits par le front (`src/lib/queries/*.ts`, `src/app/actions/*`, `buildQueryString`) face aux `$requestSortable`, `$requestFilterable` et inclusions du modèle visé : requête refusée en 400 `http.bad_request` et écran en erreur — le pendant de l'angle 100 hors de `fields[]`, né de P118.01 | à faire |
@@ -258,6 +258,7 @@ voie d'écriture (angle 13, puis 47).
 | 181 | Tableaux reçus sans `max:` par les FormRequests et rangés en `jsonb` (`rooms` d'état des lieux hors du PDF, `metadata`, critères de recherches enregistrées, brouillons d'assistant, réglages) puis relus en entier : taille de ligne, de réponse JSON et de rendu sans borne — le relevé de P143.01 hors du PDF | à faire |
 | 182 | Gestes de transition rejoués sur un état déjà atteint (`POST …/confirm`, `cancel`, `send` d'une facture, `convert` et `handle` d'une demande de contact, `accept` d'une intervention, `activate` d'un bail) : second appel après une réponse perdue qui rend 422 ou 409 au lieu de l'état déjà écrit, écran en erreur pour un geste fait — le pendant pour les transitions de l'angle 144 | à faire |
 | 183 | Statuts recalculés par le navigateur à partir des dates au lieu de ceux que l'API sert (`displayStatus` de `LeaseSchedule.tsx:44-56`, échéance `pending` passée affichée « En retard », et leurs pareilles pour réservations, visites, délégations, abonnements) : écart avec les compteurs et relances de l'API, et lignes que le calcul ne vise pas (restitution de dépôt due par l'agence) — né de P146.02 | à faire |
+| 184 | Champs hors statut que le `PATCH` générique écrit alors qu'un geste dédié les garde (`assigned_to` et `scheduled_at` d'`UpdateMaintenanceRequestRequest` face à l'assignation d'intervention, `scheduled_at` et `agent_id` d'`UpdatePropertyVisitRequest` face au report et à la réaffectation de visite, `pipeline_stage` d'`UpdateCustomerRequest` face à `…/pipeline-stage`) : capacité, contrôle de chevauchement, transition, avis et journal du geste sautés — le pendant hors statut de P147.01 | à faire |
 
 ---
 
@@ -13767,3 +13768,111 @@ qui a été relevé. Rien n'a été exécuté.*
   - Le journal des webhooks d'une intégration rend `log.status` brut dans un `Badge` (`integrations.tsx:233`). Le dictionnaire a pourtant les quatre libellés (mesuré, `superAdmin.payments.journal.statuses` = `received processed rejected failed`), et l'API ne pose que ces quatre valeurs (`IntegrationWebhookLog.php:20-26`).
   - `AgencyUpgradeRequestStatus` est déclaré deux fois, à l'identique (`types/agency-upgrade.ts:8` et `lib/queries/super-admin.ts:1273`).
 - Piste : ajouter `blocked` à la table du tableau, avec P115.02 ; traduire le statut du journal par le dictionnaire existant ; garder une seule déclaration du type de demande de passage.
+
+## Angle 147 — Statuts posés par un `Rule::enum` entier dans les requêtes d'écriture
+
+*Exploré le 2026-10-22 sur `pre-dev` d2a6902c9, par l'explorateur, sans sous-agent. Relevé de départ : `grep -rn "Rule::enum\|Enum(" app/Http/Requests` restreint aux clés `status`, `state` et `stage`, puis, pour chaque requête, le contrôleur ou le service qui écrit la valeur et le geste dédié qui pose le même état. Relu par l'explorateur lui-même : `UpdatePropertyRequest.php`, `UpdateStatusPropertyRequest.php`, `PropertyController.php` (`store`, `update`, `publish`, `unpublish`, `updateStatus`), `PropertyPublication.php`, `PublishReadiness.php`, `PropertyObserver.php`, `PropertyPolicy.php`, `PropertyModerationService.php`, `Property::scopePublic` et `shouldBeSearchable`, `PropertySearchService::publicFilter`, `UpdateCustomerRequest.php`, `CustomerController.php`, `CustomerPolicy.php`, `PipelineStatsService.php`, `ProspectMatcher.php`, `StoreAgencyRequest.php`, `AgencyController::store`, `AgencyModerationController.php`, `EnsureAgencyWritable.php`, `UpdatePrivacyRequestRequest.php`, `PrivacyRequestController::update`, `PrivacyRegistryObserver.php`, ADR-0044 l. 135-143, `TaskController.php`, `BookingPaymentController::store`, `BookingPaymentService::create`, `ServiceProviderCollaborationService::change` (écarté : chaque statut passe par son geste), le formulaire de bien du front (`property-form/payload.ts`). Mesuré par un test temporaire `tests/Feature/TmpExplorateur/SondeAngle147Test.php` (base de test créée par le test, agence `moderation_required = false`, charge `{ 1.38 1.85 1.96 }` sur 8 cœurs), retiré depuis. Le rendu à l'écran n'a pas été vu.*
+
+### `PATCH /api/properties/{id}` remet un bien au catalogue sans `properties.publish`, que `PUT …/status` exige
+- Réf : P147.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:56-57`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:187-236`, `takussan-api/app/Http/Requests/Api/UpdateStatusPropertyRequest.php:29-42`, `takussan-api/app/Services/Property/PublishReadiness.php:58-66,94-98`, `takussan-api/tests/Feature/Api/PropertyAuthorizationTest.php:102-119,219-257`
+- Constat :
+  - `UpdateStatusPropertyRequest::authorize()` refuse `available` et `published` à qui n'a pas `can('publish')` (lu, l. 38-41, commentaire TCK-587 : « `PUT …/status` était un contournement de `publish` »). `UpdatePropertyRequest` accepte `status` et `visibility` sur tout l'enum, et son `authorize()` ne juge que `can('update')` (lu, l. 37-41 et 56-57).
+  - `PropertyController::update` ne juge, pour un passage en ligne, que `PublishReadiness::ensureForProperty` (contact complet et conditions acceptées, lu l. 201-204 ; `PublishReadiness.php:94-98` ne lit aucune capacité). Le rôle système du bailleur ne porte que `properties.update_own` (lu, `SystemRoleCapabilities.php:94`).
+  - mesuré (test temporaire) : agent dont le rôle retire `properties.publish`, son bien publié puis passé `unavailable` → `PUT …/status` `available` : **403** ; `PATCH /api/properties/{id}` `{status: available}` : **200**, et le bien est dans `Property::public()`.
+  - mesuré : bailleur, sa proposition publiée par l'agence puis passée `rented` → `PUT …/status` `available` : **403** ; `PATCH` `{status: available}` : **200**, et le bien est dans `Property::public()`.
+  - `PropertyAuthorizationTest` éprouve `publish`, `PUT …/visibility` et `PUT …/status` (lu, `cheminsDePublication`, l. 219-227, et l. 102-119) ; le `PATCH` n'y figure qu'avec `title`.
+  - Le formulaire d'édition du front n'envoie ni `status` ni `visibility` (lu, `property-form/payload.ts:100-103` ; la création force `draft`/`private`, l. 150-154) : l'écran ne passe pas par ce chemin, un appel direct à l'API si. D'autres appelants du `PATCH` avec `status` n'ont pas été cherchés (à vérifier).
+- Piste : appliquer au `PATCH` la règle de `PUT …/status` (un `status` affichable ou une `visibility=public` demande `can('publish')`), ou retirer `status` et `visibility` d'`UpdatePropertyRequest` pour que chaque transition passe par son geste ; ajouter le `PATCH` à `cheminsDePublication` et au test du bailleur, pour que le cinquième chemin ne se rouvre pas.
+
+### Archiver par `PATCH` ne fait pas ce que fait l'archivage : le bien reste public et publié
+- Réf : P147.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:220-230,312-319`, `takussan-api/app/Services/Property/PropertyPublication.php:38-46`
+- Constat :
+  - `PUT …/status` `archived` écrit `PropertyPublication::archivedAttributes()` : `visibility` privée, `published_at` nul, `archived_at` posé (lu, l. 312-315 et `PropertyPublication.php:38-46`) ; la sortie d'archive remet `archived_at` à nul (l. 317-319). `PATCH` fait `fill($data)->save()` du seul statut (lu, l. 224).
+  - mesuré : `PATCH /api/properties/{id}` `{status: archived}` sur un bien publié et public → 200, `archived_at` nul, `visibility` toujours `public`, `published_at` gardé.
+  - Conséquence lue : un bien archivé ainsi garde `published_at`, donc `statusPutsOnline` le juge « retiré par son statut » (`PublishReadiness.php:58-66`), et un retour à `available` par l'un ou l'autre chemin le remet en ligne sans republication — par le `PATCH`, sans `properties.publish` (P147.01).
+  - Lecteurs d'`archived_at` dans `app/` : aucun hors écrivains (lu, `grep -rn archived_at app`) ; l'écart se voit sur `visibility` et `published_at`.
+- Piste : faire passer `status=archived` (et la sortie d'archive) du `PATCH` par `PropertyPublication`, ou refuser ces statuts au `PATCH` ; un test qui compare les colonnes écrites par les deux chemins.
+
+### Le `PATCH` rend public un bien que `publish` refuse, et écrit un état « public » sans publication
+- Réf : P147.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:187-236,247-283`, `takussan-api/app/Models/Property.php:507-517,554-569`, `takussan-api/app/Services/Search/PropertySearchService.php:459-466`
+- Constat :
+  - `publish` refuse un bien `sold` ou `rented` (422 `property.cannot_publish`, lu l. 250-254) et pose `status=available`, `visibility=public`, `published_at` (l. 266-270). Le `PATCH` ne refuse ni l'un ni l'autre et ne pose pas `published_at` (lu).
+  - mesuré : bien `sold` privé → `POST …/publish` : 422 ; `PATCH` `{visibility: public}` : 200.
+  - mesuré : bailleur, sa proposition en brouillon privé → `PUT …/visibility` `public` : 403 ; `PATCH` `{status: available, visibility: public, accept_terms: true}` : 200, réponse `available`/`public`, `published_at` nul, absent de `Property::public()`.
+  - Un tel bien est rendu `available`/`public` à la console sans être au catalogue (`scopePublic` et `publicFilter` exigent `published_at`, lu). `shouldBeSearchable` ne lit pas `published_at` (lu, `Property.php:507-517`) : il est donc indexé, et seule la clause `published_at IS NOT NULL` de la recherche le tient hors des résultats (déduit, à vérifier dans l'index).
+- Piste : avec P147.01, faire d'un passage à `public` par le `PATCH` un appel à `publish()` (comme `updateVisibility`, l. 333-343) ou le refuser ; un test par cas (`sold`, brouillon de bailleur).
+
+### Passer un bien en statut actif par `PATCH` ou `PUT …/status` ne juge pas le quota d'annonces
+- Réf : P147.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:112-114,187-236,256-259,294-327`, `takussan-api/app/Services/Billing/QuotaResolver.php:66-70`
+- Constat :
+  - `store` et `publish` appellent `QuotaResolver::assertCanCreateActiveListing` quand le bien entre dans `ACTIVE_LISTING_STATUSES` (`available`, `published`, `pending`) (lu, l. 112-114 et 256-259, commentaire TCK-627 : « un brouillon créé sous la limite se publiait au-delà »).
+  - `update` et `updateStatus` ne l'appellent pas (lu, `grep -n assertCanCreateActiveListing` → les deux seules lignes 113 et 258). Un brouillon passé `available` ou `pending` par l'un de ces chemins entre donc dans le compte sans être jugé (déduit du code, non mesuré : à vérifier avec une agence à sa limite).
+- Piste : juger le quota au passage d'un statut hors `ACTIVE_LISTING_STATUSES` vers l'un d'eux, sur les deux chemins (ou au seul point commun, l'observateur `updating`) ; un test d'agence à la limite par chemin.
+
+### Les statuts de modération se posent à la main, sans motif ni horodatage
+- Réf : P147.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:56`, `takussan-api/app/Http/Requests/Api/UpdateStatusPropertyRequest.php:48`, `takussan-api/app/Services/Property/PropertyModerationService.php:82-95,121-137`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:37,55`
+- Constat :
+  - `rejected` ne s'écrit, par geste, que par `PropertyModerationService::reject` (motif, `rejected_at`, `rejected_by_user_id`, avis au bailleur) et `pending_review` par l'observateur ou `resubmit` (`submitted_at`, journal d'activité) (lu).
+  - Les deux requêtes acceptent les deux valeurs à qui a `can('update')` (lu ; `UpdateStatusPropertyRequest` ne réserve que `available` et `published`).
+  - mesuré : bailleur, sur sa proposition, `PATCH` `{status: rejected}` → 200, `rejected_at` nul ; puis `{status: pending_review}` → 200, `submitted_at` nul. La file de `PropertyModerationController` lit `status = pending_review` et trie par `submitted_at` (lu, l. 37 et 55) : le bien y entre sans date de soumission. Le passage par `PUT …/status` n'a pas été rejoué (lu seulement).
+- Piste : retirer `pending_review` et `rejected` (et `published`, qu'aucun geste ne lit à part) des valeurs qu'acceptent les deux requêtes, pour que seuls `resubmit`, `reject` et l'observateur les posent ; un test qui refuse chaque valeur.
+
+### Un client se marque `blocked` ou `deleted` par le formulaire, et rien ne lit ces deux statuts
+- Réf : P147.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/UpdateCustomerRequest.php:75`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:29-45,150-176,178-186`, `takussan-api/app/Services/Crm/PipelineStatsService.php:59-64`, `takussan-api/app/Services/Crm/ProspectMatcher.php:141-145`, `takussan-web/src/lib/enums/customer.ts:12-17`, `takussan-web/src/components/customer-form/CustomerForm.tsx:141,309-317`
+- Constat :
+  - `CustomerStatus` a quatre cas (lu). Hors du cast et de la règle, `app/` ne lit que `Active` : le compteur du pipeline et le rapprochement des prospects (lu, `grep -rn "CustomerStatus::" app`). `inactive`, `blocked` et `deleted` y valent la même chose, et aucun autre geste (bail, réservation, visite, relance) ne lit `blocked` (lu, même `grep`, et `grep "'blocked'"` sur les fichiers client).
+  - Le formulaire d'édition propose les quatre valeurs (lu, `CustomerForm.tsx:141` et `customer.ts:12-17`).
+  - mesuré : agent, `PATCH /api/customers/{id}` `{status: deleted}` → 200 ; la fiche reste dans `GET /api/customers` et n'est pas supprimée en douceur. La suppression est un autre geste (`destroy`, `can('delete')`, lu l. 178-186), que `update` (`can('update')` = `view`, `CustomerPolicy.php:55-58`) ne juge pas.
+  - `docs/models-spec.md:923` décrit le statut « administratif » sans dire ce que `blocked` ou `deleted` empêchent (lu).
+- Piste : décider ce que `blocked` et `deleted` veulent dire (un geste qui les lit, ou leur retrait du formulaire et de la règle au profit de `destroy`) ; c'est un choix de produit. Test : la règle retenue.
+
+### `POST /api/agencies` laisse le créateur choisir le statut de son agence, sanction de la plateforme comprise
+- Réf : P147.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreAgencyRequest.php:26-29,48`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:46-69`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:203-238`, `takussan-api/app/Http/Middleware/EnsureAgencyWritable.php:46`
+- Constat :
+  - `StoreAgencyRequest` accepte `status` sur tout `AgencyStatus` (lu, l. 48) et `authorize()` rend `true` (l. 26-29) ; le contrôleur écrit `$data['status'] ?? active` (l. 62).
+  - `suspended` est la sanction du super-admin, posée avec un motif et un avis aux admins, dont `reinstate` est la seule sortie (lu, `AgencyModerationController.php:203-238`) ; elle ferme les écritures (`EnsureAgencyWritable.php:46`, lu). `inactive` est l'état que pose `unverify` (l. 221-229).
+  - mesuré : compte sans agence, `POST /api/agencies` `{name, status: suspended}` → 201, agence `suspended`.
+  - Aucun appel du front à `POST /api/agencies` (lu, déjà relevé par P91.01) : la clé ne sert à aucun écran.
+- Piste : retirer `status` de `StoreAgencyRequest` (l'agence naît `active`, et seuls les gestes de la console la font changer) ; un test qui envoie `suspended` et lit `active`.
+
+### Le registre des droits se clôt à la main pendant que la demande liée suit son cours
+- Réf : P147.08
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/Admin/UpdatePrivacyRequestRequest.php:27`, `takussan-api/app/Http/Controllers/Api/Admin/PrivacyRequestController.php:53-77`, `takussan-api/app/Observers/Privacy/PrivacyRegistryObserver.php:47-90`, `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:135-143`
+- Constat :
+  - ADR-0044 fait de `withdrawn` l'état d'une entrée dont l'effacement est annulé, et l'observateur passe à `answered` l'entrée d'un export prêt ou d'un effacement exécuté (lu, l. 47-90).
+  - La mise à jour accepte les cinq statuts (lu, l. 27) ; le contrôleur ne refuse que la réouverture d'une entrée close (l. 57-60), et ne lit ni `account_deletion_request_id` ni `data_export_id`. Le super-admin peut donc clore en `answered`, `rejected` ou `withdrawn` l'entrée d'un effacement encore en attente (lu).
+  - L'effacement s'exécute ensuite quand même, et `answer()` saute une entrée close (lu, `isOpen()`, l. 84-90) : le registre garde le statut et la date posés à la main. Non mesuré (à vérifier).
+- Piste : refuser à la main les statuts que l'application pose elle-même (`withdrawn`, et `answered` sur une entrée liée), ou refuser toute clôture d'une entrée liée tant que sa demande vit ; c'est une règle de registre RGPD (choix du porteur). Test : entrée d'effacement en attente, clôture refusée.
+
+### Petites améliorations
+- Réf : P147.09
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Api/StoreTaskRequest.php:56`, `takussan-api/app/Http/Controllers/Api/TaskController.php:74-78,156-158`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:49`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-47`
+- Constat :
+  - Tâche : `PATCH` vers `done` pose `completed_at` (lu, l. 156-158), la création avec `status=done` ne le pose pas (lu, l. 74-78), et un retour de `done` à `open` le garde. Le seul autre écrivain le pose avec le statut (`BookingRefundTaskService.php:86`, lu).
+  - Paiement de réservation : pour le personnel, `status` accepte tout `PaymentStatus` sauf `cancelled` (lu, l. 49), donc une ligne créée directement `refunded`, `failed` ou `late`, hors du geste `refund` (`BookingPaymentService::refund`, qui exige `paid`, lu l. 57-64). Ce que les relevés et le reste à payer font d'une telle ligne n'a pas été suivi (à vérifier ; touche l'argent).
+- Piste : poser `completed_at` dès qu'une tâche naît ou passe `done`, le remettre à nul à la réouverture ; borner le statut d'un paiement créé à la main à `paid`, `pending` et `partially_paid`, si le porteur le veut.
