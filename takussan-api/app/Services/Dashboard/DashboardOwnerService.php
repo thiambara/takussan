@@ -142,7 +142,7 @@ class DashboardOwnerService
                 static fn (string $m): float => round($leaseIncome[$m] + ($bookingIncome[$m] ?? 0.0), 2),
                 $labels,
             ),
-            'occupancy' => array_map(static fn (string $m): float => $occupancy[$m] ?? 0.0, $labels),
+            'occupancy' => array_map(static fn (string $m): ?float => $occupancy[$m] ?? null, $labels),
             'short_stay_occupancy' => array_map(static fn (string $m): ?float => $shortStay[$m] ?? null, $labels),
             'net_paid_out' => array_map(static fn (string $m): float => $netPaidOut[$m] ?? 0.0, $labels),
         ];

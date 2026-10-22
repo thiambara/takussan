@@ -132,7 +132,7 @@ export type TenantDashboard = {
 
 export type TimeseriesPayload = {
   months: string[];
-} & Record<string, number[] | string[]>;
+} & Record<string, number[] | (number | null)[] | string[]>;
 
 export type DashboardEnvelope<T> = { data: T; timeseries?: TimeseriesPayload };
 

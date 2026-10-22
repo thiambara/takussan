@@ -130,7 +130,7 @@ class DashboardAgencyService
     /**
      * Monthly time-series: revenue (encaissé) and long-stay occupancy, one grouped query each.
      *
-     * @return array{months: array<int,string>, revenue: array<int,float>, occupancy: array<int,float>, short_stay_occupancy: array<int,float|null>}
+     * @return array{months: array<int,string>, revenue: array<int,float>, occupancy: array<int,float|null>, short_stay_occupancy: array<int,float|null>}
      */
     public function monthlyTimeseries(Agency $agency, int $months = 12): array
     {
@@ -149,7 +149,7 @@ class DashboardAgencyService
         return [
             'months' => $labels,
             'revenue' => array_map(static fn (string $m): float => round($leaseIncome[$m] + ($bookingIncome[$m] ?? 0.0), 2), $labels),
-            'occupancy' => array_map(static fn (string $m): float => $occupancy[$m] ?? 0.0, $labels),
+            'occupancy' => array_map(static fn (string $m): ?float => $occupancy[$m] ?? null, $labels),
             'short_stay_occupancy' => array_map(static fn (string $m): ?float => $shortStay[$m] ?? null, $labels),
         ];
     }

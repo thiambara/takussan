@@ -26,6 +26,23 @@ describe('chart components (TCK-032)', () => {
     expect(screen.getByText('Test chart')).toBeInTheDocument();
   });
 
+  // P127.02 (TCK-1355) — un mois sans bien à occuper rend `null` : le tracé s'y coupe, il ne
+  // tombe pas à 0 et ne relie pas les deux mois qui l'entourent.
+  it('cuts the line on a null point instead of drawing it at zero', () => {
+    const { container } = render(withIntl(<LineChart
+        data={{
+          labels: ['2026-04', '2026-05', '2026-06', '2026-07', '2026-08'],
+          series: [{ name: 'Occupation', values: [null, 40, null, 50, 60] }],
+        }}
+      />));
+    const d = container.querySelector('svg path')?.getAttribute('d') ?? '';
+    const segments = d.split('M').filter(Boolean);
+    expect(segments).toHaveLength(2);
+    expect(segments[0]).not.toContain('L');
+    expect(segments[1].match(/L/g)).toHaveLength(1);
+    expect(d).not.toContain('NaN');
+  });
+
   it('renders a bar chart with labels', () => {
     render(withIntl(<BarChart
         data={{

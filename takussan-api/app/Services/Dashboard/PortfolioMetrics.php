@@ -66,7 +66,9 @@ class PortfolioMetrics
     /**
      * Occupation longue durée, mois par mois, de `$from` à `$to` inclus (mois calendaires).
      *
-     * @return array<string, float> `Y-m` => pourcentage à 2 décimales
+     * @return array<string, float|null> `Y-m` => pourcentage à 2 décimales, ou `null` sans bien
+     *                                   éligible ce mois-là : rien à occuper n'est pas tout vacant
+     *                                   (TCK-1114, P127.02)
      */
     public function longStayOccupancy(PortfolioScope $scope, CarbonInterface $from, CarbonInterface $to): array
     {
@@ -125,7 +127,7 @@ class PortfolioMetrics
         foreach ($rows as $row) {
             $month = CarbonImmutable::parse($row->m);
             $capacity = (int) $row->n * $month->daysInMonth;
-            $out[$month->format('Y-m')] = $capacity > 0 ? round(((int) $row->days / $capacity) * 100, 2) : 0.0;
+            $out[$month->format('Y-m')] = $capacity > 0 ? round(((int) $row->days / $capacity) * 100, 2) : null;
         }
 
         return $out;

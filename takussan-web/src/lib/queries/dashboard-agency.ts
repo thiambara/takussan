@@ -40,7 +40,8 @@ export type DashboardAgencySummary = {
 export type DashboardAgencyTimeseries = {
   months: string[];
   revenue: number[];
-  occupancy: number[];
+  /** `null` pour un mois sans bien éligible longue durée (P127.02, TCK-1355). */
+  occupancy: (number | null)[];
 };
 
 export type DashboardAgencyPayload = {
