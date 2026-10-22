@@ -11802,7 +11802,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Le choix du bénéficiaire d'un reversement ne lit que les profils de bailleur actifs, alors que l'API accepte tout profil de l'agence, de tout statut
 - Réf : P120.04
-- Statut : validé — porteur (2026-10-22) : lire les bailleurs `active` et `inactive` qui ont des lignes à reverser dans ce dialogue
+- Statut : fait · TCK-1528 — reste : borner la liste du dialogue aux seuls bailleurs qui ont des lignes à reverser, par un filtre neuf sur `GET /api/owners`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/payments/CreatePayoutDialog.tsx:72-84,179-185`, `takussan-api/app/Services/Model/PayoutService.php:84-105`, `takussan-api/app/Http/Requests/Api/StorePayoutRequest.php:46`
 - Constat :
@@ -11812,6 +11812,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Établi comment : lu.
 - Piste : établir d'abord si un bailleur inactif peut avoir des lignes à reverser ; si oui, lire les bailleurs `active,inactive` (ou ceux qui ont des lignes en attente) dans ce dialogue. Test : bailleur `inactive` avec un loyer encaissé, présent dans les options.
 - Mesure (2026-10-22, 851bd88b9, mesureur) : relu `CreatePayoutDialog.tsx:72-84` (`/api/owners` avec `filter[status]=active`), `PayoutService::create()` (appartenance « sans filtre de statut », TCK-587) et `TeamMemberSuspensionService` (seul chemin qui écrit un statut de bailleur : `blocked` à la suspension) ; test temporaire (retiré ensuite), même charge : bailleur avec loyers de septembre encaissés, profil passé `blocked` → `GET /api/payouts/preparation?landlord_id=…` rend 200, 2 lignes, net 198 000 ; `GET /api/owners?filter[agency_id]=…&filter[status]=active` ne le rend pas, la même requête sans `filter[status]` le rend. Le point « à vérifier » tient pour `blocked` (le statut que l'application écrit), non mesuré pour `inactive`, qu'aucun code n'écrit (lu). Classement : V1, la liste des bénéficiaires d'un reversement règle à qui l'argent sort, et l'intention de TCK-587 pour un bailleur suspendu reste à trancher.
+- Mesure (2026-10-22, 614ec950e, implementeur) : `CreatePayoutDialog` lit toujours `/api/owners` avec `filter[status]=active` (lu, `CreatePayoutDialog.tsx:79`) ; test front « propose les bailleurs actifs et inactifs » rouge avant correctif (`expected 'active' to deeply equal ['active', 'inactive']`), vert avec `status: ['active', 'inactive']` (8/8) ; ablation : composant remis à `HEAD` → rouge, remis → vert. `OwnerProfileListingTest::test_le_filtre_de_statut_accepte_actif_et_inactif_ensemble` (vert sans correctif : l'API accepte déjà la liste) garde que la requête rend actif et inactif, ni bloqué ni brouillon. « qui ont des lignes à reverser » lu comme la raison de la décision ; le bornage par lignes en attente reste.
 
 ### Petites améliorations des sélecteurs de personnes
 - Réf : P120.05
