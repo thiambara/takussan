@@ -14654,7 +14654,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le membre retiré lit et écrit encore dans le fil d'un bail que la policy du bail lui refuse
 - Réf : P153.04
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1711
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/ConversationAccess.php:37-90`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:76-105`
 - Constat :
@@ -14665,6 +14665,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu, puis mesuré.
 - Piste : soit le retrait pose `left_at` sur les fils de l'agence où le retiré est participant (fils à `lease_id`, `property_id` ou `maintenance_request_id` d'un bien de l'agence), soit `ConversationAccess` gagne une branche « bail » jugée par `LeasePolicy::view` comme la branche intervention l'est par la policy de la demande. Test : retrait en `leave_unassigned` → `GET …/messages` du fil de bail en 403. L'angle 191 proposé relève les autres cas du même trou.
 - Mesure (2026-10-22, c3d06aff0, mesureur) : relu `ConversationAccess::allows`/`branchesAllow` (branches intervention et prospect seulement, aucune pour `lease_id`) et `AgencyMemberRemovalService` (l. 76-105 : aucun `left_at` posé) ; test temporaire (retiré), charge 2,00 / 2,40 / 3,06 sur 8 cœurs, même fixture que l'explorateur (agence, admin, agent A retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, `staffAgencyId()` → null), fil de type `group` (et non `lease` comme chez l'explorateur) portant `lease_id`, A et le client participants → `can('view', $lease)` faux, `ConversationAccess::allows` vrai, `GET …/messages` → 200, `POST …/messages` → 201 → le constat tient, et vaut pour un groupe de bail. Classement : V2, retirer l'accès d'un participant change une autorisation, et la piste laisse le choix entre poser `left_at` au retrait et ajouter une branche « bail ».
+- Mesure (2026-10-22, b3e71d6d9, implementeur) : test neuf `MembreRetireFilsDeBailTest` (charge 2,2 sur 8 cœurs) : fil de groupe portant le `lease_id` d'un bail de l'agence, agent et locataire participants, agent retiré en `leave_unassigned` → avant correctif `can('view', $lease)` faux mais `ConversationAccess::allows` vrai, rouge → voie retenue (la plus étroite des deux) : `AgencyMemberRemovalService` pose `left_at` sur les fils des baux de l'agence dont le retiré ne lit plus le bail (`LeasePolicy::view` jugée après la suppression de ses profils) → `allows` faux, `GET` et `POST …/messages` 403, le locataire garde le fil. Ablation (appel retiré) → rouge, remis → vert ; `AgencyMemberRemovalTest`, `AgentRemovalJournalTest`, `MemberProfileRestoreTest`, `MaintenanceThreadAccessTest` verts.
 
 ### Le rappel de visite part encore à l'agent retiré, et le repli vers l'agence ne joue pas
 - Réf : P153.05
