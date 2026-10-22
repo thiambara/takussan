@@ -13,6 +13,7 @@ import type {
 import type { Tag } from '@/types/tag';
 import type { CustomerFormPayload } from '@/lib/schemas/customer';
 import { cheminApi, requete } from '@/lib/chemin-api';
+import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
 
 /**
  * Customer (CRM) queries — TCK-042. All reads use spatie query params
@@ -171,15 +172,21 @@ export async function createCustomerNote(
   return res.data;
 }
 
+/**
+ * TCK-1367 (P135.01) — TOUTES les notes du client. L'API les pagine par 20 : une seule page laissait
+ * la fiche et le panneau du pipeline sans les plus anciennes, et l'onglet les comptait « 20 ».
+ */
 export async function fetchCustomerNotes(
   token: string,
   customerId: number,
 ): Promise<CustomerNote[]> {
-  const qs = buildQueryString({ sort: '-created_at' });
-  const res = await apiRequest<ApiResponse<CustomerNote[]>>(
-    cheminApi`/api/customers/${customerId}/notes${requete(qs)}`,
-    { token },
-  );
+  const res = await lireToutesLesPages((page) => {
+    const qs = buildQueryString({ sort: '-created_at', page, per_page: PAR_PAGE_MAX });
+    return apiRequest<PaginatedResponse<CustomerNote>>(
+      cheminApi`/api/customers/${customerId}/notes${requete(qs)}`,
+      { token },
+    );
+  });
   return res.data;
 }
 
