@@ -43,7 +43,9 @@ use Illuminate\Support\Facades\DB;
  *     un départ volontaire garde la relation (P51.02) ;
  *  2. **un lien CRM** (`user_customer_relationships`) — les deux comptes sont rattachés à une même
  *     fiche client, OU l'un est rattaché à la fiche dont l'autre est le client (`customers.user_id`) :
- *     un propriétaire joint son locataire, et le locataire son propriétaire ;
+ *     un propriétaire joint son locataire, et le locataire son propriétaire. Sur une fiche D'AGENCE,
+ *     un rattachement ne compte que pour qui a encore un profil (de tout statut) dans l'agence de la
+ *     fiche (TCK-1713, P153.06) : le référent retiré de l'agence ne représente plus le client ;
  *  3. **l'agence active de l'acteur** (principe n°2 : l'agence est la frontière) :
  *     - son **équipe** (agents, administrateurs) est joignable par tout membre de l'agence ;
  *     - ses **propriétaires** ne le sont que par l'équipe. Un propriétaire n'a pas à découvrir
@@ -124,13 +126,19 @@ class MessagingReach
                                 ->orWhere('cpb.conversation_id', $conversation->getKey())));
                 });
 
-                // 2. Lien CRM, dans les trois sens où une fiche client relie deux comptes :
+                // 2. Lien CRM, dans les trois sens où une fiche client relie deux comptes. TCK-1713
+                //    (P153.06) — un rattachement à une fiche D'AGENCE ne compte que pour qui a encore
+                //    un profil dans l'agence de la fiche (`liveAttachment`) : l'agent retiré ne joint
+                //    plus les clients dont il était référent, ni eux lui.
                 //    a. une même fiche rattachée aux deux (le propriétaire et l'agent d'un client) ;
                 $reach->orWhereIn('users.id', function (QueryBuilder $sub) use ($actor) {
                     $sub->select('ucrb.user_id')
                         ->from('user_customer_relationships as ucra')
                         ->join('user_customer_relationships as ucrb', 'ucra.customer_id', '=', 'ucrb.customer_id')
+                        ->join('customers as ca', 'ca.id', '=', 'ucra.customer_id')
                         ->where('ucra.user_id', $actor->id);
+                    $this->liveAttachment($sub, 'ucra.user_id', 'ca.agency_id');
+                    $this->liveAttachment($sub, 'ucrb.user_id', 'ca.agency_id');
                 });
                 //    b. le compte du client d'une fiche à laquelle l'acteur est rattaché ;
                 $reach->orWhereIn('users.id', function (QueryBuilder $sub) use ($actor) {
@@ -139,6 +147,7 @@ class MessagingReach
                         ->join('customers as c', 'c.id', '=', 'ucr.customer_id')
                         ->where('ucr.user_id', $actor->id)
                         ->whereNotNull('c.user_id');
+                    $this->liveAttachment($sub, 'ucr.user_id', 'c.agency_id');
                 });
                 //    c. et, en retour, ceux qui sont rattachés à la fiche qui représente l'acteur.
                 $reach->orWhereIn('users.id', function (QueryBuilder $sub) use ($actor) {
@@ -146,6 +155,7 @@ class MessagingReach
                         ->from('user_customer_relationships as ucr')
                         ->join('customers as c', 'c.id', '=', 'ucr.customer_id')
                         ->where('c.user_id', $actor->id);
+                    $this->liveAttachment($sub, 'ucr.user_id', 'c.agency_id');
                 });
 
                 // 3. L'agence active.
@@ -162,6 +172,25 @@ class MessagingReach
                     $this->orTeamOf($reach, $contextAgencyId);
                 }
             });
+    }
+
+    /**
+     * TCK-1713 (P153.06) — le rattachement de `$userColumn` à une fiche ne compte que si la fiche n'a
+     * pas d'agence, ou s'il a un profil (bailleur, agent, admin, de tout statut, non supprimé) dans
+     * l'agence de la fiche. Un bailleur rattaché à son locataire en a un ; l'agent retiré n'en a plus.
+     */
+    private function liveAttachment(QueryBuilder $sub, string $userColumn, string $agencyColumn): void
+    {
+        $sub->where(function (QueryBuilder $w) use ($userColumn, $agencyColumn) {
+            $w->whereNull($agencyColumn);
+            foreach (['owner_profiles', 'agent_profiles', 'agency_admin_profiles'] as $table) {
+                $w->orWhereExists(fn (QueryBuilder $p) => $p->selectRaw('1')
+                    ->from($table)
+                    ->whereColumn($table.'.user_id', $userColumn)
+                    ->whereColumn($table.'.agency_id', $agencyColumn)
+                    ->whereNull($table.'.deleted_at'));
+            }
+        });
     }
 
     /**
