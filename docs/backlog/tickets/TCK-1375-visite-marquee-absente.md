@@ -1,5 +1,5 @@
 ---
-id: TCK-1305
+id: TCK-1375
 title: "Visites : le geste « absent » écrit `no_show` sur une visite passée"
 status: done
 phase: P1
@@ -45,7 +45,7 @@ Le personnel déclare absente une visite passée, sans la compter parmi les visi
       l'heure ; libellé d'erreur fr/en (wo : texte français, wolof en pause).
 - [x] Front : « Marquer absent » sur la fiche visite, pour le personnel, visite planifiée ou
       confirmée dont l'heure est passée ; toast de succès.
-- [x] Tests : `PropertyVisitNoShowTest`, `VisitDetail.absent.tck-1305.test.tsx`.
+- [x] Tests : `PropertyVisitNoShowTest`, `VisitDetail.absent.tck-1375.test.tsx`.
 
 ## Critères d'acceptation
 

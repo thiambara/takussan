@@ -108,7 +108,7 @@ export function VisitDetail({ id }: { id: number }) {
     isManager &&
     (status === 'confirmed' || status === 'scheduled') &&
     (isPastSlot || status === 'confirmed');
-  // TCK-1305 (P115.05) — l'absence ne se déclare qu'une fois l'heure passée ; le serveur le
+  // TCK-1375 (P115.05) — l'absence ne se déclare qu'une fois l'heure passée ; le serveur le
   // rejuge (`visit.cannot_mark_no_show`).
   const canMarkNoShow = isManager && (status === 'confirmed' || status === 'scheduled') && isPastSlot;
   const canReschedule = isManager && (status === 'scheduled' || status === 'confirmed');

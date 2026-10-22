@@ -338,7 +338,7 @@ class PropertyVisitController extends Controller
     }
 
     /**
-     * TCK-1305 (P115.05, décision du porteur) — le geste « absent » : le visiteur n'est pas venu.
+     * TCK-1375 (P115.05, décision du porteur) — le geste « absent » : le visiteur n'est pas venu.
      * Rien n'écrivait `no_show` ; l'agent devait déclarer la visite terminée (comptée parmi les
      * visites menées, ouverte à l'avis du visiteur) ou l'annuler. Geste de l'agence, comme
      * `complete`, depuis `scheduled` ou `confirmed`, une fois l'heure de la visite passée. Pas de

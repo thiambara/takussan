@@ -183,7 +183,7 @@ export function useCompleteVisit(id: number) {
 }
 
 /**
- * TCK-1305 (P115.05) — le visiteur n'est pas venu : la visite passée est marquée absente
+ * TCK-1375 (P115.05) — le visiteur n'est pas venu : la visite passée est marquée absente
  * (`no_show`), sans être comptée parmi les visites menées.
  */
 export function useMarkVisitNoShow(id: number) {

@@ -11297,7 +11297,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Une visite manquée ne peut être que « terminée » ou « annulée » : `no_show` n'a pas de geste
 - Réf : P115.05
-- Statut : fait · TCK-1305
+- Statut : fait · TCK-1375
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Enums/VisitStatus.php:11`, `takussan-api/routes/api/property-visits.php:16-21`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:218-224`, `takussan-api/app/Services/Dashboard/DashboardAgentService.php:144`, `takussan-web/src/components/visits/visit-status.ts:13,27`, `takussan-web/src/components/crm/CustomerLinkedRecords.tsx:23`
 - Constat :

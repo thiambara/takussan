@@ -1,5 +1,5 @@
 /**
- * TCK-1305 (P115.05) — le geste « absent » : le personnel marque absente une visite planifiée ou
+ * TCK-1375 (P115.05) — le geste « absent » : le personnel marque absente une visite planifiée ou
  * confirmée dont l'heure est passée (`POST property-visits/{id}/no-show`).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -50,7 +50,7 @@ function visite(overrides: Partial<PropertyVisit> = {}): PropertyVisit {
   };
 }
 
-describe('<VisitDetail> — absent (TCK-1305)', () => {
+describe('<VisitDetail> — absent (TCK-1375)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     etat.user = { id: 7, roles: ['agent'] };

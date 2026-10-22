@@ -11,7 +11,7 @@ use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
- * TCK-1305 (P115.05) — rien n'écrivait `no_show` : l'agent dont le visiteur ne venait pas devait
+ * TCK-1375 (P115.05) — rien n'écrivait `no_show` : l'agent dont le visiteur ne venait pas devait
  * déclarer la visite terminée (comptée parmi les visites menées, ouverte à l'avis) ou l'annuler.
  * `POST property-visits/{visit}/no-show` la marque absente, depuis `scheduled` ou `confirmed`,
  * une fois l'heure passée, par qui agit pour le bien.
