@@ -30,7 +30,7 @@ aucun geste d'approbation : la file « À approuver » vit sur `/app/payments`, 
 
 ## Décision du porteur (déléguée)
 
-validé (délégué) — `PayoutAwaitingApproval` vise un genre neuf vers `/app/payments?tab=approvals`, pour tout détenteur de `payouts.approve`, admins compris ; test : détenteur non admin → cible `/app/payments?tab=approvals`
+validé (délégué) — `PayoutAwaitingApproval` vise un genre neuf vers `/app/payments?tab=approvals`, pour tout détenteur de `payouts.approve`, admins compris ; test : détenteur non admin → cible `/app/payments?tab=approvals` ; reste : l'avis d'assouplissement du seuil (filtrer ses destinataires ou suivre l'issue de P148.01), au porteur
 
 ## Reste à faire
 
