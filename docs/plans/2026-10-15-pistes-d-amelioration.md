@@ -11849,7 +11849,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Le courriel d'invitation ne se rend pas : toute invitation par e-mail répond 500 et rien ne part, rappels compris
 - Réf : P123.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1247
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Mail/InvitationMailable.php:49-58`, `takussan-api/resources/views/emails/invitation.blade.php:1`, `:10`, `takussan-api/app/Services/Invitation/InvitationService.php:248`, `:951-960`, `:522-538`, `takussan-api/tests/Feature/Invitation/InvitationDeliveredAfterCommitTest.php`
 - Constat :
@@ -11861,6 +11861,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lecture, puis le test temporaire.
 - Piste : rendre le gabarit par `markdown: 'emails.invitation'` (ou retirer les composants `mail::`). Garde : un test qui envoie une invitation et un rappel sous le mailer `array`, sans `Mail::fake()`, et lit le courriel rendu (sujet, lien d'acceptation).
 - Mesure (2026-10-22, 86138895e, mesureur) : relu `InvitationMailable::content()` (`view: 'emails.invitation'`, inchangé depuis TCK-249 : `git log` sur le Mailable et le gabarit ne rend que 968e7ffef) et le gabarit (`@component('mail::message')`, `mail::button`) ; test temporaire retiré (charge 1,90 / 2,08 / 2,02 sur 8 cœurs) : mailer `array` sans `Mail::fake()`, `POST /api/agencies/{id}/agents/invite` → 500 `No hint path defined for [mail]`, 1 invitation écrite, 0 courriel ; `(new InvitationMailable($inv))->render()` → `ViewException`, même message ; `remindPending()` à J+3 → `ViewException`, `last_reminded_at` nul ; sous le transport qui lève de `InvitationDeliveredAfterCommitTest`, `withoutExceptionHandling()` → `ViewException`, et non `TransportException` → le constat tient en entier, y compris la partie « à vérifier » sur ce test vert pour la mauvaise raison. Classement : A1, le gabarit est écrit en composants Markdown et `InvitationService::deliver()` a pour contrat d'envoyer ce courriel ; passer à `markdown: 'emails.invitation'` ne demande aucun choix.
+- Mesure (2026-10-22, a8174784f, implementeur) : relu `InvitationMailable::content()` (`view: 'emails.invitation'`) ; le test neuf `InvitationMailRenduTest` (mailer `array`, sans `Mail::fake()`) : invitation d'agent par l'API, rappel `remindPending()` à J+4 et rendu direct → 3 rouges `No hint path defined for [mail]` → `markdown: 'emails.invitation'`, 3/3, le courriel porte le lien d'acceptation et le rappel pose `last_reminded_at` ; ablation → 3 rouges, remis → vert ; `InvitationDeliveredAfterCommitTest` reste vert (5/5), par la `TransportException` qu'il simule.
 
 ### Accepter une invitation est impossible tant que le courriel est en panne : la notification de l'invitant part dans la transaction
 - Réf : P123.02
