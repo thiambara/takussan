@@ -178,9 +178,11 @@ la contournait :
     l'annuler (`POST /api/admin/agencies/{agency}/subscription/cancel`, `routes/api/admin.php:88`,
     `AgencySubscriptionController.php:37`). La suppression, elle, la rendait injoignable
     (déduit en P129.05, non mesuré).
-- **Hors de cet amendement : la fin d'essai.** `AgencySubscriptionService::processTrialExpirations`
-  (l. 86-109) ne lit pas le statut de l'agence. Savoir si l'essai d'une agence `inactive` ou
-  `suspended` doit se convertir reste une question de facturation (V1), qui n'est pas tranchée ici.
+- **La fin d'essai** (décision du porteur du 2026-10-22, V1).
+  `AgencySubscriptionService::processTrialExpirations` (l. 86-109) ne lit pas le statut de
+  l'agence. **L'essai d'une agence `inactive` ou `suspended` ne se convertit pas** : une agence
+  sortie d'activité ne commence pas à être facturée. Le job la saute, et l'essai échu se convertit
+  au premier passage qui suit son retour à `active`. Garde : un test du job par statut.
 - **P129.03** (invitations ouvertes) est validée à part et n'est pas tranchée ici. Sa révocation
   « à la suppression » n'a plus d'émetteur une fois la route retirée. Le refus d'accepter en 410
   l'invitation d'une agence qui n'existe plus vaut toujours pour les agences déjà supprimées, s'il
