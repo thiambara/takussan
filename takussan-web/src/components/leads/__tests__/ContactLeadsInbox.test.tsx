@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { withIntl } from '@/test/intl';
 import { ContactLeadsInbox } from '../ContactLeadsInbox';
 import type { ContactLead } from '@/lib/queries/contact-leads';
+import { ApiError } from '@/lib/api';
 
 const etat = vi.hoisted(() => ({
   leads: [] as ContactLead[],
@@ -134,6 +135,36 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
       'href',
       '/app/customers/88',
     );
+  });
+
+  it('TCK-1343 — un doublon (409 `customer.duplicate`) se présente comme dans le formulaire client, et « Convertir quand même » force', async () => {
+    convert.mutateAsync.mockRejectedValueOnce(
+      new ApiError(409, {
+        code: 'customer.duplicate',
+        existing: [
+          { id: 55, name: 'Awa Diop', matched_on: 'phone' },
+          { id: null, name: null, matched_on: 'email' },
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    render(withIntl(<ContactLeadsInbox />));
+
+    await user.click(screen.getByRole('button', { name: 'Convertir en client' }));
+
+    expect(await screen.findByText('Ce client semble déjà exister dans l\'agence.')).toBeInTheDocument();
+    expect(screen.getByText(/Awa Diop · même téléphone/)).toBeInTheDocument();
+    expect(screen.getByText(/Une fiche que vous ne pouvez pas ouvrir · même e-mail/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ouvrir sa fiche' })).toHaveAttribute('href', '/app/customers/55');
+    expect(toastAdd).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }));
+
+    await user.click(screen.getByRole('button', { name: 'Convertir quand même' }));
+    expect(convert.mutateAsync).toHaveBeenLastCalledWith({ id: 1, allow_duplicate: true });
+    expect(await screen.findByRole('link', { name: 'Voir la fiche client' })).toHaveAttribute(
+      'href',
+      '/app/customers/88',
+    );
+    expect(screen.queryByText('Ce client semble déjà exister dans l\'agence.')).not.toBeInTheDocument();
   });
 
   it('attribuer : l’administrateur de l’agence choisit un collègue', async () => {

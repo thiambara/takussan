@@ -86,4 +86,74 @@ class ContactLeadConvertTest extends ApiTestCase
         $this->postJson("/api/contact-leads/{$clic->id}/convert")->assertUnprocessable();
         $this->assertDatabaseCount('customers', 0);
     }
+
+    /**
+     * TCK-1343 (P125.02) — une fiche de l'agence au même téléphone : la conversion rend 409
+     * `customer.duplicate` avec `existing`, comme la création à la main, et ne crée rien ;
+     * `allow_duplicate` la force.
+     */
+    public function test_un_doublon_au_meme_telephone_rend_409_sauf_allow_duplicate(): void
+    {
+        $x = $this->agence();
+        $agent = $this->personnel($x);
+        $existante = Customer::factory()->create([
+            'agency_id' => $x->id, 'added_by_id' => $agent->id, 'phone' => '77 123 45 67', 'email' => null,
+        ]);
+        $this->assertSame('+221771234567', $existante->fresh()->phone);
+        $lead = PropertyContactLead::factory()->create([
+            'property_id' => $this->bienDe($x)->id, 'agency_id' => $x->id, 'recipient_user_id' => $agent->id,
+            'name' => 'Awa Diop', 'email' => 'awa@example.com', 'phone' => '+221771234567',
+        ]);
+
+        Sanctum::actingAs($agent);
+
+        $this->postJson("/api/contact-leads/{$lead->id}/convert")
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'customer.duplicate')
+            ->assertJsonPath('existing.0.id', $existante->id)
+            ->assertJsonPath('existing.0.matched_on', 'phone');
+        $this->assertSame(1, Customer::query()->where('agency_id', $x->id)->count());
+        $this->assertNull($lead->fresh()->customer_id);
+        $this->assertNull($lead->fresh()->handled_at);
+
+        $response = $this->postJson("/api/contact-leads/{$lead->id}/convert", ['allow_duplicate' => true])
+            ->assertCreated();
+        $this->assertNotSame($existante->id, $response->json('customer.id'));
+        $this->assertSame(2, Customer::query()->where('agency_id', $x->id)->count());
+    }
+
+    /** TCK-1343 — même règle sur l'e-mail replié, comme `CustomerDuplicateDetector`. */
+    public function test_un_doublon_au_meme_email_rend_409(): void
+    {
+        $x = $this->agence();
+        $agent = $this->personnel($x);
+        Customer::factory()->create([
+            'agency_id' => $x->id, 'added_by_id' => $agent->id, 'phone' => null, 'email' => 'Awa@Example.com',
+        ]);
+        $lead = PropertyContactLead::factory()->create([
+            'property_id' => $this->bienDe($x)->id, 'agency_id' => $x->id, 'recipient_user_id' => $agent->id,
+            'name' => 'Awa Diop', 'email' => 'awa@example.com', 'phone' => null,
+        ]);
+
+        Sanctum::actingAs($agent);
+        $this->postJson("/api/contact-leads/{$lead->id}/convert")
+            ->assertStatus(409)
+            ->assertJsonPath('existing.0.matched_on', 'email');
+        $this->assertSame(1, Customer::query()->where('agency_id', $x->id)->count());
+    }
+
+    /** TCK-1343 — `allow_duplicate` se valide comme à la création : un booléen. */
+    public function test_allow_duplicate_doit_etre_un_booleen(): void
+    {
+        $x = $this->agence();
+        $agent = $this->personnel($x);
+        $lead = PropertyContactLead::factory()->create([
+            'property_id' => $this->bienDe($x)->id, 'agency_id' => $x->id, 'recipient_user_id' => $agent->id,
+        ]);
+
+        Sanctum::actingAs($agent);
+        $this->postJson("/api/contact-leads/{$lead->id}/convert", ['allow_duplicate' => 'oui'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('allow_duplicate');
+    }
 }

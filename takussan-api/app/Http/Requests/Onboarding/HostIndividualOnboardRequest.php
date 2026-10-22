@@ -51,7 +51,15 @@ class HostIndividualOnboardRequest extends FormRequest
             ],
 
             'phone_otp' => ['required', 'array'],
-            'phone_otp.phone' => ['required', 'string', 'max:32'],
+            // TCK-1345 (P125.06) — le code vérifie `users.phone` (le numéro que l'assistant y a
+            // écrit en demandant le code) : un autre numéro serait affiché sans être vérifié.
+            'phone_otp.phone' => ['required', 'string', 'max:32', function (string $attribute, mixed $value, \Closure $fail): void {
+                $saisi = preg_replace('/\s+/u', '', (string) $value);
+                $compte = preg_replace('/\s+/u', '', (string) $this->user()?->phone);
+                if ($saisi !== $compte) {
+                    $fail(__('onboarding.host_individual.errors.phone_mismatch'));
+                }
+            }],
             // The wizard pre-verifies the OTP via PhoneVerificationController,
             // which consumes the cached code and sets `phone_verified_at`.
             // Already-verified users (registration, prior onboarding) also

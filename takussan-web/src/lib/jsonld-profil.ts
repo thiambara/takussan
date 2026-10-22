@@ -1,6 +1,7 @@
 import type { Locale } from '@/i18n/config';
 
 import { type NoeudJsonLd, sansVides, urlAbsolue } from './jsonld';
+import { telephonePublie } from './phone';
 
 /**
  * Données structurées des profils publics — agence et agent (TCK-435).
@@ -103,7 +104,8 @@ export function jsonLdAgence(agence: AgencePubliee, locale: Locale): NoeudJsonLd
     image: agence.logo_url ?? undefined,
     logo: agence.logo_url ?? undefined,
     email: agence.email ?? undefined,
-    telephone: agence.phone ?? undefined,
+    // TCK-1345 — l'E.164, et non la saisie rangée telle quelle (`77 123 45 67`).
+    telephone: agence.phone ? telephonePublie(agence.phone) : undefined,
     // ⚠ La VILLE seule, parce que c'est la seule composante d'adresse que l'API sert et que la
     // page affiche. Un `PostalAddress` sans `addressLocality` serait un objet vide ; en inventer
     // une rue serait pire.

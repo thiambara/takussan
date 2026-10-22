@@ -530,4 +530,23 @@ class PublicSearchAlertTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('consent');
         $this->assertSame(0, AlertSubscriber::count());
     }
+
+    /**
+     * TCK-1345 (P125.06) — le numéro d'une alerte WhatsApp se juge comme partout ailleurs
+     * (`TelephoneJoignable`) : le `0` de préfixe national derrière l'indicatif est refusé, la forme
+     * espacée d'un numéro joignable passe.
+     */
+    public function test_le_numero_whatsapp_se_juge_par_telephone_joignable(): void
+    {
+        config(['search_alerts.whatsapp_enabled' => true]);
+
+        $this->postJson('/api/public/search-alerts', $this->demande(['channel' => 'whatsapp', 'email' => null, 'phone' => '+330612345678']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('phone');
+        $this->postJson('/api/public/search-alerts', $this->demande(['channel' => 'whatsapp', 'email' => null, 'phone' => '+22177123456']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('phone');
+        $this->postJson('/api/public/search-alerts', $this->demande(['channel' => 'whatsapp', 'email' => null, 'phone' => '+221 77 123 45 67']))
+            ->assertStatus(202);
+    }
 }
