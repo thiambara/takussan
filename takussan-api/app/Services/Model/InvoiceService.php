@@ -12,6 +12,7 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\User;
 use App\Services\Invoice\InvoiceNumberAllocator;
+use App\Services\Maintenance\CurrencyUnit;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Support\Facades\DB;
 
@@ -58,11 +59,14 @@ class InvoiceService
 
         // TCK-594 (ADR-0039 §7) — sans taux, celui de l'agence, à défaut 0. Un taux explicite —
         // `0` compris — gagne.
-        $subtotal = (float) $data['subtotal'];
+        $currency = $data['currency'] ?? 'XOF';
+        // P133.02 (TCK-1377) — avec des lignes, le sous-total se recompte depuis elles, et elles
+        // s'impriment (`metadata.lines`, lues par `Invoice::lines()`).
+        $lines = isset($data['items']) ? $this->priceLines($data['items'], $currency) : null;
+        $subtotal = $lines !== null ? (float) $lines['subtotal'] : (float) $data['subtotal'];
         $taxRate = isset($data['tax_rate'])
             ? (float) $data['tax_rate']
             : (float) ($agencyId !== null ? Agency::query()->whereKey($agencyId)->value('default_tax_rate') ?? 0 : 0);
-        $currency = $data['currency'] ?? 'XOF';
         // TCK-736 (P04.08) — la TVA s'arrondit à l'unité de la devise de la facture.
         $taxAmount = Currency::roundAmount($subtotal * $taxRate / 100, $currency);
         $total = $subtotal + $taxAmount;
@@ -83,7 +87,42 @@ class InvoiceService
             'total_amount' => $total,
             'currency' => $currency,
             'notes' => $data['notes'] ?? null,
+            'metadata' => $lines !== null ? ['lines' => $lines['lines']] : null,
         ]);
+    }
+
+    /**
+     * P133.02 (TCK-1377) — chaque ligne arrondie à l'unité de la devise, puis leur somme, comme
+     * `MaintenanceQuoteWorkflow::priceLines`. La quantité garde ses seules décimales utiles
+     * (`1`, `1.5`) : c'est elle que le PDF imprime.
+     *
+     * @param  list<array{description: string, quantity: int|float|string, unit_price: int|float|string}>  $items
+     * @return array{lines: list<array{label: string, qty: string, unit_price: string, total: string}>, subtotal: string}
+     */
+    private function priceLines(array $items, string $currency): array
+    {
+        $scale = Currency::tryFrom($currency)?->decimalPlaces() ?? 2;
+        $lines = [];
+        $subtotal = '0.00';
+
+        foreach ($items as $item) {
+            $quantity = bcadd((string) $item['quantity'], '0', 2);
+            $unitPrice = bcadd((string) $item['unit_price'], '0', 2);
+            $total = CurrencyUnit::round(bcmul($quantity, $unitPrice, 4), $scale);
+
+            $lines[] = [
+                'label' => (string) $item['description'],
+                'qty' => rtrim(rtrim($quantity, '0'), '.'),
+                'unit_price' => $unitPrice,
+                'total' => $total,
+            ];
+            $subtotal = bcadd($subtotal, $total, 2);
+        }
+
+        // Le sous-total et la TVA tiennent dans `decimal(14,2)` : au-delà, PostgreSQL lève une 500.
+        abort_code_if(bccomp($subtotal, CurrencyUnit::MAX_COLUMN, 2) === 1, 422, 'invoice.amount_too_large');
+
+        return ['lines' => $lines, 'subtotal' => $subtotal];
     }
 
     public function send(Invoice $invoice): Invoice

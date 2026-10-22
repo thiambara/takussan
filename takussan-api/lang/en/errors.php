@@ -245,6 +245,7 @@ return [
         'token_sent' => 'This invitation is still pending acceptance.',
     ],
     'invoice' => [
+        'amount_too_large' => 'The invoice total exceeds the largest amount that can be recorded.',
         'cannot_cancel' => 'This invoice cannot be cancelled in its current state.',
         'cannot_mark_paid' => 'This invoice cannot be marked paid in its current state.',
         'foreign_target' => 'This lease or booking does not belong to the invoice\'s agency.',

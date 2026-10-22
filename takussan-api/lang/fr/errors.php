@@ -245,6 +245,7 @@ return [
         'token_sent' => 'Cette invitation est encore en attente d\'acceptation.',
     ],
     'invoice' => [
+        'amount_too_large' => 'Le montant total de la facture dépasse le maximum enregistrable.',
         'cannot_cancel' => 'Cette facture ne peut pas être annulée dans son état actuel.',
         'cannot_mark_paid' => 'Cette facture ne peut pas être marquée payée dans son état actuel.',
         'foreign_target' => 'Ce bail ou cette réservation ne relève pas de l\'agence de la facture.',
