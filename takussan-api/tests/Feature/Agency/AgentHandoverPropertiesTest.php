@@ -164,6 +164,34 @@ class AgentHandoverPropertiesTest extends ApiTestCase
         $this->assertSame($this->b->id, (int) $this->deB->fresh()->user_id);
     }
 
+    /**
+     * TCK-1253 (P121.03, ADR-0059 § 3) — le repreneur des biens est refusé (co-propriétaire) : la
+     * marque tombe dans le repli. Le repreneur des collaborations reprend la ligne du partant, mais
+     * jamais la marque qu'elle portait, et la réponse dit le bien non attribué.
+     */
+    public function test_un_repreneur_des_biens_refuse_ne_laisse_pas_la_marque_au_repreneur_des_collaborations(): void
+    {
+        $coProprietaire = $this->personnel($this->agency);
+        PropertyCollaborator::query()->create([
+            'property_id' => $this->deB->id, 'user_id' => $coProprietaire->id, 'role' => CollaboratorRole::CoOwner, 'invited_at' => now(),
+        ]);
+
+        $this->actingAsApi($this->admin)->apiPost($this->url('handover'), [
+            'successors' => [
+                'responsible_properties' => $coProprietaire->id,
+                'collaborations' => $this->successor->id,
+            ],
+            'leave_unassigned' => true,
+        ])->assertOk()
+            ->assertJsonPath('data.unassigned.responsible_properties', 1)
+            ->assertJsonPath('data.moved.collaborations', 1);
+
+        $this->assertDatabaseHas('property_collaborators', [
+            'property_id' => $this->deB->id, 'user_id' => $this->successor->id, 'role' => 'agent', 'is_primary' => false,
+        ]);
+        $this->assertSame(0, PropertyCollaborator::query()->where('property_id', $this->deB->id)->where('is_primary', true)->count());
+    }
+
     /** ADR-0036 question 2 — jamais d'un bailleur, jamais vers un bailleur. */
     public function test_les_biens_d_un_bailleur_ne_changent_jamais_de_titulaire(): void
     {

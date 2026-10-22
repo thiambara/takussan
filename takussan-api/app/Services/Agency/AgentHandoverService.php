@@ -35,7 +35,8 @@ use Illuminate\Support\Facades\DB;
  *  - `collaborations` : la ligne du partant passe au repreneur ; si le repreneur collabore déjà au
  *    bien (unicité `property_id, user_id`), sa ligne est conservée et celle du partant supprimée —
  *    et si celle du partant portait la marque, elle passe d'abord au repreneur (ADR-0053,
- *    « Conséquences ») ;
+ *    « Conséquences ») ; si le repreneur des biens a été refusé pour ce bien, la ligne réécrite
+ *    perd sa marque, qui tombe dans le repli (ADR-0059 §3, TCK-1253) ;
  *  - `customers` : le référent (`is_primary`) passe au repreneur ; s'il a déjà une relation de même
  *    type avec le client, elle devient la principale et celle du partant est supprimée.
  *
@@ -93,7 +94,7 @@ class AgentHandoverService
                     continue;
                 }
 
-                [$ids, $dropped] = $this->move($category, $agency, $member, $successor, $actor, $locked);
+                [$ids, $dropped] = $this->move($category, $agency, $member, $successor, $actor, $locked, $unassigned['responsible_properties'] ?? []);
                 if ($ids === [] && $dropped === []) {
                     continue;
                 }
@@ -165,9 +166,10 @@ class AgentHandoverService
 
     /**
      * @param  list<int>  $locked  les biens que {@see self::lockProperties()} tient
+     * @param  list<int>  $refusedMarks  les biens dont le repreneur des biens a été refusé : leur marque tombe dans le repli
      * @return array{0: list<int>, 1: list<int>} [déplacés, désassignés]
      */
-    private function move(string $category, Agency $agency, User $member, User $successor, User $actor, array $locked): array
+    private function move(string $category, Agency $agency, User $member, User $successor, User $actor, array $locked, array $refusedMarks = []): array
     {
         $query = $this->portfolio->query($category, $agency, $member);
         if (in_array($category, ['responsible_properties', 'held_properties'], true)) {
@@ -244,6 +246,12 @@ class AgentHandoverService
                     if ($taken && $row->is_primary
                         && ! $this->assignResponsible(Property::query()->findOrFail($row->property_id), $successor, $actor)) {
                         $dropped[] = (int) $row->id;
+                    }
+                    if (! $taken && $row->is_primary && in_array((int) $row->property_id, $refusedMarks, true)) {
+                        // TCK-1253 (ADR-0059 § 3) — le repreneur des biens a été refusé : la marque
+                        // tombe dans le repli, et la réécriture ne la donne jamais au repreneur des
+                        // collaborations. Le bien reste compté dans `unassigned.responsible_properties`.
+                        $row->forceFill(['is_primary' => false])->save();
                     }
                     $taken ? $row->delete() : $row->update(['user_id' => $successor->id]);
                 }
