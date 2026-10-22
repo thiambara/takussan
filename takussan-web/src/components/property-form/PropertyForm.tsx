@@ -22,12 +22,12 @@ import { fieldDensityScope } from '@/components/ui/field-density';
 import {
   FormAmountInput,
   FormCheckbox,
-  FormDatePicker,
   FormGlobalError,
   FormInput,
   FormSelect,
   FormTextarea,
 } from '@/components/forms';
+import { FormDatePicker } from '@/components/forms/FormDatePicker';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useAvertissementDepart } from '@/hooks/useAvertissementDepart';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
