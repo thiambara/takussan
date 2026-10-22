@@ -11293,7 +11293,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### `features.md` promet à tous les profils une machine à états `draft → pending → active → suspended | expired | archived` qu'aucun n'a
 - Réf : P115.06
-- Statut : retenu · autonome
+- Statut : retenu · à valider — chemin fermé : docs/features.md (le correctif est la réécriture de la phrase de `features.md:500`, et la spec est fermée à l'implémenteur : elle se corrige en session, par `/sync-specs` ou par le porteur)
 - Gravité : 🟢 amélioration
 - Où : `docs/features.md:500`, `takussan-api/app/Models/Enums/AgentProfileStatus.php`, `takussan-api/app/Models/Enums/OwnerProfileStatus.php`, `takussan-api/app/Models/Enums/AgencyAdminProfileStatus.php`, `takussan-api/app/Models/Enums/ServiceProviderProfileStatus.php`
 - Constat :
@@ -11302,6 +11302,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Établi comment : lu et `grep`.
 - Piste : réécrire la phrase pour dire les statuts réels de chaque profil, et retirer des enums les cas sans écrivain ou noter qu'ils sont réservés (A6 pour le document ; le retrait est un autre choix).
 - Mesure (2026-10-22, 3390f9116, mesureur) : relu `features.md:500` (« Tous les profils traversent la même machine à états `draft → pending → active → suspended | expired | archived` ») contre les quatre enums : agent `draft active inactive suspended`, bailleur `draft active inactive blocked`, admin d'agence `active suspended archived`, prestataire `draft active inactive suspended` — aucun n'a `pending` ni `expired` ; `grep` → `AgentProfileStatus::Inactive`, `OwnerProfileStatus::Inactive`, `AgencyAdminProfileStatus::Archived` : 0 écriture hors des enums, ni littéral côté profils. Le constat tient. Classement : A6 pour le document seul ; le correctif attendu réécrit la phrase de `features.md:500` pour donner les statuts réels de chaque profil et noter ceux qu'aucun chemin ne pose ; le retrait de cas d'enum n'est pas compris dans ce classement (choix de produit, V7).
+- Mesure (2026-10-22, a2398e474, implementeur) : relu `features.md:500` (« Tous les profils traversent la même machine à états `draft → pending → active → suspended | expired | archived` », toujours là) et les quatre enums (`grep -o "= '…'"`) : agent `draft active inactive suspended`, bailleur `draft active inactive blocked`, admin d'agence `active suspended archived`, prestataire `draft active inactive suspended` — le constat tient. Non implémenté : le seul correctif est un changement de `docs/features.md`, chemin fermé à l'implémenteur (consigne « la spec ne bouge pas »).
 
 ### Petites améliorations : cas d'enum sans écrivain, lus par une garde ou un écran
 - Réf : P115.07
