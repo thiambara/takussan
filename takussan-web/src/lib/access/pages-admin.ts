@@ -62,14 +62,25 @@ const TABLE = [
   // `/app/overview/agency`, gardé par son propre layout.
   { chemin: '/app/agency/team', exige: { role: 'admin', agence: 'standard' }, menu: { cle: 'team', icone: Users } },
   // TCK-279 — juste sous « Équipe » : on attribue un rôle là, on le définit ici.
-  { chemin: '/app/agency/roles', exige: { role: 'admin', agence: 'standard' }, menu: { cle: 'roles', icone: KeyRound } },
+  // TCK-1274 (P148.04) — la liste des rôles exige `team.assign_role` (`AgencyRolePolicy::viewAny`) :
+  // sans elle, l'API rend 403 et la page entière est en erreur.
+  {
+    chemin: '/app/agency/roles',
+    exige: { role: 'admin', agence: 'standard', capacite: 'team.assign_role' },
+    menu: { cle: 'roles', icone: KeyRound },
+  },
   {
     chemin: '/app/agency',
     exige: { role: 'admin' },
     menu: { cle: 'agency', icone: Briefcase },
     profil: 'manageAgency',
   },
-  { chemin: '/app/agency/kyc', exige: { role: 'admin' }, menu: { cle: 'kyc', icone: ShieldCheck } },
+  // TCK-1274 (P148.04) — le dossier KYC se lit sous `agency.update_kyc` (`KycController`).
+  {
+    chemin: '/app/agency/kyc',
+    exige: { role: 'admin', capacite: 'agency.update_kyc' },
+    menu: { cle: 'kyc', icone: ShieldCheck },
+  },
   // TCK-594 (AC18) — l'hôte individuel y lit ses reversements ; l'API les garde par
   // `agency.update_billing` (`AgencyPolicy::viewPlatformPayouts`). Le bloc d'abonnement, lui, reste
   // `standard` : c'est la page qui en décide.

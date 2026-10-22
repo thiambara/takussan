@@ -56,13 +56,14 @@ class BuildUserDigestJob implements ShouldQueue
         }
 
         $truncated = $all->count() >= DigestBuilderService::MAX_NOTIFICATIONS;
-        $unsubscribeUrl = NotificationUnsubscribeController::signedUrl($this->user);
+        $liens = NotificationUnsubscribeController::liens($this->user);
 
         try {
             Mail::to($this->user->email)->send(new NotificationDigestMail(
                 user: $this->user,
                 grouped: $grouped,
-                unsubscribeUrl: $unsubscribeUrl,
+                unsubscribeUrl: $liens['page'],
+                oneClickUrl: $liens['one_click'],
                 truncated: $truncated,
             ));
         } finally {

@@ -21,6 +21,7 @@ use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
+use App\Support\LienFront;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -30,6 +31,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Throwable;
 
 /**
  * TCK-249 — orchestrates the unified invitation lifecycle.
@@ -504,9 +506,15 @@ class InvitationService
                     ->log('invitation_expired');
             });
 
+            // P123.04 (TCK-1251) — l'échec d'un avis est rapporté par invitation, la boucle
+            // continue : il arrêtait la tâche, qui n'expirait plus qu'une invitation par passage.
             $inviter = User::query()->find($invitation->invited_by);
             if ($inviter !== null) {
-                $inviter->notify(new InvitationExpiredNotification($invitation));
+                try {
+                    $inviter->notify(new InvitationExpiredNotification($invitation));
+                } catch (Throwable $e) {
+                    report($e);
+                }
             }
         }
 
@@ -536,11 +544,19 @@ class InvitationService
             ->get();
 
         foreach ($due as $invitation) {
-            $this->deliver(
-                $invitation,
-                $this->recipientAccount($invitation->email, $this->smsRecipient($invitation)),
-                isReminder: true,
-            );
+            // P123.04 (TCK-1251) — un rappel qui échoue est rapporté et n'arrête plus les suivants ;
+            // non marqué, il est retenté au passage suivant.
+            try {
+                $this->deliver(
+                    $invitation,
+                    $this->recipientAccount($invitation->email, $this->smsRecipient($invitation)),
+                    isReminder: true,
+                );
+            } catch (Throwable $e) {
+                report($e);
+
+                continue;
+            }
 
             $invitation->forceFill(['last_reminded_at' => $now])->save();
         }
@@ -963,15 +979,13 @@ class InvitationService
             return;
         }
 
-        $base = config('app.frontend_url') ?: config('app.url');
-
         app(NotificationService::class)->send(
             ContactSansCompte::fromInvitation($invitation, $locale),
             $isReminder ? NotificationCode::InvitationReminder : NotificationCode::InvitationReceived,
             [
                 'agency' => self::smsAgencyName($invitation->agency?->name),
                 // Même lien que le courriel (`InvitationMailable`).
-                'url' => rtrim((string) $base, '/').'/invitations/accept?token='.$invitation->token,
+                'url' => LienFront::vers('/invitations/accept?token='.$invitation->token),
             ],
         );
     }

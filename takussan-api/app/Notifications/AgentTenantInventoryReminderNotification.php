@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Lease;
 use App\Services\Notifications\PreferenceResolver;
+use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -46,7 +47,7 @@ class AgentTenantInventoryReminderNotification extends Notification implements S
     public function toMail(object $notifiable): MailMessage
     {
         $reference = $this->lease->reference_number ?? '#'.$this->lease->id;
-        $url = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/')
+        $url = LienFront::base()
             .'/app/leases/onboarding-pending';
 
         $tenantName = trim(

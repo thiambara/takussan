@@ -2113,7 +2113,10 @@
         "late": "Yeex na",
         "pending": "Di ñëw",
         "other": "Weneen",
-        "cancelled": "Neenal nañu ko"
+        "cancelled": "Neenal nañu ko",
+        "partially_paid": "Partiellement payé",
+        "failed": "Échec",
+        "refunded": "Remboursé"
       },
       "listLabel": "Bési fey yu kontaraa bi",
       "dueOn": "Bisu pey : {date}",
@@ -2858,7 +2861,16 @@
       "invalidTitle": "Lien bii dootul dox",
       "invalidBody": "Matul, jariñoo nañu ko ba noppi walla jeex na. Mën nga def beneen laaj ci ab seet.",
       "error": "Liggéey bi antuwul. Jéemaatal.",
-      "backToSearch": "Seet ay kër"
+      "backToSearch": "Seet ay kër",
+      "digest": {
+        "metaTitle": "Se désabonner du résumé",
+        "title": "Ne plus recevoir le résumé par courriel",
+        "body": "Le résumé de vos notifications par courriel s'arrêtera. Vos notifications restent dans votre espace.",
+        "button": "Me désabonner",
+        "working": "Désabonnement…",
+        "doneTitle": "C'est fait",
+        "doneBody": "Vous ne recevrez plus le résumé par courriel. Vous pouvez le réactiver dans vos préférences de notification."
+      }
     }
   },
   "wizardDrafts": {
@@ -6062,6 +6074,8 @@
       "insurance": "Asiraas",
       "inventory_report": "Limu kër",
       "photo": "Nataal",
+      "rib": "RIB",
+      "ninea": "NINEA",
       "other": "Beneen"
     },
     "entities": {
@@ -6311,7 +6325,9 @@
       "paid": "Fey nañu ko",
       "partially_paid": "Ci wàll",
       "refunded": "Delloo nañu ko",
-      "cancelled": "Ñu ko neenal"
+      "cancelled": "Ñu ko neenal",
+      "late": "En retard",
+      "failed": "Échec"
     },
     "paymentMethod": {
       "cash": "Xaalis ci loxo",

@@ -22,6 +22,8 @@ vi.mock('@/lib/access/server-guards', () => ({
 // TCK-633 (lot B) — le layout calcule aussi les pages admin accessibles ; sans objet ici.
 vi.mock('@/lib/access/pages-admin-server', () => ({
   accesAdmin: async () => ({ chemins: [], espaceIndividuel: false }),
+  // TCK-1278 — rien à amorcer : `AmorceCapacites` rend alors ses enfants tels quels.
+  capacitesAmorcees: async () => null,
 }));
 vi.mock('@/lib/queries/agency-upgrade', () => ({ fetchAgencyUpgradeRequests: async () => ({ data: [] }) }));
 vi.mock('@/i18n/messages', () => ({ messagesPour: async () => ({}) }));

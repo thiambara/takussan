@@ -3841,7 +3841,10 @@
         "late": "En retard",
         "pending": "À venir",
         "other": "Autre",
-        "cancelled": "Annulée"
+        "cancelled": "Annulée",
+        "partially_paid": "Partiellement payé",
+        "failed": "Échec",
+        "refunded": "Remboursé"
       },
       "listLabel": "Échéances du bail",
       "dueOn": "Échéance : {date}",
@@ -4615,7 +4618,16 @@
       "invalidTitle": "Ce lien ne fonctionne plus",
       "invalidBody": "Il est incomplet, a déjà servi ou a expiré. Vous pouvez refaire une demande depuis une recherche.",
       "error": "L'opération n'a pas abouti. Réessayez.",
-      "backToSearch": "Rechercher des biens"
+      "backToSearch": "Rechercher des biens",
+      "digest": {
+        "metaTitle": "Se désabonner du résumé",
+        "title": "Ne plus recevoir le résumé par courriel",
+        "body": "Le résumé de vos notifications par courriel s'arrêtera. Vos notifications restent dans votre espace.",
+        "button": "Me désabonner",
+        "working": "Désabonnement…",
+        "doneTitle": "C'est fait",
+        "doneBody": "Vous ne recevrez plus le résumé par courriel. Vous pouvez le réactiver dans vos préférences de notification."
+      }
     }
   },
   "wizardDrafts": {
@@ -6710,6 +6722,8 @@
       "insurance": "Assurance",
       "inventory_report": "État des lieux",
       "photo": "Photo",
+      "rib": "RIB",
+      "ninea": "NINEA",
       "other": "Autre"
     },
     "entities": {
@@ -6959,7 +6973,9 @@
       "paid": "Payé",
       "partially_paid": "Partiel",
       "refunded": "Remboursé",
-      "cancelled": "Annulé"
+      "cancelled": "Annulé",
+      "late": "En retard",
+      "failed": "Échec"
     },
     "paymentMethod": {
       "cash": "Espèces",

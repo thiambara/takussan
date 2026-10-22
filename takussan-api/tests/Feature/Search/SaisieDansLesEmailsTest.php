@@ -164,7 +164,7 @@ class SaisieDansLesEmailsTest extends TestCase
             ]);
 
             $resumes = [
-                new NotificationDigestMail($user, collect(['system' => collect([$cloche])]), 'https://takussan.test/unsubscribe'),
+                new NotificationDigestMail($user, collect(['system' => collect([$cloche])]), 'https://takussan.test/unsubscribe', 'https://api.takussan.test/unsubscribe'),
             ];
             foreach ($resumes as $resume) {
                 $html = (string) $resume->render();

@@ -32,7 +32,7 @@ import {
 import type { DocumentableType } from '@/types/document';
 
 import {
-  DOCUMENT_TYPE_ORDER,
+  DOCUMENT_TYPE_UPLOAD_ORDER,
   DOCUMENTABLE_UPLOAD_ORDER,
 } from './constants';
 
@@ -241,7 +241,7 @@ export function DocumentUploadDialog({
               control={form.control}
               name="type"
               label={t('category_label')}
-              options={DOCUMENT_TYPE_ORDER.map((value) => ({
+              options={DOCUMENT_TYPE_UPLOAD_ORDER.map((value) => ({
                 value,
                 label: tTypes(value),
               }))}

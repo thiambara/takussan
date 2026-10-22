@@ -3,6 +3,7 @@
 - **Statut** : Accepté
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-601](../backlog/tickets/TCK-601-donnees-personnelles-audit-kyc.md)
+- **Amendement du 2026-10-22 (piste P84.01)** : le NINEA d'une agence `standard` est une mention légale publique de personne morale, en clair dans `agencies.ninea` ; celui de la demande de passage reste chiffré et masqué le temps de la revue ; le journal le rend en clair pour le seul sujet `Agency`. Voir [§ Amendement du 2026-10-22](#amendement-du-2026-10-22--le-ninea-dune-personne-morale-est-une-mention-légale-publique).
 - **Amendement du 2026-10-18 ([TCK-883](../backlog/tickets/TCK-883-sauvegardes-consignes-et-retour-d-une-restauration.md))** : une donnée effacée survit dans les sauvegardes le temps de leur rétention ; après une restauration, les effacements postérieurs à la sauvegarde se rejouent depuis une liste tenue hors de la base ; `APP_KEY` est rangée hors du serveur et son empreinte est au relevé. Voir [§ Amendement du 2026-10-18](#amendement-du-2026-10-18--les-sauvegardes-gardent-ce-que-la-base-a-effacé-tck-883).
 - **Précisé par [ADR-0070](0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md) (2026-10-18)** : l'application de l'amendement A — périmètre, migrations, masques, lectures claires et leurs lecteurs, exports, contrat du front.
 - **Amendement du 2026-10-16 ([TCK-723](../backlog/tickets/TCK-723-adr-0044-etendu-et-erratum-adr-0055.md))** : la règle du §1 s'étend au numéro de pièce du locataire et de la caution (`customers.id_number`, `guarantors.id_number`) ; les jobs échoués sont purgés à **30 jours**. le revenu mensuel de la caution et du bailleur suit la même règle, et seul l'admin d'agence lit la valeur claire. Voir [§ Amendement du 2026-10-16](#amendement-du-2026-10-16--la-pièce-du-locataire-et-de-la-caution-et-la-purge-des-jobs-échoués-tck-723).
@@ -44,7 +45,9 @@ trace conservée cinq ans.**
 - **Mécanisme** : cast `encrypted` sur des colonnes `text`. Retenu pour `owner_profiles.rib`,
   `tax_id`, `id_document_number` et `agency_upgrade_requests.ninea`, `rib_pro` ; tout RIB stocké
   ailleurs (moyens de versement de TCK-594) suit la même forme. **Étendu le 2026-10-16** à
-  `customers.id_number` et `guarantors.id_number` ([§ Amendement](#amendement-du-2026-10-16--la-pièce-du-locataire-et-de-la-caution-et-la-purge-des-jobs-échoués-tck-723)). Les migrations chiffrent l'existant
+  `customers.id_number` et `guarantors.id_number` ([§ Amendement](#amendement-du-2026-10-16--la-pièce-du-locataire-et-de-la-caution-et-la-purge-des-jobs-échoués-tck-723)). **Exception du
+  2026-10-22** : le NINEA d'une agence `standard`, mention légale publique, vit en clair dans
+  `agencies.ninea` ([§ Amendement](#amendement-du-2026-10-22--le-ninea-dune-personne-morale-est-une-mention-légale-publique)). Les migrations chiffrent l'existant
   par lots, de façon idempotente (une valeur déjà déchiffrable est laissée telle quelle), et leur
   `down()` **déchiffre** — l'aller-retour est testé.
 - **`APP_KEY` devient une donnée de production à part entière.** Elle chiffre désormais des données
@@ -101,7 +104,8 @@ trace conservée cinq ans.**
 - Les lectures du journal (audit d'agence, audit plateforme et leurs exports) passent `properties`
   par `App\Support\Audit\PropertyRedactor` : toute clé dont le nom évoque un secret ou un
   identifiant (`password`, `token`, `rib`, `iban`, `tax_id`, `ninea`, `id_document`…) rend
-  `[REDACTED]`. C'est une défense en profondeur, pas le mécanisme principal.
+  `[REDACTED]`. C'est une défense en profondeur, pas le mécanisme principal. Depuis le 2026-10-22,
+  `ninea` sort en clair pour le seul sujet `Agency` ([§ Amendement](#amendement-du-2026-10-22--le-ninea-dune-personne-morale-est-une-mention-légale-publique)).
 
 ### 3. Le journal est cloisonné par l'agence de son SUJET
 
@@ -365,3 +369,89 @@ temporaires, dont les archives d'export RGPD que `PurgeExpiredDataExports` suppr
 les aurait gardées 14 jours de plus que leur purge. La préproduction l'a désactivée le 2026-09-22 ;
 le plan F3 ne la crée plus pour la production.
 
+## Amendement du 2026-10-22 — le NINEA d'une personne morale est une mention légale publique
+
+Décision du porteur du 2026-10-22, sur la piste P84.01 du
+[fichier de pistes](../plans/2026-10-15-pistes-d-amelioration.md). **Cet amendement ne change aucun
+code** : l'alignement du journal (point 3 ci-dessous) revient à l'implémenteur des pistes.
+
+### Ce qui a été constaté
+
+Relu le 2026-10-22 sur `pre-dev` (`fbf2acedf`) :
+
+- Le § 1 chiffre `agency_upgrade_requests.ninea` et ne nomme `agencies.ninea` nulle part
+  (`grep -n ninea` sur cet ADR, avant cet amendement : l. 17, 45, 103, 157, 160).
+- Au passage en `standard`, le flip recopie le NINEA de la demande dans la colonne en clair
+  `agencies.ninea` quand elle est vide (`AgencyKindFlipService.php:61-66`, `:94-105`).
+- La même valeur reçoit ensuite des traitements contraires :
+  - masquée (`Masking::tail`) dans toute réponse sur la demande, hors du détail de la console
+    (`AgencyUpgradeRequestResource.php:41`) ;
+  - rendue en clair par `AgencyResource` (`:52`) ;
+  - cherchable dans `Agency::$queryFields` (`Agency.php:100`) et par la recherche globale de la
+    console (`AdminGlobalSearchService.php:127-130`) ;
+  - imprimée au pied des factures et des relevés (`pdf/invoices/default.blade.php:26`,
+    `pdf/statements/owner.blade.php:8`) ;
+  - journalisée en clair dans `attribute_changes`, puisque `ninea` est dans `Agency::AUDIT_ONLY`
+    (`Agency.php:42-46`), ce que `GovernanceAuditTest.php:129-146` éprouve ;
+  - puis rendue `[REDACTED]` à la lecture, puisque `ninea` est un segment d'identifiant de
+    `PropertyRedactor` (`:41`). Des lectures du journal, seuls les exports rendent `attribute_changes` : l'export du journal
+    (`ActivityLogExporter.php:139-143`) et l'export des données d'un utilisateur
+    (`DataExportBuilder.php:177-178`). Les listes JSON du journal ne rendent que `properties`.
+- La raison n'était écrite que dans deux commentaires (`Agency.php:36-41`, « décision du
+  2026-10-08 » ; `SharedLegalIdentifierDetector.php:25-27`, « mention légale publique ») et dans les
+  tickets : la note du porteur du 2026-10-08 dans TCK-601 (l. 39-43) et l'exclusion motivée de
+  TCK-594 (l. 256-264). ADR-0039 § 7 en fait une mention légale imprimée sur la facture (l. 286-289),
+  `models-spec.md` la décrit « NINEA (mention légale) » (l. 542).
+
+**Le caractère public du NINEA d'une entreprise est la position du porteur** (2026-10-08, reprise le
+2026-10-22). Aucun texte de droit sénégalais ne le fonde dans le dépôt ; le dépôt l'applique déjà
+(factures, relevés, et la page de l'éditeur, qui doit porter le sien : `editeur.ts:12,32`).
+
+### Décision
+
+**Le NINEA d'une agence `standard` est une mention légale publique de personne morale, et non une
+donnée personnelle sensible au sens du § 1 : il vit en clair dans `agencies.ninea`. Celui de la
+demande de passage reste chiffré et masqué le temps de la revue.**
+
+1. **`agencies.ninea` est en clair**, sans cast ni `$hidden`. Il se rend, se cherche, s'imprime et se
+   journalise comme les autres mentions légales (`legal_name`, `rccm`, `legal_address`).
+2. **`agency_upgrade_requests.ninea` ne change pas** : chiffré, `$hidden`, masqué dans toute réponse
+   hors du détail de la console, dont la lecture claire est journalisée (§ 4). Une demande est une
+   pièce de dossier, refusable, saisie avant toute vérification. Elle n'est pas encore la mention de
+   l'entreprise. La copie dans `agencies.ninea` au flip est le moment où la valeur devient publique.
+3. **Le journal le rend en clair pour le seul sujet `Agency`** : à la lecture, la clé `ninea` d'une
+   ligne dont `subject_type` est `Agency` sort de `PropertyRedactor`. Pour tout autre sujet, et pour
+   toute autre clé d'identifiant d'une ligne d'agence (`rib`, `rib_pro`…), l'expurgation reste
+   entière.
+
+### Les bornes de l'exception
+
+- **Une agence `standard`, c'est-à-dire une personne morale.** Une agence `individual` (l'hôte, une
+  personne physique) ne peut pas écrire de NINEA : les mentions légales y sont `prohibited`
+  (`AgencyUpdateRequest.php:107-125`), et le flip ne les recopie qu'en passant à `standard`.
+- **Le NINEA d'une personne physique reste chiffré** : `owner_profiles.tax_id` (« Numéro fiscal /
+  NINEA », `models-spec.md:2259`) suit le § 1 sans changement, et la pièce `ninea` d'un bailleur est
+  un document privé (`OwnerProfileController.php:37`, `PersonalDataAccessLogger.php:60`).
+- **Le RIB professionnel n'est pas concerné** : il ne vit que dans la demande, chiffré, et n'est
+  jamais recopié (`AgencyKindFlipService.php:47-49`).
+
+### Ce qu'elle change, ce qu'elle ne change pas
+
+- Elle **écrit** une exception que le code appliquait depuis TCK-594 ; elle n'expose rien de neuf
+  dans les réponses.
+- Elle **change** la lecture du journal : l'export d'un changement de NINEA d'agence montrera
+  l'ancienne et la nouvelle valeur, au lieu de `[REDACTED]`.
+- Elle **ne change pas** le § 2 pour les autres sujets : `ninea` reste un segment d'identifiant de
+  `PropertyRedactor`. Une ligne dont le sujet n'est pas une agence et qui porterait un `ninea` (un
+  bien, une demande) reste expurgée.
+
+### Ce qui la garde
+
+- Aujourd'hui : `AgencyUpdateRequest` (`prohibited` pour `individual`) borne l'exception aux
+  personnes morales ; `EncryptedColumnsAreHiddenTest` et `AgencyUpgradeRequestEncryptionTest` gardent
+  le chiffrement et le `$hidden` de la demande ; `AgencyAuditScopeTest.php:269-319` garde
+  l'expurgation de `ninea` sur un sujet `Property`, et doit rester vert.
+- À écrire avec le point 3, par l'implémenteur des pistes : un test qui exporte la ligne
+  d'un changement de NINEA d'agence et y lit la valeur en clair, à côté d'une clé `rib` de la même
+  ligne toujours `[REDACTED]`. Avec l'ablation : sans la règle par sujet, la valeur sort
+  `[REDACTED]`.

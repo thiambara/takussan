@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 
 import { StatusBadge as ConsoleStatusBadge, type StatusTone } from '@/components/console';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
-import { propertyStatusValues } from '@/lib/enums/property';
+import { propertyStatusFilterValues } from '@/lib/enums/property';
 
 /**
  * `statut du bien → ton du DS` — **l'unique table du produit pour ce vocabulaire** (TCK-472).
@@ -46,8 +46,9 @@ import { propertyStatusValues } from '@/lib/enums/property';
  *    c'est un état qui appelle un geste. Le rouge le disait faux, et le disait sous AA (cf. le
  *    docblock de `TONE_CLASSES`).
  *
- * ⚠ La table est ouverte aux trois états de MODÉRATION (`published`, `pending_review`, `rejected`)
- * qui ne sont pas des valeurs de `propertyStatusValues` : l'API les sert quand même sur ce champ.
+ * ⚠ La table est ouverte aux trois états de MODÉRATION (`published`, `pending_review`, `rejected`) :
+ * ce sont des cas de `PropertyStatus` côté API, absents de `propertyStatusValues` parce que ce ne
+ * sont pas des gestes (TCK-1268) ; `propertyStatusFilterValues` porte les onze.
  * Un statut absent de la table retombe sur `neutral` — jamais sur une absence de pastille.
  */
 export const PROPERTY_STATUS_TONE: Readonly<Record<string, StatusTone>> = {
@@ -65,18 +66,13 @@ export const PROPERTY_STATUS_TONE: Readonly<Record<string, StatusTone>> = {
 };
 
 /**
- * Les statuts que `property.status` sait nommer : les valeurs de l'enum backend, plus les trois
- * états de modération qui n'en font pas partie.
+ * Les statuts que `property.status` sait nommer : les onze cas de l'enum backend
+ * (`propertyStatusFilterValues`, TCK-1268).
  *
  * Ce Set garantit le repli d'origine (`?? status`) pour un statut inconnu. Sans lui, `t(status)`
  * rendrait le chemin de la clé au lieu de la valeur brute reçue de l'API.
  */
-const STATUTS_NOMMES = new Set<string>([
-  ...propertyStatusValues,
-  'published',
-  'pending_review',
-  'rejected',
-]);
+const STATUTS_NOMMES = new Set<string>(propertyStatusFilterValues);
 
 interface Props {
   readonly status: string | null;

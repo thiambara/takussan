@@ -223,6 +223,9 @@ export function WebhookTrailTable({
   onClose: () => void;
 }) {
   const t = useTranslations('superAdmin.integrations.webhooks');
+  // TCK-1270 (P146.05) — les quatre statuts que pose l'API (`IntegrationWebhookLog`), nommés par le
+  // dictionnaire du journal des paiements ; un statut inconnu reste brut.
+  const tStatut = useTranslations('superAdmin.payments.journal.statuses');
   const fmt = useFormatteurs();
 
   const columns: DataTableColumn<IntegrationWebhookLog>[] = [
@@ -230,7 +233,9 @@ export function WebhookTrailTable({
     {
       id: 'status',
       header: t('colStatus'),
-      cell: (log) => <Badge variant="outline">{log.status}</Badge>,
+      cell: (log) => (
+        <Badge variant="outline">{tStatut.has(log.status) ? tStatut(log.status) : log.status}</Badge>
+      ),
     },
     {
       id: 'payload',

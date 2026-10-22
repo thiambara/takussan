@@ -47,8 +47,13 @@ type View = 'list' | 'map';
 
 /** Le début des résultats — là où la pagination ramène la vue (TCK-557). */
 const ID_DES_RESULTATS = 'resultats';
-/** Les premières cellules de la grille, au-dessus de la ligne de flottaison : rendues sans état masqué (TCK-1036). */
+/** Les premières cellules de la grille dont l'image est préchargée (`priority`, TCK-1036). */
 const CARTES_PRIORITAIRES = 4;
+/**
+ * TCK-1276 (P102.02) — les premières cellules rendues sans état masqué : la première rangée de la
+ * grille la plus large (`min-[112.5rem]:grid-cols-6`). Les images préchargées restent quatre.
+ */
+const CARTES_REVELEES = 6;
 
 /**
  * Les clés que l'utilisateur peut retirer depuis cet écran. Sert uniquement à décider si un 422
@@ -620,6 +625,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
                           biens={sponsorises}
                           sizes={CARD_SIZES_SEARCH_GRID}
                           prioritaires={CARTES_PRIORITAIRES}
+                          revelees={CARTES_REVELEES}
                         />
                       ) : null}
                       {properties.map((property, i) => (
@@ -628,6 +634,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
                           property={property}
                           index={i}
                           priority={emplacementsRendus + i < CARTES_PRIORITAIRES}
+                          revelee={emplacementsRendus + i < CARTES_REVELEES}
                           sizes={CARD_SIZES_SEARCH_GRID}
                           transactionFiltree={filters.contract_type}
                           // TCK-633 lot F → TCK-635 — une place réservée porte la robe « En vedette »

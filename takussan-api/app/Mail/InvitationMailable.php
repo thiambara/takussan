@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Invitation;
+use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -40,15 +41,14 @@ class InvitationMailable extends Mailable
 
     public function content(): Content
     {
-        // Build the public accept URL on the frontend (`app.frontend_url`
-        // is the configured Next.js base, falling back to APP_URL when
-        // unset — matches the convention used by ResetPassword and other
-        // user-facing notifications).
-        $base = config('app.frontend_url') ?: config('app.url');
-        $acceptUrl = rtrim((string) $base, '/').'/invitations/accept?token='.$this->invitation->token;
+        // Le lien public d'acceptation, sur le front (P97.05, `LienFront`).
+        $acceptUrl = LienFront::vers('/invitations/accept?token='.$this->invitation->token);
 
+        // P123.01 (TCK-1247) — `markdown:`, pas `view:` : le gabarit est écrit en composants
+        // `mail::`, que seul le rendu Markdown déclare. Rendu par `view:`, il levait
+        // `No hint path defined for [mail]` : aucune invitation par e-mail ne partait.
         return new Content(
-            view: 'emails.invitation',
+            markdown: 'emails.invitation',
             with: [
                 'invitation' => $this->invitation,
                 'acceptUrl' => $acceptUrl,

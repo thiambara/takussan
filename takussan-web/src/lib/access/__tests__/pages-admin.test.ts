@@ -21,12 +21,12 @@ import {
 const SOLO: ContexteAdmin = {
   roles: ['agency_admin', 'owner', 'customer'],
   agence: { kind: 'individual' },
-  capacites: ['agency.update_billing'],
+  capacites: ['agency.update_billing', 'agency.update_kyc', 'team.assign_role'],
 };
 const STANDARD: ContexteAdmin = {
   roles: ['agency_admin', 'customer'],
   agence: { kind: 'standard' },
-  capacites: ['agency.update_billing'],
+  capacites: ['agency.update_billing', 'agency.update_kyc', 'team.assign_role'],
 };
 const SUPER_ADMIN: ContexteAdmin = { roles: ['super_admin'], agence: null, capacites: [] };
 
@@ -51,9 +51,9 @@ describe('PAGES_ADMIN', () => {
   it('suit la table de l’ADR-0064 §1 sans changer une exigence', () => {
     expect(PAGES_ADMIN.map((p) => [p.chemin, p.exige])).toEqual([
       ['/app/agency/team', { role: 'admin', agence: 'standard' }],
-      ['/app/agency/roles', { role: 'admin', agence: 'standard' }],
+      ['/app/agency/roles', { role: 'admin', agence: 'standard', capacite: 'team.assign_role' }],
       ['/app/agency', { role: 'admin' }],
-      ['/app/agency/kyc', { role: 'admin' }],
+      ['/app/agency/kyc', { role: 'admin', capacite: 'agency.update_kyc' }],
       ['/app/agency/billing', { role: 'admin', capacite: 'agency.update_billing' }],
       ['/app/agency/finances', { role: 'admin' }],
       ['/app/agency/finances/reconciliation', { role: 'admin' }],
@@ -121,6 +121,19 @@ describe('pageAccessible / accesDepuis', () => {
     const chemins = accesDepuis({ ...STANDARD, agence: { kind: null } }).chemins;
     expect(chemins).not.toContain('/app/agency/team');
     expect(chemins[0]).toBe('/app/agency');
+  });
+
+  // TCK-1274 (P148.04) — la lecture des rôles exige `team.assign_role` (`AgencyRolePolicy::viewAny`),
+  // celle du dossier KYC `agency.update_kyc` (`KycController`) : sans elles, l'API rend 403 et la
+  // page entière tombait dans son état d'erreur.
+  it('un admin au rôle personnalisé sans la capacité de lecture n’a ni les rôles ni le KYC (TCK-1274)', () => {
+    const chemins = accesDepuis({ ...STANDARD, capacites: ['agency.update_billing'] }).chemins;
+    expect(chemins).not.toContain('/app/agency/roles');
+    expect(chemins).not.toContain('/app/agency/kyc');
+    expect(chemins).toContain('/app/agency/team');
+    const avecLaLecture = accesDepuis({ ...STANDARD, capacites: ['team.assign_role', 'agency.update_kyc'] }).chemins;
+    expect(avecLaLecture).toContain('/app/agency/roles');
+    expect(avecLaLecture).toContain('/app/agency/kyc');
   });
 
   it('capacités inconnues : la page à capacité est refusée', () => {
