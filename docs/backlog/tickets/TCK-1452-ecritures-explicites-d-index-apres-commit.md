@@ -88,3 +88,10 @@ Une écriture explicite dans l'index des biens suit la même règle que l'observ
 - Avant correctif : 3 rouges (les trois transactions annulées laissent le document écrit),
   3 témoins verts.
 - Ablation : `app/` rendu à `HEAD` → les 3 mêmes rouges ; correctif remis → 6 verts.
+- Piège payé en CI (réparation de la PR #1165) : le chargement du référentiel réindexe
+  volontairement DANS sa transaction (TCK-1155), pour qu'un moteur en panne l'annule et que le
+  passage suivant rejoue. Reporté après le commit, l'échec tombait sur des noms validés :
+  `GeoReferentialRealignementTest` rouge sur ses deux tests de rejeu. `GeoReferentialLoader` et
+  `GeoReferentialSync` passent donc par `GeoReindexation::biensDansLaTransaction()`, synchrone ;
+  `biens()` garde l'écriture après commit pour la modération et les équipements. Ablation : les
+  deux appelants rendus à `biens()` → les deux mêmes rouges.
