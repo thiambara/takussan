@@ -12669,7 +12669,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Petites améliorations
 - Réf : P131.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1293
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/bookings/BookingsList.tsx:35-56`, `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:134`
 - Constat :
@@ -12678,6 +12678,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu.
 - Piste : lire et écrire l'onglet dans `?status=`, borné aux valeurs de `TABS`, comme `PaymentsTabs` le fait pour `?tab=`. Garde : un test de `BookingsList` monté sur `?status=confirmed`.
 - Mesure (2026-10-22, 1a9420e6e, mesureur) : relu `BookingsList.tsx:35` (`useState<TabKey>('pending')`, aucun `useSearchParams`), `bookings/(liste)/page.tsx` (rend `<BookingsList />` sans argument ni lecture de `searchParams`), `overview/owner/page.tsx:134` (`/app/bookings?status=pending`, seul lien `/app/bookings?` du front, `grep` hors tests). Le retour arrière n'est pas mesuré au navigateur. Le constat tient tel qu'écrit. Classement : A1, le contrat est écrit par l'appelant (l'aperçu du bailleur envoie `?status=`) et par le précédent de `PaymentsTabs` (`?tab=` borné à `TAB_VALUES`) ; lire et écrire `?status=` borné aux valeurs de `TABS` ne demande aucun choix de produit.
+- Mesure (2026-10-22, f41a867fe, implementeur) : relu `BookingsList.tsx:35` (`useState<TabKey>('pending')`, aucun `useSearchParams`) ; test neuf (`BookingsList.onglet-url.test.tsx`) monté sur `?status=confirmed` → rouge avant correctif (« En attente » active, liste `pending` lue), et changement d'onglet → aucun `router.replace`. Correctif : onglet lu dans `?status=` borné à `TABS`, écrit par `router.replace` (sans paramètre pour `pending`) → 3/3 verts ; ablation (`BookingsList.tsx` rendu à `HEAD`) → 2 rouges sur 3, remis → 3 verts. Retour arrière au navigateur non joué.
 
 ## Angle 132 — Liens portés par les SMS et WhatsApp : hôte, validité, page ouverte
 
