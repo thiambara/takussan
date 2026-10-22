@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Notifications;
 
+use App\Domain\Integrations\Providers\GenericProvider;
+use App\Domain\Integrations\Providers\IntegrationProviderRegistry;
 use App\Domain\Notifications\NotificationCode;
 use App\Services\Notifications\NotificationRenderer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,6 +47,18 @@ class IntegrationModifieeFournisseurTest extends TestCase
         );
 
         $this->assertStringContainsString('Sms Orange', $texte);
+    }
+
+    /**
+     * La cloche (`texteNotification.ts`, `libelleGeneriqueFournisseur`) ne reçoit que le code et
+     * le nomme par la règle de `GenericProvider::label()`. Un fournisseur dont le libellé s'en
+     * écarte ferait dire à la cloche un autre nom que le courriel : il faut alors l'y ajouter.
+     */
+    public function test_chaque_libelle_du_registre_suit_la_regle_que_la_cloche_applique(): void
+    {
+        foreach (app(IntegrationProviderRegistry::class)->all() as $key => $provider) {
+            $this->assertSame((new GenericProvider($key))->label(), $provider->label(), "libellé de {$key}");
+        }
     }
 
     public function test_un_fournisseur_absent_rend_le_tiret(): void

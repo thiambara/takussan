@@ -39,8 +39,11 @@ const CODES_A_ROLE_CODE = 'role_delegation.';
 
 /**
  * P164.01 (TCK-1468) — le fournisseur d'une intégration arrive CODÉ (`orange_money`) : il s'affiche
- * par son libellé. Un code sans libellé au dictionnaire suit la règle de `GenericProvider::label()`
- * de l'API (« sms_orange » → « Sms Orange »), pour que la cloche et le courriel disent le même nom.
+ * par son libellé, selon la règle des libellés de l'API (`IntegrationProvider::label()` : « wave » →
+ * « Wave », « orange_money » → « Orange Money », « sms_orange » → « Sms Orange »), que
+ * `IntegrationModifieeFournisseurTest` garde pour chaque fournisseur du registre. Les clés de
+ * fournisseur du front ne conviennent pas : `adminSettings` n'est pas servi à la cloche
+ * (frontière `(dashboard)/app`), et `payments` nomme la carte « Carte (Lemon Squeezy) ».
  */
 export type LibelleFournisseur = (code: string) => string | null;
 
@@ -98,7 +101,7 @@ export function valeursDeNotification(
     } else if (nom === 'role' && role && typeof valeur === 'string' && valeur !== '') {
       valeurs[nom] = role(valeur) ?? valeur;
     } else if (nom === 'provider' && fournisseur && typeof valeur === 'string' && valeur !== '') {
-      valeurs[nom] = fournisseur(valeur) ?? libelleGeneriqueFournisseur(valeur);
+      valeurs[nom] = fournisseur(valeur) ?? valeur;
     } else if (mois.includes(nom) && typeof valeur === 'string' && MOIS.test(valeur)) {
       valeurs[nom] = fmt.date(`${valeur}-01`, { month: 'long', year: 'numeric' });
     } else if (valeur === null || valeur === undefined || valeur === '') {
@@ -129,8 +132,6 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
   const motif: LibelleMotif = (code) => (tMotifs.has(code) ? tMotifs(code) : null);
   const tRoles = useTranslations('profile.roles');
   const libelleRole: LibelleRole = (code) => (tRoles.has(code) ? tRoles(code) : null);
-  const tFournisseurs = useTranslations('adminSettings.integrations.webhookEndpoint.providers');
-  const libelleFournisseur: LibelleFournisseur = (code) => (tFournisseurs.has(code) ? tFournisseurs(code) : null);
 
   return (notification) => {
     const repli: TexteNotification = {
@@ -141,7 +142,7 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
     if (!code || !t.has(`${code}.title`)) return repli;
 
     const role = code.startsWith(CODES_A_ROLE_CODE) ? libelleRole : undefined;
-    const fournisseur = CODES_A_FOURNISSEUR.has(code) ? libelleFournisseur : undefined;
+    const fournisseur = CODES_A_FOURNISSEUR.has(code) ? libelleGeneriqueFournisseur : undefined;
     const valeurs = valeursDeNotification(notification.params, fmt, motif, role, fournisseur, PARAMS_MOIS[code]);
     const cleCorps = nomAbsent(code, notification.params) && t.has(`${code}.body_unnamed`)
       ? `${code}.body_unnamed`
