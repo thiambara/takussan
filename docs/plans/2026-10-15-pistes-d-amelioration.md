@@ -13599,7 +13599,7 @@ les angles 25 et 110 (rapprochement), 76 (remboursement d'un payable de la plate
 
 ### Petites améliorations du rapprochement
 - Réf : P141.04
-- Statut : validé — porteur (2026-10-22) : matcher et recherche passent par un scope partagé ; l'agence d'un acompte se lit par une seule colonne, choisie après mesure
+- Statut : fait · TCK-1417
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/BookingPayment.php:82-85`, `takussan-api/app/Models/LeasePayment.php:111-114`, `takussan-api/app/Models/Invoice.php:187-190`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:76`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:313-316`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:265`
 - Constat :
@@ -13607,6 +13607,7 @@ les angles 25 et 110 (rapprochement), 76 (remboursement d'un payable de la plate
   - L'agence d'un acompte se lit par `booking.property.agency_id` dans le matcher (`ReconciliationMatcher.php:76`), la recherche (`PaymentSearchService.php:58`) et la garde d'agence de la confirmation (`ReconciliationManager.php:313-316`), mais par `bookings.agency_id` dans la clôture plateforme (`PlatformPayoutService.php:265`, `whereHas('booking', … agency_id)`) et dans `BookingPayment::auditAgencyId`. Les deux ne diffèrent que si une réservation et son bien n'ont pas la même agence (à vérifier : aucun chemin qui l'écrive n'a été cherché).
 - Piste : faire passer matcher et recherche par un scope partagé, et lire l'agence d'un acompte par une seule colonne (A3/A5 pour le scope ; le choix de colonne après mesure).
 - Mesure (2026-10-22, 11d89e33f, mesureur) : `grep -rn "whereNotReconciled\|WhereNotReconciled" app` → les trois définitions seules (`LeasePayment:111`, `Invoice:187`, `BookingPayment:82`) ; relu `ReconciliationMatcher:76` et `PaymentSearchService:58` (`booking.property.agency_id`), `PlatformPayoutService:265` (`booking.agency_id`), `BookingPayment::auditAgencyId` (`booking()->value('agency_id')`) ; les trois créations de `Booking` (`BookingService:126`, `PublicPropertyController:~994,~1028`) écrivent `'agency_id' => $property->agency_id`, aucun chemin d'écriture divergent trouvé, sans recherche exhaustive d'un changement d'agence d'un bien → le scope mort tient, l'écart de colonne reste latent. Classement : V1, le scope partagé n'a de sens que porteur de l'exclusion de P141.01 (à valider), et le choix de colonne est laissé ouvert par la Piste.
+- Mesure (2026-10-22, 1e60bb52c, implementeur) : base de développement en lecture → 499 réservations, 0 dont `bookings.agency_id` diffère de l'agence du bien ; colonne retenue `bookings.agency_id` (clôture, audit). Avant correctif, `PlatformSettledReconciliationTest` : réservation de l'agence sur un bien d'une autre agence → aucune suggestion ; réservation d'une autre agence sur un bien de l'agence → suggérée. Scope `awaitingBankCredit($agencyId)` (sur `whereNotReconciled`) partagé par matcher et recherche, garde de confirmation sur la même colonne → 7 verts ; ablation → 2 rouges ; `BankReconciliationTest`, `PaymentSearchTest` verts après que leurs fixtures posent `bookings.agency_id`.
 
 ## Angle 142 — Notifications et écouteurs en file sans `backoff` ni `failed()`, hors `CodedNotification`
 
