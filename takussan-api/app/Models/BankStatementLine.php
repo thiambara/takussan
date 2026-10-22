@@ -56,7 +56,9 @@ class BankStatementLine extends AbstractModel implements HasAuditAgency
 
     public function matchedPayment(): MorphTo
     {
-        return $this->morphTo('matched_payment');
+        // TCK-1522 (P110.02) — nommée comme sa méthode : `morphTo('matched_payment')` rangeait la
+        // relation chargée d'avance sous `matched_payment`, et `load('matchedPayment')` la laissait nulle.
+        return $this->morphTo(__FUNCTION__, 'matched_payment_type', 'matched_payment_id');
     }
 
     public function confirmedBy(): BelongsTo

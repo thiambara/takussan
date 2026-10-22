@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\SendTaskDueReminders;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\TaskPriority;
@@ -30,6 +31,27 @@ class Task extends AbstractModel
 
     /** Les états d'une tâche qui reste à faire : une tâche close n'est jamais « en retard ». */
     public const OPEN_STATUSES = [TaskStatus::Open, TaskStatus::InProgress];
+
+    /**
+     * TCK-1529 (P169.02) — la marque de {@see SendTaskDueReminders} vaut pour l'échéance
+     * et l'assigné qu'elle a rappelés : quand `due_at` ou `assigned_to_id` change, elle tombe, et la
+     * tâche est rappelée de nouveau, 24 h avant son échéance, à qui la tient alors (TCK-083).
+     */
+    public const REMINDER_MARKER = 'reminder_24h_sent_at';
+
+    protected static function booted(): void
+    {
+        static::updating(function (Task $task) {
+            if (! $task->isDirty(['due_at', 'assigned_to_id'])) {
+                return;
+            }
+            $metadata = $task->metadata ?? [];
+            if (array_key_exists(self::REMINDER_MARKER, $metadata)) {
+                unset($metadata[self::REMINDER_MARKER]);
+                $task->metadata = $metadata;
+            }
+        });
+    }
 
     /**
      * TCK-591 — la tâche entre au journal pour que la fiche client dise « tâche créée », mais

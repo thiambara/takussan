@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Http\Filters\RangeFilter;
+use App\Jobs\SendPropertyVisitReminders;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
@@ -14,6 +15,28 @@ use Spatie\QueryBuilder\AllowedFilter;
 class PropertyVisit extends AbstractModel
 {
     use HasFactory;
+
+    /**
+     * TCK-1527 (P169.01) — les marques de {@see SendPropertyVisitReminders}. Elles valent
+     * pour l'heure qu'elles ont rappelée : tout changement de `scheduled_at` les retire, quel que
+     * soit le geste (report du visiteur, déplacement par l'agence), pour que le nouveau créneau
+     * reçoive ses deux rappels, 24 h et 1 h avant (`docs/features.md`, visites).
+     */
+    public const REMINDER_MARKERS = ['reminder_24h_sent_at', 'reminder_1h_sent_at'];
+
+    protected static function booted(): void
+    {
+        static::updating(function (PropertyVisit $visit) {
+            if (! $visit->isDirty('scheduled_at')) {
+                return;
+            }
+            $metadata = $visit->metadata ?? [];
+            $sansMarques = array_diff_key($metadata, array_flip(self::REMINDER_MARKERS));
+            if ($sansMarques !== $metadata) {
+                $visit->metadata = $sansMarques;
+            }
+        });
+    }
 
     protected $fillable = [
         'property_id', 'visitor_id', 'customer_id', 'agent_id',

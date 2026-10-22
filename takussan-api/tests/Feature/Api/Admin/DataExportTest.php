@@ -43,6 +43,21 @@ class DataExportTest extends TestCase
      * et `ready` : une demande en échec (ou déjà expirée) n'a rien rendu et ne bloque pas la
      * suivante.
      */
+    /**
+     * TCK-1519 (P73.03) — l'export prêt ne rend plus `download_url` : le front ne le lisait pas,
+     * il télécharge par son relais `data-exports/[id]/download`, et le champ portait l'hôte de l'API.
+     */
+    public function test_l_export_pret_ne_rend_pas_de_download_url(): void
+    {
+        Storage::fake('local');
+        $this->actingAsRole('customer');
+
+        $this->postJson('/api/me/data-exports')
+            ->assertAccepted()
+            ->assertJsonPath('data.status', 'ready')
+            ->assertJsonMissingPath('data.download_url');
+    }
+
     public function test_seules_les_demandes_en_cours_ou_pretes_comptent_dans_la_limite_de_24_h(): void
     {
         Storage::fake('local');

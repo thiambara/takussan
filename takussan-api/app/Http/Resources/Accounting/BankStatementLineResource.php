@@ -38,6 +38,13 @@ class BankStatementLineResource extends BaseResource
                 ? (self::PAYMENT_TYPE_MAP[$this->matched_payment_type] ?? $this->matched_payment_type)
                 : null,
             'matched_payment_id' => $this->matched_payment_id,
+            // TCK-1522 (P110.02) — le statut du payable rapproché ou suggéré, relu à chaque lecture :
+            // un encaissement remboursé après rapprochement garde sa ligne, et la ligne le dit.
+            'matched_payment_status' => $this->whenLoaded(
+                'matchedPayment',
+                fn () => $this->enumValue($this->matchedPayment?->status),
+                null,
+            ),
             'match_confidence' => $this->match_confidence,
             'confirmed_at' => $this->iso($this->confirmed_at),
             'confirmed_by' => $this->confirmed_by,

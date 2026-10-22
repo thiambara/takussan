@@ -39,7 +39,6 @@ function unExport(id: number, status: DataExportStatus): DataExport {
     ready_at: status === 'ready' ? '2026-09-23T10:20:00Z' : null,
     expires_at: status === 'ready' ? '2026-09-30T10:20:00Z' : null,
     last_downloaded_at: null,
-    download_url: null,
   };
 }
 
