@@ -10700,7 +10700,7 @@ déjà relevée).*
 
 ### Le logo d'agence n'apparaît sur aucun PDF rendu par dompdf : seul le nom de l'agence s'imprime à sa place
 - Réf : P109.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Pdf/DocumentPdfService.php:136-156`, `takussan-api/resources/views/pdf/layouts/base.blade.php:91-92`, `takussan-api/vendor/spatie/laravel-pdf/config/laravel-pdf.php:108`, `takussan-api/app/Models/Agency.php:158`, `takussan-api/tests/Feature/Services/DocumentPdfServiceTest.php:126-150`
 - Constat :
@@ -10712,10 +10712,11 @@ déjà relevée).*
   - Le seul test du logo (`DocumentPdfServiceTest.php:126-150`) lit le HTML de la vue, jamais le PDF : il reste vert quel que soit le moteur (lu).
 - Établi comment : lecture du chemin, puis rendu mesuré sur la base de développement, sans écriture.
 - Piste : ne pas ouvrir `is_remote_enabled` (le moteur irait chercher toute URL du HTML, et l'original du logo peut peser 10 Mo, `MediaUploadRequest.php:14`, sans conversion déclarée sur `Agency`), mais embarquer le logo en URI `data:` par `PdfImageEmbedder::dataUri()` lu depuis le disque, comme les photos de TCK-538. Garde : un test qui rend un vrai PDF sous dompdf pour une agence à logo et compte les objets image (ou intercepte l'URI passée au gabarit et vérifie le préfixe `data:`), rouge sur le code actuel.
+- Mesure (2026-10-22, 6d216605a, mesureur) : relu `DocumentPdfService::prepareData()` (`getFirstMediaUrl('logo')` passé tel quel), `base.blade.php` (`<img src="{{ $agency_logo_url }}" alt=…>`, contrat du gabarit l. 9 : « rendered in the header »), `is_remote_enabled` à `env('LARAVEL_PDF_DOMPDF_REMOTE_ENABLED', false)` dans la configuration du paquet, aucun `config/laravel-pdf.php` ; `git log` des deux fichiers : rien depuis TCK-672 ; rendu par `tinker` en mémoire du gabarit commun avec `prepareData()` de l'agence #1 (logo `http://localhost:8002/storage/1/….png`) → 0 objet `/Subtype /Image`, avertissement « Remote file requested, but remote file download is disabled », et le texte `alt` « Dakar Immo » en 18 pt à la place du logo ; une URI `data:` du même moteur rend l'image. Classement : A1, le gabarit écrit que le logo s'imprime en en-tête et `PdfImageEmbedder::dataUri()` (TCK-538) existe déjà pour lire un média par son disque : passer au gabarit l'URI `data:` du logo, sans ouvrir `is_remote_enabled`, ne demande aucun choix de produit.
 
 ### Le pied de page de tout PDF rendu par dompdf imprime « Page 1 sur 0 »
 - Réf : P109.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux options, dont le retrait d'un texte visible
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/resources/views/pdf/layouts/base.blade.php:84-85,104-107`, `takussan-api/tests/Feature/Services/DocumentPdfServiceTest.php:121-123`
 - Constat :
@@ -10724,10 +10725,11 @@ déjà relevée).*
   - Le test du gabarit vérifie que la classe `page-total` est dans le HTML (`DocumentPdfServiceTest.php:123`), pas ce que le PDF imprime (lu).
 - Établi comment : rendu mesuré par script, hors du dépôt.
 - Piste : écrire le total par le canevas de dompdf (`page_text` avec `{PAGE_COUNT}`, que `Canvas.php:179` remplace), ce qui demande d'atteindre le canevas depuis le pilote de `spatie/laravel-pdf`, ou retirer « sur N » ; à trancher selon le moteur retenu pour la production. Garde : un test qui rend un document de deux pages sous dompdf et lit « sur 2 ».
+- Mesure (2026-10-22, 6d216605a, mesureur) : relu `base.blade.php` (`.page-total:before { content: counter(pages); }`, « Page … sur … ») ; rendu par `tinker` du vrai gabarit commun sous dompdf 3, 10 pages, police forcée à Helvetica pour lire le flux non compressé → « Page 1 sur 0 », « Page 2 sur 0 », « Page 3 sur 0 » : `counter(page)` compté, `counter(pages)` à 0 ; le « à vérifier sur un gabarit réel » du constat est levé. Classement : V7, la piste laisse à trancher entre le total écrit par le canevas de dompdf (à atteindre depuis le pilote de `spatie/laravel-pdf`) et le retrait de « sur N », selon le moteur retenu pour la production.
 
 ### L'en-tête et le pied de page communs sont mis en page en flexbox, que dompdf rend en blocs empilés
 - Réf : P109.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : mise en page des actes, à juger sur un rendu
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/resources/views/pdf/layouts/base.blade.php:34-47,72-83`
 - Constat :
@@ -10736,10 +10738,11 @@ déjà relevée).*
   - `.env.example:256` dit l'écart de rendu « avec la production » assumé ; le plan pose pourtant `dompdf` en préproduction (voir l'en-tête de l'angle) : le gabarit est écrit pour un moteur navigateur que ni le développement, ni les tests, ni la préproduction prévue n'emploient.
 - Établi comment : lecture de dompdf, avertissements mesurés.
 - Piste : réécrire l'en-tête et le pied en tableau à deux cellules (ce que dompdf et un navigateur rendent pareil), après avoir regardé un PDF rendu. Pas de garde automatique simple : un rendu de référence relu une fois.
+- Mesure (2026-10-22, 6d216605a, mesureur) : relu `base.blade.php` (`display: flex; justify-content: space-between` sur l'en-tête et le pied) ; même rendu `tinker` que P109.02 → avertissements « 'justify_content' / 'align_items' / 'box_sizing' / 'font_variant_numeric' is not a recognized CSS property », et positions lues dans le flux : nom d'agence en x 51 / y 757, badge « QUITTANCE » en x 60 / y 732, soit sous le nom et à gauche ; pied : note en x 51, « Page » en x 260, à la suite. La conséquence « à vérifier » du constat est mesurée. Classement : V7, réécrire l'en-tête et le pied des actes est une mise en page que la piste veut juger sur un PDF rendu, sans garde automatique.
 
 ### Petites améliorations des images des PDF
 - Réf : P109.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : figer ou non le logo d'un état des lieux signé
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/InventorySignRequest.php:21-25`, `takussan-api/database/factories/InventoryFactory.php:53,57`, `docs/configuration.md:68,350`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:185-225`
 - Constat :
@@ -10748,3 +10751,4 @@ déjà relevée).*
   - **`docs/configuration.md`** prescrit `LARAVEL_PDF_DRIVER=cloudflare` (§ 3.11, l. 350) quand `.env.example`, `.env.docker`, `phpunit.xml` et le plan d'auto-hébergement disent `dompdf` (lu).
   - **État des lieux recomposé au téléchargement** (`InventoryController::downloadPdf`, lu) : une fois le logo embarqué (P109.01), le PDF d'un état des lieux signé changera avec le logo courant de l'agence ; l'empreinte imprimée ne couvre pas le logo (à vérifier dans `InventorySignatureService::traceabilityHash`).
 - Piste : corriger le commentaire (A6), donner à la fabrique un vrai PNG d'un pixel, aligner `docs/configuration.md` sur le pilote déclaré, et décider si le logo d'un état des lieux signé se fige.
+- Mesure (2026-10-22, 6d216605a, mesureur) : rendu dompdf par `tinker`, `is_remote_enabled=false` → `/tmp/…/x.png` et `file:///tmp/…/x.png` refusés (« Permission denied. The file could not be found under the paths specified by Options::chroot »), un PNG en `data:` rendu, et `data:image/png;base64,`+`base64_encode('tenant-sig')` (`InventoryFactory.php:53,57`) → 0 image, « Image type unknown » ; le commentaire d'`InventorySignRequest.php:25` est toujours là ; `docs/configuration.md:350` dit toujours `LARAVEL_PDF_DRIVER=cloudflare` (et l. 26 « driver `cloudflare` par défaut ») contre `dompdf` dans `.env.example:261` et `phpunit.xml:106` ; `InventorySignatureService::frozenTraceabilityHash()` ne couvre ni l'agence ni son logo (lu) — le « à vérifier » est levé. Classement : V7 pour la seule décision de figer le logo d'un état des lieux signé ; le commentaire et `docs/configuration.md` (A6) et la fabrique (A5) se font sans choix et peuvent partir avec la décision.
