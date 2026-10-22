@@ -9732,7 +9732,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### La console super-admin renvoie toujours vers son accueil après connexion : le lien de la demande de passage en agence est perdu
 - Réf : P97.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1241
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(super-admin)/super-admin/layout.tsx:41-50`, `takussan-api/app/Notifications/AgencyUpgradeRequestSubmittedNotification.php:93-98`, `takussan-api/app/Domain/Notifications/NotificationTarget.php:47`
 - Constat :
@@ -9742,6 +9742,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Établi comment : lu.
 - Piste : la mise en page ne connaît pas le chemin demandé (une mise en page Next ne reçoit pas `pathname`) : soit garder `/super-admin` dans le proxy comme `/app` (qui garde chemin et requête, voir P97.02), soit transmettre le chemin par un en-tête posé par le proxy. Garde : un test du proxy ou de la mise en page sur `/super-admin/agency-upgrade-requests/12`.
 - Mesure (2026-10-21, 0e45ad7a0, mesureur) : relu `(super-admin)/super-admin/layout.tsx:41-50` (`redirect('/auth/login?redirect=%2Fsuper-admin')` littéral, malgré le commentaire TCK-166) ; même test Vitest temporaire : `proxy()` sur `/super-admin/agency-upgrade-requests/12` sans cookie → 200 sans `location`, le proxy laisse passer et la mise en page décide seule → le constat tient. Classement : V2, déplacer la garde de la console dans le proxy ou y poser un en-tête touche la garde d'authentification de l'opérateur, qui lit un jeton distinct pendant une impersonation, et la piste laisse le choix entre deux mécanismes.
+- Mesure (2026-10-22, a8174784f, implementeur) : relu `(super-admin)/super-admin/layout.tsx:49` (`redirect('/auth/login?redirect=%2Fsuper-admin')` littéral) et `proxy.ts` (seul `/app` gardé) ; les cas neufs de `proxy.test.ts` sur `/super-admin/agency-upgrade-requests/12`, `/super-admin/kyc`, `/super-admin` et une requête à deux paramètres rendaient 200 sans `location` (4 rouges) → voie retenue : la garde du proxy, sur le même cookie que la mise en page, `redirect` = chemin + requête, 45/45 ; ablation → 4 rouges, remis → vert.
 
 ### La cible `lead` promet d'ouvrir la demande, et aucune page ne lit `?lead=`
 - Réf : P97.04
@@ -9760,7 +9761,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### La garde des liens de notification ne lit ni les liens écrits à la main des courriels, ni les paramètres de requête
 - Réf : P97.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1245 — reste : le branchement de `scripts/check-mail-button-paths.mjs` dans `repo-ci.yml` (chemin fermé à l'implémenteur), les lecteurs de `app.frontend_url` hors courriels (`return_url` des pilotes Wave et Orange Money, `IcsCalendarRenderer`, `ErasedAccountListings`, sans repli) et les liens du corps Markdown des courriels, que le test ne lit pas
 - Gravité : 🟠 risque ou dette
 - Où : `scripts/check-notification-target-paths.mjs`, `takussan-api/app/Notifications/*.php` (`toMail()`), `takussan-api/app/Mail/InvitationMailable.php:47-48`, `takussan-api/resources/views/emails/notifications/notification-digest.blade.php:17`
 - Constat :
@@ -9771,10 +9772,11 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Établi comment : lu et mesuré.
 - Piste : une seule fonction de l'API pour bâtir un lien du front (base, chemin, requête), et un test d'architecture qui rend chaque `toMail()` sur un destinataire de fabrique et vérifie que `actionUrl` commence par `app.frontend_url` et que son chemin est une page du front (même résolution que la garde actuelle).
 - Mesure (2026-10-21, 0e45ad7a0, mesureur) : `node scripts/check-notification-target-paths.mjs --report` → « 20 cibles de notification, chacune mène à une page du front » (seul `PATHS` est lu) ; `grep -rln actionUrl takussan-api/tests` → les quatre mêmes fichiers ; `grep -rn frontend_url app/Notifications app/Mail resources/views` → les trois écritures du constat coexistent, `config/app.php:57` définit toujours la clé → le constat tient. Classement : A5, une garde neuve sans seuil (chaque `toMail()` rendu sur un destinataire de fabrique, `actionUrl` sur l'hôte `app.frontend_url` et chemin résolu en page du front), la fonction commune reprenant la forme majoritaire `?:` sans changer de lien ; elle rougira tant que P97.01 n'est pas corrigé, et se livre donc avec lui.
+- Mesure (2026-10-22, a8174784f, implementeur) : `grep -rn frontend_url app/Notifications app/Mail resources/views` → les trois écritures du constat ; le test neuf `LiensDesCourrielsTest` rend les 16 `toMail()` à bouton (dont `VerifyEmail`) sur une base `app.frontend_url` à barre finale : `AccountDeletionRequested` et `AccountDeletionReminder` rendaient `…//app/profile` (2 rouges) → `App\Support\LienFront` (`frontend_url ?: app.url`, sans barre finale) employée partout dans les courriels, chemin du bouton déclaré par le test et résolu en `page.tsx` par la garde neuve `scripts/check-mail-button-paths.mjs`, inventaire des classes à `->action(`, 19/19 ; ablation des deux classes et du repli de `CodedNotification` → 3 rouges, remis → vert.
 
 ### Le désabonnement du résumé est un GET qui écrit, signé sans échéance, sans en-tête `List-Unsubscribe`
 - Réf : P97.06
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1243
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/web.php:12-14`, `takussan-api/app/Http/Controllers/NotificationUnsubscribeController.php:20-31`, `takussan-api/app/Jobs/Notifications/BuildUserDigestJob.php:59`, `takussan-api/app/Mail/NotificationDigestMail.php`
 - Constat :
@@ -9785,6 +9787,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 - Piste : aligner le résumé sur le modèle des alertes : page du front qui confirme, `POST` signé avec échéance, en-têtes `List-Unsubscribe` et `List-Unsubscribe-Post`. Garde : un test qui exige qu'un `GET` du lien n'écrive rien.
 - Mesure (2026-10-21, 0e45ad7a0, mesureur) : relu `routes/web.php:11-14` (`Route::get`, `signed:relative`) et `NotificationUnsubscribeController.php:20-31` (`RelativeSignedUrl::forever`, `email_frequency` à `off` dès le GET) ; `grep -n List-Unsub app/Mail/NotificationDigestMail.php app/Jobs/Notifications/BuildUserDigestJob.php` → rien ; `grep -rn unsubscribed takussan-web/src` → rien → le constat tient ; l'effet des analyseurs de liens reste non mesuré. Classement : V7, la piste ajoute une page de confirmation visible et change le parcours (POST, échéance du lien), que l'ADR-0050 ne prescrit que pour les alertes de recherche.
 - Mesure (2026-10-21, b626b83ae, delegue) : relu le constat, la `Mesure` du mesureur et ADR-0050 l. 108 et 147-148 (alertes : `List-Unsubscribe` + `List-Unsubscribe-Post` RFC 8058, URL signée relative valable 60 jours appelée en `POST` depuis une page à un bouton) ; `grep -n "porteur ("` du fichier de pistes ne rend aucune décision sur le désabonnement du résumé → le modèle existe par écrit, mais pour les seules alertes. Recommandation : aligner le résumé sur ADR-0050 (page publique de confirmation à un bouton, `POST` signé relatif valable 60 jours, en-têtes `List-Unsubscribe` et `List-Unsubscribe-Post`, garde : un `GET` du lien n'écrit rien), parce que c'est le seul modèle écrit du dépôt et qu'il ferme l'écriture par analyseur de liens ; non validé par délégation : page et parcours neufs (V7 non mineur), et l'échéance d'un lien signé qui agit sans session pour un utilisateur touche V2 (réservé) ; manque : l'accord du porteur sur la page et la durée du lien, et le sort des liens `forever` déjà envoyés (les laisser rediriger vers la page de confirmation sans écrire).
+- Mesure (2026-10-22, a8174784f, implementeur) : relu `NotificationUnsubscribeController.php:27` (`email_frequency` à `off` dès le `GET`, `RelativeSignedUrl::forever`) ; le test neuf `NotificationDigestMailTest::test_le_get_du_lien_deja_envoye_n_ecrit_rien_et_mene_a_la_confirmation` rendait `off` après un `GET` → `POST /api/notifications/digest/unsubscribe/{user}` signé relatif 60 jours (ADR-0050), `GET` du lien déjà envoyé redirigé sans écrire vers `/[locale]/notifications/unsubscribe` (page à un bouton), `List-Unsubscribe` et `List-Unsubscribe-Post` sur le résumé ; 18/18 API, 9/9 front ; ablation de l'écriture et de l'en-tête → 2 rouges, du chemin d'API côté front → 1 rouge, remis → vert.
 
 ### Petites améliorations
 - Réf : P97.07
@@ -11900,7 +11903,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Le courriel d'invitation ne se rend pas : toute invitation par e-mail répond 500 et rien ne part, rappels compris
 - Réf : P123.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1247
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Mail/InvitationMailable.php:49-58`, `takussan-api/resources/views/emails/invitation.blade.php:1`, `:10`, `takussan-api/app/Services/Invitation/InvitationService.php:248`, `:951-960`, `:522-538`, `takussan-api/tests/Feature/Invitation/InvitationDeliveredAfterCommitTest.php`
 - Constat :
@@ -11912,6 +11915,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lecture, puis le test temporaire.
 - Piste : rendre le gabarit par `markdown: 'emails.invitation'` (ou retirer les composants `mail::`). Garde : un test qui envoie une invitation et un rappel sous le mailer `array`, sans `Mail::fake()`, et lit le courriel rendu (sujet, lien d'acceptation).
 - Mesure (2026-10-22, 86138895e, mesureur) : relu `InvitationMailable::content()` (`view: 'emails.invitation'`, inchangé depuis TCK-249 : `git log` sur le Mailable et le gabarit ne rend que 968e7ffef) et le gabarit (`@component('mail::message')`, `mail::button`) ; test temporaire retiré (charge 1,90 / 2,08 / 2,02 sur 8 cœurs) : mailer `array` sans `Mail::fake()`, `POST /api/agencies/{id}/agents/invite` → 500 `No hint path defined for [mail]`, 1 invitation écrite, 0 courriel ; `(new InvitationMailable($inv))->render()` → `ViewException`, même message ; `remindPending()` à J+3 → `ViewException`, `last_reminded_at` nul ; sous le transport qui lève de `InvitationDeliveredAfterCommitTest`, `withoutExceptionHandling()` → `ViewException`, et non `TransportException` → le constat tient en entier, y compris la partie « à vérifier » sur ce test vert pour la mauvaise raison. Classement : A1, le gabarit est écrit en composants Markdown et `InvitationService::deliver()` a pour contrat d'envoyer ce courriel ; passer à `markdown: 'emails.invitation'` ne demande aucun choix.
+- Mesure (2026-10-22, a8174784f, implementeur) : relu `InvitationMailable::content()` (`view: 'emails.invitation'`) ; le test neuf `InvitationMailRenduTest` (mailer `array`, sans `Mail::fake()`) : invitation d'agent par l'API, rappel `remindPending()` à J+4 et rendu direct → 3 rouges `No hint path defined for [mail]` → `markdown: 'emails.invitation'`, 3/3, le courriel porte le lien d'acceptation et le rappel pose `last_reminded_at` ; ablation → 3 rouges, remis → vert ; `InvitationDeliveredAfterCommitTest` reste vert (5/5), par la `TransportException` qu'il simule.
 
 ### Accepter une invitation est impossible tant que le courriel est en panne : la notification de l'invitant part dans la transaction
 - Réf : P123.02
@@ -11944,7 +11948,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Les deux tâches horaires des invitations s'arrêtent au premier courriel qui échoue
 - Réf : P123.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1251 — reste : la mise en file d'`InvitationExpiredNotification`, que la piste propose en plus du rattrapage par invitation
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:485-512`, `:522-538`, `takussan-api/app/Notifications/InvitationExpiredNotification.php:15`, `:24`, `takussan-api/routes/console.php:109-110`
 - Constat :
@@ -11954,10 +11958,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lecture, puis le test temporaire (pour `expire()`).
 - Piste : mettre `InvitationExpiredNotification` en file ; dans les deux boucles, rattraper l'échec d'un envoi par invitation (`report()`, puis continuer). Garde : un test par tâche sous un transport qui lève, qui exige toutes les invitations traitées.
 - Mesure (2026-10-22, 86138895e, mesureur) : relu `expire()` (transaction par invitation puis `notify()` synchrone, sans `try`, l. 495-509) et `remindPending()` (envoi avant `last_reminded_at`, sans `try`, l. 535-538) ; test temporaire retiré : trois invitations échues, transport qui lève, `expire()` → `TransportException`, statuts `expired,sent,sent` ; `remindPending()` lève à la première invitation (ici par la `ViewException` de P123.01) et la boucle s'arrête → le constat tient, la partie rappels est établie pour le mécanisme, pas pour une adresse refusée. Classement : A1, le docblock d'`expire()` promet de prévenir l'invitant de chaque expiration et `routes/console.php` veut ces tâches idempotentes ; mettre `InvitationExpiredNotification` en file et rattraper l'échec par invitation (`report()`, puis continuer) ne demande aucun choix de produit.
+- Mesure (2026-10-22, a8174784f, implementeur) : relu `InvitationService::expire()` et `remindPending()` (envoi sans `try`) ; le test neuf `InvitationTachesEnPanneTest` (transport qui lève et compte les tentatives) : trois invitations échues et trois rappels dus → `TransportException` dès la première (2 rouges) → échec rapporté par invitation, boucle poursuivie, rappel en échec non marqué ; 3 expirations et 3 tentatives de chaque côté, 2/2 ; ablation → 2 rouges, remis → vert.
 
 ### `dashboard:check-alerts` envoie l'alerte avant de la marquer : un courriel qui échoue arrête la tâche et fait renvoyer la cloche
 - Réf : P123.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1249
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/CheckThresholdAlertsCommand.php:59-73`, `takussan-api/app/Notifications/ThresholdAlertTriggered.php:18`, `:31-44`
 - Constat :
@@ -11966,6 +11971,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lu.
 - Piste : poser `last_triggered_at` avant l'envoi, ou mettre la notification en file ; rattraper l'échec par alerte. Garde : un test sous un transport qui lève, qui exige une seule notification `database` après deux passages et toutes les alertes jugées.
 - Mesure (2026-10-22, 86138895e, mesureur) : relu `CheckThresholdAlertsCommand` (`Notification::send()` l. 65, avant `last_triggered_at` l. 67-70, sans `try`) et `ThresholdAlertTriggered` (`database` et `mail`, sans `ShouldQueue`) ; test temporaire retiré : deux agences, une alerte chacune, transport qui lève, deux passages de `dashboard:check-alerts` → `TransportException` à chaque passage, 1 puis 2 lignes `app_notifications`, `last_triggered_at` nul sur les deux alertes → la partie « à vérifier » tient : la cloche est récrite à chaque passage et la seconde agence n'est jamais jugée. Classement : A1, `cooldown_hours` de l'alerte écrit déjà « un déclenchement par fenêtre » ; poser `last_triggered_at` avant l'envoi et rattraper l'échec par alerte (`report()`, puis continuer) ne demande aucun choix.
+- Mesure (2026-10-22, a8174784f, implementeur) : relu `CheckThresholdAlertsCommand.php:64-70` (`Notification::send()` avant `last_triggered_at`, sans `try`) ; le test neuf `ThresholdAlertTest::test_un_courriel_qui_echoue_n_arrete_pas_la_tache_ni_ne_fait_recrire_la_cloche` (deux agences, transport qui lève, deux passages) levait `TransportException` → alerte marquée avant l'envoi, envoi rattrapé par `report()`, 14/14 ; ablation du `try` → 1 rouge, remis → vert.
 
 ### Petites améliorations
 - Réf : P123.06

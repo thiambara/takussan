@@ -14,6 +14,7 @@ use App\Services\Media\PublicPhotoUrl;
 use App\Services\Media\WatermarkRequirement;
 use App\Services\Notifications\PreferenceResolver;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
+use App\Support\LienFront;
 use App\Support\MarkdownText;
 use App\Support\SavedSearchCriteria;
 use Illuminate\Bus\Queueable;
@@ -192,7 +193,7 @@ class SavedSearchMatchesNotification extends Notification implements SupportsWha
 
     private function frontend(string $path): string
     {
-        return rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/').$path;
+        return LienFront::base().$path;
     }
 
     /** Le lien « voir les N résultats » : la liste publique, sur les mêmes critères. */

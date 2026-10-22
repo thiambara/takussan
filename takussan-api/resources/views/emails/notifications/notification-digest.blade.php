@@ -14,7 +14,7 @@
 @endforeach
 
 @if ($truncated)
-@component('mail::button', ['url' => config('app.frontend_url', config('app.url')) . '/app/notifications'])
+@component('mail::button', ['url' => \App\Support\LienFront::vers('/app/notifications')])
 {{ __('notifications.digest.see_all') }}
 @endcomponent
 @endif

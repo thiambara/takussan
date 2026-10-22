@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\NotificationType;
 use App\Notifications\Channels\AppDatabaseChannel;
+use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -69,7 +70,7 @@ class AgencyUpgradeApprovedNotification extends Notification implements ShouldQu
 
     protected function dashboardUrl(): string
     {
-        $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+        $frontend = LienFront::base();
 
         return $frontend.'/app';
     }

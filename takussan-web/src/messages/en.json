@@ -4615,7 +4615,16 @@
       "invalidTitle": "This link no longer works",
       "invalidBody": "It is incomplete, has already been used or has expired. You can make a new request from a search.",
       "error": "The operation did not go through. Please try again.",
-      "backToSearch": "Search properties"
+      "backToSearch": "Search properties",
+      "digest": {
+        "metaTitle": "Unsubscribe from the digest",
+        "title": "Stop receiving the email digest",
+        "body": "The email digest of your notifications will stop. Your notifications stay in your account.",
+        "button": "Unsubscribe",
+        "working": "Unsubscribing…",
+        "doneTitle": "Done",
+        "doneBody": "You will no longer receive the email digest. You can turn it back on in your notification preferences."
+      }
     }
   },
   "wizardDrafts": {

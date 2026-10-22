@@ -366,8 +366,14 @@ const FICHIERS_HORS_JETONS = 5;
  * `--muted-foreground` sur `--background` : 5,6:1). Relevé en filtrant la liste des encres
  * inverses sur ce fichier ; son titre (`text-foreground`) n’en ajoute pas. C’est la seule
  * différence avec `origin/pre-dev`, où le test est vert à 264.
+ *
+ * **265 → 266 le 2026-10-22 (TCK-1243, P97.06).** La page neuve `/notifications/unsubscribe`
+ * entre dans la surface avec `notifications/DigestUnsubscribeAction.tsx`, qui apporte 1 entrée :
+ * le texte d'explication (`text-muted-foreground`, ligne 78) sur la carte `bg-card` posée par son
+ * parent. Relevé en filtrant la liste des encres inverses sur les deux fichiers neufs ; c'est la
+ * seule différence avec `origin/pre-dev`, où le test est vert à 265.
  */
-const ENCRES_INVERSES = 265;
+const ENCRES_INVERSES = 266;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

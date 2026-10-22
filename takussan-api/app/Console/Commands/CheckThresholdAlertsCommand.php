@@ -9,6 +9,7 @@ use App\Notifications\ThresholdAlertTriggered;
 use App\Services\Dashboard\KpiResolver;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Notification;
+use Throwable;
 
 /**
  * TCK-032 P3 — evaluates all enabled threshold alerts and notifies the
@@ -61,16 +62,24 @@ class CheckThresholdAlertsCommand extends Command
                     ->whereHas('agencyAdminProfiles', fn ($qq) => $qq->active()->where('agency_id', $agency->id))
                     ->get();
 
-                if ($recipients->isNotEmpty()) {
-                    Notification::send($recipients, new ThresholdAlertTriggered($alert, $value));
-                }
-
+                // P123.05 (TCK-1249) — marquée AVANT l'envoi, et l'échec rattrapé par alerte : un
+                // courriel qui levait laissait la cloche écrite et `last_triggered_at` nul, arrêtait
+                // la boucle sur les agences suivantes, et le passage horaire suivant récrivait la
+                // cloche. `cooldown_hours` promet un déclenchement par fenêtre, envoi réussi ou non.
                 $alert->forceFill([
                     'last_triggered_at' => now(),
                     'last_value' => $value,
                 ])->save();
 
                 $fired++;
+
+                if ($recipients->isNotEmpty()) {
+                    try {
+                        Notification::send($recipients, new ThresholdAlertTriggered($alert, $value));
+                    } catch (Throwable $e) {
+                        report($e);
+                    }
+                }
             }
         }
 

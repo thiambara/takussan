@@ -8,7 +8,9 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// TCK-103 — One-click unsubscribe from digest emails (signed URL, no auth required).
+// TCK-103 — le lien des résumés déjà envoyés (signé sans échéance, sans session). P97.06 (TCK-1243) :
+// il n'écrit plus rien et mène à la page du front qui confirme ; le désabonnement est un `POST`
+// (`notifications.digest.unsubscribe`, routes/api/notifications.php).
 Route::get('notifications/unsubscribe/{user}', NotificationUnsubscribeController::class)
     ->name('notifications.unsubscribe')
     ->middleware('signed:relative');

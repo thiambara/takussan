@@ -86,8 +86,15 @@ function router(request: NextRequest): NextResponse {
   // il rend le 404 du routeur (son segment reste hors du schéma de langue, `SEGMENTS_NON_LOCALISES`,
   // sans quoi il partirait en 307 vers une URL préfixée d'une langue avant de rendre ce 404).
   const isAppPath = /^\/app(?:\/|$)/.test(pathname);
+  // P97.03 (TCK-1241) — la console aussi : sa mise en page ne connaît pas le chemin demandé (un
+  // layout Next ne reçoit pas `pathname`) et renvoyait vers la destination FIXE `/super-admin`. Le
+  // lien d'un courriel (`/super-admin/agency-upgrade-requests/{id}`) ouvert hors session perdait
+  // sa demande. Le test est celui de la mise en page (`getOperatorToken` lit ce même cookie, même
+  // pendant une impersonation) : ce qui entre ne change pas, seul le chemin de retour survit. La
+  // mise en page garde son propre refus, et juge toujours l'opérateur.
+  const isConsolePath = /^\/super-admin(?:\/|$)/.test(pathname);
 
-  if (isAppPath && !token) {
+  if ((isAppPath || isConsolePath) && !token) {
     const loginUrl = new URL('/auth/login', request.url);
     // P97.02 (TCK-1121) — la chaîne de requête fait partie de la destination : le lien d'un
     // courriel (`/app/messages?conversation=42`) ouvert hors session la perdait. Le retour reste
