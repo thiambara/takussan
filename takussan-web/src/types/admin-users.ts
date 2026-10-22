@@ -53,7 +53,7 @@ export type AdminAgencyUsersResponse = {
   };
 };
 
-export type AdminUserStatusFilter = '' | 'active' | 'inactive' | 'banned';
+export type AdminUserStatusFilter = '' | 'active' | 'inactive' | 'blocked';
 export type AdminUserRoleFilter =
   | ''
   | 'agency_admin'

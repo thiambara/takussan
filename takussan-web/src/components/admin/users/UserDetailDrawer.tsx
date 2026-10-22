@@ -54,7 +54,7 @@ interface UserDetailDrawerProps {
 
 /** TCK-292 — libellés résolus sous `admin.users.status.*` ; une valeur inconnue
  * du dictionnaire retombe sur la valeur brute de l'API, comme auparavant. */
-const KNOWN_STATUSES = new Set(['active', 'inactive', 'banned']);
+const KNOWN_STATUSES = new Set(['active', 'inactive', 'blocked']);
 
 /** TCK-292 — la locale ACTIVE, plus `fr-FR` en dur (options inchangées). */
 function formatDate(value: string | null, locale: Locale): string {

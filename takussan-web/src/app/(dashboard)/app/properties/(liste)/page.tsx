@@ -131,11 +131,26 @@ export default async function Page({
   const currentStatus = filters.status;
   const includeArchived = filters.include_archived === '1';
 
+  // TCK-1289 (P131.02) — chaque tuile garde la portée sous laquelle son nombre est compté
+  // (`only_mine=1` ou l'agent choisi) : sous « mes biens », elle ouvrait les biens de toute
+  // l'agence.
+  const userIdChoisi = asString(params.user_id);
+  const portee =
+    asString(params.only_mine) === '1'
+      ? 'only_mine=1'
+      : userIdChoisi
+        ? `user_id=${encodeURIComponent(userIdChoisi)}`
+        : undefined;
+  const lienTuile = (requete?: string) => {
+    const parties = [requete, portee].filter(Boolean);
+    return parties.length > 0 ? `/app/properties?${parties.join('&')}` : '/app/properties';
+  };
+
   const kpiTiles = [
     {
       label: 'Total',
       value: totalCount,
-      href: '/app/properties',
+      href: lienTuile(),
       tone: 'neutral' as const,
       active:
         !currentStatus &&
@@ -146,21 +161,22 @@ export default async function Page({
     {
       label: t('published'),
       value: publishedCount,
-      href: '/app/properties?visibility=public',
+      href: lienTuile('visibility=public'),
       tone: 'accent' as const,
       active: currentVisibility === 'public',
     },
     {
       label: t('soldRented'),
       value: soldCount + rentedCount,
-      href: '/app/properties?status=sold',
+      // TCK-1289 — la tuile compte les vendus ET les loués : elle ouvre les deux statuts.
+      href: lienTuile('status=sold,rented'),
       tone: 'success' as const,
-      active: currentStatus === 'sold' || currentStatus === 'rented',
+      active: currentStatus === 'sold,rented',
     },
     {
       label: t('archived'),
       value: archivedCount,
-      href: '/app/properties?include_archived=1&status=archived',
+      href: lienTuile('include_archived=1&status=archived'),
       tone: 'muted' as const,
       active: currentStatus === 'archived',
     },

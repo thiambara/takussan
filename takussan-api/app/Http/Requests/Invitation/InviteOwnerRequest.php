@@ -4,6 +4,7 @@ namespace App\Http\Requests\Invitation;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Rules\TelephoneJoignable;
+use App\Support\TelephoneSaisi;
 use Illuminate\Validation\Rule;
 
 /**
@@ -18,6 +19,20 @@ class InviteOwnerRequest extends BaseFormRequest
     public function authorize(): bool
     {
         return $this->user() !== null;
+    }
+
+    /**
+     * P125.04 (TCK-1283) — le numéro se tape comme le message d'erreur le montre
+     * (« +221 77 123 45 67 ») ou au format national : il est ramené à l'E.164 avant que
+     * `TelephoneJoignable` le juge, comme la visite et la demande de contact (TCK-590).
+     */
+    protected function prepareForValidation(): void
+    {
+        parent::prepareForValidation();
+
+        if ($this->has('phone')) {
+            $this->merge(['phone' => TelephoneSaisi::normaliser($this->input('phone'))]);
+        }
     }
 
     public function rules(): array

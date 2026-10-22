@@ -282,12 +282,14 @@ et le visiteur rejoue.
    `booking-request` (réservation et offre d'achat), `contact-message`, et `contact-lead` du bien
    et de l'agent. La clé est engendrée dans les composants clients et passée aux actions.
 
-**Questions laissées au porteur**
+**Réponses du porteur (2026-10-22)**
 
-- **Le boost rejoint-il un jour l'intergiciel ?** Par défaut non (§ 8). Le faire supprimerait la
-  seconde forme, mais au prix de l'intervalle entre COMMIT et cache que sa forme actuelle n'a pas.
-- **L'en-tête devient-il obligatoire sur une route une fois que tous ses appelants l'envoient ?**
-  Par défaut non. L'obliger fermerait le cas « un appelant oublie l'en-tête ». En revanche, chaque
-  test existant qui écrit sur ces routes devrait alors le porter.
-- **Les signalements et les avis** (`report`, `reviews`, `reply`) : faut-il les mesurer pour les
-  faire entrer dans un lot ?
+- **Le boost ne rejoint pas l'intergiciel.** Sa clé, posée dans la transaction (§ 8), reste la plus
+  sûre : elle n'a pas l'intervalle entre COMMIT et cache de l'intergiciel.
+- **L'en-tête reste facultatif**, même sur une route dont tous les appelants l'envoient.
+- **Les signalements et les avis** (`report`, `reviews`, `reply`) se mesurent avant d'entrer dans
+  un lot : entrée P144.09, « à mesurer », du fichier de pistes.
+- **Les points que cet ADR fixe sans que la décision de P144.01 les ait écrits sont validés** : le
+  format de la clé et le 422 `idempotency.key_invalid` (§ 1), le profil actif dans l'empreinte et
+  non dans la portée (§ 2 et § 3), le 409 sans attente (§ 5) et l'en-tête `Idempotent-Replayed`
+  (§ 4).
