@@ -12397,7 +12397,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Le rôle délégué s'affiche par son code brut (« agency_admin ») dans les six notifications de délégation
 - Réf : P128.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1322
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Domain/Notifications/NotificationCode.php:359-362`, `takussan-api/app/Listeners/Permissions/NotifyDelegationActivated.php:36,43`, `NotifyDelegationExpired.php:35,40`, `NotifyDelegationRevoked.php:35,40`, `takussan-web/src/components/notifications/texteNotification.ts:52-53`, `takussan-api/app/Http/Resources/Permissions/RoleDelegationResource.php:33,48-55`
 - Constat :
@@ -12407,6 +12407,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu, puis mesuré.
 - Piste : un type de paramètre « rôle » (ou un code traduit, comme `PARAM_REASON_CODE`) rendu par une clé de langue des deux côtés ; les lignes déjà écrites gardent leur code brut et se traduisent à la lecture. Test : le rendu fr et en d'un `role_delegation.activated` ne contient pas `agency_admin`.
 - Mesure (2026-10-22, 045f8ae56, mesureur) : relu `NotificationCode.php:359-362` (`role` en `PARAM_TEXT`), `NotifyDelegationActivated.php:36`, `NotifyDelegationExpired.php:35`, `NotifyDelegationRevoked.php:35` (`$delegation->role` brut) ; même test temporaire → corps fr « Vous avez reçu le rôle agency_admin jusqu'au 25 octobre 2026. », en « You have been granted the agency_admin role until October 25, 2026. », `params.role = agency_admin` ; les libellés existent déjà des deux côtés : `lang/{fr,en}/invitations.php:4-7` (`roles.owner/agent/agency_admin`) et plusieurs clés `agency_admin` de `src/messages/{fr,en}.json`. Le constat tient. Classement : A4, traduction d'un code par des libellés de rôle existants (un type de paramètre « rôle » rendu par la clé de langue côté API et côté front), sans texte neuf.
+- Mesure (2026-10-22, 4382e9f60, implementeur) : reproduit avant correctif par `RoleDelegationNotificationRoleTest` (rendu fr et en des six codes `role_delegation.*`, titre, corps, SMS → « agency_admin » en clair, rouge) et par `NotificationRow.test.tsx` (« traduit le rôle délégué », fr et en, rouge) ; nature `PARAM_ROLE` rendue par `invitations.roles.<code>` côté API, `admin.roles.role_delegations.roles.<code>` côté cloche pour les seuls codes `role_delegation.*`, `params.role` toujours rangé en code → vert ; ablation de la branche `PARAM_ROLE` → 3 rouges sur 4, du libellé côté front → 2 rouges, correctifs remis → vert.
 
 ### Les courriels des classes historiques écrivent leurs dates en `2026-10-22`, `2026-10-22 14:00` ou `22/10/2026`, quelle que soit la langue
 - Réf : P128.03
