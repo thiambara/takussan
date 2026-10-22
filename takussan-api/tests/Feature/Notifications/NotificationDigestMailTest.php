@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Notifications;
 
+use App\Http\Controllers\NotificationUnsubscribeController;
 use App\Jobs\Notifications\BuildUserDigestJob;
 use App\Mail\NotificationDigestMail;
 use App\Models\AppNotification;
@@ -110,16 +111,65 @@ class NotificationDigestMailTest extends TestCase
     {
         $user = User::factory()->create(['email' => 'unsub@example.com']);
         $grouped = collect(['system' => collect([$this->makeNotification($user)])]);
-        $url = RelativeSignedUrl::forever('notifications.unsubscribe', ['user' => $user->id]);
+        $liens = NotificationUnsubscribeController::liens($user);
 
-        $mail = new NotificationDigestMail($user, $grouped, $url);
+        $mail = new NotificationDigestMail($user, $grouped, $liens['page'], $liens['one_click']);
         $rendered = $mail->render();
 
-        $this->assertStringContainsString('unsubscribe', $rendered);
+        $this->assertStringContainsString(e($liens['page']), $rendered);
     }
 
-    public function test_unsubscribe_signed_route_sets_email_frequency_off(): void
+    /**
+     * P97.06 (TCK-1243) — le lien visible mène à la page du front qui confirme, sous la langue du
+     * destinataire, et porte la signature à rejouer en `POST`.
+     */
+    public function test_le_lien_visible_mene_a_la_page_de_confirmation_du_front(): void
     {
+        config(['app.frontend_url' => 'https://front.exemple.test/']);
+        $user = User::factory()->create(['preferred_language' => 'en']);
+
+        $page = NotificationUnsubscribeController::liens($user)['page'];
+
+        $this->assertStringStartsWith('https://front.exemple.test/en/notifications/unsubscribe?user='.$user->id.'&expires=', $page);
+        $this->assertStringContainsString('&signature=', $page);
+    }
+
+    /**
+     * P97.06 (TCK-1243) — RFC 8058 : le client de messagerie désabonne en un clic par un `POST` sur
+     * l'API, annoncé par les deux en-têtes, comme les alertes de recherche (ADR-0050).
+     */
+    public function test_le_resume_annonce_le_desabonnement_en_un_clic(): void
+    {
+        $user = User::factory()->create(['email' => 'entetes@example.com']);
+        $grouped = collect(['system' => collect([$this->makeNotification($user)])]);
+        $liens = NotificationUnsubscribeController::liens($user);
+
+        $entetes = (new NotificationDigestMail($user, $grouped, $liens['page'], $liens['one_click']))->headers()->text;
+
+        $this->assertSame('<'.$liens['one_click'].'>', $entetes['List-Unsubscribe'] ?? null);
+        $this->assertSame('List-Unsubscribe=One-Click', $entetes['List-Unsubscribe-Post'] ?? null);
+        $this->assertStringContainsString('/api/notifications/digest/unsubscribe/'.$user->id.'?expires=', $liens['one_click']);
+    }
+
+    public function test_le_job_envoie_les_deux_liens(): void
+    {
+        Mail::fake();
+        $user = User::factory()->create(['email_frequency' => EmailFrequency::Daily, 'email' => 'job@example.com']);
+        $this->makeNotification($user);
+
+        (new BuildUserDigestJob($user))->handle(app(DigestBuilderService::class));
+
+        Mail::assertQueued(NotificationDigestMail::class, fn (NotificationDigestMail $m) => str_contains($m->unsubscribeUrl, '/notifications/unsubscribe?user='.$user->id)
+            && str_contains($m->oneClickUrl, '/api/notifications/digest/unsubscribe/'.$user->id));
+    }
+
+    /**
+     * P97.06 (TCK-1243) — un analyseur de liens qui ouvre le lien d'un courriel déjà envoyé (signé
+     * sans échéance) ne désabonne plus personne : le `GET` mène à la page qui confirme, sans écrire.
+     */
+    public function test_le_get_du_lien_deja_envoye_n_ecrit_rien_et_mene_a_la_confirmation(): void
+    {
+        config(['app.frontend_url' => 'https://front.exemple.test']);
         $user = User::factory()->create([
             'email_frequency' => EmailFrequency::Daily,
             'email' => 'unsub2@example.com',
@@ -127,9 +177,58 @@ class NotificationDigestMailTest extends TestCase
 
         $url = RelativeSignedUrl::forever('notifications.unsubscribe', ['user' => $user->id]);
 
-        $this->get($url)->assertRedirect();
+        $location = $this->get($url)->assertRedirect()->headers->get('Location');
+
+        $this->assertSame(EmailFrequency::Daily, $user->fresh()->email_frequency);
+        $this->assertStringStartsWith('https://front.exemple.test/fr/notifications/unsubscribe?user='.$user->id.'&expires=', $location);
+    }
+
+    public function test_le_get_sans_signature_est_refuse(): void
+    {
+        $user = User::factory()->create();
+
+        $this->get('/notifications/unsubscribe/'.$user->id)->assertForbidden();
+    }
+
+    public function test_le_post_signe_coupe_le_resume(): void
+    {
+        $user = User::factory()->create(['email_frequency' => EmailFrequency::Weekly]);
+
+        $this->postJson(NotificationUnsubscribeController::liens($user)['one_click'])
+            ->assertOk()
+            ->assertJsonPath('data.email_frequency', 'off');
 
         $this->assertSame(EmailFrequency::Off, $user->fresh()->email_frequency);
+    }
+
+    public function test_le_post_signe_expire_apres_soixante_jours(): void
+    {
+        $user = User::factory()->create(['email_frequency' => EmailFrequency::Daily]);
+        $url = NotificationUnsubscribeController::liens($user)['one_click'];
+
+        $this->travel(NotificationUnsubscribeController::JOURS_DE_VALIDITE + 1)->days();
+
+        $this->postJson($url)->assertForbidden();
+        $this->assertSame(EmailFrequency::Daily, $user->fresh()->email_frequency);
+    }
+
+    public function test_le_post_sans_signature_ou_pour_un_autre_compte_est_refuse(): void
+    {
+        $user = User::factory()->create(['email_frequency' => EmailFrequency::Daily]);
+        $autre = User::factory()->create(['email_frequency' => EmailFrequency::Daily]);
+        $url = NotificationUnsubscribeController::liens($user)['one_click'];
+
+        $this->postJson('/api/notifications/digest/unsubscribe/'.$user->id)->assertForbidden();
+        $this->postJson(str_replace('/unsubscribe/'.$user->id.'?', '/unsubscribe/'.$autre->id.'?', $url))->assertForbidden();
+        $this->assertSame(EmailFrequency::Daily, $autre->fresh()->email_frequency);
+    }
+
+    public function test_le_get_du_lien_en_un_clic_n_ecrit_rien(): void
+    {
+        $user = User::factory()->create(['email_frequency' => EmailFrequency::Daily]);
+
+        $this->get(NotificationUnsubscribeController::liens($user)['one_click'])->assertStatus(405);
+        $this->assertSame(EmailFrequency::Daily, $user->fresh()->email_frequency);
     }
 
     public function test_skips_instant_user(): void
