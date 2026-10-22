@@ -17,7 +17,7 @@ import type {
  * latérale et accueil) prenaient leurs lecteurs à `super-admin.ts` : 1 515 lignes et 96 exports,
  * qu'aucun bundler n'élague, entraient ainsi dans le JS initial de chacun des 37 écrans. Ils vivent
  * ici, et `super-admin.ts` les réexporte. Garde :
- * `src/app/(super-admin)/super-admin/__tests__/graphe-client-de-la-console.test.ts`.
+ * `src/app/__tests__/graphe-client-de-la-console.test.ts`.
  *
  * ⚠ N'ajouter ici que ce que la coque monte : chaque export y est payé par tous les écrans.
  */

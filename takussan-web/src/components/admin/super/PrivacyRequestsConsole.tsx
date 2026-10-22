@@ -61,7 +61,7 @@ import { Champ, decritPar, erreurDe } from './PrivacyRequestChamps';
  * TCK-1198 (P104.03) — le formulaire de création porte le seul `DatePicker` de l'écran, donc
  * react-day-picker et date-fns : il se charge à l'ouverture de son dialogue, où il était déjà
  * monté seulement (`creating`). Garde :
- * `src/app/(super-admin)/super-admin/__tests__/graphe-client-de-la-console.test.ts`.
+ * `src/app/__tests__/graphe-client-de-la-console.test.ts`.
  */
 const CreatePrivacyRequestForm = dynamic(() =>
   import('./CreatePrivacyRequestForm').then((m) => m.CreatePrivacyRequestForm),

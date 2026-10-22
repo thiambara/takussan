@@ -9,6 +9,11 @@ import { modulesDuGrapheClient, paquetsDuGrapheClient } from '@/test/graphe-clie
 /**
  * Le graphe client des écrans de la console super-admin (angle 104 du fichier de pistes).
  *
+ * ⚠ Ce fichier vit sous `src/app/__tests__` et non sous `(super-admin)/super-admin/__tests__` :
+ * `scripts/check-super-admin-tokens.mjs` part de TOUS les fichiers de `(super-admin)`, tests
+ * compris, et suit leurs imports ; il y aurait fait entrer `src/test/analyse-statique.ts`, compté
+ * alors comme rendu par la console (reste non gardé 6 > 4, mesuré le 2026-10-22).
+ *
  * TCK-1194 (P104.01) — `/super-admin/tags` était l'écran le plus lourd de la console (452,2 Kio
  * gzip, mesure de l'explorateur) : `TagsManager` prenait `FormError` au fichier `index.ts` de
  * `components/forms`, qui réexporte aussi les champs liés à react-hook-form et les sélecteurs de

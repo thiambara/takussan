@@ -44,7 +44,7 @@ import { Champ, aujourdhui, decritPar, erreurDe } from './PrivacyRequestChamps';
  * TCK-1198 (P104.03) — dans son propre fichier, chargé par `next/dynamic` à l'ouverture de son
  * dialogue : c'est le seul `DatePicker` de `/super-admin/privacy-requests`, et il faisait entrer
  * react-day-picker et date-fns (31,9 Kio gzip, mesure de l'explorateur) dans le JS initial de
- * l'écran. Garde : `src/app/(super-admin)/super-admin/__tests__/graphe-client-de-la-console.test.ts`.
+ * l'écran. Garde : `src/app/__tests__/graphe-client-de-la-console.test.ts`.
  */
 export function CreatePrivacyRequestForm({ onDone }: { readonly onDone: () => void }) {
   const t = useTranslations('superAdmin.privacyRequests');
