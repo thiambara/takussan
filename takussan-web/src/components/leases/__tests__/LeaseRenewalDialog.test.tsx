@@ -136,4 +136,57 @@ describe('<LeaseRenewalDialog>', () => {
     expect(rentInput.validity.valid).toBe(true);
     expect(depositInput.validity.valid).toBe(true);
   });
+
+  // P133.04 (TCK-1381) — le bail renouvelé reprend la pénalité et le délai de grâce du parent :
+  // le dialogue les pré-remplit et le récapitulatif les montre, au lieu de « — → — ».
+  describe('pénalité de retard héritée du bail d’origine', () => {
+    const parentAvecPenalite: Lease = { ...parent, late_fee_percent: 5, late_fee_grace_days: 7 };
+
+    function etape2() {
+      render(
+        withProviders(
+          <LeaseRenewalDialog open onOpenChange={() => {}} parent={parentAvecPenalite} />,
+        ),
+      );
+      fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    }
+
+    function ligneDuRecap(libelle: string): HTMLElement {
+      const ligne = screen.getByText(libelle).parentElement;
+      if (!ligne) throw new Error(`ligne de récapitulatif introuvable : ${libelle}`);
+      return ligne;
+    }
+
+    it('pré-remplit les deux champs avec les valeurs du parent', () => {
+      etape2();
+      expect((document.getElementById('renew-late-pct') as HTMLInputElement).value).toBe('5');
+      expect((document.getElementById('renew-grace') as HTMLInputElement).value).toBe('7');
+    });
+
+    it('le récapitulatif montre la valeur du parent, non surlignée tant qu’elle ne change pas', () => {
+      etape2();
+      fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+
+      const pct = ligneDuRecap(frMessages.lease.renewal.field_late_fee_percent);
+      expect(pct.textContent).toContain('5');
+      expect(pct.textContent).not.toContain('—');
+      expect(pct.className).not.toContain('bg-warning');
+      const grace = ligneDuRecap(frMessages.lease.renewal.field_late_fee_grace_days);
+      expect(grace.textContent).toContain('7');
+      expect(grace.textContent).not.toContain('—');
+    });
+
+    it('une pénalité changée se surligne, du parent à la nouvelle valeur', () => {
+      etape2();
+      fireEvent.change(document.getElementById('renew-late-pct') as HTMLInputElement, {
+        target: { value: '8' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+
+      const pct = ligneDuRecap(frMessages.lease.renewal.field_late_fee_percent);
+      expect(pct.textContent).toContain('5');
+      expect(pct.textContent).toContain('8');
+      expect(pct.className).toContain('bg-warning');
+    });
+  });
 });
