@@ -7,6 +7,7 @@ use App\Domain\Notifications\NotificationTarget;
 use App\Models\Enums\VisitStatus;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Services\Lead\ContactLeadService;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Visit\VisitNotifier;
@@ -32,7 +33,7 @@ use Illuminate\Support\Facades\DB;
  * TCK-588 (ADR-0032) — le rappel est le code `visit.reminder`, rendu dans la langue de chaque
  * destinataire, et il atteint enfin le visiteur SANS COMPTE : `visitor`, sinon le compte du
  * client lié, sinon son téléphone (`visitor_phone`, puis `customer.phone`) — WhatsApp s'il y a
- * consenti, sinon SMS. Plus l'agent, comme avant.
+ * consenti, sinon SMS. Plus l'agent, comme avant — s'il compte encore (TCK-1314).
  */
 class SendPropertyVisitReminders implements ShouldQueue
 {
@@ -109,8 +110,12 @@ class SendPropertyVisitReminders implements ShouldQueue
             $contact = $visitor === null ? ContactSansCompte::fromVisit($fresh) : null;
             $recipients = array_values(array_filter([
                 $visitor ?? ($contact?->hasPhone() ? $contact : null),
-                $fresh->agent && $fresh->agent->id !== $visitor?->id ? $fresh->agent : null,
             ]));
+            foreach ($this->agencySide($fresh) as $member) {
+                if ($member->id !== $visitor?->id) {
+                    $recipients[] = $member;
+                }
+            }
 
             if ($recipients === []) {
                 return;
@@ -140,5 +145,27 @@ class SendPropertyVisitReminders implements ShouldQueue
             $metadata[$metaKey] = now()->toIso8601String();
             $fresh->forceFill(['metadata' => $metadata])->save();
         });
+    }
+
+    /**
+     * TCK-1314 (P126.02, porteur 2026-10-22) — la part « agence » du rappel : l'agent assigné s'il
+     * peut encore recevoir un avis de la visite, par le prédicat de
+     * {@see VisitNotifier::agencyRecipients()} ; s'il était assigné et ne compte plus (suspendu,
+     * retiré de l'agence, bloqué), les admins actifs de l'agence du bien. Une visite non attribuée
+     * ne rappelle personne côté agence, comme avant.
+     *
+     * @return list<User>
+     */
+    private function agencySide(PropertyVisit $visit): array
+    {
+        if ($visit->agent === null) {
+            return [];
+        }
+
+        if (app(VisitNotifier::class)->agentUtilisable($visit)) {
+            return [$visit->agent];
+        }
+
+        return app(ContactLeadService::class)->agencyAdmins($visit->property?->agency_id)->all();
     }
 }

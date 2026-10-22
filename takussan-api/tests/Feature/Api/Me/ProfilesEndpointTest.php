@@ -61,6 +61,33 @@ class ProfilesEndpointTest extends TestCase
         $this->assertSame(1, $response->json('meta.count'));
     }
 
+    /**
+     * TCK-1317 (P117.04) — la section « Profil professionnel » affiche la licence et la spécialité
+     * du profil d'agent, en lecture seule : la ressource les rend pour le seul profil d'agent.
+     */
+    public function test_agent_profile_carries_license_and_specialty_and_others_do_not(): void
+    {
+        $user = User::factory()->create();
+        $agency = Agency::factory()->create();
+        $agent = AgentProfile::factory()->create([
+            'user_id' => $user->id,
+            'agency_id' => $agency->id,
+            'license_number' => 'AGC-2026-0042',
+            'specialty' => 'Location meublée',
+        ]);
+        $owner = OwnerProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $agency->id]);
+
+        Sanctum::actingAs($user);
+
+        $data = collect($this->getJson('/api/me/profiles')->assertOk()->json('data'))->keyBy('id');
+
+        $this->assertSame('AGC-2026-0042', $data["agent:{$agent->id}"]['license_number']);
+        $this->assertSame('Location meublée', $data["agent:{$agent->id}"]['specialty']);
+        $this->assertSame($agency->name, $data["agent:{$agent->id}"]['agency']['name']);
+        $this->assertArrayNotHasKey('license_number', $data["owner:{$owner->id}"]);
+        $this->assertArrayNotHasKey('specialty', $data["owner:{$owner->id}"]);
+    }
+
     public function test_get_me_profiles_requires_authentication(): void
     {
         $this->getJson('/api/me/profiles')->assertStatus(401);

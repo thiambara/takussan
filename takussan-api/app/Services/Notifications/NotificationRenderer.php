@@ -91,6 +91,7 @@ class NotificationRenderer
                 NotificationCode::PARAM_COUNT => (string) (int) $value,
                 NotificationCode::PARAM_URL => is_string($value) && $value !== '' ? $value : '—',
                 NotificationCode::PARAM_REASON_CODE => $this->reasonCode($value, $params['reason'] ?? null, $locale, $textMax),
+                NotificationCode::PARAM_ROLE => $this->role($value, $locale, $textMax),
                 default => is_scalar($value) && (string) $value !== '' ? $this->text((string) $value, $textMax) : '—',
             };
         }
@@ -159,6 +160,17 @@ class NotificationRenderer
         $label = is_string($detail) && $detail !== '' ? $label.' ('.$detail.')' : $label;
 
         return $this->text($label, $max);
+    }
+
+    /** TCK-1322 (P128.02) — le libellé du rôle délégué, jamais le code brut quand il est connu. */
+    private function role(mixed $code, string $locale, ?int $max): string
+    {
+        if (! is_string($code) || $code === '') {
+            return '—';
+        }
+        $key = 'invitations.roles.'.$code;
+
+        return $this->text(trans()->has($key, $locale) ? __($key, [], $locale) : $code, $max);
     }
 
     private function text(string $value, ?int $max): string

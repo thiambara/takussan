@@ -60,6 +60,18 @@ function Wrapper({ children, roles }: { children: ReactNode; roles: string[] }) 
   );
 }
 
+// Le pré-chargement `GET /api/me/welcome-seen` est APPELÉ avant que `seen` ne passe à `false`
+// (il reste `res.json()` et le rendu) : tant que `seen` vaut `null`, un déclenchement est ignoré,
+// exprès. Attendre le seul appel de `fetch` puis cliquer une fois est donc une course, perdue sous
+// la charge de la CI (run 39787278156). On reclique jusqu'à l'ouverture : avant elle, un clic est
+// sans effet, et après, `consumedRef` rend les suivants inertes.
+async function declencherJusquALouverture() {
+  await waitFor(() => {
+    fireEvent.click(screen.getByTestId('fire'));
+    expect(screen.getByTestId('customer-minimal-profile-title')).toBeInTheDocument();
+  });
+}
+
 function TriggerButton() {
   const { triggerIfNeeded } = useTriggerMinimalProfileOnce();
   return (
@@ -90,11 +102,7 @@ describe('MinimalProfileTriggerProvider', () => {
       expect(calls.length).toBeGreaterThanOrEqual(1);
     });
 
-    fireEvent.click(screen.getByTestId('fire'));
-
-    await waitFor(() =>
-      expect(screen.getByTestId('customer-minimal-profile-title')).toBeInTheDocument(),
-    );
+    await declencherJusquALouverture();
   });
 
   it('does NOT open the sheet on subsequent triggers (single-shot per session)', async () => {
@@ -112,10 +120,7 @@ describe('MinimalProfileTriggerProvider', () => {
       expect(calls.length).toBeGreaterThanOrEqual(1);
     });
 
-    fireEvent.click(screen.getByTestId('fire'));
-    await waitFor(() =>
-      expect(screen.getByTestId('customer-minimal-profile-title')).toBeInTheDocument(),
-    );
+    await declencherJusquALouverture();
 
     // Skip closes + marks seen.
     fireEvent.click(screen.getByTestId('customer-minimal-profile-skip'));
@@ -193,10 +198,7 @@ describe('MinimalProfileTriggerProvider', () => {
       </Wrapper>,
     );
     await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1));
-    fireEvent.click(screen.getByTestId('fire'));
-    await waitFor(() =>
-      expect(screen.getByTestId('customer-minimal-profile-title')).toBeInTheDocument(),
-    );
+    await declencherJusquALouverture();
 
     fireEvent.change(screen.getByLabelText(frMessages.customer.minimalProfile.phoneLabel), {
       target: { value: saisie },

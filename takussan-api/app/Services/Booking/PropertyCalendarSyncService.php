@@ -9,6 +9,7 @@ use App\Models\PropertyCalendarFeed;
 use App\Models\PropertyUnavailability;
 use App\Models\User;
 use App\Services\Model\NotificationService;
+use App\Services\Property\PrimaryPropertyContact;
 use App\Support\Http\SafeOutboundUrl;
 use App\Support\Http\UnsafeOutboundUrl;
 use App\Support\Ical\IcalReader;
@@ -171,8 +172,10 @@ class PropertyCalendarSyncService
         // Une fois, au seuil — pas à chaque heure tant que le flux reste en panne.
         if ($failures === PropertyCalendarFeed::FAILURES_BEFORE_ALERT) {
             $property = $feed->property()->with('owner')->first();
-            if ($property?->owner !== null) {
-                $this->notifications->send($property->owner, NotificationCode::PropertyCalendarFeedFailing, [
+            // TCK-1316 — le créateur du bien, s'il compte encore (bailleur ou personnel actif).
+            $createur = $property !== null ? PrimaryPropertyContact::createurDestinataire($property) : null;
+            if ($createur !== null) {
+                $this->notifications->send($createur, NotificationCode::PropertyCalendarFeedFailing, [
                     'property' => $property->title,
                     'feed' => $this->feedName($feed),
                 ], NotificationTarget::of('property', $property->id));

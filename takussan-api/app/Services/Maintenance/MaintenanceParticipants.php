@@ -6,6 +6,7 @@ use App\Models\Enums\Capability;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Support\Collection;
 
 /**
@@ -27,7 +28,8 @@ class MaintenanceParticipants
             return collect();
         }
 
-        $principals = collect([$property->owner]);
+        // TCK-1316 — le créateur du bien, s'il compte encore (bailleur ou personnel actif).
+        $principals = collect([PrimaryPropertyContact::createurDestinataire($property)]);
 
         $agency = $property->agency;
         if ($agency !== null) {

@@ -7,6 +7,7 @@ use App\Models\Enums\ReferentialStatus;
 use App\Models\Enums\TagType;
 use App\Sorts\CollatedNameSort;
 use App\Sorts\TagUsageSort;
+use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -61,7 +62,7 @@ class Tag extends AbstractModel
      */
     public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null, ?int $agencyId = null): QueryBuilder
     {
-        return QueryBuilder::for($baseQuery ?? static::class, $request)
+        return DepartageQueryBuilder::for($baseQuery ?? static::class, $request)
             ->allowedFilters(...static::getAllowedQueryFilters())
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(...static::$requestSortable, ...[static::nameSort(), AllowedSort::custom('usage_count', new TagUsageSort($agencyId))])

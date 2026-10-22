@@ -126,14 +126,22 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       id: 'name',
       header: tList('columns.name'),
       className: 'font-semibold text-foreground',
-      cell: (sp) => nomDe(sp) || '—',
+      cell: (sp) => (
+        <span className="inline-flex flex-wrap items-center gap-2">
+          {nomDe(sp) || '—'}
+          {/* TCK-1325 (P117.06) — dérivé de la pièce d'assurance vivante, côté API. */}
+          {sp.insured ? <Badge variant="outline">{tList('insured')}</Badge> : null}
+        </span>
+      ),
     },
     {
       id: 'trades',
       header: tList('columns.trades'),
       className: 'text-muted-foreground',
       cell: (sp) => {
-        const trades = sp.specialties ?? sp.metadata?.trades ?? [];
+        // TCK-1319 (P117.01) — la colonne fait foi ; la copie de l'invitation en `metadata` ne sert
+        // qu'au brouillon. Un actif qui a vidé ses métiers (colonne `null`) ne la reprend pas.
+        const trades = sp.specialties ?? (sp.status === 'draft' ? sp.metadata?.trades : null) ?? [];
         return trades.length === 0 ? (
           '—'
         ) : (
@@ -152,7 +160,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       header: tList('columns.zones'),
       className: 'text-muted-foreground',
       cell: (sp) => {
-        const zones = sp.service_areas ?? sp.metadata?.intervention_zones ?? [];
+        const zones = sp.service_areas ?? (sp.status === 'draft' ? sp.metadata?.intervention_zones : null) ?? [];
         return zones.length === 0 ? '—' : zones.join(', ');
       },
     },

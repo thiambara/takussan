@@ -38,7 +38,7 @@ export default async function ProfilePage() {
           agents et administrateurs compris — un élargissement que personne n'a
           demandé. */}
       {isCustomerOnly(user.roles) && <ProfileCustomerSection user={user} />}
-      {isAgent(user.roles) && <ProfileAgentSection user={user} />}
+      {isAgent(user.roles) && <ProfileAgentSection />}
       {isOwner(user.roles) && <ProfileOwnerSection user={user} />}
       {isAdmin(user.roles) && <ProfileAdminSection user={user} />}
       {/* TCK-594 (ADR-0039 §6) — qui est payé déclare où : le bailleur et le prestataire. */}
