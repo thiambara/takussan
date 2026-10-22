@@ -1,7 +1,7 @@
 ---
 id: TCK-1369
 title: "Le calendrier d'un bien lit tous ses séjours confirmés, pas les 100 plus anciens"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -58,3 +58,12 @@ Aucun changement d'API : `GET /api/bookings` avec `filter[property_id]`, `filter
 - Le reste ci-dessus.
 
 ## Notes d'implémentation
+
+- Le test monte le panneau avec ses vrais hooks, `fetch` bouchonné. Le séjour hors de la première
+  page couvre la nuit d'aujourd'hui, pour tomber dans le mois affiché quel que soit le jour du test.
+  Sonde (retirée) : le même séjour placé en tête de la première page est peint, donc le sélecteur
+  de cellule voit bien la classe `booked`.
+- `useApiQuery` ne sait lire qu'une page : le hook passe à `useQuery` + `apiRequest`, comme
+  `useLeasePayments` (TCK-1178), sous la même clé de cache (les invalidations restent justes).
+- Ablation : `property-calendar.ts` rendu à `HEAD` → 1 rouge sur 1 (nuit d'aujourd'hui non peinte,
+  une seule page lue) ; correctif remis → vert.
