@@ -11,8 +11,12 @@
 # Pas de directive `# syntax=` : le frontend intégré à BuildKit suffit à ce fichier, et la directive
 # ajoute à CHAQUE build une requête vers Docker Hub — trois builds tombés sur un délai dépassé le
 # 2026-09-13, avant la première ligne de ce fichier.
-# Épinglé sur la version lue le 2026-09-13 : `frankenphp version` → FrankenPHP v1.12.7, PHP 8.4.25.
-ARG FRANKENPHP_TAG=1.12.7-php8.4-bookworm
+# Épinglé sur la version lue le 2026-10-22 : `frankenphp version` → FrankenPHP v1.13.2, PHP 8.4.27.
+# PLANCHER DE SÉCURITÉ : PHP 8.4.27 corrige PHP2Shell (CVE-2026-109618, CVE-2026-109619 — RCE sans
+# authentification, exploitée depuis le 2026-10-17). Ne jamais redescendre sous ce tag. ⚠ Un tag
+# FrankenPHP n'est PAS immuable : `1.12.7-php8.4-bookworm`, lu en 8.4.25 le 2026-09-13, servait
+# 8.4.26 le 2026-10-22 — la version servie se relève dans le conteneur (`php -v`), jamais ici.
+ARG FRANKENPHP_TAG=1.13.2-php8.4-bookworm
 
 FROM dunglas/frankenphp:${FRANKENPHP_TAG} AS base
 # Les extensions de la CI (api-ci.yml), plus exif (medialibrary), pcntl (arrêt propre de
