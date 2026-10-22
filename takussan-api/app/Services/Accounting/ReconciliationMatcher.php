@@ -67,24 +67,12 @@ class ReconciliationMatcher
         $candidates = collect();
 
         foreach (self::PAYMENT_MODELS as $modelClass) {
+            // TCK-1417 (P141.04) — agence, rapprochement, et ce qu'aucun crédit ne paie (caution
+            // rendue TCK-594, facture non encaissable TCK-724, encaissement de la plateforme
+            // TCK-1415) : un seul scope, partagé avec la recherche manuelle.
             $query = $modelClass::query()
-                ->whereNull('bank_reconciled_at')
+                ->awaitingBankCredit($agencyId)
                 ->where('currency', $currency);
-
-            // Scope by agency — each model has a different FK path.
-            $query = match ($modelClass) {
-                BookingPayment::class => $query->whereHas('booking', fn ($q) => $q->whereHas('property', fn ($q2) => $q2->where('agency_id', $agencyId))),
-                // TCK-594 (P4-5) — une caution rendue sort du compte : un crédit ne s'y apparie pas.
-                LeasePayment::class => $query->whereHas('lease', fn ($q) => $q->where('agency_id', $agencyId))->exceptDepositRefunds(),
-                // TCK-724 (P25.04) — une facture brouillon, annulée ou nulle n'attend aucun encaissement.
-                Invoice::class => $query->where('agency_id', $agencyId)->reconcilable(),
-            };
-
-            // TCK-1415 (P141.01) — un paiement encaissé par la plateforme n'arrive pas seul sur le
-            // compte de l'agence : il y arrive fondu dans le net du reversement de la plateforme.
-            if ($modelClass !== Invoice::class) {
-                $query->whereNotSettledByPlatform();
-            }
 
             // Amount filter with small tolerance for rounding. Invoices store the
             // total in `total_amount`; booking/lease payments use `amount`.

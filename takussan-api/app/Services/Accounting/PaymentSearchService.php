@@ -54,10 +54,8 @@ class PaymentSearchService
     private function searchBookingPayments(Agency $agency, string $query, ?float $amountHint): Collection
     {
         $base = BookingPayment::query()
-            ->whereNull('bank_reconciled_at')
-            ->whereHas('booking', fn ($q) => $q->whereHas('property', fn ($q2) => $q2->where('agency_id', $agency->id)))
-            // TCK-1415 (P141.01) — un acompte encaissé par la plateforme, comme le matcher.
-            ->whereNotSettledByPlatform();
+            // TCK-1417 (P141.04) — le scope du matcher.
+            ->awaitingBankCredit($agency->id);
 
         $this->applySearch($base, $query, $amountHint);
 
@@ -76,14 +74,9 @@ class PaymentSearchService
     /** @return Collection<int, MatchCandidate> */
     private function searchLeasePayments(Agency $agency, string $query, ?float $amountHint): Collection
     {
-        // TCK-594 (VERIF-594 passe 5, P5-2) — une caution rendue sort du compte : la recherche d'un
-        // encaissement ne la propose pas.
-        $base = LeasePayment::query()
-            ->whereNull('bank_reconciled_at')
-            ->whereHas('lease', fn ($q) => $q->where('agency_id', $agency->id))
-            ->exceptDepositRefunds()
-            // TCK-1415 (P141.01) — un loyer encaissé par la plateforme, comme le matcher.
-            ->whereNotSettledByPlatform();
+        // TCK-1417 (P141.04) — le scope du matcher : sans les cautions rendues (TCK-594) ni les
+        // loyers encaissés par la plateforme (TCK-1415).
+        $base = LeasePayment::query()->awaitingBankCredit($agency->id);
 
         // TCK-715 (P25.01) — le montant attendu sur le compte, celui que compare le matcher : une
         // échéance payée en ligne pénalité comprise arrive pour 157 500, pas pour `amount`.
@@ -107,11 +100,8 @@ class PaymentSearchService
     /** @return Collection<int, MatchCandidate> */
     private function searchInvoices(Agency $agency, string $query, ?float $amountHint): Collection
     {
-        // TCK-724 (P25.04) — les seules factures encaissables, comme le matcher.
-        $base = Invoice::query()
-            ->whereNull('bank_reconciled_at')
-            ->where('agency_id', $agency->id)
-            ->reconcilable();
+        // TCK-1417 (P141.04) — le scope du matcher : les seules factures encaissables (TCK-724).
+        $base = Invoice::query()->awaitingBankCredit($agency->id);
 
         if ($query !== '') {
             $base->where(function ($q) use ($query) {

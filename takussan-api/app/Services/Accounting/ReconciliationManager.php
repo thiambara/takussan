@@ -326,7 +326,8 @@ class ReconciliationManager
         }
 
         if ($payment instanceof BookingPayment) {
-            return $payment->booking?->property?->agency_id;
+            // TCK-1417 (P141.04) — l'agence de la réservation, celle du matcher et de la clôture.
+            return $payment->booking?->agency_id;
         }
 
         if ($payment instanceof Payout) {

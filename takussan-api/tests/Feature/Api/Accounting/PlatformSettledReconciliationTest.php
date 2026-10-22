@@ -131,6 +131,62 @@ class PlatformSettledReconciliationTest extends TestCase
         $this->assertSame([['lease_payment', $payment->id]], $this->search(150_000));
     }
 
+    // ─── P141.04 (TCK-1417) ─────────────────────────────────────
+
+    public function test_l_agence_d_un_acompte_est_celle_de_la_reservation_partout(): void
+    {
+        // Une réservation de l'agence sur un bien d'une autre agence : la colonne que lit la
+        // clôture plateforme et l'audit (`bookings.agency_id`) décide, pour le matcher, la
+        // recherche et la garde d'agence de la confirmation.
+        $other = Agency::factory()->create();
+        $property = Property::factory()->create(['agency_id' => $other->id]);
+        $booking = Booking::factory()->create(['property_id' => $property->id, 'agency_id' => $this->agency->id]);
+        $deposit = BookingPayment::factory()->create([
+            'booking_id' => $booking->id,
+            'amount' => 80_000,
+            'currency' => 'XOF',
+            'status' => PaymentStatus::Paid,
+            'paid_at' => '2026-04-10 10:00:00',
+            'bank_reconciled_at' => null,
+        ]);
+        $line = $this->creditLine(80_000, '2026-04-10');
+
+        $suggestion = app(ReconciliationMatcher::class)->suggestFor($line);
+        $this->assertSame([BookingPayment::class, $deposit->id], [$suggestion?->paymentType, $suggestion?->paymentId]);
+        $this->assertSame([['booking_payment', $deposit->id]], $this->search(80_000));
+        $this->actingAs($this->admin)
+            ->postJson("/api/bank-statement-lines/{$line->id}/match", [
+                'payment_type' => 'booking_payment',
+                'payment_id' => $deposit->id,
+            ])
+            ->assertOk();
+    }
+
+    public function test_un_acompte_d_une_reservation_d_une_autre_agence_n_est_pas_rapprochable(): void
+    {
+        $other = Agency::factory()->create();
+        $property = Property::factory()->create(['agency_id' => $this->agency->id]);
+        $booking = Booking::factory()->create(['property_id' => $property->id, 'agency_id' => $other->id]);
+        $deposit = BookingPayment::factory()->create([
+            'booking_id' => $booking->id,
+            'amount' => 80_000,
+            'currency' => 'XOF',
+            'status' => PaymentStatus::Paid,
+            'paid_at' => '2026-04-10 10:00:00',
+            'bank_reconciled_at' => null,
+        ]);
+        $line = $this->creditLine(80_000, '2026-04-10');
+
+        $this->assertNull(app(ReconciliationMatcher::class)->suggestFor($line));
+        $this->assertSame([], $this->search(80_000));
+        $this->actingAs($this->admin)
+            ->postJson("/api/bank-statement-lines/{$line->id}/match", [
+                'payment_type' => 'booking_payment',
+                'payment_id' => $deposit->id,
+            ])
+            ->assertForbidden();
+    }
+
     // ─── Outillage ──────────────────────────────────────────────
 
     private function paidRent(int $amount, string $paidAt): LeasePayment

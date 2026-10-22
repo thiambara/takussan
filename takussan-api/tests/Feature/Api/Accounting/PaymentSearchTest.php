@@ -169,7 +169,7 @@ class PaymentSearchTest extends ApiTestCase
     private function bookingPayment(Agency $agency, string $reference, int $amount): BookingPayment
     {
         $property = Property::factory()->create(['agency_id' => $agency->id]);
-        $booking = Booking::factory()->create(['property_id' => $property->id]);
+        $booking = Booking::factory()->create(['property_id' => $property->id, 'agency_id' => $agency->id]);
 
         return BookingPayment::factory()->create([
             'booking_id' => $booking->id,
