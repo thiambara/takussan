@@ -167,3 +167,44 @@ describe('CreateInvoiceDialog — le taux de TVA affiché est celui qui part (P1
     expect(sansEspaces(recap('Total'))).toBe('12,39€');
   });
 });
+
+describe('CreateInvoiceDialog — les lignes saisies partent à l’API (P133.02, TCK-1377)', () => {
+  beforeEach(() => {
+    MUTATION.mutateAsync.mockClear();
+    AGENCE.valeur = { taxRate: null, ready: false };
+  });
+
+  it('envoie chaque ligne, et plus de sous-total : l’API le recompte', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<CreateInvoiceDialog open onOpenChange={() => {}} />));
+
+    await saisir(screen.getByLabelText(/ID client/), '7');
+    await saisir(screen.getByPlaceholderText('Description'), 'Frais de dossier');
+    await saisir(screen.getByPlaceholderText('Prix unitaire'), '25000');
+    await user.click(screen.getByRole('button', { name: 'Ajouter' }));
+    await saisir(screen.getAllByPlaceholderText('Description')[1]!, 'Visite');
+    await saisir(screen.getAllByPlaceholderText('Qté')[1]!, '2');
+    await saisir(screen.getAllByPlaceholderText('Prix unitaire')[1]!, '10000');
+    await envoyer();
+
+    const charge = envoye();
+    expect(charge.items).toEqual([
+      { description: 'Frais de dossier', quantity: 1, unit_price: 25000 },
+      { description: 'Visite', quantity: 2, unit_price: 10000 },
+    ]);
+    expect(charge).not.toHaveProperty('subtotal');
+  });
+
+  it('l’aperçu arrondit chaque ligne à l’unité de la devise, comme l’API (3 × 1,5 × 333 → 1 500)', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<CreateInvoiceDialog open onOpenChange={() => {}} />));
+
+    for (let i = 0; i < 3; i += 1) {
+      if (i > 0) await user.click(screen.getByRole('button', { name: 'Ajouter' }));
+      await saisir(screen.getAllByPlaceholderText('Qté')[i]!, '1.5');
+      await saisir(screen.getAllByPlaceholderText('Prix unitaire')[i]!, '333');
+    }
+
+    expect(sansEspaces(recap('Sous-total'))).toBe('1500FCFA');
+  });
+});

@@ -63,8 +63,24 @@ const DEFAULT_VALUES: CreateInvoiceFormValues = {
  */
 function arrondiDevise(montant: number, devise: string): number {
   const decimales = CURRENCY_METADATA[devise as CurrencyCode]?.decimalPlaces ?? 0;
-  const facteur = 10 ** decimales;
-  return Math.round(montant * facteur) / facteur;
+  // D'abord au dix-millième (deux facteurs à 2 décimales tiennent en 4, comme le `bcmul` de
+  // l'API), pour que `1,005 × 100` ne tombe pas à `100,4999…` ; puis à l'unité de la devise.
+  const dixMillionieme = Math.round(montant * 10_000);
+  return Math.round(dixMillionieme / 10 ** (4 - decimales)) / 10 ** decimales;
+}
+
+/**
+ * P133.02 (TCK-1377) — le sous-total de l'aperçu se compte comme l'API le recompte
+ * (`InvoiceService::priceLines`) : chaque ligne arrondie à l'unité de la devise, puis la somme.
+ */
+function sousTotal(
+  lignes: ReadonlyArray<{ quantity?: number; unit_price?: number } | undefined>,
+  devise: string,
+): number {
+  return lignes.reduce(
+    (somme, ligne) => somme + arrondiDevise((ligne?.quantity ?? 0) * (ligne?.unit_price ?? 0), devise),
+    0,
+  );
 }
 
 export function CreateInvoiceDialog({
@@ -89,17 +105,19 @@ export function CreateInvoiceDialog({
     schema: createInvoiceSchema,
     defaultValues: DEFAULT_VALUES,
     onSubmit: async (values) => {
-      const subtotal = values.items.reduce(
-        (sum, item) => sum + item.quantity * item.unit_price,
-        0,
-      );
       const res = await createInvoice.mutateAsync({
         customer_id: values.customer_id,
         invoiceable_type: values.invoiceable_type,
         invoiceable_id: values.invoiceable_id,
         issue_date: values.issue_date,
         due_date: values.due_date || undefined,
-        subtotal,
+        // P133.02 (TCK-1377) — les lignes saisies, dont l'API recompte le sous-total et qu'elle
+        // imprime ; le sous-total du navigateur ne part plus.
+        items: values.items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+        })),
         // P133.01 (TCK-1375) — le taux affiché part tel quel, `0` compris : `|| undefined` faisait
         // tomber le 0, et l'API appliquait alors `agencies.default_tax_rate`.
         tax_rate: values.tax_rate ?? 0,
@@ -123,10 +141,7 @@ export function CreateInvoiceDialog({
   const taxRate = useWatch({ control: form.control, name: 'tax_rate' }) ?? 0;
   const currency = useWatch({ control: form.control, name: 'currency' }) ?? 'XOF';
 
-  const subtotal = (items ?? []).reduce(
-    (sum, item) => sum + (item?.quantity ?? 0) * (item?.unit_price ?? 0),
-    0,
-  );
+  const subtotal = sousTotal(items ?? [], currency);
   const taxAmount = arrondiDevise((subtotal * (taxRate ?? 0)) / 100, currency);
   const total = subtotal + taxAmount;
 
