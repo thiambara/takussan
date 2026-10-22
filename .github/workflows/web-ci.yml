@@ -64,7 +64,8 @@ on:
       - 'takussan-api/tests/fixtures/cout-d-entree.json'
       - 'takussan-api/tests/fixtures/liens-google-maps.json'
   push:
-    branches: [dev, master]
+    # pre-dev : amendement d'ADR-0066 du 2026-10-22 (voir api-ci.yml).
+    branches: [dev, master, pre-dev]
     paths:
       - 'takussan-web/**'
       - '.github/workflows/web-ci.yml'
@@ -89,6 +90,11 @@ on:
       - 'takussan-api/app/Services/Tags/TagCatalog.php'
       - 'takussan-api/tests/fixtures/cout-d-entree.json'
       - 'takussan-api/tests/fixtures/liens-google-maps.json'
+
+# Un run à la fois sur pre-dev, le plus récent en attente (voir api-ci.yml).
+concurrency:
+  group: ${{ github.event_name == 'push' && github.ref == 'refs/heads/pre-dev' && format('{0}-pre-dev', github.workflow) || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   # ─── L'ATTESTATION PAR ARBRE (ADR-0063, TCK-636) ─────────────────────────────────────────

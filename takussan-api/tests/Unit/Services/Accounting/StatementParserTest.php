@@ -261,6 +261,95 @@ class StatementParserTest extends TestCase
         $this->assertEquals(BankStatementLineDirection::Debit, $debit->direction);
     }
 
+    public function test_une_date_ofx_debordante_est_sautee_et_non_decalee(): void
+    {
+        // TCK-1473 (P157.02) — même règle que le CSV (TCK-593) : `20261332` rendait le 2027-02-01
+        // sans erreur, et la ligne entrait datée d'un autre mois, `period_end` compris.
+        $ofx = $this->ofx('XOF', [
+            ['20261332', '1000', 'DEBORD'],
+            ['20260230', '1000', 'DEBORD2'],
+            ['20260415120000', '2000', 'OK'],
+        ]);
+
+        $result = $this->parseOfx($ofx);
+
+        $this->assertCount(1, $result['lines']);
+        $this->assertSame('2026-04-15', $result['lines'][0]->postedAt->toDateString());
+        $this->assertSame(2, $result['context']->tally->skipped);
+    }
+
+    public function test_chaque_compte_ofx_garde_sa_devise(): void
+    {
+        // TCK-1475 (P157.08) — un OFX à deux comptes (`STMTRS` en `XOF` puis en `EUR`) : chaque
+        // transaction prend la devise du relevé de compte qui la contient. Le premier `CURDEF`
+        // valait pour tout le fichier, et la ligne en euros entrait en francs CFA.
+        $ofx = "OFXHEADER:100\nDATA:OFXSGML\nVERSION:102\n\n<OFX><BANKMSGSRSV1>"
+            .'<STMTTRNRS>'.$this->stmtrs('XOF', [['20260401', '15000', 'A']]).'</STMTTRNRS>'
+            .'<STMTTRNRS>'.$this->stmtrs('EUR', [['20260402', '25', 'B']]).'</STMTTRNRS>'
+            .'</BANKMSGSRSV1></OFX>';
+
+        $lines = $this->parseOfx($ofx)['lines'];
+
+        $this->assertCount(2, $lines);
+        $this->assertSame(['XOF', 'EUR'], array_map(fn (ParsedLine $l): string => $l->currency, $lines));
+    }
+
+    public function test_un_compte_ofx_sans_curdef_prend_la_devise_de_l_agence(): void
+    {
+        $ofx = "OFXHEADER:100\nDATA:OFXSGML\nVERSION:102\n\n<OFX><BANKMSGSRSV1>"
+            .'<STMTTRNRS>'.$this->stmtrs('EUR', [['20260401', '25', 'A']]).'</STMTTRNRS>'
+            .'<STMTTRNRS>'.str_replace('<CURDEF>EUR', '', $this->stmtrs('EUR', [['20260402', '15000', 'B']])).'</STMTTRNRS>'
+            .'</BANKMSGSRSV1></OFX>';
+
+        $lines = $this->parseOfx($ofx)['lines'];
+
+        $this->assertSame(['EUR', 'XOF'], array_map(fn (ParsedLine $l): string => $l->currency, $lines));
+    }
+
+    /**
+     * Un OFX 1.x minimal : un `STMTRS` par devise donnée, chacun avec ses transactions
+     * `[DTPOSTED, TRNAMT, NAME]`.
+     *
+     * @param  list<array{0: string, 1: string, 2: string}>  $transactions
+     */
+    private function ofx(string $currency, array $transactions): string
+    {
+        return "OFXHEADER:100\nDATA:OFXSGML\nVERSION:102\n\n<OFX><BANKMSGSRSV1><STMTTRNRS>"
+            .$this->stmtrs($currency, $transactions)
+            .'</STMTTRNRS></BANKMSGSRSV1></OFX>';
+    }
+
+    /** @param  list<array{0: string, 1: string, 2: string}>  $transactions */
+    private function stmtrs(string $currency, array $transactions): string
+    {
+        $out = "<STMTRS><CURDEF>{$currency}\n<BANKTRANLIST>\n";
+        foreach ($transactions as $i => [$date, $amount, $name]) {
+            $out .= "<STMTTRN>\n<TRNTYPE>CREDIT\n<DTPOSTED>{$date}\n<TRNAMT>{$amount}\n<FITID>{$currency}{$i}\n<NAME>{$name}\n</STMTTRN>\n";
+        }
+
+        return $out."</BANKTRANLIST>\n</STMTRS>";
+    }
+
+    /** @return array{lines: list<ParsedLine>, context: ParserContext} */
+    private function parseOfx(string $ofx): array
+    {
+        $path = sys_get_temp_dir().'/stmt_'.TestProcessToken::value().'_'.uniqid().'.ofx';
+        file_put_contents($path, $ofx);
+
+        $context = new ParserContext(
+            agency: $this->agencyStub(),
+            format: BankStatementSourceFormat::Ofx,
+        );
+
+        try {
+            $lines = iterator_to_array((new OfxDriver)->parse($path, $context), false);
+        } finally {
+            @unlink($path);
+        }
+
+        return ['lines' => $lines, 'context' => $context];
+    }
+
     // ─── Factory Test ────────────────────────────────────────────
 
     public function test_factory_returns_correct_driver(): void

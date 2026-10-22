@@ -4,7 +4,8 @@ import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
 
-import { FormAmountInput, FormDatePicker, FormInput, FormSelect } from '@/components/forms';
+import { FormAmountInput, FormInput, FormSelect } from '@/components/forms';
+import { FormDatePicker } from '@/components/forms/FormDatePicker';
 import type { PropertyFormValues } from '@/lib/schemas/property';
 import { PROPERTY_ENUM_NAMESPACES, rentPeriodOptions as fabriqueRentPeriodOptions } from '../../options';
 import { isFieldRelevant } from '../../field-matrix';

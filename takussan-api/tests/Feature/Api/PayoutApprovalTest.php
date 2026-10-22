@@ -122,6 +122,32 @@ class PayoutApprovalTest extends TestCase
         $this->assertSame(PayoutStatus::Pending, Payout::find($small)->status);
     }
 
+    /**
+     * TCK-1469 (P161.02) — l'avis « reversement à approuver » mène à l'onglet `approvals` de
+     * `/app/payments`, où le geste se fait, pour tout détenteur de `payouts.approve`, admins
+     * compris : `/app/agency/finances` est fermée à l'agent qui tient la capacité.
+     */
+    public function test_l_avis_a_approuver_mene_a_l_onglet_des_approbations(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        $agency->forceFill(['payout_approval_threshold' => 100_000])->save();
+        $landlord = $this->landlordOf($agency);
+        $issuer = $this->agencyAdmin($agency);
+        $admin = $this->agencyAdmin($agency);
+        $agent = $this->agentWith($agency, Capability::PayoutsApprove);
+
+        $this->actingWithStepUp($issuer);
+        $this->createPayout($agency, $landlord, 150_000);
+
+        foreach (['admin' => $admin, 'agent' => $agent] as $qui => $destinataire) {
+            $avis = Notification::sent($destinataire, CodedNotification::class)
+                ->first(fn ($n): bool => $n->code === NotificationCode::PayoutAwaitingApproval);
+            $this->assertNotNull($avis, "{$qui} : aucun avis à approuver");
+            $this->assertSame('/app/payments?tab=approvals', $avis->target['path'] ?? null, $qui);
+        }
+    }
+
     public function test_ac6_the_issuer_does_not_approve_under_a_second_profile_in_another_agency(): void
     {
         // Deux profils ne font pas deux personnes : le préparateur qui est AUSSI admin d'une autre

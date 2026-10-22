@@ -6,7 +6,7 @@ import { Check, Copy, Loader2, RefreshCw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FormError } from '@/components/forms';
+import { FormError } from '@/components/forms/FormError';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { avecGardeDoubleFacteurAction } from '@/lib/double-facteur';
 import type { WebhookEndpointProviderId } from '@/lib/schemas/setting';

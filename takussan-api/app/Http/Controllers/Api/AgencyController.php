@@ -22,6 +22,7 @@ use App\Models\User;
 use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Billing\QuotaResolver;
 use App\Services\Invitation\InvitationService;
+use App\Services\Membership\ProfileMaterializer;
 use App\Services\Payout\PayoutApprovalThreshold;
 use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Builder;
@@ -263,14 +264,16 @@ class AgencyController extends Controller
         // un AgentProfile (le rôle de base d'un membre d'équipe) ; si le rôle
         // demandé est `agency_admin`, on matérialise aussi un AgencyAdminProfile
         // sur la même agence.
-        AgentProfile::query()->firstOrCreate(
+        ProfileMaterializer::materializeOrRestore(
+            AgentProfile::class,
             ['user_id' => $target->id, 'agency_id' => $agency->id],
             ['status' => AgentProfileStatus::Active->value],
         );
 
         $role = $data['role'] ?? 'agent';
         if ($role === 'agency_admin') {
-            AgencyAdminProfile::query()->firstOrCreate(
+            ProfileMaterializer::materializeOrRestore(
+                AgencyAdminProfile::class,
                 ['user_id' => $target->id, 'agency_id' => $agency->id],
                 ['status' => AgencyAdminProfileStatus::Active->value],
             );

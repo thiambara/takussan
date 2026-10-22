@@ -9,7 +9,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { FormInput, FormSelect, FormGlobalError, FormDatePicker } from '@/components/forms';
+import { FormInput, FormSelect, FormGlobalError } from '@/components/forms';
+import { FormDatePicker } from '@/components/forms/FormDatePicker';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useLeasePayments, useMarkLeasePaymentPaid } from '@/lib/queries/leases';
 import { leasePaymentSchema, type LeasePaymentFormValues } from '@/lib/schemas/lease';

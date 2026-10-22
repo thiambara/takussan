@@ -4,13 +4,16 @@ import { useTranslations } from 'next-intl';
 
 import { StatusBadge } from '@/components/console/StatusBadge';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
-import { etatEcheance } from '@/lib/kyc-echeance';
+import { etatEcheance, veilleEcheance } from '@/lib/kyc-echeance';
 import { cn } from '@/lib/utils';
 
 interface KycEcheanceProps {
   /** `YYYY-MM-DD` (pièce) ou ISO 8601 (dossier) ; rien n'est rendu sans valeur. */
   readonly value: string | null | undefined;
-  /** `document` : « Expire le … » ; `dossier` : « Vérification valable jusqu'au … ». */
+  /**
+   * `document` : « Expire le … » (la date d'échéance) ; `dossier` : « Vérification valable
+   * jusqu'au … » (la veille de l'échéance, dernier jour où la vérification vaut — TCK-1453).
+   */
   readonly kind?: 'document' | 'dossier';
   readonly className?: string;
 }
@@ -30,6 +33,8 @@ export function KycEcheance({ value, kind = 'document', className }: KycEcheance
   if (!value || etat === null) return null;
 
   const date = fmt.date(value);
+  // Le dossier échoit le jour d'échéance à 00:00 : « valable jusqu'au » nomme la veille (TCK-1453).
+  const dernierJour = fmt.date(veilleEcheance(value) ?? value);
 
   if (etat === 'expired') {
     return (
@@ -45,7 +50,7 @@ export function KycEcheance({ value, kind = 'document', className }: KycEcheance
       <span className={cn('inline-flex flex-wrap items-center gap-1.5', className)} data-testid="kyc-echeance-soon">
         <StatusBadge tone="attention" label={t('soonBadge')} />
         <span className="text-xs text-muted-foreground">
-          {kind === 'dossier' ? t('dossierValidUntil', { date }) : t('expiresOn', { date })}
+          {kind === 'dossier' ? t('dossierValidUntil', { date: dernierJour }) : t('expiresOn', { date })}
         </span>
       </span>
     );
@@ -53,7 +58,7 @@ export function KycEcheance({ value, kind = 'document', className }: KycEcheance
 
   return (
     <span className={cn('inline-block text-xs text-muted-foreground', className)} data-testid="kyc-echeance-valid">
-      {kind === 'dossier' ? t('dossierValidUntil', { date }) : t('expiresOn', { date })}
+      {kind === 'dossier' ? t('dossierValidUntil', { date: dernierJour }) : t('expiresOn', { date })}
     </span>
   );
 }

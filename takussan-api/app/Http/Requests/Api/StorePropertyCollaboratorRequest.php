@@ -47,7 +47,13 @@ class StorePropertyCollaboratorRequest extends BaseFormRequest
                 new CollaboratorEligibleForProperty($this->route('property'), $this->input('role'), $this->user()),
             ],
             'role' => ['required', Rule::enum(CollaboratorRole::class)],
-            'commission_share' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            // TCK-1448 (P86.03, ADR-0049 « Ventilation » § 1) — seul un `agent` est servi par le grand
+            // livre : une part positive sur un autre rôle n'irait à personne et mangerait le plafond.
+            'commission_share' => [
+                'nullable', 'numeric', 'min:0', 'max:100',
+                Rule::prohibitedIf(fn () => $this->input('role') !== CollaboratorRole::Agent->value
+                    && (float) $this->input('commission_share') > 0),
+            ],
         ];
     }
 }

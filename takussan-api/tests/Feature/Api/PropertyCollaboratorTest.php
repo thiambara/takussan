@@ -442,9 +442,10 @@ class PropertyCollaboratorTest extends TestCase
 
         $this->assertSame(CollaboratorRole::CoOwner, $collab->fresh()->role);
 
-        // La part de commission seule ne rejuge pas le rôle : le PUT reste ouvert.
+        // La part de commission seule ne rejuge pas le rôle : le PUT reste ouvert. Une part nulle,
+        // parce qu'une part positive hors du rôle `agent` est refusée depuis TCK-1448 (P86.03).
         $this->putJson("/api/properties/{$property->id}/collaborators/{$collab->id}", [
-            'commission_share' => 5,
+            'commission_share' => 0,
         ])->assertOk();
     }
 

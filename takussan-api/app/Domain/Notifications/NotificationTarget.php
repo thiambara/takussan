@@ -36,6 +36,12 @@ final class NotificationTarget
     public const PATHS = [
         'lease' => '/app/leases/{id}',
         'payments' => '/app/payments',
+        // TCK-1467 (P161.01) — l'onglet des reversements, où leur émetteur non admin les a programmés :
+        // `finances` est fermée à qui n'est pas admin de l'agence.
+        'payouts' => '/app/payments?tab=payouts',
+        // TCK-1469 (P161.02) — la file « À approuver », où le geste se fait (TCK-594, ADR-0039 § 4),
+        // pour tout détenteur de `payouts.approve`, admins compris.
+        'payout_approvals' => '/app/payments?tab=approvals',
         'booking' => '/app/bookings/{id}',
         'visit' => '/app/visits/{id}',
         'maintenance' => '/app/maintenance/{id}',
@@ -47,6 +53,9 @@ final class NotificationTarget
         'kyc_review' => '/super-admin/kyc',
         'finances' => '/app/agency/finances',
         'team' => '/app/agency/team',
+        // TCK-1471 (P161.03) — les délégations de rôle vivent sous les rôles (`RoleDelegationsSection`,
+        // TCK-369) : c'est là que le délégant retrouve celle dont l'avis parle.
+        'role_delegations' => '/app/agency/roles',
         'agency_settings' => '/app/agency',
         // TCK-601 — une alerte de gouvernance ouvre le journal d'audit de l'agence.
         'audit' => '/app/agency/audit',

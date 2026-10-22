@@ -22,8 +22,8 @@ import {
   FormSelect,
   FormTextarea,
   FormGlobalError,
-  FormDatePicker,
 } from '@/components/forms';
+import { FormDatePicker } from '@/components/forms/FormDatePicker';
 import {
   useCreateLease,
   useLeaseCustomerOptions,
