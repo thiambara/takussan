@@ -10746,7 +10746,7 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
 
 ### L'export du journal d'activité annonce une colonne `ip_address` qu'aucun chemin n'écrit
 - Réf : P108.02
-- Statut : validé — porteur (2026-10-22) : retirer `ip_address` des colonnes de l'export et de la spec (aucun écrivain) ; l'IP ne s'écrit pas au journal
+- Statut : retenu · à valider — chemin fermé : `docs/models-spec.md:1301` (la décision retire `ip_address` de la spec, que l'implémenteur ne modifie pas)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:16-27,161`, `docs/models-spec.md:1301`
 - Constat :
@@ -10757,6 +10757,7 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
   - La colonne sort donc vide dans tout fichier d'export, et la spec décrit un champ qui n'existe pas. Sur le chemin interne, la remplir par `$request->ip()` donnerait d'ailleurs l'IP du visiteur seulement là où le front relaie `X-Forwarded-For` (déduit).
 - Piste : soit retirer `ip_address` des colonnes et de la spec (aucun écrivain), soit écrire l'IP dans le journal par un `tapActivity` commun. Le second est un choix de données personnelles. Garde : un test de l'exporteur qui n'accepte pas une colonne toujours nulle sur un journal écrit par un geste HTTP.
 - Mesure (2026-10-22, a49b315a0, mesureur) : lu `ActivityLogExporter.php:26,161` (`ip_address` ← `properties->ip`) et `TCK-104` l. 58 (« `properties->ip` si présent ») ; `grep -rn "'ip'" app` → leads, journal du limiteur de webhooks (`AppServiceProvider.php:516`, un `Log::warning`), `SafeOutboundUrl`, `UserDetailController.php:138` (`null`) ; aucun `withProperties()` ni `tapActivity` n'écrit `ip` ; `SELECT count(*), count(*) FILTER (WHERE jsonb_exists(properties::jsonb,'ip')) FROM activity_log` en développement → 25 597 / 0 → le constat tient. Classement : V3, la piste offre deux voies, dont l'une conserve l'IP de chaque geste au journal, et l'autre retire une colonne d'un export décrit par la spec et TCK-104.
+- Mesure (2026-10-22, 174d6e0f2, implementeur) : relu `ActivityLogExporter.php` (`ip_address` toujours dans `COLUMNS`, rempli par `$props->get('ip')`) et `docs/models-spec.md:1301` (`ip_address` et `user_agent` décrits dans `properties`) ; `grep -rn "'ip' =>" takussan-api/app` → aucun `withProperties()` ni `tapActivity` n'écrit `ip` : le constat tient. Non implémenté : la décision du porteur retire aussi `ip_address` de la spec, chemin fermé à l'implémenteur ; retirer la seule colonne laisserait la spec décrire un champ que l'export ne rend plus. Reclassée pour que le porteur fasse les deux ensemble, ou dise que le code part seul.
 
 ### Cinq listes rendent l'enveloppe de pagination de Laravel, hors de `PaginationMeta`, avec des URL tirées de l'hôte de la requête
 - Réf : P108.03
