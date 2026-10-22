@@ -96,7 +96,9 @@ class BookingExpiredNotification extends Notification implements ShouldQueue
             'expiry_reason' => $this->booking->expiry_reason,
             'recipient_type' => $this->recipientType,
             'title' => __('notifications.booking_expired.subject', ['reference' => $reference]),
-            'message' => __('notifications.booking_expired.intro', [
+            // TCK-1195 (P75.03) — `body`, et non `message` : c'est la clé qu'AppDatabaseChannel range
+            // dans la colonne que la cloche lit.
+            'body' => __('notifications.booking_expired.intro', [
                 'reference' => $reference,
                 'property' => $propertyTitle,
             ]),

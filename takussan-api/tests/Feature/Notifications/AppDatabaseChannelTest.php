@@ -4,17 +4,23 @@ namespace Tests\Feature\Notifications;
 
 use App\Models\Agency;
 use App\Models\AppNotification;
+use App\Models\Booking;
 use App\Models\Enums\NotificationChannel;
 use App\Models\Enums\NotificationType;
+use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use App\Notifications\AgencyUpgradeApprovedNotification;
 use App\Notifications\AgencyUpgradeRejectedNotification;
 use App\Notifications\AgencyUpgradeRequestSubmittedNotification;
+use App\Notifications\AgentTenantInventoryReminderNotification;
+use App\Notifications\BookingExpiredNotification;
 use App\Notifications\Channels\AppDatabaseChannel;
 use App\Notifications\PropertyApprovedNotification;
 use App\Notifications\SuperAdminAcceptedBroadcast;
 use App\Notifications\SuperAdminInvitedBroadcast;
+use App\Notifications\TenantInventoryReminderNotification;
+use App\Notifications\TenantWelcomeNotification;
 use App\Notifications\ThresholdAlertTriggered;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -145,6 +151,51 @@ class AppDatabaseChannelTest extends TestCase
             $this->assertTrue(
                 method_exists($classe, 'toAppNotification'),
                 "{$classe} n'a pas de titre dans son toArray() et doit donc en déclarer un.",
+            );
+        }
+    }
+
+    /**
+     * TCK-1195 (P75.03) — sans `toAppNotification()`, le canal ne retenait de `toArray()` que le
+     * titre : le corps que quatre classes écrivent restait dans `data`, que la cloche ne lit pas.
+     */
+    public function test_le_corps_ecrit_par_to_array_arrive_dans_la_colonne_body(): void
+    {
+        $user = User::factory()->create();
+        $lease = Lease::factory()->create();
+        $notifications = [
+            new TenantWelcomeNotification($lease),
+            new TenantInventoryReminderNotification($lease),
+            new AgentTenantInventoryReminderNotification($lease),
+            new BookingExpiredNotification(Booking::factory()->create()),
+        ];
+
+        foreach ($notifications as $notification) {
+            $ligne = app(AppDatabaseChannel::class)->send($user, $notification);
+            $attendu = $notification->toArray($user)['body'] ?? null;
+
+            $this->assertIsString($attendu, $notification::class.' ne range pas de `body` dans toArray()');
+            $this->assertNotSame('', $attendu);
+            $this->assertSame($attendu, $ligne?->fresh()?->body, $notification::class.' : le corps n\'arrive pas dans la colonne');
+        }
+    }
+
+    /**
+     * TCK-1195 (P75.03) — le canal ne lit que `body` : une classe cartographiée qui rangerait son
+     * corps sous un autre nom (`message`, `content`) le perdrait de nouveau sans un rouge.
+     */
+    public function test_aucune_classe_cartographiee_ne_range_son_corps_sous_un_autre_nom(): void
+    {
+        foreach (array_keys(AppDatabaseChannel::TYPES) as $classe) {
+            if (method_exists($classe, 'toAppNotification')) {
+                continue;
+            }
+            $source = (string) file_get_contents((string) (new ReflectionClass($classe))->getFileName());
+
+            $this->assertDoesNotMatchRegularExpression(
+                "/'(message|content)'\\s*=>/",
+                $source,
+                "{$classe} range un corps hors de `body` : AppDatabaseChannel ne le lit pas.",
             );
         }
     }
