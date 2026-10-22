@@ -21,7 +21,7 @@ describe('useAgencyInvoiceDefaults', () => {
     useApiQueryMock.mockReturnValue({ data: undefined });
     const { result } = renderHook(() => useAgencyInvoiceDefaults());
 
-    expect(result.current).toEqual({ taxRate: null, ready: false });
+    expect(result.current).toEqual({ taxRate: null, currency: null, ready: false });
     expect(useApiQueryMock.mock.calls[0]![2]).toMatchObject({ enabled: false });
   });
 
@@ -31,7 +31,7 @@ describe('useAgencyInvoiceDefaults', () => {
     const { result } = renderHook(() => useAgencyInvoiceDefaults());
 
     expect(useApiQueryMock.mock.calls[0]![1]).toBe('/api/agencies/4');
-    expect(result.current).toEqual({ taxRate: 18, ready: true });
+    expect(result.current).toEqual({ taxRate: 18, currency: null, ready: true });
   });
 
   it('une agence sans taux est prête, à `null`', () => {
@@ -39,6 +39,15 @@ describe('useAgencyInvoiceDefaults', () => {
     useApiQueryMock.mockReturnValue({ data: { data: { id: 4, default_tax_rate: null } } });
     const { result } = renderHook(() => useAgencyInvoiceDefaults());
 
-    expect(result.current).toEqual({ taxRate: null, ready: true });
+    expect(result.current).toEqual({ taxRate: null, currency: null, ready: true });
+  });
+
+  it('lit la devise de l’agence (P133.03), et écarte une devise de facture inconnue', () => {
+    AUTH.user = { agency_id: 4 };
+    useApiQueryMock.mockReturnValue({ data: { data: { id: 4, currency: 'EUR' } } });
+    expect(renderHook(() => useAgencyInvoiceDefaults()).result.current.currency).toBe('EUR');
+
+    useApiQueryMock.mockReturnValue({ data: { data: { id: 4, currency: 'GBP' } } });
+    expect(renderHook(() => useAgencyInvoiceDefaults()).result.current.currency).toBeNull();
   });
 });

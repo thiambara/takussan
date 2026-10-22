@@ -95,7 +95,12 @@ export function CreateInvoiceDialog({
   // en silence quand le dialogue n'envoyait rien.
   const agence = useAgencyInvoiceDefaults();
   const valeursInitiales: CreateInvoiceFormValues = agence.ready
-    ? { ...DEFAULT_VALUES, tax_rate: agence.taxRate ?? 0 }
+    ? {
+        ...DEFAULT_VALUES,
+        tax_rate: agence.taxRate ?? 0,
+        // P133.03 (TCK-1379) — la devise de l'agence (P04.09), modifiable.
+        currency: agence.currency ?? DEFAULT_VALUES.currency,
+      }
     : DEFAULT_VALUES;
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<
@@ -157,6 +162,11 @@ export function CreateInvoiceDialog({
     if (tauxAgence === null || form.getFieldState('tax_rate').isDirty) return;
     form.setValue('tax_rate', tauxAgence);
   }, [tauxAgence, form]);
+  const deviseAgence = agence.ready ? agence.currency : null;
+  useEffect(() => {
+    if (deviseAgence === null || form.getFieldState('currency').isDirty) return;
+    form.setValue('currency', deviseAgence);
+  }, [deviseAgence, form]);
 
   const handleOpenChange = (next: boolean) => {
     if (!next) form.reset(valeursInitiales);

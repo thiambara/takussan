@@ -17,7 +17,11 @@ vi.mock('@/lib/queries/payments', () => ({
 
 /** P133.01 / P133.03 — les réglages de l'agence de l'émetteur ; par défaut, aucune agence. */
 const AGENCE = vi.hoisted(() => ({
-  valeur: { taxRate: null as number | null, ready: false },
+  valeur: { taxRate: null as number | null, currency: null as string | null, ready: false } as {
+    taxRate: number | null;
+    currency?: string | null;
+    ready: boolean;
+  },
 }));
 vi.mock('@/hooks/useAgencyInvoiceDefaults', () => ({
   useAgencyInvoiceDefaults: () => AGENCE.valeur,
@@ -206,5 +210,35 @@ describe('CreateInvoiceDialog — les lignes saisies partent à l’API (P133.02
     }
 
     expect(sansEspaces(recap('Sous-total'))).toBe('1500FCFA');
+  });
+});
+
+describe('CreateInvoiceDialog — la devise de l’agence pré-remplit le sélecteur (P133.03, TCK-1379)', () => {
+  beforeEach(() => {
+    MUTATION.mutateAsync.mockClear();
+  });
+
+  it('une agence en EUR émet en EUR sans toucher au sélecteur, aperçu compris', async () => {
+    AGENCE.valeur = { taxRate: null, currency: 'EUR', ready: true };
+    render(withIntl(<CreateInvoiceDialog open onOpenChange={() => {}} />));
+
+    await remplir('1500');
+    expect(sansEspaces(recap('Total'))).toBe('1500,00€');
+
+    await envoyer();
+    expect(envoye()).toHaveProperty('currency', 'EUR');
+  });
+
+  it('la devise reste modifiable : choisie en XOF, elle part en XOF', async () => {
+    AGENCE.valeur = { taxRate: null, currency: 'EUR', ready: true };
+    const user = userEvent.setup();
+    render(withIntl(<CreateInvoiceDialog open onOpenChange={() => {}} />));
+
+    await remplir('1500');
+    await user.click(screen.getByRole('combobox', { name: 'Devise' }));
+    await user.click(await screen.findByRole('option', { name: /XOF/ }));
+    await envoyer();
+
+    expect(envoye()).toHaveProperty('currency', 'XOF');
   });
 });
