@@ -14582,7 +14582,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Les invitations d'agent `agent_senior` et `agent_manager` portent la clé brute `invitations.roles.agent_senior` dans le courriel d'invitation et dans l'avis d'acceptation
 - Réf : P155.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : libellé d'`agent_manager` à choisir, le front en porte trois
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/resources/views/emails/invitation.blade.php:5`, `:7`, `takussan-api/app/Notifications/InvitationAcceptedNotification.php:29`, `takussan-api/lang/fr/invitations.php:4-10` (et `en`, `wo`), `takussan-api/app/Services/Invitation/AgentInvitationService.php:51`, `takussan-api/app/Services/Invitation/InvitationService.php:99-100`
 - Constat :
@@ -14592,10 +14592,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Le front, lui, a ces libellés (`agent_senior` et `agent_manager` dans `takussan-web/src/messages/*.json`, lu).
   - Établi comment : lu, puis mesuré par rendu.
 - Piste : ajouter `agent_senior` et `agent_manager` à `invitations.roles` dans `fr` et `en` (texte français tel quel en `wo`, wolof en pause), en reprenant les libellés du front. Garde : un test qui rend `InvitationMailable` et `InvitationAcceptedNotification` pour chaque rôle que `CreateInvitationRequest` et `AgentInvitationService::ALLOWED_ROLES` acceptent, et refuse `invitations.roles.` dans le texte rendu.
+- Mesure (2026-10-22, 40dc68fee, mesureur) : relu `AgentInvitationService::ALLOWED_ROLES` (l. 51, `agent`, `agent_senior`, `agent_manager`), `invitation.blade.php:5`/`:7` et `InvitationAcceptedNotification.php:29` (`__('invitations.roles.'.$role)`), `lang/{fr,en,wo}/invitations.php` (`roles` sans `agent_senior` ni `agent_manager`, `grep` → rien), inchangés ; aucun commit ni ticket ne le traite (`git log`, `grep -rln P155 docs/backlog/tickets` → rien) ; test temporaire (retiré), charge 5,73 / 3,80 / 3,37 sur 8 cœurs : `InvitationMailable::render()` et `InvitationAcceptedNotification::toMail()->render()` pour `agent_senior` et `agent_manager` sous `fr` et `en` → `invitations.roles.` dans les huit rendus → le constat tient en entier ; mais le front ne porte pas un libellé unique : `agent_manager` vaut « Agent manager » (`fr.json:5113`, `:5148`), « Responsable d'agents » (`:6292`) et « Responsable d'équipe » (`:6511`). Classement : V7, le défaut est avéré et la garde relève de A5, mais « reprendre les libellés du front » oblige à choisir entre trois textes métier divergents pour `agent_manager`.
 
 ### Douze notifications n'ont aucun test qui rende leur courriel, et aucune garde n'oblige une notification neuve à en avoir un
 - Réf : P155.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/` (`InvitationAcceptedNotification`, `LeaseEarlyTerminationNotification`, `InvitationExpiredNotification`, `LeaseRenewedNotification`, `TaskDueReminderNotification`, `UrgentMaintenanceCreatedNotification`, `AccountDeletionExecutedNotification`, `PropertyRejectedNotification`, `PropertyApprovedNotification`, `BookingExpiredNotification`, `SuperAdminAcceptedBroadcast`, `SuperAdminInvitedBroadcast`), `takussan-api/tests/`
 - Constat :
@@ -14604,10 +14605,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Le rendu de ces douze classes est propre aujourd'hui sur les fixtures des factories (mesuré, test temporaire, hors le rôle de P155.01) : le constat porte sur l'absence de garde, pas sur un défaut présent.
   - Établi comment : mesuré par `grep`, puis par rendu.
 - Piste : un test `RenduDesCourrielsTest` qui, pour chaque classe de `app/Notifications` dotée d'un `toMail()` et chaque Mailable de `app/Mail`, rend le courriel sous `fr`, `en` et `wo` à partir d'une fixture déclarée dans le test, et rougit sur une exception, une clé brute (`/\b[a-z_]+\.[a-z_.]+/` des domaines de `lang/`) ou un `:paramètre` resté. Il énumère les classes par réflexion sur le dossier et rougit sur une classe sans fixture, pour qu'une notification neuve ne lui échappe pas.
+- Mesure (2026-10-22, 40dc68fee, mesureur) : boucle `grep -rlw <classe> tests --include='*.php'` puis `grep -E 'toMail|->render\(\)|assertSeeInHtml'` sur chaque fichier, pour les classes de `app/Notifications` dotées d'un `toMail()` → les mêmes douze classes sans aucun fichier qui rende le courriel (`InvitationAcceptedNotification` et `LeaseEarlyTerminationNotification` citées par 0 fichier au mot près, les dix autres par 1 à 3) ; aucune garde de rendu dans `tests/` ni ticket qui la prévoie → le constat tient. Classement : A5, garde ajoutée sans seuil existant ni choix de produit ; elle rougira sur P155.01 tant que celle-ci n'est pas faite : l'implémenteur la livre avec une exception nommée et datée pour ce cas, ou après P155.01.
 
 ### L'avis d'expiration et l'avis d'acceptation d'une invitation par numéro seul citent une adresse vide
 - Réf : P155.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : texte de repli qui nomme l'invité sans e-mail
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/InvitationExpiredNotification.php:29-36`, `takussan-api/app/Notifications/InvitationAcceptedNotification.php:28-38`, `takussan-api/lang/fr/notifications.php` (`invitation_expired`, `invitation_accepted`), `takussan-api/app/Services/Invitation/AgentInvitationService.php:73`, `takussan-api/app/Services/Invitation/InvitationService.php:514`, `:753`, `takussan-api/config/auth.php:155-157`
 - Constat :
@@ -14616,10 +14618,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Le drapeau est allumé en développement (`.env.docker:64`, `PHONE_LOGIN_ENABLED=true`, lu) et éteint dans la suite (`phpunit.xml:140`, lu) : aucun test n'atteint ce cas. Sa valeur en préproduction n'est pas relevée.
   - L'avis attendu serait donc « Votre invitation à  a expiré » (déduit, à vérifier par rendu d'une invitation sans e-mail). Pour l'acceptation, l'e-mail peut avoir été renseigné entre-temps (à vérifier dans `accept()`).
 - Piste : nommer l'invité par ce qui existe (`email`, sinon le numéro, sinon `metadata.first_name`/`last_name`), dans un seul accesseur de l'invitation que les deux avis lisent. Test : invitation par numéro seul, drapeau allumé, `expire()` puis rendu de l'avis, qui porte le numéro.
+- Mesure (2026-10-22, 40dc68fee, mesureur) : relu `InvitationExpiredNotification::toMail` (l. 28-36) et `InvitationAcceptedNotification::toMail` (l. 28-38), qui lisent `$invitation->email` sans repli, `AgentInvitationService.php:72` (`$email` nul sans adresse), `InvitationService::expire` (l. 514) et `::accept` (l. 753, `$invitation->fresh()` ; `acceptAsNewUser` l. 602-622 écrit l'e-mail de l'utilisateur depuis l'invitation et jamais l'inverse : l'invitation reste sans e-mail), `config/auth.php:155-157`, `phpunit.xml:140` (`false`) ; test temporaire (retiré), même charge : invitation `email` nul et `phone` renseigné → sujets « Votre invitation à  a expiré » et «  a accepté votre invitation » → le constat tient, la partie « à vérifier » est vérifiée pour les deux avis. Classement : V7, nommer l'invité par le numéro ou par le nom de la metadata (l'ordre de repli et la forme du texte) est un choix de texte visible, que la piste propose sans qu'une spec l'écrive.
 
 ### Deux courriels hors code rendent des codes bruts : la métrique et la sévérité de l'alerte de seuil, le nom du rapport exporté
 - Réf : P155.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : libellés de sévérité et de rapport, divergents au front
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/ThresholdAlertTriggered.php:57-63`, `takussan-api/app/Models/ThresholdAlert.php:46-66`, `takussan-api/app/Notifications/ReportExportReadyNotification.php:31`, `takussan-api/app/Http/Controllers/Api/Admin/ReportingController.php:80-82`, `:111-113`
 - Constat :
@@ -14628,10 +14631,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Mesuré, test temporaire : le sujet rend « [Takussan] Alerte KPI — occupancy_rate_percent », le corps « occupancy_rate_percent : 62,50 … (sévérité : critical) », l'export « Export rapport « revenue » … ».
   - C'est le pendant hors notifications codées de l'angle 164, qui ne vise que `NotificationRenderer`.
 - Piste : libellés de métrique, de sévérité et de rapport dans `lang/` (`fr`, `en` ; `wo` en français tel quel), lus par les deux `toMail()` et, pour la métrique, par `toDatabase()` (`threshold_alert.title`, l. 82). Test : le rendu ne contient plus le code.
+- Mesure (2026-10-22, 40dc68fee, mesureur) : relu `ThresholdAlertTriggered::toMail` (l. 56-63, `metric` et `severity` bruts) et `::toAppNotification` (`threshold_alert.title` avec `metric` brut), `ReportExportReadyNotification::toMail` (`report` brut) ; `grep -rln occupancy_rate_percent takussan-api/lang` → rien ; test temporaire (retiré), même charge : sujet « [Takussan] Alerte KPI — occupancy_rate_percent », corps « occupancy_rate_percent : 62,50 est inférieur à 70,00 (sévérité : critical). », export « L'export du rapport « revenue » est prêt au téléchargement. » → le constat tient ; le front a les libellés, mais pas un seul : `critical` « Critique » et `warning` « Attention » (`fr.json:1863`) ou « Alerte » (`:7584`), `revenue` « Revenus » (`:193`) ou « Revenu » (`:9940`). Classement : V7, le texte métier des trois codes est à choisir parmi des libellés divergents, ce qu'aucune spec ne tranche.
 
 ### Petites améliorations
 - Réf : P155.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : formule d'ouverture et de signature de sept courriels
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/SuperAdminInvitedBroadcast.php:47`, `takussan-api/app/Notifications/SuperAdminAcceptedBroadcast.php:41`, `takussan-api/app/Notifications/AgencyUpgradeApprovedNotification.php`, `AgencyUpgradeRejectedNotification.php`, `AgencyUpgradeRequestSubmittedNotification.php`, `ReportExportReadyNotification.php`, `ThresholdAlertTriggered.php` (`toMail()`)
 - Constat :
@@ -14639,3 +14643,4 @@ qui a été relevé. Rien n'a été exécuté.*
   - Les trois avis de passage en agence, l'export de rapport et l'alerte de seuil ne posent ni `greeting` ni `salutation` (lu) : ils prennent les textes du gabarit de Laravel (« Bonjour ! », « Cordialement, » suivi du nom de l'application, mesuré par rendu), là où les autres signent « L'équipe Takussan ».
   - Établi comment : lu, et mesuré par rendu.
 - Piste : `->greeting(__('notifications.greeting'))` dans les deux avis de cooptation, et `greeting`/`salutation` du dépôt dans les cinq autres. La garde de P155.02 peut vérifier que chaque courriel rendu porte la salutation du dépôt.
+- Mesure (2026-10-22, 40dc68fee, mesureur) : relu `SuperAdminInvitedBroadcast.php:47`/`:52` et `SuperAdminAcceptedBroadcast.php:41`/`:46` (`greeting` et `salutation` sur `notifications.salutation`), et l'absence de `greeting`/`salutation` dans `AgencyUpgradeApprovedNotification`, `AgencyUpgradeRejectedNotification`, `AgencyUpgradeRequestSubmittedNotification`, `ReportExportReadyNotification`, `ThresholdAlertTriggered` (`grep -n 'greeting\|salutation'` → rien) ; `notifications.greeting` existe dans les trois langues (`lang/fr/notifications.php:260`, lu par `CodedNotification.php:202`) ; test temporaire (retiré), même charge : `SuperAdminAcceptedBroadcast` → `greeting` = `salutation` = « L'équipe Takussan », les avis d'agence, d'export et d'alerte → `greeting` et `salutation` nuls (gabarit de Laravel) → le constat tient. Classement : V7, aucune spec n'écrit la formule des courriels : aligner sept courriels sur la convention majoritaire change un texte visible, mineur mais à trancher.
