@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 
 import { PropertyCard } from '@/components/property/PropertyCard';
+import { CARD_SIZES_BIEN_RETIRE } from '@/components/property/card-image-sizes';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import type { EtatPublicDuBien } from '@/lib/queries/public-property';
 
@@ -80,6 +81,7 @@ export async function bienRetire(etat: EtatRetire) {
                 property={bien}
                 index={index}
                 priority={index < CARTES_PRIORITAIRES}
+                sizes={CARD_SIZES_BIEN_RETIRE}
               />
             ))}
           </div>

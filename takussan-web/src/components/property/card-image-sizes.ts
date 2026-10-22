@@ -152,3 +152,23 @@ export const CARD_SIZES_PORTFOLIO_GRID =
  */
 export const CARD_SIZES_RANGEE =
   '(max-width: 543px) 47vw, (max-width: 815px) 31vw, (max-width: 1007px) 25vw, (max-width: 1135px) 20vw, (max-width: 1263px) 16.7vw, (max-width: 1919px) 14.3vw, 254px';
+
+/**
+ * TCK-1190 (P102.03) — les biens similaires de la page d'un bien loué, vendu ou retiré
+ * (`bien-retire.tsx`) : `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`, `gap-4`, dans
+ * `mx-auto max-w-6xl px-4 sm:px-6 lg:px-8` (1 152 px, marges comprises).
+ *
+ * | viewport | colonnes | emplacement | déclaré |
+ * |---|---|---|---|
+ * | 320 → 639 px | 1 | `100vw − 32 px` exactement | `calc(100vw - 32px)` |
+ * | 640 → 1023 px | 2 | 0,5 vw − 32 px (288 → 480 px) | 50vw |
+ * | 1024 → 1151 px | 3 | vw / 3 − 32 px (309 → 352 px) | 33.4vw |
+ * | 1152 px et au-delà | 3, conteneur plafonné | **352 px fixes** | 352px |
+ *
+ * Calculé depuis les classes, pas relevé au navigateur : `card-image-sizes.bien-retire.test.ts`
+ * le vérifie à chaque pixel de 320 à 2560 (jamais sous-déclaré, au plus 40 px de trop).
+ * Jusqu'ici, ces cartes retombaient sur {@link CARD_SIZES_SEARCH_GRID} : 279 px déclarés pour
+ * 418 réels à 900 px, 252 pour 352 à 1 440 px.
+ */
+export const CARD_SIZES_BIEN_RETIRE =
+  '(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) 50vw, (max-width: 1151px) 33.4vw, 352px';
