@@ -10214,7 +10214,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### L'API répond aux préflights CORS avec `Access-Control-Max-Age: 0` : le navigateur ne les garde jamais, et chaque appel non simple coûte deux allers-retours
 - Réf : P103.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1209
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/cors.php:31`
 - Constat :
@@ -10224,6 +10224,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Tout appel connecté du navigateur porte `Authorization` (lu, `src/lib/api.ts:700-702`) et n'est donc jamais simple : la console `/app` paie ce préflight sur chacune de ses lectures, pas seulement les pages publiques (déduit, à vérifier).
 - Piste : donner à `max_age` une valeur positive (Chrome la plafonne à 7 200 s, à vérifier), à fixer avec P103.02. Garde : un test de fonctionnalité qui envoie un préflight sur une route publique et exige un `Access-Control-Max-Age` strictement positif.
 - Mesure (2026-10-21, 71e1c1286, mesureur) : `grep -n max_age takussan-api/config/cors.php` → `'max_age' => 0` (l. 31, inchangé depuis TCK-842) ; test temporaire retiré (`OPTIONS` avec `Origin: http://localhost:3000`, `Access-Control-Request-Method: GET`, `Access-Control-Request-Headers: accept-language,content-type`, charge 5,84 sur 8 cœurs) sur `public/geo/cities`, `public/geo/regions`, `public/amenities`, `public/property-types`, `maintenance/status` → 204 et `Access-Control-Max-Age: 0` à chaque fois ; aucun test, ADR ni ticket ne fixe cette valeur (`grep -rn 'Access-Control\|max_age' takussan-api/tests docs/adr docs/infra docs/backlog/tickets` → rien sur le CORS). Le coût côté navigateur reste déduit, sans frise réseau. Classement : A2, une valeur positive de mise en cache du préflight ne change aucune réponse, seulement le nombre d'`OPTIONS`.
+- Mesure (2026-10-22, fbb8fc003, implementeur) : avant correctif, `OPTIONS /api/public/geo/cities` (origine autorisée, `Access-Control-Request-Headers: accept-language,authorization,content-type`) → 204 et `Access-Control-Max-Age: 0` (`PreflightCorsCacheTest` rouge, `0 is greater than 0`) → `max_age` à 7 200 s, le plafond de Chrome, contrepartie écrite dans `config/cors.php` ; le test exige une valeur strictement positive et au plus 7 200 ; ablation (`config/cors.php` rendu) → 1 rouge, remis → vert.
 
 ### `apiRequest` pose `Content-Type: application/json` sur tout GET sans corps : chaque lecture du navigateur par `useApiQuery` déclenche un préflight, frappe de l'autocomplétion comprise
 - Réf : P103.02
