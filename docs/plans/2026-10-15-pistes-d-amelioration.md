@@ -11389,7 +11389,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Changer le rôle système d'un membre se juge « être admin », pas `team.assign_role`
 - Réf : P116.01
-- Statut : validé — porteur (2026-10-22) : juger par `team.assign_role` par une policy (comme `AgencyRolePolicy::assign`) et retirer les deux reprises
+- Statut : fait · TCK-1498
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/UpdateUserRoleRequest.php:30-37`, `takussan-api/app/Http/Requests/Api/UpdateAgencyMemberRoleRequest.php:30-38`, `takussan-api/app/Policies/AgencyRolePolicy.php:31`, `:38`, `:87`
 - Constat :
@@ -11399,6 +11399,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Établi comment : test temporaire. Que l'admin sans la capacité promeuve un agent admin d'agence alors que `AgencyRoleService` (l. 287-311) protège le dernier détenteur de `team.assign_role` n'a pas été confronté (à vérifier).
 - Piste : porter la règle par une policy qui juge `team.assign_role` (comme `AgencyRolePolicy::assign`), et retirer les deux reprises. Test : admin sans la capacité refusé, agent qui la tient accepté, admin principal et super-admin inchangés.
 - Mesure (2026-10-22, efa6796ea, mesureur) : relu `UpdateUserRoleRequest.php:30-37` et `UpdateAgencyMemberRoleRequest.php:30-38` (super-admin, admin principal ou `isAgencyAdminAt`, aucune capacité), `AgencyRolePolicy.php:31`, `:38`, `:87` (`canActAt(TeamAssignRole)`) ; `git diff 3390f9116 efa6796ea -- takussan-api/app takussan-api/routes` ne touche aucun de ces fichiers ; aucun ticket ne porte la conversion (`grep` des tickets) ; test temporaire retiré (`tests/Feature/Tmp`, charge 1,88 sur 8 cœurs), admin au rôle sans `team.assign_role`/`agency.update`/`team.invite`/`properties.publish` contre agent au rôle qui les porte → `PUT /api/users/{agent}/role` 200 pour l'admin, 403 pour l'agent. Le constat tient ; le cas du dernier détenteur reste non confronté. Classement : V2, la règle retire à l'admin sans la capacité un geste qu'il exerce aujourd'hui.
+- Mesure (2026-10-22, d2575fb11, implementeur) : test neuf `MemberRoleChangeCapabilityTest` avant correctif : admin dont le rôle retire `team.assign_role` → 200 sur `PUT /api/users/{agent}/role` et `PUT …/members/{bailleur}/role` au lieu de 403, agent qui la porte → 403 au lieu de 200 → `AgencyPolicy::changeMemberRole` (super-admin, admin principal, puis `team.assign_role` sous un profil actif de l'agence), à laquelle les deux FormRequest délèguent ; 6/6 verts ; ablation (FormRequest remises à `d2575fb11`) → 2 rouges, remises → 6/6 ; `UserRoleControllerTest`, `RoleAccessTest`, `UserAdminAgencyScopeTest`, `AgencyMembersListTest`, `MemberProfileRestoreTest`, `TeamFormationBoundaryTest`, `SuperAdminGrantOnlyByCooptationTest`, `PlatformPowerStepUpTest`, `AuthorizationPrecedesValidationTest`, `AccountAndProfileValidationTest`, `MigratedAuthorizationRulesTest` verts. La protection du dernier détenteur de `team.assign_role` (`AgencyRoleService`) n'a pas été confrontée.
 
 ### `agency.update` est inscrite « sans geste », alors que la fiche de l'agence, ses réglages et ses intégrations en sont les gestes, tous jugés par le type de profil
 - Réf : P116.02
