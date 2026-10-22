@@ -40,7 +40,7 @@ class StoreThresholdAlertRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'agency_id' => ['sometimes', 'integer', 'exists:agencies,id'],
+            'agency_id' => ['sometimes', 'integer', Rule::exists('agencies', 'id')->withoutTrashed()],
             'metric' => ['required', Rule::in(ThresholdAlert::allowedMetrics())],
             'operator' => ['required', Rule::in(ThresholdAlert::allowedOperators())],
             'threshold' => ['required', 'numeric'],

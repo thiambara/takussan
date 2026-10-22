@@ -34,7 +34,7 @@ class StoreIntegrationRequest extends BaseFormRequest
             // TCK-602 (ADR-0051 §3) — un fournisseur que le registre ne connaît pas n'a ni pilote
             // ni schéma : l'accepter, c'était créer une intégration que rien ne lit.
             'provider' => ['required', 'string', 'max:255', Rule::in(app(IntegrationProviderRegistry::class)->keys())],
-            'agency_id' => ['nullable', 'exists:agencies,id'],
+            'agency_id' => ['nullable', Rule::exists('agencies', 'id')->withoutTrashed()],
             'credentials' => ['required', 'array'],
             'is_active' => ['nullable', 'boolean'],
             'metadata' => ['nullable', 'array'],

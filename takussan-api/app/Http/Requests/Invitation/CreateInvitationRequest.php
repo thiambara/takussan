@@ -68,7 +68,7 @@ class CreateInvitationRequest extends BaseFormRequest
                 Rule::in(array_values(array_unique(InvitationService::INVITABLE_TYPE_BY_ROLE))),
             ],
             'invitable_id' => ['nullable', 'integer', 'required_with:invitable_type'],
-            'agency_id' => ['nullable', 'integer', 'exists:agencies,id'],
+            'agency_id' => ['nullable', 'integer', Rule::exists('agencies', 'id')->withoutTrashed()],
             // Free-form per-flow payload (e.g. service zones, first lead
             // pre-assignment). Validation of the inner shape is delegated
             // to the per-role caller — this endpoint is generic.
