@@ -21,8 +21,9 @@ use Tests\Concerns\CreatesAgencyMembers;
  * La garde rend chaque format À SON PLAFOND et borne le surcroît de mémoire RÉELLEMENT ALLOUÉE
  * (`memory_get_peak_usage(true)`, ce que `memory_limit` compte) à la moitié des 256M, l'autre
  * moitié restant au worker. Mesuré sous TCK-1306 : 90 Mo pour 200 lignes, 176 Mo pour 400. Elle rougit si le plafond remonte au-delà de ce que le rendu
- * tient. Le plafond de mémoire du processus est relevé à 512M pendant le rendu : un plafond qui
- * remonte fait échouer l'assertion avant de tuer le processus, sauf s'il remonte de beaucoup.
+ * tient. Le plafond de mémoire du processus est posé à l'occupation courante plus deux fois la borne
+ * pendant le rendu : un plafond qui remonte fait échouer l'assertion avant de tuer le processus,
+ * sauf s'il remonte de beaucoup.
  */
 class ExportMemoireAuPlafondTest extends ApiTestCase
 {
@@ -72,11 +73,14 @@ class ExportMemoireAuPlafondTest extends ApiTestCase
     {
         $admin = $this->agencyAdmin($this->agency);
         $avant = ini_get('memory_limit');
-        ini_set('memory_limit', '512M');
+        gc_collect_cycles();
+        $base = memory_get_usage(true);
+        // Relatif à l'occupation, jamais absolu : au milieu de la suite de CI (`memory_limit=4G`,
+        // PCOV), le processus occupe déjà des centaines de Mo, et un plafond fixe de 512M y tuait
+        // le processus avant toute assertion (« Premature end of PHP process »).
+        ini_set('memory_limit', (string) ($base + 2 * self::BORNE_OCTETS));
 
         try {
-            gc_collect_cycles();
-            $base = memory_get_usage(true);
             memory_reset_peak_usage();
             $reponse = $this->actingAsApi($admin)->get($url);
             $surcroit = memory_get_peak_usage(true) - $base;
