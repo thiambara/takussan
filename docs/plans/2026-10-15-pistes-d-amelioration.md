@@ -9191,7 +9191,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
 
 ### Connexion OAuth : un e-mail de casse différente d'un compte existant contourne le contrôle et rend 500
 - Réf : P92.06
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1288
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/OAuthProvisioningService.php:64-67,87`, `takussan-api/app/Models/User.php:89`
 - Constat :
@@ -9200,6 +9200,7 @@ modèle sans `SoftDeletes` n'ont pas été retenus.*
   - Les tests OAuth n'emploient que des e-mails en minuscules (rapport, à vérifier).
 - Piste : comparer par `App\Support\CaseInsensitive` (ou l'e-mail replié) ; test avec un e-mail de fournisseur en casse mixte. V2 probable : chemin d'authentification.
 - Mesure (2026-10-21, c9a22e0df, mesureur) : relu `OAuthProvisioningService.php` (`User::where('email', $email)->exists()` sur l'e-mail du fournisseur tel quel, puis `User::create`) et `User::setEmailAttribute` (repli par `CaseInsensitive::fold` à l'écriture) ; test temporaire `TmpMesureurP92Test` (base créée par le test, charge 2,09 / 2,51 / 3,36 sur 8 cœurs, retiré ensuite) → compte `john@gmail.com` existant, `provision('google', …)` avec `John@Gmail.com` : le contrôle ne refuse pas (pas de 409 `auth.oauth_email_taken`), et `create` lève `UniqueConstraintViolationException` `users_email_unique`, soit 500. Aucun ticket ni commit ne le traite. Classement : V2, le correctif touche le chemin d'authentification et sa défense contre la prise de compte.
+- Mesure (2026-10-22, a2398e474, implementeur) : test neuf `OAuthCallbackTest::test_callback_rejects_email_collision_whatever_the_provider_casing` avant correctif : compte `victim@example.com`, fournisseur `' Victim@Example.COM '` → 500 au lieu de 409 → contrôle de collision par `CaseInsensitive::sql('email') = CaseInsensitive::fold(trim($email))` : 409 `auth.oauth_email_taken`, aucun compte créé, 8/8 verts ; ablation (service à `HEAD`) → 1 rouge (500), correctif remis → vert ; `FacebookOAuthTest`, `AppleOAuthTest`, `OAuthSecondFactorTest` verts.
 
 ### Contrôle puis insertion sans verrou : un double envoi rend 500 sur plusieurs gestes
 - Réf : P92.07
@@ -9552,7 +9553,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Petites améliorations
 - Réf : P94.05
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1290
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyUpgradeRequestController.php:96-97,117`, `takussan-api/app/Http/Controllers/Api/Admin/SuperAdminInvitationController.php:48`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:119`
 - Constat :
@@ -9566,6 +9567,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 - Piste : `?->value` seul pour les enums. `(float)` pour `hourly_rate`, comme les montants de
   `PaymentController`.
 - Mesure (2026-10-21, 67b0ae83f, mesureur) : relu les quatre `?->value ?? (string)` (`AgencyUpgradeRequestController.php:96,97,117`, `SuperAdminInvitationController.php:48`) ; `information_schema.columns` en lecture : `agencies.kind`, `agencies.status`, `users.status`, `documents.type` sont `NOT NULL`, donc la branche `""` ne s'atteint pas aujourd'hui et cette partie n'est qu'un écart de forme ; relu `ServiceProviderProfileController.php:119-120,169-170` et `ServiceProviderProfile.php:39` (`hourly_rate_min` en `decimal:2`, `visit_fee` en `(float)`) → la partie montant tient. Classement : V1, la seule partie qui tient change la forme d'un montant émis, et le doute classe à valider.
+- Mesure (2026-10-22, a2398e474, implementeur) : relu les quatre `?->value ?? (string)` (`AgencyUpgradeRequestController.php:86,87,107`, `SuperAdminInvitationController.php:48`) et `Me/ServiceProviderProfileController.php:119,169` ; test neuf `ServiceProviderOnboardingTest::test_hourly_rate_is_rendered_as_a_number_like_visit_fee` avant correctif : `hourly_rate` → `'4500.50'` en chaîne (1 rouge) → rendu `(float)`, `null` gardé `null` : 9/9 verts ; `?->value` seul aux quatre lignes d'enum (branche `""` inatteignable, colonnes `NOT NULL` : pas de rouge possible) ; ablation (contrôleur prestataire à `HEAD`) → 1 rouge, correctif remis → vert ; `SuperAdminInvitationLifecycleTest`, `AgencyUpgradeRequestReviewTest`, `AccountAndProfileValidationTest` verts.
 
 ## Angle 95 — Réponse d'une écriture face au `show` du même modèle
 
@@ -11631,13 +11633,14 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Petites améliorations
 - Réf : P118.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-1292
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/SuperAdminInvitationController.php:69`, `takussan-api/app/Http/Controllers/Api/Admin/PrivacyRequestController.php:83`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:129-130`
 - Constat :
   - Trois lectures non paginées trient sur une colonne non unique sans `id` : invitations de super-admin `orderByDesc('created_at')->get()`, export des demandes RGPD `orderBy('due_at')->get()`, sessions d'un utilisateur `orderByDesc('last_used_at')->orderByDesc('created_at')` (lu). Sans page, aucune ligne ne se perd ; seul l'ordre de deux lignes égales peut changer d'un appel à l'autre, ce qui compte pour un export qu'on compare (à vérifier).
 - Piste : ajouter l'`id` en dernier tri quand on touche ces fichiers ; rien à faire en lot.
 - Mesure (2026-10-22, fc967bccf, mesureur) : relu `SuperAdminInvitationController.php:69-70` (`orderByDesc('created_at')->get()`), `PrivacyRequestController::export` (`orderBy('due_at')->get()`), `UserDetailController::sessions` (`orderByDesc('last_used_at')->orderByDesc('created_at')->paginate(…)`). Le constat est inexact sur un point : les sessions **sont paginées**, et relèvent donc du défaut de P118.02 (une ligne peut manquer d'une page à l'autre) ; les deux autres lectures ne perdent aucune ligne, seul l'ordre de deux lignes égales n'est pas fixé. Classement : A1, le correctif attendu est d'ajouter l'`id` en dernier tri sur ces trois lectures, ce qui ne change l'ordre que des lignes égales et ne demande aucun choix de produit.
+- Mesure (2026-10-22, a2398e474, implementeur) : relu `SuperAdminInvitationController.php:69-70`, `PrivacyRequestController::export` et `UserDetailController::sessions` (aucun départage par `id`) ; test neuf `TriDepartageParIdTest` avant correctif : trois lignes égales sur la clé de tri, dont une réécrite (elle part en fin de table) → invitations, export et sessions rendus dans l'ordre physique, 3 rouges → `id` en dernier tri dans le sens du tri principal : 3/3 verts ; ablation (trois contrôleurs à `HEAD`) → 3 rouges, correctif remis → verts ; `PrivacyRequestRegistryTest`, `PersonalDataAccessLogTest`, `SuperAdminInvitationLifecycleTest`, `UserDetailTest` verts.
 
 ## Angle 119 — Requêtes de base passées à `buildQuery()` et `QueryBuilder::for()`
 
@@ -14244,7 +14247,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### La console Équipe rend une erreur dès qu'on trie par « Dernière connexion » : l'API refuse `sort=last_login_at`
 - Réf : P150.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1280
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin/users/AdminUsersTable.tsx:126-134,251-256`, `takussan-web/src/components/console/DataTable.tsx:209-232`, `takussan-web/src/lib/queries/admin-users.ts:61`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:26`, `takussan-api/app/Models/User.php:157,166-172,184,287`, `takussan-api/app/Http/Controllers/Api/UserAdminController.php:57-62`
 - Constat :
@@ -14255,10 +14258,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu, puis mesuré par le test temporaire.
 - Piste : ajouter `last_login_at` à `User::$requestSortable`, que lisent les trois constructeurs de `User`, et vérifier que le super-admin n'en est pas gêné (sa console trie par `-created_at` seul). Sinon, retirer `sortKey` de la colonne. Test côté API : `GET /api/users?sort=-last_login_at` → 200, lignes rangées. Garde contre le retour : P150.04.
 - Mesure (2026-10-22, 09ad70d08, mesureur) : relu `User.php:157` (`$requestSortable` = `id, created_at, email, status`, plus `nameSorts()`, lus par `buildQuery()` `:184`, `buildAgencyTeamQuery()` `:234` et le troisième constructeur `:312`) et `AdminUsersTable.tsx:253` (`sortKey: 'last_login_at'`) ; test temporaire `tests/Feature/Tmp/MesureurTmp150Test.php` (retiré, charge 3,15 / 3,23 / 3,30 sur 8 cœurs) : administrateur d'agence `GET /api/users?sort=last_login_at` → 400, `sort=-last_login_at&filter[role]=agent&filter[status]=active` → 400, `sort=first_name` et `sort=-created_at` → 200 ; super-admin `sort=-last_login_at` → 400 aussi ; `git show 2e3fb1181` montre que le tri par dernière connexion existait déjà avant TCK-373 (`onSortClick('last_login_at')`), que TCK-373 dit conserver (« mêmes tris », AC6) → le constat tient. Classement : A1, le front écrit ce tri depuis avant TCK-373 et son ticket en fait un geste à conserver ; le correctif attendu ajoute `last_login_at` à `User::$requestSortable`, sans retirer la colonne ni rien exposer de neuf (la date est déjà affichée), avec un test `GET /api/users?sort=-last_login_at` → 200, lignes rangées.
+- Mesure (2026-10-22, a2398e474, implementeur) : test neuf `UserLastLoginSortTest` avant correctif : administrateur d'agence `GET /api/users?…&filter[role]=agent&filter[status]=active&sort=±last_login_at` → 400, super-admin `GET /api/users?sort=±last_login_at` → 400 (4 rouges) ; `/api/admin/users` (console) acceptait déjà ce tri (`UserDetailController.php:83`) → `last_login_at` ajouté à `User::$requestSortable`, 4/4 verts, lignes rangées dans les deux sens ; ablation (`User.php` à `HEAD`) → 4 rouges, correctif remis → verts ; `PersonNameCollatedSortTest` et `UserAdminTest` verts.
 
 ### Les dates « Soumise du / au » de la file des demandes de passage en agence rendent la liste en erreur
 - Réf : P150.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1282
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyUpgradeRequestController.php:40-55`, `takussan-api/app/Models/AgencyUpgradeRequest.php:84`, `takussan-web/src/lib/queries/super-admin.ts:1365-1366`, `takussan-web/src/app/(super-admin)/super-admin/agency-upgrade-requests/page.tsx:93-113,247-272`
 - Constat :
@@ -14270,10 +14274,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu, puis mesuré par le test temporaire.
 - Piste : déclarer les deux bornes comme filtres du modèle (`customQueryFilters()` qui renvoie deux `AllowedFilter::callback`, `>=` et `<=` sur la date), et retirer la lecture à la main du contrôleur. La borne de fin et la valeur mal formée relèvent de l'angle 151. Test : `GET …?filter[submitted_from]=…&filter[submitted_to]=…` → 200, et seules les demandes de la période sortent.
 - Mesure (2026-10-22, 09ad70d08, mesureur) : relu `AgencyUpgradeRequestController.php:44-49` (lecture à la main de `filter.submitted_from` / `filter.submitted_to`, puis `buildQuery($base, $request)` `:51`) et `AgencyUpgradeRequest.php:84` (`$requestFilterable` sans ces deux clés), `super-admin.ts:1365-1366` (inchangées) ; même test temporaire, super-admin : `filter[submitted_from]=2026-01-01` → 400, `filter[submitted_to]=2026-12-31` → 400, `filter[status]=pending&sort=-submitted_at&include=agency,submitter` → 200 → le constat tient. Classement : A1, le contrôleur écrit déjà la sémantique attendue (`>=` / `<=` sur `submitted_at`, depuis TCK-268) et l'écran l'envoie ; le correctif attendu déplace ces deux bornes dans `customQueryFilters()` du modèle (`AllowedFilter::callback`, même `whereDate`) et retire la lecture à la main, avec un test de période → 200 et seules les demandes de la période ; la borne de fin et la valeur mal formée restent à l'angle 151.
+- Mesure (2026-10-22, a2398e474, implementeur) : test neuf `AgencyUpgradeRequestSubmittedRangeTest` avant correctif, super-admin : `filter[submitted_from]` et `filter[submitted_to]`, ensemble ou seuls, avec le `filter[status]`, le `sort` et l'`include` de la page → 400 (3 rouges) → les deux bornes déclarées par `AgencyUpgradeRequest::customQueryFilters()` (`whereDate` `>=` / `<=`, vide ignorée) et lecture à la main retirée du contrôleur : 3/3 verts, seules les demandes de la période sortent, bornes incluses ; ablation (modèle et contrôleur à `HEAD`) → 3 rouges, correctif remis → verts ; `AgencyUpgradeRequestReviewTest` et `AgencyUpgradeRequestEncryptionTest` verts.
 
 ### Les hooks des baux, des réservations et des factures envoient un `filter[search]` que l'API refuse, prêt pour le premier écran qui s'en servira
 - Réf : P150.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1284
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/leases.ts:41,49`, `takussan-web/src/lib/queries/bookings.ts:34,47`, `takussan-web/src/lib/queries/payments.ts:132,141`, `takussan-api/app/Models/Lease.php:89`, `takussan-api/app/Models/Booking.php:44`, `takussan-api/app/Models/Invoice.php:62`
 - Constat :
@@ -14284,6 +14289,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu, puis mesuré par le test temporaire.
 - Piste : retirer `search` des trois types de paramètres tant que l'API ne la sert pas. L'ajouter côté API serait un choix de produit (quels champs, Meilisearch ou `LIKE`). Le test de P150.04 couvre ces hooks.
 - Mesure (2026-10-22, 09ad70d08, mesureur) : relu `leases.ts:41,49`, `bookings.ts:34,47`, `payments.ts:132,141` (paramètre `search` posé en `filter[search]`) ; `grep requestSearchFields` sur `Lease.php`, `Booking.php`, `Invoice.php` → aucune ligne ; même test temporaire, administrateur d'agence : `/api/leases`, `/api/bookings`, `/api/invoices` avec `filter[search]=x` → 400 tous trois, sans → 200 ; `grep` des appelants : `LeasesList.tsx:71-75`, `InventoryLeasePicker.tsx:28`, `MaintenanceNewLauncher.tsx:36`, `BookingsList.tsx:69`, `InvoicesTable.tsx:32-41` ne passent jamais `search` → le constat tient, le défaut est latent. Classement : A3, le paramètre `search` de ces trois hooks n'a aucun appelant et ne peut que rendre 400 ; le correctif attendu le retire des trois types et de leur sérialisation, sans toucher l'API (y ajouter une recherche serait un choix de produit).
+- Mesure (2026-10-22, a2398e474, implementeur) : relu `leases.ts`, `bookings.ts`, `payments.ts` (paramètre `search` posé en `filter[search]`) et les appelants (aucun ne le passe) ; test neuf `sans-recherche-non-servie.tck-1284.test.ts` avant correctif : `search: 'x'` part dans le filtre des trois hooks (3 rouges) → `search` retiré des trois types et de leur sérialisation : 3/3 verts, `tsc --noEmit` propre ; ablation (trois modules à `HEAD`) → vitest 3 rouges et `tsc` 3 TS2578 (`@ts-expect-error` inutilisé), correctif remis → verts ; `LeasesList`, `InvoicesTable`, `tableaux-nommes.tck-912` verts.
 
 ### Rien ne confronte les paramètres écrits par le front aux listes blanches de l'API, et les écarts vivent des semaines
 - Réf : P150.04
@@ -14301,7 +14307,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Petites améliorations
 - Réf : P150.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1286
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/conversations-list.ts:41-73`, `takussan-api/app/Http/Controllers/Api/ConversationController.php` (`index`), `takussan-web/src/lib/queries/bookings.ts:62-64`, `takussan-api/app/Http/Controllers/Api/BookingController.php` (`show`)
 - Constat :
@@ -14309,6 +14315,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - `useBooking` demande `include=property,booking_payments,customer`. `show` charge `property.address`, `customer` et `payments` quoi qu'on demande (lu), et `booking_payments` n'est pas une relation (mesuré → 200, le paramètre est ignoré). L'écran lit bien `booking_payments` (lu, `BookingDetail.tsx:106,332`), qui sort de `BookingResource` (lu, `:43`) : rien de faux, mais le paramètre trompe le lecteur.
 - Piste : retirer du type `UseConversationsParams` les filtres que l'API ne sert pas, ou les brancher sur `archived`. Retirer `booking_payments` de l'`include` de `useBooking`, en commentant que `show` charge ses relations lui-même. Le relevé complet de ces paramètres ignorés est l'angle 186.
 - Mesure (2026-10-22, 09ad70d08, mesureur) : relu `conversations-list.ts:41-73` (`filter[status]`, `filter[property_id]`) et `ConversationController.php:30,60-67` (lit `?archived=` et trie par `last_message_at` en dur) ; même test temporaire : la requête complète de `useConversations` avec `filter[status]=archived&filter[property_id]=1` → 200, filtres ignorés ; appelants `ConversationList.tsx:29` et `useUnreadCount.ts:28` sans filtre ; `bookings.ts:64` demande `include=property,booking_payments,customer`, `BookingController.php:65` charge `property.address, customer, payments` quoi qu'on demande → les deux lectures tiennent. Classement : A3, les deux filtres du type `UseConversationsParams` et l'`include` `booking_payments` n'ont aucun effet ni appelant ; le correctif attendu les retire (option « retirer » de la piste, pas le branchement sur `archived`, qui serait un comportement neuf), avec un commentaire sur `useBooking` disant que `show` charge ses relations.
+- Mesure (2026-10-22, a2398e474, implementeur) : relu `ConversationController.php` (`index` lit `?archived=`, trie par `last_message_at`, aucun `filter[…]`) et `BookingController.php:65` (`show` charge `property.address, customer, payments`) ; test neuf `parametres-ignores.tck-1286.test.ts` avant correctif : `status`/`property_id` partent dans le filtre de `useConversations`, `useBooking` demande `booking_payments` (2 rouges) → les deux filtres retirés du type et de la requête, `booking_payments` retiré de l'`include` avec un commentaire sur `show` : 2/2 verts ; ablation (deux modules à `HEAD`) → 2 rouges et 1 TS2578, correctif remis → verts ; `ConversationList`, `useUnreadCount`, `BookingDetail.*` verts.
 
 ## Angle 151 — Valeurs de `filter[…]` passées brutes à une colonne typée
 

@@ -32,13 +32,13 @@ const LIST_FIELDS: string[] = [
   'created_at',
 ];
 
+// P150.03 (TCK-1284) — pas de `search` : `GET /api/leases` ne déclare aucun `filter[search]` (400).
 export type UseLeasesParams = {
   status?: string;
   property_id?: number;
   tenant_id?: number;
   page?: number;
   per_page?: number;
-  search?: string;
 };
 
 export function useLeases(params: UseLeasesParams = {}) {
@@ -46,7 +46,6 @@ export function useLeases(params: UseLeasesParams = {}) {
   if (params.status) filter.status = params.status;
   if (params.property_id) filter.property_id = params.property_id;
   if (params.tenant_id) filter.tenant_id = params.tenant_id;
-  if (params.search) filter.search = params.search;
 
   const spatieParams: SpatieQueryParams = {
     fields: {

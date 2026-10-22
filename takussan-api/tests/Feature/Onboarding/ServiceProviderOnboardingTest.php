@@ -116,6 +116,31 @@ class ServiceProviderOnboardingTest extends TestCase
         $this->assertSame(2500.0, (float) data_get($sp->metadata, 'visit_fee'));
     }
 
+    /**
+     * TCK-1290 (P94.05) — `hourly_rate` sort en nombre, comme `visit_fee` à côté : la colonne
+     * `decimal:2` le rendait en chaîne (`"4500.00"`). Sans tarif, il reste `null`.
+     */
+    public function test_hourly_rate_is_rendered_as_a_number_like_visit_fee(): void
+    {
+        $user = User::factory()->create();
+        $sp = ServiceProviderProfile::factory()->create(['user_id' => $user->id, 'hourly_rate_min' => null]);
+        Sanctum::actingAs($user);
+
+        $this->getJson("/api/me/profiles/{$sp->id}")
+            ->assertOk()
+            ->assertJsonPath('data.hourly_rate', null);
+
+        $this->patchJson("/api/me/profiles/{$sp->id}/trades", [
+            'trades' => ['plumbing'],
+            'intervention_zones' => ['Dakar'],
+            'hourly_rate' => 4500.5,
+        ])->assertOk()->assertJsonPath('data.hourly_rate', 4500.5);
+
+        $this->getJson("/api/me/profiles/{$sp->id}")
+            ->assertOk()
+            ->assertJsonPath('data.hourly_rate', 4500.5);
+    }
+
     public function test_patch_availability_persists_slots_under_metadata(): void
     {
         $user = User::factory()->create();
