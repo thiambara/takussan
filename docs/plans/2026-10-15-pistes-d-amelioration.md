@@ -15772,7 +15772,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Une visite reportée garde ses marques de rappel : le nouveau créneau ne reçoit ni le rappel de la veille ni celui de l'heure
 - Réf : P169.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1527
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/SendPropertyVisitReminders.php:43-46,98-103,145-146`, `takussan-api/app/Services/Visit/VisitSchedulingService.php:356-375`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:253-261,294-296`
 - Constat :
@@ -15784,10 +15784,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu, et mesuré.
 - Piste : retirer les deux marques quand `scheduled_at` change (dans `rescheduleOrFail` et dans `update`, ou en un seul point sur le modèle), ou ranger dans la marque l'heure qu'elle rappelle et ne la tenir pour posée que si elle égale `scheduled_at`. Garde : un test « rappels partis, report, nouvelle confirmation » qui attend les deux rappels du nouveau créneau, par chacun des deux chemins.
 - Mesure (2026-10-22, b3f03fbdd, mesureur) : relu `SendPropertyVisitReminders.php:43-46,98-101,145-146` (marques `reminder_24h_sent_at`/`reminder_1h_sent_at` lues sans regard pour `scheduled_at`), `VisitSchedulingService::rescheduleOrFail` (l. 356-375, n'écrit que `scheduled_at` et `status`), `PropertyVisitController::update` (`fill($data)->save()`, l. 253-254) et `PropertyVisitObserver` (seul `created`) ; `git log 88c684c67..HEAD` sur ces fichiers → vide ; test temporaire `SondeMesureur169Test` (retiré, charge 3,29 / 3,17 / 3,00 sur 8 cœurs) : visite confirmée à J+1, job à H-24 puis H-1 → 2 rappels et deux marques ; `rescheduleOrFail` à J+3 10:00 puis `confirmOrFail` → `confirmed`, marques inchangées ; job à H-24 et H-1 du nouveau créneau → 0 rappel → le constat tient ; la réaffectation d'agent (« à vérifier ») n'est pas mesurée et reste hors de ce classement. Classement : A1, `docs/features.md:166` et TCK-588 écrivent « rappels automatiques avant visite, 24 h et 1 h avant », et retirer les deux marques quand `scheduled_at` change (service et `update`) rend ce comportement sans choix de produit ni migration.
+- Mesure (2026-10-22, 614ec950e, implementeur) : reproduit avant correctif par `RappelsDeVisiteApresReportTest` (charge 3,37 / 3,04 / 2,73 sur 8 cœurs) : visite confirmée rappelée à H-24 et H-1, puis reportée par le visiteur et confirmée, ou déplacée par l'agence (`PATCH`) → 0 rappel à H-24 du nouveau créneau, deux rouges → `PropertyVisit` retire les deux marques quand `scheduled_at` change (crochet `updating`, un seul point pour les deux chemins) ; 3/3 verts, dont un cas sans changement d'heure qui garde les marques ; ablation du crochet → les deux mêmes rouges, remis → vert ; `PropertyVisitWorkflowTest` 17/17. La réaffectation d'agent après rappel (« à vérifier ») n'est pas traitée.
 
 ### Une tâche repoussée ou réassignée après son rappel n'est plus jamais rappelée
 - Réf : P169.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1529 — reste : la passation (`AgentHandoverService`, catégorie `tasks`) réassigne par `DB::table('tasks')->update()`, sans événement de modèle, et laisse la marque `reminder_24h_sent_at` au nouvel assigné
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/SendTaskDueReminders.php:36,53-58,80-83,98-99`, `takussan-api/app/Http/Controllers/Api/TaskController.php:146-167`
 - Constat :
@@ -15798,6 +15799,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu, et mesuré.
 - Piste : retirer la marque quand `due_at` ou `assigned_to_id` change (dans `update`, ou par un observateur du modèle), ou garder dans la marque l'échéance et l'assigné qu'elle couvre. Garde : `TaskReminderTest` étendu d'un cas « rappel, report, réassignation » qui attend un rappel au nouvel assigné, et d'un cas sans changement qui n'en attend aucun (l'idempotence reste gardée).
 - Mesure (2026-10-22, b3f03fbdd, mesureur) : relu `SendTaskDueReminders.php:19,42,80-83,98-99` (marque unique, lue sans regard pour `due_at` ni l'assigné), `TaskController::update` (l. 146-167, `fill($data)->save()`), `UpdateTaskRequest.php:41-42` (`assigned_to_id`, `due_at`, pas de `metadata`) ; aucun observateur de `Task` ; `git log 88c684c67..HEAD` → vide ; test temporaire `SondeMesureur169Test` (retiré, même charge) : rappel à A, puis `due_at` à J+5 et assigné B par `fill()->save()`, job à J+4 → 0 rappel à B, marque inchangée → le constat tient. Classement : A1, TCK-083 (l. 106, 143) et le docblock du job écrivent un rappel à l'assigné 24 h avant `due_at`, et retirer la marque quand `due_at` ou `assigned_to_id` change dans `update`, l'idempotence restant gardée, ne demande aucun choix de produit.
+- Mesure (2026-10-22, 614ec950e, implementeur) : reproduit avant correctif par `TaskReminderTest` (charge 3,37 / 3,04 / 2,73 sur 8 cœurs) : rappel à A, `PATCH /api/tasks/{id}` qui repousse à J+5 et réassigne à B, job à J+4 → 0 rappel à B ; repoussée seule → 1 rappel au lieu de 2 → `Task` retire la marque quand `due_at` ou `assigned_to_id` change (crochet `updating`) ; 13/13 verts, dont un cas sans changement qui garde la marque ; ablation du crochet → les deux mêmes rouges, remis → vert ; `TaskAuthorizationTest` 9/9, `AgentHandoverTest` 11/11, `AgentAbsenceTest` 10/10. Relu sans test : la passation écrit par `DB::table`, hors du crochet (reste).
 
 ### Une intervention passée en urgente après coup déclenche aussitôt l'« escalade » qui dit « non traitée depuis plus de 30 minutes », sans l'alerte d'urgence qui la précède
 - Réf : P169.03

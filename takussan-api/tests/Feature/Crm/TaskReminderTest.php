@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Notifications\TaskDueReminderNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class TaskReminderTest extends TestCase
@@ -193,6 +194,76 @@ class TaskReminderTest extends TestCase
         (new SendTaskDueReminders)->handle();
 
         Notification::assertNothingSent();
+    }
+
+    /**
+     * TCK-1529 (P169.02) — la marque vaut pour l'échéance et l'assigné qu'elle a rappelés : une
+     * tâche repoussée et réassignée par `PATCH /api/tasks/{id}` après son rappel est rappelée au
+     * nouvel assigné, 24 h avant sa nouvelle échéance.
+     */
+    public function test_a_postponed_and_reassigned_task_is_reminded_to_the_new_assignee(): void
+    {
+        Notification::fake();
+
+        [$agency, $customer] = $this->agencyCustomer();
+        $first = $this->agentOf($agency, AgentProfileStatus::Active);
+        $second = $this->agentOf($agency, AgentProfileStatus::Active);
+        $task = $this->dueTaskFor($customer, $first);
+
+        (new SendTaskDueReminders)->handle();
+        Notification::assertSentToTimes($first, TaskDueReminderNotification::class, 1);
+
+        Sanctum::actingAs($first);
+        $this->patchJson("/api/tasks/{$task->id}", [
+            'due_at' => now()->addDays(5)->toIso8601String(),
+            'assigned_to_id' => $second->id,
+        ])->assertOk();
+        $this->assertSame($second->id, $task->fresh()->assigned_to_id);
+
+        $this->travel(4)->days();
+        (new SendTaskDueReminders)->handle();
+
+        Notification::assertSentToTimes($second, TaskDueReminderNotification::class, 1);
+        Notification::assertSentToTimes($first, TaskDueReminderNotification::class, 1);
+    }
+
+    /** TCK-1529 (P169.02) — repoussée seule, la tâche est rappelée de nouveau à son assigné. */
+    public function test_a_postponed_task_is_reminded_again_before_its_new_due_date(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
+        $task = $this->dueTaskFor($customer, $user);
+
+        (new SendTaskDueReminders)->handle();
+
+        Sanctum::actingAs($user);
+        $this->patchJson("/api/tasks/{$task->id}", ['due_at' => now()->addDays(5)->toIso8601String()])->assertOk();
+
+        $this->travel(4)->days();
+        (new SendTaskDueReminders)->handle();
+
+        Notification::assertSentToTimes($user, TaskDueReminderNotification::class, 2);
+    }
+
+    /** TCK-1529 (P169.02) — une modification qui ne touche ni l'échéance ni l'assigné garde la marque. */
+    public function test_an_edit_that_keeps_due_date_and_assignee_keeps_the_marker(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
+        $task = $this->dueTaskFor($customer, $user);
+
+        (new SendTaskDueReminders)->handle();
+
+        Sanctum::actingAs($user);
+        $this->patchJson("/api/tasks/{$task->id}", ['title' => 'Rappeler le client'])->assertOk();
+        (new SendTaskDueReminders)->handle();
+
+        Notification::assertSentToTimes($user, TaskDueReminderNotification::class, 1);
+        $this->assertNotNull($task->fresh()->metadata[SendTaskDueReminders::META_MARKER] ?? null);
     }
 
     /** @return array{0: Agency, 1: Customer} */
