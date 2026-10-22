@@ -278,6 +278,34 @@ class StatementParserTest extends TestCase
         $this->assertSame(2, $result['context']->tally->skipped);
     }
 
+    public function test_chaque_compte_ofx_garde_sa_devise(): void
+    {
+        // TCK-1475 (P157.08) — un OFX à deux comptes (`STMTRS` en `XOF` puis en `EUR`) : chaque
+        // transaction prend la devise du relevé de compte qui la contient. Le premier `CURDEF`
+        // valait pour tout le fichier, et la ligne en euros entrait en francs CFA.
+        $ofx = "OFXHEADER:100\nDATA:OFXSGML\nVERSION:102\n\n<OFX><BANKMSGSRSV1>"
+            .'<STMTTRNRS>'.$this->stmtrs('XOF', [['20260401', '15000', 'A']]).'</STMTTRNRS>'
+            .'<STMTTRNRS>'.$this->stmtrs('EUR', [['20260402', '25', 'B']]).'</STMTTRNRS>'
+            .'</BANKMSGSRSV1></OFX>';
+
+        $lines = $this->parseOfx($ofx)['lines'];
+
+        $this->assertCount(2, $lines);
+        $this->assertSame(['XOF', 'EUR'], array_map(fn (ParsedLine $l): string => $l->currency, $lines));
+    }
+
+    public function test_un_compte_ofx_sans_curdef_prend_la_devise_de_l_agence(): void
+    {
+        $ofx = "OFXHEADER:100\nDATA:OFXSGML\nVERSION:102\n\n<OFX><BANKMSGSRSV1>"
+            .'<STMTTRNRS>'.$this->stmtrs('EUR', [['20260401', '25', 'A']]).'</STMTTRNRS>'
+            .'<STMTTRNRS>'.str_replace('<CURDEF>EUR', '', $this->stmtrs('EUR', [['20260402', '15000', 'B']])).'</STMTTRNRS>'
+            .'</BANKMSGSRSV1></OFX>';
+
+        $lines = $this->parseOfx($ofx)['lines'];
+
+        $this->assertSame(['EUR', 'XOF'], array_map(fn (ParsedLine $l): string => $l->currency, $lines));
+    }
+
     /**
      * Un OFX 1.x minimal : un `STMTRS` par devise donnée, chacun avec ses transactions
      * `[DTPOSTED, TRNAMT, NAME]`.

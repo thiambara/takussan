@@ -54,18 +54,28 @@ class OfxDriver implements StatementParserInterface
 
         $content = $this->toUtf8($content);
 
-        // Extract default currency from <CURDEF>
-        $defaultCurrency = $context->agency->currency?->value ?? 'XOF';
-        if (preg_match('#<CURDEF>([A-Z]{3})#i', $content, $m)) {
-            $defaultCurrency = strtoupper($m[1]);
-        }
+        $agencyCurrency = $context->agency->currency?->value ?? 'XOF';
 
-        // Extract all STMTTRN blocks
-        preg_match_all('#<STMTTRN>(.*?)</STMTTRN>#si', $content, $blocks);
+        // TCK-1475 (P157.08) — la devise se lit PAR relevé de compte : chaque transaction prend le
+        // `CURDEF` du `STMTRS` (ou `CCSTMTRS`, carte) qui la contient, la devise de l'agence à
+        // défaut. Le premier `CURDEF` du fichier valait pour toutes, et la ligne d'un second compte
+        // en euros entrait en francs CFA. Un fichier sans relevé de compte se lit d'un seul tenant.
+        $accounts = preg_match_all('#<(CC|)STMTRS>(.*?)</\1STMTRS>#si', $content, $statements)
+            ? $statements[2]
+            : [$content];
+
+        $transactions = [];
+        foreach ($accounts as $account) {
+            $currency = preg_match('#<CURDEF>([A-Z]{3})#i', $account, $m) ? strtoupper($m[1]) : $agencyCurrency;
+            preg_match_all('#<STMTTRN>(.*?)</STMTTRN>#si', $account, $blocks);
+            foreach ($blocks[1] as $block) {
+                $transactions[] = [$block, $currency];
+            }
+        }
 
         $lineNumber = 0;
 
-        foreach ($blocks[1] as $block) {
+        foreach ($transactions as [$block, $defaultCurrency]) {
             $lineNumber++;
 
             try {
