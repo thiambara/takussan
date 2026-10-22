@@ -99,9 +99,10 @@ export type CreateBookingPaymentPayload = {
   payment_type?: 'deposit' | 'advance' | 'fee';
   /**
    * TCK-172 — set to `pending` for the customer self-service gateway flow. TCK-1266 — sans
-   * `cancelled`, que `StoreBookingPaymentRequest` refuse.
+   * `cancelled`, que `StoreBookingPaymentRequest` refuse. TCK-1311 — ni `refunded` : une ligne
+   * saisie naît `paid`, `pending` ou `partially_paid`.
    */
-  status?: 'pending' | 'paid' | 'partially_paid' | 'refunded';
+  status?: 'pending' | 'paid' | 'partially_paid';
   transaction_id?: string;
   notes?: string;
 };

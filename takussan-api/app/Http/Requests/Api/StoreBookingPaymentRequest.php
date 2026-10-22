@@ -66,7 +66,10 @@ class StoreBookingPaymentRequest extends BaseFormRequest
             'payment_type' => [Rule::requiredIf(fn () => ! $this->payeurClient()), 'nullable', Rule::enum(BookingPaymentType::class)],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             // VERIF-596 passe 5 — `cancelled` n'est posé que par le renouvellement d'un bail.
-            'status' => ['nullable', Rule::enum(PaymentStatus::class)->except([PaymentStatus::Cancelled])],
+            // TCK-1311 (P147.09) — une ligne saisie à la main naît `paid`, `pending` ou
+            // `partially_paid` : `refunded` passe par le geste `refund`, `failed` et `late` ne se
+            // déclarent pas à la création.
+            'status' => ['nullable', Rule::enum(PaymentStatus::class)->only([PaymentStatus::Paid, PaymentStatus::Pending, PaymentStatus::PartiallyPaid])],
             'paid_at' => ['nullable', 'date'],
             'transaction_id' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
