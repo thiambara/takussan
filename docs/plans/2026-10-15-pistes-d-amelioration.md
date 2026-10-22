@@ -224,7 +224,7 @@ voie d'écriture (angle 13, puis 47).
 | 147 | Statuts posés librement par un `Rule::enum` entier dans une requête de mise à jour (`UpdateCustomerRequest` `status` jusqu'à `blocked` et `deleted`, `UpdatePropertyRequest`, `StoreAgencyRequest`, `UpdatePrivacyRequestRequest`) : transitions que le geste dédié refuserait, et état posé à la main que rien d'autre ne lit | fait |
 | 148 | Section `/app/agency/*` du front gardée par `isAdmin(user.roles)` (`(dashboard)/app/agency/layout.tsx:28`) et `PAGES_ADMIN` face aux gestes que l'API ouvre par capacité à un agent (`team.invite`, `team.assign_role`, `team.suspend`, `payouts.approve`, `agency.update_kyc`) : membre qui tient la capacité sans écran pour l'exercer, et admin sans elle à qui l'écran s'ouvre sur des 403 | fait |
 | 149 | Champs `nullable` d'un `PATCH` partiel dont le `null` qu'envoie le front pour un champ vidé est lu comme « garder » (`!== null ? … : $model->x`, `?? $model->x`, `array_filter` du payload dans les contrôleurs et services de mise à jour) : valeur impossible à effacer, réponse 200 qui rend l'ancienne — le relevé de P117.02 sur le reste de l'API | fait |
-| 150 | Paramètres `sort=`, `filter[…]` et `include=` écrits par le front (`src/lib/queries/*.ts`, `src/app/actions/*`, `buildQueryString`) face aux `$requestSortable`, `$requestFilterable` et inclusions du modèle visé : requête refusée en 400 `http.bad_request` et écran en erreur — le pendant de l'angle 100 hors de `fields[]`, né de P118.01 | à faire |
+| 150 | Paramètres `sort=`, `filter[…]` et `include=` écrits par le front (`src/lib/queries/*.ts`, `src/app/actions/*`, `buildQueryString`) face aux `$requestSortable`, `$requestFilterable` et inclusions du modèle visé : requête refusée en 400 `http.bad_request` et écran en erreur — le pendant de l'angle 100 hors de `fields[]`, né de P118.01 | fait |
 | 151 | Valeurs de `filter[…]` passées brutes à une colonne typée (`AllowedFilter::callback` `date_from`/`date_to` comparés tels quels à `created_at`, `AllowedFilter::exact` sur une colonne `bigint`, `date` ou `boolean`, filtres lus à la main par `$request->string('filter.*')`) : 500 en `22P02`/`22007` au lieu d'un 400 ou d'une liste vide, et borne de fin qui exclut le jour choisi — le relevé de P119.02 et P119.03 sur toute l'API | à faire |
 | 152 | Boutons et dialogues hors de `/app/agency` montrés par un test de rôle (`isAdmin(user.roles)`, `hasAgentRole`, une vingtaine d'appels sous `takussan-web/src` hors de `app/agency`, dont `ContactLeadsInbox.tsx:149`) face à la capacité que l'API juge pour le même geste (`crm.assign`, `maintenance.assign`, `payouts.*`) : geste caché à qui la tient, montré à qui ne l'a pas — le pendant de l'angle 148 hors de la section agence | à faire |
 | 153 | Retrait d'un membre en `leave_unassigned` (`AgencyMemberRemovalService::remove`, seul ou après une passation partielle) : ce qui reste écrit au nom du retiré (lignes `property_collaborators` marquées, `properties.user_id`, tâches et visites à venir, interventions, référent client, participations aux fils) et ce qui le lit encore — contact public, listes, notifications, droits d'accès — né de P121.04 | à faire |
@@ -260,6 +260,7 @@ voie d'écriture (angle 13, puis 47).
 | 183 | Statuts recalculés par le navigateur à partir des dates au lieu de ceux que l'API sert (`displayStatus` de `LeaseSchedule.tsx:44-56`, échéance `pending` passée affichée « En retard », et leurs pareilles pour réservations, visites, délégations, abonnements) : écart avec les compteurs et relances de l'API, et lignes que le calcul ne vise pas (restitution de dépôt due par l'agence) — né de P146.02 | à faire |
 | 184 | Champs hors statut que le `PATCH` générique écrit alors qu'un geste dédié les garde (`assigned_to` et `scheduled_at` d'`UpdateMaintenanceRequestRequest` face à l'assignation d'intervention, `scheduled_at` et `agent_id` d'`UpdatePropertyVisitRequest` face au report et à la réaffectation de visite, `pipeline_stage` d'`UpdateCustomerRequest` face à `…/pipeline-stage`) : capacité, contrôle de chevauchement, transition, avis et journal du geste sautés — le pendant hors statut de P147.01 | à faire |
 | 185 | Formulaires d'édition du front hors du bien, du client et du profil (`src/components/**` et `src/app/actions/*` qui construisent un corps `PATCH`/`PUT` : `|| undefined`, `blank()`, `transform(… ? v : undefined)`, `z.coerce.number()` sur un champ facultatif) : champ vidé omis du corps, ou lu comme `0`, alors que l'API efface sur `null` — le relevé de P149.01 à P149.04 sur le reste des écrans | à faire |
+| 186 | Paramètres `filter[…]`, `sort=` et `include=` envoyés par le front à une liste écrite à la main hors de `buildQuery()` (`ConversationController::index`, `ReviewController::index`, `PaymentController::history`, `Admin\AgencyModerationController::index` et leurs pareilles) qui ne les lit pas : filtre ou tri accepté en 200 et sans effet, liste non filtrée montrée comme filtrée — le pendant silencieux de l'angle 150, né de P150.05 | à faire |
 
 ---
 
@@ -14085,3 +14086,69 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lecture seule.
 - Piste : pour la carte, `array_key_exists` seul (`null` efface), avec un cas dans le test de `updateSpecialization`. Pour les notes de clôture, écrire le contrat (garder ou remplacer) avant d'y toucher.
 - Mesure (2026-10-22, 1b5063805, mesureur) : relu `AgentProfileController.php:169-171` (`license_number` écrit seulement s'il n'est pas `null`, ligne décalée d'une), `UpdateSpecializationAgentProfileRequest.php:53` (`nullable`), `MaintenanceRequestService.php:320-322` (`resolution_notes` à `null` garde les notes) → les deux lectures tiennent, par lecture seule. Classement : V7, le constat lui-même dit que le contrat des notes de clôture (garder ou remplacer) n'est écrit nulle part, et le retrait d'un numéro de carte professionnelle depuis l'écran est un comportement visible neuf (le front ne l'envoie jamais vide).
+
+## Angle 150 — `sort=`, `filter[…]` et `include=` du front face aux listes blanches de l'API
+
+*Exploré le 2026-10-22 sur `pre-dev` 788016695, par l'explorateur. Tout relu par l'explorateur, sans sous-agent. Les listes blanches des 89 modèles à `HasQueryBuilder` ont été relevées par `tinker` en lecture (`$requestSortable`, filtres, `$requestLoadable`, `$requestCountable`) ; comme `User`, `Tag`, `AgencyRole`, `Customer` et `MaintenanceRequest` surchargent `buildQuery()`, ce relevé statique n'a servi qu'à choisir les cas, et le verdict vient d'un test temporaire `tests/Feature/Tmp/ExplorateurTmp150Test.php`, retiré ensuite (charge 3,18 / 3,72 / 3,45 sur 8 cœurs), qui rejoue sur la base de test PostgreSQL environ 75 requêtes telles que le front les écrit (`src/lib/queries/*`, composants, pages de la console ; un administrateur d'agence, puis un super-admin sur les chemins `/api/admin/*` que visent les relais `/api/super-admin/*`). Les `filter[search]` des modèles indexés ont été rejoués sans `search` : l'index Meilisearch n'existe pas dans la base de test (500 « Index not found », sans rapport avec l'angle). Le tri des lignes de relevé (P118.01) n'est pas repris. Les server actions de `src/app/actions` n'écrivent aucun `sort`, `filter` ni `include` en propre (`grep`). Les paramètres ignorés sans erreur sont laissés à l'angle 186.*
+
+### La console Équipe rend une erreur dès qu'on trie par « Dernière connexion » : l'API refuse `sort=last_login_at`
+- Réf : P150.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/admin/users/AdminUsersTable.tsx:126-134,251-256`, `takussan-web/src/components/console/DataTable.tsx:209-232`, `takussan-web/src/lib/queries/admin-users.ts:61`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:26`, `takussan-api/app/Models/User.php:157,166-172,184,287`, `takussan-api/app/Http/Controllers/Api/UserAdminController.php:57-62`
+- Constat :
+  - La colonne « Dernière connexion » de `/app/agency/team` porte `sortKey: 'last_login_at'` (lu, `AdminUsersTable.tsx:253`). Un clic sur son en-tête écrit `-last_login_at`, puis `last_login_at` au second clic (lu, `DataTable.tsx:232`), dans `?sort=` de l'URL (lu, `AdminUsersTable.tsx:128-134`). `fetchAdminUsers` le recopie tel quel (lu, `admin-users.ts:61`), et le relais `/api/admin-users` le transmet à `GET /api/users` (lu, `route.ts:26`).
+  - `User` n'autorise que `id`, `created_at`, `email`, `status`, plus `first_name` et `last_name` par `nameSorts()` (lu, `User.php:157,166-172`). Ce sont les tris de `buildQuery()` et de `buildAgencyTeamQuery()`, le chemin de l'administrateur d'agence (lu, `:184,287` ; `UserAdminController.php:57-59`).
+  - mesuré, test temporaire, administrateur d'agence : `GET /api/users?…&sort=last_login_at` → **400** `http.bad_request` ; `sort=-last_login_at` avec `filter[role]=agent&filter[status]=active` → **400** ; `sort=first_name` → 200 ; `sort=-created_at` → 200.
+  - La colonne triable date de TCK-373 (`git log -S"sortKey: 'last_login_at'"` → 2e3fb1181, 2026-08-26). L'URL garde le tri : recharger la page ou partager le lien reproduit l'erreur (déduit de la lecture de `:126`, à vérifier à l'écran).
+  - Établi comment : lu, puis mesuré par le test temporaire.
+- Piste : ajouter `last_login_at` à `User::$requestSortable`, que lisent les trois constructeurs de `User`, et vérifier que le super-admin n'en est pas gêné (sa console trie par `-created_at` seul). Sinon, retirer `sortKey` de la colonne. Test côté API : `GET /api/users?sort=-last_login_at` → 200, lignes rangées. Garde contre le retour : P150.04.
+
+### Les dates « Soumise du / au » de la file des demandes de passage en agence rendent la liste en erreur
+- Réf : P150.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyUpgradeRequestController.php:40-55`, `takussan-api/app/Models/AgencyUpgradeRequest.php:84`, `takussan-web/src/lib/queries/super-admin.ts:1365-1366`, `takussan-web/src/app/(super-admin)/super-admin/agency-upgrade-requests/page.tsx:93-113,247-272`
+- Constat :
+  - La page `/super-admin/agency-upgrade-requests` montre deux `DatePicker`, « Soumise du » et « au » (lu, `page.tsx:247-272`). Leur valeur part en `filter[submitted_from]` et `filter[submitted_to]` (lu, `super-admin.ts:1365-1366`).
+  - Le contrôleur lit ces deux filtres à la main pour poser un `whereDate` sur sa requête de base, puis passe la même requête HTTP à `AgencyUpgradeRequest::buildQuery()` (lu, `AgencyUpgradeRequestController.php:44-51`). Or ce `buildQuery()` n'autorise que `status`, `agency_id`, `submitted_by` et `reviewed_by` (lu, `AgencyUpgradeRequest.php:84`) : spatie refuse donc le filtre que le contrôleur vient d'appliquer.
+  - mesuré, test temporaire, super-admin : `GET /api/admin/agency-upgrade-requests?filter[submitted_from]=2026-01-01` → **400** `http.bad_request` ; `filter[submitted_to]=2026-12-31` → **400** ; `include=agency,submitter`, `sort=-submitted_at`, `filter[status]=pending` et le `fields[…]` de la page, chacun seul → 200.
+  - Le motif ne se répète pas ailleurs. Parmi les contrôleurs qui lisent un `filter.*` à la main et appellent `buildQuery()` ou `QueryBuilder::for()` (`grep`), trois autres restent sous les listes blanches : `Admin/UserDetailController` (mesuré 200 avec ses six filtres), `ServiceProviderProfileController` (`collaboration_status`, mesuré 200) et `PropertyController` (`status`, filtre déclaré).
+  - Le filtre existe depuis la création de la console (`git log -S"submitted_from"` → ecdd07c01, TCK-268).
+  - Établi comment : lu, puis mesuré par le test temporaire.
+- Piste : déclarer les deux bornes comme filtres du modèle (`customQueryFilters()` qui renvoie deux `AllowedFilter::callback`, `>=` et `<=` sur la date), et retirer la lecture à la main du contrôleur. La borne de fin et la valeur mal formée relèvent de l'angle 151. Test : `GET …?filter[submitted_from]=…&filter[submitted_to]=…` → 200, et seules les demandes de la période sortent.
+
+### Les hooks des baux, des réservations et des factures envoient un `filter[search]` que l'API refuse, prêt pour le premier écran qui s'en servira
+- Réf : P150.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/leases.ts:41,49`, `takussan-web/src/lib/queries/bookings.ts:34,47`, `takussan-web/src/lib/queries/payments.ts:132,141`, `takussan-api/app/Models/Lease.php:89`, `takussan-api/app/Models/Booking.php:44`, `takussan-api/app/Models/Invoice.php:62`
+- Constat :
+  - `useLeases`, `useBookings` et `useInvoices` ont un paramètre `search`, posé en `filter[search]` (lu, sites ci-dessus).
+  - Aucun des trois modèles ne déclare de `$requestSearchFields` (`grep` → aucune ligne), donc pas de filtre `search` (lu, `HasQueryBuilder.php:208-262`).
+  - mesuré, test temporaire, administrateur d'agence : `GET /api/leases?filter[search]=x`, `/api/bookings?filter[search]=x` et `/api/invoices?filter[search]=x` → **400** `http.bad_request` tous trois ; les mêmes listes avec leurs autres filtres et sans `search` → 200.
+  - Aucun appelant ne passe `search` aujourd'hui : `LeasesList.tsx:71-75`, `InventoryLeasePicker.tsx:28` et `MaintenanceNewLauncher.tsx:36` pour les baux, `BookingsList.tsx:69` pour les réservations, `InvoicesTable.tsx:33-40` pour les factures (lu). Le défaut est latent : le type promet une recherche que l'API refuse.
+  - Établi comment : lu, puis mesuré par le test temporaire.
+- Piste : retirer `search` des trois types de paramètres tant que l'API ne la sert pas. L'ajouter côté API serait un choix de produit (quels champs, Meilisearch ou `LIKE`). Le test de P150.04 couvre ces hooks.
+
+### Rien ne confronte les paramètres écrits par le front aux listes blanches de l'API, et les écarts vivent des semaines
+- Réf : P150.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/*.ts` (leurs tests ne vérifient que le chemin et la chaîne produite, par exemple `__tests__/reconciliation.test.ts:28-41`), `takussan-api/tests/Feature/**`
+- Constat :
+  - Les quatre écarts relevés ici et par P118.01 ont vécu de 15 jours à deux mois avant d'être vus : `sort=posted_at` des lignes de relevé depuis le 2026-10-07, `sort=last_login_at` depuis le 2026-08-26, `filter[submitted_*]` depuis TCK-268 (lu, `git log -S`). Aucun n'a fait rougir de test.
+  - Les tests du front vérifient la chaîne de requête qu'un hook produit, jamais que l'API l'accepte. Ceux de l'API appellent les listes avec leurs propres paramètres, et non avec ceux du front : `BankReconciliationTest.php:210` appelle `/lines` sans `sort` (lu, relevé par P118.01).
+  - Sur environ 75 requêtes rejouées, seules celles de P150.01 à P150.03 rendent 400 (mesuré, test temporaire) : la plupart des appelants restent dans les listes blanches, et c'est l'absence de garde, non le nombre d'écarts, qui fait le risque.
+  - Établi comment : lu, et mesuré pour le décompte.
+- Piste : un test de contrat côté API, alimenté par un fichier généré par le front (ou tenu à la main), qui liste chaque requête de lecture avec ses `sort`, `filter`, `include` et `fields`, et qui vérifie qu'aucune ne rend 400. Il rend en clair le test temporaire de cet angle. Ablation : remettre `sort=last_login_at` sans le déclarer, et constater le rouge.
+
+### Petites améliorations
+- Réf : P150.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/lib/queries/conversations-list.ts:41-73`, `takussan-api/app/Http/Controllers/Api/ConversationController.php` (`index`), `takussan-web/src/lib/queries/bookings.ts:62-64`, `takussan-api/app/Http/Controllers/Api/BookingController.php` (`show`)
+- Constat :
+  - `useConversations` accepte `status` (`active`, `archived`, `closed`) et `property_id`, et les envoie en `filter[…]` avec `sort=-last_message_at` et `include=property,participants,last_message` (lu). `ConversationController::index` ne lit ni `filter[status]` ni `filter[property_id]` : il lit `?archived=` et trie toujours par `last_message_at` (lu). mesuré : la requête complète → 200. Aucun appelant ne passe ces filtres aujourd'hui (`ConversationList.tsx:29`, `useUnreadCount.ts:28`, lu) : un filtre « archivées » posé demain rendrait les actives sans le dire.
+  - `useBooking` demande `include=property,booking_payments,customer`. `show` charge `property.address`, `customer` et `payments` quoi qu'on demande (lu), et `booking_payments` n'est pas une relation (mesuré → 200, le paramètre est ignoré). L'écran lit bien `booking_payments` (lu, `BookingDetail.tsx:106,332`), qui sort de `BookingResource` (lu, `:43`) : rien de faux, mais le paramètre trompe le lecteur.
+- Piste : retirer du type `UseConversationsParams` les filtres que l'API ne sert pas, ou les brancher sur `archived`. Retirer `booking_payments` de l'`include` de `useBooking`, en commentant que `show` charge ses relations lui-même. Le relevé complet de ces paramètres ignorés est l'angle 186.
