@@ -15676,7 +15676,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Changer le type ou le statut des états des lieux garde la page courante : la liste s'affiche vide, sans pagination pour en sortir
 - Réf : P168.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/inventory/InventoryList.tsx:51-58,75,96,123-141,174-200`
 - Constat :
@@ -15685,10 +15685,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Une page au-delà de la dernière rend `data: []` (pagination Laravel) : la liste montre alors l'état vide « aucun état des lieux » et son bouton de création (lu, l. 123-141), et la barre de pagination n'est rendue que pour `last_page > 1` (lu) : rien ne ramène à la page 1, hors de remettre le filtre à « tous ».
   - Établi comment : lu et mesuré (Vitest ciblé, charge 2,73 / 2,84 / 2,67 sur 8 cœurs).
 - Piste : remettre la page à 1 dans les deux `onValueChange`, comme `MaintenanceList`. Garde : un test de `InventoryList` qui avance d'une page, change le statut et attend `page: 1` dans l'appel.
+- Mesure (2026-10-22, b62079cad, mesureur) : relu `InventoryList.tsx:52-54` (type, statut, page en `useState`), l. 76 et 97 (`onValueChange` n'appellent que `setType`/`setStatus`, sans `setPage(1)`), l. 125-141 (état vide sans pagination) et l. 174 (barre rendue pour `last_page > 1` seulement), `InventoryController::index` (`->paginate()`) ; test Vitest temporaire, retiré (`useInventories` bouchonné sur `last_page: 3`, clic « Suivant », statut « Brouillon », charge 4,54 / 3,73 / 3,28 sur 8 cœurs) → dernier appel `{"status":"draft","page":2}` ; aucun commit sur ces fichiers depuis 11a127594, aucun ticket ouvert → le constat tient, lignes décalées d'une. Classement : A1, remettre la page à 1 au changement de filtre est le contrat déjà tenu par `MaintenanceList`, `AuditTrail` et `CommissionsLedger`, sans texte ni choix de produit.
 
 ### Les onglets « À louer » et « À vendre » d'un profil public se montrent vides, sans « Voir plus », quand leurs biens ne sont pas dans les 24 premiers
 - Réf : P168.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la Piste propose deux issues (filtre serveur par contrat neuf, ou « Voir plus » dans l'état vide)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/public/profile/PortfolioTabs.tsx:41-58,97-103,117-135`, `takussan-web/src/app/[locale]/(public)/agents/[slug]/page.tsx:277-285`, `takussan-web/src/app/[locale]/(public)/agencies/[slug]/page.tsx:287`, `takussan-api/app/Http/Controllers/Public/PublicAgentController.php:214-227`
 - Constat :
@@ -15698,10 +15699,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - C'est aussi la règle « filtrer côté serveur, jamais côté client sur une liste déjà récupérée » (`CLAUDE.md`, § Sparse fieldsets) que l'onglet contourne.
   - Établi comment : lu et mesuré (Vitest ciblé). Le pendant des agences (`agencies/[slug]`) est lu, non mesuré.
 - Piste : faire charger chaque onglet par l'API (`filter[contract_type]` sur les routes paginées du portfolio, si elles l'acceptent : à vérifier), ou, à défaut, rendre « Voir plus » aussi dans l'état vide tant que le total de l'onglet dépasse ses biens chargés. Garde : un test de `PortfolioTabs` sur le cas mesuré.
+- Mesure (2026-10-22, b62079cad, mesureur) : relu `PortfolioTabs.tsx:41-58` (onglets filtrés côté client sur `accumulated`), l. 97-103 et 117 (« Voir plus » dans la seule branche non vide), `PublicAgentController.php:214-227` (24 biens tous contrats, totaux par contrat), et les routes paginées `PublicAgentController::properties` / `PublicAgencyController::properties` (`page` et `per_page` seulement : **aucun** `filter[contract_type]`, ce que le constat laissait « à vérifier ») ; test Vitest temporaire, retiré (24 biens `sale`, `totals = { all: 29, rent: 5, sale: 24 }`, clic « À louer ») → 0 carte, aucun bouton « Charger plus de biens » → le constat tient. Classement : V7, la Piste offre deux correctifs, dont l'un ajoute un filtre aux routes publiques et l'autre change ce que montre l'état vide.
 
 ### Les listes de la console perdent onglet, filtres et page au retour d'une fiche, au rechargement et au lien partagé
 - Réf : P168.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : porter la vue de cinq listes dans l'URL, liste par liste et dans quel ordre
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/visits/VisitsList.tsx:35,172-173`, `takussan-web/src/components/inventory/InventoryList.tsx:51-53,147-148`, `takussan-web/src/components/commissions/CommissionsLedger.tsx:49-50,81-82`, `takussan-web/src/components/admin/AuditTrail.tsx:209-215,600-601`, `takussan-web/src/components/calendar/CalendarPage.tsx:81-86`, `takussan-web/src/components/calendar/EventDetailSheet.tsx:148`, `takussan-web/next.config.ts:69-71`
 - Constat :
@@ -15711,10 +15713,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Le dépôt a déjà le patron qui tient : `PaymentsTabs` (`?tab=` lu et écrit par `router.replace`), `AdminFinancesTabs` (« mirrored in `?tab=` so the URL is shareable and the page is reload-safe »), `CustomerListFilters`, `/super-admin/properties`, et `BookingsList` depuis TCK-1293 (lu). `MaintenanceList` et `LeasesList` ont le même défaut, déjà relevé pour leurs liens entrants (voir P167.01, P167.03).
   - Établi comment : lu ; le comportement du retour arrière est déduit de la configuration.
 - Piste : porter onglet, filtres et page dans la requête (lecture par `useSearchParams` bornée aux valeurs connues, écriture par `router.replace`), liste par liste, en commençant par celles qui ouvrent une fiche. Garde : pour chaque liste reprise, un test monté sur l'URL qui attend la vue, et un test du changement qui attend le `replace`.
+- Mesure (2026-10-22, b62079cad, mesureur) : relu `VisitsList.tsx:35,172-173`, `InventoryList.tsx:52-54,147-148`, `CommissionsLedger.tsx:49-50,81-82`, `AuditTrail.tsx:209-215,600-601`, `CalendarPage.tsx:82-88` (vue tenue en `useState`, ni `useSearchParams` ni `router.replace`), `next.config.ts:69-71` (seul `experimental.serverActions`, pas de `cacheComponents`) → la partie rechargement, onglet voisin et lien copié tient (lu) ; le retour arrière du navigateur reste déduit, non joué. Classement : V7, rendre ces vues adressables par l'URL est un comportement visible neuf, à étendre sur cinq écrans dans un ordre que la Piste laisse ouvert.
 
 ### La console amorce ses filtres d'agences et de demandes de passage depuis l'URL, puis s'en sépare : l'URL ment, et le retour à la liste rend une autre vue
 - Réf : P168.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : revient sur le choix « amorce seule » écrit par TCK-360
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(super-admin)/super-admin/agencies/page.tsx:75-85`, `takussan-web/src/components/admin/super/agency-detail.tsx:243-250`, `takussan-web/src/app/(super-admin)/super-admin/agency-upgrade-requests/page.tsx:86-95`, `takussan-web/src/app/(super-admin)/super-admin/agency-upgrade-requests/[id]/page.tsx:130`
 - Constat :
@@ -15724,10 +15727,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Un état amorcé par `useState` ne suit pas un changement de requête sur la même route sans remontage (React, déduit) : un lien vers la même page avec un autre `?status=` ne changerait pas le filtre (à vérifier ; aucun tel lien n'existe aujourd'hui, lu).
   - Établi comment : lu.
 - Piste : faire de l'URL la source des filtres de ces deux pages (comme `/super-admin/properties`), et rendre au lien de retour la requête de la liste quittée. Garde : un test de chaque page qui change le statut et attend le `replace`, et un test du lien de retour.
+- Mesure (2026-10-22, b62079cad, mesureur) : relu `super-admin/agencies/page.tsx:75-85` (`?status=`/`?is_verified=` en `useState` amorcé, commentaire TCK-360 « Amorce SEULE […] le filtre reste local ensuite »), `agency-upgrade-requests/page.tsx:86-95` (même amorce), `agency-detail.tsx:243-250` (`BackToAgencies` vers `/super-admin/agencies` sans requête), `agency-upgrade-requests/[id]/page.tsx:130` (lien fixe) → le constat tient (lu) ; le retour arrière du navigateur et le lien même-route non joués. Classement : V7, TCK-360 a écrit ce choix délibérément, et faire de l'URL la source de six filtres change le comportement visible de deux écrans.
 
 ### Petites améliorations
 - Réf : P168.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : trois paramètres `?tab=` neufs et un lien qui change de destination
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/super/agency-detail.tsx:128,188`, `takussan-web/src/components/admin/super/user-detail.tsx:377`, `takussan-web/src/components/reporting/ReportingShell.tsx:46-50`, `takussan-web/src/components/public/profile/PortfolioTabs.tsx:41,81`
 - Constat :
@@ -15736,3 +15740,4 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - L'onglet du portfolio d'un profil public n'est pas dans l'URL (lu, l. 41, 81) : un lien vers « les locations de cette agence » ne peut pas s'écrire.
   - Établi comment : lu.
 - Piste : `?tab=` lu et écrit, borné aux valeurs connues, sur ces trois écrans ; le lien du profil utilisateur vers `?tab=team`. Garde : un test par écran monté sur `?tab=`.
+- Mesure (2026-10-22, b62079cad, mesureur) : relu `agency-detail.tsx:128` (`useState<Tab>('kyc')`, sans paramètre), `user-detail.tsx:377` (lien nu vers `/super-admin/agencies/{id}`), `ReportingShell.tsx:44-49` (`initialTab` lu, `onValueChange` → `setTab` seul, rien n'écrit l'URL), `PortfolioTabs.tsx:41` (onglet local) → le constat tient (lu). Classement : V7, rendre ces onglets adressables et mener le profil utilisateur à l'onglet « Équipe » plutôt qu'au KYC sont des comportements visibles neufs.
