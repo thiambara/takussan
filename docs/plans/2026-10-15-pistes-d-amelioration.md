@@ -11130,7 +11130,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Les conditions particulières saisies à la création d'un bail ne sont jamais enregistrées
 - Réf : P114.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1240
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:85-89,316-321`, `takussan-web/src/lib/queries/leases.ts:277`, `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:34-63`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:54`, `takussan-api/app/Services/Model/LeaseService.php:89`
 - Constat :
@@ -11140,6 +11140,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Établi comment : lu et mesuré par `grep` ; le parcours dans le service vient du sous-agent.
 - Piste : ajouter `special_conditions` (`nullable|string`, avec une borne) à `StoreLeaseRequest`. Un test qui crée un bail avec `special_conditions` et relit la ligne le garde.
 - Mesure (2026-10-22, 135b23834, mesureur) : relu `StoreLeaseRequest::rules()` (aucune règle `special_conditions`, `terms` seul), `LeaseController::store()` (`validated()` → `LeaseService::create()`, `Lease::create(array_merge($data, …))`), `CreateLeaseForm.tsx:85,318` (champ affiché et envoyé), `RenewLeaseRequest.php:46` (`'special_conditions' => ['sometimes', 'nullable', 'string']`) ; aucun commit ni ticket ne l'a traitée (`git log -S`, `grep` des tickets) ; test temporaire (retiré), `POST /api/leases` avec `terms` et `special_conditions` → 201, ligne relue : `terms='T'`, `special_conditions=NULL`. Classement : A1, la colonne est décrite (`models-spec`, « Conditions particulières »), le formulaire l'envoie et le renouvellement la valide déjà en `nullable|string` : la règle se recopie sans choix de produit.
+- Mesure (2026-10-22, 5617a5f77, implementeur) : reproduit avant correctif, `LeaseTest::test_create_lease_keeps_special_conditions` (`POST /api/leases` avec `terms` et `special_conditions`, ligne relue) → rouge, `special_conditions` à `null`, et 5 001 caractères → 201. Règle `nullable|string|max:5000` ajoutée à `StoreLeaseRequest` (borne du schéma du front, `lib/schemas/lease.ts:62`) ; ablation : règle retirée → 2 rouges, remise → 2/2 verts, 13/13 sur `LeaseTest`.
 
 ### Modifier une règle d'alerte de la console la réactive toujours
 - Réf : P114.02
