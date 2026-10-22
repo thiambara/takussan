@@ -277,6 +277,8 @@ export function useSendMessage(conversationId: number) {
         ['conversations', 'list'],
         ['conversations', 'detail', conversationId],
       ],
+      // TCK-1398 (ADR-0072) — renvoyé après une réponse perdue, le message ne s'écrit qu'une fois.
+      idempotence: true,
       onSuccess: (response) => {
         queryClient.setQueryData<InfiniteData<MessagesPage>>(
           messagesInfiniteQueryKey(conversationId),
@@ -316,6 +318,8 @@ export function useSendVoiceNote(conversationId: number) {
         ['conversations', 'list'],
         ['conversations', 'detail', conversationId],
       ],
+      // TCK-1398 (ADR-0072) — renvoyé après une réponse perdue, le message ne s'écrit qu'une fois.
+      idempotence: true,
       onSuccess: (response) => {
         queryClient.setQueryData<InfiniteData<MessagesPage>>(
           messagesInfiniteQueryKey(conversationId),
