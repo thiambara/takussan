@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api\Accounting;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Accounting\StoreBankStatementRequest;
 use App\Http\Resources\Accounting\BankStatementResource;
 use App\Jobs\Accounting\ParseBankStatementJob;
@@ -23,9 +23,10 @@ class BankStatementController extends Controller
 
         // TCK-988 — les comptes de `reconciled_ratio` après `buildQuery()` : un `fields[]` y pose
         // son `select`, qui écraserait les sous-requêtes de comptage posées avant.
-        return BankStatementResource::collection(
-            BankStatement::buildQuery($query, $request)->withReconciledCounts()->paginate()
-        );
+        $paginator = BankStatement::buildQuery($query, $request)->withReconciledCounts()->paginate();
+
+        // TCK-1220 (P108.03) — l'enveloppe canonique `{ data, meta }`, et non celle de Laravel.
+        return $this->paginated($paginator, BankStatementResource::collection($paginator)->toArray($request));
     }
 
     public function store(Agency $agency, StoreBankStatementRequest $request)

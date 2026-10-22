@@ -108,6 +108,21 @@ class AgentContactLeadTest extends TestCase
         $this->assertSame('moussa@example.test', $lead->email);
     }
 
+    /** TCK-1218 (P108.01) — l'agent de la requête est écrit sur la demande, comme pour un bien. */
+    public function test_l_agent_de_la_requete_est_ecrit_sur_la_demande(): void
+    {
+        $this->agent();
+        $firefox = 'Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0';
+
+        $this->withHeaders(['User-Agent' => $firefox])->postJson('/api/public/agents/awa-diop/contact-lead', [
+            'name' => 'Moussa Fall',
+            'email' => 'moussa@example.test',
+            'message' => 'Bonjour, je cherche un F3 aux Almadies.',
+        ])->assertCreated();
+
+        $this->assertSame($firefox, PropertyContactLead::query()->latest('id')->value('user_agent'));
+    }
+
     /** Le pot de miel accepte sans écrire — répondre 422 apprendrait au robot quel champ éviter. */
     public function test_honeypot_is_accepted_without_persisting(): void
     {
