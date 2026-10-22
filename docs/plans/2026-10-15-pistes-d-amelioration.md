@@ -12130,7 +12130,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### Le rappel d'échéance d'une tâche part à son assigné, même suspendu de l'agence
 - Réf : P126.01
-- Statut : validé (délégué) — ne rappeler l'échéance qu'à un assigné personnel actif de l'agence du dossier (`MembershipCapabilityResolver::isStaffAt`, agence lue par `Task::parentRecord()`) ; sinon, aucun rappel ; reste : un repli du rappel vers les admins actifs de l'agence
+- Statut : fait · TCK-1248 — reste : un repli du rappel vers les admins actifs de l'agence
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/SendTaskDueReminders.php:45-81`, `takussan-api/app/Services/Agency/TeamMemberSuspensionService.php:73-118`
 - Constat :
@@ -12142,6 +12142,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 - Piste : ne rappeler que si l'assigné est personnel actif de l'agence du dossier (`MembershipCapabilityResolver::isStaffAt`, agence lue par `Task::parentRecord()`). Le repli (rappel aux admins actifs, ou rien) est un choix de produit, à écrire. Test : assigné suspendu → aucun rappel ; assigné actif → un rappel.
 - Mesure (2026-10-22, 230f917df, mesureur) : relu `SendTaskDueReminders.php:41-81` (aucun jugement de l'assigné ni de l'agence), `TeamMemberSuspensionService` vit sous `app/Services/Membership/` et non `Agency/` ; aucun ticket ni commit sur `P126` (`grep -rln P126 docs/backlog/tickets`, `git log 64db86d28..HEAD -- takussan-api/app` vide) ; test temporaire `TmpMesureurP126Test` (charge 1,86/2,34/2,37 sur 8 cœurs, retiré) : agent au profil `suspended` (`isStaffAt` faux), tâche ouverte sur un client de l'agence à 24 h → `TaskDueReminderNotification` envoyée 1 fois à l'agent suspendu. Le constat tient. Classement : V7, écarter l'assigné suspendu exige de choisir le repli, que la piste déclare à écrire.
 - Mesure (2026-10-22, 348258c0b, delegue) : relu le constat, la `Piste` et la mesure du mesureur, `docs/features.md:527` (« un profil non actif (suspendu, …) ne confère aucune capacité ni aucun périmètre dans son agence », TCK-587), `MaintenanceParticipants.php:33-46` (l'équipe filtrée par `isStaffAt`, commentaire « un agent suspendu n'est plus prévenu », sans repli), ADR-0031 § 3 → écarter l'assigné qui n'est plus personnel suit une règle écrite et le précédent de `MaintenanceParticipants` ; le repli est la seule part neuve. Délégation : V7, ne plus envoyer un rappel vers une tâche que le destinataire ne peut plus ouvrir est mineur, réversible en un commit et n'envoie rien de neuf à personne ; le repli vers les admins, envoi visible neuf, reste au porteur.
+- Mesure (2026-10-22, c072bdc37, implementeur) : `TaskReminderTest` étendu, avant correctif : agent `suspended` de l'agence du client → `TaskDueReminderNotification` envoyée (rouge), agent actif d'une autre agence → envoyée (rouge) ; `SendTaskDueReminders::notifyFor` écarte l'assigné qui n'est pas `isStaffAt` de l'agence lue par `Task::parentAgencyId()`, sans repli ni marqueur → 9/9 verts ; ablation (job remis à `c072bdc37`) → 2 rouges. Un dossier hors agence garde son rappel.
 
 ### Le rappel de visite part à l'agent de la visite sans le jugement que `VisitNotifier` applique au même agent
 - Réf : P126.02
