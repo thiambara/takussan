@@ -123,6 +123,63 @@ class PaymentSupervisionTest extends TestCase
         $this->getJson('/api/admin/payments?filter[status]=unknown')->assertStatus(422);
     }
 
+    /**
+     * TCK-1432 (P162.06) — « en retard » se lit par `LeasePayment::overdue()` : une échéance
+     * `pending` échue d'un bail SANS pénalité (que `LateFeeCalculator` ne passe jamais `late`) est
+     * comptée, par son échéance dans la période. Les paiements de réservation n'y entrent plus :
+     * rien n'écrit `late` sur eux, et ils n'ont pas d'échéance.
+     */
+    public function test_an_unpaid_due_installment_without_late_fee_counts_as_late_and_bookings_never_do(): void
+    {
+        $om = ['gateway' => ['provider' => 'orange_money', 'transaction_id' => 'om_1432']];
+        $due = $this->leaseDue(payment: [
+            'status' => PaymentStatus::Pending,
+            'due_date' => now()->subDays(3)->toDateString(),
+            'late_fee_amount' => 0,
+            'late_fee_applied_at' => null,
+            'metadata' => $om,
+        ]);
+        $due['lease']->update(['late_fee_percent' => 0]);
+
+        // Pas encore échue, et échue hors des deux fenêtres : ni l'une ni l'autre ne compte.
+        foreach ([now()->addDays(2), now()->subDays(40)] as $date) {
+            LeasePayment::factory()->create([
+                'lease_id' => $due['lease']->id,
+                'amount' => 150_000,
+                'currency' => Currency::XOF,
+                'status' => PaymentStatus::Pending,
+                'due_date' => $date->toDateString(),
+                'metadata' => $om,
+            ]);
+        }
+
+        // Un paiement de réservation forcé à `late` : la supervision ne le lit plus.
+        BookingPayment::factory()->create([
+            'booking_id' => Booking::factory()->create([
+                'property_id' => Property::factory()->create(['agency_id' => $due['agency']->id])->id,
+                'customer_id' => Customer::factory()->create(['agency_id' => $due['agency']->id])->id,
+                'agency_id' => $due['agency']->id,
+                'currency' => Currency::XOF,
+            ])->id,
+            'amount' => 20000,
+            'currency' => Currency::XOF,
+            'status' => PaymentStatus::Late,
+            'payment_method' => 'wave',
+            'payment_type' => BookingPaymentType::Deposit,
+        ]);
+
+        $this->actingAsRole('super_admin');
+        $summary = $this->getJson('/api/admin/payments/summary')->assertOk()->json('data');
+        $this->assertSame(1, $summary['last_7_days']['orange_money']['late']);
+        $this->assertSame(1, $summary['last_30_days']['orange_money']['late']);
+        $this->assertSame(0, $summary['last_30_days']['wave']['late']);
+
+        $late = $this->getJson('/api/admin/payments?filter[status]=late')->assertOk()->json('data');
+        $this->assertSame([$due['payment']->id], collect($late)->pluck('id')->all());
+        $this->assertSame(['lease_payment'], collect($late)->pluck('type')->unique()->values()->all());
+        $this->assertSame('pending', $late[0]['status']);
+    }
+
     /** AC10 — un agent ou un admin d'agence : 403 sur les quatre routes. */
     public function test_agency_staff_is_forbidden_on_the_console_routes(): void
     {
