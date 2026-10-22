@@ -4783,7 +4783,8 @@
         "booking_payment": "Feyu reserwaasiyoŋ",
         "lease_payment": "Luwaasu kër",
         "invoice": "Faktiir",
-        "payout": "Delloo"
+        "payout": "Delloo",
+        "platform_payout": "Reversement de la plateforme"
       },
       "import": {
         "title": "Yebal ab relevé",

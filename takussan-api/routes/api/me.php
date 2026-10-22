@@ -46,6 +46,8 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('subscription', [SubscriptionController::class, 'show'])->name('me.subscription.show');
     Route::get('quota', [SubscriptionController::class, 'quota'])->name('me.quota.show');
     Route::get('payouts', [MePlatformPayoutController::class, 'index'])->name('me.payouts.index');
+    // TCK-1419 (P141.03) — ce qu'un reversement de la plateforme couvre.
+    Route::get('payouts/{payout}', [MePlatformPayoutController::class, 'show'])->whereNumber('payout')->name('me.payouts.show');
 
     // TCK-594 (ADR-0039 §6) — les destinations de paiement du titulaire. `store`, `update` et
     // `destroy` sont sous step-up 2FA (TCK-589, `ProtectedActions::STEP_UP`).

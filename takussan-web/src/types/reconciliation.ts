@@ -42,7 +42,13 @@ export interface BankStatement {
 
 export type BankLineDirection = 'credit' | 'debit';
 export type BankLineMatchStatus = 'unmatched' | 'suggested' | 'confirmed' | 'ignored';
-export type MatchedPaymentType = 'booking_payment' | 'lease_payment' | 'invoice' | 'payout';
+export type MatchedPaymentType =
+  | 'booking_payment'
+  | 'lease_payment'
+  | 'invoice'
+  | 'payout'
+  // TCK-1421 (P141.02) — le virement de clôture de la plateforme, rapproché d'un crédit.
+  | 'platform_payout';
 
 export interface BankStatementLine {
   id: number;

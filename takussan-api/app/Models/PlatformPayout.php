@@ -31,6 +31,9 @@ class PlatformPayout extends AbstractModel
         'payment_reference',
         'failure_reason',
         'metadata',
+        // TCK-1421 (P141.02) — rapproché d'un crédit du relevé de l'agence.
+        'bank_reconciled_at',
+        'bank_statement_line_id',
     ];
 
     protected $casts = [
@@ -43,6 +46,7 @@ class PlatformPayout extends AbstractModel
         'processed_at' => 'datetime',
         'approved_at' => 'datetime',
         'metadata' => 'array',
+        'bank_reconciled_at' => 'datetime',
     ];
 
     protected static array $requestFilterable = ['agency_id', 'status', 'currency'];

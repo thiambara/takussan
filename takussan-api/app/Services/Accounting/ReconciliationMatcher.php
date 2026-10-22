@@ -6,9 +6,11 @@ use App\Models\BankStatementLine;
 use App\Models\BookingPayment;
 use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\PayoutStatus;
+use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Models\PlatformPayout;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -48,7 +50,8 @@ class ReconciliationMatcher
 
         $candidates = $line->direction === BankStatementLineDirection::Debit
             ? $this->fetchPayoutCandidates($agencyId, $amount, $currency, $windowStart, $windowEnd)
-            : $this->fetchCandidates($agencyId, $amount, $currency, $windowStart, $windowEnd);
+            : $this->fetchCandidates($agencyId, $amount, $currency, $windowStart, $windowEnd)
+                ->merge($this->fetchPlatformPayoutCandidates($agencyId, $amount, $currency, $windowStart, $windowEnd));
 
         if ($candidates->isEmpty()) {
             return null;
@@ -67,18 +70,12 @@ class ReconciliationMatcher
         $candidates = collect();
 
         foreach (self::PAYMENT_MODELS as $modelClass) {
+            // TCK-1417 (P141.04) — agence, rapprochement, et ce qu'aucun crédit ne paie (caution
+            // rendue TCK-594, facture non encaissable TCK-724, encaissement de la plateforme
+            // TCK-1415) : un seul scope, partagé avec la recherche manuelle.
             $query = $modelClass::query()
-                ->whereNull('bank_reconciled_at')
+                ->awaitingBankCredit($agencyId)
                 ->where('currency', $currency);
-
-            // Scope by agency — each model has a different FK path.
-            $query = match ($modelClass) {
-                BookingPayment::class => $query->whereHas('booking', fn ($q) => $q->whereHas('property', fn ($q2) => $q2->where('agency_id', $agencyId))),
-                // TCK-594 (P4-5) — une caution rendue sort du compte : un crédit ne s'y apparie pas.
-                LeasePayment::class => $query->whereHas('lease', fn ($q) => $q->where('agency_id', $agencyId))->exceptDepositRefunds(),
-                // TCK-724 (P25.04) — une facture brouillon, annulée ou nulle n'attend aucun encaissement.
-                Invoice::class => $query->where('agency_id', $agencyId)->reconcilable(),
-            };
 
             // Amount filter with small tolerance for rounding. Invoices store the
             // total in `total_amount`; booking/lease payments use `amount`.
@@ -143,6 +140,33 @@ class ReconciliationMatcher
                 'type' => Payout::class,
                 'id' => $row->id,
                 'reference_number' => $row->reference_number,
+                'paid_at' => $row->processed_at,
+                'payer_name' => null,
+                'model' => $row,
+            ]);
+    }
+
+    /**
+     * TCK-1421 (P141.02) — un crédit du relevé peut être le virement de clôture de la plateforme :
+     * `PlatformPayout` `paid` de l'agence, au `net_amount` exact, dans la fenêtre autour de
+     * `processed_at`, sa `payment_reference` portant la règle de référence.
+     *
+     * @return Collection<int, object{type: string, id: int, reference_number: ?string, paid_at: ?Carbon, payer_name: ?string}>
+     */
+    private function fetchPlatformPayoutCandidates(int $agencyId, float $amount, string $currency, $windowStart, $windowEnd): Collection
+    {
+        return PlatformPayout::query()
+            ->whereNull('bank_reconciled_at')
+            ->where('status', PlatformPayoutStatus::Paid)
+            ->where('agency_id', $agencyId)
+            ->where('currency', $currency)
+            ->whereRaw('ABS(net_amount - ?) < 0.01', [$amount])
+            ->whereBetween('processed_at', [$windowStart, $windowEnd])
+            ->get(['id', 'net_amount', 'currency', 'payment_reference', 'processed_at'])
+            ->map(fn (PlatformPayout $row) => (object) [
+                'type' => PlatformPayout::class,
+                'id' => $row->id,
+                'reference_number' => $row->payment_reference,
                 'paid_at' => $row->processed_at,
                 'payer_name' => null,
                 'model' => $row,

@@ -202,4 +202,17 @@ class Invoice extends AbstractModel
     {
         return $query->whereNull('bank_reconciled_at');
     }
+
+    /**
+     * TCK-1417 (P141.04) — ce qui attend un crédit du relevé de l'agence : le scope que partagent
+     * le matcher (`ReconciliationMatcher`) et la recherche manuelle (`PaymentSearchService`).
+     *
+     * Les seules factures encaissables (TCK-724).
+     */
+    public function scopeAwaitingBankCredit(Builder $query, int $agencyId): Builder
+    {
+        return $query->whereNotReconciled()
+            ->where($query->qualifyColumn('agency_id'), $agencyId)
+            ->reconcilable();
+    }
 }
