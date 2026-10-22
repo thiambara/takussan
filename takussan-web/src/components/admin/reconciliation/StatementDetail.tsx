@@ -23,6 +23,7 @@ import type { Locale } from '@/i18n/config';
 import type { BankLineMatchStatus, BankStatementLine } from '@/types/reconciliation';
 
 import { confianceEnFraction, enNombre, releveAVerifier, releveFige } from './format';
+import { PayableStatusBadge } from './PayableStatusBadge';
 import { PaymentSearchDialog } from './PaymentSearchDialog';
 import { STATEMENT_STATUS_TONE } from './StatementsList';
 
@@ -235,6 +236,15 @@ export function StatementDetail({
                         <StatusBadge tone={TON_LIGNE[l.match_status]} label={t(`lineStatus.${l.match_status}`)} />
                       )}
                       {suggestion && <p className="mt-1 text-xs text-foreground">{suggestion}</p>}
+                      {l.matched_payment_type && (
+                        <div className="mt-1">
+                          <PayableStatusBadge
+                            type={l.matched_payment_type}
+                            status={l.matched_payment_status}
+                            data-testid={`statut-payable-${l.id}`}
+                          />
+                        </div>
+                      )}
                       {l.match_status === 'suggested' && confiance !== null && (
                         <p className="text-xs text-muted-foreground">
                           {t('detail.confidence', { value: formatPercent(confiance, locale, { maximumFractionDigits: 0 }) })}

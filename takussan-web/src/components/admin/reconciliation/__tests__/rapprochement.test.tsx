@@ -164,6 +164,7 @@ function ligne(surcharge: Partial<BankStatementLine>): BankStatementLine {
     match_status: 'suggested',
     matched_payment_type: 'lease_payment',
     matched_payment_id: 12,
+    matched_payment_status: 'pending',
     match_confidence: 0.92,
     ...surcharge,
   };
@@ -199,6 +200,24 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
     expect(within(suggeree).getByText('Loyer n° 12')).toBeInTheDocument();
     expect(texte(within(suggeree).getByText(/Confiance/).textContent)).toBe('Confiance : 92 %');
     expect(within(screen.getByTestId('ligne-101')).getByText(fr.admin.reconciliation.directions.debit)).toBeInTheDocument();
+  });
+
+  // TCK-1522 (P110.02) — un encaissement rapproché puis remboursé garde sa ligne : la ligne le dit.
+  it('montre le statut du payable rapproché, remboursé compris', () => {
+    q.useBankStatementLines.mockReturnValue(
+      ok({
+        data: [
+          ligne({ id: 102, match_status: 'confirmed', match_confidence: null, matched_payment_type: 'booking_payment', matched_payment_status: 'refunded' }),
+          ligne({ id: 103, match_status: 'confirmed', match_confidence: null, matched_payment_type: 'invoice', matched_payment_status: 'paid' }),
+          ligne({ id: 104, match_status: 'unmatched', matched_payment_type: null, matched_payment_id: null, matched_payment_status: null }),
+        ],
+        meta: { current_page: 1, last_page: 1, per_page: 50, total: 3 },
+      }),
+    );
+    render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+    expect(within(screen.getByTestId('ligne-102')).getByTestId('statut-payable-102')).toHaveTextContent(fr.payments.status.refunded);
+    expect(within(screen.getByTestId('ligne-103')).getByTestId('statut-payable-103')).toHaveTextContent(fr.payments.invoiceStatus.paid);
+    expect(within(screen.getByTestId('ligne-104')).queryByTestId('statut-payable-104')).toBeNull();
   });
 
   it('valide la suggestion d’un geste', async () => {
@@ -243,6 +262,32 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
 
     fireEvent.click(await within(dialogue).findByRole('button', { name: fr.admin.reconciliation.search.choose }));
     await waitFor(() => expect(q.match).toHaveBeenCalledWith({ lineId: 101, payment_type: 'payout', payment_id: 5 }));
+  });
+
+  // TCK-1526 (P110.04) — un acompte remboursé reste candidat, et le dit ; il reste choisissable.
+  it('la recherche manuelle montre le statut de chaque candidat, sans l’écarter', async () => {
+    q.match.mockResolvedValue({});
+    q.usePaymentSearch.mockImplementation((_a: number, _q: string, _m: number | null, _d: string, enabled: boolean) =>
+      enabled
+        ? ok({
+            data: [
+              { id: 7, type: 'booking_payment', label: null, amount: '70000.00', currency: 'XOF', reference: 'BP-7', paid_at: null, payer_name: null, status: 'refunded' },
+              { id: 8, type: 'invoice', label: null, amount: '70000.00', currency: 'XOF', reference: 'FA-8', paid_at: null, payer_name: null, status: 'sent' },
+            ],
+          })
+        : { data: undefined, isLoading: false, isError: false },
+    );
+    render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+
+    fireEvent.click(within(screen.getByTestId('ligne-100')).getByRole('button', { name: fr.admin.reconciliation.detail.search }));
+    const dialogue = await screen.findByRole('dialog');
+    fireEvent.click(within(dialogue).getByRole('button', { name: fr.admin.reconciliation.search.submit }));
+
+    expect(await within(dialogue).findByTestId('statut-candidat-booking_payment-7')).toHaveTextContent(fr.payments.status.refunded);
+    expect(within(dialogue).getByTestId('statut-candidat-invoice-8')).toHaveTextContent(fr.payments.invoiceStatus.sent);
+
+    fireEvent.click(within(dialogue).getAllByRole('button', { name: fr.admin.reconciliation.search.choose })[0]);
+    await waitFor(() => expect(q.match).toHaveBeenCalledWith({ lineId: 100, payment_type: 'booking_payment', payment_id: 7 }));
   });
 
   // Ajouté après vérification adverse (AC18b) : seule la LISTE était éprouvée — forcer le compte

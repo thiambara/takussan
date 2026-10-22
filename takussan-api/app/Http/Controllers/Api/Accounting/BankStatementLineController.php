@@ -26,6 +26,12 @@ class BankStatementLineController extends Controller
         'platform_payout' => PlatformPayout::class,
     ];
 
+    /**
+     * TCK-1522 (P110.02) — le payable rapproché ou suggéré, réduit à son statut : la ligne le rend
+     * (`matched_payment_status`), pour qu'un encaissement remboursé après rapprochement se voie.
+     */
+    private const PAYABLE = 'matchedPayment';
+
     public function index(BankStatement $statement, Request $request)
     {
         $this->authorize('viewAny', [BankStatementLine::class, $statement]);
@@ -36,6 +42,8 @@ class BankStatementLineController extends Controller
         $paginator = BankStatementLine::buildQuery($query, $request)
             ->defaultSorts('posted_at', 'id')
             ->paginate();
+
+        $paginator->getCollection()->load(self::PAYABLE);
 
         // TCK-1220 (P108.03) — l'enveloppe canonique `{ data, meta }`, et non celle de Laravel.
         return $this->paginated($paginator, BankStatementLineResource::collection($paginator)->toArray($request));
@@ -50,7 +58,7 @@ class BankStatementLineController extends Controller
 
         $updated = $manager->confirmMatch($line, $payment, $request->user());
 
-        return BankStatementLineResource::make($updated);
+        return BankStatementLineResource::make($updated->load(self::PAYABLE));
     }
 
     public function unmatch(BankStatementLine $line, Request $request, ReconciliationManager $manager)
@@ -59,7 +67,7 @@ class BankStatementLineController extends Controller
 
         $updated = $manager->unmatch($line, $request->user());
 
-        return BankStatementLineResource::make($updated);
+        return BankStatementLineResource::make($updated->load(self::PAYABLE));
     }
 
     public function ignore(BankStatementLine $line, Request $request, ReconciliationManager $manager)
@@ -68,6 +76,6 @@ class BankStatementLineController extends Controller
 
         $updated = $manager->ignore($line, $request->user());
 
-        return BankStatementLineResource::make($updated);
+        return BankStatementLineResource::make($updated->load(self::PAYABLE));
     }
 }
