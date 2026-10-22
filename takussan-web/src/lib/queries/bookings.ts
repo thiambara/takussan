@@ -90,9 +90,13 @@ export function useCreateBooking() {
 }
 
 export type CreateBookingPaymentPayload = {
-  amount: number;
+  /**
+   * TCK-1309 (P133.05) — le personnel saisit montant et nature ; le client n'envoie ni l'un ni
+   * l'autre : l'API les dérive (acompte, puis reste dû) et ignore ce qu'il enverrait.
+   */
+  amount?: number;
   payment_method?: 'cash' | 'bank_transfer' | 'mobile_money' | 'card';
-  payment_type: 'deposit' | 'advance' | 'fee';
+  payment_type?: 'deposit' | 'advance' | 'fee';
   /**
    * TCK-172 — set to `pending` for the customer self-service gateway flow. TCK-1266 — sans
    * `cancelled`, que `StoreBookingPaymentRequest` refuse.

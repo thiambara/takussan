@@ -88,6 +88,7 @@ return [
         'property_unavailable' => 'Kër gii nekkul ci woote.',
     ],
     'booking_payment' => [
+        'nothing_due' => 'Cette réservation est soldée : il ne reste rien à payer.',
         'receipt_unpaid' => 'Quittance bi, fay bu ñu fay ba noppi rekk la.',
         'refund_exceeds_paid' => 'Delloo bi mënul a ëpp xaalis bi ñu fay.',
         'refund_fractional' => 'Limu bii am na ay ñaari lim yu xaalis bi amul.',

@@ -88,6 +88,7 @@ return [
         'property_unavailable' => 'Ce bien n\'est pas disponible à la réservation.',
     ],
     'booking_payment' => [
+        'nothing_due' => 'Cette réservation est soldée : il ne reste rien à payer.',
         'receipt_unpaid' => 'La quittance est disponible uniquement pour un paiement acquitté.',
         'refund_exceeds_paid' => 'Le remboursement ne peut pas dépasser le montant payé.',
         'refund_fractional' => 'Ce montant comporte des décimales que la devise du paiement n\'a pas.',

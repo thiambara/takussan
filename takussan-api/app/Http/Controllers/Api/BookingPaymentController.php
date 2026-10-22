@@ -9,7 +9,6 @@ use App\Http\Resources\BookingPaymentResource;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Enums\PaymentStatus;
-use App\Services\Booking\BookingMoneyAccess;
 use App\Services\Model\BookingPaymentService;
 use App\Services\Payments\PaymentReceiptPdf;
 use Illuminate\Http\JsonResponse;
@@ -40,15 +39,16 @@ class BookingPaymentController extends Controller
         // TCK-172 — when the customer (not staff) posts the payment, force
         // the status to `pending` so the gateway flow can take it from there;
         // ignore any client-provided shortcut to `paid`.
-        $user = $request->user();
-        $isCustomer = $booking->customer && $booking->customer->user_id === $user->id;
         // TCK-596 — « bailleur direct du bien », plus `isOwnerAt(agence)` : tout bailleur de
-        // l'agence comptait comme encaisseur. Même règle que l'autorisation (`BookingMoneyAccess`).
-        $isStaff = BookingMoneyAccess::canRecordAsCollector($user, $booking);
-        if ($isCustomer && ! $isStaff) {
+        // l'agence comptait comme encaisseur. Même règle que l'autorisation (`BookingMoneyAccess`),
+        // portée par `StoreBookingPaymentRequest::payeurClient()`.
+        $user = $request->user();
+        if ($request->payeurClient()) {
             $data['status'] = PaymentStatus::Pending->value;
             $data['paid_at'] = null;
             unset($data['payment_method'], $data['transaction_id']);
+            // TCK-1309 (P133.05) — le montant et sa nature sont dérivés, jamais lus du navigateur.
+            [$data['amount'], $data['payment_type']] = $this->payments->dueFromCustomer($booking);
         }
 
         $payment = $this->payments->create($booking, $user, $data);

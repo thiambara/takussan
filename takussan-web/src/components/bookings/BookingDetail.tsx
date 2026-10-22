@@ -545,16 +545,12 @@ function CustomerPayCta({
 
   const depositAmount = Number(booking.deposit_amount ?? 0);
   const isDepositStep = succeededTotal === 0 && depositAmount > 0;
-  const amount = isDepositStep ? depositAmount : remaining;
-  const paymentType: 'deposit' | 'advance' = isDepositStep ? 'deposit' : 'advance';
   const label = isDepositStep ? t('payCta.deposit') : t('payCta.balance');
 
+  // TCK-1309 (P133.05) — le montant et sa nature sont dérivés par l'API (acompte, puis reste
+  // dû) : le calcul ci-dessus ne sert plus qu'au libellé.
   async function handleClick() {
-    await createPayment.mutateAsync({
-      amount,
-      payment_type: paymentType,
-      status: 'pending',
-    });
+    await createPayment.mutateAsync({ status: 'pending' });
   }
 
   return (

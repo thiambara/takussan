@@ -88,6 +88,7 @@ return [
         'property_unavailable' => 'This property is not available for booking.',
     ],
     'booking_payment' => [
+        'nothing_due' => 'This booking is fully paid: nothing is left to pay.',
         'receipt_unpaid' => 'The receipt is only available for a settled payment.',
         'refund_exceeds_paid' => 'The refund cannot exceed the amount paid.',
         'refund_fractional' => 'This amount has decimals the payment currency does not have.',
