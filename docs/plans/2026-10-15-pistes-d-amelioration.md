@@ -12437,7 +12437,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### `GET /api/notifications` rend `data`, que le front ne lit pas, et resigne les pièces d'une retenue sur caution à chaque interrogation de la cloche
 - Réf : P128.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1326
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/notifications.ts:19-37,56-66`, `takussan-web/src/components/layout/NotificationBell.tsx:57-64`, `takussan-api/app/Http/Resources/AppNotificationResource.php:28-30,47,79-87`, `takussan-api/app/Notifications/LeaseDepositRefundNotification.php:126-148`
 - Constat :
@@ -12447,6 +12447,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu, et mesuré pour la forme de la réponse.
 - Piste : demander `fields[app_notifications]=id,type,code,params,target,title,body,is_read,read_at,created_at` depuis `fetchNotifications`, conformément à la règle des champs clairsemés. Test front : l'URL appelée porte `fields[app_notifications]` sans `data`.
 - Mesure (2026-10-22, 045f8ae56, mesureur) : relu `lib/notifications.ts:19-37` (type sans `data`) et l. 57-66 (`fetchNotifications` sans `fields[app_notifications]`), seul appelant `app/actions/notifications.ts:51`, `NotificationBell.tsx:64` (`refetchInterval: 30_000`), `AppNotificationResource.php:28-31,47,79-87` (`FIELDS`, `dataAtRead`) ; `grep attachments` dans `components/notifications` et `NotificationBell.tsx` → rien ; même test temporaire → `GET /api/notifications` rend `id,type,code,params,target,title,body,data,is_read,read_at,sent_at,created_at`. Le constat tient ; le coût en requêtes de `dataAtRead` reste non mesuré. Classement : A1 et A2, la règle des champs clairsemés est écrite (`CLAUDE.md`, `docs/spatie-query-builder.md`) et le correctif ne change rien de ce que le front affiche.
+- Mesure (2026-10-22, 4382e9f60, implementeur) : reproduit avant correctif par `notifications-champs.test.ts` (`apiRequest` doublé, `buildQueryString` réel) → l'URL de `fetchNotifications` ne porte aucun `fields[app_notifications]`, rouge ; `fetchNotifications` envoie `id,type,code,params,target,title,body,is_read,read_at,created_at` → vert, `page`, `per_page` et `filter[unread]` inchangés ; ablation (ligne retirée) → rouge, remise → vert. Le coût de `dataAtRead` n'a pas été mesuré : la cloche ne le demande plus.
 
 ### Petites améliorations
 - Réf : P128.06
