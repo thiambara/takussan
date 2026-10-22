@@ -4,6 +4,7 @@ namespace App\Services\Invitation;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Mail\InvitationMailable;
+use App\Models\Agency;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
@@ -354,6 +355,26 @@ class InvitationService
     }
 
     /**
+     * P129.03 (TCK-1339) — à la suppression d'une agence, ses invitations
+     * ouvertes (`sent`) sont révoquées : elles ne sont plus relancées, et
+     * leur lien ne s'accepte plus. Une ligne `invitation_revoked` par
+     * invitation, causée par qui supprime.
+     */
+    public function revokeOpenForAgency(Agency $agency, User $actor): int
+    {
+        $open = Invitation::query()
+            ->where('agency_id', $agency->getKey())
+            ->where('status', InvitationStatus::Sent->value)
+            ->get();
+
+        foreach ($open as $invitation) {
+            $this->revoke($invitation, $actor);
+        }
+
+        return $open->count();
+    }
+
+    /**
      * Resend: regenerate token, push `expires_at` forward by the default
      * TTL, clear the reminder marker (so the recipient gets one again at
      * J+2 from "now") and re-send the email.
@@ -589,6 +610,13 @@ class InvitationService
 
         if ($invitation->expires_at !== null && $invitation->expires_at->isPast()) {
             abort_code(410, 'invitation.token_expired');
+        }
+
+        // P129.03 (TCK-1339) — une agence supprimée n'ouvre plus de lien neuf,
+        // même par une invitation restée ouverte (supprimée avant la révocation
+        // de `revokeOpenForAgency`, ou hors de la route).
+        if ($invitation->agency_id !== null && ! Agency::query()->whereKey($invitation->agency_id)->exists()) {
+            abort_code(410, 'invitation.token_revoked');
         }
 
         return $invitation;
