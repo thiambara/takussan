@@ -18,6 +18,7 @@ import type {
   PropertyConversationResolution,
 } from '@/types/message';
 import { cheminApi, requete } from '@/lib/chemin-api';
+import { conversationListParams, type ConversationListPage } from './conversations-list';
 
 // TCK-1042 (P70.07) — la liste des conversations vit dans son propre fichier : la pastille de la
 // messagerie, montée par la coque de `/app`, l'importe de là sans embarquer les 37 exports de ce
@@ -25,8 +26,44 @@ import { cheminApi, requete } from '@/lib/chemin-api';
 export {
   CONVERSATION_PROPERTY_FIELDS,
   useConversations,
+  type ConversationListPage,
   type UseConversationsParams,
 } from './conversations-list';
+
+/** TCK-1387 (P135.02) — taille d'une page de la liste de la messagerie. */
+export const CONVERSATIONS_PAGE_SIZE = 30;
+
+/**
+ * TCK-1387 (P135.02) — la liste de la messagerie, par défilement infini comme le fil des messages
+ * (`useMessagesInfinite`). Elle ne lisait que sa première page (30 fils) : les fils plus anciens
+ * n'étaient atteignables par aucun geste.
+ *
+ * La clé commence par `['conversations', 'list']` : les invalidations des mutations (`useSendMessage`,
+ * archivage, sourdine…) la visent déjà. Elle garde la cadence de 10 s de la liste ; TanStack relit
+ * alors chaque page chargée, dans l'ordre.
+ */
+export function useConversationsInfinite(options: { refetchInterval?: number | false } = {}) {
+  const locale = useLocale();
+  const { user, token } = useAuth();
+
+  return useInfiniteQuery<ConversationListPage, ApiError, InfiniteData<ConversationListPage>, QueryKey, number>({
+    queryKey: ['conversations', 'list', 'infinite'],
+    enabled: Boolean(user),
+    initialPageParam: 1,
+    staleTime: 0,
+    refetchInterval: options.refetchInterval ?? 10_000,
+    queryFn: async ({ pageParam, signal }) => {
+      const qs = buildQueryString(conversationListParams(pageParam, CONVERSATIONS_PAGE_SIZE));
+      return apiRequest<ConversationListPage>(cheminApi`/api/conversations${requete(qs)}`, {
+        token: token ?? undefined,
+        locale,
+        signal,
+      });
+    },
+    getNextPageParam: (lastPage) =>
+      lastPage.meta.current_page < lastPage.meta.last_page ? lastPage.meta.current_page + 1 : undefined,
+  });
+}
 
 /**
  * React Query hooks for Conversations and Messages (TCK-045).

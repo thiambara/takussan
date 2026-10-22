@@ -13041,7 +13041,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### La messagerie ne montre que les 30 conversations les plus récentes, et la pastille ne compte que leurs non-lus
 - Réf : P135.02
-- Statut : validé — porteur (2026-10-22) : défilement infini de la liste (`useInfiniteQuery`, comme `ChatView`) et total des non-lus calculé par l'API (`meta.unread_total`), avec P136.01
+- Statut : fait · TCK-1387 — reste : la lecture étroite et la cadence de la pastille hors de `/app/messages`, qui sont l'objet de P136.01 (angle 136)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:39-68`, `takussan-web/src/lib/queries/conversations-list.ts:48-80`, `takussan-web/src/components/messages/ConversationList.tsx:29,61`, `takussan-web/src/components/chat-widget/useUnreadCount.ts:25-44`
 - Constat :
@@ -13052,6 +13052,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 - Piste : paginer la liste (défilement infini comme `ChatView`), ou une recherche ; faire compter les non-lus par l'API (un total dans `meta`) plutôt que par la page. Test : 35 conversations, la 35ᵉ atteignable depuis la liste.
 - Mesure (2026-10-22, a5154e95a, mesureur) : relu `ConversationController::index` (`orderByDesc('last_message_at')`, `paginate`), `useConversations` (`page=1`, `per_page=30`), ses deux appelants (`ConversationList.tsx:29`, `useUnreadCount.ts:28`, aucune page suivante) et la somme de `useUnreadCount.ts:31-43` ; test temporaire `tests/Feature/Tmp/MesureP135Test.php`, retiré (charge 1,55 sur 8 cœurs) : 35 conversations actives, la plus ancienne avec un message non lu d'un autre participant, requête exacte du front → 30 lignes sur `meta.total` = 35, la plus ancienne absente, somme des `unread_count` = 0. La remontée en tête par `MessageObserver` (pose `last_message_at`, lu `MessageObserver.php:18`) n'a pas été mesurée. Classement : V7, défilement infini ou recherche dans la liste et compteur des non-lus dans `meta` sont des comportements visibles neufs, au choix.
 - Mesure (2026-10-22, 54828b9cc, delegue) : relu le constat, la `Mesure` du mesureur, `useConversations` (`page=1`, `per_page=30`) et ses deux appelants, `ChatView.tsx:72-207` (défilement infini du fil) et P136.01 (même `useConversations`, relu toutes les 10 s par le widget, au porteur) → le constat tient ; lire toutes les pages, voie de TCK-1178, ne convient pas ici : le widget relit la liste toutes les 10 s sur chaque page connectée. Recommandation : défilement infini de la liste comme `ChatView` (même mécanique, `useInfiniteQuery`), et un total des non-lus calculé par l'API (`meta.unread_total`) que la pastille lit au lieu d'additionner la page, à trancher avec P136.01 qui touche la même lecture ; non validé par délégation : un parcours de liste neuf et un champ neuf du contrat de l'API ne sont pas un choix mineur (V7) ; manque : l'accord du porteur sur la forme du compteur, et sa cadence avec P136.01.
+- Mesure (2026-10-22, 034d400b2, implementeur) : reproduit avant correctif par `ConversationListPagesTest` (35 fils, le plus ancien seul non lu) → page 1 sans lui, `meta.total` = 35, somme des `unread_count` = 0, `meta.unread_total` absent (rouge) ; l'API rend désormais `meta.unread_total` (toute la liste, hors sourdine et avis système), `useConversationsInfinite` + sentinelle dans `ConversationList`, `useUnreadCount` lit le total ; ablation : total retiré → 2 rouges API, filtre `is_muted` retiré → 1 rouge, `useUnreadCount.ts` et `ConversationList.tsx` rendus à `HEAD` → 2/5 et 7/7 rouges ; correctifs remis → verts.
 
 ### Le calendrier d'un bien ne montre que ses 100 plus anciens séjours confirmés : passé ce nombre, les séjours à venir n'apparaissent plus
 - Réf : P135.03
@@ -13098,7 +13099,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### Petites améliorations des listes écrites à la main
 - Réf : P135.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-1389 — reste : la route `GET /api/properties/{p}/price-history`, à retirer si P13.08 la confirme sans appelant
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:30,67`, `takussan-web/src/lib/queries/conversations-list.ts:59-75`, `takussan-web/src/lib/queries/properties-server.ts:354-363`, `takussan-web/src/lib/queries/properties.ts:60`, `takussan-api/app/Http/Controllers/Api/PropertyPriceHistoryController.php:13-18`
 - Constat :
@@ -13107,6 +13108,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - `fetchPropertyPriceHistory` n'a aucun appelant, hors sa réexportation (mesuré : `grep -rn fetchPropertyPriceHistory takussan-web/src` → la définition et `properties.ts:60`). La route `GET /api/properties/{p}/price-history` n'a donc aucun lecteur front, et la page publique lit `price_history` dans la ressource du bien (lu, `PropertyDetailContent.tsx:225`).
 - Piste : retirer les filtres inertes, ou les faire lire à l'API ; départager par `id` ; retirer le fetcher mort, puis la route si P13.08 la confirme sans appelant.
 - Mesure (2026-10-22, a5154e95a, mesureur) : relu `ConversationController::index` (seul `archived` est lu ; `orderByDesc('last_message_at')` sans départage), `useConversations` (`filter[status]`, `filter[property_id]` envoyés seulement si passés ; ses deux appelants n'en passent aucun) ; `grep -rln fetchPropertyPriceHistory takussan-web/src takussan-web/tests` → `properties-server.ts` (la définition) et `properties.ts` (la réexportation) seuls ; `GroupConversationService::create` ne pose pas `last_message_at` (lu, l. 67-75), donc un groupe sans message passe en tête sous `DESC`, sans que le correctif y touche. Le constat tient. Classement : A3, retirer le fetcher sans appelant et les deux filtres que rien ne passe, puis départager par `id` (ordre rendu identique quand les horodatages diffèrent), sans choix de produit ; la route reste, à P13.08.
+- Mesure (2026-10-22, 034d400b2, implementeur) : les deux filtres inertes étaient déjà retirés par TCK-1286 (P150.05, `UseConversationsParams` = `page`, `per_page`) ; reproduit avant correctif par `ConversationListPagesTest::test_deux_fils_de_meme_horodatage_sont_departages_par_id` (3 fils de même `last_message_at`, pages d'un) → ordre 39, 40, 41 au lieu de 41, 40, 39 (rouge) ; `orderByDesc('conversations.id')` ajouté → vert, ablation → rouge ; `fetchPropertyPriceHistory` retiré avec sa réexportation, `grep` vide et `tsc --noEmit` propre.
 
 ## Angle 136 — Lectures du navigateur au chargement de la console `/app` et `/super-admin`
 

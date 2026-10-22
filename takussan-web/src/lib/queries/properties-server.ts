@@ -17,7 +17,6 @@ import type {
 import type {
   PropertyDetail,
   PropertyListItem,
-  PropertyPriceHistoryItem,
 } from '@/types/property';
 /**
  * TCK-470 — le corps part IMBRIQUÉ, et le type le dit désormais. `PropertyFormPayload` (plat,
@@ -367,17 +366,6 @@ export async function setPropertyTags(
     body: tagNames.length > 0 ? { tag_ids: tagIds, tag_names: tagNames } : { tag_ids: tagIds },
     token,
   });
-}
-
-export async function fetchPropertyPriceHistory(
-  token: string,
-  propertyId: number,
-): Promise<PropertyPriceHistoryItem[]> {
-  const res = await apiRequest<ApiResponse<PropertyPriceHistoryItem[]>>(
-    cheminApi`/api/properties/${propertyId}/price-history`,
-    { token },
-  );
-  return res.data;
 }
 
 /** TCK-627 — l'usage du quota d'annonces de l'agence active ; `limit: null` = illimité. */
