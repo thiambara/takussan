@@ -15688,7 +15688,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Changer le type ou le statut des états des lieux garde la page courante : la liste s'affiche vide, sans pagination pour en sortir
 - Réf : P168.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1518
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/inventory/InventoryList.tsx:51-58,75,96,123-141,174-200`
 - Constat :
@@ -15698,6 +15698,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu et mesuré (Vitest ciblé, charge 2,73 / 2,84 / 2,67 sur 8 cœurs).
 - Piste : remettre la page à 1 dans les deux `onValueChange`, comme `MaintenanceList`. Garde : un test de `InventoryList` qui avance d'une page, change le statut et attend `page: 1` dans l'appel.
 - Mesure (2026-10-22, b62079cad, mesureur) : relu `InventoryList.tsx:52-54` (type, statut, page en `useState`), l. 76 et 97 (`onValueChange` n'appellent que `setType`/`setStatus`, sans `setPage(1)`), l. 125-141 (état vide sans pagination) et l. 174 (barre rendue pour `last_page > 1` seulement), `InventoryController::index` (`->paginate()`) ; test Vitest temporaire, retiré (`useInventories` bouchonné sur `last_page: 3`, clic « Suivant », statut « Brouillon », charge 4,54 / 3,73 / 3,28 sur 8 cœurs) → dernier appel `{"status":"draft","page":2}` ; aucun commit sur ces fichiers depuis 11a127594, aucun ticket ouvert → le constat tient, lignes décalées d'une. Classement : A1, remettre la page à 1 au changement de filtre est le contrat déjà tenu par `MaintenanceList`, `AuditTrail` et `CommissionsLedger`, sans texte ni choix de produit.
+- Mesure (2026-10-22, 4573b29fe, implementeur) : `InventoryListPagination.test.tsx` (page 2 puis statut « Brouillon », page 2 puis un type) rouge avant correctif, appel resté en `page: 2` → `setPage(1)` dans les deux `onValueChange` ; ablation : composant d'origine remis → 2 rouges, correctif remis → 2/2 verts.
 
 ### Les onglets « À louer » et « À vendre » d'un profil public se montrent vides, sans « Voir plus », quand leurs biens ne sont pas dans les 24 premiers
 - Réf : P168.02
@@ -15746,7 +15747,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Petites améliorations
 - Réf : P168.05
-- Statut : validé (délégué) — `ReportingShell` écrit le changement d'onglet dans `?tab=` par `router.replace`, borné à ses quatre valeurs ; le détail d'agence de la console lit et écrit `?tab=` borné à `kyc`, `subscription`, `team`, `properties`, `transactions`, défaut `kyc` absent de l'URL ; le lien « agence » du profil utilisateur mène à `?tab=team` ; tests : chaque écran monté sur `?tab=` rend l'onglet, et le changement appelle `replace` ; reste : `?tab=` du portefeuille d'un profil public, qui suit l'issue de P168.02
+- Statut : fait · TCK-1520 — reste : `?tab=` du portefeuille d'un profil public, qui suit l'issue de P168.02
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/super/agency-detail.tsx:128,188`, `takussan-web/src/components/admin/super/user-detail.tsx:377`, `takussan-web/src/components/reporting/ReportingShell.tsx:46-50`, `takussan-web/src/components/public/profile/PortfolioTabs.tsx:41,81`
 - Constat :
@@ -15757,6 +15758,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 - Piste : `?tab=` lu et écrit, borné aux valeurs connues, sur ces trois écrans ; le lien du profil utilisateur vers `?tab=team`. Garde : un test par écran monté sur `?tab=`.
 - Mesure (2026-10-22, b62079cad, mesureur) : relu `agency-detail.tsx:128` (`useState<Tab>('kyc')`, sans paramètre), `user-detail.tsx:377` (lien nu vers `/super-admin/agencies/{id}`), `ReportingShell.tsx:44-49` (`initialTab` lu, `onValueChange` → `setTab` seul, rien n'écrit l'URL), `PortfolioTabs.tsx:41` (onglet local) → le constat tient (lu). Classement : V7, rendre ces onglets adressables et mener le profil utilisateur à l'onglet « Équipe » plutôt qu'au KYC sont des comportements visibles neufs.
 - Mesure (2026-10-22, 96f0d113a, delegue) : relu l'entrée et la `Mesure` du mesureur, `ReportingShell.tsx:12,36-48` (`Tab` à quatre valeurs, `?tab=` lu par la page serveur depuis TCK-595, `onValueChange` → `setTab` seul), `agency-detail.tsx:56,128,188` (`Tab` = `kyc`|`subscription`|`team`|`properties`|`transactions`, défaut `kyc`), `user-detail.tsx:365-380` (lien « agence » posé sous le rôle de l'utilisateur dans cette agence), `AdminFinancesTabs.tsx:32-36,61-94` (patron `TAB_VALUES` + `router.replace`) et le précédent délégué P161.02/TCK-1469 (`/app/payments?tab=approvals`) ; `grep -n "porteur ("` de l'angle 168 → aucune décision → le constat tient. Délégation : V7, compléter l'écriture d'un `?tab=` déjà lu (TCK-595) et rendre adressable un onglet existant, sur le patron écrit d'`AdminFinancesTabs`, ne crée ni texte ni fonction et se défait en un commit ; le lien vers l'onglet « Équipe » suit le contexte où il est posé (le rôle de l'utilisateur dans l'agence) ; l'onglet du portefeuille public est laissé au porteur, parce que sa forme dépend de l'issue de P168.02.
+- Mesure (2026-10-22, 4573b29fe, implementeur) : relu `ReportingShell.tsx` (`onValueChange` → `setTab` seul), `agency-detail.tsx` (`useState<Tab>('kyc')`), `user-detail.tsx:377` (lien nu) → le constat tient ; `ReportingShell.test.tsx` (clic → `replace('?tab=cohorts&x=1')`, retour → `?x=1`) et `agency-detail.onglet-url.test.tsx` (`?tab=team` rend l'équipe, inconnu → KYC, changement → `replace`, lien `?tab=team`) ; ablation : lecture de `?tab=`, `replace` et lien retirés → 4 rouges, correctif remis → 22/22 verts.
 
 ## Angle 169 — Rappels à marque unique face aux gestes qui déplacent leur date de référence
 
