@@ -74,4 +74,34 @@ describe('TCK-1371 — toutes les pages', () => {
     expect(liens).toHaveLength(51);
     expect(screen.getByRole('link', { name: /Logement 1\b/ })).toHaveAttribute('href', '/app/inventories/new?lease=1');
   });
+
+  /**
+   * TCK-1438 (P162.05) — un bail en préavis (`terminating`) a son état des lieux de sortie à
+   * produire : le choix le liste, et le filtre part côté serveur.
+   */
+  it('le choix du bail d’un état des lieux demande et liste aussi les baux en préavis', async () => {
+    const statuts: (string | null)[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        const u = new URL(String(url), 'http://api.test');
+        const demandes = (u.searchParams.get('filter[status]') ?? '').split(',');
+        statuts.push(u.searchParams.get('filter[status]'));
+        const lignes = [
+          { id: 1, reference_number: 'LS-1', status: 'active', property: { id: 1, title: 'Logement actif' } },
+          { id: 2, reference_number: 'LS-2', status: 'terminating', property: { id: 2, title: 'Logement en préavis' } },
+        ].filter((l) => demandes.includes(l.status));
+        return new Response(
+          JSON.stringify({ data: lignes, meta: { current_page: 1, last_page: 1, per_page: 100, total: lignes.length } }),
+          { status: 200 },
+        );
+      }),
+    );
+    const Fournisseur = fournisseur();
+    render(<Fournisseur><InventoryLeasePicker /></Fournisseur>);
+
+    expect(await screen.findByRole('link', { name: /Logement en préavis/ })).toHaveAttribute('href', '/app/inventories/new?lease=2');
+    expect(screen.getByRole('link', { name: /Logement actif/ })).toBeInTheDocument();
+    expect(statuts).toEqual(['active,terminating']);
+  });
 });
