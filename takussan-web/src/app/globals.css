@@ -447,7 +447,7 @@
  * l'écran. Le déplacement est donc plus ample (14 px) et part du bas, avec une très légère
  * montée d'échelle — le geste d'un objet qui se pose, pas d'un texte qui se révèle.
  *
- * ⚠ Pas de `both` ici, contrairement aux trois autres : cette barre n'a aucun retard
+ * ⚠ Pas de `backwards` ici, contrairement aux trois autres : cette barre n'a aucun retard
  * échelonné, et la phase `fill` maintiendrait `opacity: 0` sans qu'on y gagne rien.
  */
 @keyframes compareDockIn {
@@ -516,10 +516,11 @@
  * transition d'opacité courte est le même arbitrage que celui du parcours de publication, et ce
  * ticket a été écrit pour le reconduire au reste du site.
  *
- * ⚠ `both` est ce qui rend la règle NÉCESSAIRE plutôt que cosmétique : tant que l'animation
- * existe, sa phase `fill` MAINTIENT l'élément à `opacity: 0` pendant tout son retard — et
- * `PropertyCard` pose un retard échelonné en style inline (`card-stagger.ts`). Sans
- * `animation: none`, neutraliser la seule `transform` laisserait des cartes invisibles.
+ * ⚠ `backwards` (comme `both` avant lui) est ce qui rend la règle NÉCESSAIRE plutôt que
+ * cosmétique : tant que l'animation existe, sa phase `fill` MAINTIENT l'élément à
+ * `opacity: 0` pendant tout son retard — et `PropertyCard` pose un retard échelonné en style
+ * inline (`card-stagger.ts`). Sans `animation: none`, neutraliser la seule `transform`
+ * laisserait des cartes invisibles.
  *
  * Consommateurs au 2026-08-29, recensés avant d'écrire la règle : `animate-fade-in-up` dans 3
  * fichiers (`PropertyCard`, `PropertyDetailContent`, le layout `(auth)`), `animate-card-enter`
