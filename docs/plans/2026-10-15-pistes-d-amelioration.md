@@ -10105,7 +10105,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Les écrans d'erreur et de chargement de deux fiches n'ont pas de `h1`, quand les autres fiches en gardent un
 - Réf : P101.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1189
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/LeaseDetail.tsx:101-116`, `takussan-web/src/components/documents/DocumentDetailClient.tsx:46-65`, `takussan-web/src/components/bookings/BookingDetail.tsx:155-161`, `takussan-web/src/components/visits/VisitDetail.tsx:78`
 - Constat :
@@ -10115,6 +10115,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : code relu, axe par CDP pour la fiche document.
 - Piste : le même `h1` `sr-only` que `BookingDetail` dans les branches de chargement et d'erreur de `LeaseDetail` et de `DocumentDetailClient`, sur les clés de repli existantes (`fallbackReference` pour le bail ; pour le document, une clé existante à trouver, sinon c'est un texte neuf). Garde : test de rendu qui joue l'erreur de la requête et attend `getByRole('heading', { level: 1 })`.
 - Mesure (2026-10-21, dadb26e5c, mesureur) : relu `LeaseDetail.tsx:101-116` et `DocumentDetailClient.tsx:46-65` (lignes inchangées), ainsi que les deux `page.tsx`, qui ne rendent aucun `h1` autour ; `BookingDetail.tsx:158-161` et `VisitDetail.tsx:78` gardent le `h1` `sr-only` ; test vitest temporaire, retiré depuis, requêtes simulées en chargement puis en erreur → `h1` = 0 dans les quatre cas (« Bail introuvable. », « Document introuvable. », les deux squelettes) ; clés existantes dans les trois langues : `lease.fallbackReference` (« Bail #{id} ») et `dashboard.pages.documentDetail.metaTitle` (« Fiche document »). Pourquoi la fiche document restait en chargement dans le relevé n'a pas été re-mesuré, et n'entre pas dans le classement. Classement : A4 et A1, le motif est déjà écrit dans `BookingDetail` et `VisitDetail`, et ces deux clés évitent tout texte neuf : `h1` `sr-only` dans les branches de chargement et d'erreur des deux fiches, et un test `getByRole('heading', { level: 1 })` sur l'erreur.
+- Mesure (2026-10-22, cb29105b6, implementeur) : test `FichesSansTitre.h1.test.tsx` écrit d'abord, requêtes simulées en chargement puis en erreur → 4 rouges, aucun `heading` de niveau 1 ; correctif : `h1` `sr-only` sur `lease.fallbackReference` dans `LeaseDetail` et sur `dashboard.pages.documentDetail.metaTitle` dans `DocumentDetailClient`, aucune clé neuve → 4/4 verts, `LeaseDetail.preavis` et `LeaseDetail.contrat` verts ; ablation (les deux composants rendus à `pre-dev`) → 4 rouges, remis → verts.
 
 ### Le locataire reçoit deux fenêtres de bienvenue modales montées ensemble
 - Réf : P101.03
