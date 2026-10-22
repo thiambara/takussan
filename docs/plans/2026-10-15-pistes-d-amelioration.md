@@ -13771,7 +13771,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Aucune garde ne confronte les statuts du front aux enums de l'API, et dix tables de tons sont typées `Record<string, …>`
 - Réf : P146.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la garde fige les écarts voulus, dont celui de P146.02 encore au porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/bookings/booking-status.ts:33`, `takussan-web/src/components/bookings/BookingDetail.tsx:67`, `takussan-web/src/components/customer-form/options.ts:146`, `takussan-web/src/components/admin/ModerationQueueList.tsx:23`, `takussan-web/src/components/admin/super/user-detail.tsx:43`, `takussan-web/src/components/admin/super/agency-detail.tsx:114-120`, `takussan-web/src/components/admin/super/AgencyModerationCard.tsx:18-25`, `takussan-web/src/components/admin/users/AdminUsersTable.tsx:43`, `takussan-web/src/components/property-dashboard/PropertyStatusBadge.tsx:53`, `takussan-web/src/app/(super-admin)/super-admin/users/page.tsx:67`
 - Constat :
@@ -13779,6 +13779,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Les tables typées `Record<UnionDuFront, …>` attrapent un cas manquant de l'union du front (`tsc`). Les dix tables listées sont typées `Record<string, …>` (mesuré, `grep -rnE "const [A-Z_]*STATUS[A-Z_]*: *(Record|Readonly)"`) : un cas oublié n'y produit ni erreur de type ni test rouge, seulement un repli sur la valeur brute ou sur le ton neutre.
   - Établi comment : `grep`.
 - Piste : une garde de dépôt (`scripts/check-*.mjs`) qui lit les cas des enums `*Status` de l'API et les compare aux unions de `src/types` désignées par une table de correspondance, en échec sur un cas absent ou en trop. Les tables passent à `Record<UnionDuFront, …>`. Toute valeur en trop se déclare dans la garde, avec sa raison.
+- Mesure (2026-10-22, 2e3d6840c, mesureur) : `grep -rnE "const [A-Z_]*STATUS[A-Z_]*: *(Record|Readonly)" takussan-web/src` → les dix tables du `Où` sont toujours en `Record<string, …>` (`booking-status.ts:33`, `BookingDetail.tsx:67`, `options.ts:146`, `ModerationQueueList.tsx:23`, `user-detail.tsx:43`, `AgencyModerationCard.tsx:18,25`, `agency-detail.tsx:114,120`, `AdminUsersTable.tsx:43`, `PropertyStatusBadge.tsx:53`, `users/page.tsx:67`), plus une hors du `Où` (`admin/super/integrations.tsx:46`) ; aucune garde ni test du front ne lit les enums de statut de l'API (`grep -rln "Models/Enums" scripts takussan-web` → `check-capability-readers.mjs` seule, sur les capacités) → tient ; rien d'exécuté. Classement : V7, la garde doit déclarer chaque écart voulu avec sa raison, dont celui de P146.02 (`deposit_refund`), que le porteur n'a pas encore tranché.
 
 ### Petites améliorations : statuts rendus bruts ou déclarés deux fois
 - Réf : P146.05
@@ -13812,7 +13813,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Archiver par `PATCH` ne fait pas ce que fait l'archivage : le bien reste public et publié
 - Réf : P147.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : passer l'archivage du `PATCH` par `PropertyPublication` ou le refuser, choix lié à P147.01
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:220-230,312-319`, `takussan-api/app/Services/Property/PropertyPublication.php:38-46`
 - Constat :
@@ -13821,10 +13822,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Conséquence lue : un bien archivé ainsi garde `published_at`, donc `statusPutsOnline` le juge « retiré par son statut » (`PublishReadiness.php:58-66`), et un retour à `available` par l'un ou l'autre chemin le remet en ligne sans republication — par le `PATCH`, sans `properties.publish` (P147.01).
   - Lecteurs d'`archived_at` dans `app/` : aucun hors écrivains (lu, `grep -rn archived_at app`) ; l'écart se voit sur `visibility` et `published_at`.
 - Piste : faire passer `status=archived` (et la sortie d'archive) du `PATCH` par `PropertyPublication`, ou refuser ces statuts au `PATCH` ; un test qui compare les colonnes écrites par les deux chemins.
+- Mesure (2026-10-22, 2e3d6840c, mesureur) : relu `PropertyController::update` (l. 187-236, `fill($data)->save()` du seul statut) contre `updateStatus` (l. 314 `archivedAttributes()`, l. 318 `archived_at` remis à nul) ; charge `{ 4.97 5.06 4.07 }` sur 8 cœurs, test temporaire retiré → agent, bien `available` public publié : `PATCH {status: archived}` → 200, `archived_at` nul, `visibility` `public`, `published_at` gardé ; le même geste par `PUT …/status` → `archived_at` posé, privé, `published_at` nul ; puis `PATCH {status: available}` sur le premier → 200, et le bien revient dans `Property::public()` sans republication → tout tient. Classement : V7, la `Piste` propose deux corrections (passer par `PropertyPublication` ou refuser `archived` au `PATCH`), et la seconde dépend du choix que P147.01 laisse au porteur sur `status` dans `UpdatePropertyRequest`.
 
 ### Le `PATCH` rend public un bien que `publish` refuse, et écrit un état « public » sans publication
 - Réf : P147.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : le `PATCH` publie sans les règles de `publish`, correctif lié à P147.01
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:187-236,247-283`, `takussan-api/app/Models/Property.php:507-517,554-569`, `takussan-api/app/Services/Search/PropertySearchService.php:459-466`
 - Constat :
@@ -13833,20 +13835,22 @@ qui a été relevé. Rien n'a été exécuté.*
   - mesuré : bailleur, sa proposition en brouillon privé → `PUT …/visibility` `public` : 403 ; `PATCH` `{status: available, visibility: public, accept_terms: true}` : 200, réponse `available`/`public`, `published_at` nul, absent de `Property::public()`.
   - Un tel bien est rendu `available`/`public` à la console sans être au catalogue (`scopePublic` et `publicFilter` exigent `published_at`, lu). `shouldBeSearchable` ne lit pas `published_at` (lu, `Property.php:507-517`) : il est donc indexé, et seule la clause `published_at IS NOT NULL` de la recherche le tient hors des résultats (déduit, à vérifier dans l'index).
 - Piste : avec P147.01, faire d'un passage à `public` par le `PATCH` un appel à `publish()` (comme `updateVisibility`, l. 333-343) ou le refuser ; un test par cas (`sold`, brouillon de bailleur).
+- Mesure (2026-10-22, 2e3d6840c, mesureur) : relu `publish` (l. 246-283 : 422 `property.cannot_publish` sur `sold`/`rented`, pose `published_at`) et `update` (ne refuse ni l'un ni l'autre, ne pose pas `published_at`) ; charge `{ 4.97 5.06 4.07 }` sur 8 cœurs, test temporaire retiré → bien `sold` privé : `POST …/publish` 422, `PATCH {visibility: public}` 200, rendu `sold`/`public`, `published_at` nul, hors de `Property::public()` ; bailleur, sa proposition en brouillon : `PUT …/visibility` `public` 403, `PATCH {status: available, visibility: public, accept_terms: true}` 200, rendu `available`/`public`, `published_at` nul, hors de `Property::public()` → tient ; la présence dans l'index Meilisearch n'a pas été vérifiée. Classement : V2, le correctif ferme au bailleur un chemin que `PUT …/visibility` lui refuse, et sa forme dépend du choix ouvert par P147.01.
 
 ### Passer un bien en statut actif par `PATCH` ou `PUT …/status` ne juge pas le quota d'annonces
 - Réf : P147.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : borne du forfait d'abonnement, à juger sur deux chemins ou dans l'observateur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:112-114,187-236,256-259,294-327`, `takussan-api/app/Services/Billing/QuotaResolver.php:66-70`
 - Constat :
   - `store` et `publish` appellent `QuotaResolver::assertCanCreateActiveListing` quand le bien entre dans `ACTIVE_LISTING_STATUSES` (`available`, `published`, `pending`) (lu, l. 112-114 et 256-259, commentaire TCK-627 : « un brouillon créé sous la limite se publiait au-delà »).
   - `update` et `updateStatus` ne l'appellent pas (lu, `grep -n assertCanCreateActiveListing` → les deux seules lignes 113 et 258). Un brouillon passé `available` ou `pending` par l'un de ces chemins entre donc dans le compte sans être jugé (déduit du code, non mesuré : à vérifier avec une agence à sa limite).
 - Piste : juger le quota au passage d'un statut hors `ACTIVE_LISTING_STATUSES` vers l'un d'eux, sur les deux chemins (ou au seul point commun, l'observateur `updating`) ; un test d'agence à la limite par chemin.
+- Mesure (2026-10-22, 2e3d6840c, mesureur) : `grep -rn assertCanCreateActiveListing app` → deux appels seulement (`PropertyController.php:113` dans `store`, `:258` dans `publish`) ; `QuotaResolver::ACTIVE_LISTING_STATUSES` compte quatre statuts, `pending_review` compris (le constat en cite trois) ; charge `{ 4.97 5.06 4.07 }` sur 8 cœurs, test temporaire retiré → agence au forfait `max_active_listings = 1` avec un bien `available` : `POST …/publish` d'un brouillon → 422 `quota.listings_exceeded`, `PATCH {status: available}` d'un autre → 200, `PUT …/status` `pending` d'un troisième → 200, soit trois annonces actives pour une limite de 1 → tient, le « à vérifier » est levé. Classement : V1, c'est la borne d'un forfait payant, et le point où la juger (les deux chemins ou l'observateur `updating`) reste un choix.
 
 ### Les statuts de modération se posent à la main, sans motif ni horodatage
 - Réf : P147.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : quels statuts de modération, et `published`, retirer des deux requêtes
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:56`, `takussan-api/app/Http/Requests/Api/UpdateStatusPropertyRequest.php:48`, `takussan-api/app/Services/Property/PropertyModerationService.php:82-95,121-137`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:37,55`
 - Constat :
@@ -13854,10 +13858,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Les deux requêtes acceptent les deux valeurs à qui a `can('update')` (lu ; `UpdateStatusPropertyRequest` ne réserve que `available` et `published`).
   - mesuré : bailleur, sur sa proposition, `PATCH` `{status: rejected}` → 200, `rejected_at` nul ; puis `{status: pending_review}` → 200, `submitted_at` nul. La file de `PropertyModerationController` lit `status = pending_review` et trie par `submitted_at` (lu, l. 37 et 55) : le bien y entre sans date de soumission. Le passage par `PUT …/status` n'a pas été rejoué (lu seulement).
 - Piste : retirer `pending_review` et `rejected` (et `published`, qu'aucun geste ne lit à part) des valeurs qu'acceptent les deux requêtes, pour que seuls `resubmit`, `reject` et l'observateur les posent ; un test qui refuse chaque valeur.
+- Mesure (2026-10-22, 2e3d6840c, mesureur) : relu `UpdatePropertyRequest.php:56` (tout l'enum) et `UpdateStatusPropertyRequest.php:38-41` (ne réserve que `available` et `published` à `can('publish')`) ; charge `{ 4.97 5.06 4.07 }` sur 8 cœurs, test temporaire retiré → bailleur, sa proposition en brouillon : `PATCH {status: rejected}` 200, `rejected_at` nul ; `PUT …/status` `pending_review` 200, `submitted_at` nul ; `PUT …/status` `rejected` 200, `rejected_at` nul → tient, y compris par `PUT …/status`, que l'explorateur n'avait pas rejoué. Classement : V2, retirer ces valeurs ferme un geste aux deux requêtes, et retirer `published` touche `PUT …/status`, qui l'écrit aujourd'hui pour qui a `properties.publish`.
 
 ### Un client se marque `blocked` ou `deleted` par le formulaire, et rien ne lit ces deux statuts
 - Réf : P147.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ce que `blocked` et `deleted` empêchent, ou leur retrait
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/UpdateCustomerRequest.php:75`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:29-45,150-176,178-186`, `takussan-api/app/Services/Crm/PipelineStatsService.php:59-64`, `takussan-api/app/Services/Crm/ProspectMatcher.php:141-145`, `takussan-web/src/lib/enums/customer.ts:12-17`, `takussan-web/src/components/customer-form/CustomerForm.tsx:141,309-317`
 - Constat :
@@ -13866,10 +13871,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - mesuré : agent, `PATCH /api/customers/{id}` `{status: deleted}` → 200 ; la fiche reste dans `GET /api/customers` et n'est pas supprimée en douceur. La suppression est un autre geste (`destroy`, `can('delete')`, lu l. 178-186), que `update` (`can('update')` = `view`, `CustomerPolicy.php:55-58`) ne juge pas.
   - `docs/models-spec.md:923` décrit le statut « administratif » sans dire ce que `blocked` ou `deleted` empêchent (lu).
 - Piste : décider ce que `blocked` et `deleted` veulent dire (un geste qui les lit, ou leur retrait du formulaire et de la règle au profit de `destroy`) ; c'est un choix de produit. Test : la règle retenue.
+- Mesure (2026-10-22, 2e3d6840c, mesureur) : relu `UpdateCustomerRequest.php:75` (tout `CustomerStatus`) ; `grep -rn "CustomerStatus::" app` → seul `Active` est lu (`PipelineStatsService.php:63`, `ProspectMatcher.php:144`) ; `customerStatusValues` (`lib/enums/customer.ts:12-17`) porte les quatre valeurs, offertes au formulaire (`CustomerForm.tsx:141`) ; charge `{ 4.97 5.06 4.07 }` sur 8 cœurs, test temporaire retiré → agent, `PATCH /api/customers/{id} {status: deleted}` 200, la fiche n'est pas supprimée en douceur et reste dans `GET /api/customers` → tient. Classement : V7, ce que `blocked` et `deleted` doivent empêcher est un choix de produit, comme le dit la `Piste`.
 
 ### `POST /api/agencies` laisse le créateur choisir le statut de son agence, sanction de la plateforme comprise
 - Réf : P147.07
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreAgencyRequest.php:26-29,48`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:46-69`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:203-238`, `takussan-api/app/Http/Middleware/EnsureAgencyWritable.php:46`
 - Constat :
@@ -13878,10 +13884,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - mesuré : compte sans agence, `POST /api/agencies` `{name, status: suspended}` → 201, agence `suspended`.
   - Aucun appel du front à `POST /api/agencies` (lu, déjà relevé par P91.01) : la clé ne sert à aucun écran.
 - Piste : retirer `status` de `StoreAgencyRequest` (l'agence naît `active`, et seuls les gestes de la console la font changer) ; un test qui envoie `suspended` et lit `active`.
+- Mesure (2026-10-22, 2e3d6840c, mesureur) : relu `StoreAgencyRequest.php:26-29` (`authorize()` rend `true`) et `:48` (`status` sur tout `AgencyStatus`), `AgencyController::store` l. 62 (`$data['status'] ?? active`) ; `suspended` ne se pose que par `AgencyModerationController::suspend` (l. 203, avec motif) et n'en sort que par `reinstate` (l. 212-215) ; aucun test ni écran n'envoie `status` à `POST /api/agencies` (`grep` dans `tests` et `takussan-web/src`) ; charge `{ 4.97 5.06 4.07 }` sur 8 cœurs, test temporaire retiré → compte sans agence, `POST /api/agencies {name, status: suspended}` → 201, agence `suspended` → tient. Classement : A1, la sanction et sa sortie sont écrites dans les gestes de la console, et `active` est déjà le défaut du contrôleur : retirer la clé ne change rien pour aucun appelant connu (qu'une agence doive naître non vérifiée, `verify` posant aussi `active`, est une autre question, hors de cette piste).
 
 ### Le registre des droits se clôt à la main pendant que la demande liée suit son cours
 - Réf : P147.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : quelles clôtures manuelles refuser sur une entrée liée du registre
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/Admin/UpdatePrivacyRequestRequest.php:27`, `takussan-api/app/Http/Controllers/Api/Admin/PrivacyRequestController.php:53-77`, `takussan-api/app/Observers/Privacy/PrivacyRegistryObserver.php:47-90`, `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:135-143`
 - Constat :
@@ -13889,6 +13896,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - La mise à jour accepte les cinq statuts (lu, l. 27) ; le contrôleur ne refuse que la réouverture d'une entrée close (l. 57-60), et ne lit ni `account_deletion_request_id` ni `data_export_id`. Le super-admin peut donc clore en `answered`, `rejected` ou `withdrawn` l'entrée d'un effacement encore en attente (lu).
   - L'effacement s'exécute ensuite quand même, et `answer()` saute une entrée close (lu, `isOpen()`, l. 84-90) : le registre garde le statut et la date posés à la main. Non mesuré (à vérifier).
 - Piste : refuser à la main les statuts que l'application pose elle-même (`withdrawn`, et `answered` sur une entrée liée), ou refuser toute clôture d'une entrée liée tant que sa demande vit ; c'est une règle de registre RGPD (choix du porteur). Test : entrée d'effacement en attente, clôture refusée.
+- Mesure (2026-10-22, 2e3d6840c, mesureur) : relu `UpdatePrivacyRequestRequest.php:27` (cinq statuts), `PrivacyRequestController::update` (l. 53-77 : seule la réouverture d'une entrée close est refusée, ni `account_deletion_request_id` ni `data_export_id` lus) et `PrivacyRegistryObserver::answer` (saute une entrée close) ; charge `{ 4.97 5.06 4.07 }` sur 8 cœurs, test temporaire retiré → super-admin, effacement en attente (`AccountDeletionRequest::factory()`, entrée `in_progress` ouverte par l'observateur) : `PATCH {status: rejected}` 200, puis `AccountDeletionService::executeDeletion` → effacement exécuté, entrée restée `rejected`, `answered_at` nul → tient, le « à vérifier » est levé. Classement : V3, c'est une règle de ce que le registre RGPD conserve (ADR-0044), que la `Piste` laisse au porteur.
 
 ### Petites améliorations
 - Réf : P147.09
