@@ -91,8 +91,8 @@ export async function login(payload: LoginPayload, locale?: Locale): Promise<Log
   return apiRequest('/api/auth/login', { method: 'POST', body: payload, locale });
 }
 
-export async function logout(token: string): Promise<void> {
-  return apiRequest('/api/auth/logout', { method: 'POST', token });
+export async function logout(token: string, signal?: AbortSignal): Promise<void> {
+  return apiRequest('/api/auth/logout', { method: 'POST', token, signal });
 }
 
 /**

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Heart, MessagesSquare, Search } from 'lucide-react';
 
@@ -16,7 +16,15 @@ import { useWelcomeOnce } from '@/hooks/useWelcomeOnce';
  * pure composition (slide content + welcome key). Skip is non-blocking
  * by construction (the hook posts the key on dismiss).
  */
-export function CustomerWelcomeWizard() {
+interface CustomerWelcomeWizardProps {
+  /**
+   * TCK-1477 — appelé une fois la fenêtre réglée (déjà vue, lecture en échec, ou fermée) :
+   * `AppShell` n'ouvre le parcours du locataire qu'après.
+   */
+  readonly onSettled?: () => void;
+}
+
+export function CustomerWelcomeWizard({ onSettled }: CustomerWelcomeWizardProps = {}) {
   const t = useTranslations('customer.welcome');
 
   const slides = useMemo(
@@ -40,7 +48,11 @@ export function CustomerWelcomeWizard() {
     [t],
   );
 
-  const welcome = useWelcomeOnce('customer-welcome', slides);
+  const { settled, ...welcome } = useWelcomeOnce('customer-welcome', slides);
+
+  useEffect(() => {
+    if (settled) onSettled?.();
+  }, [settled, onSettled]);
 
   return <WelcomeModal {...welcome} />;
 }

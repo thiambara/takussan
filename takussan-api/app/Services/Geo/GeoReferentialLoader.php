@@ -65,7 +65,7 @@ final class GeoReferentialLoader
             DB::transaction(function () use ($donnees, &$bilan) {
                 $deja = count($this->biensRenommes);
                 $this->chargerRegion($donnees, $bilan);
-                $this->reindexation->biens(array_slice($this->biensRenommes, $deja));
+                $this->reindexation->biensDansLaTransaction(array_slice($this->biensRenommes, $deja));
             });
         }
 

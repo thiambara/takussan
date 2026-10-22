@@ -92,6 +92,73 @@ describe('NotificationRow', () => {
     expect(texte).not.toContain('agency_admin');
   });
 
+  // P164.01 (TCK-1468) — le fournisseur d'une intégration arrive CODÉ (`orange_money`) : il se
+  // lit par son libellé, jamais par le code brut ; un code sans libellé suit celui de l'API.
+  it.each([
+    ['fr', 'orange_money', /L'intégration Orange Money a été modifiée par Awa Diop\./],
+    ['en', 'orange_money', /The Orange Money integration was changed by Awa Diop\./],
+    ['fr', 'lemon_squeezy', /L'intégration Lemon Squeezy a été modifiée/],
+    ['fr', 'sms_orange', /L'intégration Sms Orange a été modifiée/],
+  ] as const)('nomme le fournisseur de l’intégration (%s, %s)', (locale, code, corps) => {
+    renderRow(notification({
+      type: 'system',
+      code: 'governance.integration_changed',
+      params: { provider: code, actor: 'Awa Diop' },
+      target: null,
+    }), locale);
+
+    const texte = screen.getByText(corps).textContent ?? '';
+    expect(texte).not.toContain(code);
+  });
+
+  it('laisse tel quel le prestataire d’une intervention, qui n’est pas un fournisseur d’intégration', () => {
+    renderRow(notification({
+      type: 'maintenance',
+      code: 'maintenance.accepted',
+      params: { request: 'MR-12', provider: 'plomberie_diop' },
+      target: null,
+    }));
+
+    expect(document.body.textContent ?? '').toContain('plomberie_diop');
+  });
+
+  // P164.02 (TCK-1470) — la période d'un relevé de gérance arrive en `Y-m` (`2026-09`) : elle se
+  // lit en mois écrit, jamais brute.
+  it.each([
+    ['fr', 'Relevé de gérance septembre 2026 disponible'],
+    ['en', 'Your September 2026 management statement is available'],
+  ] as const)('écrit le mois du relevé de gérance (%s)', (locale, titre) => {
+    renderRow(notification({
+      type: 'payment',
+      code: 'owner_statement.available',
+      params: { period: '2026-09' },
+      target: null,
+    }), locale);
+
+    expect(screen.getByText(titre)).toBeInTheDocument();
+    expect(document.body.textContent ?? '').not.toContain('2026-09');
+  });
+
+  // P164.06 (TCK-1472) — sans nom de banque ni de rôle, la cloche choisit la variante sans le
+  // nom (`body_unnamed`), comme l'API : ni « — » ni double espace.
+  it.each([
+    ['fr', 'bank_statement.imported', { bank: null, lines: 12 }, 'Votre relevé (12 lignes) est prêt à être rapproché.'],
+    ['en', 'bank_statement.imported', { bank: '', lines: 1 }, 'Your statement (1 line) is ready for reconciliation.'],
+    ['fr', 'governance.role_capabilities_changed', { role: '', actor: 'Awa Diop' }, "Les droits d'un rôle ont été modifiés par Awa Diop."],
+    ['en', 'governance.role_capabilities_changed', { role: null, actor: 'Awa Diop' }, 'The permissions of a role were changed by Awa Diop.'],
+  ] as const)('rend la variante sans le nom (%s, %s)', (locale, code, params, corps) => {
+    renderRow(notification({ type: 'system', code, params: { ...params }, target: null }), locale);
+
+    expect(screen.getByText(corps)).toBeInTheDocument();
+    expect(document.body.textContent ?? '').not.toContain('—');
+  });
+
+  it('garde la phrase d’origine quand le nom est là', () => {
+    renderRow(notification({ type: 'system', code: 'bank_statement.imported', params: { bank: 'CBAO', lines: 12 }, target: null }));
+
+    expect(screen.getByText('Votre relevé CBAO (12 lignes) est prêt à être rapproché.')).toBeInTheDocument();
+  });
+
   it('formate le montant et la date, sans « 150000.00 » ni « XOF » bruts', () => {
     renderRow(notification());
 

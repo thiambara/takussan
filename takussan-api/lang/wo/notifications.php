@@ -472,6 +472,8 @@ return [
                 'title' => 'Sañ-sañu ab warugar soppiku na',
                 'body' => 'Sañ-sañu warugar :role soppiku na, :actor moo ko def.',
                 'sms' => 'Takussan : sañ-sañu :role soppiku na (:actor).',
+                'body_unnamed' => 'Les droits d\'un rôle ont été modifiés par :actor.',
+                'sms_unnamed' => 'Takussan : droits d\'un rôle modifiés par :actor.',
             ],
             'admin_added' => [
                 'title' => 'Saytukat bu bees',
@@ -553,6 +555,8 @@ return [
                 'title' => 'Relevé bi dugg na',
                 'body' => 'Sa relevé :bank (:lines rëdd) pare na ngir rapprochement.',
                 'sms' => 'Takussan : relevé :bank dugg na.',
+                'body_unnamed' => '{1} Votre relevé (:lines ligne) est prêt à être rapproché.|[0,*] Votre relevé (:lines lignes) est prêt à être rapproché.',
+                'sms_unnamed' => 'Takussan : relevé importé.',
             ],
             'finalized' => [
                 'title' => 'Relevé bi tëj nañu ko',

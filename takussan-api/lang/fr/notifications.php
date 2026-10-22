@@ -477,6 +477,8 @@ return [
                 'title' => 'Droits d\'un rôle modifiés',
                 'body' => 'Les droits du rôle :role ont été modifiés par :actor.',
                 'sms' => 'Takussan : droits du rôle :role modifiés par :actor.',
+                'body_unnamed' => 'Les droits d\'un rôle ont été modifiés par :actor.',
+                'sms_unnamed' => 'Takussan : droits d\'un rôle modifiés par :actor.',
             ],
             'admin_added' => [
                 'title' => 'Nouvel administrateur',
@@ -558,6 +560,8 @@ return [
                 'title' => 'Relevé importé',
                 'body' => '{1} Votre relevé :bank (:lines ligne) est prêt à être rapproché.|[0,*] Votre relevé :bank (:lines lignes) est prêt à être rapproché.',
                 'sms' => 'Takussan : relevé :bank importé.',
+                'body_unnamed' => '{1} Votre relevé (:lines ligne) est prêt à être rapproché.|[0,*] Votre relevé (:lines lignes) est prêt à être rapproché.',
+                'sms_unnamed' => 'Takussan : relevé importé.',
             ],
             'finalized' => [
                 'title' => 'Relevé clôturé',

@@ -56,6 +56,10 @@ export function AppShell({
   // bailleurs et administrateurs — c'est-à-dire exactement ce que le
   // commentaire ci-dessus dit vouloir éviter.
   const customerOnboardingActive = isCustomerOnly(user.roles);
+  // TCK-1477 (P101.03) — une file : le parcours du locataire attend que celui du client soit
+  // réglé (déjà vu, ou fermé). Montés ensemble, les deux `Dialog` modaux s'ouvraient l'un sur
+  // l'autre (mesuré le 2026-10-21). Décision du porteur : le client d'abord, le locataire ensuite.
+  const [customerWelcomeSettled, setCustomerWelcomeSettled] = useState(false);
   // TCK-257 — Owner welcome modale, mounted once on /app for users
   // with the `owner` role. Independent of the customer wizard (its
   // welcome key is distinct), so an owner who is also a customer sees
@@ -135,11 +139,12 @@ export function AppShell({
             <div className="px-4 py-6 md:px-6 md:py-8">{children}</div>
           </main>
         </div>
-        {customerOnboardingActive ? <CustomerWelcomeWizard /> : null}
-        {/* TCK-265 — per-lease welcome modale for tenants. Renders on top
-            of (or after) the generic customer wizard since each modale
-            uses its own welcome key. */}
-        {customerOnboardingActive ? <TenantWelcomeWizard /> : null}
+        {customerOnboardingActive ? (
+          <CustomerWelcomeWizard onSettled={() => setCustomerWelcomeSettled(true)} />
+        ) : null}
+        {/* TCK-265 — per-lease welcome modale for tenants. TCK-1477 — montée seulement une fois
+            le parcours client réglé : jamais deux fenêtres de bienvenue ouvertes ensemble. */}
+        {customerOnboardingActive && customerWelcomeSettled ? <TenantWelcomeWizard /> : null}
         {ownerWelcomeActive ? <OwnerWelcomeWizard /> : null}
         {agentWelcomeActive ? <AgentWelcomeWizard /> : null}
         {agencyStandardWelcomeActive ? <AgencyStandardWelcomeWizard /> : null}
