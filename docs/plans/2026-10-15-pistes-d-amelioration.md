@@ -13344,7 +13344,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
 
 ### Petites améliorations
 - Réf : P138.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-1382
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:100-127,212-231`, `takussan-web/src/lib/queries/properties-server.ts:125`
 - Constat :
@@ -13353,6 +13353,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : journal de l'API factice.
 - Piste : prendre « Total » dans `meta.total` de la liste quand aucun filtre n'est posé ; faire compter par une lecture sans `include` (un `countProperties` qui appelle `apiRequest` avec `per_page=1` et `fields[properties]=id`).
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:101-127` (la liste et cinq `countProperties`, dont « Total » avec le seul `user_id`) et l. 212-231 (`countProperties` passe par `fetchDashboardProperties` à `per_page=1`), `src/lib/queries/properties-server.ts:123-131` (`include: ['address', 'owner', 'collaborators']` et `fields[properties]` de la liste sur chaque appel). Le constat tient. Classement : A2, prendre « Total » dans `response.meta.total` quand aucun filtre autre que `user_id` ni `include_archived` n'est posé, et faire compter par un appel `per_page=1`, `fields[properties]=id`, sans `include`, mêmes filtres, donc mêmes totaux.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : `properties/(liste)/__tests__/comptes.tck-1382.test.tsx` avant correctif → six `apiRequest` sous `only_mine=1`, et les comptes à `per_page=1` portaient `include=` (2 rouges sur 4) → `countDashboardProperties` (`fields[properties]=id`, sans `include` ni tri) et « Total » pris à `meta.total` de la liste quand seule la portée est posée ; ablation (Total recompté, `include` remis) → 2 rouges, remis → 4 verts.
 
 ## Angle 139 — Colonnes des exports qu'aucun chemin n'écrit, ou qui lisent une clé nommée autrement
 
