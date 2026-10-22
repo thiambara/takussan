@@ -15778,7 +15778,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Une tâche repoussée ou réassignée après son rappel n'est plus jamais rappelée
 - Réf : P169.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1529 — reste : la passation (`AgentHandoverService`, catégorie `tasks`) réassigne par `DB::table('tasks')->update()`, sans événement de modèle, et laisse la marque `reminder_24h_sent_at` au nouvel assigné
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/SendTaskDueReminders.php:36,53-58,80-83,98-99`, `takussan-api/app/Http/Controllers/Api/TaskController.php:146-167`
 - Constat :
@@ -15789,6 +15789,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu, et mesuré.
 - Piste : retirer la marque quand `due_at` ou `assigned_to_id` change (dans `update`, ou par un observateur du modèle), ou garder dans la marque l'échéance et l'assigné qu'elle couvre. Garde : `TaskReminderTest` étendu d'un cas « rappel, report, réassignation » qui attend un rappel au nouvel assigné, et d'un cas sans changement qui n'en attend aucun (l'idempotence reste gardée).
 - Mesure (2026-10-22, b3f03fbdd, mesureur) : relu `SendTaskDueReminders.php:19,42,80-83,98-99` (marque unique, lue sans regard pour `due_at` ni l'assigné), `TaskController::update` (l. 146-167, `fill($data)->save()`), `UpdateTaskRequest.php:41-42` (`assigned_to_id`, `due_at`, pas de `metadata`) ; aucun observateur de `Task` ; `git log 88c684c67..HEAD` → vide ; test temporaire `SondeMesureur169Test` (retiré, même charge) : rappel à A, puis `due_at` à J+5 et assigné B par `fill()->save()`, job à J+4 → 0 rappel à B, marque inchangée → le constat tient. Classement : A1, TCK-083 (l. 106, 143) et le docblock du job écrivent un rappel à l'assigné 24 h avant `due_at`, et retirer la marque quand `due_at` ou `assigned_to_id` change dans `update`, l'idempotence restant gardée, ne demande aucun choix de produit.
+- Mesure (2026-10-22, 614ec950e, implementeur) : reproduit avant correctif par `TaskReminderTest` (charge 3,37 / 3,04 / 2,73 sur 8 cœurs) : rappel à A, `PATCH /api/tasks/{id}` qui repousse à J+5 et réassigne à B, job à J+4 → 0 rappel à B ; repoussée seule → 1 rappel au lieu de 2 → `Task` retire la marque quand `due_at` ou `assigned_to_id` change (crochet `updating`) ; 13/13 verts, dont un cas sans changement qui garde la marque ; ablation du crochet → les deux mêmes rouges, remis → vert ; `TaskAuthorizationTest` 9/9, `AgentHandoverTest` 11/11, `AgentAbsenceTest` 10/10. Relu sans test : la passation écrit par `DB::table`, hors du crochet (reste).
 
 ### Une intervention passée en urgente après coup déclenche aussitôt l'« escalade » qui dit « non traitée depuis plus de 30 minutes », sans l'alerte d'urgence qui la précède
 - Réf : P169.03
