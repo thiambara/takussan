@@ -1,7 +1,7 @@
 ---
 id: TCK-1225
 title: "`UserLocationProvider` ne joint ipapi.co qu'au premier lecteur de la ville devinée"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -49,14 +49,14 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] Le fournisseur ne résout qu'après une demande ; `useUserLocation()` la fait au montage.
-- [ ] Test vitest : fournisseur sans lecteur → aucun `fetch` vers ipapi.co ; avec un lecteur → un
+- [x] Le fournisseur ne résout qu'après une demande ; `useUserLocation()` la fait au montage.
+- [x] Test vitest : fournisseur sans lecteur → aucun `fetch` vers ipapi.co ; avec un lecteur → un
       seul, et la ville rendue ; cache de 24 h → aucun `fetch`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Monté sans lecteur, le fournisseur n'appelle pas ipapi.co.
-- [ ] AC2 — Au premier lecteur, la résolution part une fois, et le cache de 24 h est gardé.
+- [x] AC1 — Monté sans lecteur, le fournisseur n'appelle pas ipapi.co.
+- [x] AC2 — Au premier lecteur, la résolution part une fois, et le cache de 24 h est gardé.
 
 ## Hors périmètre
 
@@ -64,4 +64,7 @@ Aucun.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- `demarrer` est idempotent (`setDemandee(true)`) : deux lecteurs, un seul appel, ce que le test
+  exige.
+- Ablation : `UserLocationProvider.tsx` rendu à `HEAD` → 1 rouge (un appel à ipapi.co sans
+  lecteur) ; correctif remis → 3/3 verts, 101/101 avec les tests des quatre lecteurs.
