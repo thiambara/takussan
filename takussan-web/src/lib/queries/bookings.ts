@@ -86,7 +86,8 @@ export type CreateBookingPayload = {
 export function useCreateBooking() {
   return useApiMutation<ApiResponse<Booking>, CreateBookingPayload>(
     { path: '/api/bookings', method: 'POST' },
-    { invalidate: [['bookings', 'list']] },
+    // TCK-1406 (ADR-0072) — renvoyée après une réponse perdue, la réservation n'est créée qu'une fois.
+    { idempotence: true, invalidate: [['bookings', 'list']] },
   );
 }
 
@@ -148,6 +149,8 @@ export function useCreateBookingPayment(bookingId: number) {
   return useApiMutation<ApiResponse<BookingPayment>, CreateBookingPaymentPayload>(
     { path: cheminApi`/api/bookings/${bookingId}/payments`, method: 'POST' },
     {
+      // TCK-1400 (ADR-0072) — renvoyé après une réponse perdue, l'acompte n'est encaissé qu'une fois.
+      idempotence: true,
       invalidate: [
         ['bookings', 'detail', bookingId],
         ['bookings', 'list'],

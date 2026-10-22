@@ -178,7 +178,8 @@ export type CreateInvoicePayload = {
 export function useCreateInvoice() {
   return useApiMutation<ApiResponse<Invoice>, CreateInvoicePayload>(
     { path: '/api/invoices', method: 'POST' },
-    { invalidate: [['invoices']] },
+    // TCK-1402 (ADR-0072) — renvoyée après une réponse perdue, la facture n'est créée qu'une fois.
+    { idempotence: true, invalidate: [['invoices']] },
   );
 }
 

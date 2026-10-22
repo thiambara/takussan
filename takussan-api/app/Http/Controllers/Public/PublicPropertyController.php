@@ -856,7 +856,10 @@ class PublicPropertyController extends Controller
             'locale' => app()->getLocale(),
         ]);
 
-        $notifier->requested($visit->fresh(['property', 'agent']));
+        // TCK-1410 — une demande rejouée au même créneau rend la visite déjà ouverte : déjà prévenue.
+        if ($visit->wasRecentlyCreated) {
+            $notifier->requested($visit->fresh(['property', 'agent']));
+        }
 
         return $this->json([
             'data' => PropertyVisitResource::make($visit)->resolve($request),

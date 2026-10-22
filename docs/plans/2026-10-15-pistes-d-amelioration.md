@@ -13783,7 +13783,7 @@ générique est P112.01.*
 
 ### Le socle commun : après toute erreur autre qu'un 422, le formulaire garde sa saisie et le bouton se réactive, et une seule route de l'API sait reconnaître un rejeu
 - Réf : P144.01
-- Statut : validé — porteur (2026-10-22) : appliquer ADR-0072, lot 1 : l'intergiciel `idempotent` et l'option `idempotence` de `useApiMutation`, avec les messages
+- Statut : fait · TCK-1396
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/hooks/useApiForm.ts:262-298`, `takussan-web/src/lib/query-client.ts:27-29`, `takussan-web/src/lib/api.ts:752-765`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:49-93`, `takussan-api/app/Http/Requests/Credits/StorePropertyBoostRequest.php:28-31`
 - Constat :
@@ -13795,10 +13795,11 @@ générique est P112.01.*
 - Piste : une brique commune — intergiciel `Idempotency-Key` (clé par utilisateur et route, réponse rangée et rejouée telle quelle, refus d'une même clé pour un autre corps), et une option de `useApiMutation` qui engendre la clé à l'ouverture du formulaire et la garde jusqu'au succès —, puis l'appliquer aux routes des entrées qui suivent. La forme (cache ou table, fenêtre) est à choisir. Garde : un test par route qui rejoue la même clé et compte une seule ligne.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `useApiForm.ts:262-299` (`setIsSubmitting(false)` en `finally`, `globalError` hors 422, aucune remise à zéro sur échec), `query-client.ts:28` (`retry: false` des mutations), `BoostPurchaseService::purchaseOnce()` (clé rangée en cache par agence, 24 h) ; `grep -rn -i idempotency app routes` hors webhooks → `StorePropertyBoostRequest` et `BoostPurchaseService` seuls ; `git log -S 'Idempotency-Key'` → TCK-822 (boost) seul ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : messages, réservations, acompte, facture, intervention, contact → tous 201 et 201, deux lignes → le constat tient. Classement : V6, un intergiciel transverse dont la forme (cache ou table, fenêtre, portée de la clé) reste à choisir est une décision structurelle qui demande un ADR.
 - Mesure (2026-10-22, 792dc1bf0, delegue) : relu l'entrée, `BoostPurchaseService::purchaseOnce()` (clé en cache par agence, 24 h, TCK-822) ; `grep -rln -i idempoten docs/adr` → aucun ADR ; `grep -n "porteur ("` de l'angle 144 → aucune décision ; les recommandations déjà écrites sur P144.02, P144.03 et P144.06 attendent toutes cette brique. Recommandation : un ADR, puis un intergiciel `Idempotency-Key` sur le modèle de TCK-822 (cache, clé par utilisateur et route, 24 h, réponse rangée rejouée telle quelle, 422 sur une même clé pour un autre corps) et une option de `useApiMutation` qui engendre la clé à l'ouverture du formulaire et la garde jusqu'au succès ; le cache plutôt qu'une table parce que la forme existe déjà et ne demande aucune migration ; non délégable : brique transverse qui demande un ADR (V6) ; manque : l'ADR et la décision du porteur sur la forme et la fenêtre.
+- Mesure (2026-10-22, e72d2ad69, implementeur) : avant correctif, `grep -rn -i idempotency app routes` hors webhooks → `StorePropertyBoostRequest` et `BoostPurchaseService` seuls, aucun alias `idempotent`, `useApiMutation` sans option → `EnsureIdempotentWriteTest` (10 cas d'ADR-0072 § Application sur une route de test) et `useApiMutation.idempotence.tck-1396.test.tsx` (4 cas) ; ablation : intergiciel réduit à `return $next($request)` → 6 rouges sur 10, en-tête jamais posé par le hook → 3 rouges sur 4 ; remis → 10 et 4 verts.
 
 ### Un message rejoué après une erreur s'écrit deux fois dans le fil
 - Réf : P144.02
-- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 1 : la clé sur les messages, notes vocales comprises, sans `client_id` propre
+- Statut : fait · TCK-1398
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:289-330`, `takussan-web/src/lib/queries/conversations.ts:265-327`, `takussan-web/src/components/messages/ChatView.tsx:211-218,368`
 - Constat :
@@ -13810,10 +13811,11 @@ générique est P112.01.*
 - Piste : un identifiant client par message composé (`Idempotency-Key`, ou un `client_id` rangé sur le message), rejoué en 200 avec le message déjà écrit ; le front le garde tant que le message n'est pas parti. Garde : le scénario mesuré en test, plus un test vitest qui renvoie la même clé après un échec.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `ConversationController::sendMessage()` (création à chaque appel, sans clé ni rapprochement), `ChatView.tsx:368` (`sendDisabled={sendMessage.isPending}`) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : deux `POST /api/conversations/{id}/messages` `{content: "Je passe demain"}` → 201 et 201, 2 lignes dans `messages` → le constat tient. Classement : V6, la `Piste` passe par la brique commune de P144.01 (non décidée), et sa variante `client_id` est une colonne neuve (V4).
 - Mesure (2026-10-22, 3ecddb6ad, delegue) : relu l'entrée, P144.01 et ses lignes `Mesure` ; `grep -rln -i idempoten docs/adr` → aucun ADR ne pose une clé d'idempotence commune ; `grep -n "porteur ("` sur l'angle 144 → aucune décision. Recommandation : traiter le message par la brique commune `Idempotency-Key` de P144.01, dans le premier lot qui l'applique, plutôt que par un `client_id` propre au message ; une colonne `client_id` serait additive (V4), mais elle ferait une seconde forme d'idempotence à côté de celle que P144.01 doit poser, et ce choix de forme est structurel (V6, ADR à écrire) ; manque : la décision du porteur sur P144.01 (cache ou table, fenêtre, portée de la clé) et son ADR.
+- Mesure (2026-10-22, e72d2ad69, implementeur) : avant correctif, `MessageRejoueTest` (deux `POST` du même texte à 30 s d'écart par `travel`, sous la même `Idempotency-Key`) → 2 messages, et 2 pour la note vocale en `multipart` → route équipée de `idempotent`, hooks `useSendMessage` et `useSendVoiceNote` en `idempotence: true` ; ablation : route sans l'intergiciel → 2 rouges sur 3 et `IdempotentRoutesTest` rouge ; remis → 1 message, même `id` rendu, 3 verts.
 
 ### Une demande de réservation rejouée crée une seconde réservation en attente, et prévient de nouveau le bailleur
 - Réf : P144.03
-- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 2 : la clé sur `POST /api/bookings`, et lot 3 sur l'action serveur `booking-request`, sans règle de rapprochement
+- Statut : fait · TCK-1406
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/BookingService.php:119-136`, `takussan-api/app/Services/Booking/PropertyAvailabilityService.php:40-44`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:946-1048`, `takussan-web/src/components/bookings/BookingTunnel.tsx:145-175,446`, `takussan-web/src/hooks/useBookingRequest.ts:14-28`, `takussan-web/src/app/actions/property.ts:131-149,182-199`
 - Constat :
@@ -13825,10 +13827,11 @@ générique est P112.01.*
 - Piste : clé d'idempotence sur `POST /api/bookings` et `booking-request` (P144.01) ; à défaut, refuser ou rendre la réservation `pending` déjà ouverte par le même client sur le même bien et les mêmes dates. Garde : le scénario mesuré, une seule réservation et une seule notification.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `PropertyAvailabilityService::assertAvailable()` (seuls une réservation confirmée ou un blocage refusent), `BookingTunnel.tsx:446` (`disabled={createBooking.isPending}`) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : deux `POST /api/bookings` → 201 et 201, 2 réservations `pending,pending`, 2 notifications au bailleur ; deux `POST /api/public/properties/{slug}/booking-request` → 201 et 201, 2 réservations pour 1 client, 2 notifications ; l'expiration à 7 jours et la charge des files n'ont pas été re-mesurées. Classement : V7, rapprocher un même client, un même bien et des mêmes dates change ce que voit le visiteur, et la voie par clé dépend de P144.01 (V6).
 - Mesure (2026-10-22, 3ecddb6ad, delegue) : relu l'entrée, `PropertyAvailabilityService::assertAvailable()` cité, P144.01 ; `docs/features.md` et les ADR ne disent rien d'une demande `pending` en double pour un même client, un même bien et les mêmes dates (`grep -n -i "pending" docs/features.md` sur les réservations → rien de tel). Recommandation : la clé de P144.01 sur `POST /api/bookings` et `booking-request`, qui supprime le doublon du rejeu sans règle neuve ; ne pas rapprocher les demandes par client, bien et dates, règle métier qui changerait ce que voit un visiteur revenu volontairement (V7 non mineur) ; manque : la décision de P144.01 (V6, ADR).
+- Mesure (2026-10-22, e72d2ad69, implementeur) : avant correctif, `ReservationRejoueeTest` (agent, deux `POST /api/bookings` ; visiteur connecté, deux `POST /api/public/properties/{slug}/booking-request` ; à 30 s d'écart sous la même `Idempotency-Key`) → 2 réservations dans chaque cas → les deux routes équipées de `idempotent`, `useCreateBooking` en `idempotence: true`, la clé engendrée par `useBookingRequest` et le formulaire d'offre et transmise telle quelle par `submitBookingRequest` et `submitPurchaseOffer` ; ablation : routes sans l'intergiciel → 2 rouges, action sans en-tête → 2 rouges vitest, clé non passée → 1 rouge ; remis → une réservation, le même `id`, aucune notification de plus.
 
 ### Un acompte enregistré par le personnel puis rejoué compte deux encaissements `paid`
 - Réf : P144.04
-- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 2 : la clé sur la route d'acompte
+- Statut : fait · TCK-1400
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/BookingPaymentController.php:35-59`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-48`, `takussan-web/src/components/bookings/BookingPaymentDialog.tsx:60-67,120`
 - Constat :
@@ -13839,10 +13842,11 @@ générique est P112.01.*
   - Établi comment : lu, mesuré.
 - Piste : clé d'idempotence sur la route (P144.01). Garde : le scénario mesuré, une seule ligne `paid`.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `BookingPaymentService::create()` (ligne `paid` par défaut, nouveaux numéros de référence et de reçu à chaque appel, aucune comparaison aux paiements existants) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : bailleur, deux `POST /api/bookings/{id}/payments` `{amount: 100000, payment_type: deposit, payment_method: cash}` → 201 et 201, 2 lignes `paid,paid`, reçus `RCP-1PPKS1` et `RCP-L3N1ME` → le constat tient ; la reprise dans les totaux et reversements n'a pas été mesurée. Classement : V1, l'écriture d'un paiement.
+- Mesure (2026-10-22, e72d2ad69, implementeur) : avant correctif, `AcompteRejoueTest` (bailleur, deux `POST /api/bookings/{id}/payments` `{amount: 100000, payment_type: deposit, payment_method: cash}` à 30 s d'écart sous la même `Idempotency-Key`) → deux reçus distincts → route équipée de `idempotent`, `useCreateBookingPayment` en `idempotence: true` ; ablation : route sans l'intergiciel → rouge, option retirée → rouge vitest ; remis → une ligne `paid`, le même reçu rendu.
 
 ### Une facture rejouée est émise deux fois, sous deux numéros
 - Réf : P144.05
-- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 2 : la clé sur `POST /api/invoices`
+- Statut : fait · TCK-1402
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/InvoiceController.php:43-53`, `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:72-95,288`, `takussan-web/src/lib/queries/payments.ts:179-184`
 - Constat :
@@ -13852,10 +13856,11 @@ générique est P112.01.*
   - Établi comment : lu, mesuré.
 - Piste : clé d'idempotence sur `POST /api/invoices` (P144.01). Garde : le scénario mesuré, une seule facture.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `InvoiceService::create()` (statut `draft`, `reference_number` tiré à chaque appel), `send()` (le numéro légal `sequence_number` n'est attribué qu'à l'émission, ADR-0039 §7), `cancel()` (un brouillon s'annule par simple changement de statut, sans avoir) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : agent, deux `POST /api/invoices` `{customer_id, issue_date, subtotal: 100000}` → 201 et 201, deux factures `draft` `INV-202610-JAEXVD` et `INV-202610-90RAEU`, `sequence_number` nul sur les deux → le doublon tient, mais le constat est inexact : ce sont deux brouillons, pas deux factures émises, et l'annulation du doublon ne demande pas d'avoir. Classement : V1, la création d'une facture, et la voie passe par la brique de P144.01 (V6).
+- Mesure (2026-10-22, e72d2ad69, implementeur) : avant correctif, `FactureRejoueeTest` (agent, deux `POST /api/invoices` `{customer_id, issue_date, subtotal: 100000}` à 30 s d'écart sous la même `Idempotency-Key`) → 2 factures → route équipée de `idempotent`, `useCreateInvoice` en `idempotence: true` ; ablation : route sans l'intergiciel → rouge, option retirée → rouge vitest ; remis → une facture, le même `id` rendu.
 
 ### Une demande d'intervention rejouée ouvre deux interventions et prévient deux fois
 - Réf : P144.06
-- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 2 : la clé sur `POST /api/maintenance-requests`
+- Statut : fait · TCK-1404
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:87-130`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:78-96,179`
 - Constat :
@@ -13865,10 +13870,11 @@ générique est P112.01.*
 - Piste : clé d'idempotence sur la route (P144.01). Garde : le scénario mesuré.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `MaintenanceForm.tsx:96` (navigation en `onSuccess` seulement) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : locataire en bail actif, deux `POST /api/maintenance-requests` identiques → 201 et 201, 2 interventions, 2 notifications au bailleur → le constat tient. Classement : V6, la seule `Piste` est la clé commune de P144.01, non décidée.
 - Mesure (2026-10-22, 3ecddb6ad, delegue) : relu l'entrée et P144.01 → la seule `Piste` est la clé commune, aucune option propre à l'intervention. Recommandation : l'appliquer à `POST /api/maintenance-requests` dans le premier lot de la brique de P144.01, avec le scénario mesuré (une intervention, une notification) pour garde ; non délégable : la brique est une décision structurelle qui demande un ADR (V6) ; manque : la décision du porteur sur P144.01.
+- Mesure (2026-10-22, e72d2ad69, implementeur) : avant correctif, `InterventionRejoueeTest` (locataire en bail actif, deux `POST /api/maintenance-requests` identiques à 30 s d'écart sous la même `Idempotency-Key`) → 2 interventions → route équipée de `idempotent`, `useCreateMaintenanceRequest` en `idempotence: true` ; ablation : route sans l'intergiciel → rouge, option retirée → rouge vitest ; remis → une intervention, le même `id` rendu, aucune notification de plus que le premier envoi.
 
 ### Le délai par défaut que P79.01 pose sur les appels du serveur Next couvrira aussi les écritures des actions serveur
 - Réf : P144.07
-- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 3 : les actions serveur de `property.ts` reçoivent la clé du composant client, une par soumission, plutôt qu'un délai plus long
+- Statut : fait · TCK-1408
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/property.ts:112-149,182-270`, `takussan-web/src/lib/api.ts:690-765`
 - Constat :
@@ -13878,10 +13884,11 @@ générique est P112.01.*
 - Piste : à l'implémentation de P79.01, porter une clé d'idempotence sur ces `POST` (P144.01), ou un délai plus long pour les écritures ; le choix se fait avec P79.01. Garde : un test vitest de l'action qui vérifie que la clé part et reste la même d'un essai à l'autre.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `src/lib/api.ts` sur l'arbre (aucun délai par défaut : seul le `signal` de l'appelant) et `src/app/actions/property.ts` (visite, réservation, offre, message, contact en `POST` par `apiRequest`) ; `gh pr diff 972` (P79.01, TCK-1215, ouverte) → `signalBorneServeur` pose 30 s sur tout appel serveur d'`apiRequest`, 90 s pour un `formData`, sans distinguer lecture et écriture → le risque décrit se réalise à la fusion de #972 ; une écriture finie après le délai puis rejouée reste déduite, non mesurée. Classement : V7, la `Piste` laisse deux voies (clé, ou délai propre aux écritures) dont le choix revient au porteur avec P79.01.
 - Mesure (2026-10-22, 792dc1bf0, delegue) : `gh pr view 972` → fusionnée (P79.01 est `fait · TCK-1215`, 30 s par appel serveur d'`apiRequest`, 90 s pour un `formData`) ; relu l'entrée et P144.01. Recommandation : porter la clé de P144.01 sur les `POST` des actions serveur de `property.ts` (visite, réservation, offre, message, contact), engendrée une fois par soumission et renvoyée telle quelle au second essai, plutôt qu'un délai plus long pour les écritures, qui ne fait que déplacer le seuil où l'écriture finie est rendue comme un échec ; non délégué : l'option dépend de la brique de P144.01 (V6, ADR) ; manque : la décision du porteur sur P144.01.
+- Mesure (2026-10-22, e72d2ad69, implementeur) : avant correctif, `MessageDeLaFicheRejoueTest` (visiteur connecté, deux `POST /api/public/properties/{slug}/contact-message` identiques à 30 s d'écart sous la même `Idempotency-Key`) → 2 messages, et aucune action de `property.ts` ne prenait de clé → `submitBookingRequest`, `submitPurchaseOffer` (TCK-1406) et `submitContactMessage` reçoivent `cleIdempotence` de leur composant client (`useCleIdempotence`) et l'envoient telle quelle, route `contact-message` équipée ; `contact-lead` est porté par TCK-1410 (P144.08), la visite se rapproche sans clé (ADR-0072 § 8) ; ablation : action sans en-tête → rouge vitest, clé non passée par l'un des deux appelants → rouge, route sans l'intergiciel → rouge ; remis → un message, même clé d'un essai à l'autre.
 
 ### Petites améliorations
 - Réf : P144.08
-- Statut : validé — porteur (2026-10-22) : les visites se rapprochent par (visiteur, bien, créneau) dans `VisitSchedulingService::createOrFail`, en rendant la visite active déjà ouverte ; `contact-lead` attend la clé de P144.01
+- Statut : fait · TCK-1410 — reste : rapprocher une demande de visite anonyme (sans compte ni fiche client), que `createOrFail` ne sait pas identifier
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Visit/VisitSchedulingService.php:30,214-287`, `takussan-web/src/app/actions/property.ts:112-129`
 - Constat :
@@ -13891,6 +13898,7 @@ générique est P112.01.*
 - Piste : la clé de P144.01 sur ces routes, ou un rapprochement par (visiteur, bien, créneau) pour les visites. Garde : le rejeu en test.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `VisitSchedulingService` (quota `MAX_ACTIVE_VISITS_PER_CUSTOMER = 3` par visiteur et par bien, aucun contrôle de créneau à la demande) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : trois `POST …/visit-request` au même créneau puis un quatrième à un autre → 201, 201, 201, 422, 3 visites → les doublons consomment le quota et la demande légitime est refusée (le « à vérifier » tient) ; deux `POST …/contact-lead` identiques → 201 et 201, 2 demandes. Classement : V7, rapprocher les visites par (visiteur, bien, créneau) est une règle visible neuve, et la voie par clé dépend de P144.01 (V6).
 - Mesure (2026-10-22, 94cf4eeaa, delegue) : relu l'entrée, la `Mesure` du mesureur (rejeu mesuré : 201, 201, 201, puis 422 sur un autre créneau) et P144.01 (`retenu · à valider`, V6, brique d'idempotence non tranchée) ; `grep -n "porteur ("` de l'angle 144 → aucune décision. Recommandation : pour les visites, rapprocher par (visiteur, bien, créneau) dans `VisitSchedulingService::createOrFail` en rendant la visite active déjà ouverte au lieu d'en créer une seconde, parce que cela ne dépend pas de P144.01 et rend au visiteur son quota de trois ; pour `contact-lead`, attendre la clé de P144.01 ; non validé : rendre une visite existante au lieu d'en créer une est une règle visible neuve, que rien d'écrit n'appuie, et la seconde voie dépend d'un choix V6 ; manque : la décision du porteur sur la règle, et sur P144.01.
+- Mesure (2026-10-22, e72d2ad69, implementeur) : avant correctif, `VisiteRejoueeTest` (visiteur connecté, trois `POST …/visit-request` au même créneau) → 3 visites, et `DemandeDeContactRejoueeTest` (deux `POST …/contact-lead` identiques sous la même clé, bien et agent) → 2 demandes chacun → `createOrFail` rend sous le verrou du bien la visite active du même visiteur au même créneau (les appelants ne préviennent que sur `wasRecentlyCreated`), `contact-lead` du bien et de l'agent équipés de `idempotent` et la clé engendrée par `AnonymousLeadDialog` ; ablation : retour anticipé neutralisé → rouge, routes sans l'intergiciel → 2 rouges, clé figée ou absente côté front → rouge ; remis → une visite, aucune notification de plus, le quota libre pour un autre créneau, une demande de contact.
 
 ### Signalements et avis rejoués, hors des lots d'ADR-0072
 - Réf : P144.09

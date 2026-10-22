@@ -11,7 +11,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import { useLocale } from 'next-intl';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { apiRequest, buildQueryString, ApiError, type RequestOptions } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
@@ -91,7 +91,34 @@ type UseApiMutationOptions<TData, TVariables> = Omit<
     | QueryKey[]
     | ((args: { data: TData; variables: TVariables }) => QueryKey[]);
   request?: Omit<RequestOptions, 'method' | 'body' | 'signal'>;
+  /**
+   * TCK-1396 (ADR-0072 § 7) — envoie une `Idempotency-Key` née au montage du hook (l'ouverture du
+   * formulaire), gardée d'un essai à l'autre tant qu'aucun envoi n'a réussi, quelle que soit
+   * l'erreur, et renouvelée sur succès ou sur 422 `idempotency.key_reused`. Une route de l'API qui
+   * porte l'intergiciel `idempotent` rejoue alors la première réponse au lieu d'écrire deux fois.
+   * Un `Idempotency-Key` posé dans `request.headers` l'emporte (le boost, TCK-822).
+   */
+  idempotence?: boolean;
 };
+
+/** TCK-1396 — ce que `useApiMutation` rend en plus de `useMutation`. */
+export type ApiMutationResult<TData, TVariables> = UseMutationResult<TData, ApiError, TVariables> & {
+  /**
+   * Renouvelle la clé d'idempotence : pour un composant qui survit à son formulaire (un dialogue
+   * qui reste monté fermé), à appeler à la fermeture. Sans effet visible sans `idempotence`.
+   */
+  renouvelerCleIdempotence: () => void;
+};
+
+function nouvelleCleIdempotence(): string {
+  return globalThis.crypto.randomUUID();
+}
+
+function cleDejaServie(error: unknown): boolean {
+  if (!(error instanceof ApiError) || error.status !== 422) return false;
+  const data = error.data as { code?: unknown } | null;
+  return data !== null && typeof data === 'object' && data.code === 'idempotency.key_reused';
+}
 
 type MutationShape<TVariables> = {
   path: string | ((variables: TVariables) => string);
@@ -132,32 +159,51 @@ type MutationShape<TVariables> = {
 export function useApiMutation<TData, TVariables = void>(
   shape: MutationShape<TVariables>,
   options: UseApiMutationOptions<TData, TVariables> = {},
-): UseMutationResult<TData, ApiError, TVariables> {
+): ApiMutationResult<TData, TVariables> {
   const locale = useLocale();
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const garde = useGardeDoubleFacteur();
-  const { invalidate, request, onSuccess, ...rest } = options;
+  const { invalidate, request, onSuccess, idempotence, ...rest } = options;
+  // TCK-1396 — la clé vit hors de l'état React : la renouveler ne re-rend rien.
+  const cle = useRef<string | null>(null);
+  const cleCourante = (): string => {
+    cle.current ??= nouvelleCleIdempotence();
+    return cle.current;
+  };
+  const renouvelerCleIdempotence = useCallback(() => {
+    cle.current = nouvelleCleIdempotence();
+  }, []);
 
-  return useMutation<TData, ApiError, TVariables>({
+  const mutation = useMutation<TData, ApiError, TVariables>({
     mutationFn: async (variables) => {
       const resolvedPath =
         typeof shape.path === 'function' ? shape.path(variables) : shape.path;
       const body = shape.body ? shape.body(variables) : variables;
-      return avecGardeDoubleFacteur(
-        () =>
-          apiRequest<TData>(resolvedPath, {
-            ...request,
-            method: shape.method ?? 'POST',
-            body,
-            formData: shape.formData,
-            token: request?.token ?? token ?? undefined,
-            locale: request?.locale ?? locale,
-          }),
-        garde,
-      );
+      const headers = idempotence
+        ? { 'Idempotency-Key': cleCourante(), ...request?.headers }
+        : request?.headers;
+      try {
+        return await avecGardeDoubleFacteur(
+          () =>
+            apiRequest<TData>(resolvedPath, {
+              ...request,
+              ...(headers ? { headers } : {}),
+              method: shape.method ?? 'POST',
+              body,
+              formData: shape.formData,
+              token: request?.token ?? token ?? undefined,
+              locale: request?.locale ?? locale,
+            }),
+          garde,
+        );
+      } catch (error) {
+        if (idempotence && cleDejaServie(error)) renouvelerCleIdempotence();
+        throw error;
+      }
     },
     onSuccess: async (data, variables, ...rest2) => {
+      if (idempotence) renouvelerCleIdempotence();
       const keys = typeof invalidate === 'function'
         ? invalidate({ data, variables })
         : invalidate ?? [];
@@ -168,4 +214,6 @@ export function useApiMutation<TData, TVariables = void>(
     },
     ...rest,
   });
+
+  return { ...mutation, renouvelerCleIdempotence };
 }

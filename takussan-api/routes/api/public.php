@@ -164,8 +164,9 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
         ->middleware('throttle:public-visit-request')
         ->name('properties.visit-request');
 
+    // TCK-1410 (ADR-0072) — `idempotent` après `throttle` : un rejeu compte pour un envoi au limiteur.
     Route::post('properties/{slug}/contact-lead', [PublicPropertyController::class, 'contactLead'])
-        ->middleware('throttle:public-contact-lead')
+        ->middleware(['throttle:public-contact-lead', 'idempotent'])
         ->name('properties.contact-lead');
 
     // ── TCK-590 ────────────────────────────────────────────────────────────────────────────
@@ -182,10 +183,14 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     // ── /TCK-590 ───────────────────────────────────────────────────────────────────────────
 
     Route::middleware('auth:sanctum')->group(function () {
+        // TCK-1406 (ADR-0072) — réservation et offre d'achat rejouées sous la même clé : une seule.
         Route::post('properties/{slug}/booking-request', [PublicPropertyController::class, 'bookingRequest'])
+            ->middleware('idempotent')
             ->name('properties.booking-request');
 
+        // TCK-1408 (ADR-0072) — le message de la fiche rejoué sous la même clé ne s'écrit qu'une fois.
         Route::post('properties/{slug}/contact-message', [PublicPropertyController::class, 'contactMessage'])
+            ->middleware('idempotent')
             ->name('properties.contact-message');
 
         // TCK-500 — jumelle EN LECTURE SEULE de `contact-message`. Le front la questionne au clic
@@ -220,7 +225,7 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     // pas de `auth:sanctum`, la barriere est le throttle. Il remplace le `mailto:` que la fiche
     // publiait a partir de l'adresse de CONNEXION de l'agent.
     Route::post('agents/{slug}/contact-lead', [PublicAgentController::class, 'contactLead'])
-        ->middleware('throttle:public-contact-lead')
+        ->middleware(['throttle:public-contact-lead', 'idempotent'])
         ->name('agents.contact-lead');
 
     Route::get('agents/{slug}/properties', [PublicAgentController::class, 'properties'])

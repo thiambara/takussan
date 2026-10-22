@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { submitContactMessage } from '@/app/actions/property';
 import { useTriggerMinimalProfileOnce } from '@/hooks/useTriggerMinimalProfileOnce';
+import { useCleIdempotence } from '@/hooks/useCleIdempotence';
 
 export function useContactMessage(slug: string) {
   const t = useTranslations('property.detail');
@@ -12,13 +13,16 @@ export function useContactMessage(slug: string) {
   // deferred-profile prompt as favorite/booking. No-op outside the
   // customer dashboard (provider absent).
   const { triggerIfNeeded } = useTriggerMinimalProfileOnce();
+  // TCK-1408 (ADR-0072) — renvoyé après une réponse perdue, le message ne s'écrit qu'une fois.
+  const idempotence = useCleIdempotence();
 
   async function submit(message: string): Promise<{ conversation_id: number; redirect_to: string }> {
     setSubmitting(true);
     setError(null);
     triggerIfNeeded();
     try {
-      const res = await submitContactMessage(slug, message);
+      const res = await submitContactMessage(slug, message, idempotence.cle());
+      idempotence.apres(res);
       if (!res.ok || !res.data) {
         const msg = !res.ok ? res.message : t('contactInvalidResponse');
         setError(msg);

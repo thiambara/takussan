@@ -211,6 +211,11 @@ return [
         'unprocessable' => 'The request cannot be processed.',
         'unsupported_media_type' => 'This file type is not supported.',
     ],
+    'idempotency' => [
+        'in_progress' => 'This request is already being sent. Wait a few seconds, then try again.',
+        'key_invalid' => 'This request key does not have the expected format.',
+        'key_reused' => 'This request was already sent with different content. Reload the page, then send it again.',
+    ],
     'impersonation' => [
         'no_session' => 'No impersonation session is open.',
         'query_refused' => 'Starting or ending an impersonation takes no parameter in the address.',

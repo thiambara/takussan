@@ -88,6 +88,22 @@ describe('<PropertyDraftChatView>', () => {
     expect(onCreated).toHaveBeenCalledWith(42);
   });
 
+  it('TCK-1408 — renvoyé après un échec, le message repart sous la même clé d’idempotence', async () => {
+    submitContactMessage.mockReset();
+    submitContactMessage
+      .mockResolvedValueOnce({ ok: false, message: 'Erreur réseau' })
+      .mockResolvedValueOnce({ ok: true, data: { conversation_id: 42 } });
+    monter();
+
+    await userEvent.click(screen.getByRole('button', { name: /envoyer/i }));
+    await userEvent.click(screen.getByRole('button', { name: /envoyer/i }));
+
+    expect(submitContactMessage).toHaveBeenCalledTimes(2);
+    const [premiere, seconde] = submitContactMessage.mock.calls.map((appel) => appel[2]);
+    expect(premiere).toMatch(/^[0-9a-f-]{36}$/);
+    expect(seconde).toBe(premiere);
+  });
+
   it("envoie le texte de l'utilisateur quand il a tout remplacé, et le défaut ne revient pas", async () => {
     monter();
     const champ = screen.getByTestId('chat-draft-textarea');

@@ -29,8 +29,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('conversations/{conversation}/messages', [ConversationController::class, 'messages'])->name('conversations.messages.index');
     // TCK-592 — limiteur nommé par utilisateur (verif-592, mineur 9).
+    // TCK-1398 (ADR-0072) — `idempotent` après `throttle` : un message rejoué sous la même clé
+    // rend le premier au lieu de s'écrire deux fois (texte et note vocale).
     Route::post('conversations/{conversation}/messages', [ConversationController::class, 'sendMessage'])
-        ->middleware('throttle:conversation-message')
+        ->middleware(['throttle:conversation-message', 'idempotent'])
         ->name('conversations.messages.store');
     Route::put('conversations/{conversation}/read', [ConversationController::class, 'markAsRead'])->name('conversations.read');
     Route::put('conversations/{conversation}/archive', [ConversationController::class, 'archive'])->name('conversations.archive');

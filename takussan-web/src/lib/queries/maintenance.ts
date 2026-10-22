@@ -149,7 +149,8 @@ export function useMaintenanceRequest(id: number | null) {
 export function useCreateMaintenanceRequest() {
   return useApiMutation<ApiResponse<MaintenanceRequest>, MaintenanceCreateInput>(
     { path: '/api/maintenance-requests', method: 'POST' },
-    { invalidate: [maintenanceKeys.all] },
+    // TCK-1404 (ADR-0072) — renvoyée après une réponse perdue, l'intervention n'est ouverte qu'une fois.
+    { idempotence: true, invalidate: [maintenanceKeys.all] },
   );
 }
 
