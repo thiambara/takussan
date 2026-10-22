@@ -13254,7 +13254,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### Aucune garde de graphe client ne lit les pages `(auth)`
 - Réf : P137.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1465
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/__tests__/graphe-client-de-la-console.test.ts`, `takussan-web/src/app/(dashboard)/__tests__/zod-hors-des-ecrans-de-lecture.test.ts`, `takussan-web/src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts`
 - Constat :
@@ -13262,6 +13262,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Établi comment : `grep` et lecture des listes de tests.
 - Piste : une garde du patron de TCK-1200 qui trouve les pages de `(auth)` et refuse react-day-picker et date-fns partout, et react-hook-form sur celles qui n'ont pas de formulaire au chargement (`verify-email`, retour OAuth), avec une liste déclarée et motivée des exceptions.
 - Mesure (2026-10-22, f42212ee7, mesureur) : `grep -rln paquetsDuGrapheClient src` → quatre tests, dont aucun sous `(auth)` ; `ls (auth)/__tests__ (auth)/auth/__tests__` → tests de rendu et de titres seuls ; test temporaire, retiré depuis, sur les 13 pages et layouts de `(auth)` → `react-day-picker` et `date-fns` atteints par `login`, `register`, `reset-password`, `verify-email` et le retour OAuth ; avec P137.01 et P137.03 simulés, aucun des 13 n'atteint plus le calendrier, et seuls `login` et `register` atteignent `react-hook-form`, `@hookform/resolvers` et `zod`. Classement : A5, une garde neuve du patron de TCK-1200 qui trouve les pages de `(auth)`, refuse le calendrier partout et `react-hook-form` hors de `login` et `register` (exceptions déclarées), sans seuil existant resserré.
+- Mesure (2026-10-22, 58c404ecf, implementeur) : `grep -rln paquetsDuGrapheClient src` → aucun test sous `(auth)` ; garde neuve dans `graphe-client-de-l-authentification.test.ts` : balayage des 13 pages et layouts de `(auth)`, calendrier refusé partout, `react-hook-form`, `@hookform/resolvers` et `zod` refusés hors de `login` et `register` (exceptions déclarées) → 30 verts après TCK-1457, TCK-1461 et TCK-1463 ; ablation : `verify-email` remis sur `@/components/forms` → rouge, `components/forms/index.ts` remis à son état de `58c404ecf` → 2 rouges (`login`, `register`), rétablis → verts.
 
 ## Angle 138 — Lectures de l'API dédoublées dans un même rendu serveur
 
