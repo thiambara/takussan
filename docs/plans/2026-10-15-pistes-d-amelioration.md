@@ -214,7 +214,7 @@ voie d'écriture (angle 13, puis 47).
 | 137 | Écrans qui importent le fichier `index.ts` de `components/forms` pour `FormError` ou `FormGlobalError` seuls (pages `(auth)` `verify-email` et `reset-password`, `DefiSecondFacteur`, `ConnexionParTelephone`, `IntegrationsManager`, `ChampsLieu`) : react-hook-form et react-day-picker chargés pour afficher un message d'erreur — le motif de P104.01 hors de la console | fait |
 | 138 | Lectures de l'API dédoublées dans un même rendu serveur : server actions `*Action` (`fetchAgencyAction`, et leurs pareilles) appelées par des pages et des layouts serveur qui relisent une ressource déjà lue hors de `cache()` (`agenceDuRendu`, `getMeAction`), mesurées par requête sur un document servi | fait |
 | 139 | Colonnes déclarées par les exporteurs (`ActivityLogExporter::COLUMNS`, constructeurs d'entité d'`ExportController`, exports de rapports, archive RGPD `DataExportBuilder`) qu'aucun chemin n'écrit, ou qui lisent une clé que l'écrivain nomme autrement : colonne toujours vide dans le fichier rendu — le relevé de P108.02 sur les autres exports | fait |
-| 140 | PDF figés face aux PDF recomposés à chaque téléchargement (`DocumentPdfService::store`, `signed_contract` de `LeaseSignatureService`, contre `InventoryController::downloadPdf`, `DocumentPdfController::stream*`, quittance publique `PublicPaymentLinkController::receipt`) : ce qu'un document signé ou acquitté imprime après un changement de l'agence, du bien, du locataire, d'un réglage ou d'un gabarit | à faire |
+| 140 | PDF figés face aux PDF recomposés à chaque téléchargement (`DocumentPdfService::store`, `signed_contract` de `LeaseSignatureService`, contre `InventoryController::downloadPdf`, `DocumentPdfController::stream*`, quittance publique `PublicPaymentLinkController::receipt`) : ce qu'un document signé ou acquitté imprime après un changement de l'agence, du bien, du locataire, d'un réglage ou d'un gabarit | fait |
 | 141 | Encaissements soldés par une intégration de la plateforme (`PlatformPayoutService::isSettledByPlatform`) face au relevé de l'agence : proposés un à un par `ReconciliationMatcher` à un crédit qui ne les porte pas, et virement de clôture `PlatformPayout` qu'aucun candidat (`ALLOWED_PAYMENT_TYPES`, `fetchCandidates`) ne représente | à faire |
 | 142 | Notifications, Mailables et écouteurs en file (`ShouldQueue`, une quarantaine hors de `CodedNotification` : `TenantWelcomeNotification`, `ResetPasswordNotification`, `ActivityLogExportReadyNotification`, écouteurs `Lease\*` et `Accounting\*`) sans `backoff` ni `failed()` face au `--tries=3` sans délai des workers : ce qu'une panne du fournisseur de quelques secondes fait perdre, et la trace laissée — le relevé de P11.10 hors des notifications codées | à faire |
 | 143 | PDF à lignes variables rendus par dompdf pendant la requête HTTP (`DocumentPdfService` : relevé de gérance `pdf/statements/owner`, état des lieux `pdf/inventories/report` et ses photos en URI `data:`, factures et devis à nombreuses lignes) : mémoire et durée face à `memory_limit = 256M` et `max_execution_time = 60` — le relevé de P112.01 hors de l'export générique | à faire |
@@ -251,6 +251,7 @@ voie d'écriture (angle 13, puis 47).
 | 174 | Lectures serveur `apiRequest` qui ne transmettent pas le profil actif (`activeProfileId` absent : racine `getMe`, `sonderExistence`, `fetchDashboardProperty`, `fetchDashboardCustomer`, `fetchDashboardMe`, `fetchAgencyUpgradeRequests`, `getAccountDeletionRequestAction`, `fetchMyCapabilities`, et leurs pareilles sous `src/lib/queries` et `src/app/actions`) face aux lectures du navigateur, qui le portent : pour un compte présent dans plusieurs agences, rendu serveur sans profil actif (404 ou 403 d'une fiche, liste vide, agence nulle) — né de P138.03 | à faire |
 | 175 | Relations vers un `User` supprimé en douceur par la suppression de compte (`causer`, `author`, `sender`, `issued_by`, `collector`, `handler`, `landlord` : portée `SoftDeletes` d'un `belongsTo` ou `morphTo` nu) lues dans les listes, les exports, les PDF et les notifications : auteur rendu « système », vide, ou 500 là où la ligne reste lisible — le pendant pour le compte des angles 130 et 165, né de P139.01 | à faire |
 | 176 | Rôles lus toutes agences confondues par `profileTypes()` là où l'écran montre le rôle dans une agence donnée (`AgencyDetailController.php:184` de la console, `UserRoleController.php:90`, `UserResource.php:90` rendu dans les listes d'équipe, ciblage par rôle de `AnnouncementResolver` et `FeatureFlagEvaluator`) : rôle d'une autre agence affiché ou appliqué — né de P139.02 | à faire |
+| 177 | Relevés de gérance d'une période close recalculés à chaque lecture (`OwnerStatementController`, `OwnerStatementService`, PDF `pdf/statements/owner`, avis mensuel `SendOwnerStatements`) face aux remboursements, annulations, rapprochements et reversements écrits après la clôture : relevé envoyé au bailleur que plus rien ne reproduit — le pendant des relevés de l'angle 140 | à faire |
 
 ---
 
@@ -13235,3 +13236,70 @@ l'une ni l'autre n'est reprise ici.*
   - Neuf écritures `activity()->…->log('<code>')` ne posent pas `->event()` (lu : `AgentAbsenceService:85`, trois dans `TenantOnboardingService`, `SendTenantWelcomeNotification:49`, `BookingExpirationService:248`, deux dans `RoleDelegationService:119,140`). Leurs sœurs `activated`/`expired` le posent (l. 163, 183). La colonne `event` de l'export sort vide sur ces lignes (mesuré, test temporaire : `absence.declared` → `"event": null`), et `filter[event]` de l'export ne peut pas les retenir (lu, l. 118-120).
   - `GenerateReportExport` relit `metric`, `period` et `granularity` dans `parameters`, mais ni `starts_at` ni `ends_at`, que le contrôleur y range (lu, job l. 36-44, contrôleur l. 115). Il écrit aussi toujours un CSV, quel que soit le `format` demandé (lu, l. 53-54). Le chemin n'est atteint par aucun rapport aujourd'hui (P78.04) : à reprendre avec lui s'il reste.
 - Piste : poser `->event()` sur ces neuf écritures (le code de `log()`, ou un verbe) ; passer les deux bornes et le format au job, ou le retirer avec P78.04.
+
+## Angle 140 — PDF figés face aux PDF recomposés à chaque téléchargement
+
+*Exploré le 2026-10-22 sur `pre-dev` a518e2cd2, par l'explorateur. Relu par l'explorateur lui-même,
+sans sous-agent : `DocumentPdfService` (`render`, `stream`, `store`, `prepareData`),
+`DocumentPdfController` (quittance, facture, contrat), `PublicPaymentLinkController::receipt`,
+`BookingPaymentController::receipt` et `PaymentReceiptPdf`, `InventoryController::downloadPdf` et
+`InventorySignatureService::frozenTraceabilityHash`, `MaintenanceQuoteController::pdf`,
+`LeaseSignatureService` (gel du contrat, `executionTerms`), `LeaseRenewalService::renew`,
+`RentReviewService`, `LeaseController::update`, les gabarits `pdf/leases/contract`,
+`pdf/receipts/rent`, `pdf/invoices/default` et `pdf/layouts/base`, `docs/pdf-templates.md` et
+ADR-0039 § 7. Mesuré par un test temporaire `tests/Feature/Tmp/ExplorateurTmp140Test.php` (retiré),
+qui remplace `DocumentPdfService::render` par une sous-classe gardant le HTML que l'appel aurait
+rendu (mêmes données, même `prepareData`) ; charge 1,61 / 1,85 / 1,83 sur 8 cœurs. Hors constat,
+parce que le code est juste : le contrat d'un bail figé est servi octet pour octet et fermé à
+l'échec, les termes imprimés d'un bail signé sont refusés en `PATCH` (`lease.terms_locked`), le
+devis d'intervention est remis à zéro à la réassignation (son prestataire imprimé reste donc
+l'auteur du devis), et un état des lieux signé est immuable. Le logo d'un état des lieux signé,
+laissé recomposé par décision, est P109.04 : il n'est pas repris.*
+
+### Un bail renouvelé sans signature n'a pas de contrat figé : son PDF « Contrat de bail » imprime le loyer révisé et les réglages courants de l'agence
+- Réf : P140.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Lease/LeaseRenewalService.php:122-152`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:121-150`, `takussan-api/resources/views/pdf/leases/contract.blade.php:26-30,98,151`, `takussan-api/app/Services/Lease/RentReviewService.php:116,197-202`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:292-297`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:93,222,277-283`
+- Constat :
+  - Un renouvellement naît `active` quand l'agence n'exige pas la signature et qu'il ne change aucun terme figé du parent (lu, `LeaseRenewalService.php:142-152`). Rien dans ce chemin n'écrit `contract_sha256` ni le média `signed_contract` (lu : seul `LeaseSignatureService` les écrit, l. 93 et 222).
+  - Le contrat d'un bail sans empreinte est rendu à la volée à chaque téléchargement (lu, `DocumentPdfController.php:126-150`). Le commentaire du contrôleur ne prévoit ce rendu que pour « un contrat NON figé (brouillon, ou défigé par une modification) » : un bail actif renouvelé n'est ni l'un ni l'autre.
+  - mesuré (test temporaire) : bail actif à 400 000, `POST /api/leases/{id}/renew` à 450 000 → enfant `active`, `contract_sha256` nul ; `GET …/contract/pdf` imprime « Loyer mensuel 450 000 F CFA » ; puis `RentReviewService::review` à 470 000 → le même `GET` imprime « 470 000 F CFA », sans mention de révision, avec la même date de début.
+  - L'enfant reprend les termes d'exécution du parent (`$data[…] ?? $parent->…`, lu l. 130-131). Un parent antérieur à TCK-596, aux colonnes nulles, transmet donc ses nulles : le contrat de l'enfant imprime alors l'indemnité et le plafond de révision **du réglage courant** de l'agence (`penaltyMonthsFor`, `maxPctFor`, lu), et la résiliation et la révision les exécutent aussi. Mesuré : `rent_review_max_pct` nul sur l'enfant, « Variation de 20 % au plus » imprimé (le défaut). Le commentaire de `maxPctFor` (« seulement pour un bail antérieur ») ne vaut plus : un bail né aujourd'hui y tombe. Ce que la seule activation par renouvellement laisse à nul est lu ; l'existence de tels parents en préproduction est à vérifier.
+  - Les garants restent modifiables sur un bail `active` (lu, `GuarantorController.php:101`) : sur un bail sans empreinte, le contrat imprime le garant ajouté après coup (déduit, à vérifier).
+- Piste : figer le contrat rendu, et les termes d'exécution, à la naissance `active` d'un renouvellement — comme `signOnPaper` le fait (`executionTerms` + `contract_sha256` + média), sans signature à recueillir ; ou, à défaut, imprimer sur le rendu à la volée qu'il reflète l'état courant du bail. Garde : un test « renouvellement actif, révision, contrat inchangé », et `maxPctFor` / `penaltyMonthsFor` jamais nuls pour un bail né après TCK-596.
+
+### Quittances, reçus et état des lieux signé réimpriment l'identité courante du locataire, du bien et de l'agence, et aucun exemplaire délivré n'est conservé
+- Réf : P140.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:50-66`, `takussan-api/app/Http/Controllers/Api/PublicPaymentLinkController.php:67-73`, `takussan-api/app/Services/Payments/PaymentReceiptPdf.php:44-61`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:185-225`, `takussan-api/resources/views/pdf/receipts/rent.blade.php:42,54-58`, `takussan-api/resources/views/pdf/layouts/base.blade.php:14-15,98-101`, `takussan-api/app/Services/Inventory/InventorySignatureService.php:123-150`
+- Constat :
+  - Les trois points qui délivrent une quittance (console, lien public, reçu de réservation) recomposent le PDF à chaque appel depuis les lignes courantes : bail, locataire (`Customer`), bien et son adresse, agence (lu). Aucun n'appelle `store()` ni ne garde les octets délivrés (lu ; `grep` de `store(` sur un service PDF dans `app/` → aucun appel).
+  - mesuré (test temporaire) : quittance d'une échéance `paid` téléchargée, puis `Customer` renommé de « Diop » en « Ndiaye » et agence de « Agence Alpha » en « Agence Beta » → le second téléchargement imprime « Ndiaye » et « Agence Beta », plus « Diop » ni « Agence Alpha ». La date du règlement et le montant, eux, ne bougent pas.
+  - Le pied de page dit « Document généré le <maintenant> » (lu, `base.blade.php:14`, `DocumentPdfService::prepareData`) : chaque téléchargement est un document neuf, et la quittance n'a pas d'autre date d'émission que celle du règlement.
+  - L'avis « loyer réglé en ligne » envoie au contact sans compte un lien vers la quittance publique, pas le PDF (lu, `SendRentReceiptAfterOnlinePayment.php:45`) : ce que le locataire ouvrira plus tard n'est pas ce qui était vrai au règlement.
+  - L'état des lieux signé suit le même chemin : identité du locataire, du bailleur (`$property->user`) et de l'agence relues au téléchargement (lu, `InventoryController.php:196-224`), alors que l'empreinte figée ne couvre aucune d'elles (lu, `frozenTraceabilityHash`, l. 123-150). TCK-596 a choisi de recomposer en figeant l'empreinte du contenu attesté ; l'identité des parties n'en fait pas partie.
+- Piste : décider ce qu'un acte délivré doit garder (V7). Deux voies : ranger le PDF à sa délivrance (`DocumentPdfService::store` existe pour cela, sans appelant) et resservir ces octets ; ou figer à l'acquittement un instantané des identités imprimées (`metadata` de l'échéance). Garde : un test « renommer le locataire après le règlement ne change pas la quittance », selon la voie retenue.
+
+### Une facture émise réimprime les mentions légales, le destinataire et la désignation courants
+- Réf : P140.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:98-114`, `takussan-api/resources/views/pdf/invoices/default.blade.php:10-29,66-82`, `takussan-api/app/Models/Invoice.php:121-139`, `docs/adr/0039-les-sorties-d-argent.md:267-291`
+- Constat :
+  - Une facture émise n'a aucune route de modification (mesuré : `php artisan route:list --path=invoices` → `index`, `store`, `show`, `cancel`, `mark-paid`, `pdf`, `send`) : ses montants et son numéro sont stables. Mais le PDF relit à chaque appel la raison sociale, le NINEA, le RCCM et l'adresse légale de l'agence, le nom, le courriel et le téléphone du `Customer`, et le titre du bien de la désignation (lu).
+  - mesuré (test temporaire) : facture `sent` émise par une agence « Alpha SARL », NINEA 111111111, client « Diop » ; agence passée à « Beta SA », NINEA 222222222, client renommé « Ndiaye » → le second `GET /api/invoices/{id}/pdf` imprime « Beta SA », « 222222222 » et « Ndiaye », plus aucune des valeurs d'émission.
+  - ADR-0039 § 7 fige le numéro « à l'émission » et imprime les mentions « quand elles existent », sans dire de quelle date elles sont (lu). Une facture déjà remise au client et téléchargée de nouveau ne se reproduit donc plus.
+- Piste : figer à l'émission (dans la transaction de `InvoiceNumberAllocator`) les mentions légales, l'identité du destinataire et la désignation dans `metadata`, et les imprimer de là ; ou ranger le PDF à l'émission. Le choix et la règle de droit relèvent du porteur (V7, et V1 pour une pièce comptable). Garde : un test « mentions changées après émission ».
+
+### Petites améliorations du service PDF et de sa documentation
+- Réf : P140.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Pdf/DocumentPdfService.php:96-141`, `docs/pdf-templates.md:8-12,78-79,83-96`
+- Constat :
+  - **`store()` sans appelant** : aucun appel dans `app/` (lu, `grep -rn "store(" app` sur les services PDF) ; seuls `DocumentPdfServiceTest` et `DocumentShareLinkDownloadTest` l'emploient. C'est pourtant la seule voie qui garderait un exemplaire délivré (P140.02, P140.03) : la retirer ou s'en servir se décide avec elles.
+  - **`docs/pdf-templates.md:78`** dit « Production uses the cloudflare browserless service », quand `.env.example:261`, `.env.docker:320` et le plan d'auto-hébergement déclarent `dompdf` (lu) ; TCK-1239 a aligné `docs/configuration.md`, pas ce fichier.
+  - **`docs/pdf-templates.md:10`** recommande `render()` pour les « emails attachments » : aucun courriel du dépôt n'attache de PDF (lu, `grep -rn "attachData\|attach(" app` → aucun courriel).
+- Piste : corriger les deux phrases de `docs/pdf-templates.md` pour dire ce que fait le code (A6) ; garder ou retirer `store()` selon la décision de P140.02.
