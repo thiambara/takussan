@@ -26,7 +26,7 @@
 #   ~/.takussan-agents/outils/pistes.sh pause | reprendre
 #   ~/.takussan-agents/outils/pistes.sh action <verbe> …   # les actions du superviseur (ou du porteur) :
 #       reposer <job> | balayer | purger | pause <rôle|tous> <raison> | reprendre <rôle|tous>
-#       | relancer-ci <run-id> | intermittent <run-id> <suite> | notifier <texte>
+#       | relancer-ci <run-id> | intermittent <run-id> <suite> | fermer <pr> <raison> | notifier <texte>
 #
 # Compatible bash 3.2 : launchd lance /bin/bash, celui de macOS.
 set -euo pipefail
@@ -1687,6 +1687,25 @@ action_intermittent() {
   info "run $run : intermittent traité ($suite)"
 }
 
+# Ferme une PR du superviseur devenue sans objet (amendement d'ADR-0066 du 2026-10-22, bis) : #1097
+# est restée onze heures en conflit, redondante avec un correctif arrivé par une autre PR, sans
+# qu'aucun verbe ne puisse la fermer. Seulement les siennes : ouvertes, vers pre-dev, tête
+# agents/superviseur/*.
+action_fermer() {
+  local num="${1:-}" raison="${2:-}" lu etat base tete
+  case "$num" in '' | *[!0-9]*) die "fermer <pr> \"<raison>\"" ;; esac
+  [ "${#raison}" -ge 10 ] || die "fermer $num « <raison> » : pourquoi la PR n'a plus d'objet (10 caractères au moins)"
+  lu="$(GH_REPO="$GH_REPO" gh pr view "$num" --json state,baseRefName,headRefName --jq '"\(.state)|\(.baseRefName)|\(.headRefName)"')" || die "PR #$num illisible"
+  IFS='|' read -r etat base tete <<< "$lu"
+  [ "$etat" = OPEN ] || die "#$num : état « $etat », rien à fermer"
+  [ "$base" = pre-dev ] || die "#$num vise « $base » : seules les PR vers pre-dev"
+  case "$tete" in agents/superviseur/?*) ;; *) die "#$num a pour tête « $tete » : le superviseur ne ferme que ses propres PR (agents/superviseur/*)" ;; esac
+  GH_REPO="$GH_REPO" gh pr close "$num" --delete-branch --comment "Fermée par le superviseur : $raison" > /dev/null
+  journaliser_action "fermer #$num ($tete) : $raison"
+  notifier "PR #$num fermée : $raison"
+  info "#$num fermée ($tete)"
+}
+
 action() {
   charger_config
   local verbe="${1:-}"
@@ -1699,8 +1718,9 @@ action() {
     reprendre) action_reprendre "$@" ;;
     relancer-ci) action_relancer_ci "$@" ;;
     intermittent) action_intermittent "$@" ;;
+    fermer) action_fermer "$@" ;;
     notifier) [ -n "${1:-}" ] || die "notifier <texte>"; notifier "$*" ;;
-    *) die "action <verbe> : reposer, balayer, purger, pause, reprendre, relancer-ci, intermittent, notifier" ;;
+    *) die "action <verbe> : reposer, balayer, purger, pause, reprendre, relancer-ci, intermittent, fermer, notifier" ;;
   esac
 }
 

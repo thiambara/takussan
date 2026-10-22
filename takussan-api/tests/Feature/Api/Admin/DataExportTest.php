@@ -38,6 +38,36 @@ class DataExportTest extends TestCase
         $this->assertTrue(Activity::query()->where('event', 'user_data_export_requested')->exists());
     }
 
+    /**
+     * P111.02 (TCK-1503) — la limite de 24 h ne compte que les demandes `queued`, `processing`
+     * et `ready` : une demande en échec (ou déjà expirée) n'a rien rendu et ne bloque pas la
+     * suivante.
+     */
+    public function test_seules_les_demandes_en_cours_ou_pretes_comptent_dans_la_limite_de_24_h(): void
+    {
+        Storage::fake('local');
+        $user = $this->actingAsRole('customer');
+
+        foreach ([
+            'failed' => true,
+            'expired' => true,
+            'queued' => false,
+            'processing' => false,
+            'ready' => false,
+        ] as $statut => $accepte) {
+            DataExport::query()->where('user_id', $user->id)->delete();
+            DataExport::query()->create([
+                'user_id' => $user->id,
+                'requested_by' => $user->id,
+                'status' => DataExportStatus::from($statut),
+                'requested_at' => now()->subHour(),
+            ]);
+
+            $this->postJson('/api/me/data-exports')
+                ->assertStatus($accepte ? 202 : 429);
+        }
+    }
+
     public function test_super_admin_reason_is_required(): void
     {
         $target = User::factory()->create();
