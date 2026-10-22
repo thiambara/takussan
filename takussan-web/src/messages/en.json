@@ -1453,7 +1453,7 @@
           "agent": "Agent",
           "manager": "Manager",
           "co_owner": "Co-owner",
-          "viewer": "View only"
+          "viewer": "Viewer (no access)"
         },
         "designate": "Make primary",
         "designateFor": "Make {name} the primary agent",
