@@ -37,11 +37,60 @@ export type LibelleRole = (code: string) => string | null;
 /** Les codes dont le paramètre `role` est un code de rôle délégable, et non un nom libre. */
 const CODES_A_ROLE_CODE = 'role_delegation.';
 
+/**
+ * P164.01 (TCK-1468) — le fournisseur d'une intégration arrive CODÉ (`orange_money`) : il s'affiche
+ * par son libellé, selon la règle des libellés de l'API (`IntegrationProvider::label()` : « wave » →
+ * « Wave », « orange_money » → « Orange Money », « sms_orange » → « Sms Orange »), que
+ * `IntegrationModifieeFournisseurTest` garde pour chaque fournisseur du registre. Les clés de
+ * fournisseur du front ne conviennent pas : `adminSettings` n'est pas servi à la cloche
+ * (frontière `(dashboard)/app`), et `payments` nomme la carte « Carte (Lemon Squeezy) ».
+ */
+export type LibelleFournisseur = (code: string) => string | null;
+
+/** Les codes dont le paramètre `provider` est un code de fournisseur d'intégration (`PARAM_PROVIDER`). */
+const CODES_A_FOURNISSEUR = new Set(['governance.integration_changed']);
+
+/**
+ * P164.02 (TCK-1470) — les paramètres de nature `month` côté API (`PARAM_MONTH`) : un mois rangé
+ * `Y-m`, écrit en toutes lettres (« septembre 2026 »). Une valeur d'une autre forme reste telle quelle.
+ */
+const PARAMS_MOIS: Readonly<Record<string, readonly string[]>> = {
+  'owner_statement.available': ['period'],
+};
+const MOIS = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/**
+ * P164.06 (TCK-1472) — le miroir de `NotificationCode::unnamedParams()` : quand l'un de ces
+ * paramètres est nul ou vide, le corps se lit sous `<code>.body_unnamed`, la phrase privée du nom,
+ * au lieu de « — ».
+ */
+const PARAMS_NOMMES: Readonly<Record<string, readonly string[]>> = {
+  'bank_statement.imported': ['bank'],
+  'governance.role_capabilities_changed': ['role'],
+};
+
+function nomAbsent(code: string, params: AppNotification['params']): boolean {
+  return (PARAMS_NOMMES[code] ?? []).some((nom) => {
+    const valeur = params?.[nom];
+    return valeur === null || valeur === undefined || (typeof valeur === 'string' && valeur.trim() === '');
+  });
+}
+
+function libelleGeneriqueFournisseur(code: string): string {
+  return code
+    .split('_')
+    .filter((mot) => mot !== '')
+    .map((mot) => mot.charAt(0).toUpperCase() + mot.slice(1))
+    .join(' ');
+}
+
 export function valeursDeNotification(
   params: Record<string, NotificationParam> | null | undefined,
   fmt: Formatteurs,
   motif?: LibelleMotif,
   role?: LibelleRole,
+  fournisseur?: LibelleFournisseur,
+  mois: readonly string[] = [],
 ): ValeursNotification {
   const valeurs: ValeursNotification = {};
   for (const [nom, valeur] of Object.entries(params ?? {})) {
@@ -51,6 +100,10 @@ export function valeursDeNotification(
       valeurs[nom] = typeof detail === 'string' && detail !== '' ? `${libelle} (${detail})` : libelle;
     } else if (nom === 'role' && role && typeof valeur === 'string' && valeur !== '') {
       valeurs[nom] = role(valeur) ?? valeur;
+    } else if (nom === 'provider' && fournisseur && typeof valeur === 'string' && valeur !== '') {
+      valeurs[nom] = fournisseur(valeur) ?? valeur;
+    } else if (mois.includes(nom) && typeof valeur === 'string' && MOIS.test(valeur)) {
+      valeurs[nom] = fmt.date(`${valeur}-01`, { month: 'long', year: 'numeric' });
     } else if (valeur === null || valeur === undefined || valeur === '') {
       valeurs[nom] = VALEUR_ABSENTE;
     } else if (typeof valeur === 'number') {
@@ -89,10 +142,14 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
     if (!code || !t.has(`${code}.title`)) return repli;
 
     const role = code.startsWith(CODES_A_ROLE_CODE) ? libelleRole : undefined;
-    const valeurs = valeursDeNotification(notification.params, fmt, motif, role);
+    const fournisseur = CODES_A_FOURNISSEUR.has(code) ? libelleGeneriqueFournisseur : undefined;
+    const valeurs = valeursDeNotification(notification.params, fmt, motif, role, fournisseur, PARAMS_MOIS[code]);
+    const cleCorps = nomAbsent(code, notification.params) && t.has(`${code}.body_unnamed`)
+      ? `${code}.body_unnamed`
+      : `${code}.body`;
     return {
       titre: t(`${code}.title`, valeurs),
-      corps: t.has(`${code}.body`) ? t(`${code}.body`, valeurs) : repli.corps,
+      corps: t.has(cleCorps) ? t(cleCorps, valeurs) : repli.corps,
     };
   };
 }

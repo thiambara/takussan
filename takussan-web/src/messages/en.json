@@ -10591,7 +10591,8 @@
       "governance": {
         "role_capabilities_changed": {
           "title": "Role permissions changed",
-          "body": "The permissions of the role {role} were changed by {actor}."
+          "body": "The permissions of the role {role} were changed by {actor}.",
+          "body_unnamed": "The permissions of a role were changed by {actor}."
         },
         "admin_added": {
           "title": "New administrator",
@@ -10657,7 +10658,8 @@
       "bank_statement": {
         "imported": {
           "title": "Statement imported",
-          "body": "{lines, plural, one {Your statement {bank} (# line) is ready for reconciliation.} other {Your statement {bank} (# lines) is ready for reconciliation.}}"
+          "body": "{lines, plural, one {Your statement {bank} (# line) is ready for reconciliation.} other {Your statement {bank} (# lines) is ready for reconciliation.}}",
+          "body_unnamed": "{lines, plural, one {Your statement (# line) is ready for reconciliation.} other {Your statement (# lines) is ready for reconciliation.}}"
         },
         "finalized": {
           "title": "Statement finalized",
