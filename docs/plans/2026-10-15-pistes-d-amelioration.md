@@ -12551,7 +12551,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Les loyers d'une agence supprimée continuent de prendre des pénalités et de relancer le locataire
 - Réf : P129.02
-- Statut : validé — porteur (2026-10-22) : réglée par P129.06 (ADR-0048, amendement du 2026-10-22) : aucune agence ne se supprime plus ; rien à implémenter à part
+- Statut : fait · TCK-1499
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:36-41,74-91`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:132-143`, `takussan-api/app/Jobs/Invoice/SendOverdueRemindersJob.php:29-35`
 - Constat :
@@ -12561,6 +12561,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : mesuré pour les deux premiers jobs, lu.
 - Piste : dépend de la décision de P129.01. Si une agence supprimée cesse d'opérer, les jobs d'argent et de relance la sautent (`whereHas('agency')`, ou jointure sur `agencies.deleted_at IS NULL`), et un test par job le garde. Relève de V1.
 - Mesure (2026-10-22, 487aba964, mesureur) : relu `ApplyLateFeesJob.php:36-41,74-91` (`Lease::query()` puis `where('agency_id', …)`, sans regard pour l'agence), `SendLeasePaymentReminders::claim` (l'échéance seule) et, pour le point « à vérifier », `OverdueReminderService::agenciesWithRemindableInvoices` et `candidateQuery` (`Invoice::query()` filtré sur statut, échéance et `agency_id`, sans jointure sur `agencies`) ; test temporaire (retiré) : bail à 5 %, échéance à J-10, suppression, `ApplyLateFeesJob::handle` → 1, `late_fee_applied_at` posé. Le constat tient, relances de factures comprises par lecture (non exécutées). Classement : V1, une pénalité et une relance d'impayé sont des écritures d'argent, et le correctif dépend de la décision de P129.01.
+- Mesure (2026-10-22, d30c8c591, implementeur) : aucune ligne propre ; le seul `$agency->delete()` de `app/` était `AgencyController::destroy`, retirée par TCK-1499 (P129.06, `SuppressionDAgenceRetireeTest`) : plus aucune agence ne se supprime par l'API, et les pénalités et relances d'une agence `inactive` ou `suspended` courent comme l'écrit ADR-0048 (amendement du 2026-10-22).
 
 ### Une invitation ouverte d'une agence supprimée est encore relancée et s'accepte
 - Réf : P129.03
@@ -12608,7 +12609,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### La suppression n'a ni appelant au front, ni restauration, ni vue dans la console, et contourne le cycle de vie d'ADR-0048
 - Réf : P129.06
-- Statut : validé — porteur (2026-10-22) : appliquer ADR-0048 (amendement du 2026-10-22) : retirer `DELETE /api/agencies/{agency}`, `AgencyController::destroy` et ses deux tests, avec le test de routes qui exige qu'elle ne revienne pas
+- Statut : fait · TCK-1499
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/agencies.php:30`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:147-159`, `takussan-api/tests/Feature/Api/AgencyTest.php:190-210`, `docs/adr/0048-effet-d-une-suspension-d-agence.md`
 - Constat :
@@ -12619,6 +12620,7 @@ l'angle 160 : il n'est pas repris ici.*
 - Piste : soit retirer la route (aucun appelant au front) et laisser la fin d'activité au statut d'ADR-0048, soit l'écrire comme une transition de ce cycle de vie, avec une vue des agences supprimées dans la console. Choix de produit et de structure (ADR) : la piste ne tranche pas.
 - Mesure (2026-10-22, 487aba964, mesureur) : `grep` de `takussan-web/src` sur les `DELETE` vers `/api/agencies/` → absences, rôles, délégations et demandes de passage (`agency-upgrade.ts:94`) seulement, aucun appel à `DELETE /api/agencies/{id}` ; `routes/api/agencies.php:30` inchangé ; `grep withTrashed|onlyTrashed` sur `app/` et `routes/` → aucun lecteur d'agences supprimées dans la console (`AgencyProvisioningService.php:128` ne relit que le slug) ; `AgencyTest.php` ne vérifie que `assertSoftDeleted`. Le constat tient. Classement : V7 et V6, la piste propose deux options sans trancher, et l'une retire une fonction de l'API.
 - Mesure (2026-10-22, 788016695, delegue) : relu l'entrée, P129.01 (sans décision du porteur), `routes/api/agencies.php:30`, ADR-0048 (cycle de vie par `status`, rien sur la suppression) ; `grep -n "porteur ("` de l'angle 129 → aucune décision. Recommandation : retirer la route `DELETE /api/agencies/{id}` (aucun appelant au front, aucune restauration, aucune vue) et laisser la fin d'activité au statut d'ADR-0048 (`inactive` ou `suspended`), ce qui ferme du même coup les P129.01 à P129.05 ; ce n'est pas délégué parce que la piste demande un ADR (V6 non délégable : il faut écrire le sens de la suppression d'agence), retire une fonction de l'API, et touche la décision de P129.01 qui porte V2 ; il manque au porteur de trancher P129.01, dont celle-ci est l'une des deux options.
+- Mesure (2026-10-22, d30c8c591, implementeur) : `php artisan route:list --method=DELETE --path=api/agencies` → `api/agencies/{agency}` encore enregistrée, et le test neuf `SuppressionDAgenceRetireeTest` rouge. Correctif : route `agencies.destroy` et `AgencyController::destroy` retirées, les deux tests de suppression d'`AgencyTest` retirés, `InvitationAgenceSupprimeeTest` réécrit sans la route (révocation par `revokeOpenForAgency`, qui n'a plus d'appelant dans `app/`) → vert, six `DELETE` voisins toujours là ; ablation (route et action remises) → rouge ; `AgencyTest` 11/11, `InvitationAgenceSupprimeeTest` 2/2.
 
 ## Angle 130 — Fiches client, garant et bien supprimées en douceur et encore citées
 
