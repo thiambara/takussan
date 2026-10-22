@@ -264,6 +264,32 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
     await waitFor(() => expect(q.match).toHaveBeenCalledWith({ lineId: 101, payment_type: 'payout', payment_id: 5 }));
   });
 
+  // TCK-1526 (P110.04) — un acompte remboursé reste candidat, et le dit ; il reste choisissable.
+  it('la recherche manuelle montre le statut de chaque candidat, sans l’écarter', async () => {
+    q.match.mockResolvedValue({});
+    q.usePaymentSearch.mockImplementation((_a: number, _q: string, _m: number | null, _d: string, enabled: boolean) =>
+      enabled
+        ? ok({
+            data: [
+              { id: 7, type: 'booking_payment', label: null, amount: '70000.00', currency: 'XOF', reference: 'BP-7', paid_at: null, payer_name: null, status: 'refunded' },
+              { id: 8, type: 'invoice', label: null, amount: '70000.00', currency: 'XOF', reference: 'FA-8', paid_at: null, payer_name: null, status: 'sent' },
+            ],
+          })
+        : { data: undefined, isLoading: false, isError: false },
+    );
+    render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+
+    fireEvent.click(within(screen.getByTestId('ligne-100')).getByRole('button', { name: fr.admin.reconciliation.detail.search }));
+    const dialogue = await screen.findByRole('dialog');
+    fireEvent.click(within(dialogue).getByRole('button', { name: fr.admin.reconciliation.search.submit }));
+
+    expect(await within(dialogue).findByTestId('statut-candidat-booking_payment-7')).toHaveTextContent(fr.payments.status.refunded);
+    expect(within(dialogue).getByTestId('statut-candidat-invoice-8')).toHaveTextContent(fr.payments.invoiceStatus.sent);
+
+    fireEvent.click(within(dialogue).getAllByRole('button', { name: fr.admin.reconciliation.search.choose })[0]);
+    await waitFor(() => expect(q.match).toHaveBeenCalledWith({ lineId: 100, payment_type: 'booking_payment', payment_id: 7 }));
+  });
+
   // Ajouté après vérification adverse (AC18b) : seule la LISTE était éprouvée — forcer le compte
   // à 0 dans le détail laissait la suite verte.
   it('le détail dit combien de lignes ont été sautées, et qu’un relevé a échoué', () => {

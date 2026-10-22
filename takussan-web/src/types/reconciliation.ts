@@ -81,6 +81,8 @@ export interface MatchCandidate {
   reference: string | null;
   paid_at: string | null;
   payer_name: string | null;
+  /** TCK-1526 (P110.04) — le statut du payable, valeur de l'enum de son type (un remboursé le dit). */
+  status?: string | null;
 }
 
 export type SignConvention = 'amount_signed' | 'direction_column';
