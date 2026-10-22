@@ -14522,7 +14522,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le bailleur d'un bien d'agence voit « Confirmer », « Terminer », « Reporter » et « Annuler » sur la visite, que l'API réserve au personnel
 - Réf : P152.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1428
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/visits/VisitDetail.tsx:99-109,265-289`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:299-311,501-517`
 - Constat :
@@ -14532,6 +14532,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - `canAgent={isAssignedAgent || isManager}` ouvre de même au bailleur le retour d'agent sur une visite terminée (lu, l. 306). La garde de l'API sur cette écriture n'a pas été relue (à vérifier).
 - Piste : ne compter le bailleur parmi les gestionnaires que sur un bien sans agence, comme `agitPourLeBien`. Le plus simple est de servir `abilities` dans `PropertyVisitResource`, calculés par la même fonction. Un test de `VisitDetail` avec un bailleur sur un bien d'agence garderait la règle.
 - Mesure (2026-10-22, a9d90e1cf, mesureur) : relu `VisitDetail.tsx:99-109` (`isManager` = `isOwner || hasAgentRole || isAdmin`, qui ouvre confirmer, terminer, reporter, annuler) et `PropertyVisitController::agitPourLeBien` (l. 501-517 : sur un bien d'agence, le seul personnel actif) ; test temporaire (retiré), même charge → bailleur de l'agence, auteur du bien : `roles = ["owner","customer"]`, `GET /api/property-visits/{id}` → 200, `POST …/confirm`, `POST …/cancel`, `PATCH …` → 403 `visit.staff_only` → le constat tient. Inexact sur un point : le retour d'agent (l. 306) n'est pas refusé, `feedback()` admet le propriétaire du bien (`PrimaryPropertyContact::estProprietaire`, l. 423-427), mesuré 200 sur une visite terminée l'instant d'avant ; cette partie ne se corrige pas. Classement : A1, la règle attendue est écrite dans `agitPourLeBien` ; le correctif attendu sert des `abilities` dans `PropertyVisitResource`, calculés par cette même fonction, et y lie les quatre gestes (le visiteur gardant l'annulation), sans toucher au retour d'agent.
+- Mesure (2026-10-22, e2959c84c, implementeur) : `tests/Feature/Visits/PropertyVisitAbilitiesTest.php` et `VisitDetail.abilities.test.tsx`, charge { 3.47 4.35 4.24 } sur 8 cœurs → avant correctif, le détail ne rend aucun `abilities` (2 rouges) et la fiche monte confirmer, clore, absent, replanifier et annuler au bailleur (2 rouges) → `agitPourLeBien` passe dans `PropertyVisitPolicy` (inchangée), `PropertyVisitResource` rend `abilities.manage` (`update` et `agitPourLeBien`) sur la visite de la route, `VisitDetail` y lie les cinq gestes (le visiteur garde l'annulation) ; 2 + 3 verts, `PropertyVisitVerificationAdverseTest`, `PropertyVisitTest`, `PropertyVisitWorkflowTest`, `ProprietaireDuBienTest` et les tests du détail verts ; ablation : rouges, remis verts. Le retour d'agent n'est pas touché.
 
 ### « Attribuer » une demande de contact est montré à l'admin dont le rôle ne porte pas `crm.assign`, et rend 403
 - Réf : P152.05
