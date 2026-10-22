@@ -6465,6 +6465,10 @@
           "title": "Seetlu bi mat na",
           "description": "Topptoo bi ginnaaw seetlu bi jot na léegi."
         },
+        "noShow": {
+          "title": "Visite marquée absente",
+          "description": "Le visiteur ne s'est pas présenté : la visite n'est pas comptée parmi les visites effectuées."
+        },
         "cancelled": {
           "title": "Neenal nañu seetlu bi",
           "description": "Bind nañu lu tax ci ñaan bi."
@@ -6477,6 +6481,7 @@
       "actions": {
         "confirm": "Dëggal seetlu bi",
         "complete": "Wone ne mat na",
+        "noShow": "Marquer absent",
         "reschedule": "Soppi waxtu wi",
         "viewProperty": "Gis kër gi"
       },

@@ -7113,6 +7113,10 @@
           "title": "Visite marquée effectuée",
           "description": "Le suivi post-visite est maintenant disponible."
         },
+        "noShow": {
+          "title": "Visite marquée absente",
+          "description": "Le visiteur ne s'est pas présenté : la visite n'est pas comptée parmi les visites effectuées."
+        },
         "cancelled": {
           "title": "Visite annulée",
           "description": "Le motif est enregistré sur la demande."
@@ -7125,6 +7129,7 @@
       "actions": {
         "confirm": "Confirmer la visite",
         "complete": "Marquer effectuée",
+        "noShow": "Marquer absent",
         "reschedule": "Replanifier",
         "viewProperty": "Voir le bien"
       },

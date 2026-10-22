@@ -586,6 +586,7 @@ return [
         'already_assigned' => 'This visit is already handled by another member of the agency.',
         'cannot_cancel' => 'This visit cannot be cancelled in its current state.',
         'cannot_complete' => 'This visit cannot be completed in its current state.',
+        'cannot_mark_no_show' => 'Only a scheduled or confirmed visit whose time has passed can be marked as a no-show.',
         'closed' => 'A completed or cancelled visit can no longer be changed.',
         'feedback_agent_only' => 'Only the agent in charge can give the agent feedback.',
         'feedback_not_completed' => 'Feedback is only possible once the visit is completed.',

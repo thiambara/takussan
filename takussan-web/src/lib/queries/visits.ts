@@ -182,6 +182,22 @@ export function useCompleteVisit(id: number) {
   );
 }
 
+/**
+ * TCK-1305 (P115.05) — le visiteur n'est pas venu : la visite passée est marquée absente
+ * (`no_show`), sans être comptée parmi les visites menées.
+ */
+export function useMarkVisitNoShow(id: number) {
+  return useApiMutation<ApiResponse<PropertyVisit>, void>(
+    { path: cheminApi`/api/property-visits/${id}/no-show`, method: 'POST' },
+    {
+      invalidate: [
+        ['visits', 'list'],
+        ['visits', 'detail', id],
+      ],
+    },
+  );
+}
+
 export function useCancelVisit(id: number) {
   return useApiMutation<VisitActionResponse, { reason?: string }>(
     { path: cheminApi`/api/property-visits/${id}/cancel`, method: 'POST' },

@@ -337,6 +337,31 @@ class PropertyVisitController extends Controller
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
     }
 
+    /**
+     * TCK-1305 (P115.05, décision du porteur) — le geste « absent » : le visiteur n'est pas venu.
+     * Rien n'écrivait `no_show` ; l'agent devait déclarer la visite terminée (comptée parmi les
+     * visites menées, ouverte à l'avis du visiteur) ou l'annuler. Geste de l'agence, comme
+     * `complete`, depuis `scheduled` ou `confirmed`, une fois l'heure de la visite passée. Pas de
+     * passage automatique : une visite simplement non clôturée n'est pas une absence.
+     */
+    public function noShow(Request $request, PropertyVisit $visit): JsonResponse
+    {
+        $this->authorize('update', $visit);
+        abort_code_unless($this->agitPourLeBien($request->user(), $visit), 403, 'visit.staff_only');
+
+        abort_code_unless(
+            in_array($visit->status, [VisitStatus::Scheduled, VisitStatus::Confirmed], true)
+                && $visit->scheduled_at !== null
+                && $visit->scheduled_at->lessThanOrEqualTo(now()),
+            422,
+            'visit.cannot_mark_no_show'
+        );
+
+        $visit->update(['status' => VisitStatus::NoShow]);
+
+        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
+    }
+
     public function cancel(CancelPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
         // TCK-590 — `cancel` ne prévenait personne. Le visiteur qui annule prévient l'agence ;

@@ -15,6 +15,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('property-visits/{visit}', [PropertyVisitController::class, 'update']);
     Route::post('property-visits/{visit}/confirm', [PropertyVisitController::class, 'confirm'])->name('property-visits.confirm');
     Route::post('property-visits/{visit}/complete', [PropertyVisitController::class, 'complete'])->name('property-visits.complete');
+    // TCK-1305 (P115.05) — le visiteur n'est pas venu : la visite passée est marquée absente.
+    Route::post('property-visits/{visit}/no-show', [PropertyVisitController::class, 'noShow'])->name('property-visits.no-show');
     Route::post('property-visits/{visit}/cancel', [PropertyVisitController::class, 'cancel'])->name('property-visits.cancel');
     // TCK-590 — prise en charge par le personnel, et nouveau créneau proposé par le visiteur.
     Route::post('property-visits/{visit}/claim', [PropertyVisitController::class, 'claim'])->name('property-visits.claim');

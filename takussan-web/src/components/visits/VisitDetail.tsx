@@ -8,6 +8,7 @@ import {
   useCancelVisit,
   useClaimVisit,
   useCompleteVisit,
+  useMarkVisitNoShow,
   useConfirmVisit,
   useProposeVisitSlot,
   useUpdateVisit,
@@ -57,6 +58,7 @@ export function VisitDetail({ id }: { id: number }) {
 
   const confirm = useConfirmVisit(id);
   const complete = useCompleteVisit(id);
+  const markNoShow = useMarkVisitNoShow(id);
   const cancel = useCancelVisit(id);
   const updateVisit = useUpdateVisit(id);
   const claim = useClaimVisit(id);
@@ -106,6 +108,9 @@ export function VisitDetail({ id }: { id: number }) {
     isManager &&
     (status === 'confirmed' || status === 'scheduled') &&
     (isPastSlot || status === 'confirmed');
+  // TCK-1305 (P115.05) — l'absence ne se déclare qu'une fois l'heure passée ; le serveur le
+  // rejuge (`visit.cannot_mark_no_show`).
+  const canMarkNoShow = isManager && (status === 'confirmed' || status === 'scheduled') && isPastSlot;
   const canReschedule = isManager && (status === 'scheduled' || status === 'confirmed');
   const isActive = status === 'scheduled' || status === 'confirmed';
   // TCK-590 — la visite déposée sur le site n'a pas d'agent : le personnel de l'agence la prend
@@ -152,6 +157,15 @@ export function VisitDetail({ id }: { id: number }) {
     toast.add({
       title: t('toasts.completed.title'),
       description: t('toasts.completed.description'),
+      type: 'success',
+    });
+  }
+
+  async function handleNoShow() {
+    await markNoShow.mutateAsync();
+    toast.add({
+      title: t('toasts.noShow.title'),
+      description: t('toasts.noShow.description'),
       type: 'success',
     });
   }
@@ -270,6 +284,11 @@ export function VisitDetail({ id }: { id: number }) {
           {canComplete && (
             <Button onClick={handleComplete} disabled={complete.isPending} variant="outline" className="h-10 sm:h-8">
               {t('actions.complete')}
+            </Button>
+          )}
+          {canMarkNoShow && (
+            <Button onClick={handleNoShow} disabled={markNoShow.isPending} variant="outline" className="h-10 sm:h-8">
+              {t('actions.noShow')}
             </Button>
           )}
           {canReschedule && (

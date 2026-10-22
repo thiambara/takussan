@@ -7113,6 +7113,10 @@
           "title": "Visit marked as completed",
           "description": "Post-visit follow-up is now available."
         },
+        "noShow": {
+          "title": "Visit marked as no-show",
+          "description": "The visitor did not show up: the visit is not counted among completed visits."
+        },
         "cancelled": {
           "title": "Visit cancelled",
           "description": "The reason has been saved on the request."
@@ -7125,6 +7129,7 @@
       "actions": {
         "confirm": "Confirm the visit",
         "complete": "Mark as completed",
+        "noShow": "Mark as no-show",
         "reschedule": "Reschedule",
         "viewProperty": "View the property"
       },
