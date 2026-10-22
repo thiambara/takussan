@@ -13623,7 +13623,7 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
 
 ### Le rappel J-7 avant suppression du compte est marqué envoyé à la mise en file, en e-mail seul : un échec du fournisseur fait supprimer le compte sans rappel
 - Réf : P142.03
-- Statut : validé — porteur (2026-10-22) : `backoff` sur la notification et un `failed()` qui remet `reminder_sent_at` à nul : le rappel repart, et la suppression est reportée d'autant
+- Statut : fait · TCK-1390
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:38-43`, `takussan-api/app/Services/Account/AccountDeletionService.php:550-562`, `takussan-api/app/Notifications/AccountDeletionReminderNotification.php:14-30`
 - Constat :
@@ -13632,6 +13632,7 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - Établi comment : lu. La perte par épuisement des essais est déduite du `--tries=3` sans délai (à vérifier par un transport qui lève sous la file `database`).
 - Piste : `backoff` sur la notification et un `failed()` qui remet `reminder_sent_at` à nul (le passage suivant le renvoie), ou qui reporte l'exécution ; test : transport qui lève → `reminder_sent_at` nul après `failed()`.
 - Mesure (2026-10-22, af5be0846, mesureur) : relu `ExecuteScheduledAccountDeletions::handle()` (`notify(new AccountDeletionReminderNotification(...))` puis `reminder_sent_at = now()` aussitôt), `AccountDeletionService::dueForReminder()` (l. 550-562, ne relit que `reminder_sent_at IS NULL`), `AccountDeletionReminderNotification` (`ShouldQueue`, `via()` → `['mail']`, file `notifications-urgent`, ni `backoff` ni `failed()`) ; aucun commit depuis 2662d382c → le constat tient en lecture, la perte par épuisement des essais sous la file `database` n'a pas été jouée. Classement : V3, la Piste laisse le choix entre renvoyer le rappel et reporter l'exécution, ce qui décide de la suppression de données personnelles.
+- Mesure (2026-10-22, 034d400b2, implementeur) : `RappelDeSuppressionEnEchecTest` avant correctif : marque posée, puis `failed()` du `SendQueuedNotifications` sérialisé de `AccountDeletionReminderNotification` 25 min plus tard → `reminder_sent_at` reste posé, la demande n'est plus rendue par `dueForReminder()` (rouge) ; `backoff` déjà porté depuis TCK-1352. `failed()` qui journalise (trait), remet la marque à nul et avance `scheduled_for` du retard → `reminder_sent_at` nul, demande de nouveau due, `scheduled_for` + 25 min ; une demande exécutée n'est pas touchée ; ablation (notification remise à `034d400b2`) → 1 rouge, remise → 2 verts ; `AccountDeletionScheduledTest`, `NotificationsEnFileTest` verts.
 
 ### Les commissions d'un bail sont calculées par un écouteur en file sans `failed()` ni autre appelant : un échec laisse le bail sans ligne de commission, sans alerte
 - Réf : P142.04
