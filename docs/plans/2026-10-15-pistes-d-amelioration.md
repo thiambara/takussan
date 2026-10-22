@@ -197,7 +197,7 @@ voie d'écriture (angle 13, puis 47).
 | 120 | Listes de personnes servies aux sélecteurs du front (`fetchAgencyAgents`, `role-delegations.ts`, `ContactLeadsInbox`, `AuditTrail`, `ParticipantPicker`) face au prédicat que l'API juge ensuite à l'écriture (`isStaffAt`, `PersonnelDeLAgence::estPersonnel`, `CollaboratorEligibleForProperty`) : candidat proposé puis refusé en 422, candidat légitime absent | fait |
 | 121 | Passation de portefeuille (`AgentHandoverService::move`) : chaque catégorie réécrite par `DB::table()->update` ou `update(['user_id'])` sans rejuger la règle de cible du geste unitaire (visites `PersonnelDeLAgence`, référent `crm.assign`, maintenance TCK-592, collaborations), et le compte rendu `moved` / `unassigned` face à l'état écrit | fait |
 | 122 | Écritures qui changent un champ de `toSearchableArray()` sans passer par l'observateur Scout (`saveQuietly`, `Model::query()->update`, `DB::table()->update`, relations `address`, `tagsVisibles`, `agency`) sur les sept modèles `Searchable` : document resté périmé dans l'index | fait |
-| 123 | Gestes validés en base suivis, hors transaction, d'un appel réseau qui peut lever (Meilisearch, CDN, revalidation du front, envoi synchrone) avant leur ligne `activity()` ou leur notification : réponse 500 pour un geste fait, trace d'audit absente — le relevé de P90.03 hors de la modération | à faire |
+| 123 | Gestes validés en base suivis, hors transaction, d'un appel réseau qui peut lever (Meilisearch, CDN, revalidation du front, envoi synchrone) avant leur ligne `activity()` ou leur notification : réponse 500 pour un geste fait, trace d'audit absente — le relevé de P90.03 hors de la modération | fait |
 | 124 | Colonnes `varchar(N)` remplies par une valeur dérivée ou recopiée d'une source plus longue (masques, concaténations, codes et messages d'erreur de fournisseur : `lease_signatures.otp_destination`, `notification_delivery_attempts.failure_reason`, `integration_webhook_logs.error_code`, `property_calendar_feeds.last_error`, `bookings.expiry_reason`) sans `mb_substr` : écriture en 22001 hors de toute requête validée | à faire |
 | 125 | Téléphones écrits sans `TelephoneSaisi::normaliser` ni `TelephoneJoignable` (garants, agences, onboarding de la console, contacts sur place des biens) : numéro hors E.164 face aux lecteurs qui envoient un SMS, ouvrent un lien WhatsApp ou rapprochent un doublon | à faire |
 | 126 | Destinataires de notifications et de courriels choisis par un profil sans `->active()` (`MaintenanceParticipants.php:39`, autres `Notification::send` à l'équipe d'une agence) : agent ou admin suspendu ou archivé qui reçoit encore l'activité de l'agence — le relevé de P93.04 sur les autres envois | à faire |
@@ -229,6 +229,8 @@ voie d'écriture (angle 13, puis 47).
 | 152 | Boutons et dialogues hors de `/app/agency` montrés par un test de rôle (`isAdmin(user.roles)`, `hasAgentRole`, une vingtaine d'appels sous `takussan-web/src` hors de `app/agency`, dont `ContactLeadsInbox.tsx:149`) face à la capacité que l'API juge pour le même geste (`crm.assign`, `maintenance.assign`, `payouts.*`) : geste caché à qui la tient, montré à qui ne l'a pas — le pendant de l'angle 148 hors de la section agence | à faire |
 | 153 | Retrait d'un membre en `leave_unassigned` (`AgencyMemberRemovalService::remove`, seul ou après une passation partielle) : ce qui reste écrit au nom du retiré (lignes `property_collaborators` marquées, `properties.user_id`, tâches et visites à venir, interventions, référent client, participations aux fils) et ce qui le lit encore — contact public, listes, notifications, droits d'accès — né de P121.04 | à faire |
 | 154 | Relations lues puis écrites dans la même requête par `relation()->create()` ou `associate()` sans `setRelation()` ni `load()` (`$model->address ? … : $model->address()->create()`, et leurs pareilles dans les contrôleurs et services) : relation restée nulle ou périmée en mémoire, lue ensuite par un observateur, une notification, un job ou la ressource rendue — le motif de P122.01 hors de l'index | à faire |
+| 155 | Mailables et notifications que la suite ne rend jamais (tests sous `Mail::fake()` ou `Notification::fake()` seuls ; gabarits `resources/views/emails/*` rendus par `view:` qui s'appuient sur les composants `mail::`, `toMail()` sans test qui appelle `render()`) : courriel qui lève au rendu en production pendant que la suite est verte — né de P123.01 | à faire |
+| 156 | Variables d'environnement dont `phpunit.xml`, `.env.docker` et `.env.example` posent des valeurs différentes (`SCOUT_AFTER_COMMIT`, `SCOUT_QUEUE`, et leurs pareilles) : comportement que la suite éprouve face à celui du développement et de la préproduction, et tests qui ne jouent qu'un régime — né de P123.03 | à faire |
 
 ---
 
@@ -11805,3 +11807,81 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Une migration de données sur une colonne indexée ne déclenche pas la réimportation. L'empreinte `.search-shape` ne couvre que `config/scout.php`, `app/Support/Search`, `lang/fr/properties.php` et les modèles qui définissent `toSearchableArray` (lu, `Dockerfile:101-103`), et `release.sh` ne réimporte que sur un écart d'empreinte ou un index vide (lu, l. 44-58). La migration 500400 est arrivée dans le même lot que le changement de forme de 500300 : la réimportation qui a suivi l'a sans doute couverte (déduit, à vérifier). Une migration de données future sur `phone`, `email`, `title` ou `featured` ne le serait pas.
   - Établi comment : lu.
 - Piste : réindexer les biens touchés dans `LegacyFeaturedConversion` ; écrire dans l'en-tête de `release.sh`, ou dans `takussan-api/CLAUDE.md` § Recherche, qu'une migration qui réécrit une colonne indexée doit réimporter son modèle, et le dire au gabarit de migration.
+
+## Angle 123 — Appels réseau entre un geste validé et sa trace ou sa notification
+
+*Exploré le 2026-10-22 sur `pre-dev` 2abc59353, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : les appels réseau de `app/` (`grep` sur `Http::`, `Mail::`, `searchable()`, `GeoReindexation`, `BoostLifecycle`), les quatorze Notifications et le Mailable sans `ShouldQueue`, et leurs appelants (`InvitationService`, `CheckThresholdAlertsCommand`, `PropertyModerationService`, `ConversationController::sendMessage`, `LeaseSignatureService::sendCode`, `AccountDeletionService::anonymize`) ; `vendor/laravel/scout/src/ModelObserver.php` ; `config/scout.php`, `.env.docker`, `phpunit.xml`, `docs/infra/prod-drivers.json`, `docker/Caddyfile`. Les observateurs de CDN et de revalidation du front ne passent que par des jobs en file (`PurgeCdnCacheJob`, `RevalidatePublicPropertyPage`, `afterCommit()`) : rien à relever là. Déjà relevé, non repris : la modération (P90.03), l'achat d'un boost (P90.04), la création d'invitation (P11.x, TCK-747 ; `afterCommit`, l. 248), `AccountDeletionExecutedNotification` (reste de P11.04). Mesures par un test temporaire `TmpExplorateurP123Test` (base de test PostgreSQL, Meilisearch du port 7701 puis rebranché sur `http://127.0.0.1:9`, transport de courriel qui lève, charge 2,22 / 1,98 / 1,82 sur 8 cœurs), retiré ensuite. La valeur de `SCOUT_AFTER_COMMIT` en préproduction n'est pas relevée (`hebergement.md:174` nomme la clé, sans valeur).*
+
+### Le courriel d'invitation ne se rend pas : toute invitation par e-mail répond 500 et rien ne part, rappels compris
+- Réf : P123.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Mail/InvitationMailable.php:49-58`, `takussan-api/resources/views/emails/invitation.blade.php:1`, `:10`, `takussan-api/app/Services/Invitation/InvitationService.php:248`, `:951-960`, `:522-538`, `takussan-api/tests/Feature/Invitation/InvitationDeliveredAfterCommitTest.php`
+- Constat :
+  - `content()` rend le gabarit par `view: 'emails.invitation'` (lu, l. 51). Le gabarit s'ouvre sur `@component('mail::message')` et utilise `mail::button` (lu, l. 1 et 10). L'espace de noms `mail::` n'est déclaré que par le rendu Markdown (`markdown:`), que `NotificationDigestMail` utilise et ce Mailable non (lu, `NotificationDigestMail.php:51`).
+  - Mesuré, mailer `array` de la suite, sans `Mail::fake()` : `POST /api/agencies/{id}/agents/invite` en admin d'agence → **500** `No hint path defined for [mail]. (View: …/emails/invitation.blade.php)`. L'invitation et sa ligne `invitation_sent` sont écrites (1 et 1), aucun courriel ne part.
+  - Mesuré : `InvitationService::remindPending()` sur une invitation à J+3 → `ViewException`, même message, `last_reminded_at` reste nul. La tâche `invitations:remind` tourne toutes les heures (lu, `routes/console.php:110`).
+  - L'API sert par `php_server` de FrankenPHP, sans mode worker (lu, `docker/Caddyfile:49`) : chaque requête démarre une application neuve, où aucun rendu Markdown n'a encore déclaré `mail::` (déduit, à vérifier en préproduction, dont le `MAIL_MAILER=log` rend lui aussi le gabarit).
+  - Pourquoi la suite est verte : les tests qui citent `InvitationMailable` posent `Mail::fake()`, qui ne rend rien (lu, `grep -L "Mail::fake"` sur ces fichiers → seuls `TranslationUsage` et son test). `InvitationDeliveredAfterCommitTest` attend un 500 sous un transport qui lève : il est vert, mais par la `ViewException`, levée avant le transport (déduit de la mesure ci-dessus, à vérifier par ablation).
+  - Établi comment : lecture, puis le test temporaire.
+- Piste : rendre le gabarit par `markdown: 'emails.invitation'` (ou retirer les composants `mail::`). Garde : un test qui envoie une invitation et un rappel sous le mailer `array`, sans `Mail::fake()`, et lit le courriel rendu (sujet, lien d'acceptation).
+
+### Accepter une invitation est impossible tant que le courriel est en panne : la notification de l'invitant part dans la transaction
+- Réf : P123.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Invitation/InvitationService.php:582-584`, `:622-626`, `:636-737`, `takussan-api/app/Notifications/InvitationAcceptedNotification.php:14`, `:23`
+- Constat :
+  - `acceptAsNewUser()` et `acceptForUser()` appellent `finalizeAccept()` dans leur `DB::transaction` (lu, l. 584 et 624), et `finalizeAccept()` finit par `$inviter->notify(new InvitationAcceptedNotification(…))` (lu, l. 733). Cette notification n'est pas en file (`extends Notification`, sans `ShouldQueue`) et passe par `mail` seul (lu, l. 14 et 23) : l'envoi SMTP a lieu dans la transaction.
+  - Mesuré : invitation `sent` d'un propriétaire, transport de courriel qui lève, `POST /api/invitations/{token}/accept` avec nom et mot de passe → **500**. L'invitation reste `sent`, aucun compte n'est créé, le profil reste `draft`.
+  - L'invité ne peut donc pas entrer tant que le fournisseur de courriel est indisponible ou refuse l'adresse de l'**invitant**, sur laquelle l'invité ne peut rien. Le docblock dit le choix (« a failure here rolls the User creation back too », l. 631-633), mais il vise les écritures, pas un avis de courtoisie à un tiers (déduit).
+  - Établi comment : lecture, puis le test temporaire.
+- Piste : envoyer l'avis après le commit (`DB::afterCommit`) et en file (`ShouldQueue`), comme les autres notifications de l'invitation. Garde : un test d'acceptation sous un transport qui lève, qui exige 200, le compte créé et l'invitation `accepted`.
+
+### Meilisearch injoignable sous `SCOUT_AFTER_COMMIT=true` : le geste est validé, la réponse est 500, et ce qui suit la transaction ne s'exécute pas
+- Réf : P123.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/vendor/laravel/scout/src/ModelObserver.php:16`, `:46`, `takussan-api/.env.docker:210-211`, `takussan-api/phpunit.xml:104-105`, `takussan-api/app/Services/Property/PropertyModerationService.php:46-71`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:304-342`
+- Constat :
+  - L'observateur de Scout lit `scout.after_commit` et, à `true`, attend le commit pour écrire dans l'index (lu, l. 16 et 46). Sous `SCOUT_QUEUE=false`, cette écriture est un appel HTTP à Meilisearch fait dans la requête, au commit : son échec remonte de `DB::transaction()` après que la base a validé. Sept modèles sont indexés (`Property`, `Agency`, `Customer`, `User`, `Message`, `MaintenanceRequest`, `Document`).
+  - Mesuré, `SCOUT_AFTER_COMMIT=true` (valeur de `.env.docker:211`) : `PropertyModerationService::approve()` d'un bien public en attente → `CommunicationException` ; le bien est `available`, la ligne `property.approved` écrite, et `PropertyApprovedNotification` n'est **pas** envoyée au propriétaire (l. 69, après la transaction).
+  - Mesuré, même réglage : `POST /api/conversations/{id}/messages` → **500**, le message est écrit (1), `NotifyNewMessageJob` n'est pas mis en file (0, l. 342). L'expéditeur voit une erreur pour un message parti, et le renvoyer le double (voir l'angle 144).
+  - Mesuré, `SCOUT_AFTER_COMMIT=false` (valeur de `phpunit.xml:105`) : les deux gestes sont annulés en entier (bien `pending_review`, 0 ligne ; 0 message). Une panne du moteur refuse alors toute écriture d'un modèle indexé.
+  - La suite éprouve donc l'autre régime que le développement, et celui de la préproduction n'est pas relevé (V5).
+  - Établi comment : lecture, puis le test temporaire joué sous les deux valeurs.
+- Piste : ne pas laisser l'échec de l'index faire échouer un geste validé (`report()` de l'exception de l'observateur, ou `SCOUT_QUEUE=true` pour que l'écriture parte en file après commit) ; à trancher avec le reste de P90.03 et P90.02. Relever `SCOUT_QUEUE` et `SCOUT_AFTER_COMMIT` de la préproduction, et aligner `phpunit.xml` sur la valeur retenue. Garde : un test par régime qui coupe le moteur et exige le geste fait, sa notification envoyée et une réponse 2xx.
+
+### Les deux tâches horaires des invitations s'arrêtent au premier courriel qui échoue
+- Réf : P123.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Invitation/InvitationService.php:485-512`, `:522-538`, `takussan-api/app/Notifications/InvitationExpiredNotification.php:15`, `:24`, `takussan-api/routes/console.php:109-110`
+- Constat :
+  - `expire()` valide chaque expiration et sa ligne `invitation_expired` dans une transaction, puis notifie l'invitant par `InvitationExpiredNotification`, synchrone et en `mail` seul (lu, l. 495-509). Aucun `try` dans la boucle.
+  - Mesuré : trois invitations échues, transport qui lève, `expire()` → `TransportException` ; une seule passe `expired` (avec sa ligne de journal), les deux autres restent `sent`. L'invitant de la première ne sera jamais prévenu : elle n'est plus `sent` au passage suivant (lu, l. 490). Sous une panne durable, la tâche horaire expire une invitation par heure (déduit).
+  - `remindPending()` envoie avant de poser `last_reminded_at`, sans `try` (lu, l. 535-538). Un envoi qui lève arrête la boucle, et la requête n'a pas d'ordre (lu, l. 527-532). Une adresse que le fournisseur refuse toujours pourrait bloquer chaque heure les rappels qui la suivent (déduit, à vérifier : la mesure de ce chemin bute d'abord sur P123.01).
+  - Établi comment : lecture, puis le test temporaire (pour `expire()`).
+- Piste : mettre `InvitationExpiredNotification` en file ; dans les deux boucles, rattraper l'échec d'un envoi par invitation (`report()`, puis continuer). Garde : un test par tâche sous un transport qui lève, qui exige toutes les invitations traitées.
+
+### `dashboard:check-alerts` envoie l'alerte avant de la marquer : un courriel qui échoue arrête la tâche et fait renvoyer la cloche
+- Réf : P123.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Console/Commands/CheckThresholdAlertsCommand.php:59-73`, `takussan-api/app/Notifications/ThresholdAlertTriggered.php:18`, `:31-44`
+- Constat :
+  - `ThresholdAlertTriggered` n'est pas en file et passe par `database` et `mail` selon les préférences (lu, l. 18 et 31-44). `Notification::send($recipients, …)` est appelé avant `last_triggered_at` (lu, l. 65 et 67-70), sans `try`.
+  - Un courriel qui lève pour un admin laisse donc les lignes `database` déjà écrites, `last_triggered_at` nul, et arrête la boucle sur toutes les alertes et agences suivantes. Au passage horaire suivant, `shouldTrigger()` rejuge l'alerte comme jamais déclenchée et récrit les notifications en cloche (déduit de la lecture, à vérifier).
+  - Établi comment : lu.
+- Piste : poser `last_triggered_at` avant l'envoi, ou mettre la notification en file ; rattraper l'échec par alerte. Garde : un test sous un transport qui lève, qui exige une seule notification `database` après deux passages et toutes les alertes jugées.
+
+### Petites améliorations
+- Réf : P123.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Lease/LeaseSignatureService.php:112-141`, `takussan-api/.env.example:147-148`
+- Constat :
+  - `sendCode()` émet le code (`issue()`, qui compte la fenêtre de renvoi), puis l'envoie par `LeaseSignatureCodeNotification`, synchrone (lu, l. 124 et 136). Par courriel, un échec du transport rend 500 alors que le code est émis, et un nouvel essai immédiat peut buter sur `lease_signature.resend_too_soon` (déduit, à vérifier). Le SMS est déjà traité (l. 138, TCK-799) ; la voie courriel non.
+  - `.env.example` recommande `SCOUT_QUEUE=true` et `SCOUT_AFTER_COMMIT=true` en commentaire (lu, l. 147-148), quand `.env.docker` pose `false` et `true` et `phpunit.xml` `false` et `false` : trois réponses pour un réglage qui décide du sort d'un geste quand le moteur tombe (voir P123.03).
+  - Établi comment : lu.
+- Piste : ne compter la fenêtre de renvoi qu'après un envoi réussi, ou rattraper l'échec du courriel en 503 comme le SMS ; écrire la valeur retenue de `SCOUT_*` à un seul endroit, avec sa raison.
