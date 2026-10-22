@@ -14536,7 +14536,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### « Attribuer » une demande de contact est montré à l'admin dont le rôle ne porte pas `crm.assign`, et rend 403
 - Réf : P152.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1430
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leads/ContactLeadsInbox.tsx:147-149,245-249`, `takussan-api/app/Policies/PropertyContactLeadPolicy.php:92-104`
 - Constat :
@@ -14545,6 +14545,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - P120.05 relève le cas inverse (l'agent qui tient `crm.assign` sans bouton) et propose d'ouvrir la liste des cibles. Ce constat-ci n'en dépend pas.
 - Piste : monter le bouton sous `useCan('crm.assign', agencyId)` et le profil d'admin (tant que la liste reste réservée à l'admin), puis lever la seconde condition avec P120.05. Un test de `ContactLeadsInbox` avec un admin sans la capacité garderait la règle.
 - Mesure (2026-10-22, a9d90e1cf, mesureur) : relu `ContactLeadsInbox.tsx:147-149,245-249` (`peutAttribuer = isAdmin(user.roles)`) et `PropertyContactLeadPolicy::assign` (l. 92-104 : super-admin, ou personnel actif tenant `crm.assign`, sans branche d'admin) ; test temporaire (retiré), même charge → admin au rôle personnalisé de base `agency_admin` `[agency.update]`, 2FA posée : `GET /api/agencies/{id}/members` → 200, `POST /api/contact-leads/{id}/assign` → 403 ; témoin admin au rôle système → 200 → le constat tient. Classement : A1, la règle attendue est écrite dans la policy ; le correctif attendu ajoute `useCan('crm.assign', agencyId)` à la condition du bouton, sans retirer la condition d'admin que P120.05 (validé) lèvera, et un test de `ContactLeadsInbox` avec un admin sans la capacité.
+- Mesure (2026-10-22, e2959c84c, implementeur) : cas neuf de `ContactLeadsInbox.test.tsx` (admin `[agency.update]`) → avant correctif, « Attribuer » affiché (1 rouge) → `peutAttribuer` = admin et `useCan('crm.assign', lead.agency_id)`, la condition d'admin gardée pour P120.05 ; 18 verts ; ablation : composant rendu → 1 rouge, remis → 18 verts.
 
 ## Angle 153 — Ce que le retrait en `leave_unassigned` laisse au nom du retiré, et ce qui le lit encore
 
