@@ -10321,7 +10321,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Petites améliorations
 - Réf : P103.08
-- Statut : validé — intervalle de 60 s gardé dans la console, porté à 5 minutes pour un visiteur sans session, `refetchOnWindowFocus` laissé actif ; à faire après la fusion de #939 (P98.10) (porteur, 2026-10-22)
+- Statut : fait · TCK-1227
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/maintenance/MaintenanceBanner.tsx:14-17,52`, `takussan-web/src/lib/query-client.ts:11-19`
 - Constat :
@@ -10330,6 +10330,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 - Piste : un intervalle plus long pour un visiteur anonyme, ou aucun intervalle hors de la console, le statut étant relu au chargement de chaque page. À trancher avec P79.06 et P98.10, qui touchent déjà ce bandeau et la durée de son statut.
 - Mesure (2026-10-21, 71e1c1286, mesureur) : lu `takussan-web/src/components/maintenance/MaintenanceBanner.tsx:52` (`useQuery` avec `refetchInterval: 60_000`, sans `enabled`), `src/lib/query-client.ts:11` (`refetchOnWindowFocus` laissé actif), `src/app/api/maintenance/status/route.ts:9` (`revalidate: 60`) ; P79.06 et P98.10 sont `validé` et touchent ce bandeau. Classement : V7, la piste laisse le choix entre un intervalle plus long et aucun intervalle hors console, ce qui fixe le délai avant qu'un visiteur voie une maintenance annoncée.
 - Mesure (2026-10-21, e54bc4055, delegue) : relu l'entrée, `MaintenanceBanner.tsx:52`, P79.06 (validé en bloc le 2026-10-21) et P98.10 (validé en bloc, en cours dans la PR #939, qui réduit la durée publique du statut de maintenance) → le constat tient, mais la durée du statut change sous elle. Recommandation : garder l'intervalle de 60 s dans la console et le porter à 5 minutes pour un visiteur sans session, `refetchOnWindowFocus` laissé actif, plutôt qu'aucun intervalle hors console, parce qu'un onglet public laissé ouvert verrait encore une maintenance annoncée ; à trancher après la fusion de #939 (P98.10), dont la durée de cache borne ce délai, et parce que le délai avant qu'un visiteur voie une maintenance est un choix de produit qu'aucun écrit ne fixe.
+- Mesure (2026-10-22, 6d216605a, implementeur) : #939 fusionnée le 2026-10-22 à 00:34 Z (`gh pr view 939`) ; relu `MaintenanceBanner.tsx` (`refetchInterval: 60_000` pour tous) ; test neuf `MaintenanceBanner.intervalle.test.tsx` (minuterie simulée, `useAuth` remplacé) → avant correctif, un visiteur sans session relit le statut à 61 s, 1 rouge ; correctif : `refetchInterval` de 60 s avec une session, 5 min sans (`useAuth().user`), `refetchOnWindowFocus` inchangé → 2/2 verts, 30/30 sur les tests de la maintenance ; ablation → le même rouge, correctif remis → vert.
 
 ## Angle 104 — Poids JS initial des écrans de la console `/super-admin`
 
