@@ -13431,7 +13431,7 @@ l'une ni l'autre n'est reprise ici.*
 
 ### L'archive RGPD ne porte pas les avis reçus comme prestataire
 - Réf : P139.04
-- Statut : validé — porteur (2026-10-22) : ajouter à `reviews.json` les avis sur le profil de prestataire du titulaire ; pas les avis sur ses biens
+- Statut : fait · TCK-1397
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:133-137`, `takussan-api/app/Services/Review/ReceivedReviews.php:44-58`, `takussan-api/app/Models/Profiles/ServiceProviderProfile.php:71-74`
 - Constat :
@@ -13441,6 +13441,7 @@ l'une ni l'autre n'est reprise ici.*
   - La note et le texte de ces avis décrivent le titulaire et sont rattachés à son profil. Les inclure, ou non, relève du périmètre du droit d'accès (à vérifier contre ADR-0070 et `features.md`).
 - Piste : ajouter à `reviews.json` les avis dont la cible est un profil de prestataire du titulaire, par la même règle que `ReceivedReviews`. Les avis sur ses biens restent un choix à trancher. Garde : un test de `DataExportBuilder` avec un avis sur le profil.
 - Mesure (2026-10-22, a518e2cd2, mesureur) : lu `DataExportBuilder::payloads()` (`reviews.json` = avis écrits, ou cible `User::class` du titulaire, l. 133-137) et `ReceivedReviews::targetsActor()` (biens, compte, `ServiceProviderProfile`, l. 44-58) ; test temporaire retiré : un prestataire reçoit un avis sur son profil et un sur son compte → `reviews.json` rend `[["App\\Models\\User",6]]` pour deux avis en base → le constat tient. Classement : V3, ce qu'emporte l'archive RGPD est une décision de données personnelles, et la `Piste` laisse les avis sur les biens à trancher.
+- Mesure (2026-10-22, e72d2ad69, implementeur) : test neuf `DataExportTest::test_l_archive_porte_les_avis_recus_sur_le_profil_de_prestataire` rouge avant correctif : un avis sur le profil de prestataire, un sur le compte, un sur le profil d'un autre, un sur un bien du titulaire → `reviews.json` ne rend que l'avis sur le compte → `reviews.json` ajoute la cible `ServiceProviderProfile` du titulaire (même règle que `ReceivedReviews`), les biens restent dehors ; vert, ablation → rouge, remis → vert ; `DataExportTest` 8/8, `OwnerProfileSensitiveDataTest` 10/10.
 
 ### Petites améliorations
 - Réf : P139.05
