@@ -223,7 +223,7 @@ voie d'écriture (angle 13, puis 47).
 | 146 | Unions de statut et options de filtre du front (`src/types/*.ts`, `Record<…Status, …>`, `STATUS_VALUES`, `KNOWN_STATUSES`) face aux cas des enums de l'API : valeurs que l'API n'émet jamais (`banned`, agence `pending`), valeurs émises absentes (utilisateur `blocked`) — le relevé de P115.02 sur tous les types | fait |
 | 147 | Statuts posés librement par un `Rule::enum` entier dans une requête de mise à jour (`UpdateCustomerRequest` `status` jusqu'à `blocked` et `deleted`, `UpdatePropertyRequest`, `StoreAgencyRequest`, `UpdatePrivacyRequestRequest`) : transitions que le geste dédié refuserait, et état posé à la main que rien d'autre ne lit | fait |
 | 148 | Section `/app/agency/*` du front gardée par `isAdmin(user.roles)` (`(dashboard)/app/agency/layout.tsx:28`) et `PAGES_ADMIN` face aux gestes que l'API ouvre par capacité à un agent (`team.invite`, `team.assign_role`, `team.suspend`, `payouts.approve`, `agency.update_kyc`) : membre qui tient la capacité sans écran pour l'exercer, et admin sans elle à qui l'écran s'ouvre sur des 403 | fait |
-| 149 | Champs `nullable` d'un `PATCH` partiel dont le `null` qu'envoie le front pour un champ vidé est lu comme « garder » (`!== null ? … : $model->x`, `?? $model->x`, `array_filter` du payload dans les contrôleurs et services de mise à jour) : valeur impossible à effacer, réponse 200 qui rend l'ancienne — le relevé de P117.02 sur le reste de l'API | à faire |
+| 149 | Champs `nullable` d'un `PATCH` partiel dont le `null` qu'envoie le front pour un champ vidé est lu comme « garder » (`!== null ? … : $model->x`, `?? $model->x`, `array_filter` du payload dans les contrôleurs et services de mise à jour) : valeur impossible à effacer, réponse 200 qui rend l'ancienne — le relevé de P117.02 sur le reste de l'API | fait |
 | 150 | Paramètres `sort=`, `filter[…]` et `include=` écrits par le front (`src/lib/queries/*.ts`, `src/app/actions/*`, `buildQueryString`) face aux `$requestSortable`, `$requestFilterable` et inclusions du modèle visé : requête refusée en 400 `http.bad_request` et écran en erreur — le pendant de l'angle 100 hors de `fields[]`, né de P118.01 | à faire |
 | 151 | Valeurs de `filter[…]` passées brutes à une colonne typée (`AllowedFilter::callback` `date_from`/`date_to` comparés tels quels à `created_at`, `AllowedFilter::exact` sur une colonne `bigint`, `date` ou `boolean`, filtres lus à la main par `$request->string('filter.*')`) : 500 en `22P02`/`22007` au lieu d'un 400 ou d'une liste vide, et borne de fin qui exclut le jour choisi — le relevé de P119.02 et P119.03 sur toute l'API | à faire |
 | 152 | Boutons et dialogues hors de `/app/agency` montrés par un test de rôle (`isAdmin(user.roles)`, `hasAgentRole`, une vingtaine d'appels sous `takussan-web/src` hors de `app/agency`, dont `ContactLeadsInbox.tsx:149`) face à la capacité que l'API juge pour le même geste (`crm.assign`, `maintenance.assign`, `payouts.*`) : geste caché à qui la tient, montré à qui ne l'a pas — le pendant de l'angle 148 hors de la section agence | à faire |
@@ -259,6 +259,7 @@ voie d'écriture (angle 13, puis 47).
 | 182 | Gestes de transition rejoués sur un état déjà atteint (`POST …/confirm`, `cancel`, `send` d'une facture, `convert` et `handle` d'une demande de contact, `accept` d'une intervention, `activate` d'un bail) : second appel après une réponse perdue qui rend 422 ou 409 au lieu de l'état déjà écrit, écran en erreur pour un geste fait — le pendant pour les transitions de l'angle 144 | à faire |
 | 183 | Statuts recalculés par le navigateur à partir des dates au lieu de ceux que l'API sert (`displayStatus` de `LeaseSchedule.tsx:44-56`, échéance `pending` passée affichée « En retard », et leurs pareilles pour réservations, visites, délégations, abonnements) : écart avec les compteurs et relances de l'API, et lignes que le calcul ne vise pas (restitution de dépôt due par l'agence) — né de P146.02 | à faire |
 | 184 | Champs hors statut que le `PATCH` générique écrit alors qu'un geste dédié les garde (`assigned_to` et `scheduled_at` d'`UpdateMaintenanceRequestRequest` face à l'assignation d'intervention, `scheduled_at` et `agent_id` d'`UpdatePropertyVisitRequest` face au report et à la réaffectation de visite, `pipeline_stage` d'`UpdateCustomerRequest` face à `…/pipeline-stage`) : capacité, contrôle de chevauchement, transition, avis et journal du geste sautés — le pendant hors statut de P147.01 | à faire |
+| 185 | Formulaires d'édition du front hors du bien, du client et du profil (`src/components/**` et `src/app/actions/*` qui construisent un corps `PATCH`/`PUT` : `|| undefined`, `blank()`, `transform(… ? v : undefined)`, `z.coerce.number()` sur un champ facultatif) : champ vidé omis du corps, ou lu comme `0`, alors que l'API efface sur `null` — le relevé de P149.01 à P149.04 sur le reste des écrans | à faire |
 
 ---
 
@@ -13991,3 +13992,71 @@ qui a été relevé. Rien n'a été exécuté.*
   - L'admin au rôle système porte toutes les capacités (lu, `SystemRoleCapabilities::agencyAdmin`) : le défaut ne touche que les rôles personnalisés de base `agency_admin`, que la règle du dernier admin n'interdit pas (lu, `AgencyRoleService::assertNotLastAdminLosingControl`).
 - Piste : poser `capacite: 'team.assign_role'` sur `/app/agency/roles` et `capacite: 'agency.update_kyc'` sur `/app/agency/kyc` dans `PAGES_ADMIN`, comme `billing` ; le test de la table (`pages-admin`) avec un contexte d'admin sans capacité empêcherait le retour. Les pages restantes (`audit`, `moderation`, `finances`, `integrations`, `/app/agency`) n'ont pas été confrontées une à une à la garde de leur lecture (à vérifier).
 - Mesure (2026-10-22, 55ac201ff, mesureur) : relu `PAGES_ADMIN` (`pages-admin.ts:65` `roles` et `:72` `kyc` sans `capacite`, `:76-80` `billing` avec), les deux états d'erreur (`AgencyRolesConsole.tsx:90-96`, `AgencyKycClient.tsx:24-31`) et les pages qui ne se gardent que par `garderPageAdmin` ; même test temporaire (retiré) → admin au rôle personnalisé sans capacité : `GET /api/agencies/{id}/roles` → 403, `GET /api/agencies/{id}/kyc` → 403 → le constat tient. Classement : A1, la lecture que l'API exige (`AgencyRolePolicy::viewAny` → `team.assign_role`, `KycController` → `updateKyc` → `agency.update_kyc`) fixe l'attendu, et `billing` montre déjà la forme : poser `capacite` sur les deux lignes de `PAGES_ADMIN`.
+
+## Angle 149 — Champs vidés d'un `PATCH` partiel lus comme « garder »
+
+*Exploré le 2026-10-22 sur `pre-dev` 54828b9cc, par l'explorateur, sans sous-agent. Côté API, relevé par `grep` des formes `?? $model->x`, `!== null ? … : $model->x`, `array_key_exists(…) && … !== null`, `array_filter` du payload et `isset`/`! empty` dans `app/Http/Controllers` et `app/Services`, puis relu en entier chacune des 41 méthodes `update*` des contrôleurs et les `update` des services qu'elles appellent : presque toutes passent par `fill($validated)`, qui efface bien sur `null`. Hors de P117.02, l'API n'a que deux lectures « `null` = garder » sur un champ effaçable (P149.05) ; `AlertRuleService::update` est P114.02 (PR #1051), et le renouvellement de bail (`LeaseRenewalService.php:117-133`) reprend le parent pour une clé vide par choix écrit (`LeaseRenewalDialog.tsx`, « vide = reprendre »). Le défaut vit surtout **dans le front**, qui retire la clé avant l'envoi : le résultat est le même, une réponse 200 et l'ancienne valeur. Mesuré par deux tests Vitest temporaires, retirés depuis (charge 3,10 / 3,64 / 3,80 sur 8 cœurs) : le schéma et les normaliseurs du bien et du client rejoués sur des champs vidés, et `updateProfileAction` avec `@/lib/auth` simulé. Le trajet complet jusqu'à la base n'a pas été joué : le côté API se lit (`fill` des seules clés validées). Formulaires parcourus sans défaut : agence (`normaliseAgencyForm`, `emptyToNull`), intervention (`maintenanceUpdateSchema`, `null`), annonces (`ends_at: null`), état des lieux (`InventoryController::update`, clés présentes), garant et avis (création seule).*
+
+### La page d'édition du bien n'efface ni la description, ni la date de disponibilité, ni les nombres mis à « Non précisé »
+- Réf : P149.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/property-form/wizard/NombreEnListe.tsx:79-81`, `takussan-web/src/lib/schemas/property.ts:126-131,227-231`, `takussan-web/src/components/property-form/payload.ts:159-189`, `takussan-web/src/components/property-form/PropertyForm.tsx:240-252`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:220`
+- Constat :
+  - L'option « Non précisé » des nombres en liste (chambres, salles de bains, étage, année de construction, places de parking) rend `undefined` ; le commentaire dit « le champ sort du corps, comme un champ vide » (lu, `NombreEnListe.tsx:79-81`).
+  - `description` et `available_from` vidés sortent du schéma en `undefined` (lu, `property.ts:126-131,227-231`).
+  - `withClearedFields` ne pose `null` que sur les cinq champs de TCK-598 (lu, `payload.ts:164-189`). Son commentaire nomme le défaut : « un champ vidé sort du schéma en `undefined`, donc OMIS du corps, et l'API garde l'ancienne valeur ». Les autres champs n'ont pas reçu le même traitement.
+  - mesuré (test Vitest temporaire : `propertyFormSchema` → `toUpdatePayload` → `withClearedFields`, champ marqué modifié, appartement en location mensuelle) : `bedrooms`, `bathrooms`, `year_built`, `floor_number`, `parking_spaces`, `description` et `available_from` à vide → clé **absente** du JSON. Seuls `total_floors` et `title_type` partent à `null`, par la matrice de pertinence.
+  - L'API accepte `null` sur chacune de ces colonnes (lu, `UpdatePropertyRequest.php:48-70`, `sometimes|nullable`) et n'écrit que les clés reçues (lu, `PropertyController.php:220`). Une clé absente garde donc l'ancienne valeur, et le formulaire se recharge avec elle.
+  - Établi comment : lecture des cinq fichiers, puis le test temporaire. Le rendu à l'écran n'a pas été vu.
+- Piste : étendre `withClearedFields` (ou `toUpdatePayload` en mode `erase`) à tout champ facultatif du formulaire d'édition qui est modifié et laissé vide, en tenant la liste depuis le schéma plutôt qu'à la main. Test dans `property-form/__tests__` : chaque champ facultatif vidé et marqué modifié part à `null`, et un champ jamais touché reste omis. Ablation sur la liste.
+
+### La fiche client modifiée garde l'e-mail, le téléphone, la profession et le type de pièce qu'on vient de vider
+- Réf : P149.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/lib/schemas/customer.ts:187-206`, `takussan-web/src/components/customer-form/CustomerForm.tsx:154-165`, `takussan-api/app/Http/Requests/Api/UpdateCustomerRequest.php:69-73`, `takussan-api/app/Services/Model/CustomerService.php:23`
+- Constat :
+  - `normaliseCustomerForm` rend `undefined` pour `email`, `phone`, `occupation` et `id_number` vides (`blank()`), et pour un `id_type` hors liste (lu, `customer.ts:191-206`). Les critères de recherche voisins (`locale`, `budget_*`, `seeking_*`, `min_bedrooms`) partent bien à `null` (lu).
+  - Le même normaliseur sert la création et l'édition (lu, `CustomerForm.tsx:155-165`), puis le corps part en JSON par `apiRequest`, qui laisse tomber les `undefined` (lu, `api.ts:789`).
+  - mesuré (test Vitest temporaire) : `normaliseCustomerForm` avec `email`, `occupation`, `id_type` et `id_number` vides → `{"first_name":…,"phone":…,"locale":null,"seeking_contract_type":null,"budget_min":null,…}` : ni `email`, ni `occupation`, ni `id_type`, ni `id_number`.
+  - L'API accepte `null` pour ces quatre clés (lu, `UpdateCustomerRequest.php:69-73`), `phone` compris (`ValidatesCustomerContactAndCriteria.php:44`), et `CustomerService::update` ne remplit que les clés reçues (lu, `:23`).
+  - Le numéro de pièce masqué est gardé exprès quand le champ reste vide (lu, `CustomerForm.tsx:412`, `idNumberKept`) : `id_number` n'est pas le défaut. Les quatre autres champs le sont.
+  - Établi comment : lecture, puis le test temporaire.
+- Piste : en édition, poser `null` sur `email`, `phone`, `occupation` et `id_type` quand le champ a été modifié et laissé vide, comme pour les critères. Laisser `id_number` omis tant que le champ n'a pas été touché. Test sur `normaliseCustomerForm`, ou sur le corps de `CustomerForm` en mode `edit`, avec une ablation.
+
+### Vider sa présentation dans le profil n'efface rien : l'action serveur retire `bio` du corps
+- Réf : P149.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/actions/auth.ts:52-54`, `takussan-web/src/lib/auth.ts:114`, `takussan-web/src/components/profile/ProfileContactSection.tsx:99,112`, `takussan-web/src/components/profile/ProfileHeader.tsx:108`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:170`
+- Constat :
+  - Les deux sections du profil envoient toujours `bio`, vide compris (lu, `ProfileContactSection.tsx:112`, `ProfileHeader.tsx:108`). L'enregistrement s'ouvre quand seule la bio a changé (lu, `:99`, `bioDirty`).
+  - `updateProfileAction` lit `(formData.get('bio') as string) || undefined` (lu, `auth.ts:53`). Une chaîne vide devient `undefined`, et `updateProfile` n'ajoute `bio` au FormData que s'il n'est pas `undefined` (lu, `lib/auth.ts:114`).
+  - mesuré (test Vitest temporaire, `@/lib/auth` et `@/lib/session` simulés) : FormData `bio=''` → `updateProfile` reçoit `{"bio":undefined,"phone":…,"avatar_remove":false}`.
+  - L'API efface sur `null` ou sur une chaîne vide (`ConvertEmptyStringsToNull`), mais seulement si la clé arrive (lu, `AuthController.php:170`, `$request->only([... 'bio'])`). Sans la clé, la bio est gardée et la réponse la rend.
+  - Établi comment : lecture des quatre fichiers, puis le test temporaire.
+- Piste : relayer `bio` dès que le formulaire le porte (`formData.has('bio')`), comme `phone` quatre lignes plus bas, chaîne vide comprise. Test de `updateProfileAction` : `bio=''` → `updateProfile` reçoit `bio: ''`. Ablation sur la ligne 53.
+
+### Vider la surface d'un bien en édition est refusé : « la surface doit être positive »
+- Réf : P149.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/schemas/property.ts:184-189`, `takussan-web/src/components/forms/FormInput.tsx:82-83`, `takussan-web/src/components/property-form/PropertyForm.tsx:477`
+- Constat :
+  - Le champ numérique vidé rend `''` (lu, `FormInput.tsx:83`). `area` est un `z.coerce.number().positive().optional()` (lu, `property.ts:184-189`), et `z.coerce` lit `''` comme `0`. Le schéma voisin l'a corrigé pour le coût d'entrée (`nombreFacultatif`, lu, `:45-58`, « `z.coerce` lirait `''` comme 0 »).
+  - mesuré (même test temporaire) : `area: ''` → refus `validation.property.areaPositive`. `year_built: ''` et `total_floors: ''` sont refusés de même, mais ces deux champs passent par `NombreEnListe` dans l'écran (lu), et le refus ne s'y voit donc pas.
+  - Conséquence : une surface saisie ne peut plus être retirée depuis l'écran. Le défaut ne touche pas l'API, qui accepte `null` (lu, `UpdatePropertyRequest.php:61`).
+  - Établi comment : lecture, puis le test temporaire. Le message à l'écran n'a pas été vu (à vérifier).
+- Piste : passer `area` par `nombreFacultatif`, puis l'ajouter à l'effacement de P149.01. Test du schéma : `area: ''` → `undefined`, et le corps d'édition porte `area: null` si le champ a été modifié.
+
+### Petites lectures « `null` = garder » dans l'API
+- Réf : P149.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:170-172`, `takussan-api/app/Http/Requests/Api/Me/UpdateSpecializationAgentProfileRequest.php:53`, `takussan-web/src/components/onboarding/AgentOnboardingWizard.tsx:468`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:320-322`
+- Constat :
+  - Numéro de carte de l'agent : la requête l'accepte `nullable` (lu, `:53`), mais le contrôleur ne l'écrit que s'il n'est pas `null` (lu, `AgentProfileController.php:170`). Le front ne l'envoie d'ailleurs jamais vide (`license_number || undefined`, lu, `AgentOnboardingWizard.tsx:468`). Une carte saisie par erreur ne se retire donc par aucun chemin. C'est le motif de P117.02, sans montant.
+  - Clôture d'intervention : `resolution_notes: null` garde les notes déjà écrites (lu, `MaintenanceRequestService.php:320`), et le front rend `undefined` pour des notes vides (lu, `maintenance.ts:72-76`). C'est un geste de clôture et non un `PATCH`. Le comportement voulu n'est écrit nulle part (à vérifier).
+  - Établi comment : lecture seule.
+- Piste : pour la carte, `array_key_exists` seul (`null` efface), avec un cas dans le test de `updateSpecialization`. Pour les notes de clôture, écrire le contrat (garder ou remplacer) avant d'y toucher.
