@@ -1,7 +1,7 @@
 ---
 id: TCK-1223
 title: "`apiRequest` ne pose `Content-Type` que lorsqu'un corps part"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -39,14 +39,14 @@ Aucun : l'API ne lit pas le `Content-Type` d'une requête (mesuré par le mesure
 
 ## Delta à produire
 
-- [ ] `apiRequest` pose `Content-Type: application/json` seulement si `body !== undefined` et sans
+- [x] `apiRequest` pose `Content-Type: application/json` seulement si `body !== undefined` et sans
       `formData`.
-- [ ] Test vitest : un `GET` sans corps part sans `Content-Type` ; un `POST` à corps JSON le garde.
+- [x] Test vitest : un `GET` sans corps part sans `Content-Type` ; un `POST` à corps JSON le garde.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Les en-têtes passés à `fetch` pour un `GET` sans corps n'ont pas de `Content-Type`.
-- [ ] AC2 — Un `POST` à corps JSON garde `Content-Type: application/json`.
+- [x] AC1 — Les en-têtes passés à `fetch` pour un `GET` sans corps n'ont pas de `Content-Type`.
+- [x] AC2 — Un `POST` à corps JSON garde `Content-Type: application/json`.
 
 ## Hors périmètre
 
@@ -54,4 +54,6 @@ Aucun : l'API ne lit pas le `Content-Type` d'une requête (mesuré par le mesure
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Le test tourne sous jsdom : c'est le navigateur qui paie le préflight.
+- Ablation : `src/lib/api.ts` rendu à l'état d'avant → 1 rouge (`content-type` présent sur le
+  `GET`) ; correctif remis → 2/2 verts, 52/52 sur les tests qui lisent les en-têtes envoyés.
