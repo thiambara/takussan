@@ -650,8 +650,10 @@ class InvitationService
      * Single source of truth for the "happy path" tail: attach the role
      * (scoped to agency_id), flip the polymorphic profile, flip the
      * invitation, log activity, notify the inviter. The whole tail is
-     * called from inside an outer transaction so a failure here rolls
-     * the User creation back too.
+     * called from inside an outer transaction so a failure of these
+     * writes rolls the User creation back too. The inviter's notice is
+     * not one of them: it is queued after the commit (TCK-1335), so a
+     * mail outage never keeps the invitee out.
      */
     protected function finalizeAccept(Invitation $invitation, User $user): Invitation
     {
@@ -748,9 +750,13 @@ class InvitationService
             ->event('invitation_accepted')
             ->log('invitation_accepted');
 
+        // TCK-1335 (P123.02) — l'avis à l'invitant part après le commit, et
+        // en file : un courriel en panne, ou refusé à l'adresse de
+        // l'invitant, n'empêche plus l'invité d'entrer.
         $inviter = $invitation->inviter;
         if ($inviter !== null) {
-            $inviter->notify(new InvitationAcceptedNotification($invitation->fresh()));
+            $accepted = $invitation->fresh();
+            DB::afterCommit(fn () => $inviter->notify(new InvitationAcceptedNotification($accepted)));
         }
 
         return $invitation->fresh();

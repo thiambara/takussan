@@ -4,14 +4,17 @@ namespace App\Notifications;
 
 use App\Models\Invitation;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
  * TCK-249 — fired when an invitation is accepted, addressed to the
  * inviter so they get visibility on their pending pipeline.
+ *
+ * TCK-1335 — en file : son échec ne remonte plus à l'acceptation.
  */
-class InvitationAcceptedNotification extends Notification
+class InvitationAcceptedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
