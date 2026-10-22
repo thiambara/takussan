@@ -37,18 +37,8 @@ class AgencyUpgradeRequestController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $base = AgencyUpgradeRequest::query();
-
-        // Custom date-range filters on `submitted_at` — outside the model's
-        // generic filterables because we need >= / <= semantics here.
-        if ($from = $request->string('filter.submitted_from')->trim()->value()) {
-            $base->whereDate('submitted_at', '>=', $from);
-        }
-        if ($to = $request->string('filter.submitted_to')->trim()->value()) {
-            $base->whereDate('submitted_at', '<=', $to);
-        }
-
-        $paginator = AgencyUpgradeRequest::buildQuery($base, $request)
+        // `filter[submitted_from]` / `filter[submitted_to]` : filtres du modèle (TCK-1282).
+        $paginator = AgencyUpgradeRequest::buildQuery(null, $request)
             ->defaultSort('-submitted_at')
             ->paginate($this->tailleDePage($request, 20));
 
