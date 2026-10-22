@@ -11816,7 +11816,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Petites améliorations des sélecteurs de personnes
 - Réf : P120.05
-- Statut : validé — porteur (2026-10-22) : `sort=first_name` dans le dialogue, et ouvrir à l'agent `crm.assign` une lecture des cibles bornée au personnel ; docblocks corrigés avec P120.02
+- Statut : fait · TCK-1530
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leads/ContactLeadsInbox.tsx:147-149,264-268`, `takussan-web/src/lib/queries/role-delegations.ts:138-145`, `takussan-web/src/components/admin/roles/CreateDelegationDialog.tsx:90-95`
 - Constat :
@@ -11826,6 +11826,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Établi comment : lu.
 - Piste : `sort=first_name` dans le dialogue ; ouvrir à l'agent `crm.assign` une lecture des cibles (la route `assignable` bornée au personnel, par exemple) ou garder le bouton et le documenter ; corriger les deux docblocks avec P120.02.
 - Mesure (2026-10-22, 851bd88b9, mesureur) : relu `ContactLeadsInbox.tsx:147-149` (bouton réservé à `isAdmin(user.roles)`, le commentaire dit pourquoi) et `:264-268` (aucun `sort`), `role-delegations.ts:138-145` et `CreateDelegationDialog.tsx:86-97` (« exactement » la condition `isAgentAt || isOwnerAt`, vraie aujourd'hui : la base de `/members` est agent OU bailleur, lu) et la policy des demandes (`crm.assign` dans l'agence) → les trois points tiennent, lu seulement. Classement : V2, la deuxième partie ouvre à un agent une lecture du personnel aujourd'hui réservée à l'admin ; le tri du dialogue serait A1 seul, et les docblocks suivent le choix de P120.02.
+- Mesure (2026-10-22, 614ec950e, implementeur) : `AttribuerDialog` sans `sort` et bouton réservé à `isAdmin` (lu, `ContactLeadsInbox.tsx:147-153,264-268`) ; `AgencyMembersListTest::test_un_agent_crm_assign_lit_les_seules_cibles_du_personnel` rouge avant correctif (403 pour un agent qui détient `crm.assign`) ; correctif : `AgencyPolicy::listAssignableStaff`, et `listMembers` qui impose aux non-admins `filter[assignable]=1`, le nom seul et aucun `include` → vert (14/14, plus `ContactLeadInboxTest`, `AgencyMembersQueryCountTest`, `PersonNameCollatedSortTest`, `UserResourceSparseFieldsTest`, `UserSearchTest`, `PerPagePlafondTest`, `TeamFormationBoundaryTest` verts) ; test front « l'agent qui détient crm.assign attribue, sur une liste triée par prénom » rouge puis vert (18/18) ; ablations : contrôleur remis → rouge, filtre imposé retiré → rouge (le compte bloqué sort), composant remis → rouge, `sort` retiré → rouge. Les docblocks de `useDelegationCandidates` et `CreateDelegationDialog` étaient déjà corrigés par TCK-1244 (lu).
 
 ## Angle 121 — Passation de portefeuille : chaque catégorie face au geste unitaire
 
