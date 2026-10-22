@@ -241,7 +241,7 @@ voie d'écriture (angle 13, puis 47).
 | 164 | Paramètres `text` des notifications codées qui portent un code ou une valeur d'enum (`role` des délégations, statuts, types, motifs hors `reason_code`) : valeur rendue brute par `NotificationRenderer` et par `valeursDeNotification` du front, dans la cloche, le courriel et le SMS — né de P128.02 | fait |
 | 165 | Lectures `->agency->…` sans `?->` (une vingtaine sous `app/` : `MaintenanceRequestResource.php:302`, `PropertyBoostResource.php:34`, notifications, PDF et gabarits) sur les lignes d'une agence supprimée en douceur, que la portée `SoftDeletes` rend nulle : 500 ou champ vide là où la ligne reste lisible — le pendant pour l'agence de l'angle 130, né de P129.01 | fait (couvert par l'angle 129) |
 | 166 | Notifications, jobs et écouteurs en file qui portent un modèle à `SoftDeletes` par `SerializesModels` (`PropertyApprovedNotification`, `PropertyRejectedNotification`, `PropertyProposedNotification`, et leurs pareilles sur `Customer`, `Lease`, `Booking`) : fiche supprimée entre l'envoi et le traitement, `ModelNotFoundException` au déroulement, essais perdus et trace laissée — né de P130.02 | fait |
-| 167 | Tuiles, compteurs et lignes cliquables des tableaux de bord (bandeau `PropertyKpiStrip` de `/app/properties`, `DashboardLinkLine` des aperçus, files `AgencyQueues`, tuiles de la console) : filtre posé par le lien face à celui qui a compté le nombre affiché (statuts additionnés, portée « mes biens » ou agent, période) — la liste ouverte ne montre pas ce que la tuile comptait, né de P131.02 | à faire |
+| 167 | Tuiles, compteurs et lignes cliquables des tableaux de bord (bandeau `PropertyKpiStrip` de `/app/properties`, `DashboardLinkLine` des aperçus, files `AgencyQueues`, tuiles de la console) : filtre posé par le lien face à celui qui a compté le nombre affiché (statuts additionnés, portée « mes biens » ou agent, période) — la liste ouverte ne montre pas ce que la tuile comptait, né de P131.02 | fait |
 | 168 | Onglets, filtres et pagination des listes de la console tenus en état local (`useState`) au lieu de l'URL (`BookingsList.tsx:35`, et leurs pareilles sous `components/*`) : retour arrière depuis un détail qui ramène au premier onglet, rechargement ou lien partagé qui perd la vue, paramètre `?status=` d'un lien entrant ignoré — né de P131.03 | à faire |
 | 169 | Rappels programmés à marque unique (`last_reminded_at`, `reminder_sent_at` et leurs pareilles : invitations, visites, échéances, reversements dus, relances de documents) face aux gestes qui remettent la marque à zéro sans déplacer la date de référence (relance, report, renouvellement) : rappel parti dans l'heure qui suit le geste, ou jamais renvoyé — né de P132.03 | à faire |
 | 170 | Montants envoyés par le navigateur et pris tels quels par l'API là où elle pourrait les dériver (`amount` de `POST /api/bookings/{id}/payments`, `subtotal` de `POST /api/invoices`, `amount` des paiements enregistrés et de `mark-paid`, montants des reversements et des restitutions) : montant que le payeur ou l'émetteur fixe à la place du calcul du serveur — né de P133.02 et P133.05 | à faire |
@@ -271,6 +271,8 @@ voie d'écriture (angle 13, puis 47).
 | 194 | Règles `mimes:` et `mimetypes:` des téléversements (`StoreBankStatementRequest`, documents, pièces jointes, imports ; 13 sous `app/Http/Requests`) face au type que `finfo` lit dans un fichier réel (OFX 2 lu `xml`, CSV à point-virgule, PDF ou image d'un téléphone), et tests qui déposent par `UploadedFile::fake()`, dont le type se déduit du nom : format annoncé à l'écran refusé en 422 sans qu'aucun test le voie — né de P157.05 | à faire |
 | 195 | Seuils de saisie recopiés en constantes du front (`MIN` de `GlobalSearch.tsx`, `MOTIF_MIN`, `REASON_MIN`, `MAX_ATTACHMENT_BYTES`, `AGENCY_LOGO_MAX_BYTES`, `maxLength`, `.min()`/`.max()` des schémas de `src/lib/schemas`) face à la règle de la FormRequest ou au seuil du service qui juge la valeur (`FREE_TEXT_MIN`, `min:`, `max:`) : écran qui laisse passer ce que l'API refuse ou ignore, ou qui refuse ce qu'elle accepte, sans test qui compare les deux — né de P159.01 | à faire |
 | 196 | Cas d'enum déclarés que rien n'écrit, mais que des filtres, compteurs, transitions ou libellés lisent (`AgencySubscriptionStatus::PastDue`, `PaymentStatus::PartiallyPaid` sur les loyers, `PaymentStatus::Late` sur les paiements de réservation, et leurs pareils sous `app/Models/Enums`) : branche qui fait croire à un état géré, compteur toujours nul, ou état réel rangé ailleurs — né de P162.06 | à faire |
+| 197 | Clés TanStack Query des lectures portées par l'agence du profil actif sans l'agence ni le profil dans la clé (`PROPERTY_MODERATION_COUNT_KEY`, `AGENCY_INVITATIONS_COUNT_KEY` d'`agency-queues.ts`, et leurs pareilles sous `src/lib/queries`) face au changement de profil actif, qui n'invalide que `profiles`, `roles` et `permissions` (`useProfiles.ts:109-117`) : compte ou liste de l'agence quittée servis depuis le cache — né de l'angle 167 | à faire |
+| 198 | Un même mot compté par des règles différentes d'un écran à l'autre (« publié » : `status = published` du `PlatformMetricsSnapshotter`, `available`+`published` de `STATUTS_QUI_PUBLIENT` et de la santé d'agence, `visibility=public` de la tuile de `/app/properties` ; et leurs pareils pour « actif », « ouvert », « en retard ») : deux nombres sous un même libellé qui ne se rejoignent pas — né de P167.07 | à faire |
 
 ---
 
@@ -15557,3 +15559,91 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu et mesuré.
 - Piste : ne rien livrer à un destinataire supprimé : un écouteur `NotificationSending` qui rend `false` pour un `User` `trashed()` (et `BuildUserDigestJob` qui sort sur `trashed()`). Test : avis en file, compte effacé avant le worker → aucun courriel, aucune ligne in-app, aucun `failed_jobs`.
 - Mesure (2026-10-22, 7c6b79809, mesureur) : relu `anonymize()` (adresse remplacée par `deleted-%d@takussan.local`, puis `delete()` en douceur), `BuildUserDigestJob.php` (garde sur `notifications_email_enabled` et `email` seuls, aucun `trashed()`) ; `grep -rn NotificationSending app` → rien ; test temporaire `SondeMesureur166Test` (retiré), avis `ShouldQueue` canal `mail` mis en file `database` pour `alice@example.com`, puis `executeDeletion()`, puis `queue:work --stop-when-empty` → compte `trashed()`, `failed_jobs` 0, **un courriel livré à `deleted-1@takussan.local`** (transport `array`) → le constat tient ; le résumé `BuildUserDigestJob` et le refus du transport `resend` restent non rejoués. Classement : V3, le correctif décide de ce qui est encore envoyé au titulaire d'un compte effacé, et touche le flux RGPD d'effacement.
+
+## Angle 167 — Tuiles et lignes cliquables des tableaux de bord : ce que le lien ouvre face à ce que le nombre compte
+
+*Exploré le 2026-10-22 sur `pre-dev` cd4517db8, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même, pour chaque nombre cliquable, la requête qui le compte côté API et la liste que son lien ouvre : aperçus du bailleur, de l'agent et du locataire (`overview/owner`, `overview/agent`, `overview/tenant`), files `AgencyQueues` et tuiles `AgencyKpis` de `/app/overview/agency`, tuiles de `/app/properties`, `SystemMetricsGrid` et `ConsoleQueues` de `/super-admin`. Ce qui tient (lu) : les tuiles de `/app/properties` depuis TCK-1289 ; la file « Échéances impayées » (`PortfolioMetrics::overdue` et `AgingBalanceService` appliquent la même règle `leaseOwed`, même agence, `due_date < aujourd'hui`) ; la file de modération (même endpoint, `meta.total`) ; « Visites à confirmer » du bailleur (onglet par défaut de `VisitsList` = `scheduled` à venir, la règle du compte) ; « Demandes en attente » du bailleur (`?status=pending`, lu par `BookingsList` depuis TCK-1293) ; les quatre files de la console (`super-admin-queues.ts`, chacune alignée sur le filtre par défaut de sa page) et les tuiles d'agences de la console (`?is_verified=1`, `?status=`). Les tuiles `AgencyKpis` ne portent aucun lien. Une lecture `tinker` de la base de développement (P167.07), qui ne dit rien de la préproduction. Aucun test lancé, rien de joué au navigateur.*
+
+### « Devis à valider » du bailleur et « Demandes d'intervention en cours » du locataire ouvrent toutes les interventions, tous statuts
+- Réf : P167.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:139-143`, `takussan-web/src/app/(dashboard)/app/overview/tenant/page.tsx:181-191`, `takussan-web/src/components/maintenance/MaintenanceList.tsx:55-65`, `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:102-107`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:104-107`
+- Constat :
+  - « Devis à valider » compte les interventions des biens du bailleur dont le statut est dans `MaintenanceStateMachine::AWAITING_QUOTE_DECISION` (`quote_submitted`, `awaiting_owner`) (lu, `DashboardOwnerService.php:102-107` ; règle posée par P162.01), et mène à `/app/maintenance` sans paramètre (lu, `overview/owner/page.tsx:140`).
+  - « Demandes d'intervention en cours » du locataire compte ses demandes `open()` (lu, `DashboardTenantService.php:104-107`) et mène aussi à `/app/maintenance` nu (lu, `overview/tenant/page.tsx:183`).
+  - La page rend `MaintenanceList` sans argument (lu, `maintenance/(liste)/page.tsx`) ; la liste tient son filtre en `useState('')`, sans lecture de l'URL, et n'envoie aucun `filter[status]` par défaut (lu, `MaintenanceList.tsx:55-65`). Le clic ouvre donc toutes les interventions, closes et annulées comprises. Le sélecteur ne prend qu'un statut à la fois : même à la main, la liste ne peut pas montrer les deux statuts que « Devis à valider » additionne.
+  - L'API sait filtrer : `status` est dans `MaintenanceRequest::$requestFilterable` (lu, `MaintenanceRequest.php:76`), filtre exact qui lit une liste à virgules (lu par le délégué en P131.02 pour `Property`, même trait ; non rejoué ici).
+  - Établi comment : lu.
+- Piste : faire porter au lien les statuts comptés (`/app/maintenance?status=quote_submitted,awaiting_owner`, et pour le locataire les statuts de `open()`), et faire lire `?status=` par `MaintenanceList`, comme `BookingsList` depuis TCK-1293. Garde : un test de chaque aperçu sur le `href`, et un test de `MaintenanceList` monté sur `?status=a,b` qui attend `filter[status]=a,b` dans l'appel.
+
+### « Avis sans réponse » ouvre la boîte de tous les avis reçus, répondus et en attente compris
+- Réf : P167.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:149-153`, `takussan-web/src/components/profile/ProfileReviewsList.tsx:355-367`, `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:117-123`
+- Constat :
+  - Le nombre compte les avis approuvés, sans réponse, portés sur les biens du bailleur (`reviewable_type = Property`, `is_approved`, `reply_content` nul) (lu, `DashboardOwnerService.php:117-123`) ; le lien mène à `/app/profile/reviews` sans paramètre (lu, l. 150).
+  - La boîte `ReceivedReviewsInbox` tient ses quatre filtres (bien, réponse, statut, sujet) en `useState(ALL)` et n'en lit aucun dans l'URL (lu, `ProfileReviewsList.tsx:357-367`) : elle ouvre sur tous les avis reçus, répondus, en attente ou signalés, et ceux qui visent l'agent ou l'agence (filtres côté API lus, `ReviewController.php:255-266`).
+  - Le filtre « Sans réponse » existe (`replied=0`) : il manque seulement au lien et à la lecture de la page.
+  - Établi comment : lu.
+- Piste : mener la ligne à `/app/profile/reviews?replied=0&subject_type=property` (noms à choisir sur ceux de la boîte), et faire lire ces paramètres par `ReceivedReviewsInbox`. Garde : un test de la boîte montée sur ces paramètres, qui attend `filter[replied]=0` dans l'appel.
+
+### « Baux à signer » de l'agent ouvre tous les baux, tous statuts, de toute l'agence
+- Réf : P167.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:108-113`, `takussan-web/src/components/leases/LeasesList.tsx:63-72`, `takussan-api/app/Services/Dashboard/DashboardAgentService.php:107-111`
+- Constat :
+  - Le nombre compte les baux `pending_signature` de l'agence, restreints sous « Mes chiffres » à `agent_id` = l'agent (lu, `DashboardAgentService.php:107-111`) ; le lien mène à `/app/leases` sans paramètre (lu, `overview/agent/page.tsx:109`).
+  - `LeasesList` tient statut et bien en `useState('all')`, sans lecture de l'URL (lu, l. 68-69) : la liste ouvre sur tous les baux visibles, actifs et clos compris, de toute l'agence (périmètre `agency_id` du personnel, lu, `LeaseController::index`).
+  - L'API filtre déjà `status` et `agent_id` (lu, `Lease.php:89`) : le lien pourrait porter les deux.
+  - Établi comment : lu.
+- Piste : `/app/leases?status=pending_signature` (et `agent_id` sous « Mes chiffres »), lus par `LeasesList`. Garde : un test de la page de l'agent sur le `href` selon la portée, et un test de `LeasesList` monté sur `?status=pending_signature`.
+
+### « Tâches du jour » compte mes tâches ouvertes de l'agence active, et sa liste montre aussi celles que j'ai créées pour d'autres
+- Réf : P167.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:96-97,134-139`, `takussan-api/app/Http/Controllers/Api/TaskController.php:28-49`, `takussan-api/app/Models/Task.php:96-111`, `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:115-120`
+- Constat :
+  - Le nombre compte les tâches **assignées** à l'agent, `open` ou `in_progress`, échues aujourd'hui, dont le parent est dans l'agence active (lu, `DashboardAgentService.php:134-139`, `$taskInAgency` l. 96-97).
+  - Le lien `/app/tasks?filter[due]=today` (lu, page l. 116) ouvre `GET /api/tasks?filter[due]=today`, dont le périmètre est : assignées à moi dans toute agence où je suis personnel, **ou créées par moi** (assignées à n'importe qui) dans toute agence où je suis membre, ou assignées à l'absent que je remplace (lu, `TaskController.php:33-44`). Le filtre `today` garde aussi les tâches closes, délibérément (lu, `Task.php:92-93,107`).
+  - Pour un responsable qui crée les tâches de son équipe, la tuile dit « 2 » et la liste en montre autant qu'il en a distribué pour la journée ; pour un membre de deux agences, la liste mêle l'autre agence.
+  - Établi comment : lu. Non mesuré sur un jeu de données.
+- Piste : soit compter ce que la liste montre, soit faire porter au lien la portée du compte (un filtre `assigned_to=me` et la clôture exclue, que l'API n'expose pas encore : à choisir). Garde : un test d'API qui crée une tâche assignée, une créée pour un autre, une close, toutes du jour, et compare `tasks_today` au `meta.total` de la liste que le lien ouvre.
+
+### « Demandes en attente » de l'agent, sous « Mes chiffres », compte les réservations de ses biens et ouvre celles de toute l'agence
+- Réf : P167.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:85-87,302-315`, `takussan-api/app/Http/Controllers/Api/BookingController.php:27-38`, `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:102-107`
+- Constat :
+  - Sous « Mes chiffres », le nombre compte les réservations `pending` des biens que l'agent a créés ou dont il est collaborateur `agent`/`manager` (lu, `propertyScope`, l. 302-315 ; `pendingBookings`, l. 85-87).
+  - Le lien `/app/bookings` (lu, l. 103) ouvre l'onglet `pending` de `BookingsList`, sur le périmètre du personnel : toutes les réservations de l'agence (lu, `BookingController.php:34-36`). Sous « Agence », les deux coïncident ; sous « Mes chiffres », la liste est plus large que le nombre.
+  - `Booking::$requestFilterable` n'offre aucun filtre « mes biens » (lu, `Booking.php:44`) : le lien ne peut pas aujourd'hui porter la portée.
+  - Établi comment : lu.
+- Piste : ajouter un filtre de portée aux réservations (biens de l'agent) et le faire porter au lien sous « Mes chiffres », ou dire sous la ligne que la liste est celle de l'agence. Garde : test d'API qui compare `pipeline_ops.pending_bookings` au `meta.total` de la liste filtrée.
+
+### « Invitations sans réponse » compte les seules invitations `sent`, et l'équipe liste aussi les expirées
+- Réf : P167.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/agency-queues.ts:107-120`, `takussan-web/src/lib/queries/agency-invitations.ts:98-122`, `takussan-web/src/components/dashboard/admin/AgencyQueues.tsx:162-170`
+- Constat :
+  - La file compte `GET /api/invitations?filter[status]=sent` (lu, `agency-queues.ts:112`) ; elle mène à `/app/agency/team` (lu, `AgencyQueues.tsx:73`), dont la section des invitations liste `filter[status]=sent,expired` depuis TCK-368, pour que l'invitation périmée reste à l'écran et se relance (lu, `agency-invitations.ts:104-118`).
+  - Dès qu'une invitation a expiré, la file annonce n invitations en attente, et la page en montre davantage, marquées « expirée » et relançables. Le libellé de la file, « Invitations sans réponse » (lu, `fr.json` `dashboard.agencyQueues.items.invitations`), couvre pourtant aussi les expirées.
+  - Établi comment : lu.
+- Piste : compter `sent,expired` dans la file, la même règle que la section, ou nommer dans le compte la part expirée. Garde : un test de `fetchPendingInvitationsCount` qui attend le même `filter[status]` que `fetchPendingAgencyInvitations`, tiré d'une constante partagée.
+
+### « Biens publiés » de la console ne compte que le statut `published`, quand le code publie aussi par `available`
+- Réf : P167.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Reporting/PlatformMetricsSnapshotter.php:103`, `takussan-web/src/components/admin/super/SystemMetricsGrid.tsx:196-200`, `takussan-api/app/Http/Requests/Api/UpdateStatusPropertyRequest.php:23`, `takussan-api/app/Services/Property/PropertyPublication.php:20`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:64-67,92`
+- Constat :
+  - La tuile « Biens publiés » compte `status = published` (lu, `PlatformMetricsSnapshotter.php:103`) et mène à `/super-admin/properties?filter[status]=published` (lu, `SystemMetricsGrid.tsx:199`) : le nombre et la liste s'accordent entre eux.
+  - Le reste du code tient pour « au catalogue » les deux statuts `available` et `published` : `STATUTS_QUI_PUBLIENT` (lu, `UpdateStatusPropertyRequest.php:23`), `PropertyPublication::UNPUBLISHABLE` (lu, l. 20), et la santé d'agence de la même console compte ses biens actifs (`active_properties`) par `status IN (available, published)` (lu, `AgencyDetailController.php:92`). La tuile de `/app/properties`, elle, dit « Publiés » pour `visibility=public`.
+  - Mesuré : `php artisan tinker` sur la base de développement, biens non supprimés par statut et visibilité → `published` : 2, `available` : 427 (dont 423 publics). La console y affiche 2 biens publiés.
+  - Établi comment : lu, et mesuré sur la base de développement.
+- Piste : faire compter à la tuile (et à son lien, `filter[status]=available,published`) la règle de `STATUTS_QUI_PUBLIENT`, ou la renommer pour dire ce qu'elle compte ; la colonne d'instantané `properties_published` suit (sa série passée garde l'ancienne règle : à dire). Garde : un test du snapshotter sur un bien `available` public.
