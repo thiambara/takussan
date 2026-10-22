@@ -14432,7 +14432,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Petites améliorations
 - Réf : P151.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-1407
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Property.php:680-684`, `takussan-api/app/Models/Task.php:84-96`, `takussan-api/app/Http/Controllers/Api/ReviewController.php:82-96`
 - Constat :
@@ -14441,6 +14441,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu, test temporaire.
 - Piste : lire ces trois valeurs par `is_string()` (liste vide ou 400 sinon) quand on touche ces fichiers, ou les couvrir par la garde générale proposée en P151.01.
 - Mesure (2026-10-22, f41a867fe, mesureur) : relu `Property.php:680-684` (`(string) $value`), `Task.php:84-96` (`match ((string) $value)`, `default => whereRaw('1 = 0')`), `ReviewController.php:82-96` (`isset($statusMap[$status])`, valeur inconnue ignorée) ; test temporaire `tests/Feature/Tmp/TmpMesureur151Test.php` (retiré ensuite), une requête par cas, charge 2,6 sur 8 cœurs, d'abord sans gestionnaire d'exceptions pour lire l'exception, puis avec : 30 des 33 requêtes rendent 500 ; ici `/api/properties?filter[created_to][]=2026-10-22` et `/api/tasks?filter[due][]=today` → 500 `Array to string conversion`, `/api/reviews?filter[moderation_status][]=pending` → 500 `Cannot access offset of type array` ; `/api/activity-log?filter[event]=a,b` → 200 → le constat tient. Classement : A1, chaque lecture a déjà sa réponse à une valeur qu'elle ne connaît pas (liste vide pour `due`, filtre ignoré pour `moderation_status`, règle `date` pour `created_to`, cf. P151.04) ; le correctif attendu ne lit la valeur que si `is_string()` et applique sinon cette même réponse.
+- Mesure (2026-10-22, e72d2ad69, implementeur) : tests neufs rouges avant correctif : `/api/tasks?filter[due][]=today` → 500 (`TaskDueFilterTest`), `/api/reviews?filter[moderation_status][]=pending` → 500 (`ReviewModerationQueueTest`) ; `/api/properties?filter[created_to][]=2026-10-22` déjà 422 par TCK-1405 (P151.04) → `due` et `moderation_status` lus par `is_string()` (aucune tâche, filtre ignoré) ; verts, ablation → 2 rouges, et la ligne `DateBoundaryFilter::exiger(…, 'created_to')` de `Property` retirée → rouge 500, remis → verts ; `TaskDueFilterTest` 4/4, `ReviewModerationQueueTest` 10/10, `DateIllisibleDansUnFiltreTest` 8/8.
 
 
 ## Angle 152 — Gestes hors de `/app/agency` montrés par le rôle, jugés par la capacité
