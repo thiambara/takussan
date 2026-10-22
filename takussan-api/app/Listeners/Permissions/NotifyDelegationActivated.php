@@ -29,6 +29,8 @@ class NotifyDelegationActivated
         $user = $delegation->user;
         $delegator = $delegation->delegator;
         $role = $delegation->role;
+        // TCK-1471 (P161.03) — le délégant est mené aux délégations ; la cible du bénéficiaire
+        // n'est pas tranchée (au porteur) et reste celle d'avant.
         $target = NotificationTarget::of('team');
 
         // Notify beneficiary
@@ -42,7 +44,7 @@ class NotifyDelegationActivated
             $this->notificationService->send($delegator, NotificationCode::RoleDelegationActivatedDelegator, [
                 'role' => $role,
                 'beneficiary' => trim(($user->first_name ?? '').' '.($user->last_name ?? '')),
-            ], $target);
+            ], NotificationTarget::of('role_delegations'));
         }
     }
 }

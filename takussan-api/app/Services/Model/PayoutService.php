@@ -875,7 +875,7 @@ class PayoutService
             ->reject(fn (User $user): bool => in_array((int) $user->id, $excluded, true));
 
         foreach ($recipients as $recipient) {
-            $this->notifications()->send($recipient, NotificationCode::PayoutAwaitingApproval, self::notificationParams($payout), NotificationTarget::of('finances'));
+            $this->notifications()->send($recipient, NotificationCode::PayoutAwaitingApproval, self::notificationParams($payout), NotificationTarget::of('payout_approvals'));
         }
     }
 

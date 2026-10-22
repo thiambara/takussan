@@ -54,18 +54,28 @@ class OfxDriver implements StatementParserInterface
 
         $content = $this->toUtf8($content);
 
-        // Extract default currency from <CURDEF>
-        $defaultCurrency = $context->agency->currency?->value ?? 'XOF';
-        if (preg_match('#<CURDEF>([A-Z]{3})#i', $content, $m)) {
-            $defaultCurrency = strtoupper($m[1]);
-        }
+        $agencyCurrency = $context->agency->currency?->value ?? 'XOF';
 
-        // Extract all STMTTRN blocks
-        preg_match_all('#<STMTTRN>(.*?)</STMTTRN>#si', $content, $blocks);
+        // TCK-1475 (P157.08) — la devise se lit PAR relevé de compte : chaque transaction prend le
+        // `CURDEF` du `STMTRS` (ou `CCSTMTRS`, carte) qui la contient, la devise de l'agence à
+        // défaut. Le premier `CURDEF` du fichier valait pour toutes, et la ligne d'un second compte
+        // en euros entrait en francs CFA. Un fichier sans relevé de compte se lit d'un seul tenant.
+        $accounts = preg_match_all('#<(CC|)STMTRS>(.*?)</\1STMTRS>#si', $content, $statements)
+            ? $statements[2]
+            : [$content];
+
+        $transactions = [];
+        foreach ($accounts as $account) {
+            $currency = preg_match('#<CURDEF>([A-Z]{3})#i', $account, $m) ? strtoupper($m[1]) : $agencyCurrency;
+            preg_match_all('#<STMTTRN>(.*?)</STMTTRN>#si', $account, $blocks);
+            foreach ($blocks[1] as $block) {
+                $transactions[] = [$block, $currency];
+            }
+        }
 
         $lineNumber = 0;
 
-        foreach ($blocks[1] as $block) {
+        foreach ($transactions as [$block, $defaultCurrency]) {
             $lineNumber++;
 
             try {
@@ -105,10 +115,18 @@ class OfxDriver implements StatementParserInterface
 
         // Parse date: YYYYMMDD or YYYYMMDDHHMMSS or YYYYMMDDHHMMSS.XXX[TZ]
         $dateStr = substr($dtPosted, 0, 8);
-        $postedAt = CarbonImmutable::createFromFormat('Ymd', $dateStr);
+        try {
+            $postedAt = CarbonImmutable::createFromFormat('Ymd', $dateStr);
+        } catch (\Throwable) {
+            $postedAt = null;
+        }
 
-        if (! $postedAt) {
-            throw new \RuntimeException("Invalid OFX date: {$dtPosted}");
+        // TCK-1473 (P157.02) — même règle que `CsvDriver` (TCK-593) : `createFromFormat` DÉBORDE sans
+        // erreur (`20261332` devient le 2027-02-01). La date relue doit redonner la chaîne d'origine,
+        // sinon la ligne est sautée et comptée. Le message ne porte pas la valeur : il finirait dans
+        // un journal.
+        if (! $postedAt || $postedAt->format('Ymd') !== $dateStr) {
+            throw new \RuntimeException('Invalid OFX date');
         }
 
         $amount = $this->parseAmount($trnAmt);
