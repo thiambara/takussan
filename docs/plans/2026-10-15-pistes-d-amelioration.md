@@ -234,7 +234,7 @@ voie d'écriture (angle 13, puis 47).
 | 157 | Lignes de relevé importées face au rapprochement : `currency` lue dans le fichier (`CsvDriver.php:126-128`) puis comparée telle quelle par `ReconciliationMatcher::fetchCandidates` (`where('currency', …)`), devise de trois lettres autre que celle de l'agence (`CFA`, `XAF`, `EUR`), sens et montants lus, `FITID` répété d'un relevé à l'autre : lignes importées qu'aucun candidat ne peut jamais apparier, sans le dire — né de P124.01 | fait |
 | 158 | Fiches client créées hors de `CustomerController::store` (`ContactLeadService::convert`, `CustomerService::findOrCreateFromUser`, invitations et onboardings qui créent un `Customer`, visites) face à `CustomerDuplicateDetector` : fiche en double dans le CRM d'une agence, sans le dire — né de P125.02 | fait |
 | 159 | Exemples et formats montrés à la saisie (messages de `lang/*/validation.php` qui citent un exemple, `placeholder` des champs et clés `*Placeholder`, aides sous les champs) face à la règle de l'API qui jugera la valeur : exemple que la règle refuse — né de P125.03 et P125.04 | fait |
-| 160 | `properties.user_id` (le créateur du bien) lu comme le bailleur dans une décision métier sur un bien d'agence saisi par un agent : `OwnerApprovalThreshold::isLandlord` et `MaintenanceQuoteWorkflow` (plafond de travaux d'ADR-0037, devis `awaiting_owner`), `BookingExpirationService::resolveAgent`, `BookingRefundTaskService` — qui tranche, et qui est prévenu, à la place du bailleur — né de P126.04 | à faire |
+| 160 | `properties.user_id` (le créateur du bien) lu comme le bailleur dans une décision métier sur un bien d'agence saisi par un agent : `OwnerApprovalThreshold::isLandlord` et `MaintenanceQuoteWorkflow` (plafond de travaux d'ADR-0037, devis `awaiting_owner`), `BookingExpirationService::resolveAgent`, `BookingRefundTaskService` — qui tranche, et qui est prévenu, à la place du bailleur — né de P126.04 | fait |
 | 161 | Notifications dont la `NotificationTarget` ouvre un écran que la capacité ou le profil du destinataire ferme (`finances` de `PayoutDue` et `BankStatementImported`, `agency_settings`, `audit`, `review_moderation`, `kyc_review`) : destinataire choisi par une colonne (`issued_by_id`, `uploaded_by_id`) ou par un rôle, et clic qui mène à un 403 — né de P126.03 | à faire |
 | 162 | Compteurs « ouverts », « en cours » ou « à traiter » écrits par une liste de statuts à la main (`whereIn('status', [Open, InProgress])` et leurs pareilles sur interventions, tâches, réservations, baux, litiges) face aux états non terminaux de la machine à états ou de l'enum : élément qui avance d'un état et sort du compteur, ou état terminal encore compté — né de P127.03 | à faire |
 | 163 | Bornes de fin saisies en date seule (`<input type="date">`) et rangées dans une colonne `datetime` (délégations de rôle, absences d'agent `StoreAgentAbsenceRequest`, annonces, fenêtres de maintenance, abonnements d'agence) : fin à minuit UTC au début du jour choisi face au libellé « Fin », aux textes « jusqu'au » et aux jobs d'expiration — né de P128.01 | à faire |
@@ -15036,3 +15036,82 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu.
 - Piste : reprendre le texte de `invitationAccept.passwordHint` pour les deux placeholders (`fr`/`en` ; le texte `wo` existant reste tel quel, wolof en pause), et écrire « MB » dans `en.json`. Test : rendu de la page de réinitialisation qui montre l'exigence de lettre et de chiffre.
 - Mesure (2026-10-22, e5cb792e4, mesureur) : relu `fr.json:409,551` et `en.json:438,580` (« Au moins 8 caractères », les lignes `en` citées ont bougé), `reset-password/page.tsx:111,116` (seul `minLength={8}`, placeholder `passwordPlaceholder`), `AppServiceProvider.php:233` (`min(8)->letters()->numbers()`), `ResetPasswordPasswordResetRequest.php:34` (`Password::defaults()`), `fr.json:11116`/`en.json:11116` (`invitationAccept.passwordHint`, texte existant) ; `tinker` en lecture : `motdepasse` contre `Password::defaults()` → « must contain at least one number » (le 422 « à vérifier » tient) ; `grep -n " Mo" en.json` → l. 6702, 6706, 6816, 6818, 6820, 9722 → les deux points tiennent. Classement : A4, i18n sans texte de produit neuf : les placeholders reprennent un texte déjà écrit, et « Mo » devient l'unité anglaise « MB ».
+
+## Angle 160 — `properties.user_id` lu comme le bailleur dans une décision métier
+
+*Exploré le 2026-10-22 sur `pre-dev` 60a024c89, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : `OwnerApprovalThreshold`, `MaintenanceQuoteWorkflow::approveQuote`, `MaintenanceRequestPolicy` (`decideQuote`, `actAsPrincipal`, `transitionTo`, `principalWrites`, `isTeamPrincipalFor`, `isPrincipalFor`), `BookingMoneyAccess`, `BookingPolicy` (`validate`, `cancel`, `landlordOf`), `LeasePolicy` (`refundDeposit`, `renew`, `requestEarlyTermination`), `BasePolicy::landlordWrites`, `LeaseService::create`, `BookingService::cancel`, `BookingExpirationService::resolveAgent`, `BookingRefundTaskService::assigneeFor`, `ReviewEligibility`, `SystemRoleCapabilities::agent`, `PrimaryPropertyContact`, et l'amendement d'ADR-0036 du 2026-10-19. Écartés parce que déjà relevés : le bail qui désigne l'agent et le bailleur qu'on ne peut pas désigner (P15.06, P50.01), les loyers et reversements suivis par `properties.user_id` (P50.02, angle 178), les avis au créateur (P126.04, fait), les droits du membre **retiré** (P153.01 à P153.03) et du créateur **suspendu** (angle 190). Ce qui suit porte sur l'agent **actif** créateur du bien, dont le rôle refuse le geste. Mesures par un test temporaire `tests/Feature/TmpExplorateur/SondeAngle160Test.php` (base de test PostgreSQL, charge 2,79 / 3,23 / 3,00 sur 8 cœurs), retiré avant la fin, sur le jeu de `BuildsBookingStakeholders` (agence, bailleur, agent collaborateur, client) et des agents à rôle personnalisé `agentWithout(...)` de `CreatesAgencyMembers` ; le créateur est posé par `forceFill(['user_id' => …])`, ce que fait `PropertyController::store` pour un agent qui saisit le bien. Rien n'a été lu en base de développement.*
+
+### L'agent qui a saisi un bien d'agence rembourse les acomptes de ses réservations sans `bookings.refund`, que le rôle d'agent n'a pas
+- Réf : P160.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Booking/BookingMoneyAccess.php:29-39,53-55,69-72`, `takussan-api/app/Services/Membership/SystemRoleCapabilities.php:61-90`, `takussan-api/app/Http/Requests/Api/RefundBookingPaymentRequest.php:36`, `takussan-api/app/Http/Controllers/Api/BookingController.php:67`
+- Constat :
+  - `isDirectLandlord` tient pour « bailleur direct » quiconque est `properties.user_id`, et n'écarte que le bailleur `blocked` (lu, l. 29-39). `canRefund` le laisse passer avant tout contrôle de capacité (lu, l. 53-55) ; `canRecordAsCollector` aussi (lu, l. 69-72).
+  - Le rôle système d'agent ne porte pas `bookings.refund` (lu, `SystemRoleCapabilities::agent`).
+  - mesuré : agent du rôle système, créateur du bien (`user_id` = lui), acompte `paid` de 10 000 → `canActAt(bookings.refund)` = `false`, `canRefund` = `true` ; `POST /api/booking-payments/{id}/refund` → **200**, acompte `refunded`. L'agent collaborateur du même bien, même rôle, non créateur → `canRefund` = `false`.
+  - mesuré : agent à rôle personnalisé sans `payments.record`, créateur du bien → `canRecordAsCollector` = `true`.
+  - `BookingController::show` sert `can_refund` du même prédicat (lu, l. 67) : l'écran montre le geste.
+  - Établi comment : lu et mesuré.
+- Piste : ne tenir pour bailleur direct que le créateur qui est propriétaire au sens de `PrimaryPropertyContact::estProprietaire` (bien sans agence, ou `OwnerProfile` de l'agence du bien), et juger tout membre du personnel par la branche capacité, même sur un bien qu'il a saisi. Garde : un test « agent créateur, rôle système → refund 403, `can_refund` faux ; bailleur du bien → 200 ».
+
+### L'agent qui a saisi un bien d'agence commande, clôt et tranche les devis de ses interventions sans `maintenance.assign` ni `maintenance.close`
+- Réf : P160.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:148-157,169-180,189-209,241-252,258-264,292-304`, `takussan-api/app/Services/Maintenance/OwnerApprovalThreshold.php:41-44`
+- Constat :
+  - `isPrincipalFor` rend vrai à `properties.user_id` sans autre condition (lu, l. 300-302). `isTeamPrincipalFor` exclut ce même `user_id` (lu, l. 258-264) : les capacités de l'équipe (`maintenance.assign` pour commander, `maintenance.close` pour clore) ne sont donc jamais jugées pour lui. Le commentaire écrit « Le bailleur du bien commande sur SON bien sans capacité d'agence » (lu, l. 176-177).
+  - `OwnerApprovalThreshold::isLandlord` compare aussi `user_id` seul (lu, l. 41-44) : l'agent créateur qui inscrit un `actual_cost` ou approuve un devis le fait « en bailleur ». Le plafond lui-même vaut `null` sur ces biens, faute d'`OwnerProfile` du créateur (lu, l. 26-38) : voir les petites améliorations.
+  - mesuré : deux agents au même rôle personnalisé, sans `maintenance.assign` ni `maintenance.close` ; intervention `completed` sur le bien saisi par le premier → créateur : `actAsPrincipal` = `true`, `transitionTo(closed)` = `true`, `decideQuote` = `true` ; l'autre : `false` partout.
+  - P153.03 relève le même chemin pour le membre retiré ; ici, l'agent est actif, et c'est son rôle qui refuse le geste.
+  - Établi comment : lu et mesuré par `Gate::forUser()`, sans passer par les routes.
+- Piste : réserver la branche « bailleur » de `isPrincipalFor`, `isTeamPrincipalFor` et `principalWrites` au créateur propriétaire (`estProprietaire`), et faire passer le personnel créateur par la branche équipe et ses capacités. Garde : le test ci-dessus, joué sur `POST …/assign`, `PATCH …/status` vers `closed` et `POST …/quote/approve`.
+
+### L'agent qui a saisi un bien d'agence confirme et annule ses réservations, ouvre un bail, le renouvelle, le résilie et rend le dépôt, sans les capacités que son rôle lui retire
+- Réf : P160.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/BookingPolicy.php:60-68,75-85,92-98`, `takussan-api/app/Services/Model/LeaseService.php:37-43,91`, `takussan-api/app/Policies/LeasePolicy.php:135-145,158-170,184-200`, `takussan-api/app/Policies/BasePolicy.php:131-140`
+- Constat :
+  - `BookingPolicy::landlordOf` passe `properties.user_id` à `landlordWrites`, qui ne refuse que le bailleur `blocked` (lu, `BasePolicy.php:131-140`) ; `validate` et `cancel` le rendent vrai avant la capacité (lu, l. 60-85).
+  - `LeaseService::create` accepte `property->user_id === user` sans `leases.create` (lu, l. 37-43), et écrit `landlord_id = property->user_id` (lu, l. 91). Le bail ouvert par l'agent créateur le nomme donc bailleur, et les branches `landlordWrites($user, $lease->landlord_id, …)` de `LeasePolicy` passent avant la capacité (lu, `refundDeposit`, `renew`, `requestEarlyTermination`).
+  - mesuré : deux agents au même rôle personnalisé, sans `bookings.validate`, `bookings.cancel`, `leases.create`, `leases.terminate`, `leases.renew`, `leases.refund_deposit` ; le premier a saisi le bien → créateur : `validate`, `cancel`, `requestEarlyTermination`, `renew`, `refundDeposit` = `true`, et `LeaseService::create` → bail créé, `landlord_id` = lui ; l'autre : `false` partout, et `LeaseService::create` → 403.
+  - Établi comment : lu et mesuré (`Gate::forUser()` et appel direct du service, sans les routes).
+- Piste : la même règle que P160.01 et P160.02, en un seul prédicat partagé (« le créateur est propriétaire » plutôt que « le créateur est `user_id` ») appelé par `landlordWrites` ou par ses appelants qui reçoivent `properties.user_id`. Le cas `leases.landlord_id` = un agent relève de P15.06 et de TCK-997 ; tant qu'il existe, le prédicat doit aussi s'appliquer au `landlord_id` d'un bail. Garde : un test paramétré par geste, « agent créateur sans capacité → 403 ».
+
+### L'avis d'expiration destiné à « l'agent » part au bailleur, et l'équipe qui suit la réservation n'en reçoit aucun
+- Réf : P160.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Booking/BookingExpirationService.php:264-306`, `takussan-api/app/Notifications/BookingExpiredNotification.php:31,46,117-118`, `takussan-api/app/Services/Booking/BookingStakeholders.php:35`
+- Constat :
+  - `resolveAgent` prend d'abord `createurDestinataire` (lu, l. 283-288) : sur le bien d'un bailleur de l'agence, c'est le bailleur. L'auteur de la réservation et l'admin ne sont que des replis, jamais atteints dans ce cas (lu, l. 290-303). L'avis est construit en perspective `agent` (code `booking.expired.agent`, lu).
+  - mesuré : bien d'un bailleur actif, agent collaborateur accepté, réservation créée par cet agent → `sendNotifications` : 1 `BookingExpiredNotification` au bailleur, 0 à l'agent.
+  - La demande et l'annulation préviennent par `BookingStakeholders::for` le bailleur, l'auteur du personnel et les collaborateurs acceptés (lu, docblock l. 14-21 ; appelants `NotifyOnBookingRequested`, `NotifyOnBookingCancelled`) : l'expiration, elle, ne vise qu'une personne.
+  - Établi comment : lu et mesuré par appel de `sendNotifications` (réflexion).
+- Piste : envoyer l'avis `agent` aux destinataires d'équipe de `BookingStakeholders`, et au bailleur un avis à sa perspective s'il en faut un (choix de produit). Garde : un test « bien d'un bailleur, agent collaborateur → l'agent reçoit l'avis d'expiration ».
+
+### Le tenant d'un bail ou d'une réservation est invité à noter le bailleur comme « agent », et ne peut pas noter l'agent du bail
+- Réf : P160.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Review/ReviewEligibility.php:22-32,61-72,123-129`, `takussan-api/app/Http/Requests/Api/StoreForAgentReviewRequest.php:27`
+- Constat :
+  - Pour un bail ou une réservation, « l'agent » à noter est `property->owner` (lu, l. 125), et `forAgent` accepte la preuve d'un bail ou d'une réservation sur un bien dont l'agent noté est `user_id` (lu, l. 66-70). Le docblock écrit « un bien qu'il a publié » (lu, l. 28-29) : il lit `user_id` comme l'agent, à l'inverse des autres sites de cet angle.
+  - mesuré : bien d'un bailleur, bail `active` du client avec `agent_id` = l'agent collaborateur → `opportunities` propose un seul avis `agent`, sujet = le bailleur ; `forAgent(client, bailleur)` → le bail ; `forAgent(client, agent du bail)` → `null`.
+  - Où l'avis déposé sur le bailleur s'affiche (profil public d'agent, `PublicAgentController`) n'a pas été mesuré (à vérifier).
+  - Établi comment : lu et mesuré par appel du service.
+- Piste : prendre l'agent du bail (`leases.agent_id`) et l'agent principal du bien (collaborateur désigné) comme sujets « agent », et le créateur seulement s'il est du personnel de l'agence du bien. Garde : le cas mesuré ci-dessus.
+
+### Petites améliorations
+- Réf : P160.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Model/BookingService.php:293-300`, `takussan-api/app/Services/Booking/BookingRefundTaskService.php:106-135`, `takussan-api/app/Services/Maintenance/OwnerApprovalThreshold.php:26-38`, `takussan-api/app/Listeners/Maintenance/NotifyMaintenanceParticipants.php:90`
+- Constat :
+  - `BookingService::cancel` écrit `cancellation_by = owner` quand l'annulation vient de `properties.user_id` (lu, l. 295-296) : l'agent qui a saisi le bien annule « en propriétaire ». La valeur est servie par `BookingResource` (lu, l. 36), aucun écran ne la lit (`grep -rn cancellation_by takussan-web/src` → vide).
+  - `BookingRefundTaskService::assigneeFor` assigne en dernier repli `property->owner` tel quel (lu, l. 134), sans `createurDestinataire` que TCK-1316 a posé ailleurs : dans une agence sans admin actif, la tâche va à l'agent créateur suspendu ou parti.
+  - `OwnerApprovalThreshold::of` lit le plafond de l'`OwnerProfile` du créateur sans regarder son statut (lu, l. 33-36) : un bailleur `inactive` garde son plafond, le devis passe `awaiting_owner`, l'avis part à `property->owner` (lu, `NotifyMaintenanceParticipants.php:90`). Qu'un bailleur `inactive` doive encore trancher est à vérifier. À l'inverse, un bien saisi par un agent n'a jamais de plafond (pas d'`OwnerProfile`) : l'ADR-0037 ne s'y applique pas tant que TCK-997 ne désigne pas le bailleur (lu ; conséquence de P50.01, sans mesure).
+  - Établi comment : lu.
+- Piste : `cancellation_by = agent` pour le personnel créateur (même prédicat que P160.01) ; `createurDestinataire` au dernier repli de `assigneeFor` ; décider si le plafond d'un bailleur `inactive` s'applique encore, et l'écrire dans l'ADR-0037.
