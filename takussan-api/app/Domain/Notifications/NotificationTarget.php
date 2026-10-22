@@ -53,6 +53,9 @@ final class NotificationTarget
         'kyc_review' => '/super-admin/kyc',
         'finances' => '/app/agency/finances',
         'team' => '/app/agency/team',
+        // TCK-1471 (P161.03) — les délégations de rôle vivent sous les rôles (`RoleDelegationsSection`,
+        // TCK-369) : c'est là que le délégant retrouve celle dont l'avis parle.
+        'role_delegations' => '/app/agency/roles',
         'agency_settings' => '/app/agency',
         // TCK-601 — une alerte de gouvernance ouvre le journal d'audit de l'agence.
         'audit' => '/app/agency/audit',
