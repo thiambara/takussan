@@ -55,6 +55,9 @@ class UpdateMeRequest extends FormRequest
             // des e-mails, SMS et notifications suit `User::preferredLocale()`. Une colonne, pas
             // une clé de `preferences` : elle n'entre donc pas dans PREFERENCE_FIELDS.
             'preferred_language' => ['sometimes', 'string', 'in:fr,en,wo'],
+            // TCK-1497 (P107.03) — le fuseau du compte, que lisent les rendus de notifications, les
+            // rappels de visite et l'heure du résumé. Une colonne, comme la langue.
+            'timezone' => ['sometimes', 'string', 'timezone:all'],
             // TCK-589 p3-1 — la preuve qu'exige le remplacement d'un numéro vérifié.
             ...PhoneChangeGuard::PROOF_RULES,
         ];

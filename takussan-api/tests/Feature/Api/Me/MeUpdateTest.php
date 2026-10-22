@@ -198,4 +198,62 @@ class MeUpdateTest extends TestCase
 
         $this->assertSame('en', $user->fresh()->preferred_language);
     }
+
+    /**
+     * TCK-1497 (P107.03, porteur 2026-10-22) — un fuseau par compte : `timezone` (`timezone:all`)
+     * accepté sur `PATCH /api/me`. Les rendus de notifications le lisent déjà ; il n'avait aucun
+     * écrivain, et tous les comptes restaient à Dakar.
+     */
+    public function test_le_fuseau_choisi_est_enregistre_et_rendu(): void
+    {
+        $user = User::factory()->create(['timezone' => 'Africa/Dakar']);
+
+        $this->actingAs($user)
+            ->patchJson('/api/me', ['timezone' => 'Europe/Paris'])
+            ->assertOk()
+            ->assertJsonPath('data.timezone', 'Europe/Paris');
+
+        $this->assertSame('Europe/Paris', $user->fresh()->timezone);
+    }
+
+    public function test_un_fuseau_inconnu_est_refuse(): void
+    {
+        $user = User::factory()->create(['timezone' => 'Africa/Dakar']);
+
+        foreach (['Mars/Olympus', '', null, 'UTC+2'] as $fuseau) {
+            $this->actingAs($user)
+                ->patchJson('/api/me', ['timezone' => $fuseau])
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('timezone');
+        }
+
+        $this->assertSame('Africa/Dakar', $user->fresh()->timezone);
+    }
+
+    public function test_sans_la_cle_le_fuseau_ne_change_pas(): void
+    {
+        $user = User::factory()->create(['timezone' => 'America/New_York']);
+
+        $this->actingAs($user)->patchJson('/api/me', ['city' => 'Dakar'])->assertOk();
+
+        $this->assertSame('America/New_York', $user->fresh()->timezone);
+    }
+
+    /**
+     * TCK-1497 — le fuseau du compte ne déplace pas le fuseau du processus : le bloc de
+     * `SetLocaleMiddleware` qui le posait (mort sous jeton, TCK-536) est retiré sans l'activer.
+     * Sous `actingAs`, `$request->user()` le voyait et le faisait tourner.
+     */
+    public function test_le_fuseau_du_compte_ne_change_pas_celui_du_processus(): void
+    {
+        $avant = date_default_timezone_get();
+        $user = User::factory()->create(['timezone' => 'Asia/Tokyo']);
+
+        try {
+            $this->actingAs($user)->patchJson('/api/me', ['city' => 'Dakar'])->assertOk();
+            $this->assertSame($avant, date_default_timezone_get());
+        } finally {
+            date_default_timezone_set($avant);
+        }
+    }
 }

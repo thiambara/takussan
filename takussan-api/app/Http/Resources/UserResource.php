@@ -85,6 +85,8 @@ class UserResource extends BaseResource
                 'secondary_phone_verified_at' => $this->iso($this->secondary_phone_verified_at),
                 'secondary_phone_whatsapp' => (bool) $this->secondary_phone_whatsapp,
                 'terms_accepted_at' => $this->iso($this->terms_accepted_at),
+                // TCK-1497 (P107.03) — le fuseau du compte, réglé au profil (`PATCH /api/me`).
+                'timezone' => $this->timezone,
             ] : []),
             'agency_id' => $this->agency_id,
             'roles' => $this->profileTypes()->all(),
