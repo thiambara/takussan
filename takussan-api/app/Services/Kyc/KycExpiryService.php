@@ -7,8 +7,8 @@ use App\Domain\Notifications\NotificationTarget;
 use App\Models\Agency;
 use App\Models\Enums\KycDossierStatus;
 use App\Models\KycDossier;
-use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
+use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Model\NotificationService;
 use Illuminate\Support\Facades\DB;
 
@@ -99,13 +99,7 @@ class KycExpiryService
     /** @return iterable<User> */
     private function activeAdmins(int $agencyId): iterable
     {
-        return AgencyAdminProfile::query()
-            ->where('agency_id', $agencyId)
-            ->active()
-            ->with('user')
-            ->get()
-            ->pluck('user')
-            ->filter()
-            ->unique('id');
+        // TCK-1318 — la liste unique : profil actif et compte joignable.
+        return AdminsDeLAgence::destinataires($agencyId);
     }
 }

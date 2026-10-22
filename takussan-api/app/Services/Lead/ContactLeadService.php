@@ -6,18 +6,17 @@ use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Models\Agency;
 use App\Models\Customer;
-use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\ContactLeadChannel;
 use App\Models\Enums\CustomerPipelineStage;
-use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyContactLead;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
@@ -130,25 +129,14 @@ class ContactLeadService
     }
 
     /**
-     * Les admins ACTIFS et joignables d'une agence.
+     * Les admins ACTIFS et joignables d'une agence — {@see AdminsDeLAgence::destinataires()}, la
+     * définition unique (TCK-1318).
      *
      * @return Collection<int,User>
      */
     public function agencyAdmins(?int $agencyId): Collection
     {
-        if ($agencyId === null) {
-            return collect();
-        }
-
-        return AgencyAdminProfile::query()
-            ->where('agency_id', $agencyId)
-            ->where('status', AgencyAdminProfileStatus::Active->value)
-            ->with('user')
-            ->get()
-            ->pluck('user')
-            ->filter(fn (?User $u) => PrimaryPropertyContact::joignable($u))
-            ->unique('id')
-            ->values();
+        return AdminsDeLAgence::destinataires($agencyId);
     }
 
     /** 409 `lead.contact_unavailable` — avant tout `create`. */
