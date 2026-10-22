@@ -13,5 +13,8 @@ readonly class MatchCandidate
         public ?string $reference,
         public ?string $paidAt,
         public ?string $payerName,
+        // TCK-1526 (P110.04) — le statut du payable (valeur de l'enum de son type) : un acompte
+        // remboursé reste candidat, et le dit.
+        public ?string $status = null,
     ) {}
 }
