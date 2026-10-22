@@ -86,6 +86,7 @@ class AgentAbsenceService
                 ->causedBy($actor)
                 ->performedOn($absence)
                 ->withProperties(['absent_id' => $absent->id, 'substitute_id' => $substitute->id, 'agency_id' => $agency->id])
+                ->event('absence.declared')
                 ->log('absence.declared');
 
             return $absence;

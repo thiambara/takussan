@@ -121,6 +121,7 @@ class RoleDelegationService
                 ->causedBy($delegator)
                 ->performedOn($delegation)
                 ->withProperties(['role' => $data['role']])
+                ->event('created')
                 ->log('role_delegation.created');
 
             return $delegation;
@@ -161,6 +162,7 @@ class RoleDelegationService
                 ->causedBy($caller)
                 ->performedOn($delegation)
                 ->withProperties(['role' => $delegation->role])
+                ->event('revoked')
                 ->log('role_delegation.revoked');
         });
     }

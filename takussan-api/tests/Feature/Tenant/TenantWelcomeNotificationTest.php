@@ -83,6 +83,8 @@ class TenantWelcomeNotificationTest extends TestCase
         $this->assertSame(Lease::class, $entry->subject_type);
         $this->assertSame($lease->id, (int) $entry->subject_id);
         $this->assertSame($lease->id, (int) ($entry->properties['lease_id'] ?? 0));
+        // TCK-1399 (P139.05) — `event` = le code du journal, lisible et filtrable par l'export.
+        $this->assertSame('tenant_welcomed', $entry->event);
     }
 
     public function test_listener_no_ops_when_tenant_has_no_user_account_yet(): void
