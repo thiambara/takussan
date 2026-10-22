@@ -13780,7 +13780,7 @@ générique est P112.01.*
 
 ### Un message rejoué après une erreur s'écrit deux fois dans le fil
 - Réf : P144.02
-- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 1 : la clé sur les messages, notes vocales comprises, sans `client_id` propre
+- Statut : fait · TCK-1398
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:289-330`, `takussan-web/src/lib/queries/conversations.ts:265-327`, `takussan-web/src/components/messages/ChatView.tsx:211-218,368`
 - Constat :
@@ -13792,6 +13792,7 @@ générique est P112.01.*
 - Piste : un identifiant client par message composé (`Idempotency-Key`, ou un `client_id` rangé sur le message), rejoué en 200 avec le message déjà écrit ; le front le garde tant que le message n'est pas parti. Garde : le scénario mesuré en test, plus un test vitest qui renvoie la même clé après un échec.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `ConversationController::sendMessage()` (création à chaque appel, sans clé ni rapprochement), `ChatView.tsx:368` (`sendDisabled={sendMessage.isPending}`) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : deux `POST /api/conversations/{id}/messages` `{content: "Je passe demain"}` → 201 et 201, 2 lignes dans `messages` → le constat tient. Classement : V6, la `Piste` passe par la brique commune de P144.01 (non décidée), et sa variante `client_id` est une colonne neuve (V4).
 - Mesure (2026-10-22, 3ecddb6ad, delegue) : relu l'entrée, P144.01 et ses lignes `Mesure` ; `grep -rln -i idempoten docs/adr` → aucun ADR ne pose une clé d'idempotence commune ; `grep -n "porteur ("` sur l'angle 144 → aucune décision. Recommandation : traiter le message par la brique commune `Idempotency-Key` de P144.01, dans le premier lot qui l'applique, plutôt que par un `client_id` propre au message ; une colonne `client_id` serait additive (V4), mais elle ferait une seconde forme d'idempotence à côté de celle que P144.01 doit poser, et ce choix de forme est structurel (V6, ADR à écrire) ; manque : la décision du porteur sur P144.01 (cache ou table, fenêtre, portée de la clé) et son ADR.
+- Mesure (2026-10-22, e72d2ad69, implementeur) : avant correctif, `MessageRejoueTest` (deux `POST` du même texte à 30 s d'écart par `travel`, sous la même `Idempotency-Key`) → 2 messages, et 2 pour la note vocale en `multipart` → route équipée de `idempotent`, hooks `useSendMessage` et `useSendVoiceNote` en `idempotence: true` ; ablation : route sans l'intergiciel → 2 rouges sur 3 et `IdempotentRoutesTest` rouge ; remis → 1 message, même `id` rendu, 3 verts.
 
 ### Une demande de réservation rejouée crée une seconde réservation en attente, et prévient de nouveau le bailleur
 - Réf : P144.03
