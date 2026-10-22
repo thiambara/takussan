@@ -14304,7 +14304,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Vider la surface d'un bien en édition est refusé : « la surface doit être positive »
 - Réf : P149.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1485
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/schemas/property.ts:184-189`, `takussan-web/src/components/forms/FormInput.tsx:82-83`, `takussan-web/src/components/property-form/PropertyForm.tsx:477`
 - Constat :
@@ -14314,6 +14314,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lecture, puis le test temporaire. Le message à l'écran n'a pas été vu (à vérifier).
 - Piste : passer `area` par `nombreFacultatif`, puis l'ajouter à l'effacement de P149.01. Test du schéma : `area: ''` → `undefined`, et le corps d'édition porte `area: null` si le champ a été modifié.
 - Mesure (2026-10-22, 1b5063805, mesureur) : relu `property.ts:184-189` (`area: z.coerce.number().positive().optional()`) et `:45-58` (`nombreFacultatif`, écrit pour ce cas : « `z.coerce` lirait `''` comme 0 ») ; test Vitest temporaire (retiré) : `propertyFormSchema.safeParse({…, area: ''})` → refus `validation.property.areaPositive` ; `UpdatePropertyRequest.php:61` accepte `area` `nullable` → le constat tient (le message à l'écran n'a pas été vu). Classement : A1, `nombreFacultatif` fixe déjà dans le même schéma l'attendu d'un nombre facultatif vidé ; le correctif passe `area` par lui et l'ajoute à l'effacement de P149.01, sans montant ni texte neuf.
+- Mesure (2026-10-22, ff2ab7523, implementeur) : test `surface-videe.tck-1485.test.ts` écrit d'abord → rouge : `area: ''` refusé (`areaPositive`), aucun `area: null` au corps d'édition ; correctif : `area` passe par `nombreFacultatif` (bornes inchangées) et entre dans `CHAMPS_EFFACABLES`, retiré des « non traités » de `champs-effaces.tck-1353.test.ts` → 3/3 verts (`''` sans valeur, vidée et modifiée → `null`, `0`, `12.5` et `2000000` refusés, `85` accepté) ; ablation (schéma rendu à `pre-dev`) → 2 rouges, remis → verts ; dix autres fichiers de `property-form/__tests__` (dont `field-matrix`, `payload`, `StepCaracteristiques`) verts.
 
 ### Petites lectures « `null` = garder » dans l'API
 - Réf : P149.05
