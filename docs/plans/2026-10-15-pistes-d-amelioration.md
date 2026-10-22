@@ -12824,7 +12824,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### La fiche client ne montre que les 20 dernières notes, et son onglet les compte « 20 »
 - Réf : P135.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : lire toutes les pages ou paginer la frise, deux comportements visibles
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/CustomerNoteController.php:14-25`, `takussan-web/src/lib/queries/customers.ts:174-185`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:94`, `takussan-web/src/components/customer-dashboard/CustomerDetailTabs.tsx:71,88`, `takussan-web/src/components/pipeline/CustomerDetailSheet.tsx:45-48,131`
 - Constat :
@@ -12836,10 +12836,11 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
     - le panneau du pipeline `CustomerDetailSheet` (lu, `:45-48,131`).
   - Les notes épinglées passent d'abord : une note de perte ou de conversion reste visible, mais l'historique libre au-delà de 20 notes est perdu à l'écran.
 - Piste : faire lire toutes les pages au front (comme `fetchAllLeasePayments` de TCK-1178), ou paginer la frise et compter par `meta.total`. Test : client à 25 notes, les 25 rendues et l'onglet compte 25.
+- Mesure (2026-10-22, a5154e95a, mesureur) : relu `CustomerNoteController::index` (tri en dur `pinned` puis `latest()`, `sort` ignoré, `paginate(tailleDePage(…, 20))`), `fetchCustomerNotes` (`sort=-created_at` seul, rend `res.data`), `CustomerDetailTabs.tsx:71,88` (`notes.length` dans l'onglet) et `CustomerDetailSheet.tsx:45-48` ; test temporaire `tests/Feature/Tmp/MesureP135Test.php`, retiré (charge 1,55 sur 8 cœurs) : client à 25 notes, requête exacte du front → 20 lignes, `meta.total` = 25. Le constat tient en entier ; aucun commit ni ticket ne l'a traité (`git log` du contrôleur et de `customers.ts`, `grep` des tickets). Classement : V7, la piste propose deux voies (tout lire, ou paginer la frise et compter par `meta.total`) qui ne rendent pas le même écran.
 
 ### La messagerie ne montre que les 30 conversations les plus récentes, et la pastille ne compte que leurs non-lus
 - Réf : P135.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : pagination ou défilement de la liste, compte des non-lus par l'API
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:39-68`, `takussan-web/src/lib/queries/conversations-list.ts:48-80`, `takussan-web/src/components/messages/ConversationList.tsx:29,61`, `takussan-web/src/components/chat-widget/useUnreadCount.ts:25-44`
 - Constat :
@@ -12848,10 +12849,11 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Mesuré (test temporaire, retiré) : 35 conversations actives, la plus ancienne porte un message non lu d'un autre participant, requête exacte du front → 30 lignes sur `meta.total` = 35, la plus ancienne absente, somme des `unread_count` de la page = 0.
   - La pastille de la barre latérale et du widget additionne `unread_count` sur cette seule page (lu, `useUnreadCount.ts:31-43`). Un message reçu dans une conversation hors des 30 la fait remonter en tête (`MessageObserver` met `last_message_at` à jour) : le non-lu se voit alors (déduit, à vérifier). Ce qui reste perdu, c'est l'accès aux conversations anciennes.
 - Piste : paginer la liste (défilement infini comme `ChatView`), ou une recherche ; faire compter les non-lus par l'API (un total dans `meta`) plutôt que par la page. Test : 35 conversations, la 35ᵉ atteignable depuis la liste.
+- Mesure (2026-10-22, a5154e95a, mesureur) : relu `ConversationController::index` (`orderByDesc('last_message_at')`, `paginate`), `useConversations` (`page=1`, `per_page=30`), ses deux appelants (`ConversationList.tsx:29`, `useUnreadCount.ts:28`, aucune page suivante) et la somme de `useUnreadCount.ts:31-43` ; test temporaire `tests/Feature/Tmp/MesureP135Test.php`, retiré (charge 1,55 sur 8 cœurs) : 35 conversations actives, la plus ancienne avec un message non lu d'un autre participant, requête exacte du front → 30 lignes sur `meta.total` = 35, la plus ancienne absente, somme des `unread_count` = 0. La remontée en tête par `MessageObserver` (pose `last_message_at`, lu `MessageObserver.php:18`) n'a pas été mesurée. Classement : V7, défilement infini ou recherche dans la liste et compteur des non-lus dans `meta` sont des comportements visibles neufs, au choix.
 
 ### Le calendrier d'un bien ne montre que ses 100 plus anciens séjours confirmés : passé ce nombre, les séjours à venir n'apparaissent plus
 - Réf : P135.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : borne de date côté API ou lecture de toutes les pages, et séjours jamais passés en `completed`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/property-calendar.ts:25-37`, `takussan-web/src/components/property-dashboard/PropertyCalendarPanel.tsx:51-58,80-86`, `takussan-api/app/Models/Booking.php:44-46`, `takussan-api/app/Models/Enums/BookingStatus.php:11`
 - Constat :
@@ -12860,10 +12862,11 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Aucun code de l'application ne fait passer une réservation de `confirmed` à `completed` : `grep -rn "BookingStatus::Completed" app` → trois listes de constantes (`PortfolioMetrics`, `ReviewEligibility`, `BookingService`), aucune écriture (mesuré). Les séjours passés restent donc `confirmed` et occupent la page. En base de développement, les 232 `completed` viennent des seeders (mesuré, `SELECT status, count(*) FROM bookings`).
   - Conséquence : dès le 101ᵉ séjour confirmé d'un bien de courte durée, les séjours les plus récents, donc ceux à venir, sortent de la page triée par date croissante, et le calendrier montre libres des nuits réservées (lu ; à vérifier sur un bien à plus de 100 séjours).
 - Piste : borner la lecture comme celle des indisponibilités (`end_date ≥ aujourd'hui`, filtre à ajouter côté API) ou trier par `-start_date` et lire toutes les pages. Test : bien à 101 séjours confirmés, le dernier à venir est peint.
+- Mesure (2026-10-22, a5154e95a, mesureur) : relu `usePropertyConfirmedStays` (`filter[status]=confirmed`, `sort=start_date`, `per_page=100`, aucune borne de date ni page suivante), `PropertyCalendarPanel.tsx` (seules les indisponibilités sont bornées à un an), `Booking::$requestFilterable` (aucun filtre de date) ; `grep -rn "BookingStatus::Completed" app` → trois listes de constantes, aucune écriture ; test temporaire `tests/Feature/Tmp/MesureP135Test.php`, retiré (charge 1,49 sur 8 cœurs) : bien à 100 séjours confirmés passés et 1 à venir, requête exacte du front en propriétaire → 100 lignes sur `meta.total` = 101, le séjour à venir absent. Le « à vérifier » du constat est vérifié : il tient. Classement : V7, la piste propose deux voies, dont un filtre neuf de l'API, et l'absence de passage à `completed` est une question de produit.
 
 ### Le choix du bien d'un nouveau bail et celui du bail d'un état des lieux s'arrêtent à la première page, sans recherche
 - Réf : P135.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : recherche serveur du bien et du bail, ou compte affiché, à choisir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/leases.ts:92-117`, `takussan-web/src/components/leases/CreateLeaseForm.tsx:64,122,148-157`, `takussan-web/src/components/inventory/InventoryLeasePicker.tsx:28-57`
 - Constat :
@@ -12871,10 +12874,11 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - `InventoryLeasePicker` lit `useLeases({ status: 'active', per_page: 50 })` et rend chaque bail en lien, sans pagination ni recherche (lu, `:28,54-57`). Au-delà de 50 baux actifs, les plus anciens ne s'ouvrent plus depuis cet écran : il faut un lien `?lease=` venu d'ailleurs (déduit, à vérifier).
   - Rien n'avertit que la liste est coupée dans les deux écrans (lu).
 - Piste : une recherche serveur (`filter[search]`), comme pour le locataire, ou une lecture de toutes les pages ; et le compte `meta.total` affiché quand la liste est coupée. Test : 101 biens louables, le 101ᵉ se trouve.
+- Mesure (2026-10-22, a5154e95a, mesureur) : relu `useLeasePropertyOptions` (`sort=title`, `per_page=100`, une page), `CreateLeaseForm.tsx:148-157` (`EntitySelect` local, sans recherche ; le locataire seul a une recherche serveur, l. 160-175), `InventoryLeasePicker.tsx` (`useLeases({ status: 'active', per_page: 50 })`, liste de liens sans pagination) et `HasQueryBuilder::getPerPage` (plafond 100). Les deux « à vérifier » se déduisent de la lecture seule, sans mesure exécutée : une page de 100 (resp. 50), aucune page suivante demandée, aucune recherche, donc le 101ᵉ bien (resp. le 51ᵉ bail) n'est pas proposé. Classement : V7, une recherche serveur ou un compte « liste coupée » sont des comportements visibles neufs, et la piste en propose plusieurs.
 
 ### Trois listes sans pagination coupent sans le dire : relevés bancaires, tâches d'un client, avis rédigés
 - Réf : P135.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : pagination ou lecture complète selon l'écran, compte des tâches ouvertes par l'API
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/reconciliation.ts:31-37`, `takussan-web/src/components/admin/reconciliation/StatementsList.tsx:35,47`, `takussan-web/src/lib/queries/pipeline.ts:112-127`, `takussan-web/src/components/pipeline/CustomerDetailSheet.tsx:119-122`, `takussan-web/src/components/crm/CustomerTasksPanel.tsx:40,101`, `takussan-web/src/lib/queries/reviews.ts:70-81`, `takussan-web/src/components/profile/ProfileReviewsList.tsx:79-80`
 - Constat :
@@ -12882,10 +12886,11 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Tâches d'un client : `fetchCustomerTasks` demande 50 tâches, `sort=due_at` croissant, terminées et annulées comprises, et rend `res.data` (lu, `pipeline.ts:117-127`). Le panneau du pipeline compte les tâches ouvertes sur cette page (lu, `CustomerDetailSheet.tsx:121`), et `CustomerTasksPanel` n'a pas de pagination (lu, `:101`). Les tâches terminées aux échéances anciennes prennent les premières places : passé 50 tâches, le compte sous-estime les tâches ouvertes et les dernières ne s'affichent pas (déduit, à vérifier).
   - Avis rédigés : `useAuthoredReviews` demande 50 avis, et « Mes avis » les rend sans pagination (lu, `reviews.ts:70-81`, `ProfileReviewsList.tsx:79-80`). L'enjeu est faible.
 - Piste : pagination, ou lecture de toutes les pages, selon l'écran. Pour les tâches, faire compter les tâches ouvertes par l'API (filtre de statut et `meta.total`). Test par liste : un élément de plus que la page reste atteignable.
+- Mesure (2026-10-22, a5154e95a, mesureur) : relu `useBankStatements` (`-created_at`, `per_page=50`) et `StatementsList.tsx:47` (rend `query.data.data`), `fetchCustomerTasks` (`sort=due_at`, `per_page=50`, rend `res.data`) et `CustomerDetailSheet.tsx:119-122` (tâches ouvertes comptées sur la page), `CustomerTasksPanel.tsx` (aucune pagination), `useAuthoredReviews` (`per_page=50`) et `ProfileReviewsList.tsx:79-80`. Les trois coupures se lisent sans mesure exécutée : une page, aucune page suivante. Classement : V7, la piste laisse le choix entre pagination et lecture complète selon l'écran, et ajoute un compte côté API.
 
 ### Petites améliorations des listes écrites à la main
 - Réf : P135.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:30,67`, `takussan-web/src/lib/queries/conversations-list.ts:59-75`, `takussan-web/src/lib/queries/properties-server.ts:354-363`, `takussan-web/src/lib/queries/properties.ts:60`, `takussan-api/app/Http/Controllers/Api/PropertyPriceHistoryController.php:13-18`
 - Constat :
@@ -12893,3 +12898,4 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - La liste des conversations trie `orderByDesc('last_message_at')` sans départage par `id` : deux fils de même horodatage peuvent changer de page d'une requête à l'autre (lu). Sous PostgreSQL, un `last_message_at` nul passerait en tête (`DESC` met `NULLS FIRST`). Aucun fil ne l'est en base de développement (mesuré : 0 sur 240), et les trois créateurs de conversation le posent ou envoient un message aussitôt (lu, `ConversationController.php:96-120`, `PublicPropertyController.php:1133`) : seulement à vérifier pour les groupes de `GroupConversationService`.
   - `fetchPropertyPriceHistory` n'a aucun appelant, hors sa réexportation (mesuré : `grep -rn fetchPropertyPriceHistory takussan-web/src` → la définition et `properties.ts:60`). La route `GET /api/properties/{p}/price-history` n'a donc aucun lecteur front, et la page publique lit `price_history` dans la ressource du bien (lu, `PropertyDetailContent.tsx:225`).
 - Piste : retirer les filtres inertes, ou les faire lire à l'API ; départager par `id` ; retirer le fetcher mort, puis la route si P13.08 la confirme sans appelant.
+- Mesure (2026-10-22, a5154e95a, mesureur) : relu `ConversationController::index` (seul `archived` est lu ; `orderByDesc('last_message_at')` sans départage), `useConversations` (`filter[status]`, `filter[property_id]` envoyés seulement si passés ; ses deux appelants n'en passent aucun) ; `grep -rln fetchPropertyPriceHistory takussan-web/src takussan-web/tests` → `properties-server.ts` (la définition) et `properties.ts` (la réexportation) seuls ; `GroupConversationService::create` ne pose pas `last_message_at` (lu, l. 67-75), donc un groupe sans message passe en tête sous `DESC`, sans que le correctif y touche. Le constat tient. Classement : A3, retirer le fetcher sans appelant et les deux filtres que rien ne passe, puis départager par `id` (ordre rendu identique quand les horodatages diffèrent), sans choix de produit ; la route reste, à P13.08.
