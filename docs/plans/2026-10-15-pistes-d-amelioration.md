@@ -12829,7 +12829,7 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
 
 ### La bibliothèque de documents range les pièces RIB et NINEA en tête, sous un titre de groupe sans libellé
 - Réf : P134.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1272 — reste : proposer `rib` et `ninea` au téléversement de la bibliothèque, geste neuf que la Piste ne tranche pas
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/documents/DocumentsLibrary.tsx:106-117,201-206`, `takussan-web/src/components/documents/constants.ts:13-23`, `takussan-web/src/types/document.ts:7-16`, `takussan-api/app/Models/Enums/DocumentType.php:15-17`, `takussan-api/app/Http/Requests/Api/Me/UploadKycOwnerProfileRequest.php:49-50`, `takussan-web/src/i18n/erreurs.ts:35-40`
 - Constat :
@@ -12841,6 +12841,7 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
   - Établi comment : lu ; l'écran n'a pas été rendu avec une pièce `rib`.
 - Piste : ajouter `rib` et `ninea` à l'union, à `DOCUMENT_TYPE_ORDER` (près de `id_card`) et aux libellés `documents.types` des trois langues (`wo` en français tel quel) ; ranger un type inconnu en dernier (`indexOf` négatif ramené à `Infinity`). Garde : un test de composant avec un document `rib` (titre lu, groupe après « Contrat de bail »), et un test qui compare `DOCUMENT_TYPE_ORDER` aux cas de l'enum de l'API, comme les autres tests de parité d'enum du front.
 - Mesure (2026-10-22, 294f70acc, mesureur) : relu `DocumentsLibrary.tsx:106-118` (tri des groupes par `DOCUMENT_TYPE_ORDER.indexOf`) et l. 205 (`tTypes(category)`), `constants.ts:13-23` et `types/document.ts:7-16` (ni `rib` ni `ninea`), `DocumentType.php:16-17` (les deux cas), `UploadKycOwnerProfileRequest.php:49-50` et `Kyc/ProfilePieces.php:48` (`uploaded_by` = le bailleur), `DocumentController.php:44` (`where('uploaded_by', …)`, les pièces de profil exclues sous impersonation seulement) ; `node -e` sur `documents.types` de `fr`, `en`, `wo` → neuf clés chacun, sans `rib` ni `ninea` ; `erreurs.ts:35-40` lève sur `MISSING_MESSAGE` hors production → le constat tient ; l'écran n'a pas été rendu, l'effet d'affichage se déduit de `erreurs.ts` lu. Les libellés existent déjà dans les trois langues sous d'autres clés (`fr.json:4800-4801` « RIB », « NINEA » ; `en.json:4800-4801` « Bank details (RIB) », « NINEA »). Classement : A4 et A1, clé manquante pour des valeurs que l'enum de l'API émet déjà, libellés repris de l'existant sans texte neuf.
+- Mesure (2026-10-22, 4e69ef6bd, implementeur) : trois tests neufs de `DocumentsLibrary.test.tsx` sur l'arbre d'origine → 3 rouges : titre `documents.types.rib` (`MISSING_MESSAGE`) et groupe RIB rangé avant « Contrat de bail », type inconnu en tête, `DOCUMENT_TYPE_ORDER` à 9 cas contre 11 dans `DocumentType.php` → union et ordre à onze cas, rang d'un inconnu ramené en dernier, libellés repris de `owners.onboarding.kyc.labels` (`wo` = texte français), téléversement gardé à ses neuf catégories ; ablation (quatre fichiers sources rendus à `HEAD`, traductions gardées) → 3 rouges, correctif remis → 7/7 verts.
 
 ### Des tris déclarés sur une colonne d'enum rendent l'ordre alphabétique de la valeur
 - Réf : P134.03
