@@ -33,6 +33,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import {
   inviteOwner,
   type InviteOwnerPayload,
@@ -83,6 +85,8 @@ export function InviteOwnerSheet({
   const toast = useToast();
   const queryClient = useQueryClient();
   const { token } = useAuth();
+  // TCK-1203 — inviter un bailleur exige la 2FA de l'agence (`OwnerInvitationController`).
+  const garde = useGardeDoubleFacteur();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
@@ -91,7 +95,7 @@ export function InviteOwnerSheet({
       if (!token) {
         throw new ApiError(401, { message: tErr('missingToken') });
       }
-      return inviteOwner(token, agencyId, payload);
+      return avecGardeDoubleFacteur(() => inviteOwner(token, agencyId, payload), garde);
     },
     onSuccess: async (response) => {
       toast.add({ title: t('toasts.success_title'), type: 'success' });

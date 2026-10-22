@@ -6,6 +6,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Check, X, Loader2 } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import {
   approveProperty,
   rejectProperty,
@@ -31,12 +33,14 @@ export function PropertyModerationDetail({
   const tCommon = useTranslations('common.actions');
   const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
+  // TCK-1203 — trancher un bien exige la 2FA d'un profil plateforme (`PropertyModerationController`).
+  const garde = useGardeDoubleFacteur();
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const approveMutation = useMutation({
-    mutationFn: () => approveProperty(property.id, token ?? ''),
+    mutationFn: () => avecGardeDoubleFacteur(() => approveProperty(property.id, token ?? ''), garde),
     onSuccess: () => {
       setErrorMessage(null);
       onModerated();
@@ -47,7 +51,8 @@ export function PropertyModerationDetail({
   });
 
   const rejectMutation = useMutation({
-    mutationFn: () => rejectProperty(property.id, rejectionReason, token ?? ''),
+    mutationFn: () =>
+      avecGardeDoubleFacteur(() => rejectProperty(property.id, rejectionReason, token ?? ''), garde),
     onSuccess: () => {
       setShowRejectDialog(false);
       setRejectionReason('');

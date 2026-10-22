@@ -96,7 +96,8 @@ interface PreuveRecenteProps {
   readonly onAnnuler: () => void;
 }
 
-function PreuveRecente({ onValide, onAnnuler }: PreuveRecenteProps) {
+/** La saisie du code récent — partagée avec l'entrée de la console (TCK-1203). */
+export function PreuveRecente({ onValide, onAnnuler }: PreuveRecenteProps) {
   const t = useTranslations('auth.twoFactorGate');
   const { token, logout } = useAuth();
   const [code, setCode] = useState('');
