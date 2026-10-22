@@ -235,7 +235,7 @@ voie d'écriture (angle 13, puis 47).
 | 158 | Fiches client créées hors de `CustomerController::store` (`ContactLeadService::convert`, `CustomerService::findOrCreateFromUser`, invitations et onboardings qui créent un `Customer`, visites) face à `CustomerDuplicateDetector` : fiche en double dans le CRM d'une agence, sans le dire — né de P125.02 | fait |
 | 159 | Exemples et formats montrés à la saisie (messages de `lang/*/validation.php` qui citent un exemple, `placeholder` des champs et clés `*Placeholder`, aides sous les champs) face à la règle de l'API qui jugera la valeur : exemple que la règle refuse — né de P125.03 et P125.04 | fait |
 | 160 | `properties.user_id` (le créateur du bien) lu comme le bailleur dans une décision métier sur un bien d'agence saisi par un agent : `OwnerApprovalThreshold::isLandlord` et `MaintenanceQuoteWorkflow` (plafond de travaux d'ADR-0037, devis `awaiting_owner`), `BookingExpirationService::resolveAgent`, `BookingRefundTaskService` — qui tranche, et qui est prévenu, à la place du bailleur — né de P126.04 | fait |
-| 161 | Notifications dont la `NotificationTarget` ouvre un écran que la capacité ou le profil du destinataire ferme (`finances` de `PayoutDue` et `BankStatementImported`, `agency_settings`, `audit`, `review_moderation`, `kyc_review`) : destinataire choisi par une colonne (`issued_by_id`, `uploaded_by_id`) ou par un rôle, et clic qui mène à un 403 — né de P126.03 | à faire |
+| 161 | Notifications dont la `NotificationTarget` ouvre un écran que la capacité ou le profil du destinataire ferme (`finances` de `PayoutDue` et `BankStatementImported`, `agency_settings`, `audit`, `review_moderation`, `kyc_review`) : destinataire choisi par une colonne (`issued_by_id`, `uploaded_by_id`) ou par un rôle, et clic qui mène à un 403 — né de P126.03 | fait |
 | 162 | Compteurs « ouverts », « en cours » ou « à traiter » écrits par une liste de statuts à la main (`whereIn('status', [Open, InProgress])` et leurs pareilles sur interventions, tâches, réservations, baux, litiges) face aux états non terminaux de la machine à états ou de l'enum : élément qui avance d'un état et sort du compteur, ou état terminal encore compté — né de P127.03 | à faire |
 | 163 | Bornes de fin saisies en date seule (`<input type="date">`) et rangées dans une colonne `datetime` (délégations de rôle, absences d'agent `StoreAgentAbsenceRequest`, annonces, fenêtres de maintenance, abonnements d'agence) : fin à minuit UTC au début du jour choisi face au libellé « Fin », aux textes « jusqu'au » et aux jobs d'expiration — né de P128.01 | à faire |
 | 164 | Paramètres `text` des notifications codées qui portent un code ou une valeur d'enum (`role` des délégations, statuts, types, motifs hors `reason_code`) : valeur rendue brute par `NotificationRenderer` et par `valeursDeNotification` du front, dans la cloche, le courriel et le SMS — né de P128.02 | à faire |
@@ -15132,3 +15132,71 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu.
 - Piste : `cancellation_by = agent` pour le personnel créateur (même prédicat que P160.01) ; `createurDestinataire` au dernier repli de `assigneeFor` ; décider si le plafond d'un bailleur `inactive` s'applique encore, et l'écrire dans l'ADR-0037.
 - Mesure (2026-10-22, 3e58240ef, mesureur) : relu `BookingService.php:293-298` (`cancellation_by = Owner` pour `property->user_id`), `BookingResource.php:36` et `grep -rn cancellation_by takussan-web/src` → vide, `BookingRefundTaskService::assigneeFor` (l. 106-135, dernier repli `property->owner` sans `createurDestinataire`), `OwnerApprovalThreshold::of` (l. 26-38, `OwnerProfile` lu sans son statut), `NotifyMaintenanceParticipants.php:90` (`quote_awaiting_owner` à `property->owner`), ADR-0037 sans mot sur le statut du bailleur → les trois points tiennent, aucun joué. Classement : V1, le troisième point demande de décider si un plafond de travaux s'applique encore (la `Piste` le dit), et le premier dépend du prédicat de P160.01, lui-même à valider ; le deuxième seul relèverait de A1 (TCK-1316).
+
+## Angle 161 — Cibles de notification qui ouvrent un écran fermé au destinataire
+
+*Exploré le 2026-10-22 sur `pre-dev` 788e2c037, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : `NotificationTarget::PATHS` et les dix-huit appels `NotificationTarget::of(…)` des cibles d'administration (`grep -rn "NotificationTarget::of(" app`), chacun suivi jusqu'à son destinataire (`RemindDuePayouts`, `PayoutService::notifyApprovers`, `PayoutApprovalThreshold`, `PayoutApprovers::holders`, `NotifyDelegation{Activated,Revoked,Expired}`, `NotifyStatementImported`, `NotifyStatementFinalized`, `BankStatementPolicy`, `ReviewNotifier::toModerate`, `KycWorkflowService`, `KycExpiryService`, `PropertyModerationNotifier`, `GovernanceAlertService`, `WelcomeCreditService`), `SystemRoleCapabilities::agent`, `StoreRoleDelegationRequest`, `RoleDelegationPolicy`, `HasProfiles::profileTypes`, `AppNotification::$fillable`, `NotificationService::send` ; côté front `(dashboard)/app/agency/layout.tsx`, `PAGES_ADMIN`, les pages `finances`, `audit`, `roles`, `team`, `PaymentsTabs.tsx`, `NotificationRow.tsx`. Mesuré par un test temporaire (`TmpExplorateurP161Test`, base de test PostgreSQL, `Notification::fake()`, charge `{ 4.61 5.22 4.45 }` sur 8 cœurs, retiré avant la fin). La base de développement ne porte ni délégation ni reversement (tinker en lecture : 0 et 0) : rien n'y a été mesuré. Ce qui tient : `bank_statements` ne s'importe et ne se finalise que par un admin (`BankStatementPolicy:17-18`), `review_moderation` ne part qu'à une agence `standard` (`ReviewNotifier.php:38-40`), `kyc_review` qu'aux super-admins (`KycWorkflowService.php:208-212`), `property_moderation` et `audit` qu'à `AdminsDeLAgence::destinataires`. L'émetteur suspendu de `PayoutDue` est P126.03, non repris ; la section fermée au délégataire `agency_admin` est P148.01, citée là où elle recoupe. Aucun rendu au navigateur.*
+
+### Le rappel d'un reversement échu ouvre `/app/agency/finances`, page fermée à l'agent qui l'a émis
+- Réf : P161.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Console/Commands/Payouts/RemindDuePayouts.php:46-48`, `takussan-api/app/Services/Membership/SystemRoleCapabilities.php:78-81`, `takussan-web/src/app/(dashboard)/app/agency/layout.tsx:28`, `takussan-web/src/lib/access/pages-admin.ts:92`, `takussan-web/src/components/payments/PaymentsTabs.tsx:34,55,109-111`
+- Constat :
+  - Le rôle système d'agent porte `payouts.create` (lu, `SystemRoleCapabilities.php:81`, TCK-528 : « l'agent émettait des reversements »). L'écran où il le fait est `/app/payments`, onglet `payouts`, dont le bouton « Créer » suit `useCan('payouts.create')` (lu, `PaymentsTabs.tsx:55,109-111`).
+  - `payouts:remind-due` envoie `PayoutDue` à l'émetteur avec la cible `finances`, c'est-à-dire `/app/agency/finances` (lu, `RemindDuePayouts.php:48`, `NotificationTarget.php:48`).
+  - Cette section est fermée à qui n'a pas `agency_admin` dans `roles` : `layout.tsx:28` le renvoie sur `/app`, et `PAGES_ADMIN` exige le rôle `admin` pour la page (lu, `pages-admin.ts:92`).
+  - mesuré (test temporaire) : agent au profil actif d'une agence `standard`, reversement `scheduled` échu la veille qu'il a émis → `roles = ["agent","customer"]`, `canActAt(payouts.create)` vrai ; `payouts:remind-due` lui envoie `payout.due` avec `target = {"kind":"finances","path":"/app/agency/finances"}`.
+  - Conséquence : le seul avis d'un reversement dû au bailleur mène l'agent qui l'a programmé sur l'accueil de `/app`, sans le reversement.
+  - Établi comment : lu, puis mesuré côté API ; la redirection du front est lue, non rendue.
+- Piste : choisir la cible selon le destinataire : `finances` pour un admin, une cible vers `/app/payments?tab=payouts` sinon (genre neuf dans `PATHS`, `PaymentsTabs` lit déjà `?tab=`, l. 44-46). Test : émetteur agent → cible `/app/payments…` ; émetteur admin → `finances`.
+
+### L'avis « reversement à approuver » et la demande d'assouplissement du seuil ouvrent des pages d'administration à des détenteurs de `payouts.approve` qui n'y entrent pas
+- Réf : P161.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Model/PayoutService.php:867-879`, `takussan-api/app/Services/Payout/PayoutApprovalThreshold.php:94-103`, `takussan-api/app/Services/Payout/PayoutApprovers.php:26-47`, `takussan-web/src/components/payments/PaymentsTabs.tsx:34,57`
+- Constat :
+  - `PayoutApprovers::holders` retient les agents et admins actifs, et les délégataires actifs `agent` ou `agency_admin`, puis filtre par la capacité (lu, l. 26-47). Un agent y entre par un rôle personnalisé qui porte `payouts.approve` ou par une délégation `agency_admin`.
+  - Ils reçoivent `PayoutAwaitingApproval` avec la cible `finances` (lu, `PayoutService.php:878`) et `PayoutThresholdRelaxRequested` avec la cible `agency_settings`, `/app/agency` (lu, `PayoutApprovalThreshold.php:98-101`) : deux pages de la section que `layout.tsx:28` ferme à qui n'a pas le profil `agency_admin`.
+  - mesuré (test temporaire) : agent d'une agence `standard`, délégation `agency_admin` active d'un admin au rôle système → `roles = ["agent","customer"]`, `canActAt(payouts.approve)` vrai, présent dans `holders()`. Il est donc destinataire des deux avis (déduit de `notifyApprovers` et de la boucle de `PayoutApprovalThreshold`, non rejoué par un envoi).
+  - L'approbation a un écran hors de la section : l'onglet `approvals` de `/app/payments`, montré sous `useCan('payouts.approve')` (lu, `PaymentsTabs.tsx:57`).
+  - Recoupe P148.01 (validé : la section jugée par capacité, délégations comprises) pour le seul délégataire ; l'agent au rôle personnalisé n'est pas couvert par P148.01, et P148.02 ne vise que les capacités `team.*`.
+  - Établi comment : lu, et mesuré pour l'appartenance à `holders()`.
+- Piste : pour `PayoutAwaitingApproval`, une cible vers `/app/payments?tab=approvals`, ouverte à tout détenteur de la capacité ; pour l'assouplissement du seuil, garder `agency_settings` et ne prévenir que les détenteurs qui ouvrent `/app/agency`, ou attendre l'issue de P148.01. Test : détenteur non admin → cible qu'il peut ouvrir.
+
+### Les avis de délégation de rôle ouvrent `/app/agency/team` : fermée au bénéficiaire, et sans les délégations pour le délégant
+- Réf : P161.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Listeners/Permissions/NotifyDelegationActivated.php:29-46`, `takussan-api/app/Listeners/Permissions/NotifyDelegationRevoked.php:32-39`, `takussan-api/app/Listeners/Permissions/NotifyDelegationExpired.php:32-39`, `takussan-api/app/Http/Requests/Permissions/StoreRoleDelegationRequest.php:67-75`, `takussan-web/src/app/(dashboard)/app/agency/roles/page.tsx:61-75`, `takussan-web/src/lib/access/pages-admin.ts:63`
+- Constat :
+  - Les trois écouteurs envoient au bénéficiaire et au délégant la même cible `team`, `/app/agency/team` (lu).
+  - Le bénéficiaire n'est pas admin de l'agence : une délégation `agency_admin` est refusée à qui l'est déjà (lu, `StoreRoleDelegationRequest.php:67-75`), et les rôles délégables sont `agency_admin`, `agent`, `owner` (lu, `config/role_delegations.php`). `roles` ne lit que les profils (lu, `HasProfiles::profileTypes`) ; mesuré (test temporaire) : agent délégataire `agency_admin` → `roles = ["agent","customer"]`. `layout.tsx:28` le renvoie donc sur `/app` pour l'activation, la révocation comme l'expiration.
+  - Pour le délégant, la page ouverte ne montre pas les délégations : elles vivent sous `/app/agency/roles` (`RoleDelegationsSection`, lu, `roles/page.tsx:61-75`, TCK-369), et aucune ligne de `team/page.tsx` ni de `TeamConsole` ne les cite (`grep -n elegat` → rien).
+  - Établi comment : lu ; les rôles du délégataire mesurés ; aucun envoi rejoué.
+- Piste : délégant → une cible vers `/app/agency/roles` (genre neuf dans `PATHS`) ; bénéficiaire → pas de cible, ou une page qu'il ouvre (choix de produit tant que P148.01 n'a pas ouvert la section aux délégataires `agency_admin` ; pour une délégation `agent` ou `owner`, aucune page d'administration ne s'ouvrira). Test : chaque code `role_delegation.*` rend une cible que son destinataire ouvre.
+
+### La cible ne porte pas l'agence : un membre de deux agences ouvre l'avis de l'une sur les données de l'autre
+- Réf : P161.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Domain/Notifications/NotificationTarget.php:36-66,68-71`, `takussan-api/app/Models/AppNotification.php:19-27`, `takussan-web/src/components/notifications/NotificationRow.tsx:41,64-66`, `takussan-web/src/app/(dashboard)/app/agency/finances/page.tsx:40-51`
+- Constat :
+  - Une cible n'a qu'un `kind` et un `id` (lu, `NotificationTarget.php:68-71`), et la ligne `app_notifications` aucune colonne d'agence (lu, `$fillable`). La cloche suit `target.path` tel quel (lu, `NotificationRow.tsx:41,64-66`), sans changer de profil actif.
+  - Les pages de liste de la section lisent l'agence du profil actif (lu, `finances/page.tsx:43`, `user.agency_id`). Un admin de deux agences qui ouvre une alerte d'audit, un reversement à approuver ou un dossier KYC de l'agence B, profil actif sur A, lit donc les finances, le journal ou le KYC de A, sans signe d'erreur.
+  - Les cibles à identifiant (`lease`, `booking`, `maintenance`…) : l'angle 131 a écarté vers cet angle le cas d'un bail de l'agence non active. `LeasePolicy::view` juge `isStaffOf($user, $model->agency_id)` (lu, l. 72), l'agence de l'objet : la lecture de la fiche pourrait tenir, mais les listes et gestes que la page charge sous le profil actif ne sont pas relus (à vérifier, non rendu).
+  - Établi comment : lu ; non mesuré.
+- Piste : ranger l'agence dans la cible (`agency_id`, ou le profil destinataire) et faire basculer la cloche sur le profil de cette agence avant d'ouvrir le lien (`useProfiles`, déjà capable de changer de profil sans quitter la page). Test : notification de l'agence B ouverte sous le profil A → bascule, puis page de B.
+
+### Petites améliorations
+- Réf : P161.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `scripts/check-notification-target-paths.mjs`, `takussan-api/app/Services/Kyc/KycWorkflowService.php:224-238`, `takussan-api/app/Services/Governance/GovernanceAlertService.php:108-113`, `takussan-web/src/lib/access/pages-admin.ts:80-81,109-110`
+- Constat :
+  - `check-notification-target-paths.mjs` vérifie qu'une cible mène à une page (lu, voir P97.05), jamais que son destinataire peut l'ouvrir. Une garde possible : une table « code → rôle ou capacité qui ouvre la page de sa cible », confrontée à `PAGES_ADMIN` et aux destinataires de chaque émetteur.
+  - Le verdict KYC part à `$agency->primaryAdmin` sans jugement de son profil ni de sa capacité (lu, `KycWorkflowService.php:226-231`), et `/app/agency/kyc` exige `agency.update_kyc` depuis TCK-1274 (lu, `pages-admin.ts:80-81`) : un admin principal au rôle personnalisé sans elle reçoit un lien vers une page qui le renvoie ailleurs (déduit, à vérifier).
+  - Les alertes de gouvernance (cible `audit`) ne regardent pas le `kind` de l'agence (lu, `GovernanceAlertService.php:55-72,108-113`), alors que `/app/agency/audit` exige une agence `standard` (lu, `pages-admin.ts:109-110`). Qu'une agence `individual` ait un second admin actif qui les reçoive est à vérifier.
+  - Établi comment : lu.
+- Piste : la garde ci-dessus ; `primaryAdmin` remplacé par les admins actifs qui tiennent `agency.update_kyc` ; les alertes de gouvernance réservées aux agences `standard`, comme `ReviewNotifier::toModerate`.
