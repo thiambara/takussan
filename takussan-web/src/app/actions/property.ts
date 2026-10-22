@@ -241,6 +241,7 @@ export async function submitContactMessage(
 export async function submitContactLead(
   slug: string,
   payload: AnonymousLeadPayload,
+  cleIdempotence?: string,
 ): Promise<ActionResult> {
   const segment = segmentDeSlug(slug);
   if (segment === null) return bienIntrouvable();
@@ -248,6 +249,7 @@ export async function submitContactLead(
     await apiRequest(cheminApi`/api/public/properties/${segment}/contact-lead`, {
       method: 'POST',
       body: payload,
+      ...enTeteIdempotence(cleIdempotence),
     });
     return { ok: true };
   } catch (e) {
@@ -273,11 +275,13 @@ export async function submitContactLead(
 export async function submitAgentContactLead(
   slug: string,
   payload: AnonymousLeadPayload,
+  cleIdempotence?: string,
 ): Promise<ActionResult> {
   try {
     await apiRequest(cheminApi`/api/public/agents/${slug}/contact-lead`, {
       method: 'POST',
       body: payload,
+      ...enTeteIdempotence(cleIdempotence),
     });
     return { ok: true };
   } catch (e) {

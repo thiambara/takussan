@@ -29,6 +29,9 @@ class IdempotentRoutesTest extends TestCase
             'public.properties.booking-request' => ['public.properties.booking-request'],
             // TCK-1408 (P144.07) — le premier message depuis la fiche du bien.
             'public.properties.contact-message' => ['public.properties.contact-message'],
+            // TCK-1410 (P144.08) — le contact anonyme d'un bien et d'un agent.
+            'public.properties.contact-lead' => ['public.properties.contact-lead'],
+            'public.agents.contact-lead' => ['public.agents.contact-lead'],
         ];
     }
 

@@ -11,7 +11,13 @@ vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraduc
 vi.mock('next/headers', () => ({ headers: vi.fn(async () => new Headers()) }));
 vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton-de-test' }));
 
-import { submitBookingRequest, submitContactMessage, submitPurchaseOffer } from '../property';
+import {
+  submitAgentContactLead,
+  submitBookingRequest,
+  submitContactLead,
+  submitContactMessage,
+  submitPurchaseOffer,
+} from '../property';
 
 describe('actions de réservation — Idempotency-Key (TCK-1406)', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
@@ -43,7 +49,7 @@ describe('actions de réservation — Idempotency-Key (TCK-1406)', () => {
   });
 
   it('l’offre d’achat envoie la clé reçue, et aucune sans clé', async () => {
-    const payload = { offer_amount: 1, offer_expires_at: '2026-12-01', terms_accepted: true };
+    const payload = { offer_amount: 1, offer_expires_at: '2026-12-01', terms_accepted: true as const };
 
     await submitPurchaseOffer('villa-1', payload, 'cle-du-composant-2');
     await submitPurchaseOffer('villa-1', payload);
@@ -56,5 +62,15 @@ describe('actions de réservation — Idempotency-Key (TCK-1406)', () => {
     await submitContactMessage('villa-1', 'Bonjour', 'cle-du-composant-3');
 
     expect(cles()).toEqual(['cle-du-composant-3', 'cle-du-composant-3']);
+  });
+
+  it('TCK-1410 — le contact anonyme d’un bien et d’un agent envoie la clé reçue', async () => {
+    const payload = { name: 'Awa Diop', phone: '+221771234567', message: 'Bonjour, est-il libre ?' };
+
+    await submitContactLead('villa-1', payload, 'cle-du-composant-4');
+    await submitContactLead('villa-1', payload, 'cle-du-composant-4');
+    await submitAgentContactLead('awa-diop', payload, 'cle-du-composant-5');
+
+    expect(cles()).toEqual(['cle-du-composant-4', 'cle-du-composant-4', 'cle-du-composant-5']);
   });
 });

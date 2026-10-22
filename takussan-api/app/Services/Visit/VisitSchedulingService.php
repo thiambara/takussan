@@ -275,6 +275,17 @@ class VisitSchedulingService
     public function createOrFail(Property $property, ?User $visitor, array $attributes): PropertyVisit
     {
         return DB::transaction(function () use ($property, $visitor, $attributes) {
+            Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
+
+            // TCK-1410 (P144.08, ADR-0072 § 8) — la même demande rejouée au même créneau rend la
+            // visite active déjà ouverte, sous le verrou du bien, au lieu d'en créer une seconde qui
+            // consommerait le quota. `wasRecentlyCreated` reste faux : l'appelant ne prévient pas
+            // une seconde fois.
+            $existing = $this->activeVisitAtSameSlot($property, $visitor, $attributes);
+            if ($existing !== null) {
+                return $existing;
+            }
+
             $this->assertQuota(
                 $property,
                 $visitor,
@@ -284,6 +295,38 @@ class VisitSchedulingService
 
             return PropertyVisit::create($attributes);
         });
+    }
+
+    /**
+     * TCK-1410 — la visite active du même visiteur (compte, sinon fiche client), sur le même bien,
+     * au même créneau. Une demande anonyme n'a pas de visiteur à reconnaître : rien n'est rapproché.
+     *
+     * @param  array<string,mixed>  $attributes
+     */
+    private function activeVisitAtSameSlot(Property $property, ?User $visitor, array $attributes): ?PropertyVisit
+    {
+        $customerId = $attributes['customer_id'] ?? null;
+        if (($visitor === null && $customerId === null) || ! isset($attributes['scheduled_at'])) {
+            return null;
+        }
+
+        // L'instant tel que `create()` l'écrirait : même cast, donc même valeur stockée.
+        $slot = (new PropertyVisit(['scheduled_at' => $attributes['scheduled_at']]))->getAttributes()['scheduled_at'];
+
+        return PropertyVisit::query()
+            ->where('property_id', $property->id)
+            ->whereIn('status', self::ACTIVE_STATUSES)
+            ->where('scheduled_at', $slot)
+            ->where(function ($q) use ($visitor, $customerId) {
+                if ($visitor !== null) {
+                    $q->where('visitor_id', $visitor->id);
+                }
+                if ($customerId !== null) {
+                    $q->orWhere('customer_id', $customerId);
+                }
+            })
+            ->oldest('id')
+            ->first();
     }
 
     /**

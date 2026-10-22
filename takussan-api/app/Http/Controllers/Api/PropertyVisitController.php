@@ -155,7 +155,10 @@ class PropertyVisitController extends Controller
             'status' => VisitStatus::Scheduled->value,
         ]);
 
-        $this->notifier->requested($visit->fresh(['property', 'agent']));
+        // TCK-1410 — une demande rejouée au même créneau rend la visite déjà ouverte : déjà prévenue.
+        if ($visit->wasRecentlyCreated) {
+            $this->notifier->requested($visit->fresh(['property', 'agent']));
+        }
 
         return $this->json([
             'data' => PropertyVisitResource::make($visit)->resolve($request),

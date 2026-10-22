@@ -172,7 +172,7 @@ export function ContactSheet({
           title={name}
           description={estAgent ? t('leadDescriptionAgent') : t('leadDescriptionOwner')}
           successBody={estAgent ? t('leadSuccessAgent') : t('leadSuccessOwner')}
-          onSubmit={(payload) => submitAgentContactLead(agentSlug, payload)}
+          onSubmit={(payload, cle) => submitAgentContactLead(agentSlug, payload, cle)}
         />
       )}
     </>

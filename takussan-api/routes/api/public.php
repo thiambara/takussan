@@ -164,8 +164,9 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
         ->middleware('throttle:public-visit-request')
         ->name('properties.visit-request');
 
+    // TCK-1410 (ADR-0072) — `idempotent` après `throttle` : un rejeu compte pour un envoi au limiteur.
     Route::post('properties/{slug}/contact-lead', [PublicPropertyController::class, 'contactLead'])
-        ->middleware('throttle:public-contact-lead')
+        ->middleware(['throttle:public-contact-lead', 'idempotent'])
         ->name('properties.contact-lead');
 
     // ── TCK-590 ────────────────────────────────────────────────────────────────────────────
@@ -224,7 +225,7 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     // pas de `auth:sanctum`, la barriere est le throttle. Il remplace le `mailto:` que la fiche
     // publiait a partir de l'adresse de CONNEXION de l'agent.
     Route::post('agents/{slug}/contact-lead', [PublicAgentController::class, 'contactLead'])
-        ->middleware('throttle:public-contact-lead')
+        ->middleware(['throttle:public-contact-lead', 'idempotent'])
         ->name('agents.contact-lead');
 
     Route::get('agents/{slug}/properties', [PublicAgentController::class, 'properties'])
