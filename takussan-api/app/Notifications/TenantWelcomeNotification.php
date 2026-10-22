@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Lease;
+use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -42,7 +43,7 @@ class TenantWelcomeNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $reference = $this->lease->reference_number ?? '#'.$this->lease->id;
-        $url = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/').'/app';
+        $url = LienFront::base().'/app';
 
         return (new MailMessage)
             ->subject(__('notifications.tenant_welcome.subject', ['reference' => $reference]))

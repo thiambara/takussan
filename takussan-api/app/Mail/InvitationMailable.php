@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Invitation;
+use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -40,12 +41,8 @@ class InvitationMailable extends Mailable
 
     public function content(): Content
     {
-        // Build the public accept URL on the frontend (`app.frontend_url`
-        // is the configured Next.js base, falling back to APP_URL when
-        // unset — matches the convention used by ResetPassword and other
-        // user-facing notifications).
-        $base = config('app.frontend_url') ?: config('app.url');
-        $acceptUrl = rtrim((string) $base, '/').'/invitations/accept?token='.$this->invitation->token;
+        // Le lien public d'acceptation, sur le front (P97.05, `LienFront`).
+        $acceptUrl = LienFront::vers('/invitations/accept?token='.$this->invitation->token);
 
         return new Content(
             view: 'emails.invitation',

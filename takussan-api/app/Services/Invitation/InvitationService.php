@@ -21,6 +21,7 @@ use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
+use App\Support\LienFront;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -959,15 +960,13 @@ class InvitationService
             return;
         }
 
-        $base = config('app.frontend_url') ?: config('app.url');
-
         app(NotificationService::class)->send(
             ContactSansCompte::fromInvitation($invitation, $locale),
             $isReminder ? NotificationCode::InvitationReminder : NotificationCode::InvitationReceived,
             [
                 'agency' => self::smsAgencyName($invitation->agency?->name),
                 // Même lien que le courriel (`InvitationMailable`).
-                'url' => rtrim((string) $base, '/').'/invitations/accept?token='.$invitation->token,
+                'url' => LienFront::vers('/invitations/accept?token='.$invitation->token),
             ],
         );
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Base\Controller;
 use App\Models\Enums\EmailFrequency;
 use App\Models\User;
+use App\Support\LienFront;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\URL;
@@ -40,7 +41,7 @@ class NotificationUnsubscribeController extends Controller
             absolute: false,
         );
         $requete = (string) parse_url($signee, PHP_URL_QUERY);
-        $front = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+        $front = LienFront::base();
         $langue = in_array($user->preferred_language, ['fr', 'en', 'wo'], true) ? $user->preferred_language : 'fr';
 
         return [

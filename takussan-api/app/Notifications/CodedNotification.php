@@ -12,6 +12,7 @@ use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
 use App\Services\Notifications\Sms\SmsTimeBudget;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
+use App\Support\LienFront;
 use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
@@ -206,7 +207,7 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
 
         $path = $this->target['path'] ?? null;
         if (is_string($path) && $path !== '') {
-            $mail->action(__('notifications.open'), rtrim((string) config('app.frontend_url'), '/').$path);
+            $mail->action(__('notifications.open'), LienFront::base().$path);
         }
 
         return $mail->salutation(__('notifications.salutation'));
