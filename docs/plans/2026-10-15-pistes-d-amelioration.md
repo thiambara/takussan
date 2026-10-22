@@ -180,7 +180,7 @@ voie d'écriture (angle 13, puis 47).
 | 104 | Poids JS initial des écrans de la console `/super-admin` (`SuperAdminShell`, tableaux, dialogues importés statiquement, fichiers `index.ts` de `components/admin/super`) : le relevé de l'angle 70 sur l'autre console | fait |
 | 105 | Charge RSC d'un document `/app` servi : dictionnaires imbriqués de `layout.tsx`, `(dashboard)` et `(dashboard)/app` (et `/app/agency`) sérialisés chacun avec l'ensemble cumulé de ses parents, mesurés sur le document compressé | fait |
 | 106 | Branches que le code ne prend qu'en `APP_ENV=production` (`RestrictIpMiddleware` à liste vide, `DeletionStepUpService::sendCode`, `AddRobotsTagOutsideProduction` jugé sur `APP_URL`) : chacune éprouvée par un test en `production`, alors que la préproduction tourne en `staging` et ne les prend jamais ? | fait |
-| 107 | Champs du profil que l'utilisateur déclare pour être joint (`phone_whatsapp`, `secondary_phone`, `secondary_phone_whatsapp`, `preferred_language`, heures calmes) : lus par les chemins qui envoient (canaux de notification, codes, relances), ou seulement affichés ? | à faire |
+| 107 | Champs du profil que l'utilisateur déclare pour être joint (`phone_whatsapp`, `secondary_phone`, `secondary_phone_whatsapp`, `preferred_language`, heures calmes) : lus par les chemins qui envoient (canaux de notification, codes, relances), ou seulement affichés ? | fait |
 | 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | à faire |
 | 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | à faire |
 | 110 | Rapprochement bancaire (`bank_reconciled_at`, `bank_statement_line_id`, `Accounting\ReconciliationManager`) d'une échéance, d'un acompte ou d'une facture passés à `refunded` après rapprochement : la ligne de relevé reste-t-elle rapprochée, et le remboursement sortant a-t-il un pendant | à faire |
@@ -10519,3 +10519,56 @@ et `production` compris) et la signature WhatsApp (`WhatsappStatusWebhookTest.ph
   - Une API servie sur `https://api.takussan.com` avec un `APP_ENV` resté `staging` — le cas que P71.02 a constaté dans le plan F3 — démarre donc, sans aperçu des codes, mais avec le filtre d'IP ouvert à tout appelant tant qu'une liste manque (déduit de la lecture des deux critères ; à vérifier par un test qui démarre l'application ainsi, sur le modèle d'`OtpPreviewTest.php:55`). Un `APP_ENV` mal orthographié (`prod`, `Production`) a le même effet, à l'inverse du choix écrit pour l'aperçu : « un environnement mal nommé reste fermé » (lu, `OtpPreview.php:27`).
 - Piste : au démarrage, refuser un `APP_URL` d'origine production avec un `APP_ENV` autre que `production` (à côté de `refuserSurLaProduction`, même test par `bootstrap/app.php`) ; ou faire juger `RestrictIpMiddleware` par une liste d'autorisation des environnements où une liste vide laisse passer (`local`, `testing`, `staging`), comme `OtpPreview`.
 - Mesure (2026-10-22, cb29105b6, mesureur) : lu les quatre lecteurs d'`APP_ENV` et les deux d'`APP_URL` cités (lignes inchangées) ; test temporaire retiré ensuite (`app.url` = `AddRobotsTagOutsideProduction::PRODUCTION_ORIGIN`, liste d'IP `orange` vide, `POST` sur l'accusé Orange) → `APP_ENV` `staging`, `prod` et `Production` : 404 `http.not_found` (le filtre laisse passer, le contrôleur répond), sans `X-Robots-Tag` ; `production` : 403 `webhook.ip_allowlist_not_configured` : le « à vérifier » du constat est vérifié, le filtre est ouvert sur l'origine de production dès qu'`APP_ENV` n'est pas exactement `production`. Classement : V5, la piste porte sur la règle qui décide de la production au démarrage (variables d'environnement du déploiement) et propose deux voies.
+
+## Angle 107 — Champs de contact du profil : lus par les chemins qui envoient, ou seulement affichés
+
+*Exploré le 2026-10-22 sur `pre-dev` cb29105b6, par l'explorateur. Tout a été lu et lancé par
+l'explorateur lui-même, sans sous-agent : les lecteurs de chaque champ dans `app/` et
+`takussan-web/src` (`grep -rn` champ par champ), les canaux `SmsChannel` et `WhatsappChannel`,
+`PreferenceResolver`, les envois de codes (`PhoneVerificationService::deliver`, `PhoneChangeGuard`,
+`LeaseSignatureService::sendCode`, `PhoneLoginService`), et la base de développement en `SELECT`
+(305 comptes, seedés : elle ne dit rien d'une production). Un test temporaire, retiré, a mesuré
+deux comportements (charge 3,65 sur 8 cœurs). Ce que l'angle demandait et qui tient sans entrée :
+`phone_whatsapp` est lu par le routage depuis TCK-1094 (P72.02) ; `preferred_language` est suivi
+par les notifications (`HasLocalePreference`), les codes SMS, le résumé, le flux d'agenda et le
+PDF de devis ; `secondary_phone*` est, comme TCK-633 l'écrit, un numéro de publication que seul
+`PropertyContactNumbers` sert, jamais un canal d'envoi ; les heures calmes ne sont pas un champ
+du profil mais une fenêtre ARTP de la plateforme (`config/sms.php:125-130`, Dakar, SMS seuls).
+Le résumé et `email_frequency` sont déjà relevés par P11.08.*
+
+### Un locataire ou un visiteur qui a un compte au téléphone non vérifié ne reçoit plus aucun SMS, et le numéro de sa fiche n'est plus lu
+- Réf : P107.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/SendLeasePaymentReminders.php:185-201`, `takussan-api/app/Listeners/Payments/SendRentReceiptAfterOnlinePayment.php:41-45`, `takussan-api/app/Services/Model/LeasePaymentService.php:106-116`, `takussan-api/app/Jobs/SendPropertyVisitReminders.php:107-112`, `takussan-api/app/Services/Visit/VisitNotifier.php:203`, `takussan-api/app/Notifications/Channels/SmsChannel.php:66-68`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:87-89`
+- Constat :
+  - Les relances de loyer, la quittance d'un paiement en ligne et l'avis de paiement choisissent le compte dès que la fiche client en a un (`if ($tenant?->user)`), et ne passent au contact sans compte, donc au `customer.phone` saisi par l'agence, que sinon (lu, les trois sites ci-dessus). Les rappels de visite font de même avec `visitor ?? customer.user`, et le `visitor_phone` laissé à la demande n'est lu que pour un visiteur sans compte (lu, `SendPropertyVisitReminders.php:107-112`, `VisitNotifier.php:203`).
+  - Pour un `User`, les deux canaux mobiles s'arrêtent net sans `phone_verified_at`, codes critiques compris (lu, `SmsChannel.php:66-68`, `WhatsappChannel.php:87-89`, et `PreferenceResolver.php:174-180`).
+  - mesuré : test temporaire retiré, échéance en retard de 1 jour, fiche client au téléphone `+221 77 123 45 67` liée à un compte au téléphone renseigné mais non vérifié → la relance part au compte par `["mail"]` seul, et aucun envoi à la demande vers le numéro de la fiche. Le même locataire sans compte reçoit un SMS (`SendLeasePaymentRemindersTest::test_ac3_…`, existant).
+  - Avoir un compte fait donc perdre le SMS que le même locataire recevait sans compte. Un compte sans e-mail et sans téléphone vérifié ne reçoit que la cloche.
+  - à vérifier : quels chemins créent un compte de locataire ou de visiteur sans vérifier son téléphone (invitation par e-mail, onboarding locataire, compte créé par l'agence), et combien de comptes sont dans ce cas. Les rappels de visite et la quittance n'ont pas été rejoués, seulement lus.
+- Piste : quand le compte n'a pas de téléphone vérifié, laisser le canal mobile au contact de la fiche (`ContactSansCompte::fromCustomer` ou `fromVisit`) en plus du compte, pour les seuls codes transactionnels déjà permis aux contacts (`reachesContacts()`) ; ou le dire à l'agence (fiche « joignable par e-mail seulement »). Choix de produit dans les deux cas. Test : la relance ci-dessus porte un SMS au numéro de la fiche ; ablation sur le repli.
+
+### Les trois drapeaux plats `notifications_*_enabled` s'écrivent et se relisent, mais aucun envoi ne lit ceux du SMS et du push
+- Réf : P107.02
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/NotificationPreferenceController.php:16-18,39-46,62-65`, `takussan-api/app/Http/Requests/Api/Me/UpdateNotificationPreferencesRequest.php:38-51`, `takussan-api/app/Models/User.php:73`
+- Constat :
+  - `PATCH` et `PUT /api/me/notification-preferences` acceptent `notifications_email_enabled`, `notifications_push_enabled` et `notifications_sms_enabled`, les écrivent sur `users` et les rendent dans la réponse (lu ; `route:list --path=notification-preferences` → trois routes). Le docblock du contrôleur les dit « no longer authoritative » (lu, l. 16-18).
+  - `grep -rn` dans `app/` : `notifications_push_enabled` et `notifications_sms_enabled` ne sont lus que par ce contrôleur ; `notifications_email_enabled` l'est aussi par les deux jobs du résumé, injoignable (voir P11.08). Le front ne lit ni n'écrit aucun des trois (`grep -rn` dans `takussan-web/src` → rien hors tests).
+  - mesuré : test temporaire retiré, compte au téléphone vérifié → `PATCH {notifications_sms_enabled: false, notifications_push_enabled: false}` rend 200 et les deux à `false` ; la relance de loyer suivante part par `["mail","sms"]`.
+  - mesuré, base de dev : `notifications_sms_enabled = false` sur 305 comptes sur 305 (défaut de colonne), pendant que les SMS partent selon la matrice. Un client de l'API qui lit ce champ croit le SMS coupé.
+- Piste : retirer les trois clés de la requête et de la réponse (aucun appelant au front), et laisser les colonnes à une décision de schéma à part ; test : `PATCH` avec `notifications_sms_enabled` ne modifie rien et la réponse ne porte plus la clé. Ablation : remettre la clé dans `FLAT_KEYS`.
+
+### `users.timezone` n'a aucun écrivain : tous les comptes sont à Dakar, et les rendus qui le lisent ne lisent qu'un défaut
+- Réf : P107.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/database/migrations/2026_04_15_210400_add_fields_to_users_table.php:29`, `takussan-api/app/Http/Middleware/SetLocaleMiddleware.php:47-53`, `takussan-api/app/Jobs/Notifications/SendNotificationDigestJob.php:54`, `takussan-api/app/Notifications/CodedNotification.php:191,279`, `takussan-api/app/Services/Model/NotificationService.php:69`, `takussan-api/app/Services/Visit/VisitNotifier.php:179,212`
+- Constat :
+  - La colonne vaut `Africa/Dakar` par défaut (lu, migration l. 29). `grep -rn timezone app/Http/Requests app/Http/Controllers app/Services` ne trouve aucune règle ni écriture ; seuls les seeders et la factory la posent (lu). Le front n'a aucun champ pour elle (`grep` dans `takussan-web/src` : seul `UserLocationProvider`, qui ne l'envoie pas).
+  - Elle est lue par le rendu des notifications, des rappels de visite et l'heure d'envoi du résumé (lu, sites ci-dessus), et rendue à la console (`UserDetailResource.php:24`). `SetLocaleMiddleware.php:47-53` la lit aussi, mais ne tourne jamais sous jeton, et l'activer déplacerait les `now()` écrits hors d'UTC (commentaire TCK-536, lu).
+  - mesuré, base de dev : `select timezone, count(*) from users group by 1` → `Africa/Dakar|305`.
+  - Rien n'est faux tant que tous les destinataires vivent à Dakar ; un expatrié ou un bailleur de la diaspora lit pourtant ses rappels de visite à l'heure de Dakar, sans pouvoir le changer.
+- Piste : soit accepter `timezone` (`timezone:all`) sur `PATCH /api/me` avec un champ au profil, soit retirer les lectures qui laissent croire à un réglage par compte et poser la constante Dakar ; retirer dans les deux cas le bloc mort de `SetLocaleMiddleware`. Test : le rappel d'un compte réglé sur `Europe/Paris` affiche l'heure de Paris, ou la ligne morte retirée sans rouge.
