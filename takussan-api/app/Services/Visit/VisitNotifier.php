@@ -235,6 +235,17 @@ class VisitNotifier
                 mobileBorne: $sms === true,
             );
 
+            // TCK-1493 (P107.01) — un compte sans téléphone vérifié ne reçoit aucun SMS : le canal
+            // mobile part au numéro de la visite ou de la fiche, sous la même borne, et c'est son
+            // sort que l'appelant lit.
+            $relais = $to instanceof User ? ContactSansCompte::relaisMobileDuCompte($to, ContactSansCompte::fromVisit($visit)) : null;
+            if ($relais !== null) {
+                $smsRelais = $this->borneLeSms($visit, $this->numeroMobile($relais, $code), $code, $emetteur);
+                $this->notifications->send($relais, $code, $this->params($visit, $code, $to->timezone), null, mobileBorne: $smsRelais === true);
+
+                return $smsRelais ?? $sms;
+            }
+
             return $sms;
         } catch (\Throwable $e) {
             // Non-blocking, logged — see toAgency().

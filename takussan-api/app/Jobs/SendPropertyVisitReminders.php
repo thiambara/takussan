@@ -110,6 +110,9 @@ class SendPropertyVisitReminders implements ShouldQueue
             $contact = $visitor === null ? ContactSansCompte::fromVisit($fresh) : null;
             $recipients = array_values(array_filter([
                 $visitor ?? ($contact?->hasPhone() ? $contact : null),
+                // TCK-1493 (P107.01) — un compte sans téléphone vérifié : le canal mobile part au
+                // numéro de la visite ou de la fiche, sous la borne des SMS de visite.
+                $visitor !== null ? ContactSansCompte::relaisMobileDuCompte($visitor, ContactSansCompte::fromVisit($fresh)) : null,
             ]));
             foreach ($this->agencySide($fresh) as $member) {
                 if ($member->id !== $visitor?->id) {

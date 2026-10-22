@@ -173,7 +173,8 @@ class SendLeasePaymentReminders implements ShouldQueue
 
     /**
      * Le locataire : son compte, sinon son téléphone (contact sans compte), sinon personne —
-     * journalisé, sans exception.
+     * journalisé, sans exception. Un compte sans téléphone vérifié reçoit en plus le canal mobile
+     * au numéro de sa fiche (TCK-1493).
      *
      * @param  array<string, mixed>  $params
      */
@@ -186,6 +187,12 @@ class SendLeasePaymentReminders implements ShouldQueue
         if ($tenant?->user) {
             // VERIF-602 M2 — un compte n'a pas besoin du lien porteur : sa cloche mène à son bail.
             $notifications->send($tenant->user, $code, $params, $target);
+            // TCK-1493 (P107.01) — sans téléphone vérifié, le canal mobile part au numéro de la
+            // fiche, avec les paramètres du compte : pas de lien porteur.
+            $relais = ContactSansCompte::relaisMobileDuCompte($tenant->user, ContactSansCompte::fromCustomer($tenant));
+            if ($relais !== null) {
+                $notifications->send($relais, $code, $params, $target);
+            }
 
             return;
         }

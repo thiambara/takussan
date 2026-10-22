@@ -9489,6 +9489,13 @@
       "saving": "Saving…",
       "saved": "Saved.",
       "failed": "This setting was not saved."
+    },
+    "timezone": {
+      "title": "Time zone",
+      "subtitle": "The times in your e-mails, SMS and notifications follow this time zone.",
+      "label": "Time zone",
+      "saved": "Time zone saved.",
+      "error": "The time zone could not be saved."
     }
   },
   "contact": {

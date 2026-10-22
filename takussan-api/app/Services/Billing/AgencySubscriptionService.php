@@ -4,6 +4,7 @@ namespace App\Services\Billing;
 
 use App\Models\Agency;
 use App\Models\AgencySubscription;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgencySubscriptionStatus;
 use App\Models\Plan;
 use App\Models\User;
@@ -143,6 +144,10 @@ class AgencySubscriptionService
             ->whereNull('ended_at')
             ->whereNotNull('trial_ends_at')
             ->where('trial_ends_at', '<=', now())
+            // TCK-1501 (P129.05, ADR-0048 amendé le 2026-10-22) — une agence `inactive` ou
+            // `suspended` ne commence pas à être facturée : son essai échu attend son retour à
+            // `active`, et se convertit au premier passage qui suit.
+            ->whereHas('agency', fn ($q) => $q->where('status', AgencyStatus::Active))
             ->pluck('id');
 
         $count = 0;

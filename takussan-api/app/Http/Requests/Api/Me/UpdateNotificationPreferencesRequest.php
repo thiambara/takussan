@@ -30,15 +30,17 @@ class UpdateNotificationPreferencesRequest extends BaseFormRequest
     }
 
     /**
-     * Les trois clés du chemin historique, nommées une fois — le contrôleur en a besoin pour
+     * Les clés du chemin historique, nommées une fois — le contrôleur en a besoin pour
      * séparer ce qu'il écrit sur `users` de ce qu'il passe au résolveur.
+     *
+     * TCK-1495 (P107.02) — il n'en reste qu'une : les drapeaux SMS et push n'avaient aucun
+     * lecteur, la matrice seule commande ces canaux. L'e-mail reste tant que P11.08 n'est pas
+     * tranchée (le résumé le lit).
      *
      * @var list<string>
      */
     public const FLAT_KEYS = [
         'notifications_email_enabled',
-        'notifications_push_enabled',
-        'notifications_sms_enabled',
     ];
 
     /** @return array<string, mixed> */
@@ -46,8 +48,6 @@ class UpdateNotificationPreferencesRequest extends BaseFormRequest
     {
         $rules = [
             'notifications_email_enabled' => ['sometimes', 'boolean'],
-            'notifications_push_enabled' => ['sometimes', 'boolean'],
-            'notifications_sms_enabled' => ['sometimes', 'boolean'],
         ];
 
         // La matrice groupée n'était validée que lorsqu'elle était envoyée — sinon `required`
