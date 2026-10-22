@@ -33,9 +33,11 @@ cloche aussi.
   à la lecture).
 - API : rendue par `IntegrationProviderRegistry::get($code)->label()` (repli `GenericProvider` :
   `sms_orange` → « Sms Orange »), tronquée comme un texte dans un SMS, « — » si vide.
-- Cloche : pour ce seul code, libellé `adminSettings.integrations.webhookEndpoint.providers.<code>`
-  (clé existante, écran des intégrations de l'agence) ; sans clé, la même règle que
-  `GenericProvider::label()`, pour que la cloche et le courriel disent le même nom.
+- Cloche : pour ce seul code, la règle des libellés de l'API (`GenericProvider::label()` :
+  `orange_money` → « Orange Money »), que suivent tous les fournisseurs du registre — un test API
+  le garde. Choix écrit : les clés de fournisseur existantes du front ne conviennent pas,
+  `adminSettings` n'étant pas servi à la cloche (frontière `(dashboard)/app`, `check:i18n-namespaces`
+  rouge) et `payments` nommant la carte « Carte (Lemon Squeezy) », un autre nom que le courriel.
 - Hypothèse : le paramètre `provider` des avis d'intervention (`maintenance.accepted`,
   `maintenance.declined`) est le nom d'un prestataire, il reste `text` et n'est pas touché.
 
@@ -50,7 +52,8 @@ cloche aussi.
 ## Critères d'acceptation
 
 - [x] AC1 — fr et en, titre, corps et SMS d'`orange_money` : ni `orange_money`, et « Orange Money » au corps et au SMS.
-- [x] AC2 — un code hors registre suit le libellé générique ; un fournisseur vide rend « — ».
+- [x] AC2 — un code hors registre suit le libellé générique ; un fournisseur vide rend « — » ;
+  chaque libellé du registre suit la règle que la cloche applique.
 - [x] AC3 — la cloche rend « Orange Money », « Lemon Squeezy », « Sms Orange » ; le `provider` d'une intervention reste tel quel.
 
 ## Hors périmètre
@@ -61,4 +64,5 @@ cloche aussi.
 
 - Ablation API : `NotificationCode.php` et `NotificationRenderer.php` remis à `pre-dev` → 3 rouges, remis → vert.
 - Ablation front : `texteNotification.ts` remis à `pre-dev` → 4 rouges, remis → vert.
+- Piège : lire `adminSettings.…providers` depuis la cloche rougit `check:i18n-namespaces` (espace non servi à `(dashboard)/app`).
 - Piège : `GovernanceAlertTest` épinglait le défaut (`'wave'` dans le corps) ; il garde maintenant le code dans `params` et le libellé dans le corps.
