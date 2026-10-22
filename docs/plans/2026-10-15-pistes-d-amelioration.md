@@ -14148,7 +14148,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le registre des droits se clôt à la main pendant que la demande liée suit son cours
 - Réf : P147.08
-- Statut : validé — porteur (2026-10-22) : refuser toute clôture manuelle d'une entrée liée du registre tant que sa demande vit
+- Statut : fait · TCK-1435
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/Admin/UpdatePrivacyRequestRequest.php:27`, `takussan-api/app/Http/Controllers/Api/Admin/PrivacyRequestController.php:53-77`, `takussan-api/app/Observers/Privacy/PrivacyRegistryObserver.php:47-90`, `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:135-143`
 - Constat :
@@ -14157,6 +14157,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - L'effacement s'exécute ensuite quand même, et `answer()` saute une entrée close (lu, `isOpen()`, l. 84-90) : le registre garde le statut et la date posés à la main. Non mesuré (à vérifier).
 - Piste : refuser à la main les statuts que l'application pose elle-même (`withdrawn`, et `answered` sur une entrée liée), ou refuser toute clôture d'une entrée liée tant que sa demande vit ; c'est une règle de registre RGPD (choix du porteur). Test : entrée d'effacement en attente, clôture refusée.
 - Mesure (2026-10-22, 2e3d6840c, mesureur) : relu `UpdatePrivacyRequestRequest.php:27` (cinq statuts), `PrivacyRequestController::update` (l. 53-77 : seule la réouverture d'une entrée close est refusée, ni `account_deletion_request_id` ni `data_export_id` lus) et `PrivacyRegistryObserver::answer` (saute une entrée close) ; charge `{ 4.97 5.06 4.07 }` sur 8 cœurs, test temporaire retiré → super-admin, effacement en attente (`AccountDeletionRequest::factory()`, entrée `in_progress` ouverte par l'observateur) : `PATCH {status: rejected}` 200, puis `AccountDeletionService::executeDeletion` → effacement exécuté, entrée restée `rejected`, `answered_at` nul → tient, le « à vérifier » est levé. Classement : V3, c'est une règle de ce que le registre RGPD conserve (ADR-0044), que la `Piste` laisse au porteur.
+- Mesure (2026-10-22, e2959c84c, implementeur) : test neuf `PrivacyRegistreEntreeLieeTest` → avant correctif, entrée d'un effacement en attente passée `answered`, `rejected` ou `withdrawn` à la main → 200, entrée d'un export en file passée `rejected` → 200 (4 rouges) → `PrivacyRequestController::update` refuse 422 `privacy.request_linked_pending` toute clôture d'une entrée ouverte dont `PrivacyRequest::linkedRequestIsPending()` (effacement non exécuté, export `queued` ou `processing`) → 6/6, l'export en échec se clôt toujours, le résumé et `received` passent ; ablation → 4 rouges, remis → vert ; `PrivacyRequestRegistryTest`, `LangGroupParityTest`, `TranslationUsageTest` verts.
 
 ### Petites améliorations
 - Réf : P147.09
