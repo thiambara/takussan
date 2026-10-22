@@ -10590,7 +10590,7 @@ et `production` compris) et la signature WhatsApp (`WhatsappStatusWebhookTest.ph
 
 ### Le refus en 403 d'une liste d'IP vide en `production` n'est gardé par aucun test : le retirer laisse tout vert
 - Réf : P106.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1360
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:29-35`, `takussan-api/routes/api/sms-webhooks.php:26-34`, `takussan-api/tests/Feature/Http/Webhook/OrangeSmsWebhookTest.php:21`, `takussan-api/tests/Feature/Http/Webhook/WebhookThrottleTest.php:26`
 - Constat :
@@ -10600,6 +10600,7 @@ et `production` compris) et la signature WhatsApp (`WhatsappStatusWebhookTest.ph
   - Cette branche est la seule défense de la production si les `SMS_*_WEBHOOK_IPS` y manquent : P71.04 laisse leur pose « au moment de F3 » (reste de TCK-1050), et la préproduction, en `staging`, ne la prend jamais (lu, `docs/infra/hebergement.md:202`).
 - Piste : un test qui pose `$this->app['env'] = 'production'` (précédent : `WhatsappStatusWebhookTest.php:222-223`) et une liste vide, et attend 403 `webhook.ip_allowlist_not_configured` sur chacune des trois routes `restrict.ip:{fournisseur}`, sans effet sur l'accusé (tentative inchangée) ; vérifié par la même ablation.
 - Mesure (2026-10-22, cb29105b6, mesureur) : lu `RestrictIpMiddleware.php:29-35` (liste vide + `environment('production')` → `abort_code(403, 'webhook.ip_allowlist_not_configured')`), inchangé depuis TCK-853 ; `grep -rn ip_allowlist_not_configured tests` → rien ; ablation de l'`abort_code` (charge 2,85 / 3,23 / 3,60 sur 8 cœurs) → `WebhookJournalTest` 10 verts, `WebhookPayloadRedactionTest` 3 verts, `OrangeSmsWebhookTest` 8 verts, puis code remis : le constat tient, et deux classes de plus que celles qu'il cite (`WebhookJournalTest`, `WebhookPayloadRedactionTest`) frappent ces routes sans voir la branche. Classement : A5, un test ajouté qui garde un comportement déjà écrit (code et docblock l. 15-16), sans toucher au code ni à un seuil.
+- Mesure (2026-10-22, 45fd976b2, implementeur) : `grep -rn ip_allowlist_not_configured takussan-api/tests` → rien avant le correctif. `SmsWebhookEmptyAllowlistInProductionTest` (`env` à `production`, listes vides) : 403 `webhook.ip_allowlist_not_configured` sur les trois routes `restrict.ip:{fournisseur}`, tentative `orange` restée `sent`, et hors production la liste vide laisse passer ; 5 verts ; ablation (`abort_code` du middleware remplacé par un commentaire) → 4 rouges, le cas hors production reste vert.
 
 ### `DeletionStepUpService::sendCode` rend le code hors production pour les seuls tests, et en production son `null` ne distingue plus « délai de renvoi » de « code envoyé »
 - Réf : P106.02
