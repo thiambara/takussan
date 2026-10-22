@@ -42,7 +42,20 @@ class ActivityLogExporter
     public function buildPayload(User $user, array $filters, ?int $agencyId): array
     {
         $rows = $this->baseQuery($user, $filters, $agencyId)
-            ->with(['causer', 'causer.platformProfile', 'causer.agencyAdminProfiles', 'causer.agentProfiles', 'causer.ownerProfiles'])
+            // TCK-1414 (P78.01) — tout ce que lit `profileTypes()` pour `causer_role` : sans
+            // `serviceProviderProfile` ni `tenantLeases`, chaque ligne émettait deux `exists()`
+            // (209 requêtes pour 100 lignes d'un même auteur).
+            ->with([
+                'causer',
+                'causer.platformProfile',
+                'causer.agencyAdminProfiles',
+                'causer.agentProfiles',
+                'causer.ownerProfiles',
+                'causer.serviceProviderProfile',
+                // Restreinte comme dans `AgencyController::listMembers` : seuls les baux en cours
+                // font un locataire (`hasActiveTenantLease` refiltre en mémoire).
+                'causer.tenantLeases' => fn ($q) => $q->whereIn('leases.status', User::ACTIVE_TENANT_LEASE_STATUSES),
+            ])
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (Activity $log) => $this->mapRow($log))

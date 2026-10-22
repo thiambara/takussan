@@ -25,6 +25,16 @@ class ExportActivityLogJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /**
+     * TCK-1414 (P78.01) — sans délai propre, le job héritait des 60 s par défaut de `queue:work`
+     * (le worker `default` tourne sans `--timeout`). Mesuré après le préchargement de
+     * `ActivityLogExporter::buildPayload()`, sur 20 000 lignes : 12 s en CSV, 64 s en XLSX. Le
+     * délai reste sous `retry_after` (90 s par défaut, `config/queue.php`) : au-delà, une seconde
+     * copie démarrerait pendant que la première tourne. Le XLSX de plus de ~25 000 lignes reste
+     * hors de portée (P78.03).
+     */
+    public int $timeout = 85;
+
     public function __construct(
         public readonly User $user,
         public readonly array $filters,
