@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import {
   AGENT_CRM_QUERY_KEY,
   fetchAgencyAgents,
@@ -60,6 +62,8 @@ const CATEGORIES: readonly PortfolioCategory[] = [
 export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWizardProps) {
   const t = useTranslations('agentCrm.handover');
   const { token } = useAuth();
+  // TCK-1203 — passation et retrait exigent la 2FA de l'agence (`AgentHandoverController`, `removeAgent`).
+  const garde = useGardeDoubleFacteur();
   const [successor, setSuccessor] = useState('');
   const [leaveUnassigned, setLeaveUnassigned] = useState(false);
   const [step, setStep] = useState<'choose' | 'review'>('choose');
@@ -90,15 +94,20 @@ export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWi
 
   const transfer = useMutation<unknown, ApiError, void>({
     mutationFn: () =>
-      handOverPortfolio(token ?? '', agencyId, memberId, {
-        successor_id: Number(successor),
-        remove_after: true,
-        leave_unassigned: leaveUnassigned,
-      }),
+      avecGardeDoubleFacteur(
+        () =>
+          handOverPortfolio(token ?? '', agencyId, memberId, {
+            successor_id: Number(successor),
+            remove_after: true,
+            leave_unassigned: leaveUnassigned,
+          }),
+        garde,
+      ),
     onSuccess: finish,
   });
   const removeOnly = useMutation<void, ApiError, void>({
-    mutationFn: () => removeMember(token ?? '', agencyId, memberId, leaveUnassigned),
+    mutationFn: () =>
+      avecGardeDoubleFacteur(() => removeMember(token ?? '', agencyId, memberId, leaveUnassigned), garde),
     onSuccess: finish,
   });
 

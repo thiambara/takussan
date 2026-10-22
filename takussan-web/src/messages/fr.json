@@ -455,6 +455,7 @@
       "requiredBody": "Cette action touche des données sensibles : elle demande un second facteur sur votre compte. Configurez-le maintenant, l’action reprendra juste après.",
       "stepUpTitle": "Confirmez que c’est bien vous",
       "stepUpBody": "Par sécurité, cette action demande un code récent de votre application d’authentification. Saisissez-le, et l’action reprendra.",
+      "consoleStepUpBody": "La console de la plateforme demande, pour cette session, un code de votre application d’authentification. Saisissez-le pour continuer.",
       "codeLabel": "Code à 6 chiffres",
       "confirm": "Confirmer",
       "confirming": "Vérification…",

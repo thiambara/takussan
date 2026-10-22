@@ -5,6 +5,7 @@ namespace App\Services\Pdf;
 use App\Models\Agency;
 use App\Models\Document;
 use App\Models\Enums\DocumentType;
+use App\Services\Media\PdfImageEmbedder;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Response;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Traits\Localizable;
 use Spatie\LaravelPdf\Facades\Pdf;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**
@@ -33,6 +35,8 @@ class DocumentPdfService
 {
     use Localizable;
 
+    public function __construct(protected PdfImageEmbedder $images) {}
+
     /**
      * TCK-672 (P06.03) — les actes restent en français, quelle que soit la langue du lecteur :
      * leur texte est en français, et leurs dates (« octobre 2026 ») le sont aussi. Ils se rendent
@@ -48,6 +52,12 @@ class DocumentPdfService
         'pdf.receipts.booking',
         'pdf.invoices.default',
     ];
+
+    /**
+     * TCK-1233 (P109.01) — largeur maximale, en pixels, du logo embarqué : l'en-tête l'affiche à
+     * 160 px au plus (`base.blade.php`), le double garde une impression nette.
+     */
+    public const LOGO_MAX_WIDTH = 320;
 
     /**
      * Render a template to raw PDF bytes.
@@ -137,7 +147,13 @@ class DocumentPdfService
     {
         $agency = $data['agency'] ?? null;
         if ($agency instanceof Agency) {
-            $logoUrl = $agency->getFirstMediaUrl('logo') ?: null;
+            // TCK-1233 (P109.01) — jamais l'URL publique : dompdf refuse une URL distante
+            // (`is_remote_enabled` à `false`) et imprimait le texte `alt` à la place, sans
+            // erreur. Les octets sont lus par le disque et embarqués en URI `data:`.
+            $logo = $agency->getFirstMedia('logo');
+            $logoUrl = $logo instanceof Media
+                ? $this->images->dataUri($logo, self::LOGO_MAX_WIDTH, 'png')
+                : null;
         } else {
             $logoUrl = $data['agency_logo_url'] ?? null;
         }

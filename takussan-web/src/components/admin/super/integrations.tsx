@@ -11,6 +11,7 @@ import {
   type DataTableColumn,
   type StatusTone,
 } from '@/components/console';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ import type {
   IntegrationWebhookLog,
 } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
@@ -99,10 +101,12 @@ export function IntegrationCard({
 
 export function IntegrationTestButton({ integrationId }: { integrationId: number }) {
   const t = useTranslations('superAdmin.integrations');
+  const garde = useGardeDoubleFacteur();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState<string | null>(null);
   const mutation = useMutation({
-    mutationFn: () => testAdminIntegration(integrationId),
+    // TCK-1203 — tester et modifier une intégration exigent un step-up : la garde, puis le rejeu.
+    mutationFn: () => avecGardeDoubleFacteur(() => testAdminIntegration(integrationId), garde),
     onSuccess: (response) => {
       setMessage(response.data.success ? `${response.data.latency_ms} ms` : (response.data.error ?? t('testFailure')));
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'integrations'] });
@@ -133,6 +137,7 @@ export function IntegrationEditDialog({
   const t = useTranslations('superAdmin.integrations');
   const tCommon = useTranslations('common');
   const messageErreur = useMessageErreurApi();
+  const garde = useGardeDoubleFacteur();
   const queryClient = useQueryClient();
   const schema = useQuery<AdminIntegrationSchemaResponse, ApiError>({
     queryKey: ['super-admin', 'integrations', integration?.id, 'schema'],
@@ -147,7 +152,8 @@ export function IntegrationEditDialog({
     [credentials],
   );
   const mutation = useMutation({
-    mutationFn: () => patchAdminIntegration(integration!.id, { credentials: payloadCredentials }),
+    mutationFn: () =>
+      avecGardeDoubleFacteur(() => patchAdminIntegration(integration!.id, { credentials: payloadCredentials }), garde),
     onSuccess: () => {
       setCredentials({});
       setError(null);

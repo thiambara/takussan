@@ -16,6 +16,8 @@ import { putUserRole } from '@/lib/queries/admin-users';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { UserRole } from '@/types/user';
 import { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
@@ -59,6 +61,8 @@ export function UserRolesEditor({ user }: UserRolesEditorProps) {
   // valeur d'API), le rendu la résout sous `admin.users.roles.*`.
   const roleOptions = ROLE_CHOICES.map((c) => ({ value: c.value, label: t(`roles.${c.value}`) }));
   const queryClient = useQueryClient();
+  // TCK-1203 — changer un rôle exige la 2FA de l'agence (`UserRoleController@update`).
+  const garde = useGardeDoubleFacteur();
   // TCK-278 — `roles[0]` peut être une string (UserResource) ou `{name}`
   // (UserDetailResource). Normalise pour récupérer le rôle.
   const firstRole = user.roles?.[0];
@@ -68,7 +72,7 @@ export function UserRolesEditor({ user }: UserRolesEditorProps) {
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: (role: UserRole) => putUserRole(user.id, role),
+    mutationFn: (role: UserRole) => avecGardeDoubleFacteur(() => putUserRole(user.id, role), garde),
     onSuccess: (_data, role) => {
       setError(null);
       setBaselineRole(role);
