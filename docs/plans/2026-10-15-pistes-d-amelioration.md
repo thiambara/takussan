@@ -13399,7 +13399,7 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
 
 ### Le provisionnement d'une agence promet un 502 et une annulation si l'e-mail d'activation échoue, mais l'e-mail part en file : l'agence est créée, et l'échec arrive plus tard, sans trace ni renvoi
 - Réf : P142.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la Piste laisse le choix entre deux contrats (envoi synchrone, ou file + trace + geste de renvoi)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:36,84,104-118`, `takussan-api/app/Notifications/AgencyAdminActivationNotification.php:22-32`, `takussan-api/tests/Feature/Api/Admin/AgencyOnboardingTest.php:96-113`
 - Constat :
@@ -13410,10 +13410,11 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - Une fois en file, l'envoi a trois essais sans délai (`--tries=3`, `compose.api.yml:125`), et la notification n'a ni `backoff` ni `failed()` (lu). Aucune route ne renvoie l'activation d'un gérant provisionné (`grep -rn resend routes/api` → invitations, super-admins, e-mail et téléphone seuls).
   - Établi comment : lu, et mesuré pour la réponse de la requête dans les deux régimes de file.
 - Piste : choisir l'un des deux contrats et l'écrire — envoi synchrone (sans `ShouldQueue`) pour que le 502 et l'annulation tiennent, ou envoi en file avec `backoff`, `failed()` qui laisse une trace lisible par la console, et un geste « renvoyer l'activation » ; corriger le docblock en conséquence. Test : transport qui lève, sans remplacer `sendActivationLink()`, sous la file `database`.
+- Mesure (2026-10-22, af5be0846, mesureur) : relu `AgencyProvisioningService::sendActivationLink()` (`try` autour de `notify()`, `abort_code(502, …)`, docblock « un échec d'envoi rend 502 et annule ») appelé dans le `DB::transaction` de `provision()`, `AgencyAdminActivationNotification` (`ShouldQueue`, file `notifications-urgent`, ni `backoff` ni `failed()`), `config/queue.php` (`database` en `after_commit => true`), `compose.api.yml:125` (`--tries=3` sans `--backoff`), `grep -rn resend routes/api` (invitations, super-admins, e-mail, téléphone : rien pour l'activation) ; test temporaire (retiré, charge 3,52 / 2,45 / 2,09 sur 8 cœurs) `Queue::fake()` + `Mail::shouldReceive('send')->never()` puis `POST /api/admin/agencies` → **201**, `SendQueuedNotifications` poussé, agence en base : l'envoi n'a pas lieu dans la requête, le `catch` ne peut voir qu'un échec de mise en file ; aucun commit depuis 2662d382c sur ces fichiers → le constat tient (le 500 sous `sync` n'a pas été rejoué). Classement : V7, le correctif exige de choisir entre deux contrats visibles (502 et annulation synchrones, ou file avec renvoi d'activation), et le geste de renvoi est une fonction neuve.
 
 ### Une marque « envoyé » est posée dès la mise en file : un échec du fournisseur perd la bienvenue du locataire, les rappels de tâche et d'état des lieux, et la relance de facture, que rien ne renvoie
 - Réf : P142.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : plusieurs options (retirer la marque, journaliser, poser la marque depuis la notification) dont le renvoi d'un e-mail perdu
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Listeners/Lease/SendTenantWelcomeNotification.php:33,47,55`, `takussan-api/app/Jobs/SendTaskDueReminders.php:71-84`, `takussan-api/app/Console/Commands/RemindTenantOnboarding.php:45-76`, `takussan-api/app/Services/Invoice/OverdueReminderService.php:151-229`
 - Constat :
@@ -13423,10 +13424,11 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - Même mécanisme que P111.04 pour le résumé, ici sur quatre autres envois.
   - Établi comment : lu.
 - Piste : `backoff` sur ces notifications (motif de `CodedNotification::backoff()`), et un `failed()` qui retire ou corrige la marque, ou qui écrit une activité alertable ; ou poser la marque depuis la notification elle-même une fois l'envoi fait. Test : transport qui lève jusqu'à épuisement → marque absente, ou trace d'échec écrite.
+- Mesure (2026-10-22, af5be0846, mesureur) : relu `SendTenantWelcomeNotification` (garde `tenant_welcomed_at !== null`, `Notification::send()` puis `tenant_welcomed_at = now()`), `SendTaskDueReminders::notifyFor()` (marque `META_MARKER` posée après `Notification::send()` dans la transaction), `RemindTenantOnboarding` (`reminders_sent` complété après les deux envois), `OverdueReminderService` (activité `invoice_reminder_sent` `channel => email_inapp` dans la transaction l. 151-216, `Notification::send()` l. 229) ; comptage par fichier de `backoff`, `function failed`, `$tries|retryUntil` sur les 28 `ShouldQueue` de `app/Notifications` → 0 partout sauf `CodedNotification` ; aucun commit depuis 2662d382c → le constat tient, la survie de la cloche par canal reste à vérifier. Classement : V7, la Piste propose trois corrections au comportement différent (renvoi ou non, trace seule), et la relance de facture touche une trace de recouvrement (V1 en bordure).
 
 ### Le rappel J-7 avant suppression du compte est marqué envoyé à la mise en file, en e-mail seul : un échec du fournisseur fait supprimer le compte sans rappel
 - Réf : P142.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : le correctif décide si une suppression de compte peut s'exécuter sans rappel parvenu (renvoi ou report)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:38-43`, `takussan-api/app/Services/Account/AccountDeletionService.php:550-562`, `takussan-api/app/Notifications/AccountDeletionReminderNotification.php:14-30`
 - Constat :
@@ -13434,10 +13436,11 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - `dueForReminder()` ne relit que `reminder_sent_at IS NULL` (lu, l. 556-561) : le rappel perdu ne repart pas, et la suppression s'exécute à `scheduled_for`. Il n'y a pas de cloche pour compenser : le canal est l'e-mail seul.
   - Établi comment : lu. La perte par épuisement des essais est déduite du `--tries=3` sans délai (à vérifier par un transport qui lève sous la file `database`).
 - Piste : `backoff` sur la notification et un `failed()` qui remet `reminder_sent_at` à nul (le passage suivant le renvoie), ou qui reporte l'exécution ; test : transport qui lève → `reminder_sent_at` nul après `failed()`.
+- Mesure (2026-10-22, af5be0846, mesureur) : relu `ExecuteScheduledAccountDeletions::handle()` (`notify(new AccountDeletionReminderNotification(...))` puis `reminder_sent_at = now()` aussitôt), `AccountDeletionService::dueForReminder()` (l. 550-562, ne relit que `reminder_sent_at IS NULL`), `AccountDeletionReminderNotification` (`ShouldQueue`, `via()` → `['mail']`, file `notifications-urgent`, ni `backoff` ni `failed()`) ; aucun commit depuis 2662d382c → le constat tient en lecture, la perte par épuisement des essais sous la file `database` n'a pas été jouée. Classement : V3, la Piste laisse le choix entre renvoyer le rappel et reporter l'exécution, ce qui décide de la suppression de données personnelles.
 
 ### Les commissions d'un bail sont calculées par un écouteur en file sans `failed()` ni autre appelant : un échec laisse le bail sans ligne de commission, sans alerte
 - Réf : P142.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : écouteur qui écrit les lignes de commission d'un bail
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Listeners/Lease/GenerateCommissionEntries.php:17-29`, `takussan-api/app/Services/Commission/CommissionLedgerService.php:41-107`, `takussan-api/app/Jobs/Concerns/AlertsOnFirstFailure.php:8-32`, `takussan-api/app/Listeners/Lease/CreateTenantOnboardingChecklist.php`
 - Constat :
@@ -13447,10 +13450,11 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - `CreateTenantOnboardingChecklist` est dans le même cas (rejouable par `firstOrCreate`, sans `failed()` ni autre appelant), sur un effet moins grave.
   - Établi comment : lu et `grep`.
 - Piste : `AlertsOnFirstFailure` (ou son pendant) et un `backoff` sur les deux écouteurs ; test : `failed()` de l'écouteur écrit `ops_critical_job_failed`.
+- Mesure (2026-10-22, af5be0846, mesureur) : relu `GenerateCommissionEntries` (`ShouldQueue`, ni `$tries`, ni `backoff`, ni `failed()`), `grep -rn 'generateFor(' app` → l'écouteur seul (plus un docblock de `CommissionEntry`), `CommissionLedgerService:107` (`insertOrIgnore`), `grep -rln AlertsOnFirstFailure app` → trois jobs (`SendLeasePaymentReminders`, `ApplyLateFeesJob`, `SendOverdueRemindersJob`) plus le trait et `AlertableEvents`, aucun écouteur ; `CreateTenantOnboardingChecklist` `ShouldQueue` sans `failed()` → le constat tient. Classement : V1, l'écouteur est le seul chemin qui écrit une commission, et changer sa reprise touche l'écriture d'un montant, même si l'ajout d'une alerte est proche de A5.
 
 ### Les notifications en file hors `CodedNotification` n'ont aucun `backoff` ni `failed()`, et un même délai ne vaut pas pour toutes : le code de suppression de compte expire en 5 minutes
 - Réf : P142.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : délais de reprise à choisir par famille (code de suppression à 5 min, activation à 7 jours)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/*.php` (25 classes `extends Notification` en `ShouldQueue` hors `CodedNotification`, plus `ResetPasswordNotification` et `RegistrationConfirmationNotification`), `takussan-api/app/Notifications/CodedNotification.php:76-110`, `takussan-api/app/Services/Account/DeletionStepUpService.php:44,101-105`, `deploy/takussan/compose.api.yml:125,131`
 - Constat :
@@ -13459,10 +13463,11 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - Les e-mails de compte (`ResetPasswordNotification`, `RegistrationConfirmationNotification`, `AgencyAdminActivationNotification`, `AccountDeletionStepUpCodeNotification`, file `notifications-urgent`) ont des durées de vie différentes : 60 min pour la réinitialisation, 7 jours pour l'activation (lu, `config/auth.php:99,110`), **5 min** pour le code de suppression (lu, `CODE_TTL_SECONDS = 300`). Le délai `[60, 300, 900]` de `CodedNotification` livrerait le troisième essai d'un code déjà expiré : un trait commun ne peut pas recopier ces valeurs telles quelles (déduit).
   - Établi comment : mesuré pour les comptes, lu pour le reste.
 - Piste : un trait partagé (`backoff` + `failed()` qui journalise la classe et le canal, sur le modèle de `CodedNotification`), avec un délai court ou un `retryUntil()` borné par la durée de vie pour les codes et liens à courte échéance ; une garde qui refuse une notification `ShouldQueue` sans ce trait. Test : `backoff()` et `failed()` présents sur chaque classe `ShouldQueue` de `app/Notifications`.
+- Mesure (2026-10-22, af5be0846, mesureur) : `for f in $(grep -rln ShouldQueue app/Notifications)` avec compte de `backoff`, `function failed`, `$tries|retryUntil` → 28 fichiers, `CodedNotification` seule à `backoff`/`failed()` (l. 81, 98), 27 à 0 ; `grep -rn 'function backoff\|function failed' app` → aucun trait partagé hors `CodedNotification` et les jobs ; relu `DeletionStepUpService::CODE_TTL_SECONDS = 300`, `config/auth.php:99` (60) et `:110` (7 jours), `routes/console.php:196` (`queue:prune-failed --hours=720`), `compose.api.yml:125,131` (`--tries=3` sans `--backoff`) → le constat tient entièrement. Classement : V7, les délais et la borne `retryUntil()` par famille d'e-mails sont des choix (dont celui de livrer ou non un code expiré), et la garde neuve qui l'imposerait suit ce choix.
 
 ### Petites améliorations
 - Réf : P142.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : chaque point demande un choix (canal ou liste des exports, ordre de la marque, régime de test)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:50-69`, `takussan-api/app/Notifications/ActivityLogExportReadyNotification.php:25`, `takussan-api/app/Listeners/Lease/SendTenantWelcomeNotification.php:47-55`
 - Constat :
@@ -13470,3 +13475,4 @@ que fait un worker réel, dont la reprise est lue (`--tries=3`, sans `--backoff`
   - **Bienvenue rejouée** : si l'écouteur lève après `Notification::send()` (journal d'activité ou `save()` de la l. 55), le worker le rejoue et met en file une seconde bienvenue, la marque n'étant pas encore posée (lu, déduit pour la fréquence).
   - **Régime de la suite** : `QUEUE_CONNECTION=sync` fait lever dans la requête ce que la production met en file (mesuré en P142.01 : 500 contre 201) ; aucun test ne joue l'échec d'un envoi sous la file `database`.
 - Piste : canal de la cloche ou liste des exports pour le lien ; marque posée avant l'envoi dans l'écouteur, ou dédoublonnage ; un test d'échec de transport sous la file `database` par famille d'envoi.
+- Mesure (2026-10-22, af5be0846, mesureur) : relu `ExportActivityLogJob::handle()` (fichier écrit, puis lien signé envoyé par `ActivityLogExportReadyNotification`, `via()` → `['mail']`), `routes/api/audit-log.php` (export et téléchargement signé seuls, aucune liste des exports), `SendTenantWelcomeNotification` (activité et `save()` de la marque après `Notification::send()`), `phpunit.xml` (`QUEUE_CONNECTION=sync`, le 201 sous file mesuré en P142.01) → les trois points tiennent, la fréquence d'une bienvenue rejouée reste déduite. Classement : V7, ajouter la cloche ou une liste des exports est un comportement visible neuf, et les deux autres points dépendent des choix de P142.01 et P142.02.
