@@ -26,7 +26,7 @@
 #   ~/.takussan-agents/outils/pistes.sh pause | reprendre
 #   ~/.takussan-agents/outils/pistes.sh action <verbe> …   # les actions du superviseur (ou du porteur) :
 #       reposer <job> | balayer | purger | pause <rôle|tous> <raison> | reprendre <rôle|tous>
-#       | relancer-ci <run-id> | notifier <texte>
+#       | relancer-ci <run-id> | intermittent <run-id> <suite> | notifier <texte>
 #
 # Compatible bash 3.2 : launchd lance /bin/bash, celui de macOS.
 set -euo pipefail
@@ -434,6 +434,12 @@ fusionner() {
   # Chemin littéral : le trap court à la sortie du SCRIPT, quand la locale `verrou` n'existe plus.
   trap 'rm -rf "$BASE/verrous/fusionneur"' EXIT
 
+  # Le tri des rouges (amendement du 2026-10-22) : les relances finies se jugent, et pre-dev rouge
+  # suspend les fusions, sauf celles qui peuvent le réparer (superviseur, synchronisation de dev).
+  mkdir -p "$BASE/etat"
+  noter_intermittents
+  evaluer_pre_dev
+
   local lignes num tete mergeable etiquettes
   lignes="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --json number,headRefName,mergeable,labels \
     --jq '.[] | "\(.number)\t\(.headRefName)\t\(.mergeable)\t\([.labels[].name] | join(","))"')"
@@ -445,6 +451,7 @@ fusionner() {
       dev) case ",$etiquettes," in *,agents:synchro,*) ;; *) continue ;; esac ;;
       *) continue ;;
     esac
+    if [ -e "$BASE/etat/pre-dev-rouge" ] && [ "$tete" != dev ] && [ "${tete#agents/superviseur/}" = "$tete" ]; then continue; fi
     # Seul CONFLICTING écarte une PR. GitHub rend UNKNOWN après chaque fusion dans pre-dev et ne
     # recalcule que si on lui redemande la PR : « le tour suivant tranchera » était faux. Relevé le
     # 2026-10-20 : #782 verte à 08:37, sautée par les tours de 09:00 et 09:10, fusionnée à 09:14
@@ -544,6 +551,8 @@ etat() {
     if [ -e "$role" ]; then echo "⏸  ${role##*/} : $(head -c 160 "$role")"; fi
   done
   echo "outils $OUTILS_SHA · fusion $FUSION · dépôt $GH_REPO"
+  if [ -e "$BASE/etat/pre-dev-rouge" ]; then echo "🔴 pre-dev rouge depuis $(tr '\t' ' ' < "$BASE/etat/pre-dev-rouge") — fusions suspendues"; fi
+  if [ -n "$(intermittents_a_traiter)" ]; then echo "⚠  tests intermittents non traités : $(intermittents_a_traiter | cut -f2 | sort -u | wc -l | tr -d ' ') run(s) ($BASE/etat/intermittents.tsv)"; fi
   for role in $(for r in $ROLES; do noms_du_role "$r"; done); do
     printf '\n%s\n' "── $role"
     planification "$role"
@@ -634,6 +643,289 @@ etat_ci() {
     *" cancel "*) echo rouge ;;
     *) echo vert ;;
   esac
+}
+
+# ─── le tri des rouges (amendement d'ADR-0066 du 2026-10-22) ──────────────────────────────────
+# Relevé le 2026-10-22 : 57 réparations en un jour, dont une bonne part sur un rouge qui n'était
+# pas celui de la PR réparée. De 09:32 à 12:40, pre-dev était rouge (deux PR vertes chacune, rouges
+# ensemble) et toutes les PR rougissaient sur les deux mêmes tests, que chaque implémenteur
+# « réparait » ; deux tests étaient intermittents ; trois PR ont été abandonnées après trois
+# réparations, et deux réparations ont récrit un correctif déjà fusionné. Un rouge se trie donc,
+# sans modèle, avant de coûter une réparation : base périmée, puis relance unique, puis rouge commun.
+
+journaliser_tri() {
+  printf '%s\t%s\t-\t%s\t%s\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "${NOM:-fusionneur}" "$1" "$2" \
+    "$(printf '%s' "$3" | tr '\t\n' '  ' | head -c 300)" >> "$BASE/journal.tsv"
+}
+
+# Les tests rouges d'un run, une ligne « <job>\t<test> » chacun : PHPUnit (`N) Tests\…::test`, dans
+# la seule liste des échecs et des erreurs), Vitest (`FAIL <fichier>`, et l'erreur non gérée qui
+# rougit un run aux tests tous verts), les `✗` des gardes. Un job rouge sans rien de tout cela rend
+# « (sans test nommé) ». Lu une fois par tentative : le journal d'un run fini ne change plus.
+tests_rouges() {
+  local run="$1" tentative="${2:-}" cache
+  if [ -z "$tentative" ]; then
+    tentative="$(GH_REPO="$GH_REPO" gh run view "$run" --json attempt --jq .attempt 2> /dev/null || echo 0)"
+  fi
+  mkdir -p "$BASE/etat/tests"
+  cache="$BASE/etat/tests/$run-$tentative"
+  if [ ! -s "$cache" ]; then
+    GH_REPO="$GH_REPO" gh run view "$run" --log-failed 2> /dev/null | perl -ne '
+      s/\e\[[0-9;]*m//g;
+      chomp;
+      my ($job, undef, $l) = split /\t/, $_, 3;
+      next unless defined $l;
+      $l =~ s/^\S+ //;
+      $vu{$job} //= 0;
+      my $t;
+      if ($l =~ /^There (?:was|were) \d+ (\w+)/) { $php{$job} = ($1 =~ /^(?:failure|error)s?$/); next }
+      if ($php{$job} && $l =~ /^\d+\) (Tests\\\S+)/) { $t = $1 }
+      elsif ($l =~ /^\s*FAIL\s+(\S+\.(?:test|spec)\.[cm]?[jt]sx?)(?:\s|$)/) { $t = $1 }
+      elsif ($l =~ /(?:Uncaught Exception|Unhandled Rejection)/) { $nongere{$job} = 1; next }
+      elsif ($nongere{$job} && $l =~ /^(\w*Error: .{0,80})/) { $t = "erreur non gérée : $1"; $nongere{$job} = 0 }
+      elsif ($l =~ /^(✗ .{0,200})/) { $t = $1 }
+      next unless defined $t;
+      $vu{$job}++;
+      print "$job\t$t\n" unless $deja{"$job\t$t"}++;
+      END { for (sort keys %vu) { print "$_\t(sans test nommé)\n" unless $vu{$_} } }' > "$cache.tmp" || true
+    mv "$cache.tmp" "$cache"
+  fi
+  cat "$cache"
+}
+
+# Le fichier d'un test nommé par tests_rouges, vide quand il ne se déduit pas (une garde, une erreur
+# non gérée) : une PR qui touche ce fichier a peut-être causé le rouge, il n'est pas « commun ».
+fichier_du_test() {
+  case "$1" in
+    'Tests\'*) printf 'takussan-api/tests/%s.php' "$(printf '%s' "${1%%::*}" | sed -e 's#^Tests\\##' -e 's#\\#/#g')" ;;
+    src/*) printf 'takussan-web/%s' "$1" ;;
+  esac
+}
+
+# Fusionne la base dans la branche d'une PR, sans arbre ni modèle (`merge-tree`, `commit-tree`), et
+# la pousse : la CI repart sur la base du jour. Un re-run ne suffit pas, il rejoue la ref de fusion
+# calculée à son déclenchement. Rend 1 sur un conflit, qui revient à la réparation.
+rafraichir() {
+  local num="$1" tete="$2" arbre_fusionne commit
+  arbre_fusionne="$(git -C "$CLONE" merge-tree --write-tree "origin/$tete" "$BASE_REF")" || return 1
+  commit="$(git -C "$CLONE" commit-tree "$arbre_fusionne" -p "origin/$tete" -p "$BASE_REF" \
+    -m "Merge $BASE_REF dans $tete" \
+    -m "Rafraîchie sans modèle par pistes.sh : le run rouge précédait la dernière fusion dans $BASE_REF.")" || return 1
+  git -C "$CLONE" push --quiet origin "$commit:refs/heads/$tete" || return 1
+  printf '%s' "$commit" > "$BASE/etat/rafraichi-$num"
+}
+
+# Fait partir le superviseur hors de sa cadence, une fois par cause (sa clé) : un rouge commun ou
+# un pre-dev rouge se répare une seule fois, sur pre-dev, au lieu d'une fois par PR.
+appeler_superviseur() {
+  local cle="$1" raison="$2"
+  [ ! -e "$BASE/etat/appel-superviseur-$cle" ] || return 0
+  touch "$BASE/etat/appel-superviseur-$cle"
+  if launchctl kickstart "gui/$(id -u)/$LAUNCHD.superviseur" > /dev/null 2>&1; then
+    info "superviseur appelé : $raison"
+    journaliser_tri appel-superviseur - "$raison"
+  fi
+}
+
+# Relance une fois les jobs rouges d'un run à sa première tentative, et garde ses tests rouges pour
+# juger, à la fin de la relance, s'ils étaient intermittents (noter_intermittents). Rend 0 si le run
+# a été relancé.
+relancer_une_fois() {
+  local run="$1" origine="$2"
+  [ ! -e "$BASE/etat/relance-auto-$run" ] || return 1
+  touch "$BASE/etat/relance-auto-$run"
+  { printf '%s\n' "$origine"; tests_rouges "$run" 1; } > "$BASE/etat/intermittent-attente-$run"
+  if ! GH_REPO="$GH_REPO" gh run rerun "$run" --failed > /dev/null 2>&1; then
+    rm -f "$BASE/etat/intermittent-attente-$run"
+    return 1
+  fi
+}
+
+# Le tri d'une PR rouge, sans conflit. Pose TRI à `rafraichie`, `relancee`, `gelee` ou `reparer`,
+# et ROUGES_COMMUNS à ce qui rougit aussi ailleurs. Seul `reparer` coûte une réparation.
+#   1. Base périmée : le run a démarré avant une fusion que la branche n'a pas → la base est fusionnée
+#      dans la branche, une fois par tête (une PR gelée, toujours : sa cause était ailleurs).
+#   2. Première tentative : les jobs rouges sont relancés, une fois par run.
+#   3. Rouge confirmé : ses tests rejoignent le registre (etat/rouges/<n°>) ; un test qui rougit aussi
+#      sur une autre PR ouverte ou sur pre-dev, dans un fichier que la PR ne touche pas, est commun.
+#      Tout commun → la PR est gelée, et le superviseur appelé pour le réparer une fois, sur pre-dev.
+trier_rouge() {
+  local num="$1" tete="$2" runs run tentatives="" tentative debut=0 d derniere tete_sha ids cle
+  local ouvertes fichiers id chemin ou f propres=0 communs="" relance=0
+  TRI=reparer
+  ROUGES_COMMUNS=""
+  [ "$A_BLANC" -eq 0 ] || return 0
+  runs="$(GH_REPO="$GH_REPO" gh pr checks "$num" --json bucket,link \
+    --jq '.[] | select(.bucket == "fail" or .bucket == "cancel") | .link' 2> /dev/null \
+    | sed -nE 's#.*/actions/runs/([0-9]+)/.*#\1#p' | sort -u || true)"
+  [ -n "$runs" ] || return 0
+  tete_sha="$(git -C "$CLONE" rev-parse "origin/$tete" 2> /dev/null)" || return 0
+
+  for run in $runs; do
+    d="$(GH_REPO="$GH_REPO" gh run view "$run" --json createdAt,attempt --jq '"\(.createdAt | fromdateiso8601) \(.attempt)"' 2> /dev/null || echo '0 0')"
+    tentatives="$tentatives $run:${d#* }"
+    d="${d%% *}"
+    if [ "$debut" -eq 0 ] || [ "$d" -lt "$debut" ]; then debut="$d"; fi
+  done
+
+  # 1. Base périmée.
+  derniere="$(git -C "$CLONE" log --format=%ct "origin/$tete..$BASE_REF" 2> /dev/null | sort -n | tail -1)"
+  if [ -n "$derniere" ] && [ "$debut" -gt 0 ] && [ "$derniere" -gt "$debut" ] \
+    && { [ "$(cat "$BASE/etat/rafraichi-$num" 2> /dev/null || true)" != "$tete_sha" ] || [ -e "$BASE/etat/gele-$num" ]; } \
+    && avec_verrou_git rafraichir "$num" "$tete"; then
+    TRI=rafraichie
+    info "PR #$num : run rouge antérieur à la dernière fusion dans $BASE_REF, base fusionnée dans la branche"
+    journaliser_tri tri-rafraichie "$num" "run antérieur à la dernière fusion dans $BASE_REF"
+    return 0
+  fi
+
+  # 2. Relance unique.
+  for run in $tentatives; do
+    tentative="${run#*:}"
+    run="${run%%:*}"
+    [ "$tentative" = 1 ] || continue
+    if relancer_une_fois "$run" "$num	$tete"; then relance=1; fi
+  done
+  if [ "$relance" -eq 1 ]; then
+    TRI=relancee
+    info "PR #$num : jobs rouges relancés une fois avant toute réparation"
+    journaliser_tri tri-relancee "$num" "première tentative rouge, relancée"
+    return 0
+  fi
+
+  # 3. Rouge confirmé : registre, puis rouge commun.
+  mkdir -p "$BASE/etat/rouges"
+  ids="$(for run in $tentatives; do tests_rouges "${run%%:*}" "${run#*:}"; done | sort -u)"
+  { printf '%s\n' "$tete_sha"; printf '%s\n' "$ids"; } > "$BASE/etat/rouges/$num"
+  ouvertes="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --json number --jq '.[].number' 2> /dev/null || true)"
+  fichiers="$(git -C "$CLONE" diff --name-only "$BASE_REF...origin/$tete" 2> /dev/null || true)"
+  while IFS= read -r id; do
+    [ -n "$id" ] || continue
+    case "$id" in *'(sans test nommé)')
+      propres=$((propres + 1))
+      continue
+      ;;
+    esac
+    chemin="$(fichier_du_test "${id#*	}")"
+    if [ -n "$chemin" ] && printf '%s\n' "$fichiers" | grep -qxF "$chemin"; then
+      propres=$((propres + 1))
+      continue
+    fi
+    ou=""
+    for f in "$BASE"/etat/rouges/*; do
+      cle="${f##*/}"
+      [ "$cle" != "$num" ] || continue
+      if [ "$cle" != pre-dev ] && ! printf '%s\n' "$ouvertes" | grep -qxF "$cle"; then continue; fi
+      if tail -n +2 "$f" | grep -qxF -- "$id"; then
+        case "$cle" in pre-dev) ou="$ou pre-dev" ;; *) ou="$ou #$cle" ;; esac
+      fi
+    done
+    if [ -n "$ou" ]; then
+      communs="$communs- ${id#*	} (job ${id%%	*}), rouge aussi sur$ou
+"
+      printf '%s\t#%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$num" "$id" "$ou" >> "$BASE/etat/rouges-communs.tsv"
+    else
+      propres=$((propres + 1))
+    fi
+  done <<< "$ids"
+  ROUGES_COMMUNS="$communs"
+  if [ -n "$communs" ]; then
+    appeler_superviseur "commun-$(printf '%s' "$communs" | sed 's/, rouge aussi sur.*//' | sort | shasum | cut -c1-12)" \
+      "rouge commun à plusieurs PR ($(printf '%s' "$communs" | wc -l | tr -d ' ') test(s), PR #$num)"
+  fi
+  if [ -n "$communs" ] && [ "$propres" -eq 0 ]; then
+    touch "$BASE/etat/gele-$num"
+    TRI=gelee
+    info "PR #$num : tous ses tests rouges rougissent aussi ailleurs, réparation gelée"
+    journaliser_tri tri-gelee "$num" "rouge commun : $(printf '%s' "$communs" | tr '\n' ' ')"
+    return 0
+  fi
+  rm -f "$BASE/etat/gele-$num"
+}
+
+# L'état de pre-dev, lu sur les runs de ses push (api-ci, web-ci) : écrit etat/pre-dev-rouge quand
+# le dernier verdict d'un workflow est rouge, et l'efface sinon. Une première tentative rouge est
+# relancée une fois ; un rouge confirmé rejoint le registre (etat/rouges/pre-dev) et appelle le
+# superviseur. Un run en cours ou annulé ne dit rien : le verdict est celui d'avant.
+evaluer_pre_dev() {
+  local wf lignes run statut conclusion tentative rouge=0 ids="" raison=""
+  for wf in api-ci.yml web-ci.yml; do
+    lignes="$(GH_REPO="$GH_REPO" gh run list --workflow "$wf" --branch pre-dev --event push --limit 10 \
+      --json databaseId,status,conclusion,attempt \
+      --jq '.[] | "\(.databaseId)|\(.status)|\(.conclusion)|\(.attempt)"' 2> /dev/null)" || return 0
+    # « | » et non une tabulation : `read` fond deux tabulations de suite, et la conclusion d'un run
+    # en cours est vide (la tentative glissait d'un champ).
+    while IFS='|' read -r run statut conclusion tentative; do
+      [ -n "$run" ] || continue
+      case "$statut:$conclusion" in
+        completed:success) break ;;
+        completed:failure | completed:timed_out | completed:startup_failure)
+          rouge=1
+          if [ "$tentative" = 1 ] && relancer_une_fois "$run" "pre-dev	pre-dev"; then
+            info "pre-dev : $wf rouge à sa première tentative (run $run), relancé une fois"
+            journaliser_tri tri-relancee pre-dev "$wf, run $run"
+          elif [ ! -e "$BASE/etat/intermittent-attente-$run" ]; then
+            ids="$ids$(tests_rouges "$run" "$tentative")
+"
+            raison="$raison $wf (run $run)"
+            appeler_superviseur "pre-dev-$run" "pre-dev rouge : $wf, run $run"
+          fi
+          break
+          ;;
+        completed:*) continue ;;
+        *)
+          # Une relance en cours tient le rouge qu'elle vérifie ; un premier passage, rien encore.
+          if [ "${tentative:-1}" -gt 1 ]; then
+            rouge=1
+            break
+          fi
+          ;;
+      esac
+    done <<< "$lignes"
+  done
+  if [ "$rouge" -eq 0 ]; then
+    if [ -e "$BASE/etat/pre-dev-rouge" ]; then
+      info "pre-dev est vert : les fusions reprennent"
+      journaliser_tri pre-dev-vert pre-dev "les fusions reprennent"
+    fi
+    rm -f "$BASE/etat/pre-dev-rouge" "$BASE/etat/rouges/pre-dev"
+    return 0
+  fi
+  mkdir -p "$BASE/etat/rouges"
+  if [ -n "$raison" ]; then
+    { git -C "$CLONE" rev-parse "$BASE_REF" 2> /dev/null || echo -; printf '%s' "$ids" | sort -u; } > "$BASE/etat/rouges/pre-dev"
+  fi
+  # Écrit au premier rouge, et réécrit quand une relance en cours devient un rouge confirmé : c'est
+  # là que le porteur est prévenu.
+  if [ ! -e "$BASE/etat/pre-dev-rouge" ] || { [ -n "$raison" ] && grep -q 'relance en cours' "$BASE/etat/pre-dev-rouge"; }; then
+    printf '%s\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "${raison:-relance en cours}" > "$BASE/etat/pre-dev-rouge"
+    info "pre-dev rouge :${raison:- relance en cours} — seules les PR du superviseur et la synchronisation se fusionnent"
+    journaliser_tri pre-dev-rouge pre-dev "${raison:-relance en cours} : fusions suspendues"
+    if [ -n "$raison" ]; then prevenir_porteur "pre-dev rouge :$raison — fusions suspendues, superviseur appelé"; fi
+  fi
+}
+
+# Une relance automatique finie : verte, ses tests étaient intermittents (etat/intermittents.tsv,
+# que le superviseur traite) ; rouge, le rouge était réel et la réparation suit son cours.
+noter_intermittents() {
+  local f run lu statut conclusion origine id
+  for f in "$BASE"/etat/intermittent-attente-*; do
+    [ -e "$f" ] || continue
+    run="${f##*-}"
+    lu="$(GH_REPO="$GH_REPO" gh run view "$run" --json status,conclusion --jq '"\(.status)\t\(.conclusion)"' 2> /dev/null)" || continue
+    IFS=$'\t' read -r statut conclusion <<< "$lu"
+    [ "$statut" = completed ] || continue
+    if [ "$conclusion" = success ]; then
+      origine="$(head -1 "$f")"
+      tail -n +2 "$f" | while IFS= read -r id; do
+        if [ -n "$id" ]; then printf '%s\t%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$run" "$origine" "$id" >> "$BASE/etat/intermittents.tsv"; fi
+      done
+      info "run $run vert à sa relance : intermittent noté ($(tail -n +2 "$f" | cut -f2 | tr '\n' ' '))"
+      journaliser_tri intermittent "${origine%%	*}" "run $run : $(tail -n +2 "$f" | cut -f2 | tr '\n' ' ')"
+      appeler_superviseur "intermittent-$run" "test intermittent (run $run)"
+    fi
+    rm -f "$f"
+  done
 }
 
 # La PR dev → pre-dev, quand dev a des commits que pre-dev n'a pas. Une seule à la fois.
@@ -828,9 +1120,21 @@ etat_des_pr() {
     elif [ "$etat_fusion" != MERGEABLE ] && en_conflit "$tete"; then
       conflit_pr=oui
     fi
+    # Un rouge se trie avant de coûter une réparation (amendement du 2026-10-22), même sur une PR
+    # abandonnée : un rafraîchissement ou une relance peut la sauver sans modèle.
+    TRI=reparer
+    ROUGES_COMMUNS=""
+    if [ "$conflit_pr" = non ] && [ "$ci_pr" = rouge ]; then
+      trier_rouge "$num" "$tete"
+      if [ "$TRI" != reparer ]; then
+        ouvertes=$((ouvertes + 1))
+        continue
+      fi
+    fi
     if [ "$conflit_pr" = non ] && [ "$ci_pr" != rouge ]; then
       essai=3
-      if [ "$ci_pr" = vert ] && [ "$FUSION" = auto ] && [ "$A_BLANC" -eq 0 ]; then
+      # pre-dev rouge : rien ne s'y fusionne que ce qui peut le réparer (le fusionneur, ci-dessus).
+      if [ "$ci_pr" = vert ] && [ "$FUSION" = auto ] && [ "$A_BLANC" -eq 0 ] && [ ! -e "$BASE/etat/pre-dev-rouge" ]; then
         essai=0
         essai_de_fusion "$num" "$tete" || essai=$?
       fi
@@ -873,6 +1177,7 @@ etat_des_pr() {
     branche="$tete"
     ci="$ci_pr"
     conflit="$conflit_pr"
+    communs="$ROUGES_COMMUNS"
   done <<< "$lignes"
   if [ -n "$abandons" ]; then info "PR abandonnées après $REPARATIONS_MAX réparations, le porteur prend la main :$abandons"; fi
   if [ "$fusionnees" -eq 1 ]; then avec_verrou_git recuperer; fi
@@ -1063,7 +1368,7 @@ lancer() {
   avec_verrou_git recuperer
 
   # 2. Les PR du rôle (etat_des_pr).
-  local branche depart ci="" conflit="" reparations=0
+  local branche depart ci="" conflit="" communs="" reparations=0
   if [ "$ROLE" = superviseur ]; then
     # Il n'a ni pistes ni PR à réparer : chaque passage relève l'état et part de la base.
     MODE=surveillance
@@ -1100,7 +1405,15 @@ ${autres:-(aucune)}"
   if [ "$ROLE" = superviseur ]; then
     message="$message
 
-Dossier des agents : $BASE (\$PISTES_BASE). Outils installés : $OUTILS_SHA. Cadences : le StartInterval des plists $HOME/Library/LaunchAgents/$LAUNCHD.*.plist."
+Dossier des agents : $BASE (\$PISTES_BASE). Outils installés : $OUTILS_SHA. Cadences : le StartInterval des plists $HOME/Library/LaunchAgents/$LAUNCHD.*.plist.
+
+Rouges triés par pistes.sh (superviseur.md, « Les rouges que le tri te laisse ») :
+- pre-dev : $(if [ -e "$BASE/etat/pre-dev-rouge" ]; then printf 'ROUGE depuis %s — fusions suspendues' "$(tr '\t' ' ' < "$BASE/etat/pre-dev-rouge")"; else printf 'vert'; fi)
+$(if [ -s "$BASE/etat/rouges/pre-dev" ]; then tail -n +2 "$BASE/etat/rouges/pre-dev" | sed 's/^/  · /'; fi)
+- rouges communs à plusieurs PR, 24 dernières heures :
+$(awk -F '\t' -v d="$(date -v-1d '+%Y-%m-%d %H:%M')" '$1 >= d { print "  · " $0 }' "$BASE/etat/rouges-communs.tsv" 2> /dev/null | tail -20)
+- tests intermittents non traités :
+$(intermittents_a_traiter | sed 's/^/  · /')"
   fi
   # La part d'une instance ne vaut que pour l'implémenteur : reçue par le délégué, elle lui a fait
   # écarter les angles impairs (2026-10-21, P103.*, P111.02, P111.04).
@@ -1115,6 +1428,12 @@ Instance $INSTANCE sur $INSTANCES_IMPLEMENTEUR (implementeur.md, « Plusieurs in
 RÉPARATION de ta PR #$PR (tentative $((reparations + 1))/$REPARATIONS_MAX) : CI $ci, conflit $conflit.
 Checks rouges :
 $(GH_REPO="$GH_REPO" gh pr checks "$PR" --json name,bucket,link --jq '.[] | select(.bucket == "fail" or .bucket == "cancel") | "- \(.name) : \(.link)"' 2> /dev/null || true)"
+    if [ -n "$communs" ]; then
+      message="$message
+
+Ces tests rougissent AUSSI sur d'autres PR ou sur pre-dev, dans des fichiers que ta PR ne touche pas : ne les répare pas ici, le superviseur les répare une fois, sur pre-dev. Répare le reste.
+$communs"
+    fi
   fi
   message="$message
 
@@ -1211,6 +1530,10 @@ journaliser_action() {
 # pause quelque chose). Le texte passe en argument, jamais dans le source AppleScript.
 notifier() {
   journaliser_action "notification : $*"
+  prevenir_porteur "$*"
+}
+
+prevenir_porteur() {
   osascript -e 'on run argv' -e 'display notification (item 1 of argv) with title "Takussan · superviseur" sound name "Glass"' \
     -e 'end run' "$*" > /dev/null 2>&1 || true
 }
@@ -1345,6 +1668,25 @@ action_relancer_ci() {
   info "run $run relancé ($branche)"
 }
 
+# Les tests intermittents notés (noter_intermittents) que le superviseur n'a pas encore traités :
+# un run se marque traité par `action intermittent <run> "<suite>"`.
+intermittents_a_traiter() {
+  [ -f "$BASE/etat/intermittents.tsv" ] || return 0
+  awk -F '\t' 'NR == FNR { traite[$2] = 1; next } !($2 in traite)' \
+    "$BASE/etat/intermittents-traites.tsv" "$BASE/etat/intermittents.tsv" 2> /dev/null \
+    || cat "$BASE/etat/intermittents.tsv"
+}
+
+action_intermittent() {
+  local run="${1:-}" suite="${2:-}"
+  case "$run" in '' | *[!0-9]*) die "intermittent <run-id> \"<suite donnée>\"" ;; esac
+  [ "${#suite}" -ge 10 ] || die "intermittent $run « <suite> » : la PR de correctif, ou pourquoi il n'y en a pas (10 caractères au moins)"
+  grep -q "	$run	" "$BASE/etat/intermittents.tsv" 2> /dev/null || die "run $run : aucun test intermittent noté sous ce run"
+  printf '%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$run" "$suite" >> "$BASE/etat/intermittents-traites.tsv"
+  journaliser_action "intermittent $run traité : $suite"
+  info "run $run : intermittent traité ($suite)"
+}
+
 action() {
   charger_config
   local verbe="${1:-}"
@@ -1356,8 +1698,9 @@ action() {
     pause) action_pause "$@" ;;
     reprendre) action_reprendre "$@" ;;
     relancer-ci) action_relancer_ci "$@" ;;
+    intermittent) action_intermittent "$@" ;;
     notifier) [ -n "${1:-}" ] || die "notifier <texte>"; notifier "$*" ;;
-    *) die "action <verbe> : reposer, balayer, purger, pause, reprendre, relancer-ci, notifier" ;;
+    *) die "action <verbe> : reposer, balayer, purger, pause, reprendre, relancer-ci, intermittent, notifier" ;;
   esac
 }
 

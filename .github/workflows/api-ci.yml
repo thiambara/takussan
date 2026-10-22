@@ -22,6 +22,9 @@ on:
       - dev
       - main
       - master
+      # Amendement d'ADR-0066 du 2026-10-22 : pre-dev, où fusionnent les agents, est éprouvée à
+      # chaque push. Son verdict suspend les fusions du fusionneur quand elle rougit (`pistes.sh`).
+      - pre-dev
     paths:
       - 'takussan-api/**'
       - '!takussan-api/*.md'
@@ -35,6 +38,14 @@ on:
   # À la demande, pour régénérer sans attendre la nuit (sur `dev` seulement : le step qui pousse
   # la carte le vérifie).
   workflow_dispatch:
+
+# Sur pre-dev, un run à la fois et le plus récent en attente : les fusions s'y suivent de quelques
+# minutes, et une suite dure plus d'une demi-heure. `cancel-in-progress: false` laisse finir le run
+# en cours (son verdict sert) ; un push plus récent remplace celui qui attendait. Ailleurs, chaque
+# run a son groupe (`run_id`), donc rien ne change.
+concurrency:
+  group: ${{ github.event_name == 'push' && github.ref == 'refs/heads/pre-dev' && format('{0}-pre-dev', github.workflow) || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   # ─── L'ATTESTATION PAR ARBRE (ADR-0063, TCK-636) ─────────────────────────────────────────

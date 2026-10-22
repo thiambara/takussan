@@ -655,6 +655,112 @@ que les pistes du lot.
    suivant. La partition entre implémenteurs (amendement bis) se fait déjà par angle, donc un angle
    entier ne déborde jamais sur l'autre instance.
 
+## Amendement du 2026-10-22 — trier un rouge avant de le réparer
+
+**Relevé du 2026-10-22, journée entière** : 57 réparations pour 154 PR publiées, soit 29 USD. Une
+bonne part visaient un rouge qui n'était pas celui de la PR réparée :
+
+- **`pre-dev` rouge de 09:32 à 12:40.**
+  - TCK-1251 et TCK-1247 étaient vertes chacune, mais rouges avec TCK-1252, fusionnée juste avant.
+  - Pendant trois heures, toutes les PR ont rougi sur les deux mêmes tests d'invitation, et chaque
+    implémenteur les « réparait » de son côté.
+  - Le correctif aa10613e0 est arrivé sur `pre-dev` à 12:40:50. Les runs rouges avaient tous démarré
+    avant : relancés, ils rejouaient la ref de fusion calculée à leur déclenchement, donc sans lui.
+- **Deux tests intermittents** :
+  - le pied de page du PDF, un rendu sur vingt selon la minute imprimée (#1116) ;
+  - `MinimalProfileTriggerProvider`, 2 runs sur 53.
+- **Trois PR abandonnées** après trois réparations (#1079, #1089, #1095). Deux réparations ont
+  récrit un correctif déjà fusionné, d'où un conflit (#1079, #1096).
+- **Personne ne voyait `pre-dev` rouge.** `api-ci` et `web-ci` ne tournaient pas à ses push : on le
+  découvrait par les PR qui rougissaient.
+
+**Décision du porteur (1a, 2a, 3a, 4a)** :
+
+1. **Un rouge se trie, sans modèle, avant toute réparation** (`trier_rouge`). Il passe trois
+   contrôles dans l'ordre, et seul le dernier coûte une réparation :
+   1. **Base périmée.** Le run a démarré avant une fusion que la branche n'a pas : le script fusionne
+      la base dans la branche par `merge-tree` et `commit-tree`, sans arbre, pousse, et la CI
+      repart. Il le fait une fois par tête de branche, sauf pour une PR gelée.
+   2. **Relance unique.** Une première tentative rouge voit ses jobs rouges relancés une fois. Ses
+      tests sont gardés pour juger la relance.
+   3. **Rouge confirmé.** Ses tests rejoignent le registre et la réparation part, comptée dans
+      `REPARATIONS_MAX`.
+
+   Le tri s'applique aussi à une PR abandonnée : une base rafraîchie ou une relance peut la sauver
+   sans modèle.
+2. **Un rouge commun ne se répare qu'une fois.** Un test est commun s'il rougit aussi sur une
+   autre PR ouverte ou sur `pre-dev`, dans un fichier que la PR ne touche pas.
+   - Si tous les tests rouges d'une PR sont communs, la PR est **gelée** : aucune réparation. Le
+     superviseur est appelé hors de sa cadence, une fois par cause.
+   - Si une partie seulement l'est, la réparation part, et son message nomme les tests communs à
+     ne pas toucher.
+   - Une fusion qui arrive ensuite sur la base rafraîchit la PR gelée.
+3. **`pre-dev` est éprouvée à chaque push.** `api-ci` et `web-ci` y tournent, avec un run à la fois
+   et le plus récent en attente (`concurrency`, `cancel-in-progress: false`). L'attestation par
+   arbre (ADR-0063) saute la suite quand l'arbre fusionné est celui de la PR, déjà vert.
+   - Le fusionneur lit le dernier verdict de chaque workflow (`evaluer_pre_dev`) et applique la même
+     relance unique.
+   - Un rouge confirmé suspend toutes les fusions, celles des implémenteurs comprises, sauf les PR
+     du superviseur et la synchronisation de `dev`, les seules qui peuvent le réparer. Il appelle le
+     superviseur et prévient le porteur par une notification.
+   - Les fusions reprennent au premier verdict vert.
+4. **Un test intermittent est noté, puis traité, jamais masqué.** Une relance qui finit verte inscrit
+   ses tests dans `etat/intermittents.tsv` (`noter_intermittents`) et appelle le superviseur.
+   - Le superviseur en cherche la cause et ouvre une PR de correctif, avec la preuve d'avant et
+     d'après. Puis il marque le run traité (`action intermittent <run> "<suite>"`).
+   - Quarantaine, `markTestSkipped`, `retry` et délai rallongé sans cause lui sont interdits.
+   - **Écart à la proposition validée**, qui disait « le superviseur l'écrit en piste « à mesurer » ».
+     Le fichier de pistes lui est fermé (amendement ter, § 4 et 5), et le lui ouvrir changerait une
+     borne d'agent (V9). Un intermittent est de toute façon un défaut du dépôt, ce que le
+     superviseur répare déjà.
+
+**État** sous `~/.takussan-agents/etat/` :
+
+| Fichier | Contenu |
+|---|---|
+| `rouges/<n° de PR>` et `rouges/pre-dev` | le registre : la tête, puis une ligne `<job>\t<test>` par test rouge |
+| `rafraichi-<n°>`, `gele-<n°>` | la tête poussée par le dernier rafraîchissement ; la marque d'une PR gelée |
+| `relance-auto-<run>`, `intermittent-attente-<run>` | la relance unique, et les tests à juger quand elle finit |
+| `pre-dev-rouge` | présent tant que `pre-dev` est rouge |
+| `rouges-communs.tsv` | les rouges communs relevés |
+| `intermittents.tsv`, `intermittents-traites.tsv` | les tests intermittents notés, et ceux déjà traités |
+| `tests/<run>-<tentative>` | le cache des tests rouges, lus une fois par tentative |
+
+**Les tests rouges se lisent dans le journal du run** (`tests_rouges`, sur `gh run view --log-failed`) :
+- PHPUnit : la liste des échecs et des erreurs, jamais celle des tests risqués ;
+- Vitest : `FAIL <fichier>`, et l'erreur non gérée qui rougit un run dont tous les tests passent ;
+- les `✗` des gardes ;
+- `(sans test nommé)` pour un job rouge sans rien de tout cela.
+
+**Éprouvé sur un banc** : faux `gh`, `launchctl` et `osascript`, un vrai dépôt git pour origine,
+et les journaux réels de la journée. Le lecteur rend les tests attendus sur cinq journaux : PHPUnit
+des invitations et du PDF, Vitest `FAIL`, erreur non gérée, garde du backlog. Douze scénarios
+rendent chacun leur verdict :
+
+| Scénarios | Verdict |
+|---|---|
+| run de 12:21, fusion de 12:40:50 | rafraîchie |
+| même tête, run plus récent à sa 1ʳᵉ tentative | relancée |
+| 2ᵉ tentative, rouge propre | réparation |
+| les mêmes tests sur une autre PR, ou sur `pre-dev` | gelée, superviseur appelé |
+| la PR touche le fichier du test | ce test lui reste propre |
+| PR gelée, nouvelle fusion | rafraîchie à nouveau |
+| `pre-dev` : 1ʳᵉ tentative rouge, relance en cours, rouge confirmé, vert | relance, rouge maintenu, appel et notification une seule fois, reprise |
+| relance finie verte | intermittent noté |
+
+Le banc a trouvé deux défauts, corrigés avant la PR :
+- `read` fondait deux tabulations, et la conclusion vide d'un run en cours décalait la tentative :
+  un `pre-dev` en cours de relance passait pour vert ;
+- un rouge confirmé après relance ne prévenait pas le porteur.
+
+**Ce qui n'est pas gardé** :
+- La première PR rouge d'une cause commune n'a personne à qui se comparer : elle est réparée. Le run
+  de `pre-dev` couvre ce cas dès qu'il rend son verdict, soit à peu près une durée de suite après la
+  fusion fautive.
+- Une réparation légitime attend désormais une relance, soit une durée de CI de plus.
+- Une PR qui touche le fichier d'un test commun le garde pour elle, même quand elle ne l'a pas
+  cassé.
+
 ## Conséquences
 
 - **Ce que ça rend possible** :
