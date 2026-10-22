@@ -50,7 +50,8 @@ function precede(a: Node, b: Node): boolean {
 describe('<BandeauxDuSite> — un seul emplacement, jamais sous la barre fixe (TCK-572)', () => {
   beforeEach(() => {
     window.sessionStorage.clear();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => MAINTENANCE }));
+    // `ok: true` : depuis TCK-1221, le bandeau ignore une réponse en échec.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => MAINTENANCE }));
   });
   afterEach(() => {
     vi.unstubAllGlobals();
