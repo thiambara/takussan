@@ -10766,7 +10766,7 @@ fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
 
 ### L'export du journal d'activité annonce une colonne `ip_address` qu'aucun chemin n'écrit
 - Réf : P108.02
-- Statut : retenu · à valider — chemin fermé : `docs/models-spec.md:1301` (la décision retire `ip_address` de la spec, que l'implémenteur ne modifie pas)
+- Statut : fait · TCK-1703
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:16-27,161`, `docs/models-spec.md:1301`
 - Constat :
@@ -11360,7 +11360,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### `features.md` promet à tous les profils une machine à états `draft → pending → active → suspended | expired | archived` qu'aucun n'a
 - Réf : P115.06
-- Statut : retenu · à valider — chemin fermé : docs/features.md (le correctif est la réécriture de la phrase de `features.md:500`, et la spec est fermée à l'implémenteur : elle se corrige en session, par `/sync-specs` ou par le porteur)
+- Statut : fait · TCK-1703
 - Gravité : 🟢 amélioration
 - Où : `docs/features.md:500`, `takussan-api/app/Models/Enums/AgentProfileStatus.php`, `takussan-api/app/Models/Enums/OwnerProfileStatus.php`, `takussan-api/app/Models/Enums/AgencyAdminProfileStatus.php`, `takussan-api/app/Models/Enums/ServiceProviderProfileStatus.php`
 - Constat :
