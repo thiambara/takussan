@@ -1,9 +1,14 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+import { useLocale } from 'next-intl';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
+import { useAuth } from '@/context/AuthContext';
+import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type { PropertyListItem } from '@/types/property';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
+import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
 
 export type ReviewStatus = 'pending' | 'approved' | 'reported' | 'rejected';
 
@@ -67,18 +72,28 @@ export function useOwnerReviewProperties() {
   );
 }
 
+/**
+ * TCK-1373 (P135.05) — TOUS les avis rédigés, page par page : « Mes avis » n'a pas de pagination,
+ * et une page de 50 laissait les plus anciens hors de l'écran.
+ */
 export function useAuthoredReviews() {
+  const locale = useLocale();
+  const { token } = useAuth();
   const spatieParams: SpatieQueryParams = {
     filter: { author_id: 'me' },
     sort: '-created_at',
-    per_page: 50,
   };
 
-  return useApiQuery<PaginatedResponse<Review>>(
-    ['profile-reviews', 'authored'],
-    '/api/reviews',
-    { params: spatieParams },
-  );
+  return useQuery<PaginatedResponse<Review>, ApiError>({
+    queryKey: ['profile-reviews', 'authored'],
+    queryFn: ({ signal }) =>
+      lireToutesLesPages((page) =>
+        apiRequest<PaginatedResponse<Review>>(
+          cheminApi`/api/reviews${requete(buildQueryString({ ...spatieParams, page, per_page: PAR_PAGE_MAX }))}`,
+          { token: token ?? undefined, locale, signal },
+        ),
+      ),
+  });
 }
 
 /**
