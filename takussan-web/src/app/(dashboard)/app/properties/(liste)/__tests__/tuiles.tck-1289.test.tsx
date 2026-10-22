@@ -18,6 +18,7 @@ vi.mock('@/lib/queries/properties-server', () => ({
     data: [],
     meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 },
   }),
+  countDashboardProperties: async () => 0,
 }));
 vi.mock('@/components/property-dashboard/PropertyList', () => ({ PropertyList: () => null }));
 vi.mock('@/components/property-dashboard/PropertyListFilters', () => ({ PropertyListFilters: () => null }));

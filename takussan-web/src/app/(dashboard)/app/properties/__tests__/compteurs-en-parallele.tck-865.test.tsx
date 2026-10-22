@@ -6,6 +6,9 @@ import type { User } from '@/types/user';
  * TCK-865 (P02.08) — la liste pro des biens lance ses cinq compteurs en même temps que la liste.
  * Le compte « loués » attendait la réponse du compte « vendus » (`.then`) : une requête en série
  * sur chaque affichage de la page.
+ *
+ * TCK-1382 (P138.08) — sans filtre, « Total » est le `meta.total` de la liste : la liste et QUATRE
+ * compteurs partent ensemble, et les compteurs passent par `countDashboardProperties`.
  */
 type Params = { perPage?: number; filters?: Record<string, string | undefined> };
 const appels = vi.hoisted(() => ({
@@ -28,6 +31,13 @@ vi.mock('@/lib/queries/properties-server', () => ({
       appels.liberer.push(() =>
         resolve({ data: [], meta: { total, current_page: 1, last_page: 1, per_page: 1 } }),
       );
+    });
+  },
+  countDashboardProperties: (_token: string, filters: Record<string, string | undefined> = {}) => {
+    appels.lances.push({ perPage: 1, filters });
+    const total = filters.visibility === 'public' ? 2 : filters.status ? (TOTAUX[filters.status] ?? 0) : 1;
+    return new Promise((resolve) => {
+      appels.liberer.push(() => resolve(total));
     });
   },
 }));
@@ -58,12 +68,12 @@ describe('/app/properties — les compteurs', () => {
     appels.liberer = [];
   });
 
-  it('lance la liste et les cinq compteurs sans attendre aucune réponse', async () => {
+  it('lance la liste et les quatre compteurs sans attendre aucune réponse', async () => {
     const { default: Page } = await import('../(liste)/page');
     const rendu = Page({ searchParams: Promise.resolve({}) });
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(appels.lances).toHaveLength(6);
+    expect(appels.lances).toHaveLength(5);
     expect(appels.lances.filter((p) => p.filters?.status === 'rented')).toHaveLength(1);
 
     appels.liberer.forEach((liberer) => liberer());

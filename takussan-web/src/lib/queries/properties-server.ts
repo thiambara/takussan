@@ -143,6 +143,24 @@ export async function fetchDashboardProperties(
   );
 }
 
+/**
+ * TCK-1382 (P138.08) — le nombre de biens que rendrait la liste du tableau de bord sous ces
+ * filtres, sans la liste : `per_page=1`, `fields[properties]=id`, sans `include` ni tri. Mêmes
+ * filtres, donc même `meta.total` que `fetchDashboardProperties`.
+ */
+export async function countDashboardProperties(
+  token: string,
+  filters: DashboardPropertyFilters = {},
+): Promise<number> {
+  const { fields: _fields, include: _include, sort: _sort, ...params } = buildListParams({ filters, page: 1, perPage: 1 });
+  const qs = buildQueryString({ ...params, fields: { properties: ['id'] } });
+  const response = await apiRequest<PaginatedResponse<PropertyListItem>>(
+    cheminApi`/api/properties${requete(qs)}`,
+    { token },
+  );
+  return response.meta.total;
+}
+
 export async function fetchDashboardProperty(
   token: string,
   idOrSlug: string | number,

@@ -5,7 +5,7 @@ import { Plus } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
-import { fetchDashboardProperties } from '@/lib/queries/properties-server';
+import { countDashboardProperties, fetchDashboardProperties } from '@/lib/queries/properties-server';
 import { PropertyList } from '@/components/property-dashboard/PropertyList';
 import { PropertyListFilters } from '@/components/property-dashboard/PropertyListFilters';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
@@ -98,7 +98,7 @@ export default async function Page({
   // Main list + KPI counts run in parallel. KPI requests use per_page=1 to
   // only pull `meta.total` — keeps the dashboard snappy. TCK-865 (P02.08) : « vendus » et
   // « loués » partent chacun de leur côté ; « loués » attendait la réponse de « vendus ».
-  const [response, totalCount, publishedCount, soldCount, rentedCount, archivedCount] =
+  const [response, totalCompte, publishedCount, soldCount, rentedCount, archivedCount] =
     await Promise.all([
       fetchDashboardProperties(token, {
         page,
@@ -106,7 +106,9 @@ export default async function Page({
         filters,
         sort: safeSort,
       }),
-      countProperties(token, { user_id: filters.user_id }),
+      // TCK-1382 (P138.08) — sans autre filtre que la portée, « Total » est le `meta.total` de la
+      // liste elle-même : on ne le redemande pas.
+      sansFiltreHorsPortee(filters) ? null : countProperties(token, { user_id: filters.user_id }),
       countProperties(token, {
         user_id: filters.user_id,
         filter: { visibility: 'public' },
@@ -126,6 +128,7 @@ export default async function Page({
       }),
     ]);
 
+  const totalCount = totalCompte ?? response.meta.total;
   const agentOptions = buildAgentOptions(response.data, user);
   const currentVisibility = asString(params.visibility);
   const currentStatus = filters.status;
@@ -235,15 +238,16 @@ async function countProperties(
 ): Promise<number> {
   const filter: Record<string, string> = { ...(opts.filter ?? {}) };
   if (opts.user_id) filter.user_id = opts.user_id;
-  const response = await fetchDashboardProperties(token, {
-    page: 1,
-    perPage: 1,
-    filters: {
-      ...filter,
-      include_archived: opts.include_archived ? '1' : undefined,
-    },
+  // TCK-1382 (P138.08) — un compte, pas une page de liste : ni `include` ni le sparse fieldset.
+  return countDashboardProperties(token, {
+    ...filter,
+    include_archived: opts.include_archived ? '1' : undefined,
   });
-  return response.meta.total;
+}
+
+/** La liste porte-t-elle les seuls filtres du compte « Total » (la portée, sans archives) ? */
+function sansFiltreHorsPortee(filters: Record<string, string | undefined>): boolean {
+  return Object.entries(filters).every(([cle, valeur]) => cle === 'user_id' || !valeur);
 }
 
 function buildAgentOptions(
