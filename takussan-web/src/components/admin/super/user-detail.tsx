@@ -44,7 +44,6 @@ const STATUS_TONES: Record<string, StatusTone> = {
   active: 'success',
   inactive: 'neutral',
   blocked: 'danger',
-  banned: 'danger',
 };
 
 export function UserDetailPage({ userId }: { userId: number }) {

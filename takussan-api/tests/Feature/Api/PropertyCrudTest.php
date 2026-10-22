@@ -119,6 +119,27 @@ class PropertyCrudTest extends TestCase
             ->assertJsonPath('data.0.status', PropertyStatus::Archived->value);
     }
 
+    /**
+     * TCK-1289 (P131.02) — la tuile « Vendus / loués » de la liste des biens mène à
+     * `?status=sold,rented` : le filtre doit rendre les deux statuts, et eux seuls.
+     */
+    public function test_property_portfolio_status_filter_accepts_a_comma_separated_list(): void
+    {
+        $user = User::factory()->create();
+        Property::factory()->create(['user_id' => $user->id, 'status' => PropertyStatus::Available]);
+        $sold = Property::factory()->create(['user_id' => $user->id, 'status' => PropertyStatus::Sold]);
+        $rented = Property::factory()->create(['user_id' => $user->id, 'status' => PropertyStatus::Rented]);
+
+        Sanctum::actingAs($user);
+
+        $ids = collect($this->getJson('/api/properties?filter[status]=sold,rented')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2)
+            ->json('data'))->pluck('id')->sort()->values()->all();
+
+        $this->assertSame(collect([$sold->id, $rented->id])->sort()->values()->all(), $ids);
+    }
+
     public function test_property_portfolio_sorts_by_views_count_and_exposes_counter_fields(): void
     {
         $user = User::factory()->create();

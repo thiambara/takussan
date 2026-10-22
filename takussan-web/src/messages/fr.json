@@ -4691,7 +4691,6 @@
       "title": "Aidez-nous à mieux vous accompagner",
       "description": "Trois infos rapides — toutes optionnelles — pour personnaliser vos résultats. Vous pouvez compléter plus tard depuis votre profil.",
       "phoneLabel": "Téléphone (optionnel)",
-      "phonePlaceholder": "+221 77 000 00 00",
       "cityLabel": "Ville recherchée (optionnel)",
       "cityPlaceholder": "Dakar, Saint-Louis…",
       "intentLabel": "Type de recherche (optionnel)",
@@ -6438,7 +6437,7 @@
       "status": {
         "active": "Actif",
         "inactive": "Inactif",
-        "banned": "Bloqué"
+        "blocked": "Bloqué"
       },
       "roles": {
         "agency_admin": "Administrateur",
@@ -8059,8 +8058,7 @@
           "all": "Tous statuts",
           "active": "Actif",
           "blocked": "Bloqué",
-          "inactive": "Inactif",
-          "banned": "Banni"
+          "inactive": "Inactif"
         },
         "emailFilter": {
           "all": "Email : tous",

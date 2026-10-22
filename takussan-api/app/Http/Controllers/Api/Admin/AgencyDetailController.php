@@ -199,10 +199,14 @@ class AgencyDetailController extends Controller
             $request->query->set('include', implode(',', $includes));
         }
 
+        // P119.04 (TCK-1275) — sans `sort=`, du plus récent au plus ancien, départagé par `id` ;
+        // la pertinence d'une recherche en tête (`defaultSortsWithRelevance()`, après `buildQuery()`).
         $query = Property::buildQuery(
             Property::query()->where('agency_id', $agency->id),
             $request,
-        )->with(['address', 'agency']);
+        );
+        $query->defaultSorts(...Property::defaultSortsWithRelevance('-created_at', '-id'))
+            ->with(['address', 'agency']);
 
         $properties = $query->paginate(min(max((int) $request->query('per_page', 15), 1), 100));
 

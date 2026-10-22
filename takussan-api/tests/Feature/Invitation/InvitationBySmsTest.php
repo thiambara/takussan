@@ -146,6 +146,42 @@ class InvitationBySmsTest extends TestCase
         $this->assertSame(0, Invitation::query()->count());
     }
 
+    /** @return array<string, array{0: string, 1: array<string, string>, 2: string}> */
+    public static function saisiesHumaines(): array
+    {
+        $agent = ['role' => 'agent'];
+        $owner = ['owner_type' => 'individual'];
+
+        return [
+            'agent, forme espacée' => ['agents', $agent, '+221 77 000 08 01'],
+            'agent, forme nationale' => ['agents', $agent, '77 000 08 01'],
+            'propriétaire, forme espacée' => ['owners', $owner, '+221 77 000 08 01'],
+            'propriétaire, forme nationale' => ['owners', $owner, '77 000 08 01'],
+            'prestataire, forme espacée' => ['service-providers', [], '+221 77 000 08 01'],
+            'prestataire, forme nationale' => ['service-providers', [], '77 000 08 01'],
+        ];
+    }
+
+    /**
+     * P125.04 (TCK-1283) — les trois invitations par téléphone acceptent la forme que leur message
+     * d'erreur donne en exemple (« +221 77 123 45 67 ») et la forme nationale, comme la visite et la
+     * demande de contact (`TelephoneSaisi`, TCK-590) : le numéro est rangé et joint en E.164.
+     *
+     * @param  array<string, string>  $champs
+     */
+    #[DataProvider('saisiesHumaines')]
+    public function test_une_invitation_a_un_numero_saisi_en_forme_humaine_part_en_e164(string $cible, array $champs, string $saisie): void
+    {
+        $this->postJson("/api/agencies/{$this->agency->id}/{$cible}/invite", [
+            'phone' => $saisie,
+            'first_name' => 'Awa',
+            'last_name' => 'Ndiaye',
+            ...$champs,
+        ])->assertCreated()->assertJsonPath('data.phone', self::NUMERO);
+
+        $this->assertCount(1, $this->sms->sentTo(self::NUMERO));
+    }
+
     private function inviter(): TestResponse
     {
         return $this->postJson("/api/agencies/{$this->agency->id}/service-providers/invite", [
