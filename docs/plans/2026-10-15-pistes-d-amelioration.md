@@ -8958,7 +8958,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### Meilisearch injoignable : l'achat d'un boost est refusé, et l'appel au moteur se fait sous les verrous de l'agence et du bien
 - Réf : P90.04
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1454
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:54-85`, `:151-156`, `:198`, `:253`, `:297`, `takussan-api/app/Services/Boost/BoostLifecycle.php:207-234`
 - Constat :
@@ -8969,6 +8969,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
   - Établi comment : lecture, puis le test temporaire ci-dessus.
 - Piste : sortir l'écriture d'index de la transaction (`DB::afterCommit()`, voir P90.02), et ne pas laisser son échec annuler l'achat (`report()`, ou mise en file). Garde : un test d'achat moteur coupé qui exige le boost créé et le débit écrit.
 - Mesure (2026-10-21, 1c496b042, mesureur) : relu `BoostPurchaseService::purchaseOnce` (`lock()` verrouille agence et bien, puis `bump`/`featured`/`badge` dans la même transaction) et `BoostLifecycle::writeProperty` (`searchable()` avant le commit sous `scout.queue=false`) ; test temporaire `TmpMesureurP90Test` (charge 2,22 / 2,73 / 5,29 sur 8 cœurs, Meilisearch du port 7701, retiré ensuite), agence créditée de 500, bien publié, client Meilisearch rebranché sur `http://127.0.0.1:9`, `purchase()` d'une Vedette 7 jours → `CommunicationException`, 0 boost, bien `featured=false`. Le constat tient ; l'allongement des verrous reste déduit. Classement : V1, le correctif décide si un débit de crédits est écrit quand l'index échoue.
+- Mesure (2026-10-22, 973f3e77f, implementeur) : `BoostAchatMoteurInjoignableTest` (moteur rebranché sur `http://127.0.0.1:9`, synchronisation de `Property` rallumée) → après TCK-1452 (écriture d'index après commit), `POST /api/properties/{id}/boosts` d'une Vedette 15 jours répond encore 500 : l'exception du rappel d'après commit remonte, pour un achat validé ; `rescue(…, report: true)` dans le rappel de `writeProperty()` → 201, `balance` 65, boost `active`, bien `featured=true`, `CommunicationException` rapportée ; ablation (`BoostLifecycle.php` rendu à son état de TCK-1452) → 500, rouge. Choix : `report()`, la plus étroite des deux voies de la piste.
 
 ### `GeoReindexation::biens()` charge l'agence, l'adresse et les étiquettes bien par bien : trois requêtes par bien réindexé
 - Réf : P90.05
