@@ -261,10 +261,13 @@ function AttribuerDialog({ leadId, agencyId, onClose }: { leadId: number; agency
   const toast = useToast();
   const assign = useAssignLead();
   const [choisi, setChoisi] = useState<number | null>(null);
+  // P120.01 (TCK-1246) — `filter[assignable]=1` ne garde que le personnel joignable de l'agence,
+  // la règle de `PersonnelDeLAgence` qui juge la cible : sans lui, la liste offrait les bailleurs,
+  // les comptes bloqués et les agents suspendus, refusés ensuite en 422.
   const membres = useApiQuery<PaginatedResponse<User>>(
     ['agency-members', agencyId, 'assign'],
     `/api/agencies/${agencyId}/members`,
-    { params: { fields: { users: ['id', 'first_name', 'last_name'] }, per_page: 100 } },
+    { params: { fields: { users: ['id', 'first_name', 'last_name'] }, filter: { assignable: 1 }, per_page: 100 } },
   );
 
   async function valider(e: React.FormEvent) {

@@ -45,8 +45,10 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(etat.recherche),
 }));
 
+const lecturesDesMembres = vi.hoisted(() => [] as unknown[][]);
+
 vi.mock('@/hooks/useApiQuery', () => ({
-  useApiQuery: () => ({
+  useApiQuery: (...args: unknown[]) => (lecturesDesMembres.push(args), {
     data: { data: [{ id: 21, first_name: 'Moussa', last_name: 'Fall' }] },
     isLoading: false,
   }),
@@ -144,6 +146,19 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
     await user.click(screen.getAllByRole('button', { name: 'Attribuer' }).at(-1)!);
 
     await waitFor(() => expect(assign.mutateAsync).toHaveBeenCalledWith({ id: 1, user_id: 21 }));
+  });
+
+  it('attribuer : la liste ne propose que les cibles que l’API accepte (P120.01, TCK-1246)', async () => {
+    etat.roles = ['agency_admin'];
+    const user = userEvent.setup();
+    render(withIntl(<ContactLeadsInbox />));
+
+    await user.click(screen.getByRole('button', { name: 'Attribuer' }));
+    await screen.findByLabelText('Collègue');
+
+    const [, chemin, options] = lecturesDesMembres.at(-1) as [unknown, string, { params: { filter?: unknown } }];
+    expect(chemin).toBe('/api/agencies/3/members');
+    expect(options.params.filter).toEqual({ assignable: 1 });
   });
 
   it.each([['owner'], ['agent']])('%s lit ses demandes mais n’a pas « Attribuer » (liste des membres réservée à l’admin)', (role) => {
