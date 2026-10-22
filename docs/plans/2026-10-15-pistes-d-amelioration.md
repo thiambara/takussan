@@ -14974,7 +14974,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### La recherche globale de la console annonce « au moins 2 caractères », mais une saisie de deux lettres ne trouve jamais rien
 - Réf : P159.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux seuils possibles (2 ou 3 caractères), et l'un change le texte d'aide affiché
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin/super/GlobalSearch.tsx:17,77,136,142`, `takussan-web/src/messages/fr.json:8695` (et `en.json:8695`), `takussan-api/app/Http/Requests/Api/Admin/GlobalSearchRequest.php:21`, `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:46,54-59,111-113,162-171`
 - Constat :
@@ -14984,10 +14984,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - L'écran rend alors « Aucun résultat pour « Ba ». » (l. 142, `empty`). Ba, Sy, Ka, Ly, Ndao en un mot sont des noms de famille courants : l'opérateur conclut qu'il n'y a personne de ce nom.
   - Établi comment : lu et mesuré (route seule ; l'écran n'a pas été joué).
 - Piste : aligner les trois seuils sur une seule valeur : soit `FREE_TEXT_MIN = 2` (le coût d'un `LIKE` sur deux lettres, borné à cinq résultats par type, est à mesurer), soit `MIN = 3` au front avec l'aide « Au moins 3 caractères » et `min:3` à la requête. Test : un compte « Ba Sy » se trouve par `q=Ba`, ou `q=Ba` rend 422 et l'écran n'interroge pas.
+- Mesure (2026-10-22, e5cb792e4, mesureur) : relu `GlobalSearch.tsx:17,77,142` (`MIN = 2`, appel dès 2 caractères, état vide), `fr.json:8695` (« Au moins 2 caractères. »), `GlobalSearchRequest.php:21` (`min:2`), `AdminGlobalSearchService.php:46,59,113,162-171` (texte libre à `FREE_TEXT_MIN = 3`, jeton à 4 caractères avec un chiffre, téléphone complet) ; `git log e8d4ddf4c..e5cb792e4` sur ces trois fichiers → aucun commit ; TCK-600 l. 340 et l. 915/924 écrit les deux seuils (texte libre ≥ 3, appel au-delà de 2) → `q=Ba` ne peut atteindre aucune voie, le constat tient (la mesure par la route est celle de l'explorateur sur e8d4ddf4c, non rejouée). Classement : V7, la Piste offre deux options (abaisser le texte libre à 2, ou monter l'écran et la requête à 3 avec une aide neuve) et le ticket d'origine écrit les deux seuils, donc aucun n'est le comportement attendu écrit.
 
 ### Le champ « Icône (nom Lucide) » des tags attend en réalité un slug du catalogue, et un nom Lucide remplace l'icône par l'icône générique
 - Réf : P159.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer un champ visible de la console ou le servir par une liste fermée
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin-tags/TagsManager.tsx:444-452`, `takussan-web/src/messages/fr.json:9010` (« Icône (nom Lucide) », et `en.json:9010`), `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyAmenities.tsx:19`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/amenity-icons.ts:55-96`, `takussan-api/app/Http/Requests/Api/StoreTagRequest.php:46`, `takussan-api/app/Http/Requests/Api/UpdateTagRequest.php:44`, `takussan-api/app/Http/Resources/PropertyResource.php:182`
 - Constat :
@@ -14998,10 +14999,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - L'en-tête de `amenity-icons.ts` note qu'aucun tag ne porte d'`icon` aujourd'hui. Le défaut attend donc la première saisie (lu ; la base de développement n'a pas été relue).
   - Établi comment : lu.
 - Piste : soit retirer le champ du formulaire (l'icône suit le slug), soit le servir par une liste fermée des clés de `AMENITY_ICONS` et faire passer le slug avant une icône inconnue (`AMENITY_ICONS[icon] ?? AMENITY_ICONS[slug] ?? repli`). Test : un tag `piscine` d'icône `waves` rend `Waves`.
+- Mesure (2026-10-22, e5cb792e4, mesureur) : relu `TagsManager.tsx:444-452` (champ libre, placeholder `wifi`), `fr.json:9010`/`en.json:9010` (« Icône (nom Lucide) » / « Icon (Lucide name) »), `StoreTagRequest.php:46` et `UpdateTagRequest.php:44` (`string`, `max:255`), `PropertyAmenities.tsx:19` (`getAmenityIcon(tag.icon ?? tag.slug)`), `amenity-icons.ts:54-96` (clés = slugs du catalogue, `wifi` et `tv` seuls noms Lucide parmi elles, repli `Building2`) ; `grep -rn "tag.icon" takussan-web/src` → seule lecture d'affichage, celle de la fiche publique → le constat tient. Classement : V7, la Piste propose deux options dont l'une retire un champ visible du formulaire et l'autre change ce que la console offre à la saisie.
 
 ### Le message `phone_e164` cite en exemple une forme espacée que ses cinq émetteurs refusent
 - Réf : P159.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/lang/fr/validation.php:177`, `takussan-api/lang/en/validation.php:21`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:56,68`, `takussan-api/app/Http/Requests/Auth/SecondaryPhoneRequest.php:20,26`, `takussan-api/app/Http/Requests/Auth/ResendPhoneVerificationRequest.php:55,113-114`, `takussan-api/app/Http/Requests/Api/ReplacePropertyContactsRequest.php:27,34`, `takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php:42,66`
 - Constat :
@@ -15011,10 +15013,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Le front s'en protège en partie : `PhoneInput` et `normalizePhoneInput` (`ProfileContactSection.tsx:301`) retirent les espaces avant l'envoi. Son propre message, `profile.contact.phoneFormatError`, donne l'exemple sans espace (`+221770000000`) (lu).
   - Établi comment : lu (règles et messages ; aucune route jouée).
 - Piste : écrire l'exemple du message sans espaces (`+221771234567`) en `fr` et `en`. Le texte `wo` reste tel quel tant que le wolof est en pause. Test : le message de `validation.rules.phone_e164` cite un exemple que `TelephoneJoignable::defaut()` et la regex des cinq requêtes acceptent.
+- Mesure (2026-10-22, e5cb792e4, mesureur) : relu `lang/fr/validation.php:177` et `lang/en/validation.php:21` (« ex. +221 77 123 45 67 »), les cinq requêtes (`regex` sans espace, aucun `prepareForValidation` qui retire les espaces du téléphone ; celui d'`UpdateProfileRequest` ne touche que l'e-mail) et `TelephoneJoignable.php:27-28`, qui émet aussi la clé ; `tinker` en lecture : `+221 77 123 45 67` → regex 0, `TelephoneJoignable::defaut` = `validation.rules.phone_e164` ; `+221771234567` → regex 1, `defaut` null → l'exemple du message échoue à la règle qui l'affiche, le constat tient. Classement : A1, la forme attendue est écrite par la règle elle-même (`PhoneNumber::E164_REGEX`), et le correctif est d'écrire l'exemple `+221771234567` en `fr` et `en` sans toucher au `wo`.
 
 ### Petites améliorations
 - Réf : P159.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/messages/fr.json:409,551` (`auth.register.passwordPlaceholder`, `auth.resetPassword.passwordPlaceholder`), `takussan-web/src/app/(auth)/auth/reset-password/page.tsx:111,116`, `takussan-api/app/Providers/AppServiceProvider.php:233`, `takussan-web/src/messages/en.json:6702,6706,6816,6818,6820,9722`
 - Constat :
@@ -15022,3 +15025,4 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - En anglais, les tailles des documents s'écrivent « 10 Mo » (`documents.*.dropzone_hint`, `too_large`, `size_mo`, et `tooLarge` l. 9722) : l'unité française est restée dans la traduction (lu).
   - Établi comment : lu.
 - Piste : reprendre le texte de `invitationAccept.passwordHint` pour les deux placeholders (`fr`/`en` ; le texte `wo` existant reste tel quel, wolof en pause), et écrire « MB » dans `en.json`. Test : rendu de la page de réinitialisation qui montre l'exigence de lettre et de chiffre.
+- Mesure (2026-10-22, e5cb792e4, mesureur) : relu `fr.json:409,551` et `en.json:438,580` (« Au moins 8 caractères », les lignes `en` citées ont bougé), `reset-password/page.tsx:111,116` (seul `minLength={8}`, placeholder `passwordPlaceholder`), `AppServiceProvider.php:233` (`min(8)->letters()->numbers()`), `ResetPasswordPasswordResetRequest.php:34` (`Password::defaults()`), `fr.json:11116`/`en.json:11116` (`invitationAccept.passwordHint`, texte existant) ; `tinker` en lecture : `motdepasse` contre `Password::defaults()` → « must contain at least one number » (le 422 « à vérifier » tient) ; `grep -n " Mo" en.json` → l. 6702, 6706, 6816, 6818, 6820, 9722 → les deux points tiennent. Classement : A4, i18n sans texte de produit neuf : les placeholders reprennent un texte déjà écrit, et « Mo » devient l'unité anglaise « MB ».
