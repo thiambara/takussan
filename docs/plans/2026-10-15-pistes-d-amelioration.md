@@ -14627,7 +14627,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le membre retiré lit, confirme et annule les réservations des biens qu'il a saisis, téléphone du client compris
 - Réf : P153.02
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1707
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/BookingPolicy.php:26-53`, `takussan-api/app/Policies/BookingPolicy.php:60-97`, `takussan-api/app/Policies/BasePolicy.php:131-140`
 - Constat :
@@ -14637,6 +14637,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu, puis mesuré.
 - Piste : faire juger la branche « propriétaire du bien » des quatre méthodes par `PrimaryPropertyContact::estProprietaire` (bailleur actif de l'agence sur un bien d'agence), à la place de l'égalité d'identité et de `landlordWrites` sur `user_id`. Test : retrait en `leave_unassigned` → `GET` et `POST …/confirm` en 403 ; bailleur actif, auteur du bien, toujours accepté.
 - Mesure (2026-10-22, c3d06aff0, mesureur) : relu `BookingPolicy::view`/`update` (`property.user_id === user.id`), `validate`/`cancel` par `landlordOf` → `BasePolicy::landlordWrites` (refuse le seul bailleur suspendu) ; test temporaire (retiré), charge 2,00 / 2,40 / 3,06 sur 8 cœurs, même fixture que l'explorateur (agence, admin, agent A retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, `staffAgencyId()` → null) → `can` view/update/validate/cancel tous vrais, `GET /api/bookings/{id}` → 200 avec le téléphone de la fiche client, `POST …/confirm` → 200, réservation `confirmed` → le constat tient. Classement : V2 (et V3 pour le téléphone exposé), le correctif remplace la règle du propriétaire dans quatre méthodes qu'emploie aujourd'hui le bailleur actif, auteur de ses biens.
+- Mesure (2026-10-22, b3e71d6d9, implementeur) : test neuf `MembreRetireReservationsTest` (charge 1,7 sur 8 cœurs) : bien d'agence saisi par l'agent, réservation `pending`, agent retiré en `leave_unassigned` → avant correctif `can('view')` vrai, rouge → `BookingPolicy::ownerOfProperty` (auteur du bien, et sur un bien d'agence profil de bailleur de tout statut dans l'agence) remplace l'égalité d'identité dans `view`/`update` et précède `landlordWrites` dans `validate`/`cancel` → les quatre faux, `GET /api/bookings/{id}` et `POST …/confirm` 403, réservation `pending` ; témoin : bailleur actif auteur, les quatre vrais, suspendu `GET` 200 et `validate` faux. Choix écrit dans le ticket : `estProprietaire` à la lettre retirait la lecture au bailleur suspendu, qu'ADR-0031 §2 lui garde. Ablation → rouge, remis → 2/2 ; `BookingTest`, `BookingPaymentRefundAuthorizationTest`, `BookingCustomerScopeTest`, `BookingExistenceOracleTest`, `BookingCancellationNotificationTest`, `BookingPaymentTest` verts ; `MigratedAuthorizationRulesTest` 16/16 après profil de bailleur donné au propriétaire de sa fixture.
 
 ### Le membre retiré reste donneur d'ordre des interventions sur les biens qu'il a saisis : lecture, statut, devis
 - Réf : P153.03
