@@ -14011,7 +14011,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Les statuts de modération se posent à la main, sans motif ni horodatage
 - Réf : P147.05
-- Statut : validé — porteur (2026-10-22) : retirer `pending_review`, `rejected` et `published` des valeurs qu'acceptent les deux requêtes
+- Statut : fait · TCK-1341
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:56`, `takussan-api/app/Http/Requests/Api/UpdateStatusPropertyRequest.php:48`, `takussan-api/app/Services/Property/PropertyModerationService.php:82-95,121-137`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:37,55`
 - Constat :
@@ -14020,6 +14020,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - mesuré : bailleur, sur sa proposition, `PATCH` `{status: rejected}` → 200, `rejected_at` nul ; puis `{status: pending_review}` → 200, `submitted_at` nul. La file de `PropertyModerationController` lit `status = pending_review` et trie par `submitted_at` (lu, l. 37 et 55) : le bien y entre sans date de soumission. Le passage par `PUT …/status` n'a pas été rejoué (lu seulement).
 - Piste : retirer `pending_review` et `rejected` (et `published`, qu'aucun geste ne lit à part) des valeurs qu'acceptent les deux requêtes, pour que seuls `resubmit`, `reject` et l'observateur les posent ; un test qui refuse chaque valeur.
 - Mesure (2026-10-22, 2e3d6840c, mesureur) : relu `UpdatePropertyRequest.php:56` (tout l'enum) et `UpdateStatusPropertyRequest.php:38-41` (ne réserve que `available` et `published` à `can('publish')`) ; charge `{ 4.97 5.06 4.07 }` sur 8 cœurs, test temporaire retiré → bailleur, sa proposition en brouillon : `PATCH {status: rejected}` 200, `rejected_at` nul ; `PUT …/status` `pending_review` 200, `submitted_at` nul ; `PUT …/status` `rejected` 200, `rejected_at` nul → tient, y compris par `PUT …/status`, que l'explorateur n'avait pas rejoué. Classement : V2, retirer ces valeurs ferme un geste aux deux requêtes, et retirer `published` touche `PUT …/status`, qui l'écrit aujourd'hui pour qui a `properties.publish`.
+- Mesure (2026-10-22, 89453739b, implementeur) : relu `UpdatePropertyRequest.php:56` et `UpdateStatusPropertyRequest.php` (`Rule::enum` entier) ; le test neuf `PropertyStatutsDeModerationTest` (admin d'agence, bien en brouillon) : `PATCH` et `PUT …/status` × `pending_review`, `rejected`, `published` → 200 (6 rouges) → `Rule::enum(...)->except(PropertyStatus::NOT_SETTABLE_BY_HAND)`, 422 et statut inchangé, `archived` et `unavailable` toujours acceptés, 7/7 ; ablation → 6 rouges, remis → vert. Deux cas existants qui posaient `published` par `PUT …/status` retirés (`PropertyAuthorizationTest`, `PublishReadinessTest`).
 
 ### Un client se marque `blocked` ou `deleted` par le formulaire, et rien ne lit ces deux statuts
 - Réf : P147.06
