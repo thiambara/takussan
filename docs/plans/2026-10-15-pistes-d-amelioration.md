@@ -227,7 +227,7 @@ voie d'écriture (angle 13, puis 47).
 | 150 | Paramètres `sort=`, `filter[…]` et `include=` écrits par le front (`src/lib/queries/*.ts`, `src/app/actions/*`, `buildQueryString`) face aux `$requestSortable`, `$requestFilterable` et inclusions du modèle visé : requête refusée en 400 `http.bad_request` et écran en erreur — le pendant de l'angle 100 hors de `fields[]`, né de P118.01 | fait |
 | 151 | Valeurs de `filter[…]` passées brutes à une colonne typée (`AllowedFilter::callback` `date_from`/`date_to` comparés tels quels à `created_at`, `AllowedFilter::exact` sur une colonne `bigint`, `date` ou `boolean`, filtres lus à la main par `$request->string('filter.*')`) : 500 en `22P02`/`22007` au lieu d'un 400 ou d'une liste vide, et borne de fin qui exclut le jour choisi — le relevé de P119.02 et P119.03 sur toute l'API | fait |
 | 152 | Boutons et dialogues hors de `/app/agency` montrés par un test de rôle (`isAdmin(user.roles)`, `hasAgentRole`, une vingtaine d'appels sous `takussan-web/src` hors de `app/agency`, dont `ContactLeadsInbox.tsx:149`) face à la capacité que l'API juge pour le même geste (`crm.assign`, `maintenance.assign`, `payouts.*`) : geste caché à qui la tient, montré à qui ne l'a pas — le pendant de l'angle 148 hors de la section agence | fait |
-| 153 | Retrait d'un membre en `leave_unassigned` (`AgencyMemberRemovalService::remove`, seul ou après une passation partielle) : ce qui reste écrit au nom du retiré (lignes `property_collaborators` marquées, `properties.user_id`, tâches et visites à venir, interventions, référent client, participations aux fils) et ce qui le lit encore — contact public, listes, notifications, droits d'accès — né de P121.04 | à faire |
+| 153 | Retrait d'un membre en `leave_unassigned` (`AgencyMemberRemovalService::remove`, seul ou après une passation partielle) : ce qui reste écrit au nom du retiré (lignes `property_collaborators` marquées, `properties.user_id`, tâches et visites à venir, interventions, référent client, participations aux fils) et ce qui le lit encore — contact public, listes, notifications, droits d'accès — né de P121.04 | fait |
 | 154 | Relations lues puis écrites dans la même requête par `relation()->create()` ou `associate()` sans `setRelation()` ni `load()` (`$model->address ? … : $model->address()->create()`, et leurs pareilles dans les contrôleurs et services) : relation restée nulle ou périmée en mémoire, lue ensuite par un observateur, une notification, un job ou la ressource rendue — le motif de P122.01 hors de l'index | à faire |
 | 155 | Mailables et notifications que la suite ne rend jamais (tests sous `Mail::fake()` ou `Notification::fake()` seuls ; gabarits `resources/views/emails/*` rendus par `view:` qui s'appuient sur les composants `mail::`, `toMail()` sans test qui appelle `render()`) : courriel qui lève au rendu en production pendant que la suite est verte — né de P123.01 | à faire |
 | 156 | Variables d'environnement dont `phpunit.xml`, `.env.docker` et `.env.example` posent des valeurs différentes (`SCOUT_AFTER_COMMIT`, `SCOUT_QUEUE`, et leurs pareilles) : comportement que la suite éprouve face à celui du développement et de la préproduction, et tests qui ne jouent qu'un régime — né de P123.03 | à faire |
@@ -264,6 +264,8 @@ voie d'écriture (angle 13, puis 47).
 | 187 | Paramètres des routes publiques sans compte (`/api/public/properties/search` et `PropertySearchService`, `PublicAgencyController`, `PublicAgentController`, `IndexPublicProfilesRequest`, fiches par slug) face à une valeur mal formée, une liste `[]` ou une virgule : 500 servi à un visiteur anonyme ou à un robot d'indexation au lieu d'un 400 ou d'une liste vide — le relevé de l'angle 151 hors des listes connectées | à faire |
 | 188 | Paramètres hors `filter[…]` lus à la main puis passés à `Carbon::parse()`, `DayRange` ou une colonne typée (`?from=`/`?to=`/`?start=`/`?end=` du calendrier `CalendarEventCollector` et des tableaux de bord, `?period=`, `?month=`, `?year=`) : 500 sur une date ou un nombre mal formés, et borne de fin en date seule qui exclut le jour — le pendant de l'angle 151 hors de `filter[…]` | à faire |
 | 189 | Gestes montrés par une comparaison d'identité dans les détails (`isAssignedAgent` de `VisitDetail.tsx:98`, `user.id === landlord_id`, `issued_by_id`, `uploaded_by_id`, auteur d'une note ou d'un message) face à la policy, qui exige en plus le personnel actif de l'agence (`PersonnelDeLAgence::personnelActifDe`) ou un bailleur non bloqué (`isBlockedOwnerAt`) : agent parti, suspendu ou bailleur bloqué à qui le geste reste montré et rend 403 — né de P152.04 | à faire |
+| 190 | Créateur d'un bien d'agence (`properties.user_id`) encore membre mais suspendu ou archivé dans l'agence, face aux policies qui l'acceptent par la seule identité (`BookingPolicy::view` et `::update` l. 36 et 51, `InventoryPolicy::view` l. 32, `MaintenanceRequestPolicy::isPrincipalFor` l. 302, `PropertyPolicy::view` l. 51, `ReviewPolicy` l. 85) : lecture et gestes laissés à un agent que l'agence a suspendu — le pendant pour le membre suspendu de P153.01 à P153.03 | à faire |
+| 191 | Fils rattachés à un bail ou à une réservation (`conversations.lease_id`, groupes à contexte de bail, type `lease` et `booking`) face à la policy du porteur : `ConversationAccess` ne juge que la participation hors intervention et fil de prospect, si bien qu'un locataire sorti, un bailleur remplacé ou un agent suspendu qui y reste participant lit et écrit encore — né de P153.04 | à faire |
 
 ---
 
@@ -14407,3 +14409,106 @@ qui a été relevé. Rien n'a été exécuté.*
   - P120.05 relève le cas inverse (l'agent qui tient `crm.assign` sans bouton) et propose d'ouvrir la liste des cibles. Ce constat-ci n'en dépend pas.
 - Piste : monter le bouton sous `useCan('crm.assign', agencyId)` et le profil d'admin (tant que la liste reste réservée à l'admin), puis lever la seconde condition avec P120.05. Un test de `ContactLeadsInbox` avec un admin sans la capacité garderait la règle.
 - Mesure (2026-10-22, a9d90e1cf, mesureur) : relu `ContactLeadsInbox.tsx:147-149,245-249` (`peutAttribuer = isAdmin(user.roles)`) et `PropertyContactLeadPolicy::assign` (l. 92-104 : super-admin, ou personnel actif tenant `crm.assign`, sans branche d'admin) ; test temporaire (retiré), même charge → admin au rôle personnalisé de base `agency_admin` `[agency.update]`, 2FA posée : `GET /api/agencies/{id}/members` → 200, `POST /api/contact-leads/{id}/assign` → 403 ; témoin admin au rôle système → 200 → le constat tient. Classement : A1, la règle attendue est écrite dans la policy ; le correctif attendu ajoute `useCan('crm.assign', agencyId)` à la condition du bouton, sans retirer la condition d'admin que P120.05 (validé) lèvera, et un test de `ContactLeadsInbox` avec un admin sans la capacité.
+
+## Angle 153 — Ce que le retrait en `leave_unassigned` laisse au nom du retiré, et ce qui le lit encore
+
+*Exploré le 2026-10-22 sur `pre-dev` 53f6599d7, par l'explorateur. Relu par l'explorateur lui-même, sans sous-agent : `AgencyMemberRemovalService`, `AgentPortfolio`, `AgentHandoverController`, `PrimaryPropertyContact`, `ConversationAccess`, `MessagingReach`, `SendPropertyVisitReminders`, `SendTaskDueReminders` (l. 89, filtre `isStaffAt` : conforme), `VisitNotifier::agencyRecipients` (l. 138-165, filtre `estPersonnel` : conforme), `SendProspectMatchDigest::recipientFor` (filtre `isStaffAt` : conforme), `NotifyMaintenanceParticipants::plan`, et les policies `Property`, `PropertyVisit` (l. 41-48 et `agitPourLeBien` du contrôleur : conformes), `Booking`, `Inventory`, `MaintenanceRequest`, `Task` (l. 44, `isStaffOfParent` : conforme). Écartés parce que déjà relevés : la marque `is_primary` et le titre `user_id` restés au retiré (P121.04, validé) ; les notifications envoyées au créateur du bien comme à un bailleur (P126.04, validé). Le contact public, lui, est protégé : `PrimaryPropertyContact` écarte un retiré par `estPersonnel` et `estProprietaire`. Mesures par un test temporaire `TmpRetireTest` (base de test PostgreSQL, charge 3,28 / 3,52 / 3,81 sur 8 cœurs), retiré avant la fin : agence, admin, agent A, bailleur B ; un bien saisi par A (`user_id` = A), un bien de B où A est collaborateur `agent` ; une fiche client de l'agence liée à un compte, dont A est référent principal actif ; une réservation `pending` sur le bien saisi ; une intervention `open` sur le bien saisi ; un bail du bien de B et un fil de type `lease` rattaché à ce bail (`lease_id`), A et le locataire participants ; une visite `confirmed` du bien de B dans 24 h, agent A. Puis `AgencyMemberRemovalService::remove($agency, A, admin, leaveUnassigned: true)`, et les lectures faites au nom de A, profil supprimé (`staffAgencyId()` → null). Les gestes ont été mesurés par `Gate` et, quand c'est noté, par la route.*
+
+### Le membre retiré lit et modifie encore les biens qu'il a saisis pour l'agence, et les voit dans sa liste
+- Réf : P153.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/PropertyPolicy.php:45-58`, `takussan-api/app/Policies/PropertyPolicy.php:133-147`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:58-62`
+- Constat :
+  - `view` rend vrai dès que `user->id === property.user_id`, sans juger l'appartenance (lu, l. 51-53).
+  - `update` rend vrai pour l'auteur qui n'a aucun profil dans l'agence du bien (`! isMemberOf`), cas écrit pour « un auteur sans rôle qui pourrait porter la capacité » (lu, l. 143-146 et docblock l. 122-131). Le retrait supprime tous les profils du retiré dans l'agence : il entre dans ce cas.
+  - mesuré (test temporaire) : après le retrait, `can('view')` vrai, `can('update')` vrai, `can('delete')` faux ; `GET /api/properties/{saisi}` → 200 ; `PUT /api/properties/{saisi}` `{title: "Repris par le retiré"}` → 200, titre écrit en base ; `GET /api/properties` → le bien saisi figure dans sa liste.
+  - Le code dit ailleurs l'intention inverse : « l'agent parti qui a créé le bien ne lit plus la visite » (lu, `PropertyVisitPolicy.php:32-36`) et `estProprietaire` (lu, `PrimaryPropertyContact.php:146-163`, « Vérification adverse (M7) ») refusent `user_id` comme titre à l'agent parti.
+  - Établi comment : lu, puis mesuré.
+- Piste : dans `view` et `update`, ne tenir `user_id` pour titre sur un bien d'agence que s'il est `estProprietaire` ou personnel de l'agence (la règle de M7), en gardant le cas de l'auteur d'un bien sans agence. Test : retrait en `leave_unassigned` → `GET` et `PUT` du bien saisi en 403, bien absent de `GET /api/properties`. Le sort du titre lui-même reste celui de P121.04.
+
+### Le membre retiré lit, confirme et annule les réservations des biens qu'il a saisis, téléphone du client compris
+- Réf : P153.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/BookingPolicy.php:26-53`, `takussan-api/app/Policies/BookingPolicy.php:60-97`, `takussan-api/app/Policies/BasePolicy.php:131-140`
+- Constat :
+  - `view` et `update` acceptent `property.user_id === user.id` (lu, l. 36 et 51) ; `validate` et `cancel` passent par `landlordOf`, c'est-à-dire `landlordWrites` (lu, l. 92-97), qui ne refuse que le bailleur suspendu dans l'agence (`isBlockedOwnerAt`) : un retiré, sans profil de bailleur, n'est pas suspendu, donc accepté (lu, `BasePolicy.php:137-139`).
+  - mesuré (test temporaire) : `can('view')`, `can('update')`, `can('validate')`, `can('cancel')` vrais ; `GET /api/bookings/{id}` → 200, et la réponse contient le téléphone de la fiche client ; `POST /api/bookings/{id}/confirm` → 200, réservation passée `confirmed`.
+  - P126.04 relève que le même créateur reçoit les avis des réservations ; ce constat-ci porte sur les droits, que P126.04 ne touche pas.
+  - Établi comment : lu, puis mesuré.
+- Piste : faire juger la branche « propriétaire du bien » des quatre méthodes par `PrimaryPropertyContact::estProprietaire` (bailleur actif de l'agence sur un bien d'agence), à la place de l'égalité d'identité et de `landlordWrites` sur `user_id`. Test : retrait en `leave_unassigned` → `GET` et `POST …/confirm` en 403 ; bailleur actif, auteur du bien, toujours accepté.
+
+### Le membre retiré reste donneur d'ordre des interventions sur les biens qu'il a saisis : lecture, statut, devis
+- Réf : P153.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:292-312`
+- Constat :
+  - `isPrincipalFor` rend vrai dès que `property.user_id === user.id`, avant tout jugement d'agence (lu, l. 302-304). P82.01 (fait · TCK-1146) en a retiré le bailleur suspendu pour les écritures, pas le titulaire sans profil.
+  - mesuré (test temporaire) : intervention `open` du bien saisi ; après le retrait, `can('view')`, `can('update')`, `can('actAsPrincipal')`, `can('decideQuote')` vrais ; `GET /api/maintenance-requests/{id}` → 200. La décision de devis par la route n'a pas été mesurée (il faut un devis soumis).
+  - Établi comment : lu, puis mesuré par `Gate` et pour la lecture.
+- Piste : même règle que P153.01 pour la branche du titulaire de `isPrincipalFor` (`estProprietaire` ou personnel de l'agence) ; voir l'angle 160 proposé pour qui tranche à la place du bailleur. Test : retrait en `leave_unassigned` → `GET` en 403, `decideQuote` faux.
+
+### Le membre retiré lit et écrit encore dans le fil d'un bail que la policy du bail lui refuse
+- Réf : P153.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Messaging/ConversationAccess.php:37-90`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:76-105`
+- Constat :
+  - `ConversationAccess::allows` exige la participation active (`left_at` nul), puis ne juge que deux branches : intervention (`maintenance_request_id`) et fil de prospect (directe avec `property_id`). Un fil rattaché à un bail (`lease_id`) n'a pas de branche (lu, l. 56-90).
+  - Le retrait ne quitte aucun fil : ni `left_at` posé, ni participant retiré (lu, `AgencyMemberRemovalService.php:76-105`).
+  - mesuré (test temporaire) : fil de type `lease`, `lease_id` = le bail du bien de B, A et le locataire participants ; après le retrait, `can('view', $lease)` faux, mais `ConversationAccess::allows` vrai, `GET /api/conversations/{id}/messages` → 200, `POST …/messages` `{content}` → 201.
+  - Le fil a été créé par la fabrique, avec le type `lease` ; les fils de bail que l'application crée sont des directes ou des groupes portant `lease_id` (lu, `ConversationController.php:96-103`, `GroupConversationService.php:67-73`). La règle d'accès ne lit pas le type : le résultat vaut pour eux (à vérifier par la route de création).
+  - Établi comment : lu, puis mesuré.
+- Piste : soit le retrait pose `left_at` sur les fils de l'agence où le retiré est participant (fils à `lease_id`, `property_id` ou `maintenance_request_id` d'un bien de l'agence), soit `ConversationAccess` gagne une branche « bail » jugée par `LeasePolicy::view` comme la branche intervention l'est par la policy de la demande. Test : retrait en `leave_unassigned` → `GET …/messages` du fil de bail en 403. L'angle 191 proposé relève les autres cas du même trou.
+
+### Le rappel de visite part encore à l'agent retiré, et le repli vers l'agence ne joue pas
+- Réf : P153.05
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Jobs/SendPropertyVisitReminders.php:106-140`, `takussan-api/app/Services/Visit/VisitNotifier.php:125-165`
+- Constat :
+  - Le job met `$fresh->agent` dans les destinataires dès qu'il existe et n'est pas le visiteur, sans juger s'il est encore du personnel (lu, l. 110-113).
+  - `VisitNotifier`, pour les autres événements de la visite, n'accepte l'agent que s'il est `estPersonnel` de l'agence du bien, et reporte sinon l'avis sur les lecteurs de l'agence, à défaut sur le contact principal (lu, l. 128-165, « Vérification adverse (M2) »). Le rappel n'emprunte pas cette règle.
+  - `SendTaskDueReminders`, pour les tâches, filtre bien l'assigné par `isStaffAt` (lu, l. 89).
+  - mesuré (test temporaire) : visite `confirmed` dans 24 h, agent A ; après le retrait, `SendPropertyVisitReminders::handle()` → 1 notification de type `visit` écrite pour A. Le job n'a aucune branche vers l'agence (lu, l. 108-113). `can('view', $visit)` est faux pour A : le lien du rappel mène à un refus.
+  - Établi comment : lu, puis mesuré.
+- Piste : choisir le destinataire agence du rappel par la même règle que `VisitNotifier` (agent s'il est personnel, sinon lecteurs de l'agence, à défaut contact principal), au mieux en appelant sa méthode. Test : visite d'un agent retiré → aucun rappel à l'agent, un rappel côté agence.
+
+### Le membre retiré joint encore, par la messagerie, les clients de l'agence dont il était référent
+- Réf : P153.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Messaging/MessagingReach.php:41-48`, `takussan-api/app/Services/Messaging/MessagingReach.php:126-150`, `takussan-api/app/Services/Agency/AgentPortfolio.php:96-100`
+- Constat :
+  - La règle 2 (« lien CRM ») rend joignable le compte du client d'une fiche à laquelle l'acteur est rattaché par `user_customer_relationships`, sans lire le statut de la relation ni l'appartenance de l'acteur à l'agence de la fiche (lu, l. 128-150). Les règles 3 et 4 exigent des profils actifs ; la règle 2, non (lu, docblock l. 41-61).
+  - Le retrait laisse la relation `is_primary`, `active` (lu ; c'est la catégorie `customers` du portefeuille, l. 96-100).
+  - mesuré (test temporaire) : un second compte client, lié à A par la seule relation CRM (aucun fil commun) ; après le retrait, `MessagingReach::query(A)` le contient ; `POST /api/conversations` `{participants: [client], initial_message}` → 201.
+  - Le client de l'agence reçoit donc un message d'une personne qui ne la représente plus. Est-ce voulu (un lien personnel survit au départ) ou non : rien ne l'écrit.
+  - Établi comment : lu, puis mesuré.
+- Piste : décider si la règle 2 exige que l'acteur soit personnel de l'agence de la fiche (ou la relation active et non orpheline), puis l'écrire dans le docblock de `MessagingReach` et dans un test. Si oui : le retrait clôt les relations du retiré dans l'agence, ou la règle 2 joint `customers.agency_id` aux agences où l'acteur est personnel.
+
+### Après le retrait, ce qui reste au nom du retiré ne s'inventorie ni ne se passe plus
+- Réf : P153.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Agency/AgentHandoverController.php:20-72`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:54-58`
+- Constat :
+  - `leave_unassigned` laisse au retiré tout son portefeuille : tâches, visites à venir, interventions, collaborations, référent client, biens (lu, `AgencyMemberRemovalService.php:54-58`, catégories de `AgentPortfolio::TRANSFERABLE`).
+  - `show` (inventaire) et `store` (passation) refusent ensuite tout utilisateur sans profil agent ou admin dans l'agence (lu, `refuseNonStaff`, l. 63-72).
+  - mesuré (test temporaire) : après le retrait, `GET /api/agencies/{id}/members/{retiré}/portfolio` par l'admin → 422 `agent_handover.member_not_staff`. `POST …/handover` a rendu 403 `two_factor_required` (admin sans 2FA dans la fixture) : son refus `member_not_staff` est lu, non mesuré.
+  - L'agence ne peut donc plus voir d'un coup ce qu'elle a « assumé », ni le passer plus tard ; il reste les gestes un par un (réassigner une tâche, une visite, une intervention), sans liste de ce qui est à reprendre.
+  - Établi comment : lu, puis mesuré pour l'inventaire.
+- Piste : accepter l'inventaire et la passation pour un ancien membre de l'agence (un profil supprimé en douceur dans l'agence suffit à le reconnaître), ou rendre dans la réponse du retrait la liste de ce qui reste. Test : retrait en `leave_unassigned` puis `GET …/portfolio` → 200 avec les comptes, et passation possible vers un membre.
+
+### Petites améliorations
+- Réf : P153.08
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Listeners/Maintenance/NotifyMaintenanceParticipants.php:69-117`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:211-235`
+- Constat :
+  - Les avis « prestataire » d'une intervention (`quote_requested`, `quote_approved`, `confirmed`, `contested`, `auto_closed`, `cancelled`) partent à `$mr->assignee` sans juger s'il est encore assignable ; une intervention laissée au retiré en `leave_unassigned` les lui envoie (lu, l. 69, 86-117 ; non mesuré, à vérifier).
+  - `GET …/customers/{id}/relationships` rend la relation du retiré telle quelle, `is_primary` vrai et `status` actif : rien n'y dit qu'il n'est plus de l'agence (lu, l. 211-235 ; non mesuré, à vérifier).
+  - Établi comment : lu.
+- Piste : filtrer `$provider` par `ProviderEligibility::isAssignable` comme le fait `MaintenanceRequestPolicy::isAssignedProvider`, et marquer dans la liste des référents celui qui n'est plus de l'agence (ou le ranger à part). Test : intervention d'un assigné retiré → aucun avis prestataire.
