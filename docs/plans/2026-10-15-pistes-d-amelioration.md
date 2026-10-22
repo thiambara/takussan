@@ -179,7 +179,7 @@ voie d'écriture (angle 13, puis 47).
 | 103 | Appels du navigateur à l'hydratation des pages publiques (`geo/cities`, `geo/regions`, `amenities`, `property-types`, `maintenance/status`, préflights CORS) : lesquels pourraient venir du rendu serveur ou du cache de données, et ce qu'ils coûtent sous 3G | fait |
 | 104 | Poids JS initial des écrans de la console `/super-admin` (`SuperAdminShell`, tableaux, dialogues importés statiquement, fichiers `index.ts` de `components/admin/super`) : le relevé de l'angle 70 sur l'autre console | fait |
 | 105 | Charge RSC d'un document `/app` servi : dictionnaires imbriqués de `layout.tsx`, `(dashboard)` et `(dashboard)/app` (et `/app/agency`) sérialisés chacun avec l'ensemble cumulé de ses parents, mesurés sur le document compressé | fait |
-| 106 | Branches que le code ne prend qu'en `APP_ENV=production` (`RestrictIpMiddleware` à liste vide, `DeletionStepUpService::sendCode`, `AddRobotsTagOutsideProduction` jugé sur `APP_URL`) : chacune éprouvée par un test en `production`, alors que la préproduction tourne en `staging` et ne les prend jamais ? | à faire |
+| 106 | Branches que le code ne prend qu'en `APP_ENV=production` (`RestrictIpMiddleware` à liste vide, `DeletionStepUpService::sendCode`, `AddRobotsTagOutsideProduction` jugé sur `APP_URL`) : chacune éprouvée par un test en `production`, alors que la préproduction tourne en `staging` et ne les prend jamais ? | fait |
 | 107 | Champs du profil que l'utilisateur déclare pour être joint (`phone_whatsapp`, `secondary_phone`, `secondary_phone_whatsapp`, `preferred_language`, heures calmes) : lus par les chemins qui envoient (canaux de notification, codes, relances), ou seulement affichés ? | à faire |
 | 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | à faire |
 | 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | à faire |
@@ -10461,3 +10461,54 @@ le préchargement (`prefetch`) des liens vers `/app/agency` n'a pas été observ
   - Un rendu de `/app/agency` en `agency_admin` appelle **deux fois** `GET /api/agencies/{id}` avec la même URL (mesuré, journal de l'API factice sur une requête isolée) : une fois par `resolveAgencyOrNull` (`agenceDuRendu`, `cache()` de React), une fois par `fetchAgencyAction` de la page (`agency/page.tsx:47`), qui appelle `fetchAgency` sans ce cache (lu, `admin-agency.ts:84`). L'en-tête de `server-guards.ts:95-109` dit que ce doublon avait été retiré.
 - Piste : faire l'aiguillage de `/app/overview` dans `proxy.ts` ou pointer la barre latérale sur la destination du profil, qui est connue au rendu de la coque ; faire lire à la page de `/app/agency` l'agence par `resolveAgencyOrNull` (ou `agenceDuRendu`), et compter les appels dans un test de la page.
 - Mesure (2026-10-21, 34ddbb0b1, mesureur) : lu `app/(dashboard)/app/overview/page.tsx` (un `redirect` par profil, après `getMeAction` et, pour l'admin, `resolveAgencyOrNull`), `AppSidebar.tsx:347` (lien `/app/overview` pour `occupeUnLogement`) : l'aiguillage tient, la réponse 307 et sa taille n'ont pas été remesurées ; lu `(dashboard)/app/layout.tsx:39,64` (`resolveAgencyOrNull`, mis en cache par `agenceDuRendu`) et `agency/page.tsx:47` → `fetchAgencyAction` → `admin-agency.ts:84` `fetchAgency` sans `cache()` : le doublon tient par lecture, et c'est le layout de `/app` (pas celui d'`agency`) qui porte la première requête ; le commentaire de `(dashboard)/app/layout.tsx:60` (« la page qui relit l'agence ne paie pas ») et l'en-tête de `server-guards.ts:95-109` le contredisent. Classement : V7, la moitié aiguillage propose deux voies (`proxy.ts` ou la cible de la barre latérale) ; le doublon d'appel seul relèverait de A2, à condition que la page garde le message d'erreur que `fetchAgencyAction` lui rend.
+
+## Angle 106 — Branches que le code ne prend qu'en `APP_ENV=production`
+
+*Exploré le 2026-10-21 sur `pre-dev` 34ddbb0b1, par l'explorateur. Tout a été lu et lancé par
+l'explorateur lui-même, sans sous-agent : les lecteurs de l'environnement dans `app/`, `bootstrap/`,
+`config/` et `routes/` (`grep -rnE "environment\(|isProduction\(|'production'"` → quatre sites
+d'`APP_ENV` et deux d'`APP_URL`), `takussan-api/docker/release.sh` (aucune commande `Confirmable`),
+et côté front les branches sur `NODE_ENV` (préproduction et production servent toutes deux un
+`next build`, donc les prennent ensemble : rien à signaler). Ablation : les deux branches
+`production` de l'API retirées ensemble, puis les huit classes qui citent leurs fichiers lancées une
+à une (charge 3,38 / 3,22 / 3,85 sur 8 cœurs), puis le code remis. Limite : la sélection des classes
+vient d'un `grep` sur les tests, non de la carte d'impact. Réponse à la question de l'angle :
+`AddRobotsTagOutsideProduction` (`AddRobotsTagOutsideProductionTest.php:38-57`), `OtpPreview::enabled()`
+(`OtpPreviewTest.php:115-123`), le pilote `log` de `config/sms.php` (`SmsLogFallbackTest`, `staging`
+et `production` compris) et la signature WhatsApp (`WhatsappStatusWebhookTest.php:217-229`) sont
+éprouvés dans leur environnement ; les deux branches ci-dessous ne le sont pas.*
+
+### Le refus en 403 d'une liste d'IP vide en `production` n'est gardé par aucun test : le retirer laisse tout vert
+- Réf : P106.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:29-35`, `takussan-api/routes/api/sms-webhooks.php:26-34`, `takussan-api/tests/Feature/Http/Webhook/OrangeSmsWebhookTest.php:21`, `takussan-api/tests/Feature/Http/Webhook/WebhookThrottleTest.php:26`
+- Constat :
+  - Liste vide et `app()->environment('production')` → `abort_code(403, 'webhook.ip_allowlist_not_configured')` ; liste vide ailleurs → la requête passe (lu, l. 29-35).
+  - `grep -rn "ip_allowlist_not_configured" tests` → rien (mesuré). Les classes de webhook SMS posent une liste vide (`OrangeSmsWebhookTest.php:21`, `MtargetSmsWebhookTest.php:21`, `LAfricaMobileSmsWebhookTest.php:27`, `WebhookThrottleTest.php:26`, `SmsWebhookTokenPerProviderTest.php:32`) et tournent en `testing`, où la branche n'est jamais prise (lu).
+  - Établi comment : ablation, l'appel `abort_code(403, …)` remplacé par un commentaire → `OrangeSmsWebhookTest` 8 verts, `MtargetSmsWebhookTest` 13, `LAfricaMobileSmsWebhookTest` 10, `WebhookThrottleTest` 3, `SmsWebhookTokenPerProviderTest` 5, `TrustedProxiesTest` 4 : aucun rouge (mesuré : `php artisan test <fichier>`, une classe à la fois).
+  - Cette branche est la seule défense de la production si les `SMS_*_WEBHOOK_IPS` y manquent : P71.04 laisse leur pose « au moment de F3 » (reste de TCK-1050), et la préproduction, en `staging`, ne la prend jamais (lu, `docs/infra/hebergement.md:202`).
+- Piste : un test qui pose `$this->app['env'] = 'production'` (précédent : `WhatsappStatusWebhookTest.php:222-223`) et une liste vide, et attend 403 `webhook.ip_allowlist_not_configured` sur chacune des trois routes `restrict.ip:{fournisseur}`, sans effet sur l'accusé (tentative inchangée) ; vérifié par la même ablation.
+
+### `DeletionStepUpService::sendCode` rend le code hors production pour les seuls tests, et en production son `null` ne distingue plus « délai de renvoi » de « code envoyé »
+- Réf : P106.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Account/DeletionStepUpService.php:59-108`, `takussan-api/app/Http/Controllers/Api/Auth/AccountDeletionController.php:84-101`, `takussan-api/tests/Feature/Auth/AccountDeletionStepUpTest.php:104`
+- Constat :
+  - Le docblock dit : « Rend le code hors production (les tests en ont besoin), jamais en production. Rend `null` si le cooldown court encore » (lu, l. 59-64). La dernière ligne rend `app()->environment('production') ? null : $code` (lu, l. 108) : en production, `null` vaut aussi pour un code émis, et le contrat du docblock n'y tient plus.
+  - Le seul appelant de `app/` ignore la valeur rendue (`$stepUp->sendCode($user);`, lu, `AccountDeletionController.php:95`). `grep -rn "sendCode(" app` → trois sites, dont un seul sur ce service (mesuré). La valeur ne sert qu'aux tests : `AccountDeletionStepUpTest` la lit huit fois (l. 104, 123, 145, 187, 219, 244, 280, 322), `AmbiguousSmsFailureTest.php:178` l'appelle (mesuré, `grep`).
+  - La branche `production` n'est éprouvée par aucun test. Établi comment : ablation, l. 108 remplacée par `return $code;` → `AccountDeletionStepUpTest` 17 verts, `AmbiguousSmsFailureTest` 8 verts (mesuré).
+  - En `staging` et en `local`, le code d'un e-mail est rendu à l'appelant PHP, ce qu'ADR-0060 n'accorde qu'au code d'un SMS, et sous drapeau (lu, `OtpPreview.php:10-18`, et le commentaire l. 97-99 du service). Rien ne l'expose aujourd'hui en HTTP (lu, contrôleur l. 95-100) : le risque est celui d'un appelant futur qui s'y fierait.
+- Piste : faire rendre à `sendCode` un booléen « code émis » dans tous les environnements, et faire lire le code aux tests par `Notification::fake` / le pilote SMS de test (comme `OtpPreviewTest`) ou par `OtpPreview`, ce qui retire la branche sur `APP_ENV` ; un test du `false` sous délai de renvoi garde le contrat.
+
+### « Être la production » se juge sur deux critères : `APP_ENV` pour le filtre d'IP, l'origine d'`APP_URL` pour le seul refus de démarrer
+- Réf : P106.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:30`, `takussan-api/app/Services/Account/DeletionStepUpService.php:108`, `takussan-api/app/Services/Auth/OtpPreview.php:28-53`, `takussan-api/app/Http/Middleware/AddRobotsTagOutsideProduction.php:29-44`, `takussan-api/app/Providers/AppServiceProvider.php:214-215`, `takussan-api/config/sms.php:44-47`
+- Constat :
+  - Jugés sur `APP_ENV` : le filtre d'IP des accusés SMS (`environment('production')`, liste d'exclusion : seul le nom exact `production` ferme), le retour du code de suppression, l'aperçu des codes SMS (`OtpPreview::ENVIRONMENTS`, liste d'autorisation) et le pilote `log` (`config/sms.php:47`, liste d'autorisation) (lu).
+  - Jugés sur l'origine d'`APP_URL` : `X-Robots-Tag` (`AddRobotsTagOutsideProduction::isProduction`) et le refus de démarrer d'`OtpPreview::refuserSurLaProduction()`, appelé au démarrage (lu, `AppServiceProvider.php:215`). Ce refus ne regarde que le drapeau `OTP_PREVIEW_ENABLED` (lu, `OtpPreview.php:43-53`).
+  - Une API servie sur `https://api.takussan.com` avec un `APP_ENV` resté `staging` — le cas que P71.02 a constaté dans le plan F3 — démarre donc, sans aperçu des codes, mais avec le filtre d'IP ouvert à tout appelant tant qu'une liste manque (déduit de la lecture des deux critères ; à vérifier par un test qui démarre l'application ainsi, sur le modèle d'`OtpPreviewTest.php:55`). Un `APP_ENV` mal orthographié (`prod`, `Production`) a le même effet, à l'inverse du choix écrit pour l'aperçu : « un environnement mal nommé reste fermé » (lu, `OtpPreview.php:27`).
+- Piste : au démarrage, refuser un `APP_URL` d'origine production avec un `APP_ENV` autre que `production` (à côté de `refuserSurLaProduction`, même test par `bootstrap/app.php`) ; ou faire juger `RestrictIpMiddleware` par une liste d'autorisation des environnements où une liste vide laisse passer (`local`, `testing`, `staging`), comme `OtpPreview`.
