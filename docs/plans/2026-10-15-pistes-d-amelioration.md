@@ -7962,7 +7962,7 @@ l'angle 111.*
 
 ### L'export d'audit d'une agence fait deux requêtes par ligne : au-delà de 5 000 lignes, le job dépasse les 60 s du worker
 - Réf : P78.01
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1414 — reste : le XLSX de plus de ~25 000 lignes dépasse encore les 85 s du job (64 s mesurées à 20 000 lignes), ce que traite P78.03
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:42-49,135-155`, `takussan-api/app/Models/Concerns/HasProfiles.php:238-275,317-321`, `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:23-64`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:44-54`, `deploy/takussan/compose.api.yml:125`
 - Constat :
@@ -7975,6 +7975,7 @@ l'angle 111.*
   - Établi comment : lu, puis test temporaire (retiré) qui appelle `buildPayload()` et `handle()` du job comme `XlsxExportFormulaTest`.
 - Piste : précharger ce que lit `profileTypes()` (`causer.serviceProviderProfile`, `causer.tenantLeases`), ou calculer `causer_role` une fois par auteur dans `buildPayload()`. Donner au job un `$timeout` mesuré. Test : nombre de requêtes de `buildPayload()` constant entre 10 et 100 lignes d'un même auteur.
 - Mesure (2026-10-20, 8e6c7ef17, mesureur) : relu `ActivityLogExporter.php:44-49` (préchargement sans `serviceProviderProfile` ni `tenantLeases`) et `:155` (`profileTypes()->first()`), `HasProfiles.php:238-275,317-321`, `ExportActivityLogJob.php` (ni `$timeout` ni `failed()`), `compose.api.yml` (worker sans `--timeout`, défaut `--timeout=60` lu dans `WorkCommand.php:49`) ; test temporaire (retiré) autour de `buildPayload()`, un seul auteur admin d'agence, charge 3,98/4,41/4,34 sur 8 cœurs → 100 lignes 209 requêtes en 0,5 s, 200 → 409 en 1,1 s, 2 000 → 4 009 en 12,1 s, soit deux requêtes par ligne et une durée linéaire ; le constat tient. Classement : V5, le préchargement seul relèverait de A2, mais la piste demande aussi un `$timeout` mesuré que `retry_after` (`config/queue.php:50,78`, `DB_QUEUE_RETRY_AFTER`/`REDIS_QUEUE_RETRY_AFTER`, 90 s par défaut) doit dépasser, réglage d'environnement non mesurable depuis le dépôt.
+- Mesure (2026-10-22, 174d6e0f2, implementeur) : `ExportAuditRequetesParLigneTest` (neuf) sur l'arbre d'origine → 29 requêtes pour 10 lignes d'un même auteur, 209 pour 100, rouge ; correctif (`causer.serviceProviderProfile` et `causer.tenantLeases` restreinte aux baux en cours, préchargées) → nombre constant, `causer_role` inchangé ; `ExportActivityLogJob::$timeout = 85` (au-dessus des 60 s du worker, sous les 90 s de `retry_after`), gardé par `ExportAuditDelaiDuJobTest`. Test temporaire (retiré), 20 000 lignes, charge `{ 2.75 2.67 3.04 }` sur 8 cœurs : `buildPayload` 181,1 s → 12,4 s, job CSV 133,5 s → 12,0 s, XLSX 244,8 s → 64,1 s. Ablation des deux fichiers → rouges ; remis → verts.
 
 ### L'export d'audit de la console tourne dans la requête HTTP, jusqu'à 50 000 lignes et six requêtes par ligne
 - Réf : P78.02
