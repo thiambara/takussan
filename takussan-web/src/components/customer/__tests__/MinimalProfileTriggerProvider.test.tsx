@@ -177,6 +177,40 @@ describe('MinimalProfileTriggerProvider', () => {
 
     expect(screen.queryByTestId('customer-minimal-profile-title')).not.toBeInTheDocument();
   });
+
+  // P125.03 / P145.01 (TCK-1281) — `PATCH /api/me` n'accepte que l'E.164 : la feuille saisit le
+  // numéro par `PhoneInput`, et c'est la valeur composée qui part, jamais la frappe telle quelle.
+  it.each([
+    ['77 000 00 00', '+221770000000'],
+    ['+221 77 000 00 01', '+221770000001'],
+  ])('envoie la saisie « %s » en E.164 (%s)', async (saisie, attendu) => {
+    mockAuth(true);
+    const fetchMock = setupFetchSequence([{ status: 200, json: async () => ({ data: [] }) }]);
+
+    render(
+      <Wrapper roles={['customer']}>
+        <TriggerButton />
+      </Wrapper>,
+    );
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1));
+    fireEvent.click(screen.getByTestId('fire'));
+    await waitFor(() =>
+      expect(screen.getByTestId('customer-minimal-profile-title')).toBeInTheDocument(),
+    );
+
+    fireEvent.change(screen.getByLabelText(frMessages.customer.minimalProfile.phoneLabel), {
+      target: { value: saisie },
+    });
+    fireEvent.click(screen.getByTestId('customer-minimal-profile-save'));
+
+    await waitFor(() => {
+      const patch = fetchMock.mock.calls.find(
+        ([url, init]) => url === '/api/me' && (init as RequestInit)?.method === 'PATCH',
+      );
+      expect(patch).toBeDefined();
+      expect(JSON.parse((patch![1] as RequestInit).body as string)).toEqual({ phone: attendu });
+    });
+  });
 });
 
 export {};
