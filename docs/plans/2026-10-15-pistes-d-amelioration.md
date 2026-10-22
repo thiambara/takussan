@@ -10366,7 +10366,7 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
 
 ### Aucune garde ne trace le graphe client des écrans de `/super-admin`
 - Réf : P104.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1200
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(dashboard)/__tests__/zod-hors-des-ecrans-de-lecture.test.ts:26-30`, `takussan-web/src/app/(super-admin)/super-admin/__tests__/`
 - Constat :
@@ -10374,6 +10374,7 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - `poids-des-routes.mjs` imprime bien les écrans de `/super-admin` depuis P70.06, sans seuil (mesuré, sortie du build) : P104.01 et P104.02 n'y cassent rien.
 - Piste : une garde du même patron sur les pages de `(super-admin)` qui n'affichent aucun formulaire au chargement, `tags/page.tsx` comprise une fois P104.01 et P104.02 traitées.
 - Mesure (2026-10-21, 711bafca3, mesureur) : relu `(dashboard)/__tests__/zod-hors-des-ecrans-de-lecture.test.ts:27-39` (n'énumère que des écrans de `(dashboard)/app`) ; `ls (super-admin)/super-admin/__tests__` → `console-home.test.tsx`, `garde-double-facteur.test.tsx`, `jeton-operateur.test.ts`, et `grep -rln graphe-client src` ne rend aucun test sous `(super-admin)` ; test temporaire du graphe client → aujourd'hui seule `tags/page.tsx` atteint `zod`, `react-hook-form` ou `@hookform/resolvers` parmi les 37 pages et le layout de la console. Classement : A5, une garde neuve du patron de TCK-1038 sur les pages de `(super-admin)` sans formulaire au chargement, sans seuil existant resserré ; les 36 autres pages et le layout y passent dès aujourd'hui, `tags/page.tsx` s'y ajoute avec P104.01 et P104.02.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : test temporaire, retiré, `paquetsDuGrapheClient` sur les 37 `page.tsx` et le `layout.tsx` de `(super-admin)/super-admin` → après TCK-1194 et TCK-1196, aucune n'atteint zod, react-hook-form ni `@hookform/resolvers` (huit atteignent encore react-day-picker, hors de la piste) ; garde neuve dans `graphe-client-de-la-console.test.ts`, pages trouvées par balayage, exceptions `FORMULAIRES_AU_CHARGEMENT` vides (TCK-1200) → 42/42 verts ; ablation, `TagsManager.tsx` rendu à `pre-dev` → le cas `tags/page.tsx` rougit, remis → vert. Aucun seuil existant resserré.
 
 ### Petites améliorations
 - Réf : P104.05
