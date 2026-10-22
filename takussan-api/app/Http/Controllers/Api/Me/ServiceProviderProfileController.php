@@ -116,7 +116,7 @@ class ServiceProviderProfileController extends Controller
                 'id' => $sp_profile->id,
                 'trades' => $sp_profile->specialties ?? [],
                 'intervention_zones' => $sp_profile->service_areas ?? [],
-                'hourly_rate' => $sp_profile->hourly_rate_min,
+                'hourly_rate' => self::montant($sp_profile->hourly_rate_min),
                 'visit_fee' => $metadata['visit_fee'] ?? null,
                 'available_slots' => $metadata['availability'] ?? [],
             ],
@@ -166,7 +166,7 @@ class ServiceProviderProfileController extends Controller
                 'id' => $sp_profile->id,
                 'trades' => $trades,
                 'intervention_zones' => $zones,
-                'hourly_rate' => $sp_profile->hourly_rate_min,
+                'hourly_rate' => self::montant($sp_profile->hourly_rate_min),
                 'visit_fee' => $metadata['visit_fee'] ?? null,
             ],
         ]);
@@ -228,5 +228,14 @@ class ServiceProviderProfileController extends Controller
         }
 
         return $out;
+    }
+
+    /**
+     * TCK-1290 (P94.05) — `hourly_rate_min` est `decimal:2` (chaîne `"4500.00"`) : rendu en nombre,
+     * comme `visit_fee` et les montants de `PaymentController`. `null` reste `null`.
+     */
+    private static function montant(mixed $valeur): ?float
+    {
+        return $valeur === null ? null : (float) $valeur;
     }
 }

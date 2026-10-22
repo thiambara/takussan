@@ -83,8 +83,8 @@ class AgencyUpgradeRequestController extends Controller
                         'id' => $agency->id,
                         'name' => $agency->name,
                         'slug' => $agency->slug,
-                        'kind' => $agency->kind?->value ?? (string) $agency->kind,
-                        'status' => $agency->status?->value ?? (string) $agency->status,
+                        'kind' => $agency->kind?->value,
+                        'status' => $agency->status?->value,
                         // TCK-1003 — l'approbation exige un dossier KYC vérifié : la revue le dit.
                         'kyc_status' => $agency->kycDossier?->status?->value,
                         'created_at' => $agency->created_at?->toIso8601String(),
@@ -104,7 +104,7 @@ class AgencyUpgradeRequestController extends Controller
                     'documents' => $upgradeRequest->documents->map(fn ($doc) => [
                         'id' => $doc->id,
                         'name' => $doc->name,
-                        'type' => $doc->type?->value ?? (string) $doc->type,
+                        'type' => $doc->type?->value,
                         // TCK-539 — URL d'API signée, jamais l'URL directe du fichier.
                         'media_url' => ($file = $doc->getFirstMedia('file'))
                             ? app(PrivateMediaAccess::class)->signedUrl($file)
