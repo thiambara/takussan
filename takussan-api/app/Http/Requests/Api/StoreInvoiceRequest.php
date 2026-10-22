@@ -34,12 +34,19 @@ class StoreInvoiceRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'customer_id' => ['required', 'exists:customers,id'],
+            'customer_id' => ['required', Rule::exists('customers', 'id')->withoutTrashed()],
             'invoiceable_type' => ['nullable', 'string', 'required_with:invoiceable_id'],
             'invoiceable_id' => ['nullable', 'integer', 'required_with:invoiceable_type'],
             'issue_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
-            'subtotal' => ['required', 'numeric', 'min:0'],
+            // P133.02 (TCK-1377) — les lignes saisies font le sous-total, que l'API recompte
+            // (`InvoiceService::priceLines`) : un `subtotal` fourni avec elles est ignoré. Sans
+            // lignes, le sous-total reste requis. Bornes reprises de `SubmitQuoteRequest`.
+            'subtotal' => ['required_without:items', 'nullable', 'numeric', 'min:0'],
+            'items' => ['sometimes', 'array', 'min:1', 'max:50'],
+            'items.*.description' => ['required', 'string', 'max:500'],
+            'items.*.quantity' => ['required', 'numeric', 'gt:0', 'max:100000', 'decimal:0,2'],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0', 'max:1000000000', 'decimal:0,2'],
             'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'currency' => ['nullable', Rule::enum(Currency::class)],
             'notes' => ['nullable', 'string'],

@@ -74,6 +74,55 @@ class BookingRefundTaskTest extends TestCase
         $this->assertSame($this->client->id, $task->created_by_id);
     }
 
+    /**
+     * TCK-1301 (P115.01) — un séjour commencé ne s'annule plus : l'annulation d'une réservation
+     * `confirmed` au séjour fini rendait 200 et ouvrait une tâche de remboursement de l'acompte.
+     */
+    public function test_a_confirmed_booking_whose_stay_is_over_does_not_cancel_nor_open_a_refund_task(): void
+    {
+        $booking = $this->bookingOfClient([
+            'status' => BookingStatus::Confirmed,
+            'start_date' => now()->subDays(10)->toDateString(),
+            'end_date' => now()->subDays(3)->toDateString(),
+        ]);
+        $this->paidDeposit($booking);
+        Sanctum::actingAs($this->client);
+
+        $this->postJson("/api/bookings/{$booking->id}/cancel")
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'booking.cannot_cancel');
+
+        $this->assertSame(BookingStatus::Confirmed, $booking->fresh()->status);
+        $this->assertCount(0, $this->refundTasks($booking));
+    }
+
+    public function test_a_confirmed_booking_whose_stay_has_started_today_does_not_cancel_even_by_the_agent(): void
+    {
+        $booking = $this->bookingOfClient([
+            'status' => BookingStatus::Confirmed,
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addDays(3)->toDateString(),
+        ]);
+        Sanctum::actingAs($this->agent);
+
+        $this->postJson("/api/bookings/{$booking->id}/cancel")
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'booking.cannot_cancel');
+    }
+
+    public function test_a_confirmed_booking_starting_tomorrow_still_cancels(): void
+    {
+        $booking = $this->bookingOfClient([
+            'status' => BookingStatus::Confirmed,
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addDays(3)->toDateString(),
+        ]);
+        Sanctum::actingAs($this->client);
+
+        $this->postJson("/api/bookings/{$booking->id}/cancel")->assertOk();
+        $this->assertSame(BookingStatus::Cancelled, $booking->fresh()->status);
+    }
+
     public function test_rejection_with_a_paid_deposit_opens_one_task(): void
     {
         $booking = $this->bookingOfClient();

@@ -4,13 +4,15 @@ namespace App\Services\Agency;
 
 use App\Exceptions\ApiError;
 use App\Models\Agency;
+use App\Models\Enums\CollaboratorRole;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
-use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Messaging\PropertyConversationResolver;
+use App\Services\Model\MaintenanceRequestService;
 use App\Services\Property\ResponsibleAgentAssigner;
 use Illuminate\Support\Facades\DB;
 
@@ -24,8 +26,10 @@ use Illuminate\Support\Facades\DB;
  *
  * Les règles de chaque catégorie :
  *  - `tasks`, `visits` : réassignées ;
- *  - `maintenance` : réassignée si le repreneur y est éligible, sinon DÉSASSIGNÉE et comptée comme
- *    telle (règle d'éligibilité de TCK-592 ; avant sa fusion, le personnel de l'agence) ;
+ *  - `maintenance` : réassignée par `MaintenanceRequestService::assign()` (TCK-1329), devis du
+ *    partant gardé, si le repreneur y est éligible, sinon DÉSASSIGNÉE et comptée comme telle
+ *    (règle d'éligibilité de TCK-592, {@see ProviderEligibility}). La requête n'admet que le
+ *    personnel de l'agence, toujours éligible : la branche désassignée ne sert qu'à un appel direct ;
  *  - `responsible_properties` (TCK-603) : la marque d'agent principal passe au repreneur par
  *    {@see ResponsibleAgentAssigner} — jamais `user_id` ; un repreneur que le service refuse (co-
  *    propriétaire du bien) laisse le bien DÉSASSIGNÉ, compté comme tel ;
@@ -34,8 +38,10 @@ use Illuminate\Support\Facades\DB;
  *    jamais vers un repreneur qui porte un profil propriétaire de l'agence — désassigné ;
  *  - `collaborations` : la ligne du partant passe au repreneur ; si le repreneur collabore déjà au
  *    bien (unicité `property_id, user_id`), sa ligne est conservée et celle du partant supprimée —
+ *    la ligne du repreneur passe en `agent` et reprend la part de commission du partant (TCK-1331),
  *    et si celle du partant portait la marque, elle passe d'abord au repreneur (ADR-0053,
- *    « Conséquences ») ;
+ *    « Conséquences ») ; un repreneur co-propriétaire du bien laisse la collaboration DÉSASSIGNÉE ; si le repreneur des biens a été refusé pour ce bien, la ligne réécrite
+ *    perd sa marque, qui tombe dans le repli (ADR-0059 §3, TCK-1253) ;
  *  - `customers` : le référent (`is_primary`) passe au repreneur ; s'il a déjà une relation de même
  *    type avec le client, elle devient la principale et celle du partant est supprimée.
  *
@@ -51,6 +57,7 @@ class AgentHandoverService
         private readonly AgencyMemberRemovalService $removal,
         private readonly ResponsibleAgentAssigner $assigner,
         private readonly PropertyConversationResolver $conversations,
+        private readonly MaintenanceRequestService $maintenance,
     ) {}
 
     /** Les catégories qui touchent un bien, et dont les biens se verrouillent avant toute ligne. */
@@ -64,7 +71,7 @@ class AgentHandoverService
 
     /**
      * @param  array<string, User>  $successors  catégorie → repreneur ; une catégorie absente reste en place
-     * @return array{moved: array<string, list<int>>, unassigned: array<string, list<int>>, removed_profiles: ?list<string>}
+     * @return array{moved: array<string, list<int>>, unassigned: array<string, list<int>>, left_to_member: array<string, list<int>>, removed_profiles: ?list<string>}
      */
     public function transfer(
         Agency $agency,
@@ -93,7 +100,7 @@ class AgentHandoverService
                     continue;
                 }
 
-                [$ids, $dropped] = $this->move($category, $agency, $member, $successor, $actor, $locked);
+                [$ids, $dropped] = $this->move($category, $agency, $member, $successor, $actor, $locked, $unassigned['responsible_properties'] ?? []);
                 if ($ids === [] && $dropped === []) {
                     continue;
                 }
@@ -121,8 +128,50 @@ class AgentHandoverService
                 ? $this->removal->remove($agency, $member, $actor, $leaveUnassigned)
                 : null;
 
-            return ['moved' => $moved, 'unassigned' => $unassigned, 'removed_profiles' => $removed];
+            [$unassigned, $left] = $this->splitLeftToMember($unassigned, $member);
+
+            return ['moved' => $moved, 'unassigned' => $unassigned, 'left_to_member' => $left, 'removed_profiles' => $removed];
         });
+    }
+
+    /**
+     * TCK-1333 (P121.04, décision du porteur) — « laissé au partant » n'est pas « désassigné ».
+     * Un bien saisi refusé (`held_properties`) garde le partant pour titulaire. Un bien dont le
+     * repreneur des biens est refusé (`responsible_properties`) lui est laissé tant que sa ligne
+     * porte encore la marque ; il est désassigné quand la marque est tombée dans le repli — ôtée par
+     * la réécriture des collaborations (TCK-1253) ou par le retrait
+     * ({@see AgencyMemberRemovalService}). Le journal `AgentHandover` garde `unassigned_ids` pour les deux.
+     *
+     * @param  array<string, list<int>>  $unassigned
+     * @return array{0: array<string, list<int>>, 1: array<string, list<int>>} [désassignés, laissés au partant]
+     */
+    private function splitLeftToMember(array $unassigned, User $member): array
+    {
+        $left = [];
+        if (isset($unassigned['held_properties'])) {
+            $left['held_properties'] = $unassigned['held_properties'];
+            unset($unassigned['held_properties']);
+        }
+
+        if (isset($unassigned['responsible_properties'])) {
+            $stillMarked = PropertyCollaborator::query()
+                ->where('user_id', $member->id)
+                ->where('is_primary', true)
+                ->whereIn('property_id', $unassigned['responsible_properties'])
+                ->pluck('property_id')->map(fn ($id) => (int) $id)->all();
+            $kept = array_values(array_intersect($unassigned['responsible_properties'], $stillMarked));
+            $dropped = array_values(array_diff($unassigned['responsible_properties'], $stillMarked));
+            if ($kept !== []) {
+                $left['responsible_properties'] = $kept;
+            }
+            if ($dropped !== []) {
+                $unassigned['responsible_properties'] = $dropped;
+            } else {
+                unset($unassigned['responsible_properties']);
+            }
+        }
+
+        return [$unassigned, $left];
     }
 
     /**
@@ -165,9 +214,10 @@ class AgentHandoverService
 
     /**
      * @param  list<int>  $locked  les biens que {@see self::lockProperties()} tient
+     * @param  list<int>  $refusedMarks  les biens dont le repreneur des biens a été refusé : leur marque tombe dans le repli
      * @return array{0: list<int>, 1: list<int>} [déplacés, désassignés]
      */
-    private function move(string $category, Agency $agency, User $member, User $successor, User $actor, array $locked): array
+    private function move(string $category, Agency $agency, User $member, User $successor, User $actor, array $locked, array $refusedMarks = []): array
     {
         $query = $this->portfolio->query($category, $agency, $member);
         if (in_array($category, ['responsible_properties', 'held_properties'], true)) {
@@ -201,14 +251,16 @@ class AgentHandoverService
                 return [$ids, []];
 
             case 'maintenance':
-                if ($this->eligibleForMaintenance($successor, (int) $agency->id)) {
-                    MaintenanceRequest::query()->whereIn('id', $ids)->update(['assigned_to' => $successor->id]);
-
-                    return [$ids, []];
+                // TCK-1329 (P121.01) — le chemin du geste unitaire, intervention par intervention :
+                // l'acceptation du partant tombe, `MaintenanceStatusChanged` part après la
+                // transaction (le fil change de prestataire, l'assigné est prévenu). Le devis du
+                // partant reste (décision du porteur, 2026-10-22).
+                $eligible = $this->eligibleForMaintenance($successor, (int) $agency->id);
+                foreach (MaintenanceRequest::query()->whereIn('id', $ids)->orderBy('id')->get() as $mr) {
+                    $this->maintenance->assign($mr, $eligible ? $successor : null, $actor, keepQuote: true);
                 }
-                MaintenanceRequest::query()->whereIn('id', $ids)->update(['assigned_to' => null]);
 
-                return [[], $ids];
+                return $eligible ? [$ids, []] : [[], $ids];
 
             case 'responsible_properties':
                 $moved = [];
@@ -237,15 +289,26 @@ class AgentHandoverService
             case 'collaborations':
                 $dropped = [];
                 foreach (PropertyCollaborator::query()->whereIn('id', $ids)->get() as $row) {
-                    $taken = PropertyCollaborator::query()
+                    $theirs = PropertyCollaborator::query()
                         ->where('property_id', $row->property_id)
                         ->where('user_id', $successor->id)
-                        ->exists();
-                    if ($taken && $row->is_primary
-                        && ! $this->assignResponsible(Property::query()->findOrFail($row->property_id), $successor, $actor)) {
+                        ->first();
+                    if ($theirs === null) {
+                        if ($row->is_primary && in_array((int) $row->property_id, $refusedMarks, true)) {
+                            // TCK-1253 (ADR-0059 § 3) — le repreneur des biens a été refusé : la marque
+                            // tombe dans le repli, et la réécriture ne la donne jamais au repreneur des
+                            // collaborations. Le bien reste compté dans `unassigned.responsible_properties`.
+                            $row->forceFill(['is_primary' => false])->save();
+                        }
+                        $row->update(['user_id' => $successor->id]);
+
+                        continue;
+                    }
+
+                    if (! $this->takeOverCollaboration($row, $theirs, $successor, $actor)) {
                         $dropped[] = (int) $row->id;
                     }
-                    $taken ? $row->delete() : $row->update(['user_id' => $successor->id]);
+                    $row->delete();
                 }
 
                 return [array_values(array_diff($ids, $dropped)), $dropped];
@@ -272,6 +335,35 @@ class AgentHandoverService
     }
 
     /**
+     * TCK-1331 (P121.02, décision du porteur) — le repreneur collabore déjà au bien : SA ligne
+     * reprend la collaboration d'agent du partant, avant que celle-ci ne soit supprimée. Elle passe
+     * en `agent` comme dans {@see ResponsibleAgentAssigner} (`viewer`, `manager`), reçoit la marque
+     * si la ligne du partant la portait, et la `commission_share` du partant lui est reportée.
+     * `false` — rien n'est repris, la collaboration est désassignée — quand le repreneur est
+     * co-propriétaire du bien, ou que le service refuse de lui passer la marque.
+     */
+    private function takeOverCollaboration(PropertyCollaborator $row, PropertyCollaborator $theirs, User $successor, User $actor): bool
+    {
+        if ($row->is_primary) {
+            // ADR-0053 « Conséquences » — la marque passe à la ligne du repreneur, promue par le service.
+            if (! $this->assignResponsible(Property::query()->findOrFail($row->property_id), $successor, $actor)) {
+                return false;
+            }
+            $theirs->refresh();
+        } elseif ($theirs->role === CollaboratorRole::CoOwner) {
+            return false;
+        } elseif ($theirs->role !== CollaboratorRole::Agent) {
+            $theirs->update(['role' => CollaboratorRole::Agent]);
+        }
+
+        if ($row->commission_share !== null) {
+            $theirs->update(['commission_share' => $row->commission_share]);
+        }
+
+        return true;
+    }
+
+    /**
      * La marque passe au repreneur ; `false` quand le service refuse la cible pour CE bien
      * (co-propriétaire, inéligible) — le bien est alors désassigné, pas la passation annulée.
      */
@@ -290,9 +382,15 @@ class AgentHandoverService
         return true;
     }
 
-    /** TCK-592 — règle d'éligibilité d'une intervention ; avant sa fusion, le personnel actif de l'agence (TCK-587). */
+    /**
+     * TCK-592 — la règle d'éligibilité d'une intervention, {@see ProviderEligibility::isAssignable()},
+     * jugée pour l'agence de la passation : le portefeuille ne retient que les interventions des biens
+     * de cette agence (TCK-1255).
+     */
     private function eligibleForMaintenance(User $user, int $agencyId): bool
     {
-        return app(MembershipCapabilityResolver::class)->isStaffAt($user, $agencyId);
+        $eligibility = app(ProviderEligibility::class);
+
+        return $eligibility->isActiveProviderAt($user, $agencyId) || $eligibility->isStaffAt($user, $agencyId);
     }
 }

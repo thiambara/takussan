@@ -6,7 +6,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('maintenance-requests', [MaintenanceRequestController::class, 'index'])->name('maintenance-requests.index');
-    Route::post('maintenance-requests', [MaintenanceRequestController::class, 'store'])->name('maintenance-requests.store');
+    // TCK-1404 (ADR-0072) — une intervention rejouée sous la même clé n'est ouverte qu'une fois.
+    Route::post('maintenance-requests', [MaintenanceRequestController::class, 'store'])->middleware('idempotent')->name('maintenance-requests.store');
     Route::get('maintenance-requests/{maintenanceRequest}', [MaintenanceRequestController::class, 'show'])->name('maintenance-requests.show');
     Route::put('maintenance-requests/{maintenanceRequest}', [MaintenanceRequestController::class, 'update'])->name('maintenance-requests.update');
     Route::patch('maintenance-requests/{maintenanceRequest}', [MaintenanceRequestController::class, 'update']);

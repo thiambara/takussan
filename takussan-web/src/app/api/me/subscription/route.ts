@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif, profilActifEspaceApplicatif } from '@/lib/impersonation';
 import { urlApiServeur } from '@/lib/api';
-import { enTetesDuRelais } from '@/lib/relais-api';
+import { enTetesDuRelais, fetchVersApi } from '@/lib/relais-api';
 
 export async function GET(request: NextRequest) {
   const token = jetonEspaceApplicatif(request.cookies);
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const activeProfileId = profilActifEspaceApplicatif(request.cookies);
   if (activeProfileId) headers['X-Active-Profile-Hint'] = activeProfileId;
 
-  const upstream = await fetch(urlApiServeur(`/me/subscription${request.nextUrl.search}`), { headers });
+  const upstream = await fetchVersApi(urlApiServeur(`/me/subscription${request.nextUrl.search}`), { headers }, { requete: request });
   return new NextResponse(await upstream.text(), {
     status: upstream.status,
     headers: { 'Content-Type': upstream.headers.get('content-type') ?? 'application/json' },

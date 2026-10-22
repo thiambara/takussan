@@ -5,9 +5,9 @@ namespace App\Notifications;
 use App\Models\Enums\Currency;
 use App\Models\Lease;
 use App\Models\User;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Media\PrivateMediaAccess;
-use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -16,7 +16,11 @@ use Illuminate\Notifications\Notification;
 
 /**
  * TCK-088 — Sent to the tenant when their lease deposit has been refunded.
- * Channel selection respects each user's preferences via PreferenceResolver.
+ *
+ * TCK-1193 (P75.02) — envoi transactionnel unique, non désactivable (précédent de TCK-593 pour une
+ * somme rendue) : cloche, e-mail et push partent toujours. L'événement `lease_deposit_refunded`
+ * que `via()` passait au résolveur n'avait aucun interrupteur (absent de
+ * `PreferenceResolver::EVENTS`) : l'appel ne commandait rien.
  *
  * Refund attachments (photos, repair invoices) are exposed as signed API
  * URLs on the in-app payload and as inline links in the mail body so the
@@ -36,8 +40,7 @@ use Illuminate\Notifications\Notification;
 class LeaseDepositRefundNotification extends Notification implements ShouldQueue
 {
     use Queueable;
-
-    public const EVENT_TYPE = 'lease_deposit_refunded';
+    use RetriesWithBackoff;
 
     public const ATTACHMENT_LINK_TTL_DAYS = 7;
 
@@ -53,20 +56,7 @@ class LeaseDepositRefundNotification extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        $resolver = app(PreferenceResolver::class);
-        $channels = [];
-
-        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_INAPP)) {
-            $channels[] = 'database';
-        }
-        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_EMAIL)) {
-            $channels[] = 'mail';
-        }
-        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_PUSH)) {
-            $channels[] = 'broadcast';
-        }
-
-        return $channels;
+        return ['database', 'mail', 'broadcast'];
     }
 
     public function toMail(object $notifiable): MailMessage

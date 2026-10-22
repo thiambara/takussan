@@ -21,6 +21,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Invitation\InvitationService;
 use App\Services\Payout\PayoutApprovalThreshold;
 use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Builder;
@@ -59,7 +60,7 @@ class AgencyController extends Controller
         $agency = Agency::create(array_merge($data, [
             'primary_admin_id' => $user->id,
             'currency' => $data['currency'] ?? Currency::default()->value,
-            'status' => $data['status'] ?? AgencyStatus::Active->value,
+            'status' => AgencyStatus::Active->value,
         ]));
         // TCK-633 lot F (ADR-0061 §3) — un espace qui naît ici, d'un titulaire au numéro déjà
         // vérifié, reçoit sa bienvenue : aucun `PhoneVerified` ne viendra plus la rattraper.
@@ -153,7 +154,11 @@ class AgencyController extends Controller
         );
         // destroy is intentionally restricted to super_admin and primary_admin_id — agency_admin can edit but not delete.
 
-        $agency->delete();
+        // P129.03 (TCK-1339) — ses invitations ouvertes tombent avec elle.
+        DB::transaction(function () use ($agency, $user): void {
+            app(InvitationService::class)->revokeOpenForAgency($agency, $user);
+            $agency->delete();
+        });
 
         return $this->json(null, 204);
     }
@@ -172,12 +177,10 @@ class AgencyController extends Controller
         $this->authorizeAdmin($request, $agency);
 
         // TCK-142 — "members" of an agency are users with any agency-scoped
-        // profile (owner or agent) at that agency, replacing the old direct
-        // foreign-key filter on the user.
-        $base = User::query()->where(function ($q) use ($agency) {
-            $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agency->id))
-                ->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agency->id));
-        });
+        // profile at that agency, replacing the old direct foreign-key filter
+        // on the user. P120.02 (TCK-1244) — administrators included: a member
+        // promoted to `agency_admin` keeps only that profile.
+        $base = User::query()->membreDe((int) $agency->id);
         // P88.03 (TCK-1096) — `filter[role]` juge le profil DANS cette agence, et
         // `filter[assignable]=1` ne garde que le personnel joignable (`User::buildAgencyMembersQuery`).
         // Le filtre de rôle était résolu ici, après coup, par un `whereHas` sans agence : un

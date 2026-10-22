@@ -1,19 +1,17 @@
 'use client';
 
-import { useMemo } from 'react';
 import { useConversations } from '@/lib/queries/conversations-list';
 import { useAuth } from '@/context/AuthContext';
 
 /**
- * TCK-274 — Derive the global unread badge value from the conversation list
+ * TCK-274 — The global unread badge value, read from the conversation list
  * already cached by `useConversations`. No extra endpoint, no extra polling
  * — the existing 10 s list refetch is the source of truth.
  *
  * Rules:
- *   - sum `unread_count` over conversations the current user actively
- *     participates in (`left_at = null`)
- *   - drop conversations the user has muted (those still ring on the page
- *     but should not pull attention from the floating badge)
+ *   - `meta.unread_total`, counted by the API over the WHOLE list (TCK-1387),
+ *     muted conversations excluded (they still ring on the page but should
+ *     not pull attention from the floating badge)
  *   - return 0 while loading or for anonymous visitors
  *
  * TCK-377 — `enabled` : la barre latérale de `/app` lit ce compteur pour la pastille de
@@ -27,19 +25,9 @@ export function useUnreadCount(options: { enabled?: boolean } = {}): number {
   const { user } = useAuth();
   const { data, isLoading } = useConversations({}, { enabled });
 
-  return useMemo(() => {
-    if (!enabled || isLoading || !data?.data || !user) return 0;
-    return data.data.reduce((sum, conversation) => {
-      const unread = conversation.unread_count ?? 0;
-      if (unread <= 0) return sum;
-
-      const myParticipant = conversation.participants?.find(
-        (p) => p.user_id === user.id && !p.left_at,
-      );
-      if (!myParticipant) return sum;
-      if (myParticipant.is_muted) return sum;
-
-      return sum + unread;
-    }, 0);
-  }, [data, enabled, isLoading, user]);
+  // TCK-1387 (P135.02) — le total vient de l'API (`meta.unread_total`), compté sur toute la liste
+  // hors fils en sourdine : additionner les `unread_count` de la page ignorait les fils au-delà
+  // des 30 premiers.
+  if (!enabled || isLoading || !user) return 0;
+  return data?.meta?.unread_total ?? 0;
 }

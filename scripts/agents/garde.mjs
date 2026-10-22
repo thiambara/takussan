@@ -21,6 +21,7 @@
  *   PISTES_SORTIE   son dossier de rapport, hors du dépôt
  *   PISTES_DEPOT    l'arbre principal du porteur (interdit)
  *   PISTES_JOURNAL  fichier où chaque refus est consigné
+ *   PISTES_ROLE     le rôle ; `superviseur` (amendement « le superviseur » du 2026-10-21) a quelques droits de plus
  */
 import { appendFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -30,9 +31,18 @@ const ARBRE = process.env.PISTES_ARBRE ?? '';
 const SORTIE = process.env.PISTES_SORTIE ?? '';
 const DEPOT = process.env.PISTES_DEPOT ?? '';
 const JOURNAL = process.env.PISTES_JOURNAL ?? '';
+// Le superviseur propose aussi des correctifs des outils (sa PR attend le porteur), lit launchd, et
+// agit sur l'état des agents par `pistes.sh action` seulement (ADR-0066, amendement « le superviseur » du 2026-10-21).
+const SUPERVISEUR = process.env.PISTES_ROLE === 'superviseur';
 
 // Chemins qui bornent les agents : ni l'outil d'écriture ni le shell n'y écrivent.
 const BORNES = ['.agent/', '.claude/', 'scripts/agents/', 'scripts/check-pistes.mjs', '.github/', 'docs/adr/0066-'];
+// L'état des agents hors de leurs arbres : outils installés, réglages, pauses, verrous, jobs launchd.
+// Aucun rôle n'y écrit par le shell, superviseur compris : il passe par `pistes.sh action`. L'outil
+// d'écriture n'y atteint déjà pas (hors de l'arbre) ; une redirection shell, si.
+const ETAT_DES_AGENTS = /(\.takussan-agents|PISTES_BASE\}?)\/(outils|config\.env|machine\.env|PAUSE|verrous|etat|journal\.tsv|journaux|env)\b|Library\/LaunchAgents/;
+// Sous-commandes de pistes.sh : le porteur installe, planifie et met en pause ; launchd lance.
+const PILOTAGE = /\bpistes\.sh["']?\s+(installer|planifier|deplanifier|pause|reprendre|lancer|fusionner|action)\b/g;
 
 // Règles sur le texte d'une commande shell : [motif, raison]. La première qui correspond refuse.
 const COMMANDES = [
@@ -75,16 +85,16 @@ const recherche_locale_seule = (cmd) => {
 // Une écriture shell vise-t-elle un chemin qui borne les agents ? On ne regarde que les CIBLES :
 // la mention d'un tel chemin dans un message de commit, un heredoc ou un argument de `node` n'est
 // pas une écriture (trois faux positifs du 2026-10-15, au premier passage à blanc).
-function ecritUneBorne(cmd) {
+function ecritVers(cmd, vise) {
   const s = cmd
     .replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\2(?=\n|$)/g, ' ')
     .replace(/(["'])(?:(?!\1)[^\\]|\\.)*?\s(?:(?!\1)[^\\]|\\.)*?\1/g, '""');
   for (const m of s.matchAll(/(?:^|[^0-9&<>])>>?\s*("[^"]*"|'[^']*'|[^\s;|&]+)/g)) {
-    if (BORNES.some((b) => m[1].includes(b))) return true;
+    if (vise(m[1])) return true;
   }
   return s
     .split(/;|&&|\|\||\|/)
-    .some((seg) => /\b(tee|cp|mv|rm|ln|touch|chmod|install)\b|\bsed\s+-i|\bperl\s+-[a-z]*i/.test(seg) && BORNES.some((b) => seg.includes(b)));
+    .some((seg) => /\b(tee|cp|mv|rm|ln|touch|chmod|install)\b|\bsed\s+-i|\bperl\s+-[a-z]*i/.test(seg) && vise(seg));
 }
 
 function refuser(raison, detail) {
@@ -103,13 +113,16 @@ function refuser(raison, detail) {
 const dans = (chemin, racine) => racine && (chemin === racine || chemin.startsWith(racine.endsWith('/') ? racine : `${racine}/`));
 const TEMPS = [tmpdir(), '/tmp', '/private/tmp', '/var/folders', '/private/var/folders'];
 
+const viseUneBorne = (texte) => BORNES.some((b) => texte.includes(b));
+const viseLEtat = (texte) => ETAT_DES_AGENTS.test(texte);
+
 function verifierChemin(brut, cwd) {
   const chemin = normalize(isAbsolute(brut) ? brut : resolve(cwd || ARBRE, brut));
   if (DEPOT && dans(chemin, DEPOT)) refuser("l'arbre principal du porteur est interdit", chemin);
   if (dans(chemin, SORTIE) || TEMPS.some((t) => dans(chemin, t))) return;
   if (!dans(chemin, ARBRE)) refuser('écriture hors de ton arbre de travail', chemin);
   const relatif = chemin.slice(ARBRE.length + 1);
-  if (BORNES.some((b) => relatif.startsWith(b))) refuser('ce chemin borne les agents et appartient au porteur', relatif);
+  if (!SUPERVISEUR && BORNES.some((b) => relatif.startsWith(b))) refuser('ce chemin borne les agents et appartient au porteur', relatif);
   if (/(^|\/)\.env(\.|$)/.test(relatif) && !/\.env\.(example|docker)$/.test(relatif)) refuser('un .env ne se modifie pas', relatif);
 }
 
@@ -127,15 +140,53 @@ function sansTexteRecopie(cmd) {
   );
 }
 
+// Seulement des tests ciblés (porteur, 2026-10-21) : plusieurs agents partagent la machine, et une
+// sélection large chez l'un fait tomber les autres en « charge ». La CI de la PR joue tout le reste.
+// Jugé segment par segment, en position de commande : `grep "artisan test" docs/` reste une lecture.
+const PREFIXE = String.raw`^\s*\(?\s*(\w+=\S*\s+)*(time\s+|nohup\s+|exec\s+)?`;
+const TESTS_API = new RegExp(`${PREFIXE}(php\\s+(-d\\s*\\S+\\s+)*)?(artisan\\s+test|\\S*vendor/bin/(phpunit|pest|paratest)|\\S*vendor/phpunit/phpunit/phpunit)\\b`);
+const IMPACTES = new RegExp(`${PREFIXE}php\\s+(\\S*/)?bin/impacted-tests\\.php\\b`);
+const TESTS_FRONT = new RegExp(`${PREFIXE}((npm|pnpm|yarn)\\s+(run\\s+)?test(:[\\w-]+)?|(npx\\s+)?vitest)\\b`);
+function testsNonCibles(commande) {
+  for (const seg of commande.split(/;|&&|\|\||\||\n/)) {
+    if (TESTS_API.test(seg)) {
+      if (/\s--(parallel|coverage[\w-]*)\b|\s-p(\s|$)/.test(seg)) return 'pas de tests en parallèle ni de couverture : la CI de la PR les joue';
+      if (!/\btests\/\S|\w+Test(\.php)?\b|--filter\b/.test(seg)) return 'pas de suite entière : nomme les classes ou fichiers de test de tes pistes';
+    }
+    if (IMPACTES.test(seg) && /\s--run\b/.test(seg)) return "pas d'impacted-tests --run : les tests de tes pistes seulement, la CI joue le reste";
+    if (TESTS_FRONT.test(seg)) {
+      if (/\s--coverage\b/.test(seg)) return 'pas de couverture : la CI de la PR la joue';
+      if (!/\.(test|spec)\.[cm]?[jt]sx?\b|\bsrc\/\S|__tests__/.test(seg)) return 'pas de suite entière du front : nomme les fichiers de test de tes pistes';
+    }
+  }
+  return null;
+}
+
 function verifierCommande(cmd, cwd) {
   if (DEPOT && cwd && dans(normalize(cwd), DEPOT)) refuser("l'arbre principal du porteur est interdit (répertoire courant)", cwd);
   if (DEPOT && cmd.includes(DEPOT)) refuser("l'arbre principal du porteur est interdit", cmd);
-  const commande = sansTexteRecopie(cmd);
+  let commande = sansTexteRecopie(cmd);
+  for (const [, sous] of commande.matchAll(PILOTAGE)) {
+    if (sous !== 'action' || !SUPERVISEUR) refuser(`pistes.sh ${sous} : les outils des agents se pilotent par le porteur`, cmd);
+  }
+  if (SUPERVISEUR) {
+    // Ses actions passent par l'outil INSTALLÉ, jamais par la copie de son arbre, qu'il peut modifier.
+    if (/pistes\.sh["']?\s+action\b/.test(commande) && !/(\.takussan-agents|PISTES_BASE\}?)\/outils\/pistes\.sh["']?\s+action\b/.test(commande)) {
+      refuser("pistes.sh action se lance depuis l'outil installé ($PISTES_BASE/outils/pistes.sh)", cmd);
+    }
+    if (/(^|[;&|(`\n]\s*|\b(xargs|exec|nohup|time)\s+)kill\b/.test(commande)) refuser('un processus se tue par « pistes.sh action balayer »', cmd);
+    if (/\bgh\s+run\s+rerun\b/.test(commande)) refuser('un run se rejoue par « pistes.sh action relancer-ci »', cmd);
+    // Lire launchd est son métier ; le reste de launchctl reste refusé, à lui comme aux autres.
+    commande = commande.replace(/\blaunchctl\s+(list|print)\b/g, 'lecture-launchd');
+  }
+  const tests = testsNonCibles(commande);
+  if (tests) refuser(tests, cmd);
   for (const [motif, raison] of COMMANDES) {
     if (raison === "pas d'écriture HTTP" && recherche_locale_seule(commande)) continue;
     if (motif.test(commande)) refuser(raison, cmd);
   }
-  if (ecritUneBorne(cmd)) refuser('ce chemin borne les agents et appartient au porteur', cmd);
+  if (!SUPERVISEUR && ecritVers(cmd, viseUneBorne)) refuser('ce chemin borne les agents et appartient au porteur', cmd);
+  if (ecritVers(cmd, viseLEtat)) refuser("l'état des agents (outils, réglages, pauses, verrous, launchd) ne s'écrit pas par le shell", cmd);
   // rm récursif ou forcé hors de l'arbre, de la sortie et des dossiers temporaires.
   const rm = cmd.match(/\brm\s+((?:-[a-zA-Z]+\s+)+)([^|;&]+)/);
   if (rm && /[rf]/i.test(rm[1])) {

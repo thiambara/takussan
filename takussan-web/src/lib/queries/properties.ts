@@ -57,7 +57,6 @@ export {
   deletePropertyMedia,
   reorderPropertyMedia,
   setPropertyTags,
-  fetchPropertyPriceHistory,
 } from './properties-server';
 
 // ─────────────────────────────────────────────────────────────────────────────

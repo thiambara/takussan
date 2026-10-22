@@ -28,6 +28,30 @@ describe('<DashboardMeKpis>', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
+  // P127.06 (TCK-1363) — les tuiles suivent la langue de l'interface : la locale `'fr'` était écrite
+  // en dur, et un anglophone lisait « 12 345 » et des dates en français.
+  it('formats numbers, amounts and dates in the active locale, not in French', () => {
+    const { unmount } = render(withIntl(<DashboardMeKpis
+        role="agency_admin"
+        metrics={{ properties_total: 12345, leases_active: 31, revenue_month: 1540000, overdue_count: 3 }}
+      />, 'en'));
+    expect(screen.getByText('12,345')).toBeInTheDocument();
+    expect(screen.getByText(/1,540,000/)).toBeInTheDocument();
+    unmount();
+
+    render(withIntl(<DashboardMeKpis
+        role="tenant"
+        metrics={{
+          leases_active: 1,
+          next_payment: { amount: 250000, due_date: '2026-11-05' },
+          overdue_amount: 0,
+          recent_documents: [],
+        }}
+      />, 'en'));
+    expect(screen.getByText(/250,000/)).toBeInTheDocument();
+    expect(screen.getByText(/Nov/)).toBeInTheDocument();
+  });
+
   it('TCK-595 (verif-595 M1) — sans reports.view_agency, ni revenu ni impayés (clés absentes)', () => {
     render(withIntl(<DashboardMeKpis role="agency_admin" metrics={{ properties_total: 42, leases_active: 31 }} />));
 

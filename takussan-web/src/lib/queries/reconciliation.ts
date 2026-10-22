@@ -1,4 +1,8 @@
+import { useQuery } from '@tanstack/react-query';
+import { useLocale } from 'next-intl';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
+import { useAuth } from '@/context/AuthContext';
+import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type {
   BankLineDirection,
@@ -9,7 +13,8 @@ import type {
   MatchCandidate,
   MatchedPaymentType,
 } from '@/types/reconciliation';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
+import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
 
 /**
  * TCK-593 (Partie 4) — rapprochement bancaire.
@@ -28,12 +33,26 @@ export const reconciliationKeys = {
     ['reconciliation', 'search', agencyId, q, amount, direction] as const,
 };
 
+/**
+ * TCK-1373 (P135.05) — TOUS les relevés de l'agence, page par page : la liste n'a pas de
+ * pagination, et une page de 50 laissait les plus anciens hors de l'écran.
+ */
 export function useBankStatements(agencyId: number) {
-  return useApiQuery<PaginatedResponse<BankStatement>>(
-    reconciliationKeys.statements(agencyId),
-    cheminApi`/api/agencies/${agencyId}/bank-statements`,
-    { params: { sort: '-created_at', per_page: 50 } },
-  );
+  const locale = useLocale();
+  const { token } = useAuth();
+
+  return useQuery<PaginatedResponse<BankStatement>, ApiError>({
+    queryKey: reconciliationKeys.statements(agencyId),
+    queryFn: ({ signal }) =>
+      lireToutesLesPages((page) =>
+        apiRequest<PaginatedResponse<BankStatement>>(
+          cheminApi`/api/agencies/${agencyId}/bank-statements${requete(
+            buildQueryString({ sort: '-created_at', page, per_page: PAR_PAGE_MAX }),
+          )}`,
+          { token: token ?? undefined, locale, signal },
+        ),
+      ),
+  });
 }
 
 export function useBankStatement(id: number) {

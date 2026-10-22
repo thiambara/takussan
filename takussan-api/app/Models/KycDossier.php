@@ -66,7 +66,8 @@ class KycDossier extends AbstractModel implements HasAuditAgency, HasMedia
                     'Agency' => Agency::class,
                     default => $value,
                 });
-            }),
+                // TCK-1401 (P151.01) — une valeur, jamais une liste : sans délimiteur, `a,b` en tableau.
+            })->delimiter(''),
         ];
     }
 

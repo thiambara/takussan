@@ -4,9 +4,11 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\AuthorizesTransitionally;
+use App\Models\Booking;
 use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
+use App\Services\Booking\BookingMoneyAccess;
 use Illuminate\Validation\Rule;
 
 /**
@@ -38,15 +40,36 @@ class StoreBookingPaymentRequest extends BaseFormRequest
         return $this->canManageBooking($this->route('booking'));
     }
 
+    /**
+     * Le client de la réservation qui n'en est pas aussi l'encaisseur : son paiement part `pending`
+     * vers la passerelle, au montant que l'API dérive.
+     */
+    public function payeurClient(): bool
+    {
+        $booking = $this->route('booking');
+        $user = $this->user();
+
+        return $booking instanceof Booking
+            && $user !== null
+            && $booking->customer !== null
+            && $booking->customer->user_id === $user->id
+            && ! BookingMoneyAccess::canRecordAsCollector($user, $booking);
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
-            'amount' => ['required', 'numeric', 'min:0'],
-            'payment_type' => ['required', Rule::enum(BookingPaymentType::class)],
+            // TCK-1309 (P133.05) — le client ne fixe plus le montant : l'API le dérive (acompte, puis
+            // reste dû), et ignore ce qu'il envoie. Le personnel le saisit, toujours.
+            'amount' => [Rule::requiredIf(fn () => ! $this->payeurClient()), 'nullable', 'numeric', 'min:0'],
+            'payment_type' => [Rule::requiredIf(fn () => ! $this->payeurClient()), 'nullable', Rule::enum(BookingPaymentType::class)],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             // VERIF-596 passe 5 — `cancelled` n'est posé que par le renouvellement d'un bail.
-            'status' => ['nullable', Rule::enum(PaymentStatus::class)->except([PaymentStatus::Cancelled])],
+            // TCK-1311 (P147.09) — une ligne saisie à la main naît `paid`, `pending` ou
+            // `partially_paid` : `refunded` passe par le geste `refund`, `failed` et `late` ne se
+            // déclarent pas à la création.
+            'status' => ['nullable', Rule::enum(PaymentStatus::class)->only([PaymentStatus::Paid, PaymentStatus::Pending, PaymentStatus::PartiallyPaid])],
             'paid_at' => ['nullable', 'date'],
             'transaction_id' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],

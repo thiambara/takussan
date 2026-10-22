@@ -19,7 +19,7 @@ interface MaintenanceNewLauncherProps {
 /**
  * TCK-174 — customer-side launcher for a new maintenance request.
  *
- * Loads the active leases of the connected user, exposes the linked
+ * Loads the ongoing (active or under notice) leases of the connected user, exposes the linked
  * properties through a `Bien concerné` selector, and renders the
  * existing `<MaintenanceForm>` once a target is picked.
  *
@@ -33,7 +33,9 @@ export function MaintenanceNewLauncher({
 }: MaintenanceNewLauncherProps) {
   const t = useTranslations('maintenance.launcher');
   const tCommon = useTranslations('common');
-  const leasesQuery = useLeases({ status: 'active', per_page: 50 });
+  // TCK-1436 — les baux où l'API accepte la demande (TCK-1001) : un locataire en préavis habite
+  // encore le logement. `filter[status]` est exact et accepte une liste.
+  const leasesQuery = useLeases({ status: 'active,terminating', per_page: 50 });
   const { data, isLoading, isError } = leasesQuery;
 
   const options = useMemo(() => {

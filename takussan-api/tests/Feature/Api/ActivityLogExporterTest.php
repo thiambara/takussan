@@ -307,4 +307,73 @@ class ActivityLogExporterTest extends ApiTestCase
             $this->assertStringNotContainsString($temoin, $body);
         }
     }
+
+    // ─── TCK-1364 (P84.01) — le NINEA d'une agence est une mention légale publique ──────────
+
+    /** @return array<string, string> la ligne `updated` de l'export pour ce sujet (sa création en a une autre). */
+    private function ligneExportee(string $subjectType, int $subjectId): array
+    {
+        $body = $this->apiGet('/api/activity-logs/export?format=csv')->assertOk()->streamedContent();
+        $lignes = array_map('str_getcsv', preg_split('/\R/', trim(substr($body, 3))));
+        $entete = array_shift($lignes);
+        $ligne = collect($lignes)
+            ->map(fn (array $valeurs) => array_combine($entete, $valeurs))
+            ->first(fn (array $l) => $l['event'] === 'updated'
+                && $l['subject_type'] === class_basename($subjectType)
+                && (int) $l['subject_id'] === $subjectId);
+        $this->assertNotNull($ligne, "La ligne {$subjectType}#{$subjectId} manque à l'export.");
+
+        return $ligne;
+    }
+
+    /**
+     * ADR-0044, amendement du 2026-10-22 : la clé `ninea` d'une ligne dont le sujet est une agence
+     * sort en clair ; toute autre clé d'identifiant de la même ligne (`rib`) reste expurgée.
+     */
+    public function test_le_ninea_d_une_agence_sort_en_clair_a_cote_d_un_rib_expurge(): void
+    {
+        $agency = Agency::factory()->create();
+        $causer = User::factory()->create();
+        Activity::create([
+            'log_name' => 'default',
+            'description' => 'updated',
+            'event' => 'updated',
+            'subject_type' => Agency::class,
+            'subject_id' => $agency->id,
+            'causer_type' => User::class,
+            'causer_id' => $causer->id,
+            'attribute_changes' => [
+                'attributes' => ['ninea' => '0012345672G3', 'rib' => 'SN012-RIB-NOUVEAU'],
+                'old' => ['ninea' => '0099999992G3', 'rib' => 'SN012-RIB-ANCIEN'],
+            ],
+        ]);
+        $this->apiActingAsRole('super_admin');
+
+        $diff = json_decode($this->ligneExportee(Agency::class, $agency->id)['properties_diff'], true);
+
+        $this->assertSame('0012345672G3', $diff['attributes']['ninea'] ?? null);
+        $this->assertSame('0099999992G3', $diff['old']['ninea'] ?? null);
+        $this->assertSame(PropertyRedactor::REDACTED, $diff['attributes']['rib'] ?? null);
+        $this->assertSame(PropertyRedactor::REDACTED, $diff['old']['rib'] ?? null);
+    }
+
+    public function test_le_ninea_d_un_autre_sujet_reste_expurge(): void
+    {
+        $causer = User::factory()->create();
+        Activity::create([
+            'log_name' => 'default',
+            'description' => 'updated',
+            'event' => 'updated',
+            'subject_type' => User::class,
+            'subject_id' => $causer->id,
+            'causer_type' => User::class,
+            'causer_id' => $causer->id,
+            'attribute_changes' => ['attributes' => ['ninea' => '0012345672G3'], 'old' => ['ninea' => null]],
+        ]);
+        $this->apiActingAsRole('super_admin');
+
+        $diff = json_decode($this->ligneExportee(User::class, $causer->id)['properties_diff'], true);
+
+        $this->assertSame(PropertyRedactor::REDACTED, $diff['attributes']['ninea'] ?? null);
+    }
 }

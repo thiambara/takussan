@@ -63,12 +63,11 @@ const ALL = '__all__';
  */
 const PARAMS_DE_FILTRE = ['search', 'role', 'agency', 'status', 'email', 'twoFactor'] as const;
 
-/** Le statut du compte → le ton du DS. `banned` et `blocked` disent la même gravité. */
+/** Le statut du compte → le ton du DS. */
 const USER_STATUS_TONES: Record<string, StatusTone> = {
   active: 'success',
   inactive: 'neutral',
   blocked: 'danger',
-  banned: 'danger',
 };
 
 /**
@@ -91,7 +90,6 @@ const STATUS_OPTIONS: { value: string; labelKey: string }[] = [
   { value: 'active', labelKey: 'statuses.active' },
   { value: 'blocked', labelKey: 'statuses.blocked' },
   { value: 'inactive', labelKey: 'statuses.inactive' },
-  { value: 'banned', labelKey: 'statuses.banned' },
 ];
 
 const EMAIL_OPTIONS: { value: string; labelKey: string }[] = [
@@ -148,6 +146,7 @@ async function fetchUsers(params: UsersParams): Promise<UsersResponse> {
   if (params.twoFactor) qs.set('filter[two_factor_enabled]', params.twoFactor);
   qs.set('page', String(params.page));
   qs.set('per_page', '20');
+  // P100.05 (TCK-1186) — `fields` inerte : `Admin\UserDetailController::index` est une liste écrite à la main.
   qs.set(
     'fields[users]',
     'id,first_name,last_name,email,phone,status,email_verified_at,two_factor_enabled,last_login_at,created_at',

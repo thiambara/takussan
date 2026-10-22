@@ -13,6 +13,7 @@ import { submitContactMessage } from '@/app/actions/property';
 import { construireBrouillonBien } from '@/lib/messages/brouillonBien';
 import { propertyConversationQueryKey } from '@/lib/queries/conversations';
 import { useTriggerMinimalProfileOnce } from '@/hooks/useTriggerMinimalProfileOnce';
+import { useCleIdempotence } from '@/hooks/useCleIdempotence';
 import { ChatComposerShell } from './ChatComposerShell';
 
 export interface BienDuFilNeuf {
@@ -80,6 +81,8 @@ export function PropertyDraftChatView({
   );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // TCK-1408 (ADR-0072) — renvoyé après une réponse perdue, le premier message ne s'écrit qu'une fois.
+  const idempotence = useCleIdempotence();
 
   async function envoyer(e: React.FormEvent): Promise<void> {
     e.preventDefault();
@@ -89,7 +92,8 @@ export function PropertyDraftChatView({
     setError(null);
     triggerIfNeeded();
     try {
-      const res = await submitContactMessage(property.slug, texte);
+      const res = await submitContactMessage(property.slug, texte, idempotence.cle());
+      idempotence.apres(res);
       if (!res.ok || !res.data) {
         setError(res.ok ? t('chat.loadError') : res.message);
         return;

@@ -1,7 +1,7 @@
 # Règles communes aux agents des pistes
 
-> Lu en premier par `pistes-explorateur`, `pistes-mesureur`, `pistes-implementeur` et
-> `pistes-delegue`. La décision, le format du fichier et les critères de classement sont dans
+> Lu en premier par `pistes-explorateur`, `pistes-mesureur`, `pistes-implementeur`,
+> `pistes-delegue` et `pistes-superviseur` (qui a trois différences, écrites dans ses instructions). La décision, le format du fichier et les critères de classement sont dans
 > [ADR-0066](../../../docs/adr/0066-trois-agents-sur-les-pistes-d-amelioration.md). **Lis ses § 2
 > et § 3 avant d'écrire une ligne dans le fichier de pistes.**
 
@@ -54,10 +54,13 @@ faute, même si elle passe.
   d'autre chose se fait sans lui, et ta PR le dit.
 - **Modifier tes propres bornes** : `.agent/agents/`, `.claude/`, `scripts/agents/`,
   `scripts/check-pistes.mjs`, la CI, l'ADR-0066.
-- **Lancer une suite entière** (`php artisan test` sans argument, `npm run test`,
-  `php artisan test --parallel`, une couverture). La CI de la PR les joue. Toi, tu lances les
-  classes et fichiers que tu touches, ou `php bin/impacted-tests.php --run`. Son option
-  `--parallel` est permise : elle ne répartit que la sélection, jamais la suite.
+- **Lancer autre chose que des tests ciblés** (porteur, 2026-10-21) : jamais de suite entière
+  (`php artisan test` ou `npm run test` sans fichier), jamais `--parallel`, jamais
+  `bin/impacted-tests.php --run`, jamais de couverture. Tu lances **les classes et fichiers de
+  test de tes pistes** — ceux que tu écris, et ceux qui couvrent le code que tu touches —, un
+  fichier ou une classe nommés à la fois. Tout le reste, la CI de la PR le joue sur GitHub.
+  Plusieurs agents partagent la machine : une sélection large chez l'un fait tomber les autres
+  en « charge ». La garde refuse ces commandes.
 
 ## Comment tu établis un fait
 

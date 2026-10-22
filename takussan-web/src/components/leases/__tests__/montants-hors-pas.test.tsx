@@ -35,6 +35,11 @@ vi.mock('@/lib/queries/leases', () => ({
 }));
 vi.mock('@/lib/queries/bookings', () => ({ useCreateBookingPayment: () => MUTATION }));
 vi.mock('@/lib/queries/payments', () => ({ useCreateInvoice: () => MUTATION }));
+// TCK-1413 : le dialogue de facture lit les réglages de l'agence par `useApiQuery`, qui exige un
+// QueryClient ; ce test ne garde que le pas des champs, les réglages restent « pas encore lus ».
+vi.mock('@/hooks/useAgencyInvoiceDefaults', () => ({
+  useAgencyInvoiceDefaults: () => ({ taxRate: null, currency: null, ready: false }),
+}));
 
 import { CreateLeaseForm } from '../CreateLeaseForm';
 import { DepositRefundModal } from '../DepositRefundModal';

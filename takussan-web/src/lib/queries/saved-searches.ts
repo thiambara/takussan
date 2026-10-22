@@ -68,6 +68,8 @@ export function useSavedSearchesQuery(options: { enabled?: boolean } = {}) {
     '/api/saved-searches',
     {
       enabled: options.enabled,
+      // P100.05 (TCK-1186) — `fields` inerte : `SavedSearchController::index` ne passe pas par `buildQuery`
+      // (`SavedSearch::$queryFields` vide).
       params: { fields: { saved_searches: SAVED_SEARCH_FIELDS } },
     },
   );

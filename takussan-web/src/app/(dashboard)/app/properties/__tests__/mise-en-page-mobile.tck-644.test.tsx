@@ -22,6 +22,7 @@ vi.mock('@/lib/queries/properties-server', () => ({
     data: [],
     meta: { total: 0, current_page: 1, last_page: 1, per_page: 1 },
   }),
+  countDashboardProperties: async () => 0,
 }));
 
 const recu = vi.hoisted(() => ({

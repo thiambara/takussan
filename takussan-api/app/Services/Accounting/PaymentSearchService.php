@@ -6,9 +6,11 @@ use App\Models\Agency;
 use App\Models\BookingPayment;
 use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\PayoutStatus;
+use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Models\PlatformPayout;
 use Illuminate\Support\Collection;
 
 class PaymentSearchService
@@ -18,6 +20,7 @@ class PaymentSearchService
         LeasePayment::class => 'lease_payment',
         Invoice::class => 'invoice',
         Payout::class => 'payout',
+        PlatformPayout::class => 'platform_payout',
     ];
 
     /**
@@ -36,6 +39,8 @@ class PaymentSearchService
             $candidates = $candidates->merge($this->searchBookingPayments($agency, $query, $amountHint));
             $candidates = $candidates->merge($this->searchLeasePayments($agency, $query, $amountHint));
             $candidates = $candidates->merge($this->searchInvoices($agency, $query, $amountHint));
+            // TCK-1421 (P141.02) — le virement de clôture de la plateforme est un crédit.
+            $candidates = $candidates->merge($this->searchPlatformPayouts($agency, $query, $amountHint));
         }
 
         if ($direction !== BankStatementLineDirection::Credit) {
@@ -54,8 +59,8 @@ class PaymentSearchService
     private function searchBookingPayments(Agency $agency, string $query, ?float $amountHint): Collection
     {
         $base = BookingPayment::query()
-            ->whereNull('bank_reconciled_at')
-            ->whereHas('booking', fn ($q) => $q->whereHas('property', fn ($q2) => $q2->where('agency_id', $agency->id)));
+            // TCK-1417 (P141.04) — le scope du matcher.
+            ->awaitingBankCredit($agency->id);
 
         $this->applySearch($base, $query, $amountHint);
 
@@ -74,12 +79,9 @@ class PaymentSearchService
     /** @return Collection<int, MatchCandidate> */
     private function searchLeasePayments(Agency $agency, string $query, ?float $amountHint): Collection
     {
-        // TCK-594 (VERIF-594 passe 5, P5-2) — une caution rendue sort du compte : la recherche d'un
-        // encaissement ne la propose pas.
-        $base = LeasePayment::query()
-            ->whereNull('bank_reconciled_at')
-            ->whereHas('lease', fn ($q) => $q->where('agency_id', $agency->id))
-            ->exceptDepositRefunds();
+        // TCK-1417 (P141.04) — le scope du matcher : sans les cautions rendues (TCK-594) ni les
+        // loyers encaissés par la plateforme (TCK-1415).
+        $base = LeasePayment::query()->awaitingBankCredit($agency->id);
 
         // TCK-715 (P25.01) — le montant attendu sur le compte, celui que compare le matcher : une
         // échéance payée en ligne pénalité comprise arrive pour 157 500, pas pour `amount`.
@@ -103,11 +105,8 @@ class PaymentSearchService
     /** @return Collection<int, MatchCandidate> */
     private function searchInvoices(Agency $agency, string $query, ?float $amountHint): Collection
     {
-        // TCK-724 (P25.04) — les seules factures encaissables, comme le matcher.
-        $base = Invoice::query()
-            ->whereNull('bank_reconciled_at')
-            ->where('agency_id', $agency->id)
-            ->reconcilable();
+        // TCK-1417 (P141.04) — le scope du matcher : les seules factures encaissables (TCK-724).
+        $base = Invoice::query()->awaitingBankCredit($agency->id);
 
         if ($query !== '') {
             $base->where(function ($q) use ($query) {
@@ -160,6 +159,34 @@ class PaymentSearchService
             reference: $p->reference_number,
             paidAt: $p->processed_at?->toDateString(),
             payerName: $p->landlord?->full_name,
+        ));
+    }
+
+    /** @return Collection<int, MatchCandidate> */
+    private function searchPlatformPayouts(Agency $agency, string $query, ?float $amountHint): Collection
+    {
+        $base = PlatformPayout::query()
+            ->whereNull('bank_reconciled_at')
+            ->where('status', PlatformPayoutStatus::Paid)
+            ->where('agency_id', $agency->id);
+
+        if ($query !== '') {
+            $base->where('payment_reference', 'like', "%{$query}%");
+        }
+
+        if ($amountHint !== null) {
+            $base->whereRaw('ABS(net_amount - ?) < 1', [$amountHint]);
+        }
+
+        return $base->limit(10)->get()->map(fn (PlatformPayout $p) => new MatchCandidate(
+            id: $p->id,
+            type: 'platform_payout',
+            label: "Platform payout {$p->payment_reference}",
+            amount: (string) $p->net_amount,
+            currency: (string) $p->currency,
+            reference: $p->payment_reference,
+            paidAt: $p->processed_at?->toDateString(),
+            payerName: null,
         ));
     }
 

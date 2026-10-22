@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Notifications\CodedNotification;
 use App\Notifications\Concerns\SupportsSms;
 use App\Services\Notifications\PreferenceResolver;
+use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
@@ -83,10 +84,16 @@ class SmsChannel
             'is_critical' => $isCritical,
             // TCK-766 — un code à usage unique garde le repli sur un échec ambigu.
             'is_otp' => method_exists($notification, 'isOtpSms') && $notification->isOtpSms(),
+            // P72.04 (TCK-1354) — le délai de renvoi qu'un accusé `failed` du code lève.
+            'otp_resend_key' => method_exists($notification, 'otpResendKey') ? $notification->otpResendKey() : null,
             'event_type' => $this->resolveEventType($notification),
             'agency_id' => $this->resolveAgencyId($notifiable),
             'notification_id' => $this->resolveAppNotificationId($notifiable, $notification),
         ];
+        // TCK-1346 (P132.04) — un SMS porteur de lien relit son objet s'il est reporté à la nuit.
+        if ($notification instanceof CodedNotification && $notification->deferredSmsGuard !== null) {
+            $context[DeferredSmsGuard::CONTEXT_KEY] = $notification->deferredSmsGuard;
+        }
 
         return $this->router->send($phone, $message, $context);
     }

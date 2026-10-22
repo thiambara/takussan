@@ -3,6 +3,8 @@
 namespace App\Services\Admin;
 
 use App\Jobs\RecordQueueHeartbeat;
+use App\Models\Enums\PaymentProvider;
+use App\Models\Integration;
 use App\Models\Property;
 use App\Services\Media\Cdn\CdnProviderContract;
 use App\Support\TrustedProxyList;
@@ -143,6 +145,7 @@ class HealthcheckService
             'cdn' => $this->check(fn (): array => $this->cdn()),
             'scheduler' => $this->check(fn (): array => $this->scheduler()),
             'proxies' => $this->check(fn (): array => $this->proxies()),
+            'lemon_squeezy_webhook' => $this->check(fn (): array => $this->lemonSqueezyWebhook()),
         ];
 
         $snapshot = [
@@ -435,6 +438,28 @@ class HealthcheckService
         Log::critical('[health] TRUSTED_PROXIES contient `*`, qui ne croit aucun mandataire : tous les clients prennent l’IP du mandataire.');
 
         return ['status' => 'degraded', 'reason' => 'wildcard_trusts_nobody'];
+    }
+
+    /**
+     * P98.08 (TCK-1172) — une intégration Lemon Squeezy de plateforme active, sans secret de
+     * signature en configuration : la route des webhooks refuse tout
+     * (`RequireLemonSqueezySigningSecret`), quoi que dise le `signing_secret` saisi dans la console.
+     *
+     * @return array<string,mixed>
+     */
+    private function lemonSqueezyWebhook(): array
+    {
+        if ((string) config('lemon-squeezy.signing_secret', '') !== '') {
+            return [];
+        }
+
+        $active = Integration::query()
+            ->where('provider', PaymentProvider::LemonSqueezy->value)
+            ->whereNull('agency_id')
+            ->where('is_active', true)
+            ->exists();
+
+        return $active ? ['status' => 'degraded', 'reason' => 'signing_secret_missing'] : [];
     }
 
     /**

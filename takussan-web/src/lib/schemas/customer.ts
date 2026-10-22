@@ -127,13 +127,13 @@ export type CustomerFormValues = z.infer<typeof customerFormSchema>;
 export interface CustomerFormPayload {
   first_name: string;
   last_name: string;
-  email?: string;
-  phone?: string;
-  occupation?: string;
+  email?: string | null;
+  phone?: string | null;
+  occupation?: string | null;
   pipeline_stage: (typeof pipelineStageValues)[number];
   /** TCK-1064 — absent à la création : l'API crée toujours un client `active`. */
   status?: (typeof customerStatusValues)[number];
-  id_type?: (typeof idTypeValues)[number];
+  id_type?: (typeof idTypeValues)[number] | null;
   id_number?: string;
   /** TCK-921 — `null` efface la langue de la fiche. */
   locale?: (typeof customerLocaleValues)[number] | null;
@@ -184,26 +184,35 @@ function liste(v: string | undefined): string[] | null {
 /**
  * Normalise the UI-friendly form values (empty strings allowed) into the
  * backend payload (empty strings → undefined, email lower-cased).
+ *
+ * TCK-1347 (P149.02) — en édition, `initial` porte les valeurs de la fiche : `email`, `phone`,
+ * `occupation` et `id_type` vidés alors qu'ils avaient une valeur partent à `null`, que l'API
+ * écrit (`undefined` disparaît du JSON, et la fiche gardait l'ancienne valeur). `id_number` reste
+ * omis tant qu'il est vide : le numéro masqué est gardé exprès.
  */
 export function normaliseCustomerForm(
   values: CustomerFormValues,
+  initial?: CustomerFormValues,
 ): CustomerFormPayload {
   const blank = (v: string | undefined) => {
     const t = (v ?? '').trim();
     return t.length === 0 ? undefined : t;
   };
+  const efface = (cle: 'email' | 'phone' | 'occupation' | 'id_type'): null | undefined =>
+    initial && blank(initial[cle]) !== undefined ? null : undefined;
+  const idType =
+    values.id_type && (idTypeValues as readonly string[]).includes(values.id_type)
+      ? (values.id_type as (typeof idTypeValues)[number])
+      : undefined;
   return {
     first_name: values.first_name.trim(),
     last_name: values.last_name.trim(),
-    email: blank(values.email)?.toLowerCase(),
-    phone: blank(values.phone),
-    occupation: blank(values.occupation),
+    email: blank(values.email)?.toLowerCase() ?? efface('email'),
+    phone: blank(values.phone) ?? efface('phone'),
+    occupation: blank(values.occupation) ?? efface('occupation'),
     pipeline_stage: values.pipeline_stage,
     status: values.status,
-    id_type:
-      values.id_type && (idTypeValues as readonly string[]).includes(values.id_type)
-        ? (values.id_type as (typeof idTypeValues)[number])
-        : undefined,
+    id_type: idType ?? efface('id_type'),
     id_number: blank(values.id_number),
     locale:
       values.locale && (customerLocaleValues as readonly string[]).includes(values.locale)

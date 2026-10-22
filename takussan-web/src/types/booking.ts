@@ -13,7 +13,16 @@ export type BookingStatus =
 
 export type BookingPaymentType = 'deposit' | 'advance' | 'fee';
 
-export type BookingPaymentStatus = 'pending' | 'paid' | 'refunded' | 'cancelled';
+// TCK-1266 (P146.01) — les cas de `PaymentStatus` côté API, à l'identique : l'échec d'un paiement
+// en ligne écrit `failed` sur un `BookingPayment`.
+export type BookingPaymentStatus =
+  | 'pending'
+  | 'paid'
+  | 'late'
+  | 'partially_paid'
+  | 'failed'
+  | 'refunded'
+  | 'cancelled';
 
 export type BookingPaymentMethod = 'cash' | 'bank_transfer' | 'mobile_money' | 'card';
 
@@ -29,6 +38,8 @@ export type BookingPayment = {
   status: BookingPaymentStatus;
   payment_date: string | null;
   confirmed_date: string | null;
+  /** TCK-1180 — ce que `BookingPaymentResource` émet : la date du règlement. */
+  paid_at?: string | null;
   receipt_number: string | null;
   notes: string | null;
   created_at: string;
@@ -47,11 +58,8 @@ export type Booking = {
   booking_date: string;
   start_date: string | null;
   end_date: string | null;
-  expiration_date: string | null;
   confirmation_date: string | null;
-  rejection_date: string | null;
   cancellation_date: string | null;
-  completion_date: string | null;
   /** Backend canonical timestamps (BookingResource). */
   confirmed_at?: string | null;
   cancelled_at?: string | null;
@@ -66,8 +74,6 @@ export type Booking = {
   price_at_booking: number | null;
   total_amount: number | null;
   deposit_amount: number | null;
-  deposit_paid: boolean;
-  deposit_date: string | null;
   notes: string | null;
   reason_for_rejection: string | null;
   reason_for_cancellation: string | null;

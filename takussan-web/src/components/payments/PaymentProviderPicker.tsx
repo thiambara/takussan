@@ -106,11 +106,17 @@ export function PaymentProviderPicker({
     if (!selected) return;
     setError(null);
     try {
+      // TCK-1291 (P131.01) — l'adresse d'annulation porte la même référence que celle de retour :
+      // sans elle, Wave et Orange Money retombent sur `…/return?status=failed` nu, que la page de
+      // retour rend en « Lien de retour incorrect ».
+      const retour = (statut: 'pending' | 'failed') =>
+        typeof window !== 'undefined'
+          ? `${window.location.origin}/app/payments/return?status=${statut}&payment_type=${paymentType}&payment_id=${paymentId}`
+          : undefined;
       const result = await initiate.mutateAsync({
         provider: selected,
-        returnUrl: typeof window !== 'undefined'
-          ? `${window.location.origin}/app/payments/return?status=pending&payment_type=${paymentType}&payment_id=${paymentId}`
-          : undefined,
+        returnUrl: retour('pending'),
+        cancelUrl: retour('failed'),
       });
       rememberProviderPreference(selected);
       const url = result.data?.checkout_url;

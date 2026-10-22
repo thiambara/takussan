@@ -2,11 +2,13 @@
 
 namespace App\Jobs;
 
+use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use App\Services\Notifications\Sms\SmsTimeBudget;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 
 /**
  * TCK-102 — Re-dispatch a non-critical SMS once the ARTP quiet-hours
@@ -40,8 +42,22 @@ class SendDeferredSmsJob implements ShouldBeEncrypted, ShouldQueue
         public readonly array $context,
     ) {}
 
-    public function handle(SmsRouterDriver $router): void
+    public function handle(SmsRouterDriver $router, DeferredSmsGuard $guard): void
     {
+        // TCK-1346 (P132.04) — l'objet du lien a pu changer pendant la nuit (invitation révoquée
+        // ou relancée, lien de paiement régénéré) : le message n'a plus rien à proposer.
+        $deferred = $this->context[DeferredSmsGuard::CONTEXT_KEY] ?? null;
+        if (is_array($deferred) && ! $guard->stillValid($deferred)) {
+            Log::info('[sms.deferred] envoi abandonné — le lien du message ne sert plus', [
+                'type' => $deferred['type'] ?? null,
+                'id' => $deferred['id'] ?? null,
+                'recipients' => count($this->to),
+                'notification_id' => $this->context['notification_id'] ?? null,
+            ]);
+
+            return;
+        }
+
         $router->send($this->to, $this->message, [
             ...$this->context,
             'bypass_quiet_hours' => true,

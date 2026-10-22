@@ -2,12 +2,15 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
@@ -78,29 +81,21 @@ class ReceiptPdfTest extends TestCase
             ->assertForbidden();
     }
 
+    /**
+     * TCK-1154 (P86.04) — la quittance s'ouvre au collaborateur `agent` ou `manager` accepté qui est
+     * encore personnel de l'agence du bail, comme `BookingStakeholders::collaboratorsOf`. Jusque-là,
+     * ce test l'ouvrait à un compte sans aucun profil. Il tient ici des profils d'agent dans deux
+     * agences, sans profil actif : seule la branche collaborateur lui ouvre la quittance.
+     */
     public function test_accepted_collaborator_can_download_receipt(): void
     {
-        $landlord = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $landlord->id]);
-
-        $tenantUser = User::factory()->create();
-        $tenant = Customer::factory()->create(['user_id' => $tenantUser->id]);
-
-        $lease = Lease::factory()->create([
-            'landlord_id' => $landlord->id,
-            'property_id' => $property->id,
-            'tenant_id' => $tenant->id,
-        ]);
-
-        $payment = LeasePayment::factory()->paid()->create([
-            'lease_id' => $lease->id,
-            'payer_id' => $tenant->id,
-            'amount' => 400_000,
-        ]);
+        [$lease, $payment, $agency] = $this->bailDAgencePaye();
 
         $collaboratorUser = User::factory()->create();
+        AgentProfile::factory()->create(['user_id' => $collaboratorUser->id, 'agency_id' => $agency->id]);
+        AgentProfile::factory()->create(['user_id' => $collaboratorUser->id, 'agency_id' => Agency::factory()->create()->id]);
         PropertyCollaborator::create([
-            'property_id' => $property->id,
+            'property_id' => $lease->property_id,
             'user_id' => $collaboratorUser->id,
             'role' => CollaboratorRole::Agent,
             'invited_at' => now()->subDay(),
@@ -115,6 +110,46 @@ class ReceiptPdfTest extends TestCase
 
         $body = $response->getContent();
         $this->assertTrue(str_starts_with($body, '%PDF-'), 'Response must be a real PDF binary');
+    }
+
+    /**
+     * TCK-1154 (P86.04) — un `viewer` accepté (bailleur de l'agence) ou un agent qui n'est plus du
+     * personnel de l'agence ne télécharge pas la quittance d'un bail du bien.
+     */
+    public function test_accepted_collaborator_outside_the_staff_cannot_download_receipt(): void
+    {
+        [$lease, $payment, $agency] = $this->bailDAgencePaye();
+        $viewer = User::factory()->create();
+        OwnerProfile::factory()->create(['user_id' => $viewer->id, 'agency_id' => $agency->id]);
+        $ancienAgent = User::factory()->create();
+
+        foreach ([[$viewer, CollaboratorRole::Viewer], [$ancienAgent, CollaboratorRole::Agent]] as [$user, $role]) {
+            PropertyCollaborator::create(['property_id' => $lease->property_id, 'user_id' => $user->id, 'role' => $role, 'accepted_at' => now()]);
+            Sanctum::actingAs($user);
+            $this->get("/api/leases/{$lease->id}/receipts/{$payment->id}/pdf")->assertForbidden();
+        }
+    }
+
+    /** @return array{0: Lease, 1: LeasePayment, 2: Agency} */
+    private function bailDAgencePaye(): array
+    {
+        $agency = Agency::factory()->create();
+        $landlord = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $landlord->id, 'agency_id' => $agency->id]);
+        $tenant = Customer::factory()->create(['user_id' => User::factory()->create()->id, 'agency_id' => $agency->id]);
+        $lease = Lease::factory()->create([
+            'landlord_id' => $landlord->id,
+            'property_id' => $property->id,
+            'tenant_id' => $tenant->id,
+            'agency_id' => $agency->id,
+        ]);
+        $payment = LeasePayment::factory()->paid()->create([
+            'lease_id' => $lease->id,
+            'payer_id' => $tenant->id,
+            'amount' => 400_000,
+        ]);
+
+        return [$lease, $payment, $agency];
     }
 
     public function test_pending_collaborator_cannot_download_receipt(): void

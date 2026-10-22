@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Property;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
@@ -18,6 +19,7 @@ use Illuminate\Notifications\Notification;
 class PropertyProposedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public const TYPE = 'property_proposed';
 

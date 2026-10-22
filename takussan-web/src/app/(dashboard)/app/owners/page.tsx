@@ -5,6 +5,7 @@ import { getToken } from '@/lib/session';
 import { fetchOwners } from '@/lib/queries/owners';
 import { OwnersList } from '@/components/owners/OwnersList';
 import { isAdmin } from '@/lib/roles';
+import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -42,12 +43,14 @@ export default async function Page() {
   const agencyId = user.agency_id;
   if (!token || !agencyId) return null;
 
-  const owners = await fetchOwners(token, { agencyId });
+  const [owners, capacites] = await Promise.all([
+    fetchOwners(token, { agencyId }),
+    isAdmin(user.roles) ? Promise.resolve(null) : capacitesDuProfilActif(),
+  ]);
 
-  const canInvite =
-    user.roles.includes('agency_admin') ||
-    isAdmin(user.roles) ||
-    user.roles.includes('super_admin');
+  // P152.01 — la règle de `OwnerProfilePolicy::invite` : l'admin de l'agence, ou qui tient
+  // `team.invite` dans l'agence du profil actif. Une lecture en panne (`null`) ne montre rien.
+  const canInvite = isAdmin(user.roles) || (capacites ?? []).includes('team.invite');
 
   return (
     <OwnersList

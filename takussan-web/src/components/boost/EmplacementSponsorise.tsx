@@ -16,6 +16,8 @@ export interface EmplacementsSponsorisesProps {
    * jusqu'à l'hydratation, et la première carte visible ne compte pas pour le LCP.
    */
   readonly prioritaires?: number;
+  /** TCK-1276 — combien des premiers emplacements sortent visibles, sans image préchargée. */
+  readonly revelees?: number;
 }
 
 /**
@@ -28,7 +30,12 @@ export interface EmplacementsSponsorisesProps {
  * sémantique (une région nommée, une liste), et chaque `<li>` devient une cellule de la grille
  * appelante. ⚠ Ce composant se rend donc DANS une grille.
  */
-export function EmplacementsSponsorises({ biens, sizes, prioritaires = 0 }: EmplacementsSponsorisesProps) {
+export function EmplacementsSponsorises({
+  biens,
+  sizes,
+  prioritaires = 0,
+  revelees = 0,
+}: EmplacementsSponsorisesProps) {
   const t = useTranslations('search.sponsored');
   if (biens.length === 0) return null;
 
@@ -43,6 +50,7 @@ export function EmplacementsSponsorises({ biens, sizes, prioritaires = 0 }: Empl
                 property={bien}
                 index={i}
                 priority={i < prioritaires}
+                revelee={i < revelees}
                 sizes={sizes}
                 robe="sponsorise"
                 badge={badgeDe(bien)}

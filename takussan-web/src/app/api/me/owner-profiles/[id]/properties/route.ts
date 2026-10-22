@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
 import { urlApiServeur } from '@/lib/api';
-import { enTetesDuRelais } from '@/lib/relais-api';
+import { enTetesDuRelais, fetchVersApi } from '@/lib/relais-api';
 
 
 /**
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest, ctx: { params: Params }): Promise<Ne
   }
 
   const search = req.nextUrl.search ?? '';
-  const upstream = await fetch(
+  const upstream = await fetchVersApi(
     urlApiServeur(`/me/owner-profiles/${id}/properties${search}`),
     {
       method: 'GET',
@@ -40,6 +40,7 @@ export async function GET(req: NextRequest, ctx: { params: Params }): Promise<Ne
         Accept: 'application/json',
       },
     },
+    { requete: req },
   );
 
   const text = await upstream.text();

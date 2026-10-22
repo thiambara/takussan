@@ -60,7 +60,7 @@ class PublicReportTest extends ApiTestCase
     {
         $this->assertEquals(4.0, $this->publicReviews()->json('meta.average'));
 
-        $this->postJson("/api/public/reviews/{$this->three->id}/report", ['reason' => 'Faux avis'])
+        $this->postJson("/api/public/reviews/{$this->three->id}/report", ['reason' => 'fraud'])
             ->assertOk();
 
         $review = $this->three->refresh();
@@ -76,21 +76,43 @@ class PublicReportTest extends ApiTestCase
         $this->assertEquals(4.0, $public->json('meta.average'), 'la moyenne ne bouge pas');
     }
 
+    /**
+     * P145.02 (TCK-1285) — le motif d'un signalement d'avis est l'un des sept codes que le front
+     * envoie (`REVIEW_REPORT_REASONS`), comme celui d'une annonce : un texte libre rend 422 et
+     * n'écrit rien dans `metadata.reports`, que la modération ne saurait ni traduire ni compter.
+     */
+    public function test_a_reason_outside_the_list_is_refused(): void
+    {
+        $this->postJson("/api/public/reviews/{$this->five->id}/report", ['reason' => 'Texte libre'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('reason');
+
+        $this->assertSame(0, $this->five->refresh()->reported_count);
+        $this->assertArrayNotHasKey('reports', $this->five->metadata ?? []);
+
+        foreach (['fraud', 'offensive', 'personal_data', 'conflict_of_interest', 'spam', 'off_topic', 'other'] as $i => $code) {
+            $this->withHeader('X-Forwarded-For', '203.0.113.'.(50 + $i))
+                ->postJson("/api/public/reviews/{$this->three->id}/report", ['reason' => $code])
+                ->assertOk();
+        }
+        $this->assertSame(7, $this->three->refresh()->reported_count);
+    }
+
     public function test_the_same_visitor_reporting_twice_counts_once(): void
     {
         $url = "/api/public/reviews/{$this->five->id}/report";
 
-        $this->withHeader('X-Forwarded-For', '203.0.113.9')->postJson($url, ['reason' => 'Spam'])->assertOk();
-        $this->withHeader('X-Forwarded-For', '203.0.113.9')->postJson($url, ['reason' => 'Spam encore'])->assertOk();
+        $this->withHeader('X-Forwarded-For', '203.0.113.9')->postJson($url, ['reason' => 'spam'])->assertOk();
+        $this->withHeader('X-Forwarded-For', '203.0.113.9')->postJson($url, ['reason' => 'other'])->assertOk();
         $this->assertSame(1, $this->five->refresh()->reported_count);
 
-        $this->withHeader('X-Forwarded-For', '203.0.113.10')->postJson($url, ['reason' => 'Spam'])->assertOk();
+        $this->withHeader('X-Forwarded-For', '203.0.113.10')->postJson($url, ['reason' => 'spam'])->assertOk();
         $this->assertSame(2, $this->five->refresh()->reported_count);
     }
 
     public function test_a_filled_honeypot_answers_204_and_records_nothing(): void
     {
-        $this->postJson("/api/public/reviews/{$this->five->id}/report", ['reason' => 'x', 'company' => 'Bot'])
+        $this->postJson("/api/public/reviews/{$this->five->id}/report", ['reason' => 'spam', 'company' => 'Bot'])
             ->assertNoContent();
 
         $this->assertSame(0, $this->five->refresh()->reported_count);
@@ -104,9 +126,9 @@ class PublicReportTest extends ApiTestCase
         $url = "/api/public/reviews/{$this->five->id}/report";
 
         $this->withHeaders(['Authorization' => "Bearer {$token}", 'X-Forwarded-For' => '203.0.113.1'])
-            ->postJson($url, ['reason' => 'Spam'])->assertOk();
+            ->postJson($url, ['reason' => 'spam'])->assertOk();
         $this->withHeaders(['Authorization' => "Bearer {$token}", 'X-Forwarded-For' => '203.0.113.2'])
-            ->postJson($url, ['reason' => 'Spam'])->assertOk();
+            ->postJson($url, ['reason' => 'spam'])->assertOk();
 
         $review = $this->five->refresh();
         $this->assertSame(1, $review->reported_count);
@@ -122,7 +144,7 @@ class PublicReportTest extends ApiTestCase
             'is_approved' => false,
         ]);
 
-        $this->postJson("/api/public/reviews/{$pending->id}/report", ['reason' => 'x'])->assertNotFound();
+        $this->postJson("/api/public/reviews/{$pending->id}/report", ['reason' => 'spam'])->assertNotFound();
         $this->assertSame(0, $pending->refresh()->reported_count);
     }
 

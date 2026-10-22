@@ -54,6 +54,32 @@ class ServiceProviderTradesPartialUpdateTest extends TestCase
         $this->assertSame(['painting'], $sp->specialties);
     }
 
+    /**
+     * TCK-1315 (P117.02) — `hourly_rate` comme `visit_fee` : clé absente, on garde ; `null`, on
+     * efface. Un `null` gardait l'ancien taux, et le champ vidé reparaissait au rechargement.
+     */
+    public function test_null_hourly_rate_clears_it_and_an_absent_key_keeps_it(): void
+    {
+        $user = User::factory()->create();
+        $sp = ServiceProviderProfile::factory()->create([
+            'user_id' => $user->id,
+            'hourly_rate_min' => 5000,
+            'metadata' => ['visit_fee' => 2500],
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/me/profiles/{$sp->id}/trades", ['trades' => ['painting']])->assertOk();
+        $this->assertSame('5000.00', $sp->refresh()->hourly_rate_min);
+
+        $this->patchJson("/api/me/profiles/{$sp->id}/trades", ['hourly_rate' => null, 'visit_fee' => null])
+            ->assertOk()
+            ->assertJsonPath('data.hourly_rate', null)
+            ->assertJsonPath('data.visit_fee', null);
+
+        $this->assertNull($sp->refresh()->hourly_rate_min);
+        $this->assertArrayNotHasKey('visit_fee', $sp->metadata ?? []);
+    }
+
     public function test_owner_reads_back_settings_and_nobody_else_does(): void
     {
         $user = User::factory()->create();

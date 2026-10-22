@@ -484,6 +484,7 @@
       "requiredBody": "This action touches sensitive data, so it requires a second factor on your account. Set it up now — the action will resume right after.",
       "stepUpTitle": "Confirm it’s really you",
       "stepUpBody": "For your security, this action needs a recent code from your authenticator app. Enter it and the action will resume.",
+      "consoleStepUpBody": "The platform console needs a code from your authenticator app for this session. Enter it to continue.",
       "codeLabel": "6-digit code",
       "confirm": "Confirm",
       "confirming": "Verifying…",
@@ -1945,6 +1946,9 @@
       "downloading": "Downloading…",
       "download": "Download",
       "scopeNotice": "Exports respect your role (agency, landlord or agent).",
+      "rowCap": "A file holds at most {max, number} rows, {pdf, number} in PDF.",
+      "truncated": "The file stops at {count, number} rows: the period holds more. Narrow it to get everything.",
+      "failed": "The download failed. Please try again.",
       "scopeNoticeFull": "Exports respect your role (agency, landlord, tenant) — no data outside your scope is included.",
       "noneAllowed": "Your role in this agency includes no export. An administrator can grant you one.",
       "entities": {
@@ -3869,7 +3873,10 @@
         "late": "Overdue",
         "pending": "Upcoming",
         "other": "Other",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "partially_paid": "Partially paid",
+        "failed": "Failed",
+        "refunded": "Refunded"
       },
       "listLabel": "Lease instalments",
       "dueOn": "Due: {date}",
@@ -4182,7 +4189,7 @@
         "title": "Reject the quote",
         "reason_label": "Rejection reason",
         "reason_placeholder": "Please explain why this quote is refused...",
-        "reason_min": "The reason must be at least 5 characters long",
+        "reason_min_length": "The reason must be at least 10 characters long",
         "confirm": "Confirm the rejection"
       }
     },
@@ -4217,7 +4224,8 @@
         "save": "Save",
         "saving": "Saving…",
         "saved": "Saved.",
-        "failed": "The assignment was not saved."
+        "failed": "The assignment was not saved.",
+        "insured": "Insured"
       },
       "gallery": {
         "title": "Photos and files",
@@ -4614,7 +4622,16 @@
       "invalidTitle": "This link no longer works",
       "invalidBody": "It is incomplete, has already been used or has expired. You can make a new request from a search.",
       "error": "The operation did not go through. Please try again.",
-      "backToSearch": "Search properties"
+      "backToSearch": "Search properties",
+      "digest": {
+        "metaTitle": "Unsubscribe from the digest",
+        "title": "Stop receiving the email digest",
+        "body": "The email digest of your notifications will stop. Your notifications stay in your account.",
+        "button": "Unsubscribe",
+        "working": "Unsubscribing…",
+        "doneTitle": "Done",
+        "doneBody": "You will no longer receive the email digest. You can turn it back on in your notification preferences."
+      }
     }
   },
   "wizardDrafts": {
@@ -4678,7 +4695,6 @@
       "title": "Help us tailor your search",
       "description": "Three quick pieces of info — all optional — to personalise your results. You can finish later from your profile.",
       "phoneLabel": "Phone (optional)",
-      "phonePlaceholder": "+221 77 000 00 00",
       "cityLabel": "Preferred city (optional)",
       "cityPlaceholder": "Dakar, Saint-Louis…",
       "intentLabel": "Search type (optional)",
@@ -5203,7 +5219,8 @@
       "actions": {
         "resend": "Resend invitation",
         "revoke": "Revoke"
-      }
+      },
+      "insured": "Insured"
     },
     "invite": {
       "title": "Invite a provider",
@@ -6425,7 +6442,7 @@
       "status": {
         "active": "Active",
         "inactive": "Inactive",
-        "banned": "Blocked"
+        "blocked": "Blocked"
       },
       "roles": {
         "agency_admin": "Administrator",
@@ -6526,7 +6543,8 @@
         "booking_payment": "Booking payment",
         "lease_payment": "Rent",
         "invoice": "Invoice",
-        "payout": "Payout"
+        "payout": "Payout",
+        "platform_payout": "Platform payout"
       },
       "import": {
         "title": "Import a statement",
@@ -6710,6 +6728,8 @@
       "insurance": "Insurance",
       "inventory_report": "Inventory report",
       "photo": "Photo",
+      "rib": "Bank details (RIB)",
+      "ninea": "NINEA",
       "other": "Other"
     },
     "entities": {
@@ -6959,7 +6979,9 @@
       "paid": "Paid",
       "partially_paid": "Partial",
       "refunded": "Refunded",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "late": "Late",
+      "failed": "Failed"
     },
     "paymentMethod": {
       "cash": "Cash",
@@ -7096,6 +7118,10 @@
           "title": "Visit marked as completed",
           "description": "Post-visit follow-up is now available."
         },
+        "noShow": {
+          "title": "Visit marked as no-show",
+          "description": "The visitor did not show up: the visit is not counted among completed visits."
+        },
         "cancelled": {
           "title": "Visit cancelled",
           "description": "The reason has been saved on the request."
@@ -7108,6 +7134,7 @@
       "actions": {
         "confirm": "Confirm the visit",
         "complete": "Mark as completed",
+        "noShow": "Mark as no-show",
         "reschedule": "Reschedule",
         "viewProperty": "View the property"
       },
@@ -8042,8 +8069,7 @@
           "all": "All statuses",
           "active": "Active",
           "blocked": "Blocked",
-          "inactive": "Inactive",
-          "banned": "Banned"
+          "inactive": "Inactive"
         },
         "emailFilter": {
           "all": "Email: all",
@@ -9366,14 +9392,11 @@
     "agent": {
       "title": "Professional profile",
       "subtitle": "Your real estate agent information.",
-      "bioLabel": "Professional bio",
-      "bioPlaceholder": "Describe your expertise and your specialities",
       "specialtiesLabel": "Specialities",
-      "comingSoon": "Coming soon",
       "licenseLabel": "Licence number",
-      "licensePlaceholder": "e.g. AGC-2025-0001",
       "agencyLabel": "Linked agency",
-      "noAgency": "Not affiliated"
+      "noAgency": "Not affiliated",
+      "notProvided": "Not provided"
     },
     "owner": {
       "title": "Landlord area",
@@ -10340,6 +10363,7 @@
       "call": "Call",
       "email": "Email",
       "convert": "Convert to client",
+      "convertAnyway": "Convert anyway",
       "openCustomer": "Open client record",
       "handle": "Mark as handled",
       "assign": "Assign"

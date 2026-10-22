@@ -158,6 +158,26 @@ class ProspectMatcherTest extends ApiTestCase
             ->assertJsonPath('data.0.id', $match->id);
     }
 
+    /**
+     * TCK-1167 (P99.05) — les villes du prospect sont saisies en texte libre : « Guediawaye »
+     * trouve « Guédiawaye », comme « Liberte 4 » trouve « Liberté 4 » pour les quartiers
+     * (TCK-1083). La casse seule ne suffisait pas : 0 dans les deux sens.
+     */
+    public function test_a_city_written_without_accent_matches_both_ways(): void
+    {
+        $this->prospect->update(['seeking_cities' => ['Guediawaye', 'thies']]);
+        $guediawaye = $this->property([], city: 'Guédiawaye');
+        $thies = $this->property([], city: 'Thiès');
+        $this->property([], city: 'Dakar');
+
+        $this->assertEqualsCanonicalizing(
+            [$guediawaye->id, $thies->id],
+            app(ProspectMatcher::class)->propertiesFor($this->prospect->fresh())->pluck('properties.id')->all(),
+        );
+        $this->assertMatchesBothWays($guediawaye);
+        $this->assertMatchesBothWays($thies);
+    }
+
     public function test_the_property_lists_its_matching_prospects(): void
     {
         $property = $this->property();

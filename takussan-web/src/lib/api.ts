@@ -27,6 +27,53 @@ function apiUrl(): string {
 }
 
 /**
+ * TCK-1215 (P79.01) — la borne d'un appel du SERVEUR Next vers l'API. Sans elle, le `fetch` de Node
+ * attend une API qui accepte la connexion sans répondre jusqu'au `headersTimeout` d'undici (300 s,
+ * mesurés à 301,2 s) : une page, une action serveur ou une fiche publique attendait jusque-là au
+ * lieu de rendre l'état « indisponible » qu'elle prévoit. 30 s, sous les 100 s que Cloudflare laisse
+ * à un premier octet. Dans le navigateur, seules les lectures d'`apiRequest` sont bornées, à la même
+ * valeur (TCK-1297).
+ */
+export const DELAI_API_SERVEUR_MS = 30_000;
+
+/** TCK-1215 — la borne d'un envoi de fichier (`formData`) depuis le serveur, sous les 100 s de Cloudflare. */
+export const DELAI_API_SERVEUR_ENVOI_MS = 90_000;
+
+/**
+ * Le signal à passer au `fetch` d'un appel serveur : celui de l'appelant, borné par `delaiMs`. Un
+ * abandon par l'appelant abandonne toujours l'appel ; le délai rejette en `DOMException`
+ * `TimeoutError`, que `server-guards` classe comme une panne (TCK-1090). Dans le navigateur, le
+ * signal de l'appelant tel quel.
+ */
+export function signalBorneServeur(
+  signal: AbortSignal | null | undefined,
+  delaiMs: number = DELAI_API_SERVEUR_MS,
+): AbortSignal | undefined {
+  if (typeof window !== 'undefined') return signal ?? undefined;
+  const delai = AbortSignal.timeout(delaiMs);
+  return signal ? AbortSignal.any([signal, delai]) : delai;
+}
+
+/**
+ * TCK-1297 (P113.01) — dans le NAVIGATEUR, les seules lectures (`GET`) d'{@link apiRequest} sont
+ * bornées à {@link DELAI_API_SERVEUR_MS}, combiné au signal de l'appelant : Chrome n'applique
+ * aucun délai (12 min mesurées sans réponse ni rejet), et une lecture figée tenait un écran en
+ * chargement, ou suspendait une interrogation périodique, tant que la page vivait. Le délai rejette
+ * en `TimeoutError`, que `messageErreurApi` affiche comme une panne réseau (TCK-1295). Les
+ * écritures et les envois de fichiers gardent le seul signal de l'appelant : les borner pose la
+ * question de l'idempotence (P144.07), que le porteur garde.
+ */
+function signalLectureNavigateur(
+  signal: AbortSignal | null | undefined,
+  method: string,
+  formData: boolean,
+): AbortSignal | undefined {
+  if (method.toUpperCase() !== 'GET' || formData) return signal ?? undefined;
+  const delai = AbortSignal.timeout(DELAI_API_SERVEUR_MS);
+  return signal ? AbortSignal.any([signal, delai]) : delai;
+}
+
+/**
  * Sur le chemin interne, le schéma et le port de l'origine publique de l'API (`origineApi()`),
  * **identiques pour tous les visiteurs** : ils ne fragmentent aucun cache de données. Laravel les
  * croit parce que l'appel vient d'un mandataire de confiance.
@@ -131,6 +178,7 @@ export async function apiFetch<T>(
   const res = await fetch(`${apiUrl()}/api${path}`, {
     ...init,
     headers: enTetes,
+    signal: signalBorneServeur(init?.signal),
   });
   if (!res.ok) {
     // Le corps est lu SUR LE CHEMIN D'ERREUR uniquement : c'est lui qui porte
@@ -169,7 +217,8 @@ export function urlSanteApiServeur(): string {
 
 /**
  * Les en-têtes qu'`apiFetch` et `apiRequest` ajoutent d'eux-mêmes côté serveur, pour le même
- * appelant : ceux du chemin interne et l'IP du visiteur par la chaîne de confiance de TCK-598.
+ * appelant : ceux du chemin interne, l'IP du visiteur par la chaîne de confiance de TCK-598 et son
+ * agent (TCK-1218).
  * Sans eux, l'appel part de l'IP du serveur Next — un seul seau de limiteur, une seule IP dans le
  * journal d'impersonation, pour tous les opérateurs.
  */
@@ -180,6 +229,10 @@ export async function enTetesServeurAmont(options: { partage?: boolean } = {}): 
   if (options.partage) return enTetes;
   const visiteur = await resolveVisitorIp();
   if (visiteur) enTetes['X-Forwarded-For'] = visiteur;
+  // TCK-1218 (P108.01) — et son agent, comme `apiFetch` (TCK-792) : sans lui, le `fetch` de Node
+  // pose `user-agent: node`, et l'API ne voit qu'un seul agent pour tous les visiteurs.
+  const agent = await resolveVisitorUserAgent();
+  if (agent) enTetes['User-Agent'] = agent;
   return enTetes;
 }
 
@@ -231,6 +284,9 @@ export const CODES_ERREUR_BFF = [
   'not_found',
   // TCK-600 (verif-600 B1) — un segment de route dynamique qui réécrirait l'URL de l'API.
   'invalid_path',
+  // TCK-1219 (P79.04) — l'API n'a pas répondu au relais : injoignable (502) ou hors délai (504).
+  'upstream_unavailable',
+  'upstream_timeout',
 ] as const;
 
 export type CodeErreurBff = (typeof CODES_ERREUR_BFF)[number];
@@ -245,6 +301,9 @@ export const CLE_I18N_ERREUR_BFF: Record<CodeErreurBff, string> = {
   server_error: 'errors.api.serverError',
   not_found: 'errors.notFound',
   invalid_path: 'errors.notFound',
+  // TCK-1219 — le libellé existant d'une panne du serveur : aucun texte neuf.
+  upstream_unavailable: 'errors.api.serverError',
+  upstream_timeout: 'errors.api.serverError',
 };
 
 /** Clé du libellé générique, quand rien de plus précis n'est connu. */
@@ -544,6 +603,16 @@ export function messageErreurApi(
 
   // `fetch` ne lève un `TypeError` que lorsque la requête n'a pas abouti du tout.
   if (erreur instanceof Error && erreur.name === 'TypeError') return t(CLE_I18N_ERREUR_API.network);
+  // TCK-1295 (P113.04) — un appel abandonné par sa borne (`AbortSignal.timeout`) est une panne
+  // réseau pour l'utilisateur. Lu par le nom seul : selon l'environnement, la `DOMException` n'est
+  // pas toujours un `Error` (jsdom), et son message est anglais (« signal timed out »).
+  if (
+    erreur !== null &&
+    typeof erreur === 'object' &&
+    (erreur as { name?: unknown }).name === 'TimeoutError'
+  ) {
+    return t(CLE_I18N_ERREUR_API.network);
+  }
 
   if (erreur instanceof Error) {
     // Un `Error` NU sert ici de transport à un message DÉJÀ traduit : plusieurs hooks font
@@ -683,6 +752,19 @@ async function resolveServerLocale(): Promise<string | undefined> {
   }
 }
 
+/**
+ * L'appel à l'API Laravel, du navigateur comme du serveur Next.
+ *
+ * ⚠ TCK-1386 (P138.01) — **côté serveur, la seule déduplication d'une lecture est `cache()` de
+ * React.** La mémoïsation de `fetch` par Next range ses entrées par une clé qui contient tous les
+ * en-têtes sauf `traceparent` et `tracestate` (`next/dist/server/lib/dedupe-fetch.js`), et ne
+ * s'applique pas à un appel qui passe un `signal`. Or chaque appel serveur porte un `X-Request-Id`
+ * neuf (TCK-950, ci-dessous) : deux lectures identiques d'un même rendu ne partagent JAMAIS leur
+ * réponse, et partent deux fois. L'identifiant est gardé — il relie les journaux du front à ceux de
+ * l'API. Une lecture que le layout et la page font toutes deux passe donc par une fonction sous
+ * `cache()` (`utilisateurDuRendu`, `agenceDuRendu`, `capacitesDuRendu`, `lireBienDuRendu`…), et un
+ * test qui compte les appels du rendu la garde ; jamais une confiance dans Next.
+ */
 export async function apiRequest<T>(
   path: string,
   { method = 'GET', body, token, headers = {}, formData = false, locale, signal, activeProfileId }: RequestOptions = {},
@@ -693,7 +775,10 @@ export async function apiRequest<T>(
     ...headers,
   };
 
-  if (!formData) {
+  // TCK-1223 (P103.02) — seulement quand un corps part : `application/json` n'est pas admis pour une
+  // requête CORS simple, et posé sur un `GET` il faisait précéder chaque lecture du navigateur d'un
+  // préflight. L'API ne lit pas le `Content-Type` d'une requête sans corps.
+  if (!formData && body !== undefined) {
     requestHeaders['Content-Type'] = 'application/json';
   }
 
@@ -715,6 +800,14 @@ export async function apiRequest<T>(
     if (visitorIp) {
       requestHeaders['X-Forwarded-For'] = visitorIp;
     }
+  }
+
+  // TCK-1218 (P108.01) — l'agent du visiteur, comme `apiFetch` (TCK-792). Les actions serveur (les
+  // deux formulaires de contact du site public, entre autres) passent par ici : sans lui, l'API
+  // écrit `node` dans le `user_agent` de chaque demande. Rien dans le navigateur, qui envoie le sien.
+  if (!requestHeaders['User-Agent']) {
+    const agent = await resolveVisitorUserAgent();
+    if (agent) requestHeaders['User-Agent'] = agent;
   }
 
   // TCK-950 (P44.03) — côté serveur, un identifiant par appel : l'API le reprend dans ses journaux,
@@ -739,7 +832,9 @@ export async function apiRequest<T>(
     body: body !== undefined
       ? formData ? (body as BodyInit) : JSON.stringify(body)
       : undefined,
-    signal,
+    signal: typeof window !== 'undefined'
+      ? signalLectureNavigateur(signal, method, formData)
+      : signalBorneServeur(signal, formData ? DELAI_API_SERVEUR_ENVOI_MS : DELAI_API_SERVEUR_MS),
   });
 
   const data = await response.json().catch(() => null);

@@ -4,20 +4,22 @@ namespace App\Services\Lead;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
+use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\Customer;
-use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\ContactLeadChannel;
 use App\Models\Enums\CustomerPipelineStage;
-use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyContactLead;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Services\Crm\CustomerDuplicateDetector;
+use App\Services\Membership\AdminsDeLAgence;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
@@ -130,25 +132,14 @@ class ContactLeadService
     }
 
     /**
-     * Les admins ACTIFS et joignables d'une agence.
+     * Les admins ACTIFS et joignables d'une agence — {@see AdminsDeLAgence::destinataires()}, la
+     * définition unique (TCK-1318).
      *
      * @return Collection<int,User>
      */
     public function agencyAdmins(?int $agencyId): Collection
     {
-        if ($agencyId === null) {
-            return collect();
-        }
-
-        return AgencyAdminProfile::query()
-            ->where('agency_id', $agencyId)
-            ->where('status', AgencyAdminProfileStatus::Active->value)
-            ->with('user')
-            ->get()
-            ->pluck('user')
-            ->filter(fn (?User $u) => PrimaryPropertyContact::joignable($u))
-            ->unique('id')
-            ->values();
+        return AdminsDeLAgence::destinataires($agencyId);
     }
 
     /** 409 `lead.contact_unavailable` — avant tout `create`. */
@@ -212,7 +203,7 @@ class ContactLeadService
             'medium' => $medium,
             'locale' => app()->getLocale(),
             'ip' => $request->ip(),
-            'user_agent' => substr((string) $request->userAgent(), 0, 255),
+            'user_agent' => mb_substr((string) $request->userAgent(), 0, 255), // P124.03 (TCK-1256) : en caractères, jamais au milieu d'un UTF-8
         ]);
     }
 
@@ -244,10 +235,15 @@ class ContactLeadService
      * demande est marquée traitée. Une seconde conversion est refusée (409) : la fiche existe.
      *
      * TCK-591 possède le dédoublonnage des fiches ; la création passe par `CustomerService`.
+     * TCK-1343 (P125.02) — la conversion consulte `CustomerDuplicateDetector` comme la création à
+     * la main : une fiche de l'agence au même téléphone ou au même e-mail rend 409
+     * `customer.duplicate` avec `existing`, sauf `$allowDuplicate`. Même réserve que
+     * `CustomerController::refuseDuplicate` : la sonde n'est jouée que pour le personnel de
+     * l'agence (ou le super-admin), jamais pour un bailleur qui s'en servirait d'oracle.
      */
-    public function convert(PropertyContactLead $lead, User $actor): Customer
+    public function convert(PropertyContactLead $lead, User $actor, bool $allowDuplicate = false): Customer
     {
-        return DB::transaction(function () use ($lead, $actor) {
+        return DB::transaction(function () use ($lead, $actor, $allowDuplicate) {
             $fresh = PropertyContactLead::query()->whereKey($lead->id)->lockForUpdate()->firstOrFail();
 
             if ($fresh->customer_id !== null) {
@@ -259,6 +255,10 @@ class ContactLeadService
             // visait pas. La fiche naît dans l'agence DE LA DEMANDE, ou pas du tout.
             if ($fresh->agency_id === null) {
                 abort_code(422, 'lead.without_agency');
+            }
+
+            if (! $allowDuplicate) {
+                $this->refuseDuplicate($fresh, $actor);
             }
 
             [$first, $last] = self::splitName($fresh->name);
@@ -280,6 +280,20 @@ class ContactLeadService
 
             return $customer;
         });
+    }
+
+    private function refuseDuplicate(PropertyContactLead $lead, User $actor): void
+    {
+        if (! $actor->isSuperAdmin()
+            && ! app(MembershipCapabilityResolver::class)->isStaffAt($actor, (int) $lead->agency_id)) {
+            return;
+        }
+
+        $existing = app(CustomerDuplicateDetector::class)
+            ->find($lead->agency_id, $lead->phone, $lead->email, $actor);
+        if ($existing !== []) {
+            throw (new ApiError(409, 'customer.duplicate'))->with(['existing' => $existing]);
+        }
     }
 
     /**
@@ -311,7 +325,7 @@ class ContactLeadService
             'medium' => $data['medium'] ?? null,
             'locale' => app()->getLocale(),
             'ip' => $request->ip(),
-            'user_agent' => substr((string) $request->userAgent(), 0, 255),
+            'user_agent' => mb_substr((string) $request->userAgent(), 0, 255), // P124.03 (TCK-1256) : en caractères, jamais au milieu d'un UTF-8
         ];
     }
 

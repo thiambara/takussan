@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import {
   deleteAdminUserSession,
   fetchAdminUserActivity,
@@ -31,6 +32,7 @@ import {
 } from '@/lib/queries/super-admin';
 
 import type { AdminUserDetail, AdminUserSession, AuditLogEntry } from '@/types/super-admin';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { StatusBadge, type StatusTone } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
@@ -42,7 +44,6 @@ const STATUS_TONES: Record<string, StatusTone> = {
   active: 'success',
   inactive: 'neutral',
   blocked: 'danger',
-  banned: 'danger',
 };
 
 export function UserDetailPage({ userId }: { userId: number }) {
@@ -209,9 +210,12 @@ export function UserSupportActionsMenu({ userId }: { userId: number }) {
   const [dataExportOpen, setDataExportOpen] = useState(false);
   const queryClient = useQueryClient();
   const toast = useToast();
+  const garde = useGardeDoubleFacteur();
   const mutation = useMutation({
+    // TCK-1203 — déverrouiller, réinitialiser la 2FA, révoquer les sessions exigent un step-up :
+    // la garde, puis le rejeu.
     mutationFn: ({ action, reason }: { action: UserSupportAction; reason: string }) => (
-      postUserSupportAction(userId, action, reason)
+      avecGardeDoubleFacteur(() => postUserSupportAction(userId, action, reason), garde)
     ),
     onSuccess: async () => {
       await Promise.all([
@@ -564,8 +568,9 @@ function SessionRevokeDialog({
   onSuccess: () => Promise<void>;
 }) {
   const t = useTranslations('superAdmin.userDetail.sessions');
+  const garde = useGardeDoubleFacteur();
   const mutation = useMutation({
-    mutationFn: (reason: string) => deleteAdminUserSession(userId, session.id, reason),
+    mutationFn: (reason: string) => avecGardeDoubleFacteur(() => deleteAdminUserSession(userId, session.id, reason), garde),
     onSuccess,
   });
 

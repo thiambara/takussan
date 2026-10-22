@@ -130,6 +130,10 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const eyebrowParts: string[] = [estAgent ? tRoles('agent') : tRoles('owner')];
   if (agent.city) eyebrowParts.push(agent.city);
   if (agent.specialty) eyebrowParts.push(agent.specialty);
+  // TCK-1321 (P117.03) — les zones d'intervention, en lecture seule, à côté de la spécialité.
+  if (agent.intervention_zones && agent.intervention_zones.length > 0) {
+    eyebrowParts.push(agent.intervention_zones.join(', '));
+  }
   if (agent.years_of_experience && agent.years_of_experience > 0) {
     eyebrowParts.push(t('experience', { count: agent.years_of_experience }));
   }

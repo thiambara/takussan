@@ -8,6 +8,7 @@ use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Services\Export\ExportDataService;
 use App\Services\Export\ExportWriter;
+use Illuminate\Contracts\Support\Responsable;
 
 /**
  * GET /api/export/{entity}?format=csv|xlsx|pdf
@@ -20,7 +21,7 @@ use App\Services\Export\ExportWriter;
  * Query params:
  *   - format: csv|xlsx|pdf (default csv)
  *   - from, to: optional ISO date bounds (YYYY-MM-DD)
- *   - limit: cap rows (default 5000, max 10000 ; 2000 en PDF — TCK-713)
+ *   - limit: cap rows (default 5000, max 10000 ; 200 en PDF — TCK-713, TCK-1306)
  */
 class ExportController extends Controller
 {
@@ -93,6 +94,15 @@ class ExportController extends Controller
             ])
             ->log('data_exported');
 
-        return $this->writer->respond($format, $payload);
+        $response = $this->writer->respond($format, $payload);
+
+        // TCK-1308 (piste P112.03) — la coupure au plafond se signale par un en-tête, que le relais
+        // du front transmet à l'écran ; le fichier, lui, reste tel quel.
+        if ($payload['truncated']) {
+            $response = $response instanceof Responsable ? $response->toResponse($request) : $response;
+            $response->headers->set('X-Export-Truncated', (string) $payload['limit']);
+        }
+
+        return $response;
     }
 }

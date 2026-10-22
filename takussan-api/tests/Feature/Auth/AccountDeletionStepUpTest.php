@@ -101,8 +101,7 @@ class AccountDeletionStepUpTest extends TestCase
         $user = $this->machinePasswordUser(['google_id' => 'g-123']);
         Sanctum::actingAs($user);
 
-        $code = app(DeletionStepUpService::class)->sendCode($user);
-        $this->assertNotNull($code);
+        $code = $this->sendStepUpCode($user);
 
         $this->postJson('/api/auth/me/deletion-request', [
             'step_up_code' => $code,
@@ -120,7 +119,7 @@ class AccountDeletionStepUpTest extends TestCase
         $user = $this->machinePasswordUser(['google_id' => 'g-123']);
         Sanctum::actingAs($user);
 
-        $code = app(DeletionStepUpService::class)->sendCode($user);
+        $code = $this->sendStepUpCode($user);
 
         $this->postJson('/api/auth/me/deletion-request', [
             'step_up_code' => $code,
@@ -142,7 +141,7 @@ class AccountDeletionStepUpTest extends TestCase
         $user = $this->machinePasswordUser(['google_id' => 'g-123']);
         Sanctum::actingAs($user);
 
-        $code = app(DeletionStepUpService::class)->sendCode($user);
+        $code = $this->sendStepUpCode($user);
 
         $this->travel(DeletionStepUpService::CODE_TTL_SECONDS + 5)->seconds();
 
@@ -184,7 +183,7 @@ class AccountDeletionStepUpTest extends TestCase
         $user = $this->machinePasswordUser(['google_id' => 'g-123']);
         Sanctum::actingAs($user);
 
-        $code = app(DeletionStepUpService::class)->sendCode($user);
+        $code = $this->sendStepUpCode($user);
         $wrong = str_pad((string) ((((int) $code) + 1) % 1000000), 6, '0', STR_PAD_LEFT);
         $this->assertNotSame($code, $wrong);
 
@@ -216,7 +215,7 @@ class AccountDeletionStepUpTest extends TestCase
         ]);
         Sanctum::actingAs($user);
 
-        $code = app(DeletionStepUpService::class)->sendCode($user);
+        $code = $this->sendStepUpCode($user);
 
         // Valid e-mail code but no TOTP → refused.
         $this->postJson('/api/auth/me/deletion-request', [
@@ -241,7 +240,7 @@ class AccountDeletionStepUpTest extends TestCase
         $lease = Lease::factory()->create(['landlord_id' => $user->id, 'status' => LeaseStatus::Active]);
         Sanctum::actingAs($user);
 
-        $code = app(DeletionStepUpService::class)->sendCode($user);
+        $code = $this->sendStepUpCode($user);
 
         $this->postJson('/api/auth/me/deletion-request', [
             'step_up_code' => $code,
@@ -277,7 +276,7 @@ class AccountDeletionStepUpTest extends TestCase
         $user = $this->machinePasswordUser(['google_id' => 'g-124']);
         Sanctum::actingAs($user);
 
-        $code = app(DeletionStepUpService::class)->sendCode($user);
+        $code = $this->sendStepUpCode($user);
 
         $this->postJson('/api/auth/me/deletion-request', [
             'step_up_code' => $code,
@@ -319,7 +318,7 @@ class AccountDeletionStepUpTest extends TestCase
         $user = $this->machinePasswordUser(['google_id' => 'g-123']);
         Sanctum::actingAs($user);
 
-        $code = app(DeletionStepUpService::class)->sendCode($user);
+        $code = $this->sendStepUpCode($user);
 
         $this->postJson('/api/auth/me/deletion-request', [
             'step_up_code' => $code,
@@ -376,5 +375,45 @@ class AccountDeletionStepUpTest extends TestCase
 
         $log = Activity::query()->where('event', 'account.deletion.requested')->first();
         $this->assertSame('password', $log->properties['step_up'] ?? null);
+    }
+
+    /**
+     * TCK-1356 (P106.02) — le code se lit dans la notification simulée : le service ne le rend plus,
+     * dans aucun environnement.
+     */
+    private function sendStepUpCode(User $user): string
+    {
+        $this->assertTrue(app(DeletionStepUpService::class)->sendCode($user));
+        $code = null;
+        Notification::assertSentTo($user, AccountDeletionStepUpCodeNotification::class,
+            function (AccountDeletionStepUpCodeNotification $n) use (&$code): bool {
+                $code = $n->code;
+
+                return true;
+            });
+
+        return (string) $code;
+    }
+
+    /** TCK-1356 (P106.02) — « code émis » se dit pareil en production : `null` ne valait plus rien. */
+    public function test_send_code_rend_vrai_en_production_quand_un_code_part(): void
+    {
+        Notification::fake();
+        $this->app['env'] = 'production';
+        $user = $this->machinePasswordUser(['google_id' => 'g-123']);
+
+        $this->assertTrue(app(DeletionStepUpService::class)->sendCode($user));
+        Notification::assertSentTo($user, AccountDeletionStepUpCodeNotification::class);
+    }
+
+    public function test_send_code_rend_faux_sous_le_delai_de_renvoi(): void
+    {
+        Notification::fake();
+        $user = $this->machinePasswordUser(['google_id' => 'g-123']);
+        $stepUp = app(DeletionStepUpService::class);
+
+        $this->assertTrue($stepUp->sendCode($user));
+        $this->assertFalse($stepUp->sendCode($user));
+        Notification::assertSentToTimes($user, AccountDeletionStepUpCodeNotification::class, 1);
     }
 }

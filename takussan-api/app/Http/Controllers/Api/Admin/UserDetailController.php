@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Filters\DateBoundaryFilter;
+use App\Http\Filters\ExactIdentifierFilter;
 use App\Http\Resources\Api\Admin\UserDetailResource;
 use App\Http\Resources\Api\Admin\UserListResource;
 use App\Models\Enums\PlatformProfileLevel;
@@ -61,10 +63,11 @@ class UserDetailController extends Controller
         }
 
         if ($agencyId = $request->string('filter.agency_id')->trim()->value()) {
-            $query->where(function (Builder $q) use ($agencyId): void {
-                $q->whereHas('agentProfiles', fn (Builder $profile) => $profile->where('agency_id', $agencyId))
-                    ->orWhereHas('ownerProfiles', fn (Builder $profile) => $profile->where('agency_id', $agencyId));
-            });
+            // P119.01 (TCK-1269) — la portée commune des trois listes de membres : l'administrateur
+            // d'agence sans profil d'agent ni de bailleur y figure (TCK-277, TCK-1244).
+            // P119.03 (TCK-1273) — une valeur non numérique rend 400, plus 500.
+            ExactIdentifierFilter::exiger($agencyId, 'agency_id');
+            $query->membreDe((int) $agencyId);
         }
 
         if ($request->has('filter.email_verified')) {
@@ -128,6 +131,7 @@ class UserDetailController extends Controller
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->orderByDesc('last_used_at')
             ->orderByDesc('created_at')
+            ->orderByDesc('id') // TCK-1292 — sans lui, une session égale peut sauter d'une page à l'autre
             ->paginate(min(max((int) $request->query('per_page', 20), 1), 100));
 
         return $this->json([
@@ -157,8 +161,9 @@ class UserDetailController extends Controller
             })
             ->allowedFilters(
                 AllowedFilter::exact('event'),
-                AllowedFilter::callback('date_from', fn ($q, $value) => $q->where('created_at', '>=', $value)),
-                AllowedFilter::callback('date_to', fn ($q, $value) => $q->where('created_at', '<=', $value)),
+                // P119.02 (TCK-1271) — une date seule couvre le jour entier, comme au journal de l'agence.
+                AllowedFilter::custom('date_from', new DateBoundaryFilter('created_at', false)),
+                AllowedFilter::custom('date_to', new DateBoundaryFilter('created_at', true)),
             )
             ->allowedSorts('created_at', 'event')
             ->defaultSort('-created_at');
@@ -185,7 +190,7 @@ class UserDetailController extends Controller
                 'causer_id' => $log->causer_id,
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
-                'properties' => PropertyRedactor::redact($log->properties),
+                'properties' => PropertyRedactor::redact($log->properties, $log->subject_type),
                 'impersonator' => $log->impersonator_id === null ? null : [
                     'id' => (int) $log->impersonator_id,
                     'name' => $operateurs->get($log->impersonator_id)?->full_name,

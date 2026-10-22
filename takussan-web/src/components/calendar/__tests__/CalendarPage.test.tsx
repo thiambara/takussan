@@ -201,6 +201,20 @@ describe('<CalendarPage>', () => {
     expect(within(panel).getByTestId('calendar-selected-day-row-booking-24')).toBeInTheDocument();
   });
 
+  // TCK-1191 (P101.04) — le panneau du jour est un second `aside` à côté de celui de la barre
+  // latérale : sans nom, axe rendait `landmark-unique`. Il prend le nom de son titre, le jour.
+  it('names the selected day panel after its heading', async () => {
+    const user = userEvent.setup();
+    calendarResult.data = { data: [mkBooking({ id: 30, title: 'Booking #30' })] };
+    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
+
+    await user.click(screen.getByRole('button', { name: /20\/04\/2026/ }));
+
+    expect(screen.getByRole('complementary', { name: /lundi 20 avril/i })).toBe(
+      screen.getByTestId('calendar-selected-day'),
+    );
+  });
+
   it('disables one type via the segmented control without emptying them all', async () => {
     const user = userEvent.setup();
     render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));

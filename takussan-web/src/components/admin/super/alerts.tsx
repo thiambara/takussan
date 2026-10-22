@@ -163,9 +163,10 @@ export function AlertRuleDialog({
           emails: emails.split(',').map((item) => item.trim()).filter(Boolean),
           webhooks: webhooks.split(',').map((item) => item.trim()).filter(Boolean),
         },
-        is_active: true,
       };
-      return rule ? patchAlertRule(rule.id, payload) : createAlertRule(payload);
+      // TCK-1242 (P114.02) — `is_active` en création seulement : renvoyé en modification, il
+      // réactivait une règle désactivée, que l'écran ne montre ni ne modifie. Absent, l'API le garde.
+      return rule ? patchAlertRule(rule.id, payload) : createAlertRule({ ...payload, is_active: true });
     },
     onSuccess: () => {
       setError(null);

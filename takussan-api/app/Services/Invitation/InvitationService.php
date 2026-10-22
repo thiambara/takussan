@@ -4,6 +4,7 @@ namespace App\Services\Invitation;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Mail\InvitationMailable;
+use App\Models\Agency;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
@@ -18,9 +19,11 @@ use App\Services\Auth\PhoneVerificationService;
 use App\Services\Auth\SuperAdminCooptationService;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
+use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
+use App\Support\LienFront;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -30,6 +33,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Throwable;
 
 /**
  * TCK-249 — orchestrates the unified invitation lifecycle.
@@ -119,7 +123,8 @@ class InvitationService
     public const DEFAULT_TTL_DAYS = 7;
 
     /**
-     * Reminder offset (days after `created_at`). Cron `invitations:remind`
+     * Reminder offset (days after the last issue — `send` or `resend` —, read as
+     * `expires_at` − `DEFAULT_TTL_DAYS`). Cron `invitations:remind`
      * fires once per invitation, idempotent on `last_reminded_at`.
      */
     public const REMINDER_OFFSET_DAYS = 2;
@@ -351,6 +356,26 @@ class InvitationService
     }
 
     /**
+     * P129.03 (TCK-1339) — à la suppression d'une agence, ses invitations
+     * ouvertes (`sent`) sont révoquées : elles ne sont plus relancées, et
+     * leur lien ne s'accepte plus. Une ligne `invitation_revoked` par
+     * invitation, causée par qui supprime.
+     */
+    public function revokeOpenForAgency(Agency $agency, User $actor): int
+    {
+        $open = Invitation::query()
+            ->where('agency_id', $agency->getKey())
+            ->where('status', InvitationStatus::Sent->value)
+            ->get();
+
+        foreach ($open as $invitation) {
+            $this->revoke($invitation, $actor);
+        }
+
+        return $open->count();
+    }
+
+    /**
      * Resend: regenerate token, push `expires_at` forward by the default
      * TTL, clear the reminder marker (so the recipient gets one again at
      * J+2 from "now") and re-send the email.
@@ -503,9 +528,15 @@ class InvitationService
                     ->log('invitation_expired');
             });
 
+            // P123.04 (TCK-1251) — l'échec d'un avis est rapporté par invitation, la boucle
+            // continue : il arrêtait la tâche, qui n'expirait plus qu'une invitation par passage.
             $inviter = User::query()->find($invitation->invited_by);
             if ($inviter !== null) {
-                $inviter->notify(new InvitationExpiredNotification($invitation));
+                try {
+                    $inviter->notify(new InvitationExpiredNotification($invitation));
+                } catch (Throwable $e) {
+                    report($e);
+                }
             }
         }
 
@@ -526,17 +557,28 @@ class InvitationService
 
         $due = Invitation::query()
             ->where('status', InvitationStatus::Sent->value)
-            ->where('created_at', '<=', $threshold)
+            // P132.02 (TCK-1252) — le délai part de la DERNIÈRE émission, `expires_at` − TTL, que
+            // `send` et `resend` posent tous deux : une relance repart pour J+2, comme le dit le
+            // docblock de `resend`. `created_at` faisait partir le rappel dans l'heure de la relance.
+            ->where('expires_at', '<=', $threshold->copy()->addDays(self::DEFAULT_TTL_DAYS))
             ->where('expires_at', '>', $now)
             ->whereNull('last_reminded_at')
             ->get();
 
         foreach ($due as $invitation) {
-            $this->deliver(
-                $invitation,
-                $this->recipientAccount($invitation->email, $this->smsRecipient($invitation)),
-                isReminder: true,
-            );
+            // P123.04 (TCK-1251) — un rappel qui échoue est rapporté et n'arrête plus les suivants ;
+            // non marqué, il est retenté au passage suivant.
+            try {
+                $this->deliver(
+                    $invitation,
+                    $this->recipientAccount($invitation->email, $this->smsRecipient($invitation)),
+                    isReminder: true,
+                );
+            } catch (Throwable $e) {
+                report($e);
+
+                continue;
+            }
 
             $invitation->forceFill(['last_reminded_at' => $now])->save();
         }
@@ -571,6 +613,13 @@ class InvitationService
             abort_code(410, 'invitation.token_expired');
         }
 
+        // P129.03 (TCK-1339) — une agence supprimée n'ouvre plus de lien neuf,
+        // même par une invitation restée ouverte (supprimée avant la révocation
+        // de `revokeOpenForAgency`, ou hors de la route).
+        if ($invitation->agency_id !== null && ! Agency::query()->whereKey($invitation->agency_id)->exists()) {
+            abort_code(410, 'invitation.token_revoked');
+        }
+
         return $invitation;
     }
 
@@ -595,6 +644,9 @@ class InvitationService
                     // without leaking auth-bypass semantics.
                     : bcrypt(Str::random(40)),
                 'email_verified_at' => $invitation->email !== null ? now() : null,
+                // TCK-1344 (P132.05) — la langue dans laquelle l'invitation est partie : les envois
+                // suivants gardent celle du premier message, au lieu du défaut `fr` de la colonne.
+                'preferred_language' => $this->preferredLocale(null, $invitation),
             ]);
 
             // TCK-589 — le lien est arrivé par SMS sur ce numéro : il est vérifié, par
@@ -630,8 +682,10 @@ class InvitationService
      * Single source of truth for the "happy path" tail: attach the role
      * (scoped to agency_id), flip the polymorphic profile, flip the
      * invitation, log activity, notify the inviter. The whole tail is
-     * called from inside an outer transaction so a failure here rolls
-     * the User creation back too.
+     * called from inside an outer transaction so a failure of these
+     * writes rolls the User creation back too. The inviter's notice is
+     * not one of them: it is queued after the commit (TCK-1335), so a
+     * mail outage never keeps the invitee out.
      */
     protected function finalizeAccept(Invitation $invitation, User $user): Invitation
     {
@@ -728,9 +782,13 @@ class InvitationService
             ->event('invitation_accepted')
             ->log('invitation_accepted');
 
+        // TCK-1335 (P123.02) — l'avis à l'invitant part après le commit, et
+        // en file : un courriel en panne, ou refusé à l'adresse de
+        // l'invitant, n'empêche plus l'invité d'entrer.
         $inviter = $invitation->inviter;
         if ($inviter !== null) {
-            $inviter->notify(new InvitationAcceptedNotification($invitation->fresh()));
+            $accepted = $invitation->fresh();
+            DB::afterCommit(fn () => $inviter->notify(new InvitationAcceptedNotification($accepted)));
         }
 
         return $invitation->fresh();
@@ -959,16 +1017,16 @@ class InvitationService
             return;
         }
 
-        $base = config('app.frontend_url') ?: config('app.url');
-
         app(NotificationService::class)->send(
             ContactSansCompte::fromInvitation($invitation, $locale),
             $isReminder ? NotificationCode::InvitationReminder : NotificationCode::InvitationReceived,
             [
                 'agency' => self::smsAgencyName($invitation->agency?->name),
                 // Même lien que le courriel (`InvitationMailable`).
-                'url' => rtrim((string) $base, '/').'/invitations/accept?token='.$invitation->token,
+                'url' => LienFront::vers('/invitations/accept?token='.$invitation->token),
             ],
+            // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit l'invitation avant de partir.
+            deferredSmsGuard: DeferredSmsGuard::forInvitation($invitation),
         );
     }
 

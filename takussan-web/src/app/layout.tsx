@@ -2,10 +2,11 @@ import type { Metadata } from 'next';
 import { Bricolage_Grotesque, DM_Sans } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { getLocale, getTranslations } from 'next-intl/server';
-import { getMe } from '@/lib/auth';
+import { DELAI_ME_RACINE_MS } from '@/lib/auth';
 import { origineSite } from '@/lib/alternates';
 import { scriptDeConfigPublique } from '@/lib/config-publique';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
+import { utilisateurDuRendu } from '@/lib/utilisateur-du-rendu';
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation';
 import { AuthProvider } from '@/context/AuthContext';
 import { QueryProvider } from '@/components/providers/QueryProvider';
@@ -72,11 +73,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   let initialUser = null;
   if (impersonation ?? token) {
-    try {
-      initialUser = await getMe((impersonation ?? token) as string);
-    } catch {
-      initialUser = null;
-    }
+    // TCK-1374 (P138.02, P138.03) — la même promesse que `getMeAction` : un seul `/api/auth/me`
+    // par document, lu sous le profil actif (sans lui, un compte de plusieurs agences recevait
+    // `agency_id: null`). TCK-1217 (P79.02) — borné : au-delà, le repli anonyme, au lieu d'une
+    // page qui ne part pas tant que l'API ne répond pas. La borne n'abandonne pas la lecture
+    // partagée, que la coque de `/app` attend de toute façon.
+    const borne = AbortSignal.timeout(DELAI_ME_RACINE_MS);
+    initialUser = await Promise.race([
+      utilisateurDuRendu(),
+      new Promise<never>((_resoudre, rejeter) => {
+        borne.addEventListener('abort', () => rejeter(borne.reason), { once: true });
+      }),
+    ]).catch(() => null);
   }
 
   const locale = await getLocale();

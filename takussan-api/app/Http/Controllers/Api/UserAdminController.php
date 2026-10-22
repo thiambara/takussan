@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\IncludedUserResource;
+use App\Models\Agency;
+use App\Models\Enums\Capability;
 use App\Models\User;
 use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Collection;
@@ -18,9 +20,14 @@ class UserAdminController extends Controller
         $actor = $request->user();
         $agencyId = $request->activeProfile()?->agency_id;
 
+        // TCK-1412 (P148.01, P148.02) — la liste de l'équipe se lit aussi sous la capacité qui
+        // ouvre la section `team` du front (`team.invite`, `team.assign_role` ou `team.suspend`),
+        // délégations comprises (`canActAt`) : celui qui invite, attribue un rôle ou suspend lit
+        // les membres sur lesquels il agit.
         abort_unless(
             $actor->isSuperAdmin()
-                || ($agencyId !== null && $actor->isAgencyAdminAt((int) $agencyId)),
+                || ($agencyId !== null && $actor->isAgencyAdminAt((int) $agencyId))
+                || ($agencyId !== null && $this->tientUneCapaciteDEquipe($actor, (int) $agencyId)),
             403,
         );
 
@@ -96,4 +103,16 @@ class UserAdminController extends Controller
     // et `deleteOwnAccount` sans step-up. L'effacement n'a plus qu'un chemin :
     // `AccountDeletionService` — demande par l'utilisateur (`me/deletion-request`) ou par un
     // opérateur (`POST /api/admin/users/{user}/erase`).
+
+    /** Les capacités qui ouvrent la section `team` du front (`PAGES_ADMIN`, TCK-1412). */
+    private function tientUneCapaciteDEquipe(User $actor, int $agencyId): bool
+    {
+        $agency = Agency::query()->find($agencyId);
+
+        return $agency !== null && collect([
+            Capability::TeamInvite,
+            Capability::TeamAssignRole,
+            Capability::TeamSuspend,
+        ])->contains(fn (Capability $capacite) => $actor->canActAt($capacite, $agency));
+    }
 }

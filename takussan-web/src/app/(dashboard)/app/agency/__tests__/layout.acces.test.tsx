@@ -11,8 +11,12 @@ import type { User } from '@/types/user';
  * exactement ce que l'ADR supprime. Il garde le segment (rôle d'administration) et sert la frontière
  * de dictionnaire de l'administration. Le layout est EXÉCUTÉ ; seuls ses appels de bord sont simulés.
  */
-const { getMe, redirect, messagesPour } = vi.hoisted(() => ({
+const { getMe, redirect, messagesPour, accesAdmin } = vi.hoisted(() => ({
   getMe: vi.fn(),
+  accesAdmin: vi.fn<(user: unknown) => Promise<{ chemins: string[]; espaceIndividuel: boolean }>>(async () => ({
+    chemins: [],
+    espaceIndividuel: false,
+  })),
   redirect: vi.fn((url: string) => {
     throw new Error(`NEXT_REDIRECT ${url}`);
   }),
@@ -21,6 +25,7 @@ const { getMe, redirect, messagesPour } = vi.hoisted(() => ({
 
 vi.mock('next/navigation', () => ({ redirect: (url: string) => redirect(url) }));
 vi.mock('@/app/actions/auth', () => ({ getMeAction: () => getMe() }));
+vi.mock('@/lib/access/pages-admin-server', () => ({ accesAdmin: (u: unknown) => accesAdmin(u) }));
 vi.mock('@/i18n/messages', () => ({ messagesPour: (f: string) => messagesPour(f) }));
 vi.mock('@/i18n/IntlProvider', () => ({
   IntlProvider: ({ messages, children }: { messages: { frontiere: string }; children: React.ReactNode }) => (
@@ -69,5 +74,23 @@ describe('layout /app/agency (TCK-649)', () => {
     await expect(AgencyLayout({ children: null })).rejects.toThrow('NEXT_REDIRECT /app');
     expect(redirect).toHaveBeenCalledWith('/app');
     expect(messagesPour).not.toHaveBeenCalled();
+  });
+
+  // TCK-1412 (P148.01, P148.02) — la section se juge par capacité : un agent à qui une délégation
+  // `agency_admin` ou un rôle personnalisé ouvre une page de la table passe la garde du segment.
+  it("laisse passer un agent à qui la table ouvre une page, et lui sert le dictionnaire", async () => {
+    const agent = { id: 2, roles: ['agent', 'customer'], agency_id: 7 };
+    getMe.mockResolvedValue(agent);
+    accesAdmin.mockResolvedValueOnce({ chemins: ['/app/agency/team'], espaceIndividuel: false });
+    await expect(AgencyLayout({ children: null })).resolves.toBeTruthy();
+    expect(accesAdmin).toHaveBeenCalledWith(agent);
+    expect(redirect).not.toHaveBeenCalled();
+    expect(messagesPour).toHaveBeenCalledWith('(dashboard)/app/agency');
+  });
+
+  it("ne lit pas la table pour un admin : son rôle suffit", async () => {
+    getMe.mockResolvedValue(ADMIN);
+    await AgencyLayout({ children: null });
+    expect(accesAdmin).not.toHaveBeenCalled();
   });
 });

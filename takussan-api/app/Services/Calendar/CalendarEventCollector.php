@@ -5,6 +5,7 @@ namespace App\Services\Calendar;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\TaskStatus;
@@ -110,7 +111,7 @@ class CalendarEventCollector
             ? app(ProviderEligibility::class)->agencyIdsWhereAssignable($user)
             : $staffAgencyIds;
 
-        $restrict = function (Builder $q, string $propertyKey = 'property_id') use ($propertyId, $propertyIds, $agencyFilter, $isAdmin, $userId, $staffAgencyId): void {
+        $restrict = function (Builder $q, string $propertyKey = 'property_id') use ($propertyId, $propertyIds, $agencyFilter, $isAdmin, $userId, $staffAgencyId, $staffAgencyIds): void {
             if ($propertyId) {
                 $q->where($propertyKey, $propertyId);
             }
@@ -121,7 +122,7 @@ class CalendarEventCollector
                 $q->whereHas('property', fn (Builder $p) => $p->where('agency_id', $agencyFilter));
             }
             if (! $isAdmin) {
-                $q->whereHas('property', fn (Builder $p) => self::scopeVisibleProperties($p, $userId, $staffAgencyId));
+                $q->whereHas('property', fn (Builder $p) => self::scopeVisibleProperties($p, $userId, $staffAgencyId, $staffAgencyIds));
             }
         };
 
@@ -148,18 +149,31 @@ class CalendarEventCollector
 
     /**
      * Les biens qu'un non-super-admin voit dans son agenda.
+     *
+     * TCK-1154 (P86.04) — la branche collaborateur ne vaut que pour un collaborateur `agent` ou
+     * `manager` accepté, encore personnel de l'agence du bien (`$staffAgencyIds`), comme
+     * `BookingStakeholders::collaboratorsOf`. Sans condition de rôle, un `viewer` ou un `co_owner`
+     * accepté lisait l'agenda d'un bien que `PropertyPolicy` lui refuse.
+     *
+     * @param  list<int>  $staffAgencyIds  les agences où l'appelant est personnel
      */
-    public static function scopeVisibleProperties(Builder $p, int $userId, ?int $staffAgencyId): void
+    public static function scopeVisibleProperties(Builder $p, int $userId, ?int $staffAgencyId, array $staffAgencyIds = []): void
     {
-        $p->where(function (Builder $inner) use ($userId, $staffAgencyId): void {
+        $p->where(function (Builder $inner) use ($userId, $staffAgencyId, $staffAgencyIds): void {
             $inner->where('user_id', $userId);
             if ($staffAgencyId !== null) {
                 $inner->orWhere('agency_id', $staffAgencyId);
             }
-            // D-66 — branche collaborateur conservée telle quelle.
-            $inner->orWhereHas('collaborators', function (Builder $c) use ($userId): void {
-                $c->where('user_id', $userId)->whereNotNull('accepted_at');
-            });
+            if ($staffAgencyIds !== []) {
+                $inner->orWhere(function (Builder $collab) use ($userId, $staffAgencyIds): void {
+                    $collab->whereIn('agency_id', $staffAgencyIds)
+                        ->whereHas('collaborators', function (Builder $c) use ($userId): void {
+                            $c->where('user_id', $userId)
+                                ->whereNotNull('accepted_at')
+                                ->whereIn('role', [CollaboratorRole::Agent->value, CollaboratorRole::Manager->value]);
+                        });
+                });
+            }
         });
     }
 

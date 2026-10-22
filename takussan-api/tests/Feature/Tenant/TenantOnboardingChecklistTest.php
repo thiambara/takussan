@@ -82,6 +82,8 @@ class TenantOnboardingChecklistTest extends TestCase
 
         $entry = Activity::query()->where('description', 'tenant_checklist_created')->first();
         $this->assertNotNull($entry, 'tenant_checklist_created activity should be logged');
+        // TCK-1399 (P139.05) — `event` = le code du journal, lisible et filtrable par l'export.
+        $this->assertSame('tenant_checklist_created', $entry->event);
         $this->assertSame($lease->id, (int) ($entry->properties['lease_id'] ?? 0));
     }
 
@@ -114,6 +116,15 @@ class TenantOnboardingChecklistTest extends TestCase
         $this->assertNotNull(
             Activity::query()->where('description', 'tenant_checklist_completed')->first(),
             'tenant_checklist_completed activity should be logged',
+        );
+        // TCK-1399 (P139.05) — `event` = le code du journal, sur chaque case et sur la clôture.
+        $this->assertSame(
+            ['tenant_checklist_completed'],
+            Activity::query()->where('description', 'tenant_checklist_completed')->pluck('event')->all(),
+        );
+        $this->assertSame(
+            ['tenant_checklist_item_completed', 'tenant_checklist_item_completed'],
+            Activity::query()->where('description', 'tenant_checklist_item_completed')->pluck('event')->all(),
         );
     }
 

@@ -65,6 +65,26 @@ class ActivityLogEndpointTest extends TestCase
             ]);
     }
 
+    /**
+     * TCK-1261 (P139.03) — `users` n'a pas de colonne `name` : le causeur se nomme par
+     * `full_name`, que l'écran du journal affiche au-dessus de l'adresse.
+     */
+    public function test_the_causer_is_named_by_his_full_name(): void
+    {
+        $admin = $this->actingAsAdmin();
+        $admin->forceFill(['first_name' => 'Awa', 'last_name' => 'Ndiaye'])->save();
+        Activity::create([
+            'log_name' => 'default', 'description' => 'created', 'event' => 'created',
+            'subject_type' => User::class, 'subject_id' => $admin->id,
+            'causer_type' => User::class, 'causer_id' => $admin->id,
+        ]);
+
+        $row = collect($this->getJson('/api/activity-log?filter[causer_id]='.$admin->id)->assertOk()->json('data'))
+            ->firstWhere('causer_id', $admin->id);
+
+        $this->assertSame(['id' => $admin->id, 'name' => 'Awa Ndiaye', 'email' => $admin->email], $row['causer']);
+    }
+
     public function test_filter_by_causer_id_via_spatie_nested_syntax(): void
     {
         $admin = $this->actingAsAdmin();

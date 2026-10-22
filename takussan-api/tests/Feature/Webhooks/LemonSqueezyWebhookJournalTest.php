@@ -5,9 +5,11 @@ namespace Tests\Feature\Webhooks;
 use App\Models\Integration;
 use App\Models\IntegrationWebhookLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
+use LemonSqueezy\Laravel\Events\WebhookReceived;
 use Tests\TestCase;
 
 /**
@@ -72,13 +74,22 @@ class LemonSqueezyWebhookJournalTest extends TestCase
         $this->assertSame($body, $log->body);
     }
 
-    /** Sans secret configuré, le paquet ne vérifie rien : la ligne n'est jamais authentifiée. */
-    public function test_without_a_signing_secret_nothing_is_authenticated(): void
+    /**
+     * P98.08 (TCK-1172) — sans secret configuré, le paquet ne vérifie rien : la route refuse donc
+     * tout, en 403 comme une signature fausse, et rien n'atteint le gestionnaire du paquet. Avant, le
+     * corps non signé était traité (200), quel que soit le `signing_secret` saisi dans la console.
+     */
+    public function test_without_a_signing_secret_the_route_refuses_and_nothing_is_handled(): void
     {
         config()->set('lemon-squeezy.signing_secret', '');
-        $this->postLemonSqueezy($this->body(), 'quelconque')->assertOk();
+        Integration::factory()->create(['agency_id' => null, 'provider' => 'lemon_squeezy', 'is_active' => true]);
+        Event::fake([WebhookReceived::class]);
 
+        $this->postLemonSqueezy($this->body(), 'quelconque')->assertForbidden();
+
+        Event::assertNotDispatched(WebhookReceived::class);
         $log = IntegrationWebhookLog::query()->sole();
+        $this->assertSame(IntegrationWebhookLog::STATUS_REJECTED, $log->status);
         $this->assertNull($log->authenticated_at);
         $this->assertFalse($log->isReplayable());
     }

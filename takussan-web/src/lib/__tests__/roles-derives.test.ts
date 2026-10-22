@@ -44,8 +44,9 @@ function compte(roles: UserRole[]): User {
   };
 }
 
-const hrefs = (roles: UserRole[]) => buildNavItems(compte(roles)).map((i) => i.href);
-const libelles = (roles: UserRole[]) => buildNavItems(compte(roles)).map((i) => i.labelKey);
+// P152.03 — le rôle système de l'agent porte `properties.create`.
+const hrefs = (roles: UserRole[]) => buildNavItems(compte(roles), ['properties.create']).map((i) => i.href);
+const libelles = (roles: UserRole[]) => buildNavItems(compte(roles), ['properties.create']).map((i) => i.labelKey);
 
 describe('isCustomer est devenu un plancher, isCustomerOnly le discriminant', () => {
   it('isCustomer répond oui à un agent — et c’est correct, pas un défaut', () => {

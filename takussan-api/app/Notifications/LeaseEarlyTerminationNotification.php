@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Enums\Currency;
 use App\Models\Invoice;
 use App\Models\Lease;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
@@ -24,6 +25,7 @@ use Illuminate\Notifications\Notification;
 class LeaseEarlyTerminationNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public const EVENT_TYPE = 'lease_early_termination';
 

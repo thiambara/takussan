@@ -30,10 +30,12 @@ class PayoutResource extends BaseResource
             'status' => $this->status?->value,
             'period_start' => $this->calendarDate($this->period_start),
             'period_end' => $this->calendarDate($this->period_end),
-            'gross_amount' => (float) $this->gross_amount,
-            'commission_amount' => (float) $this->commission_amount,
+            // TCK-1182 (P100.03) — `whenHas` : sous un sparse fieldset qui ne lit pas la colonne, la clé
+            // est omise au lieu d'une valeur inventée (montant à 0, nature ou devise par défaut).
+            'gross_amount' => $this->whenHas('gross_amount', fn () => (float) $this->gross_amount),
+            'commission_amount' => $this->whenHas('commission_amount', fn () => (float) $this->commission_amount),
             'fees_amount' => $this->fees_amount !== null ? (float) $this->fees_amount : null,
-            'net_amount' => (float) $this->net_amount,
+            'net_amount' => $this->whenHas('net_amount', fn () => (float) $this->net_amount),
             'currency' => $this->currency?->value,
             'payment_method' => $this->payment_method?->value,
             'payout_method_id' => $this->payout_method_id,

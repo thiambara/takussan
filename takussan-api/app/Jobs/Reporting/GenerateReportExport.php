@@ -11,7 +11,9 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 /**
  * TCK-227 — Async report export. Triggered for matrices > 10k rows; serializes
@@ -65,7 +67,27 @@ class GenerateReportExport implements ShouldQueue
             'expires_at' => now()->addDays(7),
         ]);
 
-        $export->requester?->notify(new ReportExportReadyNotification($export));
+        // TCK-1267 (P111.03) — le fichier est écrit et l'export `ready` : un courriel qui échoue se
+        // signale sans faire lever le job, que le worker rejouerait jusqu'à `failed()`.
+        try {
+            $export->requester?->notify(new ReportExportReadyNotification($export));
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * TCK-1145 (P77.04) — sans lui, un export dont le calcul ou l'écriture lève restait
+     * `processing`, et `failure_reason` n'était écrit par rien.
+     */
+    public function failed(Throwable $exception): void
+    {
+        // TCK-1267 (P111.03) — seul un export encore en préparation échoue : un export `ready` a
+        // son fichier, que le téléchargement ne servirait plus.
+        ReportExport::query()->whereKey($this->reportExportId)->whereIn('status', ['queued', 'processing'])->first()?->update([
+            'status' => 'failed',
+            'failure_reason' => Str::limit($exception->getMessage(), 1000),
+        ]);
     }
 
     private function toCsv(array $rows): string

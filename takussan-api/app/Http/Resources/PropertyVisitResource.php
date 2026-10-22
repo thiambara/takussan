@@ -3,8 +3,11 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\PropertyVisit;
+use App\Policies\PropertyVisitPolicy;
 use App\Rules\PersonnelDeLAgence;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
 
 class PropertyVisitResource extends BaseResource
 {
@@ -64,7 +67,25 @@ class PropertyVisitResource extends BaseResource
                 'phone' => $this->customer->phone,
             ] : null),
             'created_at' => $this->iso($this->created_at),
+            // P152.04 — sur LA visite de la route seulement (une batterie de règles par ligne d'une
+            // liste coûterait) : confirmer, clore, déclarer manquée, déplacer ou annuler au nom de
+            // ceux qui gèrent le bien, c'est `update` ET `agitPourLeBien`, comme le contrôleur.
+            'abilities' => $this->when($this->isDetailRequest($request), fn (): array => [
+                'manage' => $request->user()->can('update', $this->resource)
+                    && PropertyVisitPolicy::agitPourLeBien($request->user(), $this->resource),
+            ]),
         ];
+    }
+
+    private function isDetailRequest(Request $request): bool
+    {
+        $route = $request->route();
+        if ($request->user() === null || ! $route instanceof Route || ! $route->hasParameter('visit')) {
+            return false;
+        }
+        $routed = $route->parameter('visit');
+
+        return $routed instanceof PropertyVisit && $routed->is($this->resource);
     }
 
     /**

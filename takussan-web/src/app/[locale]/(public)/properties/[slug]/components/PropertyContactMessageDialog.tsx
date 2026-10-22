@@ -130,7 +130,7 @@ function AnonymousDialog({
       defaultMessage={defaultMessage}
       description={proprietaire ? t('descriptionOwner') : undefined}
       successBody={proprietaire ? t('successBodyOwner') : undefined}
-      onSubmit={(payload) => submitContactLead(slug, payload)}
+      onSubmit={(payload, cle) => submitContactLead(slug, payload, cle)}
     />
   );
 }

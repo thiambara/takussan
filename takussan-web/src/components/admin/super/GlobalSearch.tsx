@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { fetchGlobalSearch, type GlobalSearchHit } from '@/lib/queries/super-admin';
+import { fetchGlobalSearch, type GlobalSearchHit } from '@/lib/queries/super-admin-coque';
 import { cn } from '@/lib/utils';
 import { usePlatformAbilities } from './PlatformAbilitiesProvider';
 

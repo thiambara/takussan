@@ -2,6 +2,8 @@
 
 namespace App\Services\Geo;
 
+use Illuminate\Support\Facades\DB;
+
 /** TCK-633 — charger, rattacher, réindexer : ce que jouent la commande et le seeder. */
 final class GeoReferentialSync
 {
@@ -19,11 +21,19 @@ final class GeoReferentialSync
     /** @return array<string, int> */
     public function executer(string $repertoire): array
     {
+        // TCK-787 — les biens dont le jeu a renommé la ville ou le quartier se réindexent aussi :
+        // le chargeur le fait région par région (TCK-1155).
         $bilan = $this->chargeur->charger($repertoire);
         $renommes = $this->chargeur->biensRenommes();
-        $biens = $this->rattacheur->rattacher();
-        // TCK-787 — les biens dont le jeu a renommé la ville ou le quartier se réindexent aussi.
-        $this->reindexation->biens([...$renommes, ...$biens]);
+        // TCK-1155 (P89.01) — rattacher et réindexer dans une même transaction : un échec du
+        // moteur annule le rattachement, que le passage suivant rejoue. Validé seul, il ne se
+        // voyait plus à rattacher, et l'index restait sans le quartier.
+        $biens = DB::transaction(function () {
+            $biens = $this->rattacheur->rattacher();
+            $this->reindexation->biens($biens);
+
+            return $biens;
+        });
 
         return $bilan + [
             'biens_rattaches' => count(array_unique($biens)),

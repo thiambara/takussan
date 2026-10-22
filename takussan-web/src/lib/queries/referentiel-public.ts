@@ -33,7 +33,7 @@ export interface ListeDuReferentiel<T> {
   readonly data: readonly T[];
 }
 
-const UNE_HEURE_MS = 60 * 60 * 1000;
+export const UNE_HEURE_MS = 60 * 60 * 1000;
 
 export const referentielPublicQueryKeys = {
   all: ['referentiel-public'] as const,
@@ -41,6 +41,8 @@ export const referentielPublicQueryKeys = {
   villes: () => [...referentielPublicQueryKeys.all, 'villes'] as const,
   quartiers: (villeId: number | null) => [...referentielPublicQueryKeys.all, 'quartiers', villeId] as const,
   equipements: () => [...referentielPublicQueryKeys.all, 'equipements'] as const,
+  // TCK-1229 (P103.04) — les comptes par type du menu « Plus » de la barre publique.
+  typesDeBien: () => [...referentielPublicQueryKeys.all, 'types-de-bien'] as const,
 };
 
 /**

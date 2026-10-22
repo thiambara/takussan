@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { etiquetteMois } from './abscisses';
 import { pastilleSerie, traitSerie } from './palette';
 import { pourcent } from './repere';
-import type { ChartData } from './types';
+import type { LineChartData } from './types';
 
 const PADDING = { top: 16, right: 16, bottom: 28, left: 40 };
 const VIEW_W = 640;
@@ -32,7 +32,7 @@ const TRACE = {
 const HAUTEUR_PAR_DEFAUT = 'h-64 lg:h-80';
 
 type Props = {
-  data: ChartData;
+  data: LineChartData;
   title?: string;
   unit?: string;
   className?: string;
@@ -66,7 +66,7 @@ export function LineChart({ data, title, unit, className, abscisses }: Props) {
     );
   }
 
-  const allValues = series.flatMap((s) => s.values);
+  const allValues = series.flatMap((s) => s.values).filter((v): v is number => v !== null);
   const max = Math.max(...allValues, 0);
   const min = Math.min(...allValues, 0);
   // Le plancher à 1 protège la division par zéro de `toPath`, et rien d'autre : il ne remonte pas
@@ -75,12 +75,16 @@ export function LineChart({ data, title, unit, className, abscisses }: Props) {
 
   const innerH = TRACE.hauteur;
 
-  const toPath = (values: number[]) =>
+  // Un point `null` coupe le tracé (P127.02, TCK-1355) : le point suivant ouvre un nouveau segment
+  // par `M`. Ni zéro ni interpolation — un mois sans rien à mesurer n'est pas un mois à 0 %.
+  const toPath = (values: (number | null)[]) =>
     values
-      .map((v, i) => {
+      .flatMap((v, i) => {
+        if (v === null) return [];
         const x = left + xStep * i;
         const y = PADDING.top + innerH - ((v - min) / range) * innerH;
-        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+        const ouvre = i === 0 || values[i - 1] === null;
+        return [`${ouvre ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`];
       })
       .join(' ');
 

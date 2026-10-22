@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { CalendarCheck, ChevronRight } from 'lucide-react';
 import { useBookings } from '@/lib/queries/bookings';
@@ -25,17 +25,39 @@ const TABS: ReadonlyArray<{ value: TabKey; labelKey: string }> = [
   { value: 'expired', labelKey: 'list.tabs.expired' },
 ];
 
+function isTabKey(value: string | null): value is TabKey {
+  return TABS.some((tab) => tab.value === value);
+}
+
 /**
  * TCK-171 — 5 status tabs for the customer's bookings list.
  * Filtering is server-side via spatie's `filter[status]`.
+ *
+ * TCK-1293 (P131.04) — l'onglet vit dans `?status=`, borné à `TABS`, comme `?tab=` de
+ * `PaymentsTabs` : un lien vers un autre statut que `pending` l'ouvre, et le retour arrière depuis
+ * une réservation retrouve l'onglet quitté.
  */
 export function BookingsList() {
   const locale = useLocale() as Locale;
   const t = useTranslations('bookings');
-  const [tab, setTab] = useState<TabKey>('pending');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const demande = searchParams.get('status');
+  const tab: TabKey = isTabKey(demande) ? demande : 'pending';
+
+  const setTab = (next: TabKey) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === 'pending') {
+      params.delete('status');
+    } else {
+      params.set('status', next);
+    }
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : '?', { scroll: false });
+  };
 
   return (
-    <Tabs value={tab} onValueChange={(v) => setTab((v as TabKey) ?? 'pending')}>
+    <Tabs value={tab} onValueChange={(v) => setTab(isTabKey(v as string) ? (v as TabKey) : 'pending')}>
       {/* Cinq onglets ne tiennent pas à 390 : la rangée défile au lieu de couper « Expirées ». */}
       <div className="-mx-4 overflow-x-auto overscroll-x-contain px-4 sm:mx-0 sm:px-0">
         <TabsList className="w-max">
@@ -138,9 +160,6 @@ function BookingRow({ booking, locale }: { booking: Booking; locale: Locale }) {
               <p className="text-sm font-semibold tabular-nums text-foreground">
                 {formatCurrency(booking.total_amount, locale)}
               </p>
-              {booking.deposit_paid && (
-                <p className="text-xs text-success">{t('list.depositPaid')}</p>
-              )}
             </div>
           )}
         </div>

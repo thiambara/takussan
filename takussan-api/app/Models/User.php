@@ -21,6 +21,7 @@ use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Profiles\ActiveProfileResolver;
 use App\Sorts\CollatedNameSort;
 use App\Support\CaseInsensitive;
+use App\Support\Query\DepartageQueryBuilder;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
@@ -153,8 +154,11 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
 
     protected static array $requestFilterable = ['status', 'added_by_id'];
 
-    /** `first_name` et `last_name` se trient à part, par {@see self::nameSorts()} (TCK-1136). */
-    protected static array $requestSortable = ['id', 'created_at', 'email', 'status'];
+    /**
+     * `first_name` et `last_name` se trient à part, par {@see self::nameSorts()} (TCK-1136).
+     * `last_login_at` : la colonne « Dernière connexion » de l'équipe d'agence (TCK-1280).
+     */
+    protected static array $requestSortable = ['id', 'created_at', 'email', 'status', 'last_login_at'];
 
     /**
      * TCK-1136 (P87.01) — prénom et nom se trient en `COLLATE "und-x-icu"` (ADR-0025, amendement du
@@ -178,7 +182,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
      */
     public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
     {
-        return QueryBuilder::for($baseQuery ?? static::class, $request)
+        return DepartageQueryBuilder::for($baseQuery ?? static::class, $request)
             ->allowedFilters(...static::getAllowedQueryFilters())
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
@@ -228,11 +232,29 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             ['agentProfiles', 'ownerProfiles', 'agencyAdminProfiles'],
         );
 
-        return QueryBuilder::for($base, $request)
+        return DepartageQueryBuilder::for($base, $request)
             ->allowedFilters(...[...array_values($filters), self::roleFilter($agencyId)])
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
             ->allowedIncludes(...$includes);
+    }
+
+    /**
+     * P120.02 (TCK-1244) — « personne qui tient un profil dans l'agence » : agent, bailleur ou
+     * administrateur, sans statut. Les trois branches de `UserAdminController` (TCK-277) : le
+     * passage à `agency_admin` supprime les profils d'agent et de bailleur, et un admin pur sortait
+     * de la liste des membres et de l'équipe de la console.
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopeMembreDe(Builder $query, int $agencyId): void
+    {
+        $inAgency = fn (Builder $p) => $p->where('agency_id', $agencyId);
+
+        $query->where(fn (Builder $q) => $q
+            ->whereHas('agentProfiles', $inAgency)
+            ->orWhereHas('ownerProfiles', $inAgency)
+            ->orWhereHas('agencyAdminProfiles', $inAgency));
     }
 
     /**
@@ -254,14 +276,21 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         );
         $inAgency = fn (Builder $p) => $p->where('agency_id', $agencyId);
 
+        // P120.02 (TCK-1244) — plusieurs rôles séparés par une virgule se lisent en OU :
+        // `filter[role]=agent,owner` rend la condition de `RoleDelegationService::create`
+        // (profil d'agent ou de bailleur, sans statut), pour les candidats à une délégation.
         $role = AllowedFilter::callback(
             'role',
-            fn (Builder $q, string $value) => match ($value) {
-                'agent' => $q->whereHas('agentProfiles', $inAgency),
-                'agency_admin' => $q->whereHas('agencyAdminProfiles', $inAgency),
-                'owner' => $q->whereHas('ownerProfiles', $inAgency),
-                default => $q->whereRaw('1 = 0'),
-            },
+            fn (Builder $q, string|array $value) => $q->where(function (Builder $w) use ($value, $inAgency) {
+                foreach ((array) $value as $role) {
+                    match ($role) {
+                        'agent' => $w->orWhereHas('agentProfiles', $inAgency),
+                        'agency_admin' => $w->orWhereHas('agencyAdminProfiles', $inAgency),
+                        'owner' => $w->orWhereHas('ownerProfiles', $inAgency),
+                        default => $w->orWhereRaw('1 = 0'),
+                    };
+                }
+            }),
         );
 
         $assignable = AllowedFilter::callback(
@@ -281,7 +310,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             },
         );
 
-        return QueryBuilder::for($base, $request)
+        return DepartageQueryBuilder::for($base, $request)
             ->allowedFilters(...[...array_values($filters), $role, $assignable])
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(...static::$requestSortable, ...static::nameSorts())

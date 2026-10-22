@@ -14,7 +14,12 @@ class ListPayoutMethodsRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {
-        $holder = User::query()->find($this->input('filter.user_id'));
+        // TCK-1403 (P151.05) — `authorize()` passe avant la règle `integer` : un identifiant
+        // illisible est un titulaire introuvable (403), plus une erreur PostgreSQL (500).
+        $userId = $this->input('filter.user_id');
+        $holder = is_int($userId) || (is_string($userId) && ctype_digit($userId) && strlen($userId) <= 18)
+            ? User::query()->find($userId)
+            : null;
 
         return $holder !== null && $this->user()?->can('viewHolder', [PayoutMethod::class, $holder]) === true;
     }

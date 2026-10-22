@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Providers\AppServiceProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Bus\Queueable;
@@ -18,6 +19,13 @@ use Illuminate\Notifications\Messages\MailMessage;
 class ResetPasswordNotification extends ResetPassword implements ShouldBeEncrypted, ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
+
+    /** TCK-1352 (P142.05) — le lien ne se livre pas périmé : aucun essai au-delà de sa durée de vie. */
+    public function retryUntil(): \DateTimeInterface
+    {
+        return now()->addMinutes((int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire', 60));
+    }
 
     /** TCK-747 (P11.04) — les e-mails du compte partent par la file urgente, hors de la requête. */
     public function viaQueues(): array

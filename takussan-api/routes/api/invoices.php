@@ -6,7 +6,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
-    Route::post('invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+    // TCK-1402 (ADR-0072) — une facture rejouée sous la même clé n'est créée qu'une fois.
+    Route::post('invoices', [InvoiceController::class, 'store'])->middleware('idempotent')->name('invoices.store');
     Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
     Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
     Route::post('invoices/{invoice}/mark-paid', [InvoiceController::class, 'markPaid'])->name('invoices.mark-paid');

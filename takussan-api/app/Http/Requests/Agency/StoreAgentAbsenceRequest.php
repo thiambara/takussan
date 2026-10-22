@@ -27,8 +27,8 @@ class StoreAgentAbsenceRequest extends FormRequest
         $maxEndDate = now()->addDays((int) config('role_delegations.max_duration_days', 366))->toIso8601String();
 
         return [
-            'user_id' => ['required', 'integer', Rule::exists('users', 'id')],
-            'substitute_id' => ['required', 'integer', Rule::exists('users', 'id'), 'different:user_id'],
+            'user_id' => ['required', 'integer', Rule::exists('users', 'id')->withoutTrashed()],
+            'substitute_id' => ['required', 'integer', Rule::exists('users', 'id')->withoutTrashed(), 'different:user_id'],
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['required', 'date', 'after:now', 'after:starts_at', "before_or_equal:$maxEndDate"],
             'reason' => ['nullable', 'string', 'max:500'],

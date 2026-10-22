@@ -54,7 +54,7 @@ class UpdatePropertyCollaboratorRequest extends BaseFormRequest
                 return;
             }
 
-            (new CollaboratorEligibleForProperty($this->route('property'), $this->input('role')))
+            (new CollaboratorEligibleForProperty($this->route('property'), $this->input('role'), $this->user()))
                 ->validate('role', $this->route('collaborator')->user_id, function (string $message) use ($validator): void {
                     $validator->errors()->add('role', $message);
                 });

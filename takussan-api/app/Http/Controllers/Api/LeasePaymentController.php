@@ -17,6 +17,14 @@ use Illuminate\Http\Request;
 
 class LeasePaymentController extends Controller
 {
+    /** @var array<string, array{0: string, 1: 'asc'|'desc'}> */
+    private const TRIS = [
+        'due_date' => ['due_date', 'asc'],
+        '-due_date' => ['due_date', 'desc'],
+        'period_start' => ['period_start', 'asc'],
+        '-period_start' => ['period_start', 'desc'],
+    ];
+
     public function __construct(protected LeasePaymentService $payments) {}
 
     public function index(Request $request, Lease $lease): JsonResponse
@@ -24,8 +32,15 @@ class LeasePaymentController extends Controller
         // TCK-587 — la règle de `LeasePolicy::view`, à l'identique : l'ancien helper la recopiait.
         $this->authorize('view', $lease);
 
+        // TCK-1178 (P100.01) — l'ordre que l'échéancier demande (`sort=due_date`) est honoré : trié
+        // en dur par `period_start` décroissant, un bail de plus de 100 échéances perdait ses plus
+        // anciennes, celles qui tombent en retard les premières. Un `sort` hors de cette liste garde
+        // l'ordre d'avant ; l'`id` départage deux échéances de même date.
+        [$colonne, $sens] = self::TRIS[(string) $request->query('sort')] ?? ['period_start', 'desc'];
+
         $payments = $lease->payments()
-            ->orderBy('period_start', 'desc')
+            ->orderBy($colonne, $sens)
+            ->orderBy('id', $sens)
             ->paginate($this->tailleDePage($request, 20));
 
         // TCK-593 — `amount_due` lit le réglage de l'agence du bail : un bail, une agence, chargés

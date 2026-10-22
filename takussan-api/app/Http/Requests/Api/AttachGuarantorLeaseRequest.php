@@ -38,7 +38,7 @@ class AttachGuarantorLeaseRequest extends BaseFormRequest
     public function rules(): array
     {
         return $this->borneLesChampsDuGarant([
-            'guarantor_id' => ['nullable', 'exists:guarantors,id'],
+            'guarantor_id' => ['nullable', Rule::exists('guarantors', 'id')->withoutTrashed()],
             'role' => ['nullable', 'string', 'max:50'],
             'first_name' => ['required_without:guarantor_id', 'string'],
             'last_name' => ['required_without:guarantor_id', 'string'],

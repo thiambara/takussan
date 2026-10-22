@@ -76,7 +76,7 @@ class StorePropertyRequest extends BaseFormRequest
             'year_built' => ['nullable', 'integer', 'min:1800', 'max:'.((int) date('Y') + 3)],
             'parking_spaces' => ['nullable', 'integer', 'min:0', 'max:500'],
             'available_from' => ['nullable', 'date'],
-            'agency_id' => ['nullable', 'exists:agencies,id'],
+            'agency_id' => ['nullable', Rule::exists('agencies', 'id')->withoutTrashed()],
             'address' => ['nullable', 'array'],
             // TCK-633 — les longueurs du formulaire (`lib/schemas/property.ts`) : sans elles, un
             // texte de 121 caractères devenait une proposition de quartier que la colonne refuse.

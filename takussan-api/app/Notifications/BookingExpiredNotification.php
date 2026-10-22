@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Booking;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,19 +15,25 @@ use Illuminate\Notifications\Notification;
  * Fired when a booking request expires automatically or manually.
  * For tenants: in-app + email channels.
  * For agents: in-app only.
+ *
+ * TCK-1193 (P75.02) — l'expiration n'a pas d'interrupteur propre : celle du client suit
+ * « changement de statut de réservation » (`booking_status_changed`), celle de l'agent « demande
+ * de réservation » (`booking_request`). Les deux constantes `booking_expired*` d'avant n'étaient
+ * dans aucune liste de `PreferenceResolver::EVENTS` : l'e-mail partait quoi qu'on ait coupé.
  */
 class BookingExpiredNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public function __construct(
         public Booking $booking,
         public string $recipientType = 'tenant' // 'tenant' or 'agent'
     ) {}
 
-    public const EVENT_TYPE_TENANT = 'booking_expired';
+    public const EVENT_TYPE_TENANT = 'booking_status_changed';
 
-    public const EVENT_TYPE_AGENT = 'booking_expired_agent';
+    public const EVENT_TYPE_AGENT = 'booking_request';
 
     /**
      * @return list<string>
@@ -91,7 +98,9 @@ class BookingExpiredNotification extends Notification implements ShouldQueue
             'expiry_reason' => $this->booking->expiry_reason,
             'recipient_type' => $this->recipientType,
             'title' => __('notifications.booking_expired.subject', ['reference' => $reference]),
-            'message' => __('notifications.booking_expired.intro', [
+            // TCK-1195 (P75.03) — `body`, et non `message` : c'est la clé qu'AppDatabaseChannel range
+            // dans la colonne que la cloche lit.
+            'body' => __('notifications.booking_expired.intro', [
                 'reference' => $reference,
                 'property' => $propertyTitle,
             ]),

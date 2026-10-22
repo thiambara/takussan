@@ -22,7 +22,7 @@ class UpdateAnnouncementRequest extends StoreAnnouncementRequest
             'segment.roles' => ['nullable', 'array'],
             'segment.roles.*' => ['string', 'max:80'],
             'segment.agency_ids' => ['nullable', 'array'],
-            'segment.agency_ids.*' => ['integer', 'exists:agencies,id'],
+            'segment.agency_ids.*' => ['integer', Rule::exists('agencies', 'id')->withoutTrashed()],
             'segment.rollout_percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
             'starts_at' => ['sometimes', 'date'],
             'ends_at' => ['nullable', 'date', 'after:starts_at'],

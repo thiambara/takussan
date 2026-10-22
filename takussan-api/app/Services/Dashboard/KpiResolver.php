@@ -15,7 +15,8 @@ class KpiResolver
     public function __construct(private readonly DashboardAgencyService $agencyService) {}
 
     /**
-     * `occupancy_rate_percent` est `null` sans bien éligible (TCK-1114) : il n'a pas de dénominateur.
+     * `occupancy_rate_percent` est `null` sans bien éligible (TCK-1114), et `unpaid_rate_percent` sans
+     * échéance échue sur 12 mois (TCK-1177) : ils n'ont pas de dénominateur.
      *
      * @return array<string, float|int|null>
      */
@@ -36,7 +37,7 @@ class KpiResolver
             'commission_month' => $s['finance']['commission_month'] ?? 0.0,
             'overdue_count' => $s['finance']['overdue_count'] ?? 0,
             'overdue_amount' => $s['finance']['overdue_amount'] ?? 0.0,
-            'unpaid_rate_percent' => $s['finance']['unpaid_rate_percent'] ?? 0.0,
+            'unpaid_rate_percent' => $s['finance']['unpaid_rate_percent'] ?? null,
             'occupancy_rate_percent' => $s['occupancy']['rate_percent'] ?? null,
         ];
     }

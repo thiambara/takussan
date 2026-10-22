@@ -455,6 +455,7 @@
       "requiredBody": "Cette action touche des données sensibles : elle demande un second facteur sur votre compte. Configurez-le maintenant, l’action reprendra juste après.",
       "stepUpTitle": "Confirmez que c’est bien vous",
       "stepUpBody": "Par sécurité, cette action demande un code récent de votre application d’authentification. Saisissez-le, et l’action reprendra.",
+      "consoleStepUpBody": "La console de la plateforme demande, pour cette session, un code de votre application d’authentification. Saisissez-le pour continuer.",
       "codeLabel": "Code à 6 chiffres",
       "confirm": "Confirmer",
       "confirming": "Vérification…",
@@ -1916,6 +1917,9 @@
       "downloading": "Téléchargement…",
       "download": "Télécharger",
       "scopeNotice": "Les exports respectent votre rôle (agence, bailleur ou agent).",
+      "rowCap": "Un fichier compte au plus {max, number} lignes, {pdf, number} en PDF.",
+      "truncated": "Le fichier s'arrête à {count, number} lignes : la période en compte davantage. Resserrez-la pour tout obtenir.",
+      "failed": "Le téléchargement a échoué. Réessayez.",
       "scopeNoticeFull": "Les exports respectent votre rôle (agence, bailleur, locataire) — aucune donnée hors de votre périmètre n'est incluse.",
       "noneAllowed": "Votre rôle dans cette agence ne comporte aucun export. Un administrateur peut vous l'accorder.",
       "entities": {
@@ -3840,7 +3844,10 @@
         "late": "En retard",
         "pending": "À venir",
         "other": "Autre",
-        "cancelled": "Annulée"
+        "cancelled": "Annulée",
+        "partially_paid": "Partiellement payé",
+        "failed": "Échec",
+        "refunded": "Remboursé"
       },
       "listLabel": "Échéances du bail",
       "dueOn": "Échéance : {date}",
@@ -4153,7 +4160,7 @@
         "title": "Rejeter le devis",
         "reason_label": "Motif du rejet",
         "reason_placeholder": "Veuillez expliquer pourquoi ce devis est refusé...",
-        "reason_min": "Le motif doit contenir au moins 5 caractères",
+        "reason_min_length": "Le motif doit contenir au moins 10 caractères",
         "confirm": "Confirmer le rejet"
       }
     },
@@ -4188,7 +4195,8 @@
         "save": "Enregistrer",
         "saving": "Enregistrement…",
         "saved": "Enregistré.",
-        "failed": "L'assignation n'a pas été enregistrée."
+        "failed": "L'assignation n'a pas été enregistrée.",
+        "insured": "Assuré"
       },
       "gallery": {
         "title": "Photos et pièces",
@@ -4614,7 +4622,16 @@
       "invalidTitle": "Ce lien ne fonctionne plus",
       "invalidBody": "Il est incomplet, a déjà servi ou a expiré. Vous pouvez refaire une demande depuis une recherche.",
       "error": "L'opération n'a pas abouti. Réessayez.",
-      "backToSearch": "Rechercher des biens"
+      "backToSearch": "Rechercher des biens",
+      "digest": {
+        "metaTitle": "Se désabonner du résumé",
+        "title": "Ne plus recevoir le résumé par courriel",
+        "body": "Le résumé de vos notifications par courriel s'arrêtera. Vos notifications restent dans votre espace.",
+        "button": "Me désabonner",
+        "working": "Désabonnement…",
+        "doneTitle": "C'est fait",
+        "doneBody": "Vous ne recevrez plus le résumé par courriel. Vous pouvez le réactiver dans vos préférences de notification."
+      }
     }
   },
   "wizardDrafts": {
@@ -4678,7 +4695,6 @@
       "title": "Aidez-nous à mieux vous accompagner",
       "description": "Trois infos rapides — toutes optionnelles — pour personnaliser vos résultats. Vous pouvez compléter plus tard depuis votre profil.",
       "phoneLabel": "Téléphone (optionnel)",
-      "phonePlaceholder": "+221 77 000 00 00",
       "cityLabel": "Ville recherchée (optionnel)",
       "cityPlaceholder": "Dakar, Saint-Louis…",
       "intentLabel": "Type de recherche (optionnel)",
@@ -5203,7 +5219,8 @@
       "actions": {
         "resend": "Renvoyer l'invitation",
         "revoke": "Révoquer"
-      }
+      },
+      "insured": "Assuré"
     },
     "invite": {
       "title": "Inviter un prestataire",
@@ -6425,7 +6442,7 @@
       "status": {
         "active": "Actif",
         "inactive": "Inactif",
-        "banned": "Bloqué"
+        "blocked": "Bloqué"
       },
       "roles": {
         "agency_admin": "Administrateur",
@@ -6526,7 +6543,8 @@
         "booking_payment": "Paiement de réservation",
         "lease_payment": "Loyer",
         "invoice": "Facture",
-        "payout": "Reversement"
+        "payout": "Reversement",
+        "platform_payout": "Reversement de la plateforme"
       },
       "import": {
         "title": "Importer un relevé",
@@ -6710,6 +6728,8 @@
       "insurance": "Assurance",
       "inventory_report": "État des lieux",
       "photo": "Photo",
+      "rib": "RIB",
+      "ninea": "NINEA",
       "other": "Autre"
     },
     "entities": {
@@ -6959,7 +6979,9 @@
       "paid": "Payé",
       "partially_paid": "Partiel",
       "refunded": "Remboursé",
-      "cancelled": "Annulé"
+      "cancelled": "Annulé",
+      "late": "En retard",
+      "failed": "Échec"
     },
     "paymentMethod": {
       "cash": "Espèces",
@@ -7096,6 +7118,10 @@
           "title": "Visite marquée effectuée",
           "description": "Le suivi post-visite est maintenant disponible."
         },
+        "noShow": {
+          "title": "Visite marquée absente",
+          "description": "Le visiteur ne s'est pas présenté : la visite n'est pas comptée parmi les visites effectuées."
+        },
         "cancelled": {
           "title": "Visite annulée",
           "description": "Le motif est enregistré sur la demande."
@@ -7108,6 +7134,7 @@
       "actions": {
         "confirm": "Confirmer la visite",
         "complete": "Marquer effectuée",
+        "noShow": "Marquer absent",
         "reschedule": "Replanifier",
         "viewProperty": "Voir le bien"
       },
@@ -8042,8 +8069,7 @@
           "all": "Tous statuts",
           "active": "Actif",
           "blocked": "Bloqué",
-          "inactive": "Inactif",
-          "banned": "Banni"
+          "inactive": "Inactif"
         },
         "emailFilter": {
           "all": "Email : tous",
@@ -9366,14 +9392,11 @@
     "agent": {
       "title": "Profil professionnel",
       "subtitle": "Vos informations d'agent immobilier.",
-      "bioLabel": "Bio professionnelle",
-      "bioPlaceholder": "Décrivez votre expertise et vos spécialités",
       "specialtiesLabel": "Spécialisations",
-      "comingSoon": "Bientôt disponible",
       "licenseLabel": "Numéro de licence",
-      "licensePlaceholder": "Ex: AGC-2025-0001",
       "agencyLabel": "Agence liée",
-      "noAgency": "Non affilié"
+      "noAgency": "Non affilié",
+      "notProvided": "Non renseigné"
     },
     "owner": {
       "title": "Espace bailleur",
@@ -10340,6 +10363,7 @@
       "call": "Appeler",
       "email": "E-mail",
       "convert": "Convertir en client",
+      "convertAnyway": "Convertir quand même",
       "openCustomer": "Voir la fiche client",
       "handle": "Marquer traitée",
       "assign": "Attribuer"

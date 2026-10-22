@@ -7,8 +7,8 @@ use App\Domain\Notifications\NotificationTarget;
 use App\Models\Enums\NotificationType;
 use App\Models\Property;
 use App\Models\User;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Notifications\NotificationRenderer;
-use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -18,27 +18,20 @@ use Illuminate\Notifications\Notification;
 class PropertyApprovedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
-
-    public const EVENT_TYPE = 'property_moderation';
+    use RetriesWithBackoff;
 
     public function __construct(public Property $property) {}
 
+    /**
+     * TCK-1193 (P75.02) — non désactivable, comme le dit déjà le code
+     * (`NotificationCode::PropertyApproved->preferenceEvent()` → `null`, TCK-782) : l'événement
+     * `property_moderation` que `via()` passait au résolveur n'avait aucun interrupteur.
+     *
+     * @return list<string>
+     */
     public function via(object $notifiable): array
     {
-        $resolver = app(PreferenceResolver::class);
-        $channels = [];
-
-        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_INAPP)) {
-            $channels[] = 'database';
-        }
-        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_EMAIL)) {
-            $channels[] = 'mail';
-        }
-        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_PUSH)) {
-            $channels[] = 'broadcast';
-        }
-
-        return $channels;
+        return ['database', 'mail', 'broadcast'];
     }
 
     public function toMail(object $notifiable): MailMessage

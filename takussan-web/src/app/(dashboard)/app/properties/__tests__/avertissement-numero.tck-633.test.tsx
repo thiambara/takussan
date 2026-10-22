@@ -15,6 +15,9 @@ vi.mock('@/lib/queries/properties-server', () => ({
     data: [],
     meta: { total: params.filters?.visibility === 'public' ? me.enLigne : 0, current_page: 1, last_page: 1, per_page: 1 },
   }),
+  // TCK-1382 — les compteurs passent par leur propre lecture, sans la liste.
+  countDashboardProperties: async (_token: string, filters?: Record<string, string | undefined>) =>
+    filters?.visibility === 'public' ? me.enLigne : 0,
 }));
 
 const rendu = vi.hoisted(() => ({ props: undefined as { phoneVerifiedAt?: string | null; annoncesEnLigne?: number } | undefined }));

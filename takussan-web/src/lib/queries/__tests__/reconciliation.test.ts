@@ -21,9 +21,10 @@ beforeEach(() => {
 });
 
 describe('requêtes du rapprochement — préfixe /api', () => {
+  // TCK-1373 — `useBankStatements` lit toutes les pages par `apiRequest`, plus par `useApiQuery` :
+  // son chemin est gardé par `releves-taches-avis-toutes-les-pages.tck-1373.test.tsx`.
   it('les lectures', () => {
     renderHook(() => {
-      rq.useBankStatements(3);
       rq.useBankStatement(1);
       rq.useBankStatementLines(1, 'suggested', 1);
       rq.useCsvMapping(3);
@@ -31,14 +32,13 @@ describe('requêtes du rapprochement — préfixe /api', () => {
     });
     const chemins = useApiQuery.mock.calls.map((c) => c[1]);
     expect(chemins).toEqual([
-      '/api/agencies/3/bank-statements',
       '/api/bank-statements/1',
       '/api/bank-statements/1/lines',
       '/api/agencies/3/bank-statements/csv-mapping',
       '/api/agencies/3/bank-statements/payment-search',
     ]);
-    expect(useApiQuery.mock.calls[2][2].params.filter).toEqual({ match_status: 'suggested' });
-    expect(useApiQuery.mock.calls[4][2].params.extra).toEqual({ q: 'x', amount: 10, direction: 'credit' });
+    expect(useApiQuery.mock.calls[1][2].params.filter).toEqual({ match_status: 'suggested' });
+    expect(useApiQuery.mock.calls[3][2].params.extra).toEqual({ q: 'x', amount: 10, direction: 'credit' });
   });
 
   it('les écritures', () => {

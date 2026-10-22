@@ -267,6 +267,9 @@ class LeaseRenewalOverlapTest extends TestCase
                 ->assertCreated();
             $child = $this->child($parent);
             $leave($parent);
+            // TCK-1151 — la résiliation annule elle-même les loyers postérieurs à la sortie ;
+            // l'activation refusée, elle, n'en annule aucun de plus.
+            $cancelledBefore = $this->cancelledCount($parent);
 
             $this->post("/api/leases/{$child->id}/activate", ['contract' => UploadedFile::fake()->create('avenant.pdf', 20, 'application/pdf')], ['Accept' => 'application/json'])
                 ->assertStatus(409)
@@ -275,7 +278,7 @@ class LeaseRenewalOverlapTest extends TestCase
             $this->assertSame(LeaseStatus::PendingSignature, $child->fresh()->status, $label);
             $this->assertNull($child->fresh()->contract_sha256, $label);
             $this->assertSame($status, $parent->fresh()->status, $label);
-            $this->assertSame(0, $this->cancelledCount($parent), $label);
+            $this->assertSame($cancelledBefore, $this->cancelledCount($parent), $label);
             $this->assertSame([], $this->openRentByMonth($child), $label);
             Bus::assertNotDispatched(GenerateLeasePaymentSchedule::class, fn ($job) => $job->lease->id === $child->id);
             $this->assertSame([], Storage::disk(config('media-library.disk_name'))->allFiles(), "{$label} : contrat laissé sur le disque");

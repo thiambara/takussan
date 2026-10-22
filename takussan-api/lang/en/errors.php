@@ -88,9 +88,11 @@ return [
         'property_unavailable' => 'This property is not available for booking.',
     ],
     'booking_payment' => [
+        'nothing_due' => 'This booking is fully paid: nothing is left to pay.',
         'receipt_unpaid' => 'The receipt is only available for a settled payment.',
         'refund_exceeds_paid' => 'The refund cannot exceed the amount paid.',
         'refund_fractional' => 'This amount has decimals the payment currency does not have.',
+        'refund_settled_by_platform' => 'This deposit was collected online by the platform: it is refunded through the payment provider.',
         'refund_unpaid' => 'Only a settled payment can be refunded.',
     ],
     'boost' => [
@@ -129,6 +131,7 @@ return [
         'participant_required' => 'At least one other participant is required.',
     ],
     'customer' => [
+        'attached_to_open_lease' => 'This customer is the tenant of a lease awaiting signature or in force: they cannot be deleted while that lease is open.',
         'duplicate' => 'A customer of your agency already has this phone number or email address.',
         'pipeline_stage_invalid' => 'Invalid pipeline stage.',
     ],
@@ -208,6 +211,11 @@ return [
         'unprocessable' => 'The request cannot be processed.',
         'unsupported_media_type' => 'This file type is not supported.',
     ],
+    'idempotency' => [
+        'in_progress' => 'This request is already being sent. Wait a few seconds, then try again.',
+        'key_invalid' => 'This request key does not have the expected format.',
+        'key_reused' => 'This request was already sent with different content. Reload the page, then send it again.',
+    ],
     'impersonation' => [
         'no_session' => 'No impersonation session is open.',
         'query_refused' => 'Starting or ending an impersonation takes no parameter in the address.',
@@ -243,6 +251,7 @@ return [
         'token_sent' => 'This invitation is still pending acceptance.',
     ],
     'invoice' => [
+        'amount_too_large' => 'The invoice total exceeds the largest amount that can be recorded.',
         'cannot_cancel' => 'This invoice cannot be cancelled in its current state.',
         'cannot_mark_paid' => 'This invoice cannot be marked paid in its current state.',
         'foreign_target' => 'This lease or booking does not belong to the invoice\'s agency.',
@@ -275,6 +284,7 @@ return [
         'not_found' => 'Lease not found.',
         'rent_review_above_contract_cap' => 'The signed contract caps the rent review at :max %: this cap cannot be forced. Use a renewal or a signed amendment.',
         'renewal_overlaps_paid_schedule' => 'A due of the current lease, in the period the renewal takes over, is already paid or being paid: the renewal does not cancel it. Refund it, or start the renewal after it; a renewal already awaiting signature must be terminated, then a new one created.',
+        'termination_overlaps_paid_schedule' => 'A rent due after the move-out date is already paid or being paid: the termination does not cancel it. Refund it, then terminate.',
         'renewal_parent_not_renewable' => 'The renewed lease is no longer in force (notice given or terminated): this renewal can no longer take effect. Terminate it, then create another one if needed.',
         'schedule_exists' => 'The payment schedule has already been generated.',
         'terms_locked' => 'The terms of a signed lease can no longer be changed: draw up an amendment or a new lease.',
@@ -394,6 +404,7 @@ return [
         'cannot_fail' => 'This payout cannot be marked failed in its current state.',
         'cannot_process' => 'This payout cannot be marked processed in its current state.',
         'failure_reason_required' => 'Provide the reason for the failure.',
+        'items_changed' => 'An item of this payout is no longer paid since it was prepared: cancel it, then prepare it again.',
         'issuer_forbidden' => 'Only agency members or administrators can issue payouts.',
         'landlord_not_in_agency' => 'This landlord does not belong to your agency.',
         'individual_third_party' => 'An individual agency only pays out to its host: a third party is paid by the platform.',
@@ -434,6 +445,7 @@ return [
         'agency_frozen' => 'This agency is not active: its payouts are frozen.',
         'agency_unverified' => 'An unverified agency cannot be paid.',
         'already_exists' => 'A payout already exists for this period.',
+        'items_changed' => 'A line of this payout is no longer paid since the period was closed: cancel it, then close the period again.',
         'status_transition_invalid' => 'This platform payout status change is not allowed.',
     ],
     'privacy' => [
@@ -582,6 +594,7 @@ return [
         'already_assigned' => 'This visit is already handled by another member of the agency.',
         'cannot_cancel' => 'This visit cannot be cancelled in its current state.',
         'cannot_complete' => 'This visit cannot be completed in its current state.',
+        'cannot_mark_no_show' => 'Only a scheduled or confirmed visit whose time has passed can be marked as a no-show.',
         'closed' => 'A completed or cancelled visit can no longer be changed.',
         'feedback_agent_only' => 'Only the agent in charge can give the agent feedback.',
         'feedback_not_completed' => 'Feedback is only possible once the visit is completed.',

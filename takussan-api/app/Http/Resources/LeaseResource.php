@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\LeaseSignature;
 use App\Models\User;
+use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Lease\LeaseSignatureService;
 use Illuminate\Http\Request;
@@ -59,6 +60,10 @@ class LeaseResource extends BaseResource
             'commission_amount' => $this->commission_amount !== null ? (float) $this->commission_amount : null,
             'payment_frequency' => $this->payment_frequency?->value,
             'payment_day' => $this->payment_day,
+            // P133.04 (TCK-1381) — la pénalité de retard et son délai de grâce, que le renouvellement
+            // reprend du bail d'origine : le dialogue de renouvellement les pré-remplit et les montre.
+            'late_fee_percent' => $this->late_fee_percent !== null ? (float) $this->late_fee_percent : null,
+            'late_fee_grace_days' => $this->late_fee_grace_days,
             'signed_at' => $this->iso($this->signed_at),
             'terminated_at' => $this->iso($this->terminated_at),
             // TCK-090 — early termination workflow exposed for the dashboard
@@ -74,6 +79,11 @@ class LeaseResource extends BaseResource
             'early_termination_reason' => $this->early_termination_reason,
             'early_termination_invoice_id' => $this->early_termination_invoice_id,
             'notice_period_days' => $this->notice_period_days,
+            // P98.05 — le nombre de mois que la résiliation exécutera (figé sur le bail, sinon le
+            // réglage), pour l'estimation du dialogue de demande. Sur le détail seul (`forViewer`) :
+            // à défaut de valeur figée, il lit le réglage de l'agence, une requête par bail.
+            'early_termination_penalty_months' => $this->when($this->viewer !== null,
+                fn (): int => app(EarlyTerminationService::class)->penaltyMonthsFor($this->resource)),
             'property' => $this->whenLoaded('property', fn () => PropertyResource::make($this->property)),
             'tenant' => $this->whenLoaded('tenant', fn () => CustomerResource::make($this->tenant)),
             'renewed_from' => $this->whenLoaded('renewedFrom', fn () => self::make($this->renewedFrom)),
@@ -103,6 +113,14 @@ class LeaseResource extends BaseResource
             // VERIF-596 M1 — la voie papier : gestionnaire ET signataire possible pour le bailleur.
             'can_activate_on_paper' => $this->when($this->viewer !== null, fn (): bool => $this->viewer->can('update', $this->resource)
                 && LandlordSignatory::allows($this->viewer, $this->resource)),
+            // P152.02 — les quatre gestes que `LeasePolicy` juge par capacité, pour que la fiche ne
+            // monte que ceux que l'API acceptera. Le statut du bail reste jugé par l'écran et l'API.
+            'abilities' => $this->when($this->viewer !== null, fn (): array => [
+                'renew' => $this->viewer->can('renew', $this->resource),
+                'review_rent' => $this->viewer->can('reviewRent', $this->resource),
+                'record_payment' => $this->viewer->can('recordPayment', $this->resource),
+                'refund_deposit' => $this->viewer->can('refundDeposit', $this->resource),
+            ]),
             'created_at' => $this->iso($this->created_at),
         ];
 

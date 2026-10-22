@@ -81,7 +81,7 @@ class ContactLeadController extends Controller
     {
         abort_code_unless($lead->channel === ContactLeadChannel::Form, 422, 'lead.not_convertible');
 
-        $customer = $this->leads->convert($lead, $request->user());
+        $customer = $this->leads->convert($lead, $request->user(), $request->boolean('allow_duplicate'));
 
         return $this->json([
             'data' => PropertyContactLeadResource::make($lead->refresh())->resolve($request),

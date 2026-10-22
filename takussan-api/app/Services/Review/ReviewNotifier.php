@@ -7,12 +7,13 @@ use App\Domain\Notifications\NotificationTarget;
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\ReviewStatus;
-use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Model\NotificationService;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Support\Collection;
 
 /**
@@ -51,7 +52,8 @@ class ReviewNotifier
         $subject = $review->reviewable;
 
         $recipients = match (true) {
-            $subject instanceof Property => User::query()->whereKey($subject->user_id)->get(),
+            // TCK-1316 — le créateur du bien, s'il compte encore (bailleur ou personnel actif).
+            $subject instanceof Property => collect([PrimaryPropertyContact::createurDestinataire($subject)])->filter(),
             $subject instanceof User => collect([$subject]),
             $subject instanceof Agency => $this->agencyAdmins($subject->id),
             $subject instanceof ServiceProviderProfile => User::query()->whereKey($subject->user_id)->get(),
@@ -64,9 +66,8 @@ class ReviewNotifier
     /** @return Collection<int, User> */
     private function agencyAdmins(int $agencyId): Collection
     {
-        return User::query()
-            ->whereIn('id', AgencyAdminProfile::query()->active()->where('agency_id', $agencyId)->select('user_id'))
-            ->get();
+        // TCK-1318 — la liste unique : profil actif et compte joignable.
+        return AdminsDeLAgence::destinataires($agencyId);
     }
 
     /** @param  Collection<int, User>  $recipients */

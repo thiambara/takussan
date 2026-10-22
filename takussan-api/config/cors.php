@@ -28,7 +28,11 @@ return [
 
     'exposed_headers' => [],
 
-    'max_age' => 0,
+    // TCK-1209 (P103.01) — le navigateur garde le préflight deux heures (le plafond de Chrome) :
+    // à 0, chaque appel non simple — tout appel connecté porte `Authorization` — coûtait un
+    // `OPTIONS` de plus. Contrepartie : un changement de cette configuration met jusqu'à deux
+    // heures à atteindre un navigateur qui a déjà son préflight.
+    'max_age' => 7200,
 
     'supports_credentials' => true,
 

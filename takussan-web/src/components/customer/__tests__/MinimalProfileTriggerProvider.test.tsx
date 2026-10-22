@@ -60,6 +60,18 @@ function Wrapper({ children, roles }: { children: ReactNode; roles: string[] }) 
   );
 }
 
+// Le pré-chargement `GET /api/me/welcome-seen` est APPELÉ avant que `seen` ne passe à `false`
+// (il reste `res.json()` et le rendu) : tant que `seen` vaut `null`, un déclenchement est ignoré,
+// exprès. Attendre le seul appel de `fetch` puis cliquer une fois est donc une course, perdue sous
+// la charge de la CI (run 39787278156). On reclique jusqu'à l'ouverture : avant elle, un clic est
+// sans effet, et après, `consumedRef` rend les suivants inertes.
+async function declencherJusquALouverture() {
+  await waitFor(() => {
+    fireEvent.click(screen.getByTestId('fire'));
+    expect(screen.getByTestId('customer-minimal-profile-title')).toBeInTheDocument();
+  });
+}
+
 function TriggerButton() {
   const { triggerIfNeeded } = useTriggerMinimalProfileOnce();
   return (
@@ -90,11 +102,7 @@ describe('MinimalProfileTriggerProvider', () => {
       expect(calls.length).toBeGreaterThanOrEqual(1);
     });
 
-    fireEvent.click(screen.getByTestId('fire'));
-
-    await waitFor(() =>
-      expect(screen.getByTestId('customer-minimal-profile-title')).toBeInTheDocument(),
-    );
+    await declencherJusquALouverture();
   });
 
   it('does NOT open the sheet on subsequent triggers (single-shot per session)', async () => {
@@ -112,10 +120,7 @@ describe('MinimalProfileTriggerProvider', () => {
       expect(calls.length).toBeGreaterThanOrEqual(1);
     });
 
-    fireEvent.click(screen.getByTestId('fire'));
-    await waitFor(() =>
-      expect(screen.getByTestId('customer-minimal-profile-title')).toBeInTheDocument(),
-    );
+    await declencherJusquALouverture();
 
     // Skip closes + marks seen.
     fireEvent.click(screen.getByTestId('customer-minimal-profile-skip'));
@@ -176,6 +181,37 @@ describe('MinimalProfileTriggerProvider', () => {
     });
 
     expect(screen.queryByTestId('customer-minimal-profile-title')).not.toBeInTheDocument();
+  });
+
+  // P125.03 / P145.01 (TCK-1281) — `PATCH /api/me` n'accepte que l'E.164 : la feuille saisit le
+  // numéro par `PhoneInput`, et c'est la valeur composée qui part, jamais la frappe telle quelle.
+  it.each([
+    ['77 000 00 00', '+221770000000'],
+    ['+221 77 000 00 01', '+221770000001'],
+  ])('envoie la saisie « %s » en E.164 (%s)', async (saisie, attendu) => {
+    mockAuth(true);
+    const fetchMock = setupFetchSequence([{ status: 200, json: async () => ({ data: [] }) }]);
+
+    render(
+      <Wrapper roles={['customer']}>
+        <TriggerButton />
+      </Wrapper>,
+    );
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1));
+    await declencherJusquALouverture();
+
+    fireEvent.change(screen.getByLabelText(frMessages.customer.minimalProfile.phoneLabel), {
+      target: { value: saisie },
+    });
+    fireEvent.click(screen.getByTestId('customer-minimal-profile-save'));
+
+    await waitFor(() => {
+      const patch = fetchMock.mock.calls.find(
+        ([url, init]) => url === '/api/me' && (init as RequestInit)?.method === 'PATCH',
+      );
+      expect(patch).toBeDefined();
+      expect(JSON.parse((patch![1] as RequestInit).body as string)).toEqual({ phone: attendu });
+    });
   });
 });
 

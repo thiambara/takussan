@@ -11,6 +11,7 @@ use App\Models\LeasePayment;
 use App\Models\User;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
+use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Payments\LeasePaymentLinkService;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Support\Facades\DB;
@@ -86,6 +87,9 @@ class LeasePaymentService
             $locked->update([
                 'status' => PaymentStatus::Paid,
                 'paid_at' => $data['paid_at'] ?? now(),
+                // TCK-1342 (P132.01) — le moment de l'enregistrement : la quittance reste lisible
+                // 30 jours après lui, même si la date effective saisie est plus ancienne.
+                'marked_paid_at' => now(),
                 'payment_method' => $data['payment_method'] ?? $locked->payment_method,
                 'transaction_id' => $data['transaction_id'] ?? $locked->transaction_id,
             ]);
@@ -116,7 +120,9 @@ class LeasePaymentService
             } elseif ($lease->tenant !== null && ($contact = ContactSansCompte::fromCustomer($lease->tenant))->hasPhone()) {
                 // TCK-1002 (P48.02) — le locataire sans compte reçoit le lien `/pay/{jeton}` de sa
                 // quittance, comme après un paiement en ligne (`SendRentReceiptAfterOnlinePayment`).
-                $this->notifications->send($contact, NotificationCode::LeasePaymentRecorded, $params + ['receipt_url' => $this->links->urlFor($payment)], $target);
+                $url = $this->links->urlFor($payment, locale: $contact->locale);
+                // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit son lien avant de partir.
+                $this->notifications->send($contact, NotificationCode::LeasePaymentRecorded, $params + ['receipt_url' => $url], $target, deferredSmsGuard: DeferredSmsGuard::forPayLink($url));
             } else {
                 Log::info('[pay-link] paiement enregistré non notifié — locataire sans compte ni téléphone valide', [
                     'lease_payment_id' => $payment->id,

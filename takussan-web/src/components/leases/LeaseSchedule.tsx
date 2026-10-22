@@ -35,18 +35,32 @@ interface LeaseScheduleProps {
    * qu'une pénalité a été réglée à l'agence. Le locataire ne le peut pas (403 côté API).
    */
   readonly canManage?: boolean;
+  /**
+   * P152.02 — constater la pénalité réglée se juge par `LeasePolicy::recordPayment`
+   * (`MarkLateFeePaidRequest`), pas par le rôle de gestion : le drapeau `abilities.record_payment`.
+   */
+  readonly canRecordPayment?: boolean;
 }
 
 /**
  * Derived display status — `late` payments are computed client-side when
  * the server hasn't flagged them yet (due date in the past and status ≠ paid).
+ *
+ * TCK-1264 (P146.02) — suit chaque cas de `PaymentStatus` : `refunded`, `failed` et
+ * `partially_paid` ne retombent plus sur « Autre ». Une restitution de dépôt (`deposit_refund`)
+ * ne passe jamais `late` ici : c'est l'agence qui la doit, pas le locataire (features.md, TCK-595).
  */
-function displayStatus(p: LeasePayment): 'paid' | 'late' | 'pending' | 'cancelled' | 'other' {
+function displayStatus(
+  p: LeasePayment,
+): 'paid' | 'late' | 'pending' | 'cancelled' | 'partially_paid' | 'failed' | 'refunded' | 'other' {
   // VERIF-596 passe 6 (m-i) — une échéance d'un bail parent que son renouvellement a reprise : plus
   // due, ni loyer ni pénalité. Jugée AVANT l'échéance passée, qui la dirait « en retard ».
   if (p.status === 'cancelled') return 'cancelled';
   if (p.status === 'paid') return 'paid';
-  if (p.status === 'pending' && p.due_date) {
+  if (p.status === 'refunded') return 'refunded';
+  if (p.status === 'failed') return 'failed';
+  if (p.status === 'partially_paid') return 'partially_paid';
+  if (p.status === 'pending' && p.due_date && p.payment_type !== 'deposit_refund') {
     const due = new Date(p.due_date);
     if (!Number.isNaN(due.getTime()) && due < new Date()) return 'late';
   }
@@ -63,7 +77,13 @@ function displayStatus(p: LeasePayment): 'paid' | 'late' | 'pending' | 'cancelle
  * Chaque échéance est une ligne qui se replie en carte sur téléphone et s'aligne en colonnes à
  * partir de `lg` ; le conteneur ne défile plus du tout.
  */
-export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false }: LeaseScheduleProps) {
+export function LeaseSchedule({
+  leaseId,
+  agencyId,
+  landlordId,
+  canManage = false,
+  canRecordPayment = false,
+}: LeaseScheduleProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('lease.schedule');
   const tScheduleStatus = useTranslations('lease.schedule.status');
@@ -260,7 +280,7 @@ export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false
                     {t('paymentLink.copy')}
                   </Button>
                 )}
-                {canManage && !annulee && p.late_fee_outstanding > 0 && (
+                {canRecordPayment && !annulee && p.late_fee_outstanding > 0 && (
                   <Button
                     type="button"
                     variant="outline"

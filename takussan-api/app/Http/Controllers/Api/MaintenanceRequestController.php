@@ -27,6 +27,7 @@ use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\OwnerApprovalThreshold;
 use App\Services\Model\MaintenanceRequestService;
 use App\Services\Model\NotificationService;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -130,7 +131,8 @@ class MaintenanceRequestController extends Controller
 
         // Notify agency agents and property owner
         $property = $property->refresh();
-        $owner = $property->owner;
+        // TCK-1316 — le créateur du bien, s'il compte encore (bailleur ou personnel actif).
+        $owner = PrimaryPropertyContact::createurDestinataire($property);
 
         if ($mr->priority === MaintenancePriority::Urgent) {
             $assignedAgent = $mr->assignee;

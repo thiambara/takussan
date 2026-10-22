@@ -88,9 +88,11 @@ return [
         'property_unavailable' => 'Kër gii nekkul ci woote.',
     ],
     'booking_payment' => [
+        'nothing_due' => 'Cette réservation est soldée : il ne reste rien à payer.',
         'receipt_unpaid' => 'Quittance bi, fay bu ñu fay ba noppi rekk la.',
         'refund_exceeds_paid' => 'Delloo bi mënul a ëpp xaalis bi ñu fay.',
         'refund_fractional' => 'Limu bii am na ay ñaari lim yu xaalis bi amul.',
+        'refund_settled_by_platform' => 'Cet acompte a été encaissé en ligne par la plateforme : son remboursement passe par le fournisseur de paiement.',
         'refund_unpaid' => 'Fay bu ñu fay ba noppi rekk lañu mën a delloo.',
     ],
     'boost' => [
@@ -129,6 +131,7 @@ return [
         'participant_required' => 'War na am beneen participant benn lu mu gën a tuuti.',
     ],
     'customer' => [
+        'attached_to_open_lease' => 'Ce client est titulaire d\'un bail en attente de signature ou en cours : il ne peut pas être supprimé tant que ce bail est ouvert.',
         'duplicate' => 'Am na kiliyaan ci sa ajaans bu am nimero bii walla email bii.',
         'pipeline_stage_invalid' => 'Étape bi baaxul.',
     ],
@@ -208,6 +211,11 @@ return [
         'unprocessable' => 'Laaj bi mënuñu ko def.',
         'unsupported_media_type' => 'Xeetu fichier bii nangouñu ko.',
     ],
+    'idempotency' => [
+        'in_progress' => 'Cette demande est déjà en cours d’envoi. Patientez quelques secondes, puis réessayez.',
+        'key_invalid' => 'Cette clé d’envoi n’a pas la forme attendue.',
+        'key_reused' => 'Cette demande a déjà été envoyée avec un autre contenu. Rechargez la page, puis renvoyez-la.',
+    ],
     'impersonation' => [
         'no_session' => 'Amul jël-bopp bu ubbeeku.',
         'query_refused' => 'Ubbi walla tëj ab impersonation du jël benn paramètre ci adrees bi.',
@@ -243,6 +251,7 @@ return [
         'token_sent' => 'Lëkkalekaay bi ngir xaar la.',
     ],
     'invoice' => [
+        'amount_too_large' => 'Le montant total de la facture dépasse le maximum enregistrable.',
         'cannot_cancel' => 'Facture bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_mark_paid' => 'Facture bii mënuñu ko màndargaal ni lu ñu fay ni mu nekke léegi.',
         'foreign_target' => 'Bii bail walla bii réservation bokkul ci agence bu facture bi.',
@@ -275,6 +284,7 @@ return [
         'not_found' => 'Bail bi gisuñu ko.',
         'rent_review_above_contract_cap' => 'Kontra bi ñu xaatim dafa tëj soppi lowe bi ci :max % : mënuñu ko forcer. Jaaral ci yeesal bayle bi walla ab yokk bu ñu xaatim.',
         'renewal_overlaps_paid_schedule' => 'Ab fey ci bayle bi am, ci jamono ji yeesal bi di jël, fey nañu ko ba noppi walla ñu ngi koy fey : yeesal bi du ko far. Delloo ko, walla nga tàmbali yeesal bi ginnaaw ko ; yeesal buy xaar xaatim, dañu koy dakkal, ba noppi defar beneen.',
+        'termination_overlaps_paid_schedule' => 'Une échéance de loyer postérieure à la date de sortie est déjà réglée ou en cours de règlement : la résiliation ne l\'annule pas. Remboursez-la, puis résiliez.',
         'renewal_parent_not_renewable' => 'Bayle bi ñuy yeesal du dox ba tey (yégle walla dakkal) : yeesal bii mënul a am doole. Dakkal ko, ba noppi defar beneen su soxlawee.',
         'schedule_exists' => 'Échéancier bi defar nañu ko ba noppi.',
         'terms_locked' => 'Sarti bayle bu ñu xaatim mënuñu leen soppi : defal ab yokk walla bayle bu bees.',
@@ -394,6 +404,7 @@ return [
         'cannot_fail' => 'Reversement bii mënuñu ko màndargaal ni lu daanu ni mu nekke léegi.',
         'cannot_process' => 'Reversement bii mënuñu ko màndargaal ni lu ñu def ni mu nekke léegi.',
         'failure_reason_required' => 'Waxal lu tax mu daanu.',
+        'items_changed' => 'Une pièce de ce reversement n\'est plus payée depuis sa préparation : annulez-le, puis préparez-le à nouveau.',
         'issuer_forbidden' => 'Way agence walla administrateur yi rekk ñoo mën a génne reversement.',
         'landlord_not_in_agency' => 'Boroom kër gii bokkul ci sa agence.',
         'individual_third_party' => 'Agence bu benn nit du fey kenn ku dul boroom bi : platform bi mooy fey ñeneen ñi.',
@@ -434,6 +445,7 @@ return [
         'agency_frozen' => 'Bii agence du active : reversement yi dañu leen taxawal.',
         'agency_unverified' => 'Agence bu ñu vérifierul mënuñu ko fey.',
         'already_exists' => 'Am na reversement ci période bii ba noppi.',
+        'items_changed' => 'Une ligne de ce reversement n\'est plus payée depuis la clôture : annulez-le, puis clôturez à nouveau la période.',
         'status_transition_invalid' => 'Soppi statut reversement plateforme bii nangouñu ko.',
     ],
     'privacy' => [
@@ -582,6 +594,7 @@ return [
         'already_assigned' => 'Seetaan bii, keneen ci ajaans bi moo ko jël.',
         'cannot_cancel' => 'Seeti bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_complete' => 'Seeti bii mënuñu ko jeexal ni mu nekke léegi.',
+        'cannot_mark_no_show' => 'Seule une visite planifiée ou confirmée dont l\'heure est passée peut être marquée absente.',
         'closed' => 'Seeti bu jeex walla bu ñu neenal, mënatuñu ko soppi.',
         'feedback_agent_only' => 'Agent bi ko yor rekk moo mën a joxe xalaatu agent bi.',
         'feedback_not_completed' => 'Xalaat bi, su seeti bi jeexee rekk lañu ko mën a joxe.',

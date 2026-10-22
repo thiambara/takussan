@@ -84,6 +84,21 @@ class BookingPayment extends AbstractModel implements HasAuditAgency
         return $query->whereNull('bank_reconciled_at');
     }
 
+    /**
+     * TCK-1417 (P141.04) — ce qui attend un crédit du relevé de l'agence : le scope que partagent
+     * le matcher (`ReconciliationMatcher`) et la recherche manuelle (`PaymentSearchService`).
+     *
+     * L'agence d'un acompte est celle de la réservation (`bookings.agency_id`), comme pour la
+     * clôture de la plateforme et l'audit (`auditAgencyId`) ; un acompte encaissé par la
+     * plateforme en est écarté (TCK-1415).
+     */
+    public function scopeAwaitingBankCredit(Builder $query, int $agencyId): Builder
+    {
+        return $query->whereNotReconciled()
+            ->whereHas('booking', fn (Builder $q) => $q->where('agency_id', $agencyId))
+            ->whereNotSettledByPlatform();
+    }
+
     /** TCK-601 (ADR-0044 §3) — l'agence d'une activité sur cette ligne est celle de la réservation. */
     public function auditAgencyId(): ?int
     {

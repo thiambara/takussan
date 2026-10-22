@@ -27,11 +27,11 @@ const LIST_FIELDS: string[] = [
   'agency_id',
 ];
 
+// P150.03 (TCK-1284) — pas de `search` : `GET /api/bookings` ne déclare aucun `filter[search]` (400).
 export type UseBookingsParams = {
   status?: string;
   page?: number;
   per_page?: number;
-  search?: string;
 };
 
 export function useBookings(params: UseBookingsParams = {}) {
@@ -44,7 +44,6 @@ export function useBookings(params: UseBookingsParams = {}) {
     },
     filter: {
       ...(params.status ? { status: params.status } : {}),
-      ...(params.search ? { search: params.search } : {}),
     },
     include: ['property'],
     sort: ['-created_at'],
@@ -60,8 +59,10 @@ export function useBookings(params: UseBookingsParams = {}) {
 }
 
 export function useBooking(id: number | null | undefined) {
+  // P150.05 (TCK-1286) — `BookingController::show` charge `property.address`, `customer` et
+  // `payments` quoi qu'on demande ; `booking_payments` sort de `BookingResource`, pas d'un `include`.
   const spatieParams: SpatieQueryParams = {
-    include: ['property', 'booking_payments', 'customer'],
+    include: ['property', 'customer'],
   };
 
   return useApiQuery<ApiResponse<Booking>>(
@@ -85,16 +86,25 @@ export type CreateBookingPayload = {
 export function useCreateBooking() {
   return useApiMutation<ApiResponse<Booking>, CreateBookingPayload>(
     { path: '/api/bookings', method: 'POST' },
-    { invalidate: [['bookings', 'list']] },
+    // TCK-1406 (ADR-0072) — renvoyée après une réponse perdue, la réservation n'est créée qu'une fois.
+    { idempotence: true, invalidate: [['bookings', 'list']] },
   );
 }
 
 export type CreateBookingPaymentPayload = {
-  amount: number;
+  /**
+   * TCK-1309 (P133.05) — le personnel saisit montant et nature ; le client n'envoie ni l'un ni
+   * l'autre : l'API les dérive (acompte, puis reste dû) et ignore ce qu'il enverrait.
+   */
+  amount?: number;
   payment_method?: 'cash' | 'bank_transfer' | 'mobile_money' | 'card';
-  payment_type: 'deposit' | 'advance' | 'fee';
-  /** TCK-172 — set to `pending` for the customer self-service gateway flow. */
-  status?: 'pending' | 'paid' | 'partially_paid' | 'refunded' | 'cancelled';
+  payment_type?: 'deposit' | 'advance' | 'fee';
+  /**
+   * TCK-172 — set to `pending` for the customer self-service gateway flow. TCK-1266 — sans
+   * `cancelled`, que `StoreBookingPaymentRequest` refuse. TCK-1311 — ni `refunded` : une ligne
+   * saisie naît `paid`, `pending` ou `partially_paid`.
+   */
+  status?: 'pending' | 'paid' | 'partially_paid';
   transaction_id?: string;
   notes?: string;
 };
@@ -139,6 +149,8 @@ export function useCreateBookingPayment(bookingId: number) {
   return useApiMutation<ApiResponse<BookingPayment>, CreateBookingPaymentPayload>(
     { path: cheminApi`/api/bookings/${bookingId}/payments`, method: 'POST' },
     {
+      // TCK-1400 (ADR-0072) — renvoyé après une réponse perdue, l'acompte n'est encaissé qu'une fois.
+      idempotence: true,
       invalidate: [
         ['bookings', 'detail', bookingId],
         ['bookings', 'list'],

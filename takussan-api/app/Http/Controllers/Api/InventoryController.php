@@ -193,7 +193,13 @@ class InventoryController extends Controller
             'inventory.pdf_unsigned'
         );
 
-        $inventory->loadMissing(['lease', 'property.address', 'tenant']);
+        // P130.02 (TCK-1250) — le bien supprimé (suppression douce) reste celui du bail : le gabarit
+        // le lit, au lieu de rendre 500 sur `$property->id`. La policy a pu déjà charger la relation,
+        // à `null` sous la portée `SoftDeletes` : `loadMissing` ne la relirait pas.
+        if ($inventory->relationLoaded('property') && $inventory->property === null) {
+            $inventory->unsetRelation('property');
+        }
+        $inventory->loadMissing(['lease', 'property' => fn ($q) => $q->withTrashed(), 'property.address', 'tenant']);
         // Make signature payloads temporarily visible so the Blade template
         // can embed them as <img src="data:..."> without leaking through any
         // JSON resource.

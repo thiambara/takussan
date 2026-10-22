@@ -74,6 +74,12 @@ export type Lease = {
   commission_rate: number | null;
   payment_frequency: PaymentFrequency;
   payment_day: number | null;
+  /**
+   * P133.04 (TCK-1381) — pénalité de retard (%) et délai de grâce (jours) ; le renouvellement
+   * les reprend du bail d'origine. Optionnels : une liste en champs choisis ne les rend pas.
+   */
+  late_fee_percent?: number | null;
+  late_fee_grace_days?: number | null;
   terms: string | null;
   special_conditions: string | null;
   guarantor_id: number | null;
@@ -86,6 +92,8 @@ export type Lease = {
   early_termination_requested_by?: number | null;
   early_termination_effective_date?: string | null;
   early_termination_penalty_amount?: number | null;
+  /** P98.05 — mois que la résiliation exécutera (figés sur le bail, sinon le réglage) ; détail seul. */
+  early_termination_penalty_months?: number;
   early_termination_reason?: string | null;
   early_termination_invoice_id?: number | null;
   notice_period_days?: number | null;
@@ -99,11 +107,23 @@ export type Lease = {
   can_request_signature?: boolean;
   /** La voie papier : gestionnaire ET signataire possible pour le bailleur (`leases.sign`). */
   can_activate_on_paper?: boolean;
+  /**
+   * P152.02 — les quatre gestes que `LeasePolicy` juge par capacité, jugés par l'API pour
+   * l'utilisateur courant. Rendus par le détail seul ; absents, rien n'est offert.
+   */
+  abilities?: LeaseAbilities;
   created_at: string;
   updated_at: string;
 };
 
 export type LeaseSignatureRole = 'tenant' | 'landlord';
+
+export interface LeaseAbilities {
+  readonly renew: boolean;
+  readonly review_rent: boolean;
+  readonly record_payment: boolean;
+  readonly refund_deposit: boolean;
+}
 
 /**
  * TCK-596 §4B (ADR-0042 §3) — une preuve de consentement. Jamais l'IP ni l'agent utilisateur :

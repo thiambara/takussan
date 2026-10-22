@@ -8,11 +8,13 @@ import userEvent from '@testing-library/user-event';
 import { withIntl } from '@/test/intl';
 import { ContactLeadsInbox } from '../ContactLeadsInbox';
 import type { ContactLead } from '@/lib/queries/contact-leads';
+import { ApiError } from '@/lib/api';
 
 const etat = vi.hoisted(() => ({
   leads: [] as ContactLead[],
   filtres: [] as string[],
   roles: ['agent'] as string[],
+  capacites: ['crm.assign'] as string[],
   recherche: '',
   designe: null as { id: number | null; data?: ContactLead; isError?: boolean } | null,
 }));
@@ -45,9 +47,20 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(etat.recherche),
 }));
 
+const lecturesDesMembres = vi.hoisted(() => [] as unknown[][]);
+
 vi.mock('@/hooks/useApiQuery', () => ({
-  useApiQuery: () => ({
+  useApiQuery: (...args: unknown[]) => (lecturesDesMembres.push(args), {
     data: { data: [{ id: 21, first_name: 'Moussa', last_name: 'Fall' }] },
+    isLoading: false,
+  }),
+}));
+
+// P152.05 — « Attribuer » se juge aussi par `crm.assign` dans l'agence de la demande.
+const lecturesDesCapacites = vi.hoisted(() => [] as unknown[][]);
+vi.mock('@/hooks/useCan', () => ({
+  useCan: (capacite: string, ...reste: unknown[]) => (lecturesDesCapacites.push([capacite, ...reste]), {
+    can: etat.capacites.includes(capacite),
     isLoading: false,
   }),
 }));
@@ -92,6 +105,7 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
     etat.leads = [lead()];
     etat.filtres = [];
     etat.roles = ['agent'];
+    etat.capacites = ['crm.assign'];
     etat.recherche = '';
     etat.designe = null;
   });
@@ -134,6 +148,36 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
     );
   });
 
+  it('TCK-1343 — un doublon (409 `customer.duplicate`) se présente comme dans le formulaire client, et « Convertir quand même » force', async () => {
+    convert.mutateAsync.mockRejectedValueOnce(
+      new ApiError(409, {
+        code: 'customer.duplicate',
+        existing: [
+          { id: 55, name: 'Awa Diop', matched_on: 'phone' },
+          { id: null, name: null, matched_on: 'email' },
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    render(withIntl(<ContactLeadsInbox />));
+
+    await user.click(screen.getByRole('button', { name: 'Convertir en client' }));
+
+    expect(await screen.findByText('Ce client semble déjà exister dans l\'agence.')).toBeInTheDocument();
+    expect(screen.getByText(/Awa Diop · même téléphone/)).toBeInTheDocument();
+    expect(screen.getByText(/Une fiche que vous ne pouvez pas ouvrir · même e-mail/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ouvrir sa fiche' })).toHaveAttribute('href', '/app/customers/55');
+    expect(toastAdd).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }));
+
+    await user.click(screen.getByRole('button', { name: 'Convertir quand même' }));
+    expect(convert.mutateAsync).toHaveBeenLastCalledWith({ id: 1, allow_duplicate: true });
+    expect(await screen.findByRole('link', { name: 'Voir la fiche client' })).toHaveAttribute(
+      'href',
+      '/app/customers/88',
+    );
+    expect(screen.queryByText('Ce client semble déjà exister dans l\'agence.')).not.toBeInTheDocument();
+  });
+
   it('attribuer : l’administrateur de l’agence choisit un collègue', async () => {
     etat.roles = ['agency_admin'];
     const user = userEvent.setup();
@@ -144,6 +188,19 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
     await user.click(screen.getAllByRole('button', { name: 'Attribuer' }).at(-1)!);
 
     await waitFor(() => expect(assign.mutateAsync).toHaveBeenCalledWith({ id: 1, user_id: 21 }));
+  });
+
+  it('attribuer : la liste ne propose que les cibles que l’API accepte (P120.01, TCK-1246)', async () => {
+    etat.roles = ['agency_admin'];
+    const user = userEvent.setup();
+    render(withIntl(<ContactLeadsInbox />));
+
+    await user.click(screen.getByRole('button', { name: 'Attribuer' }));
+    await screen.findByLabelText('Collègue');
+
+    const [, chemin, options] = lecturesDesMembres.at(-1) as [unknown, string, { params: { filter?: unknown } }];
+    expect(chemin).toBe('/api/agencies/3/members');
+    expect(options.params.filter).toEqual({ assignable: 1 });
   });
 
   it.each([['owner'], ['agent']])('%s lit ses demandes mais n’a pas « Attribuer » (liste des membres réservée à l’admin)', (role) => {
@@ -209,5 +266,16 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
       expect(screen.queryByText('Les demandes n’ont pas pu être chargées.')).not.toBeInTheDocument();
       expect(screen.getAllByRole('listitem')).toHaveLength(1);
     });
+  });
+
+  it('P152.05 — un administrateur dont le rôle ne porte pas crm.assign n’a pas « Attribuer »', () => {
+    etat.roles = ['agency_admin'];
+    etat.capacites = ['agency.update'];
+    render(withIntl(<ContactLeadsInbox />));
+
+    expect(screen.getByText(MESSAGE)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Attribuer' })).not.toBeInTheDocument();
+    // La capacité se lit dans l'agence de la demande.
+    expect(lecturesDesCapacites.at(-1)?.slice(0, 2)).toEqual(['crm.assign', 3]);
   });
 });

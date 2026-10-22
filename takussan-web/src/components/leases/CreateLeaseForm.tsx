@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -72,7 +72,6 @@ export function CreateLeaseForm() {
     defaultValues: {
       property_id: 0,
       tenant_id: 0,
-      landlord_id: 0,
       type: 'residential_rent',
       start_date: '',
       end_date: '',
@@ -126,12 +125,6 @@ export function CreateLeaseForm() {
   const selectedProperty = properties.find((p) => p.id === selectedPropertyId) ?? null;
   const selectedCustomer = customers.find((c) => c.id === selectedTenantId) ?? null;
 
-  useEffect(() => {
-    if (user?.id && form.getValues('landlord_id') !== user.id) {
-      form.setValue('landlord_id', user.id, { shouldDirty: false, shouldValidate: true });
-    }
-  }, [form, user?.id]);
-
   return (
     <form
       onSubmit={(e) => {
@@ -143,7 +136,6 @@ export function CreateLeaseForm() {
 
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <h2 className="text-sm font-semibold text-foreground">{t('parties')}</h2>
-        <input type="hidden" {...form.register('landlord_id', { valueAsNumber: true })} />
         <div className="grid gap-4 lg:grid-cols-2">
           <EntitySelect
             control={form.control}

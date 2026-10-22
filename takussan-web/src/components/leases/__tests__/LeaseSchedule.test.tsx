@@ -143,7 +143,7 @@ function avecEcheances(echeances: LeasePayment[]) {
 function rendre(canManage = false, bail: { agencyId?: number | null; landlordId?: number } = {}) {
   const { agencyId = 1, landlordId = 7 } = bail;
   return render(
-    withIntl(<LeaseSchedule leaseId={1} agencyId={agencyId} landlordId={landlordId} canManage={canManage} />),
+    withIntl(<LeaseSchedule leaseId={1} agencyId={agencyId} landlordId={landlordId} canManage={canManage} canRecordPayment={canManage} />),
   );
 }
 
@@ -437,5 +437,42 @@ describe('LeaseSchedule — fournisseurs lus sur le paiement (TCK-602, AC24)', (
     rendre(false);
 
     expect(screen.queryByRole('button', { name: /^Payer / })).toBeNull();
+  });
+});
+
+/**
+ * TCK-1264 (P146.02) — `displayStatus` suit chaque cas de `PaymentStatus` de l'API : une échéance
+ * remboursée ou en échec ne s'affiche plus « Autre ». Libellés repris de `payments.status`.
+ */
+describe('LeaseSchedule — un libellé par statut de PaymentStatus (TCK-1264, P146.02)', () => {
+  const DANS_UN_AN = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+
+  it.each([
+    ['pending', DANS_UN_AN, fr.lease.schedule.status.pending],
+    ['paid', '2026-07-05', fr.lease.schedule.status.paid],
+    ['late', '2026-07-05', fr.lease.schedule.status.late],
+    ['partially_paid', '2026-07-05', fr.payments.status.partially_paid],
+    ['failed', '2026-07-05', fr.payments.status.failed],
+    ['refunded', '2026-07-05', fr.payments.status.refunded],
+    ['cancelled', '2026-07-05', fr.lease.schedule.status.cancelled],
+  ] as const)('« %s » s’affiche par son libellé, jamais « Autre »', (status, due_date, libelle) => {
+    avecEcheances([{ ...PAYEE, status, due_date }]);
+    rendre();
+
+    const echeance = ligne(/LP-2026-0011|250 000/);
+    expect(within(echeance).getByText(libelle)).toBeTruthy();
+    expect(within(echeance).queryByText(fr.lease.schedule.status.other)).toBeNull();
+  });
+
+  it('une restitution de dépôt `pending` échue garde son statut : jamais « En retard »', () => {
+    avecEcheances([
+      { ...PAYEE, payment_type: 'deposit_refund', status: 'pending', due_date: '2026-07-05', paid_at: null },
+    ]);
+    rendre();
+
+    const restitution = ligne(/LP-2026-0011|250 000/);
+    expect(within(restitution).queryByText(fr.lease.schedule.status.late)).toBeNull();
+    expect(within(restitution).getByText(fr.lease.schedule.status.pending)).toBeTruthy();
+    expect(restitution.className).not.toContain('bg-destructive');
   });
 });

@@ -33,7 +33,7 @@ class ShowExportRequest extends BaseFormRequest
             'format' => ['sometimes', Rule::in(['csv', 'xlsx', 'excel', 'pdf'])],
             'from' => ['sometimes', 'date'],
             'to' => ['sometimes', 'date'],
-            // TCK-713 — le plafond dépend du format : 2 000 lignes en PDF, 10 000 sinon.
+            // TCK-713 — le plafond dépend du format : 200 lignes en PDF (TCK-1306), 10 000 sinon.
             'limit' => ['sometimes', 'integer', 'min:1', 'max:'.ExportDataService::maxRows($this->input('format'))],
         ];
     }

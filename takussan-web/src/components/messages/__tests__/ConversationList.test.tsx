@@ -16,9 +16,22 @@ import frMessages from '@/messages/fr.json';
 import enMessages from '@/messages/en.json';
 import { ConversationList } from '../ConversationList';
 
-const conversations = vi.fn(() => ({ data: { data: [] }, isLoading: false, isError: false }));
+// TCK-1387 (P135.02) — la liste lit `useConversationsInfinite` : ses pages sont sous `data.pages`.
+const fetchNextPage = vi.fn();
+const conversations = vi.fn(() => ({
+  data: { pages: [{ data: [] as unknown[] }] },
+  isLoading: false,
+  isError: false,
+  hasNextPage: false,
+  isFetchingNextPage: false,
+  fetchNextPage,
+}));
 vi.mock('@/lib/queries/conversations', () => ({
-  useConversations: () => conversations(),
+  useConversationsInfinite: () => conversations(),
+}));
+const sentinelleVisible = vi.fn(() => false);
+vi.mock('@/hooks/useIntersectionObserver', () => ({
+  useIntersectionObserver: () => sentinelleVisible(),
 }));
 
 function rendre() {
@@ -80,15 +93,22 @@ describe('<ConversationList> aperçu d’un avis système (TCK-671)', () => {
   it('rend l’aperçu d’un changement de rôle dans la langue du lecteur', () => {
     conversations.mockReturnValue({
       data: {
-        data: [
-          conversation(
-            { id: 1, type: 'system', metadata: { event: 'role_changed', actor_name: 'Alice', target_name: 'Bob', role: 'admin' } },
-            'Alice a changé le rôle de Bob en admin',
-          ),
+        pages: [
+          {
+            data: [
+              conversation(
+                { id: 1, type: 'system', metadata: { event: 'role_changed', actor_name: 'Alice', target_name: 'Bob', role: 'admin' } },
+                'Alice a changé le rôle de Bob en admin',
+              ),
+            ],
+          },
         ],
       },
       isLoading: false,
       isError: false,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      fetchNextPage,
     } as never);
 
     rendreEn();
@@ -99,13 +119,84 @@ describe('<ConversationList> aperçu d’un avis système (TCK-671)', () => {
 
   it('garde l’aperçu du serveur pour un message ordinaire', () => {
     conversations.mockReturnValue({
-      data: { data: [conversation({ id: 2, type: 'text', metadata: null }, 'Bonjour à tous')] },
+      data: { pages: [{ data: [conversation({ id: 2, type: 'text', metadata: null }, 'Bonjour à tous')] }] },
       isLoading: false,
       isError: false,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      fetchNextPage,
     } as never);
 
     rendreEn();
 
     expect(screen.getByText('Bonjour à tous')).toBeInTheDocument();
+  });
+});
+
+// TCK-1387 (P135.02) — la liste ne lisait que ses 30 premiers fils : le 35ᵉ n'était atteignable
+// par aucun geste. Elle charge la page suivante quand sa sentinelle de bas de liste paraît.
+describe('<ConversationList> défilement infini (TCK-1387)', () => {
+  function fil(id: number, subject: string) {
+    return {
+      id,
+      subject,
+      property_id: null,
+      type: 'group',
+      status: 'active',
+      last_message_at: '2026-10-16T10:00:00Z',
+      last_message_preview: null,
+      participants: [],
+      last_message: null,
+    };
+  }
+
+  it('rend les fils de toutes les pages chargées, un fil vu deux fois une seule fois', () => {
+    conversations.mockReturnValue({
+      data: { pages: [{ data: [fil(1, 'Récent'), fil(2, 'Moyen')] }, { data: [fil(2, 'Moyen'), fil(35, 'Le plus ancien')] }] },
+      isLoading: false,
+      isError: false,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      fetchNextPage,
+    } as never);
+
+    rendre();
+
+    expect(screen.getByText('Le plus ancien')).toBeInTheDocument();
+    expect(screen.getAllByText('Moyen')).toHaveLength(1);
+  });
+
+  it('demande la page suivante quand la sentinelle paraît', () => {
+    fetchNextPage.mockClear();
+    sentinelleVisible.mockReturnValue(true);
+    conversations.mockReturnValue({
+      data: { pages: [{ data: [fil(1, 'Récent')] }] },
+      isLoading: false,
+      isError: false,
+      hasNextPage: true,
+      isFetchingNextPage: false,
+      fetchNextPage,
+    } as never);
+
+    rendre();
+
+    expect(fetchNextPage).toHaveBeenCalledTimes(1);
+  });
+
+  it('ne demande rien quand il n’y a plus de page', () => {
+    fetchNextPage.mockClear();
+    sentinelleVisible.mockReturnValue(true);
+    conversations.mockReturnValue({
+      data: { pages: [{ data: [fil(1, 'Récent')] }] },
+      isLoading: false,
+      isError: false,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      fetchNextPage,
+    } as never);
+
+    rendre();
+
+    expect(fetchNextPage).not.toHaveBeenCalled();
   });
 });

@@ -122,11 +122,14 @@ use App\Services\Notifications\Whatsapp\LogWhatsappDriver;
 use App\Services\Notifications\Whatsapp\ServiceWindow;
 use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Payout\Disbursement\ManualDisbursementDriver;
+use App\Services\Pdf\DomPdfPageTotalDriver;
 use App\Services\Reporting\PlatformReportingService;
 use App\Services\Review\ReviewModerationScope;
 use App\Services\Webhooks\WebhookJournal;
 use App\Support\ImpersonationContext;
+use App\Support\LienFront;
 use App\Support\Logging\SanitizingFailedJobProvider;
+use App\Support\ProductionOrigin;
 use App\Support\TelephoneSaisi;
 use App\Support\VisitorFingerprint;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -182,6 +185,10 @@ class AppServiceProvider extends ServiceProvider
         // TCK-600 (ADR-0055 §5) — la session d'impersonation de la requête courante.
         $this->app->scoped(ImpersonationContext::class);
 
+        // TCK-1235 (P109.02) — le pilote dompdf du paquet laisse `counter(pages)` à 0 : celui du
+        // dépôt écrit le total de pages. Les autres pilotes de `spatie/laravel-pdf` ne changent pas.
+        $this->app->singleton('laravel-pdf.driver.dompdf', fn () => new DomPdfPageTotalDriver(config('laravel-pdf.dompdf', [])));
+
         // TCK-594 (ADR-0039 §1) — décaisser, distinct d'encaisser. Un seul pilote : le manuel tracé.
         $this->app->bind(DisbursementDriverContract::class, ManualDisbursementDriver::class);
 
@@ -213,6 +220,8 @@ class AppServiceProvider extends ServiceProvider
     {
         // P71.02 — l'aperçu des codes SMS ne démarre jamais sur l'API de production.
         OtpPreview::refuserSurLaProduction();
+        // P106.03 (TCK-1358) — ni sous un autre `APP_ENV` que `production`.
+        ProductionOrigin::refuserUnAutreAppEnv();
         $this->loadRoutesFrom(base_path('routes/lemon-squeezy.php'));
         $this->bootUrlRoot();
         $this->bootRequestMacros();
@@ -920,7 +929,7 @@ class AppServiceProvider extends ServiceProvider
         // TCK-230 — the email opens on the frontend, but the signature is
         // generated for the API route that ultimately validates it.
         VerifyEmail::createUrlUsing(function (object $notifiable): string {
-            $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+            $frontend = LienFront::base();
             $apiPath = URL::temporarySignedRoute(
                 'verification.verify',
                 now()->addMinutes(config('auth.verification.expire', 60)),
@@ -938,7 +947,7 @@ class AppServiceProvider extends ServiceProvider
         // frontend URL — avoids depending on a named route defined in
         // another host (`password.reset`).
         ResetPassword::createUrlUsing(function (object $notifiable, string $token): string {
-            $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+            $frontend = LienFront::base();
 
             return $frontend.'/auth/reset-password?token='.$token.'&email='.urlencode($notifiable->getEmailForPasswordReset());
         });

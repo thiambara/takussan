@@ -14,6 +14,7 @@ use App\Models\CustomerNote;
 use App\Models\Enums\CustomerNoteKind;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
+use App\Models\Enums\LeaseStatus;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Services\Crm\CustomerActivityFeed;
@@ -179,6 +180,18 @@ class CustomerController extends Controller
     public function destroy(Request $request, Customer $customer): JsonResponse
     {
         $this->authorize('delete', $customer);
+
+        // P130.05 (TCK-1332) — même forme que le garant (VERIF-596) : une fiche que porte un bail
+        // en attente de signature ou en cours ne se supprime pas. Supprimée, elle laissait le bail
+        // courir sans locataire — relances vers personne, pénalités qui s'appliquent — et le
+        // locataire à compte perdait l'accès à son bail, ses quittances et ses factures.
+        abort_code_if(
+            $customer->leases()
+                ->whereIn('status', [LeaseStatus::PendingSignature->value, LeaseStatus::Active->value])
+                ->exists(),
+            422,
+            'customer.attached_to_open_lease',
+        );
 
         $customer->delete();
 

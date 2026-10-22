@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { DocumentsLibrary } from '../DocumentsLibrary';
@@ -140,5 +142,78 @@ describe('<DocumentsLibrary>', () => {
       screen.getByRole('heading', { level: 2, name: fr.documents.library.empty_title }),
     ).toBeInTheDocument();
     expect(screen.getByText(fr.documents.library.empty_description)).toBeInTheDocument();
+  });
+});
+
+/**
+ * TCK-1272 (P134.02) — les pièces `rib` et `ninea`, que l'enum de l'API émet et que l'accueil du
+ * bailleur crée, ont leur titre de groupe, et se rangent à leur place : `indexOf` rendait -1, qui
+ * plaçait leur groupe AVANT « Contrat de bail ».
+ */
+describe('<DocumentsLibrary> — pièces RIB et NINEA (TCK-1272, P134.02)', () => {
+  function doc(id: number, type: Document['type'], name: string): Document {
+    return {
+      id,
+      documentable_id: 1,
+      documentable_type: 'user',
+      uploaded_by: 1,
+      name,
+      type,
+      description: null,
+      is_verified: false,
+      verified_by: null,
+      verified_at: null,
+      expiry_date: null,
+      file_url: null,
+      file_name: `${name}.pdf`,
+      file_size: 1000,
+      mime_type: 'application/pdf',
+      created_at: '2026-10-01T10:00:00+00:00',
+    };
+  }
+
+  beforeEach(() => {
+    authState.user = ownerUser();
+  });
+
+  it('nomme le groupe RIB et le range après « Contrat de bail »', () => {
+    documentsQuery.data.data = [doc(1, 'rib', 'mon-rib'), doc(2, 'lease_contract', 'mon-bail')];
+    documentsQuery.data.meta.total = 2;
+    render(wrap(<DocumentsLibrary />));
+
+    const titres = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(titres).toContain(fr.owners.onboarding.kyc.labels.rib);
+    expect(titres.indexOf(fr.documents.types.lease_contract)).toBeLessThan(
+      titres.indexOf(fr.owners.onboarding.kyc.labels.rib),
+    );
+  });
+
+  it('range un type inconnu de l’ordre en dernier', () => {
+    documentsQuery.data.data = [
+      doc(1, 'inconnu' as Document['type'], 'mystere'),
+      doc(2, 'lease_contract', 'mon-bail'),
+    ];
+    documentsQuery.data.meta.total = 2;
+    render(wrap(<DocumentsLibrary />));
+
+    const sections = document.querySelectorAll('section');
+    expect(sections[0].textContent).toContain('mon-bail');
+  });
+
+  it('l’ordre d’affichage couvre exactement les cas de l’enum de l’API', async () => {
+    const { DOCUMENT_TYPE_ORDER } = await import('../constants');
+    const source = readFileSync(
+      resolve(__dirname, '../../../../../takussan-api/app/Models/Enums/DocumentType.php'),
+      'utf8',
+    );
+    const api = [...source.matchAll(/case\s+\w+\s*=\s*'([^']+)'/g)].map((m) => m[1]);
+    expect([...DOCUMENT_TYPE_ORDER].sort()).toEqual(api.sort());
+  });
+
+  it('le téléversement de la bibliothèque n’offre pas les pièces du bailleur', async () => {
+    const { DOCUMENT_TYPE_UPLOAD_ORDER } = await import('../constants');
+    expect(DOCUMENT_TYPE_UPLOAD_ORDER).not.toContain('rib');
+    expect(DOCUMENT_TYPE_UPLOAD_ORDER).not.toContain('ninea');
+    expect(DOCUMENT_TYPE_UPLOAD_ORDER).toContain('lease_contract');
   });
 });

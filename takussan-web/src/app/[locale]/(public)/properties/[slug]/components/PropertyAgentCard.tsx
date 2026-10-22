@@ -48,6 +48,15 @@ export function PropertyAgentCard({
   const hasPhone = contact.has_phone === true;
   // TCK-633 (lot C) — WhatsApp seulement vers un numéro DÉCLARÉ WhatsApp.
   const hasWhatsApp = contact.has_whatsapp === true;
+  // TCK-1313 (P85.04) — un espace `individual` n'a pas de fiche d'agence (l'API la refuse en 404) :
+  // son nom mène à la fiche de la personne, ou n'est qu'écrit sans slug de contact.
+  const lienAgence = !agency
+    ? null
+    : agency.kind === 'individual'
+      ? contact.slug
+        ? `/agents/${contact.slug}`
+        : null
+      : `/agencies/${agency.slug}`;
 
   // TCK-590 — les erreurs passaient par une boîte d'alerte native, bloquante, hors charte
   // par le navigateur. Un toast, comme partout ailleurs.
@@ -112,12 +121,16 @@ export function PropertyAgentCard({
               celle de son texte : à 360 px, la page entière s'élargissait à 369 (viewport mesuré). */}
           {agency ? (
             <p className="text-sm text-muted-foreground flex items-center gap-1 min-w-0">
-              <LienLocalise
-                href={`/agencies/${agency.slug}`}
-                className="min-h-6 min-w-0 truncate leading-6 underline underline-offset-2"
-              >
-                {agency.name}
-              </LienLocalise>
+              {lienAgence ? (
+                <LienLocalise
+                  href={lienAgence}
+                  className="min-h-6 min-w-0 truncate leading-6 underline underline-offset-2"
+                >
+                  {agency.name}
+                </LienLocalise>
+              ) : (
+                <span className="min-w-0 truncate leading-6">{agency.name}</span>
+              )}
               {agency.verified && (
                 <BadgeCheck className="size-4 text-primary shrink-0" aria-label={t('verifiedAria')} />
               )}

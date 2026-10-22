@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Filters\DateBoundaryFilter;
 use App\Models\BookingPayment;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
@@ -96,6 +97,7 @@ class PaymentController extends Controller
 
         // Date range — use paid_at for booking payments and paid_at/due_date/period_start for lease payments.
         if (! empty($filters['date_from'])) {
+            DateBoundaryFilter::exiger($filters['date_from'], 'date_from');
             $from = $filters['date_from'];
             $bookingQuery->where(function ($q) use ($from): void {
                 $q->where('paid_at', '>=', DayRange::start($from))->orWhere('created_at', '>=', DayRange::start($from));
@@ -105,6 +107,7 @@ class PaymentController extends Controller
             });
         }
         if (! empty($filters['date_to'])) {
+            DateBoundaryFilter::exiger($filters['date_to'], 'date_to');
             $to = $filters['date_to'];
             $bookingQuery->where(function ($q) use ($to): void {
                 $q->where('paid_at', '<', DayRange::after($to))->orWhere('created_at', '<', DayRange::after($to));

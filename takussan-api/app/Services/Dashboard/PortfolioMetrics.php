@@ -33,6 +33,12 @@ use Illuminate\Support\Facades\DB;
  * - *Biens éligibles* : feuilles (sans enfant), `contract_type = rent`, hors brouillon, archivé, en
  *   revue, refusé, vendu, créés avant la fin du mois mesuré. Longue durée = `rent_period` mensuel ou
  *   annuel ; courte durée = journalier ou hebdomadaire.
+ * - *Un mois passé* (avant le mois en cours) garde en plus, au dénominateur comme au numérateur, tout
+ *   bien feuille de la périodicité qu'un bail (longue durée) ou une réservation (courte durée) y
+ *   couvrait au moins un jour, quels que soient son statut et son `contract_type` d'aujourd'hui
+ *   (P93.01, TCK-1173) : archiver ou vendre un bien ne réécrit pas l'occupation de janvier. Aucune
+ *   date de passage en `archived` ou `sold` n'existe en base ; le mois en cours garde donc
+ *   l'exclusion par statut courant, et un bien resté vacant tout un mois passé puis archivé en sort.
  * - *Occupation longue durée* = jours-biens couverts par un bail hors `draft` et `pending_signature`
  *   ÷ (biens éligibles × jours du mois). Fin effective = la plus tôt de `end_date` et `terminated_at`,
  *   incluse. Un jour d'un bien ne compte qu'une fois, même sous deux baux.
@@ -60,7 +66,9 @@ class PortfolioMetrics
     /**
      * Occupation longue durée, mois par mois, de `$from` à `$to` inclus (mois calendaires).
      *
-     * @return array<string, float> `Y-m` => pourcentage à 2 décimales
+     * @return array<string, float|null> `Y-m` => pourcentage à 2 décimales, ou `null` sans bien
+     *                                   éligible ce mois-là : rien à occuper n'est pas tout vacant
+     *                                   (TCK-1114, P127.02)
      */
     public function longStayOccupancy(PortfolioScope $scope, CarbonInterface $from, CarbonInterface $to): array
     {
@@ -71,12 +79,6 @@ class PortfolioMetrics
             WITH eligible AS ({$eligibleSql}),
             months AS (
                 SELECT generate_series(?::date, ?::date, interval '1 month')::date AS m
-            ),
-            denom AS (
-                SELECT months.m, COUNT(e.id) AS n
-                FROM months
-                LEFT JOIN eligible e ON e.created_at < (months.m + interval '1 month')
-                GROUP BY months.m
             ),
             covered_days AS (
                 SELECT DISTINCT l.property_id, d::date AS d
@@ -90,6 +92,17 @@ class PortfolioMetrics
                 WHERE l.deleted_at IS NULL
                   AND l.status NOT IN (?, ?)
                   AND e.created_at < (date_trunc('month', d) + interval '1 month')
+                  AND (e.is_current OR d < ?::date)
+            ),
+            denom AS (
+                SELECT months.m, COUNT(e.id) AS n
+                FROM months
+                LEFT JOIN eligible e ON e.created_at < (months.m + interval '1 month')
+                  AND (e.is_current OR (months.m < ?::date AND EXISTS (
+                      SELECT 1 FROM covered_days cd
+                      WHERE cd.property_id = e.id AND date_trunc('month', cd.d) = months.m
+                  )))
+                GROUP BY months.m
             ),
             covered AS (
                 SELECT date_trunc('month', d)::date AS m, COUNT(*) AS days
@@ -107,13 +120,14 @@ class PortfolioMetrics
             [$start->toDateString(), $end->startOfMonth()->toDateString()],
             [$start->toDateString(), $end->toDateString()],
             array_map(static fn (LeaseStatus $s): string => $s->value, self::NON_OCCUPYING_LEASE_STATUSES),
+            [$this->currentMonthStart(), $this->currentMonthStart()],
         ));
 
         $out = [];
         foreach ($rows as $row) {
             $month = CarbonImmutable::parse($row->m);
             $capacity = (int) $row->n * $month->daysInMonth;
-            $out[$month->format('Y-m')] = $capacity > 0 ? round(((int) $row->days / $capacity) * 100, 2) : 0.0;
+            $out[$month->format('Y-m')] = $capacity > 0 ? round(((int) $row->days / $capacity) * 100, 2) : null;
         }
 
         return $out;
@@ -134,12 +148,6 @@ class PortfolioMetrics
             months AS (
                 SELECT generate_series(?::date, ?::date, interval '1 month')::date AS m
             ),
-            denom AS (
-                SELECT months.m, COUNT(e.id) AS n
-                FROM months
-                LEFT JOIN eligible e ON e.created_at < (months.m + interval '1 month')
-                GROUP BY months.m
-            ),
             nights AS (
                 SELECT DISTINCT b.property_id, d::date AS d
                 FROM bookings b
@@ -152,6 +160,17 @@ class PortfolioMetrics
                 WHERE b.deleted_at IS NULL
                   AND b.status IN (?, ?)
                   AND e.created_at < (date_trunc('month', d) + interval '1 month')
+                  AND (e.is_current OR d < ?::date)
+            ),
+            denom AS (
+                SELECT months.m, COUNT(e.id) AS n
+                FROM months
+                LEFT JOIN eligible e ON e.created_at < (months.m + interval '1 month')
+                  AND (e.is_current OR (months.m < ?::date AND EXISTS (
+                      SELECT 1 FROM nights nd
+                      WHERE nd.property_id = e.id AND date_trunc('month', nd.d) = months.m
+                  )))
+                GROUP BY months.m
             ),
             covered AS (
                 SELECT date_trunc('month', d)::date AS m, COUNT(*) AS nights
@@ -169,6 +188,7 @@ class PortfolioMetrics
             [$start->toDateString(), $end->startOfMonth()->toDateString()],
             [$start->toDateString(), $end->toDateString()],
             array_map(static fn (BookingStatus $s): string => $s->value, self::OCCUPYING_BOOKING_STATUSES),
+            [$this->currentMonthStart(), $this->currentMonthStart()],
         ));
 
         $out = [];
@@ -204,7 +224,8 @@ class PortfolioMetrics
                       AND COALESCE(LEAST(l.end_date, l.terminated_at::date), ?::date) >= ?::date
                 )) AS occupied
             FROM eligible e
-            WHERE e.created_at <= ?
+            WHERE e.is_current
+              AND e.created_at <= ?
             SQL;
 
         $row = DB::selectOne($sql, array_merge(
@@ -219,7 +240,7 @@ class PortfolioMetrics
     }
 
     /**
-     * Loyers encaissés par mois (`paid_at`), types revenu seulement.
+     * Loyers encaissés par mois (`paid_at`), types revenu seulement, montant − remboursement.
      *
      * @return array<string, float>
      */
@@ -232,7 +253,7 @@ class PortfolioMetrics
             ->whereNull('leases.deleted_at')
             ->where('leases.'.$scope->leaseColumn, $scope->id)
             ->whereBetween('lease_payments.paid_at', [$start->startOfDay(), $end->endOfDay()])
-            ->selectRaw("to_char(date_trunc('month', lease_payments.paid_at), 'YYYY-MM') AS m, SUM(lease_payments.amount) AS total")
+            ->selectRaw("to_char(date_trunc('month', lease_payments.paid_at), 'YYYY-MM') AS m, SUM(".CollectedPayments::LEASE_NET_SQL.') AS total')
             ->groupBy('m')
             ->pluck('total', 'm');
 
@@ -318,7 +339,46 @@ class PortfolioMetrics
     }
 
     /**
-     * La requête des biens « éligibles » du périmètre, pour un ensemble de périodicités.
+     * Taux d'impayés (P93.03, TCK-1177) : l'impayé des échéances échues sur les 12 derniers mois ÷ le
+     * facturé des mêmes échéances, en points (0..100). Même assiette des deux côtés — échéances hors
+     * restitution de caution, dues dans `[aujourd'hui − 12 mois, aujourd'hui[`, de baux non supprimés,
+     * quel que soit leur statut de bail ; le facturé écarte les lignes `cancelled` et `failed`, qui ne
+     * sont pas dues. `null` sans échéance échue : « rien de facturé » n'est pas « 0 % d'impayés ».
+     *
+     * L'ancien taux rapportait l'impayé CUMULÉ au loyer MENSUEL des seuls baux `active` : 350 % pour
+     * trois loyers en retard, 0 % quand l'impayé venait d'un bail clos.
+     */
+    public function unpaidRate(PortfolioScope $scope): ?float
+    {
+        $today = now()->toDateString();
+        $owed = CollectedPayments::owedStatusValues();
+        $owedPlaceholders = implode(', ', array_fill(0, count($owed), '?'));
+
+        $row = LeasePayment::query()
+            ->exceptDepositRefunds()
+            ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
+            ->whereNull('leases.deleted_at')
+            ->where('leases.'.$scope->leaseColumn, $scope->id)
+            ->whereNotIn('lease_payments.status', [PaymentStatus::Cancelled->value, PaymentStatus::Failed->value])
+            ->whereDate('lease_payments.due_date', '>=', now()->subMonthsNoOverflow(12)->toDateString())
+            ->whereDate('lease_payments.due_date', '<', $today)
+            ->toBase()
+            ->selectRaw('COALESCE(SUM(lease_payments.amount), 0) AS billed')
+            ->selectRaw(
+                "COALESCE(SUM(CASE WHEN lease_payments.status IN ({$owedPlaceholders}) THEN ".CollectedPayments::OWED_REMAINING_SQL.' ELSE 0 END), 0) AS owed',
+                $owed,
+            )
+            ->first();
+
+        $billed = (float) ($row->billed ?? 0);
+
+        return $billed > 0 ? round(((float) $row->owed / $billed) * 100, 2) : null;
+    }
+
+    /**
+     * La requête des biens du périmètre pour un ensemble de périodicités : feuilles de la périodicité,
+     * et `is_current` vrai pour les biens « éligibles » aujourd'hui (location, statut hors exclusions).
+     * Un bien qui ne l'est pas ne compte que pour les mois passés qu'un bail ou une réservation couvre.
      *
      * @param  list<RentPeriod>  $periods
      * @return array{0: string, 1: list<mixed>}
@@ -330,23 +390,29 @@ class PortfolioMetrics
         $column = $scope->propertyColumn;
 
         $sql = <<<SQL
-            SELECT p.id, p.created_at
+            SELECT p.id, p.created_at,
+                (p.contract_type = ? AND p.status NOT IN ({$statusPlaceholders})) AS is_current
             FROM properties p
             WHERE p.deleted_at IS NULL
               AND p.{$column} = ?
-              AND p.contract_type = ?
               AND p.rent_period IN ({$periodPlaceholders})
-              AND p.status NOT IN ({$statusPlaceholders})
               AND NOT EXISTS (
                   SELECT 1 FROM properties c WHERE c.parent_id = p.id AND c.deleted_at IS NULL
               )
             SQL;
 
         return [$sql, array_merge(
-            [$scope->id, ContractType::Rent->value],
-            array_map(static fn (RentPeriod $p): string => $p->value, $periods),
+            [ContractType::Rent->value],
             array_map(static fn (PropertyStatus $s): string => $s->value, self::EXCLUDED_PROPERTY_STATUSES),
+            [$scope->id],
+            array_map(static fn (RentPeriod $p): string => $p->value, $periods),
         )];
+    }
+
+    /** Premier jour du mois en cours : les mois d'avant ne lisent plus le statut d'aujourd'hui. */
+    private function currentMonthStart(): string
+    {
+        return now()->startOfMonth()->toDateString();
     }
 
     /** @return array{0: CarbonImmutable, 1: CarbonImmutable} premier jour du premier mois, dernier jour du dernier */

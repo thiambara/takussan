@@ -11,6 +11,7 @@ enum PayoutStatus: string
     case AwaitingApproval = 'awaiting_approval';
     case Pending = 'pending';
     case Scheduled = 'scheduled';
+    /** Réservé (TCK-1307, P115.07) : aucun chemin de `app/` ne le pose ; admis par le traitement d'un reversement et la règle d'approbation. */
     case Processing = 'processing';
     case Completed = 'completed';
     case Failed = 'failed';

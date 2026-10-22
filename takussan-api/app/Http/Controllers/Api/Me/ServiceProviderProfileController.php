@@ -70,13 +70,9 @@ class ServiceProviderProfileController extends Controller
             ->usingName($file->getClientOriginalName() ?: $kind)
             ->toMediaCollection('file');
 
-        // Mirror insurance presence onto SP metadata so the wizard recap
-        // and the `Assuré` badge can read it without a join.
-        if ($kind === 'insurance') {
-            $metadata = $sp_profile->metadata ?? [];
-            $metadata['has_insurance'] = true;
-            $sp_profile->forceFill(['metadata' => $metadata])->save();
-        }
+        // TCK-1325 (P117.06) — plus de `metadata.has_insurance` : le badge « Assuré » se dérive de
+        // la pièce vivante (`ServiceProviderProfile::liveInsuranceDocuments()`). Le drapeau n'avait
+        // aucun lecteur et ne se remettait jamais à faux.
 
         activity('Onboarding')
             ->performedOn($sp_profile)
@@ -116,7 +112,7 @@ class ServiceProviderProfileController extends Controller
                 'id' => $sp_profile->id,
                 'trades' => $sp_profile->specialties ?? [],
                 'intervention_zones' => $sp_profile->service_areas ?? [],
-                'hourly_rate' => $sp_profile->hourly_rate_min,
+                'hourly_rate' => self::montant($sp_profile->hourly_rate_min),
                 'visit_fee' => $metadata['visit_fee'] ?? null,
                 'available_slots' => $metadata['availability'] ?? [],
             ],
@@ -155,8 +151,9 @@ class ServiceProviderProfileController extends Controller
         $sp_profile->forceFill([
             'specialties' => $trades !== [] ? $trades : null,
             'service_areas' => $zones !== [] ? $zones : null,
-            'hourly_rate_min' => array_key_exists('hourly_rate', $validated) && $validated['hourly_rate'] !== null
-                ? (float) $validated['hourly_rate']
+            // TCK-1315 (P117.02) — comme `visit_fee` : clé absente, on garde ; `null`, on efface.
+            'hourly_rate_min' => array_key_exists('hourly_rate', $validated)
+                ? ($validated['hourly_rate'] !== null ? (float) $validated['hourly_rate'] : null)
                 : $sp_profile->hourly_rate_min,
             'metadata' => $metadata,
         ])->save();
@@ -166,7 +163,7 @@ class ServiceProviderProfileController extends Controller
                 'id' => $sp_profile->id,
                 'trades' => $trades,
                 'intervention_zones' => $zones,
-                'hourly_rate' => $sp_profile->hourly_rate_min,
+                'hourly_rate' => self::montant($sp_profile->hourly_rate_min),
                 'visit_fee' => $metadata['visit_fee'] ?? null,
             ],
         ]);
@@ -228,5 +225,14 @@ class ServiceProviderProfileController extends Controller
         }
 
         return $out;
+    }
+
+    /**
+     * TCK-1290 (P94.05) — `hourly_rate_min` est `decimal:2` (chaîne `"4500.00"`) : rendu en nombre,
+     * comme `visit_fee` et les montants de `PaymentController`. `null` reste `null`.
+     */
+    private static function montant(mixed $valeur): ?float
+    {
+        return $valeur === null ? null : (float) $valeur;
     }
 }

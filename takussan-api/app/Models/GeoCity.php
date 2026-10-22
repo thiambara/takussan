@@ -16,9 +16,11 @@ class GeoCity extends AbstractModel
 {
     use HasFactory;
 
-    protected $fillable = ['geo_region_id', 'slug', 'name', 'latitude', 'longitude'];
+    protected $fillable = ['geo_region_id', 'slug', 'name', 'former_names', 'latitude', 'longitude'];
 
     protected $casts = [
+        // TCK-1169 (P99.01) — les noms que le jeu a retirés : ils désignent toujours la ville.
+        'former_names' => 'array',
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
     ];

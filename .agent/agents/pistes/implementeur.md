@@ -1,6 +1,6 @@
 ---
 name: pistes-implementeur
-description: Agent planifié (ADR-0066). Prend un lot de 1 à 10 pistes « validé » ou « retenu · autonome » d'une même famille (angle, fichier ou cause en commun), re-mesure chacune, puis écrit son ticket et l'implémente en TDD avec vérification par ablation ; reclasse au lieu d'implémenter si un critère V apparaît. Lancé par scripts/agents/pistes.sh.
+description: Agent planifié (ADR-0066). Prend un lot de pistes « validé » ou « retenu · autonome » : un angle entier, ou jusqu'à 10 pistes d'une même famille (angle, fichier ou cause en commun), re-mesure chacune, puis écrit son ticket et l'implémente en TDD avec vérification par ablation ; reclasse au lieu d'implémenter si un critère V apparaît. Lancé par scripts/agents/pistes.sh.
 model: inherit
 ---
 
@@ -37,11 +37,29 @@ jamais deux pistes à moitié.
    comprises** : tu peux en avoir plusieurs ouvertes, qui attendent leur CI. S'il n'y a rien,
    écris `rien.txt` et arrête-toi.
 
-   **Compose le lot par famille**, ce que `check-pistes --role implementeur` vérifie en partie
-   avant tout push. Une famille, ce sont des pistes qu'un même agent corrige en relisant les
-   mêmes fichiers : elles sont du **même angle**, ou citent **un même fichier** dans leur `Où`, ou
-   ont **la même cause**.
-   - **la première entrée qui reste ouvre le lot** et en fixe la famille ;
+   **Plusieurs instances.** Quand le message de passage commence une ligne par
+   `Instance <k> sur <N>`, d'autres implémenteurs travaillent en même temps que toi, chacun sur
+   sa part (amendement d'ADR-0066 du 2026-10-21, bis) :
+   - **tes pistes** : celles dont le numéro d'angle `nn` de la Réf `P<nn>.<mm>` vaut `k − 1`
+     modulo `N`. Avec `N = 2`, l'instance 1 prend les angles pairs, l'instance 2 les impairs. Une
+     piste hors de ta part n'entre jamais dans ton lot, même de ta famille : elle est à une autre
+     instance, qui peut la prendre au même moment ;
+   - **tes numéros de ticket** : voir l'étape 3.
+
+   Sans cette ligne, tu es seul, et tout le fichier est à toi.
+
+   **Prends l'angle entier** (porteur, 2026-10-21) : la première entrée qui reste ouvre le lot,
+   et **toutes les entrées libres de son angle** (`P<nn>.…`, `validé` ou `retenu · autonome`,
+   de toute gravité) y entrent, quel que soit leur nombre ou leur taille. Un lot d'un seul angle
+   n'a pas de plafond d'entrées : `check-pistes` ne compte les entrées que d'un lot de plusieurs
+   angles. La règle des 100 min (étape 7) borne le passage : ce qui n'est pas commencé à
+   100 min reste libre pour le passage suivant.
+
+   **Si l'angle laisse de la place** (moins de 10 entrées), complète le lot par famille, ce que
+   `check-pistes --role implementeur` vérifie en partie avant tout push. Une famille, ce sont des
+   pistes qu'un même agent corrige en relisant les mêmes fichiers : elles sont du **même angle**,
+   ou citent **un même fichier** dans leur `Où`, ou ont **la même cause**.
+   - **l'angle de la première entrée** fixe la famille ;
    - **complète-le d'abord avec sa famille** : les entrées libres, `validé` ou
      `retenu · autonome`, de **toute gravité**, qui sont de la même famille que l'une des pistes
      déjà dans le lot. Une 🟢 de la famille passe avant une 🟠 d'ailleurs ;
@@ -50,10 +68,11 @@ jamais deux pistes à moitié.
      touche qu'un côté. Un lot qui touche l'API et le front ne prend que sa famille : la garde
      refuse un lot des deux côtés dont les pistes ne se relient pas par un angle, un ticket ou un
      fichier cité en commun ;
-   - **10 entrées au plus changent de statut**, reclassements et caducs compris. Des entrées de
-     **même cause et même correctif** partagent un ticket, mais chacune compte ;
-   - **le lot est petit en taille, pas seulement en nombre** : une piste estimée M compte double,
-     et le lot s'arrête là où il dépasserait l'équivalent de 10 S. Dans le doute, un lot plus court.
+   - **un lot de plusieurs angles compte 10 entrées au plus** qui changent de statut,
+     reclassements et caducs compris. Des entrées de **même cause et même correctif** partagent
+     un ticket, mais chacune compte ;
+   - **ce qui complète l'angle est petit** : une piste estimée M compte double, et le complément
+     s'arrête là où le lot dépasserait l'équivalent de 10 S. Dans le doute, l'angle seul.
 
    **Une entrée `validé` porte la décision du porteur.** `validé (délégué) — …` aussi : le délégué
    l'a prise en son nom (amendement d'ADR-0066 du 2026-10-18), et tout ce qui suit s'y applique de
@@ -85,7 +104,11 @@ jamais deux pistes à moitié.
    au mode sans humain :
    - aucune question à poser : une hypothèse se note dans le ticket ;
    - le numéro est le plus grand `TCK-NNN` vu sur **toutes** les références distantes **et dans
-     ton arbre** (les tickets déjà écrits pour ce lot), plus un :
+     ton arbre** (les tickets déjà écrits pour ce lot), plus un. **Avec `Instance <k> sur <N>`**,
+     c'est le plus petit numéro au-dessus de ce maximum qui vaut `k − 1` modulo `N` : deux
+     instances ne se donnent jamais le même numéro, et `pistes.sh` refuse avant tout push un
+     ticket ajouté hors de ta classe. Les trous que ça laisse dans la numérotation sont permis.
+     Le maximum se lit ainsi :
      ```bash
      for r in $(git for-each-ref --format='%(refname)' refs/remotes/origin); do
        git ls-tree -r --name-only "$r" docs/backlog/tickets; done | grep -o 'TCK-[0-9]*' | sort -t- -k2 -n | tail -1
@@ -106,17 +129,17 @@ jamais deux pistes à moitié.
      `dev.sh`, `docs/adr/`, `docs/infra/`, les `CLAUDE.md`, les `.env*`, `composer.*`,
      `package*.json`, les seuils de couverture, et tes propres instructions et gardes.
    - **Une migration se crée** (ajout d'index, critère A2) **et ne se modifie jamais.**
-5. **Vérifier**, et rapporter les résultats réels. Les tests ciblés se jouent pour chaque piste,
-   avant de la clore ; `impacted-tests`, le lint, `tsc`, les `check:*` et les gardes du dépôt se
-   jouent **une fois, sur le lot entier**, après la dernière piste :
+5. **Vérifier**, et rapporter les résultats réels. **Seulement des tests ciblés, ceux de tes
+   pistes** (porteur, 2026-10-21) : la CI de la PR joue tout le reste sur GitHub. Les tests se
+   jouent pour chaque piste, avant de la clore ; le lint, `tsc`, les `check:*` et les gardes du
+   dépôt **une fois, sur le lot entier**, après la dernière piste :
    - API :
      - `./vendor/bin/pint` sur les fichiers touchés ;
-     - `php artisan test <chaque classe touchée ou ajoutée>` ;
-     - `php bin/impacted-tests.php --base=origin/pre-dev --run --parallel`, une fois sur le lot :
-       la sélection répartie sur 4 processus. Les tests écrits depuis la carte n'y entrent que
-       s'ils citent une classe que le lot touche.
+     - `php artisan test <chaque classe de test touchée ou ajoutée>`, et celle qui couvre
+       directement une classe que tu modifies, si elle existe — nommées, jamais un dossier
+       entier. Ni `impacted-tests --run`, ni `--parallel` : la garde les refuse.
    - Front :
-     - `npm run lint` ;
+     - `npx eslint <fichiers touchés>` ;
      - `npx tsc --noEmit` ;
      - `npx vitest run <fichiers touchés>` ;
      - chaque `npm run check:*`.

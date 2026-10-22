@@ -87,6 +87,17 @@ describe('alert rules UI', () => {
     })));
   });
 
+  it('does not reactivate an inactive rule when editing it (TCK-1242, P114.02)', async () => {
+    vi.mocked(patchAlertRule).mockClear().mockResolvedValue({ data: { ...rule, is_active: false } });
+    const user = userEvent.setup();
+    renderWithQuery(<AlertRuleDialog rule={{ ...rule, is_active: false }} catalogue={catalogue} open onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: /enregistrer/i }));
+
+    await waitFor(() => expect(patchAlertRule).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(patchAlertRule).mock.calls[0][1]).not.toHaveProperty('is_active');
+  });
+
   it('has a label for every alertable event of the API, in the three locales', () => {
     const source = readFileSync(join(process.cwd(), '..', 'takussan-api', 'app', 'Domain', 'Alerts', 'AlertableEvents.php'), 'utf8');
     const corps = /function keys\(\)[\s\S]*?return \[([\s\S]*?)\];/.exec(source)?.[1] ?? '';

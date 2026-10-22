@@ -12,7 +12,8 @@ type Props = {
 
 /**
  * Bandeau KPI agence — 6 tuiles compactes (TCK-131).
- * `unpaid_rate_percent` est exprimé en points (0..100) côté API.
+ * `unpaid_rate_percent` est exprimé en points (0..100) côté API, ou `null` sans échéance échue sur
+ * 12 mois (TCK-1177) : il s'affiche alors en tiret, comme l'occupation sans bien éligible.
  *
  * TCK-647 — un chiffre n'apparaît qu'UNE fois sur le tableau de bord. L'indice de l'occupation
  * répétait le total de la tuile « Biens » (« 29 loués / 41 ») : il ne porte plus que les biens
@@ -66,8 +67,8 @@ export function AgencyKpis({ summary }: Props) {
       />
       <AgencyKpiTile
         label={t('unpaidRate')}
-        value={formatPercent(unpaidRate / 100, locale)}
-        accent={unpaidRate >= 10 ? 'warning' : 'default'}
+        value={unpaidRate === null ? '—' : formatPercent(unpaidRate / 100, locale)}
+        accent={unpaidRate !== null && unpaidRate >= 10 ? 'warning' : 'default'}
       />
     </div>
   );

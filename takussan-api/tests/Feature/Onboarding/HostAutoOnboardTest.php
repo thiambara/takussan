@@ -86,6 +86,34 @@ class HostAutoOnboardTest extends TestCase
         $this->assertTrue(DB::table('feature_flags')->where('key', 'drapeau_voisin_tck633')->exists());
     }
 
+    /**
+     * TCK-1211 (P85.03) — le nom de l'espace, et le slug qui en dérive, sont servis à tous les
+     * visiteurs : ils s'écrivent dans la langue de la plateforme (« Espace de {prénom} »,
+     * `docs/features.md` § 1.12), et non dans celle du compte. Avant : « Space of Awa »,
+     * `space-of-awa` pour un compte anglophone.
+     */
+    public function test_le_nom_et_le_slug_de_l_espace_ne_suivent_pas_la_langue_du_compte(): void
+    {
+        Event::fake([SpaceCreated::class]);
+        foreach (['en', 'wo'] as $langue) {
+            $user = User::factory()->create(['first_name' => 'Awa', 'preferred_language' => $langue]);
+            Sanctum::actingAs($user);
+
+            $id = $this->postJson(self::ROUTE, ['primary_city' => 'Thiès'])
+                ->assertCreated()
+                ->assertJsonPath('data.agency.name', 'Espace de Awa')
+                ->json('data.agency.id');
+
+            $this->assertStringStartsWith('espace-de-awa', Agency::query()->findOrFail($id)->slug, $langue);
+        }
+
+        $sansPrenom = User::factory()->create(['first_name' => '', 'preferred_language' => 'en']);
+        Sanctum::actingAs($sansPrenom);
+        $this->postJson(self::ROUTE, ['primary_city' => 'Thiès'])
+            ->assertCreated()
+            ->assertJsonPath('data.agency.name', 'Mon espace');
+    }
+
     public function test_cree_l_espace_sans_question(): void
     {
         Event::fake([SpaceCreated::class]);

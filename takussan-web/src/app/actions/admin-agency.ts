@@ -6,9 +6,9 @@ import { getTranslations } from 'next-intl/server';
 import { ApiError, messageErreurApi } from '@/lib/api';
 import { codeDoubleFacteur, type CodeDoubleFacteur } from '@/lib/double-facteur';
 import { getActiveProfileId, getToken } from '@/lib/session';
+import { lireAgenceDuRendu } from '@/lib/access/server-guards';
 import {
   confirmAgencyPayoutThreshold,
-  fetchAgency,
   regenerateAgencyWatermarks,
   updateAgency,
   uploadAgencyLogo,
@@ -81,7 +81,9 @@ export async function fetchAgencyAction(
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    const data = await fetchAgency(auth.token, agencyId, await getActiveProfileId());
+    // TCK-1378 (P138.05) — la lecture mise en cache du rendu : l'accueil, `/app/agency` et
+    // l'onboarding partagent la requête que le layout de `/app` fait déjà.
+    const data = await lireAgenceDuRendu(auth.token, agencyId, await getActiveProfileId());
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };

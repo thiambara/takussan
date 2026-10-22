@@ -6,7 +6,8 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchAgentDashboard, fetchMyCapabilities } from '@/lib/queries/dashboard';
+import { fetchAgentDashboard } from '@/lib/queries/dashboard';
+import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
 
 vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraductionsServeur());
 vi.mock('@/components/charts/BarChart', () => ({ BarChart: () => null }));
@@ -27,8 +28,9 @@ vi.mock('@/lib/queries/dashboard', () => ({
       recent_activity: [],
     },
   })),
-  fetchMyCapabilities: vi.fn(async () => []),
 }));
+// TCK-1376 — les capacités se lisent par la lecture mémoïsée du rendu.
+vi.mock('@/lib/access/pages-admin-server', () => ({ capacitesDuProfilActif: vi.fn(async () => []) }));
 
 import AgentDashboardPage from '../agent/page';
 
@@ -37,7 +39,7 @@ const page = async (scope?: string) =>
 
 beforeEach(() => {
   vi.mocked(fetchAgentDashboard).mockClear();
-  vi.mocked(fetchMyCapabilities).mockResolvedValue([]);
+  vi.mocked(capacitesDuProfilActif).mockResolvedValue([]);
 });
 
 describe('vue agent — portée des chiffres', () => {
@@ -51,7 +53,7 @@ describe('vue agent — portée des chiffres', () => {
   });
 
   it('avec reports.view_agency : la bascule, et « Agence » lit les chiffres de l’agence', async () => {
-    vi.mocked(fetchMyCapabilities).mockResolvedValue(['reports.view_agency']);
+    vi.mocked(capacitesDuProfilActif).mockResolvedValue(['reports.view_agency']);
     await page('agency');
 
     expect(fetchAgentDashboard).toHaveBeenCalledWith({ scope: 'agency' });

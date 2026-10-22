@@ -17,7 +17,6 @@ import type {
 import type {
   PropertyDetail,
   PropertyListItem,
-  PropertyPriceHistoryItem,
 } from '@/types/property';
 /**
  * TCK-470 — le corps part IMBRIQUÉ, et le type le dit désormais. `PropertyFormPayload` (plat,
@@ -141,6 +140,24 @@ export async function fetchDashboardProperties(
     cheminApi`/api/properties${requete(qs)}`,
     { token },
   );
+}
+
+/**
+ * TCK-1382 (P138.08) — le nombre de biens que rendrait la liste du tableau de bord sous ces
+ * filtres, sans la liste : `per_page=1`, `fields[properties]=id`, sans `include` ni tri. Mêmes
+ * filtres, donc même `meta.total` que `fetchDashboardProperties`.
+ */
+export async function countDashboardProperties(
+  token: string,
+  filters: DashboardPropertyFilters = {},
+): Promise<number> {
+  const { fields: _fields, include: _include, sort: _sort, ...params } = buildListParams({ filters, page: 1, perPage: 1 });
+  const qs = buildQueryString({ ...params, fields: { properties: ['id'] } });
+  const response = await apiRequest<PaginatedResponse<PropertyListItem>>(
+    cheminApi`/api/properties${requete(qs)}`,
+    { token },
+  );
+  return response.meta.total;
 }
 
 export async function fetchDashboardProperty(
@@ -349,17 +366,6 @@ export async function setPropertyTags(
     body: tagNames.length > 0 ? { tag_ids: tagIds, tag_names: tagNames } : { tag_ids: tagIds },
     token,
   });
-}
-
-export async function fetchPropertyPriceHistory(
-  token: string,
-  propertyId: number,
-): Promise<PropertyPriceHistoryItem[]> {
-  const res = await apiRequest<ApiResponse<PropertyPriceHistoryItem[]>>(
-    cheminApi`/api/properties/${propertyId}/price-history`,
-    { token },
-  );
-  return res.data;
 }
 
 /** TCK-627 — l'usage du quota d'annonces de l'agence active ; `limit: null` = illimité. */

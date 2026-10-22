@@ -23,6 +23,8 @@ interface SmsDriverInterface
      *                                        - `sender_id`    string  override default Integration sender
      *                                        - `is_otp`       bool    one-time code: keeps the fallback on an
      *                                        ambiguous failure (TCK-766)
+     *                                        - `otp_resend_key` string  cache key of the code's resend
+     *                                        cooldown, lifted by a late `failed` DLR (TCK-1354)
      * @return array<string,SmsResult> map keyed by recipient E.164
      */
     public function send(array|string $to, string $message, array $context = []): array;

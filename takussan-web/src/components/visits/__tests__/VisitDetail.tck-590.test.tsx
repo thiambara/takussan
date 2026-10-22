@@ -36,6 +36,7 @@ vi.mock('@/lib/queries/visits', () => ({
   useUpdateVisit: () => mutation,
   useClaimVisit: () => claim,
   useProposeVisitSlot: () => propose,
+  useMarkVisitNoShow: () => mutation,
 }));
 
 function visite(overrides: Partial<PropertyVisit> = {}): PropertyVisit {
@@ -52,6 +53,8 @@ function visite(overrides: Partial<PropertyVisit> = {}): PropertyVisit {
     visitor_name: 'Awa Diop',
     visitor_phone: '+221771234567',
     property: { id: 10, title: 'Villa à Almadies', slug: 'villa-almadies' },
+    // P152.04 — le personnel de l'agence du bien : l'API le laisse gérer la visite.
+    abilities: { manage: true },
     ...overrides,
   };
 }
@@ -113,7 +116,7 @@ describe('<VisitDetail> — TCK-590', () => {
 
   it('le visiteur propose un autre créneau : grille de l’API, 10:00 à Dakar depuis Paris', async () => {
     etat.user = { id: 30, roles: ['customer'] };
-    etat.visit = visite({ visitor_id: 30, agent_id: 7, status: 'confirmed' });
+    etat.visit = visite({ visitor_id: 30, agent_id: 7, status: 'confirmed', abilities: { manage: false } });
     const user = userEvent.setup();
     render(withIntl(<VisitDetail id={1} />));
 

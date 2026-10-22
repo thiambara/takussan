@@ -30,6 +30,22 @@ class TemplateResolver
      */
     public function resolve(string $event, string $locale, array $params = []): ?WhatsappTemplateRef
     {
+        $row = $this->approved($event, $locale);
+
+        return $row === null ? null : new WhatsappTemplateRef(
+            name: (string) $row->meta_template_name,
+            language: (string) $row->locale,
+            params: array_values($params),
+        );
+    }
+
+    /**
+     * La ligne approuvée que {@see resolve()} retient pour cet événement et cette langue (repli
+     * compris). TCK-1348 (P132.03) — `CodedNotification::whatsappTemplateParams()` y lit
+     * `meta_variables`, pour envoyer exactement les paramètres que le gabarit nomme.
+     */
+    public function approved(string $event, string $locale): ?NotificationTemplate
+    {
         foreach ([$locale, ...(self::FALLBACKS[$locale] ?? [])] as $candidate) {
             $row = NotificationTemplate::query()
                 ->where('channel', PreferenceResolver::CHANNEL_WHATSAPP)
@@ -40,11 +56,7 @@ class TemplateResolver
                 ->first();
 
             if ($row) {
-                return new WhatsappTemplateRef(
-                    name: (string) $row->meta_template_name,
-                    language: $candidate,
-                    params: array_values($params),
-                );
+                return $row;
             }
         }
 

@@ -1,11 +1,12 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
-import type { ApiResponse, SpatieQueryParams } from '@/types/api';
+import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type {
   CustomerListItem,
   CustomerPipelineStage,
 } from '@/types/customer';
 import type { PipelineCustomerCard, PipelineStats, Task } from '@/types/pipeline';
 import { cheminApi, requete } from '@/lib/chemin-api';
+import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
 
 /**
  * TCK-083 — CRM pipeline queries.
@@ -113,17 +114,23 @@ export async function fetchCustomerTasks(
   token: string,
   customerId: number,
 ): Promise<Task[]> {
-  // Tasks endpoint is filterable on (taskable_type, taskable_id).
-  const qs = buildQueryString({
-    filter: {
-      taskable_type: 'App\\Models\\Customer',
-      taskable_id: customerId,
-    },
-    sort: 'due_at',
-    per_page: 50,
-  });
-  const res = await apiRequest<{ data: Task[] }>(cheminApi`/api/tasks${requete(qs)}`, {
-    token,
+  // TCK-1373 (P135.05) — TOUTES les tâches du client : `sort=due_at` met d'abord les terminées aux
+  // échéances anciennes, et une page de 50 perdait les dernières, ouvertes comprises, que le
+  // panneau du pipeline compte.
+  const res = await lireToutesLesPages((page) => {
+    // Tasks endpoint is filterable on (taskable_type, taskable_id).
+    const qs = buildQueryString({
+      filter: {
+        taskable_type: 'App\\Models\\Customer',
+        taskable_id: customerId,
+      },
+      sort: 'due_at',
+      page,
+      per_page: PAR_PAGE_MAX,
+    });
+    return apiRequest<PaginatedResponse<Task>>(cheminApi`/api/tasks${requete(qs)}`, {
+      token,
+    });
   });
   return res.data;
 }

@@ -467,6 +467,23 @@ class PropertySearchService
     }
 
     /**
+     * TCK-1169 (P99.01) — les noms saisis, et le nom actuel des villes dont l'un est un ancien nom.
+     *
+     * @param  list<string>  $saisies
+     * @return list<string>
+     */
+    private function nomsDeVille(array $saisies): array
+    {
+        $villes = app(VilleDuFiltre::class);
+        $noms = $saisies;
+        foreach ($saisies as $saisie) {
+            $noms = [...$noms, ...$villes->nomsActuels($saisie)];
+        }
+
+        return array_values(array_unique($noms));
+    }
+
+    /**
      * Build the Meilisearch filter — outer array is AND-joined, a nested array
      * is OR-joined. The first clauses reproduce `Property::scopePublic()` so a
      * draft / non-public listing can never surface here.
@@ -488,8 +505,12 @@ class PropertySearchService
                 ? $libre
                 : '(geo_neighborhood_id IN ['.implode(', ', $ids).'] OR ('.$libre.'))';
         }
+        // TCK-1169 (P99.01) — un ancien nom de ville (renommée par le jeu) désigne toujours la ville.
         if (! empty($p['city'])) {
-            $filter[] = 'city = '.self::quote((string) $p['city']);
+            $noms = $this->nomsDeVille([(string) $p['city']]);
+            $filter[] = count($noms) === 1
+                ? 'city = '.self::quote($noms[0])
+                : array_map(fn (string $v) => 'city = '.self::quote($v), $noms);
         }
         // TCK-635 (ADR-0062 §8) — trois paires de communes homonymes : la région les départage.
         if (! empty($p['region'])) {
@@ -500,7 +521,7 @@ class PropertySearchService
         if (! empty($p['cities']) && is_array($p['cities'])) {
             $villes = array_values(array_filter(array_map(fn ($v) => trim((string) $v), $p['cities'])));
             if ($villes !== []) {
-                $filter[] = array_map(fn (string $v) => 'city = '.self::quote($v), $villes);
+                $filter[] = array_map(fn (string $v) => 'city = '.self::quote($v), $this->nomsDeVille($villes));
             }
         }
         if (isset($p['price_min']) && is_numeric($p['price_min'])) {

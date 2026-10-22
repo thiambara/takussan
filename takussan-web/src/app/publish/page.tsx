@@ -18,7 +18,6 @@ import { useTranslations } from 'next-intl';
 import { BarreDeMarque } from '@/components/brand/BarreDeMarque';
 import { Button } from '@/components/ui/button';
 import { autoOnboardAction } from '@/app/actions/auto-onboard';
-import { useAuth } from '@/context/AuthContext';
 import { profilesKeys, useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { PUBLISH_TARGETS, usePublishIntent, type EspaceDePublication } from '@/hooks/usePublishIntent';
 
@@ -31,7 +30,6 @@ export default function PublishPage() {
   const [echec, setEchec] = useState(false);
   const [choisi, setChoisi] = useState<string | null>(null);
   const parti = useRef(false);
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [echecCreation, setEchecCreation] = useState<string | null>(null);
   // Dérivé, pas un état : l'effet qui lance la création ne pose rien de façon synchrone.
@@ -44,7 +42,7 @@ export default function PublishPage() {
    */
   function creerPuisPartir(): Promise<void> {
     // Un rappel de promesse, pas un corps `async` : l'état ne change qu'à la réponse du serveur.
-    return autoOnboardAction(user?.preferences?.city ?? null).then(async (r) => {
+    return autoOnboardAction().then(async (r) => {
       if (r.ok) {
         await queryClient.invalidateQueries({ queryKey: profilesKeys.all });
         router.replace(PUBLISH_TARGETS.newProperty);

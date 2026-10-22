@@ -409,6 +409,7 @@
       "requiredBody": "Jëf jii dafa laal ay xibaar yu am solo: dafa laaj ñaareelu sumb ci sa kont. Defaral ko léegi, jëf ji dina dellu ci saa si.",
       "stepUpTitle": "Wóoral ne yaw la",
       "stepUpBody": "Ngir kaaraange, jëf jii dafa laaj koddu bu bees bu sa appli seetlu. Bindal ko, jëf ji dina dellu.",
+      "consoleStepUpBody": "La console de la plateforme demande, pour cette session, un code de votre application d’authentification. Saisissez-le pour continuer.",
       "codeLabel": "Koddu 6 chiffres",
       "confirm": "Wóoral",
       "confirming": "Ñu ngi seetlu…",
@@ -2112,7 +2113,10 @@
         "late": "Yeex na",
         "pending": "Di ñëw",
         "other": "Weneen",
-        "cancelled": "Neenal nañu ko"
+        "cancelled": "Neenal nañu ko",
+        "partially_paid": "Partiellement payé",
+        "failed": "Échec",
+        "refunded": "Remboursé"
       },
       "listLabel": "Bési fey yu kontaraa bi",
       "dueOn": "Bisu pey : {date}",
@@ -2425,7 +2429,7 @@
         "title": "Bañ dewi bi",
         "reason_label": "Lu tax ñu ko bañ",
         "reason_placeholder": "Leeralal lu tax nga bañ dewi bii...",
-        "reason_min": "Lu tax bi war na am ci 5 araf ba kaw",
+        "reason_min_length": "Le motif doit contenir au moins 10 caractères",
         "confirm": "Dëgglu bañ bi"
       }
     },
@@ -2460,7 +2464,8 @@
         "save": "Denc",
         "saving": "Mungiy denc…",
         "saved": "Denc nañu ko.",
-        "failed": "Dénk bi deñu ko denc."
+        "failed": "Dénk bi deñu ko denc.",
+        "insured": "Assuré"
       },
       "gallery": {
         "title": "Nataal ak kayit",
@@ -2857,7 +2862,16 @@
       "invalidTitle": "Lien bii dootul dox",
       "invalidBody": "Matul, jariñoo nañu ko ba noppi walla jeex na. Mën nga def beneen laaj ci ab seet.",
       "error": "Liggéey bi antuwul. Jéemaatal.",
-      "backToSearch": "Seet ay kër"
+      "backToSearch": "Seet ay kër",
+      "digest": {
+        "metaTitle": "Se désabonner du résumé",
+        "title": "Ne plus recevoir le résumé par courriel",
+        "body": "Le résumé de vos notifications par courriel s'arrêtera. Vos notifications restent dans votre espace.",
+        "button": "Me désabonner",
+        "working": "Désabonnement…",
+        "doneTitle": "C'est fait",
+        "doneBody": "Vous ne recevrez plus le résumé par courriel. Vous pouvez le réactiver dans vos préférences de notification."
+      }
     }
   },
   "wizardDrafts": {
@@ -2921,7 +2935,6 @@
       "title": "Dimbali nu ci sa wuti",
       "description": "Ñetti laaj yu gaaw — ngir personnaliser sa wuti. Mën nga ko mottali ci sa profil ci kanam.",
       "phoneLabel": "Telefón (mën dem)",
-      "phonePlaceholder": "+221 77 000 00 00",
       "cityLabel": "Dëkk bi nga wut (mën dem)",
       "cityPlaceholder": "Dakar, Saint-Louis…",
       "intentLabel": "Xeetu wuti (mën dem)",
@@ -3446,7 +3459,8 @@
       "actions": {
         "resend": "Yónnee waaru fi",
         "revoke": "Far ko"
-      }
+      },
+      "insured": "Assuré"
     },
     "invite": {
       "title": "Wow benn prestataire",
@@ -4668,7 +4682,7 @@
       "status": {
         "active": "Mu ngi dox",
         "inactive": "Du dox",
-        "banned": "Ñu ko tere"
+        "blocked": "Ñu ko tere"
       },
       "roles": {
         "agency_admin": "Njiit",
@@ -4769,7 +4783,8 @@
         "booking_payment": "Feyu reserwaasiyoŋ",
         "lease_payment": "Luwaasu kër",
         "invoice": "Faktiir",
-        "payout": "Delloo"
+        "payout": "Delloo",
+        "platform_payout": "Reversement de la plateforme"
       },
       "import": {
         "title": "Yebal ab relevé",
@@ -6062,6 +6077,8 @@
       "insurance": "Asiraas",
       "inventory_report": "Limu kër",
       "photo": "Nataal",
+      "rib": "RIB",
+      "ninea": "NINEA",
       "other": "Beneen"
     },
     "entities": {
@@ -6311,7 +6328,9 @@
       "paid": "Fey nañu ko",
       "partially_paid": "Ci wàll",
       "refunded": "Delloo nañu ko",
-      "cancelled": "Ñu ko neenal"
+      "cancelled": "Ñu ko neenal",
+      "late": "En retard",
+      "failed": "Échec"
     },
     "paymentMethod": {
       "cash": "Xaalis ci loxo",
@@ -6448,6 +6467,10 @@
           "title": "Seetlu bi mat na",
           "description": "Topptoo bi ginnaaw seetlu bi jot na léegi."
         },
+        "noShow": {
+          "title": "Visite marquée absente",
+          "description": "Le visiteur ne s'est pas présenté : la visite n'est pas comptée parmi les visites effectuées."
+        },
         "cancelled": {
           "title": "Neenal nañu seetlu bi",
           "description": "Bind nañu lu tax ci ñaan bi."
@@ -6460,6 +6483,7 @@
       "actions": {
         "confirm": "Dëggal seetlu bi",
         "complete": "Wone ne mat na",
+        "noShow": "Marquer absent",
         "reschedule": "Soppi waxtu wi",
         "viewProperty": "Gis kër gi"
       },
@@ -7394,8 +7418,7 @@
           "all": "Nekkin yépp",
           "active": "Dox na",
           "blocked": "Téye na",
-          "inactive": "Doxul",
-          "banned": "Dàq nañu ko"
+          "inactive": "Doxul"
         },
         "emailFilter": {
           "all": "Email : yépp",
@@ -8718,14 +8741,11 @@
     "agent": {
       "title": "Profilu liggéey",
       "subtitle": "Say xibaar ci ajaŋu kër.",
-      "bioLabel": "Bio bu liggéey",
-      "bioPlaceholder": "Waxal sa xam-xam ak say wàll yu rafet",
       "specialtiesLabel": "Wàll yi nga gën a xam",
-      "comingSoon": "Mu ngi ñëw",
       "licenseLabel": "Nomboro lisaas",
-      "licensePlaceholder": "Misaal: AGC-2025-0001",
       "agencyLabel": "Ajaas bi mu boole",
-      "noAgency": "Boolewul"
+      "noAgency": "Boolewul",
+      "notProvided": "Non renseigné"
     },
     "owner": {
       "title": "Barabu boroom kër",
@@ -9050,6 +9070,9 @@
       "downloading": "Mu ngi yebbi…",
       "download": "Yebbi",
       "scopeNotice": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër walla ajaŋ).",
+      "rowCap": "Un fichier compte au plus {max, number} lignes, {pdf, number} en PDF.",
+      "truncated": "Le fichier s'arrête à {count, number} lignes : la période en compte davantage. Resserrez-la pour tout obtenir.",
+      "failed": "Le téléchargement a échoué. Réessayez.",
       "scopeNoticeFull": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër, luwaakat) — amul xibaar bu génn sa wàll.",
       "noneAllowed": "Sa rol ci ajaans bii amul benn génné. Benn yorkat mën na la ko jox.",
       "entities": {
@@ -10340,6 +10363,7 @@
       "call": "Woo",
       "email": "Imeel",
       "convert": "Def ko kiliyaan",
+      "convertAnyway": "Convertir quand même",
       "openCustomer": "Xool xët kiliyaan bi",
       "handle": "Màndargaal ni topp nañu ko",
       "assign": "Jox ko"

@@ -41,6 +41,19 @@ export const propertyStatusValues = [
   'archived',
 ] as const;
 
+/**
+ * TCK-1268 (P146.03) — les onze cas de `PropertyStatus` côté API, pour FILTRER une liste de biens.
+ * Les trois états de modération (`published`, `pending_review`, `rejected`) sont écrits par l'API
+ * mais ne sont pas des gestes : `propertyStatusValues`, que lisent les gestes de changement de
+ * statut, ne les porte pas.
+ */
+export const propertyStatusFilterValues = [
+  ...propertyStatusValues,
+  'published',
+  'pending_review',
+  'rejected',
+] as const;
+
 export const propertyVisibilityValues = ['public', 'private'] as const;
 
 export const currencyValues = ['XOF', 'XAF', 'EUR', 'USD'] as const;

@@ -2,7 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Admin\AgencyProvisioningService;
+use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -22,6 +24,7 @@ use Illuminate\Notifications\Notification;
 class AgencyAdminActivationNotification extends Notification implements ShouldBeEncrypted, ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public function __construct(public readonly string $token) {}
 
@@ -39,7 +42,7 @@ class AgencyAdminActivationNotification extends Notification implements ShouldBe
 
     public function toMail(object $notifiable): MailMessage
     {
-        $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+        $frontend = LienFront::base();
         $url = $frontend.'/auth/reset-password?token='.$this->token
             .'&email='.urlencode($notifiable->getEmailForPasswordReset())
             .'&activation=1';

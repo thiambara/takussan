@@ -90,8 +90,9 @@ interface CreateDelegationDialogProps {
  *    bénéficiaires. C'est un retrait d'option, pas un contrôle : rien ici ne
  *    juge une valeur soumise.
  *  · **le bénéficiaire hors agence** — la liste vient de
- *    `/agencies/{id}/members`, dont le contenu est exactement la condition
- *    que le service vérifie (`isAgentAt || isOwnerAt`).
+ *    `/agencies/{id}/members?filter[role]=agent,owner`, dont le contenu est
+ *    exactement la condition que le service vérifie (`isAgentAt || isOwnerAt`) ;
+ *    l'admin seul, membre de l'agence, n'y est pas (P120.02, TCK-1244).
  *
  * Tout le reste — rôle non délégable, durée excessive, administrateur
  * principal — arrive en 422 et s'affiche mot pour mot.

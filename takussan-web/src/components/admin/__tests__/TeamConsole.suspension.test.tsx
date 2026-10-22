@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -101,12 +101,17 @@ vi.mock('@/lib/queries/team-suspension', () => ({
 const T = fr.admin.team.suspension;
 const ANCIENS = [fr.admin.users.table.block, fr.admin.users.drawer.blockAccount];
 
-function monter() {
+function monter(estAdmin?: boolean) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     withIntl(
       <QueryClientProvider client={client}>
-        <TeamConsole agencyId={AGENCE} currentUserId={MOI} primaryAdminId={PRINCIPAL} />
+        <TeamConsole
+          agencyId={AGENCE}
+          currentUserId={MOI}
+          primaryAdminId={PRINCIPAL}
+          {...(estAdmin === undefined ? {} : { estAdmin })}
+        />
       </QueryClientProvider>,
     ),
   );
@@ -198,5 +203,43 @@ describe('<TeamConsole> — suspendre de l’agence, jamais bloquer le compte (T
 
     const items = await entreesDuMenu(user, 3);
     expect(items).not.toContain(T.suspend);
+  });
+});
+
+// TCK-1412 (P148.02) — la page s'ouvre à un agent qui tient `team.suspend` : il suspend, mais ne
+// retire un membre que sous `team.remove` (`AgencyPolicy::removeMember`), que l'admin n'a pas à lire.
+describe('<TeamConsole> — un non-admin ouvert par capacité (TCK-1412)', () => {
+  const RETIRER = fr.admin.users.table.removeFromAgency;
+  const AWA = LIGNES[2];
+
+  // « Retirer » ne s'offre que sur une ligne du personnel (`isAgencyStaffRow`) : Awa porte son rôle.
+  beforeEach(() => {
+    LIGNES[2] = { ...AWA, roles: ['agent'] };
+  });
+  afterEach(() => {
+    LIGNES[2] = AWA;
+  });
+
+  it('sans team.remove, un non-admin suspend mais ne se voit pas offrir « Retirer de l’agence »', async () => {
+    capacites = ['team.suspend'];
+    const user = userEvent.setup();
+    monter(false);
+    const items = await entreesDuMenu(user, 3);
+    expect(items).toContain(T.suspend);
+    expect(items).not.toContain(RETIRER);
+  });
+
+  it('avec team.remove, il se le voit offrir ; l’admin, toujours', async () => {
+    capacites = ['team.suspend', 'team.remove'];
+    const user = userEvent.setup();
+    monter(false);
+    expect(await entreesDuMenu(user, 3)).toContain(RETIRER);
+  });
+
+  it('l’admin garde « Retirer de l’agence » sans team.remove, comme avant', async () => {
+    capacites = ['team.suspend'];
+    const user = userEvent.setup();
+    monter();
+    expect(await entreesDuMenu(user, 3)).toContain(RETIRER);
   });
 });

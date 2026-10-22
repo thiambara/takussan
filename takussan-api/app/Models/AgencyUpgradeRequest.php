@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
 use App\Services\Kyc\SharedLegalIdentifierDetector;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Spatie\QueryBuilder\AllowedFilter;
 
 /**
  * TCK-252 — Demande d'upgrade d'une agence `individual` vers `standard`.
@@ -83,6 +85,9 @@ class AgencyUpgradeRequest extends AbstractModel
 
     protected static array $requestFilterable = ['status', 'agency_id', 'submitted_by', 'reviewed_by'];
 
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['submitted_by' => TypedExactFilter::IDENTIFIANT, 'reviewed_by' => TypedExactFilter::IDENTIFIANT];
+
     protected static array $requestSortable = ['id', 'submitted_at', 'reviewed_at', 'status', 'created_at'];
 
     protected static array $requestLoadable = ['agency', 'submitter', 'reviewer', 'documents'];
@@ -98,6 +103,26 @@ class AgencyUpgradeRequest extends AbstractModel
         'reviewed_by', 'reviewed_at', 'review_comment',
         'created_at', 'updated_at',
     ];
+
+    /**
+     * TCK-1282 (P150.02) — « Soumise du / au » de la console : bornes incluses sur le jour de
+     * `submitted_at`. Lues à la main par le contrôleur depuis TCK-268, elles étaient refusées par
+     * `buildQuery()` (400) : elles sont désormais déclarées ici.
+     */
+    protected static function customQueryFilters(): array
+    {
+        $borne = fn (string $operateur) => function (Builder $query, mixed $value) use ($operateur): void {
+            $date = is_string($value) ? trim($value) : '';
+            if ($date !== '') {
+                $query->whereDate('submitted_at', $operateur, $date);
+            }
+        };
+
+        return [
+            AllowedFilter::callback('submitted_from', $borne('>=')),
+            AllowedFilter::callback('submitted_to', $borne('<=')),
+        ];
+    }
 
     public function scopePending(Builder $query): Builder
     {

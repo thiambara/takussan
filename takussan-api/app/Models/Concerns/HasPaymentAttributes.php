@@ -5,6 +5,7 @@ namespace App\Models\Concerns;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Integration;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 
@@ -196,6 +197,35 @@ trait HasPaymentAttributes
         });
     }
 
+    /**
+     * TCK-1415 (P141.01) — sans les paiements soldés en ligne par une intégration GLOBALE, donc
+     * encaissés par la plateforme : leur argent n'arrive pas seul sur le compte de l'agence, il y
+     * arrive fondu dans le net du `PlatformPayout`. La lecture de
+     * `PlatformPayoutService::isSettledByPlatform()`, en SQL : l'intégration de l'entrée de
+     * `metadata.gateway.transactions` qui porte `settled_by`, à défaut celle du checkout courant
+     * s'il est celui-là, et une intégration globale (`agency_id` nul, supprimées comprises).
+     */
+    public function scopeWhereNotSettledByPlatform(Builder $query): Builder
+    {
+        $metadata = $query->qualifyColumn('metadata');
+        $gateway = "({$metadata}->'gateway')";
+        $settledBy = "({$gateway}->>'settled_by')";
+        $entries = "jsonb_array_elements(CASE WHEN jsonb_typeof({$gateway}->'transactions') = 'array' "
+            ."THEN {$gateway}->'transactions' ELSE '[]'::jsonb END) WITH ORDINALITY AS settled_entry(v, n)";
+        $entryIntegration = "(SELECT settled_entry.v->>'integration_id' FROM {$entries} "
+            ."WHERE settled_entry.v->>'transaction_id' = {$settledBy} ORDER BY settled_entry.n LIMIT 1)";
+        $hasEntry = "EXISTS (SELECT 1 FROM {$entries} WHERE settled_entry.v->>'transaction_id' = {$settledBy})";
+        $integrationId = "CASE WHEN jsonb_typeof({$gateway}->'settled_by') <> 'string' OR {$settledBy} = '' THEN NULL "
+            ."WHEN {$hasEntry} THEN {$entryIntegration} "
+            ."WHEN {$gateway}->>'transaction_id' = {$settledBy} THEN {$gateway}->>'integration_id' END";
+        $integrations = (new Integration)->getTable();
+
+        return $query->whereRaw(
+            "NOT EXISTS (SELECT 1 FROM {$integrations} AS settling_integration "
+            ."WHERE settling_integration.agency_id IS NULL AND settling_integration.id::text = ({$integrationId}))",
+        );
+    }
+
     protected function hasDueDateColumn(): bool
     {
         $fillable = $this->getFillable();
@@ -206,7 +236,8 @@ trait HasPaymentAttributes
     /**
      * Effective amount already received for this payment row.
      *
-     * - `paid`     → full `amount` (unless overridden by metadata.paid_amount)
+     * - `paid`     → full `amount` (unless overridden by metadata.paid_amount), minus a partial
+     *                `refund_amount` (TCK-1214)
      * - `refunded` → `amount - refund_amount` (when `refund_amount` exists)
      * - `partially_paid` → metadata.paid_amount (must be provided)
      * - any other status → metadata.paid_amount (fallback to 0)
@@ -225,7 +256,11 @@ trait HasPaymentAttributes
             // cause `metadata.paid_amount > amount` legitimately. `remaining_amount`
             // still floors at 0 so UIs don't go negative.
             if ($status === PaymentStatus::Paid) {
-                return $metaPaid > 0 ? $metaPaid : $amount;
+                // TCK-1214 (P76.02) — un remboursement partiel laisse la ligne `paid` : ce qui a été
+                // rendu ne compte plus comme reçu, comme pour une ligne `refunded`.
+                $refund = (float) ($this->attributes['refund_amount'] ?? 0);
+
+                return max(0.0, ($metaPaid > 0 ? $metaPaid : $amount) - $refund);
             }
 
             if ($status === PaymentStatus::Refunded) {

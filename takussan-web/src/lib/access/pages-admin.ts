@@ -45,6 +45,13 @@ export interface ExigenceAdmin {
   readonly agence?: 'standard';
   /** Une valeur de `App\Models\Enums\Capability`, jugée sur `GET /api/me/capabilities`. */
   readonly capacite?: string;
+  /**
+   * TCK-1412 (P148.01, P148.02) — les capacités qui ouvrent la page à un profil SANS rôle
+   * d'administration : une délégation `agency_admin`, ou un rôle personnalisé de base `agent`. Une
+   * seule suffit. Elles ne se posent que sur une page dont l'API juge la lecture par capacité :
+   * ailleurs, l'API juge le profil, et la page ouverte ne rendrait que son état d'erreur.
+   */
+  readonly ouvertePar?: readonly string[];
 }
 
 export interface PageAdmin {
@@ -60,16 +67,33 @@ export interface PageAdmin {
 const TABLE = [
   // TCK-647 (ADR-0064 §3) — le tableau de bord de l'agence n'est pas dans cette table : c'est
   // `/app/overview/agency`, gardé par son propre layout.
-  { chemin: '/app/agency/team', exige: { role: 'admin', agence: 'standard' }, menu: { cle: 'team', icone: Users } },
+  // TCK-1412 (P148.02) — la section `team` s'ouvre à qui invite, attribue un rôle ou suspend : la
+  // liste de l'équipe se lit sous les mêmes capacités (`UserAdminController::index`).
+  {
+    chemin: '/app/agency/team',
+    exige: { role: 'admin', agence: 'standard', ouvertePar: ['team.invite', 'team.assign_role', 'team.suspend'] },
+    menu: { cle: 'team', icone: Users },
+  },
   // TCK-279 — juste sous « Équipe » : on attribue un rôle là, on le définit ici.
-  { chemin: '/app/agency/roles', exige: { role: 'admin', agence: 'standard' }, menu: { cle: 'roles', icone: KeyRound } },
+  // TCK-1274 (P148.04) — la liste des rôles exige `team.assign_role` (`AgencyRolePolicy::viewAny`) :
+  // sans elle, l'API rend 403 et la page entière est en erreur.
+  {
+    chemin: '/app/agency/roles',
+    exige: { role: 'admin', agence: 'standard', capacite: 'team.assign_role', ouvertePar: ['team.assign_role'] },
+    menu: { cle: 'roles', icone: KeyRound },
+  },
   {
     chemin: '/app/agency',
     exige: { role: 'admin' },
     menu: { cle: 'agency', icone: Briefcase },
     profil: 'manageAgency',
   },
-  { chemin: '/app/agency/kyc', exige: { role: 'admin' }, menu: { cle: 'kyc', icone: ShieldCheck } },
+  // TCK-1274 (P148.04) — le dossier KYC se lit sous `agency.update_kyc` (`KycController`).
+  {
+    chemin: '/app/agency/kyc',
+    exige: { role: 'admin', capacite: 'agency.update_kyc', ouvertePar: ['agency.update_kyc'] },
+    menu: { cle: 'kyc', icone: ShieldCheck },
+  },
   // TCK-594 (AC18) — l'hôte individuel y lit ses reversements ; l'API les garde par
   // `agency.update_billing` (`AgencyPolicy::viewPlatformPayouts`). Le bloc d'abonnement, lui, reste
   // `standard` : c'est la page qui en décide.
@@ -130,9 +154,14 @@ export interface ContexteAdmin {
 export function pageAccessible(page: PageAdmin, ctx: ContexteAdmin): boolean {
   const superAdmin = isSuperAdmin(ctx.roles);
   if (page.exige.role === 'super_admin') return superAdmin;
-  if (!isAdmin(ctx.roles)) return false;
   // Le super-admin passe l'agence et la capacité, comme côté API.
   if (superAdmin) return true;
+  // TCK-1412 — sans rôle d'administration, seule une capacité qui ouvre la page la donne
+  // (délégations comprises : `/api/me/capabilities` les rend).
+  if (!isAdmin(ctx.roles)) {
+    const ouvrantes = page.exige.ouvertePar ?? [];
+    if (!ouvrantes.some((c) => (ctx.capacites ?? []).includes(c))) return false;
+  }
   if (page.exige.agence === 'standard' && ctx.agence !== null && ctx.agence.kind !== 'standard') {
     return false;
   }

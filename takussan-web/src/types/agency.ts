@@ -6,7 +6,7 @@
  * (sparse fieldsets may omit some keys).
  */
 
-export type AgencyStatus = 'active' | 'inactive' | 'suspended' | 'pending';
+export type AgencyStatus = 'active' | 'inactive' | 'suspended';
 
 /** TCK-248 — agency typology. `individual` is a sole-host (no portfolio of
  *  external owners), `standard` is the multi-owner agency. */

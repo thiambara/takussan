@@ -75,7 +75,7 @@ describe('TCK-442 — la table des ressources de détail', () => {
     expect(SEGMENTS.sort()).toEqual(surDisque);
   });
 
-  it('lit le bon chemin d’API et la bonne table spatie pour chaque segment', async () => {
+  it('lit le bon chemin d’API pour chaque segment, sans fields[...] (TCK-1384)', async () => {
     for (const segment of SEGMENTS) {
       apiRequestMock.mockReset();
       apiRequestMock.mockResolvedValue({ data: { id: 7 } });
@@ -83,12 +83,11 @@ describe('TCK-442 — la table des ressources de détail', () => {
       // deuxième appel rendrait la réponse du premier et ce test ne mesurerait qu'une ligne.
       await sonderExistence(segment, 7 + SEGMENTS.indexOf(segment));
 
-      const { api, table } = RESSOURCES_DE_DETAIL[segment];
+      const { api } = RESSOURCES_DE_DETAIL[segment];
       const chemin = apiRequestMock.mock.calls[0]?.[0] as string;
-      expect(chemin, `${segment} n'a pas interrogé /api/${api}`).toMatch(
-        new RegExp(`^/api/${api}/\\d+\\?`),
-      );
-      expect(chemin, `${segment} ne demande pas fields[${table}]`).toContain(`fields[${table}]=id`);
+      expect(chemin, `${segment} n'a pas interrogé /api/${api}`).toMatch(new RegExp(`^/api/${api}/\\d+(\\?|$)`));
+      // Un `show` ignore `fields` (P60.03) : la sonde ne l'envoie plus.
+      expect(chemin, `${segment} envoie fields[...] à un show`).not.toContain('fields[');
     }
   });
 });

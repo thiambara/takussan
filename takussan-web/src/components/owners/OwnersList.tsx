@@ -128,7 +128,8 @@ export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitiv
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       const id = await resolveInvitationId(token, owner);
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
-      return resendInvitation(token, id);
+      // TCK-1203 — relancer exige la 2FA de l'agence (`InvitationController@resend`).
+      return avecGardeDoubleFacteur(() => resendInvitation(token, id), garde);
     },
     onSuccess: () => {
       toast.add({ title: tInvite('toasts.resend_success'), type: 'success' });
@@ -147,7 +148,7 @@ export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitiv
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       const id = await resolveInvitationId(token, owner);
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
-      return revokeInvitation(token, id);
+      return avecGardeDoubleFacteur(() => revokeInvitation(token, id), garde);
     },
     onSuccess: async () => {
       toast.add({ title: tInvite('toasts.revoke_success'), type: 'success' });
@@ -172,7 +173,19 @@ export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitiv
       id: 'name',
       header: t('page.columns.name'),
       className: 'font-semibold text-foreground',
-      cell: (owner) => nomDe(owner) || '—',
+      cell: (owner) => {
+        // TCK-1323 (P117.05) — une société est nommée par sa raison sociale, exigée à
+        // l'invitation (`metadata.company_name`) ; la personne de contact reste en dessous.
+        const raison = raisonSocialeDe(owner);
+        const nom = nomDe(owner);
+        if (!raison) return nom || '—';
+        return (
+          <div className="flex flex-col">
+            <span>{raison}</span>
+            {nom ? <span className="text-xs font-normal text-muted-foreground">{nom}</span> : null}
+          </div>
+        );
+      },
     },
     {
       id: 'email',
@@ -363,6 +376,14 @@ function OwnerIdentifiersCell({
       ) : null}
     </div>
   );
+}
+
+/** TCK-1323 (P117.05) — la raison sociale d'un bailleur société, `null` pour un particulier. */
+function raisonSocialeDe(owner: OwnerProfileSummary): string | null {
+  const meta = owner.metadata ?? null;
+  if (meta?.owner_type !== 'company') return null;
+  const raison = meta.company_name?.trim();
+  return raison ? raison : null;
 }
 
 /** Le nom composé, seule logique propre à l'ancienne `OwnerRow` qui survivait à la conversion. */

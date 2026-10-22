@@ -12,6 +12,8 @@ import { withIntl } from '@/test/intl';
 const mockGetMe = vi.fn();
 const mockQuota = vi.fn();
 
+// P152.03 — l'admin du rôle système porte `properties.create`.
+vi.mock('@/lib/access/pages-admin-server', () => ({ capacitesDuProfilActif: async () => ['properties.create'] }));
 vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraductionsServeur());
 vi.mock('@/app/actions/auth', () => ({ getMeAction: () => mockGetMe() }));
 vi.mock('@/app/actions/admin-tags', () => ({ fetchTagsAction: async () => ({ ok: true, data: { data: [] } }) }));
