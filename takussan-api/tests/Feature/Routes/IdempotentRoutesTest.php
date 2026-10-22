@@ -20,6 +20,8 @@ class IdempotentRoutesTest extends TestCase
             'conversations.messages.store' => ['conversations.messages.store'],
             // TCK-1400 (P144.04) — l'acompte enregistré par le personnel.
             'bookings.payments.store' => ['bookings.payments.store'],
+            // TCK-1402 (P144.05) — la facture.
+            'invoices.store' => ['invoices.store'],
         ];
     }
 
