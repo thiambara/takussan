@@ -1,5 +1,5 @@
 ---
-id: TCK-1375
+id: TCK-1413
 title: "Dialogue de facture : le taux de TVA affiché part tel quel, 0 % compris, pré-rempli par celui de l'agence"
 status: done
 phase: P2

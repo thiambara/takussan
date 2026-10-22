@@ -6,7 +6,7 @@ import { cheminApi } from '@/lib/chemin-api';
 import { CURRENCY_METADATA, type CurrencyCode } from '@/lib/format/currency';
 
 /**
- * P133.01 (TCK-1375) — les réglages de facturation de l'agence de l'émetteur, que le dialogue de
+ * P133.01 (TCK-1413) — les réglages de facturation de l'agence de l'émetteur, que le dialogue de
  * facture pré-remplit : l'API applique les mêmes quand la clé manque (`InvoiceService::create`,
  * `agencies.default_tax_rate`), et le dialogue envoie désormais toujours la valeur affichée.
  *

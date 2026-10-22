@@ -120,7 +120,7 @@ async function remplirEtEnvoyer(prix: string) {
   await envoyer();
 }
 
-describe('CreateInvoiceDialog — le taux de TVA affiché est celui qui part (P133.01, TCK-1375)', () => {
+describe('CreateInvoiceDialog — le taux de TVA affiché est celui qui part (P133.01, TCK-1413)', () => {
   beforeEach(() => {
     MUTATION.mutateAsync.mockClear();
     AGENCE.valeur = { taxRate: null, ready: false };

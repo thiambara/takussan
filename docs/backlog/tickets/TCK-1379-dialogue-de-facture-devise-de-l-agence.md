@@ -8,7 +8,7 @@ estimate: S
 wave: null
 created: 2026-10-22
 updated: 2026-10-22
-depends_on: [TCK-1375]
+depends_on: [TCK-1413]
 blocks: []
 spec_refs:
   features:
@@ -35,7 +35,7 @@ Sans geste de la personne, la facture part dans la devise de l'agence de l'émet
 
 ## Delta à produire
 
-- [x] `useAgencyInvoiceDefaults` (TCK-1375) lit aussi `currency` de l'agence, `null` hors des quatre
+- [x] `useAgencyInvoiceDefaults` (TCK-1413) lit aussi `currency` de l'agence, `null` hors des quatre
       devises de facture.
 - [x] Le dialogue pré-remplit le sélecteur avec elle tant que la personne n'y a pas touché ; XOF
       sans agence.

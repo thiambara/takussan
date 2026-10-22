@@ -58,7 +58,7 @@ const DEFAULT_VALUES: CreateInvoiceFormValues = {
 };
 
 /**
- * P133.01 (TCK-1375) — la TVA de l'aperçu s'arrondit à l'unité de la devise, comme
+ * P133.01 (TCK-1413) — la TVA de l'aperçu s'arrondit à l'unité de la devise, comme
  * `Currency::roundAmount` côté API (`InvoiceService::create`) : 10,50 € à 18 % font 1,89 €, pas 2.
  */
 function arrondiDevise(montant: number, devise: string): number {
@@ -91,7 +91,7 @@ export function CreateInvoiceDialog({
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.invoiceDialog');
   const createInvoice = useCreateInvoice();
-  // P133.01 (TCK-1375) — le taux de l'agence pré-remplit le champ : c'est celui que l'API prenait
+  // P133.01 (TCK-1413) — le taux de l'agence pré-remplit le champ : c'est celui que l'API prenait
   // en silence quand le dialogue n'envoyait rien.
   const agence = useAgencyInvoiceDefaults();
   const valeursInitiales: CreateInvoiceFormValues = agence.ready
@@ -123,7 +123,7 @@ export function CreateInvoiceDialog({
           quantity: item.quantity,
           unit_price: item.unit_price,
         })),
-        // P133.01 (TCK-1375) — le taux affiché part tel quel, `0` compris : `|| undefined` faisait
+        // P133.01 (TCK-1413) — le taux affiché part tel quel, `0` compris : `|| undefined` faisait
         // tomber le 0, et l'API appliquait alors `agencies.default_tax_rate`.
         tax_rate: values.tax_rate ?? 0,
         currency: values.currency,

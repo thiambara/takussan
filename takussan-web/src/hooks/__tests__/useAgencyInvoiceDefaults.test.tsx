@@ -10,7 +10,7 @@ vi.mock('@/context/AuthContext', () => ({ useAuth: () => AUTH }));
 
 import { useAgencyInvoiceDefaults } from '../useAgencyInvoiceDefaults';
 
-/** P133.01 (TCK-1375) — le taux par défaut de l'agence de l'émetteur, lu sur `GET /api/agencies/{id}`. */
+/** P133.01 (TCK-1413) — le taux par défaut de l'agence de l'émetteur, lu sur `GET /api/agencies/{id}`. */
 describe('useAgencyInvoiceDefaults', () => {
   beforeEach(() => {
     useApiQueryMock.mockReset();

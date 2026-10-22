@@ -12841,7 +12841,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Le dialogue de facture affiche une TVA à 0 %, mais n'envoie pas ce 0 : l'API applique le taux de l'agence
 - Réf : P133.01
-- Statut : fait · TCK-1375
+- Statut : fait · TCK-1413
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:52,84,109-110`, `takussan-api/app/Services/Model/InvoiceService.php:59-66`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:43`
 - Constat :

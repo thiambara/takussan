@@ -65,7 +65,7 @@ Un avoir (`cancel`) ne recopie pas les lignes : il garde sa désignation « Annu
 
 - Ablation API : `InvoiceService`, `StoreInvoiceRequest`, `DocumentPdfController` et `Invoice`
   remis à leur état d'avant → `InvoiceLinesTest` 5 rouges ; remis → 5 verts.
-- Ablation front : dialogue remis à l'état de TCK-1375 → les 2 tests neufs rougissent (charge sans
+- Ablation front : dialogue remis à l'état de TCK-1413 → les 2 tests neufs rougissent (charge sans
   `items`, aperçu `1499` au lieu de `1500`) ; remis → verts.
 - jsonb réordonne les clés d'une ligne : le test compare par `assertEquals`.
 - L'arrondi de l'aperçu passe d'abord au dix-millième, pour qu'un `1,005 €` ne tombe pas à `1,00`.
