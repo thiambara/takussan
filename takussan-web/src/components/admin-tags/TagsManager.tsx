@@ -22,10 +22,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FormError, FormGlobalError } from '@/components/forms';
+import { FormError, FormGlobalError } from '@/components/forms/FormError';
 import { traduireChampsErreurs } from '@/lib/schemas/messages';
 import { cn } from '@/lib/utils';
-import { useTraducteurValidation } from '@/hooks/useApiForm';
+import { useTraducteurValidation } from '@/hooks/useTraducteurValidation';
 import type { Tag, TagType } from '@/types/tag';
 import {
   createConsoleTagAction,

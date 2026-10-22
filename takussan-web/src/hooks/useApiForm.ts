@@ -17,6 +17,7 @@ import { useTranslations } from 'next-intl';
 import type { ZodType } from 'zod';
 
 import { ApiError, messageErreurApi, type TraducteurRacine } from '@/lib/api';
+import { useTraducteurValidation } from './useTraducteurValidation';
 import {
   type Traducteur,
   traduireMessageValidation,
@@ -147,21 +148,11 @@ export function extractApiErrorMessage(
 }
 
 /**
- * Le traducteur à la RACINE du dictionnaire, sous la signature minimale que consomment les
- * fonctions de `src/lib/schemas/messages.ts`.
- *
- * ⚠️ **Racine, et non un espace de noms** : les clés portées par les schémas sont des chemins
- * absolus (`validation.tag.nameRequired`). Un composant qui a déjà un `useTranslations('admin.tags')`
- * sous la main ne peut donc PAS s'en servir pour traduire une erreur de schéma — il lui faut
- * celui-ci, en plus.
- *
- * Existe pour que les trois écrans qui rendent un message de schéma sans passer par
- * react-hook-form n'aient pas à recopier le cast — le recopier, c'est se donner l'occasion de le
- * faire à moitié.
+ * TCK-1194 (P104.01) — `useTraducteurValidation` vit dans son propre module, sans react-hook-form :
+ * un écran qui ne veut que lui ne charge plus le hook de formulaire. Réexporté ici pour ses
+ * appelants historiques.
  */
-export function useTraducteurValidation(): Traducteur {
-  return useTranslations() as unknown as Traducteur;
-}
+export { useTraducteurValidation } from './useTraducteurValidation';
 
 /**
  * Traduit EN PROFONDEUR les messages d'un arbre d'erreurs react-hook-form qui portent une clé de
