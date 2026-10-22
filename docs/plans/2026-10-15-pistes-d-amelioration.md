@@ -10171,7 +10171,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Les cartes de la page d'un bien retiré héritent des `sizes` de la grille de recherche, qui ne décrivent pas leur grille
 - Réf : P102.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1190
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:70-72`, `takussan-web/src/components/property/PropertyCard.tsx:139`, `takussan-web/src/components/property/card-image-sizes.ts:84-85`
 - Constat :
@@ -10180,6 +10180,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : code relu.
 - Piste : une constante `CARD_SIZES_BIEN_RETIRE` dans `card-image-sizes.ts`, sur le patron des autres grilles, avec son relevé. Garde : les autres appelants passent tous `sizes` sauf `bien-retire.tsx`. Un test qui le refuse sur chaque appelant de `PropertyCard` empêcherait le retour.
 - Mesure (2026-10-21, 0acc2203f, mesureur) : relu `bien-retire.tsx:70-72` (aucun `sizes`), `PropertyCard.tsx:139` (`sizes = CARD_SIZES_SEARCH_GRID`) et son docblock l. 75-79 (« appartient à la grille appelante, pas à la carte », constante et relevé dans `card-image-sizes.ts`) ; même test temporaire qu'en P102.01, retiré → les trois `<img>` portent `sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1023px) 31vw, (max-width: 1279px) 22vw, (max-width: 1535px) 17.5vw, …, 238px"`. Calculé depuis les classes (`max-w-6xl px-4 sm:px-6 lg:px-8`, `sm:grid-cols-2 lg:grid-cols-3`, `gap-4`), méthode du fichier : à 900 px un emplacement fait environ (900 − 48 − 16) / 2 = 418 px pour 31vw = 279 px déclarés ; à 1 440 px, (1 152 − 64 − 32) / 3 = 352 px pour 17,5vw = 252 px : sous-déclaré, donc image trop petite (le défaut « qui rend flou » du docblock de `card-image-sizes.ts`) ; aucune requête d'image mesurée au navigateur. Classement : A1 et A2, le contrat est écrit dans la carte et chaque autre grille a sa constante : une constante `CARD_SIZES_BIEN_RETIRE` dans `card-image-sizes.ts` avec son relevé, passée par `bienRetire()`, et son test sur le patron de `card-image-sizes.test.ts`.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : test `card-image-sizes.bien-retire.test.ts` → avant correctif, `CARD_SIZES_BIEN_RETIRE` absente (les deux tests de géométrie rouges) et la garde des appelants rouge sur le seul `bien-retire.tsx` parmi les six `<PropertyCard … />` de `src` ; constante ajoutée (`calc(100vw - 32px)`, `50vw`, `33.4vw`, `352px`, calculée depuis les classes) et passée par `bienRetire()` (TCK-1190) → 4/4 verts, jamais sous-déclarée ni plus de 40 px au-dessus de 320 à 2560 px ; ablation, `sizes` retiré de `bien-retire.tsx` → la garde rougit, remis → verte. Aucune requête d'image mesurée au navigateur.
 
 ### Petites améliorations : trois commentaires décrivent encore les animations d'entrée en `both`, alors que `globals.css` les déclare en `backwards`
 - Réf : P102.04
