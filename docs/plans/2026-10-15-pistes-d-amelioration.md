@@ -7730,7 +7730,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 
 ### Un remboursement partiel fait sortir toute la ligne de l'encaissé, de la clôture de la plateforme et du reversement au bailleur
 - Réf : P76.02
-- Statut : retenu · à valider — chemin fermé : `docs/adr/0057` § 2 ; les deux options réécrivent la définition de l'*Encaissé* qu'il fixe (« `LeasePayment` payés », « `BookingPayment` `paid` (montant − `refund_amount`) »), un critère autre que V1 accordé (V6, décision structurelle écrite dans un ADR), et le correctif touche sept lecteurs, au-delà de M
+- Statut : validé — (b) : seul un remboursement total passe la ligne à `refunded` ; un remboursement partiel la laisse `paid` avec son `refund_amount`, et l'encaissé, la clôture et `PayoutCalculator` (commission comprise) comptent `montant − refund_amount`, côté loyers comme côté acomptes, ce qui étend aux loyers la définition d'ADR-0057 § 2 sans la réécrire ; amendement d'ADR-0057 § 2 accordé pour écrire la règle côté loyers ; garde : les deux scénarios en test sur chacun des trois lecteurs (porteur, 2026-10-22)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:12-23`, `:50`, `:65-79`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:251`, `:263`, `takussan-api/app/Services/Payout/PayoutCalculator.php:63`, `:87`, `takussan-api/app/Services/Model/BookingPaymentService.php:64-82`
 - Constat :
@@ -7773,7 +7773,7 @@ l'échéance. La quittance déjà envoyée et l'absence de tout événement sur 
 
 ### Un loyer remboursé n'est plus ni encaissé, ni dû, ni payable
 - Réf : P76.05
-- Statut : retenu · à valider — choix non tranché : rouverte, annulée avec trace, remplacée ; la voie la plus étroite dépend du statut d'un remboursement partiel, que P76.02 laisse au porteur, et chacune rend dû, ou non, un loyer remboursé pour corriger un double encaissement
+- Statut : validé — `refunded` reste terminal, ni dû ni payable : un loyer remboursé ne redevient pas dû (un remboursement qui corrige un double encaissement ne doit rendre aucun loyer dû) ; ni réouverture ni annulation ; une échéance neuve (option « remplacée ») seulement sur un geste explicite du personnel, jamais automatiquement ; sous P76.02 (b), le remboursement partiel reste `paid` et sort de cette piste ; garde : un test sur `leaseOwed` et `isPayable` d'une échéance `refunded` (porteur, 2026-10-22)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:41`, `:83-91`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:94-96`, `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:121-128`
 - Constat :
@@ -7829,7 +7829,7 @@ surveillé (`deploy/server/seuils.sh`, 75 %) : pas d'entrée pour eux.*
 
 ### Les exports de rapport de la console ne sont jamais purgés, ni le fichier ni la ligne
 - Réf : P77.02
-- Statut : retenu · à valider — spec contredite : `docs/models-spec.md` § 62 énumère les statuts de `report_exports` (`queued` / `processing` / `ready` / `failed`), sans le `expired` que la piste écrit ; la spec, fermée à l'implémenteur, est à étendre d'abord (ou la ligne supprimée au lieu de passer `expired`). Ce n'est pas le V4 accordé : c'est la source de vérité qui ne connaît pas la valeur
+- Statut : validé — (a) : `expired` ajouté aux statuts de `report_exports` dans `docs/models-spec.md` § 62 ; la purge planifiée, sur le modèle de `PurgeExpiredDataExports`, retire le fichier des `report_exports` `ready` échus (`archive_path` à `null`) et les passe `expired`, la ligne gardée ; les `exports/audit/*` restent à P63.04 (porteur, 2026-10-22)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:50-60`, `takussan-api/app/Http/Controllers/Api/Admin/ReportingController.php:111-120`, `takussan-api/routes/console.php:84`, `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:362-366`
 - Constat :
@@ -8237,7 +8237,7 @@ TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P4
 
 ### Indicateurs et alertes de seuil : jugés par le type de profil admin, jamais par une capacité
 - Réf : P82.04
-- Statut : retenu · à valider — chemin fermé : brancher `agency.update` exige de retirer sa ligne de `CapabilityEnforcementInventory::AWAITING` (D-69) et de baisser `CLIQUET` dans `scripts/check-capability-readers.mjs`, garde existante (V9), que l'implémenteur ne modifie pas ; la validation accordait V2, ce critère-ci touche une garde
+- Statut : validé — (a) : juger ces gestes par `agency.update`, par une policy liée à `KpiConfig` et `ThresholdAlert` ; changement de garde accordé (V9) : retirer la ligne `agency.update` de `CapabilityEnforcementInventory::AWAITING` (D-69) et baisser `CLIQUET` de 7 à 6 dans `scripts/check-capability-readers.mjs` ; test : admin sans la capacité refusé, membre qui la tient accepté, admin système inchangé (porteur, 2026-10-22)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreKpiConfigRequest.php:31-37`, `UpdateKpiConfigRequest.php:31-38`, `StoreThresholdAlertRequest.php:31-37`, `UpdateThresholdAlertRequest.php:31-38`, `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:87-94`, `ThresholdAlertController.php:72-79`
 - Constat :
@@ -10117,7 +10117,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Le locataire reçoit deux fenêtres de bienvenue modales montées ensemble
 - Réf : P101.03
-- Statut : retenu · à valider — V7 : l'ordre d'apparition des fenêtres de bienvenue est un parcours visible
+- Statut : validé — (a) : une file dans `AppShell` ouvre le parcours client d'abord, celui du locataire à sa fermeture, contenus inchangés ; limitée au client et au locataire (propriétaire, agent et administrateur d'agence hors de la piste) ; garde : test d'`AppShell` pour un locataire sans aucune clé vue, un seul `dialog` ouvert (porteur, 2026-10-22)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/layout/AppShell.tsx:138-145`, `takussan-web/src/hooks/useWelcomeOnce.ts`, `takussan-web/src/components/welcome/WelcomeModal.tsx:116-120`
 - Constat :
@@ -10160,7 +10160,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Sur la grille de recherche à cinq ou six colonnes, la fin de la première rangée reste masquée jusqu'à l'hydratation : le budget `priority` est fixé à 4
 - Réf : P102.02
-- Statut : retenu · à valider — V7 : deux options, et précharger six images sur tout écran se paie sur mobile
+- Statut : validé — (c) : séparer les deux effets de `priority` dans `PropertyCard` : un budget de révélation de 6 cartes, qui ne fait que sauter l'état `opacity-0`, et le budget d'images préchargées laissé à 4 ; garde : `PropertiesDiscoveryPage.grille.test.tsx` étendu aux six cartes révélées et aux quatre images prioritaires (porteur, 2026-10-22)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:51`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:590`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:630`
 - Constat :
@@ -10257,7 +10257,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### `UserLocationProvider` interroge ipapi.co depuis le layout racine, sur toutes les pages, alors que quatre écrans seulement lisent la ville devinée
 - Réf : P103.05
-- Statut : retenu · à valider — V3 : IP du visiteur transmise à ipapi.co, et deux voies
+- Statut : validé — (a) : la résolution par ipapi.co ne part qu'au premier abonnement d'un lecteur de la ville devinée, cache de 24 h gardé ; garde : un test vitest qui monte le fournisseur sans lecteur et exige qu'aucun `fetch` vers `ipapi.co` ne parte (porteur, 2026-10-22)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/layout.tsx:104-121`, `takussan-web/src/components/providers/UserLocationProvider.tsx:73-145`
 - Constat :
@@ -10282,7 +10282,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### La fiche demande les biens similaires et les avis au navigateur après l'hydratation, alors que la page d'un bien retiré reçoit déjà ses similaires du serveur
 - Réf : P103.07
-- Statut : retenu · à valider — V7 : avis dans le HTML « si le porteur le veut », et deux voies
+- Statut : validé — (a) : les seuls biens similaires lus côté serveur avec la fiche et passés en données initiales (modèle `donneesInitiales`, TCK-432), avec une fraîcheur propre écrite dans le ticket ; les avis demandés seulement à l'approche de leur section ; garde : un test de rendu serveur de la fiche qui exige un lien `/properties/<slug>` d'un bien similaire dans le HTML (porteur, 2026-10-22)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertySimilar.tsx:14-50`, `takussan-web/src/hooks/useSimilarProperties.ts:13-33`, `takussan-web/src/hooks/usePropertyReviews.ts:14-33`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:225,262`, `takussan-web/src/lib/queries/public-property.ts:106-112`
 - Constat :
@@ -10296,7 +10296,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Petites améliorations
 - Réf : P103.08
-- Statut : retenu · à valider — V7 : intervalle du statut de maintenance pour un anonyme, à trancher avec P79.06 et P98.10
+- Statut : validé — intervalle de 60 s gardé dans la console, porté à 5 minutes pour un visiteur sans session, `refetchOnWindowFocus` laissé actif ; à faire après la fusion de #939 (P98.10) (porteur, 2026-10-22)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/maintenance/MaintenanceBanner.tsx:14-17,52`, `takussan-web/src/lib/query-client.ts:11-19`
 - Constat :
@@ -10405,7 +10405,7 @@ le préchargement (`prefetch`) des liens vers `/app/agency` n'a pas été observ
 
 ### Les dictionnaires pèsent 82 à 88 % de chaque document `/app` compressé, et la moitié des espaces servis n'est lue par aucun composant de l'écran
 - Réf : P105.01
-- Statut : retenu · à valider — V6 : rouvrir le grain du découpage d'ADR-0022 sous `(dashboard)/app` demande un amendement
+- Statut : retenu · à valider — V6 : rouvrir le grain du découpage d'ADR-0022 sous `(dashboard)/app` demande un amendement ; porteur (2026-10-22) : traité hors agents, en session, avec P69.05 et dans le même amendement d'ADR-0022 : mesure de la taille gzip servie et atteinte de chaque écran, puis la voie que recommande le délégué
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/layout.tsx`, `takussan-web/src/app/(dashboard)/app/agency/layout.tsx`, `takussan-web/src/i18n/messages.ts:37-44`, `takussan-web/src/i18n/namespaces.json`, `docs/adr/0022-le-dictionnaire-i18n-est-decoupe-par-groupe-de-routes.md`
 - Constat :
@@ -10419,7 +10419,7 @@ le préchargement (`prefetch`) des liens vers `/app/agency` n'a pas été observ
 
 ### Une navigation dans l'application vers `/app/agency` retélécharge 47 espaces que le navigateur a déjà
 - Réf : P105.02
-- Statut : retenu · à valider — V6 : changer la forme des providers imbriqués et de la table cumulée fixées par ADR-0022
+- Statut : retenu · à valider — V6 : changer la forme des providers imbriqués et de la table cumulée fixées par ADR-0022 ; porteur (2026-10-22) : traité hors agents, en session, avec P69.05 et dans le même amendement d'ADR-0022 : mesure de la taille gzip servie et atteinte de chaque écran, puis la voie que recommande le délégué
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/agency/layout.tsx`, `takussan-web/src/i18n/IntlProvider.tsx:14-38`, `takussan-web/src/i18n/messages.ts:30-35`
 - Constat :
@@ -10444,7 +10444,7 @@ le préchargement (`prefetch`) des liens vers `/app/agency` n'a pas été observ
 
 ### Trois espaces lus seulement par le serveur sont sérialisés dans chaque document
 - Réf : P105.04
-- Statut : retenu · à valider — V6 : changer les règles de dérivation de la table posées par ADR-0022
+- Statut : retenu · à valider — V6 : changer les règles de dérivation de la table posées par ADR-0022 ; porteur (2026-10-22) : traité hors agents, en session, avec P69.05 et dans le même amendement d'ADR-0022 : mesure de la taille gzip servie et atteinte de chaque écran, puis la voie que recommande le délégué
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/i18n/namespaces.json` (frontière `.`), `takussan-web/scripts/i18n-namespaces-scan.mjs:67-74`, `takussan-web/src/app/layout.tsx:56`, `takussan-web/src/app/actions/property.ts:35`, `takussan-web/src/app/actions/notifications.ts:26`
 - Constat :
@@ -10497,7 +10497,7 @@ et `production` compris) et la signature WhatsApp (`WhatsappStatusWebhookTest.ph
 
 ### `DeletionStepUpService::sendCode` rend le code hors production pour les seuls tests, et en production son `null` ne distingue plus « délai de renvoi » de « code envoyé »
 - Réf : P106.02
-- Statut : retenu · à valider — V2 : contrat du code de step-up de suppression de compte
+- Statut : validé — `sendCode` rend un booléen « code émis » dans tous les environnements, la branche sur `APP_ENV` retirée ; les tests lisent le code par `Notification::fake` ou le pilote SMS de test, comme `OtpPreviewTest` ; un test du `false` sous délai de renvoi garde le contrat (porteur, 2026-10-22)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Account/DeletionStepUpService.php:59-108`, `takussan-api/app/Http/Controllers/Api/Auth/AccountDeletionController.php:84-101`, `takussan-api/tests/Feature/Auth/AccountDeletionStepUpTest.php:104`
 - Constat :
@@ -10510,7 +10510,7 @@ et `production` compris) et la signature WhatsApp (`WhatsappStatusWebhookTest.ph
 
 ### « Être la production » se juge sur deux critères : `APP_ENV` pour le filtre d'IP, l'origine d'`APP_URL` pour le seul refus de démarrer
 - Réf : P106.03
-- Statut : retenu · à valider — V5 : critère « production » au démarrage, deux voies proposées
+- Statut : validé — (a) : au démarrage, refuser une `APP_URL` d'origine production avec un `APP_ENV` autre que `production`, à côté de `refuserSurLaProduction` et testé de même par `bootstrap/app.php` (porteur, 2026-10-22)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:30`, `takussan-api/app/Services/Account/DeletionStepUpService.php:108`, `takussan-api/app/Services/Auth/OtpPreview.php:28-53`, `takussan-api/app/Http/Middleware/AddRobotsTagOutsideProduction.php:29-44`, `takussan-api/app/Providers/AppServiceProvider.php:214-215`, `takussan-api/config/sms.php:44-47`
 - Constat :
