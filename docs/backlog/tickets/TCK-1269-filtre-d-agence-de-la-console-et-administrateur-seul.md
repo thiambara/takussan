@@ -1,7 +1,7 @@
 ---
 id: TCK-1269
 title: "Console des utilisateurs : le filtre d'agence compte l'administrateur d'agence seul, par la portée commune"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -42,13 +42,13 @@ seul compris, par la même portée que les deux autres listes.
 
 ## Delta à produire
 
-- [ ] `filter[agency_id]` de `GET /api/admin/users` passe par `User::membreDe()`.
-- [ ] Un test : un administrateur seul et un agent de l'agence sont rendus, un utilisateur d'une
+- [x] `filter[agency_id]` de `GET /api/admin/users` passe par `User::membreDe()`.
+- [x] Un test : un administrateur seul et un agent de l'agence sont rendus, un utilisateur d'une
       autre agence ne l'est pas.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/admin/users?filter[agency_id]={id}` rend l'administrateur seul de l'agence
+- [x] AC1 — `GET /api/admin/users?filter[agency_id]={id}` rend l'administrateur seul de l'agence
       et son agent, et pas l'agent d'une autre agence.
 
 ## Hors périmètre
@@ -59,4 +59,8 @@ seul compris, par la même portée que les deux autres listes.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Test : `tests/Feature/Admin/Platform/FiltreDAgenceDeLaConsoleTest.php`. Avant correctif, la
+  liste rend le seul agent (l'administrateur seul manque).
+- Ablation : base remise à deux branches (`agentProfiles`/`ownerProfiles`) → rouge ; correctif
+  remis → vert.
+- `(int)` sur la valeur : une valeur non numérique se règle en 400 par P119.03 (TCK-1273).
