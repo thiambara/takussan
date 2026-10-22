@@ -1,7 +1,7 @@
 ---
 id: TCK-1305
 title: "PHP2Shell : l'image de l'API passe à FrankenPHP 1.13.2 (PHP 8.4.27), la progression d'envoi des sessions est coupée"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -60,12 +60,14 @@ attendant le correctif, et ôterait la seule borne mémoire par requête.
 
 ## Critères d'acceptation
 
-- [ ] `deploy/takussan/smoke-api.sh image` vert sur l'image construite ; `frankenphp version` y
+- [x] `deploy/takussan/smoke-api.sh image` vert sur l'image construite ; `frankenphp version` y
       rend `PHP 8.4.27`, `ini_get('session.upload_progress.enabled')` y rend `"0"`.
-- [ ] Après promotion vers `preview` : `X-Build-Sha` de `preview.api.takussan.com` rend le commit,
+- [x] Après promotion vers `preview` : `X-Build-Sha` de `preview.api.takussan.com` rend le commit,
       et `php -v` **dans chacun des quatre conteneurs en marche** rend 8.4.27.
 
-## Reste sur dev
+## Relevé de clôture — 2026-10-22, 13:09 Z
 
-- AC2 : promouvoir `dev` vers `preview`, puis relever `X-Build-Sha` de `preview.api.takussan.com` et
-  `php -v` dans `api`, `worker`, `worker-media` et `scheduler`. Le ticket passe `done` sur ce relevé.
+Promotion #1102, run « Images et déploiement » 39783639660 vert. `X-Build-Sha` de
+`preview.api.takussan.com/up` → `a57fd61b1` (tête de `preview`), `200`. Dans `api`, `worker`,
+`worker-media` et `scheduler` en marche : `FrankenPHP v1.13.2 PHP 8.4.27`,
+`session.upload_progress.enabled` → `'0'`.
