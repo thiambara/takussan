@@ -15428,7 +15428,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### L'avis « relevé de gérance disponible » écrit la période en `2026-09`, dans toutes les langues et sur toutes les surfaces
 - Réf : P164.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1470
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Console/Commands/Payouts/SendOwnerStatements.php:33,57`, `takussan-api/app/Domain/Notifications/NotificationCode.php:399`, `takussan-api/lang/fr/notifications.php:796-801`, `takussan-web/src/components/notifications/texteNotification.ts:20-21,60-65`
 - Constat :
@@ -15439,6 +15439,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu, puis mesuré côté API ; lu côté front.
 - Piste : une nature de paramètre « mois » (`Y-m`), rendue « septembre 2026 » / « September 2026 » par `isoFormat('MMMM YYYY')` côté API et par `Intl.DateTimeFormat` (`{ month: 'long', year: 'numeric' }`) côté front, le paramètre restant rangé en `Y-m`. Test : rendu fr et en d'`owner_statement.available` pour `2026-09` → sans `2026-09`, avec le mois écrit.
 - Mesure (2026-10-22, 8d288b234, mesureur) : aucun commit sur ces chemins depuis 9beb64329 hors TCK-1424/1428 (sans rapport) ; relu `SendOwnerStatements.php:33,57` (`now()->subMonthNoOverflow()->format('Y-m')`, `['period' => $period]`), `NotificationCode.php:399` (`period` en `PARAM_TEXT`), `NotificationRenderer::format` (branche `default`, rendu tel quel), `texteNotification.ts:20-21` (`DATE_SEULE` `^\d{4}-\d{2}-\d{2}$`, que `2026-09` ne satisfait pas) ; test temporaire `SondeMesureur164Test` (retiré ; charge 4,37 / 3,71 / 3,25 sur 8 cœurs), `NotificationRenderer::render` en fr et en, surfaces title/body/sms → titre fr « Relevé de gérance 2026-09 disponible », titre en « Your 2026-09 management statement is available », SMS « Takussan : relevé de gérance 2026-09 disponible. » → le constat tient en entier. Classement : A4, mettre en forme un mois dans la langue du lecteur (`isoFormat('MMMM YYYY')`, `Intl.DateTimeFormat` `{ month: 'long', year: 'numeric' }`) est de l'i18n sans texte de produit neuf, la valeur rangée restant `Y-m`, et la `Piste` n'a qu'une option.
+- Mesure (2026-10-22, 52247ce4f, implementeur) : `NotificationCode.php:399` déclarait encore `period` en `PARAM_TEXT`, et la cloche ne reconnaissait pas `2026-09` (lus) ; `ReleveDeGeranceMoisTest` rouge avant correctif (2 sur 3 : « 2026-09 » au titre, au corps et au SMS fr et en) et 2 rouges de `NotificationRow.test.tsx` → nature `PARAM_MONTH` rendue par `isoFormat('MMMM YYYY')` à l'API (« septembre 2026 », « September 2026 »), et à la cloche par `fmt.date` en `{ month: 'long', year: 'numeric' }` pour le seul `period` de ce code ; valeur rangée inchangée ; ablations API (2 rouges) et front (2 rouges), remis → vert.
 
 ### Le titre in-app de l'alerte de seuil est rangé avec la métrique en code (« Alerte KPI — occupancy_rate_percent »)
 - Réf : P164.03
