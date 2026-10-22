@@ -208,7 +208,7 @@ voie d'écriture (angle 13, puis 47).
 | 131 | Paramètres de requête des liens profonds émis par l'API ou le front (`?conversation=`, `?tab=`, `?id=`, `router.push('…?…')`, `href` des listes et des cloches) : lus par la page visée, et conservés à travers les redirections de connexion, d'onboarding et de changement de profil actif | fait |
 | 132 | Liens portés par les SMS et WhatsApp (`payment_url`, `receipt_url`, lien d'invitation, gabarits WhatsApp à bouton) : hôte, durée de validité face au délai d'envoi des heures calmes, et page qu'ouvre un destinataire sans compte — le pendant de l'angle 97 hors du courriel | fait |
 | 133 | Estimations et aperçus calculés au front par une constante qui recopie un réglage ou un calcul de l'API (`DEFAULT_*` des dialogues de bail : indemnité de résiliation, préavis de 30 jours, pénalités de retard, révision de loyer, échéancier) : chiffre affiché qui diverge du réglage de la plateforme, de l'agence ou du bail | fait |
-| 134 | Tris `orderBy` / `orderByDesc` sur une colonne d'enum rangée en chaîne (`severity`, `priority`, `status`, `level` des annonces, alertes, maintenances, tâches) : ordre alphabétique pris pour un ordre métier dans une liste ou un « premier élément » affiché | à faire |
+| 134 | Tris `orderBy` / `orderByDesc` sur une colonne d'enum rangée en chaîne (`severity`, `priority`, `status`, `level` des annonces, alertes, maintenances, tâches) : ordre alphabétique pris pour un ordre métier dans une liste ou un « premier élément » affiché | fait |
 | 135 | Listes écrites à la main, hors `buildQuery` (`LeasePaymentController::index`, `ConversationController::index`, `ReviewController::index`, contrôleurs `Admin\*`) : `sort`, `page` et `per_page` envoyés par le front face à l'ordre et au plafond rendus, et lecteurs qui ne lisent que la première page — le relevé de P100.01 sur les autres listes | à faire |
 | 136 | Lectures du navigateur au chargement d'un écran `/app` et `/super-admin` (`useApiQuery` en parallèle, clés en double, `enabled` en cascade qui attend une première réponse, données déjà lues par le rendu serveur) : allers-retours avant l'écran utile, chacun précédé d'un préflight puisqu'il porte `Authorization` — le relevé de l'angle 103 sur la console | à faire |
 | 137 | Écrans qui importent le fichier `index.ts` de `components/forms` pour `FormError` ou `FormGlobalError` seuls (pages `(auth)` `verify-email` et `reset-password`, `DefiSecondFacteur`, `ConnexionParTelephone`, `IntegrationsManager`, `ChampsLieu`) : react-hook-form et react-day-picker chargés pour afficher un message d'erreur — le motif de P104.01 hors de la console | à faire |
@@ -12736,3 +12736,64 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Aperçu du devis d'intervention : somme des produits bruts (lu, l. 56), là où l'API arrondit chaque ligne puis le total à l'unité de la devise (lu, `priceLines`). Trois lignes de 1,5 × 333 en XOF : aperçu 1 498,5 (affiché 1 499), devis enregistré 1 500. L'aperçu est aussi formaté sans la devise de la demande (`formatCurrency(total, locale)`, l. 197).
   - Configuration de l'agence : les champs « Commission » et « TVA par défaut » montrent les exemples `5` et `18` (lu, l. 393 et 484), alors qu'un champ vide vaut 0 % dans les deux calculs (lu, `PayoutCalculator.php:137`, `InvoiceService.php:64`). Un champ jamais rempli se lit comme réglé.
 - Piste : rendre la fenêtre d'avis dans la ressource de la visite (ou une date limite calculée) ; arrondir l'aperçu du devis ligne par ligne avec la devise de la demande ; remplacer les exemples par une aide qui dit « vide : 0 % ». Un test par point.
+
+## Angle 134 — Tris sur une colonne d'enum rangée en chaîne
+
+*Exploré le 2026-10-22 sur `pre-dev` 70e5c1cc7, par l'explorateur. Tout relu par l'explorateur
+lui-même, sans sous-agent : `grep` des `orderBy`/`orderByDesc`/`sortBy`/`defaultSort`/`orderByRaw` de
+`takussan-api/app` et des `$requestSortable`, des `sort=` et `sortKey` écrits par `takussan-web/src`,
+et des `.sort(` du front. Ordre PostgreSQL mesuré par `tinker` en lecture sur la base de développement
+(`VALUES`, aucune table lue sauf `tasks` en `SELECT`). Le cas des annonces (`AnnouncementResolver`)
+est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
+
+### Le tableau de bord de l'agent range les tâches sans échéance haute priorité en dernier
+- Réf : P134.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:119-125`, `takussan-api/app/Models/Enums/TaskPriority.php`, `takussan-api/database/migrations/2026_04_17_160029_create_tasks_table.php:21`, `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:166-170`
+- Constat :
+  - Les cinq tâches de l'aperçu agent sont triées par `orderByRaw('due_at IS NULL, due_at asc')` puis `orderByDesc('priority')`, sur une colonne `string` (lu, l. 122-123 ; migration l. 21). L'enum vaut `low`, `medium`, `high` (lu).
+  - mesuré : `php artisan tinker`, `select p from (values ('low'),('medium'),('high')) t(p) order by p desc` → `["medium","low","high"]`. Le départage met donc une tâche `high` après `medium` et `low`.
+  - Le départage joue entre tâches de même échéance, et d'abord entre les tâches **sans** échéance, que `StoreTaskRequest.php:55` permet (`nullable`) et qui sont rangées ensemble en fin de liste. Avec `limit(5)`, une tâche haute priorité sans échéance est la première à sortir de l'aperçu.
+  - mesuré : dans la base de dev, les 165 tâches ouvertes ont toutes une échéance (`count(due_at)` par priorité : 67/67, 51/51, 47/47) : le cas n'y est pas joué.
+  - Aucun test ne porte sur l'ordre de `tasks.items` : `DashboardAgentTest.php:121` lit `items.0` d'une liste à une tâche (lu, `grep -n "priority\|items" tests/Feature/Dashboard/DashboardAgent*.php`).
+  - Établi comment : lu, et ordre mesuré sur PostgreSQL.
+- Piste : trier sur le rang de l'enum, comme TCK-1126 l'a fait pour les annonces (`CASE priority WHEN … END`, rangs pris de `TaskPriority::cases()`), dans une classe réutilisable par `sort=priority` (voir P134.03). Test : deux tâches sans échéance, `low` et `high`, la `high` sort la première ; ablation par le retour à `orderByDesc('priority')`.
+
+### La bibliothèque de documents range les pièces RIB et NINEA en tête, sous un titre de groupe sans libellé
+- Réf : P134.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/documents/DocumentsLibrary.tsx:106-117,201-206`, `takussan-web/src/components/documents/constants.ts:13-23`, `takussan-web/src/types/document.ts:7-16`, `takussan-api/app/Models/Enums/DocumentType.php:15-17`, `takussan-api/app/Http/Requests/Api/Me/UploadKycOwnerProfileRequest.php:49-50`, `takussan-web/src/i18n/erreurs.ts:35-40`
+- Constat :
+  - La bibliothèque groupe les documents par `type` et ordonne les groupes par `DOCUMENT_TYPE_ORDER.indexOf(type)` (lu, l. 115-117). La liste ne porte pas `rib` ni `ninea` (lu, `constants.ts:13-23`), que l'enum de l'API émet (lu, `DocumentType.php:16-17`) et que l'accueil du bailleur crée (lu, `UploadKycOwnerProfileRequest.php:49-50`).
+  - `indexOf` rend `-1` pour ces deux types : leur groupe passe **avant** « Contrat de bail », premier rang voulu (lu ; propriété de `Array.prototype.indexOf`).
+  - `GET /api/documents` liste les documents téléversés par l'utilisateur (lu, `DocumentController.php:44`) : un bailleur qui a déposé son RIB par l'accueil le voit donc dans `/app/documents`.
+  - Le titre du groupe est `tTypes(category)` (lu, l. 205) ; `documents.types` de `fr.json` n'a ni `rib` ni `ninea` (mesuré : `node -e` sur `src/messages/fr.json` → neuf clés, sans elles). `surErreurIntl` lève sur `MISSING_MESSAGE` hors production et, en production, laisse next-intl peindre le chemin de la clé (lu, `erreurs.ts:14-15,35-40`) : `documents.types.rib` en titre, ou un écran en erreur en développement — à vérifier par un rendu.
+  - L'union `DocumentType` du front n'a pas non plus ces deux valeurs (lu, `types/document.ts:7-16`) ; le `as DocumentType` de la l. 111 le masque au typage. Le relevé des unions entières est l'angle 146.
+  - Établi comment : lu ; l'écran n'a pas été rendu avec une pièce `rib`.
+- Piste : ajouter `rib` et `ninea` à l'union, à `DOCUMENT_TYPE_ORDER` (près de `id_card`) et aux libellés `documents.types` des trois langues (`wo` en français tel quel) ; ranger un type inconnu en dernier (`indexOf` négatif ramené à `Infinity`). Garde : un test de composant avec un document `rib` (titre lu, groupe après « Contrat de bail »), et un test qui compare `DOCUMENT_TYPE_ORDER` aux cas de l'enum de l'API, comme les autres tests de parité d'enum du front.
+
+### Des tris déclarés sur une colonne d'enum rendent l'ordre alphabétique de la valeur
+- Réf : P134.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/Task.php:64`, `takussan-api/app/Models/ThresholdAlert.php:31`, `takussan-api/app/Models/MaintenanceRequest.php:101`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:83-90`, `takussan-api/app/Models/Profiles/PlatformProfile.php:42`
+- Constat :
+  - `GET /api/tasks` accepte `sort=priority` et `sort=status` en tri de colonne simple (lu, `Task.php:64`, sans tri personnalisé) : `sort=-priority` rend `medium, low, high` (même mesure que P134.01).
+  - `GET /api/threshold-alerts` accepte `sort=severity` (lu, `ThresholdAlert.php:31` ; colonne `string`, `info|warning|critical`) : mesuré `order by s` sur ces trois valeurs → `["critical","info","warning"]`, ni croissant ni décroissant en gravité.
+  - `sort=status` est aussi ouvert sur les maintenances (lu, `MaintenanceRequest.php:101`) et sur la liste des utilisateurs de la console (lu, `UserDetailController.php:83`) : ordre alphabétique de la valeur brute, sans lien avec un cycle de vie.
+  - `PlatformProfile` trie `level` (`super_admin`, `support`, `viewer`) : l'ordre alphabétique coïncide avec le rang, par hasard d'orthographe (lu, `PlatformProfileLevel.php:15-17`).
+  - Aucun écran ne les demande aujourd'hui : `grep` des `sort:`/`sort=`/`sortKey` de `takussan-web/src` ne rend aucun tri sur `priority`, `severity`, `status` ou `level` (mesuré) ; les tâches sont lues en `due_at` ou `-created_at` (lu, `agent-crm.ts:279`, `pipeline.ts:119`). Le premier écran qui en posera un héritera de l'ordre alphabétique sans le voir.
+  - Seul `MaintenanceRequest` trie `priority` par rang (lu, `MaintenancePrioritySort.php`).
+- Piste : pour chaque tri gardé, un tri par rang dérivé des cas de l'enum (une classe `App\Sorts\EnumRankSort` paramétrée par l'enum, qui servirait aussi à P134.01 et pourrait reprendre `MaintenancePrioritySort` et l'`orderBySeverity` de TCK-1126) ; ou retirer de `$requestSortable` les tris sans appelant ni sens (`status`). Garde : une vérification que toute colonne castée en enum et déclarée triable passe par un tri par rang.
+
+### Petites améliorations
+- Réf : P134.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Sorts/MaintenancePrioritySort.php:15-23`, `takussan-api/app/Services/Announcements/AnnouncementResolver.php:34-44`
+- Constat :
+  - `MaintenancePrioritySort` recopie les valeurs de `MaintenancePriority` en dur dans son `CASE` (lu, l. 15-23) : un cas ajouté à l'enum tomberait dans `ELSE 5`, sans erreur. `AnnouncementResolver::orderBySeverity` dérive au contraire ses rangs de `cases()` (lu) : deux façons d'écrire le même tri.
+  - Aucun test n'appelle `sort=priority` ni `sort=-priority` sur les maintenances (mesuré : `grep -rln "sort=-\?priority\|MaintenancePrioritySort" tests` → `tests/impact-map.json` seul), et aucun écran ne le demande (lu, `MaintenanceList.tsx:63`, `maintenance.ts:92`) : le seul tri par rang du dépôt n'est gardé par rien.
+- Piste : dériver le `CASE` de `MaintenancePriority::cases()` (ou passer par la classe générique de P134.03) et l'épingler par un test `sort=-priority` sur quatre demandes.
