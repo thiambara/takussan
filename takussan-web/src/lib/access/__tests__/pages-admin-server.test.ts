@@ -42,7 +42,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 const { ApiError } = await import('@/lib/api');
-const { accesAdmin, garderPageAdmin } = await import('../pages-admin-server');
+const { accesAdmin, capacitesAmorcees, garderPageAdmin } = await import('../pages-admin-server');
 
 const moi = (roles: UserRole[], agency_id: number | null = 7) =>
   ({ id: 1, roles, agency_id }) as unknown as User;
@@ -174,5 +174,40 @@ describe('accesAdmin', () => {
   it("prend l'utilisateur qu'on lui passe, sans relire la session", async () => {
     await accesAdmin(moi(['agency_admin']));
     expect(getMe).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * TCK-1278 (P136.02) — la lecture des capacités du rendu, rendue au layout pour amorcer le cache du
+ * navigateur. Seulement quand elle a RÉPONDU : un refus ou une panne n'amorce rien, et le navigateur
+ * lit comme avant.
+ */
+describe('capacitesAmorcees (TCK-1278)', () => {
+  it('un admin d’agence : la réponse de /api/me/capabilities, agence comprise, et son heure', async () => {
+    apiRequest.mockResolvedValue({ data: { agency_id: 7, capabilities: ['invoices.create'] } });
+    const avant = Date.now();
+    const lecture = await capacitesAmorcees(moi(['agency_admin']));
+    expect(lecture?.reponse).toEqual({ agency_id: 7, capabilities: ['invoices.create'] });
+    expect(lecture?.lueA).toBeGreaterThanOrEqual(avant);
+    expect(apiRequest).toHaveBeenCalledWith('/api/me/capabilities', { token: 'jeton', activeProfileId: 'agency_admin:12' });
+  });
+
+  it('ni un agent ni le super-admin : aucune lecture, rien à amorcer', async () => {
+    expect(await capacitesAmorcees(moi(['agent', 'customer']))).toBeNull();
+    expect(await capacitesAmorcees(moi(['super_admin']))).toBeNull();
+    expect(apiRequest).not.toHaveBeenCalled();
+  });
+
+  it('un refus ou une panne : rien à amorcer', async () => {
+    apiRequest.mockRejectedValueOnce(new ApiError(403, null));
+    expect(await capacitesAmorcees(moi(['agency_admin']))).toBeNull();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    apiRequest.mockRejectedValueOnce(new ApiError(500, null));
+    expect(await capacitesAmorcees(moi(['agency_admin']))).toBeNull();
+  });
+
+  it('les capacités de la garde restent celles de la même réponse', async () => {
+    capacites(['agency.update_billing', 'agency.update_kyc', 'team.assign_role']);
+    expect((await accesAdmin(moi(['agency_admin']))).chemins).toContain('/app/agency/billing');
   });
 });
