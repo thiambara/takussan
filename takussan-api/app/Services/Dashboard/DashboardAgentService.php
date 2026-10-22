@@ -10,6 +10,7 @@ use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\TaskStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
@@ -50,9 +51,13 @@ class DashboardAgentService
         $monthEnd = now()->endOfMonth();
         $agency = $scope === self::SCOPE_AGENCY && $agencyId !== null;
 
-        $managedPropertyIds = $this->propertyScope($agent, $scope, $agencyId)->pluck('properties.id');
+        $managed = $this->propertyScope($agent, $scope, $agencyId)->toBase()->get(['properties.id', 'properties.status']);
+        $managedPropertyIds = $managed->pluck('id');
 
-        $propertiesManaged = $managedPropertyIds->count();
+        // P127.04 (TCK-1359) — les biens gérés sont ceux du portefeuille : un bien archivé ou vendu
+        // n'en est plus. Les autres lectures du périmètre (réservations…) gardent tous les biens.
+        $outOfPortfolio = array_map(static fn (PropertyStatus $s): string => $s->value, Property::OUT_OF_PORTFOLIO_STATUSES);
+        $propertiesManaged = $managed->whereNotIn('status', $outOfPortfolio)->count();
 
         $pipelineScope = Customer::query();
         if ($agency) {

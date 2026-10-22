@@ -205,6 +205,14 @@ class Property extends AbstractModel implements HasMedia
      *
      * @var array<string,string>
      */
+    /**
+     * P127.04 (TCK-1359) — les statuts d'un bien SORTI du portefeuille : le « portefeuille » du
+     * bailleur et les « biens gérés » de l'agent comptent tout le reste, `draft`, `pending_review`
+     * et `rejected` compris (décision du porteur, 2026-10-22). Plus large que l'exclusion de
+     * l'occupation (`PortfolioMetrics::EXCLUDED_PROPERTY_STATUSES`), qui retire aussi les brouillons.
+     */
+    public const OUT_OF_PORTFOLIO_STATUSES = [PropertyStatus::Archived, PropertyStatus::Sold];
+
     public const TYPE_SEARCH_ALIASES = [
         // TCK-506 — alias enrichis APRÈS mesure de collision de corpus (la
         // règle de TCK-339), relevé dans docs/plans/2026-09-02-tck-506-…md :
