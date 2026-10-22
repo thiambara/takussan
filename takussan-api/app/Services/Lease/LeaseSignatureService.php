@@ -16,6 +16,7 @@ use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * TCK-596 §4B (ADR-0042) — la signature d'un bail.
@@ -136,9 +137,19 @@ class LeaseSignatureService
             (int) (LeaseSignatureOtpService::CODE_TTL_SECONDS / 60),
             $channel,
         );
-        $user->notify($notification);
+        // TCK-1337 (P123.06) — la fenêtre de renvoi ne compte qu'après un envoi réussi.
+        try {
+            $user->notify($notification);
+        } catch (Throwable $e) {
+            $this->otp->releaseResend($lease, $user, $role);
+
+            throw $e;
+        }
         // TCK-799 (P11.05) — un code qui n'est pas parti ne se dit pas envoyé.
-        abort_code_if($notification->smsLeft() === false, 503, 'lease_signature.sms_not_sent');
+        if ($notification->smsLeft() === false) {
+            $this->otp->releaseResend($lease, $user, $role);
+            abort_code(503, 'lease_signature.sms_not_sent');
+        }
 
         return ['channel' => $channel, 'destination' => $destination];
     }
