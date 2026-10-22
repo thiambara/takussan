@@ -13672,7 +13672,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le téléphone de la feuille de profil minimal est refusé au format même que montre son exemple, avec un message générique
 - Réf : P145.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/customer/CustomerMinimalProfileSheet.tsx:86-88,126-132`, `takussan-web/src/components/customer/MinimalProfileTriggerProvider.tsx:124-136`, `takussan-web/src/messages/fr.json` (`customer.minimalProfile.phonePlaceholder`), `takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php:42,66`
 - Constat :
@@ -13682,10 +13682,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Un client dont le téléphone est déjà vérifié serait refusé en 403 par `PhoneChangeGuard` (la feuille n'envoie ni `current_password` ni code) : sous-agent, à vérifier.
   - Établi comment : lu ; le 422 n'a pas été provoqué.
 - Piste : normaliser le numéro avant l'envoi (retirer les espaces, comme les autres champs téléphone du front s'ils le font) ou dans `prepareForValidation`, et rendre le message de validation du champ au lieu d'un échec générique. Garde : un test qui envoie `+221 77 000 00 00` et attend l'enregistrement, et un test du relais sur un 422.
+- Mesure (2026-10-22, ccdde535d, mesureur) : relu `CustomerMinimalProfileSheet.tsx:86-88` (`phone.trim()` envoyé tel quel), `MinimalProfileTriggerProvider.tsx:124-136` (tout non-`ok` → `Error('save_failed')`), `UpdateMeRequest.php:42` (regex E.164 sans espace, aucun `prepareForValidation` propre) ; test temporaire retiré (`PATCH /api/me`, charge 1,63 sur 8 cœurs) → `+221 77 000 00 00` et `77 123 45 67` rendent 422 `phone_e164`, `+221770000000` rend 200 ; le 403 d'un numéro déjà vérifié est déjà épinglé par `PhoneChangeProofTest::test_les_trois_ecrivains_refusent_sans_preuve` (`patchJson('/api/me')` → 403), il tient mais la `Piste` n'y touche pas ; `normalizePhoneInput` (`src/lib/phone.ts:29`) existe et sert déjà le champ du profil (`ProfileContactSection.tsx:301`). Classement : A1, l'exemple affiché et le contrat E.164 de l'API écrivent l'attendu : normaliser par `normalizePhoneInput` avant l'envoi et rendre sur un 422 `phone` une clé existante (`phoneFormatError` ou `phoneInvalid`), sans texte neuf ni toucher à la preuve de `PhoneChangeGuard`.
 
 ### Le motif d'un signalement d'avis n'est contrôlé contre aucune liste, à l'inverse de celui d'une annonce
 - Réf : P145.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/reports/ReviewReportButton.tsx:10-18`, `takussan-api/app/Http/Requests/Public/ReportPublicReviewRequest.php:25`, `takussan-api/app/Http/Requests/Public/ReportPublicPropertyRequest.php:26`, `takussan-api/app/Services/Review/ReviewReportService.php:52-56`
 - Constat :
@@ -13694,10 +13695,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Le service range le motif tel quel dans `metadata.reports` (sous-agent, `ReviewReportService.php:52-56`, à vérifier) : un appel direct y écrit un texte libre que la modération ne sait ni traduire ni compter.
   - Établi comment : lu pour les deux règles et la liste du front.
 - Piste : `Rule::in` sur les sept codes du front, partagés par une constante de l'API. Garde : un test qui envoie un motif hors liste et attend 422.
+- Mesure (2026-10-22, ccdde535d, mesureur) : relu `ReviewReportButton.tsx:10-18` (7 codes), `ReportPublicReviewRequest.php:25` (`string max:500`), `ReportPublicPropertyRequest.php:26` (`Rule::in`), `ReviewReportService.php:52-56` (motif rangé tel quel) ; test temporaire retiré → `POST /api/public/reviews/{id}/report` avec un texte libre rend 200 et `metadata.reports[0].reason` vaut ce texte (le « à vérifier » tient) ; seul appelant du front : `submitReviewReport` (route publique) ; la route authentifiée `reviews/{review}/report` (`ReportReviewRequest.php:31`) accepte aussi du texte libre et ses tests en envoient (`ReviewReportAndDocSearchTest`), `ModerationDetail.tsx:221` affiche le motif brut ; `ReviewAggregateTest.php:57` envoie `'Faux'` à la route publique et sera à adapter. Classement : A1, le contrat de l'unique appelant (les 7 codes de TCK-597) fixe l'attendu : `Rule::in` sur ces codes par une constante de l'API, sur la route publique seule.
 
 ### Petites améliorations : bornes du front plus étroites ou absentes face aux règles de l'API
 - Réf : P145.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : plafond des voyageurs, 20 ou 50, au choix du porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx:232,238-244,382-388`, `takussan-api/app/Http/Requests/Public/BookingRequestPublicPropertyRequest.php:26,31-32`, `takussan-web/src/components/public/AnonymousLeadDialog.tsx:100`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:260-275`, `takussan-web/src/app/(dashboard)/app/overview/kpis/KpiConfigList.tsx`
 - Constat :
@@ -13705,6 +13707,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Voyageurs d'une réservation : le champ plafonne à 20 (lu, `max={20}`, `:232`), l'API accepte jusqu'à 50 (lu, `'max:50'`, `:31`).
   - Sans `maxLength` au front, l'utilisateur ne découvre la borne qu'au 422 : message de réservation et d'offre (1000), message de contact sans compte (2000), nom du visiteur (120), libellé d'un indicateur (120). Commentaire de retour de visite de même (2000, `VisitFeedbackForm.tsx:89-96`). Sous-agent, à vérifier ligne par ligne.
 - Piste : aligner la borne de l'année sur celle de l'API (`max` calculé), celle des voyageurs sur celle de l'API (ou l'inverse, choix de produit) et poser les `maxLength` sur les règles existantes.
+- Mesure (2026-10-22, ccdde535d, mesureur) : relu chaque borne → année : `schemas/property.ts:207` `.max(2100)` contre `date('Y') + 3` (`Api/StorePropertyRequest.php:76`, `UpdatePropertyRequest.php:66`, ce dernier hors de `Api/`) ; voyageurs : `max={20}` (`PropertyReservationDialog.tsx:232`) contre `max:50` (`BookingRequestPublicPropertyRequest.php:31`) ; sans `maxLength` : les deux `Textarea` de message de réservation et d'offre (`PropertyReservationDialog.tsx:239-244,383-388`, API `max:1000`), le message d'`AnonymousLeadDialog.tsx:205` (API `ContactLeadPublicRequest.php:53`, `max:2000`), le nom du visiteur (`PropertyVisitDialog.tsx:263`, API `VisitRequestPublicPropertyRequest.php:47`, `max:120` ; les notes portent déjà `maxLength={1000}`, `:372`), le libellé d'un indicateur (`KpiConfigList.tsx:109`, API `StoreKpiConfigRequest.php:51`, `max:120`) et le commentaire de retour de visite (`VisitFeedbackForm.tsx:89`, API `FeedbackPropertyVisitRequest.php:38`, `max:2000`) → tous les écarts tiennent ; rien d'exécuté. Classement : V7, la `Piste` laisse au porteur le sens de l'alignement des voyageurs (« ou l'inverse ») ; l'année et les `maxLength` relèveraient seuls de A1.
 
 ## Angle 146 — Unions de statut et options de filtre du front face aux enums de l'API
 
