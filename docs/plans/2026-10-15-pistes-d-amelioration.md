@@ -186,7 +186,7 @@ voie d'écriture (angle 13, puis 47).
 | 110 | Rapprochement bancaire (`bank_reconciled_at`, `bank_statement_line_id`, `Accounting\ReconciliationManager`) d'une échéance, d'un acompte ou d'une facture passés à `refunded` après rapprochement : la ligne de relevé reste-t-elle rapprochée, et le remboursement sortant a-t-il un pendant | fait |
 | 111 | Jobs en file qui posent un statut de suivi (`processing`, `queued`) sur une ligne (`ReportExport`, `DataExport`, `ParseBankStatementJob`, versements) sans `failed()` — 7 jobs sur 43 en ont un : ce que voit l'utilisateur après l'échec définitif ou un arrêt brutal du worker, et ce qui bloque une nouvelle demande | fait |
 | 112 | Exports synchrones de `ExportController` (`GET /api/exports/{entity}`, jusqu'à 10 000 lignes, 2 000 en PDF) et de `PrivacyRequestController` : requêtes par ligne des constructeurs d'entité, mémoire et durée dans la requête HTTP — le relevé de l'angle 78 sur les exports qui ne passent pas par un job | fait |
-| 113 | Appels du navigateur vers l'API sans délai (`useApiQuery`, `apiRequest` client, mutations TanStack, `fetch` direct des composants) : bouton `isPending` figé et requête jamais abandonnée sur un réseau mobile qui ne coupe pas — le pendant client de l'angle 79 | à faire |
+| 113 | Appels du navigateur vers l'API sans délai (`useApiQuery`, `apiRequest` client, mutations TanStack, `fetch` direct des composants) : bouton `isPending` figé et requête jamais abandonnée sur un réseau mobile qui ne coupe pas — le pendant client de l'angle 79 | fait |
 | 114 | Champs écartés par `validated()` sur les modules `src/lib/queries/*.ts` de l à z et les server actions `src/app/actions/*.ts` : la moitié de l'angle 80 laissée sans relevé | à faire |
 | 115 | Statuts d'enum qu'aucun chemin de `app/` n'écrit et que seuls les seeders posent (`LeaseStatus::Expired`, les autres enums de statut de `app/Models/Enums`) : gardes, filtres, tableaux de bord et écrans du front qui attendent un état que la production n'atteindra jamais | à faire |
 | 116 | Gestes d'agence jugés par le type de profil (`isAgencyAdminAt`, `isAgentAt` : une quarantaine d'appels dans `app/Http` et `app/Services`) au lieu d'une capacité (`canActAt`) : admin à qui un rôle personnalisé retire la capacité, membre à qui il la donne — le relevé de P82.04 et P82.05 sur le reste de l'API | à faire |
@@ -218,6 +218,7 @@ voie d'écriture (angle 13, puis 47).
 | 141 | Encaissements soldés par une intégration de la plateforme (`PlatformPayoutService::isSettledByPlatform`) face au relevé de l'agence : proposés un à un par `ReconciliationMatcher` à un crédit qui ne les porte pas, et virement de clôture `PlatformPayout` qu'aucun candidat (`ALLOWED_PAYMENT_TYPES`, `fetchCandidates`) ne représente | à faire |
 | 142 | Notifications, Mailables et écouteurs en file (`ShouldQueue`, une quarantaine hors de `CodedNotification` : `TenantWelcomeNotification`, `ResetPasswordNotification`, `ActivityLogExportReadyNotification`, écouteurs `Lease\*` et `Accounting\*`) sans `backoff` ni `failed()` face au `--tries=3` sans délai des workers : ce qu'une panne du fournisseur de quelques secondes fait perdre, et la trace laissée — le relevé de P11.10 hors des notifications codées | à faire |
 | 143 | PDF à lignes variables rendus par dompdf pendant la requête HTTP (`DocumentPdfService` : relevé de gérance `pdf/statements/owner`, état des lieux `pdf/inventories/report` et ses photos en URI `data:`, factures et devis à nombreuses lignes) : mémoire et durée face à `memory_limit = 256M` et `max_execution_time = 60` — le relevé de P112.01 hors de l'export générique | à faire |
+| 144 | Écritures du navigateur qu'une réponse perdue invite à rejouer (envoi de message, création de réservation, de demande de maintenance, de facture, initiation de paiement : `POST` sans clé d'idempotence, hors les seuls boosts) : bouton réactivé après une erreur réseau ou un délai, doublon créé côté API — le pendant, hors des achats de crédits, des angles 4 et 24 | à faire |
 
 ---
 
@@ -10974,3 +10975,83 @@ passe par un job (angle 78).*
   - Établi comment : lu, et mesuré pour le CSV.
 - Piste : poser un délai sur le `fetch` du relais aligné sur `max_execution_time` ; diffuser le CSV depuis un curseur. Garde : un test du relais qui vérifie qu'un `signal` est passé.
 - Mesure (2026-10-22, b69261b77, mesureur) : relu `takussan-web/src/app/api/export/[entity]/route.ts:46-48` (`fetch` sans `signal`, tient sur l'arbre) ; la PR #972 ouverte (P79.04, TCK-1219) borne ce relais à 90 s, non fusionnée ; relu `ExportDataService::deposits()` (agrégat de tous les baux, `limit` sur les baux seuls, tient) et `ExportController` (`row_count = count($payload['rows'])` avant `respond()`) ; CSV 5 001 lignes sous 256M → 30 Mo de surcroît (test temporaire, retiré). Classement : V6, le CSV en curseur change le contrat de tableau partagé par les neuf constructeurs, les trois écrivains et le compte du journal, et le délai du relais se décide avec #972.
+
+## Angle 113 — Appels du navigateur vers l'API sans délai
+
+*Exploré le 2026-10-22 sur `pre-dev` b69261b77, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : `src/lib/api.ts` (`apiRequest`, `messageErreurApi`),
+`src/hooks/useApiQuery.ts`, `src/lib/query-client.ts`, `src/context/AuthContext.tsx`,
+`src/app/api/auth/logout/route.ts`, `UserMenu.tsx`, `Navbar.tsx`, `PaymentProviderPicker.tsx`,
+`useInitiatePayment.ts`, `PaymentReturnClient.tsx`, `ChatView.tsx`, `ChatComposerShell.tsx`,
+`lib/queries/conversations.ts`, `KycUploader.tsx`, `useTelechargementApi.ts`, et dans
+`@tanstack/query-core` 5.101.4 `query.js` et `queryObserver.js`. Mesures sur le poste, charge
+4,93 / 4,74 / 4,63 sur 8 cœurs : Google Chrome 156.0.8078.47 en `--headless=new` contre un serveur
+Node local qui accepte la requête et ne répond jamais ; trois tests vitest temporaires, retirés.
+Non mesuré : un réseau mobile réel, Safari et Firefox, un rendu de l'application dans le
+navigateur, la préproduction. Les `fetch` directs d'`OwnerStatementPanel`, `InventoryPdfButton`,
+`QuoteActions`, `AuditTrail` et `WizardDraftsBanner` n'ont été vus que par `grep`. Le pendant
+serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici ne le reprend.*
+
+### Aucun appel du navigateur vers l'API ne porte de délai, et Chrome n'en applique aucun : un bouton `isPending` reste figé tant que la page vit
+- Réf : P113.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/api.ts:736-743`, `takussan-web/src/hooks/useApiQuery.ts:31,61-69,93,143-157`, `takussan-web/src/components/payments/PaymentProviderPicker.tsx:104-131,213-220`, `takussan-web/src/components/messages/ChatView.tsx:107,368`, `takussan-web/src/components/kyc/KycUploader.tsx:110-142`, `takussan-web/src/hooks/useTelechargementApi.ts:42-75`
+- Constat :
+  - `apiRequest` ne passe à `fetch` que le `signal` de l'appelant (lu, `api.ts:742`). `useApiQuery` lui passe le `signal` de TanStack, qui ne s'abandonne qu'au démontage ou à l'annulation de la requête, jamais au bout d'un temps (lu, `useApiQuery.ts:61-69`). `useApiMutation` n'en passe aucun, et ses options l'excluent (`Omit<…, 'signal'>`, lu, `:93,149-156`) ; TanStack ne fournit pas de `signal` aux mutations.
+  - Mesuré, `grep` sur `src/` hors tests : 117 appels de `useApiMutation` et 102 de `useMutation`, dans 83 fichiers, sans aucun délai ; 39 `fetch` directs dans 23 fichiers `'use client'`, dont 2 seulement portent un `signal` (ceux d'`AuthContext`, abandonnés au démontage) ; `grep -rn AbortSignal.timeout src` → la seule sonde `api/sante`, côté serveur.
+  - Mesuré : Chrome 156 en `--headless=new`, page qui lance un `GET` et un `POST` `fetch` vers un serveur local qui les accepte sans répondre → aucune des deux promesses ne s'est résolue ni rejetée en **12 min** (de 01:28:58 à 01:41:11), et le serveur n'a vu aucune fermeture de connexion. Le navigateur ne borne donc pas l'attente lui-même. Un réseau mobile qui coupe la connexion produit un `TypeError` ; c'est celui qui ne coupe rien (antenne saturée, proxy qui retient) qui laisse l'attente ouverte (déduit).
+  - Effet à l'écran, lu : le dialogue de paiement désactive « Annuler » et « Confirmer » pendant `initiate.isPending` et affiche « Redirection… » (`PaymentProviderPicker.tsx:213-220`) ; l'envoi d'un message est bloqué par `sendDisabled={sendMessage.isPending}` (`ChatView.tsx:368`, `ChatComposerShell.tsx:54`) ; le téléversement KYC tient sa transition (`KycUploader.tsx:110`), et `useTelechargementApi` son `enCours` (`:43,71`), jusqu'à la réponse. Tous ont un `catch` correct, qu'une attente sans fin n'atteint jamais.
+  - Établi comment : lu, `grep`, une mesure dans Chrome.
+- Piste : un délai par défaut dans `apiRequest` côté navigateur (`AbortSignal.any([signal de l'appelant, AbortSignal.timeout(N)])`), avec une option par appel pour les téléversements et les PDF longs (P112.01 a mesuré un PDF à 198 s) ; adopter la même borne dans les `fetch` directs, ou les faire passer par `apiRequest`. Le délai doit être classé comme une panne réseau à l'écran (voir P113.04). Garde : un test vitest d'`apiRequest` avec un `fetch` qui ne se résout jamais, qui exige un rejet sous la borne, et un test de `useApiMutation` qui exige `isPending` faux ensuite.
+
+### Une seule requête qui ne répond pas arrête pour de bon les interrogations périodiques : fil de messages, cloche, vérification d'un paiement
+- Réf : P113.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/node_modules/@tanstack/query-core/build/modern/queryObserver.js:214-218`, `…/query.js:139-148,183-193`, `takussan-web/src/lib/queries/conversations.ts:198-212`, `takussan-web/src/components/layout/NotificationBell.tsx:57-64`, `takussan-web/src/app/(dashboard)/app/payments/return/PaymentReturnClient.tsx:14-15,65-88`
+- Constat :
+  - À chaque tic de `refetchInterval`, TanStack appelle `#executeFetch()` sans `cancelRefetch` (lu, `queryObserver.js:214-218`) ; `Query.fetch` rend alors la promesse en cours au lieu d'en lancer une neuve (lu, `query.js:188-193`). Le retour sur l'onglet et la reconnexion font de même, `cancelRefetch: false` (lu, `query.js:141,146`).
+  - Mesuré, test vitest temporaire (retiré) sur `QueryObserver`, `refetchInterval: 50`, pendant 600 ms : une `queryFn` qui ne se résout jamais → **1** appel ; une première réponse puis une `queryFn` figée → **2** appels, `fetchStatus` resté `fetching`. Sans délai côté navigateur (P113.01), une requête figée suspend l'interrogation jusqu'au démontage du composant.
+  - Lecteurs concernés (mesuré, `grep -rn refetchInterval src`) : 16 sites, dont le fil de messages toutes les 3 s (`conversations.ts:210`, `useApiQuery` : il se rétablit au démontage seulement, l'`enabled: isVisible` de `ChatView.tsx:104` ne relance rien tant que la requête est en vol, lu), la cloche toutes les 30 s (`NotificationBell.tsx:64`), les files de la console, et la vérification du retour de paiement toutes les 15 s.
+  - Retour de paiement : le budget de 2 min est un minuteur indépendant (lu, `PaymentReturnClient.tsx:15,79-88`) ; une vérification figée à la première seconde laisse l'écran « en vérification » puis rend le budget épuisé sans qu'aucune autre vérification soit partie, même si le webhook a soldé le paiement entre-temps (déduit du test ci-dessus, non rejoué sur la page).
+  - Établi comment : lu, et un test temporaire contre `@tanstack/query-core`.
+- Piste : la borne de P113.01 suffit à relancer l'interrogation, la requête figée passant en erreur ; à défaut, `queryFn` des requêtes interrogées bornée par `AbortSignal.timeout` sous l'intervalle. Garde : un test de `useNewMessagesPolling` (ou du retour de paiement) où le premier appel ne répond jamais, qui exige un second appel au tic suivant la borne.
+
+### Une mutation lancée hors ligne reste en attente sans le dire, puis part seule à la reconnexion, minutes plus tard — initiation de paiement comprise
+- Réf : P113.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/query-client.ts:14-31`, `takussan-web/src/components/payments/PaymentProviderPicker.tsx:104-118,213-220`, `takussan-web/src/hooks/useInitiatePayment.ts:72-83`
+- Constat :
+  - `createQueryClient` ne pose pas de `networkMode` : TanStack applique `online` (lu, `query-client.ts:14-31`).
+  - Mesuré, test vitest temporaire (retiré) avec le `createQueryClient()` du dépôt : `onlineManager.setOnline(false)`, `mutate()` → 0 appel, `isPending` vrai, `isPaused` vrai ; `setOnline(true)` → la mutation part (1 appel) et réussit.
+  - Rien ne lit `isPaused`, `networkMode`, `onlineManager` ni `navigator.onLine` (mesuré, `grep` sur `src/` → rien) : à l'écran, la mutation suspendue ressemble à une requête lente — dans le dialogue de paiement, « Redirection… » et les deux boutons désactivés (lu, `:213-220`).
+  - Au retour du réseau, `handleConfirm` reprend après `mutateAsync` et fait `window.location.href = checkout_url` (lu, `:108-118`) : l'utilisateur est envoyé chez le fournisseur au moment où le téléphone retrouve le réseau, peut-être bien après avoir renoncé ; si le composant est démonté entre-temps, la mutation reste dans le cache et repart à la reconnexion (comportement de `resumePausedMutations`, non mesuré avec démontage).
+  - Établi comment : lu, et un test temporaire.
+- Piste : choisir le comportement hors ligne des mutations — `networkMode: 'always'` (la requête part et échoue tout de suite en erreur réseau, P113.04), ou un état « hors ligne » lu par `isPaused` et un abandon de la mutation à la fermeture du dialogue. Garde : un test de `PaymentProviderPicker` hors ligne.
+
+### Un délai posé tel quel s'afficherait en anglais brut : `messageErreurApi` ne reconnaît que le `TypeError` comme panne réseau
+- Réf : P113.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/lib/api.ts:545-557`, `takussan-web/src/lib/query-client.ts:20-25`
+- Constat :
+  - `messageErreurApi` rend le libellé `errors.api.network` pour le seul `name === 'TypeError'`, puis laisse passer tel quel le `message` de tout autre `Error` qui n'a pas une forme technique connue (lu, `:546-554`).
+  - Mesuré, test vitest temporaire (retiré) : la raison d'un `AbortSignal.timeout(1)` → « The operation was aborted due to timeout » rendu à l'écran ; un `TypeError` → la clé `errors.api.network`. Dans Chrome, la raison est une `DOMException` `TimeoutError` de message « signal timed out » (documentation, à vérifier dans le navigateur ; sous jsdom, la `DOMException` n'est pas un `Error` et tombe sur le repli).
+  - Le réessai par défaut des requêtes (une fois hors 4xx, lu, `query-client.ts:20-25`) doublerait l'attente d'une lecture bornée (déduit).
+  - C'est le pendant navigateur de P79.05 (fait, TCK-1090), qui a réglé la même chose pour les gardes serveur.
+  - Établi comment : lu, et un test temporaire.
+- Piste : reconnaître `TimeoutError` dans `messageErreurApi` (même libellé réseau ou un libellé « délai dépassé »), dans le même ticket que P113.01. Garde : un cas de test avec la raison réelle d'`AbortSignal.timeout`.
+
+### La déconnexion attend la réponse de l'API sans borne : le menu ne ferme pas la session tant que l'API ne répond pas
+- Réf : P113.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/context/AuthContext.tsx:257-269`, `takussan-web/src/app/api/auth/logout/route.ts:13-27`, `takussan-web/src/components/layout/UserMenu.tsx:94-104`, `takussan-web/src/components/home/Navbar.tsx:312-317`
+- Constat :
+  - `logout()` fait `await fetch('/api/auth/logout')` sans délai, puis seulement vide le cache, le jeton et l'utilisateur (lu, `AuthContext.tsx:257-269`). Le `catch` couvre l'échec réseau, pas l'attente.
+  - Le relais attend l'API avant d'effacer les cookies : `fetch` d'`impersonate/stop` sans délai, puis `logout(token)` par `apiRequest` (lu, `logout/route.ts:13-27`) ; c'est le chemin de P79.01, dont la borne serveur est en cours (PR #972) — d'ici là jusqu'aux 300 s d'undici.
+  - `UserMenu` et `Navbar` n'appellent `router.replace('/')` qu'après la fin de `logout()` (lu) : sur une API figée, « Se déconnecter » ne produit rien de visible, et la session reste ouverte dans l'onglet comme dans les cookies — sur un téléphone prêté ou partagé, l'utilisateur part en croyant s'être déconnecté (déduit).
+  - Établi comment : lu.
+- Piste : effacer l'état local et les cookies sans attendre la révocation côté API (le relais rend sa réponse puis révoque, ou le client borne son attente à quelques secondes et efface quand même) ; garde : un test d'`AuthProvider` dont le `fetch` de déconnexion ne répond jamais, qui exige `user` à `null` sous la borne.
