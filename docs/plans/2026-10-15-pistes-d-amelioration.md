@@ -11796,7 +11796,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Un repreneur déjà lecteur, gestionnaire ou co-propriétaire du bien fait disparaître la collaboration d'agent du partant, que la réponse compte « déplacée »
 - Réf : P121.02
-- Statut : validé — porteur (2026-10-22) : la ligne du repreneur passe en `agent` comme dans `ResponsibleAgentAssigner`, `co_owner` rangé en `unassigned` ; la `commission_share` du partant est reportée au repreneur
+- Statut : fait · TCK-1331
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Agency/AgentHandoverService.php:237-251`, `takussan-api/app/Services/Property/ResponsibleAgentAssigner.php:68-86`
 - Constat :
@@ -11807,6 +11807,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lu, puis mesuré.
 - Piste : quand `$taken` et que la ligne du repreneur n'est pas `agent`, la passer en `agent` comme le fait `ResponsibleAgentAssigner` (`viewer`, `manager`), et ranger en `unassigned` le cas `co_owner` au lieu de le compter déplacé. Le sort de `commission_share` (reportée, additionnée ou perdue) est un choix à écrire. Test : repreneur `viewer` → sa ligne devient `agent` ; repreneur `co_owner` → `unassigned.collaborations` porte la ligne.
 - Mesure (2026-10-22, a988d3f51, mesureur) : relu `AgentHandoverService.php:237-251` et `ResponsibleAgentAssigner.php:68-86`, inchangés ; test temporaire retiré : bien d'un bailleur, principal un autre membre, partant `agent` non marqué avec `commission_share` 30, repreneur `viewer` ; passation `successor_id` → 200, `moved.collaborations = 1`, `unassigned = []`, lignes ensuite `{repreneur, viewer, commission_share null}` et `{autre, agent, principal}`, la ligne du partant et sa part ont disparu → le constat tient ; le cas `co_owner` reste lu seulement. Classement : V1, la Piste elle-même laisse à écrire le sort de `commission_share` (reportée, additionnée ou perdue), et la promotion du repreneur en `agent` change qui touche une commission.
+- Mesure (2026-10-22, 4382e9f60, implementeur) : deux tests neufs de `AgentHandoverPropertiesTest`, rouges avant correctif : repreneur `viewer` d'un bien où le partant est `agent` non marqué à 30 → la ligne du repreneur restait `viewer` ; repreneur `co_owner` → `moved.collaborations = 2`, rien en `unassigned` → `AgentHandoverService::takeOverCollaboration()` promeut la ligne du repreneur en `agent`, lui reporte la `commission_share` du partant, et range le cas `co_owner` en `unassigned.collaborations` ; vert ; trois ablations (promotion, report, branche `co_owner`) → rouge chacune, remises → vert ; `AgentHandoverPropertiesTest` 12/12, `AgentHandoverTest` 11/11.
 
 ### Avec un repreneur par catégorie, un bien que le repreneur des biens n'a pas pu prendre reçoit pour agent principal celui des collaborations, et la réponse l'annonce « non attribué »
 - Réf : P121.03
