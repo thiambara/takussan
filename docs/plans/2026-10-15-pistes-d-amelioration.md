@@ -12179,7 +12179,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### `/dashboard/me` rend 0 % d'occupation au bailleur qui n'a aucun bien à occuper, là où `/dashboard/owner` rend `null`
 - Réf : P127.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/Adapters/OwnerMeMetrics.php:32`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:207-237`, `takussan-api/app/Services/Dashboard/KpiResolver.php:41`
 - Constat :
@@ -12189,10 +12189,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Aucun test n'assert cette clé sous `/dashboard/me` (lu, `DashboardMeTest.php` : `portfolio_total` seul pour le bailleur). Aucun écran du front ne la lit aujourd'hui (mesuré, `grep -rn occupancy_rate_percent takussan-web/src` → les listes de seuils d'alerte et de KPI d'agence seulement) : le défaut est dans le contrat de l'API.
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : `?? null` dans `OwnerMeMetrics`, comme `KpiResolver`. Un test `DashboardMeTest` qui exige `null` sans bien éligible et la même valeur que `/dashboard/owner` avec un bien loué.
+- Mesure (2026-10-22, 1f9dea9cd, mesureur) : relu `OwnerMeMetrics.php:32` (`?? 0.0`), `KpiResolver.php:41` (`?? null`), `PortfolioMetrics::longStayOccupancyToday` (`null` si `n = 0`) ; test temporaire retiré (bailleur sans bien, charge 2,62 / 2,27 / 2,21 sur 8 cœurs) → `/dashboard/me` `metrics.occupancy_rate_percent = 0`, `/dashboard/owner` `occupancy.rate_percent = null` ; TCK-1114 l'a laissé « Hors périmètre » (aucune tuile ne lit la clé), `grep` du front → seules les listes de KPI et d'alertes d'agence la nomment. Classement : A1, le contrat `null` sans bien éligible est écrit par TCK-1114 et tenu par `KpiResolver`, et aucun écran ne lit la clé du bailleur.
 
 ### La série mensuelle d'occupation rend 0 % pour les mois où le portefeuille n'avait aucun bien éligible
 - Réf : P127.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le graphique doit choisir comment tracer un mois sans bien
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:68-71,125-129`, `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:145`, `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:152`, `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:196`, `takussan-web/src/lib/queries/dashboard-agency.ts:43`
 - Constat :
@@ -12202,10 +12203,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Le graphique du bailleur trace ces valeurs telles quelles (lu, `overview/owner/page.tsx:196`, `ts.occupancy as number[]`), et le type de la série d'agence est `number[]` (lu, `dashboard-agency.ts:43`).
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : `null` sans capacité dans `longStayOccupancy`, `?? null` dans les deux tableaux de bord, types du front en `(number | null)[]` et graphique qui saute le point. Un test de valeur sur un mois antérieur à la création du premier bien.
+- Mesure (2026-10-22, 1f9dea9cd, mesureur) : relu `PortfolioMetrics::longStayOccupancy` (`capacity > 0 ? … : 0.0`, type `array<string, float>`), `DashboardOwnerService.php:145` et `DashboardAgencyService.php:152` (`?? 0.0`, à côté de `short_stay_occupancy` en `?? null`), `overview/owner/page.tsx:196` (`ts.occupancy as number[]`), `dashboard-agency.ts:43` (`occupancy: number[]`) ; test temporaire retiré (seul bien mensuel `available` créé ce jour) → `timeseries` `months = [2026-08, 2026-09, 2026-10]`, `occupancy = [0, 0, 0]`, `short_stay_occupancy = [null, null, null]` ; TCK-1114 l'a écartée (« Hors périmètre »). Classement : V7, l'API suit le contrat de TCK-1114, mais le rendu d'un trou dans les deux graphiques est un comportement visible neuf que rien n'écrit.
 
 ### « Interventions ouvertes » ne compte que `open` et `in_progress`, et oublie sept états non terminaux
 - Réf : P127.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ce que compte « ouvert », `completed` compris
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:176-178`, `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:74-77`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:105-108`, `takussan-api/app/Services/Maintenance/MaintenanceStateMachine.php:67`, `takussan-api/app/Models/Enums/MaintenanceStatus.php:7-19`
 - Constat :
@@ -12215,10 +12217,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Une demande que l'agence a prise en compte (`acknowledged`) ou confiée à un prestataire (`assigned`) sort donc du compteur du locataire (« interventions ouvertes », `docs/features.md:593`) au moment même où elle avance. Pour le locataire et l'agence : lu, même clause ; seul le tableau de l'agent est mesuré.
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : un seul prédicat, « non terminal » au sens de `MaintenanceStateMachine::TERMINAL` (scope `MaintenanceRequest::open()`, ou méthode de la machine), lu par les trois tableaux de bord. Ce qu'on fait de `completed` (en attente de clôture par le demandeur) est un choix à écrire. Un test par tableau de bord avec une demande `assigned`.
+- Mesure (2026-10-22, 1f9dea9cd, mesureur) : relu `MaintenanceStateMachine::TERMINAL = ['closed', 'cancelled']`, les douze cas de `MaintenanceStatus`, et `whereIn('status', [Open, InProgress])` dans `DashboardAgentService` (interventions de l'agent), `DashboardAgencyService.php:76`, `DashboardTenantService.php:107` ; test temporaire retiré (six interventions de l'agent en `open`, `acknowledged`, `assigned`, `awaiting_owner`, `quote_submitted`, `in_progress`) → `/dashboard/agent` `maintenance.open = 2`, `/dashboard/me` `maintenance_open = 2`. Classement : V7, la piste laisse ouvert le sort de `completed`, et le compteur nourrit aussi les alertes de seuil d'agence (`KpiResolver.php:35`).
 
 ### Le « portefeuille » du bailleur et les « biens gérés » de l'agent comptent les biens archivés, vendus et en brouillon
 - Réf : P127.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : définir ce que compte un portefeuille
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:37-43`, `takussan-api/app/Services/Dashboard/Adapters/OwnerMeMetrics.php:23`, `takussan-api/app/Services/Dashboard/DashboardAgentService.php:53-55,275-288`, `takussan-web/src/components/dashboard/DashboardMeKpis.tsx:74,91`
 - Constat :
@@ -12228,10 +12231,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Ce qu'un « portefeuille » doit compter (un bien vendu, un brouillon) n'est écrit nulle part (à vérifier dans `docs/features.md`).
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : décider de la définition, puis l'écrire dans `docs/features.md` et l'appliquer aux deux compteurs (par exemple hors `archived` et `sold`). Un test de valeur avec un bien de chaque statut.
+- Mesure (2026-10-22, 1f9dea9cd, mesureur) : relu `DashboardOwnerService.php:37-43` (`COUNT(*)` sans statut) et `DashboardAgentService::propertyScope` (aucun filtre de statut) ; test temporaire retiré (bailleur avec un bien `archived`, `sold`, `draft`, `available`) → `portfolio = {total: 4, rented: 0, available: 1}`, `/dashboard/me` `portfolio_total = 4` ; `grep -n -i portefeuille docs/features.md` → l. 69, 432, 587, aucune définition des statuts comptés. Classement : V7, la définition n'est écrite nulle part et la piste la laisse à décider.
 
 ### Les tâches, visites et interventions du tableau de bord de l'agent ne sont pas bornées à l'agence active
 - Réf : P127.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : accueil de l'agent borné à l'agence active, ou transverse
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:83-86,103-178`, `takussan-api/app/Services/Reporting/TeamPerformanceService.php:104-110`
 - Constat :
@@ -12241,10 +12245,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Ce qu'un agent de deux agences doit voir est un choix (principe n° 2 du `CLAUDE.md` racine contre le docblock) : à vérifier auprès du porteur.
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : borner tâches, visites et interventions à l'agence active par leur parent (bien ou client), comme `TeamPerformanceService`, ou écrire dans le docblock et `docs/features.md` que l'accueil de l'agent est transverse. Un test avec un agent de deux agences.
+- Mesure (2026-10-22, 1f9dea9cd, mesureur) : relu `DashboardAgentService` : tâches (`assigned_to_id`), visites (`agent_id`) et interventions (`assigned_to`) sans `agency_id`, docblock « restent personnelles dans les deux périmètres », et la règle inverse de `TeamPerformanceService` ; test temporaire retiré (agent de l'agence A, tâche en retard sur un client de l'agence B) → `/dashboard/agent` `agency_id` = A, `tasks = {open: 1, overdue: 1}`, et l'élément porte le client de B. Classement : V7, le docblock écrit le choix inverse de `TeamPerformanceService`, et la piste propose deux voies.
 
 ### Petites améliorations : clés servies sans test de valeur, et chiffres de l'accueil formatés en français pour tous
 - Réf : P127.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/tests/Feature/Dashboard/DashboardAgentTest.php:79-124`, `takussan-api/tests/Feature/Dashboard/DashboardOwnerTest.php:41-84`, `takussan-api/tests/Feature/Dashboard/DashboardMeTest.php:65-121`, `takussan-web/src/components/dashboard/DashboardMeKpis.tsx:25,30,114-115,122`
 - Constat :
@@ -12254,3 +12259,4 @@ l'angle 160 : il n'est pas repris ici.*
   - Les tuiles de l'accueil formatent nombres, montants et dates avec la locale `'fr'` écrite en dur (lu, `DashboardMeKpis.tsx:25,30,114,115,122`), quelle que soit la langue de l'interface.
   - Établi comment : lu.
 - Piste : un test de valeur par clé sur un jeu aux valeurs non nulles et distinctes, pour `/dashboard/agent`, `/dashboard/owner` et les adaptateurs de `/dashboard/me` ; la locale de la requête dans `DashboardMeKpis`, comme `overview/owner/page.tsx:35-39` (`localeDeLaRequete`).
+- Mesure (2026-10-22, 1f9dea9cd, mesureur) : `grep` des assertions de `DashboardAgentTest`, `DashboardAgentScopeTest`, `DashboardAgentVisitsTest` → `tasks.open` par `assertGreaterThanOrEqual(1)` (l. 82), `maintenance.open` en structure seule (l. 74), ni `tasks.overdue` ni `commissions_year` en valeur ; `DashboardOwnerTest` → `rented`, `available`, `bookings.pending` en structure (l. 46-49), `expected_monthly` à 0 (l. 84) ; `DashboardMeTest` → pour l'agent, `role` et deux `assertArrayHasKey` (l. 72-74) ; `DashboardMeKpis.tsx:25,30,114,115,122` passent `'fr'` en dur. Les constats tiennent. Classement : A5 et A4, tests de valeur sans seuil et locale de l'interface au lieu de `'fr'`, sans texte neuf.
