@@ -13786,7 +13786,7 @@ générique est P112.01.*
 
 ### Signalements et avis rejoués, hors des lots d'ADR-0072
 - Réf : P144.09
-- Statut : à mesurer
+- Statut : caduc — les quatre routes sont déjà protégées contre le rejeu : dédoublonnage du signalement d'annonce (24 h) et d'avis (par compte ou empreinte), 422 sur un second avis, réponse écrite par mise à jour de l'avis
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/actions/property.ts:70-110,273-320` (`submitPropertyReport`, `submitReviewReport`, `submitReview`, `submitReviewReply`)
 - Constat :
@@ -13794,6 +13794,7 @@ générique est P112.01.*
   - Ce qu'un rejeu produit côté API (second signalement, second avis, seconde réponse, ou refus par une contrainte d'unicité) n'est pas mesuré.
   - Établi comment : lu ; décision du porteur du 2026-10-22 (ADR-0072).
 - Piste : mesurer, route par route, ce que rend un rejeu de la même requête. Une route qui crée un doublon entre dans un lot d'ADR-0072, avec la clé engendrée par le composant client ; une route déjà protégée par une contrainte d'unicité ou une règle métier est déclarée caduque pour ce motif.
+- Mesure (2026-10-22, e2e9f3f07, mesureur) : relu `property.ts` (les quatre actions visent `POST /api/public/properties/{slug}/report`, `/api/public/reviews/{review}/report`, `/api/properties/{property}/reviews`, `/api/reviews/{review}/reply`, routes confirmées par `route:list`) puis l'API : `PublicPropertyController::report` ne crée pas de ligne si le même visiteur (compte, sinon empreinte) a signalé le bien dans les 24 h, sous verrou du bien ; `ReviewReportService::report` (appelé par la route publique) ne compte pas deux fois le même compte ou la même empreinte, sous verrou de l'avis ; `ReviewController::storeForProperty` rend 422 `review.property_already_reviewed` à un second avis du même auteur, sous verrou du bien ; `ReviewController::reply` fait un `update` des colonnes `reply_content`/`replied_by_id`/`replied_at` de l'avis, sans nouvelle ligne ; lancé (charge 7,63 sur 8 cœurs) `PropertyReportTest::test_the_same_visitor_reporting_twice_within_a_day_creates_one_row`, `PublicReportTest::test_the_same_visitor_reporting_twice_counts_once` et `ReviewTest::test_duplicate_review_is_rejected` → 3 verts : un rejeu ne crée ni second signalement, ni second avis, ni seconde réponse. Classement : caduc, chaque route est déjà protégée par une règle métier, motif de caducité que prévoit la `Piste`.
 
 ## Angle 145 — Champs écartés par `validated()`, reste de l'angle 114
 
