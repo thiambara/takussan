@@ -35,7 +35,8 @@ const OU = 'pages-admin';
  * `GET /api/me/capabilities`, une fois par rendu.
  *
  * Trois issues, comme `resolveAgencyOrNull` : 401/403/404 sont une RÉPONSE (aucune capacité), une
- * autre panne n'en est pas une (`null` : « je ne sais pas »). `fetchMyCapabilities`
+ * autre panne n'en est pas une (`null` : « je ne sais pas »). `fetchMyCapabilities`, retiré par
+ * TCK-1376,
  * (`lib/queries/dashboard.ts`) ne convient pas ici : il avale tout en `[]` — une panne passerait pour
  * un refus — et n'envoie pas le hint de profil.
  */
@@ -114,6 +115,17 @@ export async function capacitesAmorcees(user: User): Promise<LectureDesCapacites
   const token = await getToken();
   if (!token) return null;
   return (await capacitesDuRendu(token, await getActiveProfileId()))?.lecture ?? null;
+}
+
+/**
+ * TCK-1376 (P138.07) — les capacités du profil actif, par la lecture de ce rendu (`capacitesDuRendu`,
+ * avec l'indice de profil) : la vue agent partage ainsi la lecture que `accesAdmin` fait déjà pour
+ * un `agency_admin`. `[]` sans jeton ou sur une réponse 401/403/404 ; `null` sur une panne.
+ */
+export async function capacitesDuProfilActif(): Promise<readonly string[] | null> {
+  const token = await getToken();
+  if (!token) return [];
+  return (await capacitesDuRendu(token, await getActiveProfileId()))?.capacites ?? null;
 }
 
 /** Les pages d'administration accessibles au profil actif — pour PEINDRE (section d'agence du menu, liens, carte du profil). */
