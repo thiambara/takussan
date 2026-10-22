@@ -11033,7 +11033,7 @@ passe par un job (angle 78).*
 
 ### L'export rend au plus 5 000 lignes (2 000 en PDF) sans le signaler : une période plus longue est coupée en silence
 - Réf : P112.03
-- Statut : validé — porteur (2026-10-22) : demander plafond + 1 lignes, signaler la coupure par un en-tête `X-Export-Truncated` lu par le relais et le formulaire, et dire le plafond à l'écran, sans ligne ajoutée au fichier
+- Statut : fait · TCK-1308
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Export/ExportDataService.php:38,53,488-494`, `takussan-api/app/Http/Controllers/Api/ExportController.php:82-95`, `takussan-api/app/Services/Export/ExportWriter.php:31-55`, `takussan-web/src/lib/queries/exports.ts:33-40`, `takussan-web/src/app/(dashboard)/app/overview/exports/ExportForm.tsx:71-86`
 - Constat :
@@ -11044,6 +11044,7 @@ passe par un job (angle 78).*
 - Piste : signaler la coupure (en-tête `X-Export-Truncated` lu par le relais et le formulaire, ou dernière ligne du fichier), et dire le plafond à l'écran ; ou demander une ligne de plus que le plafond pour savoir s'il y a coupure. Garde : un test qui exporte plafond + 1 lignes et attend le signal.
 - Mesure (2026-10-22, b69261b77, mesureur) : test temporaire (retiré), 5 001 paiements, `format=csv` sans `limit` → 200, 5 001 lignes de fichier (en-tête + 5 000), en-têtes de réponse `content-type`, `content-disposition`, `cache-control` seuls : la coupure n'est signalée nulle part ; `TCK-713-export-colonnes-et-plafond.md:66` la laisse « Hors périmètre ». Classement : V7, le signal à l'écran est un comportement visible et un texte métier neufs.
 - Mesure (2026-10-22, 174feef49, delegue) : relu l'entrée, `ExportDataService.php:38,488-494` (`DEFAULT_ROWS = 5 000`, 2 000 en PDF), `ExportForm.tsx:75-80` (aucune `limit` envoyée) et TCK-713 l. 66 (« Hors périmètre ») ; `grep -n "porteur ("` de l'angle 112 → aucune décision ; la recommandation de P112.01 (même passage du délégué, a8174784f) renvoie à cette coupure. Recommandation : demander plafond + 1 lignes pour savoir s'il y a coupure, la signaler par un en-tête `X-Export-Truncated` lu par le relais et le formulaire, et dire le plafond à l'écran, sans ligne ajoutée au fichier ; parce que c'est la seule voie qui garde le fichier tel qu'il est rendu et qui sert aussi P112.01 ; elle ajoute un texte visible et un comportement d'écran neufs, que TCK-713 a laissés hors périmètre : au porteur ; manque : le texte et le choix du plafond affiché.
+- Mesure (2026-10-22, 9215b3d36, implementeur) : `ExportCoupureSignaleeTest` neuf, rouge avant correctif (5 001 paiements sans `limit` → 5 000 lignes, aucun `X-Export-Truncated`) → les neuf constructeurs lisent `limit + 1`, `collect()` retire la ligne de trop, `ExportController` pose `X-Export-Truncated: <lignes rendues>` ; vert (plafond + 1 signalé, plafond exact muet, `limit` demandée et PDF signalés) ; ablations : `+ 1` retiré → 3 rouges sur 4, en-tête retiré → 3 rouges ; `ExportColonnesEtPlafondTest` 23/23 (`limit N + 1` sur les neuf entités). Front : le relais transmet l'en-tête, `ExportForm` télécharge en `fetch` par le relais (l'onglet ne laissait lire aucun en-tête) et dit la coupure ; ablations relais et formulaire → rouge ; le plafond est dit à l'écran par TCK-1306.
 
 ### Petites améliorations
 - Réf : P112.04
