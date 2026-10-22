@@ -71,7 +71,7 @@ class AgentHandoverService
 
     /**
      * @param  array<string, User>  $successors  catégorie → repreneur ; une catégorie absente reste en place
-     * @return array{moved: array<string, list<int>>, unassigned: array<string, list<int>>, removed_profiles: ?list<string>}
+     * @return array{moved: array<string, list<int>>, unassigned: array<string, list<int>>, left_to_member: array<string, list<int>>, removed_profiles: ?list<string>}
      */
     public function transfer(
         Agency $agency,
@@ -128,8 +128,50 @@ class AgentHandoverService
                 ? $this->removal->remove($agency, $member, $actor, $leaveUnassigned)
                 : null;
 
-            return ['moved' => $moved, 'unassigned' => $unassigned, 'removed_profiles' => $removed];
+            [$unassigned, $left] = $this->splitLeftToMember($unassigned, $member);
+
+            return ['moved' => $moved, 'unassigned' => $unassigned, 'left_to_member' => $left, 'removed_profiles' => $removed];
         });
+    }
+
+    /**
+     * TCK-1333 (P121.04, décision du porteur) — « laissé au partant » n'est pas « désassigné ».
+     * Un bien saisi refusé (`held_properties`) garde le partant pour titulaire. Un bien dont le
+     * repreneur des biens est refusé (`responsible_properties`) lui est laissé tant que sa ligne
+     * porte encore la marque ; il est désassigné quand la marque est tombée dans le repli — ôtée par
+     * la réécriture des collaborations (TCK-1253) ou par le retrait
+     * ({@see AgencyMemberRemovalService}). Le journal `AgentHandover` garde `unassigned_ids` pour les deux.
+     *
+     * @param  array<string, list<int>>  $unassigned
+     * @return array{0: array<string, list<int>>, 1: array<string, list<int>>} [désassignés, laissés au partant]
+     */
+    private function splitLeftToMember(array $unassigned, User $member): array
+    {
+        $left = [];
+        if (isset($unassigned['held_properties'])) {
+            $left['held_properties'] = $unassigned['held_properties'];
+            unset($unassigned['held_properties']);
+        }
+
+        if (isset($unassigned['responsible_properties'])) {
+            $stillMarked = PropertyCollaborator::query()
+                ->where('user_id', $member->id)
+                ->where('is_primary', true)
+                ->whereIn('property_id', $unassigned['responsible_properties'])
+                ->pluck('property_id')->map(fn ($id) => (int) $id)->all();
+            $kept = array_values(array_intersect($unassigned['responsible_properties'], $stillMarked));
+            $dropped = array_values(array_diff($unassigned['responsible_properties'], $stillMarked));
+            if ($kept !== []) {
+                $left['responsible_properties'] = $kept;
+            }
+            if ($dropped !== []) {
+                $unassigned['responsible_properties'] = $dropped;
+            } else {
+                unset($unassigned['responsible_properties']);
+            }
+        }
+
+        return [$unassigned, $left];
     }
 
     /**

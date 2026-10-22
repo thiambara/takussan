@@ -247,6 +247,63 @@ class AgentHandoverPropertiesTest extends ApiTestCase
         $this->assertSame([$duPartant->id], $journal->properties['unassigned_ids']);
     }
 
+    /**
+     * TCK-1333 (P121.04, décision du porteur) — `leave_unassigned` avec `remove_after` : le retrait
+     * ôte la marque d'agent principal de la ligne du retiré, sans supprimer la ligne. Le bien dont
+     * le repreneur a été refusé est alors vraiment désassigné ; ce que le retiré garde encore est
+     * compté à part.
+     */
+    public function test_le_retrait_ote_au_retire_la_marque_d_agent_principal(): void
+    {
+        $coProprietaire = $this->personnel($this->agency);
+        PropertyCollaborator::query()->create([
+            'property_id' => $this->deB->id, 'user_id' => $coProprietaire->id, 'role' => CollaboratorRole::CoOwner, 'invited_at' => now(),
+        ]);
+        $repreneurBailleur = $this->personnel($this->agency);
+        OwnerProfile::factory()->create(['user_id' => $repreneurBailleur->id, 'agency_id' => $this->agency->id]);
+
+        $this->actingAsApi($this->admin)->apiPost($this->url('handover'), [
+            'successors' => [
+                'responsible_properties' => $coProprietaire->id,
+                'held_properties' => $repreneurBailleur->id,
+            ],
+            'leave_unassigned' => true,
+            'remove_after' => true,
+        ])->assertOk()
+            ->assertJsonPath('data.removed', true)
+            ->assertJsonPath('data.unassigned.responsible_properties', 1)
+            ->assertJsonMissingPath('data.unassigned.held_properties')
+            ->assertJsonPath('data.left_to_member.held_properties', 1)
+            ->assertJsonMissingPath('data.left_to_member.responsible_properties')
+            ->assertJsonPath('data.portfolio.responsible_properties', 0);
+
+        $this->assertDatabaseHas('property_collaborators', [
+            'property_id' => $this->deB->id, 'user_id' => $this->leaver->id, 'role' => 'agent', 'is_primary' => false,
+        ]);
+        $this->assertSame(0, PropertyCollaborator::query()->where('user_id', $this->leaver->id)->where('is_primary', true)->count());
+        $this->assertSame($this->leaver->id, (int) $this->saisi->fresh()->user_id);
+    }
+
+    /**
+     * TCK-1333 (P121.04) — sans retrait, le bien dont le repreneur a été refusé garde la marque du
+     * partant : il lui est laissé, et la réponse le dit.
+     */
+    public function test_sans_retrait_le_bien_refuse_est_laisse_au_partant(): void
+    {
+        $coProprietaire = $this->personnel($this->agency);
+        PropertyCollaborator::query()->create([
+            'property_id' => $this->deB->id, 'user_id' => $coProprietaire->id, 'role' => CollaboratorRole::CoOwner, 'invited_at' => now(),
+        ]);
+
+        $this->actingAsApi($this->admin)->apiPost($this->url('handover'), [
+            'successors' => ['responsible_properties' => $coProprietaire->id],
+        ])->assertOk()
+            ->assertJsonPath('data.left_to_member.responsible_properties', 1)
+            ->assertJsonMissingPath('data.unassigned.responsible_properties');
+
+        $this->assertSame($this->leaver->id, $this->contactDe($this->deB));
+    }
+
     /** ADR-0036 question 2 — jamais d'un bailleur, jamais vers un bailleur. */
     public function test_les_biens_d_un_bailleur_ne_changent_jamais_de_titulaire(): void
     {
@@ -259,14 +316,17 @@ class AgentHandoverPropertiesTest extends ApiTestCase
         $this->assertSame($this->leaver->id, (int) $this->saisi->fresh()->user_id);
         $this->assertSame($this->successor->id, $this->contactDe($this->deB));
 
-        // Un repreneur bailleur de l'agence ne reçoit pas le bien saisi : désassigné, compté.
+        // Un repreneur bailleur de l'agence ne reçoit pas le bien saisi : laissé au partant, compté
+        // comme tel (TCK-1333, P121.04) et non « désassigné ».
         $autre = $this->personnel($this->agency);
         $saisiParAutre = $this->bienDe($this->agency, $autre);
         $repreneurBailleur = $this->personnel($this->agency);
         OwnerProfile::factory()->create(['user_id' => $repreneurBailleur->id, 'agency_id' => $this->agency->id]);
         $this->actingAsApi($this->admin)->apiPost($this->url('handover', $autre), [
             'successor_id' => $repreneurBailleur->id, 'leave_unassigned' => true,
-        ])->assertOk()->assertJsonPath('data.unassigned.held_properties', 1);
+        ])->assertOk()
+            ->assertJsonPath('data.left_to_member.held_properties', 1)
+            ->assertJsonMissingPath('data.unassigned.held_properties');
         $this->assertSame($autre->id, (int) $saisiParAutre->fresh()->user_id);
     }
 
