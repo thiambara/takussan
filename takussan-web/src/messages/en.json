@@ -6714,6 +6714,8 @@
       "insurance": "Insurance",
       "inventory_report": "Inventory report",
       "photo": "Photo",
+      "rib": "Bank details (RIB)",
+      "ninea": "NINEA",
       "other": "Other"
     },
     "entities": {

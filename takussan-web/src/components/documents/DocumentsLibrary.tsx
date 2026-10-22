@@ -112,9 +112,12 @@ export function DocumentsLibrary() {
       if (!groups.has(type)) groups.set(type, []);
       groups.get(type)!.push(doc);
     }
-    return Array.from(groups.entries()).sort(
-      (a, b) => DOCUMENT_TYPE_ORDER.indexOf(a[0]) - DOCUMENT_TYPE_ORDER.indexOf(b[0]),
-    );
+    // TCK-1272 — un type absent de l'ordre se range en dernier : `indexOf` rendait -1, donc en tête.
+    const rang = (type: DocumentType) => {
+      const i = DOCUMENT_TYPE_ORDER.indexOf(type);
+      return i === -1 ? DOCUMENT_TYPE_ORDER.length : i;
+    };
+    return Array.from(groups.entries()).sort((a, b) => rang(a[0]) - rang(b[0]));
   }, [data]);
 
   const handleDrop = useCallback(
