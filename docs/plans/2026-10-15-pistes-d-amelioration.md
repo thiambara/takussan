@@ -206,7 +206,7 @@ voie d'écriture (angle 13, puis 47).
 | 129 | Suppression douce d'une agence (`DELETE /api/agencies/{agency}`, `AgencyController::destroy`, `$agency->delete()` seul, ouvert à l'admin principal) : profils restés actifs et profil actif encore résolu, biens publiés, baux et échéances, abonnement, invitations ouvertes et tâches planifiées d'une agence supprimée | fait |
 | 130 | Fiches supprimées en douceur et encore citées (`CustomerController::destroy`, `GuarantorController::destroy`, `PropertyController::destroy`) : baux, réservations, factures, relances, PDF et exports dont la relation `customer`, `guarantor` ou `property` rend `null` sous la portée `SoftDeletes` — 500, champ vide ou geste refusé ? | fait |
 | 131 | Paramètres de requête des liens profonds émis par l'API ou le front (`?conversation=`, `?tab=`, `?id=`, `router.push('…?…')`, `href` des listes et des cloches) : lus par la page visée, et conservés à travers les redirections de connexion, d'onboarding et de changement de profil actif | fait |
-| 132 | Liens portés par les SMS et WhatsApp (`payment_url`, `receipt_url`, lien d'invitation, gabarits WhatsApp à bouton) : hôte, durée de validité face au délai d'envoi des heures calmes, et page qu'ouvre un destinataire sans compte — le pendant de l'angle 97 hors du courriel | à faire |
+| 132 | Liens portés par les SMS et WhatsApp (`payment_url`, `receipt_url`, lien d'invitation, gabarits WhatsApp à bouton) : hôte, durée de validité face au délai d'envoi des heures calmes, et page qu'ouvre un destinataire sans compte — le pendant de l'angle 97 hors du courriel | fait |
 | 133 | Estimations et aperçus calculés au front par une constante qui recopie un réglage ou un calcul de l'API (`DEFAULT_*` des dialogues de bail : indemnité de résiliation, préavis de 30 jours, pénalités de retard, révision de loyer, échéancier) : chiffre affiché qui diverge du réglage de la plateforme, de l'agence ou du bail | à faire |
 | 134 | Tris `orderBy` / `orderByDesc` sur une colonne d'enum rangée en chaîne (`severity`, `priority`, `status`, `level` des annonces, alertes, maintenances, tâches) : ordre alphabétique pris pour un ordre métier dans une liste ou un « premier élément » affiché | à faire |
 | 135 | Listes écrites à la main, hors `buildQuery` (`LeasePaymentController::index`, `ConversationController::index`, `ReviewController::index`, contrôleurs `Admin\*`) : `sort`, `page` et `per_page` envoyés par le front face à l'ordre et au plafond rendus, et lecteurs qui ne lisent que la première page — le relevé de P100.01 sur les autres listes | à faire |
@@ -243,6 +243,7 @@ voie d'écriture (angle 13, puis 47).
 | 166 | Notifications, jobs et écouteurs en file qui portent un modèle à `SoftDeletes` par `SerializesModels` (`PropertyApprovedNotification`, `PropertyRejectedNotification`, `PropertyProposedNotification`, et leurs pareilles sur `Customer`, `Lease`, `Booking`) : fiche supprimée entre l'envoi et le traitement, `ModelNotFoundException` au déroulement, essais perdus et trace laissée — né de P130.02 | à faire |
 | 167 | Tuiles, compteurs et lignes cliquables des tableaux de bord (bandeau `PropertyKpiStrip` de `/app/properties`, `DashboardLinkLine` des aperçus, files `AgencyQueues`, tuiles de la console) : filtre posé par le lien face à celui qui a compté le nombre affiché (statuts additionnés, portée « mes biens » ou agent, période) — la liste ouverte ne montre pas ce que la tuile comptait, né de P131.02 | à faire |
 | 168 | Onglets, filtres et pagination des listes de la console tenus en état local (`useState`) au lieu de l'URL (`BookingsList.tsx:35`, et leurs pareilles sous `components/*`) : retour arrière depuis un détail qui ramène au premier onglet, rechargement ou lien partagé qui perd la vue, paramètre `?status=` d'un lien entrant ignoré — né de P131.03 | à faire |
+| 169 | Rappels programmés à marque unique (`last_reminded_at`, `reminder_sent_at` et leurs pareilles : invitations, visites, échéances, reversements dus, relances de documents) face aux gestes qui remettent la marque à zéro sans déplacer la date de référence (relance, report, renouvellement) : rappel parti dans l'heure qui suit le geste, ou jamais renvoyé — né de P132.03 | à faire |
 
 ---
 
@@ -12567,3 +12568,71 @@ l'angle 160 : il n'est pas repris ici.*
   - Même cause : l'onglet n'est pas écrit dans l'URL, et un retour arrière depuis `/app/bookings/{id}` ramène à « En attente » quel que soit l'onglet quitté (lu ; non mesuré au navigateur).
   - Établi comment : lu.
 - Piste : lire et écrire l'onglet dans `?status=`, borné aux valeurs de `TABS`, comme `PaymentsTabs` le fait pour `?tab=`. Garde : un test de `BookingsList` monté sur `?status=confirmed`.
+
+## Angle 132 — Liens portés par les SMS et WhatsApp : hôte, validité, page ouverte
+
+*Exploré le 2026-10-22 sur `pre-dev` 1a9420e6e, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : `LeasePaymentLinkService`, `LeasePaymentService::markPaid`, `SendRentReceiptAfterOnlinePayment`, `MarkPaidLeasePaymentRequest`, `InvitationService` (`deliver`, `resend`, `revoke`, `remindPending`, `acceptAsNewUser`), `SmsRouterDriver::deferAll`, `SendDeferredSmsJob`, `WhatsappChannel`, `TemplateResolver`, `CloudApiWhatsappDriver::payload`, `CodedNotification::whatsappTemplateParams`, `NotificationRenderer::format`, la migration `2026_10_07_100100_seed_whatsapp_templates_for_coded_notifications`, et au front `proxy.ts`, `i18n/routing.ts`, la page `/[locale]/pay/[token]`, `PayLinkReception` et `AccepterInvitation`. Deux tests temporaires (retirés) et une lecture `tinker` de la base de développement, qui ne dit rien de la préproduction. L'hôte des liens (`frontend_url ?: app.url`) n'est pas repris ici : c'est P97.06. Écarté après lecture : la durée de validité face aux heures calmes tient — un SMS reporté part au plus tard à 6 h, quand le lien de paiement vit 60 jours après l'échéance et l'invitation 7 jours, et les relances d'échéance partent à 8 h (`routes/console.php:53`), hors de la fenêtre. Aucun bouton n'existe dans les gabarits WhatsApp : le pilote n'envoie qu'un composant `body` (lu, `CloudApiWhatsappDriver.php:124-131`).*
+
+### Une quittance enregistrée avec une date de paiement de plus de 30 jours part par SMS avec un lien déjà mort
+- Réf : P132.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:90-100,103-117`, `takussan-api/app/Services/Model/LeasePaymentService.php:88,119`, `takussan-api/app/Http/Requests/Api/MarkPaidLeasePaymentRequest.php:65`, `takussan-web/src/components/leases/LeasePaymentDialog.tsx:112-116`
+- Constat :
+  - « Enregistrer un paiement reçu » propose une « date effective » (lu, `LeasePaymentDialog.tsx:112-116`), que la requête accepte sans borne (`nullable`, `date`, lu) et que `markPaid` écrit dans `paid_at` (lu, l. 88).
+  - Pour un locataire sans compte, `markPaid` envoie aussitôt `LeasePaymentRecorded` avec `receipt_url` = `urlFor($payment)` (lu, l. 119). Or la validité effective d'un lien est ramenée à `paid_at` + 30 jours dès que l'échéance est payée (lu, `effectiveExpiry`), et `resolve` rend 410 au-delà (lu, `isGone`). `urlFor` émet donc un lien neuf, mais mort à l'émission.
+  - Mesuré : test temporaire (retiré), `LeaseDueFixture`, locataire sans compte au téléphone valide, `markPaid` avec `paid_at` = aujourd'hui − 40 jours → le SMS porte un lien `/pay/{jeton}` ; `GET /api/pay/{jeton}` → 410 `pay_link.gone`, `GET /api/pay/{jeton}/receipt` → 410.
+  - Le cas est ordinaire : un loyer reçu en espèces et saisi après coup, ou un rattrapage d'historique à la reprise d'un bail.
+  - Établi comment : lu, et mesuré.
+- Piste : faire courir la fenêtre de quittance depuis le plus tardif de `paid_at` et du moment de l'enregistrement (une colonne qui le date, ou `updated_at` au passage à `paid` : à choisir), ou ne pas envoyer de lien qu'on sait mort. Borner aussi `paid_at` à `before_or_equal:now`, comme `MarkLateFeePaidRequest.php:56` le fait déjà. Garde : le test ci-dessus, qui exige un 200 sur le lien envoyé.
+
+### Une relance d'invitation remet `last_reminded_at` à nul : le rappel « vous attend » part dans l'heure qui suit
+- Réf : P132.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Invitation/InvitationService.php:425-430,522-538`, `takussan-api/routes/console.php:110`
+- Constat :
+  - `resend` régénère le jeton, repousse `expires_at` de 7 jours et remet `last_reminded_at` à nul, sans toucher `created_at` (lu, l. 425-430).
+  - `remindPending` choisit les invitations `sent` dont `created_at` a plus de 2 jours et `last_reminded_at` est nul (lu, l. 525-532), et tourne toutes les heures (lu, `routes/console.php:110`). Toute invitation relancée plus de 2 jours après sa création reçoit donc son rappel au passage suivant, et non 2 jours après la relance.
+  - Mesuré : test temporaire (retiré), calqué sur `InvitationBySmsTest` : invitation par SMS, J+3 et `remindPending` → 2 SMS ; `POST /api/invitations/{id}/resend` → 3 ; une heure plus tard, `remindPending` → 4, le dernier étant « Takussan : rappel — votre invitation à rejoindre … vous attend : …/invitations/accept?token=… ». Le même chemin sert le courriel (`deliver`, lu).
+  - C'est le cas courant de la relance : une invitation expirée (J+7), relancée, reçoit relance et rappel coup sur coup. Le SMS est compté deux fois.
+  - Établi comment : lu, et mesuré.
+- Piste : mesurer le délai du rappel depuis la dernière émission (une date de dernier envoi posée par `send` et `resend`, ou `created_at` remplacé par elle dans `remindPending`), ou poser `last_reminded_at` à l'heure de la relance. Garde : un test « relance puis `remindPending` une heure après » qui n'attend aucun envoi, et un second à relance + 2 jours qui en attend un.
+
+### Les gabarits WhatsApp inscrits au registre ne correspondent pas aux paramètres envoyés, et ne portent jamais le lien de paiement
+- Réf : P132.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/database/migrations/2026_10_07_100100_seed_whatsapp_templates_for_coded_notifications.php` (`body()`, `meta_variables`), `takussan-api/app/Notifications/CodedNotification.php:273-281`, `takussan-api/app/Services/Notifications/NotificationRenderer.php:82-99`, `takussan-api/app/Services/Notifications/Whatsapp/CloudApiWhatsappDriver.php:124-131`, `takussan-api/app/Models/NotificationTemplate.php:42`
+- Constat :
+  - La migration écrit le corps des gabarits depuis la variante `sms` (sans lien) et numérote les variables selon `params()` (lu). `whatsappTemplateParams` envoie, lui, `params()` **plus** `optionalParams()` par `NotificationRenderer::format` (lu, l. 85).
+  - Mesuré (`tinker`, lecture de la base de développement et de `format`) :
+    - `lease_payment.due_soon` : corps « Takussan : loyer de {{1}} dû le {{2}} ({{3}}). », 3 variables ; paramètres envoyés : 4 (`amount`, `due_date`, `property`, `payment_url`) ;
+    - `lease_payment.overdue` : corps « … de {{1}} en retard de {{2}} jours ({{4}}). », sans `{{3}}` (`due_date` absent du texte SMS) ; paramètres envoyés : 5 ;
+    - `visit.reminder` : corps « … visite de {{1}} le {{2}}. » ; paramètres envoyés : 3 (`window` en plus).
+  - Les trois sont `pending` (mesuré) : aucun n'est utilisé aujourd'hui, l'envoi hors fenêtre bascule en SMS. Le défaut se déclare le jour où l'exploitation les passe à `approved`. Que Meta refuse un gabarit aux variables non contiguës, et un envoi au nombre de paramètres faux, est à vérifier sur la documentation de Meta ; un refus non ambigu se replie en SMS (lu, `WhatsappChannel.php:122-134`), ce qui coûterait un essai par envoi sans perdre le message.
+  - Même accordés, ces gabarits ne portent pas `payment_url` : le locataire sans compte joint hors fenêtre par WhatsApp recevrait son rappel sans le lien que le SMS lui donne (lu, `lang/fr/notifications.php:297,304`).
+  - `meta_variables` est écrit mais lu par personne (`metaVariables()` sans appelant, mesuré par `grep`) ; le seul test qui approuve un gabarit en remplace le corps par `'x'` (lu, `ContactSansCompteTest.php:96-99`).
+- Piste : dériver le corps du gabarit de la variante `sms_link` quand le code a un lien, et envoyer exactement les paramètres que `meta_variables` nomme, dans cet ordre (en faisant de `meta_variables` la source de `whatsappTemplateParams`). Garde : un test qui, pour chaque ligne `whatsapp` du registre, compare le nombre de `{{n}}` du corps, leur contiguïté et le nombre de paramètres que la notification fournit.
+
+### Un SMS reporté par les heures calmes part au matin avec un lien que la nuit a révoqué
+- Réf : P132.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:305-318`, `takussan-api/app/Jobs/SendDeferredSmsJob.php`, `takussan-api/app/Services/Invitation/InvitationService.php:325-345,425-430`, `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:37-50`
+- Constat :
+  - Entre 22 h et 6 h, le routeur remet le texte déjà rendu à `SendDeferredSmsJob`, qui l'envoie à 6 h tel quel, `bypass_quiet_hours` posé, sans relire l'objet (lu).
+  - Une invitation envoyée à 22 h 30 puis révoquée à 23 h (lu, `revoke` ne fait que poser le statut) ou relancée (nouveau jeton, lu) : le SMS de 6 h invite encore à rejoindre l'agence, sur un lien qui rend 410 (`invitation.token_revoked` ou jeton inconnu). Même chose pour un lien de paiement régénéré ou révoqué par l'agence pendant la nuit (`regenerate`, `revoke`, lu).
+  - Non mesuré : la fréquence de ces gestes la nuit est inconnue, et la relance d'une invitation SMS ajoute de toute façon un second SMS, lui aussi reporté (à vérifier).
+  - Établi comment : lu.
+- Piste : porter dans le contexte du job une référence à vérifier au moment d'envoyer (type et identifiant de l'invitation ou du lien, et le jeton haché), et abandonner l'envoi, trace écrite, quand l'objet n'est plus valide. Garde : un test « SMS d'invitation à 23 h, révocation, job à 6 h » qui n'attend aucun envoi.
+
+### Petites améliorations
+- Réf : P132.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:162-165`, `takussan-web/src/proxy.ts:163-180`, `takussan-api/app/Services/Invitation/InvitationService.php:585-597,1014-1018`
+- Constat :
+  - Le lien `/pay/{jeton}` ne porte pas de langue (lu, `url()`), et `/pay` est localisable : le proxy redirige en 307 vers la langue du cookie ou d'`Accept-Language` (lu, `proxy.ts`, `localeDeRepli`). Un locataire dont la fiche est en `en` (`ContactSansCompte::fromCustomer`, lu) reçoit un SMS en anglais et ouvre une page dans la langue de son téléphone. Non mesuré au navigateur.
+  - Le compte qui naît d'une invitation par SMS n'écrit pas `preferred_language` (lu, `acceptAsNewUser`) et prend le défaut `fr` de la colonne, alors que le SMS est parti dans la langue de `metadata.locale` (lu, `preferredLocale`). Les envois suivants changent donc de langue (à vérifier sur une invitation en `en`).
+- Piste : préfixer le lien de paiement par la langue du contact (`/{locale}/pay/…`) ; écrire `preferred_language` depuis la langue de l'invitation à la création du compte. Garde : un test par point.
