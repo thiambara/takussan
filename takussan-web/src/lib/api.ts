@@ -27,6 +27,33 @@ function apiUrl(): string {
 }
 
 /**
+ * TCK-1215 (P79.01) — la borne d'un appel du SERVEUR Next vers l'API. Sans elle, le `fetch` de Node
+ * attend une API qui accepte la connexion sans répondre jusqu'au `headersTimeout` d'undici (300 s,
+ * mesurés à 301,2 s) : une page, une action serveur ou une fiche publique attendait jusque-là au
+ * lieu de rendre l'état « indisponible » qu'elle prévoit. 30 s, sous les 100 s que Cloudflare laisse
+ * à un premier octet. Dans le navigateur, rien n'est posé.
+ */
+export const DELAI_API_SERVEUR_MS = 30_000;
+
+/** TCK-1215 — la borne d'un envoi de fichier (`formData`) depuis le serveur, sous les 100 s de Cloudflare. */
+export const DELAI_API_SERVEUR_ENVOI_MS = 90_000;
+
+/**
+ * Le signal à passer au `fetch` d'un appel serveur : celui de l'appelant, borné par `delaiMs`. Un
+ * abandon par l'appelant abandonne toujours l'appel ; le délai rejette en `DOMException`
+ * `TimeoutError`, que `server-guards` classe comme une panne (TCK-1090). Dans le navigateur, le
+ * signal de l'appelant tel quel.
+ */
+export function signalBorneServeur(
+  signal: AbortSignal | null | undefined,
+  delaiMs: number = DELAI_API_SERVEUR_MS,
+): AbortSignal | undefined {
+  if (typeof window !== 'undefined') return signal ?? undefined;
+  const delai = AbortSignal.timeout(delaiMs);
+  return signal ? AbortSignal.any([signal, delai]) : delai;
+}
+
+/**
  * Sur le chemin interne, le schéma et le port de l'origine publique de l'API (`origineApi()`),
  * **identiques pour tous les visiteurs** : ils ne fragmentent aucun cache de données. Laravel les
  * croit parce que l'appel vient d'un mandataire de confiance.
@@ -131,6 +158,7 @@ export async function apiFetch<T>(
   const res = await fetch(`${apiUrl()}/api${path}`, {
     ...init,
     headers: enTetes,
+    signal: signalBorneServeur(init?.signal),
   });
   if (!res.ok) {
     // Le corps est lu SUR LE CHEMIN D'ERREUR uniquement : c'est lui qui porte
@@ -739,7 +767,7 @@ export async function apiRequest<T>(
     body: body !== undefined
       ? formData ? (body as BodyInit) : JSON.stringify(body)
       : undefined,
-    signal,
+    signal: signalBorneServeur(signal, formData ? DELAI_API_SERVEUR_ENVOI_MS : DELAI_API_SERVEUR_MS),
   });
 
   const data = await response.json().catch(() => null);
