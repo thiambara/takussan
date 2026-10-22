@@ -66,4 +66,23 @@ class PropertyContactClickTest extends TestCase
         $this->getJson("/api/public/properties/{$sans->slug}")
             ->assertOk()->assertJsonPath('data.primary_contact.has_phone', false);
     }
+
+    /**
+     * P124.03 (TCK-1256) — un agent utilisateur de 254 octets ASCII suivi d'un `é` était coupé au
+     * milieu du caractère par `substr` : 500 (`invalid byte sequence for encoding "UTF8"`).
+     */
+    public function test_un_agent_utilisateur_multioctet_a_la_borne_est_coupe_sur_un_caractere(): void
+    {
+        $x = $this->agence();
+        $bien = $this->bienDe($x);
+        $this->collaborateur($bien, $this->personnel($x));
+
+        $this->withHeader('User-Agent', str_repeat('a', 254).'éé')
+            ->postJson("/api/public/properties/{$bien->slug}/contact-click", ['channel' => 'call'])
+            ->assertNoContent();
+
+        $ua = PropertyContactLead::query()->sole()->user_agent;
+        $this->assertSame(str_repeat('a', 254).'é', $ua);
+        $this->assertTrue(mb_check_encoding($ua, 'UTF-8'));
+    }
 }
