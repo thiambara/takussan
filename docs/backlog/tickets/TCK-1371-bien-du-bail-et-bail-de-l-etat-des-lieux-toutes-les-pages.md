@@ -1,7 +1,7 @@
 ---
 id: TCK-1371
 title: "Le choix du bien d'un nouveau bail et celui du bail d'un état des lieux lisent toutes les pages"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -65,3 +65,12 @@ Aucun changement d'API : `GET /api/properties` (`filter[status]`, `sort=title`) 
 - Le reste ci-dessus.
 
 ## Notes d'implémentation
+
+- « Le 101ᵉ se choisit » est éprouvé au niveau du hook (`renderHook`, 101 biens rendus) : le
+  formulaire passe la liste entière à son `EntitySelect`, sans coupure de son côté (lu).
+- `InventoryLeasePicker` passe de `useLeases({ per_page: 50 })` à un hook neuf, `useAllActiveLeases`,
+  sous une clé `['leases', 'list', …]` : les invalidations de `['leases']` le rafraîchissent.
+- `CreateLeaseForm.biens-proposes.test.tsx` (TCK-776) bouchonnait `useApiQuery` : il bouchonne
+  désormais `useQuery`, et lit les statuts demandés dans l'URL réellement envoyée.
+- Ablation : `leases.ts` et `InventoryLeasePicker.tsx` rendus à `HEAD` → 2 rouges sur 2 (100 biens,
+  50 liens) ; correctif remis → 2/2 verts.
