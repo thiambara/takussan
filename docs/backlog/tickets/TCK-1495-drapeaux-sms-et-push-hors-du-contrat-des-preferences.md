@@ -3,7 +3,7 @@ id: TCK-1495
 title: "`notifications_sms_enabled` et `notifications_push_enabled` quittent le contrat des préférences"
 status: done
 phase: P2
-family: cleanup
+family: technique
 estimate: S
 wave: null
 created: 2026-10-22

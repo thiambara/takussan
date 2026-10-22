@@ -3,7 +3,7 @@ id: TCK-1497
 title: "Un fuseau horaire par compte : `timezone` sur `PATCH /api/me` et un champ au profil"
 status: done
 phase: P2
-family: feature
+family: full
 estimate: M
 wave: null
 created: 2026-10-22

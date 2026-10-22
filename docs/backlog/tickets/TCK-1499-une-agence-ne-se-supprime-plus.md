@@ -3,7 +3,7 @@ id: TCK-1499
 title: "Une agence ne se supprime plus : `DELETE /api/agencies/{agency}` est retirée"
 status: done
 phase: P2
-family: cleanup
+family: technique
 estimate: S
 wave: null
 created: 2026-10-22
