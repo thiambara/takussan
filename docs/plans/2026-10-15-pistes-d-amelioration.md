@@ -11958,7 +11958,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Meilisearch injoignable sous `SCOUT_AFTER_COMMIT=true` : le geste est validé, la réponse est 500, et ce qui suit la transaction ne s'exécute pas
 - Réf : P123.03
-- Statut : validé — porteur (2026-10-22) : aligner `SCOUT_QUEUE` et `SCOUT_AFTER_COMMIT` de `.env.docker` et `phpunit.xml` sur la préproduction
+- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.docker` (`.env*`), et la valeur de préproduction ne se relève que dans Dokploy, hors du poste
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/laravel/scout/src/ModelObserver.php:16`, `:46`, `takussan-api/.env.docker:210-211`, `takussan-api/phpunit.xml:104-105`, `takussan-api/app/Services/Property/PropertyModerationService.php:46-71`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:304-342`
 - Constat :
@@ -11970,6 +11970,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lecture, puis le test temporaire joué sous les deux valeurs.
 - Piste : ne pas laisser l'échec de l'index faire échouer un geste validé (`report()` de l'exception de l'observateur, ou `SCOUT_QUEUE=true` pour que l'écriture parte en file après commit) ; à trancher avec le reste de P90.03 et P90.02. Relever `SCOUT_QUEUE` et `SCOUT_AFTER_COMMIT` de la préproduction, et aligner `phpunit.xml` sur la valeur retenue. Garde : un test par régime qui coupe le moteur et exige le geste fait, sa notification envoyée et une réponse 2xx.
 - Mesure (2026-10-22, 86138895e, mesureur) : relu `ModelObserver::__construct()` (lit `scout.after_commit`), `.env.docker:210-211` (`false`/`true`) et `phpunit.xml:104-105` (`false`/`false`) ; test temporaire retiré, Meilisearch rebranché sur `http://127.0.0.1:9` : `DB::transaction(fn () => Customer::factory()->create())` sous `after_commit=true` → `CommunicationException` et le client écrit (+1), sous `after_commit=false` → la même exception et rien d'écrit (+0) → le mécanisme tient sous les deux régimes ; les deux gestes cités (modération, message) n'ont pas été rejoués, leur code après la transaction est relu inchangé (`PropertyModerationService::approve()`, `ConversationController::sendMessage()`). Classement : V5, le correctif passe par des variables d'environnement et une valeur de préproduction non relevée ; le choix entre `report()` et la file est aussi à trancher avec P90.02 et P90.03.
+- Mesure (2026-10-22, 89453739b, implementeur) : `git grep` → `.env.docker:210-211` `SCOUT_QUEUE=false`, `SCOUT_AFTER_COMMIT=true` ; `phpunit.xml:104-105` `false`, `false` ; `.env.example:147-148` `true`, `true` en commentaire → le constat tient. Non implémenté : la décision du porteur passe par `.env.docker`, chemin fermé à l'implémenteur, et la valeur cible (préproduction) n'est relevée nulle part dans le dépôt (`hebergement.md:173-174` nomme les clés sans valeur) ; aligner `phpunit.xml` seul sur une valeur non relevée serait deviner.
 
 ### Les deux tâches horaires des invitations s'arrêtent au premier courriel qui échoue
 - Réf : P123.04
@@ -12000,7 +12001,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Petites améliorations
 - Réf : P123.06
-- Statut : validé — porteur (2026-10-22) : ne compter la fenêtre de renvoi qu'après un envoi réussi ; la valeur de `SCOUT_*` alignée sur la préproduction (P123.03), écrite à un seul endroit avec sa raison
+- Statut : fait · TCK-1337 — reste : la valeur de `SCOUT_*` alignée sur la préproduction (P123.03), écrite à un seul endroit avec sa raison ; chemin fermé (`.env*`) et valeur de préproduction à relever dans Dokploy
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Lease/LeaseSignatureService.php:112-141`, `takussan-api/.env.example:147-148`
 - Constat :
@@ -12009,6 +12010,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lu.
 - Piste : ne compter la fenêtre de renvoi qu'après un envoi réussi, ou rattraper l'échec du courriel en 503 comme le SMS ; écrire la valeur retenue de `SCOUT_*` à un seul endroit, avec sa raison.
 - Mesure (2026-10-22, 86138895e, mesureur) : relu `LeaseSignatureService::sendCode()` (`issue()` pose le délai de renvoi avant `notify()`, seul le SMS est rattrapé en 503) et `LeaseSignatureOtpService::issue()` ; test temporaire retiré (ajouté puis retiré de `LeaseSignatureTest`) : locataire sans téléphone vérifié, transport qui lève, `POST /api/leases/{id}/signature/otp` → 500, puis aussitôt → 429 `lease_signature.resend_too_soon` → la partie « à vérifier » tient ; `.env.example:147-148`, `.env.docker:210-211` et `phpunit.xml:104-105` relus, trois réponses comme dit. Classement : V5, l'écriture de la valeur de `SCOUT_*` touche les variables d'environnement ; la voie courriel seule relèverait de A1 (TCK-799 : « un code qui n'est pas parti ne se dit pas envoyé »), mais un code d'erreur neuf demande son texte au front.
+- Mesure (2026-10-22, 89453739b, implementeur) : relu `sendCode()` (`issue()` pose la fenêtre avant `notify()`) ; deux tests neufs dans `LeaseSignatureTest` : courriel qui lève → 500 puis 429 `resend_too_soon`, SMS non parti → 503 puis 429 (2 rouges) → `releaseResend()` quand l'envoi lève ou que le SMS n'est pas parti : 500 puis 202, 503 puis 202, la fenêtre de 60 s tient après un envoi réussi ; 51/51 ; ablation → 2 rouges, remis → vert. `SCOUT_*` non touché : `.env*` est un chemin fermé.
 
 ## Angle 124 — Colonnes bornées remplies par une valeur dérivée ou recopiée
 
