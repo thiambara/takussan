@@ -215,7 +215,7 @@ voie d'écriture (angle 13, puis 47).
 | 138 | Lectures de l'API dédoublées dans un même rendu serveur : server actions `*Action` (`fetchAgencyAction`, et leurs pareilles) appelées par des pages et des layouts serveur qui relisent une ressource déjà lue hors de `cache()` (`agenceDuRendu`, `getMeAction`), mesurées par requête sur un document servi | fait |
 | 139 | Colonnes déclarées par les exporteurs (`ActivityLogExporter::COLUMNS`, constructeurs d'entité d'`ExportController`, exports de rapports, archive RGPD `DataExportBuilder`) qu'aucun chemin n'écrit, ou qui lisent une clé que l'écrivain nomme autrement : colonne toujours vide dans le fichier rendu — le relevé de P108.02 sur les autres exports | fait |
 | 140 | PDF figés face aux PDF recomposés à chaque téléchargement (`DocumentPdfService::store`, `signed_contract` de `LeaseSignatureService`, contre `InventoryController::downloadPdf`, `DocumentPdfController::stream*`, quittance publique `PublicPaymentLinkController::receipt`) : ce qu'un document signé ou acquitté imprime après un changement de l'agence, du bien, du locataire, d'un réglage ou d'un gabarit | fait |
-| 141 | Encaissements soldés par une intégration de la plateforme (`PlatformPayoutService::isSettledByPlatform`) face au relevé de l'agence : proposés un à un par `ReconciliationMatcher` à un crédit qui ne les porte pas, et virement de clôture `PlatformPayout` qu'aucun candidat (`ALLOWED_PAYMENT_TYPES`, `fetchCandidates`) ne représente | à faire |
+| 141 | Encaissements soldés par une intégration de la plateforme (`PlatformPayoutService::isSettledByPlatform`) face au relevé de l'agence : proposés un à un par `ReconciliationMatcher` à un crédit qui ne les porte pas, et virement de clôture `PlatformPayout` qu'aucun candidat (`ALLOWED_PAYMENT_TYPES`, `fetchCandidates`) ne représente | fait |
 | 142 | Notifications, Mailables et écouteurs en file (`ShouldQueue`, une quarantaine hors de `CodedNotification` : `TenantWelcomeNotification`, `ResetPasswordNotification`, `ActivityLogExportReadyNotification`, écouteurs `Lease\*` et `Accounting\*`) sans `backoff` ni `failed()` face au `--tries=3` sans délai des workers : ce qu'une panne du fournisseur de quelques secondes fait perdre, et la trace laissée — le relevé de P11.10 hors des notifications codées | à faire |
 | 143 | PDF à lignes variables rendus par dompdf pendant la requête HTTP (`DocumentPdfService` : relevé de gérance `pdf/statements/owner`, état des lieux `pdf/inventories/report` et ses photos en URI `data:`, factures et devis à nombreuses lignes) : mémoire et durée face à `memory_limit = 256M` et `max_execution_time = 60` — le relevé de P112.01 hors de l'export générique | à faire |
 | 144 | Écritures du navigateur qu'une réponse perdue invite à rejouer (envoi de message, création de réservation, de demande de maintenance, de facture, initiation de paiement : `POST` sans clé d'idempotence, hors les seuls boosts) : bouton réactivé après une erreur réseau ou un délai, doublon créé côté API — le pendant, hors des achats de crédits, des angles 4 et 24 | à faire |
@@ -252,6 +252,7 @@ voie d'écriture (angle 13, puis 47).
 | 175 | Relations vers un `User` supprimé en douceur par la suppression de compte (`causer`, `author`, `sender`, `issued_by`, `collector`, `handler`, `landlord` : portée `SoftDeletes` d'un `belongsTo` ou `morphTo` nu) lues dans les listes, les exports, les PDF et les notifications : auteur rendu « système », vide, ou 500 là où la ligne reste lisible — le pendant pour le compte des angles 130 et 165, né de P139.01 | à faire |
 | 176 | Rôles lus toutes agences confondues par `profileTypes()` là où l'écran montre le rôle dans une agence donnée (`AgencyDetailController.php:184` de la console, `UserRoleController.php:90`, `UserResource.php:90` rendu dans les listes d'équipe, ciblage par rôle de `AnnouncementResolver` et `FeatureFlagEvaluator`) : rôle d'une autre agence affiché ou appliqué — né de P139.02 | à faire |
 | 177 | Relevés de gérance d'une période close recalculés à chaque lecture (`OwnerStatementController`, `OwnerStatementService`, PDF `pdf/statements/owner`, avis mensuel `SendOwnerStatements`) face aux remboursements, annulations, rapprochements et reversements écrits après la clôture : relevé envoyé au bailleur que plus rien ne reproduit — le pendant des relevés de l'angle 140 | à faire |
+| 178 | Loyers et acomptes encaissés par la plateforme et pas encore reversés, comptés comme argent de l'agence (`PayoutCalculator` et la préparation des reversements au bailleur, `CollectedPayments` et tableaux de bord, relevé de gérance `OwnerStatementService`) : reversement au bailleur d'un argent que la plateforme détient encore, ou qu'elle a rendu — né de P141.01 | à faire |
 
 ---
 
@@ -13312,3 +13313,69 @@ laissé recomposé par décision, est P109.04 : il n'est pas repris.*
   - **`docs/pdf-templates.md:10`** recommande `render()` pour les « emails attachments » : aucun courriel du dépôt n'attache de PDF (lu, `grep -rn "attachData\|attach(" app` → aucun courriel).
 - Piste : corriger les deux phrases de `docs/pdf-templates.md` pour dire ce que fait le code (A6) ; garder ou retirer `store()` selon la décision de P140.02.
 - Mesure (2026-10-22, cc061fbb7, mesureur) : relu `docs/pdf-templates.md` l. 10 (`render()` pour « emails attachments ») et l. 78-79 (« Production uses the cloudflare browserless service ») ; `.env.example:247-261` déclare `LARAVEL_PDF_DRIVER=dompdf` (TCK-301) ; `docs/infra/prod-drivers.json` ne nomme aucun driver PDF ; `grep -rln "Attachment::\|function attachments\|->attachData" app` → `MessageResource` et `LeaseDepositRefundNotification`, qui listent des URL signées et n'attachent aucun PDF ; `render()` n'est appelé que par `LeaseSignatureService:63` (gel du contrat) et `PaymentReceiptPdf:48` ; `store()` sans appelant dans `app/` → les trois points tiennent. Au passage, `docs/configuration.md` § 5.5 i) (« PDF (Cloudflare Browser Rendering, défaut) ») dit encore cloudflare par défaut, hors du `Où`. Classement : A6, corriger les deux phrases de `docs/pdf-templates.md` pour dire le driver déclaré et les appelants réels de `render()` ; le sort de `store()` suit P140.02, qui est à valider, et reste hors de ce correctif.
+
+## Angle 141 — Encaissements soldés par la plateforme face au relevé bancaire de l'agence
+
+*Exploré le 2026-10-22 sur `pre-dev` cc061fbb7, par l'explorateur, sans sous-agent. Relu par
+l'explorateur lui-même : `ReconciliationMatcher`, `ReconciliationManager`, `PaymentSearchService`,
+`BankStatementLineController` et `MatchBankStatementLineRequest`, `PlatformPayoutService` (clôture,
+`isSettledByPlatform`, `settlement`, `breakdown`), `Api/Me/PlatformPayoutController`,
+`PlatformPayoutResource`, les migrations qui ajoutent `bank_reconciled_at`, ADR-0039 (§ 2, § 3,
+Conséquences) et TCK-593. Mesuré par un test Feature temporaire
+`tests/Feature/TmpExplorateur/SondeAngle141Test.php` (retiré), sur la base de test PostgreSQL,
+charge 1,87 / 1,93 / 1,82 sur 8 cœurs : loyer de 150 000 payé le 2026-04-10, soldé par
+l'intégration globale (trait `EncaissementsPlateforme`, `isSettledByPlatform` → `true`),
+commission de 5 %, clôture du 2026-04-30 par `PlatformPayoutService::closePeriod`, reversement
+passé `paid` à la main le 2026-05-02 (référence `VIR-PLAT-1`), crédits du relevé créés par
+fabrique. Aucun texte (spec, ADR, ticket) ne dit comment l'agence rapproche l'argent que la
+plateforme encaisse puis lui reverse : ADR-0039 ne prévoit le rapprochement que pour le `Payout`
+de l'agence (Conséquences, « le rapprochement bancaire (TCK-593) la confronte au débit »). Voir
+les angles 25 et 110 (rapprochement), 76 (remboursement d'un payable de la plateforme).*
+
+### Un encaissement soldé par la plateforme est suggéré, puis confirmé, sur un crédit du relevé de l'agence
+- Réf : P141.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:65-124`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:31-51,75-101,166-178`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:39-118`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:285-290,374-377`
+- Constat :
+  - La clôture ne reverse que ce qu'une intégration **globale** a soldé : « l'argent est déjà chez l'agence » pour les autres (lu, `PlatformPayoutService.php:285-290`). Un loyer soldé par la plateforme n'arrive donc jamais seul sur le compte de l'agence ; il y arrive fondu dans le net du `PlatformPayout`.
+  - `fetchCandidates()` ne filtre les `BookingPayment` et `LeasePayment` que par agence, devise, montant, fenêtre de ±7 jours et `bank_reconciled_at` nul ; ni `metadata.gateway.settled_by`, ni l'intégration, ni `platform_payout_id` (lu, `:69-109`). La recherche manuelle non plus, et sans fenêtre de dates (lu, `PaymentSearchService.php:75-101`, `applySearch` l. 166-178).
+  - `confirmMatch()` ne refuse pas un encaissement de la plateforme (lu, `:39-118` : gardes de relevé, d'agence, de sens, de reversement, de facture, de devise, de doublon).
+  - mesuré (sonde) : crédit de 150 000 au 2026-04-11, sans référence ni contrepartie → `suggestFor` rend `LeasePayment#1 conf=70` ; `POST /api/bank-statement-lines/{id}/match` (`lease_payment`) → `200`, `bank_reconciled_at = 2026-04-11`.
+  - mesuré (sonde) : après la clôture, l'échéance est rattachée au reversement (`platform_payout_id = 1`) et reste candidate : crédit de 150 000 au 2026-04-15 → `LeasePayment#1 conf=60` ; `payment-search?amount=150000&direction=credit` → `[["lease_payment",1]]`.
+  - Établi comment : code lu, puis sonde par les services et par HTTP en admin d'agence.
+- Piste : écarter des candidats d'un crédit (matcher, recherche manuelle) et refuser à la confirmation un `BookingPayment`/`LeasePayment` que `isSettledByPlatform()` lit comme encaissé par la plateforme — la même lecture que la clôture et que TCK-1160. Le choix de ce qui le représente sur le relevé relève de P141.02. Garde : le cas de la sonde en test, `suggestFor` nul, recherche vide et 422 à la confirmation, et l'intégration propre à l'agence toujours rapprochable.
+
+### Le virement de clôture de la plateforme ne peut être rapproché d'aucun crédit du relevé
+- Réf : P141.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Accounting/ReconciliationManager.php:26-32`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:26-30,49-51,132-150`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:16-21,35-43`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementLineController.php:19-24`, `takussan-api/app/Http/Requests/Accounting/MatchBankStatementLineRequest.php:19`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:267-290` (finalisation)
+- Constat :
+  - `PlatformPayout` n'est dans aucune liste de types : ni `PAYMENT_MODELS` du matcher, ni `ALLOWED_PAYMENT_TYPES`, ni `TYPE_MAP` de la recherche, ni `PAYMENT_TYPE_MAP` du contrôleur, ni la règle `Rule::in` de la requête (lu). Un débit ne cherche que des `Payout` (lu, `ReconciliationMatcher.php:132-150`).
+  - `platform_payouts` n'a ni `bank_reconciled_at` ni `bank_statement_line_id` : seules les migrations de `booking_payments`, `lease_payments`, `invoices` et `payouts` les ajoutent (lu, `grep -rn bank_reconciled_at database/migrations`).
+  - mesuré (sonde) : reversement de clôture `net_amount = 142 500` (`gross = 150 000`, 5 %), crédit de 142 500 au 2026-05-03 portant la référence `VIR-PLAT-1` et la contrepartie `TAKUSSAN` → `suggestFor` rend `null` ; `payment-search?amount=142500&direction=credit` → `200 []` ; `POST …/match` avec `payment_type = platform_payout` → `422` « The selected payment type is invalid. ».
+  - mesuré (sonde) : ce crédit resté `unmatched`, `POST /api/bank-statements/{id}/finalize` → `200`, relevé `partially_reconciled`. Seul « ignorer » le sort de la liste.
+  - L'agence ne peut pas non plus confirmer ce crédit sur l'une des échéances du reversement sans tomber dans P141.01 : le montant diffère de la commission.
+- Piste : décider ce qui représente, sur le relevé de l'agence, l'argent que la plateforme reverse (V1, V4) : le `PlatformPayout` `paid` comme candidat d'un crédit au `net_amount`, dans une fenêtre autour de `processed_at`, avec la règle de référence sur `payment_reference` (colonnes `bank_reconciled_at`/`bank_statement_line_id` sur `platform_payouts`, type `platform_payout` dans les quatre listes et le type `MatchedPaymentType` du front) ; ou un rapprochement qui solde d'un coup les échéances rattachées. Garde : le crédit de la sonde suggéré à 95 et confirmable une seule fois.
+
+### L'agence ne voit ni quels encaissements la plateforme détient, ni ce qu'un virement de la plateforme couvre
+- Réf : P141.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Me/PlatformPayoutController.php:14-33`, `takussan-api/app/Http/Resources/Api/Admin/PlatformPayoutResource.php:10-37`, `takussan-api/app/Http/Controllers/Api/Admin/PlatformPayoutController.php:36`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:145-172`
+- Constat :
+  - `GET /api/me/payouts` rend la ressource sans `breakdown` : la clé n'est remplie que par le contrôleur de la console (lu, `Admin/PlatformPayoutController.php:36`, `PlatformPayoutResource.php:34`). L'agence ne lit que les comptes `booking_payments_count` et `lease_payments_count` de `metadata`, jamais la liste des échéances.
+  - Aucune ressource de l'API n'émet `platform_payout_id`, `settled_by` ni l'intégration qui a soldé un paiement (lu, `grep -rn "platform_payout_id\|settled_by\|'gateway'" app/Http/Resources` → rien). Sur l'écran de rapprochement, rien ne distingue un loyer encaissé par la plateforme d'un loyer encaissé par l'agence (déduit de la même lecture, à vérifier côté front).
+  - Aucune notification ne part vers l'agence quand un reversement de la plateforme passe `paid` : aucune classe sous `app/Notifications`, `app/Listeners` ou `app/Events` ne nomme `PlatformPayout` (lu, `grep -rln PlatformPayout app`) ; `markPaid` ne fait que journaliser (lu, `PlatformPayoutService.php:145-172`). L'agence apprend le virement par son relevé.
+- Piste : rendre à l'agence ce qu'un reversement couvre (`breakdown` ou liste des échéances sur `/api/me/payouts/{id}`) et le règlement d'un paiement (encaissé par la plateforme ou non, reversement de rattachement) ; prévenir l'agence au `markPaid` (V7, texte neuf). Garde : un test qui lit `/api/me/payouts` et y trouve les échéances du reversement.
+
+### Petites améliorations du rapprochement
+- Réf : P141.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Models/BookingPayment.php:82-85`, `takussan-api/app/Models/LeasePayment.php:111-114`, `takussan-api/app/Models/Invoice.php:187-190`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:76`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:313-316`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:265`
+- Constat :
+  - `scopeWhereNotReconciled` existe sur trois modèles et n'a aucun appelant : matcher et recherche écrivent `whereNull('bank_reconciled_at')` à la main (lu, `grep -rn "whereNotReconciled" app` → les seules définitions). C'est l'endroit naturel d'une exclusion partagée des encaissements de la plateforme (P141.01).
+  - L'agence d'un acompte se lit par `booking.property.agency_id` dans le matcher (`ReconciliationMatcher.php:76`), la recherche (`PaymentSearchService.php:58`) et la garde d'agence de la confirmation (`ReconciliationManager.php:313-316`), mais par `bookings.agency_id` dans la clôture plateforme (`PlatformPayoutService.php:265`, `whereHas('booking', … agency_id)`) et dans `BookingPayment::auditAgencyId`. Les deux ne diffèrent que si une réservation et son bien n'ont pas la même agence (à vérifier : aucun chemin qui l'écrive n'a été cherché).
+- Piste : faire passer matcher et recherche par un scope partagé, et lire l'agence d'un acompte par une seule colonne (A3/A5 pour le scope ; le choix de colonne après mesure).
