@@ -48,6 +48,8 @@ class AgencyUpgradeRequestSubmittedNotification extends Notification implements 
         $reviewUrl = $this->reviewUrl();
 
         return (new MailMessage)
+            // P155.05 (TCK-1441) — les formules du dépôt, plus celles du gabarit de Laravel.
+            ->greeting(__('notifications.greeting'))
             ->subject(__('agency_upgrade.notifications.submitted.subject', [
                 'agency' => $agency?->name ?? '#'.$this->upgradeRequest->agency_id,
             ]))
@@ -55,7 +57,8 @@ class AgencyUpgradeRequestSubmittedNotification extends Notification implements 
                 'submitter' => $submitterName,
                 'agency' => $agency?->name ?? '#'.$this->upgradeRequest->agency_id,
             ]))
-            ->action(__('agency_upgrade.notifications.submitted.action'), $reviewUrl);
+            ->action(__('agency_upgrade.notifications.submitted.action'), $reviewUrl)
+            ->salutation(__('notifications.salutation'));
     }
 
     /**

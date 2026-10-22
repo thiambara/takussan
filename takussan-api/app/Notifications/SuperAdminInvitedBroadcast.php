@@ -46,7 +46,7 @@ class SuperAdminInvitedBroadcast extends Notification implements ShouldQueue
             ->subject(__('super_admins.cooptation.notifications.invited.subject', [
                 'email' => $targetEmail,
             ]))
-            ->greeting(__('notifications.salutation'))
+            ->greeting(__('notifications.greeting'))
             ->line(__('super_admins.cooptation.notifications.invited.body', [
                 'inviter' => $inviterName,
                 'email' => $targetEmail,

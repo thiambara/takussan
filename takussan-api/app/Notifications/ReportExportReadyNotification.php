@@ -32,9 +32,12 @@ class ReportExportReadyNotification extends Notification
         $report = Lang::has($cle) ? (string) __($cle) : (string) $this->export->report;
 
         return (new MailMessage)
+            // P155.05 (TCK-1441) — les formules du dépôt, plus celles du gabarit de Laravel.
+            ->greeting(__('notifications.greeting'))
             ->subject(__('notifications.report_export.subject'))
             ->line(__('notifications.report_export.intro', ['report' => $report]))
             ->action(__('notifications.report_export.action'), ReportExportDownloadController::signedUrl($this->export))
-            ->line(__('notifications.report_export.expires'));
+            ->line(__('notifications.report_export.expires'))
+            ->salutation(__('notifications.salutation'));
     }
 }

@@ -58,6 +58,8 @@ class ThresholdAlertTriggered extends Notification
         $metric = self::libelle('notifications.threshold_alert_mail.metrics', (string) $this->alert->metric);
 
         return (new MailMessage)
+            // P155.05 (TCK-1441) — les formules du dépôt, plus celles du gabarit de Laravel.
+            ->greeting(__('notifications.greeting'))
             ->subject(__('notifications.threshold_alert_mail.subject', ['metric' => $metric]))
             ->line(__('notifications.threshold_alert_mail.intro'))
             ->line(__('notifications.threshold_alert_mail.'.$direction, [
@@ -69,7 +71,8 @@ class ThresholdAlertTriggered extends Notification
             ->action(__('notifications.threshold_alert_mail.action'), $frontend.'/app/overview')
             ->line(trans_choice('notifications.threshold_alert_mail.cooldown', (int) $this->alert->cooldown_hours, [
                 'hours' => (int) $this->alert->cooldown_hours,
-            ]));
+            ]))
+            ->salutation(__('notifications.salutation'));
     }
 
     /** Le libellé d'un code, ou le code lui-même s'il n'en a pas (une valeur d'avant la liste). */
