@@ -10945,7 +10945,7 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
 
 ### Quand le courriel « prête » échoue, le job d'export reconstruit tout à chaque essai, et le rapport `ready` repasse à `failed`
 - Réf : P111.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1267 — reste : mettre les deux notifications « prête » en file avec `backoff`, pour qu'un courriel en échec soit renvoyé au lieu d'être seulement signalé
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:61-83`, `takussan-api/app/Notifications/ReportExportReadyNotification.php:11-20`, `takussan-api/app/Jobs/Privacy/ProcessDataExport.php:22-23`, `takussan-api/app/Notifications/DataExportReadyNotification.php:30-42`, `takussan-api/app/Http/Controllers/Api/ReportExportDownloadController.php:39-48`
 - Constat :
@@ -10956,6 +10956,7 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
   - Établi comment : mesuré pour l'état après `handle()` et après `failed()`, lu pour la reprise par le worker.
 - Piste : mettre la notification en file (`ShouldQueue`, avec `backoff`), ou attraper l'échec du courriel après `ready` pour que le job ne lève plus ; et faire que `GenerateReportExport::failed()` ne touche qu'un export encore `queued` ou `processing`. Test : canal `mail` qui lève → export `ready`, job sans exception, ou `failed()` sans effet sur un `ready`.
 - Mesure (2026-10-22, f396fa470, mesureur) : relu les deux notifications « prête » (ni `ShouldQueue`, canal `mail` seul), `GenerateReportExport::handle()` (notifie après l'écriture de `ready`) et `failed()` (met `failed` sans condition sur le statut) ; test temporaire (retiré), canal `mail` remplacé par un canal qui lève → rapport : `ready` et exception `smtp down` après `handle()`, puis `failed` avec `failure_reason` = `smtp down` après `failed()` ; export RGPD : `ready` et exception levée après `handle()`. La reconstruction aux essais suivants est lue (`build()` repasse à `processing`), non rejouée. Classement : A1, le commentaire de `failed()` (TCK-1145) borne son rôle à un calcul ou une écriture qui lève, et `ready` promet un fichier téléchargeable ; le correctif ne touche ni texte ni statut.
+- Mesure (2026-10-22, 1b5063805, implementeur) : `ExportReadyMailFailureTest` neuf, canal `mail` qui lève, rouge avant correctif sur ses trois cas : `ProcessDataExport::handle()` et `GenerateReportExport::handle()` lèvent `smtp down`, et `GenerateReportExport::failed()` passe un rapport `ready` à `failed` → voie retenue, la plus étroite : la notification « prête » dans un `try`, l'échec signalé par `report()`, et `failed()` du rapport borné à `queued` ou `processing` ; vert, chaque ablation seule rougit son cas, remise → vert ; `DisqueDesExportsTest` 4/4, `ReportExportDownloadTest` 6/6, `PlatformReportingTest` 31/31, `DataExportReadyNotificationTest` 11/11, `DataExportTest` 7/7.
 
 ### Le résumé de notifications est marqué « envoyé » avant l'envoi, qui part dans un job à part sans `backoff` : un échec du fournisseur le perd en silence
 - Réf : P111.04
