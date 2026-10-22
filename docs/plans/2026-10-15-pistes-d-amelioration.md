@@ -12666,7 +12666,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Le dialogue de facture affiche une TVA à 0 %, mais n'envoie pas ce 0 : l'API applique le taux de l'agence
 - Réf : P133.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : le taux de TVA envoyé change le montant de la facture émise
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:52,84,109-110`, `takussan-api/app/Services/Model/InvoiceService.php:59-66`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:43`
 - Constat :
@@ -12676,10 +12676,11 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Une agence à 18 % émet donc une facture à 118 000 quand l'écran annonçait 100 000, et nul ne peut émettre depuis la console une facture sans TVA.
   - Écart plus petit sur l'arrondi : l'aperçu arrondit la TVA à l'unité (`Math.round`, l. 109), l'API à l'unité de la devise (`Currency::roundAmount`, `InvoiceService.php:66`). En EUR ou en USD, 10,50 à 18 % s'affiche 2 et s'enregistre 1,89 (lu).
 - Piste : pré-remplir le taux avec `default_tax_rate` de l'agence de l'émetteur et envoyer le taux tel quel, `0` compris (`?? undefined` au lieu de `|| undefined`) ; arrondir l'aperçu par les décimales de `CURRENCY_METADATA`. Garde : un test du dialogue qui vérifie que `tax_rate: 0` part dans la charge utile, et un autre sur l'aperçu d'une agence à 18 %.
+- Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `CreateInvoiceDialog.tsx` (`tax_rate: 0` en valeur initiale l. 52, `tax_rate: values.tax_rate || undefined` l. 84, aperçu `Math.round(subtotal * taxRate / 100)` l. 109-110), `InvoiceService.php:59-66` (sans `tax_rate`, `agencies.default_tax_rate` ; TVA par `Currency::roundAmount`) et `StoreInvoiceRequest.php:43` ; lancé `php artisan test tests/Feature/Api/InvoiceLegalMentionsTest.php --filter=test_ac14_the_default_tax_rate` (charge 1,61 sur 8 cœurs) → 1 vert, 4 assertions : sans clé le taux de l'agence s'applique, un `0` explicite donne 0. Aucun commit ni ticket n'a touché le dialogue depuis TCK-670 (`git log` du fichier). Le constat tient tel qu'écrit, lignes inchangées. Classement : V1, le correctif change le montant de TVA et le total écrits sur la facture, et le taux à pré-remplir (celui de l'agence ou 0) est un choix.
 
 ### Les lignes saisies dans le dialogue de facture ne partent jamais : seul le sous-total calculé au front arrive à l'API
 - Réf : P133.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : recompter le sous-total depuis des lignes change le montant facturé, et V4 si les lignes se rangent en colonne
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:72-87`, `takussan-web/src/lib/queries/payments.ts:167-177`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:36-46`, `takussan-api/resources/views/pdf/invoices/default.blade.php:10-13`
 - Constat :
@@ -12689,10 +12690,11 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - L'API accepte aussi tout sous-total fourni (`numeric`, `min:0`) sans pouvoir le recompter (lu).
   - Établi comment : lu, de la saisie à l'impression ; le PDF n'a pas été rendu.
 - Piste : envoyer les lignes, les valider et les ranger côté API (colonne ou `metadata.lines`), recalculer le sous-total depuis elles comme `MaintenanceQuoteWorkflow::priceLines`, et les passer au gabarit ; ou, à défaut, ne plus faire saisir de lignes. Garde : un test API qui crée une facture à deux lignes et lit le sous-total recalculé et les lignes du PDF.
+- Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `CreateInvoiceDialog.tsx:72-87` (somme des `items` au navigateur, seul `subtotal` part), `CreateInvoicePayload` (`payments.ts:167-177`, aucun champ de lignes), `StoreInvoiceRequest.php:36-46` (ni `items` ni `lines`), `DocumentPdfController.php:106-113` (le gabarit est rendu sans `lines`) et `default.blade.php:10-15` (repli sur une ligne `designation() ?? 'Prestation'`) → le constat tient, établi par lecture, PDF non rendu. Classement : V1, recalculer le sous-total côté API change le montant d'une facture ; la Piste propose deux options (envoyer les lignes, ou ne plus les faire saisir), dont le choix est de produit (V7), et leur rangement peut demander une colonne (V4).
 
 ### Le dialogue de facture envoie toujours `XOF` : le repli sur la devise de l'agence (P04.09) ne joue jamais depuis la console
 - Réf : P133.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : la devise de la facture émise change, et le pré-remplissage est un choix (V7)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:53,85`, `takussan-api/app/Services/Model/InvoiceService.php:47-51`
 - Constat :
@@ -12700,10 +12702,11 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Le dialogue part avec `currency: 'XOF'` et l'envoie toujours (lu, l. 53 et 85) : la clé n'est jamais absente, le repli ne joue pas. Une agence en EUR qui ne touche pas au sélecteur émet en XOF, aperçu compris.
   - Même valeur en dur dans `CreateLeaseForm.tsx:81`, face à `LeaseService.php:94` (`?? 'XOF'`) : là, les deux côtés concordent, mais ni l'un ni l'autre ne lit la devise de l'agence ou du bien (à vérifier : ce que le produit attend).
 - Piste : pré-remplir la devise avec celle de l'agence de l'émetteur, ou ne l'envoyer que si la personne l'a choisie. Garde : un test du dialogue pour une agence en EUR.
+- Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `CreateInvoiceDialog.tsx:53,85` (`currency: 'XOF'` en valeur initiale, toujours envoyée), `InvoiceService.php:47-51` (repli `??=` sur `agencies.currency`, TCK-738), `CreateLeaseForm.tsx:81` (`currency: 'XOF'`) face à `LeaseService.php:94` (`?? 'XOF'`) → le constat tient : depuis la console, le repli sur la devise de l'agence ne joue jamais. Classement : V1, la devise fixe le montant et son arrondi sur la facture ; la Piste offre deux options (pré-remplir avec la devise de l'agence, ou n'envoyer que la devise choisie) et le constat laisse ouvert ce que le produit attend pour le bail.
 
 ### Le récapitulatif du renouvellement dit « — » pour la pénalité de retard et le délai de grâce, que le nouveau bail hérite pourtant du parent
 - Réf : P133.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : la pénalité de retard du bail renouvelé est un montant, et la vider demande un comportement neuf (V7)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseRenewalDialog.tsx:88-89,105-106,136-141,324-335`, `takussan-api/app/Services/Lease/LeaseRenewalService.php:124-125`, `takussan-api/app/Http/Resources/LeaseResource.php`
 - Constat :
@@ -12712,10 +12715,11 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Le front ne peut pas montrer la valeur héritée : le détail du bail ne rend aucune clé `late_fee_*` (mesuré, même test : clés de `GET /api/leases/{id}` qui contiennent `late` ou `review` → `[]`).
   - Vider le champ ne retire pas la pénalité : un champ vide n'est pas envoyé, et l'API le lit comme « hériter » (lu, l. 136-141 du dialogue et l. 124-125 du service).
 - Piste : exposer `late_fee_percent` et `late_fee_grace_days` sur le détail du bail, pré-remplir le dialogue avec eux comme le loyer et la caution, et montrer la valeur du parent dans le récapitulatif. Garde : un test du dialogue sur un parent à 5 %, et un test de contrat de `LeaseResource`.
+- Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `LeaseRenewalDialog.tsx` (champs vides l. 88-89, `from="—"` en dur l. 326 et l. 332, envoi conditionnel l. 136-141), `LeaseRenewalService.php:124-125` (`$data['late_fee_*'] ?? $parent->late_fee_*`), `LeaseResource.php` (`grep late_fee` → rien ; `grep -rn late_fee_percent app/Http` ne rend que `RenewLeaseRequest` et `UpdateLeaseRequest`), `LeaseController::show` (rend `LeaseResource`) → le détail du bail n'expose pas la pénalité, et le récapitulatif ne peut pas montrer l'héritée ; test temporaire de l'explorateur non rejoué. Le constat tient. Classement : V1, la pénalité de retard est un montant ; exposer la valeur héritée est sûr, mais permettre de la retirer au renouvellement (champ vide) est un comportement neuf à décider (V7).
 
 ### Le montant d'un paiement de réservation est calculé par le navigateur, et l'API l'accepte tel quel
 - Réf : P133.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : borner ou dériver le montant d'un paiement de réservation
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/bookings/BookingDetail.tsx:529-546`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:45`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-48`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1657-1659`
 - Constat :
@@ -12725,10 +12729,11 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Le calcul du front ignore les lignes `partially_paid` et `refunded` (filtre `status === 'paid'`, lu) : ce que l'API compte comme déjà payé pour ces lignes est à vérifier.
   - Voisin de P13.05 (fait, TCK-684), qui portait le statut sur une autre route ; ici, le statut est bien forcé à `pending` (lu, `BookingPaymentController.php:48-52`), mais le montant reste libre.
 - Piste : pour un payeur client, dériver le montant côté API (acompte de la réservation, puis reste dû) et refuser un montant fourni qui s'en écarte ; le front ne fait plus qu'afficher. Garde : un test API par cas (acompte, solde, montant hors borne → 422).
+- Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `BookingDetail.tsx:529-546` (`CustomerPayCta` : reste = total − lignes `paid`, acompte ou solde, montant posté), `StoreBookingPaymentRequest.php:45` (`amount` en `required|numeric|min:0`), `BookingPaymentController.php:40-56` (pour un client, seuls statut, `paid_at`, méthode et transaction sont forcés), `BookingPaymentService::create` (`'amount' => $data['amount']`) → le montant reste libre, établi par lecture ; test temporaire de l'explorateur (`1` et `999 999 999` → 201) non rejoué. Le traitement des lignes `partially_paid` et `refunded` côté API reste à vérifier. Classement : V1, le correctif fixe le montant encaissé par la passerelle et refuse des paiements aujourd'hui acceptés.
 
 ### Petites améliorations
 - Réf : P133.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : trois écarts d'affichage, dont une aide neuve sur la console, et l'aperçu d'un montant (V1)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/visits/VisitDetail.tsx:44,663,690-700`, `takussan-api/config/visits.php:14`, `takussan-web/src/components/maintenance/QuoteSubmitForm.tsx:56,197`, `takussan-api/app/Services/Maintenance/MaintenanceQuoteWorkflow.php:120-142`, `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:393,484`
 - Constat :
@@ -12736,3 +12741,4 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Aperçu du devis d'intervention : somme des produits bruts (lu, l. 56), là où l'API arrondit chaque ligne puis le total à l'unité de la devise (lu, `priceLines`). Trois lignes de 1,5 × 333 en XOF : aperçu 1 498,5 (affiché 1 499), devis enregistré 1 500. L'aperçu est aussi formaté sans la devise de la demande (`formatCurrency(total, locale)`, l. 197).
   - Configuration de l'agence : les champs « Commission » et « TVA par défaut » montrent les exemples `5` et `18` (lu, l. 393 et 484), alors qu'un champ vide vaut 0 % dans les deux calculs (lu, `PayoutCalculator.php:137`, `InvoiceService.php:64`). Un champ jamais rempli se lit comme réglé.
 - Piste : rendre la fenêtre d'avis dans la ressource de la visite (ou une date limite calculée) ; arrondir l'aperçu du devis ligne par ligne avec la devise de la demande ; remplacer les exemples par une aide qui dit « vide : 0 % ». Un test par point.
+- Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `VisitDetail.tsx:44,663,698` (`FEEDBACK_WINDOW_HOURS = 24` en dur, texte et verrou), `PropertyVisitController.php:407` et `config/visits.php:14` (`VISITS_FEEDBACK_WINDOW_HOURS`, défaut 24), `grep VISITS_FEEDBACK` sur `.env.example`, `.env.docker`, `phpunit.xml`, `prod-drivers.json` → rien ; `QuoteSubmitForm.tsx:56` (somme des produits bruts) et l. 197 (`formatCurrency(total, locale)` sans devise) ; `AgencyConfigForm.tsx:393,484` (`placeholder="5"` et `"18"`) → les trois points tiennent, lignes inchangées. Classement : V7, remplacer les exemples par une aide « vide : 0 % » est un texte neuf, et rendre la fenêtre d'avis dans la ressource de la visite change le contrat ; l'aperçu du devis touche un montant affiché (V1).
