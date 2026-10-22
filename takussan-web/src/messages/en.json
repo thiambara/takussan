@@ -6543,7 +6543,8 @@
         "booking_payment": "Booking payment",
         "lease_payment": "Rent",
         "invoice": "Invoice",
-        "payout": "Payout"
+        "payout": "Payout",
+        "platform_payout": "Platform payout"
       },
       "import": {
         "title": "Import a statement",

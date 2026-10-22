@@ -4,7 +4,6 @@ namespace App\Policies;
 
 use App\Http\Controllers\Api\MediaController;
 use App\Models\Enums\Capability;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
@@ -86,8 +85,9 @@ class MaintenanceRequestPolicy extends BasePolicy
         }
 
         return Property::query()->where('user_id', $user->id)->exists()
+            // TCK-1436 — la même liste que `store()` (TCK-1001) : un bail en préavis compte.
             || Lease::query()
-                ->where('status', LeaseStatus::Active)
+                ->whereIn('status', User::ACTIVE_TENANT_LEASE_STATUSES)
                 ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
                 ->exists();
     }

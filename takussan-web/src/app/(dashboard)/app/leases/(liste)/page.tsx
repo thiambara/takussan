@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { getMeAction } from '@/app/actions/auth';
 import { isAgent, isAdmin, isOwner, isSuperAdmin } from '@/lib/roles';
+import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
 import { LeasesList } from '@/components/leases/LeasesList';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { buttonVariants } from '@/components/ui/button';
@@ -23,8 +24,14 @@ export default async function Page() {
     return <NoAgencyState title={t('title')} />;
   }
 
-  // TCK-173 — `Nouveau bail` is an agent/admin/owner action, not a customer one.
-  const canCreateLease = isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles);
+  // TCK-173 — `Nouveau bail` n'est pas un geste de client. P152.03 — jugé comme l'API
+  // (`LeaseService::create`) : le bailleur, ou le personnel qui tient `leases.create` dans l'agence
+  // du profil actif. Une lecture des capacités en panne ne montre rien.
+  const lireCapacites =
+    (isAgent(user.roles) || isAdmin(user.roles)) && !isSuperAdmin(user.roles) && !isOwner(user.roles);
+  const capacites = lireCapacites ? await capacitesDuProfilActif() : [];
+  const canCreateLease =
+    isSuperAdmin(user.roles) || isOwner(user.roles) || (capacites ?? []).includes('leases.create');
 
   return (
     <div className="space-y-6">

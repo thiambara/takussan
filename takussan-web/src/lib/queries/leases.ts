@@ -129,22 +129,23 @@ export function useLeasePropertyOptions() {
 }
 
 /**
- * TCK-1371 (P135.04) — TOUS les baux actifs, page par page, pour le choix du bail d'un état des
+ * TCK-1371 (P135.04) — TOUS les baux en cours, page par page, pour le choix du bail d'un état des
  * lieux. Une page de 50 laissait les plus anciens hors de l'écran, sans recherche.
+ * TCK-1438 (P162.05) — en cours : `active` et `terminating`, dont l'état des lieux de sortie approche.
  */
-export function useAllActiveLeases() {
+export function useAllOngoingLeases() {
   const locale = useLocale();
   const { token } = useAuth();
 
   return useQuery<PaginatedResponse<Lease>, ApiError>({
-    queryKey: ['leases', 'list', { status: 'active', toutes: true }],
+    queryKey: ['leases', 'list', { status: 'active,terminating', toutes: true }],
     queryFn: ({ signal }) =>
       lireToutesLesPages((page) =>
         apiRequest<PaginatedResponse<Lease>>(
           cheminApi`/api/leases${requete(
             buildQueryString({
               fields: { leases: LIST_FIELDS, properties: ['id', 'title', 'slug'] },
-              filter: { status: 'active' },
+              filter: { status: 'active,terminating' },
               include: ['property'],
               sort: ['-created_at'],
               page,

@@ -55,8 +55,15 @@ class CrossTenantAuditController extends Controller
         'export',
     ];
 
-    /** Au-delà, l'export se resserre par les filtres : un fichier de la console n'est pas un dump. */
-    public const EXPORT_MAX_ROWS = 50_000;
+    /**
+     * Au-delà, l'export se resserre par les filtres : un fichier de la console n'est pas un dump.
+     *
+     * TCK-1416 (P78.02) — 50 000 avant ce ticket (TCK-601), une valeur que la requête ne tenait
+     * pas : le CSV se bâtit dans la requête. Mesuré après le préchargement de `profileTypes()` :
+     * 50 000 lignes, 46,6 s et 217 Mo de surcroît, au bord des 256 Mo de `memory_limit` et des 60 s
+     * de `max_execution_time` (`docker/php.ini`) ; 25 000 lignes, 22,5 s et 105 Mo.
+     */
+    public const EXPORT_MAX_ROWS = 25_000;
 
     public function index(Request $request): JsonResponse
     {

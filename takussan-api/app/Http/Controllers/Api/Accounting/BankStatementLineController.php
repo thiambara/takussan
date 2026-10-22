@@ -11,6 +11,7 @@ use App\Models\BookingPayment;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Models\PlatformPayout;
 use App\Services\Accounting\ReconciliationManager;
 use Illuminate\Http\Request;
 
@@ -21,6 +22,8 @@ class BankStatementLineController extends Controller
         'lease_payment' => LeasePayment::class,
         'invoice' => Invoice::class,
         'payout' => Payout::class,
+        // TCK-1421 (P141.02) — le virement de clôture de la plateforme.
+        'platform_payout' => PlatformPayout::class,
     ];
 
     public function index(BankStatement $statement, Request $request)

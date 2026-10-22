@@ -6543,7 +6543,8 @@
         "booking_payment": "Paiement de réservation",
         "lease_payment": "Loyer",
         "invoice": "Facture",
-        "payout": "Reversement"
+        "payout": "Reversement",
+        "platform_payout": "Reversement de la plateforme"
       },
       "import": {
         "title": "Importer un relevé",

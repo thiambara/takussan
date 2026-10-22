@@ -50,14 +50,20 @@ vi.mock('@/components/admin/InviteAgentDialog', () => ({
   InviteAgentDialog: bouchon('succes-invitation'),
 }));
 
-function monter() {
+// TCK-1412 — les capacités du profil actif, réglées par cas.
+let capacites: string[] = [];
+vi.mock('@/hooks/useCan', () => ({
+  useCan: (capability: string) => ({ can: capacites.includes(capability), isLoading: false }),
+}));
+
+function monter(estAdmin?: boolean) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const invalidate = vi.spyOn(client, 'invalidateQueries').mockResolvedValue(undefined);
 
   render(
     withIntl(
       <QueryClientProvider client={client}>
-        <InviteMemberButton agencyId={12} />
+        <InviteMemberButton agencyId={12} {...(estAdmin === undefined ? {} : { estAdmin })} />
       </QueryClientProvider>,
     ),
   );
@@ -75,6 +81,32 @@ function clesInvalidees(invalidate: { mock: { calls: unknown[][] } }): string[] 
 describe('<InviteMemberButton>', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    capacites = [];
+  });
+
+  /**
+   * TCK-1412 (P148.02) — la page Équipe s'ouvre à un agent qui tient `team.invite` : il invite
+   * (`AgentProfilePolicy::invite` juge la capacité), mais « ajouter un compte existant » passe par
+   * `AgencyPolicy::update`, qui juge le profil d'admin — l'API le lui refuserait.
+   */
+  it('un non-admin qui tient team.invite ne voit que « Inviter »', () => {
+    capacites = ['team.invite'];
+    monter(false);
+    expect(screen.getByRole('button', { name: /^Inviter$/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /compte existant/i })).toBeNull();
+  });
+
+  it('un non-admin sans team.invite ne voit aucun des deux gestes', () => {
+    capacites = ['team.suspend'];
+    monter(false);
+    expect(screen.queryByRole('button', { name: /^Inviter$/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /compte existant/i })).toBeNull();
+  });
+
+  it("l'admin garde les deux gestes, sans capacité lue (son profil suffit à l'API)", () => {
+    monter(true);
+    expect(screen.getByRole('button', { name: /^Inviter$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /compte existant/i })).toBeInTheDocument();
   });
 
   /**

@@ -12,10 +12,13 @@ use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PayoutStatus;
+use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Models\PlatformPayout;
 use App\Models\User;
+use App\Services\Billing\PlatformPayoutService;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -29,9 +32,14 @@ class ReconciliationManager
         Invoice::class,
         // TCK-593 — un reversement émis, rapproché d'un débit.
         Payout::class,
+        // TCK-1421 (P141.02) — le virement de clôture de la plateforme, rapproché d'un crédit.
+        PlatformPayout::class,
     ];
 
-    public function __construct(private readonly Dispatcher $events) {}
+    public function __construct(
+        private readonly Dispatcher $events,
+        private readonly PlatformPayoutService $platformPayouts,
+    ) {}
 
     /**
      * Confirm a match between a bank statement line and a payment.
@@ -73,11 +81,28 @@ class ReconciliationManager
             ]);
         }
 
+        // TCK-1421 (P141.02) — un crédit ne se rapproche que d'un virement de la plateforme PAYÉ.
+        if ($payment instanceof PlatformPayout && $payment->status !== PlatformPayoutStatus::Paid) {
+            throw ValidationException::withMessages([
+                'payment_id' => [__('reconciliation.validation.platform_payout_not_paid')],
+            ]);
+        }
+
         // TCK-724 (P25.04) — un crédit ne se rapproche que d'une facture envoyée, en retard ou payée :
         // une facture brouillon, annulée ou nulle recevait `bank_reconciled_at`.
         if ($payment instanceof Invoice && ! in_array($payment->status, Invoice::RECONCILABLE_STATUSES, true)) {
             throw ValidationException::withMessages([
                 'payment_id' => [__('reconciliation.validation.invoice_not_reconcilable')],
+            ]);
+        }
+
+        // TCK-1415 (P141.01) — un encaissement de la plateforme n'arrive pas seul sur le compte de
+        // l'agence : il y arrive fondu dans le net du reversement de la plateforme. La lecture de la
+        // clôture (`PlatformPayoutService::isSettledByPlatform`).
+        if (($payment instanceof BookingPayment || $payment instanceof LeasePayment)
+            && $this->platformPayouts->isSettledByPlatform($payment)) {
+            throw ValidationException::withMessages([
+                'payment_id' => [__('reconciliation.validation.settled_by_platform')],
             ]);
         }
 
@@ -172,7 +197,7 @@ class ReconciliationManager
         return match (true) {
             $payment instanceof LeasePayment => $payment->expectedBankAmount(),
             $payment instanceof Invoice => (float) $payment->total_amount,
-            $payment instanceof Payout => (float) $payment->net_amount,
+            $payment instanceof Payout, $payment instanceof PlatformPayout => (float) $payment->net_amount,
             default => (float) $payment->amount,
         };
     }
@@ -312,10 +337,11 @@ class ReconciliationManager
         }
 
         if ($payment instanceof BookingPayment) {
-            return $payment->booking?->property?->agency_id;
+            // TCK-1417 (P141.04) — l'agence de la réservation, celle du matcher et de la clôture.
+            return $payment->booking?->agency_id;
         }
 
-        if ($payment instanceof Payout) {
+        if ($payment instanceof Payout || $payment instanceof PlatformPayout) {
             return $payment->agency_id;
         }
 

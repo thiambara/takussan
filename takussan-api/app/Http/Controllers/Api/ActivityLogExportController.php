@@ -16,6 +16,14 @@ use Spatie\Activitylog\Models\Activity;
 
 class ActivityLogExportController extends Controller
 {
+    /**
+     * TCK-1418 (P78.03) — PhpSpreadsheet bâtit la feuille XLSX entière en mémoire. Mesuré après le
+     * préchargement de TCK-1414 : 20 000 lignes, 64 s (sous les 85 s du job,
+     * `ExportActivityLogJob::$timeout`) et 118 Mo de surcroît (sous les 256 Mo de `memory_limit`).
+     * Au-delà, le refus déjà connu de l'export : le CSV reste servi.
+     */
+    public const XLSX_MAX_ROWS = 20_000;
+
     public function __construct(
         private readonly ActivityLogExporter $exporter,
         private readonly ExportWriter $writer,
@@ -33,6 +41,9 @@ class ActivityLogExportController extends Controller
         $format = $request->validated('format');
 
         $count = $this->exporter->count($user, $filters, $agencyId);
+        if ($format === 'xlsx' && $count > self::XLSX_MAX_ROWS) {
+            abort_code(422, 'activity_log.export_too_large');
+        }
 
         // Log the export action itself (AC7).
         activity()

@@ -6,20 +6,17 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\Api\Admin\PlatformPayoutResource;
 use App\Models\Agency;
 use App\Models\PlatformPayout;
+use App\Services\Billing\PlatformPayoutService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PlatformPayoutController extends Controller
 {
+    public function __construct(private readonly PlatformPayoutService $payouts) {}
+
     public function index(Request $request): JsonResponse
     {
-        $agencyId = $request->activeProfile()?->agency_id ?? $request->user()->agency_id;
-        abort_code_unless($agencyId, 404, 'agency.active_profile_missing');
-
-        // TCK-594 (ADR-0039 §7) — un profil propriétaire ou agent de l'agence ne lit pas ce que la
-        // plateforme lui reverse : seul le détenteur d'`agency.update_billing`.
-        $agency = Agency::query()->findOrFail($agencyId);
-        abort_unless($request->user()->can('viewPlatformPayouts', $agency), 403);
+        $agencyId = $this->authorizedAgencyId($request);
 
         // Force the agency scope before handing off to spatie — agency_admin
         // can read their own payouts, never any other agency's.
@@ -30,5 +27,36 @@ class PlatformPayoutController extends Controller
             ->paginate($this->tailleDePage($request, 20));
 
         return $this->paginated($payouts, PlatformPayoutResource::collection($payouts->items())->resolve($request));
+    }
+
+    /**
+     * TCK-1419 (P141.03) — ce qu'un reversement couvre : la ventilation que la console lit déjà
+     * (`PlatformPayoutService::breakdown`), sous la même garde que la liste, dans la seule agence
+     * du profil actif (404 ailleurs).
+     */
+    public function show(Request $request, int $payout): JsonResponse
+    {
+        $agencyId = $this->authorizedAgencyId($request);
+
+        $model = PlatformPayout::query()->where('agency_id', $agencyId)->findOrFail($payout);
+
+        return $this->json([
+            'data' => (new PlatformPayoutResource($model))
+                ->additional(['breakdown' => $this->payouts->breakdown($model)])
+                ->resolve($request),
+        ]);
+    }
+
+    private function authorizedAgencyId(Request $request): int
+    {
+        $agencyId = $request->activeProfile()?->agency_id ?? $request->user()->agency_id;
+        abort_code_unless($agencyId, 404, 'agency.active_profile_missing');
+
+        // TCK-594 (ADR-0039 §7) — un profil propriétaire ou agent de l'agence ne lit pas ce que la
+        // plateforme lui reverse : seul le détenteur d'`agency.update_billing`.
+        $agency = Agency::query()->findOrFail($agencyId);
+        abort_unless($request->user()->can('viewPlatformPayouts', $agency), 403);
+
+        return (int) $agencyId;
     }
 }

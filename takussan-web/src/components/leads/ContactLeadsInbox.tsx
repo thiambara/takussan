@@ -15,6 +15,7 @@ import {
   useHandleLead,
 } from '@/lib/queries/contact-leads';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { useCan } from '@/hooks/useCan';
 import { ApiError } from '@/lib/api';
 import type { CustomerDuplicateMatch } from '@/app/actions/dashboard-customers';
 import { useAuth } from '@/context/AuthContext';
@@ -160,7 +161,11 @@ function DemandeDeContact({ lead, designee = false }: { readonly lead: ContactLe
     : t('whatsappReply', { name: nom });
   // La liste des collègues (`GET /agencies/{id}/members`) est réservée à l'administrateur de
   // l'agence : un agent détient `crm.assign`, mais le menu qu'on lui ouvrirait serait vide.
-  const peutAttribuer = user ? isAdmin(user.roles) : false;
+  // P152.05 — et `PropertyContactLeadPolicy::assign` exige `crm.assign` dans l'agence de la
+  // demande, sans branche d'admin : un admin dont le rôle ne la porte pas recevait 403.
+  const estAdmin = user ? isAdmin(user.roles) : false;
+  const { can: tientCrmAssign } = useCan('crm.assign', lead.agency_id ?? undefined, estAdmin);
+  const peutAttribuer = estAdmin && tientCrmAssign;
 
   async function marquerTraitee() {
     try {

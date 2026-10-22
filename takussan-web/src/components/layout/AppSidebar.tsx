@@ -35,7 +35,8 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
 import type { UserRole } from '@/types/user';
-import { isAgent, isOwner, isCustomer, isCustomerOnly, isAdmin, isServiceProvider, isTenant } from '@/lib/roles';
+import { isAgent, isOwner, isCustomer, isCustomerOnly, isAdmin, isServiceProvider, isSuperAdmin, isTenant } from '@/lib/roles';
+import { useMyCapabilities } from '@/hooks/useCan';
 import { isProRouteLocked } from '@/lib/access/pro-features';
 import { entreesDeMenu, type AccesAdmin, type CheminAdmin } from '@/lib/access/pages-admin';
 import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
@@ -218,16 +219,25 @@ function rangEnTete(item: NavItem): number {
   return RANG_EN_TETE[item.href] ?? Number.MAX_SAFE_INTEGER;
 }
 
-export function buildNavItems(user: User): NavItem[] {
+/**
+ * P152.03 — les capacités du profil actif, pour juger « Publier un bien » comme l'API
+ * (`PropertyPolicy::create`) : `null` tant qu'elles ne sont pas lues. Le personnel n'a alors aucune
+ * entrée de création — ni « Publier » qu'il n'aurait peut-être pas, ni « Proposer » qui basculerait.
+ */
+export function buildNavItems(user: User, capacites: readonly string[] | null = null): NavItem[] {
   const items: NavItem[] = [];
   const roles = user.roles;
+  const personnel = isAgent(roles) || isAdmin(roles);
 
   items.push({ href: '/app', labelKey: 'dashboard', icon: LayoutDashboard, section: 'primary' });
 
   if (peutOuvrirMesBiens(roles)) {
     items.push({ href: HREF_MES_BIENS, labelKey: 'myProperties', icon: Building2, section: 'primary' });
   }
-  if (isAgent(roles) || isAdmin(roles)) {
+  // P152.03 — « Publier » sous `properties.create` (le super-admin passe tout) ; sans elle, le
+  // bailleur de l'agence « Propose » (`PropertyPolicy::createsProposal`) ; sans l'un ni l'autre,
+  // rien : l'API refuserait la saisie (403).
+  if (personnel && (isSuperAdmin(roles) || (capacites ?? []).includes('properties.create'))) {
     items.push({
       href: '/app/properties/new',
       labelKey: 'publishProperty',
@@ -235,7 +245,7 @@ export function buildNavItems(user: User): NavItem[] {
       section: 'primary',
       emphasized: true,
     });
-  } else if (isOwner(roles)) {
+  } else if (isOwner(roles) && (!personnel || capacites !== null)) {
     // TCK-587 (ADR-0031) — le bailleur hors personnel ne publie pas : il PROPOSE un bien à son
     // agence, qui le relit et le publie (`PropertyController::store` impose brouillon + privé).
     // L'hôte d'une agence individuelle est son administrateur : il garde « Publier un bien ».
@@ -726,7 +736,12 @@ export function AppSidebar({
     agencyId: user.agency_id,
     agencyIsStandard,
   });
-  const navItems = avecSectionAgence(buildNavItems(user), accesAdmin).map((item) => ({
+  // P152.03 — les capacités du profil actif, lues pour le seul personnel (le cache est amorcé par le
+  // layout pour l'admin d'agence, `AmorceCapacites`). Le super-admin passe tout, sans lecture.
+  const lireCapacites = (isAgent(user.roles) || isAdmin(user.roles)) && !isSuperAdmin(user.roles);
+  const { data: mesCapacites } = useMyCapabilities(undefined, lireCapacites);
+  const capacites = lireCapacites ? (mesCapacites?.data.capabilities ?? null) : [];
+  const navItems = avecSectionAgence(buildNavItems(user, capacites), accesAdmin).map((item) => ({
     ...item,
     locked: isProRouteLocked(user, agencyIsStandard, item.href),
   }));

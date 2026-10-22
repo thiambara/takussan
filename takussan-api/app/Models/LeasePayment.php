@@ -114,6 +114,20 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
         return $query->whereNull('bank_reconciled_at');
     }
 
+    /**
+     * TCK-1417 (P141.04) — ce qui attend un crédit du relevé de l'agence : le scope que partagent
+     * le matcher (`ReconciliationMatcher`) et la recherche manuelle (`PaymentSearchService`).
+     *
+     * Sans les cautions rendues (TCK-594) ni les loyers encaissés par la plateforme (TCK-1415).
+     */
+    public function scopeAwaitingBankCredit(Builder $query, int $agencyId): Builder
+    {
+        return $query->whereNotReconciled()
+            ->whereHas('lease', fn (Builder $q) => $q->where('agency_id', $agencyId))
+            ->exceptDepositRefunds()
+            ->whereNotSettledByPlatform();
+    }
+
     /** TCK-601 (ADR-0044 §3) — l'agence d'une activité sur cette ligne est celle du bail. */
     public function auditAgencyId(): ?int
     {

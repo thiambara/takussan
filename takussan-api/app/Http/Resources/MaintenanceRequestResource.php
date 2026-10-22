@@ -203,7 +203,7 @@ class MaintenanceRequestResource extends BaseResource
                 && $machine->canTransition($status, MaintenanceStatus::QuoteRequested),
             // ADR-0037 — en `awaiting_owner`, seul le bailleur du bien tranche : `decideQuote` le dit.
             'can_decide_quote' => $user->can('decideQuote', $mr)
-                && in_array($status, [MaintenanceStatus::QuoteSubmitted, MaintenanceStatus::AwaitingOwner], true),
+                && in_array($status, MaintenanceStateMachine::AWAITING_QUOTE_DECISION, true),
             'can_view_quote_pdf' => $mr->quote_submitted_at !== null && $user->can('viewQuote', $mr),
             'can_submit_quote' => $isProvider
                 && in_array($status, [MaintenanceStatus::QuoteRequested, MaintenanceStatus::Rejected], true),

@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/console';
 import { buttonVariants } from '@/components/ui/button';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { getToken } from '@/lib/session';
+import { isAdmin } from '@/lib/roles';
 import type { Metadata } from 'next';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -63,15 +64,20 @@ export default async function TeamPage() {
     ? await resolveAgencyOrNull(token, user.agency_id, 'TeamPage', 'affichage')
     : null;
 
+  // TCK-1412 (P148.02) — la page s'ouvre aussi par capacité, à un compte sans rôle d'administration :
+  // les gestes que l'API juge par le profil d'admin lui sont alors cachés.
+  const estAdmin = isAdmin(user.roles);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={tPage('title')}
         description={tPage('subtitle')}
-        actions={<InviteMemberButton agencyId={user.agency_id} />}
+        actions={<InviteMemberButton agencyId={user.agency_id} estAdmin={estAdmin} />}
       />
       <TeamConsole
         agencyId={user.agency_id}
+        estAdmin={estAdmin}
         currentUserId={user.id}
         agencyKind={agency?.kind ?? null}
         primaryAdminId={agency?.primary_admin_id ?? null}

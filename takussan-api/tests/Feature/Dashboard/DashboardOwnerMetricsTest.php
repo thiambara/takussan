@@ -279,4 +279,23 @@ class DashboardOwnerMetricsTest extends ApiTestCase
         $this->assertSame(1, $data['visits']['to_confirm']);
         $this->assertSame(1, $data['reviews']['unanswered']);
     }
+
+    /**
+     * TCK-1434 (P162.01) — « Devis à valider » compte aussi `awaiting_owner` : au-delà du plafond,
+     * le devis n'attend plus que le bailleur (ADR-0037). Ni `quote_requested` ni `approved`.
+     */
+    public function test_p162_01_quotes_pending_counts_quotes_awaiting_the_landlord(): void
+    {
+        $ref = $this->referenceAsOwner();
+        $other = Property::factory()->create(['agency_id' => $ref['agency']->id]);
+
+        foreach ([MaintenanceStatus::QuoteSubmitted, MaintenanceStatus::AwaitingOwner, MaintenanceStatus::QuoteRequested, MaintenanceStatus::Approved] as $status) {
+            MaintenanceRequest::factory()->create(['property_id' => $ref['properties']['L2']->id, 'status' => $status]);
+        }
+        MaintenanceRequest::factory()->create(['property_id' => $other->id, 'status' => MaintenanceStatus::AwaitingOwner]);
+
+        $data = $this->apiGet('/api/dashboard/owner')->assertOk()->json('data');
+
+        $this->assertSame(2, $data['maintenance']['quotes_pending']);
+    }
 }

@@ -29,6 +29,10 @@ import {
 import { resolveActiveHref, APP_EXACT_ROOTS } from '@/lib/navigation/active-path';
 
 let pathname = '/app';
+// P152.03 — les rôles système portent `properties.create` : « Publier un bien » se juge par elle.
+vi.mock('@/hooks/useCan', () => ({
+  useMyCapabilities: () => ({ data: { data: { agency_id: 1, capabilities: ['properties.create'] } } }),
+}));
 vi.mock('next/navigation', () => ({
   usePathname: () => pathname,
 }));
@@ -317,7 +321,7 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
   it.each(Object.keys(HREFS_PAR_ROLE) as UserRole[])(
     'le jeu d’href de %s est inchangé, à l’ordre près',
     (role) => {
-      const apres = buildNavItems(userWith([role])).map((item) => item.href);
+      const apres = buildNavItems(userWith([role]), ['properties.create']).map((item) => item.href);
       expect([...apres].sort()).toEqual([...HREFS_PAR_ROLE[role]].sort());
       expect(apres).toHaveLength(HREFS_PAR_ROLE[role].length);
     },
@@ -330,7 +334,7 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
   // TCK-649 — 27 → 26 : l'emplacement « Administration » ne vient plus de `buildNavItems` ; la
   // section d'agence est ajoutée depuis la table (`avecSectionAgence`).
   it('les 26 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
-    const items = buildNavItems(userWith(['agency_admin']));
+    const items = buildNavItems(userWith(['agency_admin']), ['properties.create']);
     expect(items).toHaveLength(26);
     for (const item of items) expect(SECTION_ORDER).toContain(item.section);
     const groupes = groupBySection(items);
@@ -340,7 +344,7 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
 
   it('aucun rôle ne voit de césure vide', () => {
     for (const role of ROLES) {
-      for (const g of groupBySection(buildNavItems(userWith([role])))) {
+      for (const g of groupBySection(buildNavItems(userWith([role]), ['properties.create']))) {
         expect(g.items.length, `${role} — ${g.section}`).toBeGreaterThan(0);
       }
     }
@@ -348,7 +352,7 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
 
   // TCK-646 — la section « Catalogue » a disparu : « Publier un bien » est monté en tête.
   it('TCK-625 — un client garde « Publier un bien », désormais en tête', () => {
-    const groupes = groupBySection(buildNavItems(userWith(['customer'])));
+    const groupes = groupBySection(buildNavItems(userWith(['customer']), ['properties.create']));
     const tete = groupes.find((g) => g.section === 'primary');
     expect(tete?.items.map((i) => i.href)).toContain('/publish');
     expect(groupes.flatMap((g) => g.items)).toHaveLength(14);
@@ -393,7 +397,7 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
   });
 
   it('le groupement s’efface quand une seule section est peuplée', () => {
-    const items = buildNavItems(userWith(['agency_admin']))
+    const items = buildNavItems(userWith(['agency_admin']), ['properties.create'])
       .filter((item) => item.section === 'manage');
     expect(groupBySection(items)).toHaveLength(1);
     expect(withSectionHeadings(groupBySection(items))).toBe(false);
@@ -483,7 +487,7 @@ describe('AC6 — aucun sondage pour un rôle qui ne voit pas l’entrée compt�
   });
 
   it('countersToPoll n’arme que ce que la liste contient', () => {
-    const items = buildNavItems(userWith(['agency_admin']));
+    const items = buildNavItems(userWith(['agency_admin']), ['properties.create']);
     const sansVisites = items.filter((item) => item.href !== '/app/visits');
     expect(countersToPoll(sansVisites).has('pendingVisits')).toBe(false);
     expect(countersToPoll(sansVisites).has('unreadMessages')).toBe(true);
@@ -491,7 +495,7 @@ describe('AC6 — aucun sondage pour un rôle qui ne voit pas l’entrée compt�
   });
 
   it('une entrée cadenassée n’est pas sondée', () => {
-    const cadenasse: NavItem[] = buildNavItems(userWith(['agency_admin']))
+    const cadenasse: NavItem[] = buildNavItems(userWith(['agency_admin']), ['properties.create'])
       .map((item) => (item.counterKey ? { ...item, locked: true } : item));
     expect(countersToPoll(cadenasse).size).toBe(0);
   });
@@ -518,7 +522,7 @@ describe('AC6 — aucun sondage pour un rôle qui ne voit pas l’entrée compt�
    * quel compteur), toutes deux écrites à la main.
    */
   it.each(ROLES)('countersToPoll rend, pour %s, le jeu déduit de ses href', (role) => {
-    expect(countersToPoll(buildNavItems(userWith([role])))).toEqual(sondesAttendues(role));
+    expect(countersToPoll(buildNavItems(userWith([role]), ['properties.create']))).toEqual(sondesAttendues(role));
   });
 
   /**
