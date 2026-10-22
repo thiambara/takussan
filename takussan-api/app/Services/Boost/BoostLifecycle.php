@@ -229,8 +229,13 @@ final class BoostLifecycle
         // TCK-1452 (P90.02) — `reindexer()` écrit l'index après le commit : l'achat, l'offre,
         // l'annulation et la réconciliation d'un bien se jouent dans une transaction, et une
         // annulation laissait l'index en avance sur la base.
+        //
+        // TCK-1454 (P90.04) — et son échec est rapporté, pas levé : la dépense, l'offre ou le
+        // remboursement sont validés, et un moteur injoignable ne doit ni les annuler ni les
+        // faire répondre 500. Le document reste périmé jusqu'à la prochaine écriture du bien.
+        // Le `rescue()` est DANS le rappel d'après commit : c'est là que l'écriture a lieu.
         if ($changed) {
-            $fresh->reindexer();
+            DB::afterCommit(fn () => rescue(fn () => $fresh->reindexer(), report: true));
         }
     }
 
