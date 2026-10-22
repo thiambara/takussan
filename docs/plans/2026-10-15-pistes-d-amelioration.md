@@ -10926,7 +10926,7 @@ passe par un job (angle 78).*
 
 ### L'export PDF ne tient pas dans `memory_limit = 256M` au-delà de quelques centaines de lignes, alors que son plafond et son défaut sont 2 000
 - Réf : P112.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : abaisser le plafond PDF (et le dire à l'écran) ou passer le PDF en file change ce que l'utilisateur obtient, et revient sur le plafond de 2 000 retenu par TCK-713
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Export/ExportWriter.php:80-140`, `takussan-api/app/Services/Export/ExportDataService.php:36,488-500`, `takussan-api/app/Http/Requests/Api/ShowExportRequest.php:36`, `takussan-api/docker/php.ini:3,11`, `takussan-web/src/lib/queries/exports.ts:33-40`, `takussan-web/src/app/(dashboard)/app/overview/exports/ExportForm.tsx:71-86`
 - Constat :
@@ -10936,10 +10936,11 @@ passe par un job (angle 78).*
   - Le seuil se mesure dans le processus de test, dont l'usage de base n'est pas celui d'un worker FrankenPHP (à vérifier) ; il tombe entre 250 et 400 lignes de paiements. Une agence qui a plus de quelques centaines d'échéances ne peut donc obtenir aucun PDF de paiements depuis `/app/overview/exports` : l'erreur fatale ne passe par aucun gestionnaire, et l'onglet ouvert par `window.open` reçoit une 500 (déduit, à vérifier en préproduction).
   - Établi comment : lu, puis mesuré par test temporaire (retiré).
 - Piste : ramener `MAX_ROWS_PDF` sous le seuil mesuré (avec marge, sous 256M) et le dire à l'écran, ou rendre le PDF en file (job, notification et lien, comme `ExportActivityLogJob`). Garde : un test qui rend le PDF au plafond du format sous `ini_set('memory_limit', '256M')` (ou qui vérifie `memory_get_peak_usage` sous une borne) et rougit si le plafond remonte.
+- Mesure (2026-10-22, b69261b77, mesureur) : relu `ExportWriter::pdf()` (un tableau HTML rendu par dompdf dans la requête), `ExportDataService::limit()` et `MAX_ROWS_PDF = 2_000`, `docker/php.ini:3,11` (256M, 60 s), inchangés depuis f396fa470 (`git log`) ; test temporaire (retiré), N paiements insérés, `GET /api/export/payments?format=pdf` sans `limit`, `php -d memory_limit=256M`, `XDEBUG_MODE=off`, charge 6,1 sur 8 cœurs → 250 lignes : 200, 6,2 s, 112 Mo de surcroît ; **400 lignes : `Allowed memory size of 268435456 bytes exhausted` dans `php-font-lib/BinaryStream.php:149`**. Le seuil sous un worker FrankenPHP reste non mesuré. Classement : V7, les deux voies de la `Piste` changent ce que l'utilisateur obtient (plafond plus bas affiché, ou PDF livré par lien), et TCK-713 a retenu 2 000 « Hors périmètre : la tâche en file ».
 
 ### L'export XLSX de 10 000 lignes est bâti en entier en mémoire pendant la requête : 19 s et près de 100 Mo pour 13 colonnes
 - Réf : P112.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : abaisser le plafond XLSX ou passer en file change ce que reçoit l'utilisateur ; la `Piste` laisse trois voies
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Export/ExportWriter.php:57-78`, `takussan-api/app/Services/Export/ExportDataService.php:34,53-70`, `takussan-api/docker/php.ini:3,11`
 - Constat :
@@ -10947,10 +10948,11 @@ passe par un job (angle 78).*
   - Mesuré, `payments`, 10 000 lignes (le plafond, `ExportDataService.php:34`), `memory_limit=-1`, charge 9,9 sur 8 cœurs : 200, **19,1 s**, **96,7 Mo** de surcroît. La marge reste réelle sous 256M et 60 s sur ce poste ; les entités plus larges (`payouts`, 15 colonnes) et une machine de production chargée ne sont pas mesurées (à vérifier).
   - Établi comment : lu, puis mesuré par test temporaire (retiré).
 - Piste : mesurer l'entité la plus large au plafond sous `memory_limit=256M` ; selon le résultat, abaisser le plafond XLSX, écrire la feuille par morceaux (`FromQuery` + `WithChunkReading`, ou un écrivain en flux), ou passer en file au-delà d'un seuil. Garde : un test de mémoire au plafond, comme pour P112.01.
+- Mesure (2026-10-22, b69261b77, mesureur) : relu `ExportWriter::xlsx()` (`array_map` puis `FromArray`), inchangé depuis f396fa470 ; test temporaire (retiré), 10 000 paiements, `format=xlsx` sans `limit`, `php -d memory_limit=256M`, charge 5,1 sur 8 cœurs → 200, 8,5 s, 87 Mo de surcroît. Le constat tient comme risque (feuille entière en mémoire) et non comme panne : `payments` passe sous 256M et 60 s sur ce poste ; `payouts` (15 colonnes) n'est pas mesuré. Classement : V7, la `Piste` laisse le choix entre abaisser le plafond, écrire par morceaux et passer en file, dont deux changent ce que reçoit l'utilisateur.
 
 ### L'export rend au plus 5 000 lignes (2 000 en PDF) sans le signaler : une période plus longue est coupée en silence
 - Réf : P112.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : signaler la coupure à l'écran est un comportement visible et un texte neufs, que TCK-713 a laissés hors périmètre
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Export/ExportDataService.php:38,53,488-494`, `takussan-api/app/Http/Controllers/Api/ExportController.php:82-95`, `takussan-api/app/Services/Export/ExportWriter.php:31-55`, `takussan-web/src/lib/queries/exports.ts:33-40`, `takussan-web/src/app/(dashboard)/app/overview/exports/ExportForm.tsx:71-86`
 - Constat :
@@ -10959,10 +10961,11 @@ passe par un job (angle 78).*
   - Rien ne le dit au demandeur : ni en-tête de réponse, ni ligne dans le fichier, ni texte à l'écran (lu, `ExportWriter.php:31-55`, `fr.json` `dashboard.exports`). Seule trace, `row_count` dans le journal d'activité (lu, `ExportController.php:91`). Le plafond de 10 000 lignes, qui reste accessible par `limit`, n'est jamais proposé par l'interface (lu).
   - Établi comment : lu.
 - Piste : signaler la coupure (en-tête `X-Export-Truncated` lu par le relais et le formulaire, ou dernière ligne du fichier), et dire le plafond à l'écran ; ou demander une ligne de plus que le plafond pour savoir s'il y a coupure. Garde : un test qui exporte plafond + 1 lignes et attend le signal.
+- Mesure (2026-10-22, b69261b77, mesureur) : test temporaire (retiré), 5 001 paiements, `format=csv` sans `limit` → 200, 5 001 lignes de fichier (en-tête + 5 000), en-têtes de réponse `content-type`, `content-disposition`, `cache-control` seuls : la coupure n'est signalée nulle part ; `TCK-713-export-colonnes-et-plafond.md:66` la laisse « Hors périmètre ». Classement : V7, le signal à l'écran est un comportement visible et un texte métier neufs.
 
 ### Petites améliorations
 - Réf : P112.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : diffuser le CSV d'un curseur change le contrat `{columns, rows}` des neuf constructeurs et le `row_count` du journal ; le délai du relais est dans la PR #972 ouverte
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/api/export/[entity]/route.ts:46-48`, `takussan-api/app/Services/Export/ExportDataService.php:350-366`, `takussan-api/app/Services/Export/ExportWriter.php:31-55`
 - Constat :
@@ -10971,6 +10974,7 @@ passe par un job (angle 78).*
   - Le CSV est envoyé en flux, mais d'un tableau déjà chargé en entier (lu, `ExportWriter.php:31-49`) : 54 Mo de surcroît pour 10 000 lignes (mesuré, test temporaire retiré). Un `lazyById()` diffusé ligne à ligne le borderait, sans changer le fichier rendu.
   - Établi comment : lu, et mesuré pour le CSV.
 - Piste : poser un délai sur le `fetch` du relais aligné sur `max_execution_time` ; diffuser le CSV depuis un curseur. Garde : un test du relais qui vérifie qu'un `signal` est passé.
+- Mesure (2026-10-22, b69261b77, mesureur) : relu `takussan-web/src/app/api/export/[entity]/route.ts:46-48` (`fetch` sans `signal`, tient sur l'arbre) ; la PR #972 ouverte (P79.04, TCK-1219) borne ce relais à 90 s, non fusionnée ; relu `ExportDataService::deposits()` (agrégat de tous les baux, `limit` sur les baux seuls, tient) et `ExportController` (`row_count = count($payload['rows'])` avant `respond()`) ; CSV 5 001 lignes sous 256M → 30 Mo de surcroît (test temporaire, retiré). Classement : V6, le CSV en curseur change le contrat de tableau partagé par les neuf constructeurs, les trois écrivains et le compte du journal, et le délai du relais se décide avec #972.
 
 ## Angle 113 — Appels du navigateur vers l'API sans délai
 
