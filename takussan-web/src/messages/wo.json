@@ -8735,14 +8735,11 @@
     "agent": {
       "title": "Profilu liggéey",
       "subtitle": "Say xibaar ci ajaŋu kër.",
-      "bioLabel": "Bio bu liggéey",
-      "bioPlaceholder": "Waxal sa xam-xam ak say wàll yu rafet",
       "specialtiesLabel": "Wàll yi nga gën a xam",
-      "comingSoon": "Mu ngi ñëw",
       "licenseLabel": "Nomboro lisaas",
-      "licensePlaceholder": "Misaal: AGC-2025-0001",
       "agencyLabel": "Ajaas bi mu boole",
-      "noAgency": "Boolewul"
+      "noAgency": "Boolewul",
+      "notProvided": "Non renseigné"
     },
     "owner": {
       "title": "Barabu boroom kër",
