@@ -205,7 +205,7 @@ voie d'écriture (angle 13, puis 47).
 | 128 | Dates des charges utiles de notification (`toArray()` / `toDatabase()` de `app/Notifications`, `data` rendu par `AppNotificationResource`, diffusions) que l'ADR-0018 laisse hors de son périmètre : forme émise, et lecture par le centre de notifications du front | fait |
 | 129 | Suppression douce d'une agence (`DELETE /api/agencies/{agency}`, `AgencyController::destroy`, `$agency->delete()` seul, ouvert à l'admin principal) : profils restés actifs et profil actif encore résolu, biens publiés, baux et échéances, abonnement, invitations ouvertes et tâches planifiées d'une agence supprimée | fait |
 | 130 | Fiches supprimées en douceur et encore citées (`CustomerController::destroy`, `GuarantorController::destroy`, `PropertyController::destroy`) : baux, réservations, factures, relances, PDF et exports dont la relation `customer`, `guarantor` ou `property` rend `null` sous la portée `SoftDeletes` — 500, champ vide ou geste refusé ? | fait |
-| 131 | Paramètres de requête des liens profonds émis par l'API ou le front (`?conversation=`, `?tab=`, `?id=`, `router.push('…?…')`, `href` des listes et des cloches) : lus par la page visée, et conservés à travers les redirections de connexion, d'onboarding et de changement de profil actif | à faire |
+| 131 | Paramètres de requête des liens profonds émis par l'API ou le front (`?conversation=`, `?tab=`, `?id=`, `router.push('…?…')`, `href` des listes et des cloches) : lus par la page visée, et conservés à travers les redirections de connexion, d'onboarding et de changement de profil actif | fait |
 | 132 | Liens portés par les SMS et WhatsApp (`payment_url`, `receipt_url`, lien d'invitation, gabarits WhatsApp à bouton) : hôte, durée de validité face au délai d'envoi des heures calmes, et page qu'ouvre un destinataire sans compte — le pendant de l'angle 97 hors du courriel | à faire |
 | 133 | Estimations et aperçus calculés au front par une constante qui recopie un réglage ou un calcul de l'API (`DEFAULT_*` des dialogues de bail : indemnité de résiliation, préavis de 30 jours, pénalités de retard, révision de loyer, échéancier) : chiffre affiché qui diverge du réglage de la plateforme, de l'agence ou du bail | à faire |
 | 134 | Tris `orderBy` / `orderByDesc` sur une colonne d'enum rangée en chaîne (`severity`, `priority`, `status`, `level` des annonces, alertes, maintenances, tâches) : ordre alphabétique pris pour un ordre métier dans une liste ou un « premier élément » affiché | à faire |
@@ -241,6 +241,8 @@ voie d'écriture (angle 13, puis 47).
 | 164 | Paramètres `text` des notifications codées qui portent un code ou une valeur d'enum (`role` des délégations, statuts, types, motifs hors `reason_code`) : valeur rendue brute par `NotificationRenderer` et par `valeursDeNotification` du front, dans la cloche, le courriel et le SMS — né de P128.02 | à faire |
 | 165 | Lectures `->agency->…` sans `?->` (une vingtaine sous `app/` : `MaintenanceRequestResource.php:302`, `PropertyBoostResource.php:34`, notifications, PDF et gabarits) sur les lignes d'une agence supprimée en douceur, que la portée `SoftDeletes` rend nulle : 500 ou champ vide là où la ligne reste lisible — le pendant pour l'agence de l'angle 130, né de P129.01 | à faire |
 | 166 | Notifications, jobs et écouteurs en file qui portent un modèle à `SoftDeletes` par `SerializesModels` (`PropertyApprovedNotification`, `PropertyRejectedNotification`, `PropertyProposedNotification`, et leurs pareilles sur `Customer`, `Lease`, `Booking`) : fiche supprimée entre l'envoi et le traitement, `ModelNotFoundException` au déroulement, essais perdus et trace laissée — né de P130.02 | à faire |
+| 167 | Tuiles, compteurs et lignes cliquables des tableaux de bord (bandeau `PropertyKpiStrip` de `/app/properties`, `DashboardLinkLine` des aperçus, files `AgencyQueues`, tuiles de la console) : filtre posé par le lien face à celui qui a compté le nombre affiché (statuts additionnés, portée « mes biens » ou agent, période) — la liste ouverte ne montre pas ce que la tuile comptait, né de P131.02 | à faire |
+| 168 | Onglets, filtres et pagination des listes de la console tenus en état local (`useState`) au lieu de l'URL (`BookingsList.tsx:35`, et leurs pareilles sous `components/*`) : retour arrière depuis un détail qui ramène au premier onglet, rechargement ou lien partagé qui perd la vue, paramètre `?status=` d'un lien entrant ignoré — né de P131.03 | à faire |
 
 ---
 
@@ -12514,3 +12516,54 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu et mesuré.
 - Piste : lire le client et le bien `withTrashed()` dans les documents qui attestent un fait passé (facture, quittance), parce que la fiche existait quand le fait a eu lieu ; test : facture d'un client supprimé → son nom imprimé.
 - Mesure (2026-10-22, d94868488, mesureur) : relu `pdf/invoices/default.blade.php:70` (« — » à défaut de nom) et `pdf/receipts/rent.blade.php:54` (nom vide), `DocumentPdfController` (`loadMissing(['customer', …])` sans `withTrashed()`), `LeaseResource.php:83-84` ; test temporaire (retiré) : client supprimé, facture PDF en admin → 200, quittance PDF en admin → 200, `data.tenant` du bail = `null`. Le texte imprimé n'a pas été extrait du PDF, seulement lu dans le gabarit ; le rendu du front n'est pas vérifié. Classement : V3, relire une fiche supprimée pour l'imprimer dans un document touche l'exposition de données personnelles retirées, à trancher par le porteur.
+
+## Angle 131 — Paramètres de requête des liens profonds, et leur survie aux redirections
+
+*Exploré le 2026-10-22 sur `pre-dev` d94868488, par l'explorateur. Tout a été relu par l'explorateur lui-même, sans sous-agent. Inventaire des liens à paramètre écrits par le front (`grep` des chaînes `'/app…?x='` et des gabarits `` `/…?x=${…}` `` sous `takussan-web/src`, tests exclus) et par l'API (`NotificationTarget::PATHS`, `toMail()`, vues, pilotes de paiement), puis lecture de la page visée pour chacun. Ce qui tient (lu) : `?conversation=` et `?property=` (`MessagesPage.tsx:77,82`), `?lease=` (`inventories/new/page.tsx:26`), `?tags=` (`customers/(liste)/page.tsx:62`), `?tab=` des finances d'agence (`AdminFinancesTabs.tsx`, `TAB_VALUES`) et des rapports de la console (`ReportingShell.tsx:46`), `?status=` et `?is_verified=` de la console (`agencies/page.tsx:79-80`, `agency-upgrade-requests/page.tsx:91`), `?scope=`, `?booster=1`, `?action=reserver`, `?ids=`, `?property=` de `/bookings`. La survie à la connexion et à l'onboarding tient aussi : la connexion, l'inscription et le retour OAuth relaient `redirect` par `avecRedirection`, `/onboarding/intention` le rend après le prénom (`EtapePrenom` fait `router.refresh()`, l'URL reste), et le changement de profil actif fait `router.refresh()` sans quitter la page (`useProfiles.ts:97`). Déjà couverts ailleurs, non repris : la requête jetée par le proxy (P97.02), la console après connexion (P97.03), `?lead=` (P97.04), `?unsubscribed=1` (P97.06). Écarté vers l'angle 161 : un membre de deux agences qui ouvre la notification de l'agence non active (la cible ne porte pas l'agence, `LeasePolicy::view` juge `staffAgencyId()`, donc le profil actif). Aucun test lancé, rien de mesuré au navigateur.*
+
+### L'annulation ou l'échec d'un paiement Wave ou Orange Money ramène sur « Lien de retour incorrect »
+- Réf : P131.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/payments/PaymentProviderPicker.tsx:108-114`, `takussan-web/src/hooks/useInitiatePayment.ts:76-80`, `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:79-80`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:73-74`, `takussan-web/src/app/(dashboard)/app/payments/return/PaymentReturnClient.tsx:44-47,90-102`
+- Constat :
+  - Le sélecteur de moyen de paiement n'envoie que `returnUrl`, qui porte `payment_type` et `payment_id` (lu, `PaymentProviderPicker.tsx:110-113`). Aucun appelant ne fournit `cancelUrl` : `grep -rn "cancelUrl\|cancel_url" takussan-web/src` hors tests → seulement le type et le corps de `useInitiatePayment.ts:24,79` (lu).
+  - Sans `cancel_url`, les deux pilotes posent leur repli `…/app/payments/return?status=failed`, sans `payment_type` ni `payment_id` : `error_url` de Wave (lu, `WaveDriver.php:80`) et `cancel_url` d'Orange Money (lu, `OrangeMoneyDriver.php:74`). `PaymentGatewayController::initiate` transmet `cancel_url` tel quel, `null` compris (lu, l. 37-40), et `PaymentGatewayService::initiate` le passe au pilote sans le compléter (lu, l. 166-179).
+  - La page de retour lit `payment_type` et `payment_id` ; s'il en manque un, elle rend l'écran « Paramètres invalides — Lien de retour incorrect » et un bouton vers `/app/payments` (lu, `PaymentReturnClient.tsx:44-46,90-102` ; libellés lus dans `fr.json`, `payments.gateway.return.invalid`). Le `status=failed` du fournisseur n'est donc jamais affiché.
+  - Le lien de paiement public, lui, fournit les deux adresses (lu, `PublicPaymentLinkController.php:46-49`, `returnUrl($token, 'cancelled')`) : seul le parcours connecté est touché.
+  - Établi comment : lu. Le parcours au navigateur chez un fournisseur réel n'a pas été joué.
+- Piste : envoyer depuis `PaymentProviderPicker` un `cancelUrl` qui porte les mêmes `payment_type` et `payment_id` avec `status=failed`. Garde : un test de `PaymentProviderPicker` qui attend `cancel_url` dans le corps de l'appel, et un cas de `PaymentReturnClient` sur `?status=failed&payment_type=…&payment_id=…`.
+
+### La tuile « Vendus / loués » ouvre les seuls vendus, et les tuiles jettent le filtre « mes biens »
+- Réf : P131.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:81,99-127,134-167`
+- Constat :
+  - La tuile « Vendus / loués » affiche `soldCount + rentedCount` et mène à `'/app/properties?status=sold'`, mais elle se dit active pour `sold` comme pour `rented` (lu, l. 153-158). Un clic montre les seuls biens vendus : les biens loués, comptés dans le nombre, n'y sont pas.
+  - Les quatre décomptes sont pris sous `user_id: filters.user_id` (lu, l. 109-125), c'est-à-dire sous « mes biens » (`only_mine=1`) ou sous l'agent choisi (`user_id`) (lu, l. 81). Les `href` des tuiles sont des chaînes fixes, sans `only_mine` ni `user_id` (lu, l. 138, 149, 156, 163) : sous « mes biens », la tuile compte mes biens publiés et ouvre ceux de toute l'agence.
+  - Établi comment : lu. Que `filter[status]=sold,rented` soit accepté par l'API (filtre `status` dans `$requestFilterable`, `Property.php:108`) est à vérifier.
+- Piste : construire le `href` de chaque tuile à partir des paramètres de portée courants (`only_mine`, `user_id`), et mener « Vendus / loués » à une liste qui porte les deux statuts (ou scinder la tuile). Garde : un test de la page qui monte la liste sous `only_mine=1` et attend les `href` des tuiles.
+
+### Le lien vers la facture de résiliation ouvre l'historique des paiements, sans la facture
+- Réf : P131.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:151-163`, `takussan-web/src/app/(dashboard)/app/payments/page.tsx`, `takussan-web/src/components/payments/PaymentsTabs.tsx:44-47`, `takussan-web/src/components/payments/InvoicesTable.tsx:31-37`
+- Constat :
+  - Le bandeau de résiliation anticipée du bail rend le numéro de la facture de pénalité en lien `` `/app/payments?invoice=${lease.early_termination_invoice_id}` ``, par un `<a href>` et non un `Link` (rechargement complet) (lu, l. 151-163).
+  - Rien ne lit `invoice` : la page rend `PaymentsTabs` ou `CustomerPayments` sans argument (lu) ; `PaymentsTabs` lit `tab`, onglet par défaut `history` (lu, l. 45-47) ; les tables lisent `page`, `status`, `entity_type`, `entity_id`, `date_from`, `date_to`, `invoice_status`, `payout_status` (lu, `grep -n "searchParams.get"` sur `components/payments`). Le clic ouvre l'historique des encaissements, ni sur l'onglet « Factures », ni sur la facture.
+  - `scripts/check-notification-target-paths.mjs` ne lit que `NotificationTarget` (voir P97.05) : un lien écrit par un composant n'est gardé par rien.
+  - Établi comment : lu.
+- Piste : mener le lien à l'onglet des factures, filtré ou ouvert sur la facture désignée (ce que la table sait faire : à choisir), par un `Link`. Garde : un test du bandeau sur le `href`, et un test de la page de destination qui monte `?invoice=` et attend la facture.
+
+### Petites améliorations
+- Réf : P131.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/bookings/BookingsList.tsx:35-56`, `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:134`
+- Constat :
+  - L'aperçu du bailleur mène à `/app/bookings?status=pending` (lu, `overview/owner/page.tsx:134`), mais `BookingsList` tient son onglet en `useState('pending')` et ne lit aucun paramètre (lu, l. 35) : le lien n'aboutit au bon onglet que parce que `pending` est l'onglet par défaut. Un lien vers un autre statut retomberait en silence sur `pending`.
+  - Même cause : l'onglet n'est pas écrit dans l'URL, et un retour arrière depuis `/app/bookings/{id}` ramène à « En attente » quel que soit l'onglet quitté (lu ; non mesuré au navigateur).
+  - Établi comment : lu.
+- Piste : lire et écrire l'onglet dans `?status=`, borné aux valeurs de `TABS`, comme `PaymentsTabs` le fait pour `?tab=`. Garde : un test de `BookingsList` monté sur `?status=confirmed`.
