@@ -59,8 +59,10 @@ export function useBookings(params: UseBookingsParams = {}) {
 }
 
 export function useBooking(id: number | null | undefined) {
+  // P150.05 (TCK-1286) — `BookingController::show` charge `property.address`, `customer` et
+  // `payments` quoi qu'on demande ; `booking_payments` sort de `BookingResource`, pas d'un `include`.
   const spatieParams: SpatieQueryParams = {
-    include: ['property', 'booking_payments', 'customer'],
+    include: ['property', 'customer'],
   };
 
   return useApiQuery<ApiResponse<Booking>>(

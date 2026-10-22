@@ -38,9 +38,9 @@ export const CONVERSATION_LIST_FIELDS: string[] = [
  */
 export const CONVERSATION_PROPERTY_FIELDS: string[] = ['id', 'title', 'slug'];
 
+// P150.05 (TCK-1286) — ni `status` ni `property_id` : `ConversationController::index` ne lit aucun
+// `filter[…]` (il lit `?archived=`) ; un filtre « archivées » aurait rendu les actives sans le dire.
 export type UseConversationsParams = {
-  status?: 'active' | 'archived' | 'closed';
-  property_id?: number;
   page?: number;
   per_page?: number;
 };
@@ -56,10 +56,6 @@ export function useConversations(
   const { user } = useAuth();
   const enabled = (options.enabled ?? true) && Boolean(user);
 
-  const filter: Record<string, string | number> = {};
-  if (params.status) filter.status = params.status;
-  if (params.property_id) filter.property_id = params.property_id;
-
   const spatieParams: SpatieQueryParams = {
     // P100.05 (TCK-1186) — `fields` inerte : `ConversationController::index` ne passe pas par `buildQuery`
     // (`Conversation::$queryFields` vide) ; il ne réduit pas la charge. Gardé pour déclarer ce que lit l'écran.
@@ -67,7 +63,6 @@ export function useConversations(
       conversations: CONVERSATION_LIST_FIELDS,
       properties: CONVERSATION_PROPERTY_FIELDS,
     },
-    filter,
     include: ['property', 'participants', 'last_message'],
     sort: ['-last_message_at'],
     page: params.page ?? 1,
