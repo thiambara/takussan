@@ -9,12 +9,14 @@ import { msgValidation } from './messages';
  * and not editable afterwards.
  */
 
+import { tagTypeValues } from '@/lib/enums/tag';
+
 /**
- * TCK-633 (ADR-0062 §7) — les types qu'un formulaire peut CRÉER. `feature` en sort : la migration
- * de la tâche 10 a fusionné ses étiquettes dans `amenity`, et `StoreTagRequest` le refuse. Il reste
- * dans `TagType` (`types/tag.ts`) : un tag déjà là se lit encore.
+ * TCK-633 (ADR-0062 §7) — les types qu'un formulaire peut CRÉER. La liste vit dans
+ * `@/lib/enums/tag`, sans zod (TCK-1196) : un écran qui ne fait que la lire n'a pas à charger ce
+ * module.
  */
-export const tagTypeValues = ['amenity', 'label', 'crm'] as const;
+export { tagTypeValues };
 
 export const tagFormSchema = z.object({
   name: z

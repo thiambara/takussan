@@ -10168,7 +10168,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### La page d'un bien loué, vendu ou retiré sort du rendu serveur avec toutes ses cartes similaires en `opacity-0`, visibles seulement après l'hydratation
 - Réf : P102.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1188
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:65-73`, `takussan-web/src/components/property/PropertyCard.tsx:45-60`, `takussan-web/src/components/property/PropertyCard.tsx:156-158`, `takussan-web/src/components/property/PropertyCard.tsx:194-200`
 - Constat :
@@ -10179,6 +10179,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : code relu, rendu serveur mesuré.
 - Piste : passer `priority={index < 3}` aux cartes de `bienRetire()`, autant que la grille a de colonnes au plus large, sur le modèle de `PublicFavoritesPage` (`priority={i < 3}`). Garde : un test de `bienRetire()` en `renderToString` qui refuse `opacity-0` sur les trois premières racines. Le correctif de fond reste le reste de P69.01 : ne plus masquer la carte au rendu serveur.
 - Mesure (2026-10-21, 0acc2203f, mesureur) : relu `bien-retire.tsx:67-74` (`<PropertyCard key property index />`, ni `priority` ni `sizes`, inchangé) et `PropertyCard.tsx` (`useReveal` dans un `useEffect`, l. 45-60 ; `visible = useReveal(ref) || priority`, l. 156-158 ; racine en `opacity-0` sinon, l. 194-200) ; `git log` des fichiers et `grep` des tickets → rien depuis l'exploration ; test vitest temporaire, retiré, `renderToString` de `bienRetire()` pour un bien `rented` et trois similaires avec photo, sous les fournisseurs réels (`withIntl`, `CompareProvider`, `ToastProvider`) → trois racines de carte en `opacity-0` et trois `<img loading="lazy">`. Que la première rangée soit au-dessus du pli reste déduit des classes (sous la barre, `py-12`, le titre, le texte, le bouton et le `h2`), pas mesuré au navigateur, ni la durée d'hydratation ; le défaut retenu est la partie mesurée : des données servies par le serveur et masquées jusqu'à l'hydratation. Classement : A1, le contrat est écrit dans la carte (« Priority cards (above-the-fold) skip the initial hidden state ») et appliqué tel quel par `PublicFavoritesPage` (`priority={i < 3}`) et par TCK-1036 (P69.01) : `priority={index < 3}` dans `bienRetire()`, et un test `renderToString` qui refuse `opacity-0` sur les trois premières racines ; l'apparition en CSS seul reste le reste de P69.01, hors de ce classement.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : test `bien-retire.rendu-serveur.test.tsx`, `renderToString` de `bienRetire()` avec la vraie `PropertyCard` sous `withIntl`, `ToastProvider` et `CompareProvider`, quatre similaires avec photo → avant correctif, les trois premières racines en `opacity-0` et trois `<img loading="lazy">` (rouge) ; `priority={index < 3}` dans `bienRetire()` (TCK-1188) → 2/2 verts ; ablation, `bien-retire.tsx` rendu à `pre-dev` → 2/2 rouges, correctif remis → verts ; `page.server.test.tsx` reste vert (15/15). La première rangée au-dessus du pli reste déduite, pas mesurée au navigateur.
 
 ### Sur la grille de recherche à cinq ou six colonnes, la fin de la première rangée reste masquée jusqu'à l'hydratation : le budget `priority` est fixé à 4
 - Réf : P102.02
@@ -10196,7 +10197,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Les cartes de la page d'un bien retiré héritent des `sizes` de la grille de recherche, qui ne décrivent pas leur grille
 - Réf : P102.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1190
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:70-72`, `takussan-web/src/components/property/PropertyCard.tsx:139`, `takussan-web/src/components/property/card-image-sizes.ts:84-85`
 - Constat :
@@ -10205,10 +10206,11 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : code relu.
 - Piste : une constante `CARD_SIZES_BIEN_RETIRE` dans `card-image-sizes.ts`, sur le patron des autres grilles, avec son relevé. Garde : les autres appelants passent tous `sizes` sauf `bien-retire.tsx`. Un test qui le refuse sur chaque appelant de `PropertyCard` empêcherait le retour.
 - Mesure (2026-10-21, 0acc2203f, mesureur) : relu `bien-retire.tsx:70-72` (aucun `sizes`), `PropertyCard.tsx:139` (`sizes = CARD_SIZES_SEARCH_GRID`) et son docblock l. 75-79 (« appartient à la grille appelante, pas à la carte », constante et relevé dans `card-image-sizes.ts`) ; même test temporaire qu'en P102.01, retiré → les trois `<img>` portent `sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1023px) 31vw, (max-width: 1279px) 22vw, (max-width: 1535px) 17.5vw, …, 238px"`. Calculé depuis les classes (`max-w-6xl px-4 sm:px-6 lg:px-8`, `sm:grid-cols-2 lg:grid-cols-3`, `gap-4`), méthode du fichier : à 900 px un emplacement fait environ (900 − 48 − 16) / 2 = 418 px pour 31vw = 279 px déclarés ; à 1 440 px, (1 152 − 64 − 32) / 3 = 352 px pour 17,5vw = 252 px : sous-déclaré, donc image trop petite (le défaut « qui rend flou » du docblock de `card-image-sizes.ts`) ; aucune requête d'image mesurée au navigateur. Classement : A1 et A2, le contrat est écrit dans la carte et chaque autre grille a sa constante : une constante `CARD_SIZES_BIEN_RETIRE` dans `card-image-sizes.ts` avec son relevé, passée par `bienRetire()`, et son test sur le patron de `card-image-sizes.test.ts`.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : test `card-image-sizes.bien-retire.test.ts` → avant correctif, `CARD_SIZES_BIEN_RETIRE` absente (les deux tests de géométrie rouges) et la garde des appelants rouge sur le seul `bien-retire.tsx` parmi les six `<PropertyCard … />` de `src` ; constante ajoutée (`calc(100vw - 32px)`, `50vw`, `33.4vw`, `352px`, calculée depuis les classes) et passée par `bienRetire()` (TCK-1190) → 4/4 verts, jamais sous-déclarée ni plus de 40 px au-dessus de 320 à 2560 px ; ablation, `sizes` retiré de `bien-retire.tsx` → la garde rougit, remis → verte. Aucune requête d'image mesurée au navigateur.
 
 ### Petites améliorations : trois commentaires décrivent encore les animations d'entrée en `both`, alors que `globals.css` les déclare en `backwards`
 - Réf : P102.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1192
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/property/card-stagger.ts:4-7`, `takussan-web/src/app/globals.css:519-522`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:166-171`
 - Constat :
@@ -10218,6 +10220,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : code relu.
 - Piste : réécrire les trois commentaires pour dire `backwards` (A6). Rien à garder par un test.
 - Mesure (2026-10-21, 0acc2203f, mesureur) : `grep -n 'both\|backwards' globals.css` → `.animate-fade-in-up`, `.animate-card-enter` et `.animate-section-enter` en `backwards` (l. 423, 431, 439, motif l. 418-421) ; les trois commentaires cités disent toujours `both` (`card-stagger.ts:4-7`, `globals.css:519`, `PropertyDetailContent.tsx:168`), et un quatrième, non relevé, aussi : `globals.css:450` (« Pas de `both` ici, contrairement aux trois autres »). Le point sur `prefers-reduced-motion` relève du défaut de P102.01 et n'est pas retenu ici. Classement : A6, des commentaires qui contredisent le CSS mesuré, réécrits pour dire `backwards` (les quatre), sans code ni test.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : `grep -n 'both\|backwards'` → les trois animations toujours en `backwards` (`globals.css:423,431,439`) et les quatre commentaires toujours en `both` (`card-stagger.ts:6`, `globals.css:450,519`, `PropertyDetailContent.tsx:168`) ; réécrits pour dire `backwards` (TCK-1192), le récit daté de `both` gardé là où il explique une règle ; après, `grep -n both` ne rend plus que `globals.css:418` (le motif du passage à `backwards`) et les `wizard-*`, bien en `both`. Commentaires seuls : aucun test, aucune ablation possible.
 
 ## Angle 103 — Appels du navigateur à l'hydratation des pages publiques
 
@@ -10350,7 +10353,7 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
 
 ### L'écran des étiquettes charge react-hook-form et le calendrier pour afficher deux messages d'erreur, par le fichier `index.ts` de `components/forms`
 - Réf : P104.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1194
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin-tags/TagsManager.tsx:25,28`, `takussan-web/src/components/forms/index.ts`, `takussan-web/src/hooks/useApiForm.ts:162-164`
 - Constat :
@@ -10359,10 +10362,11 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - `/super-admin/tags` est l'écran le plus lourd de la console : **452,2 Kio** gzip, dont 141,3 propres à la page, contre 315 à 389 pour les 36 autres (mesuré). Ablation, `FormError` importé de `@/components/forms/FormError` et `useTraducteurValidation` remplacé par `useTranslations()` : **452,2 → 399,6 Kio** (−52,6), react-day-picker sorti ; zod reste (P104.02) (mesuré).
 - Piste : importer `FormError` depuis son propre fichier, et sortir `useTraducteurValidation` dans un module sans react-hook-form, que `useApiForm.ts` réexporte. Garde : P104.04.
 - Mesure (2026-10-21, 711bafca3, mesureur) : relu `TagsManager.tsx:25,28` (`FormError`, `FormGlobalError` par `@/components/forms`, `useTraducteurValidation` par `@/hooks/useApiForm`), `components/forms/index.ts` (neuf `export *`, dont `FormDatePicker` et `FormDateTimePicker`), `useApiForm.ts:1-17` (`react-hook-form`, `@hookform/resolvers/zod`) et l. 164-166 (le crochet n'est que `useTranslations()`, deux lignes plus bas que cité) ; `FormGlobalError` vit bien dans `FormError.tsx:67` ; test Vitest temporaire, retiré depuis, qui appelle `paquetsDuGrapheClient` sur les 37 pages et le layout de `(super-admin)` → `tags/page.tsx` atteint `react-hook-form` (huit chemins : sept champs de `forms/index.ts` et `useApiForm.ts`), `@hookform/resolvers`, `react-day-picker` (par `FormDateTimePicker → ui/date-time-picker → ui/calendar`) et `date-fns`, et c'est la seule page de la console à atteindre `react-hook-form` ; aucun ticket ni commit ne l'a traitée ; le poids du build (452,2 → 399,6 Kio) n'est pas re-mesuré. Classement : A2, deux imports à prendre à leur fichier propre (`@/components/forms/FormError`, et `useTraducteurValidation` sorti dans un module sans react-hook-form que `useApiForm.ts` réexporte, ses trois autres appelants inchangés), sans aucun changement de rendu ni de comportement.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : garde `graphe-client-de-la-console.test.ts`, `paquetsDuGrapheClient` de `tags/page.tsx` sur react-hook-form, `@hookform/resolvers`, react-day-picker et date-fns → avant correctif, quatorze chemins, tous par `components/forms/index.ts` ou `hooks/useApiForm.ts` (rouge) ; `FormError` pris à son fichier et `useTraducteurValidation` sorti dans `hooks/useTraducteurValidation.ts`, réexporté par `useApiForm.ts` (TCK-1194) → verte ; ablation, `TagsManager.tsx` rendu à `pre-dev` → rouge, remis → verte ; `TagsManager.test.tsx`, `useApiForm.test.tsx` et `BookingTunnel.succes.test.tsx` verts. Le poids du build n'est pas re-mesuré.
 
 ### L'écran des étiquettes est le seul de la console à charger zod, pour une validation faite à l'envoi d'un dialogue fermé
 - Réf : P104.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1196
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin-tags/TagsManager.tsx:35-40,145,345-346`, `takussan-web/src/lib/schemas/tag.ts:1,17,19`
 - Constat :
@@ -10371,10 +10375,11 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - Le gain d'un chargement différé n'est pas mesuré : l'ablation de P104.01 a laissé zod en place (à vérifier).
 - Piste : mettre `tagTypeValues` dans `lib/enums/tag.ts`, que `schemas/tag.ts` réexporte (patron de TCK-744 et TCK-1039), et charger le schéma à l'envoi (`await import('@/lib/schemas/tag')`) ou monter `CreateTagDialog` par `next/dynamic` à sa première ouverture (`useDejaOuvert`, TCK-1041). Mesurer avant et après par `poids-des-routes.mjs`.
 - Mesure (2026-10-21, 711bafca3, mesureur) : même test temporaire du graphe client → parmi les 37 pages et le layout de `(super-admin)`, seule `tags/page.tsx` atteint `zod`, par un seul chemin, `lib/schemas/tag.ts ← TagsManager.tsx` (`useApiForm.ts` n'en importe que `type ZodType`, non suivi) : l'ablation de P104.01 laisse donc bien zod en place, ce que le constat laissait « à vérifier » ; relu `TagsManager.tsx:35-40` (`tagFormSchema`, `tagTypeValues`), l. 145 (`tagFormSchema.safeParse` dans `handleCreate`), l. 345-349 (`CreateTagDialog` monté avec `open={isCreateOpen}`, `false` au départ l. 74) et l. 188, 366 (`tagTypeValues` lu au rendu) ; `lib/enums/` ne porte que `customer.ts` et `property.ts` ; le morceau de 64,2 Kio n'est pas re-mesuré par un build. Classement : A2, `tagTypeValues` passe dans `lib/enums/tag.ts` que `schemas/tag.ts` réexporte (patron TCK-1039), et le schéma se charge à l'envoi (`await import('@/lib/schemas/tag')` dans `handleCreate`), même validation et mêmes messages, sans choix de produit.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : garde `graphe-client-de-la-console.test.ts`, cas zod de `tags/page.tsx` → avant correctif, un chemin, `zod ← lib/schemas/tag.ts ← components/admin-tags/TagsManager.tsx` (rouge) ; `tagTypeValues` dans `lib/enums/tag.ts` réexporté par `schemas/tag.ts`, schéma chargé à l'envoi par `await import('@/lib/schemas/tag')` dans `handleCreate` (TCK-1196) → vert ; ablation, `TagsManager.tsx` rendu à l'état de TCK-1194 → rouge, remis → vert ; `TagsManager.test.tsx` (6/6, l'attente de l'appel passée par `waitFor`), `traducteurs-de-messages.test.ts` et `admin-schemas.test.ts` verts. Le poids du build n'est pas re-mesuré.
 
 ### Les demandes de confidentialité chargent le calendrier pour le formulaire de création, monté seulement quand on ouvre son dialogue
 - Réf : P104.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1198
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/PrivacyRequestsConsole.tsx:19,371-373,421,528`
 - Constat :
@@ -10383,10 +10388,11 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - Ablation, `DatePicker` remplacé par un composant vide dans ce seul fichier : `/super-admin/privacy-requests` **376,1 → 344,2 Kio** (−31,9), react-day-picker sorti (mesuré).
 - Piste : monter `CreatePrivacyRequestForm` par `next/dynamic` à la première ouverture du dialogue, comme TCK-1041 l'a fait pour `CreateInvoiceDialog` ; mesurer avant et après.
 - Mesure (2026-10-21, 711bafca3, mesureur) : relu `PrivacyRequestsConsole.tsx:19` (`DatePicker` importé statiquement), l. 116 (`creating` à `false`), l. 371-372 (`{creating ? <CreatePrivacyRequestForm … /> : null}` dans un `Dialog`), l. 421 et 528 (seul rendu de `DatePicker`) ; test temporaire du graphe client → les quatre chemins de `privacy-requests/page.tsx` vers `react-day-picker` et `date-fns` passent tous par `ui/date-picker.tsx ← PrivacyRequestsConsole.tsx` ; aucun ticket ni commit ne l'a traitée ; le gain de 31,9 Kio n'est pas re-mesuré par un build. Classement : A2, `CreatePrivacyRequestForm` sorti dans son fichier et monté par `next/dynamic` à la première ouverture du dialogue (patron TCK-1041, `useDejaOuvert`), même formulaire et même comportement.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : garde `graphe-client-de-la-console.test.ts`, cas react-day-picker et date-fns de `privacy-requests/page.tsx` → avant correctif, quatre chemins, tous par `ui/date-picker.tsx ← PrivacyRequestsConsole.tsx` (rouge) ; `CreatePrivacyRequestForm` sorti dans son fichier (pièces communes dans `PrivacyRequestChamps.tsx`) et monté par `next/dynamic` (TCK-1198) → verte ; ablation, formulaire réimporté statiquement → rouge, remis → verte ; `PrivacyRequestsConsole.test.tsx` 7/7 (module différé importé en tête, patron de TCK-1041). `useDejaOuvert` non repris : le formulaire était déjà démonté à la fermeture. Le poids du build n'est pas re-mesuré.
 
 ### Aucune garde ne trace le graphe client des écrans de `/super-admin`
 - Réf : P104.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1200
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(dashboard)/__tests__/zod-hors-des-ecrans-de-lecture.test.ts:26-30`, `takussan-web/src/app/(super-admin)/super-admin/__tests__/`
 - Constat :
@@ -10394,16 +10400,18 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - `poids-des-routes.mjs` imprime bien les écrans de `/super-admin` depuis P70.06, sans seuil (mesuré, sortie du build) : P104.01 et P104.02 n'y cassent rien.
 - Piste : une garde du même patron sur les pages de `(super-admin)` qui n'affichent aucun formulaire au chargement, `tags/page.tsx` comprise une fois P104.01 et P104.02 traitées.
 - Mesure (2026-10-21, 711bafca3, mesureur) : relu `(dashboard)/__tests__/zod-hors-des-ecrans-de-lecture.test.ts:27-39` (n'énumère que des écrans de `(dashboard)/app`) ; `ls (super-admin)/super-admin/__tests__` → `console-home.test.tsx`, `garde-double-facteur.test.tsx`, `jeton-operateur.test.ts`, et `grep -rln graphe-client src` ne rend aucun test sous `(super-admin)` ; test temporaire du graphe client → aujourd'hui seule `tags/page.tsx` atteint `zod`, `react-hook-form` ou `@hookform/resolvers` parmi les 37 pages et le layout de la console. Classement : A5, une garde neuve du patron de TCK-1038 sur les pages de `(super-admin)` sans formulaire au chargement, sans seuil existant resserré ; les 36 autres pages et le layout y passent dès aujourd'hui, `tags/page.tsx` s'y ajoute avec P104.01 et P104.02.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : test temporaire, retiré, `paquetsDuGrapheClient` sur les 37 `page.tsx` et le `layout.tsx` de `(super-admin)/super-admin` → après TCK-1194 et TCK-1196, aucune n'atteint zod, react-hook-form ni `@hookform/resolvers` (huit atteignent encore react-day-picker, hors de la piste) ; garde neuve dans `graphe-client-de-la-console.test.ts`, pages trouvées par balayage, exceptions `FORMULAIRES_AU_CHARGEMENT` vides (TCK-1200) → 42/42 verts ; ablation, `TagsManager.tsx` rendu à `pre-dev` → le cas `tags/page.tsx` rougit, remis → vert. Aucun seuil existant resserré.
 
 ### Petites améliorations
 - Réf : P104.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1202
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/super/GlobalSearch.tsx:12`, `takussan-web/src/lib/queries/super-admin-queues.ts:1-6`, `takussan-web/src/lib/queries/super-admin.ts`
 - Constat :
   - La coque de la console embarque `lib/queries/super-admin.ts` en entier (1 515 lignes) pour `fetchGlobalSearch` (recherche de la barre haute) et les quatre compteurs de files de la barre latérale (lu). Dans le morceau de coque de 28,9 Kio gzip qui le porte, le module garde ses **96** noms exportés : environ 24,9 Kio bruts et 4,5 Kio gzip, découpés du début du module à la fin du morceau (mesuré, `node -e` sur `.next/static/chunks/44hqerqx2pu89.js`). Le motif est celui de P70.07, ici sur un module sans `'use client'` ; le gain est faible.
 - Piste : mettre `fetchGlobalSearch` et les quatre lecteurs des files dans un module à part, réexporté par `super-admin.ts` (méthode de TCK-1042).
 - Mesure (2026-10-21, 711bafca3, mesureur) : relu `GlobalSearch.tsx:12` (`fetchGlobalSearch` pris à `@/lib/queries/super-admin`), `super-admin-queues.ts:1-6` (quatre lecteurs pris au même module) ; `wc -l` → 1 515 lignes, sans `'use client'` (l. 1-3) ; 97 lignes `export function|const` ; `GlobalSearch` et les files sont importés par `SuperAdminTopbar.tsx`, `SuperAdminSidebar.tsx` et `ConsoleQueues.tsx`, donc par la coque ; aucun ticket ni commit ne l'a traitée ; le morceau de coque (4,5 Kio gzip) n'est pas re-mesuré par un build. Classement : A2, `fetchGlobalSearch` et les quatre lecteurs sortis dans un module à part que `super-admin.ts` réexporte (méthode de TCK-1042), aucun appelant ni résultat changé.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : garde `graphe-client-de-la-console.test.ts`, `modulesDuGrapheClient` du `layout.tsx` de la console → avant correctif, `lib/queries/super-admin.ts` y figure (rouge) ; `fetchGlobalSearch` et les quatre lecteurs des files sortis dans `lib/queries/super-admin-coque.ts`, réexportés par `super-admin.ts` (TCK-1202) → vert ; ablation, `GlobalSearch.tsx` et `super-admin-queues.ts` rendus à `pre-dev` → rouge, remis → vert ; `tsc` propre, et douze fichiers de test de la coque, des files, de la recherche, de la modération, des jobs et de la page KYC verts (deux mocks repointés sur le nouveau module). Le morceau de coque n'est pas re-mesuré par un build.
 
 ## Angle 105 — Charge RSC d'un document `/app` servi : les dictionnaires imbriqués
 

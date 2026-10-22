@@ -3,7 +3,7 @@ import {
   fetchAdminKycQueue,
   fetchFailedJobs,
   fetchModerationQueue,
-} from '@/lib/queries/super-admin';
+} from '@/lib/queries/super-admin-coque';
 
 /**
  * TCK-360 — LES quatre files d'attente de la console super-admin, et le seul endroit où leur
