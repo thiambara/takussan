@@ -12917,7 +12917,7 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
 
 ### Petites améliorations
 - Réf : P134.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1304
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Sorts/MaintenancePrioritySort.php:15-23`, `takussan-api/app/Services/Announcements/AnnouncementResolver.php:34-44`
 - Constat :
@@ -12925,6 +12925,7 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
   - Aucun test n'appelle `sort=priority` ni `sort=-priority` sur les maintenances (mesuré : `grep -rln "sort=-\?priority\|MaintenancePrioritySort" tests` → `tests/impact-map.json` seul), et aucun écran ne le demande (lu, `MaintenanceList.tsx:63`, `maintenance.ts:92`) : le seul tri par rang du dépôt n'est gardé par rien.
 - Piste : dériver le `CASE` de `MaintenancePriority::cases()` (ou passer par la classe générique de P134.03) et l'épingler par un test `sort=-priority` sur quatre demandes.
 - Mesure (2026-10-22, 294f70acc, mesureur) : relu `MaintenancePrioritySort.php:15-23` (`CASE` en dur, `urgent`→1 … `low`→4, `ELSE 5`), `MaintenancePriority.php` (cas déclarés `low`, `normal`, `high`, `urgent`, donc l'ordre de `cases()` est le rang croissant) et `AnnouncementResolver.php:34-37` (rangs dérivés de `cases()`) ; `grep -rln "sort=-\?priority\|MaintenancePrioritySort" tests` → `tests/impact-map.json` seul → le constat tient. Classement : A5, épingler par un test le tri existant et en dériver les rangs de l'enum ne change aucun résultat ; la classe générique évoquée relève de P134.03, laissée au porteur.
+- Mesure (2026-10-22, e6ee5d5f5, implementeur) : `MaintenancePrioritySortTest` avant correctif → `sort=-priority` et `sort=priority` rangent déjà les quatre priorités (épinglé), mais trois demandes `urgent` sortent par `id` croissant sous `-priority` (`CASE … ASC` inversé, que le départage de TCK-1296 lit comme croissant) ; `CASE` dérivé de `MaintenancePriority::cases()`, `DESC` pour `-priority` → 3/3 verts ; ablation → 1 rouge, remis → vert.
 
 ## Angle 135 — Listes écrites à la main, et lecteurs qui ne lisent que la première page
 
