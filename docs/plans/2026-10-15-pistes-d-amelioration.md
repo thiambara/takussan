@@ -11120,7 +11120,7 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
 
 ### Un délai posé tel quel s'afficherait en anglais brut : `messageErreurApi` ne reconnaît que le `TypeError` comme panne réseau
 - Réf : P113.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1295
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/api.ts:545-557`, `takussan-web/src/lib/query-client.ts:20-25`
 - Constat :
@@ -11131,6 +11131,7 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
   - Établi comment : lu, et un test temporaire.
 - Piste : reconnaître `TimeoutError` dans `messageErreurApi` (même libellé réseau ou un libellé « délai dépassé »), dans le même ticket que P113.01. Garde : un cas de test avec la raison réelle d'`AbortSignal.timeout`.
 - Mesure (2026-10-22, c6abf5343, mesureur) : relu `api.ts:545-554` (seul `TypeError` → `errors.api.network`, tout autre `Error` passe son `message`) ; test vitest temporaire (retiré) : la raison réelle d'`AbortSignal.timeout(1)` sous le Node de vitest est `instanceof Error`, `name` `TimeoutError` → rendu « The operation was aborted due to timeout » ; un `Error` nommé `TimeoutError` de message « signal timed out » → rendu tel quel ; un `TypeError` → `errors.api.network`. Le constat sur jsdom (« la `DOMException` n'est pas un `Error` ») est inexact ici : elle en est un, et c'est par là que le message anglais passe. Aucun délai n'est posé côté navigateur aujourd'hui : le défaut est latent. Classement : A1, `messageErreurApi` a pour contrat de ne jamais afficher une forme technique, et TCK-1090 (P79.05, autonome) a rangé `TimeoutError` parmi les pannes côté serveur ; le libellé existant `errors.api.network` évite tout texte neuf.
+- Mesure (2026-10-22, f41a867fe, implementeur) : relu `api.ts:582` (seul `TypeError` → `errors.api.network`) ; test neuf (`api.erreur-delai.test.ts`) → avant correctif, la raison réelle d'`AbortSignal.timeout(1)` rend « The operation was aborted due to timeout », et une `DOMException('signal timed out', 'TimeoutError')` construite sous jsdom, qui n'y est pas un `Error`, rend le repli de l'appelant. Correctif : toute erreur nommée `TimeoutError` rend `errors.api.network` → 3/3 verts, `api-erreurs-bff.test.tsx` vert ; ablation (`api.ts` rendu à `HEAD`) → 2 rouges, remis → 3 verts.
 
 ### La déconnexion attend la réponse de l'API sans borne : le menu ne ferme pas la session tant que l'API ne répond pas
 - Réf : P113.05
