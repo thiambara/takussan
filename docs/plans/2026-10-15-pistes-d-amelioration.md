@@ -15045,7 +15045,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Le message `phone_e164` cite en exemple une forme espacée que ses cinq émetteurs refusent
 - Réf : P159.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1449
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/lang/fr/validation.php:177`, `takussan-api/lang/en/validation.php:21`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:56,68`, `takussan-api/app/Http/Requests/Auth/SecondaryPhoneRequest.php:20,26`, `takussan-api/app/Http/Requests/Auth/ResendPhoneVerificationRequest.php:55,113-114`, `takussan-api/app/Http/Requests/Api/ReplacePropertyContactsRequest.php:27,34`, `takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php:42,66`
 - Constat :
@@ -15056,6 +15056,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu (règles et messages ; aucune route jouée).
 - Piste : écrire l'exemple du message sans espaces (`+221771234567`) en `fr` et `en`. Le texte `wo` reste tel quel tant que le wolof est en pause. Test : le message de `validation.rules.phone_e164` cite un exemple que `TelephoneJoignable::defaut()` et la regex des cinq requêtes acceptent.
 - Mesure (2026-10-22, e5cb792e4, mesureur) : relu `lang/fr/validation.php:177` et `lang/en/validation.php:21` (« ex. +221 77 123 45 67 »), les cinq requêtes (`regex` sans espace, aucun `prepareForValidation` qui retire les espaces du téléphone ; celui d'`UpdateProfileRequest` ne touche que l'e-mail) et `TelephoneJoignable.php:27-28`, qui émet aussi la clé ; `tinker` en lecture : `+221 77 123 45 67` → regex 0, `TelephoneJoignable::defaut` = `validation.rules.phone_e164` ; `+221771234567` → regex 1, `defaut` null → l'exemple du message échoue à la règle qui l'affiche, le constat tient. Classement : A1, la forme attendue est écrite par la règle elle-même (`PhoneNumber::E164_REGEX`), et le correctif est d'écrire l'exemple `+221771234567` en `fr` et `en` sans toucher au `wo`.
+- Mesure (2026-10-22, 58c404ecf, implementeur) : relu `lang/fr/validation.php:177` et `lang/en/validation.php:21` (« +221 77 123 45 67 ») ; test neuf `ExempleTelephoneTest` (exemple extrait du message `fr` et `en`, jugé par les regex des cinq requêtes et `TelephoneJoignable::defaut`) avant correctif → 2 rouges, « +221 77 123 45 67 » échoue à la regex de `UpdateProfileRequest` → exemple `+221771234567` en `fr` et `en`, `wo` non réécrit → 2 verts, `LangGroupParityTest` et `ValidationTranslationParityTest` verts ; ablation : `lang` remis à l'état antérieur → 2 rouges, rétabli → verts.
 
 ### Petites améliorations
 - Réf : P159.04
