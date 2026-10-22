@@ -157,13 +157,22 @@ class OrangeMoneyDriver implements PaymentDriverContract
     }
 
     /**
+     * P98.10 (TCK-1176) — la clé du jeton en cache, partagée avec
+     * `ForgetOrangeMoneyOAuthToken`, qui l'oublie à la rotation des identifiants.
+     */
+    public static function oauthTokenCacheKey(int $integrationId): string
+    {
+        return 'payments:orange_money:oauth_token:'.$integrationId;
+    }
+
+    /**
      * Le jeton OAuth de la passerelle d'Orange, en cache par intégration. Un échec d'obtention est
      * un fournisseur indisponible (502) : son corps reste au journal du serveur, sans les
      * identifiants.
      */
     protected function accessToken(): string
     {
-        $key = 'payments:orange_money:oauth_token:'.$this->integration->getKey();
+        $key = self::oauthTokenCacheKey((int) $this->integration->getKey());
         $cached = Cache::get($key);
         if (is_string($cached) && $cached !== '') {
             return $cached;

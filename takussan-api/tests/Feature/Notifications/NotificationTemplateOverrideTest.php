@@ -40,10 +40,10 @@ class NotificationTemplateOverrideTest extends TestCase
         ]);
     }
 
-    private function mail(): MailMessage
+    private function mail(NotificationCode $code = NotificationCode::LeasePaymentRecorded): MailMessage
     {
         $tenant = User::factory()->create(['preferred_language' => 'fr', 'first_name' => 'Awa']);
-        app(NotificationService::class)->send($tenant, NotificationCode::LeasePaymentRecorded, [
+        app(NotificationService::class)->send($tenant, $code, [
             'amount' => NotificationRenderer::money(150000, 'XOF'),
             'property' => 'Villa Almadies',
         ]);
@@ -74,6 +74,21 @@ class NotificationTemplateOverrideTest extends TestCase
         $this->assertStringEndsWith('XOF', $mail->subject);
         $this->assertStringStartsWith('Bonjour Awa, nous avons bien reçu 150', $mail->introLines[0]);
         $this->assertNotSame(__('notifications.codes.lease_payment.recorded.title', [], 'fr'), $mail->subject);
+    }
+
+    /**
+     * P98.04 (TCK-1168) — « Paiement reçu » couvre aussi la quittance d'un paiement en ligne : avant,
+     * `LeasePaymentSettledOnline` n'avait pas d'événement de gabarit, et le locataire qui payait en
+     * ligne recevait le texte de la clé de langue quel que soit le gabarit actif.
+     */
+    public function test_un_gabarit_actif_remplace_aussi_la_quittance_d_un_paiement_en_ligne(): void
+    {
+        $this->template(active: true);
+
+        $mail = $this->mail(NotificationCode::LeasePaymentSettledOnline);
+
+        $this->assertStringStartsWith('Reçu de 150', $mail->subject);
+        $this->assertStringStartsWith('Bonjour Awa, nous avons bien reçu 150', $mail->introLines[0]);
     }
 
     public function test_un_gabarit_inactif_laisse_la_cle_de_lang(): void

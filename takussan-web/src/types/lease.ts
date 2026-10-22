@@ -86,6 +86,8 @@ export type Lease = {
   early_termination_requested_by?: number | null;
   early_termination_effective_date?: string | null;
   early_termination_penalty_amount?: number | null;
+  /** P98.05 — mois que la résiliation exécutera (figés sur le bail, sinon le réglage) ; détail seul. */
+  early_termination_penalty_months?: number;
   early_termination_reason?: string | null;
   early_termination_invoice_id?: number | null;
   notice_period_days?: number | null;

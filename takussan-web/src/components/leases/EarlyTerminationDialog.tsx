@@ -27,8 +27,8 @@ interface EarlyTerminationDialogProps {
 }
 
 const DEFAULT_NOTICE_DAYS = 30;
-// Aligned with backend default (`Setting('lease.early_termination_penalty_months')`).
-// Pure client-side preview — the server is the source of truth.
+// P98.05 — repli seul : le détail du bail rend `early_termination_penalty_months`, le nombre
+// de mois que la résiliation exécutera (figé sur le bail, sinon le réglage de l'agence ou global).
 const DEFAULT_PENALTY_MONTHS = 2;
 
 function todayPlusDays(days: number): string {
@@ -64,6 +64,7 @@ export function EarlyTerminationDialog({
   const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const noticeDays = lease.notice_period_days ?? DEFAULT_NOTICE_DAYS;
+  const penaltyMonths = lease.early_termination_penalty_months ?? DEFAULT_PENALTY_MONTHS;
   const minDate = useMemo(() => todayPlusDays(noticeDays), [noticeDays]);
 
   const [effectiveDate, setEffectiveDate] = useState(minDate);
@@ -82,9 +83,9 @@ export function EarlyTerminationDialog({
     if (days <= 0) return { months: 0, amount: 0 };
 
     const remainingMonths = Math.ceil(days / 30);
-    const billable = Math.min(DEFAULT_PENALTY_MONTHS, remainingMonths);
+    const billable = Math.min(penaltyMonths, remainingMonths);
     return { months: billable, amount: monthly * billable };
-  }, [effectiveDate, lease.end_date, lease.monthly_rent]);
+  }, [effectiveDate, lease.end_date, lease.monthly_rent, penaltyMonths]);
 
   const noticeViolated = effectiveDate && effectiveDate < minDate;
 

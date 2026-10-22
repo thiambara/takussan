@@ -23,8 +23,9 @@ class IntegrationProviderRegistry
             new OrangeMoneyProvider,
             new LemonSqueezyProvider,
             new StripeProvider,
-            new SmsProvider,
-            new MailProvider,
+            // P98.07 (TCK-1170) — `mail` et `sms` ont quitté le registre : aucun pilote ne lisait
+            // leur ligne (le courriel lit `MAIL_*`, le SMS les clés `sms_*`). Une ligne déjà
+            // enregistrée sous ces clés reste lisible par le schéma générique de `get()`.
         ];
         // TCK-602 — les fournisseurs que les pilotes et l'écran d'intégration désignent sans
         // schéma propre : servis comme avant par `GenericProvider`, mais NOMMÉS, puisque la

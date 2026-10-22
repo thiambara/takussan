@@ -73,9 +73,20 @@ class MaintenanceService
         return $this->status();
     }
 
+    /**
+     * P98.09 (TCK-1174) — la connexion et `GET /auth/me` échappent à la fenêtre : l'opérateur qui
+     * doit la lever se connecte, et la console, qui lit `/auth/me` avant de se rendre, se charge
+     * (TCK-218 : un super-admin garde l'accès en `down`). Le reste d'`api/auth/*` reste bloqué.
+     */
+    private const AUTH_EXEMPT = ['POST api/auth/login', 'GET api/auth/me'];
+
     public function shouldBlock(string $method, string $path): bool
     {
         if ($path === 'api/maintenance/status' || str_starts_with($path, 'api/admin')) {
+            return false;
+        }
+
+        if (in_array(strtoupper($method).' '.$path, self::AUTH_EXEMPT, true)) {
             return false;
         }
 

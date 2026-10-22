@@ -29,6 +29,15 @@ class PlatformSettingsCatalogueTest extends TestCase
         );
     }
 
+    /**
+     * P98.10 (TCK-1176) — `platform.session_max_minutes` est lu à chaque émission de jeton (derrière
+     * le cache du catalogue) : il ne demande aucun redémarrage, et l'écran ne doit pas le dire.
+     */
+    public function test_la_duree_de_session_ne_demande_pas_de_redemarrage(): void
+    {
+        $this->assertFalse((bool) (EditablePlatformSettings::get('platform.session_max_minutes')['requires_restart'] ?? false));
+    }
+
     public function test_la_console_sert_les_cles_sans_libelle_ni_description(): void
     {
         $this->actingAsRole('super_admin');

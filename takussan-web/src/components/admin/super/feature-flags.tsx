@@ -172,7 +172,8 @@ export function FeatureFlagSegmentDialog({
 export function SessionOverrideToggle({ flag }: { flag: AdminFeatureFlag }) {
   const t = useTranslations('superAdmin.featureFlags');
   const garde = useGardeDoubleFacteur();
-  const [enabled, setEnabled] = useState(false);
+  // P98.10 (TCK-1176) — part de l'état évalué pour l'opérateur, bascule de session comprise.
+  const [enabled, setEnabled] = useState(flag.enabled_for_me ?? false);
   const mutation = useMutation({
     mutationFn: () => avecGardeDoubleFacteur(() => overrideAdminFeatureFlag(flag.key, !enabled), garde),
     onSuccess: (response) => setEnabled(response.data.enabled),

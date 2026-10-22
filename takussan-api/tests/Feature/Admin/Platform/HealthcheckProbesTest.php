@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin\Platform;
 
 use App\Jobs\RecordQueueHeartbeat;
 use App\Models\AppNotification;
+use App\Models\Integration;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
 use App\Services\Admin\HealthcheckService;
@@ -217,6 +218,24 @@ class HealthcheckProbesTest extends TestCase
             'created_at' => $quand,
             'updated_at' => $quand,
         ]);
+    }
+
+    /**
+     * P98.08 (TCK-1172) — une intégration Lemon Squeezy de plateforme active sans secret de
+     * signature en configuration : la route des webhooks refuse tout, la sonde le dit.
+     */
+    public function test_lemon_squeezy_actif_sans_secret_de_signature_degrade_sa_sonde(): void
+    {
+        config(['lemon-squeezy.signing_secret' => '']);
+        $this->assertSame('ok', $this->sonder()['lemon_squeezy_webhook']['status']);
+
+        Integration::factory()->create(['agency_id' => null, 'provider' => 'lemon_squeezy', 'is_active' => true]);
+        $sonde = $this->sonder()['lemon_squeezy_webhook'];
+        $this->assertSame('degraded', $sonde['status']);
+        $this->assertSame('signing_secret_missing', $sonde['reason']);
+
+        config(['lemon-squeezy.signing_secret' => 'ls_secret']);
+        $this->assertSame('ok', $this->sonder()['lemon_squeezy_webhook']['status']);
     }
 
     public function test_le_statut_global_est_la_pire_sonde_et_chaque_sonde_est_datee(): void

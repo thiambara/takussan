@@ -87,6 +87,8 @@ function buildQueueParams({
   if (subjectType) filter.subject_type = subjectType;
 
   return {
+    // P100.05 (TCK-1186) — `fields` inerte : `ReviewController` lit ses filtres et son tri à la main, sans
+    // `buildQuery` (`Review::$queryFields` vide).
     fields: { reviews: MODERATION_REVIEW_FIELDS },
     filter,
     // TCK-597 — les avis à trancher d'abord (en attente, puis signalés), trié par le serveur.

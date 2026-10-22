@@ -30,7 +30,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCanAll } from '@/hooks/useCan';
 import { isAgent, isAdmin, isOwner } from '@/lib/roles';
 import type { Locale } from '@/i18n/config';
-import type { Booking } from '@/types/booking';
+import type { Booking, BookingPayment } from '@/types/booking';
 import {
   BOOKING_PAYMENT_STATUS_TONE,
   BOOKING_STATUS_LABEL_KEY,
@@ -269,13 +269,13 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
             {formatDateTime(booking.created_at ?? booking.booking_date, locale) || '—'}
           </dd>
 
-          {booking.expiration_date && (
+          {booking.expires_at && (
             <>
               <dt className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">
                 {t('expiresAt')}
               </dt>
               <dd className="mt-1 tabular-nums text-foreground">
-                {formatDateTime(booking.expiration_date, locale)}
+                {formatDateTime(booking.expires_at, locale)}
               </dd>
             </>
           )}
@@ -294,7 +294,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
             {typeof booking.deposit_amount === 'number'
               ? formatCurrency(booking.deposit_amount, locale)
               : '—'}
-            {booking.deposit_paid && (
+            {acomptePaye(booking) && (
               <StatusBadge tone="success" label={tBookings('paymentStatus.paid')} />
             )}
           </dd>
@@ -568,20 +568,28 @@ function CustomerPayCta({
 
 type TimelineEvent = { label: string; at: string };
 
+/**
+ * TCK-1180 (P100.02) — l'acompte réglé, lu dans les `booking_payments` que le `show` rend : l'API
+ * n'émet ni `deposit_paid` ni `deposit_date`, et le badge comme l'événement ne s'affichaient jamais.
+ * Les événements « Soldée » et « Refusée » sont retirés avec leurs clés sans source
+ * (`completion_date`, `rejection_date`) : ils ne s'affichaient jamais non plus.
+ */
+function acomptePaye(booking: Booking): BookingPayment | undefined {
+  return booking.booking_payments?.find((p) => p.payment_type === 'deposit' && p.status === 'paid');
+}
+
 function BookingTimeline({ booking, locale }: { booking: Booking; locale: Locale }) {
   const t = useTranslations('bookings.detail');
   const events: TimelineEvent[] = [];
   if (booking.created_at) events.push({ label: t('timeline.created'), at: booking.created_at });
   const confirmedAt = booking.confirmed_at ?? booking.confirmation_date;
   if (confirmedAt) events.push({ label: t('timeline.confirmed'), at: confirmedAt });
-  if (booking.deposit_paid && booking.deposit_date) {
-    events.push({ label: t('timeline.depositPaid'), at: booking.deposit_date });
-  }
-  if (booking.completion_date) events.push({ label: t('timeline.settled'), at: booking.completion_date });
+  const acompte = acomptePaye(booking);
+  const acompteLe = acompte?.paid_at ?? acompte?.payment_date;
+  if (acompteLe) events.push({ label: t('timeline.depositPaid'), at: acompteLe });
   const cancelledAt = booking.cancelled_at ?? booking.cancellation_date;
   if (cancelledAt) events.push({ label: t('timeline.cancelled'), at: cancelledAt });
-  if (booking.rejection_date) events.push({ label: t('timeline.rejected'), at: booking.rejection_date });
-  const expiredAt = booking.expired_at ?? booking.expires_at ?? booking.expiration_date;
+  const expiredAt = booking.expired_at ?? booking.expires_at;
   if (expiredAt && booking.status === 'expired') {
     events.push({ label: t('timeline.expired'), at: expiredAt });
   }
