@@ -14135,10 +14135,11 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### La console Équipe rend une erreur dès qu'on trie par « Dernière connexion » : l'API refuse `sort=last_login_at`
 - Réf : P150.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1280
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin/users/AdminUsersTable.tsx:126-134,251-256`, `takussan-web/src/components/console/DataTable.tsx:209-232`, `takussan-web/src/lib/queries/admin-users.ts:61`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:26`, `takussan-api/app/Models/User.php:157,166-172,184,287`, `takussan-api/app/Http/Controllers/Api/UserAdminController.php:57-62`
 - Constat :
+- Mesure (2026-10-22, a2398e474, implementeur) : test neuf `UserLastLoginSortTest` avant correctif : administrateur d'agence `GET /api/users?…&filter[role]=agent&filter[status]=active&sort=±last_login_at` → 400, super-admin `GET /api/users?sort=±last_login_at` → 400 (4 rouges) ; `/api/admin/users` (console) acceptait déjà ce tri (`UserDetailController.php:83`) → `last_login_at` ajouté à `User::$requestSortable`, 4/4 verts, lignes rangées dans les deux sens ; ablation (`User.php` à `HEAD`) → 4 rouges, correctif remis → verts ; `PersonNameCollatedSortTest` et `UserAdminTest` verts.
   - La colonne « Dernière connexion » de `/app/agency/team` porte `sortKey: 'last_login_at'` (lu, `AdminUsersTable.tsx:253`). Un clic sur son en-tête écrit `-last_login_at`, puis `last_login_at` au second clic (lu, `DataTable.tsx:232`), dans `?sort=` de l'URL (lu, `AdminUsersTable.tsx:128-134`). `fetchAdminUsers` le recopie tel quel (lu, `admin-users.ts:61`), et le relais `/api/admin-users` le transmet à `GET /api/users` (lu, `route.ts:26`).
   - `User` n'autorise que `id`, `created_at`, `email`, `status`, plus `first_name` et `last_name` par `nameSorts()` (lu, `User.php:157,166-172`). Ce sont les tris de `buildQuery()` et de `buildAgencyTeamQuery()`, le chemin de l'administrateur d'agence (lu, `:184,287` ; `UserAdminController.php:57-59`).
   - mesuré, test temporaire, administrateur d'agence : `GET /api/users?…&sort=last_login_at` → **400** `http.bad_request` ; `sort=-last_login_at` avec `filter[role]=agent&filter[status]=active` → **400** ; `sort=first_name` → 200 ; `sort=-created_at` → 200.
