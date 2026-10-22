@@ -1,7 +1,7 @@
 ---
 id: TCK-1367
 title: "La fiche client et le panneau du pipeline lisent toutes les notes du client, pas les 20 dernières"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -61,3 +61,9 @@ Aucun changement d'API : `GET /api/customers/{id}/notes` accepte `page` et `per_
   peuvent changer de page d'une requête à l'autre.
 
 ## Notes d'implémentation
+
+- Lecteur commun : `src/lib/queries/toutes-les-pages.ts` (`lireToutesLesPages`, `PAR_PAGE_MAX`),
+  repris par les autres lecteurs de l'angle 135 dans le même lot.
+- `sort=-created_at` est gardé tel quel : l'API l'ignore (tri en dur `pinned`, puis `created_at`).
+- Ablation : `customers.ts` rendu à `HEAD` → 2 rouges sur 2 (20 notes lues, onglet « Notes (20) ») ;
+  correctif remis → 2/2 verts.
