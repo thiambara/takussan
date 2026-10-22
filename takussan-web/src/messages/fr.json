@@ -9489,6 +9489,13 @@
       "saving": "Enregistrement…",
       "saved": "Enregistré.",
       "failed": "Ce réglage n'a pas été enregistré."
+    },
+    "timezone": {
+      "title": "Fuseau horaire",
+      "subtitle": "L'heure de vos e-mails, SMS et notifications suit ce fuseau.",
+      "label": "Fuseau horaire",
+      "saved": "Fuseau horaire enregistré.",
+      "error": "Le fuseau horaire n'a pas pu être enregistré."
     }
   },
   "contact": {
