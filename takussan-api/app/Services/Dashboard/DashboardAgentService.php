@@ -10,7 +10,6 @@ use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\LeaseStatus;
-use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\TaskStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
@@ -176,7 +175,7 @@ class DashboardAgentService
             ->all();
 
         $openMaintenance = MaintenanceRequest::where('assigned_to', $agent->id)
-            ->whereIn('status', [MaintenanceStatus::Open, MaintenanceStatus::InProgress])
+            ->open()
             ->count();
 
         return [

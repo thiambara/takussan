@@ -6,7 +6,6 @@ use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Enums\BookingStatus;
-use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -104,7 +103,7 @@ class DashboardTenantService
 
         $openMaintenance = MaintenanceRequest::query()
             ->where('requester_id', $user->id)
-            ->whereIn('status', [MaintenanceStatus::Open->value, MaintenanceStatus::InProgress->value])
+            ->open()
             ->count();
 
         $recentDocs = Document::query()

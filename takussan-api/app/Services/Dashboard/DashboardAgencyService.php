@@ -8,7 +8,6 @@ use App\Models\CommissionEntry;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\LeaseStatus;
-use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
@@ -73,7 +72,7 @@ class DashboardAgencyService
 
         $openMaintenance = MaintenanceRequest::query()
             ->whereIn('property_id', $propertyIds)
-            ->whereIn('status', [MaintenanceStatus::Open->value, MaintenanceStatus::InProgress->value])
+            ->open()
             ->count();
 
         $leaseIncome = $this->metrics->leaseIncomeByMonth($scope, $monthStart, $monthEnd);
