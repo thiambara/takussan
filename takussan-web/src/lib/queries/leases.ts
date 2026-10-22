@@ -9,7 +9,8 @@ import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/
 import type { CustomerListItem } from '@/types/customer';
 import type { Guarantor, Lease, LeasePayment, LeaseSignatureRole } from '@/types/lease';
 import type { PropertyListItem } from '@/types/property';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
+import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
 
 /**
  * React Query hooks for the Lease resource.
@@ -89,7 +90,13 @@ export const STATUTS_BIEN_POUR_UN_BAIL = [
   'rejected',
 ] as const;
 
+/**
+ * TCK-1371 (P135.04) — TOUS les biens louables, page par page. Une seule page de 100, sans
+ * recherche, laissait hors du sélecteur les biens qui venaient après dans l'ordre alphabétique.
+ */
 export function useLeasePropertyOptions() {
+  const locale = useLocale();
+  const { token } = useAuth();
   const spatieParams: SpatieQueryParams = {
     fields: {
       properties: [
@@ -108,14 +115,47 @@ export function useLeasePropertyOptions() {
     },
     filter: { status: STATUTS_BIEN_POUR_UN_BAIL },
     sort: ['title'],
-    per_page: 100,
   };
 
-  return useApiQuery<PaginatedResponse<PropertyListItem>>(
-    ['leases', 'property-options'],
-    '/api/properties',
-    { params: spatieParams },
-  );
+  return useQuery<PaginatedResponse<PropertyListItem>, ApiError>({
+    queryKey: ['leases', 'property-options'],
+    queryFn: ({ signal }) =>
+      lireToutesLesPages((page) =>
+        apiRequest<PaginatedResponse<PropertyListItem>>(
+          cheminApi`/api/properties${requete(buildQueryString({ ...spatieParams, page, per_page: PAR_PAGE_MAX }))}`,
+          { token: token ?? undefined, locale, signal },
+        ),
+      ),
+  });
+}
+
+/**
+ * TCK-1371 (P135.04) — TOUS les baux actifs, page par page, pour le choix du bail d'un état des
+ * lieux. Une page de 50 laissait les plus anciens hors de l'écran, sans recherche.
+ */
+export function useAllActiveLeases() {
+  const locale = useLocale();
+  const { token } = useAuth();
+
+  return useQuery<PaginatedResponse<Lease>, ApiError>({
+    queryKey: ['leases', 'list', { status: 'active', toutes: true }],
+    queryFn: ({ signal }) =>
+      lireToutesLesPages((page) =>
+        apiRequest<PaginatedResponse<Lease>>(
+          cheminApi`/api/leases${requete(
+            buildQueryString({
+              fields: { leases: LIST_FIELDS, properties: ['id', 'title', 'slug'] },
+              filter: { status: 'active' },
+              include: ['property'],
+              sort: ['-created_at'],
+              page,
+              per_page: PAR_PAGE_MAX,
+            }),
+          )}`,
+          { token: token ?? undefined, locale, signal },
+        ),
+      ),
+  });
 }
 
 export function useLeaseCustomerOptions(search?: string) {
