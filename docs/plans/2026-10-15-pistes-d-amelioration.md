@@ -184,7 +184,7 @@ voie d'écriture (angle 13, puis 47).
 | 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | fait |
 | 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | fait |
 | 110 | Rapprochement bancaire (`bank_reconciled_at`, `bank_statement_line_id`, `Accounting\ReconciliationManager`) d'une échéance, d'un acompte ou d'une facture passés à `refunded` après rapprochement : la ligne de relevé reste-t-elle rapprochée, et le remboursement sortant a-t-il un pendant | fait |
-| 111 | Jobs en file qui posent un statut de suivi (`processing`, `queued`) sur une ligne (`ReportExport`, `DataExport`, `ParseBankStatementJob`, versements) sans `failed()` — 7 jobs sur 43 en ont un : ce que voit l'utilisateur après l'échec définitif ou un arrêt brutal du worker, et ce qui bloque une nouvelle demande | à faire |
+| 111 | Jobs en file qui posent un statut de suivi (`processing`, `queued`) sur une ligne (`ReportExport`, `DataExport`, `ParseBankStatementJob`, versements) sans `failed()` — 7 jobs sur 43 en ont un : ce que voit l'utilisateur après l'échec définitif ou un arrêt brutal du worker, et ce qui bloque une nouvelle demande | fait |
 | 112 | Exports synchrones de `ExportController` (`GET /api/exports/{entity}`, jusqu'à 10 000 lignes, 2 000 en PDF) et de `PrivacyRequestController` : requêtes par ligne des constructeurs d'entité, mémoire et durée dans la requête HTTP — le relevé de l'angle 78 sur les exports qui ne passent pas par un job | à faire |
 | 113 | Appels du navigateur vers l'API sans délai (`useApiQuery`, `apiRequest` client, mutations TanStack, `fetch` direct des composants) : bouton `isPending` figé et requête jamais abandonnée sur un réseau mobile qui ne coupe pas — le pendant client de l'angle 79 | à faire |
 | 114 | Champs écartés par `validated()` sur les modules `src/lib/queries/*.ts` de l à z et les server actions `src/app/actions/*.ts` : la moitié de l'angle 80 laissée sans relevé | à faire |
@@ -216,6 +216,7 @@ voie d'écriture (angle 13, puis 47).
 | 139 | Colonnes déclarées par les exporteurs (`ActivityLogExporter::COLUMNS`, constructeurs d'entité d'`ExportController`, exports de rapports, archive RGPD `DataExportBuilder`) qu'aucun chemin n'écrit, ou qui lisent une clé que l'écrivain nomme autrement : colonne toujours vide dans le fichier rendu — le relevé de P108.02 sur les autres exports | à faire |
 | 140 | PDF figés face aux PDF recomposés à chaque téléchargement (`DocumentPdfService::store`, `signed_contract` de `LeaseSignatureService`, contre `InventoryController::downloadPdf`, `DocumentPdfController::stream*`, quittance publique `PublicPaymentLinkController::receipt`) : ce qu'un document signé ou acquitté imprime après un changement de l'agence, du bien, du locataire, d'un réglage ou d'un gabarit | à faire |
 | 141 | Encaissements soldés par une intégration de la plateforme (`PlatformPayoutService::isSettledByPlatform`) face au relevé de l'agence : proposés un à un par `ReconciliationMatcher` à un crédit qui ne les porte pas, et virement de clôture `PlatformPayout` qu'aucun candidat (`ALLOWED_PAYMENT_TYPES`, `fetchCandidates`) ne représente | à faire |
+| 142 | Notifications, Mailables et écouteurs en file (`ShouldQueue`, une quarantaine hors de `CodedNotification` : `TenantWelcomeNotification`, `ResetPasswordNotification`, `ActivityLogExportReadyNotification`, écouteurs `Lease\*` et `Accounting\*`) sans `backoff` ni `failed()` face au `--tries=3` sans délai des workers : ce qu'une panne du fournisseur de quelques secondes fait perdre, et la trace laissée — le relevé de P11.10 hors des notifications codées | à faire |
 
 ---
 
@@ -10167,7 +10168,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### La page d'un bien loué, vendu ou retiré sort du rendu serveur avec toutes ses cartes similaires en `opacity-0`, visibles seulement après l'hydratation
 - Réf : P102.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1188
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:65-73`, `takussan-web/src/components/property/PropertyCard.tsx:45-60`, `takussan-web/src/components/property/PropertyCard.tsx:156-158`, `takussan-web/src/components/property/PropertyCard.tsx:194-200`
 - Constat :
@@ -10178,6 +10179,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : code relu, rendu serveur mesuré.
 - Piste : passer `priority={index < 3}` aux cartes de `bienRetire()`, autant que la grille a de colonnes au plus large, sur le modèle de `PublicFavoritesPage` (`priority={i < 3}`). Garde : un test de `bienRetire()` en `renderToString` qui refuse `opacity-0` sur les trois premières racines. Le correctif de fond reste le reste de P69.01 : ne plus masquer la carte au rendu serveur.
 - Mesure (2026-10-21, 0acc2203f, mesureur) : relu `bien-retire.tsx:67-74` (`<PropertyCard key property index />`, ni `priority` ni `sizes`, inchangé) et `PropertyCard.tsx` (`useReveal` dans un `useEffect`, l. 45-60 ; `visible = useReveal(ref) || priority`, l. 156-158 ; racine en `opacity-0` sinon, l. 194-200) ; `git log` des fichiers et `grep` des tickets → rien depuis l'exploration ; test vitest temporaire, retiré, `renderToString` de `bienRetire()` pour un bien `rented` et trois similaires avec photo, sous les fournisseurs réels (`withIntl`, `CompareProvider`, `ToastProvider`) → trois racines de carte en `opacity-0` et trois `<img loading="lazy">`. Que la première rangée soit au-dessus du pli reste déduit des classes (sous la barre, `py-12`, le titre, le texte, le bouton et le `h2`), pas mesuré au navigateur, ni la durée d'hydratation ; le défaut retenu est la partie mesurée : des données servies par le serveur et masquées jusqu'à l'hydratation. Classement : A1, le contrat est écrit dans la carte (« Priority cards (above-the-fold) skip the initial hidden state ») et appliqué tel quel par `PublicFavoritesPage` (`priority={i < 3}`) et par TCK-1036 (P69.01) : `priority={index < 3}` dans `bienRetire()`, et un test `renderToString` qui refuse `opacity-0` sur les trois premières racines ; l'apparition en CSS seul reste le reste de P69.01, hors de ce classement.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : test `bien-retire.rendu-serveur.test.tsx`, `renderToString` de `bienRetire()` avec la vraie `PropertyCard` sous `withIntl`, `ToastProvider` et `CompareProvider`, quatre similaires avec photo → avant correctif, les trois premières racines en `opacity-0` et trois `<img loading="lazy">` (rouge) ; `priority={index < 3}` dans `bienRetire()` (TCK-1188) → 2/2 verts ; ablation, `bien-retire.tsx` rendu à `pre-dev` → 2/2 rouges, correctif remis → verts ; `page.server.test.tsx` reste vert (15/15). La première rangée au-dessus du pli reste déduite, pas mesurée au navigateur.
 
 ### Sur la grille de recherche à cinq ou six colonnes, la fin de la première rangée reste masquée jusqu'à l'hydratation : le budget `priority` est fixé à 4
 - Réf : P102.02
@@ -10195,7 +10197,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Les cartes de la page d'un bien retiré héritent des `sizes` de la grille de recherche, qui ne décrivent pas leur grille
 - Réf : P102.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1190
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:70-72`, `takussan-web/src/components/property/PropertyCard.tsx:139`, `takussan-web/src/components/property/card-image-sizes.ts:84-85`
 - Constat :
@@ -10204,10 +10206,11 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : code relu.
 - Piste : une constante `CARD_SIZES_BIEN_RETIRE` dans `card-image-sizes.ts`, sur le patron des autres grilles, avec son relevé. Garde : les autres appelants passent tous `sizes` sauf `bien-retire.tsx`. Un test qui le refuse sur chaque appelant de `PropertyCard` empêcherait le retour.
 - Mesure (2026-10-21, 0acc2203f, mesureur) : relu `bien-retire.tsx:70-72` (aucun `sizes`), `PropertyCard.tsx:139` (`sizes = CARD_SIZES_SEARCH_GRID`) et son docblock l. 75-79 (« appartient à la grille appelante, pas à la carte », constante et relevé dans `card-image-sizes.ts`) ; même test temporaire qu'en P102.01, retiré → les trois `<img>` portent `sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1023px) 31vw, (max-width: 1279px) 22vw, (max-width: 1535px) 17.5vw, …, 238px"`. Calculé depuis les classes (`max-w-6xl px-4 sm:px-6 lg:px-8`, `sm:grid-cols-2 lg:grid-cols-3`, `gap-4`), méthode du fichier : à 900 px un emplacement fait environ (900 − 48 − 16) / 2 = 418 px pour 31vw = 279 px déclarés ; à 1 440 px, (1 152 − 64 − 32) / 3 = 352 px pour 17,5vw = 252 px : sous-déclaré, donc image trop petite (le défaut « qui rend flou » du docblock de `card-image-sizes.ts`) ; aucune requête d'image mesurée au navigateur. Classement : A1 et A2, le contrat est écrit dans la carte et chaque autre grille a sa constante : une constante `CARD_SIZES_BIEN_RETIRE` dans `card-image-sizes.ts` avec son relevé, passée par `bienRetire()`, et son test sur le patron de `card-image-sizes.test.ts`.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : test `card-image-sizes.bien-retire.test.ts` → avant correctif, `CARD_SIZES_BIEN_RETIRE` absente (les deux tests de géométrie rouges) et la garde des appelants rouge sur le seul `bien-retire.tsx` parmi les six `<PropertyCard … />` de `src` ; constante ajoutée (`calc(100vw - 32px)`, `50vw`, `33.4vw`, `352px`, calculée depuis les classes) et passée par `bienRetire()` (TCK-1190) → 4/4 verts, jamais sous-déclarée ni plus de 40 px au-dessus de 320 à 2560 px ; ablation, `sizes` retiré de `bien-retire.tsx` → la garde rougit, remis → verte. Aucune requête d'image mesurée au navigateur.
 
 ### Petites améliorations : trois commentaires décrivent encore les animations d'entrée en `both`, alors que `globals.css` les déclare en `backwards`
 - Réf : P102.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1192
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/property/card-stagger.ts:4-7`, `takussan-web/src/app/globals.css:519-522`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:166-171`
 - Constat :
@@ -10217,6 +10220,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : code relu.
 - Piste : réécrire les trois commentaires pour dire `backwards` (A6). Rien à garder par un test.
 - Mesure (2026-10-21, 0acc2203f, mesureur) : `grep -n 'both\|backwards' globals.css` → `.animate-fade-in-up`, `.animate-card-enter` et `.animate-section-enter` en `backwards` (l. 423, 431, 439, motif l. 418-421) ; les trois commentaires cités disent toujours `both` (`card-stagger.ts:4-7`, `globals.css:519`, `PropertyDetailContent.tsx:168`), et un quatrième, non relevé, aussi : `globals.css:450` (« Pas de `both` ici, contrairement aux trois autres »). Le point sur `prefers-reduced-motion` relève du défaut de P102.01 et n'est pas retenu ici. Classement : A6, des commentaires qui contredisent le CSS mesuré, réécrits pour dire `backwards` (les quatre), sans code ni test.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : `grep -n 'both\|backwards'` → les trois animations toujours en `backwards` (`globals.css:423,431,439`) et les quatre commentaires toujours en `both` (`card-stagger.ts:6`, `globals.css:450,519`, `PropertyDetailContent.tsx:168`) ; réécrits pour dire `backwards` (TCK-1192), le récit daté de `both` gardé là où il explique une règle ; après, `grep -n both` ne rend plus que `globals.css:418` (le motif du passage à `backwards`) et les `wizard-*`, bien en `both`. Commentaires seuls : aucun test, aucune ablation possible.
 
 ## Angle 103 — Appels du navigateur à l'hydratation des pages publiques
 
@@ -10349,7 +10353,7 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
 
 ### L'écran des étiquettes charge react-hook-form et le calendrier pour afficher deux messages d'erreur, par le fichier `index.ts` de `components/forms`
 - Réf : P104.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1194
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin-tags/TagsManager.tsx:25,28`, `takussan-web/src/components/forms/index.ts`, `takussan-web/src/hooks/useApiForm.ts:162-164`
 - Constat :
@@ -10358,10 +10362,11 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - `/super-admin/tags` est l'écran le plus lourd de la console : **452,2 Kio** gzip, dont 141,3 propres à la page, contre 315 à 389 pour les 36 autres (mesuré). Ablation, `FormError` importé de `@/components/forms/FormError` et `useTraducteurValidation` remplacé par `useTranslations()` : **452,2 → 399,6 Kio** (−52,6), react-day-picker sorti ; zod reste (P104.02) (mesuré).
 - Piste : importer `FormError` depuis son propre fichier, et sortir `useTraducteurValidation` dans un module sans react-hook-form, que `useApiForm.ts` réexporte. Garde : P104.04.
 - Mesure (2026-10-21, 711bafca3, mesureur) : relu `TagsManager.tsx:25,28` (`FormError`, `FormGlobalError` par `@/components/forms`, `useTraducteurValidation` par `@/hooks/useApiForm`), `components/forms/index.ts` (neuf `export *`, dont `FormDatePicker` et `FormDateTimePicker`), `useApiForm.ts:1-17` (`react-hook-form`, `@hookform/resolvers/zod`) et l. 164-166 (le crochet n'est que `useTranslations()`, deux lignes plus bas que cité) ; `FormGlobalError` vit bien dans `FormError.tsx:67` ; test Vitest temporaire, retiré depuis, qui appelle `paquetsDuGrapheClient` sur les 37 pages et le layout de `(super-admin)` → `tags/page.tsx` atteint `react-hook-form` (huit chemins : sept champs de `forms/index.ts` et `useApiForm.ts`), `@hookform/resolvers`, `react-day-picker` (par `FormDateTimePicker → ui/date-time-picker → ui/calendar`) et `date-fns`, et c'est la seule page de la console à atteindre `react-hook-form` ; aucun ticket ni commit ne l'a traitée ; le poids du build (452,2 → 399,6 Kio) n'est pas re-mesuré. Classement : A2, deux imports à prendre à leur fichier propre (`@/components/forms/FormError`, et `useTraducteurValidation` sorti dans un module sans react-hook-form que `useApiForm.ts` réexporte, ses trois autres appelants inchangés), sans aucun changement de rendu ni de comportement.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : garde `graphe-client-de-la-console.test.ts`, `paquetsDuGrapheClient` de `tags/page.tsx` sur react-hook-form, `@hookform/resolvers`, react-day-picker et date-fns → avant correctif, quatorze chemins, tous par `components/forms/index.ts` ou `hooks/useApiForm.ts` (rouge) ; `FormError` pris à son fichier et `useTraducteurValidation` sorti dans `hooks/useTraducteurValidation.ts`, réexporté par `useApiForm.ts` (TCK-1194) → verte ; ablation, `TagsManager.tsx` rendu à `pre-dev` → rouge, remis → verte ; `TagsManager.test.tsx`, `useApiForm.test.tsx` et `BookingTunnel.succes.test.tsx` verts. Le poids du build n'est pas re-mesuré.
 
 ### L'écran des étiquettes est le seul de la console à charger zod, pour une validation faite à l'envoi d'un dialogue fermé
 - Réf : P104.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1196
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin-tags/TagsManager.tsx:35-40,145,345-346`, `takussan-web/src/lib/schemas/tag.ts:1,17,19`
 - Constat :
@@ -10370,10 +10375,11 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - Le gain d'un chargement différé n'est pas mesuré : l'ablation de P104.01 a laissé zod en place (à vérifier).
 - Piste : mettre `tagTypeValues` dans `lib/enums/tag.ts`, que `schemas/tag.ts` réexporte (patron de TCK-744 et TCK-1039), et charger le schéma à l'envoi (`await import('@/lib/schemas/tag')`) ou monter `CreateTagDialog` par `next/dynamic` à sa première ouverture (`useDejaOuvert`, TCK-1041). Mesurer avant et après par `poids-des-routes.mjs`.
 - Mesure (2026-10-21, 711bafca3, mesureur) : même test temporaire du graphe client → parmi les 37 pages et le layout de `(super-admin)`, seule `tags/page.tsx` atteint `zod`, par un seul chemin, `lib/schemas/tag.ts ← TagsManager.tsx` (`useApiForm.ts` n'en importe que `type ZodType`, non suivi) : l'ablation de P104.01 laisse donc bien zod en place, ce que le constat laissait « à vérifier » ; relu `TagsManager.tsx:35-40` (`tagFormSchema`, `tagTypeValues`), l. 145 (`tagFormSchema.safeParse` dans `handleCreate`), l. 345-349 (`CreateTagDialog` monté avec `open={isCreateOpen}`, `false` au départ l. 74) et l. 188, 366 (`tagTypeValues` lu au rendu) ; `lib/enums/` ne porte que `customer.ts` et `property.ts` ; le morceau de 64,2 Kio n'est pas re-mesuré par un build. Classement : A2, `tagTypeValues` passe dans `lib/enums/tag.ts` que `schemas/tag.ts` réexporte (patron TCK-1039), et le schéma se charge à l'envoi (`await import('@/lib/schemas/tag')` dans `handleCreate`), même validation et mêmes messages, sans choix de produit.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : garde `graphe-client-de-la-console.test.ts`, cas zod de `tags/page.tsx` → avant correctif, un chemin, `zod ← lib/schemas/tag.ts ← components/admin-tags/TagsManager.tsx` (rouge) ; `tagTypeValues` dans `lib/enums/tag.ts` réexporté par `schemas/tag.ts`, schéma chargé à l'envoi par `await import('@/lib/schemas/tag')` dans `handleCreate` (TCK-1196) → vert ; ablation, `TagsManager.tsx` rendu à l'état de TCK-1194 → rouge, remis → vert ; `TagsManager.test.tsx` (6/6, l'attente de l'appel passée par `waitFor`), `traducteurs-de-messages.test.ts` et `admin-schemas.test.ts` verts. Le poids du build n'est pas re-mesuré.
 
 ### Les demandes de confidentialité chargent le calendrier pour le formulaire de création, monté seulement quand on ouvre son dialogue
 - Réf : P104.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1198
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/PrivacyRequestsConsole.tsx:19,371-373,421,528`
 - Constat :
@@ -10382,10 +10388,11 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - Ablation, `DatePicker` remplacé par un composant vide dans ce seul fichier : `/super-admin/privacy-requests` **376,1 → 344,2 Kio** (−31,9), react-day-picker sorti (mesuré).
 - Piste : monter `CreatePrivacyRequestForm` par `next/dynamic` à la première ouverture du dialogue, comme TCK-1041 l'a fait pour `CreateInvoiceDialog` ; mesurer avant et après.
 - Mesure (2026-10-21, 711bafca3, mesureur) : relu `PrivacyRequestsConsole.tsx:19` (`DatePicker` importé statiquement), l. 116 (`creating` à `false`), l. 371-372 (`{creating ? <CreatePrivacyRequestForm … /> : null}` dans un `Dialog`), l. 421 et 528 (seul rendu de `DatePicker`) ; test temporaire du graphe client → les quatre chemins de `privacy-requests/page.tsx` vers `react-day-picker` et `date-fns` passent tous par `ui/date-picker.tsx ← PrivacyRequestsConsole.tsx` ; aucun ticket ni commit ne l'a traitée ; le gain de 31,9 Kio n'est pas re-mesuré par un build. Classement : A2, `CreatePrivacyRequestForm` sorti dans son fichier et monté par `next/dynamic` à la première ouverture du dialogue (patron TCK-1041, `useDejaOuvert`), même formulaire et même comportement.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : garde `graphe-client-de-la-console.test.ts`, cas react-day-picker et date-fns de `privacy-requests/page.tsx` → avant correctif, quatre chemins, tous par `ui/date-picker.tsx ← PrivacyRequestsConsole.tsx` (rouge) ; `CreatePrivacyRequestForm` sorti dans son fichier (pièces communes dans `PrivacyRequestChamps.tsx`) et monté par `next/dynamic` (TCK-1198) → verte ; ablation, formulaire réimporté statiquement → rouge, remis → verte ; `PrivacyRequestsConsole.test.tsx` 7/7 (module différé importé en tête, patron de TCK-1041). `useDejaOuvert` non repris : le formulaire était déjà démonté à la fermeture. Le poids du build n'est pas re-mesuré.
 
 ### Aucune garde ne trace le graphe client des écrans de `/super-admin`
 - Réf : P104.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1200
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(dashboard)/__tests__/zod-hors-des-ecrans-de-lecture.test.ts:26-30`, `takussan-web/src/app/(super-admin)/super-admin/__tests__/`
 - Constat :
@@ -10393,16 +10400,18 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - `poids-des-routes.mjs` imprime bien les écrans de `/super-admin` depuis P70.06, sans seuil (mesuré, sortie du build) : P104.01 et P104.02 n'y cassent rien.
 - Piste : une garde du même patron sur les pages de `(super-admin)` qui n'affichent aucun formulaire au chargement, `tags/page.tsx` comprise une fois P104.01 et P104.02 traitées.
 - Mesure (2026-10-21, 711bafca3, mesureur) : relu `(dashboard)/__tests__/zod-hors-des-ecrans-de-lecture.test.ts:27-39` (n'énumère que des écrans de `(dashboard)/app`) ; `ls (super-admin)/super-admin/__tests__` → `console-home.test.tsx`, `garde-double-facteur.test.tsx`, `jeton-operateur.test.ts`, et `grep -rln graphe-client src` ne rend aucun test sous `(super-admin)` ; test temporaire du graphe client → aujourd'hui seule `tags/page.tsx` atteint `zod`, `react-hook-form` ou `@hookform/resolvers` parmi les 37 pages et le layout de la console. Classement : A5, une garde neuve du patron de TCK-1038 sur les pages de `(super-admin)` sans formulaire au chargement, sans seuil existant resserré ; les 36 autres pages et le layout y passent dès aujourd'hui, `tags/page.tsx` s'y ajoute avec P104.01 et P104.02.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : test temporaire, retiré, `paquetsDuGrapheClient` sur les 37 `page.tsx` et le `layout.tsx` de `(super-admin)/super-admin` → après TCK-1194 et TCK-1196, aucune n'atteint zod, react-hook-form ni `@hookform/resolvers` (huit atteignent encore react-day-picker, hors de la piste) ; garde neuve dans `graphe-client-de-la-console.test.ts`, pages trouvées par balayage, exceptions `FORMULAIRES_AU_CHARGEMENT` vides (TCK-1200) → 42/42 verts ; ablation, `TagsManager.tsx` rendu à `pre-dev` → le cas `tags/page.tsx` rougit, remis → vert. Aucun seuil existant resserré.
 
 ### Petites améliorations
 - Réf : P104.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1202
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/super/GlobalSearch.tsx:12`, `takussan-web/src/lib/queries/super-admin-queues.ts:1-6`, `takussan-web/src/lib/queries/super-admin.ts`
 - Constat :
   - La coque de la console embarque `lib/queries/super-admin.ts` en entier (1 515 lignes) pour `fetchGlobalSearch` (recherche de la barre haute) et les quatre compteurs de files de la barre latérale (lu). Dans le morceau de coque de 28,9 Kio gzip qui le porte, le module garde ses **96** noms exportés : environ 24,9 Kio bruts et 4,5 Kio gzip, découpés du début du module à la fin du morceau (mesuré, `node -e` sur `.next/static/chunks/44hqerqx2pu89.js`). Le motif est celui de P70.07, ici sur un module sans `'use client'` ; le gain est faible.
 - Piste : mettre `fetchGlobalSearch` et les quatre lecteurs des files dans un module à part, réexporté par `super-admin.ts` (méthode de TCK-1042).
 - Mesure (2026-10-21, 711bafca3, mesureur) : relu `GlobalSearch.tsx:12` (`fetchGlobalSearch` pris à `@/lib/queries/super-admin`), `super-admin-queues.ts:1-6` (quatre lecteurs pris au même module) ; `wc -l` → 1 515 lignes, sans `'use client'` (l. 1-3) ; 97 lignes `export function|const` ; `GlobalSearch` et les files sont importés par `SuperAdminTopbar.tsx`, `SuperAdminSidebar.tsx` et `ConsoleQueues.tsx`, donc par la coque ; aucun ticket ni commit ne l'a traitée ; le morceau de coque (4,5 Kio gzip) n'est pas re-mesuré par un build. Classement : A2, `fetchGlobalSearch` et les quatre lecteurs sortis dans un module à part que `super-admin.ts` réexporte (méthode de TCK-1042), aucun appelant ni résultat changé.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : garde `graphe-client-de-la-console.test.ts`, `modulesDuGrapheClient` du `layout.tsx` de la console → avant correctif, `lib/queries/super-admin.ts` y figure (rouge) ; `fetchGlobalSearch` et les quatre lecteurs des files sortis dans `lib/queries/super-admin-coque.ts`, réexportés par `super-admin.ts` (TCK-1202) → vert ; ablation, `GlobalSearch.tsx` et `super-admin-queues.ts` rendus à `pre-dev` → rouge, remis → vert ; `tsc` propre, et douze fichiers de test de la coque, des files, de la recherche, de la modération, des jobs et de la page KYC verts (deux mocks repointés sur le nouveau module). Le morceau de coque n'est pas re-mesuré par un build.
 
 ## Angle 105 — Charge RSC d'un document `/app` servi : les dictionnaires imbriqués
 
@@ -10816,3 +10825,75 @@ déjà relevée).*
 - Piste : rendre le statut du candidat dans la suggestion et dans `MatchCandidate` (le front l'affiche), plutôt que l'écarter : c'est la même lecture que P110.02, à faire ensemble.
 - Mesure (2026-10-22, 728be0ac7, mesureur) : test Feature temporaire `tests/Feature/TmpMesureur/SondeP110Test.php` (retiré), par les services, charge 3,92 / 3,31 / 3,63 sur 8 cœurs ; aucun commit sur les fichiers cités depuis 6d216605a (`git log 6d216605a..HEAD`), aucun ticket → acompte de 70 000 remboursé avant l'import, crédit de 70 000 à J+1 : `suggestFor` rend `BookingPayment` confiance 70, sans statut ; `unmatch` (`ReconciliationManager.php:183-219`) remet toujours `bank_reconciled_at` et `bank_statement_line_id` à `null` sans regarder le statut (lu). Classement : V7, rendre et afficher le statut du candidat est un comportement visible neuf, à décider avec P110.02 et P25.07.
 - Mesure (2026-10-22, e45988a50, delegue) : relu le constat, la `Piste` et la `Mesure` du mesureur, puis `MatchCandidate.php:7-15` et `MatchCandidateResource.php:12-21` (ni statut ni `bank_reconciled_at` rendus), les statuts de P110.02 (`retenu · à valider — V1`, sans décision) et de P39.07 (`porteur (2026-10-18) : plus tard, après l'angle 76`), et `grep -rn` dans `docs/backlog/tickets` et `docs/features.md` → aucune décision écrite sur le statut d'un candidat au rapprochement ; la `Piste` se dit elle-même « la même lecture que P110.02, à faire ensemble ». Recommandation : rendre le statut du payable (`status`) dans `MatchCandidate`, sa ressource et la suggestion, et l'afficher en badge avec les libellés de statut déjà traduits, sans écarter le candidat ni refuser la confirmation ; ne pas la valider seule, parce qu'elle est le versant affichage de P110.02 (V1) et du choix « signaler ou refuser » de P39.07 que le porteur a remis à plus tard : ce qui manque pour trancher est sa décision sur P110.02, avec laquelle celle-ci se prend.
+
+## Angle 111 — Jobs à statut de suivi sans `failed()`
+
+*Exploré le 2026-10-22 sur `pre-dev` 728be0ac7, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : les 43 fichiers de `app/Jobs` (recherche de
+`function failed`, puis des écritures de statut), `DataExportBuilder`, les deux
+`DataExportController`, `GenerateReportExport`, `ReportExportDownloadController`, les deux
+notifications « prête », `BuildUserDigestJob`, `DigestBuilderService`, `NotificationDigestMail`,
+`PropertyCalendarSyncService` et ses deux jobs, `MatchBankStatementLinesJob`,
+`DataExportsPanel.tsx`, `Worker.php` et `Mailer.php` du framework, `compose.api.yml`. Mesures par un
+test temporaire (retiré) sur la base de test PostgreSQL locale, canal `mail` remplacé par un canal
+qui lève, charge 3,78 / 3,31 / 3,61 sur 8 cœurs. La durée de `DataExportBuilder::payloads()` n'a
+pas pu être mesurée sur la base de dev : peu de données, et `tinker` y lève un `TypeError` de
+`BaseUrlGenerator::getDiskName()` (disque de médias du `.env` local, D-48) ; l'angle 78 l'a mesurée
+à 2,9 s pour 20 000 lignes de journal. **Déjà traités, sans entrée** : `ParseBankStatementJob`
+(`failed()` posé par TCK-932, P43.01), `GenerateReportExport` (`failed()` posé par TCK-1145,
+P77.04), `MatchBankStatementJob` (P43.02), l'export d'audit `ExportActivityLogJob`, sans ligne de
+suivi (P78.01). **Écartés, sans entrée** : les versements (`PayoutService`, `PlatformPayoutService`)
+ne passent par aucun job ; le flux iCal `pending` est rattrapé par la synchronisation horaire,
+qui relit tous les flux, et le service ne lève pas sur une erreur réseau (`SafeOutboundUrl::get`
+rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
+
+### L'export RGPD n'a pas de `failed()` : un job tué laisse l'export « en préparation » pour toujours, et l'écran relance la liste toutes les 10 s
+- Réf : P111.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/Privacy/ProcessDataExport.php:14-25`, `takussan-api/app/Services/Privacy/DataExportBuilder.php:50-82`, `takussan-api/app/Jobs/Privacy/PurgeExpiredDataExports.php`, `takussan-web/src/components/privacy/DataExportsPanel.tsx:35,45,72`
+- Constat :
+  - `ProcessDataExport` n'a ni `failed()`, ni `$tries`, ni `$timeout` (lu, fichier entier, 25 lignes). Le passage à `failed` n'existe que dans le `catch` de `DataExportBuilder::build()` (lu, l. 78-81).
+  - Un processus tué pendant `build()` (mémoire, délai de 60 s du worker par défaut, arrêt de l'hôte) n'exécute pas ce `catch`. Le worker redonne le job après `retry_after`, puis le marque en échec sans rien exécuter au-delà de `--tries=3` : `markJobAsFailedIfAlreadyExceedsMaxAttempts` → `failJob` → `$job->fail()`, qui n'appelle que le `failed()` de la classe (lu, `Worker.php:637-651,741-744`). La ligne reste `processing`, ou `queued` si le job n'a jamais démarré (déduit de la lecture, non reproduit).
+  - Rien ne la rattrape : la purge ne lit que `ready` échus (lu, `PurgeExpiredDataExports`).
+  - L'écran du compte relance la liste toutes les 10 s tant qu'un export est `queued` ou `processing` (lu, `DataExportsPanel.tsx:35,45,72`) : il le fait sans fin sur une ligne bloquée, tant que la page est ouverte.
+  - Établi comment : lu. Qu'un export réel dépasse 60 s ou la mémoire n'est pas mesuré (angle 78 : 2,9 s pour 20 000 lignes) ; le déclencheur reste donc la mort du worker, à vérifier.
+- Piste : un `failed()` qui passe à `failed` un export encore `queued` ou `processing`, sur le modèle de `GenerateReportExport::failed()`. Test : `failed()` appelé sur un export `processing` le rend `failed`, ablation comprise.
+
+### Un export RGPD en échec bloque une nouvelle demande pendant 24 h
+- Réf : P111.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Me/DataExportController.php:29-50`, `docs/features.md:475`
+- Constat :
+  - La limite d'une demande par 24 h compte toute demande récente du titulaire, quel que soit son statut (lu, l. 29-34 : `requested_at > now()->subDay()`, sans filtre sur `status`).
+  - Mesuré : test temporaire (retiré), export du titulaire passé à `failed` → `POST /api/me/data-exports` rend `429 data_export_throttled`. Avec P111.01, un export bloqué en `processing` bloque de même la demande suivante pour 24 h.
+  - La spec écrit « une demande par 24 h » (lu, `features.md:475`), sans dire si une demande échouée compte.
+  - Établi comment : lu et mesuré.
+- Piste : ne compter que les demandes `queued`, `processing` ou `ready` dans la limite, ou laisser la règle et l'écrire dans la spec. C'est un choix de produit.
+
+### Quand le courriel « prête » échoue, le job d'export reconstruit tout à chaque essai, et le rapport `ready` repasse à `failed`
+- Réf : P111.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:61-83`, `takussan-api/app/Notifications/ReportExportReadyNotification.php:11-20`, `takussan-api/app/Jobs/Privacy/ProcessDataExport.php:22-23`, `takussan-api/app/Notifications/DataExportReadyNotification.php:30-42`, `takussan-api/app/Http/Controllers/Api/ReportExportDownloadController.php:39-48`
+- Constat :
+  - Les deux notifications « prête » ne sont pas `ShouldQueue` et n'ont que le canal `mail` (lu) : le courriel part dans le job, après l'écriture du statut `ready`. Une erreur du transport fait lever le job, que le worker rejoue jusqu'à `--tries=3`, sans délai.
+  - Rapport, mesuré (test temporaire, retiré, canal `mail` qui lève) : après `handle()`, statut `ready`, fichier écrit, exception `smtp down` ; puis `failed()` → statut `failed`, `failure_reason` = `smtp down`, fichier toujours présent. Le téléchargement refuse alors tout statut autre que `ready` (lu, l. 43) : le fichier reste sur le disque, inaccessible. La purge de P77.02 (PR #963 en cours) n'est pas relue ici.
+  - Export RGPD, mesuré de même : après `handle()`, statut `ready` et exception levée. Chaque essai suivant repasse la ligne à `processing` et reconstruit l'archive (lu, `DataExportBuilder.php:52`). Après trois échecs, l'export reste `ready` sans qu'aucun courriel ne soit parti (déduit).
+  - La portée du rapport est faible : aucun rapport n'atteint aujourd'hui le seuil asynchrone (P78.04).
+  - Établi comment : mesuré pour l'état après `handle()` et après `failed()`, lu pour la reprise par le worker.
+- Piste : mettre la notification en file (`ShouldQueue`, avec `backoff`), ou attraper l'échec du courriel après `ready` pour que le job ne lève plus ; et faire que `GenerateReportExport::failed()` ne touche qu'un export encore `queued` ou `processing`. Test : canal `mail` qui lève → export `ready`, job sans exception, ou `failed()` sans effet sur un `ready`.
+
+### Le résumé de notifications est marqué « envoyé » avant l'envoi, qui part dans un job à part sans `backoff` : un échec du fournisseur le perd en silence
+- Réf : P111.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/Notifications/BuildUserDigestJob.php:61-72`, `takussan-api/app/Mail/NotificationDigestMail.php:21`, `takussan-api/app/Services/Notifications/DigestBuilderService.php:26-54`
+- Constat :
+  - `NotificationDigestMail` est `ShouldQueue` (lu, l. 21). `Mail::to()->send()` ne fait donc que mettre en file le courriel (lu, `Mailer.php:350-354`, `sendMailable()` → `queue()`). Le `try/finally` de `BuildUserDigestJob` ne protège que cette mise en file, et `markDigested()` pose `digested_at` aussitôt (lu, l. 61-72).
+  - L'envoi réel se fait dans `SendQueuedMailable`, sans `$tries`, `backoff` ni `failed()` déclarés sur le Mailable (lu, `grep` → aucun) : `--tries=3` sans délai (lu, `compose.api.yml:125`). Une panne du fournisseur de quelques secondes épuise les trois essais (même mécanisme que P11.10, corrigé pour `CodedNotification` seule).
+  - Le résumé suivant ne relit que `digested_at IS NULL` (lu, `DigestBuilderService.php:31`) : ces notifications ne figurent plus dans aucun courriel. Seule trace, une ligne de `failed_jobs` (déduit).
+  - Le commentaire de la l. 69-70 dit éviter un double envoi ; avec la mise en file, ce cas n'existe plus dans ce `try`.
+  - Établi comment : lu.
+- Piste : `backoff` sur `NotificationDigestMail`, et poser `digested_at` après l'envoi réel (dans le Mailable, ou en envoyant de façon synchrone dans le job), ou le retirer dans un `failed()`. Test : un transport qui lève trois fois laisse les notifications sans `digested_at`.

@@ -3,8 +3,9 @@
  *
  * Le retard s'écrivait `index * 60ms` sans plafond, sur des listes qui vont jusqu'à
  * `per_page` cartes. Or les deux animations d'entrée du dépôt (`fadeInUp` et
- * `cardEnter`, `src/app/globals.css`) sont déclarées en `both` : pendant tout le
- * retard, la carte est **maintenue** à `opacity: 0`. Sur `/properties?per_page=30`,
+ * `cardEnter`, `src/app/globals.css`) sont déclarées en `backwards` (en `both` jusqu'à
+ * la revue design du 2026-09-16) : pendant tout le retard, la carte est **maintenue** à
+ * `opacity: 0`. Sur `/properties?per_page=30`,
  * la carte d'index 29 attendait donc 1 740 ms *après être entrée dans le viewport*.
  *
  * **Mesuré le 2026-08-24**, viewport 1249 × 695, défilement rapide jusqu'en bas de

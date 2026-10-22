@@ -22,22 +22,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FormError, FormGlobalError } from '@/components/forms';
+import { FormError, FormGlobalError } from '@/components/forms/FormError';
 import { traduireChampsErreurs } from '@/lib/schemas/messages';
 import { cn } from '@/lib/utils';
-import { useTraducteurValidation } from '@/hooks/useApiForm';
+import { useTraducteurValidation } from '@/hooks/useTraducteurValidation';
 import type { Tag, TagType } from '@/types/tag';
 import {
   createConsoleTagAction,
   deleteConsoleTagAction,
   updateConsoleTagAction,
 } from '@/app/actions/console';
-import {
-  normaliseTagForm,
-  tagFormSchema,
-  tagTypeValues,
-  type TagFormValues,
-} from '@/lib/schemas/tag';
+import { tagTypeValues } from '@/lib/enums/tag';
+import type { TagFormValues } from '@/lib/schemas/tag';
 
 /**
  * Tag / amenity admin manager — TCK-066.
@@ -142,6 +138,9 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
   const handleCreate = useCallback(
     async (values: TagFormValues) => {
       setGlobalError(null);
+      // TCK-1196 (P104.02) — le schéma (donc zod, 64 Kio gzip) se charge à l'envoi du dialogue de
+      // création, fermé au chargement : c'était le seul écran de la console à le porter.
+      const { normaliseTagForm, tagFormSchema } = await import('@/lib/schemas/tag');
       const parsed = tagFormSchema.safeParse(values);
       if (!parsed.success) {
         // `fieldErrors` porte des CLÉS (`validation.tag.…`), pas des libellés : sans cette
