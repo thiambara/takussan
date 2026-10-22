@@ -57,13 +57,34 @@ class DocumentPdfDompdfRenderTest extends TestCase
         $this->assertSame(0, preg_match_all('#/Subtype\s*/Image#', $bytes));
     }
 
-    private function renderInvoice(Agency $agency): string
+    /**
+     * TCK-1235 (P109.02) — `counter(pages)` vaut 0 sous dompdf : le pied imprimait « Page 1 sur 0 ».
+     */
+    public function test_the_footer_prints_the_page_total_of_a_two_page_document(): void
+    {
+        $bytes = $this->renderInvoice(null, notes: str_repeat('Lorem ipsum dolor sit amet, consectetur adipiscing elit. ', 45));
+
+        $this->assertSame(2, $this->pageCount($bytes));
+
+        $footer = array_values(array_filter(
+            $this->textRuns($bytes),
+            fn (array $run): bool => in_array(trim($run['text']), ['Page', 'sur', '1', '2', '0'], true)
+                && $run['y'] < 60,
+        ));
+        $this->assertSame(
+            ['Page', '1', 'sur', '2', 'Page', '2', 'sur', '2'],
+            array_map(fn (array $run): string => trim($run['text']), $footer),
+        );
+    }
+
+    private function renderInvoice(?Agency $agency, ?string $notes = null): string
     {
         $customer = Customer::factory()->create();
         $invoice = Invoice::factory()->create([
             'customer_id' => $customer->id,
             'subtotal' => 250_000,
             'total_amount' => 250_000,
+            'notes' => $notes,
         ]);
 
         return app(DocumentPdfService::class)->render('pdf.invoices.default', [
@@ -73,5 +94,49 @@ class DocumentPdfDompdfRenderTest extends TestCase
             'title' => 'Facture',
             'document_label' => 'Facture',
         ]);
+    }
+
+    private function pageCount(string $pdf): int
+    {
+        return preg_match_all('#/Type\s*/Page\b(?!s)#', $pdf);
+    }
+
+    /**
+     * Les morceaux de texte du PDF, dans l'ordre du flux : `BT x y Td /Fn t Tf [(…)] TJ ET`, ce
+     * qu'écrit l'adaptateur CPDF de dompdf. Une police Unicode (DejaVu) écrit l'UTF-16BE, une
+     * police de base le Windows-1252.
+     *
+     * @return list<array{x: float, y: float, text: string}>
+     */
+    private function textRuns(string $pdf): array
+    {
+        preg_match_all('#stream\r?\n(.*?)\r?\nendstream#s', $pdf, $streams);
+
+        $runs = [];
+        foreach ($streams[1] as $stream) {
+            $content = @gzuncompress($stream);
+            if (! is_string($content)) {
+                continue;
+            }
+
+            preg_match_all('#BT ([\d.]+) ([\d.]+) Td /F\d+ [\d.]+ Tf\s+\[\((.*?)\)\] TJ ET#s', $content, $matches, PREG_SET_ORDER);
+            foreach ($matches as [, $x, $y, $raw]) {
+                $bytes = preg_replace_callback(
+                    '#\\\\([0-7]{1,3}|.)#s',
+                    fn (array $e): string => ctype_digit($e[1][0])
+                        ? chr(octdec($e[1]))
+                        : (['n' => "\n", 'r' => "\r", 't' => "\t", 'b' => "\x08", 'f' => "\f"][$e[1]] ?? $e[1]),
+                    $raw,
+                );
+                $unicode = strlen($bytes) % 2 === 0 && preg_match('#^(?:\x00.)+$#s', $bytes) === 1;
+                $runs[] = [
+                    'x' => (float) $x,
+                    'y' => (float) $y,
+                    'text' => mb_convert_encoding($bytes, 'UTF-8', $unicode ? 'UTF-16BE' : 'Windows-1252'),
+                ];
+            }
+        }
+
+        return $runs;
     }
 }

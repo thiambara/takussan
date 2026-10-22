@@ -122,6 +122,7 @@ use App\Services\Notifications\Whatsapp\LogWhatsappDriver;
 use App\Services\Notifications\Whatsapp\ServiceWindow;
 use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Payout\Disbursement\ManualDisbursementDriver;
+use App\Services\Pdf\DomPdfPageTotalDriver;
 use App\Services\Reporting\PlatformReportingService;
 use App\Services\Review\ReviewModerationScope;
 use App\Services\Webhooks\WebhookJournal;
@@ -181,6 +182,10 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-600 (ADR-0055 §5) — la session d'impersonation de la requête courante.
         $this->app->scoped(ImpersonationContext::class);
+
+        // TCK-1235 (P109.02) — le pilote dompdf du paquet laisse `counter(pages)` à 0 : celui du
+        // dépôt écrit le total de pages. Les autres pilotes de `spatie/laravel-pdf` ne changent pas.
+        $this->app->singleton('laravel-pdf.driver.dompdf', fn () => new DomPdfPageTotalDriver(config('laravel-pdf.dompdf', [])));
 
         // TCK-594 (ADR-0039 §1) — décaisser, distinct d'encaisser. Un seul pilote : le manuel tracé.
         $this->app->bind(DisbursementDriverContract::class, ManualDisbursementDriver::class);
