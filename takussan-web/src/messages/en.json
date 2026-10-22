@@ -4679,7 +4679,6 @@
       "title": "Help us tailor your search",
       "description": "Three quick pieces of info — all optional — to personalise your results. You can finish later from your profile.",
       "phoneLabel": "Phone (optional)",
-      "phonePlaceholder": "+221 77 000 00 00",
       "cityLabel": "Preferred city (optional)",
       "cityPlaceholder": "Dakar, Saint-Louis…",
       "intentLabel": "Search type (optional)",
