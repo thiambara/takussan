@@ -10555,7 +10555,7 @@ le préchargement (`prefetch`) des liens vers `/app/agency` n'a pas été observ
 
 ### Les copies cumulées que P70.07 supposait ne sont pas dans le document : Flight les déduplique, par une identité d'objet que rien ne garde
 - Réf : P105.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1489
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/i18n/messages.ts:37-44`, `takussan-web/src/i18n/request.ts`, `takussan-web/src/i18n/__tests__/decoupage-du-dictionnaire.test.tsx:137-140`
 - Constat :
@@ -10563,6 +10563,7 @@ le préchargement (`prefetch`) des liens vers `/app/agency` n'a pas été observ
   - Cette déduplication repose sur l'identité des objets : `messagesPour` recopie la référence de chaque espace depuis `getMessages()` (`sousEnsemble[nom] = complet[nom]`, lu l. 41). Un clonage, une fusion profonde ou un repli de locale fait par frontière rendrait des objets neufs, et les copies reviendraient sans qu'aucun test ne rougisse : des dix fichiers de test qui citent `messagesPour`, seul `src/i18n/__tests__/decoupage-du-dictionnaire.test.tsx` en lit le résultat, et par `toEqual` (l. 139), qui passe sur une copie (lu ; `grep -rln messagesPour src`). Qu'un des chemins de locale de `request.ts` (fusion du `wo` sur le `fr`) rende déjà des objets distincts d'une frontière à l'autre n'est pas mesuré, seul le `fr` l'a été (à vérifier).
 - Piste : écrire cette dépendance dans l'en-tête de `messages.ts` ; un test qui appelle `messagesPour` pour deux frontières imbriquées et vérifie que chaque espace commun est le **même** objet (`toBe`), pour qu'un clonage rougisse.
 - Mesure (2026-10-21, 34ddbb0b1, mesureur) : lu `src/i18n/messages.ts:37-44` (`sousEnsemble[nom] = complet[nom]`) et `decoupage-du-dictionnaire.test.tsx:137-140` (`toEqual`) ; des 10 fichiers de test qui citent `messagesPour`, seul celui-ci l'appelle (`grep -c 'await messagesPour'` : 3, les 9 autres 0) ; test temporaire vitest, retiré (charge 3,38 sur 8 cœurs) : `messagesPour('(dashboard)/app')` et `messagesPour('(dashboard)/app/agency')` partagent 50 espaces, chacun `toBe` le même objet, et un `structuredClone` passe `toEqual` sans passer `toBe` → l'identité tient aujourd'hui en `fr`, et le seul test existant ne la garde pas ; le chemin `wo` (`mergeMessages` de `request.ts`, une fois par requête) n'est pas mesuré. Classement : A5, un test d'identité (`toBe`) sur deux frontières imbriquées et une phrase d'en-tête dans `messages.ts`, sans rien changer à ce qui est servi.
+- Mesure (2026-10-22, ff2ab7523, implementeur) : relu `messages.ts:35-42` (`sousEnsemble[nom] = complet[nom]`, inchangé) ; cas ajouté à `decoupage-du-dictionnaire.test.tsx` : `messagesPour('(dashboard)/app')` et `messagesPour('(dashboard)/app/agency')`, chaque espace commun `toBe` le même objet → vert (l'identité tient en `fr`) ; ablation : `structuredClone(complet[nom])` dans `messagesPour` → ce cas rouge, les 14 autres verts (dont le `toEqual` existant, qui ne voyait pas la copie) ; retiré → 15/15 ; la dépendance est écrite dans l'en-tête de `messages.ts`. Le chemin `wo` n'est pas mesuré.
 
 ### Trois espaces lus seulement par le serveur sont sérialisés dans chaque document
 - Réf : P105.04
