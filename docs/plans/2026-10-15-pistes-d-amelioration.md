@@ -15502,7 +15502,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Annuler sa demande de suppression avant que le worker ait envoyé l'avis fait échouer ce dernier en `ModelNotFoundException`
 - Réf : P166.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la garde étend le marqueur à cinq autres avis
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/AccountDeletionRequestedNotification.php:28`, `takussan-api/app/Notifications/AccountDeletionReminderNotification.php:35`, `takussan-api/app/Services/Account/AccountDeletionService.php:140`, `takussan-api/app/Services/Account/AccountDeletionService.php:176`, `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:40`
 - Constat :
@@ -15513,10 +15513,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Aucune notification ni aucun job du dépôt ne déclare `deleteWhenMissingModels` (mesuré, `grep -rn "deleteWhenMissingModels\|DeleteWhenMissingModels" app` → rien).
   - Établi comment : lu et mesuré.
 - Piste : marquer les deux avis `#[DeleteWhenMissingModels]` (l'avis d'une demande annulée n'a plus d'objet), et faire refuser par `NotificationsEnFileTest` une notification en file qui porte un modèle sans `SoftDeletes` sans ce marqueur. Test : file `database`, demande puis annulation avant le worker → aucune ligne `failed_jobs`, aucun courriel.
+- Mesure (2026-10-22, 7c6b79809, mesureur) : aucun commit sur ces chemins depuis l'exploration (`git log` des deux avis et d'`AccountDeletionService.php` → dernier TCK-1390), `grep -rn "DeleteWhenMissingModels\|deleteWhenMissingModels\|NotificationSending" app` → rien ; relu `AccountDeletionRequestedNotification.php:28`, `AccountDeletionReminderNotification.php:35`, `cancelDeletion` (`$request->delete()`) ; test temporaire `SondeMesureur166Test` (retiré ; charge 2,92 / 3,48 / 3,45 sur 8 cœurs), file `database` : `requestDeletion` → 1 job sur `notifications-urgent`, `cancelDeletion` → 0 demande, `queue:work --once` → `jobs` 0, `failed_jobs` 1, `ModelNotFoundException`, aucun courriel, et `Log::spy` → aucune ligne « envoi abandonné » (la partie déduite passe à mesurée) ; relevé des notifications en file qui portent un modèle sans `SoftDeletes` → outre les deux avis, `AgencyUpgradeApproved/Rejected/RequestSubmittedNotification` (`AgencyUpgradeRequest`), `InvitationAcceptedNotification` et `SuperAdminInvitedBroadcast` (`Invitation`) → le constat tient en entier. Classement : V7, la garde proposée étend le marqueur à cinq autres avis, et décider pour chacun qu'il disparaît sans trace quand son sujet est supprimé est un choix de produit que rien d'écrit ne tranche.
 
 ### Un avis encore en file quand le compte est effacé part vers `deleted-<id>@takussan.local`
 - Réf : P166.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : ce qu'on envoie encore à un compte effacé
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:258-263`, `takussan-api/app/Services/Account/AccountDeletionService.php:313`, `takussan-api/app/Services/Account/AccountDeletionService.php:324`, `takussan-api/app/Jobs/Notifications/BuildUserDigestJob.php:62`
 - Constat :
@@ -15527,3 +15528,4 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Que le transport (`resend` prescrit en production) refuse l'adresse, et que le job épuise alors ses trois essais, n'est pas rejoué (à vérifier).
   - Établi comment : lu et mesuré.
 - Piste : ne rien livrer à un destinataire supprimé : un écouteur `NotificationSending` qui rend `false` pour un `User` `trashed()` (et `BuildUserDigestJob` qui sort sur `trashed()`). Test : avis en file, compte effacé avant le worker → aucun courriel, aucune ligne in-app, aucun `failed_jobs`.
+- Mesure (2026-10-22, 7c6b79809, mesureur) : relu `anonymize()` (adresse remplacée par `deleted-%d@takussan.local`, puis `delete()` en douceur), `BuildUserDigestJob.php` (garde sur `notifications_email_enabled` et `email` seuls, aucun `trashed()`) ; `grep -rn NotificationSending app` → rien ; test temporaire `SondeMesureur166Test` (retiré), avis `ShouldQueue` canal `mail` mis en file `database` pour `alice@example.com`, puis `executeDeletion()`, puis `queue:work --stop-when-empty` → compte `trashed()`, `failed_jobs` 0, **un courriel livré à `deleted-1@takussan.local`** (transport `array`) → le constat tient ; le résumé `BuildUserDigestJob` et le refus du transport `resend` restent non rejoués. Classement : V3, le correctif décide de ce qui est encore envoyé au titulaire d'un compte effacé, et touche le flux RGPD d'effacement.
