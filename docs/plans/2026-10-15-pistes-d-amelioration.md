@@ -11997,7 +11997,7 @@ est déjà P91.06.*
 
 ### Le `user_agent` d'une demande de contact est coupé à 255 octets et peut tomber au milieu d'un caractère : 500 sur la voie publique
 - Réf : P124.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1256
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Lead/ContactLeadService.php:215,314`
 - Constat :
@@ -12008,6 +12008,7 @@ est déjà P91.06.*
   - Établi comment : lu et mesuré.
 - Piste : `mb_substr(…, 0, 255)` aux deux lignes. Un test de chaque voie publique avec un agent utilisateur de 254 octets ASCII suivis d'un caractère accentué, qui attend 204 (clic) ou 201 (demande) et une valeur valide en UTF-8. Une garde de forme, sur le modèle des `check-*.mjs`, pourrait refuser un `substr(` appliqué à un `userAgent()` ou à une valeur écrite en base.
 - Mesure (2026-10-22, 9662e2ff4, mesureur) : relu `ContactLeadService.php:215,314`, toujours `substr((string) $request->userAgent(), 0, 255)` ; `git log -S` ne rend que son introduction (91cbd0cc9, TCK-590) ; test temporaire (retiré) `POST /api/public/properties/{slug}/contact-click` sans authentification, `User-Agent` de 254 `a` suivis de `é` → **500**, `SQLSTATE[22021] invalid byte sequence for encoding "UTF8": 0xc3`. Voie `contact-lead` lue, non jouée. Classement : A1, le contrat est déjà écrit dans le dépôt (`FailedJobService::truncate()` corrige ce même défaut, `LeaseSignatureService.php:167` écrit le même en-tête avec `mb_substr`) ; le correctif est `mb_substr(…, 0, 255)` aux deux lignes, avec un test par voie publique, et ne change ni ce qui est conservé ni la longueur gardée (V3 non touché). La garde de forme suggérée en fin de piste reste facultative.
+- Mesure (2026-10-22, c072bdc37, implementeur) : `User-Agent` de 254 `a` suivis de `éé`, avant correctif : `contact-click` → 500 et `contact-lead` → 500 (un test dans `PropertyContactClickTest` et `PropertyContactLeadTest`) ; `mb_substr` aux deux lignes de `ContactLeadService` → 204 et 201, valeur `254 a + é` valide en UTF-8 ; ablation (service remis à `c072bdc37`) → 1 rouge par classe. Garde de forme non écrite.
 
 ### Petites améliorations des colonnes bornées
 - Réf : P124.04
