@@ -10090,7 +10090,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Les vues mois et semaine du calendrier déclarent une `grid` sans `row` : 49 en-têtes et cellules hors de la structure exigée
 - Réf : P101.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1187
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/calendar/MonthView.tsx:58-71,82-86`, `takussan-web/src/components/calendar/WeekView.tsx:34-50,72-76`
 - Constat :
@@ -10101,10 +10101,11 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : axe par CDP, code relu.
 - Piste : envelopper chaque semaine dans un `div role="row"` (avec `display: contents` ou une grille par ligne pour garder la mise en page), en-têtes compris ; ou, faute de navigation aux flèches, renoncer à `grid` pour `role="table"` avec les mêmes `row`. Garde : test de rendu de `MonthView` et `WeekView` qui attend que chaque `gridcell` et chaque `columnheader` ait un parent `row` (ou `axe` sur le composant rendu).
 - Mesure (2026-10-21, dadb26e5c, mesureur) : relu `MonthView.tsx:58-86` et `WeekView.tsx:35-76` (lignes inchangées : `role="grid"`, `columnheader` et `gridcell` sans aucun `role="row"`, ni `onKeyDown`, `tabIndex` ou `aria-selected`) ; test vitest temporaire, retiré depuis, qui rend les deux vues et passe `axe-core` (règles `aria-required-children`, `aria-required-parent`) → mois : 49 nœuds sur 49 sans parent `row`, `aria-required-children` critique sur la grille et `aria-required-parent` critique sur 49 nœuds ; semaine : 14 sur 14, mêmes deux règles (1 et 14 nœuds), donc la vue semaine est désormais mesurée, plus seulement lue ; aucun commit ni ticket ne la traite (`git log` des deux fichiers, `grep` des tickets). Classement : A4, structure ARIA sans texte neuf ni changement visible : envelopper en-têtes et chaque semaine dans un `div role="row"` en `display: contents` (ou une grille par ligne), le rôle `grid` gardé, et un test qui attend un parent `row` à chaque `gridcell` et `columnheader`.
+- Mesure (2026-10-22, cb29105b6, implementeur) : test `CalendarGrid.aria-rows.test.tsx` écrit d'abord → rouge, 49 en-têtes et jours de la vue mois et 14 de la vue semaine sans parent `row` ; correctif : une `row` en `display: contents` pour les en-têtes et pour chaque semaine dans `MonthView`, `role="row"` sur les deux conteneurs de `WeekView`, rôle `grid` gardé → 2/2 verts, axe (`aria-required-children`, `aria-required-parent`) sans violation ; ablation (les deux composants rendus à `pre-dev`) → 2 rouges, remis → verts. Navigation aux flèches non faite, hors de la piste.
 
 ### Les écrans d'erreur et de chargement de deux fiches n'ont pas de `h1`, quand les autres fiches en gardent un
 - Réf : P101.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1189
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/LeaseDetail.tsx:101-116`, `takussan-web/src/components/documents/DocumentDetailClient.tsx:46-65`, `takussan-web/src/components/bookings/BookingDetail.tsx:155-161`, `takussan-web/src/components/visits/VisitDetail.tsx:78`
 - Constat :
@@ -10114,6 +10115,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : code relu, axe par CDP pour la fiche document.
 - Piste : le même `h1` `sr-only` que `BookingDetail` dans les branches de chargement et d'erreur de `LeaseDetail` et de `DocumentDetailClient`, sur les clés de repli existantes (`fallbackReference` pour le bail ; pour le document, une clé existante à trouver, sinon c'est un texte neuf). Garde : test de rendu qui joue l'erreur de la requête et attend `getByRole('heading', { level: 1 })`.
 - Mesure (2026-10-21, dadb26e5c, mesureur) : relu `LeaseDetail.tsx:101-116` et `DocumentDetailClient.tsx:46-65` (lignes inchangées), ainsi que les deux `page.tsx`, qui ne rendent aucun `h1` autour ; `BookingDetail.tsx:158-161` et `VisitDetail.tsx:78` gardent le `h1` `sr-only` ; test vitest temporaire, retiré depuis, requêtes simulées en chargement puis en erreur → `h1` = 0 dans les quatre cas (« Bail introuvable. », « Document introuvable. », les deux squelettes) ; clés existantes dans les trois langues : `lease.fallbackReference` (« Bail #{id} ») et `dashboard.pages.documentDetail.metaTitle` (« Fiche document »). Pourquoi la fiche document restait en chargement dans le relevé n'a pas été re-mesuré, et n'entre pas dans le classement. Classement : A4 et A1, le motif est déjà écrit dans `BookingDetail` et `VisitDetail`, et ces deux clés évitent tout texte neuf : `h1` `sr-only` dans les branches de chargement et d'erreur des deux fiches, et un test `getByRole('heading', { level: 1 })` sur l'erreur.
+- Mesure (2026-10-22, cb29105b6, implementeur) : test `FichesSansTitre.h1.test.tsx` écrit d'abord, requêtes simulées en chargement puis en erreur → 4 rouges, aucun `heading` de niveau 1 ; correctif : `h1` `sr-only` sur `lease.fallbackReference` dans `LeaseDetail` et sur `dashboard.pages.documentDetail.metaTitle` dans `DocumentDetailClient`, aucune clé neuve → 4/4 verts, `LeaseDetail.preavis` et `LeaseDetail.contrat` verts ; ablation (les deux composants rendus à `pre-dev`) → 4 rouges, remis → verts.
 
 ### Le locataire reçoit deux fenêtres de bienvenue modales montées ensemble
 - Réf : P101.03
@@ -10131,7 +10133,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Petites améliorations relevées sur le calendrier
 - Réf : P101.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1191
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/calendar/CalendarPage.tsx:449`, `takussan-web/src/components/layout/AppSidebar.tsx:783`
 - Constat :
@@ -10139,6 +10141,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : axe par CDP, code relu.
 - Piste : `aria-labelledby` du panneau vers son `h3` (le libellé du jour, déjà affiché), ou `section` au lieu d'`aside` ; aucun texte neuf.
 - Mesure (2026-10-21, dadb26e5c, mesureur) : relu `CalendarPage.tsx:449-494` (`<aside data-testid="calendar-selected-day">` sans `aria-label` ni `aria-labelledby` ; son `h3` l. 452 porte le libellé du jour, déjà affiché) et `AppSidebar.tsx:783` (`<aside>` sans nom) → deux repères `complementary` sans nom sur `/app/calendar` ; axe non relancé, le constat est relu. P68.08 a laissé au porteur les seuls `aside` de `/app/messages`, qui n'ont pas de titre à réutiliser. Classement : A4, aucun texte neuf : `aria-labelledby` du panneau vers un `id` posé sur son `h3`, et un test qui attend le repère nommé du libellé du jour.
+- Mesure (2026-10-22, cb29105b6, implementeur) : test ajouté à `CalendarPage.test.tsx` d'abord → rouge, aucun repère `complementary` nommé « lundi 20 avril » ; correctif : `aria-labelledby` de l'`aside` du panneau vers un `id` (`useId`) posé sur son `h3`, aucun texte neuf → 16/16 verts ; ablation (`CalendarPage.tsx` rendu à `pre-dev`) → le test neuf rouge, remis → vert.
 
 ## Angle 102 — Cartes de bien masquées au rendu serveur hors de la grille de recherche
 
