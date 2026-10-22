@@ -1068,12 +1068,15 @@ lancer() {
     # Il n'a ni pistes ni PR à réparer : chaque passage relève l'état et part de la base.
     MODE=surveillance
     branche="agents/$ROLE/$horo"
-    if [ "$INSTANCE" -gt 1 ]; then branche="$branche-$INSTANCE"; fi
     depart="$BASE_REF"
   else
     etat_des_pr
     if [ "$MODE" = nouveau ]; then
       branche="agents/$ROLE/$horo"
+      # Le suffixe de l'instance, que lit instance_de_branche : sans lui, une PR de l'instance 2 est
+      # lue comme de l'instance 1, qui ne peut pas la réparer (verif-instance rouge). Le
+      # 2026-10-21, 78946f2e4 avait remonté cette ligne dans la branche du superviseur (#949).
+      if [ "$INSTANCE" -gt 1 ]; then branche="$branche-$INSTANCE"; fi
       depart="$BASE_REF"
       travail_disponible
     fi
@@ -1099,7 +1102,9 @@ ${autres:-(aucune)}"
 
 Dossier des agents : $BASE (\$PISTES_BASE). Outils installés : $OUTILS_SHA. Cadences : le StartInterval des plists $HOME/Library/LaunchAgents/$LAUNCHD.*.plist."
   fi
-  if [ "$INSTANCES_IMPLEMENTEUR" -gt 1 ]; then
+  # La part d'une instance ne vaut que pour l'implémenteur : reçue par le délégué, elle lui a fait
+  # écarter les angles impairs (2026-10-21, P103.*, P111.02, P111.04).
+  if [ "$ROLE" = implementeur ] && [ "$INSTANCES_IMPLEMENTEUR" -gt 1 ]; then
     message="$message
 
 Instance $INSTANCE sur $INSTANCES_IMPLEMENTEUR (implementeur.md, « Plusieurs instances ») : tu ne prends que les pistes P<nn>.… dont le numéro d'angle nn vaut $((INSTANCE - 1)) modulo $INSTANCES_IMPLEMENTEUR, et chaque ticket neuf prend le plus petit numéro au-dessus du plus grand vu qui vaut $((INSTANCE - 1)) modulo $INSTANCES_IMPLEMENTEUR."
@@ -1154,7 +1159,11 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
   # réparation »), et l'exiger refusait toute réparation juste — 9 refus du 2026-10-17 au 2026-10-20,
   # dont les trois de #815.
   if [ ! -s "$sortie/pr-corps.md" ]; then fin refuse "pr-corps.md absent"; fi
-  if [ "$MODE" = nouveau ] && [ ! -s "$sortie/pr-titre.txt" ]; then fin refuse "pr-titre.txt absent"; fi
+  # Le superviseur publie en mode `surveillance` : seule une réparation commente une PR existante.
+  # Avant le 2026-10-22, la création était réservée à `nouveau` : le passage du superviseur de 01:21
+  # a poussé sa branche, puis commenté la PR « $PR » vide, et gh est sorti en « could not determine
+  # current branch » : aucune PR, le correctif n'a atteint le porteur que par le rapport.
+  if [ "$MODE" != reparation ] && [ ! -s "$sortie/pr-titre.txt" ]; then fin refuse "pr-titre.txt absent"; fi
 
   local pied verifs="" controle corps="$sortie/pr-corps-publie.md"
   if [ "$ROLE" = implementeur ]; then verifs=", gardes du dépôt, index du backlog et Pint verts"; fi
@@ -1170,7 +1179,7 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
     fin a-blanc "aurait poussé $branche ($avance commits) et publié « $(head -n 1 "$sortie/pr-titre.txt" 2> /dev/null || echo "réparation de #$PR") » ; corps dans $corps"
   fi
   git -C "$arbre" push --quiet -u origin "HEAD:refs/heads/$branche"
-  if [ "$MODE" = nouveau ]; then
+  if [ "$MODE" != reparation ]; then
     PR="$(GH_REPO="$GH_REPO" gh pr create --base pre-dev --head "$branche" --label "agent:$ROLE" \
       --title "$(head -n 1 "$sortie/pr-titre.txt")" --body-file "$corps" | sed 's#.*/##')"
     if [ "$ROLE" = superviseur ]; then notifier "PR #$PR ouverte : $(head -n 1 "$sortie/pr-titre.txt")"; fi
