@@ -7,6 +7,9 @@ use App\Models\Enums\Capability;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Maintenance\MaintenanceStateMachine;
@@ -150,6 +153,7 @@ class MaintenanceRequestPolicy extends BasePolicy
         if ($request->status === MaintenanceStatus::AwaitingOwner) {
             return $user->isSuperAdmin()
                 || ($request->property !== null
+                    && self::authorHolds($user, $request->property)
                     && $this->landlordWrites($user, $request->property->user_id, $request->property->agency_id));
         }
 
@@ -287,9 +291,16 @@ class MaintenanceRequestPolicy extends BasePolicy
      * (une ressource de liste la lit une fois par requête) ; il n'est appelé qu'au besoin, comme
      * `staffAgencyId()` qu'il remplace. La règle reste ici.
      *
+     * TCK-1709 (P153.03) — `property.user_id` est le CRÉATEUR du bien (vérification adverse M7) : sur
+     * un bien d'agence, il ne vaut titre que pour qui a encore un profil, de tout statut, dans
+     * l'agence du bien. L'agent qui a saisi le bien puis a été retiré n'est plus donneur d'ordre ; le
+     * bailleur suspendu le reste pour lire (`principalWrites` lui retire les gestes). `$memberOf`,
+     * facultatif, fournit ce jugement déjà résolu, comme `$staffAgencyId`.
+     *
      * @param  (\Closure(): ?int)|null  $staffAgencyId
+     * @param  (\Closure(int): bool)|null  $memberOf
      */
-    public static function isPrincipalFor(User $user, ?Property $property, ?\Closure $staffAgencyId = null): bool
+    public static function isPrincipalFor(User $user, ?Property $property, ?\Closure $staffAgencyId = null, ?\Closure $memberOf = null): bool
     {
         if ($user->isSuperAdmin()) {
             return true;
@@ -299,7 +310,7 @@ class MaintenanceRequestPolicy extends BasePolicy
             return false;
         }
 
-        if ($property->user_id === $user->id) {
+        if (self::authorHolds($user, $property, $memberOf)) {
             return true;
         }
 
@@ -308,6 +319,34 @@ class MaintenanceRequestPolicy extends BasePolicy
         $staffAgencyId = $staffAgencyId !== null ? $staffAgencyId() : $user->staffAgencyId();
 
         return $staffAgencyId !== null && (int) $property->agency_id === $staffAgencyId;
+    }
+
+    /**
+     * TCK-1709 (P153.03) — l'auteur du bien (`user_id`) en est-il encore le titulaire : bien sans
+     * agence, ou profil (bailleur, agent ou admin, de tout statut) dans l'agence du bien.
+     *
+     * @param  (\Closure(int): bool)|null  $memberOf
+     */
+    public static function authorHolds(User $user, Property $property, ?\Closure $memberOf = null): bool
+    {
+        if ((int) $property->user_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($property->agency_id === null) {
+            return true;
+        }
+
+        $agencyId = (int) $property->agency_id;
+
+        return $memberOf !== null ? $memberOf($agencyId) : self::isMemberOf($user, $agencyId);
+    }
+
+    public static function isMemberOf(User $user, int $agencyId): bool
+    {
+        return $user->hasProfileAt($agencyId, OwnerProfile::class)
+            || $user->hasProfileAt($agencyId, AgentProfile::class)
+            || $user->hasProfileAt($agencyId, AgencyAdminProfile::class);
     }
 
     /**

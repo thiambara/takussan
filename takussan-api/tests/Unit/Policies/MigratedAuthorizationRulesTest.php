@@ -330,6 +330,8 @@ class MigratedAuthorizationRulesTest extends TestCase
         // TCK-592 — un prestataire réel : profil actif, collaboration active avec l'agence du bien.
         $prestataire = $this->providerFor($this->agency);
         $proprietaire = $this->quidam();
+        // TCK-1709 (P153.03) — le propriétaire d'un bien d'agence y a un profil de bailleur.
+        $this->materializeRoleProfile($proprietaire, 'owner', $this->agency);
         $property = Property::factory()->create([
             'user_id' => $proprietaire->id,
             'agency_id' => $this->agency->id,
