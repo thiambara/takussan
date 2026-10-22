@@ -8697,7 +8697,7 @@
       "title": "Recherche globale",
       "description": "E-mail, téléphone, référence, transaction, NINEA ou nom. Flèches pour choisir, Entrée pour ouvrir.",
       "placeholder": "Rechercher dans toute la plateforme",
-      "hint": "Au moins 2 caractères.",
+      "hint": "Au moins 3 caractères.",
       "empty": "Aucun résultat pour « {q} ».",
       "types": {
         "user": "Utilisateurs",
