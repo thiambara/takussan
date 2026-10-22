@@ -10538,7 +10538,7 @@ Le résumé et `email_frequency` sont déjà relevés par P11.08.*
 
 ### Un locataire ou un visiteur qui a un compte au téléphone non vérifié ne reçoit plus aucun SMS, et le numéro de sa fiche n'est plus lu
 - Réf : P107.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : repli SMS vers la fiche ou avis à l'agence, choix de produit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendLeasePaymentReminders.php:185-201`, `takussan-api/app/Listeners/Payments/SendRentReceiptAfterOnlinePayment.php:41-45`, `takussan-api/app/Services/Model/LeasePaymentService.php:106-116`, `takussan-api/app/Jobs/SendPropertyVisitReminders.php:107-112`, `takussan-api/app/Services/Visit/VisitNotifier.php:203`, `takussan-api/app/Notifications/Channels/SmsChannel.php:66-68`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:87-89`
 - Constat :
@@ -10548,10 +10548,11 @@ Le résumé et `email_frequency` sont déjà relevés par P11.08.*
   - Avoir un compte fait donc perdre le SMS que le même locataire recevait sans compte. Un compte sans e-mail et sans téléphone vérifié ne reçoit que la cloche.
   - à vérifier : quels chemins créent un compte de locataire ou de visiteur sans vérifier son téléphone (invitation par e-mail, onboarding locataire, compte créé par l'agence), et combien de comptes sont dans ce cas. Les rappels de visite et la quittance n'ont pas été rejoués, seulement lus.
 - Piste : quand le compte n'a pas de téléphone vérifié, laisser le canal mobile au contact de la fiche (`ContactSansCompte::fromCustomer` ou `fromVisit`) en plus du compte, pour les seuls codes transactionnels déjà permis aux contacts (`reachesContacts()`) ; ou le dire à l'agence (fiche « joignable par e-mail seulement »). Choix de produit dans les deux cas. Test : la relance ci-dessus porte un SMS au numéro de la fiche ; ablation sur le repli.
+- Mesure (2026-10-22, 87a515abd, mesureur) : lu `SendLeasePaymentReminders.php:185-201`, `SendRentReceiptAfterOnlinePayment.php:41-48` et `LeasePaymentService.php:111-116` (`if ($tenant?->user)` → compte seul, la fiche n'est lue que sans compte ; l'avis de paiement au compte part en plus `mobileBorne: false`), `SendPropertyVisitReminders.php:107-112` et `VisitNotifier.php:203` (`visitor ?? …`, `fromVisit` seulement sans compte), `SmsChannel.php:66-68` et `WhatsappChannel.php:87-89` (retour `null` sans `phone_verified_at`, critiques compris) : lignes inchangées, le défaut tient ; `SELECT` en lecture sur la base de dev → 203 fiches client liées à un compte, 203 au téléphone renseigné et non vérifié, 0 vérifié ; 257 baux dont le locataire a un compte, 257 sans téléphone vérifié (base seedée : ne dit rien d'une production ; les chemins de création de compte du « à vérifier » ne sont pas relevés). Classement : V7, la piste propose deux voies (envoyer au numéro de la fiche, ou avertir l'agence) et elle-même les dit choix de produit.
 
 ### Les trois drapeaux plats `notifications_*_enabled` s'écrivent et se relisent, mais aucun envoi ne lit ceux du SMS et du push
 - Réf : P107.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer le drapeau e-mail retire le seul réglage que lit le résumé
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/NotificationPreferenceController.php:16-18,39-46,62-65`, `takussan-api/app/Http/Requests/Api/Me/UpdateNotificationPreferencesRequest.php:38-51`, `takussan-api/app/Models/User.php:73`
 - Constat :
@@ -10560,10 +10561,11 @@ Le résumé et `email_frequency` sont déjà relevés par P11.08.*
   - mesuré : test temporaire retiré, compte au téléphone vérifié → `PATCH {notifications_sms_enabled: false, notifications_push_enabled: false}` rend 200 et les deux à `false` ; la relance de loyer suivante part par `["mail","sms"]`.
   - mesuré, base de dev : `notifications_sms_enabled = false` sur 305 comptes sur 305 (défaut de colonne), pendant que les SMS partent selon la matrice. Un client de l'API qui lit ce champ croit le SMS coupé.
 - Piste : retirer les trois clés de la requête et de la réponse (aucun appelant au front), et laisser les colonnes à une décision de schéma à part ; test : `PATCH` avec `notifications_sms_enabled` ne modifie rien et la réponse ne porte plus la clé. Ablation : remettre la clé dans `FLAT_KEYS`.
+- Mesure (2026-10-22, 87a515abd, mesureur) : lu `NotificationPreferenceController.php` (docblock l. 16-18, `FLAT_KEYS` écrits l. 40-46, rendus l. 62-65) et `UpdateNotificationPreferencesRequest.php:38-51` ; `grep -rn 'notifications_(sms|push|email)_enabled' app` → push et SMS lus par ce seul contrôleur (et `User.php` : `fillable`, casts, l. 544-546), e-mail lu aussi par `SendNotificationDigestJob.php:41`, `BuildUserDigestJob.php:40` et `NotificationDigestPreviewCommand.php:44-52` ; même `grep` dans `takussan-web/src` → rien ; `docs/models-spec.md:405-407` décrit encore les trois colonnes comme « Alertes … activées » ; `SELECT` sur la base de dev → `sms=false, push=true, email=true` sur 305 comptes sur 305 : le constat tient (le comportement SMS n'a pas été rejoué, il se lit : aucun canal ne lit les drapeaux). Classement : V7, la piste retire aussi `notifications_email_enabled`, seul réglage que lisent les jobs du résumé, ce qui retire à l'utilisateur la façon de le couper (lié à P11.08), et la spec des modèles dit l'inverse du docblock.
 
 ### `users.timezone` n'a aucun écrivain : tous les comptes sont à Dakar, et les rendus qui le lisent ne lisent qu'un défaut
 - Réf : P107.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : accepter le fuseau par compte ou poser Dakar, deux voies
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/database/migrations/2026_04_15_210400_add_fields_to_users_table.php:29`, `takussan-api/app/Http/Middleware/SetLocaleMiddleware.php:47-53`, `takussan-api/app/Jobs/Notifications/SendNotificationDigestJob.php:54`, `takussan-api/app/Notifications/CodedNotification.php:191,279`, `takussan-api/app/Services/Model/NotificationService.php:69`, `takussan-api/app/Services/Visit/VisitNotifier.php:179,212`
 - Constat :
@@ -10572,3 +10574,4 @@ Le résumé et `email_frequency` sont déjà relevés par P11.08.*
   - mesuré, base de dev : `select timezone, count(*) from users group by 1` → `Africa/Dakar|305`.
   - Rien n'est faux tant que tous les destinataires vivent à Dakar ; un expatrié ou un bailleur de la diaspora lit pourtant ses rappels de visite à l'heure de Dakar, sans pouvoir le changer.
 - Piste : soit accepter `timezone` (`timezone:all`) sur `PATCH /api/me` avec un champ au profil, soit retirer les lectures qui laissent croire à un réglage par compte et poser la constante Dakar ; retirer dans les deux cas le bloc mort de `SetLocaleMiddleware`. Test : le rappel d'un compte réglé sur `Europe/Paris` affiche l'heure de Paris, ou la ligne morte retirée sans rouge.
+- Mesure (2026-10-22, 87a515abd, mesureur) : lu la migration l. 29 (défaut `Africa/Dakar`) ; `grep -rln "'timezone'" app/Http/Requests app/Http/Controllers app/Services` → seuls `PublicPropertyController` (créneaux à Dakar) et `VisitNotifier` (paramètre de rendu), aucune règle ni écriture de `users.timezone` ; `grep -rn timezone app` → lecteurs inchangés (`CodedNotification.php:191,279`, `NotificationService.php:69`, `VisitNotifier.php:179,212`, `SendNotificationDigestJob.php:54`, `UserDetailResource.php:24`, plus `AppNotificationResource.php:100` et `Property{Approved,Rejected}Notification.php` que le constat ne cite pas) ; `SetLocaleMiddleware.php:47-53` toujours là, commentaire TCK-536 ; front : `types/super-admin.ts:254` (lecture console) et `UserLocationProvider.tsx:33`, aucun envoi ; `SELECT timezone, count(*) FROM users` → `Africa/Dakar|305`. Classement : V7, la piste propose deux voies (un champ de fuseau au profil, ou la constante Dakar), dont l'une est un comportement visible neuf.
