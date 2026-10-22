@@ -188,7 +188,7 @@ voie d'écriture (angle 13, puis 47).
 | 112 | Exports synchrones de `ExportController` (`GET /api/exports/{entity}`, jusqu'à 10 000 lignes, 2 000 en PDF) et de `PrivacyRequestController` : requêtes par ligne des constructeurs d'entité, mémoire et durée dans la requête HTTP — le relevé de l'angle 78 sur les exports qui ne passent pas par un job | fait |
 | 113 | Appels du navigateur vers l'API sans délai (`useApiQuery`, `apiRequest` client, mutations TanStack, `fetch` direct des composants) : bouton `isPending` figé et requête jamais abandonnée sur un réseau mobile qui ne coupe pas — le pendant client de l'angle 79 | fait |
 | 114 | Champs écartés par `validated()` sur les modules `src/lib/queries/*.ts` de l à z et les server actions `src/app/actions/*.ts` : la moitié de l'angle 80 laissée sans relevé | fait |
-| 115 | Statuts d'enum qu'aucun chemin de `app/` n'écrit et que seuls les seeders posent (`LeaseStatus::Expired`, les autres enums de statut de `app/Models/Enums`) : gardes, filtres, tableaux de bord et écrans du front qui attendent un état que la production n'atteindra jamais | à faire |
+| 115 | Statuts d'enum qu'aucun chemin de `app/` n'écrit et que seuls les seeders posent (`LeaseStatus::Expired`, les autres enums de statut de `app/Models/Enums`) : gardes, filtres, tableaux de bord et écrans du front qui attendent un état que la production n'atteindra jamais | fait |
 | 116 | Gestes d'agence jugés par le type de profil (`isAgencyAdminAt`, `isAgentAt` : une quarantaine d'appels dans `app/Http` et `app/Services`) au lieu d'une capacité (`canActAt`) : admin à qui un rôle personnalisé retire la capacité, membre à qui il la donne — le relevé de P82.04 et P82.05 sur le reste de l'API | à faire |
 | 117 | Clés de `metadata` des profils (`owner_profiles`, `agent_profiles`, `service_provider_profiles` : `kind`, `source`, `intervention_zones`, `visit_fee`, `availability`, `has_insurance`, `trades`) écrites par les assistants `Me\*ProfileController` : lues par qui, à l'API et dans les listes du front (`ServiceProvidersList`, `OwnersList`, `MaintenanceAssignmentBlock`) qui y retombent à défaut de colonne | à faire |
 | 118 | Listes paginées triées sur une colonne non unique sans départage par `id` (`orderBy` écrits à la main des contrôleurs `Admin\*`, `defaultSort('-created_at')` seul, `$requestSortable` sur `status`, `name`, `first_name`) : ligne rendue deux fois ou jamais d'une page à l'autre sous PostgreSQL | à faire |
@@ -220,6 +220,8 @@ voie d'écriture (angle 13, puis 47).
 | 143 | PDF à lignes variables rendus par dompdf pendant la requête HTTP (`DocumentPdfService` : relevé de gérance `pdf/statements/owner`, état des lieux `pdf/inventories/report` et ses photos en URI `data:`, factures et devis à nombreuses lignes) : mémoire et durée face à `memory_limit = 256M` et `max_execution_time = 60` — le relevé de P112.01 hors de l'export générique | à faire |
 | 144 | Écritures du navigateur qu'une réponse perdue invite à rejouer (envoi de message, création de réservation, de demande de maintenance, de facture, initiation de paiement : `POST` sans clé d'idempotence, hors les seuls boosts) : bouton réactivé après une erreur réseau ou un délai, doublon créé côté API — le pendant, hors des achats de crédits, des angles 4 et 24 | à faire |
 | 145 | Champs écartés par `validated()` sur ce que l'angle 114 n'a pas relevé : `lib/queries` `properties-server.ts`, `visits.ts`, `settings.ts`, `property-calendar.ts` et les modules à une ou deux mutations, les server actions `property.ts` (avis, signalements, contacts d'agent), `invitations.ts`, `account-deletion.ts`, `admin-tags.ts`, `super-admin-cooptation.ts`, `auth.ts`, et les écritures directes des composants | à faire |
+| 146 | Unions de statut et options de filtre du front (`src/types/*.ts`, `Record<…Status, …>`, `STATUS_VALUES`, `KNOWN_STATUSES`) face aux cas des enums de l'API : valeurs que l'API n'émet jamais (`banned`, agence `pending`), valeurs émises absentes (utilisateur `blocked`) — le relevé de P115.02 sur tous les types | à faire |
+| 147 | Statuts posés librement par un `Rule::enum` entier dans une requête de mise à jour (`UpdateCustomerRequest` `status` jusqu'à `blocked` et `deleted`, `UpdatePropertyRequest`, `StoreAgencyRequest`, `UpdatePrivacyRequestRequest`) : transitions que le geste dédié refuserait, et état posé à la main que rien d'autre ne lit | à faire |
 
 ---
 
@@ -11135,3 +11137,95 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - `PATCH /api/integrations/{id}` : `provider` est toujours envoyé, sans règle. C'est inoffensif, car le champ est désactivé en édition.
 - Piste : retirer du corps ce que l'API ne lit pas ; pour les champs obligatoires de l'assistant, décider s'ils restent à l'écran.
 - Mesure (2026-10-22, 135b23834, mesureur) : relu, les quatre écarts tiennent : `landlord_id` envoyé (`CreateLeaseForm.tsx:75,130-131,146`) sans règle dans `StoreLeaseRequest`, le service le recalcule (`LeaseService.php`, `'landlord_id' => $property->user_id`) ; `primary_city` est envoyé par `auto-onboard.ts:33` (la ligne citée `publish/page.tsx:47` n'en passe que la valeur à `autoOnboardAction`), validé (`HostAutoOnboardRequest.php:19`) et ignoré (`HostAutoOnboardController.php:34-35`) ; `agency.primary_city` et `preferences.primary_property_type` requis (`HostIndividualOnboardRequest.php:46,67`) et non enregistrés (`HostIndividualOnboardingService.php`, docblock TCK-966 de `createAgency`) ; `provider` toujours dans le corps (`setting.ts:208`) sans règle dans `UpdateIntegrationRequest::rules()`. Classement : V7, la Piste demande de décider si les champs obligatoires de l'assistant restent à l'écran ; le retrait des seules clés mortes (`landlord_id`, `provider`, `primary_city` de l'auto-onboard) serait A3.
+
+## Angle 115 — Statuts d'enum qu'aucun chemin de `app/` n'écrit
+
+*Exploré le 2026-10-22 sur `pre-dev` 135b23834, par l'explorateur, sans sous-agent. Relevé de départ mesuré par script (retiré) : pour chaque cas des 37 enums `*Status` et de `CustomerPipelineStage`, le nombre de `Enum::Cas` dans `app/` hors `app/Models/Enums`, dans `database/seeders`, et de littéraux `'valeur'` dans `app/`. Chaque cas à zéro ou presque a été relu à la main : écrivain par littéral (tables de transition, `selectRaw`), par `Rule::enum` d'une requête, ou par le formulaire du front. Ceux qui ont un écrivain sont écartés (`MaintenanceStatus::Assigned` par `GENERIC_TARGETS`, `CustomerStatus` et `CustomerPipelineStage` par le formulaire client, `PropertyStatus` par `Rule::enum`, `PrivacyRequestStatus::Rejected` par `UpdatePrivacyRequestRequest`). `LeaseStatus::Expired`, cité par l'intitulé, est déjà P81.02 (fait, TCK-1153). P115.01 est mesurée par un test temporaire (retiré), charge `1.72 2.27 2.59` sur 8 cœurs ; le reste est lu.*
+
+### Une réservation confirmée dont le séjour est fini s'annule encore, et ouvre une tâche de remboursement de l'acompte
+- Réf : P115.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Models/Enums/BookingStatus.php:11`, `takussan-api/app/Services/Model/BookingService.php:42-47,262-303`, `takussan-api/app/Services/Review/ReviewEligibility.php:36`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:64`, `takussan-web/src/components/bookings/BookingDetail.tsx:186-188`
+- Constat :
+  - Rien n'écrit `BookingStatus::Completed` : `grep -rn "BookingStatus::Completed" app` ne rend que des listes lues (`BookingService.php:44`, `PortfolioMetrics.php:64`, `ReviewEligibility.php:36`), et aucun littéral `'completed'` ne vise une réservation (mesuré, `grep`). Aucune tâche planifiée ne clôt une réservation passée : les deux jobs du domaine expirent les seules `pending` (`ExpireBookings`, `ExpirePendingBookingsJob`) (lu).
+  - `cancel()` refuse les seuls statuts de `TERMINAL_CANCEL_STATUSES` (`cancelled`, `completed`, `expired`, `rejected`) et ne lit aucune date (lu, `:42-47`, `:271-275`). Une réservation `confirmed` le reste après son séjour, et reste donc annulable.
+  - Mesuré, test temporaire : réservation `confirmed` du J-10 au J-3, acompte `paid` de 10 000, `POST /api/bookings/{id}/cancel` par le client → `200`, statut `cancelled`, une tâche `booking_refund` ouverte et assignée à l'agent (`BookingClosed` → `OpenBookingRefundTask`), notifications d'annulation aux parties.
+  - Le front offre le geste : « Annuler » s'affiche pour le client et le personnel tant que le statut vaut `pending` ou `confirmed` (lu, `BookingDetail.tsx:186-188`).
+  - Une fois annulé, le séjour sort de l'occupation (`OCCUPYING_BOOKING_STATUSES`, lu) et de la preuve qui permet au client de noter le bien (`ReviewEligibility::BOOKING_STATUSES`, lu).
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : écrire `completed`, soit par une tâche quotidienne qui clôt les réservations `confirmed` dont `end_date` est passée, soit au départ du client ; à défaut, refuser l'annulation d'un séjour commencé dans `cancel()` et cacher le bouton au front. Le choix (et le sort des réservations passées déjà en base) est une décision. Garde : un test qui annule une réservation au séjour fini et attend `422 booking.cannot_cancel`, sans tâche de remboursement.
+
+### La console d'équipe filtre les comptes « Bloqué » sur `banned`, une valeur que l'API n'écrit jamais
+- Réf : P115.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Models/Enums/UserStatus.php:7-10`, `takussan-api/app/Http/Controllers/Api/Admin/UserLifecycleController.php:45`, `takussan-api/app/Services/Account/AccountDeletionService.php:312`, `takussan-web/src/types/user.ts:39`, `takussan-web/src/types/admin-users.ts:56`, `takussan-web/src/components/admin/users/AdminUsersFilters.tsx:19`, `takussan-web/src/components/admin/users/UserDetailDrawer.tsx:57,124`, `takussan-web/src/messages/fr.json` (`admin.users.status`), `takussan-web/src/app/(super-admin)/super-admin/users/page.tsx:89-95`
+- Constat :
+  - L'API connaît `active`, `inactive`, `blocked`, `deleted` (lu, `UserStatus.php:7-10`). Elle écrit `blocked` au blocage par le super-admin (lu, `UserLifecycleController.php:45`) et `deleted` à l'effacement (lu, `AccountDeletionService.php:312`). Elle n'écrit jamais `inactive` : ni `UserStatus::Inactive` ni littéral `'inactive'` dans `app/Http` et `app/Services` (mesuré, `grep`).
+  - Le front type `UserStatus = 'active' | 'inactive' | 'banned'` (lu, `types/user.ts:39`). La console d'équipe (`TeamConsole` → `AdminUsersFilters`) propose `active`, `inactive`, `banned` (lu, `:19`), et `admin.users.status.banned` vaut « Bloqué » (mesuré, `node -e` sur `fr.json`). Le filtre « Bloqué » envoie `filter[status]=banned`, que le relais `/api/admin-users` passe à `/api/users` (`status` y est filtrable, lu, `User.php:154`) : la liste est toujours vide, et un compte réellement bloqué ne se filtre pas. « Inactif » est vide de même.
+  - Le tiroir de détail ne connaît que `active`, `inactive`, `banned` (lu, `UserDetailDrawer.tsx:57`) : un compte `blocked` affiche la valeur brute `blocked` (lu, `:124`).
+  - La page des utilisateurs du super-admin propose `blocked`, mais aussi `inactive` et `banned`, toujours vides (lu, `page.tsx:89-95`).
+  - Un second enum `App\Models\Bases\Enums\UserStatus` (`active`, `inactive`, `suspended`, `banned`) n'a aucun appelant dans `app/`, `tests/` ni `database/` (mesuré, `grep -rn "Bases\\\\Enums"`) : c'est sans doute la source du vocabulaire du front (à vérifier).
+  - Établi comment : lu, et `grep` / `node -e` mesurés ; le rendu à l'écran n'a pas été vu.
+- Piste : aligner le type, les options et les libellés du front sur l'enum de l'API (`blocked` au lieu de `banned`, `inactive` retiré des filtres tant que rien ne l'écrit) ; retirer `app/Models/Bases/Enums/UserStatus.php`. Garde : un test qui confronte `STATUS_VALUES` aux valeurs de l'enum servies par l'API, ou une garde de dépôt qui compare les deux listes.
+
+### L'abonnement d'une agence garde à vie la période de son attribution, et `past_due` / `suspended` n'existent qu'à l'écran
+- Réf : P115.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Billing/AgencySubscriptionService.php:30-42,85-108`, `takussan-api/app/Models/Enums/AgencySubscriptionStatus.php`, `takussan-api/app/Services/Reporting/PlatformReportingService.php:435-465`, `takussan-web/src/components/billing/SubscriptionSummary.tsx:15-21,53-55`, `takussan-web/src/types/super-admin.ts:173`
+- Constat :
+  - `current_period_start` et `current_period_end` ne sont écrits qu'à l'attribution, à maintenant et maintenant + 1 mois (lu, `AgencySubscriptionService.php:40-41`) ; aucun autre écrivain dans `app/` (mesuré, `grep -rn current_period_end`). L'écran de facturation affiche cette période comme celle de l'abonnement en cours (lu, `SubscriptionSummary.tsx:54`) : un mois après l'attribution, elle est échue et reste affichée.
+  - Rien n'écrit `past_due` ni `suspended` (mesuré, `grep` : `PastDue` seulement lu par le MRR, `Suspended` nulle part). Le front leur donne pourtant un ton (lu, `SubscriptionSummary.tsx:18-19`) et le MRR compte `past_due` (lu, `PlatformReportingService.php:437,464`). Un abonnement `active` le reste jusqu'à `cancel()` ou une nouvelle attribution.
+  - Établi comment : lu et `grep` ; qu'aucune facturation d'abonnement ne soit prévue avant la production est à vérifier dans le plan.
+- Piste : soit faire avancer la période (tâche quotidienne qui la reconduit tant que l'abonnement est `active`), soit ne plus l'afficher comme période en cours ; décider si `past_due` et `suspended` restent dans l'enum tant qu'aucun encaissement d'abonnement ne les pose. Choix de produit.
+
+### Le profil prestataire `suspended` que gardent TCK-592 et la liste du front n'est posé par aucun chemin, ni `inactive`
+- Réf : P115.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/Enums/ServiceProviderProfileStatus.php:5-22`, `takussan-api/app/Services/Onboarding/ServiceProviderOnboardingService.php:54-58`, `docs/models-spec.md:2346`, `docs/backlog/tickets/TCK-592-maintenance-intervention-de-bout-en-bout.md:242-244`, `takussan-web/src/components/service-providers/ServiceProvidersList.tsx:51-52`, `takussan-web/src/lib/queries/service-providers.ts:36-37`
+- Constat :
+  - `ServiceProviderProfileStatus::Suspended` n'est lu que par la garde de fin d'onboarding (lu, `ServiceProviderOnboardingService.php:54-58`) ; rien ne l'écrit, ni par la constante ni par un littéral (mesuré, `grep`). `TeamMemberSuspensionService` ne suspend qu'agents, admins et bailleurs (lu, `:144-160`).
+  - TCK-592 écrit qu'« une pause ou une suspension posée par l'agence ou la plateforme ne se lève jamais par le prestataire » (lu, l. 242-244) : la garde existe, le geste de suspension par la plateforme non.
+  - `inactive` est décrit comme « toutes ses collaborations `paused`/`ended` » (lu, docblock de l'enum et `models-spec.md:2346`) ; aucune fin ou pause de collaboration ne le pose (mesuré, `grep` : aucune écriture de `Inactive`). Un prestataire sans agence reste `active`.
+  - La liste du front donne un badge aux deux états et les propose au filtre (lu, `ServiceProvidersList.tsx:51-52`, `service-providers.ts:36-37`) : ces filtres sont toujours vides.
+  - Établi comment : lu et `grep`.
+- Piste : soit un geste de suspension d'un prestataire (plateforme), et la mise à jour d'`inactive` à la fin de la dernière collaboration ; soit retirer les deux cas, leurs badges et la phrase de `models-spec.md`. Choix de produit.
+
+### Une visite manquée ne peut être que « terminée » ou « annulée » : `no_show` n'a pas de geste
+- Réf : P115.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/Enums/VisitStatus.php:11`, `takussan-api/routes/api/property-visits.php:16-21`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:218-224`, `takussan-api/app/Services/Dashboard/DashboardAgentService.php:144`, `takussan-web/src/components/visits/visit-status.ts:13,27`, `takussan-web/src/components/crm/CustomerLinkedRecords.tsx:23`
+- Constat :
+  - Rien n'écrit `no_show` (mesuré, `grep` : la constante n'est lue que par `DashboardAgentService.php:144`, aucun littéral). Le statut ne change que par des routes dédiées, `PATCH` l'exclut (lu, `PropertyVisitController.php:218-224`) : `confirm`, `complete`, `cancel`, `claim`, `reschedule` (lu, `property-visits.php:16-21`), aucune pour l'absence.
+  - Le front a un libellé et un ton `danger` pour `no_show` (lu, `visit-status.ts:13,27`). L'agent dont le visiteur ne vient pas doit déclarer la visite terminée, ce qui la compte dans les visites menées (`TeamPerformanceService.php:64`, lu) et ouvre au visiteur le droit de noter l'agent (`ReviewEligibility`, lu dans son docblock, à vérifier dans le code), ou l'annuler, ce qui dit autre chose.
+  - Établi comment : lu et `grep`.
+- Piste : un geste `POST property-visits/{visit}/no-show` depuis `scheduled`/`confirmed` une fois l'heure passée, ou le retrait du cas et de son libellé. Choix de produit.
+
+### `features.md` promet à tous les profils une machine à états `draft → pending → active → suspended | expired | archived` qu'aucun n'a
+- Réf : P115.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `docs/features.md:500`, `takussan-api/app/Models/Enums/AgentProfileStatus.php`, `takussan-api/app/Models/Enums/OwnerProfileStatus.php`, `takussan-api/app/Models/Enums/AgencyAdminProfileStatus.php`, `takussan-api/app/Models/Enums/ServiceProviderProfileStatus.php`
+- Constat :
+  - `features.md:500` : « Tous les profils traversent la même machine à états `draft → pending → active → suspended | expired | archived` » (lu). Aucun enum de profil n'a `pending` ni `expired` ; seul `AgencyAdminProfileStatus` a `archived`, et l'admin d'agence n'a pas `draft` (lu, les quatre enums). Le bailleur est `blocked`, pas `suspended`.
+  - Les cas écrits par `app/` sont `draft`, `active` et la suspension (`suspended` ou `blocked`) pour l'agent, le bailleur et l'admin d'agence ; `inactive` (agent, bailleur, prestataire) et `archived` (admin d'agence, que le docblock réserve « aux flux de modération du super-admin ») n'ont aucun écrivain (mesuré, `grep`).
+  - Établi comment : lu et `grep`.
+- Piste : réécrire la phrase pour dire les statuts réels de chaque profil, et retirer des enums les cas sans écrivain ou noter qu'ils sont réservés (A6 pour le document ; le retrait est un autre choix).
+
+### Petites améliorations : cas d'enum sans écrivain, lus par une garde ou un écran
+- Réf : P115.07
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Models/Enums/ConversationStatus.php`, `takussan-api/app/Models/Enums/BankStatementStatus.php:11-19`, `takussan-api/app/Models/BankStatement.php:84-90`, `takussan-api/app/Models/Enums/PayoutStatus.php`, `takussan-api/app/Services/Model/PayoutService.php:276-281`, `takussan-api/app/Models/Enums/ServiceProviderBillStatus.php`, `takussan-api/app/Models/Enums/RelationshipStatus.php`, `takussan-web/src/types/agency.ts:9`, `takussan-web/src/components/admin/reconciliation/format.ts:24`
+- Constat (lu et `grep`, chaque cas sans écrivain dans `app/`) :
+  - `ConversationStatus::Archived` et `Closed` : l'archivage est par participant (`conversation_participants.archived_at`, lu, `ConversationController.php:366-395`) ; `conversations.status` vaut toujours `active`, et le front le type sans le lire.
+  - `BankStatementStatus::Archived` : lu par `isClosed()`, `scopeOpen()` et le front (`format.ts:24`). `scopeOpen()` n'a pas d'appelant, et il range `failed` parmi les relevés ouverts quand `isClosed()` le dit clos (lu, `BankStatement.php:84-90` contre l'enum `:16-19`).
+  - `PayoutStatus::Processing` : admis par le traitement d'un reversement (lu, `PayoutService.php:278`) et la règle d'approbation, jamais posé.
+  - `ServiceProviderBillStatus::Cancelled` : typé au front (`types/invoice.ts:216`), jamais posé ; une facture de prestataire n'a que validation, rejet et paiement.
+  - `RelationshipStatus::Ended` et `Suspended` : jamais posés ; le front les type (`types/customer.ts:90`).
+  - `AgencyStatus` du front ajoute `pending`, que l'enum de l'API n'a pas (lu, `types/agency.ts:9`).
+- Piste : retirer les cas sans écrivain (et leurs types au front), ou les documenter comme réservés ; aligner `scopeOpen()` sur `isClosed()` ou le retirer (A3).
