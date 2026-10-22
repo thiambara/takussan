@@ -14542,7 +14542,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le fil d'une intervention suit la relation `assignee` restée en mémoire : sur une instance qui l'a chargée, réassigner garde l'ancien prestataire dans le fil et n'y ajoute pas le nouveau
 - Réf : P154.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Listeners/Maintenance/SyncMaintenanceConversation.php:37`, `:58-60`, `:103-106`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:124-139`, `:229-247`, `:274-286`
 - Constat :
@@ -14552,10 +14552,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Aucun chemin d'aujourd'hui ne charge `assignee` avant ces trois appels : la policy juge `assigned_to` (lu, `MaintenanceRequestPolicy.php:327-332`), `update()` et `store()` du contrôleur passent l'instance liée par la route ou neuve, l'onboarding la lit par `with('property')` (lu, `ServiceProviderOnboardingService.php:184`), `unassignProviderFromAgency` par une requête neuve. Le défaut attend son premier appelant, ou un `load('assignee')` ajouté en amont (par une ressource, une policy).
   - Établi comment : lu, puis mesuré.
 - Piste : dans `MaintenanceRequestService`, retirer la relation (`unsetRelation('assignee')`) dès que `assigned_to` change, avant l'événement, ou faire lire au listener la relation par `load()` plutôt que `loadMissing()`. Test : instance chargée avec `assignee`, réassignation puis refus → le fil porte le seul prestataire courant et le message nomme le bon ; rouge sur le code d'aujourd'hui.
+- Mesure (2026-10-22, dd4563ae6, mesureur) : relu `SyncMaintenanceConversation::handle` (l. 37 `loadMissing([…, 'assignee', …])`, l. 58-60, `swapProvider` l. 103-106) et `MaintenanceRequestService::assign` (l. 113-139), `::decline` (l. 229-251), `::unassignProviderFromAgency` (l. 262-290), inchangés, aucun `unsetRelation`/`refresh()` avant l'événement ; aucun commit ni ticket ne les traite (`git log -S`, `grep P154` dans `docs/backlog/tickets`) ; test temporaire (retiré), charge 3,85 / 4,16 / 3,63 sur 8 cœurs : intervention assignée à A par `PATCH`, instance relue + `load('assignee')`, `assign(…, B, bailleur)` → participants actifs du fil = bailleur, locataire, A (B absent) ; instance relue + `load('assignee')` (= B), `decline(…, B, …)` → B, qui refuse, est remis dans le fil ; contrôle sans `load('assignee')` (A puis B) → fil = bailleur, locataire, B → le constat tient en entier, toujours sans appelant d'aujourd'hui qui charge la relation (relu : `MaintenanceRequestController::store`/`update`/`decline`, `ServiceProviderOnboardingService` l. 185 `with('property')`). Classement : A1, le comportement attendu est déjà écrit par le listener lui-même et par `MaintenanceConversationTest::test_first_assignment_opens_one_thread_and_reassignment_swaps_the_provider` (le fil suit le prestataire courant), et les deux options de la piste rendent le même résultat sans choix de produit.
 
 ### `attachSuperAdminRole` écrit le profil plateforme à côté de la relation que `ResolveActiveProfile` a chargée : dans la même requête, le compte n'est pas encore super-admin
 - Réf : P154.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : état du rôle super-admin dans la requête de 2FA
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Middleware/ResolveActiveProfile.php:69`, `takussan-api/app/Models/Concerns/HasProfiles.php:370-376`, `takussan-api/app/Http/Controllers/Api/Auth/SuperAdminTwoFactorController.php:117-160`, `:173-189`
 - Constat :
@@ -14564,3 +14565,4 @@ qui a été relevé. Rien n'a été exécuté.*
   - Aujourd'hui rien ne lit le rôle après l'écriture dans `confirm()` : journal, jeton marqué, `otherSuperAdmins($user)` (requête), `$user->fresh()` pour l'avis (lu, l. 117-160). Le défaut ne se voit pas.
   - Établi comment : lu.
 - Piste : poser `$user->setRelation('platformProfile', $profile)` après `save()`, pour qu'une lecture ajoutée plus tard (ressource de `/me`, garde) ne dise pas l'inverse de la base. Test : après `confirm()`, `$user->isSuperAdmin()` vrai sur l'instance de la requête.
+- Mesure (2026-10-22, dd4563ae6, mesureur) : relu `ResolveActiveProfile` (l. 69 `$user->load('platformProfile')`), `HasProfiles::activePlatformLevel` (l. 372-377, lit la relation chargée), `SuperAdminTwoFactorController::confirm` (l. 117-160) et `::attachSuperAdminRole` (l. 173-189, `firstOrNew(…)->save()` sans `setRelation`), inchangés depuis TCK-711 ; test temporaire (retiré), charge 3,85 / 4,16 / 3,63 sur 8 cœurs, montage de `SuperAdminGrantOnlyByCooptationTest` (invitation de cooptation acceptée, `actingAs($u)`, `POST /api/auth/super-admin/2fa/confirm` → 200) → sur l'instance de la requête `relationLoaded('platformProfile')` vrai et `isSuperAdmin()` faux, sur `fresh()` vrai → le constat tient ; rien ne lit le rôle après l'écriture dans `confirm()` aujourd'hui. Classement : V2, le correctif change l'état d'autorisation (`isSuperAdmin()`, `Gate::before`) au milieu de la requête qui enrôle la 2FA d'un opérateur : sans effet visible aujourd'hui, mais dans le doute sur une écriture de rôle plateforme, il revient au porteur.
