@@ -5,11 +5,14 @@ namespace Tests\Feature\Api\Admin;
 use App\Models\Agency;
 use App\Models\User;
 use App\Notifications\AgencyAdminActivationNotification;
-use App\Services\Admin\AgencyProvisioningService;
+use Illuminate\Contracts\Auth\PasswordBroker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
+use Mockery;
+use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class AgencyOnboardingTest extends TestCase
@@ -93,23 +96,50 @@ class AgencyOnboardingTest extends TestCase
         ])->assertUnprocessable();
     }
 
-    public function test_invitation_failure_rolls_back_agency_and_admin(): void
+    /**
+     * TCK-1388 (P142.01) — l'activation part en file (TCK-747) : la requête ne voit jamais le
+     * transport. Un échec avant la mise en file (ici, le jeton) n'est donc pas « l'e-mail n'a pas
+     * pu partir » : il remonte tel quel et annule le provisionnement, sans le 502
+     * `mail.invitation_not_sent` qu'aucun envoi ne pouvait plus justifier.
+     */
+    public function test_un_echec_avant_la_mise_en_file_annule_sans_promettre_un_502(): void
     {
         Notification::fake();
         $this->actingAsRole('super_admin');
-        $this->app->instance(AgencyProvisioningService::class, new class extends AgencyProvisioningService
-        {
-            protected function sendActivationLink(User $admin): void
-            {
-                throw new HttpException(502, 'Invitation email could not be sent.');
-            }
-        });
+        $broker = Mockery::mock(PasswordBroker::class);
+        $broker->shouldReceive('createToken')->andThrow(new RuntimeException('jeton indisponible'));
+        Password::shouldReceive('broker')->with('activations')->andReturn($broker);
 
-        $this->postJson('/api/admin/agencies', $this->payload(['agency' => ['slug' => 'rollback-agency']]))
-            ->assertStatus(502);
+        $response = $this->postJson('/api/admin/agencies', $this->payload(['agency' => ['slug' => 'rollback-agency']]))
+            ->assertStatus(500);
 
+        $this->assertNotSame('mail.invitation_not_sent', $response->json('code'));
         $this->assertDatabaseMissing('agencies', ['slug' => 'rollback-agency']);
         $this->assertDatabaseMissing('users', ['email' => 'admin@sunu.test']);
+        Notification::assertSentTimes(AgencyAdminActivationNotification::class, 0);
+    }
+
+    /**
+     * TCK-1388 (P142.01) — le contrat retenu : sous la file `database` de la production, un
+     * transport injoignable ne touche pas la requête. L'agence est créée, l'activation attend
+     * dans la file urgente, où `RetriesWithBackoff` (TCK-1352) l'espace et journalise son échec.
+     */
+    public function test_sous_la_file_database_l_activation_attend_dans_la_file_urgente(): void
+    {
+        config([
+            'queue.default' => 'database',
+            'mail.default' => 'smtp',
+            'mail.mailers.smtp.host' => '127.0.0.1',
+            'mail.mailers.smtp.port' => 1,
+        ]);
+        $this->actingAsRole('super_admin');
+
+        $this->postJson('/api/admin/agencies', $this->payload(['agency' => ['slug' => 'en-file']]))
+            ->assertCreated();
+
+        $this->assertDatabaseHas('agencies', ['slug' => 'en-file']);
+        $job = DB::table('jobs')->where('queue', 'notifications-urgent')->sole();
+        $this->assertStringContainsString('SendQueuedNotifications', $job->payload);
     }
 
     private function payload(array $overrides = []): array

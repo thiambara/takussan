@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
-use Throwable;
 
 class AgencyProvisioningService
 {
@@ -103,18 +102,18 @@ class AgencyProvisioningService
 
     /**
      * TCK-781 (P15.07) — un e-mail « Activez votre compte », valable 7 jours (jeu de jetons
-     * `activations`, TCK-209), et non le gabarit de réinitialisation à 60 minutes. Un échec
-     * d'envoi rend 502 et annule le provisionnement (transaction englobante).
+     * `activations`, TCK-209), et non le gabarit de réinitialisation à 60 minutes.
+     *
+     * TCK-1388 (P142.01) — l'e-mail part en file (`notifications-urgent`, TCK-747), après la
+     * validation de la transaction : la requête ne voit jamais le transport, et un échec d'envoi
+     * n'annule rien. Il est réessayé et journalisé par la notification (`RetriesWithBackoff`,
+     * TCK-1352). Ce qui lève ici (le jeton) remonte tel quel et annule le provisionnement : ce
+     * n'est pas un échec d'envoi, il ne se dit plus `mail.invitation_not_sent` en 502.
      */
     protected function sendActivationLink(User $admin): void
     {
-        try {
-            $token = Password::broker('activations')->createToken($admin);
-            $admin->notify(new AgencyAdminActivationNotification($token));
-        } catch (Throwable $e) {
-            report($e);
-            abort_code(502, 'mail.invitation_not_sent');
-        }
+        $token = Password::broker('activations')->createToken($admin);
+        $admin->notify(new AgencyAdminActivationNotification($token));
     }
 
     private function uniqueSlug(string $name): string

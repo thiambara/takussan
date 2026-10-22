@@ -4,6 +4,7 @@ namespace Tests\Feature\Tenant;
 
 use App\Events\Lease\LeaseActivated;
 use App\Listeners\Lease\SendTenantWelcomeNotification;
+use App\Models\Activity as JournalActivite;
 use App\Models\Customer;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
@@ -13,6 +14,7 @@ use App\Services\Model\LeaseService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
+use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
@@ -64,6 +66,35 @@ class TenantWelcomeNotificationTest extends TestCase
         Notification::fake();
         (new SendTenantWelcomeNotification)->handle(new LeaseActivated($lease->fresh()));
         Notification::assertNothingSent();
+    }
+
+    /**
+     * TCK-1394 (P142.06) — l'écouteur est en file : s'il lève après l'envoi (ici, le journal),
+     * le worker le rejoue. La marque posée avant l'envoi fait du second passage un no-op : une
+     * seule bienvenue, au prix d'une bienvenue perdue si l'envoi lui-même échoue.
+     */
+    public function test_un_ecouteur_rejoue_apres_l_envoi_n_envoie_pas_une_seconde_bienvenue(): void
+    {
+        Notification::fake();
+        [, $lease, $tenantUser] = $this->scaffoldDraftWithTenantUser();
+        $leve = true;
+        JournalActivite::creating(function (JournalActivite $activity) use (&$leve): void {
+            if ($leve && $activity->description === 'tenant_welcomed') {
+                $leve = false;
+                throw new RuntimeException('journal indisponible');
+            }
+        });
+
+        try {
+            (new SendTenantWelcomeNotification)->handle(new LeaseActivated($lease->fresh()));
+            $this->fail('le premier passage devait lever');
+        } catch (RuntimeException $e) {
+            $this->assertSame('journal indisponible', $e->getMessage());
+        }
+        (new SendTenantWelcomeNotification)->handle(new LeaseActivated($lease->fresh()));
+
+        Notification::assertSentToTimes($tenantUser, TenantWelcomeNotification::class, 1);
+        $this->assertNotNull($lease->fresh()->tenant_welcomed_at);
     }
 
     public function test_listener_logs_activity_with_lease_id(): void

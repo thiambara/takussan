@@ -44,6 +44,11 @@ class SendTenantWelcomeNotification implements ShouldQueue
             return;
         }
 
+        // TCK-1394 (P142.06) — la marque d'abord : l'écouteur est en file, et s'il levait après
+        // l'envoi (journal, `save()`), le worker le rejouait et une seconde bienvenue partait.
+        // Le contrat d'idempotence est cette colonne : mieux vaut une bienvenue perdue que deux.
+        $lease->forceFill(['tenant_welcomed_at' => now()])->save();
+
         Notification::send($tenantUser, new TenantWelcomeNotification($lease));
 
         activity()
@@ -51,7 +56,5 @@ class SendTenantWelcomeNotification implements ShouldQueue
             ->performedOn($lease)
             ->withProperties(['lease_id' => $lease->id])
             ->log('tenant_welcomed');
-
-        $lease->forceFill(['tenant_welcomed_at' => now()])->save();
     }
 }
