@@ -11596,7 +11596,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### La file de modération des biens trie sur `submitted_at` seul
 - Réf : P118.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1300
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:55-58`
 - Constat :
@@ -11604,6 +11604,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Des biens soumis dans la même seconde, ou dont `submitted_at` est `null`, se départagent au hasard du plan (à vérifier : la colonne et la façon dont elle est remplie ne sont pas relues).
 - Piste : ajouter `->orderBy('properties.id')` après `submitted_at`, ou passer par le mécanisme commun de P118.02.
 - Mesure (2026-10-22, fc967bccf, mesureur) : relu `PropertyModerationController.php:55-58` (`orderBy('submitted_at')` puis `paginate`), migration `2026_04_26_000001…:13` (`timestamp` nullable), `PropertyObserver.php:53,139` et `PropertyModerationService.php:132` (`now()` à la seconde) ; `SELECT status, count(*), count(distinct submitted_at), count(*) filter (where submitted_at is null) FROM properties` sur la base de dev → les **4** biens `pending_review` ont `submitted_at` nul : la file n'y a aucun ordre. Le constat tient, et le cas nul, laissé à vérifier, est avéré sur les données des seeders. Classement : A1, les autres files de `Admin\*` départagent par l'`id` depuis TCK-1138, et le correctif attendu est `->orderBy('properties.id')` après `submitted_at`.
+- Mesure (2026-10-22, e6ee5d5f5, implementeur) : `PropertyModerationQueueOrderTest` avant correctif → sept biens en attente (trois de même seconde, trois sans `submitted_at`, deux mis à jour) sortent dans un ordre où les égaux suivent la position physique ; `->orderBy('properties.id')` après `submitted_at` → vert, `PropertyModerationTest` 9/9 ; ablation → rouge, remis → vert.
 
 ### Petites améliorations
 - Réf : P118.06
