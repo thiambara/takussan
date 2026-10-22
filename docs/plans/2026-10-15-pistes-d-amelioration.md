@@ -11893,7 +11893,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Les deux tâches horaires des invitations s'arrêtent au premier courriel qui échoue
 - Réf : P123.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1251 — reste : la mise en file d'`InvitationExpiredNotification`, que la piste propose en plus du rattrapage par invitation
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:485-512`, `:522-538`, `takussan-api/app/Notifications/InvitationExpiredNotification.php:15`, `:24`, `takussan-api/routes/console.php:109-110`
 - Constat :
@@ -11903,6 +11903,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lecture, puis le test temporaire (pour `expire()`).
 - Piste : mettre `InvitationExpiredNotification` en file ; dans les deux boucles, rattraper l'échec d'un envoi par invitation (`report()`, puis continuer). Garde : un test par tâche sous un transport qui lève, qui exige toutes les invitations traitées.
 - Mesure (2026-10-22, 86138895e, mesureur) : relu `expire()` (transaction par invitation puis `notify()` synchrone, sans `try`, l. 495-509) et `remindPending()` (envoi avant `last_reminded_at`, sans `try`, l. 535-538) ; test temporaire retiré : trois invitations échues, transport qui lève, `expire()` → `TransportException`, statuts `expired,sent,sent` ; `remindPending()` lève à la première invitation (ici par la `ViewException` de P123.01) et la boucle s'arrête → le constat tient, la partie rappels est établie pour le mécanisme, pas pour une adresse refusée. Classement : A1, le docblock d'`expire()` promet de prévenir l'invitant de chaque expiration et `routes/console.php` veut ces tâches idempotentes ; mettre `InvitationExpiredNotification` en file et rattraper l'échec par invitation (`report()`, puis continuer) ne demande aucun choix de produit.
+- Mesure (2026-10-22, a8174784f, implementeur) : relu `InvitationService::expire()` et `remindPending()` (envoi sans `try`) ; le test neuf `InvitationTachesEnPanneTest` (transport qui lève et compte les tentatives) : trois invitations échues et trois rappels dus → `TransportException` dès la première (2 rouges) → échec rapporté par invitation, boucle poursuivie, rappel en échec non marqué ; 3 expirations et 3 tentatives de chaque côté, 2/2 ; ablation → 2 rouges, remis → vert.
 
 ### `dashboard:check-alerts` envoie l'alerte avant de la marquer : un courriel qui échoue arrête la tâche et fait renvoyer la cloche
 - Réf : P123.05
