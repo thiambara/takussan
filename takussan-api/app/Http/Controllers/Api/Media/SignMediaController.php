@@ -24,7 +24,7 @@ class SignMediaController extends Controller
 
         return $this->json([
             'url' => $url,
-            'expires_at' => now()->addSeconds($ttl)->toIso8601String(),
+            'expires_at' => $this->instant(now()->addSeconds($ttl)),
         ], Response::HTTP_OK);
     }
 }

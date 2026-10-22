@@ -31,6 +31,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class ReviewController extends Controller
@@ -196,7 +197,8 @@ class ReviewController extends Controller
                         'email' => $user->email,
                     ] : null,
                     'reason' => $r['reason'] ?? null,
-                    'reported_at' => $r['reported_at'] ?? null,
+                    // TCK-1504 — stocké en `toISOString()` dans `metadata` : rendu à la forme d'ADR-0018.
+                    'reported_at' => isset($r['reported_at']) ? $this->instant(Carbon::parse($r['reported_at'])) : null,
                 ];
             })
             ->values()

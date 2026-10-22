@@ -87,7 +87,7 @@ class AgencyUpgradeRequestController extends Controller
                         'status' => $agency->status?->value,
                         // TCK-1003 — l'approbation exige un dossier KYC vérifié : la revue le dit.
                         'kyc_status' => $agency->kycDossier?->status?->value,
-                        'created_at' => $agency->created_at?->toIso8601String(),
+                        'created_at' => $this->instant($agency->created_at),
                     ] : null,
                     'submitter' => $upgradeRequest->submitter ? [
                         'id' => $upgradeRequest->submitter->id,

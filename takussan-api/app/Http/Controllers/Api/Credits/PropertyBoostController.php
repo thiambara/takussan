@@ -29,7 +29,7 @@ class PropertyBoostController extends Controller
         // TCK-824 (P24.02) — le dialogue d'achat dit le délai de Remontée AVANT la confirmation.
         return $this->json([
             'data' => PropertyBoostResource::collection($boosts)->resolve(),
-            'bump_available_at' => $purchases->bumpAvailableAt($property)?->toIso8601String(),
+            'bump_available_at' => $this->instant($purchases->bumpAvailableAt($property)),
         ]);
     }
 

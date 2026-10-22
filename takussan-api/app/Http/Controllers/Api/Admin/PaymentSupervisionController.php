@@ -44,7 +44,7 @@ class PaymentSupervisionController extends Controller
             'amount' => $row->amount !== null ? (float) $row->amount : null,
             'currency' => $row->currency,
             'agency_id' => $row->agency_id !== null ? (int) $row->agency_id : null,
-            'event_at' => $row->event_at !== null ? CarbonImmutable::parse($row->event_at)->toIso8601String() : null,
+            'event_at' => $row->event_at !== null ? $this->instant(CarbonImmutable::parse($row->event_at)) : null,
             'due_date' => $row->due_date !== null ? CarbonImmutable::parse($row->due_date)->toDateString() : null,
         ])->all();
 

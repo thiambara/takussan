@@ -61,7 +61,7 @@ class CustomerNoteController extends Controller
             'author' => $note->relationLoaded('author') && $note->author
                 ? ['id' => $note->author->id, 'name' => $note->author->getFullNameAttribute()]
                 : null,
-            'created_at' => $note->created_at?->toISOString(),
+            'created_at' => $this->instant($note->created_at),
         ];
     }
 }

@@ -247,7 +247,7 @@ class IntegrationController extends Controller
             'data' => [
                 'ok' => true,
                 'message' => __('messages.integration_test_ok', ['provider' => $integration->provider]),
-                'last_used_at' => $integration->last_used_at?->toIso8601String(),
+                'last_used_at' => $this->instant($integration->last_used_at),
             ],
         ]);
     }

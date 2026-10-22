@@ -34,7 +34,7 @@ class PublicPaymentLinkController extends Controller
         $link = $this->links->resolve($token);
         $this->links->touch($link);
 
-        return $this->json(['data' => $this->present($link->leasePayment, $this->links->effectiveExpiry($link, $link->leasePayment)->toIso8601String())]);
+        return $this->json(['data' => $this->present($link->leasePayment, $this->instant($this->links->effectiveExpiry($link, $link->leasePayment)))]);
     }
 
     public function initiate(InitiatePublicPaymentLinkRequest $request, string $token): JsonResponse

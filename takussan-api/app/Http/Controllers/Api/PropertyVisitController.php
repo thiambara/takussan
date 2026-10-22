@@ -466,7 +466,7 @@ class PropertyVisitController extends Controller
             'user_id' => $user->id,
             'rating' => isset($data['rating']) ? (float) $data['rating'] : null,
             'comment' => $data['comment'] ?? null,
-            'submitted_at' => now()->toIso8601String(),
+            'submitted_at' => $this->instant(now()),
         ];
 
         // Surface the customer's feedback/rating on the visit's top-level

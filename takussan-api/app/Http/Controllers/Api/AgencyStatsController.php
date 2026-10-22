@@ -46,8 +46,8 @@ class AgencyStatsController extends Controller
             'data' => [
                 'agency_id' => $agency->id,
                 'period' => [
-                    'start' => $monthStart->toIso8601String(),
-                    'end' => $monthEnd->toIso8601String(),
+                    'start' => $this->instant($monthStart),
+                    'end' => $this->instant($monthEnd),
                 ],
                 'properties_count' => $propertiesCount,
                 'members_count' => $membersCount,

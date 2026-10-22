@@ -26,7 +26,7 @@ class FeatureFlagController extends Controller
                 ...$flag,
                 'enabled' => (bool) ($row?->enabled ?? false),
                 'segments' => $row?->segments_json ?? [],
-                'updated_at' => $row?->updated_at?->toISOString(),
+                'updated_at' => $this->instant($row?->updated_at),
                 // P98.10 (TCK-1176) — l'état évalué pour l'opérateur, bascule de session comprise :
                 // le bouton « Test » de la console part de lui.
                 'enabled_for_me' => $this->evaluator->isEnabled($flag['key'], $request->user()),
