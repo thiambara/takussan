@@ -1,7 +1,7 @@
 ---
 id: TCK-1219
 title: "Relais BFF : une API injoignable ou lente rend un 502 ou 504 JSON avec un code, et l'abandon d'une lecture remonte à l'API"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: M
@@ -48,7 +48,7 @@ Critère accordé : V7. Le délégué avait relevé V2 (le relais d'impersonatio
   `headersTimeout` d'undici qu'il remplace : un fichier qui se télécharge n'est pas coupé en route.
 - **Patron** : un `fetchVersApi` commun, qui rend la réponse 502/504 au lieu de lever ; les relais
   qui recopient la réponse amont la recopient donc telle quelle. `relayerVersApi` l'emploie, et
-  les quatorze relais à `fetch` direct sans `catch` aussi.
+  les quinze relais à `fetch` direct sans `catch` aussi.
 
 ## Reste à faire
 
@@ -67,19 +67,19 @@ Deux codes BFF neufs : `upstream_unavailable` (502), `upstream_timeout` (504).
 
 ## Delta à produire
 
-- [ ] `src/lib/api.ts` : les deux codes, traduits par `errors.api.serverError`.
-- [ ] `src/lib/relais-api.ts` : `fetchVersApi` (délai, signal des lectures, réponse 502/504) ;
+- [x] `src/lib/api.ts` : les deux codes, traduits par `errors.api.serverError`.
+- [x] `src/lib/relais-api.ts` : `fetchVersApi` (délai, signal des lectures, réponse 502/504) ;
       `relayerVersApi` l'emploie.
-- [ ] Les quatorze route handlers à `fetch` direct sans `catch` l'emploient.
-- [ ] Tests de `fetchVersApi` et de `relayerVersApi` : `fetch` qui rejette → 502 et son code ;
+- [x] Les quinze route handlers à `fetch` direct sans `catch` l'emploient.
+- [x] Tests de `fetchVersApi` et de `relayerVersApi` : `fetch` qui rejette → 502 et son code ;
       délai → 504 ; abandon d'un `GET` transmis, d'un `POST` non.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `relayerVersApi` rend 502 `{ code: 'upstream_unavailable' }` quand `fetch` rejette.
-- [ ] AC2 — Une API figée rend 504 `{ code: 'upstream_timeout' }` au délai.
-- [ ] AC3 — L'abandon du navigateur abandonne l'appel amont d'un `GET`, pas d'un `POST`.
-- [ ] AC4 — Aucun handler de `src/app/api/**` à `fetch` direct sans `catch` ne reste, hors `sante`.
+- [x] AC1 — `relayerVersApi` rend 502 `{ code: 'upstream_unavailable' }` quand `fetch` rejette.
+- [x] AC2 — Une API figée rend 504 `{ code: 'upstream_timeout' }` au délai.
+- [x] AC3 — L'abandon du navigateur abandonne l'appel amont d'un `GET`, pas d'un `POST`.
+- [x] AC4 — Aucun handler de `src/app/api/**` à `fetch` direct sans `catch` ne reste, hors `sante`.
 
 ## Hors périmètre
 
@@ -87,4 +87,12 @@ Deux codes BFF neufs : `upstream_unavailable` (502), `upstream_timeout` (504).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Le délai est une minuterie levée à l'arrivée des en-têtes, pas `AbortSignal.timeout` : celui-ci
+  couperait aussi le corps, donc un export ou un téléchargement long en cours de transfert.
+- La panne devient une `Response` JSON plutôt qu'une exception : les quinze relais recopient déjà
+  statut, corps et `content-type` de l'amont, et n'ont changé que d'une ligne chacun.
+- AC4 est tenu par un test statique (`relais-panne-amont.test.ts`), avec `maintenance/status` en
+  exception jusqu'à TCK-1221.
+- Ablation : `relais-api.ts`, `api.ts` et les quinze handlers rendus à `HEAD`, test gardé → 10/10
+  rouges ; correctif remis → 10/10 verts, 262/262 sur les tests de `src/app/api` touchés et
+  `api-erreurs-bff`.
