@@ -13801,7 +13801,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Petites améliorations : statuts rendus bruts ou déclarés deux fois
 - Réf : P146.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/users/AdminUsersTable.tsx:43-46,226-227`, `takussan-web/src/components/admin/super/integrations.tsx:231-234`, `takussan-web/src/types/agency-upgrade.ts:8`, `takussan-web/src/lib/queries/super-admin.ts:1273`
 - Constat (lu) :
@@ -13809,6 +13809,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Le journal des webhooks d'une intégration rend `log.status` brut dans un `Badge` (`integrations.tsx:233`). Le dictionnaire a pourtant les quatre libellés (mesuré, `superAdmin.payments.journal.statuses` = `received processed rejected failed`), et l'API ne pose que ces quatre valeurs (`IntegrationWebhookLog.php:20-26`).
   - `AgencyUpgradeRequestStatus` est déclaré deux fois, à l'identique (`types/agency-upgrade.ts:8` et `lib/queries/super-admin.ts:1273`).
 - Piste : ajouter `blocked` à la table du tableau, avec P115.02 ; traduire le statut du journal par le dictionnaire existant ; garder une seule déclaration du type de demande de passage.
+- Mesure (2026-10-22, b6bd2210f, mesureur) : relu `AdminUsersTable.tsx:43-47` (`STATUS_TONES` = `active`, `inactive`, `banned`) et `:226-227` (libellé brut hors table), `UserStatus.php` de l'API (`active`, `inactive`, `blocked`, `deleted`), `integrations.tsx:231-234` (`<Badge>{log.status}</Badge>`), `IntegrationWebhookLog.php:20-26` (quatre constantes) ; `node -e` sur `fr`/`en`/`wo.json` → `superAdmin.payments.journal.statuses` a `received processed rejected failed` dans les trois langues, déjà rendu par `payments.tsx:294` ; `types/agency-upgrade.ts:8` et `lib/queries/super-admin.ts:1273` déclarent le même `AgencyUpgradeRequestStatus` à quatre cas → tient en entier ; rien d'exécuté. Classement : A1, le contrat est l'enum de l'API et le dictionnaire existant ; le correctif passe `banned` à `blocked` dans `STATUS_TONES` avec P115.02 (même clé « Bloqué »), rend le statut du journal par `superAdmin.payments.journal.statuses` (repli brut sur un cas inconnu), et fait importer à `super-admin.ts` le type de `types/agency-upgrade.ts` (A3), sans texte neuf.
 
 ## Angle 147 — Statuts posés par un `Rule::enum` entier dans les requêtes d'écriture
 
@@ -13918,13 +13919,14 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Petites améliorations
 - Réf : P147.09
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : borner le statut d'un paiement de réservation créé à la main
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/StoreTaskRequest.php:56`, `takussan-api/app/Http/Controllers/Api/TaskController.php:74-78,156-158`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:49`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-47`
 - Constat :
   - Tâche : `PATCH` vers `done` pose `completed_at` (lu, l. 156-158), la création avec `status=done` ne le pose pas (lu, l. 74-78), et un retour de `done` à `open` le garde. Le seul autre écrivain le pose avec le statut (`BookingRefundTaskService.php:86`, lu).
   - Paiement de réservation : pour le personnel, `status` accepte tout `PaymentStatus` sauf `cancelled` (lu, l. 49), donc une ligne créée directement `refunded`, `failed` ou `late`, hors du geste `refund` (`BookingPaymentService::refund`, qui exige `paid`, lu l. 57-64). Ce que les relevés et le reste à payer font d'une telle ligne n'a pas été suivi (à vérifier ; touche l'argent).
 - Piste : poser `completed_at` dès qu'une tâche naît ou passe `done`, le remettre à nul à la réouverture ; borner le statut d'un paiement créé à la main à `paid`, `pending` et `partially_paid`, si le porteur le veut.
+- Mesure (2026-10-22, b6bd2210f, mesureur) : relu `TaskController::store` (l. 75-79 : `Task::create` pose `status` tel que reçu, jamais `completed_at`), `::update` (l. 156-158 : `completed_at` posé au seul passage à `done` s'il est nul, jamais remis à nul), `BookingRefundTaskService.php:86` (pose les deux ensemble), `StoreTaskRequest.php:56` (`Rule::enum(TaskStatus)` entier), `StoreBookingPaymentRequest.php:49` (`PaymentStatus` sauf `cancelled`), `BookingPaymentService::create` (l. 24-47 : statut recopié, `paid_at` nul hors `paid`) et `::refund` (exige `paid`) ; aucun commit ni ticket ne les a touchés depuis l'exploration (`git log` sur les quatre fichiers) → les deux parties tiennent ; rien d'exécuté, l'effet d'une ligne `refunded`/`failed`/`late` sur les relevés reste non suivi. Classement : V1, la partie paiement borne les statuts d'une écriture d'argent et la `Piste` la laisse au porteur (« si le porteur le veut ») ; la partie tâche seule serait A1 (contrat de `BookingRefundTaskService`).
 
 ## Angle 148 — Section `/app/agency` gardée par le rôle, gestes jugés par la capacité
 
