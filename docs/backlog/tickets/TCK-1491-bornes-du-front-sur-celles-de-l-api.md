@@ -1,7 +1,7 @@
 ---
 id: TCK-1491
 title: "Les bornes de saisie du front recopient celles de l'API"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
@@ -51,14 +51,14 @@ Règles existantes de l'API, inchangées : `StorePropertyRequest` / `UpdatePrope
 
 ## Delta à produire
 
-- [ ] `year_built` : `max` calculé à l'année en cours + 3.
-- [ ] `maxLength` sur les six champs.
-- [ ] Tests : année hors borne refusée par le schéma ; un `maxLength` par champ.
+- [x] `year_built` : `max` calculé à l'année en cours + 3.
+- [x] `maxLength` sur les six champs.
+- [x] Tests : année hors borne refusée par le schéma ; un `maxLength` par champ.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — l'année en cours + 4 est refusée, l'année en cours + 3 acceptée.
-- [ ] AC2 — chaque champ porte le `maxLength` de sa règle d'API.
+- [x] AC1 — l'année en cours + 4 est refusée, l'année en cours + 3 acceptée.
+- [x] AC2 — chaque champ porte le `maxLength` de sa règle d'API.
 
 ## Hors périmètre
 
@@ -66,4 +66,9 @@ Règles existantes de l'API, inchangées : `StorePropertyRequest` / `UpdatePrope
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : les six fichiers de code rendus à `pre-dev` → les 7 cas neufs rouges (`maxLength`
+  à -1, année + 4 acceptée) ; remis → 39/39 sur les six fichiers de test.
+- Un cas par champ dans le test existant de chaque composant ; `KpiConfigList` n'en avait pas :
+  `kpis/__tests__/KpiConfigList.bornes.test.tsx`.
+- Le `max` de l'année est calculé au chargement du module : un onglet ouvert au passage d'une
+  année garde la borne de la veille jusqu'au rechargement (écart d'un an, sans effet en pratique).
