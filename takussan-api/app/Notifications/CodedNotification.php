@@ -11,6 +11,7 @@ use App\Services\Model\NotificationService;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
 use App\Services\Notifications\Sms\SmsTimeBudget;
+use App\Services\Notifications\Whatsapp\TemplateResolver;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
 use App\Support\LienFront;
 use App\Support\Logging\SafeExceptionContext;
@@ -270,18 +271,26 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
     }
 
     /**
-     * Les variables du gabarit Meta, dans l'ordre de {@see NotificationCode::params()}.
+     * Les variables du gabarit Meta : TCK-1348 (P132.03) — celles que nomme `meta_variables` de la
+     * ligne approuvée, dans cet ordre ; un paramètre absent vaut `—`, comme au rendu. Sans ligne ni
+     * noms, l'ordre de {@see NotificationCode::params()} puis `optionalParams()`.
      *
      * @return list<string>
      */
     public function whatsappTemplateParams(object $notifiable): array
     {
-        return array_values(app(NotificationRenderer::class)->format(
+        $formatted = app(NotificationRenderer::class)->format(
             $this->code,
             $this->params,
             app()->getLocale(),
             $notifiable instanceof User && $notifiable->timezone ? $notifiable->timezone : NotificationRenderer::DEFAULT_TIMEZONE,
-        ));
+        );
+        $names = app(TemplateResolver::class)->approved($this->whatsappTemplateEvent(), app()->getLocale())?->metaVariables() ?? [];
+        if ($names === []) {
+            return array_values($formatted);
+        }
+
+        return array_map(fn (string $name): string => $formatted[$name] ?? '—', array_values($names));
     }
 
     public function appNotificationIdFor(object $notifiable): ?int
