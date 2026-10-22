@@ -109,6 +109,14 @@ class LeaseResource extends BaseResource
             // VERIF-596 M1 — la voie papier : gestionnaire ET signataire possible pour le bailleur.
             'can_activate_on_paper' => $this->when($this->viewer !== null, fn (): bool => $this->viewer->can('update', $this->resource)
                 && LandlordSignatory::allows($this->viewer, $this->resource)),
+            // P152.02 — les quatre gestes que `LeasePolicy` juge par capacité, pour que la fiche ne
+            // monte que ceux que l'API acceptera. Le statut du bail reste jugé par l'écran et l'API.
+            'abilities' => $this->when($this->viewer !== null, fn (): array => [
+                'renew' => $this->viewer->can('renew', $this->resource),
+                'review_rent' => $this->viewer->can('reviewRent', $this->resource),
+                'record_payment' => $this->viewer->can('recordPayment', $this->resource),
+                'refund_deposit' => $this->viewer->can('refundDeposit', $this->resource),
+            ]),
             'created_at' => $this->iso($this->created_at),
         ];
 
