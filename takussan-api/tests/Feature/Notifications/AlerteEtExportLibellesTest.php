@@ -56,6 +56,39 @@ class AlerteEtExportLibellesTest extends TestCase
         }
     }
 
+    /**
+     * P164.03 (TCK-1466) — le titre in-app, rangé tel quel dans `app_notifications` et lu tel quel
+     * par la cloche, nomme la métrique par le même libellé que le courriel.
+     */
+    public function test_le_titre_in_app_de_l_alerte_nomme_la_metrique(): void
+    {
+        $agence = Agency::factory()->create();
+        $destinataire = User::factory()->create();
+
+        foreach (['fr', 'en', 'wo'] as $langue) {
+            App::setLocale($langue);
+            foreach (ThresholdAlert::allowedMetrics() as $metrique) {
+                $alerte = new ThresholdAlert([
+                    'agency_id' => $agence->id,
+                    'metric' => $metrique,
+                    'operator' => '<',
+                    'threshold' => 70,
+                    'severity' => 'warning',
+                    'cooldown_hours' => 24,
+                ]);
+                $titre = (new ThresholdAlertTriggered($alerte, 62.5))->toAppNotification($destinataire)['title'];
+
+                $this->assertStringNotContainsString($metrique, $titre, "métrique {$metrique} brute en {$langue}");
+                $this->assertStringContainsString((string) __("notifications.threshold_alert_mail.metrics.{$metrique}"), $titre);
+            }
+        }
+
+        // Une métrique sans libellé (rangée avant la liste actuelle) se rend telle quelle.
+        App::setLocale('fr');
+        $ancienne = new ThresholdAlert(['agency_id' => $agence->id, 'metric' => 'ancienne_metrique', 'operator' => '<', 'threshold' => 1, 'severity' => 'info', 'cooldown_hours' => 1]);
+        $this->assertSame('Alerte KPI — ancienne_metrique', (new ThresholdAlertTriggered($ancienne, 0.5))->toAppNotification($destinataire)['title']);
+    }
+
     public function test_l_export_de_rapport_nomme_le_rapport(): void
     {
         $demandeur = User::factory()->create();

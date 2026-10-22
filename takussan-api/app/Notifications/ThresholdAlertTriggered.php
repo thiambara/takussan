@@ -92,7 +92,11 @@ class ThresholdAlertTriggered extends Notification
     {
         return [
             'type' => NotificationType::System,
-            'title' => __('notifications.threshold_alert.title', ['metric' => $this->alert->metric]),
+            // P164.03 (TCK-1466) — le titre est rangé tel quel et la cloche le lit tel quel :
+            // la métrique y est nommée par le libellé du courriel (P155.04), plus par son code.
+            'title' => __('notifications.threshold_alert.title', [
+                'metric' => self::libelle('notifications.threshold_alert_mail.metrics', (string) $this->alert->metric),
+            ]),
             'data' => $this->toArray($notifiable),
         ];
     }
