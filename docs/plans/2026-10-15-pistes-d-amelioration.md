@@ -13811,7 +13811,7 @@ générique est P112.01.*
 
 ### Un acompte enregistré par le personnel puis rejoué compte deux encaissements `paid`
 - Réf : P144.04
-- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 2 : la clé sur la route d'acompte
+- Statut : fait · TCK-1400
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/BookingPaymentController.php:35-59`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-48`, `takussan-web/src/components/bookings/BookingPaymentDialog.tsx:60-67,120`
 - Constat :
@@ -13822,6 +13822,7 @@ générique est P112.01.*
   - Établi comment : lu, mesuré.
 - Piste : clé d'idempotence sur la route (P144.01). Garde : le scénario mesuré, une seule ligne `paid`.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `BookingPaymentService::create()` (ligne `paid` par défaut, nouveaux numéros de référence et de reçu à chaque appel, aucune comparaison aux paiements existants) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : bailleur, deux `POST /api/bookings/{id}/payments` `{amount: 100000, payment_type: deposit, payment_method: cash}` → 201 et 201, 2 lignes `paid,paid`, reçus `RCP-1PPKS1` et `RCP-L3N1ME` → le constat tient ; la reprise dans les totaux et reversements n'a pas été mesurée. Classement : V1, l'écriture d'un paiement.
+- Mesure (2026-10-22, e72d2ad69, implementeur) : avant correctif, `AcompteRejoueTest` (bailleur, deux `POST /api/bookings/{id}/payments` `{amount: 100000, payment_type: deposit, payment_method: cash}` à 30 s d'écart sous la même `Idempotency-Key`) → deux reçus distincts → route équipée de `idempotent`, `useCreateBookingPayment` en `idempotence: true` ; ablation : route sans l'intergiciel → rouge, option retirée → rouge vitest ; remis → une ligne `paid`, le même reçu rendu.
 
 ### Une facture rejouée est émise deux fois, sous deux numéros
 - Réf : P144.05
