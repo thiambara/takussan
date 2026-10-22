@@ -23,7 +23,13 @@ class BankStatementController extends Controller
 
         // TCK-988 — les comptes de `reconciled_ratio` après `buildQuery()` : un `fields[]` y pose
         // son `select`, qui écraserait les sous-requêtes de comptage posées avant.
-        $paginator = BankStatement::buildQuery($query, $request)->withReconciledCounts()->paginate();
+        //
+        // TCK-1298 (P118.04) — sans `sort=`, le plus récent d'abord ; `buildQuery()` départage par
+        // l'`id` (TCK-1296).
+        $paginator = BankStatement::buildQuery($query, $request)
+            ->defaultSort('-created_at')
+            ->withReconciledCounts()
+            ->paginate();
 
         // TCK-1220 (P108.03) — l'enveloppe canonique `{ data, meta }`, et non celle de Laravel.
         return $this->paginated($paginator, BankStatementResource::collection($paginator)->toArray($request));

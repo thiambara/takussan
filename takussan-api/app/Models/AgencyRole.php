@@ -12,6 +12,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Services\Membership\AgencyRoleCapabilityCache;
 use App\Sorts\CollatedNameSort;
+use App\Support\Query\DepartageQueryBuilder;
 use Database\Factories\AgencyRoleFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -102,7 +103,7 @@ class AgencyRole extends AbstractModel
      */
     public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
     {
-        return QueryBuilder::for($baseQuery ?? static::class, $request)
+        return DepartageQueryBuilder::for($baseQuery ?? static::class, $request)
             ->allowedFilters(...static::getAllowedQueryFilters())
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(...static::$requestSortable, ...[static::nameSort()])

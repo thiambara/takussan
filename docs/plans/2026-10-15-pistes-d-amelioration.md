@@ -11557,7 +11557,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### L'écran des lignes d'un relevé bancaire reçoit toujours un 400 : le front trie sur `posted_at`, que le modèle ne déclare pas triable
 - Réf : P118.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1294
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/reconciliation.ts:62-79`, `takussan-api/app/Models/BankStatementLine.php:35-42`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementLineController.php:30-32`, `takussan-web/src/components/admin/reconciliation/StatementDetail.tsx:62`
 - Constat :
@@ -11568,10 +11568,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Établi comment : lu, puis mesuré par le test temporaire.
 - Piste : déclarer `$requestSortable = ['id', 'posted_at', 'amount']` sur `BankStatementLine` et poser un ordre par défaut total (`defaultSorts('posted_at', 'id')`) dans `BankStatementLineController::index`. Test : `GET …/lines?sort=posted_at` → 200, lignes rangées par date puis par `id`. Pour empêcher le retour, l'angle 150 propose le relevé des `sort=` du front face aux listes blanches.
 - Mesure (2026-10-22, fc967bccf, mesureur) : relu `reconciliation.ts:74` (`sort: 'posted_at'`), `BankStatementLine.php:34-46` (aucun `$requestSortable`), `HasQueryBuilder.php:93` (`allowedSorts()` nu), `BankStatementLineController::index` (ni `defaultSort` ni `orderBy`) ; `git log` des trois fichiers et `grep -rn P118 docs/backlog/tickets` → rien ne l'a traité ; test temporaire retiré ensuite (charge 1,90 / 1,89 / 1,88 sur 8 cœurs), relevé de 5 lignes, admin principal → `GET …/lines?per_page=50&page=1&sort=posted_at` → **400** `http.bad_request`, sans `sort` → 200, avec les champs de `BANK_LINE_FIELDS` sans `sort` → 200. Le constat tient. Classement : A1, le tri attendu est écrit par l'appelant du front, et le corriger ne demande aucun choix de produit.
+- Mesure (2026-10-22, e6ee5d5f5, implementeur) : `BankStatementLineSortTest` avant correctif → `GET …/lines?per_page=50&page=1&sort=posted_at` rend **400**, et sans `sort=` les lignes sortent dans l'ordre physique (une ligne mise à jour passe en dernier) ; `$requestSortable = ['id', 'posted_at', 'amount']` et `defaultSorts('posted_at', 'id')` → 2/2 verts ; ablation (modèle et contrôleur rendus à `HEAD`) → 2 rouges, remis → verts.
 
 ### Les listes de `buildQuery()` qui trient par défaut sur une seule colonne rendent des lignes deux fois et d'autres jamais d'une page à l'autre
 - Réf : P118.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1296
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/PlatformPayoutController.php:23-25`, `takussan-api/app/Http/Controllers/Api/InvoiceController.php:36-38`, et les `defaultSort('<colonne>')` seuls de `LeaseController.php:46`, `BookingController.php:41`, `PayoutController.php:43`, `GuarantorController.php:33`, `TaskController.php:48`, `CommissionEntryController.php:38`, `PropertyVisitController.php:75`, `InventoryController.php:64,77`, `ContactLeadController.php:49`, `InvitationController.php:43`, `Admin/KycController.php:27`, `Admin/PrivacyRequestController.php:36`, `Admin/AnnouncementController.php:18`, `Admin/WebhookLogController.php:24`, `Me/PlatformPayoutController.php:29` et une vingtaine d'autres (relevé : `grep -rn "defaultSort(" app | grep -v "'id'"` → 44 lignes, dont seuls `PublicAgentController.php:144`, `PublicAgencyController.php:158` et `ConversationContextController.php:82,128` posent ensuite un `orderBy` sur l'`id`)
 - Constat :
@@ -11582,10 +11583,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Établi comment : lu, puis mesuré sur la base de dev et par le test temporaire. Les autres listes de la liste « Où » sont lues, non exécutées.
 - Piste : un départage par la clé primaire posé en un seul endroit, après les tris de spatie (qui les applique dès `defaultSort()`/`allowedSorts()`, mesuré par TCK-431 et écrit dans `PublicAgencyController.php:109-118`) : par exemple une méthode de `HasQueryBuilder` appelée juste avant `paginate()`, ou un `QueryBuilder` dérivé dont `paginate()` ajoute `orderBy(<table>.id)`. Garde : un test qui parcourt toutes les pages d'une liste aux clés de tri égales après mise à jour d'une partie des lignes, et compte des `id` distincts ; ablation en retirant le départage.
 - Mesure (2026-10-22, fc967bccf, mesureur) : relu `InvoiceController::index` (`defaultSort('-created_at')->paginate()`), `Admin/PlatformPayoutController::index` (`defaultSort('-period_end')`), `HasQueryBuilder.php:82-95` (aucun départage) ; `grep -rn "defaultSort(" app | grep -v "'id'" | wc -l` → 44 ; `SELECT` sur la base de dev → `created_at` en `timestamp(0)` (`datetime_precision = 0` sur `invoices`), 745 factures de l'agence 1 pour 14 `created_at` distincts ; test temporaire retiré ensuite, 150 factures de même `created_at` dont un tiers mis à jour, 10 pages de 15 de `GET /api/invoices` → 150 lignes rendues, **147 distinctes** ; même parcours avec `sort=-created_at,id` → 150 distinctes. Le constat tient (reversements non rejoués, lus). Classement : A1, une liste paginée dont `meta.total` compte chaque ligne doit la rendre une fois, et le correctif attendu est un `orderBy` sur la clé primaire de la table, posé en dernier par un seul point de `HasQueryBuilder` avant `paginate()`, sans changer l'ordre des lignes dont la clé de tri diffère.
+- Mesure (2026-10-22, e6ee5d5f5, implementeur) : `DepartageDesListesPagineesTest` avant correctif → 150 factures de même `created_at`, un tiers mises à jour, 10 pages de 15 de `GET /api/invoices` → **147 distinctes** ; 60 reversements de même `period_end` → ordre entre lignes égales non fixé. `DepartageQueryBuilder` (clé primaire qualifiée ajoutée en dernier tri, au sens du dernier tri, avant `paginate()`), construit par `buildQuery()` et les `buildQuery()` propres aux modèles → 4/4 verts ; ablation (`buildQuery()` et surcharges rendus à `HEAD`) → 4 rouges, remis → verts.
 
 ### Les tris demandés par `sort=` sur une colonne non unique n'ont pas non plus de départage, et le front en envoie plusieurs
 - Réf : P118.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1296
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:93`, `$requestSortable` de `Task.php:64` (`priority`, `status`, `due_at`), `MaintenanceRequest.php:76`, `Booking.php:46` (`start_date`, `status`), `PropertyVisit.php:47`, `Customer.php:113`, `Invitation.php:87`, `Inventory.php:56`, `IntegrationWebhookLog.php:80` ; appelants : `takussan-web/src/lib/queries/agent-crm.ts:67,74,81`, `pipeline.ts:122`, `commissions.ts:64`, `super-admin.ts:979`, `components/visits/VisitsList.tsx:49-75`, `components/maintenance/MaintenanceList.tsx:63`
 - Constat :
@@ -11595,10 +11597,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Rendre une ligne deux fois sur ces écrans est à vérifier écran par écran : seuls ceux qui demandent une page suivante sont touchés (à vérifier).
 - Piste : le même départage que P118.02, posé après tout tri, explicite ou par défaut. Le test de P118.02 se décline avec `sort=status` ou `sort=-start_date`.
 - Mesure (2026-10-22, fc967bccf, mesureur) : relu `HasQueryBuilder.php:93` et les `$requestSortable` d'`Invoice.php:64`, `Task.php:64`, `Booking.php:46` (colonnes non uniques, `id` en tête) ; test temporaire retiré ensuite, 150 factures de même `created_at` et même `issue_date`, un tiers mises à jour, 10 pages de 15 de `GET /api/invoices?sort=issue_date` → 150 rendues, **147 distinctes** ; avec `sort=-created_at,id` → 150. Le tri explicite perd des lignes comme le tri par défaut ; les écrans du front qui demandent une page suivante ne sont pas relevés un à un. Classement : A1, même contrat que P118.02, et le même départage par la clé primaire, posé après tout tri, le corrige sans choix de produit.
+- Mesure (2026-10-22, e6ee5d5f5, implementeur) : même cause et même correctif que P118.02 ; `DepartageDesListesPagineesTest` avant correctif → `GET /api/invoices?sort=issue_date`, 10 pages de 15 → **147 distinctes** sur 150 ; le départage s'ajoute après tout tri, demandé ou par défaut → 150 distinctes, rangées par `id` ; ablation → rouge, remis → vert.
 
 ### Les relevés et les lignes de relevé n'ont aucun ordre quand le front n'en demande pas
 - Réf : P118.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1298
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:26`, `BankStatementLineController.php:32`, `takussan-api/app/Models/BankStatement.php:41`, `BankStatement.php:74-77`
 - Constat :
@@ -11607,10 +11610,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Établi comment : lu.
 - Piste : poser `defaultSorts('-created_at', '-id')` sur les relevés et `defaultSorts('posted_at', 'id')` sur les lignes (rejoint P118.01) ; ramener `$requestSortable` des relevés à la forme des autres modèles.
 - Mesure (2026-10-22, fc967bccf, mesureur) : relu `BankStatementController::index` et `BankStatementLineController::index` (ni `defaultSort` ni `orderBy`), `BankStatement::lines()` (sans ordre), `BankStatement.php:41` (`'-created_at'` listé) ; test temporaire retiré ensuite → `GET /api/agencies/{id}/bank-statements?sort=-created_at` → 200, `sort=created_at` → 200 : spatie accepte la forme `-created_at`, le second point du constat est sans effet et ne relève que de la forme. Le défaut d'ordre par défaut tient (lu, non exécuté sur des lignes égales). Classement : A1, l'ordre attendu est celui que le front demande déjà (`-created_at` pour les relevés, `posted_at` pour les lignes), à poser en `defaultSorts` avec l'`id` en dernier.
+- Mesure (2026-10-22, e6ee5d5f5, implementeur) : `BankStatementDefaultOrderTest` avant correctif → sans `sort=`, cinq relevés (deux de même seconde, deux mis à jour) sortent dans l'ordre physique ; `defaultSort('-created_at')`, départagé par l'`id` (TCK-1296), et `$requestSortable = ['id', 'created_at', 'period_start']` → 2/2 verts, `sort=-created_at` et `±period_start` toujours 200 ; le volet des lignes est livré par TCK-1294 ; ablation → 2 rouges, remis → verts.
 
 ### La file de modération des biens trie sur `submitted_at` seul
 - Réf : P118.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1300
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:55-58`
 - Constat :
@@ -11618,6 +11622,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Des biens soumis dans la même seconde, ou dont `submitted_at` est `null`, se départagent au hasard du plan (à vérifier : la colonne et la façon dont elle est remplie ne sont pas relues).
 - Piste : ajouter `->orderBy('properties.id')` après `submitted_at`, ou passer par le mécanisme commun de P118.02.
 - Mesure (2026-10-22, fc967bccf, mesureur) : relu `PropertyModerationController.php:55-58` (`orderBy('submitted_at')` puis `paginate`), migration `2026_04_26_000001…:13` (`timestamp` nullable), `PropertyObserver.php:53,139` et `PropertyModerationService.php:132` (`now()` à la seconde) ; `SELECT status, count(*), count(distinct submitted_at), count(*) filter (where submitted_at is null) FROM properties` sur la base de dev → les **4** biens `pending_review` ont `submitted_at` nul : la file n'y a aucun ordre. Le constat tient, et le cas nul, laissé à vérifier, est avéré sur les données des seeders. Classement : A1, les autres files de `Admin\*` départagent par l'`id` depuis TCK-1138, et le correctif attendu est `->orderBy('properties.id')` après `submitted_at`.
+- Mesure (2026-10-22, e6ee5d5f5, implementeur) : `PropertyModerationQueueOrderTest` avant correctif → sept biens en attente (trois de même seconde, trois sans `submitted_at`, deux mis à jour) sortent dans un ordre où les égaux suivent la position physique ; `->orderBy('properties.id')` après `submitted_at` → vert, `PropertyModerationTest` 9/9 ; ablation → rouge, remis → vert.
 
 ### Petites améliorations
 - Réf : P118.06
@@ -12926,7 +12931,7 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
 
 ### Des tris déclarés sur une colonne d'enum rendent l'ordre alphabétique de la valeur
 - Réf : P134.03
-- Statut : validé (délégué) — `GET /api/tasks?sort=priority` et `GET /api/threshold-alerts?sort=severity` trient par rang (`low` < `medium` < `high` dans l'ordre de `TaskPriority::cases()`, en reprenant `TaskPrioritySort` de TCK-1260 ; `info` < `warning` < `critical` pour les alertes), sur le modèle de l'`orderBySeverity` de TCK-1126 ; un test par route, `sort=priority` et `sort=-priority` ; reste : les tris `status` (retrait ou rang d'un cycle de vie), `level` de `PlatformProfile`, la classe générique `EnumRankSort` et la garde sur toute colonne d'enum triable
+- Statut : fait · TCK-1302 — reste : les tris `status` (retrait ou rang d'un cycle de vie), `level` de `PlatformProfile`, la classe générique `EnumRankSort` et la garde sur toute colonne d'enum triable
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Task.php:64`, `takussan-api/app/Models/ThresholdAlert.php:31`, `takussan-api/app/Models/MaintenanceRequest.php:101`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:83-90`, `takussan-api/app/Models/Profiles/PlatformProfile.php:42`
 - Constat :
@@ -12939,10 +12944,11 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
 - Piste : pour chaque tri gardé, un tri par rang dérivé des cas de l'enum (une classe `App\Sorts\EnumRankSort` paramétrée par l'enum, qui servirait aussi à P134.01 et pourrait reprendre `MaintenancePrioritySort` et l'`orderBySeverity` de TCK-1126) ; ou retirer de `$requestSortable` les tris sans appelant ni sens (`status`). Garde : une vérification que toute colonne castée en enum et déclarée triable passe par un tri par rang.
 - Mesure (2026-10-22, 294f70acc, mesureur) : relu `Task.php:64` (`priority`, `status` triables, aucun `AllowedSort::custom`), `ThresholdAlert.php:31` (`severity`) et sa migration l. 25 (`string`, `info|warning|critical`), `MaintenanceRequest.php:76` et `:97-103` (`status` brut, `priority` par `MaintenancePrioritySort` — la l. 101 citée est la liste de `allowedSorts`), `UserDetailController.php:83-90` (`status` en `orderBy` brut), `PlatformProfile.php:42` (`level`) ; `tinker` en lecture, `order by s` sur `info`, `warning`, `critical` → `["critical","info","warning"]`, et `order by p desc` sur les priorités de tâche → `["medium","low","high"]` ; `grep` des `sort=`/`sort:` sur `priority|severity|status|level` dans `takussan-web/src` → rien → le constat tient. Classement : V7, la piste offre deux options (tri par rang générique, ou retrait des tris `status` de l'API) et ordonner un `status` par cycle de vie demande un ordre que ni la spec ni le code n'écrivent.
 - Mesure (2026-10-22, d0eabf19d, delegue) : relu le constat, la `Piste` et la `Mesure` du mesureur, `Task.php:64` et `TaskPriority` (cas `Low`, `Medium`, `High`), `ThresholdAlert.php:31` (`severity` triable, chaîne sans enum), `AnnouncementResolver::orderBySeverity` (TCK-1126, rangs pris de `cases()`) et le corps de la PR #1063 (P134.01, TCK-1260 : `TaskPrioritySort` sur `TaskPriority::cases()`, « `sort=priority` n'est pas branché (P134.03) ») → le rang de la priorité et de la gravité est déjà écrit par l'ordre des cas et par TCK-1126, celui d'un `status` ne l'est nulle part. Délégation : V7, choix mineur et réversible en un commit de l'API : deux tris qu'aucun écran ne demande rendent l'ordre que leur nom promet, sur la forme déjà prise par TCK-1126 et TCK-1260 ; ce qui demande un ordre non écrit (`status`) ou un retrait de paramètre va au reste ; aucun critère réservé. Dépend de TCK-1260 (PR #1063) pour `TaskPrioritySort`.
+- Mesure (2026-10-22, e6ee5d5f5, implementeur) : `TrisParRangTest` avant correctif → `GET /api/tasks?sort=priority` rend `high, low, medium` et `GET /api/threshold-alerts?sort=severity` rend `critical, info, warning` ; tris par rang branchés par un point d'extension `customQuerySorts()` de `HasQueryBuilder` (`TaskPrioritySort` de TCK-1260, `ThresholdAlertSeveritySort` neuf), `priority` et `severity` retirés de `$requestSortable` → `sort=±priority` et `sort=±severity` dans l'ordre du rang, 3/3 verts ; ablation → 2 rouges (et 1 sur le départage des égaux derrière un tri brut), remis → verts.
 
 ### Petites améliorations
 - Réf : P134.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1304
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Sorts/MaintenancePrioritySort.php:15-23`, `takussan-api/app/Services/Announcements/AnnouncementResolver.php:34-44`
 - Constat :
@@ -12950,6 +12956,7 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
   - Aucun test n'appelle `sort=priority` ni `sort=-priority` sur les maintenances (mesuré : `grep -rln "sort=-\?priority\|MaintenancePrioritySort" tests` → `tests/impact-map.json` seul), et aucun écran ne le demande (lu, `MaintenanceList.tsx:63`, `maintenance.ts:92`) : le seul tri par rang du dépôt n'est gardé par rien.
 - Piste : dériver le `CASE` de `MaintenancePriority::cases()` (ou passer par la classe générique de P134.03) et l'épingler par un test `sort=-priority` sur quatre demandes.
 - Mesure (2026-10-22, 294f70acc, mesureur) : relu `MaintenancePrioritySort.php:15-23` (`CASE` en dur, `urgent`→1 … `low`→4, `ELSE 5`), `MaintenancePriority.php` (cas déclarés `low`, `normal`, `high`, `urgent`, donc l'ordre de `cases()` est le rang croissant) et `AnnouncementResolver.php:34-37` (rangs dérivés de `cases()`) ; `grep -rln "sort=-\?priority\|MaintenancePrioritySort" tests` → `tests/impact-map.json` seul → le constat tient. Classement : A5, épingler par un test le tri existant et en dériver les rangs de l'enum ne change aucun résultat ; la classe générique évoquée relève de P134.03, laissée au porteur.
+- Mesure (2026-10-22, e6ee5d5f5, implementeur) : `MaintenancePrioritySortTest` avant correctif → `sort=-priority` et `sort=priority` rangent déjà les quatre priorités (épinglé), mais trois demandes `urgent` sortent par `id` croissant sous `-priority` (`CASE … ASC` inversé, que le départage de TCK-1296 lit comme croissant) ; `CASE` dérivé de `MaintenancePriority::cases()`, `DESC` pour `-priority` → 3/3 verts ; ablation → 1 rouge, remis → vert.
 
 ## Angle 135 — Listes écrites à la main, et lecteurs qui ne lisent que la première page
 

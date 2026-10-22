@@ -6,6 +6,7 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
+use App\Sorts\TaskPrioritySort;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\AllowedSort;
 
 class Task extends AbstractModel
 {
@@ -61,7 +63,19 @@ class Task extends AbstractModel
 
     protected static array $requestFilterable = ['taskable_id', 'taskable_type', 'assigned_to_id', 'created_by_id', 'status', 'priority'];
 
-    protected static array $requestSortable = ['id', 'created_at', 'due_at', 'priority', 'status'];
+    // `priority` se trie par rang : voir `customQuerySorts()`.
+    protected static array $requestSortable = ['id', 'created_at', 'due_at', 'status'];
+
+    /**
+     * TCK-1302 (P134.03) — `sort=priority` trie sur le rang de {@see TaskPriority} (TCK-1260), et non
+     * sur la chaîne.
+     *
+     * @return array<int, AllowedSort>
+     */
+    protected static function customQuerySorts(): array
+    {
+        return [AllowedSort::custom('priority', new TaskPrioritySort)];
+    }
 
     protected static array $requestLoadable = ['assignee', 'creator'];
 
