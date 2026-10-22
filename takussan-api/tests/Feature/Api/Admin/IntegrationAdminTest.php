@@ -5,7 +5,9 @@ namespace Tests\Feature\Api\Admin;
 use App\Events\IntegrationConfigChanged;
 use App\Models\Integration;
 use App\Models\IntegrationWebhookLog;
+use App\Services\Payments\Drivers\OrangeMoneyDriver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -61,6 +63,27 @@ class IntegrationAdminTest extends TestCase
         $this->assertNotNull($activity);
         $this->assertSame(['secret_key'], $activity->properties['credential_fields_changed']);
         $this->assertStringNotContainsString('sk_new_secret_9876', $activity->properties->toJson());
+    }
+
+    /**
+     * P98.10 (TCK-1176) — après rotation des identifiants Orange Money, le jeton OAuth en cache pour
+     * l'intégration est oublié : il n'est plus servi jusqu'à son expiration.
+     */
+    public function test_rotating_orange_money_credentials_forgets_the_cached_oauth_token(): void
+    {
+        $this->actingAsRole('super_admin');
+        $integration = Integration::factory()->create([
+            'provider' => 'orange_money',
+            'agency_id' => null,
+            'is_active' => true,
+            'credentials' => ['client_id' => 'id-1', 'client_secret' => 'secret-1', 'merchant_key' => 'mk', 'webhook_secret' => 'wh'],
+        ]);
+        $key = OrangeMoneyDriver::oauthTokenCacheKey($integration->id);
+        Cache::put($key, 'jeton-ancien', 3600);
+
+        $this->patchJson("/api/admin/integrations/{$integration->id}", ['credentials' => ['client_secret' => 'secret-2']])->assertOk();
+
+        $this->assertNull(Cache::get($key));
     }
 
     public function test_connection_test_returns_status_latency_and_updates_health(): void

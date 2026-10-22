@@ -206,6 +206,26 @@ class LeaseContractTermsTest extends TestCase
         $this->assertEquals(200_000, app(EarlyTerminationService::class)->computePenalty($fresh, now()->addMonth()));
     }
 
+    /**
+     * P98.05 — le détail du bail rend le nombre de mois que la résiliation exécutera, pour que le
+     * dialogue de demande estime sur lui et non sur un 2 recopié : la valeur figée sur le bail, et à
+     * défaut le réglage (de l'agence, sinon global).
+     */
+    public function test_the_lease_detail_exposes_the_penalty_months_the_service_executes(): void
+    {
+        $this->setting(EarlyTerminationService::SETTING_KEY, 4);
+        $frozen = $this->lease(['status' => LeaseStatus::Active, 'early_termination_penalty_months' => 3]);
+        $legacy = $this->lease(['status' => LeaseStatus::Active, 'early_termination_penalty_months' => null]);
+
+        Sanctum::actingAs($frozen->landlord);
+        $this->getJson("/api/leases/{$frozen->id}")->assertOk()
+            ->assertJsonPath('data.early_termination_penalty_months', 3);
+
+        Sanctum::actingAs($legacy->landlord);
+        $this->getJson("/api/leases/{$legacy->id}")->assertOk()
+            ->assertJsonPath('data.early_termination_penalty_months', 4);
+    }
+
     /** Le plafond de révision est imprimé et figé : relevé à 50 % ensuite, il ne laisse pas passer +30 %. */
     public function test_the_frozen_rent_review_cap_survives_a_setting_change(): void
     {
