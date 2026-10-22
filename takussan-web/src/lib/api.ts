@@ -31,7 +31,8 @@ function apiUrl(): string {
  * attend une API qui accepte la connexion sans répondre jusqu'au `headersTimeout` d'undici (300 s,
  * mesurés à 301,2 s) : une page, une action serveur ou une fiche publique attendait jusque-là au
  * lieu de rendre l'état « indisponible » qu'elle prévoit. 30 s, sous les 100 s que Cloudflare laisse
- * à un premier octet. Dans le navigateur, rien n'est posé.
+ * à un premier octet. Dans le navigateur, seules les lectures d'`apiRequest` sont bornées, à la même
+ * valeur (TCK-1297).
  */
 export const DELAI_API_SERVEUR_MS = 30_000;
 
@@ -50,6 +51,25 @@ export function signalBorneServeur(
 ): AbortSignal | undefined {
   if (typeof window !== 'undefined') return signal ?? undefined;
   const delai = AbortSignal.timeout(delaiMs);
+  return signal ? AbortSignal.any([signal, delai]) : delai;
+}
+
+/**
+ * TCK-1297 (P113.01) — dans le NAVIGATEUR, les seules lectures (`GET`) d'{@link apiRequest} sont
+ * bornées à {@link DELAI_API_SERVEUR_MS}, combiné au signal de l'appelant : Chrome n'applique
+ * aucun délai (12 min mesurées sans réponse ni rejet), et une lecture figée tenait un écran en
+ * chargement, ou suspendait une interrogation périodique, tant que la page vivait. Le délai rejette
+ * en `TimeoutError`, que `messageErreurApi` affiche comme une panne réseau (TCK-1295). Les
+ * écritures et les envois de fichiers gardent le seul signal de l'appelant : les borner pose la
+ * question de l'idempotence (P144.07), que le porteur garde.
+ */
+function signalLectureNavigateur(
+  signal: AbortSignal | null | undefined,
+  method: string,
+  formData: boolean,
+): AbortSignal | undefined {
+  if (method.toUpperCase() !== 'GET' || formData) return signal ?? undefined;
+  const delai = AbortSignal.timeout(DELAI_API_SERVEUR_MS);
   return signal ? AbortSignal.any([signal, delai]) : delai;
 }
 
@@ -799,7 +819,9 @@ export async function apiRequest<T>(
     body: body !== undefined
       ? formData ? (body as BodyInit) : JSON.stringify(body)
       : undefined,
-    signal: signalBorneServeur(signal, formData ? DELAI_API_SERVEUR_ENVOI_MS : DELAI_API_SERVEUR_MS),
+    signal: typeof window !== 'undefined'
+      ? signalLectureNavigateur(signal, method, formData)
+      : signalBorneServeur(signal, formData ? DELAI_API_SERVEUR_ENVOI_MS : DELAI_API_SERVEUR_MS),
   });
 
   const data = await response.json().catch(() => null);
