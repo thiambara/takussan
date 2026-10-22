@@ -13840,7 +13840,7 @@ générique est P112.01.*
 
 ### Une demande d'intervention rejouée ouvre deux interventions et prévient deux fois
 - Réf : P144.06
-- Statut : validé — porteur (2026-10-22) : ADR-0072, lot 2 : la clé sur `POST /api/maintenance-requests`
+- Statut : fait · TCK-1404
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:87-130`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:78-96,179`
 - Constat :
@@ -13850,6 +13850,7 @@ générique est P112.01.*
 - Piste : clé d'idempotence sur la route (P144.01). Garde : le scénario mesuré.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `MaintenanceForm.tsx:96` (navigation en `onSuccess` seulement) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : locataire en bail actif, deux `POST /api/maintenance-requests` identiques → 201 et 201, 2 interventions, 2 notifications au bailleur → le constat tient. Classement : V6, la seule `Piste` est la clé commune de P144.01, non décidée.
 - Mesure (2026-10-22, 3ecddb6ad, delegue) : relu l'entrée et P144.01 → la seule `Piste` est la clé commune, aucune option propre à l'intervention. Recommandation : l'appliquer à `POST /api/maintenance-requests` dans le premier lot de la brique de P144.01, avec le scénario mesuré (une intervention, une notification) pour garde ; non délégable : la brique est une décision structurelle qui demande un ADR (V6) ; manque : la décision du porteur sur P144.01.
+- Mesure (2026-10-22, e72d2ad69, implementeur) : avant correctif, `InterventionRejoueeTest` (locataire en bail actif, deux `POST /api/maintenance-requests` identiques à 30 s d'écart sous la même `Idempotency-Key`) → 2 interventions → route équipée de `idempotent`, `useCreateMaintenanceRequest` en `idempotence: true` ; ablation : route sans l'intergiciel → rouge, option retirée → rouge vitest ; remis → une intervention, le même `id` rendu, aucune notification de plus que le premier envoi.
 
 ### Le délai par défaut que P79.01 pose sur les appels du serveur Next couvrira aussi les écritures des actions serveur
 - Réf : P144.07
