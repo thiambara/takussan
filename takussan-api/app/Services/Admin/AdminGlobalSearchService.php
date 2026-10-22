@@ -13,6 +13,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Privacy\PersonalDataAccessLogger;
+use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -96,8 +97,10 @@ class AdminGlobalSearchService
             return collect();
         }
 
+        // TCK-1257 — `agencies.phone` s'écrit tel que saisi (`+221 77 123 45 67`, `77 123 45 68`) :
+        // la forme canonique se compare des deux côtés. `users.phone` est en E.164 strict.
         return $this->users(User::query()->where('phone', $phone))
-            ->concat($this->agencies(Agency::query()->where('phone', $phone)));
+            ->concat($this->agencies(Agency::query()->whereRaw(CanonicalPhone::sql('phone').' = ?', [CanonicalPhone::fold($phone)])));
     }
 
     /**
