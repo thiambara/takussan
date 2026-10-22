@@ -11144,7 +11144,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Modifier une règle d'alerte de la console la réactive toujours
 - Réf : P114.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1242
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/alerts.tsx:158-168`, `takussan-api/app/Services/Admin/AlertRuleService.php:35-46`
 - Constat :
@@ -11154,6 +11154,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Établi comment : lu.
 - Piste : n'envoyer `is_active` qu'en création, ou reprendre `rule.is_active` en modification. Un test du composant qui modifie une règle inactive et lit le corps envoyé le garde.
 - Mesure (2026-10-22, 135b23834, mesureur) : relu `alerts.tsx:158-168` (`is_active: true` en dur, création comme modification), `AlertRuleService::update` (`$payload['is_active'] ?? $rule->is_active`) et `:76` (seules les règles actives sont déclenchées) ; la console n'affiche ni ne modifie l'état (seule occurrence `is_active` : `:166`), une règle ne se désactive que par `PATCH /api/admin/alert-rules/<built-in function id>` (`AlertRuleRequest.php:54`) ; test vitest temporaire (retiré), `AlertRuleDialog` sur une règle `is_active: false`, enregistrer sans rien changer → `patchAlertRule` reçoit `is_active: true`. Classement : A1, le contrat de `update()` garde l'état quand la clé manque : le correctif n'envoie plus `is_active` en modification (la création reste à `true`), sans comportement visible neuf.
+- Mesure (2026-10-22, 5617a5f77, implementeur) : reproduit avant correctif, `Alerts.test.tsx` « does not reactivate an inactive rule when editing it » (`AlertRuleDialog` sur une règle `is_active: false`, enregistrer) → rouge, le corps du `PATCH` porte `is_active: true`. `is_active: true` n'est plus envoyé qu'en création ; ablation : `alerts.tsx` rendu à `HEAD` → 1 rouge, correctif remis → 5/5 verts.
 
 ### Deux motifs acceptés par le front puis refusés en 422 par l'API
 - Réf : P114.03
