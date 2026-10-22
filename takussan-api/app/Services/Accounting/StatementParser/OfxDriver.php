@@ -15,6 +15,34 @@ use Illuminate\Support\Facades\Log;
  */
 class OfxDriver implements StatementParserInterface
 {
+    /**
+     * P157.04 (TCK-1443) — le contenu en UTF-8 avant l'analyse. Un OFX 1.x déclare son jeu de
+     * caractères dans l'en-tête `CHARSET` (`1252` : Windows-1252 ; `ISO-8859-1`), un OFX 2 dans
+     * l'`encoding` de sa déclaration XML ; Windows-1252 à défaut d'une déclaration utilisable. Un
+     * contenu déjà UTF-8 valide n'est pas touché. Sans cela, un libellé accentué en Windows-1252
+     * faisait échouer l'insertion (SQLSTATE 22021), et le relevé entier avec.
+     */
+    private function toUtf8(string $content): string
+    {
+        if (mb_check_encoding($content, 'UTF-8')) {
+            return $content;
+        }
+
+        $declare = null;
+        if (preg_match('/^\s*CHARSET:\s*([A-Za-z0-9_-]+)/mi', $content, $m)) {
+            $declare = strtoupper($m[1]);
+        } elseif (preg_match('/<\?xml[^>]*\bencoding\s*=\s*["\']([A-Za-z0-9_-]+)["\']/i', $content, $m)) {
+            $declare = strtoupper($m[1]);
+        }
+
+        $source = match ($declare) {
+            'ISO-8859-1', 'ISO8859-1', '8859-1', 'LATIN1' => 'ISO-8859-1',
+            default => 'Windows-1252',
+        };
+
+        return mb_convert_encoding($content, 'UTF-8', $source);
+    }
+
     /** @return iterable<ParsedLine> */
     public function parse(string $absolutePath, ParserContext $context): iterable
     {
@@ -23,6 +51,8 @@ class OfxDriver implements StatementParserInterface
         if ($content === false) {
             throw new \RuntimeException("Cannot read file: {$absolutePath}");
         }
+
+        $content = $this->toUtf8($content);
 
         // Extract default currency from <CURDEF>
         $defaultCurrency = $context->agency->currency?->value ?? 'XOF';
