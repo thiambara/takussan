@@ -12234,7 +12234,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### `/dashboard/me` rend 0 % d'occupation au bailleur qui n'a aucun bien à occuper, là où `/dashboard/owner` rend `null`
 - Réf : P127.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1259
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/Adapters/OwnerMeMetrics.php:32`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:207-237`, `takussan-api/app/Services/Dashboard/KpiResolver.php:41`
 - Constat :
@@ -12245,6 +12245,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : `?? null` dans `OwnerMeMetrics`, comme `KpiResolver`. Un test `DashboardMeTest` qui exige `null` sans bien éligible et la même valeur que `/dashboard/owner` avec un bien loué.
 - Mesure (2026-10-22, 1f9dea9cd, mesureur) : relu `OwnerMeMetrics.php:32` (`?? 0.0`), `KpiResolver.php:41` (`?? null`), `PortfolioMetrics::longStayOccupancyToday` (`null` si `n = 0`) ; test temporaire retiré (bailleur sans bien, charge 2,62 / 2,27 / 2,21 sur 8 cœurs) → `/dashboard/me` `metrics.occupancy_rate_percent = 0`, `/dashboard/owner` `occupancy.rate_percent = null` ; TCK-1114 l'a laissé « Hors périmètre » (aucune tuile ne lit la clé), `grep` du front → seules les listes de KPI et d'alertes d'agence la nomment. Classement : A1, le contrat `null` sans bien éligible est écrit par TCK-1114 et tenu par `KpiResolver`, et aucun écran ne lit la clé du bailleur.
+- Mesure (2026-10-22, 1b5063805, implementeur) : test neuf `DashboardMeTest::test_owner_occupancy_is_null_without_an_eligible_property_like_dashboard_owner` rouge avant correctif : bailleur sans bien, `/dashboard/me` `metrics.occupancy_rate_percent = 0` → `OwnerMeMetrics` écrit `?? null` ; vert, et un bien éligible sans bail rend la même valeur non nulle sur `/dashboard/owner` et `/dashboard/me` ; ablation (`?? 0.0`) → rouge, remise → vert ; `DashboardMeTest` 13/13.
 
 ### La série mensuelle d'occupation rend 0 % pour les mois où le portefeuille n'avait aucun bien éligible
 - Réf : P127.02
