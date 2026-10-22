@@ -22,8 +22,9 @@ vi.mock('@/lib/queries/dashboard', () => ({
     },
     timeseries: {},
   })),
-  fetchMyCapabilities: vi.fn(async () => []),
 }));
+// TCK-1376 — les capacités se lisent par la lecture mémoïsée du rendu.
+vi.mock('@/lib/access/pages-admin-server', () => ({ capacitesDuProfilActif: vi.fn(async () => []) }));
 
 import AgentDashboardPage from '../agent/page';
 

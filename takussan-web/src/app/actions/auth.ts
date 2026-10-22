@@ -4,7 +4,8 @@ import { cache } from 'react';
 import { revalidatePath } from 'next/cache';
 import { ApiError, messageErreurApi } from '@/lib/api';
 import { getMe, resendVerification, updateProfile, UpdateProfilePayload } from '@/lib/auth';
-import { getActiveProfileId, getOperatorActiveProfileId, getOperatorToken, getToken } from '@/lib/session';
+import { getOperatorActiveProfileId, getOperatorToken, getToken } from '@/lib/session';
+import { utilisateurDuRendu } from '@/lib/utilisateur-du-rendu';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import type { User } from '@/types/user';
@@ -104,15 +105,12 @@ export async function updateProfileAction(
 }
 
 // Memoized per-request so layouts and pages can both call getMeAction()
-// without triggering duplicate HTTP requests to the API.
+// without triggering duplicate HTTP requests to the API. TCK-1374 (P138.02) — la lecture elle-même
+// est `utilisateurDuRendu`, que la mise en page racine partage : un seul `/api/auth/me` par document.
 const cachedGetMe = cache(async () => {
-  const token = await getToken();
-  if (!token) redirect('/auth/login');
-
-  const activeProfileId = await getActiveProfileId();
-
+  let user: User | null;
   try {
-    return await getMe(token, activeProfileId);
+    user = await utilisateurDuRendu();
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
       // getMeAction is called during RSC render from layouts/pages, where
@@ -122,6 +120,8 @@ const cachedGetMe = cache(async () => {
     }
     throw err;
   }
+  if (!user) redirect('/auth/login');
+  return user;
 });
 
 export async function getMeAction() {
@@ -134,6 +134,12 @@ const cachedGetMeOperateur = cache(async () => {
   if (!token) redirect('/auth/login');
 
   try {
+    // TCK-1374 (P138.02) — hors impersonation, le jeton et le profil de l'opérateur sont ceux de
+    // l'espace applicatif : la lecture du rendu, déjà faite par la mise en page racine, sert.
+    if (token === (await getToken())) {
+      const user = await utilisateurDuRendu();
+      if (user) return user;
+    }
     return await getMe(token, await getOperatorActiveProfileId());
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {

@@ -17,6 +17,7 @@ vi.mock('@/lib/queries/properties-server', () => ({
     appels.liste.push(params);
     return { data: [], meta: { total: 0, current_page: 1, last_page: 1, per_page: 1 } };
   },
+  countDashboardProperties: async () => 0,
 }));
 vi.mock('@/components/contact/AvertissementNumeroNonVerifie', () => ({ AvertissementNumeroNonVerifie: () => null }));
 vi.mock('@/components/property-dashboard/PropertyList', () => ({ PropertyList: () => null }));

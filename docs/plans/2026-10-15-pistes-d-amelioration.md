@@ -13261,7 +13261,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
 
 ### `apiRequest` donne à chaque appel serveur un `X-Request-Id` neuf : la mémoïsation de `fetch` par Next ne dédoublonne plus aucune lecture, seul `cache()` le fait
 - Réf : P138.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1386 — reste : la même règle dans « Couche réseau » de `takussan-web/CLAUDE.md`, chemin fermé à l'implémenteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/api.ts:733-738`, `takussan-web/node_modules/next/dist/server/lib/dedupe-fetch.js:65-84,118`, `takussan-web/src/lib/access/server-guards.ts:95-109`
 - Constat :
@@ -13273,10 +13273,11 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : lecture de `api.ts` et de `dedupe-fetch.js`, journal de l'API factice.
 - Piste : écrire dans l'en-tête de `apiRequest` et dans `takussan-web/CLAUDE.md` (« Couche réseau ») que la seule déduplication des lectures serveur est `cache()` de React, et que l'identifiant d'appel l'exclut par construction ; garder l'identifiant. Garde : un test de rendu qui compte les appels d'une page (patron de P105.05) plutôt qu'une confiance dans Next.
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/lib/api.ts` (l. 736-737 : `X-Request-Id = crypto.randomUUID()` sur tout appel serveur, toujours là, lignes inchangées) et `node_modules/next/dist/server/lib/dedupe-fetch.js` de Next 16.3.1 (l. 60-84 : la clé contient tous les en-têtes sauf `traceparent`/`tracestate` ; l. 88-97 : un `signal` passé désactive en plus toute déduplication) ; les autres en-têtes d'`apiRequest` (`enTetesDuCheminInterne`, l. 38-50, locale, indice, `X-Forwarded-For`, `User-Agent`) sont déterministes dans un même rendu, donc sans l'identifiant la clé serait identique (lu, non lancé) ; `grep -n 'dédoubl\|dedup' takussan-web/CLAUDE.md` → rien ; `git log -S` et `docs/backlog/tickets` → aucun traitement. Le constat tient. Classement : A5, documenter dans l'en-tête d'`apiRequest` et dans « Couche réseau » que seule `cache()` de React dédoublonne une lecture serveur (l'identifiant d'appel, et tout `signal`, excluent la mémoïsation de Next) et poser un test qui compte les appels d'une page, sans choix de produit ni seuil touché.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : `grep -n 'cache()' src/lib/api.ts` → rien, et `dedupe-fetch.js:65-84` met toujours tous les en-têtes dans la clé ; `src/lib/__tests__/api.deduplication-serveur.tck-1386.test.ts` → deux `apiRequest` identiques côté serveur ont deux clés de Next, qui ne diffèrent que par `X-Request-Id` (vert), et l'en-tête d'`apiRequest` ne le disait pas (rouge) → docblock écrit, l'identifiant gardé ; ablation (`api.ts` d'avant) → 1 rouge, remis → 2 verts. Les tests qui comptent les appels d'un rendu sont ceux de TCK-1374 à TCK-1384 ; la ligne de `takussan-web/CLAUDE.md` reste, chemin fermé.
 
 ### Chaque document de `/app` et de `/super-admin` appelle `GET /api/auth/me` deux fois : la mise en page racine le lit hors de `cache()`
 - Réf : P138.02
-- Statut : validé — porteur (2026-10-22) : la racine lit l'utilisateur par la même promesse mémoïsée que `getMeAction` ; un seul `/api/auth/me` par document
+- Statut : fait · TCK-1374
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/layout.tsx:72-80`, `takussan-web/src/app/actions/auth.ts:104-127`, `takussan-web/src/app/(dashboard)/layout.tsx:21-23,52`, `takussan-web/src/app/(super-admin)/super-admin/layout.tsx:53`
 - Constat :
@@ -13287,10 +13288,11 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : lecture des trois layouts, journal de l'API factice.
 - Piste : faire lire à la racine l'utilisateur par la même promesse mémoïsée (`getMeAction` sans sa redirection, ou un `cache()` commun dont `getMeAction` et la racine dérivent) ; avec P138.03, la même lecture porte alors le profil actif. Garde : un test de rendu qui compte un seul `/api/auth/me` par document.
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/app/layout.tsx:72-80` (`getMe(token)` direct, sans indice, erreur avalée en `null`), `src/app/actions/auth.ts:104-127` (`cachedGetMe` sous `cache()`, avec `getActiveProfileId()` et redirection sur 401), `(dashboard)/layout.tsx:21-23` (docblock « without a duplicate fetch ») ; les deux chemins ne partagent ni promesse ni URL-et-en-têtes, et P138.01 exclut toute fusion par Next ; `git log -3 -- takussan-web/src/app/layout.tsx` → dernier changement TCK-842, sans rapport. Le doublon tient (non relancé sous API factice). Classement : V2, la seule fusion qui économise l'appel fait lire la racine avec l'indice de profil (comportement de session visible côté client) et doit trancher le sort de la redirection 401 de `getMeAction` à la racine.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : même test, `cache()` remplacé par une mémoïsation par rendu → racine + `getMeAction` faisaient deux `getMe` (rouge : `called 2 times`), racine + console hors impersonation aussi → une seule lecture partagée, la console gardant sa lecture propre pendant une impersonation ; ablation → 4 rouges sur 6, remis → 6 verts (TCK-1374, qui porte aussi P138.03).
 
 ### Le `user` que la racine remet à `AuthProvider` est lu sans profil actif : pour un compte présent dans plusieurs agences, `agency_id` y vaut `null` alors que le serveur rend la page pour l'agence active
 - Réf : P138.03
-- Statut : validé — porteur (2026-10-22) : l'utilisateur de la racine se lit sous le profil actif (`getActiveProfileId()`, ou la promesse de P138.02)
+- Statut : fait · TCK-1374
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/layout.tsx:72-80`, `takussan-web/src/lib/auth.ts:98-100`, `takussan-web/src/lib/api.ts:714-716`, `takussan-api/app/Http/Middleware/ResolveActiveProfile.php:107-140`, `takussan-api/app/Models/User.php:417-432`, `takussan-web/src/context/AuthContext.tsx:135-136`
 - Constat :
@@ -13301,10 +13303,11 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : lu de bout en bout ; aucun compte multi-agences n'a été rendu.
 - Piste : lire l'utilisateur de la racine avec `getActiveProfileId()` (ou par la promesse de P138.02, qui le porte déjà) ; un test de la racine qui vérifie que l'appel à `/api/auth/me` porte l'indice quand le cookie de profil existe.
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/app/layout.tsx:76` (`getMe(token)` sans second argument), `src/lib/auth.ts:98-100`, `src/lib/api.ts:714-716` (indice posé seulement s'il est donné ; aucun en-tête `Cookie` composé, l. 695-755), `takussan-api/app/Http/Middleware/ResolveActiveProfile.php:109-145` (indice → cookie → auto-bascule mono-agence seule), `takussan-api/app/Models/User.php:417-433` (`agency_id` null hors profil actif pour un compte multi-agences), `src/context/AuthContext.tsx:135-136` (aucune relecture quand `initialUser` est fourni) ; `grep` : 59 `.tsx` lisent `useAuth` et `agency_id`, dont `CreatePayoutDialog.tsx:57,79` et `OverduePaymentsTable.tsx:41` ; aucun ticket ni commit ne l'a traité. La chaîne tient à la lecture ; aucun compte multi-agences n'a été rendu, l'effet par composant reste à vérifier. Classement : V2, le correctif change le profil sous lequel la session du navigateur est initialisée.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : `src/app/__tests__/layout-racine.utilisateur-du-rendu.test.tsx` sur l'arbre avant correctif → la racine appelle `getMe('jeton', undefined)` malgré le cookie `active_profile_id` (rouge : `expected undefined to be '42'`) → la racine lit par `utilisateurDuRendu` (`getToken()` + `getActiveProfileId()`, sous `cache()`), partagée avec `getMeAction` ; ablation (racine rendue à `getMe(jeton)` direct) → 4 rouges sur 6, remis → 6 verts.
 
 ### La sonde d'existence des fiches de `/app` ne partage pas sa promesse avec la page : chaque fiche lue au serveur part deux fois, et la sonde du bail charge le bail entier
 - Réf : P138.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1384
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/detail/ressource-de-detail.ts:47-52,98-114`, `takussan-web/src/app/(dashboard)/app/properties/[id]/page.tsx:62`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:93`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:64-73`, `takussan-web/src/lib/queries/__tests__/show-sans-fields.garde.test.ts:39`
 - Constat :
@@ -13315,10 +13318,11 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : lecture du module et des deux pages, journal de l'API factice.
 - Piste : sonder par une lecture légère qui existe (la liste filtrée par `id`, `per_page=1`, comme le titre du bail), ou faire lire à la page la ressource par une fonction mémoïsée que la sonde partage, là où la page la lit au serveur ; corriger l'en-tête dans les deux cas. Élargir le motif de la garde aux chemins interpolés.
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/lib/detail/ressource-de-detail.ts:50-52` (l'en-tête affirme le partage de promesse) et l. 98-114 (`sonderExistence` lit `/api/${api}/${id}?fields[${table}]=id`) ; `grep -rn 'sonderExistence\|exigerRessource' src` → seuls les huit `[id]/layout.tsx` l'appellent, aucune page ; `properties/[id]/page.tsx:62` lit par `fetchDashboardProperty`, `customers/[id]/page.tsx:93` par `fetchDashboardCustomer` : URL distinctes, donc deux lectures ; `LeaseController::show` charge `property.address`, `tenant`, `signatures.signer`, `signatures.onBehalfOf` (l. 67-75 aujourd'hui, non 64-73) ; `show-sans-fields.garde.test.ts:39` exige un segment littéral après `/api/`. Le constat tient. Classement : A2, la page lit la ressource par une fonction mémoïsée par `cache()` que la sonde partage là où la page la lit au serveur (même URL, même 404 par la liaison de route), l'en-tête est corrigé pour dire ce que fait le code (A6) et le motif de la garde s'étend aux chemins interpolés (A5) ; l'option « liste filtrée par `id` » n'est pas retenue, son périmètre d'autorisation n'étant pas celui du `show`.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : `src/lib/detail/__tests__/ressource-de-detail.partage.tck-1384.test.ts` avant correctif → aucune lecture partagée exportée, la sonde lisait `/api/leases/9?fields[leases]=id` ; `show-sans-fields.garde.test.ts` au motif élargi aux segments interpolés → `src/lib/detail/ressource-de-detail.ts : /api/${api}/${id}` refusé (5 rouges) → `lireBienDuRendu` et `lireClientDuRendu` sous `cache()`, partagées par la sonde et les pages `properties/[id]` et `customers/[id]`, les six autres sondes sans `fields`, en-tête corrigé ; ablation (sonde propre avec `fields`) → 4 rouges sur 6, remis → 6 verts.
 
 ### L'accueil `/app` d'un admin d'agence relit l'agence hors de `cache()` : le doublon de P105.05 existe aussi sur l'écran d'arrivée
 - Réf : P138.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1378
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:46`, `takussan-web/src/app/actions/admin-agency.ts:78-88`, `takussan-web/src/app/(dashboard)/app/layout.tsx:38-40`, `takussan-web/src/app/onboarding/agency-admin/page.tsx:29`
 - Constat :
@@ -13327,10 +13331,11 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : journal de l'API factice et lecture des trois fichiers.
 - Piste : faire passer `fetchAgencyAction` lui-même par la promesse mémoïsée (`agenceDuRendu` exposée avec son erreur, comme le décide P105.05), ce qui couvre l'accueil, `agency/page.tsx` et tout appelant futur ; le test de P105.05 compte alors aussi l'accueil.
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/app/(dashboard)/app/layout.tsx:34-40` (`resolveAgencyOrNull` → `agenceDuRendu`, sous `cache()`, `server-guards.ts:106-109`), `(accueil)/page.tsx:46` (`fetchAgencyAction(user.agency_id!)`) et `src/app/actions/admin-agency.ts:78-88` (`fetchAgency` direct, hors cache) : deux lectures de la même agence par rendu ; P105.05 est `validé (délégué)` sur la seule page `/app/agency`, sans PR ouverte qui le cite. Le constat tient. Classement : A1, la décision écrite de P105.05 (lire l'agence par `agenceDuRendu` exposée avec son erreur) s'applique telle quelle à `fetchAgencyAction`, qui couvre l'accueil sans changer ce qu'il rend ; un test de l'accueil compte un seul `GET /api/agencies/{id}`.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : `src/app/actions/__tests__/admin-agency.agence-du-rendu.tck-1378.test.ts` avant correctif → `resolveAgencyOrNull` puis `fetchAgencyAction(7)` dans un même rendu font deux `fetchAgency` (rouge : `called 2 times`) → `fetchAgencyAction` lit par `lireAgenceDuRendu` (`agenceDuRendu` avec son erreur), ce qui couvre l'accueil, `/app/agency` et l'onboarding ; ablation (retour à `fetchAgency` direct) → 1 rouge, remis → 2 verts.
 
 ### `/app/settings/agency/upgrade` lit deux fois les demandes de passage au plan supérieur
 - Réf : P138.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-1380
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(dashboard)/app/layout.tsx:40`, `takussan-web/src/app/(dashboard)/app/settings/agency/upgrade/page.tsx:42-45`, `takussan-web/src/lib/queries/agency-upgrade.ts:50-58`
 - Constat :
@@ -13338,10 +13343,11 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : journal de l'API factice.
 - Piste : une lecture mémoïsée par rendu (`cache()`) partagée par le layout et la page, en gardant l'avalement d'erreur du layout (`.catch(() => null)`) hors de la promesse partagée.
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/app/(dashboard)/app/layout.tsx:39` (`fetchAgencyUpgradeRequests(token, user.agency_id).catch(() => null)`), `settings/agency/upgrade/page.tsx:42-45` (même appel, mêmes arguments) et `src/lib/queries/agency-upgrade.ts:48-58` (`apiRequest` direct, aucun `cache` dans le module, `grep`) ; P138.01 exclut toute fusion par Next. Le constat tient. Classement : A2, une lecture mémoïsée par rendu partagée par le layout et la page, l'avalement d'erreur restant du côté du layout, sans changement de résultat.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : `src/lib/queries/__tests__/agency-upgrade.lecture-du-rendu.tck-1380.test.ts` avant correctif → deux `fetchAgencyUpgradeRequests('jeton', 1)` d'un même rendu font deux `apiRequest` (rouge : `called 2 times`) → la fonction passe sous `cache()`, l'avalement du layout restant hors de la promesse (la page reçoit toujours l'erreur) ; ablation (`cache` remplacé par l'identité) → 1 rouge, remis → 2 verts.
 
 ### Le tableau de bord agent d'un admin relit ses capacités sans indice de profil, hors de la lecture mémoïsée du layout
 - Réf : P138.07
-- Statut : validé — porteur (2026-10-22) : la page lit les capacités par la lecture mémoïsée qui porte l'indice (`capacitesDuRendu`), et `fetchMyCapabilities` est retiré s'il n'a plus d'appelant
+- Statut : fait · TCK-1376
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:52`, `takussan-web/src/lib/queries/dashboard.ts:176-194`, `takussan-web/src/lib/access/pages-admin-server.ts:33-55`
 - Constat :
@@ -13350,10 +13356,11 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : journal de l'API factice et lecture.
 - Piste : faire lire à la page les capacités par la lecture mémoïsée qui porte l'indice (`capacitesDuRendu`, exposée), et retirer `fetchMyCapabilities` s'il n'a plus d'autre appelant (il n'en a pas d'autre aujourd'hui, `grep`).
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:50-56` (`fetchMyCapabilities()` décide `peutVoirAgence`), `src/lib/queries/dashboard.ts:182-195` (sans `activeProfileId`, tout échec → `[]`), `src/lib/access/pages-admin-server.ts:33-55` (`capacitesDuRendu` sous `cache()`, avec indice, et `null` sur panne) ; `grep -rn fetchMyCapabilities src` → un seul appelant hors tests. Le constat tient à la lecture ; l'effet pour un compte multi-agences n'a pas été rendu. Classement : V2, le correctif change le profil sous lequel une autorisation visible est jugée, et il faut choisir ce que la page fait de `null` (panne) que `fetchMyCapabilities` rendait `[]`.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : `overview/__tests__/agent-capacites-du-rendu.tck-1376.test.tsx` avant correctif → la page appelait `/api/me/capabilities` sans `activeProfileId`, et `accesAdmin` + la page faisaient deux lectures (2 rouges sur 3) → `capacitesDuProfilActif()` sur `capacitesDuRendu`, `fetchMyCapabilities` retiré (plus d'appelant) ; une panne (`null`) vaut l'absence de la capacité, comme avant ; ablation (lecture sans indice) → 2 rouges, remis → 3 verts.
 
 ### Petites améliorations
 - Réf : P138.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-1382
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:100-127,212-231`, `takussan-web/src/lib/queries/properties-server.ts:125`
 - Constat :
@@ -13362,6 +13369,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : journal de l'API factice.
 - Piste : prendre « Total » dans `meta.total` de la liste quand aucun filtre n'est posé ; faire compter par une lecture sans `include` (un `countProperties` qui appelle `apiRequest` avec `per_page=1` et `fields[properties]=id`).
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:101-127` (la liste et cinq `countProperties`, dont « Total » avec le seul `user_id`) et l. 212-231 (`countProperties` passe par `fetchDashboardProperties` à `per_page=1`), `src/lib/queries/properties-server.ts:123-131` (`include: ['address', 'owner', 'collaborators']` et `fields[properties]` de la liste sur chaque appel). Le constat tient. Classement : A2, prendre « Total » dans `response.meta.total` quand aucun filtre autre que `user_id` ni `include_archived` n'est posé, et faire compter par un appel `per_page=1`, `fields[properties]=id`, sans `include`, mêmes filtres, donc mêmes totaux.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : `properties/(liste)/__tests__/comptes.tck-1382.test.tsx` avant correctif → six `apiRequest` sous `only_mine=1`, et les comptes à `per_page=1` portaient `include=` (2 rouges sur 4) → `countDashboardProperties` (`fields[properties]=id`, sans `include` ni tri) et « Total » pris à `meta.total` de la liste quand seule la portée est posée ; ablation (Total recompté, `include` remis) → 2 rouges, remis → 4 verts.
 
 ## Angle 139 — Colonnes des exports qu'aucun chemin n'écrit, ou qui lisent une clé nommée autrement
 

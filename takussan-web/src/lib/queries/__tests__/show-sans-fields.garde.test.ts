@@ -17,7 +17,8 @@
  *
  * ## Ce qu'elle ne voit pas
  *
- * Un chemin passé par une variable, ou des paramètres construits dans une autre déclaration que
+ * Un chemin passé par une variable (un segment interpolé dans le gabarit, lui, est vu depuis
+ * TCK-1384), ou des paramètres construits dans une autre déclaration que
  * celle qui appelle le chemin. Elle cherche une FORME : c'est un plancher.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -36,7 +37,9 @@ function sources(dossier: string): string[] {
 }
 
 /** Un chemin de détail : l'identifiant interpolé est le DERNIER segment du chemin. */
-const CHEMIN_DE_DETAIL = /\/api\/[a-z0-9\-/]+\/\$\{[^}]+\}(?=`|\?|\$\{requete)/;
+// TCK-1384 (P138.04) — les segments avant l'identifiant peuvent être interpolés eux aussi
+// (`/api/${api}/${id}`, la sonde de `ressource-de-detail.ts`), que l'ancien motif laissait passer.
+const CHEMIN_DE_DETAIL = /\/api\/(?:[a-z0-9\-/]|\$\{[^}]+\})+\/\$\{[^}]+\}(?=`|\?|\$\{requete)/;
 const DEBUT_DE_DECLARATION = /^(?:export\s|async\s+function\s|function\s|const\s|let\s)/;
 
 /** Découpe un source en déclarations de premier niveau (une ligne en colonne 0 en ouvre une). */
@@ -82,6 +85,10 @@ describe('P60.03 — aucun `fields[...]` envoyé à un `show`', () => {
         't.ts',
         'export function f() {\n  const qs = buildQueryString({ fields: { a: [] } });\n  return apiRequest(cheminApi`/api/a/${id}${requete(qs)}`);\n}\n',
       ),
+    ).toHaveLength(1);
+    // TCK-1384 (P138.04) — un chemin dont la ressource est interpolée aussi.
+    expect(
+      fautifs('t.ts', 'export const f = cache(async () => {\n  return apiRequest(cheminApi`/api/${api}/${id}?fields[${table}]=id`);\n});\n'),
     ).toHaveLength(1);
     // Une liste, ou une sous-ressource d'un détail, garde ses `fields`.
     expect(fautifs('t.ts', "export function f() {\n  return q('/api/leases', { fields: {} });\n}\n")).toEqual([]);

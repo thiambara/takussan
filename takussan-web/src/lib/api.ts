@@ -752,6 +752,19 @@ async function resolveServerLocale(): Promise<string | undefined> {
   }
 }
 
+/**
+ * L'appel à l'API Laravel, du navigateur comme du serveur Next.
+ *
+ * ⚠ TCK-1386 (P138.01) — **côté serveur, la seule déduplication d'une lecture est `cache()` de
+ * React.** La mémoïsation de `fetch` par Next range ses entrées par une clé qui contient tous les
+ * en-têtes sauf `traceparent` et `tracestate` (`next/dist/server/lib/dedupe-fetch.js`), et ne
+ * s'applique pas à un appel qui passe un `signal`. Or chaque appel serveur porte un `X-Request-Id`
+ * neuf (TCK-950, ci-dessous) : deux lectures identiques d'un même rendu ne partagent JAMAIS leur
+ * réponse, et partent deux fois. L'identifiant est gardé — il relie les journaux du front à ceux de
+ * l'API. Une lecture que le layout et la page font toutes deux passe donc par une fonction sous
+ * `cache()` (`utilisateurDuRendu`, `agenceDuRendu`, `capacitesDuRendu`, `lireBienDuRendu`…), et un
+ * test qui compte les appels du rendu la garde ; jamais une confiance dans Next.
+ */
 export async function apiRequest<T>(
   path: string,
   { method = 'GET', body, token, headers = {}, formData = false, locale, signal, activeProfileId }: RequestOptions = {},

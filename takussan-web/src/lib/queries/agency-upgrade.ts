@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { apiRequest, buildQueryString } from '@/lib/api';
 import type {
   ApiResponse,
@@ -46,16 +47,20 @@ function buildIndexParams(): SpatieQueryParams {
   };
 }
 
-export async function fetchAgencyUpgradeRequests(
-  token: string,
-  agencyId: number,
-): Promise<PaginatedResponse<AgencyUpgradeRequest>> {
-  const qs = buildQueryString(buildIndexParams());
-  return apiRequest<PaginatedResponse<AgencyUpgradeRequest>>(
-    cheminApi`/api/agencies/${agencyId}/upgrade-requests${requete(qs)}`,
-    { token },
-  );
-}
+/**
+ * TCK-1380 (P138.06) — une lecture par rendu (`cache()` de React) : le layout de `/app` (carte de
+ * la barre latérale) et `/app/settings/agency/upgrade` partagent la promesse. L'avalement d'erreur
+ * du layout (`.catch(() => null)`) reste de son côté : la page reçoit l'erreur.
+ */
+export const fetchAgencyUpgradeRequests = cache(
+  async (token: string, agencyId: number): Promise<PaginatedResponse<AgencyUpgradeRequest>> => {
+    const qs = buildQueryString(buildIndexParams());
+    return apiRequest<PaginatedResponse<AgencyUpgradeRequest>>(
+      cheminApi`/api/agencies/${agencyId}/upgrade-requests${requete(qs)}`,
+      { token },
+    );
+  },
+);
 
 /**
  * Multipart submission — the `statuts_doc` File is sent as a regular form

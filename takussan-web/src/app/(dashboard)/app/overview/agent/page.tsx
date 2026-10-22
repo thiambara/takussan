@@ -4,11 +4,8 @@ import type { ReactNode } from 'react';
 
 import { getTranslations } from 'next-intl/server';
 
-import {
-  fetchAgentDashboard,
-  fetchMyCapabilities,
-  type AgentDashboardScope,
-} from '@/lib/queries/dashboard';
+import { fetchAgentDashboard, type AgentDashboardScope } from '@/lib/queries/dashboard';
+import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
 import { StatCard } from '@/components/charts/StatCard';
 import { BarChart } from '@/components/charts/BarChart';
 import { LineChart } from '@/components/charts/LineChart';
@@ -49,10 +46,12 @@ export default async function AgentDashboardPage({ searchParams }: Props = {}) {
 
   const [params, capacites, locale] = await Promise.all([
     searchParams ?? Promise.resolve<{ scope?: string | string[] }>({}),
-    fetchMyCapabilities(),
+    capacitesDuProfilActif(),
     localeDeLaRequete(),
   ]);
-  const peutVoirAgence = capacites.includes(CAPACITE_AGENCE);
+  // TCK-1376 (P138.07) — sous le profil actif, la lecture du layout. Une panne (`null`) vaut
+  // l'absence de la capacité : la bascule disparaît, la vue personnelle reste.
+  const peutVoirAgence = (capacites ?? []).includes(CAPACITE_AGENCE);
   const scope: AgentDashboardScope = params.scope === 'agency' && peutVoirAgence ? 'agency' : 'mine';
 
   const payload = await fetchAgentDashboard({ scope });

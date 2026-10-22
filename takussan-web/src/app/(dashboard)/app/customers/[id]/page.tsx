@@ -9,11 +9,11 @@ import { getToken } from '@/lib/session';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { ApiError } from '@/lib/api';
+import { lireClientDuRendu } from '@/lib/detail/ressource-de-detail';
 import {
   fetchCrmTags,
   fetchCustomerNotes,
   fetchCustomerRelationships,
-  fetchDashboardCustomer,
 } from '@/lib/queries/customers';
 import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
@@ -90,7 +90,8 @@ export default async function Page({ params }: { params: Params }) {
   let crmTagSuggestions: Awaited<ReturnType<typeof fetchCrmTags>> = [];
   try {
     [customer, notes, relationships, crmTagSuggestions] = await Promise.all([
-      fetchDashboardCustomer(token, customerId),
+      // TCK-1384 (P138.04) — la lecture que la sonde du layout a déjà faite : une requête par rendu.
+      lireClientDuRendu(token, customerId),
       fetchCustomerNotes(token, customerId),
       fetchCustomerRelationships(token, customerId),
       fetchCrmTags(token).catch(() => []),
