@@ -11470,10 +11470,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Les zones d'intervention de l'agent sont écrites, et rien ne les relit
 - Réf : P117.03
-- Statut : validé — porteur (2026-10-22) : garder l'étape et afficher les zones en lecture seule sur la page publique de l'agent, à côté de `specialty`
+- Statut : fait · TCK-1321
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:44-46,161-169`, `takussan-web/src/components/onboarding/AgentOnboardingWizard.tsx:467`, `docs/features.md:509`
 - Constat :
+- Mesure (2026-10-22, 1c871e3c0, implementeur) : reproduit avant correctif par `PublicProfileTest::test_public_agent_profile_exposes_intervention_zones` (profil d'agent aux zones `Plateau`/`Almadies` → `data.intervention_zones` absent de `GET /api/public/agents/{slug}`) → la fiche les rend (`[]` sans profil) et `/agents/{slug}` les affiche dans l'eyebrow, après la spécialité ; ablation des deux côtés : rouge sans le correctif, vert avec.
   - L'assistant de l'agent envoie ses zones, et l'API les range dans `agent_profiles.metadata.intervention_zones` (lu).
   - `grep -rn intervention_zones takussan-api/app` : hors des prestataires, seuls l'écrivain et sa réponse les nomment. Aucune ressource, aucun filtre, aucune page publique d'agent ne les lit (lu par `grep` ; `PublicAgentController.php:181,294` ne rend que `specialty`).
   - Côté front, aucun lecteur hors de l'assistant (lu par `grep`). La section « Profil professionnel » affiche « Spécialisations : Bientôt disponible » (voir P117.04).
