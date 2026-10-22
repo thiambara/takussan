@@ -146,8 +146,9 @@ export default async function OwnerDashboardPage() {
               label={t('visitsToConfirm')}
               value={formatNumber(data.visits?.to_confirm ?? 0, locale)}
             />
+            {/* TCK-1515 (P167.02) — la boîte ouverte sur ce que le nombre compte. */}
             <DashboardLinkLine
-              href="/app/profile/reviews"
+              href="/app/profile/reviews?reply=unreplied&subject=property"
               label={t('reviewsUnanswered')}
               value={formatNumber(data.reviews?.unanswered ?? 0, locale)}
             />
