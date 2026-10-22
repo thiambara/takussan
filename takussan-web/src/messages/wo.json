@@ -6315,7 +6315,9 @@
       "paid": "Fey nañu ko",
       "partially_paid": "Ci wàll",
       "refunded": "Delloo nañu ko",
-      "cancelled": "Ñu ko neenal"
+      "cancelled": "Ñu ko neenal",
+      "late": "En retard",
+      "failed": "Échec"
     },
     "paymentMethod": {
       "cash": "Xaalis ci loxo",

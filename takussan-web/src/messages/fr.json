@@ -6963,7 +6963,9 @@
       "paid": "Payé",
       "partially_paid": "Partiel",
       "refunded": "Remboursé",
-      "cancelled": "Annulé"
+      "cancelled": "Annulé",
+      "late": "En retard",
+      "failed": "Échec"
     },
     "paymentMethod": {
       "cash": "Espèces",

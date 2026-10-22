@@ -6963,7 +6963,9 @@
       "paid": "Paid",
       "partially_paid": "Partial",
       "refunded": "Refunded",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "late": "Late",
+      "failed": "Failed"
     },
     "paymentMethod": {
       "cash": "Cash",
