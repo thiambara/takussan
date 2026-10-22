@@ -14049,7 +14049,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### `PATCH /api/properties/{id}` remet un bien au catalogue sans `properties.publish`, que `PUT …/status` exige
 - Réf : P147.01
-- Statut : validé — porteur (2026-10-22) : le `PATCH` applique la règle de `PUT …/status` (un `status` affichable ou `visibility=public` demande `can('publish')`), et rejoint `cheminsDePublication`
+- Statut : fait · TCK-1427
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:56-57`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:187-236`, `takussan-api/app/Http/Requests/Api/UpdateStatusPropertyRequest.php:29-42`, `takussan-api/app/Services/Property/PublishReadiness.php:58-66,94-98`, `takussan-api/tests/Feature/Api/PropertyAuthorizationTest.php:102-119,219-257`
 - Constat :
@@ -14061,6 +14061,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Le formulaire d'édition du front n'envoie ni `status` ni `visibility` (lu, `property-form/payload.ts:100-103` ; la création force `draft`/`private`, l. 150-154) : l'écran ne passe pas par ce chemin, un appel direct à l'API si. D'autres appelants du `PATCH` avec `status` n'ont pas été cherchés (à vérifier).
 - Piste : appliquer au `PATCH` la règle de `PUT …/status` (un `status` affichable ou une `visibility=public` demande `can('publish')`), ou retirer `status` et `visibility` d'`UpdatePropertyRequest` pour que chaque transition passe par son geste ; ajouter le `PATCH` à `cheminsDePublication` et au test du bailleur, pour que le cinquième chemin ne se rouvre pas.
 - Mesure (2026-10-22, 55ac201ff, mesureur) : relu `UpdatePropertyRequest.php:36-41` (`can('update')` seul) et `:56-57` (`status`, `visibility` sur tout l'enum), `UpdateStatusPropertyRequest.php:38-41` (TCK-587, `can('publish')`), `PropertyController::update` (l. 187-236 : seul `PublishReadiness::ensureForProperty`) ; charge `{ 2.99 2.63 2.16 }` sur 8 cœurs, test temporaire retiré → agent `agentWithout(PropertiesPublish)` rendu publiable, bien `unavailable` public : `PUT …/status` `available` → 403, `PATCH /api/properties/{id}` `{status: available}` → 200, et le bien est dans `Property::public()` ; le front édite par `PUT` (`properties-server.ts:169-182`, même action `update`) sans `status` ni `visibility` ; cas du bailleur non rejoué. Classement : V2, la `Piste` propose deux corrections qui ne ferment pas le même contrat (juger `can('publish')` ou retirer les deux champs de la requête) : le choix revient au porteur.
+- Mesure (2026-10-22, e2959c84c, implementeur) : charge `{ 8.89 5.43 3.93 }` sur 8 cœurs ; `PropertyAuthorizationTest` étendu (`cheminsDePublication` + `PATCH {status: available}` et `PATCH {visibility: public}`, et le `PATCH` dans le test du bailleur) → avant correctif 3 rouges : agent sans `properties.publish` 200 (statut) et 422 (visibilité, refus de `PublishReadiness` et non de droit), bailleur 200 → `UpdatePropertyRequest::authorize()` juge `can('publish')` pour `status` ∈ `UpdateStatusPropertyRequest::STATUTS_QUI_PUBLIENT` ou `visibility=public` → 18/18 ; ablation (`authorize()` à `can('update')` seul) → 3 rouges, remis → vert ; `PropertyModerationGateTest`, `PublishReadinessTest`, `PropertyStatutsDeModerationTest`, `PropertyCrudTest` verts.
 
 ### Archiver par `PATCH` ne fait pas ce que fait l'archivage : le bien reste public et publié
 - Réf : P147.02
