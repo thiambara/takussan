@@ -46,7 +46,7 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
         'payment_method', 'payment_type',
         'period_start', 'period_end', 'due_date', 'paid_at', 'status',
         'late_fee_amount', 'late_fee_applied_at', 'late_fee_paid_at', 'refund_amount', 'transaction_id', 'notes', 'metadata',
-        'bank_reconciled_at', 'bank_statement_line_id',
+        'marked_paid_at', 'bank_reconciled_at', 'bank_statement_line_id',
         'platform_fee_pct_at_payment', 'platform_payout_id',
     ];
 
@@ -59,6 +59,7 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
         'refund_amount' => 'decimal:2',
         'late_fee_applied_at' => 'datetime',
         'late_fee_paid_at' => 'datetime',
+        'marked_paid_at' => 'datetime',
         'metadata' => 'array',
         'bank_reconciled_at' => 'datetime',
         'platform_fee_pct_at_payment' => 'decimal:2',

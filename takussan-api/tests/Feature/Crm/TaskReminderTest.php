@@ -7,6 +7,7 @@ use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\TaskStatus;
+use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Task;
 use App\Models\User;
@@ -172,6 +173,22 @@ class TaskReminderTest extends TestCase
         $other = Agency::factory()->create();
         $agent = $this->agentOf($other, AgentProfileStatus::Active);
         $this->dueTaskFor($customer, $agent);
+
+        (new SendTaskDueReminders)->handle();
+
+        Notification::assertNothingSent();
+    }
+
+    /** TCK-1350 (P88.04) — un compte bloqué ou supprimé ne reçoit pas de rappel de tâche. */
+    public function test_does_not_remind_a_blocked_or_deleted_assignee(): void
+    {
+        Notification::fake();
+
+        foreach ([UserStatus::Blocked, UserStatus::Deleted] as $status) {
+            $user = User::factory()->create(['status' => $status]);
+            $customer = Customer::factory()->create(['added_by_id' => $user->id]);
+            $this->dueTaskFor($customer, $user);
+        }
 
         (new SendTaskDueReminders)->handle();
 

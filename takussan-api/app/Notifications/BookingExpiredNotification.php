@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Booking;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,6 +24,7 @@ use Illuminate\Notifications\Notification;
 class BookingExpiredNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public function __construct(
         public Booking $booking,

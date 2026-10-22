@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Admin\AgencyProvisioningService;
 use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
@@ -23,6 +24,7 @@ use Illuminate\Notifications\Notification;
 class AgencyAdminActivationNotification extends Notification implements ShouldBeEncrypted, ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public function __construct(public readonly string $token) {}
 

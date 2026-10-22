@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\Enums\UserStatus;
 use App\Models\Favorite;
 use App\Models\User;
 use App\Notifications\FavoriteChangesNotification;
@@ -72,6 +73,8 @@ class SendFavoriteChangeAlerts implements ShouldQueue
     {
         User::query()
             ->whereHas('favorites')
+            // TCK-1350 (P88.04) — ni compte bloqué ni compte supprimé.
+            ->whereNotIn('status', [UserStatus::Blocked->value, UserStatus::Deleted->value])
             ->orderBy('id')
             ->each(function (User $user): void {
                 try {

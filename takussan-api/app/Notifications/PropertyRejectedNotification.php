@@ -7,6 +7,7 @@ use App\Domain\Notifications\NotificationTarget;
 use App\Models\Enums\NotificationType;
 use App\Models\Property;
 use App\Models\User;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Notifications\NotificationRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -17,6 +18,7 @@ use Illuminate\Notifications\Notification;
 class PropertyRejectedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public function __construct(
         public Property $property,

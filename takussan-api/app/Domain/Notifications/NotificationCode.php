@@ -487,6 +487,18 @@ enum NotificationCode: string
     }
 
     /**
+     * TCK-1350 (P88.04) — les codes qui atteignent encore un compte bloqué ou supprimé : ceux qui
+     * lui annoncent l'état du compte lui-même. Tout autre code se tait pour lui (un compte qui ne
+     * peut ouvrir aucune session ne peut agir sur rien de ce qu'on lui annonce). La fin d'une
+     * consultation de son compte par la plateforme en est : le blocage la clôt, et le titulaire en
+     * est prévenu (`ImpersonationLifecycleTest`).
+     */
+    public function reachesUnreachableAccount(): bool
+    {
+        return in_array($this, [self::AccountBlocked, self::AccountReactivated, self::ImpersonationEnded], true);
+    }
+
+    /**
      * Le code peut viser un contact sans compte : transactionnel seulement (exécution du bail,
      * demande de visite, lien d'une invitation adressée à un numéro — TCK-589). Jamais un
      * message non transactionnel (ADR-0032 §3).

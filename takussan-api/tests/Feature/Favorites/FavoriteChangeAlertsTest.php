@@ -9,6 +9,7 @@ use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Enums\UserStatus;
 use App\Models\Favorite;
 use App\Models\NotificationPreference;
 use App\Models\Property;
@@ -105,6 +106,18 @@ class FavoriteChangeAlertsTest extends TestCase
     }
 
     /** **AC20** — 500 000 → 450 000 → 520 000 dans la journée : aucune notification, la base monte. */
+    /** TCK-1350 (P88.04) — un compte bloqué ne reçoit pas l'alerte de ses favoris. */
+    public function test_un_compte_bloque_n_est_pas_prevenu(): void
+    {
+        $client = User::factory()->create(['preferred_language' => 'fr', 'status' => UserStatus::Blocked]);
+        $this->favori($client)->update(['price' => 450_000]);
+
+        $this->lancerLeJob();
+
+        $this->assertCount(0, $this->notificationsDe($client));
+        $this->assertSame([], $this->emailsA($client));
+    }
+
     public function test_une_baisse_effacee_par_une_hausse_ne_dit_rien(): void
     {
         $client = User::factory()->create();
