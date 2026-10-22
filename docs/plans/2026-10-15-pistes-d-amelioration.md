@@ -11759,7 +11759,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Ajouter une adresse à un bien public déjà en ligne ne la fait jamais entrer dans l'index : ville, quartier et coordonnées restent absents de la recherche et de la carte
 - Réf : P122.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:217-227`, `takussan-api/app/Models/Property.php:417-420`, `:466-490`
 - Constat :
@@ -11769,10 +11769,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Le bien reste introuvable par sa ville et son quartier, et absent de la carte, jusqu'à sa prochaine sauvegarde ou à une réimportation (déduit des filtres `city`, `neighborhood_key` et `_geo` de l'index, à vérifier sur la recherche publique).
   - Établi comment : lu, puis mesuré.
 - Piste : après l'écriture de l'adresse, réindexer le bien par `Property::reindexer()` sur une instance dont la relation est rechargée (`$property->load('address')`), ou poser `$property->setRelation('address', …)` sur l'adresse créée. Test sous `InteractsWithMeilisearch` : bien public sans adresse, `PUT` avec adresse → le document porte `city` et `_geo` ; rouge sur le code d'aujourd'hui.
+- Mesure (2026-10-22, 2abc59353, mesureur) : relu `PropertyController::update` (`$property->address ? …->update() : $property->address()->create()` après `fill()->save()`, inchangé hors numéros) et `Property::toSearchableArray()` (lit `$this->address`), aucun observateur d'`Address` ne réindexe (`Address::booted` canonise seulement ; `Address::saved` n'invalide que le cache public), `git log -S` et `docs/backlog/tickets` sans correctif ; test temporaire retiré (charge 2,04 / 1,94 / 1,80 sur 8 cœurs) : bien publié sans adresse, indexé, `PUT /api/properties/{id}` avec `address.city = Thies` et coordonnées → 200, base `Thies`, document `city = null` sans `_geo` → le constat tient. Classement : A1, le document doit refléter le bien (contrat de `toSearchableArray()`, et ADR-0062 §4 réindexe déjà toute écriture d'adresse du référentiel) ; réindexer après l'écriture de l'adresse ne demande aucun choix.
 
 ### Sous `SCOUT_AFTER_COMMIT=false`, le défaut de `config/scout.php` et le réglage de la suite, un bien indexé garde l'ancienne adresse après un changement, et un bien créé public est indexé sans adresse
 - Réf : P122.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:133-145`, `:217-227`, `takussan-api/config/scout.php:59,72`, `takussan-api/phpunit.xml:104-105`, `takussan-api/.env.docker:210-211`, `takussan-api/vendor/laravel/scout/src/ModelObserver.php` (`saved`)
 - Constat :
@@ -11783,10 +11784,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Le résultat dépend donc d'une variable d'environnement. `config/scout.php` la met à `false` par défaut, la suite la force à `false`, et `.env.docker` la pose à `true` (lu). Sa valeur en préproduction n'est pas connue. Aucun test ne garde l'adresse dans l'index (`grep` des tests sous `InteractsWithMeilisearch` qui envoient un `PUT` sur un bien → aucun ne porte `address`).
   - Établi comment : lu, puis mesuré ; la préproduction n'est pas relevée.
 - Piste : ne plus dépendre du réglage, en réindexant le bien après l'écriture de l'adresse (le même correctif que P122.01, voir P122.01), dans `store()` comme dans `update()`. Relever les deux valeurs en préproduction. Test : modification et création publique sous le réglage de la suite → le document porte la nouvelle ville ; rouge aujourd'hui.
+- Mesure (2026-10-22, 2abc59353, mesureur) : relu `PropertyController::store` (`Property::create` puis `address()->create`, dans la transaction) et `::update`, `config/scout.php:72` (`after_commit` faux par défaut), `phpunit.xml:105` (`SCOUT_AFTER_COMMIT=false`) ; test temporaire retiré, réglage de la suite : bien publié à Dakar (Almadies), indexé, `PUT` avec Thiès (Randoulene) → base `Thies`, document `city = Dakar`, `neighborhood = Almadies` → le constat tient pour la modification ; la création n'a été que relue (même mécanisme). Classement : A1, même correctif que P122.01 dans `store()` et `update()`, indépendant du réglage ; le relevé des deux valeurs en préproduction sort du poste et n'est pas pour l'implémenteur (reste au porteur).
 
 ### `crm:normalize-customer-phones` réécrit `customers.phone` par `toBase()->update()` : l'index des clients garde l'ancien format du numéro
 - Réf : P122.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/NormalizeCustomerPhones.php:34-62`, `takussan-api/app/Models/Customer.php` (`toSearchableArray`)
 - Constat :
@@ -11796,10 +11798,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Aucun appelant dans `docker/`, `routes/console.php` ni les seeders (`grep`) : c'est une commande à lancer à la main. Rien ne dit à qui la lance de réimporter `Customer` (lu, en-tête de la commande).
   - Établi comment : lu.
 - Piste : réindexer les clients modifiés à la fin de chaque lot (`Customer::whereKey($ids)->searchable()`, sous `ModelObserver::syncingDisabledFor`), ou passer par `saveQuietly()` suivi d'un `searchable()`. Test sous `InteractsWithMeilisearch` : un client indexé avec un numéro non normalisé, la commande, puis le document porte le numéro normalisé.
+- Mesure (2026-10-22, 2abc59353, mesureur) : relu `NormalizeCustomerPhones.php` (écriture par `Customer::withTrashed()->whereKey(...)->toBase()->update($changes)`, en-tête « ni réindexation par ligne ») et `Customer::toSearchableArray()` (indexe `phone`) ; test temporaire retiré : client indexé avec `77 123 45 67` posé en base, commande → base `+221771234567`, document `77 123 45 67`, recherche `+221771234567` → 0 résultat → le constat tient, la déduction sur la recherche est vérifiée. Classement : A1, l'index doit refléter la table et la commande n'expose ni ne retire aucune donnée nouvelle ; réindexer les clients modifiés par lot (non par ligne, ce que l'en-tête écarte) ne demande aucun choix.
 
 ### Petites améliorations
 - Réf : P122.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : la règle proposée vit dans `docker/release.sh` ou le gabarit de migration, deux options
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Boost/LegacyFeaturedConversion.php:34-36`, `takussan-api/database/migrations/2026_10_12_500400_seed_boost_catalogue_and_convert_featured.php:16`, `takussan-api/database/seeders/System/OfferedFeaturedSeeder.php:15`, `takussan-api/Dockerfile:101-103`, `takussan-api/docker/release.sh:44-58`, `takussan-api/app/Services/Search/PropertySearchService.php:749-765`
 - Constat :
@@ -11807,6 +11810,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Une migration de données sur une colonne indexée ne déclenche pas la réimportation. L'empreinte `.search-shape` ne couvre que `config/scout.php`, `app/Support/Search`, `lang/fr/properties.php` et les modèles qui définissent `toSearchableArray` (lu, `Dockerfile:101-103`), et `release.sh` ne réimporte que sur un écart d'empreinte ou un index vide (lu, l. 44-58). La migration 500400 est arrivée dans le même lot que le changement de forme de 500300 : la réimportation qui a suivi l'a sans doute couverte (déduit, à vérifier). Une migration de données future sur `phone`, `email`, `title` ou `featured` ne le serait pas.
   - Établi comment : lu.
 - Piste : réindexer les biens touchés dans `LegacyFeaturedConversion` ; écrire dans l'en-tête de `release.sh`, ou dans `takussan-api/CLAUDE.md` § Recherche, qu'une migration qui réécrit une colonne indexée doit réimporter son modèle, et le dire au gabarit de migration.
+- Mesure (2026-10-22, 2abc59353, mesureur) : relu `LegacyFeaturedConversion::run()` (`DB::table('properties')->update(['featured' => false, …])` sans réindexation), `PropertySearchService::featuredPool()` (filtre `featured = true` dans l'index) et `hydrate()` (ne rejuge que `public()`, pas `featured`) ; test temporaire retiré : bien publié sans agence, `featured = true`, indexé, conversion → base `featured = false`, document `featured = true`, et `GET /api/public/properties/search` le sert dans `sponsored` → la partie « à vérifier » tient : le bien est tiré en emplacement sponsorisé sans boost ; l'empreinte `.search-shape` (`Dockerfile:101-103`) et `release.sh` sont inchangés. Classement : V5, la réindexation dans `LegacyFeaturedConversion` relèverait seule de A1 (ADR-0061 : `featured` dérivé des boosts), mais la Piste la lie à une règle de déploiement à écrire dans `docker/release.sh` ou au gabarit de migration, au choix ; l'état de l'index en préproduction n'est pas relevé.
 
 ## Angle 123 — Appels réseau entre un geste validé et sa trace ou sa notification
 
