@@ -77,7 +77,38 @@ class DocumentPdfDompdfRenderTest extends TestCase
         );
     }
 
-    private function renderInvoice(?Agency $agency, ?string $notes = null): string
+    /**
+     * TCK-1237 (P109.03) — l'en-tête et le pied étaient en `display: flex`, que dompdf ramène à
+     * `block` : le badge passait sous le nom, à gauche, et la pagination suivait la note.
+     */
+    public function test_the_header_badge_and_the_pagination_sit_on_the_right_of_their_row(): void
+    {
+        $agency = Agency::factory()->create(['name' => 'Dakar Immo']);
+
+        $runs = $this->textRuns($this->renderInvoice($agency, label: 'Badge'));
+        $find = function (string $text) use ($runs): array {
+            foreach ($runs as $run) {
+                if (trim($run['text']) === $text) {
+                    return $run;
+                }
+            }
+            $this->fail("« {$text} » introuvable dans le PDF.");
+        };
+
+        $name = $find('Dakar Immo');
+        $badge = $find('BADGE');
+        $note = $runs[array_key_first(array_filter($runs, fn (array $r): bool => str_starts_with($r['text'], 'Document généré le')))];
+        $page = $find('Page');
+
+        // A4 : 595 pt de large, marges de 18 mm (51 pt) ; la colonne de droite commence au milieu.
+        $this->assertGreaterThan(297, $badge['x'], 'Le badge doit être à droite de la page.');
+        $this->assertLessThan(12, abs($badge['y'] - $name['y']), 'Le badge doit être sur la ligne du nom.');
+
+        $this->assertGreaterThan(400, $page['x'], 'La pagination doit être à droite du pied.');
+        $this->assertLessThan(3, abs($page['y'] - $note['y']), 'La pagination doit être sur la ligne de la note.');
+    }
+
+    private function renderInvoice(?Agency $agency, ?string $notes = null, string $label = 'Facture'): string
     {
         $customer = Customer::factory()->create();
         $invoice = Invoice::factory()->create([
@@ -92,7 +123,7 @@ class DocumentPdfDompdfRenderTest extends TestCase
             'customer' => $customer,
             'agency' => $agency,
             'title' => 'Facture',
-            'document_label' => 'Facture',
+            'document_label' => $label,
         ]);
     }
 
@@ -102,8 +133,8 @@ class DocumentPdfDompdfRenderTest extends TestCase
     }
 
     /**
-     * Les morceaux de texte du PDF, dans l'ordre du flux : `BT x y Td /Fn t Tf [(…)] TJ ET`, ce
-     * qu'écrit l'adaptateur CPDF de dompdf. Une police Unicode (DejaVu) écrit l'UTF-16BE, une
+     * Les morceaux de texte du PDF, dans l'ordre du flux : `BT x y Td [s Tc] /Fn t Tf [(…)] TJ ET`,
+     * ce qu'écrit l'adaptateur CPDF de dompdf (`Tc` : l'espacement des lettres). Une police Unicode (DejaVu) écrit l'UTF-16BE, une
      * police de base le Windows-1252.
      *
      * @return list<array{x: float, y: float, text: string}>
@@ -119,7 +150,7 @@ class DocumentPdfDompdfRenderTest extends TestCase
                 continue;
             }
 
-            preg_match_all('#BT ([\d.]+) ([\d.]+) Td /F\d+ [\d.]+ Tf\s+\[\((.*?)\)\] TJ ET#s', $content, $matches, PREG_SET_ORDER);
+            preg_match_all('#BT ([\d.]+) ([\d.]+) Td (?:-?[\d.]+ Tc )?/F\d+ [\d.]+ Tf\s+\[\((.*?)\)\] TJ(?: -?[\d.]+ Tc)? ET#s', $content, $matches, PREG_SET_ORDER);
             foreach ($matches as [, $x, $y, $raw]) {
                 $bytes = preg_replace_callback(
                     '#\\\\([0-7]{1,3}|.)#s',
@@ -128,7 +159,8 @@ class DocumentPdfDompdfRenderTest extends TestCase
                         : (['n' => "\n", 'r' => "\r", 't' => "\t", 'b' => "\x08", 'f' => "\f"][$e[1]] ?? $e[1]),
                     $raw,
                 );
-                $unicode = strlen($bytes) % 2 === 0 && preg_match('#^(?:\x00.)+$#s', $bytes) === 1;
+                // Une police de base n'écrit jamais d'octet nul : un texte qui en ouvre un est en UTF-16BE.
+                $unicode = strlen($bytes) % 2 === 0 && str_starts_with($bytes, "\x00");
                 $runs[] = [
                     'x' => (float) $x,
                     'y' => (float) $y,

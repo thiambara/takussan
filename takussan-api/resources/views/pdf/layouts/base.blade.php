@@ -31,10 +31,16 @@
             line-height: 1.45;
             margin: 0;
         }
+        /*
+         * TCK-1237 (P109.03) — l'en-tête et le pied sont des tableaux à deux cellules : dompdf
+         * ramène `display: flex` à `block` et ignore `justify-content`, si bien que le badge
+         * passait sous le nom et la pagination suivait la note. Un tableau se rend pareil dans
+         * dompdf et dans un navigateur.
+         */
+        table.pdf-row { width: 100%; border-collapse: collapse; }
+        table.pdf-row td { padding: 0; vertical-align: middle; }
+        table.pdf-row td.pdf-row-end { text-align: right; white-space: nowrap; }
         header.pdf-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             border-bottom: 2px solid #111827;
             padding-bottom: 12px;
             margin-bottom: 20px;
@@ -42,6 +48,7 @@
         header.pdf-header .brand { font-size: 18pt; font-weight: 700; color: #111827; }
         header.pdf-header .brand img { max-height: 42px; max-width: 160px; display: block; }
         header.pdf-header .label {
+            display: inline-block;
             background: #111827;
             color: #fff;
             padding: 6px 12px;
@@ -78,8 +85,6 @@
             padding-top: 6px;
             font-size: 9pt;
             color: #6b7280;
-            display: flex;
-            justify-content: space-between;
         }
         .page-number:before { content: counter(page); }
         .page-total:before { content: counter(pages); }
@@ -87,14 +92,18 @@
 </head>
 <body>
     <header class="pdf-header">
-        <div class="brand">
-            @if (! empty($agency_logo_url))
-                <img src="{{ $agency_logo_url }}" alt="{{ $agencyName }}">
-            @else
-                {{ $agencyName }}
-            @endif
-        </div>
-        <div class="label">{{ $label }}</div>
+        <table class="pdf-row">
+            <tr>
+                <td class="brand">
+                    @if (! empty($agency_logo_url))
+                        <img src="{{ $agency_logo_url }}" alt="{{ $agencyName }}">
+                    @else
+                        {{ $agencyName }}
+                    @endif
+                </td>
+                <td class="pdf-row-end"><div class="label">{{ $label }}</div></td>
+            </tr>
+        </table>
     </header>
 
     <main class="pdf-body">
@@ -102,8 +111,12 @@
     </main>
 
     <footer class="pdf-footer">
-        <span>{{ $footerNote }}</span>
-        <span>Page <span class="page-number"></span> sur <span class="page-total"></span></span>
+        <table class="pdf-row">
+            <tr>
+                <td>{{ $footerNote }}</td>
+                <td class="pdf-row-end">Page <span class="page-number"></span> sur <span class="page-total"></span></td>
+            </tr>
+        </table>
     </footer>
 </body>
 </html>
