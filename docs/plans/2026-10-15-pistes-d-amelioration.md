@@ -12579,7 +12579,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Une quittance enregistrée avec une date de paiement de plus de 30 jours part par SMS avec un lien déjà mort
 - Réf : P132.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la Piste laisse à choisir la date d'où court la fenêtre de quittance (colonne neuve, donc V4, ou `updated_at`, ou ne pas envoyer de lien)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:90-100,103-117`, `takussan-api/app/Services/Model/LeasePaymentService.php:88,119`, `takussan-api/app/Http/Requests/Api/MarkPaidLeasePaymentRequest.php:65`, `takussan-web/src/components/leases/LeasePaymentDialog.tsx:112-116`
 - Constat :
@@ -12589,10 +12589,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Le cas est ordinaire : un loyer reçu en espèces et saisi après coup, ou un rattrapage d'historique à la reprise d'un bail.
   - Établi comment : lu, et mesuré.
 - Piste : faire courir la fenêtre de quittance depuis le plus tardif de `paid_at` et du moment de l'enregistrement (une colonne qui le date, ou `updated_at` au passage à `paid` : à choisir), ou ne pas envoyer de lien qu'on sait mort. Borner aussi `paid_at` à `before_or_equal:now`, comme `MarkLateFeePaidRequest.php:56` le fait déjà. Garde : le test ci-dessus, qui exige un 200 sur le lien envoyé.
+- Mesure (2026-10-22, c270baa6b, mesureur) : relu `LeasePaymentLinkService.php` (`effectiveExpiry` ramène l'échéance à `paid_at` + `receipt_days` une fois payée, `isGone` la juge, `urlFor` rend le jeton actif ou en émet un), `LeasePaymentService.php:88,119` (`paid_at` repris de la requête, `receipt_url` = `urlFor` pour le contact sans compte), `MarkPaidLeasePaymentRequest.php:65` (`nullable`, `date`, sans borne, quand `MarkLateFeePaidRequest.php:56` porte `before_or_equal:now`) ; `git log 1a9420e6e..HEAD` sur ces chemins → rien ; test temporaire (retiré) calqué sur `LeasePaymentRecordedToContactTest`, locataire sans compte au téléphone valide, `markPaid` avec `paid_at` = aujourd'hui − 40 jours → `receipt_url` `https://front.test/pay/{jeton}`, `GET /api/pay/{jeton}` → 410 `pay_link.gone`, `GET /api/pay/{jeton}/receipt` → 410 (charge 2,66 sur 8 cœurs). Le constat tient tel qu'écrit. Classement : V7, la Piste propose trois corrections au résultat différent (et l'une ajoute une colonne, V4), et borner `paid_at` refuse une saisie que le formulaire accepte aujourd'hui.
 
 ### Une relance d'invitation remet `last_reminded_at` à nul : le rappel « vous attend » part dans l'heure qui suit
 - Réf : P132.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la cadence du rappel après une relance n'est écrite nulle part, et la Piste propose trois corrections (dont une colonne, V4)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:425-430,522-538`, `takussan-api/routes/console.php:110`
 - Constat :
@@ -12602,10 +12603,11 @@ l'angle 160 : il n'est pas repris ici.*
   - C'est le cas courant de la relance : une invitation expirée (J+7), relancée, reçoit relance et rappel coup sur coup. Le SMS est compté deux fois.
   - Établi comment : lu, et mesuré.
 - Piste : mesurer le délai du rappel depuis la dernière émission (une date de dernier envoi posée par `send` et `resend`, ou `created_at` remplacé par elle dans `remindPending`), ou poser `last_reminded_at` à l'heure de la relance. Garde : un test « relance puis `remindPending` une heure après » qui n'attend aucun envoi, et un second à relance + 2 jours qui en attend un.
+- Mesure (2026-10-22, c270baa6b, mesureur) : relu `InvitationService.php` (`resend` remet `last_reminded_at` à nul sans toucher `created_at` ; `remindPending` filtre `created_at <= now − 2 j` et `last_reminded_at` nul), `routes/console.php:110` (`invitations:remind` horaire), TCK-249 (« rappel J+2, idempotent via `last_reminded_at` », rien sur la relance) ; test temporaire (retiré) calqué sur `InvitationBySmsTest` : invitation par SMS, J+3 et `remindPending` → 2 SMS, `POST /api/invitations/{id}/resend` → 3, une heure plus tard `remindPending` → 4, le dernier « Takussan : rappel — votre invitation à rejoindre … vous attend : …/invitations/accept?token=… » (charge 2,66 sur 8 cœurs). Le constat tient tel qu'écrit. Classement : V7, ni TCK-249 ni le code ne disent quand le rappel doit partir après une relance, et les options de la Piste (date de dernier envoi en colonne, V4, ou `last_reminded_at` posé à la relance) ne rendent pas le même calendrier.
 
 ### Les gabarits WhatsApp inscrits au registre ne correspondent pas aux paramètres envoyés, et ne portent jamais le lien de paiement
 - Réf : P132.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : le correctif réécrit les lignes `whatsapp` du registre (corps et `meta_variables`), et leur texte est un texte métier soumis à Meta (V7)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/migrations/2026_10_07_100100_seed_whatsapp_templates_for_coded_notifications.php` (`body()`, `meta_variables`), `takussan-api/app/Notifications/CodedNotification.php:273-281`, `takussan-api/app/Services/Notifications/NotificationRenderer.php:82-99`, `takussan-api/app/Services/Notifications/Whatsapp/CloudApiWhatsappDriver.php:124-131`, `takussan-api/app/Models/NotificationTemplate.php:42`
 - Constat :
@@ -12618,10 +12620,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Même accordés, ces gabarits ne portent pas `payment_url` : le locataire sans compte joint hors fenêtre par WhatsApp recevrait son rappel sans le lien que le SMS lui donne (lu, `lang/fr/notifications.php:297,304`).
   - `meta_variables` est écrit mais lu par personne (`metaVariables()` sans appelant, mesuré par `grep`) ; le seul test qui approuve un gabarit en remplace le corps par `'x'` (lu, `ContactSansCompteTest.php:96-99`).
 - Piste : dériver le corps du gabarit de la variante `sms_link` quand le code a un lien, et envoyer exactement les paramètres que `meta_variables` nomme, dans cet ordre (en faisant de `meta_variables` la source de `whatsappTemplateParams`). Garde : un test qui, pour chaque ligne `whatsapp` du registre, compare le nombre de `{{n}}` du corps, leur contiguïté et le nombre de paramètres que la notification fournit.
+- Mesure (2026-10-22, c270baa6b, mesureur) : relu la migration `2026_10_07_100100_…` (corps tiré de la variante `sms`, `meta_variables` = clés de `params()`), `CodedNotification::whatsappTemplateParams` (`format`, qui parcourt `params() + optionalParams()`), `CloudApiWhatsappDriver.php:124-131` (un seul composant `body`) ; `grep -rn metaVariables app` → la seule définition, sans appelant ; `tinker` en lecture de la base de développement : `lease_payment.due_soon` corps `{{1}},{{2}},{{3}}`, `meta_variables` 3 noms, paramètres envoyés 4 (`amount,due_date,property,payment_url`) ; `lease_payment.overdue` corps `{{1}},{{2}},{{4}}`, 4 noms, envoyés 5 ; `visit.reminder` corps `{{1}},{{2}}`, `meta_variables` 3 noms (`window` compris), envoyés 3 ; les neuf lignes (fr, en, wo) `pending`. La base de développement ne dit rien de la préproduction. La règle de Meta sur les variables non contiguës reste non vérifiée. Le constat tient tel qu'écrit. Classement : V4, corriger réécrit des données déjà semées par une migration, et le corps neuf (avec le lien) est un texte que l'exploitation soumet à Meta (V7).
 
 ### Un SMS reporté par les heures calmes part au matin avec un lien que la nuit a révoqué
 - Réf : P132.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : abandonner un SMS différé est un comportement neuf, et la fréquence du cas n'est pas mesurée
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:305-318`, `takussan-api/app/Jobs/SendDeferredSmsJob.php`, `takussan-api/app/Services/Invitation/InvitationService.php:325-345,425-430`, `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:37-50`
 - Constat :
@@ -12630,13 +12633,15 @@ l'angle 160 : il n'est pas repris ici.*
   - Non mesuré : la fréquence de ces gestes la nuit est inconnue, et la relance d'une invitation SMS ajoute de toute façon un second SMS, lui aussi reporté (à vérifier).
   - Établi comment : lu.
 - Piste : porter dans le contexte du job une référence à vérifier au moment d'envoyer (type et identifiant de l'invitation ou du lien, et le jeton haché), et abandonner l'envoi, trace écrite, quand l'objet n'est plus valide. Garde : un test « SMS d'invitation à 23 h, révocation, job à 6 h » qui n'attend aucun envoi.
+- Mesure (2026-10-22, c270baa6b, mesureur) : relu `SmsRouterDriver::deferAll` (texte rendu remis à `SendDeferredSmsJob` avec un délai jusqu'à `nextWindowEnd`), `SendDeferredSmsJob::handle` (renvoie `to`, `message`, `context` tels quels, `bypass_quiet_hours` posé, aucune relecture), `InvitationService::revoke` (pose `revoked_at` et le statut), `resend` (jeton neuf), `LeasePaymentLinkService::regenerate` et `revoke` ; `git log 1a9420e6e..HEAD` sur ces chemins → rien. Non mesuré par un test : le cas demande une invitation SMS dans la fenêtre 22 h-6 h puis la révocation avant l'envoi. Le constat tient par lecture. Classement : V7, abandonner à 6 h un message accepté la veille, avec la trace à écrire, est un comportement d'envoi neuf que rien n'écrit, et la Piste demande d'étendre le contexte du job à plusieurs types d'objets.
 
 ### Petites améliorations
 - Réf : P132.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la langue de la page ouverte et du compte créé est un comportement visible neuf
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Payments/LeasePaymentLinkService.php:162-165`, `takussan-web/src/proxy.ts:163-180`, `takussan-api/app/Services/Invitation/InvitationService.php:585-597,1014-1018`
 - Constat :
   - Le lien `/pay/{jeton}` ne porte pas de langue (lu, `url()`), et `/pay` est localisable : le proxy redirige en 307 vers la langue du cookie ou d'`Accept-Language` (lu, `proxy.ts`, `localeDeRepli`). Un locataire dont la fiche est en `en` (`ContactSansCompte::fromCustomer`, lu) reçoit un SMS en anglais et ouvre une page dans la langue de son téléphone. Non mesuré au navigateur.
   - Le compte qui naît d'une invitation par SMS n'écrit pas `preferred_language` (lu, `acceptAsNewUser`) et prend le défaut `fr` de la colonne, alors que le SMS est parti dans la langue de `metadata.locale` (lu, `preferredLocale`). Les envois suivants changent donc de langue (à vérifier sur une invitation en `en`).
 - Piste : préfixer le lien de paiement par la langue du contact (`/{locale}/pay/…`) ; écrire `preferred_language` depuis la langue de l'invitation à la création du compte. Garde : un test par point.
+- Mesure (2026-10-22, c270baa6b, mesureur) : relu `LeasePaymentLinkService::url` (`…/pay/{jeton}`, sans langue), la page `src/app/[locale]/(public)/pay/[token]/page.tsx` (sous `[locale]`, et `pay` absent de `SEGMENTS_NON_LOCALISES`), `proxy.ts` (`localeDeRepli` sur le cookie et `Accept-Language`, 307) ; `InvitationService::acceptAsNewUser` (le `create` n'écrit pas `preferred_language`, et `grep preferred_language` dans le service ne rend que `preferredLocale`), la migration `2026_04_15_210400_…:28` (défaut `fr`), `preferredLocale` (préfère `preferred_language` à `metadata.locale`) : un compte né d'une invitation en `en` reçoit donc ses envois suivants en `fr`, établi par lecture, sans test. La redirection n'est pas mesurée au navigateur. Le constat tient tel qu'écrit. Classement : V7, choisir la langue dans laquelle s'ouvre la page de paiement et celle que garde le compte change ce que voit le locataire.
