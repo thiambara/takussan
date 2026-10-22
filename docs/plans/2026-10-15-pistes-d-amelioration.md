@@ -7979,7 +7979,7 @@ l'angle 111.*
 
 ### L'export d'audit de la console tourne dans la requête HTTP, jusqu'à 50 000 lignes et six requêtes par ligne
 - Réf : P78.02
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1416
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:57,87-102`, `takussan-api/app/Services/Audit/ActivityLogExporter.php:73-79,83-96`, `takussan-api/docker/php.ini:11`
 - Constat :
@@ -7991,6 +7991,7 @@ l'angle 111.*
 - Piste : le même préchargement que P78.01, puis soit abaisser `EXPORT_MAX_ROWS` à ce que la requête tient, soit passer cet export par le job d'agence. Test : nombre de requêtes constant ; durée de l'export plafond mesurée.
 - Mesure (2026-10-20, 8e6c7ef17, mesureur) : relu `CrossTenantAuditController.php:57,87-102` (`EXPORT_MAX_ROWS = 50_000`, CSV construit dans la requête) et `ActivityLogExporter.php:73-96` (`with('causer')` seul) ; test temporaire (retiré) autour de `payloadForQuery()`, même charge → 100 lignes 602 requêtes en 1,2 s, 200 → 1 202 en 2,6 s, 2 000 → 12 002 en 35,1 s : six requêtes par ligne, et le plafond de 50 000 lignes est hors de portée des 60 s de `php.ini:11` ; le constat tient. Classement : V7, le préchargement seul relève de A2, mais la piste demande en outre de choisir entre un plafond abaissé (422 plus tôt) et un export asynchrone (réponse et courriel neufs), deux comportements visibles.
 - Mesure (2026-10-20, a54446ee9, delegue) : relu `CrossTenantAuditController.php:56-57,87-115` (plafond 50 000, CSV bâti dans la requête), `TCK-601-donnees-personnelles-audit-kyc.md:564,736-737` (AC17 : « plafond 50 000 lignes (`activity_log.export_too_large`) », lien signé d'une heure) → le plafond de 50 000 est une décision écrite de TCK-601 ; l'abaisser la contredit, et passer par le job d'agence change la réponse (202, courriel) de la console. Recommandation : d'abord le seul préchargement de `profileTypes()` (A2, sans choix, le même que P78.01), puis mesurer l'export à 50 000 lignes ; ne trancher entre un plafond abaissé (préféré : un 422 déjà connu de la console, aucun parcours neuf) et le job qu'à la lumière de cette mesure ; manque au porteur : la durée mesurée après préchargement, et l'accord de revenir sur le plafond écrit par TCK-601 (export de données de journal, voisin de V3).
+- Mesure (2026-10-22, 174d6e0f2, implementeur) : test neuf de `payloadForQuery()` sur l'arbre d'origine → 62 requêtes pour 10 lignes d'un même auteur, 602 pour 100, rouge ; préchargement de ce que lit `profileTypes()` (même méthode que l'export d'agence, `morphWith` sur `User`) → constant. Test temporaire (retiré), `payloadForQuery()` puis `csvContent()` : 50 000 lignes → 46,6 s et 217 Mo de surcroît (au bord des 256 Mo de `memory_limit`), 25 000 → 22,5 s et 105 Mo (charge ≈ 3 à 4 sur 8 cœurs). Voie retenue, la plus étroite : `EXPORT_MAX_ROWS` 50 000 → 25 000, le 422 `activity_log.export_too_large` déjà connu ; test à 25 001 lignes rouge sous l'ancien plafond (200), vert après.
 
 ### Le XLSX de l'export d'audit est construit en entier par PhpSpreadsheet, sans borne de lignes
 - Réf : P78.03
