@@ -185,7 +185,7 @@ voie d'écriture (angle 13, puis 47).
 | 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | fait |
 | 110 | Rapprochement bancaire (`bank_reconciled_at`, `bank_statement_line_id`, `Accounting\ReconciliationManager`) d'une échéance, d'un acompte ou d'une facture passés à `refunded` après rapprochement : la ligne de relevé reste-t-elle rapprochée, et le remboursement sortant a-t-il un pendant | fait |
 | 111 | Jobs en file qui posent un statut de suivi (`processing`, `queued`) sur une ligne (`ReportExport`, `DataExport`, `ParseBankStatementJob`, versements) sans `failed()` — 7 jobs sur 43 en ont un : ce que voit l'utilisateur après l'échec définitif ou un arrêt brutal du worker, et ce qui bloque une nouvelle demande | fait |
-| 112 | Exports synchrones de `ExportController` (`GET /api/exports/{entity}`, jusqu'à 10 000 lignes, 2 000 en PDF) et de `PrivacyRequestController` : requêtes par ligne des constructeurs d'entité, mémoire et durée dans la requête HTTP — le relevé de l'angle 78 sur les exports qui ne passent pas par un job | à faire |
+| 112 | Exports synchrones de `ExportController` (`GET /api/exports/{entity}`, jusqu'à 10 000 lignes, 2 000 en PDF) et de `PrivacyRequestController` : requêtes par ligne des constructeurs d'entité, mémoire et durée dans la requête HTTP — le relevé de l'angle 78 sur les exports qui ne passent pas par un job | fait |
 | 113 | Appels du navigateur vers l'API sans délai (`useApiQuery`, `apiRequest` client, mutations TanStack, `fetch` direct des composants) : bouton `isPending` figé et requête jamais abandonnée sur un réseau mobile qui ne coupe pas — le pendant client de l'angle 79 | à faire |
 | 114 | Champs écartés par `validated()` sur les modules `src/lib/queries/*.ts` de l à z et les server actions `src/app/actions/*.ts` : la moitié de l'angle 80 laissée sans relevé | à faire |
 | 115 | Statuts d'enum qu'aucun chemin de `app/` n'écrit et que seuls les seeders posent (`LeaseStatus::Expired`, les autres enums de statut de `app/Models/Enums`) : gardes, filtres, tableaux de bord et écrans du front qui attendent un état que la production n'atteindra jamais | à faire |
@@ -217,6 +217,7 @@ voie d'écriture (angle 13, puis 47).
 | 140 | PDF figés face aux PDF recomposés à chaque téléchargement (`DocumentPdfService::store`, `signed_contract` de `LeaseSignatureService`, contre `InventoryController::downloadPdf`, `DocumentPdfController::stream*`, quittance publique `PublicPaymentLinkController::receipt`) : ce qu'un document signé ou acquitté imprime après un changement de l'agence, du bien, du locataire, d'un réglage ou d'un gabarit | à faire |
 | 141 | Encaissements soldés par une intégration de la plateforme (`PlatformPayoutService::isSettledByPlatform`) face au relevé de l'agence : proposés un à un par `ReconciliationMatcher` à un crédit qui ne les porte pas, et virement de clôture `PlatformPayout` qu'aucun candidat (`ALLOWED_PAYMENT_TYPES`, `fetchCandidates`) ne représente | à faire |
 | 142 | Notifications, Mailables et écouteurs en file (`ShouldQueue`, une quarantaine hors de `CodedNotification` : `TenantWelcomeNotification`, `ResetPasswordNotification`, `ActivityLogExportReadyNotification`, écouteurs `Lease\*` et `Accounting\*`) sans `backoff` ni `failed()` face au `--tries=3` sans délai des workers : ce qu'une panne du fournisseur de quelques secondes fait perdre, et la trace laissée — le relevé de P11.10 hors des notifications codées | à faire |
+| 143 | PDF à lignes variables rendus par dompdf pendant la requête HTTP (`DocumentPdfService` : relevé de gérance `pdf/statements/owner`, état des lieux `pdf/inventories/report` et ses photos en URI `data:`, factures et devis à nombreuses lignes) : mémoire et durée face à `memory_limit = 256M` et `max_execution_time = 60` — le relevé de P112.01 hors de l'export générique | à faire |
 
 ---
 
@@ -10901,3 +10902,71 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
   - Établi comment : lu.
 - Piste : `backoff` sur `NotificationDigestMail`, et poser `digested_at` après l'envoi réel (dans le Mailable, ou en envoyant de façon synchrone dans le job), ou le retirer dans un `failed()`. Test : un transport qui lève trois fois laisse les notifications sans `digested_at`.
 - Mesure (2026-10-22, f396fa470, mesureur) : relu `BuildUserDigestJob::handle()` (`Mail::to()->send()` dans un `try`, `markDigested()` dans le `finally`), `NotificationDigestMail` (`ShouldQueue`, sans `$tries`, `backoff` ni `failed()`), `DigestBuilderService::buildForUser()` (`whereNull('digested_at')`) et `deploy/takussan/compose.api.yml:125` (`--tries=3`) ; `prod-drivers.json` → `QUEUE_CONNECTION=database` mesuré en préproduction ; test temporaire (retiré), file simulée → `SendQueuedMailable` mis en file et `digested_at` posé aussitôt. Classement : V7, la `Piste` laisse trois façons de faire, et toutes reviennent sur le choix écrit l. 69-70 (pas de double envoi), ce qui peut doubler un résumé si une panne survient après l'envoi.
+
+## Angle 112 — Exports synchrones de `ExportController` et du registre des demandes de droits
+
+*Exploré le 2026-10-22 sur `pre-dev` f396fa470, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : `ExportController`, `ExportDataService`, `ExportWriter`,
+`ShowExportRequest`, `routes/api/export.php`, `Admin\PrivacyRequestController::export`,
+`HasPaymentAttributes::remainingAmount()`, `docker/php.ini`, `docker/Caddyfile`, et côté front
+`src/lib/queries/exports.ts`, `ExportForm.tsx`, le relais `src/app/api/export/[entity]/route.ts`.
+Mesures par un test temporaire (retiré) sur la base de test PostgreSQL locale, `XDEBUG_MODE=off` :
+un admin d'agence, un bail, N échéances de paiement insérées en masse, puis
+`GET /api/export/payments?format=…&limit=…` ; surcroît de mémoire par `memory_reset_peak_usage()`
+puis `memory_get_peak_usage(true)` au-dessus de l'usage courant ; requêtes comptées par
+`DB::listen`. Charge 4,5 à 9,9 sur 8 cœurs selon les passes (relevée à chaque fois) : les durées sont
+celles du poste, sous charge, et ne disent rien de la préproduction. Seule l'entité `payments`
+(13 colonnes) est mesurée ; les autres sont lues. **Écartés, sans entrée** : les requêtes par ligne
+(les neuf constructeurs chargent leurs relations par `with()` à colonnes choisies, et le compte de
+requêtes reste le même de 150 à 10 000 lignes, mesuré) ; le CSV (10 000 lignes : 4,0 s, 54 Mo de
+surcroît, mesuré) ; `PrivacyRequestController::export`, sans plafond mais sur un registre saisi à la
+main par le super-admin, `handler` et `media` préchargés (lu, l. 83-98). L'export du journal d'audit
+passe par un job (angle 78).*
+
+### L'export PDF ne tient pas dans `memory_limit = 256M` au-delà de quelques centaines de lignes, alors que son plafond et son défaut sont 2 000
+- Réf : P112.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Export/ExportWriter.php:80-140`, `takussan-api/app/Services/Export/ExportDataService.php:36,488-500`, `takussan-api/app/Http/Requests/Api/ShowExportRequest.php:36`, `takussan-api/docker/php.ini:3,11`, `takussan-web/src/lib/queries/exports.ts:33-40`, `takussan-web/src/app/(dashboard)/app/overview/exports/ExportForm.tsx:71-86`
+- Constat :
+  - Le PDF est un seul tableau HTML de toutes les lignes, rendu par dompdf (`Pdf::html(…)->download()`) dans la requête HTTP (lu, `ExportWriter.php:80-140` ; pilote `dompdf` dans `.env.example:261`). Le plafond du format est 2 000 lignes, et c'est aussi la `limit` appliquée quand le client n'en envoie pas (lu, `ExportDataService.php:36,488-500`). Le front n'en envoie jamais (lu, `exports.ts:33-40`, `ExportForm.tsx:75-80`).
+  - Mesuré, `vendor/bin/phpunit` lancé avec `-d memory_limit=256M` (la valeur de `docker/php.ini:3`) : 150 lignes → 200, 4,0 s, 68 Mo de surcroît ; 250 lignes → 200, 6,9 s, 110 Mo ; **400 et 600 lignes → `PHP Fatal error: Allowed memory size of 268435456 bytes exhausted`** dans `php-font-lib` et `Cpdf.php`.
+  - Mesuré sans plafond de mémoire (`memory_limit=-1`, charge 9,9 sur 8 cœurs) : 600 lignes → 24,5 s, 288 Mo ; **2 000 lignes → 198,5 s, 1 660 Mo**. La croissance n'est pas linéaire (×3,3 de lignes, ×8 de durée entre 600 et 2 000). `max_execution_time` vaut 60 (lu, `php.ini:11`).
+  - Le seuil se mesure dans le processus de test, dont l'usage de base n'est pas celui d'un worker FrankenPHP (à vérifier) ; il tombe entre 250 et 400 lignes de paiements. Une agence qui a plus de quelques centaines d'échéances ne peut donc obtenir aucun PDF de paiements depuis `/app/overview/exports` : l'erreur fatale ne passe par aucun gestionnaire, et l'onglet ouvert par `window.open` reçoit une 500 (déduit, à vérifier en préproduction).
+  - Établi comment : lu, puis mesuré par test temporaire (retiré).
+- Piste : ramener `MAX_ROWS_PDF` sous le seuil mesuré (avec marge, sous 256M) et le dire à l'écran, ou rendre le PDF en file (job, notification et lien, comme `ExportActivityLogJob`). Garde : un test qui rend le PDF au plafond du format sous `ini_set('memory_limit', '256M')` (ou qui vérifie `memory_get_peak_usage` sous une borne) et rougit si le plafond remonte.
+
+### L'export XLSX de 10 000 lignes est bâti en entier en mémoire pendant la requête : 19 s et près de 100 Mo pour 13 colonnes
+- Réf : P112.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Export/ExportWriter.php:57-78`, `takussan-api/app/Services/Export/ExportDataService.php:34,53-70`, `takussan-api/docker/php.ini:3,11`
+- Constat :
+  - Les lignes sont d'abord réunies en tableau par le constructeur d'entité (lu, `ExportDataService.php:53-70`), recopiées une seconde fois par `array_map` pour neutraliser les formules (lu, `ExportWriter.php:62`), puis passées à `Excel::download()` d'un `FromArray`, qui construit toute la feuille PhpSpreadsheet avant d'écrire le fichier (lu, l. 64-77 ; la construction complète en mémoire est celle déjà notée en P78.03 pour le journal d'audit).
+  - Mesuré, `payments`, 10 000 lignes (le plafond, `ExportDataService.php:34`), `memory_limit=-1`, charge 9,9 sur 8 cœurs : 200, **19,1 s**, **96,7 Mo** de surcroît. La marge reste réelle sous 256M et 60 s sur ce poste ; les entités plus larges (`payouts`, 15 colonnes) et une machine de production chargée ne sont pas mesurées (à vérifier).
+  - Établi comment : lu, puis mesuré par test temporaire (retiré).
+- Piste : mesurer l'entité la plus large au plafond sous `memory_limit=256M` ; selon le résultat, abaisser le plafond XLSX, écrire la feuille par morceaux (`FromQuery` + `WithChunkReading`, ou un écrivain en flux), ou passer en file au-delà d'un seuil. Garde : un test de mémoire au plafond, comme pour P112.01.
+
+### L'export rend au plus 5 000 lignes (2 000 en PDF) sans le signaler : une période plus longue est coupée en silence
+- Réf : P112.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Export/ExportDataService.php:38,53,488-494`, `takussan-api/app/Http/Controllers/Api/ExportController.php:82-95`, `takussan-api/app/Services/Export/ExportWriter.php:31-55`, `takussan-web/src/lib/queries/exports.ts:33-40`, `takussan-web/src/app/(dashboard)/app/overview/exports/ExportForm.tsx:71-86`
+- Constat :
+  - Sans `limit`, l'API applique `DEFAULT_ROWS = 5 000`, ramené à 2 000 en PDF (lu, `ExportDataService.php:38,488-494`). Le formulaire n'offre aucun champ de limite et n'en envoie pas (lu, `ExportForm.tsx:75-80`, `exports.ts:38`).
+  - Le tri est décroissant (`orderByDesc('due_date')`, `created_at`, `start_date`… ; lu, l. 53, 92, 126, 157, 195) : au-delà du plafond, ce sont les lignes les plus anciennes de la période demandée qui disparaissent. La balance âgée trie par `due_date` croissant (l. 311) : là, ce sont les plus récentes.
+  - Rien ne le dit au demandeur : ni en-tête de réponse, ni ligne dans le fichier, ni texte à l'écran (lu, `ExportWriter.php:31-55`, `fr.json` `dashboard.exports`). Seule trace, `row_count` dans le journal d'activité (lu, `ExportController.php:91`). Le plafond de 10 000 lignes, qui reste accessible par `limit`, n'est jamais proposé par l'interface (lu).
+  - Établi comment : lu.
+- Piste : signaler la coupure (en-tête `X-Export-Truncated` lu par le relais et le formulaire, ou dernière ligne du fichier), et dire le plafond à l'écran ; ou demander une ligne de plus que le plafond pour savoir s'il y a coupure. Garde : un test qui exporte plafond + 1 lignes et attend le signal.
+
+### Petites améliorations
+- Réf : P112.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/api/export/[entity]/route.ts:46-48`, `takussan-api/app/Services/Export/ExportDataService.php:350-366`, `takussan-api/app/Services/Export/ExportWriter.php:31-55`
+- Constat :
+  - Le relais du front appelle l'API par `fetch` sans `signal` ni délai (lu, `route.ts:46-48`) : un PDF de 198 s (P112.01) occupe le relais aussi longtemps que l'API le tient.
+  - `deposits` agrège les cautions de **tous** les baux du périmètre, puis applique la `limit` aux baux seulement (lu, `ExportDataService.php:350-366`) : le coût de l'agrégat ne dépend pas du plafond. `from` et `to` y sont ignorés, ce que le docblock dit (« un stock, sans borne de dates », l. 338).
+  - Le CSV est envoyé en flux, mais d'un tableau déjà chargé en entier (lu, `ExportWriter.php:31-49`) : 54 Mo de surcroît pour 10 000 lignes (mesuré, test temporaire retiré). Un `lazyById()` diffusé ligne à ligne le borderait, sans changer le fichier rendu.
+  - Établi comment : lu, et mesuré pour le CSV.
+- Piste : poser un délai sur le `fetch` du relais aligné sur `max_execution_time` ; diffuser le CSV depuis un curseur. Garde : un test du relais qui vérifie qu'un `signal` est passé.
