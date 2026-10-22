@@ -99,4 +99,27 @@ class OwnerProfileListingTest extends ApiTestCase
 
         $this->apiGet('/api/owners')->assertOk();
     }
+
+    /**
+     * P120.04 — le dialogue de reversement lit les bailleurs `active` ET `inactive` (décision du
+     * porteur, 2026-10-22) : `filter[status]` accepte la liste, et ne rend qu'elle.
+     */
+    public function test_le_filtre_de_statut_accepte_actif_et_inactif_ensemble(): void
+    {
+        $agency = Agency::factory()->create();
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+
+        $actif = OwnerProfile::factory()->create(['agency_id' => $agency->id]);
+        $inactif = OwnerProfile::factory()->inactive()->create(['agency_id' => $agency->id]);
+        $bloque = OwnerProfile::factory()->blocked()->create(['agency_id' => $agency->id]);
+        $brouillon = OwnerProfile::factory()->draft()->create(['agency_id' => $agency->id]);
+
+        $ids = collect($this->apiGet('/api/owners?filter[status]=active,inactive&per_page=100')
+            ->assertOk()->json('data'))->pluck('id')->all();
+
+        $this->assertContains($actif->id, $ids);
+        $this->assertContains($inactif->id, $ids);
+        $this->assertNotContains($bloque->id, $ids);
+        $this->assertNotContains($brouillon->id, $ids);
+    }
 }

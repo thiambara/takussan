@@ -76,7 +76,10 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
       params: {
         fields: { owner_profiles: OWNER_PROFILE_FIELDS },
         include: ['user'],
-        filter: { agency_id: agencyId ?? undefined, status: 'active' },
+        // P120.04 (TCK-1528) — un bailleur `inactive` peut avoir des loyers encaissés à reverser :
+        // `PayoutService::create` l'accepte sans filtre de statut (TCK-587). Décision du porteur
+        // (2026-10-22) : `active` et `inactive`, ni `blocked` ni `draft`.
+        filter: { agency_id: agencyId ?? undefined, status: ['active', 'inactive'] },
         per_page: 100,
       },
       enabled: open && agencyId !== null,
