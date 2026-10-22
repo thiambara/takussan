@@ -67,7 +67,13 @@ class GenerateReportExport implements ShouldQueue
             'expires_at' => now()->addDays(7),
         ]);
 
-        $export->requester?->notify(new ReportExportReadyNotification($export));
+        // TCK-1267 (P111.03) — le fichier est écrit et l'export `ready` : un courriel qui échoue se
+        // signale sans faire lever le job, que le worker rejouerait jusqu'à `failed()`.
+        try {
+            $export->requester?->notify(new ReportExportReadyNotification($export));
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**
@@ -76,7 +82,9 @@ class GenerateReportExport implements ShouldQueue
      */
     public function failed(Throwable $exception): void
     {
-        ReportExport::query()->find($this->reportExportId)?->update([
+        // TCK-1267 (P111.03) — seul un export encore en préparation échoue : un export `ready` a
+        // son fichier, que le téléchargement ne servirait plus.
+        ReportExport::query()->whereKey($this->reportExportId)->whereIn('status', ['queued', 'processing'])->first()?->update([
             'status' => 'failed',
             'failure_reason' => Str::limit($exception->getMessage(), 1000),
         ]);

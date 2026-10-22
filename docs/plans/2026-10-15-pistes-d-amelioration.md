@@ -9055,7 +9055,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 
 ### La preuve de signature d'un bail écrit le domaine entier de l'e-mail dans un `varchar(120)`
 - Réf : P91.06
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1263
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/LeaseSignatureService.php:121,169,350-355`, `lease_signatures.otp_destination` (`varchar(120)`, `information_schema`)
 - Constat :
@@ -9064,6 +9064,7 @@ TCK-972) et n'est pas repris. Rien n'a été mesuré en préproduction ni au nav
 - Piste : tronquer le domaine masqué (`mb_substr(…, 0, 120)`), comme `user_agent` l. 167, ou élargir la colonne (V4). Un test unitaire de `maskEmail` sur un domaine long, et un test de `sign()` qui attend 200.
 - Mesure (2026-10-21, 3e5f55e7b, mesureur) : relu `LeaseSignatureService.php:122` (`maskEmail` sans téléphone vérifié), `:169` (`otp_destination` recopié) et `:350-355` (domaine entier), migration `2026_10_08_020100` (`string('otp_destination', 120)`) ; méthode temporaire ajoutée à `LeaseSignatureTest` puis retirée (même charge), locataire sans téléphone vérifié à l'adresse `a@` + domaine de 124 caractères → le code part, puis `POST /api/leases/{id}/signature` avec le bon code → 500 `varchar(120)`. Le constat, déduit, est établi de bout en bout. Classement : V4, la `Piste` hésite entre élargir la colonne (migration) et tronquer la destination masquée d'une preuve de signature, ce qui ôte de la preuve une partie de ce qu'elle enregistre : un choix à trancher.
 - Mesure (2026-10-21, 50b3bab4d, delegue) : relu `LeaseSignatureService.php:122,169,350-355` (la destination masquée est rendue par `sendCode` au signataire, mise en cache par `LeaseSignatureOtpService::issue` l. 49-57, puis recopiée telle quelle dans la preuve), migration `2026_10_08_020100` l. 28 (`string('otp_destination', 120)`), ADR-0042 § 2 (la preuve garde « canal du code et destination **masquée** ») et `docs/models-spec.md` § 82 (`otp_destination string(120)`) → aucune décision écrite ne choisit entre les deux options ; `users.email` borné à 255 donne une destination masquée de 258 caractères au plus (1 + `•••` + `@` + domaine de 253). Recommandation : élargir `lease_signatures.otp_destination` à `string(260)` par une migration neuve (en PostgreSQL, élargir un `varchar` ne réécrit pas la table ; le `down()` doit tronquer avant de revenir à 120), plutôt que tronquer, parce que tronquer ferait différer la preuve de la destination que `sendCode` a affichée au signataire, ce qu'ADR-0042 enregistre précisément ; mettre `models-spec.md` § 82 à jour, et garder le test de `sign()` à 200 sur un domaine de 124 caractères. Non validé : un élargissement de colonne n'est pas un ajout (V4 non additif), et choisir ce qu'une preuve de consentement conserve d'une adresse e-mail touche V3 (donnée personnelle conservée) et la forme de la preuve d'ADR-0042 ; il manque la décision du porteur entre élargir, tronquer ou masquer aussi le domaine.
+- Mesure (2026-10-22, 1b5063805, implementeur) : test neuf `LeaseSignatureTest::test_a_long_email_domain_is_bounded_in_the_destination_and_the_proof` (locataire sans téléphone vérifié, `awa@` + domaine de 124 caractères) rouge avant correctif : `sendCode` rend une destination de 129 caractères → choix de la voie la plus étroite, la troncature sans migration, faite dans `maskEmail()` (borne `DESTINATION_MAX_LENGTH = 120`, la longueur de la colonne) pour que la destination affichée, celle du cache et celle de la preuve restent la même ; vert : 120 caractères, signature 200, `otp_destination` = destination affichée ; ablation de la borne → rouge, remise → vert ; `LeaseSignatureTest` 49/49.
 
 ### Aucune garde ne confronte les bornes de longueur des règles au schéma
 - Réf : P91.07
@@ -10917,7 +10918,7 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
 
 ### L'export RGPD n'a pas de `failed()` : un job tué laisse l'export « en préparation » pour toujours, et l'écran relance la liste toutes les 10 s
 - Réf : P111.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1265
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Privacy/ProcessDataExport.php:14-25`, `takussan-api/app/Services/Privacy/DataExportBuilder.php:50-82`, `takussan-api/app/Jobs/Privacy/PurgeExpiredDataExports.php`, `takussan-web/src/components/privacy/DataExportsPanel.tsx:35,45,72`
 - Constat :
@@ -10928,6 +10929,7 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
   - Établi comment : lu. Qu'un export réel dépasse 60 s ou la mémoire n'est pas mesuré (angle 78 : 2,9 s pour 20 000 lignes) ; le déclencheur reste donc la mort du worker, à vérifier.
 - Piste : un `failed()` qui passe à `failed` un export encore `queued` ou `processing`, sur le modèle de `GenerateReportExport::failed()`. Test : `failed()` appelé sur un export `processing` le rend `failed`, ablation comprise.
 - Mesure (2026-10-22, f396fa470, mesureur) : relu `ProcessDataExport.php` (25 lignes, ni `failed()`, ni `$tries`, ni `$timeout`), `DataExportBuilder::build()` (passage à `failed` dans le seul `catch`), `PurgeExpiredDataExports` (ne lit que `ready` échus) et `DataExportsPanel.tsx` (`EN_PREPARATION` = `queued`, `processing`, l. 35 ; `refetchInterval` l. 72) ; `git log` sur le job et `grep` des tickets → aucun correctif ; test temporaire (retiré, charge 4,78 / 5,16 / 4,45 sur 8 cœurs) → `method_exists(ProcessDataExport, 'failed')` faux, un export `processing` le reste. La mort réelle du worker n'est pas reproduite, comme dans le constat. Classement : A1, le contrat est déjà écrit par le `catch` de `build()` (une exception passe l'export à `failed`) et par `GenerateReportExport::failed()` (TCK-1145), dont le correctif est la copie, sans texte ni statut neufs.
+- Mesure (2026-10-22, 1b5063805, implementeur) : `method_exists(ProcessDataExport, 'failed')` faux avant correctif, les deux tests neufs de `ProcessDataExportFailureTest` en erreur → `ProcessDataExport::failed()` passe à `failed` l'export encore `queued` ou `processing` ; vert (un export `queued` ou `processing` devient `failed`, un `ready` le reste) ; ablation de l'écriture → rouge, de la condition sur le statut → rouge, remise → vert ; `DataExportTest` 7/7.
 
 ### Un export RGPD en échec bloque une nouvelle demande pendant 24 h
 - Réf : P111.02
@@ -10945,7 +10947,7 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
 
 ### Quand le courriel « prête » échoue, le job d'export reconstruit tout à chaque essai, et le rapport `ready` repasse à `failed`
 - Réf : P111.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1267 — reste : mettre les deux notifications « prête » en file avec `backoff`, pour qu'un courriel en échec soit renvoyé au lieu d'être seulement signalé
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:61-83`, `takussan-api/app/Notifications/ReportExportReadyNotification.php:11-20`, `takussan-api/app/Jobs/Privacy/ProcessDataExport.php:22-23`, `takussan-api/app/Notifications/DataExportReadyNotification.php:30-42`, `takussan-api/app/Http/Controllers/Api/ReportExportDownloadController.php:39-48`
 - Constat :
@@ -10956,6 +10958,7 @@ rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
   - Établi comment : mesuré pour l'état après `handle()` et après `failed()`, lu pour la reprise par le worker.
 - Piste : mettre la notification en file (`ShouldQueue`, avec `backoff`), ou attraper l'échec du courriel après `ready` pour que le job ne lève plus ; et faire que `GenerateReportExport::failed()` ne touche qu'un export encore `queued` ou `processing`. Test : canal `mail` qui lève → export `ready`, job sans exception, ou `failed()` sans effet sur un `ready`.
 - Mesure (2026-10-22, f396fa470, mesureur) : relu les deux notifications « prête » (ni `ShouldQueue`, canal `mail` seul), `GenerateReportExport::handle()` (notifie après l'écriture de `ready`) et `failed()` (met `failed` sans condition sur le statut) ; test temporaire (retiré), canal `mail` remplacé par un canal qui lève → rapport : `ready` et exception `smtp down` après `handle()`, puis `failed` avec `failure_reason` = `smtp down` après `failed()` ; export RGPD : `ready` et exception levée après `handle()`. La reconstruction aux essais suivants est lue (`build()` repasse à `processing`), non rejouée. Classement : A1, le commentaire de `failed()` (TCK-1145) borne son rôle à un calcul ou une écriture qui lève, et `ready` promet un fichier téléchargeable ; le correctif ne touche ni texte ni statut.
+- Mesure (2026-10-22, 1b5063805, implementeur) : `ExportReadyMailFailureTest` neuf, canal `mail` qui lève, rouge avant correctif sur ses trois cas : `ProcessDataExport::handle()` et `GenerateReportExport::handle()` lèvent `smtp down`, et `GenerateReportExport::failed()` passe un rapport `ready` à `failed` → voie retenue, la plus étroite : la notification « prête » dans un `try`, l'échec signalé par `report()`, et `failed()` du rapport borné à `queued` ou `processing` ; vert, chaque ablation seule rougit son cas, remise → vert ; `DisqueDesExportsTest` 4/4, `ReportExportDownloadTest` 6/6, `PlatformReportingTest` 31/31, `DataExportReadyNotificationTest` 11/11, `DataExportTest` 7/7.
 
 ### Le résumé de notifications est marqué « envoyé » avant l'envoi, qui part dans un job à part sans `backoff` : un échec du fournisseur le perd en silence
 - Réf : P111.04
@@ -11786,7 +11789,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Avec un repreneur par catégorie, un bien que le repreneur des biens n'a pas pu prendre reçoit pour agent principal celui des collaborations, et la réponse l'annonce « non attribué »
 - Réf : P121.03
-- Statut : validé (délégué) — dans `collaborations`, retirer `is_primary` de la ligne du partant avant de réécrire `user_id` quand le repreneur des biens a été refusé : le bien reste sans marque (repli) et la réponse le compte dans `unassigned.responsible_properties`, comme le refus de la collision d'ADR-0059 § 3 ; le repreneur des collaborations ne reçoit jamais la marque par la réécriture
+- Statut : fait · TCK-1253
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Agency/AgentHandoverService.php:213-222`, `takussan-api/app/Services/Agency/AgentHandoverService.php:237-251`, `takussan-api/app/Services/Property/PrimaryAgentDesignator.php:92-107`
 - Constat :
@@ -11798,6 +11801,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 - Piste : dans `collaborations`, quand la ligne du partant est marquée, passer la marque par `assignResponsible()` aussi quand le repreneur n'a pas de ligne (le service la crée), et ranger le bien en `unassigned` si le service refuse. Ou retirer `is_primary` avant de réécrire `user_id`. Test : les deux repreneurs distincts ci-dessus → soit B est désigné par le service, avec son journal, et la réponse le compte déplacé ; soit le bien reste sans marque et la réponse le dit.
 - Mesure (2026-10-22, a988d3f51, mesureur) : relu `AgentHandoverService.php:213-222` et `:237-251`, inchangés ; test temporaire retiré : partant principal, A `co_owner` du bien, `successors = {responsible_properties: A, collaborations: B}` → 200, `unassigned.responsible_properties = 1`, `moved.collaborations = 1`, lignes ensuite `{A, co_owner}` et `{B, agent, principal}`, `PrimaryPropertyContact::for()` rend B, aucune entrée `responsible_agent_changed` dans le journal ; la revalidation absente n'a pas été mesurée → le constat tient. Classement : V7, la Piste propose deux comportements visibles différents (B désigné principal par le service, ou bien laissé sans marque), et ADR-0059 ne dit que le service à emprunter, pas lequel des deux repreneurs reçoit la marque.
 - Mesure (2026-10-22, a8174784f, delegue) : relu l'entrée, ADR-0059 § 3 (« La marque, et non le repli : c'est le choix de l'agence qui se transmet » ; un repreneur refusé par le service : « la marque tombe dans le repli », le bien est compté désassigné), `AgentHandoverService.php:213-251` et `PrimaryAgentDesignator.php` (la `commission_share` vit sur la ligne, pas sur la marque : la décision ne touche aucun montant, P121.02 garde la part du partant) → l'ADR écrit déjà ce que devient la marque quand le repreneur choisi est refusé, et ne la donne jamais au repreneur d'une autre catégorie. Délégation : V7, l'option suit ADR-0059 § 3, se défait en un commit et rend la réponse fidèle à l'état (« non attribué » vrai) ; la part de commission reste sur la ligne, comme aujourd’hui.
+- Mesure (2026-10-22, 1b5063805, implementeur) : test neuf `AgentHandoverPropertiesTest::test_un_repreneur_des_biens_refuse_ne_laisse_pas_la_marque_au_repreneur_des_collaborations` (partant principal, A `co_owner`, `successors = {responsible_properties: A, collaborations: B}`) rouge avant correctif : 200, `unassigned.responsible_properties = 1`, et la ligne de B `{agent, is_primary: true}` → `AgentHandoverService::move()` retire la marque de la ligne avant de la réécrire quand le bien est parmi les refusés de `responsible_properties` ; vert, ablation de cette ligne → rouge, remise → vert ; `AgentHandoverPropertiesTest` 10/10, `AgentHandoverTest` 9/9.
 
 ### `leave_unassigned` avec `remove_after` laisse au membre retiré la marque d'agent principal et le titre des biens saisis, que la réponse dit « non attribués »
 - Réf : P121.04
@@ -11816,7 +11820,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Petites améliorations
 - Réf : P121.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1255
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Agency/AgentHandoverService.php:26-28`, `takussan-api/app/Services/Agency/AgentHandoverService.php:203-211`, `takussan-api/app/Services/Agency/AgentHandoverService.php:293-297`
 - Constat :
@@ -11825,6 +11829,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lu.
 - Piste : appeler `ProviderEligibility::isAssignable()` (ou retirer la branche) et corriger les deux commentaires ; à faire avec P121.01 si `assign()` est repris, puisqu'il porte déjà sa propre garde.
 - Mesure (2026-10-22, a988d3f51, mesureur) : relu `AgentHandoverService.php:26-28`, `:203-211` et `:293-297`, inchangés ; `StoreAgentHandoverRequest.php:61` exige `PersonnelDeLAgence::estPersonnel()`, qui exige `isStaffAt()` (`PersonnelDeLAgence.php:40-47`) ; `ProviderEligibility::isAssignable()` existe (`ProviderEligibility.php:33-42`) et rend `isActiveProviderAt || isStaffAt` → la branche l. 209 est inatteignable et les deux commentaires parlent d'une règle « avant sa fusion » déjà fusionnée, lu seulement. Classement : A6, juger l'éligibilité par `ProviderEligibility::isAssignable()` (la règle de TCK-592 que TCK-591 § Contraintes 3 prescrit, même résultat pour un repreneur du personnel) et corriger les deux commentaires ne change aucun résultat.
+- Mesure (2026-10-22, 1b5063805, implementeur) : test neuf `AgentHandoverTest::test_the_maintenance_eligibility_is_the_rule_of_provider_eligibility` (appel direct du service, repreneur prestataire actif de l'agence, hors personnel) rouge avant correctif : `moved.maintenance` absent, l'intervention désassignée → `eligibleForMaintenance()` juge `ProviderEligibility::isActiveProviderAt() || isStaffAt()`, la règle de `isAssignable()` pour l'agence de la passation, et l'en-tête comme le docblock ne parlent plus d'une règle « avant sa fusion » ; vert, ablation de `isActiveProviderAt()` → rouge, remise → vert ; `AgentHandoverTest` 10/10, `AgentHandoverPropertiesTest` 10/10.
 
 ## Angle 122 — Écritures qui changent un document indexé sans passer par l'observateur Scout
 
@@ -12067,7 +12072,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### La recherche globale de la console ne retrouve jamais une agence par son téléphone tel que le formulaire l'enregistre
 - Réf : P125.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1257
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:92-101,159-178`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:61`, `takussan-api/app/Http/Requests/Api/StoreAgencyRequest.php:43`, `takussan-api/app/Http/Requests/Api/Admin/StoreAgencyOnboardingRequest.php:24`, `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:302-308`, `takussan-web/src/lib/schemas/agency.ts:36-42`, `takussan-web/src/components/admin/super/AgencyOnboardingDialog.tsx:198-199`
 - Constat :
@@ -12078,6 +12083,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - Établi comment : lu et mesuré.
 - Piste : comparer par la forme canonique des deux côtés, comme l'entrée par téléphone (`CanonicalPhone::sql('phone') = CanonicalPhone::fold(...)`, `PhoneLoginService.php:151`), ce qui ne change aucune donnée ; ou normaliser `agencies.phone` à l'écriture (`TelephoneSaisi::normaliser` dans les trois requêtes, `PhoneInput` au front) et rattraper les lignes existantes, ce qui change ce qu'on accepte. Test : une agence enregistrée `+221 77 123 45 67` se retrouve par `77 123 45 67`.
 - Mesure (2026-10-22, 64db86d28, mesureur) : relu `AdminGlobalSearchService.php:92-101` (toujours `Agency::query()->where('phone', $phone)` après `phoneCandidate`), les trois requêtes (`phone` en `string`, `max:30`, sans normalisation) et `Agency.php` (aucun mutateur) ; test Feature temporaire, retiré, deux agences `+221 77 123 45 67` et `+221771234569`, opérateur support (charge 2,76 / 2,13 / 2,02 sur 8 cœurs) → `q=+221 77 123 45 67`, `q=77 123 45 67` et `q=+221771234567` rendent `[]` en agences, seule `q=771234569` retrouve la seconde ; aucun commit ni ticket ne cite P125.01. Classement : A1, la recherche par téléphone « comptes et agences » est écrite (TCK-600, l. 863-864) et le correctif — comparer `CanonicalPhone::sql('phone') = ?` au candidat E.164 pour les agences, sans toucher aux données ni à ce qu'on accepte à l'écriture — ne demande aucun choix ; la seconde option de la piste (normaliser à l'écriture et rattraper les lignes) relève de V4 et n'est pas couverte.
+- Mesure (2026-10-22, 1b5063805, implementeur) : test neuf `AdminGlobalSearchTest::test_le_telephone_d_une_agence_se_trouve_tel_que_le_formulaire_l_enregistre` (agences `+221 77 123 45 67`, `77 123 45 68`, `+221771234569`) rouge avant correctif : `q=+221 77 123 45 67` → `[]` en agences → `byPhone()` compare `CanonicalPhone::sql('phone') = CanonicalPhone::fold(…)` pour les agences, les comptes gardent l'égalité stricte ; vert, ablation (`where('phone', …)` remis) → rouge, remise → vert ; `AdminGlobalSearchTest` 12/12.
 
 ### Convertir une demande de contact crée une seconde fiche client quand le numéro en a déjà une
 - Réf : P125.02
@@ -12258,7 +12264,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### `/dashboard/me` rend 0 % d'occupation au bailleur qui n'a aucun bien à occuper, là où `/dashboard/owner` rend `null`
 - Réf : P127.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1259
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/Adapters/OwnerMeMetrics.php:32`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:207-237`, `takussan-api/app/Services/Dashboard/KpiResolver.php:41`
 - Constat :
@@ -12269,6 +12275,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : `?? null` dans `OwnerMeMetrics`, comme `KpiResolver`. Un test `DashboardMeTest` qui exige `null` sans bien éligible et la même valeur que `/dashboard/owner` avec un bien loué.
 - Mesure (2026-10-22, 1f9dea9cd, mesureur) : relu `OwnerMeMetrics.php:32` (`?? 0.0`), `KpiResolver.php:41` (`?? null`), `PortfolioMetrics::longStayOccupancyToday` (`null` si `n = 0`) ; test temporaire retiré (bailleur sans bien, charge 2,62 / 2,27 / 2,21 sur 8 cœurs) → `/dashboard/me` `metrics.occupancy_rate_percent = 0`, `/dashboard/owner` `occupancy.rate_percent = null` ; TCK-1114 l'a laissé « Hors périmètre » (aucune tuile ne lit la clé), `grep` du front → seules les listes de KPI et d'alertes d'agence la nomment. Classement : A1, le contrat `null` sans bien éligible est écrit par TCK-1114 et tenu par `KpiResolver`, et aucun écran ne lit la clé du bailleur.
+- Mesure (2026-10-22, 1b5063805, implementeur) : test neuf `DashboardMeTest::test_owner_occupancy_is_null_without_an_eligible_property_like_dashboard_owner` rouge avant correctif : bailleur sans bien, `/dashboard/me` `metrics.occupancy_rate_percent = 0` → `OwnerMeMetrics` écrit `?? null` ; vert, et un bien éligible sans bail rend la même valeur non nulle sur `/dashboard/owner` et `/dashboard/me` ; ablation (`?? 0.0`) → rouge, remise → vert ; `DashboardMeTest` 13/13.
 
 ### La série mensuelle d'occupation rend 0 % pour les mois où le portefeuille n'avait aucun bien éligible
 - Réf : P127.02
@@ -13298,7 +13305,7 @@ l'une ni l'autre n'est reprise ici.*
 
 ### Le journal d'audit lit `causer->name`, que `User` n'a pas : l'écran montre l'adresse à la place du nom
 - Réf : P139.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1261
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/AuditLogController.php:171-175`, `takussan-api/app/Models/User.php:327`, `takussan-web/src/components/admin/AuditTrail.tsx:557-565`
 - Constat :
@@ -13307,6 +13314,7 @@ l'une ni l'autre n'est reprise ici.*
   - Le fil d'activité du client lit le même journal et rend bien le nom, par `getFullNameAttribute()` (lu, `CustomerActivityFeed.php:84-85`). La clé visée existe donc ailleurs.
 - Piste : rendre `full_name` sous la clé `name` (ou `name` ← `full_name`, comme `CustomerActivityFeed`). Garde : un test de `GET /api/activity-log` qui exige le nom du causeur.
 - Mesure (2026-10-22, a518e2cd2, mesureur) : lu `AuditLogController::index()` (`'name' => $log->causer->name ?? null`, l. 173), `User` sans accesseur `name` mais `getFullNameAttribute()` (l. 327), l'écran qui attend `causer.name` puis l'adresse dessous (`AuditTrail.tsx:557-565`) et `CustomerActivityFeed` qui rend `name` ← `getFullNameAttribute()` (l. 85) ; test temporaire retiré : `GET /api/activity-log` d'un admin d'agence → 200, `causer: {"name":null,"email":…}` alors que `full_name` vaut « Alfonzo Braun » → le constat tient. Classement : A1, le contrat de l'appelant (`causer.name` lu par `AuditTrail.tsx`) et le fil client écrivent déjà la valeur attendue, sans choix de produit.
+- Mesure (2026-10-22, 1b5063805, implementeur) : test neuf `ActivityLogEndpointTest::test_the_causer_is_named_by_his_full_name` rouge avant correctif : causeur « Awa Ndiaye », `GET /api/activity-log` → `causer.name = null` → `causer.name` ← `full_name` pour un causeur `User`, nul s'il est vide ; vert, ablation (lecture de `name` remise) → rouge, remise → vert ; `ActivityLogEndpointTest` 9/9, `AgencyAuditScopeTest` 13/13, `CrossTenantAuditTest` 3/3.
 
 ### L'archive RGPD ne porte pas les avis reçus comme prestataire
 - Réf : P139.04

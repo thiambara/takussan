@@ -9,7 +9,7 @@ use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
-use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Property\ResponsibleAgentAssigner;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +25,8 @@ use Illuminate\Support\Facades\DB;
  * Les règles de chaque catégorie :
  *  - `tasks`, `visits` : réassignées ;
  *  - `maintenance` : réassignée si le repreneur y est éligible, sinon DÉSASSIGNÉE et comptée comme
- *    telle (règle d'éligibilité de TCK-592 ; avant sa fusion, le personnel de l'agence) ;
+ *    telle (règle d'éligibilité de TCK-592, {@see ProviderEligibility}). La requête n'admet que le
+ *    personnel de l'agence, toujours éligible : la branche désassignée ne sert qu'à un appel direct ;
  *  - `responsible_properties` (TCK-603) : la marque d'agent principal passe au repreneur par
  *    {@see ResponsibleAgentAssigner} — jamais `user_id` ; un repreneur que le service refuse (co-
  *    propriétaire du bien) laisse le bien DÉSASSIGNÉ, compté comme tel ;
@@ -35,7 +36,8 @@ use Illuminate\Support\Facades\DB;
  *  - `collaborations` : la ligne du partant passe au repreneur ; si le repreneur collabore déjà au
  *    bien (unicité `property_id, user_id`), sa ligne est conservée et celle du partant supprimée —
  *    et si celle du partant portait la marque, elle passe d'abord au repreneur (ADR-0053,
- *    « Conséquences ») ;
+ *    « Conséquences ») ; si le repreneur des biens a été refusé pour ce bien, la ligne réécrite
+ *    perd sa marque, qui tombe dans le repli (ADR-0059 §3, TCK-1253) ;
  *  - `customers` : le référent (`is_primary`) passe au repreneur ; s'il a déjà une relation de même
  *    type avec le client, elle devient la principale et celle du partant est supprimée.
  *
@@ -93,7 +95,7 @@ class AgentHandoverService
                     continue;
                 }
 
-                [$ids, $dropped] = $this->move($category, $agency, $member, $successor, $actor, $locked);
+                [$ids, $dropped] = $this->move($category, $agency, $member, $successor, $actor, $locked, $unassigned['responsible_properties'] ?? []);
                 if ($ids === [] && $dropped === []) {
                     continue;
                 }
@@ -165,9 +167,10 @@ class AgentHandoverService
 
     /**
      * @param  list<int>  $locked  les biens que {@see self::lockProperties()} tient
+     * @param  list<int>  $refusedMarks  les biens dont le repreneur des biens a été refusé : leur marque tombe dans le repli
      * @return array{0: list<int>, 1: list<int>} [déplacés, désassignés]
      */
-    private function move(string $category, Agency $agency, User $member, User $successor, User $actor, array $locked): array
+    private function move(string $category, Agency $agency, User $member, User $successor, User $actor, array $locked, array $refusedMarks = []): array
     {
         $query = $this->portfolio->query($category, $agency, $member);
         if (in_array($category, ['responsible_properties', 'held_properties'], true)) {
@@ -245,6 +248,12 @@ class AgentHandoverService
                         && ! $this->assignResponsible(Property::query()->findOrFail($row->property_id), $successor, $actor)) {
                         $dropped[] = (int) $row->id;
                     }
+                    if (! $taken && $row->is_primary && in_array((int) $row->property_id, $refusedMarks, true)) {
+                        // TCK-1253 (ADR-0059 § 3) — le repreneur des biens a été refusé : la marque
+                        // tombe dans le repli, et la réécriture ne la donne jamais au repreneur des
+                        // collaborations. Le bien reste compté dans `unassigned.responsible_properties`.
+                        $row->forceFill(['is_primary' => false])->save();
+                    }
                     $taken ? $row->delete() : $row->update(['user_id' => $successor->id]);
                 }
 
@@ -290,9 +299,15 @@ class AgentHandoverService
         return true;
     }
 
-    /** TCK-592 — règle d'éligibilité d'une intervention ; avant sa fusion, le personnel actif de l'agence (TCK-587). */
+    /**
+     * TCK-592 — la règle d'éligibilité d'une intervention, {@see ProviderEligibility::isAssignable()},
+     * jugée pour l'agence de la passation : le portefeuille ne retient que les interventions des biens
+     * de cette agence (TCK-1255).
+     */
     private function eligibleForMaintenance(User $user, int $agencyId): bool
     {
-        return app(MembershipCapabilityResolver::class)->isStaffAt($user, $agencyId);
+        $eligibility = app(ProviderEligibility::class);
+
+        return $eligibility->isActiveProviderAt($user, $agencyId) || $eligibility->isStaffAt($user, $agencyId);
     }
 }

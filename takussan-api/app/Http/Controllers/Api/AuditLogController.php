@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Filters\ExactIdentifierFilter;
 use App\Http\Requests\Api\IndexAuditLogRequest;
 use App\Models\Activity;
+use App\Models\User;
 use App\Services\Audit\AuditScope;
 use App\Support\AgencyKindGuard;
 use App\Support\Audit\PropertyRedactor;
@@ -170,7 +171,9 @@ class AuditLogController extends Controller
                 'causer_id' => $log->causer_id,
                 'causer' => $log->causer ? [
                     'id' => $log->causer->getKey(),
-                    'name' => $log->causer->name ?? null,
+                    // TCK-1261 — `users` n'a pas de colonne `name` : le nom est `full_name`,
+                    // nul s'il est vide pour que l'écran retombe sur l'adresse.
+                    'name' => ($log->causer instanceof User ? $log->causer->full_name : ($log->causer->name ?? null)) ?: null,
                     'email' => $log->causer->email ?? null,
                 ] : null,
                 'subject_type' => $log->subject_type,

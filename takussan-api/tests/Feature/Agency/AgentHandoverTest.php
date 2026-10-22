@@ -4,6 +4,7 @@ namespace Tests\Feature\Agency;
 
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\RelationshipStatus;
@@ -12,12 +13,15 @@ use App\Models\Enums\TaskStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\MaintenanceRequest;
+use App\Models\Profiles\ServiceProviderAgencyCollaboration;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
+use App\Services\Agency\AgentHandoverService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
@@ -304,5 +308,33 @@ class AgentHandoverTest extends ApiTestCase
         $this->actingAsApi($this->admin)->apiPost($this->url('handover'), ['successor_id' => $this->successor->id])
             ->assertOk()->assertJsonPath('data.moved.collaborations', 2);
         $this->assertSame($this->leaver->id, $leaversCoOwnership->fresh()->user_id);
+    }
+
+    /**
+     * TCK-1255 (P121.05, TCK-592) — l'éligibilité d'une intervention est celle de
+     * `ProviderEligibility::isAssignable()` : un prestataire actif de l'agence la reçoit. La requête
+     * HTTP n'admet que le personnel ; le service, appelé seul, juge par la règle de TCK-592.
+     */
+    public function test_the_maintenance_eligibility_is_the_rule_of_provider_eligibility(): void
+    {
+        $provider = User::factory()->create();
+        ServiceProviderAgencyCollaboration::create([
+            'service_provider_profile_id' => ServiceProviderProfile::factory()->create(['user_id' => $provider->id])->id,
+            'agency_id' => $this->agency->id,
+            'status' => CollaborationStatus::Active,
+            'started_at' => now()->toDateString(),
+        ]);
+
+        $result = app(AgentHandoverService::class)->transfer($this->agency, $this->leaver, ['maintenance' => $provider], $this->admin);
+
+        $this->assertSame($this->ids['maintenance'], $result['moved']['maintenance']);
+        $this->assertArrayNotHasKey('maintenance', $result['unassigned']);
+        $this->assertSame($provider->id, MaintenanceRequest::query()->find($this->ids['maintenance'][0])->assigned_to);
+
+        // Ni personnel ni prestataire de l'agence : désassignée, comptée comme telle.
+        $stranger = User::factory()->create();
+        $result = app(AgentHandoverService::class)->transfer($this->agency, $provider, ['maintenance' => $stranger], $this->admin);
+        $this->assertSame($this->ids['maintenance'], $result['unassigned']['maintenance']);
+        $this->assertNull(MaintenanceRequest::query()->find($this->ids['maintenance'][0])->assigned_to);
     }
 }
