@@ -14160,7 +14160,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### La fiche client modifiée garde l'e-mail, le téléphone, la profession et le type de pièce qu'on vient de vider
 - Réf : P149.02
-- Statut : validé — porteur (2026-10-22) : en édition, un champ modifié et laissé vide envoie `null` (`email`, `phone`, `occupation`, `id_type`) ; `id_number` omis tant qu'il n'est pas touché
+- Statut : fait · TCK-1347
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/schemas/customer.ts:187-206`, `takussan-web/src/components/customer-form/CustomerForm.tsx:154-165`, `takussan-api/app/Http/Requests/Api/UpdateCustomerRequest.php:69-73`, `takussan-api/app/Services/Model/CustomerService.php:23`
 - Constat :
@@ -14172,6 +14172,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lecture, puis le test temporaire.
 - Piste : en édition, poser `null` sur `email`, `phone`, `occupation` et `id_type` quand le champ a été modifié et laissé vide, comme pour les critères. Laisser `id_number` omis tant que le champ n'a pas été touché. Test sur `normaliseCustomerForm`, ou sur le corps de `CustomerForm` en mode `edit`, avec une ablation.
 - Mesure (2026-10-22, 1b5063805, mesureur) : relu `customer.ts:191-206` (`blank()` → `undefined` pour `email`, `phone`, `occupation`, `id_number` ; `id_type` hors liste → `undefined` ; critères à `null`), `CustomerForm.tsx:154-165` (même normaliseur en création et en édition), `UpdateCustomerRequest.php:69-73` et `ValidatesCustomerContactAndCriteria.php:44` (les cinq clés `sometimes|nullable`), `CustomerService.php:23` (`fill($data)`) ; test Vitest temporaire (retiré) : `customerFormSchema` puis `normaliseCustomerForm` avec `email`, `occupation`, `id_type`, `id_number` vides → corps sans aucune de ces clés ; avec `phone` vide et `email` saisi → corps sans `phone` → le constat tient, `phone` compris. Classement : V3, le correctif est mécanique mais décide quelles données personnelles du client s'effacent depuis l'édition (dont le type de pièce, dissocié du numéro masqué gardé).
+- Mesure (2026-10-22, 1800d4d36, implementeur) : tests neufs rouges avant correctif : `normaliseCustomerForm` sur une fiche à e-mail, téléphone, profession et `id_type` vidés → aucune des quatre clés (`undefined`) → avec les valeurs de la fiche en référence (`CustomerForm` en édition), un champ qui avait une valeur et part vide vaut `null`, un champ déjà vide reste omis, `id_number` omis, création inchangée ; formulaire d'édition, e-mail et profession vidés → corps `email: null`, `occupation: null` ; ablation → 2 rouges, remis → 17 verts.
 
 ### Vider sa présentation dans le profil n'efface rien : l'action serveur retire `bio` du corps
 - Réf : P149.03
