@@ -13292,7 +13292,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
 
 ### La sonde d'existence des fiches de `/app` ne partage pas sa promesse avec la page : chaque fiche lue au serveur part deux fois, et la sonde du bail charge le bail entier
 - Réf : P138.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1384
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/detail/ressource-de-detail.ts:47-52,98-114`, `takussan-web/src/app/(dashboard)/app/properties/[id]/page.tsx:62`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:93`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:64-73`, `takussan-web/src/lib/queries/__tests__/show-sans-fields.garde.test.ts:39`
 - Constat :
@@ -13303,6 +13303,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : lecture du module et des deux pages, journal de l'API factice.
 - Piste : sonder par une lecture légère qui existe (la liste filtrée par `id`, `per_page=1`, comme le titre du bail), ou faire lire à la page la ressource par une fonction mémoïsée que la sonde partage, là où la page la lit au serveur ; corriger l'en-tête dans les deux cas. Élargir le motif de la garde aux chemins interpolés.
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/lib/detail/ressource-de-detail.ts:50-52` (l'en-tête affirme le partage de promesse) et l. 98-114 (`sonderExistence` lit `/api/${api}/${id}?fields[${table}]=id`) ; `grep -rn 'sonderExistence\|exigerRessource' src` → seuls les huit `[id]/layout.tsx` l'appellent, aucune page ; `properties/[id]/page.tsx:62` lit par `fetchDashboardProperty`, `customers/[id]/page.tsx:93` par `fetchDashboardCustomer` : URL distinctes, donc deux lectures ; `LeaseController::show` charge `property.address`, `tenant`, `signatures.signer`, `signatures.onBehalfOf` (l. 67-75 aujourd'hui, non 64-73) ; `show-sans-fields.garde.test.ts:39` exige un segment littéral après `/api/`. Le constat tient. Classement : A2, la page lit la ressource par une fonction mémoïsée par `cache()` que la sonde partage là où la page la lit au serveur (même URL, même 404 par la liaison de route), l'en-tête est corrigé pour dire ce que fait le code (A6) et le motif de la garde s'étend aux chemins interpolés (A5) ; l'option « liste filtrée par `id` » n'est pas retenue, son périmètre d'autorisation n'étant pas celui du `show`.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : `src/lib/detail/__tests__/ressource-de-detail.partage.tck-1384.test.ts` avant correctif → aucune lecture partagée exportée, la sonde lisait `/api/leases/9?fields[leases]=id` ; `show-sans-fields.garde.test.ts` au motif élargi aux segments interpolés → `src/lib/detail/ressource-de-detail.ts : /api/${api}/${id}` refusé (5 rouges) → `lireBienDuRendu` et `lireClientDuRendu` sous `cache()`, partagées par la sonde et les pages `properties/[id]` et `customers/[id]`, les six autres sondes sans `fields`, en-tête corrigé ; ablation (sonde propre avec `fields`) → 4 rouges sur 6, remis → 6 verts.
 
 ### L'accueil `/app` d'un admin d'agence relit l'agence hors de `cache()` : le doublon de P105.05 existe aussi sur l'écran d'arrivée
 - Réf : P138.05
