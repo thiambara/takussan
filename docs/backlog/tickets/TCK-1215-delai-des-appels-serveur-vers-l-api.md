@@ -1,7 +1,7 @@
 ---
 id: TCK-1215
 title: "Les appels du serveur Next vers l'API portent un délai : 30 s, 90 s pour un envoi de fichier"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -65,19 +65,19 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] `src/lib/api.ts` : `DELAI_API_SERVEUR_MS`, `DELAI_API_SERVEUR_ENVOI_MS`, et un signal borné
+- [x] `src/lib/api.ts` : `DELAI_API_SERVEUR_MS`, `DELAI_API_SERVEUR_ENVOI_MS`, et un signal borné
       posé par `apiFetch` et `apiRequest` côté serveur.
-- [ ] Test vitest (environnement node) : un `fetch` qui ne se résout jamais rejette sous la borne,
+- [x] Test vitest (environnement node) : un `fetch` qui ne se résout jamais rejette sous la borne,
       pour `apiFetch` et `apiRequest` ; le signal de l'appelant reste honoré ; 90 s demandées pour
       un `formData`.
-- [ ] Test de `getProperty` : une API figée rend `indisponible` (P79.03).
+- [x] Test de `getProperty` : une API figée rend `indisponible` (P79.03).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `apiFetch` et `apiRequest` côté serveur passent à `fetch` un signal qui s'abandonne au
+- [x] AC1 — `apiFetch` et `apiRequest` côté serveur passent à `fetch` un signal qui s'abandonne au
       bout de `DELAI_API_SERVEUR_MS`.
-- [ ] AC2 — Un abandon par le signal de l'appelant abandonne toujours l'appel.
-- [ ] AC3 — `getProperty` rend `{ etat: 'indisponible' }` sur une API qui ne répond pas.
+- [x] AC2 — Un abandon par le signal de l'appelant abandonne toujours l'appel.
+- [x] AC3 — `getProperty` rend `{ etat: 'indisponible' }` sur une API qui ne répond pas.
 
 ## Hors périmètre
 
@@ -87,4 +87,11 @@ Aucun.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Le test n'attend pas 30 s : `AbortSignal.timeout` est épié, la valeur demandée relevée, et un
+  délai de 5 ms rendu à sa place ; le faux `fetch` ne rejette qu'à l'abandon de son signal, comme
+  undici contre une API figée.
+- Un signal posé sur un `fetch` mis en cache par Next n'entre pas dans la clé du cache (lu,
+  `next/dist/server/lib/patch-fetch.js`, liste des champs de `RequestInit` recopiés) : la fiche
+  partagée garde son cache.
+- Ablation : `src/lib/api.ts` rendu à `HEAD` → 5 rouges sur 6 (« toujours en attente après
+  1000 ms », constantes absentes) ; correctif remis → 6/6 verts.
