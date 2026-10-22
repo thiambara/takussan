@@ -12980,7 +12980,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### Trois pages d'authentification chargent react-hook-form et le calendrier pour afficher un message d'erreur
 - Réf : P137.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(auth)/auth/verify-email/page.tsx:9`, `takussan-web/src/app/(auth)/auth/reset-password/page.tsx:11`, `takussan-web/src/components/auth/DefiSecondFacteur.tsx:9`, `takussan-web/src/app/(auth)/auth/oauth/[provider]/callback/page.tsx:13`, `takussan-web/src/components/forms/index.ts`
 - Constat :
@@ -12988,10 +12988,11 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Graphe client : `verify-email`, `reset-password` et le retour OAuth (`oauth/[provider]/callback`, qui monte `DefiSecondFacteur`) atteignent `react-hook-form`, `react-day-picker` et `date-fns` ; imports pris au fichier propre → **aucun des trois** (mesuré, test temporaire). Sur `verify-email`, 14 des 27 modules du graphe client sont les neuf champs, l'`index.ts`, `ui/calendar`, `ui/date-picker`, `ui/date-time-picker` et `lib/format/dateFnsLocale.ts` (mesuré, `modulesDuGrapheClient`).
   - Établi comment : code relu, graphe client mesuré avant et après le renvoi simulé.
 - Piste : prendre `FormError` et `FormGlobalError` à `@/components/forms/FormError` dans ces trois fichiers, sans changement de rendu. Garde du patron de `graphe-client-de-la-console.test.ts` sur ces trois pages : ni react-hook-form ni react-day-picker ni date-fns.
+- Mesure (2026-10-22, f42212ee7, mesureur) : relu `verify-email/page.tsx:9`, `reset-password/page.tsx:11`, `DefiSecondFacteur.tsx:9` (toujours `@/components/forms`), `components/forms/index.ts` (neuf `export *`, dont `FormDatePicker` et `FormDateTimePicker`) et `FormError.tsx:1-4` (`react`, `lucide-react`, `@/lib/utils`) ; `git log` sur `components/forms/index.ts` : rien depuis TCK-564, aucun ticket ne cite P137 ; test Vitest temporaire, retiré depuis, sur `modulesDuGrapheClient` et `paquetsDuGrapheClient` → `verify-email` 27 modules dont 10 de `components/forms`, et les trois pages atteignent `react-hook-form`, `react-day-picker` et `date-fns` ; les trois imports réécrits à titre d'essai vers `@/components/forms/FormError`, puis remis → `verify-email` 6 modules, `reset-password` 14 (au lieu de 33), retour OAuth 24 (au lieu de 43), aucun des trois paquets ; le poids du build n'est pas mesuré. Classement : A2, trois imports pris à `@/components/forms/FormError`, même rendu et même comportement, plus la garde de graphe client sur ces trois pages (patron TCK-1200).
 
 ### L'écran des intégrations charge react-hook-form, son résolveur et le calendrier sans en employer aucun
 - Réf : P137.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin-settings/IntegrationsManager.tsx:21,23,185,213`, `takussan-web/src/components/admin-settings/IntegrationWebhookEndpoint.tsx:9`, `takussan-web/src/hooks/useApiForm.ts:20,155`
 - Constat :
@@ -13000,10 +13001,11 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Graphe client de `/app/agency/integrations` : `react-hook-form`, `@hookform/resolvers`, `react-day-picker`, `date-fns`, `zod` ; imports pris au fichier propre (`FormError` et `useTraducteurValidation`) → `zod` seul (mesuré, test temporaire). zod reste par `lib/schemas/setting.ts` (mesuré) ; qu'il puisse se charger à l'envoi, comme TCK-1196 l'a fait pour les étiquettes, est à vérifier (`isPaymentProvider`, `hasWebhookEndpoint` et `normaliseIntegrationForm` sont pris au même module, l. 24-31).
   - Établi comment : code relu, graphe client mesuré.
 - Piste : deux imports pris à leur fichier propre (`@/components/forms/FormError`, `@/hooks/useTraducteurValidation`) ; garde sur `integrations/page.tsx` : ni react-hook-form, ni `@hookform/resolvers`, ni calendrier.
+- Mesure (2026-10-22, f42212ee7, mesureur) : relu `IntegrationsManager.tsx:21,23` (`FormError`, `FormGlobalError` par `@/components/forms`, `useTraducteurValidation` par `@/hooks/useApiForm`), l. 185 et 213 (`integrationFormSchema.safeParse`, aucun `useForm`), `IntegrationWebhookEndpoint.tsx:9`, `useApiForm.ts:15` (`zodResolver`) et l. 155 (réexport de `useTraducteurValidation`) ; test temporaire du graphe client, retiré depuis → `agency/integrations/page.tsx` atteint `react-hook-form`, `@hookform/resolvers`, `react-day-picker`, `date-fns` et `zod` (49 modules) ; les trois imports réécrits à titre d'essai, puis remis → `zod` seul (32 modules). Le chargement de zod à l'envoi n'est pas mesuré : il reste hors de la piste. Classement : A2, deux modules d'import changés (`@/components/forms/FormError`, `@/hooks/useTraducteurValidation`), même validation, plus une garde sur la page, sans choix de produit.
 
 ### Six autres écrans chargent le calendrier par l'`index.ts` sans afficher aucun sélecteur de date
 - Réf : P137.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(auth)/auth/login/page.tsx:14`, `takussan-web/src/app/(auth)/auth/register/page.tsx:13-17`, `takussan-web/src/components/auth/ConnexionParTelephone.tsx:11`, `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:17,30`, `takussan-web/src/components/customer-form/CustomerForm.tsx:17`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:27`, `takussan-web/src/components/bookings/BookingPaymentDialog.tsx:12`, `takussan-web/src/components/bookings/BookingRefundPanel.tsx:13`
 - Constat :
@@ -13012,10 +13014,11 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Sur 180 pages et layouts, ce renvoi ne change le graphe de rien d'autre que ces six pages et les quatre de P137.01 et P137.02 (mesuré).
   - Établi comment : code relu, graphe client mesuré.
 - Piste : prendre chaque champ à son fichier dans les 32 importeurs de `@/components/forms` (`grep -rn "from '@/components/forms'"`, lu), ou retirer `FormDatePicker` et `FormDateTimePicker` de l'`index.ts` ; garde qui refuse tout import de `@/components/forms` par son `index.ts`, ou qui exige des pages ci-dessus qu'elles n'atteignent pas react-day-picker.
+- Mesure (2026-10-22, f42212ee7, mesureur) : relu les imports de `login/page.tsx:14`, `register/page.tsx:17`, `ConnexionParTelephone.tsx:11`, `AgencyConfigForm.tsx:17,18,30`, `CustomerForm.tsx:17`, `MaintenanceForm.tsx:27`, `BookingPaymentDialog.tsx:12`, `BookingRefundPanel.tsx:13` (tous par `@/components/forms`) ; test temporaire du graphe client, retiré depuis, avec `FormDatePicker` et `FormDateTimePicker` retirés de l'`index.ts` à titre d'essai, puis remis → `login`, `register`, `/app/agency`, `/app/customers/new`, `/app/maintenance/new` et `/app/bookings/[id]` perdent `react-day-picker` et `date-fns` et gardent `react-hook-form` (7 modules de moins chacune). Constat inexact sur un point : `useTraducteurValidation` pris à son module ne fait **pas** sortir `@hookform/resolvers` de `/app/agency`, car `AgencyConfigForm.tsx:18` importe aussi `useApiForm`, qui importe `zodResolver` (`useApiForm.ts:15`) (mesuré). Classement : A2, chaque nom pris à son fichier propre (`@/components/forms/<Champ>`) dans les huit fichiers cités, même rendu, avec une garde sur ces six pages contre `react-day-picker` et `date-fns`. Des deux options de la Piste, celle-ci ne touche pas l'`index.ts` ni ses autres importeurs.
 
 ### Connexion et inscription chargent les onze modules de schémas pour un seul schéma
 - Réf : P137.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(auth)/auth/login/page.tsx:15`, `takussan-web/src/app/(auth)/auth/register/page.tsx:18`, `takussan-web/src/lib/schemas/index.ts`, `takussan-web/src/lib/schemas/auth.ts:1-7`
 - Constat :
@@ -13023,16 +13026,18 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Graphe client de `login` : 13 modules `lib/schemas/*` sur 76, dont `property`, `lease`, `inventory`, `maintenance`, `booking`, `payment`, `document`, `customer`, `message` (mesuré, `modulesDuGrapheClient`) ; ces dix modules et `common` comptent 1 345 lignes (mesuré, `wc -l`). zod est chargé de toute façon : le gain est le code des schémas seul, son poids n'est pas mesuré (à vérifier).
   - Établi comment : code relu, graphe client mesuré.
 - Piste : importer de `@/lib/schemas/auth` dans ces deux pages ; l'`index.ts`, sans autre importeur, peut alors se retirer (à mesurer côté tests).
+- Mesure (2026-10-22, f42212ee7, mesureur) : relu `login/page.tsx:15`, `register/page.tsx:18` (`@/lib/schemas`), `lib/schemas/index.ts` (onze `export *`) ; `grep -rln "from '@/lib/schemas'" src` → ces deux pages seules, aucun test ; test temporaire du graphe client, retiré depuis → `login` 13 modules `lib/schemas/*` sur 76 ; les deux imports réécrits à titre d'essai vers `@/lib/schemas/auth`, puis remis → 3 (`auth`, `common`, `messages`) sur 62 ; le poids n'est pas mesuré. Classement : A2, deux imports pris à `@/lib/schemas/auth`, mêmes schémas ; l'`index.ts` sans importeur peut ensuite se retirer (A3).
 
 ### Aucune garde de graphe client ne lit les pages `(auth)`
 - Réf : P137.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/__tests__/graphe-client-de-la-console.test.ts`, `takussan-web/src/app/(dashboard)/__tests__/zod-hors-des-ecrans-de-lecture.test.ts`, `takussan-web/src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts`
 - Constat :
   - `paquetsDuGrapheClient` n'est appelé que par quatre tests : la console super-admin, les écrans de lecture de `(dashboard)/app`, les pages publiques et le layout racine (mesuré, `grep -rln paquetsDuGrapheClient src`). Aucun ne part de `(auth)`, dont les tests sous `(auth)/__tests__` et `(auth)/auth/__tests__` sont des tests de rendu et de titres (lu, `ls`).
   - Établi comment : `grep` et lecture des listes de tests.
 - Piste : une garde du patron de TCK-1200 qui trouve les pages de `(auth)` et refuse react-day-picker et date-fns partout, et react-hook-form sur celles qui n'ont pas de formulaire au chargement (`verify-email`, retour OAuth), avec une liste déclarée et motivée des exceptions.
+- Mesure (2026-10-22, f42212ee7, mesureur) : `grep -rln paquetsDuGrapheClient src` → quatre tests, dont aucun sous `(auth)` ; `ls (auth)/__tests__ (auth)/auth/__tests__` → tests de rendu et de titres seuls ; test temporaire, retiré depuis, sur les 13 pages et layouts de `(auth)` → `react-day-picker` et `date-fns` atteints par `login`, `register`, `reset-password`, `verify-email` et le retour OAuth ; avec P137.01 et P137.03 simulés, aucun des 13 n'atteint plus le calendrier, et seuls `login` et `register` atteignent `react-hook-form`, `@hookform/resolvers` et `zod`. Classement : A5, une garde neuve du patron de TCK-1200 qui trouve les pages de `(auth)`, refuse le calendrier partout et `react-hook-form` hors de `login` et `register` (exceptions déclarées), sans seuil existant resserré.
 
 ## Angle 138 — Lectures de l'API dédoublées dans un même rendu serveur
 
