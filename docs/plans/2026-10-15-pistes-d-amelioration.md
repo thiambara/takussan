@@ -15337,7 +15337,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Une offre d'achat déclarée « valable » jusqu'au 21 octobre expire le 21 à 00:00
 - Réf : P163.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le sens d'une date seule de validité d'offre (jusqu'au début ou à la fin du jour) n'est écrit ni par la spec ni par TCK-176
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx:317-321,337,380-387`, `takussan-api/app/Http/Requests/Public/BookingRequestPublicPropertyRequest.php:24`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1003,1008`, `takussan-api/app/Jobs/ExpireBookings.php:33-36`, `takussan-web/src/components/bookings/BookingDetail.tsx:282-289`
 - Constat :
@@ -15347,10 +15347,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - L'agence lit l'instant exact dans le détail (« Expire le » + `formatDateTime`, lu `BookingDetail.tsx:282-289`) : « 21 oct. 2026, 00:00 », pas le jour que l'acheteur a choisi.
   - Établi comment : lu, puis mesuré par le test temporaire.
 - Piste : ranger une date seule de validité d'offre à la fin du jour choisi (heure de Dakar), par la règle que TCK-1320 a posée pour les délégations (`RoleDelegationService::finInclusive`, à sortir en un helper partagé, par exemple sur `DayRange`), et garder `metadata.offer_expires_at` en date. Test : offre créée avec une date seule, encore `pending` à 23:59 le jour choisi et `expired` le lendemain à 00:00:01.
+- Mesure (2026-10-22, 6eb3d983c, mesureur) : aucun commit sur ces chemins depuis bba57a9e0 ; relu `BookingRequestPublicPropertyRequest.php:24` (`date|after:today`), `PublicPropertyController.php:1003,1008` (`expires_at` = la date telle quelle, `metadata.offer_expires_at` idem), `ExpireBookings.php:33-36` (`expires_at < now()`), `PropertyReservationDialog.tsx:337,381-382` (`DatePicker`), `BookingDetail.tsx:282-288` (`formatDateTime`) ; test temporaire (retiré, charge 2,37 / 2,76 / 3,08 sur 8 cœurs), temps figé au 2026-10-20 10:00, offre avec `offer_expires_at = '2026-10-21'` → 201, `expires_at = 2026-10-21 00:00:00`, `metadata.offer_expires_at = "2026-10-21"` ; `ExpireBookings` à 2026-10-20 23:59 → `pending`, à 2026-10-21 00:00:01 → `expired` → le constat tient en entier. Classement : V7, TCK-176 (l. 74) écrit `expires_at = offer_expires_at` sans dire le sens de la date, et la règle inclusive de TCK-1320 n'a été décidée que pour les délégations : étendre ce sens à l'offre d'achat change le jour où une offre visible des deux parties tombe, ce qu'aucun écrit ne tranche.
 
 ### Le dossier KYC se dit « valable jusqu'au 25 » et passe « Expirée » le 25 à 00:00
 - Réf : P163.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : texte métier neuf, et la `Piste` propose deux libellés
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Kyc/KycWorkflowService.php:75-90,130`, `takussan-api/app/Services/Kyc/KycExpiryService.php:43`, `takussan-web/src/components/kyc/KycEcheance.tsx:48,56`, `takussan-web/src/lib/kyc-echeance.ts:1-50`, `takussan-web/src/messages/fr.json` (`kyc.expiry.dossierValidUntil`)
 - Constat :
@@ -15358,10 +15359,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Le même jour est pourtant rendu, pour le dossier, par « Vérification valable jusqu'au {date} » (lu, `KycEcheance.tsx:48,56`, `fr.json`) : la veille, l'écran annonce une validité jusqu'au 25, et le 25 il affiche « Échue le 25 ». Pour la pièce, « Expire le {date} » est cohérent avec la règle.
   - Établi comment : lu. Le rendu n'a pas été mesuré ; le sens inclusif de « jusqu'au » est celui que l'angle 128 a retenu pour les délégations (P128.01).
 - Piste : un texte du dossier qui nomme le jour où la vérification tombe (« Vérification à renouveler avant le {date} », ou « valable jusqu'au » avec la veille), sans changer la règle d'expiration. Test : le rendu de `KycEcheance kind="dossier"` pour une échéance au 25 n'annonce pas une validité le 25.
+- Mesure (2026-10-22, 6eb3d983c, mesureur) : aucun commit sur ces chemins depuis bba57a9e0 ; relu `KycWorkflowService.php:75-90` (`expiryOf`, `startOfDay()`, docblock « ce jour-là, la pièce n'est plus valable »), `KycExpiryService.php:43` (`expires_at->lte(now())`), `kyc-echeance.ts:49-50` (`jours <= 0` → `expired`), `KycEcheance.tsx:48,56` (`dossierValidUntil` dans les états `soon` et `valid`), `fr.json:10090` (« Vérification valable jusqu'au {date} ») ; `npx vitest run src/lib/__tests__/kyc-echeance.test.ts` → 10 verts, dont `2026-10-08 → expired` le 8 à 10 h : le jour d'échéance est déjà « Expirée », et la veille le même jour s'affiche « valable jusqu'au » → le constat tient ; le rendu du composant n'a pas été lancé, le texte est lu. Classement : V7, le correctif est un texte affiché neuf dont la `Piste` laisse le choix entre deux formulations (« à renouveler avant le », ou la veille).
 
 ### La fin de journée d'une absence d'agent est posée par le seul écran, l'API la range à 00:00
 - Réf : P163.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/crm/AgentAbsencesSection.tsx:76-77,180`, `takussan-api/app/Http/Requests/Agency/StoreAgentAbsenceRequest.php:33`, `takussan-api/app/Services/Agency/AgentAbsenceService.php:52,78`, `takussan-api/app/Services/Permissions/RoleDelegationService.php:141-146`
 - Constat :
@@ -15369,3 +15371,4 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Un appelant qui envoie une date seule — que `StoreAgentAbsenceRequest` accepte (`date|after:now`, lu l. 33) — obtient une absence close à 00:00 au début du jour choisi : la règle de fin inclusive vit dans le front pour l'absence, et dans le service pour la délégation (`RoleDelegationService::finInclusive`, privée, lu l. 141-146), deux formes pour la même règle.
   - Établi comment : lu. Une date seule envoyée à `POST …/agent-absences` n'a pas été mesurée (à vérifier).
 - Piste : un seul helper de fin inclusive côté API (date seule → 23:59:59 heure de Dakar), employé par la délégation, l'absence et l'offre de P163.01 ; le front envoie alors la date seule. Test : absence déclarée avec une date seule, encore active à midi le jour choisi.
+- Mesure (2026-10-22, 6eb3d983c, mesureur) : aucun commit sur ces chemins depuis bba57a9e0 ; relu `AgentAbsencesSection.tsx:77` (`ends_at` envoyé en `${endsOn} 23:59:59`), `StoreAgentAbsenceRequest.php:33` (`ends_at` : `date|after:now`), `AgentAbsenceService.php:52` (`Carbon::parse`), `RoleDelegationService.php:132,141-146` (`finInclusive` privée, `END_DATE_TIMEZONE = 'Africa/Dakar'`) ; test temporaire (retiré), temps figé au 2026-10-20 10:00, `POST /api/agencies/{id}/absences` en admin d'agence avec `ends_at = '2026-10-22'` → 201, `ends_at = 2026-10-22 00:00:00` → une date seule close l'absence au début du jour choisi ; l'écran, qui envoie 23:59:59, n'est pas touché. Classement : A1, la règle « date seule = fin du jour, heure de Dakar » est déjà écrite pour la même table `role_delegations` (TCK-1320, docblock de `finInclusive`) ; le correctif la sort en un helper partagé par la délégation et l'absence sans changer l'instant que l'écran obtient aujourd'hui ; la part « offre » de la `Piste` reste à P163.01 (V7).
