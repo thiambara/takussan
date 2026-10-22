@@ -190,7 +190,7 @@ voie d'écriture (angle 13, puis 47).
 | 114 | Champs écartés par `validated()` sur les modules `src/lib/queries/*.ts` de l à z et les server actions `src/app/actions/*.ts` : la moitié de l'angle 80 laissée sans relevé | fait |
 | 115 | Statuts d'enum qu'aucun chemin de `app/` n'écrit et que seuls les seeders posent (`LeaseStatus::Expired`, les autres enums de statut de `app/Models/Enums`) : gardes, filtres, tableaux de bord et écrans du front qui attendent un état que la production n'atteindra jamais | fait |
 | 116 | Gestes d'agence jugés par le type de profil (`isAgencyAdminAt`, `isAgentAt` : une quarantaine d'appels dans `app/Http` et `app/Services`) au lieu d'une capacité (`canActAt`) : admin à qui un rôle personnalisé retire la capacité, membre à qui il la donne — le relevé de P82.04 et P82.05 sur le reste de l'API | fait |
-| 117 | Clés de `metadata` des profils (`owner_profiles`, `agent_profiles`, `service_provider_profiles` : `kind`, `source`, `intervention_zones`, `visit_fee`, `availability`, `has_insurance`, `trades`) écrites par les assistants `Me\*ProfileController` : lues par qui, à l'API et dans les listes du front (`ServiceProvidersList`, `OwnersList`, `MaintenanceAssignmentBlock`) qui y retombent à défaut de colonne | à faire |
+| 117 | Clés de `metadata` des profils (`owner_profiles`, `agent_profiles`, `service_provider_profiles` : `kind`, `source`, `intervention_zones`, `visit_fee`, `availability`, `has_insurance`, `trades`) écrites par les assistants `Me\*ProfileController` : lues par qui, à l'API et dans les listes du front (`ServiceProvidersList`, `OwnersList`, `MaintenanceAssignmentBlock`) qui y retombent à défaut de colonne | fait |
 | 118 | Listes paginées triées sur une colonne non unique sans départage par `id` (`orderBy` écrits à la main des contrôleurs `Admin\*`, `defaultSort('-created_at')` seul, `$requestSortable` sur `status`, `name`, `first_name`) : ligne rendue deux fois ou jamais d'une page à l'autre sous PostgreSQL | à faire |
 | 119 | Requêtes de base passées à `buildQuery()` ou à `QueryBuilder::for()` avec un `orWhere`/`orWhereHas` non groupé ou un `orderBy` en dur : filtres de la requête qui ne s'appliquent qu'à une branche, `sort=` relégué après le tri fixe — le relevé de P87.04 sur le reste de l'API | à faire |
 | 118 | Données personnelles gardées dans le stockage du navigateur après déconnexion ou changement de compte (`localStorage`/`sessionStorage` : `takussan.coordonnees` nom et téléphone, cache TanStack « persisté par certains écrans » selon `OwnersList.tsx:83`, `useInitiatePayment`, `attribution.ts`) : ce que lit le compte suivant sur un poste partagé |
@@ -223,6 +223,7 @@ voie d'écriture (angle 13, puis 47).
 | 146 | Unions de statut et options de filtre du front (`src/types/*.ts`, `Record<…Status, …>`, `STATUS_VALUES`, `KNOWN_STATUSES`) face aux cas des enums de l'API : valeurs que l'API n'émet jamais (`banned`, agence `pending`), valeurs émises absentes (utilisateur `blocked`) — le relevé de P115.02 sur tous les types | à faire |
 | 147 | Statuts posés librement par un `Rule::enum` entier dans une requête de mise à jour (`UpdateCustomerRequest` `status` jusqu'à `blocked` et `deleted`, `UpdatePropertyRequest`, `StoreAgencyRequest`, `UpdatePrivacyRequestRequest`) : transitions que le geste dédié refuserait, et état posé à la main que rien d'autre ne lit | à faire |
 | 148 | Section `/app/agency/*` du front gardée par `isAdmin(user.roles)` (`(dashboard)/app/agency/layout.tsx:28`) et `PAGES_ADMIN` face aux gestes que l'API ouvre par capacité à un agent (`team.invite`, `team.assign_role`, `team.suspend`, `payouts.approve`, `agency.update_kyc`) : membre qui tient la capacité sans écran pour l'exercer, et admin sans elle à qui l'écran s'ouvre sur des 403 | à faire |
+| 149 | Champs `nullable` d'un `PATCH` partiel dont le `null` qu'envoie le front pour un champ vidé est lu comme « garder » (`!== null ? … : $model->x`, `?? $model->x`, `array_filter` du payload dans les contrôleurs et services de mise à jour) : valeur impossible à effacer, réponse 200 qui rend l'ancienne — le relevé de P117.02 sur le reste de l'API | à faire |
 
 ---
 
@@ -11339,3 +11340,94 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Le rapprochement bancaire (relevés, lignes, clôture), le journal d'audit de l'agence et le tableau de bord du bailleur ouvert à l'admin se jugent par `isAgencyAdminAt` (lu). Aucune capacité du catalogue ne les nomme (lu, `Capability.php`). Ils sont donc hors de portée de l'éditeur de rôles, sans que l'éditeur le dise. Non mesuré.
   - `GET /api/integrations/payment-providers` recopie le prédicat de la liste au lieu de l'appeler (lu, `:42-46`).
 - Piste : rien à corriger sans décision. Si le porteur veut ces gestes délégables, il choisit une capacité (`payments.record`, `reports.view_agency`…) ; sinon, une phrase dans `docs/features.md` qui les déclare réservés à l'admin.
+
+## Angle 117 — Clés de `metadata` des profils écrites par les assistants
+
+*Exploré le 2026-10-22 sur `pre-dev` efa6796ea, par l'explorateur. Tout relu par l'explorateur lui-même, sans sous-agent : les trois `Me\*ProfileController`, `ServiceProviderInvitationService`, `OwnerInvitationService`, `ServiceProviderDirectoryResource`, `OwnerProfileResource`, et côté front `ServiceProvidersList`, `OwnersList`, `MaintenanceAssignmentBlock`, `ProfileServiceProviderSection`, `ProfileAgentSection`, `ProfileOwnerSection`. Un test temporaire, retiré depuis (charge 1,98 sur 8 cœurs), a mesuré P117.01 et P117.02. La base de développement ne porte aucune de ces clés (`SELECT` en lecture : 0 profil de prestataire sur 24 avec `metadata.trades`, `has_insurance`, `availability` ou `visit_fee`, 0 agent sur 20 avec `intervention_zones`, 0 bailleur `company` sur 44) : les seeders ne passent pas par les assistants, rien ne s'y mesure. Les clés `kind` et `source` que l'intitulé de l'angle prête aux profils sont celles des `Document` de KYC (`documents.metadata`), pas des profils (lu).*
+
+### Un prestataire qui vide ses métiers ou ses zones reprend, dans le carnet de l'agence, ceux de son invitation
+- Réf : P117.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Invitation/ServiceProviderInvitationService.php:108-121`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:139-162`, `takussan-api/app/Http/Resources/ServiceProviderDirectoryResource.php:22`, `takussan-web/src/components/service-providers/ServiceProvidersList.tsx:136,155`
+- Constat :
+  - L'invitation écrit les métiers et les zones deux fois : dans les colonnes `specialties` et `service_areas`, et en copie dans `metadata.trades` et `metadata.intervention_zones` (lu, `:108-121`).
+  - `PATCH /api/me/profiles/{id}/trades` écrit une liste vide en `null` dans la colonne (lu, `:156-157`) et ne touche jamais à la copie de `metadata` (lu, `:146-161`, seul `visit_fee` y change).
+  - Le carnet lit `sp.specialties ?? sp.metadata?.trades` et `sp.service_areas ?? sp.metadata?.intervention_zones` (lu, `ServiceProvidersList.tsx:136,155`). Un `null` en colonne fait donc reparaître la copie de l'invitation.
+  - Mesuré, test temporaire : prestataire actif de l'agence, colonnes et copie à `plumbing` / `Dakar` ; `PATCH …/trades` `{trades: [], intervention_zones: []}` → 200, colonnes à `null` ; `GET /api/agencies/{a}/service-providers?fields[…]=…,metadata` → `specialties: null`, `metadata.trades: ["plumbing"]`, `metadata.intervention_zones: ["Dakar"]`. Le carnet affiche donc « Plomberie » et « Dakar ».
+  - Le filtre du même carnet, `filter[specialty]=plumbing`, ne lit que la colonne (lu, `ServiceProviderProfile.php:90-97`) : mesuré `meta.total` = 0. La ligne affiche un métier que le filtre sur ce métier ne trouve pas.
+  - Établi comment : lecture des trois fichiers, puis le test temporaire ci-dessus.
+- Piste : la colonne fait foi dès qu'elle a été écrite. Soit le carnet ne retombe sur `metadata` que pour un profil `draft` (le seul cas où la copie a un sens), soit l'acceptation de l'invitation, ou toute écriture de `…/trades`, retire `trades` et `intervention_zones` de `metadata`. Test : vider les métiers d'un prestataire actif, puis lire le carnet sans `metadata.trades` ; un test du front sur `ServiceProvidersList` avec `specialties: null` et une copie en `metadata`.
+
+### Le taux horaire du prestataire ne s'efface pas : `hourly_rate: null` garde l'ancien, quand `visit_fee: null` efface
+- Réf : P117.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:147-160,169`, `takussan-web/src/components/profile/ProfileServiceProviderSection.tsx:63,93-98`
+- Constat :
+  - Le formulaire « Tarifs » envoie `hourly_rate: null` quand le champ est vidé (lu, `ProfileServiceProviderSection.tsx:96`).
+  - L'API lit ce `null` comme « garder » : `array_key_exists('hourly_rate', …) && … !== null ? (float) … : $sp_profile->hourly_rate_min` (lu, `:158-160`). Le commentaire de TCK-592 (`:136-138`) ne prévoit le « garder » que pour une clé **absente**.
+  - La clé voisine, `visit_fee`, distingue bien les deux cas : `null` retire la clé (lu, `:147-153`).
+  - Mesuré, test temporaire : `hourly_rate_min` à 5000, `PATCH …/trades` `{hourly_rate: null, visit_fee: null}` → 200, `data.hourly_rate` `"5000.00"`, colonne inchangée en base. Le prestataire vide le champ, enregistre sans erreur, et retrouve son ancien taux au rechargement.
+  - Établi comment : lecture des deux fichiers, puis le test temporaire.
+- Piste : traiter `hourly_rate` comme `visit_fee` : clé absente, on garde ; `null`, on efface. Étendre `ServiceProviderTradesPartialUpdateTest` d'un cas `hourly_rate: null` ; ablation sur le ternaire. Le motif se cherche ailleurs (angle 149 proposé).
+
+### Les zones d'intervention de l'agent sont écrites, et rien ne les relit
+- Réf : P117.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:44-46,161-169`, `takussan-web/src/components/onboarding/AgentOnboardingWizard.tsx:467`, `docs/features.md:509`
+- Constat :
+  - L'assistant de l'agent envoie ses zones, et l'API les range dans `agent_profiles.metadata.intervention_zones` (lu).
+  - `grep -rn intervention_zones takussan-api/app` : hors des prestataires, seuls l'écrivain et sa réponse les nomment. Aucune ressource, aucun filtre, aucune page publique d'agent ne les lit (lu par `grep` ; `PublicAgentController.php:181,294` ne rend que `specialty`).
+  - Côté front, aucun lecteur hors de l'assistant (lu par `grep`). La section « Profil professionnel » affiche « Spécialisations : Bientôt disponible » (voir P117.04).
+  - `docs/features.md:509` compte les zones parmi les données du parcours d'onboarding de l'agent, sans dire qui s'en sert.
+- Piste : décider à quoi servent ces zones : page publique de l'agent, filtre de l'annuaire, attribution des demandes. Sinon, retirer l'étape de l'assistant. C'est un choix de produit ; d'ici là, le docblock de `:44-46` (« promote when a booking flow needs to range-query ») dit vrai, mais la saisie ne sert à rien.
+
+### La section « Profil professionnel » de l'agent est une maquette : deux champs saisissables qu'aucun geste n'enregistre, et une agence toujours « Non affilié »
+- Réf : P117.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/profile/ProfileAgentSection.tsx:18-38`, `takussan-web/src/app/(dashboard)/app/profile/page.tsx:41`, `takussan-web/src/components/profile/ProfileOwnerSection.tsx:19-31`
+- Constat :
+  - La section est rendue à tout compte `agent` sur `/app/profile` (lu, `page.tsx:41`).
+  - « Bio professionnelle » (`Textarea` `defaultValue`) et « Numéro de licence » (`Input`) sont saisissables, sans `name`, sans formulaire, sans action ni bouton (lu, `:21-25,33`). Ce qu'on y tape se perd. La bio s'édite par ailleurs dans `ProfileHeader.tsx:48` ; la licence, elle, est écrite en base par l'assistant (`AgentProfileController.php:166-168`).
+  - « Spécialisations » est un champ désactivé « Bientôt disponible » (lu, `:29`), alors que l'API tient `agent_profiles.specialty` et les zones de P117.03.
+  - « Agence liée » est un champ désactivé, valeur `""`, qui affiche « Non affilié » (lu, `:37`, `profile.agent.noAgency`), y compris pour un agent membre d'une agence. C'est toujours le cas pour un compte `agent`, puisque le profil d'agent appartient à une agence.
+  - Même motif chez le bailleur : « Type de bailleur : Bientôt disponible » et deux compteurs figés à « — » (lu, `ProfileOwnerSection.tsx:19-31`), alors que l'invitation range ce type en `metadata.owner_type` (voir P117.05).
+  - Établi comment : lecture des composants et de `fr.json` (`profile.agent`, `profile.owner`). Non rendu dans un navigateur.
+- Piste : lire `GET /api/me/profiles` pour afficher la spécialité, la licence et l'agence du profil actif, en lecture seule, et retirer les deux champs sans enregistrement. Ou retirer la section. Test du composant : aucun champ éditable sans action ; l'agence du profil est affichée.
+
+### Le type de bailleur et la raison sociale, exigés à l'invitation, ne sont relus nulle part
+- Réf : P117.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Invitation/InviteOwnerRequest.php:38-39`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:67-72,84-94`, `takussan-web/src/components/owners/OwnersList.tsx:371-374`, `takussan-web/src/components/owners/InviteOwnerSheet.tsx:241-275`
+- Constat :
+  - L'invitation d'un bailleur exige `owner_type` et, pour une société, `company_name` (lu, `required_if:owner_type,company` et le 422 de `:69-72`). Les deux sont rangés dans `owner_profiles.metadata` (lu, `:89-92`).
+  - `grep -rnE "owner_type|company_name"` sur `takussan-api/app` et `takussan-web/src` : aucun lecteur hors de l'écrivain et du formulaire d'invitation (lu).
+  - Le carnet des bailleurs nomme la ligne par les prénom et nom de la personne, ceux du `User` ou ceux du brouillon (lu, `OwnersList.tsx:371-374`). Une société invitée apparaît sous le nom de son contact, et la raison sociale saisie n'est affichée nulle part. Le relevé, le reversement (`CreatePayoutDialog.tsx:39-41`) et les documents lisent le même nom de personne : non vérifié document par document.
+  - L'espace du bailleur affiche « Type de bailleur : Bientôt disponible » (P117.04).
+- Piste : soit afficher la raison sociale dans le carnet et là où le bailleur est nommé, en la promouvant au besoin en colonne ; soit cesser de l'exiger à l'invitation. C'est un choix de produit, et la colonne relève du schéma.
+
+### Tarifs et assurance du prestataire : saisis par lui, lus par personne d'autre ; `has_insurance` n'est jamais lu ni remis à faux
+- Réf : P117.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:73-79,110-124`, `takussan-api/app/Http/Resources/ServiceProviderDirectoryResource.php:22`, `takussan-web/src/lib/queries/service-providers.ts:23-31`
+- Constat :
+  - `metadata.visit_fee` et `hourly_rate_min` ne sont rendus que par `GET /api/me/profiles/{id}`, au prestataire lui-même (lu, `:110-124`). Le carnet de l'agence ne les demande pas (`SERVICE_PROVIDER_PROFILE_FIELDS`, lu), et `ServiceProviderDirectoryResource::METADATA_KEYS` retire `visit_fee` (lu). L'agence qui choisit un prestataire pour une intervention ne voit aucun tarif (`MaintenanceAssignmentBlock.tsx` ne lit que le nom, l'e-mail et `availability`, lu).
+  - `metadata.has_insurance = true` est posé au téléversement d'une attestation d'assurance (lu, `:73-79`). Le commentaire promet que « the wizard recap and the `Assuré` badge can read it » : `grep -rn has_insurance` sur l'API et le front ne trouve que l'écrivain (lu). Aucun chemin ne le remet à `false`, quand la pièce est remplacée ou supprimée : non vérifié, faute de lecteur.
+  - `insurance_policy_id` est une colonne jamais écrite (relevé déjà fait, ligne 2289 du fichier).
+- Piste : choix de produit. Montrer les tarifs et un badge « assuré » dans le carnet et à l'attribution, ce badge étant dérivé du `Document` d'assurance vivant et non d'un drapeau recopié. Ou retirer `has_insurance` et corriger le commentaire de `:73-74`.
+
+### Petites améliorations
+- Réf : P117.07
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/maintenance/MaintenanceAssignmentBlock.tsx:170-176`, `takussan-api/app/Http/Resources/ServiceProviderDirectoryResource.php:22`, `takussan-api/app/Services/Invitation/ServiceProviderInvitationService.php:117`, `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:73`, `OwnerProfileController.php:65`, `ServiceProviderProfileController.php:63`
+- Constat :
+  - L'avertissement « ne travaille pas ce jour-là » ne compare que le jour : `from` et `to` de `metadata.availability` sont validés (`UpdateAvailabilityServiceProviderProfileRequest`, regex `HH:MM`) puis ignorés (lu, `:170-176`). Une intervention un lundi à 18 h chez un prestataire disponible le lundi de 8 h à 12 h ne déclenche rien.
+  - Le téléphone saisi par l'agence à l'invitation d'un prestataire (`metadata.phone`, lu `:117`) est retiré du carnet par `METADATA_KEYS` (lu). Pour un brouillon, sans `User`, l'agence ne retrouve donc pas le numéro qu'elle a saisi. Voulu par P21.06 pour ne pas exposer `metadata` : à trancher avec lui.
+  - `documents.metadata.kind` et `.source`, posés par les trois `uploadKyc` (lu), n'ont aucun lecteur (`grep` des deux clés sur l'API et le front, lu). `documents.type` porte déjà le genre de la pièce.
+- Piste : comparer l'heure à la plage dans `worksOn` ; décider du téléphone du brouillon avec P21.06 ; laisser `kind`/`source` en l'état ou cesser de les écrire. Chacune est petite.
