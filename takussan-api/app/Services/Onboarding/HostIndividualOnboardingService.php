@@ -188,15 +188,23 @@ class HostIndividualOnboardingService
         });
     }
 
-    /** « Espace de {prénom} », « Mon espace » sans prénom — dans la langue du compte. */
+    /**
+     * TCK-1211 (P85.03) — la langue du nom d'un espace créé sans question : celle de la
+     * plateforme, telle que `docs/features.md` § 1.12 l'écrit (« Espace de {prénom} »). Le nom et
+     * le slug qui en dérive sont servis à tous les visiteurs (annuaire, fiche, carte d'agence) :
+     * la langue du compte en faisait « Space of Awa », `space-of-awa`. L'hôte reste libre de le
+     * renommer ; les espaces déjà créés ne sont pas réécrits.
+     */
+    private const AUTO_SPACE_LOCALE = 'fr';
+
+    /** « Espace de {prénom} », « Mon espace » sans prénom — dans la langue de la plateforme. */
     private function autoSpaceName(User $user): string
     {
         $prenom = trim((string) $user->first_name);
-        $locale = is_string($user->preferred_language) && $user->preferred_language !== '' ? $user->preferred_language : null;
 
         return $prenom !== ''
-            ? (string) __('onboarding.auto_space.name_with_first_name', ['first_name' => $prenom], $locale)
-            : (string) __('onboarding.auto_space.name_default', [], $locale);
+            ? (string) __('onboarding.auto_space.name_with_first_name', ['first_name' => $prenom], self::AUTO_SPACE_LOCALE)
+            : (string) __('onboarding.auto_space.name_default', [], self::AUTO_SPACE_LOCALE);
     }
 
     /**

@@ -31,7 +31,9 @@ class PlatformPayoutResource extends BaseResource
             'processed_at' => $this->iso($this->processed_at),
             'failure_reason' => $this->failure_reason,
             'metadata' => $this->metadata ?? [],
-            'breakdown' => $this->additional['breakdown'] ?? null,
+            // TCK-1205 (P95.01) — absente quand la ventilation n'est pas calculée (liste, clôture) :
+            // une clé nulle se lisait « aucune ventilation ».
+            'breakdown' => $this->when(array_key_exists('breakdown', $this->additional), fn () => $this->additional['breakdown']),
             'created_at' => $this->iso($this->created_at),
             'updated_at' => $this->iso($this->updated_at),
         ];

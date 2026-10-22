@@ -15,6 +15,7 @@ use App\Jobs\Permissions\ProcessRoleDelegationsJob;
 use App\Jobs\Privacy\PurgeExpiredDataExports;
 use App\Jobs\RecordQueueHeartbeat;
 use App\Jobs\RefreshNewBuildSearchLabel;
+use App\Jobs\Reporting\PurgeExpiredReportExports;
 use App\Jobs\Reporting\SnapshotPlatformMetricsJob;
 use App\Jobs\SendFavoriteChangeAlerts;
 use App\Jobs\SendLeasePaymentReminders;
@@ -87,6 +88,9 @@ Schedule::command('tasks:send-due-reminders')->hourly()->withoutOverlapping(60);
 Schedule::command('account:execute-deletions')->hourly()->withoutOverlapping(60);
 // TCK-225 — RGPD portability archives expire after 7 days.
 Schedule::job(new PurgeExpiredDataExports)->dailyAt('02:30')->withoutOverlapping();
+// TCK-1213 (P77.02) — les exports de rapport de la console expirent à J+7 : fichier supprimé,
+// ligne gardée et passée `expired`. Idempotent : seules les lignes `ready` échues sont relues.
+Schedule::job(new PurgeExpiredReportExports)->dailyAt('02:40')->withoutOverlapping();
 // TCK-1143 (P63.04) — les exports du journal d'activité ne survivent pas à leur lien (24 h).
 // Idempotent : la purge ne supprime que des fichiers échus, et rien ne les recrée.
 Schedule::job(new PurgeExpiredActivityLogExports)->hourly()->withoutOverlapping(60);

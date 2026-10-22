@@ -32,10 +32,7 @@ class PlatformPayoutController extends Controller
 
     public function show(Request $request, PlatformPayout $payout): JsonResponse
     {
-        $resource = (new PlatformPayoutResource($payout))
-            ->additional(['breakdown' => $this->payouts->breakdown($payout)]);
-
-        return $this->json(['data' => $resource->resolve($request)]);
+        return $this->json(['data' => $this->presenter($payout, $request)]);
     }
 
     public function closePeriod(ClosePlatformPayoutPeriodRequest $request): JsonResponse
@@ -66,7 +63,7 @@ class PlatformPayoutController extends Controller
     {
         $payout = $this->payouts->approve($payout, $request->user());
 
-        return $this->json(['data' => (new PlatformPayoutResource($payout))->resolve($request)]);
+        return $this->json(['data' => $this->presenter($payout, $request)]);
     }
 
     public function markPaid(MarkPlatformPayoutPaidRequest $request, PlatformPayout $payout): JsonResponse
@@ -79,13 +76,26 @@ class PlatformPayoutController extends Controller
             $request->input('metadata'),
         );
 
-        return $this->json(['data' => (new PlatformPayoutResource($payout))->resolve($request)]);
+        return $this->json(['data' => $this->presenter($payout, $request)]);
     }
 
     public function cancel(CancelPlatformPayoutRequest $request, PlatformPayout $payout): JsonResponse
     {
         $payout = $this->payouts->cancel($payout, $request->user(), $request->string('reason')->toString());
 
-        return $this->json(['data' => (new PlatformPayoutResource($payout))->resolve($request)]);
+        return $this->json(['data' => $this->presenter($payout, $request)]);
+    }
+
+    /**
+     * TCK-1205 (P95.01) — la projection du `show`, ventilation comprise, rendue aussi par les
+     * écritures d'un reversement : elles rendaient `breakdown: null`, comme s'il n'en avait pas.
+     *
+     * @return array<string, mixed>
+     */
+    private function presenter(PlatformPayout $payout, Request $request): array
+    {
+        return (new PlatformPayoutResource($payout))
+            ->additional(['breakdown' => $this->payouts->breakdown($payout)])
+            ->resolve($request);
     }
 }
