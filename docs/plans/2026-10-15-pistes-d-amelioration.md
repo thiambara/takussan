@@ -11535,7 +11535,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Les listes des membres d'une agence omettent ses administrateurs qui n'y ont ni profil d'agent ni profil de bailleur
 - Réf : P119.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : quatre listes visibles changent de contenu, et le sélecteur des délégations doit être reconfiguré
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:177-180`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:167-169`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:63-68`, `takussan-api/app/Models/User.php:261,277`, `takussan-api/app/Http/Controllers/Api/UserAdminController.php:38-42`
 - Constat :
@@ -11546,10 +11546,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Ce que le front en montre (lu) : l'onglet « Équipe » d'une agence dans la console (`super-admin.ts:133-142`) ; le filtre d'agence de `/super-admin/users` (`page.tsx:145`, `AgencyCombobox`) ; le filtre « Membre » du journal d'audit de l'agence (`AuditTrail.tsx:190-200`), où l'admin ne peut choisir ni lui-même ni un autre admin ; la liste d'attribution des demandes de contact (`ContactLeadsInbox.tsx:264-268`). `CreateDelegationDialog.tsx:92-93` s'appuie sur cette liste comme sur la condition du service (`isAgentAt || isOwnerAt`) : là, l'omission est voulue, et c'est le seul lecteur où elle l'est.
   - Établi comment : lu, base de dev en lecture, test temporaire.
 - Piste : écrire une seule fois « personne qui tient un profil dans l'agence » (une portée `User::scopeMembreDe(int $agencyId)` à trois branches, celle de `UserAdminController`) et la poser sous les trois bases ; laisser le sélecteur des délégations filtrer par `filter[role]`. Test : un admin pur rendu par les trois routes et par `filter[role]=agency_admin`, et absent de `filter[role]=agent`. À croiser avec l'angle 120, qui relit les sélecteurs face aux prédicats d'écriture.
+- Mesure (2026-10-22, cf4986336, mesureur) : relu `AgencyController.php:177-179`, `Admin/AgencyDetailController.php:167-169` et `Admin/UserDetailController.php:63-66` (deux branches, `agentProfiles`/`ownerProfiles`), contre `UserAdminController.php:38-41` (trois, TCK-277) ; aucun commit ni ticket ne l'a traité (`grep -rln "P119" docs/backlog/tickets` vide) ; test temporaire `tests/Feature/Tmp/TmpMesureur119Test.php` (charge 2,03 sur 8 cœurs, retiré ensuite), une agence, un admin pur et un agent, super-admin → `/api/admin/agencies/{id}/team`, `/api/admin/users?filter[agency_id]={id}` et `/api/agencies/{id}/members` rendent `["Agent"]`, `…/members?filter[role]=agency_admin` rend `[]` → le constat tient tel qu'écrit. Classement : V7, le correctif fait paraître les admins dans l'équipe de la console, le filtre d'agence des utilisateurs, le filtre « Membre » de l'audit et la liste d'attribution des demandes de contact, et oblige à décider ce que montre `CreateDelegationDialog` (`filter[role]` ou condition du service), ce qui est un changement visible sur plusieurs écrans plutôt qu'un défaut au comportement écrit pour chacun.
 
 ### Le filtre de date de fin de l'audit de la console exclut le jour choisi
 - Réf : P119.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:140-141`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:160-161`, `takussan-api/app/Http/Controllers/Api/AuditLogController.php:194-203`, `takussan-web/src/components/admin/super/CrossTenantAuditTable.tsx:193-212`
 - Constat :
@@ -11558,10 +11559,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Le journal de l'agence ne l'a pas : `AuditLogController::normalizeRangeBoundary()` porte une date seule à `endOfDay()` (lu, l. 194-203). `UserDetailController::activity()` recopie les deux rappels nus (lu) ; le front ne lui envoie aujourd'hui aucune date (lu, `super-admin.ts:333-341`).
   - Établi comment : lu, test temporaire.
 - Piste : faire passer les trois lectures du journal par une seule normalisation des bornes (celle d'`AuditLogController`, extraite), et la typer (voir P119.03). Test : une ligne à midi, plage du jour au jour → 1.
+- Mesure (2026-10-22, cf4986336, mesureur) : relu `CrossTenantAuditController::filteredQuery()` (`date_to` → `where('created_at', '<=', $value)` brut, même chaîne pour l'index et l'export), `UserDetailController::activity()` (mêmes deux rappels nus) et `AuditLogController::normalizeRangeBoundary()` (date seule portée à `endOfDay()` pour la borne haute, docblock « silently drop every row from that day ») ; test temporaire (retiré ensuite), une activité `tmp_119` posée au 2026-10-22 12:00, super-admin → `GET /api/admin/audit?filter[event]=tmp_119&filter[date_from]=2026-10-22&filter[date_to]=2026-10-22` rend 200 et **0 ligne**, sans `date_to` 1 ligne → le constat tient. Classement : A1, le comportement attendu est écrit dans `AuditLogController::normalizeRangeBoundary()` et son docblock pour le journal de l'agence, et l'étendre aux deux lectures de la console ne demande aucun choix.
 
 ### Une valeur de filtre mal formée rend 500 sur la console des utilisateurs et sur l'audit
 - Réf : P119.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:63-68,160-161`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:140-141`, `takussan-web/src/app/(super-admin)/super-admin/users/page.tsx:145,218`
 - Constat :
@@ -11570,16 +11572,18 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - La page `/super-admin/users` recopie `?agency=` de son URL dans `filter[agency_id]` sans le lire comme un nombre (lu, `page.tsx:218` puis `:145`) : un lien abîmé suffit. Le dépôt a déjà la réponse pour les identifiants, `ExactIdentifierFilter`, employé par `RoleDelegationController` et les deux audits pour `causer_id`/`subject_id` (lu).
   - Établi comment : lu, test temporaire.
 - Piste : `ExactIdentifierFilter` (ou un `ctype_digit` qui rend une liste vide) pour `filter[agency_id]` ; une date non lisible rend 400 ou est ignorée, au choix déjà fait par `ExactIdentifierFilter` pour les identifiants. Test : les deux requêtes ci-dessus ne rendent plus 500. Le même relevé sur le reste de l'API est l'angle 151.
+- Mesure (2026-10-22, cf4986336, mesureur) : relu `UserDetailController.php:63-66` (`filter[agency_id]` comparé brut sous `whereHas`), les rappels `date_from`/`date_to` de `UserDetailController::activity()` et de `CrossTenantAuditController::filteredQuery()`, et `App\Http\Filters\ExactIdentifierFilter` (400 `filter.identifier_invalid` sur un identifiant non entier) ; test temporaire (retiré ensuite), super-admin → `GET /api/admin/users?filter[agency_id]=abc` **500**, `GET /api/admin/users/{id}/activity?filter[date_from]=nawak` **500**, et en plus du constat `GET /api/admin/audit?filter[date_to]=nawak` **500** → le constat tient, et vaut aussi pour l'audit. Le choix « 400 ou ignoré » de la piste est déjà tranché dans le code : 400 `filter.identifier_invalid` pour un identifiant (`ExactIdentifierFilter`), et la règle `date` des `FormRequest` (`ExportActivityLogRequest.php:23-24`, `SearchQueryRequest.php:26-27`) pour une date. À noter pour P119.02 : `AuditLogController::normalizeRangeBoundary()` passe par `Carbon::parse()`, qui lève sur une date illisible (lu, non exécuté). Classement : A1, les deux réponses attendues sont déjà écrites par des précédents du dépôt, et seule une requête fautive change de réponse (500 → 400/422).
 
 ### Petites améliorations
 - Réf : P119.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Permissions/RoleDelegationController.php:28-38`, `takussan-api/vendor/spatie/laravel-query-builder/src/Concerns/SortsQuery.php:35-38`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:203-208`
 - Constat :
   - `RoleDelegationController::index` monte `QueryBuilder::for()` sans `allowedSorts()` ; `defaultSorts()` ne fait rien dès que la requête porte un `sort=` (lu, `SortsQuery.php:37-38`). Un `sort=` y est donc ignoré sans 400, et retire en plus le tri par défaut : la liste sort sans `ORDER BY`. Le front le sait et n'en envoie pas (lu, `role-delegations.ts:17-42`). Déclarer `allowedSorts('created_at')` rendrait le contrat explicite.
   - `AgencyDetailController::properties` ne pose ni `defaultSort` ni départage (lu) ; le relevé de P118.04 (`grep -L "defaultSort\|orderBy…"`) ne l'a pas vu parce que le même fichier en porte ailleurs. Le front envoie `sort=-created_at` (lu, `super-admin.ts:151`) : la page n'est sans ordre que sans `sort=`. Voir P118.02 pour le départage.
 - Piste : `allowedSorts('created_at')` sur les délégations ; `defaultSorts('-created_at', '-id')` sur les biens d'une agence, avec le mécanisme commun de P118.02.
+- Mesure (2026-10-22, cf4986336, mesureur) : relu `RoleDelegationController::index` (`QueryBuilder::for()` sans `allowedSorts()`, `defaultSort('-created_at')`), `vendor/spatie/laravel-query-builder/src/Concerns/SortsQuery.php:35-38` (`defaultSorts()` rend la main dès que `sort=` est présent), `takussan-web/src/lib/queries/role-delegations.ts:17-42` (le front documente l'ordre perdu sur `sort=` et n'en envoie pas), et `AgencyDetailController::properties` (`Property::buildQuery()` sans `defaultSort`, front `super-admin.ts:151` qui envoie `sort=-created_at`) → le constat tient tel qu'écrit, lu seulement. Classement : A1, déclarer le tri triable suit la convention `$requestSortable`/`allowedSorts` du dépôt et le départage par `id` est le mécanisme de P118.02, déjà classé autonome ; aucun appelant n'envoie un `sort=` que la déclaration refuserait.
 
 ## Angle 120 — Listes de personnes des sélecteurs face au prédicat d'écriture
 
