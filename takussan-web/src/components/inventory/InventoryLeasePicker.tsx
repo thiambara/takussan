@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { buttonVariants } from '@/components/ui/button';
-import { useLeases, type LeaseWithRelations } from '@/lib/queries/leases';
+import { useAllActiveLeases, type LeaseWithRelations } from '@/lib/queries/leases';
 
 /**
  * TCK-379 — sélection du bail sur `/app/inventories/new` quand aucun `?lease=` n'est fourni.
@@ -25,12 +25,13 @@ import { useLeases, type LeaseWithRelations } from '@/lib/queries/leases';
 export function InventoryLeasePicker() {
   const t = useTranslations('inventory.pickLease');
   const tLease = useTranslations('lease');
-  const query = useLeases({ status: 'active', per_page: 50 });
+  // TCK-1371 (P135.04) — tous les baux actifs : une page de 50 laissait les plus anciens dehors.
+  const query = useAllActiveLeases();
 
   return (
     <QueryBoundary query={query}>
       {(page) => {
-        // `useLeases` demande déjà `include=property` + `fields[properties]`, mais se déclare
+        // `useAllActiveLeases` demande déjà `include=property` + `fields[properties]`, mais se déclare
         // `PaginatedResponse<Lease>` — et `Lease` ne porte aucune relation. L'écart est
         // antérieur à ce ticket et partagé par tous ses appelants ; on le referme ICI, sur le
         // seul site qui lit la relation, plutôt que d'aller changer la signature du hook.
