@@ -8,7 +8,7 @@ estimate: S
 wave: null
 created: 2026-10-22
 updated: 2026-10-22
-depends_on: [TCK-1320]
+depends_on: []
 blocks: []
 spec_refs:
   features:
