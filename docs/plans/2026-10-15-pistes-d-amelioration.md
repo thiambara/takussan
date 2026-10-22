@@ -10995,7 +10995,7 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
 
 ### Aucun appel du navigateur vers l'API ne porte de délai, et Chrome n'en applique aucun : un bouton `isPending` reste figé tant que la page vit
 - Réf : P113.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la valeur de la borne, les appels exemptés (téléversements, PDF) et l'erreur affichée à la place de l'attente sont un comportement visible neuf
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/api.ts:736-743`, `takussan-web/src/hooks/useApiQuery.ts:31,61-69,93,143-157`, `takussan-web/src/components/payments/PaymentProviderPicker.tsx:104-131,213-220`, `takussan-web/src/components/messages/ChatView.tsx:107,368`, `takussan-web/src/components/kyc/KycUploader.tsx:110-142`, `takussan-web/src/hooks/useTelechargementApi.ts:42-75`
 - Constat :
@@ -11005,10 +11005,11 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
   - Effet à l'écran, lu : le dialogue de paiement désactive « Annuler » et « Confirmer » pendant `initiate.isPending` et affiche « Redirection… » (`PaymentProviderPicker.tsx:213-220`) ; l'envoi d'un message est bloqué par `sendDisabled={sendMessage.isPending}` (`ChatView.tsx:368`, `ChatComposerShell.tsx:54`) ; le téléversement KYC tient sa transition (`KycUploader.tsx:110`), et `useTelechargementApi` son `enCours` (`:43,71`), jusqu'à la réponse. Tous ont un `catch` correct, qu'une attente sans fin n'atteint jamais.
   - Établi comment : lu, `grep`, une mesure dans Chrome.
 - Piste : un délai par défaut dans `apiRequest` côté navigateur (`AbortSignal.any([signal de l'appelant, AbortSignal.timeout(N)])`), avec une option par appel pour les téléversements et les PDF longs (P112.01 a mesuré un PDF à 198 s) ; adopter la même borne dans les `fetch` directs, ou les faire passer par `apiRequest`. Le délai doit être classé comme une panne réseau à l'écran (voir P113.04). Garde : un test vitest d'`apiRequest` avec un `fetch` qui ne se résout jamais, qui exige un rejet sous la borne, et un test de `useApiMutation` qui exige `isPending` faux ensuite.
+- Mesure (2026-10-22, c6abf5343, mesureur) : `git log b69261b77..c6abf5343 -- takussan-web/src` → rien ; relu `api.ts:736-743` (`signal` de l'appelant seul) et `useApiQuery.ts:31,93` (`Omit<…, 'signal'>`) ; la PR #972 ouverte ajoute `signalBorneServeur`, qui rend tel quel le signal de l'appelant quand `window` existe : le navigateur reste sans borne ; test vitest temporaire (retiré), `fetch` qui ne se résout jamais → `apiRequest` POST appelé avec `signal` `undefined`, promesse ni résolue ni rejetée après 1,5 s ; `grep -rnE` hors tests → 117 `useApiMutation`, 102 `useMutation` ; la mesure Chrome de 12 min n'est pas rejouée. Classement : V7, le constat tient en entier, mais poser une borne change ce que l'utilisateur voit et demande de choisir sa valeur et ses exemptions.
 
 ### Une seule requête qui ne répond pas arrête pour de bon les interrogations périodiques : fil de messages, cloche, vérification d'un paiement
 - Réf : P113.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : se règle par la borne de P113.01 (à valider) ou par une borne par requête interrogée, dont la valeur est à choisir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/node_modules/@tanstack/query-core/build/modern/queryObserver.js:214-218`, `…/query.js:139-148,183-193`, `takussan-web/src/lib/queries/conversations.ts:198-212`, `takussan-web/src/components/layout/NotificationBell.tsx:57-64`, `takussan-web/src/app/(dashboard)/app/payments/return/PaymentReturnClient.tsx:14-15,65-88`
 - Constat :
@@ -11018,10 +11019,11 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
   - Retour de paiement : le budget de 2 min est un minuteur indépendant (lu, `PaymentReturnClient.tsx:15,79-88`) ; une vérification figée à la première seconde laisse l'écran « en vérification » puis rend le budget épuisé sans qu'aucune autre vérification soit partie, même si le webhook a soldé le paiement entre-temps (déduit du test ci-dessus, non rejoué sur la page).
   - Établi comment : lu, et un test temporaire contre `@tanstack/query-core`.
 - Piste : la borne de P113.01 suffit à relancer l'interrogation, la requête figée passant en erreur ; à défaut, `queryFn` des requêtes interrogées bornée par `AbortSignal.timeout` sous l'intervalle. Garde : un test de `useNewMessagesPolling` (ou du retour de paiement) où le premier appel ne répond jamais, qui exige un second appel au tic suivant la borne.
+- Mesure (2026-10-22, c6abf5343, mesureur) : relu `conversations.ts:210` (3 s), `NotificationBell.tsx:64` (30 s), `PaymentReturnClient.tsx:70` (inchangés) ; test vitest temporaire (retiré), `QueryObserver` sur le vrai `createQueryClient()`, `refetchInterval: 50`, première réponse puis `queryFn` figée, 600 ms → 2 appels, `fetchStatus` `fetching` : l'interrogation s'arrête à la requête figée ; non rejoué sur la page de retour de paiement. Classement : V7, la Piste renvoie à la borne de P113.01, et sa variante demande elle aussi une valeur de délai par écran.
 
 ### Une mutation lancée hors ligne reste en attente sans le dire, puis part seule à la reconnexion, minutes plus tard — initiation de paiement comprise
 - Réf : P113.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la Piste propose deux comportements hors ligne (`networkMode: 'always'` ou un état « hors ligne » lu par `isPaused`), à choisir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/query-client.ts:14-31`, `takussan-web/src/components/payments/PaymentProviderPicker.tsx:104-118,213-220`, `takussan-web/src/hooks/useInitiatePayment.ts:72-83`
 - Constat :
@@ -11031,10 +11033,11 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
   - Au retour du réseau, `handleConfirm` reprend après `mutateAsync` et fait `window.location.href = checkout_url` (lu, `:108-118`) : l'utilisateur est envoyé chez le fournisseur au moment où le téléphone retrouve le réseau, peut-être bien après avoir renoncé ; si le composant est démonté entre-temps, la mutation reste dans le cache et repart à la reconnexion (comportement de `resumePausedMutations`, non mesuré avec démontage).
   - Établi comment : lu, et un test temporaire.
 - Piste : choisir le comportement hors ligne des mutations — `networkMode: 'always'` (la requête part et échoue tout de suite en erreur réseau, P113.04), ou un état « hors ligne » lu par `isPaused` et un abandon de la mutation à la fermeture du dialogue. Garde : un test de `PaymentProviderPicker` hors ligne.
+- Mesure (2026-10-22, c6abf5343, mesureur) : relu `query-client.ts:14-31` (aucun `networkMode`) ; `grep -rn 'isPaused\|networkMode\|onlineManager\|navigator.onLine' src` hors tests → 0 ; test vitest temporaire (retiré), `useMutation` sous le vrai `createQueryClient()`, `onlineManager.setOnline(false)` puis `mutate()` → 0 appel, `isPending` vrai, `isPaused` vrai ; `setOnline(true)` → 1 appel, succès ; relu `PaymentProviderPicker.tsx:213-220` (boutons désactivés et « Redirection… » sur `isPending`). Classement : V7, deux options visibles différentes, dont l'une touche l'initiation de paiement.
 
 ### Un délai posé tel quel s'afficherait en anglais brut : `messageErreurApi` ne reconnaît que le `TypeError` comme panne réseau
 - Réf : P113.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/api.ts:545-557`, `takussan-web/src/lib/query-client.ts:20-25`
 - Constat :
@@ -11044,10 +11047,11 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
   - C'est le pendant navigateur de P79.05 (fait, TCK-1090), qui a réglé la même chose pour les gardes serveur.
   - Établi comment : lu, et un test temporaire.
 - Piste : reconnaître `TimeoutError` dans `messageErreurApi` (même libellé réseau ou un libellé « délai dépassé »), dans le même ticket que P113.01. Garde : un cas de test avec la raison réelle d'`AbortSignal.timeout`.
+- Mesure (2026-10-22, c6abf5343, mesureur) : relu `api.ts:545-554` (seul `TypeError` → `errors.api.network`, tout autre `Error` passe son `message`) ; test vitest temporaire (retiré) : la raison réelle d'`AbortSignal.timeout(1)` sous le Node de vitest est `instanceof Error`, `name` `TimeoutError` → rendu « The operation was aborted due to timeout » ; un `Error` nommé `TimeoutError` de message « signal timed out » → rendu tel quel ; un `TypeError` → `errors.api.network`. Le constat sur jsdom (« la `DOMException` n'est pas un `Error` ») est inexact ici : elle en est un, et c'est par là que le message anglais passe. Aucun délai n'est posé côté navigateur aujourd'hui : le défaut est latent. Classement : A1, `messageErreurApi` a pour contrat de ne jamais afficher une forme technique, et TCK-1090 (P79.05, autonome) a rangé `TimeoutError` parmi les pannes côté serveur ; le libellé existant `errors.api.network` évite tout texte neuf.
 
 ### La déconnexion attend la réponse de l'API sans borne : le menu ne ferme pas la session tant que l'API ne répond pas
 - Réf : P113.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : fermer la session sans attendre la révocation côté API change le déroulé de la déconnexion
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/context/AuthContext.tsx:257-269`, `takussan-web/src/app/api/auth/logout/route.ts:13-27`, `takussan-web/src/components/layout/UserMenu.tsx:94-104`, `takussan-web/src/components/home/Navbar.tsx:312-317`
 - Constat :
@@ -11056,6 +11060,7 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
   - `UserMenu` et `Navbar` n'appellent `router.replace('/')` qu'après la fin de `logout()` (lu) : sur une API figée, « Se déconnecter » ne produit rien de visible, et la session reste ouverte dans l'onglet comme dans les cookies — sur un téléphone prêté ou partagé, l'utilisateur part en croyant s'être déconnecté (déduit).
   - Établi comment : lu.
 - Piste : effacer l'état local et les cookies sans attendre la révocation côté API (le relais rend sa réponse puis révoque, ou le client borne son attente à quelques secondes et efface quand même) ; garde : un test d'`AuthProvider` dont le `fetch` de déconnexion ne répond jamais, qui exige `user` à `null` sous la borne.
+- Mesure (2026-10-22, c6abf5343, mesureur) : relu `AuthContext.tsx:257-269` (`await fetch('/api/auth/logout')` sans délai avant `setUser(null)`), `logout/route.ts:13-27`, `UserMenu.tsx:99-103`, `Navbar.tsx:315-317` (inchangés ; #972 touche `Navbar.tsx` ailleurs, pour les comptes du menu) ; test vitest temporaire (retiré), `AuthProvider` avec `initialUser` et un `fetch` qui ne se résout jamais → après 1,5 s, `logout()` non résolu et `user` toujours présent. Classement : V2, la Piste choisit entre effacer avant la révocation et borner l'attente, sur le chemin de la session.
 
 ## Angle 114 — Champs écartés par `validated()`, modules de l à z et server actions
 
