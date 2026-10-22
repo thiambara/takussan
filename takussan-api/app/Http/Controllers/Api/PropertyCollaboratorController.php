@@ -75,14 +75,17 @@ class PropertyCollaboratorController extends Controller
 
         // TCK-1448 (P86.03, ADR-0049 « Ventilation » § 1) — une ligne qui quitte le rôle `agent`
         // n'est plus servie par le grand livre : sa part, qui comptait dans le plafond, est retirée.
+        // Retirer une part ne peut pas dépasser le plafond : le contrôle, qui reprendrait le verrou
+        // du bien, ne se joue que pour une part demandée.
+        $partDemandee = array_key_exists('commission_share', $data);
         if (array_key_exists('role', $data) && $request->roleApres() !== CollaboratorRole::Agent) {
             $data['commission_share'] = null;
         }
 
-        $collaborator = DB::transaction(function () use ($property, $collaborator, $data) {
+        $collaborator = DB::transaction(function () use ($property, $collaborator, $data, $partDemandee) {
             $collaborator = $this->relireSousLeVerrouDuBien($property, $collaborator);
 
-            if (array_key_exists('commission_share', $data)) {
+            if ($partDemandee && $data['commission_share'] !== null) {
                 $this->assertCommissionWithinCapLocked(
                     $property,
                     (float) ($data['commission_share'] ?? 0),
