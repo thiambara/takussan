@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Filters\DateBoundaryFilter;
+use App\Http\Filters\ExactIdentifierFilter;
 use App\Http\Resources\Api\Admin\UserDetailResource;
 use App\Http\Resources\Api\Admin\UserListResource;
 use App\Models\Enums\PlatformProfileLevel;
@@ -64,6 +65,8 @@ class UserDetailController extends Controller
         if ($agencyId = $request->string('filter.agency_id')->trim()->value()) {
             // P119.01 (TCK-1269) — la portée commune des trois listes de membres : l'administrateur
             // d'agence sans profil d'agent ni de bailleur y figure (TCK-277, TCK-1244).
+            // P119.03 (TCK-1273) — une valeur non numérique rend 400, plus 500.
+            ExactIdentifierFilter::exiger($agencyId, 'agency_id');
             $query->membreDe((int) $agencyId);
         }
 

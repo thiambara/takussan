@@ -4,6 +4,7 @@ namespace App\Http\Filters;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Validator;
 use Spatie\QueryBuilder\Filters\Filter;
 
 /**
@@ -14,7 +15,7 @@ use Spatie\QueryBuilder\Filters\Filter;
  * perdrait toutes les lignes du jour choisi : le sélecteur de date envoie `yyyy-MM-dd`. Une date
  * seule (sans heure) s'étend au début du jour pour une borne basse, à sa fin pour une borne haute ;
  * une date et heure passe telle quelle. Extrait d'`AuditLogController::normalizeRangeBoundary()`,
- * qui l'appliquait seul au journal de l'agence.
+ * qui l'appliquait seul au journal de l'agence. Une valeur illisible rend 422 (P119.03, TCK-1273).
  */
 class DateBoundaryFilter implements Filter
 {
@@ -25,6 +26,11 @@ class DateBoundaryFilter implements Filter
 
     public function __invoke(Builder $query, mixed $value, string $property): void
     {
+        // P119.03 (TCK-1273) — une date illisible, ou une liste (spatie découpe sur la virgule),
+        // rend 422 par la règle `date` des requêtes d'export, au lieu de lever en 500 dans
+        // `Carbon::parse()` ou dans PostgreSQL.
+        Validator::make(['filter' => [$property => $value]], ["filter.{$property}" => ['string', 'date']])->validate();
+
         $query->where($this->column, $this->isUpperBound ? '<=' : '>=', self::normalize($value, $this->isUpperBound));
     }
 
