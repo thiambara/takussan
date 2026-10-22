@@ -261,4 +261,21 @@ class MtargetSmsWebhookTest extends TestCase
 
         $this->assertSame(SmsResult::STATUS_DELIVERED, NotificationDeliveryAttempt::query()->where('provider_message_id', 'mtg-p3603-d')->first()->status);
     }
+
+    /** P124.02 (TCK-1254) — même borne pour le `StatusText` poussé par Mtarget. */
+    public function test_a_status_text_longer_than_the_column_is_bounded_and_written(): void
+    {
+        $this->makeNotificationWithAttempt('mtg-long');
+
+        $this->post('/api/webhooks/sms/mtarget/status/tck-102-token', [
+            'MsgId' => 'mtg-long',
+            'Status' => 6,
+            'StatusText' => str_repeat('é', 300),
+            'DestinationAdress' => '221771111111',
+        ])->assertOk();
+
+        $attempt = NotificationDeliveryAttempt::query()->where('provider_message_id', 'mtg-long')->first();
+        $this->assertSame(SmsResult::STATUS_FAILED, $attempt->status);
+        $this->assertSame(str_repeat('é', 255), $attempt->failure_reason);
+    }
 }
