@@ -226,7 +226,7 @@ voie d'écriture (angle 13, puis 47).
 | 149 | Champs `nullable` d'un `PATCH` partiel dont le `null` qu'envoie le front pour un champ vidé est lu comme « garder » (`!== null ? … : $model->x`, `?? $model->x`, `array_filter` du payload dans les contrôleurs et services de mise à jour) : valeur impossible à effacer, réponse 200 qui rend l'ancienne — le relevé de P117.02 sur le reste de l'API | fait |
 | 150 | Paramètres `sort=`, `filter[…]` et `include=` écrits par le front (`src/lib/queries/*.ts`, `src/app/actions/*`, `buildQueryString`) face aux `$requestSortable`, `$requestFilterable` et inclusions du modèle visé : requête refusée en 400 `http.bad_request` et écran en erreur — le pendant de l'angle 100 hors de `fields[]`, né de P118.01 | fait |
 | 151 | Valeurs de `filter[…]` passées brutes à une colonne typée (`AllowedFilter::callback` `date_from`/`date_to` comparés tels quels à `created_at`, `AllowedFilter::exact` sur une colonne `bigint`, `date` ou `boolean`, filtres lus à la main par `$request->string('filter.*')`) : 500 en `22P02`/`22007` au lieu d'un 400 ou d'une liste vide, et borne de fin qui exclut le jour choisi — le relevé de P119.02 et P119.03 sur toute l'API | fait |
-| 152 | Boutons et dialogues hors de `/app/agency` montrés par un test de rôle (`isAdmin(user.roles)`, `hasAgentRole`, une vingtaine d'appels sous `takussan-web/src` hors de `app/agency`, dont `ContactLeadsInbox.tsx:149`) face à la capacité que l'API juge pour le même geste (`crm.assign`, `maintenance.assign`, `payouts.*`) : geste caché à qui la tient, montré à qui ne l'a pas — le pendant de l'angle 148 hors de la section agence | à faire |
+| 152 | Boutons et dialogues hors de `/app/agency` montrés par un test de rôle (`isAdmin(user.roles)`, `hasAgentRole`, une vingtaine d'appels sous `takussan-web/src` hors de `app/agency`, dont `ContactLeadsInbox.tsx:149`) face à la capacité que l'API juge pour le même geste (`crm.assign`, `maintenance.assign`, `payouts.*`) : geste caché à qui la tient, montré à qui ne l'a pas — le pendant de l'angle 148 hors de la section agence | fait |
 | 153 | Retrait d'un membre en `leave_unassigned` (`AgencyMemberRemovalService::remove`, seul ou après une passation partielle) : ce qui reste écrit au nom du retiré (lignes `property_collaborators` marquées, `properties.user_id`, tâches et visites à venir, interventions, référent client, participations aux fils) et ce qui le lit encore — contact public, listes, notifications, droits d'accès — né de P121.04 | à faire |
 | 154 | Relations lues puis écrites dans la même requête par `relation()->create()` ou `associate()` sans `setRelation()` ni `load()` (`$model->address ? … : $model->address()->create()`, et leurs pareilles dans les contrôleurs et services) : relation restée nulle ou périmée en mémoire, lue ensuite par un observateur, une notification, un job ou la ressource rendue — le motif de P122.01 hors de l'index | à faire |
 | 155 | Mailables et notifications que la suite ne rend jamais (tests sous `Mail::fake()` ou `Notification::fake()` seuls ; gabarits `resources/views/emails/*` rendus par `view:` qui s'appuient sur les composants `mail::`, `toMail()` sans test qui appelle `render()`) : courriel qui lève au rendu en production pendant que la suite est verte — né de P123.01 | à faire |
@@ -263,6 +263,7 @@ voie d'écriture (angle 13, puis 47).
 | 186 | Paramètres `filter[…]`, `sort=` et `include=` envoyés par le front à une liste écrite à la main hors de `buildQuery()` (`ConversationController::index`, `ReviewController::index`, `PaymentController::history`, `Admin\AgencyModerationController::index` et leurs pareilles) qui ne les lit pas : filtre ou tri accepté en 200 et sans effet, liste non filtrée montrée comme filtrée — le pendant silencieux de l'angle 150, né de P150.05 | à faire |
 | 187 | Paramètres des routes publiques sans compte (`/api/public/properties/search` et `PropertySearchService`, `PublicAgencyController`, `PublicAgentController`, `IndexPublicProfilesRequest`, fiches par slug) face à une valeur mal formée, une liste `[]` ou une virgule : 500 servi à un visiteur anonyme ou à un robot d'indexation au lieu d'un 400 ou d'une liste vide — le relevé de l'angle 151 hors des listes connectées | à faire |
 | 188 | Paramètres hors `filter[…]` lus à la main puis passés à `Carbon::parse()`, `DayRange` ou une colonne typée (`?from=`/`?to=`/`?start=`/`?end=` du calendrier `CalendarEventCollector` et des tableaux de bord, `?period=`, `?month=`, `?year=`) : 500 sur une date ou un nombre mal formés, et borne de fin en date seule qui exclut le jour — le pendant de l'angle 151 hors de `filter[…]` | à faire |
+| 189 | Gestes montrés par une comparaison d'identité dans les détails (`isAssignedAgent` de `VisitDetail.tsx:98`, `user.id === landlord_id`, `issued_by_id`, `uploaded_by_id`, auteur d'une note ou d'un message) face à la policy, qui exige en plus le personnel actif de l'agence (`PersonnelDeLAgence::personnelActifDe`) ou un bailleur non bloqué (`isBlockedOwnerAt`) : agent parti, suspendu ou bailleur bloqué à qui le geste reste montré et rend 403 — né de P152.04 | à faire |
 
 ---
 
@@ -14323,3 +14324,67 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu, test temporaire.
 - Piste : lire ces trois valeurs par `is_string()` (liste vide ou 400 sinon) quand on touche ces fichiers, ou les couvrir par la garde générale proposée en P151.01.
 - Mesure (2026-10-22, f41a867fe, mesureur) : relu `Property.php:680-684` (`(string) $value`), `Task.php:84-96` (`match ((string) $value)`, `default => whereRaw('1 = 0')`), `ReviewController.php:82-96` (`isset($statusMap[$status])`, valeur inconnue ignorée) ; test temporaire `tests/Feature/Tmp/TmpMesureur151Test.php` (retiré ensuite), une requête par cas, charge 2,6 sur 8 cœurs, d'abord sans gestionnaire d'exceptions pour lire l'exception, puis avec : 30 des 33 requêtes rendent 500 ; ici `/api/properties?filter[created_to][]=2026-10-22` et `/api/tasks?filter[due][]=today` → 500 `Array to string conversion`, `/api/reviews?filter[moderation_status][]=pending` → 500 `Cannot access offset of type array` ; `/api/activity-log?filter[event]=a,b` → 200 → le constat tient. Classement : A1, chaque lecture a déjà sa réponse à une valeur qu'elle ne connaît pas (liste vide pour `due`, filtre ignoré pour `moderation_status`, règle `date` pour `created_to`, cf. P151.04) ; le correctif attendu ne lit la valeur que si `is_string()` et applique sinon cette même réponse.
+
+
+## Angle 152 — Gestes hors de `/app/agency` montrés par le rôle, jugés par la capacité
+
+*Exploré le 2026-10-22 sur `pre-dev` 8295ae4a6, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : les appels `isAdmin`, `isAgent`, `isOwner`, `roles.includes` sous `takussan-web/src` hors de `app/agency` (`grep -rnE`), puis pour chaque geste trouvé la garde de l'API : `OwnerProfilePolicy::invite`, `ServiceProviderProfilePolicy::invite` et `canInviteIn`, `LeasePolicy` (`recordPayment`, `refundDeposit`, `renew`, `reviewRent`), `LeaseService::create`, `PropertyPolicy::create` et `createsProposal`, `PropertyVisitController::agitPourLeBien`, `PropertyContactLeadPolicy::assign`, `CustomerPolicy::viewSensitive`, `OwnerProfilePolicy::viewSensitive`, `KpiConfigController`, `ThresholdAlertController`, `BookingDetail.tsx` (déjà jugé par capacité, écarté). Mesuré par un test temporaire `tests/Feature/Tmp/TmpExplorateur152Test.php` (base de test créée par le test, agence `standard`, rôles personnalisés par `AgencyRoleService`, charge `{ 1.92 3.08 3.34 }` sur 8 cœurs), retiré depuis. Aucun écran n'a été rendu : ce qui est dit de l'écran est lu dans le code. Écartés : le côté agent d'« Attribuer » une demande (P120.05), les délégations et la section `/app/agency` (angle 148), le rôle lu toutes agences confondues (angle 176). Les révélations de pièce et de RIB (`customers/[id]/page.tsx:73`, `owners/page.tsx:59`) sont jugées par le profil des deux côtés : justes.*
+
+### Un agent à qui son rôle donne `team.invite` invite bailleurs et prestataires par l'API, mais aucun bouton ne le lui permet
+- Réf : P152.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/(dashboard)/app/owners/page.tsx:47-50`, `takussan-web/src/app/(dashboard)/app/maintenance/providers/page.tsx:83-87`, `takussan-web/src/components/owners/OwnersList.tsx:247,268`, `takussan-web/src/components/service-providers/ServiceProvidersList.tsx:202,219,235`, `takussan-api/app/Policies/OwnerProfilePolicy.php:70-91`, `takussan-api/app/Policies/Profiles/ServiceProviderProfilePolicy.php:79-90,112-135`
+- Constat :
+  - L'API ouvre les deux invitations à l'admin de l'agence **ou** à qui tient `team.invite` (lu, `OwnerProfilePolicy::invite` l. 79-90, `ServiceProviderProfilePolicy::canInviteIn` l. 122-134).
+  - Les deux pages calculent `canInvite` par le seul rôle : `agency_admin`, `isAdmin` ou `super_admin` (lu, `owners/page.tsx:47-50`, `providers/page.tsx:83-87`). Leurs layouts laissent entrer l'agent (lu, `owners/layout.tsx:40-43`, `maintenance/providers/layout.tsx:38-41`). Les boutons « Ajouter » et le volet d'invitation ne se montent que sous `canInvite` (lu).
+  - mesuré (test temporaire) : agent au rôle personnalisé de base `agent` portant `[team.invite]` → `GET /api/auth/me` rend `roles = ["agent","customer"]` ; `POST /api/agencies/{id}/owners/invite` → **201**, `POST /api/agencies/{id}/service-providers/invite` → **201**.
+  - Le délégataire `agency_admin` est dans le même cas : P148.01 a mesuré que `roles` ne porte pas le rôle délégué (déduit pour ces deux pages, à vérifier).
+- Piste : calculer `canInvite` par la capacité (`team.invite`, lue par `fetchMyCapabilities` côté serveur ou `useCan('team.invite', agencyId)`) en plus du profil d'admin, comme la règle de l'API, et garder la condition de type d'agence de la page des prestataires. Un test de page avec un agent qui tient la capacité, et un autre qui ne la tient pas, empêcherait le retour.
+
+### La fiche d'un bail montre « Renouveler », « Réviser le loyer », « Enregistrer un paiement » et la restitution du dépôt à tout rôle de gestion, sans la capacité que l'API exige
+- Réf : P152.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/LeaseDetail.tsx:69-86,179-235,248,294,317`, `takussan-web/src/components/leases/LeaseSchedule.tsx:259,272`, `takussan-api/app/Policies/LeasePolicy.php:116-170,242-254`
+- Constat :
+  - `canRefundDeposit` est vrai pour tout compte qui porte `super_admin`, `agency_admin`, `agent` ou `owner` (lu, l. 72-77), et le commentaire l'annonce comme le reflet de `leases.refund_deposit` ; `isAgentSurface` et `canRenew` le reprennent tels quels (lu, l. 83-86). Ils montent la révision du loyer, l'enregistrement d'un paiement, le renouvellement, la bannière de restitution du dépôt, les gestes de l'échéancier et les garants (lu, l. 179-235, 248, 294, 317).
+  - Pour le personnel de l'agence, l'API exige une capacité par geste : `payments.record` (l. 123), `leases.refund_deposit` (l. 144), `leases.renew` (l. 167), `leases.rent_review` (l. 251) (lu). Un rôle personnalisé peut ne pas les porter (lu, P148.02 : la matrice laisse décocher toute capacité).
+  - mesuré (test temporaire), agent au rôle personnalisé `[crm.view_all]` sur un bail actif de son agence : `GET /api/leases/{id}` → 200 (il ouvre la fiche), puis `POST …/renew` → **403**, `PATCH …/rent` → **403**, `POST …/payments` → **403**, `POST …/deposit-refund` → **403**. Admin au rôle personnalisé `[agency.update]` : `POST …/renew` → **403**.
+  - La révision du loyer passe par deux `window.prompt` avant l'appel (lu, l. 137-144) : l'utilisateur saisit le montant et le motif avant le refus.
+- Piste : juger chaque geste par sa capacité dans l'agence du bail (`useCan('leases.renew', agencyId)` et ses pareilles), le bailleur du bail gardant ses gestes comme dans la policy. Mieux encore : servir `abilities` dans `LeaseResource`, comme le fait déjà la ressource d'intervention (`abilities.can_assign`, lu dans `MaintenanceAssignmentBlock.tsx:32`). Un test de `LeaseDetail` qui monte la fiche pour un agent sans capacité garderait la règle.
+
+### « Nouveau bail » et « Publier un bien » s'ouvrent à l'agent qui ne tient pas `leases.create` ou `properties.create` : le formulaire se remplit, puis l'API le refuse
+- Réf : P152.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/(dashboard)/app/leases/(liste)/page.tsx:27,35`, `takussan-web/src/components/layout/AppSidebar.tsx:230-237`, `takussan-web/src/components/property-dashboard/PropertyList.tsx:611`, `takussan-web/src/app/(dashboard)/app/properties/new/page.tsx:81`, `takussan-api/app/Services/Model/LeaseService.php:39-46`, `takussan-api/app/Policies/PropertyPolicy.php:98-121`
+- Constat :
+  - `canCreateLease = isAgent || isAdmin || isOwner` (lu, l. 27). L'API n'ouvre la création qu'au bailleur du bien, ou au personnel de l'agence qui tient `leases.create` (lu, `LeaseService.php:39-46`).
+  - « Publier un bien » est au menu de tout `agent` ou admin (lu, `AppSidebar.tsx:230-237`), et `properties/new` monte le formulaire de publication, non de proposition, pour eux (lu, `page.tsx:81`). L'API exige `properties.create`, ou un profil de bailleur dans l'agence (lu, `PropertyPolicy::create` l. 109-110).
+  - mesuré (test temporaire) : agent au rôle personnalisé `[crm.view_all]` → `POST /api/leases` (corps valide) → **403** ; agent au rôle `[team.invite]` → `POST /api/properties` → **403**.
+  - Non mesuré : l'agent qui est aussi bailleur de l'agence, sans `properties.create`. L'API ferait de sa saisie une proposition (lu, `createsProposal` l. 117-121), alors que l'écran lui dit « Publier » (à vérifier).
+- Piste : juger l'entrée de menu, le bouton et le titre du formulaire par `properties.create` et `leases.create` dans l'agence du profil actif, en gardant la forme « proposer » pour qui n'a que le profil de bailleur. Un test de `AppSidebar` et de la page des baux avec un agent sans ces capacités empêcherait le retour.
+
+### Le bailleur d'un bien d'agence voit « Confirmer », « Terminer », « Reporter » et « Annuler » sur la visite, que l'API réserve au personnel
+- Réf : P152.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/visits/VisitDetail.tsx:99-109,265-289`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:299-311,501-517`
+- Constat :
+  - `isManager` est vrai pour tout compte `owner`, `agent` ou admin (lu, l. 99), et ouvre les quatre gestes selon le statut (lu, l. 103-109). La page de détail n'a que la garde d'existence de la ressource (lu, `visits/[id]/layout.tsx`).
+  - Sur un bien d'agence, l'API ne laisse confirmer, terminer, reporter ou annuler qu'au personnel actif de l'agence (lu, `agitPourLeBien` l. 511-512), le bailleur gardant la lecture (lu, `PropertyVisitPolicy::view`).
+  - mesuré (test temporaire) : bailleur de l'agence, auteur du bien → `roles = ["owner","customer"]`, `GET /api/property-visits/{id}` → 200, `POST …/confirm` → **403** `visit.staff_only`, `POST …/cancel` → **403**, `PATCH …` → **403**.
+  - `canAgent={isAssignedAgent || isManager}` ouvre de même au bailleur le retour d'agent sur une visite terminée (lu, l. 306). La garde de l'API sur cette écriture n'a pas été relue (à vérifier).
+- Piste : ne compter le bailleur parmi les gestionnaires que sur un bien sans agence, comme `agitPourLeBien`. Le plus simple est de servir `abilities` dans `PropertyVisitResource`, calculés par la même fonction. Un test de `VisitDetail` avec un bailleur sur un bien d'agence garderait la règle.
+
+### « Attribuer » une demande de contact est montré à l'admin dont le rôle ne porte pas `crm.assign`, et rend 403
+- Réf : P152.05
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leads/ContactLeadsInbox.tsx:147-149,245-249`, `takussan-api/app/Policies/PropertyContactLeadPolicy.php:92-104`
+- Constat :
+  - Le bouton est monté sous `isAdmin(user.roles)` seul (lu, l. 149, 245). La policy n'a pas de branche d'admin : elle exige `crm.assign` dans l'agence de la demande (lu, l. 100-103).
+  - mesuré (test temporaire) : admin au rôle personnalisé de base `agency_admin` portant `[agency.update]`, 2FA posée → `GET /api/agencies/{id}/members` → 200 (le dialogue se remplit), `POST /api/contact-leads/{id}/assign` → **403**.
+  - P120.05 relève le cas inverse (l'agent qui tient `crm.assign` sans bouton) et propose d'ouvrir la liste des cibles. Ce constat-ci n'en dépend pas.
+- Piste : monter le bouton sous `useCan('crm.assign', agencyId)` et le profil d'admin (tant que la liste reste réservée à l'admin), puis lever la seconde condition avec P120.05. Un test de `ContactLeadsInbox` avec un admin sans la capacité garderait la règle.
