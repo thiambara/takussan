@@ -11993,7 +11993,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### La recherche globale de la console ne retrouve jamais une agence par son téléphone tel que le formulaire l'enregistre
 - Réf : P125.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:92-101,159-178`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:61`, `takussan-api/app/Http/Requests/Api/StoreAgencyRequest.php:43`, `takussan-api/app/Http/Requests/Api/Admin/StoreAgencyOnboardingRequest.php:24`, `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:302-308`, `takussan-web/src/lib/schemas/agency.ts:36-42`, `takussan-web/src/components/admin/super/AgencyOnboardingDialog.tsx:198-199`
 - Constat :
@@ -12003,10 +12003,11 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - Les comptes, eux, sont retrouvés : `users.phone` est en E.164 strict (lu, `AdminGlobalSearchTest.php:52-62`). Le test ne sème aucune agence par téléphone.
   - Établi comment : lu et mesuré.
 - Piste : comparer par la forme canonique des deux côtés, comme l'entrée par téléphone (`CanonicalPhone::sql('phone') = CanonicalPhone::fold(...)`, `PhoneLoginService.php:151`), ce qui ne change aucune donnée ; ou normaliser `agencies.phone` à l'écriture (`TelephoneSaisi::normaliser` dans les trois requêtes, `PhoneInput` au front) et rattraper les lignes existantes, ce qui change ce qu'on accepte. Test : une agence enregistrée `+221 77 123 45 67` se retrouve par `77 123 45 67`.
+- Mesure (2026-10-22, 64db86d28, mesureur) : relu `AdminGlobalSearchService.php:92-101` (toujours `Agency::query()->where('phone', $phone)` après `phoneCandidate`), les trois requêtes (`phone` en `string`, `max:30`, sans normalisation) et `Agency.php` (aucun mutateur) ; test Feature temporaire, retiré, deux agences `+221 77 123 45 67` et `+221771234569`, opérateur support (charge 2,76 / 2,13 / 2,02 sur 8 cœurs) → `q=+221 77 123 45 67`, `q=77 123 45 67` et `q=+221771234567` rendent `[]` en agences, seule `q=771234569` retrouve la seconde ; aucun commit ni ticket ne cite P125.01. Classement : A1, la recherche par téléphone « comptes et agences » est écrite (TCK-600, l. 863-864) et le correctif — comparer `CanonicalPhone::sql('phone') = ?` au candidat E.164 pour les agences, sans toucher aux données ni à ce qu'on accepte à l'écriture — ne demande aucun choix ; la seconde option de la piste (normaliser à l'écriture et rattraper les lignes) relève de V4 et n'est pas couverte.
 
 ### Convertir une demande de contact crée une seconde fiche client quand le numéro en a déjà une
 - Réf : P125.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : rattacher la demande à la fiche existante ou refuser en 409, choix du produit
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Lead/ContactLeadService.php:248-282`, `takussan-api/app/Services/Model/CustomerService.php:12-18`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:58-60,95-111`, `takussan-api/app/Services/Crm/CustomerDuplicateDetector.php:25-58`
 - Constat :
@@ -12016,10 +12017,11 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - La réponse de la conversion ne signale pas la fiche existante (lu, l. 266-282) : l'agent ne sait pas qu'il vient de doubler un client.
   - Établi comment : lu et mesuré.
 - Piste : consulter le détecteur dans `convert()` : rattacher la demande à la fiche trouvée, ou rendre 409 avec `existing` comme la création, au choix du produit. Test : fiche existante au même numéro, conversion → une seule fiche dans l'agence.
+- Mesure (2026-10-22, 64db86d28, mesureur) : relu `ContactLeadService.php:248-284` (`convert()` appelle `CustomerService::create`, qui fait `Customer::create` sans `CustomerDuplicateDetector`) et `CustomerController.php:58-60` ; test Feature temporaire, retiré, fiche existante saisie `77 123 45 67` puis demande au `+221771234567` → `POST /api/contact-leads/{id}/convert` 201, deux fiches `+221771234567` dans l'agence, et `POST /api/customers` au même numéro 409 `customer.duplicate`. Classement : V7, la piste laisse au produit le choix entre rattacher et refuser, deux comportements visibles différents.
 
 ### La feuille de profil minimal envoie un numéro au format de son propre exemple, que l'API refuse
 - Réf : P125.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : saisie par `PhoneInput` ou normalisation silencieuse, et texte de l'erreur de champ
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/customer/CustomerMinimalProfileSheet.tsx:86-88,126-134`, `takussan-web/src/components/customer/MinimalProfileTriggerProvider.tsx:124-136`, `takussan-web/src/messages/fr.json:4682`, `takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php:42`
 - Constat :
@@ -12029,10 +12031,11 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - Le 422 n'atteint pas le champ : `handleSave` lève `save_failed` sur tout `!res.ok` (lu, `MinimalProfileTriggerProvider.tsx:131-135`). La feuille affiche une erreur générique. Le client qui recopie la forme de l'exemple ne peut pas enregistrer son numéro, et ne sait pas pourquoi.
   - Établi comment : lu et mesuré.
 - Piste : saisir le numéro par `PhoneInput`, comme les autres formulaires du compte (`SecondaryPhoneSection.tsx:103`), ou normaliser avant l'envoi (`normalizePhoneInput`, `ProfileContactSection.tsx:301`) ; remonter l'erreur de champ du 422. Test : saisie `+221 77 000 00 00` → corps envoyé `+221770000000`.
+- Mesure (2026-10-22, 64db86d28, mesureur) : relu `CustomerMinimalProfileSheet.tsx:86-88,126-134` (`Input` libre, valeur `trim()`ée), `fr.json:4682` (`+221 77 000 00 00`), `MinimalProfileTriggerProvider.tsx:124-136` (`save_failed` sur tout `!res.ok`) et `UpdateMeRequest.php:42` (regex E.164 sans `prepareForValidation`) ; test Feature temporaire, retiré → `PATCH /api/me` `+221 77 000 00 01` 422, `77 000 00 02` 422, `+221770000003` 200. Le `normalizePhoneInput` que cite la piste ne suffit pas : il rend `770000002` pour la forme nationale, que l'API refuse encore. Classement : V7, le correctif change le champ visible (`PhoneInput`) ou demande un message d'erreur de champ, deux choix d'écran.
 
 ### Les trois invitations par téléphone refusent la forme nationale et la forme espacée, que leur message d'erreur donne en exemple
 - Réf : P125.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Invitation/InviteAgentRequest.php:37-39`, `InviteOwnerRequest.php:35`, `InviteServiceProviderRequest.php:38`, `takussan-api/lang/fr/validation.php:177`, `takussan-api/lang/en/validation.php:21`, `takussan-web/src/components/admin/InviteAgentDialog.tsx:61,104,203-209`, `takussan-web/src/components/owners/InviteOwnerSheet.tsx:142,225-229`, `takussan-web/src/components/service-providers/InviteServiceProviderSheet.tsx:200,285-289`
 - Constat :
@@ -12043,10 +12046,11 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - Le visiteur d'une fiche de bien, lui, peut taper `77 123 45 67` : la visite et la demande de contact normalisent (lu, `TelephoneSaisi`).
   - Établi comment : lu et mesuré (règle seule ; le parcours des trois écrans n'a pas été joué).
 - Piste : normaliser par `TelephoneSaisi::normaliser` dans `prepareForValidation` des trois requêtes, ou saisir par `PhoneInput` ; écrire l'exemple du message sans espaces, ou accepter les espaces partout où il s'affiche. Test : une invitation à `77 123 45 67` part au `+221771234567`.
+- Mesure (2026-10-22, 64db86d28, mesureur) : relu `InviteAgentRequest.php:37-39`, `InviteOwnerRequest.php:35-37`, `InviteServiceProviderRequest.php:38-40` (`TelephoneJoignable` sur la valeur brute, aucun `prepareForValidation`) et `lang/fr/validation.php:177` (exemple « +221 77 123 45 67 ») ; test temporaire, retiré, `Validator` sur la règle des trois requêtes → `+221 77 123 45 67` et `77 123 45 67` refusés par `phone_e164`, `+221771234567` accepté ; le parcours des trois écrans n'a pas été joué. Classement : A1, le message de la règle donne la forme espacée pour valide et TCK-590 a écrit la normalisation des saisies nationales ; correctif : `TelephoneSaisi::normaliser` sur `phone` dans `prepareForValidation` des trois requêtes, comme `ContactLeadPublicRequest.php:42`, sans toucher aux écrans.
 
 ### Cinq normaliseurs de téléphone, et ils ne rendent pas le même numéro
 - Réf : P125.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : un normaliseur unique pour cinq parcours, dont l'entrée par téléphone liée à l'index `users_phone_verified_unique`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Support/TelephoneSaisi.php:41,43-61`, `takussan-api/app/Services/Crm/CustomerPhoneNormalizer.php:23-48`, `takussan-api/app/Support/CanonicalPhone.php:33-50`, `takussan-api/app/Services/Notifications/Sms/PhoneNumber.php:55-63`, `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:159-178`
 - Constat :
@@ -12058,10 +12062,11 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - Chaque comparaison de numéros choisit l'un des cinq : l'entrée par téléphone et les invitations `CanonicalPhone` (lu, `PhoneLoginService.php:151`, `InvitationService.php:925`), les alertes de recherche `PhoneNumber` (lu, `AlertSubscriber.php:69-74`), le dédoublonnage des clients `CustomerPhoneNormalizer` (lu, `CustomerDuplicateDetector.php:31`).
   - Établi comment : mesuré pour les sorties ; les conséquences par parcours sont déduites, à vérifier une à une.
 - Piste : un seul normaliseur (la forme de `TelephoneSaisi`, avec la liste d'indicatifs de `CustomerPhoneNormalizer` si `30` est confirmé), que les quatre autres appellent ; un test unitaire qui joue la même table de saisies contre chaque point d'entrée.
+- Mesure (2026-10-22, 64db86d28, mesureur) : `php` hors application sur les cinq normaliseurs → `30 123 45 67` : `TelephoneSaisi` `301234567`, `CanonicalPhone`, recherche et `CustomerPhoneNormalizer` `+221301234567` ; `77/123/45/67` : `CanonicalPhone::fold` le laisse tel quel, recherche `null` ; `123456789` : `CanonicalPhone::fold` `+221123456789` ; `PhoneNumber::normalize` lève sur les quatre saisies (il attend l'E.164). Le constat tient. Les conséquences par parcours restent déduites, et l'indicatif `30` reste à vérifier. Classement : V6, fondre cinq normaliseurs touche l'entrée par téléphone (V2) et l'expression d'un index (`CanonicalPhone.php:25-27`), une décision de structure.
 
 ### Petites améliorations
 - Réf : P125.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : `phone_otp.phone` touche la vérification du téléphone à l'onboarding
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Onboarding/HostIndividualOnboardRequest.php:54`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:297-306`, `takussan-api/app/Http/Requests/Api/StorePublicSearchAlertRequest.php:37-44`, `takussan-web/src/components/public/profile/ContactSheet.tsx:62`, `takussan-web/src/lib/jsonld-profil.ts:106`
 - Constat :
@@ -12070,6 +12075,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - La fiche publique d'une agence émet le numéro brut dans le JSON-LD (`telephone`) et en `tel:` après le seul retrait des blancs (lu). Une agence enregistrée `77 123 45 67` publie `tel:771234567`, qui n'aboutit pas depuis l'étranger (déduit, à vérifier). Disparaît avec la normalisation à l'écriture de P125.01.
   - Établi comment : lu.
 - Piste : retirer `phone_otp.phone` de la requête ou le comparer au numéro du compte ; ajouter `TelephoneJoignable` à l'alerte WhatsApp ; publier l'E.164 dans le JSON-LD et le `tel:`.
+- Mesure (2026-10-22, 64db86d28, mesureur) : relu `HostIndividualOnboardRequest.php:53-54` (`phone_otp.phone` exigé), `HostIndividualOnboardingService.php:297-306` (vérifie `$user->phone`) ; `grep -rn phone_otp app` ne rend que des règles de validation ; `StorePublicSearchAlertRequest.php:37-44` (seul `PhoneNumber::isValid`, sans `TelephoneJoignable`) ; `ContactSheet.tsx:62` (`tel:` après retrait des seuls blancs) et `jsonld-profil.ts:106` (`telephone` brut). Les trois points tiennent ; l'écart entre le numéro de l'assistant et celui du compte (`HostIndividualWizard.tsx`) n'a pas été vérifié. Classement : V2, le premier point porte sur la vérification du téléphone, et le dernier change ce que publie la fiche d'une agence (V7).
 
 ## Angle 126 — Destinataires d'équipe choisis sans juger le profil actif
 
