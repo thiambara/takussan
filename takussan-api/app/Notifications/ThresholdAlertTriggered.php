@@ -10,6 +10,7 @@ use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Number;
 
 /**
@@ -53,19 +54,28 @@ class ThresholdAlertTriggered extends Notification
         // la commande planifiée hors requête, `APP_URL` : l'hôte de l'API, qui n'en sert aucune.
         $frontend = LienFront::base();
 
+        // P155.04 (TCK-1439) — la métrique et la sévérité nommées, plus leurs codes.
+        $metric = self::libelle('notifications.threshold_alert_mail.metrics', (string) $this->alert->metric);
+
         return (new MailMessage)
-            ->subject(__('notifications.threshold_alert_mail.subject', ['metric' => $this->alert->metric]))
+            ->subject(__('notifications.threshold_alert_mail.subject', ['metric' => $metric]))
             ->line(__('notifications.threshold_alert_mail.intro'))
             ->line(__('notifications.threshold_alert_mail.'.$direction, [
-                'metric' => $this->alert->metric,
+                'metric' => $metric,
                 'value' => Number::format($this->value, precision: 2, locale: $locale),
                 'threshold' => Number::format((float) $this->alert->threshold, precision: 2, locale: $locale),
-                'severity' => $this->alert->severity,
+                'severity' => self::libelle('notifications.threshold_alert_mail.severities', (string) $this->alert->severity),
             ]))
             ->action(__('notifications.threshold_alert_mail.action'), $frontend.'/app/overview')
             ->line(trans_choice('notifications.threshold_alert_mail.cooldown', (int) $this->alert->cooldown_hours, [
                 'hours' => (int) $this->alert->cooldown_hours,
             ]));
+    }
+
+    /** Le libellé d'un code, ou le code lui-même s'il n'en a pas (une valeur d'avant la liste). */
+    private static function libelle(string $groupe, string $code): string
+    {
+        return Lang::has($groupe.'.'.$code) ? (string) __($groupe.'.'.$code) : $code;
     }
 
     /**
