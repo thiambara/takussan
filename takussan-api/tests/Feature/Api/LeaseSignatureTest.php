@@ -609,6 +609,25 @@ class LeaseSignatureTest extends TestCase
         $show->assertJsonPath('data.can_sign_as', ['landlord'])->assertJsonPath('data.can_request_signature', true);
     }
 
+    /**
+     * TCK-1263 (P91.06) — `otp_destination` est un `varchar(120)` : la destination masquée d'une
+     * adresse au long domaine se borne à 120 caractères, dès l'envoi, pour que la preuve enregistre
+     * ce que le signataire a lu, et que la signature aboutisse au lieu d'un 500.
+     */
+    public function test_a_long_email_domain_is_bounded_in_the_destination_and_the_proof(): void
+    {
+        $domain = str_repeat('a', 60).'.'.str_repeat('b', 60).'.sn';
+        $this->tenantUser->forceFill(['email' => 'awa@'.$domain, 'phone_verified_at' => null])->save();
+        $this->requestSignature()->assertOk();
+
+        $displayed = $this->sendCode($this->tenantUser, 'tenant')->assertStatus(202)->json('data.destination');
+        $this->assertSame(120, mb_strlen($displayed));
+        $this->assertStringStartsWith('a•••@'.str_repeat('a', 60), $displayed);
+
+        $this->sign($this->tenantUser, 'tenant', $this->lastCode($this->tenantUser))->assertOk();
+        $this->assertSame($displayed, LeaseSignature::query()->sole()->otp_destination);
+    }
+
     // ─── Qui signe ───────────────────────────────────────────────────────────────────────────
 
     public function test_a_third_party_cannot_sign_either_role(): void

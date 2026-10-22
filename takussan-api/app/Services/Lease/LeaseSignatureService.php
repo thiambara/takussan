@@ -32,6 +32,9 @@ use Illuminate\Support\Facades\DB;
  */
 class LeaseSignatureService
 {
+    /** La longueur de `lease_signatures.otp_destination` (migration `2026_10_08_020100`). */
+    public const DESTINATION_MAX_LENGTH = 120;
+
     public function __construct(
         private readonly DocumentPdfService $pdf,
         private readonly LeaseSignatureOtpService $otp,
@@ -347,10 +350,15 @@ class LeaseSignatureService
         return strlen($digits) <= 2 ? '••' : str_repeat('•', max(strlen($digits) - 2, 0)).substr($digits, -2);
     }
 
+    /**
+     * TCK-1263 (P91.06) — bornée à `lease_signatures.otp_destination` (`varchar(120)`) dès
+     * l'envoi : la preuve enregistre la destination que le signataire a lue, et un domaine de plus
+     * de 115 caractères ne fait plus échouer la signature en 22001.
+     */
     public static function maskEmail(string $email): string
     {
         [$local, $domain] = array_pad(explode('@', $email, 2), 2, '');
 
-        return mb_substr($local, 0, 1).'•••@'.$domain;
+        return mb_substr(mb_substr($local, 0, 1).'•••@'.$domain, 0, self::DESTINATION_MAX_LENGTH);
     }
 }
