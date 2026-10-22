@@ -12871,7 +12871,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Le dialogue de facture envoie toujours `XOF` : le repli sur la devise de l'agence (P04.09) ne joue jamais depuis la console
 - Réf : P133.03
-- Statut : validé — porteur (2026-10-22) : pré-remplir la devise avec celle de l'agence (P04.09), modifiable
+- Statut : fait · TCK-1379
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:53,85`, `takussan-api/app/Services/Model/InvoiceService.php:47-51`
 - Constat :
@@ -12880,6 +12880,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Même valeur en dur dans `CreateLeaseForm.tsx:81`, face à `LeaseService.php:94` (`?? 'XOF'`) : là, les deux côtés concordent, mais ni l'un ni l'autre ne lit la devise de l'agence ou du bien (à vérifier : ce que le produit attend).
 - Piste : pré-remplir la devise avec celle de l'agence de l'émetteur, ou ne l'envoyer que si la personne l'a choisie. Garde : un test du dialogue pour une agence en EUR.
 - Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `CreateInvoiceDialog.tsx:53,85` (`currency: 'XOF'` en valeur initiale, toujours envoyée), `InvoiceService.php:47-51` (repli `??=` sur `agencies.currency`, TCK-738), `CreateLeaseForm.tsx:81` (`currency: 'XOF'`) face à `LeaseService.php:94` (`?? 'XOF'`) → le constat tient : depuis la console, le repli sur la devise de l'agence ne joue jamais. Classement : V1, la devise fixe le montant et son arrondi sur la facture ; la Piste offre deux options (pré-remplir avec la devise de l'agence, ou n'envoyer que la devise choisie) et le constat laisse ouvert ce que le produit attend pour le bail.
+- Mesure (2026-10-22, a2c7af2, implementeur) : test du dialogue avant correctif : agence en EUR, sélecteur non touché → aperçu `1500FCFA` et `currency: 'XOF'` envoyé (rouge). Correctif : `useAgencyInvoiceDefaults` lit `agencies.currency`, le dialogue en pré-remplit le sélecteur tant qu'il n'est pas touché → `CreateInvoiceDialog.test.tsx` 11 verts (dont XOF choisi à la main → XOF), `useAgencyInvoiceDefaults.test.tsx` 4 verts ; ablation → 1 rouge. Hors périmètre : `CreateLeaseForm.tsx:81` (XOF en dur, concordant avec `LeaseService`).
 
 ### Le récapitulatif du renouvellement dit « — » pour la pénalité de retard et le délai de grâce, que le nouveau bail hérite pourtant du parent
 - Réf : P133.04
