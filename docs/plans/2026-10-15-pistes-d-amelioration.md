@@ -11906,7 +11906,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### `dashboard:check-alerts` envoie l'alerte avant de la marquer : un courriel qui échoue arrête la tâche et fait renvoyer la cloche
 - Réf : P123.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1249
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/CheckThresholdAlertsCommand.php:59-73`, `takussan-api/app/Notifications/ThresholdAlertTriggered.php:18`, `:31-44`
 - Constat :
@@ -11915,6 +11915,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lu.
 - Piste : poser `last_triggered_at` avant l'envoi, ou mettre la notification en file ; rattraper l'échec par alerte. Garde : un test sous un transport qui lève, qui exige une seule notification `database` après deux passages et toutes les alertes jugées.
 - Mesure (2026-10-22, 86138895e, mesureur) : relu `CheckThresholdAlertsCommand` (`Notification::send()` l. 65, avant `last_triggered_at` l. 67-70, sans `try`) et `ThresholdAlertTriggered` (`database` et `mail`, sans `ShouldQueue`) ; test temporaire retiré : deux agences, une alerte chacune, transport qui lève, deux passages de `dashboard:check-alerts` → `TransportException` à chaque passage, 1 puis 2 lignes `app_notifications`, `last_triggered_at` nul sur les deux alertes → la partie « à vérifier » tient : la cloche est récrite à chaque passage et la seconde agence n'est jamais jugée. Classement : A1, `cooldown_hours` de l'alerte écrit déjà « un déclenchement par fenêtre » ; poser `last_triggered_at` avant l'envoi et rattraper l'échec par alerte (`report()`, puis continuer) ne demande aucun choix.
+- Mesure (2026-10-22, a8174784f, implementeur) : relu `CheckThresholdAlertsCommand.php:64-70` (`Notification::send()` avant `last_triggered_at`, sans `try`) ; le test neuf `ThresholdAlertTest::test_un_courriel_qui_echoue_n_arrete_pas_la_tache_ni_ne_fait_recrire_la_cloche` (deux agences, transport qui lève, deux passages) levait `TransportException` → alerte marquée avant l'envoi, envoi rattrapé par `report()`, 14/14 ; ablation du `try` → 1 rouge, remis → vert.
 
 ### Petites améliorations
 - Réf : P123.06
