@@ -14,6 +14,7 @@ const etat = vi.hoisted(() => ({
   leads: [] as ContactLead[],
   filtres: [] as string[],
   roles: ['agent'] as string[],
+  capacites: ['crm.assign'] as string[],
   recherche: '',
   designe: null as { id: number | null; data?: ContactLead; isError?: boolean } | null,
 }));
@@ -51,6 +52,15 @@ const lecturesDesMembres = vi.hoisted(() => [] as unknown[][]);
 vi.mock('@/hooks/useApiQuery', () => ({
   useApiQuery: (...args: unknown[]) => (lecturesDesMembres.push(args), {
     data: { data: [{ id: 21, first_name: 'Moussa', last_name: 'Fall' }] },
+    isLoading: false,
+  }),
+}));
+
+// P152.05 — « Attribuer » se juge aussi par `crm.assign` dans l'agence de la demande.
+const lecturesDesCapacites = vi.hoisted(() => [] as unknown[][]);
+vi.mock('@/hooks/useCan', () => ({
+  useCan: (capacite: string, ...reste: unknown[]) => (lecturesDesCapacites.push([capacite, ...reste]), {
+    can: etat.capacites.includes(capacite),
     isLoading: false,
   }),
 }));
@@ -95,6 +105,7 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
     etat.leads = [lead()];
     etat.filtres = [];
     etat.roles = ['agent'];
+    etat.capacites = ['crm.assign'];
     etat.recherche = '';
     etat.designe = null;
   });
@@ -255,5 +266,16 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
       expect(screen.queryByText('Les demandes n’ont pas pu être chargées.')).not.toBeInTheDocument();
       expect(screen.getAllByRole('listitem')).toHaveLength(1);
     });
+  });
+
+  it('P152.05 — un administrateur dont le rôle ne porte pas crm.assign n’a pas « Attribuer »', () => {
+    etat.roles = ['agency_admin'];
+    etat.capacites = ['agency.update'];
+    render(withIntl(<ContactLeadsInbox />));
+
+    expect(screen.getByText(MESSAGE)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Attribuer' })).not.toBeInTheDocument();
+    // La capacité se lit dans l'agence de la demande.
+    expect(lecturesDesCapacites.at(-1)?.slice(0, 2)).toEqual(['crm.assign', 3]);
   });
 });
