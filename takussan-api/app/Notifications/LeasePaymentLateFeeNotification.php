@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Enums\Currency;
 use App\Models\LeasePayment;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
@@ -21,6 +22,7 @@ use Illuminate\Support\Number;
 class LeasePaymentLateFeeNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public const EVENT_TYPE = 'lease_payment_overdue';
 

@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Enums\Currency;
 use App\Models\Lease;
 use App\Models\User;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Media\PrivateMediaAccess;
 use Illuminate\Bus\Queueable;
@@ -39,6 +40,7 @@ use Illuminate\Notifications\Notification;
 class LeaseDepositRefundNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public const ATTACHMENT_LINK_TTL_DAYS = 7;
 
