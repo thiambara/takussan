@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreKpiConfigRequest;
 use App\Http\Requests\Api\UpdateKpiConfigRequest;
 use App\Models\KpiConfig;
+use App\Policies\AgencyIndicatorPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -84,12 +85,13 @@ class KpiConfigController extends Controller
         return $this->json(['data' => KpiConfig::allowedMetrics()]);
     }
 
+    /**
+     * TCK-1701 (P82.04) — un RELAIS : la règle vit dans {@see AgencyIndicatorPolicy::delete()}
+     * (`agency.update` sous le profil actif). Le helper reste parce qu'il est inscrit aux
+     * exemptions de `scripts/check-controller-authorization.mjs`, qui refuse une exemption morte.
+     */
     private function authorizeAgency($user, KpiConfig $kpi): void
     {
-        abort_unless(
-            $user->isSuperAdmin()
-                || ($user->agency_id !== null && $user->agency_id === $kpi->agency_id && $user->isAgencyAdminAt((int) $kpi->agency_id)),
-            403,
-        );
+        abort_unless($user->can('delete', $kpi), 403);
     }
 }
