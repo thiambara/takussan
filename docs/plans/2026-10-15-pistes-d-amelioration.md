@@ -189,7 +189,7 @@ voie d'écriture (angle 13, puis 47).
 | 113 | Appels du navigateur vers l'API sans délai (`useApiQuery`, `apiRequest` client, mutations TanStack, `fetch` direct des composants) : bouton `isPending` figé et requête jamais abandonnée sur un réseau mobile qui ne coupe pas — le pendant client de l'angle 79 | fait |
 | 114 | Champs écartés par `validated()` sur les modules `src/lib/queries/*.ts` de l à z et les server actions `src/app/actions/*.ts` : la moitié de l'angle 80 laissée sans relevé | fait |
 | 115 | Statuts d'enum qu'aucun chemin de `app/` n'écrit et que seuls les seeders posent (`LeaseStatus::Expired`, les autres enums de statut de `app/Models/Enums`) : gardes, filtres, tableaux de bord et écrans du front qui attendent un état que la production n'atteindra jamais | fait |
-| 116 | Gestes d'agence jugés par le type de profil (`isAgencyAdminAt`, `isAgentAt` : une quarantaine d'appels dans `app/Http` et `app/Services`) au lieu d'une capacité (`canActAt`) : admin à qui un rôle personnalisé retire la capacité, membre à qui il la donne — le relevé de P82.04 et P82.05 sur le reste de l'API | à faire |
+| 116 | Gestes d'agence jugés par le type de profil (`isAgencyAdminAt`, `isAgentAt` : une quarantaine d'appels dans `app/Http` et `app/Services`) au lieu d'une capacité (`canActAt`) : admin à qui un rôle personnalisé retire la capacité, membre à qui il la donne — le relevé de P82.04 et P82.05 sur le reste de l'API | fait |
 | 117 | Clés de `metadata` des profils (`owner_profiles`, `agent_profiles`, `service_provider_profiles` : `kind`, `source`, `intervention_zones`, `visit_fee`, `availability`, `has_insurance`, `trades`) écrites par les assistants `Me\*ProfileController` : lues par qui, à l'API et dans les listes du front (`ServiceProvidersList`, `OwnersList`, `MaintenanceAssignmentBlock`) qui y retombent à défaut de colonne | à faire |
 | 118 | Listes paginées triées sur une colonne non unique sans départage par `id` (`orderBy` écrits à la main des contrôleurs `Admin\*`, `defaultSort('-created_at')` seul, `$requestSortable` sur `status`, `name`, `first_name`) : ligne rendue deux fois ou jamais d'une page à l'autre sous PostgreSQL | à faire |
 | 119 | Requêtes de base passées à `buildQuery()` ou à `QueryBuilder::for()` avec un `orWhere`/`orWhereHas` non groupé ou un `orderBy` en dur : filtres de la requête qui ne s'appliquent qu'à une branche, `sort=` relégué après le tri fixe — le relevé de P87.04 sur le reste de l'API | à faire |
@@ -222,6 +222,7 @@ voie d'écriture (angle 13, puis 47).
 | 145 | Champs écartés par `validated()` sur ce que l'angle 114 n'a pas relevé : `lib/queries` `properties-server.ts`, `visits.ts`, `settings.ts`, `property-calendar.ts` et les modules à une ou deux mutations, les server actions `property.ts` (avis, signalements, contacts d'agent), `invitations.ts`, `account-deletion.ts`, `admin-tags.ts`, `super-admin-cooptation.ts`, `auth.ts`, et les écritures directes des composants | à faire |
 | 146 | Unions de statut et options de filtre du front (`src/types/*.ts`, `Record<…Status, …>`, `STATUS_VALUES`, `KNOWN_STATUSES`) face aux cas des enums de l'API : valeurs que l'API n'émet jamais (`banned`, agence `pending`), valeurs émises absentes (utilisateur `blocked`) — le relevé de P115.02 sur tous les types | à faire |
 | 147 | Statuts posés librement par un `Rule::enum` entier dans une requête de mise à jour (`UpdateCustomerRequest` `status` jusqu'à `blocked` et `deleted`, `UpdatePropertyRequest`, `StoreAgencyRequest`, `UpdatePrivacyRequestRequest`) : transitions que le geste dédié refuserait, et état posé à la main que rien d'autre ne lit | à faire |
+| 148 | Section `/app/agency/*` du front gardée par `isAdmin(user.roles)` (`(dashboard)/app/agency/layout.tsx:28`) et `PAGES_ADMIN` face aux gestes que l'API ouvre par capacité à un agent (`team.invite`, `team.assign_role`, `team.suspend`, `payouts.approve`, `agency.update_kyc`) : membre qui tient la capacité sans écran pour l'exercer, et admin sans elle à qui l'écran s'ouvre sur des 403 | à faire |
 
 ---
 
@@ -11229,3 +11230,101 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - `RelationshipStatus::Ended` et `Suspended` : jamais posés ; le front les type (`types/customer.ts:90`).
   - `AgencyStatus` du front ajoute `pending`, que l'enum de l'API n'a pas (lu, `types/agency.ts:9`).
 - Piste : retirer les cas sans écrivain (et leurs types au front), ou les documenter comme réservés ; aligner `scopeOpen()` sur `isClosed()` ou le retirer (A3).
+
+## Angle 116 — Gestes d'agence jugés par le type de profil au lieu d'une capacité
+
+*Exploré le 2026-10-22 sur `pre-dev` 3390f9116, par l'explorateur. Tout est relu par l'explorateur
+lui-même, sans sous-agent : les 70 appels `isAgencyAdminAt` / `isAgentAt` de `takussan-api/app`
+(`grep -rn`), le résolveur (`MembershipCapabilityResolver::roleAllows`, l. 613-633 : un admin tient
+les capacités de son rôle, et un rôle personnalisé peut les lui retirer), l'inventaire
+`CapabilityEnforcementInventory::AWAITING` et la dette D-69. Un test temporaire, retiré, sur la base
+de test PostgreSQL (charge 1,91 sur 8 cœurs) : pour six capacités, un admin dont le rôle la retire
+(`adminWithout`) et un agent dont le rôle l'ajoute (`agentWith`), face aux routes. Écartés parce
+que le type de profil y est la règle écrite : `viewSensitive` des clients, garants et bailleurs
+(ADR-0070 § 5), suspendre un admin (`TeamMemberSuspensionService.php:66`, ADR-0031), modérer les
+avis (`ReviewModerationScope`, ADR-0043 § 1), le choix du tableau de bord (`DashboardRoleResolver`,
+`ReceivedReviews`). Écarté aussi : la demande de passage en `standard`
+(`AgencyUpgradeRequestPolicy`), seulement pour une agence `individual`, qui n'a pas d'éditeur de
+rôles (`docs/features.md:531`). Les indicateurs et alertes (P82.04) et le KYC (P82.05) ne sont pas
+repris. Les rendus du front n'ont pas été rejoués.*
+
+### Changer le rôle système d'un membre se juge « être admin », pas `team.assign_role`
+- Réf : P116.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/UpdateUserRoleRequest.php:30-37`, `takussan-api/app/Http/Requests/Api/UpdateAgencyMemberRoleRequest.php:30-38`, `takussan-api/app/Policies/AgencyRolePolicy.php:31`, `:38`, `:87`
+- Constat :
+  - `PUT /api/users/{user}/role` et `PUT|PATCH /api/agencies/{agency}/members/{user}/role` autorisent le super-admin, l'admin principal (pour la seconde) ou `isAgencyAdminAt` sous le profil actif, sans lire de capacité (lu). Les deux docblocks se disent « REPRISE, pas délégation » d'une règle à porter en policy (lu).
+  - Le geste voisin, affecter un rôle personnalisé (`AgencyRolePolicy::assign`), se juge par `canActAt(TeamAssignRole)` (lu). Le front garde le sélecteur de rôle par `useCan('team.assign_role')`, avec ce motif : « être admin ne dit plus qu'on peut attribuer un rôle » (lu, `takussan-web/src/components/admin/TeamConsole.tsx:185-191`).
+  - mesuré (test temporaire retiré) : admin dont le rôle retire `team.assign_role` → `PUT /api/users/{agent}/role {role: agency_admin}` 200, `PUT …/members/{bailleur}/role {role: agent}` 200. Agent dont le rôle porte `team.assign_role` → 403 et 403.
+  - Établi comment : test temporaire. Que l'admin sans la capacité promeuve un agent admin d'agence alors que `AgencyRoleService` (l. 287-311) protège le dernier détenteur de `team.assign_role` n'a pas été confronté (à vérifier).
+- Piste : porter la règle par une policy qui juge `team.assign_role` (comme `AgencyRolePolicy::assign`), et retirer les deux reprises. Test : admin sans la capacité refusé, agent qui la tient accepté, admin principal et super-admin inchangés.
+
+### `agency.update` est inscrite « sans geste », alors que la fiche de l'agence, ses réglages et ses intégrations en sont les gestes, tous jugés par le type de profil
+- Réf : P116.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Policies/AgencyPolicy.php:46-58`, `takussan-api/app/Http/Controllers/Api/SettingController.php:26`, `:91`, `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php:50`, `UpdateSettingRequest.php:44`, `takussan-api/app/Http/Controllers/Api/IntegrationController.php:25`, `:46`, `:78`, `:192`, `:214`, `UpdateIntegrationRequest.php:44`, `takussan-api/app/Services/Membership/CapabilityEnforcementInventory.php:30`, `docs/ardoise.md:2955-2967`
+- Constat :
+  - D-69 et l'inventaire disent que `agency.update` n'attend « aucun geste » (lu). Or `AgencyPolicy::update` (modifier l'agence), les réglages d'agence et les intégrations jugent tous `isAgencyAdminAt`, et rien d'autre (lu).
+  - mesuré (test temporaire retiré) : admin dont le rôle retire `agency.update` → `PATCH /api/agencies/{a}` 200, `GET /api/settings` 200, `GET /api/integrations` 200. Agent dont le rôle la porte → 403, 403 et 403.
+  - P82.04 est `validé` pour brancher `agency.update` sur les indicateurs et les alertes (lu). Après ce ticket, un admin sans la capacité perdrait les indicateurs et garderait la fiche de l'agence, ses réglages et ses intégrations (déduit, à vérifier).
+- Piste : faire juger ces gestes par `agency.update` (ou la scinder, si le porteur veut séparer intégrations et réglages), dans le ticket qui retire `agency.update` de l'inventaire, et corriger D-69. Test : admin sans la capacité refusé sur les trois écritures, agent qui la tient accepté.
+
+### Invitations : la liste et la création jugent le type de profil, la révocation la capacité, et retirer `team.invite` à un admin ne change rien
+- Réf : P116.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Policies/InvitationPolicy.php:27-55`, `:89-102`, `takussan-api/app/Http/Controllers/Api/InvitationController.php:145-158`, `takussan-api/app/Policies/AgentProfilePolicy.php:70-93`, `takussan-api/app/Policies/OwnerProfilePolicy.php:70-92`, `takussan-api/app/Policies/Profiles/ServiceProviderProfilePolicy.php:118-135`
+- Constat :
+  - `viewAny`, `view`, `create` et la portée de `GET /api/invitations` (`visibleScope`) jugent `isAgencyAdminAt`. `revoke` et `resend` jugent `isAgencyAdminAt || canActAt(TeamInvite)` (lu).
+  - Les trois assistants d'invitation (agent, bailleur, prestataire) ont la même forme `isAgencyAdminAt || canActAt(TeamInvite)` (lu). Un admin y passe donc quel que soit son rôle, et l'éditeur de rôles ne dit pas « sans effet » pour `team.invite`, qui n'est pas à l'inventaire (lu).
+  - mesuré (test temporaire retiré), invitation d'agence émise par un tiers :
+    - admin dont le rôle retire `team.invite` : `create`, `viewAny`, `view`, `revoke` et `invite` d'agent valent `true`, et `GET /api/invitations` rend l'invitation ;
+    - agent dont le rôle porte `team.invite` : `create`, `viewAny` et `view` valent `false`, `revoke` et `invite` valent `true`, et `GET /api/invitations` rend `[]`. Il révoque une invitation qu'il ne peut pas lister.
+  - Le front garde les deux boutons par `useCan('team.invite')` (lu, `TeamConsole.tsx:205`, `PendingInvitationsSection.tsx:64-72`).
+  - Établi comment : la Gate interrogée et la liste rejouée dans le test.
+- Piste : juger les cinq abilities et la portée de la liste par `team.invite` seul, admin compris, comme `AgencyPolicy::updateKyc`. Le retrait de la branche `isAgencyAdminAt` retire un geste à l'admin sans la capacité, et le choix revient au porteur. Test : agent qui tient la capacité liste les invitations de l'agence, admin sans elle refusé.
+
+### Expirer une réservation à la main : admin sans `bookings.cancel` accepté, agent qui la tient refusé
+- Réf : P116.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/BookingController.php:28-45`
+- Constat :
+  - `POST /api/bookings/{booking}/expire-now` exige super-admin ou `isAgencyAdminAt` sous le profil actif, par `abort_code_unless` dans le contrôleur, hors policy (lu). Aucune capacité n'est lue. Le geste voisin, annuler une réservation, a `bookings.cancel` au catalogue.
+  - mesuré (test temporaire retiré) : admin dont le rôle retire `bookings.cancel` → 200, réservation expirée ; agent dont le rôle la porte → 403 `auth.insufficient_privileges`.
+  - `grep -rn "expire-now" takussan-web/src` → rien : aucun appelant au front (mesuré).
+- Piste : porter la règle dans `BookingPolicy` sous `bookings.cancel`, ou retirer la route si elle n'a pas d'appelant (A3, à mesurer côté scripts et tâches). Test : admin sans la capacité refusé, agent qui la tient accepté.
+
+### Approuver un bien en attente le publie sans `properties.publish`
+- Réf : P116.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Policies/PropertyModerationPolicy.php:44-58`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:31-33`, `takussan-api/app/Policies/PropertyPolicy.php:169`
+- Constat :
+  - `approve`, `reject` et la file `GET /api/properties/moderation` jugent `isAgencyAdminAt` sur l'agence du bien (lu). Publier un bien hors modération se juge par `agencyGesture(…, PropertiesPublish)` (lu, `PropertyPolicy.php:169`).
+  - mesuré (test temporaire retiré) : admin dont le rôle retire `properties.publish` → file 200, `POST /api/properties/{p}/approve` 200 et le bien passe de `pending_review` à `available`. Agent dont le rôle la porte → 403 et 403, le bien reste `pending_review`.
+  - Le front appelle ces routes (lu, `takussan-web/src/lib/queries/property-moderation.ts:144`, `:158`, page `/app/agency/moderation/properties`).
+- Piste : juger la modération d'agence par `properties.publish` (`properties.moderate` est réservée à la plateforme, `CapabilityEnforcementInventory.php:28`), ou écrire que la modération reste un geste d'admin. C'est un choix du porteur. Test : la règle retenue, admin sans la capacité et agent qui la tient.
+
+### Supprimer un média d'agence : l'admin sans `properties.update_any` le peut, l'agent qui la tient non
+- Réf : P116.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Policies/MediaPolicy.php:51-82`, `:91-127`, `takussan-api/app/Http/Controllers/Api/MediaController.php:70`
+- Constat :
+  - Pour un média d'agence, `viewRaw` (lire l'original) exige l'admin principal, ou `isAgencyAdminAt` **et** `canActAt(PropertiesUpdateAny)` (lu, `:51-82`). `delete`, et `sign` qui l'appelle, n'exigent que `isAgencyAdminAt` (lu, `:91-127`). La policy n'a pas d'ability `update` (lu).
+  - mesuré (test temporaire retiré), photo d'un bien d'un bailleur de l'agence : admin dont le rôle retire `properties.update_any` → `can('update', $property)` `false`, mais `DELETE /api/media/{m}` 204. Agent dont le rôle la porte → `can('update', $property)` `true`, mais `DELETE /api/media/{m}` 403.
+  - `grep -rn "/api/media" takussan-web/src` → aucun appel de suppression. Le front supprime par `DELETE /api/properties/{p}/media/{id}`, jugé par `PropertyPolicy::update` (lu, `PropertyMediaController.php:149`). Un autre appelant n'a pas été cherché (à vérifier).
+- Piste : juger `delete` par la règle d'écriture du porteur du média (`PropertyPolicy::update` pour un bien), ou retirer la route si elle n'a pas d'appelant. Test : admin sans `properties.update_any` refusé sur `DELETE /api/media/{m}`, agent qui la tient accepté.
+
+### Petites améliorations : gestes d'admin sans capacité au catalogue
+- Réf : P116.07
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Policies/BankStatementPolicy.php:11-18`, `takussan-api/app/Http/Controllers/Api/AuditLogController.php:27`, `takussan-api/app/Http/Requests/Api/IndexAuditLogRequest.php:34`, `takussan-api/app/Policies/ActivityLogPolicy.php:12`, `takussan-api/app/Http/Controllers/Api/DashboardOwnerController.php:21-26`, `takussan-api/app/Http/Controllers/Api/IntegrationController.php:42-46`
+- Constat :
+  - Le rapprochement bancaire (relevés, lignes, clôture), le journal d'audit de l'agence et le tableau de bord du bailleur ouvert à l'admin se jugent par `isAgencyAdminAt` (lu). Aucune capacité du catalogue ne les nomme (lu, `Capability.php`). Ils sont donc hors de portée de l'éditeur de rôles, sans que l'éditeur le dise. Non mesuré.
+  - `GET /api/integrations/payment-providers` recopie le prédicat de la liste au lieu de l'appeler (lu, `:42-46`).
+- Piste : rien à corriger sans décision. Si le porteur veut ces gestes délégables, il choisit une capacité (`payments.record`, `reports.view_agency`…) ; sinon, une phrase dans `docs/features.md` qui les déclare réservés à l'admin.
