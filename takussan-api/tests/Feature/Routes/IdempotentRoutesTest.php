@@ -22,6 +22,8 @@ class IdempotentRoutesTest extends TestCase
             'bookings.payments.store' => ['bookings.payments.store'],
             // TCK-1402 (P144.05) — la facture.
             'invoices.store' => ['invoices.store'],
+            // TCK-1404 (P144.06) — la demande d'intervention.
+            'maintenance-requests.store' => ['maintenance-requests.store'],
         ];
     }
 
