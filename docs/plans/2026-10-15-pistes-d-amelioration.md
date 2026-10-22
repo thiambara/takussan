@@ -14892,7 +14892,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Une date OFX qui déborde (`20261332`) entre décalée au 2027-02-01, la garde de TCK-593 n'existant que dans le pilote CSV
 - Réf : P157.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1473
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Accounting/StatementParser/OfxDriver.php:76-82`, `takussan-api/app/Services/Accounting/StatementParser/CsvDriver.php:106-112`
 - Constat :
@@ -14901,6 +14901,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu et mesuré.
 - Piste : la même relecture que le pilote CSV (`format('Ymd') !== $dateStr` → ligne sautée et comptée), et un test « date débordante » pour l'OFX, à côté de `test_une_date_debordante_est_sautee_et_non_decalee` de `StatementParserTest`.
 - Mesure (2026-10-22, 86f20c94b, mesureur) : relu `OfxDriver.php:76-82` (`createFromFormat('Ymd', …)`, seul `false` testé) face à `CsvDriver.php:106-112` (relecture `format() !== $rawDate`, TCK-593) et au commentaire `OfxDriver.php:44-45` « même règle que `CsvDriver` » ; sonde Feature temporaire (retirée) : `<DTPOSTED>20261332` → ligne datée `2027-02-01`, relevé `ready_for_review`, `skipped_lines_count = 0` ; aucun commit ni ticket ne l'a traitée → le constat tient. Classement : A1, la règle « une date débordante est sautée et comptée » est écrite par TCK-593 et par `test_une_date_debordante_est_sautee_et_non_decalee`, l'OFX n'a qu'à la reprendre, sans choix de produit ni montant touché.
+- Mesure (2026-10-22, 52247ce4f, implementeur) : `test_une_date_ofx_debordante_est_sautee_et_non_decalee` (`StatementParserTest`) écrit avant le correctif, OFX à trois transactions (`20261332`, `20260230`, `20260415120000`) → rouge, 3 lignes lues au lieu d'une ; relecture `format('Ymd') !== $dateStr` dans `OfxDriver::parseBlock` → 1 ligne au 2026-04-15, 2 sautées et comptées, 12/12 verts ; ablation (`! $postedAt` seul) → 1 rouge ; `OfxDeuxAImportTest` et `OfxJeuDeCaracteresTest` verts.
 
 ### Un montant OFX `150,000` est lu 150, et `abc` est lu 0 : la ligne entre, sans être comptée comme sautée
 - Réf : P157.03
