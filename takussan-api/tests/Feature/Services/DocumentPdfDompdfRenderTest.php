@@ -4,11 +4,16 @@ namespace Tests\Feature\Services;
 
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Inventory;
 use App\Models\Invoice;
+use App\Models\Property;
+use App\Models\User;
+use App\Services\Inventory\InventorySignatureService;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\View;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
@@ -106,6 +111,65 @@ class DocumentPdfDompdfRenderTest extends TestCase
 
         $this->assertGreaterThan(400, $page['x'], 'La pagination doit être à droite du pied.');
         $this->assertLessThan(3, abs($page['y'] - $note['y']), 'La pagination doit être sur la ligne de la note.');
+    }
+
+    /**
+     * TCK-1239 (P109.04) — la fabrique signait d'un `base64_encode('tenant-sig')`, qui n'est pas
+     * une image : dompdf imprimait le texte `alt` (« Image type unknown »), sans rougir.
+     */
+    public function test_a_signed_inventory_from_the_factory_prints_both_signatures(): void
+    {
+        [$owner, $inventory] = $this->signedInventory(null);
+
+        Sanctum::actingAs($owner);
+        $pdf = $this->get("/api/inventories/{$inventory->id}/pdf")->assertOk()->getContent();
+
+        $this->assertSame(2, preg_match_all('#/Subtype\s*/Image#', $pdf), 'Les deux signatures doivent s\'imprimer.');
+    }
+
+    /**
+     * TCK-1239 (P109.04) — décision : le logo d'un état des lieux signé n'est pas figé. Le PDF se
+     * recompose au téléchargement avec le logo courant (TCK-596), et l'empreinte n'en dépend pas.
+     */
+    public function test_a_signed_inventory_takes_the_current_logo_outside_of_its_fingerprint(): void
+    {
+        $agency = Agency::factory()->create();
+        $agency->addMedia(UploadedFile::fake()->image('ancien.png', 120, 40))->toMediaCollection('logo');
+        [$owner, $inventory] = $this->signedInventory($agency);
+        $signatures = app(InventorySignatureService::class);
+
+        $logos = [];
+        View::composer('pdf.inventories.report', function ($view) use (&$logos) {
+            $logos[] = $view->getData()['agency_logo_url'] ?? null;
+        });
+
+        Sanctum::actingAs($owner);
+        $this->get("/api/inventories/{$inventory->id}/pdf")->assertOk();
+        $before = $signatures->frozenTraceabilityHash($inventory->refresh());
+
+        $agency->addMedia(UploadedFile::fake()->image('nouveau.png', 200, 60))->toMediaCollection('logo');
+        $this->get("/api/inventories/{$inventory->id}/pdf")->assertOk();
+
+        $this->assertCount(2, $logos);
+        $this->assertStringStartsWith('data:image/png;base64,', (string) $logos[1]);
+        $this->assertNotSame($logos[0], $logos[1], 'Le second téléchargement prend le logo courant.');
+        $this->assertSame($before, $signatures->frozenTraceabilityHash($inventory->refresh()));
+    }
+
+    /** @return array{0: User, 1: Inventory} */
+    private function signedInventory(?Agency $agency): array
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id, 'agency_id' => $agency?->id]);
+        $tenant = Customer::factory()->create(['user_id' => User::factory()->create()->id]);
+
+        $inventory = Inventory::factory()->signed()->create([
+            'property_id' => $property->id,
+            'tenant_id' => $tenant->id,
+            'conducted_by' => $owner->id,
+        ]);
+
+        return [$owner, $inventory];
     }
 
     private function renderInvoice(?Agency $agency, ?string $notes = null, string $label = 'Facture'): string

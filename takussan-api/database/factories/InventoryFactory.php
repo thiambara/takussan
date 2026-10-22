@@ -14,6 +14,15 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 
 class InventoryFactory extends Factory
 {
+    /**
+     * TCK-1239 (P109.04) — de vrais PNG d'un pixel, de deux couleurs : un PDF d'état des lieux
+     * signé par la fabrique imprime ses deux signatures, au lieu du texte `alt`. L'empreinte
+     * suit `InventorySignatureService::sign()` (`sha256` de l'URI).
+     */
+    public const TENANT_SIGNATURE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAADElEQVQImWMQlFAHAACOAFEaJ5bOAAAAAElFTkSuQmCC';
+
+    public const OWNER_SIGNATURE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAADElEQVQImWNYEWwEAALUAS6fYj/mAAAAAElFTkSuQmCC';
+
     protected $model = Inventory::class;
 
     public function definition(): array
@@ -50,12 +59,12 @@ class InventoryFactory extends Factory
             'status' => InventoryStatus::Signed,
             'tenant_signed' => true,
             'tenant_signed_at' => now(),
-            'tenant_signature_data' => 'data:image/png;base64,'.base64_encode('tenant-sig'),
-            'tenant_signature_hash' => hash('sha256', 'tenant-sig'),
+            'tenant_signature_data' => self::TENANT_SIGNATURE,
+            'tenant_signature_hash' => hash('sha256', self::TENANT_SIGNATURE),
             'owner_signed' => true,
             'owner_signed_at' => now(),
-            'owner_signature_data' => 'data:image/png;base64,'.base64_encode('owner-sig'),
-            'owner_signature_hash' => hash('sha256', 'owner-sig'),
+            'owner_signature_data' => self::OWNER_SIGNATURE,
+            'owner_signature_hash' => hash('sha256', self::OWNER_SIGNATURE),
             'signed_at' => now(),
         ]);
     }
