@@ -11982,7 +11982,7 @@ est déjà P91.06.*
 
 ### Un accusé SMS en échec dont le texte du fournisseur dépasse 255 caractères rend 500, et la tentative reste « envoyée »
 - Réf : P124.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1254
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:77,95`, `takussan-api/app/Http/Controllers/Webhook/MtargetSmsStatusController.php:71,97`, `takussan-api/app/Services/Notifications/Sms/Dlr/DlrReportApplier.php:82-91`, `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:93-97`, `takussan-api/app/Console/Commands/SmsPullMtargetDlr.php:68-70`
 - Constat :
@@ -11993,6 +11993,7 @@ est déjà P91.06.*
   - Établi comment : lu, et mesuré pour LAM.
 - Piste : borner `failureReason` à 255 caractères dans `DeliveryAttemptUpdater::applyStatus()`, le point de passage commun, avec `mb_substr`. Cela couvre les trois voies SMS et laisse la borne WhatsApp redondante mais juste. Un test par voie (LAM, Mtarget poussé, Mtarget relevé) avec un texte de 300 caractères, qui attend 200 et la tentative `failed`.
 - Mesure (2026-10-22, 9662e2ff4, mesureur) : relu `DeliveryAttemptUpdater.php:93-97` (`failure_reason` écrit sans borne), `LAfricaMobileSmsStatusController.php:77,95`, `MtargetSmsStatusController.php:71,97`, `DlrReportApplier.php:82-91`, `SmsPullMtargetDlr.php:68-70` ; aucun ticket ni commit sur ces voies (TCK-1046 ne borne que WhatsApp) ; méthode temporaire dans `LAfricaMobileSmsWebhookTest` (retirée), rappel signé émis par le pilote, `status=2`, `text` de 300 caractères → **500**, `value too long for type character varying(255)` au journal PostgreSQL. Statut de la tentative après le 500 et voies Mtarget non rejouées : lues seulement. Classement : A1, la colonne est un `varchar(255)` et la voie sœur WhatsApp borne déjà le même motif à 255 (TCK-1046) ; le correctif attendu est un `mb_substr($failureReason, 0, 255)` dans `DeliveryAttemptUpdater::applyStatus()`, avec un test par voie qui attend 200 et la tentative `failed`, sans choix de produit.
+- Mesure (2026-10-22, c072bdc37, implementeur) : un test par voie, motif de 300 `é` → avant correctif LAM 500, Mtarget poussé 500, Mtarget relevé 22001 `value too long for type character varying(255)` ; `DeliveryAttemptUpdater::applyStatus()` borne `failure_reason` par `mb_substr(…, 0, 255)` → les trois verts (200, tentative `failed`, motif de 255 caractères) ; ablation (classe remise à `c072bdc37`) → 1 rouge par classe. L'absence de `try` de `SmsPullMtargetDlr` reste hors du correctif.
 
 ### Le `user_agent` d'une demande de contact est coupé à 255 octets et peut tomber au milieu d'un caractère : 500 sur la voie publique
 - Réf : P124.03
