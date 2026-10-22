@@ -11796,7 +11796,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Petites améliorations
 - Réf : P121.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1255
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Agency/AgentHandoverService.php:26-28`, `takussan-api/app/Services/Agency/AgentHandoverService.php:203-211`, `takussan-api/app/Services/Agency/AgentHandoverService.php:293-297`
 - Constat :
@@ -11805,6 +11805,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lu.
 - Piste : appeler `ProviderEligibility::isAssignable()` (ou retirer la branche) et corriger les deux commentaires ; à faire avec P121.01 si `assign()` est repris, puisqu'il porte déjà sa propre garde.
 - Mesure (2026-10-22, a988d3f51, mesureur) : relu `AgentHandoverService.php:26-28`, `:203-211` et `:293-297`, inchangés ; `StoreAgentHandoverRequest.php:61` exige `PersonnelDeLAgence::estPersonnel()`, qui exige `isStaffAt()` (`PersonnelDeLAgence.php:40-47`) ; `ProviderEligibility::isAssignable()` existe (`ProviderEligibility.php:33-42`) et rend `isActiveProviderAt || isStaffAt` → la branche l. 209 est inatteignable et les deux commentaires parlent d'une règle « avant sa fusion » déjà fusionnée, lu seulement. Classement : A6, juger l'éligibilité par `ProviderEligibility::isAssignable()` (la règle de TCK-592 que TCK-591 § Contraintes 3 prescrit, même résultat pour un repreneur du personnel) et corriger les deux commentaires ne change aucun résultat.
+- Mesure (2026-10-22, 1b5063805, implementeur) : test neuf `AgentHandoverTest::test_the_maintenance_eligibility_is_the_rule_of_provider_eligibility` (appel direct du service, repreneur prestataire actif de l'agence, hors personnel) rouge avant correctif : `moved.maintenance` absent, l'intervention désassignée → `eligibleForMaintenance()` juge `ProviderEligibility::isActiveProviderAt() || isStaffAt()`, la règle de `isAssignable()` pour l'agence de la passation, et l'en-tête comme le docblock ne parlent plus d'une règle « avant sa fusion » ; vert, ablation de `isActiveProviderAt()` → rouge, remise → vert ; `AgentHandoverTest` 10/10, `AgentHandoverPropertiesTest` 10/10.
 
 ## Angle 122 — Écritures qui changent un document indexé sans passer par l'observateur Scout
 
