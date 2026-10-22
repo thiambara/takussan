@@ -9543,10 +9543,11 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### Petites améliorations
 - Réf : P94.05
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1290
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyUpgradeRequestController.php:96-97,117`, `takussan-api/app/Http/Controllers/Api/Admin/SuperAdminInvitationController.php:48`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:119`
 - Constat :
+- Mesure (2026-10-22, a2398e474, implementeur) : relu les quatre `?->value ?? (string)` (`AgencyUpgradeRequestController.php:86,87,107`, `SuperAdminInvitationController.php:48`) et `Me/ServiceProviderProfileController.php:119,169` ; test neuf `ServiceProviderOnboardingTest::test_hourly_rate_is_rendered_as_a_number_like_visit_fee` avant correctif : `hourly_rate` → `'4500.50'` en chaîne (1 rouge) → rendu `(float)`, `null` gardé `null` : 9/9 verts ; `?->value` seul aux quatre lignes d'enum (branche `""` inatteignable, colonnes `NOT NULL` : pas de rouge possible) ; ablation (contrôleur prestataire à `HEAD`) → 1 rouge, correctif remis → vert ; `SuperAdminInvitationLifecycleTest`, `AgencyUpgradeRequestReviewTest`, `AccountAndProfileValidationTest` verts.
   - Les quatre lignes `?->value ?? (string) $x->status` rendent `""` et non `null` quand l'enum
     est nul (lu). Ce n'est pas la forme de `BaseResource::enumValue()`.
   - `Me\ServiceProviderProfileController::show` rend `hourly_rate` en chaîne (`decimal:2` →
