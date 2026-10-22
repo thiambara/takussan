@@ -2,6 +2,7 @@
 
 use App\Jobs\Audit\PurgeExpiredActivityLogExports;
 use App\Jobs\Billing\ProcessTrialExpirations;
+use App\Jobs\Booking\CompleteEndedBookingsJob;
 use App\Jobs\Booking\ExpirePendingBookingsJob;
 use App\Jobs\Crm\SendProspectMatchDigest;
 use App\Jobs\EscalateUrgentMaintenanceJob;
@@ -51,6 +52,9 @@ Schedule::job(new ConfirmEarlyTerminationsJob)->dailyAt('03:00')->withoutOverlap
 // TCK-1153 (P81.02) — un bail `active` dont la fin est passée, sans renouvellement en vigueur,
 // passe `expired` : sa caution se restitue. Idempotente (ne lit que des baux `active`).
 Schedule::job(new ExpireEndedLeasesJob)->dailyAt('03:15')->withoutOverlapping();
+// TCK-1301 (P115.01) — une réservation `confirmed` dont la fin est passée passe `completed` : le
+// séjour mené ne s'annule plus. Idempotente (ne lit que des réservations `confirmed`).
+Schedule::job(new CompleteEndedBookingsJob)->dailyAt('03:30')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 // TCK-599 (ADR-0050) — alertes de recherche (comptes et abonnés confirmés), par le moteur de
 // `/properties`. Idempotent par la borne `last_notified_at`, RÉSERVÉE avant l'envoi et rendue
