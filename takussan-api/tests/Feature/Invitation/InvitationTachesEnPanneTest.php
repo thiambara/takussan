@@ -70,7 +70,11 @@ class InvitationTachesEnPanneTest extends TestCase
 
     public function test_les_rappels_continuent_apres_un_envoi_qui_echoue(): void
     {
-        $dues = Invitation::factory()->count(3)->create(['created_at' => now()->subDays(4)]);
+        // TCK-1252 — le rappel se date de la dernière émission, `expires_at` − TTL : émises il y a 4 jours.
+        $dues = Invitation::factory()->count(3)->create([
+            'created_at' => now()->subDays(4),
+            'expires_at' => now()->subDays(4)->addDays(InvitationService::DEFAULT_TTL_DAYS),
+        ]);
 
         $traitees = app(InvitationService::class)->remindPending();
 
