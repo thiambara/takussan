@@ -24,7 +24,7 @@ tags: [back, permissions, delegation, pistes]
 
 Réf : **P128.01** du fichier de pistes, `validé` (V2 et V7 accordés).
 
-Décision du porteur : la fin d'une délégation est inclusive : « jusqu'au 25 » est retirée à la fin du 25, heure de Dakar
+Décision du porteur : porteur (2026-10-22) : la fin d'une délégation est inclusive : « jusqu'au 25 » est retirée à la fin du 25, heure de Dakar
 
 Le champ « Fin » de la création d'une délégation est un `<input type="date">` : l'API recevait
 `2026-10-25`, le rangeait à 00:00 et `ProcessRoleDelegationsJob` retirait le rôle au début du jour
