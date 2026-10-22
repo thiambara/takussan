@@ -1,7 +1,7 @@
 ---
 id: TCK-1489
 title: "Garder l'identité des espaces que messagesPour partage entre frontières imbriquées"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -42,13 +42,13 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] En-tête de `src/i18n/messages.ts` : la dépendance à l'identité des objets.
-- [ ] Test : `messagesPour` sur deux frontières imbriquées, chaque espace commun le **même** objet
+- [x] En-tête de `src/i18n/messages.ts` : la dépendance à l'identité des objets.
+- [x] Test : `messagesPour` sur deux frontières imbriquées, chaque espace commun le **même** objet
       (`toBe`).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — un `structuredClone` dans `messagesPour` fait rougir le test.
+- [x] AC1 — un `structuredClone` dans `messagesPour` fait rougir le test.
 
 ## Hors périmètre
 
@@ -57,4 +57,6 @@ Aucun.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Garde (A5) : le test est vert sur `pre-dev`, l'identité tenant aujourd'hui. Ablation :
+  `structuredClone(complet[nom])` dans `messagesPour` → le cas neuf rouge (les 14 autres, dont le
+  `toEqual` existant, restent verts) ; retiré → 15/15.
