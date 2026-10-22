@@ -14,7 +14,7 @@ spec_refs:
   adr:
     - "docs/adr/0048-effet-d-une-suspension-d-agence.md#amendement-du-2026-10-22--une-agence-ne-se-supprime-pas-elle-sort-du-cycle-de-vie-par-son-statut"
   pistes:
-    - "docs/plans/2026-10-15-pistes-d-amelioration.md#angle-129"
+    - "docs/plans/2026-10-15-pistes-d-amelioration.md#angle-129--suppression-douce-dune-agence"
 tags: [back, agence, routes, pistes]
 ---
 
