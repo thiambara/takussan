@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
 import { PrivacyRequestsConsole } from '../PrivacyRequestsConsole';
+// TCK-1198 — chargé par `next/dynamic` à l'ouverture de son dialogue : importé ici, son module est
+// déjà transformé quand le test ouvre le dialogue, qui arrive au tick suivant (patron de TCK-1041).
+import '../CreatePrivacyRequestForm';
 import type { PrivacyRequest } from '@/types/privacy-request';
 
 /**
