@@ -216,6 +216,7 @@ export async function submitPurchaseOffer(
 export async function submitContactMessage(
   slug: string,
   message: string,
+  cleIdempotence?: string,
 ): Promise<ActionResult<{ conversation_id: number; redirect_to: string }>> {
   const segment = segmentDeSlug(slug);
   if (segment === null) return bienIntrouvable();
@@ -224,7 +225,7 @@ export async function submitContactMessage(
   try {
     const res = await apiRequest<{ data: { conversation_id: number; redirect_to: string } }>(
       cheminApi`/api/public/properties/${segment}/contact-message`,
-      { method: 'POST', body: { message }, token },
+      { method: 'POST', body: { message }, token, ...enTeteIdempotence(cleIdempotence) },
     );
     return { ok: true, data: res.data };
   } catch (e) {

@@ -11,7 +11,7 @@ vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraduc
 vi.mock('next/headers', () => ({ headers: vi.fn(async () => new Headers()) }));
 vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton-de-test' }));
 
-import { submitBookingRequest, submitPurchaseOffer } from '../property';
+import { submitBookingRequest, submitContactMessage, submitPurchaseOffer } from '../property';
 
 describe('actions de réservation — Idempotency-Key (TCK-1406)', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
@@ -49,5 +49,12 @@ describe('actions de réservation — Idempotency-Key (TCK-1406)', () => {
     await submitPurchaseOffer('villa-1', payload);
 
     expect(cles()).toEqual(['cle-du-composant-2', undefined]);
+  });
+
+  it('TCK-1408 — le message de la fiche envoie la même clé reçue, d’un essai à l’autre', async () => {
+    await submitContactMessage('villa-1', 'Bonjour', 'cle-du-composant-3');
+    await submitContactMessage('villa-1', 'Bonjour', 'cle-du-composant-3');
+
+    expect(cles()).toEqual(['cle-du-composant-3', 'cle-du-composant-3']);
   });
 });

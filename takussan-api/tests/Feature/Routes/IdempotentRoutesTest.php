@@ -27,6 +27,8 @@ class IdempotentRoutesTest extends TestCase
             // TCK-1406 (P144.03) — la réservation du personnel, puis la demande publique (réservation et offre).
             'bookings.store' => ['bookings.store'],
             'public.properties.booking-request' => ['public.properties.booking-request'],
+            // TCK-1408 (P144.07) — le premier message depuis la fiche du bien.
+            'public.properties.contact-message' => ['public.properties.contact-message'],
         ];
     }
 

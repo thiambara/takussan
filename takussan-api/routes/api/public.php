@@ -187,7 +187,9 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
             ->middleware('idempotent')
             ->name('properties.booking-request');
 
+        // TCK-1408 (ADR-0072) — le message de la fiche rejoué sous la même clé ne s'écrit qu'une fois.
         Route::post('properties/{slug}/contact-message', [PublicPropertyController::class, 'contactMessage'])
+            ->middleware('idempotent')
             ->name('properties.contact-message');
 
         // TCK-500 — jumelle EN LECTURE SEULE de `contact-message`. Le front la questionne au clic
