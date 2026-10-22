@@ -44,6 +44,7 @@ export function MonthView({
   const t = useTranslations('calendar');
   const locale = useLocale() as Locale;
   const days = monthGrid(focus);
+  const weeks = Array.from({ length: Math.ceil(days.length / 7) }, (_, i) => days.slice(i * 7, i * 7 + 7));
   const monthStart = startOfMonth(focus);
   const today = new Date();
 
@@ -60,146 +61,157 @@ export function MonthView({
       aria-label={t('gridAria.month')}
       className="grid grid-cols-7 overflow-hidden rounded-xl border border-border bg-card"
     >
-      {WEEKDAY_SHORT_KEYS.map((key) => (
-        <div
-          key={key}
-          role="columnheader"
-          className="bg-muted/50 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-        >
-          {t(`weekdaysShort.${key}`)}
-        </div>
-      ))}
-
-      {days.map((day) => {
-        const inMonth = day.getMonth() === monthStart.getMonth();
-        const dayEvents = parsed.filter((e) => eventTouchesDay({ start: e._start, end: e._end }, day));
-        const visible = dayEvents.slice(0, maxPerDay);
-        const overflow = dayEvents.length - visible.length;
-        const todayBadge = isSameDay(day, today);
-        const selected = selectedDay ? isSameDay(day, selectedDay) : false;
-
-        return (
+      {/*
+        TCK-1187 (P101.01) — ARIA exige `grid > row > gridcell|columnheader` : chaque rangée
+        (en-têtes, puis chaque semaine) est un `row` en `display: contents`, qui ne pose aucune
+        boîte et laisse la mise en page à la grille de sept colonnes.
+      */}
+      <div role="row" className="contents">
+        {WEEKDAY_SHORT_KEYS.map((key) => (
           <div
-            key={day.toISOString()}
-            role="gridcell"
-            data-testid={`calendar-day-${day.toISOString().slice(0, 10)}`}
-            data-in-month={inMonth ? 'true' : 'false'}
-            className={cn(
-              // TCK-505 (#6) — `min-w-0` : un enfant de grille a `min-width: auto`, donc au
-              // moins la largeur du titre en `nowrap` ; la cellule s'élargissait au lieu de
-              // laisser `truncate` couper la puce (mesuré : puce à 486 px sur 360 de viewport).
-              // `overflow-hidden` retient ce qui dépasserait malgré tout. Aucun enfant en
-              // position absolue n'en dépend : le détail d'un événement s'ouvre dans un
-              // panneau hors de la grille.
-              'min-h-16 min-w-0 overflow-hidden border-t border-l border-border p-1 text-left align-top sm:min-h-24 sm:p-1.5',
-              !inMonth && 'bg-muted/60 text-muted-foreground',
-              selected && 'bg-warning/10 ring-1 ring-inset ring-warning/30',
-            )}
+            key={key}
+            role="columnheader"
+            className="bg-muted/50 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
           >
-            <div className="mb-1 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => onDaySelect?.(day)}
+            {t(`weekdaysShort.${key}`)}
+          </div>
+        ))}
+      </div>
+
+      {weeks.map((week) => (
+        <div key={week[0].toISOString()} role="row" className="contents">
+          {week.map((day) => {
+            const inMonth = day.getMonth() === monthStart.getMonth();
+            const dayEvents = parsed.filter((e) => eventTouchesDay({ start: e._start, end: e._end }, day));
+            const visible = dayEvents.slice(0, maxPerDay);
+            const overflow = dayEvents.length - visible.length;
+            const todayBadge = isSameDay(day, today);
+            const selected = selectedDay ? isSameDay(day, selectedDay) : false;
+
+            return (
+              <div
+                key={day.toISOString()}
+                role="gridcell"
+                data-testid={`calendar-day-${day.toISOString().slice(0, 10)}`}
+                data-in-month={inMonth ? 'true' : 'false'}
                 className={cn(
-                  'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-medium tabular-nums transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  // Les jours du mois en encre pleine, ceux des mois voisins en encre atténuée : le
-                  // ternaire portait deux branches identiques, et le mois ne se lisait pas.
-                  todayBadge
-                    ? 'bg-foreground text-background'
-                    : inMonth
-                      ? 'text-foreground'
-                      : 'text-muted-foreground',
-                  selected && !todayBadge && 'bg-warning/20 text-warning hover:bg-warning/20',
+                  // TCK-505 (#6) — `min-w-0` : un enfant de grille a `min-width: auto`, donc au
+                  // moins la largeur du titre en `nowrap` ; la cellule s'élargissait au lieu de
+                  // laisser `truncate` couper la puce (mesuré : puce à 486 px sur 360 de viewport).
+                  // `overflow-hidden` retient ce qui dépasserait malgré tout. Aucun enfant en
+                  // position absolue n'en dépend : le détail d'un événement s'ouvre dans un
+                  // panneau hors de la grille.
+                  'min-h-16 min-w-0 overflow-hidden border-t border-l border-border p-1 text-left align-top sm:min-h-24 sm:p-1.5',
+                  !inMonth && 'bg-muted/60 text-muted-foreground',
+                  selected && 'bg-warning/10 ring-1 ring-inset ring-warning/30',
                 )}
-                aria-label={t('dayDetailAria', {
-                  // TCK-292 — la locale ACTIVE, plus `fr-FR` en dur : le lecteur
-                  // d'écran d'un anglophone annonçait la date en français.
-                  date: formatDate(day, locale, {
-                    dateStyle: undefined,
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                  }),
-                })}
               >
-                {day.getDate()}
-              </button>
-            </div>
-
-            {/*
-              Revue design 2026-09-16 — sous `sm`, une cellule mesure ~47 px : la puce y rendait
-              « Lo… », « Ma… », illisible. On y montre des POINTS de la couleur du type (trois au
-              plus), et toucher la rangée ouvre le détail du jour, comme « +N autres ». Les puces
-              restent dans le DOM, masquées, pour le bureau et pour les tests.
-            */}
-            {dayEvents.length > 0 && (
-              <button
-                type="button"
-                onClick={() => onDaySelect?.(day)}
-                className="flex min-h-8 w-full flex-wrap items-center gap-1 rounded-md px-0.5 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:hidden"
-                aria-label={t('eventCount', { count: dayEvents.length })}
-                data-testid={`calendar-day-dots-${day.toISOString().slice(0, 10)}`}
-              >
-                {dayEvents.slice(0, 3).map((event) => (
-                  <span
-                    key={`${event.type}-${event.id}`}
-                    aria-hidden="true"
-                    className={cn('size-2 rounded-full', paletteFor(event).accent)}
-                  />
-                ))}
-                {dayEvents.length > 3 && (
-                  <span aria-hidden="true" className="text-[11px] font-medium tabular-nums text-muted-foreground">
-                    +{dayEvents.length - 3}
-                  </span>
-                )}
-              </button>
-            )}
-
-            <ul className="hidden space-y-1 sm:block">
-              {visible.map((event) => {
-                const palette = paletteFor(event);
-                return (
-                  <li key={`${event.type}-${event.id}`}>
-                    <button
-                      type="button"
-                      onClick={() => onSelect(event)}
-                      className={cn(
-                        'w-full truncate rounded-md border px-1.5 py-0.5 text-left text-xs leading-tight transition-opacity hover:opacity-90',
-                        palette.pill,
-                      )}
-                      data-testid={`calendar-event-pill-${event.type}-${event.id}`}
-                      aria-label={t('eventPillAria', {
-                        type: event.type === 'booking' ? t('eventType.booking') : t('eventType.visit'),
-                        title: event.title,
-                      })}
-                    >
-                      {/*
-                        TCK-505 (#6) — `block` : `truncate` pose `overflow: hidden`, qui n'a
-                        aucun effet sur un élément inline. Le span gardait la largeur de son
-                        texte (mesuré : 410 px sur un viewport de 390) et seul le bouton le
-                        clippait ; en bloc, il prend la largeur du bouton et coupe vraiment.
-                      */}
-                      <span className="block truncate">{event.title}</span>
-                    </button>
-                  </li>
-                );
-              })}
-              {overflow > 0 && (
-                <li>
+                <div className="mb-1 flex items-center justify-between">
                   <button
                     type="button"
                     onClick={() => onDaySelect?.(day)}
-                    className="text-xs font-medium text-muted-foreground underline-offset-2 hover:underline"
-                    data-testid={`calendar-day-overflow-${day.toISOString().slice(0, 10)}`}
+                    className={cn(
+                      'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-medium tabular-nums transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      // Les jours du mois en encre pleine, ceux des mois voisins en encre atténuée : le
+                      // ternaire portait deux branches identiques, et le mois ne se lisait pas.
+                      todayBadge
+                        ? 'bg-foreground text-background'
+                        : inMonth
+                          ? 'text-foreground'
+                          : 'text-muted-foreground',
+                      selected && !todayBadge && 'bg-warning/20 text-warning hover:bg-warning/20',
+                    )}
+                    aria-label={t('dayDetailAria', {
+                      // TCK-292 — la locale ACTIVE, plus `fr-FR` en dur : le lecteur
+                      // d'écran d'un anglophone annonçait la date en français.
+                      date: formatDate(day, locale, {
+                        dateStyle: undefined,
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      }),
+                    })}
                   >
-                    {t('moreEvents', { count: overflow })}
+                    {day.getDate()}
                   </button>
-                </li>
-              )}
-            </ul>
-          </div>
-        );
-      })}
+                </div>
+
+                {/*
+                  Revue design 2026-09-16 — sous `sm`, une cellule mesure ~47 px : la puce y rendait
+                  « Lo… », « Ma… », illisible. On y montre des POINTS de la couleur du type (trois au
+                  plus), et toucher la rangée ouvre le détail du jour, comme « +N autres ». Les puces
+                  restent dans le DOM, masquées, pour le bureau et pour les tests.
+                */}
+                {dayEvents.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onDaySelect?.(day)}
+                    className="flex min-h-8 w-full flex-wrap items-center gap-1 rounded-md px-0.5 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:hidden"
+                    aria-label={t('eventCount', { count: dayEvents.length })}
+                    data-testid={`calendar-day-dots-${day.toISOString().slice(0, 10)}`}
+                  >
+                    {dayEvents.slice(0, 3).map((event) => (
+                      <span
+                        key={`${event.type}-${event.id}`}
+                        aria-hidden="true"
+                        className={cn('size-2 rounded-full', paletteFor(event).accent)}
+                      />
+                    ))}
+                    {dayEvents.length > 3 && (
+                      <span aria-hidden="true" className="text-[11px] font-medium tabular-nums text-muted-foreground">
+                        +{dayEvents.length - 3}
+                      </span>
+                    )}
+                  </button>
+                )}
+
+                <ul className="hidden space-y-1 sm:block">
+                  {visible.map((event) => {
+                    const palette = paletteFor(event);
+                    return (
+                      <li key={`${event.type}-${event.id}`}>
+                        <button
+                          type="button"
+                          onClick={() => onSelect(event)}
+                          className={cn(
+                            'w-full truncate rounded-md border px-1.5 py-0.5 text-left text-xs leading-tight transition-opacity hover:opacity-90',
+                            palette.pill,
+                          )}
+                          data-testid={`calendar-event-pill-${event.type}-${event.id}`}
+                          aria-label={t('eventPillAria', {
+                            type: event.type === 'booking' ? t('eventType.booking') : t('eventType.visit'),
+                            title: event.title,
+                          })}
+                        >
+                          {/*
+                            TCK-505 (#6) — `block` : `truncate` pose `overflow: hidden`, qui n'a
+                            aucun effet sur un élément inline. Le span gardait la largeur de son
+                            texte (mesuré : 410 px sur un viewport de 390) et seul le bouton le
+                            clippait ; en bloc, il prend la largeur du bouton et coupe vraiment.
+                          */}
+                          <span className="block truncate">{event.title}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                  {overflow > 0 && (
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => onDaySelect?.(day)}
+                        className="text-xs font-medium text-muted-foreground underline-offset-2 hover:underline"
+                        data-testid={`calendar-day-overflow-${day.toISOString().slice(0, 10)}`}
+                      >
+                        {t('moreEvents', { count: overflow })}
+                      </button>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }

@@ -34,6 +34,7 @@ export function DocumentDetailClient({
   const t = useTranslations('documents.detail');
   const tTypes = useTranslations('documents.types');
   const tCommon = useTranslations('common');
+  const tPage = useTranslations('dashboard.pages.documentDetail');
   const locale = useLocale() as Locale;
   const documentQuery = useDocumentWithVersions(documentId);
   const { data, isLoading, isError } = documentQuery;
@@ -46,6 +47,8 @@ export function DocumentDetailClient({
   if (isLoading) {
     return (
       <div className="mx-auto max-w-2xl space-y-6" aria-busy="true">
+        {/* TCK-1189 (P101.02) — la page ne rend aucun h1 : chargement et erreur gardent le leur. */}
+        <h1 className="sr-only">{tPage('metaTitle')}</h1>
         <span className="sr-only">{t('loading')}</span>
         <Skeleton className="h-5 w-28" />
         <Skeleton className="h-56 rounded-xl" />
@@ -56,6 +59,7 @@ export function DocumentDetailClient({
   if (isError || !document) {
     return (
       <div className="mx-auto max-w-2xl">
+        <h1 className="sr-only">{tPage('metaTitle')}</h1>
         <ErrorState
           message={t('not_found')}
           onRetry={() => void documentQuery.refetch()}
