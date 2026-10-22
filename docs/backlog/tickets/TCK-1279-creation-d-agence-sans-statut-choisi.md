@@ -1,7 +1,7 @@
 ---
 id: TCK-1279
 title: "POST /api/agencies : le créateur ne choisit plus le statut de son agence"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -34,13 +34,13 @@ son statut.
 
 ## Delta à produire
 
-- [ ] Retirer `status` des règles de `StoreAgencyRequest` (la clé, non validée, n'atteint plus
+- [x] Retirer `status` des règles de `StoreAgencyRequest` (la clé, non validée, n'atteint plus
       `validated()`) ; le contrôleur pose `active`.
-- [ ] Test : `POST /api/agencies {name, status: suspended}` → 201, agence `active`.
+- [x] Test : `POST /api/agencies {name, status: suspended}` → 201, agence `active`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `POST /api/agencies` avec `status: suspended` crée une agence `active`.
+- [x] AC1 — `POST /api/agencies` avec `status: suspended` crée une agence `active`.
 
 ## Hors périmètre
 
@@ -48,4 +48,9 @@ son statut.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Test : `tests/Feature/Api/CreationDAgenceSansStatutTest.php`. Avant correctif : agence
+  `suspended`.
+- Ablation : règle `status` et `$data['status'] ?? …` remis → rouge ; retirés → vert.
+  `AgencyTest`, `AgencyFieldLengthTest`, `BornesMaxFaceAuSchemaTest` verts.
+- La clé envoyée est ignorée sans 422 : `validated()` ne rend que les clés validées, comme pour
+  toute clé inconnue de cette requête.
