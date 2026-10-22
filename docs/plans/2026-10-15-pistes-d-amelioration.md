@@ -238,7 +238,7 @@ voie d'écriture (angle 13, puis 47).
 | 161 | Notifications dont la `NotificationTarget` ouvre un écran que la capacité ou le profil du destinataire ferme (`finances` de `PayoutDue` et `BankStatementImported`, `agency_settings`, `audit`, `review_moderation`, `kyc_review`) : destinataire choisi par une colonne (`issued_by_id`, `uploaded_by_id`) ou par un rôle, et clic qui mène à un 403 — né de P126.03 | fait |
 | 162 | Compteurs « ouverts », « en cours » ou « à traiter » écrits par une liste de statuts à la main (`whereIn('status', [Open, InProgress])` et leurs pareilles sur interventions, tâches, réservations, baux, litiges) face aux états non terminaux de la machine à états ou de l'enum : élément qui avance d'un état et sort du compteur, ou état terminal encore compté — né de P127.03 | fait |
 | 163 | Bornes de fin saisies en date seule (`<input type="date">`) et rangées dans une colonne `datetime` (délégations de rôle, absences d'agent `StoreAgentAbsenceRequest`, annonces, fenêtres de maintenance, abonnements d'agence) : fin à minuit UTC au début du jour choisi face au libellé « Fin », aux textes « jusqu'au » et aux jobs d'expiration — né de P128.01 | fait |
-| 164 | Paramètres `text` des notifications codées qui portent un code ou une valeur d'enum (`role` des délégations, statuts, types, motifs hors `reason_code`) : valeur rendue brute par `NotificationRenderer` et par `valeursDeNotification` du front, dans la cloche, le courriel et le SMS — né de P128.02 | à faire |
+| 164 | Paramètres `text` des notifications codées qui portent un code ou une valeur d'enum (`role` des délégations, statuts, types, motifs hors `reason_code`) : valeur rendue brute par `NotificationRenderer` et par `valeursDeNotification` du front, dans la cloche, le courriel et le SMS — né de P128.02 | fait |
 | 165 | Lectures `->agency->…` sans `?->` (une vingtaine sous `app/` : `MaintenanceRequestResource.php:302`, `PropertyBoostResource.php:34`, notifications, PDF et gabarits) sur les lignes d'une agence supprimée en douceur, que la portée `SoftDeletes` rend nulle : 500 ou champ vide là où la ligne reste lisible — le pendant pour l'agence de l'angle 130, né de P129.01 | à faire |
 | 166 | Notifications, jobs et écouteurs en file qui portent un modèle à `SoftDeletes` par `SerializesModels` (`PropertyApprovedNotification`, `PropertyRejectedNotification`, `PropertyProposedNotification`, et leurs pareilles sur `Customer`, `Lease`, `Booking`) : fiche supprimée entre l'envoi et le traitement, `ModelNotFoundException` au déroulement, essais perdus et trace laissée — né de P130.02 | à faire |
 | 167 | Tuiles, compteurs et lignes cliquables des tableaux de bord (bandeau `PropertyKpiStrip` de `/app/properties`, `DashboardLinkLine` des aperçus, files `AgencyQueues`, tuiles de la console) : filtre posé par le lien face à celui qui a compté le nombre affiché (statuts additionnés, portée « mes biens » ou agent, période) — la liste ouverte ne montre pas ce que la tuile comptait, né de P131.02 | à faire |
@@ -15383,3 +15383,80 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu. Une date seule envoyée à `POST …/agent-absences` n'a pas été mesurée (à vérifier).
 - Piste : un seul helper de fin inclusive côté API (date seule → 23:59:59 heure de Dakar), employé par la délégation, l'absence et l'offre de P163.01 ; le front envoie alors la date seule. Test : absence déclarée avec une date seule, encore active à midi le jour choisi.
 - Mesure (2026-10-22, 6eb3d983c, mesureur) : aucun commit sur ces chemins depuis bba57a9e0 ; relu `AgentAbsencesSection.tsx:77` (`ends_at` envoyé en `${endsOn} 23:59:59`), `StoreAgentAbsenceRequest.php:33` (`ends_at` : `date|after:now`), `AgentAbsenceService.php:52` (`Carbon::parse`), `RoleDelegationService.php:132,141-146` (`finInclusive` privée, `END_DATE_TIMEZONE = 'Africa/Dakar'`) ; test temporaire (retiré), temps figé au 2026-10-20 10:00, `POST /api/agencies/{id}/absences` en admin d'agence avec `ends_at = '2026-10-22'` → 201, `ends_at = 2026-10-22 00:00:00` → une date seule close l'absence au début du jour choisi ; l'écran, qui envoie 23:59:59, n'est pas touché. Classement : A1, la règle « date seule = fin du jour, heure de Dakar » est déjà écrite pour la même table `role_delegations` (TCK-1320, docblock de `finInclusive`) ; le correctif la sort en un helper partagé par la délégation et l'absence sans changer l'instant que l'écran obtient aujourd'hui ; la part « offre » de la `Piste` reste à P163.01 (V7).
+
+## Angle 164 — Paramètres `text` des notifications codées qui portent un code
+
+*Exploré le 2026-10-22 sur `pre-dev` 9beb64329, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : `NotificationCode::params()` (chaque paramètre `text` des 100 codes), `NotificationRenderer::format`, `::role`, `::reasonCode`, et pour chaque paramètre `text` son émetteur (`GovernanceAlertService::paramsFor`, `AgencyRoleService::replaceCapabilities`, `IntegrationController::rotateWebhookEndpoint`, les fournisseurs de `app/Domain/Integrations/Providers`, `SendOwnerStatements`, `NotifyStatementImported`, `SendPropertyVisitReminders`, `PayoutService`, `PropertyCalendarSyncService::feedName`, `KycWorkflowService`, `MaintenanceRequestService::decline`, `UserLifecycleController`, `AgencyModerationController`, et les FormRequests des motifs) ; au front `texteNotification.ts`, `messages/{fr,en}.json` (`notifications.codes`, `common.moderationReasons`, `profile.roles`), `AgencyRolesList.tsx`. Mesures : un test temporaire `SondeAngle164Test` (base de test PostgreSQL, charge 3,07 / 2,92 / 2,85 sur 8 cœurs), retiré avant la fin, qui rend par `NotificationRenderer::render` trois codes sous `fr` et `en` avec les paramètres que leurs émetteurs rangent ; un `SELECT` en lecture sur la base de développement (`app_notifications` : 9 409 lignes, aucune à code, donc rien à y lire de ces codes ; `agency_roles` système : quatre noms français). Écarté après lecture : les motifs `reason` (KYC, blocage, suspension, révocation, refus d'intervention, échec de reversement) sont des saisies libres d'un opérateur ou d'un membre (`RejectKycDossierRequest`, `BlockUserRequest`, `SuspendAgencyRequest`, `MarkFailedPayoutRequest`…), pas des codes ; `feed` est le libellé du flux ou son hôte ; le `window` du rappel de visite n'entre dans aucun texte (son envoi à WhatsApp est P132.03) ; le fuseau en identifiant IANA est le reste de P128.06 ; les libellés des motifs de modération sont à parité entre l'API et le front (neuf codes des deux côtés). Les courriels hors code de l'alerte de seuil et de l'export sont P155.04 (PR #1157 ouverte) : seul le titre in-app, laissé en reste par P155.04, est repris ici.*
+
+### L'avis « intégration modifiée » nomme le fournisseur par son code (« L'intégration orange_money a été modifiée »)
+- Réf : P164.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Governance/GovernanceAlertService.php:99-102`, `takussan-api/app/Domain/Notifications/NotificationCode.php:364`, `takussan-api/app/Domain/Integrations/Providers/WaveProvider.php:7-15`, `OrangeMoneyProvider.php`, `GenericProvider.php:9-17`, `takussan-api/lang/fr/notifications.php:491-495`, `takussan-web/src/components/notifications/texteNotification.ts:64-65`
+- Constat :
+  - `paramsFor` range `$subject->provider` (ou l'ancien `provider` de la ligne de journal) dans `provider`, déclaré `PARAM_TEXT` (lu). `Integration.provider` est la clé du fournisseur (`wave`, `orange_money`, `lemonsqueezy`, `stripe`, ou une clé de `GenericProvider`), et son libellé existe à côté : `label()` de chaque fournisseur (« Orange Money », « Wave »), que `IntegrationController.php:56` sert déjà à la console (lu).
+  - mesuré : test temporaire → corps fr « L'intégration orange_money a été modifiée par Awa Diop. », SMS « Takussan : intégration orange_money modifiée par Awa Diop. », corps en « The orange_money integration was changed by Awa Diop. ».
+  - La cloche rend `{provider}` tel quel : le paramètre n'est ni une date, ni un montant, ni `role`/`reason_code`, il tombe dans la branche `valeurs[nom] = valeur` (lu, `texteNotification.ts:64-65`). Le front a pourtant les libellés (`adminSettings.integrations.webhookEndpoint.providers.orange_money`, `superAdmin.payments.providers.*`, lu).
+  - L'avis part aux administrateurs actifs de l'agence à chaque création, modification, suppression d'intégration et rotation du jeton de webhook (lu, `EVENTS`, `SUBJECT_EVENTS`).
+  - Établi comment : lu, puis mesuré côté API ; lu côté front.
+- Piste : ranger le code tel quel et le rendre par une nature de paramètre « fournisseur » (comme `PARAM_ROLE`) : côté API par `IntegrationProviderRegistry::get($code)->label()`, côté front par une des clés existantes ; les lignes déjà écrites se traduisent à la lecture. Test : rendu fr et en de `governance.integration_changed` pour `orange_money` → « Orange Money », sans `orange_money`, et le même cas dans `NotificationRow.test.tsx`.
+
+### L'avis « relevé de gérance disponible » écrit la période en `2026-09`, dans toutes les langues et sur toutes les surfaces
+- Réf : P164.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Console/Commands/Payouts/SendOwnerStatements.php:33,57`, `takussan-api/app/Domain/Notifications/NotificationCode.php:399`, `takussan-api/lang/fr/notifications.php:796-801`, `takussan-web/src/components/notifications/texteNotification.ts:20-21,60-65`
+- Constat :
+  - `SendOwnerStatements` envoie `['period' => $period]`, avec `$period` au format `Y-m` (lu, l. 33 : `now()->subMonthNoOverflow()->format('Y-m')`, ou l'option `--period=YYYY-MM`). Le code déclare `period` en `PARAM_TEXT` : l'API le rend tel quel (lu, `NotificationRenderer::format`, branche `default`).
+  - mesuré : test temporaire → titre fr « Relevé de gérance 2026-09 disponible », SMS « Takussan : relevé de gérance 2026-09 disponible. », titre en « Your 2026-09 management statement is available ».
+  - Le front ne le reconnaît pas non plus : `2026-09` ne répond ni à `DATE_SEULE` ni à `DATE_HEURE` (lu, l. 20-21), il s'affiche brut dans la cloche.
+  - L'avis part chaque mois à chaque bailleur payé dans la période (lu, l. 37-57).
+  - Établi comment : lu, puis mesuré côté API ; lu côté front.
+- Piste : une nature de paramètre « mois » (`Y-m`), rendue « septembre 2026 » / « September 2026 » par `isoFormat('MMMM YYYY')` côté API et par `Intl.DateTimeFormat` (`{ month: 'long', year: 'numeric' }`) côté front, le paramètre restant rangé en `Y-m`. Test : rendu fr et en d'`owner_statement.available` pour `2026-09` → sans `2026-09`, avec le mois écrit.
+
+### Le titre in-app de l'alerte de seuil est rangé avec la métrique en code (« Alerte KPI — occupancy_rate_percent »)
+- Réf : P164.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Notifications/ThresholdAlertTriggered.php:78-85`, `takussan-api/lang/fr/notifications.php:237-239`, `takussan-api/lang/en/notifications.php:234-236`, `takussan-api/app/Models/ThresholdAlert.php:46-56`
+- Constat :
+  - `toAppNotification()` écrit `title` par `__('notifications.threshold_alert.title', ['metric' => $this->alert->metric])` (lu, l. 82), soit « Alerte KPI — :metric » avec un code d'`allowedMetrics()` (`occupancy_rate_percent`, `unpaid_rate_percent`…) (lu). La classe n'a pas de code : le titre est rangé tel quel en base et la cloche le lit tel quel (lu, `texteNotification.ts`, repli sur `title`).
+  - C'est le reste que la validation déléguée de P155.04 laisse « avec l'angle 164 » : le correctif de P155.04 (PR #1157 ouverte) ne vise que les `toMail()`.
+  - Établi comment : lu ; non rendu (la forme suit du gabarit et du paramètre, lus tous deux).
+- Piste : lire, pour la métrique du titre, le même libellé que P155.04 pose pour le courriel (une seule clé par métrique dans `lang/`) ; ou faire passer l'alerte à un code, ce que garde le reste de P75.05. Test : `toAppNotification()` d'une alerte `occupancy_rate_percent` → titre sans le code.
+
+### Les noms des rôles système sont rangés en français, et l'avis « droits d'un rôle modifiés » les rend tels quels en anglais
+- Réf : P164.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/Enums/AgencyRoleBaseType.php:38-46`, `takussan-api/app/Services/Membership/AgencySystemRoleSeeder.php:76-82`, `takussan-api/app/Services/Governance/GovernanceAlertService.php:97`, `takussan-api/app/Http/Resources/Agency/AgencyRoleResource.php:29`, `takussan-web/src/components/admin/roles/AgencyRolesList.tsx:99-103`
+- Constat :
+  - Les rôles système sont créés avec `name = defaultRoleName()` : « Agent », « Administrateur », « Propriétaire », « Prestataire » (lu) ; mesuré en `SELECT distinct name FROM agency_roles WHERE is_system` sur la base de développement → ces quatre noms.
+  - `governance.role_capabilities_changed` range ce `name` en `role` (`PARAM_TEXT`, lu `GovernanceAlertService.php:97`) ; seuls les rôles système et les rôles créés par l'agence passent par `replaceCapabilities`. mesuré : test temporaire → corps en « The permissions of the role Administrateur were changed by Awa Diop. ».
+  - La console des rôles affiche le même `name` brut, quelle que soit la langue (lu, `AgencyRoleResource.php:29`, `AgencyRolesList.tsx:103`) : l'écart n'est pas propre à la notification.
+  - Un nom de rôle créé par l'agence est une saisie libre, qui doit rester telle quelle (lu, `AgencyRoleService.php:83`).
+  - Établi comment : lu, mesuré en `SELECT` et par rendu.
+- Piste : rendre le nom d'un rôle système par son `base_profile_type` (libellé de langue), à l'API pour la notification et la ressource, et garder `name` pour les rôles créés ; ou renommer les rôles système, choix de produit. Test : rendu en de l'avis pour un rôle système `agency_admin` → sans « Administrateur ».
+
+### La cloche devine la nature d'un paramètre par la forme de sa valeur et par le préfixe du code, et rien ne la compare au catalogue de l'API
+- Réf : P164.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/notifications/texteNotification.ts:20-21,38,44-68,91`, `takussan-api/app/Domain/Notifications/NotificationCode.php:195-218,329-411`, `takussan-api/app/Http/Resources/AppNotificationResource.php`
+- Constat :
+  - L'API connaît la nature de chaque paramètre (`params()`, huit natures dont `role` et `reason_code`, lu). La cloche ne la reçoit pas : elle traduit `role` pour les seuls codes qui commencent par `role_delegation.` (lu, l. 38, 91), `reason_code` par son nom, et une date par sa forme (`DATE_SEULE`, `DATE_HEURE`, lu l. 20-21, 60-63).
+  - Conséquences lues : un code neuf qui déclare un paramètre `role` hors de `role_delegation.*` (ou une nature neuve comme celles que proposent P164.01 et P164.02) s'affiche brut dans la cloche, rendu juste par l'API ; un paramètre `text` dont la valeur a la forme `AAAA-MM-JJ` (référence, titre de bien saisi ainsi) serait reformaté en date à l'écran et pas dans le courriel (déduit, à vérifier : aucun émetteur relevé ne range une telle valeur aujourd'hui).
+  - `grep -rln "PARAM_TEXT\|PARAM_REASON_CODE" takussan-api/tests scripts` → rien : aucun test ni garde ne relie la nature déclarée côté API à la branche que le front emprunte. P128.06 (fait) a posé la garde pour les seules dates.
+  - Établi comment : lu, et mesuré par `grep`.
+- Piste : exporter la nature des paramètres par code (un fichier dérivé de `NotificationCode::params()`, vérifié par une garde comme `check-notification-target-paths.mjs`, ou un champ `param_types` dans `AppNotificationResource`), et faire choisir la branche de `valeursDeNotification` par elle. Test : chaque paramètre `role`, `reason_code`, `date`, `datetime`, `money` d'un code du catalogue est rendu par sa branche ; un `text` à forme de date reste tel quel.
+
+### Petites améliorations
+- Réf : P164.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Listeners/Accounting/NotifyStatementImported.php:25-28`, `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php:26`, `takussan-api/lang/fr/notifications.php:557-561`, `takussan-web/src/components/admin/reconciliation/StatementsList.tsx:85`, `takussan-api/app/Services/Governance/GovernanceAlertService.php:97-101`
+- Constat :
+  - **Relevé bancaire sans nom de banque.** `bank_name` est facultatif (`nullable`, lu) ; l'avis range `bank => null`, que le rendu remplace par « — » : « Votre relevé — (12 lignes) est prêt à être rapproché. », « Takussan : relevé — importé. » (déduit du gabarit et de `format()`, lus ; à vérifier par rendu). La liste des relevés a son repli (`list.fallbackName`, « Relevé #id », lu), l'avis non.
+  - **Sujet supprimé.** Pour une intégration supprimée, `provider` est lu dans `attribute_changes.old` ; pour un rôle supprimé entre le geste et l'avis, `role` vaut `''` et l'avis rend « Les droits du rôle — ont été modifiés » (lu, `paramsFor` ; le cas n'est pas mesuré).
+  - Établi comment : lu.
+- Piste : une variante de clé sans `:bank` (comme les variantes `_link` de `optionalParams()`), choisie quand le nom manque ; même traitement pour un `role` vide. Test : rendu de `bank_statement.imported` avec `bank` nul → ni « — » ni double espace.
