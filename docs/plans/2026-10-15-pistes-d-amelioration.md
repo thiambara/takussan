@@ -207,7 +207,7 @@ voie d'écriture (angle 13, puis 47).
 | 130 | Fiches supprimées en douceur et encore citées (`CustomerController::destroy`, `GuarantorController::destroy`, `PropertyController::destroy`) : baux, réservations, factures, relances, PDF et exports dont la relation `customer`, `guarantor` ou `property` rend `null` sous la portée `SoftDeletes` — 500, champ vide ou geste refusé ? | fait |
 | 131 | Paramètres de requête des liens profonds émis par l'API ou le front (`?conversation=`, `?tab=`, `?id=`, `router.push('…?…')`, `href` des listes et des cloches) : lus par la page visée, et conservés à travers les redirections de connexion, d'onboarding et de changement de profil actif | fait |
 | 132 | Liens portés par les SMS et WhatsApp (`payment_url`, `receipt_url`, lien d'invitation, gabarits WhatsApp à bouton) : hôte, durée de validité face au délai d'envoi des heures calmes, et page qu'ouvre un destinataire sans compte — le pendant de l'angle 97 hors du courriel | fait |
-| 133 | Estimations et aperçus calculés au front par une constante qui recopie un réglage ou un calcul de l'API (`DEFAULT_*` des dialogues de bail : indemnité de résiliation, préavis de 30 jours, pénalités de retard, révision de loyer, échéancier) : chiffre affiché qui diverge du réglage de la plateforme, de l'agence ou du bail | à faire |
+| 133 | Estimations et aperçus calculés au front par une constante qui recopie un réglage ou un calcul de l'API (`DEFAULT_*` des dialogues de bail : indemnité de résiliation, préavis de 30 jours, pénalités de retard, révision de loyer, échéancier) : chiffre affiché qui diverge du réglage de la plateforme, de l'agence ou du bail | fait |
 | 134 | Tris `orderBy` / `orderByDesc` sur une colonne d'enum rangée en chaîne (`severity`, `priority`, `status`, `level` des annonces, alertes, maintenances, tâches) : ordre alphabétique pris pour un ordre métier dans une liste ou un « premier élément » affiché | à faire |
 | 135 | Listes écrites à la main, hors `buildQuery` (`LeasePaymentController::index`, `ConversationController::index`, `ReviewController::index`, contrôleurs `Admin\*`) : `sort`, `page` et `per_page` envoyés par le front face à l'ordre et au plafond rendus, et lecteurs qui ne lisent que la première page — le relevé de P100.01 sur les autres listes | à faire |
 | 136 | Lectures du navigateur au chargement d'un écran `/app` et `/super-admin` (`useApiQuery` en parallèle, clés en double, `enabled` en cascade qui attend une première réponse, données déjà lues par le rendu serveur) : allers-retours avant l'écran utile, chacun précédé d'un préflight puisqu'il porte `Authorization` — le relevé de l'angle 103 sur la console | à faire |
@@ -244,6 +244,7 @@ voie d'écriture (angle 13, puis 47).
 | 167 | Tuiles, compteurs et lignes cliquables des tableaux de bord (bandeau `PropertyKpiStrip` de `/app/properties`, `DashboardLinkLine` des aperçus, files `AgencyQueues`, tuiles de la console) : filtre posé par le lien face à celui qui a compté le nombre affiché (statuts additionnés, portée « mes biens » ou agent, période) — la liste ouverte ne montre pas ce que la tuile comptait, né de P131.02 | à faire |
 | 168 | Onglets, filtres et pagination des listes de la console tenus en état local (`useState`) au lieu de l'URL (`BookingsList.tsx:35`, et leurs pareilles sous `components/*`) : retour arrière depuis un détail qui ramène au premier onglet, rechargement ou lien partagé qui perd la vue, paramètre `?status=` d'un lien entrant ignoré — né de P131.03 | à faire |
 | 169 | Rappels programmés à marque unique (`last_reminded_at`, `reminder_sent_at` et leurs pareilles : invitations, visites, échéances, reversements dus, relances de documents) face aux gestes qui remettent la marque à zéro sans déplacer la date de référence (relance, report, renouvellement) : rappel parti dans l'heure qui suit le geste, ou jamais renvoyé — né de P132.03 | à faire |
+| 170 | Montants envoyés par le navigateur et pris tels quels par l'API là où elle pourrait les dériver (`amount` de `POST /api/bookings/{id}/payments`, `subtotal` de `POST /api/invoices`, `amount` des paiements enregistrés et de `mark-paid`, montants des reversements et des restitutions) : montant que le payeur ou l'émetteur fixe à la place du calcul du serveur — né de P133.02 et P133.05 | à faire |
 
 ---
 
@@ -12640,3 +12641,93 @@ l'angle 160 : il n'est pas repris ici.*
   - Le lien `/pay/{jeton}` ne porte pas de langue (lu, `url()`), et `/pay` est localisable : le proxy redirige en 307 vers la langue du cookie ou d'`Accept-Language` (lu, `proxy.ts`, `localeDeRepli`). Un locataire dont la fiche est en `en` (`ContactSansCompte::fromCustomer`, lu) reçoit un SMS en anglais et ouvre une page dans la langue de son téléphone. Non mesuré au navigateur.
   - Le compte qui naît d'une invitation par SMS n'écrit pas `preferred_language` (lu, `acceptAsNewUser`) et prend le défaut `fr` de la colonne, alors que le SMS est parti dans la langue de `metadata.locale` (lu, `preferredLocale`). Les envois suivants changent donc de langue (à vérifier sur une invitation en `en`).
 - Piste : préfixer le lien de paiement par la langue du contact (`/{locale}/pay/…`) ; écrire `preferred_language` depuis la langue de l'invitation à la création du compte. Garde : un test par point.
+
+## Angle 133 — Estimations et aperçus calculés au front face au calcul de l'API
+
+*Exploré le 2026-10-22 sur `pre-dev` c270baa6b, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : les dialogues de `takussan-web/src/components/leases/`
+(`EarlyTerminationDialog`, `LeaseRenewalDialog`, `DepositRefundModal`, `CreateLeaseForm`),
+`payments/CreateInvoiceDialog`, `bookings/BookingDetail` (`CustomerPayCta`),
+`maintenance/QuoteSubmitForm`, `visits/VisitDetail`, `admin-agency/AgencyConfigForm`,
+`boost/effet-achat.ts`, `lib/booking-quote.ts`, `lib/cout-d-entree.ts`, face à
+`EarlyTerminationService`, `LeaseRenewalService`, `InvoiceService`, `BookingPaymentService`,
+`MaintenanceQuoteWorkflow`, `PropertyVisitController`. Deux tests temporaires (paiement de
+réservation, renouvellement), retirés ensuite, charge 1,32 sur 8 cœurs. Écarté parce que
+concordant : le préavis de 30 jours du dialogue de résiliation (`DEFAULT_NOTICE_DAYS = 30` des deux
+côtés, `EarlyTerminationService.php:52`), le nombre de mois d'indemnité (P98.05, fait), l'acompte
+de réservation et le coût d'entrée, jumeaux gardés par une fixture commune
+(`tests/fixtures/booking-quote.json`, `cout-d-entree.json`), l'effet d'achat d'un boost, et la
+restitution de caution, qui ne calcule que le reste retenu.*
+
+### Le dialogue de facture affiche une TVA à 0 %, mais n'envoie pas ce 0 : l'API applique le taux de l'agence
+- Réf : P133.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:52,84,109-110`, `takussan-api/app/Services/Model/InvoiceService.php:59-66`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:43`
+- Constat :
+  - Le formulaire part avec `tax_rate: 0` (lu, l. 52) et l'aperçu calcule TVA et total sur ce taux (lu, l. 109-110) : la personne voit « TVA 0 », total = sous-total.
+  - À l'envoi, `tax_rate: values.tax_rate || undefined` (lu, l. 84) : `0` devient `undefined`, et la clé ne part pas.
+  - Sans clé, l'API prend `agencies.default_tax_rate` (lu, `InvoiceService.php:59-64`), réglage que la console édite (`AgencyConfigForm.tsx:481`). Un `0` explicite, lui, donnerait 0 (mesuré : `php artisan test tests/Feature/Api/InvoiceLegalMentionsTest.php --filter=test_ac14_the_default_tax_rate` → vert, 18 000 de TVA sans `tax_rate` et 0 avec `tax_rate: 0` sur 100 000 à 18 %).
+  - Une agence à 18 % émet donc une facture à 118 000 quand l'écran annonçait 100 000, et nul ne peut émettre depuis la console une facture sans TVA.
+  - Écart plus petit sur l'arrondi : l'aperçu arrondit la TVA à l'unité (`Math.round`, l. 109), l'API à l'unité de la devise (`Currency::roundAmount`, `InvoiceService.php:66`). En EUR ou en USD, 10,50 à 18 % s'affiche 2 et s'enregistre 1,89 (lu).
+- Piste : pré-remplir le taux avec `default_tax_rate` de l'agence de l'émetteur et envoyer le taux tel quel, `0` compris (`?? undefined` au lieu de `|| undefined`) ; arrondir l'aperçu par les décimales de `CURRENCY_METADATA`. Garde : un test du dialogue qui vérifie que `tax_rate: 0` part dans la charge utile, et un autre sur l'aperçu d'une agence à 18 %.
+
+### Les lignes saisies dans le dialogue de facture ne partent jamais : seul le sous-total calculé au front arrive à l'API
+- Réf : P133.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:72-87`, `takussan-web/src/lib/queries/payments.ts:167-177`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:36-46`, `takussan-api/resources/views/pdf/invoices/default.blade.php:10-13`
+- Constat :
+  - Le dialogue fait saisir des lignes (désignation, quantité, prix unitaire) et en fait la somme côté navigateur (lu, l. 72-76).
+  - La charge utile n'envoie que `subtotal` (lu, l. 78-87 ; le type `CreateInvoicePayload` n'a pas de champ de lignes, `payments.ts:167-177`), et `StoreInvoiceRequest` ne connaît ni `items` ni `lines` (lu, l. 36-46).
+  - Le PDF n'a donc rien d'autre à imprimer que sa ligne par défaut : la désignation de l'objet facturé, sinon « Prestation » (lu, `default.blade.php:10-13`, `Invoice::designation()`). Une facture saisie « Frais de dossier × 1 + Visite × 2 » s'imprime en une ligne « Prestation » au montant total.
+  - L'API accepte aussi tout sous-total fourni (`numeric`, `min:0`) sans pouvoir le recompter (lu).
+  - Établi comment : lu, de la saisie à l'impression ; le PDF n'a pas été rendu.
+- Piste : envoyer les lignes, les valider et les ranger côté API (colonne ou `metadata.lines`), recalculer le sous-total depuis elles comme `MaintenanceQuoteWorkflow::priceLines`, et les passer au gabarit ; ou, à défaut, ne plus faire saisir de lignes. Garde : un test API qui crée une facture à deux lignes et lit le sous-total recalculé et les lignes du PDF.
+
+### Le dialogue de facture envoie toujours `XOF` : le repli sur la devise de l'agence (P04.09) ne joue jamais depuis la console
+- Réf : P133.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:53,85`, `takussan-api/app/Services/Model/InvoiceService.php:47-51`
+- Constat :
+  - P04.09 (fait, TCK-738) a fait replier l'API sur `agencies.currency` quand la devise manque (lu, `InvoiceService.php:47-51`).
+  - Le dialogue part avec `currency: 'XOF'` et l'envoie toujours (lu, l. 53 et 85) : la clé n'est jamais absente, le repli ne joue pas. Une agence en EUR qui ne touche pas au sélecteur émet en XOF, aperçu compris.
+  - Même valeur en dur dans `CreateLeaseForm.tsx:81`, face à `LeaseService.php:94` (`?? 'XOF'`) : là, les deux côtés concordent, mais ni l'un ni l'autre ne lit la devise de l'agence ou du bien (à vérifier : ce que le produit attend).
+- Piste : pré-remplir la devise avec celle de l'agence de l'émetteur, ou ne l'envoyer que si la personne l'a choisie. Garde : un test du dialogue pour une agence en EUR.
+
+### Le récapitulatif du renouvellement dit « — » pour la pénalité de retard et le délai de grâce, que le nouveau bail hérite pourtant du parent
+- Réf : P133.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/LeaseRenewalDialog.tsx:88-89,105-106,136-141,324-335`, `takussan-api/app/Services/Lease/LeaseRenewalService.php:124-125`, `takussan-api/app/Http/Resources/LeaseResource.php`
+- Constat :
+  - Les deux champs partent vides (lu, l. 88-89) ; le récapitulatif de l'étape 3 écrit `from="—"` en dur et `to` = champ vide, donc « — → — », non surligné (lu, l. 324-335 et 105-106).
+  - L'API reprend la valeur du parent quand le champ manque (lu, `LeaseRenewalService.php:124-125`). Mesuré, test temporaire retiré : bail parent à 5 % et 7 jours, `POST /api/leases/{id}/renew` avec la seule `start_date` → l'enfant porte `late_fee_percent = 5.00` et `late_fee_grace_days = 7`.
+  - Le front ne peut pas montrer la valeur héritée : le détail du bail ne rend aucune clé `late_fee_*` (mesuré, même test : clés de `GET /api/leases/{id}` qui contiennent `late` ou `review` → `[]`).
+  - Vider le champ ne retire pas la pénalité : un champ vide n'est pas envoyé, et l'API le lit comme « hériter » (lu, l. 136-141 du dialogue et l. 124-125 du service).
+- Piste : exposer `late_fee_percent` et `late_fee_grace_days` sur le détail du bail, pré-remplir le dialogue avec eux comme le loyer et la caution, et montrer la valeur du parent dans le récapitulatif. Garde : un test du dialogue sur un parent à 5 %, et un test de contrat de `LeaseResource`.
+
+### Le montant d'un paiement de réservation est calculé par le navigateur, et l'API l'accepte tel quel
+- Réf : P133.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/bookings/BookingDetail.tsx:529-546`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:45`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-48`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1657-1659`
+- Constat :
+  - `CustomerPayCta` calcule le reste à payer (total moins la somme des lignes `paid`), choisit acompte ou solde, puis poste ce montant (lu, l. 529-546).
+  - L'API ne le borne ni par l'acompte, ni par le reste dû : `amount` est `numeric|min:0` (lu), et le service l'écrit tel quel (lu). Mesuré, test temporaire retiré : le client d'une réservation à 100 000 (acompte 30 000) poste `amount = 1`, puis `999 999 999`, en `deposit` → `201` les deux fois, ligne `pending` au montant envoyé.
+  - La passerelle encaisse ensuite le `amount` de la ligne (lu, `amountDue()`, l. 1657-1659).
+  - Le calcul du front ignore les lignes `partially_paid` et `refunded` (filtre `status === 'paid'`, lu) : ce que l'API compte comme déjà payé pour ces lignes est à vérifier.
+  - Voisin de P13.05 (fait, TCK-684), qui portait le statut sur une autre route ; ici, le statut est bien forcé à `pending` (lu, `BookingPaymentController.php:48-52`), mais le montant reste libre.
+- Piste : pour un payeur client, dériver le montant côté API (acompte de la réservation, puis reste dû) et refuser un montant fourni qui s'en écarte ; le front ne fait plus qu'afficher. Garde : un test API par cas (acompte, solde, montant hors borne → 422).
+
+### Petites améliorations
+- Réf : P133.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/visits/VisitDetail.tsx:44,663,690-700`, `takussan-api/config/visits.php:14`, `takussan-web/src/components/maintenance/QuoteSubmitForm.tsx:56,197`, `takussan-api/app/Services/Maintenance/MaintenanceQuoteWorkflow.php:120-142`, `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:393,484`
+- Constat :
+  - Fenêtre d'avis de visite : le front écrit `FEEDBACK_WINDOW_HOURS = 24` en dur, pour le texte et pour le verrou (lu, l. 44, 663, 690) ; l'API lit `config('visits.feedback_window_hours')`, réglable par `VISITS_FEEDBACK_WINDOW_HOURS` (lu, `PropertyVisitController.php:407`). La variable n'est posée par aucun fichier d'environnement du dépôt (mesuré, `grep VISITS_FEEDBACK` sur `.env.example`, `.env.docker`, `phpunit.xml`, `prod-drivers.json` → rien) : l'écart reste latent.
+  - Aperçu du devis d'intervention : somme des produits bruts (lu, l. 56), là où l'API arrondit chaque ligne puis le total à l'unité de la devise (lu, `priceLines`). Trois lignes de 1,5 × 333 en XOF : aperçu 1 498,5 (affiché 1 499), devis enregistré 1 500. L'aperçu est aussi formaté sans la devise de la demande (`formatCurrency(total, locale)`, l. 197).
+  - Configuration de l'agence : les champs « Commission » et « TVA par défaut » montrent les exemples `5` et `18` (lu, l. 393 et 484), alors qu'un champ vide vaut 0 % dans les deux calculs (lu, `PayoutCalculator.php:137`, `InvoiceService.php:64`). Un champ jamais rempli se lit comme réglé.
+- Piste : rendre la fenêtre d'avis dans la ressource de la visite (ou une date limite calculée) ; arrondir l'aperçu du devis ligne par ligne avec la devise de la demande ; remplacer les exemples par une aide qui dit « vide : 0 % ». Un test par point.
