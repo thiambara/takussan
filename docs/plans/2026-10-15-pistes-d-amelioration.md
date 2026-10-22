@@ -14028,7 +14028,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Petites améliorations
 - Réf : P147.09
-- Statut : validé — porteur (2026-10-22) : poser `completed_at` à la naissance ou au passage `done` d'une tâche, à nul à la réouverture ; le statut d'un paiement créé à la main borné à `paid`, `pending` et `partially_paid`
+- Statut : fait · TCK-1311
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/StoreTaskRequest.php:56`, `takussan-api/app/Http/Controllers/Api/TaskController.php:74-78,156-158`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:49`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-47`
 - Constat :
@@ -14036,6 +14036,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Paiement de réservation : pour le personnel, `status` accepte tout `PaymentStatus` sauf `cancelled` (lu, l. 49), donc une ligne créée directement `refunded`, `failed` ou `late`, hors du geste `refund` (`BookingPaymentService::refund`, qui exige `paid`, lu l. 57-64). Ce que les relevés et le reste à payer font d'une telle ligne n'a pas été suivi (à vérifier ; touche l'argent).
 - Piste : poser `completed_at` dès qu'une tâche naît ou passe `done`, le remettre à nul à la réouverture ; borner le statut d'un paiement créé à la main à `paid`, `pending` et `partially_paid`, si le porteur le veut.
 - Mesure (2026-10-22, b6bd2210f, mesureur) : relu `TaskController::store` (l. 75-79 : `Task::create` pose `status` tel que reçu, jamais `completed_at`), `::update` (l. 156-158 : `completed_at` posé au seul passage à `done` s'il est nul, jamais remis à nul), `BookingRefundTaskService.php:86` (pose les deux ensemble), `StoreTaskRequest.php:56` (`Rule::enum(TaskStatus)` entier), `StoreBookingPaymentRequest.php:49` (`PaymentStatus` sauf `cancelled`), `BookingPaymentService::create` (l. 24-47 : statut recopié, `paid_at` nul hors `paid`) et `::refund` (exige `paid`) ; aucun commit ni ticket ne les a touchés depuis l'exploration (`git log` sur les quatre fichiers) → les deux parties tiennent ; rien d'exécuté, l'effet d'une ligne `refunded`/`failed`/`late` sur les relevés reste non suivi. Classement : V1, la partie paiement borne les statuts d'une écriture d'argent et la `Piste` la laisse au porteur (« si le porteur le veut ») ; la partie tâche seule serait A1 (contrat de `BookingRefundTaskService`).
+- Mesure (2026-10-22, fbf2acedf, implementeur) : reproduit avant correctif par `TaskCompletedAtTest` (tâche créée `done` → `completed_at` nul ; `done` → `open` ou `in_progress` → `completed_at` gardé) et `BookingPaymentManualStatusTest` (le personnel crée une ligne `refunded`, `failed`, `late` → 201) → `TaskController` pose `completed_at` à la naissance `done` et le remet à nul à la réouverture (`open`, `in_progress`), `StoreBookingPaymentRequest` borne `status` à `paid`, `pending`, `partially_paid` (type du front aligné) ; ablation : écritures retirées → 2 rouges sur 3, borne remise → 1 rouge sur 2 ; remis → verts.
 
 ## Angle 148 — Section `/app/agency` gardée par le rôle, gestes jugés par la capacité
 
