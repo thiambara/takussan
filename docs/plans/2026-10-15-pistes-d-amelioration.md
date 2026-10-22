@@ -203,7 +203,7 @@ voie d'écriture (angle 13, puis 47).
 | 126 | Destinataires de notifications et de courriels choisis par un profil sans `->active()` (`MaintenanceParticipants.php:39`, autres `Notification::send` à l'équipe d'une agence) : agent ou admin suspendu ou archivé qui reçoit encore l'activité de l'agence — le relevé de P93.04 sur les autres envois | fait |
 | 127 | Indicateurs de `DashboardAgentService`, `DashboardOwnerService` et des adaptateurs `*MeMetrics` de `/dashboard/me` : dénominateur nul rendu 0 au lieu de `null`, statut courant relu pour une période passée, clés que seul `assertJsonStructure` vérifie — le relevé de l'angle 93 sur les autres tableaux de bord | fait |
 | 128 | Dates des charges utiles de notification (`toArray()` / `toDatabase()` de `app/Notifications`, `data` rendu par `AppNotificationResource`, diffusions) que l'ADR-0018 laisse hors de son périmètre : forme émise, et lecture par le centre de notifications du front | fait |
-| 129 | Suppression douce d'une agence (`DELETE /api/agencies/{agency}`, `AgencyController::destroy`, `$agency->delete()` seul, ouvert à l'admin principal) : profils restés actifs et profil actif encore résolu, biens publiés, baux et échéances, abonnement, invitations ouvertes et tâches planifiées d'une agence supprimée | à faire |
+| 129 | Suppression douce d'une agence (`DELETE /api/agencies/{agency}`, `AgencyController::destroy`, `$agency->delete()` seul, ouvert à l'admin principal) : profils restés actifs et profil actif encore résolu, biens publiés, baux et échéances, abonnement, invitations ouvertes et tâches planifiées d'une agence supprimée | fait |
 | 130 | Fiches supprimées en douceur et encore citées (`CustomerController::destroy`, `GuarantorController::destroy`, `PropertyController::destroy`) : baux, réservations, factures, relances, PDF et exports dont la relation `customer`, `guarantor` ou `property` rend `null` sous la portée `SoftDeletes` — 500, champ vide ou geste refusé ? | à faire |
 | 131 | Paramètres de requête des liens profonds émis par l'API ou le front (`?conversation=`, `?tab=`, `?id=`, `router.push('…?…')`, `href` des listes et des cloches) : lus par la page visée, et conservés à travers les redirections de connexion, d'onboarding et de changement de profil actif | à faire |
 | 132 | Liens portés par les SMS et WhatsApp (`payment_url`, `receipt_url`, lien d'invitation, gabarits WhatsApp à bouton) : hôte, durée de validité face au délai d'envoi des heures calmes, et page qu'ouvre un destinataire sans compte — le pendant de l'angle 97 hors du courriel | à faire |
@@ -239,6 +239,7 @@ voie d'écriture (angle 13, puis 47).
 | 162 | Compteurs « ouverts », « en cours » ou « à traiter » écrits par une liste de statuts à la main (`whereIn('status', [Open, InProgress])` et leurs pareilles sur interventions, tâches, réservations, baux, litiges) face aux états non terminaux de la machine à états ou de l'enum : élément qui avance d'un état et sort du compteur, ou état terminal encore compté — né de P127.03 | à faire |
 | 163 | Bornes de fin saisies en date seule (`<input type="date">`) et rangées dans une colonne `datetime` (délégations de rôle, absences d'agent `StoreAgentAbsenceRequest`, annonces, fenêtres de maintenance, abonnements d'agence) : fin à minuit UTC au début du jour choisi face au libellé « Fin », aux textes « jusqu'au » et aux jobs d'expiration — né de P128.01 | à faire |
 | 164 | Paramètres `text` des notifications codées qui portent un code ou une valeur d'enum (`role` des délégations, statuts, types, motifs hors `reason_code`) : valeur rendue brute par `NotificationRenderer` et par `valeursDeNotification` du front, dans la cloche, le courriel et le SMS — né de P128.02 | à faire |
+| 165 | Lectures `->agency->…` sans `?->` (une vingtaine sous `app/` : `MaintenanceRequestResource.php:302`, `PropertyBoostResource.php:34`, notifications, PDF et gabarits) sur les lignes d'une agence supprimée en douceur, que la portée `SoftDeletes` rend nulle : 500 ou champ vide là où la ligne reste lisible — le pendant pour l'agence de l'angle 130, né de P129.01 | à faire |
 
 ---
 
@@ -12343,3 +12344,82 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu.
 - Piste : un test d'API qui envoie chaque code à paramètre daté par son émetteur réel et vérifie la forme rangée (`Y-m-d` pour `date`, instant ISO pour `datetime`) ; le cas date et heure dans `NotificationRow.test.tsx`, fixtures en `+00:00` ; le fuseau par son nom lisible ou retiré du texte ; les crédits par un code (voir P75.05).
 - Mesure (2026-10-22, 045f8ae56, mesureur) : `grep -rln PARAM_DATE tests` → rien ; relu `texteNotification.ts:20-21,48`, `NotificationRow.test.tsx:23,31` (`due_date` seul, `created_at` en `…T08:00:00.000000Z`), `format.ts:117,132` (`dateStyle: 'medium'`), `lang/fr/notifications.php:416-428` (« (fuseau :timezone) »), `CreditsGrantedNotification.php:36` et `CreditsExpiringNotification.php:35` (`isoFormat('LL')` dans la langue d'envoi). Les quatre points tiennent. Classement : V7, les tests de forme relèveraient de A5, mais l'entrée mêle le texte du fuseau, le choix d'un rendu de date unique et le passage des crédits à un code, que le reste de P75.05 garde au porteur.
+
+## Angle 129 — Suppression douce d'une agence
+
+*Exploré le 2026-10-22 sur `pre-dev` 045f8ae56, par l'explorateur. Relu par l'explorateur lui-même : `AgencyController::destroy`, `AgencyObserver`, `AgencyBoostObserver`, `SyncAgencyPropertiesSearchIndex`, `Property::agencyIsPublic` et `scopeOfPublicAgency`, `PropertySearchService::hydrate`, `MembershipCapabilityResolver::resolveDirect`, `EnsureAgencyWritable`, `CustomerPolicy::create`, `PropertyPolicy::create`, `ApplyLateFeesJob`, `SendLeasePaymentReminders::claim`, `InvitationService::remindPending` et `lookupActiveInvitation`, `AgencySubscriptionService::processTrialExpirations`, ADR-0048. Mesuré par deux tests temporaires (`tests/Feature/TmpExplorateur/SondeAngle129Test.php`, `SondeAngle129bTest.php`, base créée par le test, charge `{ 2.88 1.87 1.86 }` puis `{ 4.66 2.83 2.25 }` sur 8 cœurs), retirés depuis : une agence avec un admin principal, un agent, un bailleur, un bien, un bail actif à pénalité de 5 % et un loyer échu, une invitation ouverte, joués **avec** et **sans** `DELETE /api/agencies/{id}` (témoin). Aucun sous-agent. Hors périmètre : les règles `exists:agencies,id` qui laissent écrire vers une agence supprimée (P96.03) et le slug ou le numéro d'agrément d'une agence supprimée (angle 92).*
+
+### Une agence supprimée reste l'agence active de ses membres, qui lisent et écrivent encore dedans, sauf là où un contrôle passe par le modèle `Agency`
+- Réf : P129.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:147-159`, `takussan-api/app/Http/Middleware/ResolveActiveProfile.php:140-150`, `takussan-api/app/Policies/CustomerPolicy.php:94-97`, `takussan-api/app/Policies/PropertyPolicy.php:98-111`, `takussan-api/app/Services/Membership/MembershipCapabilityResolver.php:176-190`
+- Constat :
+  - `destroy` n'écrit que `$agency->delete()` (lu, l. 156) : aucun profil, aucune délégation, aucun jeton n'est touché. Mesuré : après le 204, `AgentProfile`, `AgencyAdminProfile` et `OwnerProfile` de l'agence comptent toujours 1, 1 et 1.
+  - mesuré : en agent de l'agence supprimée, `GET /api/auth/me` → 200, `agency_id` = l'id de l'agence supprimée ; `GET /api/properties` → 200, 1 bien ; `GET /api/leases` → 200, 1 bail ; `POST /api/customers` → **201**, fiche écrite avec `agency_id` de l'agence supprimée ; en bailleur, `GET /api/leases/{id}` → 200.
+  - Dans la même session : `GET /api/agencies/{id}` → 404 `http.not_found`, et `POST /api/properties` → **403** `http.forbidden`, là où le témoin sans suppression rend 422 sur `contract_type` (mesuré).
+  - Le partage tient à la voie du contrôle (lu) : `CustomerPolicy::create` ne juge que `staffAgencyId() !== null`, lu dans les profils ; `PropertyPolicy::create` passe par une capacité, et `resolveDirect` rend `false` dès que l'`Agency` n'est pas trouvée (l. 182-184). Que l'agence soit `null` à cet endroit parce que la portée `SoftDeletes` la masque est déduit (à vérifier).
+  - Aucun document ne dit ce que devient une agence supprimée : `grep -i "agence supprim"` dans `docs/features.md`, `docs/models-spec.md` et les ADR ne rend rien (lu, et relevé par la Mesure de P96.03). ADR-0048 décrit `suspended` et `inactive`, jamais la suppression.
+  - Établi comment : mesuré avec un témoin, et lu. Quelle que soit la règle retenue, l'une des deux réponses (fiche client écrite, bien refusé) est fausse.
+- Piste : décider par ADR le sens de la suppression d'agence, soit en état de fin de vie (passage par un statut d'ADR-0048 qui verrouille et masque, profils désactivés, invitations révoquées), soit en retrait de la route (voir P129.06). Garde : un test qui supprime une agence puis rejoue lecture et écriture d'un membre, et attend la même réponse partout.
+
+### Les loyers d'une agence supprimée continuent de prendre des pénalités et de relancer le locataire
+- Réf : P129.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:36-41,74-91`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:132-143`, `takussan-api/app/Jobs/Invoice/SendOverdueRemindersJob.php:29-35`
+- Constat :
+  - `ApplyLateFeesJob` prend les `agency_id` distincts des baux (`Lease::query()`, sans regard pour l'agence) et filtre les échéances par `where('agency_id', …)` (lu) ; `SendLeasePaymentReminders::claim` ne lit que l'échéance (lu).
+  - mesuré : après la suppression, `ApplyLateFeesJob::handle` → 1 pénalité appliquée, et `SendLeasePaymentReminders::handle` → 2 notifications, les mêmes comptes que le témoin.
+  - `SendOverdueRemindersJob` (factures) passe par `agenciesWithRemindableInvoices`, non relu (à vérifier).
+  - Établi comment : mesuré pour les deux premiers jobs, lu.
+- Piste : dépend de la décision de P129.01. Si une agence supprimée cesse d'opérer, les jobs d'argent et de relance la sautent (`whereHas('agency')`, ou jointure sur `agencies.deleted_at IS NULL`), et un test par job le garde. Relève de V1.
+
+### Une invitation ouverte d'une agence supprimée est encore relancée et s'accepte
+- Réf : P129.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Invitation/InvitationService.php:522-545,553-575`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:156`
+- Constat :
+  - `destroy` ne révoque pas les invitations (lu). `remindPending` choisit sur `status`, `created_at`, `expires_at` et `last_reminded_at` seuls (lu, l. 527-532) : l'invitation est relancée, par courriel ou SMS, au nom d'une agence que `$invitation->agency?->name` rend nulle (lu, l. 968).
+  - `lookupActiveInvitation` ne juge que le jeton, le statut et l'échéance (lu) ; mesuré : `POST /api/invitations/{token}/accept` après la suppression → 200, `data.status = accepted`.
+  - Le profil créé à l'acceptation n'est pas établi : l'invitation de fabrique n'en crée pas non plus dans le témoin (mesuré, aucun profil neuf dans les deux cas). Qu'une invitation d'agent ou de bailleur réelle crée un profil dans l'agence supprimée reste à vérifier, comme le signalait déjà P96.03.
+  - Établi comment : lu, et mesuré pour l'acceptation.
+- Piste : révoquer les invitations `sent` de l'agence à sa suppression, et refuser l'acceptation (410) d'une invitation dont l'agence n'existe plus. Test : invitation ouverte, suppression, acceptation → 410, et `invitations:remind` ne l'envoie pas.
+
+### Les biens d'une agence supprimée restent dans l'index de recherche et dans le cache des pages publiques
+- Réf : P129.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Observers/AgencyObserver.php:53-90`, `takussan-api/app/Jobs/Search/SyncAgencyPropertiesSearchIndex.php:44-60`, `takussan-api/app/Services/Search/PropertySearchService.php:96-116,826-842`, `takussan-api/app/Models/Property.php:507-517,541-552`
+- Constat :
+  - `AgencyObserver` ne réagit qu'à `created` et `updated` (changement de `status`) : rien sur `deleted` (lu). Aucun autre écrivain ne retire les biens de l'index ni ne met en file `RevalidatePublicPropertyPage` à la suppression (lu, `grep` des `dispatch` dans `destroy` et les observateurs d'`Agency`).
+  - Même mis en file, `SyncAgencyPropertiesSearchIndex` ne ferait rien : il relit l'agence par `Agency::query()->find()`, que la portée `SoftDeletes` masque, et sort sur `null` (lu, l. 46-48).
+  - Les cartes ne fuient pas : `hydrate` réapplique `->public()`, dont `whereHas('agency', …)` exclut l'agence supprimée (lu). Mais le compte vient de Meilisearch (`totalHits`, `meta.total`), qui garde ces biens : total et pagination surévalués, pages plus courtes que `per_page` (déduit, à vérifier).
+  - La fiche publique déjà rendue par le front reste servie jusqu'à la revalidation temporelle (lu, en-tête de `SyncAgencyPropertiesSearchIndex.php:28`, non mesuré).
+  - Établi comment : lu.
+- Piste : à la suppression, retirer les biens de l'index et revalider leurs pages (un `deleted` sur l'observateur, et `withTrashed()` dans le job qui juge alors « non publique ») ; test sous le moteur `collection` ou `meilisearch` : agence supprimée → aucun de ses biens dans `totalHits`.
+
+### L'abonnement d'une agence supprimée suit son cours, période d'essai comprise
+- Réf : P129.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Billing/AgencySubscriptionService.php:86-109`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:156`, `takussan-api/app/Http/Controllers/Api/Admin/AgencySubscriptionController.php:39`
+- Constat :
+  - `destroy` n'annule pas l'abonnement (lu) ; le seul geste d'annulation est celui de la console (`AgencySubscriptionController::cancel`, lu l. 39), qu'une agence supprimée rend injoignable par la liaison de route (déduit, à vérifier).
+  - `processTrialExpirations` passe `trialing` → `active` sur `AgencySubscription` sans regard pour l'agence (lu, l. 92-104) : un essai d'une agence supprimée devient un abonnement actif.
+  - Ce qu'un abonnement `active` déclenche côté facturation (Lemon Squeezy, `Billable` sur `Agency`) n'est pas relu (à vérifier).
+  - Établi comment : lu.
+- Piste : annuler l'abonnement à la suppression, et faire sauter les agences supprimées par `processTrialExpirations` ; test des deux. Relève de V1.
+
+### La suppression n'a ni appelant au front, ni restauration, ni vue dans la console, et contourne le cycle de vie d'ADR-0048
+- Réf : P129.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/routes/api/agencies.php:30`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:147-159`, `takussan-api/tests/Feature/Api/AgencyTest.php:190-210`, `docs/adr/0048-effet-d-une-suspension-d-agence.md`
+- Constat :
+  - Aucun écran n'appelle `DELETE /api/agencies/{id}` : `grep` de `takussan-web/src` sur les `DELETE` vers `/api/agencies/` ne rend que les absences, rôles et délégations (lu). Seuls `AgencyTest.php:190-210` l'exercent, et ils ne vérifient que `assertSoftDeleted` (lu).
+  - Aucune route ne restaure une agence, et aucun contrôleur de la console ne lit les agences par `withTrashed()` ou `onlyTrashed()` (lu, `grep` sur `routes/` et `app/`) : une agence supprimée par son admin principal disparaît de la console pendant que ses baux, jobs et membres continuent (P129.01 à P129.05).
+  - ADR-0048 range la fin d'activité dans `status` (`suspended` verrouille l'écriture, `inactive` et `suspended` masquent le public, l'index suit l'observateur) ; la suppression ne passe par aucun de ces états (lu).
+  - Établi comment : lu.
+- Piste : soit retirer la route (aucun appelant au front) et laisser la fin d'activité au statut d'ADR-0048, soit l'écrire comme une transition de ce cycle de vie, avec une vue des agences supprimées dans la console. Choix de produit et de structure (ADR) : la piste ne tranche pas.
