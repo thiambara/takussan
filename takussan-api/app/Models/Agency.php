@@ -11,6 +11,7 @@ use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
 use App\Models\Enums\Currency;
 use App\Observers\AgencyBoostObserver;
+use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,8 +24,10 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 use LemonSqueezy\Laravel\Billable as LemonSqueezyBillable;
+use Spatie\Image\Enums\Fit;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /** TCK-633 lot F (ADR-0061 §8) — suspendre ou réactiver l'espace met en pause ou reprend ses boosts. */
 #[ObservedBy([AgencyBoostObserver::class])]
@@ -160,6 +163,21 @@ class Agency extends AbstractModel implements HasMedia
     {
         // ADR-0029 §3 : public — affiché sur la vitrine de l'agence et lu par le filigrane.
         $this->addMediaCollection('logo')->singleFile()->useDisk(config('media-library.public_disk_name'));
+    }
+
+    /**
+     * TCK-1425 (P143.03) — le logo que `DocumentPdfService` réduisait depuis l'original dans
+     * CHAQUE PDF de l'agence, produit une fois, en file `media`. En PNG pour garder la
+     * transparence, à la largeur du rendu (TCK-1233) : le PDF ne change pas.
+     */
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('preview')
+            ->fit(Fit::Max, DocumentPdfService::LOGO_MAX_WIDTH, DocumentPdfService::LOGO_MAX_WIDTH)
+            ->format('png')
+            ->quality(70)
+            ->performOnCollections('logo')
+            ->queued();
     }
 
     /**
