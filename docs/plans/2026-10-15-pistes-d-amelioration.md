@@ -15279,7 +15279,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Un locataire en préavis ne voit plus « Nouvelle demande », alors que l'API accepte sa demande
 - Réf : P162.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1436
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:73-92`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:68,101-107`, `takussan-web/src/components/maintenance/MaintenanceList.tsx:124,145`, `takussan-web/src/components/maintenance/MaintenanceNewLauncher.tsx:36`
 - Constat :
@@ -15289,6 +15289,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu, et mesuré par le test temporaire ; le lanceur est lu.
 - Piste : `openRequests` lit `User::ACTIVE_TENANT_LEASE_STATUSES` ; le lanceur passe `status: 'active,terminating'` (`filter[status]` est exact, liste acceptée). Test API : `can_create` vrai en préavis ; test du lanceur avec un bail `terminating`.
 - Mesure (2026-10-22, 5c7c12b8a, mesureur) : aucun commit sur ces chemins depuis e2959c84c ; relu `MaintenanceRequestPolicy::openRequests` (l. 72-92, docblock « les mêmes que `store()` », code `LeaseStatus::Active`), `MaintenanceRequestController.php:101-107` (`store` sur `ACTIVE_TENANT_LEASE_STATUSES`, TCK-1001) et l. 68 (seul appelant de `openRequests`), `MaintenanceList.tsx:124,145`, `MaintenanceNewLauncher.tsx:36` (`status: 'active'`) ; test temporaire (retiré) : locataire au seul bail `terminating` → `GET /api/maintenance-requests` `can_create = false`, `POST /api/maintenance-requests` sur ce bien → 201 → le constat tient. Classement : A1, le contrat est écrit par le docblock de `openRequests` et par TCK-1001 ; l'autorisation réelle (`store`) ne bouge pas, seuls le drapeau et la liste du lanceur s'y alignent.
+- Mesure (2026-10-22, bba57a9e0, implementeur) : test neuf `MaintenanceProviderListTest::test_a_tenant_under_notice_is_offered_a_new_request` avant correctif : locataire au seul bail `terminating` → `can_create = false` → rouge ; `openRequests` lit `User::ACTIVE_TENANT_LEASE_STATUSES` → `can_create = true`, `GET /api/leases?filter[status]=active,terminating` rend le bail, `POST` 201, vert ; test neuf `MaintenanceNewLauncher.test.tsx` : le lanceur demandait `status: 'active'` → rouge, `active,terminating` → vert ; ablation des deux correctifs → rouge, remis → vert.
 
 ### Le choix du bail d'un état des lieux écarte les baux en préavis, ceux dont l'état des lieux de sortie approche
 - Réf : P162.05
