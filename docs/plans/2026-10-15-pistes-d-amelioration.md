@@ -12856,7 +12856,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Les lignes saisies dans le dialogue de facture ne partent jamais : seul le sous-total calculé au front arrive à l'API
 - Réf : P133.02
-- Statut : validé — porteur (2026-10-22) : envoyer les lignes saisies, et l'API recalcule le sous-total depuis elles
+- Statut : fait · TCK-1377
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:72-87`, `takussan-web/src/lib/queries/payments.ts:167-177`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:36-46`, `takussan-api/resources/views/pdf/invoices/default.blade.php:10-13`
 - Constat :
@@ -12867,6 +12867,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Établi comment : lu, de la saisie à l'impression ; le PDF n'a pas été rendu.
 - Piste : envoyer les lignes, les valider et les ranger côté API (colonne ou `metadata.lines`), recalculer le sous-total depuis elles comme `MaintenanceQuoteWorkflow::priceLines`, et les passer au gabarit ; ou, à défaut, ne plus faire saisir de lignes. Garde : un test API qui crée une facture à deux lignes et lit le sous-total recalculé et les lignes du PDF.
 - Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `CreateInvoiceDialog.tsx:72-87` (somme des `items` au navigateur, seul `subtotal` part), `CreateInvoicePayload` (`payments.ts:167-177`, aucun champ de lignes), `StoreInvoiceRequest.php:36-46` (ni `items` ni `lines`), `DocumentPdfController.php:106-113` (le gabarit est rendu sans `lines`) et `default.blade.php:10-15` (repli sur une ligne `designation() ?? 'Prestation'`) → le constat tient, établi par lecture, PDF non rendu. Classement : V1, recalculer le sous-total côté API change le montant d'une facture ; la Piste propose deux options (envoyer les lignes, ou ne plus les faire saisir), dont le choix est de produit (V7), et leur rangement peut demander une colonne (V4).
+- Mesure (2026-10-22, a2c7af2, implementeur) : test API avant correctif : `POST /api/invoices` avec deux lignes (1 × 25 000, 2 × 10 000) et `subtotal: 1` → facture créée à 1 de sous-total, `items` inconnu de la validation (rouge) ; test du dialogue : la charge n'a pas d'`items` (rouge). Correctif : `items` validé, sous-total recompté ligne à ligne à l'unité de la devise, lignes rangées dans `metadata.lines` et passées au gabarit, 422 `invoice.amount_too_large` au-delà de la colonne ; le dialogue envoie les lignes et arrondit son aperçu comme l'API → `InvoiceLinesTest` 5 verts, `CreateInvoiceDialog.test.tsx` 9 verts, `InvoiceTest`, `InvoicePdfTest`, `InvoiceLegalMentionsTest`, `InvoiceStoreAuthorizationTest`, `InvoiceTargetScopeTest`, `PdfDUnClientSupprimeTest` verts ; ablation API → 5 rouges, ablation front → 2 rouges.
 
 ### Le dialogue de facture envoie toujours `XOF` : le repli sur la devise de l'agence (P04.09) ne joue jamais depuis la console
 - Réf : P133.03
