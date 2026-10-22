@@ -176,6 +176,7 @@ function verifierCommande(cmd, cwd) {
     }
     if (/(^|[;&|(`\n]\s*|\b(xargs|exec|nohup|time)\s+)kill\b/.test(commande)) refuser('un processus se tue par « pistes.sh action balayer »', cmd);
     if (/\bgh\s+run\s+rerun\b/.test(commande)) refuser('un run se rejoue par « pistes.sh action relancer-ci »', cmd);
+    if (/\bgh\s+pr\s+close\b/.test(commande)) refuser('une PR du superviseur se ferme par « pistes.sh action fermer »', cmd);
     // Lire launchd est son métier ; le reste de launchctl reste refusé, à lui comme aux autres.
     commande = commande.replace(/\blaunchctl\s+(list|print)\b/g, 'lecture-launchd');
   }
