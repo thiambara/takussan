@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\User;
 use App\Notifications\BookingExpiredNotification;
+use App\Services\Property\PrimaryPropertyContact;
 use App\Support\Logging\SafeExceptionContext;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -279,9 +280,11 @@ class BookingExpirationService
      */
     private function resolveAgent(Booking $booking): ?User
     {
-        // First try the property's owner
-        if ($booking->property && $booking->property->owner) {
-            return $booking->property->owner;
+        // First try the property's owner — TCK-1316 : s'il compte encore (bailleur ou personnel
+        // actif de l'agence du bien) ; sinon, les replis qui suivent.
+        $createur = $booking->property !== null ? PrimaryPropertyContact::createurDestinataire($booking->property) : null;
+        if ($createur !== null) {
+            return $createur;
         }
 
         // Fall back to the booking creator if they have an active agent

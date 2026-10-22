@@ -14,6 +14,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -103,7 +104,7 @@ class RoleDelegationService
                 'agency_id' => $agency->id,
                 'role' => $data['role'],
                 'starts_at' => $startsAt,
-                'ends_at' => $data['ends_at'],
+                'ends_at' => self::finInclusive($data['ends_at']),
                 'status' => $status,
                 'reason' => $data['reason'] ?? null,
                 'user_native_roles_snapshot' => $nativeRoles,
@@ -124,6 +125,25 @@ class RoleDelegationService
 
             return $delegation;
         });
+    }
+
+    /** Fuseau dans lequel une date de fin sans heure se lit (décision du porteur, P128.01). */
+    public const END_DATE_TIMEZONE = 'Africa/Dakar';
+
+    /**
+     * TCK-1320 (P128.01) — la fin d'une délégation est INCLUSIVE : une date seule (`2026-10-25`,
+     * celle que le champ « Fin » du front envoie) désigne le dernier jour, et la délégation est
+     * retirée à la fin de ce jour, heure de Dakar. Rangée telle quelle, elle tombait à 00:00 au
+     * DÉBUT du jour que la notification annonce (« jusqu'au 25 octobre »). Un instant explicite
+     * est rangé sans changement.
+     */
+    private static function finInclusive(mixed $endsAt): mixed
+    {
+        if (is_string($endsAt) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $endsAt) === 1) {
+            return Carbon::createFromFormat('Y-m-d', $endsAt, self::END_DATE_TIMEZONE)->endOfDay();
+        }
+
+        return $endsAt;
     }
 
     public function revoke(RoleDelegation $delegation, User $caller): void

@@ -43,6 +43,8 @@ class ServiceProviderProfileController extends Controller
             // TCK-597 (ADR-0043 §2) — la note moyenne des seuls avis approuvés, lue à la demande.
             ->withAvg(['reviews as average_rating' => fn (Builder $q) => $q->where('is_approved', true)], 'rating')
             ->withCount(['reviews as reviews_count' => fn (Builder $q) => $q->where('is_approved', true)])
+            // TCK-1325 (P117.06) — le badge « Assuré » : une pièce d'assurance vivante existe.
+            ->withExists('liveInsuranceDocuments as insured')
             ->paginate($this->tailleDePage($request, 20));
 
         // TCK-693 — le `User` inclus sort par sa projection fixe, jamais en ligne `users` entière.

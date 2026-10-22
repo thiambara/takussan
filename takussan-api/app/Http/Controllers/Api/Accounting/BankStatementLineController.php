@@ -29,7 +29,10 @@ class BankStatementLineController extends Controller
 
         $query = $statement->lines()->getQuery();
 
-        $paginator = BankStatementLine::buildQuery($query, $request)->paginate();
+        // TCK-1294 (P118.01) — un ordre total à défaut de `sort=` : la date comptable, puis l'`id`.
+        $paginator = BankStatementLine::buildQuery($query, $request)
+            ->defaultSorts('posted_at', 'id')
+            ->paginate();
 
         // TCK-1220 (P108.03) — l'enveloppe canonique `{ data, meta }`, et non celle de Laravel.
         return $this->paginated($paginator, BankStatementLineResource::collection($paginator)->toArray($request));

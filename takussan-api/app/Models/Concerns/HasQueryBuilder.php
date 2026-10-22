@@ -5,6 +5,7 @@ namespace App\Models\Concerns;
 use App\Http\Filters\ExactIdentifierFilter;
 use App\Http\Filters\RangeFilter;
 use App\Sorts\SearchRelevanceSort;
+use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Laravel\Scout\Searchable;
@@ -87,10 +88,14 @@ trait HasQueryBuilder
         // include resolver calls `getRequestedFieldsForRelatedTable()` and
         // throws `UnknownIncludedFieldsQuery` if `allowedFields` hasn't been
         // configured yet (it checks `$this->allowedFields instanceof Collection`).
-        return QueryBuilder::for($subject, $request)
+        //
+        // TCK-1296 (P118.02) — `DepartageQueryBuilder` ajoute la clé primaire en dernier tri avant
+        // `paginate()` : sans elle, une clé de tri partagée rend des lignes deux fois et d'autres
+        // jamais d'une page à l'autre.
+        return DepartageQueryBuilder::for($subject, $request)
             ->allowedFilters(...static::getAllowedQueryFilters())
             ->allowedFields(...static::getAllAllowedQueryFields())
-            ->allowedSorts(...(static::$requestSortable ?? []))
+            ->allowedSorts(...(static::$requestSortable ?? []), ...static::customQuerySorts())
             ->allowedIncludes(...static::getAllowedQueryIncludes());
     }
 
@@ -276,6 +281,19 @@ trait HasQueryBuilder
      * @return array<int, AllowedFilter>
      */
     protected static function customQueryFilters(): array
+    {
+        return [];
+    }
+
+    /**
+     * TCK-1302 (P134.03) — les tris qui ne sont pas une colonne brute (un rang d'enum, par exemple),
+     * à côté de `$requestSortable`. Une propriété statique ne peut pas porter d'objet : le modèle
+     * les rend ici. Un nom ne s'y déclare qu'une fois, et pas aussi dans `$requestSortable` : spatie
+     * retiendrait le premier. Défaut : aucun.
+     *
+     * @return array<int, AllowedSort>
+     */
+    protected static function customQuerySorts(): array
     {
         return [];
     }

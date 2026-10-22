@@ -23,7 +23,7 @@ class ProfileResource extends BaseResource
         $resolver = app(ActiveProfileResolver::class);
         $alias = $resolver->aliasFor($this->resource);
 
-        return [
+        $data = [
             'id' => $resolver->compositeId($this->resource),
             'type' => $alias,
             'numeric_id' => $this->resource->getKey(),
@@ -50,6 +50,15 @@ class ProfileResource extends BaseResource
             'status' => $this->statusValue(),
             'created_at' => $this->iso($this->resource->created_at),
         ];
+
+        // TCK-1317 (P117.04) — ce que la section « Profil professionnel » affiche en lecture
+        // seule. Le seul profil d'agent les porte : les autres types n'ont pas ces colonnes.
+        if ($this->resource instanceof AgentProfile) {
+            $data['license_number'] = $this->resource->license_number;
+            $data['specialty'] = $this->resource->specialty;
+        }
+
+        return $data;
     }
 
     private function statusValue(): ?string

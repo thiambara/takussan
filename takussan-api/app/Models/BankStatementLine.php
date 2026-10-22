@@ -36,6 +36,10 @@ class BankStatementLine extends AbstractModel implements HasAuditAgency
 
     protected static array $requestRangeFilters = ['amount', 'posted_at'];
 
+    // TCK-1294 (P118.01) — l'écran des lignes envoie `sort=posted_at` : sans liste blanche, spatie
+    // refusait la requête en 400.
+    protected static array $requestSortable = ['id', 'posted_at', 'amount'];
+
     protected static array $requestSearchFields = ['label', 'reference', 'counterparty'];
 
     protected static array $queryFields = [

@@ -4221,7 +4221,8 @@
         "save": "Save",
         "saving": "Saving…",
         "saved": "Saved.",
-        "failed": "The assignment was not saved."
+        "failed": "The assignment was not saved.",
+        "insured": "Insured"
       },
       "gallery": {
         "title": "Photos and files",
@@ -5215,7 +5216,8 @@
       "actions": {
         "resend": "Resend invitation",
         "revoke": "Revoke"
-      }
+      },
+      "insured": "Insured"
     },
     "invite": {
       "title": "Invite a provider",
@@ -9386,14 +9388,11 @@
     "agent": {
       "title": "Professional profile",
       "subtitle": "Your real estate agent information.",
-      "bioLabel": "Professional bio",
-      "bioPlaceholder": "Describe your expertise and your specialities",
       "specialtiesLabel": "Specialities",
-      "comingSoon": "Coming soon",
       "licenseLabel": "Licence number",
-      "licensePlaceholder": "e.g. AGC-2025-0001",
       "agencyLabel": "Linked agency",
-      "noAgency": "Not affiliated"
+      "noAgency": "Not affiliated",
+      "notProvided": "Not provided"
     },
     "owner": {
       "title": "Landlord area",
