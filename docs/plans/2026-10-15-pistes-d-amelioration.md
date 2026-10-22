@@ -11091,7 +11091,7 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
 
 ### Une seule requête qui ne répond pas arrête pour de bon les interrogations périodiques : fil de messages, cloche, vérification d'un paiement
 - Réf : P113.02
-- Statut : validé (délégué) — réglé par la borne de 30 s des lectures de P113.01 (la requête figée passe en erreur et l'interrogation reprend au tic suivant), sans borne propre par requête ; garde : un test de `useNewMessagesPolling` ou de `useVerifyPayment` dont le premier appel ne répond jamais, qui exige un second appel après la borne
+- Statut : fait · TCK-1299
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/node_modules/@tanstack/query-core/build/modern/queryObserver.js:214-218`, `…/query.js:139-148,183-193`, `takussan-web/src/lib/queries/conversations.ts:198-212`, `takussan-web/src/components/layout/NotificationBell.tsx:57-64`, `takussan-web/src/app/(dashboard)/app/payments/return/PaymentReturnClient.tsx:14-15,65-88`
 - Constat :
@@ -11103,6 +11103,7 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
 - Piste : la borne de P113.01 suffit à relancer l'interrogation, la requête figée passant en erreur ; à défaut, `queryFn` des requêtes interrogées bornée par `AbortSignal.timeout` sous l'intervalle. Garde : un test de `useNewMessagesPolling` (ou du retour de paiement) où le premier appel ne répond jamais, qui exige un second appel au tic suivant la borne.
 - Mesure (2026-10-22, c6abf5343, mesureur) : relu `conversations.ts:210` (3 s), `NotificationBell.tsx:64` (30 s), `PaymentReturnClient.tsx:70` (inchangés) ; test vitest temporaire (retiré), `QueryObserver` sur le vrai `createQueryClient()`, `refetchInterval: 50`, première réponse puis `queryFn` figée, 600 ms → 2 appels, `fetchStatus` `fetching` : l'interrogation s'arrête à la requête figée ; non rejoué sur la page de retour de paiement. Classement : V7, la Piste renvoie à la borne de P113.01, et sa variante demande elle aussi une valeur de délai par écran.
 - Mesure (2026-10-22, 174feef49, delegue) : relu `conversations.ts:198-212` (`useApiQuery`, 3 s), `useInitiatePayment.ts:88-100` (`useVerifyPayment` : `useApiQuery`, donc `GET` par `apiRequest`) et `NotificationBell.tsx:57-64` (la cloche passe par `getNotificationsAction`, une action serveur déjà bornée à 30 s par TCK-1215). Délégation : V7, la `Piste` recommande elle-même cette voie (« la borne de P113.01 suffit »), et les trois lecteurs nommés sont des `GET` que la borne de P113.01 couvre ; aucune valeur neuve, aucun texte neuf ; suit P113.01, et revient avec elle si le porteur la reprend.
+- Mesure (2026-10-22, f41a867fe, implementeur) : test neuf (`useVerifyPayment.lecture-figee.test.tsx`), `useVerifyPayment` sous le vrai `createQueryClient()`, `refetchInterval: 50`, premier `fetch` figé, suivants à 200 → sans la borne des lectures (`api.ts` de `origin/pre-dev`) : 1 seul appel en 3 s, rouge ; avec la borne de TCK-1297 (ramenée à 20 ms) : un second appel à `/verify`, vert. Aucun code applicatif neuf : la garde seule, comme le dit la décision. Non rejoué sur la page de retour ni au navigateur.
 
 ### Une mutation lancée hors ligne reste en attente sans le dire, puis part seule à la reconnexion, minutes plus tard — initiation de paiement comprise
 - Réf : P113.03
