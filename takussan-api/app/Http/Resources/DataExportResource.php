@@ -5,6 +5,10 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
 
+/**
+ * TCK-1519 (P73.03) — pas de `download_url` : le front télécharge par son relais
+ * `data-exports/[id]/download`, et le champ, fabriqué par `url()`, n'avait aucun lecteur.
+ */
 class DataExportResource extends BaseResource
 {
     public function toArray(Request $request): array
@@ -20,7 +24,6 @@ class DataExportResource extends BaseResource
             'ready_at' => $this->iso($this->ready_at),
             'expires_at' => $this->iso($this->expires_at),
             'last_downloaded_at' => $this->iso($this->last_downloaded_at),
-            'download_url' => $this->status?->value === 'ready' ? url("/api/data-exports/{$this->id}/download") : null,
         ];
     }
 }
