@@ -583,7 +583,26 @@ class PayoutService
         $changed = $payout->leasePayments()->where('lease_payments.status', '!=', PaymentStatus::Paid->value)->exists()
             || $payout->bookingPayments()->where('booking_payments.status', '!=', PaymentStatus::Paid->value)->exists();
 
-        abort_code_if($changed, 422, 'payout.items_changed');
+        abort_code_if($changed || $this->refundedSincePreparation($payout), 422, 'payout.items_changed');
+    }
+
+    /**
+     * TCK-1214 (P76.02) — un remboursement partiel laisse la pièce `paid` : il ne se voit qu'au brut.
+     * Le brut des pièces, relu à `montant − refund_amount` comme `PayoutCalculator`, ne retombe plus
+     * sur celui de la préparation. Lu seulement quand une pièce porte un remboursement.
+     */
+    private function refundedSincePreparation(Payout $payout): bool
+    {
+        $leases = $payout->leasePayments()->get(['lease_payments.amount', 'lease_payments.refund_amount']);
+        $bookings = $payout->bookingPayments()->get(['booking_payments.amount', 'booking_payments.refund_amount']);
+        $items = $leases->concat($bookings);
+        if (! $items->contains(fn ($item): bool => (float) ($item->refund_amount ?? 0) > 0)) {
+            return false;
+        }
+
+        $gross = $items->sum(fn ($item): float => max(0.0, (float) $item->amount - (float) ($item->refund_amount ?? 0)));
+
+        return Currency::roundAmount($gross, $payout->currency) < (float) $payout->gross_amount;
     }
 
     private function ineligibleItem(string $field, int $id): never

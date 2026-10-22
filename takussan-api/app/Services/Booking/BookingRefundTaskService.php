@@ -70,11 +70,14 @@ class BookingRefundTaskService
     }
 
     /**
-     * Clôt la tâche (`done`) quand plus aucun paiement de la réservation n'est `paid`.
+     * Clôt la tâche (`done`) quand plus aucun paiement de la réservation n'est `paid` sans remboursement.
      */
     public function closeIfSettled(Booking $booking): void
     {
-        if ($booking->payments()->where('status', PaymentStatus::Paid->value)->exists()) {
+        // TCK-1214 (P76.02) — un acompte remboursé en partie reste `paid` : il est traité.
+        if ($booking->payments()->where('status', PaymentStatus::Paid->value)
+            ->where(fn ($q) => $q->whereNull('refund_amount')->orWhere('refund_amount', 0))
+            ->exists()) {
             return;
         }
 

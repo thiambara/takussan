@@ -22,6 +22,7 @@ use Illuminate\Support\Collection;
  * Le brut n'est jamais une saisie : il se lit sur les pièces encaissées. Les règles :
  *
  *  - **Loyers** : `LeasePayment` `paid`, de type `rent`, `charges`, `penalty` ou `regularization`.
+ *    Une pièce remboursée en partie reste `paid` et compte pour `montant − refund_amount` (TCK-1214).
  *    `deposit` et `deposit_refund` sont exclus — la caution n'appartient pas au bailleur.
  *  - **Séjours** : `BookingPayment` `paid`, de type `deposit` (l'acompte du séjour) ou `advance`.
  *    `fee` est exclu — ce sont les frais de l'agence.
@@ -139,7 +140,7 @@ final class PayoutCalculator
         $leaseLines = [];
         foreach ($leasePayments as $payment) {
             $rate = $payment->lease?->commission_rate !== null ? (float) $payment->lease->commission_rate : $agencyRate;
-            $amount = (float) $payment->amount;
+            $amount = $this->kept($payment);
             $leaseLines[] = [
                 'id' => $payment->id,
                 'reference_number' => $payment->reference_number,
@@ -157,7 +158,7 @@ final class PayoutCalculator
 
         $bookingLines = [];
         foreach ($bookingPayments as $payment) {
-            $amount = (float) $payment->amount;
+            $amount = $this->kept($payment);
             $bookingLines[] = [
                 'id' => $payment->id,
                 'reference_number' => $payment->reference_number,
@@ -202,6 +203,16 @@ final class PayoutCalculator
                 'net' => $this->round($gross - $commission - $fees, $places),
             ],
         ];
+    }
+
+    /**
+     * TCK-1214 (P76.02, option (b) du porteur) — un remboursement partiel laisse la pièce `paid` :
+     * le bailleur reçoit ce qui a été gardé, `montant − refund_amount`, et la commission se calcule
+     * sur cette base.
+     */
+    private function kept(LeasePayment|BookingPayment $payment): float
+    {
+        return max(0.0, (float) $payment->amount - (float) ($payment->refund_amount ?? 0));
     }
 
     /**

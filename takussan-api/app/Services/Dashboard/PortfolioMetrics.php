@@ -238,7 +238,7 @@ class PortfolioMetrics
     }
 
     /**
-     * Loyers encaissés par mois (`paid_at`), types revenu seulement.
+     * Loyers encaissés par mois (`paid_at`), types revenu seulement, montant − remboursement.
      *
      * @return array<string, float>
      */
@@ -251,7 +251,7 @@ class PortfolioMetrics
             ->whereNull('leases.deleted_at')
             ->where('leases.'.$scope->leaseColumn, $scope->id)
             ->whereBetween('lease_payments.paid_at', [$start->startOfDay(), $end->endOfDay()])
-            ->selectRaw("to_char(date_trunc('month', lease_payments.paid_at), 'YYYY-MM') AS m, SUM(lease_payments.amount) AS total")
+            ->selectRaw("to_char(date_trunc('month', lease_payments.paid_at), 'YYYY-MM') AS m, SUM(".CollectedPayments::LEASE_NET_SQL.') AS total')
             ->groupBy('m')
             ->pluck('total', 'm');
 
