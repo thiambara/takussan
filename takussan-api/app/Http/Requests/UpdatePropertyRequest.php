@@ -53,7 +53,8 @@ class UpdatePropertyRequest extends BaseFormRequest
             'condition' => ['sometimes', 'nullable', Rule::enum(PropertyCondition::class)],
             'floor_number' => ['sometimes', 'nullable', 'integer', 'min:-5', 'max:200'],
             'total_floors' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:200'],
-            'status' => ['sometimes', Rule::enum(PropertyStatus::class)],
+            // P147.05 (TCK-1341) — les statuts de modération ne se posent pas à la main.
+            'status' => ['sometimes', Rule::enum(PropertyStatus::class)->except(PropertyStatus::NOT_SETTABLE_BY_HAND)],
             'visibility' => ['sometimes', Rule::enum(PropertyVisibility::class)],
             // TCK-633 — bornes de COLONNE (`numeric(14,2)`, `integer`) : au-delà, 500 et non 422.
             'price' => ['sometimes', 'numeric', 'min:0', 'max:999999999999.99'],

@@ -222,7 +222,7 @@ class PropertyAuthorizationTest extends ApiTestCase
             'publish' => ['POST', 'publish', []],
             'visibilité → public' => ['PUT', 'visibility', ['visibility' => 'public']],
             'statut → available' => ['PUT', 'status', ['status' => 'available']],
-            'statut → published' => ['PUT', 'status', ['status' => 'published']],
+            // P147.05 (TCK-1341) — `published` ne se pose plus à la main : PropertyStatutsDeModerationTest.
         ];
     }
 
