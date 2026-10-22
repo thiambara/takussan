@@ -61,10 +61,9 @@ class UserDetailController extends Controller
         }
 
         if ($agencyId = $request->string('filter.agency_id')->trim()->value()) {
-            $query->where(function (Builder $q) use ($agencyId): void {
-                $q->whereHas('agentProfiles', fn (Builder $profile) => $profile->where('agency_id', $agencyId))
-                    ->orWhereHas('ownerProfiles', fn (Builder $profile) => $profile->where('agency_id', $agencyId));
-            });
+            // P119.01 (TCK-1269) — la portée commune des trois listes de membres : l'administrateur
+            // d'agence sans profil d'agent ni de bailleur y figure (TCK-277, TCK-1244).
+            $query->membreDe((int) $agencyId);
         }
 
         if ($request->has('filter.email_verified')) {
