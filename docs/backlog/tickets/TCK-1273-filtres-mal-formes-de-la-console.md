@@ -1,7 +1,7 @@
 ---
 id: TCK-1273
 title: "Console des utilisateurs et audits : un identifiant d'agence ou une date mal formés ne rendent plus 500"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -36,19 +36,19 @@ au lieu d'un 500.
 
 ## Delta à produire
 
-- [ ] `filter[agency_id]` de `GET /api/admin/users` : la règle d'`ExactIdentifierFilter` (400
+- [x] `filter[agency_id]` de `GET /api/admin/users` : la règle d'`ExactIdentifierFilter` (400
       `filter.identifier_invalid`), par une méthode publique du filtre plutôt qu'une copie.
-- [ ] `DateBoundaryFilter` (TCK-1271) refuse une valeur que la règle `date` refuse (et une liste),
+- [x] `DateBoundaryFilter` (TCK-1271) refuse une valeur que la règle `date` refuse (et une liste),
       en 422 sur `filter.<nom>` — ce qui couvre aussi le journal de l'agence, dont
       `Carbon::parse()` levait sur la même valeur.
-- [ ] Tests : les requêtes ci-dessus rendent 400 ou 422, plus 500.
+- [x] Tests : les requêtes ci-dessus rendent 400 ou 422, plus 500.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/admin/users?filter[agency_id]=abc` → 400, code `filter.identifier_invalid`.
-- [ ] AC2 — `GET /api/admin/users/{id}/activity?filter[date_from]=nawak` → 422 sur
+- [x] AC1 — `GET /api/admin/users?filter[agency_id]=abc` → 400, code `filter.identifier_invalid`.
+- [x] AC2 — `GET /api/admin/users/{id}/activity?filter[date_from]=nawak` → 422 sur
       `filter.date_from`.
-- [ ] AC3 — `GET /api/admin/audit?filter[date_to]=nawak` → 422 sur `filter.date_to`.
+- [x] AC3 — `GET /api/admin/audit?filter[date_to]=nawak` → 422 sur `filter.date_to`.
 
 ## Hors périmètre
 
@@ -58,4 +58,10 @@ au lieu d'un 500.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Test : `tests/Feature/Admin/Platform/FiltresMalFormesDeLaConsoleTest.php`. Avant correctif :
+  `filter[agency_id]=abc` rend **200** (liste vide) et non plus 500, parce que TCK-1269 lit la
+  valeur par `(int)` ; les deux dates rendent 500 (`InvalidFormatException` de `Carbon::parse()`
+  depuis TCK-1271, `SQLSTATE[22007]` avant).
+- Ablation : l'appel à `ExactIdentifierFilter::exiger()` et la validation de `DateBoundaryFilter`
+  commentés → les trois tests rouges ; remis → verts. `FiltreIdentifiantTest` reste vert.
+- Une liste (`filter[date_to]=a,b`, que spatie découpe) est refusée par la règle `string`.
