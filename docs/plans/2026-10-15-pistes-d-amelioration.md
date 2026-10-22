@@ -12189,7 +12189,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### Petites améliorations
 - Réf : P125.06
-- Statut : validé — porteur (2026-10-22) : comparer `phone_otp.phone` au numéro du compte (refus s'il diffère), avec P114.04 ; le reste de la Piste tel qu'écrit
+- Statut : fait · TCK-1345
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Onboarding/HostIndividualOnboardRequest.php:54`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:297-306`, `takussan-api/app/Http/Requests/Api/StorePublicSearchAlertRequest.php:37-44`, `takussan-web/src/components/public/profile/ContactSheet.tsx:62`, `takussan-web/src/lib/jsonld-profil.ts:106`
 - Constat :
@@ -12199,6 +12199,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - Établi comment : lu.
 - Piste : retirer `phone_otp.phone` de la requête ou le comparer au numéro du compte ; ajouter `TelephoneJoignable` à l'alerte WhatsApp ; publier l'E.164 dans le JSON-LD et le `tel:`.
 - Mesure (2026-10-22, 64db86d28, mesureur) : relu `HostIndividualOnboardRequest.php:53-54` (`phone_otp.phone` exigé), `HostIndividualOnboardingService.php:297-306` (vérifie `$user->phone`) ; `grep -rn phone_otp app` ne rend que des règles de validation ; `StorePublicSearchAlertRequest.php:37-44` (seul `PhoneNumber::isValid`, sans `TelephoneJoignable`) ; `ContactSheet.tsx:62` (`tel:` après retrait des seuls blancs) et `jsonld-profil.ts:106` (`telephone` brut). Les trois points tiennent ; l'écart entre le numéro de l'assistant et celui du compte (`HostIndividualWizard.tsx`) n'a pas été vérifié. Classement : V2, le premier point porte sur la vérification du téléphone, et le dernier change ce que publie la fiche d'une agence (V7).
+- Mesure (2026-10-22, 1800d4d36, implementeur) : tests neufs rouges avant correctif : compte `+221770000000`, `phone_otp.phone` `+221779999999` → `POST /api/host/individual/onboard` 201 au lieu de 422 (code valide, et compte déjà vérifié) ; alerte WhatsApp `+330612345678` → 202 ; `jsonLdAgence` et `ContactSheet` sur `77 123 45 67` → `771234567` → refus 422 `phone_otp.phone` si le numéro diffère de `users.phone` (blancs ignorés), `TelephoneJoignable::defaut` sur le numéro de l'alerte, `telephonePublie()` (E.164, forme nationale sous `+221`) pour le `tel:` et le JSON-LD ; ablations → 2, 1 et 2 rouges, remis → verts. P114.04 (autre instance) non touchée.
 
 ## Angle 126 — Destinataires d'équipe choisis sans juger le profil actif
 
