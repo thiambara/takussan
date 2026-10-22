@@ -7,6 +7,7 @@ import { ROUTE_VERIF_INDISPONIBLE, resolveAgencyOrNull } from '@/lib/access/serv
 import { isAdmin, isSuperAdmin } from '@/lib/roles';
 import { getActiveProfileId, getToken } from '@/lib/session';
 import type { User } from '@/types/user';
+import type { LectureDesCapacites } from './capacites-amorcees';
 
 import {
   accesDepuis,
@@ -39,15 +40,25 @@ const OU = 'pages-admin';
  * un refus — et n'envoie pas le hint de profil.
  */
 const capacitesDuRendu = cache(
-  async (token: string, activeProfileId?: string): Promise<readonly string[] | null> => {
+  async (
+    token: string,
+    activeProfileId?: string,
+  ): Promise<{ readonly capacites: readonly string[]; readonly lecture: LectureDesCapacites | null } | null> => {
     try {
-      const reponse = await apiRequest<{ data: { capabilities?: readonly string[] } }>(
+      const reponse = await apiRequest<{ data: { agency_id?: number | null; capabilities?: readonly string[] } }>(
         '/api/me/capabilities',
         { token, activeProfileId },
       );
-      return reponse.data.capabilities ?? [];
+      const capacites = reponse.data.capabilities ?? [];
+      // TCK-1278 (P136.02) — la réponse entière, et son heure, pour amorcer le cache du navigateur.
+      return {
+        capacites,
+        lecture: { reponse: { agency_id: reponse.data.agency_id ?? null, capabilities: capacites }, lueA: Date.now() },
+      };
     } catch (e: unknown) {
-      if (e instanceof ApiError && (e.status === 401 || e.status === 403 || e.status === 404)) return [];
+      if (e instanceof ApiError && (e.status === 401 || e.status === 403 || e.status === 404)) {
+        return { capacites: [], lecture: null };
+      }
       // Journal serveur, jamais affiché : même forme que `resolveAgencyOrNull` (`[access] ${ou} : …`).
       console.error(`[access] ${OU} : /api/me/capabilities illisible`, e instanceof Error ? e.message : e);
       return null;
@@ -86,9 +97,23 @@ async function contexteAdmin(
 
   let capacites: readonly string[] | null = null;
   if (besoins.capacites) {
-    capacites = token ? await capacitesDuRendu(token, await getActiveProfileId()) : [];
+    capacites = token ? ((await capacitesDuRendu(token, await getActiveProfileId()))?.capacites ?? null) : [];
   }
   return { roles, agence, capacites };
+}
+
+/**
+ * TCK-1278 (P136.02) — la lecture des capacités que ce rendu fait déjà pour un `agency_admin`
+ * (`accesAdmin`, même promesse `cache()`ée), rendue au layout pour amorcer la clé
+ * `['me','capabilities','active']` du navigateur (`AmorceCapacites`). `null` quand le rendu ne lit
+ * pas les capacités (super-admin, non-admin) ou que la lecture n'a pas répondu : le navigateur lit
+ * alors comme avant.
+ */
+export async function capacitesAmorcees(user: User): Promise<LectureDesCapacites | null> {
+  if (!isAdmin(user.roles) || isSuperAdmin(user.roles)) return null;
+  const token = await getToken();
+  if (!token) return null;
+  return (await capacitesDuRendu(token, await getActiveProfileId()))?.lecture ?? null;
 }
 
 /** Les pages d'administration accessibles au profil actif — pour PEINDRE (section d'agence du menu, liens, carte du profil). */

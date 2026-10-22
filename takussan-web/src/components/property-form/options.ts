@@ -2,7 +2,7 @@ import type { FormSelectOption } from '@/components/forms/FormSelect';
 import {
   contractTypeValues,
   currencyValues,
-  propertyStatusValues,
+  propertyStatusFilterValues,
   propertyTypeValues,
   propertyVisibilityValues,
   rentPeriodValues,
@@ -89,8 +89,9 @@ export const propertyTypeOptions = (t: Traducteur): FormSelectOption[] =>
 export const contractTypeOptions = (t: Traducteur): FormSelectOption[] =>
   auxOptions(contractTypeValues, t);
 
-export const propertyStatusOptions = (t: Traducteur): FormSelectOption[] =>
-  auxOptions(propertyStatusValues, t);
+/** TCK-1268 — les options d'un FILTRE de statut : les onze cas de l'API (`propertyStatusFilterValues`). */
+export const propertyStatusFilterOptions = (t: Traducteur): FormSelectOption[] =>
+  auxOptions(propertyStatusFilterValues, t);
 
 export const propertyVisibilityOptions = (t: Traducteur): FormSelectOption[] =>
   auxOptions(propertyVisibilityValues, t);

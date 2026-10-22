@@ -373,7 +373,10 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     // Statiques (le jeton est dans la requête, pas dans le chemin) : elles n'entrent pas dans
     // ROUTES_DYNAMIQUES_PUBLIQUES, et l'équivalence de l'AC3 les tient hors du sitemap par leur
     // `noindex` — nommées ci-dessous.
-    expect(ROUTES.length).toBe(18);
+    // 18 → 19 : TCK-1243 (P97.06) ajoute `/notifications/unsubscribe`, STATIQUE et `jamais` — le
+    // désabonnement du résumé par courriel, dont l'URL porte la signature de l'API
+    // (`?user=…&expires=…&signature=…`) ; tenue hors du sitemap par son `noindex`.
+    expect(ROUTES.length).toBe(19);
     for (const route of ROUTES) {
       expect(route.indexabilite, `${route.chemin} (${route.fichier})`).not.toBe('inconnu');
     }

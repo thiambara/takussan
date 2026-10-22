@@ -6,6 +6,7 @@ use App\Models\Enums\NotificationType;
 use App\Models\ThresholdAlert;
 use App\Notifications\Channels\AppDatabaseChannel;
 use App\Services\Notifications\PreferenceResolver;
+use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -50,7 +51,7 @@ class ThresholdAlertTriggered extends Notification
         $locale = app()->getLocale();
         // P97.01 (TCK-1122) — le tableau de bord est une page du FRONT. `url()` prenait, depuis
         // la commande planifiée hors requête, `APP_URL` : l'hôte de l'API, qui n'en sert aucune.
-        $frontend = rtrim((string) (config('app.frontend_url') ?: config('app.url')), '/');
+        $frontend = LienFront::base();
 
         return (new MailMessage)
             ->subject(__('notifications.threshold_alert_mail.subject', ['metric' => $this->alert->metric]))

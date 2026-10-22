@@ -9,18 +9,32 @@ import type { DocumentType, DocumentableType } from '@/types/document';
  * cas backend se voit donc immédiatement, la clé manquante rendant son propre nom.
  */
 
-/** Ordre d'affichage du sélecteur de catégorie et du regroupement de la bibliothèque. */
+/**
+ * Ordre d'affichage du regroupement et du filtre de la bibliothèque : tous les cas de
+ * `DocumentType` côté API (TCK-1272).
+ */
 export const DOCUMENT_TYPE_ORDER: readonly DocumentType[] = [
   'lease_contract',
   'invoice',
   'receipt',
   'id_card',
   'passport',
+  'rib',
+  'ninea',
   'insurance',
   'inventory_report',
   'photo',
   'other',
 ];
+
+/**
+ * TCK-1272 — les catégories proposées au TÉLÉVERSEMENT : l'ordre ci-dessus sans les pièces du
+ * bailleur (`rib`, `ninea`), qui se déposent par son accueil. Les proposer ici serait un geste
+ * neuf, que TCK-1272 ne prend pas.
+ */
+export const DOCUMENT_TYPE_UPLOAD_ORDER: readonly DocumentType[] = DOCUMENT_TYPE_ORDER.filter(
+  (type) => type !== 'rib' && type !== 'ninea',
+);
 
 /**
  * Entités proposées au FILTRE de la bibliothèque. `user` en est délibérément absent :

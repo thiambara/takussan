@@ -26,14 +26,14 @@ import { fieldDensityScope } from '@/components/ui/field-density';
 import { cn } from '@/lib/utils';
 import {
   contractTypeValues,
-  propertyStatusValues,
+  propertyStatusFilterValues,
   propertyTypeValues,
 } from '@/lib/enums/property';
 import {
   PROPERTY_ENUM_NAMESPACES,
   contractTypeOptions,
   enumLabel,
-  propertyStatusOptions,
+  propertyStatusFilterOptions,
   propertyTypeOptions,
   type Traducteur,
 } from '@/components/property-form/options';
@@ -620,7 +620,7 @@ function CriteresAvances({
           placeholder={t('statusAll')}
           options={[
             { value: ALL_VALUE, label: t('statusAll') },
-            ...propertyStatusOptions(tStatus),
+            ...propertyStatusFilterOptions(tStatus),
           ]}
         />
         <FilterSelect
@@ -768,7 +768,7 @@ function buildActiveChips(
   if (search) chips.push({ key: 'search', label: ctx.tChips('search'), value: search });
   const status = searchParams.get('status');
   if (status) {
-    chips.push({ key: 'status', label: ctx.tChips('status'), value: enumLabel(ctx.tStatus, propertyStatusValues, status) });
+    chips.push({ key: 'status', label: ctx.tChips('status'), value: enumLabel(ctx.tStatus, propertyStatusFilterValues, status) });
   }
   const type = searchParams.get('type');
   if (type) {
