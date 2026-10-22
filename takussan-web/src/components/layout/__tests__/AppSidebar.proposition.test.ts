@@ -13,8 +13,8 @@ function utilisateur(roles: UserRole[]): User {
   return { id: 1, roles } as unknown as User;
 }
 
-function entreeDeCreation(roles: UserRole[]) {
-  return buildNavItems(utilisateur(roles)).find((i) => i.href === '/app/properties/new');
+function entreeDeCreation(roles: UserRole[], capacites: readonly string[] | null = ['properties.create']) {
+  return buildNavItems(utilisateur(roles), capacites).find((i) => i.href === '/app/properties/new');
 }
 
 describe('AppSidebar — proposer plutôt que publier (TCK-587)', () => {
@@ -32,5 +32,27 @@ describe('AppSidebar — proposer plutôt que publier (TCK-587)', () => {
 
   it('un client sans profil n’a aucune entrée de création', () => {
     expect(entreeDeCreation(['customer'])).toBeUndefined();
+  });
+
+  // P152.03 — le personnel se juge par `properties.create`, comme `PropertyPolicy::create`.
+  it('un agent sans properties.create n’a aucune entrée de création', () => {
+    expect(entreeDeCreation(['agent', 'customer'], ['team.invite'])).toBeUndefined();
+  });
+
+  it('un agent aussi bailleur, sans properties.create, « Propose », comme createsProposal', () => {
+    expect(entreeDeCreation(['owner', 'agent', 'customer'], ['crm.view_all'])?.labelKey).toBe('proposeProperty');
+  });
+
+  it('tant que les capacités ne sont pas lues, le personnel n’a aucune entrée', () => {
+    expect(entreeDeCreation(['agent', 'customer'], null)).toBeUndefined();
+    expect(entreeDeCreation(['owner', 'agent', 'customer'], null)).toBeUndefined();
+  });
+
+  it('le bailleur hors personnel propose sans lecture des capacités', () => {
+    expect(entreeDeCreation(['owner', 'customer'], null)?.labelKey).toBe('proposeProperty');
+  });
+
+  it('le super-admin publie sans lecture des capacités', () => {
+    expect(entreeDeCreation(['super_admin', 'customer'], [])?.labelKey).toBe('publishProperty');
   });
 });

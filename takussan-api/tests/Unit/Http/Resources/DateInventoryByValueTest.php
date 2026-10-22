@@ -71,6 +71,8 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\InventoryResource::sign_on_behalf_of' => '`when()` sur le même lecteur que `can_sign_as` '
             .'(TCK-596) : un identifiant et un nom, jamais une date.',
         'App\Http\Resources\KycDossierResource::shared_identifiers' => '`when(super-admin)` — même forme, même absence de date (TCK-601).',
+        'App\Http\Resources\LeaseResource::abilities' => '`when()` sur le lecteur de `forViewer()` (P152.02) : '
+            .'quatre booléens, jamais une date.',
         'App\Http\Resources\LeaseResource::can_activate_on_paper' => '`when()` sur le même lecteur (VERIF-596 M1) : '
             .'un booléen, jamais une date.',
         'App\Http\Resources\LeaseResource::can_request_signature' => '`when()` sur un lecteur posé par `forViewer()`, '
@@ -82,6 +84,8 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\PropertyResource::primary_contact_source' => '`when()` refusé sur `public.*` (TCK-603, '
             .'ADR-0059 §6) — or la route du second appelant répond « oui » à tout `routeIs()`, `public.*` compris. '
             .'Un vocabulaire fermé (`designated`, `invitation_order`, `owner`, `null`), jamais une date.',
+        'App\Http\Resources\PropertyVisitResource::abilities' => '`when()` sur la seule visite de la route (P152.04) : '
+            .'un booléen, jamais une date.',
     ];
 
     /** Profondeur maximale du parcours — un garde-fou contre un graphe cyclique, pas une limite métier. */

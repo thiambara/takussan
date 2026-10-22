@@ -19,6 +19,10 @@ import { withIntl } from '@/test/intl';
 import { AppSidebar, buildNavItems } from '../AppSidebar';
 import { USER_ROLES, type User, type UserRole } from '@/types/user';
 
+// P152.03 — les rôles système portent `properties.create` : « Publier un bien » se juge par elle.
+vi.mock('@/hooks/useCan', () => ({
+  useMyCapabilities: () => ({ data: { data: { agency_id: 1, capabilities: ['properties.create'] } } }),
+}));
 vi.mock('next/navigation', () => ({ usePathname: () => '/app' }));
 
 function utilisateur(roles: UserRole[]): User {
@@ -184,7 +188,7 @@ describe('TCK-495 — aucun profil commutable ne mène nulle part', () => {
   it('chaque alias de TYPE_MAP ouvre au moins un écran au-delà du socle', () => {
     const nus: string[] = [];
     for (const alias of aliasCommutables()) {
-      const hrefs = buildNavItems(utilisateur([alias as UserRole])).map((i) => i.href);
+      const hrefs = buildNavItems(utilisateur([alias as UserRole]), ['properties.create']).map((i) => i.href);
       if (hrefs.every((h) => SOCLE.includes(h))) nus.push(alias);
     }
     expect(
@@ -201,7 +205,7 @@ describe('TCK-495 — aucun profil commutable ne mène nulle part', () => {
 describe('AppSidebar — table des href par rôle', () => {
   for (const [role, attendu] of Object.entries(ATTENDU)) {
     it(`${role} reçoit exactement ses entrées`, () => {
-      const hrefs = buildNavItems(utilisateur([role as UserRole])).map((i) => i.href);
+      const hrefs = buildNavItems(utilisateur([role as UserRole]), ['properties.create']).map((i) => i.href);
       // TCK-646 — à l'ordre près : six entrées sont montées en tête du menu, ce qui ne change AUCUN
       // droit. L'ordre est gardé par `AppSidebar.test.tsx` (« six entrées en tête »), le jeu ici.
       expect([...hrefs].sort()).toEqual([...attendu].sort());
@@ -241,7 +245,7 @@ describe('AppSidebar — table des href par rôle', () => {
   it('un compte prestataire ET locataire garde ses baux', () => {
     // `roles` est un tableau : la garde est un prédicat POSITIF, pas `!isServiceProvider`.
     // Cette assertion est ce qui interdit de la réécrire en négation.
-    const hrefs = buildNavItems(utilisateur(['service_provider', 'tenant'])).map((i) => i.href);
+    const hrefs = buildNavItems(utilisateur(['service_provider', 'tenant']), ['properties.create']).map((i) => i.href);
     expect(hrefs).toContain('/app/leases');
     expect(hrefs).toContain('/app/bookings');
     expect(hrefs).toContain('/app/maintenance');

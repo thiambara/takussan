@@ -12,7 +12,8 @@ import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
 import { getMeAction } from '@/app/actions/auth';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
-import { isAdmin, isAgent } from '@/lib/roles';
+import { isAdmin } from '@/lib/roles';
+import { modeDeCreationDeBien } from '@/lib/access/creation-de-bien';
 import { getToken } from '@/lib/session';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -76,9 +77,11 @@ export default async function Page() {
 
   const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' }, perPage: 200 });
   const tags = tagsResult.ok ? (tagsResult.data?.data ?? []) : [];
-  // TCK-587 — même vocabulaire que la barre latérale : le bailleur hors personnel propose.
+  // TCK-587 — même vocabulaire que la barre latérale : le bailleur propose. P152.03 — jugé comme
+  // l'API (`properties.create`, sinon `createsProposal`), plus par le rôle : le layout du segment a
+  // déjà écarté qui ne peut ni l'un ni l'autre.
   const { roles, agency_id: agencyId } = await getMeAction();
-  const proposition = !isAgent(roles) && !isAdmin(roles);
+  const proposition = (await modeDeCreationDeBien(roles)) !== 'publication';
   // TCK-627 — une proposition reste un brouillon de l'agence : elle ne consomme aucun quota.
   const quota = proposition ? null : await fetchListingQuotaAction();
 

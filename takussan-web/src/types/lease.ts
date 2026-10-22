@@ -107,11 +107,23 @@ export type Lease = {
   can_request_signature?: boolean;
   /** La voie papier : gestionnaire ET signataire possible pour le bailleur (`leases.sign`). */
   can_activate_on_paper?: boolean;
+  /**
+   * P152.02 — les quatre gestes que `LeasePolicy` juge par capacité, jugés par l'API pour
+   * l'utilisateur courant. Rendus par le détail seul ; absents, rien n'est offert.
+   */
+  abilities?: LeaseAbilities;
   created_at: string;
   updated_at: string;
 };
 
 export type LeaseSignatureRole = 'tenant' | 'landlord';
+
+export interface LeaseAbilities {
+  readonly renew: boolean;
+  readonly review_rent: boolean;
+  readonly record_payment: boolean;
+  readonly refund_deposit: boolean;
+}
 
 /**
  * TCK-596 §4B (ADR-0042 §3) — une preuve de consentement. Jamais l'IP ni l'agent utilisateur :

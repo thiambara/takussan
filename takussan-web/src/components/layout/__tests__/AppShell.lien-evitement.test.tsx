@@ -16,6 +16,10 @@ import { ToastProvider } from '@/components/ui/toast';
 import type { User } from '@/types/user';
 import { AppShell } from '../AppShell';
 
+// P152.03 — les rôles système portent `properties.create` : « Publier un bien » se juge par elle.
+vi.mock('@/hooks/useCan', () => ({
+  useMyCapabilities: () => ({ data: { data: { agency_id: 1, capabilities: ['properties.create'] } } }),
+}));
 vi.mock('next/navigation', () => ({
   usePathname: () => '/app',
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),

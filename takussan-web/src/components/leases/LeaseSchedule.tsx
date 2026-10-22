@@ -35,6 +35,11 @@ interface LeaseScheduleProps {
    * qu'une pénalité a été réglée à l'agence. Le locataire ne le peut pas (403 côté API).
    */
   readonly canManage?: boolean;
+  /**
+   * P152.02 — constater la pénalité réglée se juge par `LeasePolicy::recordPayment`
+   * (`MarkLateFeePaidRequest`), pas par le rôle de gestion : le drapeau `abilities.record_payment`.
+   */
+  readonly canRecordPayment?: boolean;
 }
 
 /**
@@ -72,7 +77,13 @@ function displayStatus(
  * Chaque échéance est une ligne qui se replie en carte sur téléphone et s'aligne en colonnes à
  * partir de `lg` ; le conteneur ne défile plus du tout.
  */
-export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false }: LeaseScheduleProps) {
+export function LeaseSchedule({
+  leaseId,
+  agencyId,
+  landlordId,
+  canManage = false,
+  canRecordPayment = false,
+}: LeaseScheduleProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('lease.schedule');
   const tScheduleStatus = useTranslations('lease.schedule.status');
@@ -269,7 +280,7 @@ export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false
                     {t('paymentLink.copy')}
                   </Button>
                 )}
-                {canManage && !annulee && p.late_fee_outstanding > 0 && (
+                {canRecordPayment && !annulee && p.late_fee_outstanding > 0 && (
                   <Button
                     type="button"
                     variant="outline"

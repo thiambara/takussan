@@ -99,19 +99,23 @@ export function VisitDetail({ id }: { id: number }) {
     (!!user?.id && !!visit.customer && user.id === visit.customer.user_id);
   const isAssignedAgent = user?.id === visit.agent_id;
   const isManager = user ? isOwner(user.roles) || hasAgentRole(user.roles) || isAdmin(user.roles) : false;
+  // P152.04 — les gestes de gestion suivent le verdict de l'API, pas le rôle : sur un bien
+  // d'agence, le bailleur n'en a aucun (`visit.staff_only`). `isManager` ne garde que la
+  // proposition de créneau et le retour d'agent, qu'une autre règle juge.
+  const peutGerer = visit.abilities?.manage === true;
   const feedbackLocked = !isFeedbackOpen(visit);
   const scheduledAtMs = visit.scheduled_at ? new Date(visit.scheduled_at).getTime() : Number.NaN;
   const isPastSlot = Number.isFinite(scheduledAtMs) && scheduledAtMs <= renderedAt;
-  const canConfirm = isManager && status === 'scheduled';
-  const canCancel = (isVisitor || isManager) && (status === 'scheduled' || status === 'confirmed');
+  const canConfirm = peutGerer && status === 'scheduled';
+  const canCancel = (isVisitor || peutGerer) && (status === 'scheduled' || status === 'confirmed');
   const canComplete =
-    isManager &&
+    peutGerer &&
     (status === 'confirmed' || status === 'scheduled') &&
     (isPastSlot || status === 'confirmed');
   // TCK-1375 (P115.05) — l'absence ne se déclare qu'une fois l'heure passée ; le serveur le
   // rejuge (`visit.cannot_mark_no_show`).
-  const canMarkNoShow = isManager && (status === 'confirmed' || status === 'scheduled') && isPastSlot;
-  const canReschedule = isManager && (status === 'scheduled' || status === 'confirmed');
+  const canMarkNoShow = peutGerer && (status === 'confirmed' || status === 'scheduled') && isPastSlot;
+  const canReschedule = peutGerer && (status === 'scheduled' || status === 'confirmed');
   const isActive = status === 'scheduled' || status === 'confirmed';
   // TCK-590 — la visite déposée sur le site n'a pas d'agent : le personnel de l'agence la prend
   // en charge. Le serveur tranche la course (409 si un collègue l'a prise entre-temps).
