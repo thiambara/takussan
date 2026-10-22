@@ -184,7 +184,7 @@ voie d'écriture (angle 13, puis 47).
 | 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | fait |
 | 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | fait |
 | 110 | Rapprochement bancaire (`bank_reconciled_at`, `bank_statement_line_id`, `Accounting\ReconciliationManager`) d'une échéance, d'un acompte ou d'une facture passés à `refunded` après rapprochement : la ligne de relevé reste-t-elle rapprochée, et le remboursement sortant a-t-il un pendant | fait |
-| 111 | Jobs en file qui posent un statut de suivi (`processing`, `queued`) sur une ligne (`ReportExport`, `DataExport`, `ParseBankStatementJob`, versements) sans `failed()` — 7 jobs sur 43 en ont un : ce que voit l'utilisateur après l'échec définitif ou un arrêt brutal du worker, et ce qui bloque une nouvelle demande | à faire |
+| 111 | Jobs en file qui posent un statut de suivi (`processing`, `queued`) sur une ligne (`ReportExport`, `DataExport`, `ParseBankStatementJob`, versements) sans `failed()` — 7 jobs sur 43 en ont un : ce que voit l'utilisateur après l'échec définitif ou un arrêt brutal du worker, et ce qui bloque une nouvelle demande | fait |
 | 112 | Exports synchrones de `ExportController` (`GET /api/exports/{entity}`, jusqu'à 10 000 lignes, 2 000 en PDF) et de `PrivacyRequestController` : requêtes par ligne des constructeurs d'entité, mémoire et durée dans la requête HTTP — le relevé de l'angle 78 sur les exports qui ne passent pas par un job | à faire |
 | 113 | Appels du navigateur vers l'API sans délai (`useApiQuery`, `apiRequest` client, mutations TanStack, `fetch` direct des composants) : bouton `isPending` figé et requête jamais abandonnée sur un réseau mobile qui ne coupe pas — le pendant client de l'angle 79 | à faire |
 | 114 | Champs écartés par `validated()` sur les modules `src/lib/queries/*.ts` de l à z et les server actions `src/app/actions/*.ts` : la moitié de l'angle 80 laissée sans relevé | à faire |
@@ -216,6 +216,7 @@ voie d'écriture (angle 13, puis 47).
 | 139 | Colonnes déclarées par les exporteurs (`ActivityLogExporter::COLUMNS`, constructeurs d'entité d'`ExportController`, exports de rapports, archive RGPD `DataExportBuilder`) qu'aucun chemin n'écrit, ou qui lisent une clé que l'écrivain nomme autrement : colonne toujours vide dans le fichier rendu — le relevé de P108.02 sur les autres exports | à faire |
 | 140 | PDF figés face aux PDF recomposés à chaque téléchargement (`DocumentPdfService::store`, `signed_contract` de `LeaseSignatureService`, contre `InventoryController::downloadPdf`, `DocumentPdfController::stream*`, quittance publique `PublicPaymentLinkController::receipt`) : ce qu'un document signé ou acquitté imprime après un changement de l'agence, du bien, du locataire, d'un réglage ou d'un gabarit | à faire |
 | 141 | Encaissements soldés par une intégration de la plateforme (`PlatformPayoutService::isSettledByPlatform`) face au relevé de l'agence : proposés un à un par `ReconciliationMatcher` à un crédit qui ne les porte pas, et virement de clôture `PlatformPayout` qu'aucun candidat (`ALLOWED_PAYMENT_TYPES`, `fetchCandidates`) ne représente | à faire |
+| 142 | Notifications, Mailables et écouteurs en file (`ShouldQueue`, une quarantaine hors de `CodedNotification` : `TenantWelcomeNotification`, `ResetPasswordNotification`, `ActivityLogExportReadyNotification`, écouteurs `Lease\*` et `Accounting\*`) sans `backoff` ni `failed()` face au `--tries=3` sans délai des workers : ce qu'une panne du fournisseur de quelques secondes fait perdre, et la trace laissée — le relevé de P11.10 hors des notifications codées | à faire |
 
 ---
 
@@ -10815,3 +10816,75 @@ déjà relevée).*
   - Établi comment : lu, et mesuré pour le premier point.
 - Piste : rendre le statut du candidat dans la suggestion et dans `MatchCandidate` (le front l'affiche), plutôt que l'écarter : c'est la même lecture que P110.02, à faire ensemble.
 - Mesure (2026-10-22, 728be0ac7, mesureur) : test Feature temporaire `tests/Feature/TmpMesureur/SondeP110Test.php` (retiré), par les services, charge 3,92 / 3,31 / 3,63 sur 8 cœurs ; aucun commit sur les fichiers cités depuis 6d216605a (`git log 6d216605a..HEAD`), aucun ticket → acompte de 70 000 remboursé avant l'import, crédit de 70 000 à J+1 : `suggestFor` rend `BookingPayment` confiance 70, sans statut ; `unmatch` (`ReconciliationManager.php:183-219`) remet toujours `bank_reconciled_at` et `bank_statement_line_id` à `null` sans regarder le statut (lu). Classement : V7, rendre et afficher le statut du candidat est un comportement visible neuf, à décider avec P110.02 et P25.07.
+
+## Angle 111 — Jobs à statut de suivi sans `failed()`
+
+*Exploré le 2026-10-22 sur `pre-dev` 728be0ac7, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : les 43 fichiers de `app/Jobs` (recherche de
+`function failed`, puis des écritures de statut), `DataExportBuilder`, les deux
+`DataExportController`, `GenerateReportExport`, `ReportExportDownloadController`, les deux
+notifications « prête », `BuildUserDigestJob`, `DigestBuilderService`, `NotificationDigestMail`,
+`PropertyCalendarSyncService` et ses deux jobs, `MatchBankStatementLinesJob`,
+`DataExportsPanel.tsx`, `Worker.php` et `Mailer.php` du framework, `compose.api.yml`. Mesures par un
+test temporaire (retiré) sur la base de test PostgreSQL locale, canal `mail` remplacé par un canal
+qui lève, charge 3,78 / 3,31 / 3,61 sur 8 cœurs. La durée de `DataExportBuilder::payloads()` n'a
+pas pu être mesurée sur la base de dev : peu de données, et `tinker` y lève un `TypeError` de
+`BaseUrlGenerator::getDiskName()` (disque de médias du `.env` local, D-48) ; l'angle 78 l'a mesurée
+à 2,9 s pour 20 000 lignes de journal. **Déjà traités, sans entrée** : `ParseBankStatementJob`
+(`failed()` posé par TCK-932, P43.01), `GenerateReportExport` (`failed()` posé par TCK-1145,
+P77.04), `MatchBankStatementJob` (P43.02), l'export d'audit `ExportActivityLogJob`, sans ligne de
+suivi (P78.01). **Écartés, sans entrée** : les versements (`PayoutService`, `PlatformPayoutService`)
+ne passent par aucun job ; le flux iCal `pending` est rattrapé par la synchronisation horaire,
+qui relit tous les flux, et le service ne lève pas sur une erreur réseau (`SafeOutboundUrl::get`
+rend `UnsafeOutboundUrl`, compté par `recordFailure`).*
+
+### L'export RGPD n'a pas de `failed()` : un job tué laisse l'export « en préparation » pour toujours, et l'écran relance la liste toutes les 10 s
+- Réf : P111.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/Privacy/ProcessDataExport.php:14-25`, `takussan-api/app/Services/Privacy/DataExportBuilder.php:50-82`, `takussan-api/app/Jobs/Privacy/PurgeExpiredDataExports.php`, `takussan-web/src/components/privacy/DataExportsPanel.tsx:35,45,72`
+- Constat :
+  - `ProcessDataExport` n'a ni `failed()`, ni `$tries`, ni `$timeout` (lu, fichier entier, 25 lignes). Le passage à `failed` n'existe que dans le `catch` de `DataExportBuilder::build()` (lu, l. 78-81).
+  - Un processus tué pendant `build()` (mémoire, délai de 60 s du worker par défaut, arrêt de l'hôte) n'exécute pas ce `catch`. Le worker redonne le job après `retry_after`, puis le marque en échec sans rien exécuter au-delà de `--tries=3` : `markJobAsFailedIfAlreadyExceedsMaxAttempts` → `failJob` → `$job->fail()`, qui n'appelle que le `failed()` de la classe (lu, `Worker.php:637-651,741-744`). La ligne reste `processing`, ou `queued` si le job n'a jamais démarré (déduit de la lecture, non reproduit).
+  - Rien ne la rattrape : la purge ne lit que `ready` échus (lu, `PurgeExpiredDataExports`).
+  - L'écran du compte relance la liste toutes les 10 s tant qu'un export est `queued` ou `processing` (lu, `DataExportsPanel.tsx:35,45,72`) : il le fait sans fin sur une ligne bloquée, tant que la page est ouverte.
+  - Établi comment : lu. Qu'un export réel dépasse 60 s ou la mémoire n'est pas mesuré (angle 78 : 2,9 s pour 20 000 lignes) ; le déclencheur reste donc la mort du worker, à vérifier.
+- Piste : un `failed()` qui passe à `failed` un export encore `queued` ou `processing`, sur le modèle de `GenerateReportExport::failed()`. Test : `failed()` appelé sur un export `processing` le rend `failed`, ablation comprise.
+
+### Un export RGPD en échec bloque une nouvelle demande pendant 24 h
+- Réf : P111.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Me/DataExportController.php:29-50`, `docs/features.md:475`
+- Constat :
+  - La limite d'une demande par 24 h compte toute demande récente du titulaire, quel que soit son statut (lu, l. 29-34 : `requested_at > now()->subDay()`, sans filtre sur `status`).
+  - Mesuré : test temporaire (retiré), export du titulaire passé à `failed` → `POST /api/me/data-exports` rend `429 data_export_throttled`. Avec P111.01, un export bloqué en `processing` bloque de même la demande suivante pour 24 h.
+  - La spec écrit « une demande par 24 h » (lu, `features.md:475`), sans dire si une demande échouée compte.
+  - Établi comment : lu et mesuré.
+- Piste : ne compter que les demandes `queued`, `processing` ou `ready` dans la limite, ou laisser la règle et l'écrire dans la spec. C'est un choix de produit.
+
+### Quand le courriel « prête » échoue, le job d'export reconstruit tout à chaque essai, et le rapport `ready` repasse à `failed`
+- Réf : P111.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:61-83`, `takussan-api/app/Notifications/ReportExportReadyNotification.php:11-20`, `takussan-api/app/Jobs/Privacy/ProcessDataExport.php:22-23`, `takussan-api/app/Notifications/DataExportReadyNotification.php:30-42`, `takussan-api/app/Http/Controllers/Api/ReportExportDownloadController.php:39-48`
+- Constat :
+  - Les deux notifications « prête » ne sont pas `ShouldQueue` et n'ont que le canal `mail` (lu) : le courriel part dans le job, après l'écriture du statut `ready`. Une erreur du transport fait lever le job, que le worker rejoue jusqu'à `--tries=3`, sans délai.
+  - Rapport, mesuré (test temporaire, retiré, canal `mail` qui lève) : après `handle()`, statut `ready`, fichier écrit, exception `smtp down` ; puis `failed()` → statut `failed`, `failure_reason` = `smtp down`, fichier toujours présent. Le téléchargement refuse alors tout statut autre que `ready` (lu, l. 43) : le fichier reste sur le disque, inaccessible. La purge de P77.02 (PR #963 en cours) n'est pas relue ici.
+  - Export RGPD, mesuré de même : après `handle()`, statut `ready` et exception levée. Chaque essai suivant repasse la ligne à `processing` et reconstruit l'archive (lu, `DataExportBuilder.php:52`). Après trois échecs, l'export reste `ready` sans qu'aucun courriel ne soit parti (déduit).
+  - La portée du rapport est faible : aucun rapport n'atteint aujourd'hui le seuil asynchrone (P78.04).
+  - Établi comment : mesuré pour l'état après `handle()` et après `failed()`, lu pour la reprise par le worker.
+- Piste : mettre la notification en file (`ShouldQueue`, avec `backoff`), ou attraper l'échec du courriel après `ready` pour que le job ne lève plus ; et faire que `GenerateReportExport::failed()` ne touche qu'un export encore `queued` ou `processing`. Test : canal `mail` qui lève → export `ready`, job sans exception, ou `failed()` sans effet sur un `ready`.
+
+### Le résumé de notifications est marqué « envoyé » avant l'envoi, qui part dans un job à part sans `backoff` : un échec du fournisseur le perd en silence
+- Réf : P111.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/Notifications/BuildUserDigestJob.php:61-72`, `takussan-api/app/Mail/NotificationDigestMail.php:21`, `takussan-api/app/Services/Notifications/DigestBuilderService.php:26-54`
+- Constat :
+  - `NotificationDigestMail` est `ShouldQueue` (lu, l. 21). `Mail::to()->send()` ne fait donc que mettre en file le courriel (lu, `Mailer.php:350-354`, `sendMailable()` → `queue()`). Le `try/finally` de `BuildUserDigestJob` ne protège que cette mise en file, et `markDigested()` pose `digested_at` aussitôt (lu, l. 61-72).
+  - L'envoi réel se fait dans `SendQueuedMailable`, sans `$tries`, `backoff` ni `failed()` déclarés sur le Mailable (lu, `grep` → aucun) : `--tries=3` sans délai (lu, `compose.api.yml:125`). Une panne du fournisseur de quelques secondes épuise les trois essais (même mécanisme que P11.10, corrigé pour `CodedNotification` seule).
+  - Le résumé suivant ne relit que `digested_at IS NULL` (lu, `DigestBuilderService.php:31`) : ces notifications ne figurent plus dans aucun courriel. Seule trace, une ligne de `failed_jobs` (déduit).
+  - Le commentaire de la l. 69-70 dit éviter un double envoi ; avec la mise en file, ce cas n'existe plus dans ce `try`.
+  - Établi comment : lu.
+- Piste : `backoff` sur `NotificationDigestMail`, et poser `digested_at` après l'envoi réel (dans le Mailable, ou en envoyant de façon synchrone dans le job), ou le retirer dans un `failed()`. Test : un transport qui lève trois fois laisse les notifications sans `digested_at`.
