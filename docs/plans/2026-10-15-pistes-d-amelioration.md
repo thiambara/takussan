@@ -15756,7 +15756,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Une visite reportée garde ses marques de rappel : le nouveau créneau ne reçoit ni le rappel de la veille ni celui de l'heure
 - Réf : P169.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/SendPropertyVisitReminders.php:43-46,98-103,145-146`, `takussan-api/app/Services/Visit/VisitSchedulingService.php:356-375`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:253-261,294-296`
 - Constat :
@@ -15767,10 +15767,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Même mécanisme, à vérifier : un agent réaffecté après le rappel de la veille n'en reçoit aucun (la marque est par visite, pas par destinataire, lu).
   - Établi comment : lu, et mesuré.
 - Piste : retirer les deux marques quand `scheduled_at` change (dans `rescheduleOrFail` et dans `update`, ou en un seul point sur le modèle), ou ranger dans la marque l'heure qu'elle rappelle et ne la tenir pour posée que si elle égale `scheduled_at`. Garde : un test « rappels partis, report, nouvelle confirmation » qui attend les deux rappels du nouveau créneau, par chacun des deux chemins.
+- Mesure (2026-10-22, b3f03fbdd, mesureur) : relu `SendPropertyVisitReminders.php:43-46,98-101,145-146` (marques `reminder_24h_sent_at`/`reminder_1h_sent_at` lues sans regard pour `scheduled_at`), `VisitSchedulingService::rescheduleOrFail` (l. 356-375, n'écrit que `scheduled_at` et `status`), `PropertyVisitController::update` (`fill($data)->save()`, l. 253-254) et `PropertyVisitObserver` (seul `created`) ; `git log 88c684c67..HEAD` sur ces fichiers → vide ; test temporaire `SondeMesureur169Test` (retiré, charge 3,29 / 3,17 / 3,00 sur 8 cœurs) : visite confirmée à J+1, job à H-24 puis H-1 → 2 rappels et deux marques ; `rescheduleOrFail` à J+3 10:00 puis `confirmOrFail` → `confirmed`, marques inchangées ; job à H-24 et H-1 du nouveau créneau → 0 rappel → le constat tient ; la réaffectation d'agent (« à vérifier ») n'est pas mesurée et reste hors de ce classement. Classement : A1, `docs/features.md:166` et TCK-588 écrivent « rappels automatiques avant visite, 24 h et 1 h avant », et retirer les deux marques quand `scheduled_at` change (service et `update`) rend ce comportement sans choix de produit ni migration.
 
 ### Une tâche repoussée ou réassignée après son rappel n'est plus jamais rappelée
 - Réf : P169.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/SendTaskDueReminders.php:36,53-58,80-83,98-99`, `takussan-api/app/Http/Controllers/Api/TaskController.php:146-167`
 - Constat :
@@ -15780,10 +15781,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Le nouvel assigné ne reçoit donc jamais le rappel d'une tâche dont la date a été repoussée une fois, ce qui est le geste ordinaire d'une échéance qu'on ne tient pas.
   - Établi comment : lu, et mesuré.
 - Piste : retirer la marque quand `due_at` ou `assigned_to_id` change (dans `update`, ou par un observateur du modèle), ou garder dans la marque l'échéance et l'assigné qu'elle couvre. Garde : `TaskReminderTest` étendu d'un cas « rappel, report, réassignation » qui attend un rappel au nouvel assigné, et d'un cas sans changement qui n'en attend aucun (l'idempotence reste gardée).
+- Mesure (2026-10-22, b3f03fbdd, mesureur) : relu `SendTaskDueReminders.php:19,42,80-83,98-99` (marque unique, lue sans regard pour `due_at` ni l'assigné), `TaskController::update` (l. 146-167, `fill($data)->save()`), `UpdateTaskRequest.php:41-42` (`assigned_to_id`, `due_at`, pas de `metadata`) ; aucun observateur de `Task` ; `git log 88c684c67..HEAD` → vide ; test temporaire `SondeMesureur169Test` (retiré, même charge) : rappel à A, puis `due_at` à J+5 et assigné B par `fill()->save()`, job à J+4 → 0 rappel à B, marque inchangée → le constat tient. Classement : A1, TCK-083 (l. 106, 143) et le docblock du job écrivent un rappel à l'assigné 24 h avant `due_at`, et retirer la marque quand `due_at` ou `assigned_to_id` change dans `update`, l'idempotence restant gardée, ne demande aucun choix de produit.
 
 ### Une intervention passée en urgente après coup déclenche aussitôt l'« escalade » qui dit « non traitée depuis plus de 30 minutes », sans l'alerte d'urgence qui la précède
 - Réf : P169.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : alerte au passage en urgent par `update` et point de départ des 30 minutes, à décider
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/EscalateUrgentMaintenanceJob.php:19-35`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:137-145,186-211`, `takussan-api/app/Http/Requests/Api/UpdateMaintenanceRequestRequest.php:40,114`, `takussan-api/lang/fr/notifications.php:869-876`
 - Constat :
@@ -15793,3 +15795,4 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Inverse, lu : une demande escaladée, ramenée à `high` puis remise à `urgent`, garde `escalated_at` et n'est plus escaladée (la marque n'est jamais retirée).
   - Établi comment : lu, et mesuré.
 - Piste : dater le passage en urgent (marque posée par `store` et par `update` quand `priority` devient `urgent`, ou une date dédiée) et faire courir les 30 minutes depuis elle ; envoyer l'alerte d'urgence au passage en urgent par `update` comme par `store`, et retirer `escalated_at` quand la priorité quitte `urgent`. Garde : un test « passage en urgent, job à +2 min » qui n'attend aucune escalade, et à +31 min qui en attend une.
+- Mesure (2026-10-22, b3f03fbdd, mesureur) : relu `EscalateUrgentMaintenanceJob.php:19-38` (filtre sur `created_at` ≤ now-30 min, `escalated_at` jamais retiré), `MaintenanceRequestController.php:137-145` (alerte dans `store` seul) et `::update` (`fill($data)->save()`, l. ~211), `routes/console.php:108` (horaire), `lang/fr/notifications.php:873` ; `git log 88c684c67..HEAD` → vide ; test temporaire `SondeMesureur169Test` (retiré, même charge) : demande `normal` créée il y a 3 jours, passée `urgent` par `fill()->save()` → 0 alerte ; job à +2 min → 1 notification à l'admin principal, `isEscalation = true` → le constat tient ; le cas « ramenée à `high` puis remise à `urgent` » est lu, non joué. Classement : V7, envoyer au passage en urgent une alerte dont le texte dit « a été soumise » (`notifications.php:871`), choisir d'où courent les 30 minutes et ré-escalader après un retour à `urgent` sont des comportements visibles neufs et un texte à reprendre.
