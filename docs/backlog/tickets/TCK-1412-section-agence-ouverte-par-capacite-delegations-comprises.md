@@ -32,8 +32,8 @@ elles partagent ce ticket.
 
 ## Décision du porteur
 
-- P148.01 : « la section se juge par capacité (`/api/me/capabilities`), délégations comprises ».
-- P148.02 : « ouvrir la section `team` par capacité (`team.invite`, `team.assign_role` ou `team.suspend`), avec une liste d'équipe lisible sous la même capacité ».
+- P148.01 : « porteur (2026-10-22) : la section se juge par capacité (`/api/me/capabilities`), délégations comprises ».
+- P148.02 : « porteur (2026-10-22) : ouvrir la section `team` par capacité (`team.invite`, `team.assign_role` ou `team.suspend`), avec une liste d'équipe lisible sous la même capacité ».
 
 Le critère accordé : V2 (P148.01, classement du mesureur), V7 (P148.02, classement du mesureur ;
 le délégué y nommait aussi V2, que la décision du porteur tranche).
