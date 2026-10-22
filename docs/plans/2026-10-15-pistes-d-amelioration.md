@@ -10327,7 +10327,7 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
 
 ### L'écran des étiquettes charge react-hook-form et le calendrier pour afficher deux messages d'erreur, par le fichier `index.ts` de `components/forms`
 - Réf : P104.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1194
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin-tags/TagsManager.tsx:25,28`, `takussan-web/src/components/forms/index.ts`, `takussan-web/src/hooks/useApiForm.ts:162-164`
 - Constat :
@@ -10336,6 +10336,7 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - `/super-admin/tags` est l'écran le plus lourd de la console : **452,2 Kio** gzip, dont 141,3 propres à la page, contre 315 à 389 pour les 36 autres (mesuré). Ablation, `FormError` importé de `@/components/forms/FormError` et `useTraducteurValidation` remplacé par `useTranslations()` : **452,2 → 399,6 Kio** (−52,6), react-day-picker sorti ; zod reste (P104.02) (mesuré).
 - Piste : importer `FormError` depuis son propre fichier, et sortir `useTraducteurValidation` dans un module sans react-hook-form, que `useApiForm.ts` réexporte. Garde : P104.04.
 - Mesure (2026-10-21, 711bafca3, mesureur) : relu `TagsManager.tsx:25,28` (`FormError`, `FormGlobalError` par `@/components/forms`, `useTraducteurValidation` par `@/hooks/useApiForm`), `components/forms/index.ts` (neuf `export *`, dont `FormDatePicker` et `FormDateTimePicker`), `useApiForm.ts:1-17` (`react-hook-form`, `@hookform/resolvers/zod`) et l. 164-166 (le crochet n'est que `useTranslations()`, deux lignes plus bas que cité) ; `FormGlobalError` vit bien dans `FormError.tsx:67` ; test Vitest temporaire, retiré depuis, qui appelle `paquetsDuGrapheClient` sur les 37 pages et le layout de `(super-admin)` → `tags/page.tsx` atteint `react-hook-form` (huit chemins : sept champs de `forms/index.ts` et `useApiForm.ts`), `@hookform/resolvers`, `react-day-picker` (par `FormDateTimePicker → ui/date-time-picker → ui/calendar`) et `date-fns`, et c'est la seule page de la console à atteindre `react-hook-form` ; aucun ticket ni commit ne l'a traitée ; le poids du build (452,2 → 399,6 Kio) n'est pas re-mesuré. Classement : A2, deux imports à prendre à leur fichier propre (`@/components/forms/FormError`, et `useTraducteurValidation` sorti dans un module sans react-hook-form que `useApiForm.ts` réexporte, ses trois autres appelants inchangés), sans aucun changement de rendu ni de comportement.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : garde `graphe-client-de-la-console.test.ts`, `paquetsDuGrapheClient` de `tags/page.tsx` sur react-hook-form, `@hookform/resolvers`, react-day-picker et date-fns → avant correctif, quatorze chemins, tous par `components/forms/index.ts` ou `hooks/useApiForm.ts` (rouge) ; `FormError` pris à son fichier et `useTraducteurValidation` sorti dans `hooks/useTraducteurValidation.ts`, réexporté par `useApiForm.ts` (TCK-1194) → verte ; ablation, `TagsManager.tsx` rendu à `pre-dev` → rouge, remis → verte ; `TagsManager.test.tsx`, `useApiForm.test.tsx` et `BookingTunnel.succes.test.tsx` verts. Le poids du build n'est pas re-mesuré.
 
 ### L'écran des étiquettes est le seul de la console à charger zod, pour une validation faite à l'envoi d'un dialogue fermé
 - Réf : P104.02
