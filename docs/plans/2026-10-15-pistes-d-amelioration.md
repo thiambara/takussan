@@ -13213,7 +13213,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### L'écran des intégrations charge react-hook-form, son résolveur et le calendrier sans en employer aucun
 - Réf : P137.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1459
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin-settings/IntegrationsManager.tsx:21,23,185,213`, `takussan-web/src/components/admin-settings/IntegrationWebhookEndpoint.tsx:9`, `takussan-web/src/hooks/useApiForm.ts:20,155`
 - Constat :
@@ -13223,6 +13223,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Établi comment : code relu, graphe client mesuré.
 - Piste : deux imports pris à leur fichier propre (`@/components/forms/FormError`, `@/hooks/useTraducteurValidation`) ; garde sur `integrations/page.tsx` : ni react-hook-form, ni `@hookform/resolvers`, ni calendrier.
 - Mesure (2026-10-22, f42212ee7, mesureur) : relu `IntegrationsManager.tsx:21,23` (`FormError`, `FormGlobalError` par `@/components/forms`, `useTraducteurValidation` par `@/hooks/useApiForm`), l. 185 et 213 (`integrationFormSchema.safeParse`, aucun `useForm`), `IntegrationWebhookEndpoint.tsx:9`, `useApiForm.ts:15` (`zodResolver`) et l. 155 (réexport de `useTraducteurValidation`) ; test temporaire du graphe client, retiré depuis → `agency/integrations/page.tsx` atteint `react-hook-form`, `@hookform/resolvers`, `react-day-picker`, `date-fns` et `zod` (49 modules) ; les trois imports réécrits à titre d'essai, puis remis → `zod` seul (32 modules). Le chargement de zod à l'envoi n'est pas mesuré : il reste hors de la piste. Classement : A2, deux modules d'import changés (`@/components/forms/FormError`, `@/hooks/useTraducteurValidation`), même validation, plus une garde sur la page, sans choix de produit.
+- Mesure (2026-10-22, 58c404ecf, implementeur) : relu `IntegrationsManager.tsx:21,23` et `IntegrationWebhookEndpoint.tsx:9` (toujours `@/components/forms` et `@/hooks/useApiForm`) ; garde neuve `graphe-client-des-integrations.test.ts` avant correctif → rouge, `@hookform/resolvers ← hooks/useApiForm.ts ← IntegrationsManager.tsx`, `date-fns` et `react-hook-form` par `components/forms/index.ts` → imports pris à `@/components/forms/FormError` et `@/hooks/useTraducteurValidation` → vert, `IntegrationsManager.test.tsx` (16), `IntegrationsManager.double-facteur.test.tsx` (5), `IntegrationWebhookEndpoint.test.tsx` (8) verts ; ablation : imports remis → rouge, rétablis → vert ; zod reste par `lib/schemas/setting.ts`, hors de la piste.
 
 ### Six autres écrans chargent le calendrier par l'`index.ts` sans afficher aucun sélecteur de date
 - Réf : P137.03
