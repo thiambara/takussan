@@ -28,8 +28,10 @@ function statut(overrides: { active?: boolean; ends_at?: string } = {}) {
   };
 }
 
-function renderBanner(payload: unknown, locale: LocaleDeTest = 'fr') {
+function renderBanner(payload: unknown, locale: LocaleDeTest = 'fr', ok = true) {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    ok,
+    status: ok ? 200 : 502,
     json: async () => payload,
   }));
   const queryClient = new QueryClient({
@@ -48,6 +50,17 @@ describe('<MaintenanceBanner>', () => {
   });
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  // TCK-1221 (P79.06) — le relais rend 502 `{ code }` quand l'API ne répond pas : le bandeau ignore
+  // la réponse au lieu de la lire comme un statut, et sans lever.
+  it('ignore une réponse en échec au lieu de la lire comme un statut', async () => {
+    const corps = { ...statut(), code: 'upstream_unavailable' };
+    renderBanner(corps, 'fr', false);
+
+    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText(/Maintenance planifiée/i)).not.toBeInTheDocument();
   });
 
   it('shows the public maintenance message', async () => {

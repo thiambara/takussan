@@ -148,10 +148,7 @@ describe('relais à fetch direct', () => {
   });
 
   it('aucun route handler ne fait de fetch direct sans catch', () => {
-    // `maintenance/status` relève de P79.06 (TCK-1221).
-    const exceptions = ['src/app/api/maintenance/status/route.ts'];
     const fautifs = globSync('src/app/api/**/route.ts')
-      .filter((f) => !exceptions.includes(f))
       .filter((f) => {
         const source = readFileSync(f, 'utf8');
         return /(?<![\w.])fetch\(/.test(source) && !/\bcatch\b/.test(source);

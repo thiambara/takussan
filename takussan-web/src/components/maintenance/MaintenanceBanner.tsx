@@ -11,8 +11,11 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
 import type { MaintenanceStatusResponse, MaintenanceWindow } from '@/types/super-admin';
 
-async function fetchStatus(): Promise<MaintenanceStatusResponse> {
+async function fetchStatus(): Promise<MaintenanceStatusResponse | null> {
   const res = await fetch('/api/maintenance/status');
+  // TCK-1221 (P79.06) — une réponse en échec (le 502 `{ code }` du relais quand l'API ne répond
+  // pas) n'est pas un statut : elle est ignorée, sans lever, et le bandeau ne s'affiche pas.
+  if (!res.ok) return null;
   return res.json() as Promise<MaintenanceStatusResponse>;
 }
 
