@@ -6425,7 +6425,7 @@
       "status": {
         "active": "Actif",
         "inactive": "Inactif",
-        "banned": "Bloqué"
+        "blocked": "Bloqué"
       },
       "roles": {
         "agency_admin": "Administrateur",
@@ -8042,8 +8042,7 @@
           "all": "Tous statuts",
           "active": "Actif",
           "blocked": "Bloqué",
-          "inactive": "Inactif",
-          "banned": "Banni"
+          "inactive": "Inactif"
         },
         "emailFilter": {
           "all": "Email : tous",
