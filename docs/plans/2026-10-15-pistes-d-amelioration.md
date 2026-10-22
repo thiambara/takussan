@@ -220,7 +220,7 @@ voie d'écriture (angle 13, puis 47).
 | 143 | PDF à lignes variables rendus par dompdf pendant la requête HTTP (`DocumentPdfService` : relevé de gérance `pdf/statements/owner`, état des lieux `pdf/inventories/report` et ses photos en URI `data:`, factures et devis à nombreuses lignes) : mémoire et durée face à `memory_limit = 256M` et `max_execution_time = 60` — le relevé de P112.01 hors de l'export générique | fait |
 | 144 | Écritures du navigateur qu'une réponse perdue invite à rejouer (envoi de message, création de réservation, de demande de maintenance, de facture, initiation de paiement : `POST` sans clé d'idempotence, hors les seuls boosts) : bouton réactivé après une erreur réseau ou un délai, doublon créé côté API — le pendant, hors des achats de crédits, des angles 4 et 24 | fait |
 | 145 | Champs écartés par `validated()` sur ce que l'angle 114 n'a pas relevé : `lib/queries` `properties-server.ts`, `visits.ts`, `settings.ts`, `property-calendar.ts` et les modules à une ou deux mutations, les server actions `property.ts` (avis, signalements, contacts d'agent), `invitations.ts`, `account-deletion.ts`, `admin-tags.ts`, `super-admin-cooptation.ts`, `auth.ts`, et les écritures directes des composants | fait |
-| 146 | Unions de statut et options de filtre du front (`src/types/*.ts`, `Record<…Status, …>`, `STATUS_VALUES`, `KNOWN_STATUSES`) face aux cas des enums de l'API : valeurs que l'API n'émet jamais (`banned`, agence `pending`), valeurs émises absentes (utilisateur `blocked`) — le relevé de P115.02 sur tous les types | à faire |
+| 146 | Unions de statut et options de filtre du front (`src/types/*.ts`, `Record<…Status, …>`, `STATUS_VALUES`, `KNOWN_STATUSES`) face aux cas des enums de l'API : valeurs que l'API n'émet jamais (`banned`, agence `pending`), valeurs émises absentes (utilisateur `blocked`) — le relevé de P115.02 sur tous les types | fait |
 | 147 | Statuts posés librement par un `Rule::enum` entier dans une requête de mise à jour (`UpdateCustomerRequest` `status` jusqu'à `blocked` et `deleted`, `UpdatePropertyRequest`, `StoreAgencyRequest`, `UpdatePrivacyRequestRequest`) : transitions que le geste dédié refuserait, et état posé à la main que rien d'autre ne lit | à faire |
 | 148 | Section `/app/agency/*` du front gardée par `isAdmin(user.roles)` (`(dashboard)/app/agency/layout.tsx:28`) et `PAGES_ADMIN` face aux gestes que l'API ouvre par capacité à un agent (`team.invite`, `team.assign_role`, `team.suspend`, `payouts.approve`, `agency.update_kyc`) : membre qui tient la capacité sans écran pour l'exercer, et admin sans elle à qui l'écran s'ouvre sur des 403 | à faire |
 | 149 | Champs `nullable` d'un `PATCH` partiel dont le `null` qu'envoie le front pour un champ vidé est lu comme « garder » (`!== null ? … : $model->x`, `?? $model->x`, `array_filter` du payload dans les contrôleurs et services de mise à jour) : valeur impossible à effacer, réponse 200 qui rend l'ancienne — le relevé de P117.02 sur le reste de l'API | à faire |
@@ -257,6 +257,7 @@ voie d'écriture (angle 13, puis 47).
 | 180 | Téléversements d'images sans `PixelsAuPlus` hors de ceux que P143.02 relève (`MediaUploadRequest` collections `photos` et `avatars`, photos de maintenance, pièces jointes de messages et de litiges, documents image) face aux décodages GD qui les suivent (conversions `nonQueued`, `AvatarReencode`, `PdfImageEmbedder`) : RSS hors de `memory_limit` face au `mem_limit` du conteneur — né de P143.02 | à faire |
 | 181 | Tableaux reçus sans `max:` par les FormRequests et rangés en `jsonb` (`rooms` d'état des lieux hors du PDF, `metadata`, critères de recherches enregistrées, brouillons d'assistant, réglages) puis relus en entier : taille de ligne, de réponse JSON et de rendu sans borne — le relevé de P143.01 hors du PDF | à faire |
 | 182 | Gestes de transition rejoués sur un état déjà atteint (`POST …/confirm`, `cancel`, `send` d'une facture, `convert` et `handle` d'une demande de contact, `accept` d'une intervention, `activate` d'un bail) : second appel après une réponse perdue qui rend 422 ou 409 au lieu de l'état déjà écrit, écran en erreur pour un geste fait — le pendant pour les transitions de l'angle 144 | à faire |
+| 183 | Statuts recalculés par le navigateur à partir des dates au lieu de ceux que l'API sert (`displayStatus` de `LeaseSchedule.tsx:44-56`, échéance `pending` passée affichée « En retard », et leurs pareilles pour réservations, visites, délégations, abonnements) : écart avec les compteurs et relances de l'API, et lignes que le calcul ne vise pas (restitution de dépôt due par l'agence) — né de P146.02 | à faire |
 
 ---
 
@@ -13703,3 +13704,66 @@ qui a été relevé. Rien n'a été exécuté.*
   - Voyageurs d'une réservation : le champ plafonne à 20 (lu, `max={20}`, `:232`), l'API accepte jusqu'à 50 (lu, `'max:50'`, `:31`).
   - Sans `maxLength` au front, l'utilisateur ne découvre la borne qu'au 422 : message de réservation et d'offre (1000), message de contact sans compte (2000), nom du visiteur (120), libellé d'un indicateur (120). Commentaire de retour de visite de même (2000, `VisitFeedbackForm.tsx:89-96`). Sous-agent, à vérifier ligne par ligne.
 - Piste : aligner la borne de l'année sur celle de l'API (`max` calculé), celle des voyageurs sur celle de l'API (ou l'inverse, choix de produit) et poser les `maxLength` sur les règles existantes.
+
+## Angle 146 — Unions de statut et options de filtre du front face aux enums de l'API
+
+*Exploré le 2026-10-22 sur `pre-dev` 559c9e83d, par l'explorateur, sans sous-agent. Relevé de départ mesuré par deux scripts (retirés, hors du dépôt) : les cas des 41 enums `*Status`/`*Stage`/`*State` de `takussan-api/app/Models/Enums`, puis toutes les clés des dictionnaires `*.status`/`*.statuses`/`*.paymentStatus` de `fr.json`. Confrontés à la main aux unions `export type …Status` de `src/types` et `src/lib/queries`, aux tables `Record<…, StatusTone>` et aux listes d'options de filtre. Aligné et écarté : factures, reversements, baux, maintenance, visites, réservations, KYC, inventaires, délégations, demandes RGPD, relevés bancaires, rapprochement, référentiels, exports, tâches planifiées, abonnements, boosts, commissions, intégrations (`healthy`/`failed`/`disabled`/`unknown` posés par `IntegrationService.php:109,153`), modération (`flagged` traduit par `ReviewController.php:88` et `UnifiedModerationService.php:326-368`). Déjà relevés et non repris : utilisateur `banned`/`blocked` (P115.02), agence `pending`, relation, conversation, facture de prestataire (P115.07), abonnement `past_due`/`suspended` (P115.03), prestataire `suspended`/`inactive` (P115.04), visite `no_show` (P115.05). Tout est lu ; aucun écran n'a été rendu.*
+
+### Un paiement de réservation en échec s'affiche `failed`, en brut et sur un ton neutre
+- Réf : P146.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/types/booking.ts:16`, `takussan-web/src/components/bookings/BookingDetail.tsx:67-73,355-361`, `takussan-web/src/components/bookings/booking-status.ts:33-39`, `takussan-web/src/lib/queries/bookings.ts:97`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:792-794`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:49`
+- Constat :
+  - L'échec d'un paiement en ligne écrit `failed` sur tout payable autre qu'un loyer, s'il n'est ni `paid` ni `refunded` (lu, `PaymentGatewayService.php:792-794`). `BookingPayment` caste `status` en `PaymentStatus` (lu, `HasPaymentAttributes.php:29`), donc `writeStatus` écrit `failed` tel quel (lu, `:1578-1587`), et `BookingPaymentResource.php:23` le rend.
+  - Le front type `BookingPaymentStatus = 'pending' | 'paid' | 'refunded' | 'cancelled'` (lu, `types/booking.ts:16`). La table des libellés n'a ni `failed` ni `late` (lu, `BookingDetail.tsx:67-73`), la table des tons non plus (lu, `booking-status.ts:33-39`), le dictionnaire `bookings.paymentStatus` non plus (mesuré, `node -e` sur `fr.json` → `pending paid partially_paid refunded cancelled`). Le badge rend donc la valeur brute `failed` sur le ton neutre (lu, `BookingDetail.tsx:356-360`).
+  - `StoreBookingPaymentRequest` accepte tout `PaymentStatus` sauf `cancelled` (lu, `:49`) ; le type de charge du front propose `cancelled`, que l'API refuse, et ignore `late` et `failed` (lu, `bookings.ts:97`).
+  - Établi comment : lu. Le rendu à l'écran n'a pas été vu.
+- Piste : aligner `BookingPaymentStatus`, les deux tables et le dictionnaire sur `PaymentStatus` (`failed` en `danger`, avec ses trois traductions, `wo` = texte français) ; retirer `cancelled` du type de charge. Garde : un test qui rend `BookingDetail` avec un paiement `failed` et attend le libellé traduit.
+
+### L'échéancier d'un bail affiche « Autre » pour une échéance remboursée ou en échec
+- Réf : P146.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/LeaseSchedule.tsx:44-56,226-230`, `takussan-web/src/messages/fr.json` (`lease.schedule.status`), `takussan-api/app/Services/Payments/PaymentGatewayService.php:803-806,1388-1390`, `takussan-api/app/Services/Model/PayoutService.php:777-778,798-810`
+- Constat :
+  - `displayStatus` ne connaît que `cancelled`, `paid`, `late` et `pending` ; tout autre statut devient `other` (lu, `LeaseSchedule.tsx:44-56`), rendu « Autre » (mesuré, `node -e` sur `fr.json` → `lease.schedule.status` = `paid late pending other cancelled`).
+  - L'API écrit `refunded` sur une échéance de loyer soldée puis remboursée par la passerelle : la branche `REFUNDED` ne distingue pas le loyer (lu, `PaymentGatewayService.php:803-806`, et la reprise d'un remboursement arrivé tôt, `:1388-1390`). Elle écrit `failed` sur la ligne de restitution de dépôt d'un locataire quand le reversement échoue (lu, `PayoutService.php:777-778`). Cette ligne est une `LeasePayment` de type `deposit_refund` (lu, `:798-810`).
+  - Une échéance remboursée s'affiche donc « Autre », sur le badge `outline`, sans rien qui dise le remboursement.
+  - À vérifier : l'échéancier liste sans doute aussi les lignes `deposit_refund`, puisque la liste des échéances d'un bail ne filtre pas le type (lu, `LeasePaymentController.php:20-40`, aucun `where`). Dans ce cas, une restitution `pending` dont l'échéance est passée s'afficherait « En retard », en rouge, alors que c'est l'agence qui la doit. Ce cas n'a pas été rendu.
+- Piste : faire suivre à `displayStatus` les statuts de `PaymentStatus` (`refunded`, `failed`, `partially_paid`) avec leurs libellés. Une restitution ne passe jamais `late` côté client. Garde : un test de `LeaseSchedule` par statut de l'enum.
+
+### Les filtres de statut des biens ne proposent ni « en revue », ni « refusé », ni « publié », trois statuts que l'API écrit
+- Réf : P146.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/enums/property.ts:33-42`, `takussan-web/src/components/property-form/options.ts:93`, `takussan-web/src/components/property-dashboard/PropertyListFilters.tsx:616-624,771`, `takussan-web/src/components/admin/super/SuperAdminPropertiesFilters.tsx:118-123`, `takussan-web/src/components/property-dashboard/PropertyStatusBadge.tsx:49-51,67-79`, `takussan-api/app/Models/Enums/PropertyStatus.php`
+- Constat :
+  - `PropertyStatus` a onze cas, dont `published`, `pending_review` et `rejected` (mesuré, script sur l'enum). L'API écrit les deux derniers : `PropertyObserver.php:52,137` pour `pending_review`, `PropertyModerationService.php:89,254` pour `rejected` (lu).
+  - `propertyStatusValues` n'en a que huit, sans ces trois (lu, `enums/property.ts:33-42`). Les options de filtre en dérivent (lu, `options.ts:93`), sur `/app/properties` (lu, `PropertyListFilters.tsx:622-623`) comme dans la console super-admin (lu, `SuperAdminPropertiesFilters.tsx:122`). Un agent ne peut donc pas lister ses biens en revue ou refusés. La puce d'un `?status=pending_review` venu d'ailleurs rendrait la valeur brute (lu, `enumLabel`, `options.ts:115-121`, appelé l. 771).
+  - Le docblock de `PropertyStatusBadge.tsx:49-51` affirme que ces trois états « ne sont pas des valeurs » de l'enum de l'API : c'est faux, ils y sont (lu, l'enum). Le badge les nomme quand même (lu, `STATUTS_NOMMES`, `:67-79`).
+  - La même liste sert aussi aux gestes de changement de statut (lu, `PropertyRowActions.tsx:171`, `PropertyHeaderActions.tsx:169`). L'ajouter telle quelle aux filtres offrirait ces trois statuts en gestes : il faut deux listes.
+  - Établi comment : lu et `grep`.
+- Piste : une liste de filtre distincte de la liste des gestes, qui reprend les onze cas de l'enum ; corriger le docblock du badge. Garde : un test qui confronte les options du filtre aux cas servis par l'API.
+
+### Aucune garde ne confronte les statuts du front aux enums de l'API, et dix tables de tons sont typées `Record<string, …>`
+- Réf : P146.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/bookings/booking-status.ts:33`, `takussan-web/src/components/bookings/BookingDetail.tsx:67`, `takussan-web/src/components/customer-form/options.ts:146`, `takussan-web/src/components/admin/ModerationQueueList.tsx:23`, `takussan-web/src/components/admin/super/user-detail.tsx:43`, `takussan-web/src/components/admin/super/agency-detail.tsx:114-120`, `takussan-web/src/components/admin/super/AgencyModerationCard.tsx:18-25`, `takussan-web/src/components/admin/users/AdminUsersTable.tsx:43`, `takussan-web/src/components/property-dashboard/PropertyStatusBadge.tsx:53`, `takussan-web/src/app/(super-admin)/super-admin/users/page.tsx:67`
+- Constat :
+  - P146.01 à P146.03, et P115.02 avant elles, ont la même cause : chaque écran recopie à la main la liste des statuts, et rien ne la compare à l'enum de l'API.
+  - Les tables typées `Record<UnionDuFront, …>` attrapent un cas manquant de l'union du front (`tsc`). Les dix tables listées sont typées `Record<string, …>` (mesuré, `grep -rnE "const [A-Z_]*STATUS[A-Z_]*: *(Record|Readonly)"`) : un cas oublié n'y produit ni erreur de type ni test rouge, seulement un repli sur la valeur brute ou sur le ton neutre.
+  - Établi comment : `grep`.
+- Piste : une garde de dépôt (`scripts/check-*.mjs`) qui lit les cas des enums `*Status` de l'API et les compare aux unions de `src/types` désignées par une table de correspondance, en échec sur un cas absent ou en trop. Les tables passent à `Record<UnionDuFront, …>`. Toute valeur en trop se déclare dans la garde, avec sa raison.
+
+### Petites améliorations : statuts rendus bruts ou déclarés deux fois
+- Réf : P146.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/admin/users/AdminUsersTable.tsx:43-46,226-227`, `takussan-web/src/components/admin/super/integrations.tsx:231-234`, `takussan-web/src/types/agency-upgrade.ts:8`, `takussan-web/src/lib/queries/super-admin.ts:1273`
+- Constat (lu) :
+  - Le tableau de la console d'équipe ne connaît que `active`, `inactive`, `banned` (`AdminUsersTable.tsx:43-46`) : un compte `blocked` y rend la valeur brute `blocked` (`:226-227`). Ce fichier manque au `Où` de P115.02, qui relève la même chose dans le tiroir et les filtres (voir P115.02).
+  - Le journal des webhooks d'une intégration rend `log.status` brut dans un `Badge` (`integrations.tsx:233`). Le dictionnaire a pourtant les quatre libellés (mesuré, `superAdmin.payments.journal.statuses` = `received processed rejected failed`), et l'API ne pose que ces quatre valeurs (`IntegrationWebhookLog.php:20-26`).
+  - `AgencyUpgradeRequestStatus` est déclaré deux fois, à l'identique (`types/agency-upgrade.ts:8` et `lib/queries/super-admin.ts:1273`).
+- Piste : ajouter `blocked` à la table du tableau, avec P115.02 ; traduire le statut du journal par le dictionnaire existant ; garder une seule déclaration du type de demande de passage.
