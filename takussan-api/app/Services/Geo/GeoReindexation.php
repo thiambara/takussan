@@ -4,6 +4,7 @@ namespace App\Services\Geo;
 
 use App\Models\Property;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Laravel\Scout\ModelObserver;
 
 /**
@@ -25,13 +26,19 @@ final class GeoReindexation
             return;
         }
 
-        // TCK-1100 (P90.05) — ce que `shouldBeSearchable()` et `toSearchableArray()` lisent, chargé
-        // d'avance comme dans `Property::makeAllSearchableUsing()` : sinon trois requêtes par bien.
-        Property::query()
-            ->with('address', 'tagsVisibles', 'agency')
-            ->whereKey(array_values(array_unique($ids)))
-            ->chunkById(200, function (Collection $biens) {
-                $biens->filter->shouldBeSearchable()->searchable();
-            });
+        // TCK-1452 (P90.02) — après le commit de la transaction ouverte (`TagCatalog::synchroniser`
+        // réindexe dans la sienne) : annulée, elle ne laisse rien dans l'index. Hors transaction,
+        // `DB::afterCommit()` exécute sur-le-champ.
+        DB::afterCommit(function () use ($ids): void {
+            // TCK-1100 (P90.05) — ce que `shouldBeSearchable()` et `toSearchableArray()` lisent,
+            // chargé d'avance comme dans `Property::makeAllSearchableUsing()` : sinon trois
+            // requêtes par bien.
+            Property::query()
+                ->with('address', 'tagsVisibles', 'agency')
+                ->whereKey(array_values(array_unique($ids)))
+                ->chunkById(200, function (Collection $biens) {
+                    $biens->filter->shouldBeSearchable()->searchable();
+                });
+        });
     }
 }
