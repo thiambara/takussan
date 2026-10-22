@@ -10378,13 +10378,14 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
 
 ### Petites améliorations
 - Réf : P104.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1202
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/super/GlobalSearch.tsx:12`, `takussan-web/src/lib/queries/super-admin-queues.ts:1-6`, `takussan-web/src/lib/queries/super-admin.ts`
 - Constat :
   - La coque de la console embarque `lib/queries/super-admin.ts` en entier (1 515 lignes) pour `fetchGlobalSearch` (recherche de la barre haute) et les quatre compteurs de files de la barre latérale (lu). Dans le morceau de coque de 28,9 Kio gzip qui le porte, le module garde ses **96** noms exportés : environ 24,9 Kio bruts et 4,5 Kio gzip, découpés du début du module à la fin du morceau (mesuré, `node -e` sur `.next/static/chunks/44hqerqx2pu89.js`). Le motif est celui de P70.07, ici sur un module sans `'use client'` ; le gain est faible.
 - Piste : mettre `fetchGlobalSearch` et les quatre lecteurs des files dans un module à part, réexporté par `super-admin.ts` (méthode de TCK-1042).
 - Mesure (2026-10-21, 711bafca3, mesureur) : relu `GlobalSearch.tsx:12` (`fetchGlobalSearch` pris à `@/lib/queries/super-admin`), `super-admin-queues.ts:1-6` (quatre lecteurs pris au même module) ; `wc -l` → 1 515 lignes, sans `'use client'` (l. 1-3) ; 97 lignes `export function|const` ; `GlobalSearch` et les files sont importés par `SuperAdminTopbar.tsx`, `SuperAdminSidebar.tsx` et `ConsoleQueues.tsx`, donc par la coque ; aucun ticket ni commit ne l'a traitée ; le morceau de coque (4,5 Kio gzip) n'est pas re-mesuré par un build. Classement : A2, `fetchGlobalSearch` et les quatre lecteurs sortis dans un module à part que `super-admin.ts` réexporte (méthode de TCK-1042), aucun appelant ni résultat changé.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : garde `graphe-client-de-la-console.test.ts`, `modulesDuGrapheClient` du `layout.tsx` de la console → avant correctif, `lib/queries/super-admin.ts` y figure (rouge) ; `fetchGlobalSearch` et les quatre lecteurs des files sortis dans `lib/queries/super-admin-coque.ts`, réexportés par `super-admin.ts` (TCK-1202) → vert ; ablation, `GlobalSearch.tsx` et `super-admin-queues.ts` rendus à `pre-dev` → rouge, remis → vert ; `tsc` propre, et douze fichiers de test de la coque, des files, de la recherche, de la modération, des jobs et de la page KYC verts (deux mocks repointés sur le nouveau module). Le morceau de coque n'est pas re-mesuré par un build.
 
 ## Angle 105 — Charge RSC d'un document `/app` servi : les dictionnaires imbriqués
 
