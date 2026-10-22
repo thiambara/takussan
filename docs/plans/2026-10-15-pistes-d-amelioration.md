@@ -181,7 +181,7 @@ voie d'écriture (angle 13, puis 47).
 | 105 | Charge RSC d'un document `/app` servi : dictionnaires imbriqués de `layout.tsx`, `(dashboard)` et `(dashboard)/app` (et `/app/agency`) sérialisés chacun avec l'ensemble cumulé de ses parents, mesurés sur le document compressé | fait |
 | 106 | Branches que le code ne prend qu'en `APP_ENV=production` (`RestrictIpMiddleware` à liste vide, `DeletionStepUpService::sendCode`, `AddRobotsTagOutsideProduction` jugé sur `APP_URL`) : chacune éprouvée par un test en `production`, alors que la préproduction tourne en `staging` et ne les prend jamais ? | fait |
 | 107 | Champs du profil que l'utilisateur déclare pour être joint (`phone_whatsapp`, `secondary_phone`, `secondary_phone_whatsapp`, `preferred_language`, heures calmes) : lus par les chemins qui envoient (canaux de notification, codes, relances), ou seulement affichés ? | fait |
-| 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | à faire |
+| 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | fait |
 | 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | à faire |
 | 110 | Rapprochement bancaire (`bank_reconciled_at`, `bank_statement_line_id`, `Accounting\ReconciliationManager`) d'une échéance, d'un acompte ou d'une facture passés à `refunded` après rapprochement : la ligne de relevé reste-t-elle rapprochée, et le remboursement sortant a-t-il un pendant | à faire |
 | 111 | Jobs en file qui posent un statut de suivi (`processing`, `queued`) sur une ligne (`ReportExport`, `DataExport`, `ParseBankStatementJob`, versements) sans `failed()` — 7 jobs sur 43 en ont un : ce que voit l'utilisateur après l'échec définitif ou un arrêt brutal du worker, et ce qui bloque une nouvelle demande | à faire |
@@ -213,6 +213,7 @@ voie d'écriture (angle 13, puis 47).
 | 136 | Lectures du navigateur au chargement d'un écran `/app` et `/super-admin` (`useApiQuery` en parallèle, clés en double, `enabled` en cascade qui attend une première réponse, données déjà lues par le rendu serveur) : allers-retours avant l'écran utile, chacun précédé d'un préflight puisqu'il porte `Authorization` — le relevé de l'angle 103 sur la console | à faire |
 | 137 | Écrans qui importent le fichier `index.ts` de `components/forms` pour `FormError` ou `FormGlobalError` seuls (pages `(auth)` `verify-email` et `reset-password`, `DefiSecondFacteur`, `ConnexionParTelephone`, `IntegrationsManager`, `ChampsLieu`) : react-hook-form et react-day-picker chargés pour afficher un message d'erreur — le motif de P104.01 hors de la console | à faire |
 | 138 | Lectures de l'API dédoublées dans un même rendu serveur : server actions `*Action` (`fetchAgencyAction`, et leurs pareilles) appelées par des pages et des layouts serveur qui relisent une ressource déjà lue hors de `cache()` (`agenceDuRendu`, `getMeAction`), mesurées par requête sur un document servi | à faire |
+| 139 | Colonnes déclarées par les exporteurs (`ActivityLogExporter::COLUMNS`, constructeurs d'entité d'`ExportController`, exports de rapports, archive RGPD `DataExportBuilder`) qu'aucun chemin n'écrit, ou qui lisent une clé que l'écrivain nomme autrement : colonne toujours vide dans le fichier rendu — le relevé de P108.02 sur les autres exports | à faire |
 
 ---
 
@@ -10572,3 +10573,80 @@ Le résumé et `email_frequency` sont déjà relevés par P11.08.*
   - mesuré, base de dev : `select timezone, count(*) from users group by 1` → `Africa/Dakar|305`.
   - Rien n'est faux tant que tous les destinataires vivent à Dakar ; un expatrié ou un bailleur de la diaspora lit pourtant ses rappels de visite à l'heure de Dakar, sans pouvoir le changer.
 - Piste : soit accepter `timezone` (`timezone:all`) sur `PATCH /api/me` avec un champ au profil, soit retirer les lectures qui laissent croire à un réglage par compte et poser la constante Dakar ; retirer dans les deux cas le bloc mort de `SetLocaleMiddleware`. Test : le rappel d'un compte réglé sur `Europe/Paris` affiche l'heure de Paris, ou la ligne morte retirée sans rouge.
+
+## Angle 108 — Ce que l'API tire encore de la requête sur le chemin interne du front
+
+*Exploré le 2026-10-22 sur `pre-dev` 87a515abd, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : `AppServiceProvider::bootUrlRoot()` (TCK-1058),
+`RelativeSignedUrl`, `PrivateMediaAccess`, ses trois appelants qui redirigent
+(`PrivateMediaController`, `PublicPropertyDocumentController`, `DocumentVersionController::download`),
+`NotificationUnsubscribeController`, `AbstractOAuthController`, `CountBoostImpressions`,
+`VisitorFingerprint`, `ContactLeadService`, `LeaseSignatureService`, `ActivityLogExporter`,
+`PaginationMeta`, `Illuminate\Pagination\PaginationState` et `Request::url()` du framework ; côté
+front `src/lib/api.ts` (`apiFetch`, `apiRequest`, `enTetesServeurAmont`), `src/lib/relais-api.ts`,
+le relais `impersonation/proxy`, les 26 fichiers qui joignent l'API par `urlApiServeur`/`apiUrl()`
+hors d'`apiRequest`, `src/app/actions/property.ts`, `share-reception.ts`, `profile-portfolio.ts`.
+Balayage par `grep` de `app/` pour `secure()`, `getHost()`, `root()`, `url()`, `fullUrl()`,
+`userAgent()`, `ip()`, `header('Origin'|'Referer'|'Host')` : aucune lecture directe de l'hôte ni du
+schéma dans le code de l'application ; ce qui reste passe par le framework (pagination) ou par les
+en-têtes que le front ne relaie pas (`User-Agent`). Un test temporaire, retiré, sous
+`php artisan test` (charge 4,18 / 4,22 / 4,00 sur 8 cœurs) ; une mesure de `fetch` de Node 24.18 sur
+un écouteur local ; deux lectures en `SELECT` de la base de développement (données de seeders, pas
+de trafic réel). Rien n'a été mesuré hors du poste.*
+
+*Ce qui a été écarté : les redirections `Location` que suivrait le `fetch` de Node. Les trois
+`PrivateMediaAccess::redirect()` ne sont atteintes que par le navigateur (liens signés en `href`,
+lien du document publié) ou par personne (`document-versions.download`, P108.04) ; le partage de
+document sert en flux et se télécharge du navigateur (`share-reception.ts:49-58`) ; aucun relais
+serveur ne vise aujourd'hui une route qui redirige (lu). L'hôte des URL signées et des `route()` est
+fixé par `APP_URL` depuis TCK-1058 (lu, `AppServiceProvider.php:392-403`).*
+
+### Le `user_agent` des demandes de contact par formulaire est celui du serveur Next (`node`), jamais celui du visiteur
+- Réf : P108.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/lib/api.ts:686-736`, `takussan-web/src/app/actions/property.ts:226-270`, `takussan-api/app/Services/Lead/ContactLeadService.php:300-316`, `takussan-api/app/Models/PropertyContactLead.php:16,37`, `docs/models-spec.md:3538`
+- Constat :
+  - Les deux formulaires de contact du site public (fiche de bien, fiche d'agent) partent par action serveur : `submitContactLead` et `submitAgentContactLead` appellent `apiRequest` dans un module `'use server'` (lu, `property.ts:1,226-270`), importés par `PropertyContactMessageDialog.tsx:17` et `ContactSheet.tsx:8` (lu).
+  - `apiRequest` relaie côté serveur l'IP du visiteur (`X-Forwarded-For`, l. 713-718), la langue et un `X-Request-Id`, mais **pas** son `User-Agent` (lu, l. 686-736). Seul `apiFetch` le relaie, depuis TCK-792 (lu, l. 124-129) ; `enTetesServeurAmont`, et donc tous les relais BFF, ne le relaient pas non plus (lu, l. 176-184).
+  - Mesuré : `fetch` de Node 24.18 vers un écouteur local envoie `user-agent: node` (et `accept-language: *`).
+  - L'API écrit `'user_agent' => substr($request->userAgent(), 0, 255)` sur chaque demande (lu, `ContactLeadService.php:313-314`). Chaque demande de contact par formulaire porte donc `node` (déduit de la chaîne lue et de la mesure ; à confirmer par un test de bout en bout ou sur une ligne réelle).
+  - La spec décrit la colonne comme « User-agent source — anti-abus » (lu, `models-spec.md:3538`). Écrite ainsi, elle ne distingue aucun visiteur d'un autre. Aucun lecteur dans `app/` aujourd'hui (lu, `grep -rn user_agent app`), donc rien ne casse : la donnée est fausse en silence, et le sera pour le premier qui s'en servira.
+  - Les clics WhatsApp / Appeler (`recordClick`, l. 204-216) partent du navigateur (`contact-click.ts`, lu) et portent le bon agent. La signature de bail aussi (`leases.ts:295`, `useApiMutation`, lu) : son `user_agent`, pièce de preuve, n'est pas touché.
+- Piste : relayer le `User-Agent` du visiteur dans `apiRequest` côté serveur, comme `apiFetch` le fait (même exception pour un appel partagé), et dans `enTetesServeurAmont` pour les relais. Garde : un test de `apiRequest` côté serveur qui exige l'agent entrant, et un test de l'API qui poste une demande avec un `User-Agent` et le relit sur la ligne.
+
+### L'export du journal d'activité annonce une colonne `ip_address` qu'aucun chemin n'écrit
+- Réf : P108.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:16-27,161`, `docs/models-spec.md:1301`
+- Constat :
+  - L'exporteur déclare `ip_address` dans ses colonnes et la remplit par `$props->get('ip')`, la clé `ip` des `properties` du journal (lu, l. 26 et 161).
+  - La spec dit que `ip_address` et `user_agent` vivent dans `properties`, « le contexte libre écrit par `withProperties()` » (lu, `models-spec.md:1301`).
+  - Aucun `withProperties()` de `app/` n'écrit de clé `ip` (mesuré : `grep -rn "'ip'" app` → les leads, un journal de limiteur, `SafeOutboundUrl`, et une valeur `null` en dur dans `UserDetailController.php:138`).
+  - Mesuré, base de développement : `activity_log` → 25 597 lignes, 0 dont `properties` porte `ip` (`jsonb_exists(properties::jsonb, 'ip')`). Base de seeders : à confirmer sur un environnement servi.
+  - La colonne sort donc vide dans tout fichier d'export, et la spec décrit un champ qui n'existe pas. Sur le chemin interne, la remplir par `$request->ip()` donnerait d'ailleurs l'IP du visiteur seulement là où le front relaie `X-Forwarded-For` (déduit).
+- Piste : soit retirer `ip_address` des colonnes et de la spec (aucun écrivain), soit écrire l'IP dans le journal par un `tapActivity` commun. Le second est un choix de données personnelles. Garde : un test de l'exporteur qui n'accepte pas une colonne toujours nulle sur un journal écrit par un geste HTTP.
+
+### Cinq listes rendent l'enveloppe de pagination de Laravel, hors de `PaginationMeta`, avec des URL tirées de l'hôte de la requête
+- Réf : P108.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:158-160`, `takussan-api/app/Http/Controllers/Public/PublicAgencyController.php:383-400`, `takussan-api/app/Http/Controllers/Public/PublicAgentController.php:361-380`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:26-28`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementLineController.php:32-34`, `takussan-api/vendor/laravel/framework/src/Illuminate/Pagination/PaginationState.php:17`
+- Constat :
+  - Ces cinq actions rendent `XResource::collection($paginator)` tel quel (lu ; `grep -rnE "return [A-Za-z]+Resource::collection\("` → sept, dont deux sur une collection non paginée). Laravel y ajoute `links` (`first`, `last`, `prev`, `next`) et un `meta` à lui (`path`, `links`, `from`, `to`), en plus des quatre clés canoniques. C'est la forme que `PaginationMeta` existe pour remplacer, et `check-pagination-envelope.mjs` ne la voit pas : elle cherche les jetons écrits, pas cette sortie implicite.
+  - Ces URL ne passent pas par `forceRootUrl` : le paginateur prend `$request->url()`, donc le schéma, l'hôte et le port de la requête (lu, `PaginationState.php:17`, `Request::url()` l. 130-133).
+  - Mesuré (test temporaire, retiré) : `GET http://api-interne:8080/api/public/agencies/{slug}/properties?per_page=1` depuis `127.0.0.1`, `X-Forwarded-Proto: https`, `-Port: 443` → `links.next` = `https://api-interne/api/public/agencies/…/properties?page=2`, `meta.path` = `https://api-interne/…`, alors que `url('/x')` rend l'origine d'`APP_URL` dans la même exécution.
+  - Aucun lecteur au front (mesuré : `grep -rnE "links\??\.(next|prev|first|last)|next_page_url|meta\??\.path|meta\.links" takussan-web/src` → vide). Les cinq sont appelées du navigateur (`PortfolioTabs.tsx`, `'use client'` ; `useProperties.ts:66` ; écrans de rapprochement), sauf sous impersonation, où le relais sert l'hôte interne au navigateur (lu, `impersonation/proxy`). Rien ne casse : ce sont des octets morts qui portent l'hôte interne.
+- Piste : rendre ces cinq listes par `$this->paginated($paginator, XResource::collection($paginator)->toArray($request))`, comme le reste de l'API. Garde : étendre `check-pagination-envelope.mjs` à la forme `return …Resource::collection(` sur un paginateur, ou un test qui refuse `links` dans la réponse de ces cinq routes.
+
+### Petites améliorations
+- Réf : P108.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/routes/api/documents.php:23`, `takussan-api/app/Http/Controllers/Api/DocumentVersionController.php:64-82`, `takussan-web/src/lib/relais-api.ts:65`, `takussan-web/src/app/api/data-exports/[id]/download/route.ts:16-29`
+- Constat :
+  - **`GET /api/documents/{document}/versions/{versionId}/download` n'a aucun appelant.** Le front télécharge une version par `version.url`, l'URL signée de `media.private.show` émise par `DocumentVersionResource.php:32` (lu, `DocumentVersionsList.tsx:323-325`) ; `grep -rn "versions/.*download\|document-versions.download"` sur `takussan-web/src` et `takussan-api/app` → rien hors de la route et du docblock (mesuré). C'est le seul appelant de `PrivateMediaAccess::redirect()` en `attachment`.
+  - **Les relais suivent les redirections en silence.** `relayerVersApi` et le relais d'export RGPD appellent `fetch` sans `redirect:` (lu) : `follow` par défaut. Aucune route relayée ne redirige aujourd'hui (voir l'en-tête de cette section). Le jour où une le fera, une URL présignée R2 serait suivie par le serveur Next, et les octets traverseraient le VPS, ce que `PrivateMediaAccess::redirect()` existe pour éviter (déduit ; à vérifier : l'en-tête `Authorization` est-il retiré par undici sur une redirection vers une autre origine ?).
+  - **Le relais d'export RGPD charge l'archive entière en mémoire** (`upstream.arrayBuffer()`, l. 23) avant de la rendre, au lieu d'en relayer le flux (lu). Taille des archives réelles non mesurée.
+- Piste : retirer la route sans appelant (ou la faire servir par le front, s'il doit l'appeler) ; poser `redirect: 'manual'` dans `relayerVersApi` et rendre la redirection telle quelle au navigateur ; relayer `upstream.body` en flux. Garde : un test vitest du relais qui exige qu'une réponse 302 de l'API soit rendue en 302.
