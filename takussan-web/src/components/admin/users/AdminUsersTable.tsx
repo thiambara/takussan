@@ -43,7 +43,7 @@ import { isAgencyStaffRow } from './isAgencyStaffRow';
 const STATUS_TONES: Record<string, StatusTone> = {
   active: 'success',
   inactive: 'neutral',
-  banned: 'danger',
+  blocked: 'danger',
 };
 
 const ROLE_KEYS = new Set([

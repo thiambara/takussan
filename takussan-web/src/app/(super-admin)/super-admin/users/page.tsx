@@ -63,12 +63,11 @@ const ALL = '__all__';
  */
 const PARAMS_DE_FILTRE = ['search', 'role', 'agency', 'status', 'email', 'twoFactor'] as const;
 
-/** Le statut du compte → le ton du DS. `banned` et `blocked` disent la même gravité. */
+/** Le statut du compte → le ton du DS. */
 const USER_STATUS_TONES: Record<string, StatusTone> = {
   active: 'success',
   inactive: 'neutral',
   blocked: 'danger',
-  banned: 'danger',
 };
 
 /**
@@ -91,7 +90,6 @@ const STATUS_OPTIONS: { value: string; labelKey: string }[] = [
   { value: 'active', labelKey: 'statuses.active' },
   { value: 'blocked', labelKey: 'statuses.blocked' },
   { value: 'inactive', labelKey: 'statuses.inactive' },
-  { value: 'banned', labelKey: 'statuses.banned' },
 ];
 
 const EMAIL_OPTIONS: { value: string; labelKey: string }[] = [

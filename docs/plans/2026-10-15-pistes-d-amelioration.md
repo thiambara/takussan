@@ -11247,7 +11247,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### La console d'équipe filtre les comptes « Bloqué » sur `banned`, une valeur que l'API n'écrit jamais
 - Réf : P115.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1287 — reste : retirer l'option `inactive` des filtres tant que rien ne l'écrit, que le classement laisse au porteur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/Enums/UserStatus.php:7-10`, `takussan-api/app/Http/Controllers/Api/Admin/UserLifecycleController.php:45`, `takussan-api/app/Services/Account/AccountDeletionService.php:312`, `takussan-web/src/types/user.ts:39`, `takussan-web/src/types/admin-users.ts:56`, `takussan-web/src/components/admin/users/AdminUsersFilters.tsx:19`, `takussan-web/src/components/admin/users/UserDetailDrawer.tsx:57,124`, `takussan-web/src/messages/fr.json` (`admin.users.status`), `takussan-web/src/app/(super-admin)/super-admin/users/page.tsx:89-95`
 - Constat :
@@ -11259,6 +11259,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Établi comment : lu, et `grep` / `node -e` mesurés ; le rendu à l'écran n'a pas été vu.
 - Piste : aligner le type, les options et les libellés du front sur l'enum de l'API (`blocked` au lieu de `banned`, `inactive` retiré des filtres tant que rien ne l'écrit) ; retirer `app/Models/Bases/Enums/UserStatus.php`. Garde : un test qui confronte `STATUS_VALUES` aux valeurs de l'enum servies par l'API, ou une garde de dépôt qui compare les deux listes.
 - Mesure (2026-10-22, 3390f9116, mesureur) : relu `UserStatus.php:7-10` (`active`, `inactive`, `blocked`, `deleted`), `UserLifecycleController.php:45` (écrit `blocked`), `AccountDeletionService.php:312` (`deleted`) ; `grep` → ni `UserStatus::Inactive` ni `'inactive'` écrit dans `app/Http` et `app/Services`, aucune règle `Rule::enum(UserStatus…)` ; front : `types/user.ts:39` et `admin-users.ts:56` typent `banned`, `AdminUsersFilters.tsx:19` et `UserDetailDrawer.tsx:57` ne connaissent que `active`/`inactive`/`banned`, `super-admin/users/page.tsx:92-94` propose `blocked`, `inactive` et `banned` ; `node -e` sur `fr.json` → `admin.users.status` = `{ active, inactive, banned: 'Bloqué' }` ; le relais `admin-users/[[...path]]/route.ts:26` passe la requête telle quelle à `/users`, où `status` est filtrable (`User.php:154`) ; `grep -rn "Bases\\\\Enums\\\\UserStatus"` dans `app`, `tests`, `database` → rien. Le constat tient (rendu à l'écran non vu). Classement : A1, le contrat est l'enum de l'API ; le correctif attendu remplace `banned` par `blocked` dans les types, les options de filtre, le tiroir, la page super-admin et la clé de libellé (« Bloqué » gardé, texte `wo` existant déplacé tel quel), retire `app/Models/Bases/Enums/UserStatus.php` (A3) et garde par un test la liste du front contre l'enum ; le retrait de l'option `inactive`, cas réel de l'enum, n'est pas compris dans ce classement et reste au porteur.
+- Mesure (2026-10-22, a2398e474, implementeur) : `AdminUsersFilters.test.tsx` (option « Bloqué ») rouge avant correctif : URL `?filter%5Bstatus%5D=banned` ; garde neuve `src/types/__tests__/user-status.parity.test.ts` (`USER_STATUSES` ↔ cas de `App\Models\Enums\UserStatus`) rouge faute de liste → `USER_STATUSES` = `active`, `inactive`, `blocked`, `deleted` et `UserStatus` qui en dérive ; `banned` → `blocked` dans le filtre, la table, le tiroir et la clé `admin.users.status` (valeurs gardées, `wo` déplacé tel quel) ; option, ton et clé `statuses.banned` retirés de la page super-admin et de `user-detail.tsx` ; `app/Models/Bases/Enums/UserStatus.php` retiré ; ablation (`types/user.ts` et `AdminUsersFilters.tsx` remis) → 3 rouges, remise → 6/6 ; `AdminUsersTable.*`, `user-detail.double-facteur`, `super-admin/users/page.test.tsx` verts. ADR-0007 l. 51 cite encore le fichier retiré (chemin fermé).
 
 ### L'abonnement d'une agence garde à vie la période de son attribution, et `past_due` / `suspended` n'existent qu'à l'écran
 - Réf : P115.03
@@ -11301,7 +11302,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### `features.md` promet à tous les profils une machine à états `draft → pending → active → suspended | expired | archived` qu'aucun n'a
 - Réf : P115.06
-- Statut : retenu · autonome
+- Statut : retenu · à valider — chemin fermé : docs/features.md (le correctif est la réécriture de la phrase de `features.md:500`, et la spec est fermée à l'implémenteur : elle se corrige en session, par `/sync-specs` ou par le porteur)
 - Gravité : 🟢 amélioration
 - Où : `docs/features.md:500`, `takussan-api/app/Models/Enums/AgentProfileStatus.php`, `takussan-api/app/Models/Enums/OwnerProfileStatus.php`, `takussan-api/app/Models/Enums/AgencyAdminProfileStatus.php`, `takussan-api/app/Models/Enums/ServiceProviderProfileStatus.php`
 - Constat :
@@ -11310,6 +11311,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Établi comment : lu et `grep`.
 - Piste : réécrire la phrase pour dire les statuts réels de chaque profil, et retirer des enums les cas sans écrivain ou noter qu'ils sont réservés (A6 pour le document ; le retrait est un autre choix).
 - Mesure (2026-10-22, 3390f9116, mesureur) : relu `features.md:500` (« Tous les profils traversent la même machine à états `draft → pending → active → suspended | expired | archived` ») contre les quatre enums : agent `draft active inactive suspended`, bailleur `draft active inactive blocked`, admin d'agence `active suspended archived`, prestataire `draft active inactive suspended` — aucun n'a `pending` ni `expired` ; `grep` → `AgentProfileStatus::Inactive`, `OwnerProfileStatus::Inactive`, `AgencyAdminProfileStatus::Archived` : 0 écriture hors des enums, ni littéral côté profils. Le constat tient. Classement : A6 pour le document seul ; le correctif attendu réécrit la phrase de `features.md:500` pour donner les statuts réels de chaque profil et noter ceux qu'aucun chemin ne pose ; le retrait de cas d'enum n'est pas compris dans ce classement (choix de produit, V7).
+- Mesure (2026-10-22, a2398e474, implementeur) : relu `features.md:500` (« Tous les profils traversent la même machine à états `draft → pending → active → suspended | expired | archived` », toujours là) et les quatre enums (`grep -o "= '…'"`) : agent `draft active inactive suspended`, bailleur `draft active inactive blocked`, admin d'agence `active suspended archived`, prestataire `draft active inactive suspended` — le constat tient. Non implémenté : le seul correctif est un changement de `docs/features.md`, chemin fermé à l'implémenteur (consigne « la spec ne bouge pas »).
 
 ### Petites améliorations : cas d'enum sans écrivain, lus par une garde ou un écran
 - Réf : P115.07
@@ -12120,7 +12122,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### La feuille de profil minimal envoie un numéro au format de son propre exemple, que l'API refuse
 - Réf : P125.03
-- Statut : validé (délégué) — saisir le numéro de la feuille de profil minimal par `PhoneInput`, comme les quatorze autres formulaires qui saisissent un téléphone (`SecondaryPhoneSection`, `CustomerForm`, les assistants d'onboarding), pour que la valeur envoyée à `PATCH /api/me` soit l'E.164 ; aucune normalisation silencieuse côté API ; reste : remonter l'erreur de champ du 422 sous le champ (texte et forme du message)
+- Statut : fait · TCK-1281 — reste : remonter l'erreur de champ du 422 sous le champ (texte et forme du message)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/customer/CustomerMinimalProfileSheet.tsx:86-88,126-134`, `takussan-web/src/components/customer/MinimalProfileTriggerProvider.tsx:124-136`, `takussan-web/src/messages/fr.json:4682`, `takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php:42`
 - Constat :
@@ -12132,10 +12134,11 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 - Piste : saisir le numéro par `PhoneInput`, comme les autres formulaires du compte (`SecondaryPhoneSection.tsx:103`), ou normaliser avant l'envoi (`normalizePhoneInput`, `ProfileContactSection.tsx:301`) ; remonter l'erreur de champ du 422. Test : saisie `+221 77 000 00 00` → corps envoyé `+221770000000`.
 - Mesure (2026-10-22, 64db86d28, mesureur) : relu `CustomerMinimalProfileSheet.tsx:86-88,126-134` (`Input` libre, valeur `trim()`ée), `fr.json:4682` (`+221 77 000 00 00`), `MinimalProfileTriggerProvider.tsx:124-136` (`save_failed` sur tout `!res.ok`) et `UpdateMeRequest.php:42` (regex E.164 sans `prepareForValidation`) ; test Feature temporaire, retiré → `PATCH /api/me` `+221 77 000 00 01` 422, `77 000 00 02` 422, `+221770000003` 200. Le `normalizePhoneInput` que cite la piste ne suffit pas : il rend `770000002` pour la forme nationale, que l'API refuse encore. Classement : V7, le correctif change le champ visible (`PhoneInput`) ou demande un message d'erreur de champ, deux choix d'écran.
 - Mesure (2026-10-22, 348258c0b, delegue) : relu le constat, la `Piste` et la mesure du mesureur, `CustomerMinimalProfileSheet.tsx:83-136` (`Input` libre, valeur `trim()`ée), `grep -rl "<PhoneInput" takussan-web/src` → 14 composants hors tests (dont `SecondaryPhoneSection.tsx`, `CustomerForm.tsx`, `ConnexionParTelephone.tsx`, les quatre assistants d'onboarding), TCK-574 (contrat de `<PhoneInput>`, AC4) et P125.04 (`retenu · autonome`, normalisation des invitations côté API, distincte) → la feuille est le seul formulaire de compte qui saisit un téléphone hors `PhoneInput`. Délégation : V7, aligner un champ sur le composant que tous les autres formulaires emploient est un choix mineur et réversible en un commit, appuyé par TCK-574 et quatorze précédents ; le message d'erreur de champ, texte neuf, est laissé au porteur.
+- Mesure (2026-10-22, a2398e474, implementeur) : test neuf `MinimalProfileTriggerProvider.test.tsx` (« envoie la saisie … en E.164 ») rouge avant correctif : saisie `77 000 00 00` → corps `{"phone":"77 000 00 00"}`, saisie `+221 77 000 00 01` → `{"phone":"+221 77 000 00 01"}` → le champ de `CustomerMinimalProfileSheet` devient `PhoneInput`, la clé `phonePlaceholder` sans lecteur est retirée des trois dictionnaires ; vert (`+221770000000`, `+221770000001`), ablation (`Input` libre remis) → 2 rouges, remise → 6/6 verts ; l'API n'est pas touchée.
 
 ### Les trois invitations par téléphone refusent la forme nationale et la forme espacée, que leur message d'erreur donne en exemple
 - Réf : P125.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1283 — reste : le même message `phone_e164`, exemple espacé compris, s'affiche aussi sur `PATCH /api/me`, où la forme espacée reste refusée (le porteur a écarté la normalisation côté API sur P125.03)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Invitation/InviteAgentRequest.php:37-39`, `InviteOwnerRequest.php:35`, `InviteServiceProviderRequest.php:38`, `takussan-api/lang/fr/validation.php:177`, `takussan-api/lang/en/validation.php:21`, `takussan-web/src/components/admin/InviteAgentDialog.tsx:61,104,203-209`, `takussan-web/src/components/owners/InviteOwnerSheet.tsx:142,225-229`, `takussan-web/src/components/service-providers/InviteServiceProviderSheet.tsx:200,285-289`
 - Constat :
@@ -12147,6 +12150,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - Établi comment : lu et mesuré (règle seule ; le parcours des trois écrans n'a pas été joué).
 - Piste : normaliser par `TelephoneSaisi::normaliser` dans `prepareForValidation` des trois requêtes, ou saisir par `PhoneInput` ; écrire l'exemple du message sans espaces, ou accepter les espaces partout où il s'affiche. Test : une invitation à `77 123 45 67` part au `+221771234567`.
 - Mesure (2026-10-22, 64db86d28, mesureur) : relu `InviteAgentRequest.php:37-39`, `InviteOwnerRequest.php:35-37`, `InviteServiceProviderRequest.php:38-40` (`TelephoneJoignable` sur la valeur brute, aucun `prepareForValidation`) et `lang/fr/validation.php:177` (exemple « +221 77 123 45 67 ») ; test temporaire, retiré, `Validator` sur la règle des trois requêtes → `+221 77 123 45 67` et `77 123 45 67` refusés par `phone_e164`, `+221771234567` accepté ; le parcours des trois écrans n'a pas été joué. Classement : A1, le message de la règle donne la forme espacée pour valide et TCK-590 a écrit la normalisation des saisies nationales ; correctif : `TelephoneSaisi::normaliser` sur `phone` dans `prepareForValidation` des trois requêtes, comme `ContactLeadPublicRequest.php:42`, sans toucher aux écrans.
+- Mesure (2026-10-22, a2398e474, implementeur) : test neuf `InvitationBySmsTest::test_une_invitation_a_un_numero_saisi_en_forme_humaine_part_en_e164` (trois routes × `+221 77 000 08 01` et `77 000 08 01`) rouge avant correctif : 6 × 422 `phone` « … (e.g. +221 77 123 45 67) » → `TelephoneSaisi::normaliser` dans `prepareForValidation` des trois requêtes ; 201, `data.phone` `+221770000801` et un SMS à ce numéro ; ablation (requêtes remises) → 6 rouges, remise → vert ; `InvitationBySmsTest` 13/13, `InviteAgentTest` 15/15, `InviteOwnerTest` 11/11, `InviteServiceProviderTest` 12/12. Les écrans ne sont pas touchés.
 
 ### Cinq normaliseurs de téléphone, et ils ne rendent pas le même numéro
 - Réf : P125.05
@@ -13815,7 +13819,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le téléphone de la feuille de profil minimal est refusé au format même que montre son exemple, avec un message générique
 - Réf : P145.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1281 — reste : rendre sous le champ le message de validation `phone` du 422 au lieu de l'échec générique, gardé par le porteur sur P125.03 (texte et forme du message)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/customer/CustomerMinimalProfileSheet.tsx:86-88,126-132`, `takussan-web/src/components/customer/MinimalProfileTriggerProvider.tsx:124-136`, `takussan-web/src/messages/fr.json` (`customer.minimalProfile.phonePlaceholder`), `takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php:42,66`
 - Constat :
@@ -13826,10 +13830,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu ; le 422 n'a pas été provoqué.
 - Piste : normaliser le numéro avant l'envoi (retirer les espaces, comme les autres champs téléphone du front s'ils le font) ou dans `prepareForValidation`, et rendre le message de validation du champ au lieu d'un échec générique. Garde : un test qui envoie `+221 77 000 00 00` et attend l'enregistrement, et un test du relais sur un 422.
 - Mesure (2026-10-22, ccdde535d, mesureur) : relu `CustomerMinimalProfileSheet.tsx:86-88` (`phone.trim()` envoyé tel quel), `MinimalProfileTriggerProvider.tsx:124-136` (tout non-`ok` → `Error('save_failed')`), `UpdateMeRequest.php:42` (regex E.164 sans espace, aucun `prepareForValidation` propre) ; test temporaire retiré (`PATCH /api/me`, charge 1,63 sur 8 cœurs) → `+221 77 000 00 00` et `77 123 45 67` rendent 422 `phone_e164`, `+221770000000` rend 200 ; le 403 d'un numéro déjà vérifié est déjà épinglé par `PhoneChangeProofTest::test_les_trois_ecrivains_refusent_sans_preuve` (`patchJson('/api/me')` → 403), il tient mais la `Piste` n'y touche pas ; `normalizePhoneInput` (`src/lib/phone.ts:29`) existe et sert déjà le champ du profil (`ProfileContactSection.tsx:301`). Classement : A1, l'exemple affiché et le contrat E.164 de l'API écrivent l'attendu : normaliser par `normalizePhoneInput` avant l'envoi et rendre sur un 422 `phone` une clé existante (`phoneFormatError` ou `phoneInvalid`), sans texte neuf ni toucher à la preuve de `PhoneChangeGuard`.
+- Mesure (2026-10-22, a2398e474, implementeur) : même cause et même correctif que P125.03, ticket partagé TCK-1281 : le test neuf `MinimalProfileTriggerProvider.test.tsx` envoie `+221 77 000 00 01` (la forme de l'exemple) et `77 000 00 00`, rouges avant correctif (corps tel que tapé), verts une fois le champ passé à `PhoneInput` (`+221770000001`, `+221770000000`) ; ablation → 2 rouges, remise → vert. Le message d'erreur de champ n'est pas fait : le porteur l'a gardé pour lui dans la précision de P125.03.
 
 ### Le motif d'un signalement d'avis n'est contrôlé contre aucune liste, à l'inverse de celui d'une annonce
 - Réf : P145.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1285
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/reports/ReviewReportButton.tsx:10-18`, `takussan-api/app/Http/Requests/Public/ReportPublicReviewRequest.php:25`, `takussan-api/app/Http/Requests/Public/ReportPublicPropertyRequest.php:26`, `takussan-api/app/Services/Review/ReviewReportService.php:52-56`
 - Constat :
@@ -13839,6 +13844,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu pour les deux règles et la liste du front.
 - Piste : `Rule::in` sur les sept codes du front, partagés par une constante de l'API. Garde : un test qui envoie un motif hors liste et attend 422.
 - Mesure (2026-10-22, ccdde535d, mesureur) : relu `ReviewReportButton.tsx:10-18` (7 codes), `ReportPublicReviewRequest.php:25` (`string max:500`), `ReportPublicPropertyRequest.php:26` (`Rule::in`), `ReviewReportService.php:52-56` (motif rangé tel quel) ; test temporaire retiré → `POST /api/public/reviews/{id}/report` avec un texte libre rend 200 et `metadata.reports[0].reason` vaut ce texte (le « à vérifier » tient) ; seul appelant du front : `submitReviewReport` (route publique) ; la route authentifiée `reviews/{review}/report` (`ReportReviewRequest.php:31`) accepte aussi du texte libre et ses tests en envoient (`ReviewReportAndDocSearchTest`), `ModerationDetail.tsx:221` affiche le motif brut ; `ReviewAggregateTest.php:57` envoie `'Faux'` à la route publique et sera à adapter. Classement : A1, le contrat de l'unique appelant (les 7 codes de TCK-597) fixe l'attendu : `Rule::in` sur ces codes par une constante de l'API, sur la route publique seule.
+- Mesure (2026-10-22, a2398e474, implementeur) : test neuf `PublicReportTest::test_a_reason_outside_the_list_is_refused` rouge avant correctif : `reason = "Texte libre"` → 200 → `ReportPublicReviewRequest::REASONS` (les sept codes de `REVIEW_REPORT_REASONS`) et `Rule::in` sur `reason` ; 422 `reason`, `reported_count` inchangé, et les sept codes rendent 200 ; ablation (`string|max:500` remis) → rouge, remise → vert ; les textes libres de `PublicReportTest` et de `ReviewAggregateTest.php:57` deviennent des codes, 10/10 et 1/1. La route authentifiée n'est pas touchée.
 
 ### Petites améliorations : bornes du front plus étroites ou absentes face aux règles de l'API
 - Réf : P145.03
