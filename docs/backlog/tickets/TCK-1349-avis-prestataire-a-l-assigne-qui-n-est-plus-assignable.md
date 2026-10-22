@@ -29,7 +29,7 @@ membre retiré en `leave_unassigned`, les recevait alors que la policy lui refus
 
 ## Décision du porteur (déléguée)
 
-> dans `NotifyMaintenanceParticipants`, sur un bien d'agence, retirer l'assigné des avis « prestataire » quand `ProviderEligibility::isAssignable` le refuse, comme `MaintenanceRequestPolicy::isAssignedProvider` ; un bien sans agence garde ses avis tels quels ; test : intervention d'un bien d'agence assignée à un membre retiré → aucun avis prestataire
+> dans `NotifyMaintenanceParticipants`, sur un bien d'agence, retirer l'assigné des avis « prestataire » quand `ProviderEligibility::isAssignable` le refuse, comme `MaintenanceRequestPolicy::isAssignedProvider` ; un bien sans agence garde ses avis tels quels ; test : intervention d'un bien d'agence assignée à un membre retiré → aucun avis prestataire ; reste : marquer ou ranger à part, dans `GET …/customers/{id}/relationships`, le référent qui n'est plus de l'agence
 
 ## Reste à faire
 
