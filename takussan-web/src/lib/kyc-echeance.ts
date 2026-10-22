@@ -52,6 +52,18 @@ export function etatEcheance(
   return 'valid';
 }
 
+/**
+ * TCK-1453 — le dernier jour où un dossier vérifié vaut : la VEILLE de son échéance, puisque le
+ * dossier échoit le jour d'échéance à 00:00 et s'affiche « Expirée » ce jour-là. C'est la date que
+ * « Vérification valable jusqu'au … » doit nommer, au sens inclusif de « jusqu'au » (TCK-1320).
+ * `null` si la valeur ne se lit pas.
+ */
+export function veilleEcheance(valeur: string): Date | null {
+  const instant = new Date(/^\d{4}-\d{2}-\d{2}$/.test(valeur) ? `${valeur}T00:00:00Z` : valeur);
+  if (Number.isNaN(instant.getTime())) return null;
+  return new Date(instant.getTime() - JOUR_MS);
+}
+
 /** Demain, en `YYYY-MM-DD` local : la première date d'échéance que l'API accepte au dépôt. */
 export function demainIso(maintenant: Date = new Date()): string {
   const d = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate() + 1);
