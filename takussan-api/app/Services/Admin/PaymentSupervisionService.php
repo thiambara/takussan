@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Models\Enums\PaymentProvider;
 use App\Models\IntegrationWebhookLog;
+use App\Models\LeasePayment;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
@@ -20,7 +21,11 @@ use Illuminate\Support\Facades\DB;
  *   compte pas. Le fournisseur est `metadata.gateway.provider`.
  * - `booking_payments` : `status = failed`, mis à jour dans la période.
  *
- * « En retard » : `status = late` ; pour une échéance, son échéance tombe dans la période.
+ * « En retard » (TCK-1432) : une échéance de loyer que `LeasePayment::overdue()` dit en retard —
+ * `late`, ou `pending`/`partially_paid` échue —, dont l'échéance tombe dans la période. Le seul
+ * écrivain de `late` est la pénalité : un bail sans pénalité n'aurait sinon jamais rien compté.
+ * Un paiement de réservation n'est jamais « en retard » ici : il n'a pas d'échéance, et rien ne
+ * lui écrit `late`. Définir son retard demanderait une colonne d'échéance.
  */
 class PaymentSupervisionService
 {
@@ -44,7 +49,6 @@ class PaymentSupervisionService
         }
         if ($status === null || $status === self::STATUS_LATE) {
             $parts[] = $this->lateLeasePayments($from, $to);
-            $parts[] = $this->lateBookingPayments($from, $to);
         }
 
         $union = array_shift($parts);
@@ -80,7 +84,7 @@ class PaymentSupervisionService
 
             foreach ([
                 'failed' => [$this->failedLeasePayments($from, $now), $this->failedBookingPayments($from, $now)],
-                'late' => [$this->lateLeasePayments($from, $now), $this->lateBookingPayments($from, $now)],
+                'late' => [$this->lateLeasePayments($from, $now)],
             ] as $metric => $queries) {
                 foreach ($queries as $q) {
                     foreach (DB::query()->fromSub($q, 'p')->whereNotNull('p.provider')->groupBy('p.provider')->selectRaw('p.provider, COUNT(*) AS n')->get() as $row) {
@@ -120,7 +124,7 @@ class PaymentSupervisionService
     private function lateLeasePayments(CarbonInterface $from, CarbonInterface $to): Builder
     {
         return $this->leaseBase(self::STATUS_LATE, 'lp.due_date::timestamptz')
-            ->where('lp.status', 'late')
+            ->whereIn('lp.id', LeasePayment::query()->overdue()->select('lease_payments.id'))
             ->whereBetween('lp.due_date', [$from->toDateString(), $to->toDateString()]);
     }
 
@@ -128,13 +132,6 @@ class PaymentSupervisionService
     {
         return $this->bookingBase(self::STATUS_FAILED)
             ->where('bp.status', 'failed')
-            ->whereBetween('bp.updated_at', [$from, $to]);
-    }
-
-    private function lateBookingPayments(CarbonInterface $from, CarbonInterface $to): Builder
-    {
-        return $this->bookingBase(self::STATUS_LATE)
-            ->where('bp.status', 'late')
             ->whereBetween('bp.updated_at', [$from, $to]);
     }
 

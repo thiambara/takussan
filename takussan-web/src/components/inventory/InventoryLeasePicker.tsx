@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { buttonVariants } from '@/components/ui/button';
-import { useAllActiveLeases, type LeaseWithRelations } from '@/lib/queries/leases';
+import { useAllOngoingLeases, type LeaseWithRelations } from '@/lib/queries/leases';
 
 /**
  * TCK-379 — sélection du bail sur `/app/inventories/new` quand aucun `?lease=` n'est fourni.
@@ -18,20 +18,20 @@ import { useAllActiveLeases, type LeaseWithRelations } from '@/lib/queries/lease
  * page vide coche « le lien existe » aussi bien qu'un vrai correctif.* Le geste part d'un bail :
  * l'écran le dit en montrant les baux, au lieu d'envoyer l'agent les chercher.
  *
- * ⚠ Le filtre `status=active` est délibéré : un bail `draft` ou `terminated` n'a pas d'état des
- * lieux à produire. Il est posé côté SERVEUR (`filter[status]`), jamais sur une liste déjà
+ * ⚠ Le filtre `status=active,terminating` est délibéré : un bail `draft` ou `terminated` n'a pas
+ * d'état des lieux à produire, un bail en préavis (`terminating`) a celui de sortie (TCK-1438). Il est posé côté SERVEUR (`filter[status]`), jamais sur une liste déjà
  * récupérée — cf. `docs/spatie-query-builder.md`.
  */
 export function InventoryLeasePicker() {
   const t = useTranslations('inventory.pickLease');
   const tLease = useTranslations('lease');
-  // TCK-1371 (P135.04) — tous les baux actifs : une page de 50 laissait les plus anciens dehors.
-  const query = useAllActiveLeases();
+  // TCK-1371 (P135.04) — tous les baux en cours : une page de 50 laissait les plus anciens dehors.
+  const query = useAllOngoingLeases();
 
   return (
     <QueryBoundary query={query}>
       {(page) => {
-        // `useAllActiveLeases` demande déjà `include=property` + `fields[properties]`, mais se déclare
+        // `useAllOngoingLeases` demande déjà `include=property` + `fields[properties]`, mais se déclare
         // `PaginatedResponse<Lease>` — et `Lease` ne porte aucune relation. L'écart est
         // antérieur à ce ticket et partagé par tous ses appelants ; on le referme ICI, sur le
         // seul site qui lit la relation, plutôt que d'aller changer la signature du hook.

@@ -5,7 +5,6 @@ namespace App\Services\Dashboard;
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\LeaseStatus;
-use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
@@ -14,6 +13,7 @@ use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Maintenance\MaintenanceStateMachine;
 
 /**
  * Owner-facing dashboard — portfolio KPIs scoped to the landlord's user id.
@@ -102,7 +102,7 @@ class DashboardOwnerService
             'maintenance' => [
                 'quotes_pending' => MaintenanceRequest::query()
                     ->whereIn('property_id', $propertyIds)
-                    ->where('status', MaintenanceStatus::QuoteSubmitted->value)
+                    ->whereIn('status', MaintenanceStateMachine::AWAITING_QUOTE_DECISION)
                     ->count(),
             ],
             'visits' => [
