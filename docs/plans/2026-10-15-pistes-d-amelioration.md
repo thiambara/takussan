@@ -218,7 +218,7 @@ voie d'écriture (angle 13, puis 47).
 | 141 | Encaissements soldés par une intégration de la plateforme (`PlatformPayoutService::isSettledByPlatform`) face au relevé de l'agence : proposés un à un par `ReconciliationMatcher` à un crédit qui ne les porte pas, et virement de clôture `PlatformPayout` qu'aucun candidat (`ALLOWED_PAYMENT_TYPES`, `fetchCandidates`) ne représente | fait |
 | 142 | Notifications, Mailables et écouteurs en file (`ShouldQueue`, une quarantaine hors de `CodedNotification` : `TenantWelcomeNotification`, `ResetPasswordNotification`, `ActivityLogExportReadyNotification`, écouteurs `Lease\*` et `Accounting\*`) sans `backoff` ni `failed()` face au `--tries=3` sans délai des workers : ce qu'une panne du fournisseur de quelques secondes fait perdre, et la trace laissée — le relevé de P11.10 hors des notifications codées | fait |
 | 143 | PDF à lignes variables rendus par dompdf pendant la requête HTTP (`DocumentPdfService` : relevé de gérance `pdf/statements/owner`, état des lieux `pdf/inventories/report` et ses photos en URI `data:`, factures et devis à nombreuses lignes) : mémoire et durée face à `memory_limit = 256M` et `max_execution_time = 60` — le relevé de P112.01 hors de l'export générique | fait |
-| 144 | Écritures du navigateur qu'une réponse perdue invite à rejouer (envoi de message, création de réservation, de demande de maintenance, de facture, initiation de paiement : `POST` sans clé d'idempotence, hors les seuls boosts) : bouton réactivé après une erreur réseau ou un délai, doublon créé côté API — le pendant, hors des achats de crédits, des angles 4 et 24 | à faire |
+| 144 | Écritures du navigateur qu'une réponse perdue invite à rejouer (envoi de message, création de réservation, de demande de maintenance, de facture, initiation de paiement : `POST` sans clé d'idempotence, hors les seuls boosts) : bouton réactivé après une erreur réseau ou un délai, doublon créé côté API — le pendant, hors des achats de crédits, des angles 4 et 24 | fait |
 | 145 | Champs écartés par `validated()` sur ce que l'angle 114 n'a pas relevé : `lib/queries` `properties-server.ts`, `visits.ts`, `settings.ts`, `property-calendar.ts` et les modules à une ou deux mutations, les server actions `property.ts` (avis, signalements, contacts d'agent), `invitations.ts`, `account-deletion.ts`, `admin-tags.ts`, `super-admin-cooptation.ts`, `auth.ts`, et les écritures directes des composants | à faire |
 | 146 | Unions de statut et options de filtre du front (`src/types/*.ts`, `Record<…Status, …>`, `STATUS_VALUES`, `KNOWN_STATUSES`) face aux cas des enums de l'API : valeurs que l'API n'émet jamais (`banned`, agence `pending`), valeurs émises absentes (utilisateur `blocked`) — le relevé de P115.02 sur tous les types | à faire |
 | 147 | Statuts posés librement par un `Rule::enum` entier dans une requête de mise à jour (`UpdateCustomerRequest` `status` jusqu'à `blocked` et `deleted`, `UpdatePropertyRequest`, `StoreAgencyRequest`, `UpdatePrivacyRequestRequest`) : transitions que le geste dédié refuserait, et état posé à la main que rien d'autre ne lit | à faire |
@@ -256,6 +256,7 @@ voie d'écriture (angle 13, puis 47).
 | 179 | `try`/`catch` qui entourent un envoi en file et promettent un repli (`AgencyProvisioningService::sendActivationLink`, `SendSavedSearchAlerts.php:141`, `SendFavoriteChangeAlerts.php:164`, et leurs pareils autour de `notify()`, `Notification::send()` ou `Mail::send()` d'une classe `ShouldQueue`) : 502, annulation, statut d'échec ou marque de reprise que le `catch` ne peut jamais poser, l'envoi n'ayant lieu qu'au worker — né de P142.01 | à faire |
 | 180 | Téléversements d'images sans `PixelsAuPlus` hors de ceux que P143.02 relève (`MediaUploadRequest` collections `photos` et `avatars`, photos de maintenance, pièces jointes de messages et de litiges, documents image) face aux décodages GD qui les suivent (conversions `nonQueued`, `AvatarReencode`, `PdfImageEmbedder`) : RSS hors de `memory_limit` face au `mem_limit` du conteneur — né de P143.02 | à faire |
 | 181 | Tableaux reçus sans `max:` par les FormRequests et rangés en `jsonb` (`rooms` d'état des lieux hors du PDF, `metadata`, critères de recherches enregistrées, brouillons d'assistant, réglages) puis relus en entier : taille de ligne, de réponse JSON et de rendu sans borne — le relevé de P143.01 hors du PDF | à faire |
+| 182 | Gestes de transition rejoués sur un état déjà atteint (`POST …/confirm`, `cancel`, `send` d'une facture, `convert` et `handle` d'une demande de contact, `accept` d'une intervention, `activate` d'un bail) : second appel après une réponse perdue qui rend 422 ou 409 au lieu de l'état déjà écrit, écran en erreur pour un geste fait — le pendant pour les transitions de l'angle 144 | à faire |
 
 ---
 
@@ -13539,3 +13540,104 @@ générique est P112.01.*
   - Rien n'est gardé d'un téléchargement à l'autre : la même dépense revient à chaque clic sur « Télécharger », et sur un état signé dont les photos ne changent plus (lu, `assertDraft` sur `uploadRoomPhotos`).
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : une conversion `preview` en file sur `room_photos` (et `logo`), que `PdfImageEmbedder` prend déjà en premier ; ou ranger le PDF signé une fois (P140.02) ; plafonner le nombre de photos par pièce et par état des lieux. Garde : un test qui compte les appels à `reducedOriginal` (ou au pilote d'image) pendant un téléchargement.
+
+## Angle 144 — Écritures du navigateur qu'une réponse perdue invite à rejouer
+
+*Exploré le 2026-10-22 sur `pre-dev` c9060d7f9, par l'explorateur. Tout a été relu par l'explorateur lui-même, sans sous-agent. Les doublons viennent d'un test temporaire (`tests/Feature/TmpExplo/RejeuTest.php`, retiré) qui envoie deux fois le même `POST` à 30 s d'écart (`travel`), charge `2.21 2.06 1.99` sur 8 cœurs, base de test propre au processus : il établit ce que l'API fait d'un rejeu, pas la fréquence des réponses perdues en production. Écartés : l'initiation de paiement (`POST …/initiate`), dont le second règlement d'une même échéance est déjà marqué doublon (voir P39.01) ; `mark-paid` des loyers, qui refuse une échéance déjà réglée (`lease_payment.cannot_mark_paid`, lu `LeasePaymentDialog.tsx:28-34`) ; la réponse 500 rendue après un geste fait, qui relève de l'angle 123 ; la durée des appels sortants qui fait perdre la réponse, de l'angle 65. Les avis et les signalements n'ont pas été relus.*
+
+### Le socle commun : après toute erreur autre qu'un 422, le formulaire garde sa saisie et le bouton se réactive, et une seule route de l'API sait reconnaître un rejeu
+- Réf : P144.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/hooks/useApiForm.ts:262-298`, `takussan-web/src/lib/query-client.ts:27-29`, `takussan-web/src/lib/api.ts:752-765`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:49-93`, `takussan-api/app/Http/Requests/Credits/StorePropertyBoostRequest.php:28-31`
+- Constat :
+  - `useApiForm` pose `isSubmitting` à `false` dans un `finally`, affiche le message dans `globalError` et ne réinitialise le formulaire que sur succès (lu, l. 262-298) : une coupure réseau, un 502 ou un 504 du mandataire laissent la saisie intacte et le bouton actif.
+  - Les mutations ne sont pas rejouées par TanStack Query (`retry: false`, lu) : le rejeu ne vient que du clic de l'utilisateur, que l'écran invite à refaire.
+  - `apiRequest` lève `ApiError` sur tout statut non 2xx, et `fetch` lève sur une coupure (lu, `api.ts:752-765`) : rien ne distingue « refusé » de « peut-être écrit ».
+  - La seule clé d'idempotence de l'API est celle des boosts : un en-tête `Idempotency-Key` lu par le FormRequest et rangé en cache par agence (24 h) dans `BoostPurchaseService` (lu ; `grep -rn -i idempotency app routes` → ces deux fichiers seuls, hors webhooks). Aucun intergiciel ni aucune option de `useApiMutation` ne permet à une autre route de la reprendre. CORS accepte déjà tout en-tête (`allowed_headers => ['*']`, lu `config/cors.php:27`).
+  - Établi comment : lu.
+- Piste : une brique commune — intergiciel `Idempotency-Key` (clé par utilisateur et route, réponse rangée et rejouée telle quelle, refus d'une même clé pour un autre corps), et une option de `useApiMutation` qui engendre la clé à l'ouverture du formulaire et la garde jusqu'au succès —, puis l'appliquer aux routes des entrées qui suivent. La forme (cache ou table, fenêtre) est à choisir. Garde : un test par route qui rejoue la même clé et compte une seule ligne.
+
+### Un message rejoué après une erreur s'écrit deux fois dans le fil
+- Réf : P144.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:289-330`, `takussan-web/src/lib/queries/conversations.ts:265-327`, `takussan-web/src/components/messages/ChatView.tsx:211-218,368`
+- Constat :
+  - `sendMessage` crée le message à chaque appel, sans clé ni rapprochement (lu, l. 304-310).
+  - Mesuré, test temporaire : deux `POST /api/conversations/{id}/messages` `{content: "Je passe demain"}` → 201 et 201, deux lignes dans `messages`.
+  - `ChatView.onSubmit` ne vide le champ qu'après succès, et le bouton n'est désactivé que pendant l'envoi (`sendDisabled={sendMessage.isPending}`, lu) : après une erreur, le texte reste et se renvoie d'un clic. Les notes vocales passent par la même route (`useSendVoiceNote`, lu).
+  - Le limiteur `throttle:conversation-message` (lu, `routes/api/conversations.php:33`) borne le débit, pas le doublon.
+  - Établi comment : lu, mesuré.
+- Piste : un identifiant client par message composé (`Idempotency-Key`, ou un `client_id` rangé sur le message), rejoué en 200 avec le message déjà écrit ; le front le garde tant que le message n'est pas parti. Garde : le scénario mesuré en test, plus un test vitest qui renvoie la même clé après un échec.
+
+### Une demande de réservation rejouée crée une seconde réservation en attente, et prévient de nouveau le bailleur
+- Réf : P144.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Model/BookingService.php:119-136`, `takussan-api/app/Services/Booking/PropertyAvailabilityService.php:40-44`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:946-1048`, `takussan-web/src/components/bookings/BookingTunnel.tsx:145-175,446`, `takussan-web/src/hooks/useBookingRequest.ts:14-28`, `takussan-web/src/app/actions/property.ts:131-149,182-199`
+- Constat :
+  - Le contrôle de disponibilité ne refuse que les nuits d'une réservation **confirmée** ou bloquées (lu, `assertAvailable`, l. 40-51) : une réservation `pending` sur les mêmes dates ne gêne pas la suivante.
+  - Mesuré, test temporaire : deux `POST /api/bookings` identiques → 201 et 201, deux réservations `pending`, deux notifications (`app_notifications` → 2). Deux `POST /api/public/properties/{slug}/booking-request` identiques → 201 et 201, deux réservations, un seul client, deux notifications.
+  - Le tunnel ne désactive « Confirmer » que pendant l'envoi (`disabled={createBooking.isPending}`, lu l. 446) et, sur une erreur autre que 422, affiche le message en restant sur l'étape (lu, l. 156-175). `useBookingRequest` remet `submitting` à `false` dans un `finally` (lu). L'offre d'achat (`submitPurchaseOffer`) passe par la même route publique (lu).
+  - Chaque réservation `pending` expire à 7 jours et compte dans les files de l'agence : le doublon reste à traiter à la main (déduit, à vérifier).
+  - Établi comment : lu, mesuré.
+- Piste : clé d'idempotence sur `POST /api/bookings` et `booking-request` (P144.01) ; à défaut, refuser ou rendre la réservation `pending` déjà ouverte par le même client sur le même bien et les mêmes dates. Garde : le scénario mesuré, une seule réservation et une seule notification.
+
+### Un acompte enregistré par le personnel puis rejoué compte deux encaissements `paid`
+- Réf : P144.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/BookingPaymentController.php:35-59`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-48`, `takussan-web/src/components/bookings/BookingPaymentDialog.tsx:60-67,120`
+- Constat :
+  - `BookingPaymentService::create` crée une ligne à chaque appel, `paid` par défaut, avec un nouveau numéro de reçu (lu, l. 26-47) ; rien ne la compare aux paiements déjà portés par la réservation.
+  - Mesuré, test temporaire : bailleur du bien, deux `POST /api/bookings/{id}/payments` `{amount: 100000, payment_type: deposit, payment_method: cash}` → 201 et 201, deux lignes `paid,paid`.
+  - Le dialogue reste ouvert avec sa saisie après une erreur et ne se ferme que sur succès (lu, l. 60-67 ; `useApiForm`, P144.01).
+  - Que les deux reçus et le double encaissement se retrouvent dans les totaux, les reversements et les tableaux de bord est déduit (à vérifier).
+  - Établi comment : lu, mesuré.
+- Piste : clé d'idempotence sur la route (P144.01). Garde : le scénario mesuré, une seule ligne `paid`.
+
+### Une facture rejouée est émise deux fois, sous deux numéros
+- Réf : P144.05
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/InvoiceController.php:43-53`, `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:72-95,288`, `takussan-web/src/lib/queries/payments.ts:179-184`
+- Constat :
+  - Mesuré, test temporaire : agent, deux `POST /api/invoices` `{customer_id, issue_date, subtotal: 100000}` → 201 et 201, deux factures `INV-202610-…` de numéros distincts.
+  - `CreateInvoiceDialog` ne remet le formulaire à zéro et ne se ferme qu'en `onSuccess` ; le bouton n'est désactivé que pendant l'envoi ou pour un total nul (lu).
+  - Une facture numérotée ne se supprime pas sans trace : défaire le doublon passe par un avoir (ADR-0039, à vérifier sur le chemin d'annulation d'un brouillon).
+  - Établi comment : lu, mesuré.
+- Piste : clé d'idempotence sur `POST /api/invoices` (P144.01). Garde : le scénario mesuré, une seule facture.
+
+### Une demande d'intervention rejouée ouvre deux interventions et prévient deux fois
+- Réf : P144.06
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:87-130`, `takussan-web/src/components/maintenance/MaintenanceForm.tsx:78-96,179`
+- Constat :
+  - Mesuré, test temporaire : locataire en bail actif, deux `POST /api/maintenance-requests` identiques → 201 et 201, deux interventions, deux notifications (`app_notifications` → 2).
+  - `MaintenanceForm` ne navigue vers la fiche qu'en `onSuccess` ; après une erreur, la saisie et les photos choisies restent et le bouton se réactive (lu, l. 78-96, 179).
+  - Établi comment : lu, mesuré.
+- Piste : clé d'idempotence sur la route (P144.01). Garde : le scénario mesuré.
+
+### Le délai par défaut que P79.01 pose sur les appels du serveur Next couvrira aussi les écritures des actions serveur
+- Réf : P144.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/actions/property.ts:112-149,182-270`, `takussan-web/src/lib/api.ts:690-765`
+- Constat :
+  - P79.01 (validé) prescrit un `AbortSignal.timeout(N)` par défaut dans `apiRequest` côté serveur, sans distinguer lecture et écriture (lu, sa `Piste`). Les demandes de visite, de réservation, d'offre, de message et de contact du site public sont des `POST` qui passent par des actions serveur et `apiRequest` (lu).
+  - Une écriture que l'API termine après le délai sera rendue au navigateur comme un échec (`{ ok: false }`), puis rejouée par le visiteur, comme en P144.03 (déduit, à vérifier une fois P79.01 livré).
+  - Établi comment : lu.
+- Piste : à l'implémentation de P79.01, porter une clé d'idempotence sur ces `POST` (P144.01), ou un délai plus long pour les écritures ; le choix se fait avec P79.01. Garde : un test vitest de l'action qui vérifie que la clé part et reste la même d'un essai à l'autre.
+
+### Petites améliorations
+- Réf : P144.08
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Visit/VisitSchedulingService.php:30,214-287`, `takussan-web/src/app/actions/property.ts:112-129`
+- Constat :
+  - Une demande de visite rejouée crée une seconde visite au même créneau : `createOrFail` ne contrôle que le quota de 3 visites actives par visiteur et par bien, pas le créneau (lu, l. 214-287). Les doublons consomment ce quota, et la quatrième demande, même légitime, est refusée (déduit, à vérifier).
+  - Le contact public (`contact-lead`) n'est borné que par son limiteur `public-contact-lead` (5 par 10 min, lu dans `takussan-api/CLAUDE.md`) : un rejeu crée une seconde demande (déduit du code, à vérifier).
+  - Établi comment : lu.
+- Piste : la clé de P144.01 sur ces routes, ou un rapprochement par (visiteur, bien, créneau) pour les visites. Garde : le rejeu en test.
