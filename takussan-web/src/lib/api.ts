@@ -169,7 +169,8 @@ export function urlSanteApiServeur(): string {
 
 /**
  * Les en-têtes qu'`apiFetch` et `apiRequest` ajoutent d'eux-mêmes côté serveur, pour le même
- * appelant : ceux du chemin interne et l'IP du visiteur par la chaîne de confiance de TCK-598.
+ * appelant : ceux du chemin interne, l'IP du visiteur par la chaîne de confiance de TCK-598 et son
+ * agent (TCK-1218).
  * Sans eux, l'appel part de l'IP du serveur Next — un seul seau de limiteur, une seule IP dans le
  * journal d'impersonation, pour tous les opérateurs.
  */
@@ -180,6 +181,10 @@ export async function enTetesServeurAmont(options: { partage?: boolean } = {}): 
   if (options.partage) return enTetes;
   const visiteur = await resolveVisitorIp();
   if (visiteur) enTetes['X-Forwarded-For'] = visiteur;
+  // TCK-1218 (P108.01) — et son agent, comme `apiFetch` (TCK-792) : sans lui, le `fetch` de Node
+  // pose `user-agent: node`, et l'API ne voit qu'un seul agent pour tous les visiteurs.
+  const agent = await resolveVisitorUserAgent();
+  if (agent) enTetes['User-Agent'] = agent;
   return enTetes;
 }
 
@@ -715,6 +720,14 @@ export async function apiRequest<T>(
     if (visitorIp) {
       requestHeaders['X-Forwarded-For'] = visitorIp;
     }
+  }
+
+  // TCK-1218 (P108.01) — l'agent du visiteur, comme `apiFetch` (TCK-792). Les actions serveur (les
+  // deux formulaires de contact du site public, entre autres) passent par ici : sans lui, l'API
+  // écrit `node` dans le `user_agent` de chaque demande. Rien dans le navigateur, qui envoie le sien.
+  if (!requestHeaders['User-Agent']) {
+    const agent = await resolveVisitorUserAgent();
+    if (agent) requestHeaders['User-Agent'] = agent;
   }
 
   // TCK-950 (P44.03) — côté serveur, un identifiant par appel : l'API le reprend dans ses journaux,
