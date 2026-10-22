@@ -263,7 +263,8 @@ trait HasQueryBuilder
                         $inner->orWhere($field, 'like', '%'.$value.'%');
                     }
                 });
-            });
+                // TCK-1401 (P151.01) — texte libre : sans délimiteur, spatie découpe « Diop, Awa » en tableau.
+            })->delimiter('');
         }
 
         // TCK-147 — extension point for callback filters that aren't tied to a

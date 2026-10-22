@@ -677,7 +677,8 @@ class Property extends AbstractModel implements HasMedia
             }
 
             $q->whereHas('address', fn (Builder $address) => $address->where('city', 'like', '%'.$city.'%'));
-        });
+            // TCK-1401 (P151.01) — texte libre : sans délimiteur, spatie découpe « Diop, Awa » en tableau.
+        })->delimiter('');
 
         $filters[] = AllowedFilter::callback('created_from', function (Builder $q, mixed $value): void {
             if ($value !== null && $value !== '') {
