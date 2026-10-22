@@ -153,6 +153,37 @@ describe('garderPageAdmin — la capacité', () => {
   });
 });
 
+// TCK-1412 (P148.01, P148.02) — un profil sans rôle d'administration ouvre la page que sa capacité
+// ouvre : la garde lit donc ses capacités, et ne le renvoie plus d'office.
+describe('garderPageAdmin — un profil sans rôle d’admin, jugé par capacité (TCK-1412)', () => {
+  it('un agent qui tient team.invite ouvre /app/agency/team, capacités lues avec le hint de profil', async () => {
+    getMe.mockResolvedValue(moi(['agent', 'customer']));
+    getActiveProfileId.mockResolvedValue('agent:4');
+    capacites(['team.invite']);
+    await expect(garderPageAdmin('/app/agency/team')).resolves.toBeUndefined();
+    expect(apiRequest).toHaveBeenCalledWith('/api/me/capabilities', { token: 'jeton', activeProfileId: 'agent:4' });
+    expect(resolveAgency).toHaveBeenCalled();
+  });
+
+  it('le même agent est renvoyé de /app/agency (aucune capacité ne l’ouvre) vers sa page', async () => {
+    getMe.mockResolvedValue(moi(['agent', 'customer']));
+    capacites(['team.invite']);
+    await expect(garderPageAdmin('/app/agency')).rejects.toThrow(/^NEXT_REDIRECT \/app\/agency\/team$/);
+  });
+
+  it('un agent sans capacité qui ouvre une page est renvoyé vers /app', async () => {
+    getMe.mockResolvedValue(moi(['agent', 'customer']));
+    capacites(['leases.create']);
+    await expect(garderPageAdmin('/app/agency/team')).rejects.toThrow(/^NEXT_REDIRECT \/app$/);
+  });
+
+  it("sans agence rattachée, rien n'est lu et rien ne s'ouvre", async () => {
+    getMe.mockResolvedValue(moi(['customer'], null));
+    expect((await accesAdmin(moi(['customer'], null))).chemins).toEqual([]);
+    expect(apiRequest).not.toHaveBeenCalled();
+  });
+});
+
 describe('accesAdmin', () => {
   it('rend les pages du solo et « espace individuel », agence lue pour AFFICHER', async () => {
     getMe.mockResolvedValue(moi(['agency_admin']));

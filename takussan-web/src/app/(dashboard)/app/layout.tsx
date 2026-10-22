@@ -69,7 +69,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // TCK-633 (lot B) — les pages d'administration accessibles, pour la section d'agence de la barre
   // (TCK-649), le menu utilisateur, les raccourcis et les états vides. L'agence est relue par la promesse mise
-  // en cache ci-dessus ; les capacités coûtent une requête, pour un `agency_admin` seulement.
+  // en cache ci-dessus ; les capacités coûtent une requête, pour tout compte rattaché à une agence
+  // depuis TCK-1412 (une délégation ou un rôle personnalisé ouvre des pages sans rôle d'admin).
   const acces = await accesAdmin(user);
   // TCK-1278 (P136.02) — la même lecture des capacités (promesse `cache()`ée), passée au navigateur.
   const capacites = await capacitesAmorcees(user);
