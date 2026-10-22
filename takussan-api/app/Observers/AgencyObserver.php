@@ -87,6 +87,21 @@ class AgencyObserver
         }
     }
 
+    /**
+     * P129.04 (TCK-1277) — supprimer une agence la sort de la visibilité publique comme une
+     * suspension (ADR-0048 §2) : ses biens quittent l'index et leurs pages publiques sont
+     * revalidées. La restaurer les y remet. Le job juge l'agence au moment où il tourne.
+     */
+    public function deleted(Agency $agency): void
+    {
+        SyncAgencyPropertiesSearchIndex::dispatch($agency->id)->afterCommit();
+    }
+
+    public function restored(Agency $agency): void
+    {
+        SyncAgencyPropertiesSearchIndex::dispatch($agency->id)->afterCommit();
+    }
+
     /** @return array<string, mixed>|null */
     private function originalSettings(Agency $agency): ?array
     {

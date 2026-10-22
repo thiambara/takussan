@@ -26,13 +26,22 @@ class ExactIdentifierFilter extends FiltersExact
 
     public function __invoke(Builder $query, mixed $value, string $property): void
     {
+        self::exiger($value, $property);
+
+        parent::__invoke($query, $value, $property);
+    }
+
+    /**
+     * Le refus en 400, pour un filtre d'identifiant écrit hors de spatie (P119.03, TCK-1273 :
+     * `filter[agency_id]` de `GET /api/admin/users`).
+     */
+    public static function exiger(mixed $value, string $property): void
+    {
         foreach ((array) $value as $identifiant) {
             if (! self::estUnIdentifiant($identifiant)) {
                 abort_code(400, 'filter.identifier_invalid', ['filter' => $property]);
             }
         }
-
-        parent::__invoke($query, $value, $property);
     }
 
     /** `id` ou `<quelque chose>_id` : les colonnes que ce filtre garde. */

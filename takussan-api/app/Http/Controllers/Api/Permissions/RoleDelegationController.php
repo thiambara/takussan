@@ -34,6 +34,9 @@ class RoleDelegationController extends Controller
                 AllowedFilter::exact('status'),
                 AllowedFilter::custom('user_id', new ExactIdentifierFilter),
             )
+            // P119.04 (TCK-1275) — un `sort=` non déclaré rend 400, au lieu d'être ignoré en
+            // retirant l'ordre par défaut (`defaultSorts()` rend la main dès qu'il est présent).
+            ->allowedSorts('created_at')
             ->defaultSort('-created_at')
             ->with(['user', 'delegator', 'revokedBy']);
 

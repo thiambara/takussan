@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\ActivityLogExportController;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Filters\DateBoundaryFilter;
 use App\Http\Filters\ExactIdentifierFilter;
 use App\Models\Activity;
 use App\Services\Audit\ActivityLogExporter;
@@ -137,8 +138,9 @@ class CrossTenantAuditController extends Controller
                 AllowedFilter::exact('causer_type'),
                 AllowedFilter::custom('subject_id', new ExactIdentifierFilter),
                 AllowedFilter::partial('subject_type'),
-                AllowedFilter::callback('date_from', fn ($q, $value) => $q->where('created_at', '>=', $value)),
-                AllowedFilter::callback('date_to', fn ($q, $value) => $q->where('created_at', '<=', $value)),
+                // P119.02 (TCK-1271) — une date seule couvre le jour entier, comme au journal de l'agence.
+                AllowedFilter::custom('date_from', new DateBoundaryFilter('created_at', false)),
+                AllowedFilter::custom('date_to', new DateBoundaryFilter('created_at', true)),
                 AllowedFilter::callback('sensitive', function ($q, $value): void {
                     if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
                         $q->whereIn('log_name', self::SENSITIVE_LOG_NAMES);
