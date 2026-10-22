@@ -3,8 +3,11 @@
 namespace Tests\Feature\Crm;
 
 use App\Jobs\SendTaskDueReminders;
+use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\TaskStatus;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Task;
 use App\Models\User;
 use App\Notifications\TaskDueReminderNotification;
@@ -128,5 +131,80 @@ class TaskReminderTest extends TestCase
 
         $this->artisan('tasks:send-due-reminders')->assertSuccessful();
         Notification::assertSentTo($user, TaskDueReminderNotification::class);
+    }
+
+    /**
+     * P126.01 — le rappel ne part qu'à un assigné personnel actif de l'agence du dossier
+     * (`isStaffAt`) : un agent suspendu ne peut plus ouvrir la tâche, et ne reçoit rien.
+     */
+    public function test_does_not_remind_an_assignee_suspended_from_the_agency_of_the_record(): void
+    {
+        Notification::fake();
+
+        [$agency, $customer] = $this->agencyCustomer();
+        $agent = $this->agentOf($agency, AgentProfileStatus::Suspended);
+        $this->dueTaskFor($customer, $agent);
+
+        (new SendTaskDueReminders)->handle();
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_reminds_an_active_staff_assignee_of_the_agency_of_the_record(): void
+    {
+        Notification::fake();
+
+        [$agency, $customer] = $this->agencyCustomer();
+        $agent = $this->agentOf($agency, AgentProfileStatus::Active);
+        $task = $this->dueTaskFor($customer, $agent);
+
+        (new SendTaskDueReminders)->handle();
+
+        Notification::assertSentToTimes($agent, TaskDueReminderNotification::class, 1);
+        $this->assertNotNull($task->fresh()->metadata[SendTaskDueReminders::META_MARKER] ?? null);
+    }
+
+    public function test_does_not_remind_an_active_agent_of_another_agency(): void
+    {
+        Notification::fake();
+
+        [, $customer] = $this->agencyCustomer();
+        $other = Agency::factory()->create();
+        $agent = $this->agentOf($other, AgentProfileStatus::Active);
+        $this->dueTaskFor($customer, $agent);
+
+        (new SendTaskDueReminders)->handle();
+
+        Notification::assertNothingSent();
+    }
+
+    /** @return array{0: Agency, 1: Customer} */
+    private function agencyCustomer(): array
+    {
+        $agency = Agency::factory()->create();
+
+        return [$agency, Customer::factory()->create(['agency_id' => $agency->id])];
+    }
+
+    private function agentOf(Agency $agency, AgentProfileStatus $status): User
+    {
+        $user = User::factory()->create();
+        AgentProfile::factory()->create([
+            'user_id' => $user->id,
+            'agency_id' => $agency->id,
+            'status' => $status,
+        ]);
+
+        return $user;
+    }
+
+    private function dueTaskFor(Customer $customer, User $assignee): Task
+    {
+        return Task::factory()->forCustomer($customer)->create([
+            'assigned_to_id' => $assignee->id,
+            'created_by_id' => $assignee->id,
+            'due_at' => now()->addHours(24),
+            'status' => TaskStatus::Open,
+        ]);
     }
 }

@@ -244,4 +244,20 @@ class LAfricaMobileSmsWebhookTest extends TestCase
             $this->assertSame($text, $attempt->failure_reason);
         }
     }
+
+    /**
+     * P124.02 (TCK-1254) — un `text` de plus de 255 caractères ne fait plus répondre 500 : le motif
+     * est borné à la colonne, et l'échec est écrit.
+     */
+    public function test_a_failure_text_longer_than_the_column_is_bounded_and_written(): void
+    {
+        $n = $this->makeNotificationWithAttempt('lam-long');
+        $text = str_repeat('é', 300);
+
+        $this->getJson($this->rappelDeLam($this->retUrlEmisParLePilote($n->id), 'lam-long', 2, $text))->assertOk();
+
+        $attempt = NotificationDeliveryAttempt::query()->where('provider_message_id', 'lam-long')->first();
+        $this->assertSame(SmsResult::STATUS_FAILED, $attempt->status);
+        $this->assertSame(str_repeat('é', 255), $attempt->failure_reason);
+    }
 }

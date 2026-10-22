@@ -145,6 +145,13 @@ class PropertyController extends Controller
                 return $property;
             });
 
+            // P122.01, P122.02 (TCK-1262) — l'observateur de Scout a indexé le bien à son `save()`,
+            // AVANT l'adresse : sous `SCOUT_AFTER_COMMIT=false`, le document gardait l'adresse
+            // d'avant, ou aucune. Réindexé après la transaction, adresse rechargée.
+            if (! empty($data['address'])) {
+                $property->load('address')->reindexer();
+            }
+
             if ($publieALaCreation) {
                 app(PublishReadiness::class)->recordTerms($request->user(), $request->boolean('accept_terms'));
             }
@@ -225,6 +232,13 @@ class PropertyController extends Controller
                     : $property->address()->create($addressData);
             }
         });
+
+        // P122.01, P122.02 (TCK-1262) — l'observateur de Scout a indexé le bien à son `save()`,
+        // AVANT l'adresse : sous `SCOUT_AFTER_COMMIT=false`, le document gardait l'adresse
+        // d'avant, ou aucune. Réindexé après la transaction, adresse rechargée.
+        if (($data['address'] ?? null) !== null) {
+            $property->load('address')->reindexer();
+        }
 
         if ($rendPublic) {
             $readiness->recordTerms($request->user(), $request->boolean('accept_terms'));

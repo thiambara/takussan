@@ -119,7 +119,8 @@ class InvitationService
     public const DEFAULT_TTL_DAYS = 7;
 
     /**
-     * Reminder offset (days after `created_at`). Cron `invitations:remind`
+     * Reminder offset (days after the last issue — `send` or `resend` —, read as
+     * `expires_at` − `DEFAULT_TTL_DAYS`). Cron `invitations:remind`
      * fires once per invitation, idempotent on `last_reminded_at`.
      */
     public const REMINDER_OFFSET_DAYS = 2;
@@ -526,7 +527,10 @@ class InvitationService
 
         $due = Invitation::query()
             ->where('status', InvitationStatus::Sent->value)
-            ->where('created_at', '<=', $threshold)
+            // P132.02 (TCK-1252) — le délai part de la DERNIÈRE émission, `expires_at` − TTL, que
+            // `send` et `resend` posent tous deux : une relance repart pour J+2, comme le dit le
+            // docblock de `resend`. `created_at` faisait partir le rappel dans l'heure de la relance.
+            ->where('expires_at', '<=', $threshold->copy()->addDays(self::DEFAULT_TTL_DAYS))
             ->where('expires_at', '>', $now)
             ->whereNull('last_reminded_at')
             ->get();

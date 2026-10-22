@@ -11829,7 +11829,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Ajouter une adresse à un bien public déjà en ligne ne la fait jamais entrer dans l'index : ville, quartier et coordonnées restent absents de la recherche et de la carte
 - Réf : P122.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1262
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:217-227`, `takussan-api/app/Models/Property.php:417-420`, `:466-490`
 - Constat :
@@ -11840,10 +11840,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lu, puis mesuré.
 - Piste : après l'écriture de l'adresse, réindexer le bien par `Property::reindexer()` sur une instance dont la relation est rechargée (`$property->load('address')`), ou poser `$property->setRelation('address', …)` sur l'adresse créée. Test sous `InteractsWithMeilisearch` : bien public sans adresse, `PUT` avec adresse → le document porte `city` et `_geo` ; rouge sur le code d'aujourd'hui.
 - Mesure (2026-10-22, 2abc59353, mesureur) : relu `PropertyController::update` (`$property->address ? …->update() : $property->address()->create()` après `fill()->save()`, inchangé hors numéros) et `Property::toSearchableArray()` (lit `$this->address`), aucun observateur d'`Address` ne réindexe (`Address::booted` canonise seulement ; `Address::saved` n'invalide que le cache public), `git log -S` et `docs/backlog/tickets` sans correctif ; test temporaire retiré (charge 2,04 / 1,94 / 1,80 sur 8 cœurs) : bien publié sans adresse, indexé, `PUT /api/properties/{id}` avec `address.city = Thies` et coordonnées → 200, base `Thies`, document `city = null` sans `_geo` → le constat tient. Classement : A1, le document doit refléter le bien (contrat de `toSearchableArray()`, et ADR-0062 §4 réindexe déjà toute écriture d'adresse du référentiel) ; réindexer après l'écriture de l'adresse ne demande aucun choix.
+- Mesure (2026-10-22, c072bdc37, implementeur) : `AdresseDuBienDansLIndexTest` (neuf, `InteractsWithMeilisearch`, réglage de la suite) : bien public en ligne sans adresse, `PATCH` avec Thiès et coordonnées → document `city` nul et sans `_geo` avant correctif ; `PropertyController::update` (et `store`) réindexent le bien par `load('address')->reindexer()` après la transaction → `Thies` et `_geo`, 3/3 verts ; ablation (contrôleur remis à `c072bdc37`) → 3 rouges. Ticket partagé avec P122.02.
 
 ### Sous `SCOUT_AFTER_COMMIT=false`, le défaut de `config/scout.php` et le réglage de la suite, un bien indexé garde l'ancienne adresse après un changement, et un bien créé public est indexé sans adresse
 - Réf : P122.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1262 — reste : relever les valeurs de `SCOUT_AFTER_COMMIT` et `SCOUT_QUEUE` en préproduction, hors du poste de l'implémenteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:133-145`, `:217-227`, `takussan-api/config/scout.php:59,72`, `takussan-api/phpunit.xml:104-105`, `takussan-api/.env.docker:210-211`, `takussan-api/vendor/laravel/scout/src/ModelObserver.php` (`saved`)
 - Constat :
@@ -11855,6 +11856,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lu, puis mesuré ; la préproduction n'est pas relevée.
 - Piste : ne plus dépendre du réglage, en réindexant le bien après l'écriture de l'adresse (le même correctif que P122.01, voir P122.01), dans `store()` comme dans `update()`. Relever les deux valeurs en préproduction. Test : modification et création publique sous le réglage de la suite → le document porte la nouvelle ville ; rouge aujourd'hui.
 - Mesure (2026-10-22, 2abc59353, mesureur) : relu `PropertyController::store` (`Property::create` puis `address()->create`, dans la transaction) et `::update`, `config/scout.php:72` (`after_commit` faux par défaut), `phpunit.xml:105` (`SCOUT_AFTER_COMMIT=false`) ; test temporaire retiré, réglage de la suite : bien publié à Dakar (Almadies), indexé, `PUT` avec Thiès (Randoulene) → base `Thies`, document `city = Dakar`, `neighborhood = Almadies` → le constat tient pour la modification ; la création n'a été que relue (même mécanisme). Classement : A1, même correctif que P122.01 dans `store()` et `update()`, indépendant du réglage ; le relevé des deux valeurs en préproduction sort du poste et n'est pas pour l'implémenteur (reste au porteur).
+- Mesure (2026-10-22, c072bdc37, implementeur) : même test que P122.01 : bien public à Dakar (Almadies), `PATCH` vers Thiès (Randoulene) → document resté `Dakar` avant correctif ; `POST` d'un bien public avec adresse à Thiès → document sans `city` ni `_geo` ; avec la réindexation après la transaction dans `store()` et `update()` → `Thies`, `Randoulene`, `_geo` ; ablation → rouge. Le relevé en préproduction n'est pas fait (hors du poste).
 
 ### `crm:normalize-customer-phones` réécrit `customers.phone` par `toBase()->update()` : l'index des clients garde l'ancien format du numéro
 - Réf : P122.03
@@ -12003,7 +12005,7 @@ est déjà P91.06.*
 
 ### Un accusé SMS en échec dont le texte du fournisseur dépasse 255 caractères rend 500, et la tentative reste « envoyée »
 - Réf : P124.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1254
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:77,95`, `takussan-api/app/Http/Controllers/Webhook/MtargetSmsStatusController.php:71,97`, `takussan-api/app/Services/Notifications/Sms/Dlr/DlrReportApplier.php:82-91`, `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:93-97`, `takussan-api/app/Console/Commands/SmsPullMtargetDlr.php:68-70`
 - Constat :
@@ -12014,10 +12016,11 @@ est déjà P91.06.*
   - Établi comment : lu, et mesuré pour LAM.
 - Piste : borner `failureReason` à 255 caractères dans `DeliveryAttemptUpdater::applyStatus()`, le point de passage commun, avec `mb_substr`. Cela couvre les trois voies SMS et laisse la borne WhatsApp redondante mais juste. Un test par voie (LAM, Mtarget poussé, Mtarget relevé) avec un texte de 300 caractères, qui attend 200 et la tentative `failed`.
 - Mesure (2026-10-22, 9662e2ff4, mesureur) : relu `DeliveryAttemptUpdater.php:93-97` (`failure_reason` écrit sans borne), `LAfricaMobileSmsStatusController.php:77,95`, `MtargetSmsStatusController.php:71,97`, `DlrReportApplier.php:82-91`, `SmsPullMtargetDlr.php:68-70` ; aucun ticket ni commit sur ces voies (TCK-1046 ne borne que WhatsApp) ; méthode temporaire dans `LAfricaMobileSmsWebhookTest` (retirée), rappel signé émis par le pilote, `status=2`, `text` de 300 caractères → **500**, `value too long for type character varying(255)` au journal PostgreSQL. Statut de la tentative après le 500 et voies Mtarget non rejouées : lues seulement. Classement : A1, la colonne est un `varchar(255)` et la voie sœur WhatsApp borne déjà le même motif à 255 (TCK-1046) ; le correctif attendu est un `mb_substr($failureReason, 0, 255)` dans `DeliveryAttemptUpdater::applyStatus()`, avec un test par voie qui attend 200 et la tentative `failed`, sans choix de produit.
+- Mesure (2026-10-22, c072bdc37, implementeur) : un test par voie, motif de 300 `é` → avant correctif LAM 500, Mtarget poussé 500, Mtarget relevé 22001 `value too long for type character varying(255)` ; `DeliveryAttemptUpdater::applyStatus()` borne `failure_reason` par `mb_substr(…, 0, 255)` → les trois verts (200, tentative `failed`, motif de 255 caractères) ; ablation (classe remise à `c072bdc37`) → 1 rouge par classe. L'absence de `try` de `SmsPullMtargetDlr` reste hors du correctif.
 
 ### Le `user_agent` d'une demande de contact est coupé à 255 octets et peut tomber au milieu d'un caractère : 500 sur la voie publique
 - Réf : P124.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1256
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Lead/ContactLeadService.php:215,314`
 - Constat :
@@ -12028,10 +12031,11 @@ est déjà P91.06.*
   - Établi comment : lu et mesuré.
 - Piste : `mb_substr(…, 0, 255)` aux deux lignes. Un test de chaque voie publique avec un agent utilisateur de 254 octets ASCII suivis d'un caractère accentué, qui attend 204 (clic) ou 201 (demande) et une valeur valide en UTF-8. Une garde de forme, sur le modèle des `check-*.mjs`, pourrait refuser un `substr(` appliqué à un `userAgent()` ou à une valeur écrite en base.
 - Mesure (2026-10-22, 9662e2ff4, mesureur) : relu `ContactLeadService.php:215,314`, toujours `substr((string) $request->userAgent(), 0, 255)` ; `git log -S` ne rend que son introduction (91cbd0cc9, TCK-590) ; test temporaire (retiré) `POST /api/public/properties/{slug}/contact-click` sans authentification, `User-Agent` de 254 `a` suivis de `é` → **500**, `SQLSTATE[22021] invalid byte sequence for encoding "UTF8": 0xc3`. Voie `contact-lead` lue, non jouée. Classement : A1, le contrat est déjà écrit dans le dépôt (`FailedJobService::truncate()` corrige ce même défaut, `LeaseSignatureService.php:167` écrit le même en-tête avec `mb_substr`) ; le correctif est `mb_substr(…, 0, 255)` aux deux lignes, avec un test par voie publique, et ne change ni ce qui est conservé ni la longueur gardée (V3 non touché). La garde de forme suggérée en fin de piste reste facultative.
+- Mesure (2026-10-22, c072bdc37, implementeur) : `User-Agent` de 254 `a` suivis de `éé`, avant correctif : `contact-click` → 500 et `contact-lead` → 500 (un test dans `PropertyContactClickTest` et `PropertyContactLeadTest`) ; `mb_substr` aux deux lignes de `ContactLeadService` → 204 et 201, valeur `254 a + é` valide en UTF-8 ; ablation (service remis à `c072bdc37`) → 1 rouge par classe. Garde de forme non écrite.
 
 ### Petites améliorations des colonnes bornées
 - Réf : P124.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1258
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Webhooks/WebhookJournal.php:139-151`, `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:88-97`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:524,597`
 - Constat :
@@ -12040,6 +12044,7 @@ est déjà P91.06.*
   - Établi comment : lu.
 - Piste : borner `event_type` comme `external_id` dans `annotate()`. Les correctifs de P124.01 à P124.03 portent chacun un test qui écrit N+1 caractères, ou un caractère multioctet à la limite, et attend l'écriture.
 - Mesure (2026-10-22, 9662e2ff4, mesureur) : relu `WebhookJournal.php:148-149` (`external_id` borné à 191, `event_type` écrit tel quel), `OrangeSmsStatusController.php:97`, `PaymentGatewayService.php:524,597` ; méthode temporaire dans `WebhookJournalTest` (retirée) : accusé Orange accepté (liste d'IP vide, jeton d'URL valide) dont `deliveryStatus` fait 300 caractères → **500**, `value too long for type character varying(255)` au journal PostgreSQL. Le « à vérifier » du constat porte sur la probabilité (chemin après authentification), pas sur le défaut, qui est mesuré. Classement : A1, la colonne et la borne voisine du même appel fixent le comportement attendu ; le correctif est `mb_substr((string) $facts['event_type'], 0, 255)` dans `annotate()`, avec un test d'accusé à 300 caractères qui attend la réponse habituelle.
+- Mesure (2026-10-22, c072bdc37, implementeur) : test ajouté à `WebhookJournalTest`, accusé Orange apparié au `deliveryStatus` de 300 `é` → 500 avant correctif ; `annotate()` borne `event_type` par `mb_substr(…, 0, 255)` → 200, `event_type` de 255 caractères, 11/11 verts ; ablation (classe remise à `c072bdc37`) → 1 rouge.
 
 ## Angle 125 — Téléphones écrits sans normalisation, et leurs lecteurs
 
@@ -12151,7 +12156,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### Le rappel d'échéance d'une tâche part à son assigné, même suspendu de l'agence
 - Réf : P126.01
-- Statut : validé (délégué) — ne rappeler l'échéance qu'à un assigné personnel actif de l'agence du dossier (`MembershipCapabilityResolver::isStaffAt`, agence lue par `Task::parentRecord()`) ; sinon, aucun rappel ; reste : un repli du rappel vers les admins actifs de l'agence
+- Statut : fait · TCK-1248 — reste : un repli du rappel vers les admins actifs de l'agence
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/SendTaskDueReminders.php:45-81`, `takussan-api/app/Services/Agency/TeamMemberSuspensionService.php:73-118`
 - Constat :
@@ -12163,6 +12168,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 - Piste : ne rappeler que si l'assigné est personnel actif de l'agence du dossier (`MembershipCapabilityResolver::isStaffAt`, agence lue par `Task::parentRecord()`). Le repli (rappel aux admins actifs, ou rien) est un choix de produit, à écrire. Test : assigné suspendu → aucun rappel ; assigné actif → un rappel.
 - Mesure (2026-10-22, 230f917df, mesureur) : relu `SendTaskDueReminders.php:41-81` (aucun jugement de l'assigné ni de l'agence), `TeamMemberSuspensionService` vit sous `app/Services/Membership/` et non `Agency/` ; aucun ticket ni commit sur `P126` (`grep -rln P126 docs/backlog/tickets`, `git log 64db86d28..HEAD -- takussan-api/app` vide) ; test temporaire `TmpMesureurP126Test` (charge 1,86/2,34/2,37 sur 8 cœurs, retiré) : agent au profil `suspended` (`isStaffAt` faux), tâche ouverte sur un client de l'agence à 24 h → `TaskDueReminderNotification` envoyée 1 fois à l'agent suspendu. Le constat tient. Classement : V7, écarter l'assigné suspendu exige de choisir le repli, que la piste déclare à écrire.
 - Mesure (2026-10-22, 348258c0b, delegue) : relu le constat, la `Piste` et la mesure du mesureur, `docs/features.md:527` (« un profil non actif (suspendu, …) ne confère aucune capacité ni aucun périmètre dans son agence », TCK-587), `MaintenanceParticipants.php:33-46` (l'équipe filtrée par `isStaffAt`, commentaire « un agent suspendu n'est plus prévenu », sans repli), ADR-0031 § 3 → écarter l'assigné qui n'est plus personnel suit une règle écrite et le précédent de `MaintenanceParticipants` ; le repli est la seule part neuve. Délégation : V7, ne plus envoyer un rappel vers une tâche que le destinataire ne peut plus ouvrir est mineur, réversible en un commit et n'envoie rien de neuf à personne ; le repli vers les admins, envoi visible neuf, reste au porteur.
+- Mesure (2026-10-22, c072bdc37, implementeur) : `TaskReminderTest` étendu, avant correctif : agent `suspended` de l'agence du client → `TaskDueReminderNotification` envoyée (rouge), agent actif d'une autre agence → envoyée (rouge) ; `SendTaskDueReminders::notifyFor` écarte l'assigné qui n'est pas `isStaffAt` de l'agence lue par `Task::parentAgencyId()`, sans repli ni marqueur → 9/9 verts ; ablation (job remis à `c072bdc37`) → 2 rouges. Un dossier hors agence garde son rappel.
 
 ### Le rappel de visite part à l'agent de la visite sans le jugement que `VisitNotifier` applique au même agent
 - Réf : P126.02
@@ -12525,7 +12531,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Un bien sous bail actif se supprime sans garde, et sa quittance, son contrat et son état des lieux signé rendent 500
 - Réf : P130.02
-- Statut : validé (délégué) — les trois gabarits lisent le bien supprimé : `loadMissing(['property' => fn ($q) => $q->withTrashed()])` dans `streamRentReceipt`, `leaseContract` et `InventoryController::downloadPdf`, et un test par document (quittance, contrat, état des lieux signé d'un bail dont le bien est supprimé → 200 PDF) ; reste : refuser la suppression d'un bien qui porte un bail `pending_signature` ou `active` (422), règle de produit neuve à trancher par le porteur avec P130.01
+- Statut : fait · TCK-1250 — reste : refuser la suppression d'un bien qui porte un bail `pending_signature` ou `active` (422), règle de produit neuve à trancher par le porteur avec P130.01
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:238-244`, `takussan-api/resources/views/pdf/receipts/rent.blade.php:42`, `takussan-api/resources/views/pdf/leases/contract.blade.php:70`, `takussan-api/resources/views/pdf/inventories/report.blade.php:43`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:50-55`, `takussan-api/app/Http/Controllers/Api/PublicPaymentLinkController.php:72`
 - Constat :
@@ -12539,6 +12545,7 @@ l'angle 160 : il n'est pas repris ici.*
 - Piste : refuser la suppression d'un bien qui porte un bail `pending_signature` ou `active` (422), comme le garant ; et, pour les baux terminés qui restent consultables, faire lire aux trois gabarits le bien `withTrashed()` (`loadMissing(['property' => fn ($q) => $q->withTrashed()])` dans `streamRentReceipt`, `leaseContract` et `InventoryController::downloadPdf`). Test : quittance, contrat et état des lieux d'un bail dont le bien est supprimé → 200 PDF.
 - Mesure (2026-10-22, d94868488, mesureur) : relu `PropertyController::destroy` (`delete()` seul), `Property::booted` (`deleting` ne détache que les enfants), `PropertyObserver::deleted` (compteur, boosts, cache des semblables), et les trois gabarits (`'Bien n°'.$property->id` hors du `??`, l. 42, 70 et 43 inchangées) ; test temporaire (retiré) : bail actif, `DELETE /api/properties/{id}` en admin d'agence → 204 ; quittance PDF → 500 « Attempt to read property "id" on null » sur `pdf/receipts/rent.blade.php`, contrat PDF → 500 (témoin : 200 et 200). L'état des lieux signé diffère du constat : en admin d'agence il rend **403** après la suppression (témoin 200), parce que `InventoryPolicy::view` ne laisse passer l'équipe que par le bien ; c'est en **locataire** qu'il rend 500. La quittance du lien public n'est pas rejouée. Classement : V7, la garde en 422 est un refus visible neuf sans règle écrite (`docs/features.md:78` dit seulement « soft delete ») ; la lecture `withTrashed()` des gabarits relèverait seule de A1, mais la piste lie les deux.
 - Mesure (2026-10-22, f92b80db1, delegue) : relu le constat, la `Piste` et la mesure du mesureur, qui écrit que la lecture `withTrashed()` des gabarits « relèverait seule de A1 » ; `grep -n "porteur ("` sur les entrées de l'angle 130 → aucune décision, et P130.01 (le même refus en 422 pour un client) est encore au porteur → la lecture du bien supprimé corrige un 500 sans rien choisir, le refus de suppression est une règle neuve que rien n'écrit (`docs/features.md:78` : « soft delete »). Délégation : V7, seule la partie sans choix est validée (un document déjà servi cesse de rendre 500, aucune autorisation ne change : l'état des lieux reste 403 à l'équipe par `InventoryPolicy::view`), le refus de suppression est laissé en reste au porteur pour qu'il le tranche d'un même geste avec P130.01 ; réversible en un commit.
+- Mesure (2026-10-22, c072bdc37, implementeur) : `PdfDUnBienSupprimeTest` (neuf), en locataire, bien supprimé avant la requête : quittance, contrat et état des lieux signé → 500 « Attempt to read property "id" on null » avant correctif ; les trois lectures passent par `withTrashed()`, la relation déjà chargée à `null` par la policy étant retirée d'abord (sans cela, 2 rouges sur 3) → 3/3 verts ; ablation (contrôleurs remis à `c072bdc37`) → 3 rouges. `ReceiptPdfTest`, `LeaseContractPdfTest`, `InventorySignatureTest`, `PublicPaymentLinkTest` verts.
 
 ### Les interventions ouvertes d'un bien supprimé disparaissent pour l'agence, et restent ouvertes pour le locataire
 - Réf : P130.03
@@ -12668,7 +12675,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Une relance d'invitation remet `last_reminded_at` à nul : le rappel « vous attend » part dans l'heure qui suit
 - Réf : P132.02
-- Statut : validé (délégué) — le rappel part 2 jours après la dernière émission, comme l'écrit le docblock de `resend` (« so the recipient gets one again at J+2 from "now" ») : `remindPending` mesure ce délai depuis `expires_at` − `DEFAULT_TTL_DAYS`, que `send` et `resend` posent tous deux à l'émission, au lieu de `created_at` ; `resend` garde la remise à nul de `last_reminded_at`, sans colonne neuve ; tests : relance puis `remindPending` une heure après → aucun envoi, relance + 2 jours → un envoi
+- Statut : fait · TCK-1252
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:425-430,522-538`, `takussan-api/routes/console.php:110`
 - Constat :
@@ -12680,6 +12687,7 @@ l'angle 160 : il n'est pas repris ici.*
 - Piste : mesurer le délai du rappel depuis la dernière émission (une date de dernier envoi posée par `send` et `resend`, ou `created_at` remplacé par elle dans `remindPending`), ou poser `last_reminded_at` à l'heure de la relance. Garde : un test « relance puis `remindPending` une heure après » qui n'attend aucun envoi, et un second à relance + 2 jours qui en attend un.
 - Mesure (2026-10-22, c270baa6b, mesureur) : relu `InvitationService.php` (`resend` remet `last_reminded_at` à nul sans toucher `created_at` ; `remindPending` filtre `created_at <= now − 2 j` et `last_reminded_at` nul), `routes/console.php:110` (`invitations:remind` horaire), TCK-249 (« rappel J+2, idempotent via `last_reminded_at` », rien sur la relance) ; test temporaire (retiré) calqué sur `InvitationBySmsTest` : invitation par SMS, J+3 et `remindPending` → 2 SMS, `POST /api/invitations/{id}/resend` → 3, une heure plus tard `remindPending` → 4, le dernier « Takussan : rappel — votre invitation à rejoindre … vous attend : …/invitations/accept?token=… » (charge 2,66 sur 8 cœurs). Le constat tient tel qu'écrit. Classement : V7, ni TCK-249 ni le code ne disent quand le rappel doit partir après une relance, et les options de la Piste (date de dernier envoi en colonne, V4, ou `last_reminded_at` posé à la relance) ne rendent pas le même calendrier.
 - Mesure (2026-10-22, f92b80db1, delegue) : relu `InvitationService.php:352-356` (docblock de `resend` : « clear the reminder marker (so the recipient gets one again at J+2 from "now") »), l. 119-125 (`DEFAULT_TTL_DAYS = 7`, `REMINDER_OFFSET_DAYS = 2`, « days after `created_at` »), l. 220 et 428 (seuls écrivains de `expires_at`, `now() + 7 j`, à l'envoi et à la relance : `grep -rn "'expires_at' =>" app`), l. 525-531 (`remindPending` filtre sur `created_at`) → la cadence voulue après une relance est écrite dans le code, et c'est `remindPending` qui ne la tient pas. Délégation : V7 (V4 écarté : aucune colonne), la décision suit une intention déjà écrite (J+2 après la relance) et prend la seule option de la `Piste` sans schéma ; réversible en un commit.
+- Mesure (2026-10-22, c072bdc37, implementeur) : test ajouté à `InvitationBySmsTest`, avant correctif : invitation par SMS, J+3 et `remindPending` → 2 SMS, relance → 3, une heure après `remindPending` → 4 (rouge) ; `remindPending` mesure le délai depuis `expires_at` − `DEFAULT_TTL_DAYS` → 3 une heure après, 4 deux jours après, 7/7 verts ; ablation (service remis à `c072bdc37`) → 1 rouge. `InvitationLifecycleTest`, `InvitationLocaleTest`, `InvitationSmsContentTest` verts.
 
 ### Les gabarits WhatsApp inscrits au registre ne correspondent pas aux paramètres envoyés, et ne portent jamais le lien de paiement
 - Réf : P132.03
@@ -12831,7 +12839,7 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
 
 ### Le tableau de bord de l'agent range les tâches sans échéance haute priorité en dernier
 - Réf : P134.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1260
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:119-125`, `takussan-api/app/Models/Enums/TaskPriority.php`, `takussan-api/database/migrations/2026_04_17_160029_create_tasks_table.php:21`, `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:166-170`
 - Constat :
@@ -12843,6 +12851,7 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
   - Établi comment : lu, et ordre mesuré sur PostgreSQL.
 - Piste : trier sur le rang de l'enum, comme TCK-1126 l'a fait pour les annonces (`CASE priority WHEN … END`, rangs pris de `TaskPriority::cases()`), dans une classe réutilisable par `sort=priority` (voir P134.03). Test : deux tâches sans échéance, `low` et `high`, la `high` sort la première ; ablation par le retour à `orderByDesc('priority')`.
 - Mesure (2026-10-22, 294f70acc, mesureur) : relu `DashboardAgentService.php:119-125` (`orderByRaw('due_at IS NULL, due_at asc')` puis `orderByDesc('priority')`, `limit(5)`), `TaskPriority.php` (`low`, `medium`, `high`), migration `create_tasks_table.php:21` (`string('priority')`), `StoreTaskRequest.php:55` (`due_at` `nullable`) ; `php artisan tinker` en lecture, `select p from (values ('low'),('medium'),('high')) t(p) order by p desc` → `["medium","low","high"]` ; `DashboardAgentTest.php:121` ne lit que `items.0` d'une liste à une tâche ; `git log` du service → aucun correctif depuis → le constat tient, lignes inchangées. Classement : A1, l'intention « la plus haute priorité d'abord » est écrite par l'appel `orderByDesc('priority')` lui-même et TCK-1126 a tranché la même forme pour les annonces ; le correctif ne touche ni montant, ni droit, ni schéma.
+- Mesure (2026-10-22, c072bdc37, implementeur) : test ajouté à `DashboardAgentTest`, trois tâches sans échéance `low`, `medium`, `high` → `tasks.items.0.priority` = `medium` avant correctif (rouge) ; `App\Sorts\TaskPrioritySort` (rang de `TaskPriority::cases()`, forme de TCK-1126) remplace `orderByDesc('priority')` → `high`, `medium`, `low`, 6/6 verts ; ablation (retour à `orderByDesc('priority')`) → 1 rouge. `sort=priority` (P134.03) non branché.
 
 ### La bibliothèque de documents range les pièces RIB et NINEA en tête, sous un titre de groupe sans libellé
 - Réf : P134.02

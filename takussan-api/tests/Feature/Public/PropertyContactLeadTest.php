@@ -465,4 +465,23 @@ class PropertyContactLeadTest extends TestCase
             'name' => 'Awa Diop', 'phone' => '+221771231002', 'message' => 'Disponible ce samedi ?',
         ])->assertStatus(409)->assertJsonPath('code', 'lead.contact_unavailable');
     }
+
+    /** P124.03 (TCK-1256) — même borne, en caractères, sur le formulaire de contact. */
+    public function test_un_agent_utilisateur_multioctet_a_la_borne_est_coupe_sur_un_caractere(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->published()->create(['user_id' => $owner->id]);
+
+        $this->withHeader('User-Agent', str_repeat('a', 254).'éé')
+            ->postJson("/api/public/properties/{$property->slug}/contact-lead", [
+                'name' => 'Awa Diop',
+                'email' => 'awa@example.com',
+                'phone' => '+221 77 123 45 67',
+                'message' => 'Bonjour, ce bien est-il disponible ?',
+            ])->assertCreated();
+
+        $ua = PropertyContactLead::query()->sole()->user_agent;
+        $this->assertSame(str_repeat('a', 254).'é', $ua);
+        $this->assertTrue(mb_check_encoding($ua, 'UTF-8'));
+    }
 }

@@ -212,7 +212,7 @@ class ContactLeadService
             'medium' => $medium,
             'locale' => app()->getLocale(),
             'ip' => $request->ip(),
-            'user_agent' => substr((string) $request->userAgent(), 0, 255),
+            'user_agent' => mb_substr((string) $request->userAgent(), 0, 255), // P124.03 (TCK-1256) : en caractères, jamais au milieu d'un UTF-8
         ]);
     }
 
@@ -311,7 +311,7 @@ class ContactLeadService
             'medium' => $data['medium'] ?? null,
             'locale' => app()->getLocale(),
             'ip' => $request->ip(),
-            'user_agent' => substr((string) $request->userAgent(), 0, 255),
+            'user_agent' => mb_substr((string) $request->userAgent(), 0, 255), // P124.03 (TCK-1256) : en caractères, jamais au milieu d'un UTF-8
         ];
     }
 

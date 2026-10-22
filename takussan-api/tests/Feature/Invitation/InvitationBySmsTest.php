@@ -92,6 +92,31 @@ class InvitationBySmsTest extends TestCase
         Mail::assertNothingOutgoing();
     }
 
+    /**
+     * P132.02 (TCK-1252) — le rappel part 2 jours après la DERNIÈRE émission (la relance comprise),
+     * et non 2 jours après la création : une invitation relancée à J+3 ne reçoit pas son rappel
+     * dans l'heure qui suit.
+     */
+    public function test_le_rappel_part_deux_jours_apres_la_relance_et_non_dans_l_heure(): void
+    {
+        $id = $this->inviter()->assertCreated()->json('data.id');
+
+        $this->travel(InvitationService::REMINDER_OFFSET_DAYS + 1)->days();
+        app(InvitationService::class)->remindPending();
+        $this->assertCount(2, $this->sms->sentTo(self::NUMERO));
+
+        $this->postJson("/api/invitations/{$id}/resend")->assertOk();
+        $this->assertCount(3, $this->sms->sentTo(self::NUMERO));
+
+        $this->travel(1)->hours();
+        app(InvitationService::class)->remindPending();
+        $this->assertCount(3, $this->sms->sentTo(self::NUMERO), 'aucun rappel une heure après la relance');
+
+        $this->travel(InvitationService::REMINDER_OFFSET_DAYS)->days();
+        app(InvitationService::class)->remindPending();
+        $this->assertCount(4, $this->sms->sentTo(self::NUMERO), 'un rappel deux jours après la relance');
+    }
+
     public function test_une_seconde_invitation_au_meme_numero_rend_409(): void
     {
         $this->inviter()->assertCreated();

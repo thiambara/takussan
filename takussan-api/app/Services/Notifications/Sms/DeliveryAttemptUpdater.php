@@ -92,7 +92,10 @@ class DeliveryAttemptUpdater
             }
             $attempt->forceFill([
                 'status' => $newStatus,
-                'failure_reason' => $failureReason,
+                // P124.02 (TCK-1254) — le motif vient du fournisseur, sans borne : un texte de plus de
+                // 255 caractères faisait lever l'écriture (`varchar(255)`), rendre 500 au webhook et
+                // laisser la tentative `sent`. Même borne que WhatsApp (TCK-1046), en caractères.
+                'failure_reason' => $failureReason !== null ? mb_substr($failureReason, 0, 255) : null,
                 'delivered_at' => $deliveredAt,
             ])->save();
             if ($newStatus === SmsResult::STATUS_FAILED) {
