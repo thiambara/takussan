@@ -12118,7 +12118,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### Les trois invitations par téléphone refusent la forme nationale et la forme espacée, que leur message d'erreur donne en exemple
 - Réf : P125.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1283 — reste : le même message `phone_e164`, exemple espacé compris, s'affiche aussi sur `PATCH /api/me`, où la forme espacée reste refusée (le porteur a écarté la normalisation côté API sur P125.03)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Invitation/InviteAgentRequest.php:37-39`, `InviteOwnerRequest.php:35`, `InviteServiceProviderRequest.php:38`, `takussan-api/lang/fr/validation.php:177`, `takussan-api/lang/en/validation.php:21`, `takussan-web/src/components/admin/InviteAgentDialog.tsx:61,104,203-209`, `takussan-web/src/components/owners/InviteOwnerSheet.tsx:142,225-229`, `takussan-web/src/components/service-providers/InviteServiceProviderSheet.tsx:200,285-289`
 - Constat :
@@ -12130,6 +12130,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - Établi comment : lu et mesuré (règle seule ; le parcours des trois écrans n'a pas été joué).
 - Piste : normaliser par `TelephoneSaisi::normaliser` dans `prepareForValidation` des trois requêtes, ou saisir par `PhoneInput` ; écrire l'exemple du message sans espaces, ou accepter les espaces partout où il s'affiche. Test : une invitation à `77 123 45 67` part au `+221771234567`.
 - Mesure (2026-10-22, 64db86d28, mesureur) : relu `InviteAgentRequest.php:37-39`, `InviteOwnerRequest.php:35-37`, `InviteServiceProviderRequest.php:38-40` (`TelephoneJoignable` sur la valeur brute, aucun `prepareForValidation`) et `lang/fr/validation.php:177` (exemple « +221 77 123 45 67 ») ; test temporaire, retiré, `Validator` sur la règle des trois requêtes → `+221 77 123 45 67` et `77 123 45 67` refusés par `phone_e164`, `+221771234567` accepté ; le parcours des trois écrans n'a pas été joué. Classement : A1, le message de la règle donne la forme espacée pour valide et TCK-590 a écrit la normalisation des saisies nationales ; correctif : `TelephoneSaisi::normaliser` sur `phone` dans `prepareForValidation` des trois requêtes, comme `ContactLeadPublicRequest.php:42`, sans toucher aux écrans.
+- Mesure (2026-10-22, a2398e474, implementeur) : test neuf `InvitationBySmsTest::test_une_invitation_a_un_numero_saisi_en_forme_humaine_part_en_e164` (trois routes × `+221 77 000 08 01` et `77 000 08 01`) rouge avant correctif : 6 × 422 `phone` « … (e.g. +221 77 123 45 67) » → `TelephoneSaisi::normaliser` dans `prepareForValidation` des trois requêtes ; 201, `data.phone` `+221770000801` et un SMS à ce numéro ; ablation (requêtes remises) → 6 rouges, remise → vert ; `InvitationBySmsTest` 13/13, `InviteAgentTest` 15/15, `InviteOwnerTest` 11/11, `InviteServiceProviderTest` 12/12. Les écrans ne sont pas touchés.
 
 ### Cinq normaliseurs de téléphone, et ils ne rendent pas le même numéro
 - Réf : P125.05
