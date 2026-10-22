@@ -2,178 +2,139 @@
 
 namespace Database\Seeders\Engagement;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\AppNotification;
-use App\Models\Booking;
 use App\Models\Enums\NotificationChannel;
-use App\Models\Enums\NotificationType;
-use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\MaintenanceRequest;
 use App\Models\PropertyVisit;
-use Carbon\CarbonImmutable;
+use App\Models\User;
+use App\Services\Notifications\NotificationRenderer;
+use Carbon\CarbonInterface;
 use Database\Seeders\Support\SeedingContext;
 use Illuminate\Database\Seeder;
 
+/**
+ * TCK-1324 (P128.04) — chaque notification s'écrit par CODE et paramètres BRUTS, comme
+ * `NotificationService::send` : le titre et le corps rangés sont rendus dans la langue du
+ * destinataire, et la cloche les rend dans la langue de l'écran. Les lignes écrites jusque-là en
+ * phrases françaises figées, sans code, laissaient la cloche en français dans une interface `en` et
+ * n'exerçaient jamais le rendu par code en développement.
+ *
+ * Chaque famille prend le code que l'application émet pour le même événement et le même
+ * destinataire, avec les paramètres de son émetteur réel :
+ *   · visite → son agent : `visit.requested` (`VisitNotifier::requested`) ;
+ *   · paiement de loyer reçu → le bailleur : `lease_payment.received_landlord`
+ *     (`LeasePaymentService`) ;
+ *   · intervention attribuée → l'attributaire : `maintenance.assigned`
+ *     (`NotifyMaintenanceParticipants`).
+ *
+ * Retirées faute de code apparié (décision du porteur, 2026-10-22) : le rappel d'échéance au
+ * BAILLEUR (l'application ne le rappelle qu'au locataire), la réservation à son AUTEUR
+ * (`NotifyOnBookingRequested` l'exclut), l'intervention sans attributaire à son demandeur, et
+ * « Nouveau bail » (aucun code au catalogue).
+ */
 class AppNotificationSeeder extends Seeder
 {
-    public function __construct(private readonly SeedingContext $ctx) {}
+    public function __construct(
+        private readonly SeedingContext $ctx,
+        private readonly NotificationRenderer $renderer,
+    ) {}
 
     public function run(): void
     {
         $this->fromLeasePayments();
-        $this->fromBookings();
         $this->fromMaintenance();
-        $this->fromLeases();
         $this->fromVisits();
     }
 
     private function fromVisits(): void
     {
-        PropertyVisit::query()->chunkById(200, function ($visits) {
-            foreach ($visits as $visit) {
-                if (! $visit->agent_id) {
-                    continue;
+        PropertyVisit::query()
+            ->whereNotNull('agent_id')
+            ->with(['agent', 'property:id,title'])
+            ->chunkById(200, function ($visits) {
+                foreach ($visits as $visit) {
+                    if (! $visit->agent) {
+                        continue;
+                    }
+                    $isRead = $this->ctx->faker()->boolean(50);
+                    $this->write($visit->agent, NotificationCode::VisitRequested, [
+                        'property' => $visit->property?->title ?? '#'.$visit->id,
+                        'scheduled_at' => $visit->scheduled_at?->toIso8601String(),
+                        'timezone' => $visit->agent->timezone ?: NotificationRenderer::DEFAULT_TIMEZONE,
+                        'contact' => implode(' · ', array_filter([$visit->visitor_phone, $visit->visitor_email])) ?: null,
+                    ], NotificationTarget::of('visit', $visit->id), $visit->created_at, $isRead ? $visit->created_at : null);
                 }
-                $isRead = $this->ctx->faker()->boolean(50);
-                AppNotification::create([
-                    'user_id' => $visit->agent_id,
-                    'type' => NotificationType::Visit->value,
-                    'delivery_channel' => NotificationChannel::App->value,
-                    'title' => 'Visite planifiée',
-                    'body' => 'Visite programmée pour '.$visit->scheduled_at?->format('d/m/Y H:i'),
-                    'data' => ['status' => $visit->status?->value],
-                    'referenceable_id' => $visit->id,
-                    'referenceable_type' => 'property_visit',
-                    'is_read' => $isRead,
-                    'read_at' => $isRead ? $visit->created_at : null,
-                    'sent_at' => $visit->created_at,
-                    'created_at' => $visit->created_at,
-                    'updated_at' => $visit->created_at,
-                ]);
-            }
-        });
+            });
     }
 
     private function fromLeasePayments(): void
     {
         LeasePayment::query()
-            ->with('lease:id,landlord_id,reference_number')
+            ->whereNotNull('paid_at')
+            ->with(['lease:id,landlord_id,property_id,tenant_id', 'lease.landlord', 'lease.property:id,title', 'lease.tenant:id,first_name,last_name'])
             ->chunkById(200, function ($payments) {
                 foreach ($payments as $payment) {
                     $lease = $payment->lease;
-                    if (! $lease) {
+                    if (! $lease?->landlord) {
                         continue;
                     }
-
-                    if ($payment->paid_at) {
-                        $isRead = $this->ctx->faker()->boolean(60);
-                        AppNotification::create([
-                            'user_id' => $lease->landlord_id,
-                            'type' => NotificationType::Payment->value,
-                            'delivery_channel' => NotificationChannel::App->value,
-                            'title' => 'Paiement reçu',
-                            'body' => 'Un paiement de loyer a été enregistré pour le bail '.$lease->reference_number,
-                            'data' => ['amount' => $payment->amount, 'currency' => $payment->currency],
-                            'referenceable_id' => $payment->id,
-                            'referenceable_type' => 'lease_payment',
-                            'is_read' => $isRead,
-                            'read_at' => $isRead ? $payment->paid_at : null,
-                            'sent_at' => $payment->paid_at,
-                            'created_at' => $payment->paid_at,
-                            'updated_at' => $payment->paid_at,
-                        ]);
-                    }
-
-                    if ($lease->landlord_id && $payment->due_date) {
-                        $sentAt = CarbonImmutable::parse($payment->due_date)->subDays(3);
-                        AppNotification::create([
-                            'user_id' => $lease->landlord_id,
-                            'type' => NotificationType::Payment->value,
-                            'delivery_channel' => NotificationChannel::App->value,
-                            'title' => 'Rappel de paiement',
-                            'body' => 'Loyer dû le '.CarbonImmutable::parse($payment->due_date)->format('d/m/Y'),
-                            'data' => ['amount' => $payment->amount, 'currency' => $payment->currency],
-                            'referenceable_id' => $payment->id,
-                            'referenceable_type' => 'lease_payment',
-                            'is_read' => $payment->paid_at !== null,
-                            'read_at' => $payment->paid_at,
-                            'sent_at' => $sentAt,
-                            'created_at' => $sentAt,
-                            'updated_at' => $sentAt,
-                        ]);
-                    }
+                    $isRead = $this->ctx->faker()->boolean(60);
+                    $this->write($lease->landlord, NotificationCode::LeasePaymentReceivedLandlord, [
+                        'amount' => NotificationRenderer::money($payment->amount, $payment->currency),
+                        'property' => $lease->property?->title,
+                        'tenant' => trim(($lease->tenant?->first_name ?? '').' '.($lease->tenant?->last_name ?? '')),
+                    ], NotificationTarget::of('lease', $lease->id), $payment->paid_at, $isRead ? $payment->paid_at : null);
                 }
             });
     }
 
-    private function fromBookings(): void
-    {
-        Booking::query()->chunkById(100, function ($bookings) {
-            foreach ($bookings as $booking) {
-                $isRead = $this->ctx->faker()->boolean(50);
-                AppNotification::create([
-                    'user_id' => $booking->created_by_id,
-                    'type' => NotificationType::Booking->value,
-                    'delivery_channel' => NotificationChannel::App->value,
-                    'title' => 'Nouvelle réservation',
-                    'body' => 'Une réservation '.$booking->reference_number.' a été créée.',
-                    'data' => ['status' => $booking->status?->value],
-                    'referenceable_id' => $booking->id,
-                    'referenceable_type' => 'booking',
-                    'is_read' => $isRead,
-                    'read_at' => $isRead ? $booking->created_at : null,
-                    'sent_at' => $booking->created_at,
-                    'created_at' => $booking->created_at,
-                    'updated_at' => $booking->created_at,
-                ]);
-            }
-        });
-    }
-
     private function fromMaintenance(): void
     {
-        MaintenanceRequest::query()->chunkById(100, function ($requests) {
-            foreach ($requests as $request) {
-                $isRead = $this->ctx->faker()->boolean(40);
-                AppNotification::create([
-                    'user_id' => $request->assigned_to ?? $request->requester_id,
-                    'type' => NotificationType::Maintenance->value,
-                    'delivery_channel' => NotificationChannel::App->value,
-                    'title' => 'Demande de maintenance',
-                    'body' => $request->title,
-                    'data' => ['priority' => $request->priority?->value, 'status' => $request->status?->value],
-                    'referenceable_id' => $request->id,
-                    'referenceable_type' => 'maintenance',
-                    'is_read' => $isRead,
-                    'read_at' => $isRead ? $request->created_at : null,
-                    'sent_at' => $request->created_at,
-                    'created_at' => $request->created_at,
-                    'updated_at' => $request->created_at,
-                ]);
-            }
-        });
+        MaintenanceRequest::query()
+            ->whereNotNull('assigned_to')
+            ->with(['assignee', 'property:id,title'])
+            ->chunkById(100, function ($requests) {
+                foreach ($requests as $request) {
+                    if (! $request->assignee) {
+                        continue;
+                    }
+                    $isRead = $this->ctx->faker()->boolean(40);
+                    $this->write($request->assignee, NotificationCode::MaintenanceAssigned, [
+                        'request' => (string) $request->title,
+                        'property' => (string) $request->property?->title,
+                    ], NotificationTarget::of('maintenance', $request->id), $request->created_at, $isRead ? $request->created_at : null);
+                }
+            });
     }
 
-    private function fromLeases(): void
+    /**
+     * La ligne que `NotificationService::send` écrirait, datée du moment de l'événement.
+     *
+     * @param  array<string, mixed>  $params
+     */
+    private function write(User $to, NotificationCode $code, array $params, NotificationTarget $target, ?CarbonInterface $at, ?CarbonInterface $readAt): void
     {
-        Lease::query()->chunkById(100, function ($leases) {
-            foreach ($leases as $lease) {
-                AppNotification::create([
-                    'user_id' => $lease->landlord_id,
-                    'type' => NotificationType::Lease->value,
-                    'delivery_channel' => NotificationChannel::App->value,
-                    'title' => 'Nouveau bail',
-                    'body' => 'Le bail '.$lease->reference_number.' a été créé.',
-                    'data' => ['status' => $lease->status?->value],
-                    'referenceable_id' => $lease->id,
-                    'referenceable_type' => 'lease',
-                    'is_read' => true,
-                    'read_at' => $lease->created_at,
-                    'sent_at' => $lease->created_at,
-                    'created_at' => $lease->created_at,
-                    'updated_at' => $lease->created_at,
-                ]);
-            }
-        });
+        $locale = $to->preferredLocale() ?? (string) config('app.locale');
+        $timezone = $to->timezone ?: NotificationRenderer::DEFAULT_TIMEZONE;
+        $at ??= now();
+
+        AppNotification::create([
+            'user_id' => $to->id,
+            'type' => $code->type(),
+            'code' => $code->value,
+            'params' => $params,
+            'target' => $target->toArray(),
+            'delivery_channel' => NotificationChannel::App,
+            'title' => $this->renderer->render($code, $params, $locale, $timezone, 'title', $to->first_name),
+            'body' => $this->renderer->render($code, $params, $locale, $timezone, 'body', $to->first_name),
+            'is_read' => $readAt !== null,
+            'read_at' => $readAt,
+            'sent_at' => $at,
+            'created_at' => $at,
+            'updated_at' => $at,
+        ]);
     }
 }
