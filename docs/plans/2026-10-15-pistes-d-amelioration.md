@@ -11078,7 +11078,7 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
 
 ### Aucun appel du navigateur vers l'API ne porte de délai, et Chrome n'en applique aucun : un bouton `isPending` reste figé tant que la page vit
 - Réf : P113.01
-- Statut : validé (délégué) — borne de 30 s sur les seules lectures (`GET`) d'`apiRequest` côté navigateur, par `AbortSignal.any([signal de l'appelant, AbortSignal.timeout(30 s)])`, la valeur de `DELAI_API_SERVEUR_MS` (TCK-1215), livrée avec P113.04 pour que le délai s'affiche comme une panne réseau ; reste : les écritures (`useApiMutation`, `useMutation`), les téléversements et les 39 `fetch` directs, à décider avec P144.07
+- Statut : fait · TCK-1297 — reste : les écritures (`useApiMutation`, `useMutation`), les téléversements et les 39 `fetch` directs, à décider avec P144.07
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/api.ts:736-743`, `takussan-web/src/hooks/useApiQuery.ts:31,61-69,93,143-157`, `takussan-web/src/components/payments/PaymentProviderPicker.tsx:104-131,213-220`, `takussan-web/src/components/messages/ChatView.tsx:107,368`, `takussan-web/src/components/kyc/KycUploader.tsx:110-142`, `takussan-web/src/hooks/useTelechargementApi.ts:42-75`
 - Constat :
@@ -11090,10 +11090,11 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
 - Piste : un délai par défaut dans `apiRequest` côté navigateur (`AbortSignal.any([signal de l'appelant, AbortSignal.timeout(N)])`), avec une option par appel pour les téléversements et les PDF longs (P112.01 a mesuré un PDF à 198 s) ; adopter la même borne dans les `fetch` directs, ou les faire passer par `apiRequest`. Le délai doit être classé comme une panne réseau à l'écran (voir P113.04). Garde : un test vitest d'`apiRequest` avec un `fetch` qui ne se résout jamais, qui exige un rejet sous la borne, et un test de `useApiMutation` qui exige `isPending` faux ensuite.
 - Mesure (2026-10-22, c6abf5343, mesureur) : `git log b69261b77..c6abf5343 -- takussan-web/src` → rien ; relu `api.ts:736-743` (`signal` de l'appelant seul) et `useApiQuery.ts:31,93` (`Omit<…, 'signal'>`) ; la PR #972 ouverte ajoute `signalBorneServeur`, qui rend tel quel le signal de l'appelant quand `window` existe : le navigateur reste sans borne ; test vitest temporaire (retiré), `fetch` qui ne se résout jamais → `apiRequest` POST appelé avec `signal` `undefined`, promesse ni résolue ni rejetée après 1,5 s ; `grep -rnE` hors tests → 117 `useApiMutation`, 102 `useMutation` ; la mesure Chrome de 12 min n'est pas rejouée. Classement : V7, le constat tient en entier, mais poser une borne change ce que l'utilisateur voit et demande de choisir sa valeur et ses exemptions.
 - Mesure (2026-10-22, 174feef49, delegue) : relu `api.ts:724-780` (`apiRequest` : `signal` de l'appelant seul), TCK-1215 l. 30-56 (porteur, validation en bloc du 2026-10-21 : 30 s côté serveur, combinées par `AbortSignal.any`, sur la recommandation du délégué), `useTelechargementApi.ts:46` (`fetch` direct, hors `apiRequest`), `useVerifyPayment` (`useApiQuery`, donc `GET` par `apiRequest`) et P144.07 (borne des écritures et idempotence, au porteur). Délégation : V7, la décision suit une décision écrite (même valeur et même mécanisme que P79.01, côté serveur), elle ne crée aucun texte (l'erreur réseau existe, P113.04 la classe), et une lecture abandonnée se rejoue sans effet ; les écritures sont laissées parce qu'un délai sur un `POST` arrivé à l'API (initiation de paiement comprise) pose la question d'idempotence de P144.07 ; se défait en un commit, sans ADR.
+- Mesure (2026-10-22, f41a867fe, implementeur) : relu `api.ts:799-803` (`signalBorneServeur` rend le signal de l'appelant tel quel quand `window` existe) ; test neuf (`api.delai-navigateur.test.ts`, environnement jsdom), `fetch` qui ne se résout jamais → avant correctif, la lecture toujours en attente après 1 s. Correctif : `GET` hors `formData` borné par `AbortSignal.any([signal, AbortSignal.timeout(DELAI_API_SERVEUR_MS)])` → rejet `TimeoutError`, délai demandé 30 000 ms, abandon de l'appelant souverain, `POST` et `formData` sans borne : 4/4 verts ; ablation (`api.ts` rendu à `HEAD`) → 1 rouge, remis → 4 verts ; 10 fichiers voisins verts. Non mesuré dans un vrai navigateur.
 
 ### Une seule requête qui ne répond pas arrête pour de bon les interrogations périodiques : fil de messages, cloche, vérification d'un paiement
 - Réf : P113.02
-- Statut : validé (délégué) — réglé par la borne de 30 s des lectures de P113.01 (la requête figée passe en erreur et l'interrogation reprend au tic suivant), sans borne propre par requête ; garde : un test de `useNewMessagesPolling` ou de `useVerifyPayment` dont le premier appel ne répond jamais, qui exige un second appel après la borne
+- Statut : fait · TCK-1299
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/node_modules/@tanstack/query-core/build/modern/queryObserver.js:214-218`, `…/query.js:139-148,183-193`, `takussan-web/src/lib/queries/conversations.ts:198-212`, `takussan-web/src/components/layout/NotificationBell.tsx:57-64`, `takussan-web/src/app/(dashboard)/app/payments/return/PaymentReturnClient.tsx:14-15,65-88`
 - Constat :
@@ -11105,6 +11106,7 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
 - Piste : la borne de P113.01 suffit à relancer l'interrogation, la requête figée passant en erreur ; à défaut, `queryFn` des requêtes interrogées bornée par `AbortSignal.timeout` sous l'intervalle. Garde : un test de `useNewMessagesPolling` (ou du retour de paiement) où le premier appel ne répond jamais, qui exige un second appel au tic suivant la borne.
 - Mesure (2026-10-22, c6abf5343, mesureur) : relu `conversations.ts:210` (3 s), `NotificationBell.tsx:64` (30 s), `PaymentReturnClient.tsx:70` (inchangés) ; test vitest temporaire (retiré), `QueryObserver` sur le vrai `createQueryClient()`, `refetchInterval: 50`, première réponse puis `queryFn` figée, 600 ms → 2 appels, `fetchStatus` `fetching` : l'interrogation s'arrête à la requête figée ; non rejoué sur la page de retour de paiement. Classement : V7, la Piste renvoie à la borne de P113.01, et sa variante demande elle aussi une valeur de délai par écran.
 - Mesure (2026-10-22, 174feef49, delegue) : relu `conversations.ts:198-212` (`useApiQuery`, 3 s), `useInitiatePayment.ts:88-100` (`useVerifyPayment` : `useApiQuery`, donc `GET` par `apiRequest`) et `NotificationBell.tsx:57-64` (la cloche passe par `getNotificationsAction`, une action serveur déjà bornée à 30 s par TCK-1215). Délégation : V7, la `Piste` recommande elle-même cette voie (« la borne de P113.01 suffit »), et les trois lecteurs nommés sont des `GET` que la borne de P113.01 couvre ; aucune valeur neuve, aucun texte neuf ; suit P113.01, et revient avec elle si le porteur la reprend.
+- Mesure (2026-10-22, f41a867fe, implementeur) : test neuf (`useVerifyPayment.lecture-figee.test.tsx`), `useVerifyPayment` sous le vrai `createQueryClient()`, `refetchInterval: 50`, premier `fetch` figé, suivants à 200 → sans la borne des lectures (`api.ts` de `origin/pre-dev`) : 1 seul appel en 3 s, rouge ; avec la borne de TCK-1297 (ramenée à 20 ms) : un second appel à `/verify`, vert. Aucun code applicatif neuf : la garde seule, comme le dit la décision. Non rejoué sur la page de retour ni au navigateur.
 
 ### Une mutation lancée hors ligne reste en attente sans le dire, puis part seule à la reconnexion, minutes plus tard — initiation de paiement comprise
 - Réf : P113.03
@@ -11123,7 +11125,7 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
 
 ### Un délai posé tel quel s'afficherait en anglais brut : `messageErreurApi` ne reconnaît que le `TypeError` comme panne réseau
 - Réf : P113.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1295
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/api.ts:545-557`, `takussan-web/src/lib/query-client.ts:20-25`
 - Constat :
@@ -11134,6 +11136,7 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
   - Établi comment : lu, et un test temporaire.
 - Piste : reconnaître `TimeoutError` dans `messageErreurApi` (même libellé réseau ou un libellé « délai dépassé »), dans le même ticket que P113.01. Garde : un cas de test avec la raison réelle d'`AbortSignal.timeout`.
 - Mesure (2026-10-22, c6abf5343, mesureur) : relu `api.ts:545-554` (seul `TypeError` → `errors.api.network`, tout autre `Error` passe son `message`) ; test vitest temporaire (retiré) : la raison réelle d'`AbortSignal.timeout(1)` sous le Node de vitest est `instanceof Error`, `name` `TimeoutError` → rendu « The operation was aborted due to timeout » ; un `Error` nommé `TimeoutError` de message « signal timed out » → rendu tel quel ; un `TypeError` → `errors.api.network`. Le constat sur jsdom (« la `DOMException` n'est pas un `Error` ») est inexact ici : elle en est un, et c'est par là que le message anglais passe. Aucun délai n'est posé côté navigateur aujourd'hui : le défaut est latent. Classement : A1, `messageErreurApi` a pour contrat de ne jamais afficher une forme technique, et TCK-1090 (P79.05, autonome) a rangé `TimeoutError` parmi les pannes côté serveur ; le libellé existant `errors.api.network` évite tout texte neuf.
+- Mesure (2026-10-22, f41a867fe, implementeur) : relu `api.ts:582` (seul `TypeError` → `errors.api.network`) ; test neuf (`api.erreur-delai.test.ts`) → avant correctif, la raison réelle d'`AbortSignal.timeout(1)` rend « The operation was aborted due to timeout », et une `DOMException('signal timed out', 'TimeoutError')` construite sous jsdom, qui n'y est pas un `Error`, rend le repli de l'appelant. Correctif : toute erreur nommée `TimeoutError` rend `errors.api.network` → 3/3 verts, `api-erreurs-bff.test.tsx` vert ; ablation (`api.ts` rendu à `HEAD`) → 2 rouges, remis → 3 verts.
 
 ### La déconnexion attend la réponse de l'API sans borne : le menu ne ferme pas la session tant que l'API ne répond pas
 - Réf : P113.05
@@ -12638,7 +12641,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### L'annulation ou l'échec d'un paiement Wave ou Orange Money ramène sur « Lien de retour incorrect »
 - Réf : P131.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1291
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/payments/PaymentProviderPicker.tsx:108-114`, `takussan-web/src/hooks/useInitiatePayment.ts:76-80`, `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:79-80`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:73-74`, `takussan-web/src/app/(dashboard)/app/payments/return/PaymentReturnClient.tsx:44-47,90-102`
 - Constat :
@@ -12649,10 +12652,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu. Le parcours au navigateur chez un fournisseur réel n'a pas été joué.
 - Piste : envoyer depuis `PaymentProviderPicker` un `cancelUrl` qui porte les mêmes `payment_type` et `payment_id` avec `status=failed`. Garde : un test de `PaymentProviderPicker` qui attend `cancel_url` dans le corps de l'appel, et un cas de `PaymentReturnClient` sur `?status=failed&payment_type=…&payment_id=…`.
 - Mesure (2026-10-22, 1a9420e6e, mesureur) : relu `PaymentProviderPicker.tsx` (`handleConfirm` n'envoie que `returnUrl`, porteur de `payment_type` et `payment_id`), `grep -rn "cancelUrl\|cancel_url" takussan-web/src` hors tests → le seul type et le corps de `useInitiatePayment.ts:24,79`, `PaymentGatewayController::initiate` (`cancel_url` nul transmis, l. 39), `WaveDriver.php:80` et `OrangeMoneyDriver.php:74` (repli `…/app/payments/return?status=failed`) ; test temporaire (retiré) montant `PaymentReturnClient` sur `?status=failed` seul → texte rendu « Paramètres invalides / Lien de retour incorrect. / Retour aux paiements », sans « Paiement échoué ». Le constat tient tel qu'écrit, lignes inchangées ; le parcours chez un fournisseur réel n'est pas joué. Classement : A1, le contrat est écrit par la page de retour (qui exige `payment_type` et `payment_id` et sait rendre `status=failed`) et par le lien public qui fournit déjà ses deux adresses ; le correctif ne touche ni montant ni écriture de paiement, seulement l'adresse de retour en échec.
+- Mesure (2026-10-22, f41a867fe, implementeur) : relu `PaymentProviderPicker.tsx:108-114` (seul `returnUrl` envoyé) et `InitiatePaymentRequest` (`cancel_url` : `nullable`, `url`) ; test neuf du sélecteur (`PaymentProviderPicker.test.tsx`, « adresses de retour ») → rouge avant correctif, `cancelUrl` absent de l'appel ; test neuf de la page de retour (`PaymentReturnClient.echec.test.tsx`) sur `?status=failed&payment_type=lease-payments&payment_id=12`, échéance encore `pending` → « Paiement échoué » (vert sans correctif : la destination tenait, l'adresse manquait). Correctif : `cancelUrl` à `status=failed` avec la même référence → 3/3 verts ; ablation (`PaymentProviderPicker.tsx` rendu à `HEAD`) → 1 rouge, remis → 3 verts. Parcours chez un fournisseur réel non joué.
 
 ### La tuile « Vendus / loués » ouvre les seuls vendus, et les tuiles jettent le filtre « mes biens »
 - Réf : P131.02
-- Statut : validé (délégué) — chaque tuile construit son `href` avec la portée courante (`only_mine=1` ou `user_id`), et « Vendus / loués » reste une seule tuile qui mène à `/app/properties?status=sold,rented`, active pour cette valeur ; un test de la page montée sous `only_mine=1` attend les `href` des quatre tuiles
+- Statut : fait · TCK-1289
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:81,99-127,134-167`
 - Constat :
@@ -12662,6 +12666,7 @@ l'angle 160 : il n'est pas repris ici.*
 - Piste : construire le `href` de chaque tuile à partir des paramètres de portée courants (`only_mine`, `user_id`), et mener « Vendus / loués » à une liste qui porte les deux statuts (ou scinder la tuile). Garde : un test de la page qui monte la liste sous `only_mine=1` et attend les `href` des tuiles.
 - Mesure (2026-10-22, 1a9420e6e, mesureur) : relu `properties/(liste)/page.tsx` : tuile `soldRented` à `value: soldCount + rentedCount`, `href: '/app/properties?status=sold'`, active pour `sold` ou `rented` (l. 155-158) ; les quatre décomptes sous `user_id: filters.user_id`, lui-même tiré de `only_mine=1` ou `user_id` (l. 81, 109-125) ; les `href` des tuiles sont des chaînes fixes sans portée (l. 138, 149, 156, 163) ; `git log` du fichier : dernier changement TCK-865 (parallélisation des décomptes), aucun ticket sur les `href`. Aucun test de la page n'existe. Que l'API accepte `filter[status]=sold,rented` n'est pas vérifié. Le constat tient tel qu'écrit, lignes inchangées. Classement : V7, la portée dans les `href` serait A1, mais la Piste laisse ouvert le sort de la tuile « Vendus / loués » (liste à deux statuts ou tuile scindée).
 - Mesure (2026-10-22, f92b80db1, delegue) : relu `properties/(liste)/page.tsx:70-170` (décomptes sous `user_id: filters.user_id`, `href` fixes, tuile `soldRented` comptée `sold + rented` et déjà active pour l'un ou l'autre), `HasQueryBuilder` (`status` est dans `Property::$requestFilterable`, donc `AllowedFilter::exact`, qui lit une liste séparée par des virgules en `whereIn` : lu, non rejoué) → la tuile affiche déjà un compte à deux statuts sous un libellé à deux statuts ; lui faire ouvrir ces deux statuts n'ajoute ni libellé ni tuile. Délégation : V7, choix d'écran mineur et réversible qui suit ce que la tuile affiche déjà (son compte, son libellé, son état actif) plutôt que d'en créer une cinquième ; la portée dans les `href` relève de A1 (les décomptes la portent déjà). Si l'API ne filtre pas `sold,rented`, l'implémenteur le mesure et reclasse.
+- Mesure (2026-10-22, f41a867fe, implementeur) : relu `properties/(liste)/page.tsx` (`href` fixes, tuile « Vendus / loués » vers `?status=sold`) ; test neuf de la page (`tuiles.tck-1289.test.tsx`) monté sous `only_mine=1`, `user_id=12`, sans portée et sous `status=sold,rented` → 4 rouges avant correctif ; test d'API `PropertyCrudTest::test_property_portfolio_status_filter_accepts_a_comma_separated_list` → `filter[status]=sold,rented` rend les deux biens et eux seuls (vert, prémisse établie). Correctif : `href` = requête de la tuile + portée, « Vendus / loués » vers `status=sold,rented`, active pour cette valeur → 4/4 verts ; ablation (`page.tsx` rendu à `HEAD`) → 4 rouges, remis → 4 verts.
 
 ### Le lien vers la facture de résiliation ouvre l'historique des paiements, sans la facture
 - Réf : P131.03
@@ -12679,7 +12684,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Petites améliorations
 - Réf : P131.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1293
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/bookings/BookingsList.tsx:35-56`, `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:134`
 - Constat :
@@ -12688,6 +12693,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu.
 - Piste : lire et écrire l'onglet dans `?status=`, borné aux valeurs de `TABS`, comme `PaymentsTabs` le fait pour `?tab=`. Garde : un test de `BookingsList` monté sur `?status=confirmed`.
 - Mesure (2026-10-22, 1a9420e6e, mesureur) : relu `BookingsList.tsx:35` (`useState<TabKey>('pending')`, aucun `useSearchParams`), `bookings/(liste)/page.tsx` (rend `<BookingsList />` sans argument ni lecture de `searchParams`), `overview/owner/page.tsx:134` (`/app/bookings?status=pending`, seul lien `/app/bookings?` du front, `grep` hors tests). Le retour arrière n'est pas mesuré au navigateur. Le constat tient tel qu'écrit. Classement : A1, le contrat est écrit par l'appelant (l'aperçu du bailleur envoie `?status=`) et par le précédent de `PaymentsTabs` (`?tab=` borné à `TAB_VALUES`) ; lire et écrire `?status=` borné aux valeurs de `TABS` ne demande aucun choix de produit.
+- Mesure (2026-10-22, f41a867fe, implementeur) : relu `BookingsList.tsx:35` (`useState<TabKey>('pending')`, aucun `useSearchParams`) ; test neuf (`BookingsList.onglet-url.test.tsx`) monté sur `?status=confirmed` → rouge avant correctif (« En attente » active, liste `pending` lue), et changement d'onglet → aucun `router.replace`. Correctif : onglet lu dans `?status=` borné à `TABS`, écrit par `router.replace` (sans paramètre pour `pending`) → 3/3 verts ; ablation (`BookingsList.tsx` rendu à `HEAD`) → 2 rouges sur 3, remis → 3 verts. Retour arrière au navigateur non joué.
 
 ## Angle 132 — Liens portés par les SMS et WhatsApp : hôte, validité, page ouverte
 
