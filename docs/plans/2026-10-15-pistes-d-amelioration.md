@@ -11818,7 +11818,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Le courriel d'invitation ne se rend pas : toute invitation par e-mail répond 500 et rien ne part, rappels compris
 - Réf : P123.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Mail/InvitationMailable.php:49-58`, `takussan-api/resources/views/emails/invitation.blade.php:1`, `:10`, `takussan-api/app/Services/Invitation/InvitationService.php:248`, `:951-960`, `:522-538`, `takussan-api/tests/Feature/Invitation/InvitationDeliveredAfterCommitTest.php`
 - Constat :
@@ -11829,10 +11829,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Pourquoi la suite est verte : les tests qui citent `InvitationMailable` posent `Mail::fake()`, qui ne rend rien (lu, `grep -L "Mail::fake"` sur ces fichiers → seuls `TranslationUsage` et son test). `InvitationDeliveredAfterCommitTest` attend un 500 sous un transport qui lève : il est vert, mais par la `ViewException`, levée avant le transport (déduit de la mesure ci-dessus, à vérifier par ablation).
   - Établi comment : lecture, puis le test temporaire.
 - Piste : rendre le gabarit par `markdown: 'emails.invitation'` (ou retirer les composants `mail::`). Garde : un test qui envoie une invitation et un rappel sous le mailer `array`, sans `Mail::fake()`, et lit le courriel rendu (sujet, lien d'acceptation).
+- Mesure (2026-10-22, 86138895e, mesureur) : relu `InvitationMailable::content()` (`view: 'emails.invitation'`, inchangé depuis TCK-249 : `git log` sur le Mailable et le gabarit ne rend que 968e7ffef) et le gabarit (`@component('mail::message')`, `mail::button`) ; test temporaire retiré (charge 1,90 / 2,08 / 2,02 sur 8 cœurs) : mailer `array` sans `Mail::fake()`, `POST /api/agencies/{id}/agents/invite` → 500 `No hint path defined for [mail]`, 1 invitation écrite, 0 courriel ; `(new InvitationMailable($inv))->render()` → `ViewException`, même message ; `remindPending()` à J+3 → `ViewException`, `last_reminded_at` nul ; sous le transport qui lève de `InvitationDeliveredAfterCommitTest`, `withoutExceptionHandling()` → `ViewException`, et non `TransportException` → le constat tient en entier, y compris la partie « à vérifier » sur ce test vert pour la mauvaise raison. Classement : A1, le gabarit est écrit en composants Markdown et `InvitationService::deliver()` a pour contrat d'envoyer ce courriel ; passer à `markdown: 'emails.invitation'` ne demande aucun choix.
 
 ### Accepter une invitation est impossible tant que le courriel est en panne : la notification de l'invitant part dans la transaction
 - Réf : P123.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le docblock de `finalizeAccept()` écrit le choix inverse (l'échec annule la création du compte)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:582-584`, `:622-626`, `:636-737`, `takussan-api/app/Notifications/InvitationAcceptedNotification.php:14`, `:23`
 - Constat :
@@ -11841,10 +11842,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - L'invité ne peut donc pas entrer tant que le fournisseur de courriel est indisponible ou refuse l'adresse de l'**invitant**, sur laquelle l'invité ne peut rien. Le docblock dit le choix (« a failure here rolls the User creation back too », l. 631-633), mais il vise les écritures, pas un avis de courtoisie à un tiers (déduit).
   - Établi comment : lecture, puis le test temporaire.
 - Piste : envoyer l'avis après le commit (`DB::afterCommit`) et en file (`ShouldQueue`), comme les autres notifications de l'invitation. Garde : un test d'acceptation sous un transport qui lève, qui exige 200, le compte créé et l'invitation `accepted`.
+- Mesure (2026-10-22, 86138895e, mesureur) : relu `acceptAsNewUser()`/`acceptForUser()` (`DB::transaction` autour de `finalizeAccept()`, l. 584 et 624), `finalizeAccept()` (`$inviter->notify(new InvitationAcceptedNotification(…))`, l. 733) et la notification (`extends Notification`, sans `ShouldQueue`) ; test temporaire retiré : invitation `sent` d'un propriétaire, transport qui lève, `POST /api/invitations/{token}/accept` → 500, invitation `sent`, 0 compte, profil `draft` → le constat tient. Classement : V7, rendre l'acceptation indépendante de l'avis à l'invitant contredit le choix que le docblock écrit (« a failure here rolls the User creation back too ») ; c'est au porteur de le défaire.
 
 ### Meilisearch injoignable sous `SCOUT_AFTER_COMMIT=true` : le geste est validé, la réponse est 500, et ce qui suit la transaction ne s'exécute pas
 - Réf : P123.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : la piste aligne `SCOUT_QUEUE`/`SCOUT_AFTER_COMMIT` entre `.env.docker`, `phpunit.xml` et la préproduction
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/laravel/scout/src/ModelObserver.php:16`, `:46`, `takussan-api/.env.docker:210-211`, `takussan-api/phpunit.xml:104-105`, `takussan-api/app/Services/Property/PropertyModerationService.php:46-71`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:304-342`
 - Constat :
@@ -11855,10 +11857,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - La suite éprouve donc l'autre régime que le développement, et celui de la préproduction n'est pas relevé (V5).
   - Établi comment : lecture, puis le test temporaire joué sous les deux valeurs.
 - Piste : ne pas laisser l'échec de l'index faire échouer un geste validé (`report()` de l'exception de l'observateur, ou `SCOUT_QUEUE=true` pour que l'écriture parte en file après commit) ; à trancher avec le reste de P90.03 et P90.02. Relever `SCOUT_QUEUE` et `SCOUT_AFTER_COMMIT` de la préproduction, et aligner `phpunit.xml` sur la valeur retenue. Garde : un test par régime qui coupe le moteur et exige le geste fait, sa notification envoyée et une réponse 2xx.
+- Mesure (2026-10-22, 86138895e, mesureur) : relu `ModelObserver::__construct()` (lit `scout.after_commit`), `.env.docker:210-211` (`false`/`true`) et `phpunit.xml:104-105` (`false`/`false`) ; test temporaire retiré, Meilisearch rebranché sur `http://127.0.0.1:9` : `DB::transaction(fn () => Customer::factory()->create())` sous `after_commit=true` → `CommunicationException` et le client écrit (+1), sous `after_commit=false` → la même exception et rien d'écrit (+0) → le mécanisme tient sous les deux régimes ; les deux gestes cités (modération, message) n'ont pas été rejoués, leur code après la transaction est relu inchangé (`PropertyModerationService::approve()`, `ConversationController::sendMessage()`). Classement : V5, le correctif passe par des variables d'environnement et une valeur de préproduction non relevée ; le choix entre `report()` et la file est aussi à trancher avec P90.02 et P90.03.
 
 ### Les deux tâches horaires des invitations s'arrêtent au premier courriel qui échoue
 - Réf : P123.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:485-512`, `:522-538`, `takussan-api/app/Notifications/InvitationExpiredNotification.php:15`, `:24`, `takussan-api/routes/console.php:109-110`
 - Constat :
@@ -11867,10 +11870,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - `remindPending()` envoie avant de poser `last_reminded_at`, sans `try` (lu, l. 535-538). Un envoi qui lève arrête la boucle, et la requête n'a pas d'ordre (lu, l. 527-532). Une adresse que le fournisseur refuse toujours pourrait bloquer chaque heure les rappels qui la suivent (déduit, à vérifier : la mesure de ce chemin bute d'abord sur P123.01).
   - Établi comment : lecture, puis le test temporaire (pour `expire()`).
 - Piste : mettre `InvitationExpiredNotification` en file ; dans les deux boucles, rattraper l'échec d'un envoi par invitation (`report()`, puis continuer). Garde : un test par tâche sous un transport qui lève, qui exige toutes les invitations traitées.
+- Mesure (2026-10-22, 86138895e, mesureur) : relu `expire()` (transaction par invitation puis `notify()` synchrone, sans `try`, l. 495-509) et `remindPending()` (envoi avant `last_reminded_at`, sans `try`, l. 535-538) ; test temporaire retiré : trois invitations échues, transport qui lève, `expire()` → `TransportException`, statuts `expired,sent,sent` ; `remindPending()` lève à la première invitation (ici par la `ViewException` de P123.01) et la boucle s'arrête → le constat tient, la partie rappels est établie pour le mécanisme, pas pour une adresse refusée. Classement : A1, le docblock d'`expire()` promet de prévenir l'invitant de chaque expiration et `routes/console.php` veut ces tâches idempotentes ; mettre `InvitationExpiredNotification` en file et rattraper l'échec par invitation (`report()`, puis continuer) ne demande aucun choix de produit.
 
 ### `dashboard:check-alerts` envoie l'alerte avant de la marquer : un courriel qui échoue arrête la tâche et fait renvoyer la cloche
 - Réf : P123.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/CheckThresholdAlertsCommand.php:59-73`, `takussan-api/app/Notifications/ThresholdAlertTriggered.php:18`, `:31-44`
 - Constat :
@@ -11878,10 +11882,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Un courriel qui lève pour un admin laisse donc les lignes `database` déjà écrites, `last_triggered_at` nul, et arrête la boucle sur toutes les alertes et agences suivantes. Au passage horaire suivant, `shouldTrigger()` rejuge l'alerte comme jamais déclenchée et récrit les notifications en cloche (déduit de la lecture, à vérifier).
   - Établi comment : lu.
 - Piste : poser `last_triggered_at` avant l'envoi, ou mettre la notification en file ; rattraper l'échec par alerte. Garde : un test sous un transport qui lève, qui exige une seule notification `database` après deux passages et toutes les alertes jugées.
+- Mesure (2026-10-22, 86138895e, mesureur) : relu `CheckThresholdAlertsCommand` (`Notification::send()` l. 65, avant `last_triggered_at` l. 67-70, sans `try`) et `ThresholdAlertTriggered` (`database` et `mail`, sans `ShouldQueue`) ; test temporaire retiré : deux agences, une alerte chacune, transport qui lève, deux passages de `dashboard:check-alerts` → `TransportException` à chaque passage, 1 puis 2 lignes `app_notifications`, `last_triggered_at` nul sur les deux alertes → la partie « à vérifier » tient : la cloche est récrite à chaque passage et la seconde agence n'est jamais jugée. Classement : A1, `cooldown_hours` de l'alerte écrit déjà « un déclenchement par fenêtre » ; poser `last_triggered_at` avant l'envoi et rattraper l'échec par alerte (`report()`, puis continuer) ne demande aucun choix.
 
 ### Petites améliorations
 - Réf : P123.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : la seconde partie fixe la valeur de `SCOUT_*` entre environnements
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Lease/LeaseSignatureService.php:112-141`, `takussan-api/.env.example:147-148`
 - Constat :
@@ -11889,3 +11894,4 @@ masse relève de l'angle 122 et n'est pas repris.*
   - `.env.example` recommande `SCOUT_QUEUE=true` et `SCOUT_AFTER_COMMIT=true` en commentaire (lu, l. 147-148), quand `.env.docker` pose `false` et `true` et `phpunit.xml` `false` et `false` : trois réponses pour un réglage qui décide du sort d'un geste quand le moteur tombe (voir P123.03).
   - Établi comment : lu.
 - Piste : ne compter la fenêtre de renvoi qu'après un envoi réussi, ou rattraper l'échec du courriel en 503 comme le SMS ; écrire la valeur retenue de `SCOUT_*` à un seul endroit, avec sa raison.
+- Mesure (2026-10-22, 86138895e, mesureur) : relu `LeaseSignatureService::sendCode()` (`issue()` pose le délai de renvoi avant `notify()`, seul le SMS est rattrapé en 503) et `LeaseSignatureOtpService::issue()` ; test temporaire retiré (ajouté puis retiré de `LeaseSignatureTest`) : locataire sans téléphone vérifié, transport qui lève, `POST /api/leases/{id}/signature/otp` → 500, puis aussitôt → 429 `lease_signature.resend_too_soon` → la partie « à vérifier » tient ; `.env.example:147-148`, `.env.docker:210-211` et `phpunit.xml:104-105` relus, trois réponses comme dit. Classement : V5, l'écriture de la valeur de `SCOUT_*` touche les variables d'environnement ; la voie courriel seule relèverait de A1 (TCK-799 : « un code qui n'est pas parti ne se dit pas envoyé »), mais un code d'erreur neuf demande son texte au front.
