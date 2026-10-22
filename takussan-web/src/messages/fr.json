@@ -10354,6 +10354,7 @@
       "call": "Appeler",
       "email": "E-mail",
       "convert": "Convertir en client",
+      "convertAnyway": "Convertir quand même",
       "openCustomer": "Voir la fiche client",
       "handle": "Marquer traitée",
       "assign": "Attribuer"

@@ -10354,6 +10354,7 @@
       "call": "Call",
       "email": "Email",
       "convert": "Convert to client",
+      "convertAnyway": "Convert anyway",
       "openCustomer": "Open client record",
       "handle": "Mark as handled",
       "assign": "Assign"
