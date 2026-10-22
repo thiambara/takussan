@@ -1,7 +1,7 @@
 ---
 id: TCK-1479
 title: "Une mutation lancée hors ligne échoue tout de suite au lieu de partir à la reconnexion"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -47,15 +47,15 @@ Aucun endpoint touché.
 
 ## Delta à produire
 
-- [ ] `networkMode: 'always'` dans `defaultOptions.mutations` de `createQueryClient`.
-- [ ] Test : sous le vrai `createQueryClient`, `PaymentProviderPicker` hors ligne appelle le
+- [x] `networkMode: 'always'` dans `defaultOptions.mutations` de `createQueryClient`.
+- [x] Test : sous le vrai `createQueryClient`, `PaymentProviderPicker` hors ligne appelle le
       réseau tout de suite et affiche l'erreur ; les lectures gardent `online`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — hors ligne, l'initiation d'un paiement part tout de suite et son échec s'affiche.
-- [ ] AC2 — au retour du réseau, rien ne repart seul.
-- [ ] AC3 — les requêtes de lecture gardent leur `networkMode` par défaut.
+- [x] AC1 — hors ligne, l'initiation d'un paiement part tout de suite et son échec s'affiche.
+- [x] AC2 — au retour du réseau, rien ne repart seul.
+- [x] AC3 — les requêtes de lecture gardent leur `networkMode` par défaut.
 
 ## Hors périmètre
 
@@ -64,4 +64,8 @@ Aucun endpoint touché.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : la ligne `networkMode: 'always'` retirée → les deux cas de
+  `PaymentProviderPicker.hors-ligne.test.tsx` rouges (aucune alerte : la mutation reste
+  suspendue, 0 appel réseau) ; remise → 2/2 verts.
+- Le test passe par le vrai `useInitiatePayment` sous le vrai `createQueryClient`, `fetch`
+  simulé en erreur réseau : c'est l'écran qui porte l'échec, aucun état neuf.
