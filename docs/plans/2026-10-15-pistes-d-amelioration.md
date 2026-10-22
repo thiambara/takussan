@@ -8052,7 +8052,7 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
 
 ### Petites améliorations
 - Réf : P79.06
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1221
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/api/maintenance/status/route.ts:7-17`, `takussan-web/src/components/maintenance/MaintenanceBanner.tsx:14-17,52`
 - Constat :
@@ -8061,6 +8061,7 @@ borne est celle de P65.01, dont le sens dans l'image n'est pas établi.*
 - Piste : le relais rend un statut et un corps JSON sur un rejet (P79.04), et le bandeau ignore une réponse non `ok` sans lever.
 - Mesure (2026-10-20, 7163372c5, mesureur) : relu `src/app/api/maintenance/status/route.ts:4-17` (`fetch` sans `catch`) et `src/components/maintenance/MaintenanceBanner.tsx:14-17,52` (`res.json()` sans test de `res.ok`, `refetchInterval: 60_000`) ; test temporaire vitest (retiré) : `GET()` avec un `fetch` qui rejette → lève `fetch failed`. Le bandeau masqué n'a pas été vu sur un rendu : `useQuery` en erreur laisse `data` vide, donc pas de bandeau (déduit), et une fois corrigé il resterait masqué, l'état de maintenance étant inconnu. Classement : V7, la partie relais dépend du statut et du code choisis en P79.04 ; la partie bandeau ne change rien de visible seule.
 - Mesure (2026-10-20, 1f632a3cc, delegue) : relu `takussan-web/src/app/api/maintenance/status/route.ts:4-17` et `src/components/maintenance/MaintenanceBanner.tsx:14-17,52` ; la partie bandeau (ignorer une réponse non `ok` sans lever) ne change rien de visible, la partie relais suit P79.04. Recommandation : la traiter avec P79.04, une fois choisis son statut et son code, et ajouter au bandeau le seul test de `res.ok` ; à ne pas valider seule : elle hérite du choix encore ouvert de P79.04 (V7) ; manque : la décision de P79.04.
+- Mesure (2026-10-22, 6d216605a, implementeur) : relu `src/app/api/maintenance/status/route.ts` (`fetch` sans `catch`) et `MaintenanceBanner.tsx` (`res.json()` sans `res.ok`) ; tests neufs `src/app/api/maintenance/status/__tests__/route.test.ts` et un cas de `MaintenanceBanner.test.tsx` → avant correctif, la route lève `fetch failed` et le bandeau s'affiche sur une réponse 502 qui porte un corps de statut ; correctif : la route passe par `fetchVersApi` (502/504 JSON de TCK-1219, appel toujours partagé), le bandeau ignore une réponse non `ok` sans lever (`null`, pas de bandeau) → 21/21 verts, et le test statique de TCK-1219 n'a plus d'exception ; ablation (les deux fichiers rendus à `HEAD`) → 3 rouges, correctif remis → vert. L'état de maintenance reste inconnu tant que l'API ne répond pas : aucun état visible neuf.
 
 ## Angle 80 — Champs envoyés par les formulaires et écartés par `validated()`
 
