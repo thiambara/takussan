@@ -6,6 +6,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ban, Trash2, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { postUserLifecycleAction, type UserLifecycleAction } from '@/lib/queries/super-admin';
 import type { PlatformAbility } from '@/lib/platform-abilities';
@@ -28,13 +30,15 @@ export function UserLifecycleActions({ userId, status }: { userId: number; statu
   const t = useTranslations('superAdmin.userDetail.lifecycle');
   const fmt = useFormatteurs();
   const toast = useToast();
+  const garde = useGardeDoubleFacteur();
   const queryClient = useQueryClient();
   const { can } = usePlatformAbilities();
   const [pending, setPending] = useState<UserLifecycleAction | null>(null);
 
   const mutation = useMutation({
+    // TCK-1203 — bloquer, réactiver, effacer exigent un step-up : la garde, puis le rejeu.
     mutationFn: ({ action, reason }: { action: UserLifecycleAction; reason: string }) =>
-      postUserLifecycleAction(userId, action, reason),
+      avecGardeDoubleFacteur(() => postUserLifecycleAction(userId, action, reason), garde),
     onSuccess: async (reponse, { action }) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['super-admin', 'user', userId] }),

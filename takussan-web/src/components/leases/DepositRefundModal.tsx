@@ -19,6 +19,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import { useResolveurValidation } from '@/hooks/useApiForm';
 import { apiRequest, ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { buildDepositRefundSchema, type DepositRefundFormValues } from '@/lib/schemas/lease';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -54,6 +56,8 @@ export function DepositRefundModal({
   const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  // TCK-1203 — restituer une caution exige la 2FA de l'agence (`LeaseDepositRefundController@store`).
+  const garde = useGardeDoubleFacteur();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -94,12 +98,16 @@ export function DepositRefundModal({
       if (values.reason) fd.append('reason', values.reason);
       selectedFiles.forEach((file) => fd.append('uploads[]', file));
 
-      await apiRequest(`/api/leases/${leaseId}/deposit-refund`, {
-        method: 'POST',
-        body: fd,
-        formData: true,
-        token: token ?? undefined,
-      });
+      await avecGardeDoubleFacteur(
+        () =>
+          apiRequest(`/api/leases/${leaseId}/deposit-refund`, {
+            method: 'POST',
+            body: fd,
+            formData: true,
+            token: token ?? undefined,
+          }),
+        garde,
+      );
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['leases', 'detail', leaseId] }),

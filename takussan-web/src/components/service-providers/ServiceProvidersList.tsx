@@ -23,6 +23,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest, ApiError, buildQueryString } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import {
   fetchServiceProviders,
   resendInvitation,
@@ -60,6 +62,8 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
   const toast = useToast();
   const queryClient = useQueryClient();
   const { token } = useAuth();
+  // TCK-1203 — relancer ou révoquer une invitation exige la 2FA de l'agence (`InvitationController`).
+  const garde = useGardeDoubleFacteur();
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const providersQuery = useQuery({
@@ -79,7 +83,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       const id = await resolveInvitationId(token, sp, agencyId);
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
-      return resendInvitation(token, id);
+      return avecGardeDoubleFacteur(() => resendInvitation(token, id), garde);
     },
     onSuccess: () => {
       toast.add({ title: tInvite('toasts.resend_success'), type: 'success' });
@@ -98,7 +102,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       const id = await resolveInvitationId(token, sp, agencyId);
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
-      return revokeInvitation(token, id);
+      return avecGardeDoubleFacteur(() => revokeInvitation(token, id), garde);
     },
     onSuccess: async () => {
       toast.add({ title: tInvite('toasts.revoke_success'), type: 'success' });

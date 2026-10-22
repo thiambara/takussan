@@ -10,6 +10,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 
 import {
   approveAdminPlatformPayout,
@@ -18,6 +19,7 @@ import {
   markAdminPlatformPayoutPaid,
 } from '@/lib/queries/super-admin';
 import type { PlatformPayout } from '@/types/super-admin';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { PayoutStatusPill, formatPeriod, useXof } from './PayoutTable';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -50,6 +52,7 @@ function PayoutActions({ payout, onClose }: { payout: PlatformPayout; onClose: (
   const xof = useXof();
   const messageErreur = useMessageErreurApi();
   const toast = useToast();
+  const garde = useGardeDoubleFacteur();
   const queryClient = useQueryClient();
   const [processedAt, setProcessedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [paymentReference, setPaymentReference] = useState('');
@@ -65,22 +68,23 @@ function PayoutActions({ payout, onClose }: { payout: PlatformPayout; onClose: (
   };
 
   const approve = useMutation({
-    mutationFn: () => approveAdminPlatformPayout(payout.id),
+    // TCK-1203 — approuver, marquer payé et annuler exigent un step-up : la garde, puis le rejeu.
+    mutationFn: () => avecGardeDoubleFacteur(() => approveAdminPlatformPayout(payout.id), garde),
     onSuccess: async () => { toast.add({ title: t('toast.approved'), type: 'success' }); await invalidate(); },
     onError: (error) => toast.add({ title: t('toast.approveFailed'), description: messageErreur(error, tBilling('retryLater')), type: 'error' }),
   });
 
   const markPaid = useMutation({
-    mutationFn: () => markAdminPlatformPayoutPaid(payout.id, {
+    mutationFn: () => avecGardeDoubleFacteur(() => markAdminPlatformPayoutPaid(payout.id, {
       processed_at: new Date(processedAt).toISOString(),
       payment_reference: paymentReference.trim(),
-    }),
+    }), garde),
     onSuccess: async () => { toast.add({ title: t('toast.markedPaid'), type: 'success' }); await invalidate(); },
     onError: (error) => toast.add({ title: t('toast.markFailed'), description: messageErreur(error, tBilling('retryLater')), type: 'error' }),
   });
 
   const cancel = useMutation({
-    mutationFn: () => cancelAdminPlatformPayout(payout.id, reason),
+    mutationFn: () => avecGardeDoubleFacteur(() => cancelAdminPlatformPayout(payout.id, reason), garde),
     onSuccess: async () => { toast.add({ title: t('toast.cancelled'), type: 'success' }); await invalidate(); onClose(); },
     onError: (error) => toast.add({ title: t('toast.cancelFailed'), description: messageErreur(error, tBilling('retryLater')), type: 'error' }),
   });

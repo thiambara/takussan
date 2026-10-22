@@ -128,7 +128,8 @@ export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitiv
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       const id = await resolveInvitationId(token, owner);
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
-      return resendInvitation(token, id);
+      // TCK-1203 — relancer exige la 2FA de l'agence (`InvitationController@resend`).
+      return avecGardeDoubleFacteur(() => resendInvitation(token, id), garde);
     },
     onSuccess: () => {
       toast.add({ title: tInvite('toasts.resend_success'), type: 'success' });
@@ -147,7 +148,7 @@ export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitiv
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       const id = await resolveInvitationId(token, owner);
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
-      return revokeInvitation(token, id);
+      return avecGardeDoubleFacteur(() => revokeInvitation(token, id), garde);
     },
     onSuccess: async () => {
       toast.add({ title: tInvite('toasts.revoke_success'), type: 'success' });

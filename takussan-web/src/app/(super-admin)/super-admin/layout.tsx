@@ -9,6 +9,7 @@ import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
 import { configurationDoubleFacteurExigee } from '@/lib/double-facteur';
 import { GardeDoubleFacteur } from '@/components/auth/GardeDoubleFacteur';
+import { EntreeConsoleDoubleFacteur } from '@/components/auth/EntreeConsoleDoubleFacteur';
 
 
 /**
@@ -67,6 +68,15 @@ export default async function SuperAdminLayout({
   // pas au seul rôle `super_admin` : c'est le geste `platform.console.access`, lu à l'API, qui
   // juge. Ses gestes filtrent ensuite la console entière, sans que le front recopie la matrice.
   const habilitations = await fetchPlatformAbilities(token);
+  // TCK-1203 — refusée faute de second facteur, l'entrée le DEMANDE : un opérateur `viewer` ou
+  // `support` sans 2FA, ou un jeton qui ne l'a pas vue, repartait vers `/app` sans un mot.
+  if (habilitations && 'doubleFacteur' in habilitations) {
+    return (
+      <IntlProvider messages={await messagesPour('(super-admin)/super-admin')}>
+        <EntreeConsoleDoubleFacteur code={habilitations.doubleFacteur} />
+      </IntlProvider>
+    );
+  }
   if (!habilitations?.abilities.includes('platform.console.access')) {
     redirect('/app');
   }
