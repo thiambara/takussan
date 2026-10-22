@@ -3,7 +3,7 @@ id: TCK-1511
 title: "Les écritures d'une facture rendent la forme de son show, avoirs compris (ADR-0071)"
 status: done
 phase: P2
-family: api
+family: bug
 estimate: S
 wave: null
 created: 2026-10-22

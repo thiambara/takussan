@@ -3,7 +3,7 @@ id: TCK-1505
 title: "Le courriel du résumé de notifications attend avant de réessayer"
 status: done
 phase: P2
-family: api
+family: bug
 estimate: S
 wave: null
 created: 2026-10-22

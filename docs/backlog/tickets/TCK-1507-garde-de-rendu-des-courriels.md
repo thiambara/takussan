@@ -3,7 +3,7 @@ id: TCK-1507
 title: "Une garde rend chaque courriel de l'application en fr, en et wo"
 status: done
 phase: P2
-family: api
+family: technique
 estimate: M
 wave: null
 created: 2026-10-22

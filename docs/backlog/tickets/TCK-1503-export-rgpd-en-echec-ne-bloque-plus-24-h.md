@@ -3,7 +3,7 @@ id: TCK-1503
 title: "Un export RGPD en échec ou expiré ne bloque plus une nouvelle demande pendant 24 h"
 status: done
 phase: P2
-family: api
+family: bug
 estimate: S
 wave: null
 created: 2026-10-22
