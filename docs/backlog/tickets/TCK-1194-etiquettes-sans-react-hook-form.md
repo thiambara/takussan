@@ -39,7 +39,7 @@ react-day-picker ni date-fns.
       réexporte, ses trois autres appelants inchangés.
 - [x] `TagsManager` importe `FormError` de `@/components/forms/FormError` et le crochet de son
       module.
-- [x] Garde : `(super-admin)/super-admin/__tests__/graphe-client-de-la-console.test.ts`.
+- [x] Garde : `src/app/__tests__/graphe-client-de-la-console.test.ts`.
 
 ## Critères d'acceptation
 
