@@ -12523,7 +12523,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### L'annulation ou l'échec d'un paiement Wave ou Orange Money ramène sur « Lien de retour incorrect »
 - Réf : P131.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/payments/PaymentProviderPicker.tsx:108-114`, `takussan-web/src/hooks/useInitiatePayment.ts:76-80`, `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:79-80`, `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:73-74`, `takussan-web/src/app/(dashboard)/app/payments/return/PaymentReturnClient.tsx:44-47,90-102`
 - Constat :
@@ -12533,10 +12533,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Le lien de paiement public, lui, fournit les deux adresses (lu, `PublicPaymentLinkController.php:46-49`, `returnUrl($token, 'cancelled')`) : seul le parcours connecté est touché.
   - Établi comment : lu. Le parcours au navigateur chez un fournisseur réel n'a pas été joué.
 - Piste : envoyer depuis `PaymentProviderPicker` un `cancelUrl` qui porte les mêmes `payment_type` et `payment_id` avec `status=failed`. Garde : un test de `PaymentProviderPicker` qui attend `cancel_url` dans le corps de l'appel, et un cas de `PaymentReturnClient` sur `?status=failed&payment_type=…&payment_id=…`.
+- Mesure (2026-10-22, 1a9420e6e, mesureur) : relu `PaymentProviderPicker.tsx` (`handleConfirm` n'envoie que `returnUrl`, porteur de `payment_type` et `payment_id`), `grep -rn "cancelUrl\|cancel_url" takussan-web/src` hors tests → le seul type et le corps de `useInitiatePayment.ts:24,79`, `PaymentGatewayController::initiate` (`cancel_url` nul transmis, l. 39), `WaveDriver.php:80` et `OrangeMoneyDriver.php:74` (repli `…/app/payments/return?status=failed`) ; test temporaire (retiré) montant `PaymentReturnClient` sur `?status=failed` seul → texte rendu « Paramètres invalides / Lien de retour incorrect. / Retour aux paiements », sans « Paiement échoué ». Le constat tient tel qu'écrit, lignes inchangées ; le parcours chez un fournisseur réel n'est pas joué. Classement : A1, le contrat est écrit par la page de retour (qui exige `payment_type` et `payment_id` et sait rendre `status=failed`) et par le lien public qui fournit déjà ses deux adresses ; le correctif ne touche ni montant ni écriture de paiement, seulement l'adresse de retour en échec.
 
 ### La tuile « Vendus / loués » ouvre les seuls vendus, et les tuiles jettent le filtre « mes biens »
 - Réf : P131.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : mener « Vendus / loués » à une liste à deux statuts ou scinder la tuile est un choix d'écran
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:81,99-127,134-167`
 - Constat :
@@ -12544,10 +12545,11 @@ l'angle 160 : il n'est pas repris ici.*
   - Les quatre décomptes sont pris sous `user_id: filters.user_id` (lu, l. 109-125), c'est-à-dire sous « mes biens » (`only_mine=1`) ou sous l'agent choisi (`user_id`) (lu, l. 81). Les `href` des tuiles sont des chaînes fixes, sans `only_mine` ni `user_id` (lu, l. 138, 149, 156, 163) : sous « mes biens », la tuile compte mes biens publiés et ouvre ceux de toute l'agence.
   - Établi comment : lu. Que `filter[status]=sold,rented` soit accepté par l'API (filtre `status` dans `$requestFilterable`, `Property.php:108`) est à vérifier.
 - Piste : construire le `href` de chaque tuile à partir des paramètres de portée courants (`only_mine`, `user_id`), et mener « Vendus / loués » à une liste qui porte les deux statuts (ou scinder la tuile). Garde : un test de la page qui monte la liste sous `only_mine=1` et attend les `href` des tuiles.
+- Mesure (2026-10-22, 1a9420e6e, mesureur) : relu `properties/(liste)/page.tsx` : tuile `soldRented` à `value: soldCount + rentedCount`, `href: '/app/properties?status=sold'`, active pour `sold` ou `rented` (l. 155-158) ; les quatre décomptes sous `user_id: filters.user_id`, lui-même tiré de `only_mine=1` ou `user_id` (l. 81, 109-125) ; les `href` des tuiles sont des chaînes fixes sans portée (l. 138, 149, 156, 163) ; `git log` du fichier : dernier changement TCK-865 (parallélisation des décomptes), aucun ticket sur les `href`. Aucun test de la page n'existe. Que l'API accepte `filter[status]=sold,rented` n'est pas vérifié. Le constat tient tel qu'écrit, lignes inchangées. Classement : V7, la portée dans les `href` serait A1, mais la Piste laisse ouvert le sort de la tuile « Vendus / loués » (liste à deux statuts ou tuile scindée).
 
 ### Le lien vers la facture de résiliation ouvre l'historique des paiements, sans la facture
 - Réf : P131.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la destination du lien (onglet des factures filtré, ou facture ouverte) est à choisir
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:151-163`, `takussan-web/src/app/(dashboard)/app/payments/page.tsx`, `takussan-web/src/components/payments/PaymentsTabs.tsx:44-47`, `takussan-web/src/components/payments/InvoicesTable.tsx:31-37`
 - Constat :
@@ -12556,10 +12558,11 @@ l'angle 160 : il n'est pas repris ici.*
   - `scripts/check-notification-target-paths.mjs` ne lit que `NotificationTarget` (voir P97.05) : un lien écrit par un composant n'est gardé par rien.
   - Établi comment : lu.
 - Piste : mener le lien à l'onglet des factures, filtré ou ouvert sur la facture désignée (ce que la table sait faire : à choisir), par un `Link`. Garde : un test du bandeau sur le `href`, et un test de la page de destination qui monte `?invoice=` et attend la facture.
+- Mesure (2026-10-22, 1a9420e6e, mesureur) : relu `EarlyTerminationBanner.tsx:151-163` (un `<a>` vers `/app/payments?invoice=…`), `payments/page.tsx` (rend `PaymentsTabs` ou `CustomerPayments` sans argument), `PaymentsTabs.tsx:44-47` (lit `tab`, défaut `history`) ; `grep -rn "get('invoice')\|params.invoice" takussan-web/src` hors tests → rien ; aucune page `/app/…/invoices/[id]` (`find` sous `(dashboard)/app`). Le constat tient tel qu'écrit. Classement : V7, la Piste elle-même laisse « à choisir » entre l'onglet filtré et la facture ouverte, et aucune page de facture n'existe à viser.
 
 ### Petites améliorations
 - Réf : P131.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/bookings/BookingsList.tsx:35-56`, `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:134`
 - Constat :
@@ -12567,3 +12570,4 @@ l'angle 160 : il n'est pas repris ici.*
   - Même cause : l'onglet n'est pas écrit dans l'URL, et un retour arrière depuis `/app/bookings/{id}` ramène à « En attente » quel que soit l'onglet quitté (lu ; non mesuré au navigateur).
   - Établi comment : lu.
 - Piste : lire et écrire l'onglet dans `?status=`, borné aux valeurs de `TABS`, comme `PaymentsTabs` le fait pour `?tab=`. Garde : un test de `BookingsList` monté sur `?status=confirmed`.
+- Mesure (2026-10-22, 1a9420e6e, mesureur) : relu `BookingsList.tsx:35` (`useState<TabKey>('pending')`, aucun `useSearchParams`), `bookings/(liste)/page.tsx` (rend `<BookingsList />` sans argument ni lecture de `searchParams`), `overview/owner/page.tsx:134` (`/app/bookings?status=pending`, seul lien `/app/bookings?` du front, `grep` hors tests). Le retour arrière n'est pas mesuré au navigateur. Le constat tient tel qu'écrit. Classement : A1, le contrat est écrit par l'appelant (l'aperçu du bailleur envoie `?status=`) et par le précédent de `PaymentsTabs` (`?tab=` borné à `TAB_VALUES`) ; lire et écrire `?status=` borné aux valeurs de `TABS` ne demande aucun choix de produit.
