@@ -30,7 +30,7 @@ const releves = Array.from({ length: 51 }, (_, i) => ({
 const taches = Array.from({ length: 60 }, (_, i) => ({
   id: i + 1,
   title: `Tâche ${i + 1}`,
-  status: i < 55 ? 'done' : 'pending',
+  status: i < 55 ? 'done' : 'open',
   due_at: `2026-01-${String((i % 28) + 1).padStart(2, '0')}T09:00:00Z`,
 }));
 const avis = Array.from({ length: 51 }, (_, i) => ({ id: i + 1, rating: 5, comment: `Avis ${i + 1}` }));
@@ -90,7 +90,7 @@ describe('TCK-1373 — toutes les pages', () => {
 
     expect(lues).toHaveLength(60);
     expect(lus.filter((l) => l.startsWith('/api/tasks'))).toEqual(['/api/tasks 1 due_at']);
-    expect(lues.filter((t) => t.status === 'pending')).toHaveLength(5);
+    expect(lues.filter((t) => t.status === 'open')).toHaveLength(5);
   });
 
   it('le panneau du pipeline compte les 5 tâches ouvertes au-delà des 50 premières', async () => {
