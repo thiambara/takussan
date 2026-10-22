@@ -1,10 +1,15 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+import { useLocale } from 'next-intl';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
+import { useAuth } from '@/context/AuthContext';
+import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type { Booking } from '@/types/booking';
 import type { PropertyCalendarFeed, PropertyUnavailability } from '@/types/property-calendar';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
+import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
 
 /**
  * TCK-596 §3B (ADR-0041) — le calendrier d'hôte d'un bien : réservations confirmées, dates bloquées
@@ -22,19 +27,31 @@ export function usePropertyUnavailabilities(propertyId: number, from: string, to
   );
 }
 
+/**
+ * TCK-1369 (P135.03) — TOUS les séjours confirmés du bien, page par page. Aucun séjour ne passe à
+ * `completed` : une seule page de 100, triée par `start_date` croissant, perdait au 101ᵉ les
+ * séjours les plus récents, donc ceux à venir, et le calendrier montrait libres des nuits réservées.
+ */
 export function usePropertyConfirmedStays(propertyId: number) {
-  return useApiQuery<PaginatedResponse<Booking>>(
-    [...key(propertyId), 'stays'],
-    '/api/bookings',
-    {
-      params: {
-        fields: { bookings: ['id', 'reference_number', 'status', 'start_date', 'end_date', 'property_id'] },
-        filter: { property_id: propertyId, status: 'confirmed' },
-        sort: ['start_date'],
-        per_page: 100,
-      },
-    },
-  );
+  const locale = useLocale();
+  const { token } = useAuth();
+
+  return useQuery<PaginatedResponse<Booking>, ApiError>({
+    queryKey: [...key(propertyId), 'stays'],
+    queryFn: ({ signal }) =>
+      lireToutesLesPages((page) =>
+        apiRequest<PaginatedResponse<Booking>>(
+          cheminApi`/api/bookings${requete(buildQueryString({
+            fields: { bookings: ['id', 'reference_number', 'status', 'start_date', 'end_date', 'property_id'] },
+            filter: { property_id: propertyId, status: 'confirmed' },
+            sort: ['start_date'],
+            page,
+            per_page: PAR_PAGE_MAX,
+          }))}`,
+          { token: token ?? undefined, locale, signal },
+        ),
+      ),
+  });
 }
 
 export type CreateUnavailabilityPayload = {
