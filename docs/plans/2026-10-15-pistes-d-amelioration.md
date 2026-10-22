@@ -10090,7 +10090,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Les vues mois et semaine du calendrier déclarent une `grid` sans `row` : 49 en-têtes et cellules hors de la structure exigée
 - Réf : P101.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1187
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/calendar/MonthView.tsx:58-71,82-86`, `takussan-web/src/components/calendar/WeekView.tsx:34-50,72-76`
 - Constat :
@@ -10101,6 +10101,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : axe par CDP, code relu.
 - Piste : envelopper chaque semaine dans un `div role="row"` (avec `display: contents` ou une grille par ligne pour garder la mise en page), en-têtes compris ; ou, faute de navigation aux flèches, renoncer à `grid` pour `role="table"` avec les mêmes `row`. Garde : test de rendu de `MonthView` et `WeekView` qui attend que chaque `gridcell` et chaque `columnheader` ait un parent `row` (ou `axe` sur le composant rendu).
 - Mesure (2026-10-21, dadb26e5c, mesureur) : relu `MonthView.tsx:58-86` et `WeekView.tsx:35-76` (lignes inchangées : `role="grid"`, `columnheader` et `gridcell` sans aucun `role="row"`, ni `onKeyDown`, `tabIndex` ou `aria-selected`) ; test vitest temporaire, retiré depuis, qui rend les deux vues et passe `axe-core` (règles `aria-required-children`, `aria-required-parent`) → mois : 49 nœuds sur 49 sans parent `row`, `aria-required-children` critique sur la grille et `aria-required-parent` critique sur 49 nœuds ; semaine : 14 sur 14, mêmes deux règles (1 et 14 nœuds), donc la vue semaine est désormais mesurée, plus seulement lue ; aucun commit ni ticket ne la traite (`git log` des deux fichiers, `grep` des tickets). Classement : A4, structure ARIA sans texte neuf ni changement visible : envelopper en-têtes et chaque semaine dans un `div role="row"` en `display: contents` (ou une grille par ligne), le rôle `grid` gardé, et un test qui attend un parent `row` à chaque `gridcell` et `columnheader`.
+- Mesure (2026-10-22, cb29105b6, implementeur) : test `CalendarGrid.aria-rows.test.tsx` écrit d'abord → rouge, 49 en-têtes et jours de la vue mois et 14 de la vue semaine sans parent `row` ; correctif : une `row` en `display: contents` pour les en-têtes et pour chaque semaine dans `MonthView`, `role="row"` sur les deux conteneurs de `WeekView`, rôle `grid` gardé → 2/2 verts, axe (`aria-required-children`, `aria-required-parent`) sans violation ; ablation (les deux composants rendus à `pre-dev`) → 2 rouges, remis → verts. Navigation aux flèches non faite, hors de la piste.
 
 ### Les écrans d'erreur et de chargement de deux fiches n'ont pas de `h1`, quand les autres fiches en gardent un
 - Réf : P101.02
