@@ -12700,7 +12700,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Réservations confirmées et visites programmées d'un bien supprimé gardent leur statut
 - Réf : P130.04
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1708 — reste : l'annulation des réservations et visites d'un bien supprimé, avec avis et tâche de remboursement, autre voie de la piste non retenue ; la suppression de modération reste sans garde
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Observers/PropertyObserver.php:208-219`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:238-244`
 - Constat :
@@ -12709,6 +12709,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu et mesuré.
 - Piste : décider (choix de produit) si un bien à réservation confirmée ou visite à venir se supprime : refus en 422 comme pour le bail, ou annulation avec notification et tâche de remboursement par le chemin d'annulation existant ; test qui suit l'issue choisie.
 - Mesure (2026-10-22, d94868488, mesureur) : relu `PropertyController::destroy` et `PropertyObserver::deleted` (ni réservation ni visite) ; test temporaire (retiré) : réservation `confirmed` d'un bien supprimé → toujours `confirmed`. La visite programmée n'est pas rejouée dans ce passage, et le sort de l'acompte n'est pas cherché. Le constat tient pour la réservation. Classement : V7 et V1, refus ou annulation avec remboursement est un choix de produit écrit comme tel par la piste.
+- Mesure (2026-10-22, 43c553036, implementeur) : `PropertySuppressionEngagementsTest` (neuf), en propriétaire : bien à réservation `confirmed` → `DELETE /api/properties/{id}` 204 avant correctif, de même pour une visite `scheduled` ou `confirmed` à venir (2 rouges) ; voie retenue la plus étroite, le refus : `PropertyController::destroy` rend `422 property.has_confirmed_booking` puis `422 property.has_upcoming_visit` (`scheduled_at` non passé), messages en `fr`/`en`, `wo` au texte français → 422, bien intact, réservation toujours `confirmed` ; réservations `pending`/`cancelled` et visites passée ou annulée → 204 ; ablation (contrôleur remis à `43c553036`) → 2 rouges, remis → 3/3. `PropertyCrudTest`, `PropertyAuthorizationTest`, `LangGroupParityTest` verts.
 
 ### Le bail d'un locataire supprimé continue de courir : relances vers personne, pénalités qui s'appliquent
 - Réf : P130.05
