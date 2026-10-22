@@ -1068,12 +1068,15 @@ lancer() {
     # Il n'a ni pistes ni PR à réparer : chaque passage relève l'état et part de la base.
     MODE=surveillance
     branche="agents/$ROLE/$horo"
-    if [ "$INSTANCE" -gt 1 ]; then branche="$branche-$INSTANCE"; fi
     depart="$BASE_REF"
   else
     etat_des_pr
     if [ "$MODE" = nouveau ]; then
       branche="agents/$ROLE/$horo"
+      # Le suffixe de l'instance, que lit instance_de_branche : sans lui, une PR de l'instance 2 est
+      # lue comme de l'instance 1, qui ne peut pas la réparer (verif-instance rouge). Le
+      # 2026-10-21, 78946f2e4 avait remonté cette ligne dans la branche du superviseur (#949).
+      if [ "$INSTANCE" -gt 1 ]; then branche="$branche-$INSTANCE"; fi
       depart="$BASE_REF"
       travail_disponible
     fi
@@ -1099,7 +1102,9 @@ ${autres:-(aucune)}"
 
 Dossier des agents : $BASE (\$PISTES_BASE). Outils installés : $OUTILS_SHA. Cadences : le StartInterval des plists $HOME/Library/LaunchAgents/$LAUNCHD.*.plist."
   fi
-  if [ "$INSTANCES_IMPLEMENTEUR" -gt 1 ]; then
+  # La part d'une instance ne vaut que pour l'implémenteur : reçue par le délégué, elle lui a fait
+  # écarter les angles impairs (2026-10-21, P103.*, P111.02, P111.04).
+  if [ "$ROLE" = implementeur ] && [ "$INSTANCES_IMPLEMENTEUR" -gt 1 ]; then
     message="$message
 
 Instance $INSTANCE sur $INSTANCES_IMPLEMENTEUR (implementeur.md, « Plusieurs instances ») : tu ne prends que les pistes P<nn>.… dont le numéro d'angle nn vaut $((INSTANCE - 1)) modulo $INSTANCES_IMPLEMENTEUR, et chaque ticket neuf prend le plus petit numéro au-dessus du plus grand vu qui vaut $((INSTANCE - 1)) modulo $INSTANCES_IMPLEMENTEUR."
