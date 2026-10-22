@@ -10353,7 +10353,7 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
 
 ### Les demandes de confidentialité chargent le calendrier pour le formulaire de création, monté seulement quand on ouvre son dialogue
 - Réf : P104.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1198
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/PrivacyRequestsConsole.tsx:19,371-373,421,528`
 - Constat :
@@ -10362,6 +10362,7 @@ l'onglet `growth`, qui affiche lui-même le sélecteur de dates.*
   - Ablation, `DatePicker` remplacé par un composant vide dans ce seul fichier : `/super-admin/privacy-requests` **376,1 → 344,2 Kio** (−31,9), react-day-picker sorti (mesuré).
 - Piste : monter `CreatePrivacyRequestForm` par `next/dynamic` à la première ouverture du dialogue, comme TCK-1041 l'a fait pour `CreateInvoiceDialog` ; mesurer avant et après.
 - Mesure (2026-10-21, 711bafca3, mesureur) : relu `PrivacyRequestsConsole.tsx:19` (`DatePicker` importé statiquement), l. 116 (`creating` à `false`), l. 371-372 (`{creating ? <CreatePrivacyRequestForm … /> : null}` dans un `Dialog`), l. 421 et 528 (seul rendu de `DatePicker`) ; test temporaire du graphe client → les quatre chemins de `privacy-requests/page.tsx` vers `react-day-picker` et `date-fns` passent tous par `ui/date-picker.tsx ← PrivacyRequestsConsole.tsx` ; aucun ticket ni commit ne l'a traitée ; le gain de 31,9 Kio n'est pas re-mesuré par un build. Classement : A2, `CreatePrivacyRequestForm` sorti dans son fichier et monté par `next/dynamic` à la première ouverture du dialogue (patron TCK-1041, `useDejaOuvert`), même formulaire et même comportement.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : garde `graphe-client-de-la-console.test.ts`, cas react-day-picker et date-fns de `privacy-requests/page.tsx` → avant correctif, quatre chemins, tous par `ui/date-picker.tsx ← PrivacyRequestsConsole.tsx` (rouge) ; `CreatePrivacyRequestForm` sorti dans son fichier (pièces communes dans `PrivacyRequestChamps.tsx`) et monté par `next/dynamic` (TCK-1198) → verte ; ablation, formulaire réimporté statiquement → rouge, remis → verte ; `PrivacyRequestsConsole.test.tsx` 7/7 (module différé importé en tête, patron de TCK-1041). `useDejaOuvert` non repris : le formulaire était déjà démonté à la fermeture. Le poids du build n'est pas re-mesuré.
 
 ### Aucune garde ne trace le graphe client des écrans de `/super-admin`
 - Réf : P104.04
