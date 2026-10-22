@@ -14005,7 +14005,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### La page d'édition du bien n'efface ni la description, ni la date de disponibilité, ni les nombres mis à « Non précisé »
 - Réf : P149.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/property-form/wizard/NombreEnListe.tsx:79-81`, `takussan-web/src/lib/schemas/property.ts:126-131,227-231`, `takussan-web/src/components/property-form/payload.ts:159-189`, `takussan-web/src/components/property-form/PropertyForm.tsx:240-252`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:220`
 - Constat :
@@ -14016,10 +14016,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - L'API accepte `null` sur chacune de ces colonnes (lu, `UpdatePropertyRequest.php:48-70`, `sometimes|nullable`) et n'écrit que les clés reçues (lu, `PropertyController.php:220`). Une clé absente garde donc l'ancienne valeur, et le formulaire se recharge avec elle.
   - Établi comment : lecture des cinq fichiers, puis le test temporaire. Le rendu à l'écran n'a pas été vu.
 - Piste : étendre `withClearedFields` (ou `toUpdatePayload` en mode `erase`) à tout champ facultatif du formulaire d'édition qui est modifié et laissé vide, en tenant la liste depuis le schéma plutôt qu'à la main. Test dans `property-form/__tests__` : chaque champ facultatif vidé et marqué modifié part à `null`, et un champ jamais touché reste omis. Ablation sur la liste.
+- Mesure (2026-10-22, 1b5063805, mesureur) : relu `NombreEnListe.tsx:79-81` (« Non précisé » → `undefined`), `property.ts:126-131,227-231` (`available_from`, `description` vides → `undefined`), `payload.ts:164-189` (`withClearedFields` ne pose `null` que sur les cinq champs de `CHAMPS_EFFACABLES_TCK598`) et `PropertyForm.tsx:241-251` (seul chemin d'édition) ; test Vitest temporaire (retiré, charge 2,89 / 3,15 / 3,50 sur 8 cœurs) : appartement en location mensuelle, `bedrooms`, `bathrooms`, `year_built`, `floor_number`, `parking_spaces` à `undefined`, `description` et `available_from` à `''`, tous marqués modifiés → `JSON.stringify(withClearedFields(toUpdatePayload(v), v, dirty))` ne porte aucune des sept clés (aucun `null`) ; côté API, `UpdatePropertyRequest.php:48-70` les accepte `sometimes|nullable` et `PropertyController.php:220` fait `fill($data)` des seules clés reçues → le constat tient. Classement : A1, l'attendu est déjà écrit dans le docblock de `withClearedFields` (un champ modifié et laissé vide part à `null`, un champ jamais touché reste omis) et le correctif étend sa liste aux sept champs, sans montant ni texte neuf.
 
 ### La fiche client modifiée garde l'e-mail, le téléphone, la profession et le type de pièce qu'on vient de vider
 - Réf : P149.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : effacement de données personnelles du client (e-mail, téléphone, pièce)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/schemas/customer.ts:187-206`, `takussan-web/src/components/customer-form/CustomerForm.tsx:154-165`, `takussan-api/app/Http/Requests/Api/UpdateCustomerRequest.php:69-73`, `takussan-api/app/Services/Model/CustomerService.php:23`
 - Constat :
@@ -14030,10 +14031,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Le numéro de pièce masqué est gardé exprès quand le champ reste vide (lu, `CustomerForm.tsx:412`, `idNumberKept`) : `id_number` n'est pas le défaut. Les quatre autres champs le sont.
   - Établi comment : lecture, puis le test temporaire.
 - Piste : en édition, poser `null` sur `email`, `phone`, `occupation` et `id_type` quand le champ a été modifié et laissé vide, comme pour les critères. Laisser `id_number` omis tant que le champ n'a pas été touché. Test sur `normaliseCustomerForm`, ou sur le corps de `CustomerForm` en mode `edit`, avec une ablation.
+- Mesure (2026-10-22, 1b5063805, mesureur) : relu `customer.ts:191-206` (`blank()` → `undefined` pour `email`, `phone`, `occupation`, `id_number` ; `id_type` hors liste → `undefined` ; critères à `null`), `CustomerForm.tsx:154-165` (même normaliseur en création et en édition), `UpdateCustomerRequest.php:69-73` et `ValidatesCustomerContactAndCriteria.php:44` (les cinq clés `sometimes|nullable`), `CustomerService.php:23` (`fill($data)`) ; test Vitest temporaire (retiré) : `customerFormSchema` puis `normaliseCustomerForm` avec `email`, `occupation`, `id_type`, `id_number` vides → corps sans aucune de ces clés ; avec `phone` vide et `email` saisi → corps sans `phone` → le constat tient, `phone` compris. Classement : V3, le correctif est mécanique mais décide quelles données personnelles du client s'effacent depuis l'édition (dont le type de pièce, dissocié du numéro masqué gardé).
 
 ### Vider sa présentation dans le profil n'efface rien : l'action serveur retire `bio` du corps
 - Réf : P149.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : effacement d'une donnée de profil de l'utilisateur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/actions/auth.ts:52-54`, `takussan-web/src/lib/auth.ts:114`, `takussan-web/src/components/profile/ProfileContactSection.tsx:99,112`, `takussan-web/src/components/profile/ProfileHeader.tsx:108`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:170`
 - Constat :
@@ -14043,10 +14045,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - L'API efface sur `null` ou sur une chaîne vide (`ConvertEmptyStringsToNull`), mais seulement si la clé arrive (lu, `AuthController.php:170`, `$request->only([... 'bio'])`). Sans la clé, la bio est gardée et la réponse la rend.
   - Établi comment : lecture des quatre fichiers, puis le test temporaire.
 - Piste : relayer `bio` dès que le formulaire le porte (`formData.has('bio')`), comme `phone` quatre lignes plus bas, chaîne vide comprise. Test de `updateProfileAction` : `bio=''` → `updateProfile` reçoit `bio: ''`. Ablation sur la ligne 53.
+- Mesure (2026-10-22, 1b5063805, mesureur) : relu `actions/auth.ts:52-54` (`(formData.get('bio') as string) || undefined`) et `lib/auth.ts:114` (`bio` ajouté au FormData seulement s'il n'est pas `undefined`), `AuthController.php:170` (`$request->only([... 'bio'])`), `UpdateProfileRequest.php:36` (`bio` `nullable`) ; test Vitest temporaire (retiré, `apiRequest` simulé comme dans `auth.preuve-numero.test.ts`) : FormData `bio=''` → corps envoyé `_method,first_name,last_name,phone`, sans `bio` → le constat tient. Classement : V3, le correctif (relayer `bio` dès que `formData.has('bio')`) est mécanique, mais il change ce qui s'efface d'une donnée personnelle ; dans le doute, au porteur.
 
 ### Vider la surface d'un bien en édition est refusé : « la surface doit être positive »
 - Réf : P149.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/schemas/property.ts:184-189`, `takussan-web/src/components/forms/FormInput.tsx:82-83`, `takussan-web/src/components/property-form/PropertyForm.tsx:477`
 - Constat :
@@ -14055,10 +14058,11 @@ qui a été relevé. Rien n'a été exécuté.*
   - Conséquence : une surface saisie ne peut plus être retirée depuis l'écran. Le défaut ne touche pas l'API, qui accepte `null` (lu, `UpdatePropertyRequest.php:61`).
   - Établi comment : lecture, puis le test temporaire. Le message à l'écran n'a pas été vu (à vérifier).
 - Piste : passer `area` par `nombreFacultatif`, puis l'ajouter à l'effacement de P149.01. Test du schéma : `area: ''` → `undefined`, et le corps d'édition porte `area: null` si le champ a été modifié.
+- Mesure (2026-10-22, 1b5063805, mesureur) : relu `property.ts:184-189` (`area: z.coerce.number().positive().optional()`) et `:45-58` (`nombreFacultatif`, écrit pour ce cas : « `z.coerce` lirait `''` comme 0 ») ; test Vitest temporaire (retiré) : `propertyFormSchema.safeParse({…, area: ''})` → refus `validation.property.areaPositive` ; `UpdatePropertyRequest.php:61` accepte `area` `nullable` → le constat tient (le message à l'écran n'a pas été vu). Classement : A1, `nombreFacultatif` fixe déjà dans le même schéma l'attendu d'un nombre facultatif vidé ; le correctif passe `area` par lui et l'ajoute à l'effacement de P149.01, sans montant ni texte neuf.
 
 ### Petites lectures « `null` = garder » dans l'API
 - Réf : P149.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : contrat des notes de clôture non écrit ; retrait du numéro de carte à décider
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:170-172`, `takussan-api/app/Http/Requests/Api/Me/UpdateSpecializationAgentProfileRequest.php:53`, `takussan-web/src/components/onboarding/AgentOnboardingWizard.tsx:468`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:320-322`
 - Constat :
@@ -14066,3 +14070,4 @@ qui a été relevé. Rien n'a été exécuté.*
   - Clôture d'intervention : `resolution_notes: null` garde les notes déjà écrites (lu, `MaintenanceRequestService.php:320`), et le front rend `undefined` pour des notes vides (lu, `maintenance.ts:72-76`). C'est un geste de clôture et non un `PATCH`. Le comportement voulu n'est écrit nulle part (à vérifier).
   - Établi comment : lecture seule.
 - Piste : pour la carte, `array_key_exists` seul (`null` efface), avec un cas dans le test de `updateSpecialization`. Pour les notes de clôture, écrire le contrat (garder ou remplacer) avant d'y toucher.
+- Mesure (2026-10-22, 1b5063805, mesureur) : relu `AgentProfileController.php:169-171` (`license_number` écrit seulement s'il n'est pas `null`, ligne décalée d'une), `UpdateSpecializationAgentProfileRequest.php:53` (`nullable`), `MaintenanceRequestService.php:320-322` (`resolution_notes` à `null` garde les notes) → les deux lectures tiennent, par lecture seule. Classement : V7, le constat lui-même dit que le contrat des notes de clôture (garder ou remplacer) n'est écrit nulle part, et le retrait d'un numéro de carte professionnelle depuis l'écran est un comportement visible neuf (le front ne l'envoie jamais vide).
