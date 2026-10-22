@@ -10,6 +10,8 @@ import {
   twoFactorEnableAction,
   twoFactorRegenerateAction,
 } from '@/app/actions/security';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
+import { avecGardeDoubleFacteurAction } from '@/lib/double-facteur';
 
 /**
  * TCK-069 — 2FA sub-section.
@@ -42,11 +44,13 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
   const [showDisable, setShowDisable] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // TCK-1203 — renouveler l'appareil et régénérer les codes exigent un TOTP récent (step-up).
+  const garde = useGardeDoubleFacteur();
 
   function handleEnable() {
     setError(null);
     startTransition(async () => {
-      const result = await twoFactorEnableAction();
+      const result = await avecGardeDoubleFacteurAction(() => twoFactorEnableAction(), garde);
       if (!result.ok) {
         setError(result.message);
         return;
@@ -96,7 +100,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
   function handleRegenerate() {
     setError(null);
     startTransition(async () => {
-      const result = await twoFactorRegenerateAction();
+      const result = await avecGardeDoubleFacteurAction(() => twoFactorRegenerateAction(), garde);
       if (!result.ok) {
         setError(result.message);
         return;

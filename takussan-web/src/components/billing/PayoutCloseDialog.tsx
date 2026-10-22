@@ -9,7 +9,9 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
 import { AgencyCombobox } from '@/components/admin/super/AgencyCombobox';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { closeAdminPlatformPayoutPeriod } from '@/lib/queries/super-admin';
 import type { PlatformPayoutExclusion } from '@/types/super-admin';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -23,6 +25,7 @@ export function PayoutCloseDialog({ defaultAgencyId }: { defaultAgencyId?: numbe
   const tBilling = useTranslations('billing');
   const messageErreur = useMessageErreurApi();
   const toast = useToast();
+  const garde = useGardeDoubleFacteur();
   const queryClient = useQueryClient();
   const [periodEnd, setPeriodEnd] = useState(() => new Date().toISOString().slice(0, 10));
   const [agencyId, setAgencyId] = useState(defaultAgencyId ? String(defaultAgencyId) : '');
@@ -30,11 +33,16 @@ export function PayoutCloseDialog({ defaultAgencyId }: { defaultAgencyId?: numbe
   const [excluded, setExcluded] = useState<readonly PlatformPayoutExclusion[]>([]);
 
   const mutation = useMutation({
+    // TCK-1203 — clôturer une période exige un step-up : la garde, puis le rejeu.
     mutationFn: () =>
-      closeAdminPlatformPayoutPeriod({
-        period_end: periodEnd,
-        agency_id: agencyId ? Number(agencyId) : null,
-      }),
+      avecGardeDoubleFacteur(
+        () =>
+          closeAdminPlatformPayoutPeriod({
+            period_end: periodEnd,
+            agency_id: agencyId ? Number(agencyId) : null,
+          }),
+        garde,
+      ),
     onSuccess: async (result) => {
       const count = result.data.length;
       setExcluded(result.excluded ?? []);

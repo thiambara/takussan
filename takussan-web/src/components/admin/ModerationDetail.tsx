@@ -6,6 +6,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Check, EyeOff, Trash2, X, Loader2, Flag } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import {
   fetchReviewReports,
   moderateReview,
@@ -48,6 +50,8 @@ export function ModerationDetail({ review, onModerated, platform = false }: Mode
   const tCommon = useTranslations('common.actions');
   const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
+  // TCK-1203 — trancher un avis exige la 2FA d'un profil plateforme (`ReviewController@moderate`).
+  const garde = useGardeDoubleFacteur();
   const [pending, setPending] = useState<PendingDecision>(null);
   const [reasonCode, setReasonCode] = useState<ModerationReasonCode | ''>('');
   const [reason, setReason] = useState('');
@@ -61,7 +65,7 @@ export function ModerationDetail({ review, onModerated, platform = false }: Mode
 
   const mutation = useMutation({
     mutationFn: (payload: { decision: ModerationDecision; reason_code?: ModerationReasonCode; reason?: string }) =>
-      moderateReview(review.id, payload, token ?? ''),
+      avecGardeDoubleFacteur(() => moderateReview(review.id, payload, token ?? ''), garde),
     onSuccess: () => {
       cancelPending();
       onModerated();

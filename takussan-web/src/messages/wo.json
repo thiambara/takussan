@@ -409,6 +409,7 @@
       "requiredBody": "Jëf jii dafa laal ay xibaar yu am solo: dafa laaj ñaareelu sumb ci sa kont. Defaral ko léegi, jëf ji dina dellu ci saa si.",
       "stepUpTitle": "Wóoral ne yaw la",
       "stepUpBody": "Ngir kaaraange, jëf jii dafa laaj koddu bu bees bu sa appli seetlu. Bindal ko, jëf ji dina dellu.",
+      "consoleStepUpBody": "La console de la plateforme demande, pour cette session, un code de votre application d’authentification. Saisissez-le pour continuer.",
       "codeLabel": "Koddu 6 chiffres",
       "confirm": "Wóoral",
       "confirming": "Ñu ngi seetlu…",
