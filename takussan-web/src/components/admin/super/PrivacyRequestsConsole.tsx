@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type FormEvent } from 'react';
+import dynamic from 'next/dynamic';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, Download, FileCheck2, Inbox, Loader2, Plus } from 'lucide-react';
@@ -16,7 +17,6 @@ import {
 } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
-import { DatePicker } from '@/components/ui/date-picker';
 import {
   Dialog,
   DialogContent,
@@ -41,7 +41,6 @@ import type { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
-  createPrivacyRequest,
   exportPrivacyRequests,
   fetchPrivacyRequests,
   privacyRequestKeys,
@@ -50,14 +49,23 @@ import {
 } from '@/lib/queries/privacy-requests';
 import type { PaginatedResponse } from '@/types/api';
 import {
-  PRIVACY_REQUEST_CHANNELS,
   PRIVACY_REQUEST_STATUSES,
   PRIVACY_REQUEST_TYPES,
   type PrivacyRequest,
-  type PrivacyRequestChannel,
   type PrivacyRequestStatus,
   type PrivacyRequestType,
 } from '@/types/privacy-request';
+import { Champ, decritPar, erreurDe } from './PrivacyRequestChamps';
+
+/**
+ * TCK-1198 (P104.03) — le formulaire de création porte le seul `DatePicker` de l'écran, donc
+ * react-day-picker et date-fns : il se charge à l'ouverture de son dialogue, où il était déjà
+ * monté seulement (`creating`). Garde :
+ * `src/app/(super-admin)/super-admin/__tests__/graphe-client-de-la-console.test.ts`.
+ */
+const CreatePrivacyRequestForm = dynamic(() =>
+  import('./CreatePrivacyRequestForm').then((m) => m.CreatePrivacyRequestForm),
+);
 
 /**
  * TCK-601 (G) — « Demandes de droits » : le registre des demandes d'accès, de rectification,
@@ -81,13 +89,6 @@ const STATUS_TONE: Record<PrivacyRequestStatus, StatusTone> = {
   rejected: 'neutral',
   withdrawn: 'neutral',
 };
-
-function aujourdhui(): string {
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const jj = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${mm}-${jj}`;
-}
 
 /** La taille d'un fichier dans la locale active (`Intl`, unité courte) — jamais d'unité écrite en dur. */
 function tailleLisible(octets: number, fmt: ReturnType<typeof useFormatteurs>): string {
@@ -377,192 +378,6 @@ export function PrivacyRequestsConsole() {
         ) : null}
       </Dialog>
     </div>
-  );
-}
-
-/**
- * Un champ de formulaire : son libellé, puis l'aide et l'erreur HORS du `<label>` — sinon elles
- * entrent dans le nom accessible du champ, que le lecteur d'écran relit à chaque focus. Elles lui
- * sont reliées par `aria-describedby` ({@link decritPar}).
- */
-function Champ({
-  id,
-  label,
-  hint,
-  error,
-  children,
-}: {
-  readonly id: string;
-  readonly label: string;
-  readonly hint?: string;
-  readonly error?: string;
-  readonly children: ReactNode;
-}) {
-  return (
-    <div className="grid gap-1">
-      <label htmlFor={id} className="text-sm font-medium">{label}</label>
-      {children}
-      {hint ? <p id={`${id}-hint`} className="text-xs text-muted-foreground">{hint}</p> : null}
-      {error ? <p id={`${id}-error`} className="text-xs text-destructive">{error}</p> : null}
-    </div>
-  );
-}
-
-function decritPar(id: string, avecAide: boolean, erreur: string | undefined): string | undefined {
-  const ids = [avecAide ? `${id}-hint` : null, erreur ? `${id}-error` : null].filter(Boolean);
-  return ids.length > 0 ? ids.join(' ') : undefined;
-}
-
-/** Le message de validation d'un champ, depuis un 422 de Laravel. */
-function erreurDe(err: ApiError | null, champ: string): string | undefined {
-  return err?.validationErrors?.[champ]?.[0];
-}
-
-function CreatePrivacyRequestForm({ onDone }: { readonly onDone: () => void }) {
-  const t = useTranslations('superAdmin.privacyRequests');
-  const tCommon = useTranslations('common');
-  const messageErreur = useMessageErreurApi();
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  const garde = useGardeDoubleFacteur();
-
-  const [type, setType] = useState<PrivacyRequestType>('access');
-  const [channel, setChannel] = useState<PrivacyRequestChannel>('email');
-  const [name, setName] = useState('');
-  const [contact, setContact] = useState('');
-  const [userId, setUserId] = useState('');
-  const [receivedAt, setReceivedAt] = useState(aujourdhui());
-
-  const mutation = useMutation<PrivacyRequest, ApiError>({
-    mutationFn: () => avecGardeDoubleFacteur(() => createPrivacyRequest({
-      type,
-      channel,
-      requester_name: name.trim(),
-      ...(contact.trim() ? { requester_contact: contact.trim() } : {}),
-      ...(userId ? { user_id: Number(userId) } : {}),
-      ...(receivedAt ? { received_at: receivedAt } : {}),
-    }), garde),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: privacyRequestKeys.all });
-      toast.add({ title: t('create.success'), type: 'success' });
-      onDone();
-    },
-  });
-  const erreur = mutation.error;
-
-  const typeOptions = PRIVACY_REQUEST_TYPES.map((v) => ({ value: v, label: t(`type.${v}`) }));
-  const channelOptions = PRIVACY_REQUEST_CHANNELS.map((v) => ({ value: v, label: t(`channel.${v}`) }));
-
-  function soumettre(e: FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    mutation.mutate();
-  }
-
-  return (
-    <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
-      <form onSubmit={soumettre} className="grid gap-4" noValidate>
-        <DialogHeader>
-          <DialogTitle>{t('create.title')}</DialogTitle>
-          <DialogDescription className="text-pretty">{t('create.description')}</DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="grid gap-1">
-            <span id="pr-type-label" className="text-sm font-medium">{t('fields.type')}</span>
-            <Select value={type} onValueChange={(v) => v && setType(v as PrivacyRequestType)} items={typeOptions}>
-              <SelectTrigger className="h-10 w-full" aria-labelledby="pr-type-label">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {typeOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {erreurDe(erreur, 'type') ? <p className="text-xs text-destructive">{erreurDe(erreur, 'type')}</p> : null}
-          </div>
-          <div className="grid gap-1">
-            <span id="pr-channel-label" className="text-sm font-medium">{t('fields.channel')}</span>
-            <Select value={channel} onValueChange={(v) => v && setChannel(v as PrivacyRequestChannel)} items={channelOptions}>
-              <SelectTrigger className="h-10 w-full" aria-labelledby="pr-channel-label">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {channelOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {erreurDe(erreur, 'channel') ? <p className="text-xs text-destructive">{erreurDe(erreur, 'channel')}</p> : null}
-          </div>
-        </div>
-
-        <Champ id="pr-name" label={t('fields.requesterName')} error={erreurDe(erreur, 'requester_name')}>
-          <Input
-            id="pr-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            maxLength={255}
-            aria-invalid={!!erreurDe(erreur, 'requester_name')}
-            aria-describedby={decritPar('pr-name', false, erreurDe(erreur, 'requester_name'))}
-          />
-        </Champ>
-
-        <Champ
-          id="pr-contact"
-          label={t('fields.requesterContact')}
-          hint={t('fields.requesterContactHint')}
-          error={erreurDe(erreur, 'requester_contact')}
-        >
-          <Input
-            id="pr-contact"
-            value={contact}
-            onChange={(e) => setContact(e.target.value)}
-            maxLength={255}
-            aria-invalid={!!erreurDe(erreur, 'requester_contact')}
-            aria-describedby={decritPar('pr-contact', true, erreurDe(erreur, 'requester_contact'))}
-          />
-        </Champ>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="grid gap-1">
-            <span className="text-sm font-medium">{t('fields.receivedAt')}</span>
-            <DatePicker
-              value={receivedAt}
-              max={aujourdhui()}
-              onValueChange={setReceivedAt}
-              aria-label={t('fields.receivedAt')}
-              buttonClassName="h-10 w-full"
-            />
-            {erreurDe(erreur, 'received_at') ? (
-              <p className="text-xs text-destructive">{erreurDe(erreur, 'received_at')}</p>
-            ) : null}
-          </div>
-          <Champ id="pr-user" label={t('fields.userId')} error={erreurDe(erreur, 'user_id')}>
-            <Input
-              id="pr-user"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              aria-invalid={!!erreurDe(erreur, 'user_id')}
-              aria-describedby={decritPar('pr-user', false, erreurDe(erreur, 'user_id'))}
-            />
-          </Champ>
-        </div>
-
-        {erreur && !erreur.validationErrors ? (
-          <p role="alert" className="text-sm text-destructive">{messageErreur(erreur, t('create.error'))}</p>
-        ) : null}
-
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onDone}>{tCommon('actions.cancel')}</Button>
-          <Button type="submit" disabled={mutation.isPending || name.trim() === ''}>
-            {mutation.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-            {t('create.submit')}
-          </Button>
-        </DialogFooter>
-      </form>
-    </DialogContent>
   );
 }
 
