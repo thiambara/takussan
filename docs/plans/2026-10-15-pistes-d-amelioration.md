@@ -15235,7 +15235,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### « Devis à valider » du bailleur ne compte pas les devis `awaiting_owner`, les seuls que lui seul peut trancher
 - Réf : P162.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:102-107`, `takussan-api/app/Services/Maintenance/MaintenanceStateMachine.php:47-50`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:143-156`, `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:139-143`
 - Constat :
@@ -15244,10 +15244,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Mesuré : bailleur avec une intervention `awaiting_owner` et une `quote_submitted` sur son bien → `GET /api/dashboard/owner` rend `maintenance.quotes_pending = 1`.
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : compter `quote_submitted` et `awaiting_owner` par une constante de la machine à états (« devis en attente de décision »), lue aussi par `MaintenanceRequestResource.php:206`, qui pose déjà la même paire en dur. Test : un devis `awaiting_owner` compté.
+- Mesure (2026-10-22, 5c7c12b8a, mesureur) : `git log --oneline e2959c84c..5c7c12b8a -- takussan-api/app takussan-web/src` → aucun commit ; relu `DashboardOwnerService.php:102-107` (`where('status', QuoteSubmitted)` seul), `MaintenanceStateMachine.php:49-50` et `MaintenanceRequestPolicy::decideQuote` (l. 143-156, en `awaiting_owner` seul le bailleur tranche), `MaintenanceRequestResource.php:205-206` (`can_decide_quote` sur la paire `QuoteSubmitted`/`AwaitingOwner`) ; test temporaire (retiré, charge 4,8 sur 8 cœurs) : bailleur avec une intervention `awaiting_owner` et une `quote_submitted` sur son bien → `GET /api/dashboard/owner` rend `maintenance.quotes_pending = 1` → le constat tient. Classement : A1, la paire « devis en attente de décision » est déjà écrite par ADR-0037 et par `can_decide_quote`, le compteur s'y aligne sans choix de produit ni montant.
 
 ### Un bail en préavis (`terminating`) sort des baux actifs et du loyer attendu chez le bailleur et l'agence
 - Réf : P162.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : le loyer attendu (`expected_monthly`) et la série historisée `leases_active` changent
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:49-54,83,94`, `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:59-64,100`, `takussan-api/app/Http/Controllers/Api/AgencyStatsController.php:38-40`, `takussan-api/app/Observers/LeaseObserver.php:16-20`, `takussan-api/app/Services/Reporting/PlatformMetricsSnapshotter.php:105`, `takussan-api/app/Services/Dashboard/KpiResolver.php:31`, `takussan-api/app/Models/Enums/LeaseStatus.php:11-17`
 - Constat :
@@ -15256,10 +15257,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Mesuré : bailleur avec un bail `active` à 50 000 et un `terminating` à 100 000 → `leases.active = 1`, `finance.expected_monthly = 50000`, alors que le loyer de préavis reste dû.
   - Établi comment : lu, et mesuré par le test temporaire pour le bailleur ; agence, statistiques, compteur dénormalisé et instantané sont lus (même clause).
 - Piste : une constante unique des baux « en cours » (`Lease::ONGOING_STATUSES = [Active, Terminating]`, que `ACTIVE_TENANT_LEASE_STATUSES` réutilise) lue par ces six sites. Le libellé « baux actifs » ne change pas de sens pour le lecteur ; l'instantané plateforme historisé change de série (à dire). Test : un bail `terminating` compté dans `leases.active` et `expected_monthly`.
+- Mesure (2026-10-22, 5c7c12b8a, mesureur) : aucun commit sur ces chemins depuis e2959c84c ; relu `DashboardOwnerService.php:49-54`, `DashboardAgencyService.php:59-64`, `AgencyStatsController.php:38-40`, `LeaseObserver.php:16-20`, `PlatformMetricsSnapshotter.php:105` (tous `status = active` seul), `LeaseStatus.php:11-16` (« still effectively active (rent due) »), `HasProfiles.php:43` ; test temporaire (retiré) : bailleur avec un bail `active` à 50 000 et un `terminating` à 100 000 → `leases.active = 1`, `finance.expected_monthly = 50000` → le constat tient ; agence, statistiques, compteur dénormalisé et instantané lus, non rejoués. Classement : V1, la piste change le calcul d'un montant affiché (loyer attendu) et la série de l'instantané plateforme qui nourrit KPI et alertes de seuil, ce que la `Piste` dit elle-même « à dire ».
 
 ### Une fiche client ou un garant se suppriment sous un bail en préavis
 - Réf : P162.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : ce qu'on peut supprimer d'une fiche client ou d'un garant
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/CustomerController.php:184-194`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:98-107`, `takussan-api/app/Services/Account/AccountDeletionService.php:438-441`
 - Constat :
@@ -15268,10 +15270,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Mesuré : fiche titulaire d'un bail `terminating`, `DELETE /api/customers/{id}` par son auteur → 204.
   - Établi comment : lu, et mesuré pour la fiche client ; le garant est lu.
 - Piste : juger les deux refus par la constante de P162.02 plus `PendingSignature` (celle d'`AccountDeletionService::openLeaseStatuses`, à remonter sur le modèle). Étendre `CustomerSousBailTest` à `terminating`, et son pendant garant.
+- Mesure (2026-10-22, 5c7c12b8a, mesureur) : aucun commit sur ces chemins depuis e2959c84c ; relu `CustomerController.php:188-193` et `GuarantorController.php:101-106` (`[PendingSignature, Active]`), `AccountDeletionService.php:438-441` (`ACTIVE_TENANT_LEASE_STATUSES + PendingSignature`) ; test temporaire (retiré) : fiche titulaire d'un bail `terminating` et garant attaché par pivot à un bail `terminating`, `DELETE` par leur auteur → 204 et 204 → le constat tient, garant compris. Classement : V3, étendre le refus décide quelles données personnelles un utilisateur peut supprimer pendant le préavis ; le motif de P130.05 plaide pour, mais aucune décision écrite ne nomme `terminating`.
 
 ### Un locataire en préavis ne voit plus « Nouvelle demande », alors que l'API accepte sa demande
 - Réf : P162.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:73-92`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:68,101-107`, `takussan-web/src/components/maintenance/MaintenanceList.tsx:124,145`, `takussan-web/src/components/maintenance/MaintenanceNewLauncher.tsx:36`
 - Constat :
@@ -15280,10 +15283,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Mesuré : locataire au seul bail `terminating` → `GET /api/maintenance-requests` `can_create = false`, et `POST /api/maintenance-requests` sur ce bien → 201.
   - Établi comment : lu, et mesuré par le test temporaire ; le lanceur est lu.
 - Piste : `openRequests` lit `User::ACTIVE_TENANT_LEASE_STATUSES` ; le lanceur passe `status: 'active,terminating'` (`filter[status]` est exact, liste acceptée). Test API : `can_create` vrai en préavis ; test du lanceur avec un bail `terminating`.
+- Mesure (2026-10-22, 5c7c12b8a, mesureur) : aucun commit sur ces chemins depuis e2959c84c ; relu `MaintenanceRequestPolicy::openRequests` (l. 72-92, docblock « les mêmes que `store()` », code `LeaseStatus::Active`), `MaintenanceRequestController.php:101-107` (`store` sur `ACTIVE_TENANT_LEASE_STATUSES`, TCK-1001) et l. 68 (seul appelant de `openRequests`), `MaintenanceList.tsx:124,145`, `MaintenanceNewLauncher.tsx:36` (`status: 'active'`) ; test temporaire (retiré) : locataire au seul bail `terminating` → `GET /api/maintenance-requests` `can_create = false`, `POST /api/maintenance-requests` sur ce bien → 201 → le constat tient. Classement : A1, le contrat est écrit par le docblock de `openRequests` et par TCK-1001 ; l'autorisation réelle (`store`) ne bouge pas, seuls le drapeau et la liste du lanceur s'y alignent.
 
 ### Le choix du bail d'un état des lieux écarte les baux en préavis, ceux dont l'état des lieux de sortie approche
 - Réf : P162.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/inventory/InventoryLeasePicker.tsx:21-29`, `takussan-web/src/lib/queries/leases.ts:136-150`, `takussan-web/src/components/inventory/InventoryList.tsx:112,131`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:82-92`
 - Constat :
@@ -15292,10 +15296,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - L'API ne filtre pas le statut : `store` exige seulement `update` sur le bail (lu, `InventoryController.php:89-91`).
   - Établi comment : lu. Un bail `terminating` est absent du sélecteur par construction de la requête.
 - Piste : `useAllActiveLeases` (ou un paramètre du sélecteur) demande `active,terminating` ; le commentaire nomme les deux. Test du sélecteur : un bail en préavis listé.
+- Mesure (2026-10-22, 5c7c12b8a, mesureur) : aucun commit sur ces chemins depuis e2959c84c ; relu `leases.ts:135-150` (`useAllActiveLeases`, `filter: { status: 'active' }`, seul appelant `InventoryLeasePicker.tsx:29`), le commentaire `InventoryLeasePicker.tsx:21-23` (n'exclut que `draft` et `terminated`), `InventoryController.php:82-92` (aucun filtre de statut), `docs/features.md` § 1.9 (« Créer un inventaire d'entrée ou de sortie ») → un bail `terminating` est absent du sélecteur par construction de la requête ; non rendu. Classement : A1, la spec prévoit l'état des lieux de sortie, l'API l'accepte et le commentaire du sélecteur ne justifie l'exclusion que de `draft` et `terminated` ; ajouter `terminating` au filtre ne demande aucun choix.
 
 ### La supervision des paiements compte « en retard » par le statut `late`, que seule la pénalité écrit
 - Réf : P162.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : définir ou retirer la ligne « réservations en retard »
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/PaymentSupervisionService.php:120-139`, `takussan-api/app/Services/Lease/LateFeeCalculator.php:97-100,155-158`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:174-197`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:72`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:327-339`
 - Constat :
@@ -15304,10 +15309,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Les paiements de réservation « en retard » sont `bp.status = 'late'` (lu, l. 137), statut que rien n'écrit sur une réservation : `StoreBookingPaymentRequest` n'admet que `paid`, `pending`, `partially_paid` (lu, l. 72), et l'écrivain unique ci-dessus ne touche que `LeasePayment`. La ligne vaut donc toujours 0 (déduit de la lecture, à vérifier par mesure).
   - Établi comment : lu, et `grep` pour l'unicité de l'écrivain.
 - Piste : la supervision lit `LeasePayment::overdue()` (borné par `due_date` dans la fenêtre) ; pour les réservations, retirer la ligne ou la définir (échéance de réservation dépassée) — choix à écrire. Test : une échéance `pending` échue d'un bail sans pénalité comptée.
+- Mesure (2026-10-22, 5c7c12b8a, mesureur) : aucun commit sur ces chemins depuis e2959c84c ; relu `PaymentSupervisionService.php:119-139` (`lp.status = 'late'`, `bp.status = 'late'`), `LateFeeCalculator.php:97-100,150-158` ; `grep -rn "PaymentStatus::Late\b\|'late'" takussan-api/app` → seul écrivain `LateFeeCalculator.php:158` (`LeasePayment`), `StoreBookingPaymentRequest.php:72` n'admet que `paid`/`pending`/`partially_paid` ; test temporaire (retiré) : échéance `pending` échue de 3 jours d'un bail à `late_fee_percent = 0`, `GET /api/admin/payments?filter[status]=late` en super-admin → 0 ligne → le constat tient pour les loyers ; la ligne des réservations reste à 0 par lecture, non rendue. Classement : V7, la `Piste` laisse ouvert le sort des réservations (retirer la ligne ou définir le retard), choix d'une console visible ; la part des loyers seule relèverait d'A1 (`scopeOverdue`).
 
 ### Petites listes « en cours » incomplètes, d'effet plus étroit
 - Réf : P162.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : quels statuts sont « en cours » pour chacun des quatre sites
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:262-266`, `takussan-api/app/Services/Review/ReviewEligibility.php:38`, `takussan-api/app/Services/Lease/LeaseRenewalService.php:417-426`, `takussan-web/src/lib/queries/leases-active-summaries.ts:20-27`
 - Constat :
@@ -15317,3 +15323,4 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - L'accueil et la check-list du locataire ne lisent que ses baux `active` (lu, `leases-active-summaries.ts:27`) : en préavis, elles le traitent comme sans bail. À vérifier.
   - Établi comment : lu.
 - Piste : chaque site lit la constante de P162.02 quand l'intention est « bail en cours », et `PayoutStatus` une méthode « en attente » plutôt qu'une liste du front ; les cas voulus le disent en commentaire.
+- Mesure (2026-10-22, 5c7c12b8a, mesureur) : aucun commit sur ces chemins depuis e2959c84c ; relu `overview/owner/page.tsx:262-266` (`['pending','scheduled','processing']`, sans `awaiting_approval` que `PayoutStatus::holdingItems()` l. 25-28 compte), `ReviewEligibility.php:38` (`[Active, Terminated, Expired]`, sans `Terminating`), `LeaseRenewalService.php:416-425` (`guardNoActiveChild` sans `Terminating`) et l. 53-56, `leases-active-summaries.ts:20-27` (`status: 'active'`) → les quatre écarts tiennent à la lecture ; aucun n'a été rendu par un test, et le constat dit lui-même « voulu ou non : à vérifier » pour chacun. Classement : V7, dire pour chaque site si l'écart est voulu (un avis pendant le préavis, un reversement en attente d'approbation « à venir ») est un choix de produit.
