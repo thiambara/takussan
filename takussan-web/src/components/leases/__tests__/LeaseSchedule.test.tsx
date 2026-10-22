@@ -143,7 +143,7 @@ function avecEcheances(echeances: LeasePayment[]) {
 function rendre(canManage = false, bail: { agencyId?: number | null; landlordId?: number } = {}) {
   const { agencyId = 1, landlordId = 7 } = bail;
   return render(
-    withIntl(<LeaseSchedule leaseId={1} agencyId={agencyId} landlordId={landlordId} canManage={canManage} />),
+    withIntl(<LeaseSchedule leaseId={1} agencyId={agencyId} landlordId={landlordId} canManage={canManage} canRecordPayment={canManage} />),
   );
 }
 
