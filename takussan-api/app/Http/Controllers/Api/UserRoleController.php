@@ -11,6 +11,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
+use App\Services\Membership\ProfileMaterializer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -155,8 +156,8 @@ class UserRoleController extends Controller
     {
         $user->agentProfiles()->where('agency_id', $agencyId)->delete();
         $user->ownerProfiles()->where('agency_id', $agencyId)->delete();
-        $this->materializeOrRestore(
-            AgencyAdminProfile::query(),
+        ProfileMaterializer::materializeOrRestore(
+            AgencyAdminProfile::class,
             ['user_id' => $user->id, 'agency_id' => $agencyId],
             ['status' => AgencyAdminProfileStatus::Active->value],
         );
@@ -166,8 +167,8 @@ class UserRoleController extends Controller
     {
         $user->agencyAdminProfiles()->where('agency_id', $agencyId)->delete();
         $user->ownerProfiles()->where('agency_id', $agencyId)->delete();
-        $this->materializeOrRestore(
-            AgentProfile::query(),
+        ProfileMaterializer::materializeOrRestore(
+            AgentProfile::class,
             ['user_id' => $user->id, 'agency_id' => $agencyId],
             ['status' => AgentProfileStatus::Active->value],
         );
@@ -177,32 +178,11 @@ class UserRoleController extends Controller
     {
         $user->agencyAdminProfiles()->where('agency_id', $agencyId)->delete();
         $user->agentProfiles()->where('agency_id', $agencyId)->delete();
-        $this->materializeOrRestore(
-            OwnerProfile::query(),
+        ProfileMaterializer::materializeOrRestore(
+            OwnerProfile::class,
             ['user_id' => $user->id, 'agency_id' => $agencyId],
             [],
         );
-    }
-
-    /**
-     * TCK-278 — Idempotent : si un profil soft-deleted existe sur la même
-     * (user_id, agency_id), le restaure plutôt que de tenter un INSERT qui
-     * violerait l'index UNIQUE. Si rien n'existe, crée. Si actif, no-op.
-     */
-    private function materializeOrRestore($query, array $match, array $defaults): void
-    {
-        $existing = (clone $query)->withTrashed()->where($match)->first();
-        if ($existing !== null) {
-            if ($existing->trashed()) {
-                $existing->restore();
-                if ($defaults !== []) {
-                    $existing->forceFill($defaults)->save();
-                }
-            }
-
-            return;
-        }
-        $query->create(array_merge($match, $defaults));
     }
 
     /**
