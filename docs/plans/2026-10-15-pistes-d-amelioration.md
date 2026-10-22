@@ -14001,7 +14001,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### `/app/agency/roles` et `/app/agency/kyc` s'ouvrent à l'admin sans la capacité que l'API exige pour leur lecture : la page entière est en erreur
 - Réf : P148.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1274
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/access/pages-admin.ts:65,72,76-80`, `takussan-web/src/components/admin/roles/AgencyRolesConsole.tsx:90-93`, `takussan-web/src/components/kyc/AgencyKycClient.tsx:24-31`, `takussan-api/app/Policies/AgencyRolePolicy.php:29-39`, `takussan-api/app/Http/Controllers/Api/Agency/KycController.php:64-67`
 - Constat :
@@ -14011,6 +14011,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - L'admin au rôle système porte toutes les capacités (lu, `SystemRoleCapabilities::agencyAdmin`) : le défaut ne touche que les rôles personnalisés de base `agency_admin`, que la règle du dernier admin n'interdit pas (lu, `AgencyRoleService::assertNotLastAdminLosingControl`).
 - Piste : poser `capacite: 'team.assign_role'` sur `/app/agency/roles` et `capacite: 'agency.update_kyc'` sur `/app/agency/kyc` dans `PAGES_ADMIN`, comme `billing` ; le test de la table (`pages-admin`) avec un contexte d'admin sans capacité empêcherait le retour. Les pages restantes (`audit`, `moderation`, `finances`, `integrations`, `/app/agency`) n'ont pas été confrontées une à une à la garde de leur lecture (à vérifier).
 - Mesure (2026-10-22, 55ac201ff, mesureur) : relu `PAGES_ADMIN` (`pages-admin.ts:65` `roles` et `:72` `kyc` sans `capacite`, `:76-80` `billing` avec), les deux états d'erreur (`AgencyRolesConsole.tsx:90-96`, `AgencyKycClient.tsx:24-31`) et les pages qui ne se gardent que par `garderPageAdmin` ; même test temporaire (retiré) → admin au rôle personnalisé sans capacité : `GET /api/agencies/{id}/roles` → 403, `GET /api/agencies/{id}/kyc` → 403 → le constat tient. Classement : A1, la lecture que l'API exige (`AgencyRolePolicy::viewAny` → `team.assign_role`, `KycController` → `updateKyc` → `agency.update_kyc`) fixe l'attendu, et `billing` montre déjà la forme : poser `capacite` sur les deux lignes de `PAGES_ADMIN`.
+- Mesure (2026-10-22, 4e69ef6bd, implementeur) : test neuf de `pages-admin.test.ts` (admin standard aux seules capacités `agency.update_billing`) sur l'arbre d'origine → rouge : `/app/agency/roles` et `/app/agency/kyc` accessibles → `capacite` posée sur les deux lignes de `PAGES_ADMIN`, comme `billing` ; ablation (`pages-admin.ts` rendu à `HEAD`) → 2 rouges, correctif remis → 21/21 verts ; quatre fixtures d'admin portent désormais les capacités du rôle système. Pages restantes de la section non confrontées (hors Piste).
 
 ## Angle 149 — Champs vidés d'un `PATCH` partiel lus comme « garder »
 
