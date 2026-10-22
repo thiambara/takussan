@@ -36,6 +36,10 @@ class ImpersonationLifecycleTest extends TestCase
     /** AC5e — `stop` par l'opérateur. */
     public function test_stop_ferme_la_session_tue_le_jeton_journalise_et_previent_la_cible(): void
     {
+        // Horloge figée dès l'ouverture : sinon `started_at` prend l'heure réelle, `travel` part de
+        // l'heure réelle quelques millisecondes plus tard, et la durée journalisée passe à 181 s
+        // dès que l'ouverture chevauche une seconde (rouge de la CI du 2026-10-22, run 39830998745).
+        $this->freezeSecond();
         ['operateur' => $operateur, 'cible' => $cible, 'jeton' => $jeton, 'session_id' => $id] = $this->ouvrirUneSession();
         $this->travel(3)->minutes();
 
