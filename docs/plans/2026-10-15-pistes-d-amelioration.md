@@ -11168,7 +11168,7 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
 
 ### La déconnexion attend la réponse de l'API sans borne : le menu ne ferme pas la session tant que l'API ne répond pas
 - Réf : P113.05
-- Statut : validé — porteur (2026-10-22) : effacer l'état local et les cookies sans attendre la révocation côté API : attente bornée à quelques secondes, effacement quand même
+- Statut : fait · TCK-1481
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/context/AuthContext.tsx:257-269`, `takussan-web/src/app/api/auth/logout/route.ts:13-27`, `takussan-web/src/components/layout/UserMenu.tsx:94-104`, `takussan-web/src/components/home/Navbar.tsx:312-317`
 - Constat :
@@ -11178,6 +11178,7 @@ serveur est l'angle 79 (P79.01 à P79.06), en cours dans la PR #972 : rien ici n
   - Établi comment : lu.
 - Piste : effacer l'état local et les cookies sans attendre la révocation côté API (le relais rend sa réponse puis révoque, ou le client borne son attente à quelques secondes et efface quand même) ; garde : un test d'`AuthProvider` dont le `fetch` de déconnexion ne répond jamais, qui exige `user` à `null` sous la borne.
 - Mesure (2026-10-22, c6abf5343, mesureur) : relu `AuthContext.tsx:257-269` (`await fetch('/api/auth/logout')` sans délai avant `setUser(null)`), `logout/route.ts:13-27`, `UserMenu.tsx:99-103`, `Navbar.tsx:315-317` (inchangés ; #972 touche `Navbar.tsx` ailleurs, pour les comptes du menu) ; test vitest temporaire (retiré), `AuthProvider` avec `initialUser` et un `fetch` qui ne se résout jamais → après 1,5 s, `logout()` non résolu et `user` toujours présent. Classement : V2, la Piste choisit entre effacer avant la révocation et borner l'attente, sur le chemin de la session.
+- Mesure (2026-10-22, ff2ab7523, implementeur) : tests écrits d'abord, faux minuteurs : `route.borne.test.ts`, relais avec impersonation dont l'API ne répond jamais → aucune réponse ; `AuthContext.deconnexion-bornee.test.tsx`, `AuthProvider` dont le `fetch` de déconnexion ne répond jamais → `user` toujours présent ; correctif : une échéance commune de 3 s aux deux appels du relais (`impersonate/stop`, jusqu'ici sans borne, et `auth/logout`), cookies effacés quand même, et une attente de 5 s côté client, état vidé quand même (`src/lib/delais-deconnexion.ts`) → verts (réponse et quatre cookies effacés à 3 s, `user` à `null` à 5 s, ni l'un ni l'autre une milliseconde avant) ; ablation, `route.ts` puis `AuthContext.tsx` rendus à `pre-dev` → chacun son test rouge, remis → verts ; `route.test.ts` (appel de `logout` avec le signal), `AuthContext.session`, `AuthContext.chemin-unique`, `Navbar.deconnexion`, `UserMenu`, `ReinitialiserSessionClient` verts.
 
 ## Angle 114 — Champs écartés par `validated()`, modules de l à z et server actions
 
