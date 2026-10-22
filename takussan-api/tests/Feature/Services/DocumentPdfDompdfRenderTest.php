@@ -205,7 +205,10 @@ class DocumentPdfDompdfRenderTest extends TestCase
      */
     private function textRuns(string $pdf): array
     {
-        preg_match_all('#stream\r?\n(.*?)\r?\nendstream#s', $pdf, $streams);
+        // L'adaptateur CPDF écrit `stream\n<données>\nendstream`, sans `\r`. Un `\r?` avant `\nendstream`
+        // mangeait le dernier octet d'un flux compressé qui finit par 0x0D : `gzuncompress` échouait, et
+        // le flux (le pied d'une page entière) disparaissait en silence (rouge intermittent de la CI).
+        preg_match_all('#stream\n(.*?)\nendstream#s', $pdf, $streams);
 
         $runs = [];
         foreach ($streams[1] as $stream) {
