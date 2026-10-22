@@ -138,11 +138,14 @@ export function useRevokeRoleDelegation(agencyId: number) {
 /**
  * Les membres à qui une délégation peut être accordée.
  *
- * `GET /api/agencies/{agency}/members` rend exactement les utilisateurs
- * portant un profil `agent` ou `owner` dans l'agence — c'est mot pour mot la
- * condition que `RoleDelegationService::create` vérifie avant d'accepter un
- * bénéficiaire (`isAgentAt || isOwnerAt`). Proposer une autre source
- * offrirait des noms dont on connaît déjà le 422.
+ * `GET /api/agencies/{agency}/members` rend tout membre de l'agence, ses
+ * administrateurs compris (P120.02, TCK-1244) ; `filter[role]=agent,owner` n'en
+ * garde que les utilisateurs portant un profil `agent` ou `owner` dans
+ * l'agence, sans statut — c'est mot pour mot la condition que
+ * `RoleDelegationService::create` vérifie avant d'accepter un bénéficiaire
+ * (`isAgentAt || isOwnerAt`). L'admin seul, que le service refuse, n'est donc
+ * pas proposé : offrir d'autres noms, c'est en offrir dont on connaît déjà le
+ * 422. Le filtre se pose au serveur, jamais sur la liste reçue.
  *
  * ## Pourquoi ce hook vit ici et non dans `agency-members.ts`
  *
@@ -159,6 +162,7 @@ export function useDelegationCandidates(agencyId: number, enabled = true) {
       enabled: enabled && Number.isFinite(agencyId) && agencyId > 0,
       params: {
         fields: { users: [...AGENCY_MEMBER_FIELDS] },
+        filter: { role: 'agent,owner' },
         sort: 'first_name',
         per_page: 100,
       },
