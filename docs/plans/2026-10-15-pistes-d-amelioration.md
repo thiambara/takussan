@@ -10133,7 +10133,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Petites améliorations relevées sur le calendrier
 - Réf : P101.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1191
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/calendar/CalendarPage.tsx:449`, `takussan-web/src/components/layout/AppSidebar.tsx:783`
 - Constat :
@@ -10141,6 +10141,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : axe par CDP, code relu.
 - Piste : `aria-labelledby` du panneau vers son `h3` (le libellé du jour, déjà affiché), ou `section` au lieu d'`aside` ; aucun texte neuf.
 - Mesure (2026-10-21, dadb26e5c, mesureur) : relu `CalendarPage.tsx:449-494` (`<aside data-testid="calendar-selected-day">` sans `aria-label` ni `aria-labelledby` ; son `h3` l. 452 porte le libellé du jour, déjà affiché) et `AppSidebar.tsx:783` (`<aside>` sans nom) → deux repères `complementary` sans nom sur `/app/calendar` ; axe non relancé, le constat est relu. P68.08 a laissé au porteur les seuls `aside` de `/app/messages`, qui n'ont pas de titre à réutiliser. Classement : A4, aucun texte neuf : `aria-labelledby` du panneau vers un `id` posé sur son `h3`, et un test qui attend le repère nommé du libellé du jour.
+- Mesure (2026-10-22, cb29105b6, implementeur) : test ajouté à `CalendarPage.test.tsx` d'abord → rouge, aucun repère `complementary` nommé « lundi 20 avril » ; correctif : `aria-labelledby` de l'`aside` du panneau vers un `id` (`useId`) posé sur son `h3`, aucun texte neuf → 16/16 verts ; ablation (`CalendarPage.tsx` rendu à `pre-dev`) → le test neuf rouge, remis → vert.
 
 ## Angle 102 — Cartes de bien masquées au rendu serveur hors de la grille de recherche
 
