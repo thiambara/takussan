@@ -12841,7 +12841,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Le dialogue de facture affiche une TVA à 0 %, mais n'envoie pas ce 0 : l'API applique le taux de l'agence
 - Réf : P133.01
-- Statut : validé — porteur (2026-10-22) : envoyer le taux de TVA affiché, 0 % compris
+- Statut : fait · TCK-1375
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/payments/CreateInvoiceDialog.tsx:52,84,109-110`, `takussan-api/app/Services/Model/InvoiceService.php:59-66`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:43`
 - Constat :
@@ -12852,6 +12852,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Écart plus petit sur l'arrondi : l'aperçu arrondit la TVA à l'unité (`Math.round`, l. 109), l'API à l'unité de la devise (`Currency::roundAmount`, `InvoiceService.php:66`). En EUR ou en USD, 10,50 à 18 % s'affiche 2 et s'enregistre 1,89 (lu).
 - Piste : pré-remplir le taux avec `default_tax_rate` de l'agence de l'émetteur et envoyer le taux tel quel, `0` compris (`?? undefined` au lieu de `|| undefined`) ; arrondir l'aperçu par les décimales de `CURRENCY_METADATA`. Garde : un test du dialogue qui vérifie que `tax_rate: 0` part dans la charge utile, et un autre sur l'aperçu d'une agence à 18 %.
 - Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `CreateInvoiceDialog.tsx` (`tax_rate: 0` en valeur initiale l. 52, `tax_rate: values.tax_rate || undefined` l. 84, aperçu `Math.round(subtotal * taxRate / 100)` l. 109-110), `InvoiceService.php:59-66` (sans `tax_rate`, `agencies.default_tax_rate` ; TVA par `Currency::roundAmount`) et `StoreInvoiceRequest.php:43` ; lancé `php artisan test tests/Feature/Api/InvoiceLegalMentionsTest.php --filter=test_ac14_the_default_tax_rate` (charge 1,61 sur 8 cœurs) → 1 vert, 4 assertions : sans clé le taux de l'agence s'applique, un `0` explicite donne 0. Aucun commit ni ticket n'a touché le dialogue depuis TCK-670 (`git log` du fichier). Le constat tient tel qu'écrit, lignes inchangées. Classement : V1, le correctif change le montant de TVA et le total écrits sur la facture, et le taux à pré-remplir (celui de l'agence ou 0) est un choix.
+- Mesure (2026-10-22, a2c7af2, implementeur) : test du dialogue avant correctif : taux affiché à 0, envoi → la charge utile n'a pas de `tax_rate` (rouge) ; 10,50 € à 18 % → aperçu `2,00€` (rouge). Correctif : `tax_rate` envoyé tel quel (`?? 0`), champ pré-rempli par `default_tax_rate` de l'agence de l'émetteur (`useAgencyInvoiceDefaults`) tant qu'il n'est pas touché, TVA de l'aperçu arrondie par les décimales de la devise → `CreateInvoiceDialog.test.tsx` 7 verts, `useAgencyInvoiceDefaults.test.tsx` 3 verts ; ablation (dialogue remis à a2c7af2) → 4 rouges.
 
 ### Les lignes saisies dans le dialogue de facture ne partent jamais : seul le sous-total calculé au front arrive à l'API
 - Réf : P133.02
