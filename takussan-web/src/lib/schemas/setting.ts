@@ -216,6 +216,12 @@ export function normaliseIntegrationForm(
     delete (payload as Partial<IntegrationFormPayload>).credentials;
   }
 
+  // TCK-1372 (P114.05) — en édition, le fournisseur ne change pas (champ désactivé) et
+  // `UpdateIntegrationRequest` ne le lit pas : il ne part plus.
+  if (mode === 'edit') {
+    delete (payload as Partial<IntegrationFormPayload>).provider;
+  }
+
   // TCK-110: in `edit` mode, ALWAYS send `metadata` (even when empty)
   // so the backend can distinguish "field cleared" from "field
   // unchanged". The controller treats the presence of the key as a

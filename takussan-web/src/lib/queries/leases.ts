@@ -262,7 +262,6 @@ export function useLeasePayments(leaseId: number | null | undefined) {
 export type CreateLeasePayload = {
   property_id: number;
   tenant_id: number;
-  landlord_id: number;
   agency_id?: number;
   type: 'residential_rent' | 'commercial_rent' | 'seasonal_rent' | 'sale';
   start_date: string;

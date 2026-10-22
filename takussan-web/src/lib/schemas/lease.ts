@@ -34,10 +34,8 @@ export const createLeaseSchema = z
       .number({ error: msgValidation('lease.tenantRequired') })
       .int()
       .positive(msgValidation('lease.tenantRequired')),
-    landlord_id: z
-      .number({ error: msgValidation('lease.landlordRequired') })
-      .int()
-      .positive(msgValidation('lease.landlordRequired')),
+    // TCK-1372 (P114.05) — plus de `landlord_id` : `StoreLeaseRequest` ne le lit pas, et le service
+    // recalcule le bailleur depuis le bien.
     agency_id: z.number().int().positive().optional(),
     type: leaseTypeSchema,
     start_date: isoDate,
