@@ -49,6 +49,8 @@ class AgentHandoverController extends Controller
             'user_id' => $user->id,
             'moved' => array_map('count', $result['moved']),
             'unassigned' => array_map('count', $result['unassigned']),
+            // TCK-1333 (P121.04) — ce que le partant garde, compté à part de ce qui n'est à personne.
+            'left_to_member' => array_map('count', $result['left_to_member']),
             'removed' => $result['removed_profiles'] !== null,
             'portfolio' => $this->handover->inventory($agency, $user),
         ]]);
