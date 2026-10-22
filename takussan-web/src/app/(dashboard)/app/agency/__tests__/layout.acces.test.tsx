@@ -13,7 +13,7 @@ import type { User } from '@/types/user';
  */
 const { getMe, redirect, messagesPour, accesAdmin } = vi.hoisted(() => ({
   getMe: vi.fn(),
-  accesAdmin: vi.fn(async (): Promise<{ chemins: string[]; espaceIndividuel: boolean }> => ({
+  accesAdmin: vi.fn<(user: unknown) => Promise<{ chemins: string[]; espaceIndividuel: boolean }>>(async () => ({
     chemins: [],
     espaceIndividuel: false,
   })),
