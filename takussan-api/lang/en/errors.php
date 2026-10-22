@@ -130,6 +130,7 @@ return [
         'participant_required' => 'At least one other participant is required.',
     ],
     'customer' => [
+        'attached_to_open_lease' => 'This customer is the tenant of a lease awaiting signature or in force: they cannot be deleted while that lease is open.',
         'duplicate' => 'A customer of your agency already has this phone number or email address.',
         'pipeline_stage_invalid' => 'Invalid pipeline stage.',
     ],
