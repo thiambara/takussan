@@ -16,6 +16,10 @@ use Illuminate\Http\Request;
  * The legacy flat booleans on users (notifications_email_enabled,
  * notifications_push_enabled, notifications_sms_enabled) are kept in
  * the schema for backwards compatibility but are no longer authoritative.
+ *
+ * TCK-1495 (P107.02, porteur 2026-10-22) — `notifications_sms_enabled` et
+ * `notifications_push_enabled` ont quitté la requête et la réponse : aucun envoi ne les lit.
+ * Seul `notifications_email_enabled` reste, que lit le résumé (P11.08) ; les colonnes restent.
  */
 class NotificationPreferenceController extends Controller
 {
@@ -61,8 +65,6 @@ class NotificationPreferenceController extends Controller
 
             // Legacy flat flags — do not rely on for new code.
             'notifications_email_enabled' => (bool) $user->notifications_email_enabled,
-            'notifications_push_enabled' => (bool) $user->notifications_push_enabled,
-            'notifications_sms_enabled' => (bool) $user->notifications_sms_enabled,
         ];
     }
 }
