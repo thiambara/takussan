@@ -200,7 +200,7 @@ voie d'écriture (angle 13, puis 47).
 | 123 | Gestes validés en base suivis, hors transaction, d'un appel réseau qui peut lever (Meilisearch, CDN, revalidation du front, envoi synchrone) avant leur ligne `activity()` ou leur notification : réponse 500 pour un geste fait, trace d'audit absente — le relevé de P90.03 hors de la modération | fait |
 | 124 | Colonnes `varchar(N)` remplies par une valeur dérivée ou recopiée d'une source plus longue (masques, concaténations, codes et messages d'erreur de fournisseur : `lease_signatures.otp_destination`, `notification_delivery_attempts.failure_reason`, `integration_webhook_logs.error_code`, `property_calendar_feeds.last_error`, `bookings.expiry_reason`) sans `mb_substr` : écriture en 22001 hors de toute requête validée | fait |
 | 125 | Téléphones écrits sans `TelephoneSaisi::normaliser` ni `TelephoneJoignable` (garants, agences, onboarding de la console, contacts sur place des biens) : numéro hors E.164 face aux lecteurs qui envoient un SMS, ouvrent un lien WhatsApp ou rapprochent un doublon | fait |
-| 126 | Destinataires de notifications et de courriels choisis par un profil sans `->active()` (`MaintenanceParticipants.php:39`, autres `Notification::send` à l'équipe d'une agence) : agent ou admin suspendu ou archivé qui reçoit encore l'activité de l'agence — le relevé de P93.04 sur les autres envois | à faire |
+| 126 | Destinataires de notifications et de courriels choisis par un profil sans `->active()` (`MaintenanceParticipants.php:39`, autres `Notification::send` à l'équipe d'une agence) : agent ou admin suspendu ou archivé qui reçoit encore l'activité de l'agence — le relevé de P93.04 sur les autres envois | fait |
 | 127 | Indicateurs de `DashboardAgentService`, `DashboardOwnerService` et des adaptateurs `*MeMetrics` de `/dashboard/me` : dénominateur nul rendu 0 au lieu de `null`, statut courant relu pour une période passée, clés que seul `assertJsonStructure` vérifie — le relevé de l'angle 93 sur les autres tableaux de bord | à faire |
 | 128 | Dates des charges utiles de notification (`toArray()` / `toDatabase()` de `app/Notifications`, `data` rendu par `AppNotificationResource`, diffusions) que l'ADR-0018 laisse hors de son périmètre : forme émise, et lecture par le centre de notifications du front | à faire |
 | 129 | Suppression douce d'une agence (`DELETE /api/agencies/{agency}`, `AgencyController::destroy`, `$agency->delete()` seul, ouvert à l'admin principal) : profils restés actifs et profil actif encore résolu, biens publiés, baux et échéances, abonnement, invitations ouvertes et tâches planifiées d'une agence supprimée | à faire |
@@ -234,6 +234,8 @@ voie d'écriture (angle 13, puis 47).
 | 157 | Lignes de relevé importées face au rapprochement : `currency` lue dans le fichier (`CsvDriver.php:126-128`) puis comparée telle quelle par `ReconciliationMatcher::fetchCandidates` (`where('currency', …)`), devise de trois lettres autre que celle de l'agence (`CFA`, `XAF`, `EUR`), sens et montants lus, `FITID` répété d'un relevé à l'autre : lignes importées qu'aucun candidat ne peut jamais apparier, sans le dire — né de P124.01 | à faire |
 | 158 | Fiches client créées hors de `CustomerController::store` (`ContactLeadService::convert`, `CustomerService::findOrCreateFromUser`, invitations et onboardings qui créent un `Customer`, visites) face à `CustomerDuplicateDetector` : fiche en double dans le CRM d'une agence, sans le dire — né de P125.02 | à faire |
 | 159 | Exemples et formats montrés à la saisie (messages de `lang/*/validation.php` qui citent un exemple, `placeholder` des champs et clés `*Placeholder`, aides sous les champs) face à la règle de l'API qui jugera la valeur : exemple que la règle refuse — né de P125.03 et P125.04 | à faire |
+| 160 | `properties.user_id` (le créateur du bien) lu comme le bailleur dans une décision métier sur un bien d'agence saisi par un agent : `OwnerApprovalThreshold::isLandlord` et `MaintenanceQuoteWorkflow` (plafond de travaux d'ADR-0037, devis `awaiting_owner`), `BookingExpirationService::resolveAgent`, `BookingRefundTaskService` — qui tranche, et qui est prévenu, à la place du bailleur — né de P126.04 | à faire |
+| 161 | Notifications dont la `NotificationTarget` ouvre un écran que la capacité ou le profil du destinataire ferme (`finances` de `PayoutDue` et `BankStatementImported`, `agency_settings`, `audit`, `review_moderation`, `kyc_review`) : destinataire choisi par une colonne (`issued_by_id`, `uploaded_by_id`) ou par un rôle, et clic qui mène à un 403 — né de P126.03 | à faire |
 
 ---
 
@@ -12068,3 +12070,83 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - La fiche publique d'une agence émet le numéro brut dans le JSON-LD (`telephone`) et en `tel:` après le seul retrait des blancs (lu). Une agence enregistrée `77 123 45 67` publie `tel:771234567`, qui n'aboutit pas depuis l'étranger (déduit, à vérifier). Disparaît avec la normalisation à l'écriture de P125.01.
   - Établi comment : lu.
 - Piste : retirer `phone_otp.phone` de la requête ou le comparer au numéro du compte ; ajouter `TelephoneJoignable` à l'alerte WhatsApp ; publier l'E.164 dans le JSON-LD et le `tel:`.
+
+## Angle 126 — Destinataires d'équipe choisis sans juger le profil actif
+
+*Exploré le 2026-10-22 sur `pre-dev` 64db86d28, par l'explorateur. Tout est relu par l'explorateur lui-même, sans sous-agent : `MaintenanceParticipants`, `NotifyMaintenanceParticipants`, `SendTaskDueReminders`, `SendPropertyVisitReminders`, `VisitNotifier::agencyRecipients`, `RemindDuePayouts`, `PayoutApprovers`, `ReviewNotifier`, `BookingStakeholders`, `BookingExpirationService::resolveAgent`, `PropertyCalendarSyncService`, `ContactLeadService::agencyAdmins`, `KycExpiryService`, `GovernanceAlertService`, `PropertyModerationNotifier`, `PropertyController::notifyAgencyAdminsOfProposal`, `TeamMemberSuspensionService`, ADR-0031 § 2-3. Les comportements dits mesurés viennent d'un test temporaire unique (`TmpExplorateurP126Test`, base de test PostgreSQL, `Notification::fake()`, charge 2,23 / 2,18 / 2,05 sur 8 cœurs, retiré ensuite) : un agent dont le profil d'agence est passé en `suspended`, `isStaffAt` vérifié faux. L'exemple de l'intitulé ne tient plus : `MaintenanceParticipants.php:36-43` filtre déjà l'équipe par `isStaffAt` (TCK-587), et les listes d'admins d'agence relues ci-dessus portent toutes `->active()`. Les défauts restants sont ailleurs : un destinataire désigné par une colonne (`assigned_to_id`, `agent_id`, `issued_by_id`, `user_id`) que personne ne rejuge. Le compte bloqué est hors de cet angle (voir P88, entrée « Un compte bloqué reçoit toujours ses notifications »).*
+
+### Le rappel d'échéance d'une tâche part à son assigné, même suspendu de l'agence
+- Réf : P126.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Jobs/SendTaskDueReminders.php:45-81`, `takussan-api/app/Services/Agency/TeamMemberSuspensionService.php:73-118`
+- Constat :
+  - Le job prend toute tâche `open` ou `in_progress` dont l'échéance tombe dans la fenêtre, puis envoie `TaskDueReminderNotification` à `$fresh->assignee` dès que la relation existe. Il ne juge ni le profil de l'assigné ni l'agence du dossier (lu, l. 45-81).
+  - La suspension pose le statut des profils de l'agence et ne réattribue aucune tâche (lu, `TeamMemberSuspensionService::apply`, aucune lecture de `Task`).
+  - mesuré (test temporaire) : agent au profil `suspended`, tâche ouverte sur un client de l'agence, échéance à 24 h, `SendTaskDueReminders::handle()` → `TaskDueReminderNotification` envoyée 1 fois à l'agent suspendu.
+  - ADR-0031 § 3 : un profil suspendu ne confère ni capacité ni périmètre. Le rappel mène donc à une tâche que le destinataire ne peut plus ouvrir, et l'agence n'est prévenue de rien.
+  - Établi comment : lu, puis mesuré.
+- Piste : ne rappeler que si l'assigné est personnel actif de l'agence du dossier (`MembershipCapabilityResolver::isStaffAt`, agence lue par `Task::parentRecord()`). Le repli (rappel aux admins actifs, ou rien) est un choix de produit, à écrire. Test : assigné suspendu → aucun rappel ; assigné actif → un rappel.
+
+### Le rappel de visite part à l'agent de la visite sans le jugement que `VisitNotifier` applique au même agent
+- Réf : P126.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Jobs/SendPropertyVisitReminders.php:106-136`, `takussan-api/app/Services/Visit/VisitNotifier.php:136-168`
+- Constat :
+  - `SendPropertyVisitReminders` ajoute `$fresh->agent` aux destinataires dès qu'il existe et qu'il n'est pas le visiteur (lu, l. 110-113).
+  - Pour la même visite, `VisitNotifier::agencyRecipients` ne retient l'agent que s'il est `PersonnelDeLAgence::estPersonnel` (bien d'agence) ou joignable (particulier), et se replie sinon sur les admins actifs ou le contact principal (lu, l. 143-168). Les deux chemins désignent donc deux équipes différentes pour une même visite.
+  - mesuré (test temporaire) : visite `confirmed` à J+1 dont l'agent a son profil `suspended` → `VisitReminder` envoyé 1 fois à l'agent suspendu. Aucun admin n'est prévenu à sa place.
+  - Établi comment : lu, puis mesuré.
+- Piste : faire passer la part « agence » du rappel par `VisitNotifier::agencyRecipients($visit)`, qui porte déjà la règle et son repli. Test : agent suspendu → le rappel va aux admins actifs et pas à lui.
+
+### Le rappel d'un reversement échu ne va qu'à son émetteur, même suspendu
+- Réf : P126.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Console/Commands/Payouts/RemindDuePayouts.php:31-52`
+- Constat :
+  - `payouts:remind-due` envoie `PayoutDue` au seul `User::find($payout->issued_by_id)`, sans juger son profil dans l'agence du reversement (lu, l. 46-48). Le marqueur `due_reminded_at` est posé avant l'envoi : le rappel ne revient pas.
+  - mesuré (test temporaire) : reversement `scheduled` échu la veille, émis par un agent au profil `suspended` → `PayoutDue` envoyé 1 fois à l'agent suspendu, et à personne d'autre.
+  - Le test existant `RemindDuePayoutsCommandTest::test_ac20_each_due_payout_reminds_its_issuer_once` crée des émetteurs sans aucun profil, et ils sont rappelés (lu, l. 36-52) : la suite tient ce comportement pour normal.
+  - Conséquence : le seul rappel d'un reversement dû au bailleur part chez quelqu'un qui n'a plus accès à `finances`. L'équipe active n'en sait rien.
+  - Établi comment : lu, puis mesuré.
+- Piste : rappeler l'émetteur s'il est encore personnel actif tenant `payouts.*`, sinon les détenteurs de la capacité (`PayoutApprovers::holders`). Le choix du repli est à écrire. Test : émetteur suspendu → le rappel va à un détenteur actif.
+
+### Le créateur du bien (`properties.user_id`) est prévenu comme bailleur, même agent suspendu ou parti de l'agence
+- Réf : P126.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Maintenance/MaintenanceParticipants.php:30`, `takussan-api/app/Services/Booking/BookingStakeholders.php:39,75`, `takussan-api/app/Services/Review/ReviewNotifier.php:54`, `takussan-api/app/Services/Booking/PropertyCalendarSyncService.php:174-178`, `takussan-api/app/Services/Booking/BookingExpirationService.php:283-285`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:133,147`, `takussan-api/app/Listeners/Maintenance/NotifyMaintenanceParticipants.php:88`
+- Constat :
+  - `Property::owner()` est `belongsTo(User, 'user_id')` (lu, `Property.php:831-834`), et `PropertyController::store` y pose l'appelant (lu, l. 136). Sur un bien d'agence saisi par un agent, le « propriétaire » est donc cet agent.
+  - Le code le sait : `PrimaryPropertyContact::estProprietaire` ne tient `user_id` pour propriétaire que joignable et, sur un bien d'agence, bailleur actif de l'agence (lu, `PrimaryPropertyContact.php:157-163`, docblock « Vérification adverse (M7) »). `VisitNotifier` l'emploie avant de prévenir le propriétaire (lu, l. 152-154).
+  - Les autres envois prennent `$property->owner` tel quel :
+    - `MaintenanceParticipants::principals` le met en tête des donneurs d'ordre, avant le filtre `isStaffAt` qui ne s'applique qu'à l'équipe (lu, l. 30) ;
+    - `BookingStakeholders::propertyTeam` (conflit d'import iCal) et la liste de la réservation (lu, l. 39, 75) ;
+    - `ReviewNotifier::received` pour un avis sur un bien (lu, l. 54) ;
+    - l'avis d'échec d'un flux iCal (lu, `PropertyCalendarSyncService.php:174-178`) ;
+    - le premier choix de `BookingExpirationService::resolveAgent` (lu, l. 283-285) ;
+    - l'avis `MaintenanceCreated` (lu, `MaintenanceRequestController.php:133,147`).
+  - mesuré (test temporaire) : bien d'agence au `user_id` d'un agent au profil `suspended`.
+    - `MaintenanceParticipants::principals` → `[agent]` ;
+    - `BookingStakeholders::propertyTeam` → `[agent]` ;
+    - `ReviewNotifier::received` sur un avis du bien → 1 notification à l'agent suspendu.
+  - Le même chemin sert l'agent retiré de l'agence : son profil est supprimé, la colonne reste (voir l'angle 153).
+  - Le devis `awaiting_owner` part aussi à `$mr->property?->owner` (lu, `NotifyMaintenanceParticipants.php:88`). Qui tranche alors à la place du bailleur est à vérifier (angle 160 proposé).
+  - Établi comment : lu, puis mesuré pour les trois premiers sites.
+- Piste : remplacer `$property->owner` par `PrimaryPropertyContact::estProprietaire($property->owner, $property) ? $property->owner : null` partout où il désigne un destinataire, au mieux derrière une méthode unique (`PrimaryPropertyContact::proprietaireJoignable()`). Garde possible : un test qui crée un bien d'agence au `user_id` d'un agent suspendu, et vérifie qu'aucun des sites ci-dessus ne le prévient.
+
+### Petites améliorations
+- Réf : P126.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Listeners/Accounting/NotifyStatementImported.php:15-29`, `takussan-api/app/Services/Lead/ContactLeadService.php:137-152`, `takussan-api/app/Services/Kyc/KycExpiryService.php:100-111`, `takussan-api/app/Services/Governance/GovernanceAlertService.php:107-117`
+- Constat :
+  - `NotifyStatementImported` prévient `uploadedBy` sans juger son profil (lu, l. 15-29). C'est l'auteur du geste, rarement suspendu entre l'import et l'avis : écart de forme plus que défaut.
+  - Les listes d'admins actifs d'une agence s'écrivent six fois (lu) :
+    - `ContactLeadService::agencyAdmins`, qui filtre aussi `joignable` ;
+    - `KycExpiryService::activeAdmins`, `GovernanceAlertService::recipients`, `ReviewNotifier::agencyAdmins`, `PropertyModerationNotifier` et `PropertyController::notifyAgencyAdminsOfProposal`, qui ne le filtrent pas.
+    Elles disent toutes « admin actif », mais une seule écarte le compte bloqué.
+  - Établi comment : lu.
+- Piste : une seule source, `ContactLeadService::agencyAdmins` ou une méthode de `MembershipCapabilityResolver`, pour toutes les listes d'admins destinataires. Un test qui exige `->active()` et `joignable` une seule fois.
