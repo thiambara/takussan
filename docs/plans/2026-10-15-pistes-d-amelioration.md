@@ -11619,7 +11619,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Le filtre de date de fin de l'audit de la console exclut le jour choisi
 - Réf : P119.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1271
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:140-141`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:160-161`, `takussan-api/app/Http/Controllers/Api/AuditLogController.php:194-203`, `takussan-web/src/components/admin/super/CrossTenantAuditTable.tsx:193-212`
 - Constat :
@@ -11629,6 +11629,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Établi comment : lu, test temporaire.
 - Piste : faire passer les trois lectures du journal par une seule normalisation des bornes (celle d'`AuditLogController`, extraite), et la typer (voir P119.03). Test : une ligne à midi, plage du jour au jour → 1.
 - Mesure (2026-10-22, cf4986336, mesureur) : relu `CrossTenantAuditController::filteredQuery()` (`date_to` → `where('created_at', '<=', $value)` brut, même chaîne pour l'index et l'export), `UserDetailController::activity()` (mêmes deux rappels nus) et `AuditLogController::normalizeRangeBoundary()` (date seule portée à `endOfDay()` pour la borne haute, docblock « silently drop every row from that day ») ; test temporaire (retiré ensuite), une activité `tmp_119` posée au 2026-10-22 12:00, super-admin → `GET /api/admin/audit?filter[event]=tmp_119&filter[date_from]=2026-10-22&filter[date_to]=2026-10-22` rend 200 et **0 ligne**, sans `date_to` 1 ligne → le constat tient. Classement : A1, le comportement attendu est écrit dans `AuditLogController::normalizeRangeBoundary()` et son docblock pour le journal de l'agence, et l'étendre aux deux lectures de la console ne demande aucun choix.
+- Mesure (2026-10-22, d0eabf19d, implementeur) : test `BornesDeDateDeLaConsoleTest` (charge 2,60 sur 8 cœurs), une ligne posée le 2026-10-22 à 12 h → avant correctif, `GET /api/admin/audit` et `GET /api/admin/users/{id}/activity` avec `date_from=date_to=2026-10-22` rendent 0 ligne, rouge ; `normalizeRangeBoundary()` extraite dans `App\Http\Filters\DateBoundaryFilter` et posée sous les trois lectures (journal de l'agence, audit de la console et son export, activité d'un compte) → 1 ligne, vert ; ablation (valeur brute remise dans le filtre) → rouge, remise → vert ; `AuditLogTest`, `ActivityLogEndpointTest`, `CrossTenantAuditExportTest` verts.
 
 ### Une valeur de filtre mal formée rend 500 sur la console des utilisateurs et sur l'audit
 - Réf : P119.03
