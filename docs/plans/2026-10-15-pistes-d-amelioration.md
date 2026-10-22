@@ -11502,10 +11502,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Le type de bailleur et la raison sociale, exigés à l'invitation, ne sont relus nulle part
 - Réf : P117.05
-- Statut : validé — porteur (2026-10-22) : garder l'exigence et afficher la raison sociale (`metadata.company_name`) dans le carnet des bailleurs, sans colonne neuve pour l'instant
+- Statut : fait · TCK-1323 — reste : afficher la raison sociale là où le bailleur est nommé hors du carnet (relevé, reversement `CreatePayoutDialog`, documents), après un relevé un à un de ces lecteurs
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Invitation/InviteOwnerRequest.php:38-39`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:67-72,84-94`, `takussan-web/src/components/owners/OwnersList.tsx:371-374`, `takussan-web/src/components/owners/InviteOwnerSheet.tsx:241-275`
 - Constat :
+- Mesure (2026-10-22, 1c871e3c0, implementeur) : reproduit avant correctif par `OwnersList.raison-sociale.test.tsx` (bailleur `owner_type: company`, `company_name: SCI Teranga` → « SCI Teranga » introuvable dans le carnet, la ligne nommée « Fatou Sarr ») → la cellule du nom porte la raison sociale et le contact en dessous, un particulier reste nommé par son nom ; ablation : rouge sans le correctif, vert avec ; `metadata` déjà servie par `GET /api/owners`, aucune ligne d'API touchée.
   - L'invitation d'un bailleur exige `owner_type` et, pour une société, `company_name` (lu, `required_if:owner_type,company` et le 422 de `:69-72`). Les deux sont rangés dans `owner_profiles.metadata` (lu, `:89-92`).
   - `grep -rnE "owner_type|company_name"` sur `takussan-api/app` et `takussan-web/src` : aucun lecteur hors de l'écrivain et du formulaire d'invitation (lu).
   - Le carnet des bailleurs nomme la ligne par les prénom et nom de la personne, ceux du `User` ou ceux du brouillon (lu, `OwnersList.tsx:371-374`). Une société invitée apparaît sous le nom de son contact, et la raison sociale saisie n'est affichée nulle part. Le relevé, le reversement (`CreatePayoutDialog.tsx:39-41`) et les documents lisent le même nom de personne : non vérifié document par document.
