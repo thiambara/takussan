@@ -128,6 +128,7 @@ class UserDetailController extends Controller
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->orderByDesc('last_used_at')
             ->orderByDesc('created_at')
+            ->orderByDesc('id') // TCK-1292 — sans lui, une session égale peut sauter d'une page à l'autre
             ->paginate(min(max((int) $request->query('per_page', 20), 1), 100));
 
         return $this->json([

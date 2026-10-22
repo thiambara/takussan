@@ -80,7 +80,7 @@ class PrivacyRequestController extends Controller
     {
         $this->authorize('export', PrivacyRequest::class);
 
-        $rows = PrivacyRequest::query()->with(['handler', 'media'])->orderBy('due_at')->get()
+        $rows = PrivacyRequest::query()->with(['handler', 'media'])->orderBy('due_at')->orderBy('id')->get()
             ->map(fn (PrivacyRequest $entry) => [
                 'id' => $entry->id,
                 'type' => $entry->type->value,

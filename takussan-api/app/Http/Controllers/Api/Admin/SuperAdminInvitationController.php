@@ -67,6 +67,7 @@ class SuperAdminInvitationController extends Controller
                 InvitationStatus::Expired->value,
             ])
             ->orderByDesc('created_at')
+            ->orderByDesc('id') // TCK-1292 — départage les invitations de même seconde
             ->get();
 
         return $this->json([
