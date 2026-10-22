@@ -11048,7 +11048,7 @@ passe par un job (angle 78).*
 
 ### Petites améliorations
 - Réf : P112.04
-- Statut : validé — porteur (2026-10-22) : ne pas diffuser le CSV depuis un curseur pour l'instant ; le contrat `{columns, rows}` reste tel quel
+- Statut : caduc — le délai du relais est posé par TCK-1219 (`fetchVersApi`, `DELAI_RELAIS_FICHIER_MS`), et le porteur écarte le CSV en curseur : rien de la `Piste` ne reste à faire
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/api/export/[entity]/route.ts:46-48`, `takussan-api/app/Services/Export/ExportDataService.php:350-366`, `takussan-api/app/Services/Export/ExportWriter.php:31-55`
 - Constat :
@@ -11059,6 +11059,7 @@ passe par un job (angle 78).*
 - Piste : poser un délai sur le `fetch` du relais aligné sur `max_execution_time` ; diffuser le CSV depuis un curseur. Garde : un test du relais qui vérifie qu'un `signal` est passé.
 - Mesure (2026-10-22, b69261b77, mesureur) : relu `takussan-web/src/app/api/export/[entity]/route.ts:46-48` (`fetch` sans `signal`, tient sur l'arbre) ; la PR #972 ouverte (P79.04, TCK-1219) borne ce relais à 90 s, non fusionnée ; relu `ExportDataService::deposits()` (agrégat de tous les baux, `limit` sur les baux seuls, tient) et `ExportController` (`row_count = count($payload['rows'])` avant `respond()`) ; CSV 5 001 lignes sous 256M → 30 Mo de surcroît (test temporaire, retiré). Classement : V6, le CSV en curseur change le contrat de tableau partagé par les neuf constructeurs, les trois écrivains et le compte du journal, et le délai du relais se décide avec #972.
 - Mesure (2026-10-22, 25e65b600, delegue) : relu l'entrée, la `Mesure` du mesureur et `takussan-web/src/app/api/export/[entity]/route.ts:46-48` → le relais passe désormais par `fetchVersApi` avec `DELAI_RELAIS_FICHIER_MS` (TCK-1219, P79.04 `fait`, PR #972 fusionnée le 2026-10-22) : la moitié « délai du relais » est faite. Recommandation : ne pas diffuser le CSV depuis un curseur pour l'instant — le surcroît mesuré (30 Mo pour 5 001 lignes) ne justifie pas de changer le contrat `{columns, rows}` des neuf constructeurs, des trois écrivains et le `row_count` du journal ; si le porteur le veut, le faire pour le seul CSV par un générateur posé à côté du tableau, sous ADR. Pas de délégation : le mesureur a classé V6 sur ce contrat partagé, qui ne se défait pas en un commit sans toucher les neuf constructeurs ; l'agrégat de `deposits`, borné après coup, reste à part (A2 s'il est repris).
+- Mesure (2026-10-22, 9215b3d36, implementeur) : relu `takussan-web/src/app/api/export/[entity]/route.ts` → `fetchVersApi(upstream, …, { requete, delaiMs: DELAI_RELAIS_FICHIER_MS })` : le relais a son délai (TCK-1219) ; le second volet de la `Piste`, le CSV diffusé depuis un curseur, est écarté par la décision du porteur, le contrat `{columns, rows}` restant tel quel. Aucun code : l'agrégat de `deposits`, noté au constat mais absent de la `Piste`, n'est pas repris ici.
 
 ## Angle 113 — Appels du navigateur vers l'API sans délai
 
