@@ -6,6 +6,7 @@ return [
             'invalid_otp' => 'Kódu véerifikaasioŋ bi baaxul walla mu jeex.',
             'cgu_required' => 'Dangaa wara nangu kondisioŋ yi ngir continuer.',
             'already_onboarded' => 'Am nga ba noppi ab ajaãs personnel.',
+            'phone_mismatch' => 'Ce numéro n’est pas celui de votre compte : renvoyez le code à ce numéro.',
         ],
     ],
     // TCK-633 (lot C) — le nom de l'espace créé sans question (« Publier »).
