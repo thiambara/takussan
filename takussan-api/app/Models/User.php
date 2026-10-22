@@ -153,8 +153,11 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
 
     protected static array $requestFilterable = ['status', 'added_by_id'];
 
-    /** `first_name` et `last_name` se trient à part, par {@see self::nameSorts()} (TCK-1136). */
-    protected static array $requestSortable = ['id', 'created_at', 'email', 'status'];
+    /**
+     * `first_name` et `last_name` se trient à part, par {@see self::nameSorts()} (TCK-1136).
+     * `last_login_at` : la colonne « Dernière connexion » de l'équipe d'agence (TCK-1280).
+     */
+    protected static array $requestSortable = ['id', 'created_at', 'email', 'status', 'last_login_at'];
 
     /**
      * TCK-1136 (P87.01) — prénom et nom se trient en `COLLATE "und-x-icu"` (ADR-0025, amendement du
