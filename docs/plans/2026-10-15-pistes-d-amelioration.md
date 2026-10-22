@@ -11260,7 +11260,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### L'abonnement d'une agence garde à vie la période de son attribution, et `past_due` / `suspended` n'existent qu'à l'écran
 - Réf : P115.03
-- Statut : validé — porteur (2026-10-22) : une tâche quotidienne reconduit la période tant que l'abonnement est `active` ; `past_due` et `suspended` sortent de l'enum tant qu'aucun encaissement d'abonnement ne les pose
+- Statut : fait · TCK-1303 — reste : `past_due` et `suspended` sortent de l'enum : `docs/models-spec.md` (§ 44 et table des enums) et ADR-0057 (MRR des abonnements `active` ou `past_due`) les nomment, et ni la spec ni l'ADR ne sont ouverts à l'implémenteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/AgencySubscriptionService.php:30-42,85-108`, `takussan-api/app/Models/Enums/AgencySubscriptionStatus.php`, `takussan-api/app/Services/Reporting/PlatformReportingService.php:435-465`, `takussan-web/src/components/billing/SubscriptionSummary.tsx:15-21,53-55`, `takussan-web/src/types/super-admin.ts:173`
 - Constat :
@@ -11269,6 +11269,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Établi comment : lu et `grep` ; qu'aucune facturation d'abonnement ne soit prévue avant la production est à vérifier dans le plan.
 - Piste : soit faire avancer la période (tâche quotidienne qui la reconduit tant que l'abonnement est `active`), soit ne plus l'afficher comme période en cours ; décider si `past_due` et `suspended` restent dans l'enum tant qu'aucun encaissement d'abonnement ne les pose. Choix de produit.
 - Mesure (2026-10-22, 3390f9116, mesureur) : relu `AgencySubscriptionService.php:40-41` (période posée à l'attribution, maintenant → + 1 mois) ; `grep -rn current_period_end app` → seuls lecteurs : `AgencySubscriptionResource.php:21-22`, `PlatformReportingService.php:460`, `QuotaResolver.php:26` (tri) ; `grep` → `AgencySubscriptionStatus::PastDue` lu par le seul MRR (`PlatformReportingService.php:464`), `Suspended` nulle part ; `SubscriptionSummary.tsx:18-19,54` donne un ton aux deux et affiche la période. Le constat tient ; le plan d'encaissement des abonnements n'a pas été relu. Classement : V1, la période et les statuts sont ceux d'un abonnement payant et entrent dans le MRR, et la Piste offre deux options (V7).
+- Mesure (2026-10-22, fbf2acedf, implementeur) : reproduit avant correctif par `RenewAgencySubscriptionPeriodsTest` (abonnement `active` attribué le 2026-09-01, au 2026-11-02 sa période reste celle du 1er septembre au 1er octobre) → `AgencySubscriptionService::renewPeriods()`, quotidien à 02:20, reconduit d'un mois la période échue des seuls `active` non clos, rattrapée jusqu'à celle qui contient maintenant (`addMonthNoOverflow`) ; ablation : écriture neutralisée → 2 rouges sur 3, remise → vert ; `BillingPlansTest` vert. Le retrait de `past_due` et `suspended` n'est pas fait : `docs/models-spec.md:2592,4725` les listent et ADR-0057 l. 56-58 compte `past_due` dans le MRR, deux chemins fermés à l'implémenteur.
 
 ### Le profil prestataire `suspended` que gardent TCK-592 et la liste du front n'est posé par aucun chemin, ni `inactive`
 - Réf : P115.04
