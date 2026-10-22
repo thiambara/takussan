@@ -181,12 +181,15 @@ export const propertyFormSchema = z.object({
     .max(180, msgValidation('property.longitudeInvalid'))
     .nullable()
     .optional(),
-  area: z.coerce
-    .number()
-    .int(msgValidation('property.areaInteger'))
-    .positive(msgValidation('property.areaPositive'))
-    .max(1_000_000, msgValidation('property.areaUnrealistic'))
-    .optional(),
+  // TCK-1485 (P149.04) — `nombreFacultatif` : un champ vidé rend `''`, que `z.coerce` lisait
+  // comme 0 → « la surface doit être positive », et une surface saisie ne se retirait plus.
+  area: nombreFacultatif(
+    z
+      .number()
+      .int(msgValidation('property.areaInteger'))
+      .positive(msgValidation('property.areaPositive'))
+      .max(1_000_000, msgValidation('property.areaUnrealistic')),
+  ),
   bedrooms: z.coerce
     .number()
     .int(msgValidation('property.integerExpected'))

@@ -184,6 +184,8 @@ export const CHAMPS_EFFACABLES = [
   'total_floors',
   'description',
   'available_from',
+  // TCK-1485 (P149.04) — la surface, depuis qu'un champ vidé sort du schéma sans valeur.
+  'area',
 ] as const;
 
 /**
