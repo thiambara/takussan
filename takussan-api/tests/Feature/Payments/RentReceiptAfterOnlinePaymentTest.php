@@ -60,7 +60,7 @@ class RentReceiptAfterOnlinePaymentTest extends TestCase
         $envois = self::envoisALaDemande(NotificationCode::LeasePaymentSettledOnline);
         $this->assertCount(1, $envois);
         [$notification] = $envois->first();
-        $this->assertSame("https://front.test/pay/{$token}", $notification->params['receipt_url']);
+        $this->assertSame("https://front.test/fr/pay/{$token}", $notification->params['receipt_url']);
         $this->assertSame(1, self::nombreDEnvois($ctx['lease']->landlord, NotificationCode::LeasePaymentReceivedLandlord));
 
         $pdf = $this->get("/api/pay/{$token}/receipt")->assertOk();

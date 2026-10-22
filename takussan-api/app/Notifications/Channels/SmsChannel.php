@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Notifications\CodedNotification;
 use App\Notifications\Concerns\SupportsSms;
 use App\Services\Notifications\PreferenceResolver;
+use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
@@ -87,6 +88,10 @@ class SmsChannel
             'agency_id' => $this->resolveAgencyId($notifiable),
             'notification_id' => $this->resolveAppNotificationId($notifiable, $notification),
         ];
+        // TCK-1346 (P132.04) — un SMS porteur de lien relit son objet s'il est reporté à la nuit.
+        if ($notification instanceof CodedNotification && $notification->deferredSmsGuard !== null) {
+            $context[DeferredSmsGuard::CONTEXT_KEY] = $notification->deferredSmsGuard;
+        }
 
         return $this->router->send($phone, $message, $context);
     }

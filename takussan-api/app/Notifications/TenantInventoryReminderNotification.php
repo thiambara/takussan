@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Lease;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Notifications\PreferenceResolver;
 use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
@@ -19,6 +20,7 @@ use Illuminate\Notifications\Notification;
 class TenantInventoryReminderNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public const EVENT_TYPE = 'tenant_inventory_reminder';
 

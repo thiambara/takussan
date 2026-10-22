@@ -6,6 +6,7 @@ use App\Models\Enums\NotificationType;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Notifications\Channels\AppDatabaseChannel;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -20,6 +21,7 @@ use Illuminate\Notifications\Notification;
 class SuperAdminInvitedBroadcast extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public function __construct(
         public readonly Invitation $invitation,

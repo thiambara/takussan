@@ -204,6 +204,16 @@ export function numeroComposable(valeur: string): boolean {
   return true;
 }
 
+/**
+ * TCK-1345 (P125.06) — le numéro qu'une fiche publique émet (`tel:`, JSON-LD) : l'E.164 quand la
+ * valeur rangée s'y ramène (`agencies.phone` garde la saisie, `77 123 45 67`), sinon la valeur
+ * sans ses blancs, comme avant. Une forme nationale se compose sous `+221`.
+ */
+export function telephonePublie(valeur: string): string {
+  const e164 = recomposerTelephone(valeur, INDICATIF_PAR_DEFAUT);
+  return numeroComposable(e164) ? e164 : valeur.replace(/\s+/g, '');
+}
+
 /** Lecture humaine : `+221 78 014 37 10`. Les autres numéros sont rendus tels quels. */
 export function formaterTelephone(valeur: string): string {
   const senegal = /^\+221(\d{2})(\d{3})(\d{2})(\d{2})$/.exec(valeur);

@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Sorts\ThresholdAlertSeveritySort;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\QueryBuilder\AllowedSort;
 
 /**
  * Per-agency alert rule for dashboard metrics (TCK-032 P3).
@@ -28,7 +30,18 @@ class ThresholdAlert extends AbstractModel
 
     protected static array $requestFilterable = ['agency_id', 'metric', 'severity', 'is_enabled'];
 
-    protected static array $requestSortable = ['id', 'metric', 'severity', 'created_at'];
+    // `severity` se trie par rang : voir `customQuerySorts()`.
+    protected static array $requestSortable = ['id', 'metric', 'created_at'];
+
+    /**
+     * TCK-1302 (P134.03) — `sort=severity` trie sur le rang de la gravité, et non sur la chaîne.
+     *
+     * @return array<int, AllowedSort>
+     */
+    protected static function customQuerySorts(): array
+    {
+        return [AllowedSort::custom('severity', new ThresholdAlertSeveritySort)];
+    }
 
     protected static array $requestLoadable = ['agency'];
 

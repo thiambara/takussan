@@ -378,9 +378,9 @@ class SendLeasePaymentRemindersTest extends TestCase
         $this->run_();
 
         $url = self::envoisALaDemande(NotificationCode::LeasePaymentOverdue)->last()[0]->params['payment_url'] ?? null;
-        $this->assertMatchesRegularExpression('#^https://front\.test/pay/[A-Za-z0-9_-]{43}$#', (string) $url);
+        $this->assertMatchesRegularExpression('#^https://front\.test/fr/pay/[A-Za-z0-9_-]{43}$#', (string) $url);
         // Le même lien d'une relance à l'autre : celui qu'un nouvel appel relit.
-        $this->assertSame($url, app(LeasePaymentLinkService::class)->urlFor($payment));
+        $this->assertSame($url, app(LeasePaymentLinkService::class)->urlFor($payment, locale: 'fr'));
     }
 
     /**

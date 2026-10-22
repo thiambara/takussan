@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\RetriesWithBackoff;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -19,6 +20,7 @@ use Illuminate\Notifications\Notification;
 class AccountDeletionStepUpCodeNotification extends Notification implements ShouldBeEncrypted, ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     /** TCK-747 (P11.04) — les e-mails du compte partent par la file urgente, hors de la requête. */
     public function viaQueues(): array
@@ -30,6 +32,12 @@ class AccountDeletionStepUpCodeNotification extends Notification implements Shou
         public readonly string $code,
         public readonly int $expiresInMinutes,
     ) {}
+
+    /** TCK-1352 (P142.05) — le code ne se livre pas périmé : aucun essai au-delà de sa durée de vie. */
+    public function retryUntil(): \DateTimeInterface
+    {
+        return now()->addMinutes($this->expiresInMinutes);
+    }
 
     /** @return array<int,string> */
     public function via(object $notifiable): array

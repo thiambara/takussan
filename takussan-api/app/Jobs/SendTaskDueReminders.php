@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Enums\TaskStatus;
+use App\Models\Enums\UserStatus;
 use App\Models\Task;
 use App\Notifications\TaskDueReminderNotification;
 use App\Services\Membership\MembershipCapabilityResolver;
@@ -54,6 +55,8 @@ class SendTaskDueReminders implements ShouldQueue
             ->whereNotNull('due_at')
             ->whereBetween('due_at', [$from, $to])
             ->whereNotNull('assigned_to_id')
+            // TCK-1350 (P88.04) — ni compte bloqué ni compte supprimé.
+            ->whereHas('assignee', fn ($q) => $q->whereNotIn('status', [UserStatus::Blocked->value, UserStatus::Deleted->value]))
             ->chunkById(100, function ($tasks) {
                 foreach ($tasks as $task) {
                     $this->notifyFor($task);

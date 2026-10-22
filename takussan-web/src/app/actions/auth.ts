@@ -49,9 +49,11 @@ export async function updateProfileAction(
     return { ok: false, message: tErr('missingToken') };
   }
 
-  const payload: UpdateProfilePayload = {
-    bio: (formData.get('bio') as string) || undefined,
-  };
+  const payload: UpdateProfilePayload = {};
+  // TCK-1351 (P149.03) — relayée dès que le formulaire la porte, chaîne vide comprise : c'est ainsi
+  // qu'on efface sa présentation (`|| undefined` la retirait du corps, et l'API la gardait).
+  const bio = formData.get('bio');
+  if (typeof bio === 'string') payload.bio = bio;
   // TCK-623 — un nom absent du formulaire n'est pas un nom vide : `formData.get` rendrait `null`,
   // envoyé en toutes lettres « null ».
   for (const champ of ['first_name', 'last_name'] as const) {

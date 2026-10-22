@@ -135,3 +135,42 @@ describe('locale — TCK-921', () => {
     expect(normaliseCustomerForm({ ...baseValues, email: 'a@b.co', locale: '' }).locale).toBeNull();
   });
 });
+
+/**
+ * TCK-1347 (P149.02) — en édition, un champ de contact ou d'identité vidé part à `null` :
+ * `blank()` le rendait `undefined`, que `apiRequest` laisse tomber, et l'API gardait la valeur.
+ * `id_number` reste omis (le numéro masqué est gardé exprès).
+ */
+describe('normaliseCustomerForm — édition (TCK-1347)', () => {
+  const initial = {
+    ...baseValues,
+    email: 'awa@example.com',
+    phone: '+221771234567',
+    occupation: 'Comptable',
+    id_type: 'id_card',
+    id_number: '',
+  };
+
+  it('vidés en édition, email, phone, occupation et id_type partent à null', () => {
+    const payload = normaliseCustomerForm(
+      { ...initial, email: '', phone: '', occupation: ' ', id_type: '', id_number: '' },
+      initial,
+    );
+    expect(payload).toMatchObject({ email: null, phone: null, occupation: null, id_type: null });
+    expect(payload.id_number).toBeUndefined();
+  });
+
+  it('un champ déjà vide et laissé vide n’est pas envoyé', () => {
+    const vide = { ...initial, email: '', occupation: '', id_type: '' };
+    const payload = normaliseCustomerForm(vide, vide);
+    expect(payload.email).toBeUndefined();
+    expect(payload.occupation).toBeUndefined();
+    expect(payload.id_type).toBeUndefined();
+  });
+
+  it('en création (sans valeurs initiales), un champ vide reste omis', () => {
+    const payload = normaliseCustomerForm({ ...initial, email: '', occupation: '' });
+    expect(payload.email).toBeUndefined();
+    expect(payload.occupation).toBeUndefined();
+  });
+});

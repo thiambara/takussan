@@ -129,9 +129,20 @@ export function useHandleLead() {
   );
 }
 
+/**
+ * TCK-1343 — un 409 `customer.duplicate` signale une fiche existante de l'agence (comme la création
+ * d'un client) ; `allow_duplicate` convertit quand même.
+ */
 export function useConvertLead() {
-  return useApiMutation<ApiResponse<ContactLead> & { customer: { id: number } }, { id: number }>(
-    { path: ({ id }) => cheminApi`/api/contact-leads/${id}/convert`, method: 'POST', body: () => ({}) },
+  return useApiMutation<
+    ApiResponse<ContactLead> & { customer: { id: number } },
+    { id: number; allow_duplicate?: boolean }
+  >(
+    {
+      path: ({ id }) => cheminApi`/api/contact-leads/${id}/convert`,
+      method: 'POST',
+      body: ({ allow_duplicate }) => (allow_duplicate ? { allow_duplicate: true } : {}),
+    },
     INVALIDER,
   );
 }

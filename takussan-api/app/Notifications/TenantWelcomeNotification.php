@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Lease;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -27,6 +28,7 @@ use Illuminate\Notifications\Notification;
 class TenantWelcomeNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public const KIND = 'tenant_welcome';
 

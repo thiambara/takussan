@@ -7,6 +7,7 @@ use App\Models\Agency;
 use App\Models\AppNotification;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
+use App\Models\Enums\UserStatus;
 use App\Models\Integration;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
@@ -84,6 +85,22 @@ class GovernanceAlertTest extends ApiTestCase
         $this->assertSame('Role permissions changed', $notification->title);
         $this->assertStringContainsString('Comptable', $notification->body);
         $this->assertStringContainsString('Awa', $notification->body);
+    }
+
+    /** TCK-1318 (P126.05) — un admin actif au compte bloqué n'est pas averti. */
+    public function test_un_admin_au_compte_bloque_n_est_pas_averti(): void
+    {
+        $bloque = User::factory()->create(['status' => UserStatus::Blocked]);
+        AgencyAdminProfile::factory()->create(['user_id' => $bloque->id, 'agency_id' => $this->agency->id]);
+        $role = app(AgencyRoleService::class)->create($this->agency, ['name' => 'Comptable', 'base_profile_type' => AgencyRoleBaseType::Agent->value]);
+        $this->actingAsWithStepUp($this->auteur);
+
+        $this->apiPut("/api/agencies/{$this->agency->id}/roles/{$role->id}/capabilities", [
+            'capabilities' => [Capability::CrmExport->value],
+        ])->assertOk();
+
+        $this->seulLeCollegue(NotificationCode::GovernanceRoleCapabilitiesChanged);
+        $this->assertSame(0, AppNotification::query()->where('user_id', $bloque->id)->count());
     }
 
     public function test_un_export_crm_avertit_un_export_de_paiements_non(): void

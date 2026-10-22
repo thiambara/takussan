@@ -347,4 +347,51 @@ class HostIndividualOnboardingTest extends TestCase
 
         $this->assertSame(1, Agency::query()->count());
     }
+
+    /**
+     * TCK-1345 (P125.06) — `phone_otp.phone` est comparé au numéro du compte, qui est celui que le
+     * code vérifie : un autre numéro est refusé (422 sur le champ), et rien n'est créé.
+     */
+    public function test_un_numero_different_de_celui_du_compte_est_refuse(): void
+    {
+        $user = User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => null]);
+        Sanctum::actingAs($user);
+
+        $payload = $this->defaultPayload();
+        $payload['phone_otp']['phone'] = '+221779999999';
+        $payload['phone_otp']['code'] = $this->issuePhoneCode($user);
+
+        $this->postJson('/api/host/individual/onboard', $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['phone_otp.phone']);
+        $this->assertSame(0, Agency::query()->count());
+        $this->assertNull($user->fresh()->phone_verified_at);
+    }
+
+    /** TCK-1345 — même refus pour un compte déjà vérifié, qui ne saisit pas de code. */
+    public function test_un_compte_deja_verifie_ne_soumet_pas_un_autre_numero(): void
+    {
+        $user = User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => now()]);
+        Sanctum::actingAs($user);
+
+        $payload = $this->defaultPayload();
+        $payload['phone_otp'] = ['phone' => '+221779999999'];
+
+        $this->postJson('/api/host/individual/onboard', $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['phone_otp.phone']);
+        $this->assertSame(0, Agency::query()->count());
+    }
+
+    /** TCK-1345 — le numéro du compte, espacé ou non, passe (contrôle du refus ci-dessus). */
+    public function test_le_numero_du_compte_espace_passe(): void
+    {
+        $user = User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => now()]);
+        Sanctum::actingAs($user);
+
+        $payload = $this->defaultPayload();
+        $payload['phone_otp'] = ['phone' => '+221 77 000 00 00'];
+
+        $this->postJson('/api/host/individual/onboard', $payload)->assertStatus(201);
+    }
 }

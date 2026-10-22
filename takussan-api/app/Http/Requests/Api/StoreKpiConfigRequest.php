@@ -40,7 +40,7 @@ class StoreKpiConfigRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'agency_id' => ['sometimes', 'integer', 'exists:agencies,id'],
+            'agency_id' => ['sometimes', 'integer', Rule::exists('agencies', 'id')->withoutTrashed()],
             // TCK-1102 (P92.03) — un indicateur au plus une fois par agence (`unique(agency_id,
             // metric)`, models-spec § 64), jugé sur l'agence que `store` résoudra.
             'metric' => [

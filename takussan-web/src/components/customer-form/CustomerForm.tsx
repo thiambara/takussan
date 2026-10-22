@@ -152,7 +152,11 @@ export function CustomerForm({
       schema: customerFormSchema,
       defaultValues: toDefaults(customer),
       onSubmit: async (values) => {
-        const normalise = normaliseCustomerForm(values);
+        // TCK-1347 — en édition, un champ vidé part à `null` (les valeurs de la fiche en référence).
+        const normalise = normaliseCustomerForm(
+          values,
+          mode === 'edit' && customer ? toDefaults(customer) : undefined,
+        );
         const payload = {
           ...(showsCriteria ? normalise : sansCriteres(normalise)),
           ...(allowDuplicate.current ? { allow_duplicate: true } : {}),

@@ -38,7 +38,7 @@ class BankStatement extends AbstractModel implements HasMedia
 
     protected static array $requestFilterable = ['status', 'source_format', 'agency_id'];
 
-    protected static array $requestSortable = ['created_at', '-created_at', 'period_start', '-period_start'];
+    protected static array $requestSortable = ['id', 'created_at', 'period_start'];
 
     protected static array $queryFields = [
         'id', 'agency_id', 'source_format', 'status', 'bank_name', 'account_iban_masked',

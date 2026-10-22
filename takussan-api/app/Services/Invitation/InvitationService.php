@@ -19,6 +19,7 @@ use App\Services\Auth\PhoneVerificationService;
 use App\Services\Auth\SuperAdminCooptationService;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
+use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
@@ -643,6 +644,9 @@ class InvitationService
                     // without leaking auth-bypass semantics.
                     : bcrypt(Str::random(40)),
                 'email_verified_at' => $invitation->email !== null ? now() : null,
+                // TCK-1344 (P132.05) — la langue dans laquelle l'invitation est partie : les envois
+                // suivants gardent celle du premier message, au lieu du défaut `fr` de la colonne.
+                'preferred_language' => $this->preferredLocale(null, $invitation),
             ]);
 
             // TCK-589 — le lien est arrivé par SMS sur ce numéro : il est vérifié, par
@@ -1021,6 +1025,8 @@ class InvitationService
                 // Même lien que le courriel (`InvitationMailable`).
                 'url' => LienFront::vers('/invitations/accept?token='.$invitation->token),
             ],
+            // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit l'invitation avant de partir.
+            deferredSmsGuard: DeferredSmsGuard::forInvitation($invitation),
         );
     }
 

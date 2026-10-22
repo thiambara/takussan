@@ -130,6 +130,7 @@ return [
         'participant_required' => 'War na am beneen participant benn lu mu gën a tuuti.',
     ],
     'customer' => [
+        'attached_to_open_lease' => 'Ce client est titulaire d\'un bail en attente de signature ou en cours : il ne peut pas être supprimé tant que ce bail est ouvert.',
         'duplicate' => 'Am na kiliyaan ci sa ajaans bu am nimero bii walla email bii.',
         'pipeline_stage_invalid' => 'Étape bi baaxul.',
     ],

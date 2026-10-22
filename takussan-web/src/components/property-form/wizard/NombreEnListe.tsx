@@ -76,8 +76,8 @@ export function NombreEnListe({
             </label>
             <Select
               value={actuelle === null ? AUCUNE : String(actuelle)}
-              // « Non précisé » rend `undefined` : le champ sort du corps, comme un champ vide
-              // de l'ancienne saisie libre.
+              // « Non précisé » rend `undefined` : omis à la création ; en édition, un champ modifié
+              // ainsi part à `null` (`withClearedFields`, TCK-1353).
               onValueChange={(v) => field.onChange(v === AUCUNE || v === null ? undefined : Number(v))}
               items={options}
             >

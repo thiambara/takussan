@@ -6,6 +6,7 @@ use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\NotificationType;
 use App\Models\User;
 use App\Notifications\Channels\AppDatabaseChannel;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,6 +24,7 @@ use Illuminate\Notifications\Notification;
 class AgencyUpgradeRequestSubmittedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     public function __construct(
         public readonly AgencyUpgradeRequest $upgradeRequest,

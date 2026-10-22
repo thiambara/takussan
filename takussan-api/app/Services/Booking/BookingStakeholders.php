@@ -8,6 +8,7 @@ use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Support\Collection;
 
 /**
@@ -36,7 +37,11 @@ final class BookingStakeholders
         $booking->loadMissing(['customer.user', 'property.owner', 'createdBy']);
 
         $agencyId = $this->agencyId($booking);
-        $people = collect([$booking->customer?->user, $booking->property?->owner]);
+        // TCK-1316 — le créateur du bien, s'il compte encore (bailleur ou personnel actif).
+        $people = collect([
+            $booking->customer?->user,
+            $booking->property !== null ? PrimaryPropertyContact::createurDestinataire($booking->property) : null,
+        ]);
 
         $author = $booking->createdBy;
         if ($author !== null && $agencyId !== null && $this->membership->isStaffAt($author, $agencyId)) {
@@ -72,7 +77,7 @@ final class BookingStakeholders
         $property->loadMissing('owner');
         $agencyId = $property->agency_id !== null ? (int) $property->agency_id : null;
 
-        return collect([$property->owner])
+        return collect([PrimaryPropertyContact::createurDestinataire($property)])
             ->merge($this->collaboratorsOf((int) $property->id, $agencyId))
             ->filter()
             ->unique('id')

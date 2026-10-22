@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\AccountDeletionRequest;
+use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -16,6 +17,7 @@ use Illuminate\Notifications\Notification;
 class AccountDeletionRequestedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use RetriesWithBackoff;
 
     /** TCK-747 (P11.04) — les e-mails du compte partent par la file urgente, hors de la requête. */
     public function viaQueues(): array
