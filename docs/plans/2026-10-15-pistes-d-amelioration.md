@@ -10281,7 +10281,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### `UserLocationProvider` interroge ipapi.co depuis le layout racine, sur toutes les pages, alors que quatre écrans seulement lisent la ville devinée
 - Réf : P103.05
-- Statut : validé — (a) : la résolution par ipapi.co ne part qu'au premier abonnement d'un lecteur de la ville devinée, cache de 24 h gardé ; garde : un test vitest qui monte le fournisseur sans lecteur et exige qu'aucun `fetch` vers `ipapi.co` ne parte (porteur, 2026-10-22)
+- Statut : fait · TCK-1225
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/layout.tsx:104-121`, `takussan-web/src/components/providers/UserLocationProvider.tsx:73-145`
 - Constat :
@@ -10290,6 +10290,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Le premier contact d'un visiteur venu par un lien de fiche (P102.01 rappelle que ces liens circulent sur WhatsApp) paie donc une résolution DNS, une poignée TLS et une requête vers un tiers après l'hydratation, et transmet son IP à ce tiers sans qu'aucun écran ne s'en serve (déduit de la lecture ; le coût n'a pas été mesuré, l'appel sortant vers ipapi.co n'a pas été joué). La politique de confidentialité le déclare (lu, `content/legal/privacy.ts:109`).
 - Piste : ne lancer la résolution qu'au premier abonnement d'un lecteur (le fournisseur expose une fonction de démarrage, ou le crochet la déclenche), en gardant le cache de 24 h. Garde : un test vitest qui monte le fournisseur sans lecteur et exige qu'aucun `fetch` vers `ipapi.co` ne parte.
 - Mesure (2026-10-21, 71e1c1286, mesureur) : lu `takussan-web/src/app/layout.tsx:104-121` (fournisseur monté à la racine) et `UserLocationProvider.tsx:70-125` (appel à `https://ipapi.co/json/` au montage sans réponse de moins de 24 h en `localStorage`) ; `grep -rln useUserLocation src` hors tests → `HomepageDiscovery.tsx`, `HostIndividualWizard.tsx`, `useGeoSuggestion.ts`, `PlaygroundClient.tsx`, comme écrit ; l'appel sortant n'a pas été joué. Classement : V3, le correctif décide quand l'IP du visiteur part chez un tiers déclaré par la politique de confidentialité (`content/legal/privacy.ts`), et la piste laisse deux formes de démarrage.
+- Mesure (2026-10-22, 6d216605a, implementeur) : relu `UserLocationProvider.tsx` (effet au montage qui appelle `https://ipapi.co/json/` sans cache de moins de 24 h) ; test neuf `src/components/providers/__tests__/UserLocationProvider.test.tsx` → avant correctif, fournisseur monté sans lecteur → 1 appel à ipapi.co, 1 rouge ; correctif : la résolution attend une demande, que `useUserLocation()` fait à son montage (aucun des quatre lecteurs ne change), cache de 24 h gardé → 3/3 verts (sans lecteur : 0 appel ; deux lecteurs : 1 appel ; cache chaud : 0 appel), 101/101 avec les tests des lecteurs ; ablation → le même rouge, correctif remis → vert.
 
 ### Pour un visiteur deviné à Dakar, l'accueil redemande `discovery` après l'hydratation et reçoit les mêmes rangées que le rendu serveur
 - Réf : P103.06
