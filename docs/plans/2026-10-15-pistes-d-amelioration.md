@@ -12515,7 +12515,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### L'abonnement d'une agence supprimée suit son cours, période d'essai comprise
 - Réf : P129.05
-- Statut : validé — porteur (2026-10-22) : réglée par P129.06 (ADR-0048, amendement du 2026-10-22) : aucune agence ne se supprime plus ; la fin d'essai d'une agence `inactive` ou `suspended` reste une question à part (V1)
+- Statut : validé — porteur (2026-10-22) : la suppression est réglée par P129.06 (ADR-0048, amendement du 2026-10-22) ; pour une agence `inactive` ou `suspended`, `processTrialExpirations` saute l'agence et ne convertit pas l'essai, qui se convertit au premier passage après le retour à `active` (même amendement) ; test du job par statut
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/AgencySubscriptionService.php:86-109`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:156`, `takussan-api/app/Http/Controllers/Api/Admin/AgencySubscriptionController.php:39`
 - Constat :
@@ -13783,6 +13783,17 @@ générique est P112.01.*
 - Piste : la clé de P144.01 sur ces routes, ou un rapprochement par (visiteur, bien, créneau) pour les visites. Garde : le rejeu en test.
 - Mesure (2026-10-22, 83f10e21d, mesureur) : relu `VisitSchedulingService` (quota `MAX_ACTIVE_VISITS_PER_CUSTOMER = 3` par visiteur et par bien, aucun contrôle de créneau à la demande) ; test temporaire (retiré, `tests/Feature/TmpMesure/RejeuMesureTest.php`, deux `POST` identiques à 30 s d'écart par `travel`, charge 2,41 sur 8 cœurs) : trois `POST …/visit-request` au même créneau puis un quatrième à un autre → 201, 201, 201, 422, 3 visites → les doublons consomment le quota et la demande légitime est refusée (le « à vérifier » tient) ; deux `POST …/contact-lead` identiques → 201 et 201, 2 demandes. Classement : V7, rapprocher les visites par (visiteur, bien, créneau) est une règle visible neuve, et la voie par clé dépend de P144.01 (V6).
 - Mesure (2026-10-22, 94cf4eeaa, delegue) : relu l'entrée, la `Mesure` du mesureur (rejeu mesuré : 201, 201, 201, puis 422 sur un autre créneau) et P144.01 (`retenu · à valider`, V6, brique d'idempotence non tranchée) ; `grep -n "porteur ("` de l'angle 144 → aucune décision. Recommandation : pour les visites, rapprocher par (visiteur, bien, créneau) dans `VisitSchedulingService::createOrFail` en rendant la visite active déjà ouverte au lieu d'en créer une seconde, parce que cela ne dépend pas de P144.01 et rend au visiteur son quota de trois ; pour `contact-lead`, attendre la clé de P144.01 ; non validé : rendre une visite existante au lieu d'en créer une est une règle visible neuve, que rien d'écrit n'appuie, et la seconde voie dépend d'un choix V6 ; manque : la décision du porteur sur la règle, et sur P144.01.
+
+### Signalements et avis rejoués, hors des lots d'ADR-0072
+- Réf : P144.09
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/actions/property.ts:70-110,273-320` (`submitPropertyReport`, `submitReviewReport`, `submitReview`, `submitReviewReply`)
+- Constat :
+  - Ces quatre actions serveur écrivent par un `POST` sans clé d'idempotence (lu), et ADR-0072 ne les range dans aucun de ses trois lots : ses « Réponses du porteur » demandent de les mesurer d'abord.
+  - Ce qu'un rejeu produit côté API (second signalement, second avis, seconde réponse, ou refus par une contrainte d'unicité) n'est pas mesuré.
+  - Établi comment : lu ; décision du porteur du 2026-10-22 (ADR-0072).
+- Piste : mesurer, route par route, ce que rend un rejeu de la même requête. Une route qui crée un doublon entre dans un lot d'ADR-0072, avec la clé engendrée par le composant client ; une route déjà protégée par une contrainte d'unicité ou une règle métier est déclarée caduque pour ce motif.
 
 ## Angle 145 — Champs écartés par `validated()`, reste de l'angle 114
 
