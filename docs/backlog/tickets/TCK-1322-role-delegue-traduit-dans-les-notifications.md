@@ -44,7 +44,7 @@ rendu, côté API et côté front, ce qui traduit aussi les lignes déjà écrit
   (libellé existant, en minuscules pour le milieu de phrase) ; les six codes `role_delegation.*`
   la déclarent.
 - [x] Front : `valeursDeNotification` traduit `role` des codes `role_delegation.*` par
-  `admin.roles.role_delegations.roles.<code>` (libellé existant).
+  `profile.roles.<code>` (libellé existant, espace servi sur les frontières de la cloche).
 - [x] Tests : `RoleDelegationNotificationRoleTest` (API), cas « traduit le rôle délégué » de
   `NotificationRow.test.tsx` (front).
 
@@ -54,7 +54,7 @@ rendu, côté API et côté front, ce qui traduit aussi les lignes déjà écrit
   la place.
 - [x] AC2 — un code de rôle sans libellé est rendu tel quel.
 - [x] AC3 — la ligne écrite garde `params.role = agency_admin` ; la cloche fr et en affiche
-  « Administrateur d'agence » / « Agency administrator ».
+  « Admin agence » / « Agency admin ».
 
 ## Hors périmètre
 
@@ -71,3 +71,6 @@ rendu, côté API et côté front, ce qui traduit aussi les lignes déjà écrit
   remis → vert.
 - Le front ne connaît pas la nature d'un paramètre : la traduction de `role` est bornée aux codes
   `role_delegation.*`, pour ne pas traduire le nom libre d'un rôle de gouvernance.
+- Le libellé du front vient de `profile.roles`, pas de `admin.roles.role_delegations.roles` : la
+  cloche vit sous `(dashboard)/app`, dont la frontière next-intl ne sert pas l'espace `admin`
+  (`check:i18n-namespaces` rouge au premier essai — la clé se serait affichée en chemin brut).

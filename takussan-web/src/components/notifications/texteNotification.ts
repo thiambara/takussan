@@ -77,7 +77,7 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
   const tMotifs = useTranslations('common.moderationReasons');
   const fmt = useFormatteurs();
   const motif: LibelleMotif = (code) => (tMotifs.has(code) ? tMotifs(code) : null);
-  const tRoles = useTranslations('admin.roles.role_delegations.roles');
+  const tRoles = useTranslations('profile.roles');
   const libelleRole: LibelleRole = (code) => (tRoles.has(code) ? tRoles(code) : null);
 
   return (notification) => {

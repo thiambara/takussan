@@ -77,8 +77,8 @@ describe('NotificationRow', () => {
   // TCK-1322 (P128.02) — le rôle d'une délégation arrive CODÉ (`agency_admin`) : il se lit par
   // son libellé traduit, jamais par le code brut.
   it.each([
-    ['fr', /Administrateur d.agence/],
-    ['en', /Agency administrator/],
+    ['fr', /Admin agence/],
+    ['en', /Agency admin/],
   ] as const)('traduit le rôle délégué (%s)', (locale, libelle) => {
     renderRow(notification({
       type: 'system',
