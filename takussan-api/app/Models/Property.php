@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Http\Filters\DateBoundaryFilter;
 use App\Http\Filters\ExactIdentifierFilter;
+use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\AgencyStatus;
@@ -108,8 +109,11 @@ class Property extends AbstractModel implements HasMedia
     protected static array $requestFilterable = [
         'user_id', 'agency_id', 'type', 'contract_type', 'rent_period',
         'status', 'visibility', 'title_type', 'condition', 'price', 'bedrooms', 'bathrooms',
-        'area', 'currency', 'featured', 'furnished', 'published_at',
+        'area', 'currency', 'featured', 'furnished',
     ];
+
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['bedrooms' => TypedExactFilter::ENTIER, 'bathrooms' => TypedExactFilter::ENTIER, 'area' => TypedExactFilter::ENTIER, 'featured' => TypedExactFilter::BOOLEEN, 'furnished' => TypedExactFilter::BOOLEEN];
 
     /** @var array<int,string> */
     protected static array $requestSortable = [

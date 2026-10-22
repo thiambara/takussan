@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryStatus;
@@ -52,6 +53,9 @@ class Inventory extends AbstractModel implements HasMedia
     ];
 
     protected static array $requestFilterable = ['lease_id', 'property_id', 'type', 'conducted_by', 'tenant_id', 'status', 'general_condition'];
+
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['conducted_by' => TypedExactFilter::IDENTIFIANT];
 
     protected static array $requestSortable = ['id', 'created_at', 'conducted_at', 'status', 'signed_at'];
 

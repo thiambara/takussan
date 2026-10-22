@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\Currency;
 use App\Models\Enums\ServiceProviderBillStatus;
@@ -39,6 +40,9 @@ class ServiceProviderBill extends AbstractModel
     ];
 
     protected static array $requestFilterable = ['agency_id', 'property_id', 'provider_id', 'maintenance_request_id', 'status', 'rechargeable_to_landlord'];
+
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['rechargeable_to_landlord' => TypedExactFilter::BOOLEEN];
 
     protected static array $requestSortable = ['id', 'created_at', 'amount', 'validated_at'];
 

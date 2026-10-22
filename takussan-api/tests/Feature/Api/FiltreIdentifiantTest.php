@@ -3,13 +3,21 @@
 namespace Tests\Feature\Api;
 
 use App\Exceptions\ApiError;
+use App\Http\Filters\ExactIdentifierFilter;
 use App\Models\Agency;
+use App\Models\Concerns\HasQueryBuilder;
+use App\Models\Document;
+use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Spatie\QueryBuilder\Exceptions\InvalidFilterQuery;
+use Symfony\Component\Finder\Finder;
 use Tests\TestCase;
 
 /**
@@ -107,5 +115,70 @@ class FiltreIdentifiantTest extends TestCase
         Sanctum::actingAs(User::factory()->withAgentProfile($agency)->create());
 
         $this->getJson('/api/payout-methods?filter[user_id]=abc')->assertForbidden();
+    }
+
+    /**
+     * TCK-1411 (P151.03) — tout filtre exact sur une colonne entière ou booléenne refuse `abc`
+     * avant PostgreSQL : un identifiant en 400 (`ExactIdentifierFilter`, y compris les clés
+     * étrangères qui ne finissent pas par `_id`), un entier ou un booléen en 422. La liste se
+     * dérive des colonnes : un filtre typé neuf, non déclaré, rougit ici.
+     */
+    public function test_chaque_filtre_exact_d_une_colonne_entiere_ou_booleenne_refuse_abc(): void
+    {
+        $vus = 0;
+        foreach (Finder::create()->files()->in(app_path('Models'))->name('*.php') as $file) {
+            $class = 'App\\Models\\'.str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
+            if (! class_exists($class) || (new \ReflectionClass($class))->isAbstract()
+                || ! in_array(HasQueryBuilder::class, class_uses_recursive($class), true)) {
+                continue;
+            }
+            $table = (new $class)->getTable();
+            foreach ((new \ReflectionClass($class))->getStaticPropertyValue('requestFilterable', []) as $champ) {
+                if (ExactIdentifierFilter::garde($champ) || str_contains($champ, '.') || ! Schema::hasColumn($table, $champ)) {
+                    continue;
+                }
+                if (! preg_match('/^(int|bool)/', Schema::getColumnType($table, $champ))) {
+                    continue;
+                }
+                $vus++;
+                try {
+                    $class::buildQuery(request: Request::create('/', 'GET', ['filter' => [$champ => 'abc']]))->get();
+                    $this->fail("{$class} : filter[{$champ}]=abc n'est pas refusé");
+                } catch (ApiError|ValidationException) {
+                    // attendu : 400 ou 422, jamais une erreur de PostgreSQL
+                }
+            }
+        }
+
+        $this->assertGreaterThanOrEqual(20, $vus, 'le relevé des filtres typés ne trouve plus sa cible');
+    }
+
+    /** TCK-1411 (P151.03) — une valeur lisible filtre toujours, par type. */
+    public function test_un_filtre_type_lisible_filtre_toujours(): void
+    {
+        $agent = User::factory()->create();
+        $mienne = MaintenanceRequest::factory()->create(['assigned_to' => $agent->id]);
+        MaintenanceRequest::factory()->create();
+        $ids = MaintenanceRequest::buildQuery(request: Request::create('/', 'GET', ['filter' => ['assigned_to' => (string) $agent->id]]))->pluck('id')->all();
+        $this->assertSame([$mienne->id], $ids);
+
+        $verifie = Document::factory()->create(['is_verified' => true]);
+        $nonVerifie = Document::factory()->create(['is_verified' => false]);
+        $ids = Document::buildQuery(request: Request::create('/', 'GET', ['filter' => ['is_verified' => 'true']]))->pluck('id')->all();
+        $this->assertContains($verifie->id, $ids);
+        $this->assertNotContains($nonVerifie->id, $ids);
+
+        $deux = Property::factory()->create(['bedrooms' => 2]);
+        $trois = Property::factory()->create(['bedrooms' => 3]);
+        $ids = Property::buildQuery(request: Request::create('/', 'GET', ['filter' => ['bedrooms' => '2']]))->pluck('id')->all();
+        $this->assertContains($deux->id, $ids);
+        $this->assertNotContains($trois->id, $ids);
+    }
+
+    /** TCK-1411 (P151.03) — `published_at` exact n'avait aucun lecteur : il n'est plus un filtre. */
+    public function test_published_at_n_est_plus_un_filtre_exact_des_biens(): void
+    {
+        $this->expectException(InvalidFilterQuery::class);
+        Property::buildQuery(request: Request::create('/', 'GET', ['filter' => ['published_at' => '2026-10-22']]))->get();
     }
 }

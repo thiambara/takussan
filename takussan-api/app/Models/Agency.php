@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Domain\Settings\AgencySettings;
+use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\AgencyKind;
@@ -83,6 +84,9 @@ class Agency extends AbstractModel implements HasMedia
     ];
 
     protected static array $requestFilterable = ['status', 'kind', 'is_verified', 'primary_admin_id'];
+
+    /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
+    protected static array $requestFilterableTypes = ['is_verified' => TypedExactFilter::BOOLEEN];
 
     protected static array $requestSortable = ['id', 'name', 'created_at', 'founded_at'];
 
