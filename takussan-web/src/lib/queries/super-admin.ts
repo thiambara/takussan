@@ -1,6 +1,7 @@
 import { ApiError } from '@/lib/api';
 import type { PlatformLevel } from '@/lib/platform-abilities';
 import type { BulkFailure } from '@/types/agent-crm';
+import type { AgencyUpgradeRequestStatus } from '@/types/agency-upgrade';
 import type {
   AdminAgenciesResponse,
   AdminAgencyDetailResponse,
@@ -1270,11 +1271,8 @@ export async function revokeSuperAdminInvitation(
 /* TCK-268 — Agency upgrade review console                            */
 /* ------------------------------------------------------------------ */
 
-export type AgencyUpgradeRequestStatus =
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-  | 'revoked';
+// TCK-1270 (P146.05) — déclaré une seule fois, dans `types/agency-upgrade.ts`.
+export type { AgencyUpgradeRequestStatus } from '@/types/agency-upgrade';
 
 export interface AdminAgencyUpgradeRequestRow {
   id: number;
