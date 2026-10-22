@@ -10,6 +10,11 @@ import { ApiError } from './api';
  *   rarely recover by retrying).
  * - `refetchOnWindowFocus` stays on, `refetchOnReconnect` stays on — both are
  *   cheap with the 5-min stale time.
+ * - TCK-1479 (P113.03) — `networkMode: 'always'` pour les SEULES mutations : hors ligne, une
+ *   écriture part tout de suite et échoue en erreur réseau, par le chemin d'erreur de l'écran.
+ *   Sous le défaut `online`, elle restait suspendue sans le dire puis partait seule au retour du
+ *   réseau — l'initiation d'un paiement redirigeait alors chez le fournisseur, minutes plus tard.
+ *   Les lectures gardent `online` : elles reprennent d'elles-mêmes, sans effet de bord.
  */
 export function createQueryClient(): QueryClient {
   return new QueryClient({
@@ -26,6 +31,7 @@ export function createQueryClient(): QueryClient {
       },
       mutations: {
         retry: false,
+        networkMode: 'always',
       },
     },
   });
