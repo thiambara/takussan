@@ -27,6 +27,8 @@ import { agencyInvitationKeys } from '@/lib/queries/agency-invitations';
 import { useCan } from '@/hooks/useCan';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import type { AgencyRoleAssignment } from '@/types/agency-role';
 import type {
   AdminAgencyUserRow,
@@ -101,6 +103,8 @@ export function TeamConsole({
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { token } = useAuth();
+  // TCK-1203 — suspendre ou réactiver un membre exige la 2FA de l'agence (`TeamMemberSuspensionController`).
+  const garde = useGardeDoubleFacteur();
 
   const currentRole = searchParams.get('filter[role]') ?? '';
   // TCK-595 — la performance d'équipe : agences `standard`, et `reports.view_agency` (la même garde
@@ -224,7 +228,7 @@ export function TeamConsole({
 
   const suspensionMutation = useMutation({
     mutationFn: ({ member, action }: { member: AdminAgencyUserRow; action: TeamSuspensionAction }) =>
-      postTeamSuspension(agencyId, member.id, action, token ?? ''),
+      avecGardeDoubleFacteur(() => postTeamSuspension(agencyId, member.id, action, token ?? ''), garde),
     onSuccess: () => {
       setActionError(null);
       setSuspending(null);

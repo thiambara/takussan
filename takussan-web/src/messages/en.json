@@ -484,6 +484,7 @@
       "requiredBody": "This action touches sensitive data, so it requires a second factor on your account. Set it up now — the action will resume right after.",
       "stepUpTitle": "Confirm it’s really you",
       "stepUpBody": "For your security, this action needs a recent code from your authenticator app. Enter it and the action will resume.",
+      "consoleStepUpBody": "The platform console needs a code from your authenticator app for this session. Enter it to continue.",
       "codeLabel": "6-digit code",
       "confirm": "Confirm",
       "confirming": "Verifying…",
