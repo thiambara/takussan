@@ -224,6 +224,12 @@ enum NotificationCode: string
      */
     public const PARAM_PROVIDER = 'provider';
 
+    /**
+     * P164.02 (TCK-1470) — un mois rangé `Y-m` (`2026-09`), rendu en mois écrit dans la langue du
+     * destinataire (« septembre 2026 ») ; une valeur d'une autre forme est rendue telle quelle.
+     */
+    public const PARAM_MONTH = 'month';
+
     public function type(): NotificationType
     {
         return match ($this) {
@@ -403,7 +409,7 @@ enum NotificationCode: string
             self::PayoutFailed => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'reason' => self::PARAM_TEXT],
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved => ['destination' => self::PARAM_TEXT],
             self::PayoutThresholdRelaxRequested => ['agency' => self::PARAM_TEXT],
-            self::OwnerStatementAvailable => ['period' => self::PARAM_TEXT],
+            self::OwnerStatementAvailable => ['period' => self::PARAM_MONTH],
             self::ReviewToModerate, self::ReviewReceived => ['subject' => self::PARAM_TEXT, 'rating' => self::PARAM_COUNT],
             self::ModerationPropertyHidden, self::ModerationPropertyRemoved => ['property' => self::PARAM_TEXT, 'reason_code' => self::PARAM_REASON_CODE, 'reason' => self::PARAM_TEXT],
             self::ModerationReportUpheld, self::ModerationReportDismissed => ['property' => self::PARAM_TEXT],

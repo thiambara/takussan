@@ -94,6 +94,7 @@ class NotificationRenderer
                 NotificationCode::PARAM_REASON_CODE => $this->reasonCode($value, $params['reason'] ?? null, $locale, $textMax),
                 NotificationCode::PARAM_ROLE => $this->role($value, $locale, $textMax),
                 NotificationCode::PARAM_PROVIDER => $this->provider($value, $textMax),
+                NotificationCode::PARAM_MONTH => $this->month($value, $locale, $textMax),
                 default => is_scalar($value) && (string) $value !== '' ? $this->text((string) $value, $textMax) : '—',
             };
         }
@@ -183,6 +184,20 @@ class NotificationRenderer
         }
 
         return $this->text(app(IntegrationProviderRegistry::class)->get($code)->label(), $max);
+    }
+
+    /** P164.02 (TCK-1470) — un mois `Y-m` écrit dans la langue du destinataire. */
+    private function month(mixed $value, string $locale, ?int $max): string
+    {
+        if (! is_scalar($value) || (string) $value === '') {
+            return '—';
+        }
+        $value = (string) $value;
+        if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $value) !== 1) {
+            return $this->text($value, $max);
+        }
+
+        return Carbon::createFromFormat('!Y-m', $value)->locale($locale)->isoFormat('MMMM YYYY');
     }
 
     private function text(string $value, ?int $max): string
