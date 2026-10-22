@@ -9186,7 +9186,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 
 ### L'occupation des mois passés s'efface quand un bien est archivé, vendu ou passé en vente aujourd'hui
 - Réf : P93.01
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1173
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:23-26,48-54,65-120,322-339`
 - Constat :
@@ -9207,10 +9207,11 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   porteur. Un test épingle la série d'un bien archivé après un bail terminé.
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `PortfolioMetrics::eligibleSql` (statut, `contract_type` et `rent_period` courants, inchangés depuis 964dded11) ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → bail `expired` du 2026-01-01 au 2026-06-30, `setTestNow(2026-07-15)` : `longStayOccupancy` rend 100 de janvier à juin, puis 0 sur les six mois après `status = archived`, et 0 après retour à `available` avec `contract_type = sale` ; le constat tient tel qu'écrit (courte durée relue, non rejouée). Aucun ticket ni commit ne le traite. Classement : V7, la piste propose une règle (dénominateur par bail couvrant, exclusion datée) sans date de passage en `archived` ou `sold` aujourd'hui en base, et en laisse le choix au porteur.
 - Mesure (2026-10-21, b0c1cd999, delegue) : relu la ligne `Mesure` du mesureur, `PortfolioMetrics.php` cité, et TCK-595 § « Contraintes strictes » (l. 286-292 : « l'occupation d'un mois passé se lit dans les dates des baux […] jamais dans `status=active` d'aujourd'hui », mais les biens éligibles y sont définis « hors `draft/archived/pending_review/rejected/sold` » sans date) ; `grep` de `porteur (` sur l'angle 93 et des tickets → aucune règle d'éligibilité datée n'est écrite, et aucune date de passage en `archived` ou `sold` n'existe en base. Recommandation : pour un mois passé, garder dans le dénominateur tout bien feuille couvert par un bail (hors `draft` et `pending_signature`) au moins un jour du mois, quel que soit son statut ou son `contract_type` d'aujourd'hui, en plus des biens éligibles aujourd'hui ; n'appliquer l'exclusion par statut courant qu'au mois en cours, et ne pas ajouter de date de changement de statut (ce serait un V4 et une règle de plus) ; pourquoi : c'est la seule lecture qui tient la règle déjà écrite de TCK-595 sans donnée neuve, et elle rend exactement la série d'avant l'archivage dans le cas mesuré ; ce qui manque pour trancher : la règle contredit la définition écrite des biens éligibles de TCK-595, et un bien vacant tout un mois passé puis archivé sort encore du dénominateur — choix de produit que le porteur fait ou amende.
+- Mesure (2026-10-21, 8d4869e9d, implementeur) : reproduit avant correctif par `DashboardOwnerMetricsTest::test_p93_01_past_months_keep_a_leased_unit_archived_or_sold_today` (bail `expired` du 2026-01-01 au 2026-06-30, au 2026-07-15 : série 100 × 6 puis 0, puis 0 × 7 après `archived`) et `…_past_short_stay_months_keep_a_booked_unit_archived_today` (juin 50, puis `null` après `archived`) → un mois passé garde tout bien feuille de la périodicité qu'un bail ou une réservation y couvrait, quel que soit son statut ou son `contract_type` d'aujourd'hui, le mois en cours gardant l'exclusion par statut ; ablation rouge sur les deux, remis 10/10 sur la classe, `DashboardOwnerTest`, `DashboardAgencyTest`, `DashboardQueryBudgetTest`, `DashboardAgentScopeTest`, `DashboardAgentTest` verts.
 
 ### Le relevé du bailleur compte en « Impayés de la période » des loyers pas encore échus et ceux d'un bail supprimé
 - Réf : P93.02
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1175
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payout/OwnerStatementService.php:137-153`,
   `takussan-api/lang/fr/money_out.php:27`, `takussan-api/resources/views/pdf/statements/owner.blade.php:82-83`
@@ -9232,10 +9233,11 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   lisant `CollectedPayments::leaseOwed()` comme les autres lecteurs de l'impayé. Un test épingle les
   deux cas.
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `OwnerStatementService::unpaid` (`whereBetween(due_date, période)`, aucune borne à aujourd'hui, aucun filtre `leases.deleted_at`) ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → `setTestNow(2026-07-03)`, 100 000 dus le 25 juillet et 70 000 dus le 1ᵉʳ juillet sur un bail supprimé : `statement(…, '2026-07')['unpaid']` = `{"count":2,"amount":170000}`, `PortfolioMetrics::overdue` de l'agence = `{"count":0,"amount":0}` ; le constat tient (cas annuel non rejoué). Aucun ticket ni commit ne le traite. Classement : V1, le correctif change un montant imprimé sur le relevé et l'attestation du bailleur.
+- Mesure (2026-10-21, 8d4869e9d, implementeur) : reproduit avant correctif par `OwnerStatementTest::test_p93_02_unpaid_counts_only_past_due_rents_of_live_leases` (au 2026-07-03 : 30 000 dus le 2 juillet, 100 000 dus le 25 juillet, 70 000 dus le 1ᵉʳ juillet sur un bail supprimé → `unpaid.count` 3) → `unpaid` lit `CollectedPayments::leaseOwed()`, `leases.deleted_at IS NULL` et `due_date < today`, types du relevé inchangés : `{count: 1, amount: 30000}` ; ablation rouge, remis 5/5 sur la classe.
 
 ### Le « taux d'impayés » dépasse 100 %, et vaut 0 % quand les impayés viennent d'un bail clos
 - Réf : P93.03
-- Statut : validé — validation en bloc du porteur (2026-10-21) : la piste telle qu'écrite ; où elle laisse plusieurs voies, l'implémenteur retient celle qu'elle recommande, à défaut la plus étroite, et écrit son choix dans le ticket
+- Statut : fait · TCK-1177
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:54-59,77,115`,
   `takussan-api/app/Services/Dashboard/KpiResolver.php:37`, `takussan-api/app/Models/ThresholdAlert.php:49`,
@@ -9258,6 +9260,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
   12 mois ÷ le facturé échu des mêmes échéances. Rendre `null` sans dénominateur. Le choix de la
   définition revient au porteur (texte du produit). Un test épingle les deux cas mesurés.
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : relu `DashboardAgencyService::summary` (`unpaid_rate_percent` = impayé cumulé ÷ Σ `monthly_rent` des baux `active`, 0 sans bail actif) et `KpiResolver::forAgency` ; test temporaire `TmpMesureurP93Test` (base créée par le test, charge 1,53 / 2,16 / 3,24 sur 8 cœurs, retiré ensuite) → bail actif à 100 000 avec trois loyers échus impayés plus un bail `terminated` à 50 000 impayés : `overdue_amount` 350 000, `unpaid_rate_percent` 350 ; agence au seul bail `terminated` à 50 000 impayés : `overdue_amount` 50 000, `unpaid_rate_percent` 0 ; le constat tient. Aucun ticket ni commit ne le traite. Classement : V1 et V7, c'est un ratio de montants dont la piste laisse la définition au porteur.
+- Mesure (2026-10-21, 8d4869e9d, implementeur) : reproduit avant correctif par `DashboardAgencyTest::test_p93_03_unpaid_rate_is_owed_over_billed_of_the_same_past_due_installments` (sans échéance : `0` au lieu de `null` ; seul bail `terminated` à 50 000 impayés : 0) → `PortfolioMetrics::unpaidRate()` = reste dû des échéances échues sur 12 mois (hors restitution de caution, baux non supprimés) ÷ leur montant facturé (hors `cancelled`, `failed`), `null` sans échéance : `null`, 100, puis 77,78 avec un bail actif à trois loyers en retard ; AC5 de TCK-595 recalculé (33,33 → 10) ; tuile front en « — » sans alerte quand `null` ; ablations API et front rouges, remis : `DashboardAgencyTest` 10/10, `DashboardOwnerMetricsTest`, `DashboardQueryBudgetTest`, `ThresholdAlertTest`, `DashboardAgencyAccessTest`, `AgencyKpis.test.tsx` et `overview/agency/page.test.tsx` verts.
 
 ### Les alertes de seuil vont aussi aux admins d'agence suspendus ou archivés
 - Réf : P93.04
@@ -9325,7 +9328,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 
 ### Petites améliorations : indicateurs servis sans test de valeur
 - Réf : P93.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-1179
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/tests/Feature/Reporting/TeamPerformanceTest.php:74-95`,
   `takussan-api/tests/Feature/Dashboard/DashboardAgencyTest.php:38-61`
@@ -9341,6 +9344,7 @@ lancé sur la base de test PostgreSQL, charge 2,28 / 3,14 / 3,98 sur 8 cœurs. `
 - Piste : un test de valeur par indicateur, sur un jeu où chaque clé a une valeur non nulle et
   distincte des autres. C'est un ajout de test seul (A5).
 - Mesure (2026-10-21, 58d0e8f22, mesureur) : `grep -rl` de chaque clé sous `takussan-api/tests` → `sales_signed`, `customers_added`, `commissions_earned` : aucun fichier ; `properties_managed` n'est asserté qu'au tableau de bord de l'agent (`DashboardAgentScopeTest.php:131,157`, `DashboardAgentService`), jamais pour `TeamPerformanceService` ; `DashboardAgencyTest.php:38-47` n'a que `assertJsonStructure` pour `published`, `rented`, `available`, `customers_count`, `bookings.pending`, `maintenance.open` ; le constat tient, à cette précision près. Correctif attendu : un test de valeur par indicateur de la performance d'équipe et du tableau de bord d'agence, sur un jeu aux valeurs non nulles et distinctes, sauf `properties.published`, dont la valeur attendue dépend de P93.06. Classement : A5, ajout de tests seul, sans seuil.
+- Mesure (2026-10-21, 8d4869e9d, implementeur) : `grep` re-joué, le constat tient (aucune valeur assertée pour `sales_signed`, `customers_added`, `commissions_earned`, `properties_managed` côté équipe, ni pour `rented`, `available`, `customers_count`, `bookings.pending`, `maintenance.open`) → `TeamPerformanceTest::test_p93_07_…` (1, 3, 55 000, 4) et `DashboardAgencyTest::test_p93_07_counters_have_their_value` (6, 2, 3, 4, 1, 5), un intrus par règle ; ablation par mutation (filtre `cancelled` des commissions retiré : 125 000 ; `in_progress` retiré de la maintenance : 3) rouge, code rendu : 8/8 et 11/11.
 
 ## Angle 94 — Réponses composées à la main dans les contrôleurs : dates hors ADR-0018
 

@@ -4,12 +4,16 @@ namespace Tests\Feature\Api;
 
 use App\Models\Enums\Capability;
 use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\PaymentStatus;
+use App\Models\Lease;
 use App\Models\Payout;
 use App\Models\ServiceProviderBill;
 use App\Notifications\CodedNotification;
+use App\Services\Dashboard\PortfolioMetrics;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\BuildsMoneyOut;
@@ -64,6 +68,31 @@ class OwnerStatementTest extends TestCase
         $this->get('/api/owner-statements/pdf?period=2026-09')->assertOk()->assertHeader('Content-Type', 'application/pdf');
         $csv = $this->get('/api/owner-statements/csv?period=2026-09')->assertOk()->streamedContent();
         $this->assertStringContainsString($payout->reference_number, $csv);
+    }
+
+    /**
+     * P93.02 (TCK-1175) — « Impayés de la période » : les seuls loyers échus avant aujourd'hui, et
+     * jamais ceux d'un bail supprimé, comme {@see PortfolioMetrics::overdue()}.
+     */
+    public function test_p93_02_unpaid_counts_only_past_due_rents_of_live_leases(): void
+    {
+        Carbon::setTestNow('2026-07-03 12:00:00');
+        $agency = $this->moneyAgency();
+        $landlord = $this->landlordOf($agency);
+        $lease = $this->leaseOf($agency, $landlord);
+        $deleted = $this->leaseOf($agency, $landlord);
+        $owed = fn (Lease $l, float $amount, string $due) => $this->leasePayment($l, $amount, LeasePaymentType::Rent, null, PaymentStatus::Pending)
+            ->forceFill(['due_date' => $due, 'period_start' => '2026-07-01', 'period_end' => '2026-07-31'])->save();
+        $owed($lease, 30_000, '2026-07-02');
+        $owed($lease, 100_000, '2026-07-25');
+        $owed($deleted, 70_000, '2026-07-01');
+        $deleted->delete();
+        Sanctum::actingAs($landlord);
+
+        $unpaid = $this->getJson('/api/owner-statements?period=2026-07')->assertOk()->json('data.unpaid');
+
+        $this->assertSame(1, $unpaid['count']);
+        $this->assertEquals(30000, $unpaid['amount']);
     }
 
     public function test_ac5_another_landlord_and_an_agent_without_payouts_create_get_403(): void

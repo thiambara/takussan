@@ -5,13 +5,12 @@ namespace App\Services\Payout;
 use App\Models\Agency;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PayeeRole;
-use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
-use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\ServiceProviderBill;
 use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
+use App\Services\Dashboard\PortfolioMetrics;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -134,16 +133,23 @@ final class OwnerStatementService
         ], $rows));
     }
 
-    /** @return array{count: int, amount: float} les loyers échus dans la période et non encaissés */
+    /**
+     * Les loyers échus dans la période et non encaissés. « Échu » = dû avant aujourd'hui, et un bail
+     * supprimé ne compte pas : les deux règles de {@see PortfolioMetrics::overdue()}
+     * (P93.02, TCK-1175). Les types restent ceux du relevé ({@see PayoutCalculator::LEASE_TYPES}).
+     *
+     * @return array{count: int, amount: float}
+     */
     private function unpaid(Agency $agency, User $landlord, CarbonImmutable $start, CarbonImmutable $end): array
     {
-        $query = LeasePayment::query()
+        $query = CollectedPayments::leaseOwed()
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
+            ->whereNull('leases.deleted_at')
             ->where('leases.agency_id', $agency->id)
             ->where('leases.landlord_id', $landlord->id)
             ->whereIn('lease_payments.payment_type', array_map(fn (LeasePaymentType $t) => $t->value, PayoutCalculator::LEASE_TYPES))
-            ->whereIn('lease_payments.status', [PaymentStatus::Pending->value, PaymentStatus::Late->value, PaymentStatus::PartiallyPaid->value])
-            ->whereBetween('lease_payments.due_date', [$start->toDateString(), $end->toDateString()]);
+            ->whereBetween('lease_payments.due_date', [$start->toDateString(), $end->toDateString()])
+            ->whereDate('lease_payments.due_date', '<', now()->toDateString());
 
         return [
             'count' => (clone $query)->count(),
