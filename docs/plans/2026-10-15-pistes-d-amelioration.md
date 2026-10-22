@@ -14166,10 +14166,11 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Les hooks des baux, des réservations et des factures envoient un `filter[search]` que l'API refuse, prêt pour le premier écran qui s'en servira
 - Réf : P150.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1284
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/leases.ts:41,49`, `takussan-web/src/lib/queries/bookings.ts:34,47`, `takussan-web/src/lib/queries/payments.ts:132,141`, `takussan-api/app/Models/Lease.php:89`, `takussan-api/app/Models/Booking.php:44`, `takussan-api/app/Models/Invoice.php:62`
 - Constat :
+- Mesure (2026-10-22, a2398e474, implementeur) : relu `leases.ts`, `bookings.ts`, `payments.ts` (paramètre `search` posé en `filter[search]`) et les appelants (aucun ne le passe) ; test neuf `sans-recherche-non-servie.tck-1284.test.ts` avant correctif : `search: 'x'` part dans le filtre des trois hooks (3 rouges) → `search` retiré des trois types et de leur sérialisation : 3/3 verts, `tsc --noEmit` propre ; ablation (trois modules à `HEAD`) → vitest 3 rouges et `tsc` 3 TS2578 (`@ts-expect-error` inutilisé), correctif remis → verts ; `LeasesList`, `InvoicesTable`, `tableaux-nommes.tck-912` verts.
   - `useLeases`, `useBookings` et `useInvoices` ont un paramètre `search`, posé en `filter[search]` (lu, sites ci-dessus).
   - Aucun des trois modèles ne déclare de `$requestSearchFields` (`grep` → aucune ligne), donc pas de filtre `search` (lu, `HasQueryBuilder.php:208-262`).
   - mesuré, test temporaire, administrateur d'agence : `GET /api/leases?filter[search]=x`, `/api/bookings?filter[search]=x` et `/api/invoices?filter[search]=x` → **400** `http.bad_request` tous trois ; les mêmes listes avec leurs autres filtres et sans `search` → 200.
