@@ -14195,10 +14195,11 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Petites améliorations
 - Réf : P150.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1286
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/conversations-list.ts:41-73`, `takussan-api/app/Http/Controllers/Api/ConversationController.php` (`index`), `takussan-web/src/lib/queries/bookings.ts:62-64`, `takussan-api/app/Http/Controllers/Api/BookingController.php` (`show`)
 - Constat :
+- Mesure (2026-10-22, a2398e474, implementeur) : relu `ConversationController.php` (`index` lit `?archived=`, trie par `last_message_at`, aucun `filter[…]`) et `BookingController.php:65` (`show` charge `property.address, customer, payments`) ; test neuf `parametres-ignores.tck-1286.test.ts` avant correctif : `status`/`property_id` partent dans le filtre de `useConversations`, `useBooking` demande `booking_payments` (2 rouges) → les deux filtres retirés du type et de la requête, `booking_payments` retiré de l'`include` avec un commentaire sur `show` : 2/2 verts ; ablation (deux modules à `HEAD`) → 2 rouges et 1 TS2578, correctif remis → verts ; `ConversationList`, `useUnreadCount`, `BookingDetail.*` verts.
   - `useConversations` accepte `status` (`active`, `archived`, `closed`) et `property_id`, et les envoie en `filter[…]` avec `sort=-last_message_at` et `include=property,participants,last_message` (lu). `ConversationController::index` ne lit ni `filter[status]` ni `filter[property_id]` : il lit `?archived=` et trie toujours par `last_message_at` (lu). mesuré : la requête complète → 200. Aucun appelant ne passe ces filtres aujourd'hui (`ConversationList.tsx:29`, `useUnreadCount.ts:28`, lu) : un filtre « archivées » posé demain rendrait les actives sans le dire.
   - `useBooking` demande `include=property,booking_payments,customer`. `show` charge `property.address`, `customer` et `payments` quoi qu'on demande (lu), et `booking_payments` n'est pas une relation (mesuré → 200, le paramètre est ignoré). L'écran lit bien `booking_payments` (lu, `BookingDetail.tsx:106,332`), qui sort de `BookingResource` (lu, `:43`) : rien de faux, mais le paramètre trompe le lecteur.
 - Piste : retirer du type `UseConversationsParams` les filtres que l'API ne sert pas, ou les brancher sur `archived`. Retirer `booking_payments` de l'`include` de `useBooking`, en commentant que `show` charge ses relations lui-même. Le relevé complet de ces paramètres ignorés est l'angle 186.
