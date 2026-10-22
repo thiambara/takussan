@@ -209,7 +209,7 @@ voie d'écriture (angle 13, puis 47).
 | 132 | Liens portés par les SMS et WhatsApp (`payment_url`, `receipt_url`, lien d'invitation, gabarits WhatsApp à bouton) : hôte, durée de validité face au délai d'envoi des heures calmes, et page qu'ouvre un destinataire sans compte — le pendant de l'angle 97 hors du courriel | fait |
 | 133 | Estimations et aperçus calculés au front par une constante qui recopie un réglage ou un calcul de l'API (`DEFAULT_*` des dialogues de bail : indemnité de résiliation, préavis de 30 jours, pénalités de retard, révision de loyer, échéancier) : chiffre affiché qui diverge du réglage de la plateforme, de l'agence ou du bail | fait |
 | 134 | Tris `orderBy` / `orderByDesc` sur une colonne d'enum rangée en chaîne (`severity`, `priority`, `status`, `level` des annonces, alertes, maintenances, tâches) : ordre alphabétique pris pour un ordre métier dans une liste ou un « premier élément » affiché | fait |
-| 135 | Listes écrites à la main, hors `buildQuery` (`LeasePaymentController::index`, `ConversationController::index`, `ReviewController::index`, contrôleurs `Admin\*`) : `sort`, `page` et `per_page` envoyés par le front face à l'ordre et au plafond rendus, et lecteurs qui ne lisent que la première page — le relevé de P100.01 sur les autres listes | à faire |
+| 135 | Listes écrites à la main, hors `buildQuery` (`LeasePaymentController::index`, `ConversationController::index`, `ReviewController::index`, contrôleurs `Admin\*`) : `sort`, `page` et `per_page` envoyés par le front face à l'ordre et au plafond rendus, et lecteurs qui ne lisent que la première page — le relevé de P100.01 sur les autres listes | fait |
 | 136 | Lectures du navigateur au chargement d'un écran `/app` et `/super-admin` (`useApiQuery` en parallèle, clés en double, `enabled` en cascade qui attend une première réponse, données déjà lues par le rendu serveur) : allers-retours avant l'écran utile, chacun précédé d'un préflight puisqu'il porte `Authorization` — le relevé de l'angle 103 sur la console | à faire |
 | 137 | Écrans qui importent le fichier `index.ts` de `components/forms` pour `FormError` ou `FormGlobalError` seuls (pages `(auth)` `verify-email` et `reset-password`, `DefiSecondFacteur`, `ConnexionParTelephone`, `IntegrationsManager`, `ChampsLieu`) : react-hook-form et react-day-picker chargés pour afficher un message d'erreur — le motif de P104.01 hors de la console | à faire |
 | 138 | Lectures de l'API dédoublées dans un même rendu serveur : server actions `*Action` (`fetchAgencyAction`, et leurs pareilles) appelées par des pages et des layouts serveur qui relisent une ressource déjà lue hors de `cache()` (`agenceDuRendu`, `getMeAction`), mesurées par requête sur un document servi | à faire |
@@ -245,6 +245,7 @@ voie d'écriture (angle 13, puis 47).
 | 168 | Onglets, filtres et pagination des listes de la console tenus en état local (`useState`) au lieu de l'URL (`BookingsList.tsx:35`, et leurs pareilles sous `components/*`) : retour arrière depuis un détail qui ramène au premier onglet, rechargement ou lien partagé qui perd la vue, paramètre `?status=` d'un lien entrant ignoré — né de P131.03 | à faire |
 | 169 | Rappels programmés à marque unique (`last_reminded_at`, `reminder_sent_at` et leurs pareilles : invitations, visites, échéances, reversements dus, relances de documents) face aux gestes qui remettent la marque à zéro sans déplacer la date de référence (relance, report, renouvellement) : rappel parti dans l'heure qui suit le geste, ou jamais renvoyé — né de P132.03 | à faire |
 | 170 | Montants envoyés par le navigateur et pris tels quels par l'API là où elle pourrait les dériver (`amount` de `POST /api/bookings/{id}/payments`, `subtotal` de `POST /api/invoices`, `amount` des paiements enregistrés et de `mark-paid`, montants des reversements et des restitutions) : montant que le payeur ou l'émetteur fixe à la place du calcul du serveur — né de P133.02 et P133.05 | à faire |
+| 171 | Sélecteurs et listes sans pagination nourris par la taille de page par défaut (appels `useApiQuery`, `apiRequest` et server actions sans `per_page` ni `page`, rendus en `EntitySelect`, `<select>` ou liste de liens sous `/app`), hors personnes (angle 120) : élément au-delà de la 20ᵉ ligne qu'on ne peut pas choisir ni ouvrir — le relevé de l'angle 135 sous 50 lignes | à faire |
 
 ---
 
@@ -12803,3 +12804,88 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
   - `MaintenancePrioritySort` recopie les valeurs de `MaintenancePriority` en dur dans son `CASE` (lu, l. 15-23) : un cas ajouté à l'enum tomberait dans `ELSE 5`, sans erreur. `AnnouncementResolver::orderBySeverity` dérive au contraire ses rangs de `cases()` (lu) : deux façons d'écrire le même tri.
   - Aucun test n'appelle `sort=priority` ni `sort=-priority` sur les maintenances (mesuré : `grep -rln "sort=-\?priority\|MaintenancePrioritySort" tests` → `tests/impact-map.json` seul), et aucun écran ne le demande (lu, `MaintenanceList.tsx:63`, `maintenance.ts:92`) : le seul tri par rang du dépôt n'est gardé par rien.
 - Piste : dériver le `CASE` de `MaintenancePriority::cases()` (ou passer par la classe générique de P134.03) et l'épingler par un test `sort=-priority` sur quatre demandes.
+
+## Angle 135 — Listes écrites à la main, et lecteurs qui ne lisent que la première page
+
+*Exploré le 2026-10-22 sur `pre-dev` 294f70acc, par l'explorateur. Relu par l'explorateur lui-même : les 25 contrôleurs qui appellent `paginate(` sans `buildQuery` (`grep -rln "paginate(" app/Http/Controllers | xargs grep -L buildQuery`), le `tailleDePage` du contrôleur de base et `HasQueryBuilder::getPerPage` (plafond 100), puis l'appelant front de chacun quand il en a un. Deux mesures par un test temporaire, retiré (`tests/Feature/Tmp/MesureP135Test.php`, charge 1,94 sur 8 cœurs), et trois `SELECT` sur la base de développement.
+
+Ce qui vient d'un sous-agent, relu ensuite : le relevé des 23 lecteurs du front qui demandent `per_page` ≥ 50, endpoints `buildQuery` compris. L'explorateur a relu lui-même chaque cas retenu ici (P135.03 à P135.05).
+
+Écarté :
+- `LeasePaymentController` (P100.01, fait), `RoleDelegationController` (angle 119), `rent-history` et les autres routes sans appelant (P13.08) ;
+- les sélecteurs de personnes (attribution d'un contact, bénéficiaire d'un reversement, membres de l'audit), déjà relevés par l'angle 120 (P120.01, P120.04, P120.05) ;
+- le `sort=posted_at` des lignes de relevé bancaire, que `BankStatementLine` ne déclare pas : c'est l'objet de l'angle 150.
+
+Limites : les volumes de la base de développement sont trop petits pour montrer ces défauts (au plus 26 conversations actives par utilisateur, 4 notes par client). Les lecteurs relevés sont ceux qui demandent `per_page` ≥ 50, ou qui s'appuient sur une liste écrite à la main : un sélecteur nourri par la taille par défaut (20) n'est pas dans ce relevé.*
+
+### La fiche client ne montre que les 20 dernières notes, et son onglet les compte « 20 »
+- Réf : P135.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/CustomerNoteController.php:14-25`, `takussan-web/src/lib/queries/customers.ts:174-185`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:94`, `takussan-web/src/components/customer-dashboard/CustomerDetailTabs.tsx:71,88`, `takussan-web/src/components/pipeline/CustomerDetailSheet.tsx:45-48,131`
+- Constat :
+  - `fetchCustomerNotes` envoie `sort=-created_at` seul, sans `page` ni `per_page`, et rend `res.data` (lu, `customers.ts:174-185`).
+  - Le contrôleur ignore `sort`, trie par `pinned` puis `created_at` décroissant, et pagine par 20 (lu, `CustomerNoteController.php:18-22`).
+  - Mesuré (test temporaire, retiré) : un client à 25 notes, requête exacte du front → 20 lignes, `meta.total` = 25 ; les 5 plus anciennes manquent.
+  - Les deux lecteurs ne lisent que cette page :
+    - la fiche `/app/customers/{id}` : l'onglet affiche `notes.length` (« Notes (20) ») et la frise `CustomerNotesTimeline` n'a ni pagination ni lien « plus » (lu, `CustomerDetailTabs.tsx:71,88`) ;
+    - le panneau du pipeline `CustomerDetailSheet` (lu, `:45-48,131`).
+  - Les notes épinglées passent d'abord : une note de perte ou de conversion reste visible, mais l'historique libre au-delà de 20 notes est perdu à l'écran.
+- Piste : faire lire toutes les pages au front (comme `fetchAllLeasePayments` de TCK-1178), ou paginer la frise et compter par `meta.total`. Test : client à 25 notes, les 25 rendues et l'onglet compte 25.
+
+### La messagerie ne montre que les 30 conversations les plus récentes, et la pastille ne compte que leurs non-lus
+- Réf : P135.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:39-68`, `takussan-web/src/lib/queries/conversations-list.ts:48-80`, `takussan-web/src/components/messages/ConversationList.tsx:29,61`, `takussan-web/src/components/chat-widget/useUnreadCount.ts:25-44`
+- Constat :
+  - `useConversations` demande `page=1` et `per_page=30`, et aucun de ses deux appelants ne demande de page suivante (lu, `conversations-list.ts:74-75`, `ConversationList.tsx:29`, `useUnreadCount.ts:28`).
+  - La liste n'a ni pagination ni défilement infini, au contraire du fil des messages (`ChatView.tsx:72-207`) (lu).
+  - Mesuré (test temporaire, retiré) : 35 conversations actives, la plus ancienne porte un message non lu d'un autre participant, requête exacte du front → 30 lignes sur `meta.total` = 35, la plus ancienne absente, somme des `unread_count` de la page = 0.
+  - La pastille de la barre latérale et du widget additionne `unread_count` sur cette seule page (lu, `useUnreadCount.ts:31-43`). Un message reçu dans une conversation hors des 30 la fait remonter en tête (`MessageObserver` met `last_message_at` à jour) : le non-lu se voit alors (déduit, à vérifier). Ce qui reste perdu, c'est l'accès aux conversations anciennes.
+- Piste : paginer la liste (défilement infini comme `ChatView`), ou une recherche ; faire compter les non-lus par l'API (un total dans `meta`) plutôt que par la page. Test : 35 conversations, la 35ᵉ atteignable depuis la liste.
+
+### Le calendrier d'un bien ne montre que ses 100 plus anciens séjours confirmés : passé ce nombre, les séjours à venir n'apparaissent plus
+- Réf : P135.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/lib/queries/property-calendar.ts:25-37`, `takussan-web/src/components/property-dashboard/PropertyCalendarPanel.tsx:51-58,80-86`, `takussan-api/app/Models/Booking.php:44-46`, `takussan-api/app/Models/Enums/BookingStatus.php:11`
+- Constat :
+  - `usePropertyConfirmedStays` demande les réservations `confirmed` du bien, `sort=start_date` croissant, `per_page=100`, sans borne de date et sans page suivante (lu, `property-calendar.ts:30-35`). `Booking` ne propose aucun filtre de date (lu, `Booking.php:44`).
+  - Le calendrier peint en « réservé » les nuits de cette seule page (lu, `PropertyCalendarPanel.tsx:56-58,83`). Les indisponibilités, elles, sont bornées d'aujourd'hui à un an (lu, `:51-55`).
+  - Aucun code de l'application ne fait passer une réservation de `confirmed` à `completed` : `grep -rn "BookingStatus::Completed" app` → trois listes de constantes (`PortfolioMetrics`, `ReviewEligibility`, `BookingService`), aucune écriture (mesuré). Les séjours passés restent donc `confirmed` et occupent la page. En base de développement, les 232 `completed` viennent des seeders (mesuré, `SELECT status, count(*) FROM bookings`).
+  - Conséquence : dès le 101ᵉ séjour confirmé d'un bien de courte durée, les séjours les plus récents, donc ceux à venir, sortent de la page triée par date croissante, et le calendrier montre libres des nuits réservées (lu ; à vérifier sur un bien à plus de 100 séjours).
+- Piste : borner la lecture comme celle des indisponibilités (`end_date ≥ aujourd'hui`, filtre à ajouter côté API) ou trier par `-start_date` et lire toutes les pages. Test : bien à 101 séjours confirmés, le dernier à venir est peint.
+
+### Le choix du bien d'un nouveau bail et celui du bail d'un état des lieux s'arrêtent à la première page, sans recherche
+- Réf : P135.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/leases.ts:92-117`, `takussan-web/src/components/leases/CreateLeaseForm.tsx:64,122,148-157`, `takussan-web/src/components/inventory/InventoryLeasePicker.tsx:28-57`
+- Constat :
+  - Le formulaire de bail lit les biens louables par `useLeasePropertyOptions`, `sort=title`, `per_page=100`, sans page suivante, et les rend dans un `EntitySelect` sans recherche serveur (lu, `leases.ts:109-111`, `CreateLeaseForm.tsx:122,148-157`). Le locataire, lui, a une recherche serveur (lu, `:160-175`). Au-delà de 100 biens louables, ceux qui viennent après dans l'ordre alphabétique ne se choisissent pas (déduit, à vérifier).
+  - `InventoryLeasePicker` lit `useLeases({ status: 'active', per_page: 50 })` et rend chaque bail en lien, sans pagination ni recherche (lu, `:28,54-57`). Au-delà de 50 baux actifs, les plus anciens ne s'ouvrent plus depuis cet écran : il faut un lien `?lease=` venu d'ailleurs (déduit, à vérifier).
+  - Rien n'avertit que la liste est coupée dans les deux écrans (lu).
+- Piste : une recherche serveur (`filter[search]`), comme pour le locataire, ou une lecture de toutes les pages ; et le compte `meta.total` affiché quand la liste est coupée. Test : 101 biens louables, le 101ᵉ se trouve.
+
+### Trois listes sans pagination coupent sans le dire : relevés bancaires, tâches d'un client, avis rédigés
+- Réf : P135.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/reconciliation.ts:31-37`, `takussan-web/src/components/admin/reconciliation/StatementsList.tsx:35,47`, `takussan-web/src/lib/queries/pipeline.ts:112-127`, `takussan-web/src/components/pipeline/CustomerDetailSheet.tsx:119-122`, `takussan-web/src/components/crm/CustomerTasksPanel.tsx:40,101`, `takussan-web/src/lib/queries/reviews.ts:70-81`, `takussan-web/src/components/profile/ProfileReviewsList.tsx:79-80`
+- Constat :
+  - Relevés bancaires : `useBankStatements` demande 50 relevés (`-created_at`), et `StatementsList` rend `query.data.data` sans pagination (lu). Au-delà de 50 relevés importés, les plus anciens ne s'ouvrent plus (déduit, à vérifier).
+  - Tâches d'un client : `fetchCustomerTasks` demande 50 tâches, `sort=due_at` croissant, terminées et annulées comprises, et rend `res.data` (lu, `pipeline.ts:117-127`). Le panneau du pipeline compte les tâches ouvertes sur cette page (lu, `CustomerDetailSheet.tsx:121`), et `CustomerTasksPanel` n'a pas de pagination (lu, `:101`). Les tâches terminées aux échéances anciennes prennent les premières places : passé 50 tâches, le compte sous-estime les tâches ouvertes et les dernières ne s'affichent pas (déduit, à vérifier).
+  - Avis rédigés : `useAuthoredReviews` demande 50 avis, et « Mes avis » les rend sans pagination (lu, `reviews.ts:70-81`, `ProfileReviewsList.tsx:79-80`). L'enjeu est faible.
+- Piste : pagination, ou lecture de toutes les pages, selon l'écran. Pour les tâches, faire compter les tâches ouvertes par l'API (filtre de statut et `meta.total`). Test par liste : un élément de plus que la page reste atteignable.
+
+### Petites améliorations des listes écrites à la main
+- Réf : P135.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:30,67`, `takussan-web/src/lib/queries/conversations-list.ts:59-75`, `takussan-web/src/lib/queries/properties-server.ts:354-363`, `takussan-web/src/lib/queries/properties.ts:60`, `takussan-api/app/Http/Controllers/Api/PropertyPriceHistoryController.php:13-18`
+- Constat :
+  - `useConversations` envoie `filter[status]` et `filter[property_id]`, mais le contrôleur ne lit que `archived` (lu, `ConversationController.php:30`). Aucun appelant ne passe ces paramètres aujourd'hui, ils sont donc inertes (lu, `useConversations({})` aux deux sites).
+  - La liste des conversations trie `orderByDesc('last_message_at')` sans départage par `id` : deux fils de même horodatage peuvent changer de page d'une requête à l'autre (lu). Sous PostgreSQL, un `last_message_at` nul passerait en tête (`DESC` met `NULLS FIRST`). Aucun fil ne l'est en base de développement (mesuré : 0 sur 240), et les trois créateurs de conversation le posent ou envoient un message aussitôt (lu, `ConversationController.php:96-120`, `PublicPropertyController.php:1133`) : seulement à vérifier pour les groupes de `GroupConversationService`.
+  - `fetchPropertyPriceHistory` n'a aucun appelant, hors sa réexportation (mesuré : `grep -rn fetchPropertyPriceHistory takussan-web/src` → la définition et `properties.ts:60`). La route `GET /api/properties/{p}/price-history` n'a donc aucun lecteur front, et la page publique lit `price_history` dans la ressource du bien (lu, `PropertyDetailContent.tsx:225`).
+- Piste : retirer les filtres inertes, ou les faire lire à l'API ; départager par `id` ; retirer le fetcher mort, puis la route si P13.08 la confirme sans appelant.
