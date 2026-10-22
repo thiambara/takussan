@@ -38,8 +38,26 @@ class UpdatePropertyCollaboratorRequest extends BaseFormRequest
     {
         return [
             'role' => ['sometimes', Rule::enum(CollaboratorRole::class)],
-            'commission_share' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
+            // TCK-1448 (P86.03) — une part positive n'est permise qu'au rôle `agent`, celui que la
+            // ligne aura après la modification.
+            'commission_share' => [
+                'sometimes', 'nullable', 'numeric', 'min:0', 'max:100',
+                Rule::prohibitedIf(fn () => $this->roleApres() !== CollaboratorRole::Agent
+                    && (float) $this->input('commission_share') > 0),
+            ],
         ];
+    }
+
+    /** Le rôle de la ligne après la modification : celui demandé, à défaut le sien. */
+    public function roleApres(): ?CollaboratorRole
+    {
+        if ($this->has('role')) {
+            return CollaboratorRole::tryFrom((string) $this->input('role'));
+        }
+
+        $role = $this->route('collaborator')->role;
+
+        return $role instanceof CollaboratorRole ? $role : CollaboratorRole::tryFrom((string) $role);
     }
 
     /**

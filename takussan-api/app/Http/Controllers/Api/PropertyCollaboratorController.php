@@ -8,6 +8,7 @@ use App\Http\Requests\Api\StorePropertyCollaboratorRequest;
 use App\Http\Requests\Api\UpdatePropertyCollaboratorRequest;
 use App\Http\Resources\IncludedUserResource;
 use App\Http\Resources\PropertyCollaboratorResource;
+use App\Models\Enums\CollaboratorRole;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
@@ -71,6 +72,12 @@ class PropertyCollaboratorController extends Controller
         abort_if($collaborator->property_id !== $property->id, 404);
 
         $data = $request->validated();
+
+        // TCK-1448 (P86.03, ADR-0049 « Ventilation » § 1) — une ligne qui quitte le rôle `agent`
+        // n'est plus servie par le grand livre : sa part, qui comptait dans le plafond, est retirée.
+        if (array_key_exists('role', $data) && $request->roleApres() !== CollaboratorRole::Agent) {
+            $data['commission_share'] = null;
+        }
 
         $collaborator = DB::transaction(function () use ($property, $collaborator, $data) {
             $collaborator = $this->relireSousLeVerrouDuBien($property, $collaborator);
