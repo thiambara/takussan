@@ -183,7 +183,7 @@ voie d'écriture (angle 13, puis 47).
 | 107 | Champs du profil que l'utilisateur déclare pour être joint (`phone_whatsapp`, `secondary_phone`, `secondary_phone_whatsapp`, `preferred_language`, heures calmes) : lus par les chemins qui envoient (canaux de notification, codes, relances), ou seulement affichés ? | fait |
 | 108 | Ce que l'API tire encore de la requête sur le chemin interne du front (relais BFF, `impersonation/proxy`, `apiFetch` serveur) hors des URL rendues : `Location` des redirections que le `fetch` de Node suit seul (`PrivateMediaAccess::redirect`, téléchargements), `$request->secure()`, `getHost()` et `root()` lus par le code | fait |
 | 109 | Images des PDF rendus par dompdf, `is_remote_enabled` laissé à faux (`spatie/laravel-pdf`, aucun `config/laravel-pdf.php`) : le logo d'agence passé en URL R2 (`DocumentPdfService::prepareData`, `getFirstMediaUrl('logo')`), les photos et signatures d'état des lieux — rendus, absents en silence, ou lus depuis le disque local | fait |
-| 110 | Rapprochement bancaire (`bank_reconciled_at`, `bank_statement_line_id`, `Accounting\ReconciliationManager`) d'une échéance, d'un acompte ou d'une facture passés à `refunded` après rapprochement : la ligne de relevé reste-t-elle rapprochée, et le remboursement sortant a-t-il un pendant | à faire |
+| 110 | Rapprochement bancaire (`bank_reconciled_at`, `bank_statement_line_id`, `Accounting\ReconciliationManager`) d'une échéance, d'un acompte ou d'une facture passés à `refunded` après rapprochement : la ligne de relevé reste-t-elle rapprochée, et le remboursement sortant a-t-il un pendant | fait |
 | 111 | Jobs en file qui posent un statut de suivi (`processing`, `queued`) sur une ligne (`ReportExport`, `DataExport`, `ParseBankStatementJob`, versements) sans `failed()` — 7 jobs sur 43 en ont un : ce que voit l'utilisateur après l'échec définitif ou un arrêt brutal du worker, et ce qui bloque une nouvelle demande | à faire |
 | 112 | Exports synchrones de `ExportController` (`GET /api/exports/{entity}`, jusqu'à 10 000 lignes, 2 000 en PDF) et de `PrivacyRequestController` : requêtes par ligne des constructeurs d'entité, mémoire et durée dans la requête HTTP — le relevé de l'angle 78 sur les exports qui ne passent pas par un job | à faire |
 | 113 | Appels du navigateur vers l'API sans délai (`useApiQuery`, `apiRequest` client, mutations TanStack, `fetch` direct des composants) : bouton `isPending` figé et requête jamais abandonnée sur un réseau mobile qui ne coupe pas — le pendant client de l'angle 79 | à faire |
@@ -215,6 +215,7 @@ voie d'écriture (angle 13, puis 47).
 | 138 | Lectures de l'API dédoublées dans un même rendu serveur : server actions `*Action` (`fetchAgencyAction`, et leurs pareilles) appelées par des pages et des layouts serveur qui relisent une ressource déjà lue hors de `cache()` (`agenceDuRendu`, `getMeAction`), mesurées par requête sur un document servi | à faire |
 | 139 | Colonnes déclarées par les exporteurs (`ActivityLogExporter::COLUMNS`, constructeurs d'entité d'`ExportController`, exports de rapports, archive RGPD `DataExportBuilder`) qu'aucun chemin n'écrit, ou qui lisent une clé que l'écrivain nomme autrement : colonne toujours vide dans le fichier rendu — le relevé de P108.02 sur les autres exports | à faire |
 | 140 | PDF figés face aux PDF recomposés à chaque téléchargement (`DocumentPdfService::store`, `signed_contract` de `LeaseSignatureService`, contre `InventoryController::downloadPdf`, `DocumentPdfController::stream*`, quittance publique `PublicPaymentLinkController::receipt`) : ce qu'un document signé ou acquitté imprime après un changement de l'agence, du bien, du locataire, d'un réglage ou d'un gabarit | à faire |
+| 141 | Encaissements soldés par une intégration de la plateforme (`PlatformPayoutService::isSettledByPlatform`) face au relevé de l'agence : proposés un à un par `ReconciliationMatcher` à un crédit qui ne les porte pas, et virement de clôture `PlatformPayout` qu'aucun candidat (`ALLOWED_PAYMENT_TYPES`, `fetchCandidates`) ne représente | à faire |
 
 ---
 
@@ -10748,3 +10749,56 @@ déjà relevée).*
   - **`docs/configuration.md`** prescrit `LARAVEL_PDF_DRIVER=cloudflare` (§ 3.11, l. 350) quand `.env.example`, `.env.docker`, `phpunit.xml` et le plan d'auto-hébergement disent `dompdf` (lu).
   - **État des lieux recomposé au téléchargement** (`InventoryController::downloadPdf`, lu) : une fois le logo embarqué (P109.01), le PDF d'un état des lieux signé changera avec le logo courant de l'agence ; l'empreinte imprimée ne couvre pas le logo (à vérifier dans `InventorySignatureService::traceabilityHash`).
 - Piste : corriger le commentaire (A6), donner à la fabrique un vrai PNG d'un pixel, aligner `docs/configuration.md` sur le pilote déclaré, et décider si le logo d'un état des lieux signé se fige.
+
+## Angle 110 — Rapprochement bancaire d'un encaissement remboursé après coup
+
+*Exploré le 2026-10-22 sur `pre-dev` 6d216605a, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : `ReconciliationManager`, `ReconciliationMatcher`, `PaymentSearchService`, la branche `REFUNDED` de `PaymentGatewayService` (l. 796-830) et `applyPendingRefund` (l. 1362-1395), `BookingPaymentService::refund`, `InvoiceService` (`markPaid`, `cancel`), `OverdueReminderService`, `BankStatementLineResource`, `StatementDetail.tsx`, ADR-0039. Mesuré par un test Feature temporaire (`tests/Feature/TmpExplorateur/SondeP110Test.php`, retiré depuis), par les services et non par HTTP, pour ne pas passer la 2FA des sorties d'argent. Charge 2,85 / 3,94 / 4,20 sur 8 cœurs. Il n'existe que deux chemins vers `refunded` : le webhook (loyer ou acompte) et le geste manuel `POST /api/booking-payments/{p}/refund` (acompte seul). Une facture n'a pas de statut `refunded`, et le webhook n'y écrit rien (`writeStatus`, l. 1565-1595, question ouverte D-51). Voir les angles 25 (rapprochement), 39 et 76 (effets d'un remboursement). Ce qui tient : la caution rendue passe par un `Payout`, et son débit se rapproche de ce reversement (ADR-0039 l. 151-160, `DepositRefundService.php:136-161`) ; un `Payout` `completed` ne repasse à aucun autre statut (`PayoutService.php:356,385`) ; aucun rapport ni export ne lit `bank_reconciled_at`, qui ne sert qu'à écarter un payable des candidats (mesuré, `grep -rn bank_reconciled_at app` : modèles, `Accounting`, `PayoutResource`).*
+
+### Le débit d'un remboursement d'acompte ou de loyer n'a rien à quoi se rapprocher : le relevé ne peut plus se clore « rapproché » qu'en ignorant la ligne
+- Réf : P110.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Accounting/ReconciliationManager.php:55-74`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:49-51,132-150`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:35-43,140-165`, `takussan-api/app/Services/Model/BookingPaymentService.php:57-100`
+- Constat :
+  - Un débit ne se rapproche que d'un `Payout` `completed` : le matcher (l. 49-51, 132-150), la recherche manuelle (l. 40-43) et la confirmation (l. 59-74) (lu). Le remboursement d'un acompte (`BookingPaymentService::refund`) et celui d'un loyer (webhook) ne créent aucun `Payout` : ils écrivent le statut et `refund_amount` sur le payable, rien d'autre (lu, `BookingPaymentService.php:91-95`, `PaymentGatewayService.php:803-811`).
+  - Mesuré (test temporaire) : acompte de 100 000 payé, remboursé en entier ; débit de 100 000 à J+4 → `suggestFor` rend `null`, `search(…, Debit)` rend 0 candidat ; `confirmMatch` du débit sur l'acompte remboursé → 422 `payment_type` « A credit is reconciled with a collection, a debit with a payout. » ; `finalize` → `partially_reconciled`.
+  - La caution rendue, elle, a son pendant : un `Payout` que le débit trouve (ADR-0039 l. 151-160). Le remboursement d'acompte que l'agence déclare à la main est de l'argent qui sort de son compte (le geste refuse un acompte soldé par la plateforme, TCK-1160) ; il est sous step-up comme les autres sorties (`MoneyOutTwoFactorTest`), mais le relevé ne peut pas le confronter à son débit.
+  - Le remboursement partiel que P76.02 (b) laisse `paid` avec son `refund_amount` aura le même défaut : son débit est un montant que rien ne porte (déduit, à vérifier après P76.02).
+  - Établi comment : lu, puis mesuré.
+- Piste : décider ce qui représente un remboursement sortant au relevé : un `Payout` comme la caution rendue (ADR-0039), ou un débit rapprochable du payable remboursé à hauteur de `refund_amount` (le sens et le montant attendu changent alors dans `confirmMatch`, le matcher et la recherche). Garde : le scénario mesuré, débit rapproché et relevé `reconciled`.
+
+### Un encaissement rapproché puis remboursé garde son rapprochement, et ni la ligne ni le payable ne le disent
+- Réf : P110.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:796-811,1388-1393`, `takussan-api/app/Services/Model/BookingPaymentService.php:57-100`, `takussan-api/app/Http/Resources/Accounting/BankStatementLineResource.php:33-41`, `takussan-web/src/components/admin/reconciliation/StatementDetail.tsx:200-206`
+- Constat :
+  - Ni la branche `REFUNDED` du webhook, ni `applyPendingRefund`, ni le geste manuel ne lisent ou n'écrivent `bank_reconciled_at`, `bank_statement_line_id` ou la ligne de relevé (lu). Le remboursement n'est refusé ni sur un payable rapproché, ni sur un relevé déjà clos.
+  - Mesuré (test temporaire) : acompte de 100 000 rapproché d'un crédit de 100 000, puis remboursé → `status=refunded`, `refund_amount=100000.00`, `bank_reconciled_at=2026-04-11`, ligne `confirmed`. Un relevé clos `reconciled` le reste.
+  - La ligne rend `matched_payment_type` et `matched_payment_id`, sans statut du payable (lu, ressource l. 33-41), et l'écran l'affiche en « type #id » (lu, `StatementDetail.tsx:200-206`). Aucune ressource de loyer ou d'acompte n'expose `bank_reconciled_at` : seul `PayoutResource` le fait (mesuré, `grep -rn bank_reconciled_at app/Http`). L'agence ne voit donc ni qu'un encaissement rapproché a été remboursé, ni, depuis le paiement, qu'il était rapproché.
+  - L'activité `matched` porte le statut du payable au moment de la confirmation (TCK-828), pas après (lu, `ReconciliationManager.php:151-160`).
+  - Établi comment : lu, puis mesuré.
+- Piste : le crédit a bien eu lieu, et la ligne n'a pas à être défaite. Ce qui manque est le signal : statut du payable rapproché rendu par `BankStatementLineResource` (une relation chargée, sous sparse fieldsets) et affiché, ou trace sur la ligne au remboursement. Le choix entre signaler et refuser rejoint P39.07. Garde : le scénario mesuré, avec le statut lu dans la réponse du relevé.
+
+### Un crédit confirmé sur une facture envoyée ne la solde pas : elle reste relancée, et s'annule par avoir avec sa ligne toujours rapprochée
+- Réf : P110.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Accounting/ReconciliationManager.php:76-82,139-142`, `takussan-api/app/Models/Invoice.php:180-185`, `takussan-api/app/Services/Model/InvoiceService.php:107-147`, `takussan-api/app/Services/Invoice/OverdueReminderService.php:52-56,286`
+- Constat :
+  - `sent` et `overdue` sont rapprochables (lu, `Invoice::RECONCILABLE_STATUSES`, TCK-724 AC4), et la confirmation n'écrit sur le payable que `bank_reconciled_at` et `bank_statement_line_id` (lu, l. 139-142) : la facture reste `sent`.
+  - Les relances partent sur `sent` et `overdue`, sans regarder `bank_reconciled_at` (lu, `OverdueReminderService.php:55-56,286`) : une facture dont le règlement est rapproché peut encore être relancée, puis passer `overdue` (l. 205) (déduit de la lecture, à vérifier).
+  - `cancel()` ne refuse que `paid`, `cancelled` et `void` (lu, `InvoiceService.php:134-138`) : une facture `sent` rapprochée s'annule et reçoit un avoir, alors que son crédit reste `confirmed` sur une facture `cancelled`. C'est le pendant facture de l'angle : la facture n'a pas de `refunded`, mais elle sort de l'encaissé après rapprochement par l'annulation.
+  - Établi comment : lu ; non rejoué sur données.
+- Piste : décider si confirmer un crédit sur une facture `sent` ou `overdue` vaut `markPaid` (dans la transaction de `confirmMatch`), ou si la relance et l'annulation doivent au moins refuser une facture rapprochée. Garde : facture `sent` rapprochée → ni relance, ni annulation sans décision.
+
+### Petites améliorations
+- Réf : P110.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:65-121`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:53-100`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:183-219`
+- Constat :
+  - **Un payable déjà remboursé reste suggéré sans rien dire** : mesuré (test temporaire), acompte de 70 000 remboursé avant l'import du relevé, crédit de 70 000 à J+1 → `BookingPayment#2`, confiance 70. Le crédit a pu arriver, la suggestion n'est pas fausse en soi, mais rien ne dit que le payable est remboursé. Voir P25.07 (« recherche manuelle sans statut »), dont ce cas est une facette de plus.
+  - **`unmatch` libère un payable remboursé**, qui redevient candidat à n'importe quel crédit du même montant (lu, l. 193-209). Sans effet sur le statut, donc mineur.
+  - Établi comment : lu, et mesuré pour le premier point.
+- Piste : rendre le statut du candidat dans la suggestion et dans `MatchCandidate` (le front l'affiche), plutôt que l'écarter : c'est la même lecture que P110.02, à faire ensemble.
