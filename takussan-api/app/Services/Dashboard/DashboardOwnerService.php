@@ -37,7 +37,11 @@ class DashboardOwnerService
         $portfolio = Property::query()
             ->where('user_id', $owner->id)
             ->toBase()
-            ->selectRaw('COUNT(*) AS total')
+            // P127.04 (TCK-1359) — un bien archivé ou vendu a quitté le portefeuille.
+            ->selectRaw('COUNT(*) FILTER (WHERE status NOT IN (?, ?)) AS total', array_map(
+                static fn (PropertyStatus $s): string => $s->value,
+                Property::OUT_OF_PORTFOLIO_STATUSES,
+            ))
             ->selectRaw('COUNT(*) FILTER (WHERE status = ?) AS rented', [PropertyStatus::Rented->value])
             ->selectRaw('COUNT(*) FILTER (WHERE status = ?) AS available', [PropertyStatus::Available->value])
             ->first();
@@ -142,7 +146,7 @@ class DashboardOwnerService
                 static fn (string $m): float => round($leaseIncome[$m] + ($bookingIncome[$m] ?? 0.0), 2),
                 $labels,
             ),
-            'occupancy' => array_map(static fn (string $m): float => $occupancy[$m] ?? 0.0, $labels),
+            'occupancy' => array_map(static fn (string $m): ?float => $occupancy[$m] ?? null, $labels),
             'short_stay_occupancy' => array_map(static fn (string $m): ?float => $shortStay[$m] ?? null, $labels),
             'net_paid_out' => array_map(static fn (string $m): float => $netPaidOut[$m] ?? 0.0, $labels),
         ];

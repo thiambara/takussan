@@ -129,6 +129,34 @@ class DashboardOwnerMetricsTest extends ApiTestCase
         $this->assertEquals([100, 100, 100, 100, 100, 100, 0], $series(), 'passé en vente aujourd\'hui');
     }
 
+    /**
+     * P127.02 (TCK-1355) — un mois où le portefeuille n'avait aucun bien éligible rend `null`, pas
+     * 0 % : rien à occuper n'est pas tout vacant (TCK-1114). Le mois du premier bien, vacant, rend 0.
+     */
+    public function test_p127_02_a_month_without_any_eligible_unit_is_null_not_zero(): void
+    {
+        Carbon::setTestNow('2026-07-15 00:00:00');
+        $agency = Agency::factory()->create();
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $owner = $this->apiActingAsRole('owner', ['agency' => $agency]);
+        Property::factory()->create([
+            'user_id' => $owner->id,
+            'agency_id' => $agency->id,
+            'contract_type' => ContractType::Rent,
+            'rent_period' => RentPeriod::Monthly,
+            'status' => PropertyStatus::Available,
+            'created_at' => '2026-07-01',
+        ]);
+
+        $owned = $this->apiGet('/api/dashboard/owner?include=timeseries&months=3')->assertOk()->json('timeseries');
+        $this->assertSame(['2026-05', '2026-06', '2026-07'], $owned['months']);
+        $this->assertSame([null, null, 0.0], array_map(static fn ($v) => $v === null ? null : (float) $v, $owned['occupancy']));
+
+        $this->actingAsApi($admin);
+        $agencyTs = $this->apiGet('/api/dashboard/agency?include=timeseries&months=3')->assertOk()->json('timeseries');
+        $this->assertSame([null, null, 0.0], array_map(static fn ($v) => $v === null ? null : (float) $v, $agencyTs['occupancy']));
+    }
+
     /** P93.01 (TCK-1173) — même règle pour la courte durée : les nuitées d'un mois passé restent. */
     public function test_p93_01_past_short_stay_months_keep_a_booked_unit_archived_today(): void
     {

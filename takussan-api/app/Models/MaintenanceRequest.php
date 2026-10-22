@@ -107,6 +107,32 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
     }
 
     /**
+     * Les états où une intervention n'attend plus l'équipe : terminée (en attente de la seule
+     * confirmation du demandeur), close, annulée ou refusée. Mêmes quatre que
+     * `AgentPortfolio::CLOSED_MAINTENANCE` et le calendrier (TCK-591).
+     */
+    public const FINISHED_STATUSES = [
+        MaintenanceStatus::Completed,
+        MaintenanceStatus::Closed,
+        MaintenanceStatus::Cancelled,
+        MaintenanceStatus::Rejected,
+    ];
+
+    /**
+     * P127.03 (TCK-1357) — « interventions ouvertes », LE prédicat des tableaux de bord : tout état
+     * hors {@see self::FINISHED_STATUSES} (décision du porteur, 2026-10-22). Les tableaux de bord
+     * comptaient `open` et `in_progress` seuls, et une demande `acknowledged` ou `assigned` sortait
+     * du compteur au moment où elle avançait.
+     */
+    public function scopeOpen(Builder $query): Builder
+    {
+        return $query->whereNotIn('status', array_map(
+            static fn (MaintenanceStatus $s): string => $s->value,
+            self::FINISHED_STATUSES,
+        ));
+    }
+
+    /**
      * TCK-592 — LE périmètre de lecture d'une liste, aligné sur `MaintenanceRequestPolicy::view()` :
      * demandeur, bailleur du bien, personnel de l'agence du bien (agence du profil actif), prestataire
      * assigné tant qu'il est assignable (collaboration et profil actifs).
