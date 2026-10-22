@@ -50,10 +50,16 @@ describe('PAGES_ADMIN', () => {
   // inchangées : un déplacement qui changerait une règle au passage rougit ici.
   it('suit la table de l’ADR-0064 §1 sans changer une exigence', () => {
     expect(PAGES_ADMIN.map((p) => [p.chemin, p.exige])).toEqual([
-      ['/app/agency/team', { role: 'admin', agence: 'standard' }],
-      ['/app/agency/roles', { role: 'admin', agence: 'standard', capacite: 'team.assign_role' }],
+      [
+        '/app/agency/team',
+        { role: 'admin', agence: 'standard', ouvertePar: ['team.invite', 'team.assign_role', 'team.suspend'] },
+      ],
+      [
+        '/app/agency/roles',
+        { role: 'admin', agence: 'standard', capacite: 'team.assign_role', ouvertePar: ['team.assign_role'] },
+      ],
       ['/app/agency', { role: 'admin' }],
-      ['/app/agency/kyc', { role: 'admin', capacite: 'agency.update_kyc' }],
+      ['/app/agency/kyc', { role: 'admin', capacite: 'agency.update_kyc', ouvertePar: ['agency.update_kyc'] }],
       ['/app/agency/billing', { role: 'admin', capacite: 'agency.update_billing' }],
       ['/app/agency/finances', { role: 'admin' }],
       ['/app/agency/finances/reconciliation', { role: 'admin' }],
@@ -149,6 +155,43 @@ describe('pageAccessible / accesDepuis', () => {
       chemins: [],
       espaceIndividuel: false,
     });
+  });
+});
+
+// TCK-1412 (P148.01, P148.02) — la section se juge par capacité (`/api/me/capabilities`),
+// délégations comprises : un profil sans rôle d'administration ouvre la page que sa capacité
+// ouvre (`ouvertePar`), et seulement celle-là. Avant ce ticket, `isAdmin(roles)` lui fermait tout.
+describe('pageAccessible — la section ouverte par capacité (TCK-1412)', () => {
+  const DELEGATAIRE: ContexteAdmin = {
+    roles: ['agent', 'customer'],
+    agence: { kind: 'standard' },
+    // Ce que `/api/me/capabilities` rend à un délégataire `agency_admin` (mesuré, P148.01).
+    capacites: ['team.invite', 'team.assign_role', 'team.suspend', 'agency.update_kyc', 'agency.update_billing'],
+  };
+
+  it("un délégataire agency_admin ouvre l'équipe, les rôles et le KYC, et rien que l'API lui refuse", () => {
+    expect(accesDepuis(DELEGATAIRE)).toEqual({
+      chemins: ['/app/agency/team', '/app/agency/roles', '/app/agency/kyc'],
+      espaceIndividuel: false,
+    });
+  });
+
+  it.each(['team.invite', 'team.assign_role', 'team.suspend'])(
+    "un agent dont le rôle porte %s ouvre la section team (P148.02)",
+    (capacite) => {
+      const chemins = accesDepuis({ ...DELEGATAIRE, capacites: [capacite] }).chemins;
+      expect(chemins).toContain('/app/agency/team');
+      expect(chemins).not.toContain('/app/agency');
+    },
+  );
+
+  it("l'exigence « standard » vaut aussi pour lui, et des capacités inconnues n'ouvrent rien", () => {
+    expect(accesDepuis({ ...DELEGATAIRE, agence: { kind: 'individual' } }).chemins).toEqual(['/app/agency/kyc']);
+    expect(accesDepuis({ ...DELEGATAIRE, capacites: null }).chemins).toEqual([]);
+  });
+
+  it("une capacité qui n'ouvre aucune page ne lui ouvre rien", () => {
+    expect(accesDepuis({ ...DELEGATAIRE, capacites: ['agency.update', 'leases.create'] }).chemins).toEqual([]);
   });
 });
 

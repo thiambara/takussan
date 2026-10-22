@@ -25,7 +25,8 @@ import {
  * Coût : l'agence passe par `resolveAgencyOrNull`, donc par `agenceDuRendu`, `cache()`é par rendu —
  * le layout, la page et la carte du profil partagent UNE requête. Les capacités, de même, par
  * `capacitesDuRendu`. Elles ne sont lues que pour un `agency_admin` (le super-admin passe tout), et
- * seulement quand la page en exige une.
+ * seulement quand la page en exige une — ou, pour un profil sans rôle d'administration rattaché à
+ * une agence, toujours : ce sont elles qui lui ouvrent une page (TCK-1412).
  */
 
 /** L'étiquette de ce module dans les journaux `[access]`. */
@@ -80,8 +81,12 @@ async function contexteAdmin(
   usage: 'decision' | 'affichage',
 ): Promise<ContexteAdmin> {
   const roles = user.roles;
-  // Ni le super-admin (il passe tout) ni un non-admin (il n'a rien) n'ont besoin d'une lecture.
-  if (!isAdmin(roles) || isSuperAdmin(roles)) return { roles, agence: null, capacites: [] };
+  // Le super-admin passe tout : aucune lecture.
+  if (isSuperAdmin(roles)) return { roles, agence: null, capacites: [] };
+  // TCK-1412 (P148.01, P148.02) — un profil sans rôle d'administration ouvre les pages que ses
+  // capacités ouvrent (`ouvertePar`, délégations comprises) : on les lit, mais seulement s'il est
+  // rattaché à une agence. Sans agence, aucune capacité d'agence, donc aucune page.
+  if (!isAdmin(roles) && typeof user.agency_id !== 'number') return { roles, agence: null, capacites: [] };
 
   const token = await getToken();
   let agence: ContexteAdmin['agence'] = null;
@@ -156,7 +161,8 @@ export async function garderPageAdmin(chemin: CheminAdmin): Promise<void> {
   const user = await getMeAction();
   const besoins: Besoins = {
     agence: page.exige.agence === 'standard',
-    capacites: page.exige.capacite !== undefined,
+    // TCK-1412 — sans rôle d'administration, ce sont les capacités qui ouvrent la page.
+    capacites: page.exige.capacite !== undefined || !isAdmin(user.roles),
   };
   const ctx = await contexteAdmin(user, besoins, 'decision');
   if (pageAccessible(page, ctx)) return;

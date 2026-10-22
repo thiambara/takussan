@@ -9,6 +9,7 @@ use App\Support\Audit\PropertyRedactor;
 use App\Support\Export\CsvCell;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ActivityLogExporter
 {
@@ -42,7 +43,7 @@ class ActivityLogExporter
     public function buildPayload(User $user, array $filters, ?int $agencyId): array
     {
         $rows = $this->baseQuery($user, $filters, $agencyId)
-            ->with(['causer', 'causer.platformProfile', 'causer.agencyAdminProfiles', 'causer.agentProfiles', 'causer.ownerProfiles'])
+            ->with(self::auteurEtSonRole())
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (Activity $log) => $this->mapRow($log))
@@ -74,7 +75,11 @@ class ActivityLogExporter
     {
         return [
             'columns' => self::COLUMNS,
-            'rows' => $query->with('causer')->get()->map(fn (Activity $log) => $this->mapRow($log))->all(),
+            // TCK-1416 (P78.02) — le même préchargement que l'export d'agence : avec le seul
+            // `causer`, `profileTypes()` émettait six requêtes par ligne.
+            'rows' => $query
+                ->with(self::auteurEtSonRole())
+                ->get()->map(fn (Activity $log) => $this->mapRow($log))->all(),
             'filename' => $filename,
         ];
     }
@@ -165,5 +170,26 @@ class ActivityLogExporter
             'properties_diff' => $changes,
             'ip_address' => $props->get('ip'),
         ];
+    }
+
+    /**
+     * TCK-1414 (P78.01), TCK-1416 (P78.02) — tout ce que lit `profileTypes()` pour `causer_role`,
+     * préchargé sur l'auteur quand c'est un `User` (`morphWith` : un auteur d'un autre type n'a pas
+     * ces relations). Sans `serviceProviderProfile` ni `tenantLeases`, chaque ligne émettait deux
+     * `exists()` (six avec le seul `causer`). `tenantLeases` est restreinte aux baux en cours,
+     * comme dans `AgencyController::listMembers` (`hasActiveTenantLease` refiltre en mémoire).
+     *
+     * @return array<string, \Closure>
+     */
+    private static function auteurEtSonRole(): array
+    {
+        return ['causer' => fn (MorphTo $causer) => $causer->morphWith([User::class => [
+            'platformProfile',
+            'agencyAdminProfiles',
+            'agentProfiles',
+            'ownerProfiles',
+            'serviceProviderProfile',
+            'tenantLeases' => fn ($q) => $q->whereIn('leases.status', User::ACTIVE_TENANT_LEASE_STATUSES),
+        ]])];
     }
 }
