@@ -11591,7 +11591,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Le dialogue d'attribution d'une demande de contact propose les bailleurs, les comptes bloqués et les agents suspendus, que l'API refuse ensuite en 422
 - Réf : P120.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leads/ContactLeadsInbox.tsx:259-305`, `takussan-api/app/Http/Requests/Api/AssignContactLeadRequest.php:21-28`, `takussan-api/app/Rules/PersonnelDeLAgence.php:37-44`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:177-179`
 - Constat :
@@ -11602,10 +11602,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Le filtre `filter[assignable]=1`, qui rend exactement ce prédicat en SQL, existe sur la même route depuis TCK-1096 et n'est envoyé que par `fetchAgencyAgents` (lu, `User.php:267-282`, `agent-crm.ts:107-114`).
   - Établi comment : lu, puis mesuré.
 - Piste : envoyer `filter[assignable]=1` depuis `AttribuerDialog` (et, faute de tri, `sort=first_name`, comme les autres sélecteurs). Test front : l'URL du dialogue porte `filter[assignable]=1`. Le candidat légitime absent relève de P120.02.
+- Mesure (2026-10-22, 851bd88b9, mesureur) : relu `ContactLeadsInbox.tsx:264-268` (`AttribuerDialog` : `fields[users]` et `per_page=100`, ni `filter[role]` ni `filter[assignable]`, ni `sort`), `AgencyController.php:177-179` (base agent OU bailleur, sans statut), `PersonnelDeLAgence::estPersonnel()` (joignable + `isStaffAt()`), `User::buildAgencyMembersQuery()` (filtre `assignable` = ce prédicat en SQL, docblock « pour les sélecteurs de cible ») ; lancé `ContactLeadInboxTest` (`test_attribuer_exige_crm_assign_et_vise_le_personnel`, `test_m4_une_demande_ne_s_attribue_pas_a_un_agent_suspendu`) et `AgencyMembersListTest::test_member_listing_includes_users_with_only_agent_profile_and_only_owner_profile`, charge 2,66/2,01/1,80 sur 8 cœurs → 3 verts : la liste sans filtre rend le bailleur seul, et `assign` le refuse en 422, comme le suspendu ; `AgencyMembersListTest::test_role_filter_is_bound_to_the_agency_and_assignable_keeps_reachable_staff` épingle déjà ce que rend `filter[assignable]=1`. Le constat tient ; inexact sur un point : `fetchAgencyAgents` n'envoie pas de `sort` (lu, `agent-crm.ts:107-111`), « comme les autres sélecteurs » ne vaut donc pas pour le tri, laissé à P120.05. Classement : A1, la cible attendue est déjà écrite par `PersonnelDeLAgence` et par le filtre `assignable` de TCK-1096, et le correctif retire seulement des options que l'API refuse toujours en 422.
 
 ### Un membre promu administrateur d'agence disparaît de `/members`, donc de tous les sélecteurs, alors que l'API l'accepte comme cible
 - Réf : P120.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : élargir la base de `/members` change ce que voient l'équipe et les délégations, et la piste laisse un choix ouvert
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:177-179`, `takussan-api/app/Models/User.php:249-289`, `takussan-api/app/Http/Controllers/Api/AgencyMemberRoleController.php:120-128`, `takussan-api/app/Http/Controllers/Api/UserRoleController.php:154-160`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:164-170`, `takussan-web/src/components/admin/AuditTrail.tsx:190-207`, `takussan-web/src/lib/queries/agent-crm.ts:107-114`
 - Constat :
@@ -11617,10 +11618,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Un admin créé par la console (`AgencyProvisioningService`, agent + admin) ou par l'onboarding hôte (admin + bailleur) garde un profil de la base et reste listé (lu) : seul le passage par le changement de rôle le fait sortir.
   - Établi comment : lu, puis mesuré.
 - Piste : ajouter `orWhereHas('agencyAdminProfiles', …)` à la base de `listMembers` et d'`AgencyDetailController`, comme `UserAdminController`. Attention au lecteur des délégations : `RoleDelegationService::create` refuse un bénéficiaire sans profil d'agent ni de bailleur (lu, `RoleDelegationService.php:70-75`), et le docblock de `useDelegationCandidates` s'appuie sur l'égalité des deux conditions ; il faudra lui faire envoyer un filtre qui la garde (`filter[role]=agent` et `owner`) ou écarter les admins seuls. Test : agent promu admin, présent dans `filter[assignable]=1` et dans la liste sans filtre, absent des candidats à une délégation s'il ne peut pas en recevoir.
+- Mesure (2026-10-22, 851bd88b9, mesureur) : test temporaire (retiré ensuite), base de test PostgreSQL, charge 2,66/2,01/1,80 sur 8 cœurs : agent actif « promu », super-admin, `PUT /api/agencies/{a}/members/{promu}/role` `agency_admin` → 200, profils `agent=0`, `admin=1` ; puis `GET …/members` sans filtre, avec `filter[role]=agent&filter[assignable]=1`, avec `filter[assignable]=1` seul et avec `filter[role]=agency_admin` → « promu » absent des quatre ; et `GET /api/admin/agencies/{a}/team` → absent aussi (le point « à vérifier » du constat tient : `AgencyDetailController::team` bâtit la même base sans `agencyAdminProfiles`, lu). Relu `AgencyMemberRoleController.php:120-128` (suppression des profils d'agent et de bailleur avant le profil d'admin). Le constat tient en entier. Classement : V7, la piste laisse deux choix (élargir la base de `listMembers` et de `team`, ou garder les profils au changement de rôle) et un troisième sur les candidats à une délégation (`RoleDelegationService::create` refuse l'admin seul), qui changent des listes visibles.
 
 ### Le choix de l'intervenant d'une maintenance ne propose que des prestataires, alors que l'API accepte le personnel de l'agence, comptes bloqués compris
 - Réf : P120.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la piste demande de décider si l'agence peut se confier une intervention ; V2 : élargir ou resserrer qui peut être assigné
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/maintenance.ts:261-280`, `takussan-web/src/components/maintenance/MaintenanceAssignmentBlock.tsx:45-55,143-160`, `takussan-api/app/Services/Maintenance/ProviderEligibility.php:33-42,92-99`, `takussan-api/app/Rules/AssignableProvider.php`
 - Constat :
@@ -11629,10 +11631,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Le personnel est jugé par `isStaffAt()` seul, sans joignabilité, et le prestataire sans `users.status` (lu, l. 68-71 et 92-99) : un agent ou un prestataire au compte `blocked` serait accepté. P88.02 (fait · TCK-1097) a passé quatre autres jugements de cible à `PersonnelDeLAgence::estPersonnel()`, pas celui-ci. Non mesuré, à vérifier.
   - Établi comment : lu.
 - Piste : décider si l'agence peut se confier une intervention depuis l'écran (ajouter le personnel `filter[assignable]=1` aux options) ou si l'API doit cesser de l'accepter ; dans les deux cas, juger la cible par `estPersonnel()` et écarter le prestataire au compte non joignable. Test : agent `blocked` en `assigned_to` → 422.
+- Mesure (2026-10-22, 851bd88b9, mesureur) : relu `ProviderEligibility::isAssignable()` (prestataire à collaboration active OU `isStaffAt()`), `MembershipCapabilityResolver::isStaffAt()` (profil actif ou délégation, aucune lecture de `users.status`), `activeCollaborations()` (statut du profil prestataire, pas du compte), `AssignableProvider` et `maintenance.ts:261-280` (le sélecteur ne lit que `/service-providers`) ; test temporaire (retiré ensuite), même charge : bailleur du bien, `PATCH /api/maintenance-requests/{mr}` `assigned_to` = agent de l'agence au compte `blocked` → **200**, `assigned_to` posé ; même geste avec un prestataire actif au compte `blocked` → **200**. Les deux parties « à vérifier » du constat tiennent. Classement : V7 et V2, la piste elle-même pose le choix (ouvrir le personnel à l'écran ou cesser de l'accepter), et juger la cible par `estPersonnel()` change qui un appelant légitime peut assigner.
 
 ### Le choix du bénéficiaire d'un reversement ne lit que les profils de bailleur actifs, alors que l'API accepte tout profil de l'agence, de tout statut
 - Réf : P120.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : choix du bénéficiaire d'un reversement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/payments/CreatePayoutDialog.tsx:72-84,179-185`, `takussan-api/app/Services/Model/PayoutService.php:84-105`, `takussan-api/app/Http/Requests/Api/StorePayoutRequest.php:46`
 - Constat :
@@ -11641,10 +11644,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Un bailleur dont le profil est passé `inactive` ou `blocked` alors que des loyers encaissés lui restent dus n'est donc pas proposé, et rien d'autre à l'écran ne permet de le choisir (déduit, à vérifier : existence de lignes à reverser pour un tel profil, et intention de TCK-587 pour ce cas).
   - Établi comment : lu.
 - Piste : établir d'abord si un bailleur inactif peut avoir des lignes à reverser ; si oui, lire les bailleurs `active,inactive` (ou ceux qui ont des lignes en attente) dans ce dialogue. Test : bailleur `inactive` avec un loyer encaissé, présent dans les options.
+- Mesure (2026-10-22, 851bd88b9, mesureur) : relu `CreatePayoutDialog.tsx:72-84` (`/api/owners` avec `filter[status]=active`), `PayoutService::create()` (appartenance « sans filtre de statut », TCK-587) et `TeamMemberSuspensionService` (seul chemin qui écrit un statut de bailleur : `blocked` à la suspension) ; test temporaire (retiré ensuite), même charge : bailleur avec loyers de septembre encaissés, profil passé `blocked` → `GET /api/payouts/preparation?landlord_id=…` rend 200, 2 lignes, net 198 000 ; `GET /api/owners?filter[agency_id]=…&filter[status]=active` ne le rend pas, la même requête sans `filter[status]` le rend. Le point « à vérifier » tient pour `blocked` (le statut que l'application écrit), non mesuré pour `inactive`, qu'aucun code n'écrit (lu). Classement : V1, la liste des bénéficiaires d'un reversement règle à qui l'argent sort, et l'intention de TCK-587 pour un bailleur suspendu reste à trancher.
 
 ### Petites améliorations des sélecteurs de personnes
 - Réf : P120.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : ouvrir à l'agent une lecture des cibles et le bouton « Attribuer »
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leads/ContactLeadsInbox.tsx:147-149,264-268`, `takussan-web/src/lib/queries/role-delegations.ts:138-145`, `takussan-web/src/components/admin/roles/CreateDelegationDialog.tsx:90-95`
 - Constat :
@@ -11653,3 +11657,4 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Les docblocks de `useDelegationCandidates` et de `CreateDelegationDialog` affirment que `/members` rend « exactement » la condition de `RoleDelegationService::create` ; c'est vrai aujourd'hui (lu), et cela cessera avec le correctif de P120.02 si le hook n'est pas touché en même temps.
   - Établi comment : lu.
 - Piste : `sort=first_name` dans le dialogue ; ouvrir à l'agent `crm.assign` une lecture des cibles (la route `assignable` bornée au personnel, par exemple) ou garder le bouton et le documenter ; corriger les deux docblocks avec P120.02.
+- Mesure (2026-10-22, 851bd88b9, mesureur) : relu `ContactLeadsInbox.tsx:147-149` (bouton réservé à `isAdmin(user.roles)`, le commentaire dit pourquoi) et `:264-268` (aucun `sort`), `role-delegations.ts:138-145` et `CreateDelegationDialog.tsx:86-97` (« exactement » la condition `isAgentAt || isOwnerAt`, vraie aujourd'hui : la base de `/members` est agent OU bailleur, lu) et la policy des demandes (`crm.assign` dans l'agence) → les trois points tiennent, lu seulement. Classement : V2, la deuxième partie ouvre à un agent une lecture du personnel aujourd'hui réservée à l'admin ; le tri du dialogue serait A1 seul, et les docblocks suivent le choix de P120.02.
