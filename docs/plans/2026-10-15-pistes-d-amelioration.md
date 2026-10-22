@@ -12808,7 +12808,7 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
 
 ### Le tableau de bord de l'agent range les tâches sans échéance haute priorité en dernier
 - Réf : P134.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1260
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:119-125`, `takussan-api/app/Models/Enums/TaskPriority.php`, `takussan-api/database/migrations/2026_04_17_160029_create_tasks_table.php:21`, `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:166-170`
 - Constat :
@@ -12820,6 +12820,7 @@ est déjà corrigé par TCK-1126 (P98.02) et n'est pas repris.*
   - Établi comment : lu, et ordre mesuré sur PostgreSQL.
 - Piste : trier sur le rang de l'enum, comme TCK-1126 l'a fait pour les annonces (`CASE priority WHEN … END`, rangs pris de `TaskPriority::cases()`), dans une classe réutilisable par `sort=priority` (voir P134.03). Test : deux tâches sans échéance, `low` et `high`, la `high` sort la première ; ablation par le retour à `orderByDesc('priority')`.
 - Mesure (2026-10-22, 294f70acc, mesureur) : relu `DashboardAgentService.php:119-125` (`orderByRaw('due_at IS NULL, due_at asc')` puis `orderByDesc('priority')`, `limit(5)`), `TaskPriority.php` (`low`, `medium`, `high`), migration `create_tasks_table.php:21` (`string('priority')`), `StoreTaskRequest.php:55` (`due_at` `nullable`) ; `php artisan tinker` en lecture, `select p from (values ('low'),('medium'),('high')) t(p) order by p desc` → `["medium","low","high"]` ; `DashboardAgentTest.php:121` ne lit que `items.0` d'une liste à une tâche ; `git log` du service → aucun correctif depuis → le constat tient, lignes inchangées. Classement : A1, l'intention « la plus haute priorité d'abord » est écrite par l'appel `orderByDesc('priority')` lui-même et TCK-1126 a tranché la même forme pour les annonces ; le correctif ne touche ni montant, ni droit, ni schéma.
+- Mesure (2026-10-22, c072bdc37, implementeur) : test ajouté à `DashboardAgentTest`, trois tâches sans échéance `low`, `medium`, `high` → `tasks.items.0.priority` = `medium` avant correctif (rouge) ; `App\Sorts\TaskPrioritySort` (rang de `TaskPriority::cases()`, forme de TCK-1126) remplace `orderByDesc('priority')` → `high`, `medium`, `low`, 6/6 verts ; ablation (retour à `orderByDesc('priority')`) → 1 rouge. `sort=priority` (P134.03) non branché.
 
 ### La bibliothèque de documents range les pièces RIB et NINEA en tête, sous un titre de groupe sans libellé
 - Réf : P134.02
