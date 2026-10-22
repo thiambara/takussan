@@ -52,7 +52,13 @@ export function MaintenanceBanner() {
   const t = useTranslations('announcements');
   const locale = useLocale();
   const { dateTime } = useFormatteurs();
-  const query = useQuery({ queryKey: ['maintenance-status'], queryFn: fetchStatus, refetchInterval: 60_000 });
+  // TCK-1227 (P103.08) — 60 s avec une session, 5 minutes pour un visiteur sans session
+  // (décision du porteur, 2026-10-22) ; `refetchOnWindowFocus` reste celui du client.
+  const query = useQuery({
+    queryKey: ['maintenance-status'],
+    queryFn: fetchStatus,
+    refetchInterval: user ? 60_000 : 300_000,
+  });
   const status = query.data?.data;
   const fenetre = status?.window;
   const isSuperAdmin = user?.roles?.includes('super_admin') ?? false;
