@@ -11682,7 +11682,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### La passation d'une intervention ne fait pas entrer le repreneur dans le fil de l'intervention, ne le prévient pas et lui laisse l'acceptation du partant
 - Réf : P121.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : passer par assign() archive et vide le devis du partant
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Agency/AgentHandoverService.php:203-211`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:107-142`, `takussan-api/app/Listeners/Maintenance/SyncMaintenanceConversation.php:90-108`, `takussan-api/app/Services/Messaging/ConversationAccess.php:38-50`
 - Constat :
@@ -11695,10 +11695,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - `AgentHandoverTest.php:150` ne vérifie que `assigned_to` (lu).
   - Établi comment : lu, puis mesuré.
 - Piste : passer chaque intervention par `MaintenanceRequestService::assign($mr, $successor, $actor)` dans la transaction de la passation (l'événement est `ShouldDispatchAfterCommit`, d'après l'en-tête de l'écouteur : à vérifier qu'il part bien après la transaction englobante). Test : après la passation, le repreneur est participant actif du fil et lit ses messages, le partant n'y est plus, `accepted_at` est nul, et un `MaintenanceStatusChanged` `assigned` est émis par intervention.
+- Mesure (2026-10-22, a988d3f51, mesureur) : relu `AgentHandoverService.php:203-211` (inchangé depuis 851bd88b9, `git log` vide sur les fichiers cités), `MaintenanceRequestService::assign()` (l. 107-142, « LE chemin de l'assignation », remet `accepted_at` à nul, appelle `resetQuoteOfPreviousProvider`, émet `MaintenanceStatusChanged`) et `AgentPortfolio.php:87-90` (les demandes `completed`, `closed`, `cancelled` sont exclues, donc le 422 de `assign()` sur `completed` n'est pas atteint) ; test temporaire retiré (charge 1,75 / 1,76 / 1,72 sur 8 cœurs) : intervention `open` assignée au partant par `assign()`, fil créé, `accepted_at` posé, passation `successor_id` → 200, `moved.maintenance = 1`, `assigned_to` = repreneur, `accepted_at` inchangé, 0 `MaintenanceStatusChanged`, participants actifs `[admin, partant, demandeur]` sans le repreneur, `ConversationAccess::allows()` faux pour le repreneur et vrai pour le partant, `GET /api/conversations/{id}/messages` par le repreneur → 403 → le constat tient en entier. Classement : V1, le correctif attendu (TCK-591 § Contraintes 3 et l'en-tête de `assign()` le prescrivent) archive et vide le devis approuvé du partant et ramène la demande en `quote_requested`, ce que la passation ne fait pas aujourd'hui.
 
 ### Un repreneur déjà lecteur, gestionnaire ou co-propriétaire du bien fait disparaître la collaboration d'agent du partant, que la réponse compte « déplacée »
 - Réf : P121.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : le sort de la part de commission du partant est à décider
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Agency/AgentHandoverService.php:237-251`, `takussan-api/app/Services/Property/ResponsibleAgentAssigner.php:68-86`
 - Constat :
@@ -11708,10 +11709,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Le même chemin, pour un repreneur `co_owner`, supprime aussi la ligne d'agent (lu, non mesuré).
   - Établi comment : lu, puis mesuré.
 - Piste : quand `$taken` et que la ligne du repreneur n'est pas `agent`, la passer en `agent` comme le fait `ResponsibleAgentAssigner` (`viewer`, `manager`), et ranger en `unassigned` le cas `co_owner` au lieu de le compter déplacé. Le sort de `commission_share` (reportée, additionnée ou perdue) est un choix à écrire. Test : repreneur `viewer` → sa ligne devient `agent` ; repreneur `co_owner` → `unassigned.collaborations` porte la ligne.
+- Mesure (2026-10-22, a988d3f51, mesureur) : relu `AgentHandoverService.php:237-251` et `ResponsibleAgentAssigner.php:68-86`, inchangés ; test temporaire retiré : bien d'un bailleur, principal un autre membre, partant `agent` non marqué avec `commission_share` 30, repreneur `viewer` ; passation `successor_id` → 200, `moved.collaborations = 1`, `unassigned = []`, lignes ensuite `{repreneur, viewer, commission_share null}` et `{autre, agent, principal}`, la ligne du partant et sa part ont disparu → le constat tient ; le cas `co_owner` reste lu seulement. Classement : V1, la Piste elle-même laisse à écrire le sort de `commission_share` (reportée, additionnée ou perdue), et la promotion du repreneur en `agent` change qui touche une commission.
 
 ### Avec un repreneur par catégorie, un bien que le repreneur des biens n'a pas pu prendre reçoit pour agent principal celui des collaborations, et la réponse l'annonce « non attribué »
 - Réf : P121.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : qui reçoit la marque quand le repreneur des biens est refusé
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Agency/AgentHandoverService.php:213-222`, `takussan-api/app/Services/Agency/AgentHandoverService.php:237-251`, `takussan-api/app/Services/Property/PrimaryAgentDesignator.php:92-107`
 - Constat :
@@ -11721,10 +11723,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - La réponse dit le bien « non attribué » alors que B en est le contact public. P88.01 avait relevé la même réécriture pour un repreneur bloqué ; elle a été fermée en amont par la requête (TCK-1095), pas dans le service (voir P88.01).
   - Établi comment : lu, puis mesuré.
 - Piste : dans `collaborations`, quand la ligne du partant est marquée, passer la marque par `assignResponsible()` aussi quand le repreneur n'a pas de ligne (le service la crée), et ranger le bien en `unassigned` si le service refuse. Ou retirer `is_primary` avant de réécrire `user_id`. Test : les deux repreneurs distincts ci-dessus → soit B est désigné par le service, avec son journal, et la réponse le compte déplacé ; soit le bien reste sans marque et la réponse le dit.
+- Mesure (2026-10-22, a988d3f51, mesureur) : relu `AgentHandoverService.php:213-222` et `:237-251`, inchangés ; test temporaire retiré : partant principal, A `co_owner` du bien, `successors = {responsible_properties: A, collaborations: B}` → 200, `unassigned.responsible_properties = 1`, `moved.collaborations = 1`, lignes ensuite `{A, co_owner}` et `{B, agent, principal}`, `PrimaryPropertyContact::for()` rend B, aucune entrée `responsible_agent_changed` dans le journal ; la revalidation absente n'a pas été mesurée → le constat tient. Classement : V7, la Piste propose deux comportements visibles différents (B désigné principal par le service, ou bien laissé sans marque), et ADR-0059 ne dit que le service à emprunter, pas lequel des deux repreneurs reçoit la marque.
 
 ### `leave_unassigned` avec `remove_after` laisse au membre retiré la marque d'agent principal et le titre des biens saisis, que la réponse dit « non attribués »
 - Réf : P121.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ce qu'« assumer » laisse au retiré n'est écrit nulle part
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Agency/AgentHandoverService.php:224-228`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:54-84`, `takussan-api/tests/Feature/Agency/AgentHandoverPropertiesTest.php:184-187`
 - Constat :
@@ -11734,10 +11737,11 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Le cas `held_properties` est épinglé tel quel par le test existant : `unassigned.held_properties = 1` et `user_id` resté au partant (lu).
   - Établi comment : lu, puis mesuré.
 - Piste : écrire ce qu'« assumer » laisse au retiré, catégorie par catégorie (spec de TCK-591 §8, ou en-tête de `AgentPortfolio`). Ensuite, soit nettoyer au retrait (marque retirée, ligne supprimée), soit rendre ces restes visibles à l'admin après le retrait. Test : après `remove_after` + `leave_unassigned`, aucune ligne `is_primary` au nom du retiré ; ou bien la réponse sépare « laissé au retiré » de « désassigné ».
+- Mesure (2026-10-22, a988d3f51, mesureur) : relu `AgentHandoverService.php:224-228` et `AgencyMemberRemovalService.php:54-84`, inchangés ; test temporaire retiré : partant principal, A `co_owner`, `successors = {responsible_properties: A}`, `leave_unassigned` et `remove_after` → 200, `removed: true`, `unassigned.responsible_properties = 1`, portefeuille rendu `responsible_properties: 1, collaborations: 1`, ligne `{partant, agent, principal}` restée en base, `PrimaryPropertyContact::for()` rend le bailleur → le constat tient. Classement : V7, la Piste demande d'abord d'écrire ce que le retrait laisse, puis de choisir entre nettoyer (suppression de lignes, V4 possible) et montrer ces restes à l'admin.
 
 ### Petites améliorations
 - Réf : P121.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Agency/AgentHandoverService.php:26-28`, `takussan-api/app/Services/Agency/AgentHandoverService.php:203-211`, `takussan-api/app/Services/Agency/AgentHandoverService.php:293-297`
 - Constat :
@@ -11745,6 +11749,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - L'en-tête et le docblock parlent de la règle de TCK-592 « avant sa fusion ». Cette règle existe aujourd'hui, `ProviderEligibility::isAssignable()`, et la passation ne l'appelle pas (lu).
   - Établi comment : lu.
 - Piste : appeler `ProviderEligibility::isAssignable()` (ou retirer la branche) et corriger les deux commentaires ; à faire avec P121.01 si `assign()` est repris, puisqu'il porte déjà sa propre garde.
+- Mesure (2026-10-22, a988d3f51, mesureur) : relu `AgentHandoverService.php:26-28`, `:203-211` et `:293-297`, inchangés ; `StoreAgentHandoverRequest.php:61` exige `PersonnelDeLAgence::estPersonnel()`, qui exige `isStaffAt()` (`PersonnelDeLAgence.php:40-47`) ; `ProviderEligibility::isAssignable()` existe (`ProviderEligibility.php:33-42`) et rend `isActiveProviderAt || isStaffAt` → la branche l. 209 est inatteignable et les deux commentaires parlent d'une règle « avant sa fusion » déjà fusionnée, lu seulement. Classement : A6, juger l'éligibilité par `ProviderEligibility::isAssignable()` (la règle de TCK-592 que TCK-591 § Contraintes 3 prescrit, même résultat pour un repreneur du personnel) et corriger les deux commentaires ne change aucun résultat.
 
 ## Angle 122 — Écritures qui changent un document indexé sans passer par l'observateur Scout
 
