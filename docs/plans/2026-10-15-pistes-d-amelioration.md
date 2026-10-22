@@ -12613,7 +12613,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### Le bail d'un locataire supprimé continue de courir : relances vers personne, pénalités qui s'appliquent
 - Réf : P130.05
-- Statut : validé — porteur (2026-10-22) : la garde de P130.01 (refus de supprimer une fiche sous bail actif) ferme le cas ; un relevé des fiches déjà supprimées sous bail actif précède tout choix de reprise
+- Statut : fait · TCK-1332 — reste : le relevé des fiches déjà supprimées sous bail actif, avant tout choix de reprise, à faire sur une base de production quand l'API en aura une
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendLeasePaymentReminders.php:179-210`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:74-93`
 - Constat :
@@ -12623,6 +12623,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu ; la pénalité est déduite.
 - Piste : la garde de P130.01 ferme le cas à la source ; pour les fiches déjà supprimées sous bail actif, un relevé (`SELECT` des baux `active` dont `tenant_id` vise une fiche `deleted_at` non nulle) dira s'il en existe avant tout choix de reprise.
 - Mesure (2026-10-22, d94868488, mesureur) : relu `SendLeasePaymentReminders::notifyTenant` (`$lease?->tenant` nul → `Log::info` « locataire injoignable », aucun avis à l'agence) et `ApplyLateFeesJob` (choix des échéances par le bail seul) ; test temporaire (retiré) : client supprimé sous bail actif à `late_fee_percent` 10, loyer `late` échu de 20 jours, `ApplyLateFeesJob::handle` → `late_fee_applied_at` posé : la pénalité s'applique, ce que le constat laissait déduit. Le relevé `SELECT` proposé n'est pas fait : il n'a de sens que sur une base de production, qui n'existe pas pour l'API. Classement : V1, sauter ou reprendre une pénalité est une écriture de montant.
+- Mesure (2026-10-22, 4382e9f60, implementeur) : `CustomerSousBailTest` (neuf) : fiche titulaire d'un bail `active` ou `pending_signature`, `DELETE /api/customers/{id}` par son auteur → 204 avant correctif (rouge) ; `CustomerController::destroy` refuse en 422 `customer.attached_to_open_lease` (forme du garant, statuts `pending_signature` et `active`), fiche intacte ; sans bail, ou bail `terminated` ou `draft` → 204 ; ablation (condition neutralisée) → rouge, remise → 2/2 verts. Un bail `terminating` n'est pas compté, comme pour le garant. `CustomerTest`, `DestroyAuthorizationTest`, `GuarantorTest`, `LangGroupParityTest` verts. P130.01 reste au porteur : la garde qu'il propose est livrée ici.
 
 ### Petites améliorations
 - Réf : P130.06
