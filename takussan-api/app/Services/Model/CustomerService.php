@@ -11,21 +11,22 @@ use Illuminate\Database\Eloquent\Builder;
 
 class CustomerService
 {
-    /** @param array<string,mixed> $data */
+    /**
+     * P158.03 (TCK-1712) — l'agence de la fiche est DONNÉE par l'appelant. Le repli sur l'agence
+     * active de l'acteur faisait naître la fiche dans une agence que l'appelant ne visait pas
+     * (vérification adverse m2 de `ContactLeadService::convert`) : sans agence, rien ne naît.
+     *
+     * @param  array<string,mixed>  $data
+     */
     public function create(array $data, User $actor): Customer
     {
+        if (empty($data['agency_id'])) {
+            throw new \LogicException('CustomerService::create exige un agency_id.');
+        }
+
         return Customer::create(array_merge($data, [
             'added_by_id' => $actor->id,
-            'agency_id' => $data['agency_id'] ?? $actor->agency_id,
         ]));
-    }
-
-    /** @param array<string,mixed> $data */
-    public function update(Customer $customer, array $data): Customer
-    {
-        $customer->fill($data)->save();
-
-        return $customer->refresh();
     }
 
     public function linkUser(Customer $customer, User $user): void
