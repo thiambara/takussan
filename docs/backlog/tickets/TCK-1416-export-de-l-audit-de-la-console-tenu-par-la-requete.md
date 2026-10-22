@@ -3,7 +3,7 @@ id: TCK-1416
 title: "L'export de l'audit de la console précharge le rôle de l'auteur, et son plafond suit ce que la requête tient"
 status: done
 phase: P1
-family: perf
+family: technique
 estimate: S
 wave: null
 created: 2026-10-22

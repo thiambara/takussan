@@ -3,7 +3,7 @@ id: TCK-1418
 title: "Le XLSX de l'export d'audit d'agence est borné à 20 000 lignes mesurées"
 status: done
 phase: P1
-family: perf
+family: technique
 estimate: S
 wave: null
 created: 2026-10-22

@@ -3,7 +3,7 @@ id: TCK-1414
 title: "L'export du journal d'activité ne relit plus les profils de l'auteur à chaque ligne, et son job porte un délai mesuré"
 status: done
 phase: P1
-family: perf
+family: technique
 estimate: S
 wave: null
 created: 2026-10-22
