@@ -3,7 +3,7 @@ id: TCK-1216
 title: "Un loyer remboursé reste terminal, ni dû ni payable : la garde"
 status: done
 phase: P1
-family: test
+family: technique
 estimate: S
 wave: null
 created: 2026-10-22
