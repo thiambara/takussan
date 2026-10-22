@@ -3,7 +3,7 @@ id: TCK-1321
 title: "Page publique de l'agent : ses zones d'intervention, saisies à l'assistant, affichées à côté de la spécialité"
 status: done
 phase: P1
-family: feature
+family: full
 estimate: S
 wave: null
 created: 2026-10-22

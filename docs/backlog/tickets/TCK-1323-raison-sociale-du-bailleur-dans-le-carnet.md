@@ -3,7 +3,7 @@ id: TCK-1323
 title: "Carnet des bailleurs : une société est nommée par sa raison sociale, son contact en dessous"
 status: done
 phase: P1
-family: feature
+family: front
 estimate: S
 wave: null
 created: 2026-10-22

@@ -3,7 +3,7 @@ id: TCK-1325
 title: "Badge « Assuré » au carnet et à l'attribution, dérivé de la pièce d'assurance vivante ; `has_insurance` n'est plus écrit"
 status: done
 phase: P1
-family: feature
+family: full
 estimate: M
 wave: null
 created: 2026-10-22
