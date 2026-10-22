@@ -14146,7 +14146,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### La page d'édition du bien n'efface ni la description, ni la date de disponibilité, ni les nombres mis à « Non précisé »
 - Réf : P149.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1353 — reste : juger l'effacement en édition de `rent_period`, `title_type`, `condition` et `area` (P149.04), classés « non traités » par `champs-effaces.tck-1353.test.ts`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/property-form/wizard/NombreEnListe.tsx:79-81`, `takussan-web/src/lib/schemas/property.ts:126-131,227-231`, `takussan-web/src/components/property-form/payload.ts:159-189`, `takussan-web/src/components/property-form/PropertyForm.tsx:240-252`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:220`
 - Constat :
@@ -14158,6 +14158,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lecture des cinq fichiers, puis le test temporaire. Le rendu à l'écran n'a pas été vu.
 - Piste : étendre `withClearedFields` (ou `toUpdatePayload` en mode `erase`) à tout champ facultatif du formulaire d'édition qui est modifié et laissé vide, en tenant la liste depuis le schéma plutôt qu'à la main. Test dans `property-form/__tests__` : chaque champ facultatif vidé et marqué modifié part à `null`, et un champ jamais touché reste omis. Ablation sur la liste.
 - Mesure (2026-10-22, 1b5063805, mesureur) : relu `NombreEnListe.tsx:79-81` (« Non précisé » → `undefined`), `property.ts:126-131,227-231` (`available_from`, `description` vides → `undefined`), `payload.ts:164-189` (`withClearedFields` ne pose `null` que sur les cinq champs de `CHAMPS_EFFACABLES_TCK598`) et `PropertyForm.tsx:241-251` (seul chemin d'édition) ; test Vitest temporaire (retiré, charge 2,89 / 3,15 / 3,50 sur 8 cœurs) : appartement en location mensuelle, `bedrooms`, `bathrooms`, `year_built`, `floor_number`, `parking_spaces` à `undefined`, `description` et `available_from` à `''`, tous marqués modifiés → `JSON.stringify(withClearedFields(toUpdatePayload(v), v, dirty))` ne porte aucune des sept clés (aucun `null`) ; côté API, `UpdatePropertyRequest.php:48-70` les accepte `sometimes|nullable` et `PropertyController.php:220` fait `fill($data)` des seules clés reçues → le constat tient. Classement : A1, l'attendu est déjà écrit dans le docblock de `withClearedFields` (un champ modifié et laissé vide part à `null`, un champ jamais touché reste omis) et le correctif étend sa liste aux sept champs, sans montant ni texte neuf.
+- Mesure (2026-10-22, 1800d4d36, implementeur) : test neuf `champs-effaces.tck-1353` rouge avant correctif : `propertyFormSchema` → `toUpdatePayload` → `withClearedFields`, appartement en location mensuelle, `bedrooms`, `bathrooms`, `year_built`, `floor_number`, `parking_spaces` à `undefined`, `description` et `available_from` à `''`, marqués modifiés → aucune des sept clés dans le JSON → `CHAMPS_EFFACABLES` étend la liste de TCK-598 à ces champs et à `total_floors` ; une garde classe chaque champ facultatif du schéma ; ablation → 7 rouges, remis → 18 verts (376 dans `property-form/__tests__`).
 
 ### La fiche client modifiée garde l'e-mail, le téléphone, la profession et le type de pièce qu'on vient de vider
 - Réf : P149.02
