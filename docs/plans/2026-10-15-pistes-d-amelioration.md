@@ -236,7 +236,7 @@ voie d'écriture (angle 13, puis 47).
 | 159 | Exemples et formats montrés à la saisie (messages de `lang/*/validation.php` qui citent un exemple, `placeholder` des champs et clés `*Placeholder`, aides sous les champs) face à la règle de l'API qui jugera la valeur : exemple que la règle refuse — né de P125.03 et P125.04 | fait |
 | 160 | `properties.user_id` (le créateur du bien) lu comme le bailleur dans une décision métier sur un bien d'agence saisi par un agent : `OwnerApprovalThreshold::isLandlord` et `MaintenanceQuoteWorkflow` (plafond de travaux d'ADR-0037, devis `awaiting_owner`), `BookingExpirationService::resolveAgent`, `BookingRefundTaskService` — qui tranche, et qui est prévenu, à la place du bailleur — né de P126.04 | fait |
 | 161 | Notifications dont la `NotificationTarget` ouvre un écran que la capacité ou le profil du destinataire ferme (`finances` de `PayoutDue` et `BankStatementImported`, `agency_settings`, `audit`, `review_moderation`, `kyc_review`) : destinataire choisi par une colonne (`issued_by_id`, `uploaded_by_id`) ou par un rôle, et clic qui mène à un 403 — né de P126.03 | fait |
-| 162 | Compteurs « ouverts », « en cours » ou « à traiter » écrits par une liste de statuts à la main (`whereIn('status', [Open, InProgress])` et leurs pareilles sur interventions, tâches, réservations, baux, litiges) face aux états non terminaux de la machine à états ou de l'enum : élément qui avance d'un état et sort du compteur, ou état terminal encore compté — né de P127.03 | à faire |
+| 162 | Compteurs « ouverts », « en cours » ou « à traiter » écrits par une liste de statuts à la main (`whereIn('status', [Open, InProgress])` et leurs pareilles sur interventions, tâches, réservations, baux, litiges) face aux états non terminaux de la machine à états ou de l'enum : élément qui avance d'un état et sort du compteur, ou état terminal encore compté — né de P127.03 | fait |
 | 163 | Bornes de fin saisies en date seule (`<input type="date">`) et rangées dans une colonne `datetime` (délégations de rôle, absences d'agent `StoreAgentAbsenceRequest`, annonces, fenêtres de maintenance, abonnements d'agence) : fin à minuit UTC au début du jour choisi face au libellé « Fin », aux textes « jusqu'au » et aux jobs d'expiration — né de P128.01 | à faire |
 | 164 | Paramètres `text` des notifications codées qui portent un code ou une valeur d'enum (`role` des délégations, statuts, types, motifs hors `reason_code`) : valeur rendue brute par `NotificationRenderer` et par `valeursDeNotification` du front, dans la cloche, le courriel et le SMS — né de P128.02 | à faire |
 | 165 | Lectures `->agency->…` sans `?->` (une vingtaine sous `app/` : `MaintenanceRequestResource.php:302`, `PropertyBoostResource.php:34`, notifications, PDF et gabarits) sur les lignes d'une agence supprimée en douceur, que la portée `SoftDeletes` rend nulle : 500 ou champ vide là où la ligne reste lisible — le pendant pour l'agence de l'angle 130, né de P129.01 | à faire |
@@ -270,6 +270,7 @@ voie d'écriture (angle 13, puis 47).
 | 193 | Avis et textes bâtis sur l'e-mail d'un compte ou d'une invitation (`:email` des notifications, `toMail()` et `routeNotificationForMail`, exports, journaux d'équipe) face aux comptes et invitations sans e-mail depuis TCK-589 (`PHONE_LOGIN_ENABLED`) : texte à trou, courriel vers une adresse nulle, ou personne nommée par rien — né de P155.03 | à faire |
 | 194 | Règles `mimes:` et `mimetypes:` des téléversements (`StoreBankStatementRequest`, documents, pièces jointes, imports ; 13 sous `app/Http/Requests`) face au type que `finfo` lit dans un fichier réel (OFX 2 lu `xml`, CSV à point-virgule, PDF ou image d'un téléphone), et tests qui déposent par `UploadedFile::fake()`, dont le type se déduit du nom : format annoncé à l'écran refusé en 422 sans qu'aucun test le voie — né de P157.05 | à faire |
 | 195 | Seuils de saisie recopiés en constantes du front (`MIN` de `GlobalSearch.tsx`, `MOTIF_MIN`, `REASON_MIN`, `MAX_ATTACHMENT_BYTES`, `AGENCY_LOGO_MAX_BYTES`, `maxLength`, `.min()`/`.max()` des schémas de `src/lib/schemas`) face à la règle de la FormRequest ou au seuil du service qui juge la valeur (`FREE_TEXT_MIN`, `min:`, `max:`) : écran qui laisse passer ce que l'API refuse ou ignore, ou qui refuse ce qu'elle accepte, sans test qui compare les deux — né de P159.01 | à faire |
+| 196 | Cas d'enum déclarés que rien n'écrit, mais que des filtres, compteurs, transitions ou libellés lisent (`AgencySubscriptionStatus::PastDue`, `PaymentStatus::PartiallyPaid` sur les loyers, `PaymentStatus::Late` sur les paiements de réservation, et leurs pareils sous `app/Models/Enums`) : branche qui fait croire à un état géré, compteur toujours nul, ou état réel rangé ailleurs — né de P162.06 | à faire |
 
 ---
 
@@ -15227,3 +15228,92 @@ caractères, qui font échouer le relevé entier (P124.01).*
 - Piste : la garde ci-dessus ; `primaryAdmin` remplacé par les admins actifs qui tiennent `agency.update_kyc` ; les alertes de gouvernance réservées aux agences `standard`, comme `ReviewNotifier::toModerate`.
 - Mesure (2026-10-22, 1673c3991, mesureur) : relu l'en-tête de `check-notification-target-paths.mjs` (l. 18 : « qu'une page EXISTE ne dit pas qu'elle s'ouvre pour le destinataire »), `KycWorkflowService.php:224-238` (`$agency->primaryAdmin`, sans capacité), `AgencyPolicy::updateKyc` (l. 120-128, court-circuit de `primary_admin_id`), `GovernanceAlertService.php:55-72,108-113` (`AdminsDeLAgence::destinataires`, sans `kind`) ; même test temporaire (retiré) : admin principal d'une agence dont le rôle personnalisé ne porte que `team.invite` → `GET /api/me/capabilities` rend `["team.invite"]`, `GET /api/agencies/{id}/kyc` → 200 → le point KYC tient, et l'API le laisse lire là où `pages-admin.ts:80-81` le renvoie ailleurs ; le point des alertes de gouvernance d'une agence `individual` n'a pas été mesuré (à vérifier) ; la garde est absente (lu). Classement : V7, changer les destinataires du verdict KYC (admins tenant la capacité, ou ouvrir la page à l'admin principal comme l'API) et réserver les alertes aux agences `standard` sont des choix ; seule la garde relèverait d'A5.
 - Mesure (2026-10-22, 9edd576f4, delegue) : relu l'entrée, `ReviewNotifier.php:33-40` (l'avis à modérer n'est envoyé qu'à une agence `standard`, le précédent qu'invoque la `Piste`), `pages-admin.ts:80-81,109-110` (`/app/agency/kyc` sous `agency.update_kyc`, `/app/agency/audit` sous `standard`), l'en-tête de `check-notification-target-paths.mjs` → trois points indépendants, dont deux changent qui reçoit un avis, et le troisième, la garde, n'a pas de forme écrite : confronter « aux destinataires de chaque émetteur » ne se lit pas statiquement, et la garde serait rouge tant que P161.01 à P161.03 ne sont pas faits. Recommandation : (1) les alertes de gouvernance réservées aux agences `standard`, comme `ReviewNotifier::toModerate` ; (2) le verdict KYC aux admins actifs qui tiennent `agency.update_kyc`, l'admin principal en repli s'il n'y en a aucun ; (3) la garde en dernier, comme une table « code → exigence de la page de sa cible » confrontée à `PAGES_ADMIN`, sans prétendre lire les destinataires ; pourquoi : (1) suit un précédent écrit, (2) aligne l'avis sur la page plutôt que d'ouvrir la page à l'admin principal comme l'API ; non validé parce que (1) et (2) changent les destinataires d'avis (V7) et que (2) laisse deux options (filtrer les destinataires, ou ouvrir la page à l'admin principal) ; manque : la mesure du second admin actif d'une agence `individual` (« à vérifier » dans le constat) et le choix du porteur entre les deux options du KYC.
+
+## Angle 162 — Compteurs et sélecteurs « en cours » écrits par une liste de statuts à la main
+
+*Exploré le 2026-10-22 sur `pre-dev` e2959c84c, par l'explorateur. Tout a été relu par l'explorateur lui-même, sans sous-agent : les `whereIn`/`whereNotIn('status', …)` et `where('status', …)` de `app/` (92 occurrences, relues une à une hors FormRequests), les enums de statut concernées, et les filtres `status:` du front sous `src/`. Le cas d'origine (interventions, P127.03) est fait par TCK-1357 et n'est pas repris. Quatre constats sont mesurés par un test temporaire retiré (`tests/Feature/Tmp/ExplorateurAngle162Test.php`, charge 3,2 sur 8 cœurs) ; le reste est lu. Écartés après lecture : tâches (deux états non terminaux, tous comptés), visites, réservations, factures, délégations et absences (listes complètes), escalade des urgences (`[open, acknowledged]` : une demande non encore confiée, sens voulu), désassignation d'un prestataire (`UNSTARTED` + `in_progress`, complet).*
+
+### « Devis à valider » du bailleur ne compte pas les devis `awaiting_owner`, les seuls que lui seul peut trancher
+- Réf : P162.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:102-107`, `takussan-api/app/Services/Maintenance/MaintenanceStateMachine.php:47-50`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:143-156`, `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:139-143`
+- Constat :
+  - `quotes_pending` compte `where('status', QuoteSubmitted)` seul (lu, `DashboardOwnerService.php:105`), rendu « Devis à valider » sur l'aperçu du bailleur (lu, `page.tsx:141`, `fr.json` `quotesPending`).
+  - Un devis au-delà du plafond passe `awaiting_owner`, état dont « seul le bailleur sort » (lu, `MaintenanceStateMachine.php:49`) ; `decideQuote` n'y admet que le bailleur, ni l'équipe ni un autre bailleur (lu, `MaintenanceRequestPolicy.php:143-153`).
+  - Mesuré : bailleur avec une intervention `awaiting_owner` et une `quote_submitted` sur son bien → `GET /api/dashboard/owner` rend `maintenance.quotes_pending = 1`.
+  - Établi comment : lu, et mesuré par le test temporaire.
+- Piste : compter `quote_submitted` et `awaiting_owner` par une constante de la machine à états (« devis en attente de décision »), lue aussi par `MaintenanceRequestResource.php:206`, qui pose déjà la même paire en dur. Test : un devis `awaiting_owner` compté.
+
+### Un bail en préavis (`terminating`) sort des baux actifs et du loyer attendu chez le bailleur et l'agence
+- Réf : P162.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:49-54,83,94`, `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:59-64,100`, `takussan-api/app/Http/Controllers/Api/AgencyStatsController.php:38-40`, `takussan-api/app/Observers/LeaseObserver.php:16-20`, `takussan-api/app/Services/Reporting/PlatformMetricsSnapshotter.php:105`, `takussan-api/app/Services/Dashboard/KpiResolver.php:31`, `takussan-api/app/Models/Enums/LeaseStatus.php:11-17`
+- Constat :
+  - L'enum dit d'un bail `terminating` qu'il « reste effectivement actif (loyer dû) » jusqu'à la date d'effet (lu, `LeaseStatus.php:11-16`) ; `HasProfiles::ACTIVE_TENANT_LEASE_STATUSES = [Active, Terminating]` (lu, `HasProfiles.php:43`), et le tableau de bord du locataire compte les deux depuis TCK-1001 (lu, `DashboardTenantService.php:59`).
+  - Le bailleur compte `leases.active` et `finance.expected_monthly` (somme des `monthly_rent`) sur `status = active` seul (lu, `DashboardOwnerService.php:51-53`) ; l'agence de même (lu, `DashboardAgencyService.php:61`), ainsi que `GET /api/agencies/{id}/stats` (lu, `AgencyStatsController.php:39`), le compteur dénormalisé `agencies.active_leases_count` (lu, `LeaseObserver.php:17`) et l'instantané plateforme `leases_active` (lu, `PlatformMetricsSnapshotter.php:105`). La clé `leases_active` nourrit les KPI et les alertes de seuil (lu, `KpiResolver.php:31`).
+  - Mesuré : bailleur avec un bail `active` à 50 000 et un `terminating` à 100 000 → `leases.active = 1`, `finance.expected_monthly = 50000`, alors que le loyer de préavis reste dû.
+  - Établi comment : lu, et mesuré par le test temporaire pour le bailleur ; agence, statistiques, compteur dénormalisé et instantané sont lus (même clause).
+- Piste : une constante unique des baux « en cours » (`Lease::ONGOING_STATUSES = [Active, Terminating]`, que `ACTIVE_TENANT_LEASE_STATUSES` réutilise) lue par ces six sites. Le libellé « baux actifs » ne change pas de sens pour le lecteur ; l'instantané plateforme historisé change de série (à dire). Test : un bail `terminating` compté dans `leases.active` et `expected_monthly`.
+
+### Une fiche client ou un garant se suppriment sous un bail en préavis
+- Réf : P162.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/CustomerController.php:184-194`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:98-107`, `takussan-api/app/Services/Account/AccountDeletionService.php:438-441`
+- Constat :
+  - Le refus `customer.attached_to_open_lease` ne regarde que `[PendingSignature, Active]` (lu, `CustomerController.php:190`), et celui du garant la même paire (lu, `GuarantorController.php:101`). Le motif écrit de P130.05 — bail laissé sans locataire, relances vers personne, pénalités qui courent — vaut pendant le préavis, où le loyer reste dû.
+  - La suppression de compte juge, elle, par `ACTIVE_TENANT_LEASE_STATUSES + PendingSignature` (lu, `AccountDeletionService.php:440`) : trois définitions du « bail ouvert » coexistent.
+  - Mesuré : fiche titulaire d'un bail `terminating`, `DELETE /api/customers/{id}` par son auteur → 204.
+  - Établi comment : lu, et mesuré pour la fiche client ; le garant est lu.
+- Piste : juger les deux refus par la constante de P162.02 plus `PendingSignature` (celle d'`AccountDeletionService::openLeaseStatuses`, à remonter sur le modèle). Étendre `CustomerSousBailTest` à `terminating`, et son pendant garant.
+
+### Un locataire en préavis ne voit plus « Nouvelle demande », alors que l'API accepte sa demande
+- Réf : P162.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:73-92`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:68,101-107`, `takussan-web/src/components/maintenance/MaintenanceList.tsx:124,145`, `takussan-web/src/components/maintenance/MaintenanceNewLauncher.tsx:36`
+- Constat :
+  - `store` admet le locataire d'un bail `ACTIVE_TENANT_LEASE_STATUSES` depuis TCK-1001 (lu, `MaintenanceRequestController.php:101-107`). `openRequests`, qui se dit « les mêmes que `store()` », exige encore `LeaseStatus::Active` (lu, `MaintenanceRequestPolicy.php:90`) ; il rend `meta.abilities.can_create` (lu, l. 68), qui conditionne le bouton de la liste (lu, `MaintenanceList.tsx:124,145`).
+  - Le lanceur de création ne liste que les baux `status: 'active'` (lu, `MaintenanceNewLauncher.tsx:36`) : en préavis, l'écran tombe sur son état vide « contactez l'agence ».
+  - Mesuré : locataire au seul bail `terminating` → `GET /api/maintenance-requests` `can_create = false`, et `POST /api/maintenance-requests` sur ce bien → 201.
+  - Établi comment : lu, et mesuré par le test temporaire ; le lanceur est lu.
+- Piste : `openRequests` lit `User::ACTIVE_TENANT_LEASE_STATUSES` ; le lanceur passe `status: 'active,terminating'` (`filter[status]` est exact, liste acceptée). Test API : `can_create` vrai en préavis ; test du lanceur avec un bail `terminating`.
+
+### Le choix du bail d'un état des lieux écarte les baux en préavis, ceux dont l'état des lieux de sortie approche
+- Réf : P162.05
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/inventory/InventoryLeasePicker.tsx:21-29`, `takussan-web/src/lib/queries/leases.ts:136-150`, `takussan-web/src/components/inventory/InventoryList.tsx:112,131`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:82-92`
+- Constat :
+  - Le sélecteur ne liste que `filter[status]=active` (lu, `leases.ts:147`, via `useAllActiveLeases`) ; son commentaire justifie le filtre par « un bail `draft` ou `terminated` n'a pas d'état des lieux à produire » (lu, `InventoryLeasePicker.tsx:21-23`), sans nommer `terminating`.
+  - C'est le seul chemin de l'équipe vers `/app/inventories/new` (lu, `InventoryList.tsx:112,131` ; l'autre entrée, `TenantOnboardingChecklistWidget.tsx:107`, est celle du locataire).
+  - L'API ne filtre pas le statut : `store` exige seulement `update` sur le bail (lu, `InventoryController.php:89-91`).
+  - Établi comment : lu. Un bail `terminating` est absent du sélecteur par construction de la requête.
+- Piste : `useAllActiveLeases` (ou un paramètre du sélecteur) demande `active,terminating` ; le commentaire nomme les deux. Test du sélecteur : un bail en préavis listé.
+
+### La supervision des paiements compte « en retard » par le statut `late`, que seule la pénalité écrit
+- Réf : P162.06
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Admin/PaymentSupervisionService.php:120-139`, `takussan-api/app/Services/Lease/LateFeeCalculator.php:97-100,155-158`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:174-197`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:72`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:327-339`
+- Constat :
+  - Les échéances de loyer « en retard » de la supervision sont `lp.status = 'late'` (lu, `PaymentSupervisionService.php:123`). Le seul écrivain de `Late` est `LateFeeCalculator::apply` (lu, l. 158 ; mesuré : `grep -rn "PaymentStatus::Late\|'late'" app` ne rend aucun autre écrivain), qui sort sans rien écrire quand `late_fee_percent <= 0` (lu, l. 97-100) et attend la fin du délai de grâce. Une échéance échue d'un bail sans pénalité reste `pending` et n'est jamais comptée.
+  - Le même dépôt sait le dire : `scopeOverdue` prend `late` **ou** `pending`/`partially_paid` échus (lu, `HasPaymentAttributes.php:179-197`), `PortfolioMetrics::overdue` compte les dus par date (lu, l. 327-339), et `SendLeasePaymentReminders` a quitté la même erreur pour TCK-588.
+  - Les paiements de réservation « en retard » sont `bp.status = 'late'` (lu, l. 137), statut que rien n'écrit sur une réservation : `StoreBookingPaymentRequest` n'admet que `paid`, `pending`, `partially_paid` (lu, l. 72), et l'écrivain unique ci-dessus ne touche que `LeasePayment`. La ligne vaut donc toujours 0 (déduit de la lecture, à vérifier par mesure).
+  - Établi comment : lu, et `grep` pour l'unicité de l'écrivain.
+- Piste : la supervision lit `LeasePayment::overdue()` (borné par `due_date` dans la fenêtre) ; pour les réservations, retirer la ligne ou la définir (échéance de réservation dépassée) — choix à écrire. Test : une échéance `pending` échue d'un bail sans pénalité comptée.
+
+### Petites listes « en cours » incomplètes, d'effet plus étroit
+- Réf : P162.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:262-266`, `takussan-api/app/Services/Review/ReviewEligibility.php:38`, `takussan-api/app/Services/Lease/LeaseRenewalService.php:417-426`, `takussan-web/src/lib/queries/leases-active-summaries.ts:20-27`
+- Constat :
+  - Les reversements à venir de l'aperçu du bailleur filtrent `['pending', 'scheduled', 'processing']` (lu, `page.tsx:265`) : un reversement `awaiting_approval` (non terminal, `PayoutStatus::holdingItems()`) n'y figure pas. Voulu ou non : à vérifier.
+  - `ReviewEligibility::LEASE_STATUSES = [Active, Terminated, Expired]` (lu, l. 38) : un locataire en préavis ne peut pas laisser d'avis, avant comme après il le peut. À vérifier.
+  - `guardNoActiveChild` cherche un renouvellement `[Active, PendingSignature, Draft]` (lu, `LeaseRenewalService.php:421-425`) : un renouvellement déjà en préavis n'arrête pas un second renouvellement d'un parent `expired` (`RENEWABLE_PARENT_STATUSES`, l. 53-56). À vérifier.
+  - L'accueil et la check-list du locataire ne lisent que ses baux `active` (lu, `leases-active-summaries.ts:27`) : en préavis, elles le traitent comme sans bail. À vérifier.
+  - Établi comment : lu.
+- Piste : chaque site lit la constante de P162.02 quand l'intention est « bail en cours », et `PayoutStatus` une méthode « en attente » plutôt qu'une liste du front ; les cas voulus le disent en commentaire.
