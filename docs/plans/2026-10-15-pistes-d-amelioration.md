@@ -11647,7 +11647,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Petites améliorations
 - Réf : P119.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1275 — reste : le docblock de `takussan-web/src/lib/queries/role-delegations.ts` dit encore qu'un `sort=` est ignoré et perd l'ordre, alors que `sort=created_at` est désormais servi et qu'un autre tri rend 400
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Permissions/RoleDelegationController.php:28-38`, `takussan-api/vendor/spatie/laravel-query-builder/src/Concerns/SortsQuery.php:35-38`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:203-208`
 - Constat :
@@ -11655,6 +11655,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - `AgencyDetailController::properties` ne pose ni `defaultSort` ni départage (lu) ; le relevé de P118.04 (`grep -L "defaultSort\|orderBy…"`) ne l'a pas vu parce que le même fichier en porte ailleurs. Le front envoie `sort=-created_at` (lu, `super-admin.ts:151`) : la page n'est sans ordre que sans `sort=`. Voir P118.02 pour le départage.
 - Piste : `allowedSorts('created_at')` sur les délégations ; `defaultSorts('-created_at', '-id')` sur les biens d'une agence, avec le mécanisme commun de P118.02.
 - Mesure (2026-10-22, cf4986336, mesureur) : relu `RoleDelegationController::index` (`QueryBuilder::for()` sans `allowedSorts()`, `defaultSort('-created_at')`), `vendor/spatie/laravel-query-builder/src/Concerns/SortsQuery.php:35-38` (`defaultSorts()` rend la main dès que `sort=` est présent), `takussan-web/src/lib/queries/role-delegations.ts:17-42` (le front documente l'ordre perdu sur `sort=` et n'en envoie pas), et `AgencyDetailController::properties` (`Property::buildQuery()` sans `defaultSort`, front `super-admin.ts:151` qui envoie `sort=-created_at`) → le constat tient tel qu'écrit, lu seulement. Classement : A1, déclarer le tri triable suit la convention `$requestSortable`/`allowedSorts` du dépôt et le départage par `id` est le mécanisme de P118.02, déjà classé autonome ; aucun appelant n'envoie un `sort=` que la déclaration refuserait.
+- Mesure (2026-10-22, d0eabf19d, implementeur) : test `TrisDeclaresDeLAngle119Test` (charge 2,6 sur 8 cœurs) → avant correctif, `GET /api/agencies/{a}/role-delegations?sort=created_at` rend l'ordre physique (la plus récente d'abord) et `sort=user_id` 200, et `GET /api/admin/agencies/{id}/properties` sans `sort=` l'ordre d'insertion ; rouge. `allowedSorts('created_at')` sur les délégations, `defaultSorts(...Property::defaultSortsWithRelevance('-created_at', '-id'))` sur les biens → ordre attendu, `sort=user_id` 400 ; vert. Ablation (les deux retirés) → rouge, remis → vert ; `RoleDelegationTest`, `RoleDelegationCapabilityTest`, `AgencyDetailTest` verts.
 
 ## Angle 120 — Listes de personnes des sélecteurs face au prédicat d'écriture
 
