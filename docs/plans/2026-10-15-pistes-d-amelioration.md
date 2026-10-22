@@ -13329,7 +13329,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
 
 ### Le tableau de bord agent d'un admin relit ses capacités sans indice de profil, hors de la lecture mémoïsée du layout
 - Réf : P138.07
-- Statut : validé — porteur (2026-10-22) : la page lit les capacités par la lecture mémoïsée qui porte l'indice (`capacitesDuRendu`), et `fetchMyCapabilities` est retiré s'il n'a plus d'appelant
+- Statut : fait · TCK-1376
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:52`, `takussan-web/src/lib/queries/dashboard.ts:176-194`, `takussan-web/src/lib/access/pages-admin-server.ts:33-55`
 - Constat :
@@ -13338,6 +13338,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : journal de l'API factice et lecture.
 - Piste : faire lire à la page les capacités par la lecture mémoïsée qui porte l'indice (`capacitesDuRendu`, exposée), et retirer `fetchMyCapabilities` s'il n'a plus d'autre appelant (il n'en a pas d'autre aujourd'hui, `grep`).
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:50-56` (`fetchMyCapabilities()` décide `peutVoirAgence`), `src/lib/queries/dashboard.ts:182-195` (sans `activeProfileId`, tout échec → `[]`), `src/lib/access/pages-admin-server.ts:33-55` (`capacitesDuRendu` sous `cache()`, avec indice, et `null` sur panne) ; `grep -rn fetchMyCapabilities src` → un seul appelant hors tests. Le constat tient à la lecture ; l'effet pour un compte multi-agences n'a pas été rendu. Classement : V2, le correctif change le profil sous lequel une autorisation visible est jugée, et il faut choisir ce que la page fait de `null` (panne) que `fetchMyCapabilities` rendait `[]`.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : `overview/__tests__/agent-capacites-du-rendu.tck-1376.test.tsx` avant correctif → la page appelait `/api/me/capabilities` sans `activeProfileId`, et `accesAdmin` + la page faisaient deux lectures (2 rouges sur 3) → `capacitesDuProfilActif()` sur `capacitesDuRendu`, `fetchMyCapabilities` retiré (plus d'appelant) ; une panne (`null`) vaut l'absence de la capacité, comme avant ; ablation (lecture sans indice) → 2 rouges, remis → 3 verts.
 
 ### Petites améliorations
 - Réf : P138.08
