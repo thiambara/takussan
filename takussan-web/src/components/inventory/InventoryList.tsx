@@ -73,7 +73,10 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
           </label>
           <Select
             value={type || '__all__'}
-            onValueChange={(value) => setType(value === '__all__' ? '' : ((value ?? '') as '' | InventoryType))}
+            onValueChange={(value) => {
+              setType(value === '__all__' ? '' : ((value ?? '') as '' | InventoryType));
+              setPage(1);
+            }}
             items={[{ value: '__all__', label: t('allTypes') }, ...INVENTORY_TYPES.map((value) => ({ value, label: tTypes(value) }))]}
           >
             <SelectTrigger id="inventory-filter-type" className="h-9 w-full">
@@ -93,7 +96,10 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
           </label>
           <Select
             value={status || '__all__'}
-            onValueChange={(value) => setStatus(value === '__all__' ? '' : ((value ?? '') as '' | InventoryStatus))}
+            onValueChange={(value) => {
+              setStatus(value === '__all__' ? '' : ((value ?? '') as '' | InventoryStatus));
+              setPage(1);
+            }}
             items={[{ value: '__all__', label: t('allStatuses') }, ...INVENTORY_STATUSES.map((value) => ({ value, label: tStatus(value) }))]}
           >
             <SelectTrigger id="inventory-filter-status" className="h-9 w-full">
