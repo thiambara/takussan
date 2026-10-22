@@ -13181,7 +13181,7 @@ l'une ni l'autre n'est reprise ici.*
 
 ### L'export du journal d'activité attribue au « système » les actes d'un compte supprimé
 - Réf : P139.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux marqueurs possibles dans l'export (`deleted#<id>` ou adresse anonymisée par `withTrashed()`), choix de ce que lit l'admin
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:45,151-155`, `takussan-api/vendor/spatie/laravel-activitylog/src/Models/Activity.php:61-64`, `takussan-api/app/Services/Account/AccountDeletionService.php:313,324`, `takussan-web/src/components/admin/AuditTrail.tsx:550-556`
 - Constat :
@@ -13190,10 +13190,11 @@ l'une ni l'autre n'est reprise ici.*
   - Mesuré (test temporaire, retiré) : un compte cause une ligne sur l'agence, puis il est supprimé en douceur. `buildPayload()` de l'admin de l'agence rend `causer_email: "system"` et `causer_role: "system"` sur cette ligne.
   - L'écran du journal fait la distinction : sans causeur chargé mais avec un `causer_id`, il affiche `deletedCauser #id`, et `system` seulement sans `causer_id` (lu, `AuditTrail.tsx:550-556`). L'export dit donc qu'aucune personne n'a agi là où l'écran nomme un compte supprimé. L'export de la console passe par le même `mapRow()` (lu, `payloadForQuery()`, l. 74-79).
 - Piste : rendre un marqueur distinct du système quand `causer_id` est posé et que le causeur ne se charge pas (`deleted#<id>`, comme l'écran), ou charger le causeur `withTrashed()` et rendre l'adresse anonymisée. Garde : un test de l'exporteur avec un causeur supprimé en douceur, qui refuse `system`.
+- Mesure (2026-10-22, a518e2cd2, mesureur) : lu `ActivityLogExporter::mapRow()` (`causer_email`/`causer_role` `?? 'system'`, l. 154-155 ; `payloadForQuery()` charge le même `causer`, l. 77), `Activity::causer()` `morphTo()` nu (`Activity.php:61-64`), `User` `SoftDeletes` (l. 54), `AccountDeletionService` anonymise puis `$user->delete()` (l. 313, 324) ; test temporaire retiré (charge 2,54 / 1,96 / 1,86 sur 8 cœurs) : un agent cause une ligne sur l'agence puis est supprimé en douceur → `buildPayload()` de l'admin rend `["system","system"]` → le constat tient, lignes au même endroit. Classement : V7, la `Piste` laisse deux valeurs visibles dans l'export, et le choix de l'une revient au porteur.
 
 ### La colonne `causer_role` de l'export d'une agence donne le premier rôle du compte, toutes agences confondues
 - Réf : P139.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la valeur de `causer_role` pour l'export de la console, sans agence, est à choisir ; V3 : un rôle tenu dans une autre agence est révélé
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:45,155`, `takussan-api/app/Models/Concerns/HasProfiles.php:238-260`
 - Constat :
@@ -13203,10 +13204,11 @@ l'une ni l'autre n'est reprise ici.*
   - L'admin de l'agence A lit donc qu'un administrateur a agi chez lui, là où il n'y a qu'un agent. Et un rôle tenu dans une autre agence lui est révélé.
   - P78.01 (validé) touche la même ligne pour la performance : calculer `causer_role` une fois par auteur. Si l'implémenteur suit cette voie, il garde la valeur fausse.
 - Piste : juger le rôle dans l'agence de l'export (`$agencyId` est déjà passé à `buildPayload()`), par les profils de cette agence seule. Pour l'export de la console, sans agence, rendre l'agence de la ligne, ou la liste. Garde : le test ci-dessus, un compte à deux agences.
+- Mesure (2026-10-22, a518e2cd2, mesureur) : lu `mapRow()` (`causer_role` = `profileTypes()->first()`, l. 155), le préchargement sans filtre d'agence (l. 45) et `HasProfiles::profileTypes()` (ordre `super_admin`, `agency_admin`, `agent`, `owner`, `service_provider`, l. 240-260) ; test temporaire retiré : un compte agent dans A et admin de B cause une ligne sur A → l'export de l'admin de A rend `["agency_admin"]` → le constat tient. Classement : V7, la `Piste` laisse ouverte la valeur de l'export de la console (agence de la ligne, ou liste), et la fuite d'un rôle d'une autre agence touche V3.
 
 ### Le journal d'audit lit `causer->name`, que `User` n'a pas : l'écran montre l'adresse à la place du nom
 - Réf : P139.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/AuditLogController.php:171-175`, `takussan-api/app/Models/User.php:327`, `takussan-web/src/components/admin/AuditTrail.tsx:557-565`
 - Constat :
@@ -13214,10 +13216,11 @@ l'une ni l'autre n'est reprise ici.*
   - `causer.name` est donc toujours nul. L'écran du journal (`/api/activity-log`, lu `lib/queries/audit-logs.ts:48`) affiche alors `log.causer.email` en titre, et jamais le nom avec l'adresse dessous (lu, `AuditTrail.tsx:560-563`).
   - Le fil d'activité du client lit le même journal et rend bien le nom, par `getFullNameAttribute()` (lu, `CustomerActivityFeed.php:84-85`). La clé visée existe donc ailleurs.
 - Piste : rendre `full_name` sous la clé `name` (ou `name` ← `full_name`, comme `CustomerActivityFeed`). Garde : un test de `GET /api/activity-log` qui exige le nom du causeur.
+- Mesure (2026-10-22, a518e2cd2, mesureur) : lu `AuditLogController::index()` (`'name' => $log->causer->name ?? null`, l. 173), `User` sans accesseur `name` mais `getFullNameAttribute()` (l. 327), l'écran qui attend `causer.name` puis l'adresse dessous (`AuditTrail.tsx:557-565`) et `CustomerActivityFeed` qui rend `name` ← `getFullNameAttribute()` (l. 85) ; test temporaire retiré : `GET /api/activity-log` d'un admin d'agence → 200, `causer: {"name":null,"email":…}` alors que `full_name` vaut « Alfonzo Braun » → le constat tient. Classement : A1, le contrat de l'appelant (`causer.name` lu par `AuditTrail.tsx`) et le fil client écrivent déjà la valeur attendue, sans choix de produit.
 
 ### L'archive RGPD ne porte pas les avis reçus comme prestataire
 - Réf : P139.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : le périmètre de l'archive du droit d'accès (avis sur le profil de prestataire, et ceux sur ses biens)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:133-137`, `takussan-api/app/Services/Review/ReceivedReviews.php:44-58`, `takussan-api/app/Models/Profiles/ServiceProviderProfile.php:71-74`
 - Constat :
@@ -13226,16 +13229,18 @@ l'une ni l'autre n'est reprise ici.*
   - Mesuré (test temporaire, retiré) : un prestataire reçoit un avis sur son profil et un sur son compte. `payloads($prestataire)['reviews.json']` ne rend que celui du compte (`[["App\\Models\\User", 4]]`, pour deux avis en base).
   - La note et le texte de ces avis décrivent le titulaire et sont rattachés à son profil. Les inclure, ou non, relève du périmètre du droit d'accès (à vérifier contre ADR-0070 et `features.md`).
 - Piste : ajouter à `reviews.json` les avis dont la cible est un profil de prestataire du titulaire, par la même règle que `ReceivedReviews`. Les avis sur ses biens restent un choix à trancher. Garde : un test de `DataExportBuilder` avec un avis sur le profil.
+- Mesure (2026-10-22, a518e2cd2, mesureur) : lu `DataExportBuilder::payloads()` (`reviews.json` = avis écrits, ou cible `User::class` du titulaire, l. 133-137) et `ReceivedReviews::targetsActor()` (biens, compte, `ServiceProviderProfile`, l. 44-58) ; test temporaire retiré : un prestataire reçoit un avis sur son profil et un sur son compte → `reviews.json` rend `[["App\\Models\\User",6]]` pour deux avis en base → le constat tient. Classement : V3, ce qu'emporte l'archive RGPD est une décision de données personnelles, et la `Piste` laisse les avis sur les biens à trancher.
 
 ### Petites améliorations
 - Réf : P139.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la valeur d'`event` à poser (le code de `log()` ou un verbe) est visible et filtrable dans l'export ; le job de rapport suit le reste de P78.04, au porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Agency/AgentAbsenceService.php:85-89`, `takussan-api/app/Services/Tenant/TenantOnboardingService.php:57-114`, `takussan-api/app/Listeners/Lease/SendTenantWelcomeNotification.php:49-53`, `takussan-api/app/Services/Booking/BookingExpirationService.php:248-256`, `takussan-api/app/Services/Permissions/RoleDelegationService.php:119-144`, `takussan-api/app/Services/Audit/ActivityLogExporter.php:118-120`, `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:35-53`
 - Constat :
   - Neuf écritures `activity()->…->log('<code>')` ne posent pas `->event()` (lu : `AgentAbsenceService:85`, trois dans `TenantOnboardingService`, `SendTenantWelcomeNotification:49`, `BookingExpirationService:248`, deux dans `RoleDelegationService:119,140`). Leurs sœurs `activated`/`expired` le posent (l. 163, 183). La colonne `event` de l'export sort vide sur ces lignes (mesuré, test temporaire : `absence.declared` → `"event": null`), et `filter[event]` de l'export ne peut pas les retenir (lu, l. 118-120).
   - `GenerateReportExport` relit `metric`, `period` et `granularity` dans `parameters`, mais ni `starts_at` ni `ends_at`, que le contrôleur y range (lu, job l. 36-44, contrôleur l. 115). Il écrit aussi toujours un CSV, quel que soit le `format` demandé (lu, l. 53-54). Le chemin n'est atteint par aucun rapport aujourd'hui (P78.04) : à reprendre avec lui s'il reste.
 - Piste : poser `->event()` sur ces neuf écritures (le code de `log()`, ou un verbe) ; passer les deux bornes et le format au job, ou le retirer avec P78.04.
+- Mesure (2026-10-22, a518e2cd2, mesureur) : lu les neuf chaînes `activity()…->log()` sans `->event()` (`AgentAbsenceService:85-89`, `TenantOnboardingService:57,100,110`, `SendTenantWelcomeNotification:49`, `BookingExpirationService:248`, `RoleDelegationService:119,140`) et leurs sœurs qui le posent (`RoleDelegationService:163,183`) ; lu `GenerateReportExport::handle()` (ni `starts_at` ni `ends_at` relus, CSV toujours, l. 34-54) ; P78.04 est `fait · TCK-1082 — reste : le retrait du chemin ou un seuil abaissé, au porteur` → les deux parties tiennent, non ré-exécutées (le `event: null` découle de la lecture). Classement : V7, la `Piste` laisse le choix du vocabulaire d'`event`, et la seconde partie dépend d'un reste confié au porteur.
 
 ## Angle 140 — PDF figés face aux PDF recomposés à chaque téléchargement
 
