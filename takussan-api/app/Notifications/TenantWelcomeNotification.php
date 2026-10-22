@@ -3,7 +3,6 @@
 namespace App\Notifications;
 
 use App\Models\Lease;
-use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -18,16 +17,15 @@ use Illuminate\Notifications\Notification;
  * `tenant-welcome-{lease_id}` welcome key — this notification only owns
  * the *outbound* surface (centre de notifications + boîte mail).
  *
- * Channels defer to {@see PreferenceResolver}: in-app is always on,
- * email respects the user's preferences (defaults to on when no row
- * exists). Idempotence is enforced upstream by the listener via the
- * `tenant_welcomed_at` sentinel on the lease itself.
+ * TCK-1193 (P75.02) — envoi transactionnel unique, non désactivable : cloche et e-mail
+ * partent toujours. L'événement `tenant_welcomed` que `via()` passait au résolveur n'avait
+ * aucun interrupteur (absent de `PreferenceResolver::EVENTS`) : ce docblock disait que l'e-mail
+ * obéissait aux préférences, et rien ne le coupait. Idempotence is enforced upstream by the
+ * listener via the `tenant_welcomed_at` sentinel on the lease itself.
  */
 class TenantWelcomeNotification extends Notification implements ShouldQueue
 {
     use Queueable;
-
-    public const EVENT_TYPE = 'tenant_welcomed';
 
     public const KIND = 'tenant_welcome';
 
@@ -38,17 +36,7 @@ class TenantWelcomeNotification extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        $resolver = app(PreferenceResolver::class);
-        $channels = [];
-
-        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_INAPP)) {
-            $channels[] = 'database';
-        }
-        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_EMAIL)) {
-            $channels[] = 'mail';
-        }
-
-        return $channels;
+        return ['database', 'mail'];
     }
 
     public function toMail(object $notifiable): MailMessage
