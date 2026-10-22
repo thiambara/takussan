@@ -10184,7 +10184,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
 
 ### Petites améliorations : trois commentaires décrivent encore les animations d'entrée en `both`, alors que `globals.css` les déclare en `backwards`
 - Réf : P102.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1192
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/property/card-stagger.ts:4-7`, `takussan-web/src/app/globals.css:519-522`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:166-171`
 - Constat :
@@ -10194,6 +10194,7 @@ la fenêtre de bienvenue elle-même (nommée, aucune violation), les fiches bien
   - Établi comment : code relu.
 - Piste : réécrire les trois commentaires pour dire `backwards` (A6). Rien à garder par un test.
 - Mesure (2026-10-21, 0acc2203f, mesureur) : `grep -n 'both\|backwards' globals.css` → `.animate-fade-in-up`, `.animate-card-enter` et `.animate-section-enter` en `backwards` (l. 423, 431, 439, motif l. 418-421) ; les trois commentaires cités disent toujours `both` (`card-stagger.ts:4-7`, `globals.css:519`, `PropertyDetailContent.tsx:168`), et un quatrième, non relevé, aussi : `globals.css:450` (« Pas de `both` ici, contrairement aux trois autres »). Le point sur `prefers-reduced-motion` relève du défaut de P102.01 et n'est pas retenu ici. Classement : A6, des commentaires qui contredisent le CSS mesuré, réécrits pour dire `backwards` (les quatre), sans code ni test.
+- Mesure (2026-10-22, 34ddbb0b1, implementeur) : `grep -n 'both\|backwards'` → les trois animations toujours en `backwards` (`globals.css:423,431,439`) et les quatre commentaires toujours en `both` (`card-stagger.ts:6`, `globals.css:450,519`, `PropertyDetailContent.tsx:168`) ; réécrits pour dire `backwards` (TCK-1192), le récit daté de `both` gardé là où il explique une règle ; après, `grep -n both` ne rend plus que `globals.css:418` (le motif du passage à `backwards`) et les `wizard-*`, bien en `both`. Commentaires seuls : aucun test, aucune ablation possible.
 
 ## Angle 103 — Appels du navigateur à l'hydratation des pages publiques
 
