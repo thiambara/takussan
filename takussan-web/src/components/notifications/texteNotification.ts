@@ -28,10 +28,20 @@ export type ValeursNotification = Record<string, string | number>;
  */
 export type LibelleMotif = (code: string) => string | null;
 
+/**
+ * TCK-1322 (P128.02) — le rôle d'une délégation (`role_delegation.*`) arrive CODÉ (`agency_admin`,
+ * `agent`, `owner`) : il s'affiche par son libellé traduit. Un code sans libellé reste tel quel.
+ */
+export type LibelleRole = (code: string) => string | null;
+
+/** Les codes dont le paramètre `role` est un code de rôle délégable, et non un nom libre. */
+const CODES_A_ROLE_CODE = 'role_delegation.';
+
 export function valeursDeNotification(
   params: Record<string, NotificationParam> | null | undefined,
   fmt: Formatteurs,
   motif?: LibelleMotif,
+  role?: LibelleRole,
 ): ValeursNotification {
   const valeurs: ValeursNotification = {};
   for (const [nom, valeur] of Object.entries(params ?? {})) {
@@ -39,6 +49,8 @@ export function valeursDeNotification(
       const libelle = motif?.(valeur) ?? VALEUR_ABSENTE;
       const detail = params?.reason;
       valeurs[nom] = typeof detail === 'string' && detail !== '' ? `${libelle} (${detail})` : libelle;
+    } else if (nom === 'role' && role && typeof valeur === 'string' && valeur !== '') {
+      valeurs[nom] = role(valeur) ?? valeur;
     } else if (valeur === null || valeur === undefined || valeur === '') {
       valeurs[nom] = VALEUR_ABSENTE;
     } else if (typeof valeur === 'number') {
@@ -65,6 +77,8 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
   const tMotifs = useTranslations('common.moderationReasons');
   const fmt = useFormatteurs();
   const motif: LibelleMotif = (code) => (tMotifs.has(code) ? tMotifs(code) : null);
+  const tRoles = useTranslations('admin.roles.role_delegations.roles');
+  const libelleRole: LibelleRole = (code) => (tRoles.has(code) ? tRoles(code) : null);
 
   return (notification) => {
     const repli: TexteNotification = {
@@ -74,7 +88,8 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
     const code = notification.code;
     if (!code || !t.has(`${code}.title`)) return repli;
 
-    const valeurs = valeursDeNotification(notification.params, fmt, motif);
+    const role = code.startsWith(CODES_A_ROLE_CODE) ? libelleRole : undefined;
+    const valeurs = valeursDeNotification(notification.params, fmt, motif, role);
     return {
       titre: t(`${code}.title`, valeurs),
       corps: t.has(`${code}.body`) ? t(`${code}.body`, valeurs) : repli.corps,

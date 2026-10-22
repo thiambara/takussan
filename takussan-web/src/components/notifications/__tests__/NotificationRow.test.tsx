@@ -73,6 +73,24 @@ describe('NotificationRow', () => {
     expect(texte).not.toContain('personal_data');
   });
 
+  // TCK-1322 (P128.02) — le rôle d'une délégation arrive CODÉ (`agency_admin`) : il se lit par
+  // son libellé traduit, jamais par le code brut.
+  it.each([
+    ['fr', /Administrateur d.agence/],
+    ['en', /Agency administrator/],
+  ] as const)('traduit le rôle délégué (%s)', (locale, libelle) => {
+    renderRow(notification({
+      type: 'system',
+      code: 'role_delegation.activated',
+      params: { role: 'agency_admin', ends_at: '2026-10-25' },
+      target: null,
+    }), locale);
+
+    const texte = document.body.textContent ?? '';
+    expect(texte).toMatch(libelle);
+    expect(texte).not.toContain('agency_admin');
+  });
+
   it('formate le montant et la date, sans « 150000.00 » ni « XOF » bruts', () => {
     renderRow(notification());
 
