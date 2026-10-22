@@ -15293,7 +15293,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Le choix du bail d'un état des lieux écarte les baux en préavis, ceux dont l'état des lieux de sortie approche
 - Réf : P162.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1438
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/inventory/InventoryLeasePicker.tsx:21-29`, `takussan-web/src/lib/queries/leases.ts:136-150`, `takussan-web/src/components/inventory/InventoryList.tsx:112,131`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:82-92`
 - Constat :
@@ -15303,6 +15303,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu. Un bail `terminating` est absent du sélecteur par construction de la requête.
 - Piste : `useAllActiveLeases` (ou un paramètre du sélecteur) demande `active,terminating` ; le commentaire nomme les deux. Test du sélecteur : un bail en préavis listé.
 - Mesure (2026-10-22, 5c7c12b8a, mesureur) : aucun commit sur ces chemins depuis e2959c84c ; relu `leases.ts:135-150` (`useAllActiveLeases`, `filter: { status: 'active' }`, seul appelant `InventoryLeasePicker.tsx:29`), le commentaire `InventoryLeasePicker.tsx:21-23` (n'exclut que `draft` et `terminated`), `InventoryController.php:82-92` (aucun filtre de statut), `docs/features.md` § 1.9 (« Créer un inventaire d'entrée ou de sortie ») → un bail `terminating` est absent du sélecteur par construction de la requête ; non rendu. Classement : A1, la spec prévoit l'état des lieux de sortie, l'API l'accepte et le commentaire du sélecteur ne justifie l'exclusion que de `draft` et `terminated` ; ajouter `terminating` au filtre ne demande aucun choix.
+- Mesure (2026-10-22, bba57a9e0, implementeur) : test neuf dans `bien-du-bail-et-bail-de-l-edl.tck-1371.test.tsx` (API bouchonnée qui filtre par `filter[status]`) avant correctif : le sélecteur demande `active`, le bail `terminating` est absent → rouge ; le hook (renommé `useAllOngoingLeases`) demande `active,terminating` → bail en préavis listé avec `?lease=2`, vert (3 tests du fichier, `parametre-de-bail` et `InventoryListCreation` verts) ; ablation du filtre → rouge, remis → vert.
 
 ### La supervision des paiements compte « en retard » par le statut `late`, que seule la pénalité écrit
 - Réf : P162.06
