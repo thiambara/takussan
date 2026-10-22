@@ -10760,7 +10760,7 @@ déjà relevée).*
 
 ### Le débit d'un remboursement d'acompte ou de loyer n'a rien à quoi se rapprocher : le relevé ne peut plus se clore « rapproché » qu'en ignorant la ligne
 - Réf : P110.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : ce qui représente un remboursement sortant au relevé
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/ReconciliationManager.php:55-74`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:49-51,132-150`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:35-43,140-165`, `takussan-api/app/Services/Model/BookingPaymentService.php:57-100`
 - Constat :
@@ -10770,10 +10770,11 @@ déjà relevée).*
   - Le remboursement partiel que P76.02 (b) laisse `paid` avec son `refund_amount` aura le même défaut : son débit est un montant que rien ne porte (déduit, à vérifier après P76.02).
   - Établi comment : lu, puis mesuré.
 - Piste : décider ce qui représente un remboursement sortant au relevé : un `Payout` comme la caution rendue (ADR-0039), ou un débit rapprochable du payable remboursé à hauteur de `refund_amount` (le sens et le montant attendu changent alors dans `confirmMatch`, le matcher et la recherche). Garde : le scénario mesuré, débit rapproché et relevé `reconciled`.
+- Mesure (2026-10-22, 728be0ac7, mesureur) : test Feature temporaire `tests/Feature/TmpMesureur/SondeP110Test.php` (retiré), par les services, charge 3,92 / 3,31 / 3,63 sur 8 cœurs ; aucun commit sur les fichiers cités depuis 6d216605a (`git log 6d216605a..HEAD`), aucun ticket ; relu `ReconciliationManager.php:59-74`, `ReconciliationMatcher.php:49-51` et `PaymentSearchService.php:35-43`, inchangés → acompte de 100 000 payé puis remboursé par `BookingPaymentService::refund`, débit de 100 000 à J+4 : `suggestFor` rend `null`, `search(…, Debit)` 0 candidat, `confirmMatch` lève `payment_type` « A credit is reconciled with a collection, a debit with a payout. », `finalize` rend `partially_reconciled`. Classement : V1, la piste demande de choisir entre un `Payout` et un débit rapprochable à hauteur de `refund_amount`, soit une écriture et un sens de rapprochement neufs sur un remboursement.
 
 ### Un encaissement rapproché puis remboursé garde son rapprochement, et ni la ligne ni le payable ne le disent
 - Réf : P110.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : signaler ou refuser le remboursement d'un encaissement rapproché (P39.07)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:796-811,1388-1393`, `takussan-api/app/Services/Model/BookingPaymentService.php:57-100`, `takussan-api/app/Http/Resources/Accounting/BankStatementLineResource.php:33-41`, `takussan-web/src/components/admin/reconciliation/StatementDetail.tsx:200-206`
 - Constat :
@@ -10783,10 +10784,11 @@ déjà relevée).*
   - L'activité `matched` porte le statut du payable au moment de la confirmation (TCK-828), pas après (lu, `ReconciliationManager.php:151-160`).
   - Établi comment : lu, puis mesuré.
 - Piste : le crédit a bien eu lieu, et la ligne n'a pas à être défaite. Ce qui manque est le signal : statut du payable rapproché rendu par `BankStatementLineResource` (une relation chargée, sous sparse fieldsets) et affiché, ou trace sur la ligne au remboursement. Le choix entre signaler et refuser rejoint P39.07. Garde : le scénario mesuré, avec le statut lu dans la réponse du relevé.
+- Mesure (2026-10-22, 728be0ac7, mesureur) : test Feature temporaire `tests/Feature/TmpMesureur/SondeP110Test.php` (retiré), par les services, charge 3,92 / 3,31 / 3,63 sur 8 cœurs ; aucun commit sur les fichiers cités depuis 6d216605a (`git log 6d216605a..HEAD`), aucun ticket → acompte de 90 000 rapproché d'un crédit de 90 000, relevé finalisé `reconciled`, puis remboursé : `status=refunded`, `refund_amount=90000.00`, `bank_reconciled_at=2026-06-11` conservé, ligne `confirmed`, relevé toujours `reconciled` ; `BankStatementLineResource.php:33-41` ne rend toujours ni statut ni `bank_reconciled_at` du payable (lu). Classement : V1, le choix entre signaler et refuser un remboursement d'encaissement rapproché reste ouvert (P39.07), et le signal est un affichage neuf (V7).
 
 ### Un crédit confirmé sur une facture envoyée ne la solde pas : elle reste relancée, et s'annule par avoir avec sa ligne toujours rapprochée
 - Réf : P110.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : un crédit confirmé vaut-il règlement de la facture
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/ReconciliationManager.php:76-82,139-142`, `takussan-api/app/Models/Invoice.php:180-185`, `takussan-api/app/Services/Model/InvoiceService.php:107-147`, `takussan-api/app/Services/Invoice/OverdueReminderService.php:52-56,286`
 - Constat :
@@ -10795,10 +10797,11 @@ déjà relevée).*
   - `cancel()` ne refuse que `paid`, `cancelled` et `void` (lu, `InvoiceService.php:134-138`) : une facture `sent` rapprochée s'annule et reçoit un avoir, alors que son crédit reste `confirmed` sur une facture `cancelled`. C'est le pendant facture de l'angle : la facture n'a pas de `refunded`, mais elle sort de l'encaissé après rapprochement par l'annulation.
   - Établi comment : lu ; non rejoué sur données.
 - Piste : décider si confirmer un crédit sur une facture `sent` ou `overdue` vaut `markPaid` (dans la transaction de `confirmMatch`), ou si la relance et l'annulation doivent au moins refuser une facture rapprochée. Garde : facture `sent` rapprochée → ni relance, ni annulation sans décision.
+- Mesure (2026-10-22, 728be0ac7, mesureur) : test Feature temporaire `tests/Feature/TmpMesureur/SondeP110Test.php` (retiré), par les services, charge 3,92 / 3,31 / 3,63 sur 8 cœurs ; aucun commit sur les fichiers cités depuis 6d216605a (`git log 6d216605a..HEAD`), aucun ticket → facture `sent` de 170 000 (échéance 2026-07-10) rapprochée d'un crédit de 170 000 : elle reste `sent` ; `OverdueReminderService::sendForAgency` au 2026-07-13 (jalons 3/7/15) la relance quand même (`reminders_sent_count=1`, statut passé `overdue` ; `sent=0` rendu faute de destinataire, la tentative est tamponnée) ; `InvoiceService::cancel` passe ensuite (`cancelled`, avoir créé), la ligne restant `confirmed`. Le « à vérifier » sur la relance est levé. Classement : V1, faire de la confirmation un `markPaid` ou faire refuser relance et annulation écrit le statut de paiement d'une facture.
 
 ### Petites améliorations
 - Réf : P110.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : afficher le statut du candidat dans la suggestion et la recherche
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:65-121`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:53-100`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:183-219`
 - Constat :
@@ -10806,3 +10809,4 @@ déjà relevée).*
   - **`unmatch` libère un payable remboursé**, qui redevient candidat à n'importe quel crédit du même montant (lu, l. 193-209). Sans effet sur le statut, donc mineur.
   - Établi comment : lu, et mesuré pour le premier point.
 - Piste : rendre le statut du candidat dans la suggestion et dans `MatchCandidate` (le front l'affiche), plutôt que l'écarter : c'est la même lecture que P110.02, à faire ensemble.
+- Mesure (2026-10-22, 728be0ac7, mesureur) : test Feature temporaire `tests/Feature/TmpMesureur/SondeP110Test.php` (retiré), par les services, charge 3,92 / 3,31 / 3,63 sur 8 cœurs ; aucun commit sur les fichiers cités depuis 6d216605a (`git log 6d216605a..HEAD`), aucun ticket → acompte de 70 000 remboursé avant l'import, crédit de 70 000 à J+1 : `suggestFor` rend `BookingPayment` confiance 70, sans statut ; `unmatch` (`ReconciliationManager.php:183-219`) remet toujours `bank_reconciled_at` et `bank_statement_line_id` à `null` sans regarder le statut (lu). Classement : V7, rendre et afficher le statut du candidat est un comportement visible neuf, à décider avec P110.02 et P25.07.
