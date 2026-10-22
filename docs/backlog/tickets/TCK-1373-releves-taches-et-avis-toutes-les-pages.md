@@ -1,7 +1,7 @@
 ---
 id: TCK-1373
 title: "Les relevés bancaires, les tâches d'un client et « Mes avis » lisent toutes les pages"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -67,3 +67,13 @@ paginent et rendent `meta.last_page`.
 - Le reste ci-dessus.
 
 ## Notes d'implémentation
+
+- Le compte des tâches ouvertes est éprouvé sur le panneau `CustomerDetailSheet` monté avec ses
+  vrais hooks : 55 tâches terminées puis 5 ouvertes, « Tâches actives » rendait 0 avant, 5 après.
+- `useBankStatements` et `useAuthoredReviews` passent de `useApiQuery` à `useQuery` + `apiRequest`,
+  sous leurs clés de cache d'avant. `reconciliation.test.ts` (TCK-593) ne voit donc plus
+  `useBankStatements` parmi les appels de `useApiQuery` : son chemin est gardé par le test neuf.
+- L'API des avis plafonne à 100 par page (`ReviewController::MAX_PER_PAGE`), celle des relevés et
+  des tâches à `AbstractModel::PER_PAGE_MAX` : `per_page=100` partout.
+- Ablation : `reconciliation.ts`, `pipeline.ts` et `reviews.ts` rendus à `HEAD` → 4 rouges sur 4 ;
+  correctif remis → 4/4 verts.
