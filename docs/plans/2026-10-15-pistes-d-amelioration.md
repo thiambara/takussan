@@ -9747,7 +9747,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
 
 ### La garde des liens de notification ne lit ni les liens écrits à la main des courriels, ni les paramètres de requête
 - Réf : P97.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1245 — reste : les lecteurs de `app.frontend_url` hors courriels (`return_url` des pilotes Wave et Orange Money, `IcsCalendarRenderer`, `ErasedAccountListings`, sans repli) et les liens du corps Markdown des courriels, que le test ne lit pas
 - Gravité : 🟠 risque ou dette
 - Où : `scripts/check-notification-target-paths.mjs`, `takussan-api/app/Notifications/*.php` (`toMail()`), `takussan-api/app/Mail/InvitationMailable.php:47-48`, `takussan-api/resources/views/emails/notifications/notification-digest.blade.php:17`
 - Constat :
@@ -9758,6 +9758,7 @@ balayés. Sur les enums : un enum adossé sort en `value` par `json_encode`, et 
   - Établi comment : lu et mesuré.
 - Piste : une seule fonction de l'API pour bâtir un lien du front (base, chemin, requête), et un test d'architecture qui rend chaque `toMail()` sur un destinataire de fabrique et vérifie que `actionUrl` commence par `app.frontend_url` et que son chemin est une page du front (même résolution que la garde actuelle).
 - Mesure (2026-10-21, 0e45ad7a0, mesureur) : `node scripts/check-notification-target-paths.mjs --report` → « 20 cibles de notification, chacune mène à une page du front » (seul `PATHS` est lu) ; `grep -rln actionUrl takussan-api/tests` → les quatre mêmes fichiers ; `grep -rn frontend_url app/Notifications app/Mail resources/views` → les trois écritures du constat coexistent, `config/app.php:57` définit toujours la clé → le constat tient. Classement : A5, une garde neuve sans seuil (chaque `toMail()` rendu sur un destinataire de fabrique, `actionUrl` sur l'hôte `app.frontend_url` et chemin résolu en page du front), la fonction commune reprenant la forme majoritaire `?:` sans changer de lien ; elle rougira tant que P97.01 n'est pas corrigé, et se livre donc avec lui.
+- Mesure (2026-10-22, a8174784f, implementeur) : `grep -rn frontend_url app/Notifications app/Mail resources/views` → les trois écritures du constat ; le test neuf `LiensDesCourrielsTest` rend les 16 `toMail()` à bouton (dont `VerifyEmail`) sur une base `app.frontend_url` à barre finale : `AccountDeletionRequested` et `AccountDeletionReminder` rendaient `…//app/profile` (2 rouges) → `App\Support\LienFront` (`frontend_url ?: app.url`, sans barre finale) employée partout dans les courriels, chemin résolu en `page.tsx` du front, inventaire des classes à `->action(`, 19/19 ; ablation des deux classes et du repli de `CodedNotification` → 3 rouges, remis → vert.
 
 ### Le désabonnement du résumé est un GET qui écrit, signé sans échéance, sans en-tête `List-Unsubscribe`
 - Réf : P97.06
