@@ -10920,7 +10920,7 @@ déjà relevée).*
 
 ### Un crédit confirmé sur une facture envoyée ne la solde pas : elle reste relancée, et s'annule par avoir avec sa ligne toujours rapprochée
 - Réf : P110.03
-- Statut : validé — porteur (2026-10-22) : un crédit confirmé sur une facture `sent` ou `overdue` vaut règlement : `markPaid` dans la transaction de `confirmMatch`
+- Statut : fait · TCK-1524
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/ReconciliationManager.php:76-82,139-142`, `takussan-api/app/Models/Invoice.php:180-185`, `takussan-api/app/Services/Model/InvoiceService.php:107-147`, `takussan-api/app/Services/Invoice/OverdueReminderService.php:52-56,286`
 - Constat :
@@ -10930,6 +10930,7 @@ déjà relevée).*
   - Établi comment : lu ; non rejoué sur données.
 - Piste : décider si confirmer un crédit sur une facture `sent` ou `overdue` vaut `markPaid` (dans la transaction de `confirmMatch`), ou si la relance et l'annulation doivent au moins refuser une facture rapprochée. Garde : facture `sent` rapprochée → ni relance, ni annulation sans décision.
 - Mesure (2026-10-22, 728be0ac7, mesureur) : test Feature temporaire `tests/Feature/TmpMesureur/SondeP110Test.php` (retiré), par les services, charge 3,92 / 3,31 / 3,63 sur 8 cœurs ; aucun commit sur les fichiers cités depuis 6d216605a (`git log 6d216605a..HEAD`), aucun ticket → facture `sent` de 170 000 (échéance 2026-07-10) rapprochée d'un crédit de 170 000 : elle reste `sent` ; `OverdueReminderService::sendForAgency` au 2026-07-13 (jalons 3/7/15) la relance quand même (`reminders_sent_count=1`, statut passé `overdue` ; `sent=0` rendu faute de destinataire, la tentative est tamponnée) ; `InvoiceService::cancel` passe ensuite (`cancelled`, avoir créé), la ligne restant `confirmed`. Le « à vérifier » sur la relance est levé. Classement : V1, faire de la confirmation un `markPaid` ou faire refuser relance et annulation écrit le statut de paiement d'une facture.
+- Mesure (2026-10-22, 88c684c67, implementeur) : `ReconciledInvoiceSettlementTest` (charge 1,46 / 1,99 / 2,49 sur 8 cœurs) → avant correctif, facture `sent` de 170 000 rapprochée d'un crédit de 170 000 : elle reste `sent` (rouge), de même une `overdue`. Après : `paid` dans la transaction de `confirmMatch` par `InvoiceService::markPaid`, aucune relance au 2026-07-13, `cancel` refusé en 422 ; une facture `paid` se rapproche sans changer. Ablation : appel à `markPaid` retiré → 2 rouges, remis → 3 verts. `ReconciliationConfirmationAuditTest` garde le statut journalisé à la confirmation (`sent`). Non fait : délier une facture ainsi soldée la laisse `paid`.
 
 ### Petites améliorations
 - Réf : P110.04
