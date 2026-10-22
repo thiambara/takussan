@@ -11147,7 +11147,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Les conditions particulières saisies à la création d'un bail ne sont jamais enregistrées
 - Réf : P114.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1240
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:85-89,316-321`, `takussan-web/src/lib/queries/leases.ts:277`, `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:34-63`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:54`, `takussan-api/app/Services/Model/LeaseService.php:89`
 - Constat :
@@ -11157,10 +11157,11 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Établi comment : lu et mesuré par `grep` ; le parcours dans le service vient du sous-agent.
 - Piste : ajouter `special_conditions` (`nullable|string`, avec une borne) à `StoreLeaseRequest`. Un test qui crée un bail avec `special_conditions` et relit la ligne le garde.
 - Mesure (2026-10-22, 135b23834, mesureur) : relu `StoreLeaseRequest::rules()` (aucune règle `special_conditions`, `terms` seul), `LeaseController::store()` (`validated()` → `LeaseService::create()`, `Lease::create(array_merge($data, …))`), `CreateLeaseForm.tsx:85,318` (champ affiché et envoyé), `RenewLeaseRequest.php:46` (`'special_conditions' => ['sometimes', 'nullable', 'string']`) ; aucun commit ni ticket ne l'a traitée (`git log -S`, `grep` des tickets) ; test temporaire (retiré), `POST /api/leases` avec `terms` et `special_conditions` → 201, ligne relue : `terms='T'`, `special_conditions=NULL`. Classement : A1, la colonne est décrite (`models-spec`, « Conditions particulières »), le formulaire l'envoie et le renouvellement la valide déjà en `nullable|string` : la règle se recopie sans choix de produit.
+- Mesure (2026-10-22, 5617a5f77, implementeur) : reproduit avant correctif, `LeaseTest::test_create_lease_keeps_special_conditions` (`POST /api/leases` avec `terms` et `special_conditions`, ligne relue) → rouge, `special_conditions` à `null`, et 5 001 caractères → 201. Règle `nullable|string|max:5000` ajoutée à `StoreLeaseRequest` (borne du schéma du front, `lib/schemas/lease.ts:62`) ; ablation : règle retirée → 2 rouges, remise → 2/2 verts, 13/13 sur `LeaseTest`.
 
 ### Modifier une règle d'alerte de la console la réactive toujours
 - Réf : P114.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1242
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/alerts.tsx:158-168`, `takussan-api/app/Services/Admin/AlertRuleService.php:35-46`
 - Constat :
@@ -11170,6 +11171,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Établi comment : lu.
 - Piste : n'envoyer `is_active` qu'en création, ou reprendre `rule.is_active` en modification. Un test du composant qui modifie une règle inactive et lit le corps envoyé le garde.
 - Mesure (2026-10-22, 135b23834, mesureur) : relu `alerts.tsx:158-168` (`is_active: true` en dur, création comme modification), `AlertRuleService::update` (`$payload['is_active'] ?? $rule->is_active`) et `:76` (seules les règles actives sont déclenchées) ; la console n'affiche ni ne modifie l'état (seule occurrence `is_active` : `:166`), une règle ne se désactive que par `PATCH /api/admin/alert-rules/<built-in function id>` (`AlertRuleRequest.php:54`) ; test vitest temporaire (retiré), `AlertRuleDialog` sur une règle `is_active: false`, enregistrer sans rien changer → `patchAlertRule` reçoit `is_active: true`. Classement : A1, le contrat de `update()` garde l'état quand la clé manque : le correctif n'envoie plus `is_active` en modification (la création reste à `true`), sans comportement visible neuf.
+- Mesure (2026-10-22, 5617a5f77, implementeur) : reproduit avant correctif, `Alerts.test.tsx` « does not reactivate an inactive rule when editing it » (`AlertRuleDialog` sur une règle `is_active: false`, enregistrer) → rouge, le corps du `PATCH` porte `is_active: true`. `is_active: true` n'est plus envoyé qu'en création ; ablation : `alerts.tsx` rendu à `HEAD` → 1 rouge, correctif remis → 5/5 verts.
 
 ### Deux motifs acceptés par le front puis refusés en 422 par l'API
 - Réf : P114.03
