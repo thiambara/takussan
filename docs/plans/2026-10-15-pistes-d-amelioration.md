@@ -15568,7 +15568,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### « Devis à valider » du bailleur et « Demandes d'intervention en cours » du locataire ouvrent toutes les interventions, tous statuts
 - Réf : P167.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la liste ne sait montrer qu'un statut à la fois
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:139-143`, `takussan-web/src/app/(dashboard)/app/overview/tenant/page.tsx:181-191`, `takussan-web/src/components/maintenance/MaintenanceList.tsx:55-65`, `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:102-107`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:104-107`
 - Constat :
@@ -15578,10 +15578,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - L'API sait filtrer : `status` est dans `MaintenanceRequest::$requestFilterable` (lu, `MaintenanceRequest.php:76`), filtre exact qui lit une liste à virgules (lu par le délégué en P131.02 pour `Property`, même trait ; non rejoué ici).
   - Établi comment : lu.
 - Piste : faire porter au lien les statuts comptés (`/app/maintenance?status=quote_submitted,awaiting_owner`, et pour le locataire les statuts de `open()`), et faire lire `?status=` par `MaintenanceList`, comme `BookingsList` depuis TCK-1293. Garde : un test de chaque aperçu sur le `href`, et un test de `MaintenanceList` monté sur `?status=a,b` qui attend `filter[status]=a,b` dans l'appel.
+- Mesure (2026-10-22, 2e04f2136, mesureur) : `git log cd4517db8..HEAD` des aperçus, de `MaintenanceList.tsx` et des services de tableau de bord → aucun commit ; relu `overview/owner/page.tsx:140` et `overview/tenant/page.tsx:183` (`href="/app/maintenance"` nu), `maintenance/(liste)/page.tsx` (`<MaintenanceList />` sans argument), `MaintenanceList.tsx` (`useState<'' | MaintenanceStatus>('')`, aucun `useSearchParams`, `status` absent des paramètres quand vide), `DashboardOwnerService.php:103-106` (`whereIn('status', AWAITING_QUOTE_DECISION)` = `quote_submitted`, `awaiting_owner`, `MaintenanceStateMachine.php:75`), `DashboardTenantService.php:104-107` (`requester_id` + `open()`, soit tout statut hors `FINISHED_STATUSES`), `MaintenanceRequest.php:76` (`status` filtrable) → le constat tient, lignes à peine décalées ; aucun ticket ne porte ces liens (`grep -rln quotes_pending docs/backlog/tickets` → TCK-595 et TCK-1434, sur le compte seul). Classement : V7, les deux nombres additionnent plusieurs statuts que le sélecteur à valeur unique de la liste ne peut pas afficher : comment la liste rend un filtre à plusieurs statuts (sélecteur multiple, valeur composée, filtre invisible) est un choix d'écran.
 
 ### « Avis sans réponse » ouvre la boîte de tous les avis reçus, répondus et en attente compris
 - Réf : P167.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:149-153`, `takussan-web/src/components/profile/ProfileReviewsList.tsx:355-367`, `takussan-api/app/Services/Dashboard/DashboardOwnerService.php:117-123`
 - Constat :
@@ -15590,10 +15591,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Le filtre « Sans réponse » existe (`replied=0`) : il manque seulement au lien et à la lecture de la page.
   - Établi comment : lu.
 - Piste : mener la ligne à `/app/profile/reviews?replied=0&subject_type=property` (noms à choisir sur ceux de la boîte), et faire lire ces paramètres par `ReceivedReviewsInbox`. Garde : un test de la boîte montée sur ces paramètres, qui attend `filter[replied]=0` dans l'appel.
+- Mesure (2026-10-22, 2e04f2136, mesureur) : relu `overview/owner/page.tsx:150` (`href="/app/profile/reviews"` nu), `ProfileReviewsList.tsx:355-367` (quatre filtres en `useState(ALL)`, aucun `useSearchParams`), `DashboardOwnerService.php:117-123` (avis `Property` des biens dont `user_id` = le bailleur, `is_approved`, `reply_content` nul), `ReviewController::received` (`filter[replied]` → `reply_content` nul, `filter[subject_type]=property` → `reviewable_type` `Property`) et `ReceivedReviews::for` (hors agence administrée, seuls les avis `is_approved` sur les biens dont il est titulaire ou collaborateur) → le constat tient ; les filtres « Sans réponse » et « Bien » existent déjà dans la boîte, seul le lien et leur lecture manquent ; reste un écart que le lien ne comble pas, les biens dont le bailleur n'est que collaborateur, que la boîte montre et que le nombre ne compte pas (lu, non mesuré sur un jeu). Classement : A1, le contrat est écrit par l'appelant (la ligne « Avis sans réponse » et le nombre qu'elle porte) et les deux filtres existent déjà dans la boîte, comme pour la portée des tuiles de TCK-1289 ; le correctif ne crée ni filtre ni libellé.
 
 ### « Baux à signer » de l'agent ouvre tous les baux, tous statuts, de toute l'agence
 - Réf : P167.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : un filtre d'agent que la liste des baux n'affiche pas
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:108-113`, `takussan-web/src/components/leases/LeasesList.tsx:63-72`, `takussan-api/app/Services/Dashboard/DashboardAgentService.php:107-111`
 - Constat :
@@ -15602,10 +15604,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - L'API filtre déjà `status` et `agent_id` (lu, `Lease.php:89`) : le lien pourrait porter les deux.
   - Établi comment : lu.
 - Piste : `/app/leases?status=pending_signature` (et `agent_id` sous « Mes chiffres »), lus par `LeasesList`. Garde : un test de la page de l'agent sur le `href` selon la portée, et un test de `LeasesList` monté sur `?status=pending_signature`.
+- Mesure (2026-10-22, 2e04f2136, mesureur) : relu `overview/agent/page.tsx:108-112` (`href="/app/leases"` nu), `LeasesList.tsx:63-75` (statut et bien en `useState('all')`, aucun `useSearchParams`, aucun filtre d'agent), `DashboardAgentService.php:107-111` (`pending_signature` de l'agence active, `agent_id` = l'agent hors portée « Agence »), `Lease.php:89` (`status` et `agent_id` filtrables) → le constat tient. La partie `?status=pending_signature` lu par `LeasesList` serait A1 (le sélecteur de statut existe) ; la partie `agent_id` demande un filtre que la liste n'a pas à l'écran. Classement : V7, porter `agent_id` sous « Mes chiffres » ajoute à la liste des baux une restriction invisible ou un filtre neuf, choix d'écran que rien d'écrit ne tranche.
 
 ### « Tâches du jour » compte mes tâches ouvertes de l'agence active, et sa liste montre aussi celles que j'ai créées pour d'autres
 - Réf : P167.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : compter ce que la liste montre, ou restreindre la liste
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:96-97,134-139`, `takussan-api/app/Http/Controllers/Api/TaskController.php:28-49`, `takussan-api/app/Models/Task.php:96-111`, `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:115-120`
 - Constat :
@@ -15614,10 +15617,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Pour un responsable qui crée les tâches de son équipe, la tuile dit « 2 » et la liste en montre autant qu'il en a distribué pour la journée ; pour un membre de deux agences, la liste mêle l'autre agence.
   - Établi comment : lu. Non mesuré sur un jeu de données.
 - Piste : soit compter ce que la liste montre, soit faire porter au lien la portée du compte (un filtre `assigned_to=me` et la clôture exclue, que l'API n'expose pas encore : à choisir). Garde : un test d'API qui crée une tâche assignée, une créée pour un autre, une close, toutes du jour, et compare `tasks_today` au `meta.total` de la liste que le lien ouvre.
+- Mesure (2026-10-22, 2e04f2136, mesureur) : relu `DashboardAgentService.php:134-139` (assignées à l'agent, `open`/`in_progress`, échues aujourd'hui, parent dans l'agence active par `$taskInAgency`), `TaskController::index` (assignées à moi dans les agences où je suis personnel, **ou** créées par moi dans les agences où je suis membre, ou de l'absent remplacé), `Task.php` filtre `due=today` (`whereBetween('due_at', …)` sans condition de statut, closes gardées délibérément, commentaire TCK-591), `overview/agent/page.tsx:116` (`/app/tasks?filter[due]=today`) → le constat tient tel qu'écrit, non mesuré sur un jeu de données. Classement : V7, la Piste propose deux issues (changer le compte, ou ajouter à l'API un filtre `assigned_to=me` et exclure les closes, contre le choix écrit de TCK-591 de garder les closes du jour).
 
 ### « Demandes en attente » de l'agent, sous « Mes chiffres », compte les réservations de ses biens et ouvre celles de toute l'agence
 - Réf : P167.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : filtre neuf aux réservations, ou mention sous la ligne
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:85-87,302-315`, `takussan-api/app/Http/Controllers/Api/BookingController.php:27-38`, `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:102-107`
 - Constat :
@@ -15626,10 +15630,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - `Booking::$requestFilterable` n'offre aucun filtre « mes biens » (lu, `Booking.php:44`) : le lien ne peut pas aujourd'hui porter la portée.
   - Établi comment : lu.
 - Piste : ajouter un filtre de portée aux réservations (biens de l'agent) et le faire porter au lien sous « Mes chiffres », ou dire sous la ligne que la liste est celle de l'agence. Garde : test d'API qui compare `pipeline_ops.pending_bookings` au `meta.total` de la liste filtrée.
+- Mesure (2026-10-22, 2e04f2136, mesureur) : relu `DashboardAgentService.php:85-87` (réservations `pending` sur `$managedPropertyIds`) et `propertyScope` (l. 302-315 : biens créés ou en collaboration `agent`/`manager`, sous « Mes chiffres »), `BookingController::index` (créées par moi, mes biens, mes fiches clients, ou toute l'agence du personnel), `Booking.php:44` (`property_id, customer_id, created_by_id, agency_id, status, currency` : aucun filtre « mes biens »), `overview/agent/page.tsx:102-106` (`/app/bookings` nu) → le constat tient. Classement : V7, la Piste propose deux issues (un filtre de portée neuf, ou un texte sous la ligne).
 
 ### « Invitations sans réponse » compte les seules invitations `sent`, et l'équipe liste aussi les expirées
 - Réf : P167.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : compter les expirées ou les nommer à part
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/agency-queues.ts:107-120`, `takussan-web/src/lib/queries/agency-invitations.ts:98-122`, `takussan-web/src/components/dashboard/admin/AgencyQueues.tsx:162-170`
 - Constat :
@@ -15637,10 +15642,11 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Dès qu'une invitation a expiré, la file annonce n invitations en attente, et la page en montre davantage, marquées « expirée » et relançables. Le libellé de la file, « Invitations sans réponse » (lu, `fr.json` `dashboard.agencyQueues.items.invitations`), couvre pourtant aussi les expirées.
   - Établi comment : lu.
 - Piste : compter `sent,expired` dans la file, la même règle que la section, ou nommer dans le compte la part expirée. Garde : un test de `fetchPendingInvitationsCount` qui attend le même `filter[status]` que `fetchPendingAgencyInvitations`, tiré d'une constante partagée.
+- Mesure (2026-10-22, 2e04f2136, mesureur) : relu `agency-queues.ts:107-120` (`filter: { status: 'sent' }`), `agency-invitations.ts:104-118` (`sent,expired` depuis TCK-368), `AgencyQueues.tsx:73` (`/app/agency/team`), `fr.json` `dashboard.agencyQueues.items.invitations` (« Invitations sans réponse », compte « # invitations en attente ») → le constat tient ; le docblock de `fetchPendingInvitationsCount` (l. 100-105) affirme encore que la file et la console Équipe lisent « la même donnée », ce que TCK-368 a démenti. Classement : V7, la Piste propose deux issues, et compter les expirées sous « invitations en attente » change ce que dit le libellé.
 
 ### « Biens publiés » de la console ne compte que le statut `published`, quand le code publie aussi par `available`
 - Réf : P167.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : élargir la règle du compte ou renommer la tuile
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Reporting/PlatformMetricsSnapshotter.php:103`, `takussan-web/src/components/admin/super/SystemMetricsGrid.tsx:196-200`, `takussan-api/app/Http/Requests/Api/UpdateStatusPropertyRequest.php:23`, `takussan-api/app/Services/Property/PropertyPublication.php:20`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:64-67,92`
 - Constat :
@@ -15649,3 +15655,4 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Mesuré : `php artisan tinker` sur la base de développement, biens non supprimés par statut et visibilité → `published` : 2, `available` : 427 (dont 423 publics). La console y affiche 2 biens publiés.
   - Établi comment : lu, et mesuré sur la base de développement.
 - Piste : faire compter à la tuile (et à son lien, `filter[status]=available,published`) la règle de `STATUTS_QUI_PUBLIENT`, ou la renommer pour dire ce qu'elle compte ; la colonne d'instantané `properties_published` suit (sa série passée garde l'ancienne règle : à dire). Garde : un test du snapshotter sur un bien `available` public.
+- Mesure (2026-10-22, 2e04f2136, mesureur) : relu `PlatformMetricsSnapshotter.php:103` (`status = published`), `SystemMetricsGrid.tsx:196-200` (`?filter[status]=published`), `UpdateStatusPropertyRequest.php:23` (`STATUTS_QUI_PUBLIENT` = `available`, `published`), `PropertyPublication.php:20`, `AgencyDetailController.php:66-67` ; `php artisan tinker` en lecture sur la base de développement, biens non supprimés par statut → `available` 427, `published` 2, `rented` 343 (le reste < 25) → le constat tient, chiffres inchangés depuis l'exploration ; `models-spec.md:4207` décrit `properties_published` comme « Biens publiés », sans dire la règle. Classement : V7, la Piste propose deux issues (élargir le compte, ou renommer la tuile), et élargir rompt la série passée de l'instantané.
