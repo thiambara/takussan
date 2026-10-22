@@ -95,8 +95,15 @@ export async function logout(token: string): Promise<void> {
   return apiRequest('/api/auth/logout', { method: 'POST', token });
 }
 
-export async function getMe(token: string, activeProfileId?: string): Promise<User> {
-  return apiRequest('/api/auth/me', { token, activeProfileId });
+/**
+ * TCK-1217 (P79.02) — la borne du `getMe` de la mise en page racine. Elle est au-dessus de toute
+ * page : tant qu'elle attend `/auth/me`, aucune page ne part. Au-delà, la page se rend en visiteur
+ * anonyme, le repli qu'elle avait déjà sur une API en panne.
+ */
+export const DELAI_ME_RACINE_MS = 5_000;
+
+export async function getMe(token: string, activeProfileId?: string, signal?: AbortSignal): Promise<User> {
+  return apiRequest('/api/auth/me', { token, activeProfileId, signal });
 }
 
 export async function updateProfile(token: string, payload: UpdateProfilePayload): Promise<User> {

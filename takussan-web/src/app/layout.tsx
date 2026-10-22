@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Bricolage_Grotesque, DM_Sans } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { getLocale, getTranslations } from 'next-intl/server';
-import { getMe } from '@/lib/auth';
+import { DELAI_ME_RACINE_MS, getMe } from '@/lib/auth';
 import { origineSite } from '@/lib/alternates';
 import { scriptDeConfigPublique } from '@/lib/config-publique';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
@@ -73,7 +73,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   let initialUser = null;
   if (impersonation ?? token) {
     try {
-      initialUser = await getMe((impersonation ?? token) as string);
+      // TCK-1217 (P79.02) — borné : au-delà, le repli anonyme ci-dessous, au lieu d'une page
+      // qui ne part pas tant que l'API ne répond pas.
+      initialUser = await getMe(
+        (impersonation ?? token) as string,
+        undefined,
+        AbortSignal.timeout(DELAI_ME_RACINE_MS),
+      );
     } catch {
       initialUser = null;
     }
