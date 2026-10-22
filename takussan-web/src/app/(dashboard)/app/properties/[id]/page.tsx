@@ -8,7 +8,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
 import { getToken } from '@/lib/session';
-import { fetchDashboardProperty } from '@/lib/queries/properties-server';
+import { lireBienDuRendu } from '@/lib/detail/ressource-de-detail';
 import { ApiError } from '@/lib/api';
 import { PropertyMatchingCustomers } from '@/components/crm/PropertyMatchingCustomers';
 import { PropertyDetailTabs } from '@/components/property-dashboard/PropertyDetailTabs';
@@ -59,7 +59,8 @@ export default async function Page({ params, searchParams }: { params: Params; s
 
   let property;
   try {
-    property = await fetchDashboardProperty(token, id);
+    // TCK-1384 (P138.04) — la lecture que la sonde du layout a déjà faite : une requête par rendu.
+    property = await lireBienDuRendu(token, Number(id));
   } catch (e) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
       // TCK-442 — **un panneau RENDU, plus un `redirect('/app')`.** Le ticket demandait de dire

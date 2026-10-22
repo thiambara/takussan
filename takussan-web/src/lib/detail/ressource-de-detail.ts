@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation';
 import { ApiError, apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { cheminApi } from '@/lib/chemin-api';
+import { fetchDashboardCustomer } from '@/lib/queries/customers';
+import { fetchDashboardProperty } from '@/lib/queries/properties-server';
 
 /**
  * TCK-442 — **remonter la REQUÊTE, pas seulement la décision.**
@@ -48,32 +50,43 @@ import { cheminApi } from '@/lib/chemin-api';
  * panneau « accès refusé » de `customers/[id]` et, depuis ce ticket, de `properties/[id]`.
  *
  * ⚠ **`cache()` de React, pas un cache HTTP.** La mémoïsation vaut pour la durée d'UNE requête
- * serveur : le layout sonde, et la page qui refait la même lecture partage la promesse. C'est ce
- * qui rend le patron (a) gratuit en réseau — le point que le ticket demandait de mesurer avant
- * d'écrire.
+ * serveur, et ne partage une promesse qu'entre deux appels de la MÊME fonction, mêmes arguments.
+ *
+ * ⚠ TCK-1384 (P138.04) — cet en-tête affirmait que « la page qui refait la même lecture partage la
+ * promesse », et que le patron était « gratuit en réseau ». C'était faux : aucune page n'appelait
+ * `sonderExistence`, chacune lisait par sa propre fonction, et chaque fiche lue au serveur partait
+ * deux fois. Ce qui est vrai désormais :
+ *
+ *  · `properties` et `customers`, dont la page lit la fiche AU SERVEUR, sont sondés par la lecture
+ *    même de la page (`LECTURES_DE_PAGE` : `lireBienDuRendu`, `lireClientDuRendu`) : une requête,
+ *    partagée, et le même 404 ;
+ *  · les six autres, dont la page lit au navigateur, coûtent une lecture du `show` au serveur, en
+ *    plus de celle du navigateur. Sans `fields[...]` : un `show` l'ignore (P60.03), et la garde
+ *    `show-sans-fields.garde.test.ts` le refuse.
  */
 
 /** Ce que la sonde peut conclure. Trois cas, jamais deux — cf. l'en-tête. */
 export type Existence = 'existe' | 'introuvable' | 'indecidable';
 
 /**
- * Les huit ressources de détail de `/app` : le segment d'URL, le chemin d'API, la table spatie.
+ * Les huit ressources de détail de `/app` : le segment d'URL et le chemin d'API.
  *
- * ⚠ Les trois ne coïncident pas, et c'est la seule raison d'être de cette table : `/app/visits/12`
- * lit `/api/property-visits/12` et demande `fields[property_visits]`. Une écriture déduite du
- * segment aurait produit trois 404 d'API — c'est-à-dire trois faux introuvables, exactement le
- * défaut que ce module existe pour ne pas commettre.
+ * ⚠ Ils ne coïncident pas, et c'est la seule raison d'être de cette table : `/app/visits/12`
+ * lit `/api/property-visits/12`. Une écriture déduite du segment aurait produit des 404 d'API —
+ * c'est-à-dire de faux introuvables, exactement le défaut que ce module existe pour ne pas
+ * commettre. (La table spatie n'y figure plus depuis TCK-1384 : la sonde n'envoie plus de
+ * `fields[...]`.)
  */
 export const RESSOURCES_DE_DETAIL = {
-  bookings: { api: 'bookings', table: 'bookings' },
-  customers: { api: 'customers', table: 'customers' },
-  documents: { api: 'documents', table: 'documents' },
-  inventories: { api: 'inventories', table: 'inventories' },
-  leases: { api: 'leases', table: 'leases' },
-  maintenance: { api: 'maintenance-requests', table: 'maintenance_requests' },
-  properties: { api: 'properties', table: 'properties' },
-  visits: { api: 'property-visits', table: 'property_visits' },
-} as const satisfies Record<string, { readonly api: string; readonly table: string }>;
+  bookings: { api: 'bookings' },
+  customers: { api: 'customers' },
+  documents: { api: 'documents' },
+  inventories: { api: 'inventories' },
+  leases: { api: 'leases' },
+  maintenance: { api: 'maintenance-requests' },
+  properties: { api: 'properties' },
+  visits: { api: 'property-visits' },
+} as const satisfies Record<string, { readonly api: string }>;
 
 export type SegmentDeDetail = keyof typeof RESSOURCES_DE_DETAIL;
 
@@ -89,11 +102,26 @@ export function idDeDetail(brut: string): number | null {
 }
 
 /**
- * La ressource existe-t-elle ? Une lecture minimale, mémoïsée pour la durée de la requête.
+ * TCK-1384 (P138.04) — la fiche d'un bien, lue une fois par rendu : par la sonde du layout, puis
+ * par la page `properties/[id]`, qui partagent la promesse. Même erreur pour les deux : la sonde
+ * en tire l'introuvable, la page le panneau « accès refusé ».
+ */
+export const lireBienDuRendu = cache((token: string, id: number) => fetchDashboardProperty(token, id));
+
+/** TCK-1384 (P138.04) — de même pour la fiche d'un client (`customers/[id]`). */
+export const lireClientDuRendu = cache((token: string, id: number) => fetchDashboardCustomer(token, id));
+
+/** Les segments dont la page lit la fiche au serveur : la sonde passe par sa lecture. */
+const LECTURES_DE_PAGE: Partial<Record<SegmentDeDetail, (token: string, id: number) => Promise<unknown>>> = {
+  properties: lireBienDuRendu,
+  customers: lireClientDuRendu,
+};
+
+/**
+ * La ressource existe-t-elle ? Une lecture mémoïsée pour la durée de la requête.
  *
- * Le sparse fieldset est réduit à `id` — c'est le contrat de lecture du dépôt (spatie), et c'est
- * aussi la plus petite réponse possible. Si l'API refusait ce champ, elle rendrait un 400 : traité
- * comme `indecidable`, donc sans jamais inventer un introuvable.
+ * Là où la page lit la fiche au serveur, la sonde EST cette lecture (`LECTURES_DE_PAGE`). Ailleurs,
+ * elle lit le `show`, sans `fields[...]` qu'il ignorerait (P60.03).
  */
 export const sonderExistence = cache(
   async (segment: SegmentDeDetail, id: number): Promise<Existence> => {
@@ -101,9 +129,14 @@ export const sonderExistence = cache(
     // Sans jeton, la question n'a pas de réponse : le proxy aura déjà renvoyé vers la connexion.
     if (!token) return 'indecidable';
 
-    const { api, table } = RESSOURCES_DE_DETAIL[segment];
+    const lecture = LECTURES_DE_PAGE[segment];
     try {
-      await apiRequest<unknown>(cheminApi`/api/${api}/${id}?fields[${table}]=id`, { token });
+      if (lecture) {
+        await lecture(token, id);
+      } else {
+        const { api } = RESSOURCES_DE_DETAIL[segment];
+        await apiRequest<unknown>(cheminApi`/api/${api}/${id}`, { token });
+      }
       return 'existe';
     } catch (erreur) {
       if (erreur instanceof ApiError && erreur.status === 404) return 'introuvable';
