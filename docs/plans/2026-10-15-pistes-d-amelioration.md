@@ -13262,7 +13262,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
 
 ### Chaque document de `/app` et de `/super-admin` appelle `GET /api/auth/me` deux fois : la mise en page racine le lit hors de `cache()`
 - Réf : P138.02
-- Statut : validé — porteur (2026-10-22) : la racine lit l'utilisateur par la même promesse mémoïsée que `getMeAction` ; un seul `/api/auth/me` par document
+- Statut : fait · TCK-1374
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/layout.tsx:72-80`, `takussan-web/src/app/actions/auth.ts:104-127`, `takussan-web/src/app/(dashboard)/layout.tsx:21-23,52`, `takussan-web/src/app/(super-admin)/super-admin/layout.tsx:53`
 - Constat :
@@ -13273,10 +13273,11 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : lecture des trois layouts, journal de l'API factice.
 - Piste : faire lire à la racine l'utilisateur par la même promesse mémoïsée (`getMeAction` sans sa redirection, ou un `cache()` commun dont `getMeAction` et la racine dérivent) ; avec P138.03, la même lecture porte alors le profil actif. Garde : un test de rendu qui compte un seul `/api/auth/me` par document.
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/app/layout.tsx:72-80` (`getMe(token)` direct, sans indice, erreur avalée en `null`), `src/app/actions/auth.ts:104-127` (`cachedGetMe` sous `cache()`, avec `getActiveProfileId()` et redirection sur 401), `(dashboard)/layout.tsx:21-23` (docblock « without a duplicate fetch ») ; les deux chemins ne partagent ni promesse ni URL-et-en-têtes, et P138.01 exclut toute fusion par Next ; `git log -3 -- takussan-web/src/app/layout.tsx` → dernier changement TCK-842, sans rapport. Le doublon tient (non relancé sous API factice). Classement : V2, la seule fusion qui économise l'appel fait lire la racine avec l'indice de profil (comportement de session visible côté client) et doit trancher le sort de la redirection 401 de `getMeAction` à la racine.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : même test, `cache()` remplacé par une mémoïsation par rendu → racine + `getMeAction` faisaient deux `getMe` (rouge : `called 2 times`), racine + console hors impersonation aussi → une seule lecture partagée, la console gardant sa lecture propre pendant une impersonation ; ablation → 4 rouges sur 6, remis → 6 verts (TCK-1374, qui porte aussi P138.03).
 
 ### Le `user` que la racine remet à `AuthProvider` est lu sans profil actif : pour un compte présent dans plusieurs agences, `agency_id` y vaut `null` alors que le serveur rend la page pour l'agence active
 - Réf : P138.03
-- Statut : validé — porteur (2026-10-22) : l'utilisateur de la racine se lit sous le profil actif (`getActiveProfileId()`, ou la promesse de P138.02)
+- Statut : fait · TCK-1374
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/layout.tsx:72-80`, `takussan-web/src/lib/auth.ts:98-100`, `takussan-web/src/lib/api.ts:714-716`, `takussan-api/app/Http/Middleware/ResolveActiveProfile.php:107-140`, `takussan-api/app/Models/User.php:417-432`, `takussan-web/src/context/AuthContext.tsx:135-136`
 - Constat :
@@ -13287,6 +13288,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : lu de bout en bout ; aucun compte multi-agences n'a été rendu.
 - Piste : lire l'utilisateur de la racine avec `getActiveProfileId()` (ou par la promesse de P138.02, qui le porte déjà) ; un test de la racine qui vérifie que l'appel à `/api/auth/me` porte l'indice quand le cookie de profil existe.
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/app/layout.tsx:76` (`getMe(token)` sans second argument), `src/lib/auth.ts:98-100`, `src/lib/api.ts:714-716` (indice posé seulement s'il est donné ; aucun en-tête `Cookie` composé, l. 695-755), `takussan-api/app/Http/Middleware/ResolveActiveProfile.php:109-145` (indice → cookie → auto-bascule mono-agence seule), `takussan-api/app/Models/User.php:417-433` (`agency_id` null hors profil actif pour un compte multi-agences), `src/context/AuthContext.tsx:135-136` (aucune relecture quand `initialUser` est fourni) ; `grep` : 59 `.tsx` lisent `useAuth` et `agency_id`, dont `CreatePayoutDialog.tsx:57,79` et `OverduePaymentsTable.tsx:41` ; aucun ticket ni commit ne l'a traité. La chaîne tient à la lecture ; aucun compte multi-agences n'a été rendu, l'effet par composant reste à vérifier. Classement : V2, le correctif change le profil sous lequel la session du navigateur est initialisée.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : `src/app/__tests__/layout-racine.utilisateur-du-rendu.test.tsx` sur l'arbre avant correctif → la racine appelle `getMe('jeton', undefined)` malgré le cookie `active_profile_id` (rouge : `expected undefined to be '42'`) → la racine lit par `utilisateurDuRendu` (`getToken()` + `getActiveProfileId()`, sous `cache()`), partagée avec `getMeAction` ; ablation (racine rendue à `getMe(jeton)` direct) → 4 rouges sur 6, remis → 6 verts.
 
 ### La sonde d'existence des fiches de `/app` ne partage pas sa promesse avec la page : chaque fiche lue au serveur part deux fois, et la sonde du bail charge le bail entier
 - Réf : P138.04
