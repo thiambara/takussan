@@ -212,7 +212,7 @@ voie d'écriture (angle 13, puis 47).
 | 135 | Listes écrites à la main, hors `buildQuery` (`LeasePaymentController::index`, `ConversationController::index`, `ReviewController::index`, contrôleurs `Admin\*`) : `sort`, `page` et `per_page` envoyés par le front face à l'ordre et au plafond rendus, et lecteurs qui ne lisent que la première page — le relevé de P100.01 sur les autres listes | fait |
 | 136 | Lectures du navigateur au chargement d'un écran `/app` et `/super-admin` (`useApiQuery` en parallèle, clés en double, `enabled` en cascade qui attend une première réponse, données déjà lues par le rendu serveur) : allers-retours avant l'écran utile, chacun précédé d'un préflight puisqu'il porte `Authorization` — le relevé de l'angle 103 sur la console | fait |
 | 137 | Écrans qui importent le fichier `index.ts` de `components/forms` pour `FormError` ou `FormGlobalError` seuls (pages `(auth)` `verify-email` et `reset-password`, `DefiSecondFacteur`, `ConnexionParTelephone`, `IntegrationsManager`, `ChampsLieu`) : react-hook-form et react-day-picker chargés pour afficher un message d'erreur — le motif de P104.01 hors de la console | fait |
-| 138 | Lectures de l'API dédoublées dans un même rendu serveur : server actions `*Action` (`fetchAgencyAction`, et leurs pareilles) appelées par des pages et des layouts serveur qui relisent une ressource déjà lue hors de `cache()` (`agenceDuRendu`, `getMeAction`), mesurées par requête sur un document servi | à faire |
+| 138 | Lectures de l'API dédoublées dans un même rendu serveur : server actions `*Action` (`fetchAgencyAction`, et leurs pareilles) appelées par des pages et des layouts serveur qui relisent une ressource déjà lue hors de `cache()` (`agenceDuRendu`, `getMeAction`), mesurées par requête sur un document servi | fait |
 | 139 | Colonnes déclarées par les exporteurs (`ActivityLogExporter::COLUMNS`, constructeurs d'entité d'`ExportController`, exports de rapports, archive RGPD `DataExportBuilder`) qu'aucun chemin n'écrit, ou qui lisent une clé que l'écrivain nomme autrement : colonne toujours vide dans le fichier rendu — le relevé de P108.02 sur les autres exports | à faire |
 | 140 | PDF figés face aux PDF recomposés à chaque téléchargement (`DocumentPdfService::store`, `signed_contract` de `LeaseSignatureService`, contre `InventoryController::downloadPdf`, `DocumentPdfController::stream*`, quittance publique `PublicPaymentLinkController::receipt`) : ce qu'un document signé ou acquitté imprime après un changement de l'agence, du bien, du locataire, d'un réglage ou d'un gabarit | à faire |
 | 141 | Encaissements soldés par une intégration de la plateforme (`PlatformPayoutService::isSettledByPlatform`) face au relevé de l'agence : proposés un à un par `ReconciliationMatcher` à un crédit qui ne les porte pas, et virement de clôture `PlatformPayout` qu'aucun candidat (`ALLOWED_PAYMENT_TYPES`, `fetchCandidates`) ne représente | à faire |
@@ -248,6 +248,7 @@ voie d'écriture (angle 13, puis 47).
 | 171 | Sélecteurs et listes sans pagination nourris par la taille de page par défaut (appels `useApiQuery`, `apiRequest` et server actions sans `per_page` ni `page`, rendus en `EntitySelect`, `<select>` ou liste de liens sous `/app`), hors personnes (angle 120) : élément au-delà de la 20ᵉ ligne qu'on ne peut pas choisir ni ouvrir — le relevé de l'angle 135 sous 50 lignes | à faire |
 | 172 | Lectures du navigateur faites par `fetch` dans un `useEffect`, hors de TanStack Query (`useWelcomeOnce`, `useTenantWelcomeOnce`, `useAgencyStandardWelcomeOnce`, `MinimalProfileTriggerProvider`, `AuthContext`, `useSimilarProperties`, `usePropertyReviews`, `Navbar`) : ni cache ni dédoublonnage entre lecteurs, aucune relecture à l'invalidation, réponse tardive appliquée après un changement de compte ou de profil actif — né de P136.03 | à faire |
 | 173 | Autres fichiers `index.ts` réexportateurs (`components/feedback`, `components/map`, `components/media`, `components/console`, `components/property-form`, `components/customer-form`, `components/floating-dock`) : paquets lourds (carte, téléversement, éditeurs) qu'un écran charge pour un seul composant léger qu'il y prend — le relevé de l'angle 137 hors de `components/forms` | à faire |
+| 174 | Lectures serveur `apiRequest` qui ne transmettent pas le profil actif (`activeProfileId` absent : racine `getMe`, `sonderExistence`, `fetchDashboardProperty`, `fetchDashboardCustomer`, `fetchDashboardMe`, `fetchAgencyUpgradeRequests`, `getAccountDeletionRequestAction`, `fetchMyCapabilities`, et leurs pareilles sous `src/lib/queries` et `src/app/actions`) face aux lectures du navigateur, qui le portent : pour un compte présent dans plusieurs agences, rendu serveur sans profil actif (404 ou 403 d'une fiche, liste vide, agence nulle) — né de P138.03 | à faire |
 
 ---
 
@@ -13037,3 +13038,116 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Établi comment : `grep` et lecture des listes de tests.
 - Piste : une garde du patron de TCK-1200 qui trouve les pages de `(auth)` et refuse react-day-picker et date-fns partout, et react-hook-form sur celles qui n'ont pas de formulaire au chargement (`verify-email`, retour OAuth), avec une liste déclarée et motivée des exceptions.
 - Mesure (2026-10-22, f42212ee7, mesureur) : `grep -rln paquetsDuGrapheClient src` → quatre tests, dont aucun sous `(auth)` ; `ls (auth)/__tests__ (auth)/auth/__tests__` → tests de rendu et de titres seuls ; test temporaire, retiré depuis, sur les 13 pages et layouts de `(auth)` → `react-day-picker` et `date-fns` atteints par `login`, `register`, `reset-password`, `verify-email` et le retour OAuth ; avec P137.01 et P137.03 simulés, aucun des 13 n'atteint plus le calendrier, et seuls `login` et `register` atteignent `react-hook-form`, `@hookform/resolvers` et `zod`. Classement : A5, une garde neuve du patron de TCK-1200 qui trouve les pages de `(auth)`, refuse le calendrier partout et `react-hook-form` hors de `login` et `register` (exceptions déclarées), sans seuil existant resserré.
+
+## Angle 138 — Lectures de l'API dédoublées dans un même rendu serveur
+
+*Exploré le 2026-10-22 sur `pre-dev` f42212ee7, par l'explorateur. Tout a été lu et lancé par
+l'explorateur lui-même, sans sous-agent. Documents servis par `next start` sur le build de
+production déjà présent dans l'arbre (construit le 2026-10-21 à 23:31 ; les 23 commits de
+`takussan-web/src` postérieurs ne touchent ni les layouts de `/app`, ni `actions/auth.ts`, ni
+`ressource-de-detail.ts`, ni `server-guards.ts` ; le seul changement de `lib/api.ts` ajoute
+`User-Agent`), derrière une **API factice** locale hors dépôt qui journalise chaque appel (méthode,
+chemin, `X-Active-Profile-Hint`, `X-Request-Id`) et rend un utilisateur à `/api/auth/me`, `{ id }` à
+toute route de détail et une liste vide ailleurs. Ni la base de développement ni l'API réelle n'ont
+été touchées. Les 101 pages de `(dashboard)` et `(super-admin)` ont été chargées en document, avec
+un cookie de session et `active_profile_id`, sous deux profils simulés (`agency_admin`,
+`agent`) : 37 rendent 500 et 9 à 19 redirigent faute de données réalistes, si bien que les
+lectures des pages en erreur ne sont comptées que jusqu'à l'erreur. La console `/super-admin` tombe
+en 500 dès son layout sous l'API factice : seules ses trois premières lectures sont mesurées. Le
+coût de chaque appel côté API n'est pas mesuré ici.*
+
+### `apiRequest` donne à chaque appel serveur un `X-Request-Id` neuf : la mémoïsation de `fetch` par Next ne dédoublonne plus aucune lecture, seul `cache()` le fait
+- Réf : P138.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/api.ts:733-738`, `takussan-web/node_modules/next/dist/server/lib/dedupe-fetch.js:65-84,118`, `takussan-web/src/lib/access/server-guards.ts:95-109`
+- Constat :
+  - Côté serveur, `apiRequest` pose `X-Request-Id = crypto.randomUUID()` sur chaque appel (lu, `api.ts:737`, TCK-950).
+  - La mémoïsation de `fetch` de Next (« les `GET` de même URL et mêmes options ne partent qu'une fois par rendu », `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/fetch.md:88`) range ses entrées par URL, puis par une clé qui contient **tous les en-têtes** sauf `traceparent` et `tracestate` (lu, `dedupe-fetch.js:65-84`). Deux appels qui ne diffèrent que par `X-Request-Id` ne partagent donc jamais leur réponse.
+  - Sur `/app/settings/agency/upgrade`, deux `GET /api/agencies/1/upgrade-requests` de même URL et même indice de profil arrivent à l'API avec deux `X-Request-Id` distincts (mesuré, journal de l'API factice : `rid=6e9c9897-…` et `rid=dfbd635c-…`). Même chose pour `GET /api/agencies/1` sur `/app` (mesuré, P138.05).
+  - Les en-têtes du dépôt (`server-guards.ts:95-109`, `ressource-de-detail.ts:47-52`, `(dashboard)/layout.tsx:21-23`) ne citent que `cache()` de React, jamais la mémoïsation de Next : rien n'écrit que toute lecture serveur partagée **doit** passer par `cache()`, ni qu'un `fetch` direct identique partira deux fois.
+  - Que Next aurait fusionné ces appels sans l'en-tête n'est pas mesuré : à vérifier (une construction sans `X-Request-Id`).
+  - Établi comment : lecture de `api.ts` et de `dedupe-fetch.js`, journal de l'API factice.
+- Piste : écrire dans l'en-tête de `apiRequest` et dans `takussan-web/CLAUDE.md` (« Couche réseau ») que la seule déduplication des lectures serveur est `cache()` de React, et que l'identifiant d'appel l'exclut par construction ; garder l'identifiant. Garde : un test de rendu qui compte les appels d'une page (patron de P105.05) plutôt qu'une confiance dans Next.
+
+### Chaque document de `/app` et de `/super-admin` appelle `GET /api/auth/me` deux fois : la mise en page racine le lit hors de `cache()`
+- Réf : P138.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/layout.tsx:72-80`, `takussan-web/src/app/actions/auth.ts:104-127`, `takussan-web/src/app/(dashboard)/layout.tsx:21-23,52`, `takussan-web/src/app/(super-admin)/super-admin/layout.tsx:53`
+- Constat :
+  - La mise en page racine appelle `getMe(token)` directement (lu, `layout.tsx:76`) ; `(dashboard)/layout.tsx` appelle `getMeAction()`, mémoïsé par `cache()` (lu, `auth.ts:106`), la console `getMeOperateurAction()`. Les deux chemins ne partagent rien.
+  - Sur les 101 pages chargées en `agency_admin`, chaque document porte deux `GET /api/auth/me`, l'un sans `X-Active-Profile-Hint`, l'autre avec (mesuré, 101 sur 101, et de même sous `agent`). La console aussi (mesuré, `/super-admin` : `auth/me hint=-`, `auth/me hint=p:3`, `admin/me/abilities`).
+  - Le docblock de `(dashboard)/layout.tsx:21-23` dit le contraire : « nested layouts can call `getMeAction()` again without a duplicate fetch ». Vrai entre layouts de `(dashboard)`, faux pour le document.
+  - `GET /api/auth/me` fait 12 requêtes SQL pour un admin d'agence (relevé de l'angle 20) : 24 par document, sur la route la plus fréquente du produit.
+  - Établi comment : lecture des trois layouts, journal de l'API factice.
+- Piste : faire lire à la racine l'utilisateur par la même promesse mémoïsée (`getMeAction` sans sa redirection, ou un `cache()` commun dont `getMeAction` et la racine dérivent) ; avec P138.03, la même lecture porte alors le profil actif. Garde : un test de rendu qui compte un seul `/api/auth/me` par document.
+
+### Le `user` que la racine remet à `AuthProvider` est lu sans profil actif : pour un compte présent dans plusieurs agences, `agency_id` y vaut `null` alors que le serveur rend la page pour l'agence active
+- Réf : P138.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/layout.tsx:72-80`, `takussan-web/src/lib/auth.ts:98-100`, `takussan-web/src/lib/api.ts:714-716`, `takussan-api/app/Http/Middleware/ResolveActiveProfile.php:107-140`, `takussan-api/app/Models/User.php:417-432`, `takussan-web/src/context/AuthContext.tsx:135-136`
+- Constat :
+  - La racine appelle `getMe(token)` sans second argument (lu, `layout.tsx:76`) ; `getMe` ne pose l'indice que si on le lui donne (lu, `auth.ts:98-100`, `api.ts:714-716`), et un appel serveur ne porte pas le cookie `active_profile_id` du navigateur (lu : `apiRequest` compose ses en-têtes un à un, sans `Cookie`). Mesuré : `GET /api/auth/me hint=-` sur chaque document, à côté de `hint=p:3` pour `getMeAction`.
+  - Sans indice ni cookie, `ResolveActiveProfile` ne lie un profil que par auto-bascule, et seulement si l'utilisateur n'a de profils que dans une agence (lu, l. 107-140) ; `User::getAgencyIdAttribute` rend alors `null` pour un compte multi-agences (lu, `User.php:417-432`), et `UserResource` sérialise cet `agency_id`.
+  - `AuthProvider` reçoit ce `user` comme `initialUser` et ne relit jamais `/auth/me` quand il est fourni (lu, `AuthContext.tsx:135-136`). Le serveur, lui, rend la coque avec l'utilisateur de `getMeAction`, résolu sur le profil actif.
+  - Des composants client lisent `useAuth().user.agency_id` pour filtrer (lu : `CreatePayoutDialog.tsx:57,79`, `OverduePaymentsTable.tsx:41`, et d'autres composants qui lisent `useAuth()` et `agency_id`, non relus un à un) : ce que chacun montre à un compte multi-agences n'est pas mesuré (à vérifier).
+  - Établi comment : lu de bout en bout ; aucun compte multi-agences n'a été rendu.
+- Piste : lire l'utilisateur de la racine avec `getActiveProfileId()` (ou par la promesse de P138.02, qui le porte déjà) ; un test de la racine qui vérifie que l'appel à `/api/auth/me` porte l'indice quand le cookie de profil existe.
+
+### La sonde d'existence des fiches de `/app` ne partage pas sa promesse avec la page : chaque fiche lue au serveur part deux fois, et la sonde du bail charge le bail entier
+- Réf : P138.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/detail/ressource-de-detail.ts:47-52,98-114`, `takussan-web/src/app/(dashboard)/app/properties/[id]/page.tsx:62`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:93`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:64-73`, `takussan-web/src/lib/queries/__tests__/show-sans-fields.garde.test.ts:39`
+- Constat :
+  - Les huit `[id]/layout.tsx` de `/app` appellent `exigerRessource`, qui lit `GET /api/<ressource>/{id}?fields[<table>]=id` sous `cache()` (lu, l. 98-114). L'en-tête affirme que « la page qui refait la même lecture partage la promesse » et que le patron est « gratuit en réseau » (lu, l. 50-52). Aucune page n'appelle `sonderExistence` : elles lisent par leurs propres fonctions.
+  - `/app/properties/5` : `GET /api/properties/5?fields[properties]=id` puis `GET /api/properties/5` ; `/app/customers/5` : `GET /api/customers/5?fields[customers]=id` puis `GET /api/customers/5?include=documents,tags` (mesuré, en `agency_admin` et en `agent`).
+  - Les `show` ignorent `fields` (P60.03, et `docs/spatie-query-builder.md` le dit depuis TCK-1067) : la sonde reçoit la ressource de détail entière. Pour le bail, `LeaseController::show` charge le bien et son adresse, le locataire, les signatures et leurs signataires (lu, l. 64-73) ; `/app/leases/5` porte la sonde **et** la liste filtrée de `generateMetadata` (mesuré), puis la fiche est relue par le navigateur (à vérifier, non compté : seuls les appels du serveur sont journalisés).
+  - La garde de P60.03 ne voit pas cette sonde : son motif exige un segment littéral après `/api/` (lu, `show-sans-fields.garde.test.ts:39`), et la sonde interpole `${api}`.
+  - Établi comment : lecture du module et des deux pages, journal de l'API factice.
+- Piste : sonder par une lecture légère qui existe (la liste filtrée par `id`, `per_page=1`, comme le titre du bail), ou faire lire à la page la ressource par une fonction mémoïsée que la sonde partage, là où la page la lit au serveur ; corriger l'en-tête dans les deux cas. Élargir le motif de la garde aux chemins interpolés.
+
+### L'accueil `/app` d'un admin d'agence relit l'agence hors de `cache()` : le doublon de P105.05 existe aussi sur l'écran d'arrivée
+- Réf : P138.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:46`, `takussan-web/src/app/actions/admin-agency.ts:78-88`, `takussan-web/src/app/(dashboard)/app/layout.tsx:38-40`, `takussan-web/src/app/onboarding/agency-admin/page.tsx:29`
+- Constat :
+  - Un document `/app` en `agency_admin` porte deux `GET /api/agencies/1?fields[agencies]=…` de même URL et même indice `p:3` (mesuré) : le layout de `/app` par `resolveAgencyOrNull` (mis en cache, lu, l. 38-40), la page d'accueil par `fetchAgencyAction` (lu, l. 46), qui appelle `fetchAgency` hors cache (lu, `admin-agency.ts:84`).
+  - P105.05 (`validé (délégué)`) ne vise que `agency/page.tsx` : sa décision fait lire **cette** page par `agenceDuRendu`. L'accueil est l'écran où arrive chaque admin à chaque connexion. Un troisième appelant, `onboarding/agency-admin/page.tsx:29`, ne double pas aujourd'hui (son layout ne lit pas l'agence, lu).
+  - Établi comment : journal de l'API factice et lecture des trois fichiers.
+- Piste : faire passer `fetchAgencyAction` lui-même par la promesse mémoïsée (`agenceDuRendu` exposée avec son erreur, comme le décide P105.05), ce qui couvre l'accueil, `agency/page.tsx` et tout appelant futur ; le test de P105.05 compte alors aussi l'accueil.
+
+### `/app/settings/agency/upgrade` lit deux fois les demandes de passage au plan supérieur
+- Réf : P138.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/(dashboard)/app/layout.tsx:40`, `takussan-web/src/app/(dashboard)/app/settings/agency/upgrade/page.tsx:42-45`, `takussan-web/src/lib/queries/agency-upgrade.ts:50-58`
+- Constat :
+  - Le layout de `/app` lit `fetchAgencyUpgradeRequests` pour la carte de la barre latérale (lu, l. 40), la page la relit pour son écran (lu, l. 44) ; aucune des deux n'est sous `cache()` (lu, `agency-upgrade.ts`). Mesuré : deux `GET /api/agencies/1/upgrade-requests?…&sort=-submitted_at&per_page=20` identiques par document (P138.01).
+  - Établi comment : journal de l'API factice.
+- Piste : une lecture mémoïsée par rendu (`cache()`) partagée par le layout et la page, en gardant l'avalement d'erreur du layout (`.catch(() => null)`) hors de la promesse partagée.
+
+### Le tableau de bord agent d'un admin relit ses capacités sans indice de profil, hors de la lecture mémoïsée du layout
+- Réf : P138.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:52`, `takussan-web/src/lib/queries/dashboard.ts:176-194`, `takussan-web/src/lib/access/pages-admin-server.ts:33-55`
+- Constat :
+  - En `agency_admin`, `/app/overview/agent` porte `GET /api/me/capabilities hint=p:3` (layout, `accesAdmin` → `capacitesDuRendu`, sous `cache()`) **et** `GET /api/me/capabilities hint=-` (page, `fetchMyCapabilities`) (mesuré). En `agent`, une seule (mesuré) : `accesAdmin` ne lit les capacités que pour un admin.
+  - `fetchMyCapabilities` n'envoie pas l'indice de profil et rend `[]` sur toute erreur (lu, `dashboard.ts:182-194`) ; l'en-tête de `pages-admin-server.ts:36-38` l'écrit déjà (« n'envoie pas le hint de profil »). La bascule « Agence » de la vue agent est décidée sur cette liste (lu, docblock l. 176-181) : pour un compte multi-agences, elle est jugée sans profil actif, sur une autre agence ou sur aucune (à vérifier, non rendu).
+  - Établi comment : journal de l'API factice et lecture.
+- Piste : faire lire à la page les capacités par la lecture mémoïsée qui porte l'indice (`capacitesDuRendu`, exposée), et retirer `fetchMyCapabilities` s'il n'a plus d'autre appelant (il n'en a pas d'autre aujourd'hui, `grep`).
+
+### Petites améliorations
+- Réf : P138.08
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:100-127,212-231`, `takussan-web/src/lib/queries/properties-server.ts:125`
+- Constat :
+  - `/app/properties` envoie six `GET /api/properties` par document : la liste, puis cinq comptes à `per_page=1` (mesuré). Sans filtre, le compte « Total » (`countProperties(token, { user_id })`, l. 109) redemande ce que `meta.total` de la liste porte déjà.
+  - Les cinq comptes passent par `fetchDashboardProperties`, et portent donc `include=address,owner,collaborators` et le sparse fieldset de la liste pour une seule ligne dont seul `meta.total` est lu (mesuré dans l'URL ; lu, `properties-server.ts:125`). P02.08 a traité l'ordre de ces appels, pas leur forme.
+  - Établi comment : journal de l'API factice.
+- Piste : prendre « Total » dans `meta.total` de la liste quand aucun filtre n'est posé ; faire compter par une lecture sans `include` (un `countProperties` qui appelle `apiRequest` avec `per_page=1` et `fields[properties]=id`).
