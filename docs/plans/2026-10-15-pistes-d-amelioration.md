@@ -11144,7 +11144,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Une réservation confirmée dont le séjour est fini s'annule encore, et ouvre une tâche de remboursement de l'acompte
 - Réf : P115.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : l'annulation ouvre le remboursement d'un acompte, et clore ou refuser est un choix de produit (V7)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/Enums/BookingStatus.php:11`, `takussan-api/app/Services/Model/BookingService.php:42-47,262-303`, `takussan-api/app/Services/Review/ReviewEligibility.php:36`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:64`, `takussan-web/src/components/bookings/BookingDetail.tsx:186-188`
 - Constat :
@@ -11155,10 +11155,11 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Une fois annulé, le séjour sort de l'occupation (`OCCUPYING_BOOKING_STATUSES`, lu) et de la preuve qui permet au client de noter le bien (`ReviewEligibility::BOOKING_STATUSES`, lu).
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : écrire `completed`, soit par une tâche quotidienne qui clôt les réservations `confirmed` dont `end_date` est passée, soit au départ du client ; à défaut, refuser l'annulation d'un séjour commencé dans `cancel()` et cacher le bouton au front. Le choix (et le sort des réservations passées déjà en base) est une décision. Garde : un test qui annule une réservation au séjour fini et attend `422 booking.cannot_cancel`, sans tâche de remboursement.
+- Mesure (2026-10-22, 3390f9116, mesureur) : relu `BookingService.php:42-47` (`TERMINAL_CANCEL_STATUSES`) et `:271-290` (`cancel()` ne lit aucune date), `grep -rn "BookingStatus::Completed" app` → trois listes lues (`BookingService.php:44`, `PortfolioMetrics.php:64`, `ReviewEligibility.php:36`), aucun littéral `'completed'` pour une réservation, les deux jobs (`app/Jobs/ExpireBookings.php`, `ExpirePendingBookingsJob`) ne visent que `pending` (`BookingExpirationService.php:219`) ; test temporaire (retiré), charge `1.87 2.07 2.35` sur 8 cœurs : réservation `confirmed` du J-10 au J-3, acompte `paid` de 10 000, `POST /api/bookings/{id}/cancel` par le client → `200`, statut `cancelled`, une tâche `booking_refund` ; le bouton tient (`BookingDetail.tsx:186-188`). Le constat tient en entier. Classement : V1, le correctif décide si l'acompte d'un séjour passé ouvre un remboursement, et la Piste laisse trois options (tâche de clôture, départ, refus) et le sort des réservations en base (V7).
 
 ### La console d'équipe filtre les comptes « Bloqué » sur `banned`, une valeur que l'API n'écrit jamais
 - Réf : P115.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/Enums/UserStatus.php:7-10`, `takussan-api/app/Http/Controllers/Api/Admin/UserLifecycleController.php:45`, `takussan-api/app/Services/Account/AccountDeletionService.php:312`, `takussan-web/src/types/user.ts:39`, `takussan-web/src/types/admin-users.ts:56`, `takussan-web/src/components/admin/users/AdminUsersFilters.tsx:19`, `takussan-web/src/components/admin/users/UserDetailDrawer.tsx:57,124`, `takussan-web/src/messages/fr.json` (`admin.users.status`), `takussan-web/src/app/(super-admin)/super-admin/users/page.tsx:89-95`
 - Constat :
@@ -11169,10 +11170,11 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Un second enum `App\Models\Bases\Enums\UserStatus` (`active`, `inactive`, `suspended`, `banned`) n'a aucun appelant dans `app/`, `tests/` ni `database/` (mesuré, `grep -rn "Bases\\\\Enums"`) : c'est sans doute la source du vocabulaire du front (à vérifier).
   - Établi comment : lu, et `grep` / `node -e` mesurés ; le rendu à l'écran n'a pas été vu.
 - Piste : aligner le type, les options et les libellés du front sur l'enum de l'API (`blocked` au lieu de `banned`, `inactive` retiré des filtres tant que rien ne l'écrit) ; retirer `app/Models/Bases/Enums/UserStatus.php`. Garde : un test qui confronte `STATUS_VALUES` aux valeurs de l'enum servies par l'API, ou une garde de dépôt qui compare les deux listes.
+- Mesure (2026-10-22, 3390f9116, mesureur) : relu `UserStatus.php:7-10` (`active`, `inactive`, `blocked`, `deleted`), `UserLifecycleController.php:45` (écrit `blocked`), `AccountDeletionService.php:312` (`deleted`) ; `grep` → ni `UserStatus::Inactive` ni `'inactive'` écrit dans `app/Http` et `app/Services`, aucune règle `Rule::enum(UserStatus…)` ; front : `types/user.ts:39` et `admin-users.ts:56` typent `banned`, `AdminUsersFilters.tsx:19` et `UserDetailDrawer.tsx:57` ne connaissent que `active`/`inactive`/`banned`, `super-admin/users/page.tsx:92-94` propose `blocked`, `inactive` et `banned` ; `node -e` sur `fr.json` → `admin.users.status` = `{ active, inactive, banned: 'Bloqué' }` ; le relais `admin-users/[[...path]]/route.ts:26` passe la requête telle quelle à `/users`, où `status` est filtrable (`User.php:154`) ; `grep -rn "Bases\\\\Enums\\\\UserStatus"` dans `app`, `tests`, `database` → rien. Le constat tient (rendu à l'écran non vu). Classement : A1, le contrat est l'enum de l'API ; le correctif attendu remplace `banned` par `blocked` dans les types, les options de filtre, le tiroir, la page super-admin et la clé de libellé (« Bloqué » gardé, texte `wo` existant déplacé tel quel), retire `app/Models/Bases/Enums/UserStatus.php` (A3) et garde par un test la liste du front contre l'enum ; le retrait de l'option `inactive`, cas réel de l'enum, n'est pas compris dans ce classement et reste au porteur.
 
 ### L'abonnement d'une agence garde à vie la période de son attribution, et `past_due` / `suspended` n'existent qu'à l'écran
 - Réf : P115.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : période et statuts d'un abonnement facturé ; reconduire ou cacher est un choix de produit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/AgencySubscriptionService.php:30-42,85-108`, `takussan-api/app/Models/Enums/AgencySubscriptionStatus.php`, `takussan-api/app/Services/Reporting/PlatformReportingService.php:435-465`, `takussan-web/src/components/billing/SubscriptionSummary.tsx:15-21,53-55`, `takussan-web/src/types/super-admin.ts:173`
 - Constat :
@@ -11180,10 +11182,11 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Rien n'écrit `past_due` ni `suspended` (mesuré, `grep` : `PastDue` seulement lu par le MRR, `Suspended` nulle part). Le front leur donne pourtant un ton (lu, `SubscriptionSummary.tsx:18-19`) et le MRR compte `past_due` (lu, `PlatformReportingService.php:437,464`). Un abonnement `active` le reste jusqu'à `cancel()` ou une nouvelle attribution.
   - Établi comment : lu et `grep` ; qu'aucune facturation d'abonnement ne soit prévue avant la production est à vérifier dans le plan.
 - Piste : soit faire avancer la période (tâche quotidienne qui la reconduit tant que l'abonnement est `active`), soit ne plus l'afficher comme période en cours ; décider si `past_due` et `suspended` restent dans l'enum tant qu'aucun encaissement d'abonnement ne les pose. Choix de produit.
+- Mesure (2026-10-22, 3390f9116, mesureur) : relu `AgencySubscriptionService.php:40-41` (période posée à l'attribution, maintenant → + 1 mois) ; `grep -rn current_period_end app` → seuls lecteurs : `AgencySubscriptionResource.php:21-22`, `PlatformReportingService.php:460`, `QuotaResolver.php:26` (tri) ; `grep` → `AgencySubscriptionStatus::PastDue` lu par le seul MRR (`PlatformReportingService.php:464`), `Suspended` nulle part ; `SubscriptionSummary.tsx:18-19,54` donne un ton aux deux et affiche la période. Le constat tient ; le plan d'encaissement des abonnements n'a pas été relu. Classement : V1, la période et les statuts sont ceux d'un abonnement payant et entrent dans le MRR, et la Piste offre deux options (V7).
 
 ### Le profil prestataire `suspended` que gardent TCK-592 et la liste du front n'est posé par aucun chemin, ni `inactive`
 - Réf : P115.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : créer un geste de suspension ou retirer deux statuts visibles
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Enums/ServiceProviderProfileStatus.php:5-22`, `takussan-api/app/Services/Onboarding/ServiceProviderOnboardingService.php:54-58`, `docs/models-spec.md:2346`, `docs/backlog/tickets/TCK-592-maintenance-intervention-de-bout-en-bout.md:242-244`, `takussan-web/src/components/service-providers/ServiceProvidersList.tsx:51-52`, `takussan-web/src/lib/queries/service-providers.ts:36-37`
 - Constat :
@@ -11193,10 +11196,11 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - La liste du front donne un badge aux deux états et les propose au filtre (lu, `ServiceProvidersList.tsx:51-52`, `service-providers.ts:36-37`) : ces filtres sont toujours vides.
   - Établi comment : lu et `grep`.
 - Piste : soit un geste de suspension d'un prestataire (plateforme), et la mise à jour d'`inactive` à la fin de la dernière collaboration ; soit retirer les deux cas, leurs badges et la phrase de `models-spec.md`. Choix de produit.
+- Mesure (2026-10-22, 3390f9116, mesureur) : `grep -rn "ServiceProviderProfileStatus::" app` → écrits : `Draft` (`ServiceProviderInvitationService.php:110`) et `Active` (`ServiceProviderOnboardingService.php:84`) seulement ; `Suspended` lu par la seule garde (`:56`), `Inactive` jamais ; aucune règle `Rule::enum` sur ce statut ; relu `models-spec.md:2346` (`inactive` = collaborations `paused`/`ended`, `suspended` = bloqué par un admin), TCK-592 l. 242-244, et le front (`ServiceProvidersList.tsx:51-52`, `service-providers.ts:36-37`). Le constat tient. Classement : V7, la Piste demande de choisir entre un geste neuf (suspension par la plateforme, qui touche aussi l'autorisation du prestataire, V2) et le retrait de deux statuts affichés.
 
 ### Une visite manquée ne peut être que « terminée » ou « annulée » : `no_show` n'a pas de geste
 - Réf : P115.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : geste « absent » neuf ou retrait du statut
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Enums/VisitStatus.php:11`, `takussan-api/routes/api/property-visits.php:16-21`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:218-224`, `takussan-api/app/Services/Dashboard/DashboardAgentService.php:144`, `takussan-web/src/components/visits/visit-status.ts:13,27`, `takussan-web/src/components/crm/CustomerLinkedRecords.tsx:23`
 - Constat :
@@ -11204,10 +11208,11 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Le front a un libellé et un ton `danger` pour `no_show` (lu, `visit-status.ts:13,27`). L'agent dont le visiteur ne vient pas doit déclarer la visite terminée, ce qui la compte dans les visites menées (`TeamPerformanceService.php:64`, lu) et ouvre au visiteur le droit de noter l'agent (`ReviewEligibility`, lu dans son docblock, à vérifier dans le code), ou l'annuler, ce qui dit autre chose.
   - Établi comment : lu et `grep`.
 - Piste : un geste `POST property-visits/{visit}/no-show` depuis `scheduled`/`confirmed` une fois l'heure passée, ou le retrait du cas et de son libellé. Choix de produit.
+- Mesure (2026-10-22, 3390f9116, mesureur) : `grep -rn "VisitStatus::NoShow\|'no_show'" app` → lu par `DashboardAgentService.php:144` seulement ; relu `routes/api/property-visits.php:16-22` (`confirm`, `complete`, `cancel`, `claim`, `reschedule`, `feedback`, aucune route d'absence) et les écritures de statut du contrôleur (`PropertyVisitController.php:155,333,359` : `Scheduled`, `Completed`, `Cancelled`) ; le « à vérifier » tient : `ReviewEligibility.php:187` ouvre la note sur les seules visites `Completed`, et `TeamPerformanceService.php:64` les compte. Le constat tient. Classement : V7, la Piste offre un geste visible neuf ou le retrait d'un statut affiché.
 
 ### `features.md` promet à tous les profils une machine à états `draft → pending → active → suspended | expired | archived` qu'aucun n'a
 - Réf : P115.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `docs/features.md:500`, `takussan-api/app/Models/Enums/AgentProfileStatus.php`, `takussan-api/app/Models/Enums/OwnerProfileStatus.php`, `takussan-api/app/Models/Enums/AgencyAdminProfileStatus.php`, `takussan-api/app/Models/Enums/ServiceProviderProfileStatus.php`
 - Constat :
@@ -11215,10 +11220,11 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Les cas écrits par `app/` sont `draft`, `active` et la suspension (`suspended` ou `blocked`) pour l'agent, le bailleur et l'admin d'agence ; `inactive` (agent, bailleur, prestataire) et `archived` (admin d'agence, que le docblock réserve « aux flux de modération du super-admin ») n'ont aucun écrivain (mesuré, `grep`).
   - Établi comment : lu et `grep`.
 - Piste : réécrire la phrase pour dire les statuts réels de chaque profil, et retirer des enums les cas sans écrivain ou noter qu'ils sont réservés (A6 pour le document ; le retrait est un autre choix).
+- Mesure (2026-10-22, 3390f9116, mesureur) : relu `features.md:500` (« Tous les profils traversent la même machine à états `draft → pending → active → suspended | expired | archived` ») contre les quatre enums : agent `draft active inactive suspended`, bailleur `draft active inactive blocked`, admin d'agence `active suspended archived`, prestataire `draft active inactive suspended` — aucun n'a `pending` ni `expired` ; `grep` → `AgentProfileStatus::Inactive`, `OwnerProfileStatus::Inactive`, `AgencyAdminProfileStatus::Archived` : 0 écriture hors des enums, ni littéral côté profils. Le constat tient. Classement : A6 pour le document seul ; le correctif attendu réécrit la phrase de `features.md:500` pour donner les statuts réels de chaque profil et noter ceux qu'aucun chemin ne pose ; le retrait de cas d'enum n'est pas compris dans ce classement (choix de produit, V7).
 
 ### Petites améliorations : cas d'enum sans écrivain, lus par une garde ou un écran
 - Réf : P115.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer des cas d'enum affichés ou les déclarer réservés
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Enums/ConversationStatus.php`, `takussan-api/app/Models/Enums/BankStatementStatus.php:11-19`, `takussan-api/app/Models/BankStatement.php:84-90`, `takussan-api/app/Models/Enums/PayoutStatus.php`, `takussan-api/app/Services/Model/PayoutService.php:276-281`, `takussan-api/app/Models/Enums/ServiceProviderBillStatus.php`, `takussan-api/app/Models/Enums/RelationshipStatus.php`, `takussan-web/src/types/agency.ts:9`, `takussan-web/src/components/admin/reconciliation/format.ts:24`
 - Constat (lu et `grep`, chaque cas sans écrivain dans `app/`) :
@@ -11229,3 +11235,4 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - `RelationshipStatus::Ended` et `Suspended` : jamais posés ; le front les type (`types/customer.ts:90`).
   - `AgencyStatus` du front ajoute `pending`, que l'enum de l'API n'a pas (lu, `types/agency.ts:9`).
 - Piste : retirer les cas sans écrivain (et leurs types au front), ou les documenter comme réservés ; aligner `scopeOpen()` sur `isClosed()` ou le retirer (A3).
+- Mesure (2026-10-22, 3390f9116, mesureur) : `grep` hors `Models/Enums` → aucune écriture de `ConversationStatus::Archived`/`Closed` (`ConversationController.php:99` n'écrit que `Active`), `ServiceProviderBillStatus::Cancelled`, `RelationshipStatus::Ended`/`Suspended` ; `PayoutStatus::Processing` seulement lu (`PayoutService.php:278`, `PayoutApprovalRule.php:57`) ; `BankStatementStatus::Archived` lu par `scopeOpen()` (`BankStatement.php:84-90`), qui n'a aucun appelant (`->open()` ne vise que `PropertyModerationService.php:180` et `ImpersonationService.php:124`) et range `failed` parmi les ouverts quand `isClosed()` le dit clos (`BankStatementStatus.php:16-19`) ; `types/agency.ts:9` ajoute `pending` à `active inactive suspended`. Le constat tient. Classement : V7, la Piste laisse le choix entre retrait et réserve sur des statuts que le front affiche ; seule la partie `scopeOpen()` serait A3.
