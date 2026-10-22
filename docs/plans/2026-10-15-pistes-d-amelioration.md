@@ -13241,7 +13241,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### Connexion et inscription chargent les onze modules de schémas pour un seul schéma
 - Réf : P137.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1463 — reste : retirer `lib/schemas/index.ts`, sans importeur depuis TCK-1463
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(auth)/auth/login/page.tsx:15`, `takussan-web/src/app/(auth)/auth/register/page.tsx:18`, `takussan-web/src/lib/schemas/index.ts`, `takussan-web/src/lib/schemas/auth.ts:1-7`
 - Constat :
@@ -13250,6 +13250,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - Établi comment : code relu, graphe client mesuré.
 - Piste : importer de `@/lib/schemas/auth` dans ces deux pages ; l'`index.ts`, sans autre importeur, peut alors se retirer (à mesurer côté tests).
 - Mesure (2026-10-22, f42212ee7, mesureur) : relu `login/page.tsx:15`, `register/page.tsx:18` (`@/lib/schemas`), `lib/schemas/index.ts` (onze `export *`) ; `grep -rln "from '@/lib/schemas'" src` → ces deux pages seules, aucun test ; test temporaire du graphe client, retiré depuis → `login` 13 modules `lib/schemas/*` sur 76 ; les deux imports réécrits à titre d'essai vers `@/lib/schemas/auth`, puis remis → 3 (`auth`, `common`, `messages`) sur 62 ; le poids n'est pas mesuré. Classement : A2, deux imports pris à `@/lib/schemas/auth`, mêmes schémas ; l'`index.ts` sans importeur peut ensuite se retirer (A3).
+- Mesure (2026-10-22, 58c404ecf, implementeur) : relu `login/page.tsx:15`, `register/page.tsx:18` (`@/lib/schemas`) ; garde neuve dans `graphe-client-de-l-authentification.test.ts` avant correctif → 2 rouges, `lib/schemas/index.ts`, `booking`, `customer`, `document`, `inventory`, `lease`… dans le graphe client → imports pris à `@/lib/schemas/auth` → verts, `auth-form-ux` (4), `inscription-intention` (9) et `login-retour-a-l-origine` verts ; ablation : imports remis → 2 rouges, rétablis → verts.
 
 ### Aucune garde de graphe client ne lit les pages `(auth)`
 - Réf : P137.05
