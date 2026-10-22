@@ -3,7 +3,7 @@ id: TCK-1504
 title: "Les instants composés à la main par les contrôleurs et la console sortent à la forme d'ADR-0018"
 status: done
 phase: P2
-family: tech
+family: back
 estimate: M
 wave: null
 created: 2026-10-22

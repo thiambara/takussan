@@ -3,7 +3,7 @@ id: TCK-1502
 title: "L'agenda garde l'heure murale UTC, épinglée des deux côtés"
 status: done
 phase: P2
-family: tech
+family: full
 estimate: S
 wave: null
 created: 2026-10-22
