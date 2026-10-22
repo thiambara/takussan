@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { RACINE_SRC } from '@/test/analyse-statique';
-import { paquetsDuGrapheClient } from '@/test/graphe-client';
+import { modulesDuGrapheClient, paquetsDuGrapheClient } from '@/test/graphe-client';
 
 /**
  * Le graphe client des pages d'authentification (angle 137 du fichier de pistes).
@@ -13,6 +13,10 @@ import { paquetsDuGrapheClient } from '@/test/graphe-client';
  * `components/forms`, qui réexporte aussi les champs liés à react-hook-form et les sélecteurs de
  * date. Aucune de ces trois pages n'a de champ react-hook-form ni de date : elles prennent ces deux
  * composants à `@/components/forms/FormError`.
+ *
+ * TCK-1463 (P137.04) — connexion et inscription prenaient `loginSchema` et `registerSchema` au
+ * fichier `index.ts` de `lib/schemas`, qui réexporte onze modules (bien, bail, état des lieux,
+ * paiement…). Elles les prennent à `@/lib/schemas/auth`.
  */
 const AUTH = join(RACINE_SRC, 'app', '(auth)');
 
@@ -23,6 +27,14 @@ describe('graphe client des pages d’authentification', () => {
     'TCK-1457 — %s : ni react-hook-form ni sélecteur de date',
     (page) => {
       expect(paquetsDuGrapheClient(join(AUTH, page), FORMULAIRES_ET_DATES)).toEqual([]);
+    },
+  );
+
+  it.each(['auth/login/page.tsx', 'auth/register/page.tsx'])(
+    'TCK-1463 — %s : seuls les schémas d’authentification',
+    (page) => {
+      const schemas = [...modulesDuGrapheClient(join(AUTH, page))].filter((m) => m.startsWith('lib/schemas/')).sort();
+      expect(schemas).toEqual(['lib/schemas/auth.ts', 'lib/schemas/common.ts', 'lib/schemas/messages.ts']);
     },
   );
 });

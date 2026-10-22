@@ -12,7 +12,7 @@ import { ConnexionParTelephone } from '@/components/auth/ConnexionParTelephone';
 import { useConnexionParTelephone } from '@/components/auth/useConnexionParTelephone';
 import { BASCULE_MOT_DE_PASSE, CIBLE_LIEN_EN_LIGNE } from '@/components/auth/cibles';
 import { FormInput, FormGlobalError } from '@/components/forms';
-import { loginSchema, type LoginFormValues } from '@/lib/schemas';
+import { loginSchema, type LoginFormValues } from '@/lib/schemas/auth';
 import { useApiForm } from '@/hooks/useApiForm';
 import { login, isTwoFactorChallenge, type LoginResponse } from '@/lib/auth';
 import { useAuth } from '@/context/AuthContext';
