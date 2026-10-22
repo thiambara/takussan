@@ -230,7 +230,7 @@ voie d'écriture (angle 13, puis 47).
 | 153 | Retrait d'un membre en `leave_unassigned` (`AgencyMemberRemovalService::remove`, seul ou après une passation partielle) : ce qui reste écrit au nom du retiré (lignes `property_collaborators` marquées, `properties.user_id`, tâches et visites à venir, interventions, référent client, participations aux fils) et ce qui le lit encore — contact public, listes, notifications, droits d'accès — né de P121.04 | fait |
 | 154 | Relations lues puis écrites dans la même requête par `relation()->create()` ou `associate()` sans `setRelation()` ni `load()` (`$model->address ? … : $model->address()->create()`, et leurs pareilles dans les contrôleurs et services) : relation restée nulle ou périmée en mémoire, lue ensuite par un observateur, une notification, un job ou la ressource rendue — le motif de P122.01 hors de l'index | fait |
 | 155 | Mailables et notifications que la suite ne rend jamais (tests sous `Mail::fake()` ou `Notification::fake()` seuls ; gabarits `resources/views/emails/*` rendus par `view:` qui s'appuient sur les composants `mail::`, `toMail()` sans test qui appelle `render()`) : courriel qui lève au rendu en production pendant que la suite est verte — né de P123.01 | fait |
-| 156 | Variables d'environnement dont `phpunit.xml`, `.env.docker` et `.env.example` posent des valeurs différentes (`SCOUT_AFTER_COMMIT`, `SCOUT_QUEUE`, et leurs pareilles) : comportement que la suite éprouve face à celui du développement et de la préproduction, et tests qui ne jouent qu'un régime — né de P123.03 | à faire |
+| 156 | Variables d'environnement dont `phpunit.xml`, `.env.docker` et `.env.example` posent des valeurs différentes (`SCOUT_AFTER_COMMIT`, `SCOUT_QUEUE`, et leurs pareilles) : comportement que la suite éprouve face à celui du développement et de la préproduction, et tests qui ne jouent qu'un régime — né de P123.03 | fait |
 | 157 | Lignes de relevé importées face au rapprochement : `currency` lue dans le fichier (`CsvDriver.php:126-128`) puis comparée telle quelle par `ReconciliationMatcher::fetchCandidates` (`where('currency', …)`), devise de trois lettres autre que celle de l'agence (`CFA`, `XAF`, `EUR`), sens et montants lus, `FITID` répété d'un relevé à l'autre : lignes importées qu'aucun candidat ne peut jamais apparier, sans le dire — né de P124.01 | à faire |
 | 158 | Fiches client créées hors de `CustomerController::store` (`ContactLeadService::convert`, `CustomerService::findOrCreateFromUser`, invitations et onboardings qui créent un `Customer`, visites) face à `CustomerDuplicateDetector` : fiche en double dans le CRM d'une agence, sans le dire — né de P125.02 | à faire |
 | 159 | Exemples et formats montrés à la saisie (messages de `lang/*/validation.php` qui citent un exemple, `placeholder` des champs et clés `*Placeholder`, aides sous les champs) face à la règle de l'API qui jugera la valeur : exemple que la règle refuse — né de P125.03 et P125.04 | à faire |
@@ -14659,3 +14659,60 @@ qui a été relevé. Rien n'a été exécuté.*
 - Piste : `->greeting(__('notifications.greeting'))` dans les deux avis de cooptation, et `greeting`/`salutation` du dépôt dans les cinq autres. La garde de P155.02 peut vérifier que chaque courriel rendu porte la salutation du dépôt.
 - Mesure (2026-10-22, 40dc68fee, mesureur) : relu `SuperAdminInvitedBroadcast.php:47`/`:52` et `SuperAdminAcceptedBroadcast.php:41`/`:46` (`greeting` et `salutation` sur `notifications.salutation`), et l'absence de `greeting`/`salutation` dans `AgencyUpgradeApprovedNotification`, `AgencyUpgradeRejectedNotification`, `AgencyUpgradeRequestSubmittedNotification`, `ReportExportReadyNotification`, `ThresholdAlertTriggered` (`grep -n 'greeting\|salutation'` → rien) ; `notifications.greeting` existe dans les trois langues (`lang/fr/notifications.php:260`, lu par `CodedNotification.php:202`) ; test temporaire (retiré), même charge : `SuperAdminAcceptedBroadcast` → `greeting` = `salutation` = « L'équipe Takussan », les avis d'agence, d'export et d'alerte → `greeting` et `salutation` nuls (gabarit de Laravel) → le constat tient. Classement : V7, aucune spec n'écrit la formule des courriels : aligner sept courriels sur la convention majoritaire change un texte visible, mineur mais à trancher.
 - Mesure (2026-10-22, cc49e079f, delegue) : `grep -rhn "salutation(\|greeting(" app/Notifications app/Mail | sort | uniq -c` → `salutation(__('notifications.salutation'))` dans 31 courriels, `greeting(__('notifications.greeting'))` par `CodedNotification::toMail` (l. 202) pour toutes les notifications codées, `greeting(__('notifications.salutation'))` dans les deux seuls avis de cooptation ; `grep -n "porteur ("` → aucune décision sur la formule → la convention du dépôt est écrite par le code de la quasi-totalité des courriels. Délégation : V7, alignement de sept courriels sur deux clés existantes, sans texte neuf, réversible en un commit ; aucun autre critère relevé.
+
+## Angle 156 — Variables d'environnement que la suite, le développement et la préproduction posent différemment
+
+*Exploré le 2026-10-22 sur `pre-dev` 1800d4d36, par l'explorateur. Relus par l'explorateur :
+`phpunit.xml` (bloc `<php>`), `.env.example`, `.env.docker`, `config/queue.php`, `config/cache.php`,
+`config/media-library.php`, `config/app.php`, `bootstrap/app.php` (rendu des erreurs),
+`MediaController::store()`, `MediaResource::conversionUrl()`, `QueueAfterCommitTest`,
+`MediaConversionTest`, `ApiErrorFormatTest`, `docs/infra/prod-drivers.json` et
+`docs/infra/hebergement.md` (clés de la préproduction). Les écarts de valeurs viennent d'un script
+qui compare les trois fichiers, clés secrètes exclues. Un sous-agent a cherché dans `app/` un job
+mis en file dans une transaction et suivi d'une écriture qu'il lit : il n'en a trouvé aucun, et ce
+résultat n'a pas été relu ici cas par cas. Mesures par un test temporaire (retiré) et par
+`QUEUE_CONNECTION=database` posé dans le shell (que `phpunit.xml` n'écrase pas, faute de
+`force="true"`), charge 3,6 / 3,4 / 3,3 sur 8 cœurs. La préproduction n'est pas mesurée : ses
+valeurs viennent des relevés écrits. Écartés : `SCOUT_QUEUE` et `SCOUT_AFTER_COMMIT` (P123.03 et
+P123.06), l'échec d'envoi sous `sync` (P142.01 et P142.06), `APP_ENV` `staging` en préproduction
+(P71.04), `BROADCAST_CONNECTION=log` (P11.07) ; `CACHE_STORE=array` est en `serialize => false`,
+mais les valeurs mises en cache relues sont des scalaires et des tableaux, sans écart trouvé ;
+`SESSION_DRIVER=array` n'est lu par aucune route de l'API, qui s'authentifie par jeton.*
+
+### La file `sync` de la suite n'attend pas le commit : un job mis en file dans une transaction s'y exécute avant la fin, et son échec annule le geste
+- Réf : P156.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/phpunit.xml:51`, `takussan-api/config/queue.php:42-44`, `:51`, `takussan-api/tests/Feature/Queue/QueueAfterCommitTest.php:26-39`
+- Constat :
+  - `phpunit.xml` pose `QUEUE_CONNECTION=sync` (lu, l. 51). La connexion `sync` n'a pas d'`after_commit` (lu, `config/queue.php:41-43`), quand `database`, celle du développement (`.env.docker:175`) et de la préproduction (`prod-drivers.json`, mesuré le 2026-09-14), l'a à `true` (lu, l. 51). `SyncQueue::push()` ne diffère l'exécution au commit que si l'option ou le job le demande (lu, `vendor/…/Queue/SyncQueue.php:155-166`, `Queue.php:396-407`).
+  - Mesuré (test temporaire, retiré) : un job `ShouldQueue` mis en file dans `DB::transaction()` s'exécute à l'intérieur (niveau de transaction 2 pour une base de 1), **avant** la ligne qui suit le dispatch (`["job(level=2)","apres-dispatch"]`). Sur une connexion `sync` à `after_commit => true`, l'ordre devient celui du worker : `["apres-dispatch","job(level=1)"]`.
+  - Mesuré, même test : un job qui lève dans la transaction fait lever le `DB::transaction()` et annule la ligne écrite avant lui (0 ligne restée). Au worker, la ligne serait validée et l'échec arriverait après coup.
+  - La suite éprouve donc un ordre et une atomicité que ni le développement ni la préproduction n'ont. `QueueAfterCommitTest` garde `after_commit` sur les connexions à transport, et écarte `sync` explicitement (lu, l. 26-29).
+  - Aucun cas actuel où le job lirait une écriture faite après lui dans la même transaction n'a été trouvé (sous-agent, non relu cas par cas : deux voisins, `SendTaskDueReminders.php:66-96` et `SendPropertyVisitReminders.php:90-147`, écrivent la marque après l'envoi, mais la notification ne la lit pas). Le défaut est le régime, pas encore un résultat faux.
+  - Établi comment : lecture, puis le test temporaire.
+- Piste : poser `'after_commit' => true` sur la connexion `sync` de `config/queue.php`, pour que la suite joue l'ordre du worker, puis lancer la suite entière pour voir quels tests reposaient sur l'ancien ordre. Garde : `QueueAfterCommitTest` étendu à `sync` (un job mis en file dans une transaction s'exécute après le commit, et son échec ne l'annule pas).
+
+### `MediaConversionTest` garde une réponse de téléversement que seule la file `sync` produit : en développement et en préproduction, `preview` et `full` y sont nulles
+- Réf : P156.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/tests/Feature/Media/MediaConversionTest.php:37-67`, `takussan-api/app/Http/Controllers/Api/MediaController.php:54-57`, `takussan-api/app/Http/Resources/MediaResource.php:123-138`, `takussan-api/config/media-library.php:61`, `:74`, `:79`
+- Constat :
+  - La médiathèque met les conversions en file sur la connexion par défaut, après le commit (lu, `config/media-library.php:61`, `:74`, `:79`). Seule `thumbnail` est `nonQueued` ; `preview` et `full` sont `queued()` (lu, `Property.php:803-819`, `HasMediaConversions.php:28-36`).
+  - `MediaController::store()` relit le média « to pick up generated_conversions written by the sync conversion job » (lu, l. 54-57), et `conversionUrl()` rend `null` pour une conversion non produite (lu, `MediaResource.php:127`). Le code de la route suppose donc la file `sync`.
+  - Mesuré : `php artisan test tests/Feature/Media/MediaConversionTest.php` → 3/3 ; `QUEUE_CONNECTION=database php artisan test tests/Feature/Media/MediaConversionTest.php` → `test_uploading_image_generates_thumbnail_preview_full_urls` rouge, `hasGeneratedConversion('preview')` faux (l. 57). La réponse du `POST /api/media` porte donc `preview` et `full` à `null` hors de la suite (déduit de la même mesure, à vérifier sur un serveur).
+  - Le front ne lit pas `conversions` de cette réponse (lu, `grep -rn conversions takussan-web/src` : aucun usage) : rien de visible aujourd'hui, mais le test garde un contrat que la route ne tient pas.
+  - Établi comment : lecture, puis le test lancé sous les deux régimes de file.
+- Piste : écrire le contrat réel (la réponse du téléversement ne promet que `thumbnail`, les deux autres arrivent avec le worker) dans le test, joué sous la file `database`, et corriger le commentaire de `MediaController::store()`. Si P156.01 est retenu, ce test rougit avec lui et se corrige du même pas.
+
+### Petites améliorations
+- Réf : P156.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/phpunit.xml:20-52`, `takussan-api/.env.example:7`, `takussan-api/config/app.php:42`, `takussan-api/tests/Feature/Api/ApiErrorFormatTest.php:89-104`, `scripts/check-env-parity.mjs:16-17`
+- Constat :
+  - **`APP_DEBUG` n'est pas posé par `phpunit.xml`** (lu) : la suite le prend du `.env`, `true` en CI (`.env.example:7`, copié par la CI, `api-ci.yml:258`) comme en développement (`.env.docker:35`). La préproduction le reçoit du plan, à `false` (`hebergement.md:163`, `configuration.md:599`). Un 500 hors `HttpException` rend alors le message et la trace de l'exception dans la suite, et « Server Error » ailleurs (lu, `bootstrap/app.php:131-170` ne l'intercepte pas). Un seul test pose `app.debug` à `false` (`ApiErrorFormatTest.php:97`, `grep -rn app.debug tests` → 1) ; les huit autres classes qui attendent un 500 (`grep -rln "assertStatus(500)\|assertServerError" tests`) jouent le régime de débogage.
+  - **Rien ne compare les valeurs** : `check-env-parity.mjs` ne compare que les noms de clés, par choix écrit (lu, l. 16-17). Les écarts de valeur entre `phpunit.xml`, `.env.docker` et `.env.example` qui changent un comportement (`QUEUE_CONNECTION`, `CACHE_STORE`, `SESSION_DRIVER`, `SCOUT_*`, `MAIL_MAILER`) ne portent leur raison dans `phpunit.xml` que pour `SCOUT_PREFIX`, `MEILISEARCH_*`, `DB_*` et `SMS_*` (lu, l. 20-52, 104-105 : `QUEUE_CONNECTION` et `SCOUT_*` sans commentaire).
+  - Établi comment : lu.
+- Piste : poser `APP_DEBUG=false` dans `phpunit.xml`, comme en préproduction, et laisser `true` aux seuls tests qui le demandent ; écrire à côté de chaque valeur de régime de `phpunit.xml` (file, cache, session, Scout) la raison de l'écart avec le développement, ou l'aligner.
