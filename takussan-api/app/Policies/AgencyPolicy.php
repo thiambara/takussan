@@ -112,6 +112,24 @@ class AgencyPolicy
     }
 
     /**
+     * TCK-1498 (P116.01) — changer le rôle SYSTÈME d'un membre (`PUT /api/users/{u}/role`,
+     * `PUT /api/agencies/{a}/members/{u}/role`) : `team.assign_role` DANS l'agence, sous le profil
+     * actif de cette agence, comme affecter un rôle personnalisé ({@see AgencyRolePolicy::assign()}),
+     * plus le court-circuit de l'administrateur principal — même forme que {@see self::removeMember()}.
+     * Les deux FormRequest reprenaient « être admin de l'agence active » : un admin dont le rôle
+     * retire la capacité promouvait un agent, un agent qui la porte était refusé.
+     */
+    public function changeMemberRole(User $user, Agency $agency): bool
+    {
+        if ($user->isSuperAdmin() || $agency->primary_admin_id === $user->id) {
+            return true;
+        }
+
+        return $user->activeProfile()?->agency_id === $agency->id
+            && $user->canActAt(Capability::TeamAssignRole, $agency);
+    }
+
+    /**
      * TCK-601 (C) — déposer une pièce KYC d'agence et soumettre le dossier : la capacité
      * `agency.update_kyc` DANS l'agence de la route, sous le profil actif de cette agence — même
      * forme que {@see self::removeMember()}. Un rôle personnalisé peut la donner à un membre, la
