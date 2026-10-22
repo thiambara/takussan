@@ -13306,7 +13306,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
 
 ### L'accueil `/app` d'un admin d'agence relit l'agence hors de `cache()` : le doublon de P105.05 existe aussi sur l'écran d'arrivée
 - Réf : P138.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1378
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:46`, `takussan-web/src/app/actions/admin-agency.ts:78-88`, `takussan-web/src/app/(dashboard)/app/layout.tsx:38-40`, `takussan-web/src/app/onboarding/agency-admin/page.tsx:29`
 - Constat :
@@ -13315,6 +13315,7 @@ coût de chaque appel côté API n'est pas mesuré ici.*
   - Établi comment : journal de l'API factice et lecture des trois fichiers.
 - Piste : faire passer `fetchAgencyAction` lui-même par la promesse mémoïsée (`agenceDuRendu` exposée avec son erreur, comme le décide P105.05), ce qui couvre l'accueil, `agency/page.tsx` et tout appelant futur ; le test de P105.05 compte alors aussi l'accueil.
 - Mesure (2026-10-22, fe8f1ef28, mesureur) : lu `takussan-web/src/app/(dashboard)/app/layout.tsx:34-40` (`resolveAgencyOrNull` → `agenceDuRendu`, sous `cache()`, `server-guards.ts:106-109`), `(accueil)/page.tsx:46` (`fetchAgencyAction(user.agency_id!)`) et `src/app/actions/admin-agency.ts:78-88` (`fetchAgency` direct, hors cache) : deux lectures de la même agence par rendu ; P105.05 est `validé (délégué)` sur la seule page `/app/agency`, sans PR ouverte qui le cite. Le constat tient. Classement : A1, la décision écrite de P105.05 (lire l'agence par `agenceDuRendu` exposée avec son erreur) s'applique telle quelle à `fetchAgencyAction`, qui couvre l'accueil sans changer ce qu'il rend ; un test de l'accueil compte un seul `GET /api/agencies/{id}`.
+- Mesure (2026-10-22, ccfd4f947, implementeur) : `src/app/actions/__tests__/admin-agency.agence-du-rendu.tck-1378.test.ts` avant correctif → `resolveAgencyOrNull` puis `fetchAgencyAction(7)` dans un même rendu font deux `fetchAgency` (rouge : `called 2 times`) → `fetchAgencyAction` lit par `lireAgenceDuRendu` (`agenceDuRendu` avec son erreur), ce qui couvre l'accueil, `/app/agency` et l'onboarding ; ablation (retour à `fetchAgency` direct) → 1 rouge, remis → 2 verts.
 
 ### `/app/settings/agency/upgrade` lit deux fois les demandes de passage au plan supérieur
 - Réf : P138.06
