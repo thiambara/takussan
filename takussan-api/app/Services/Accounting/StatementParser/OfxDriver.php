@@ -138,13 +138,19 @@ class OfxDriver implements StatementParserInterface
         $label = $name ?? $memo ?? $trnType ?? '';
         $counterparty = ($name !== null && $memo !== null) ? $name : null;
 
+        // TCK-1704 (P124.01) — `reference` et `counterparty` sont des `varchar(255)` : une seule
+        // transaction plus longue faisait échouer l'insertion du relevé entier. Borné en
+        // caractères ; `label` est un `text`, et `raw` garde les valeurs d'origine.
+        $reference = $fitId === null ? null : mb_substr($fitId, 0, ParsedLine::TEXT_MAX);
+        $counterparty = $counterparty === null ? null : mb_substr($counterparty, 0, ParsedLine::TEXT_MAX);
+
         return new ParsedLine(
             postedAt: $postedAt,
             amount: $amount,
             direction: $direction,
             currency: $defaultCurrency,
             label: $label,
-            reference: $fitId,
+            reference: $reference,
             counterparty: $counterparty,
             raw: [
                 'TRNTYPE' => $trnType,
