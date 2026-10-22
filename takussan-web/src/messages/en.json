@@ -3870,7 +3870,10 @@
         "late": "Overdue",
         "pending": "Upcoming",
         "other": "Other",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "partially_paid": "Partially paid",
+        "failed": "Failed",
+        "refunded": "Refunded"
       },
       "listLabel": "Lease instalments",
       "dueOn": "Due: {date}",

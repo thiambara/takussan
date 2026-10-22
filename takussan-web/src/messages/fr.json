@@ -3841,7 +3841,10 @@
         "late": "En retard",
         "pending": "À venir",
         "other": "Autre",
-        "cancelled": "Annulée"
+        "cancelled": "Annulée",
+        "partially_paid": "Partiellement payé",
+        "failed": "Échec",
+        "refunded": "Remboursé"
       },
       "listLabel": "Échéances du bail",
       "dueOn": "Échéance : {date}",

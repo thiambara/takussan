@@ -2113,7 +2113,10 @@
         "late": "Yeex na",
         "pending": "Di ñëw",
         "other": "Weneen",
-        "cancelled": "Neenal nañu ko"
+        "cancelled": "Neenal nañu ko",
+        "partially_paid": "Partiellement payé",
+        "failed": "Échec",
+        "refunded": "Remboursé"
       },
       "listLabel": "Bési fey yu kontaraa bi",
       "dueOn": "Bisu pey : {date}",
