@@ -19,7 +19,8 @@ use Illuminate\Support\Facades\DB;
  *   410 aussitôt.
  * - `resolve()` est la seule porte d'entrée publique : 404 pour un jeton inconnu, 410 pour un lien
  *   révoqué, expiré, ou dont l'échéance n'est plus payable par nature (supprimée, remboursée,
- *   caution rendue). Une échéance `paid` reste lisible (quittance) jusqu'à `paid_at` + 30 jours.
+ *   caution rendue). Une échéance `paid` reste lisible (quittance) 30 jours après son paiement
+ *   (voir `effectiveExpiry`).
  */
 class LeasePaymentLinkService
 {
@@ -86,12 +87,20 @@ class LeasePaymentLinkService
         ]);
     }
 
-    /** L'échéance effective du lien : ramenée à `paid_at` + 30 jours une fois l'échéance payée. */
+    /**
+     * L'échéance effective du lien : ramenée à 30 jours après le paiement une fois l'échéance
+     * payée. TCK-1342 (P132.01) — « après le paiement », c'est le plus tardif de `paid_at` (date
+     * effective, que l'agence peut saisir dans le passé) et de `marked_paid_at` (l'enregistrement).
+     */
     public function effectiveExpiry(LeasePaymentLink $link, ?LeasePayment $payment): CarbonImmutable
     {
         $expires = CarbonImmutable::parse($link->expires_at);
         if ($payment?->status === PaymentStatus::Paid && $payment->paid_at !== null) {
-            $receiptEnd = CarbonImmutable::parse($payment->paid_at)->addDays((int) config('payments.pay_link.receipt_days', 30));
+            $paidAt = CarbonImmutable::parse($payment->paid_at);
+            if ($payment->marked_paid_at !== null && CarbonImmutable::parse($payment->marked_paid_at)->gt($paidAt)) {
+                $paidAt = CarbonImmutable::parse($payment->marked_paid_at);
+            }
+            $receiptEnd = $paidAt->addDays((int) config('payments.pay_link.receipt_days', 30));
             if ($receiptEnd->lt($expires)) {
                 return $receiptEnd;
             }

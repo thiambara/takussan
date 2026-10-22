@@ -10,6 +10,8 @@ use App\Services\Model\LeasePaymentService;
 use App\Services\Payments\LeasePaymentLinkService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\Support\EnvoisParCode;
 use Tests\Support\LeaseDueFixture;
 use Tests\TestCase;
@@ -44,6 +46,35 @@ class LeasePaymentRecordedToContactTest extends TestCase
         $this->assertSame(app(LeasePaymentLinkService::class)->urlFor($ctx['payment']->fresh()), $notification->params['receipt_url']);
         $this->assertStringStartsWith('https://front.test/pay/', $notification->params['receipt_url']);
         $this->assertContains('sms', $channels);
+    }
+
+    /**
+     * TCK-1342 (P132.01) — un paiement saisi après coup, avec une date effective vieille de plus de
+     * 30 jours : le lien envoyé doit ouvrir la quittance, et sa fenêtre court depuis l'enregistrement.
+     */
+    public function test_a_payment_recorded_late_sends_a_receipt_link_that_still_opens(): void
+    {
+        $ctx = $this->leaseDue();
+        $ctx['lease']->tenant->forceFill(['user_id' => null, 'phone' => '+221771234567'])->save();
+
+        app(LeasePaymentService::class)->markPaid($ctx['payment']->fresh(), ['paid_at' => now()->subDays(40)->toDateString()], $ctx['agent']);
+
+        $envois = self::envoisALaDemande(NotificationCode::LeasePaymentRecorded);
+        $this->assertCount(1, $envois);
+        $token = Str::afterLast($envois->first()[0]->params['receipt_url'], '/pay/');
+        $links = app(LeasePaymentLinkService::class);
+        $this->assertSame($ctx['payment']->id, $links->resolve($token)->lease_payment_id);
+
+        $this->travel(29)->days();
+        $this->assertSame($ctx['payment']->id, $links->resolve($token)->lease_payment_id);
+
+        $this->travel(2)->days();
+        try {
+            $links->resolve($token);
+            $this->fail('Le lien de quittance doit se fermer 30 jours après l\'enregistrement.');
+        } catch (HttpException $e) {
+            $this->assertSame(410, $e->getStatusCode());
+        }
     }
 
     public function test_a_tenant_with_account_receives_it_on_the_account_without_the_bearer_link(): void

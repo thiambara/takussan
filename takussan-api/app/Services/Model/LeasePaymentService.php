@@ -86,6 +86,9 @@ class LeasePaymentService
             $locked->update([
                 'status' => PaymentStatus::Paid,
                 'paid_at' => $data['paid_at'] ?? now(),
+                // TCK-1342 (P132.01) — le moment de l'enregistrement : la quittance reste lisible
+                // 30 jours après lui, même si la date effective saisie est plus ancienne.
+                'marked_paid_at' => now(),
                 'payment_method' => $data['payment_method'] ?? $locked->payment_method,
                 'transaction_id' => $data['transaction_id'] ?? $locked->transaction_id,
             ]);
