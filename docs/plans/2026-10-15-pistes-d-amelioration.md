@@ -11455,7 +11455,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Supprimer un média d'agence : l'admin sans `properties.update_any` le peut, l'agent qui la tient non
 - Réf : P116.06
-- Statut : validé — porteur (2026-10-22) : juger `DELETE /api/media/{m}` par la règle d'écriture du porteur du média (`PropertyPolicy::update` pour un bien)
+- Statut : fait · TCK-1496 — reste : les autres porteurs de média qui ont un `agency_id` (relevé bancaire, intervention, document…) restent jugés par « être admin de l'agence » dans `MediaPolicy::delete`, chacun demandant d'identifier sa règle d'écriture
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/MediaPolicy.php:51-82`, `:91-127`, `takussan-api/app/Http/Controllers/Api/MediaController.php:70`
 - Constat :
@@ -11464,6 +11464,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - `grep -rn "/api/media" takussan-web/src` → aucun appel de suppression. Le front supprime par `DELETE /api/properties/{p}/media/{id}`, jugé par `PropertyPolicy::update` (lu, `PropertyMediaController.php:149`). Un autre appelant n'a pas été cherché (à vérifier).
 - Piste : juger `delete` par la règle d'écriture du porteur du média (`PropertyPolicy::update` pour un bien), ou retirer la route si elle n'a pas d'appelant. Test : admin sans `properties.update_any` refusé sur `DELETE /api/media/{m}`, agent qui la tient accepté.
 - Mesure (2026-10-22, efa6796ea, mesureur) : relu `MediaPolicy.php:91-127` (`sign` délègue à `delete`, qui n'exige que `isAgencyAdminAt` pour un média d'agence), route `routes/api/media.php:12` (`DELETE media/{media}`) et `:15` (`sign`) ; `grep -rn "/api/media" takussan-web/src` → seul `agencies.ts:144`, un `POST` d'envoi, aucune suppression ni signature ; pas rejoué par un test. Le constat tient. Classement : V2, juger `delete` (et donc `sign`) autrement change qui lit et supprime un média aujourd'hui, et la Piste hésite avec un retrait de route.
+- Mesure (2026-10-22, d2575fb11, implementeur) : test neuf `PropertyMediaDeleteFollowsPropertyWriteRuleTest` avant correctif, photo d'un bien d'un bailleur de l'agence : admin dont le rôle retire `properties.update_any` → `DELETE /api/media/{m}` 204 au lieu de 403, agent qui la porte → 403 au lieu de 204 → `MediaPolicy::delete` juge le média d'un bien par `PropertyPolicy::update` (`sign` délègue et suit) ; 4/4 verts ; ablation (policy remise à `d2575fb11`) → 2 rouges, remise → 4/4 ; `MediaPolicyTest`, `SignMediaEndpointTest`, `MediaDeleteTest`, `PrivateMediaAccessTest`, `ViewRawPerOwnerTest`, `MediaDiskPrivatePhotosTest`, `PropertyPhotoExposureTest`, `MediaGenericUploadTest`, `InventoryRoomPhotosTest` verts.
 
 ### Petites améliorations : gestes d'admin sans capacité au catalogue
 - Réf : P116.07
