@@ -219,6 +219,47 @@ class HostIndividualOnboardingTest extends TestCase
         $this->assertNotNull($user->fresh()->phone_verified_at);
     }
 
+    /**
+     * TCK-1368 (P114.04) — décision du porteur (2026-10-22) : le numéro saisi à l'étape téléphone
+     * s'écrit sur le compte, puis se vérifie par code ; jamais marqué vérifié sans code. L'assistant
+     * l'écrit par l'envoi du code (`POST /auth/phone/send-otp`) : le numéro vérifié à la soumission
+     * est celui qui a reçu le code, pas l'ancien numéro du compte.
+     */
+    public function test_le_numero_saisi_different_de_celui_du_compte_s_ecrit_puis_se_verifie_par_code(): void
+    {
+        $sms = $this->fakeSms();
+        $user = User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => null]);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/auth/phone/send-otp', ['phone' => '+221781234567'])->assertSuccessful();
+        $this->assertSame('+221781234567', $user->fresh()->phone);
+        $this->assertSame([], $sms->sentTo('+221770000000'));
+
+        $payload = $this->defaultPayload();
+        $payload['phone_otp'] = ['phone' => '+221781234567', 'code' => $sms->lastCodeFor('+221781234567')];
+        $this->postJson('/api/host/individual/onboard', $payload)->assertStatus(201);
+
+        $fresh = $user->fresh();
+        $this->assertSame('+221781234567', $fresh->phone);
+        $this->assertNotNull($fresh->phone_verified_at);
+    }
+
+    public function test_le_numero_saisi_n_est_jamais_marque_verifie_sans_le_bon_code(): void
+    {
+        $sms = $this->fakeSms();
+        $user = User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => null]);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/auth/phone/send-otp', ['phone' => '+221781234567'])->assertSuccessful();
+        $bon = $sms->lastCodeFor('+221781234567');
+
+        $payload = $this->defaultPayload();
+        $payload['phone_otp'] = ['phone' => '+221781234567', 'code' => $bon === '000000' ? '111111' : '000000'];
+        $this->postJson('/api/host/individual/onboard', $payload)->assertStatus(422);
+
+        $this->assertNull($user->fresh()->phone_verified_at);
+    }
+
     public function test_invalid_otp_rejects_with_422_and_does_not_persist_anything(): void
     {
         $user = User::factory()->create([
