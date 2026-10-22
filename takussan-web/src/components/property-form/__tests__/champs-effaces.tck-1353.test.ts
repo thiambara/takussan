@@ -41,8 +41,8 @@ describe('withClearedFields — les champs vidés de l’édition (TCK-1353)', (
 describe('chaque champ facultatif du schéma est classé (TCK-1353)', () => {
   const ADRESSE = ['quarter', 'region', 'street', 'postal_code', 'country', 'latitude', 'longitude', 'geo_region_id', 'geo_city_id', 'geo_neighborhood_id'];
   const VALEUR_PAR_DEFAUT = ['currency', 'furnished', 'tag_ids', 'tag_names'];
-  // Hors de TCK-1353 : trois sélecteurs non mesurés ici, et la surface (P149.04).
-  const NON_TRAITES = ['rent_period', 'title_type', 'condition', 'area'];
+  // Hors de TCK-1353 : trois sélecteurs non mesurés ici. La surface est effaçable (TCK-1485).
+  const NON_TRAITES = ['rent_period', 'title_type', 'condition'];
 
   it('effaçable, adresse, valeur par défaut, ou non traité', () => {
     const forme = propertyFormSchema.shape as Record<string, { safeParse: (v: unknown) => { success: boolean } }>;

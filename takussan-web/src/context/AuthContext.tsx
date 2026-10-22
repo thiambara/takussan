@@ -11,6 +11,7 @@ import {
   type RegisterPayload,
   type User,
 } from '@/lib/auth';
+import { DELAI_DECONNEXION_MS } from '@/lib/delais-deconnexion';
 import { apiRequest } from '@/lib/api';
 import {
   getIds as getLocalFavoriteIds,
@@ -255,10 +256,17 @@ export function AuthProvider({
   );
 
   const logout = useCallback(async () => {
+    // TCK-1481 (P113.05) — l'attente du relais est bornée : sur une API figée, « Se déconnecter »
+    // ne produisait rien de visible et la session restait ouverte dans l'onglet. Passé
+    // `DELAI_DECONNEXION_MS`, l'état local se vide quand même (décision du porteur, 2026-10-22).
+    const echeance = new AbortController();
+    const minuteur = setTimeout(() => echeance.abort(), DELAI_DECONNEXION_MS);
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', { method: 'POST', signal: echeance.signal });
     } catch {
       // Even if the network call fails, drop the in-memory session.
+    } finally {
+      clearTimeout(minuteur);
     }
     // La règle d'`openSession`, dans l'autre sens : le compte suivant n'hérite d'aucune réponse
     // mise en cache sous celui-ci. Les favoris locaux, eux, sont vidés par l'effet d'amorçage

@@ -242,6 +242,8 @@ function ReservationForm({
             onChange={(e) => setMessage(e.target.value)}
             placeholder={t('booking.messagePlaceholder')}
             rows={3}
+            // TCK-1491 — la borne de l'API (`message`, max:1000).
+            maxLength={1000}
           />
         </label>
         {quote.kind === 'stay' && quote.nights > 0 && (
@@ -394,6 +396,8 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
             onChange={(e) => setMessage(e.target.value)}
             placeholder={t('offerForm.messagePlaceholder')}
             rows={3}
+            // TCK-1491 — la borne de l'API (`message`, max:1000).
+            maxLength={1000}
           />
         </label>
         <label className="flex items-start gap-2 text-sm text-foreground">

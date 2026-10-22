@@ -75,3 +75,11 @@ describe('<VisitFeedbackForm>', () => {
     expect(await screen.findByText(/feedback window has closed/i)).toBeInTheDocument();
   });
 });
+
+/** TCK-1491 (P145.03) — le commentaire de retour de visite porte la borne de l'API (2000). */
+describe('<VisitFeedbackForm> — bornes de l’API (TCK-1491)', () => {
+  it('commentaire : maxLength 2000', () => {
+    render(wrap(<VisitFeedbackForm visitId={1} role="customer" />));
+    expect((document.querySelector('textarea') as HTMLTextAreaElement).maxLength).toBe(2000);
+  });
+});

@@ -45,7 +45,8 @@ describe('POST /api/auth/logout', () => {
 
     const res = await POST();
 
-    expect(logoutMock).toHaveBeenCalledWith('jeton-A');
+    // TCK-1481 — avec l'échéance de la déconnexion.
+    expect(logoutMock).toHaveBeenCalledWith('jeton-A', expect.any(AbortSignal));
     expect(fetchMock).not.toHaveBeenCalled();
     expect(effaces(res).sort()).toEqual(['active_profile_id', 'auth_token', 'impersonation_active', 'impersonation_token']);
   });

@@ -111,6 +111,8 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder={t('labelPlaceholder')}
+              // TCK-1491 — la borne de l'API (`StoreKpiConfigRequest`, max:120).
+              maxLength={120}
               aria-invalid={error !== null && !label ? true : undefined}
               aria-describedby={error !== null && !label ? 'kpi-form-error' : undefined}
             />

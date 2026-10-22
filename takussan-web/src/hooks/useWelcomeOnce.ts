@@ -26,6 +26,11 @@ export type UseWelcomeOnceResult = {
   slides: WelcomeSlide[];
   onComplete: () => void;
   onSkip: () => void;
+  /**
+   * TCK-1477 — la fenêtre est réglée : jugée déjà vue, lecture en échec, ou fermée. Une file de
+   * fenêtres (`AppShell`) attend ce signal pour ouvrir la suivante, jamais deux à la fois.
+   */
+  settled: boolean;
 };
 
 export function useWelcomeOnce(key: string, slides: WelcomeSlide[]): UseWelcomeOnceResult {
@@ -33,6 +38,8 @@ export function useWelcomeOnce(key: string, slides: WelcomeSlide[]): UseWelcomeO
   const isAuthenticated = user !== null;
 
   const [open, setOpen] = useState(false);
+  // TCK-1477 — la lecture des clés vues a rendu son verdict (ou échoué).
+  const [checked, setChecked] = useState(false);
   // Guard so we never POST twice for the same modale lifecycle (the
   // server is idempotent, but the network call is wasted).
   const acknowledgedRef = useRef(false);
@@ -50,13 +57,16 @@ export function useWelcomeOnce(key: string, slides: WelcomeSlide[]): UseWelcomeO
           credentials: 'same-origin',
         });
         if (cancelled) return;
-        if (!res.ok) return; // 401 (anonymous race) or 5xx → never block UX
-        const body = (await res.json()) as WelcomeSeenListResponse;
-        const seen = Array.isArray(body?.data) ? body.data : [];
-        if (!seen.includes(key)) setOpen(true);
+        if (res.ok) {
+          // 401 (anonymous race) or 5xx → never block UX
+          const body = (await res.json()) as WelcomeSeenListResponse;
+          const seen = Array.isArray(body?.data) ? body.data : [];
+          if (!cancelled && !seen.includes(key)) setOpen(true);
+        }
       } catch {
         // Silent — never break the page because the welcome ping failed.
       }
+      if (!cancelled) setChecked(true);
     })();
 
     return () => {
@@ -88,5 +98,7 @@ export function useWelcomeOnce(key: string, slides: WelcomeSlide[]): UseWelcomeO
     setOpen(false);
   }, [acknowledge]);
 
-  return { open, slides, onComplete, onSkip };
+  const settled = !isAuthenticated || !key || (checked && !open);
+
+  return { open, slides, onComplete, onSkip, settled };
 }

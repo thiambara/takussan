@@ -78,6 +78,8 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/queries/public-property', () => ({
   getProperty: () => getPropertyMock(),
   getEtatDuBien: () => getEtatDuBienMock(),
+  // TCK-1483 — les similaires lus au rendu : gardés par `similaires.rendu-serveur.test.tsx`.
+  getBiensSimilaires: async () => null,
 }));
 vi.mock('@/components/property/PropertyCard', () => ({
   PropertyCard: ({ property }: { property: { id: number; title: string } }) => (
