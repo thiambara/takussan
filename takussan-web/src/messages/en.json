@@ -1947,6 +1947,8 @@
       "download": "Download",
       "scopeNotice": "Exports respect your role (agency, landlord or agent).",
       "rowCap": "A file holds at most {max, number} rows, {pdf, number} in PDF.",
+      "truncated": "The file stops at {count, number} rows: the period holds more. Narrow it to get everything.",
+      "failed": "The download failed. Please try again.",
       "scopeNoticeFull": "Exports respect your role (agency, landlord, tenant) — no data outside your scope is included.",
       "noneAllowed": "Your role in this agency includes no export. An administrator can grant you one.",
       "entities": {

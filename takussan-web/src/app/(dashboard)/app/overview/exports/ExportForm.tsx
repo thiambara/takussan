@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import {
   Select,
   SelectContent,
@@ -73,23 +73,49 @@ export function ExportForm({ staff }: Props) {
   const [format, setFormat] = useState<ExportFormat>('csv');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setPending] = useState(false);
+  const [coupe, setCoupe] = useState<number | null>(null);
+  const [echec, setEchec] = useState(false);
 
-  function handleDownload() {
+  /**
+   * TCK-1308 (piste P112.03) — le téléchargement passe par le relais en `fetch`, et non plus par
+   * un onglet ouvert : c'est la seule façon de lire `X-Export-Truncated`, que l'API pose quand
+   * l'export est coupé au plafond. Le relais est sur l'origine du front : le cookie de session part
+   * avec la requête, et `Content-Disposition` se lit (il donne le nom du fichier).
+   */
+  async function handleDownload() {
     if (!entity) return;
-    startTransition(() => {
-      const url = buildExportUrl({
-        entity,
-        format,
-        from: from || undefined,
-        to: to || undefined,
-      });
-      // Opening in a new tab keeps the Sanctum cookie attached and preserves the
-      // current page so users can run several exports back-to-back.
-      if (typeof window !== 'undefined') {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }
+    const url = buildExportUrl({
+      entity,
+      format,
+      from: from || undefined,
+      to: to || undefined,
     });
+    setPending(true);
+    setCoupe(null);
+    setEchec(false);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        setEchec(true);
+        return;
+      }
+      const tronque = Number(res.headers.get('x-export-truncated'));
+      setCoupe(Number.isFinite(tronque) && tronque > 0 ? tronque : null);
+      const nom = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? `${entity}.${format}`;
+      const objectUrl = URL.createObjectURL(await res.blob());
+      const lien = document.createElement('a');
+      lien.href = objectUrl;
+      lien.download = nom;
+      document.body.appendChild(lien);
+      lien.click();
+      lien.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      setEchec(true);
+    } finally {
+      setPending(false);
+    }
   }
 
   if (entities.length === 0) {
@@ -155,13 +181,23 @@ export function ExportForm({ staff }: Props) {
         </label>
       </div>
       {/* Le bouton principal du produit (`bg-primary`), plus un aplat sombre fait main. */}
-      <Button type="button" onClick={handleDownload} disabled={isPending}>
+      <Button type="button" onClick={() => void handleDownload()} disabled={isPending}>
         {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}
         {isPending ? t('downloading') : t('download')}
       </Button>
       {/* `scopeNotice` et non `scopeNoticeFull` : cette page est ouverte à l'agence, au bailleur
           et à l'AGENT (`layout.tsx`), jamais au locataire que la version longue nommait. */}
       <p className="text-xs text-pretty text-muted-foreground">{t('scopeNotice')}</p>
+      {coupe !== null && (
+        <p className="text-sm text-pretty text-foreground" role="status" data-testid="exports-truncated">
+          {t('truncated', { count: coupe })}
+        </p>
+      )}
+      {echec && (
+        <p className="text-sm text-pretty text-destructive" role="alert">
+          {t('failed')}
+        </p>
+      )}
       {/* TCK-1306 (P112.01) — le plafond de lignes se dit : au-delà, le fichier est coupé. */}
       <p className="text-xs text-pretty text-muted-foreground" data-testid="exports-row-cap">
         {t('rowCap', { max: PLAFOND_LIGNES_EXPORT, pdf: PLAFOND_LIGNES_EXPORT_PDF })}

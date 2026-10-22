@@ -54,7 +54,7 @@ class ExportDataService
 
         $this->applyRangeFilter($query, 'due_date', $filters['from'] ?? null, $filters['to'] ?? null);
 
-        $rows = $query->orderByDesc('due_date')->limit($this->limit($filters))->get()->map(function ($p) {
+        $rows = $query->orderByDesc('due_date')->limit($this->limit($filters) + 1)->get()->map(function ($p) {
             return [
                 'id' => $p->id,
                 'reference' => $p->reference_number,
@@ -93,7 +93,7 @@ class ExportDataService
 
         $this->applyRangeFilter($query, 'start_date', $filters['from'] ?? null, $filters['to'] ?? null);
 
-        $rows = $query->orderByDesc('start_date')->limit($this->limit($filters))->get()->map(function ($l) {
+        $rows = $query->orderByDesc('start_date')->limit($this->limit($filters) + 1)->get()->map(function ($l) {
             return [
                 'id' => $l->id,
                 'reference' => $l->reference_number,
@@ -127,7 +127,7 @@ class ExportDataService
         $this->scopeToActor($query, $actor, 'customer');
         $this->applyRangeFilter($query, 'created_at', $filters['from'] ?? null, $filters['to'] ?? null);
 
-        $rows = $query->orderByDesc('created_at')->limit($this->limit($filters))->get()->map(function ($c) {
+        $rows = $query->orderByDesc('created_at')->limit($this->limit($filters) + 1)->get()->map(function ($c) {
             return [
                 'id' => $c->id,
                 'first_name' => $c->first_name,
@@ -158,7 +158,7 @@ class ExportDataService
         $this->scopeToActor($query, $actor, 'property');
         $this->applyRangeFilter($query, 'created_at', $filters['from'] ?? null, $filters['to'] ?? null);
 
-        $rows = $query->orderByDesc('created_at')->limit($this->limit($filters))->get()->map(function ($p) {
+        $rows = $query->orderByDesc('created_at')->limit($this->limit($filters) + 1)->get()->map(function ($p) {
             return [
                 'id' => $p->id,
                 'reference' => $p->reference_number,
@@ -196,7 +196,7 @@ class ExportDataService
         $this->scopeToActor($query, $actor, 'payout');
         $this->applyRangeFilter($query, 'created_at', $filters['from'] ?? null, $filters['to'] ?? null);
 
-        $rows = $query->orderByDesc('created_at')->limit($this->limit($filters))->get()->map(fn ($p) => [
+        $rows = $query->orderByDesc('created_at')->limit($this->limit($filters) + 1)->get()->map(fn ($p) => [
             'id' => $p->id,
             'reference' => $p->reference_number,
             'payee_role' => $p->payee_role?->value,
@@ -235,7 +235,7 @@ class ExportDataService
         $this->scopeToActor($query, $actor, 'invoice');
         $this->applyRangeFilter($query, 'issue_date', $filters['from'] ?? null, $filters['to'] ?? null);
 
-        $rows = $query->orderByDesc('issue_date')->orderByDesc('id')->limit($this->limit($filters))->get()->map(fn ($i) => [
+        $rows = $query->orderByDesc('issue_date')->orderByDesc('id')->limit($this->limit($filters) + 1)->get()->map(fn ($i) => [
             'id' => $i->id,
             'reference' => $i->reference_number,
             'kind' => $i->kind?->value,
@@ -271,7 +271,7 @@ class ExportDataService
         $query->visibleTo($actor);
         $this->applyRangeFilter($query, 'earned_at', $filters['from'] ?? null, $filters['to'] ?? null);
 
-        $rows = $query->orderByDesc('earned_at')->orderByDesc('id')->limit($this->limit($filters))->get()->map(fn ($c) => [
+        $rows = $query->orderByDesc('earned_at')->orderByDesc('id')->limit($this->limit($filters) + 1)->get()->map(fn ($c) => [
             'id' => $c->id,
             'lease' => $c->lease?->reference_number,
             'beneficiary' => $this->fullName($c->beneficiary),
@@ -312,7 +312,7 @@ class ExportDataService
         $this->scopeToActor($query, $actor, 'lease_payment');
         $this->applyRangeFilter($query, 'due_date', $filters['from'] ?? null, $filters['to'] ?? null);
 
-        $rows = $query->orderBy('due_date')->orderBy('id')->limit($this->limit($filters))->get()->map(function ($p) use ($today) {
+        $rows = $query->orderBy('due_date')->orderBy('id')->limit($this->limit($filters) + 1)->get()->map(function ($p) use ($today) {
             $days = (int) $p->due_date->diffInDays($today);
 
             return [
@@ -366,7 +366,7 @@ class ExportDataService
             ->whereIn('id', $sums->keys()->all())
             ->with(['property:id,title', 'tenant:id,first_name,last_name', 'landlord:id,first_name,last_name'])
             ->orderBy('id')
-            ->limit($this->limit($filters))
+            ->limit($this->limit($filters) + 1)
             ->get();
 
         $rows = $leases->map(function ($l) use ($sums) {
@@ -395,6 +395,23 @@ class ExportDataService
      * Dispatch an entity name → dataset resolver.
      */
     public function collect(string $entity, User $actor, array $filters = []): array
+    {
+        $payload = $this->dataset($entity, $actor, $filters);
+
+        // TCK-1308 (piste P112.03) — chaque constructeur lit UNE LIGNE DE PLUS que la limite : si
+        // elle existe, l'export est coupé. Elle n'est pas écrite, et `truncated` le dit à l'appelant.
+        $limit = $this->limit($filters);
+        $payload['truncated'] = count($payload['rows']) > $limit;
+        $payload['rows'] = array_slice($payload['rows'], 0, $limit);
+        $payload['limit'] = $limit;
+
+        return $payload;
+    }
+
+    /**
+     * @return array{columns: array<int,string>, rows: array<int,array<string,mixed>>, filename: string}
+     */
+    protected function dataset(string $entity, User $actor, array $filters): array
     {
         return match ($entity) {
             'payments' => $this->payments($actor, $filters),

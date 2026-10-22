@@ -146,8 +146,12 @@ class ExportColonnesEtPlafondTest extends ApiTestCase
         ];
     }
 
+    /**
+     * TCK-1308 (P112.03) — chaque export demande UNE LIGNE DE PLUS que son plafond : c'est elle
+     * qui dit s'il y a coupure (`X-Export-Truncated`), et elle n'est pas écrite.
+     */
     #[DataProvider('plafondsParDefaut')]
-    public function test_sans_limite_l_export_applique_le_plafond_du_format(string $format, int $attendu): void
+    public function test_sans_limite_l_export_demande_le_plafond_du_format_plus_une_ligne(string $format, int $attendu): void
     {
         $admin = $this->agencyAdmin($this->agency);
 
@@ -162,7 +166,27 @@ class ExportColonnesEtPlafondTest extends ApiTestCase
 
         $export = array_values(array_filter($sql, fn (string $q) => str_contains($q, 'from "properties"') && str_contains($q, ' limit ')));
         $this->assertNotEmpty($export, 'la requête d’export des biens est relevée');
-        $this->assertStringEndsWith("limit {$attendu}", end($export));
+        $this->assertStringEndsWith('limit '.($attendu + 1), end($export));
+    }
+
+    /** TCK-1308 (P112.03) — les neuf constructeurs lisent la ligne de trop, et le signal suit. */
+    #[DataProvider('entities')]
+    public function test_chaque_export_lit_une_ligne_de_plus_que_sa_limite(string $entity, string $table, string $marker): void
+    {
+        $admin = $this->agencyAdmin($this->agency);
+
+        $sql = [];
+        DB::listen(function ($query) use (&$sql) {
+            $sql[] = $query->sql;
+        });
+
+        $this->actingAsApi($admin)
+            ->get("/api/export/{$entity}?format=csv&limit=7")
+            ->assertOk()
+            ->assertHeaderMissing('X-Export-Truncated');
+
+        $export = array_values(array_filter($sql, fn (string $q) => str_contains($q, 'from "'.$table.'"') && str_ends_with($q, ' limit 8')));
+        $this->assertNotEmpty($export, "l'export {$entity} demande limit 8 à {$table}");
     }
 
     private function seedAgency(Agency $agency): void

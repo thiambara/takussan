@@ -1918,6 +1918,8 @@
       "download": "Télécharger",
       "scopeNotice": "Les exports respectent votre rôle (agence, bailleur ou agent).",
       "rowCap": "Un fichier compte au plus {max, number} lignes, {pdf, number} en PDF.",
+      "truncated": "Le fichier s'arrête à {count, number} lignes : la période en compte davantage. Resserrez-la pour tout obtenir.",
+      "failed": "Le téléchargement a échoué. Réessayez.",
       "scopeNoticeFull": "Les exports respectent votre rôle (agence, bailleur, locataire) — aucune donnée hors de votre périmètre n'est incluse.",
       "noneAllowed": "Votre rôle dans cette agence ne comporte aucun export. Un administrateur peut vous l'accorder.",
       "entities": {
