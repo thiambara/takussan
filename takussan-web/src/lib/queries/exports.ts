@@ -22,6 +22,14 @@ export type ExportEntity =
   | 'deposits';
 export type ExportFormat = 'csv' | 'xlsx' | 'pdf';
 
+/**
+ * TCK-1306 (piste P112.01) — les plafonds de lignes que l'API applique à un export sans `limit`,
+ * que ce formulaire n'envoie jamais : `ExportDataService::DEFAULT_ROWS` et `MAX_ROWS_PDF`. Recopiés
+ * pour être dits à l'écran ; ils changent avec eux.
+ */
+export const PLAFOND_LIGNES_EXPORT = 5000;
+export const PLAFOND_LIGNES_EXPORT_PDF = 200;
+
 export type ExportOptions = {
   entity: ExportEntity;
   format: ExportFormat;

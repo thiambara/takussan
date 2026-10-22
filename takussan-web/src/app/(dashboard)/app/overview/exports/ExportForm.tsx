@@ -12,7 +12,13 @@ import { Download, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
-import { buildExportUrl, type ExportEntity, type ExportFormat } from '@/lib/queries/exports';
+import {
+  buildExportUrl,
+  PLAFOND_LIGNES_EXPORT,
+  PLAFOND_LIGNES_EXPORT_PDF,
+  type ExportEntity,
+  type ExportFormat,
+} from '@/lib/queries/exports';
 import { useCan } from '@/hooks/useCan';
 import { useTranslations } from 'next-intl';
 
@@ -156,6 +162,10 @@ export function ExportForm({ staff }: Props) {
       {/* `scopeNotice` et non `scopeNoticeFull` : cette page est ouverte à l'agence, au bailleur
           et à l'AGENT (`layout.tsx`), jamais au locataire que la version longue nommait. */}
       <p className="text-xs text-pretty text-muted-foreground">{t('scopeNotice')}</p>
+      {/* TCK-1306 (P112.01) — le plafond de lignes se dit : au-delà, le fichier est coupé. */}
+      <p className="text-xs text-pretty text-muted-foreground" data-testid="exports-row-cap">
+        {t('rowCap', { max: PLAFOND_LIGNES_EXPORT, pdf: PLAFOND_LIGNES_EXPORT_PDF })}
+      </p>
     </section>
   );
 }

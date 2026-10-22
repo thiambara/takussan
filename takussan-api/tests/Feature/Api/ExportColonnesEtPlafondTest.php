@@ -22,7 +22,7 @@ use Tests\Concerns\CreatesAgencyMembers;
 
 /**
  * TCK-713 (piste P02.07) — l'export synchrone ne charge que les colonnes qu'il écrit, et il est
- * plafonné à 10 000 lignes, 2 000 en PDF.
+ * plafonné à 10 000 lignes, 200 en PDF (2 000 jusqu'à TCK-1306).
  *
  * Les requêtes d'export sont relevées par `DB::listen` : aucune ne doit lire `*` sur une table
  * exportée. `preventAccessingMissingAttributes()` fait lever toute lecture d'une colonne oubliée
@@ -118,17 +118,22 @@ class ExportColonnesEtPlafondTest extends ApiTestCase
             ->assertOk();
     }
 
-    public function test_au_dela_de_2_000_lignes_en_pdf_la_demande_est_refusee(): void
+    /** TCK-1306 (P112.01) — 200 en PDF, et non plus 2 000 : la garde est `ExportMemoireAuPlafondTest`. */
+    public function test_au_dela_de_200_lignes_en_pdf_la_demande_est_refusee(): void
     {
         $admin = $this->agencyAdmin($this->agency);
 
         $this->actingAsApi($admin)
-            ->getJson('/api/export/properties?format=pdf&limit=2001')
+            ->getJson('/api/export/properties?format=pdf&limit=201')
             ->assertUnprocessable()
             ->assertJsonValidationErrors('limit');
 
         $this->actingAsApi($admin)
-            ->getJson('/api/export/properties?format=xlsx&limit=2001')
+            ->getJson('/api/export/properties?format=pdf&limit=200')
+            ->assertOk();
+
+        $this->actingAsApi($admin)
+            ->getJson('/api/export/properties?format=xlsx&limit=201')
             ->assertOk();
     }
 
@@ -137,7 +142,7 @@ class ExportColonnesEtPlafondTest extends ApiTestCase
     {
         return [
             'csv' => ['csv', 5000],
-            'pdf' => ['pdf', 2000],
+            'pdf' => ['pdf', 200],
         ];
     }
 

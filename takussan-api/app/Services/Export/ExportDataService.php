@@ -30,10 +30,14 @@ class ExportDataService
      * TCK-713 (piste P02.07) — l'export est synchrone : il se borne. 10 000 lignes au plus, 2 000 en
      * PDF, dont le rendu coûte bien plus par ligne. `ShowExportRequest` refuse une `limit` au-delà ;
      * le défaut (5 000) est ramené au plafond du format.
+     *
+     * TCK-1306 (piste P112.01) — 200 en PDF, et non plus 2 000 : rendu dans la requête sous
+     * `memory_limit = 256M`, un PDF de paiements mourait à 400 lignes (mesuré). La garde est
+     * `ExportMemoireAuPlafondTest`. Le PDF en file reste à faire.
      */
     public const MAX_ROWS = 10_000;
 
-    public const MAX_ROWS_PDF = 2_000;
+    public const MAX_ROWS_PDF = 200;
 
     public const DEFAULT_ROWS = 5_000;
 

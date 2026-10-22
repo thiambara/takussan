@@ -20,7 +20,7 @@ use App\Services\Export\ExportWriter;
  * Query params:
  *   - format: csv|xlsx|pdf (default csv)
  *   - from, to: optional ISO date bounds (YYYY-MM-DD)
- *   - limit: cap rows (default 5000, max 10000 ; 2000 en PDF — TCK-713)
+ *   - limit: cap rows (default 5000, max 10000 ; 200 en PDF — TCK-713, TCK-1306)
  */
 class ExportController extends Controller
 {

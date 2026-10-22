@@ -9067,6 +9067,7 @@
       "downloading": "Mu ngi yebbi…",
       "download": "Yebbi",
       "scopeNotice": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër walla ajaŋ).",
+      "rowCap": "Un fichier compte au plus {max, number} lignes, {pdf, number} en PDF.",
       "scopeNoticeFull": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër, luwaakat) — amul xibaar bu génn sa wàll.",
       "noneAllowed": "Sa rol ci ajaans bii amul benn génné. Benn yorkat mën na la ko jox.",
       "entities": {

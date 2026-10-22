@@ -1946,6 +1946,7 @@
       "downloading": "Downloading…",
       "download": "Download",
       "scopeNotice": "Exports respect your role (agency, landlord or agent).",
+      "rowCap": "A file holds at most {max, number} rows, {pdf, number} in PDF.",
       "scopeNoticeFull": "Exports respect your role (agency, landlord, tenant) — no data outside your scope is included.",
       "noneAllowed": "Your role in this agency includes no export. An administrator can grant you one.",
       "entities": {
