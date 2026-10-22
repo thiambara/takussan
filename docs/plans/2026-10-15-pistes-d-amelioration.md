@@ -12596,7 +12596,7 @@ l'angle 160 : il n'est pas repris ici.*
 
 ### L'abonnement d'une agence supprimée suit son cours, période d'essai comprise
 - Réf : P129.05
-- Statut : validé — porteur (2026-10-22) : la suppression est réglée par P129.06 (ADR-0048, amendement du 2026-10-22) ; pour une agence `inactive` ou `suspended`, `processTrialExpirations` saute l'agence et ne convertit pas l'essai, qui se convertit au premier passage après le retour à `active` (même amendement) ; test du job par statut
+- Statut : fait · TCK-1501
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/AgencySubscriptionService.php:86-109`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:156`, `takussan-api/app/Http/Controllers/Api/Admin/AgencySubscriptionController.php:39`
 - Constat :
@@ -12606,6 +12606,7 @@ l'angle 160 : il n'est pas repris ici.*
   - Établi comment : lu.
 - Piste : annuler l'abonnement à la suppression, et faire sauter les agences supprimées par `processTrialExpirations` ; test des deux. Relève de V1.
 - Mesure (2026-10-22, 487aba964, mesureur) : relu `AgencySubscriptionService::processTrialExpirations` (`AgencySubscription` filtré sur statut et `trial_ends_at`, sans regard pour l'agence), `AgencyController::destroy` (aucune annulation), route `POST admin/agencies/{agency}/subscription/cancel` liée par `{agency}` ; test temporaire (retiré) : essai échu, suppression de l'agence, `processTrialExpirations()` → 1, statut `active`. Le constat tient ; l'effet côté Lemon Squeezy n'est pas relu. Classement : V1, le correctif touche un abonnement payant.
+- Mesure (2026-10-22, d30c8c591, implementeur) : reproduit avant correctif par `FinDEssaiParStatutDAgenceTest` : essai échu d'une agence `inactive` ou `suspended` → `processTrialExpirations()` rend 1 et l'abonnement passe `active` (3 rouges sur 4). Correctif : identifiants pris parmi les abonnements d'une agence `active` (`whereHas`) → l'essai reste `trialing`, puis se convertit au premier passage après le retour à `active`, 4/4 ; ablation (`whereHas` retiré) → 3 rouges ; `BillingPlansTest` et `RenewAgencySubscriptionPeriodsTest` verts.
 
 ### La suppression n'a ni appelant au front, ni restauration, ni vue dans la console, et contourne le cycle de vie d'ADR-0048
 - Réf : P129.06
