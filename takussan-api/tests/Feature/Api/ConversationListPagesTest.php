@@ -17,6 +17,9 @@ use Tests\TestCase;
  * pastille additionnait les `unread_count` de cette seule page : un non-lu d'un fil plus ancien ne
  * comptait pas. L'API rend désormais `meta.unread_total`, compté sur TOUTE la liste du lecteur,
  * hors fils en sourdine (la règle que la pastille appliquait déjà, `useUnreadCount`).
+ *
+ * TCK-1389 (P135.06) — l'ordre `last_message_at DESC` est départagé par `id` : deux fils de même
+ * horodatage ne changent plus de page d'une requête à l'autre.
  */
 class ConversationListPagesTest extends TestCase
 {
@@ -98,5 +101,22 @@ class ConversationListPagesTest extends TestCase
         // La ligne garde son propre compte, sourdine comprise : seul le total l'écarte.
         $this->assertSame(2, array_sum($reponse->json('data.*.unread_count')));
         $this->assertSame(1, $reponse->json('meta.unread_total'));
+    }
+
+    public function test_deux_fils_de_meme_horodatage_sont_departages_par_id(): void
+    {
+        $quand = '2026-04-01 08:00:00';
+        $ids = [];
+        for ($i = 0; $i < 3; $i++) {
+            $ids[] = $this->fil($quand)->id;
+        }
+
+        Sanctum::actingAs($this->moi);
+        $vus = [];
+        foreach ([1, 2, 3] as $page) {
+            $vus[] = $this->getJson("/api/conversations?page={$page}&per_page=1")->assertOk()->json('data.0.id');
+        }
+
+        $this->assertSame(array_reverse($ids), $vus);
     }
 }

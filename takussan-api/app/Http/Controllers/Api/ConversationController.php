@@ -70,7 +70,10 @@ class ConversationController extends Controller
                 'lastMessage',
             ])
             ->withCount(['messages as unread_count' => $nonLus])
+            // TCK-1389 (P135.06) — départage par `id` : deux fils de même horodatage changeaient de
+            // page d'une requête à l'autre, ce que le défilement infini de la liste rend visible.
             ->orderByDesc('last_message_at')
+            ->orderByDesc('conversations.id')
             ->paginate($this->tailleDePage($request, 20));
 
         // TCK-1387 (P135.02) — le total des non-lus de TOUTE la liste, et non de la page : la pastille
