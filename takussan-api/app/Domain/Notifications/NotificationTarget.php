@@ -36,6 +36,9 @@ final class NotificationTarget
     public const PATHS = [
         'lease' => '/app/leases/{id}',
         'payments' => '/app/payments',
+        // TCK-1467 (P161.01) — l'onglet des reversements, où leur émetteur non admin les a programmés :
+        // `finances` est fermée à qui n'est pas admin de l'agence.
+        'payouts' => '/app/payments?tab=payouts',
         'booking' => '/app/bookings/{id}',
         'visit' => '/app/visits/{id}',
         'maintenance' => '/app/maintenance/{id}',

@@ -45,7 +45,7 @@ class RemindDuePayouts extends Command
 
                     $issuer = User::query()->find($payout->issued_by_id);
                     if ($issuer !== null) {
-                        $notifications->send($issuer, NotificationCode::PayoutDue, PayoutService::notificationParams($payout), NotificationTarget::of('finances'));
+                        $notifications->send($issuer, NotificationCode::PayoutDue, PayoutService::notificationParams($payout), self::targetFor($issuer, $payout));
                         $sent++;
                     }
                 }
@@ -54,5 +54,17 @@ class RemindDuePayouts extends Command
         $this->info("{$sent} rappel(s) envoyé(s).");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * TCK-1467 (P161.01) — la cible suit le destinataire : les finances de l'agence pour son admin,
+     * l'onglet des reversements de `/app/payments` sinon (l'agent émet par `payouts.create`, TCK-528,
+     * et la section `/app/agency` lui est fermée).
+     */
+    private static function targetFor(User $issuer, Payout $payout): NotificationTarget
+    {
+        return $issuer->isAgencyAdminAt((int) $payout->agency_id)
+            ? NotificationTarget::of('finances')
+            : NotificationTarget::of('payouts');
     }
 }
