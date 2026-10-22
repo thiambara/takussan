@@ -14612,7 +14612,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le membre retiré lit et modifie encore les biens qu'il a saisis pour l'agence, et les voit dans sa liste
 - Réf : P153.01
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1705
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/PropertyPolicy.php:45-58`, `takussan-api/app/Policies/PropertyPolicy.php:133-147`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:58-62`
 - Constat :
@@ -14623,6 +14623,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu, puis mesuré.
 - Piste : dans `view` et `update`, ne tenir `user_id` pour titre sur un bien d'agence que s'il est `estProprietaire` ou personnel de l'agence (la règle de M7), en gardant le cas de l'auteur d'un bien sans agence. Test : retrait en `leave_unassigned` → `GET` et `PUT` du bien saisi en 403, bien absent de `GET /api/properties`. Le sort du titre lui-même reste celui de P121.04.
 - Mesure (2026-10-22, c3d06aff0, mesureur) : relu `PropertyPolicy::view` (l. 45-60, `user->id === user_id` sans juger l'agence) et `update` (l. 133-150, `! isMemberOf` pour l'auteur, docblock l. 122-131), aucun commit sur ces fichiers depuis 53f6599d7 ; test temporaire (retiré), charge 2,00 / 2,40 / 3,06 sur 8 cœurs, même fixture que l'explorateur (agence, admin, agent A retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, `staffAgencyId()` → null) → `can` view/update/delete = vrai/vrai/faux, `GET /api/properties/{saisi}` → 200, `PUT` → 200 et titre « Repris par le retiré » écrit, bien présent dans `GET /api/properties` → le constat tient. Classement : V2, le correctif change qui lit et modifie un bien, et le docblock d'`update` garde délibérément le bien à « un auteur sans profil dans l'agence » : distinguer l'ancien membre de cet auteur-là est un choix à écrire.
+- Mesure (2026-10-22, b3e71d6d9, implementeur) : test neuf `MembreRetireBiensSaisisTest` (charge 4,5 sur 8 cœurs) : agent auteur d'un bien d'agence retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` → `GET /api/properties/{saisi}` 200 avant correctif, rouge → `PropertyPolicy::view` et `update` ne tiennent `user_id` pour titre sur un bien d'agence que si l'auteur y a un profil (`isMemberOf`, voie la plus étroite : le bailleur ou l'agent suspendu garde ce qu'il a), et `PropertyController::index` borne la clause `user_id` aux biens sans agence et aux agences où il a un profil → `GET` et `PUT` 403, titre inchangé, bien absent de la liste ; témoins (agent membre, auteur d'un bien sans agence) verts ; ablation de la policy et du contrôleur → rouge, du contrôleur seul → rouge sur la liste, remis → 3/3. `MigratedAuthorizationRulesTest` : deux propriétaires sans profil dans l'agence du bien reçoivent un profil de bailleur, 16/16 ; `PropertyAuthorizationTest`, `PropertyCrudTest`, `PropertyIndexQueryBudgetTest`, `MultiProfileStrictAccessTest`, `PropertyReassignmentKeepsOwnerTest` verts.
 
 ### Le membre retiré lit, confirme et annule les réservations des biens qu'il a saisis, téléphone du client compris
 - Réf : P153.02
