@@ -12837,7 +12837,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Le montant d'un paiement de réservation est calculé par le navigateur, et l'API l'accepte tel quel
 - Réf : P133.05
-- Statut : validé — porteur (2026-10-22) : l'API dérive le montant d'un paiement de réservation ; le navigateur ne l'envoie plus
+- Statut : fait · TCK-1309
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/bookings/BookingDetail.tsx:529-546`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:45`, `takussan-api/app/Services/Model/BookingPaymentService.php:24-48`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1657-1659`
 - Constat :
@@ -12848,6 +12848,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Voisin de P13.05 (fait, TCK-684), qui portait le statut sur une autre route ; ici, le statut est bien forcé à `pending` (lu, `BookingPaymentController.php:48-52`), mais le montant reste libre.
 - Piste : pour un payeur client, dériver le montant côté API (acompte de la réservation, puis reste dû) et refuser un montant fourni qui s'en écarte ; le front ne fait plus qu'afficher. Garde : un test API par cas (acompte, solde, montant hors borne → 422).
 - Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `BookingDetail.tsx:529-546` (`CustomerPayCta` : reste = total − lignes `paid`, acompte ou solde, montant posté), `StoreBookingPaymentRequest.php:45` (`amount` en `required|numeric|min:0`), `BookingPaymentController.php:40-56` (pour un client, seuls statut, `paid_at`, méthode et transaction sont forcés), `BookingPaymentService::create` (`'amount' => $data['amount']`) → le montant reste libre, établi par lecture ; test temporaire de l'explorateur (`1` et `999 999 999` → 201) non rejoué. Le traitement des lignes `partially_paid` et `refunded` côté API reste à vérifier. Classement : V1, le correctif fixe le montant encaissé par la passerelle et refuse des paiements aujourd'hui acceptés.
+- Mesure (2026-10-22, fbf2acedf, implementeur) : reproduit avant correctif par `BookingPaymentAmountDerivedTest` (réservation à 100 000, acompte 30 000 : le client poste `amount = 1` puis `999 999 999` → lignes à ces montants ; sans `amount` → 422) → `BookingPaymentService::dueFromCustomer()` fixe pour le client non encaisseur l'acompte tant qu'aucune ligne n'est `paid`, puis le reste dû (total − lignes `paid`, la règle du navigateur déplacée), 422 `booking_payment.nothing_due` sur une réservation soldée ; le montant envoyé est ignoré, le personnel garde sa saisie ; le front poste `{ status: 'pending' }` ; ablation : dérivation retirée → 5 rouges sur 6, front avant correctif → 2 rouges ; remis → verts. Le poids des lignes `partially_paid` et `refunded` dans le reste dû n'est pas tranché (règle du navigateur gardée).
 
 ### Petites améliorations
 - Réf : P133.06
