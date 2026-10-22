@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, RotateCcw, Save, TriangleAlert } from 'lucide-react';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ import {
 import { patchPlatformSettings } from '@/lib/queries/super-admin';
 import type { PlatformSetting, PlatformSettingCategory, PlatformSettingValue } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { cn } from '@/lib/utils';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
@@ -47,6 +49,7 @@ export function SettingsSection({
   const t = useTranslations('superAdmin.platformSettings');
   const tCommon = useTranslations('common');
   const messageErreur = useMessageErreurApi();
+  const garde = useGardeDoubleFacteur();
   const queryClient = useQueryClient();
   const initialDraft = useMemo(
     () => Object.fromEntries(settings.map((setting) => [setting.key, setting.value])) as Draft,
@@ -59,7 +62,9 @@ export function SettingsSection({
   const clientError = validateSection(settings, draft, t);
 
   const mutation = useMutation({
-    mutationFn: () => patchPlatformSettings(draft),
+    // TCK-1203 — `PlatformSettingController@bulkUpdate` exige un step-up : le refus ouvre la garde,
+    // puis l'enregistrement est rejoué, au lieu d'un « code 2FA requis » sans issue.
+    mutationFn: () => avecGardeDoubleFacteur(() => patchPlatformSettings(draft), garde),
     onSuccess: (response) => {
       const category = settings[0]?.category;
       const nextSettings = category ? response.data[category] : null;

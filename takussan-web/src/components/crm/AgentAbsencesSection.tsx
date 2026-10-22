@@ -11,6 +11,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useCan } from '@/hooks/useCan';
 import type { Locale } from '@/i18n/config';
 import { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { formatDate } from '@/lib/format';
 import {
   AGENT_CRM_QUERY_KEY,
@@ -39,6 +41,8 @@ export function AgentAbsencesSection({ agencyId, currentUserId }: AgentAbsencesS
   const locale = useLocale() as Locale;
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  // TCK-1203 — déclarer ou lever une absence exige la 2FA de l'agence (`AgentAbsenceController`).
+  const garde = useGardeDoubleFacteur();
   const { can: canDeclareForOthers } = useCan('team.delegate_role', agencyId);
 
   const [open, setOpen] = useState(false);
@@ -64,13 +68,17 @@ export function AgentAbsencesSection({ agencyId, currentUserId }: AgentAbsencesS
 
   const declare = useMutation<unknown, ApiError, void>({
     mutationFn: () =>
-      declareAbsence(token ?? '', agencyId, {
-        user_id: Number(absentId),
-        substitute_id: Number(substituteId),
-        // La fin de la JOURNÉE choisie : une date seule vaudrait minuit, déjà passé pour « aujourd'hui ».
-        ends_at: `${endsOn} 23:59:59`,
-        reason: reason.trim() || null,
-      }),
+      avecGardeDoubleFacteur(
+        () =>
+          declareAbsence(token ?? '', agencyId, {
+            user_id: Number(absentId),
+            substitute_id: Number(substituteId),
+            // La fin de la JOURNÉE choisie : une date seule vaudrait minuit, déjà passé pour « aujourd'hui ».
+            ends_at: `${endsOn} 23:59:59`,
+            reason: reason.trim() || null,
+          }),
+        garde,
+      ),
     onSuccess: () => {
       setOpen(false);
       setSubstituteId('');
@@ -80,7 +88,7 @@ export function AgentAbsencesSection({ agencyId, currentUserId }: AgentAbsencesS
     },
   });
   const revoke = useMutation<void, ApiError, number>({
-    mutationFn: (id) => revokeAbsence(token ?? '', agencyId, id),
+    mutationFn: (id) => avecGardeDoubleFacteur(() => revokeAbsence(token ?? '', agencyId, id), garde),
     onSuccess: () => void refresh(),
   });
 

@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { InviteSuperAdminModal } from '@/components/super-admin/InviteSuperAdminModal';
 import { ConfirmActionDialog } from '@/components/admin/super/ConfirmActionDialog';
 import {
@@ -40,6 +41,7 @@ import {
   type SuperAdminPendingInvitation,
 } from '@/lib/queries/super-admin';
 import type { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -188,9 +190,11 @@ export default function SuperAdminsCooptationPage() {
 function RevokeOperatorButton({ admin, onRevoked }: { readonly admin: SuperAdminEntry; readonly onRevoked: () => void }) {
   const t = useTranslations('superAdmin.pages.superAdmins.revokeOperator');
   const toast = useToast();
+  const garde = useGardeDoubleFacteur();
   const [open, setOpen] = useState(false);
   const revoke = useMutation({
-    mutationFn: (reason: string) => revokePlatformOperator(admin.id, reason),
+    // TCK-1203 — retirer, relancer et annuler exigent un step-up : la garde, puis le rejeu.
+    mutationFn: (reason: string) => avecGardeDoubleFacteur(() => revokePlatformOperator(admin.id, reason), garde),
     onSuccess: () => {
       setOpen(false);
       toast.add({ title: t('success', { email: admin.email }), type: 'success' });
@@ -247,10 +251,11 @@ function InvitationRow({
   const locale = useLocale() as Locale;
   const messageErreur = useMessageErreurApi();
   const toast = useToast();
+  const garde = useGardeDoubleFacteur();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const resend = useMutation({
-    mutationFn: () => resendSuperAdminInvitation(invitation.id),
+    mutationFn: () => avecGardeDoubleFacteur(() => resendSuperAdminInvitation(invitation.id), garde),
     onSuccess: () => {
       toast.add({ title: t('resendSuccess', { email: invitation.email }), type: 'success' });
       onChanged();
@@ -265,7 +270,7 @@ function InvitationRow({
   });
 
   const revoke = useMutation({
-    mutationFn: () => revokeSuperAdminInvitation(invitation.id),
+    mutationFn: () => avecGardeDoubleFacteur(() => revokeSuperAdminInvitation(invitation.id), garde),
     onSuccess: () => {
       setConfirmOpen(false);
       toast.add({ title: t('cancelSuccess', { email: invitation.email }), type: 'success' });

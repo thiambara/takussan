@@ -5,6 +5,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/toast';
 import { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { inviteSuperAdmin } from '@/lib/queries/super-admin';
 import type { PlatformLevel } from '@/lib/platform-abilities';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -50,10 +52,13 @@ export function InviteSuperAdminModal({ open, onOpenChange, onInvited }: InviteS
   const [level, setLevel] = useState<PlatformLevel>('viewer');
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
+  const garde = useGardeDoubleFacteur();
   const tLevels = useTranslations('superAdmin.operatorLevels');
 
   const mutation = useMutation({
-    mutationFn: () => inviteSuperAdmin({ email, first_name: firstName, last_name: lastName, level }),
+    // TCK-1203 — coopter exige un step-up : la garde, puis le rejeu.
+    mutationFn: () =>
+      avecGardeDoubleFacteur(() => inviteSuperAdmin({ email, first_name: firstName, last_name: lastName, level }), garde),
     onSuccess: () => {
       toast.add({
         title: t('toastTitle'),

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FlaskConical, Save, Settings2 } from 'lucide-react';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { DataTable, StatusBadge, type DataTableColumn } from '@/components/console';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -12,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { overrideAdminFeatureFlag, patchAdminFeatureFlag } from '@/lib/queries/super-admin';
 import type { AdminFeatureFlag } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
@@ -103,13 +105,15 @@ export function FeatureFlagSegmentDialog({
   const t = useTranslations('superAdmin.featureFlags');
   const tCommon = useTranslations('common');
   const messageErreur = useMessageErreurApi();
+  const garde = useGardeDoubleFacteur();
   const queryClient = useQueryClient();
   const [enabled, setEnabled] = useState(flag?.enabled ?? false);
   const [roles, setRoles] = useState((flag?.segments.roles ?? []).join(','));
   const [rollout, setRollout] = useState(String(flag?.segments.rollout_percentage ?? 0));
   const [error, setError] = useState<string | null>(null);
   const mutation = useMutation({
-    mutationFn: () => patchAdminFeatureFlag(flag!.key, {
+    // TCK-1203 — régler un drapeau exige un step-up : la garde, puis le rejeu.
+    mutationFn: () => avecGardeDoubleFacteur(() => patchAdminFeatureFlag(flag!.key, {
       enabled,
       segments: {
         roles: roles.split(',').map((role) => role.trim()).filter(Boolean),
@@ -117,7 +121,7 @@ export function FeatureFlagSegmentDialog({
         ...(flag?.segments.agency_ids?.length ? { agency_ids: flag.segments.agency_ids } : {}),
         rollout_percentage: Number(rollout),
       },
-    }),
+    }), garde),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'feature-flags'] });
       setError(null);
@@ -167,9 +171,11 @@ export function FeatureFlagSegmentDialog({
 
 export function SessionOverrideToggle({ flag }: { flag: AdminFeatureFlag }) {
   const t = useTranslations('superAdmin.featureFlags');
-  const [enabled, setEnabled] = useState(false);
+  const garde = useGardeDoubleFacteur();
+  // P98.10 (TCK-1176) — part de l'état évalué pour l'opérateur, bascule de session comprise.
+  const [enabled, setEnabled] = useState(flag.enabled_for_me ?? false);
   const mutation = useMutation({
-    mutationFn: () => overrideAdminFeatureFlag(flag.key, !enabled),
+    mutationFn: () => avecGardeDoubleFacteur(() => overrideAdminFeatureFlag(flag.key, !enabled), garde),
     onSuccess: (response) => setEnabled(response.data.enabled),
   });
 

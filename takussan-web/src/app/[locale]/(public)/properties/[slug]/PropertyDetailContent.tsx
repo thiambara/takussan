@@ -165,10 +165,12 @@ export function PropertyDetailContent({
     <div className="pb-24 lg:pb-12">
       {/*
         ⚠ L'animation d'entrée n'enveloppe QUE le contenu, jamais la barre fixe du bas.
-        `animate-fade-in-up` est déclarée `both` : le `transform` de fin reste posé, et un
+        `animate-fade-in-up` était déclarée `both` : le `transform` de fin restait posé, et un
         ancêtre transformé devient le bloc conteneur de tout descendant `position: fixed`.
         La barre mobile (le CTA principal sous `lg`) se rangeait alors au pied du contenu,
-        à 1 988 px du haut d'un viewport de 844 — invisible. Mesuré le 2026-09-16.
+        à 1 988 px du haut d'un viewport de 844 — invisible. Mesuré le 2026-09-16. Elle est
+        en `backwards` depuis (`globals.css`), qui rend l'élément nu une fois l'entrée jouée ;
+        la règle reste : pendant l'animation, le `transform` est posé.
       */}
       <div className="animate-fade-in-up">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 lg:pt-8">

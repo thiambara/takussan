@@ -397,6 +397,8 @@ class PublicAgencyController extends Controller
             ->orderByDesc('created_at')
             ->paginate($perPage);
 
-        return PropertyResource::collection($properties);
+        // TCK-1220 (P108.03) — l'enveloppe canonique `{ data, meta }`, et non celle de Laravel
+        // (`links`, `meta.path`…), dont les URL portent l'hôte de la requête.
+        return $this->paginated($properties, PropertyResource::collection($properties)->toArray($request));
     }
 }

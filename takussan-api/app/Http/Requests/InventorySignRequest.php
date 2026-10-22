@@ -21,8 +21,12 @@ use Illuminate\Validation\Rule;
  * Rejecting arbitrary strings is essential: the raw payload is later embedded
  * as `<img src="{{ $signature }}">` in the dompdf template. Accepting e.g.
  * `signature = "file:///etc/passwd"` or `"http://attacker/x.png"` would turn
- * the PDF pipeline into an LFI / SSRF / tracking vector (even with
- * `is_remote_enabled=false`, dompdf still resolves local file paths).
+ * the PDF pipeline into an LFI / SSRF / tracking vector. `is_remote_enabled=false`
+ * blocks the remote URLs, and dompdf only reads a local path under `Options::chroot`
+ * — its own install directory, `vendor/dompdf/dompdf`, while no `LARAVEL_PDF_DOMPDF_CHROOT`
+ * is declared (measured: `/tmp/x.png` and
+ * `file:///tmp/x.png` are refused, TCK-1239). That boundary belongs to the engine and
+ * its configuration; this rule does not rely on it.
  *
  * Authorisation (tenant vs landlord link) is enforced downstream in
  * `InventorySignatureService::sign()` — it needs the inventory context that is

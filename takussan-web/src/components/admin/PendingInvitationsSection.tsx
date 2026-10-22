@@ -21,6 +21,8 @@ import { ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import {
@@ -126,6 +128,8 @@ export function PendingInvitationsSection({
   const toast = useToast();
   const queryClient = useQueryClient();
   const { token } = useAuth();
+  // TCK-1203 — relancer ou révoquer une invitation exige la 2FA de l'agence (`InvitationController`).
+  const garde = useGardeDoubleFacteur();
 
   const [pendingRevoke, setPendingRevoke] = useState<PendingAgencyInvitation | null>(null);
   const [page, setPage] = useState(1);
@@ -149,7 +153,7 @@ export function PendingInvitationsSection({
     queryClient.invalidateQueries({ queryKey: agencyInvitationKeys.all });
 
   const resendMutation = useMutation<unknown, ApiError, PendingAgencyInvitation>({
-    mutationFn: (invitation) => resendInvitation(token ?? '', invitation.id),
+    mutationFn: (invitation) => avecGardeDoubleFacteur(() => resendInvitation(token ?? '', invitation.id), garde),
     onSuccess: async (_data, invitation) => {
       toast.add({
         title: t('toasts.resendSuccess', { email: invitation.email }),
@@ -169,7 +173,7 @@ export function PendingInvitationsSection({
   });
 
   const revokeMutation = useMutation<unknown, ApiError, PendingAgencyInvitation>({
-    mutationFn: (invitation) => revokeInvitation(token ?? '', invitation.id),
+    mutationFn: (invitation) => avecGardeDoubleFacteur(() => revokeInvitation(token ?? '', invitation.id), garde),
     onSuccess: async (_data, invitation) => {
       setPendingRevoke(null);
       toast.add({

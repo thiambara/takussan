@@ -22,6 +22,9 @@ vi.mock('@/i18n/messages', () => ({ messagesPour: async () => ({}) }));
 vi.mock('@/i18n/IntlProvider', () => ({ IntlProvider: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock('@/components/layout/SuperAdminShell', () => ({ SuperAdminShell: () => null }));
 vi.mock('@/components/auth/GardeDoubleFacteur', () => ({ GardeDoubleFacteur: () => null }));
+// TCK-1203 — l'entrée refusée faute de second facteur rend cette page au lieu de la console.
+const EntreeConsoleDoubleFacteur = vi.fn(() => null);
+vi.mock('@/components/auth/EntreeConsoleDoubleFacteur', () => ({ EntreeConsoleDoubleFacteur }));
 // TCK-600 (ADR-0047) — l'entrée de la console se juge sur le geste `platform.console.access`.
 vi.mock('@/lib/platform-abilities', () => ({ fetchPlatformAbilities: () => fetchPlatformAbilities() }));
 
@@ -79,5 +82,32 @@ describe('layout super-admin — entrée par le geste, pas par le rôle (TCK-600
   it('sans opérateur actif (403 de l’API) → /app, même avec le rôle `super_admin` dans la session', async () => {
     fetchPlatformAbilities.mockResolvedValue(null);
     expect(await destination(superAdmin({}))).toBe('/app');
+  });
+});
+
+describe('layout super-admin — entrée refusée faute de second facteur (TCK-1203)', () => {
+  beforeEach(() => {
+    redirect.mockClear();
+  });
+
+  async function rendu(code: 'two_factor_required' | 'two_factor_step_up_required') {
+    fetchPlatformAbilities.mockResolvedValue({ doubleFacteur: code });
+    getMeAction.mockResolvedValue(superAdmin({ roles: ['customer'], two_factor_enabled: false }));
+    const arbre = (await SuperAdminLayout({ children: null })) as React.ReactElement<{ children: React.ReactElement<{ code: string }> }>;
+    return arbre.props.children;
+  }
+
+  it('un viewer sans 2FA : l’enrôlement lui est demandé, il ne repart pas vers /app', async () => {
+    const page = await rendu('two_factor_required');
+    expect(redirect).not.toHaveBeenCalled();
+    expect(page.type).toBe(EntreeConsoleDoubleFacteur);
+    expect(page.props.code).toBe('two_factor_required');
+  });
+
+  it('un jeton qui n’a pas vu le second facteur : le code lui est demandé', async () => {
+    const page = await rendu('two_factor_step_up_required');
+    expect(redirect).not.toHaveBeenCalled();
+    expect(page.type).toBe(EntreeConsoleDoubleFacteur);
+    expect(page.props.code).toBe('two_factor_step_up_required');
   });
 });
