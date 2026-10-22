@@ -11583,7 +11583,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Les relevés et les lignes de relevé n'ont aucun ordre quand le front n'en demande pas
 - Réf : P118.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1298
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:26`, `BankStatementLineController.php:32`, `takussan-api/app/Models/BankStatement.php:41`, `BankStatement.php:74-77`
 - Constat :
@@ -11592,6 +11592,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Établi comment : lu.
 - Piste : poser `defaultSorts('-created_at', '-id')` sur les relevés et `defaultSorts('posted_at', 'id')` sur les lignes (rejoint P118.01) ; ramener `$requestSortable` des relevés à la forme des autres modèles.
 - Mesure (2026-10-22, fc967bccf, mesureur) : relu `BankStatementController::index` et `BankStatementLineController::index` (ni `defaultSort` ni `orderBy`), `BankStatement::lines()` (sans ordre), `BankStatement.php:41` (`'-created_at'` listé) ; test temporaire retiré ensuite → `GET /api/agencies/{id}/bank-statements?sort=-created_at` → 200, `sort=created_at` → 200 : spatie accepte la forme `-created_at`, le second point du constat est sans effet et ne relève que de la forme. Le défaut d'ordre par défaut tient (lu, non exécuté sur des lignes égales). Classement : A1, l'ordre attendu est celui que le front demande déjà (`-created_at` pour les relevés, `posted_at` pour les lignes), à poser en `defaultSorts` avec l'`id` en dernier.
+- Mesure (2026-10-22, e6ee5d5f5, implementeur) : `BankStatementDefaultOrderTest` avant correctif → sans `sort=`, cinq relevés (deux de même seconde, deux mis à jour) sortent dans l'ordre physique ; `defaultSort('-created_at')`, départagé par l'`id` (TCK-1296), et `$requestSortable = ['id', 'created_at', 'period_start']` → 2/2 verts, `sort=-created_at` et `±period_start` toujours 200 ; le volet des lignes est livré par TCK-1294 ; ablation → 2 rouges, remis → verts.
 
 ### La file de modération des biens trie sur `submitted_at` seul
 - Réf : P118.05
