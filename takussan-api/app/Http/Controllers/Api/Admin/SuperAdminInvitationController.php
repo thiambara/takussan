@@ -48,8 +48,8 @@ class SuperAdminInvitationController extends Controller
                 'status' => $user->status?->value,
                 'two_factor_enabled' => (bool) $user->two_factor_enabled,
                 'force_2fa_at_first_login' => (bool) $user->force_2fa_at_first_login,
-                'last_login_at' => $user->last_login_at?->toIso8601String(),
-                'created_at' => $user->created_at?->toIso8601String(),
+                'last_login_at' => $this->instant($user->last_login_at),
+                'created_at' => $this->instant($user->created_at),
             ])
             ->values()
             ->all();
@@ -108,7 +108,7 @@ class SuperAdminInvitationController extends Controller
             'data' => [
                 'user_id' => $user->id,
                 'level' => $profile->level->value,
-                'revoked_at' => $profile->revoked_at?->toIso8601String(),
+                'revoked_at' => $this->instant($profile->revoked_at),
             ],
         ]);
     }

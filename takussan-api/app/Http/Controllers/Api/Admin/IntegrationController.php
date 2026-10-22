@@ -55,8 +55,8 @@ class IntegrationController extends Controller
                 'http_status' => $log->http_status,
                 'error_code' => $log->error_code,
                 'matched_count' => $log->matched_count,
-                'processed_at' => $log->processed_at?->toISOString(),
-                'created_at' => $log->created_at?->toISOString(),
+                'processed_at' => $this->instant($log->processed_at),
+                'created_at' => $this->instant($log->created_at),
             ])->all(),
             'meta' => $this->paginationMeta($paginator),
         ]);

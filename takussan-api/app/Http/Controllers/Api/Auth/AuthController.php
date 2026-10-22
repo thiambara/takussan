@@ -60,7 +60,7 @@ class AuthController extends Controller
         return $this->json([
             'message' => __('auth.registration_successful'),
             'token' => $issued['token'],
-            'expires_at' => $issued['expires_at']->toIso8601String(),
+            'expires_at' => $this->instant($issued['expires_at']),
             // TCK-633 (lot C, tour 2) — les clés « pour soi » comme `/api/auth/me` ; `fresh()` :
             // relu en base, avec les défauts de colonne (`secondary_phone_whatsapp`).
             'user' => UserResource::pourSoi($user->fresh()),
@@ -141,7 +141,7 @@ class AuthController extends Controller
 
         return $this->json([
             'token' => $issued['token'],
-            'expires_at' => $issued['expires_at']->toIso8601String(),
+            'expires_at' => $this->instant($issued['expires_at']),
             'user' => new UserResource($user),
         ]);
     }

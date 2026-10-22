@@ -122,7 +122,7 @@ class AgencyController extends Controller
             if ($data['slug'] === $agency->slug) {
                 unset($data['slug']);
             } else {
-                $agency->metadata = array_replace($agency->metadata ?? [], [Agency::SLUG_CHANGED_AT => now()->toIso8601String()]);
+                $agency->metadata = array_replace($agency->metadata ?? [], [Agency::SLUG_CHANGED_AT => $this->instant(now())]);
             }
         }
 

@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Domain\Alerts\AlertableEvents;
+use App\Http\Resources\Bases\BaseResource;
 use App\Jobs\SendAdminAlert;
 use App\Models\AlertRule;
 use App\Models\User;
@@ -153,7 +154,7 @@ class AlertRuleService
             'channels' => $rule->channels_json ?? [],
             'recipients' => $rule->recipients_json ?? [],
             'is_active' => $rule->is_active,
-            'last_triggered_at' => $rule->last_triggered_at?->toISOString(),
+            'last_triggered_at' => BaseResource::instantOnWire($rule->last_triggered_at),
             'failure_count' => $rule->failure_count,
         ];
     }

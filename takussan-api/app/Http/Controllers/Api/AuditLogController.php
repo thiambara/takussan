@@ -68,7 +68,7 @@ class AuditLogController extends Controller
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
                 'properties' => PropertyRedactor::redact($log->properties, $log->subject_type),
-                'created_at' => $log->created_at,
+                'created_at' => $this->instant($log->created_at),
             ])->all(),
             'meta' => $this->paginationMeta($paginator),
         ]);
@@ -176,7 +176,7 @@ class AuditLogController extends Controller
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
                 'properties' => PropertyRedactor::redact($log->properties, $log->subject_type),
-                'created_at' => $log->created_at,
+                'created_at' => $this->instant($log->created_at),
             ];
         })->all();
 

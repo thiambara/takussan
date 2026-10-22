@@ -128,7 +128,7 @@ class GuarantorController extends Controller
             'monthly_income_masked' => Masking::presence($g->monthly_income),
             'relationship_to_tenant' => $g->relationship_to_tenant,
             'notes' => $g->notes,
-            'created_at' => $g->created_at?->toISOString(),
+            'created_at' => $this->instant($g->created_at),
         ];
     }
 }

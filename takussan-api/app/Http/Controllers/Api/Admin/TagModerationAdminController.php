@@ -63,7 +63,7 @@ class TagModerationAdminController extends Controller
             'status' => $t->status?->value,
             'created_by' => $t->createdBy !== null ? ['id' => $t->createdBy->id, 'name' => trim($t->createdBy->first_name.' '.$t->createdBy->last_name)] : null,
             'properties_count' => (int) ($t->properties_count ?? $t->properties()->count()),
-            'created_at' => $t->created_at?->toIso8601String(),
+            'created_at' => $this->instant($t->created_at),
         ];
     }
 }

@@ -92,7 +92,7 @@ class ServiceProviderProfileController extends Controller
                 'type' => $type->value,
                 'media_id' => $media->id,
                 'file_name' => $document->name,
-                'uploaded_at' => $document->created_at?->toIso8601String(),
+                'uploaded_at' => $this->instant($document->created_at),
             ],
         ], 201);
     }

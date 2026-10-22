@@ -138,11 +138,11 @@ class UserDetailController extends Controller
             'data' => $tokens->getCollection()->map(fn (PersonalAccessToken $token) => [
                 'id' => $token->id,
                 'name' => $token->name,
-                'last_used_at' => $token->last_used_at?->toIso8601String(),
+                'last_used_at' => $this->instant($token->last_used_at),
                 'ip' => null,
                 'user_agent' => null,
-                'created_at' => $token->created_at?->toIso8601String(),
-                'expires_at' => $token->expires_at?->toIso8601String(),
+                'created_at' => $this->instant($token->created_at),
+                'expires_at' => $this->instant($token->expires_at),
             ])->values()->all(),
             'meta' => $this->paginationMeta($tokens),
         ]);
@@ -195,7 +195,7 @@ class UserDetailController extends Controller
                     'id' => (int) $log->impersonator_id,
                     'name' => $operateurs->get($log->impersonator_id)?->full_name,
                 ],
-                'created_at' => $log->created_at?->toIso8601String(),
+                'created_at' => $this->instant($log->created_at),
             ])->values()->all(),
             'meta' => $this->paginationMeta($activity),
         ]);

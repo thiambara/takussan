@@ -54,7 +54,7 @@ class AgencyDetailController extends Controller
 
         return [
             'reason' => $activite?->properties['reason'] ?? null,
-            'suspended_at' => $activite?->created_at?->toIso8601String(),
+            'suspended_at' => $this->instant($activite?->created_at),
         ];
     }
 
@@ -181,7 +181,7 @@ class AgencyDetailController extends Controller
                 'email' => $user->email,
                 'status' => $user->status?->value,
                 'roles' => $user->profileTypes()->all(),
-                'last_login_at' => $user->last_login_at?->toIso8601String(),
+                'last_login_at' => $this->instant($user->last_login_at),
             ])->values()->all(),
             'meta' => $this->paginationMeta($users),
         ]);

@@ -76,7 +76,7 @@ class DocumentShareLinkController extends Controller
                     // la taille était donc TOUJOURS nulle, et le téléchargement toujours 404.
                     'size' => $document->getFirstMedia('file')?->size,
                 ],
-                'expires_at' => $link->expires_at?->toISOString(),
+                'expires_at' => $this->instant($link->expires_at),
                 'downloads_count' => $link->downloads_count,
                 'max_downloads' => $link->max_downloads,
             ],
@@ -148,12 +148,12 @@ class DocumentShareLinkController extends Controller
             'id' => $link->id,
             'document_id' => $link->document_id,
             'token' => $link->token,
-            'expires_at' => $link->expires_at?->toISOString(),
+            'expires_at' => $this->instant($link->expires_at),
             'max_downloads' => $link->max_downloads,
             'downloads_count' => $link->downloads_count,
             'has_password' => $link->password_hash !== null,
-            'revoked_at' => $link->revoked_at?->toISOString(),
-            'created_at' => $link->created_at?->toISOString(),
+            'revoked_at' => $this->instant($link->revoked_at),
+            'created_at' => $this->instant($link->created_at),
         ];
     }
 }

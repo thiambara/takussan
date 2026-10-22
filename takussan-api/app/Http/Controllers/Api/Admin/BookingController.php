@@ -48,7 +48,7 @@ class BookingController extends Controller
         if (! $this->expirationService->canBeExpired($booking)) {
             throw (new ApiError(422, 'booking.cannot_expire'))->with([
                 'current_status' => $booking->status->value,
-                'expired_at' => $booking->expired_at?->toIso8601String(),
+                'expired_at' => $this->instant($booking->expired_at),
             ]);
         }
 

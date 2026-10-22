@@ -38,7 +38,7 @@ class UserImpersonationController extends Controller
         return $this->json(['data' => [
             'session_id' => $session->id,
             'token' => $token,
-            'expires_at' => $session->expires_at->toIso8601String(),
+            'expires_at' => $this->instant($session->expires_at),
             'target' => ['id' => $user->id, 'name' => $user->full_name],
         ]], 201);
     }
@@ -58,7 +58,7 @@ class UserImpersonationController extends Controller
 
         return $this->json(['data' => [
             'session_id' => $session->id,
-            'ended_at' => $session->ended_at?->toIso8601String(),
+            'ended_at' => $this->instant($session->ended_at),
         ]]);
     }
 
@@ -87,7 +87,7 @@ class UserImpersonationController extends Controller
             'session_id' => $session->id,
             'impersonator' => ['id' => $operateur?->id, 'name' => $operateur?->full_name],
             'target' => ['id' => $cible?->id, 'name' => $cible?->full_name],
-            'expires_at' => $session->expires_at->toIso8601String(),
+            'expires_at' => $this->instant($session->expires_at),
             'read_only' => true,
         ]]);
     }
