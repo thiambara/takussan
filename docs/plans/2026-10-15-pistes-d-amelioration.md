@@ -11517,10 +11517,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Tarifs et assurance du prestataire : saisis par lui, lus par personne d'autre ; `has_insurance` n'est jamais lu ni remis à faux
 - Réf : P117.06
-- Statut : validé — porteur (2026-10-22) : construire le badge « Assuré » dans le carnet et à l'attribution, dérivé du `Document` d'assurance vivant, puis retirer `has_insurance`
+- Statut : fait · TCK-1325 — reste : montrer `visit_fee` et `hourly_rate_min` à l'agence dans le carnet et à l'attribution, à décider à part ; retirer les `metadata.has_insurance` déjà écrits en base (réécriture de données, V4)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:73-79,110-124`, `takussan-api/app/Http/Resources/ServiceProviderDirectoryResource.php:22`, `takussan-web/src/lib/queries/service-providers.ts:23-31`
 - Constat :
+- Mesure (2026-10-22, 1c871e3c0, implementeur) : reproduit avant correctif par `ServiceProviderInsuredBadgeTest` (carnet sans `insured`, téléversement qui écrit `has_insurance`) et par `ServiceProvidersList.assure.test.tsx` et `MaintenanceAssignmentBlock.test.tsx` (aucun badge) → `insured` dérivé par `withExists` de la pièce `insurance` non supprimée, non expirée et pourvue d'un fichier ; badge au carnet et à l'attribution ; `has_insurance` n'est plus écrit ; ablation des deux côtés : rouge sans le correctif, vert avec.
   - `metadata.visit_fee` et `hourly_rate_min` ne sont rendus que par `GET /api/me/profiles/{id}`, au prestataire lui-même (lu, `:110-124`). Le carnet de l'agence ne les demande pas (`SERVICE_PROVIDER_PROFILE_FIELDS`, lu), et `ServiceProviderDirectoryResource::METADATA_KEYS` retire `visit_fee` (lu). L'agence qui choisit un prestataire pour une intervention ne voit aucun tarif (`MaintenanceAssignmentBlock.tsx` ne lit que le nom, l'e-mail et `availability`, lu).
   - `metadata.has_insurance = true` est posé au téléversement d'une attestation d'assurance (lu, `:73-79`). Le commentaire promet que « the wizard recap and the `Assuré` badge can read it » : `grep -rn has_insurance` sur l'API et le front ne trouve que l'écrivain (lu). Aucun chemin ne le remet à `false`, quand la pièce est remplacée ou supprimée : non vérifié, faute de lecteur.
   - `insurance_policy_id` est une colonne jamais écrite (relevé déjà fait, ligne 2289 du fichier).
