@@ -380,3 +380,17 @@ describe('TCK-435 · AC5 — Organization et WebSite, une seule fois par page', 
     expect(organisation).not.toHaveProperty('sameAs');
   });
 });
+
+/**
+ * TCK-1345 (P125.06) — `agencies.phone` est rangé tel que saisi (`77 123 45 67`) : la fiche
+ * publique d'une agence publie l'E.164, seul numéro qui aboutisse depuis l'étranger.
+ */
+describe('jsonLdAgence — téléphone en E.164 (TCK-1345)', () => {
+  it.each([
+    ['77 123 45 67', '+221771234567'],
+    ['+221 33 000 00 00', '+221330000000'],
+    ['+221771234567', '+221771234567'],
+  ])('%s → %s', (brut, attendu) => {
+    expect(jsonLdAgence({ ...AGENCE, phone: brut }, 'fr').telephone).toBe(attendu);
+  });
+});
