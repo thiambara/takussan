@@ -14685,7 +14685,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le membre retiré joint encore, par la messagerie, les clients de l'agence dont il était référent
 - Réf : P153.06
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1713
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Messaging/MessagingReach.php:41-48`, `takussan-api/app/Services/Messaging/MessagingReach.php:126-150`, `takussan-api/app/Services/Agency/AgentPortfolio.php:96-100`
 - Constat :
@@ -14696,6 +14696,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu, puis mesuré.
 - Piste : décider si la règle 2 exige que l'acteur soit personnel de l'agence de la fiche (ou la relation active et non orpheline), puis l'écrire dans le docblock de `MessagingReach` et dans un test. Si oui : le retrait clôt les relations du retiré dans l'agence, ou la règle 2 joint `customers.agency_id` aux agences où l'acteur est personnel.
 - Mesure (2026-10-22, c3d06aff0, mesureur) : relu `MessagingReach` (règle 2.b, l. 135-141 : ni statut de relation, ni appartenance de l'acteur) ; test temporaire (retiré), charge 2,00 / 2,40 / 3,06 sur 8 cœurs, même fixture que l'explorateur (agence, admin, agent A retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, `staffAgencyId()` → null), relation `agent_client` `active` `is_primary` de A vers un client à compte → `MessagingReach::query(A)` contient le client, `POST /api/conversations` → 201 → le constat tient. Classement : V7, le constat lui-même dit que rien n'écrit si ce lien doit survivre, et la réponse touche ce qu'un client reçoit (V3 voisin).
+- Mesure (2026-10-22, b3e71d6d9, implementeur) : test neuf `MembreRetireMessagerieCrmTest` (charge 2,0 sur 8 cœurs) : fiche de l'agence à compte client, agent référent `agent_client` actif, bailleur de l'agence rattaché `owner_tenant`, agent retiré en `leave_unassigned` → avant correctif le client reste dans `MessagingReach::query(retiré)`, rouge → décision « oui », voie retenue la plus étroite : un rattachement à une fiche d'agence ne compte que pour qui a un profil de tout statut dans l'agence de la fiche (`liveAttachment`, règles 2.a à 2.c, docblock écrit) → client hors d'atteinte, `POST /api/conversations` 422, le client ne joint plus le retiré, le bailleur joint toujours son locataire. « Personnel de l'agence » aurait coupé le bailleur de son locataire. Ablation → rouge, remis → vert ; `MessagingContactsTest` 26/26, `ConversationTest`, `ParticipantManagementTest` verts.
 
 ### Après le retrait, ce qui reste au nom du retiré ne s'inventorie ni ne se passe plus
 - Réf : P153.07
