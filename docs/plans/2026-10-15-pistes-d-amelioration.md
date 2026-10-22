@@ -11357,7 +11357,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Un prestataire qui vide ses métiers ou ses zones reprend, dans le carnet de l'agence, ceux de son invitation
 - Réf : P117.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/ServiceProviderInvitationService.php:108-121`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:139-162`, `takussan-api/app/Http/Resources/ServiceProviderDirectoryResource.php:22`, `takussan-web/src/components/service-providers/ServiceProvidersList.tsx:136,155`
 - Constat :
@@ -11368,10 +11368,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Le filtre du même carnet, `filter[specialty]=plumbing`, ne lit que la colonne (lu, `ServiceProviderProfile.php:90-97`) : mesuré `meta.total` = 0. La ligne affiche un métier que le filtre sur ce métier ne trouve pas.
   - Établi comment : lecture des trois fichiers, puis le test temporaire ci-dessus.
 - Piste : la colonne fait foi dès qu'elle a été écrite. Soit le carnet ne retombe sur `metadata` que pour un profil `draft` (le seul cas où la copie a un sens), soit l'acceptation de l'invitation, ou toute écriture de `…/trades`, retire `trades` et `intervention_zones` de `metadata`. Test : vider les métiers d'un prestataire actif, puis lire le carnet sans `metadata.trades` ; un test du front sur `ServiceProvidersList` avec `specialties: null` et une copie en `metadata`.
+- Mesure (2026-10-22, f1c28db8d, mesureur) : relu `ServiceProviderInvitationService.php:108-121` (colonnes et copie `metadata.trades`/`intervention_zones`), `ServiceProviderProfileController.php:139-162` (`updateTrades` écrit `null` en colonne, ne touche à `metadata` que pour `visit_fee`), `ServiceProvidersList.tsx:136,155` (`sp.specialties ?? sp.metadata?.trades`) ; `grep -rn "'trades'\|intervention_zones" takussan-api/app` → aucun chemin (acceptation comprise) ne retire la copie ; test temporaire retiré (charge 1,75 sur 8 cœurs) : prestataire actif, colonnes et copie à `plumbing`/`Dakar`, `PATCH …/trades {trades: [], intervention_zones: []}` → 200, colonnes `null` ; `GET /api/agencies/{a}/service-providers?fields[…]=…,metadata` → `specialties: null`, `metadata.trades: ["plumbing"]`, `metadata.intervention_zones: ["Dakar"]` ; `filter[specialty]=plumbing` → `meta.total` 0. Le constat tient en entier. Classement : A1, le contrat « une liste vide explicite efface » est écrit (`ServiceProviderTradesPartialUpdateTest::test_trades_alone_leave_zones_untouched_and_an_explicit_empty_list_clears`, TCK-592) et le correctif côté front (ne retomber sur `metadata` que pour un profil `draft`) ne réécrit aucune donnée ni ne demande de choix.
 
 ### Le taux horaire du prestataire ne s'efface pas : `hourly_rate: null` garde l'ancien, quand `visit_fee: null` efface
 - Réf : P117.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : écriture d'un montant (le tarif horaire)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:147-160,169`, `takussan-web/src/components/profile/ProfileServiceProviderSection.tsx:63,93-98`
 - Constat :
@@ -11381,10 +11382,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Mesuré, test temporaire : `hourly_rate_min` à 5000, `PATCH …/trades` `{hourly_rate: null, visit_fee: null}` → 200, `data.hourly_rate` `"5000.00"`, colonne inchangée en base. Le prestataire vide le champ, enregistre sans erreur, et retrouve son ancien taux au rechargement.
   - Établi comment : lecture des deux fichiers, puis le test temporaire.
 - Piste : traiter `hourly_rate` comme `visit_fee` : clé absente, on garde ; `null`, on efface. Étendre `ServiceProviderTradesPartialUpdateTest` d'un cas `hourly_rate: null` ; ablation sur le ternaire. Le motif se cherche ailleurs (angle 149 proposé).
+- Mesure (2026-10-22, f1c28db8d, mesureur) : relu `ServiceProviderProfileController.php:158-160` (`hourly_rate` à `null` garde `hourly_rate_min`) contre `:147-153` (`visit_fee` à `null` retire la clé), `UpdateTradesServiceProviderProfileRequest.php:45` (`nullable`), `ProfileServiceProviderSection.tsx:96` (champ vidé → `null`) ; même test temporaire retiré : `hourly_rate_min` 5000, `PATCH …/trades {hourly_rate: null, visit_fee: null}` → 200, `data.hourly_rate` `"5000.00"`, colonne inchangée. Le constat tient. Classement : V1, le correctif est mécanique mais il écrit un montant (efface un tarif), ce que l'ADR range toujours en « à valider ».
 
 ### Les zones d'intervention de l'agent sont écrites, et rien ne les relit
 - Réf : P117.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : à quoi servent les zones de l'agent, ou retrait de l'étape
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:44-46,161-169`, `takussan-web/src/components/onboarding/AgentOnboardingWizard.tsx:467`, `docs/features.md:509`
 - Constat :
@@ -11393,10 +11395,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Côté front, aucun lecteur hors de l'assistant (lu par `grep`). La section « Profil professionnel » affiche « Spécialisations : Bientôt disponible » (voir P117.04).
   - `docs/features.md:509` compte les zones parmi les données du parcours d'onboarding de l'agent, sans dire qui s'en sert.
 - Piste : décider à quoi servent ces zones : page publique de l'agent, filtre de l'annuaire, attribution des demandes. Sinon, retirer l'étape de l'assistant. C'est un choix de produit ; d'ici là, le docblock de `:44-46` (« promote when a booking flow needs to range-query ») dit vrai, mais la saisie ne sert à rien.
+- Mesure (2026-10-22, f1c28db8d, mesureur) : relu `AgentProfileController.php:44-46,161-169` (zones rangées en `metadata.intervention_zones`) ; `grep -rn intervention_zones takussan-api/app` → hors prestataires, seuls l'écrivain et sa réponse ; `grep` côté `takussan-web/src` → seuls `agent-onboarding.ts` et les messages ; `docs/features.md:509` les compte dans le KYC de l'agent sans lecteur. Le constat tient. Classement : V7, la Piste demande de choisir un usage (page publique, filtre, attribution) ou de retirer une étape visible.
 
 ### La section « Profil professionnel » de l'agent est une maquette : deux champs saisissables qu'aucun geste n'enregistre, et une agence toujours « Non affilié »
 - Réf : P117.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : afficher en lecture seule ou retirer la section
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/profile/ProfileAgentSection.tsx:18-38`, `takussan-web/src/app/(dashboard)/app/profile/page.tsx:41`, `takussan-web/src/components/profile/ProfileOwnerSection.tsx:19-31`
 - Constat :
@@ -11407,10 +11410,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Même motif chez le bailleur : « Type de bailleur : Bientôt disponible » et deux compteurs figés à « — » (lu, `ProfileOwnerSection.tsx:19-31`), alors que l'invitation range ce type en `metadata.owner_type` (voir P117.05).
   - Établi comment : lecture des composants et de `fr.json` (`profile.agent`, `profile.owner`). Non rendu dans un navigateur.
 - Piste : lire `GET /api/me/profiles` pour afficher la spécialité, la licence et l'agence du profil actif, en lecture seule, et retirer les deux champs sans enregistrement. Ou retirer la section. Test du composant : aucun champ éditable sans action ; l'agence du profil est affichée.
+- Mesure (2026-10-22, f1c28db8d, mesureur) : relu `ProfileAgentSection.tsx` (Textarea `defaultValue` et Input licence sans `name`, formulaire ni action ; spécialisations et agence désactivées à `""`), `page.tsx:41` (rendue pour `isAgent`), `ProfileOwnerSection.tsx:19-31` (type « Bientôt disponible », compteurs « — ») ; derniers commits sur ces fichiers TCK-381 et TCK-372, de style. Non rendu dans un navigateur. Le constat tient. Classement : V7, la Piste hésite entre un affichage neuf en lecture seule et le retrait d'une section visible.
 
 ### Le type de bailleur et la raison sociale, exigés à l'invitation, ne sont relus nulle part
 - Réf : P117.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : afficher la raison sociale ou cesser de l'exiger (V4 si colonne)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Invitation/InviteOwnerRequest.php:38-39`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:67-72,84-94`, `takussan-web/src/components/owners/OwnersList.tsx:371-374`, `takussan-web/src/components/owners/InviteOwnerSheet.tsx:241-275`
 - Constat :
@@ -11419,10 +11423,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Le carnet des bailleurs nomme la ligne par les prénom et nom de la personne, ceux du `User` ou ceux du brouillon (lu, `OwnersList.tsx:371-374`). Une société invitée apparaît sous le nom de son contact, et la raison sociale saisie n'est affichée nulle part. Le relevé, le reversement (`CreatePayoutDialog.tsx:39-41`) et les documents lisent le même nom de personne : non vérifié document par document.
   - L'espace du bailleur affiche « Type de bailleur : Bientôt disponible » (P117.04).
 - Piste : soit afficher la raison sociale dans le carnet et là où le bailleur est nommé, en la promouvant au besoin en colonne ; soit cesser de l'exiger à l'invitation. C'est un choix de produit, et la colonne relève du schéma.
+- Mesure (2026-10-22, f1c28db8d, mesureur) : relu `InviteOwnerRequest.php:38-39`, `OwnerInvitationService.php:67-72,84-94` ; `grep -rnE "owner_type|company_name" takussan-api/app takussan-web/src` (hors messages) → seuls la requête, le service et `InviteOwnerSheet.tsx`, aucun lecteur. Le constat tient ; les lecteurs du nom dans le relevé et les documents n'ont pas été vérifiés un à un. Classement : V7, choix entre afficher la raison sociale et cesser de la demander, et V4 si elle devient une colonne.
 
 ### Tarifs et assurance du prestataire : saisis par lui, lus par personne d'autre ; `has_insurance` n'est jamais lu ni remis à faux
 - Réf : P117.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : montrer tarifs et badge « assuré », ou retirer `has_insurance`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:73-79,110-124`, `takussan-api/app/Http/Resources/ServiceProviderDirectoryResource.php:22`, `takussan-web/src/lib/queries/service-providers.ts:23-31`
 - Constat :
@@ -11430,10 +11435,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - `metadata.has_insurance = true` est posé au téléversement d'une attestation d'assurance (lu, `:73-79`). Le commentaire promet que « the wizard recap and the `Assuré` badge can read it » : `grep -rn has_insurance` sur l'API et le front ne trouve que l'écrivain (lu). Aucun chemin ne le remet à `false`, quand la pièce est remplacée ou supprimée : non vérifié, faute de lecteur.
   - `insurance_policy_id` est une colonne jamais écrite (relevé déjà fait, ligne 2289 du fichier).
 - Piste : choix de produit. Montrer les tarifs et un badge « assuré » dans le carnet et à l'attribution, ce badge étant dérivé du `Document` d'assurance vivant et non d'un drapeau recopié. Ou retirer `has_insurance` et corriger le commentaire de `:73-74`.
+- Mesure (2026-10-22, f1c28db8d, mesureur) : relu `ServiceProviderProfileController.php:73-79` (`has_insurance = true` au téléversement), `:110-124` (tarifs rendus au seul prestataire), `ServiceProviderDirectoryResource::METADATA_KEYS` (sans `visit_fee`) ; `grep -rn has_insurance takussan-api/app takussan-web/src` → le seul écrivain ; `grep visit_fee|hourly_rate` dans `lib/queries/service-providers.ts` et `MaintenanceAssignmentBlock.tsx` → rien. TCK-261 (`:45,94`) annonçait un badge « Assuré » affiché, jamais construit. Le constat tient. Classement : V7, montrer un tarif et un badge à l'agence est un comportement visible neuf ; seul le commentaire de `:73-74` serait A6.
 
 ### Petites améliorations
 - Réf : P117.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : heure dans `worksOn`, téléphone du brouillon avec P21.06
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/maintenance/MaintenanceAssignmentBlock.tsx:170-176`, `takussan-api/app/Http/Resources/ServiceProviderDirectoryResource.php:22`, `takussan-api/app/Services/Invitation/ServiceProviderInvitationService.php:117`, `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:73`, `OwnerProfileController.php:65`, `ServiceProviderProfileController.php:63`
 - Constat :
@@ -11441,6 +11447,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Le téléphone saisi par l'agence à l'invitation d'un prestataire (`metadata.phone`, lu `:117`) est retiré du carnet par `METADATA_KEYS` (lu). Pour un brouillon, sans `User`, l'agence ne retrouve donc pas le numéro qu'elle a saisi. Voulu par P21.06 pour ne pas exposer `metadata` : à trancher avec lui.
   - `documents.metadata.kind` et `.source`, posés par les trois `uploadKyc` (lu), n'ont aucun lecteur (`grep` des deux clés sur l'API et le front, lu). `documents.type` porte déjà le genre de la pièce.
 - Piste : comparer l'heure à la plage dans `worksOn` ; décider du téléphone du brouillon avec P21.06 ; laisser `kind`/`source` en l'état ou cesser de les écrire. Chacune est petite.
+- Mesure (2026-10-22, f1c28db8d, mesureur) : relu `MaintenanceAssignmentBlock.tsx:170-176` (`worksOn` ne compare que `slot.day`), `ServiceProviderDirectoryResource.php:22` (`phone` hors de `METADATA_KEYS`), `AgentProfileController.php:73`, `OwnerProfileController.php:65`, `ServiceProviderProfileController.php:63` (`metadata.kind`/`source`) ; `grep -rnE "metadata(\?)?(\.|\[')(kind|source)"` sur l'API et le front → aucun lecteur de ces clés de `documents` (le seul `metadata.kind` lu est celui des `Task`). Les trois points tiennent. Classement : V7, l'avertissement horaire est un comportement visible neuf et le téléphone du brouillon est à trancher avec P21.06.
 
 ## Angle 118 — Listes paginées triées sur une colonne non unique
 
