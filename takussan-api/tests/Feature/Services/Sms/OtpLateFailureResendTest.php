@@ -97,7 +97,7 @@ class OtpLateFailureResendTest extends TestCase
     {
         $user = $this->phoneUser(['email_verified_at' => null]);
         $stepUp = app(DeletionStepUpService::class);
-        $this->assertNotNull($stepUp->sendCode($user));
+        $this->assertTrue($stepUp->sendCode($user));
         $this->assertFalse($stepUp->canResend($user));
 
         $this->accuse('failed');
