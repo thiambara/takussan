@@ -1,7 +1,7 @@
 ---
 id: TCK-1477
 title: "Une seule fenêtre de bienvenue à la fois pour le client et le locataire"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -49,17 +49,17 @@ Aucun endpoint neuf : `GET /api/me/welcome-seen` et `GET /api/leases` (baux acti
 
 ## Delta à produire
 
-- [ ] `useWelcomeOnce` dit quand sa fenêtre est réglée (jugée déjà vue, lecture en échec, ou fermée).
-- [ ] `CustomerWelcomeWizard` le signale à son parent.
-- [ ] `AppShell` ne monte `TenantWelcomeWizard` qu'une fois le parcours client réglé.
-- [ ] Test d'`AppShell` pour un locataire sans aucune clé vue : un seul `dialog`, puis le
+- [x] `useWelcomeOnce` dit quand sa fenêtre est réglée (jugée déjà vue, lecture en échec, ou fermée).
+- [x] `CustomerWelcomeWizard` le signale à son parent.
+- [x] `AppShell` ne monte `TenantWelcomeWizard` qu'une fois le parcours client réglé.
+- [x] Test d'`AppShell` pour un locataire sans aucune clé vue : un seul `dialog`, puis le
       parcours locataire à la fermeture du premier.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — locataire sans clé vue : un seul `role="dialog"` ouvert, celui du parcours client.
-- [ ] AC2 — à sa fermeture (« Passer »), le parcours locataire s'ouvre, toujours seul.
-- [ ] AC3 — clé client déjà vue : le parcours locataire s'ouvre directement.
+- [x] AC1 — locataire sans clé vue : un seul `role="dialog"` ouvert, celui du parcours client.
+- [x] AC2 — à sa fermeture (« Passer »), le parcours locataire s'ouvre, toujours seul.
+- [x] AC3 — clé client déjà vue : le parcours locataire s'ouvre directement.
 
 ## Hors périmètre
 
@@ -69,4 +69,9 @@ Aucun endpoint neuf : `GET /api/me/welcome-seen` et `GET /api/leases` (baux acti
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : `AppShell.tsx` rendu à `pre-dev`, le reste gardé → le premier cas de
+  `AppShell.bienvenue.test.tsx` rouge (deux `dialog` ouverts) ; remis → 2/2 verts.
+- Le signal « réglé » couvre aussi la clé déjà vue et la lecture en échec : sans cela, un
+  locataire qui a déjà vu le parcours client n'aurait jamais reçu le sien.
+- L'appel de `onSettled` passe par un `useEffect` sur `settled` : `setState(true)` répété ne
+  re-rend rien.
