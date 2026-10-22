@@ -13826,7 +13826,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Petites améliorations : statuts rendus bruts ou déclarés deux fois
 - Réf : P146.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1270 — reste : ajouter `blocked` à `STATUS_TONES` d'`AdminUsersTable.tsx`, avec P115.02 (renommage de la clé `admin.users.status.banned` en `blocked`)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/users/AdminUsersTable.tsx:43-46,226-227`, `takussan-web/src/components/admin/super/integrations.tsx:231-234`, `takussan-web/src/types/agency-upgrade.ts:8`, `takussan-web/src/lib/queries/super-admin.ts:1273`
 - Constat (lu) :
@@ -13835,6 +13835,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - `AgencyUpgradeRequestStatus` est déclaré deux fois, à l'identique (`types/agency-upgrade.ts:8` et `lib/queries/super-admin.ts:1273`).
 - Piste : ajouter `blocked` à la table du tableau, avec P115.02 ; traduire le statut du journal par le dictionnaire existant ; garder une seule déclaration du type de demande de passage.
 - Mesure (2026-10-22, b6bd2210f, mesureur) : relu `AdminUsersTable.tsx:43-47` (`STATUS_TONES` = `active`, `inactive`, `banned`) et `:226-227` (libellé brut hors table), `UserStatus.php` de l'API (`active`, `inactive`, `blocked`, `deleted`), `integrations.tsx:231-234` (`<Badge>{log.status}</Badge>`), `IntegrationWebhookLog.php:20-26` (quatre constantes) ; `node -e` sur `fr`/`en`/`wo.json` → `superAdmin.payments.journal.statuses` a `received processed rejected failed` dans les trois langues, déjà rendu par `payments.tsx:294` ; `types/agency-upgrade.ts:8` et `lib/queries/super-admin.ts:1273` déclarent le même `AgencyUpgradeRequestStatus` à quatre cas → tient en entier ; rien d'exécuté. Classement : A1, le contrat est l'enum de l'API et le dictionnaire existant ; le correctif passe `banned` à `blocked` dans `STATUS_TONES` avec P115.02 (même clé « Bloqué »), rend le statut du journal par `superAdmin.payments.journal.statuses` (repli brut sur un cas inconnu), et fait importer à `super-admin.ts` le type de `types/agency-upgrade.ts` (A3), sans texte neuf.
+- Mesure (2026-10-22, 4e69ef6bd, implementeur) : test neuf `WebhookTrailTable.statuts.tck-1270.test.tsx` sur l'arbre d'origine → 2 rouges : badges du journal bruts (`received`, `processed`…), deux déclarations de `AgencyUpgradeRequestStatus` → statut traduit par `superAdmin.payments.journal.statuses` (repli brut sur un inconnu), type importé de `types/agency-upgrade.ts` ; ablation → 2 rouges, correctif remis → 2/2 verts. Le volet `blocked` d'`AdminUsersTable` est laissé à P115.02 (angle 115, autre instance), dont il partage la clé de libellé.
 
 ## Angle 147 — Statuts posés par un `Rule::enum` entier dans les requêtes d'écriture
 
