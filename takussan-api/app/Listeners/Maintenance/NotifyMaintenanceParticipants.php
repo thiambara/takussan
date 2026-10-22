@@ -9,6 +9,7 @@ use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Services\Maintenance\MaintenanceParticipants;
+use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\NotificationRenderer;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -38,6 +39,7 @@ class NotifyMaintenanceParticipants implements ShouldQueue
     public function __construct(
         private readonly NotificationService $notifications,
         private readonly MaintenanceParticipants $participants,
+        private readonly ProviderEligibility $eligibility,
     ) {}
 
     public function handle(MaintenanceStatusChanged $event): void
@@ -66,7 +68,7 @@ class NotifyMaintenanceParticipants implements ShouldQueue
      */
     private function plan(MaintenanceStatusChanged $event, MaintenanceRequest $mr): array
     {
-        $provider = [$mr->assignee];
+        $provider = [$this->providerRecipient($mr)];
         $requester = [$mr->requester];
         $principals = fn () => $this->participants->principals($mr);
         $previous = fn () => [User::query()->find($event->context['previous_assignee_id'] ?? null)];
@@ -103,6 +105,22 @@ class NotifyMaintenanceParticipants implements ShouldQueue
             ],
             default => $this->planTransition($event, $provider, $principals, $step),
         };
+    }
+
+    /**
+     * TCK-1349 (P153.08) — sur un bien d'agence, l'assigné que {@see ProviderEligibility::isAssignable}
+     * refuse (collaboration finie, profil suspendu, membre retiré) n'a plus d'accès à l'intervention
+     * (`MaintenanceRequestPolicy::isAssignedProvider`) : l'avis le mènerait à un refus. Un bien sans
+     * agence garde ses avis : aucun prestataire n'y est « assignable » au sens du prédicat.
+     */
+    private function providerRecipient(MaintenanceRequest $mr): ?User
+    {
+        $assignee = $mr->assignee;
+        if ($assignee === null || $mr->property?->agency_id === null) {
+            return $assignee;
+        }
+
+        return $this->eligibility->isAssignable($assignee, $mr->property) ? $assignee : null;
     }
 
     /**

@@ -2,9 +2,13 @@
 
 namespace Tests\Feature\Maintenance;
 
+use App\Events\Maintenance\MaintenanceStatusChanged;
 use App\Models\AppNotification;
+use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\MaintenanceStatus;
+use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\User;
+use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Notifications\NotificationRenderer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -144,6 +148,57 @@ class MaintenanceNotificationsTest extends TestCase
     }
 
     /** @return list<string> */
+    /**
+     * TCK-1349 (P153.08) — sur un bien d'agence, l'assigné que `ProviderEligibility::isAssignable`
+     * refuse (collaboration finie) n'a plus d'accès : les avis « prestataire » ne lui partent plus.
+     * Les donneurs d'ordre gardent les leurs.
+     */
+    public function test_l_assigne_qui_n_est_plus_assignable_ne_recoit_plus_les_avis_prestataire(): void
+    {
+        ['mr' => $mr, 'provider' => $provider, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::InProgress);
+        ServiceProviderAgencyCollaboration::query()->update(['status' => CollaborationStatus::Ended->value]);
+
+        event(new MaintenanceStatusChanged($mr, MaintenanceStatus::Assigned, MaintenanceStatus::QuoteRequested, null, MaintenanceStatusChanged::CAUSE_QUOTE_REQUESTED));
+        event(new MaintenanceStatusChanged($mr, MaintenanceStatus::Completed, MaintenanceStatus::Closed, null, MaintenanceStatusChanged::CAUSE_CONFIRMED));
+
+        $this->assertSame([], $this->titlesFor($provider));
+        $this->assertCount(1, $this->titlesFor($landlord));
+    }
+
+    /** TCK-1349 — le cas de la décision : un membre de l'équipe retiré en `leave_unassigned`. */
+    public function test_le_membre_retire_en_leave_unassigned_ne_recoit_plus_les_avis_prestataire(): void
+    {
+        ['mr' => $mr, 'agency' => $agency, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::InProgress);
+        $agent = $this->agentOf($agency);
+        $mr->forceFill(['assigned_to' => $agent->id])->save();
+        app(AgencyMemberRemovalService::class)->remove($agency, $agent, $landlord, leaveUnassigned: true);
+
+        event(new MaintenanceStatusChanged($mr->fresh(), MaintenanceStatus::Assigned, MaintenanceStatus::QuoteRequested, null, MaintenanceStatusChanged::CAUSE_QUOTE_REQUESTED));
+
+        $this->assertSame([], $this->titlesFor($agent));
+    }
+
+    /** TCK-1349 — témoin : l'assigné encore assignable reçoit les mêmes avis. */
+    public function test_l_assigne_assignable_recoit_les_avis_prestataire(): void
+    {
+        ['mr' => $mr, 'provider' => $provider] = $this->maintenanceScenario(MaintenanceStatus::InProgress);
+
+        event(new MaintenanceStatusChanged($mr, MaintenanceStatus::Assigned, MaintenanceStatus::QuoteRequested, null, MaintenanceStatusChanged::CAUSE_QUOTE_REQUESTED));
+
+        $this->assertCount(1, $this->titlesFor($provider));
+    }
+
+    /** TCK-1349 — un bien sans agence garde ses avis tels quels (aucun prestataire n'y est « assignable »). */
+    public function test_un_bien_sans_agence_garde_les_avis_de_l_assigne(): void
+    {
+        ['mr' => $mr, 'provider' => $provider, 'property' => $property] = $this->maintenanceScenario(MaintenanceStatus::InProgress);
+        $property->forceFill(['agency_id' => null])->save();
+
+        event(new MaintenanceStatusChanged($mr->fresh(), MaintenanceStatus::Assigned, MaintenanceStatus::QuoteRequested, null, MaintenanceStatusChanged::CAUSE_QUOTE_REQUESTED));
+
+        $this->assertCount(1, $this->titlesFor($provider));
+    }
+
     private function titlesFor(User $user): array
     {
         return AppNotification::query()->where('user_id', $user->id)->orderBy('id')->pluck('title')->all();
