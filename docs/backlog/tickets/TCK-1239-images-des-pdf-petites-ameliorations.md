@@ -3,7 +3,7 @@ id: TCK-1239
 title: "Images des PDF : signatures de la fabrique en vrais PNG, logo d'un état des lieux signé non figé, commentaire et configuration alignés sur dompdf"
 status: done
 phase: P2
-family: chore
+family: technique
 estimate: S
 wave: null
 created: 2026-10-22
