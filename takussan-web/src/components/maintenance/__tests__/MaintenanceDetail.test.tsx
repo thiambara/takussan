@@ -39,6 +39,7 @@ vi.mock('@/lib/queries/maintenance', async () => {
     useTransitionMaintenanceStatus: () => transitionMutation,
     useUpdateMaintenanceRequest: () => updateMutation,
     useAssignableProviders: () => ({ data: { data: [] }, isError: false }),
+    useAssignableStaff: () => ({ data: { data: [] }, isError: false }),
   };
 });
 

@@ -282,6 +282,35 @@ export function useAssignableProviders(agencyId: number | null, specialty?: stri
   );
 }
 
+/** P120.03 — un membre du personnel tel que `GET /api/agencies/{id}/members` le rend, nom seul. */
+export interface AssignableStaffMember {
+  readonly id: number;
+  readonly first_name: string | null;
+  readonly last_name: string | null;
+}
+
+/**
+ * P120.03 — le personnel de l'agence, que l'API accepte aussi en `assigned_to` (TCK-592,
+ * `ProviderEligibility`). `filter[assignable]=1` ne garde que le personnel joignable : la règle de
+ * `PersonnelDeLAgence::estPersonnel()`, celle qui juge la cible. Un appelant sans accès à la liste
+ * (403) garde le seul carnet des prestataires.
+ */
+export function useAssignableStaff(agencyId: number | null) {
+  return useApiQuery<PaginatedResponse<AssignableStaffMember>>(
+    ['maintenance', 'assignable-staff', agencyId ?? 0],
+    cheminApi`/api/agencies/${agencyId}/members`,
+    {
+      params: {
+        fields: { users: ['id', 'first_name', 'last_name'] },
+        filter: { assignable: 1 },
+        sort: 'first_name',
+        per_page: 100,
+      },
+      enabled: agencyId !== null && agencyId > 0,
+    },
+  );
+}
+
 /**
  * `POST /api/maintenance-requests/{id}/photos` — multipart upload.
  * `collection` selects the medialibrary collection:
