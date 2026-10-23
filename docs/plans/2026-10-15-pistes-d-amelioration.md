@@ -17013,7 +17013,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Petites améliorations
 - Réf : P182.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-1822
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Model/MaintenanceRequestService.php:202-212`, `takussan-api/app/Services/Billing/AgencySubscriptionService.php:58-70`, `takussan-api/app/Http/Controllers/Api/Admin/AgencySubscriptionController.php:37-44`
 - Constat :
@@ -17022,3 +17022,4 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu.
 - Piste : verrouiller et relire dans `accept` ; rendre le dernier abonnement clos plutôt que `null`, si la console le lit.
 - Mesure (2026-10-23, 2b80de9, mesureur) : relu `MaintenanceRequestService.php:202-213` (`accept` juge `accepted_at` sur le modèle reçu, sans verrou) ; test temporaire `tests/Feature/Tmp/TmpMesure182Test.php` (retiré), PostgreSQL de test, charge 2,2 sur 8 cœurs : `accept` puis `accept` sur un modèle chargé avant le premier, `Event::fake([MaintenanceStatusChanged::class])` → second appel accepté, deux événements. Abonnement : `AgencySubscriptionService::cancel` (l. 58-70) rend toujours `null` sans abonnement en cours, mais la console ne lit pas le corps (`AdminAgencySubscriptionPanel.tsx:48-55` : toast puis invalidation et relecture ; `super-admin.ts:248-254`) → cette partie ne tient pas. Retenu pour l'acceptation seule. Classement : A1, la garde `maintenance.already_accepted` écrit déjà le contrat ; le correctif verrouille et relit la ligne dans une transaction avant de la juger, sans choix de produit.
+- Mesure (2026-10-23, 9b7e560d4, implementeur) : test neuf `MaintenanceAcceptSousVerrouTest`, `accept` puis `accept` sur un modèle chargé avant le premier, `Event::fake([MaintenanceStatusChanged::class])` → sur l'arbre d'origine, la seconde acceptation passe (1 rouge sur 2) ; `accept` relit la ligne sous verrou dans une transaction et y juge ses deux gardes, l'événement part après → 422 `maintenance.already_accepted`, un seul événement, `accepted_at` du premier intact ; ablation : service rendu à `pre-dev` → 1 rouge, remis → 2 verts ; `MaintenanceAcceptDeclineTest`, `MaintenanceStatusChangedEventTest`, `MaintenanceAccessKitTest`, `MaintenanceThreadAccessTest`, `MaintenanceConversationTest`, `MaintenancePrincipalFieldsTest` verts. La partie abonnement ne se fait pas : la console ne lit pas le corps (Mesure du mesureur).
