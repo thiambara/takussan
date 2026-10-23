@@ -264,7 +264,7 @@ voie d'écriture (angle 13, puis 47).
 | 187 | Paramètres des routes publiques sans compte (`/api/public/properties/search` et `PropertySearchService`, `PublicAgencyController`, `PublicAgentController`, `IndexPublicProfilesRequest`, fiches par slug) face à une valeur mal formée, une liste `[]` ou une virgule : 500 servi à un visiteur anonyme ou à un robot d'indexation au lieu d'un 400 ou d'une liste vide — le relevé de l'angle 151 hors des listes connectées | fait |
 | 188 | Paramètres hors `filter[…]` lus à la main puis passés à `Carbon::parse()`, `DayRange` ou une colonne typée (`?from=`/`?to=`/`?start=`/`?end=` du calendrier `CalendarEventCollector` et des tableaux de bord, `?period=`, `?month=`, `?year=`) : 500 sur une date ou un nombre mal formés, et borne de fin en date seule qui exclut le jour — le pendant de l'angle 151 hors de `filter[…]` | fait |
 | 189 | Gestes montrés par une comparaison d'identité dans les détails (`isAssignedAgent` de `VisitDetail.tsx:98`, `user.id === landlord_id`, `issued_by_id`, `uploaded_by_id`, auteur d'une note ou d'un message) face à la policy, qui exige en plus le personnel actif de l'agence (`PersonnelDeLAgence::personnelActifDe`) ou un bailleur non bloqué (`isBlockedOwnerAt`) : agent parti, suspendu ou bailleur bloqué à qui le geste reste montré et rend 403 — né de P152.04 | fait |
-| 190 | Créateur d'un bien d'agence (`properties.user_id`) encore membre mais suspendu ou archivé dans l'agence, face aux policies qui l'acceptent par la seule identité (`BookingPolicy::view` et `::update` l. 36 et 51, `InventoryPolicy::view` l. 32, `MaintenanceRequestPolicy::isPrincipalFor` l. 302, `PropertyPolicy::view` l. 51, `ReviewPolicy` l. 85) : lecture et gestes laissés à un agent que l'agence a suspendu — le pendant pour le membre suspendu de P153.01 à P153.03 | à faire |
+| 190 | Créateur d'un bien d'agence (`properties.user_id`) encore membre mais suspendu ou archivé dans l'agence, face aux policies qui l'acceptent par la seule identité (`BookingPolicy::view` et `::update` l. 36 et 51, `InventoryPolicy::view` l. 32, `MaintenanceRequestPolicy::isPrincipalFor` l. 302, `PropertyPolicy::view` l. 51, `ReviewPolicy` l. 85) : lecture et gestes laissés à un agent que l'agence a suspendu — le pendant pour le membre suspendu de P153.01 à P153.03 | fait |
 | 191 | Fils rattachés à un bail ou à une réservation (`conversations.lease_id`, groupes à contexte de bail, type `lease` et `booking`) face à la policy du porteur : `ConversationAccess` ne juge que la participation hors intervention et fil de prospect, si bien qu'un locataire sorti, un bailleur remplacé ou un agent suspendu qui y reste participant lit et écrit encore — né de P153.04 | à faire |
 | 192 | Libellés que l'API résout par une clé bâtie sur une valeur (`__('invitations.roles.'.$role)`, `enumLabel()` de `BaseResource`, gabarits PDF, exports CSV, `__("…{$this->kind}…")`) face aux valeurs que la validation, les constantes et les enums acceptent réellement : clé brute rendue sans erreur au lecteur — né de P155.01 | à faire |
 | 193 | Avis et textes bâtis sur l'e-mail d'un compte ou d'une invitation (`:email` des notifications, `toMail()` et `routeNotificationForMail`, exports, journaux d'équipe) face aux comptes et invitations sans e-mail depuis TCK-589 (`PHONE_LOGIN_ENABLED`) : texte à trou, courriel vers une adresse nulle, ou personne nommée par rien — né de P155.03 | à faire |
@@ -291,6 +291,7 @@ voie d'écriture (angle 13, puis 47).
 | 214 | Formulaires d'édition qui renvoient en entier une colonne JSON qu'ils ne montrent qu'en partie (`saved_searches.criteria` de `SearchPreferencesForm`, `announcements.segment`, `integrations.metadata`, `available_slots`, `limits` des plans), face à un `fill()` qui remplace la colonne : clés posées par un autre écran ou une autre version effacées par un simple enregistrement — né de P185.01 | à faire |
 | 215 | Identifiants numériques de route hors de `bigint` sur les routes connectées : liaisons implicites `{model}` et paramètres `whereNumber()` (30 sous `routes/`) ou actions typées `int $id`, face à vingt chiffres dans l'URL — 500 `22003` ou `TypeError` au lieu d'un 404 — le relevé de P187.05 hors des routes publiques | à faire |
 | 216 | Paramètres hors `filter[…]` castés `(string)` ou passés à un argument typé `string` dans les listes et lectures écrites à la main (`(string) $request->input('include')` des trois tableaux de bord, `(string) $request->query('sort')` de `ReviewController` et `UserDetailController`, `$request->query('q')` de `PaymentSearchController`, et leurs pareils sous `app/Http/Controllers`) : une liste `x[]=` rend 500 « Array to string conversion » ou `TypeError` au lieu d'un 422 ou d'un défaut — né de P188.06 et P188.07 | à faire |
+| 217 | Clauses de périmètre des listes `index` écrites à la main (`BookingController`, `LeaseController`, `InventoryController`, `PaymentController::history`, `InvoiceController`, `PropertyVisitController`, `MaintenanceRequestController`) face à la policy `view` de leur modèle, resserrée seule par TCK-587, TCK-1705, TCK-1707 et TCK-1718 à TCK-1722 : ligne refusée en lecture qui reste listée avec ses relations chargées (fiche client, bien) — hors du créateur du bien relevé à l'angle 190 | à faire |
 
 
 ---
@@ -17220,7 +17221,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### La console super-admin propose les filtres « Client » et « Locataire » sur les comptes, et l'API rend toujours une liste vide
 - Réf : P186.01
-- Statut : validé (délégué) — servir `filter[role]=tenant` dans `UserDetailController::index` par la règle de `hasActiveTenantLease()` (un `whereHas('tenantLeases')` sur `HasProfiles::ACTIVE_TENANT_LEASE_STATUSES`), et retirer l'option `customer` du sélecteur de `/super-admin/users` (par TCK-492 chaque compte est client, le filtre vaudrait « Tous ») ; une autre valeur inconnue rend toujours une liste vide ; test : un compte locataire d'un bail en cours, un compte au bail terminé et un compte sans bail, `filter[role]=tenant` → le seul locataire en cours
+- Statut : fait · TCK-1852
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(super-admin)/super-admin/users/page.tsx:73-82,138,211`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:50-63`, `takussan-api/app/Models/Concerns/HasProfiles.php:239-275`
 - Constat :
@@ -17233,6 +17234,7 @@ Le PDF de l'état des lieux est P143.01.*
 - Piste : faire servir les deux rôles dérivés par le `match`, avec la règle de `profileTypes()` : `customer` sans restriction, et `tenant` par la même requête que `hasActiveTenantLease()`. L'autre voie est de les retirer du sélecteur. Test : un compte locataire et un compte sans bail, `filter[role]=tenant` → le seul locataire ; `filter[role]=customer` → les deux. Garde : un test qui parcourt chaque option du sélecteur et attend au moins une ligne quand un compte de ce rôle existe.
 - Mesure (2026-10-23, 6ef281d1e, mesureur) : relu `UserDetailController.php:49-62` (le `match` de `filter.role` ne connaît que cinq rôles, `default => whereRaw('1 = 0')`), `HasProfiles.php:241-276` (`profileTypes()` pousse `customer` pour tous et `tenant` sur bail en cours, TCK-492), `users/page.tsx:73-82,138` (le sélecteur propose `customer` et `tenant`, envoyés en `filter[role]`), le relais `api/super-admin-users/route.ts` (transmet la requête telle quelle) ; aucun commit ni ticket ne l'a traité (`git log` du contrôleur, `grep` des tickets) ; test temporaire `tests/Feature/Tmp/MesureurTmp186Test.php` (charge `{ 3.27 2.78 2.28 }` sur 8 cœurs, retiré) : opérateur `Support`, un compte « Clientzz » sans profil, `filter[search]=Clientzz` → total 1 ; `&filter[role]=customer` → **0** ; `&filter[role]=tenant` → **0** ; `&filter[role]=owner` → 0 → le constat tient entier. Classement : V7, la `Piste` offre deux voies (servir les deux rôles dérivés, où `customer` rendrait tous les comptes, ou les retirer du sélecteur, retrait d'une option visible), et le sens utile d'un filtre « Client » qui vaut tout le monde est un choix de produit.
 - Mesure (2026-10-23, ae1f5d1d0, delegue) : relu le constat, la `Piste` et la mesure du mesureur ; `UserDetailController.php:49-62` (cinq rôles, `default => whereRaw('1 = 0')`), `HasProfiles.php:44,241-300` (`customer` poussé pour toute identité, `tenant` sur bail de `Lease::ONGOING_STATUSES`, TCK-492), `User.php:705` (`tenantLeases()`), `UserResource.php:92` (la colonne des rôles affiche déjà `profileTypes()`, `tenant` compris), `users/page.tsx:73-82,138` ; précédent TCK-1096 (P88.03, délégué : un `filter[role]` de liste de membres servi par la règle du rôle) ; `grep -n "porteur ("` de l'angle 186 → aucune décision → servir `tenant` suit la règle écrite par TCK-492 et n'expose rien que la colonne n'affiche déjà ; `customer` vaut tous les comptes, l'option ne trie rien. Délégation : V7, choix mineur et réversible en un commit sur une option de filtre de la console interne qui rend aujourd'hui toujours vide : on la sert par la règle déjà écrite (`tenant`), ou on retire celle qui doublerait « Tous » (`customer`) ; aucune fonction neuve, aucun client engagé ; ni autorisation touchée (un filtre d'une liste que l'opérateur lit déjà entière, sans changer qui y accède) ni donnée personnelle exposée en plus (le rôle `tenant` sort déjà dans `roles` de chaque ligne).
+- Mesure (2026-10-23, 727a38405, implementeur) : reproduit avant correctif (charge `{ 2.84 2.44 2.32 }` sur 8 cœurs) par `UserDetailTest::test_le_filtre_locataire_ne_rend_que_les_baux_en_cours` : comptes aux baux `active`, `terminating`, `terminated` et sans bail, `filter[role]=tenant` → `[]` ; et par `page.test.tsx`, `?role=customer` → `filter[role]=customer` envoyé → branche `tenant` du `match` par `whereHas('tenantLeases')` sur `leases.status` ∈ `ACTIVE_TENANT_LEASE_STATUSES`, option `customer` retirée du sélecteur (clé `roles.customer` gardée pour la colonne) ; `tenant` → les baux `active` et `terminating` seuls, `customer` et `nawak` → liste vide ; 9/9 API, 27/27 front ; ablation (branche renommée, option remise) → 1 rouge de chaque côté, remis → verts ; voisin vert : `UserLastLoginSortTest`.
 
 ### Deux recherches écrites à la main sont sensibles à la casse et prennent `%` pour un joker : la file de modération des biens et le journal de l'agence
 - Réf : P186.02
@@ -17340,7 +17342,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Petites améliorations
 - Réf : P187.06
-- Statut : validé (délégué) — juger `type` valeur par valeur contre `PropertyType` (même fermeture que `condition`, TCK-508) et `rent_period` par `Rule::enum(RentPeriod::class)` dans `SearchPublicPropertyRequest` (la carte en hérite), et les mêmes règles de valeur dans `SavedSearchCriteria` (`type` par le second argument de `listeDeChaines`, `rent_period` par `Rule::enum`), pour qu'une alerte ne stocke pas ce que `/properties` refuse ; `per_page` validé `nullable|integer|min:1` dans `PublicPortfolioRequest`, la borne haute restant le `min(…, 48)` des deux contrôleurs (aucun 422 neuf au-delà de 48) ; tests : `type=nope`, `type=villa,nope` et `rent_period=nope` → 422 sur `/properties/search`, la même chose à la création d'une alerte, `per_page=abc` et `per_page[]=3` → 422 sur les deux portefeuilles
+- Statut : fait · TCK-1853
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Public/SearchPublicPropertyRequest.php:117-119`, `takussan-api/app/Services/Search/PropertySearchService.php:586-598`, `takussan-api/app/Services/Search/FiltresDeLaCarte.php` (`parmi('type')`, `rent_period`)
 - Constat :
@@ -17350,6 +17352,7 @@ Le PDF de l'état des lieux est P143.01.*
 - Piste : `Rule::enum(PropertyType::class)` par valeur de la liste `type` (sur le modèle de `condition`) et `Rule::enum(RentPeriod::class)` pour `rent_period` ; `per_page` validé dans `PublicPortfolioRequest`. Garde : les tests de `PublicPropertySearchFiltersTest` sur `title_type` étendus à ces deux clés.
 - Mesure (2026-10-23, 13aa0411a, mesureur) : relu `SearchPublicPropertyRequest.php:117-119` (`type` `string|max:500`, `rent_period` `string`) contre `:151-165` (`title_type` et `condition` jugés contre leur enum, TCK-491 et TCK-508) et `:166-170` (TCK-335 : une URL partagée qui se met à rendre 422 a déjà été jugée un défaut), `SavedSearchCriteria.php` (`type` en liste libre, `rent_period` `string|max:40`), `PublicAgencyController.php:400` et `PublicAgentController.php:378` (`min(max((int) per_page, 1), 48)`) ; test temporaire `tests/Feature/Tmp/MesureurTmp187Test.php` (un cas par méthode, charge `{ 2.72 2.62 3.32 }` sur 8 cœurs, retiré) : `search?type=nope` → 200 total 0, `rent_period=nope` → 200 total 0, `title_type=nope` → 422 ; portefeuille d'agence à deux biens, `per_page=abc` → 200, une page d'**un** bien (`(int) 'abc'` vaut 0, porté à 1, et non la page par défaut que dit le constat), `per_page[]=3` → 200, un bien → le constat tient, à cette nuance près. Classement : V7, les trois correctifs font rendre 422 des URL publiques et des recherches enregistrées qui rendent 200 aujourd'hui, et les valeurs `type` déjà stockées dans les alertes n'ont pas été relevées : juger ces clés contre l'enum est un choix de produit que TCK-335 a déjà pesé.
 - Mesure (2026-10-23, 772307dd4, delegue) : relu l'entrée et la `Mesure` du mesureur, `SearchPublicPropertyRequest.php:117-119` (`type` `string|max:500`, `rent_period` `string`) et `:149-165` (TCK-491 : « un statut inconnu doit rendre 422 plutôt que d'écarter le catalogue entier en silence », TCK-508 : `condition` jugée valeur par valeur), `:166-170` (TCK-335 vise une URL **valide** qui pourrit avec le temps, une date passée, pas une valeur qui n'a jamais existé), `PropertySearchService.php:587-598` (les valeurs vont telles quelles à Meilisearch), `SavedSearchCriteria.php:24-27,64-67` (TCK-599, ADR-0050 § 2 : « les règles de valeur de `/properties` s'appliquent ici », et `type`/`rent_period` y sont encore libres), l'entrée P66.04 (`fait` : la console n'ajoute plus de valeur, `Property` caste `type` et `rent_period` vers les enums PHP, ADR-0007) et `takussan-web/src/lib/enums/property.ts:12-29` (le front n'écrit que les 16 cas de `PropertyType`), `PublicPortfolioRequest.php` (ne règle que `filter.contract_type`) et `lib/queries/profile-portfolio.ts:22` (le front envoie `per_page=24`) → une valeur hors enum ne peut correspondre à aucun bien, le front ne l'écrit jamais, et l'API n'a jamais servi en production (`CLAUDE.md`, § Workflow git) : aucun lien partagé ni alerte d'un usager réel ne la porte. Délégation : V7, la décision suit une règle déjà écrite deux fois sur les clés voisines (TCK-491, TCK-508) et celle de TCK-599 pour les alertes, ne change aucun résultat pour une valeur que le front écrit, n'ajoute ni texte ni écran, et se défait en un commit ; la borne haute de `per_page` est laissée au plafond existant pour ne refuser aucune URL qui rend une page aujourd'hui.
+- Mesure (2026-10-23, dfcbf762e, implementeur) : tests de garde écrits d'abord, rouges sur l'arbre de `pre-dev` (charge `{ 5.22 3.76 2.96 }` sur 8 cœurs) : `search?type=nope`, `type=villa,nope`, `rent_period=nope` → 200 au lieu de 422 ; alerte à `type: ['villa', 'nope']`, `type: 'villa,nope'`, `rent_period: 'nope'` → acceptée ; `per_page=abc` et `per_page[]=3` sur les deux portefeuilles → 200. Correctif : `type` jugé valeur par valeur contre `PropertyType` (un segment vide reste ignoré, comme le fait le moteur) et `rent_period` par `Rule::enum` dans `SearchPublicPropertyRequest` et `SavedSearchCriteria`, `per_page` `nullable|integer|min:1` dans `PublicPortfolioRequest` (`per_page=100` → 200, `meta.per_page` 48). Ablation : correctif retiré → 3 + 3 + 4 rouges ; remis → `PublicPropertySearchFiltersTest` 32, `SavedSearchCriteriaVocabularyTest` 48, `PortefeuilleFiltreParContratTest` 12, `MapFiltersParityTest` 31 verts.
 
 ## Angle 188 — Paramètres de date et de nombre lus à la main, hors de `filter[…]`
 
@@ -17357,7 +17360,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### L'export du journal rend 500 sur une date illisible quand l'autre borne est donnée
 - Réf : P188.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1854
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Audit/ExportActivityLogRequest.php:23-24,31-47`, `takussan-api/routes/api/audit-log.php:18`
 - Constat :
@@ -17366,10 +17369,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : sortir du rappel quand `filter.date_from` ou `filter.date_to` porte déjà une erreur, comme `IndexCalendarRequest`. Garde : un test qui envoie une borne illisible avec l'autre borne valide, et attend 422.
 - Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `ExportActivityLogRequest.php:23-24` (`filter.date_from`/`date_to` en `date`) et `:33-39` (le rappel `after()` passe les deux valeurs brutes à `Carbon::parse()` dès qu'elles sont remplies, sans regarder les erreurs), lignes inchangées, aucun commit ni ticket sur ce point (`grep -rln ExportActivityLogRequest docs/backlog/tickets` → seul TCK-104) ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré) : agency_admin, `filter[date_from]=abc&filter[date_to]=2026-01-01` → **500** `InvalidFormatException`, `filter[date_from][]=x&filter[date_to]=2026-01-01` → **500** `TypeError`, témoin `filter[date_from]=abc` seul → 422 sur `filter.date_from` → le constat tient entier. Classement : A1, la règle `date` rend déjà 422 sur la même valeur quand l'autre borne manque ; le correctif attendu est de sortir du rappel quand `filter.date_from` ou `filter.date_to` porte déjà une erreur (comme `IndexCalendarRequest::after()`), test borne illisible + autre borne valide → 422.
+- Mesure (2026-10-23, 1ac04b8ac, implementeur) : re-mesuré par le test de garde `ActivityLogExporterTest::test_une_borne_illisible_avec_l_autre_borne_rend_422` (charge `{ 1.50 2.04 2.19 }` sur 8 cœurs) : avant correctif, `filter[date_from]=abc&filter[date_to]=2026-01-01` → **500** `Could not parse 'abc'` → le rappel `after()` sort désormais quand `filter`, `filter.date_from` ou `filter.date_to` porte déjà une erreur ; borne illisible, borne en liste et `date_to` illisible → 422 sur la borne fautive ; ablation (requête remise à l'état de `pre-dev`) → rouge, correctif remis → vert (9 assertions).
 
 ### La borne d'un an de l'export du journal ne s'applique pas quand une seule borne est donnée
 - Réf : P188.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1856
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Audit/ExportActivityLogRequest.php:37-46,53-62`
 - Constat :
@@ -17380,10 +17384,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : juger l'écart sur les bornes **résolues** (celles de `resolvedFilters()`), donc aussi quand une seule est fournie, et passer les deux messages par une clé `lang/`. Garde : un test `date_from` seul à plus d'un an d'aujourd'hui → 422.
 - Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `ExportActivityLogRequest.php:37` (`if ($from && $to)`), `:42,44` (deux messages anglais en dur) et `:59-60` (défauts `now() - 30 j` et `now()`), et TCK-104 l. 36-37 (« défaut 30 derniers jours, max range 1 an »), l. 82 (« max 1 an entre `date_from` et `date_to` (422 sinon) ») et AC5 l. 124 ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré) : `filter[date_from]=2000-01-01` seul → **200** (export servi), `filter[date_to]=2099-01-01` seul → **200** aussi, les deux bornes `2000-01-01`/`2026-01-01` → 422 « Date range must not exceed 1 year. » → le constat tient, et vaut aussi pour `date_to` seul. Classement : A1, TCK-104 écrit déjà la borne d'un an sur la plage exportée et le défaut de 30 jours ; le correctif attendu est de juger l'ordre et l'écart sur les bornes résolues de `resolvedFilters()` (donc avec une seule borne), et de passer les deux messages existants par une clé `lang/` sans en changer le sens (en `wo`, le texte français), test `date_from` seul à plus d'un an → 422.
+- Mesure (2026-10-23, 1ac04b8ac, implementeur) : re-mesuré par le test de garde `ActivityLogExporterTest::test_la_borne_d_un_an_vaut_aussi_avec_une_seule_borne` : avant correctif, `filter[date_from]=2000-01-01` seul → **200** → l'ordre et l'écart se jugent désormais sur les bornes de `resolvedFilters()`, l'erreur sur la borne fournie ; `date_from=2000-01-01` seul et `date_to=2099-01-01` seul → 422, témoin `date_from` à 200 jours seul → 200 ; les deux messages passent par `errors.activity_log.date_range_inverted` et `date_range_too_long` (`wo` = texte français) ; ablation (requête remise à l'état de TCK-1854) → rouge, correctif remis → vert ; `ActivityLogExporterTest` 19 verts, `LangGroupParityTest` 4 verts. Conséquence notée au ticket : `date_to` seul à plus de trente jours dans le passé rend 422 (plage résolue inversée) au lieu d'un export vide.
 
 ### La délégation de rôle rend 500 sur un `user_id` non numérique
 - Réf : P188.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1858
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Permissions/StoreRoleDelegationRequest.php:25,33-61`
 - Constat :
@@ -17392,10 +17397,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : sortir du rappel quand `user_id` porte déjà une erreur (ou quand la valeur n'est pas un entier). Garde : un test `user_id=abc` → 422 sur `user_id`.
 - Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `StoreRoleDelegationRequest.php:25` (`required|integer|exists`) et `:49-61` (`validateBeneficiaryInAgency()` fait `User::find()` sur la valeur brute ; `validateNotSelf()` et `validateRoleNotPrimaryAdmin()` castent en `(int)`), lignes inchangées ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré) : agency_admin à second facteur, `POST /api/agencies/{agency}/role-delegations` `user_id=abc` → **500** `22P02`, `user_id=99999999999999999999` → **500** `22003` (hors `bigint`, non relevé par le constat) → le constat tient, élargi aux 20 chiffres. Classement : A1, la règle `integer` rend déjà l'erreur sur `user_id` et seul le rappel la double en 500 ; le correctif attendu est de sortir des contrôles du rappel quand `user_id` porte déjà une erreur, sans changer qui peut déléguer (aucun appelant légitime touché, pas V2), tests `abc` et 20 chiffres → 422 sur `user_id`.
+- Mesure (2026-10-23, 1ac04b8ac, implementeur) : re-mesuré par le test de garde `RoleDelegationTest::test_un_user_id_non_entier_rend_422_et_non_500` : avant correctif, `user_id=abc` → **500** → le rappel `after()` sort désormais quand `user_id` porte déjà une erreur ; `abc` et 20 chiffres → 422 sur `user_id` ; ablation (requête remise à l'état de `pre-dev`) → rouge, correctif remis → vert ; `RoleDelegationTest` 15 verts, `RoleDelegationFinInclusiveTest` vert.
 
 ### La série mensuelle du tableau de bord de l'agent se décale d'un mois les jours où le mois de départ est plus court
 - Réf : P188.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1860
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:249-258`, `takussan-web/src/lib/queries/dashboard.ts:168-170`
 - Constat :
@@ -17405,10 +17411,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : `subMonthsNoOverflow()`, comme les deux services voisins. Garde : un test daté du 31 octobre qui attend la première étiquette du mois de novembre de l'année précédente, et la dernière sur le mois courant.
 - Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `DashboardAgentService.php:252` (`now()->subMonths($months - 1)->startOfMonth()`) contre `DashboardOwnerService.php:131` et `DashboardAgencyService.php:138` (`subMonthsNoOverflow`) ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré), `monthlyTimeseries($agent, 12)` sous `Carbon::setTestNow` : 2026-10-31 → `2025-12` … `2026-11`, 2026-03-31 → `2025-05` … `2026-04`, 2027-01-29 → `2026-03` … `2027-02`, témoin 2026-10-15 → `2025-11` … `2026-10` → le constat tient, et la déduction sur les 29-31 janvier est vérifiée. Classement : A1, les deux services voisins et le témoin du 15 rendent une série qui finit sur le mois courant ; le correctif attendu est `subMonthsNoOverflow()`, sans toucher au calcul des commissions de chaque mois (pas V1 : seule la fenêtre des étiquettes est corrigée), test daté du 31 octobre → première étiquette novembre de l'an passé, dernière le mois courant.
+- Mesure (2026-10-23, 1ac04b8ac, implementeur) : re-mesuré par le test de garde `DashboardAgentTest::test_la_serie_mensuelle_ne_deborde_pas_les_jours_de_fin_de_mois` : avant correctif, `monthlyTimeseries($agent, 12)` au 2026-10-31 commence en `2025-12` → `subMonthsNoOverflow()` ; au 2026-10-31, `2025-11` … `2026-10`, au 2027-01-29, `2026-02` … `2027-01` ; ablation (service remis à l'état de `pre-dev`) → rouge, correctif remis → vert ; `DashboardAgentTest` 7 verts.
 
 ### La liste des garants rend 500 sur un `lease_id` non numérique ou hors de `bigint`
 - Réf : P188.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1862
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/GuarantorController.php:18-30`, `takussan-api/routes/api/guarantors.php:7`
 - Constat :
@@ -17418,10 +17425,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : juger `lease_id` par `ExactIdentifierFilter::exiger()` (400 `filter.identifier_invalid`, le précédent de TCK-1273), ou par une `FormRequest` (`integer`), au choix du mesureur selon le précédent qu'il retient. Garde : un test `lease_id=abc` → 4xx.
 - Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `GuarantorController.php:28-29` (`$request->input('lease_id')` brut dans `whereHas`), `ExactIdentifierFilter::exiger()` (400 `filter.identifier_invalid`, borne de chiffres, utilisé par `UserDetailController.php:69` et `Property.php:699`, TCK-1273) ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré), chacun seul : `GET /api/guarantors?lease_id=abc` → **500** `22P02`, `lease_id=99999999999999999999` → **500** `22003` (re-mesuré seul, comme le demandait le constat), témoin `lease_id=5` → 200 → le constat tient entier. Classement : A1, le précédent `exiger()` est écrit et fixe la réponse d'un identifiant mal formé ; le correctif attendu est `ExactIdentifierFilter::exiger($request->input('lease_id'), 'lease_id')` avant le `whereHas`, tests `abc` et 20 chiffres → 400.
+- Mesure (2026-10-23, 1ac04b8ac, implementeur) : re-mesuré par le test de garde `GuarantorTest::test_un_lease_id_mal_forme_rend_400_et_non_500` (un cas par exécution) : avant correctif, `lease_id=abc`, `lease_id=99999999999999999999` et `lease_id[]=abc` → **500** → `ExactIdentifierFilter::exiger()` avant le `whereHas` ; les trois → 400 `filter.identifier_invalid`, témoin `lease_id=5` → 200 ; ablation (contrôleur remis à l'état de `pre-dev`) → 3 rouges, correctif remis → verts ; `GuarantorTest` 14 verts.
 
 ### La recherche manuelle de paiements du rapprochement rend 500 sur `q` ou `direction` en liste
 - Réf : P188.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-1864
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Accounting/PaymentSearchController.php:16-27`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:34`
 - Constat :
@@ -17430,10 +17438,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : une `FormRequest` (`q` : `nullable|string|max:…`, `direction` : `Rule::enum(BankStatementLineDirection::class)`, `amount` : `nullable|numeric`). Garde : un test qui envoie chaque paramètre en liste et attend 422.
 - Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `PaymentSearchController.php:21,24` (`q` brut, `(string)` sur `direction`) et `PaymentSearchService.php:34` (`string $query`), et `takussan-web/src/lib/queries/reconciliation.ts:131-132` (le front envoie `q`, `amount`, `direction` en chaînes) ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré) : admin d'agence, `payment-search?q[]=abc` → **500** `TypeError`, `q=abc&direction[]=credit` → **500** « Array to string conversion », témoin `q=abc&amount=abc` → 200 → le constat tient pour `q` et `direction` en liste ; `amount` ne fait pas de 500. Classement : A1, la signature `string` du service et la convention `FormRequest` du dépôt fixent la réponse ; le correctif attendu est une `FormRequest` qui rend 422 sur `q` ou `direction` en liste (`nullable|string`) en gardant `tryFrom()` pour une direction inconnue et `amount` tel quel — juger `amount` en `numeric` ou `direction` par `Rule::enum` ferait rendre 422 à des appels qui rendent 200 et sort du correctif autonome.
+- Mesure (2026-10-23, 1ac04b8ac, implementeur) : re-mesuré par le test de garde `PaymentSearchTest::test_q_ou_direction_en_liste_rendent_422_et_non_500` : avant correctif, `payment-search?q[]=abc` → **500** → `SearchPaymentsRequest` (`q`, `direction` : `nullable|string`, `authorize()` sur la policy `viewAny` du contrôleur) ; `q[]=abc` → 422 sur `q`, `direction[]=credit` → 422 sur `direction`, témoins `amount=abc`, `direction=nope` et `q=` vide → 200, administrateur d'une autre agence → 403 ; ablation (requête retirée, contrôleur remis à l'état de `pre-dev`) → rouge, correctif remis → `PaymentSearchTest` 8 verts ; `BankReconciliationCrossAgencyTest` et `MatchCandidateStatusTest` verts.
 
 ### Petites améliorations
 - Réf : P188.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-1866 — reste : `months=abc` des trois tableaux de bord rend 200 sur une série d'un seul mois, sans le dire ; choisir entre le défaut de douze mois et un 422
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/DashboardOwnerController.php:38,43`, `takussan-api/app/Http/Controllers/Api/DashboardAgentController.php:55,60`, `takussan-api/app/Http/Controllers/Api/DashboardAgencyController.php:64,69`, `takussan-api/app/Http/Controllers/Api/Admin/AdminBoostController.php:24-29`
 - Constat :
@@ -17443,6 +17452,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : ignorer une valeur qui n'est pas une chaîne (`is_string()` avant le cast, comme TCK-1407 pour `filter[moderation_status]`), ou un 422 par règle. Garde : un test par route qui envoie la valeur en liste.
 - Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `DashboardOwnerController.php:38,43`, `DashboardAgentController.php:55,60`, `DashboardAgencyController.php:64,69` (`(string) $request->input('include', '')`, `(int) months`) et `AdminBoostController.php:27-28` (`(string) ($filtres['status'] ?? '')`, idem `kind`), et TCK-1407 (`done`, une valeur en liste rend la réponse d'une valeur inconnue) ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré) : `dashboard/owner?include[]=timeseries`, `dashboard/agent?include[]=timeseries`, `dashboard/agency?include[]=timeseries` → **500** « Array to string conversion » tous trois, `admin/boosts?filter[status][]=active` et `filter[kind][]=x` → **500** ; `dashboard/owner?include=timeseries&months=abc` → 200, série d'un mois (`2026-10`), contre douze sans `months` → le constat tient entier. Classement : A1, TCK-1407 a déjà fixé la réponse d'une valeur en liste ; le correctif attendu est un `is_string()` avant chaque cast (liste ignorée comme une valeur absente), tests un par route avec la valeur en liste → 200 ; `months=abc` reste hors du correctif, choisir entre le défaut 12 et un 422 étant un choix que le constat ne tranche pas.
+- Mesure (2026-10-23, 1ac04b8ac, implementeur) : re-mesuré par `ValeursEnListeTableauxDeBordEtBoostsTest` (un test par route) : avant correctif, `dashboard/owner|agent|agency?include[]=timeseries` et `admin/boosts?filter[status][]=active` → **500** « Array to string conversion » → `is_string()` avant chaque cast, la liste valant une valeur absente (TCK-1407), `filter[agency_id][]` compris (même ligne, même cause) ; les quatre → 200 ; ablation (quatre contrôleurs remis à l'état de `pre-dev`) → 4 rouges, correctif remis → 4 verts ; `DashboardOwnerTest`, `DashboardAgencyTest`, `DashboardAgentTest` et `AdminCreditsApiTest` verts. `months=abc` laissé de côté, comme le classement le demandait : il passe en reste.
 
 ## Angle 189 — Gestes montrés par une comparaison d'identité ou de rôle dans les détails, refusés par la policy
 
@@ -17504,3 +17514,93 @@ Le PDF de l'état des lieux est P143.01.*
 - Piste : juger les deux gestes par `useCan('crm.assign')` (la capacité que l'API lit, comme P152.05), ou par un `abilities.assign` servi avec la fiche ; masquer « Moi » et « Désigner » sans elle. Test de `CustomerReferent` avec un agent sans `crm.assign` : ni l'un ni l'autre.
 - Mesure (2026-10-23, 66ff6bc10, mesureur) : relu `CustomerReferent.tsx:50,62-90` (« Moi » dès que l'appelant n'est pas le référent, « Désigner » dès qu'un autre agent existe, aucune capacité lue), `customers/[id]/page.tsx:170` (monté sans condition), `SetPrimaryContactCustomerRequest::authorize` (l. 31-40, `view` **et** `crm.assign`, TCK-591) ; aucun commit sur ces chemins depuis 1ac04b8ac ; même test temporaire (retiré) : agent au rôle système moins `crm.assign` → `GET /api/customers/{id}` 200, `GET …/relationships` 200, `POST …/primary-contact` avec son propre identifiant **403** ; témoin agent au rôle système → 200 → le constat tient. Classement : A1, la règle attendue est écrite dans `SetPrimaryContactCustomerRequest` (TCK-591) ; le correctif attendu juge « Moi » et « Désigner » par `useCan('crm.assign', agencyId)` et les masque sans elle, le titre et le nom du référent restant affichés (précédent P152.05, TCK-1430).
 - Mesure (2026-10-23, 8d1a2ba6a, implementeur) : relu `CustomerReferent.tsx` inchangé depuis la mesure (« Me désigner » dès que l'appelant n'est pas le référent, sélecteur dès qu'un autre agent existe, aucune capacité lue) et `SetPrimaryContactCustomerRequest::authorize` (`view` et `crm.assign`) ; reproduit avant correctif par `CustomerReferent.capacite.test.tsx` (agent sans `crm.assign` : « Me désigner » rendu) → les deux gestes passent sous `useCan('crm.assign', agencyId)`, la liste des agents n'est plus demandée sans elle, le titre et le référent restent affichés. Ablation : 1 rouge, vert remis.
+
+## Angle 190 — Créateur d'un bien d'agence, suspendu ou retiré, face aux règles qui l'acceptent par la seule identité
+
+*Exploré le 2026-10-23 sur `pre-dev` 61dba15e4, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : `PropertyPolicy` (`view`, `update`, `isMemberOf`), `PropertyController::index`, `BookingPolicy` (déjà jugée par `BailleurDuBien` depuis TCK-1707 et TCK-1722 : conforme pour le suspendu), `MaintenanceRequestPolicy::isPrincipalFor` (`BailleurDuBien` depuis TCK-1720 : conforme), `ReviewPolicy::publisherReplies` (`isOwnerAt` ou `isStaffAt` : conforme), `InventoryPolicy`, `InventoryController::index`, `BookingController::index`, `BookingPaymentPolicy`, `PaymentGatewayController`, `PaymentController::history`, `PropertyModerationPolicy::resubmit`, `LeasePolicy::view`, `LeaseController::index`, `DocumentPolicy::reaches`, `PropertyVisitPolicy::update` (la branche `landlordWrites` ne décide plus que pour un bien sans agence depuis TCK-590 : écartée), `TeamMemberSuspensionService` et `AuthController::login`. Les lignes citées par l'intitulé de l'angle pour `BookingPolicy`, `MaintenanceRequestPolicy` et `ReviewPolicy` ne valent plus : l'angle 160 (TCK-1718 à TCK-1722) les a traitées. Écartés parce que déjà relevés : le bailleur **suspendu** et ses documents (P82.02, fait), les avis au créateur (P126.04, fait), le bail qui désigne l'agent créateur (P15.06, à valider). Mesures par un test temporaire `tests/Feature/TmpExplorateur/SondeAngle190Test.php` (base de test PostgreSQL, charge 5,08 / 3,50 / 3,06 puis 4,05 / 3,79 / 3,24 sur 8 cœurs), retiré avant la fin, sur le jeu de `BuildsBookingStakeholders` : bien de l'agence au `user_id` de l'agent (`forceFill`, ce que fait `PropertyController::store`), réservation `pending` et acompte `pending`, état des lieux conduit par un tiers, bail `active` au `landlord_id` de l'agent (ce que recopie `LeaseService::create`), document du bien déposé par un tiers. Deux cas : l'agent **suspendu** par `TeamMemberSuspensionService::suspend` (profil `suspended`, `staffAgencyId()` → null), et l'agent **retiré** par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`. Le statut `archived` n'a pas été mesuré. Rien n'a été lu en base de développement.*
+
+*Dans les deux cas, la suspension ou le retrait suppriment ses jetons, mais `POST /api/auth/login` lui en rend un neuf : mesuré 200 avec jeton après suspension et après retrait (le login ne refuse que le compte `blocked`, lu `AuthController.php:94`). Les mesures par `Sanctum::actingAs` ci-dessous valent donc pour un agent qui se reconnecte.*
+
+### Le créateur suspendu ou retiré lit et modifie l'état des lieux des biens qu'il a saisis, et le voit dans sa liste
+- Réf : P190.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/InventoryPolicy.php:21-55`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:40-55`
+- Constat :
+  - `view` accepte `property.user_id === user.id` sans rien juger d'autre (lu, l. 32). `update` passe `property.user_id` à `landlordWrites`, qui ne refuse que le **bailleur** bloqué dans l'agence (`isBlockedOwnerAt`) : un agent sans profil de bailleur n'est jamais « bloqué », donc accepté (lu, l. 54, et `BasePolicy.php:132-141`). Les voisines ont quitté cette forme : `BookingPolicy` et `MaintenanceRequestPolicy` jugent le créateur par `BailleurDuBien` depuis TCK-1707, TCK-1720 et TCK-1722 (lu).
+  - La liste reprend l'identité : `orWhereHas('property', … where('user_id', $user->id))` (lu, `InventoryController.php:44-49`).
+  - mesuré (test temporaire), suspendu comme retiré : `can('view')` et `can('update')` vrais ; `GET /api/inventories/{id}` → 200 ; `PATCH /api/inventories/{id}` `{general_condition: fair}` → 200, valeur écrite ; l'état des lieux figure dans `GET /api/inventories`.
+  - ADR-0031 § 3 et `docs/features.md:527` : « un profil non actif (suspendu, …) ne confère aucune capacité ni aucun périmètre dans son agence » (lu).
+  - Établi comment : lu, puis mesuré.
+- Piste : juger la branche « propriétaire du bien » de `view` par `BailleurDuBien::est` (bailleur de tout statut, qui garde la lecture, ADR-0031 § 2) et celle d'`update` par `bailleurEcrit`, comme `BookingPolicy` ; borner la clause de la liste de même. Test : agent créateur suspendu, puis retiré → `GET` et `PATCH` en 403, absent de la liste ; bailleur auteur, bloqué → lecture 200, `PATCH` 403.
+
+### La liste des réservations garde au créateur suspendu ou retiré les réservations de ses biens, téléphone du client compris, que `view` lui refuse
+- Réf : P190.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/BookingController.php:22-37`, `takussan-api/app/Policies/BookingPolicy.php:28-40`
+- Constat :
+  - TCK-1707 a fait juger `view` par `ownerOfProperty` (`BailleurDuBien`), mais `index` liste toujours `orWhereHas('property', … where('user_id', $user->id))`, et charge `customer` (lu, `BookingController.php:25-31`).
+  - mesuré (test temporaire), suspendu comme retiré : `can('view', $booking)` faux, mais la réservation figure dans `GET /api/bookings`, et `data.0.customer.phone` y rend le téléphone de la fiche client.
+  - P153.02 relevait le même téléphone par `GET /api/bookings/{id}` ; son correctif n'a touché que la policy (lu, sa ligne `Mesure` de l'implémenteur).
+  - Établi comment : lu, puis mesuré.
+- Piste : borner la clause « mes biens » de `index` par la règle d'`ownerOfProperty` (bien sans agence, ou profil de bailleur dans l'agence du bien). Test : agent créateur suspendu, puis retiré → réservation absente de la liste ; bailleur auteur, bloqué → présente.
+
+### Le créateur suspendu ou retiré ouvre et vérifie le paiement en ligne des acomptes de ses biens, et les lit dans l'historique
+- Réf : P190.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/BookingPaymentPolicy.php:20-42`, `takussan-api/app/Http/Controllers/Api/PaymentGatewayController.php:27-33,52-55,77-80`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:41-60`
+- Constat :
+  - `update`, qui garde `initiate`, `verify` et `providers` de la passerelle, accepte `booking.property.user_id === user.id` sans juger l'agence ni le statut (lu, `BookingPaymentPolicy.php:40` ; `PaymentGatewayController.php:33,55,80`).
+  - `PaymentController::history` liste les paiements de réservation des biens dont l'appelant est `user_id` (lu, l. 49-52).
+  - mesuré (test temporaire), suspendu comme retiré : `can('update', $bookingPayment)` vrai ; `GET /api/booking-payments/{id}/providers` → 200, `GET /api/booking-payments/{id}/verify` → 200 ; `GET /api/payments/history` rend l'acompte. `POST …/initiate` n'a pas été lancé (il appelle un fournisseur) : il passe par la même ability (lu).
+  - Établi comment : lu, puis mesuré.
+- Piste : juger la branche du bien par `BailleurDuBien::est` (et `landlordWrites` pour initier), comme `BookingPolicy`, et borner la clause de `history` de même. Test : agent créateur suspendu, puis retiré → `providers` et `verify` en 403, acompte absent de l'historique ; client de la réservation toujours accepté.
+
+### Le bail qui désigne l'agent créateur reste lisible par lui, suspendu ou retiré, en fiche et en liste
+- Réf : P190.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/LeasePolicy.php:62-81`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:27-38`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php`
+- Constat :
+  - `view` rend vrai dès que `user.id === landlord_id` (lu, l. 68). `LeaseService::create` recopie `properties.user_id` en `landlord_id` (P15.06 ; doc de `BailleurDuBien`, lu) : sur un bien saisi par un agent, le bail le désigne. `index` liste `where('landlord_id', $user->id)` (lu, `LeaseController.php:35`).
+  - TCK-1722 a fait juger les **gestes** du bail par `bailleurEcrit` ; `view` n'a pas suivi (lu).
+  - mesuré (test temporaire), suspendu comme retiré : `can('view', $lease)` vrai, `can('update')` faux ; `GET /api/leases/{id}` → 200 ; le bail figure dans `GET /api/leases`.
+  - TCK-1711 (P153.04) pose `left_at` au retrait sur les fils des baux « dont le retiré ne lit plus le bail », jugé par `LeasePolicy::view` (lu, sa ligne `Mesure`) : sur un bail qui le désigne, il reste donc participant au fil (à vérifier).
+  - Établi comment : lu, puis mesuré.
+- Piste : juger la branche du bailleur de `view` par `BailleurDuBien::est` (le bailleur bloqué garde la lecture), et la clause `landlord_id` de la liste de même. Test : bail au `landlord_id` de l'agent, agent suspendu puis retiré → `GET` 403, absent de la liste, et le fil du bail quitté au retrait. Le sort de `landlord_id` lui-même reste celui de P15.06.
+
+### Le créateur suspendu ou retiré lit les documents du bien et en joint de nouveaux
+- Réf : P190.05
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/DocumentPolicy.php:152-213`
+- Constat :
+  - `reaches` juge la branche du bailleur par l'identité en lecture et par `landlordWrites` en écriture (lu, l. 167-169), pour le bien, le bail, la réservation et l'état des lieux (l. 171-209). `landlordWrites` ne refuse que le bailleur bloqué (lu) : l'agent sans profil de bailleur passe. P82.02 (TCK-1142) a traité le seul bailleur suspendu.
+  - mesuré (test temporaire), suspendu comme retiré : `can('view', $document)` vrai pour un document du bien déposé par un tiers ; `GET /api/documents/{id}` → 200 ; `POST /api/documents` (PDF de 10 Ko, `documentable_type=property`) → 201, document rattaché au bien.
+  - Établi comment : lu, puis mesuré.
+- Piste : passer `$bailleur` de `reaches` par `BailleurDuBien::est` pour les colonnes de bailleur (`properties.user_id`, `leases.landlord_id`), et par `bailleurEcrit` en écriture, en gardant `landlordWrites` pour les colonnes d'auteur. Test : agent créateur suspendu, puis retiré → `GET` 403 et `POST` refusé (404 `document.owner_not_found`, TCK-732) ; bailleur bloqué → lecture 200, rattachement refusé.
+
+### Le créateur suspendu ou retiré resoumet à la modération un bien d'agence rejeté
+- Réf : P190.06
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/PropertyModerationPolicy.php:29-41`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:101-109`
+- Constat :
+  - `resubmit` rend vrai dès que `user.id === property.user_id`, avant tout jugement d'agence ; le personnel n'y entre que par `staffAgencyId()` (lu, l. 34-40).
+  - mesuré (test temporaire), suspendu comme retiré : bien de l'agence passé `rejected` → `POST /api/properties/{id}/resubmit` → 200, statut `pending_review`, motif et rejet effacés (lu, `PropertyModerationService::resubmit`).
+  - Établi comment : lu, puis mesuré.
+- Piste : ne tenir `user_id` pour titre que sur un bien sans agence ou pour un bailleur non bloqué de l'agence (`bailleurEcrit`) ; le personnel actif garde sa branche. Test : agent créateur suspendu, puis retiré → 403 et statut `rejected` inchangé.
+
+### L'agent suspendu lit encore le bien qu'il a saisi et le garde dans sa liste
+- Réf : P190.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Policies/PropertyPolicy.php:48-63,196-207`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:60-75`
+- Constat :
+  - TCK-1705 ne tient `user_id` pour titre sur un bien d'agence que si l'auteur y a un profil « de tout statut » (`isMemberOf`, lu, l. 54 et 196-207), et la liste borne la clause aux agences où il a un profil, sans statut (lu, `PropertyController.php:62-70`). La ligne `Mesure` de l'implémenteur de P153.01 dit ce choix : « voie la plus étroite : le bailleur ou l'agent suspendu garde ce qu'il a ».
+  - mesuré (test temporaire) : agent suspendu → `can('view')` vrai, `can('update')` faux (la capacité `update_own` n'est plus conférée), `GET /api/properties/{id}` → 200, bien présent dans `GET /api/properties`. Retiré → 403 et absent, comme TCK-1705 le garde.
+  - La règle écrite est l'inverse pour l'agent : ADR-0031 § 3 et `docs/features.md:527` (aucun périmètre pour un profil non actif) ; ADR-0031 § 2 ne garde la lecture qu'au **bailleur** suspendu (lu).
+  - Établi comment : lu, puis mesuré.
+- Piste : remplacer `isMemberOf` par `BailleurDuBien::est` (bailleur de tout statut) ou personnel actif de l'agence (`isStaffOf`) dans `view`, `update` et la clause de la liste. Test : agent créateur suspendu → 403 et absent de la liste ; bailleur auteur bloqué → lecture 200.

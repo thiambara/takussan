@@ -19,6 +19,8 @@ return [
     'activity_log' => [
         'export_too_large' => 'Trop de lignes pour un export : resserrez les filtres.',
         'export_link_invalid' => 'Lien expiré ou invalide.',
+        'date_range_inverted' => 'La date de début doit précéder la date de fin, ou lui être égale.',
+        'date_range_too_long' => 'La période exportée ne doit pas dépasser un an.',
     ],
     'agency' => [
         'active_profile_missing' => 'Aucun profil d\'agence actif.',

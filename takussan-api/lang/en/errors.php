@@ -19,6 +19,8 @@ return [
     'activity_log' => [
         'export_too_large' => 'Too many rows to export: narrow the filters.',
         'export_link_invalid' => 'Expired or invalid link.',
+        'date_range_inverted' => 'date_from must be before or equal to date_to.',
+        'date_range_too_long' => 'Date range must not exceed 1 year.',
     ],
     'agency' => [
         'active_profile_missing' => 'No active agency profile.',

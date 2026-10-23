@@ -75,4 +75,34 @@ class PortefeuilleFiltreParContratTest extends TestCase
     {
         $this->getJson($route.'?filter[contract_type]=lease')->assertStatus(422);
     }
+
+    /**
+     * TCK-1853 (P187.06) — `per_page` est validé comme sur les autres listes publiques : une
+     * valeur illisible rend 422 au lieu d'une page d'un bien.
+     *
+     * @return array<string, array{string, string}>
+     */
+    public static function routesEtPerPageIllisible(): array
+    {
+        $cas = [];
+        foreach (self::routes() as $nom => [$route]) {
+            $cas["{$nom}, abc"] = [$route, 'per_page=abc'];
+            $cas["{$nom}, liste"] = [$route, 'per_page[]=3'];
+        }
+
+        return $cas;
+    }
+
+    #[DataProvider('routesEtPerPageIllisible')]
+    public function test_un_per_page_illisible_est_refuse(string $route, string $requete): void
+    {
+        $this->getJson($route.'?'.$requete)->assertStatus(422)->assertJsonValidationErrors('per_page');
+    }
+
+    /** La borne haute reste le plafond de 48 du contrôleur : aucun 422 neuf au-delà. */
+    #[DataProvider('routes')]
+    public function test_un_per_page_au_dela_du_plafond_reste_servi(string $route): void
+    {
+        $this->getJson($route.'?per_page=100')->assertOk()->assertJsonPath('meta.per_page', 48);
+    }
 }

@@ -76,7 +76,8 @@ const ROLE_OPTIONS: { value: string; labelKey: string }[] = [
   { value: 'agency_admin', labelKey: 'roles.agency_admin' },
   { value: 'agent', labelKey: 'roles.agent' },
   { value: 'owner', labelKey: 'roles.owner' },
-  { value: 'customer', labelKey: 'roles.customer' },
+  // TCK-1852 (P186.01) — pas d'option `customer` : chaque compte en est un (TCK-492), le filtre
+  // vaudrait « Tous ». La clé `roles.customer` reste, la colonne des rôles l'affiche.
   { value: 'tenant', labelKey: 'roles.tenant' },
   { value: 'service_provider', labelKey: 'roles.service_provider' },
 ];

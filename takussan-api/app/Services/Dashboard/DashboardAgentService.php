@@ -249,7 +249,9 @@ class DashboardAgentService
     public function monthlyTimeseries(User $agent, int $months = 12, string $scope = self::SCOPE_MINE, ?int $agencyId = null): array
     {
         $months = max(1, min($months, 36));
-        $start = now()->subMonths($months - 1)->startOfMonth();
+        // TCK-1860 — sans débordement, comme le bailleur et l'agence : le 31, « onze mois plus tôt »
+        // tomberait sur le 1er du mois suivant, et la série finirait sur un mois à venir.
+        $start = now()->subMonthsNoOverflow($months - 1)->startOfMonth();
         $end = now()->endOfMonth();
         $agency = $scope === self::SCOPE_AGENCY && $agencyId !== null;
 

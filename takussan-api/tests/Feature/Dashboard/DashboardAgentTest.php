@@ -12,8 +12,11 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Task;
+use App\Models\User;
+use App\Services\Dashboard\DashboardAgentService;
 use App\Services\Model\LeaseService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\ApiTestCase;
 
 /**
@@ -174,5 +177,27 @@ class DashboardAgentTest extends ApiTestCase
         $this->assertCount(3, $response->json('timeseries.months'));
         $this->assertCount(3, $response->json('timeseries.commissions'));
         $this->assertCount(3, $response->json('timeseries.signed_leases'));
+    }
+
+    /**
+     * P188.04 (TCK-1860) — le 31 octobre, onze mois plus tôt ne déborde pas sur décembre : la
+     * série commence en novembre de l'an passé et finit sur le mois courant, comme celles du
+     * bailleur et de l'agence. Même chose le 29 janvier d'une année non bissextile.
+     */
+    public function test_la_serie_mensuelle_ne_deborde_pas_les_jours_de_fin_de_mois(): void
+    {
+        $agent = User::factory()->create();
+        $service = app(DashboardAgentService::class);
+
+        foreach (['2026-10-31' => ['2025-11', '2026-10'], '2027-01-29' => ['2026-02', '2027-01']] as $jour => [$premier, $dernier]) {
+            Carbon::setTestNow($jour.' 12:00:00');
+            $mois = $service->monthlyTimeseries($agent, 12)['months'];
+
+            $this->assertCount(12, $mois, $jour);
+            $this->assertSame($premier, $mois[0], $jour);
+            $this->assertSame($dernier, $mois[11], $jour);
+        }
+
+        Carbon::setTestNow();
     }
 }
