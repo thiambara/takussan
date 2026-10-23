@@ -151,7 +151,9 @@ class PublicAgencyController extends Controller
                         CaseInsensitive::sql('agencies.name').' LIKE ?',
                         ['%'.CaseInsensitive::fold(trim($valeur)).'%'],
                     );
-                }),
+                    // `delimiter('')` : spatie découperait sinon la saisie à la virgule, et le
+                    // tableau qui en sort faisait ignorer la recherche (P187.01, TCK-1843).
+                })->delimiter(''),
                 // `filter[city]` est appliqué sur `$base` ci-dessus et non ici : il porte sur une
                 // relation MORPHE de la relation `properties`, que `AllowedFilter` ne sait pas
                 // exprimer. Il est déclaré quand même — sans quoi spatie lève
