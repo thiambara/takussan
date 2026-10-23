@@ -15,6 +15,7 @@ use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\UserStatus;
+use App\Models\Enums\VisitStatus;
 use App\Models\Invitation;
 use App\Models\Invoice;
 use App\Models\Lease;
@@ -270,6 +271,15 @@ class AccountDeletionService
         // de la visite (`visitor_name`, `visitor_email`, `visitor_phone`) reste à l'agence
         // (décision du porteur, 2026-10-19).
         PropertyVisit::query()->where('visitor_id', $user->id)->update(['visitor_id' => null]);
+
+        // TCK-2011 (P175.02) — les visites à venir que le compte accompagnait comme agent
+        // retombent dans « non attribuées » (`filter[unassigned]`), pour qu'un collègue les prenne
+        // en charge ; les visites passées gardent leur agent, pour l'historique (décision du
+        // porteur, 2026-10-23).
+        PropertyVisit::query()
+            ->where('agent_id', $user->id)
+            ->whereIn('status', [VisitStatus::Scheduled->value, VisitStatus::Confirmed->value])
+            ->update(['agent_id' => null]);
 
         // Tokens already revoked at request time, but in case the user
         // signed back in to cancel and let the request lapse, revoke now.
