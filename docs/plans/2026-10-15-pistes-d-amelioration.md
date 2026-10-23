@@ -11811,7 +11811,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Le choix du bénéficiaire d'un reversement ne lit que les profils de bailleur actifs, alors que l'API accepte tout profil de l'agence, de tout statut
 - Réf : P120.04
-- Statut : validé — porteur (2026-10-22) : lire les bailleurs `active` et `inactive` qui ont des lignes à reverser dans ce dialogue
+- Statut : fait · TCK-1528 — reste : borner la liste du dialogue aux seuls bailleurs qui ont des lignes à reverser, par un filtre neuf sur `GET /api/owners`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/payments/CreatePayoutDialog.tsx:72-84,179-185`, `takussan-api/app/Services/Model/PayoutService.php:84-105`, `takussan-api/app/Http/Requests/Api/StorePayoutRequest.php:46`
 - Constat :
@@ -11821,10 +11821,11 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Établi comment : lu.
 - Piste : établir d'abord si un bailleur inactif peut avoir des lignes à reverser ; si oui, lire les bailleurs `active,inactive` (ou ceux qui ont des lignes en attente) dans ce dialogue. Test : bailleur `inactive` avec un loyer encaissé, présent dans les options.
 - Mesure (2026-10-22, 851bd88b9, mesureur) : relu `CreatePayoutDialog.tsx:72-84` (`/api/owners` avec `filter[status]=active`), `PayoutService::create()` (appartenance « sans filtre de statut », TCK-587) et `TeamMemberSuspensionService` (seul chemin qui écrit un statut de bailleur : `blocked` à la suspension) ; test temporaire (retiré ensuite), même charge : bailleur avec loyers de septembre encaissés, profil passé `blocked` → `GET /api/payouts/preparation?landlord_id=…` rend 200, 2 lignes, net 198 000 ; `GET /api/owners?filter[agency_id]=…&filter[status]=active` ne le rend pas, la même requête sans `filter[status]` le rend. Le point « à vérifier » tient pour `blocked` (le statut que l'application écrit), non mesuré pour `inactive`, qu'aucun code n'écrit (lu). Classement : V1, la liste des bénéficiaires d'un reversement règle à qui l'argent sort, et l'intention de TCK-587 pour un bailleur suspendu reste à trancher.
+- Mesure (2026-10-22, 614ec950e, implementeur) : `CreatePayoutDialog` lit toujours `/api/owners` avec `filter[status]=active` (lu, `CreatePayoutDialog.tsx:79`) ; test front « propose les bailleurs actifs et inactifs » rouge avant correctif (`expected 'active' to deeply equal ['active', 'inactive']`), vert avec `status: ['active', 'inactive']` (8/8) ; ablation : composant remis à `HEAD` → rouge, remis → vert. `OwnerProfileListingTest::test_le_filtre_de_statut_accepte_actif_et_inactif_ensemble` (vert sans correctif : l'API accepte déjà la liste) garde que la requête rend actif et inactif, ni bloqué ni brouillon. « qui ont des lignes à reverser » lu comme la raison de la décision ; le bornage par lignes en attente reste.
 
 ### Petites améliorations des sélecteurs de personnes
 - Réf : P120.05
-- Statut : validé — porteur (2026-10-22) : `sort=first_name` dans le dialogue, et ouvrir à l'agent `crm.assign` une lecture des cibles bornée au personnel ; docblocks corrigés avec P120.02
+- Statut : fait · TCK-1530
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leads/ContactLeadsInbox.tsx:147-149,264-268`, `takussan-web/src/lib/queries/role-delegations.ts:138-145`, `takussan-web/src/components/admin/roles/CreateDelegationDialog.tsx:90-95`
 - Constat :
@@ -11834,6 +11835,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Établi comment : lu.
 - Piste : `sort=first_name` dans le dialogue ; ouvrir à l'agent `crm.assign` une lecture des cibles (la route `assignable` bornée au personnel, par exemple) ou garder le bouton et le documenter ; corriger les deux docblocks avec P120.02.
 - Mesure (2026-10-22, 851bd88b9, mesureur) : relu `ContactLeadsInbox.tsx:147-149` (bouton réservé à `isAdmin(user.roles)`, le commentaire dit pourquoi) et `:264-268` (aucun `sort`), `role-delegations.ts:138-145` et `CreateDelegationDialog.tsx:86-97` (« exactement » la condition `isAgentAt || isOwnerAt`, vraie aujourd'hui : la base de `/members` est agent OU bailleur, lu) et la policy des demandes (`crm.assign` dans l'agence) → les trois points tiennent, lu seulement. Classement : V2, la deuxième partie ouvre à un agent une lecture du personnel aujourd'hui réservée à l'admin ; le tri du dialogue serait A1 seul, et les docblocks suivent le choix de P120.02.
+- Mesure (2026-10-22, 614ec950e, implementeur) : `AttribuerDialog` sans `sort` et bouton réservé à `isAdmin` (lu, `ContactLeadsInbox.tsx:147-153,264-268`) ; `AgencyMembersListTest::test_un_agent_crm_assign_lit_les_seules_cibles_du_personnel` rouge avant correctif (403 pour un agent qui détient `crm.assign`) ; correctif : `AgencyPolicy::listAssignableStaff`, et `listMembers` qui impose aux non-admins `filter[assignable]=1`, le nom seul et aucun `include` → vert (14/14, plus `ContactLeadInboxTest`, `AgencyMembersQueryCountTest`, `PersonNameCollatedSortTest`, `UserResourceSparseFieldsTest`, `UserSearchTest`, `PerPagePlafondTest`, `TeamFormationBoundaryTest` verts) ; test front « l'agent qui détient crm.assign attribue, sur une liste triée par prénom » rouge puis vert (18/18) ; ablations : contrôleur remis → rouge, filtre imposé retiré → rouge (le compte bloqué sort), composant remis → rouge, `sort` retiré → rouge. Les docblocks de `useDelegationCandidates` et `CreateDelegationDialog` étaient déjà corrigés par TCK-1244 (lu).
 
 ## Angle 121 — Passation de portefeuille : chaque catégorie face au geste unitaire
 
