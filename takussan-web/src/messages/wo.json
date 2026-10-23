@@ -9821,6 +9821,9 @@
       "roomNameRequired": "Turu néeg bi fàww la.",
       "leaseRequired": "Tànnal benn kontaraa.",
       "roomsMin": "Yokkal lu mu néew benn néeg.",
+      "roomsMax": "{max} pièces au maximum.",
+      "elementsMax": "{max} éléments par pièce au maximum.",
+      "notesTooLong": "Notes trop longues ({max} caractères max).",
       "disputeReasonRequired": "Sababu werante bi fàww la."
     },
     "lease": {

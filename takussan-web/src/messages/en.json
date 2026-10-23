@@ -9821,6 +9821,9 @@
       "roomNameRequired": "The room name is required.",
       "leaseRequired": "Select a lease.",
       "roomsMin": "Add at least one room.",
+      "roomsMax": "At most {max} rooms.",
+      "elementsMax": "At most {max} items per room.",
+      "notesTooLong": "Notes too long ({max} characters max).",
       "disputeReasonRequired": "A dispute reason is required."
     },
     "lease": {
