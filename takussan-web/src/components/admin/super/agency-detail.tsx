@@ -51,6 +51,7 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
 import { AVEC_MOTIF, GESTE_DE_TRANSITION, transitionsDeModeration } from './agency-moderation';
 import { usePlatformAbilities } from './PlatformAbilitiesProvider';
+import { FILTRES_LISTE_AGENCES, retourALaListe } from './retour-de-liste';
 import { DUREE_URL_SIGNEE_KYC_MS, rafraichirAvantExpiration } from '@/lib/url-signee';
 
 type Action = AgencyModerationAction;
@@ -268,9 +269,13 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
 /** Seul écran de profondeur 2 de la console sans chemin de retour (critique du 2026-08-26). */
 function BackToAgencies() {
   const t = useTranslations('superAdmin.agencyDetail');
+  // TCK-1742 (P168.04) — le retour rend la liste quittée : sa requête arrive dans `?liste=`,
+  // réduite aux filtres connus de la liste.
+  const searchParams = useSearchParams();
+  const href = retourALaListe('/super-admin/agencies', searchParams.get('liste'), FILTRES_LISTE_AGENCES);
   return (
     <Link
-      href="/super-admin/agencies"
+      href={href}
       className="-my-2 inline-flex min-h-10 items-center gap-1 rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <ArrowLeft className="size-4" aria-hidden="true" />
