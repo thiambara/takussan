@@ -24,6 +24,9 @@ export const QUOTE_ATTACHMENT_ACCEPT = 'application/pdf,image/jpeg,image/png,ima
 const ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 const ACCEPTED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
 const MAX_ATTACHMENTS = 5;
+/** TCK-1907 (P195.07) — `max:5120` (Ko) de `SubmitQuoteRequest`. La pièce part telle quelle (TCK-542). */
+const MAX_ATTACHMENT_MB = 5;
+const MAX_ATTACHMENT_BYTES = MAX_ATTACHMENT_MB * 1024 * 1024;
 
 type LineDraft = { label: string; kind: MaintenanceQuoteLineKind; quantity: string; unit_price: string };
 
@@ -74,6 +77,7 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
   const [duration, setDuration] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
   const [rejectedFiles, setRejectedFiles] = useState<string[]>([]);
+  const [tooLargeFiles, setTooLargeFiles] = useState<string[]>([]);
   const [tooManyFiles, setTooManyFiles] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -86,8 +90,12 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
     setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
 
   const pickFiles = (picked: File[]) => {
-    const accepted = picked.filter(isAccepted);
+    const typed = picked.filter(isAccepted);
     setRejectedFiles(picked.filter((f) => !isAccepted(f)).map((f) => f.name));
+    // TCK-1907 (P195.07) — une pièce au-delà du plafond de l'API est écartée et nommée au choix,
+    // comme `KycUploader` et `DocumentUploadDialog`, au lieu d'un 422 après la saisie des lignes.
+    const accepted = typed.filter((f) => f.size <= MAX_ATTACHMENT_BYTES);
+    setTooLargeFiles(typed.filter((f) => f.size > MAX_ATTACHMENT_BYTES).map((f) => f.name));
     // TCK-1889 (P195.02) — une sélection qui porterait le total au-delà de la borne de l'API est
     // refusée entière et dite, comme `MediaDropzone`, au lieu de perdre la sixième pièce en silence.
     if (attachments.length + accepted.length > MAX_ATTACHMENTS) {
@@ -293,6 +301,11 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
           {rejectedFiles.length > 0 ? (
             <p role="alert" className="mt-1 text-xs text-destructive">
               {t('file_type_refused', { files: rejectedFiles.join(', ') })}
+            </p>
+          ) : null}
+          {tooLargeFiles.length > 0 ? (
+            <p role="alert" className="mt-1 text-xs text-destructive">
+              {t('file_too_large', { max: MAX_ATTACHMENT_MB, files: tooLargeFiles.join(', ') })}
             </p>
           ) : null}
           {tooManyFiles ? (
