@@ -6,15 +6,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { Download, FileSpreadsheet, FileText, Loader2, ScrollText } from 'lucide-react';
 import { EmptyState } from '@/components/feedback';
-import {
-  DataState,
-  DataTable,
-  DebouncedSearchInput,
-  Pagination,
-  StatusBadge,
-  type DataTableColumn,
-  type StatusTone,
-} from '@/components/console';
+import { DataState, StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
+import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
+import { Pagination } from '@/components/console/Pagination';
 import { auditSubjectHref, shortSubjectType } from '@/lib/audit-subject-links';
 import { formatDate as formatDateIntl } from '@/lib/format';
 import type { Locale } from '@/i18n/config';

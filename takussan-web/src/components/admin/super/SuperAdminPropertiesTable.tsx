@@ -6,11 +6,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { MoreHorizontal } from 'lucide-react';
-import {
-  DataTable,
-  StatusBadge,
-  type DataTableColumn,
-} from '@/components/console';
+import { StatusBadge } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { ErrorState } from '@/components/feedback';
 import {
   DropdownMenu,

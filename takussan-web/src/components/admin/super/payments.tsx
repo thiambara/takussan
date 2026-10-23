@@ -5,7 +5,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { CircleCheckBig, Play } from 'lucide-react';
 
-import { DataState, DataTable, Pagination, StatusBadge, type DataTableColumn } from '@/components/console';
+import { DataState, StatusBadge } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
+import { Pagination } from '@/components/console/Pagination';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';

@@ -6,7 +6,8 @@ import { useTranslations } from 'next-intl';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Building2, ExternalLink, FileText, ShieldCheck, XCircle } from 'lucide-react';
 
-import { DataTable, StatusBadge, type DataTableColumn, type StatusTone } from '@/components/console';
+import { StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';

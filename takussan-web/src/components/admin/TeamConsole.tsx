@@ -7,7 +7,8 @@ import { useTranslations } from 'next-intl';
 import { UserPlus, Users } from 'lucide-react';
 
 import { EmptyState, ErrorState } from '@/components/feedback';
-import { DataState, Pagination } from '@/components/console';
+import { DataState } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminUsersFilters } from '@/components/admin/users/AdminUsersFilters';

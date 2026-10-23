@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AgencyCombobox } from '@/components/admin/super/AgencyCombobox';
-import { Pagination } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { fetchAdminPlatformPayouts } from '@/lib/queries/super-admin';
 import type { PlatformPayoutStatus } from '@/types/super-admin';
 import { PayoutCloseDialog } from './PayoutCloseDialog';

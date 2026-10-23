@@ -6,7 +6,7 @@ import { useId, useState } from 'react';
 import { MessageSquareQuote, Star } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { EmptyState, ErrorState } from '@/components/feedback';
-import { Pagination } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import {
   type ReceivedStatus,
   type ReceivedSubjectType,

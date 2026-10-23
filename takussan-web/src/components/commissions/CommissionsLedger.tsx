@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { HandCoins } from 'lucide-react';
 
-import { DataTable, Pagination, StatCard, StatusBadge, type DataTableColumn, type StatusTone } from '@/components/console';
+import { StatCard, StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
+import { Pagination } from '@/components/console/Pagination';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Button } from '@/components/ui/button';

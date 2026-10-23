@@ -8,7 +8,9 @@ import { EmptyState, ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { useAuth } from '@/context/AuthContext';
-import { DebouncedSearchInput, FilterBar, Pagination } from '@/components/console';
+import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
+import { FilterBar } from '@/components/console/FilterBar';
+import { Pagination } from '@/components/console/Pagination';
 import { fetchPropertyModerationQueue } from '@/lib/queries/property-moderation';
 import type { ModerationProperty } from '@/lib/queries/property-moderation';
 import { PropertyModerationQueueList } from './PropertyModerationQueueList';
