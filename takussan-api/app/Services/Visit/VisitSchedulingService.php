@@ -203,6 +203,37 @@ class VisitSchedulingService
     }
 
     /**
+     * P182.06 (TCK-1820) — annulation transactionnelle : la ligne est relue sous verrou, et
+     * `visit.cannot_cancel` se juge sur elle, comme {@see confirmOrFail}. Jugée sur le modèle lié
+     * à la route, deux annulations simultanées passaient toutes deux (deux avis), et une
+     * annulation concurrente d'un `complete` écrasait `completed`. L'avis part après la
+     * transaction, chez l'appelant.
+     */
+    public function cancelOrFail(PropertyVisit $visit, ?string $reason): PropertyVisit
+    {
+        return DB::transaction(function () use ($visit, $reason) {
+            $fresh = PropertyVisit::query()
+                ->whereKey($visit->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_code_if(
+                in_array($fresh->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
+                422,
+                'visit.cannot_cancel'
+            );
+
+            $fresh->update([
+                'status' => VisitStatus::Cancelled,
+                'cancelled_at' => now(),
+                'cancellation_reason' => $reason,
+            ]);
+
+            return $fresh;
+        });
+    }
+
+    /**
      * Abort with 422 if the visitor already holds
      * {@see self::MAX_ACTIVE_VISITS_PER_CUSTOMER} active visits on the
      * same property. Called at creation time only.

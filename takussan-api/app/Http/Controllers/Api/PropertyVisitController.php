@@ -376,19 +376,9 @@ class PropertyVisitController extends Controller
             || ($visit->customer !== null && $visit->customer->user_id === $user->id);
         abort_code_unless($byVisitor || $this->agitPourLeBien($user, $visit), 403, 'visit.staff_only');
 
-        abort_code_if(
-            in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
-            422,
-            'visit.cannot_cancel'
-        );
-
-        $data = $request->validated();
-
-        $visit->update([
-            'status' => VisitStatus::Cancelled,
-            'cancelled_at' => now(),
-            'cancellation_reason' => $data['reason'] ?? null,
-        ]);
+        // P182.06 (TCK-1820) — le statut se juge sur la ligne relue sous verrou, pas sur le modèle
+        // lié à la route ; l'avis part après la transaction.
+        $visit = $this->scheduling->cancelOrFail($visit, $request->validated('reason'));
 
         $fresh = $visit->fresh(['property', 'visitor', 'agent']);
         $sms = null;
