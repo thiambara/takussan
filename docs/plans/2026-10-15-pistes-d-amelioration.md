@@ -17943,7 +17943,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### L'avatar est refusé au-delà de 2 Mo avant d'être réduit, alors que les autres photos sont réduites d'abord
 - Réf : P195.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1887
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/profile/ProfileHeader.tsx:90-94,110`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:52`, `takussan-web/src/components/media/MediaManager.tsx:553-556`, `takussan-web/src/lib/reduire-photo.ts:1-20,199-203`
 - Constat :
@@ -17952,6 +17952,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - `reduire-photo.ts` décrit une photo de téléphone à « 3 à 8 Mo pour 12 Mpx » (lu, l. 3) ; `next.config` dit qu'« une seule photo réduite pèse déjà 1,4 Mo » (lu, l. 65). Une photo de téléphone ordinaire serait donc refusée comme avatar alors que sa version réduite passerait `max:2048` (à vérifier sur un fichier réel).
 - Piste : juger la taille après `reduirePhotosSousPlafond(…, 2 Mo)`, comme `MediaDropzone`. Test Vitest avec des outils d'image simulés : un fichier de 5 Mo réductible n'affiche pas `imageTooLarge` et part réduit.
 - Mesure (2026-10-23, 37a217aec, mesureur) : relu `ProfileHeader.tsx` (refus `file.size > 2 * 1024 * 1024` → `imageTooLarge` l. 90-94 au choix, `reduirePhoto(avatar)` seulement à l'envoi l. 110), `UpdateProfileRequest.php:52` (`max:2048`, `PixelsAuPlus`), `MediaManager.tsx:553-556` (`reduirePhotosSousPlafond` avant `validateFile`), `reduire-photo.ts:163-211` (`reduirePhotoSousPlafond` existe) et TCK-542 l. 114-119 (« l'avatar » parmi les écrans réduits ; « une photo de 12 Mo qui tombe sous le plafond une fois réduite n'a pas à être refusée ») → l'ordre refus-puis-réduction tient ; qu'une photo de téléphone réelle passe sous 2 Mo une fois réduite reste non mesuré sur un fichier. Classement : A1, la règle « réduire avant de juger la taille » est écrite par TCK-542 et appliquée par TCK-596 ; correctif attendu : dans `ProfileHeader`, réduire le fichier choisi par `reduirePhotoSousPlafond(file, 2 Mo)` avant le contrôle de taille, garder le fichier réduit pour l'envoi, et un test Vitest à outils d'image simulés où un fichier de 5 Mo réductible ne montre pas `imageTooLarge` et part réduit.
+- Mesure (2026-10-23, 0303e7d79, implementeur) : test Vitest `ProfileHeader.test.tsx` (`reduirePhotoSousPlafond` doublé) avant correctif → un fichier de 5 Mo réductible sous 2 Mo est refusé par `imageTooLarge` ; `ProfileHeader` réduit par `reduirePhotoSousPlafond(file, 2 Mo)` au choix, juge la taille du fichier réduit et l'envoie tel quel → accepté et envoyé réduit, et un fichier resté au-dessus de 2 Mo est toujours refusé ; ablation (contrôle remis sur le fichier brut → rouge, remis → vert) ; 6 verts.
 
 ### Textes longs bornés par le seul front : avis, réponses, messages et notes de client sans `max:` à l'API
 - Réf : P195.04
