@@ -39,7 +39,7 @@ libellés existent déjà au front, sans texte de produit neuf).
 - La `Piste` offre deux voies. Je prends la première, celle que nomme le classement A4 : ajouter les
   deux clés à l'API, avec les libellés de `property.status` du front (`fr` « En revue » / « Refusé »,
   `en` « In review » / « Rejected »).
-- `wo` porte le texte français tel quel (wolof en pause depuis le 2026-10-16).
+- `wo` reprend mot pour mot le texte `wo` que `takussan-web/src/messages/wo.json` porte déjà pour ces deux clés (`property.status`) : aucun wolof neuf (pause du 2026-10-16), et la garde de parité `property-labels.parity.test.ts` refuse toute divergence nouvelle entre l'API et le front. Le texte français, d'abord écrit, l'a fait rougir en CI.
 
 ## Delta à produire
 
