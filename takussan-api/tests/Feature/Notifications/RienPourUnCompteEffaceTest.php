@@ -41,7 +41,7 @@ class RienPourUnCompteEffaceTest extends TestCase
         });
 
         $user = User::factory()->create(['email' => 'alice@example.com']);
-        $user->notify(new AvisEnFileDeTest);
+        $user->notify(new AvisEnFilePourEssai);
         $this->assertSame(1, DB::table('jobs')->count(), 'l’avis est en file');
 
         app(AccountDeletionService::class)->anonymize($user, notifier: false);
@@ -63,7 +63,7 @@ class RienPourUnCompteEffaceTest extends TestCase
         });
 
         $user = User::factory()->create(['email' => 'bob@example.com']);
-        $user->notify(new AvisEnFileDeTest);
+        $user->notify(new AvisEnFilePourEssai);
 
         $this->artisan('queue:work', ['connection' => 'database', '--stop-when-empty' => true])->assertSuccessful();
 
@@ -94,7 +94,7 @@ class RienPourUnCompteEffaceTest extends TestCase
     }
 }
 
-class AvisEnFileDeTest extends Notification implements ShouldQueue
+class AvisEnFilePourEssai extends Notification implements ShouldQueue
 {
     use Queueable;
 
