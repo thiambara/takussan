@@ -27,6 +27,9 @@ class PublicPortfolioRequest extends BaseFormRequest
     {
         return [
             'filter.contract_type' => ['nullable', Rule::enum(ContractType::class)],
+            // TCK-1853 (P187.06) — validé comme sur les autres listes publiques ; la borne haute
+            // reste le `min(…, 48)` des deux contrôleurs, pour ne refuser aucune page servie.
+            'per_page' => 'nullable|integer|min:1',
         ];
     }
 

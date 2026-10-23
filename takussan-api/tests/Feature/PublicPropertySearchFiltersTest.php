@@ -173,6 +173,37 @@ class PublicPropertySearchFiltersTest extends ApiTestCase
             ->assertJsonValidationErrors('condition');
     }
 
+    /**
+     * TCK-1853 (P187.06) — `type` et `rent_period` sont jugés contre leur enum, comme
+     * `title_type` et `condition` : une valeur inconnue rend 422 au lieu d'écarter le
+     * catalogue en silence — y compris glissée derrière une valeur valide.
+     *
+     * @return array<string, array{string, string}>
+     */
+    public static function valeursHorsEnum(): array
+    {
+        return [
+            'type inconnu' => ['type=nope', 'type'],
+            'type inconnu derrière un valide' => ['type=villa,nope', 'type'],
+            'période inconnue' => ['rent_period=nope', 'rent_period'],
+        ];
+    }
+
+    #[DataProvider('valeursHorsEnum')]
+    public function test_type_et_periode_hors_enum_sont_refuses(string $requete, string $cle): void
+    {
+        $this->getJson('/api/public/properties/search?'.$requete)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors($cle);
+    }
+
+    /** Les valeurs de l'enum, seules ou en liste, passent toujours. */
+    public function test_type_et_periode_de_l_enum_sont_acceptes(): void
+    {
+        $this->getJson('/api/public/properties/search?type=villa,house&rent_period=monthly')
+            ->assertOk();
+    }
+
     // ─────────────────────────────────────────────────────────────────────
     // available_from filter
     // ─────────────────────────────────────────────────────────────────────
