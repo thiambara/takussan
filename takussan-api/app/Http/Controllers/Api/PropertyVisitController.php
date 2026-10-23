@@ -490,7 +490,9 @@ class PropertyVisitController extends Controller
     /**
      * Passe 3 (R1) — le sort du SMS au visiteur, dit à l'appelant : `sms_sent` quand un SMS était
      * prévu ; s'il a été retenu par une borne, un code et son libellé. Le front affiche le sien
-     * pour le code (`visits.smsWithheld`).
+     * pour le code (`visits.smsWithheld`). ⚠ `sms_sent: true` veut dire « non retenu, mis en
+     * file », pas « parti » (P179.04, TCK-1799) : le transport se joue au worker. Le front ne lit
+     * que `false`.
      *
      * @param  array<string,mixed>  $payload
      * @return array<string,mixed>

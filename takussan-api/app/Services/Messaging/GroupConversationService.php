@@ -201,6 +201,8 @@ class GroupConversationService
                 } catch (\Throwable $e) {
                     // notification subsystem may be unconfigured in dev; never fail the API call.
                     // TCK-771 — logged in the safe form of ADR-0044, never the message.
+                    // P179.04 (TCK-1799) — before the queue only (rendering, bell row, enqueue):
+                    // a transport failure is logged by the worker, {@see \App\Notifications\CodedNotification::failed()}.
                     Log::warning('[GroupConversationService] invite notification failed', [
                         'conversation_id' => $conversation->id,
                     ] + SafeExceptionContext::of($e));
