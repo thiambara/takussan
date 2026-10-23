@@ -10932,7 +10932,7 @@ déjà relevée).*
 
 ### Le débit d'un remboursement d'acompte ou de loyer n'a rien à quoi se rapprocher : le relevé ne peut plus se clore « rapproché » qu'en ignorant la ligne
 - Réf : P110.01
-- Statut : retenu · à valider — porteur (2026-10-23) : validé ; attend l'amendement d'ADR-0039 écrit en session (`Payout` « constaté », né `completed`, hors seuil, `payee_role` `tenant`, et la liste des lecteurs de `Payout` qui l'écartent)
+- Statut : validé — validation du porteur (2026-10-23) : ADR-0039, amendement du 2026-10-23 : un `Payout` « constaté », né `completed` dans la transaction du remboursement, hors seuil, `payee_role` `tenant`, marqué et lié par `refunded_payment_type`/`refunded_payment_id` (colonnes additives) ; `landlord_id` d'un acompte = bailleur du bien ; aucun constaté pour un paiement encaissé par la plateforme ; seul `PayoutApprovalRule::unapprovedRecentNet` change parmi les lecteurs (voir la liste de l'ADR)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/ReconciliationManager.php:55-74`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:49-51,132-150`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:35-43,140-165`, `takussan-api/app/Services/Model/BookingPaymentService.php:57-100`
 - Constat :
@@ -15141,7 +15141,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Rien ne sérialise la recherche de doublon et la création : deux créations simultanées passent toutes deux
 - Réf : P158.02
-- Statut : retenu · à valider — porteur (2026-10-23) : validé ; attend l'ADR écrit en session (verrou consultatif `pg_advisory_xact_lock` sur `(agency_id, téléphone canonique)`, ou l'e-mail replié, et `lockForUpdate` sur `users` pour `findOrCreateFromUser`) ; la recommandation du délégué est retenue
+- Statut : validé — validation du porteur (2026-10-23) : ADR-0073 : verrou consultatif `pg_advisory_xact_lock` sur `(agency_id, téléphone canonique)`, ou l'e-mail replié, sur les chemins de création de fiche client, et `lockForUpdate` sur `users` pour `findOrCreateFromUser` ; clé dérivée comme l'écrit l'ADR ; les deux verrous existants gardent leur `crc32`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/CustomerController.php:48-73`, `takussan-api/app/Services/Lead/ContactLeadService.php:244-299`, `takussan-api/app/Services/Model/CustomerService.php:33-48`, `takussan-api/database/migrations/2026_10_07_591200_add_search_criteria_to_customers_table.php:32`
 - Constat :
@@ -15300,7 +15300,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Le tenant d'un bail ou d'une réservation est invité à noter le bailleur comme « agent », et ne peut pas noter l'agent du bail
 - Réf : P160.05
-- Statut : retenu · à valider — porteur (2026-10-23) : validé ; attend l'amendement d'ADR-0043 § 3 écrit en session ; la recommandation du délégué est retenue ; les avis déjà déposés restent tels quels
+- Statut : validé — validation du porteur (2026-10-23) : ADR-0043, amendement du 2026-10-23 : sujets « agent » = l'agent du bail, les collaborateurs acceptés `agent`/`manager` encore du personnel, le créateur s'il est du personnel ; jamais le bailleur (hôte d'une agence `individual` compris) ; l'index `reviews_author_context_uniq` s'élargit au sujet noté, sans perte de données ; les avis déjà déposés restent tels quels
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Review/ReviewEligibility.php:22-32,61-72,123-129`, `takussan-api/app/Http/Requests/Api/StoreForAgentReviewRequest.php:27`
 - Constat :
@@ -16449,7 +16449,7 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
 
 ### Le `roles` de `/api/auth/me` ouvre la section d'agence de l'agence active à un admin d'une autre agence
 - Réf : P176.02
-- Statut : retenu · à valider — porteur (2026-10-23) : validé ; attend l'amendement d'ADR-0005 écrit en session : `roles` = types des profils actifs dans l'agence du profil actif, plus `customer` et `super_admin`
+- Statut : validé — validation du porteur (2026-10-23) : ADR-0005, amendement du 2026-10-23 : `roles` = types des profils actifs dans l'agence du profil actif, plus les types globaux (`service_provider` actif, `tenant`), `customer` et `super_admin`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Resources/UserResource.php:91-92`, `takussan-web/src/app/(dashboard)/app/agency/layout.tsx:28`, `takussan-web/src/lib/access/pages-admin.ts:154-171`, `takussan-web/src/lib/access/pages-admin-server.ts:78-109`, `takussan-web/src/app/(dashboard)/app/layout.tsx:38-66`, `takussan-web/src/components/layout/AppShell.tsx:84,157`
 - Constat :
@@ -16463,7 +16463,7 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
 
 ### Un profil suspendu ou archivé donne encore son rôle dans `roles`, et la section d'agence s'ouvre à l'admin suspendu
 - Réf : P176.03
-- Statut : retenu · à valider — porteur (2026-10-23) : validé ; attend l'amendement d'ADR-0005 (P176.02) : une variante « actifs seulement » de `profileTypes()`, lue par `UserResource` et le ciblage, sans toucher les vues super-admin
+- Statut : validé — validation du porteur (2026-10-23) : ADR-0005, amendement du 2026-10-23 : une variante « actifs seulement » de `profileTypes()` lue par `UserResource` et le ciblage ; les vues super-admin gardent les profils suspendus
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/Concerns/HasProfiles.php:46-65,239-260,318-327`, `takussan-web/src/lib/access/pages-admin.ts:154-171`, `takussan-web/src/lib/access/pages-admin-server.ts:85-109`, `takussan-web/src/app/(dashboard)/app/agency/layout.tsx:28`
 - Constat :
@@ -16476,7 +16476,7 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
 
 ### La liste des membres d'une agence sert à son admin les rôles qu'un membre tient dans d'autres agences
 - Réf : P176.04
-- Statut : retenu · à valider — porteur (2026-10-23) : validé ; attend l'amendement d'ADR-0005 (P176.02) : `roles` rapporté à l'agence de la route dans les trois réponses
+- Statut : validé — validation du porteur (2026-10-23) : ADR-0005, amendement du 2026-10-23 : `roles` rapporté à l'agence de la route dans les listes de membres (un membre suspendu y garde son type, avec son statut), dans la réponse de `POST members`, et à l'agence où le rôle est posé pour `PUT /users/{user}/role`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:172-197,296`, `takussan-api/app/Http/Resources/UserResource.php:91-92`, `takussan-api/app/Http/Controllers/Api/UserRoleController.php:86-92`
 - Constat :
@@ -16489,7 +16489,7 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
 
 ### Annonces et drapeaux ciblés par rôle atteignent les profils suspendus, et le ciblage par agence dépend du profil actif
 - Réf : P176.05
-- Statut : retenu · à valider — porteur (2026-10-23) : validé ; attend l'amendement d'ADR-0005 (P176.02) : la recommandation du délégué, profils actifs seulement
+- Statut : validé — validation du porteur (2026-10-23) : ADR-0005, amendement du 2026-10-23 : la recommandation du délégué, profils actifs seulement ; `agency_ids` se juge sur les agences où le compte a un profil actif
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Features/FeatureFlagEvaluator.php:51-58`, `takussan-api/app/Services/Announcements/AnnouncementResolver.php:66-75`
 - Constat :
@@ -16781,7 +16781,7 @@ sur Cloudflare.*
 
 ### Les vignettes des photos de maintenance et d'état des lieux chargent l'original, jusqu'à 10 Mo et sans borne de pixels pour la maintenance
 - Réf : P180.02
-- Statut : retenu · à valider — porteur (2026-10-23) : validé ; attend l'amendement d'ADR-0029 écrit en session ; puis la recommandation du délégué, en commençant par l'état des lieux (`preview` existe)
+- Statut : validé — validation du porteur (2026-10-23) : ADR-0029, amendement du 2026-10-23 : `media.private.show` sert une conversion nommée dans l'URL signée, propre à la collection, en commençant par l'état des lieux (`preview`) ; `PixelsAuPlus` (20 Mpx) s'applique aussi aux photos de maintenance
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/maintenance/MaintenanceGallery.tsx:50-79`, `takussan-web/src/components/inventory/InventoryDetail.tsx:216-226`, `takussan-api/app/Http/Resources/MaintenanceRequestResource.php:120-143`, `takussan-api/app/Http/Resources/InventoryResource.php:116-122`, `takussan-api/app/Http/Requests/Api/UploadPhotosMaintenanceRequestRequest.php:50`, `takussan-api/app/Http/Requests/Api/CompleteMaintenanceRequestRequest.php:57-58`, `takussan-api/app/Http/Requests/Api/ContestMaintenanceResolutionRequest.php:25-26`
 - Constat :
@@ -17879,7 +17879,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### Une note vocale enregistrée en `audio/mp4` peut être lue `video/mp4` par `finfo` et refusée en 422
 - Réf : P194.02
-- Statut : retenu · à valider — porteur (2026-10-23) : validé ; attend l'amendement d'ADR-0038 écrit en session ; puis ajouter `video/mp4` à `AUDIO_MIMETYPES`, avec un test sur un vrai conteneur `isom`
+- Statut : validé — validation du porteur (2026-10-23) : ADR-0038, amendement du 2026-10-23 : ajouter `video/mp4` à `AUDIO_MIMETYPES`, borne de 2 Mo inchangée, avec un test sur un vrai conteneur `isom`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/SendMessageConversationRequest.php:50-56,71` ; `takussan-web/src/components/messages/VoiceNoteRecorder.tsx:15,26-28,88` ; `takussan-web/src/lib/queries/conversations.ts:348,370-373` ; `takussan-api/tests/Feature/Messaging/AudioMessageTest.php:93-95` ; `docs/adr/0038-note-vocale-dans-la-messagerie.md:33-36`
 - Constat :

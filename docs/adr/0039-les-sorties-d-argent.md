@@ -1,6 +1,6 @@
 # ADR-0039 — Les sorties d'argent : brut calculé, bénéficiaire explicite, quatre yeux, décaissement manuel tracé, factures numérotées à l'émission
 
-- **Statut** : Accepté
+- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — le remboursement déjà sorti devient un `Payout` constaté*)
 - **Date** : 2026-10-07
 - **Tickets** : [TCK-594](../backlog/tickets/TCK-594-sorties-d-argent-calculees-et-validees.md)
 - **Précise** : le principe non négociable n° 3 (« le montant est décimal en base, entier ×100 à la
@@ -330,3 +330,183 @@ au nom du prestataire.
 - `InvoiceNumberAllocator` : `InvoiceNumberingTest` énumère ses sites d'appel.
 - `CapabilityEnforcementInventory` : `payouts.approve` et `agency.update_billing` en sortent ;
   `scripts/check-capability-readers.mjs` les voit lues.
+
+## Amendement du 2026-10-23 — le remboursement déjà sorti devient un `Payout` constaté
+
+Décision du porteur du 2026-10-23, sur la piste P110.01 (angle 110 du fichier de pistes,
+`docs/plans/2026-10-15-pistes-d-amelioration.md`). Il ajoute au § 4 une sortie d'argent qui ne
+passe pas par les trois gestes, parce qu'elle a déjà eu lieu. Relu sur `pre-dev` 4a12ba515.
+
+### Constat
+
+- **Un débit du relevé ne se rapproche que d'un `Payout` `completed`.** Trois points l'imposent :
+  - le matcher, `ReconciliationMatcher::fetchPayoutCandidates` (l. 130-148) ;
+  - la recherche manuelle, `PaymentSearchService::searchPayouts` (l. 138-165) ;
+  - la confirmation, `ReconciliationManager::confirmMatch`, avec sa garde de sens et son refus d'un
+    reversement non `completed`.
+- **Les remboursements d'acompte et de loyer ne créent aucun `Payout`.** Il en existe deux chemins :
+  - le geste manuel `POST /api/booking-payments/{p}/refund`, pour l'acompte seul
+    (`BookingPaymentService::refund`, l. 81-135) ;
+  - le webhook, pour le loyer ou l'acompte (branche `PaymentDriverStatus::REFUNDED` de
+    `PaymentGatewayService`, l. 796, et `applyPendingRefund`, l. 1382).
+
+  Les deux n'écrivent que le statut et `refund_amount` du payable.
+- **Mesuré** par l'explorateur et le mesureur, le 2026-10-22, avec un test temporaire passant par
+  les services : un acompte de 100 000 payé puis remboursé en entier, et un débit de 100 000 à J+4.
+  - `suggestFor` rend `null` ;
+  - `search(…, Debit)` rend 0 candidat ;
+  - `confirmMatch` du débit sur l'acompte rend 422 `payment_type` ;
+  - `finalize` rend `partially_reconciled`.
+
+  Le relevé ne peut plus se clore « rapproché » qu'en ignorant la ligne.
+- La caution rendue, elle, a son pendant : un `Payout` `tenant`, que le débit trouve (§ 4). Mais
+  elle naît **avant** que l'argent sorte (`DepositRefundService`, statut donné par
+  `PayoutService::initialStatus` : `awaiting_approval`, `pending` ou `scheduled`, jamais
+  `completed`), et c'est son paiement qui la fait sortir. Un remboursement déjà sorti n'a pas ce
+  cycle.
+
+### Décision
+
+**Un remboursement d'acompte ou de loyer déjà sorti donne naissance à un `Payout` « constaté ».**
+
+1. **Né `completed`, dans la transaction du remboursement.** Il naît dans la transaction qui écrit
+   le remboursement sur le payable : celle de `BookingPaymentService::refund` pour le geste manuel,
+   celle de la branche `REFUNDED` ou d'`applyPendingRefund` pour le webhook. Il ne passe par aucun
+   autre statut, et le modèle refuse déjà toute sortie de `completed` (VERIF-594 M-5).
+2. **Hors du seuil d'approbation et des trois gestes.** L'argent est déjà sorti : il n'y a rien à
+   approuver ni à payer. `PayoutApprovalRule` ne le juge pas. `approved_by_id` reste nul, et
+   `SegregationOfDuties` ne s'applique pas, faute de geste. Le contrôle a eu lieu en amont : sur le
+   geste manuel, par la **2FA de l'agence** ; sur le webhook, par le prestataire de paiement.
+   *Correction du 2026-10-23 (porteur)* : la décision initiale disait « sous step-up ». Le code dit
+   autre chose, et c'est lui qui est retenu : `BookingPaymentController@refund` figure dans
+   `ProtectedActions::AGENCY_TWO_FACTOR` (l. 182) et pas dans `STEP_UP`, comme la restitution de
+   caution (§ 4). `MoneyOutTwoFactorTest` garde cette 2FA. Rien ne change dans le code sur ce point.
+3. **`payee_role = tenant`**, le rôle que la caution rendue emploie déjà (§ 2). L'argent revient au
+   locataire ou au client de la réservation. **`landlord_id`** suit la convention du § 2 : pour un
+   loyer, le bailleur du bail ; pour un acompte, qui n'a pas de bail, **le bailleur du bien de la
+   réservation** (`properties.user_id` du bien de `bookings.property_id`). Décidé par le porteur le
+   2026-10-23.
+4. **Un `Payout` par remboursement sorti, au montant de ce remboursement.** Le débit du relevé
+   porte ce montant, et c'est lui que le rapprochement compare (`net_amount`, ±0,01). Pour un
+   second remboursement partiel du même acompte, le montant est la part neuve, pas le cumul
+   `refund_amount` du payable. Le brut vaut le net. Il n'y a ni commission ni frais.
+5. **Il porte ses propres colonnes de rapprochement bancaire**, `bank_reconciled_at` et
+   `bank_statement_line_id`, celles que `payouts` porte depuis TCK-593. Le débit du relevé s'y
+   rapproche. Les colonnes du payable remboursé restent celles de son **crédit** d'origine
+   (TCK-1522 dit déjà ce qu'il advient d'un payable rapproché puis remboursé).
+6. **`processed_at`** est la date où l'argent est sorti : celle du geste, ou celle que porte
+   l'événement du prestataire. C'est autour d'elle que le matcher cherche (fenêtre de
+   `fetchPayoutCandidates`).
+7. **Il ne s'attache à aucun pivot** (`payout_lease_payment`, `payout_booking_payment`). Ces pivots
+   disent « cette pièce a été reversée au bailleur ». Leurs index uniques refuseraient un constaté
+   pour un loyer déjà reversé. Ils retireraient aussi de la préparation un acompte partiellement
+   remboursé, encore `paid` (P76.02), dont le reste est dû au bailleur.
+8. **Deux colonnes additives sur `payouts` portent à la fois la marque et le lien** (décision du
+   porteur du 2026-10-23) : `refunded_payment_type` et `refunded_payment_id`, nullables, un
+   `nullableMorphs('refunded_payment')`. Elles désignent le `LeasePayment` ou le `BookingPayment`
+   remboursé, sur le modèle de `bank_statement_lines.matched_payment_type` / `matched_payment_id`
+   (la relation se nomme `refundedPayment`). **Un `Payout` constaté est exactement un `Payout` dont
+   ces colonnes sont non nulles.** Cela le distingue de la caution rendue, également `tenant`, dont
+   elles restent nulles. Les colonnes sont nulles pour tout `Payout` existant : la migration est
+   additive, sans reprise de données.
+9. **Un paiement encaissé par une intégration de la plateforme ne donne pas de `Payout` constaté**
+   (décision du porteur du 2026-10-23). L'argent y est chez la plateforme (TCK-1160,
+   `PlatformPayoutService::isSettledByPlatform`), et le geste manuel le refuse déjà. Son
+   remboursement, par webhook, sort du compte de la plateforme et non de celui de l'agence : le
+   relevé de l'agence ne porte aucun débit à rapprocher. La branche `REFUNDED` et
+   `applyPendingRefund` ne créent donc le constaté que pour un payable que la plateforme n'a pas
+   encaissé.
+
+### Qui le lit, et qui doit l'écarter
+
+`payee_role = tenant` écarte déjà le constaté de tout lecteur qui somme des « reversements au
+bailleur » (`payee_role = landlord`, § 2). Mais `tenant` ne le distingue pas de la caution rendue.
+Les lecteurs qui tiennent « `tenant` + `lease_id` » pour une caution lisent donc la marque du point
+8 : `refunded_payment_id` non nul.
+
+**Relevé des lecteurs de `Payout` sous `takussan-api/app`.** Commande :
+`grep -rlnE "\bPayout\b|'payouts'|payouts\.|payout_(lease|booking)_payment" app`, plus
+`PayoutResource.php`, que ce motif ne voit pas. Le tri à la main écarte ensuite trois sortes de
+fichiers :
+
+- ceux qui ne nomment que la capacité `payouts.*` ;
+- ceux qui ne lisent que `PlatformPayout` ;
+- ceux qui ne déclarent qu'une relation sans lecteur (`Agency::payouts`, `Lease::payouts`,
+  `User::payouts`, `LeasePayment::payouts`, `BookingPayment::payouts`, aucun appelant sous `app/`).
+
+Il reste **22 fichiers**.
+
+| # | Fichier — lecture | Effet sur le constaté | Pourquoi |
+|---|---|---|---|
+| 1 | `Services/Payout/PayoutApprovalRule.php` — `unapprovedRecentNet` | **écarte (à changer, le seul)** — `whereNull('refunded_payment_id')` | Le cumul des 27 jours somme les `tenant` `completed` sans `approved_by_id`, par le locataire du bail. Un loyer remboursé gonflerait ce cumul et ferait passer la caution suivante du même locataire en `awaiting_approval` sans raison. |
+| 2 | `Models/Lease.php` — `liveDepositRetention` | **écarte** (déjà, de fait) | Il ne lit que les `tenant` du bail qui portent `metadata.invoice_id`. Un constaté n'en porte jamais. La marque du point 8 rend l'exclusion explicite. |
+| 3 | `Services/Payout/PayoutCalculator.php` — préparation, exclusion par les pivots | **écarte** (par construction) | Le constaté n'a pas de pivot (point 7) : il ne retire aucune pièce du reversement au bailleur. |
+| 4 | `Services/Model/PayoutService.php` — `create` (pièces déjà reversées, par les pivots) | **écarte** (par construction) | Même raison que le n° 3. |
+| 5 | `Services/Payout/OwnerStatementService.php` — `payoutsCarrying` (relevé de gérance, `payouts:send-owner-statements`, `OwnerStatementController`) | **écarte** (déjà) | Il filtre `payee_role = landlord` et passe par les pivots. |
+| 6 | `Services/Dashboard/PortfolioMetrics.php` — `netPaidOutByMonth` (accueil du bailleur, tableau de bord de l'agence) | **écarte** (déjà) | Il filtre `payee_role = landlord`. La carte « reversements à venir » de l'accueil du bailleur filtre aussi `payee_role=landlord` et `upcoming` (`overview/owner/page.tsx`). |
+| 7 | `Services/Accounting/ReconciliationMatcher.php` — `fetchPayoutCandidates` | inchangé | C'est le but : un `completed` non rapproché, de l'agence, au montant du débit. Le nom affiché (`resolvePayerName`) est celui du bailleur (`landlord_id`), comme pour la caution. |
+| 8 | `Services/Accounting/PaymentSearchService.php` — `searchPayouts` | inchangé | La recherche manuelle doit le trouver. |
+| 9 | `Services/Accounting/ReconciliationManager.php` — `confirmMatch`, `expectedAmount`, `resolvePaymentAgencyId` | inchangé | Débit, `completed`, `net_amount`, `agency_id` : il remplit déjà chaque garde. |
+| 10 | `Http/Controllers/Api/Accounting/BankStatementLineController.php` — type `payout` | inchangé | Il charge le `Payout` désigné par la confirmation. |
+| 11 | `Http/Resources/Accounting/BankStatementLineResource.php` — libellé du type | inchangé | Le rapprochement reste un rapprochement de `payout`. |
+| 12 | `Http/Controllers/Api/PayoutController.php` — `index`, `show`, gestes | montre, marqué | Le personnel doit voir la sortie que le relevé lui présente. `approve`, `mark-processed`, `mark-failed` et `cancel` sont refusés par le statut (`completed`). |
+| 13 | `Http/Resources/PayoutResource.php` | montre, marqué | La ressource rend `refunded_payment_type` et `refunded_payment_id`, pour que l'écran ne le présente pas comme un reversement à approuver. |
+| 14 | `Services/Export/ExportDataService.php` — `payouts` | montre, marqué | L'export des sorties d'argent le contient. Il a déjà la colonne `payee_role`, et gagne celles du payable remboursé. |
+| 15 | `Services/Admin/AdminGlobalSearchService.php` — `payouts` | inchangé | Retrouver une sortie par sa référence est utile. |
+| 16 | `Services/Model/ReferenceNumberGenerator.php` | inchangé | Le constaté reçoit une référence unique, comme tout `Payout`. |
+| 17 | `Console/Commands/Payouts/RemindDuePayouts.php` | inchangé | Il ne lit que `pending` et `scheduled`. |
+| 18 | `Services/Model/PayoutService.php` — `approve`, `markProcessed`, `markFailed`, `cancel`, `releaseDeposit`, `depositRefundLine` | inchangé | Tous partent d'un état ouvert, et le constaté naît `completed`. `releaseDeposit` tient « `tenant` + `lease_id` » pour une caution, mais il ne joue qu'à la sortie d'un état qui tenait la caution, ce qui n'arrive jamais à un constaté. La marque du point 8 le dit explicitement. |
+| 19 | `Models/Payout.php` — garde de transition, `beneficiaryUserId` | inchangé | La garde de `completed` protège le constaté. `beneficiaryUserId` rend le compte du locataire du bail, ou `null` pour un acompte (pas de bail). |
+| 20 | `Policies/PayoutPolicy.php` | inchangé | La lecture suit les règles actuelles. Les gestes sont refusés par le statut. |
+| 21 | `Http/Requests/Api/MarkProcessedPayoutRequest.php` | inchangé | Le constaté n'est jamais marqué payé. |
+| 22 | `Models/ServiceProviderBill.php` (`imputedPayout`, `payouts`), `Services/Payout/Disbursement/ManualDisbursementDriver.php` | inchangé | Pas de facture d'intervention, pas de décaissement : le constaté n'en a pas. |
+
+**Lecteurs indirects, sans lecture propre :** `PayoutPreparationService` (par les n° 1 et 3),
+`DepositRefundService` (par `initialStatus`, donc le n° 1), `SendOwnerStatements` et
+`OwnerStatementController` (par le n° 5), `ServiceProviderBillController` (par `createForBill`).
+L'écouteur `NotifyTenantOfDepositRefund` ne suit que l'événement de la caution.
+
+**Ce qui ne lit pas `Payout`, vérifié :**
+
+- la **clôture plateforme** (`Billing\PlatformPayoutService`) ne lit que les encaissements et
+  `PlatformPayout` ;
+- les **revenus** (`PlatformReportingService`, `PlatformMetricsSnapshotter`,
+  `DashboardAgencyService`, `AgencyMeMetrics`, `CollectedPayments`, `KpiResolver`) ne lisent pas
+  `payouts` ;
+- le **grand livre des commissions** (`CommissionLedgerService`) non plus.
+
+Le constaté ne change aucun de leurs chiffres. Le remboursement y est déjà compté par le statut et
+`refund_amount` du payable.
+
+### Points tranchés le 2026-10-23
+
+Le premier jet de cet amendement laissait cinq points ouverts. Le porteur les a tranchés le jour
+même, et ils sont écrits plus haut :
+
+- le second facteur du geste manuel est la 2FA de l'agence, pas le step-up (point 2) ;
+- `landlord_id` d'un acompte remboursé est le bailleur du bien de la réservation (point 3) ;
+- la marque et le lien sont les colonnes `refunded_payment_type` / `refunded_payment_id` (point 8) ;
+- un paiement encaissé par la plateforme ne donne pas de constaté (point 9) ;
+- `PayoutApprovalRule::unapprovedRecentNet` est le seul lecteur à changer (n° 1 du tableau).
+
+### Application
+
+- Une migration additive : `nullableMorphs('refunded_payment')` sur `payouts`, `$fillable` et
+  relation `refundedPayment()` sur `Payout`.
+- Les deux chemins de remboursement créent le constaté dans leur transaction (points 1 à 9), sauf
+  pour un payable encaissé par la plateforme.
+- `PayoutApprovalRule::unapprovedRecentNet` l'écarte (`whereNull('refunded_payment_id')`, n° 1).
+  `Lease::liveDepositRetention` et `PayoutService::releaseDeposit` / `depositRefundLine` lisent
+  la même marque, pour que « `tenant` + `lease_id` » ne vaille plus caution sans condition.
+- `PayoutResource` et l'export rendent les deux colonnes.
+- **Gardes** :
+  - le scénario mesuré de P110.01 : acompte payé puis remboursé, débit à J+4, le débit est
+    suggéré puis confirmé, et le relevé se clôt `reconciled` ;
+  - le même scénario par le webhook d'un loyer ;
+  - une caution rendue après un loyer remboursé du même locataire ne passe pas en
+    `awaiting_approval` à cause de lui ;
+  - un acompte partiellement remboursé reste préparable pour le bailleur ;
+  - le remboursement par webhook d'un acompte encaissé par la plateforme ne crée aucun `Payout` ;
+  - le constaté d'un acompte porte en `landlord_id` le bailleur du bien.
+
+  Chaque garde se vérifie par ablation.
