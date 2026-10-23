@@ -15953,7 +15953,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Le client d'une réservation annulée peut encore ouvrir un paiement : l'API dérive le reste dû sans lire le statut de la réservation
 - Réf : P170.01
-- Statut : validé — validation du porteur (2026-10-23) : le client ne paie que sur une réservation `pending` ou `confirmed` (création et `isPayable()`), 422 codé sinon ; le personnel enregistre aussi sur `completed`
+- Statut : fait · TCK-1914
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/BookingPaymentController.php:34-58`, `takussan-api/app/Services/Model/BookingPaymentService.php:60-71`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1712-1728`, `takussan-web/src/components/bookings/BookingDetail.tsx:536`
 - Constat :
@@ -15965,6 +15965,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Établi comment : lu, mesuré.
 - Piste : refuser dans `BookingPaymentController::store` (ou `dueFromCustomer`) une réservation hors `pending`/`confirmed` par un 422 codé, et faire juger le même statut par `isPayable()` pour une `BookingPayment`. Garde : un test par statut terminal (`cancelled`, `rejected`, `expired`) côté client, et un test d'initiation refusée.
 - Mesure (2026-10-23, 9f180a3ae, mesureur) : relu `BookingPaymentController::store` (dérivation TCK-1309 sans lecture de `bookings.status`), `BookingPaymentService::dueFromCustomer` (l. 60-71, seules les lignes `paid` comptent), `PaymentGatewayService::isPayable` (l. 1712-1728, juge la ligne seule), `BookingDetail.tsx:536` ; `git log 5a015cfa1..HEAD` sur ces fichiers → vide, aucun ticket ne cite P170 ; test temporaire `SondeMesureur170Test` (retiré, charge 3,28 / 3,14 / 2,90 sur 8 cœurs) : réservation `cancelled` à 100 000, le personnel y pose 50 000 (`201`, `paid`), le client poste `{}` → `201`, ligne `pending` de 50 000, et `isPayable()` sur cette ligne rend `true` (le point « à vérifier » du constat est mesuré : rien ne refuse l'initiation sur le statut de la réservation) ; même `{}` du client sur une réservation `rejected` puis `expired` → `201` → le constat tient. Classement : V1, refuser un paiement est une règle d'encaissement (et la liste des statuts payables, `completed` compris ou non, reste à fixer), donc à valider malgré la spec qui oriente une annulation vers le remboursement.
+- Mesure (2026-10-23, 2a944b073, implementeur) : `BookingPaymentBookingStatusTest` avant correctif → 8 rouges sur 12 : le client poste `{}` sur une réservation `cancelled`, `rejected`, `expired` ou `completed` → `201`, et `isPayable()` rend `true` pour sa ligne `pending` ; `Booking::isPayableByCustomer()` (`pending`, `confirmed`) lu par `BookingPaymentController::store` (422 `booking_payment.booking_not_payable`, aucune ligne écrite) et par `PaymentGatewayService::isPayable` → 12 verts ; ablation (contrôleur et passerelle remis → 8 rouges, remis → verts) ; `BookingPaymentAmountDerivedTest`, `PaymentGatewayInitiateTest`, `AcompteRejoueTest`, `PaymentHistoryTest` et les classes de pilotes et de webhooks verts.
 
 ### Le personnel enregistre un paiement de réservation `paid` d'un montant sans borne, et il entre au reversement du bailleur
 - Réf : P170.02
