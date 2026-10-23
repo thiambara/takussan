@@ -18103,7 +18103,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### L'abonnement et les reversements plateforme de l'agence quittée restent affichés jusqu'à cinq minutes après un changement de profil
 - Réf : P197.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1899
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/billing/AgencyBillingClient.tsx:13`, `takussan-web/src/components/billing/AgencyPayoutsClient.tsx:13-16`, `takussan-web/src/lib/queries/billing.ts:13-19`, `takussan-web/src/lib/queries/super-admin.ts:1050-1057`, `takussan-web/src/app/api/me/subscription/route.ts:15-16`, `takussan-web/src/app/api/me/payouts/route.ts:20-21`, `takussan-web/src/hooks/useProfiles.ts:109-117`, `takussan-web/src/lib/query-client.ts:23`
 - Constat :
@@ -18114,6 +18114,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Établi comment : chaîne lue, invalidation mesurée ; l'écran n'a pas été rendu.
 - Piste : invalider (ou mettre en clé) toute lecture qui passe par un relais à indice de profil au changement de profil confirmé — le plus sûr est un point unique dans `useSwitchActiveProfile` (voir P197.05). Garde : un test de `useSwitchActiveProfile` qui exige `['me','subscription']` et `['me','payouts']` invalidées (ou réinitialisées) après un changement réussi.
 - Mesure (2026-10-23, b90814b2d, mesureur) : relu `AgencyBillingClient.tsx:13` (`['me', 'subscription']`), `AgencyPayoutsClient.tsx:13-16` (`['me', 'payouts']`), `billing.ts:13-19` et `super-admin.ts:1050-1057` (lecture par le relais `/api/me/*`), `me/subscription/route.ts:15-16` et `me/payouts/route.ts:20-21` (indice `X-Active-Profile-Hint` posé depuis le cookie), `useProfiles.ts:97` (`router.refresh()`) et `:109-117` (`onSettled` n'invalide que `['me','profiles']`, `['roles']`, `['permissions']`) ; test vitest temporaire (`useSwitchActiveProfile` dans un `QueryClient` amorcé de huit clés, `PATCH` simulé en 200, charge 1,88 / 1,88 / 1,99 sur 8 cœurs), retiré ensuite → `['me','profiles']`, `['roles']`, `['permissions']` invalidées, `['me','subscription']` et `['me','payouts']` non ; aucun commit ni ticket ne l'a traité (`git log -S "'me', 'subscription'"`, `grep` des tickets) ; l'écran n'a pas été rendu. Classement : A1, TCK-143 écrit que l'agence courante « reflète le nouveau profil sans recharger la page » ; correctif sans choix : `useSwitchActiveProfile` invalide (ou réinitialise) `['me','subscription']` et `['me','payouts']` sur un changement réussi, le point unique de P197.05 restant hors du correctif, et l'affichage seul d'un montant n'est ni calcul ni écriture (pas V1).
+- Mesure (2026-10-23, 760e78f27, implementeur) : reproduit avant correctif par `useSwitchActiveProfile.lectures-d-agence.test.tsx` (`QueryClient` amorcé de `['me','subscription']` et `['me','payouts']`, `PATCH` simulé en 200) → mutation réussie, les deux clés `isInvalidated: false` ; correctif : `onSuccess` les invalide → vert ; ablation (correctif retiré) → rouge, remis → vert ; `ProfileSwitcher.test.tsx` vert.
 
 ### La liste de l'équipe d'une agence quittée reste servie sous la nouvelle agence, gestes compris
 - Réf : P197.02
