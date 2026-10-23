@@ -17421,7 +17421,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### La recherche manuelle de paiements du rapprochement rend 500 sur `q` ou `direction` en liste
 - Réf : P188.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-1864
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Accounting/PaymentSearchController.php:16-27`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:34`
 - Constat :
@@ -17430,6 +17430,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : une `FormRequest` (`q` : `nullable|string|max:…`, `direction` : `Rule::enum(BankStatementLineDirection::class)`, `amount` : `nullable|numeric`). Garde : un test qui envoie chaque paramètre en liste et attend 422.
 - Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `PaymentSearchController.php:21,24` (`q` brut, `(string)` sur `direction`) et `PaymentSearchService.php:34` (`string $query`), et `takussan-web/src/lib/queries/reconciliation.ts:131-132` (le front envoie `q`, `amount`, `direction` en chaînes) ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré) : admin d'agence, `payment-search?q[]=abc` → **500** `TypeError`, `q=abc&direction[]=credit` → **500** « Array to string conversion », témoin `q=abc&amount=abc` → 200 → le constat tient pour `q` et `direction` en liste ; `amount` ne fait pas de 500. Classement : A1, la signature `string` du service et la convention `FormRequest` du dépôt fixent la réponse ; le correctif attendu est une `FormRequest` qui rend 422 sur `q` ou `direction` en liste (`nullable|string`) en gardant `tryFrom()` pour une direction inconnue et `amount` tel quel — juger `amount` en `numeric` ou `direction` par `Rule::enum` ferait rendre 422 à des appels qui rendent 200 et sort du correctif autonome.
+- Mesure (2026-10-23, 1ac04b8ac, implementeur) : re-mesuré par le test de garde `PaymentSearchTest::test_q_ou_direction_en_liste_rendent_422_et_non_500` : avant correctif, `payment-search?q[]=abc` → **500** → `SearchPaymentsRequest` (`q`, `direction` : `nullable|string`, `authorize()` sur la policy `viewAny` du contrôleur) ; `q[]=abc` → 422 sur `q`, `direction[]=credit` → 422 sur `direction`, témoins `amount=abc`, `direction=nope` et `q=` vide → 200, administrateur d'une autre agence → 403 ; ablation (requête retirée, contrôleur remis à l'état de `pre-dev`) → rouge, correctif remis → `PaymentSearchTest` 8 verts ; `BankReconciliationCrossAgencyTest` et `MatchCandidateStatusTest` verts.
 
 ### Petites améliorations
 - Réf : P188.07
