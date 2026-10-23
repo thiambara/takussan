@@ -16027,7 +16027,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Petites améliorations
 - Réf : P170.06
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite ; arrondir aussi un `commission_amount` saisi
+- Statut : fait · TCK-1924
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Model/LeaseService.php:82-87`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:65`
 - Constat :
@@ -16035,6 +16035,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Paiement de réservation du personnel : `amount` admet `0` (`min:0`, lu, l. 65), quand la ligne de bail exige `gt:0` (P46.05, TCK-958) ; une ligne `paid` à 0 reçoit un numéro de reçu (lu, `BookingPaymentService.php:40`). Non mesuré.
 - Piste : arrondir la commission par la devise du bail ; passer `amount` à `gt:0` pour le personnel. Un test par point.
 - Mesure (2026-10-23, 9f180a3ae, mesureur) : relu `LeaseService.php:82-87` (`round(…, 2)` sur prix × taux, et `Currency::roundAmount` existe, `Currency.php:69`), `StoreBookingPaymentRequest.php:65` (`min:0`), `BookingPaymentService.php:40` (numéro de reçu toujours posé) ; `php -r 'round(1234567*2.5/100,2)'` → 30864.18, soit une sous-unité XOF (calcul, la création de bail n'est pas jouée) ; test temporaire `SondeMesureur170Test` (retiré, charge 3,28 / 3,14 / 2,90 sur 8 cœurs) : agent, `amount: 0` → `201`, `paid`, reçu `RCP-…` posé → les deux points tiennent. Classement : V1, arrondir une commission et refuser un encaissement à 0 sont des règles de montant.
+- Mesure (2026-10-23, 2a944b073, implementeur) : avant correctif, `CommissionLedgerTest` → 2 rouges (vente à 1 234 567 XOF à 2,5 % créée à `30864.18` ; `commission_amount` saisi 1 000,4 XOF gardé) et `BookingPaymentStaffBoundTest` → 1 rouge (agent, `amount: 0` → `201`) ; `LeaseService::roundCommission` (`Currency::roundAmount`) lu à la création (dérivée ou saisie) et à la modification d'un brouillon, `amount` `gt:0` pour le personnel → 30 864,00, 1 000,00 (création et modification), 1 000,45 EUR gardé, 422 sur `amount` ; ablation (remis → 3 rouges, correctif → verts) ; `CommissionLedgerTest` 22, `BookingPaymentStaffBoundTest` 11, `LeaseTest`, `BookingPaymentTest`, `AuthorizationPrecedesValidationTest`, `DashboardAgentScopeTest` verts.
 
 ## Angle 171 — Sélecteurs et listes sans pagination nourris par la taille de page par défaut
 
