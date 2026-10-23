@@ -17407,7 +17407,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### La liste des garants rend 500 sur un `lease_id` non numérique ou hors de `bigint`
 - Réf : P188.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1862
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/GuarantorController.php:18-30`, `takussan-api/routes/api/guarantors.php:7`
 - Constat :
@@ -17417,6 +17417,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : juger `lease_id` par `ExactIdentifierFilter::exiger()` (400 `filter.identifier_invalid`, le précédent de TCK-1273), ou par une `FormRequest` (`integer`), au choix du mesureur selon le précédent qu'il retient. Garde : un test `lease_id=abc` → 4xx.
 - Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `GuarantorController.php:28-29` (`$request->input('lease_id')` brut dans `whereHas`), `ExactIdentifierFilter::exiger()` (400 `filter.identifier_invalid`, borne de chiffres, utilisé par `UserDetailController.php:69` et `Property.php:699`, TCK-1273) ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré), chacun seul : `GET /api/guarantors?lease_id=abc` → **500** `22P02`, `lease_id=99999999999999999999` → **500** `22003` (re-mesuré seul, comme le demandait le constat), témoin `lease_id=5` → 200 → le constat tient entier. Classement : A1, le précédent `exiger()` est écrit et fixe la réponse d'un identifiant mal formé ; le correctif attendu est `ExactIdentifierFilter::exiger($request->input('lease_id'), 'lease_id')` avant le `whereHas`, tests `abc` et 20 chiffres → 400.
+- Mesure (2026-10-23, 1ac04b8ac, implementeur) : re-mesuré par le test de garde `GuarantorTest::test_un_lease_id_mal_forme_rend_400_et_non_500` (un cas par exécution) : avant correctif, `lease_id=abc`, `lease_id=99999999999999999999` et `lease_id[]=abc` → **500** → `ExactIdentifierFilter::exiger()` avant le `whereHas` ; les trois → 400 `filter.identifier_invalid`, témoin `lease_id=5` → 200 ; ablation (contrôleur remis à l'état de `pre-dev`) → 3 rouges, correctif remis → verts ; `GuarantorTest` 14 verts.
 
 ### La recherche manuelle de paiements du rapprochement rend 500 sur `q` ou `direction` en liste
 - Réf : P188.06
