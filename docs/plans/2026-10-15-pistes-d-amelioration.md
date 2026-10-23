@@ -17112,7 +17112,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le passage d'un prestataire fixé ou déplacé par le `PATCH` d'une intervention n'est annoncé à personne
 - Réf : P184.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : avis neuf, donc texte métier neuf
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:207-219`, `takussan-api/app/Http/Requests/Api/UpdateMaintenanceRequestRequest.php:46,120`, `takussan-api/app/Listeners/Maintenance/NotifyMaintenanceParticipants.php:24-27,187-197`, `takussan-web/src/components/maintenance/MaintenanceAssignmentBlock.tsx:64-70`
 - Constat :
@@ -17123,10 +17123,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Conséquence : le locataire chez qui le prestataire va passer n'apprend l'heure que si une étape de statut arrive après coup ; une heure déplacée ne lui est jamais dite. Les visites, elles, préviennent le visiteur de tout déplacement par l'agence (`PropertyVisitController.php:256-261`, contrainte 11 de TCK-590).
   - Établi comment : lu, et mesuré.
 - Piste : émettre un avis « passage prévu / déplacé » au demandeur (et au prestataire quand c'est le donneur d'ordre qui fixe l'heure, au donneur d'ordre quand c'est le prestataire) quand `scheduled_at` change réellement, par un événement dédié ou un code de `NotifyMaintenanceParticipants`. Garde : un test par auteur (bailleur, prestataire) qui change la seule heure et attend l'avis, plus un témoin sans changement d'heure qui n'en attend aucun. Un code d'avis neuf est un texte neuf.
+- Mesure (2026-10-23, bf41e1518, mesureur) : relu `MaintenanceRequestController.php:186-224` (`fill($data)->save()` l. 211, `assign()` ensuite), `MaintenanceRequestService.php:117-120` (`assign()` rend tôt sur le même assigné), `NotifyMaintenanceParticipants.php:193-195` (seul lecteur de `scheduled_at`, dans l'étape de statut), `MaintenanceAssignmentBlock.tsx:64-70` (envoie toujours `assigned_to` et `scheduled_at`) ; test temporaire (`MaintenanceActors`, intervention `assigned` acceptée, charge `{ 2.44 2.01 1.88 }` sur 8 cœurs, retiré) → bailleur `{assigned_to: le même, scheduled_at: J+3}` puis `J+5` : 200, 200, heure écrite, 0 avis au locataire et 0 au prestataire ; prestataire `{scheduled_at: J+7}` : 200, 0 avis au locataire et 0 au bailleur. Le constat tient en entier. Classement : V7, le correctif ajoute un avis visible (code de notification et texte neufs dans trois langues) et choisit ses destinataires.
 
 ### Le `PATCH` d'une intervention terminée enregistre l'heure et la priorité, puis répond 422 sur l'assignation
 - Réf : P184.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : le correctif encadre aussi l'écriture d'`actual_cost`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:186-219`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:111-124`, `takussan-api/app/Http/Resources/MaintenanceRequestResource.php:212`
 - Constat :
@@ -17136,10 +17137,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Même ordre pour `actual_cost` : `recordOwnerCost` (l. 200-201) écrit avant `assign()` (lu ; non mesuré, à vérifier).
   - Établi comment : lu, et mesuré.
 - Piste : juger l'assignation avant toute écriture (appeler les gardes d'`assign()` d'abord), ou envelopper `update` dans une transaction qui couvre `fill()->save()`, `recordOwnerCost` et `assign()`. Garde : le cas mesuré, qui attend 422 **et** la ligne inchangée.
+- Mesure (2026-10-23, bf41e1518, mesureur) : relu `MaintenanceRequestController.php:186-224` (`recordOwnerCost` l. 200-201 et `fill()->save()` l. 211 avant `assign()`, sans transaction), `MaintenanceRequestService.php:122-124` (`maintenance.reassign_after_completion`), `MaintenanceRequestResource.php:212` (`can_assign` hors terminal, donc vrai sur `completed`) ; test temporaire (demande `completed`, priorité `low`, sans heure, charge `{ 2.44 2.01 1.88 }` sur 8 cœurs, retiré) → `{assigned_to: autre, scheduled_at: J+3, priority: urgent}` : 422 « The work is done: the job can no longer be reassigned. », ligne relue à `scheduled_at` J+3 et `urgent`, assigné inchangé ; puis `{assigned_to: autre, actual_cost: 1000}` : 422, et la ligne porte `actual_cost` 1000.00 et `metadata.owner_agreed_actual_cost` 1000.00 (la partie « à vérifier » du constat tient). Classement : V1, le défaut écrit un coût réel et un accord du bailleur sur une réponse d'échec, et le correctif (gardes d'`assign()` avant toute écriture, ou transaction) porte sur ce chemin d'écriture d'un montant ; la `Piste` propose deux options.
 
 ### Le `PATCH` d'une visite accepte une durée sans plafond, et une seule visite confirmée bloque alors le bien
 - Réf : P184.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/UpdatePropertyVisitRequest.php:49`, `takussan-api/app/Http/Requests/Api/StorePropertyVisitRequest.php:112-114`, `takussan-api/app/Services/Visit/VisitSchedulingService.php:129-160`
 - Constat :
@@ -17149,10 +17151,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Ce constat relève aussi de l'angle 209 (règles de valeur de la création que la modification ne rejoue pas).
   - Établi comment : lu, et mesuré.
 - Piste : `max:240` sur `duration_minutes` dans `UpdatePropertyVisitRequest`, la même constante que la création. Garde : un test qui envoie 100000 au `PATCH` et attend 422, et un test qui compare les règles de durée des deux requêtes.
+- Mesure (2026-10-23, bf41e1518, mesureur) : relu `UpdatePropertyVisitRequest.php:49` (`['sometimes', 'nullable', 'integer', 'min:5']`, sans plafond), `StorePropertyVisitRequest.php:112-114` (`max:240`, avec la raison écrite), `PropertyVisitController.php:244-253` (`assertNoOverlap` sur la durée envoyée) ; aucun champ de durée à l'édition dans `takussan-web/src/components/visits` (seuls `VisitDetail.tsx:252` et `VisitsList.tsx:196` l'affichent) ; test temporaire (bien du propriétaire, A `confirmed` demain 10 h, B `scheduled` à J+20, charge `{ 2.07 1.96 1.87 }` sur 8 cœurs, retiré) → `PATCH` de A `{duration_minutes: 100000}` : 200, durée écrite ; `POST …/confirm` de B : 422 « Another confirmed visit already covers this slot on this property. ». Classement : A1, le plafond et sa raison sont écrits par la requête de création ; le correctif recopie `max:240` (même constante) dans la requête de modification, sans choix de produit.
 
 ### Une visite marquée « absent » se déplace par le `PATCH`, le visiteur en est averti, puis elle ne peut plus être ni confirmée ni reportée
 - Réf : P184.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : refuser tout le `PATCH` hors statut actif retire l'édition des notes d'une visite « absent »
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:210-262`, `takussan-api/app/Services/Visit/VisitSchedulingService.php:35-38,356-375`, `takussan-web/src/components/visits/VisitDetail.tsx:118`
 - Constat :
@@ -17162,3 +17165,4 @@ Le PDF de l'état des lieux est P143.01.*
   - `claim` (l. 276-279) laisse de même prendre en charge une visite `no_show` (lu, sans effet mesuré).
   - Établi comment : lu, et mesuré ; chemin limité à l'API directe, le front ne l'offre pas.
 - Piste : refuser au `PATCH` tout statut hors `VisitSchedulingService::ACTIVE_STATUSES` (`visit.closed` ou un code voisin), comme le report. Garde : le cas mesuré, qui attend 422 et aucun avis.
+- Mesure (2026-10-23, bf41e1518, mesureur) : relu `PropertyVisitController.php:210-262` (`update` ne refuse que `completed` et `cancelled`, puis `rescheduledByAgency` sur tout changement d'heure), `VisitSchedulingService.php:35-38` (`ACTIVE_STATUSES` = `scheduled`, `confirmed`) et `:393-396` (`visit.reschedule_inactive`), `SendPropertyVisitReminders.php:66-67` (ne lit que `confirmed` : la partie « à vérifier » tient, aucun rappel), `VisitDetail.tsx:122` (`canReschedule` sur les deux statuts actifs seulement) ; test temporaire (`Notification::fake`, visite `no_show` d'il y a une heure, charge `{ 2.07 1.96 1.87 }` sur 8 cœurs, retiré) → `PATCH {scheduled_at: J+2 10:00}` du propriétaire : 200, statut `no_show` à la nouvelle heure, 1 avis `VisitRescheduled` au visiteur ; `POST …/confirm` : 422 « Only a scheduled visit can be confirmed. » ; report du visiteur : 422 « Only a pending or confirmed visit can change slot. ». `claim` non re-mesuré (403 pour un propriétaire hors personnel d'agence dans la sonde, sans valeur pour le constat). Classement : V7, la `Piste` refuse au `PATCH` tout statut hors actif, ce qui retire aussi l'édition des notes et du type d'une visite `no_show` ; borner au seul `scheduled_at` est l'autre option, à trancher.
