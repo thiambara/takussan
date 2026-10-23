@@ -7820,6 +7820,7 @@
     },
     "agencyDetail": {
       "loadError": "Impossible de charger cette agence.",
+      "seeAll": "Voir tout",
       "kycLoadError": "Impossible de charger le dossier KYC.",
       "crossTenant": "Agence cross-tenant",
       "verified": "Vérifiée",
