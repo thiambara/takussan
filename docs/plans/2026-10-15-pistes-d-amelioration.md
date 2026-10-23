@@ -16013,7 +16013,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Une facture sans lignes prend un sous-total ni arrondi à la devise ni borné : 10,5 XOF est émis, et un grand nombre rend 500
 - Réf : P170.05
-- Statut : validé — validation du porteur (2026-10-23) : sous-total sans lignes : `decimal:0,2`, `max:1000000000`, puis `Currency::roundAmount` ; 422 au-delà
+- Statut : fait · TCK-1922
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:45`, `takussan-api/app/Services/Model/InvoiceService.php:65-72`, `takussan-api/app/Services/Maintenance/CurrencyUnit.php:24`
 - Constat :
@@ -16023,6 +16023,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Les lignes, elles, sont bornées (`max:1000000000`, `decimal:0,2`) et le total est refusé au-delà de `CurrencyUnit::MAX_COLUMN` (lu, `InvoiceService.php:123`).
 - Piste : appliquer au `subtotal` sans lignes les mêmes bornes et le même arrondi que les lignes (`decimal:0,2`, `max:` de la colonne, `Currency::roundAmount`), ou exiger des lignes. Garde : les deux cas mesurés (10,5 XOF, et le grand nombre → 422).
 - Mesure (2026-10-23, 9f180a3ae, mesureur) : relu `StoreInvoiceRequest.php:45` (`subtotal` `numeric|min:0`, sans `max` ni `decimal`), `InvoiceService.php:65-72` (`(float) $data['subtotal']`, seule la TVA arrondie) et `priceLines` (l. 115-126, borne `MAX_COLUMN` sur les lignes seules) ; `git log 5a015cfa1..HEAD` → vide ; test temporaire `SondeMesureur170Test` (retiré, charge 3,28 / 3,14 / 2,90 sur 8 cœurs) : agent d'agence, `POST /api/invoices` XOF sans lignes, `subtotal: 10.5` → `201`, sous-total et total 10,5 ; `subtotal: 999999999999999` → `500` `SQLSTATE[22003] numeric field overflow` → le constat tient. Classement : V1, l'arrondi du montant d'une facture est un calcul de montant, et la `Piste` laisse le choix entre borner et exiger des lignes.
+- Mesure (2026-10-23, 2a944b073, implementeur) : `InvoiceSubtotalWithoutLinesTest` avant correctif → 3 rouges sur 4 : XOF sans lignes, `subtotal: 10.5` → sous-total 10,5 ; `999999999999999` → `500` ; `10.555` → `201` ; `StoreInvoiceRequest` borne `subtotal` (`decimal:0,2`, `max:1000000000`) et `InvoiceService::create` l'arrondit par `Currency::roundAmount` → 10,5 XOF émis à 11, EUR 1250,5 gardé, au-delà 422 sur `subtotal` → 4 verts ; ablation (FormRequest et service remis → 3 rouges, remis → verts) ; `InvoiceTest`, `InvoiceLinesTest`, `InvoiceWriteMatchesShowTest`, `FactureRejoueeTest` et les autres classes de facture verts.
 
 ### Petites améliorations
 - Réf : P170.06
