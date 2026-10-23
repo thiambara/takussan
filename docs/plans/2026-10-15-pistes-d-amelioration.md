@@ -16822,7 +16822,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### `PUT /api/settings/{id}` enregistre sur une ligne d'agence une valeur que le catalogue refuse au `POST`
 - Réf : P181.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : la route écrit sans borne les plafonds de pénalités et les échéances de relance ; TCK-964 a laissé le `PUT` hors de sa décision
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/UpdateSettingRequest.php:48-62`, `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php:59-92`, `takussan-api/app/Http/Controllers/Api/SettingController.php:68-80`, `takussan-api/app/Services/Invoice/OverdueReminderService.php:61-80`
 - Constat :
@@ -16831,10 +16831,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Aucun appel du front à `PUT /api/settings/{id}` (`grep -rn "api/settings/" takussan-web/src` hors tests → rien) : la voie est celle de l'API seule.
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : faire rejouer à `UpdateSettingRequest` la même règle que `StoreSettingRequest::after()`, écrite une fois (un trait ou une méthode statique sur `EditablePlatformSettings`), avec la clé lue sur la ligne. Garde : un test qui envoie au `PUT` chaque valeur que le `POST` refuse et attend 422, ligne inchangée.
+- Mesure (2026-10-23, 31008c833, mesureur) : relu `UpdateSettingRequest.php:48-62` (`value` seul, `required|array`), `StoreSettingRequest.php:70-92` (`after()` et le catalogue), `SettingController.php:68-80` (écrit `$data['value']` tel quel) ; test temporaire `tests/Feature/TmpMesureAngle181Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,1 à 2,4 sur 8 cœurs → en admin d'agence, `POST` `invoice.reminder_offsets_days` à `{"value":[1000]}` → 422, à `[3]` → 201, puis `PUT /api/settings/{id}` à `["abc",-5,100000]` → 200, ligne écrite telle quelle et `OverdueReminderService::offsets()` → `[100000]` ; `PUT` à `{"value":[1000]}` → 200 et `offsets()` → `[1000]` ; `git log` des trois fichiers → rien depuis TCK-964/965/967, dont le ticket écrit « `PUT /api/settings/{id}` d'une ligne d'agence » en « Hors périmètre » ; `grep -rn api/settings takussan-web/src` → aucun appelant. Le constat tient en entier. Classement : V1, la règle attendue est écrite (le catalogue), mais elle borne l'écriture de plafonds de pénalités et d'échéances de relance, et le `PUT` a été écarté par une décision du ticket qui l'a posée au `POST`.
 
 ### Une clé de brouillon d'assistant de plus de 255 caractères rend 500
 - Réf : P181.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/routes/api/me.php:64-72`, `takussan-api/database/migrations/*_create_wizard_drafts_table.php` (`string('key')`), `takussan-api/app/Http/Controllers/WizardDraftController.php:80-92`
 - Constat :
@@ -16842,10 +16843,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Mesuré : `PUT /api/me/wizard-drafts/<300 × k>` → 500 `SQLSTATE[22001] … character varying(255)`.
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : borner la clé dans la contrainte de route (`[A-Za-z0-9._:-]{1,255}`, ce qui rend 404) ou par une règle de la requête (422). Un test au-delà de 255 et un à 255.
+- Mesure (2026-10-23, 31008c833, mesureur) : relu `routes/api/me.php:63-72` (`[A-Za-z0-9._:-]+`, sans longueur) et `2026_05_10_034943_create_wizard_drafts_table.php:25` (`string('key')`, varchar 255) ; test temporaire `tests/Feature/TmpMesureAngle181Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,1 à 2,4 sur 8 cœurs → `PUT /api/me/wizard-drafts/<300 × k>` → 500, `<255 × k>` → 201. Le constat tient. Classement : A1, le contrat est écrit par le schéma (255) et par la contrainte de route, qui rend déjà 404 à une clé hors de son alphabet : borner la contrainte à `{1,255}` sur les trois routes rend 404 au-delà, sans choix de produit.
 
 ### Les brouillons d'assistant n'ont ni borne de taille ni de nombre, et l'accueil les relit tous, données comprises
 - Réf : P181.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : les plafonds de taille et de nombre d'un brouillon sont à fixer, et la liste changerait de forme
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/UpsertWizardDraftRequest.php:44-48`, `takussan-api/app/Http/Controllers/WizardDraftController.php:42-49`, `takussan-web/src/components/wizard/WizardDraftsBanner.tsx:30-60`, `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:68`
 - Constat :
@@ -16855,10 +16857,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Ce qu'un assistant réel écrit n'a pas été mesuré : la taille ordinaire est à vérifier, les photos restant hors du brouillon (voir l'angle 84).
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : borner `data` en octets dans la requête (une règle sur la taille de `json_encode`), plafonner le nombre de brouillons par compte, et ne pas rendre `data` dans la liste quand la bannière n'en a pas besoin (le test « vierge » se ferait côté API, ou par un champ dérivé). Garde : un test au-delà de chaque plafond.
+- Mesure (2026-10-23, 31008c833, mesureur) : relu `UpsertWizardDraftRequest.php:44-48` (`data` : `nullable|array`), `WizardDraftController::index` (`get(['id','key','step','data','updated_at'])`, sans pagination) ; test temporaire `tests/Feature/TmpMesureAngle181Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,1 à 2,4 sur 8 cœurs → `PUT` d'un brouillon de 1 Mo de chaînes aléatoires → 201 en 0,19 s, réponse de 1,08 Mo, `pg_column_size` 1,10 Mo ; avec cinq autres de même taille, `GET /api/me/wizard-drafts` → 7 lignes, 6,45 Mo. La taille d'un brouillon réel n'a pas été mesurée. Le constat tient. Classement : V7, la piste demande de fixer deux plafonds (octets, nombre) que rien n'écrit, et de retirer `data` de la liste ou d'y ajouter un champ dérivé.
 
 ### Une ligne de réglage d'agence garde tout ce que le client envoie autour de `value`, et chaque lecture le relit
 - Réf : P181.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : même route que P181.01, qui écrit les plafonds de pénalités ; la piste laisse le choix entre réécrire et refuser
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php:63,84-88`, `takussan-api/app/Support/ScopedSetting.php:43-63`, `takussan-api/app/Http/Controllers/Api/SettingController.php:16-36,53-61`
 - Constat :
@@ -16867,10 +16870,11 @@ Le PDF de l'état des lieux est P143.01.*
   - `ScopedSetting::value()` lit la ligne entière pour en extraire `value` (lu, l. 45) : chaque lecture du réglage décode tout le `jsonb` (le coût par lecture est déduit, à vérifier).
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : n'écrire que la valeur déballée et validée, reconstruite sous la forme canonique `{"value": …}`, ou refuser toute autre clé (`array:value`). Le même traitement au `PUT` va avec P181.01. Garde : un test qui envoie une clé de plus et relit la ligne.
+- Mesure (2026-10-23, 31008c833, mesureur) : relu `StoreSettingRequest.php:84-88` (seule la valeur déballée est jugée), `ScopedSetting::unwrap` et `value()` (`ScopedSetting.php:43-63`), `SettingController::store` (écrit `$data['value']` entier) ; test temporaire `tests/Feature/TmpMesureAngle181Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,1 à 2,4 sur 8 cœurs → `POST /api/settings` `lease.require_signature` à `{"value":true,"junk":[20 000 chaînes]}` → 201, réponse de 0,86 Mo, `pg_column_size` 0,88 Mo, `GET /api/settings` → 0,86 Mo. Le coût par lecture de `ScopedSetting::value()` n'a pas été mesuré. Le constat tient. Classement : V1, le correctif passe par la requête qui écrit les plafonds de pénalités et va avec P181.01, et la piste propose deux options (réécrire sous `{"value": …}` ou refuser toute autre clé, ce qui refuserait aussi la forme héritée `{"months": 3}` que `unwrap()` lit encore).
 
 ### `metadata` d'une invitation générique est libre : taille sans borne, clés internes écrites par le client
 - Réf : P181.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : `metadata.level` décide du niveau d'un profil plateforme à la cooptation ; fermer les clés touche une autorisation
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:75-78`, `takussan-api/app/Services/Invitation/InvitationService.php:174`, `takussan-api/app/Http/Resources/InvitationResource.php:38`, `takussan-api/app/Services/Onboarding/ServiceProviderOnboardingService.php:178-196,223`, `takussan-api/app/Http/Controllers/Api/Auth/SuperAdminTwoFactorController.php:184`, `takussan-api/app/Http/Controllers/Public/InvitationAcceptController.php:61`
 - Constat :
@@ -16881,10 +16885,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Ce qu'une clé interne écrite par ce chemin déclenche (lien profond d'un prestataire invité par le générique, niveau d'une cooptation émise par le générique) n'a pas été joué : à vérifier. Voir l'angle 208.
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : fermer `metadata` du chemin générique sur une liste de clés (`array:<clés>` et une règle par clé), ou ne plus l'accepter du tout si aucun écran ne l'envoie, et ne rendre au client que les clés qu'il lit. Garde : un test qui envoie une clé interne et une clé inconnue.
+- Mesure (2026-10-23, 31008c833, mesureur) : relu `CreateInvitationRequest.php:78` (`metadata` : `nullable|array`), `InvitationService.php:174`, `InvitationResource.php:38`, `ServiceProviderOnboardingService.php:178,223`, `SuperAdminTwoFactorController.php:184` ; test temporaire `tests/Feature/TmpMesureAngle181Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,1 à 2,4 sur 8 cœurs → admin d'agence, `POST /api/invitations` (bailleur, profil brouillon) avec `metadata` de 20 000 chaînes, `deep_link_consumed_at`, `from_maintenance_request_id: 999999` et `level: viewer` → 201, réponse de 0,86 Mo, clés écrites `junk, level, locale, deep_link_consumed_at, from_maintenance_request_id`, `pg_column_size` 0,88 Mo, `GET /api/invitations` → 0,86 Mo ; `grep` du front → aucun appel de `POST /api/invitations`, mais `OwnersList.tsx:173` lit `metadata.company_name` (écrit par `InviteOwnerRequest`). L'effet d'une clé interne écrite par ce chemin n'a pas été joué. Le constat tient. Classement : V2, `level` fixe le niveau du profil plateforme accordé à l'acceptation, et la piste laisse le choix entre fermer les clés et ne plus accepter `metadata`.
 
 ### `settings` des indicateurs et des alertes de seuil : écrit sans borne, rendu dans les listes, lu par rien
 - Réf : P181.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreKpiConfigRequest.php:61`, `UpdateKpiConfigRequest.php:53`, `StoreThresholdAlertRequest.php:56`, `UpdateThresholdAlertRequest.php:46`, `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:22-39,56,67`, `takussan-api/app/Http/Controllers/Api/ThresholdAlertController.php:50,60`, `takussan-web/src/lib/queries/kpis.ts:16,25`
 - Constat :
@@ -16893,10 +16898,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Mesuré, admin d'agence : `POST /api/kpi-configs` et `POST /api/threshold-alerts` avec `settings` de 1 Mo → 201, réponse de 0,9 Mo ; `GET /api/kpi-configs` → 0,9 Mo pour une ligne, la liste rendant `items()` bruts jusqu'à `per_page=100` (`HasQueryBuilder::PER_PAGE_MAX`).
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : retirer `settings` des quatre requêtes s'il n'a pas de lecteur (A3 si le front ne l'envoie pas), ou le fermer sur ses clés réelles. Garde : un test qui envoie `settings` et constate qu'il n'est pas écrit.
+- Mesure (2026-10-23, 31008c833, mesureur) : relu les quatre requêtes (`settings` : `sometimes|array`), `KpiConfigController` (`create`/`update` de `validated()`, liste en `items()` bruts) ; `grep` de `settings` dans `app/` → seuls `KpiConfig.php:16,22` et `ThresholdAlert.php:20,29` (fillable et cast), aucun dans `KpiResolver` ni `CheckThresholdAlertsCommand` ; front : `settings` n'est que déclaré dans `lib/queries/kpis.ts:16,25`, aucun envoi dans `actions/kpis.ts`, `actions/alerts.ts` ni `KpiConfigList.tsx` ; test temporaire `tests/Feature/TmpMesureAngle181Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,1 à 2,4 sur 8 cœurs → `POST /api/kpi-configs` et `POST /api/threshold-alerts` avec `settings` de 20 000 chaînes → 201, réponses de 0,86 Mo, `GET /api/kpi-configs` → 0,86 Mo. Le constat tient, et le « à vérifier » du front est levé. Classement : A3, une entrée sans lecteur ni émetteur des deux côtés, retirée des quatre requêtes sans toucher la colonne.
 
 ### Petites améliorations
 - Réf : P181.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : les bornes de `segment` et la liste des clés des intégrations sont à fixer ; la part du garant relève de A3
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/StoreGuarantorRequest.php:49`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:41-45,115-134`, `takussan-api/app/Http/Requests/Api/StoreIntegrationRequest.php:43`, `takussan-api/app/Http/Requests/Api/UpdateIntegrationRequest.php:53`, `takussan-api/app/Services/Admin/IntegrationService.php:71-84`, `takussan-api/app/Http/Requests/Api/Admin/StoreAnnouncementRequest.php:27-31`
 - Constat :
@@ -16905,3 +16911,4 @@ Le PDF de l'état des lieux est P143.01.*
   - **Annonces** : `segment.roles` et `segment.agency_ids` n'ont pas de `max:`, et chaque `agency_ids.*` coûte une requête `exists` (lu) ; surface du seul super-admin.
   - Établi comment : lu ; le garant mesuré par test temporaire.
 - Piste : retirer `metadata` de `StoreGuarantorRequest` (aucun lecteur) ; fermer `metadata` des intégrations sur les clés que les pilotes lisent ; poser un `max:` aux deux listes de `segment`.
+- Mesure (2026-10-23, 31008c833, mesureur) : relu `StoreGuarantorRequest.php:49`, `GuarantorController::store` (`Guarantor::create` de `validated()`) et `grep -rn metadata` → `Guarantor.php:33,40` seuls, rien au front ; `StoreIntegrationRequest.php:43`, `UpdateIntegrationRequest.php:53`, `IntegrationService.php:71-84` (clés avant et après journalisées), `LAfricaMobileSmsDriver.php:58-60,166` (`sender_id`, `host`), `IntegrationsManager.tsx:429-438` (le front écrit et relit `metadata`) ; `StoreAnnouncementRequest.php:27-31` (`segment.roles`, `segment.agency_ids` sans `max:`) ; test temporaire `tests/Feature/TmpMesureAngle181Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,1 à 2,4 sur 8 cœurs → `POST /api/guarantors` avec `metadata` de 20 000 chaînes → 201, réponse de 262 octets, `pg_column_size` 0,88 Mo. La croissance d'`activity_log` par les intégrations n'a pas été mesurée. Le constat tient pour ses trois parties. Classement : V7, deux des trois corrections demandent une valeur que rien n'écrit (le `max:` des listes de `segment`, les clés de `metadata` de chaque fournisseur, que le front envoie) ; seul le retrait de `metadata` de `StoreGuarantorRequest` relève de A3.
