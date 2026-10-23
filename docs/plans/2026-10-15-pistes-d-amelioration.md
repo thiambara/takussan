@@ -18055,7 +18055,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### Un reversement plateforme ne passe jamais `processing` ni `failed`, mais la console les propose en filtre et la matrice en fait des étapes
 - Réf : P196.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : geste neuf sur un reversement, ou retrait d'options visibles
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:34-39,112-135,148-170,209-225`, `takussan-api/routes/api/admin.php:291-296`, `takussan-api/app/Models/Enums/PlatformPayoutStatus.php`, `takussan-web/src/components/billing/AdminPayoutsClient.tsx:25-32`, `takussan-web/src/components/billing/PayoutTable.tsx:39`, `takussan-web/src/components/billing/PayoutDetailPanel.tsx:134`, `docs/models-spec.md:2632`
 - Constat :
@@ -18066,10 +18066,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Le pendant côté agence, `PayoutStatus::Processing`, est déjà marqué « réservé » par TCK-1307 (P115.07) ; rien de tel ici.
   - Établi comment : lu et `grep`.
 - Piste : soit ajouter les gestes `mark-processing` / `mark-failed` (comme les reversements d'agence d'ADR-0039, `mark-processed` et `mark-failed`), soit retirer `processing` et `failed` des options du filtre et marquer les deux cas réservés comme TCK-1307 l'a fait (docblock et `CasDEnumReservesTest`). Choix de produit sur un geste d'argent.
+- Mesure (2026-10-23, ea24835f5, mesureur) : relu `PlatformPayoutService.php:34-39` (matrice inchangée, `approved → processing`, `processing → paid | failed`, `failed → approved | cancelled`) et ses écrivains de statut l. 130, 163, 221, 368 (`approved`, `paid`, `cancelled`, `pending`) ; `grep -rn "PlatformPayoutStatus::Processing\|PlatformPayoutStatus::Failed" app database routes` → la seule matrice, aucun seeder ni fabrique ; `routes/api/admin.php:291-296` → `close-period`, `approve`, `mark-paid`, `cancel` seuls ; `AdminPayoutsClient.tsx:25-32` propose toujours `processing` et `failed`, `PayoutDetailPanel.tsx:134` un geste pour `processing` ; `SELECT status, count(*) FROM platform_payouts` sur la base de dev → aucune ligne, donc l'absence de `processing`/`failed` en données n'est pas observable ici, elle se déduit de l'absence d'écrivain ; TCK-223:59 écrit `approved → processing → paid` sans geste pour y entrer ; aucun ticket ni commit ne l'a traité (`grep -rln` dans `docs/backlog/tickets`) → le constat tient. Classement : V1, ajouter `mark-processing`/`mark-failed` est un geste neuf sur un reversement, et retirer les options du filtre (V7) est l'autre branche : la piste propose deux options.
 
 ### Le motif d'un changement de prix n'est jamais écrit, et la fiche publique l'afficherait en code brut
 - Réf : P196.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : recevoir le motif ou retirer son affichage
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Enums/PriceChangeReason.php:5-13`, `takussan-api/app/Observers/PropertyObserver.php:194-205`, `takussan-api/app/Http/Resources/PropertyResource.php:545`, `takussan-api/app/Http/Controllers/Api/PropertyPriceHistoryController.php:27-28`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyPriceHistory.tsx:65`
 - Constat :
@@ -18077,10 +18078,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Les six cas de `PriceChangeReason` n'ont donc aucun écrivain, mais la ressource publique et la liste de l'équipe les servent (lu, `PropertyResource.php:545`, `PropertyPriceHistoryController.php:27-28`), et la fiche publique rend `item.reason` tel quel (lu, `PropertyPriceHistory.tsx:65`) : le jour où un motif est écrit, le visiteur lit `market_adjustment`, sans traduction.
   - Établi comment : lu et `grep`.
 - Piste : soit retirer l'affichage du motif et marquer l'enum réservé, soit recevoir le motif à l'édition du prix et le traduire au front par une clé `properties.priceChangeReason.*`. Garde : un test de `PropertyPriceHistory` qui refuse un code brut.
+- Mesure (2026-10-23, ea24835f5, mesureur) : relu `PropertyObserver.php:194-205` (seul écrivain de `app/`, sans `reason` ni `notes`), `PropertyResource.php:545` (`reason` servi en valeur brute) et `PropertyPriceHistory.tsx:65` (`{item.reason}` rendu tel quel) ; le constat « jamais écrit » est inexact pour les données : `Catalog/PropertyPriceHistorySeeder.php:41` pose un motif tiré au hasard, et `SELECT reason, count(*) FROM property_price_histories` sur la base de dev → 584 lignes, toutes avec un motif (`negotiation` 105, `renovation` 104, … `market_adjustment` 75) : la fiche publique affiche donc dès aujourd'hui le code brut sur une base seedée ; les libellés existent déjà (`property.priceChangeReasons.*` dans `fr.json:1669`, `en.json:1698`, `wo.json:5986`) et la liste de l'équipe les lit (`PropertyPriceHistoryList.tsx:35,61`), la fiche publique non. Classement : V7, la piste hésite entre recevoir le motif à l'édition du prix et retirer son affichage ; traduire seul le motif de la fiche publique par les clés existantes relèverait d'A4, sans trancher le reste.
 
 ### Petites améliorations : cas d'enum sans écrivain, dont la lecture ne se voit pas encore
 - Réf : P196.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Enums/CancellationBy.php:10`, `takussan-api/app/Services/Model/BookingService.php:294-307`, `takussan-api/app/Http/Resources/BookingResource.php:36`, `takussan-api/app/Services/Lease/LeaseRenewalService.php:43`, `takussan-api/app/Services/Model/LeasePaymentService.php:66-70`
 - Constat :
@@ -18089,3 +18091,4 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - `mark-paid` d'un loyer n'accepte que `pending` et `late` (lu, `LeasePaymentService.php:66-70`) : une échéance `partially_paid`, si P04.11 la fait un jour écrire, ne pourrait plus être soldée à la main. Fait à ajouter à P04.11, pas une piste à part.
   - Établi comment : lu et `grep`.
 - Piste : marquer `CancellationBy::System` réservé (docblock, et l'ajouter à `CasDEnumReservesTest` de TCK-1307) ; vérifier l'écriture de `failed` sur un loyer par la passerelle, et selon le résultat retirer `Failed` de `CANCELLABLE_DUE_STATUSES` ou corriger `models-spec.md`.
+- Mesure (2026-10-23, ea24835f5, mesureur) : `grep -rn "CancellationBy::" app database` → `Customer`, `Owner`, `Agent` seuls (`BookingService.php:295-300`, seeders), `System` jamais posé, et `grep -rn cancellation_by takussan-web/src` → rien ; `ExpireBookings` passe par `BookingExpirationService`, pas par une annulation → `System` est sans écrivain, la partie tient ; `PaymentStatus::Failed` d'un loyer : la passerelle écarte `LeasePayment` de `writeStatus(…, Failed)` (`PaymentGatewayService.php:770-793`, branche `instanceof LeasePayment`), mais `PayoutService.php:796-797` passe en `failed` la ligne `deposit_refund` d'une caution dont le reversement échoue (TCK-594, commit 0abc3122b) → `docs/models-spec.md:4735` (« `lease_payments` n'écrit plus `failed` depuis TCK-593 ») est faux ; `CANCELLABLE_DUE_STATUSES` (`LeaseRenewalService.php:43`) n'est lu que sur `overlappingRentDues` (l. 261-263), des loyers que rien ne passe plus en `failed` → branche morte mais sans effet, à laisser ; `SELECT status, count(*) FROM lease_payments` → `paid` 3349, `late` 271, aucun `failed`. Classement : A5 et A6, marquer `CancellationBy::System` « Réservé » et l'ajouter à `CasDEnumReservesTest` suit le patron de TCK-1307 sans changer de comportement, et corriger `models-spec.md:4735` dit ce que fait le code ; `CANCELLABLE_DUE_STATUSES` et le point `partially_paid` (à P04.11) restent hors du correctif.
