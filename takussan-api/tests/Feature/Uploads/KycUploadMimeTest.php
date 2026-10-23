@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\FichiersReels;
 use Tests\TestCase;
 
 /**
@@ -99,5 +100,20 @@ class KycUploadMimeTest extends TestCase
 
         $this->postJson($uri, $fields + [$field => new UploadedFile($chemin, 'piece.png', null, null, true)])
             ->assertCreated();
+    }
+
+    /**
+     * P194.03 — chaque format qu'accepte `AcceptedUploads::KYC_EXTENSIONS`, en fichier RÉEL, sur
+     * les quatre routes : `finfo` juge le contenu, et non le nom.
+     */
+    #[DataProvider('routes')]
+    public function test_chaque_format_kyc_passe_en_fichier_reel(string $route): void
+    {
+        [$uri, $fields, $field] = $this->route($route);
+
+        foreach (['pdf', 'png', 'jpeg', 'webp', 'heic'] as $format) {
+            $this->postJson($uri, $fields + [$field => FichiersReels::$format()])
+                ->assertCreated();
+        }
     }
 }

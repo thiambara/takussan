@@ -9,6 +9,8 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\FichiersReels;
 use Tests\TestCase;
 
 /**
@@ -123,5 +125,34 @@ class DocumentUploadMimeTest extends TestCase
         file_put_contents($chemin, $contenu);
 
         return new UploadedFile($chemin, $nom, null, null, true);
+    }
+
+    /**
+     * P194.03 — chaque format que le front annonce (`DOCUMENT_MIME_ACCEPT`), plus `heic`, déposé
+     * en fichier RÉEL sur le dépôt et sur la version : `finfo` juge le contenu, et non le nom.
+     * `.doc` (OLE de Word 97) n'a pas d'écrivain dans le dépôt et n'y est pas.
+     *
+     * @return array<string, array{0: string}>
+     */
+    public static function formatsReels(): array
+    {
+        return array_combine(
+            $formats = ['pdf', 'png', 'jpeg', 'webp', 'heic', 'texte', 'csv', 'xlsx', 'xls', 'docx'],
+            array_map(fn (string $format): array => [$format], $formats),
+        );
+    }
+
+    #[DataProvider('formatsReels')]
+    public function test_chaque_format_annonce_passe_en_fichier_reel(string $format): void
+    {
+        $document = Document::factory()->create([
+            'documentable_id' => $this->property->id,
+            'documentable_type' => Property::class,
+            'uploaded_by' => $this->owner->id,
+        ]);
+
+        $this->store(FichiersReels::$format())->assertCreated();
+        $this->postJson("/api/documents/{$document->id}/versions", ['file' => FichiersReels::$format()])
+            ->assertCreated();
     }
 }
