@@ -36,6 +36,10 @@ export function AccountDeletionSection({ twoFactorEnabled, hasUsablePassword }: 
   const router = useRouter();
 
   const [request, setRequest] = useState<AccountDeletionRequest | null | undefined>(undefined);
+  // TCK-1994 (P172.05) — une lecture en échec n'est pas « aucune demande » : elle proposerait de
+  // demander la suppression à un compte qui l'a peut-être déjà programmée (et une nouvelle demande
+  // la reprogramme). Le message de l'action s'affiche, sans bouton.
+  const [erreurLecture, setErreurLecture] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -44,7 +48,8 @@ export function AccountDeletionSection({ twoFactorEnabled, hasUsablePassword }: 
     (async () => {
       const result = await getAccountDeletionRequestAction();
       if (cancelled) return;
-      setRequest(result.ok ? result.data : null);
+      if (result.ok) setRequest(result.data);
+      else setErreurLecture(result.message);
     })();
     return () => {
       cancelled = true;
@@ -76,7 +81,11 @@ export function AccountDeletionSection({ twoFactorEnabled, hasUsablePassword }: 
         </div>
       </div>
 
-      {request === undefined ? null : request === null ? (
+      {erreurLecture !== null ? (
+        <p role="alert" className="mt-4 text-sm text-destructive">
+          {erreurLecture}
+        </p>
+      ) : request === undefined ? null : request === null ? (
         <div className="mt-4">
           <Button type="button" variant="destructive" onClick={() => setOpen(true)}>
             {t('cta')}
