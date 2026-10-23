@@ -41,8 +41,11 @@ sans prétendre lire les destinataires.
 
 - **La garde s'indexe par genre de cible, non par code** : le genre d'un code n'est pas statique
   (`payouts:remind-due` le choisit selon le destinataire, TCK-1467), le genre l'est dans `PATHS`.
-- **La garde vit dans `check-notification-target-paths.mjs`**, déjà jouée par Repo CI : une garde
-  neuve n'y tournerait qu'en touchant `.github/`, chemin fermé à l'implémenteur.
+- **La garde est un fichier neuf, `scripts/check-notification-target-audience.mjs`**, qui reprend
+  le lecteur de `PATHS` de `check-notification-target-paths.mjs` : une garde existante ne se
+  modifie pas (V9). Elle tourne dans le rituel `for g in scripts/check-*.mjs` et avant tout push
+  d'un agent, mais **pas encore dans Repo CI**, dont chaque step est nommé : l'y brancher touche
+  `.github/`, chemin fermé à l'implémenteur (voir « Reste à faire »).
 - Le verdict KYC ne va qu'aux **admins** qui tiennent la capacité, pas aux agents qui la tiendraient
   par un rôle personnalisé : la recommandation dit « admins actifs ».
 
@@ -51,8 +54,8 @@ sans prétendre lire les destinataires.
 - [x] `GovernanceAlertService::handle` : aucune alerte pour une agence qui n'est pas `standard`.
 - [x] `KycWorkflowService::notifyReviewed` : `AdminsDeLAgence::destinataires` filtrés par
   `canActAt(agency.update_kyc)`, l'admin principal en repli.
-- [x] `check-notification-target-paths.mjs` : la table `EXIGENCES` (genre → exigence de page),
-  confrontée aux entrées de `PAGES_ADMIN` dans les deux sens.
+- [x] `scripts/check-notification-target-audience.mjs` : la table `EXIGENCES` (genre → exigence de
+  page), confrontée aux entrées de `PAGES_ADMIN` dans les deux sens.
 
 ## Critères d'acceptation
 
@@ -60,6 +63,11 @@ sans prétendre lire les destinataires.
 - [x] AC2 — admin principal sans `agency.update_kyc`, collègue admin qui la tient : le verdict part
   au collègue seul ; sans collègue, il part à l'admin principal.
 - [x] AC3 — la garde rougit sur une exigence de page changée, et sur une cible d'administration non déclarée.
+
+## Reste à faire
+
+- Brancher `check-notification-target-audience.mjs` dans `.github/workflows/repo-ci.yml`, à côté de
+  `check-notification-target-paths.mjs` (chemin fermé à l'implémenteur).
 
 ## Notes d'implémentation
 
