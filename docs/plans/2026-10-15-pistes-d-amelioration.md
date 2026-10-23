@@ -18118,7 +18118,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### La liste de l'équipe d'une agence quittée reste servie sous la nouvelle agence, gestes compris
 - Réf : P197.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1901
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin/TeamConsole.tsx:165-170`, `takussan-web/src/lib/queries/admin-users.ts:67`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:23-24`, `takussan-web/src/app/(dashboard)/app/agency/team/page.tsx:78-84`, `takussan-web/src/hooks/useProfiles.ts:109-117`
 - Constat :
@@ -18129,6 +18129,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Établi comment : lu, invalidation mesurée ; l'écran n'a pas été rendu.
 - Piste : mettre l'agence (`agencyId`, déjà en prop) dans la clé `['admin-users', 'list', agencyId, params]`, et l'invalidation de `TeamConsole.tsx:230` et d'`InviteMemberButton.tsx:67` reste valable par préfixe. Garde : un test de `TeamConsole` rendu sous l'agence 1 puis rerendu sous l'agence 2, qui exige une seconde lecture.
 - Mesure (2026-10-23, b90814b2d, mesureur) : relu `TeamConsole.tsx:133-146,165-170` (clé `['admin-users', 'list', params]`, `params` sans agence), `admin-users.ts:67` (relais `/api/admin-users`), `admin-users/[[...path]]/route.ts:23-24` (indice posé, TCK-849), `team/page.tsx:79-84` (`agencyId={user.agency_id}`), et `utilisateur-du-rendu.ts:22-26` (`getMe(token, getActiveProfileId())`) avec `User::getAgencyIdAttribute` (`User.php:446-451`, agence du profil actif) → `agencyId` suit bien le nouveau profil après `router.refresh()`, la clé non ; test temporaire de P197.01 → `['admin-users','list',{page:1}]` non invalidée ; l'invalidation de `TeamConsole.tsx:230` (`['admin-users','list']`) et d'`InviteMemberButton.tsx:67` (`['admin-users']`) reste valable par préfixe ; la réponse de l'API à un geste de ligne sur un membre de A sous B n'a pas été mesurée et n'entre pas dans le correctif. Classement : A1, même contrat écrit de TCK-143 ; correctif sans choix : `agencyId` entre dans la clé, `['admin-users', 'list', agencyId, params]`, avec le test de rerendu sous une autre agence.
+- Mesure (2026-10-23, 760e78f27, implementeur) : reproduit avant correctif par `TeamConsole.changement-d-agence.tck-1901.test.tsx` (console rendue sous l'agence 12 puis rerendue sous l'agence 13, réseau simulé) → une seule lecture de `/api/admin-users`, la ligne de l'agence 13 n'apparaît jamais ; correctif : clé `['admin-users', 'list', agencyId, params]` → vert, deux lectures, membre de 12 retiré ; ablation → rouge, remis → vert ; les quatre autres tests de `TeamConsole` verts (invalidation par préfixe intacte).
 
 ### `IntegrationsManager` fige les intégrations de l'agence quittée dans son état local : le changement de profil ne les remplace pas
 - Réf : P197.03
