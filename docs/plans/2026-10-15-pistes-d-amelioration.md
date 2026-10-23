@@ -16116,7 +16116,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Chaque `refreshUser()` relit tous les favoris et la liste des accueils vus, parce que deux effets dépendent de l'objet `user`
 - Réf : P172.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1764
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/context/AuthContext.tsx:110-134`, `takussan-web/src/components/customer/MinimalProfileTriggerProvider.tsx:66-94`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:241-251`
 - Constat :
@@ -16125,6 +16125,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Un changement de profil appelle `refreshUser` (lu, `useProfiles.ts:116`) : un client qui change de profil relit tous ses favoris (déduit).
 - Piste : faire dépendre ces effets de `user?.id` (et du jeton), pas de l'objet ; ou ne poser un nouvel utilisateur que s'il diffère. Garde : un test d'`AuthProvider` qui compte les lectures de favoris autour d'un `refreshUser()` rendant le même compte.
 - Mesure (2026-10-23, 4436bf690, mesureur) : relu `AuthContext.tsx:110-134` (effet des favoris sous `[user, token, queryClient]`) et l. 196 (`setUser(await r.json())`, objet neuf à chaque appel), `MinimalProfileTriggerProvider.tsx:94` (`[enabled, user]`), `PropertyReviews.tsx:251` (`[slug, user]`), et lancé un test vitest temporaire d'`AuthProvider`, retiré, `/api/auth/me` rendant le même compte → `fetchAllFavoritePropertyIds` appelé 1 fois au montage, 3 fois après deux `refreshUser()` ; les deux autres effets ne sont pas mesurés ; et `FavoriteController::index` (l. 42-52) filtre par `staffAgencyId()`, qui suit l'agence du profil actif (`MembershipCapabilityResolver.php:450-458`) : la liste dépend de `agency_id`, et une clé `user?.id` seule, proposée par la `Piste`, cesserait de la relire au changement de profil. Classement : A2, moins de lectures sans changer de résultat si l'effet des favoris dépend de `user?.id`, `user?.agency_id` et du jeton.
+- Mesure (2026-10-23, b5e5b0401, implementeur) : trois tests neufs rouges sur l'arbre d'origine : `AuthProvider`, deux `refreshUser()` rendant le même compte → 2 lectures de favoris au lieu d'une ; `MinimalProfileTriggerProvider` et `PropertyReviews` remontés avec un nouvel objet du même compte → `welcome-seen` et l'éligibilité relus (2 appels) ; relu `MembershipCapabilityResolver::staffAgencyId` (ne lit que `agency_id`) → l'effet des favoris dépend de `user.id`, `user.agency_id` et du jeton, les deux autres de `user.id` ; ablation (trois fichiers à `HEAD`) → 3 rouges sur 4, correctif remis → 4/4 verts, un changement d'agence relit toujours les favoris.
 
 ### La section « Supprimer mon compte » rend une lecture en échec comme l'absence de demande, et relit ce que la mise en page vient de lire
 - Réf : P172.05
