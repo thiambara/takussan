@@ -238,17 +238,19 @@ export function PropertyReviews({
     result: { eligible: boolean; alreadyReviewed: boolean };
   } | null>(null);
 
+  // TCK-1764 (P172.04) — le compte, pas l'objet `user` que chaque `refreshUser()` remplace.
+  const userId = user?.id ?? null;
   useEffect(() => {
     let cancelled = false;
-    if (!user) return;
+    if (userId === null) return;
     (async () => {
       const result = await getReviewEligibility(slug);
-      if (!cancelled) setEligibility({ slug, userId: user.id, result });
+      if (!cancelled) setEligibility({ slug, userId, result });
     })();
     return () => {
       cancelled = true;
     };
-  }, [slug, user]);
+  }, [slug, userId]);
 
   const canReply = canReplyToReview({
     userId: user?.id,

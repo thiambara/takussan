@@ -63,8 +63,10 @@ export function MinimalProfileTriggerProvider({
   // fire-and-forget; we don't want to wait for it before short-circuiting).
   const consumedRef = useRef(false);
 
+  // TCK-1764 (P172.04) — le compte, pas l'objet `user` que chaque `refreshUser()` remplace.
+  const userId = user?.id ?? null;
   useEffect(() => {
-    if (!enabled || !user) return;
+    if (!enabled || userId === null) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -91,7 +93,7 @@ export function MinimalProfileTriggerProvider({
     return () => {
       cancelled = true;
     };
-  }, [enabled, user]);
+  }, [enabled, userId]);
 
   const markSeenRemote = useCallback(() => {
     void fetch('/api/me/welcome-seen', {
