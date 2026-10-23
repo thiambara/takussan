@@ -30,6 +30,8 @@ import { ContactGestures } from './ContactGestures';
 
 interface MyTasksProps {
   readonly initialDue: TaskDue | null;
+  /** TCK-1733 (P167.04) — ouverte par la tuile « Tâches du jour » : les tâches qui me sont assignées. */
+  readonly initialAssignedToMe?: boolean;
 }
 
 /**
@@ -37,7 +39,7 @@ interface MyTasksProps {
  * bien. Le filtre vit dans l'URL (`?filter[due]=today`) : c'est par elle que la tuile « Tâches du
  * jour » du tableau de bord agent mène ici.
  */
-export function MyTasks({ initialDue }: MyTasksProps) {
+export function MyTasks({ initialDue, initialAssignedToMe = false }: MyTasksProps) {
   const t = useTranslations('agentCrm.myTasks');
   const locale = useLocale() as Locale;
   const { token } = useAuth();
@@ -47,8 +49,8 @@ export function MyTasks({ initialDue }: MyTasksProps) {
   const [due, setDue] = useState<TaskDue | null>(initialDue);
 
   const query = useInfiniteQuery({
-    queryKey: AGENT_CRM_QUERY_KEY.tasks(due ?? 'all'),
-    queryFn: ({ pageParam }) => fetchMyTasks(token ?? '', due, pageParam),
+    queryKey: AGENT_CRM_QUERY_KEY.tasks(due ?? 'all', initialAssignedToMe),
+    queryFn: ({ pageParam }) => fetchMyTasks(token ?? '', due, pageParam, initialAssignedToMe),
     initialPageParam: 1,
     getNextPageParam: (last) =>
       last.meta.current_page < last.meta.last_page ? last.meta.current_page + 1 : undefined,
@@ -62,7 +64,9 @@ export function MyTasks({ initialDue }: MyTasksProps) {
 
   const choose = (next: TaskDue | null) => {
     setDue(next);
-    router.replace(next ? `${pathname}?filter[due]=${next}` : pathname, { scroll: false });
+    // TCK-1733 (P167.04) — la portée de la tuile se garde quand l'échéance change.
+    const params = [next ? `filter[due]=${next}` : null, initialAssignedToMe ? 'filter[assigned_to]=me' : null].filter(Boolean);
+    router.replace(params.length > 0 ? `${pathname}?${params.join('&')}` : pathname, { scroll: false });
   };
 
   const rows = query.data?.pages.flatMap((p) => p.data) ?? [];

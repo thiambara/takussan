@@ -36,6 +36,10 @@ function isTabKey(value: string | null): value is TabKey {
  * TCK-1293 (P131.04) — l'onglet vit dans `?status=`, borné à `TABS`, comme `?tab=` de
  * `PaymentsTabs` : un lien vers un autre statut que `pending` l'ouvre, et le retour arrière depuis
  * une réservation retrouve l'onglet quitté.
+ *
+ * TCK-1735 (P167.05) — `?only_mine=1`, que porte le lien « Demandes en attente » de l'agent sous
+ * « Mes chiffres », borne la liste aux réservations de ses biens (`filter[managed_by]=me`). La portée
+ * se montre par une case « Mes biens », qui se décoche ; sans le paramètre, ni portée ni case.
  */
 export function BookingsList() {
   const locale = useLocale() as Locale;
@@ -44,6 +48,14 @@ export function BookingsList() {
   const searchParams = useSearchParams();
   const demande = searchParams.get('status');
   const tab: TabKey = isTabKey(demande) ? demande : 'pending';
+  const onlyMine = searchParams.get('only_mine') === '1';
+
+  const dropOnlyMine = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('only_mine');
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : '?', { scroll: false });
+  };
 
   const setTab = (next: TabKey) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -69,9 +81,16 @@ export function BookingsList() {
         </TabsList>
       </div>
 
+      {onlyMine ? (
+        <label className="mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm text-foreground">
+          <input type="checkbox" className="size-4 cursor-pointer accent-primary" checked onChange={dropOnlyMine} />
+          {t('list.onlyMine')}
+        </label>
+      ) : null}
+
       {TABS.map((tab) => (
         <TabsContent key={tab.value} value={tab.value} className="mt-4">
-          <BookingsListBody status={tab.value} locale={locale} />
+          <BookingsListBody status={tab.value} locale={locale} onlyMine={onlyMine} />
         </TabsContent>
       ))}
     </Tabs>
@@ -81,14 +100,16 @@ export function BookingsList() {
 function BookingsListBody({
   status,
   locale,
+  onlyMine,
 }: {
   // `TabKey` et non `BookingStatus` : le libellé d'état vide est indexé par onglet
   // (`empty.<TabKey>`), et `completed` n'a pas d'onglet.
   status: TabKey;
   locale: Locale;
+  onlyMine: boolean;
 }) {
   const t = useTranslations('bookings.list');
-  const query = useBookings({ status, per_page: 30 });
+  const query = useBookings({ status, per_page: 30, onlyMine });
 
   return (
     <QueryBoundary

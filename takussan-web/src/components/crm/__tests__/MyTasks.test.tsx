@@ -37,11 +37,11 @@ const tache = {
   assignee: null,
 };
 
-function rendu() {
+function rendu(initialAssignedToMe = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(withIntl(
     <QueryClientProvider client={client}>
-      <MyTasks initialDue="today" />
+      <MyTasks initialDue="today" initialAssignedToMe={initialAssignedToMe} />
     </QueryClientProvider>,
   ));
 }
@@ -59,7 +59,7 @@ describe('MyTasks', () => {
     rendu();
 
     const coche = await screen.findByRole('checkbox', { name: 'Marquer « Rappeler Awa » comme faite' });
-    expect(fetchMyTasks).toHaveBeenCalledWith('jeton', 'today', 1);
+    expect(fetchMyTasks).toHaveBeenCalledWith('jeton', 'today', 1, false);
     expect(screen.getByRole('link', { name: 'Awa Diop' })).toHaveAttribute('href', '/app/customers/9');
     expect(screen.getByRole('link', { name: /WhatsApp/ })).toHaveAttribute('href', expect.stringContaining('wa.me/221771234567'));
 
@@ -73,7 +73,20 @@ describe('MyTasks', () => {
 
     await userEvent.setup().click(screen.getByRole('button', { name: 'En retard' }));
 
-    await waitFor(() => expect(fetchMyTasks).toHaveBeenCalledWith('jeton', 'overdue', 1));
+    await waitFor(() => expect(fetchMyTasks).toHaveBeenCalledWith('jeton', 'overdue', 1, false));
     expect(replace).toHaveBeenCalledWith('/app/tasks?filter[due]=overdue', { scroll: false });
+  });
+
+  // TCK-1733 (P167.04) — la tuile « Tâches du jour » ouvre la liste sur les tâches qui me sont
+  // assignées dans l'agence active : la portée part à l'API, et changer d'échéance la garde.
+  it('ouverte par la tuile, demande les seules tâches qui me sont assignées, et l’URL le garde', async () => {
+    rendu(true);
+    await screen.findByText('Rappeler Awa');
+    expect(fetchMyTasks).toHaveBeenCalledWith('jeton', 'today', 1, true);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'En retard' }));
+
+    await waitFor(() => expect(fetchMyTasks).toHaveBeenCalledWith('jeton', 'overdue', 1, true));
+    expect(replace).toHaveBeenCalledWith('/app/tasks?filter[due]=overdue&filter[assigned_to]=me', { scroll: false });
   });
 });

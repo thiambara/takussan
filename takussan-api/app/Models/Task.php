@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -132,6 +133,18 @@ class Task extends AbstractModel
                     default => $query->whereRaw('1 = 0'),
                 };
             }),
+            // TCK-1733 (P167.04) — `filter[assigned_to]=me` : les tâches qui me sont assignées dans
+            // l'agence active, la portée que compte « Tâches du jour » (`DashboardAgentService`). Les
+            // tâches closes restent, comme sous `filter[due]=today` (TCK-591). Toute autre valeur : rien.
+            AllowedFilter::callback('assigned_to', function (Builder $query, mixed $value): void {
+                $user = request()->user();
+                if ($value !== 'me' || $user === null) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+                $query->where('assigned_to_id', $user->id)->parentInAgency($user->staffAgencyId());
+            }),
         ];
     }
 
@@ -179,6 +192,22 @@ class Task extends AbstractModel
         }
 
         return $query->find($this->taskable_id);
+    }
+
+    /**
+     * P127.05 (TCK-1361), TCK-1733 (P167.04) — les tâches dont le parent (client, bien, ou réservation
+     * pour une tâche de remboursement) est dans l'agence donnée, parent supprimé en douceur compris ;
+     * sans agence, aucune borne. C'est la borne des tâches du tableau de bord de l'agent, et celle du
+     * filtre `assigned_to=me` qui ouvre sa tuile « Tâches du jour » : les deux ne peuvent pas diverger.
+     *
+     * @param  Builder<Task>  $query
+     * @return Builder<Task>
+     */
+    public function scopeParentInAgency(Builder $query, ?int $agencyId): Builder
+    {
+        return $agencyId === null ? $query
+            : $query->whereHasMorph('taskable', [Customer::class, Property::class, Booking::class], fn (Builder $parent) => $parent
+                ->withoutGlobalScope(SoftDeletingScope::class)->where('agency_id', $agencyId));
     }
 
     /**

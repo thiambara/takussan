@@ -6856,7 +6856,8 @@
         "rejected": "Rejected",
         "cancelled": "Cancelled",
         "expired": "Expired"
-      }
+      },
+      "onlyMine": "My properties"
     },
     "detail": {
       "error": "Booking not found.",
