@@ -17310,7 +17310,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### `bounds` en liste rend 500 sur la carte publique, la règle de forme s'exécutant malgré l'échec de `string`
 - Réf : P187.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1849
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Public/MapPublicPropertyRequest.php:42-46`
 - Constat :
@@ -17319,6 +17319,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : ajouter `bail` en tête de la règle `bounds`, ou faire sortir la fermeture sur `! is_string($value)`. Garde : un test avec `bounds[]=1` qui attend 422.
 - Mesure (2026-10-23, 13aa0411a, mesureur) : relu `MapPublicPropertyRequest.php:42-48` (`required`, `string`, puis une fermeture qui ouvre sur `explode(',', (string) $value)`, sans `bail`) ; test temporaire `tests/Feature/Tmp/MesureurTmp187Test.php` (un cas par méthode, charge `{ 2.72 2.62 3.32 }` sur 8 cœurs, retiré) : `map?bounds[]=1` → **500** « Array to string conversion », `bounds[]=1&bounds[]=2` → **500** → le constat tient entier. Classement : A1, la règle `string` dit déjà qu'un tableau est refusé ; le correctif attendu est `bail` en tête de la règle `bounds` (ou une sortie sur `! is_string`), test `bounds[]=1` → 422.
+- Mesure (2026-10-23, 772307dd4, implementeur) : test neuf à jeu de données `PropertyMapTest::test_map_rejects_bounds_given_as_a_list`, trois rouges avant correctif (`bounds[]=1`, deux éléments, quatre éléments → 500) → `bail` en tête de la règle `bounds` ; ablation (`bail` retiré) → trois rouges, remis → 23/23 dans `PropertyMapTest`, 13/13 dans `PropertyMapRadiusTest`.
 
 ### Un identifiant numérique de route au-delà de `bigint` rend 500 sur deux routes publiques
 - Réf : P187.05
