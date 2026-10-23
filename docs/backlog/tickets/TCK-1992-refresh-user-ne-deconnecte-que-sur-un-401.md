@@ -32,9 +32,9 @@ appels aux réponses inversées laissaient le compte de la première demande. La
 
 ## Décision du porteur
 
-- P172.01 : « la piste telle qu'écrite ; `refreshUser` garde l'utilisateur sur toute erreur autre que 401 ; même ticket que P172.03 ; la lecture morte d'`AuthProvider` part avec »
-- P172.03 : « la piste telle qu'écrite, avec P172.01 »
-- P172.06 : « corriger le commentaire d'`initialDrafts` ; le retrait de la lecture d'`AuthProvider` part avec P172.01 »
+- P172.01 : « validation du porteur (2026-10-23) : la piste telle qu'écrite ; `refreshUser` garde l'utilisateur sur toute erreur autre que 401 ; même ticket que P172.03 ; la lecture morte d'`AuthProvider` part avec »
+- P172.03 : « validation du porteur (2026-10-23) : la piste telle qu'écrite, avec P172.01 »
+- P172.06 : « validation du porteur (2026-10-23) : corriger le commentaire d'`initialDrafts` ; le retrait de la lecture d'`AuthProvider` part avec P172.01 »
 
 ## Objectif utilisateur
 
