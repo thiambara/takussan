@@ -16156,7 +16156,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Un `refreshUser()` qui tombe sur une API en panne, lente ou limitée déconnecte l'utilisateur pour de bon
 - Réf : P172.01
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite ; `refreshUser` garde l'utilisateur sur toute erreur autre que 401 ; même ticket que P172.03 ; la lecture morte d'`AuthProvider` part avec
+- Statut : fait · TCK-1992
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/api/auth/me/route.ts:34-40`, `takussan-web/src/context/AuthContext.tsx:191-208`, `takussan-web/src/hooks/useProfiles.ts:109-117`, `takussan-web/src/components/auth/GardeDoubleFacteur.tsx:80-82`, `takussan-web/src/app/api/auth/logout/route.ts:40-50`
 - Constat :
@@ -16167,6 +16167,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Établi comment : code relu et deux mesures vitest ; le cas d'un 403 de second facteur sur `/auth/me` n'a pas été mesuré (à vérifier).
 - Piste : faire rendre au relais le statut de l'API pour une `ApiError` (401 seulement sur un 401 amont), et 502 ou 503 sur une panne ; faire que `refreshUser` ne déconnecte que sur un 401, et garde l'utilisateur en place sur toute autre erreur. Garde : un test du relais (`getMe` en 503 → pas de 401) et un test d'`AuthProvider` (`refreshUser` sur un 503 → aucun `POST /api/auth/logout`, utilisateur conservé).
 - Mesure (2026-10-23, 4436bf690, mesureur) : relu `app/api/auth/me/route.ts:34-40` (`catch` nu → 401), `AuthContext.tsx:191-208` (`refreshUser` : 401 → `setUser(null)` puis `POST /api/auth/logout`), `useProfiles.ts:109-117` (`refreshUser` dans `onSettled`, succès ou échec), `grep -rn "refreshUser()"` hors tests (12 appels, plus un commentaire), et lancé deux tests vitest temporaires, retirés (charge 3,31 / 4,74 / 4,68 sur 8 cœurs) : relais, `getMe` en `ApiError(503)`, `ApiError(500)` et `TypeError('fetch failed')` → 401 les trois fois ; `AuthProvider`, relais en 401 → `GET /api/auth/me` puis `POST /api/auth/logout`, utilisateur `null` → le défaut tient pour la panne, le 5xx et le délai ; le 429 du constat est improbable : `routes/api/auth.php:55-57` ne pose aucun limiteur sur `GET /auth/me`, et il n'y a pas de `throttle:api` global (`AppServiceProvider.php:483`) ; la maintenance n'y rend plus 503 depuis TCK-1174. Classement : V2, le correctif change quand une session se ferme et ce que rend le relais d'authentification, que tout le front lit.
+- Mesure (2026-10-23, 49aa336db, implementeur) : tests neufs rouges sur l'arbre d'origine : relais, `getMe` en `ApiError` 503, 500, 403 et `TypeError('fetch failed')` → 401 les quatre fois ; `AuthProvider`, relais en 503, 502, 500, 403, 429 ou injoignable → utilisateur nul (et `POST /api/auth/logout` sur le 401) → le relais garde le statut de l'API (503 sans réponse) et `refreshUser` ne ferme la session que sur un 401 ; lecture initiale morte d'`AuthProvider` retirée (les huit monteurs, tests compris, passent `initialUser`) ; ablation (`route.ts` et `AuthContext.tsx` à `HEAD`) → 12 rouges sur 15, correctif remis → 15/15, et les tests voisins d'`AuthContext`, `ReinitialiserSessionClient`, `Navbar` et du layout racine verts.
 
 ### Après l'envoi d'un avis sur un bien, le formulaire vidé se réaffiche, sans confirmation, et un second envoi rend 422
 - Réf : P172.02
@@ -16185,7 +16186,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### `refreshUser` applique la dernière réponse arrivée, pas la dernière demandée
 - Réf : P172.03
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite, avec P172.01
+- Statut : fait · TCK-1992
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/context/AuthContext.tsx:191-208`, `takussan-web/src/hooks/useProfiles.ts:109-117`
 - Constat :
@@ -16194,6 +16195,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Chaque changement de profil appelle `refreshUser` à sa fin (lu, `useProfiles.ts:116`) : deux changements rapprochés peuvent laisser à l'écran l'agence et les rôles du profil quitté, alors que le cookie porte le dernier. Que le sélecteur de profil permette deux changements avant la fin du premier n'a pas été vérifié (à vérifier). Une `refreshUser` encore en vol au moment d'une déconnexion peut de même remettre un utilisateur après `setUser(null)` (déduit, à vérifier).
 - Piste : ne garder que la réponse de la dernière demande (compteur de rang ou `AbortController` qui annule la précédente), et ignorer toute réponse arrivée après `logout`. Garde : un test d'`AuthProvider` aux réponses inversées.
 - Mesure (2026-10-23, 4436bf690, mesureur) : relu `AuthContext.tsx:191-208` (`refreshUser` sans annulation ni rang, quand la lecture initiale l. 136-187 a `cancelled` et un `AbortController`) et `useProfiles.ts:116`, et lancé un test vitest temporaire d'`AuthProvider`, retiré : deux `refreshUser()` lancés ensemble, la seconde réponse (`agency_id = 2`) rendue avant la première (`agency_id = 1`) → état final `agency_id = 1` ; le défaut tient ; la double bascule de profil par l'interface et la réponse tardive après `logout` restent non mesurées. Classement : V2, le correctif décide quel utilisateur le contexte d'authentification garde, et doit trancher le cas d'une réponse arrivée après une déconnexion.
+- Mesure (2026-10-23, 49aa336db, implementeur) : test neuf d'`AuthProvider` rouge sur l'arbre d'origine : deux `refreshUser()`, la seconde réponse (`agency_id = 2`) rendue avant la première (`agency_id = 1`) → état final `agency_id = 1` ; une réponse arrivée après `logout()` → utilisateur remis → `refreshUser` porte un rang de demande, que `logout` avance ; ablation commune avec P172.01 (12 rouges sur 15), correctif remis → verts.
 
 ### Chaque `refreshUser()` relit tous les favoris et la liste des accueils vus, parce que deux effets dépendent de l'objet `user`
 - Réf : P172.04
@@ -16222,7 +16224,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Petites améliorations
 - Réf : P172.06
-- Statut : validé — validation du porteur (2026-10-23) : corriger le commentaire d'`initialDrafts` ; le retrait de la lecture d'`AuthProvider` part avec P172.01
+- Statut : fait · TCK-1992
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/wizard/WizardDraftsBanner.tsx:20-53`, `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:68`, `takussan-web/src/context/AuthContext.tsx:136-187`, `takussan-web/src/app/layout.tsx:74-110`
 - Constat :
@@ -16231,6 +16233,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 - Piste : lire les brouillons côté serveur dans la page d'accueil et les passer en `initialDrafts`, ou retirer la propriété ; retirer la lecture initiale morte d'`AuthProvider` si aucun monteur ne passe `undefined`.
 - Mesure (2026-10-23, 4436bf690, mesureur) : relu `WizardDraftsBanner.tsx:20-53` (`initialDrafts` prévu, lecture dans un effet sinon), `grep -rn WizardDraftsBanner src` (seul appelant `(accueil)/page.tsx:68`, sans propriété), `app/layout.tsx:74-87` et l. 110 (`initialUser` vaut `null` ou un utilisateur, jamais `undefined`), `grep -rn "<AuthProvider" src` (le seul monteur hors tests est `layout.tsx:110` ; les six tests qui montent `AuthProvider` passent tous `initialUser`) → les deux constats de code tiennent, la lecture initiale d'`AuthProvider` (l. 136-187) n'a aucun chemin d'exécution, même en test ; le décalage du bandeau à l'écran n'a pas été vu. Classement : V7, la `Piste` laisse deux options pour le bandeau, dont l'une change le rendu de l'accueil ; le retrait de la lecture morte d'`AuthProvider` relèverait seul de A3.
 - Mesure (2026-10-23, c4a947f97, delegue) : relu l'entrée et la `Mesure` du mesureur, `WizardDraftsBanner.tsx:11-29` (docblock de TCK-250 : la liste est lue côté navigateur « without forcing an SSR refetch on every navigation »), `(accueil)/page.tsx:68`, `grep -rn initialDrafts takussan-web/src` (en plus du composant, `__tests__/WizardDraftsBanner.test.tsx:31-34`, où le test de TCK-566 s'en sert pour injecter les brouillons) et `AuthContext.tsx:71-82` et l. 136-187 (`isLoading` initial dérivé d'`initialUser === undefined`, la lecture morte appelle `/api/auth/logout` au second 401) ; `grep -n "porteur ("` de l'angle 172 → aucune décision → la propriété `initialDrafts` a un lecteur, le test, et la lecture morte d'`AuthProvider` est le même chemin de déconnexion que P172.01, classée V2. Recommandation : ne pas lire les brouillons côté serveur, parce que TCK-250 a choisi la lecture côté navigateur et que le décalage n'a pas été vu à l'écran ; garder `initialDrafts`, qui sert au test, et ne corriger que son commentaire (« pour les tests ; l'accueil ne la passe pas ») ; retirer la lecture initiale d'`AuthProvider` (l. 136-187, `isLoading` à `false` au départ) dans le même ticket que P172.01. Ce qui manque pour trancher : le retrait touche le code de session (V2, réservé au porteur), et rien d'écrit ne choisit entre les deux options du bandeau.
+- Mesure (2026-10-23, 49aa336db, implementeur) : commentaire d'`initialDrafts` de `WizardDraftsBanner` corrigé (sert aux tests, l'accueil ne la passe pas) ; la lecture initiale morte d'`AuthProvider` est retirée dans TCK-1992 avec P172.01, gardée par les tests de P172.01 et les huit monteurs qui passent tous `initialUser` (`grep -rln "<AuthProvider" src`).
 
 ## Angle 173 — Écrans qui chargent les composants client de la console par les autres fichiers `index.ts` réexportateurs
 
