@@ -17761,7 +17761,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### La recherche globale de la console rend 500 dès qu'elle trouve un compte sans nom ni e-mail
 - Réf : P193.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1879
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:187`, `:254`, `:93-105`
 - Constat :
@@ -17771,6 +17771,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Aucun test de la recherche globale ne crée un compte sans e-mail (à vérifier par `grep` dans `tests/` ; non fait).
 - Piste : libellé par `nameWithoutContact()` (`User.php:367`, qui retombe sur `username` puis « — ») ou, en console super-admin, nom puis e-mail puis numéro ; sous-libellé `email ?? phone`. Test : compte créé par téléphone trouvé par son numéro → 200 et un libellé non vide.
 - Mesure (2026-10-23, 874f0bb68, mesureur) : relu `AdminGlobalSearchService.php` (l. 186-187 `$u->full_name ?: $u->email` passé à `hit()`, l. 254 `string $label` ; `byPhone` l. 93-104, `users.phone` en E.164), `PhoneLoginService::createAccount` (l. 171-174 : noms vides, `email` nul) ; `grep -n "email.*null"` dans `AdminGlobalSearchTest` → rien, aucun test ne crée un compte sans e-mail ; `git log` du service → aucun correctif ; test temporaire `SondeMesureur193Test` (retiré) (charge 3,12 / 2,28 / 1,89 puis 2,90 / 2,32 / 1,92 sur 8 cœurs) : compte `email` nul, noms vides, `+221771234567`, opérateur Support, `GET /api/admin/search?q=%2B221771234567` → **500** « `hit(): Argument #3 ($label) must be of type string, null given` » → le constat tient. Classement : A1, le contrat est écrit (`hit()` typé `string`, la recherche rend 200 dans `AdminGlobalSearchTest`) ; correctif attendu sans texte neuf : libellé `full_name ?: email ?: phone ?: '#'.id` (le numéro est celui que l'opérateur vient de saisir), et un test du compte créé par téléphone trouvé par son numéro → 200, libellé non vide.
+- Mesure (2026-10-23, 2db6febf0, implementeur) : test neuf `AdminGlobalSearchTest::test_un_compte_cree_par_telephone_se_trouve_par_son_numero_avec_un_libelle` (compte `email` nul, noms vides, `+221771234567`, opérateur Support, `GET /api/admin/search?q=+221771234567`) rouge avant correctif → **500** « `hit(): Argument #3 ($label) must be of type string, null given` » ; correctif : `phone` lu et libellé `full_name ?: email ?: phone ?: '#'.id` → 200, un résultat, libellé `+221771234567`, classe verte (14 tests) ; ablation (repli rendu à `full_name ?: email`) → 1 rouge, correctif remis → vert.
 
 ### La réinitialisation forcée du mot de passe d'un compte sans e-mail rend 500
 - Réf : P193.02

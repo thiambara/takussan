@@ -183,8 +183,10 @@ class AdminGlobalSearchService
     /** @return Collection<int,array<string,mixed>> */
     private function users(Builder $query): Collection
     {
-        return $query->limit(self::PER_TYPE)->get(['id', 'first_name', 'last_name', 'email'])
-            ->map(fn (User $u) => $this->hit('user', $u, $u->full_name ?: $u->email, $u->email, null, "/super-admin/users/{$u->id}"));
+        // TCK-1879 (P193.01) — un compte créé par téléphone n'a ni nom ni e-mail : le libellé
+        // retombe sur le numéro, puis sur l'identifiant, jamais sur `null` (`hit()` est typé `string`).
+        return $query->limit(self::PER_TYPE)->get(['id', 'first_name', 'last_name', 'email', 'phone'])
+            ->map(fn (User $u) => $this->hit('user', $u, $u->full_name ?: $u->email ?: $u->phone ?: '#'.$u->id, $u->email, null, "/super-admin/users/{$u->id}"));
     }
 
     /** @return Collection<int,array<string,mixed>> */
