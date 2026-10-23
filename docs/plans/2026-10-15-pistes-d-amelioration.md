@@ -252,7 +252,7 @@ voie d'écriture (angle 13, puis 47).
 | 175 | Relations vers un `User` supprimé en douceur par la suppression de compte (`causer`, `author`, `sender`, `issued_by`, `collector`, `handler`, `landlord` : portée `SoftDeletes` d'un `belongsTo` ou `morphTo` nu) lues dans les listes, les exports, les PDF et les notifications : auteur rendu « système », vide, ou 500 là où la ligne reste lisible — le pendant pour le compte des angles 130 et 165, né de P139.01 | fait |
 | 176 | Rôles lus toutes agences confondues par `profileTypes()` là où l'écran montre le rôle dans une agence donnée (`AgencyDetailController.php:184` de la console, `UserRoleController.php:90`, `UserResource.php:90` rendu dans les listes d'équipe, ciblage par rôle de `AnnouncementResolver` et `FeatureFlagEvaluator`) : rôle d'une autre agence affiché ou appliqué — né de P139.02 | fait |
 | 177 | Relevés de gérance d'une période close recalculés à chaque lecture (`OwnerStatementController`, `OwnerStatementService`, PDF `pdf/statements/owner`, avis mensuel `SendOwnerStatements`) face aux remboursements, annulations, rapprochements et reversements écrits après la clôture : relevé envoyé au bailleur que plus rien ne reproduit — le pendant des relevés de l'angle 140 | fait |
-| 178 | Loyers et acomptes encaissés par la plateforme et pas encore reversés, comptés comme argent de l'agence (`PayoutCalculator` et la préparation des reversements au bailleur, `CollectedPayments` et tableaux de bord, relevé de gérance `OwnerStatementService`) : reversement au bailleur d'un argent que la plateforme détient encore, ou qu'elle a rendu — né de P141.01 | à faire |
+| 178 | Loyers et acomptes encaissés par la plateforme et pas encore reversés, comptés comme argent de l'agence (`PayoutCalculator` et la préparation des reversements au bailleur, `CollectedPayments` et tableaux de bord, relevé de gérance `OwnerStatementService`) : reversement au bailleur d'un argent que la plateforme détient encore, ou qu'elle a rendu — né de P141.01 | fait |
 | 179 | `try`/`catch` qui entourent un envoi en file et promettent un repli (`AgencyProvisioningService::sendActivationLink`, `SendSavedSearchAlerts.php:141`, `SendFavoriteChangeAlerts.php:164`, et leurs pareils autour de `notify()`, `Notification::send()` ou `Mail::send()` d'une classe `ShouldQueue`) : 502, annulation, statut d'échec ou marque de reprise que le `catch` ne peut jamais poser, l'envoi n'ayant lieu qu'au worker — né de P142.01 | à faire |
 | 180 | Téléversements d'images sans `PixelsAuPlus` hors de ceux que P143.02 relève (`MediaUploadRequest` collections `photos` et `avatars`, photos de maintenance, pièces jointes de messages et de litiges, documents image) face aux décodages GD qui les suivent (conversions `nonQueued`, `AvatarReencode`, `PdfImageEmbedder`) : RSS hors de `memory_limit` face au `mem_limit` du conteneur — né de P143.02 | à faire |
 | 181 | Tableaux reçus sans `max:` par les FormRequests et rangés en `jsonb` (`rooms` d'état des lieux hors du PDF, `metadata`, critères de recherches enregistrées, brouillons d'assistant, réglages) puis relus en entier : taille de ligne, de réponse JSON et de rendu sans borne — le relevé de P143.01 hors du PDF | à faire |
@@ -280,6 +280,7 @@ voie d'écriture (angle 13, puis 47).
 | 203 | Code hors requête HTTP qui lit l'agence d'un compte par `$user->agency_id` ou `$notifiable->agency_id` (`SmsChannel.php:115`, `WhatsappChannel.php:262`, `SendSmsAfterLateWhatsappFailureJob.php:105`, et leurs pareils dans les jobs, écouteurs et commandes) : sans requête, pas de profil actif, et l'accesseur rend `null` pour un compte présent dans plusieurs agences — envoi rattaché à aucune agence, ou à la mauvaise, pour le quota, le fournisseur et le journal — né de P174.01 | à faire |
 | 204 | Comptes d'agent ou de prestataire effacés par `AccountDeletionService` sans passer par le retrait d'agence : tâches (`assigned_to_id`), interventions (`assigned_to`), demandes de contact (`handled_by_id`, `recipient_user_id`), baux (`agent_id`) et collaborations de bien laissés au compte effacé, que `AgentHandoverService::move` sait déplacer mais dont la passation rend 404 (liaison de route sous `SoftDeletes`) : travail à son nom que personne ne reprend — né de P175.02 | à faire |
 | 205 | Pièces déjà reversées au bailleur (reversement `completed`, `payout_lease_payment`, `payout_booking_payment`) puis remboursées par `BookingPaymentService::refund` ou par webhook (`PaymentGatewayService::applyRefund`) : aucune reprise sur le bailleur — ni ligne négative au reversement suivant, ni dette, ni avis à l'agence —, si bien que l'agence rend au locataire un argent déjà versé — né de P177.01 | à faire |
+| 206 | Pénalités de retard réglées sur la ligne du loyer (`late_fee_amount`, `late_fee_paid_at`, en ligne ou par `LateFeeSettlement`) face aux lecteurs de l'argent qui ne lisent que `amount − refund_amount` (`CollectedPayments::LEASE_NET_SQL`, `PayoutCalculator::kept`, relevé de gérance, exports, métriques) alors que la clôture plateforme les reverse à l'agence (`lateFeeSettledWith`) : pénalité encaissée absente de l'« Encaissé », du relevé et de tout reversement au bailleur, sans texte qui dise à qui elle revient — né de P178.03 | à faire |
 
 ---
 
@@ -16540,3 +16541,70 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
   - **CSV sans date de rendu ni `paid_out`.** Le CSV n'écrit ni la date de génération ni le total versé (lu, l. 47-60) : deux exports d'un même mois pris à des dates différentes ne se distinguent pas.
 - Piste : dater les impayés (« au JJ/MM/AAAA ») sur le PDF et le JSON ; ajouter au CSV une ligne de génération et le total `paid_out`.
 - Mesure (2026-10-23, ddd77d99a, mesureur) : `git diff 7e626b8bf ddd77d99a` vide sur `app/Services/Payout`, `SendOwnerStatements`, `OwnerStatementController`, `PayoutService`, `BookingPaymentService`, `PaymentGatewayService`, `LeasePaymentService` et `app/Http/Requests` (code inchangé depuis l'exploration) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle177Test.php` (retiré, charge 2,90 / 2,17 / 1,78 sur 8 cœurs), reversement créé par `POST /api/payouts` puis passé `completed` par `forceFill` : même scénario que P177.05, CSV de septembre rendu → en-tête `type;reference;property_id;paid_at;amount;commission`, aucune date de génération, ligne `totals` portant le net et la commission, pas de total versé. Relu `OwnerStatementController.php:44-62` : le CSV écrit pourtant une ligne `payouts` par reversement, avec son `net_amount` (le constat « sans `paid_out` » ne vaut que pour le total). Relu `OwnerStatementService.php:143-152` (`unpaid` jugé à `now()`) et `lang/fr/money_out.php:27` (« Impayés de la période »). Les deux points tiennent, le second en partie. Classement : V7, « au JJ/MM/AAAA » est un libellé neuf et la forme du CSV est un contrat d'export visible.
+
+## Angle 178 — Argent encaissé par la plateforme et reversé au bailleur avant que l'agence l'ait reçu
+
+*Exploré le 2026-10-23 sur `pre-dev` f733dcaca, par l'explorateur, sans sous-agent. Relu par
+l'explorateur lui-même : `PayoutCalculator` (en entier), `PayoutPreparationService`,
+`PayoutService::create` et `assertItemsStillPaid`, `OwnerStatementService`, `CollectedPayments`,
+`PlatformPayoutService` (`closePeriod`, `closeForAgency`, `approve`, `markPaid`, `cancel`,
+`isSettledByPlatform`), `RemindDuePayouts`, ADR-0039 § 2 et § 3, `docs/features.md` l. 232-233,
+le type front `PayoutPreparation` (`takussan-web/src/types/invoice.ts:158-183`). Mesuré par un test
+Feature temporaire `tests/Feature/TmpExplorateur/SondeAngle178Test.php` (retiré), sur la base de
+test PostgreSQL, charge 4,99 / 4,39 / 2,99 puis 11,48 / 5,62 / 3,55 sur 8 cœurs : loyer de 150 000
+payé le 2026-09-15, soldé par l'intégration globale (trait `EncaissementsPlateforme`),
+`platform_fee_pct_at_payment = 5`, bail à 10 % (puis à 0 %), admin d'agence sous step-up. Aucun
+texte (spec, ADR, ticket) ne dit si l'agence peut reverser au bailleur un argent que la plateforme
+détient encore : ADR-0039 § 3 dit « pièces encaissées » sans dire par qui ; seul le cas de
+l'agence `individual` est écrit (§ 2 : « le `Payout` n'y trace que ce que la plateforme rend à
+l'hôte »). Hors du relevé : la pièce remboursée après un reversement au bailleur `completed`
+(angle 205), le relevé recalculé (angle 177), le rapprochement (angle 141).*
+
+### Un loyer encaissé par la plateforme est proposé, puis versé, au bailleur avant que la plateforme ait rien reversé à l'agence
+- Réf : P178.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Payout/PayoutCalculator.php:57-100`, `takussan-api/app/Services/Payout/PayoutPreparationService.php:44-49`, `takussan-api/app/Services/Model/PayoutService.php:84-133,580-586`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:309-314`
+- Constat :
+  - `leasePayments()` et `bookingPayments()` ne filtrent que par agence, bailleur, `status = paid`, type, `paid_at` et absence de reversement au bailleur ; ni `platform_payout_id`, ni le statut d'un `PlatformPayout`, ni `metadata.gateway.settled_by` (lu, l. 57-100). Aucune ligne du Payout ne lit la chaîne de la plateforme : `grep -n "platform\|settled" app/Services/Payout/*.php app/Services/Model/PayoutService.php` → rien (mesuré).
+  - La clôture, elle, tient ce loyer pour de l'argent que la plateforme a encaissé et doit encore à l'agence (lu, `PlatformPayoutService.php:309-314`, « la plateforme ne reverse que ce qu'elle a encaissé »).
+  - mesuré (sonde) : sans aucun `PlatformPayout` (`count = 0`, `platform_payout_id` nul), `GET /api/payouts/preparation` → `200`, ligne `lease_payments` `[1]`, `gross 150000`, `commission 15000`, `net 135000` ; `POST /api/payouts` → `201` `pending` net 135 000 ; `POST …/mark-processed` → `200` `completed`. La clôture ensuite → `201`, `gross 150000`, `platform_fee 7500`, `net 142500`, `pending`.
+  - `assertItemsStillPaid` ne relit que le statut et le remboursement des pièces (lu, `PayoutService.php:580-586`), jamais ce que la plateforme en a fait.
+  - Établi comment : code lu, puis sonde par HTTP en admin d'agence et en super-admin.
+- Piste : décider (V1) ce qu'est, pour le reversement au bailleur, une pièce soldée par la plateforme : ne la proposer et ne l'accepter qu'une fois son `PlatformPayout` `paid` (lecture par `isSettledByPlatform()` et `platform_payout_id`, comme TCK-1415), ou la laisser éligible en le disant (P178.04). Garder l'agence `individual` hors de la règle (ADR-0039 § 2). Garde : le cas de la sonde, ligne absente de la préparation et 422 à la création tant que la plateforme n'a pas payé ; loyer en espèces ou par l'intégration propre à l'agence toujours éligible.
+
+### Le reversement au bailleur reste versé quand la plateforme annule ou gèle ce qu'elle devait à l'agence
+- Réf : P178.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:72-78,112-124,209-225`, `takussan-api/app/Services/Payout/PayoutCalculator.php:57-77`
+- Constat :
+  - La plateforme peut ne pas payer : `approve` refuse une agence `standard` non vérifiée (lu, l. 119-124), la clôture globale écarte une agence non active (lu, l. 72-78), `cancel` détache les pièces (lu, l. 209-225).
+  - mesuré (sonde) : agence `standard` `is_verified = false`, loyer soldé par la plateforme → `POST /api/payouts` `201`, `mark-processed` `200` `completed` ; clôture `201` ; `POST /api/admin/payouts/{id}/approve` → `422 platform_payout.agency_unverified`.
+  - mesuré (sonde) : après le reversement au bailleur `completed`, `POST /api/admin/payouts/{id}/cancel` du `PlatformPayout` → `200`, `platform_payout_id` repassé à `null`, reversement au bailleur toujours `completed`.
+  - Dans ces trois cas, l'agence a versé au bailleur un loyer qu'elle n'a pas reçu, et rien ne le lui dit (déduit des deux mesures et de l'absence de lecture de la chaîne plateforme, P178.01 ; à vérifier côté écran).
+- Piste : suit le choix de P178.01. Si les pièces restent éligibles avant le versement de la plateforme, avertir l'agence au gel (`agency_unverified`, agence non active) et à l'annulation d'un `PlatformPayout` qui porte des pièces déjà reversées au bailleur (V7, texte neuf). Garde : les deux cas de la sonde.
+
+### Une commission de bail inférieure à celle de la plateforme fait verser au bailleur plus que ce que l'agence reçoit
+- Réf : P178.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Payout/PayoutCalculator.php:134-206`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:333-352`, `docs/features.md:232`
+- Constat :
+  - La commission de la plateforme est « retenue à la source » sur ce qu'elle reverse à l'agence (lu, `docs/features.md:232` ; `closeForAgency` applique `platform_fee_pct_at_payment` ligne par ligne, lu). `PayoutCalculator::compute` ne la lit pas : le brut du bailleur est `montant − refund_amount`, la commission celle du bail ou de l'agence (lu, l. 134-206).
+  - mesuré (sonde) : bail à 10 %, plateforme à 5 % → bailleur `net 135000`, agence `net 142500` : l'agence garde 7 500 au lieu de 15 000.
+  - mesuré (sonde) : bail à 0 % → préparation `net 150000` au bailleur ; la plateforme reverse 150 000 − 7 500 = 142 500 pour le seul loyer (`platform_fee_amount 7500` mesuré sur le même loyer à 5 %). L'agence paie donc 7 500 de sa poche par loyer encaissé en ligne. (Le cas mesuré à 0 % portait en plus une pénalité de 7 500 réglée avec le loyer : clôture `gross 157500`, `fee 7875`, `net 149625`.)
+  - Rien ne prévient l'agence quand le taux du bail est inférieur au taux de la plateforme : les règles de `commission_rate` (`StoreLeaseRequest.php:51`, `RenewLeaseRequest.php:38`, `AgencyUpdateRequest.php:63`, `StoreAgencyRequest.php:44`) ne sont que `numeric|min:0|max:100`, et `platform_fee` n'apparaît que dans les requêtes de plans de la console (mesuré, `grep -rn "commission_rate\|platform_fee" app/Http/Requests`).
+  - Établi comment : code lu, sonde par HTTP.
+- Piste : décider (V1, V7) qui porte la commission de la plateforme sur un loyer qu'elle encaisse (l'agence, comme aujourd'hui, ou le bailleur), puis au moins le montrer à la préparation (commission plateforme et net reçu par l'agence, ligne par ligne). Garde : le cas à 0 %.
+
+### Petites améliorations
+- Réf : P178.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Payout/PayoutCalculator.php:140-176`, `takussan-web/src/types/invoice.ts:158-183`, `takussan-api/app/Services/Payout/OwnerStatementService.php:47-89`, `takussan-api/app/Services/Dashboard/CollectedPayments.php:65-79`
+- Constat :
+  - Les lignes de la préparation ne disent pas qui détient l'argent : `compute()` n'émet ni `platform_payout_id`, ni l'intégration qui a soldé, ni le statut du reversement de la plateforme (lu, l. 140-176), et le type front n'en porte pas (lu, `invoice.ts:158-183`). L'agence choisit ses lignes sans savoir lesquelles la plateforme lui doit encore. Voir P141.03, dont le reste (« encaissé par la plateforme » sur le rapprochement) est le même manque sur un autre écran.
+  - Le relevé de gérance compte la pièce comme encaissée et, si elle est reversée, versée, sans dire que l'agence n'a pas reçu l'argent (lu, `OwnerStatementService.php:47-89`) : c'est juste du point de vue du bailleur.
+  - L'« Encaissé » de l'agence (`CollectedPayments::leaseIncome`) compte le loyer soldé par la plateforme : mesuré (sonde) `150000.00`. Aucun tableau de bord ne sert de solde ni de trésorerie qui en serait faussé (`grep -rn "balance\|treasury\|cash_on_hand" app/Services/Dashboard` → le seul docblock de `CollectedPayments.php:13`, « balance âgée », mesuré) : la tuile dit ce que le locataire a payé, non ce que l'agence détient.
+- Piste : émettre sur chaque ligne de la préparation l'état de la plateforme (`held_by_platform`, reversement `pending|approved|paid`) et l'afficher (V7 pour le libellé) ; laisser l'« Encaissé » tel quel, ou le doubler d'un « dont détenu par la plateforme » si le porteur le veut.
