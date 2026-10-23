@@ -1,7 +1,7 @@
 ---
 id: TCK-1814
 title: "Le logo d'agence passe par le loader de `next/image` dans l'annuaire public et les consoles super-admin"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -47,16 +47,16 @@ n'a pas de logo.
 
 ## Delta à produire
 
-- [ ] `ProfileCard.tsx` : le logo (pastille de 56 px) en `next/image`, `sizes="56px"`.
-- [ ] `agency-detail.tsx` (`AgencyDetailHeader`) : le logo (64 px) en `next/image`, `sizes="64px"`.
-- [ ] `AgencyModerationCard.tsx` : `unoptimized` retiré, `sizes="44px"`.
-- [ ] Un test qui rend les trois écrans et refuse un `<img>` dont la source est l'original brut.
+- [x] `ProfileCard.tsx` : le logo (pastille de 56 px) en `next/image`, `sizes="56px"`.
+- [x] `agency-detail.tsx` (`AgencyDetailHeader`) : le logo (64 px) en `next/image`, `sizes="64px"`.
+- [x] `AgencyModerationCard.tsx` : `unoptimized` retiré, `sizes="44px"`.
+- [x] Un test qui rend les trois écrans et refuse un `<img>` dont la source est l'original brut.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Dans chacun des trois écrans, l'image du logo porte un `sizes` et une source passée
+- [x] AC1 — Dans chacun des trois écrans, l'image du logo porte un `sizes` et une source passée
   par le loader (différente de `logo_url`).
-- [ ] AC2 — Sans `logo_url`, le repli (initiales, icône) est inchangé.
+- [x] AC2 — Sans `logo_url`, le repli (initiales, icône) est inchangé.
 
 ## Reste à faire
 
@@ -78,4 +78,9 @@ rendre `logo_url` sur la conversion `preview` du logo, qui ramènerait à 320 px
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Test : `src/components/admin/super/__tests__/logo-par-le-loader.tck-1814.test.tsx`, 4 verts.
+  Ablation : les trois composants remis à leur état d'avant → 3 rouges (`ProfileCard` ne rend
+  aucun `<img>` sous jsdom, `AvatarImage` attendant le chargement de l'original ; les deux écrans
+  super-admin rendent l'original brut, sans `sizes`), remis → 4 verts.
+- Tests existants rejoués : `AgencyModerationCard`, les quatre `agency-detail.*`,
+  `ordre-des-titres`, `status-seed`, `useFormatteurs` — 48 verts.

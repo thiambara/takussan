@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -318,8 +319,15 @@ export function AgencyDetailHeader({ agency }: { agency: AdminAgencyDetail }) {
         <div className="flex min-w-0 items-start gap-4">
           <div className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
             {agency.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={agency.logo_url} alt="" className="size-16 rounded-xl object-cover" />
+              // TCK-1814 (P180.03) — par le loader (ADR-0029 §4) : `logo_url` est l'original.
+              <Image
+                src={agency.logo_url}
+                alt=""
+                width={64}
+                height={64}
+                sizes="64px"
+                className="size-16 rounded-xl object-cover"
+              />
             ) : (
               <Building2 className="size-7" aria-hidden="true" />
             )}
