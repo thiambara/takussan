@@ -17465,7 +17465,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le locataire voit « Soumettre » et l'ajout de photos sur un état des lieux en brouillon, que l'API réserve à qui peut le modifier
 - Réf : P189.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1869
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/inventory/InventoryDetail.tsx:150,227,261,309`, `takussan-api/app/Policies/InventoryPolicy.php:21-55`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:155-158`, `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:30-33`
 - Constat :
@@ -17475,6 +17475,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré.
 - Piste : servir `abilities.update` dans `InventoryResource` (même prédicat que `InventoryPolicy::update`, comme `can_sign_as`) et conditionner « Soumettre » et l'ajout de photos à ce verdict en plus du statut. Test de `InventoryDetail` avec `abilities.update = false` sur un brouillon : ni « Soumettre » ni dépôt de photos.
 - Mesure (2026-10-23, 66ff6bc10, mesureur) : relu `InventoryDetail.tsx:55,150,227,261,309` (`isDraft` et `canSubmit` par le seul statut), `InventoryPolicy::view` (l. 21-34, locataire admis) et `update` (l. 43-55, sans locataire, `landlordWrites`), `InventoryController::submit` (l. 155-157, `authorize('update')`), `UploadRoomPhotosInventoryRequest::authorize` (l. 30-33, `can('update')`), `InventoryResource` (seul `can_sign_as`, aucun `abilities`) ; aucun commit sur ces chemins depuis 1ac04b8ac ; même test temporaire (retiré) : état des lieux `draft` du bail, locataire → `GET` 200 (`abilities` absent), `POST …/submit` **403**, `POST …/room-photos` **403** ; bailleur auteur passé `blocked` → `GET` 200, `submit` **403**, `room-photos` **403** ; témoin non bloqué → `room-photos` 200, `submit` 200 → le constat tient, le dépôt de photos du bailleur bloqué compris. Classement : A1, la règle attendue est écrite dans `InventoryPolicy::update` ; le correctif attendu sert `abilities.update` dans `InventoryResource` (calculé par la policy, comme `can_sign_as`) et conditionne « Soumettre » et l'ajout de photos à ce verdict en plus du statut, sans toucher à la signature ni à la contestation.
+- Mesure (2026-10-23, 8d1a2ba6a, implementeur) : reproduit avant correctif par `tests/Feature/Api/InventoryAbilitiesTest.php` (état des lieux `draft` du bail, bailleur auteur, locataire, puis bailleur passé `blocked`) : `GET /api/inventories/{id}` sans `abilities`, `POST …/submit` **403** au locataire et au bailleur suspendu, la fiche montrant « Soumettre » et le dépôt sur le seul statut → `InventoryResource` sert `abilities.update` (`InventoryPolicy::update`, sous `forViewer()`), et « Soumettre » comme le dépôt et le retrait de photos exigent brouillon **et** ce verdict. Ablation : 1 rouge API, 2 rouges front (`InventoryDetail.pieces.test.tsx`), verts remis ; `InventoryTest`, `InventorySignatureTest`, `InventoryRoomPhotosTest`, `DateInventoryByValueTest` verts.
 
 ### Le bailleur suspendu garde le rôle `owner`, et la fiche du bail lui montre préavis, ajout de garant et lien de paiement, tous refusés en 403
 - Réf : P189.03
