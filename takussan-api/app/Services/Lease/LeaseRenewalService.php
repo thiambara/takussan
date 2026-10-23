@@ -422,15 +422,17 @@ class LeaseRenewalService
         }
     }
 
+    /**
+     * TCK-1804 (P162.07) — un renouvellement encore ouvert arrête le suivant : les baux « en cours »
+     * de `Lease::OPEN_STATUSES` (préavis compris, le loyer y reste dû), plus le brouillon. Sans
+     * `terminating`, un second renouvellement d'un parent `expired` passait pendant le préavis du
+     * premier, et deux baux couraient sur le même bien.
+     */
     protected function guardNoActiveChild(Lease $parent): void
     {
         $activeChild = Lease::query()
             ->where('renewed_from_lease_id', $parent->id)
-            ->whereIn('status', [
-                LeaseStatus::Active->value,
-                LeaseStatus::PendingSignature->value,
-                LeaseStatus::Draft->value,
-            ])
+            ->whereIn('status', [...Lease::OPEN_STATUSES, LeaseStatus::Draft->value])
             ->exists();
 
         if ($activeChild) {
