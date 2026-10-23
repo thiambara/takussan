@@ -1298,7 +1298,7 @@ les lignes sans code. Un contact sans compte (`ContactSansCompte`) ne crée **au
 | `action` | `event` (created, updated, deleted, ou un nom d'acte) |
 | `description` | `description` |
 | `changes` | **`attribute_changes`** (jsonb : `old`, `attributes`) — le détail d'un événement de modèle. Depuis la v5, `properties` ne le porte plus |
-| `ip_address`, `user_agent` | `properties` — le contexte libre écrit par `withProperties()` |
+| `ip_address`, `user_agent` | **aucune** : aucun chemin n'écrit l'IP ni l'agent utilisateur au journal, et l'export ne les annonce plus (TCK-1703). Le contexte libre d'un acte hors modèle va dans `properties`, écrit par `withProperties()` |
 
 `properties` ne porte que ce qu'écrit `withProperties()` : pour un événement `created` ou `updated`
 d'un modèle, il est vide.

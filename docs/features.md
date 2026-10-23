@@ -497,7 +497,7 @@ Une **identité = un User**, qui peut porter plusieurs **profils métier** chez 
 
 #### Onboarding parcours
 
-Cartographie complète des parcours d'entrée dans le système (référence : `docs/superpowers/specs/2026-05-10-onboarding-discovery-design.md`). Tous les parcours d'invitation (Owner, Agent, AgencyAdmin, ServiceProvider, super-admin coopté) reposent sur un **pattern d'invitation unifié** (modèle `Invitation`, token signé, expiry 7j, rappel J+2). Tous les profils traversent la même machine à états `draft → pending → active → suspended | expired | archived`.
+Cartographie complète des parcours d'entrée dans le système (référence : `docs/superpowers/specs/2026-05-10-onboarding-discovery-design.md`). Tous les parcours d'invitation (Owner, Agent, AgencyAdmin, ServiceProvider, super-admin coopté) reposent sur un **pattern d'invitation unifié** (modèle `Invitation`, token signé, expiry 7j, rappel J+2). Les profils n'ont pas une machine à états commune : chacun a la sienne (enums `*ProfileStatus`). L'agent et le bailleur naissent `draft` à l'invitation, passent `active` à l'acceptation, et se suspendent (`suspended` pour l'agent, `blocked` pour le bailleur) ; le prestataire naît `draft` et passe `active` ; l'admin d'agence naît `active` et se suspend (`suspended`). Aucun profil n'a d'état `pending` ni `expired` : c'est l'invitation qui attend et qui expire. `inactive` (agent, bailleur, prestataire), `archived` (admin d'agence) et `suspended` du prestataire existent dans les enums sans qu'aucun chemin ne les pose (TCK-1703).
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
