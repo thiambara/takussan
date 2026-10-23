@@ -173,6 +173,27 @@ class ActivityLogExporterTest extends ApiTestCase
             ->assertJsonValidationErrors(['filter.date_to']);
     }
 
+    /**
+     * P188.02 (TCK-1856) — la borne d'un an se juge sur la plage EXPORTÉE : une borne absente
+     * prend son défaut (`date_to` aujourd'hui, `date_from` trente jours plus tôt), et la plage
+     * résolue est jugée comme si les deux avaient été données.
+     */
+    public function test_la_borne_d_un_an_vaut_aussi_avec_une_seule_borne(): void
+    {
+        $this->apiActingAsRole('agency_admin');
+
+        $this->apiGet('/api/activity-logs/export?format=csv&filter[date_from]=2000-01-01')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.date_from']);
+        $this->apiGet('/api/activity-logs/export?format=csv&filter[date_to]=2099-01-01')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.date_to']);
+
+        // Témoin : une seule borne, dans l'année → l'export est servi.
+        $this->apiGet('/api/activity-logs/export?format=csv&filter[date_from]='.now()->subDays(200)->toDateString())
+            ->assertOk();
+    }
+
     // ─── AC6 — async for > 5000 rows ──────────────────────────────────────────
 
     public function test_large_export_dispatches_job_and_returns_202(): void
