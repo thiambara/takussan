@@ -249,7 +249,7 @@ voie d'écriture (angle 13, puis 47).
 | 172 | Lectures du navigateur faites par `fetch` dans un `useEffect`, hors de TanStack Query (`useWelcomeOnce`, `useTenantWelcomeOnce`, `useAgencyStandardWelcomeOnce`, `MinimalProfileTriggerProvider`, `AuthContext`, `useSimilarProperties`, `usePropertyReviews`, `Navbar`) : ni cache ni dédoublonnage entre lecteurs, aucune relecture à l'invalidation, réponse tardive appliquée après un changement de compte ou de profil actif — né de P136.03 | fait |
 | 173 | Autres fichiers `index.ts` réexportateurs (`components/feedback`, `components/map`, `components/media`, `components/console`, `components/property-form`, `components/customer-form`, `components/floating-dock`) : paquets lourds (carte, téléversement, éditeurs) qu'un écran charge pour un seul composant léger qu'il y prend — le relevé de l'angle 137 hors de `components/forms` | fait |
 | 174 | Lectures serveur `apiRequest` qui ne transmettent pas le profil actif (`activeProfileId` absent : racine `getMe`, `sonderExistence`, `fetchDashboardProperty`, `fetchDashboardCustomer`, `fetchDashboardMe`, `fetchAgencyUpgradeRequests`, `getAccountDeletionRequestAction`, `fetchMyCapabilities`, et leurs pareilles sous `src/lib/queries` et `src/app/actions`) face aux lectures du navigateur, qui le portent : pour un compte présent dans plusieurs agences, rendu serveur sans profil actif (404 ou 403 d'une fiche, liste vide, agence nulle) — né de P138.03 | fait |
-| 175 | Relations vers un `User` supprimé en douceur par la suppression de compte (`causer`, `author`, `sender`, `issued_by`, `collector`, `handler`, `landlord` : portée `SoftDeletes` d'un `belongsTo` ou `morphTo` nu) lues dans les listes, les exports, les PDF et les notifications : auteur rendu « système », vide, ou 500 là où la ligne reste lisible — le pendant pour le compte des angles 130 et 165, né de P139.01 | à faire |
+| 175 | Relations vers un `User` supprimé en douceur par la suppression de compte (`causer`, `author`, `sender`, `issued_by`, `collector`, `handler`, `landlord` : portée `SoftDeletes` d'un `belongsTo` ou `morphTo` nu) lues dans les listes, les exports, les PDF et les notifications : auteur rendu « système », vide, ou 500 là où la ligne reste lisible — le pendant pour le compte des angles 130 et 165, né de P139.01 | fait |
 | 176 | Rôles lus toutes agences confondues par `profileTypes()` là où l'écran montre le rôle dans une agence donnée (`AgencyDetailController.php:184` de la console, `UserRoleController.php:90`, `UserResource.php:90` rendu dans les listes d'équipe, ciblage par rôle de `AnnouncementResolver` et `FeatureFlagEvaluator`) : rôle d'une autre agence affiché ou appliqué — né de P139.02 | à faire |
 | 177 | Relevés de gérance d'une période close recalculés à chaque lecture (`OwnerStatementController`, `OwnerStatementService`, PDF `pdf/statements/owner`, avis mensuel `SendOwnerStatements`) face aux remboursements, annulations, rapprochements et reversements écrits après la clôture : relevé envoyé au bailleur que plus rien ne reproduit — le pendant des relevés de l'angle 140 | à faire |
 | 178 | Loyers et acomptes encaissés par la plateforme et pas encore reversés, comptés comme argent de l'agence (`PayoutCalculator` et la préparation des reversements au bailleur, `CollectedPayments` et tableaux de bord, relevé de gérance `OwnerStatementService`) : reversement au bailleur d'un argent que la plateforme détient encore, ou qu'elle a rendu — né de P141.01 | à faire |
@@ -278,6 +278,7 @@ voie d'écriture (angle 13, puis 47).
 | 201 | Gestes à usage unique jugés par une lecture d'éligibilité faite une fois au montage (avis d'agence, d'agent et de prestataire hors de la fiche de bien, signalement `report` d'un bien ou d'un avis, demande de contact, candidature, inscription à une alerte) : après l'envoi réussi, formulaire réaffiché et second envoi en 422 — né de P172.02 | à faire |
 | 202 | Gestes qui changent ce que rend `/api/auth/me` (rôles, profils, agence, téléphone, e-mail vérifié, second facteur, intention) suivis du seul `router.refresh()` sans `refreshUser()` : `AuthProvider` garde l'utilisateur de son premier rendu (`useState(initialUser)`, `AuthContext.tsx:80`) et ignore le nouvel `initialUser` de la mise en page racine, si bien que menus, gardes et lectures du navigateur jugent l'ancien état — né de l'angle 172 | à faire |
 | 203 | Code hors requête HTTP qui lit l'agence d'un compte par `$user->agency_id` ou `$notifiable->agency_id` (`SmsChannel.php:115`, `WhatsappChannel.php:262`, `SendSmsAfterLateWhatsappFailureJob.php:105`, et leurs pareils dans les jobs, écouteurs et commandes) : sans requête, pas de profil actif, et l'accesseur rend `null` pour un compte présent dans plusieurs agences — envoi rattaché à aucune agence, ou à la mauvaise, pour le quota, le fournisseur et le journal — né de P174.01 | à faire |
+| 204 | Comptes d'agent ou de prestataire effacés par `AccountDeletionService` sans passer par le retrait d'agence : tâches (`assigned_to_id`), interventions (`assigned_to`), demandes de contact (`handled_by_id`, `recipient_user_id`), baux (`agent_id`) et collaborations de bien laissés au compte effacé, que `AgentHandoverService::move` sait déplacer mais dont la passation rend 404 (liaison de route sous `SoftDeletes`) : travail à son nom que personne ne reprend — né de P175.02 | à faire |
 
 ---
 
@@ -16256,3 +16257,82 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Établi comment : appel lu, effet API mesuré. Le formulaire n'a pas été rendu.
 - Piste : la même que P174.02 (indice posé par défaut côté serveur), qui couvre lectures et écritures. Garde : un test d'action qui vérifie l'en-tête sur `createProperty`, et un test API d'un agent de deux agences qui crée avec et sans indice.
 - Mesure (2026-10-23, 5932bac2b, mesureur) : relu `properties-server.ts:174-183` (`createProperty` poste avec `{ token }` seul), `dashboard-properties.ts:83-95` (`createPropertyAction` passe le seul jeton de `requireToken`), `PropertyController.php:106-116` (`agency_id` pris à `$request->user()->agency_id`, inchangé) ; le test temporaire de P174.01 → `POST /api/properties` à corps vide : 403 `http.forbidden` sans indice, 422 de validation avec, donc l'autorisation passe avec l'indice ; la création complète (201, bien rangé dans A) n'a pas été rejouée, ni l'effet des 22 autres modules d'actions. Classement : V2, même correctif que P174.02, qui change le profil sous lequel les écritures sont autorisées et l'agence où elles se rangent.
+
+## Angle 175 — Relations vers un compte supprimé en douceur par la suppression de compte
+
+*Exploré le 2026-10-23 sur `pre-dev` a92368d50, par l'explorateur, sans sous-agent. Relu par
+l'explorateur lui-même : `AccountDeletionService` (`anonymize`, `collectOpenObligations`,
+`endProfiles`), l'inventaire des 105 `belongsTo(User::class)` de `app/Models` (aucun en
+`withTrashed()`), les lectures `->relation->champ` de ces relations dans `app/Http/Resources`,
+`app/Http/Controllers`, `app/Notifications`, `app/Services/Export` et `resources/views/pdf`,
+`GuarantorPolicy`, `GuarantorController::index`, `PropertyVisit::getAllowedQueryFilters`,
+`AgentHandoverController`, `OwnerStatementRequest`, `PayoutPreparationController`,
+`MessageResource`, `ConversationResource`, `ReviewResource`, et côté front `VisitDetail.tsx`,
+`VisitsList.tsx`, `ChatView.tsx`. Aucune lecture nue qui rendrait 500 n'a été trouvée : les
+ressources passent par `whenLoaded` (qui rend `null` sans appeler la fermeture quand la relation
+chargée est nulle) ou par un `?->`, les gabarits PDF par `?? '—'`. Le nom vide d'un compte effacé
+est voulu (`anonymize()` écrit `first_name` et `last_name` à `''`) : il n'est pas relevé. Les défauts
+trouvés sont ailleurs : des décisions prises sur la relation nulle. Mesures par un test temporaire
+(retiré), charge 2,65 / 3,39 / 3,21 sur 8 cœurs. La part de commission d'un agent effacé suit la
+règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.*
+
+### Une caution ajoutée par un agent qui efface son compte n'est plus lisible ni modifiable par personne dans l'agence
+- Réf : P175.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/GuarantorPolicy.php:25-33,57-75`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:22-24`, `takussan-api/app/Services/Account/AccountDeletionService.php:404,584-605`
+- Constat :
+  - `view` (donc `update` et `delete`) n'accepte, hors super-admin et auteur, que le personnel de l'agence lue par `$model->addedBy->agency_id`, et rien si `addedBy` est nul (lu, l. 31-33). `viewSensitive` passe par `agencyOf()`, qui lit le même `addedBy?->agency_id` (lu, l. 57-75). La caution n'a pas de colonne `agency_id` : son agence n'existe que par son auteur (lu, docblock l. 18-20).
+  - La suppression de compte supprime le compte en douceur, et `endProfiles()` supprime aussi ses profils (lu, l. 404 et 584-605). Après elle, `addedBy` rend `null` par la portée `SoftDeletes`.
+  - Mesuré (test temporaire, retiré) : un agent ajoute une caution, un collègue la lit (`GET /api/guarantors/{id}` → 200) ; l'agent est effacé par `anonymize()` ; le collègue → **403**, l'admin de l'agence → **403** en `GET` comme en `PUT`.
+  - La liste ne la rend qu'à son auteur (`where('added_by_id', $user->id)`, lu, `GuarantorController.php:22-24`) : personne dans l'agence ne la voit plus, alors qu'elle reste attachée à ses baux.
+  - À vérifier : le même effet pour un agent seulement retiré de l'agence, ses profils supprimés rendant `agency_id` nul même sans effacement du compte.
+- Piste : rattacher la caution à une agence qui ne dépend pas de la vie de son auteur (l'agence des baux auxquels elle est attachée, ou une colonne `agency_id` posée à la création, V4), et juger `view` et `agencyOf()` par elle. Garde : un test de policy où l'auteur est effacé, puis où il est retiré, qui exige 200 pour le personnel de l'agence.
+
+### La visite d'un agent qui efface son compte reste à son nom : ni « non attribuée », ni reprise par la passation
+- Réf : P175.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Account/AccountDeletionService.php:265-272,448-546`, `takussan-api/app/Models/PropertyVisit.php:93-97`, `takussan-api/app/Http/Controllers/Api/Agency/AgentHandoverController.php` (`show`, `store`), `takussan-web/src/components/visits/VisitDetail.tsx:122-123,261-268`, `takussan-web/src/components/visits/VisitsList.tsx:183`
+- Constat :
+  - `anonymize()` remet à `null` le `visitor_id` des visites du compte (lu, l. 265-272), jamais leur `agent_id`. `collectOpenObligations()` ne lit pas les visites dont le compte est l'agent (lu, l. 448-546) : l'effacement n'est pas refusé.
+  - Le filtre `filter[unassigned]=1` est `whereNull('agent_id')` (lu, `PropertyVisit.php:93-97`).
+  - Mesuré (test temporaire, retiré) : visite `scheduled` dans trois jours, agent effacé par `anonymize()` (ses obligations : `[]`). Un collègue : `GET /api/property-visits?filter[unassigned]=1` → `[]` ; `GET /api/property-visits/{id}?include=agent` → 200, `agent_id` = l'agent effacé, `agent: null`. L'admin : `POST /api/agencies/{a}/members/{agent}/handover` → **404** `http.not_found` (liaison de route sous la portée).
+  - Le front n'offre la prise en charge et le badge « non attribuée » que pour `agent_id == null` (lu, `VisitDetail.tsx:122-123`, `VisitsList.tsx:183`) et n'affiche la ligne « Accompagnement » que si `visit.agent` est chargé (lu, l. 261-268). La visite paraît donc sans agent, sans être offerte à personne.
+  - `POST …/claim` par un collègue qui tient `crm.assign` rend 200 (mesuré) : seul ce geste, que l'écran ne montre pas, la récupère.
+  - À vérifier : le même reste pour les tâches (`assigned_to_id`), interventions (`assigned_to`), demandes de contact (`handled_by_id`, `recipient_user_id`) et baux (`agent_id`), que `AgentHandoverService::move` sait déplacer au retrait d'un membre (lu, l. 244-259) et que l'effacement ne touche pas (lu : aucune de ces tables dans `AccountDeletionService.php`).
+- Piste : à l'effacement, remettre à `null` l'`agent_id` des visites à venir de l'agent, comme le `visitor_id`, pour qu'elles retombent dans « non attribuées » ; ou refuser l'effacement tant qu'il en porte (une obligation de plus dans `collectOpenObligations`). Garde : un test d'effacement qui exige la visite dans `filter[unassigned]=1`.
+
+### Le bailleur qui efface son compte n'a plus ni relevé de gérance ni préparation de reversement, et rien ne l'empêche d'effacer
+- Réf : P175.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/OwnerStatementRequest.php:17-24,36-39`, `takussan-api/app/Http/Controllers/Api/PayoutPreparationController.php:27`, `takussan-api/app/Http/Controllers/Api/PayoutController.php:53`, `takussan-api/app/Services/Account/AccountDeletionService.php:448-546`
+- Constat :
+  - `collectOpenObligations()` ne lit côté bailleur que ses baux ouverts (lu, l. 452-466) : ni `payouts` en attente, ni loyers encaissés par l'agence et pas encore reversés.
+  - `OwnerStatementRequest::landlord()` relit le bailleur par `User::query()->find()` et `authorize()` refuse s'il est nul (lu, l. 17-24, 36-39). Les deux routes de reversement passent par `findOrFail()` (lu).
+  - Mesuré (test temporaire, retiré) : bailleur à bail `terminated`, obligations `[]` ; avant effacement, `GET /api/owner-statements?period=2026-09&landlord_id=…` en admin → 200 ; après `anonymize()` → **403** ; `GET /api/payouts/preparation?landlord_id=…` → **404** `http.not_found`.
+  - P96.02 laisse ce cas en reste, avec une hypothèse : « `collectOpenObligations` bloque peut-être l'effacement tant qu'un reversement est dû ». Elle ne tient pas : la méthode ne lit aucun reversement (lu).
+  - L'agence perd donc le relevé d'une période passée de ce bailleur, et ne peut plus lui préparer ce qu'elle lui doit.
+- Piste : décider (V1, V3) entre refuser l'effacement tant qu'un montant reste dû au bailleur (une obligation `payout_due`) et garder le relevé et le reversement lisibles pour un compte effacé (`withTrashed()` dans ces trois lectures). Garde : le test ci-dessus, avec un loyer encaissé et non reversé.
+
+### Le fil de discussion n'affiche jamais le nom de l'auteur d'un message : l'API n'émet pas `sender`
+- Réf : P175.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Resources/MessageResource.php:12-27`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:285-310`, `takussan-web/src/components/messages/ChatView.tsx:411-415`, `takussan-web/src/types/message.ts:68-80`
+- Constat :
+  - `MessageResource` rend `sender_id`, jamais `sender` (lu, l. 14-26). Les messages du fil passent par elle (lu, `ConversationController.php:291,309`), et l'événement `NewMessage` n'est déclenché nulle part (mesuré : `grep -rn "new NewMessage\|NewMessage::dispatch" app` → rien).
+  - `ChatView` n'écrit le nom de l'auteur au-dessus d'un message reçu que si `message.sender` est présent (lu, l. 411-415). Le type du front le déclare facultatif (lu, `types/message.ts:75`).
+  - Dans un groupe (intervention, bail, agence), aucun message ne dit donc qui l'a écrit. Constat né de la relation `sender` de l'angle ; il ne dépend pas de l'effacement. La famille « clés de réponse que le front lit » est celle de l'angle 45, qui ne l'a pas relevé.
+- Piste : rendre `sender: { id, full_name }` (nul pour un compte effacé, `full_name` vide) en chargeant `sender` dans les deux lectures de `ConversationController` ; côté front, garder le repli quand `sender` est nul. Garde : un test de `GET /api/conversations/{id}/messages` qui exige `data.0.sender.full_name`.
+
+### Petites améliorations
+- Réf : P175.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Resources/ReviewResource.php:16-20`, `takussan-api/app/Listeners/Maintenance/SyncMaintenanceConversation.php:91-103`
+- Constat :
+  - `ReviewResource` rend `author.name` = `'Anonyme'` en dur, en français, pour un auteur effacé ou sans nom (lu, l. 18-20) : un libellé émis par l'API, que le lecteur anglais lit tel quel (principe 5 de `CLAUDE.md`). Il lit aussi `$this->resource->author` sans `whenLoaded` (lu, l. 16) : une requête par avis quand la liste ne charge pas l'auteur (à vérifier sur les lectures qui l'utilisent).
+  - `swapProvider()` relit le prestataire sortant par `User::query()->find()` (lu, l. 93) : effacé, il est introuvable et n'est pas retiré du fil de l'intervention (l. 97-102). Sans effet visible tant qu'un compte effacé ne se connecte plus (à vérifier : sa ligne de participant reste active).
+- Piste : rendre `author.name` nul et laisser le front écrire « Anonyme » par une clé i18n, charger `author` par `whenLoaded` ; relire le sortant par `User::withTrashed()` dans `swapProvider()`.
