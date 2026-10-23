@@ -18188,7 +18188,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### « En retard » d'une tâche : avant maintenant au tableau de bord et à la performance d'équipe, avant ce matin dans la liste
 - Réf : P198.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:125-138`, `takussan-api/app/Services/Reporting/TeamPerformanceService.php:107-112`, `takussan-api/app/Models/Task.php:121-129`, `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:87-92,117-122`, `takussan-web/src/components/dashboard/DashboardMeKpis.tsx:101-110`
 - Constat :
@@ -18197,10 +18197,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Le même tableau compte « Tâches du jour » sur les tâches ouvertes de `[début du jour, lendemain[` (lu, `DashboardAgentService.php:132-138`) : une tâche due à 09:00, regardée à 14:00, est comptée à la fois « en retard » (sous « Tâches ouvertes ») et « du jour » (lien `filter[due]=today`, lu, `page.tsx:117-122`), et n'apparaît pas sous le filtre « En retard » de la liste.
   - Établi comment : lu.
 - Piste : une seule définition (« échue avant aujourd'hui », celle de la liste et des échéances de loyer, `scopeOverdue`), portée par une portée `Task::scopeOverdue()` que lisent la liste, le tableau de bord et la performance d'équipe. Test : une tâche ouverte due aujourd'hui à une heure passée n'est pas comptée en retard, et compte dans « du jour ».
+- Mesure (2026-10-23, 8d90a4c66, mesureur) : relu `DashboardAgentService.php:125-138` (`$overdueTasks` : `due_at < now()` ; « du jour » : `[DayRange::start(today()), DayRange::after(today())[`), `TeamPerformanceService.php:107-112` (`tasks_overdue` : `due_at < now()`), `Task.php:118-134` (`filter[due]=overdue` : `due_at <` début du jour `Africa/Dakar`, statuts `OPEN_STATUSES`), `overview/agent/page.tsx:91,120` (indice « en retard », lien `filter[due]=today&filter[assigned_to]=me`) ; `git log -S "'due_at', '<', now()"` → seuls TCK-032 et TCK-595, aucun correctif → le constat tient tel qu'écrit : une tâche ouverte échue ce matin compte « en retard » et « du jour » au tableau de bord, et n'apparaît que sous « aujourd'hui » dans la liste. Classement : A1, TCK-591 écrit « trois temps lisibles d'un coup d'œil (en retard, aujourd'hui, à venir) » et son AC7 fixe « en retard » = échue avant le jour dans le fuseau de l'agence ; correctif sans choix : une portée `Task::scopeOverdue()` reprenant la branche `overdue` du filtre, lue par la liste, `DashboardAgentService` et `TeamPerformanceService`, avec le test d'une tâche due aujourd'hui à une heure passée.
 
 ### « Revenu 30 jours » de la santé d'agence compte dépôts de garantie, restitutions et lignes supprimées, hors de la règle de l'*Encaissé*
 - Réf : P198.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : le revenu et le compte de transactions de la santé d'agence sont des montants
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:62-160`, `takussan-api/app/Services/Dashboard/CollectedPayments.php:70-90`, `docs/adr/0057-instantanes-quotidiens-des-metriques-plateforme.md:46-51`, `takussan-web/src/components/admin/super/agency-detail.tsx:477-480,573-574`
 - Constat :
@@ -18211,10 +18212,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Mesuré : `tinker` en lecture, échéances payées des 30 derniers jours par type → `rent` seul (255 lignes, aucune supprimée) : l'écart n'existe pas sur la base de dev, il est lu.
   - Établi comment : lu.
 - Piste : faire lire à la santé d'agence `CollectedPayments::leaseIncome()` / `bookingIncome()` avec `LEASE_NET_SQL` / `BOOKING_NET_SQL` bornés par l'agence et `paid_at`, et les portées Eloquent pour les comptes (suppression douce comprise). Test : un dépôt, une restitution et une ligne supprimée payés dans la fenêtre ne changent ni le revenu ni le compte de transactions.
+- Mesure (2026-10-23, 8d90a4c66, mesureur) : relu `AgencyDetailController.php:60-160` (`DB::selectOne` brut : `revenue_30d` somme `bp.amount` et `lp.amount` des lignes `paid` sans condition de `payment_type` ni `refund_amount`, aucune sous-requête ne pose `deleted_at IS NULL`), ADR-0057 l. 46-51 (« Encaissé » : `rent | charges | regularization | penalty` + réservations nettes, « jamais `deposit` ni `deposit_refund` ») et `CollectedPayments.php:53-81` (`LEASE_NET_SQL`, `BOOKING_NET_SQL`, `leaseIncome()`, `bookingIncome()`) → le constat tient tel qu'écrit ; non rendu sur la base de dev (aucun dépôt payé dans la fenêtre, relevé de l'explorateur). Classement : V1, la règle est écrite (ADR-0057) mais le correctif change le calcul d'un montant affiché.
 
 ### « Publiés » dans l'espace d'agence : le prédicat du catalogue sur l'accueil, `visibility=public` sur la page des biens
 - Réf : P198.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la piste hésite entre un filtre neuf qui exprime `public()` et renommer la tuile
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:40-56`, `takussan-api/app/Models/Property.php:589-612`, `takussan-web/src/components/dashboard/admin/AgencyKpis.tsx:40-44`, `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:101-128,163-170,214`
 - Constat :
@@ -18225,10 +18227,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - P167.07 relève le même mot entre la console et le reste du code ; cette entrée porte sur les deux écrans de l'agence, qui n'y sont pas tranchés.
   - Établi comment : lu, et mesuré en lecture sur la base de développement.
 - Piste : faire compter à la tuile et à son lien la règle de l'accueil (un filtre de liste qui exprime `public()`, par exemple `filter[published]=1`), ou la renommer pour dire ce qu'elle compte (« Visibles publiquement ») ; l'avertissement suit la règle du catalogue. Test : un bien `rented` public n'est compté « publié » ni sur l'accueil ni sur la tuile.
+- Mesure (2026-10-23, 8d90a4c66, mesureur) : relu `DashboardAgencyService.php:41-57` (`published` = `Property::public()`, TCK-1115), `properties/(liste)/page.tsx:100-128` (tuile « Publiés » = `countProperties` sur `filter: { visibility: 'public' }`), `:163-170` (lien `visibility=public`), `:214` (`annoncesEnLigne={publishedCount}`) et `AgencyKpis.tsx:43` (`publishedHint`) → le constat tient tel qu'écrit ; les comptes `tinker` de l'explorateur (203 contre 67 pour l'agence 1) non rejoués. Classement : V7, deux options visibles (compter la règle du catalogue par un filtre neuf, ou renommer la tuile), et l'avertissement de numéro non vérifié en dépend.
 
 ### « Biens gérés » : hors archivés et vendus pour l'agent, tous statuts dans la performance d'équipe et le total de l'agence
 - Réf : P198.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la définition du portefeuille reste à écrire, et la piste laisse décider si le total de l'agence suit
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:54-60`, `takussan-api/app/Services/Reporting/TeamPerformanceService.php:83-102,128`, `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:46-50`, `takussan-api/app/Http/Controllers/Api/AgencyStatsController.php:33`, `takussan-web/src/components/admin/team/TeamPerformanceTable.tsx:17-25`, `takussan-web/src/components/dashboard/DashboardMeKpis.tsx:104`
 - Constat :
@@ -18237,10 +18240,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - De même, le « Biens » de l'accueil d'agence (`properties.total`, `COUNT(*)`, lu, `DashboardAgencyService.php:46-50`) et `properties_count` de `GET /api/agencies/{id}/stats` (lu, `AgencyStatsController.php:33`) comptent tous les statuts, alors que « Biens de l'agence » de l'accueil agent en portée agence (même `DashboardAgentService`) les écarte.
   - Établi comment : lu.
 - Piste : appliquer `OUT_OF_PORTFOLIO_STATUSES` à la performance d'équipe, et décider si le total de l'agence suit (TCK-1359 a laissé la définition du portefeuille à écrire dans `docs/features.md`, reste de P127.04). Test : un bien `sold` et un `archived` d'un agent ne comptent ni dans son accueil ni dans sa ligne de performance.
+- Mesure (2026-10-23, 8d90a4c66, mesureur) : relu `DashboardAgentService.php:54-60` (`$propertiesManaged` hors `Property::OUT_OF_PORTFOLIO_STATUSES`), `TeamPerformanceService.php:83-102` (`$owned` et `$collaborated` sans condition de statut), `DashboardAgencyService.php:47-50` (`COUNT(*) AS total`) et `AgencyStatsController.php:33` (`Property::where('agency_id')->count()`) ; `grep -rn OUT_OF_PORTFOLIO app` → `Property.php:222`, `DashboardOwnerService.php:42`, `DashboardAgentService.php:59` seuls → le constat tient tel qu'écrit. Classement : V7, la colonne de performance pourrait suivre TCK-1359, mais le total d'agence et `properties_count` demandent la définition du portefeuille que TCK-1359 a laissée à `docs/features.md`, que la piste dit « à décider ».
 
 ### « En retard » de la supervision des paiements compte les restitutions de caution que la fiche dit à l'heure, et les baux supprimés
 - Réf : P198.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la piste hésite entre écarter les restitutions de `scopeOverdue` et les montrer dans la supervision sous un autre motif
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/PaymentSupervisionService.php:124-128,138-144`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:190-213`, `takussan-api/app/Models/LeasePayment.php:88-105`, `takussan-api/app/Services/Lease/DepositRefundService.php:90-100`
 - Constat :
@@ -18250,13 +18254,15 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - `leaseBase` joint `leases` sans `l.deleted_at IS NULL` (lu, l. 140-142) : une échéance d'un bail supprimé reste listée, ce que les impayés des tableaux de bord écartent (`whereNull('leases.deleted_at')`, lu, `PortfolioMetrics.php:329-333`).
   - Établi comment : lu.
 - Piste : faire porter l'exclusion des restitutions par `scopeOverdue` lui-même (la règle de `isOverdue`), ou par la supervision si une restitution en souffrance doit y paraître sous un autre motif ; joindre les baux non supprimés. Test : une restitution `pending` échue n'est pas « en retard » dans la supervision.
+- Mesure (2026-10-23, 8d90a4c66, mesureur) : relu `PaymentSupervisionService.php:42-73,124-144` (`list` sans filtre de fournisseur par défaut ; `lateLeasePayments` lit `LeasePayment::overdue()` ; `leaseBase` joint `leases` sans `l.deleted_at IS NULL`), `HasPaymentAttributes.php:196-213` (`scopeOverdue` sans condition de `payment_type`) et `LeasePayment.php:88-105` (`isOverdue()` faux pour `DepositRefund`) ; test temporaire (`LeasePayment::factory()` : une restitution `pending` échue de 2 jours, un loyer `pending` échu dont le bail est supprimé, puis `PaymentSupervisionService::list(['status' => 'late'], …)`), charge 2,93 sur 8 cœurs, retiré ensuite → `isOverdue()` faux pour la restitution, et la liste rend les deux lignes : le « à vérifier » tient ; la partie « bail supprimé » ne se produit par aucun chemin de l'application (`grep -rnE` des `delete()` sur `Lease` dans `app/` → aucun, aucune route `DELETE leases/{lease}`). Classement : V7, la piste offre deux comportements visibles pour une restitution en souffrance, et changer `scopeOverdue` touche toute lecture des retards.
 
 ### Petites améliorations : impayés du locataire et suppression douce du bail
 - Réf : P198.06
-- Statut : à mesurer
+- Statut : caduc — aucun chemin de l'application ne supprime un bail : l'échéance d'un bail supprimé que l'accueil du locataire compterait ne peut pas naître
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Dashboard/DashboardTenantService.php:37,81-85`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:327-339`
 - Constat :
   - L'accueil du locataire compte ses impayés et sa prochaine échéance sur `leaseOwed()` filtré par `payer_id`, sans jointure au bail (lu, `DashboardTenantService.php:37,81-85`) ; le bailleur et l'agence écartent les échéances d'un bail supprimé (`whereNull('leases.deleted_at')`, lu, `PortfolioMetrics.php:329-333`). Une échéance d'un bail supprimé reste « en retard » chez le locataire seul (à vérifier : ce qu'il advient des échéances quand un bail est supprimé).
   - Établi comment : lu.
 - Piste : la même jointure au bail non supprimé que `PortfolioMetrics::overdue`, ou une portée partagée « échéances dues d'un bail vivant ». Test : un bail supprimé ne laisse aucun impayé à l'accueil du locataire.
+- Mesure (2026-10-23, 8d90a4c66, mesureur) : relu `DashboardTenantService.php:33-85` (`leaseOwed()` filtré par `payer_id`, sans jointure au bail, inchangé) ; vérifié ce qu'il advient d'un bail supprimé : `routes/api/leases.php` n'a aucune route `DELETE leases/{lease}`, `LeaseObserver` n'a que `updated`, et `grep -rnE "leases\(\)->(delete|each)|\$lease\??->delete|Lease::destroy" app` → rien, aucun service (vie privée compris) ne supprime de bail → l'écart de jointure est réel dans le code mais sans aucune donnée qui l'atteigne. Classement : aucun critère, le défaut décrit ne peut pas se produire sur l'arbre mesuré ; à rouvrir si une suppression de bail apparaît.
