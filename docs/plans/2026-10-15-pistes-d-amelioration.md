@@ -17691,7 +17691,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### La réinitialisation du mot de passe répond en anglais à un utilisateur francophone ou wolophone, et le front affiche ce message
 - Réf : P192.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux voies (code stable traduit par le front, ou `passwords.php` traduit côté API) et un texte d'écran à choisir
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Auth/PasswordResetController.php:48-52`, `takussan-api/lang/{fr,en,wo}/` (aucun `passwords.php`), `takussan-api/config/app.php:85`, `takussan-web/src/app/(auth)/auth/reset-password/page.tsx:53-59`
 - Constat :
@@ -17703,10 +17703,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Aucun test ne lit le texte de ces réponses (mesuré : `grep -rn "passwords\." tests` → rien).
   - Établi comment : lu, puis mesuré par script et par requête.
 - Piste : rendre un code stable plutôt qu'une phrase (`abort_code` sur `errors.password_reset.<token|user|throttled>`, ou un `code` à côté du message), et faire traduire l'écran par `auth.resetPassword.*` selon le principe n° 5. À défaut, ajouter `lang/{fr,en,wo}/passwords.php` (texte français tel quel en `wo`). Garde : un test qui rejoue le jeton faux sous `fr` et refuse le texte anglais du cadriciel, et une ligne de `LangGroupParityTest` qui exige les groupes que le cadriciel lit (`auth`, `passwords`, `validation`, `pagination`) dans les trois langues.
+- Mesure (2026-10-23, e4e646dee, mesureur) : relu `PasswordResetController::resetPassword` (`__($status)` en 200 comme en 422, inchangé, désormais l. 48-52 du `if`), `ls lang/{fr,en,wo}` (aucun `passwords.php`), `config/app.php:85` (`fallback_locale` = `en`), `reset-password/page.tsx` (un 422 sans `errors` → `setGlobalError(err.data.message …)`), `grep -rn "passwords\." tests` → rien, `git log` du contrôleur et de `lang/` → aucun correctif ; test temporaire `tests/Feature/TmpMesureur/Sonde192Test.php` (retiré, charge 2,30 / 1,89 / 1,73 sur 8 cœurs) : `POST /api/auth/reset-password` jeton faux sous `Accept-Language: fr`, `en`, `wo` → 422 `{"message":"This password reset token is invalid."}` les trois fois ; `Lang::hasForLocale('passwords.<reset|token|user|throttled|sent>', fr|wo)` → faux pour les cinq, `__()` rend l'anglais du cadriciel → le constat tient. Classement : V7, la piste offre deux voies (contrat de réponse à code stable avec textes neufs d'écran, ou fichiers `passwords.php` traduits côté API), et le choix revient au porteur.
 
 ### Un bien en revue ou refusé n'a pas de libellé de statut, et la fiche d'agence de la console super-admin affiche `pending_review` en clair
 - Réf : P192.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/lang/{fr,en,wo}/properties.php:32-42`, `takussan-api/app/Models/Enums/PropertyStatus.php:16-17`, `takussan-api/app/Http/Resources/Bases/BaseResource.php:88-97`, `takussan-api/app/Http/Resources/PropertyResource.php:107`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:202-226`, `takussan-web/src/components/admin/super/agency-detail.tsx:549`, `takussan-web/src/types/property.ts:199`
 - Constat :
@@ -17717,10 +17718,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Le type du front déclare `status_label: string`, jamais nul (lu, `types/property.ts:199`).
   - Établi comment : lu, puis mesuré par script et par requête.
 - Piste : ajouter `pending_review` et `rejected` à `properties.status` dans `fr` et `en` (texte français tel quel en `wo`), en reprenant les libellés de `property.status` du front ; ou, selon le principe n° 5, faire traduire l'onglet par `property.status.<code>` comme le fait déjà `SuperAdminPropertiesTable.tsx:227`. Typer `status_label` en `string | null`. Garde : voir P192.03.
+- Mesure (2026-10-23, e4e646dee, mesureur) : relu `PropertyStatus` (onze cas, `pending_review` et `rejected` l. 16-17), `lang/fr/properties.php` `status` (neuf clés, sans ces deux-là), `BaseResource::enumLabel` (rend `null` quand la clé manque), `PropertyResource.php:107`, `AgencyDetailController::properties` (toujours sans filtre de statut), `agency-detail.tsx:549` (`status_label ?? status`), `types/property.ts:199` (`status_label: string`) ; test temporaire `Sonde192Test` (retiré, même charge) : super-admin, `Accept-Language: fr`, `GET /api/admin/agencies/{id}/properties` → `available` « Disponible », `pending_review` et `rejected` → `status_label` `null` ; `Lang::hasForLocale('properties.status.<cas>')` sur les onze cas → seuls `pending_review` et `rejected` manquent, en `fr`, `en` et `wo` ; `node -e` sur les messages du front → `property.status.pending_review` « En revue » / « In review », `rejected` « Refusé » / « Rejected » → le constat tient. Classement : A4, deux clés manquantes dont les libellés existent déjà au front, sans texte de produit neuf.
 
 ### Aucune garde ne compare les cas d'un enum aux clés que l'API bâtit sur lui, et les replis silencieux cachent le manque
 - Réf : P192.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/tests/Unit/Lang/LangGroupParityTest.php:82-170`, `takussan-api/app/Http/Resources/Bases/BaseResource.php:88-97`, `takussan-api/app/Notifications/ThresholdAlertTriggered.php:79-82`, `takussan-api/app/Notifications/ReportExportReadyNotification.php:31-32`, `takussan-api/app/Services/Notifications/NotificationRenderer.php:186-195`, `takussan-api/app/Http/Resources/Accounting/BankStatementResource.php:26`, `BankStatementLineResource.php:36`, `takussan-api/app/Services/Messaging/SystemMessageFactory.php:149`, `takussan-api/resources/views/emails/notifications/notification-digest.blade.php:8`
 - Constat :
@@ -17729,10 +17731,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Mais leurs replis diffèrent et se taisent : `enumLabel()` rend `null` ; `ThresholdAlertTriggered::libelle()`, `ReportExportReadyNotification` et `NotificationRenderer::role()` rendent le code tel quel (lu) ; `BankStatementResource`, `BankStatementLineResource`, `SystemMessageFactory` et le résumé quotidien n'en ont pas et rendraient la clé brute (lu).
   - Établi comment : lu, mesuré par script.
 - Piste : un test qui déclare, pour chaque clé bâtie sur une valeur, la source de ses valeurs (enum, constante, liste de la règle `in:`), et exige la clé dans `fr`, `en` et `wo` pour chacune ; il rougit aujourd'hui sur `properties.status.pending_review` et `rejected` (P192.02). Une table en tête du test, plutôt qu'une découverte automatique, pour qu'une clé bâtie neuve s'y ajoute à la revue.
+- Mesure (2026-10-23, e4e646dee, mesureur) : relu `LangGroupParityTest` (quatre méthodes, l. 82, 92, 122, 148 : fichiers, parité de clés, codes de notification, codes d'erreur littéraux ; aucun groupe comparé à un enum) ; `grep -rlE "::cases\(\)" tests | xargs grep -lE "Lang::|__\(|trans\("` → `PropertyLabelsTest`, `ConversationTest`, `LeaseContextExistenceOracleTest`, `SearchWolofReviewSheetTest`, aucun ne compare les cas d'un enum à un groupe de libellés ; relu les replis cités (`ThresholdAlertTriggered::libelle` rend le code, `BankStatementResource.php:26`, `BankStatementLineResource.php:36`, `SystemMessageFactory.php:149`, `notification-digest.blade.php:8` sans repli) ; le manque que la garde attraperait est mesuré en P192.02 (`properties.status.pending_review` et `rejected` absents des trois langues) → le constat tient. Classement : A5, test ajouté sans seuil ; il rougit tant que P192.02 n'est pas fait, les deux se prennent ensemble.
 
 ### L'état des lieux imprime son état général, l'état de chaque pièce et son statut par leur code anglais (voir P26.06)
 - Réf : P192.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : libellés des enums des actes laissés au porteur par le reste de P26.06
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/resources/views/pdf/inventories/report.blade.php:18-19`, `:89`, `:92`, `:111`, `:117`, `takussan-api/app/Models/Enums/InventoryCondition.php:7-10`, `InventoryStatus.php:7-10`, `takussan-api/app/Http/Requests/InventoryStoreRequest.php:41`, `:44`
 - Constat :
@@ -17741,3 +17744,4 @@ Le PDF de l'état des lieux est P143.01.*
   - P26.06 relève les valeurs brutes de la quittance, de la facture et du reçu de réservation, et laisse « libellés des enums » en reste au porteur. L'état des lieux n'y est pas nommé ; c'est le seul des actes où la valeur imprimée est un mot anglais plutôt qu'un code (`bank_transfer`, `sent`).
   - Établi comment : lu.
 - Piste : traiter l'état des lieux avec le reste de P26.06 : un libellé français par cas d'`InventoryCondition` et d'`InventoryStatus`, lu par le gabarit, avec un test qui rend le PDF et refuse `good` et `signed`.
+- Mesure (2026-10-23, e4e646dee, mesureur) : relu `pdf/inventories/report.blade.php` (l. 18-19 `->value`, imprimés l. 89 « État général », l. 93 « Statut », l. 118 « état : » ; le constat citait 92, 111 et 117), `InventoryCondition`, `InventoryStatus`, `InventoryStoreRequest.php:41,44`, `DocumentPdfService::ACTES_EN_FRANCAIS` (contient le gabarit) ; test temporaire `Sonde192Test` (retiré, même charge) : état des lieux `signed()`, `general_condition` `good`, une pièce `fair`, `GET /api/inventories/{id}/pdf` 200, vue recomposée sous `fr` avec les données capturées → « État général good », « Statut signed », « état : fair » → le constat « à vérifier » tient ; les libellés existent au front (`fr.json` `status` et `conditions` : « Signé », « Bon », « Correct ») ; P26.06 est `fait · TCK-836 — reste : libellés des enums (après P06.03)`. Classement : V7, les libellés des enums des actes sont le reste que P26.06 laisse au porteur ; le choix de leur source (clés API ou reprise du front) lui revient avec lui.
