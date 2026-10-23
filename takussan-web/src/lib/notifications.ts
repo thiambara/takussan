@@ -9,6 +9,12 @@ export type NotificationTarget = {
   kind: string;
   id: number | null;
   path: string;
+  /**
+   * TCK-1761 (P161.04) — l'agence pour laquelle l'avis est émis, sur les seuls avis de la section
+   * d'agence : leur page lit l'agence du profil actif, et la ligne bascule d'abord sur le profil
+   * de cette agence. Absent : le lien se suit tel quel.
+   */
+  agency_id?: number;
 };
 
 /** Un montant brut, tel que l'API le stocke : formaté par le front, dans la langue de l'écran. */
