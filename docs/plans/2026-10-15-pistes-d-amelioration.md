@@ -17147,7 +17147,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le `PATCH` d'une intervention terminée enregistre l'heure et la priorité, puis répond 422 sur l'assignation
 - Réf : P184.02
-- Statut : validé — validation du porteur (2026-10-23) : une transaction autour de toute la mise à jour ; `can_assign` faux sur `completed`
+- Statut : fait · TCK-2010
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:186-219`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:111-124`, `takussan-api/app/Http/Resources/MaintenanceRequestResource.php:212`
 - Constat :
@@ -17158,6 +17158,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, et mesuré.
 - Piste : juger l'assignation avant toute écriture (appeler les gardes d'`assign()` d'abord), ou envelopper `update` dans une transaction qui couvre `fill()->save()`, `recordOwnerCost` et `assign()`. Garde : le cas mesuré, qui attend 422 **et** la ligne inchangée.
 - Mesure (2026-10-23, bf41e1518, mesureur) : relu `MaintenanceRequestController.php:186-224` (`recordOwnerCost` l. 200-201 et `fill()->save()` l. 211 avant `assign()`, sans transaction), `MaintenanceRequestService.php:122-124` (`maintenance.reassign_after_completion`), `MaintenanceRequestResource.php:212` (`can_assign` hors terminal, donc vrai sur `completed`) ; test temporaire (demande `completed`, priorité `low`, sans heure, charge `{ 2.44 2.01 1.88 }` sur 8 cœurs, retiré) → `{assigned_to: autre, scheduled_at: J+3, priority: urgent}` : 422 « The work is done: the job can no longer be reassigned. », ligne relue à `scheduled_at` J+3 et `urgent`, assigné inchangé ; puis `{assigned_to: autre, actual_cost: 1000}` : 422, et la ligne porte `actual_cost` 1000.00 et `metadata.owner_agreed_actual_cost` 1000.00 (la partie « à vérifier » du constat tient). Classement : V1, le défaut écrit un coût réel et un accord du bailleur sur une réponse d'échec, et le correctif (gardes d'`assign()` avant toute écriture, ou transaction) porte sur ce chemin d'écriture d'un montant ; la `Piste` propose deux options.
+- Mesure (2026-10-23, e261b5ef2, implementeur) : reproduit par `MaintenanceUpdateAtomiciteTest` avant correctif (charge `{ 4.31 4.07 3.68 }` sur 8 cœurs) : demande `completed`, `{assigned_to: autre, scheduled_at: J+3, priority: urgent}` → 422 et heure écrite ; `{assigned_to: autre, actual_cost: 1000}` → 422 et `actual_cost` 1000.00 écrit ; `can_assign` vrai sur `completed` (3 rouges, 2 témoins verts) → `DB::transaction` autour du coût réel, de `fill()->save()` et d'`assign()`, `can_assign` faux sur `completed` ; 5/5 verts ; ablation de la transaction → 2 rouges, de la condition `completed` → 1 rouge, remis → verts ; `MaintenanceAbilitiesTest`, `MaintenanceActualCostTest`, `MaintenanceTerminalRequestTest`, `MaintenanceAssignmentTest`, `MaintenanceOwnerApprovalThresholdTest`, `MaintenanceReassignmentQuoteResetTest` verts.
 
 ### Le `PATCH` d'une visite accepte une durée sans plafond, et une seule visite confirmée bloque alors le bien
 - Réf : P184.03
