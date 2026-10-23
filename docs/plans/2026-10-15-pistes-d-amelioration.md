@@ -16212,7 +16212,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### La section « Supprimer mon compte » rend une lecture en échec comme l'absence de demande, et relit ce que la mise en page vient de lire
 - Réf : P172.05
-- Statut : validé — validation du porteur (2026-10-23) : en cas d'échec de lecture, afficher le `result.message` existant, sans bouton ; aucun texte neuf
+- Statut : fait · TCK-1994 — reste : passer à la section la demande que la mise en page `(dashboard)` a déjà lue, pour ne plus la lire deux fois par affichage de `/app/profile`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/profile/security/AccountDeletionSection.tsx:42-52`, `takussan-web/src/app/(dashboard)/layout.tsx:66-67`, `takussan-web/src/app/actions/account-deletion.ts:71-81`
 - Constat :
@@ -16221,6 +16221,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - La mise en page `(dashboard)` lit la même demande, côté serveur, au même chargement (lu, `layout.tsx:66-67`) et ne la passe pas à la page : deux lectures par affichage de `/app/profile`.
 - Piste : rendre l'échec comme un échec (message, et ni bouton de demande ni bouton d'annulation), et passer à la section la demande que la mise en page a déjà lue. Garde : un test vitest de la section, server action en échec → aucun bouton de suppression.
 - Mesure (2026-10-23, 4436bf690, mesureur) : relu `AccountDeletionSection.tsx:42-52` (`setRequest(result.ok ? result.data : null)`) et l. 79-80 (`null` → bouton « Supprimer mon compte »), `account-deletion.ts:71-81` (`failure(err, 'loadFailed')`), `(dashboard)/layout.tsx:66-67` (même lecture côté serveur, non transmise ; la section est montée par `ProfileSecuritySection`), et lancé un test vitest temporaire de la section, retiré, server action en `{ ok: false }` → le bouton « Supprimer mon compte » s'affiche ; le point « à vérifier » est lu et le constat est inexact sur ce point : `AccountDeletionService::requestDeletion` (`updateOrCreate` sur `user_id`) ne rend pas d'erreur face à une demande en cours, il la reprogramme (`scheduled_for` repoussé de tout le délai de grâce) et révoque tous les jetons. Classement : V7, rendre l'échec demande un état et un message visibles neufs sur une fonction RGPD, et la double lecture se corrige en changeant ce que la mise en page passe à la page.
+- Mesure (2026-10-23, 49aa336db, implementeur) : test neuf `AccountDeletionSection.lecture-en-echec.tck-1994.test.tsx` rouge sur l'arbre d'origine : action en `{ ok: false, message }` → aucun message, bouton « Supprimer mon compte » proposé → un échec de lecture affiche le `result.message` de l'action (`role="alert"`), sans bouton de demande ni d'annulation, aucun texte neuf ; ablation (`AccountDeletionSection.tsx` à `HEAD`) → 1 rouge sur 2, correctif remis → 2/2, et les 9 tests d'`AccountDeletionSection.test.tsx` verts ; la double lecture (mise en page puis section) n'est pas faite.
 
 ### Petites améliorations
 - Réf : P172.06
