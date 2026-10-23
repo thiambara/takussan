@@ -238,17 +238,19 @@ export function PropertyReviews({
     result: { eligible: boolean; alreadyReviewed: boolean };
   } | null>(null);
 
+  // TCK-1764 (P172.04) — le compte, pas l'objet `user` que chaque `refreshUser()` remplace.
+  const userId = user?.id ?? null;
   useEffect(() => {
     let cancelled = false;
-    if (!user) return;
+    if (userId === null) return;
     (async () => {
       const result = await getReviewEligibility(slug);
-      if (!cancelled) setEligibility({ slug, userId: user.id, result });
+      if (!cancelled) setEligibility({ slug, userId, result });
     })();
     return () => {
       cancelled = true;
     };
-  }, [slug, user]);
+  }, [slug, userId]);
 
   const canReply = canReplyToReview({
     userId: user?.id,
@@ -262,6 +264,15 @@ export function PropertyReviews({
     user && eligibility?.slug === slug && eligibility.userId === user.id
       ? eligibility.result
       : null;
+
+  // TCK-1762 (P172.02) — l'avis créé attend la modération : la liste publique relue ne le montre
+  // pas. C'est la réponse de l'envoi qui établit « déjà laissé », sans attendre une relecture.
+  async function envoyerAvis(payload: { rating: number; title?: string; content?: string }) {
+    await submit(payload);
+    if (user) {
+      setEligibility({ slug, userId: user.id, result: { eligible: true, alreadyReviewed: true } });
+    }
+  }
 
   const showReviewForm =
     !!user &&
@@ -308,7 +319,7 @@ export function PropertyReviews({
         <p className="text-sm text-muted-foreground">{t('empty')}</p>
       )}
 
-      {showReviewForm && <PropertyReviewForm onSubmit={submit} />}
+      {showReviewForm && <PropertyReviewForm onSubmit={envoyerAvis} />}
       {user && activeEligibility && !activeEligibility.eligible && !activeEligibility.alreadyReviewed && (
         <p className="rounded-xl bg-card p-4 text-sm text-muted-foreground">
           {t('notEligible')}

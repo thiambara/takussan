@@ -1,3 +1,4 @@
+import type { AgencyRoleAssignment } from '@/types/agency-role';
 import type { UserRole, UserStatus } from './user';
 
 /**
@@ -50,6 +51,11 @@ export type AdminAgencyUsersResponse = {
     current_page: number;
     last_page?: number;
     per_page?: number;
+    /**
+     * TCK-1770 — les affectations de rôle des lignes de la page, rendues sur demande
+     * (`with_role_assignments=1`) à qui lit les rôles de l'agence (`team.assign_role`).
+     */
+    role_assignments?: AgencyRoleAssignment[];
   };
 };
 
