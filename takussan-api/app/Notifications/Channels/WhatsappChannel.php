@@ -2,6 +2,7 @@
 
 namespace App\Notifications\Channels;
 
+use App\Exceptions\WhatsappUndelivered;
 use App\Models\AppNotification;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
@@ -219,6 +220,15 @@ class WhatsappChannel
         // TCK-599 (ADR-0050, décision de session 3) — une notification peut refuser le repli : une
         // alerte de recherche ne part jamais par SMS (coût), même quand WhatsApp échoue.
         if (method_exists($notification, 'smsFallbackAllowed') && ! $notification->smsFallbackAllowed()) {
+            // P179.02 (TCK-1795) — sans repli, un échec SÛR du fournisseur ne laisse aucune trace
+            // que l'appelant voie. La notification qui juge l'envoi le demande : le canal lève.
+            // Ni un échec ambigu (rendu plus haut), ni une inéligibilité (`deferred`) ne lèvent.
+            if ($whatsappResult->status === WhatsappResult::STATUS_FAILED
+                && method_exists($notification, 'throwsWhenWhatsappFails')
+                && $notification->throwsWhenWhatsappFails($notifiable)) {
+                throw new WhatsappUndelivered;
+            }
+
             return ['whatsapp' => $whatsappResult];
         }
 
