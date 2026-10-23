@@ -15150,7 +15150,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### L'agent qui a saisi un bien d'agence rembourse les acomptes de ses réservations sans `bookings.refund`, que le rôle d'agent n'a pas
 - Réf : P160.01
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1718
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Booking/BookingMoneyAccess.php:29-39,53-55,69-72`, `takussan-api/app/Services/Membership/SystemRoleCapabilities.php:61-90`, `takussan-api/app/Http/Requests/Api/RefundBookingPaymentRequest.php:36`, `takussan-api/app/Http/Controllers/Api/BookingController.php:67`
 - Constat :
@@ -15162,6 +15162,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu et mesuré.
 - Piste : ne tenir pour bailleur direct que le créateur qui est propriétaire au sens de `PrimaryPropertyContact::estProprietaire` (bien sans agence, ou `OwnerProfile` de l'agence du bien), et juger tout membre du personnel par la branche capacité, même sur un bien qu'il a saisi. Garde : un test « agent créateur, rôle système → refund 403, `can_refund` faux ; bailleur du bien → 200 ».
 - Mesure (2026-10-22, 3e58240ef, mesureur) : relu `BookingMoneyAccess.php:29-39,53-55,69-72` (`isDirectLandlord` = `properties.user_id`, seul le bailleur `blocked` écarté, testé avant la capacité dans `canRefund` et `canRecordAsCollector`), `SystemRoleCapabilities::agent` (l. 61-86, sans `bookings.refund`), `RefundBookingPaymentRequest::authorize` (`canRefund`) ; `git diff 60a024c89 HEAD` sur ces fichiers → vide ; test temporaire (retiré, charge 3,12 / 4,26 / 4,17 sur 8 cœurs) sur `BuildsBookingStakeholders`, agent du rôle système créateur du bien : `canActAt(bookings.refund)` = false, `canRefund` = true, l'autre agent = false, `POST /api/booking-payments/{id}/refund` → 200 et acompte `refunded` ; agent `agentWithout(payments.record)` créateur → `canRecordAsCollector` = true → le constat tient en entier. Classement : V1 et V2, le correctif retire à un appelant d'aujourd'hui (l'agent créateur) le remboursement d'un acompte, et le sens de `user_id` sur un bien saisi par le personnel reste hors décision d'ADR-0036 (§ 5, amendement du 2026-10-19).
+- Mesure (2026-10-23, f298c4e1e, implementeur) : reproduit avant correctif par `BookingPaymentRefundAuthorizationTest::test_the_agent_who_entered_the_property_is_judged_by_bookings_refund` (agent du rôle système posé en `properties.user_id` → refund 200 au lieu de 403) → `BailleurDuBien::est` (créateur bailleur seulement sur un bien sans agence ou avec un profil propriétaire dans l'agence) appelé par `BookingMoneyAccess::isDirectLandlord` : 403, acompte `paid`, `can_refund` faux ; avec `bookings.refund` → 200 ; bailleur, même s'il est aussi agent → 200 ; ablation (fichier rendu à pre-dev) → ce seul test rouge, 21 verts une fois remis.
 
 ### L'agent qui a saisi un bien d'agence commande, clôt et tranche les devis de ses interventions sans `maintenance.assign` ni `maintenance.close`
 - Réf : P160.02
