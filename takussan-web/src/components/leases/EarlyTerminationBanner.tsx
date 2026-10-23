@@ -24,12 +24,15 @@ interface EarlyTerminationBannerProps {
   readonly canCancel?: boolean;
 }
 
+/**
+ * TCK-1827 (P183.04) — jours calendaires entre aujourd'hui (UTC) et la date `Y-m-d`, comparés
+ * littéralement (ADR-0018) : l'API accepte l'annulation tant que la date effective est postérieure
+ * au jour UTC (`EarlyTerminationService`). Ramener l'une des deux dates à minuit LOCAL faisait
+ * perdre un jour à un navigateur hors d'UTC.
+ */
 function daysFromTodayTo(iso: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const target = new Date(iso);
-  target.setHours(0, 0, 0, 0);
-  return Math.ceil((target.getTime() - today.getTime()) / 86_400_000);
+  const today = new Date().toISOString().slice(0, 10);
+  return Math.round((Date.parse(iso.slice(0, 10)) - Date.parse(today)) / 86_400_000);
 }
 
 /**
