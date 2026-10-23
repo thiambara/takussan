@@ -17060,7 +17060,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le dialogue « Enregistrer un paiement reçu » propose de régler une restitution de caution, que l'API refuse en 422
 - Réf : P183.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1825
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeasePaymentDialog.tsx:46-52`, `takussan-api/app/Services/Model/LeasePaymentService.php:57-64`
 - Constat :
@@ -17070,6 +17070,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu. Le dialogue n'a pas été rendu.
 - Piste : écarter `payment_type === 'deposit_refund'` des options, comme `isPayable` l'écarte du paiement en ligne (`PaymentGatewayService.php:1718-1722`). Garde : un test du dialogue avec un loyer `pending` et une restitution `pending`, une seule option attendue.
 - Mesure (2026-10-23, 940b7f07f, mesureur) : relu `LeasePaymentDialog.tsx:46-52` (options = lignes `pending` ou `late`, sans `payment_type` ; `nothingToSettle` sur cette liste, inchangé), `LeasePaymentService.php:53-64` (`markPaid` refuse en 422 `lease_payment.deposit_refund_paid_by_payout` sur la ligne verrouillée), `LeasePaymentController.php:30-51` (`index` sans filtre de type) ; test temporaire ajouté à `LeasePaymentDialog.test.tsx` (retiré), charge 2,94 sur 8 cœurs : loyer `pending` et restitution `pending` → 2 options ; restitution seule → « Aucune échéance en attente sur ce bail. » absent ; 2 verts. Le constat tient. Classement : A1, le contrat est écrit par l'API appelée (TCK-594 : une restitution ne se règle jamais à la main) ; le correctif retire du choix une option que l'API refuse toujours, sans rien changer à ce qui s'écrit.
+- Mesure (2026-10-23, 80646bf3b, implementeur) : deux tests ajoutés à `LeasePaymentDialog.test.tsx`, charge 5,29 sur 8 cœurs → rouges avant correctif (option de la restitution du 1 juin 2026 en trop ; restitution seule : « Aucune échéance en attente sur ce bail. » absent) → `LeasePaymentDialog` écarte `payment_type === 'deposit_refund'` des options ; 5/5 verts ; ablation (filtre retiré) → les 2 neufs rouges, remis → verts.
 
 ### Le compte à rebours d'une résiliation anticipée retire le bouton d'annulation un jour trop tôt pour un navigateur à l'ouest d'UTC
 - Réf : P183.04
