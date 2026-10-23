@@ -229,6 +229,18 @@ class PropertyVisitController extends Controller
         // which silently breaks the feedback-window lockout.
         $data = $request->validated();
 
+        // TCK-1838 (P184.04) — déplacer l'heure suit la règle du report (`rescheduleOrFail`) :
+        // hors statut actif (`no_show`…), plus rien ne confirme ni ne reporte la visite, et le
+        // visiteur recevait l'annonce d'un rendez-vous mort. Notes, type et agent restent ouverts.
+        if (array_key_exists('scheduled_at', $data)
+            && ! Carbon::parse($data['scheduled_at'])->equalTo($visit->scheduled_at)) {
+            abort_code_unless(
+                in_array($visit->status, VisitSchedulingService::ACTIVE_STATUSES, true),
+                422,
+                'visit.reschedule_inactive',
+            );
+        }
+
         // TCK-590 (contrainte 2) — changer l'agent d'une visite DÉJÀ attribuée à un autre est un
         // geste d'attribution : il exige `crm.assign` dans l'agence du bien.
         if (array_key_exists('agent_id', $data)
