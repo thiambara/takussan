@@ -15999,7 +15999,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Une échéance de bail créée à la main prend tout montant, et un second loyer sur la même période, sans rapport au loyer ni à la caution du bail
 - Réf : P170.04
-- Statut : validé — validation du porteur (2026-10-23) : garder la route pour `charges`, `regularization` et `penalty` seulement, refuser `rent` et `deposit` en 422 codé, borner `amount` au maximum de la colonne
+- Statut : fait · TCK-1920
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreLeasePaymentRequest.php:44-52`, `takussan-api/app/Services/Model/LeasePaymentService.php:30-42`, `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:54-72`, `takussan-web/src/lib/queries/leases.ts:404-408`
 - Constat :
@@ -16009,6 +16009,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Le front n'appelle plus cette route : `lib/queries/leases.ts:404-408` le dit, et `grep` des `POST` sur `/api/leases/${…}/payments` hors tests ne rend que `generate-schedule` (mesuré). Seul un appel direct l'atteint.
 - Piste : décider si la route reste (charges, régularisations, pénalités) ; si oui, refuser `rent` et `deposit` (l'échéancier les pose, `generate-schedule`) ou les dériver du bail, et refuser un loyer sur une période déjà échue au bail ; sinon, la retirer (sans appelant au front, à vérifier côté autres clients). Garde : un test par type.
 - Mesure (2026-10-23, 9f180a3ae, mesureur) : relu `StoreLeasePaymentRequest.php:44-52` (`amount` `gt:0` pour tout type), `LeasePaymentService::create` (l. 30-42, données écrites telles quelles), `LeasePaymentController::store` (statut du bail seul jugé) ; `grep -rnE 'leases/\$\{[^}]*\}/payments'` sous `takussan-web/src` hors tests → un `GET` (`leases.ts:278`) et `generate-schedule` (l. 492), aucun `POST` de création ; `git log 5a015cfa1..HEAD` → vide ; test temporaire `SondeMesureur170Test` (retiré, charge 3,28 / 3,14 / 2,90 sur 8 cœurs) : bail `active` à 400 000 / caution 800 000, bailleur, trois `POST` sur 2026-01-01→2026-01-31 (`rent` 1, `rent` 400 000, `deposit` 5) → `201` `pending` trois fois → le constat tient. Classement : V1 et V7, borner ou dériver loyer et caution touche des échéances, et garder ou retirer la route est la décision que la `Piste` renvoie elle-même.
+- Mesure (2026-10-23, 2a944b073, implementeur) : `LeasePaymentNestedCreationRulesTest` avant correctif → 2 rouges : bailleur, bail actif, `rent` de 1 → `201`, et `amount` de 999 999 999 999 999 → `500` ; `LeasePaymentController::store` refuse `rent` et `deposit` (422 `lease_payment.type_from_schedule`, aucune ligne) et `StoreLeasePaymentRequest` borne `amount` à `CurrencyUnit::MAX_COLUMN` (422 sur `amount`) → 6 verts, `charges`, `regularization` et `penalty` en 201 ; ablation (contrôleur et FormRequest remis → 2 rouges, remis → verts) ; `LeaseTest` (sa création passe d'un loyer à des charges) et `TeamMemberSuspensionTest` verts.
 
 ### Une facture sans lignes prend un sous-total ni arrondi à la devise ni borné : 10,5 XOF est émis, et un grand nombre rend 500
 - Réf : P170.05
