@@ -16835,7 +16835,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Une clé de brouillon d'assistant de plus de 255 caractères rend 500
 - Réf : P181.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1809
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/routes/api/me.php:64-72`, `takussan-api/database/migrations/*_create_wizard_drafts_table.php` (`string('key')`), `takussan-api/app/Http/Controllers/WizardDraftController.php:80-92`
 - Constat :
@@ -16844,6 +16844,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : borner la clé dans la contrainte de route (`[A-Za-z0-9._:-]{1,255}`, ce qui rend 404) ou par une règle de la requête (422). Un test au-delà de 255 et un à 255.
 - Mesure (2026-10-23, 31008c833, mesureur) : relu `routes/api/me.php:63-72` (`[A-Za-z0-9._:-]+`, sans longueur) et `2026_05_10_034943_create_wizard_drafts_table.php:25` (`string('key')`, varchar 255) ; test temporaire `tests/Feature/TmpMesureAngle181Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,1 à 2,4 sur 8 cœurs → `PUT /api/me/wizard-drafts/<300 × k>` → 500, `<255 × k>` → 201. Le constat tient. Classement : A1, le contrat est écrit par le schéma (255) et par la contrainte de route, qui rend déjà 404 à une clé hors de son alphabet : borner la contrainte à `{1,255}` sur les trois routes rend 404 au-delà, sans choix de produit.
+- Mesure (2026-10-23, a9eaec20c, implementeur) : relu `routes/api/me.php:64-72` (contrainte `[A-Za-z0-9._:-]+` sur les trois routes) ; test neuf de `WizardDraftCrudTest`, `php artisan test` de la classe, charge 3,1 sur 8 cœurs → `PUT /api/me/wizard-drafts/<256 × k>` → 500 (`QueryException`) avant correctif. Contrainte portée à `{1,255}` sur `show`, `upsert` et `destroy` : 256 caractères → 404 sur les trois routes, aucune ligne écrite ; 255 → 201, relu, supprimé ; 11/11. Ablation (contrainte remise à `+`) → rouge, « Expected 404 but received 500 ».
 
 ### Les brouillons d'assistant n'ont ni borne de taille ni de nombre, et l'accueil les relit tous, données comprises
 - Réf : P181.03
