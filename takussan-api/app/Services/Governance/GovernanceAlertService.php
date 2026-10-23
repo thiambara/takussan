@@ -5,6 +5,8 @@ namespace App\Services\Governance;
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Models\Activity;
+use App\Models\Agency;
+use App\Models\Enums\AgencyKind;
 use App\Models\Integration;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
@@ -65,10 +67,16 @@ class GovernanceAlertService
             return;
         }
 
+        // TCK-1763 (P161.05) — l'alerte ouvre `/app/agency/audit`, réservée aux agences `standard`
+        // (`PAGES_ADMIN`) : un espace `individual` n'en reçoit aucune, comme `ReviewNotifier::toModerate`.
+        if (Agency::query()->whereKey($activity->agency_id)->value('kind') !== AgencyKind::Standard) {
+            return;
+        }
+
         $params = $this->paramsFor($code, $activity, $author->full_name);
 
         foreach ($this->recipients((int) $activity->agency_id, $author->id) as $admin) {
-            $this->notifications->send($admin, $code, $params, NotificationTarget::of('audit'));
+            $this->notifications->send($admin, $code, $params, NotificationTarget::of('audit')->forAgency($activity->agency_id));
         }
     }
 

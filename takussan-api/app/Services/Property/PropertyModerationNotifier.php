@@ -33,7 +33,7 @@ class PropertyModerationNotifier
                 $admin,
                 NotificationCode::PropertySubmittedForReview,
                 ['property' => (string) $property->title],
-                NotificationTarget::of('property_moderation'),
+                NotificationTarget::of('property_moderation')->forAgency($property->agency_id),
             ));
     }
 }

@@ -93,7 +93,7 @@ class RemindDuePayouts extends Command
     private static function targetFor(User $issuer, Payout $payout): NotificationTarget
     {
         return $issuer->isAgencyAdminAt((int) $payout->agency_id)
-            ? NotificationTarget::of('finances')
-            : NotificationTarget::of('payouts');
+            ? NotificationTarget::of('finances')->forAgency($payout->agency_id)
+            : NotificationTarget::of('payouts')->forAgency($payout->agency_id);
     }
 }

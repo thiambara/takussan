@@ -25,6 +25,6 @@ class NotifyStatementImported implements ShouldQueue
         $this->notificationService->send($user, NotificationCode::BankStatementImported, [
             'bank' => $statement->bank_name,
             'lines' => (int) $statement->lines_count,
-        ], NotificationTarget::of('finances'));
+        ], NotificationTarget::of('finances')->forAgency($statement->agency_id));
     }
 }

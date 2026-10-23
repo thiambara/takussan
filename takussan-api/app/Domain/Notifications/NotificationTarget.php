@@ -74,9 +74,15 @@ final class NotificationTarget
         'credits' => '/app/credits',
     ];
 
+    /**
+     * TCK-1761 (P161.04) — `agencyId` : l'agence pour laquelle l'avis est émis, posée par
+     * {@see forAgency()} sur les seuls avis de la section d'agence, dont la page lit l'agence du
+     * profil actif. La cloche bascule sur le profil de cette agence avant de suivre le lien.
+     */
     private function __construct(
         public readonly string $kind,
         public readonly ?int $id,
+        public readonly ?int $agencyId = null,
     ) {}
 
     public static function of(string $kind, ?int $id = null): self
@@ -91,15 +97,30 @@ final class NotificationTarget
         return new self($kind, $id);
     }
 
+    /** La même cible, rattachée à l'agence pour laquelle l'avis est émis (TCK-1761). */
+    public function forAgency(int|string|null $agencyId): self
+    {
+        return new self($this->kind, $this->id, is_numeric($agencyId) ? (int) $agencyId : null);
+    }
+
     public function path(): string
     {
         return str_replace('{id}', (string) $this->id, self::PATHS[$this->kind]);
     }
 
-    /** @return array{kind: string, id: ?int, path: string} */
+    /**
+     * Une cible sans agence garde sa forme d'avant : la clé `agency_id` n'apparaît qu'avec une agence.
+     *
+     * @return array{kind: string, id: ?int, path: string, agency_id?: int}
+     */
     public function toArray(): array
     {
-        return ['kind' => $this->kind, 'id' => $this->id, 'path' => $this->path()];
+        $out = ['kind' => $this->kind, 'id' => $this->id, 'path' => $this->path()];
+        if ($this->agencyId !== null) {
+            $out['agency_id'] = $this->agencyId;
+        }
+
+        return $out;
     }
 
     /** @param  array<string, mixed>|null  $stored */
@@ -113,8 +134,9 @@ final class NotificationTarget
         if (str_contains(self::PATHS[$kind], '{id}') && $id === null) {
             return null;
         }
+        $agencyId = isset($stored['agency_id']) && is_numeric($stored['agency_id']) ? (int) $stored['agency_id'] : null;
 
-        return new self($kind, $id);
+        return new self($kind, $id, $agencyId);
     }
 
     /**
