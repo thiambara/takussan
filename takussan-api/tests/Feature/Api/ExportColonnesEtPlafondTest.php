@@ -137,12 +137,34 @@ class ExportColonnesEtPlafondTest extends ApiTestCase
             ->assertOk();
     }
 
+    /** TCK-1746 (P112.02) — 5 000 en XLSX : la garde est `ExportMemoireAuPlafondTest`. */
+    public function test_au_dela_de_5_000_lignes_en_xlsx_la_demande_est_refusee(): void
+    {
+        $admin = $this->agencyAdmin($this->agency);
+
+        foreach (['xlsx', 'excel'] as $format) {
+            $this->actingAsApi($admin)
+                ->getJson("/api/export/properties?format={$format}&limit=5001")
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('limit');
+
+            $this->actingAsApi($admin)
+                ->getJson("/api/export/properties?format={$format}&limit=5000")
+                ->assertOk();
+        }
+
+        $this->actingAsApi($admin)
+            ->getJson('/api/export/properties?format=csv&limit=5001')
+            ->assertOk();
+    }
+
     /** @return array<string, array{string, int}> */
     public static function plafondsParDefaut(): array
     {
         return [
             'csv' => ['csv', 5000],
             'pdf' => ['pdf', 200],
+            'xlsx' => ['xlsx', 5000],
         ];
     }
 

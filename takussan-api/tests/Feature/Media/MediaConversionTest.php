@@ -5,6 +5,7 @@ namespace Tests\Feature\Media;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -34,6 +35,11 @@ class MediaConversionTest extends TestCase
         $this->assertContains('full', $names);
     }
 
+    /**
+     * Sous la file `sync` de la suite (`phpunit.xml`), les trois conversions sont faites pendant la
+     * requête : ce test garde qu'elles se produisent et s'exposent, pas ce que la réponse rend sur
+     * un serveur — c'est le test suivant (TCK-1760).
+     */
     public function test_uploading_image_generates_thumbnail_preview_full_urls(): void
     {
         $user = User::factory()->create();
@@ -64,6 +70,46 @@ class MediaConversionTest extends TestCase
         $this->assertNotNull($response->json('data.conversions.thumbnail'));
         $this->assertNotNull($response->json('data.conversions.preview'));
         $this->assertNotNull($response->json('data.conversions.full'));
+    }
+
+    /**
+     * TCK-1760 (P156.02) — le contrat RÉEL de la réponse, sous la file de développement et de
+     * préproduction (`database`) : seule `thumbnail` est `nonQueued` ; `preview` et `full` partent
+     * en file `media` et arrivent avec le worker. Le test ci-dessus, joué sous la file `sync` de la
+     * suite, décrit un régime qu'aucun serveur n'a.
+     */
+    public function test_sous_une_file_reelle_la_reponse_ne_promet_que_la_vignette(): void
+    {
+        config()->set('queue.default', 'database');
+        config()->set('media-library.queue_connection_name', 'database');
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/media', [
+            'file' => UploadedFile::fake()->image('hero.jpg', 1600, 1200),
+            'collection' => 'avatars',
+            'model_type' => User::class,
+            'model_id' => $user->id,
+        ])->assertCreated();
+
+        $this->assertNotNull($response->json('data.conversions.thumbnail'));
+        $this->assertNull($response->json('data.conversions.preview'));
+        $this->assertNull($response->json('data.conversions.full'));
+        $this->assertSame(1, DB::table('jobs')->where('queue', config('media-library.queue_name'))->count());
+
+        $this->artisan('queue:work', [
+            'connection' => 'database',
+            '--queue' => config('media-library.queue_name'),
+            '--stop-when-empty' => true,
+            // Le worker sort en 12 (`Worker::EXIT_MEMORY_LIMIT`) quand le processus dépasse
+            // `--memory`, 128 Mo par défaut : sous la suite entière avec couverture, c'est
+            // PHPUnit qui les dépasse, pas la conversion.
+            '--memory' => 1_000_000,
+        ])->assertSuccessful();
+
+        $media = Media::findOrFail((int) $response->json('data.id'));
+        $this->assertTrue($media->hasGeneratedConversion('preview'));
+        $this->assertTrue($media->hasGeneratedConversion('full'));
     }
 
     public function test_resource_exposes_original_url(): void

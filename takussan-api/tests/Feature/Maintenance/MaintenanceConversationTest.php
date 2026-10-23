@@ -4,8 +4,10 @@ namespace Tests\Feature\Maintenance;
 
 use App\Models\Conversation;
 use App\Models\Enums\MessageType;
+use App\Models\MaintenanceRequest;
 use App\Models\Message;
 use App\Services\Messaging\SystemMessageFactory;
+use App\Services\Model\MaintenanceRequestService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Support\MaintenanceActors;
@@ -92,6 +94,47 @@ class MaintenanceConversationTest extends TestCase
         $this->putJson("/api/maintenance-requests/{$mr->id}/status", ['status' => 'acknowledged'])->assertOk();
 
         $this->assertSame(0, Conversation::query()->where('maintenance_request_id', $mr->id)->count());
+    }
+
+    /**
+     * TCK-1756 (P154.01) — le fil suit `assigned_to`, pas la relation `assignee` restée en mémoire :
+     * sur une instance qui l'a chargée, réassigner gardait l'ancien prestataire dans le fil, n'y
+     * ajoutait pas le nouveau, et le message nommait l'ancien.
+     */
+    public function test_reassigner_une_instance_qui_a_charge_l_assignee_suit_le_nouveau_prestataire(): void
+    {
+        ['mr' => $mr, 'landlord' => $landlord, 'tenant' => $tenant, 'agency' => $agency] = $this->maintenanceScenario(attributes: ['assigned_to' => null]);
+        $first = $this->providerFor($agency);
+        $second = $this->providerFor($agency);
+
+        Sanctum::actingAs($landlord);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $first->id])->assertOk();
+
+        $instance = MaintenanceRequest::query()->findOrFail($mr->id)->load('assignee');
+        app(MaintenanceRequestService::class)->assign($instance, $second, $landlord);
+
+        $conversation = Conversation::query()->where('maintenance_request_id', $mr->id)->sole();
+        $this->assertEqualsCanonicalizing([$landlord->id, $second->id, $tenant->id], $this->activeIds($conversation));
+        $dernier = Message::query()->where('conversation_id', $conversation->id)
+            ->where('type', MessageType::System->value)->latest('id')->firstOrFail();
+        $this->assertSame('assigned', $dernier->metadata['cause']);
+        $this->assertSame(trim($second->first_name.' '.$second->last_name) ?: $second->username, $dernier->metadata['provider_name']);
+    }
+
+    /** TCK-1756 (P154.01) — le prestataire qui refuse n'est pas remis dans le fil par la relation chargée. */
+    public function test_le_refus_sur_une_instance_qui_a_charge_l_assignee_sort_le_prestataire(): void
+    {
+        ['mr' => $mr, 'landlord' => $landlord, 'tenant' => $tenant, 'agency' => $agency] = $this->maintenanceScenario(attributes: ['assigned_to' => null]);
+        $provider = $this->providerFor($agency);
+
+        Sanctum::actingAs($landlord);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $provider->id])->assertOk();
+
+        $instance = MaintenanceRequest::query()->findOrFail($mr->id)->load('assignee');
+        app(MaintenanceRequestService::class)->decline($instance, $provider, 'Indisponible');
+
+        $conversation = Conversation::query()->where('maintenance_request_id', $mr->id)->sole();
+        $this->assertEqualsCanonicalizing([$landlord->id, $tenant->id], $this->activeIds($conversation));
     }
 
     /** @return list<int> */

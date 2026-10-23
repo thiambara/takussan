@@ -51,9 +51,10 @@ class MediaController extends Controller
             ->usingName($slug)
             ->toMediaCollection($data['collection']);
 
-        // refresh() to pick up generated_conversions written by the sync
-        // conversion job — fresh() would discard our reference and could
-        // (theoretically) return null.
+        // refresh() to pick up generated_conversions written during the upload: `thumbnail`
+        // (nonQueued) only, outside the test suite's `sync` queue. `preview` and `full` are queued
+        // on `media` and arrive with the worker; until then the resource renders them `null`
+        // (TCK-1760). fresh() would discard our reference and could (theoretically) return null.
         $media->refresh();
 
         return $this->json([
