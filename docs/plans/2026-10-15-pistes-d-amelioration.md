@@ -15223,7 +15223,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Petites améliorations
 - Réf : P160.06
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1726 — reste : décider si le plafond de travaux d'un bailleur `inactive` s'applique encore, et l'écrire dans l'ADR-0037 (choix V1, chemin `docs/adr/` fermé à l'implémenteur)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Model/BookingService.php:293-300`, `takussan-api/app/Services/Booking/BookingRefundTaskService.php:106-135`, `takussan-api/app/Services/Maintenance/OwnerApprovalThreshold.php:26-38`, `takussan-api/app/Listeners/Maintenance/NotifyMaintenanceParticipants.php:90`
 - Constat :
@@ -15233,6 +15233,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu.
 - Piste : `cancellation_by = agent` pour le personnel créateur (même prédicat que P160.01) ; `createurDestinataire` au dernier repli de `assigneeFor` ; décider si le plafond d'un bailleur `inactive` s'applique encore, et l'écrire dans l'ADR-0037.
 - Mesure (2026-10-22, 3e58240ef, mesureur) : relu `BookingService.php:293-298` (`cancellation_by = Owner` pour `property->user_id`), `BookingResource.php:36` et `grep -rn cancellation_by takussan-web/src` → vide, `BookingRefundTaskService::assigneeFor` (l. 106-135, dernier repli `property->owner` sans `createurDestinataire`), `OwnerApprovalThreshold::of` (l. 26-38, `OwnerProfile` lu sans son statut), `NotifyMaintenanceParticipants.php:90` (`quote_awaiting_owner` à `property->owner`), ADR-0037 sans mot sur le statut du bailleur → les trois points tiennent, aucun joué. Classement : V1, le troisième point demande de décider si un plafond de travaux s'applique encore (la `Piste` le dit), et le premier dépend du prédicat de P160.01, lui-même à valider ; le deuxième seul relèverait de A1 (TCK-1316).
+- Mesure (2026-10-23, f298c4e1e, implementeur) : reproduit avant correctif par `CreateurDuBienAnnulationEtRepliTest` (agent créateur qui annule → `cancellation_by = owner` ; agence sans admin ni collaborateur, créateur agent suspendu → assigné de la tâche) → `BookingService::cancel` lit `BailleurDuBien::est` et `assigneeFor` finit sur `createurDestinataire` : `agent`, et `null` pour le suspendu ; bailleur → `owner` et assigné ; ablation (deux services rendus à pre-dev) → les deux tests du créateur rouges, 4 verts une fois remis. Le troisième point (plafond du bailleur `inactive`, ADR-0037) n'est pas fait.
 
 ## Angle 161 — Cibles de notification qui ouvrent un écran fermé au destinataire
 
