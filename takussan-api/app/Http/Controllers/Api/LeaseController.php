@@ -12,10 +12,10 @@ use App\Http\Resources\LeaseResource;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
 use App\Models\Lease;
-use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Services\Lease\LeaseSignatureService;
 use App\Services\Model\LeaseService;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -36,9 +36,7 @@ class LeaseController extends Controller
                 // TCK-1926 (P190.04) — la clause du bailleur suit `LeasePolicy::view` : désigné, ET bail
                 // sans agence ou profil propriétaire dans son agence (`BailleurDuBien`). L'agent
                 // créateur suspendu ou retiré ne liste plus le bail qui le désigne.
-                $q->where(fn ($b) => $b->where('landlord_id', $user->id)
-                    ->where(fn ($a) => $a->whereNull('agency_id')
-                        ->orWhereIn('agency_id', OwnerProfile::query()->where('user_id', $user->id)->select('agency_id'))))
+                $q->where(fn ($b) => BailleurDuBien::restreindre($b, $user, 'landlord_id'))
                     ->orWhereHas('tenant', fn ($t) => $t->where('user_id', $user->id));
                 // TCK-587 — le périmètre d'agence est celui du PERSONNEL (ADR-0031) : un bailleur de l'agence
                 // listait les ressources de tous les autres.

@@ -20,6 +20,7 @@ use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\InventoryService;
 use App\Services\Pdf\DocumentPdfService;
 use App\Services\Pdf\PrintedIdentity;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -44,9 +45,8 @@ class InventoryController extends Controller
         if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {
                 $q->where('conducted_by', $user->id)
-                    ->orWhereHas('property', function ($pq) use ($user) {
-                        $pq->where('user_id', $user->id);
-                    })
+                    // TCK-1928 (P190.01) — le bailleur du bien (`BailleurDuBien`), comme `view`.
+                    ->orWhereHas('property', fn ($pq) => BailleurDuBien::restreindre($pq, $user))
                     ->orWhereHas('tenant', function ($tq) use ($user) {
                         $tq->where('user_id', $user->id);
                     });
