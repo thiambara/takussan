@@ -257,7 +257,7 @@ voie d'écriture (angle 13, puis 47).
 | 180 | Téléversements d'images sans `PixelsAuPlus` hors de ceux que P143.02 relève (`MediaUploadRequest` collections `photos` et `avatars`, photos de maintenance, pièces jointes de messages et de litiges, documents image) face aux décodages GD qui les suivent (conversions `nonQueued`, `AvatarReencode`, `PdfImageEmbedder`) : RSS hors de `memory_limit` face au `mem_limit` du conteneur — né de P143.02 | fait |
 | 181 | Tableaux reçus sans `max:` par les FormRequests et rangés en `jsonb` (`rooms` d'état des lieux hors du PDF, `metadata`, critères de recherches enregistrées, brouillons d'assistant, réglages) puis relus en entier : taille de ligne, de réponse JSON et de rendu sans borne — le relevé de P143.01 hors du PDF | fait |
 | 182 | Gestes de transition rejoués sur un état déjà atteint (`POST …/confirm`, `cancel`, `send` d'une facture, `convert` et `handle` d'une demande de contact, `accept` d'une intervention, `activate` d'un bail) : second appel après une réponse perdue qui rend 422 ou 409 au lieu de l'état déjà écrit, écran en erreur pour un geste fait — le pendant pour les transitions de l'angle 144 | fait |
-| 183 | Statuts recalculés par le navigateur à partir des dates au lieu de ceux que l'API sert (`displayStatus` de `LeaseSchedule.tsx:44-56`, échéance `pending` passée affichée « En retard », et leurs pareilles pour réservations, visites, délégations, abonnements) : écart avec les compteurs et relances de l'API, et lignes que le calcul ne vise pas (restitution de dépôt due par l'agence) — né de P146.02 | à faire |
+| 183 | Statuts recalculés par le navigateur à partir des dates au lieu de ceux que l'API sert (`displayStatus` de `LeaseSchedule.tsx:44-56`, échéance `pending` passée affichée « En retard », et leurs pareilles pour réservations, visites, délégations, abonnements) : écart avec les compteurs et relances de l'API, et lignes que le calcul ne vise pas (restitution de dépôt due par l'agence) — né de P146.02 | fait |
 | 184 | Champs hors statut que le `PATCH` générique écrit alors qu'un geste dédié les garde (`assigned_to` et `scheduled_at` d'`UpdateMaintenanceRequestRequest` face à l'assignation d'intervention, `scheduled_at` et `agent_id` d'`UpdatePropertyVisitRequest` face au report et à la réaffectation de visite, `pipeline_stage` d'`UpdateCustomerRequest` face à `…/pipeline-stage`) : capacité, contrôle de chevauchement, transition, avis et journal du geste sautés — le pendant hors statut de P147.01 | à faire |
 | 185 | Formulaires d'édition du front hors du bien, du client et du profil (`src/components/**` et `src/app/actions/*` qui construisent un corps `PATCH`/`PUT` : `|| undefined`, `blank()`, `transform(… ? v : undefined)`, `z.coerce.number()` sur un champ facultatif) : champ vidé omis du corps, ou lu comme `0`, alors que l'API efface sur `null` — le relevé de P149.01 à P149.04 sur le reste des écrans | à faire |
 | 186 | Paramètres `filter[…]`, `sort=` et `include=` envoyés par le front à une liste écrite à la main hors de `buildQuery()` (`ConversationController::index`, `ReviewController::index`, `PaymentController::history`, `Admin\AgencyModerationController::index` et leurs pareilles) qui ne les lit pas : filtre ou tri accepté en 200 et sans effet, liste non filtrée montrée comme filtrée — le pendant silencieux de l'angle 150, né de P150.05 | à faire |
@@ -286,6 +286,7 @@ voie d'écriture (angle 13, puis 47).
 | 209 | Requêtes de modification qui ne rejouent pas les règles de valeur de leur création (`UpdateSettingRequest` face au catalogue de `StoreSettingRequest::after()`, et leurs pareilles : un `after()`, une règle de catalogue, un `Rule::unique` ou une sous-règle `x.*` présents dans `Store*Request` et absents de `Update*Request` du même modèle) : valeur refusée en 422 à la création et enregistrée en 200 à la modification — né de P181.01 | à faire |
 | 210 | Gestionnaires `async` du front qui attendent `mutateAsync()` sans `try`/`catch` et sont passés tels quels à `onClick` ou par `void handleSubmit()` (`BookingDecisionDialog`, `VisitDetail` et leurs pareils sous `src/components/**`, hors gestes de transition) : erreur de l'API rendue en promesse rejetée non rattrapée, sans message à l'écran ni fermeture du dialogue — le relevé de P182.01 sur le reste des écrans | à faire |
 | 211 | Gestes d'écriture qui jugent le statut sur le modèle lié à la route, hors transaction ou sans verrou, alors que leurs voisins verrouillent et relisent la ligne (`PlatformPayoutService::cancel`, `PropertyVisitController::cancel`, `MaintenanceRequestService::accept`, et leurs pareils sous `app/Services` et `app/Http/Controllers/Api`) : transition concurrente écrasée, effet ou avis émis deux fois — né de P182.05 et P182.06 | à faire |
+| 212 | Dates calendaires `Y-m-d` de l'API lues par `new Date(…)` au navigateur puis comparées à l'instant ou ramenées à minuit local (`setHours(0, 0, 0, 0)`, `getDate()` : `EarlyTerminationBanner.daysFromTodayTo`, `LeaseRenewalDialog.tsx:44`, `refine` de `lib/schemas/lease.ts:81` et `booking.ts:42`, et leurs pareilles sous `src/components`) au lieu de la comparaison littérale de jours qu'ADR-0018 pose : jour décalé pour un navigateur hors UTC, ou dès minuit UTC du jour même — né de P183.01 et P183.04 | à faire |
 
 
 ---
@@ -17023,3 +17024,67 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu.
 - Piste : verrouiller et relire dans `accept` ; rendre le dernier abonnement clos plutôt que `null`, si la console le lit.
 - Mesure (2026-10-23, 2b80de9, mesureur) : relu `MaintenanceRequestService.php:202-213` (`accept` juge `accepted_at` sur le modèle reçu, sans verrou) ; test temporaire `tests/Feature/Tmp/TmpMesure182Test.php` (retiré), PostgreSQL de test, charge 2,2 sur 8 cœurs : `accept` puis `accept` sur un modèle chargé avant le premier, `Event::fake([MaintenanceStatusChanged::class])` → second appel accepté, deux événements. Abonnement : `AgencySubscriptionService::cancel` (l. 58-70) rend toujours `null` sans abonnement en cours, mais la console ne lit pas le corps (`AdminAgencySubscriptionPanel.tsx:48-55` : toast puis invalidation et relecture ; `super-admin.ts:248-254`) → cette partie ne tient pas. Retenu pour l'acceptation seule. Classement : A1, la garde `maintenance.already_accepted` écrit déjà le contrat ; le correctif verrouille et relit la ligne dans une transaction avant de la juger, sans choix de produit.
+
+## Angle 183 — Statuts recalculés par le navigateur à partir des dates
+
+*Exploré le 2026-10-23 sur `pre-dev` 164a559be, par l'explorateur, sans sous-agent. Relevé de départ : `grep` sous `takussan-web/src` des comparaisons d'une date à l'instant (`new Date()`, `Date.now()`, `Date.parse`, `setHours`, `isPast`) hors tests, puis lecture de chaque site. Écartés après lecture, parce qu'ils suivent une règle écrite et la même condition que l'API : l'état effectif d'une délégation (`RoleDelegationsSection.tsx:118-129`, affichage seul, gestes jugés sur `status`), l'état de diffusion d'une annonce (`announcements.tsx:96-106`, aucune colonne d'état en base), l'échéance KYC (`lib/kyc-echeance.ts`, TCK-1453), la prise de modération (`moderation.tsx:324-326`), la disponibilité d'un bien (`lib/property-availability.ts`, comparaison littérale de jours). Aucun recalcul trouvé pour les réservations, les visites (onglets filtrés par l'API ; `isPastSlot` ne garde que des gestes que l'API rejuge ; la fenêtre d'avis est le reste de TCK-1729), les tâches ni les abonnements. Tout le reste est lu ; un seul point est mesuré au navigateur simulé (vitest, test temporaire retiré), charge 1,85 / 2,03 / 2,30 sur 8 cœurs ; aucun écran réel n'a été rendu.*
+
+### L'échéancier d'un bail affiche « En retard » une échéance due le jour même, que l'API tient encore pour à venir
+- Réf : P183.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/LeaseSchedule.tsx:46-70`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:197-213`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:327-338`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:65-84`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:54-57`
+- Constat :
+  - `displayStatus` rend `late` pour une échéance `pending` dès que `new Date(p.due_date) < new Date()` (lu, l. 63-66). `due_date` arrive en `Y-m-d` (lu, `LeasePaymentResource.php:31`, `calendarDate`), que `new Date()` lit à minuit UTC : l'échéance passe « En retard » à 00 h 00 UTC le jour même de son échéance (mesuré : `node -e` → `new Date("2026-10-23") < 2026-10-23T09:00Z` vaut `true`).
+  - Mesuré : test temporaire ajouté à `LeaseSchedule.test.tsx` (retiré), `npx vitest run … -t "TMP mesure"` → échéance `pending` dont `due_date` = aujourd'hui (UTC) rendue « En retard » et non « En attente » ; témoin `due_date` = demain rendu « En attente ». 2 verts sur ces deux assertions.
+  - L'API ne tient une échéance pour échue qu'au lendemain : `scopeOverdue` et `PortfolioMetrics::overdue` posent `due_date < today` (lu) ; l'accueil du locataire range l'échéance du jour parmi les « à venir » et la « prochaine échéance » (`due_date >= today`, lu, `DashboardTenantService.php:69,76`) ; la première relance de retard part à J+1 (`OVERDUE_DAYS = [1, 7]`, lu).
+  - Le même jour, le locataire lit donc « prochaine échéance aujourd'hui » sur son accueil et « En retard », sur fond rouge (`bg-destructive/10`, l. 212), dans le détail de son bail (déduit des deux lectures, écrans non rendus).
+  - Le docblock (l. 46-47) dit que le retard est calculé au navigateur « quand le serveur ne l'a pas encore marqué » ; le seul écrivain de `late` est la pénalité (`LateFeeCalculator`, voir P162.06), si bien que sans pénalité configurée ce calcul est la seule source du retard affiché.
+  - Établi comment : lu, et mesuré par vitest.
+- Piste : faire servir le retard par l'API, une seule fois, avec la règle de `scopeOverdue` (par exemple `is_overdue` sur `LeasePaymentResource`, comme `PrivacyRequestResource`), et faire lire ce champ à `displayStatus` ; à défaut, comparer littéralement `p.due_date < aujourdhuiIso` (ADR-0018). Garde : un test de `LeaseSchedule` à horloge figée (`vi.setSystemTime`) sur une échéance du jour, attendue « En attente ».
+
+### Le badge « échéances en retard » de la fiche du bail compte les restitutions de caution, l'échéance du jour, et oublie les paiements partiels échus
+- Réf : P183.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/LeaseDetail.tsx:83-94,169-173`, `takussan-api/app/Services/Dashboard/CollectedPayments.php:44,92-99`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:327-338`, `docs/features.md:592`
+- Constat :
+  - `latePaymentsCount` compte toute ligne `late`, et toute ligne `pending` dont `new Date(due_date) < new Date()`, sans regarder `payment_type` (lu, l. 83-94). Le badge rouge « N échéances en retard » s'affiche dès que le compte est positif (lu, l. 169-173).
+  - TCK-1264 a retiré la restitution de caution (`deposit_refund`) du retard de `LeaseSchedule` (lu, `LeaseSchedule.tsx:49-51,63`), mais pas de ce compte : une restitution `pending` échue, que l'agence doit au locataire, compte comme un retard du locataire, contre la règle « une restitution de caution n'est jamais présentée comme une échéance à payer » (lu, `features.md:592`).
+  - Les impayés de l'API sont `pending`, `partially_paid` et `late` échus, hors restitution (lu, `OWED_STATUSES` l. 44, `leaseOwed` l. 92-99, `overdue` l. 327-338). Le badge, lui, ignore `partially_paid` échu, et compte l'échéance du jour (même calcul que P183.01). La fiche du bail et les tuiles « impayés » des tableaux de bord ne donnent donc pas le même nombre pour le même bail (déduit des deux règles, écrans non rendus).
+  - Établi comment : lu.
+- Piste : faire lire au badge le même champ servi que P183.01 (ou, à défaut, `displayStatus` de `LeaseSchedule` exporté, avec `partially_paid` échu compté), plutôt qu'une troisième copie de la règle. Garde : un test de `LeaseDetail` avec une restitution `pending` échue, une échéance du jour et un `partially_paid` échu, badge attendu à 1.
+
+### Le dialogue « Enregistrer un paiement reçu » propose de régler une restitution de caution, que l'API refuse en 422
+- Réf : P183.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/LeasePaymentDialog.tsx:46-52`, `takussan-api/app/Services/Model/LeasePaymentService.php:57-64`
+- Constat :
+  - Les échéances proposées sont toutes les lignes `pending` ou `late` du bail, sans regarder `payment_type` (lu, l. 46-47). La liste des échéances d'un bail rend aussi les `deposit_refund` (lu, `LeasePaymentController::index`, sans filtre de type ; voir la Mesure du 2026-10-22 de P146.02).
+  - `markPaid` refuse toute restitution : `lease_payment.deposit_refund_paid_by_payout`, 422, parce qu'elle se règle par son reversement (lu, `LeasePaymentService.php:57-64`, TCK-594).
+  - Une restitution `pending` apparaît donc dans le choix, libellée comme un loyer (période et montant, l. 48-51), et son enregistrement rend un 422 ; tant qu'elle reste seule `pending`, `nothingToSettle` est faux et le dialogue ne dit pas qu'il n'y a rien à régler (lu, l. 52).
+  - Établi comment : lu. Le dialogue n'a pas été rendu.
+- Piste : écarter `payment_type === 'deposit_refund'` des options, comme `isPayable` l'écarte du paiement en ligne (`PaymentGatewayService.php:1718-1722`). Garde : un test du dialogue avec un loyer `pending` et une restitution `pending`, une seule option attendue.
+
+### Le compte à rebours d'une résiliation anticipée retire le bouton d'annulation un jour trop tôt pour un navigateur à l'ouest d'UTC
+- Réf : P183.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:27-33,59-67,98-108`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:138-143`
+- Constat :
+  - `daysFromTodayTo` lit la date effective `Y-m-d` par `new Date(iso)` (minuit UTC), puis la ramène à minuit **local** par `setHours(0, 0, 0, 0)` (lu, l. 27-33). Mesuré, `node -e` avec la fonction recopiée et l'instant 2026-10-31 15:00 UTC, date effective 2026-11-01 : `TZ=Africa/Dakar` → 1, `TZ=America/New_York` → 0.
+  - À 0, le bandeau titre « Fin aujourd'hui » et cache le bouton d'annulation (`cancellationOpen = remaining > 0`, lu, l. 67, 98-101, 108). L'API, elle, accepte l'annulation tant que la date effective est postérieure à aujourd'hui UTC (lu, `EarlyTerminationService.php:138-143`) : le locataire ou l'agent à l'étranger perd un jour d'annulation que l'API lui laisse.
+  - Établi comment : lu, et mesuré sur la fonction seule ; le bandeau n'a pas été rendu sous un autre fuseau.
+- Piste : compter les jours par comparaison littérale de dates calendaires (ADR-0018), ou faire servir par l'API la fin de la fenêtre d'annulation. Garde : un test de `daysFromTodayTo` sous `TZ=America/New_York`.
+
+### Petites améliorations
+- Réf : P183.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:104`, `takussan-web/src/components/leases/LeaseSchedule.tsx:46-47`
+- Constat :
+  - Le bandeau de résiliation passe la date effective brute à `banner_effective` (« Date effective : {date} », mesuré par `node -e` sur `fr.json`) sans `fmt.date` (lu, l. 104), alors que `useFormatteurs` est déjà chargé (l. 48) : le lecteur lit « Date effective : 2026-11-01 ».
+  - Le docblock de `displayStatus` décrit le retard comme un rattrapage d'un marquage serveur à venir ; il ne dit pas que, sans pénalité de retard configurée, rien ne l'écrira jamais (voir P183.01).
+  - Établi comment : lu.
+- Piste : formater la date par `fmt.date` ; réécrire le docblock pour dire d'où vient le retard affiché.
