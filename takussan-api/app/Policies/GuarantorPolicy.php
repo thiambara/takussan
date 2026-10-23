@@ -15,9 +15,9 @@ class GuarantorPolicy extends BasePolicy
      * Lire une caution : super-admin, celui qui l'a ajoutée, ou un membre de l'agence de
      * celui-ci.
      *
-     * ⚠ La troisième clause passe par `addedBy?->agency_id`, **pas** par une colonne `agency_id`
-     * sur la caution : ce modèle n'en a pas. C'est une jointure implicite, et la recopier de
-     * mémoire ailleurs aurait produit une règle plus permissive sans que rien ne le signale.
+     * TCK-1993 (P175.01) — la troisième clause lit l'agence de la caution ({@see self::agencyOf()}),
+     * sa colonne `agency_id` d'abord : elle ne passait que par `addedBy->agency_id`, et une caution
+     * dont l'auteur avait effacé son compte n'était plus lisible par personne dans l'agence.
      *
      * TCK-587 (ADR-0031) — « un membre de l'agence » est désormais son PERSONNEL : un bailleur de
      * l'agence lisait, modifiait et supprimait les cautions ajoutées par les autres.
@@ -30,7 +30,7 @@ class GuarantorPolicy extends BasePolicy
 
         return $user->isSuperAdmin()
             || $model->added_by_id === $user->id
-            || ($model->addedBy !== null && $this->isStaffOf($user, $model->addedBy->agency_id));
+            || $this->isStaffOf($user, self::agencyOf($model));
     }
 
     /** `GuarantorController` employait la même règle pour lire et pour écrire. */
@@ -63,13 +63,14 @@ class GuarantorPolicy extends BasePolicy
     }
 
     /**
-     * L'agence d'une caution, qui n'a pas de colonne `agency_id` : celle de son auteur, par
-     * l'accesseur pont (`null` pour un auteur présent dans plusieurs agences). C'est aussi
-     * l'agence à laquelle se rattache la consultation journalisée (ADR-0044 § 3, étape 1).
+     * L'agence d'une caution : sa colonne `agency_id`, posée à la création et rattrapée par
+     * migration (TCK-1993) ; à défaut, celle de son auteur par l'accesseur pont (`null` pour un
+     * auteur présent dans plusieurs agences). C'est aussi l'agence à laquelle se rattache la
+     * consultation journalisée (ADR-0044 § 3, étape 1).
      */
     public static function agencyOf(Guarantor $guarantor): ?int
     {
-        $agencyId = $guarantor->addedBy?->agency_id;
+        $agencyId = $guarantor->agency_id ?? $guarantor->addedBy?->agency_id;
 
         return $agencyId !== null ? (int) $agencyId : null;
     }
