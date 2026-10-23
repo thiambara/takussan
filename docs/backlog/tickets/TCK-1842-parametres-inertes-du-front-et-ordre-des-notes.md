@@ -3,7 +3,7 @@ id: TCK-1842
 title: "Le front ne demande plus trois paramètres que l'API ignore, et les notes du client se départagent par l'id"
 status: done
 phase: P2
-family: chore
+family: technique
 estimate: S
 wave: null
 created: 2026-10-23
