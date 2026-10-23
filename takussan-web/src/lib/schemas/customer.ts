@@ -42,14 +42,17 @@ const montant = (v: string | undefined): number | null =>
  * `useApiForm`. Raw values may be empty strings; they are normalised at
  * submit time via `normaliseCustomerForm`.
  */
+// TCK-1905 (P195.09) — les bornes de longueur sont celles de `StoreCustomerRequest` et
+// `UpdateCustomerRequest` (255, et 100 pour le numéro de pièce) : plus étroites ici, elles
+// empêchaient de réenregistrer une fiche que l'API avait acceptée.
 export const customerFormSchema = z
   .object({
     first_name: requiredStringSchema(msgValidation('common.firstNameRequired')).max(
-      100,
+      255,
       msgValidation('common.firstNameTooLong'),
     ),
     last_name: requiredStringSchema(msgValidation('common.lastNameRequired')).max(
-      100,
+      255,
       msgValidation('common.lastNameTooLong'),
     ),
     email: z
@@ -65,14 +68,14 @@ export const customerFormSchema = z
         (v) => v.trim() === '' || /^\+?[0-9\s().-]{8,20}$/.test(v.trim()),
         msgValidation('common.phoneInvalid'),
       ),
-    occupation: z.string().max(120, msgValidation('customer.occupationTooLong')),
+    occupation: z.string().max(255, msgValidation('customer.occupationTooLong')),
     pipeline_stage: z.enum(pipelineStageValues),
     status: z.enum(customerStatusValues),
     id_type: z.string().refine(
       (v) => v === '' || (idTypeValues as readonly string[]).includes(v),
       msgValidation('customer.idTypeInvalid'),
     ),
-    id_number: z.string().max(64, msgValidation('customer.idNumberTooLong')),
+    id_number: z.string().max(100, msgValidation('customer.idNumberTooLong')),
     // TCK-953 — le masque du numéro déjà saisi (fiche en édition) : jamais envoyé. Un champ vide
     // veut dire « inchangé », et le numéro n'est exigé que si la fiche n'en porte pas encore.
     id_number_masked: z.string().nullable().optional(),
