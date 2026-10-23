@@ -16728,7 +16728,7 @@ sur Cloudflare.*
 
 ### Le filigrane décode le logo original de l'agence, jusqu'à 20 Mpx, à chaque conversion de chaque photo
 - Réf : P180.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Media/WatermarkService.php:41-63`, `takussan-api/app/Services/Media/AgencyWatermarkContext.php:74-113`, `takussan-api/app/Jobs/Media/ApplyWatermarkJob.php:57-62`, `takussan-api/app/Models/Agency.php:173-181`, `takussan-api/app/Jobs/Media/RegenerateAgencyWatermarksJob.php:82`
 - Constat :
@@ -16739,10 +16739,11 @@ sur Cloudflare.*
   - mesuré : un PNG uni de 4 472 × 4 472 (20 Mpx, la borne de `PixelsAuPlus`) ne pèse que 66 404 octets ; `decodeBinary` puis `scaleDown(width: 160)` par Intervention et la GD → 0,6 s, RSS du processus de 37 Mo à 188 Mo (`/tmp/expl180s/dec.php`, `getrusage`, charge 2,5 sur 8 cœurs). Le tas PHP reste à 12 Mo : c'est de la mémoire de la bibliothèque. Les workers `media` ont `mem_limit: 384m` (`deploy/takussan/compose.api.yml:127-133`).
   - Établi comment : lecture des cinq fichiers, et mesure locale du seul décodage.
 - Piste : faire lire au filigrane la conversion `preview` du logo, en retombant sur l'original tant qu'elle n'est pas produite (le motif de `PdfImageEmbedder::dataUri()`), et lire le contexte sous le verrou, après le test « déjà fait ». Garde : un test qui pose un logo à `preview` produite et vérifie que l'original n'est pas lu (disque espion ou sous-classe qui compte `readLogo`).
+- Mesure (2026-10-23, 19d1cffcd, mesureur) : relu `ApplyWatermarkJob::handle()` (`AgencyWatermarkContext::fromAgency()` l. 57, avant `WatermarkTrace::underLock` l. 63 et le test « déjà filigrané » l. 68-72 de `watermark()`), `AgencyWatermarkContext::readLogo()` l. 93-109 (`$disk->get()` de l'original), `WatermarkService::apply()` l. 58-61 (`decodeBinary` puis `scaleDown(width: 20 % de la conversion)`), `Property::watermarkedConversions()` l. 833-836 (`thumbnail`, `preview`, `full`), `ApplyWatermarkOnConversionListener::handle()` l. 76, et `Agency::registerMediaConversions()` l. 173-181 (`preview` du logo en `Fit::Max` 320 × 320, PNG, en file) ; `git log -S` et `docs/backlog/tickets` sans correctif → le constat tient (le contexte est lu l. 57, le verrou pris l. 63). Largeurs visées : 60 px (`thumbnail` 300), 160 px (`preview` 800), 320 px au plus (`full`, `Fit::Max` 1600) : la `preview` du logo couvre toujours la cible, sauf un logo plus haut que large borné par sa hauteur. Classement : A2, performance sans changement de résultat si l'implémenteur lit la `preview` du logo seulement quand elle est produite et au moins aussi large que la cible (sinon l'original), et déplace la lecture du contexte sous le verrou, après le test « déjà fait ».
 
 ### Les vignettes des photos de maintenance et d'état des lieux chargent l'original, jusqu'à 10 Mo et sans borne de pixels pour la maintenance
 - Réf : P180.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : refuser au-delà de 20 Mpx des photos de maintenance aujourd'hui acceptées, et ouvrir aux conversions la route signée qui ne sert que l'original
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/maintenance/MaintenanceGallery.tsx:50-79`, `takussan-web/src/components/inventory/InventoryDetail.tsx:216-226`, `takussan-api/app/Http/Resources/MaintenanceRequestResource.php:120-143`, `takussan-api/app/Http/Resources/InventoryResource.php:116-122`, `takussan-api/app/Http/Requests/Api/UploadPhotosMaintenanceRequestRequest.php:50`, `takussan-api/app/Http/Requests/Api/CompleteMaintenanceRequestRequest.php:57-58`, `takussan-api/app/Http/Requests/Api/ContestMaintenanceResolutionRequest.php:25-26`
 - Constat :
@@ -16751,10 +16752,11 @@ sur Cloudflare.*
   - Même forme pour l'état des lieux : `InventoryResource::roomPhotos()` ne sert que l'original signé (l. 120), affiché en grille de 3 à 6 colonnes (`InventoryDetail.tsx:216-226`). Pourtant `room_photos` a une conversion `preview` à 600 px depuis TCK-1425 (`Inventory.php:89-97`), que seul le PDF lit (lu).
   - Établi comment : lecture des requêtes, des ressources et des deux composants.
 - Piste : pour l'état des lieux, servir l'URL signée de la `preview` quand elle est produite, en gardant l'original au clic. Pour la maintenance, une conversion `thumbnail` en file sur `photos`, `before_photos` et `completion_photos`, servie de même. Elle demande alors `PixelsAuPlus` sur les trois requêtes, puisque le serveur se mettrait à décoder ces images. Garde : un test de ressource qui attend une URL de vignette distincte de l'original, et un test qui refuse un en-tête de 10 000 × 10 000 sur les trois routes.
+- Mesure (2026-10-23, 19d1cffcd, mesureur) : relu les trois requêtes de maintenance (`UploadPhotosMaintenanceRequestRequest.php:50`, `CompleteMaintenanceRequestRequest.php:57-58`, `ContestMaintenanceResolutionRequest.php:25-26` : `image|mimes|max:10240`, sans `PixelsAuPlus`), `MaintenanceRequest::registerMediaCollections()` (aucune conversion), `MaintenanceRequestResource::mediaBlock()` l. 120-143 et `InventoryResource::roomPhotos()` (seul `signedUrl($media)` de l'original), `MaintenanceGallery.tsx:50,79` et `InventoryDetail.tsx:216-226` (`<img src>` en grille), `Inventory.php:91-96` (`preview` de `room_photos`) → le constat tient ; `room_photos` est borné à 5 Mo et 20 Mpx (`UploadRoomPhotosInventoryRequest.php:41`), pas 10 Mo. Surtout, `media.private.show` (`PrivateMediaController::__invoke` → `PrivateMediaAccess::redirect($media)`) ne sert que l'original, et `MediaResource::conversionUrl()` le dit (« la route signée ne sert que l'original », TCK-545) : servir une vignette privée demande d'étendre cette route. Classement : V7, un refus neuf au téléversement et une surface neuve de la route signée des fichiers privés (ADR-0029) ne se décident pas sans le porteur.
 
 ### Le logo d'agence est servi en original dans l'annuaire public, les consoles super-admin et les métadonnées de partage
 - Réf : P180.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : l'image de partage Open Graph et JSON-LD passerait de l'original à 320 px
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicAgencyController.php:190,361`, `takussan-api/app/Http/Resources/AgencyResource.php:61`, `takussan-api/app/Http/Resources/Api/Admin/AgencyResource.php:30`, `takussan-api/app/Http/Resources/Api/Admin/AgencyDetailResource.php:33`, `takussan-api/app/Http/Resources/PropertyResource.php:445`, `takussan-web/src/components/public/index/ProfileCard.tsx:75-76`, `takussan-web/src/components/admin/super/agency-detail.tsx:322`, `takussan-web/src/components/admin/super/AgencyModerationCard.tsx:122-127`, `takussan-web/src/app/[locale]/(public)/agencies/[slug]/page.tsx:90`
 - Constat :
@@ -16764,6 +16766,7 @@ sur Cloudflare.*
   - La conversion `preview` du logo (PNG 320 px, `Agency.php:173-181`) n'est servie nulle part au front (lu, `grep -rn "getFirstMediaUrl('logo'" app`).
   - Établi comment : lecture. Le poids réellement servi en préproduction n'a pas été mesuré (hors du poste).
 - Piste : rendre `logo_url` sur la `preview` quand elle est produite, en retombant sur l'original (le motif de `PublicPhotoUrl::upTo()`), et faire passer les trois écrans par `next/image` sans `unoptimized`. Garde : un test de ressource qui attend l'URL de la conversion une fois celle-ci produite.
+- Mesure (2026-10-23, 19d1cffcd, mesureur) : `grep -rn "getFirstMediaUrl('logo'" takussan-api/app` → les six emplacements cités (`PublicAgencyController.php:190,361`, les deux `AgencyResource`, `AgencyDetailResource.php:33`, `PropertyResource.php:445`) ; relu `ProfileCard.tsx:75-76` (`AvatarImage` brut), `agency-detail.tsx:322` (`<img>`), `AgencyModerationCard.tsx:122-127` (`Image unoptimized`), `agencies/[slug]/page.tsx:90` et `jsonld-profil.ts:104-105` (l'original en image de partage) → le constat tient. Le constat oublie deux consommateurs de `logo_url` : `AgencyConfigForm.tsx:101,215-217` (l'aperçu du logo dans la configuration de l'agence) et `app/(accueil)/page.tsx:48` (la bannière de marque, qui ne lit que sa présence). Classement : V7, rendre `logo_url` sur la `preview` réduit à 320 px l'image de partage des réseaux et l'aperçu de configuration, un choix visible qu'une ressource commune impose à tous ses écrans.
 
 ### Petites améliorations
 - Réf : P180.04
