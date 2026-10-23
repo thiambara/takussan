@@ -27,6 +27,8 @@ vi.mock('next/navigation', () => ({
 vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraductionsServeur());
 
 vi.mock('@/lib/access/pages-admin-server', () => ({ garderPageAdmin: (c: string) => garde(c) }));
+// TCK-1903 — la page lit le profil actif (la clé d'`IntegrationsManager`) dans le cookie.
+vi.mock('@/lib/session', () => ({ getActiveProfileId: async () => undefined }));
 vi.mock('@/app/actions/admin-settings', () => ({
   fetchIntegrationsAction: async () => ({ ok: true, data: { data: [] } }),
   fetchPaymentProviderSchemasAction: async () => ({ ok: true, data: [] }),
