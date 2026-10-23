@@ -17855,7 +17855,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### Les documents et pièces KYC de moins de 1 Kio sont refusés en 422, alors que la règle ne visait que le fichier vide
 - Réf : P194.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1882
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Support/Uploads/AcceptedUploads.php:8-11,55-62`, appelée par `StoreDocumentRequest.php:40`, `UploadDocumentVersionRequest.php:27`, `Kyc/UploadKycDocumentRequest.php:20`, `Me/UploadKycOwnerProfileRequest.php:58`, `Me/UploadKycAgentProfileRequest.php:58`, `Me/UploadKycServiceProviderProfileRequest.php:59`, `Admin/UpdatePrivacyRequestRequest.php:29` ; `takussan-api/tests/Feature/Uploads/DocumentUploadMimeTest.php:36-52`
 - Constat :
@@ -17867,6 +17867,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Établi comment : lu + mesuré.
 - Piste : remplacer `min:1` par une règle qui refuse les seuls 0 octet (règle maison sur `getSize() > 0`, ou `File::types(...)->min(...)` en octets si la version le permet) ; test qui dépose un fichier réel de quelques octets (accepté) et un fichier vide (refusé) sur une route document et une route KYC.
 - Mesure (2026-10-23, d9da8aa85, mesureur) : relu `AcceptedUploads.php` (l. 10-11 « `min:1` (Ko) refuse le fichier vide », l. 60 `'min:1'`, inchangés depuis b8d69491a, TCK-601), ses sept appelants (inchangés) et TCK-601 (AC5/AC5b : le fichier **vide** est refusé) ; `git log -S "min:1"` et `grep` des tickets → aucun correctif ; test temporaire `SondeMesureur194Test` (retiré, charge 1,89 / 2,18 / 2,10 sur 8 cœurs) qui poste des `UploadedFile` réels : `POST /api/documents` avec un `.txt` de 27 octets → **422**, un CSV de 1 023 octets → **422**, le même de 1 024 octets → 201, un faux `create('n.txt', 10)` → 201 ; `POST /api/me/owner-profiles/{id}/kyc/upload` avec un PNG réel de 767 octets (2×2, `sips`) → **422** → le constat tient en entier, documents et KYC. Classement : A1, le comportement attendu est écrit (TCK-601 AC5 et le docblock ne refusent que le fichier vide) ; correctif attendu : remplacer `min:1` dans `AcceptedUploads::rules()` par une règle qui ne refuse que 0 octet, et garder par un test qui dépose un fichier réel de quelques octets (accepté) et un vide (refusé) sur une route document et une route KYC.
+- Mesure (2026-10-23, 01c1f5b85, implementeur) : reproduit avant correctif par `DocumentUploadMimeTest::test_un_petit_fichier_reel_passe_sur_le_depot_et_la_version` (`.txt` réel de 28 octets, CSV réel de 66 octets → 422 « must be at least 1 kilobytes ») et `KycUploadMimeTest::test_une_petite_photo_reelle_passe` (PNG réel 2×2 de GD, quatre routes → 422) → `min:1` remplacé dans `AcceptedUploads::rules()` par `App\Rules\FichierNonVide` (0 octet seul refusé, message `validation.uploaded`) ; ablation : `min:1` remis → ces tests rouges ; règle retirée sans `min:1` → les cas `vide` existants rouges (6) ; remise → `DocumentUploadMimeTest` 3 verts, `KycUploadMimeTest` 12 verts, `PrivacyRequestRegistryTest` 7 verts (charge 2,86 / 2,86 / 2,51 sur 8 cœurs).
 
 ### Une note vocale enregistrée en `audio/mp4` peut être lue `video/mp4` par `finfo` et refusée en 422
 - Réf : P194.02
