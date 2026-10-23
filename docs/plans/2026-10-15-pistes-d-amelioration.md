@@ -14756,7 +14756,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Le fil d'une intervention suit la relation `assignee` restée en mémoire : sur une instance qui l'a chargée, réassigner garde l'ancien prestataire dans le fil et n'y ajoute pas le nouveau
 - Réf : P154.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1756
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Listeners/Maintenance/SyncMaintenanceConversation.php:37`, `:58-60`, `:103-106`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:124-139`, `:229-247`, `:274-286`
 - Constat :
@@ -14767,6 +14767,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu, puis mesuré.
 - Piste : dans `MaintenanceRequestService`, retirer la relation (`unsetRelation('assignee')`) dès que `assigned_to` change, avant l'événement, ou faire lire au listener la relation par `load()` plutôt que `loadMissing()`. Test : instance chargée avec `assignee`, réassignation puis refus → le fil porte le seul prestataire courant et le message nomme le bon ; rouge sur le code d'aujourd'hui.
 - Mesure (2026-10-22, dd4563ae6, mesureur) : relu `SyncMaintenanceConversation::handle` (l. 37 `loadMissing([…, 'assignee', …])`, l. 58-60, `swapProvider` l. 103-106) et `MaintenanceRequestService::assign` (l. 113-139), `::decline` (l. 229-251), `::unassignProviderFromAgency` (l. 262-290), inchangés, aucun `unsetRelation`/`refresh()` avant l'événement ; aucun commit ni ticket ne les traite (`git log -S`, `grep P154` dans `docs/backlog/tickets`) ; test temporaire (retiré), charge 3,85 / 4,16 / 3,63 sur 8 cœurs : intervention assignée à A par `PATCH`, instance relue + `load('assignee')`, `assign(…, B, bailleur)` → participants actifs du fil = bailleur, locataire, A (B absent) ; instance relue + `load('assignee')` (= B), `decline(…, B, …)` → B, qui refuse, est remis dans le fil ; contrôle sans `load('assignee')` (A puis B) → fil = bailleur, locataire, B → le constat tient en entier, toujours sans appelant d'aujourd'hui qui charge la relation (relu : `MaintenanceRequestController::store`/`update`/`decline`, `ServiceProviderOnboardingService` l. 185 `with('property')`). Classement : A1, le comportement attendu est déjà écrit par le listener lui-même et par `MaintenanceConversationTest::test_first_assignment_opens_one_thread_and_reassignment_swaps_the_provider` (le fil suit le prestataire courant), et les deux options de la piste rendent le même résultat sans choix de produit.
+- Mesure (2026-10-23, 4436bf690, implementeur) : deux tests neufs dans `MaintenanceConversationTest` avant correctif : intervention assignée à A par `PATCH`, instance relue avec `load('assignee')`, `assign(…, B, bailleur)` → fil = bailleur, locataire, A (B absent) ; même montage, `decline(…, A, …)` → A remis dans le fil (2 rouges). Correctif : `SyncMaintenanceConversation` relit `assignee` par `load()` (seconde voie de la Piste, un seul point) → 6/6 verts, message `assigned` au nom de B ; ablation (écouteur remis à `HEAD`) → 2 rouges, remis → 6/6 ; `MaintenanceThreadAccessTest`, `AgentHandoverTest`, `GroupConversationCreationTest` verts.
 
 ### `attachSuperAdminRole` écrit le profil plateforme à côté de la relation que `ResolveActiveProfile` a chargée : dans la même requête, le compte n'est pas encore super-admin
 - Réf : P154.02
