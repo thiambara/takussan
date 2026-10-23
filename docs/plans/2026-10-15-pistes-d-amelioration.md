@@ -16852,7 +16852,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### `PUT /api/settings/{id}` enregistre sur une ligne d'agence une valeur que le catalogue refuse au `POST`
 - Réf : P181.01
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite : une seule règle partagée par le `POST` et le `PUT`, la clé lue sur la ligne ; même ticket que P181.04
+- Statut : fait · TCK-1999
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/UpdateSettingRequest.php:48-62`, `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php:59-92`, `takussan-api/app/Http/Controllers/Api/SettingController.php:68-80`, `takussan-api/app/Services/Invoice/OverdueReminderService.php:61-80`
 - Constat :
@@ -16862,6 +16862,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : faire rejouer à `UpdateSettingRequest` la même règle que `StoreSettingRequest::after()`, écrite une fois (un trait ou une méthode statique sur `EditablePlatformSettings`), avec la clé lue sur la ligne. Garde : un test qui envoie au `PUT` chaque valeur que le `POST` refuse et attend 422, ligne inchangée.
 - Mesure (2026-10-23, 31008c833, mesureur) : relu `UpdateSettingRequest.php:48-62` (`value` seul, `required|array`), `StoreSettingRequest.php:70-92` (`after()` et le catalogue), `SettingController.php:68-80` (écrit `$data['value']` tel quel) ; test temporaire `tests/Feature/TmpMesureAngle181Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,1 à 2,4 sur 8 cœurs → en admin d'agence, `POST` `invoice.reminder_offsets_days` à `{"value":[1000]}` → 422, à `[3]` → 201, puis `PUT /api/settings/{id}` à `["abc",-5,100000]` → 200, ligne écrite telle quelle et `OverdueReminderService::offsets()` → `[100000]` ; `PUT` à `{"value":[1000]}` → 200 et `offsets()` → `[1000]` ; `git log` des trois fichiers → rien depuis TCK-964/965/967, dont le ticket écrit « `PUT /api/settings/{id}` d'une ligne d'agence » en « Hors périmètre » ; `grep -rn api/settings takussan-web/src` → aucun appelant. Le constat tient en entier. Classement : V1, la règle attendue est écrite (le catalogue), mais elle borne l'écriture de plafonds de pénalités et d'échéances de relance, et le `PUT` a été écarté par une décision du ticket qui l'a posée au `POST`.
+- Mesure (2026-10-23, fee847c8c, implementeur) : reproduit avant correctif par `ReglageDAgenceAuPutTest` (charge 5,44 / 5,25 / 4,24 sur 8 cœurs) : ligne d'agence `invoice.reminder_offsets_days`, `PUT /api/settings/{id}` à `["abc", -5, 100000]` et à `[1000]` → 200, de même hausse à 500 %, indemnité de 99 mois, signature non booléenne, clé hors catalogue → la règle de `StoreSettingRequest::after()` passe dans le trait `JugeLaLigneDeReglageDAgence`, jouée aussi par `UpdateSettingRequest::after()` avec la clé de la ligne ; 422, ligne inchangée ; ablation des changements de `app/` → 9 rouges, remis → 9/9 ; `AgencySettingRowCatalogueTest` 13/13, `SettingTest` 4/4, `ScopedSettingReadersTest` 16/16, `GenericSettingsCatalogueBypassTest` 3/3, `SettingIndexAccessTest` 4/4.
 
 ### Une clé de brouillon d'assistant de plus de 255 caractères rend 500
 - Réf : P181.02
@@ -16893,7 +16894,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Une ligne de réglage d'agence garde tout ce que le client envoie autour de `value`, et chaque lecture le relit
 - Réf : P181.04
-- Statut : validé — validation du porteur (2026-10-23) : réécrire la ligne sous la forme canonique `{"value": …}`, au `POST` comme au `PUT` ; même ticket que P181.01
+- Statut : fait · TCK-1999
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php:63,84-88`, `takussan-api/app/Support/ScopedSetting.php:43-63`, `takussan-api/app/Http/Controllers/Api/SettingController.php:16-36,53-61`
 - Constat :
@@ -16903,6 +16904,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : n'écrire que la valeur déballée et validée, reconstruite sous la forme canonique `{"value": …}`, ou refuser toute autre clé (`array:value`). Le même traitement au `PUT` va avec P181.01. Garde : un test qui envoie une clé de plus et relit la ligne.
 - Mesure (2026-10-23, 31008c833, mesureur) : relu `StoreSettingRequest.php:84-88` (seule la valeur déballée est jugée), `ScopedSetting::unwrap` et `value()` (`ScopedSetting.php:43-63`), `SettingController::store` (écrit `$data['value']` entier) ; test temporaire `tests/Feature/TmpMesureAngle181Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,1 à 2,4 sur 8 cœurs → `POST /api/settings` `lease.require_signature` à `{"value":true,"junk":[20 000 chaînes]}` → 201, réponse de 0,86 Mo, `pg_column_size` 0,88 Mo, `GET /api/settings` → 0,86 Mo. Le coût par lecture de `ScopedSetting::value()` n'a pas été mesuré. Le constat tient. Classement : V1, le correctif passe par la requête qui écrit les plafonds de pénalités et va avec P181.01, et la piste propose deux options (réécrire sous `{"value": …}` ou refuser toute autre clé, ce qui refuserait aussi la forme héritée `{"months": 3}` que `unwrap()` lit encore).
+- Mesure (2026-10-23, fee847c8c, implementeur) : reproduit avant correctif par `ReglageDAgenceAuPutTest` (même charge) : `POST` `lease.require_signature` à `{"value": true, "junk": [50 chaînes]}` → ligne écrite entière ; `PUT` avec une clé de plus, de même ; forme héritée `{"months": 3}` écrite telle quelle → `store` et `update` écrivent `{"value": <valeur déballée>}` (`formeCanonique()`) ; 3 verts ; même ablation, mêmes rouges. Les lignes déjà écrites ne sont pas réécrites (aucune migration).
 
 ### `metadata` d'une invitation générique est libre : taille sans borne, clés internes écrites par le client
 - Réf : P181.05
