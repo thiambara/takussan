@@ -42,7 +42,8 @@ class MaintenancePriorityTest extends TestCase
         $manager = User::factory()->create(['agency_id' => $agency->id]);
         $agency->update(['primary_admin_id' => $manager->id]);
 
-        $user = User::factory()->create();
+        // TCK-1709 (P153.03) — le propriétaire d'un bien d'agence y a un profil de bailleur.
+        $user = User::factory()->withOwnerProfile($agency)->create();
         $property = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
 
         $response = $this->actingAs($user)->postJson('/api/maintenance-requests', [
