@@ -181,7 +181,8 @@ class MaintenancePrincipalFieldsTest extends TestCase
     public function test_property_owner_picks_the_provider_at_creation(): void
     {
         $agency = Agency::factory()->create();
-        $owner = User::factory()->create();
+        // TCK-1709 (P153.03) — le propriétaire d'un bien d'agence y a un profil de bailleur.
+        $owner = User::factory()->withOwnerProfile($agency)->create();
         $property = Property::factory()->create(['user_id' => $owner->id, 'agency_id' => $agency->id]);
         $provider = $this->providerFor($agency);
 
@@ -220,7 +221,8 @@ class MaintenancePrincipalFieldsTest extends TestCase
     private function scaffold(?Agency $agency = null): array
     {
         $agency ??= Agency::factory()->create();
-        $owner = User::factory()->create();
+        // TCK-1709 (P153.03) — le propriétaire d'un bien d'agence y a un profil de bailleur.
+        $owner = User::factory()->withOwnerProfile($agency)->create();
         $provider = $this->providerFor($agency);
         $requester = User::factory()->create();
 
