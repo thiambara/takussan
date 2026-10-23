@@ -245,7 +245,7 @@ voie d'écriture (angle 13, puis 47).
 | 168 | Onglets, filtres et pagination des listes de la console tenus en état local (`useState`) au lieu de l'URL (`BookingsList.tsx:35`, et leurs pareilles sous `components/*`) : retour arrière depuis un détail qui ramène au premier onglet, rechargement ou lien partagé qui perd la vue, paramètre `?status=` d'un lien entrant ignoré — né de P131.03 | fait |
 | 169 | Rappels programmés à marque unique (`last_reminded_at`, `reminder_sent_at` et leurs pareilles : invitations, visites, échéances, reversements dus, relances de documents) face aux gestes qui remettent la marque à zéro sans déplacer la date de référence (relance, report, renouvellement) : rappel parti dans l'heure qui suit le geste, ou jamais renvoyé — né de P132.03 | fait |
 | 170 | Montants envoyés par le navigateur et pris tels quels par l'API là où elle pourrait les dériver (`amount` de `POST /api/bookings/{id}/payments`, `subtotal` de `POST /api/invoices`, `amount` des paiements enregistrés et de `mark-paid`, montants des reversements et des restitutions) : montant que le payeur ou l'émetteur fixe à la place du calcul du serveur — né de P133.02 et P133.05 | fait |
-| 171 | Sélecteurs et listes sans pagination nourris par la taille de page par défaut (appels `useApiQuery`, `apiRequest` et server actions sans `per_page` ni `page`, rendus en `EntitySelect`, `<select>` ou liste de liens sous `/app`), hors personnes (angle 120) : élément au-delà de la 20ᵉ ligne qu'on ne peut pas choisir ni ouvrir — le relevé de l'angle 135 sous 50 lignes | à faire |
+| 171 | Sélecteurs et listes sans pagination nourris par la taille de page par défaut (appels `useApiQuery`, `apiRequest` et server actions sans `per_page` ni `page`, rendus en `EntitySelect`, `<select>` ou liste de liens sous `/app`), hors personnes (angle 120) : élément au-delà de la 20ᵉ ligne qu'on ne peut pas choisir ni ouvrir — le relevé de l'angle 135 sous 50 lignes | fait |
 | 172 | Lectures du navigateur faites par `fetch` dans un `useEffect`, hors de TanStack Query (`useWelcomeOnce`, `useTenantWelcomeOnce`, `useAgencyStandardWelcomeOnce`, `MinimalProfileTriggerProvider`, `AuthContext`, `useSimilarProperties`, `usePropertyReviews`, `Navbar`) : ni cache ni dédoublonnage entre lecteurs, aucune relecture à l'invalidation, réponse tardive appliquée après un changement de compte ou de profil actif — né de P136.03 | à faire |
 | 173 | Autres fichiers `index.ts` réexportateurs (`components/feedback`, `components/map`, `components/media`, `components/console`, `components/property-form`, `components/customer-form`, `components/floating-dock`) : paquets lourds (carte, téléversement, éditeurs) qu'un écran charge pour un seul composant léger qu'il y prend — le relevé de l'angle 137 hors de `components/forms` | à faire |
 | 174 | Lectures serveur `apiRequest` qui ne transmettent pas le profil actif (`activeProfileId` absent : racine `getMe`, `sonderExistence`, `fetchDashboardProperty`, `fetchDashboardCustomer`, `fetchDashboardMe`, `fetchAgencyUpgradeRequests`, `getAccountDeletionRequestAction`, `fetchMyCapabilities`, et leurs pareilles sous `src/lib/queries` et `src/app/actions`) face aux lectures du navigateur, qui le portent : pour un compte présent dans plusieurs agences, rendu serveur sans profil actif (404 ou 403 d'une fiche, liste vide, agence nulle) — né de P138.03 | à faire |
@@ -15920,3 +15920,101 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Paiement de réservation du personnel : `amount` admet `0` (`min:0`, lu, l. 65), quand la ligne de bail exige `gt:0` (P46.05, TCK-958) ; une ligne `paid` à 0 reçoit un numéro de reçu (lu, `BookingPaymentService.php:40`). Non mesuré.
 - Piste : arrondir la commission par la devise du bail ; passer `amount` à `gt:0` pour le personnel. Un test par point.
 - Mesure (2026-10-23, 9f180a3ae, mesureur) : relu `LeaseService.php:82-87` (`round(…, 2)` sur prix × taux, et `Currency::roundAmount` existe, `Currency.php:69`), `StoreBookingPaymentRequest.php:65` (`min:0`), `BookingPaymentService.php:40` (numéro de reçu toujours posé) ; `php -r 'round(1234567*2.5/100,2)'` → 30864.18, soit une sous-unité XOF (calcul, la création de bail n'est pas jouée) ; test temporaire `SondeMesureur170Test` (retiré, charge 3,28 / 3,14 / 2,90 sur 8 cœurs) : agent, `amount: 0` → `201`, `paid`, reçu `RCP-…` posé → les deux points tiennent. Classement : V1, arrondir une commission et refuser un encaissement à 0 sont des règles de montant.
+
+## Angle 171 — Sélecteurs et listes sans pagination nourris par la taille de page par défaut
+
+*Exploré le 2026-10-23 sur `pre-dev` 55543164c, par l'explorateur. Relu par l'explorateur lui-même : `HasQueryBuilder::getPerPage` (15 sans `per_page`, défaut `Model::$perPage` de `vendor/…/Eloquent/Model.php:121`), `KpiConfigController` et `ThresholdAlertController` (`index`), `kpis.ts`, `alerts.ts`, `KpiConfigList.tsx`, `AlertList.tsx`, `MaintenanceNewLauncher.tsx`, `maintenance/new/page.tsx`, `MaintenanceList.tsx`, `MaintenanceRequestPolicy::openRequests`, `LeasesList.tsx`, `BookingsList.tsx`, `VisitsList.tsx`, `fetchAdminAgencyProperties` et `AgencyPropertiesTab` (`super-admin.ts`, `agency-detail.tsx`), `fetchCustomerLinked` et `CustomerLinkedRecords.tsx`, `toSpatieParams` et `useMaintenanceHistoryForProperty` (`maintenance.ts`), `CalendarPage.tsx`, `PlanifierUneVisite.tsx`, `searchTaskables`. Quatre `SELECT` par `php artisan tinker --execute` sur la base de développement (volumes ci-dessous). Ce qui vient d'un sous-agent en lecture seule : le relevé des lecteurs du front qui rendent une liste paginée en choix ou en liste sans pagination ; les cas de P171.06 et P171.07 que l'explorateur n'a pas rouverts sont marqués « lu par le sous-agent ». Aucun test lancé, rien mesuré au navigateur.
+
+Écarté : `PlanifierUneVisite` et `searchTaskables` (recherche serveur), `useLeasePropertyOptions` et `useAllOngoingLeases` (lisent toutes les pages), plans, moyens de versement, annonces actives et calendrier (l'API ne pagine pas), les sélecteurs de personnes (angle 120), et les listes déjà relevées par l'angle 135.*
+
+### La création d'une intervention par le personnel ne propose que les 50 baux en cours les plus récents de l'agence, sans recherche
+- Réf : P171.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/maintenance/MaintenanceNewLauncher.tsx:38-65,105-114`, `takussan-web/src/app/(dashboard)/app/maintenance/new/page.tsx:23-40`, `takussan-web/src/components/maintenance/MaintenanceList.tsx:124-132`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:77-93`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:46-47`
+- Constat :
+  - Le lanceur lit `useLeases({ status: 'active,terminating', per_page: 50 })`, sans recherche ni page suivante, et ne propose que les biens de ces baux (lu, l. 38-52 et 110-114).
+  - Le bouton « Nouvelle demande » de `/app/maintenance` s'affiche sur `can_create`, que `openRequests` accorde à tout membre du personnel (lu, `MaintenanceList.tsx:124`, `MaintenanceRequestPolicy.php:83-85`) ; pour lui, `/api/leases` rend les baux de l'agence, triés `-created_at` (lu, `LeaseController.php:46`).
+  - `?property=X` n'est honoré que si X figure dans ces 50 lignes ; sinon rien n'est présélectionné (lu, l. 56-65).
+  - mesuré (`tinker`, `SELECT`) : l'agence 1 de la base de développement porte 112 baux `active` ou `terminating` ; 62 de leurs logements ne peuvent pas être choisis.
+  - Un bien porté par deux baux en cours donnerait deux `SelectItem` de même clé (à vérifier).
+- Piste : un sélecteur de bien à recherche serveur (`filter[search]`) pour le personnel, ou la lecture de toutes les pages comme `useAllOngoingLeases` ; un test qui monte le lanceur avec 51 baux et choisit le 51ᵉ.
+
+### Les pages « Indicateurs » et « Alertes » de l'aperçu ne montrent que les 15 premières lignes de l'agence
+- Réf : P171.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/lib/queries/kpis.ts:28-32`, `takussan-web/src/lib/queries/alerts.ts:30-34`, `takussan-web/src/app/(dashboard)/app/overview/kpis/page.tsx:30`, `takussan-web/src/app/(dashboard)/app/overview/alerts/page.tsx:26`, `takussan-web/src/app/(dashboard)/app/overview/kpis/KpiConfigList.tsx:151-159`, `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:22-38`, `takussan-api/app/Http/Controllers/Api/ThresholdAlertController.php:18-33`, `takussan-api/app/Models/Concerns/HasQueryBuilder.php:66-75`
+- Constat :
+  - `fetchKpiConfigs` et `fetchThresholdAlerts` appellent `/api/kpi-configs` et `/api/threshold-alerts` sans aucun paramètre, `per_page` compris (lu).
+  - Les deux contrôleurs appellent `buildQuery(…)->paginate()` sans taille ; `getPerPage()` rend alors le défaut Eloquent, 15 (lu, `HasQueryBuilder.php:66-75`, `Model.php:121`).
+  - Les deux pages rendent `data` en entier, sans pagination ni total (lu, `KpiConfigList.tsx:151-159`) ; ni `StoreKpiConfigRequest` ni `StoreThresholdAlertRequest` ne bornent le nombre de lignes par agence (lu).
+  - Au-delà de 15, une configuration ou une alerte existe, agit, et ne peut être ni vue ni modifiée ni supprimée depuis l'écran. La base de développement n'en porte aucune : non mesuré en volume.
+- Piste : demander `per_page=100` (ou toutes les pages) et l'afficher en « N sur M » au-delà ; un test du lecteur qui vérifie le paramètre envoyé, et un test de page avec 16 lignes.
+
+### Les listes de baux, de réservations et de visites s'arrêtent à 30 lignes par onglet, sans page suivante
+- Réf : P171.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/LeasesList.tsx:84-88`, `takussan-web/src/components/bookings/BookingsList.tsx:91`, `takussan-web/src/components/visits/VisitsList.tsx:44-76,92-100`, `takussan-web/src/components/leases/TenantOnboardingPendingList.tsx:57`
+- Constat :
+  - `/app/leases` lit `per_page: 30`, `/app/bookings` lit `per_page: 30` par onglet, `/app/visits` lit `per_page: 30` sur chacun de ses cinq onglets ; aucune des trois n'a de pagination, de « voir plus » ni de recherche (lu ; `grep` de `page`, `last_page`, `fetchNextPage` sans résultat dans les trois fichiers).
+  - `VisitsList` affiche dans l'onglet le `meta.total` de l'API, et n'en rend que 30 lignes (lu, l. 97) : « 667 » au-dessus d'une liste de 30.
+  - mesuré (`tinker`, `SELECT`) : 147 baux sur l'agence 1, 127 réservations et 667 visites sur l'agence 2 de la base de développement.
+  - Le filtre par logement de `LeasesList` lit tous les biens et permet d'atteindre un bail au-delà de la 30ᵉ ligne ; « Tous » et les filtres de statut, non (lu, l. 82-88).
+  - `TenantOnboardingPendingList` lit aussi 30 lignes sans page suivante (lu par le sous-agent, l. 57 relue).
+- Piste : une pagination sur le modèle des listes qui en ont (`InventoryList`, `MaintenanceList`), ou « voir plus » ; un test par liste qui rend la 31ᵉ ligne.
+
+### La fiche d'agence de la console montre 8 biens sous « Portefeuille » et 10 membres sous « Équipe », sans total ni lien vers la suite
+- Réf : P171.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/super-admin.ts:136-156`, `takussan-web/src/components/admin/super/agency-detail.tsx:250-255,491-545`, `takussan-web/src/messages/fr.json` (`superAdmin.agencyDetail.properties.title` « Portefeuille »)
+- Constat :
+  - `fetchAdminAgencyTeam` envoie `per_page=10`, `fetchAdminAgencyProperties` `per_page=8` (lu, `super-admin.ts:141,153`).
+  - Les deux onglets rendent la liste reçue, sans `meta.total`, sans pagination ni lien vers `/super-admin/properties` ou `/super-admin/users` filtrés sur l'agence (lu, `agency-detail.tsx:491-545`).
+  - mesuré (`tinker`, `SELECT`) : l'agence 1 porte 214 biens ; l'onglet « Portefeuille » en montre 8.
+- Piste : afficher « 8 sur 214 » et un lien vers la liste filtrée, ou paginer ; dire « Derniers biens » si l'aperçu est voulu (texte neuf : à décider).
+
+### Les visites, réservations et baux d'une fiche client, et ses biens correspondants, s'arrêtent à 20 lignes
+- Réf : P171.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/agent-crm.ts:56-90,140-145`, `takussan-web/src/components/crm/CustomerLinkedRecords.tsx:60-80`, `takussan-web/src/components/crm/CustomerMatches.tsx:74-76`
+- Constat :
+  - `fetchCustomerLinked` envoie `per_page: 20` pour les trois onglets, et `CustomerLinkedRecords` rend la liste sans total ni page suivante (lu).
+  - `CustomerMatches` affiche `meta.total` et ne rend que 20 biens à cocher (lu par le sous-agent ; `agent-crm.ts:140-145` relu).
+  - mesuré (`tinker`, `SELECT`) : au plus 14 visites par client sur la base de développement, sous le seuil : la troncature n'y est pas visible.
+- Piste : total et « voir plus » sur les quatre listes ; un test qui rend la 21ᵉ ligne.
+
+### Étiquettes : la liste CRM s'arrête à 50, la console à 100 avec un filtre côté client, et le choix des équipements à 100
+- Réf : P171.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/customers.ts:227-234`, `takussan-web/src/components/customer-dashboard/CustomerListFilters.tsx:106`, `takussan-web/src/lib/queries/tags.ts:40-52`, `takussan-web/src/components/admin-tags/TagsManager.tsx:251`, `takussan-web/src/components/property-form/ChampEquipements.tsx:59`, `takussan-api/app/Http/Controllers/Api/TagController.php:38-42`
+- Constat :
+  - `fetchCrmTags` lit 50 étiquettes CRM pour le filtre de la liste client et les suggestions (lu par le sous-agent).
+  - La console des étiquettes lit `per_page: perPage ?? 100`, le plafond de l'API, et filtre ensuite par onglet et recherche côté client, alors que `filter[search]` et `filter[type]` existent (lu, `tags.ts:40-52`).
+  - Le champ des équipements demande 200, que l'API ramène à 100 (lu par le sous-agent, `HasQueryBuilder.php:70-72` relu).
+  - mesuré (`tinker`, `SELECT`) : 5 étiquettes CRM et 35 équipements sur la base de développement, sous les seuils.
+- Piste : envoyer `filter[type]` et `filter[search]` à l'API dans la console ; lire toutes les pages pour les deux sélecteurs ; un test qui vérifie les paramètres envoyés.
+
+### Annonces et versements de la plateforme : 30 lignes et un total, sans page suivante
+- Réf : P171.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/super-admin.ts:867-877,985`, `takussan-web/src/components/admin/super/announcements.tsx:307,424-427`, `takussan-web/src/components/billing/AdminPayoutsClient.tsx:41-52,86-88`
+- Constat :
+  - `AdminPayoutsClient` lit `perPage: 30` et affiche le total de l'API au-dessus de la liste, sans pagination (lu, l. 47, 52, 88).
+  - La table des annonces lit 30 lignes et affiche `meta.total` en badge, sans page (lu par le sous-agent, à vérifier).
+- Piste : paginer les deux tables ; un test qui rend la 31ᵉ ligne.
+
+### Petites améliorations
+- Réf : P171.08
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/maintenance/MaintenanceHistoryByProperty.tsx`, `takussan-web/src/lib/queries/maintenance.ts:116-128`, `takussan-web/src/components/calendar/CalendarPage.tsx:102-116`
+- Constat :
+  - `MaintenanceHistoryByProperty` (liste de 20 lignes sans pagination) n'a aucun appelant : `grep -rln MaintenanceHistoryByProperty takussan-web/src` ne rend que son propre fichier (mesuré). Son hook `useMaintenanceHistoryForProperty` : appelants à vérifier.
+  - Le menu « bien » du calendrier se construit à partir des événements de la plage affichée, avec pour libellé le `title` de l'événement et non le titre du bien (lu, l. 106-116) : un bien sans événement dans la plage n'y figure pas, et son libellé dépend du type d'événement (à vérifier au rendu).
+- Piste : retirer le composant mort (et son hook s'il n'a pas d'autre appelant) ; nourrir le menu du calendrier par une liste de biens à recherche serveur.
