@@ -4080,6 +4080,7 @@
       "property_fallback": "Property #{id}"
     },
     "history": {
+      "title": "Maintenance on this property",
       "empty_title": "No intervention recorded",
       "empty_description": "Maintenance requests on this property will show up here.",
       "completed_at": "Completed on {date}"

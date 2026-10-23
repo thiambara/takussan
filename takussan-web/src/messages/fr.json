@@ -4051,6 +4051,7 @@
       "property_fallback": "Bien #{id}"
     },
     "history": {
+      "title": "Interventions sur ce bien",
       "empty_title": "Aucune intervention enregistrée",
       "empty_description": "Les demandes de maintenance sur ce bien apparaîtront ici.",
       "completed_at": "Terminée le {date}"
