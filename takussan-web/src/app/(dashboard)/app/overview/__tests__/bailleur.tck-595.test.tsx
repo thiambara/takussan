@@ -50,7 +50,9 @@ beforeEach(() => {
 });
 
 describe('vue bailleur — prochains versements (AC4 bis)', () => {
-  it('ne demande que les versements au bailleur, en attente, planifiés ou en cours', async () => {
+  // TCK-1804 (P162.07) : « à venir » se lit à l'API (`PayoutStatus::upcoming()`), attente
+  // d'approbation comprise, et non plus par une liste de statuts recopiée ici.
+  it('ne demande que les versements au bailleur encore à venir, selon l’API', async () => {
     render(await OwnerDashboardPage());
 
     const url = appels.urls.find((u) => u.startsWith('/api/payouts'));
@@ -58,7 +60,8 @@ describe('vue bailleur — prochains versements (AC4 bis)', () => {
     const params = new URLSearchParams(url!.split('?')[1]);
     expect(params.get('filter[landlord_id]')).toBe('7');
     expect(params.get('filter[payee_role]')).toBe('landlord');
-    expect(params.get('filter[status]')).toBe('pending,scheduled,processing');
+    expect(params.get('filter[upcoming]')).toBe('1');
+    expect(params.get('filter[status]')).toBeNull();
   });
 });
 
