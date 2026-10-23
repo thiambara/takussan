@@ -8363,6 +8363,7 @@
       "namePlaceholder": "misaal : Pisin",
       "type": "Xeet",
       "icon": "Ikon (turu Lucide)",
+      "iconNone": "Aucune (celle du slug)",
       "color": "Melo (hex)"
     }
   },

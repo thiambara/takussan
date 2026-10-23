@@ -9013,7 +9013,8 @@
       "name": "Label",
       "namePlaceholder": "e.g. Swimming pool",
       "type": "Type",
-      "icon": "Icon (Lucide name)",
+      "icon": "Icon",
+      "iconNone": "None (the slug’s icon)",
       "color": "Color (hex)"
     }
   },
