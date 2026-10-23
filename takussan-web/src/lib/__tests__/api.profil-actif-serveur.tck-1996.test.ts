@@ -26,7 +26,6 @@ vi.mock('next-intl/server', async () => ({
 
 import { apiRequest } from '../api';
 import { createProperty } from '../queries/properties-server';
-import type { PropertyCreatePayload } from '../queries/properties-server';
 
 describe('apiRequest côté serveur — profil actif (TCK-1996)', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
@@ -56,7 +55,7 @@ describe('apiRequest côté serveur — profil actif (TCK-1996)', () => {
   it('une écriture d’action serveur (createProperty) part avec l’indice', async () => {
     cookiesPresents.active_profile_id = 'agent:5';
 
-    await createProperty('jeton', { title: 'T' } as unknown as PropertyCreatePayload);
+    await createProperty('jeton', { title: 'T' } as unknown as Parameters<typeof createProperty>[1]);
 
     expect(enTetes()['X-Active-Profile-Hint']).toBe('agent:5');
   });
