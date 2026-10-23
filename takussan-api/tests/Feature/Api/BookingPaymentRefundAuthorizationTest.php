@@ -226,4 +226,38 @@ class BookingPaymentRefundAuthorizationTest extends TestCase
         Sanctum::actingAs($this->landlord);
         $this->getJson("/api/bookings/{$booking->id}")->assertOk()->assertJsonPath('data.can_refund', true);
     }
+
+    /**
+     * TCK-1718 (P160.01) — l'agent qui a SAISI le bien d'agence (`properties.user_id` = lui) n'en
+     * est pas le bailleur : il rembourse au titre du personnel, donc sous `bookings.refund`, que le
+     * rôle système d'agent ne porte pas. Il passait avant tout contrôle de capacité.
+     */
+    public function test_the_agent_who_entered_the_property_is_judged_by_bookings_refund(): void
+    {
+        $creator = $this->agencyAgent($this->agency);
+        $this->property->forceFill(['user_id' => $creator->id])->save();
+
+        $this->refundAs($creator)->assertForbidden();
+        $this->assertStillPaid();
+
+        $this->getJson("/api/bookings/{$this->payment->booking_id}")->assertOk()->assertJsonPath('data.can_refund', false);
+    }
+
+    /** Second chemin : le même agent créateur, titulaire de `bookings.refund`, rembourse. */
+    public function test_the_agent_who_entered_the_property_refunds_with_the_capability(): void
+    {
+        $creator = $this->agentWith($this->agency, Capability::BookingsRefund);
+        $this->property->forceFill(['user_id' => $creator->id])->save();
+
+        $this->refundAs($creator)->assertOk();
+        $this->assertSame(PaymentStatus::Refunded, $this->payment->fresh()->status);
+    }
+
+    /** Un bailleur de l'agence qui est aussi son agent reste bailleur du bien qu'il a saisi. */
+    public function test_a_landlord_who_is_also_staff_still_refunds_his_own_property(): void
+    {
+        AgentProfile::factory()->create(['user_id' => $this->landlord->id, 'agency_id' => $this->agency->id]);
+
+        $this->refundAs($this->landlord)->assertOk();
+    }
 }

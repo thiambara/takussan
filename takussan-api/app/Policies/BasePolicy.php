@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Enums\Capability;
 use App\Models\User;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -137,6 +138,20 @@ abstract class BasePolicy
         return $agencyId === null
             || ! $user->isBlockedOwnerAt((int) $agencyId)
             || $this->isStaffOf($user, $agencyId);
+    }
+
+    /**
+     * TCK-1722 (P160.03) — `landlordWrites` pour une colonne qui désigne le BAILLEUR d'un bien ou
+     * d'un bail (`properties.user_id`, `leases.landlord_id`) : l'utilisateur désigné n'en est le
+     * bailleur que s'il y est propriétaire ({@see BailleurDuBien}). L'agent qui a saisi le bien, que
+     * `LeaseService::create` recopie en `landlord_id`, agit au titre du personnel, sous ses capacités.
+     *
+     * `landlordWrites` reste tel quel pour les colonnes d'AUTEUR (`conducted_by`, `uploaded_by`).
+     */
+    protected function bailleurEcrit(User $user, mixed $landlordId, mixed $agencyId): bool
+    {
+        return BailleurDuBien::est($user, $landlordId, $agencyId)
+            && $this->landlordWrites($user, $landlordId, $agencyId);
     }
 
     /**
