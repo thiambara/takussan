@@ -1,7 +1,7 @@
 ---
 id: TCK-1828
 title: "L'accueil de /super-admin rend ses files, ses métriques et son activité récente au premier affichage, lues par la page serveur"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -56,18 +56,18 @@ Aucun changement d'API. La page lit, avec le jeton de l'opérateur (celui du rel
 
 ## Delta à produire
 
-- [ ] Constructeurs de requête partagés (files, métriques, audit), lus par le navigateur et par
+- [x] Constructeurs de requête partagés (files, métriques, audit), lus par le navigateur et par
   le serveur.
-- [ ] Lecture serveur des six requêtes par la page, amorcées dans TanStack (patron
+- [x] Lecture serveur des six requêtes par la page, amorcées dans TanStack (patron
   `AmorceCapacites`, TCK-1278).
-- [ ] Test vitest : la page rend comptes, métriques et activité sans aucun appel du navigateur à
+- [x] Test vitest : la page rend comptes, métriques et activité sans aucun appel du navigateur à
   `/api/super-admin/*` ; une lecture serveur en échec laisse sa clé au navigateur.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — au premier rendu de la page, les quatre comptes, les tuiles et les entrées d'audit
+- [x] AC1 — au premier rendu de la page, les quatre comptes, les tuiles et les entrées d'audit
   sont affichés, et aucun `fetch('/api/super-admin/…')` n'est parti.
-- [ ] AC2 — une lecture serveur en échec : cette seule clé est lue par le navigateur.
+- [x] AC2 — une lecture serveur en échec : cette seule clé est lue par le navigateur.
 
 ## Hors périmètre
 
@@ -75,4 +75,15 @@ Aucun changement d'API. La page lit, avec le jeton de l'opérateur (celui du rel
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Jeton : `getOperatorToken()` (le cookie `auth_token`), celui que le relais
+  `/api/super-admin/[...path]` transmet, pas `getToken()` qui prendrait celui d'une
+  impersonation.
+- Les requêtes des files, de l'audit et des jobs échoués sont sorties en constructeurs
+  (`requeteFileKyc`, `requeteFileModeration`, `requeteJobsEchoues`, `requeteJournalAudit`) : le
+  navigateur et le serveur envoient la même chaîne, seul le préfixe change (`/api/super-admin/`
+  → `/api/admin/`).
+- Les clés des métriques et de l'activité vivent dans `accueil-console-cles.ts`, sans
+  dépendance : les composants client ne tirent pas les lecteurs serveur.
+- `AmorceLectures` généralise le patron d'`AmorceCapacites` (`HydrationBoundary`, `updatedAt`).
+- Ablation : `page.tsx` rendu à `HEAD` → 2 rouges sur 2 (squelettes au premier rendu) ; correctif
+  remis → 2/2 verts.
