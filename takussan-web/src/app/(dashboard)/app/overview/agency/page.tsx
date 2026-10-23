@@ -10,11 +10,15 @@ import { AgencyKpis } from '@/components/dashboard/admin/AgencyKpis';
 import { AgencyQueues } from '@/components/dashboard/admin/AgencyQueues';
 import { AgencyRevenueSnapshot } from '@/components/dashboard/admin/AgencyRevenueSnapshot';
 import { MiseEnService } from '@/components/dashboard/admin/MiseEnService';
+import { AmorceLectures } from '@/components/providers/AmorceLectures';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { localeDeLaRequete } from '@/i18n/locale-serveur';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { formatDate } from '@/lib/format';
+import { AGENCY_INVITATIONS_COUNT_KEY, fetchPendingInvitationsCount } from '@/lib/queries/agency-queues';
 import { fetchDashboardAgency } from '@/lib/queries/dashboard-agency';
+import type { LectureAmorcee } from '@/lib/queries/lectures-amorcees';
+import { cleMiseEnService, fetchMiseEnService } from '@/lib/queries/mise-en-service';
 import { isSuperAdmin } from '@/lib/roles';
 import { getToken } from '@/lib/session';
 
@@ -61,69 +65,98 @@ export default async function AgencyDashboardPage() {
   // composant comme défense en profondeur. Le lire plutôt que câbler `true` fait suivre la file
   // le jour où la garde bouge.
   let agencyIsStandard: boolean | undefined;
+  const token = agencyId !== null ? await getToken() : undefined;
   if (agencyId !== null) {
-    const token = await getToken();
     const agency = token ? await resolveAgencyOrNull(token, agencyId, 'overview/agency (files)') : null;
     agencyIsStandard = agency ? agency.kind === 'standard' : undefined;
   }
 
   // UNE lecture de l'endpoint par affichage (AC3), séries temporelles comprises : 403/404 rendent
   // `null`, donc l'état dégradé plutôt qu'une exception.
-  const [payload, locale] = await Promise.all([
+  const [payload, locale, lectures] = await Promise.all([
     fetchDashboardAgency({ withTimeseries: true }),
     localeDeLaRequete(),
+    lecturesDePremierAffichage(token, agencyId, agencyIsStandard),
   ]);
   const ts = payload?.timeseries;
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t('title')}
-        description={
-          payload
-            ? t('period', {
-                start: formatDate(payload.data.period.start, locale),
-                end: formatDate(payload.data.period.end, locale),
-              })
-            : undefined
-        }
-      />
+    <AmorceLectures lectures={lectures}>
+      <div className="space-y-6">
+        <PageHeader
+          title={t('title')}
+          description={
+            payload
+              ? t('period', {
+                  start: formatDate(payload.data.period.start, locale),
+                  end: formatDate(payload.data.period.end, locale),
+                })
+              : undefined
+          }
+        />
 
-      {/* TCK-589 — la mise en service en tête : elle disparaît une fois l'agence prête. */}
-      <MiseEnService agencyId={agencyId} />
+        {/* TCK-589 — la mise en service en tête : elle disparaît une fois l'agence prête. */}
+        <MiseEnService agencyId={agencyId} />
 
-      {payload ? (
-        <>
-          {/* TCK-375 — les files AVANT les indicateurs : ce qui demande un geste passe avant ce
-              qui décrit un état. */}
-          <AgencyQueues
-            agencyId={agencyId}
-            agencyIsStandard={agencyIsStandard}
-            overdueCount={payload.data.finance.overdue_count}
-          />
-          <AgencyKpis summary={payload.data} />
-          <div className="grid gap-6 lg:grid-cols-2">
-            <AgencyActivityFeed summary={payload.data} />
-            <AgencyRevenueSnapshot timeseries={ts} />
-          </div>
-          <section aria-labelledby="agency-occupancy-heading" className="rounded-2xl bg-card p-6">
-            <h2 id="agency-occupancy-heading" className="mb-4 text-sm font-semibold text-foreground">
-              {t('occupancyHeading')}
-            </h2>
-            <LineChart
-              unit="%"
-              abscisses="mois"
-              className="h-64"
-              data={{
-                labels: ts?.months ?? [],
-                series: [{ name: t('chartOccupancy'), values: ts?.occupancy ?? [], color: 'stroke-chart-2' }],
-              }}
+        {payload ? (
+          <>
+            {/* TCK-375 — les files AVANT les indicateurs : ce qui demande un geste passe avant ce
+                qui décrit un état. */}
+            <AgencyQueues
+              agencyId={agencyId}
+              agencyIsStandard={agencyIsStandard}
+              overdueCount={payload.data.finance.overdue_count}
             />
-          </section>
-        </>
-      ) : (
-        <AgencyDegradedState />
-      )}
-    </div>
+            <AgencyKpis summary={payload.data} />
+            <div className="grid gap-6 lg:grid-cols-2">
+              <AgencyActivityFeed summary={payload.data} />
+              <AgencyRevenueSnapshot timeseries={ts} />
+            </div>
+            <section aria-labelledby="agency-occupancy-heading" className="rounded-2xl bg-card p-6">
+              <h2 id="agency-occupancy-heading" className="mb-4 text-sm font-semibold text-foreground">
+                {t('occupancyHeading')}
+              </h2>
+              <LineChart
+                unit="%"
+                abscisses="mois"
+                className="h-64"
+                data={{
+                  labels: ts?.months ?? [],
+                  series: [{ name: t('chartOccupancy'), values: ts?.occupancy ?? [], color: 'stroke-chart-2' }],
+                }}
+              />
+            </section>
+          </>
+        ) : (
+          <AgencyDegradedState />
+        )}
+      </div>
+    </AmorceLectures>
+  );
+}
+
+/**
+ * TCK-1830 (P136.05) — la carte de mise en service et le compte d'invitations, lus ici et amorcés
+ * dans TanStack (mêmes clés que `MiseEnService` et `AgencyQueues`) : la carte, en tête de page,
+ * est là au premier rendu au lieu d'arriver après l'hydratation. Une lecture en échec (un refus,
+ * une panne) n'amorce rien, et le navigateur lit comme avant. Les invitations suivent la condition
+ * de `pendingInvitationsCountQueryOptions` : pas pour une agence `individual`.
+ */
+async function lecturesDePremierAffichage(
+  token: string | undefined,
+  agencyId: number | null,
+  agencyIsStandard: boolean | undefined,
+): Promise<LectureAmorcee[]> {
+  if (!token || agencyId === null) return [];
+  const lectures: Array<[readonly unknown[], () => Promise<unknown>]> = [
+    [cleMiseEnService(agencyId), () => fetchMiseEnService(token, agencyId)],
+  ];
+  if (agencyIsStandard !== false) {
+    lectures.push([AGENCY_INVITATIONS_COUNT_KEY, () => fetchPendingInvitationsCount(token)]);
+  }
+  const resultats = await Promise.allSettled(lectures.map(([, lire]) => lire()));
+  const lueA = Date.now();
+  return resultats.flatMap((r, i) =>
+    r.status === 'fulfilled' ? [{ cle: [...lectures[i][0]], donnee: r.value, lueA }] : [],
   );
 }
