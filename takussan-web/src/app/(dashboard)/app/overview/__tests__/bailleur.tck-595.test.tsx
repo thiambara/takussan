@@ -68,7 +68,11 @@ describe('vue bailleur — cartes actionnables (AC8)', () => {
 
     expect(screen.getByRole('link', { name: /Devis à valider\s*2/ })).toHaveAttribute('href', '/app/maintenance');
     expect(screen.getByRole('link', { name: /Visites à confirmer\s*1/ })).toHaveAttribute('href', '/app/visits');
-    expect(screen.getByRole('link', { name: /Avis sans réponse\s*3/ })).toHaveAttribute('href', '/app/profile/reviews');
+    expect(screen.getByRole('link', { name: /Avis sans réponse\s*3/ })).toHaveAttribute(
+      'href',
+      // TCK-1515 (P167.02) : la boîte s'ouvre sur ce que le nombre compte.
+      '/app/profile/reviews?reply=unreplied&subject=property',
+    );
     expect(screen.queryByText('Voir le module')).toBeNull();
   });
 });
