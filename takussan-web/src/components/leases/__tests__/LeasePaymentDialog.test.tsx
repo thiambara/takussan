@@ -112,3 +112,40 @@ describe('LeasePaymentDialog — règle une échéance existante (TCK-681)', () 
     expect(screen.getByRole('button', { name: 'Enregistrer' })).toHaveProperty('disabled', true);
   });
 });
+
+/**
+ * TCK-1825 (P183.03) — une restitution de caution se règle par son reversement : `mark-paid` la
+ * refuse en 422 (`lease_payment.deposit_refund_paid_by_payout`, TCK-594). Le dialogue la proposait
+ * comme un loyer, et, seule en attente, empêchait de dire qu'il n'y avait rien à régler.
+ */
+describe('LeasePaymentDialog — la restitution de caution n’est pas à régler ici (TCK-1825)', () => {
+  it('ne propose pas une restitution de caution en attente', async () => {
+    PAIEMENTS.data.data = [
+      echeance({ id: 13, status: 'pending', period_start: '2026-05-01', period_end: '2026-05-31' }),
+      echeance({
+        id: 15,
+        status: 'pending',
+        payment_type: 'deposit_refund',
+        period_start: '2026-06-01',
+        period_end: '2026-06-30',
+      }),
+    ];
+    const user = userEvent.setup();
+    monter();
+
+    await user.click(screen.getByRole('combobox', { name: /Échéance/ }));
+    const options = await screen.findAllByRole('option');
+
+    expect(options.map((o) => o.textContent)).toEqual([expect.stringContaining('1 mai 2026')]);
+  });
+
+  it('avec une restitution seule en attente, dit qu’il n’y a rien à régler', () => {
+    PAIEMENTS.data.data = [
+      echeance({ id: 15, status: 'pending', payment_type: 'deposit_refund' }),
+    ];
+    monter();
+
+    expect(screen.getByText('Aucune échéance en attente sur ce bail.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Enregistrer' })).toHaveProperty('disabled', true);
+  });
+});

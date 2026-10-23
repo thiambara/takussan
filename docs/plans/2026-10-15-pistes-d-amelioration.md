@@ -17063,7 +17063,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le dialogue « Enregistrer un paiement reçu » propose de régler une restitution de caution, que l'API refuse en 422
 - Réf : P183.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1825
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeasePaymentDialog.tsx:46-52`, `takussan-api/app/Services/Model/LeasePaymentService.php:57-64`
 - Constat :
@@ -17073,10 +17073,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu. Le dialogue n'a pas été rendu.
 - Piste : écarter `payment_type === 'deposit_refund'` des options, comme `isPayable` l'écarte du paiement en ligne (`PaymentGatewayService.php:1718-1722`). Garde : un test du dialogue avec un loyer `pending` et une restitution `pending`, une seule option attendue.
 - Mesure (2026-10-23, 940b7f07f, mesureur) : relu `LeasePaymentDialog.tsx:46-52` (options = lignes `pending` ou `late`, sans `payment_type` ; `nothingToSettle` sur cette liste, inchangé), `LeasePaymentService.php:53-64` (`markPaid` refuse en 422 `lease_payment.deposit_refund_paid_by_payout` sur la ligne verrouillée), `LeasePaymentController.php:30-51` (`index` sans filtre de type) ; test temporaire ajouté à `LeasePaymentDialog.test.tsx` (retiré), charge 2,94 sur 8 cœurs : loyer `pending` et restitution `pending` → 2 options ; restitution seule → « Aucune échéance en attente sur ce bail. » absent ; 2 verts. Le constat tient. Classement : A1, le contrat est écrit par l'API appelée (TCK-594 : une restitution ne se règle jamais à la main) ; le correctif retire du choix une option que l'API refuse toujours, sans rien changer à ce qui s'écrit.
+- Mesure (2026-10-23, 80646bf3b, implementeur) : deux tests ajoutés à `LeasePaymentDialog.test.tsx`, charge 5,29 sur 8 cœurs → rouges avant correctif (option de la restitution du 1 juin 2026 en trop ; restitution seule : « Aucune échéance en attente sur ce bail. » absent) → `LeasePaymentDialog` écarte `payment_type === 'deposit_refund'` des options ; 5/5 verts ; ablation (filtre retiré) → les 2 neufs rouges, remis → verts.
 
 ### Le compte à rebours d'une résiliation anticipée retire le bouton d'annulation un jour trop tôt pour un navigateur à l'ouest d'UTC
 - Réf : P183.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1827
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:27-33,59-67,98-108`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:138-143`
 - Constat :
@@ -17085,10 +17086,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, et mesuré sur la fonction seule ; le bandeau n'a pas été rendu sous un autre fuseau.
 - Piste : compter les jours par comparaison littérale de dates calendaires (ADR-0018), ou faire servir par l'API la fin de la fenêtre d'annulation. Garde : un test de `daysFromTodayTo` sous `TZ=America/New_York`.
 - Mesure (2026-10-23, 940b7f07f, mesureur) : relu `EarlyTerminationBanner.tsx:27-33` (`daysFromTodayTo` : `new Date(iso)` puis `setHours(0,0,0,0)` local, inchangé), `:61-67,98-108` (`cancellationOpen = remaining > 0`, bouton caché sinon), `EarlyTerminationService.php:138-143` (refus si date effective `<=` aujourd'hui, `now()` en `UTC`) ; fonction recopiée, `node` sur l'instant 2026-10-31T15:00Z et la date 2026-11-01 → `Africa/Dakar` 1, `America/New_York` 0, `Asia/Tokyo` 0 : le jour perdu touche aussi un navigateur à l'est d'UTC, après minuit local (le constat ne nommait que l'ouest) ; bandeau non rendu. Classement : A1, la fenêtre est écrite par l'API (`effective > aujourd'hui` UTC) et ADR-0018 dit qu'une date calendaire se compare littéralement ; le correctif compte les jours entre `iso` et la date du jour UTC en `Y-m-d`, sans choix de produit.
+- Mesure (2026-10-23, 80646bf3b, implementeur) : test neuf `EarlyTerminationBanner.fuseau.test.tsx`, horloge à 2026-10-31T15:00Z, date effective 2026-11-01, charge 4,63 sur 8 cœurs → avant correctif, New York et Tokyo rendent « Fin aujourd'hui » sans bouton (2 rouges sur 4, Dakar et le jour UTC même verts) → `daysFromTodayTo` compte l'écart entre la date du jour UTC et la date effective, lues toutes deux à minuit UTC ; 4/4 verts, `EarlyTerminationBanner.test.tsx` et `.lien-facture` 5/5 ; ablation (ancienne fonction) → les 2 mêmes rouges, remise → verts.
 
 ### Petites améliorations
 - Réf : P183.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1829
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:104`, `takussan-web/src/components/leases/LeaseSchedule.tsx:46-47`
 - Constat :
@@ -17097,3 +17099,4 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu.
 - Piste : formater la date par `fmt.date` ; réécrire le docblock pour dire d'où vient le retard affiché.
 - Mesure (2026-10-23, 940b7f07f, mesureur) : relu `EarlyTerminationBanner.tsx:104` (`t('banner_effective', { date: lease.early_termination_effective_date })`, brut, inchangé), `:48` (`const fmt = useFormatteurs()`, déjà employé l. 154), `fr.json:3779` (« Date effective : {date} »), `useFormatteurs.ts:119` (`fmt.date` → `formatDate` de la locale) ; docblock de `displayStatus` (`LeaseSchedule.tsx:45-47`) inchangé, et la Mesure de P183.01 confirme qu'aucun marquage serveur n'existe sans pénalité. Les deux points tiennent. Classement : A4 pour la date (format de la locale, aucun texte neuf) et A6 pour le docblock, réécrit pour dire ce que fait le code.
+- Mesure (2026-10-23, 80646bf3b, implementeur) : test ajouté à `EarlyTerminationBanner.fuseau.test.tsx`, horloge figée, charge 4,63 sur 8 cœurs → avant correctif, le bandeau rend « Date effective : 2026-11-01 » (rouge) → `fmt.date` sur la date effective ; « Date effective : 1 nov. 2026 », 5/5 verts ; ablation (date brute) → 1 rouge, remise → verts. Docblock de `displayStatus` réécrit après lecture de `LateFeeCalculator.php:97-158` (seul écrivain de `late`, bail à `late_fee_percent` positif, grâce écoulée), sans changement de comportement ; `LeaseSchedule.test.tsx` vert.
