@@ -7,6 +7,8 @@ import { withIntl } from '@/test/intl';
 import { ToastProvider } from '@/components/ui/toast';
 import type { UserRole } from '@/types/user';
 
+// TCK-1515 — la boîte des avis reçus lit `?reply=` et `?subject=` ; ici, aucune URL.
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams() }));
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ token: 'test-token', user: { id: 1 } }),
 }));
