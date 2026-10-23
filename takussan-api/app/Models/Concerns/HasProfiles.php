@@ -336,6 +336,38 @@ trait HasProfiles
         return $statuts;
     }
 
+    /**
+     * TCK-2006 (P176.05 ; ADR-0005, amendement du 2026-10-23, point 2) — la variante « actifs
+     * seulement », toutes agences : le critère `roles` du ciblage des annonces et des drapeaux.
+     *
+     * @return Collection<int,string>
+     */
+    public function activeProfileTypes(): Collection
+    {
+        return $this->typesRetenus(fn ($profile): bool => ActiveProfileResolver::isActiveProfile($profile));
+    }
+
+    /**
+     * TCK-2006 (P176.05 ; ADR-0005, amendement du 2026-10-23, point 2) — les agences où le compte
+     * tient un profil ACTIF, toutes : le critère `agency_ids` du ciblage, qui ne dépend plus du profil
+     * actif de la requête.
+     *
+     * @return list<int>
+     */
+    public function activeAgencyIds(): array
+    {
+        $ids = [];
+        foreach (array_keys(self::AGENCY_PROFILE_RELATIONS) as $relation) {
+            foreach ($this->profileRows($relation) as $profile) {
+                if (ActiveProfileResolver::isActiveProfile($profile)) {
+                    $ids[] = (int) $profile->agency_id;
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
     /** Les relations de profil d'agence, dans l'ordre de `profileTypes()`, et leur type. */
     private const AGENCY_PROFILE_RELATIONS = [
         'agencyAdminProfiles' => 'agency_admin',
