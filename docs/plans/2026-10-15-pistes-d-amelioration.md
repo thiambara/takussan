@@ -17249,7 +17249,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Petites améliorations
 - Réf : P186.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1842
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/customers.ts:179-190`, `takussan-api/app/Http/Controllers/Api/CustomerNoteController.php:14-25`, `takussan-web/src/app/(super-admin)/super-admin/users/page.tsx:150`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:97-103`, `takussan-web/src/lib/queries/leases.ts:273`
 - Constat :
@@ -17259,3 +17259,4 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, et mesuré pour les notes.
 - Piste : retirer les deux paramètres inertes du front (`include` des comptes, `filter[lease_id]`), avec un commentaire qui dit où l'API fixe ses relations. Pour les notes, choisir entre faire lire `sort` à l'API et retirer `sort` du front en documentant l'ordre « épinglées d'abord ». Dans les deux cas, ajouter `orderByDesc('id')` en départage.
 - Mesure (2026-10-23, 6ef281d1e, mesureur) : relu `customers.ts:179-190` (`sort: '-created_at'`), `CustomerNoteController.php:14-25` (aucun `sort` lu, `orderByDesc('pinned')->latest()`, sans départage par `id`), `users/page.tsx:150` (`include=roles,agentProfiles,ownerProfiles`) contre `UserDetailController.php:97-103` (relations chargées en dur), `leases.ts:268-278` (`filter: { lease_id }`) contre `LeasePaymentController.php:30-48` (le bail vient de la route, seul `sort` est lu) ; test temporaire `tests/Feature/Tmp/MesureurTmp186Test.php` (charge `{ 3.27 2.78 2.28 }` sur 8 cœurs, retiré) : une note épinglée d'il y a trois jours et une récente, `GET /api/customers/{id}/notes?sort=-created_at` → `["ancienne epinglee","recente"]` → les trois paramètres sont inertes, le constat tient. Classement : A3, paramètres sans effet des deux côtés ; le correctif sans choix est de les retirer du front en gardant l'ordre servi aujourd'hui (épinglées d'abord) et d'ajouter `orderByDesc('id')` en départage, l'autre voie de la `Piste` (faire lire `sort` à l'API) n'étant pas prise.
+- Mesure (2026-10-23, 8f2d5d2fc, implementeur) : reproduit avant correctif (charge `{ 2.51 4.01 3.68 }` sur 8 cœurs) : `CustomerNoteTest::test_les_notes_se_departagent_par_l_id` (une épinglée ancienne, quatre notes de la même seconde dont deux mises à jour) rend `9,10,11,12` au lieu de `12,11,10,9` ; trois assertions d'absence rouges (`sort` des notes, `include` des comptes, `filter[lease_id]` de l'échéancier) → `orderByDesc('id')` en départage et les trois paramètres retirés du front, l'ordre servi « épinglées d'abord » gardé ; 9/9 API, 29/29 front ; ablation (`git apply -R`) → 1 rouge API et 3 rouges front, remis → verts ; voisins verts : `introuvable-vs-erreur.test.tsx`, `LeaseSchedule.test.tsx`.
