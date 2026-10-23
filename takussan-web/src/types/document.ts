@@ -31,6 +31,16 @@ export type DocumentableType =
   | 'agency'
   | 'inventory';
 
+/**
+ * TCK-1867 (P189.01) — les gestes que `DocumentPolicy` accorde à l'appelant, servis sur la liste
+ * et sur le détail. Absent (appel anonyme, réponse plus ancienne), aucun geste ne s'ouvre.
+ */
+export type DocumentAbilities = {
+  update: boolean;
+  share: boolean;
+  delete: boolean;
+};
+
 export type Document = {
   id: number;
   documentable_id: number;
@@ -48,6 +58,7 @@ export type Document = {
   file_size: number | null;
   mime_type: string | null;
   created_at: string | null;
+  abilities?: DocumentAbilities;
 };
 
 export type DocumentShareLink = {

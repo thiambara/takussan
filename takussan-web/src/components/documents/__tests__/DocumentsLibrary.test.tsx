@@ -217,3 +217,68 @@ describe('<DocumentsLibrary> — pièces RIB et NINEA (TCK-1272, P134.02)', () =
     expect(DOCUMENT_TYPE_UPLOAD_ORDER).toContain('lease_contract');
   });
 });
+
+/**
+ * TCK-1867 (P189.01) — « Partager » et « Supprimer » suivent les verdicts que l'API sert sur chaque
+ * ligne (`abilities.share`, `abilities.delete`, `DocumentPolicy`) : le téléverseur suspendu comme
+ * bailleur dans l'agence du porteur ne se voit plus offrir des gestes refusés en 403.
+ */
+describe('<DocumentsLibrary> — gestes d’une ligne par `abilities` (TCK-1867, P189.01)', () => {
+  function doc(abilities: Document['abilities']): Document {
+    return {
+      id: 1,
+      documentable_id: 1,
+      documentable_type: 'property',
+      uploaded_by: 1,
+      name: 'titre-foncier',
+      type: 'lease_contract',
+      description: null,
+      is_verified: false,
+      verified_by: null,
+      verified_at: null,
+      expiry_date: null,
+      file_url: null,
+      file_name: 'titre-foncier.pdf',
+      file_size: 1000,
+      mime_type: 'application/pdf',
+      created_at: '2026-10-01T10:00:00+00:00',
+      abilities,
+    };
+  }
+
+  beforeEach(() => {
+    authState.user = ownerUser();
+    documentsQuery.data.meta.total = 1;
+  });
+
+  it('ni « Partager » ni « Supprimer » quand l’API les refuse', () => {
+    documentsQuery.data.data = [doc({ update: false, share: false, delete: false })];
+    render(wrap(<DocumentsLibrary />));
+
+    expect(screen.getByText('titre-foncier')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: fr.documents.library.share })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: fr.documents.library.delete_aria }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('sans `abilities`, aucun des deux', () => {
+    documentsQuery.data.data = [doc(undefined)];
+    render(wrap(<DocumentsLibrary />));
+
+    expect(screen.queryByRole('button', { name: fr.documents.library.share })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: fr.documents.library.delete_aria }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('chaque geste suit son propre verdict', () => {
+    documentsQuery.data.data = [doc({ update: false, share: true, delete: false })];
+    render(wrap(<DocumentsLibrary />));
+
+    expect(screen.getByRole('button', { name: fr.documents.library.share })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: fr.documents.library.delete_aria }),
+    ).not.toBeInTheDocument();
+  });
+});

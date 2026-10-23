@@ -4,10 +4,14 @@ namespace Tests\Feature\Leases;
 
 use App\Models\Agency;
 use App\Models\AgencyRole;
+use App\Models\Customer;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Lease;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\Property;
 use App\Models\User;
 use App\Services\Membership\AgencyRoleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,6 +64,8 @@ class LeaseAbilitiesTest extends ApiTestCase
             'review_rent' => false,
             'record_payment' => false,
             'refund_deposit' => false,
+            'request_early_termination' => false,
+            'update' => true,
         ], $this->abilitiesOfAgent([Capability::CrmViewAll]));
     }
 
@@ -70,6 +76,8 @@ class LeaseAbilitiesTest extends ApiTestCase
             'review_rent' => false,
             'record_payment' => true,
             'refund_deposit' => false,
+            'request_early_termination' => false,
+            'update' => true,
         ], $this->abilitiesOfAgent([Capability::LeasesRenew, Capability::PaymentsRecord]));
     }
 
@@ -87,6 +95,50 @@ class LeaseAbilitiesTest extends ApiTestCase
                 'review_rent' => true,
                 'record_payment' => true,
                 'refund_deposit' => true,
+                'request_early_termination' => true,
+                'update' => true,
             ]);
+    }
+
+    /**
+     * P189.03 (TCK-1871) — le préavis, l'ajout de garant et le lien de paiement suivent
+     * `request_early_termination` et `update` : la fiche les ouvrait par le rôle, que le bailleur
+     * suspendu garde, et l'API les lui refusait (403).
+     */
+    public function test_le_bailleur_suspendu_ne_se_voit_offrir_ni_preavis_ni_garant_ni_lien(): void
+    {
+        $agency = Agency::factory()->create();
+        $landlord = User::factory()->withOwnerProfile($agency)->create();
+        $property = Property::factory()->create(['user_id' => $landlord->id, 'agency_id' => $agency->id]);
+        $lease = Lease::factory()->active()->create([
+            'property_id' => $property->id,
+            'landlord_id' => $landlord->id,
+            'agency_id' => $agency->id,
+        ]);
+        OwnerProfile::query()->where('user_id', $landlord->id)->where('agency_id', $agency->id)
+            ->update(['status' => OwnerProfileStatus::Blocked->value]);
+
+        $this->actingAs($landlord, 'sanctum');
+
+        $this->apiGet("/api/leases/{$lease->id}")
+            ->assertOk()
+            ->assertJsonPath('data.abilities.request_early_termination', false)
+            ->assertJsonPath('data.abilities.update', false);
+        $this->apiPost("/api/leases/{$lease->id}/early-termination", [])->assertForbidden();
+    }
+
+    public function test_le_locataire_peut_donner_preavis_sans_gerer_le_bail(): void
+    {
+        $tenantUser = User::factory()->create();
+        $lease = Lease::factory()->active()->create([
+            'tenant_id' => Customer::factory()->create(['user_id' => $tenantUser->id])->id,
+        ]);
+
+        $this->actingAs($tenantUser, 'sanctum');
+
+        $this->apiGet("/api/leases/{$lease->id}")
+            ->assertOk()
+            ->assertJsonPath('data.abilities.request_early_termination', true)
+            ->assertJsonPath('data.abilities.update', false);
     }
 }

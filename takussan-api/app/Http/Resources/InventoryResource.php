@@ -61,6 +61,12 @@ class InventoryResource extends BaseResource
                     fn (string $role) => $this->signatures->canSignAs($this->resource, $this->viewer, $role),
                 )),
             ),
+            // P189.02 (TCK-1869) — le verdict d'`InventoryPolicy::update`, qui garde la soumission et
+            // les photos : l'écran les jugeait sur le seul statut, et les montrait au locataire et au
+            // bailleur suspendu, refusés en 403.
+            'abilities' => $this->when($this->viewer !== null, fn (): array => [
+                'update' => $this->viewer->can('update', $this->resource),
+            ]),
             // TCK-596 — quand le lecteur signerait POUR LE COMPTE du bailleur, le canevas le dit.
             'sign_on_behalf_of' => $this->when(
                 $this->viewer !== null && $this->signatures !== null,

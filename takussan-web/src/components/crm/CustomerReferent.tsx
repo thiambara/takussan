@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
+import { useCan } from '@/hooks/useCan';
 import { ApiError } from '@/lib/api';
 import { AGENT_CRM_QUERY_KEY, fetchAgencyAgents, setCustomerPrimaryContact } from '@/lib/queries/agent-crm';
 import type { CustomerRelationship } from '@/types/customer';
@@ -32,10 +33,15 @@ export function CustomerReferent({ customerId, agencyId, relationships }: Custom
 
   const current = relationships.find((r) => r.is_primary && r.relationship_type === 'agent_client');
 
+  // TCK-1873 (P189.04) — l'API exige `crm.assign` dans l'agence du client
+  // (`SetPrimaryContactCustomerRequest`, TCK-591) : sans elle, ni « Me désigner » ni « Désigner »,
+  // et la liste des agents, qui ne nourrit que le sélecteur, n'est pas demandée.
+  const { can: peutDesigner } = useCan('crm.assign', agencyId ?? undefined, !!agencyId);
+
   const agents = useQuery({
     queryKey: AGENT_CRM_QUERY_KEY.staff(agencyId ?? 0),
     queryFn: () => fetchAgencyAgents(token ?? '', agencyId ?? 0),
-    enabled: !!token && !!agencyId,
+    enabled: !!token && !!agencyId && peutDesigner,
     retry: false,
   });
 
@@ -59,12 +65,12 @@ export function CustomerReferent({ customerId, agencyId, relationships }: Custom
         {current ? (current.user?.name ?? t('someone')) : t('none')}
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        {user && current?.user_id !== user.id ? (
+        {peutDesigner && user && current?.user_id !== user.id ? (
           <Button type="button" size="sm" variant="outline" disabled={designate.isPending} onClick={() => designate.mutate(user.id)}>
             {t('me')}
           </Button>
         ) : null}
-        {others.length > 0 ? (
+        {peutDesigner && others.length > 0 ? (
           <form
             className="flex flex-wrap items-center gap-2"
             onSubmit={(e) => {

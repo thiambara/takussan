@@ -8,6 +8,7 @@ use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\CollaborationStatus;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PlatformAbility;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\OwnerProfile;
@@ -58,7 +59,7 @@ use Illuminate\Support\Collection;
  */
 class MembershipCapabilityResolver
 {
-    /** @var array{users: array<int, true>, agencies: array<int, true>, staff: array<string, true>, agent: array<string, true>, owner: array<string, true>}|null */
+    /** @var array{users: array<int, true>, agencies: array<int, true>, staff: array<string, true>, agent: array<string, true>, owner: array<string, true>, blocked_owner: array<string, true>|null}|null */
     private static ?array $amorce = null;
 
     public function __construct(
@@ -531,6 +532,9 @@ class MembershipCapabilityResolver
             'staff' => $staff,
             'agent' => $agent,
             'owner' => $couples(OwnerProfile::query()->active()),
+            // TCK-1867 (P189.01) — jugé à la première demande seulement : seule une liste qui sert
+            // les verdicts d'écriture d'un bailleur (`landlordWrites`) le lit.
+            'blocked_owner' => null,
         ];
         try {
             return $callback();
@@ -540,7 +544,7 @@ class MembershipCapabilityResolver
     }
 
     /**
-     * `staff`, `agent` ou `owner` du couple, tel que {@see self::primed()} l'a jugé ; `null` hors
+     * `staff`, `agent`, `owner` ou `blocked_owner` du couple, tel que {@see self::primed()} l'a jugé ; `null` hors
      * amorce — l'appelant juge alors lui-même.
      */
     public static function amorce(string $kind, int $userId, int $agencyId): ?bool
@@ -548,6 +552,18 @@ class MembershipCapabilityResolver
         $amorce = self::$amorce;
         if ($amorce === null || ! isset($amorce['users'][$userId], $amorce['agencies'][$agencyId])) {
             return null;
+        }
+
+        if ($kind === 'blocked_owner' && $amorce['blocked_owner'] === null) {
+            // Même portée que `User::isBlockedOwnerAt()`.
+            $amorce['blocked_owner'] = OwnerProfile::query()
+                ->whereIn('user_id', array_keys($amorce['users']))
+                ->whereIn('agency_id', array_keys($amorce['agencies']))
+                ->where('status', OwnerProfileStatus::Blocked->value)
+                ->get(['user_id', 'agency_id'])
+                ->mapWithKeys(fn ($row) => [$row->user_id.':'.$row->agency_id => true])
+                ->all();
+            self::$amorce = $amorce;
         }
 
         return isset($amorce[$kind][$userId.':'.$agencyId]);

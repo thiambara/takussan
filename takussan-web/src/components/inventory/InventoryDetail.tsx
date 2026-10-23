@@ -52,7 +52,9 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
   const tLease = useTranslations('lease');
   const tConditions = useTranslations('inventory.conditions');
   const locale = useLocale() as Locale;
-  const isDraft = inventory.status === 'draft';
+  // TCK-1869 (P189.02) — le statut ET le verdict d'`InventoryPolicy::update` servi par l'API : le
+  // locataire et le bailleur suspendu lisent le brouillon, ils ne le modifient pas.
+  const canEditDraft = inventory.status === 'draft' && inventory.abilities?.update === true;
 
   return (
     <div className="space-y-6">
@@ -147,7 +149,7 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
                 key={`${room.name}-${index}`}
                 room={room}
                 inventoryId={inventory.id}
-                canUpload={isDraft}
+                canUpload={canEditDraft}
                 photos={
                   inventory.room_photos?.find((g) => g.room_name === room.name)?.photos ?? []
                 }
@@ -306,7 +308,7 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
   const [reason, setReason] = useState('');
   const [showDispute, setShowDispute] = useState(false);
 
-  const canSubmit = inventory.status === 'draft';
+  const canSubmit = inventory.status === 'draft' && inventory.abilities?.update === true;
   const canDispute = inventory.status === 'pending_signature' || inventory.status === 'signed';
   // PDF download is surfaced here (always visible when signed) so it sits
   // next to the other actions. Signing itself happens in <SignatureSection>.
