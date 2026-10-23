@@ -4,18 +4,9 @@ import { ArrowRight } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
+import { isNamedPriceChangeReason } from '@/lib/enums/property';
 import { formatCurrency, formatDate } from '@/lib/format';
 import type { PropertyPriceHistoryItem } from '@/types/property';
-
-/** Les codes de `PriceChangeReason` (API) — ceux-là seuls ont un libellé. */
-const RAISONS_NOMMEES = new Set([
-  'market_adjustment',
-  'negotiation',
-  'renovation',
-  'urgent_sale',
-  'seasonal',
-  'correction',
-]);
 
 interface Props {
   readonly entries: readonly PropertyPriceHistoryItem[];
@@ -58,7 +49,7 @@ export function PropertyPriceHistoryList({ entries, unknownDateLabel }: Props) {
           </span>
           {entry.reason ? (
             <span className="basis-full text-xs text-muted-foreground">
-              {RAISONS_NOMMEES.has(entry.reason) ? tReason(entry.reason) : entry.reason}
+              {isNamedPriceChangeReason(entry.reason) ? tReason(entry.reason) : entry.reason}
             </span>
           ) : null}
         </li>
