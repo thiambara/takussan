@@ -94,3 +94,34 @@ export function useConversations(
     },
   );
 }
+
+/**
+ * TCK-1768 (P136.01) — la pastille des non-lus. Elle lisait la liste de la messagerie elle-même
+ * (`include=property,participants,last_message`, 30 fils) toutes les 10 s, sur toute page
+ * connectée, pour n'en garder que `meta.unread_total`. Décision du porteur (2026-10-22) : une
+ * lecture étroite, une ligne sans `include`, à une cadence plus lente hors de `/app/messages` ;
+ * la liste de la messagerie (`useConversationsInfinite`) garde ses 10 s.
+ *
+ * La clé reste sous `['conversations', 'list']` : marquer un fil lu (`useMarkConversationRead`)
+ * invalide ce préfixe, et la pastille suit sans attendre son prochain tour.
+ */
+export const NonLusQueryKeys = {
+  total: ['conversations', 'list', 'unread-total'] as const,
+};
+
+/** Hors de la messagerie : la cadence de la cloche des notifications (`NotificationBell`). */
+export const CADENCE_NON_LUS_HORS_MESSAGERIE_MS = 30_000;
+/** Dans la messagerie : la cadence de sa liste. */
+export const CADENCE_NON_LUS_MESSAGERIE_MS = 10_000;
+
+export function useNonLusTotal(options: { enabled?: boolean; refetchInterval: number }) {
+  const { user } = useAuth();
+  const enabled = (options.enabled ?? true) && Boolean(user);
+
+  return useApiQuery<ConversationListPage>(NonLusQueryKeys.total, '/api/conversations', {
+    params: { per_page: 1 },
+    enabled,
+    refetchInterval: options.refetchInterval,
+    staleTime: 0,
+  });
+}
