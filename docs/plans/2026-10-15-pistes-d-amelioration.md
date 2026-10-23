@@ -17577,7 +17577,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le bail qui désigne l'agent créateur reste lisible par lui, suspendu ou retiré, en fiche et en liste
 - Réf : P190.04
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite ; la dépendance à P15.06 est levée par la décision écrite dans `BailleurDuBien`
+- Statut : fait · TCK-1926
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/LeasePolicy.php:62-81`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:27-38`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php`
 - Constat :
@@ -17588,6 +17588,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré.
 - Piste : juger la branche du bailleur de `view` par `BailleurDuBien::est` (le bailleur bloqué garde la lecture), et la clause `landlord_id` de la liste de même. Test : bail au `landlord_id` de l'agent, agent suspendu puis retiré → `GET` 403, absent de la liste, et le fil du bail quitté au retrait. Le sort de `landlord_id` lui-même reste celui de P15.06.
 - Mesure (2026-10-23, 0c707fc77, mesureur) : relu `LeasePolicy::view` (`user.id === landlord_id`), `LeaseController::index` (`where('landlord_id', …)`) et `AgencyMemberRemovalService` l. 121-142 (fils quittés si `! can('view', lease)`), inchangés ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 ; bail `active` au `landlord_id` de l'agent, fil `group` à `lease_id` dont l'agent est participant → suspendu comme retiré : `can` view/update = vrai/faux, `GET /api/leases/{id}` → 200, présent dans `GET /api/leases` ; après retrait, `left_at` du participant reste null et `ConversationAccess::allows` rend vrai → le « à vérifier » du constat est vérifié, le constat tient en entier. Classement : V2, le correctif retire la lecture d'un bail à celui qu'il désigne comme bailleur, et dépend du sens de `landlord_id` que P15.06 laisse au porteur.
+- Mesure (2026-10-23, 2a944b073, implementeur) : `AgentCreateurLectureDuBailTest` avant correctif → 2 rouges sur 5 : bail au `landlord_id` de l'agent créateur, agent suspendu (`TeamMemberSuspensionService::suspend`) puis retiré (`AgencyMemberRemovalService::remove`) → `can('view')` vrai ; `LeasePolicy::view` juge la branche du bailleur par `BailleurDuBien::est` et `LeaseController::index` restreint la clause `landlord_id` de même → `GET` 403, absent de la liste, fil du bail quitté au retrait, et l'agent actif, le bailleur du bien et le bailleur particulier gardent la lecture → 5 verts ; ablation (politique et contrôleur remis → 2 rouges, remis → verts) ; `MigratedAuthorizationRulesTest`, `BasePolicyCapabilityTest`, `LeaseTest`, `LeaseAbilitiesTest`, `MembreRetireFilsDeBailTest`, `AgentCreateurReservationsEtBauxTest`, `TeamMemberSuspensionTest` verts.
 
 ### Le créateur suspendu ou retiré lit les documents du bien et en joint de nouveaux
 - Réf : P190.05
