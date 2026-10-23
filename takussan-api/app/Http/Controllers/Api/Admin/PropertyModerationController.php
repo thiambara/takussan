@@ -9,6 +9,7 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Services\Property\PropertyModerationService;
 use App\Support\AgencyKindGuard;
+use App\Support\CaseInsensitive;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -46,9 +47,12 @@ class PropertyModerationController extends Controller
         }
 
         if ($search = $request->string('filter.search')->trim()->value()) {
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', '%'.$search.'%')
-                    ->orWhere('reference_number', 'like', '%'.$search.'%');
+            // TCK-1840 (P186.02) — `like` nu : sensible à la casse sous PostgreSQL, et `%` y valait
+            // un joker. Même forme que TCK-600 (piège n° 9 du CLAUDE.md de l'API).
+            $motif = '%'.addcslashes(CaseInsensitive::fold($search), '\\%_').'%';
+            $query->where(function ($q) use ($motif) {
+                $q->whereRaw(CaseInsensitive::sql('title').' like ?', [$motif])
+                    ->orWhereRaw(CaseInsensitive::sql('reference_number').' like ?', [$motif]);
             });
         }
 

@@ -111,7 +111,8 @@ describe('super-admin users page', () => {
     expect(fields).toEqual(expect.arrayContaining(['id', 'first_name', 'last_name', 'email', 'phone', 'status', 'email_verified_at', 'two_factor_enabled', 'last_login_at']));
     expect(fields).not.toContain('full_name');
     expect(fields).not.toContain('roles');
-    expect(url.searchParams.get('include')).toBe('roles,agentProfiles,ownerProfiles');
+    // TCK-1842 (P186.03) — `include` était inerte : `Admin\UserDetailController::index` charge ses relations en dur.
+    expect(url.searchParams.has('include')).toBe(false);
   });
 
   /**

@@ -17236,7 +17236,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Deux recherches écrites à la main sont sensibles à la casse et prennent `%` pour un joker : la file de modération des biens et le journal de l'agence
 - Réf : P186.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1840
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:48-53`, `takussan-api/app/Http/Controllers/Api/AuditLogController.php:151-153`, `takussan-api/app/Models/Concerns/HasQueryBuilder.php:267-271`, `takussan-web/src/components/admin/PropertyModerationWorkspace.tsx:23,37,79`, `takussan-web/src/components/admin/AuditTrail.tsx:219,230`
 - Constat :
@@ -17248,10 +17248,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré par le test temporaire pour les deux contrôleurs.
 - Piste : écrire ces trois recherches comme TCK-600 : `CaseInsensitive::sql($col).' like ?'`, `CaseInsensitive::fold()` et `addcslashes($value, '\\%_')`. Test : sur le modèle d'`AdminConsoleSearchCaseTest`, `villa` trouve « Villa Almadies », `%` ne trouve rien, pour la file, le journal et un modèle du repli (`Tag`).
 - Mesure (2026-10-23, 6ef281d1e, mesureur) : relu `PropertyModerationController.php:48-53` (`like` nu sur `title` et `reference_number`), `AuditLogController.php:151-153` (`like` nu sur `description`), `HasQueryBuilder.php:267-271` (repli SQL au même `like` nu ; `$requestSearchFields` sur `AgencyRole`, `BankStatementLine`, `GeoNeighborhood`, `Invitation`, `Tag`), et le modèle de TCK-600 dans `UserDetailController.php:35-41` ; test temporaire `tests/Feature/Tmp/MesureurTmp186Test.php` (charge `{ 3.27 2.78 2.28 }` sur 8 cœurs, retiré) : bien `pending_review` « Villa Almadies », `GET /api/properties/moderation?filter[search]=` `Villa` → 1, `villa` → **0**, `VILLA` → **0**, `%` → 1 ; journal avec « Relance Diop », `GET /api/activity-log?filter[search]=` `Diop` → 1, `diop` → **0**, `relance` → **0**, `%` → 6 (tout le journal) → le constat tient pour les deux contrôleurs ; le repli de `HasQueryBuilder` est relu, non joué, et ses appelants front non relus. Classement : A1, la recherche insensible à la casse et le `%` littéral sont écrits par TCK-600 et le piège n° 9 de `takussan-api/CLAUDE.md`, et le correctif reprend sa forme sans choix de produit.
+- Mesure (2026-10-23, 8f2d5d2fc, implementeur) : reproduit avant correctif par `tests/Feature/Api/RechercheEcriteALaMainCasseTest.php` (charge `{ 3.66 5.45 4.01 }` sur 8 cœurs), 3 rouges : file de modération « Villa Almadies », `villa` → aucune ligne ; journal « Relance Diop », `diop` → aucune ligne ; `Tag::buildQuery` « Marché Sandaga », `sandaga` → aucune ligne → les trois recherches passent à `CaseInsensitive::sql()`/`fold()` et `addcslashes(…, '\\%_')` ; 3 verts (20 assertions : minuscules, majuscules, `MARCHÉ`, et `%` → rien) ; ablation (`git checkout -- app`) → 3 rouges, remis → 3 verts ; voisins verts : `PropertyModerationTest`, `PropertyModerationQueueOrderTest`, `ActivityLogEndpointTest`, `RechercheAvecVirguleTest`, `HasQueryBuilderTest`.
 
 ### Petites améliorations
 - Réf : P186.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1842
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/customers.ts:179-190`, `takussan-api/app/Http/Controllers/Api/CustomerNoteController.php:14-25`, `takussan-web/src/app/(super-admin)/super-admin/users/page.tsx:150`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:97-103`, `takussan-web/src/lib/queries/leases.ts:273`
 - Constat :
@@ -17261,6 +17262,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, et mesuré pour les notes.
 - Piste : retirer les deux paramètres inertes du front (`include` des comptes, `filter[lease_id]`), avec un commentaire qui dit où l'API fixe ses relations. Pour les notes, choisir entre faire lire `sort` à l'API et retirer `sort` du front en documentant l'ordre « épinglées d'abord ». Dans les deux cas, ajouter `orderByDesc('id')` en départage.
 - Mesure (2026-10-23, 6ef281d1e, mesureur) : relu `customers.ts:179-190` (`sort: '-created_at'`), `CustomerNoteController.php:14-25` (aucun `sort` lu, `orderByDesc('pinned')->latest()`, sans départage par `id`), `users/page.tsx:150` (`include=roles,agentProfiles,ownerProfiles`) contre `UserDetailController.php:97-103` (relations chargées en dur), `leases.ts:268-278` (`filter: { lease_id }`) contre `LeasePaymentController.php:30-48` (le bail vient de la route, seul `sort` est lu) ; test temporaire `tests/Feature/Tmp/MesureurTmp186Test.php` (charge `{ 3.27 2.78 2.28 }` sur 8 cœurs, retiré) : une note épinglée d'il y a trois jours et une récente, `GET /api/customers/{id}/notes?sort=-created_at` → `["ancienne epinglee","recente"]` → les trois paramètres sont inertes, le constat tient. Classement : A3, paramètres sans effet des deux côtés ; le correctif sans choix est de les retirer du front en gardant l'ordre servi aujourd'hui (épinglées d'abord) et d'ajouter `orderByDesc('id')` en départage, l'autre voie de la `Piste` (faire lire `sort` à l'API) n'étant pas prise.
+- Mesure (2026-10-23, 8f2d5d2fc, implementeur) : reproduit avant correctif (charge `{ 2.51 4.01 3.68 }` sur 8 cœurs) : `CustomerNoteTest::test_les_notes_se_departagent_par_l_id` (une épinglée ancienne, quatre notes de la même seconde dont deux mises à jour) rend `9,10,11,12` au lieu de `12,11,10,9` ; trois assertions d'absence rouges (`sort` des notes, `include` des comptes, `filter[lease_id]` de l'échéancier) → `orderByDesc('id')` en départage et les trois paramètres retirés du front, l'ordre servi « épinglées d'abord » gardé ; 9/9 API, 29/29 front ; ablation (`git apply -R`) → 1 rouge API et 3 rouges front, remis → verts ; voisins verts : `introuvable-vs-erreur.test.tsx`, `LeaseSchedule.test.tsx`.
 
 ## Angle 187 — Paramètres des routes publiques sans compte face à une valeur mal formée
 

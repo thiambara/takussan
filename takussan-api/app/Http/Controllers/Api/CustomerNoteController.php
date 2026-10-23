@@ -19,6 +19,9 @@ class CustomerNoteController extends Controller
             ->with('author')
             ->orderByDesc('pinned')
             ->latest()
+            // TCK-1842 (P186.03) — un ordre total : le front lit toutes les pages, et deux notes de
+            // la même seconde changeaient de page d'une lecture à l'autre.
+            ->orderByDesc('id')
             ->paginate($this->tailleDePage($request, 20));
 
         return $this->paginated($notes, $notes->getCollection()->map(fn (CustomerNote $n) => $this->format($n))->values());
