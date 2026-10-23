@@ -5,7 +5,9 @@ namespace Tests\Feature\Maintenance;
 use App\Models\Agency;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\ServiceProviderProfileStatus;
+use App\Models\Enums\UserStatus;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Support\MaintenanceActors;
@@ -94,6 +96,37 @@ class MaintenanceAssignableProviderTest extends TestCase
 
         $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $agent->id])
             ->assertOk();
+    }
+
+    /**
+     * P120.03 — la cible est jugée comme le personnel des visites ({@see PersonnelDeLAgence::estPersonnel()}) :
+     * un agent au compte bloqué n'est plus joignable, il ne reçoit pas l'intervention.
+     */
+    public function test_blocked_team_member_is_refused(): void
+    {
+        ['mr' => $mr, 'landlord' => $landlord, 'agency' => $agency, 'provider' => $current] = $this->maintenanceScenario();
+        $agent = $this->agentOf($agency, ['status' => UserStatus::Blocked]);
+
+        Sanctum::actingAs($landlord);
+
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $agent->id])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('assigned_to');
+
+        $this->assertSame($current->id, $mr->refresh()->assigned_to);
+    }
+
+    /** P120.03 — un prestataire actif au compte bloqué n'est pas joignable non plus. */
+    public function test_blocked_provider_account_is_refused(): void
+    {
+        ['mr' => $mr, 'landlord' => $landlord, 'agency' => $agency] = $this->maintenanceScenario();
+        $blocked = $this->providerFor($agency, userAttributes: ['status' => UserStatus::Blocked]);
+
+        Sanctum::actingAs($landlord);
+
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $blocked->id])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('assigned_to');
     }
 
     public function test_store_refuses_an_unassignable_account(): void
