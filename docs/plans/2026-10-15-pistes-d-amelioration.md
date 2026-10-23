@@ -15166,7 +15166,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### L'agent qui a saisi un bien d'agence commande, clôt et tranche les devis de ses interventions sans `maintenance.assign` ni `maintenance.close`
 - Réf : P160.02
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1720
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:148-157,169-180,189-209,241-252,258-264,292-304`, `takussan-api/app/Services/Maintenance/OwnerApprovalThreshold.php:41-44`
 - Constat :
@@ -15177,6 +15177,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu et mesuré par `Gate::forUser()`, sans passer par les routes.
 - Piste : réserver la branche « bailleur » de `isPrincipalFor`, `isTeamPrincipalFor` et `principalWrites` au créateur propriétaire (`estProprietaire`), et faire passer le personnel créateur par la branche équipe et ses capacités. Garde : le test ci-dessus, joué sur `POST …/assign`, `PATCH …/status` vers `closed` et `POST …/quote/approve`.
 - Mesure (2026-10-22, 3e58240ef, mesureur) : relu `MaintenanceRequestPolicy.php` (`decideQuote` l. 148-157, `actAsPrincipal` l. 169-180 et son commentaire « Le bailleur du bien commande sur SON bien sans capacité d'agence », `transitionTo` l. 189-209, `principalWrites`, `isTeamPrincipalFor` qui exclut `user_id`, `isPrincipalFor` vrai à `user_id`) et `OwnerApprovalThreshold::isLandlord` (`user_id` seul) ; aucun changement depuis 60a024c89 ; test temporaire (retiré), deux `agentWithout(maintenance.assign, maintenance.close)`, intervention `completed` sur le bien saisi par le premier, `Gate::forUser()` → créateur : `actAsPrincipal`, `transitionTo(closed)`, `decideQuote` = true ; l'autre : false partout → le constat tient. Classement : V2 (et V1 pour le devis approuvé et `actual_cost`), le geste est exercé aujourd'hui par un appelant que le correctif en prive, et qui est « bailleur » d'un bien saisi par le personnel n'est pas tranché (ADR-0036 § 5, TCK-997).
+- Mesure (2026-10-23, f298c4e1e, implementeur) : reproduit avant correctif par `AgentCreateurDonneurDOrdreTest` (agent sans `maintenance.assign` ni `maintenance.close` posé en `properties.user_id` → assignation, clôture et approbation du devis 200 au lieu de 403) → `isPrincipalFor`, `isTeamPrincipalFor`, `principalWrites` et la branche `awaiting_owner` de `decideQuote` lisent `BailleurDuBien::est` : 403 sans les capacités, 200 avec, le bailleur clôt sans capacité ; ablation (policy rendue à pre-dev) → les trois refus rouges ; 53 classes qui citent la policy ou la route rejouées, trois rouges de jeu d'essai (propriétaire sans profil dans l'agence) corrigés par un profil de bailleur.
 
 ### L'agent qui a saisi un bien d'agence confirme et annule ses réservations, ouvre un bail, le renouvelle, le résilie et rend le dépôt, sans les capacités que son rôle lui retire
 - Réf : P160.03
