@@ -51,7 +51,13 @@ describe('msgValidation / decodeMsgValidation', () => {
  * elle-même. Les seuls messages exemptés sont ceux qui portent délibérément un paramètre.
  */
 describe('validation.* traverse ICU sans changer de texte', () => {
-  const AVEC_PARAMETRES = new Set(['validation.message.bodyTooLong']);
+  const AVEC_PARAMETRES = new Set([
+    'validation.message.bodyTooLong',
+    // TCK-1915 — les plafonds de l'état des lieux.
+    'validation.inventory.roomsMax',
+    'validation.inventory.elementsMax',
+    'validation.inventory.notesTooLong',
+  ]);
 
   for (const locale of Object.keys(DICTIONNAIRES) as (keyof typeof DICTIONNAIRES)[]) {
     it(`${locale} — chaque valeur se rend telle quelle`, () => {
