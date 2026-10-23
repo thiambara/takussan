@@ -3,6 +3,9 @@
 namespace Tests\Feature\Api\Admin;
 
 use App\Models\Agency;
+use App\Models\Customer;
+use App\Models\Enums\LeaseStatus;
+use App\Models\Lease;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Support\Audit\PropertyRedactor;
@@ -63,6 +66,45 @@ class UserDetailTest extends TestCase
 
         $this->assertTrue($ids->contains($match->id));
         $this->assertFalse($ids->contains($other->id));
+    }
+
+    /**
+     * TCK-1852 (P186.01) — `filter[role]=tenant` tombait sur `whereRaw('1 = 0')` : la console
+     * proposait « Locataire » et rendait toujours une liste vide. Il se sert par la règle de
+     * `hasActiveTenantLease()` (TCK-492) : un bail en cours, préavis compris. `customer`, qui
+     * vaudrait tous les comptes, n'est pas servi, et reste une liste vide comme toute valeur inconnue.
+     */
+    public function test_le_filtre_locataire_ne_rend_que_les_baux_en_cours(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $locataire = function (string $email, ?LeaseStatus $statut): User {
+            $user = User::factory()->create(['email' => $email]);
+            if ($statut !== null) {
+                $customer = Customer::factory()->create(['user_id' => $user->id]);
+                Lease::factory()->create(['tenant_id' => $customer->id, 'status' => $statut]);
+            }
+
+            return $user;
+        };
+        $enCours = $locataire('bail.actif@locataire.test', LeaseStatus::Active);
+        $preavis = $locataire('bail.preavis@locataire.test', LeaseStatus::Terminating);
+        $termine = $locataire('bail.termine@locataire.test', LeaseStatus::Terminated);
+        $sansBail = $locataire('sans.bail@locataire.test', null);
+
+        $ids = collect($this->getJson('/api/admin/users?filter[role]=tenant&filter[search]=locataire.test')
+            ->assertOk()
+            ->json('data'))->pluck('id')->sort()->values()->all();
+
+        $this->assertSame(collect([$enCours->id, $preavis->id])->sort()->values()->all(), $ids);
+        $this->assertNotContains($termine->id, $ids);
+        $this->assertNotContains($sansBail->id, $ids);
+
+        foreach (['customer', 'nawak'] as $inconnu) {
+            $this->getJson("/api/admin/users?filter[role]={$inconnu}&filter[search]=locataire.test")
+                ->assertOk()
+                ->assertJsonCount(0, 'data');
+        }
     }
 
     public function test_super_admin_can_view_user_detail_without_secret_leaks(): void

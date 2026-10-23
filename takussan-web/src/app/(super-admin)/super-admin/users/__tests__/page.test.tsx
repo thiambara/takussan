@@ -292,6 +292,9 @@ describe('super-admin users page', () => {
   it.each([
     ['status', 'nawak', 'filter[status]', 'Statut', 'Tous statuts'],
     ['role', 'sorcier', 'filter[role]', 'Rôle', 'Tous rôles'],
+    // TCK-1852 (P186.01) — « Client » n'est plus proposé : chaque compte en est un (TCK-492), le
+    // filtre valait « Tous » et l'API le rendait vide. Le jeton retombe donc sur « tous ».
+    ['role', 'customer', 'filter[role]', 'Rôle', 'Tous rôles'],
     ['email', '7', 'filter[email_verified]', 'Email vérifié', 'Email : tous'],
     ['twoFactor', 'peut-être', 'filter[two_factor_enabled]', '2FA', '2FA : tous'],
   ])(
