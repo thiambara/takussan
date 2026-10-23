@@ -9,7 +9,6 @@ use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
-use App\Models\Enums\TaskStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
 use App\Models\Profiles\AgentProfile;
@@ -107,9 +106,8 @@ class TeamPerformanceService
         $overdue = $this->countBy(Task::query()
             ->whereHasMorph('taskable', [Customer::class, Property::class], fn ($parent) => $parent->where('agency_id', $agency->id))
             ->whereIn('assigned_to_id', $ids)
-            ->whereIn('status', [TaskStatus::Open->value, TaskStatus::InProgress->value])
-            ->whereNotNull('due_at')
-            ->where('due_at', '<', now()), 'assigned_to_id');
+            // P198.01 (TCK-1910) — la règle de la liste : échue avant aujourd'hui.
+            ->overdue(), 'assigned_to_id');
 
         return [
             'period' => $from->format('Y-m'),

@@ -125,8 +125,7 @@ class Task extends AbstractModel
 
                 // TCK-1407 (P151.06) — une liste (`filter[due][]=`) est une valeur inconnue : rien.
                 match (is_string($value) ? $value : null) {
-                    'overdue' => $query->where('due_at', '<', $startOfDay)
-                        ->whereIn('status', array_map(fn (TaskStatus $s) => $s->value, self::OPEN_STATUSES)),
+                    'overdue' => $query->overdue(),
                     'today' => $query->whereBetween('due_at', [$startOfDay, $endOfDay]),
                     'upcoming' => $query->where('due_at', '>', $endOfDay),
                     'none' => $query->whereNull('due_at'),
@@ -192,6 +191,21 @@ class Task extends AbstractModel
         }
 
         return $query->find($this->taskable_id);
+    }
+
+    /**
+     * TCK-591 (AC7), P198.01 (TCK-1910) — « en retard » : une tâche encore ouverte, échue avant le
+     * début du jour dans le fuseau de l'agence. Une tâche due ce matin est « du jour », pas en
+     * retard. Seule définition du mot : la liste (`filter[due]=overdue`), le tableau de bord de
+     * l'agent et la performance d'équipe la lisent toutes trois.
+     *
+     * @param  Builder<Task>  $query
+     * @return Builder<Task>
+     */
+    public function scopeOverdue(Builder $query): Builder
+    {
+        return $query->where('due_at', '<', Carbon::now(self::DUE_TIMEZONE)->startOfDay()->utc())
+            ->whereIn('status', array_map(fn (TaskStatus $s) => $s->value, self::OPEN_STATUSES));
     }
 
     /**
