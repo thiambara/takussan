@@ -3,6 +3,7 @@
  * l'objet `user` par le même compte.
  */
 import { render } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as AuthContext from '@/context/AuthContext';
@@ -27,19 +28,24 @@ describe('MinimalProfileTriggerProvider — même compte (TCK-1764)', () => {
   });
 
   it('un nouvel objet pour le même compte ne relit pas les accueils vus', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     authAvec({ id: 1, roles: ['customer'] });
     const { rerender } = render(
-      <MinimalProfileTriggerProvider roles={['customer']}>
-        <span />
-      </MinimalProfileTriggerProvider>,
+      <QueryClientProvider client={client}>
+        <MinimalProfileTriggerProvider roles={['customer']}>
+          <span />
+        </MinimalProfileTriggerProvider>
+      </QueryClientProvider>,
     );
     await vi.waitFor(() => expect(reseau).toHaveBeenCalledTimes(1));
 
     authAvec({ id: 1, roles: ['customer'] });
     rerender(
-      <MinimalProfileTriggerProvider roles={['customer']}>
-        <span />
-      </MinimalProfileTriggerProvider>,
+      <QueryClientProvider client={client}>
+        <MinimalProfileTriggerProvider roles={['customer']}>
+          <span />
+        </MinimalProfileTriggerProvider>
+      </QueryClientProvider>,
     );
     await new Promise((r) => setTimeout(r, 20));
 

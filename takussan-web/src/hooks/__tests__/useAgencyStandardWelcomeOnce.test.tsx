@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ReactNode } from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { useAgencyStandardWelcomeOnce } from '../useAgencyStandardWelcomeOnce';
 import * as AuthContext from '@/context/AuthContext';
@@ -8,8 +10,7 @@ type FetchMock = ReturnType<typeof vi.fn>;
 
 /**
  * Maps URL substrings → response bodies. Mirrors the helper used by
- * `useTenantWelcomeOnce.test.tsx` since both hooks parallelise their
- * reads (agency detail + welcome-seen list).
+ * `useTenantWelcomeOnce.test.tsx`.
  */
 function setupFetchMap(routes: Record<string, { status?: number; body?: unknown }>): FetchMock {
   const mock = vi.fn(async (input: RequestInfo | URL) => {
@@ -25,6 +26,17 @@ function setupFetchMap(routes: Record<string, { status?: number; body?: unknown 
   globalThis.fetch = mock as unknown as typeof fetch;
   return mock;
 }
+
+// TCK-1766 — les clés vues passent par une entrée de cache TanStack partagée (`useAccueilsVus`).
+function avecCache() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return function Enveloppe({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  };
+}
+
+// TCK-1766 — le marqueur d'accueil vient du layout `/app`, qui a déjà lu l'agence.
+const MARQUEUR = { agencyId: 42, unlockedAt: '2026-05-10T12:00:00Z' };
 
 function mockAuth(authed: boolean, overrides: Record<string, unknown> = {}) {
   const value = authed
@@ -69,7 +81,7 @@ describe('useAgencyStandardWelcomeOnce', () => {
     mockAuth(false);
     const fetchMock = setupFetchMap({});
 
-    const { result } = renderHook(() => useAgencyStandardWelcomeOnce());
+    const { result } = renderHook(() => useAgencyStandardWelcomeOnce(MARQUEUR), { wrapper: avecCache() });
     await act(async () => {
       await new Promise<void>((r) => setTimeout(r, 10));
     });
@@ -83,7 +95,7 @@ describe('useAgencyStandardWelcomeOnce', () => {
     mockAuth(true, { roles: ['agent'] });
     const fetchMock = setupFetchMap({});
 
-    const { result } = renderHook(() => useAgencyStandardWelcomeOnce());
+    const { result } = renderHook(() => useAgencyStandardWelcomeOnce(MARQUEUR), { wrapper: avecCache() });
     await act(async () => {
       await new Promise<void>((r) => setTimeout(r, 10));
     });
@@ -95,19 +107,10 @@ describe('useAgencyStandardWelcomeOnce', () => {
   it('opens the modale when agency is standard, marker is set, and key is unseen', async () => {
     mockAuth(true);
     setupFetchMap({
-      '/api/agencies/42': {
-        body: {
-          data: {
-            id: 42,
-            kind: 'standard',
-            metadata: { welcome: { standard_unlocked_at: '2026-05-10T12:00:00Z' } },
-          },
-        },
-      },
       '/api/me/welcome-seen': { body: { data: [] } },
     });
 
-    const { result } = renderHook(() => useAgencyStandardWelcomeOnce());
+    const { result } = renderHook(() => useAgencyStandardWelcomeOnce(MARQUEUR), { wrapper: avecCache() });
 
     await waitFor(() => expect(result.current.open).toBe(true));
     expect(result.current.agencyId).toBe(42);
@@ -116,19 +119,10 @@ describe('useAgencyStandardWelcomeOnce', () => {
   it('does NOT open the modale when the welcome key has already been seen', async () => {
     mockAuth(true);
     setupFetchMap({
-      '/api/agencies/42': {
-        body: {
-          data: {
-            id: 42,
-            kind: 'standard',
-            metadata: { welcome: { standard_unlocked_at: '2026-05-10T12:00:00Z' } },
-          },
-        },
-      },
       '/api/me/welcome-seen': { body: { data: ['agency-standard-welcome-42'] } },
     });
 
-    const { result } = renderHook(() => useAgencyStandardWelcomeOnce());
+    const { result } = renderHook(() => useAgencyStandardWelcomeOnce(MARQUEUR), { wrapper: avecCache() });
     await act(async () => {
       await new Promise<void>((r) => setTimeout(r, 10));
     });
@@ -137,16 +131,28 @@ describe('useAgencyStandardWelcomeOnce', () => {
     expect(result.current.agencyId).toBeNull();
   });
 
-  it('does NOT open the modale when the agency has no welcome marker (always-standard agency)', async () => {
+  it('does NOT open the modale when the agency has no welcome marker (always-standard or individual agency)', async () => {
     mockAuth(true);
-    setupFetchMap({
-      '/api/agencies/42': {
-        body: { data: { id: 42, kind: 'standard', metadata: {} } },
-      },
-      '/api/me/welcome-seen': { body: { data: [] } },
+    const fetchMock = setupFetchMap({ '/api/me/welcome-seen': { body: { data: [] } } });
+
+    const { result } = renderHook(() => useAgencyStandardWelcomeOnce({ agencyId: 42, unlockedAt: null }), {
+      wrapper: avecCache(),
+    });
+    await act(async () => {
+      await new Promise<void>((r) => setTimeout(r, 10));
     });
 
-    const { result } = renderHook(() => useAgencyStandardWelcomeOnce());
+    expect(result.current.open).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does NOT open when the marker belongs to another agency (profile switched)', async () => {
+    mockAuth(true);
+    setupFetchMap({ '/api/me/welcome-seen': { body: { data: [] } } });
+
+    const { result } = renderHook(() => useAgencyStandardWelcomeOnce({ ...MARQUEUR, agencyId: 7 }), {
+      wrapper: avecCache(),
+    });
     await act(async () => {
       await new Promise<void>((r) => setTimeout(r, 10));
     });
@@ -154,45 +160,26 @@ describe('useAgencyStandardWelcomeOnce', () => {
     expect(result.current.open).toBe(false);
   });
 
-  it('does NOT open when the agency is still individual', async () => {
+  it('does NOT open without a marker (layout could not read the agency)', async () => {
     mockAuth(true);
-    setupFetchMap({
-      '/api/agencies/42': {
-        body: {
-          data: {
-            id: 42,
-            kind: 'individual',
-            metadata: { welcome: { standard_unlocked_at: '2026-05-10T12:00:00Z' } },
-          },
-        },
-      },
-      '/api/me/welcome-seen': { body: { data: [] } },
-    });
+    const fetchMock = setupFetchMap({ '/api/me/welcome-seen': { body: { data: [] } } });
 
-    const { result } = renderHook(() => useAgencyStandardWelcomeOnce());
+    const { result } = renderHook(() => useAgencyStandardWelcomeOnce(), { wrapper: avecCache() });
     await act(async () => {
       await new Promise<void>((r) => setTimeout(r, 10));
     });
 
     expect(result.current.open).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('POSTs the welcome key on dismiss and closes locally; never re-opens within the session', async () => {
     mockAuth(true);
     const fetchMock = setupFetchMap({
-      '/api/agencies/42': {
-        body: {
-          data: {
-            id: 42,
-            kind: 'standard',
-            metadata: { welcome: { standard_unlocked_at: '2026-05-10T12:00:00Z' } },
-          },
-        },
-      },
       '/api/me/welcome-seen': { body: { data: [] } },
     });
 
-    const { result } = renderHook(() => useAgencyStandardWelcomeOnce());
+    const { result } = renderHook(() => useAgencyStandardWelcomeOnce(MARQUEUR), { wrapper: avecCache() });
     await waitFor(() => expect(result.current.open).toBe(true));
 
     act(() => {
@@ -204,8 +191,9 @@ describe('useAgencyStandardWelcomeOnce', () => {
     await waitFor(() => expect(result.current.open).toBe(false));
     expect(result.current.agencyId).toBeNull();
 
-    // 2 reads + exactly 1 POST (de-duplicated by the acknowledgedRef guard).
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    // 1 read + exactly 1 POST (de-duplicated by the acknowledgedRef guard) ; TCK-1766 : the agency
+    // is no longer read here.
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     const postCalls = fetchMock.mock.calls.filter(
       (c) => (c[1] as { method?: string } | undefined)?.method === 'POST',
     );

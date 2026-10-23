@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ReactNode } from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { useWelcomeOnce } from '../useWelcomeOnce';
 import * as AuthContext from '@/context/AuthContext';
@@ -48,6 +50,14 @@ function mockAuth(authed: boolean) {
   );
 }
 
+// TCK-1766 — les clés vues passent par une entrée de cache TanStack partagée (`useAccueilsVus`).
+function avecCache() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return function Enveloppe({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  };
+}
+
 const SLIDES = [
   { title: 'Hello', body: 'World' },
   { title: 'Step 2', body: 'Body 2' },
@@ -62,7 +72,7 @@ describe('useWelcomeOnce', () => {
     mockAuth(false);
     const fetchMock = setupFetchSequence([]);
 
-    const { result } = renderHook(() => useWelcomeOnce('customer-welcome', SLIDES));
+    const { result } = renderHook(() => useWelcomeOnce('customer-welcome', SLIDES), { wrapper: avecCache() });
     await act(async () => {
       await new Promise<void>((r) => setTimeout(r, 10));
     });
@@ -77,7 +87,7 @@ describe('useWelcomeOnce', () => {
       { status: 200, json: async () => ({ data: ['some-other-key'] }) },
     ]);
 
-    const { result } = renderHook(() => useWelcomeOnce('customer-welcome', SLIDES));
+    const { result } = renderHook(() => useWelcomeOnce('customer-welcome', SLIDES), { wrapper: avecCache() });
 
     await waitFor(() => expect(result.current.open).toBe(true));
     expect(result.current.slides).toEqual(SLIDES);
@@ -89,7 +99,7 @@ describe('useWelcomeOnce', () => {
       { status: 200, json: async () => ({ data: ['customer-welcome', 'host-welcome'] }) },
     ]);
 
-    const { result } = renderHook(() => useWelcomeOnce('customer-welcome', SLIDES));
+    const { result } = renderHook(() => useWelcomeOnce('customer-welcome', SLIDES), { wrapper: avecCache() });
     await act(async () => {
       await new Promise<void>((r) => setTimeout(r, 10));
     });
@@ -104,7 +114,7 @@ describe('useWelcomeOnce', () => {
       { status: 201, json: async () => ({ data: { id: 1, key: 'k', user_id: 1, seen_at: 'now' } }) },
     ]);
 
-    const { result } = renderHook(() => useWelcomeOnce('customer-welcome', SLIDES));
+    const { result } = renderHook(() => useWelcomeOnce('customer-welcome', SLIDES), { wrapper: avecCache() });
     await waitFor(() => expect(result.current.open).toBe(true));
 
     act(() => {
@@ -125,7 +135,7 @@ describe('useWelcomeOnce', () => {
       { status: 201, json: async () => ({ data: { id: 1, key: 'k', user_id: 1, seen_at: 'now' } }) },
     ]);
 
-    const { result } = renderHook(() => useWelcomeOnce('customer-welcome', SLIDES));
+    const { result } = renderHook(() => useWelcomeOnce('customer-welcome', SLIDES), { wrapper: avecCache() });
     await waitFor(() => expect(result.current.open).toBe(true));
 
     act(() => {
