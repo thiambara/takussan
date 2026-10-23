@@ -16395,7 +16395,7 @@ règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.
 
 ### Le fil de discussion n'affiche jamais le nom de l'auteur d'un message : l'API n'émet pas `sender`
 - Réf : P175.04
-- Statut : validé — validation du porteur (2026-10-23) : `sender: {id, full_name}` dans `MessageResource`, nul pour un compte effacé
+- Statut : fait · TCK-2013
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Resources/MessageResource.php:12-27`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:285-310`, `takussan-web/src/components/messages/ChatView.tsx:411-415`, `takussan-web/src/types/message.ts:68-80`
 - Constat :
@@ -16404,6 +16404,7 @@ règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.
   - Dans un groupe (intervention, bail, agence), aucun message ne dit donc qui l'a écrit. Constat né de la relation `sender` de l'angle ; il ne dépend pas de l'effacement. La famille « clés de réponse que le front lit » est celle de l'angle 45, qui ne l'a pas relevé.
 - Piste : rendre `sender: { id, full_name }` (nul pour un compte effacé, `full_name` vide) en chargeant `sender` dans les deux lectures de `ConversationController` ; côté front, garder le repli quand `sender` est nul. Garde : un test de `GET /api/conversations/{id}/messages` qui exige `data.0.sender.full_name`.
 - Mesure (2026-10-23, 2a689d48a, mesureur) : relu `MessageResource.php:14-26` (rend `sender_id`, jamais `sender`), `ConversationController.php:287,306` (les deux lectures chargent `media` seul), `ChatView.tsx:411-415` (nom écrit seulement si `message.sender`), `types/message.ts:75-79` (`sender?: { id, full_name, avatar_url } | null`) ; `grep -rn "->sender\|'sender'" app` → seul `NotifyNewMessageJob` charge `sender` ; `ConversationResource.php:61-77` rend déjà `full_name` et `avatar_url` des seuls participants actifs (`ConversationController.php:69`, `wherePivotNull('left_at')`) → le constat tient. Classement : V3, la forme attendue est écrite par le type du front (A1), mais rendre `sender` émettrait aussi le nom d'un participant sorti du fil, que la réponse ne donne plus aujourd'hui : ce qui en est exposé revient au porteur.
+- Mesure (2026-10-23, e261b5ef2, implementeur) : `ConversationMessageSenderTest` avant correctif, `GET /api/conversations/{id}/messages` avec et sans `after_id` → `Undefined array key "sender"` (3 rouges) → `MessageResource` rend `sender: {id, full_name}` (`nameWithoutContact()`), chargé dans les deux lectures, nul pour un auteur supprimé en douceur ; ablation du chargement → 3 rouges, rétabli → 3 verts, `ConversationTest`, `ConversationMessagesPaginationTest`, `SystemMessagesTest`, `ConversationArchiveReadTest` verts ; type du front sans `avatar_url`, que l'API ne rend pas.
 
 ### Petites améliorations
 - Réf : P175.05
