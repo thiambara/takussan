@@ -31,7 +31,7 @@ l'agent qui a saisi le bien, suspendu ou retiré, gardait la main sur ces acompt
 
 ## Décision du porteur
 
-la piste telle qu'écrite ; le client de la réservation reste accepté
+validation du porteur (2026-10-23) : la piste telle qu'écrite ; le client de la réservation reste accepté
 
 ## Reste à faire
 

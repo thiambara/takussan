@@ -32,7 +32,7 @@ juger que les gestes par `BailleurDuBien`.
 
 ## Décision du porteur
 
-la piste telle qu'écrite ; la dépendance à P15.06 est levée par la décision écrite dans `BailleurDuBien`
+validation du porteur (2026-10-23) : la piste telle qu'écrite ; la dépendance à P15.06 est levée par la décision écrite dans `BailleurDuBien`
 
 ## Delta à produire
 

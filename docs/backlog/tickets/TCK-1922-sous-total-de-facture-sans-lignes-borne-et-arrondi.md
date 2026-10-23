@@ -30,7 +30,7 @@ facture à lignes est recompté et arrondi ligne à ligne ; sans `items`, `subto
 
 ## Décision du porteur
 
-sous-total sans lignes : `decimal:0,2`, `max:1000000000`, puis `Currency::roundAmount` ; 422 au-delà
+validation du porteur (2026-10-23) : sous-total sans lignes : `decimal:0,2`, `max:1000000000`, puis `Currency::roundAmount` ; 422 au-delà
 
 ## Delta à produire
 

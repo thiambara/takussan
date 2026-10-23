@@ -29,7 +29,7 @@ une réservation de 100 000 → 201, et la ligne entrait au brut du prochain rev
 
 ## Décision du porteur
 
-borne = `total_amount` moins les lignes `paid`, pour `deposit` et `advance` seulement (`fee` hors du total reversable, ADR-0039 § 3), 422 codé au-delà ; mêmes statuts de réservation que P170.01 ; pas de notion de trop-perçu
+validation du porteur (2026-10-23) : borne = `total_amount` moins les lignes `paid`, pour `deposit` et `advance` seulement (`fee` hors du total reversable, ADR-0039 § 3), 422 codé au-delà ; mêmes statuts de réservation que P170.01 ; pas de notion de trop-perçu
 
 ## Hypothèses (mode sans humain)
 

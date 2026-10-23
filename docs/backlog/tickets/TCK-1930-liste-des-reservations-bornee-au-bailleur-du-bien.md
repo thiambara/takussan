@@ -28,7 +28,7 @@ ou retiré, voyait les réservations de ce bien et le téléphone du client.
 
 ## Décision du porteur
 
-la piste telle qu'écrite ; la première du lot (téléphone du client)
+validation du porteur (2026-10-23) : la piste telle qu'écrite ; la première du lot (téléphone du client)
 
 ## Delta à produire
 

@@ -28,7 +28,7 @@ et listait l'état des lieux (`InventoryController::index`, `orWhereHas('propert
 
 ## Décision du porteur
 
-la piste telle qu'écrite (`BailleurDuBien::est` en lecture, `bailleurEcrit` en écriture, même borne pour la liste)
+validation du porteur (2026-10-23) : la piste telle qu'écrite (`BailleurDuBien::est` en lecture, `bailleurEcrit` en écriture, même borne pour la liste)
 
 ## Delta à produire
 

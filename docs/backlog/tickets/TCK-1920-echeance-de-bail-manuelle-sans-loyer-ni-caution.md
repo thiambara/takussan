@@ -29,7 +29,7 @@ ligne par le locataire. Le front n'appelle plus cette route (`leases.ts`, TCK-68
 
 ## Décision du porteur
 
-garder la route pour `charges`, `regularization` et `penalty` seulement, refuser `rent` et `deposit` en 422 codé, borner `amount` au maximum de la colonne
+validation du porteur (2026-10-23) : garder la route pour `charges`, `regularization` et `penalty` seulement, refuser `rent` et `deposit` en 422 codé, borner `amount` au maximum de la colonne
 
 ## Hypothèses (mode sans humain)
 

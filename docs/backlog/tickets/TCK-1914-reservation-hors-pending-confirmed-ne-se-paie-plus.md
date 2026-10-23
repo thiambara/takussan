@@ -30,7 +30,7 @@ dérive le montant du client (TCK-1309) sans lire `bookings.status`, et
 
 ## Décision du porteur
 
-le client ne paie que sur une réservation `pending` ou `confirmed` (création et `isPayable()`), 422 codé sinon ; le personnel enregistre aussi sur `completed`
+validation du porteur (2026-10-23) : le client ne paie que sur une réservation `pending` ou `confirmed` (création et `isPayable()`), 422 codé sinon ; le personnel enregistre aussi sur `completed`
 
 ## Hypothèses (mode sans humain)
 

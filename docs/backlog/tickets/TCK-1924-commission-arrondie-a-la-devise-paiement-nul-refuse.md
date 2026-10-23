@@ -31,7 +31,7 @@ la commission d'une vente dérivée « prix × taux » s'arrondissait à 2 déci
 
 ## Décision du porteur
 
-la piste telle qu'écrite ; arrondir aussi un `commission_amount` saisi
+validation du porteur (2026-10-23) : la piste telle qu'écrite ; arrondir aussi un `commission_amount` saisi
 
 ## Hypothèses (mode sans humain)
 
