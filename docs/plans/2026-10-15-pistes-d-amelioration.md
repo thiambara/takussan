@@ -16375,7 +16375,7 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
 
 ### L'onglet Équipe d'une agence, dans la console, donne à un membre les rôles qu'il tient dans d'autres agences
 - Réf : P176.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1780
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:162-187`, `takussan-api/app/Models/Concerns/HasProfiles.php:239-275`, `takussan-web/src/components/admin/super/agency-detail.tsx:508-510`
 - Constat :
@@ -16385,6 +16385,7 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
   - Même défaut, déjà corrigé pour l'export d'audit par TCK-1717 (P139.02) : `mapRow()` juge les profils d'agence dans l'agence de la ligne.
 - Piste : rendre dans `team()` les seuls types de profil tenus dans l'agence lue (filtrer le préchargement sur `agency_id`, ou un `rolesDansLAgence($agencyId)` partagé avec `ActivityLogExporter::roleDansLAgence`), rôles dérivés (`customer`, `tenant`) à part. Garde : un test de `team()` avec un compte agent dans A et admin de B, qui exige `agent` sans `agency_admin` dans la liste de A.
 - Mesure (2026-10-23, f5f00baf2, mesureur) : relu `AgencyDetailController.php:162-187` (préchargement des cinq relations sans filtre d'agence, `'roles' => $user->profileTypes()->all()`, l. 183) et `HasProfiles.php:239-275` (inchangés depuis l'exploration, `git log` sur les deux fichiers) ; test temporaire (`tests/Feature/Tmp/Mesure176TmpTest.php`, retiré, charge `{ 2.67 2.82 2.65 }` sur 8 cœurs) : compte agent actif de A et admin actif de B, super-admin, `GET /api/admin/agencies/{A}/team` → 200, ligne du compte `roles = ["agency_admin","agent","customer"]` ; `agency-detail.tsx:508-510` rend chaque valeur en badge → le constat tient. Classement : A1, l'onglet Équipe de l'agence A doit dire les rôles tenus dans A, comme TCK-1717 l'a déjà écrit pour l'export d'audit (`mapRow()` juge dans l'agence de la ligne), sans choix de produit ni changement d'autorisation : la console super-admin voit déjà tous les comptes.
+- Mesure (2026-10-23, 38b8f36a7, implementeur) : test `AgencyTeamRolesTest` avant correctif, compte agent de A, admin et bailleur de B, super-admin, `GET /api/admin/agencies/{A}/team` → ligne `roles = ["agency_admin","agent","owner","customer"]` (rouge) → `team()` précharge les trois profils d'agence bornés à `agency_id` de la route ; A rend `["agent","customer"]`, B `["agency_admin","owner","customer"]` ; ablation : contrôleur d'origine → rouge, rétabli → vert ; `AgencyTeamQueryTest` et `AgencyDetailTest` verts.
 
 ### Le `roles` de `/api/auth/me` ouvre la section d'agence de l'agence active à un admin d'une autre agence
 - Réf : P176.02
