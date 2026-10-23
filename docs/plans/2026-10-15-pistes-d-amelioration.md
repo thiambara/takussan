@@ -15838,7 +15838,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Le client d'une réservation annulée peut encore ouvrir un paiement : l'API dérive le reste dû sans lire le statut de la réservation
 - Réf : P170.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : refuser un paiement sur une réservation hors `pending`/`confirmed`, et le faire juger par `isPayable()`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/BookingPaymentController.php:34-58`, `takussan-api/app/Services/Model/BookingPaymentService.php:60-71`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1712-1728`, `takussan-web/src/components/bookings/BookingDetail.tsx:536`
 - Constat :
@@ -15849,10 +15849,11 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - La spec dit qu'une réservation annulée appelle un remboursement, pas un paiement (lu, `docs/features.md:161`).
   - Établi comment : lu, mesuré.
 - Piste : refuser dans `BookingPaymentController::store` (ou `dueFromCustomer`) une réservation hors `pending`/`confirmed` par un 422 codé, et faire juger le même statut par `isPayable()` pour une `BookingPayment`. Garde : un test par statut terminal (`cancelled`, `rejected`, `expired`) côté client, et un test d'initiation refusée.
+- Mesure (2026-10-23, 9f180a3ae, mesureur) : relu `BookingPaymentController::store` (dérivation TCK-1309 sans lecture de `bookings.status`), `BookingPaymentService::dueFromCustomer` (l. 60-71, seules les lignes `paid` comptent), `PaymentGatewayService::isPayable` (l. 1712-1728, juge la ligne seule), `BookingDetail.tsx:536` ; `git log 5a015cfa1..HEAD` sur ces fichiers → vide, aucun ticket ne cite P170 ; test temporaire `SondeMesureur170Test` (retiré, charge 3,28 / 3,14 / 2,90 sur 8 cœurs) : réservation `cancelled` à 100 000, le personnel y pose 50 000 (`201`, `paid`), le client poste `{}` → `201`, ligne `pending` de 50 000, et `isPayable()` sur cette ligne rend `true` (le point « à vérifier » du constat est mesuré : rien ne refuse l'initiation sur le statut de la réservation) ; même `{}` du client sur une réservation `rejected` puis `expired` → `201` → le constat tient. Classement : V1, refuser un paiement est une règle d'encaissement (et la liste des statuts payables, `completed` compris ou non, reste à fixer), donc à valider malgré la spec qui oriente une annulation vers le remboursement.
 
 ### Le personnel enregistre un paiement de réservation `paid` d'un montant sans borne, et il entre au reversement du bailleur
 - Réf : P170.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : borne du montant saisi par le personnel, ou trop-perçu exclu du reversement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:65,72`, `takussan-api/app/Services/Model/BookingPaymentService.php:25-48`, `takussan-api/app/Services/Payout/PayoutCalculator.php:80-99`, `takussan-web/src/components/bookings/BookingPaymentDialog.tsx:51-66`, `takussan-web/src/lib/schemas/booking.ts:64-66`
 - Constat :
@@ -15863,10 +15864,11 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Mesuré aussi : la même saisie sur une réservation `cancelled` → `201` `paid` (voir P170.01).
   - Une saisie fautive (un zéro de trop) devient donc un reversement au bailleur d'un argent jamais reçu, sans autre garde que le seuil d'approbation de l'agence (déduit, à vérifier).
 - Piste : borner le montant d'une ligne posée par le personnel par le reste dû (total − lignes `paid`), 422 codé au-delà, et refuser une réservation hors `pending`/`confirmed`/`completed` ; ou, si un trop-perçu doit pouvoir s'enregistrer, l'écrire comme tel et l'exclure du reversement. Garde : un test API au-delà du reste dû.
+- Mesure (2026-10-23, 9f180a3ae, mesureur) : relu `StoreBookingPaymentRequest.php:65` (`numeric|min:0`), `BookingPaymentService::create` (l. 25-48, `paid` par défaut, `amount` écrit tel quel), `PayoutCalculator::bookingPayments` (l. 80-99) ; `git log 5a015cfa1..HEAD` → vide ; test temporaire `SondeMesureur170Test` (retiré, charge 3,28 / 3,14 / 2,90 sur 8 cœurs) : agent, réservation `confirmed` à 100 000, `{amount: 999999999, payment_type: advance, payment_method: cash}` → `201`, `paid` à 999 999 999, et `bookingPayments(agence, bailleur)` somme 999 999 999 → le constat tient ; le seuil d'approbation de l'agence comme seule autre garde n'est pas mesuré. Classement : V1, borner un encaissement ou exclure un trop-perçu du reversement change un montant reversé, et la `Piste` offre deux options.
 
 ### Une ligne `partially_paid` posée par le personnel n'est comptée nulle part : le client se voit redemander l'acompte entier
 - Réf : P170.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : sens d'une ligne `partially_paid` (retirée, ou comptée au dû et au reversement)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:72`, `takussan-api/app/Services/Model/BookingPaymentService.php:31-33,60-71`, `takussan-api/app/Services/Payout/PayoutCalculator.php:87`
 - Constat :
@@ -15875,10 +15877,11 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Le reversement ne la prend pas non plus (`status = paid` et `paid_at` non nul, lu, l. 87-89 ; mesuré : 0 ligne).
   - Ce que représente le montant d'une ligne `partially_paid` (la part reçue, ou le dû dont une partie est reçue) n'est écrit nulle part : à vérifier. P133.05 laissait ce point ouvert côté client.
 - Piste : soit retirer `partially_paid` des statuts que le personnel peut poser (une part reçue est une ligne `paid` de son montant), soit écrire son sens et le compter dans `dueFromCustomer()` et dans le reversement. Garde : le scénario mesuré.
+- Mesure (2026-10-23, 9f180a3ae, mesureur) : relu `StoreBookingPaymentRequest.php` (`status` `only([Paid, Pending, PartiallyPaid])`), `BookingPaymentService::create` (pas de `paid_at` hors `paid`) et `dueFromCustomer` (lignes `paid` seules, docblock : « les lignes `partially_paid` … ne comptent pas »), `PayoutCalculator.php:87-89` ; `git log 5a015cfa1..HEAD` → vide ; test temporaire `SondeMesureur170Test` (retiré, charge 3,28 / 3,14 / 2,90 sur 8 cœurs) : réservation à 100 000 (acompte 30 000), le personnel pose 30 000 `deposit` `partially_paid` → `201`, `paid_at` nul, 0 ligne au reversement ; le client poste `{}` → `201`, `pending` de 30 000 en `deposit` → le constat tient. Classement : V1, ce que vaut une ligne partielle dans le dû du client et le reversement est un choix sur des montants, la `Piste` en offre deux.
 
 ### Une échéance de bail créée à la main prend tout montant, et un second loyer sur la même période, sans rapport au loyer ni à la caution du bail
 - Réf : P170.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : bornes du montant d'une échéance posée à la main, et V7 : garder ou retirer la route
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreLeasePaymentRequest.php:44-52`, `takussan-api/app/Services/Model/LeasePaymentService.php:30-42`, `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:54-72`, `takussan-web/src/lib/queries/leases.ts:404-408`
 - Constat :
@@ -15887,10 +15890,11 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Une ligne ainsi posée est payable en ligne par le locataire (`isPayable` ne juge que le statut et le type `deposit_refund`, lu), et une caution `deposit` de 5 réglée compte 5 dans les cautions détenues (`PortfolioMetrics::depositsHeld`, lu) quand la restitution reste bornée à 800 000 (P04.10).
   - Le front n'appelle plus cette route : `lib/queries/leases.ts:404-408` le dit, et `grep` des `POST` sur `/api/leases/${…}/payments` hors tests ne rend que `generate-schedule` (mesuré). Seul un appel direct l'atteint.
 - Piste : décider si la route reste (charges, régularisations, pénalités) ; si oui, refuser `rent` et `deposit` (l'échéancier les pose, `generate-schedule`) ou les dériver du bail, et refuser un loyer sur une période déjà échue au bail ; sinon, la retirer (sans appelant au front, à vérifier côté autres clients). Garde : un test par type.
+- Mesure (2026-10-23, 9f180a3ae, mesureur) : relu `StoreLeasePaymentRequest.php:44-52` (`amount` `gt:0` pour tout type), `LeasePaymentService::create` (l. 30-42, données écrites telles quelles), `LeasePaymentController::store` (statut du bail seul jugé) ; `grep -rnE 'leases/\$\{[^}]*\}/payments'` sous `takussan-web/src` hors tests → un `GET` (`leases.ts:278`) et `generate-schedule` (l. 492), aucun `POST` de création ; `git log 5a015cfa1..HEAD` → vide ; test temporaire `SondeMesureur170Test` (retiré, charge 3,28 / 3,14 / 2,90 sur 8 cœurs) : bail `active` à 400 000 / caution 800 000, bailleur, trois `POST` sur 2026-01-01→2026-01-31 (`rent` 1, `rent` 400 000, `deposit` 5) → `201` `pending` trois fois → le constat tient. Classement : V1 et V7, borner ou dériver loyer et caution touche des échéances, et garder ou retirer la route est la décision que la `Piste` renvoie elle-même.
 
 ### Une facture sans lignes prend un sous-total ni arrondi à la devise ni borné : 10,5 XOF est émis, et un grand nombre rend 500
 - Réf : P170.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : arrondi et borne du sous-total d'une facture sans lignes, ou lignes exigées
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:45`, `takussan-api/app/Services/Model/InvoiceService.php:65-72`, `takussan-api/app/Services/Maintenance/CurrencyUnit.php:24`
 - Constat :
@@ -15899,13 +15903,15 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Le front envoie désormais des lignes (P133.02) : seul un appel direct passe par cette voie.
   - Les lignes, elles, sont bornées (`max:1000000000`, `decimal:0,2`) et le total est refusé au-delà de `CurrencyUnit::MAX_COLUMN` (lu, `InvoiceService.php:123`).
 - Piste : appliquer au `subtotal` sans lignes les mêmes bornes et le même arrondi que les lignes (`decimal:0,2`, `max:` de la colonne, `Currency::roundAmount`), ou exiger des lignes. Garde : les deux cas mesurés (10,5 XOF, et le grand nombre → 422).
+- Mesure (2026-10-23, 9f180a3ae, mesureur) : relu `StoreInvoiceRequest.php:45` (`subtotal` `numeric|min:0`, sans `max` ni `decimal`), `InvoiceService.php:65-72` (`(float) $data['subtotal']`, seule la TVA arrondie) et `priceLines` (l. 115-126, borne `MAX_COLUMN` sur les lignes seules) ; `git log 5a015cfa1..HEAD` → vide ; test temporaire `SondeMesureur170Test` (retiré, charge 3,28 / 3,14 / 2,90 sur 8 cœurs) : agent d'agence, `POST /api/invoices` XOF sans lignes, `subtotal: 10.5` → `201`, sous-total et total 10,5 ; `subtotal: 999999999999999` → `500` `SQLSTATE[22003] numeric field overflow` → le constat tient. Classement : V1, l'arrondi du montant d'une facture est un calcul de montant, et la `Piste` laisse le choix entre borner et exiger des lignes.
 
 ### Petites améliorations
 - Réf : P170.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : arrondi de la commission dérivée et montant nul refusé au personnel
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Model/LeaseService.php:82-87`, `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:65`
 - Constat :
   - Commission d'une vente dérivée « prix × taux » : `round(…, 2)`, et non `Currency::roundAmount` (lu, `LeaseService.php:86`). Un prix de 1 234 567 XOF à 2,5 % donne 30 864,18 XOF (calcul, non mesuré), un montant à sous-unité dans une devise qui n'en a pas (ADR-0009).
   - Paiement de réservation du personnel : `amount` admet `0` (`min:0`, lu, l. 65), quand la ligne de bail exige `gt:0` (P46.05, TCK-958) ; une ligne `paid` à 0 reçoit un numéro de reçu (lu, `BookingPaymentService.php:40`). Non mesuré.
 - Piste : arrondir la commission par la devise du bail ; passer `amount` à `gt:0` pour le personnel. Un test par point.
+- Mesure (2026-10-23, 9f180a3ae, mesureur) : relu `LeaseService.php:82-87` (`round(…, 2)` sur prix × taux, et `Currency::roundAmount` existe, `Currency.php:69`), `StoreBookingPaymentRequest.php:65` (`min:0`), `BookingPaymentService.php:40` (numéro de reçu toujours posé) ; `php -r 'round(1234567*2.5/100,2)'` → 30864.18, soit une sous-unité XOF (calcul, la création de bail n'est pas jouée) ; test temporaire `SondeMesureur170Test` (retiré, charge 3,28 / 3,14 / 2,90 sur 8 cœurs) : agent, `amount: 0` → `201`, `paid`, reçu `RCP-…` posé → les deux points tiennent. Classement : V1, arrondir une commission et refuser un encaissement à 0 sont des règles de montant.
