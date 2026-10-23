@@ -32,7 +32,7 @@ caractères en premier message et en message : 201.
 
 ## Décision du porteur (déléguée)
 
-> poser à l'API la borne la plus large déjà en vigueur pour chaque champ, sans rien refuser de ce qu'un écran envoie aujourd'hui : `max:2000` sur `content` des avis de bien et d'agence (`StoreForPropertyReviewRequest`, `StoreForAgencyReviewRequest`) et sur `reply_content` (`ReplyReviewRequest`), `max:5000` sur `content` de `SendMessageConversationRequest` et `initial_message` de `StoreConversationRequest` (comme `CreateGroupConversationRequest`), `max:5000` sur `body` de `StoreCustomerNoteRequest` ; un test par champ, borne + 1 → 422 et rien d'écrit
+> poser à l'API la borne la plus large déjà en vigueur pour chaque champ, sans rien refuser de ce qu'un écran envoie aujourd'hui : `max:2000` sur `content` des avis de bien et d'agence (`StoreForPropertyReviewRequest`, `StoreForAgencyReviewRequest`) et sur `reply_content` (`ReplyReviewRequest`), `max:5000` sur `content` de `SendMessageConversationRequest` et `initial_message` de `StoreConversationRequest` (comme `CreateGroupConversationRequest`), `max:5000` sur `body` de `StoreCustomerNoteRequest` ; un test par champ, borne + 1 → 422 et rien d'écrit ; reste : l'avis d'agent et de prestataire (5000 à l'API, 2000 au front), les seuils des écrans (P195.05) et le test de parité (P195.10)
 
 ## Reste à faire
 

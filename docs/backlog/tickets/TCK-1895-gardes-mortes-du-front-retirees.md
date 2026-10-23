@@ -30,7 +30,7 @@ Réf : **P195.08** du fichier de pistes, `validé (délégué)`.
 
 ## Décision du porteur (déléguée)
 
-> retirer `createConversationSchema` et `CreateConversationFormValues` (`message.ts`), `validateCustomerDocumentFile`, `CUSTOMER_DOCUMENT_MAX_BYTES`, `CUSTOMER_DOCUMENT_REJECTION_NAMESPACE` et son type (`customers.ts`), leurs tests de `properties.test.ts`, et les clés `serverActions.customerDocuments` des trois fichiers de messages si aucun autre lecteur n'est trouvé à la re-mesure
+> retirer `createConversationSchema` et `CreateConversationFormValues` (`message.ts`), `validateCustomerDocumentFile`, `CUSTOMER_DOCUMENT_MAX_BYTES`, `CUSTOMER_DOCUMENT_REJECTION_NAMESPACE` et son type (`customers.ts`), leurs tests de `properties.test.ts`, et les clés `serverActions.customerDocuments` des trois fichiers de messages si aucun autre lecteur n'est trouvé à la re-mesure ; reste : `isAllowedAttachment`, `MAX_ATTACHMENT_BYTES` et `ALLOWED_ATTACHMENT_MIME`, gardés tant que le trombone retiré « pour l'instant » (TCK-683) peut revenir
 
 ## Reste à faire
 
