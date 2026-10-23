@@ -10,6 +10,7 @@ use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
+use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\TaskStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
@@ -161,6 +162,37 @@ class TeamPerformanceTest extends ApiTestCase
         $this->assertSame(3, $row['customers_added']);
         $this->assertEquals(55000, $row['commissions_earned']);
         $this->assertSame(4, $row['properties_managed']);
+    }
+
+    /**
+     * P198.04 (TCK-1912) — « Biens gérés » de la performance d'équipe écarte les biens hors du
+     * portefeuille (`Property::OUT_OF_PORTFOLIO_STATUSES`), comme l'accueil de l'agent depuis
+     * TCK-1359 : les deux compteurs du même nom rendent le même nombre.
+     */
+    public function test_p198_04_sold_and_archived_properties_are_managed_neither_on_the_home_nor_in_the_team_line(): void
+    {
+        $a = $this->agencyAgent($this->agency);
+        $owned = fn (PropertyStatus $status): Property => Property::factory()->create([
+            'agency_id' => $this->agency->id, 'user_id' => $a->id, 'status' => $status,
+        ]);
+        $collab = fn (PropertyStatus $status) => PropertyCollaborator::query()->create([
+            'property_id' => Property::factory()->create(['agency_id' => $this->agency->id, 'status' => $status])->id,
+            'user_id' => $a->id, 'role' => CollaboratorRole::Agent,
+        ]);
+        $owned(PropertyStatus::Available);
+        $owned(PropertyStatus::Draft);
+        $owned(PropertyStatus::Sold);
+        $owned(PropertyStatus::Archived);
+        $collab(PropertyStatus::Available);
+        $collab(PropertyStatus::Sold);
+        $collab(PropertyStatus::Archived);
+
+        $this->actingAsApi($this->agencyAdmin($this->agency));
+        $this->assertSame(3, $this->rows()[$a->id]['properties_managed']);
+
+        $this->actingAsApi($a);
+        $this->assertSame(3, $this->getJson('/api/dashboard/agent')->assertOk()->json('data.properties_managed'));
+        $this->assertSame(3, $this->getJson('/api/dashboard/me')->assertOk()->json('data.metrics.properties_managed'));
     }
 
     public function test_ac17_the_query_count_does_not_depend_on_the_team_size(): void
