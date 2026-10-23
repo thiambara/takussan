@@ -1,7 +1,7 @@
 ---
 id: TCK-1783
 title: "L'avis mensuel du relevé de gérance part aussi au bailleur dont les seuls encaissements sont des acomptes de séjour"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -39,12 +39,12 @@ le relevé).
 
 ## Delta à produire
 
-- [ ] `SendOwnerStatements::handle()` unit aux couples des loyers ceux des acomptes de séjour.
-- [ ] Garde dans `tests/Feature/Api/OwnerStatementTest.php`.
+- [x] `SendOwnerStatements::handle()` unit aux couples des loyers ceux des acomptes de séjour.
+- [x] Garde dans `tests/Feature/Api/OwnerStatementTest.php`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Bailleur sans bail, acompte `advance` de 50 000 payé le 10 septembre :
+- [x] AC1 — Bailleur sans bail, acompte `advance` de 50 000 payé le 10 septembre :
   `payouts:send-owner-statements --period=2026-09` lui envoie un avis, un seul après deux exécutions.
 
 ## Hors périmètre
@@ -53,4 +53,5 @@ le relevé).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Reproduit avant correctif sur `663fc2871` : le test AC1 rend « sent 0 times ».
+- Ablation : commande remise à son état antérieur → 1 rouge sur 1 (0 avis) ; rétablie → vert.
