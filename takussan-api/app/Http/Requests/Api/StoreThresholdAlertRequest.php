@@ -53,7 +53,6 @@ class StoreThresholdAlertRequest extends BaseFormRequest
             'severity' => ['sometimes', Rule::in(ThresholdAlert::allowedSeverities())],
             'is_enabled' => ['sometimes', 'boolean'],
             'cooldown_hours' => ['sometimes', 'integer', 'min:1', 'max:720'],
-            'settings' => ['sometimes', 'array'],
         ];
     }
 }

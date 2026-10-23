@@ -58,7 +58,6 @@ class StoreKpiConfigRequest extends BaseFormRequest
             'format' => ['sometimes', Rule::in(['number', 'percent', 'currency'])],
             'sort_order' => ['sometimes', 'integer', 'min:0', 'max:999'],
             'is_enabled' => ['sometimes', 'boolean'],
-            'settings' => ['sometimes', 'array'],
         ];
     }
 
