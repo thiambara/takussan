@@ -6386,6 +6386,7 @@
         "phone": "Phone",
         "website": "Website",
         "commission": "Default commission (%)",
+        "emptyRateIsZero": "Left empty, this rate counts as 0%.",
         "websitePlaceholder": "https://your-agency.sn"
       },
       "moderation": {

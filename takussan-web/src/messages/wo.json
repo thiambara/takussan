@@ -4626,6 +4626,7 @@
         "phone": "Telefon",
         "website": "Site internet",
         "commission": "Komisiyon bu ñu jagleel (%)",
+        "emptyRateIsZero": "Laissé vide, ce taux vaut 0 %.",
         "websitePlaceholder": "https://sa-ajance.sn"
       },
       "moderation": {

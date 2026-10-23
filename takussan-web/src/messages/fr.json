@@ -6386,6 +6386,7 @@
         "phone": "Téléphone",
         "website": "Site internet",
         "commission": "Commission par défaut (%)",
+        "emptyRateIsZero": "Laissé vide, ce taux vaut 0 %.",
         "websitePlaceholder": "https://votre-agence.sn"
       },
       "moderation": {
