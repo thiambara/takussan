@@ -17723,7 +17723,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Aucune garde ne compare les cas d'un enum aux clés que l'API bâtit sur lui, et les replis silencieux cachent le manque
 - Réf : P192.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1878 — reste : ajouter `calendar.feed.summary` à la garde, dont les clés se bâtissent sur `type` et `kind`, des littéraux de `CalendarEventCollector` sans source unique à lire
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/tests/Unit/Lang/LangGroupParityTest.php:82-170`, `takussan-api/app/Http/Resources/Bases/BaseResource.php:88-97`, `takussan-api/app/Notifications/ThresholdAlertTriggered.php:79-82`, `takussan-api/app/Notifications/ReportExportReadyNotification.php:31-32`, `takussan-api/app/Services/Notifications/NotificationRenderer.php:186-195`, `takussan-api/app/Http/Resources/Accounting/BankStatementResource.php:26`, `BankStatementLineResource.php:36`, `takussan-api/app/Services/Messaging/SystemMessageFactory.php:149`, `takussan-api/resources/views/emails/notifications/notification-digest.blade.php:8`
 - Constat :
@@ -17733,6 +17733,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, mesuré par script.
 - Piste : un test qui déclare, pour chaque clé bâtie sur une valeur, la source de ses valeurs (enum, constante, liste de la règle `in:`), et exige la clé dans `fr`, `en` et `wo` pour chacune ; il rougit aujourd'hui sur `properties.status.pending_review` et `rejected` (P192.02). Une table en tête du test, plutôt qu'une découverte automatique, pour qu'une clé bâtie neuve s'y ajoute à la revue.
 - Mesure (2026-10-23, e4e646dee, mesureur) : relu `LangGroupParityTest` (quatre méthodes, l. 82, 92, 122, 148 : fichiers, parité de clés, codes de notification, codes d'erreur littéraux ; aucun groupe comparé à un enum) ; `grep -rlE "::cases\(\)" tests | xargs grep -lE "Lang::|__\(|trans\("` → `PropertyLabelsTest`, `ConversationTest`, `LeaseContextExistenceOracleTest`, `SearchWolofReviewSheetTest`, aucun ne compare les cas d'un enum à un groupe de libellés ; relu les replis cités (`ThresholdAlertTriggered::libelle` rend le code, `BankStatementResource.php:26`, `BankStatementLineResource.php:36`, `SystemMessageFactory.php:149`, `notification-digest.blade.php:8` sans repli) ; le manque que la garde attraperait est mesuré en P192.02 (`properties.status.pending_review` et `rejected` absents des trois langues) → le constat tient. Classement : A5, test ajouté sans seuil ; il rougit tant que P192.02 n'est pas fait, les deux se prennent ensemble.
+- Mesure (2026-10-23, e273ad210, implementeur) : aucun test ne comparait un groupe de libellés à son enum (relu `LangGroupParityTest`, inchangé) ; `LabelKeysCoverValuesTest` (unitaire pur, table de 13 groupes : six enums de `PropertyResource`, `reconciliation.status` et `line_status`, `maintenance.status`, `notifications.types`, `threshold_alert_mail.metrics` et `severities`, `maintenance.quote_pdf.kinds` face à la règle `in:` de `SubmitQuoteRequest`) vert sur l'arbre avec TCK-1876 ; ablation (clés de TCK-1876 retirées des trois langues) → rouge, six manques nommés (`fr : properties.status.pending_review absente`…), remises → vert. `calendar.feed.summary` reste hors de la table.
 
 ### L'état des lieux imprime son état général, l'état de chaque pièce et son statut par leur code anglais (voir P26.06)
 - Réf : P192.04
