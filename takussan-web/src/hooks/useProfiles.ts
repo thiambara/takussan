@@ -95,6 +95,14 @@ export function useSwitchActiveProfile() {
       // Re-render server components with the new cookie context so dashboard
       // pages refetch under the right team_id.
       router.refresh();
+      // TCK-1899 (P197.01) — ces deux lectures passent par les relais `/api/me/subscription`
+      // et `/api/me/payouts`, qui posent l'indice du profil actif : leur clé ne porte pas
+      // l'agence, et les composants restent montés par `router.refresh()`. Sans cette
+      // invalidation, l'agence quittée resterait affichée jusqu'au `staleTime` (5 min).
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['me', 'subscription'] }),
+        queryClient.invalidateQueries({ queryKey: ['me', 'payouts'] }),
+      ]);
     },
     onError: (err, _profileId, context) => {
       if (context?.previousProfiles) {
