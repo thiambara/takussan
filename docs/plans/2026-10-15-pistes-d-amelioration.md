@@ -16467,7 +16467,7 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
 
 ### Un reversement versé disparaît du relevé quand ses pièces sont ensuite remboursées, et un remboursement partiel fait imprimer un net inférieur au versé
 - Réf : P177.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : ce que le relevé compte d'un reversement versé puis remboursé est un montant
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payout/OwnerStatementService.php:51-55,71,95-110`, `takussan-api/app/Services/Payout/PayoutCalculator.php:62-63,209-212`, `takussan-api/app/Services/Model/BookingPaymentService.php:81-127`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1341-1353`
 - Constat :
@@ -16476,10 +16476,11 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
   - mesuré (test temporaire) : loyer 200 000 + charges 20 000 au taux de 10 %, reversement `completed` de 198 000 → relevé de septembre `gross 220000, net 198000, paid_out 198000`. Loyer ensuite remboursé de 50 000 → `gross 170000, commission 17000, net 153000, paid_out 198000` : le relevé imprime un net de 153 000 à côté d'un versement de 198 000. Les deux pièces ensuite remboursées en entier → `gross 0, net 0, paid_out 0, payouts []` : le versement de 198 000 n'apparaît plus sur aucun relevé.
   - Établi comment : lu, et mesuré sur les valeurs que les deux chemins de remboursement écrivent.
 - Piste : lire les pièces d'un reversement versé par le pivot, quel que soit leur statut du jour, et leurs montants tels que le reversement les a pris (`payouts.gross_amount`, `commission_amount`, `fees_amount`, ou une copie par ligne dans le pivot) ; un remboursement postérieur apparaît comme une ligne à part, datée de son remboursement. Garde : le scénario ci-dessus en test, `paid_out` constant après remboursement.
+- Mesure (2026-10-23, ddd77d99a, mesureur) : `git diff 7e626b8bf ddd77d99a` vide sur `app/Services/Payout`, `SendOwnerStatements`, `OwnerStatementController`, `PayoutService`, `BookingPaymentService`, `PaymentGatewayService`, `LeasePaymentService` et `app/Http/Requests` (code inchangé depuis l'exploration) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle177Test.php` (retiré, charge 2,90 / 2,17 / 1,78 sur 8 cœurs), reversement créé par `POST /api/payouts` puis passé `completed` par `forceFill`, remboursement écrit par `forceFill` (`refund_amount`, puis `status = refunded`) → reversement de 198 000 ; relevé de septembre avant `gross 220000, net 198000, paid_out 198000` ; loyer remboursé de 50 000 `gross 170000, commission 17000, net 153000, paid_out 198000` ; deux pièces remboursées en entier `gross 0, net 0, paid_out 0, payouts 0`. Le constat tient en entier. Classement : V1, la piste choisit comment un relevé lit les montants d'un reversement et où figure un remboursement postérieur.
 
 ### La commission et le net d'un mois déjà reversé se recalculent au taux d'agence du jour, et ne rejoignent plus ce que le reversement a retenu
 - Réf : P177.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : la commission imprimée d'un mois reversé est un montant
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payout/PayoutCalculator.php:138-173`, `takussan-api/app/Services/Payout/OwnerStatementService.php:59`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:63`, `takussan-api/app/Services/Model/PayoutService.php:475-477`
 - Constat :
@@ -16488,10 +16489,11 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
   - mesuré (test temporaire) : bail sans taux propre, agence à 8 %, reversement `completed` de 202 400 (commission rangée 17 600) ; agence passée à 12 % → relevé de septembre `commission 26400, net 193600, paid_out 202400`.
   - Établi comment : lu, et mesuré (taux modifié par `update` du modèle, non par la route).
 - Piste : pour les pièces reversées, lire la commission rangée par le reversement (ou le taux qu'il a appliqué, rangé avec lui) ; ne recalculer au taux du jour que les pièces pas encore reversées. Garde : un test qui change le taux après versement et attend la même commission.
+- Mesure (2026-10-23, ddd77d99a, mesureur) : `git diff 7e626b8bf ddd77d99a` vide sur `app/Services/Payout`, `SendOwnerStatements`, `OwnerStatementController`, `PayoutService`, `BookingPaymentService`, `PaymentGatewayService`, `LeasePaymentService` et `app/Http/Requests` (code inchangé depuis l'exploration) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle177Test.php` (retiré, charge 2,90 / 2,17 / 1,78 sur 8 cœurs), reversement créé par `POST /api/payouts` puis passé `completed` par `forceFill`, bail sans taux propre, agence à 8 % → reversement `net 202400, commission 17600` ; agence passée à 12 % par `update` du modèle → relevé de septembre `commission 26400, net 193600, paid_out 202400`. Le constat tient. Classement : V1, la piste change le calcul de la commission affichée d'un relevé.
 
 ### Un reversement qui porte des pièces de plusieurs mois est compté en entier, frais compris, dans le relevé de chaque mois
 - Réf : P177.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : la ventilation par mois d'un versement et de ses frais est un choix sur un montant
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payout/OwnerStatementService.php:54-59,71,95-110`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:48,299`
 - Constat :
@@ -16499,20 +16501,22 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
   - mesuré (test temporaire) : loyers de septembre et d'octobre (200 000 chacun, 10 %) et une facture refacturable de 15 000 dans un même reversement `completed` de 345 000 → septembre : `fees 15000, net 165000, paid_out 345000` ; octobre : `fees 15000, net 165000, paid_out 345000` ; année : `fees 15000, net 345000`. La somme des deux mois (330 000) ne rejoint pas l'année, et chaque mois annonce 345 000 versés.
   - Le tableau de bord range le même « net reversé » par `processed_at` (lu, `PortfolioMetrics.php:48`) : le mois du relevé et celui de la tuile ne désignent pas le même versement.
 - Piste : ventiler le versement et les frais par pièce (part du reversement imputable aux pièces de la période), ou rattacher frais et versement au mois de `processed_at` comme le tableau de bord, en le disant sur le relevé ; c'est un choix d'affichage d'un montant. Garde : un test où la somme des mois égale l'année.
+- Mesure (2026-10-23, ddd77d99a, mesureur) : `git diff 7e626b8bf ddd77d99a` vide sur `app/Services/Payout`, `SendOwnerStatements`, `OwnerStatementController`, `PayoutService`, `BookingPaymentService`, `PaymentGatewayService`, `LeasePaymentService` et `app/Http/Requests` (code inchangé depuis l'exploration) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle177Test.php` (retiré, charge 2,90 / 2,17 / 1,78 sur 8 cœurs), reversement créé par `POST /api/payouts` puis passé `completed` par `forceFill`, loyers de septembre et d'octobre (200 000, 10 %) et une facture de 15 000 dans un reversement de 345 000 → `2026-09` : `fees 15000, net 165000, paid_out 345000` ; `2026-10` : la même chose ; `2026` : `fees 15000, net 345000, paid_out 345000`. Le constat tient, et la somme des deux mois (330 000) ne rejoint pas l'année. Classement : V1, la piste propose deux ventilations d'un montant (au prorata des pièces, ou au mois de `processed_at`), et le choix revient au porteur.
 
 ### L'avis mensuel ne part pas au bailleur dont les seuls encaissements du mois sont des acomptes de séjour
 - Réf : P177.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Console/Commands/Payouts/SendOwnerStatements.php:17-21,37-44`
 - Constat :
   - Les couples (agence, bailleur) avisés ne se lisent que sur `lease_payments` (lu, l. 37-44) ; les `booking_payments` que le relevé compte (`PayoutCalculator::bookingPayments`, lu) n'y entrent pas. Le docblock et TCK-594 (partie 6) écrivent « chaque bailleur qui a eu des encaissements le mois précédent ».
   - mesuré (test temporaire) : bailleur sans bail, un acompte `advance` de 50 000 payé le 10 septembre → relevé de septembre `gross 50000, net 46000` ; `payouts:send-owner-statements --period=2026-09` → 0 avis à ce bailleur.
 - Piste : unir aux couples des loyers ceux des acomptes de séjour éligibles (`bookings.agency_id`, `properties.user_id`), avec le même filtre `OwnerProfile`. Garde : le cas ci-dessus en test de la commande.
+- Mesure (2026-10-23, ddd77d99a, mesureur) : `git diff 7e626b8bf ddd77d99a` vide sur `app/Services/Payout`, `SendOwnerStatements`, `OwnerStatementController`, `PayoutService`, `BookingPaymentService`, `PaymentGatewayService`, `LeasePaymentService` et `app/Http/Requests` (code inchangé depuis l'exploration) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle177Test.php` (retiré, charge 2,90 / 2,17 / 1,78 sur 8 cœurs), reversement créé par `POST /api/payouts` puis passé `completed` par `forceFill`, bailleur sans bail, acompte `advance` de 50 000 payé le 10 septembre → relevé de septembre `gross 50000, commission 4000, net 46000` ; `payouts:send-owner-statements --period=2026-09` → 0 avis (`Notification::fake`). Relu `SendOwnerStatements.php:17-19,37-44` (couples lus sur `lease_payments` seuls) et `features.md:220` (relevé « envoyé au bailleur en début de mois »). Le constat tient. Classement : A1, le docblock de la commande et `features.md:220` écrivent déjà que chaque bailleur qui a eu des encaissements est avisé, et le relevé (`PayoutCalculator::bookingPayments`) dit déjà qu'un acompte de séjour en est un ; aucun montant n'est calculé ni écrit, et aucun texte neuf n'est ajouté.
 
 ### Le relevé envoyé n'est conservé nulle part : celui que relit le bailleur change après coup, sans avis ni trace
 - Réf : P177.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : figer le relevé ou réécrire `features.md` est un choix de produit, probablement avec un schéma (V4)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/OwnerStatementController.php:28-41`, `takussan-api/app/Console/Commands/Payouts/SendOwnerStatements.php:17-21`, `takussan-api/app/Services/Model/LeasePaymentService.php:86-92`, `takussan-api/app/Http/Requests/Api/MarkPaidLeasePaymentRequest.php:65`, `docs/features.md:220`
 - Constat :
@@ -16521,13 +16525,15 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
   - mesuré (test temporaire) : relevé de septembre lu le 2 octobre `gross 220000, net 198000, unpaid 1` ; le 20 novembre, loyer de septembre marqué payé avec `paid_at = 2026-09-15` → relevé de septembre `gross 420000, net 378000, unpaid 0`, et aucun avis neuf (la commande ne tourne que pour le mois précédent).
   - Le pied du PDF porte « Document généré le … » (lu, `layouts/base.blade.php:14`) : deux versions d'un même mois se distinguent par l'heure de rendu, rien ne dit laquelle a été montrée.
 - Piste : figer le relevé à la clôture du mois (PDF rangé par `DocumentPdfService::store`, comme le contrat signé de l'angle 140, ou instantané JSON), servir la version figée par défaut, et rendre visibles les écritures postérieures comme rectificatif ; à défaut, aligner `features.md` sur ce que fait le code (« disponible », pas « envoyé »). Choix de produit et probablement de schéma.
+- Mesure (2026-10-23, ddd77d99a, mesureur) : `git diff 7e626b8bf ddd77d99a` vide sur `app/Services/Payout`, `SendOwnerStatements`, `OwnerStatementController`, `PayoutService`, `BookingPaymentService`, `PaymentGatewayService`, `LeasePaymentService` et `app/Http/Requests` (code inchangé depuis l'exploration) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle177Test.php` (retiré, charge 2,90 / 2,17 / 1,78 sur 8 cœurs), reversement créé par `POST /api/payouts` puis passé `completed` par `forceFill` : relevé de septembre lu le 2 octobre (`travelTo`) `gross 220000, net 198000, unpaid 1` ; le 20 novembre, `POST /api/lease-payments/{id}/mark-paid` avec `paid_at = 2026-09-15` → 200, puis relevé de septembre `gross 420000, net 378000, unpaid 0`. Relu `OwnerStatementController.php` (PDF rendu à chaque appel, sans `store`) et `features.md:220` (« envoyés au bailleur »). Le constat tient. Classement : V7, la piste ouvre deux options (relevé figé, ou spec alignée sur le code), et la première demande un stockage neuf (V4).
 
 ### Petites améliorations
 - Réf : P177.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : dater les impayés et étendre le CSV change un texte et un export visibles
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Payout/OwnerStatementService.php:136-153`, `takussan-api/app/Http/Controllers/Api/OwnerStatementController.php:44-62`
 - Constat :
   - **Impayés lus au jour de la lecture.** `unpaid` compte les échéances de la période encore dues aujourd'hui (lu, l. 145-152) : un mois passé voit ses impayés baisser à mesure que les loyers sont réglés, même hors de la période ; le libellé « Impayés de la période » ne dit pas « à ce jour » (lu, `lang/fr/money_out.php:27`).
   - **CSV sans date de rendu ni `paid_out`.** Le CSV n'écrit ni la date de génération ni le total versé (lu, l. 47-60) : deux exports d'un même mois pris à des dates différentes ne se distinguent pas.
 - Piste : dater les impayés (« au JJ/MM/AAAA ») sur le PDF et le JSON ; ajouter au CSV une ligne de génération et le total `paid_out`.
+- Mesure (2026-10-23, ddd77d99a, mesureur) : `git diff 7e626b8bf ddd77d99a` vide sur `app/Services/Payout`, `SendOwnerStatements`, `OwnerStatementController`, `PayoutService`, `BookingPaymentService`, `PaymentGatewayService`, `LeasePaymentService` et `app/Http/Requests` (code inchangé depuis l'exploration) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle177Test.php` (retiré, charge 2,90 / 2,17 / 1,78 sur 8 cœurs), reversement créé par `POST /api/payouts` puis passé `completed` par `forceFill` : même scénario que P177.05, CSV de septembre rendu → en-tête `type;reference;property_id;paid_at;amount;commission`, aucune date de génération, ligne `totals` portant le net et la commission, pas de total versé. Relu `OwnerStatementController.php:44-62` : le CSV écrit pourtant une ligne `payouts` par reversement, avec son `net_amount` (le constat « sans `paid_out` » ne vaut que pour le total). Relu `OwnerStatementService.php:143-152` (`unpaid` jugé à `now()`) et `lang/fr/money_out.php:27` (« Impayés de la période »). Les deux points tiennent, le second en partie. Classement : V7, « au JJ/MM/AAAA » est un libellé neuf et la forme du CSV est un contrat d'export visible.
