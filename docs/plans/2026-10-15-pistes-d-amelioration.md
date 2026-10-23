@@ -17917,7 +17917,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### Créer une conversation directe avec un sujet de plus de 255 caractères rend 500 au lieu de 422
 - Réf : P195.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1885
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:42`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:120-121`, `takussan-api/database/migrations/2026_04_17_160016_create_conversations_table.php:13`, `takussan-api/app/Http/Requests/Api/UpdateConversationRequest.php:42`, `takussan-web/src/lib/schemas/message.ts:25-29`
 - Constat :
@@ -17927,6 +17927,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - L'angle 91 (bornes `max:` face aux `varchar`) est `fait` ; ce champ n'y est pas cité (mesuré : `grep -n StoreConversationRequest` sur ce fichier → trois entrées, aucune sur `subject`).
 - Piste : `max:255` sur `subject` de `StoreConversationRequest`, comme au renommage. Test : `subject` de 256 caractères → 422 sur `subject`, et aucune conversation créée.
 - Mesure (2026-10-23, 37a217aec, mesureur) : relu `StoreConversationRequest.php` (`subject` `['nullable', 'string']` passé de la l. 42 à la l. 43, `initial_message` l. 60), `ConversationController.php:121-122` (`Conversation::create` avec `subject` tel quel), migration l. 13 (`string('subject')`), `UpdateConversationRequest.php:42` et `Conversation/CreateGroupConversationRequest.php:57` (`max:255` ; le constat situait ce dernier sous `Api/`) ; `git log` du fichier → aucun commit sur `subject` ; test temporaire `SondeMesureur195Test` (retiré, charge 2,24 / 2,19 / 2,16 sur 8 cœurs), deux agents d'une même agence, `POST /api/conversations` avec `subject` de 300 caractères → **500** `SQLSTATE[22001] … character varying(255)`, aucune conversation écrite → le constat tient. Classement : A1, la borne est écrite par la colonne `varchar(255)` et par le renommage et le groupe ; correctif attendu : `max:255` sur `subject` de `StoreConversationRequest`, et un test `subject` de 256 caractères → 422 sur `subject`, aucune conversation créée.
+- Mesure (2026-10-23, 0303e7d79, implementeur) : test `ConversationTest::test_le_sujet_d_une_directe_est_borne_a_255_caracteres` avant correctif → rouge sur `QueryException` (`varchar(255)`, le 500 du constat) ; `max:255` sur `subject` de `StoreConversationRequest` → 256 caractères rendent 422 sur `subject` sans conversation créée, 255 passent ; ablation (borne retirée → rouge, remise → vert) ; `ConversationTest` 15 verts.
 
 ### Les photos d'une contestation et les pièces d'un devis au-delà de cinq sont écartées sans un mot
 - Réf : P195.02
