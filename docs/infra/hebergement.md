@@ -200,6 +200,12 @@ vide) :
   `https://preview.takussan.com/auth/oauth/google/callback`, `PHONE_LOGIN_ENABLED` et
   `OTP_PREVIEW_ENABLED` = `true`, `MAIL_MAILER` = `log`. Ni `CACHE_PREFIX` (TCK-720) ni aucune
   `SMS_*_WEBHOOK_IPS` ne sont posées : en `staging`, une liste vide ne filtre pas (P71.04).
+- **relevé du 2026-10-22, recherche** (`compose.one` → `env`, dans Dokploy) : `SCOUT_DRIVER` =
+  `meilisearch`, `SCOUT_QUEUE` = `true`, `SCOUT_AFTER_COMMIT` = `true`, `QUEUE_CONNECTION` =
+  `database`. Conséquence : l'indexation part en file, après le commit, et ce n'est plus la requête
+  qui appelle Meilisearch ; une panne du moteur n'y fait donc pas échouer une requête (P123.03). Le
+  développement (`.env.docker` : `SCOUT_QUEUE=false`) et la suite (`phpunit.xml` : `false`/`false`)
+  jouent d'autres régimes.
 
 Absentes de l'export, donc aux défauts de `config/` : `SMS_*` et `WHATSAPP_*` **hors des cinq jetons
 de webhook posés le 2026-10-18**, `FACEBOOK_*`, `APPLE_*`, `CDN_*`, `BUNNY_*`. Une fonctionnalité qui
