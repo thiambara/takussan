@@ -525,10 +525,10 @@ class PropertySearchService
             }
         }
         if (isset($p['price_min']) && is_numeric($p['price_min'])) {
-            $filter[] = 'price >= '.(float) $p['price_min'];
+            $filter[] = 'price >= '.self::nombre($p['price_min']);
         }
         if (isset($p['price_max']) && is_numeric($p['price_max'])) {
-            $filter[] = 'price <= '.(float) $p['price_max'];
+            $filter[] = 'price <= '.self::nombre($p['price_max']);
         }
         // TCK-633 (lot E) — chambres, salles de bain et étage sont des MINIMUMS : le panneau
         // affiche « 5+ », et « 5+ chambres » doit trouver la maison de six. L'égalité la ratait.
@@ -552,10 +552,10 @@ class PropertySearchService
         // C'est deja la regle de `floor_number` et de `price`, epinglee par
         // `PublicPropertySearchFiltersTest::test_floor_number_filter_excludes_null_floor`.
         if (isset($p['area_min']) && is_numeric($p['area_min'])) {
-            $filter[] = 'area >= '.(float) $p['area_min'];
+            $filter[] = 'area >= '.self::nombre($p['area_min']);
         }
         if (isset($p['area_max']) && is_numeric($p['area_max'])) {
-            $filter[] = 'area <= '.(float) $p['area_max'];
+            $filter[] = 'area <= '.self::nombre($p['area_max']);
         }
         // TCK-335 — UNILATERAL, par alignement sur `PublicPropertyController::index()`
         // qui traite deja ce parametre par `$request->boolean('featured')` sur la meme
@@ -892,6 +892,24 @@ class PropertySearchService
             && isset($p['radius_km'])
             && is_numeric($p['radius_km'])
             && (float) $p['radius_km'] > 0;
+    }
+
+    /**
+     * Un nombre écrit pour le filtre du moteur, sans notation scientifique (P187.02, TCK-1845).
+     *
+     * `(float) $v` concaténé s'écrit `1.0E+15` à partir de 10¹⁵, que Meilisearch refuse
+     * (« unexpected characters … `+15` ») : la recherche rendait 500 sur une borne que la
+     * validation accepte. Même parti que `_geoBoundingBox` et `_geoRadius`, écrits par `%F`.
+     * Un nombre non fini (`1e400` → `INF`) garde son écriture d'avant, que le moteur accepte.
+     */
+    private static function nombre(mixed $value): string
+    {
+        $nombre = (float) $value;
+        if (! is_finite($nombre)) {
+            return (string) $nombre;
+        }
+
+        return rtrim(rtrim(sprintf('%.10F', $nombre), '0'), '.');
     }
 
     private static function quote(string $value): string
