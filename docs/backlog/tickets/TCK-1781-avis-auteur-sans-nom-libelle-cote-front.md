@@ -38,7 +38,10 @@ prénom, nom ni `username`. Côté front, `PropertyReviews` lit `review.author.n
 ## Hypothèses (mode sans humain)
 
 - Le repli réutilise la clé existante `publicProfile.reviews.anonymous` (fr « Anonyme », en
-  « Anonymous », wo inchangé) : aucun texte neuf.
+  « Anonymous ») sur les fiches publiques. La boîte des avis reçus (`ProfileReviewsList`, sous
+  `/app`) prend une clé `profile.reviews.anonymous` au même texte : y lire `publicProfile` aurait
+  envoyé tout cet espace à la console (`check:i18n-namespaces` rouge). En `wo`, le texte français
+  tel quel (wolof en pause).
 - Le repli sur `username` est gardé ; une chaîne vide y vaut absence.
 - `ModerationDetail` et `ModerationQueueList` écrivaient déjà `author?.name ?? t(…)` : inchangés.
 
@@ -57,7 +60,8 @@ prénom, nom ni `username`. Côté front, `PropertyReviews` lit `review.author.n
 
 - [x] `ReviewResource` rend `author.name` nul pour un auteur absent ou sans nom.
 - [x] Types du front (`types/review.ts`, `lib/queries/reviews.ts`, `PublicReview`) : `name: string | null`.
-- [x] `PropertyReviews`, `ReviewsSection`, `ProfileReviewsList` écrivent le repli traduit.
+- [x] `PropertyReviews`, `ReviewsSection`, `ProfileReviewsList` écrivent le repli traduit ;
+  clé `profile.reviews.anonymous` ajoutée (fr, en, wo = fr).
 - [x] Gardes : `tests/Feature/Public/ReviewAuthorNameTest.php` ; côté front
   `PropertyReviews.auteur-anonyme.tck-1781.test.tsx`, `ReviewsSection.auteur-anonyme.tck-1781.test.tsx`,
   un cas dans `ProfileReviewsList.test.tsx`.
