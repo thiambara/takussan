@@ -1,7 +1,7 @@
 ---
 id: TCK-1806
 title: "La cloche lit la nature de chaque paramètre dans `param_types`, au lieu de la deviner"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -64,19 +64,19 @@ choisir sa branche, la forme de la valeur n'étant plus qu'un repli pour une lig
 
 ## Delta à produire
 
-- [ ] `AppNotificationResource` : `param_types` dans `FIELDS` et le rendu.
-- [ ] `lib/notifications.ts` : type `param_types`, champ demandé.
-- [ ] `texteNotification.ts` : branche par nature, repli par forme.
-- [ ] Tests API (`NotificationParamTypesTest`) et front (`NotificationRow.test.tsx`,
+- [x] `AppNotificationResource` : `param_types` dans `FIELDS` et le rendu.
+- [x] `lib/notifications.ts` : type `param_types`, champ demandé.
+- [x] `texteNotification.ts` : branche par nature, repli par forme.
+- [x] Tests API (`NotificationParamTypesTest`) et front (`NotificationRow.test.tsx`,
   `notifications-champs.test.ts`).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — l'API rend `param_types` pour un code connu (dont les paramètres facultatifs), `null`
+- [x] AC1 — l'API rend `param_types` pour un code connu (dont les paramètres facultatifs), `null`
   pour une ligne sans code ; le champ clairsemé le rend ou l'omet.
-- [ ] AC2 — la cloche traduit un `role` déclaré `role` sur un code hors `role_delegation.*`.
-- [ ] AC3 — un `text` à forme de date reste tel quel ; une `date` déclarée est formatée.
-- [ ] AC4 — sans `param_types`, montant et date restent formatés par leur forme.
+- [x] AC2 — la cloche traduit un `role` déclaré `role` sur un code hors `role_delegation.*`.
+- [x] AC3 — un `text` à forme de date reste tel quel ; une `date` déclarée est formatée.
+- [x] AC4 — sans `param_types`, montant et date restent formatés par leur forme.
 
 ## Hors périmètre
 
@@ -84,3 +84,14 @@ choisir sa branche, la forme de la valeur n'étant plus qu'un repli pour une lig
 - Le passage de `governance.role_capabilities_changed` en `role` (P164.04, TCK-1808).
 
 ## Notes d'implémentation
+
+- Test rouge avant correctif : `NotificationParamTypesTest` 3 sur 4 (`param_types` absent) ;
+  `NotificationRow.test.tsx` 3 rouges (rôle de `governance.role_capabilities_changed` brut en fr et
+  en, `text` à forme de date reformaté), `notifications-champs.test.ts` 1 rouge.
+- Ablation API : `AppNotificationResource.php` remis à l'état d'avant → 3 rouges, remis → vert.
+- Ablation front : `texteNotification.ts` remis à l'état d'avant → 3 rouges, remis → vert.
+- La ressource rend `[]` (tableau JSON) pour un code sans paramètre : la cloche le lit comme un
+  objet vide, sans effet.
+- Les tests existants de la cloche portent désormais `param_types`, comme l'API le rend : sans
+  lui, `role`, `provider` et le mois restent bruts (repli voulu).
+
