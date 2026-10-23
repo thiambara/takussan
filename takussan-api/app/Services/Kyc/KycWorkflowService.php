@@ -234,7 +234,7 @@ class KycWorkflowService
             $admin,
             $verified ? NotificationCode::KycVerified : NotificationCode::KycRejected,
             $verified ? [] : ['reason' => $dossier->rejection_reason],
-            NotificationTarget::of('agency_kyc'),
+            NotificationTarget::of('agency_kyc')->forAgency($agency->id),
         );
     }
 }

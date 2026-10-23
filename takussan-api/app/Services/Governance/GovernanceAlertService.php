@@ -68,7 +68,7 @@ class GovernanceAlertService
         $params = $this->paramsFor($code, $activity, $author->full_name);
 
         foreach ($this->recipients((int) $activity->agency_id, $author->id) as $admin) {
-            $this->notifications->send($admin, $code, $params, NotificationTarget::of('audit'));
+            $this->notifications->send($admin, $code, $params, NotificationTarget::of('audit')->forAgency($activity->agency_id));
         }
     }
 

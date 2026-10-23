@@ -70,7 +70,7 @@ class KycExpiryService
                 $admin,
                 NotificationCode::KycExpiringSoon,
                 ['expires_at' => $dossier->expires_at->toDateString()],
-                NotificationTarget::of('agency_kyc'),
+                NotificationTarget::of('agency_kyc')->forAgency($dossier->subject_id),
             );
         }
 
