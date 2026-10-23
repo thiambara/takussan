@@ -14771,7 +14771,7 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### `attachSuperAdminRole` écrit le profil plateforme à côté de la relation que `ResolveActiveProfile` a chargée : dans la même requête, le compte n'est pas encore super-admin
 - Réf : P154.02
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1758
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Middleware/ResolveActiveProfile.php:69`, `takussan-api/app/Models/Concerns/HasProfiles.php:370-376`, `takussan-api/app/Http/Controllers/Api/Auth/SuperAdminTwoFactorController.php:117-160`, `:173-189`
 - Constat :
@@ -14781,6 +14781,7 @@ qui a été relevé. Rien n'a été exécuté.*
   - Établi comment : lu.
 - Piste : poser `$user->setRelation('platformProfile', $profile)` après `save()`, pour qu'une lecture ajoutée plus tard (ressource de `/me`, garde) ne dise pas l'inverse de la base. Test : après `confirm()`, `$user->isSuperAdmin()` vrai sur l'instance de la requête.
 - Mesure (2026-10-22, dd4563ae6, mesureur) : relu `ResolveActiveProfile` (l. 69 `$user->load('platformProfile')`), `HasProfiles::activePlatformLevel` (l. 372-377, lit la relation chargée), `SuperAdminTwoFactorController::confirm` (l. 117-160) et `::attachSuperAdminRole` (l. 173-189, `firstOrNew(…)->save()` sans `setRelation`), inchangés depuis TCK-711 ; test temporaire (retiré), charge 3,85 / 4,16 / 3,63 sur 8 cœurs, montage de `SuperAdminGrantOnlyByCooptationTest` (invitation de cooptation acceptée, `actingAs($u)`, `POST /api/auth/super-admin/2fa/confirm` → 200) → sur l'instance de la requête `relationLoaded('platformProfile')` vrai et `isSuperAdmin()` faux, sur `fresh()` vrai → le constat tient ; rien ne lit le rôle après l'écriture dans `confirm()` aujourd'hui. Classement : V2, le correctif change l'état d'autorisation (`isSuperAdmin()`, `Gate::before`) au milieu de la requête qui enrôle la 2FA d'un opérateur : sans effet visible aujourd'hui, mais dans le doute sur une écriture de rôle plateforme, il revient au porteur.
+- Mesure (2026-10-23, 4436bf690, implementeur) : test neuf `SuperAdminGrantOnlyByCooptationTest::test_apres_la_confirmation_l_instance_de_la_requete_est_super_admin` avant correctif : cooptation acceptée, `actingAs($instance)`, `POST /api/auth/super-admin/2fa/confirm` → 200, `relationLoaded('platformProfile')` vrai, `isSuperAdmin()` faux (rouge). Correctif : `setRelation('platformProfile', $profile)` après `save()` → 7/7 ; ablation (contrôleur remis à `HEAD`) → 1 rouge, remis → 7/7 ; `SuperAdminCooptationTest`, `SuperAdminInvitationLifecycleTest`, `SuperAdminTwoFactorEnforcementTest` verts.
 
 ## Angle 155 — Courriels que la suite ne rend jamais
 
