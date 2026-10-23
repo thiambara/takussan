@@ -12030,7 +12030,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Petites améliorations
 - Réf : P122.04
-- Statut : retenu · à valider — porteur (2026-10-23) : validé ; attend la session, qui écrit la règle dans `takussan-api/CLAUDE.md` § Recherche ; puis le reste à l'implémenteur
+- Statut : validé — validation du porteur (2026-10-23) : la règle est écrite dans `takussan-api/CLAUDE.md` § Recherche (TCK-1990) ; reste : réindexer les biens touchés dans `LegacyFeaturedConversion`, et relever l'index de préproduction, où la migration 500400 a déjà tourné
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Boost/LegacyFeaturedConversion.php:34-36`, `takussan-api/database/migrations/2026_10_12_500400_seed_boost_catalogue_and_convert_featured.php:16`, `takussan-api/database/seeders/System/OfferedFeaturedSeeder.php:15`, `takussan-api/Dockerfile:101-103`, `takussan-api/docker/release.sh:44-58`, `takussan-api/app/Services/Search/PropertySearchService.php:749-765`
 - Constat :
@@ -12078,7 +12078,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Meilisearch injoignable sous `SCOUT_AFTER_COMMIT=true` : le geste est validé, la réponse est 500, et ce qui suit la transaction ne s'exécute pas
 - Réf : P123.03
-- Statut : retenu · à valider — porteur (2026-10-23) : validé ; attend la session : la préproduction a `SCOUT_QUEUE=true` et `SCOUT_AFTER_COMMIT=true` (relevé Dokploy du 2026-10-22), le 500 n'y arrive pas ; la session écrit la valeur dans `hebergement.md` et un commentaire dans `.env.docker`, sans code
+- Statut : fait · TCK-1990
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/laravel/scout/src/ModelObserver.php:16`, `:46`, `takussan-api/.env.docker:210-211`, `takussan-api/phpunit.xml:104-105`, `takussan-api/app/Services/Property/PropertyModerationService.php:46-71`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:304-342`
 - Constat :
@@ -14968,7 +14968,7 @@ mais les valeurs mises en cache relues sont des scalaires et des tableaux, sans 
 
 ### Petites améliorations
 - Réf : P156.03
-- Statut : retenu · à valider — porteur (2026-10-23) : validé ; attend la session, qui pose `APP_DEBUG=false` dans `phpunit.xml`
+- Statut : fait · TCK-1990
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/phpunit.xml:20-52`, `takussan-api/.env.example:7`, `takussan-api/config/app.php:42`, `takussan-api/tests/Feature/Api/ApiErrorFormatTest.php:89-104`, `scripts/check-env-parity.mjs:16-17`
 - Constat :
@@ -17667,7 +17667,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Un groupe rattaché à un bail accepte des participants qui ne lisent pas le bail, et leur ouvre le fil du locataire
 - Réf : P191.04
-- Statut : validé — validation du porteur (2026-10-23) : la recommandation du délégué ; la règle s'écrit dans `features.md` § 1.7 en session ; relever en préproduction les fils qui comptent déjà un tel tiers
+- Statut : validé — validation du porteur (2026-10-23) : la recommandation du délégué (participants d'un groupe rattaché à un bail limités à qui passe `LeasePolicy::view`, contrôlé à la création et à l'ajout), avec une exception : le prestataire assigné à une intervention de ce bail reste dans le fil de cette intervention (TCK-592, `SyncMaintenanceConversation`) ; la règle est écrite dans `features.md` § 1.7 ; relever en préproduction les fils qui comptent déjà un tiers
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Conversation/Concerns/GuardsConversationScope.php:46-73`, `takussan-api/app/Http/Requests/Conversation/CreateGroupConversationRequest.php:54-71`
 - Constat :
