@@ -16089,7 +16089,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Après l'envoi d'un avis sur un bien, le formulaire vidé se réaffiche, sans confirmation, et un second envoi rend 422
 - Réf : P172.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1762 — reste : dire à l'auteur que son avis attend la modération, par un texte neuf (V7) que le porteur choisit
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:241-251`, `:266-270`, `:311`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviewForm.tsx:43-51`, `takussan-web/src/hooks/usePropertyReviews.ts:41-47`, `takussan-api/app/Http/Controllers/Api/ReviewController.php:305-311`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:726-727`
 - Constat :
@@ -16100,6 +16100,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Établi comment : code relu des deux côtés ; le rendu n'a pas été vu dans un navigateur.
 - Piste : après un envoi réussi, poser `alreadyReviewed` (la réponse 201 l'établit) ou relire l'éligibilité, et dire que l'avis attend la modération. Garde : un test vitest de `PropertyReviews` qui envoie un avis et exige la disparition du formulaire.
 - Mesure (2026-10-23, 4436bf690, mesureur) : relu `PropertyReviews.tsx:241-251` (éligibilité lue une fois, sous `[slug, user]`), l. 266-270 et 311 (formulaire tant que `eligible && !alreadyReviewed`), `usePropertyReviews.ts:41-47` (l'envoi ne relit que la liste), `PropertyReviewForm.tsx:43-51` (champs remis à zéro), `ReviewController.php:305-311` (422 `review.property_already_reviewed`, avis créé `is_approved = false`), `PublicPropertyController.php:727` (liste publique `is_approved = true`), et lancé un test vitest temporaire de `PropertyReviews`, retiré (éligible, envoi réussi) → `submitReview` appelé une fois, puis formulaire toujours rendu, zone de texte vide, éligibilité lue une seule fois, aucun texte « déjà laissé » ; le défaut tient tel qu'écrit. Classement : A1, TCK-180 (l. 39) écrit qu'un utilisateur qui a déjà publié un avis, modéré ou non, ne voit plus le formulaire, et la clé `property.reviews.alreadyReviewed` existe ; le message « en attente de modération » de la `Piste` serait un texte neuf (V7) et reste hors du correctif autonome.
+- Mesure (2026-10-23, b5e5b0401, implementeur) : test neuf `PropertyReviews.apres-envoi.tck-1762.test.tsx` (éligible, envoi réussi) rouge sur l'arbre d'origine : `submitReview` appelé une fois, puis formulaire toujours rendu et aucun « déjà laissé » → après un envoi réussi, l'éligibilité active passe à « déjà laissé » ; ablation (`PropertyReviews.tsx` à `HEAD`) → 1 rouge sur 2, correctif remis → 2/2 verts, et les deux tests voisins de `PropertyReviews` verts. Le message « en attente de modération » (V7) n'est pas fait.
 
 ### `refreshUser` applique la dernière réponse arrivée, pas la dernière demandée
 - Réf : P172.03
