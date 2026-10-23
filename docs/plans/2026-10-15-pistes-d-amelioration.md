@@ -16576,7 +16576,7 @@ l'hôte »). Hors du relevé : la pièce remboursée après un reversement au ba
 
 ### Un loyer encaissé par la plateforme est proposé, puis versé, au bailleur avant que la plateforme ait rien reversé à l'agence
 - Réf : P178.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : décider si une pièce soldée par la plateforme est reversable au bailleur avant que la plateforme ait payé l'agence
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payout/PayoutCalculator.php:57-100`, `takussan-api/app/Services/Payout/PayoutPreparationService.php:44-49`, `takussan-api/app/Services/Model/PayoutService.php:84-133,580-586`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:309-314`
 - Constat :
@@ -16586,10 +16586,11 @@ l'hôte »). Hors du relevé : la pièce remboursée après un reversement au ba
   - `assertItemsStillPaid` ne relit que le statut et le remboursement des pièces (lu, `PayoutService.php:580-586`), jamais ce que la plateforme en a fait.
   - Établi comment : code lu, puis sonde par HTTP en admin d'agence et en super-admin.
 - Piste : décider (V1) ce qu'est, pour le reversement au bailleur, une pièce soldée par la plateforme : ne la proposer et ne l'accepter qu'une fois son `PlatformPayout` `paid` (lecture par `isSettledByPlatform()` et `platform_payout_id`, comme TCK-1415), ou la laisser éligible en le disant (P178.04). Garder l'agence `individual` hors de la règle (ADR-0039 § 2). Garde : le cas de la sonde, ligne absente de la préparation et 422 à la création tant que la plateforme n'a pas payé ; loyer en espèces ou par l'intégration propre à l'agence toujours éligible.
+- Mesure (2026-10-23, fd28a149f, mesureur) : `git log f733dcaca..fd28a149f` sur `app/Services/Payout`, `PayoutService.php`, `PlatformPayoutService.php` → aucun commit ; `PayoutCalculator::leasePayments()`/`bookingPayments()` relus (l. 57-100) sans filtre sur `platform_payout_id` ni `settled_by`, `grep -n "platform\|settled"` sur `app/Services/Payout/*.php` et `PayoutService.php` → rien, `assertItemsStillPaid` (l. 581-587) ne relit que statut et remboursement ; aucun ticket ni commit ne cite P178 ; sonde temporaire `tests/Feature/TmpMesureur/SondeP178Test.php` (retirée), charge 2,44 / 2,43 / 2,12 sur 8 cœurs, loyer de 150 000 payé le 2026-09-15 soldé par l'intégration globale, `platform_fee_pct_at_payment = 5`, admin d'agence sous step-up → `PlatformPayout::count() = 0`, préparation `200` ligne présente, `gross 150000`, `commission 15000`, `net 135000`, `POST /api/payouts` `201 pending` net 135 000, `mark-processed` `200 completed`, puis clôture `201` `[150000, 7500, 142500, pending]` → le constat tient entier. Classement : V1, rendre une pièce inéligible au reversement au bailleur change une écriture d'argent et aucun texte ne tranche qui peut reverser l'argent que la plateforme détient.
 
 ### Le reversement au bailleur reste versé quand la plateforme annule ou gèle ce qu'elle devait à l'agence
 - Réf : P178.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1, V7 : suit le choix de P178.01 ; l'avertissement à l'agence est un texte neuf
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:72-78,112-124,209-225`, `takussan-api/app/Services/Payout/PayoutCalculator.php:57-77`
 - Constat :
@@ -16598,10 +16599,11 @@ l'hôte »). Hors du relevé : la pièce remboursée après un reversement au ba
   - mesuré (sonde) : après le reversement au bailleur `completed`, `POST /api/admin/payouts/{id}/cancel` du `PlatformPayout` → `200`, `platform_payout_id` repassé à `null`, reversement au bailleur toujours `completed`.
   - Dans ces trois cas, l'agence a versé au bailleur un loyer qu'elle n'a pas reçu, et rien ne le lui dit (déduit des deux mesures et de l'absence de lecture de la chaîne plateforme, P178.01 ; à vérifier côté écran).
 - Piste : suit le choix de P178.01. Si les pièces restent éligibles avant le versement de la plateforme, avertir l'agence au gel (`agency_unverified`, agence non active) et à l'annulation d'un `PlatformPayout` qui porte des pièces déjà reversées au bailleur (V7, texte neuf). Garde : les deux cas de la sonde.
+- Mesure (2026-10-23, fd28a149f, mesureur) : `PlatformPayoutService.php` relu : exclusion `agency_not_active` (l. 72-78), refus `platform_payout.agency_unverified` dans `approve` (l. 112-124), `cancel` (l. 209) ; même sonde que P178.01 → agence `is_verified = false` : reversement au bailleur `201` puis `completed`, clôture `201`, `approve` → `422 platform_payout.agency_unverified` ; après `cancel` du `PlatformPayout` → `200`, `platform_payout_id` du loyer repassé à `null`, reversement au bailleur toujours `completed` (mesuré aussi sur l'agence vérifiée) → le constat tient ; la partie « rien ne le dit à l'écran » n'a pas été mesurée côté front. Classement : V1 et V7, le correctif dépend du choix d'argent de P178.01 et l'avertissement est un comportement et un texte neufs.
 
 ### Une commission de bail inférieure à celle de la plateforme fait verser au bailleur plus que ce que l'agence reçoit
 - Réf : P178.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1, V7 : décider qui porte la commission de la plateforme sur un loyer qu'elle encaisse
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payout/PayoutCalculator.php:134-206`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:333-352`, `docs/features.md:232`
 - Constat :
@@ -16611,10 +16613,11 @@ l'hôte »). Hors du relevé : la pièce remboursée après un reversement au ba
   - Rien ne prévient l'agence quand le taux du bail est inférieur au taux de la plateforme : les règles de `commission_rate` (`StoreLeaseRequest.php:51`, `RenewLeaseRequest.php:38`, `AgencyUpdateRequest.php:63`, `StoreAgencyRequest.php:44`) ne sont que `numeric|min:0|max:100`, et `platform_fee` n'apparaît que dans les requêtes de plans de la console (mesuré, `grep -rn "commission_rate\|platform_fee" app/Http/Requests`).
   - Établi comment : code lu, sonde par HTTP.
 - Piste : décider (V1, V7) qui porte la commission de la plateforme sur un loyer qu'elle encaisse (l'agence, comme aujourd'hui, ou le bailleur), puis au moins le montrer à la préparation (commission plateforme et net reçu par l'agence, ligne par ligne). Garde : le cas à 0 %.
+- Mesure (2026-10-23, fd28a149f, mesureur) : `PayoutCalculator::compute` relu (l. 134-206) : commission du bail ou de l'agence seule, sans `platform_fee_pct_at_payment` ; `PlatformPayoutService::closeForAgency` relu (l. 330-352) : commission plateforme ligne par ligne ; `grep -rn "commission_rate\|platform_fee" app/Http/Requests` → `commission_rate` en `numeric|min:0|max:100` seul (`StoreLeaseRequest.php:51`, `RenewLeaseRequest.php:38`, `AgencyUpdateRequest.php:63`, `StoreAgencyRequest.php:44`), `platform_fee` dans `AssignAgencySubscriptionRequest.php:20` seulement ; même sonde → bail à 10 % : bailleur `net 135000`, plateforme à l'agence `net 142500` (l'agence garde 7 500) ; bail à 0 % : bailleur `net 150000`, plateforme à l'agence `net 142500` sur le seul loyer (sans pénalité cette fois) → l'agence avance 7 500. Classement : V1 et V7, répartir la commission de la plateforme ou l'afficher à la préparation est un choix d'argent et un affichage neuf.
 
 ### Petites améliorations
 - Réf : P178.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : libellé et affichage neufs de l'état de la plateforme à la préparation
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Payout/PayoutCalculator.php:140-176`, `takussan-web/src/types/invoice.ts:158-183`, `takussan-api/app/Services/Payout/OwnerStatementService.php:47-89`, `takussan-api/app/Services/Dashboard/CollectedPayments.php:65-79`
 - Constat :
@@ -16622,3 +16625,4 @@ l'hôte »). Hors du relevé : la pièce remboursée après un reversement au ba
   - Le relevé de gérance compte la pièce comme encaissée et, si elle est reversée, versée, sans dire que l'agence n'a pas reçu l'argent (lu, `OwnerStatementService.php:47-89`) : c'est juste du point de vue du bailleur.
   - L'« Encaissé » de l'agence (`CollectedPayments::leaseIncome`) compte le loyer soldé par la plateforme : mesuré (sonde) `150000.00`. Aucun tableau de bord ne sert de solde ni de trésorerie qui en serait faussé (`grep -rn "balance\|treasury\|cash_on_hand" app/Services/Dashboard` → le seul docblock de `CollectedPayments.php:13`, « balance âgée », mesuré) : la tuile dit ce que le locataire a payé, non ce que l'agence détient.
 - Piste : émettre sur chaque ligne de la préparation l'état de la plateforme (`held_by_platform`, reversement `pending|approved|paid`) et l'afficher (V7 pour le libellé) ; laisser l'« Encaissé » tel quel, ou le doubler d'un « dont détenu par la plateforme » si le porteur le veut.
+- Mesure (2026-10-23, fd28a149f, mesureur) : `PayoutCalculator::compute` relu : les lignes émettent `id`, `reference_number`, `payment_type`, bail ou réservation, `property_id`, `paid_at`, `amount`, `commission_rate`, `commission_rate_source`, `commission`, sans `platform_payout_id` ni intégration ni statut plateforme ; `takussan-web/src/types/invoice.ts:155-185` → aucun champ `platform`/`held` ; `CollectedPayments::leaseIncome` (l. 70-77) ne filtre que `status = paid` et le type, donc compte le loyer soldé par la plateforme (lu, non resondé) ; `grep -rn "balance\|treasury\|cash_on_hand" app/Services/Dashboard` → le seul docblock `CollectedPayments.php:13` ; `OwnerStatementService.php:47-89` non relu en détail → les trois constats tiennent. Classement : V7, émettre et afficher qui détient l'argent est un comportement visible et un libellé neufs, et dépend du choix de P178.01.
