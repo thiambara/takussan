@@ -5,6 +5,8 @@ namespace App\Http\Requests\Public;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\FiltreParPointEtRayon;
 use App\Models\Enums\PropertyCondition;
+use App\Models\Enums\PropertyType;
+use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
 use Closure;
 use Illuminate\Support\Carbon;
@@ -114,9 +116,25 @@ class SearchPublicPropertyRequest extends BaseFormRequest
             'area_min' => 'nullable|numeric|min:0',
             'area_max' => 'nullable|numeric|min:0',
             'featured' => 'nullable|boolean',
-            'type' => 'nullable|string|max:500',
+            // TCK-1853 (P187.06) — une LISTE (`type=villa,house`) jugée valeur par valeur contre
+            // `PropertyType`, comme `condition` (TCK-508) : une valeur inconnue rend 422 au lieu
+            // d'écarter le catalogue en silence. Un segment vide (`villa,`) reste ignoré, comme le
+            // fait `PropertySearchService`.
+            'type' => [
+                'nullable', 'string', 'max:500',
+                function (string $attribut, mixed $valeur, Closure $echec): void {
+                    foreach (explode(',', (string) $valeur) as $type) {
+                        if (trim($type) !== '' && PropertyType::tryFrom(trim($type)) === null) {
+                            $echec(__('validation.in', ['attribute' => $attribut]));
+
+                            return;
+                        }
+                    }
+                },
+            ],
             'contract_type' => 'nullable|in:sale,rent',
-            'rent_period' => 'nullable|string',
+            // TCK-1853 (P187.06) — une enum, comme `title_type` (TCK-491).
+            'rent_period' => ['nullable', Rule::enum(RentPeriod::class)],
             'furnished' => 'nullable|boolean',
             'tags' => 'nullable|string',
             // ── GEO, contrat « viewport » (ADR-0023, chemin 1) ────────────────
