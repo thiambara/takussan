@@ -31,6 +31,12 @@ class ExportActivityLogRequest extends BaseFormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function ($v) {
+            // TCK-1854 — une borne que la règle `date` a refusée ne se relit pas : `Carbon::parse()`
+            // lèverait sur `abc` ou sur une liste, et le 422 deviendrait un 500.
+            if ($v->errors()->hasAny(['filter', 'filter.date_from', 'filter.date_to'])) {
+                return;
+            }
+
             $from = $this->input('filter.date_from');
             $to = $this->input('filter.date_to');
 

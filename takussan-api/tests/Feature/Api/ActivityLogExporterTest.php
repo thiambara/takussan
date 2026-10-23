@@ -154,6 +154,25 @@ class ActivityLogExporterTest extends ApiTestCase
             ->assertUnprocessable();
     }
 
+    /**
+     * P188.01 (TCK-1854) — une borne illisible avec l'autre borne remplie rend 422 sur la borne,
+     * et non 500 : le rappel `after()` ne relit pas une valeur que la règle `date` a déjà refusée.
+     */
+    public function test_une_borne_illisible_avec_l_autre_borne_rend_422(): void
+    {
+        $this->apiActingAsRole('agency_admin');
+
+        $this->apiGet('/api/activity-logs/export?format=csv&filter[date_from]=abc&filter[date_to]=2026-01-01')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.date_from']);
+        $this->apiGet('/api/activity-logs/export?format=csv&filter[date_from][]=x&filter[date_to]=2026-01-01')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.date_from']);
+        $this->apiGet('/api/activity-logs/export?format=csv&filter[date_from]=2026-01-01&filter[date_to]=abc')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.date_to']);
+    }
+
     // ─── AC6 — async for > 5000 rows ──────────────────────────────────────────
 
     public function test_large_export_dispatches_job_and_returns_202(): void
