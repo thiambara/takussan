@@ -15969,7 +15969,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Le personnel enregistre un paiement de réservation `paid` d'un montant sans borne, et il entre au reversement du bailleur
 - Réf : P170.02
-- Statut : validé — validation du porteur (2026-10-23) : borne = `total_amount` moins les lignes `paid`, pour `deposit` et `advance` seulement (`fee` hors du total reversable, ADR-0039 § 3), 422 codé au-delà ; mêmes statuts de réservation que P170.01 ; pas de notion de trop-perçu
+- Statut : fait · TCK-1916
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreBookingPaymentRequest.php:65,72`, `takussan-api/app/Services/Model/BookingPaymentService.php:25-48`, `takussan-api/app/Services/Payout/PayoutCalculator.php:80-99`, `takussan-web/src/components/bookings/BookingPaymentDialog.tsx:51-66`, `takussan-web/src/lib/schemas/booking.ts:64-66`
 - Constat :
@@ -15981,6 +15981,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Une saisie fautive (un zéro de trop) devient donc un reversement au bailleur d'un argent jamais reçu, sans autre garde que le seuil d'approbation de l'agence (déduit, à vérifier).
 - Piste : borner le montant d'une ligne posée par le personnel par le reste dû (total − lignes `paid`), 422 codé au-delà, et refuser une réservation hors `pending`/`confirmed`/`completed` ; ou, si un trop-perçu doit pouvoir s'enregistrer, l'écrire comme tel et l'exclure du reversement. Garde : un test API au-delà du reste dû.
 - Mesure (2026-10-23, 9f180a3ae, mesureur) : relu `StoreBookingPaymentRequest.php:65` (`numeric|min:0`), `BookingPaymentService::create` (l. 25-48, `paid` par défaut, `amount` écrit tel quel), `PayoutCalculator::bookingPayments` (l. 80-99) ; `git log 5a015cfa1..HEAD` → vide ; test temporaire `SondeMesureur170Test` (retiré, charge 3,28 / 3,14 / 2,90 sur 8 cœurs) : agent, réservation `confirmed` à 100 000, `{amount: 999999999, payment_type: advance, payment_method: cash}` → `201`, `paid` à 999 999 999, et `bookingPayments(agence, bailleur)` somme 999 999 999 → le constat tient ; le seuil d'approbation de l'agence comme seule autre garde n'est pas mesuré. Classement : V1, borner un encaissement ou exclure un trop-perçu du reversement change un montant reversé, et la `Piste` offre deux options.
+- Mesure (2026-10-23, 2a944b073, implementeur) : `BookingPaymentStaffBoundTest` avant correctif → 5 rouges sur 10 : agent, réservation `confirmed` à 100 000, `999999999` en `advance` → `201` ; après un acompte `paid` de 30 000, 70 001 → `201` ; réservation `cancelled`, `rejected`, `expired` → `201` ; borne `total_amount` − lignes `paid` d'acompte et de solde jugée sous verrou de la réservation (`BookingPaymentService::remainingReversable`, 422 `booking_payment.exceeds_remaining`), `fee` ni bornée ni déduite, statuts `pending`, `confirmed`, `completed` seuls (422 `booking_payment.booking_not_payable`) → 10 verts ; ablation (borne et refus retirés → 5 rouges, remis → verts) ; `BookingPaymentTest`, `BookingPaymentManualStatusTest`, `BookingPaymentRefundAuthorizationTest`, `AvisEtEncaissementFieldLengthTest` verts.
 
 ### Une ligne `partially_paid` posée par le personnel n'est comptée nulle part : le client se voit redemander l'acompte entier
 - Réf : P170.03
