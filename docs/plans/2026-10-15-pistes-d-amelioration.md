@@ -16088,7 +16088,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### La fiche d'agence de la console montre 8 biens sous « Portefeuille » et 10 membres sous « Équipe », sans total ni lien vers la suite
 - Réf : P171.04
-- Statut : validé — validation du porteur (2026-10-23) : la recommandation du délégué
+- Statut : fait · TCK-2007
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/super-admin.ts:136-156`, `takussan-web/src/components/admin/super/agency-detail.tsx:250-255,491-545`, `takussan-web/src/messages/fr.json` (`superAdmin.agencyDetail.properties.title` « Portefeuille »)
 - Constat :
@@ -16098,6 +16098,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 - Piste : afficher « 8 sur 214 » et un lien vers la liste filtrée, ou paginer ; dire « Derniers biens » si l'aperçu est voulu (texte neuf : à décider).
 - Mesure (2026-10-23, cee72033c, mesureur) : relu `super-admin.ts:141` (`per_page` 10) et `:153` (`per_page` 8), `agency-detail.tsx:255` (seul `data` passé à `AgencyPropertiesTab`) et l. 519-545 (ni total, ni lien) ; `SELECT` par `tinker` en lecture : 214 biens sur l'agence 1 → le constat tient. Classement : V7, la `Piste` hésite entre « N sur M », un lien, la pagination ou un libellé neuf, que l'explorateur marque lui-même « à décider ».
 - Mesure (2026-10-23, 79f1f3489, delegue) : relu le constat, la `Piste` et la `Mesure` du mesureur, `super-admin.ts:136-156` (`per_page` 10 et 8), `agency-detail.tsx:250-255,491-545`, et les deux listes de la console que la fiche pourrait viser : `super-admin/properties/page.tsx:37-38` lit `filter[agency_id]` dans l'URL, `super-admin/users/page.tsx:64,143` accepte `agency` → les deux cibles d'un lien existent déjà, filtrées sur l'agence. Recommandation : garder l'aperçu court, afficher le total (`meta.total`) à côté du titre de chaque onglet et un lien « Voir tout » vers `/super-admin/properties?filter[agency_id]=…` et `/super-admin/users?agency=…`, plutôt qu'une pagination dans la fiche ; non validé, car c'est un texte neuf (libellé du lien et forme du total) que l'explorateur marque lui-même « à décider », et aucun écrit ne fixe le rôle de ces onglets (aperçu ou liste).
+- Mesure (2026-10-23, 5fcadf598, implementeur) : test `agency-detail.apercus.tck-2007.test.tsx` (onglets montés avec 8 biens sur 214 et 10 membres sur 37) rouge avant correctif : ni « 214 » ni « 37 », aucun lien → en-tête commun aux deux onglets : titre, `meta.total`, lien « Voir tout » vers `/super-admin/properties?filter[agency_id]=…` et `/super-admin/users?agency=…` ; clé `superAdmin.agencyDetail.seeAll`, wo recopié du français ; ablation (`agency-detail.tsx` rendu à `HEAD`) → 2 rouges sur 2, correctif remis → 2/2 verts ; les quatre tests existants de la fiche restent verts.
 
 ### Les visites, réservations et baux d'une fiche client, et ses biens correspondants, s'arrêtent à 20 lignes
 - Réf : P171.05
