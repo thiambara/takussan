@@ -21,12 +21,14 @@ import {
 import type {
   AdminIntegration,
   AdminIntegrationSchemaResponse,
+  IntegrationStatus,
   IntegrationWebhookLog,
 } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { lireTable } from '@/lib/table-de-statut';
 
 /**
  * Les catégories connues ; leur libellé vit dans `superAdmin.integrations.categories.*`. Il était
@@ -38,7 +40,7 @@ export const INTEGRATION_CATEGORIES = new Set(['payments', 'messaging', 'email',
 const WEBHOOK_EVENT_FALLBACK = 'webhook';
 
 /** Le statut → le ton du DS ; l'API émet le code, le libellé est traduit ici (`statuses.*`). */
-const STATUS_TONES: Record<string, StatusTone> = {
+const STATUS_TONES: Record<IntegrationStatus, StatusTone> = {
   healthy: 'success',
   failed: 'danger',
   disabled: 'neutral',
@@ -63,7 +65,7 @@ export function IntegrationCard({
           <p className="mt-1 font-mono text-xs text-muted-foreground">{integration.provider}</p>
         </div>
         <StatusBadge
-          tone={STATUS_TONES[integration.status] ?? 'neutral'}
+          tone={lireTable(STATUS_TONES, integration.status) ?? 'neutral'}
           label={integration.status in STATUS_TONES ? t(`statuses.${integration.status}`) : integration.status}
           className="shrink-0"
         />

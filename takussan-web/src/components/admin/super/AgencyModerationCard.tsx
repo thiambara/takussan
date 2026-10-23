@@ -12,18 +12,19 @@ import { ConfirmActionDialog } from './ConfirmActionDialog';
 import { AVEC_MOTIF, GESTE_DE_TRANSITION, transitionsDeModeration } from './agency-moderation';
 import { usePlatformAbilities } from './PlatformAbilitiesProvider';
 import { StatusBadge, type StatusTone } from '@/components/console';
+import type { AgencyStatus } from '@/types/agency';
 import { versLeDetail } from './retour-de-liste';
 import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
 
 /** TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.agencyStatus.*`). */
-const STATUS_KEY: Record<string, string> = {
+const STATUS_KEY: Record<AgencyStatus, string> = {
   active: 'active',
   inactive: 'inactive',
   suspended: 'suspended',
 };
 
 /** Le statut de l'agence → le ton du DS. La couleur se décide dans `StatusBadge`, pas ici. */
-const STATUS_TONES: Record<string, StatusTone> = {
+const STATUS_TONES: Record<AgencyStatus, StatusTone> = {
   active: 'success',
   inactive: 'neutral',
   suspended: 'danger',

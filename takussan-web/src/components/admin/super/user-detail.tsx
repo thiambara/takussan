@@ -35,15 +35,18 @@ import type { AdminUserDetail, AdminUserSession, AuditLogEntry } from '@/types/s
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { StatusBadge, type StatusTone } from '@/components/console';
+import { lireTable } from '@/lib/table-de-statut';
+import type { UserStatus } from '@/types/user';
 import { ErrorState } from '@/components/feedback';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { usePlatformAbilities } from './PlatformAbilitiesProvider';
 import { UserLifecycleActions } from './UserLifecycleActions';
 
-const STATUS_TONES: Record<string, StatusTone> = {
+const STATUS_TONES: Record<UserStatus, StatusTone> = {
   active: 'success',
   inactive: 'neutral',
   blocked: 'danger',
+  deleted: 'neutral',
 };
 
 export function UserDetailPage({ userId }: { userId: number }) {
@@ -133,7 +136,7 @@ export function UserDetailHeader({ user }: { user: AdminUserDetail }) {
             <div className="mt-3 flex flex-wrap gap-2">
               {user.status ? (
                 <StatusBadge
-                  tone={STATUS_TONES[user.status] ?? 'neutral'}
+                  tone={lireTable(STATUS_TONES, user.status) ?? 'neutral'}
                   label={tUsers.has(`statuses.${user.status}`) ? tUsers(`statuses.${user.status}`) : user.status}
                 />
               ) : null}
@@ -386,7 +389,7 @@ export function UserProfilesSection({ user }: { user: AdminUserDetail }) {
             <div className="flex items-center gap-2">
               {profile.status ? (
                 <StatusBadge
-                  tone={STATUS_TONES[profile.status] ?? 'neutral'}
+                  tone={lireTable(STATUS_TONES, profile.status) ?? 'neutral'}
                   label={tUsers.has(`statuses.${profile.status}`) ? tUsers(`statuses.${profile.status}`) : profile.status}
                 />
               ) : null}

@@ -54,6 +54,9 @@ export const propertyStatusFilterValues = [
   'rejected',
 ] as const;
 
+/** TCK-1834 (P146.04) — un des onze statuts de bien ; type des tables qui les nomment tous. */
+export type PropertyStatusFilterValue = (typeof propertyStatusFilterValues)[number];
+
 export const propertyVisibilityValues = ['public', 'private'] as const;
 
 export const currencyValues = ['XOF', 'XAF', 'EUR', 'USD'] as const;

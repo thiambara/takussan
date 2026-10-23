@@ -537,6 +537,12 @@ export type PlatformSetting = {
 export type PlatformSettingsGrouped = Partial<Record<PlatformSettingCategory, PlatformSetting[]>>;
 export type PlatformSettingsResponse = { data: PlatformSettingsGrouped };
 
+/**
+ * TCK-1834 (P146.04) — les états de santé qu'`IntegrationService` pose sur une intégration. Ce ne
+ * sont pas les cas d'un enum de l'API : `check-status-unions` ne les garde pas.
+ */
+export type IntegrationStatus = 'unknown' | 'healthy' | 'failed' | 'disabled';
+
 export type AdminIntegration = {
   id: number;
   provider: string;
@@ -545,7 +551,7 @@ export type AdminIntegration = {
   critical: boolean;
   agency_id: number | null;
   is_active: boolean;
-  status: 'unknown' | 'healthy' | 'failed' | 'disabled' | string;
+  status: IntegrationStatus | string;
   last_used_at: string | null;
   last_health_check_at: string | null;
   metadata: Record<string, unknown>;
