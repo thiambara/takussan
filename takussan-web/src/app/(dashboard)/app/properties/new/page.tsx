@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { fetchListingQuotaAction } from '@/app/actions/dashboard-properties';
 import { buttonVariants } from '@/components/ui/button';
-import { PropertyWizard } from '@/components/property-form';
+import { PropertyWizard } from '@/components/property-form/PropertyWizard';
 import { EnTetePublication } from '@/components/property-form/wizard/EnTetePublication';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';

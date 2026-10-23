@@ -18,7 +18,7 @@ vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraduc
 vi.mock('@/app/actions/auth', () => ({ getMeAction: () => mockGetMe() }));
 vi.mock('@/app/actions/admin-tags', () => ({ fetchTagsAction: async () => ({ ok: true, data: { data: [] } }) }));
 vi.mock('@/app/actions/dashboard-properties', () => ({ fetchListingQuotaAction: () => mockQuota() }));
-vi.mock('@/components/property-form', () => ({
+vi.mock('@/components/property-form/PropertyWizard', () => ({
   PropertyWizard: ({ quotaNote }: { quotaNote?: string }) => (
     <div data-testid="assistant">{quotaNote}</div>
   ),

@@ -23,7 +23,7 @@ vi.mock('@/app/actions/dashboard-properties', () => ({
   fetchListingQuotaAction: async () => ({ limit: null, used: 0, can_create: true }),
 }));
 vi.mock('@/lib/session', () => ({ getToken: async () => null }));
-vi.mock('@/components/property-form', () => ({
+vi.mock('@/components/property-form/PropertyWizard', () => ({
   PropertyWizard: ({ proposition }: { proposition?: boolean }) => (
     <div data-testid="assistant">{proposition ? 'proposition' : 'publication'}</div>
   ),
