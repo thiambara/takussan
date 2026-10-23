@@ -14383,10 +14383,11 @@ qui a été relevé. Rien n'a été exécuté.*
 
 ### Petites lectures « `null` = garder » dans l'API
 - Réf : P149.05
-- Statut : validé — porteur (2026-10-22) : ne valider que la carte : `array_key_exists` seul côté API (`null` efface) et le wizard envoie `null` pour un champ vidé ; les notes de clôture gardent « `null` = garder »
+- Statut : fait · TCK-1779
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:170-172`, `takussan-api/app/Http/Requests/Api/Me/UpdateSpecializationAgentProfileRequest.php:53`, `takussan-web/src/components/onboarding/AgentOnboardingWizard.tsx:468`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:320-322`
 - Constat :
+- Mesure (2026-10-23, c4adeb298, implementeur) : cas neuf de `AgentOnboardingTest` avant correctif → rouge, `license_number: null` garde `AGT-2026-001` ; cas neuf de `AgentOnboardingWizard.test.tsx` → rouge, le wizard envoie `license_number: undefined` pour un champ vidé → `array_key_exists` seul dans `updateSpecialization` (`null` écrit `null`, clé absente garde) et `|| null` dans le wizard : `AgentOnboardingTest` 11/11, `AgentOnboardingWizard*` 8/8 ; ablation de chaque côté → rouge, remise → vert. Notes de clôture non touchées, comme décidé.
   - Numéro de carte de l'agent : la requête l'accepte `nullable` (lu, `:53`), mais le contrôleur ne l'écrit que s'il n'est pas `null` (lu, `AgentProfileController.php:170`). Le front ne l'envoie d'ailleurs jamais vide (`license_number || undefined`, lu, `AgentOnboardingWizard.tsx:468`). Une carte saisie par erreur ne se retire donc par aucun chemin. C'est le motif de P117.02, sans montant.
   - Clôture d'intervention : `resolution_notes: null` garde les notes déjà écrites (lu, `MaintenanceRequestService.php:320`), et le front rend `undefined` pour des notes vides (lu, `maintenance.ts:72-76`). C'est un geste de clôture et non un `PATCH`. Le comportement voulu n'est écrit nulle part (à vérifier).
   - Établi comment : lecture seule.
