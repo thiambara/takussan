@@ -17393,7 +17393,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### La série mensuelle du tableau de bord de l'agent se décale d'un mois les jours où le mois de départ est plus court
 - Réf : P188.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1860
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:249-258`, `takussan-web/src/lib/queries/dashboard.ts:168-170`
 - Constat :
@@ -17403,6 +17403,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : `subMonthsNoOverflow()`, comme les deux services voisins. Garde : un test daté du 31 octobre qui attend la première étiquette du mois de novembre de l'année précédente, et la dernière sur le mois courant.
 - Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `DashboardAgentService.php:252` (`now()->subMonths($months - 1)->startOfMonth()`) contre `DashboardOwnerService.php:131` et `DashboardAgencyService.php:138` (`subMonthsNoOverflow`) ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré), `monthlyTimeseries($agent, 12)` sous `Carbon::setTestNow` : 2026-10-31 → `2025-12` … `2026-11`, 2026-03-31 → `2025-05` … `2026-04`, 2027-01-29 → `2026-03` … `2027-02`, témoin 2026-10-15 → `2025-11` … `2026-10` → le constat tient, et la déduction sur les 29-31 janvier est vérifiée. Classement : A1, les deux services voisins et le témoin du 15 rendent une série qui finit sur le mois courant ; le correctif attendu est `subMonthsNoOverflow()`, sans toucher au calcul des commissions de chaque mois (pas V1 : seule la fenêtre des étiquettes est corrigée), test daté du 31 octobre → première étiquette novembre de l'an passé, dernière le mois courant.
+- Mesure (2026-10-23, 1ac04b8ac, implementeur) : re-mesuré par le test de garde `DashboardAgentTest::test_la_serie_mensuelle_ne_deborde_pas_les_jours_de_fin_de_mois` : avant correctif, `monthlyTimeseries($agent, 12)` au 2026-10-31 commence en `2025-12` → `subMonthsNoOverflow()` ; au 2026-10-31, `2025-11` … `2026-10`, au 2027-01-29, `2026-02` … `2027-01` ; ablation (service remis à l'état de `pre-dev`) → rouge, correctif remis → vert ; `DashboardAgentTest` 7 verts.
 
 ### La liste des garants rend 500 sur un `lease_id` non numérique ou hors de `bigint`
 - Réf : P188.05
