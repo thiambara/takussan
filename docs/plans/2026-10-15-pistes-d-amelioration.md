@@ -17537,7 +17537,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le créateur suspendu ou retiré lit et modifie l'état des lieux des biens qu'il a saisis, et le voit dans sa liste
 - Réf : P190.01
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite (`BailleurDuBien::est` en lecture, `bailleurEcrit` en écriture, même borne pour la liste)
+- Statut : fait · TCK-1928
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/InventoryPolicy.php:21-55`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:40-55`
 - Constat :
@@ -17548,6 +17548,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré.
 - Piste : juger la branche « propriétaire du bien » de `view` par `BailleurDuBien::est` (bailleur de tout statut, qui garde la lecture, ADR-0031 § 2) et celle d'`update` par `bailleurEcrit`, comme `BookingPolicy` ; borner la clause de la liste de même. Test : agent créateur suspendu, puis retiré → `GET` et `PATCH` en 403, absent de la liste ; bailleur auteur, bloqué → lecture 200, `PATCH` 403.
 - Mesure (2026-10-23, 0c707fc77, mesureur) : relu `InventoryPolicy::view` (branche `property.user_id === user.id`) et `update` (`landlordWrites` sur `property.user_id`), `InventoryController::index` (`orWhereHas('property', … user_id)`), inchangés ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 ; état des lieux conduit par un tiers → suspendu comme retiré : `can` view/update = vrai/vrai, `GET /api/inventories/{id}` → 200, `PATCH` `{general_condition: fair}` → 200 et valeur écrite, présent dans `GET /api/inventories` → le constat tient en entier. Classement : V2, le correctif change la règle du propriétaire du bien dans deux abilities et une liste qu'emploie le bailleur actif, comme P153.01 et P153.02 classés V2.
+- Mesure (2026-10-23, 2a944b073, implementeur) : `AgentCreateurEtatDesLieuxTest` avant correctif → 2 rouges sur 4 : état des lieux conduit par un tiers sur le bien saisi par l'agent, agent suspendu puis retiré → `GET /api/inventories/{id}` 200 ; `InventoryPolicy` juge la lecture par `BailleurDuBien::est` et l'écriture par `bailleurEcrit`, `InventoryController::index` borne la clause du bien par `BailleurDuBien::restreindre` → `GET` et `PATCH` 403, rien d'écrit, absent de la liste ; bailleur bloqué : lecture et liste, `PATCH` 403 ; bailleur actif : tout → 4 verts ; ablation (politique et contrôleur remis → 2 rouges, remis → verts) ; `MigratedAuthorizationRulesTest`, `InventoryTest`, `InventoryAbilitiesTest`, `InventoryCreationTest`, `InventorySignatureTest`, `InventoryRoomPhotosTest` verts.
 
 ### La liste des réservations garde au créateur suspendu ou retiré les réservations de ses biens, téléphone du client compris, que `view` lui refuse
 - Réf : P190.02
