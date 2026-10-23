@@ -35,7 +35,7 @@ Réf : **P195.09** du fichier de pistes, `validé (délégué)` (V7 accordé).
 
 ## Décision du porteur (déléguée)
 
-porter les bornes de `customerFormSchema` (`customer.ts`) à celles de `StoreCustomerRequest` et `UpdateCustomerRequest` : `max(255)` pour `first_name`, `last_name` et `occupation`, `max(100)` pour `id_number`, avec les messages existants (`firstNameTooLong`, `lastNameTooLong`, `occupationTooLong`, `idNumberTooLong`) ; test Vitest : un prénom de 150 caractères passe le schéma, un de 256 est refusé ; garder les 10 photos de l'assistant (`MAX_PHOTOS`), comme l'écrit TCK-120 (l. 50), sans changement de code
+porter les bornes de `customerFormSchema` (`customer.ts`) à celles de `StoreCustomerRequest` et `UpdateCustomerRequest` : `max(255)` pour `first_name`, `last_name` et `occupation`, `max(100)` pour `id_number`, avec les messages existants (`firstNameTooLong`, `lastNameTooLong`, `occupationTooLong`, `idNumberTooLong`) ; test Vitest : un prénom de 150 caractères passe le schéma, un de 256 est refusé ; garder les 10 photos de l'assistant (`MAX_PHOTOS`), comme l'écrit TCK-120 (l. 50), sans changement de code ; reste : juger au front le nombre et la longueur des villes et quartiers recherchés après découpage, qui demande des messages neufs
 
 ## Reste à faire
 
