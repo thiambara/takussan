@@ -13212,7 +13212,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### Chaque assistant de bienvenue relit `/api/me/welcome-seen` par son propre `fetch`, et celui de l'agence relit en entier une agence que le layout vient de lire
 - Réf : P136.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1766
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/layout/AppShell.tsx:138-145`, `takussan-web/src/hooks/useWelcomeOnce.ts:40-64`, `takussan-web/src/hooks/useTenantWelcomeOnce.ts:44`, `takussan-web/src/hooks/useTenantWelcomeOnce.ts:58`, `takussan-web/src/hooks/useAgencyStandardWelcomeOnce.ts:72-86`, `takussan-web/src/components/customer/MinimalProfileTriggerProvider.tsx:57-75`, `takussan-web/src/app/(dashboard)/app/layout.tsx:37-41`
 - Constat :
@@ -13222,6 +13222,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
   - P101.03 (validé) range ces fenêtres dans une file d'`AppShell` : c'est le même endroit, mais la piste ne parle pas de leurs lectures.
 - Piste : une seule lecture de `welcome-seen` par chargement, partagée (une clé TanStack commune, ou la liste passée par `AppShell` à la file de P101.03), et le marqueur d'accueil de l'agence passé par le layout qui l'a déjà. Garde : un test vitest qui monte `AppShell` pour un client seul et exige un seul appel à `/api/me/welcome-seen`.
 - Mesure (2026-10-22, 20d495dfd, mesureur) : `grep -rn "welcome-seen'" hooks components lib` → quatre `GET` par `fetch` dans un `useEffect` (`useWelcomeOnce.ts:47`, `useTenantWelcomeOnce.ts:58`, `useAgencyStandardWelcomeOnce.ts:81`, `MinimalProfileTriggerProvider.tsx:71`), hors de TanStack ; `AppShell.tsx:58,138-141` monte les trois lecteurs du client seul sous `isCustomerOnly` ; `useAgencyStandardWelcomeOnce.ts:72-97` relit `/api/agencies/{id}` pour `kind` et `metadata.welcome.standard_unlocked_at`. Le « à vérifier » est levé : `AgencyController::show` (l. 71-76) ignore `fields` et rend toute `AgencyResource`, `metadata` comprise (l. 72), donc la lecture `resolveAgencyOrNull` du layout (`layout.tsx:35-41`, même condition `agency_admin` que le hook, `AppShell.tsx:73`) porte déjà le marqueur. Le constat tient. Classement : A2, une clé TanStack commune pour `GET /api/me/welcome-seen` et le marqueur d'agence passé par le layout suppriment des lectures identiques sans changer quelle fenêtre s'ouvre ; la file de P101.03 (validé) est au même endroit mais n'en dépend pas.
+- Mesure (2026-10-23, b5e5b0401, implementeur) : `grep -rn welcome-seen src` → toujours quatre `GET` par `fetch` dans un effet ; test neuf `AppShell.accueils-vus-une-lecture.tck-1766.test.tsx` rouge sur l'arbre d'origine (client seul : 3 lectures ; administrateur : aucune fenêtre sans la relecture de l'agence) → lecteur partagé `useAccueilsVus` (clé `['me','welcome-seen', id]`, une lecture par chargement, la clé fermée ajoutée à l'entrée) pour les quatre lecteurs, et marqueur `{ agencyId, unlockedAt }` passé par le layout `/app`, sans `GET /api/agencies/{id}` ; ablation (sept fichiers de production à `HEAD`) → 8 rouges sur 13, correctif remis → 13/13 verts, et les tests des lecteurs, de la coque et du layout verts.
 
 ### L'écran Équipe attend la liste des membres pour demander leurs rôles : deux allers-retours en série avant la colonne « Rôle »
 - Réf : P136.04
