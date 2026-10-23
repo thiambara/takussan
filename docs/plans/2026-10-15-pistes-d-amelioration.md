@@ -15346,7 +15346,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Une fiche client ou un garant se suppriment sous un bail en préavis
 - Réf : P162.03
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1716
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/CustomerController.php:184-194`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:98-107`, `takussan-api/app/Services/Account/AccountDeletionService.php:438-441`
 - Constat :
@@ -15356,6 +15356,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu, et mesuré pour la fiche client ; le garant est lu.
 - Piste : juger les deux refus par la constante de P162.02 plus `PendingSignature` (celle d'`AccountDeletionService::openLeaseStatuses`, à remonter sur le modèle). Étendre `CustomerSousBailTest` à `terminating`, et son pendant garant.
 - Mesure (2026-10-22, 5c7c12b8a, mesureur) : aucun commit sur ces chemins depuis e2959c84c ; relu `CustomerController.php:188-193` et `GuarantorController.php:101-106` (`[PendingSignature, Active]`), `AccountDeletionService.php:438-441` (`ACTIVE_TENANT_LEASE_STATUSES + PendingSignature`) ; test temporaire (retiré) : fiche titulaire d'un bail `terminating` et garant attaché par pivot à un bail `terminating`, `DELETE` par leur auteur → 204 et 204 → le constat tient, garant compris. Classement : V3, étendre le refus décide quelles données personnelles un utilisateur peut supprimer pendant le préavis ; le motif de P130.05 plaide pour, mais aucune décision écrite ne nomme `terminating`.
+- Mesure (2026-10-23, 43c553036, implementeur) : `CustomerSousBailTest` et `GuarantorTest` étendus à `terminating` → avant correctif, `DELETE /api/customers/{id}` et `DELETE /api/guarantors/{id}` (pivot comme colonne) rendent 204 sous un bail en préavis (1 rouge par classe) ; `Lease::OPEN_STATUSES = [...ONGOING_STATUSES, pending_signature]` lue par les deux refus et par `AccountDeletionService::openLeaseStatuses()` → 422 `customer.attached_to_open_lease` et `guarantor.attached_to_open_lease`, fiche et garant intacts ; ablation (deux contrôleurs remis à `43c553036`) → 1 rouge par classe, remis → 2/2 et 9/9 ; `AccountDeletionRequestTest` 13/13 vert.
 
 ### Un locataire en préavis ne voit plus « Nouvelle demande », alors que l'API accepte sa demande
 - Réf : P162.04
