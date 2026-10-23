@@ -15,7 +15,9 @@ Route::prefix('public/geo')->name('public.geo.')->middleware('throttle:public-re
     // cinq minutes et `ETag`, comme les énumérations (`enums.php`).
     Route::get('regions', [GeoReferentialController::class, 'regions'])->middleware('cache.headers:public;max_age=300;etag')->name('regions');
     Route::get('cities', [GeoReferentialController::class, 'cities'])->middleware('cache.headers:public;max_age=300;etag')->name('cities');
-    Route::get('cities/{city}', [GeoReferentialController::class, 'city'])->whereNumber('city')->name('cities.show');
+    // P187.05 (TCK-1851) — 18 chiffres au plus, et non `whereNumber()` : une suite plus longue
+    // sortait de `bigint` et rendait 500 à la liaison ; elle rend désormais le 404 d'un `/abc`.
+    Route::get('cities/{city}', [GeoReferentialController::class, 'city'])->where('city', '[0-9]{1,18}')->name('cities.show');
     Route::get('neighborhoods', [GeoReferentialController::class, 'neighborhoods'])->name('neighborhoods');
 });
 

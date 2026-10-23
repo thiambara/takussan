@@ -9,6 +9,7 @@ use App\Models\Enums\PropertyType;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class PropertyMapTest extends TestCase
@@ -65,6 +66,29 @@ class PropertyMapTest extends TestCase
     public function test_map_rejects_bounds_with_wrong_arity(): void
     {
         $this->getJson('/api/public/properties/map?bounds=14.0,-18.0,15.0')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['bounds']);
+    }
+
+    /**
+     * P187.04 (TCK-1849) — sans `bail`, la fermeture de forme s'exécutait après l'échec de
+     * `string` et convertissait le tableau en chaîne : 500 « Array to string conversion ».
+     *
+     * @return array<string, array{string}>
+     */
+    public static function boundsEnListe(): array
+    {
+        return [
+            'un élément' => ['bounds[]=1'],
+            'deux éléments' => ['bounds[]=1&bounds[]=2'],
+            'quatre éléments' => ['bounds[]=14&bounds[]=-18&bounds[]=15&bounds[]=-17'],
+        ];
+    }
+
+    #[DataProvider('boundsEnListe')]
+    public function test_map_rejects_bounds_given_as_a_list(string $requete): void
+    {
+        $this->getJson('/api/public/properties/map?'.$requete)
             ->assertStatus(422)
             ->assertJsonValidationErrors(['bounds']);
     }
@@ -152,6 +176,41 @@ class PropertyMapTest extends TestCase
 
         $response->assertOk()->assertJsonCount(1, 'features');
         $this->assertSame($mid->id, $response->json('features.0.properties.id'));
+    }
+
+    /**
+     * P187.03 (TCK-1847) — `properties.area` est un entier : une borne au-delà de 2³¹ − 1, en
+     * notation scientifique, infinie ou fractionnaire partait telle quelle à PostgreSQL, qui
+     * rendait 500 (`22003`, `22P02`). La carte rend le même résultat que la liste.
+     *
+     * @return array<string, array{string, bool}>
+     */
+    public static function surfacesHorsDeLaColonne(): array
+    {
+        return [
+            'area_min au-delà de int' => ['area_min=3000000000', false],
+            'area_min 10^20' => ['area_min=100000000000000000000', false],
+            'area_min INF' => ['area_min=1e400', false],
+            'area_max au-delà de int' => ['area_max=3000000000', true],
+            'area_max INF' => ['area_max=1e400', true],
+            'area_min fractionnaire' => ['area_min=119.5', true],
+            'area_max fractionnaire' => ['area_max=119.5', false],
+        ];
+    }
+
+    #[DataProvider('surfacesHorsDeLaColonne')]
+    public function test_map_une_surface_hors_de_la_colonne_entiere_ne_rend_pas_500(string $requete, bool $bienAttendu): void
+    {
+        $property = Property::factory()->published()->create(['area' => 120]);
+        $this->attachAddress($property, 14.7, -17.5);
+
+        $response = $this->getJson('/api/public/properties/map?bounds=14.0,-18.0,15.0,-17.0&'.$requete);
+
+        $response->assertOk();
+        $this->assertSame(
+            $bienAttendu ? [$property->id] : [],
+            array_column(array_column($response->json('features'), 'properties'), 'id'),
+        );
     }
 
     public function test_map_excludes_draft_properties(): void

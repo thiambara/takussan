@@ -348,6 +348,48 @@ class PublicPropertySearchFiltersTest extends ApiTestCase
     }
 
     /**
+     * P187.02 (TCK-1845) — `(float) $v` concaténé à une chaîne s'écrit en notation scientifique
+     * à partir de 10¹⁵ (`1.0E+15`) et en deçà de 10⁻⁴ (`1.0E-5`), que Meilisearch refuse : la
+     * recherche rendait 500 sur une requête que la validation accepte.
+     *
+     * @return array<string, array{string, bool}>
+     */
+    public static function bornesHorsNotationOrdinaire(): array
+    {
+        return [
+            'price_min 10^15' => ['price_min=1000000000000000', false],
+            'price_min 15 chiffres' => ['price_min=999999999999999', false],
+            'price_max 1e20' => ['price_max=1e20', true],
+            'price_min 1e-5' => ['price_min=0.00001', true],
+            'area_min 10^20' => ['area_min=100000000000000000000', false],
+            'area_max 1e20' => ['area_max=1e20', true],
+            'price_min 1e400 (INF)' => ['price_min=1e400', false],
+        ];
+    }
+
+    #[DataProvider('bornesHorsNotationOrdinaire')]
+    public function test_une_borne_numerique_hors_notation_ordinaire_ne_rend_pas_500(string $requete, bool $bienAttendu): void
+    {
+        Property::factory()->create([
+            'status' => PropertyStatus::Available,
+            'visibility' => PropertyVisibility::Public,
+            'price' => 50000,
+            'area' => 120,
+            'title' => 'Bien ordinaire',
+            'published_at' => now(),
+        ]);
+        $this->indexProperties();
+
+        $response = $this->getJson('/api/public/properties/search?'.$requete);
+
+        $response->assertOk();
+        $this->assertSame(
+            $bienAttendu ? ['Bien ordinaire'] : [],
+            array_column($response->json('data'), 'title'),
+        );
+    }
+
+    /**
      * `area` est nullable en base. Un bien à surface INCONNUE ne peut pas
      * satisfaire « au moins 200 m² » — on ne le promet pas. Le filtre exclut
      * donc les NULL, comme `floor_number` (test ci-dessus) et comme `price`, et
