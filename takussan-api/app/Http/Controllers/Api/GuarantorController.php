@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Filters\ExactIdentifierFilter;
 use App\Http\Requests\Api\StoreGuarantorRequest;
 use App\Http\Requests\Api\UpdateGuarantorRequest;
 use App\Models\Guarantor;
@@ -25,6 +26,9 @@ class GuarantorController extends Controller
         }
 
         // lease_id filters via relationship (not a direct column)
+        // TCK-1862 — un `lease_id` qui n'est pas un identifiant rend 400, comme `filter[<x>_id]`,
+        // au lieu de partir à PostgreSQL (`22P02`, `22003`).
+        ExactIdentifierFilter::exiger($request->input('lease_id'), 'lease_id');
         if ($leaseId = $request->input('lease_id')) {
             $base->whereHas('leases', fn ($q) => $q->where('id', $leaseId));
         }

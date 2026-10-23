@@ -22,11 +22,13 @@ class AdminBoostController extends Controller
     public function index(Request $request): JsonResponse
     {
         $filtres = (array) $request->input('filter', []);
+        // TCK-1866 — une valeur en liste est ignorée comme une valeur absente (TCK-1407), et non castée.
+        $chaine = fn (string $cle): string => is_string($filtres[$cle] ?? null) ? $filtres[$cle] : '';
         $paginator = PropertyBoost::query()
             ->with(['property:id,title,slug', 'agency:id,name'])
-            ->when(BoostStatus::tryFrom((string) ($filtres['status'] ?? '')), fn ($q, BoostStatus $s) => $q->where('status', $s))
-            ->when(BoostKind::tryFrom((string) ($filtres['kind'] ?? '')), fn ($q, BoostKind $k) => $q->where('kind', $k))
-            ->when(isset($filtres['agency_id']) && ctype_digit((string) $filtres['agency_id']), fn ($q) => $q->where('agency_id', (int) $filtres['agency_id']))
+            ->when(BoostStatus::tryFrom($chaine('status')), fn ($q, BoostStatus $s) => $q->where('status', $s))
+            ->when(BoostKind::tryFrom($chaine('kind')), fn ($q, BoostKind $k) => $q->where('kind', $k))
+            ->when(ctype_digit($chaine('agency_id')), fn ($q) => $q->where('agency_id', (int) $filtres['agency_id']))
             ->orderByDesc('starts_at')
             ->orderByDesc('id')
             ->paginate(min(100, max(1, (int) $request->input('per_page', 25))));

@@ -33,6 +33,12 @@ class StoreRoleDelegationRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
+            // TCK-1858 — un `user_id` que les règles ont refusé (`abc`, au-delà de `bigint`) ne
+            // part pas à `User::find()` : PostgreSQL le rejetterait, et le 422 deviendrait un 500.
+            if ($v->errors()->has('user_id')) {
+                return;
+            }
+
             $this->validateNotSelf($v);
             $this->validateBeneficiaryInAgency($v);
             $this->validateRoleNotPrimaryAdmin($v);

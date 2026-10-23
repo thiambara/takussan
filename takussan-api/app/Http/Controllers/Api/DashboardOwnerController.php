@@ -35,7 +35,9 @@ class DashboardOwnerController extends Controller
             $data = array_intersect_key($data, array_flip($keep));
         }
 
-        $includes = array_filter(array_map('trim', explode(',', (string) $request->input('include', ''))));
+        // TCK-1866 — `include[]=…` est ignoré comme une valeur absente (TCK-1407), et non casté.
+        $include = $request->input('include', '');
+        $includes = is_string($include) ? array_filter(array_map('trim', explode(',', $include))) : [];
 
         $payload = ['data' => $data];
 

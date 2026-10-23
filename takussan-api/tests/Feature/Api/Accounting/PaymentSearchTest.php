@@ -138,6 +138,35 @@ class PaymentSearchTest extends ApiTestCase
         $this->assertSame(collect($kept)->sort()->values()->all(), $found);
     }
 
+    /**
+     * P188.06 (TCK-1864) — `q` ou `direction` en liste rendent 422 sur le paramètre, et non 500
+     * (`TypeError` sur `string $query`, « Array to string conversion » sur `direction`). Un
+     * montant illisible et une direction inconnue restent servis comme avant.
+     */
+    public function test_q_ou_direction_en_liste_rendent_422_et_non_500(): void
+    {
+        $base = "/api/agencies/{$this->agency->id}/bank-statements/payment-search";
+        $this->actingAs($this->admin);
+
+        $this->getJson($base.'?q[]=abc')->assertStatus(422)->assertJsonValidationErrors(['q']);
+        $this->getJson($base.'?q=abc&direction[]=credit')->assertStatus(422)->assertJsonValidationErrors(['direction']);
+
+        $this->getJson($base.'?q=abc&amount=abc')->assertOk();
+        $this->getJson($base.'?q=abc&direction=nope')->assertOk();
+        // `q` vide devient `null` (ConvertEmptyStringsToNull) : la règle `nullable` le laisse passer.
+        $this->getJson($base.'?q=&amount=1000')->assertOk();
+    }
+
+    public function test_hors_de_l_agence_le_refus_precede_la_validation(): void
+    {
+        $intrus = User::factory()->create(['agency_id' => $this->other->id]);
+        $this->other->update(['primary_admin_id' => $intrus->id]);
+
+        $this->actingAs($intrus)
+            ->getJson("/api/agencies/{$this->agency->id}/bank-statements/payment-search?q[]=abc")
+            ->assertForbidden();
+    }
+
     private function search(string $query, ?int $amount = null): array
     {
         $url = "/api/agencies/{$this->agency->id}/bank-statements/payment-search?q=".urlencode($query);
