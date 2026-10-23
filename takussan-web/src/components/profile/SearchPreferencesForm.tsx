@@ -90,15 +90,38 @@ function readInitial(initial: SavedSearch | null): FormValues {
   };
 }
 
-function buildCriteria(values: FormValues): Record<string, unknown> {
-  const cities = values.cities
+function parseCities(raw: string): string[] {
+  return raw
     .split(',')
     .map((c) => c.trim())
     .filter((c) => c.length > 0);
-  const budgetNum = values.budget.trim() === '' ? null : Number(values.budget);
-  const criteria: Record<string, unknown> = {};
+}
+
+/**
+ * TCK-1839 (P185.01) — en édition, le profil part des critères existants et ne remplace que les
+ * trois clés qu'il porte (`type`, `cities`, `price_max`) : une alerte enregistrée depuis la
+ * recherche garde ses autres critères. Une clé vidée par le formulaire est retirée. Les villes ne
+ * se réécrivent que si leur saisie a changé ; alors `cities` remplace `city`.
+ */
+function buildCriteria(
+  values: FormValues,
+  baseline: FormValues,
+  existing: Record<string, unknown>,
+): Record<string, unknown> {
+  const criteria: Record<string, unknown> = { ...existing };
+  delete criteria.type;
+  delete criteria.price_max;
   if (values.types.size > 0) criteria.type = Array.from(values.types);
-  if (cities.length > 0) criteria.cities = cities;
+
+  const cities = parseCities(values.cities);
+  const citiesChanged = cities.join(',') !== parseCities(baseline.cities).join(',');
+  if (citiesChanged) {
+    delete criteria.city;
+    delete criteria.cities;
+    if (cities.length > 0) criteria.cities = cities;
+  }
+
+  const budgetNum = values.budget.trim() === '' ? null : Number(values.budget);
   if (typeof budgetNum === 'number' && Number.isFinite(budgetNum) && budgetNum > 0) {
     criteria.price_max = budgetNum;
   }
@@ -143,7 +166,7 @@ export function SearchPreferencesForm({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFeedback(null);
-    const criteria = buildCriteria(values);
+    const criteria = buildCriteria(values, baseline, initial?.criteria ?? {});
     const effectiveFreq: SavedSearchNotificationFrequency =
       values.alertsEnabled && emailVerified
         ? values.frequency
