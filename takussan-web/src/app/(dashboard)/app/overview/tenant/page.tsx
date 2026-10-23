@@ -14,6 +14,7 @@ import { localeDeLaRequete } from '@/i18n/locale-serveur';
 import { hrefLocalise } from '@/i18n/navigation';
 import type { PropertyListItem } from '@/types/property';
 import type { UserPreferences } from '@/types/user';
+import { MAINTENANCE_OPEN_STATUSES, maintenanceListHref } from '@/types/maintenance';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.overviewTenant');
@@ -180,7 +181,7 @@ function CeQuiMAttend({
         </li>
         <li>
           <Link
-            href="/app/maintenance"
+            href={maintenanceListHref(MAINTENANCE_OPEN_STATUSES)}
             className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2 outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
           >
             <span className="text-muted-foreground">{t('tenant.openMaintenance')}</span>

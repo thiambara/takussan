@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
+import { CURRENCY_METADATA, type CurrencyCode } from '@/lib/format/currency';
 import type { Locale } from '@/i18n/config';
 import { useSubmitMaintenanceQuote } from '@/lib/queries/maintenance';
 import type { MaintenanceQuoteLineKind, MaintenanceRequest } from '@/types/maintenance';
@@ -27,6 +28,28 @@ const MAX_ATTACHMENTS = 5;
 type LineDraft = { label: string; kind: MaintenanceQuoteLineKind; quantity: string; unit_price: string };
 
 const emptyLine = (): LineDraft => ({ label: '', kind: 'labour', quantity: '1', unit_price: '' });
+
+/**
+ * TCK-1729 (P133.06) — l'aperçu du total compte comme `MaintenanceQuoteWorkflow::priceLines` :
+ * chaque ligne arrondie à l'unité de la devise (au demi supérieur, `CurrencyUnit::round`), puis la
+ * somme. En entiers (`BigInt`, facteurs à 2 décimales) : un flottant rendrait 1,5 × 333,33 = 499,99499…
+ */
+export function quotePreviewTotal(
+  lines: readonly Pick<LineDraft, 'quantity' | 'unit_price'>[],
+  currency: string,
+): number {
+  const scale = CURRENCY_METADATA[currency as CurrencyCode]?.decimalPlaces ?? 2;
+  const unit = BigInt(10 ** (4 - scale));
+  const centiemes = (v: string) => BigInt(Math.round((Number(v) || 0) * 100));
+  const zero = BigInt(0);
+  const demi = unit / BigInt(2);
+  const total = lines.reduce((sum, l) => {
+    const produit = centiemes(l.quantity) * centiemes(l.unit_price);
+    const arrondi = produit < zero ? (produit - demi) / unit : (produit + demi) / unit;
+    return sum + arrondi;
+  }, zero);
+  return Number(total) / 10 ** scale;
+}
 
 function isAccepted(file: File): boolean {
   const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
@@ -53,7 +76,10 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
   const [rejectedFiles, setRejectedFiles] = useState<string[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const total = lines.reduce((sum, l) => sum + (Number(l.quantity) || 0) * (Number(l.unit_price) || 0), 0);
+  // TCK-1729 — la devise du devis (celle qu'un premier devis a fixée), sinon le XOF : l'API la tire
+  // du bail ou de l'agence, que la demande n'expose pas.
+  const currency = request.quote_currency ?? 'XOF';
+  const total = quotePreviewTotal(lines, currency);
 
   const updateLine = (index: number, patch: Partial<LineDraft>) =>
     setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
@@ -194,7 +220,7 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
             {t('add_line')}
           </Button>
           <p className="text-sm font-medium tabular-nums text-foreground">
-            {t('total_preview', { amount: formatCurrency(total, locale) })}
+            {t('total_preview', { amount: formatCurrency(total, locale, { currency }) })}
           </p>
         </div>
 

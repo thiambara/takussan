@@ -50,6 +50,30 @@ export const MAINTENANCE_STATUSES: readonly MaintenanceStatus[] = [
   'cancelled',
 ] as const;
 
+/**
+ * TCK-1727 (P167.01) — les statuts que comptent les aperçus, pour que leur lien ouvre la liste sur
+ * ces seuls statuts. Miroir de l'API : `MaintenanceStateMachine::AWAITING_QUOTE_DECISION`
+ * (« Devis à valider ») et `MaintenanceRequest::scopeOpen()`, tout statut hors de
+ * `FINISHED_STATUSES` (« Demandes d'intervention en cours »).
+ */
+export const MAINTENANCE_AWAITING_QUOTE_DECISION: readonly MaintenanceStatus[] = ['quote_submitted', 'awaiting_owner'];
+export const MAINTENANCE_FINISHED_STATUSES: readonly MaintenanceStatus[] = ['completed', 'closed', 'cancelled'];
+export const MAINTENANCE_OPEN_STATUSES: readonly MaintenanceStatus[] = MAINTENANCE_STATUSES.filter(
+  (s) => !MAINTENANCE_FINISHED_STATUSES.includes(s),
+);
+
+/** Le lien de la liste des interventions ouverte sur ces statuts (`?status=a,b`, lu par `MaintenanceList`). */
+export function maintenanceListHref(statuses: readonly MaintenanceStatus[]): string {
+  return statuses.length ? `/app/maintenance?status=${statuses.join(',')}` : '/app/maintenance';
+}
+
+/** `?status=a,b` → les statuts connus, dans l'ordre donné, sans doublon. */
+export function parseMaintenanceStatuses(raw: string | null | undefined): MaintenanceStatus[] {
+  if (!raw) return [];
+  const known = new Set<string>(MAINTENANCE_STATUSES);
+  return [...new Set(raw.split(',').map((s) => s.trim()))].filter((s): s is MaintenanceStatus => known.has(s));
+}
+
 export const MAINTENANCE_PRIORITIES: readonly MaintenancePriority[] = [
   'low',
   'normal',

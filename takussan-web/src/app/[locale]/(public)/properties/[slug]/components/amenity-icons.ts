@@ -91,7 +91,17 @@ export const AMENITY_ICONS: Record<string, IconComponent> = {
 
 export const FALLBACK_AMENITY_ICON = Building2;
 
-export function getAmenityIcon(key: string | null | undefined): IconComponent {
-  if (!key) return FALLBACK_AMENITY_ICON;
-  return AMENITY_ICONS[key.toLowerCase()] ?? FALLBACK_AMENITY_ICON;
+/** TCK-1725 (P159.02) — les seules valeurs d'`icon` que la fiche sait rendre : la console les offre. */
+export const AMENITY_ICON_KEYS: readonly string[] = Object.keys(AMENITY_ICONS);
+
+function iconeDeLaTable(key: string | null | undefined): IconComponent | undefined {
+  return key ? AMENITY_ICONS[key.toLowerCase()] : undefined;
+}
+
+/**
+ * TCK-1725 (P159.02) — `icon` d'abord, puis `slug`, puis l'icône générique. Une icône inconnue de la
+ * table (un nom Lucide saisi avant la liste fermée, `waves`) ne masque plus l'icône du slug.
+ */
+export function getAmenityIcon(icon: string | null | undefined, slug?: string | null): IconComponent {
+  return iconeDeLaTable(icon) ?? iconeDeLaTable(slug) ?? FALLBACK_AMENITY_ICON;
 }

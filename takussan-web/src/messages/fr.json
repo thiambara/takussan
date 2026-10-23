@@ -6386,6 +6386,7 @@
         "phone": "Téléphone",
         "website": "Site internet",
         "commission": "Commission par défaut (%)",
+        "emptyRateIsZero": "Laissé vide, ce taux vaut 0 %.",
         "websitePlaceholder": "https://votre-agence.sn"
       },
       "moderation": {
@@ -9013,7 +9014,8 @@
       "name": "Libellé",
       "namePlaceholder": "ex : Piscine",
       "type": "Type",
-      "icon": "Icône (nom Lucide)",
+      "icon": "Icône",
+      "iconNone": "Aucune (celle du slug)",
       "color": "Couleur (hex)"
     }
   },
