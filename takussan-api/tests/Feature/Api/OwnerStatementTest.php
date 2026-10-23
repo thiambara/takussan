@@ -159,6 +159,36 @@ class OwnerStatementTest extends TestCase
         Notification::assertSentToTimes($landlord, CodedNotification::class, 1);
     }
 
+    /**
+     * P177.06 (TCK-1785) — les impayés sont jugés au jour du rendu, et le relevé le dit ; le CSV
+     * porte le total versé et sa date de rendu, après `totals`.
+     */
+    public function test_p177_06_unpaid_are_dated_and_the_csv_carries_paid_out_and_its_rendering_time(): void
+    {
+        [$agency, $landlord] = $this->paidOutSeptember();
+        Payout::query()->update(['status' => 'completed']);
+        Carbon::setTestNow('2026-10-02 09:30:00');
+        Sanctum::actingAs($landlord);
+
+        $data = $this->getJson('/api/owner-statements?period=2026-09')->assertOk()->json('data');
+        $this->assertSame('2026-10-02', $data['unpaid']['as_of']);
+        $this->assertSame(1, $data['unpaid']['count']);
+
+        app()->setLocale('fr');
+        $html = view('pdf.statements.owner', [
+            'title' => 'Relevé', 'document_label' => 'Relevé', 'agency' => $agency, 'statement' => $data,
+        ])->render();
+        $this->assertStringContainsString('Impayés de la période au 02/10/2026 : 1', html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+        $csv = $this->get('/api/owner-statements/csv?period=2026-09')->assertOk()->streamedContent();
+        $rows = array_map(fn (string $l): array => str_getcsv($l, ';'), array_values(array_filter(explode("\n", $csv))));
+        $this->assertSame(['type', 'reference', 'property_id', 'paid_at', 'amount', 'commission'], $rows[0]);
+        $this->assertSame(['totals', 'paid_out', 'generated_at'], array_slice(array_column($rows, 0), -3));
+        $this->assertSame(['paid_out', '', '', '', '183000', ''], $rows[count($rows) - 2]);
+        $this->assertSame('generated_at', $rows[count($rows) - 1][0]);
+        $this->assertSame(Carbon::now()->toIso8601String(), $rows[count($rows) - 1][3]);
+    }
+
     public function test_the_monthly_command_notifies_each_landlord_once_and_is_scheduled(): void
     {
         Notification::fake();

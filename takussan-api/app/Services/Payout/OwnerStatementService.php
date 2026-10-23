@@ -138,7 +138,7 @@ final class OwnerStatementService
      * supprimé ne compte pas : les deux règles de {@see PortfolioMetrics::overdue()}
      * (P93.02, TCK-1175). Les types restent ceux du relevé ({@see PayoutCalculator::LEASE_TYPES}).
      *
-     * @return array{count: int, amount: float}
+     * @return array{as_of: string, count: int, amount: float}
      */
     private function unpaid(Agency $agency, User $landlord, CarbonImmutable $start, CarbonImmutable $end): array
     {
@@ -152,6 +152,9 @@ final class OwnerStatementService
             ->whereDate('lease_payments.due_date', '<', now()->toDateString());
 
         return [
+            // P177.06 (TCK-1785) — le jour où « échu » a été jugé : un mois passé voit ses impayés
+            // baisser à mesure que les loyers se règlent, le relevé dit donc à quelle date il les lit.
+            'as_of' => now()->toDateString(),
             'count' => (clone $query)->count(),
             // verif-595 passe 2 — le reste dû, la règle des tuiles Impayés et de la balance âgée.
             'amount' => round((float) $query->sum(DB::raw(CollectedPayments::OWED_REMAINING_SQL)), 2),
