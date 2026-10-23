@@ -13603,7 +13603,7 @@ laissé recomposé par décision, est P109.04 : il n'est pas repris.*
 
 ### Une facture émise réimprime les mentions légales, le destinataire et la désignation courants
 - Réf : P140.03
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1790
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:98-114`, `takussan-api/resources/views/pdf/invoices/default.blade.php:10-29,66-82`, `takussan-api/app/Models/Invoice.php:121-139`, `docs/adr/0039-les-sorties-d-argent.md:267-291`
 - Constat :
@@ -13612,6 +13612,7 @@ laissé recomposé par décision, est P109.04 : il n'est pas repris.*
   - ADR-0039 § 7 fige le numéro « à l'émission » et imprime les mentions « quand elles existent », sans dire de quelle date elles sont (lu). Une facture déjà remise au client et téléchargée de nouveau ne se reproduit donc plus.
 - Piste : figer à l'émission (dans la transaction de `InvoiceNumberAllocator`) les mentions légales, l'identité du destinataire et la désignation dans `metadata`, et les imprimer de là ; ou ranger le PDF à l'émission. Le choix et la règle de droit relèvent du porteur (V7, et V1 pour une pièce comptable). Garde : un test « mentions changées après émission ».
 - Mesure (2026-10-22, cc061fbb7, mesureur) : `php artisan route:list --path=invoices` → `index`, `store`, `show`, `cancel`, `mark-paid`, `pdf`, `send`, aucune modification ; relu `DocumentPdfController::invoice` (`loadMissing(['customer','agency','creditedInvoice'])`) et `pdf/invoices/default.blade.php` (raison sociale, NINEA, RCCM, adresse légale relus de `$agency`, l. 22-28 ; client l. 70-81) ; test temporaire (retiré) : facture `sent` « FAC-TMP-1 », agence « Alpha SARL » NINEA 111111111, client « Diop » → passés à « Beta SA », 222222222, « Ndiaye » → le second GET imprime « Beta SA », « 222222222 », « Ndiaye » et plus aucune valeur d'émission → le constat tient. Classement : V7 et V1, la `Piste` propose deux voies sur une pièce comptable, et la règle de droit relève du porteur.
+- Mesure (2026-10-23, 529ebc0ac, implementeur) : test neuf `InvoiceIssuedMentionsTest` rouge avant correctif : facture émise par `POST /api/invoices/{id}/send` (agence « Alpha SARL », NINEA 111111111, client « Diop », bien « Villa Alpha »), puis agence, client et bien renommés → le PDF (gabarit rendu en HTML) n'imprime plus « Alpha SARL » → voie retenue, la plus étroite : `InvoiceNumberAllocator` fige `metadata.issued` (mentions légales, destinataire, désignation) dans la mise à jour qui numérote, et `pdf/invoices/default` l'imprime ; brouillon et facture émise avant le gel gardent les valeurs courantes ; ablation (écriture retirée) → rouge, remise → vert ; `InvoiceNumberingTest` 11/11, `InvoicePdfTest` 2/2, `InvoiceLinesTest` 5/5, `InvoiceLegalMentionsTest` 4/4, `InvoiceTest` 21/21, `FactureDesignationTest` 5/5, `PdfDUnClientSupprimeTest` 2/2, `PdfDUnBienSupprimeTest` 3/3. L'en-tête (nom et logo de l'agence) reste lu au téléchargement, hors de la `Piste`.
 
 ### Petites améliorations du service PDF et de sa documentation
 - Réf : P140.04
