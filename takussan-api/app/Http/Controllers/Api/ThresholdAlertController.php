@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreThresholdAlertRequest;
 use App\Http\Requests\Api\UpdateThresholdAlertRequest;
 use App\Models\ThresholdAlert;
+use App\Policies\AgencyIndicatorPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -69,12 +70,13 @@ class ThresholdAlertController extends Controller
         return $this->json(['message' => 'ok']);
     }
 
+    /**
+     * TCK-1701 (P82.04) — un RELAIS : la règle vit dans {@see AgencyIndicatorPolicy::delete()}
+     * (`agency.update` sous le profil actif). Le helper reste parce qu'il est inscrit aux
+     * exemptions de `scripts/check-controller-authorization.mjs`, qui refuse une exemption morte.
+     */
     private function authorizeAgency($user, ThresholdAlert $alert): void
     {
-        abort_unless(
-            $user->isSuperAdmin()
-                || ($user->agency_id !== null && $user->agency_id === $alert->agency_id && $user->isAgencyAdminAt((int) $alert->agency_id)),
-            403,
-        );
+        abort_unless($user->can('delete', $alert), 403);
     }
 }

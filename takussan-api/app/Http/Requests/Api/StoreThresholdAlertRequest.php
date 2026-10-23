@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Agency;
 use App\Models\ThresholdAlert;
+use App\Policies\AgencyIndicatorPolicy;
 use Illuminate\Validation\Rule;
 
 /**
@@ -23,17 +25,21 @@ class StoreThresholdAlertRequest extends BaseFormRequest
      * contrôleur, ce qui rendait 422 là où l'API rendait 403 pour un appel à la fois non
      * autorisé et mal formé. `authorize()` rétablit l'ordre d'origine.
      *
-     * ⚠ **REPRISE, pas délégation** : cette règle n'est pas encore dans une policy — elle fait
-     * partie des 19 helpers relevés hors périmètre de TCK-306. L'expression est reproduite à
-     * l'identique ; son domicile définitif est une policy, et le ticket de suite doit la
-     * convertir en délégation comme les 35 autres.
+     * TCK-1701 (P82.04) — DÉLÉGATION à {@see AgencyIndicatorPolicy} : `agency.update` sous le
+     * profil actif de l'agence, plus `isAgencyAdminAt` (un admin sans la capacité passait, un
+     * agent qui la tenait était refusé).
      */
     public function authorize(): bool
     {
         $user = $this->user();
+        if ($user === null) {
+            return false;
+        }
 
-        return $user !== null && ($user->isSuperAdmin()
-            || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)));
+        // L'agence que `store` résoudra par défaut : celle du profil actif.
+        $agency = $user->agency_id !== null ? Agency::query()->find($user->agency_id) : null;
+
+        return $user->can('create', [ThresholdAlert::class, $agency]);
     }
 
     /** @return array<string, mixed> */
