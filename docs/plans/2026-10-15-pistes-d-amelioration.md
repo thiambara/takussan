@@ -17493,7 +17493,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### « Moi » et « Désigner » le référent d'un client sont montrés à tout lecteur de la fiche, alors que l'API exige `crm.assign`
 - Réf : P189.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1873
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/crm/CustomerReferent.tsx:50,62-90`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:170`, `takussan-api/app/Http/Requests/Api/SetPrimaryContactCustomerRequest.php:31-40`
 - Constat :
@@ -17503,3 +17503,4 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré. Distinct de P88.03 (la liste des cibles) et de P152.05 (« Attribuer » une demande de contact).
 - Piste : juger les deux gestes par `useCan('crm.assign')` (la capacité que l'API lit, comme P152.05), ou par un `abilities.assign` servi avec la fiche ; masquer « Moi » et « Désigner » sans elle. Test de `CustomerReferent` avec un agent sans `crm.assign` : ni l'un ni l'autre.
 - Mesure (2026-10-23, 66ff6bc10, mesureur) : relu `CustomerReferent.tsx:50,62-90` (« Moi » dès que l'appelant n'est pas le référent, « Désigner » dès qu'un autre agent existe, aucune capacité lue), `customers/[id]/page.tsx:170` (monté sans condition), `SetPrimaryContactCustomerRequest::authorize` (l. 31-40, `view` **et** `crm.assign`, TCK-591) ; aucun commit sur ces chemins depuis 1ac04b8ac ; même test temporaire (retiré) : agent au rôle système moins `crm.assign` → `GET /api/customers/{id}` 200, `GET …/relationships` 200, `POST …/primary-contact` avec son propre identifiant **403** ; témoin agent au rôle système → 200 → le constat tient. Classement : A1, la règle attendue est écrite dans `SetPrimaryContactCustomerRequest` (TCK-591) ; le correctif attendu juge « Moi » et « Désigner » par `useCan('crm.assign', agencyId)` et les masque sans elle, le titre et le nom du référent restant affichés (précédent P152.05, TCK-1430).
+- Mesure (2026-10-23, 8d1a2ba6a, implementeur) : relu `CustomerReferent.tsx` inchangé depuis la mesure (« Me désigner » dès que l'appelant n'est pas le référent, sélecteur dès qu'un autre agent existe, aucune capacité lue) et `SetPrimaryContactCustomerRequest::authorize` (`view` et `crm.assign`) ; reproduit avant correctif par `CustomerReferent.capacite.test.tsx` (agent sans `crm.assign` : « Me désigner » rendu) → les deux gestes passent sous `useCan('crm.assign', agencyId)`, la liste des agents n'est plus demandée sans elle, le titre et le référent restent affichés. Ablation : 1 rouge, vert remis.
