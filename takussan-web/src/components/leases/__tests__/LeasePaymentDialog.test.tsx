@@ -51,6 +51,7 @@ function echeance(p: Partial<LeasePayment> & Pick<LeasePayment, 'id' | 'status'>
     late_fee_payable_online: false,
     amount_due: 250_000,
     receipt_available: false,
+    is_overdue: false,
     notes: null,
     created_at: '2026-04-01T00:00:00+00:00',
     ...p,

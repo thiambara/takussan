@@ -240,6 +240,7 @@ const LEASE_PAYMENT_FIELDS: string[] = [
   'late_fee_payable_online',
   'amount_due',
   'receipt_available',
+  'is_overdue',
   'reference_number',
   'notes',
 ];
