@@ -59,7 +59,13 @@ vi.mock('@/components/auth/OAuthButtons', () => ({
 const { AuthProvider, useAuth } = await import('@/context/AuthContext');
 const { useApiQuery } = await import('@/hooks/useApiQuery');
 const { createQueryClient } = await import('@/lib/query-client');
-const { getIds: favorisLocaux } = await import('@/lib/favoritesStore');
+const { getIds: favorisLocaux, useFavorites } = await import('@/lib/favoritesStore');
+
+/** TCK-1826 — un abonné du magasin (un cœur à l'écran) : sans lui, les favoris ne se lisent pas. */
+function Coeur() {
+  useFavorites();
+  return null;
+}
 const { UserMenu } = await import('@/components/layout/UserMenu');
 const { default: LoginPage } = await import('@/app/(auth)/auth/login/page');
 const { default: RegisterPage } = await import('@/app/(auth)/auth/register/page');
@@ -176,6 +182,7 @@ describe('TCK-509 — le jeton client suit la session, sans rechargement', () =>
     const client = monter(
       <>
         <Sonde />
+        <Coeur />
         <UserMenu user={A} />
         <LoginPage />
       </>,

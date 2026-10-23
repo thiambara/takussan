@@ -17,6 +17,7 @@ import {
   getIds as getLocalFavoriteIds,
   clear as clearLocalFavorites,
   replace as replaceLocalFavorites,
+  chargerAuPremierAbonne,
 } from '@/lib/favoritesStore';
 import { favoritesQueryKeys, fetchAllFavoritePropertyIds } from '@/lib/queries/favorites';
 
@@ -103,7 +104,7 @@ export function AuthProvider({
   }, []);
 
   // Single source of truth for the favorites store: when the user changes,
-  // (a) on auth → fetch /api/favorites and replace the store, (b) on logout
+  // (a) on auth → fetch /api/favorites (at the store's first subscriber) and replace the store, (b) on logout
   // → clear the store. The store stays the canonical reactive cache that
   // the navbar popover, every <FavoriteButton>, and the detail page heart
   // all subscribe to.
@@ -122,19 +123,23 @@ export function AuthProvider({
     }
     wasAuthedRef.current = true;
 
+    // TCK-1826 (P136.05) — lus au premier abonné du magasin (cœur, compteur), pas au montage.
     let cancelled = false;
-    (async () => {
-      try {
-        const ids = await fetchAllFavoritePropertyIds(token);
-        if (cancelled) return;
-        replaceLocalFavorites(ids);
-        void queryClient.invalidateQueries({ queryKey: favoritesQueryKeys.all });
-      } catch {
-        // Best-effort — leave the store as-is on failure.
-      }
-    })();
+    const retirer = chargerAuPremierAbonne(() => {
+      void (async () => {
+        try {
+          const ids = await fetchAllFavoritePropertyIds(token);
+          if (cancelled) return;
+          replaceLocalFavorites(ids);
+          void queryClient.invalidateQueries({ queryKey: favoritesQueryKeys.all });
+        } catch {
+          // Best-effort — leave the store as-is on failure.
+        }
+      })();
+    });
     return () => {
       cancelled = true;
+      retirer();
     };
   }, [userId, userAgencyId, token, queryClient]);
 

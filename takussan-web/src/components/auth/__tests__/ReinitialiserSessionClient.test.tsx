@@ -18,7 +18,13 @@ const { AuthProvider, useAuth } = await import('@/context/AuthContext');
 const { useApiQuery } = await import('@/hooks/useApiQuery');
 const { createQueryClient } = await import('@/lib/query-client');
 const { ReinitialiserSessionClient } = await import('@/components/auth/ReinitialiserSessionClient');
-const { FAVORITES_STORAGE_KEY, getIds: getFavoris } = await import('@/lib/favoritesStore');
+const { FAVORITES_STORAGE_KEY, getIds: getFavoris, useFavorites } = await import('@/lib/favoritesStore');
+
+/** TCK-1826 — un abonné du magasin (un cœur à l'écran) : sans lui, les favoris ne se lisent pas. */
+function Coeur() {
+  useFavorites();
+  return null;
+}
 
 const A = { id: 7, first_name: 'Astou', last_name: 'Dieng', roles: [] } as unknown as User;
 const B = { id: 3, first_name: 'Ousmane', last_name: 'Ndiaye', roles: [] } as unknown as User;
@@ -106,6 +112,7 @@ describe('ReinitialiserSessionClient', () => {
     monter(
       <>
         <Sonde />
+        <Coeur />
         <ReinitialiserSessionClient />
       </>,
       { user: A, token: 'jeton-A' },
@@ -124,6 +131,7 @@ describe('ReinitialiserSessionClient', () => {
     monter(
       <>
         <Sonde />
+        <Coeur />
         <ReinitialiserSessionClient />
       </>,
       { user: A, token: 'jeton-A' },
@@ -168,6 +176,7 @@ describe('ReinitialiserSessionClient', () => {
     monter(
       <>
         <Sonde />
+        <Coeur />
         <ReinitialiserSessionClient />
       </>,
       { user: null, token: null },

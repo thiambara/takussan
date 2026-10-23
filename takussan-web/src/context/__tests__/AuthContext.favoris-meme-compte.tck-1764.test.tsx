@@ -21,6 +21,13 @@ vi.mock('@/lib/queries/favorites', async (importOriginal) => ({
 }));
 
 const { AuthProvider, useAuth } = await import('@/context/AuthContext');
+const { useFavorites } = await import('@/lib/favoritesStore');
+
+/** TCK-1826 — un abonné du magasin (un cœur à l'écran) : sans lui, les favoris ne se lisent pas. */
+function Coeur() {
+  useFavorites();
+  return null;
+}
 
 const COMPTE = { id: 7, first_name: 'Astou', last_name: 'Dieng', roles: [], agency_id: 3 } as unknown as User;
 
@@ -38,6 +45,7 @@ function monter() {
     <QueryClientProvider client={new QueryClient()}>
       <AuthProvider initialUser={COMPTE} initialToken="jeton">
         <Sonde />
+        <Coeur />
       </AuthProvider>
     </QueryClientProvider>,
   );
