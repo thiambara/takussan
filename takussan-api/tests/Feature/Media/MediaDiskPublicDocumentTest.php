@@ -73,6 +73,21 @@ class MediaDiskPublicDocumentTest extends TestCase
         $this->get($this->fileUrl($property, $document))->assertNotFound();
     }
 
+    /**
+     * P187.05 (TCK-1851) — `whereNumber()` laissait passer toute suite de chiffres, et l'action
+     * typée `int` rendait 500 sur un identifiant que PHP lit en flottant. Un identifiant de route
+     * trop long rend le 404 de tout autre échec.
+     */
+    public function test_an_identifier_beyond_bigint_is_not_found(): void
+    {
+        $property = Property::factory()->published()->create();
+        $trop = '99999999999999999999';
+
+        $this->get("/api/public/properties/{$property->id}/documents/{$trop}/file")->assertNotFound();
+        $this->get("/api/public/properties/{$trop}/documents/1/file")->assertNotFound();
+        $this->get('/api/public/properties/9999999999999999999/documents/1/file')->assertNotFound();
+    }
+
     public function test_a_document_of_a_property_that_is_not_public_is_not_found(): void
     {
         $property = Property::factory()->draft()->create();
