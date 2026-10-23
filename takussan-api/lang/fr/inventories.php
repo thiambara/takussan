@@ -4,6 +4,20 @@
 return [
     'pdf' => [
         'signed_on_behalf_of' => 'Signé par :signer pour le compte de :landlord',
+        // P192.04 — libellés des enums imprimés par l'acte, repris mot pour mot du front
+        // (`inventory.conditions.*`, `inventory.status.*`).
+        'conditions' => [
+            'excellent' => 'Excellent',
+            'good' => 'Bon',
+            'fair' => 'Correct',
+            'poor' => 'Mauvais',
+        ],
+        'statuses' => [
+            'draft' => 'Brouillon',
+            'pending_signature' => 'En attente de signature',
+            'signed' => 'Signé',
+            'disputed' => 'En litige',
+        ],
     ],
     // TCK-656 — messages de validation, rendus dans la langue de la requête.
     'signature' => [
