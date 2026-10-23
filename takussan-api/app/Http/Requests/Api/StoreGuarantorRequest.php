@@ -46,7 +46,8 @@ class StoreGuarantorRequest extends BaseFormRequest
             'monthly_income' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
             'relationship_to_tenant' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
-            'metadata' => ['nullable', 'array'],
+            // TCK-1815 (P181.07) — plus de `metadata` : aucun lecteur ni émetteur, et la modification
+            // ne l'acceptait déjà pas. La colonne reste.
         ]);
     }
 }

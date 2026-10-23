@@ -139,6 +139,24 @@ class GuarantorTest extends TestCase
             ->assertJsonValidationErrors(['first_name', 'last_name']);
     }
 
+    /**
+     * TCK-1815 (P181.07) — `metadata` n'a ni lecteur ni émetteur : la création ne l'écrit plus, comme
+     * la modification qui ne l'acceptait déjà pas. La colonne reste.
+     */
+    public function test_create_does_not_write_metadata(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $id = $this->postJson('/api/guarantors', [
+            'first_name' => 'Jean',
+            'last_name' => 'Dupont',
+            'metadata' => ['cle' => str_repeat('x', 1000)],
+        ])->assertStatus(201)->json('data.id');
+
+        $this->assertNull(Guarantor::query()->findOrFail($id)->metadata);
+    }
+
     public function test_endpoints_require_auth(): void
     {
         $this->getJson('/api/guarantors')->assertUnauthorized();
