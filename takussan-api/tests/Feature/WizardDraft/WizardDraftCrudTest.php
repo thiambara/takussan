@@ -159,4 +159,37 @@ class WizardDraftCrudTest extends TestCase
             ->putJson('/api/me/wizard-drafts/host-individual-wizard', ['step' => 1, 'data' => null])
             ->assertOk();
     }
+
+    /**
+     * TCK-1809 (P181.02) — la colonne `wizard_drafts.key` est un varchar(255) :
+     * une clé plus longue rendait 500 (`SQLSTATE[22001]`). La contrainte de
+     * route la borne, et la refuse en 404 comme une clé hors de son alphabet.
+     */
+    public function test_key_longer_than_255_characters_is_not_found_on_every_route(): void
+    {
+        $user = User::factory()->create();
+        $key = str_repeat('k', 256);
+
+        $this->actingAs($user)
+            ->putJson("/api/me/wizard-drafts/{$key}", ['step' => 1, 'data' => ['a' => 1]])
+            ->assertNotFound();
+        $this->actingAs($user)->getJson("/api/me/wizard-drafts/{$key}")->assertNotFound();
+        $this->actingAs($user)->deleteJson("/api/me/wizard-drafts/{$key}")->assertNotFound();
+
+        $this->assertDatabaseCount('wizard_drafts', 0);
+    }
+
+    public function test_key_of_exactly_255_characters_is_accepted(): void
+    {
+        $user = User::factory()->create();
+        $key = str_repeat('k', 255);
+
+        $this->actingAs($user)
+            ->putJson("/api/me/wizard-drafts/{$key}", ['step' => 1, 'data' => ['a' => 1]])
+            ->assertStatus(201);
+        $this->actingAs($user)->getJson("/api/me/wizard-drafts/{$key}")->assertOk();
+        $this->actingAs($user)->deleteJson("/api/me/wizard-drafts/{$key}")->assertSuccessful();
+
+        $this->assertDatabaseCount('wizard_drafts', 0);
+    }
 }
