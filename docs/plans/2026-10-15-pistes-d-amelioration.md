@@ -268,7 +268,7 @@ voie d'écriture (angle 13, puis 47).
 | 191 | Fils rattachés à un bail ou à une réservation (`conversations.lease_id`, groupes à contexte de bail, type `lease` et `booking`) face à la policy du porteur : `ConversationAccess` ne juge que la participation hors intervention et fil de prospect, si bien qu'un locataire sorti, un bailleur remplacé ou un agent suspendu qui y reste participant lit et écrit encore — né de P153.04 | fait |
 | 192 | Libellés que l'API résout par une clé bâtie sur une valeur (`__('invitations.roles.'.$role)`, `enumLabel()` de `BaseResource`, gabarits PDF, exports CSV, `__("…{$this->kind}…")`) face aux valeurs que la validation, les constantes et les enums acceptent réellement : clé brute rendue sans erreur au lecteur — né de P155.01 | fait |
 | 193 | Avis et textes bâtis sur l'e-mail d'un compte ou d'une invitation (`:email` des notifications, `toMail()` et `routeNotificationForMail`, exports, journaux d'équipe) face aux comptes et invitations sans e-mail depuis TCK-589 (`PHONE_LOGIN_ENABLED`) : texte à trou, courriel vers une adresse nulle, ou personne nommée par rien — né de P155.03 | fait |
-| 194 | Règles `mimes:` et `mimetypes:` des téléversements (`StoreBankStatementRequest`, documents, pièces jointes, imports ; 13 sous `app/Http/Requests`) face au type que `finfo` lit dans un fichier réel (OFX 2 lu `xml`, CSV à point-virgule, PDF ou image d'un téléphone), et tests qui déposent par `UploadedFile::fake()`, dont le type se déduit du nom : format annoncé à l'écran refusé en 422 sans qu'aucun test le voie — né de P157.05 | à faire |
+| 194 | Règles `mimes:` et `mimetypes:` des téléversements (`StoreBankStatementRequest`, documents, pièces jointes, imports ; 13 sous `app/Http/Requests`) face au type que `finfo` lit dans un fichier réel (OFX 2 lu `xml`, CSV à point-virgule, PDF ou image d'un téléphone), et tests qui déposent par `UploadedFile::fake()`, dont le type se déduit du nom : format annoncé à l'écran refusé en 422 sans qu'aucun test le voie — né de P157.05 | fait |
 | 195 | Seuils de saisie recopiés en constantes du front (`MIN` de `GlobalSearch.tsx`, `MOTIF_MIN`, `REASON_MIN`, `MAX_ATTACHMENT_BYTES`, `AGENCY_LOGO_MAX_BYTES`, `maxLength`, `.min()`/`.max()` des schémas de `src/lib/schemas`) face à la règle de la FormRequest ou au seuil du service qui juge la valeur (`FREE_TEXT_MIN`, `min:`, `max:`) : écran qui laisse passer ce que l'API refuse ou ignore, ou qui refuse ce qu'elle accepte, sans test qui compare les deux — né de P159.01 | à faire |
 | 196 | Cas d'enum déclarés que rien n'écrit, mais que des filtres, compteurs, transitions ou libellés lisent (`AgencySubscriptionStatus::PastDue`, `PaymentStatus::PartiallyPaid` sur les loyers, `PaymentStatus::Late` sur les paiements de réservation, et leurs pareils sous `app/Models/Enums`) : branche qui fait croire à un état géré, compteur toujours nul, ou état réel rangé ailleurs — né de P162.06 | à faire |
 | 197 | Clés TanStack Query des lectures portées par l'agence du profil actif sans l'agence ni le profil dans la clé (`PROPERTY_MODERATION_COUNT_KEY`, `AGENCY_INVITATIONS_COUNT_KEY` d'`agency-queues.ts`, et leurs pareilles sous `src/lib/queries`) face au changement de profil actif, qui n'invalide que `profiles`, `roles` et `permissions` (`useProfiles.ts:109-117`) : compte ou liste de l'agence quittée servis depuis le cache — né de l'angle 167 | à faire |
@@ -17837,3 +17837,68 @@ Le PDF de l'état des lieux est P143.01.*
 - Piste : pour la signature, refuser l'envoi par un code quand aucun canal n'a de destination ; pour les trois textes de la plateforme, l'accesseur commun de P193.05.
 - Mesure (2026-10-23, 2db6febf0, mesureur) : relu `LeaseSignatureService::sendCode` (l. 115-117 inchangées : sans numéro vérifié, canal `mail` et `maskEmail((string) $user->email)` ; l. 141-144, seul l'échec du SMS rend 503), `LeaseSignatureCodeNotification::via` (`['mail']`), `maskEmail` (l. 397-402) ; l'état « ni e-mail ni numéro vérifié » est atteignable : un compte créé par téléphone (`PhoneLoginService.php:171-174`, e-mail nul) qui change de numéro par `MeController.php:44-45` perd `phone_verified_at` (lu) ; test temporaire `SondeMesureur19306Test` (retiré) (charge 2,20 / 2,26 / 2,02 sur 8 cœurs) : locataire `email = null`, numéro non vérifié, transport `array`, `POST /api/leases/{id}/signature/otp` → **202** `{"channel":"mail","destination":"•••@"}`, 0 courriel de plus → la première partie tient (destination non vide mais tronquée, et aucun envoi) ; les trois textes d'opérateur (`SuperAdminAcceptedBroadcast.php:53-57`, `SuperAdminCooptationService.php:299`, `ImpersonationService.php:183`) portent bien le repli « nom, sinon e-mail » (lu), sans effet mesurable aujourd'hui. Classement : V7, le correctif ajoute un refus par un code neuf que le front doit dire au signataire (texte et conduite visibles), et la seconde partie dépend de l'accesseur de P193.05, lui-même à valider.
 - Mesure (2026-10-23, 5503c34b3, delegue) : relu l'entrée et la `Mesure` du mesureur, `LeaseSignatureService::sendCode` (l. 107-150 : canal choisi l. 115-117, code émis l. 119 avant tout envoi, seul l'échec du SMS rend `503 lease_signature.sms_not_sent` l. 141-144, TCK-799), `DeletionStepUpService::sendCode` (repli SMS au numéro vérifié, TCK-589 et TCK-632, sans refus quand aucun canal n'a de destination), `docs/features.md:204` (« SMS sur numéro vérifié, sinon e-mail », ADR-0042 : preuve de consentement), `grep -rhoE "lease_signature\.[a-z_]+" takussan-web/src takussan-web/messages` → le front ne connaît que `lease_signature.code_locked`, `grep -n "porteur ("` filtré sur signature et destination → aucune décision → la piste tient, et aucune option n'est écrite. Recommandation : (1) signature : refuser avant d'émettre le code, comme `sms_not_sent` le fait après, par `422 lease_signature.no_destination` quand ni numéro vérifié ni e-mail, sans consommer la fenêtre de renvoi, et le front dit au signataire de vérifier son numéro depuis son profil ; à soumettre parce que c'est un code de refus et un texte d'écran neufs sur le parcours de signature d'ADR-0042 (code à usage unique, V2 en plus du V7 du mesureur) ; (2) les trois textes d'opérateur : ne rien faire tant que P193.05 n'est pas tranchée, puisqu'un opérateur a toujours un e-mail et que le repli est sans effet aujourd'hui ; ce qui manque pour trancher : le texte d'écran du refus et l'accord du porteur sur un refus de plus dans le parcours de signature. Critère trouvé en relisant : V2, en plus du V7 du mesureur.
+
+## Angle 194 — Règles `mimes:` et `mimetypes:` face au type que `finfo` lit dans un fichier réel
+
+*Exploré le 2026-10-23 sur `pre-dev` c87ef2ebc, par l'explorateur. Tout est relu et mesuré par
+l'explorateur lui-même, sans sous-agent. Mesure : fichiers réels produits sur le poste (`textutil`
+pour `.doc`/`.docx`, PhpSpreadsheet pour `.xlsx`/`.xls`/`.csv`, dompdf pour `.pdf`, `sips` pour
+`.heic`/`.jpg`/`.png`, `afconvert` pour `.m4a`/`.mp4`, CSV écrits à la main), passés comme
+`UploadedFile` réels (mode test) et comme `UploadedFile::fake()` du même nom dans un test unitaire
+temporaire (retiré) qui juge chaque jeu de règles par `Validator::make` ; charge `{ 3.45 2.13 2.01 }`
+sur 8 cœurs. Limites : `finfo` de macOS (PHP de développement), celui de l'image de l'API n'est pas
+mesuré ; aucun enregistrement réel de Safari ni fichier réel d'Excel ou de Google Docs. Le cas OFX 2
+de P157.05 est corrigé (`mimes:csv,txt,ofx,xml`, `StoreBankStatementRequest.php:24`) et n'est pas
+repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l'import bancaire
+(`finfo` → `text/plain` → `txt`, dans la liste).*
+
+### Les documents et pièces KYC de moins de 1 Kio sont refusés en 422, alors que la règle ne visait que le fichier vide
+- Réf : P194.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Support/Uploads/AcceptedUploads.php:8-11,55-62`, appelée par `StoreDocumentRequest.php:40`, `UploadDocumentVersionRequest.php:27`, `Kyc/UploadKycDocumentRequest.php:20`, `Me/UploadKycOwnerProfileRequest.php:58`, `Me/UploadKycAgentProfileRequest.php:58`, `Me/UploadKycServiceProviderProfileRequest.php:59`, `Admin/UpdatePrivacyRequestRequest.php:29` ; `takussan-api/tests/Feature/Uploads/DocumentUploadMimeTest.php:36-52`
+- Constat :
+  - Le docblock dit « `min:1` (Ko) refuse le fichier vide » (lu, l. 10-11) ; la règle posée est `min:1` (lu, l. 60). Pour un fichier, Laravel juge la taille en kilo-octets (`getSize() / 1024`), donc `min:1` exige 1 024 octets au moins.
+  - mesuré (sonde temporaire, jeu `['file', ...AcceptedUploads::document(10240)]`) : un `.txt` réel de 27 octets → refusé ; un `.csv` réel à virgules de 68 octets (`finfo` `text/csv`, `mimes` et `mimetypes` passent) → refusé ; le même contenu de 1 023 octets → refusé, de 1 024 octets → accepté. `t.pdf` de dompdf (1 127 octets) passe.
+  - mesuré : les mêmes fichiers en `UploadedFile::fake()->create($nom, 10)` passent tous (10 Kio annoncés).
+  - Les tests du dépôt n'essaient que 0 Ko (`'vide'`) et 100 Ko (lu, `DocumentUploadMimeTest.php:41,49-51` ; `KycUploadMimeTest.php:63,79-80` : 0 et 300 Ko), si bien qu'aucun ne voit la plage 1-1 023 octets.
+  - Le front annonce `text/plain` et `text/csv` pour les documents (lu, `takussan-web/src/lib/queries/documents.ts:169-180`) : une note texte ou un petit CSV choisi à l'écran rend 422.
+  - Établi comment : lu + mesuré.
+- Piste : remplacer `min:1` par une règle qui refuse les seuls 0 octet (règle maison sur `getSize() > 0`, ou `File::types(...)->min(...)` en octets si la version le permet) ; test qui dépose un fichier réel de quelques octets (accepté) et un fichier vide (refusé) sur une route document et une route KYC.
+
+### Une note vocale enregistrée en `audio/mp4` peut être lue `video/mp4` par `finfo` et refusée en 422
+- Réf : P194.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/SendMessageConversationRequest.php:50-56,71` ; `takussan-web/src/components/messages/VoiceNoteRecorder.tsx:15,26-28,88` ; `takussan-web/src/lib/queries/conversations.ts:348,370-373` ; `takussan-api/tests/Feature/Messaging/AudioMessageTest.php:93-95` ; `docs/adr/0038-note-vocale-dans-la-messagerie.md:33-36`
+- Constat :
+  - La règle est `mimetypes:` seule, sur `audio/webm, video/webm, audio/ogg, audio/mp4, audio/x-m4a, audio/aac, audio/mpeg` (lu, l. 54-56, 71). `video/webm` y figure parce que `finfo` le rend pour Chrome (ADR-0038 l. 35-36) ; `video/mp4` n'y est pas.
+  - Le front retombe sur `audio/mp4` quand le navigateur n'enregistre ni WebM ni Ogg (lu, `VoiceNoteRecorder.tsx:15`) et nomme alors le fichier `note-vocale.m4a` (lu, `conversations.ts:372`).
+  - mesuré (sonde temporaire) : un AAC seul en conteneur MP4 de marque `mp42` (`afconvert -f mp4f`) → `finfo` `video/mp4` → refusé ; le même son en marque `M4A ` → `audio/x-m4a` → accepté. `finfo` juge donc la marque `ftyp`, pas la piste.
+  - La marque que pose `MediaRecorder` de Safari n'est pas mesurée (à vérifier) : si elle n'est pas `M4A `, une note vocale de Safari (iOS en particulier) rend 422.
+  - Le seul test dépose un `note.ogg` par `fake()->createWithContent` (lu, l. 93-95), dont le type se déduit du nom : aucun test n'envoie un conteneur MP4.
+  - Établi comment : lu + mesuré sur un fichier produit par `afconvert`, non sur un enregistrement Safari.
+- Piste : relever la marque d'un enregistrement réel de Safari ; s'il rend `video/mp4`, l'ajouter à la liste comme `video/webm` l'a été (ADR-0038), et garder par un test qui dépose un vrai conteneur MP4 audio de cette marque.
+
+### Les tests de téléversement déposent des faux fichiers dont le type vient du nom, si bien qu'aucun ne juge ce que `finfo` lira
+- Réf : P194.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/tests/Feature/Uploads/DocumentUploadMimeTest.php:36-52`, `takussan-api/tests/Feature/Uploads/KycUploadMimeTest.php`, `takussan-api/tests/Feature/Messaging/AudioMessageTest.php:93-95`, et les tests des autres requêtes de la liste `mimes:` (13 sous `app/Http/Requests`)
+- Constat :
+  - `UploadedFile::fake()->create($nom, $ko, $type)` rend le type passé, ou celui que déduit l'extension ; son contenu n'est pas lu (mesuré : `bom.csv`, `semi.csv`, `latin1.csv`, `tab.csv` en faux → `text/csv`/`csv`, en réel → `text/plain`/`txt` ; `ping.mp4` en faux → `application/mp4`, en réel → `video/mp4`).
+  - Seuls `PropertyMediaTest`, `OfxDeuxAImportTest`, `OfxJeuDeCaracteresTest` et le support `ImageEnTete` construisent un `UploadedFile` réel (mesuré : `grep -rln "new UploadedFile(" tests`) ; aucun pour les documents, le KYC, les devis, les pièces de restitution, le contrat de bail, les statuts d'agence ni la note vocale.
+  - Ce sont deux écarts réels de cet angle (P194.01, P194.02) et l'OFX 2 de P157.05 que ces faux fichiers ont laissés passer.
+  - Établi comment : lu + mesuré.
+- Piste : un petit support de test qui produit des fichiers réels par format annoncé à l'écran (PDF de dompdf, `.xlsx` de PhpSpreadsheet, `.docx`, CSV de quelques octets, JPEG, conteneur audio) et un test par famille de requêtes qui les dépose en `UploadedFile` réel ; à défaut, au moins `createWithContent` sans type imposé.
+
+### Petites améliorations
+- Réf : P194.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/lib/queries/documents.ts:163-180` ; `takussan-web/src/components/kyc/KycUploader.tsx:74,201` ; `takussan-api/app/Support/Uploads/AcceptedUploads.php:13-14,18-22`
+- Constat :
+  - Le docblock de `DOCUMENT_MIME_ACCEPT` dit la liste « alignée sur `['required', 'file', 'max:10240']` » (lu, l. 164-166), règle remplacée par `AcceptedUploads::document()` (TCK-601) ; la liste du front n'offre ni `image/heic` ni `image/heif`, que l'API accepte (lu).
+  - `KycUploader` propose `image/*,application/pdf` (lu, l. 74) alors que l'API ne prend que `jpg, jpeg, png, webp, heic, heif, pdf` (lu, `AcceptedUploads.php:18-22`) : un GIF, un AVIF ou un BMP choisi à l'écran rend 422 (déduit de la règle, à vérifier à l'écran).
+  - Établi comment : lu.
+- Piste : réécrire le docblock pour qu'il renvoie à `AcceptedUploads::DOCUMENT_MIMETYPES` ; resserrer `accept` du KYC sur la liste de l'API ; une garde qui compare les listes `accept` du front et les constantes d'`AcceptedUploads` éviterait le retour.
