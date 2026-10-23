@@ -313,6 +313,7 @@ return [
         'lease_not_active' => 'Seul un bail actif ou en préavis reçoit une ligne de paiement.',
         'receipt_not_a_payment' => 'Kaution bu ñu delloo du fey bu luwékat bi : amul kitaas.',
         'receipt_unpaid' => 'Kitaas bi, ñu ngi koy jox rekk su luyer bi feyoo.',
+        'type_from_schedule' => 'Un loyer ou une caution naît de l\'échéancier du bail : cette saisie ne prend que les charges, régularisations et pénalités.',
     ],
     'mail' => [
         'invitation_not_sent' => 'E-mail invitation bi mënuñu ko yónni.',

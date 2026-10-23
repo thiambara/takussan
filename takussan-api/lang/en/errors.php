@@ -313,6 +313,7 @@ return [
         'lease_not_active' => 'Only an active lease, or one under notice, can take a payment line.',
         'receipt_not_a_payment' => 'A refunded deposit is not a tenant payment: it has no receipt.',
         'receipt_unpaid' => 'A rent receipt is only issued for a paid rent.',
+        'type_from_schedule' => 'Rent and deposit lines come from the lease schedule: this entry only takes charges, regularizations and penalties.',
     ],
     'mail' => [
         'invitation_not_sent' => 'The invitation email could not be sent.',

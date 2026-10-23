@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentMethod;
+use App\Services\Maintenance\CurrencyUnit;
 use Illuminate\Validation\Rule;
 
 /**
@@ -41,7 +42,9 @@ class StoreLeasePaymentRequest extends BaseFormRequest
             // P46.05 (TCK-958) — une ligne à 0 n'est rien à encaisser, et une caution rendue ne se
             // crée pas ici : rattachée à aucun reversement, `mark-paid` la refuse, et elle restait
             // `pending` pour toujours. Elle naît du reversement de caution.
-            'amount' => ['required', 'numeric', 'gt:0'],
+            // TCK-1920 (P170.04) — borné au maximum de la colonne `decimal(14,2)` : au-delà,
+            // PostgreSQL rendait `numeric field overflow`, une 500.
+            'amount' => ['required', 'numeric', 'gt:0', 'max:'.CurrencyUnit::MAX_COLUMN],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             'payment_type' => ['required', Rule::enum(LeasePaymentType::class)->except(LeasePaymentType::DepositRefund)],
             'period_start' => ['required', 'date'],
