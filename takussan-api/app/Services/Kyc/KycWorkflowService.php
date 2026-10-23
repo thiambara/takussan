@@ -6,10 +6,12 @@ use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\Capability;
 use App\Models\Enums\KycDossierStatus;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\KycDossier;
 use App\Models\User;
+use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Model\NotificationService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -223,18 +225,29 @@ class KycWorkflowService
     private function notifyReviewed(KycDossier $dossier, bool $verified): void
     {
         $agency = $dossier->subject instanceof Agency ? $dossier->subject : null;
-        $admin = $agency?->primaryAdmin;
-        if (! $admin) {
+        if (! $agency) {
             return;
+        }
+
+        // TCK-1763 (P161.05) — le verdict mène à `/app/agency/kyc`, qui exige `agency.update_kyc`
+        // (TCK-1274) : il part aux admins actifs qui la tiennent, et à l'admin principal en repli
+        // seulement quand aucun ne la tient. Il partait au seul admin principal, sans jugement.
+        $recipients = AdminsDeLAgence::destinataires((int) $agency->id)
+            ->filter(fn (User $admin): bool => $admin->canActAt(Capability::AgencyUpdateKyc, $agency))
+            ->values();
+        if ($recipients->isEmpty() && $agency->primaryAdmin) {
+            $recipients = collect([$agency->primaryAdmin]);
         }
 
         // TCK-588 — le verdict obéit à `kyc_status_changed` (critique : in-app et e-mail
         // toujours), et non plus à « Alerte seuil KPI » par le type `system`.
-        $this->notifications->send(
-            $admin,
-            $verified ? NotificationCode::KycVerified : NotificationCode::KycRejected,
-            $verified ? [] : ['reason' => $dossier->rejection_reason],
-            NotificationTarget::of('agency_kyc')->forAgency($agency->id),
-        );
+        foreach ($recipients as $admin) {
+            $this->notifications->send(
+                $admin,
+                $verified ? NotificationCode::KycVerified : NotificationCode::KycRejected,
+                $verified ? [] : ['reason' => $dossier->rejection_reason],
+                NotificationTarget::of('agency_kyc')->forAgency($agency->id),
+            );
+        }
     }
 }

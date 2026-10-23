@@ -172,4 +172,21 @@ class GovernanceAlertTest extends ApiTestCase
 
         $this->seulLeCollegue(NotificationCode::GovernanceApprovalThresholdChanged);
     }
+
+    /**
+     * TCK-1763 (P161.05) — une alerte de gouvernance ouvre `/app/agency/audit`, page réservée aux
+     * agences `standard` : un espace `individual` n'en reçoit aucune, comme `ReviewNotifier::toModerate`.
+     */
+    public function test_une_agence_individuelle_n_avertit_personne(): void
+    {
+        $espace = Agency::factory()->individual()->create();
+        $second = User::factory()->create();
+        AgencyAdminProfile::factory()->create(['user_id' => $second->id, 'agency_id' => $espace->id]);
+        AppNotification::query()->delete();
+
+        activity('export')->causedBy($this->auteur)->event('data_exported')
+            ->withProperties(['entity' => 'customers', 'agency_id' => $espace->id])->log('data_exported');
+
+        $this->assertSame(0, AppNotification::query()->where('user_id', $second->id)->count());
+    }
 }
