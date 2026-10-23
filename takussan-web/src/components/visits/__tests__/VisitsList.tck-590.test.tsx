@@ -3,6 +3,7 @@
  * (`filter[unassigned]`) ; un bailleur ne le voit pas.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { navigationDeTest } from '@/test/navigation-url';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { withIntl } from '@/test/intl';
@@ -24,6 +25,9 @@ const sansAgent: PropertyVisit = {
   property: { id: 10, title: 'Studio Mermoz', slug: 'studio-mermoz' },
 };
 
+// TCK-1736 — l'onglet se lit et s'écrit dans `?tab=`.
+vi.mock('next/navigation', async () => (await import('@/test/navigation-url')).moduleNavigation);
+beforeEach(() => navigationDeTest.reinitialiser());
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 7, roles: etat.roles } }) }));
 vi.mock('@/lib/queries/visits', () => ({
   useVisits: (params: Record<string, unknown>) => {

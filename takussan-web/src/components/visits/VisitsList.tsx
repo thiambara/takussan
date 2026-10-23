@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CalendarClock, ChevronRight } from 'lucide-react';
 import { useVisits } from '@/lib/queries/visits';
 import { useAuth } from '@/context/AuthContext';
+import { useVueDansLUrl, valeurBornee } from '@/hooks/useVueDansLUrl';
 import { isAdmin, isAgent } from '@/lib/roles';
 import { formatDateTime } from '@/lib/format';
 import { EmptyState } from '@/components/feedback';
@@ -17,7 +18,8 @@ import type { PropertyVisit } from '@/types/visit';
 import type { Locale } from '@/i18n/config';
 import { VISIT_STATUS_LABEL_KEY, VISIT_STATUS_TONE, VISIT_TYPE_LABEL_KEY } from './visit-status';
 
-type TabKey = 'unassigned' | 'requested' | 'confirmed' | 'past' | 'cancelled';
+const TAB_KEYS = ['unassigned', 'requested', 'confirmed', 'past', 'cancelled'] as const;
+type TabKey = (typeof TAB_KEYS)[number];
 
 /**
  * TCK-171 — 4 tabs: Demandées / Confirmées / Passées / Annulées.
@@ -32,7 +34,12 @@ export function VisitsList() {
   const tPlanning = useTranslations('visitPlanning');
   const { user } = useAuth();
   const personnel = user ? isAgent(user.roles) || isAdmin(user.roles) : false;
-  const [tab, setTab] = useState<TabKey>('requested');
+  // TCK-1736 (P168.03) — l'onglet dans `?tab=` : il survit au retour de la fiche, au rechargement
+  // et au lien copié. « Non attribuées » n'est lu que pour le personnel, qui seul le voit.
+  const { params, remplacer } = useVueDansLUrl();
+  const ongletsOuverts: readonly TabKey[] = personnel ? TAB_KEYS : TAB_KEYS.filter((k) => k !== 'unassigned');
+  const tab: TabKey = valeurBornee(params, 'tab', ongletsOuverts) ?? 'requested';
+  const setTab = (next: TabKey) => remplacer({ tab: next === 'requested' ? null : next });
 
   // TCK-867 (P02.10) — arrondi à la minute (vers le bas) : l'instant entre dans la clé de cache
   // des cinq `useVisits`, et à la milliseconde chaque montage en faisait cinq clés neuves.

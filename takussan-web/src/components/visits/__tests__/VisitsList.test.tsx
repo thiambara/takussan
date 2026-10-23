@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { navigationDeTest } from '@/test/navigation-url';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -20,6 +21,9 @@ const pastResult: QueryResult = {
   isError: false,
 };
 
+// TCK-1736 — l'onglet se lit et s'écrit dans `?tab=`.
+vi.mock('next/navigation', async () => (await import('@/test/navigation-url')).moduleNavigation);
+beforeEach(() => navigationDeTest.reinitialiser());
 vi.mock('@/lib/queries/visits', () => ({
   useVisits: (params: { scheduled_at_min?: string; scheduled_at_max?: string }) => {
     if (params.scheduled_at_min) return upcomingResult;
