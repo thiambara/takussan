@@ -17074,7 +17074,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le compte à rebours d'une résiliation anticipée retire le bouton d'annulation un jour trop tôt pour un navigateur à l'ouest d'UTC
 - Réf : P183.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1827
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:27-33,59-67,98-108`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:138-143`
 - Constat :
@@ -17083,6 +17083,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, et mesuré sur la fonction seule ; le bandeau n'a pas été rendu sous un autre fuseau.
 - Piste : compter les jours par comparaison littérale de dates calendaires (ADR-0018), ou faire servir par l'API la fin de la fenêtre d'annulation. Garde : un test de `daysFromTodayTo` sous `TZ=America/New_York`.
 - Mesure (2026-10-23, 940b7f07f, mesureur) : relu `EarlyTerminationBanner.tsx:27-33` (`daysFromTodayTo` : `new Date(iso)` puis `setHours(0,0,0,0)` local, inchangé), `:61-67,98-108` (`cancellationOpen = remaining > 0`, bouton caché sinon), `EarlyTerminationService.php:138-143` (refus si date effective `<=` aujourd'hui, `now()` en `UTC`) ; fonction recopiée, `node` sur l'instant 2026-10-31T15:00Z et la date 2026-11-01 → `Africa/Dakar` 1, `America/New_York` 0, `Asia/Tokyo` 0 : le jour perdu touche aussi un navigateur à l'est d'UTC, après minuit local (le constat ne nommait que l'ouest) ; bandeau non rendu. Classement : A1, la fenêtre est écrite par l'API (`effective > aujourd'hui` UTC) et ADR-0018 dit qu'une date calendaire se compare littéralement ; le correctif compte les jours entre `iso` et la date du jour UTC en `Y-m-d`, sans choix de produit.
+- Mesure (2026-10-23, 80646bf3b, implementeur) : test neuf `EarlyTerminationBanner.fuseau.test.tsx`, horloge à 2026-10-31T15:00Z, date effective 2026-11-01, charge 4,63 sur 8 cœurs → avant correctif, New York et Tokyo rendent « Fin aujourd'hui » sans bouton (2 rouges sur 4, Dakar et le jour UTC même verts) → `daysFromTodayTo` compte l'écart entre la date du jour UTC et la date effective, lues toutes deux à minuit UTC ; 4/4 verts, `EarlyTerminationBanner.test.tsx` et `.lien-facture` 5/5 ; ablation (ancienne fonction) → les 2 mêmes rouges, remise → verts.
 
 ### Petites améliorations
 - Réf : P183.05
