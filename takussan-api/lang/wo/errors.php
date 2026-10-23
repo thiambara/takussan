@@ -547,6 +547,7 @@ return [
     'support' => [
         'account_not_locked' => 'Compte bii tëjuñu ko.',
         'cannot_revoke_current' => 'Mënuñu dindi sa session bi ngay jëfandikoo.',
+        'no_email' => 'Ce compte n\'a pas d\'adresse e-mail : aucun lien de réinitialisation ne peut lui être envoyé.',
         'no_revocable_session' => 'Amul benn session buñu mën a dindi.',
         'target_super_admin' => 'Jëfi support mënuñu jublu ci beneen super-administrateur.',
         'two_factor_already_disabled' => 'Double authentification bi fey nañu ko ba noppi.',
