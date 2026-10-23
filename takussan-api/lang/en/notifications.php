@@ -864,6 +864,7 @@ return [
         'subject_escalation' => 'URGENT ESCALATION: :title',
         'greeting' => 'Hello,',
         'intro' => 'An URGENT maintenance request was submitted for the property.',
+        'intro_became_urgent' => 'A maintenance request was raised to URGENT for the property.',
         'job' => 'Job: :title',
         'intro_escalation' => 'Maintenance request #:id (:title) is URGENT and has not been handled for more than 30 minutes.',
         'cta' => 'Please take charge of this request immediately.',
