@@ -16281,7 +16281,7 @@ règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.
 
 ### Une caution ajoutée par un agent qui efface son compte n'est plus lisible ni modifiable par personne dans l'agence
 - Réf : P175.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : rattacher la caution à une agence demande une colonne neuve ou un choix de source (baux), sur une autorisation de données personnelles (V3)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/GuarantorPolicy.php:25-33,57-75`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:22-24`, `takussan-api/app/Services/Account/AccountDeletionService.php:404,584-605`
 - Constat :
@@ -16291,10 +16291,11 @@ règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.
   - La liste ne la rend qu'à son auteur (`where('added_by_id', $user->id)`, lu, `GuarantorController.php:22-24`) : personne dans l'agence ne la voit plus, alors qu'elle reste attachée à ses baux.
   - À vérifier : le même effet pour un agent seulement retiré de l'agence, ses profils supprimés rendant `agency_id` nul même sans effacement du compte.
 - Piste : rattacher la caution à une agence qui ne dépend pas de la vie de son auteur (l'agence des baux auxquels elle est attachée, ou une colonne `agency_id` posée à la création, V4), et juger `view` et `agencyOf()` par elle. Garde : un test de policy où l'auteur est effacé, puis où il est retiré, qui exige 200 pour le personnel de l'agence.
+- Mesure (2026-10-23, 2a689d48a, mesureur) : relu `GuarantorPolicy.php:25-33,64-75` (`view` exige `addedBy !== null`, `agencyOf()` lit `addedBy?->agency_id`) et `GuarantorController.php:22-24` (liste filtrée sur `added_by_id`), inchangés depuis a92368d50 (`git diff --stat`) ; test temporaire (retiré), charge 3,52 / 3,13 / 3,10 sur 8 cœurs : caution d'un agent, obligations `[]`, collègue `GET /api/guarantors/{id}` 200 avant `anonymize()`, 403 après ; admin d'agence 403 en `GET` et en `PUT`, sa liste `meta.total` = 0 → le constat tient en entier ; le cas de l'agent seulement retiré n'a pas été mesuré. Classement : V4, la piste offre deux sources d'agence dont une colonne neuve, et elle touche qui lit une pièce d'identité (V3).
 
 ### La visite d'un agent qui efface son compte reste à son nom : ni « non attribuée », ni reprise par la passation
 - Réf : P175.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : remettre la visite en « non attribuée » ou refuser l'effacement, deux options
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:265-272,448-546`, `takussan-api/app/Models/PropertyVisit.php:93-97`, `takussan-api/app/Http/Controllers/Api/Agency/AgentHandoverController.php` (`show`, `store`), `takussan-web/src/components/visits/VisitDetail.tsx:122-123,261-268`, `takussan-web/src/components/visits/VisitsList.tsx:183`
 - Constat :
@@ -16305,10 +16306,11 @@ règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.
   - `POST …/claim` par un collègue qui tient `crm.assign` rend 200 (mesuré) : seul ce geste, que l'écran ne montre pas, la récupère.
   - À vérifier : le même reste pour les tâches (`assigned_to_id`), interventions (`assigned_to`), demandes de contact (`handled_by_id`, `recipient_user_id`) et baux (`agent_id`), que `AgentHandoverService::move` sait déplacer au retrait d'un membre (lu, l. 244-259) et que l'effacement ne touche pas (lu : aucune de ces tables dans `AccountDeletionService.php`).
 - Piste : à l'effacement, remettre à `null` l'`agent_id` des visites à venir de l'agent, comme le `visitor_id`, pour qu'elles retombent dans « non attribuées » ; ou refuser l'effacement tant qu'il en porte (une obligation de plus dans `collectOpenObligations`). Garde : un test d'effacement qui exige la visite dans `filter[unassigned]=1`.
+- Mesure (2026-10-23, 2a689d48a, mesureur) : relu `AccountDeletionService.php:265-272` (seul `visitor_id` remis à `null`), `PropertyVisit.php:93-97`, fichiers inchangés depuis a92368d50 ; test temporaire (retiré), charge 3,52 / 3,13 / 3,10 sur 8 cœurs : visite `scheduled` à trois jours, agent effacé (obligations `[]`), collègue `filter[unassigned]=1` → `[]`, détail 200 avec `agent_id` = l'agent effacé et `agent: null`, admin `POST …/members/{agent}/handover` → 404 → le constat tient ; `claim` et les tâches, interventions, demandes et baux n'ont pas été rejoués. Classement : V7, la piste propose deux comportements visibles (retour en « non attribuée » ou effacement refusé) entre lesquels seul le porteur choisit.
 
 ### Le bailleur qui efface son compte n'a plus ni relevé de gérance ni préparation de reversement, et rien ne l'empêche d'effacer
 - Réf : P175.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : refuser l'effacement tant qu'un reversement est dû, ou garder relevé et préparation lisibles (V3)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/OwnerStatementRequest.php:17-24,36-39`, `takussan-api/app/Http/Controllers/Api/PayoutPreparationController.php:27`, `takussan-api/app/Http/Controllers/Api/PayoutController.php:53`, `takussan-api/app/Services/Account/AccountDeletionService.php:448-546`
 - Constat :
@@ -16318,10 +16320,11 @@ règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.
   - P96.02 laisse ce cas en reste, avec une hypothèse : « `collectOpenObligations` bloque peut-être l'effacement tant qu'un reversement est dû ». Elle ne tient pas : la méthode ne lit aucun reversement (lu).
   - L'agence perd donc le relevé d'une période passée de ce bailleur, et ne peut plus lui préparer ce qu'elle lui doit.
 - Piste : décider (V1, V3) entre refuser l'effacement tant qu'un montant reste dû au bailleur (une obligation `payout_due`) et garder le relevé et le reversement lisibles pour un compte effacé (`withTrashed()` dans ces trois lectures). Garde : le test ci-dessus, avec un loyer encaissé et non reversé.
+- Mesure (2026-10-23, 2a689d48a, mesureur) : relu `OwnerStatementRequest.php:17-24,36-39` et `collectOpenObligations()` (aucun reversement lu), inchangés depuis a92368d50 ; test temporaire (retiré), charge 3,52 / 3,13 / 3,10 sur 8 cœurs : bailleur à bail `terminated` avec les loyers de septembre encaissés et non reversés (préparation avant effacement 200, `totals.gross` 220000), obligations `[]` ; après `anonymize()`, admin `GET /api/owner-statements?period=2026-09&landlord_id=…` 403, `GET /api/payouts/preparation` 404 → le constat tient, et un montant dû n'empêche pas l'effacement. Classement : V1, un reversement dû au bailleur, avec un choix sur la conservation des données d'un compte effacé (V3).
 
 ### Le fil de discussion n'affiche jamais le nom de l'auteur d'un message : l'API n'émet pas `sender`
 - Réf : P175.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : le nom d'un participant sorti du fil, que la réponse ne rend plus aujourd'hui, serait émis avec ses messages
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Resources/MessageResource.php:12-27`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:285-310`, `takussan-web/src/components/messages/ChatView.tsx:411-415`, `takussan-web/src/types/message.ts:68-80`
 - Constat :
@@ -16329,13 +16332,15 @@ règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.
   - `ChatView` n'écrit le nom de l'auteur au-dessus d'un message reçu que si `message.sender` est présent (lu, l. 411-415). Le type du front le déclare facultatif (lu, `types/message.ts:75`).
   - Dans un groupe (intervention, bail, agence), aucun message ne dit donc qui l'a écrit. Constat né de la relation `sender` de l'angle ; il ne dépend pas de l'effacement. La famille « clés de réponse que le front lit » est celle de l'angle 45, qui ne l'a pas relevé.
 - Piste : rendre `sender: { id, full_name }` (nul pour un compte effacé, `full_name` vide) en chargeant `sender` dans les deux lectures de `ConversationController` ; côté front, garder le repli quand `sender` est nul. Garde : un test de `GET /api/conversations/{id}/messages` qui exige `data.0.sender.full_name`.
+- Mesure (2026-10-23, 2a689d48a, mesureur) : relu `MessageResource.php:14-26` (rend `sender_id`, jamais `sender`), `ConversationController.php:287,306` (les deux lectures chargent `media` seul), `ChatView.tsx:411-415` (nom écrit seulement si `message.sender`), `types/message.ts:75-79` (`sender?: { id, full_name, avatar_url } | null`) ; `grep -rn "->sender\|'sender'" app` → seul `NotifyNewMessageJob` charge `sender` ; `ConversationResource.php:61-77` rend déjà `full_name` et `avatar_url` des seuls participants actifs (`ConversationController.php:69`, `wherePivotNull('left_at')`) → le constat tient. Classement : V3, la forme attendue est écrite par le type du front (A1), mais rendre `sender` émettrait aussi le nom d'un participant sorti du fil, que la réponse ne donne plus aujourd'hui : ce qui en est exposé revient au porteur.
 
 ### Petites améliorations
 - Réf : P175.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Resources/ReviewResource.php:16-20`, `takussan-api/app/Listeners/Maintenance/SyncMaintenanceConversation.php:91-103`
 - Constat :
   - `ReviewResource` rend `author.name` = `'Anonyme'` en dur, en français, pour un auteur effacé ou sans nom (lu, l. 18-20) : un libellé émis par l'API, que le lecteur anglais lit tel quel (principe 5 de `CLAUDE.md`). Il lit aussi `$this->resource->author` sans `whenLoaded` (lu, l. 16) : une requête par avis quand la liste ne charge pas l'auteur (à vérifier sur les lectures qui l'utilisent).
   - `swapProvider()` relit le prestataire sortant par `User::query()->find()` (lu, l. 93) : effacé, il est introuvable et n'est pas retiré du fil de l'intervention (l. 97-102). Sans effet visible tant qu'un compte effacé ne se connecte plus (à vérifier : sa ligne de participant reste active).
 - Piste : rendre `author.name` nul et laisser le front écrire « Anonyme » par une clé i18n, charger `author` par `whenLoaded` ; relire le sortant par `User::withTrashed()` dans `swapProvider()`.
+- Mesure (2026-10-23, 2a689d48a, mesureur) : relu `ReviewResource.php:16-20` (`'Anonyme'` en dur, `author` lu sans `whenLoaded`) et `SyncMaintenanceConversation.php:93` (`User::query()->find()`, `User` en `SoftDeletes`, l. 55) ; les lectures en liste chargent toutes `author` (`ReviewController.php:72,228,252`, `PublicPropertyController` `with('author.media')`, `PublicAgentController.php:259`, `PublicAgencyController.php:347`) → la requête par avis est **caduque**, le libellé en dur et la relecture du sortant tiennent ; le front lit `review.author.name.charAt(0)` (`PropertyReviews.tsx:67`) et doit donc garder un repli, la clé `anonymous` existe déjà. Classement : A1, le principe 5 de `CLAUDE.md` dit que le front porte le libellé et le commentaire de `swapProvider()` dit que le sortant quitte le fil, sans texte neuf.
