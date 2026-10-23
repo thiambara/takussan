@@ -232,4 +232,19 @@ class TeamPerformanceTest extends ApiTestCase
         $this->actingAsApi($this->agencyAdmin($this->agency));
         $this->assertSame(2, $this->rows()[$a->id]['tasks_overdue']);
     }
+
+    /**
+     * P198.01 (TCK-1910) — `tasks_overdue` suit la règle de la liste (TCK-591 AC7) : une tâche
+     * ouverte due ce matin (il est 10:00) n'est pas en retard ; une tâche due hier l'est.
+     */
+    public function test_p198_01_a_task_due_earlier_today_is_not_overdue(): void
+    {
+        $a = $this->agencyAgent($this->agency);
+        $parent = ['assigned_to_id' => $a->id, 'status' => TaskStatus::Open, 'taskable_type' => $this->property->getMorphClass(), 'taskable_id' => $this->property->id];
+        Task::factory()->create($parent + ['due_at' => '2026-07-20 08:00:00']);
+        Task::factory()->create($parent + ['due_at' => '2026-07-19 23:00:00']);
+
+        $this->actingAsApi($this->agencyAdmin($this->agency));
+        $this->assertSame(1, $this->rows()[$a->id]['tasks_overdue']);
+    }
 }

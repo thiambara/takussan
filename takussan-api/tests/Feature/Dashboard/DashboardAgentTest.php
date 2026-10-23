@@ -156,6 +156,42 @@ class DashboardAgentTest extends ApiTestCase
             ->assertJsonPath('data.tasks.items.2.priority', 'low');
     }
 
+    /**
+     * P198.01 (TCK-1910) — « en retard » se juge comme le filtre `filter[due]=overdue` de la liste
+     * (TCK-591 AC7) : échue avant aujourd'hui dans le fuseau de l'agence. Une tâche due ce matin,
+     * regardée l'après-midi, est « du jour », pas « en retard ».
+     */
+    public function test_une_tache_echue_ce_matin_est_du_jour_et_pas_en_retard(): void
+    {
+        Carbon::setTestNow('2026-07-20 14:00:00');
+        $agency = Agency::factory()->create();
+        $agent = $this->apiActingAsRole('agent', ['agency' => $agency]);
+        $customer = Customer::factory()->create(['agency_id' => $agency->id]);
+
+        foreach (['2026-07-20 09:00:00', '2026-07-19 18:00:00'] as $dueAt) {
+            Task::create([
+                'title' => 'Échéance '.$dueAt,
+                'taskable_type' => Customer::class,
+                'taskable_id' => $customer->id,
+                'assigned_to_id' => $agent->id,
+                'created_by_id' => $agent->id,
+                'due_at' => $dueAt,
+                'status' => TaskStatus::Open,
+                'priority' => TaskPriority::Medium,
+            ]);
+        }
+
+        $this->apiGet('/api/dashboard/agent')->assertOk()
+            ->assertJsonPath('data.tasks.overdue', 1)
+            ->assertJsonPath('data.tasks.today', 1);
+
+        $this->apiGet('/api/tasks?filter[due]=overdue')->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.title', 'Échéance 2026-07-19 18:00:00');
+
+        Carbon::setTestNow();
+    }
+
     public function test_customer_is_denied(): void
     {
         $this->apiActingAsRole('customer');

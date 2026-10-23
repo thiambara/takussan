@@ -122,11 +122,10 @@ class DashboardAgentService
             ->whereIn('status', [TaskStatus::Open, TaskStatus::InProgress])
             ->count();
 
+        // P198.01 (TCK-1910) — la règle de la liste : échue avant aujourd'hui, pas avant maintenant.
         $overdueTasks = Task::where('assigned_to_id', $agent->id)
             ->tap($taskInAgency)
-            ->whereIn('status', [TaskStatus::Open, TaskStatus::InProgress])
-            ->whereNotNull('due_at')
-            ->where('due_at', '<', now())
+            ->overdue()
             ->count();
 
         $tasksToday = Task::where('assigned_to_id', $agent->id)
