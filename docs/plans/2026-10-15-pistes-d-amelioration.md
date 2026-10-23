@@ -17157,10 +17157,11 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Une visite marquée « absent » se déplace par le `PATCH`, le visiteur en est averti, puis elle ne peut plus être ni confirmée ni reportée
 - Réf : P184.04
-- Statut : validé (délégué) — borner le refus au déplacement : le `PATCH` refuse en 422 `visit.reschedule_inactive` tout changement de `scheduled_at` sur une visite hors `VisitSchedulingService::ACTIVE_STATUSES`, sans avis au visiteur ; notes, type et agent restent modifiables sur une visite `no_show` ; reste : la prise en charge (`claim`) d'une visite `no_show`, non mesurée
+- Statut : fait · TCK-1838 — reste : la prise en charge (`claim`) d'une visite `no_show`, non mesurée
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:210-262`, `takussan-api/app/Services/Visit/VisitSchedulingService.php:35-38,356-375`, `takussan-web/src/components/visits/VisitDetail.tsx:118`
 - Constat :
+- Mesure (2026-10-23, 8c6b8030f, implementeur) : reproduit par `PropertyVisitUpdateInactiveTest` avant correctif (visite `no_show` d'il y a une heure, `PATCH {scheduled_at: J+2 10:00}` du propriétaire → 200 au lieu de 422, charge `{ 2.30 2.55 2.48 }` sur 8 cœurs) → `update` refuse en 422 `visit.reschedule_inactive` tout changement de `scheduled_at` hors `ACTIVE_STATUSES`, avant écriture ; 2 tests verts (déplacement refusé, heure et statut inchangés, aucun avis ; notes et type modifiables sur `no_show`, aucun avis) ; ablation de la condition → 1 rouge, remise → verts ; `PropertyVisitTest`, `PropertyVisitRescheduleTest`, `PropertyVisitNotificationTest`, `PropertyVisitWorkflowTest`, `PropertyVisitAssignmentTest` verts.
   - `update` ne refuse que `completed` et `cancelled` (l. 216-220) ; le report du visiteur exige un statut actif (`scheduled`, `confirmed`, `rescheduleOrFail` l. 361-365), et le front ne montre le déplacement que sur ces deux statuts (`VisitDetail.tsx:118`) (lu).
   - Mesuré : visite `no_show` d'il y a une heure ; le propriétaire envoie `{scheduled_at: J+2 10:00}` → 200, la visite reste `no_show` à la nouvelle heure, et **1** avis part au visiteur (`rescheduledByAgency`) ; `POST …/confirm` → 422 « Only a scheduled visit can be confirmed. » ; le report du visiteur → 422 « Only a pending or confirmed visit can change slot. ».
   - Le visiteur reçoit donc l'annonce d'un nouveau rendez-vous que rien ne peut plus confirmer, et qui ne recevra aucun rappel (le job ne lit que les visites actives, à vérifier).
