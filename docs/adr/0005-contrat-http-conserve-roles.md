@@ -91,10 +91,21 @@ pas.
 
 1. **`roles` de `/api/auth/me` (`UserResource`)** contient :
    - les types des profils **actifs** que le compte tient **dans l'agence du profil actif** ;
+   - les **types qui ne dépendent pas d'une agence**, quelle que soit l'agence active :
+     `service_provider` si le `ServiceProviderProfile` est actif (ce profil n'a pas
+     d'`agency_id`, il est lié aux agences par une collaboration), et `tenant`, tiré d'un bail en
+     cours (`hasActiveTenantLease()`) — décision du porteur du 2026-10-23 ;
    - `customer`, le plancher ;
    - `super_admin`, si le profil plateforme est actif (c'est déjà le cas).
 
    Un profil suspendu, archivé ou inactif n'y figure pas. Un profil d'une autre agence non plus.
+
+   **Un compte sans profil actif résolu** (un compte de plusieurs agences sans indice ni cookie, et
+   les réponses de connexion d'`AuthController`, `PhoneLoginService` et `OAuthSessionOpener`, qui
+   rendent `UserResource::pourSoi`) reçoit les types globaux ci-dessus, `customer` et
+   `super_admin` s'il l'est, et aucun type d'agence (décision du porteur du 2026-10-23).
+   L'amendement d'[ADR-0004](0004-profil-actif-resolu-par-middleware.md) du même jour fait porter
+   l'indice par tout appel, ce qui réduit ce cas à la connexion.
 2. **Une variante « actifs seulement » de `profileTypes()`** est la seule source de ce calcul. Elle
    est lue par :
    - `UserResource`, qui la borne à une agence (point 1 et point 4) ;
@@ -102,6 +113,12 @@ pas.
      `FeatureFlagEvaluator::evaluate`, pour leur critère `roles`.
 
    Une annonce ou un drapeau ciblé par rôle n'atteint plus un profil suspendu.
+
+   **Leur critère `agency_ids`** se juge sur **les agences où le compte a un profil actif**, toutes,
+   et non plus sur `$user->agency_id`, qui ne suit que l'agence active et vaut `null` pour un compte
+   de plusieurs agences sans profil résolu (décision du porteur du 2026-10-23). Une annonce ou un
+   drapeau ciblé sur une agence atteint donc chaque membre actif de cette agence, quel que soit
+   l'en-tête de profil de la requête.
 3. **Les vues super-admin gardent les profils suspendus.** `UserDetailResource` (la fiche d'un
    compte dans la console) et `Admin\AgencyDetailController::team` (l'onglet Équipe d'une agence,
    déjà borné à l'agence lue par TCK-1780) continuent de lire `profileTypes()` tel quel. Un
@@ -112,29 +129,23 @@ pas.
    `GET /api/agencies/{agency}/members` (`AgencyController::listMembers`, qui rend
    `UserResource`). Un admin de A n'y apprend plus ce qu'un membre tient dans B.
 
-**Ce que la décision ne tranche pas, et que le ticket soumet au porteur avant d'écrire du code.**
+   **Un membre suspendu y garde son type, avec son statut**, pour que l'admin le voie et puisse le
+   réactiver (décision du porteur du 2026-10-23). La liste d'équipe teste une appartenance, pas un
+   droit : c'est le cas qu'ADR-0031 § 3 range parmi les sites sans filtre de statut. Le type figure
+   dans `roles`, et le statut du profil sort à côté, par type (le nom de la clé se fixe au ticket).
 
-- **Les deux autres réponses relevées par P176.04.** Le point 4 nomme les **listes**. Deux
-  réponses d'écriture rendent aussi les rôles d'un membre toutes agences confondues :
-  `POST /api/agencies/{agency}/members` (`UserResource::make($target->refresh())`,
-  `AgencyController.php:296`) et `PUT /api/users/{user}/role` (`$user->fresh()->profileTypes()`,
-  `UserRoleController.php:91`, sans agence dans la route).
-- **Un membre suspendu dans la liste de l'agence de la route.** Le point 4 borne `roles` à
-  l'agence. Il ne dit pas si le type d'un profil **suspendu** dans cette agence y figure. ADR-0031
-  § 3 range la liste d'équipe parmi les sites d'appartenance (sans filtre de statut), tandis que le
-  point 2 fait lire `UserResource` en « actifs seulement ».
-- **Les types qui n'ont pas d'agence.** `ServiceProviderProfile` n'a pas d'`agency_id` (il est lié
-  aux agences par une collaboration), et `tenant` se déduit d'un bail en cours
-  (`hasActiveTenantLease()`). La décision ne cite que `customer` et `super_admin` hors agence.
-  Aujourd'hui, `service_provider` et `tenant` sortent dans `roles`, et le front en tire des entrées
-  de menu.
-- **Un compte sans profil actif résolu.** C'est le cas d'un compte de plusieurs agences sans indice
-  ni cookie, et des réponses de connexion (`AuthController`, `PhoneLoginService`,
-  `OAuthSessionOpener`, qui rendent `UserResource::pourSoi`). Le point 1 lui donne `customer`, plus
-  `super_admin` s'il l'est. L'amendement d'[ADR-0004](0004-profil-actif-resolu-par-middleware.md)
-  du même jour fait porter l'indice par tout appel, ce qui réduit ce cas à la connexion.
-- **Le critère `agency_ids` des deux services de ciblage** (le reste de P176.05 : agence active,
-  ou toutes les agences actives du compte) n'est pas tranché ici.
+   **Les deux réponses d'écriture relevées par P176.04 suivent la même règle** (décision du porteur
+   du 2026-10-23) :
+   - `POST /api/agencies/{agency}/members` (`UserResource::make($target->refresh())`,
+     `AgencyController.php:296`) rapporte `roles` à l'agence de la route ;
+   - `PUT /api/users/{user}/role` (`$user->fresh()->profileTypes()`, `UserRoleController.php:91`)
+     n'a pas d'agence dans sa route : il rapporte `roles` à l'agence où il vient de poser le rôle
+     (`$targetAgencyId`), qui en tient lieu.
+
+**Points tranchés le 2026-10-23.** Le premier jet de cet amendement laissait cinq points ouverts.
+Le porteur les a tranchés le jour même, et ils sont écrits plus haut : les types globaux et le
+compte sans profil actif (point 1), le critère `agency_ids` du ciblage (point 2), le membre
+suspendu et les deux réponses d'écriture (point 4).
 
 **La sortie à terme reste celle de cet ADR.** `roles` reste un contrat de compatibilité. Cet
 amendement le rend juste pour l'agence en jeu, sans le faire disparaître. Ce qui ferme la dette
@@ -146,13 +157,19 @@ n'est toujours pas ouvert.
 
 - `HasProfiles` gagne la variante « actifs seulement », bornable à une agence. Elle suit
   `ActiveProfileResolver::isActiveProfile()`, la règle que lit déjà `getAgencyIdAttribute()`.
-- `UserResource` la lit avec l'agence du profil actif pour `/me`, et avec l'agence de la route
-  pour `listMembers`.
-- `AnnouncementResolver` et `FeatureFlagEvaluator` la lisent pour `roles`.
+- `UserResource` la lit avec l'agence du profil actif pour `/me`. Pour `listMembers` et
+  `addAgent`, il lit les profils de l'agence de la route, tous statuts, avec leur statut.
+  `UserRoleController::update` fait de même avec `$targetAgencyId`.
+- `AnnouncementResolver` et `FeatureFlagEvaluator` la lisent pour `roles`, et jugent `agency_ids`
+  sur l'ensemble des agences où le compte a un profil actif.
 - `UserDetailResource` et `AgencyDetailController::team` ne changent pas. Un test garde qu'un
   profil suspendu y apparaît toujours.
 - Les tests repartent des quatre mesures ci-dessus et se vérifient par ablation :
   - agent de A et admin de B, sous profil actif dans A : `/me` sans `agency_admin` ;
   - admin suspendu : `/me` sans `agency_admin` ;
   - membre de A et de B : `/members` de A sans le rôle tenu dans B ;
-  - drapeau ciblé `agency_admin` : `false` pour un admin suspendu.
+  - drapeau ciblé `agency_admin` : `false` pour un admin suspendu ;
+  - compte sans profil actif, prestataire actif et locataire d'un bail en cours : `/me` rend
+    `service_provider`, `tenant` et `customer`, sans type d'agence ;
+  - agent suspendu de A : `/members` de A le rend avec `agent` et son statut `suspended` ;
+  - membre actif de A et de B, profil actif dans B : une annonce ciblée sur A l'atteint.

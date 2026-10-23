@@ -273,13 +273,15 @@ mesuré au navigateur.
   rendre l'original. Rien ne casse pendant que la file tourne.
 - **Le seau public et Transformations ne sont pas concernés.** Le point 5 et l'amendement du
   2026-10-04 valent pour les images publiques. Celui-ci ne vise que le disque privé.
-- **Ce que l'amendement ne tranche pas : la borne de pixels des photos de maintenance.** Les
-  produire ferait décoder ces images par le serveur (GD). Les trois requêtes de maintenance n'ont
-  pas `PixelsAuPlus`, la borne de 20 Mpx que portent déjà les photos de pièce
-  (`UploadRoomPhotosInventoryRequest.php:42`). La piste lie les deux. Le délégué note que
-  l'application réduit déjà chaque photo à 2 560 px avant l'envoi (TCK-542) : la borne ne
-  refuserait qu'un envoi direct à l'API. Le ticket de la maintenance pose la question au porteur.
-  Il ne la tranche pas seul.
+- **La borne de 20 Mpx s'applique aussi aux photos de maintenance** (décision du porteur du
+  2026-10-23). Produire leur conversion fait décoder ces images par le serveur (GD). Les trois
+  requêtes de maintenance (`UploadPhotosMaintenanceRequestRequest`,
+  `CompleteMaintenanceRequestRequest`, `ContestMaintenanceResolutionRequest`) gagnent donc
+  `PixelsAuPlus`, la règle que portent déjà les photos de pièce
+  (`UploadRoomPhotosInventoryRequest.php:42`). En pratique, aucune photo envoyée par l'application
+  n'est refusée : le front réduit déjà chaque photo de maintenance à 2 560 px de grand côté avant
+  l'envoi (`reduire-photo.ts`, TCK-542), soit moins de 7 Mpx. La borne ne refuse qu'un envoi direct
+  à l'API, ou un envoi dont la réduction a échoué.
 
 ### Application
 
@@ -288,8 +290,11 @@ mesuré au navigateur.
   `redirect()`.
 - `InventoryResource::roomPhotos()` rend l'URL de la `preview` à côté de celle de l'original.
   `InventoryDetail.tsx` affiche la vignette et ouvre l'original au clic.
+- Les trois requêtes de photos de maintenance gagnent `PixelsAuPlus`, avec la conversion.
 - **Gardes** :
   - un test de ressource qui attend une URL de vignette distincte de l'original ;
+  - un test qui refuse en 422 un en-tête d'image de 10 000 × 10 000 sur les trois routes de photos
+    de maintenance ;
   - un test de la route qui refuse une conversion hors de la liste, et une URL dont on a changé le
     nom de conversion (signature invalide) ;
   - un test qui affirme que la conversion servie est bien celle demandée.

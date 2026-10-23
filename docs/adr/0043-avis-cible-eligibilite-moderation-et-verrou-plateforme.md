@@ -327,6 +327,10 @@ sont les suivants :
 3. **Le créateur du bien** (`properties.user_id`), **seulement s'il est du personnel** de l'agence
    du bien.
 4. **Jamais le bailleur.** Un créateur qui n'est pas du personnel ne devient pas sujet « agent ».
+   Le bailleur est écarté **même s'il figure aux points 1 à 3** : le bailleur du bail
+   (`leases.landlord_id`), le créateur qui tient un profil de bailleur dans l'agence du bien
+   (`PersonnelDeLAgence::estBailleur`), et l'**hôte d'une agence `individual`**, à la fois personnel
+   et bailleur de ses biens (décision du porteur du 2026-10-23).
 
 **Une réservation n'a pas d'`agent_id`** (la table `bookings` n'en porte pas). Elle passe par les
 points 2 et 3 seulement.
@@ -345,24 +349,35 @@ encore personnel (`BookingStakeholders::collaboratorsOf`).
 quels : ils ne sont ni retirés, ni déplacés, ni masqués. Ils restent soumis à la modération du
 § 1. La règle ne change que ce qui peut être déposé à partir de son application.
 
-**Ce que la décision ne tranche pas, et que le code fait apparaître.**
+**Chaque agent éligible se note une fois, sur une même preuve : l'index d'unicité porte le sujet
+noté** (décision du porteur du 2026-10-23). L'index
+`reviews_author_context_uniq (author_id, reviewable_type, context_type, context_id) WHERE context_id IS NOT NULL`
+(`2026_10_08_100000_add_moderation_scope_to_reviews_table.php:33`) ne contient pas
+`reviewable_id`. Pour un même auteur et un même bail, il n'admettait donc qu'**un** avis de cible
+`User`, alors que les points 1 à 3 peuvent rendre éligibles plusieurs agents pour un même bail
+(l'agent du bail, puis un collaborateur). Le second avis aurait heurté l'index, puisque
+`storeForAgent` (`ReviewController.php:422-448`) ne contrôle l'unicité que par agent.
 
-- **L'unicité par preuve n'admet qu'un avis « agent » par bail ou par réservation.** L'index
-  `reviews_author_context_uniq (author_id, reviewable_type, context_type, context_id)`
-  (`2026_10_08_100000_add_moderation_scope_to_reviews_table.php:33`) ne contient pas
-  `reviewable_id`. Pour un même auteur et un même bail, il n'existe donc qu'**un** avis de cible
-  `User`. La règle ci-dessus peut rendre éligibles plusieurs agents pour un même bail (l'agent du
-  bail, puis un collaborateur). `storeForAgent` (`ReviewController.php:422-448`) verrouille
-  l'agent et vérifie l'unicité par agent, pas par preuve. Le second avis heurterait l'index. Le
-  ticket doit choisir avant d'écrire du code : ou bien un seul sujet « agent » par preuve, ou bien
-  `reviewable_id` entre dans l'index (une migration). Cet amendement ne choisit pas.
-- **L'hôte d'une agence `individual`** est à la fois admin d'agence et bailleur de ses biens. Le
-  point 3 le retient, puisqu'il est du personnel. Le point 4 l'écarte, puisqu'il est le bailleur. Le
-  ticket relève ce cas et le soumet au porteur.
+- **L'index devient `(author_id, reviewable_type, reviewable_id, context_type, context_id) WHERE
+  context_id IS NOT NULL`.** Une migration crée le nouvel index puis retire l'ancien. Le nouvel
+  index est strictement plus large : toute ligne qui respectait l'ancien le respecte. Aucune donnée
+  ne bouge, aucune ligne n'est perdue.
+- **La règle d'unicité ne change pas pour les autres cibles.** Un bail ne porte qu'un bien et
+  qu'une agence, une intervention qu'un prestataire : pour eux, ajouter `reviewable_id` ne rend
+  rien possible de plus. L'unicité « une fois par auteur et par agent » que vérifie
+  `storeForAgent` reste en place : un locataire note chaque agent éligible **une fois**, quelle
+  que soit la preuve.
+- **Le `down()` de la migration** recrée l'ancien index. Il échoue si un auteur a déjà noté deux
+  agents sur une même preuve. Il le dit dans son message, plutôt que de supprimer un avis pour
+  revenir en arrière.
+- Le § 3 plus haut (« `reviewable_type` y figure… ») décrit l'index d'avant cet amendement.
 
 **Application.** `ReviewEligibility::forAgent` et `::opportunities`, ainsi que le docblock de la
 classe (l. 28-29), suivent les points 1 à 4. Les tests partent du cas mesuré ci-dessus et
 demandent : le bailleur n'est pas proposé, et `forAgent(client, bailleur)` rend `null` ; l'agent du
 bail est proposé, et `forAgent(client, agent du bail)` rend le bail ; un collaborateur `agent`
 accepté dont le profil est suspendu n'est pas proposé ; une réservation sans bail propose ses
-collaborateurs. Chaque test se vérifie par ablation.
+collaborateurs ; l'hôte d'une agence `individual` n'est pas proposé ; un locataire dépose un avis
+sur l'agent du bail **et** un sur un collaborateur, avec la même preuve (201 les deux fois), et un
+second avis sur le même agent rend 422. Une migration élargit `reviews_author_context_uniq`, et
+son test vérifie qu'aucun avis existant ne la fait échouer. Chaque test se vérifie par ablation.
