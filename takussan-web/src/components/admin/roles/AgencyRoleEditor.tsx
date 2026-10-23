@@ -15,6 +15,7 @@ import { useSyncRoleCapabilities, useUpdateAgencyRole } from '@/lib/queries/agen
 import { useCapabilityCatalogue } from '@/lib/queries/capabilities';
 import type { AgencyRole, CapabilityValue } from '@/types/agency-role';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useNomDuRole } from './nomDuRole';
 
 interface AgencyRoleEditorProps {
   readonly agencyId: number;
@@ -55,6 +56,7 @@ function sameSet(a: readonly string[], b: readonly string[]): boolean {
 export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorProps) {
   const t = useTranslations('admin.roles');
   const tCommon = useTranslations('common.actions');
+  const nomDuRole = useNomDuRole();
   const messageErreur = useMessageErreurApi();
 
   const readOnly = role.is_system || !canEdit;
@@ -151,7 +153,9 @@ export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorPr
           <Label htmlFor="agency-role-name">{t('editor.name_label')}</Label>
           <Input
             id="agency-role-name"
-            value={name}
+            // P164.04 (TCK-1808) — un rôle système n'est jamais éditable : son champ montre le
+            // nom affiché ailleurs dans la console, pas le défaut français rangé.
+            value={role.is_system ? nomDuRole(role) : name}
             disabled={readOnly || isPending}
             placeholder={t('editor.name_placeholder')}
             onChange={(e) => setName(e.target.value)}

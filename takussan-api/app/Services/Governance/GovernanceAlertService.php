@@ -6,7 +6,9 @@ use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Models\Activity;
 use App\Models\Agency;
+use App\Models\AgencyRole;
 use App\Models\Enums\AgencyKind;
+use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Integration;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
@@ -102,7 +104,7 @@ class GovernanceAlertService
         $subject = $activity->subject;
 
         return match ($code) {
-            NotificationCode::GovernanceRoleCapabilitiesChanged => ['role' => (string) ($subject?->name ?? ''), 'actor' => $actor],
+            NotificationCode::GovernanceRoleCapabilitiesChanged => ['role' => $this->roleParam($subject), 'actor' => $actor],
             NotificationCode::GovernanceAdminAdded => ['member' => (string) ($subject?->user?->full_name ?? ''), 'actor' => $actor],
             NotificationCode::GovernanceIntegrationChanged => [
                 'provider' => (string) ($subject?->provider ?? $activity->attribute_changes?->get('old')['provider'] ?? ''),
@@ -110,6 +112,20 @@ class GovernanceAlertService
             ],
             default => ['actor' => $actor],
         };
+    }
+
+    /**
+     * P164.04 (TCK-1808) — un rôle système se range par son code (`base_profile_type`), traduit au
+     * rendu dans la langue du destinataire : son `name` n'est qu'un défaut français
+     * (`AgencyRoleBaseType::defaultRoleName()`). Un rôle créé garde le nom que l'agence a saisi.
+     */
+    private function roleParam(mixed $subject): string
+    {
+        if ($subject instanceof AgencyRole && $subject->is_system && $subject->base_profile_type instanceof AgencyRoleBaseType) {
+            return $subject->base_profile_type->value;
+        }
+
+        return (string) ($subject?->name ?? '');
     }
 
     /** @return iterable<User> */

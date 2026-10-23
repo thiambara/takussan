@@ -78,7 +78,8 @@ describe('<MemberAgencyRoleSelect>', () => {
 
     // `AgencyRoleService::assign` rend 422 sur un type différent : proposer
     // « Administrateur » serait offrir un geste dont on connaît l'échec.
-    expect(options).toEqual(['Agent', 'Agent senior']);
+    // P164.04 (TCK-1808) — le rôle système se lit par son type, le rôle créé par son nom.
+    expect(options).toEqual(['Agent immobilier', 'Agent senior']);
   });
 
   it('envoie profile_type dans le CORPS avec le nouveau rôle', async () => {
