@@ -17032,7 +17032,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### L'échéancier d'un bail affiche « En retard » une échéance due le jour même, que l'API tient encore pour à venir
 - Réf : P183.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux voies (champ servi par l'API ou comparaison littérale au front) pour le retard affiché d'une échéance de loyer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseSchedule.tsx:46-70`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:197-213`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:327-338`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:65-84`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:54-57`
 - Constat :
@@ -17043,10 +17043,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Le docblock (l. 46-47) dit que le retard est calculé au navigateur « quand le serveur ne l'a pas encore marqué » ; le seul écrivain de `late` est la pénalité (`LateFeeCalculator`, voir P162.06), si bien que sans pénalité configurée ce calcul est la seule source du retard affiché.
   - Établi comment : lu, et mesuré par vitest.
 - Piste : faire servir le retard par l'API, une seule fois, avec la règle de `scopeOverdue` (par exemple `is_overdue` sur `LeasePaymentResource`, comme `PrivacyRequestResource`), et faire lire ce champ à `displayStatus` ; à défaut, comparer littéralement `p.due_date < aujourdhuiIso` (ADR-0018). Garde : un test de `LeaseSchedule` à horloge figée (`vi.setSystemTime`) sur une échéance du jour, attendue « En attente ».
+- Mesure (2026-10-23, 940b7f07f, mesureur) : relu `LeaseSchedule.tsx:53-70` (`displayStatus` : `pending` non restitution → `late` dès `new Date(due_date) < new Date()`, inchangé, docblock l. 45-51), `HasPaymentAttributes.php:196-213` (`scopeOverdue` : `due_date < today`), `PortfolioMetrics.php:327-338`, `DashboardTenantService.php:67-84` (`>= today` pour « à venir » et « prochaine »), `SendLeasePaymentReminders.php:57` (`OVERDUE_DAYS = [1, 7]`), `config/app.php:70` (`UTC`) ; `git log -S` et `grep` des tickets : rien ne l'a traitée ; test temporaire ajouté à `LeaseSchedule.test.tsx` (retiré), `npx vitest run <fichier> -t "TMP mesure"`, horloge figée à 2026-10-23T09:00Z, charge 2,94 sur 8 cœurs → échéance `pending` due le 2026-10-23 rendue « En retard », témoin du 2026-10-24 rendu « En attente », 2 verts. Le constat tient en entier. Classement : V7, la piste propose deux voies (un `is_overdue` servi par l'API, ou une comparaison littérale au navigateur), et choisir ce que le locataire lit de son loyer le jour de l'échéance revient au porteur, comme P146.02.
 
 ### Le badge « échéances en retard » de la fiche du bail compte les restitutions de caution, l'échéance du jour, et oublie les paiements partiels échus
 - Réf : P183.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : règle du retard affiché sur la fiche, liée au choix de P183.01
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseDetail.tsx:83-94,169-173`, `takussan-api/app/Services/Dashboard/CollectedPayments.php:44,92-99`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:327-338`, `docs/features.md:592`
 - Constat :
@@ -17055,10 +17056,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Les impayés de l'API sont `pending`, `partially_paid` et `late` échus, hors restitution (lu, `OWED_STATUSES` l. 44, `leaseOwed` l. 92-99, `overdue` l. 327-338). Le badge, lui, ignore `partially_paid` échu, et compte l'échéance du jour (même calcul que P183.01). La fiche du bail et les tuiles « impayés » des tableaux de bord ne donnent donc pas le même nombre pour le même bail (déduit des deux règles, écrans non rendus).
   - Établi comment : lu.
 - Piste : faire lire au badge le même champ servi que P183.01 (ou, à défaut, `displayStatus` de `LeaseSchedule` exporté, avec `partially_paid` échu compté), plutôt qu'une troisième copie de la règle. Garde : un test de `LeaseDetail` avec une restitution `pending` échue, une échéance du jour et un `partially_paid` échu, badge attendu à 1.
+- Mesure (2026-10-23, 940b7f07f, mesureur) : relu `LeaseDetail.tsx:83-94` (`latePaymentsCount` : `late`, ou `pending` dont `new Date(due_date) < new Date()`, sans `payment_type`, sans `partially_paid`, inchangé) et `:169-173` (badge `latePayments`, « {count} en retard ») ; `CollectedPayments.php:44,92-99` (`OWED_STATUSES` = `pending`, `partially_paid`, `late`, `exceptDepositRefunds`), `PortfolioMetrics.php:327-338` ; test temporaire `src/components/leases/__tests__/TmpMesure183.test.tsx` (retiré, montage de `LeaseDetail.preavis.test.tsx`), horloge figée à 2026-10-23T09:00Z, charge 2,94 sur 8 cœurs : restitution `pending` due le 2026-09-05, loyer `pending` du jour, `partially_paid` du 2026-09-05 → badge « 2 en retard » (vert), là où la règle de l'API en compte 1. Le constat tient en entier. Classement : V7, le compte suit la règle que fixera P183.01 (deux voies) et la règle de la restitution, classée V7 en P146.02 ; les deux pistes se tranchent ensemble.
 
 ### Le dialogue « Enregistrer un paiement reçu » propose de régler une restitution de caution, que l'API refuse en 422
 - Réf : P183.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeasePaymentDialog.tsx:46-52`, `takussan-api/app/Services/Model/LeasePaymentService.php:57-64`
 - Constat :
@@ -17067,10 +17069,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Une restitution `pending` apparaît donc dans le choix, libellée comme un loyer (période et montant, l. 48-51), et son enregistrement rend un 422 ; tant qu'elle reste seule `pending`, `nothingToSettle` est faux et le dialogue ne dit pas qu'il n'y a rien à régler (lu, l. 52).
   - Établi comment : lu. Le dialogue n'a pas été rendu.
 - Piste : écarter `payment_type === 'deposit_refund'` des options, comme `isPayable` l'écarte du paiement en ligne (`PaymentGatewayService.php:1718-1722`). Garde : un test du dialogue avec un loyer `pending` et une restitution `pending`, une seule option attendue.
+- Mesure (2026-10-23, 940b7f07f, mesureur) : relu `LeasePaymentDialog.tsx:46-52` (options = lignes `pending` ou `late`, sans `payment_type` ; `nothingToSettle` sur cette liste, inchangé), `LeasePaymentService.php:53-64` (`markPaid` refuse en 422 `lease_payment.deposit_refund_paid_by_payout` sur la ligne verrouillée), `LeasePaymentController.php:30-51` (`index` sans filtre de type) ; test temporaire ajouté à `LeasePaymentDialog.test.tsx` (retiré), charge 2,94 sur 8 cœurs : loyer `pending` et restitution `pending` → 2 options ; restitution seule → « Aucune échéance en attente sur ce bail. » absent ; 2 verts. Le constat tient. Classement : A1, le contrat est écrit par l'API appelée (TCK-594 : une restitution ne se règle jamais à la main) ; le correctif retire du choix une option que l'API refuse toujours, sans rien changer à ce qui s'écrit.
 
 ### Le compte à rebours d'une résiliation anticipée retire le bouton d'annulation un jour trop tôt pour un navigateur à l'ouest d'UTC
 - Réf : P183.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:27-33,59-67,98-108`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:138-143`
 - Constat :
@@ -17078,10 +17081,11 @@ Le PDF de l'état des lieux est P143.01.*
   - À 0, le bandeau titre « Fin aujourd'hui » et cache le bouton d'annulation (`cancellationOpen = remaining > 0`, lu, l. 67, 98-101, 108). L'API, elle, accepte l'annulation tant que la date effective est postérieure à aujourd'hui UTC (lu, `EarlyTerminationService.php:138-143`) : le locataire ou l'agent à l'étranger perd un jour d'annulation que l'API lui laisse.
   - Établi comment : lu, et mesuré sur la fonction seule ; le bandeau n'a pas été rendu sous un autre fuseau.
 - Piste : compter les jours par comparaison littérale de dates calendaires (ADR-0018), ou faire servir par l'API la fin de la fenêtre d'annulation. Garde : un test de `daysFromTodayTo` sous `TZ=America/New_York`.
+- Mesure (2026-10-23, 940b7f07f, mesureur) : relu `EarlyTerminationBanner.tsx:27-33` (`daysFromTodayTo` : `new Date(iso)` puis `setHours(0,0,0,0)` local, inchangé), `:61-67,98-108` (`cancellationOpen = remaining > 0`, bouton caché sinon), `EarlyTerminationService.php:138-143` (refus si date effective `<=` aujourd'hui, `now()` en `UTC`) ; fonction recopiée, `node` sur l'instant 2026-10-31T15:00Z et la date 2026-11-01 → `Africa/Dakar` 1, `America/New_York` 0, `Asia/Tokyo` 0 : le jour perdu touche aussi un navigateur à l'est d'UTC, après minuit local (le constat ne nommait que l'ouest) ; bandeau non rendu. Classement : A1, la fenêtre est écrite par l'API (`effective > aujourd'hui` UTC) et ADR-0018 dit qu'une date calendaire se compare littéralement ; le correctif compte les jours entre `iso` et la date du jour UTC en `Y-m-d`, sans choix de produit.
 
 ### Petites améliorations
 - Réf : P183.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:104`, `takussan-web/src/components/leases/LeaseSchedule.tsx:46-47`
 - Constat :
@@ -17089,3 +17093,4 @@ Le PDF de l'état des lieux est P143.01.*
   - Le docblock de `displayStatus` décrit le retard comme un rattrapage d'un marquage serveur à venir ; il ne dit pas que, sans pénalité de retard configurée, rien ne l'écrira jamais (voir P183.01).
   - Établi comment : lu.
 - Piste : formater la date par `fmt.date` ; réécrire le docblock pour dire d'où vient le retard affiché.
+- Mesure (2026-10-23, 940b7f07f, mesureur) : relu `EarlyTerminationBanner.tsx:104` (`t('banner_effective', { date: lease.early_termination_effective_date })`, brut, inchangé), `:48` (`const fmt = useFormatteurs()`, déjà employé l. 154), `fr.json:3779` (« Date effective : {date} »), `useFormatteurs.ts:119` (`fmt.date` → `formatDate` de la locale) ; docblock de `displayStatus` (`LeaseSchedule.tsx:45-47`) inchangé, et la Mesure de P183.01 confirme qu'aucun marquage serveur n'existe sans pénalité. Les deux points tiennent. Classement : A4 pour la date (format de la locale, aucun texte neuf) et A6 pour le docblock, réécrit pour dire ce que fait le code.
