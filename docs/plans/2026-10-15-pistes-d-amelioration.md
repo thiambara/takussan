@@ -18281,7 +18281,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### Le pipeline CRM perd les cartes chargées par « Charger plus » dès que sa colonne est relue (retour sur l'onglet après 30 s, remontage)
 - Réf : P199.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/pipeline/PipelineKanban.tsx:67-77,113-131`, `takussan-web/src/components/pipeline/PipelineColumn.tsx:59-60,126-135`, `takussan-web/src/lib/query-client.ts:11-12`
 - Constat :
@@ -18290,10 +18290,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Mesuré : test Vitest temporaire, copie de `PipelineKanban.pagination.test.tsx` (73 leads, « Charger plus (50 sur 73) » → « Client n°51 » rendu), puis `queryClient.refetchQueries({ queryKey: ['crm-pipeline', 'column', 'lead'] })`, ce que fait le retour sur l'onglet après 30 s → « Client n°51 » n'est plus rendu, le bouton revient à « 50 sur 73 ». Le déclenchement réel par le focus n'a pas été joué.
   - Établi comment : lu, et mesuré par la relecture directe.
 - Piste : porter chaque colonne par `useInfiniteQuery` (TanStack relit alors toutes les pages chargées), en adaptant `useCustomerStageMutation` à la forme `pages` ; ou, à défaut, `refetchOnWindowFocus: false` sur les colonnes. Garde : le test de pagination étendu d'une relecture après « Charger plus », qui exige la 51ᵉ carte.
+- Mesure (2026-10-23, 34c97e42f, mesureur) : relu `PipelineKanban.tsx:67-77,111-128` (`useQueries`, `queryFn` sur la seule page 1, « Charger plus » par `setQueryData`, inchangés ; `loadMore` a glissé de deux lignes) et `query-client.ts` (`refetchOnWindowFocus` laissé au défaut, actif) ; `git log -- src/components/pipeline` → dernier commit TCK-591, rien depuis ; test Vitest temporaire, copie de `PipelineKanban.pagination.test.tsx` (« Charger plus (50 sur 73) » → « Client n°51 », puis `queryClient.refetchQueries({ queryKey: ['crm-pipeline', 'column', 'lead'] })`), charge 2,56 sur 8 cœurs, retiré ensuite → vert : la 51ᵉ carte disparaît et le bouton revient à « Charger plus (50 sur 73) ». Le déclenchement par le focus réel n'a pas été joué. Classement : A1, TCK-591 (AC25) écrit que « Charger plus » ajoute la page suivante et son test l'exige ; garder les pages chargées à la relecture ne demande aucun choix de produit.
 
 ### La file de modération pose côte à côte le total de la file, titré « Total page », et des comptes « Biens » et « Avis » pris sur les 20 lignes de la page
 - Réf : P199.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux options visibles (comptes par type rendus par l'API, ou libellés « sur cette page »), et des libellés à réécrire
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin/super/moderation.tsx:718-745`, `takussan-web/src/app/(super-admin)/super-admin/moderation/page.tsx:48,92`, `takussan-web/src/messages/fr.json:7384-7387`, `takussan-api/app/Services/Admin/UnifiedModerationService.php:56-83`
 - Constat :
@@ -18302,10 +18303,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - L'API ne rend aucun compte par type (lu, `UnifiedModerationService::paginate`, `paginate()` seul).
   - Établi comment : lu.
 - Piste : des comptes par type calculés par l'API dans `meta` (comme `meta.unread_total` de TCK-1387), lus par les tuiles ; ou, à défaut, un libellé qui dise « sur cette page » pour les deux tuiles et « Total » pour la première. Test : file de 25 éléments, la tuile « Biens » rend le compte de la file.
+- Mesure (2026-10-23, 34c97e42f, mesureur) : relu `moderation.tsx:717-745` (`ModerationStats` : `total` sous `statTotalPage`, « Biens » et « Avis » par `items.filter(…).length`), `page.tsx:48,92` (`perPage: 20`, `total={meta?.total}`), `fr.json`/`en.json:7384` (« Total page » / « Page total »), `UnifiedModerationService::paginate` (l. 56-83, `paginate()` seul, aucun compte par type) → le constat tient tel qu'écrit. Classement : V7, la piste propose deux comportements visibles et l'une comme l'autre réécrit des libellés de la console.
 
 ### La bibliothèque de documents groupe par type une page de 30 triée par date, et chaque groupe affiche le compte de sa page
 - Réf : P199.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : choix d'affichage des groupes (tri par type côté serveur ou compte retiré), que la piste laisse au porteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/documents/DocumentsLibrary.tsx:88-120,203-210`, `takussan-web/src/lib/queries/documents.ts:76`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:52-61`
 - Constat :
@@ -18313,10 +18315,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Le navigateur regroupe ces 30 lignes par `type` et rend sous chaque titre un `Badge` de `docs.length` (lu, l. 106-120 et 210) : au-delà de 30 documents, « Contrat de bail 3 » en page 1 et « Contrat de bail 5 » en page 2 ; un type dont tous les documents sont plus anciens n'apparaît pas en page 1 (lu).
   - Établi comment : lu ; aucun compte de documents par compte relevé.
 - Piste : soit trier côté serveur par type puis date (les groupes deviennent contigus), avec des comptes par type dans `meta` ; soit retirer le compte du titre de groupe quand `last_page > 1`. Choix d'affichage au porteur. Test : 35 documents de deux types, le compte d'un groupe n'est pas celui de la page.
+- Mesure (2026-10-23, 34c97e42f, mesureur) : relu `DocumentsLibrary.tsx:88-122,203-210` (`per_page: 30`, regroupement par `type` au navigateur, `Badge` de `docs.length`) et `documents.ts:76` (`sort: '-created_at'` toujours envoyé, donc la pertinence de `DocumentController.php:59` ne joue pas depuis cet écran) → le constat tient. Classement : V7, la piste dit elle-même « choix d'affichage au porteur ».
 
 ### Pour le prestataire, « Urgences prioritaires » ne regroupe que les urgences de la page courante, triée par date d'intervention
 - Réf : P199.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ordre de la liste du prestataire, ou section d'urgences retirée, au choix
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/maintenance/MaintenanceList.tsx:74-79,165-166,217-262`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:56`
 - Constat :
@@ -18324,10 +18327,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Le prestataire demande `sort: 'scheduled_at'` (lu, l. 77) ; la liste sépare alors `priority === 'urgent'` dans la seule page reçue et la titre « Urgences prioritaires » (lu, l. 165-166, 217-222) : une urgence planifiée tard est rangée en page 2 ou 3, et la page 1 ne montre pas de section d'urgences.
   - Établi comment : lu ; non mesuré sur un jeu réel de prestataire.
 - Piste : pour le prestataire aussi, trier `-priority,scheduled_at` côté serveur, ou ne rendre la section « urgences » que quand la liste tient sur une page. Test : prestataire à 20 demandes, l'urgente planifiée la dernière apparaît en page 1 sous le titre.
+- Mesure (2026-10-23, 34c97e42f, mesureur) : relu `MaintenanceList.tsx:74-79` (`sort: 'scheduled_at'` pour le prestataire), l. 165-166 et 217-226 (urgences séparées dans la seule page reçue, titre `urgent_heading`), `MaintenanceRequestController.php:56,82` (`defaultSortsWithRelevance('-priority', '-created_at')`, que le tri explicite du prestataire remplace) → le constat tient ; non joué sur un jeu de prestataire. Classement : V7, les deux options changent ce que voit le prestataire (ordre de sa liste ou section retirée).
 
 ### « Prochain paiement » et « Autres échéances » du locataire sont tirés de 50 lignes triées par date, puis filtrées au navigateur sur la source « bail »
 - Réf : P199.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : trois options (filtre de source à l'API, borne de dates, annonce de la suite) sur l'écran des paiements du locataire
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/payments/CustomerPayments.tsx:35,65-71,159-175`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:77-82,118-145,181-206`, `takussan-api/app/Services/Model/LeaseService.php:236-262`
 - Constat :
@@ -18336,10 +18340,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - « Autres échéances » s'arrête donc à 49 lignes moins les réservations, sans le dire ; « Prochain paiement » reste juste tant que la première échéance due est parmi les 50 (lu). Voisin de l'angle 171, qui ne relève pas cet écran.
   - Établi comment : lu.
 - Piste : un filtre serveur de source (`filter[source]=lease`) et `amount_due > 0` jugé par l'API, ou une borne de dates (`date_to`) sur les échéances à venir ; garder la page unique mais annoncer la suite. Test : locataire à 60 échéances et 3 acomptes de réservation dus, la liste rend ses échéances de bail sans réservation au milieu.
+- Mesure (2026-10-23, 34c97e42f, mesureur) : relu `CustomerPayments.tsx:65-71` (`status=pending,…`, `sort=date`, `per_page: 50`, puis `source === 'lease' && amount_due > 0` au navigateur), `PaymentController.php:77-82,180-206` (`entity_type` exige `entity_id`, aucun filtre de source) et `LeaseService.php:236-262` (une échéance `pending` par période jusqu'à `end_date`, plafond de 12 seulement sans date de fin) → le constat tient. Classement : V7, la piste offre trois comportements dont un visible (annoncer la suite), sur un écran d'échéances à payer (V1 voisin, lecture seule).
 
 ### Petites améliorations
 - Réf : P199.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la relecture de la liste des fils (`maxPages` ou page 1 seule) est un choix ; le dédoublonnage et l'invalidation seuls seraient autonomes
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/crm/CustomerActivityFeed.tsx:41-48,68,110-117`, `takussan-web/src/lib/queries/agent-crm.ts:29`, `takussan-web/src/lib/queries/conversations.ts:45-66`, `takussan-web/src/components/messages/ConversationList.tsx:44-51`
 - Constat :
@@ -18348,3 +18353,4 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - `useConversationsInfinite` relit toutes les pages chargées toutes les 10 s, sans `maxPages` (lu, `conversations.ts:53-54`) : après dix pages, dix requêtes par relecture. Un fil qui remonte en tête entre la relecture de la page 1 et celle de la page 2 n'est dans aucune des deux jusqu'à la relecture suivante (déduit, à vérifier).
   - Établi comment : lu, et déduit là où c'est dit.
 - Piste : dédoublonner les pages du fil d'activité par `id` comme `ConversationList`, et invalider `['agent-crm', 'customer', id, 'activity']` après les gestes de la fiche (note, étape, tâche) ; borner `maxPages` de la liste des fils ou ne relire que la page 1 par l'intervalle. Tests : fil d'activité à deux pages avec une entrée insérée entre deux lectures.
+- Mesure (2026-10-23, 34c97e42f, mesureur) : relu `CustomerActivityFeed.tsx:41-48,68,110` (`flatMap` sans dédoublonnage, `key={row.id}`), `CustomerActivityFeed.php:54-56` (`created_at desc, id desc`, `paginate`), `grep -rn "invalidateQueries" src | grep agent-crm` → seules `tasks`, `calendarFeed` et `absences` sont invalidées, jamais `activity` ; `conversations.ts:53-54` (`refetchInterval` 10 s, aucun `maxPages` dans `src`) ; test Vitest temporaire (page 1 = lignes 3, 2 ; page 2 décalée d'une insertion = 2, 1 ; « Voir plus »), charge 2,36 sur 8 cœurs, retiré ensuite → la ligne 2 est rendue deux fois : le premier « à vérifier » tient ; l'oubli d'invalidation est établi par lecture, non joué au navigateur ; le fil manqué de la liste des conversations reste déduit. Classement : V7, la troisième partie offre deux comportements de relecture ; les deux premières relèveraient de A1 (patron de `ConversationList`).
