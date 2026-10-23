@@ -18281,7 +18281,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### Le pipeline CRM perd les cartes chargées par « Charger plus » dès que sa colonne est relue (retour sur l'onglet après 30 s, remontage)
 - Réf : P199.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1913
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/pipeline/PipelineKanban.tsx:67-77,113-131`, `takussan-web/src/components/pipeline/PipelineColumn.tsx:59-60,126-135`, `takussan-web/src/lib/query-client.ts:11-12`
 - Constat :
@@ -18291,6 +18291,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Établi comment : lu, et mesuré par la relecture directe.
 - Piste : porter chaque colonne par `useInfiniteQuery` (TanStack relit alors toutes les pages chargées), en adaptant `useCustomerStageMutation` à la forme `pages` ; ou, à défaut, `refetchOnWindowFocus: false` sur les colonnes. Garde : le test de pagination étendu d'une relecture après « Charger plus », qui exige la 51ᵉ carte.
 - Mesure (2026-10-23, 34c97e42f, mesureur) : relu `PipelineKanban.tsx:67-77,111-128` (`useQueries`, `queryFn` sur la seule page 1, « Charger plus » par `setQueryData`, inchangés ; `loadMore` a glissé de deux lignes) et `query-client.ts` (`refetchOnWindowFocus` laissé au défaut, actif) ; `git log -- src/components/pipeline` → dernier commit TCK-591, rien depuis ; test Vitest temporaire, copie de `PipelineKanban.pagination.test.tsx` (« Charger plus (50 sur 73) » → « Client n°51 », puis `queryClient.refetchQueries({ queryKey: ['crm-pipeline', 'column', 'lead'] })`), charge 2,56 sur 8 cœurs, retiré ensuite → vert : la 51ᵉ carte disparaît et le bouton revient à « Charger plus (50 sur 73) ». Le déclenchement par le focus réel n'a pas été joué. Classement : A1, TCK-591 (AC25) écrit que « Charger plus » ajoute la page suivante et son test l'exige ; garder les pages chargées à la relecture ne demande aucun choix de produit.
+- Mesure (2026-10-23, 4a12ba515, implementeur) : test neuf `PipelineKanban.pagination.test.tsx` (« Charger plus (50 sur 73) » → « Client n°51 », puis `queryClient.refetchQueries({ queryKey: ['crm-pipeline', 'column', 'lead'] })`) rouge avant correctif : la relecture ne redemande que la page 1 → le `queryFn` des colonnes relit les pages 1 à `ceil(cartes en cache / 50)`, dédoublonnées par `id` ; vert, « Client n°51 » et « Client n°73 » restent rendus ; ablation (`PipelineKanban.tsx` d'avant) → rouge, correctif remis → 11 tests du dossier verts, charge 2,95 sur 8 cœurs.
 
 ### La file de modération pose côte à côte le total de la file, titré « Total page », et des comptes « Biens » et « Avis » pris sur les 20 lignes de la page
 - Réf : P199.02
