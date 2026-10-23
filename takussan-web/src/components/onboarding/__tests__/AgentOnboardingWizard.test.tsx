@@ -183,6 +183,30 @@ describe('<AgentOnboardingWizard>', () => {
       expect(routerPush).toHaveBeenCalledWith('/app');
     });
   });
+
+  // TCK-1779 (P149.05) — un numéro de carte vidé part en `null`, que l'API lit comme « effacer » :
+  // il partait `undefined`, et la carte saisie par erreur restait en base.
+  it('un numéro de carte vidé part en null', async () => {
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} />));
+
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    const carte = screen.getByLabelText('Numéro de carte professionnelle');
+    fireEvent.change(carte, { target: { value: 'AGT-2026-001' } });
+    fireEvent.change(carte, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText(/Spécialisation/i));
+    await user.click(await screen.findByRole('option', { name: /Luxe/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Enregistrer$/i }));
+
+    await waitFor(() => {
+      expect(agentUpdateSpecializationAction).toHaveBeenCalledWith(
+        11,
+        expect.objectContaining({ specialization: 'luxury', license_number: null }),
+      );
+    });
+  });
 });
 
 /**

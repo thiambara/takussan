@@ -71,7 +71,8 @@ export function ContactsSurPlaceDuBien({ propertyId }: { readonly propertyId: nu
         setRetour({ ok: false, message: r.message });
         return;
       }
-      queryClient.setQueryData(queryKey, envoyes);
+      // TCK-1777 (P95.04) — la liste que l'API a écrite, pas le brouillon envoyé.
+      queryClient.setQueryData(queryKey, r.data);
       setBrouillon(null);
       setRetour({ ok: true, message: t('saved') });
     });
