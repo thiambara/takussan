@@ -22,7 +22,8 @@ import type {
 } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { PageHeader, Pagination } from '@/components/console';
+import { PageHeader } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function SuperAdminModerationPage() {

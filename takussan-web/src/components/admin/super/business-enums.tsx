@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { DataTable, type DataTableColumn } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { BusinessEnum, BusinessEnumValue } from '@/types/super-admin';

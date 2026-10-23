@@ -9,7 +9,8 @@ import { EmptyState, ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { useAuth } from '@/context/AuthContext';
-import { FilterBar, Pagination } from '@/components/console';
+import { FilterBar } from '@/components/console/FilterBar';
+import { Pagination } from '@/components/console/Pagination';
 import {
   Select,
   SelectContent,

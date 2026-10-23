@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Ban, Loader2, MailCheck, MailPlus } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
-import { Pagination } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,

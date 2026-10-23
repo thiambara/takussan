@@ -9,7 +9,9 @@ import { EmptyState, ErrorState } from '@/components/feedback';
 import { fetchAdminAgencies } from '@/lib/queries/super-admin';
 import { AgencyModerationCard } from '@/components/admin/super/AgencyModerationCard';
 import { AgencyOnboardingDialog } from '@/components/admin/super/AgencyOnboardingDialog';
-import { DebouncedSearchInput, FilterBar, Pagination } from '@/components/console';
+import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
+import { FilterBar } from '@/components/console/FilterBar';
+import { Pagination } from '@/components/console/Pagination';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
   Select,

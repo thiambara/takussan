@@ -5,16 +5,10 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import {
-  DataState,
-  DataTable,
-  DebouncedSearchInput,
-  FilterBar,
-  PageHeader,
-  StatusBadge,
-  type DataTableColumn,
-  type StatusTone,
-} from '@/components/console';
+import { DataState, PageHeader, StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
+import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
+import { FilterBar } from '@/components/console/FilterBar';
 import { AgencyCombobox } from '@/components/admin/super/AgencyCombobox';
 import { EmptyState } from '@/components/feedback';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -28,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ImpersonationStartDialog } from '@/components/admin/super/ImpersonationStartDialog';
-import { Pagination } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { useDemarrerImpersonation } from '@/hooks/useImpersonation';
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { ApiError } from '@/lib/api';

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { DataTable, type DataTableColumn } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { EmptyState } from '@/components/feedback';
 
 type Ligne = { id: number; nom: string; prix: number };

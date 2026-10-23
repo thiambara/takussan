@@ -13,7 +13,7 @@ import {
   type FavoriteItem,
 } from '@/lib/queries/favorites';
 import { EmptyState, ErrorState } from '@/components/feedback';
-import { Pagination } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';

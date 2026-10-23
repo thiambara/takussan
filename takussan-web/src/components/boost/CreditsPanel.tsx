@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
-import { DataState, DataTable, Pagination, type DataTableColumn } from '@/components/console';
+import { DataState } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
+import { Pagination } from '@/components/console/Pagination';
 import { EmptyState } from '@/components/feedback';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useCredits } from './api';

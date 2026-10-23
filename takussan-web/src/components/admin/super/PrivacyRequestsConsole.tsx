@@ -6,15 +6,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, Download, FileCheck2, Inbox, Loader2, Plus } from 'lucide-react';
 
-import {
-  DataState,
-  DataTable,
-  FilterBar,
-  Pagination,
-  StatusBadge,
-  type DataTableColumn,
-  type StatusTone,
-} from '@/components/console';
+import { DataState, StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
+import { FilterBar } from '@/components/console/FilterBar';
+import { Pagination } from '@/components/console/Pagination';
 import { EmptyState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import {

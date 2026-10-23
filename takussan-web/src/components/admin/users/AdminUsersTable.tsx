@@ -7,12 +7,8 @@ import { MoreHorizontal } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  DataTable,
-  StatusBadge,
-  type DataTableColumn,
-  type StatusTone,
-} from '@/components/console';
+import { StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import {
   DropdownMenu,
   DropdownMenuContent,

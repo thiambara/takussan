@@ -4,7 +4,8 @@ import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AgencyCombobox } from '@/components/admin/super/AgencyCombobox';
-import { DebouncedSearchInput, FilterBar } from '@/components/console';
+import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
+import { FilterBar } from '@/components/console/FilterBar';
 import {
   Select,
   SelectContent,

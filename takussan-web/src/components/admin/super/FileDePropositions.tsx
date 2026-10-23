@@ -5,7 +5,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ListChecks, MapPinned } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { DataState, PageHeader, Pagination } from '@/components/console';
+import { DataState, PageHeader } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { EmptyState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Combobox, type OptionDeListe } from '@/components/ui/combobox';
