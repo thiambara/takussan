@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\Booking\BookingNotificationParams;
 use App\Services\Booking\BookingQuote;
 use App\Services\Booking\PropertyAvailabilityService;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -292,7 +293,8 @@ class BookingService
             $property = $locked->property;
             if ($user->id === $locked->customer?->user_id) {
                 $by = CancellationBy::Customer;
-            } elseif ($property && $property->user_id === $user->id) {
+            } elseif ($property && BailleurDuBien::est($user, $property->user_id, $locked->agency_id ?? $property->agency_id)) {
+                // TCK-1726 (P160.06) — l'agent qui a saisi le bien annule au titre du personnel.
                 $by = CancellationBy::Owner;
             } else {
                 $by = CancellationBy::Agent;

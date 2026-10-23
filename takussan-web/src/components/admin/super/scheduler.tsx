@@ -3,7 +3,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { Timer } from 'lucide-react';
-import { DataTable, StatusBadge, type DataTableColumn, type StatusTone } from '@/components/console';
+import { StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { EmptyState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';

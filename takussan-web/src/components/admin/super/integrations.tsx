@@ -4,13 +4,8 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { Activity, KeyRound, PlugZap, Save, TestTube2, Webhook, X } from 'lucide-react';
-import {
-  DataState,
-  DataTable,
-  StatusBadge,
-  type DataTableColumn,
-  type StatusTone,
-} from '@/components/console';
+import { DataState, StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';

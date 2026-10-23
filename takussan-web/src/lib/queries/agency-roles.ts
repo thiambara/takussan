@@ -120,7 +120,8 @@ export function useCreateAgencyRole(agencyId: number) {
 export function useUpdateAgencyRole(agencyId: number, roleId: number) {
   return useApiMutation<ApiResponse<AgencyRole>, UpdateAgencyRoleInput>(
     { path: cheminApi`/api/agencies/${agencyId}/roles/${roleId}`, method: 'PATCH' },
-    { invalidate: [agencyRoleKeys.all, agencyRoleKeys.detail(agencyId, roleId)] },
+    // TCK-1770 — la liste des membres porte le nom des rôles (`meta.role_assignments`).
+    { invalidate: [agencyRoleKeys.all, agencyRoleKeys.detail(agencyId, roleId), ['admin-users', 'list']] },
   );
 }
 

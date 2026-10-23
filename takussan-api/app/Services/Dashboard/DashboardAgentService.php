@@ -6,7 +6,6 @@ use App\Models\Booking;
 use App\Models\CommissionEntry;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
-use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\LeaseStatus;
@@ -16,7 +15,6 @@ use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
-use App\Models\PropertyCollaborator;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
@@ -93,8 +91,8 @@ class DashboardAgentService
         // remboursement), comme `TeamPerformanceService` ; sans parent, elle n'est d'aucune agence.
         // Un parent supprimé en douceur garde son agence : seule la frontière d'agence change.
         $inAgency = fn (Builder $parent) => $parent->withoutGlobalScope(SoftDeletingScope::class)->where('agency_id', $agencyId);
-        $taskInAgency = fn (Builder $q) => $agencyId === null ? $q
-            : $q->whereHasMorph('taskable', [Customer::class, Property::class, Booking::class], $inAgency);
+        // TCK-1733 (P167.04) — la borne vit sur `Task`, que le filtre `assigned_to=me` de la liste lit aussi.
+        $taskInAgency = fn (Builder $q) => $q->parentInAgency($agencyId);
         $propertyInAgency = fn (Builder $q) => $agencyId === null ? $q : $q->whereHas('property', $inAgency);
 
         // Une visite confirmée est à venir autant qu'une visite planifiée.
@@ -305,13 +303,8 @@ class DashboardAgentService
             return Property::query()->where('agency_id', $agencyId);
         }
 
-        return Property::query()
-            ->when($agencyId !== null, fn ($q) => $q->where('agency_id', $agencyId))
-            ->where(fn ($q) => $q->where('user_id', $agent->id)
-                ->orWhereIn('id', PropertyCollaborator::query()
-                    ->select('property_id')
-                    ->where('user_id', $agent->id)
-                    ->whereIn('role', [CollaboratorRole::Agent->value, CollaboratorRole::Manager->value])));
+        // TCK-1735 (P167.05) — la règle vit sur `Property`, que le filtre `managed_by=me` des réservations lit aussi.
+        return Property::query()->managedBy($agent, $agencyId);
     }
 
     /** Σ des lignes du grand livre de l'agent sur la période, hors lignes annulées. */

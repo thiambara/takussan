@@ -7,16 +7,10 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowUpRight, Building2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import {
-  DataState,
-  DataTable,
-  FilterBar,
-  PageHeader,
-  Pagination,
-  StatusBadge,
-  type DataTableColumn,
-  type StatusTone,
-} from '@/components/console';
+import { DataState, PageHeader, StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
+import { FilterBar } from '@/components/console/FilterBar';
+import { Pagination } from '@/components/console/Pagination';
 import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';

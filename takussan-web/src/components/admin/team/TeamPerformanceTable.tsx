@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Users } from 'lucide-react';
 
-import { DataTable, type DataTableColumn } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Input } from '@/components/ui/input';

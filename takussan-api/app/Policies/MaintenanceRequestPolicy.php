@@ -11,6 +11,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\ProviderEligibility;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -150,6 +151,7 @@ class MaintenanceRequestPolicy extends BasePolicy
         if ($request->status === MaintenanceStatus::AwaitingOwner) {
             return $user->isSuperAdmin()
                 || ($request->property !== null
+                    && BailleurDuBien::est($user, $request->property->user_id, $request->property->agency_id)
                     && $this->landlordWrites($user, $request->property->user_id, $request->property->agency_id));
         }
 
@@ -174,7 +176,8 @@ class MaintenanceRequestPolicy extends BasePolicy
         }
 
         // TCK-592 — la branche ÉQUIPE exige `maintenance.assign` : un rôle personnalisé qui la retire
-        // retire le geste. Le bailleur du bien commande sur SON bien sans capacité d'agence.
+        // retire le geste. Le bailleur du bien commande sur SON bien sans capacité d'agence ; l'agent qui
+        // l'a saisi n'en est pas le bailleur (TCK-1720).
         return ! self::isTeamPrincipalFor($user, $property)
             || $user->canActAt(Capability::MaintenanceAssign, $property->agency);
     }
@@ -244,7 +247,7 @@ class MaintenanceRequestPolicy extends BasePolicy
             return false;
         }
 
-        if ($user->isSuperAdmin() || $property->user_id !== $user->id) {
+        if ($user->isSuperAdmin() || ! BailleurDuBien::est($user, $property->user_id, $property->agency_id)) {
             return true;
         }
 
@@ -254,12 +257,15 @@ class MaintenanceRequestPolicy extends BasePolicy
     /**
      * TCK-592 — donneur d'ordre AU TITRE DE L'ÉQUIPE d'agence : ni super-admin, ni bailleur du bien.
      * C'est la seule branche que les capacités `maintenance.*` gardent.
+     *
+     * TCK-1720 (P160.02) — « bailleur du bien » au sens de {@see BailleurDuBien} : l'agent qui a saisi
+     * le bien (`user_id` = lui, sans profil propriétaire dans l'agence) est jugé ici, par ses capacités.
      */
     public static function isTeamPrincipalFor(User $user, ?Property $property): bool
     {
         return $property !== null
             && ! $user->isSuperAdmin()
-            && $property->user_id !== $user->id
+            && ! BailleurDuBien::est($user, $property->user_id, $property->agency_id)
             && self::isPrincipalFor($user, $property);
     }
 
@@ -299,7 +305,10 @@ class MaintenanceRequestPolicy extends BasePolicy
             return false;
         }
 
-        if ($property->user_id === $user->id) {
+        // TCK-1720 (P160.02) — le créateur du bien n'y est donneur d'ordre AU TITRE DE BAILLEUR que s'il
+        // en est le bailleur ({@see BailleurDuBien}) ; l'agent qui l'a saisi l'est au titre du personnel,
+        // par la branche ci-dessous, et ses capacités `maintenance.*` le jugent.
+        if (BailleurDuBien::est($user, $property->user_id, $property->agency_id)) {
             return true;
         }
 

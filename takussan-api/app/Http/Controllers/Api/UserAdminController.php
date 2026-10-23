@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\IncludedUserResource;
 use App\Models\Agency;
+use App\Models\AgencyRole;
 use App\Models\Enums\Capability;
 use App\Models\User;
+use App\Services\Membership\AffectationsDeRole;
 use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
@@ -15,7 +17,7 @@ use Illuminate\Support\Arr;
 
 class UserAdminController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, AffectationsDeRole $affectations): JsonResponse
     {
         $actor = $request->user();
         $agencyId = $request->activeProfile()?->agency_id;
@@ -90,7 +92,22 @@ class UserAdminController extends Controller
             ], $items);
         }
 
-        return $this->paginated($paginator, $items);
+        // TCK-1770 (P136.04) — sur demande, les affectations de rôle des lignes de la page, jugées
+        // par la règle de `GET /api/agencies/{agency}/role-assignments` (`AgencyRolePolicy::viewAny`,
+        // `team.assign_role`). Un lecteur de la liste qui ne la tient pas ne les reçoit pas, comme il
+        // reçoit 403 là-bas. Hors agence active (super-admin sans profil d'agence) : rien à rendre.
+        $extra = [];
+        $agence = $agencyId !== null && $request->boolean('with_role_assignments')
+            ? Agency::query()->find($agencyId)
+            : null;
+        if ($agence !== null && $actor->can('viewAny', [AgencyRole::class, $agence])) {
+            $extra['role_assignments'] = $affectations->pour(
+                $agence,
+                array_map(fn (User $u) => (int) $u->getKey(), $paginator->items()),
+            );
+        }
+
+        return $this->paginated($paginator, $items, $extra);
     }
 
     // TCK-587 (ADR-0031 §2) — bloquer un COMPTE est un geste de la plateforme seule ; l'admin

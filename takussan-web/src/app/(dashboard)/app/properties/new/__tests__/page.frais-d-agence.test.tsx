@@ -23,7 +23,7 @@ vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton' }));
 vi.mock('@/lib/access/server-guards', () => ({
   resolveAgencyOrNull: (...args: unknown[]) => mockAgence(...args),
 }));
-vi.mock('@/components/property-form', () => ({
+vi.mock('@/components/property-form/PropertyWizard', () => ({
   PropertyWizard: ({ fraisDAgence }: { fraisDAgence?: boolean }) => (
     <div data-testid="assistant" data-frais={String(fraisDAgence)} />
   ),

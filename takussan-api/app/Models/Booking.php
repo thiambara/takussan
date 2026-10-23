@@ -7,11 +7,13 @@ use App\Models\Bases\Auditable;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\Currency;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\QueryBuilder\AllowedFilter;
 
 class Booking extends AbstractModel
 {
@@ -44,6 +46,27 @@ class Booking extends AbstractModel
     protected static array $requestFilterable = ['property_id', 'customer_id', 'created_by_id', 'agency_id', 'status', 'currency'];
 
     protected static array $requestSortable = ['id', 'created_at', 'start_date', 'end_date', 'status'];
+
+    /**
+     * TCK-1735 (P167.05) — `filter[managed_by]=me` : les réservations des biens de l'appelant, sous la
+     * règle « Mes chiffres » du tableau de bord de l'agent ({@see Property::scopeManagedBy()}), dans
+     * son agence active. Toute autre valeur : rien.
+     */
+    protected static function customQueryFilters(): array
+    {
+        return [
+            AllowedFilter::callback('managed_by', function (Builder $query, mixed $value): void {
+                $user = request()->user();
+                if ($value !== 'me' || $user === null) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+                $query->whereIn($query->qualifyColumn('property_id'), Property::query()
+                    ->managedBy($user, $user->staffAgencyId())->select('properties.id'));
+            }),
+        ];
+    }
 
     // TCK-807 (P21.05) — `agency` n'est pas émis par `BookingResource`. `RequestLoadableEmittedTest` le garde.
     protected static array $requestLoadable = ['property', 'customer'];

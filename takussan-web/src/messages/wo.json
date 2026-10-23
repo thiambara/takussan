@@ -6205,7 +6205,8 @@
         "rejected": "Yu ñu bañ",
         "cancelled": "Yu ñu neenal",
         "expired": "Yu jeex"
-      }
+      },
+      "onlyMine": "Mes biens"
     },
     "detail": {
       "error": "Gisuñu réservasioŋ bi.",

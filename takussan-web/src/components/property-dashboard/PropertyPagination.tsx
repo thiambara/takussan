@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback } from 'react';
 
-import { Pagination } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import {
   Select,
   SelectContent,

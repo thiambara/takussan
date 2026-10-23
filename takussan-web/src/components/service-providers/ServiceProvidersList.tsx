@@ -17,7 +17,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Mail, Ban } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { DataTable, PageHeader, type DataTableColumn } from '@/components/console';
+import { PageHeader } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';

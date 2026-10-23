@@ -21,7 +21,8 @@ import type { CustomerDuplicateMatch } from '@/app/actions/dashboard-customers';
 import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
 import { EmptyState, ErrorState } from '@/components/feedback';
-import { Pagination, StatusBadge } from '@/components/console';
+import { StatusBadge } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Dialog,

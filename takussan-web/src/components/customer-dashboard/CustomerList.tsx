@@ -12,7 +12,8 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { UserPlus } from 'lucide-react';
 
-import { DataTable, type DataTableColumn, StatusBadge } from '@/components/console';
+import { StatusBadge } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { CustomerTagChips } from '@/components/customer-dashboard/CustomerTagPicker';
 import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';

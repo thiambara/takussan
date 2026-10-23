@@ -1,11 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
 import { isAgencyAdmin } from '@/lib/roles';
-import type { Agency } from '@/types/agency';
-import type { WelcomeSeenListResponse } from '@/types/welcome-view';
+import { useAccueilsVus } from '@/hooks/useAccueilsVus';
 
 /**
  * TCK-269 — Drives the one-shot "Welcome to your standard agency" modale
@@ -19,7 +18,8 @@ import type { WelcomeSeenListResponse } from '@/types/welcome-view';
  *     impersonation, mirrors `isAgencyAdmin` in `lib/roles.ts`).
  *  3. The user has an `agency_id`.
  *  4. The active agency is `kind = standard` AND has
- *     `metadata.welcome.standard_unlocked_at` set (the marker stamped by
+ *     `metadata.welcome.standard_unlocked_at` set (passed by the `/app` layout,
+ *     TCK-1766) (the marker stamped by
  *     `AgencyKindFlipService` at flip time — agencies that have always
  *     been standard never see this modale).
  *  5. The welcome key `agency-standard-welcome-{agency_id}` is not yet
@@ -38,117 +38,65 @@ export type UseAgencyStandardWelcomeOnceResult = {
   onSkip: () => void;
 };
 
-type AgencyEnvelope = { data?: Agency };
+/**
+ * TCK-1766 (P136.03) — le marqueur d'accueil de l'agence, lu par le layout `/app` qui a déjà
+ * l'agence (`resolveAgencyOrNull`, mise en cache pour le rendu). `unlockedAt` est
+ * `metadata.welcome.standard_unlocked_at` d'une agence `standard`, `null` sinon. Le hook ne relit
+ * plus `GET /api/agencies/{id}` : avant, il demandait la ressource de détail entière pour ces deux
+ * champs.
+ */
+export type MarqueurAccueilAgence = {
+  readonly agencyId: number;
+  readonly unlockedAt: string | null;
+};
 
 const KEY_PREFIX = 'agency-standard-welcome-';
 
-export function useAgencyStandardWelcomeOnce(): UseAgencyStandardWelcomeOnceResult {
+export function useAgencyStandardWelcomeOnce(
+  marqueur?: MarqueurAccueilAgence | null,
+): UseAgencyStandardWelcomeOnceResult {
   const { user } = useAuth();
   const isAuthenticated = user !== null;
   const agencyId = user?.agency_id ?? null;
   const eligibleRole = isAuthenticated && Array.isArray(user?.roles) && isAgencyAdmin(user.roles);
 
+  // Le marqueur ne vaut que pour l'agence du profil actif : après un changement de profil, un
+  // marqueur d'une autre agence n'ouvre rien.
+  const actif =
+    eligibleRole &&
+    typeof agencyId === 'number' &&
+    marqueur?.agencyId === agencyId &&
+    !!marqueur.unlockedAt;
+  const { vus, marquerVu } = useAccueilsVus(actif);
+  const key = `${KEY_PREFIX}${agencyId}`;
+
   // `dismissed` lets the user close the modale without us re-deriving
   // `open` to true on the next render — once they've acknowledged the
-  // welcome key, we stay closed for the rest of the session even if the
-  // hook re-evaluates eligibility.
-  const [resolvedAgencyId, setResolvedAgencyId] = useState<number | null>(null);
+  // welcome key, we stay closed for the rest of the session.
   const [dismissed, setDismissed] = useState(false);
   const acknowledgedRef = useRef(false);
 
-  useEffect(() => {
-    if (!isAuthenticated || !eligibleRole || agencyId === null || agencyId === undefined) {
-      // No setState in the synchronous return — `resolvedAgencyId` stays
-      // at its current value, but `open` is gated on `agencyId === resolved`
-      // below so a logged-out user / role change still hides the modale.
-      return;
-    }
+  const eligible = actif && vus !== null && !vus.includes(key) && !dismissed;
 
-    let cancelled = false;
-    acknowledgedRef.current = false;
-
-    void (async () => {
-      try {
-        // P60.03 — pas de `fields[agencies]` : un `show` rend la ressource de détail entière.
-        // Seuls `kind` et le marqueur d'accueil sont lus.
-        const agencyUrl = `/api/agencies/${agencyId}`;
-        const [agencyRes, seenRes] = await Promise.all([
-          fetch(agencyUrl, {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            credentials: 'same-origin',
-          }),
-          fetch('/api/me/welcome-seen', {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            credentials: 'same-origin',
-          }),
-        ]);
-        if (cancelled) return;
-        if (!agencyRes.ok || !seenRes.ok) return;
-
-        const agencyBody = (await agencyRes.json()) as AgencyEnvelope;
-        const seenBody = (await seenRes.json()) as WelcomeSeenListResponse;
-        if (cancelled) return;
-
-        const agency = agencyBody?.data;
-        if (!agency || agency.kind !== 'standard') return;
-
-        const unlockedAt = agency.metadata?.welcome?.standard_unlocked_at;
-        if (!unlockedAt) return;
-
-        const seen = new Set(Array.isArray(seenBody?.data) ? seenBody.data : []);
-        const key = `${KEY_PREFIX}${agencyId}`;
-        if (seen.has(key)) return;
-
-        setResolvedAgencyId(agencyId);
-      } catch {
-        // Silent — dashboard never breaks because of a welcome ping.
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, eligibleRole, agencyId]);
-
-  // Eligibility derived from props rather than mirrored into state — no
-  // sync-setState-in-effect cascade, no stale render after role / agency
-  // change.
-  const eligible =
-    isAuthenticated &&
-    eligibleRole &&
-    typeof agencyId === 'number' &&
-    resolvedAgencyId === agencyId &&
-    !dismissed;
-
-  const acknowledge = useCallback(() => {
-    if (acknowledgedRef.current || resolvedAgencyId === null || !isAuthenticated) return;
+  const acknowledge = () => {
+    if (acknowledgedRef.current || !actif) return;
     acknowledgedRef.current = true;
-    void fetch('/api/me/welcome-seen', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ key: `${KEY_PREFIX}${resolvedAgencyId}` }),
-    }).catch(() => {
-      // Silent — the server is idempotent. A missed write only means we
-      // re-prompt the next session.
-    });
-  }, [resolvedAgencyId, isAuthenticated]);
+    marquerVu(key);
+  };
 
-  const onComplete = useCallback(() => {
+  const onComplete = () => {
     acknowledge();
     setDismissed(true);
-  }, [acknowledge]);
+  };
 
-  const onSkip = useCallback(() => {
+  const onSkip = () => {
     acknowledge();
     setDismissed(true);
-  }, [acknowledge]);
+  };
 
   return {
     open: eligible,
-    agencyId: eligible ? resolvedAgencyId : null,
+    agencyId: eligible ? agencyId : null,
     onComplete,
     onSkip,
   };

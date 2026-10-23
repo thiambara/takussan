@@ -11,10 +11,9 @@ use App\Http\Requests\Api\ListAgencyRoleAssignmentsRequest;
 use App\Http\Resources\Agency\AgencyRoleResource;
 use App\Models\Agency;
 use App\Models\AgencyRole;
-use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
+use App\Services\Membership\AffectationsDeRole;
 use App\Services\Membership\AgencyRoleService;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -79,36 +78,13 @@ class RoleController extends Controller
      * à la main, ce que la convention des sparse fieldsets existe pour
      * éviter. La forme tableau reste acceptée.
      */
-    public function assignments(Agency $agency, ListAgencyRoleAssignmentsRequest $request): JsonResponse
-    {
-        $userIds = $request->userIds();
-
-        $rows = [];
-        foreach (AgencyRoleBaseType::assignableTypes() as $type) {
-            /** @var class-string<Model>|null $class */
-            $class = $type->profileClass();
-            if ($class === null) {
-                continue;
-            }
-
-            foreach (
-                $class::query()
-                    ->where('agency_id', $agency->id)
-                    ->whereIn('user_id', $userIds)
-                    ->with('agencyRole')
-                    ->get() as $profile
-            ) {
-                $rows[] = [
-                    'profile_id' => (int) $profile->getKey(),
-                    'profile_type' => $type->value,
-                    'user_id' => (int) $profile->user_id,
-                    'agency_role_id' => (int) $profile->agency_role_id,
-                    'agency_role_name' => $profile->agencyRole?->name,
-                ];
-            }
-        }
-
-        return $this->json(['data' => $rows]);
+    public function assignments(
+        Agency $agency,
+        ListAgencyRoleAssignmentsRequest $request,
+        AffectationsDeRole $affectations,
+    ): JsonResponse {
+        // TCK-1770 — la lecture vit dans `AffectationsDeRole`, que la liste des membres partage.
+        return $this->json(['data' => $affectations->pour($agency, $request->userIds())]);
     }
 
     public function show(Agency $agency, AgencyRole $role, Request $request): JsonResponse

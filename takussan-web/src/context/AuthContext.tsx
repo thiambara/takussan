@@ -107,8 +107,13 @@ export function AuthProvider({
   // → clear the store. The store stays the canonical reactive cache that
   // the navbar popover, every <FavoriteButton>, and the detail page heart
   // all subscribe to.
+  // TCK-1764 (P172.04) — l'effet dépend du compte et de son agence, pas de l'objet `user`, que
+  // chaque `refreshUser()` remplace : la liste ne dépend que d'eux (`FavoriteController::index`,
+  // `staffAgencyId()`), et relire tous les favoris pour le même compte ne rendait rien de neuf.
+  const userId = user?.id ?? null;
+  const userAgencyId = user?.agency_id ?? null;
   useEffect(() => {
-    if (!user || !token) {
+    if (userId === null || !token) {
       if (wasAuthedRef.current) {
         clearLocalFavorites();
         wasAuthedRef.current = false;
@@ -131,7 +136,7 @@ export function AuthProvider({
     return () => {
       cancelled = true;
     };
-  }, [user, token, queryClient]);
+  }, [userId, userAgencyId, token, queryClient]);
 
   useEffect(() => {
     if (initialUser !== undefined) return;

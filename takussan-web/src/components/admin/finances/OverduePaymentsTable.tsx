@@ -6,7 +6,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import { CircleCheckBig } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback';
-import { DataTable, StatCard, type DataTableColumn } from '@/components/console';
+import { StatCard } from '@/components/console';
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';

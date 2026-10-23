@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { FilterBar } from '@/components/console';
+import { FilterBar } from '@/components/console/FilterBar';
 
 describe('<FilterBar>', () => {
   it('rend ses contrôles et le compteur de résultats', () => {
