@@ -11983,7 +11983,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### `crm:normalize-customer-phones` réécrit `customers.phone` par `toBase()->update()` : l'index des clients garde l'ancien format du numéro
 - Réf : P122.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1754
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/NormalizeCustomerPhones.php:34-62`, `takussan-api/app/Models/Customer.php` (`toSearchableArray`)
 - Constat :
@@ -11994,6 +11994,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lu.
 - Piste : réindexer les clients modifiés à la fin de chaque lot (`Customer::whereKey($ids)->searchable()`, sous `ModelObserver::syncingDisabledFor`), ou passer par `saveQuietly()` suivi d'un `searchable()`. Test sous `InteractsWithMeilisearch` : un client indexé avec un numéro non normalisé, la commande, puis le document porte le numéro normalisé.
 - Mesure (2026-10-22, 2abc59353, mesureur) : relu `NormalizeCustomerPhones.php` (écriture par `Customer::withTrashed()->whereKey(...)->toBase()->update($changes)`, en-tête « ni réindexation par ligne ») et `Customer::toSearchableArray()` (indexe `phone`) ; test temporaire retiré : client indexé avec `77 123 45 67` posé en base, commande → base `+221771234567`, document `77 123 45 67`, recherche `+221771234567` → 0 résultat → le constat tient, la déduction sur la recherche est vérifiée. Classement : A1, l'index doit refléter la table et la commande n'expose ni ne retire aucune donnée nouvelle ; réindexer les clients modifiés par lot (non par ligne, ce que l'en-tête écarte) ne demande aucun choix.
+- Mesure (2026-10-23, 4436bf690, implementeur) : test neuf `NormalisationDesTelephonesReindexeTest` (sous `InteractsWithMeilisearch`) avant correctif : client indexé avec `77 123 45 67` posé en base, commande → base `+221771234567`, `GET /api/customers?filter[search]=+221771234567` → `meta.total` 0 (rouge). Correctif : les clients modifiés d'un lot réindexés en fin de lot (`Customer::query()->whereKey($ids)->searchable()`), rien en `--dry-run` → 2/2 verts ; ablation (commande remise à `HEAD`) → 1 rouge, remise → 2/2 ; `CustomerPhoneAndDuplicateTest` 9/9.
 
 ### Petites améliorations
 - Réf : P122.04
