@@ -16508,7 +16508,7 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
 
 ### L'avis mensuel ne part pas au bailleur dont les seuls encaissements du mois sont des acomptes de séjour
 - Réf : P177.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1783
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Console/Commands/Payouts/SendOwnerStatements.php:17-21,37-44`
 - Constat :
@@ -16516,6 +16516,7 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
   - mesuré (test temporaire) : bailleur sans bail, un acompte `advance` de 50 000 payé le 10 septembre → relevé de septembre `gross 50000, net 46000` ; `payouts:send-owner-statements --period=2026-09` → 0 avis à ce bailleur.
 - Piste : unir aux couples des loyers ceux des acomptes de séjour éligibles (`bookings.agency_id`, `properties.user_id`), avec le même filtre `OwnerProfile`. Garde : le cas ci-dessus en test de la commande.
 - Mesure (2026-10-23, ddd77d99a, mesureur) : `git diff 7e626b8bf ddd77d99a` vide sur `app/Services/Payout`, `SendOwnerStatements`, `OwnerStatementController`, `PayoutService`, `BookingPaymentService`, `PaymentGatewayService`, `LeasePaymentService` et `app/Http/Requests` (code inchangé depuis l'exploration) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle177Test.php` (retiré, charge 2,90 / 2,17 / 1,78 sur 8 cœurs), reversement créé par `POST /api/payouts` puis passé `completed` par `forceFill`, bailleur sans bail, acompte `advance` de 50 000 payé le 10 septembre → relevé de septembre `gross 50000, commission 4000, net 46000` ; `payouts:send-owner-statements --period=2026-09` → 0 avis (`Notification::fake`). Relu `SendOwnerStatements.php:17-19,37-44` (couples lus sur `lease_payments` seuls) et `features.md:220` (relevé « envoyé au bailleur en début de mois »). Le constat tient. Classement : A1, le docblock de la commande et `features.md:220` écrivent déjà que chaque bailleur qui a eu des encaissements est avisé, et le relevé (`PayoutCalculator::bookingPayments`) dit déjà qu'un acompte de séjour en est un ; aucun montant n'est calculé ni écrit, et aucun texte neuf n'est ajouté.
+- Mesure (2026-10-23, 663fc2871, implementeur) : reproduit avant correctif par `OwnerStatementTest::test_p177_04_a_landlord_with_only_stay_advances_is_notified_once` (bailleur sans bail, acompte `advance` de 50 000 payé le 10 septembre, `payouts:send-owner-statements --period=2026-09` deux fois) → « sent 0 times » ; `SendOwnerStatements` unit aux couples des loyers ceux des acomptes de séjour (`bookings.agency_id`, `properties.user_id`, types `PayoutCalculator::BOOKING_TYPES`) → 1 avis après deux exécutions ; ablation (commande remise à son état antérieur) → rouge, rétablie → vert ; `OwnerStatementTest` 6/6 verts.
 
 ### Le relevé envoyé n'est conservé nulle part : celui que relit le bailleur change après coup, sans avis ni trace
 - Réf : P177.05
