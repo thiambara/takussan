@@ -29,7 +29,8 @@ class InvitationController extends Controller
      *
      * Visibility:
      *  - super_admin: every invitation across tenants.
-     *  - admin / agency_admin: every invitation in their agency.
+     *  - `team.invite` in the active agency (admin included, TCK-1748):
+     *    every invitation in their agency.
      *  - everyone else: only invitations they emitted (so per-role wizards
      *    can show "your pending invites").
      */
@@ -149,8 +150,8 @@ class InvitationController extends Controller
             return Invitation::query();
         }
 
-        if ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)) {
-            // TCK-587 — un admin actif est personnel : le prédicat unique (ADR-0031 §1).
+        // TCK-1748 (P116.03) — la portée suit la règle de la policy : `team.invite`, admin compris.
+        if ($user->can('viewAny', Invitation::class)) {
             return Invitation::query()->where('agency_id', $user->staffAgencyId());
         }
 

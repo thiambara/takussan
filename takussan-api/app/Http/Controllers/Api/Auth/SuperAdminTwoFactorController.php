@@ -187,6 +187,10 @@ class SuperAdminTwoFactorController extends Controller
         $profile->granted_by_id = $invitation->invited_by;
         $profile->granted_at = now();
         $profile->save();
+
+        // TCK-1758 (P154.02) — `ResolveActiveProfile` a chargé `platformProfile` sur cette instance :
+        // sans la relation posée, le compte n'était pas super-admin pour le reste de la requête.
+        $user->setRelation('platformProfile', $profile);
     }
 
     /** TCK-600 — la dernière invitation de cooptation acceptée par ce compte. */

@@ -40,7 +40,10 @@ class AssignAgencyRoleRequest extends BaseFormRequest
                     AgencyRoleBaseType::assignableTypes(),
                 )),
             ],
-            'agency_role_id' => ['required', 'integer', 'exists:agency_roles,id'],
+            // TCK-1772 (P62.07) — pas d'`exists:agency_roles,id` : jugé avant toute autorisation, il
+            // disait à tout compte quels rôles existent. Le contrôleur rend au rôle absent la réponse
+            // du rôle d'une autre agence, après l'autorisation.
+            'agency_role_id' => ['required', 'integer'],
         ];
     }
 

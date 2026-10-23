@@ -16,6 +16,10 @@ use Illuminate\Console\Command;
  *
  * L'écriture passe par une mise à jour de requête : ni journal d'activité, ni réindexation par
  * ligne — c'est une correction de forme, pas un changement fait par quelqu'un.
+ *
+ * TCK-1754 (P122.03) — mais l'index des clients porte `phone` : les clients modifiés sont
+ * réindexés à la fin de chaque lot, sans quoi l'index gardait l'ancienne saisie et la recherche du
+ * numéro normalisé ne retrouvait plus le client. Un client supprimé n'est pas réindexé.
  */
 class NormalizeCustomerPhones extends Command
 {
@@ -35,6 +39,7 @@ class NormalizeCustomerPhones extends Command
             ->where(fn ($q) => $q->whereNotNull('phone')->orWhereNotNull('emergency_contact_phone'))
             ->select(['id', ...self::FIELDS])
             ->chunkById(500, function ($customers) use ($dryRun, &$counts, &$unnormalizable) {
+                $modifies = [];
                 foreach ($customers as $customer) {
                     $changes = [];
                     foreach (self::FIELDS as $field) {
@@ -59,7 +64,11 @@ class NormalizeCustomerPhones extends Command
                     }
                     if ($changes !== [] && ! $dryRun) {
                         Customer::withTrashed()->whereKey($customer->id)->toBase()->update($changes);
+                        $modifies[] = $customer->id;
                     }
+                }
+                if ($modifies !== []) {
+                    Customer::query()->whereKey($modifies)->searchable();
                 }
             });
 

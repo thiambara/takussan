@@ -106,6 +106,36 @@ class SuperAdminGrantOnlyByCooptationTest extends TestCase
         $this->assertTrue($coopte->fresh()->isSuperAdmin());
     }
 
+    /**
+     * TCK-1758 (P154.02) — `ResolveActiveProfile` a chargé `platformProfile` (nul) sur l'instance de la
+     * requête ; `attachSuperAdminRole()` écrivait le profil à côté, et pour le reste de la requête le
+     * compte n'était pas super-admin. La relation est posée sur l'instance.
+     */
+    public function test_apres_la_confirmation_l_instance_de_la_requete_est_super_admin(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $inviteur = $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);
+        $coopte = User::factory()->create(['force_2fa_at_first_login' => true]);
+        $this->invitationAcceptee($coopte, $inviteur, []);
+
+        $secret = app(TwoFactorService::class)->generateSecret();
+        $coopte->forceFill([
+            'two_factor_secret' => $secret,
+            'two_factor_recovery_codes' => json_encode([]),
+            'two_factor_enabled' => false,
+            'force_2fa_at_first_login' => true,
+        ])->save();
+        $this->app['auth']->forgetGuards();
+        $instance = $coopte->fresh();
+        $this->actingAs($instance);
+
+        $this->postJson('/api/auth/super-admin/2fa/confirm', ['code' => (new Google2FA)->getCurrentOtp($secret)])->assertOk();
+
+        $this->assertTrue($instance->relationLoaded('platformProfile'));
+        $this->assertTrue($instance->isSuperAdmin(), 'l’instance de la requête dit ce que dit la base');
+    }
+
     /** Second chemin : le drapeau `force_2fa_at_first_login` seul ne vaut pas invitation. */
     public function test_la_confirmation_de_la_2fa_n_octroie_rien_sans_invitation_acceptee(): void
     {

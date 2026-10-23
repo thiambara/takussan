@@ -40,8 +40,6 @@ class ExistsSurTableASuppressionDouceTest extends TestCase
         'Api/StorePayoutRequest.php#agencies' => 'P96.02 (reste, au porteur)',
         // Clôture d'une période de reversement de la plateforme : 404 par `findOrFail()`, argent (V1).
         'Api/Admin/ClosePlatformPayoutPeriodRequest.php#agencies' => 'P96.03 (lu au constat, hors de ses sept requêtes)',
-        // Filtre de lecture, déjà figé pour l'oracle d'existence (P62.07).
-        'Api/IndexCalendarRequest.php#agencies' => 'P62.07',
         // L'appelant rend déjà 422 sur le champ pour une ligne supprimée (P96.02, constat).
         'Agency/StoreAgentHandoverRequest.php#users' => 'déjà 422 : `find()` puis erreur sur le champ',
         'Api/SetPrimaryContactCustomerRequest.php#users' => 'déjà 422 : règle de l\'appelant',
