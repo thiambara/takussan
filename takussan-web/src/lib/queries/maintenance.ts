@@ -61,7 +61,8 @@ const LIST_FIELDS = [
 const LIST_PROPERTY_FIELDS = ['id', 'title', 'slug', 'agency_id'] as const;
 
 export interface MaintenanceListParams {
-  readonly status?: MaintenanceStatus;
+  /** TCK-1727 — un statut, ou plusieurs (`filter[status]=a,b`, filtre exact de l'API). */
+  readonly status?: MaintenanceStatus | readonly MaintenanceStatus[];
   readonly priority?: MaintenancePriority;
   readonly category?: MaintenanceCategory;
   readonly property_id?: number;
@@ -76,7 +77,8 @@ function toSpatieParams(
   fields: readonly string[],
 ): SpatieQueryParams {
   const filter: SpatieQueryParams['filter'] = {};
-  if (params?.status) filter.status = params.status;
+  if (typeof params?.status === 'string') filter.status = params.status;
+  else if (params?.status?.length) filter.status = params.status.join(',');
   if (params?.priority) filter.priority = params.priority;
   if (params?.category) filter.category = params.category;
   if (params?.property_id) filter.property_id = params.property_id;
