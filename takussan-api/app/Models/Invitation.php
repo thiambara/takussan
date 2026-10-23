@@ -123,6 +123,16 @@ class Invitation extends AbstractModel
             ->where('expires_at', '<=', now());
     }
 
+    /**
+     * TCK-1723 (P155.03) — le nom de l'invité dans ce que lit l'invitant : son adresse, sinon son
+     * numéro. Une invitation partie par numéro seul (`email` nul, TCK-589) rendait « Votre invitation
+     * à  a expiré ». Même repli que le canal d'envoi (`InvitationService`, `email === null ? phone`).
+     */
+    public function inviteeContact(): ?string
+    {
+        return $this->email ?? $this->phone;
+    }
+
     public function inviter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'invited_by');

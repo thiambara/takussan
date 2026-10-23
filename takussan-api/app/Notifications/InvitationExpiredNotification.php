@@ -26,7 +26,7 @@ class InvitationExpiredNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $email = $this->invitation->email;
+        $email = $this->invitation->inviteeContact();
 
         return (new MailMessage)
             ->subject(__('notifications.invitation_expired.subject', ['email' => $email]))
