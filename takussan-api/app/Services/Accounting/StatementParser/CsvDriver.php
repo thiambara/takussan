@@ -125,7 +125,7 @@ class CsvDriver implements StatementParserInterface
 
         $currency = $defaultCurrency;
         if (! empty($mapping['currency_column']) && isset($record[$mapping['currency_column']])) {
-            $currency = strtoupper(trim($record[$mapping['currency_column']]));
+            $currency = $this->parseCurrency($record[$mapping['currency_column']]);
         }
 
         return new ParsedLine(
@@ -157,6 +157,28 @@ class CsvDriver implements StatementParserInterface
         };
     }
 
+    /**
+     * TCK-1704 (P124.01) — la devise lue dans sa colonne. `bank_statement_lines.currency` est un
+     * `char(3)` : `FCFA`, l'écriture courante des relevés sénégalais, faisait échouer l'insertion
+     * et le relevé entier. Les écritures connues du franc CFA deviennent `XOF` ; un code de trois
+     * lettres passe en majuscules ; toute autre valeur, vide comprise, fait sauter la ligne,
+     * comptée comme une ligne illisible. Le message ne porte pas la valeur.
+     */
+    private function parseCurrency(string $raw): string
+    {
+        $value = strtoupper((string) preg_replace('/\s+/u', ' ', trim($raw)));
+
+        if (in_array($value, ['FCFA', 'F CFA', 'CFA'], true)) {
+            return 'XOF';
+        }
+
+        if (preg_match('/^[A-Z]{3}$/', $value) !== 1) {
+            throw new \RuntimeException('Invalid currency');
+        }
+
+        return $value;
+    }
+
     private function nullIfEmpty(?string $value): ?string
     {
         if ($value === null) {
@@ -165,7 +187,8 @@ class CsvDriver implements StatementParserInterface
 
         $trimmed = trim($value);
 
-        return $trimmed === '' ? null : $trimmed;
+        // TCK-1704 (P124.01) — borné à la colonne (`reference`, `counterparty`), en caractères.
+        return $trimmed === '' ? null : mb_substr($trimmed, 0, ParsedLine::TEXT_MAX);
     }
 
     /**

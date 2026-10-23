@@ -3,6 +3,7 @@ import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/
 import type { Tag, TagType } from '@/types/tag';
 import type { TagFormPayload } from '@/lib/schemas/tag';
 import { cheminApi, requete } from '@/lib/chemin-api';
+import { lireToutesLesPages, PAR_PAGE_MAX } from '@/lib/queries/toutes-les-pages';
 
 /**
  * Tag (admin) queries — TCK-023 / TCK-066. Sparse fieldsets are mandatory
@@ -57,6 +58,18 @@ export async function fetchTags(
 ): Promise<PaginatedResponse<Tag>> {
   const qs = buildQueryString(buildListParams(params));
   return apiRequest<PaginatedResponse<Tag>>(cheminApi`/api/tags${requete(qs)}`, { token });
+}
+
+/**
+ * TCK-1749 (P171.06) — TOUTES les étiquettes, page par page : le choix des équipements d'un bien
+ * et la console des étiquettes (dont le filtre par type et la recherche restent côté client) sont
+ * dessinés pour la liste entière. Une page de 100 taisait la 101ᵉ.
+ */
+export async function fetchAllTags(
+  token: string,
+  params: Omit<FetchTagsParams, 'page' | 'perPage'> = {},
+): Promise<PaginatedResponse<Tag>> {
+  return lireToutesLesPages((page) => fetchTags(token, { ...params, page, perPage: PAR_PAGE_MAX }));
 }
 
 export async function createTag(token: string, payload: TagFormPayload): Promise<Tag> {

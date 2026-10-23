@@ -156,7 +156,9 @@ class AgencyController extends Controller
      */
     public function listMembers(Request $request, Agency $agency): JsonResponse
     {
-        $this->authorizeAdmin($request, $agency);
+        if (! $request->user()->can('update', $agency)) {
+            return $this->listAssignableStaff($request, $agency);
+        }
 
         // TCK-142 — "members" of an agency are users with any agency-scoped
         // profile at that agency, replacing the old direct foreign-key filter
@@ -193,6 +195,32 @@ class AgencyController extends Controller
             'data' => UserResource::collection($paginator)->toArray($request),
             'meta' => $this->paginationMeta($paginator),
         ]);
+    }
+
+    /**
+     * P120.05 (TCK-1530) — `/members` pour qui n'administre pas l'agence mais y détient
+     * `crm.assign` (`AgencyPolicy::listAssignableStaff`) : les seules cibles qu'une attribution
+     * accepte (`filter[assignable]=1`, la règle de `PersonnelDeLAgence`), nom seul. Le filtre, les
+     * colonnes et l'absence d'`include` sont IMPOSÉS : la requête ne choisit que le tri et la page.
+     */
+    private function listAssignableStaff(Request $request, Agency $agency): JsonResponse
+    {
+        $this->authorize('listAssignableStaff', $agency);
+
+        $request->query->set('filter', ['assignable' => '1']);
+        $request->query->set('fields', ['users' => 'id,first_name,last_name']);
+        $request->query->remove('include');
+
+        $query = User::buildAgencyMembersQuery(User::query()->membreDe((int) $agency->id), $request, (int) $agency->id);
+        $query->defaultSort('first_name');
+
+        $paginator = $query->paginate($this->tailleDePage($request, 20));
+
+        return $this->paginated($paginator, $paginator->getCollection()->map(fn (User $user): array => [
+            'id' => $user->id,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+        ])->all());
     }
 
     public function addAgent(AddAgentAgencyRequest $request, Agency $agency): JsonResponse

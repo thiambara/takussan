@@ -66,9 +66,17 @@ describe('vue bailleur — cartes actionnables (AC8)', () => {
   it('chaque carte mène à son module et porte son nombre', async () => {
     render(await OwnerDashboardPage());
 
-    expect(screen.getByRole('link', { name: /Devis à valider\s*2/ })).toHaveAttribute('href', '/app/maintenance');
+    // TCK-1727 (P167.01) : la liste s'ouvre sur les deux statuts que le nombre additionne.
+    expect(screen.getByRole('link', { name: /Devis à valider\s*2/ })).toHaveAttribute(
+      'href',
+      '/app/maintenance?status=quote_submitted,awaiting_owner',
+    );
     expect(screen.getByRole('link', { name: /Visites à confirmer\s*1/ })).toHaveAttribute('href', '/app/visits');
-    expect(screen.getByRole('link', { name: /Avis sans réponse\s*3/ })).toHaveAttribute('href', '/app/profile/reviews');
+    expect(screen.getByRole('link', { name: /Avis sans réponse\s*3/ })).toHaveAttribute(
+      'href',
+      // TCK-1515 (P167.02) : la boîte s'ouvre sur ce que le nombre compte.
+      '/app/profile/reviews?reply=unreplied&subject=property',
+    );
     expect(screen.queryByText('Voir le module')).toBeNull();
   });
 });

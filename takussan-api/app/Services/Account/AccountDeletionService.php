@@ -13,7 +13,6 @@ use App\Models\Enums\BookingStatus;
 use App\Models\Enums\DataExportStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\InvoiceStatus;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Invitation;
@@ -437,7 +436,7 @@ class AccountDeletionService
      */
     private static function openLeaseStatuses(): array
     {
-        return [...User::ACTIVE_TENANT_LEASE_STATUSES, LeaseStatus::PendingSignature->value];
+        return Lease::OPEN_STATUSES;
     }
 
     /**

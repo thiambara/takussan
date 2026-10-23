@@ -11,6 +11,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -160,10 +161,15 @@ class AgencyRoleService
             ->map(static fn (Capability $c): string => $c->value)
             ->unique()
             ->values();
-        $before = AgencyRoleCapability::query()->where('agency_role_id', $role->id)->pluck('capability')
-            ->map(static fn ($c): string => $c instanceof Capability ? $c->value : (string) $c);
+        $before = DB::transaction(function () use ($role, $values): Collection {
+            // TCK-1492 (P92.07) — le rôle verrouillé d'abord : deux enregistrements simultanés
+            // supprimaient chacun puis inséraient, et le second heurtait `arc_role_capability_unique`
+            // en 500. Sérialisés, le dernier enregistré gagne, et l'état d'avant se lit sous le verrou.
+            AgencyRole::query()->whereKey($role->getKey())->lockForUpdate()->firstOrFail();
 
-        DB::transaction(function () use ($role, $values): void {
+            $before = AgencyRoleCapability::query()->where('agency_role_id', $role->id)->pluck('capability')
+                ->map(static fn ($c): string => $c instanceof Capability ? $c->value : (string) $c);
+
             AgencyRoleCapability::query()->where('agency_role_id', $role->id)->delete();
 
             $now = now();
@@ -177,6 +183,8 @@ class AgencyRoleService
             if ($rows !== []) {
                 AgencyRoleCapability::query()->insert($rows);
             }
+
+            return $before;
         });
 
         // Invalidation synchrone : la spec §52 exige que l'édition prenne

@@ -204,6 +204,39 @@ class StatementParserTest extends TestCase
      * @param  array<string, mixed>  $mapping  recouvre le mapping effectif par défaut
      * @return array{lines: list<ParsedLine>, context: ParserContext}
      */
+    public function test_une_reference_et_une_contrepartie_csv_trop_longues_sont_tronquees_a_255(): void
+    {
+        // TCK-1704 (P124.01) — même borne que l'OFX, en caractères et non en octets.
+        $long = str_repeat('é', 300);
+
+        $lines = $this->parseCsv("date,amount,label,reference,counterparty\n01/04/2026,1000,A,{$long},{$long}\n", [])['lines'];
+
+        $this->assertCount(1, $lines);
+        $this->assertSame(str_repeat('é', 255), $lines[0]->reference);
+        $this->assertSame(str_repeat('é', 255), $lines[0]->counterparty);
+    }
+
+    public function test_la_devise_lue_ramene_le_franc_cfa_a_xof_et_saute_une_valeur_illisible(): void
+    {
+        // TCK-1704 (P124.01) — `FCFA` allait tel quel dans un `char(3)`. Les écritures connues du
+        // franc CFA deviennent `XOF`, un code de trois lettres passe en majuscules, tout le reste
+        // (vide compris) fait sauter la ligne, comptée.
+        $result = $this->parseCsv(
+            "date,amount,label,Devise\n"
+            ."01/04/2026,1000,A,FCFA\n"
+            ."02/04/2026,1000,B,F CFA\n"
+            ."03/04/2026,1000,C,cfa\n"
+            ."04/04/2026,1000,D,eur\n"
+            ."05/04/2026,1000,E,Francs CFA BCEAO\n"
+            ."06/04/2026,1000,F,\n"
+            ."07/04/2026,1000,G,XO1\n",
+            ['currency_column' => 'Devise'],
+        );
+
+        $this->assertSame(['XOF', 'XOF', 'XOF', 'EUR'], array_map(fn (ParsedLine $l): string => $l->currency, $result['lines']));
+        $this->assertSame(3, $result['context']->tally->skipped);
+    }
+
     private function parseCsv(string $csv, array $mapping): array
     {
         // `tempnam()` réserve un chemin de façon atomique — mais le `.csv` concaténé APRÈS n'est
@@ -278,6 +311,30 @@ class StatementParserTest extends TestCase
         $this->assertSame(2, $result['context']->tally->skipped);
     }
 
+    public function test_un_montant_ofx_non_numerique_est_saute_et_non_devine(): void
+    {
+        // TCK-1719 (P157.03) — même règle que le CSV (TCK-593) : un montant qui n'est pas un
+        // nombre, au plus un séparateur décimal (point ou virgule), est sauté et compté. `abc`
+        // entrait en crédit de 0, et `1.234,56` était deviné.
+        $ofx = $this->ofx('XOF', [
+            ['20260401', 'abc', 'TEXTE'],
+            ['20260402', '1.234,56', 'DEUX-SEPARATEURS'],
+            ['20260403', '12abc', 'RESTE'],
+            ['20260404', '150 000', 'ESPACE'],
+            ['20260405', "150\u{00A0}000", 'INSECABLE'],
+            ['20260406', '-2500.50', 'DEBIT'],
+            ['20260407', '7500,50', 'VIRGULE'],
+        ]);
+
+        $result = $this->parseOfx($ofx);
+
+        $this->assertSame(
+            ['ESPACE' => 150000.0, 'INSECABLE' => 150000.0, 'DEBIT' => 2500.5, 'VIRGULE' => 7500.5],
+            collect($result['lines'])->mapWithKeys(fn (ParsedLine $l) => [$l->label => $l->amount])->all(),
+        );
+        $this->assertSame(3, $result['context']->tally->skipped);
+    }
+
     public function test_chaque_compte_ofx_garde_sa_devise(): void
     {
         // TCK-1475 (P157.08) — un OFX à deux comptes (`STMTRS` en `XOF` puis en `EUR`) : chaque
@@ -304,6 +361,23 @@ class StatementParserTest extends TestCase
         $lines = $this->parseOfx($ofx)['lines'];
 
         $this->assertSame(['EUR', 'XOF'], array_map(fn (ParsedLine $l): string => $l->currency, $lines));
+    }
+
+    public function test_un_fitid_et_un_name_ofx_trop_longs_sont_tronques_a_255(): void
+    {
+        // TCK-1704 (P124.01) — `FITID` et `NAME` allaient sans borne dans `reference` et
+        // `counterparty`, deux `varchar(255)` : une seule transaction trop longue faisait échouer
+        // l'insertion du relevé entier.
+        $long = str_repeat('é', 300);
+        $ofx = "OFXHEADER:100\nDATA:OFXSGML\nVERSION:102\n\n<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>XOF\n<BANKTRANLIST>\n"
+            ."<STMTTRN>\n<TRNTYPE>CREDIT\n<DTPOSTED>20260401\n<TRNAMT>1000\n<FITID>{$long}\n<NAME>{$long}\n<MEMO>Loyer\n</STMTTRN>\n"
+            ."</BANKTRANLIST>\n</STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>";
+
+        $lines = $this->parseOfx($ofx)['lines'];
+
+        $this->assertCount(1, $lines);
+        $this->assertSame(str_repeat('é', 255), $lines[0]->reference);
+        $this->assertSame(str_repeat('é', 255), $lines[0]->counterparty);
     }
 
     /**

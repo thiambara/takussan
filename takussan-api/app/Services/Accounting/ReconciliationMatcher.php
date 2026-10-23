@@ -5,6 +5,7 @@ namespace App\Services\Accounting;
 use App\Models\BankStatementLine;
 use App\Models\BookingPayment;
 use App\Models\Enums\BankStatementLineDirection;
+use App\Models\Enums\BankStatementSourceFormat;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\Invoice;
@@ -217,6 +218,10 @@ class ReconciliationMatcher
             }
         }
 
+        if ($candidate->reference_number !== null && $this->textCitesReference($line, $candidate->reference_number)) {
+            return 95;
+        }
+
         // Rule 2: exact amount + counterparty similarity ≥ 0.85 → 80
         if ($line->counterparty !== null && $candidate->payer_name === null) {
             // Lazy-load payer name
@@ -247,6 +252,27 @@ class ReconciliationMatcher
 
         // Rule 4: exact amount only → 60
         return 60;
+    }
+
+    /**
+     * TCK-1721 (P157.07) — la règle 95 lit aussi le texte saisi par le payeur : le `MEMO` d'une ligne
+     * OFX (le pilote met `FITID` en `reference` et `NAME` en libellé, et le `MEMO` ne vivait plus
+     * que dans `raw_payload`), et le libellé d'une ligne CSV. La référence du paiement doit y
+     * figurer comme un mot entier, casse ignorée : `LP-7` ne s'apparie pas à `LP-77`.
+     */
+    private function textCitesReference(BankStatementLine $line, string $reference): bool
+    {
+        $text = match ($line->statement?->source_format) {
+            BankStatementSourceFormat::Ofx => $line->raw_payload['MEMO'] ?? null,
+            BankStatementSourceFormat::Csv => $line->label,
+            default => null,
+        };
+
+        if (! is_string($text) || trim($reference) === '') {
+            return false;
+        }
+
+        return preg_match('/(?<![\\p{L}\\p{N}])'.preg_quote(trim($reference), '/').'(?![\\p{L}\\p{N}])/iu', $text) === 1;
     }
 
     private function resolvePayerName(object $candidate): ?string

@@ -375,6 +375,56 @@ class BankStatementPipelineTest extends ApiTestCase
             ])->assertStatus(422);
     }
 
+    public function test_une_devise_ecrite_fcfa_entre_en_xof_et_une_devise_illisible_est_sautee(): void
+    {
+        // TCK-1704 (P124.01) — `FCFA` allait tel quel dans `bank_statement_lines.currency`, un
+        // `char(3)` : 22001, et le relevé ENTIER passait `failed`, sans ligne. Les écritures connues
+        // du franc CFA deviennent `XOF` ; une cellule qui n'est pas un code de trois lettres fait
+        // sauter sa seule ligne, comptée.
+        $this->mapping(['currency_column' => 'Devise']);
+
+        $statement = $this->uploadQueued(
+            "date,amount,label,Devise\n"
+            ."01/04/2026,1000,A,FCFA\n"
+            ."02/04/2026,2000,B,F CFA\n"
+            ."03/04/2026,3000,C,cfa\n"
+            ."04/04/2026,4000,D,XOF\n"
+            ."05/04/2026,5000,E,Francs CFA BCEAO\n"
+        );
+
+        app()->call([new ParseBankStatementJob($statement->id), 'handle']);
+
+        $statement->refresh();
+        $this->assertSame(BankStatementStatus::ReadyForReview, $statement->status);
+        $this->assertSame(4, $statement->lines_count);
+        $this->assertSame(1, $statement->skipped_lines_count);
+        $this->assertSame(['XOF'], $statement->lines()->distinct()->pluck('currency')->all());
+    }
+
+    public function test_une_reference_et_une_contrepartie_trop_longues_sont_tronquees_a_255(): void
+    {
+        // TCK-1704 (P124.01) — une `reference` de 300 caractères sur la première de deux lignes
+        // faisait lever l'insertion (22001 sur `varchar(255)`) : relevé `failed`, la seconde ligne
+        // perdue aussi. Caractères multioctets : la borne compte des caractères, pas des octets.
+        $long = str_repeat('é', 300);
+
+        $statement = $this->uploadQueued(
+            "date,amount,label,reference,counterparty\n"
+            ."01/04/2026,1000,A,{$long},{$long}\n"
+            ."02/04/2026,2000,B,REF-2,Awa\n"
+        );
+
+        app()->call([new ParseBankStatementJob($statement->id), 'handle']);
+
+        $statement->refresh();
+        $this->assertSame(BankStatementStatus::ReadyForReview, $statement->status);
+        $this->assertSame(2, $statement->lines()->count());
+
+        $first = $statement->lines()->orderBy('posted_at')->first();
+        $this->assertSame(str_repeat('é', 255), $first->reference);
+        $this->assertSame(str_repeat('é', 255), $first->counterparty);
+    }
+
     public function test_le_journal_ne_porte_aucune_valeur_du_releve(): void
     {
         // AC19 — tout ce que l'analyse journalise, message ET contexte, sérialisé.
@@ -404,18 +454,19 @@ class BankStatementPipelineTest extends ApiTestCase
             $this->assertStringNotContainsString($witness, $journal, "Le journal recopie « {$witness} ».");
         }
 
-        // 2. L'insertion lève SQLSTATE[22001] : une contrepartie de 300 caractères.
+        // 2. L'insertion lève SQLSTATE[22003] : un montant qui dépasse `decimal(12,2)`. TCK-1704 :
+        // c'était une contrepartie de 300 caractères (22001), désormais tronquée par le pilote.
         $logged = [];
-        $counterparty = str_pad('CONTREPARTIE-TEMOIN-', 300, 'X');
+        $counterparty = 'CONTREPARTIE-TEMOIN-'.str_repeat('X', 20);
         $second = $this->uploadQueued("date,amount,label,reference,counterparty\n"
-            ."03/04/2026,5000,LIBELLE-TEMOIN-8823,,{$counterparty}\n");
+            ."03/04/2026,10000000000000,LIBELLE-TEMOIN-8823,,{$counterparty}\n");
 
         $this->runParseJobExpectingFailure($second);
 
         $this->assertSame(BankStatementStatus::Failed, $second->refresh()->status);
         $failures = array_values(array_filter($logged, fn ($l) => $l['message'] === 'bank_statement_parse_failed'));
         $this->assertCount(1, $failures);
-        $this->assertSame('22001', $failures[0]['context']['sqlstate']);
+        $this->assertSame('22003', $failures[0]['context']['sqlstate']);
         $this->assertSame($second->id, $failures[0]['context']['statement_id']);
 
         $journal = json_encode($logged, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -429,9 +480,11 @@ class BankStatementPipelineTest extends ApiTestCase
         // Vérification adverse R8 — le worker passe l'exception relancée à `report()` et en écrit
         // le texte dans `failed_jobs.exception` : relancer la `QueryException` y recopiait le SQL
         // et ses valeurs liées. L'exception relancée est assainie, sans `previous`.
-        $counterparty = str_pad('CONTREPARTIE-TEMOIN-', 300, 'X');
+        // TCK-1704 — l'insertion lève par un montant hors de `decimal(12,2)` (22003) : la
+        // contrepartie de 300 caractères qui la faisait lever est désormais tronquée.
+        $counterparty = 'CONTREPARTIE-TEMOIN-'.str_repeat('X', 20);
         $statement = $this->uploadQueued("date,amount,label,reference,counterparty\n"
-            ."03/04/2026,5000,LIBELLE-TEMOIN-8823,,{$counterparty}\n");
+            ."03/04/2026,10000000000000,LIBELLE-TEMOIN-8823,,{$counterparty}\n");
 
         $logged = [];
         Event::listen(MessageLogged::class, function (MessageLogged $e) use (&$logged): void {
@@ -451,7 +504,7 @@ class BankStatementPipelineTest extends ApiTestCase
 
         $this->assertNotNull($thrown);
         $this->assertNull($thrown->getPrevious());
-        $this->assertStringContainsString('22001', $thrown->getMessage());
+        $this->assertStringContainsString('22003', $thrown->getMessage());
 
         // `failed_jobs.exception` stocke `(string) $e` : message ET trace.
         $persisted = (string) $thrown;
@@ -516,6 +569,22 @@ class BankStatementPipelineTest extends ApiTestCase
     }
 
     // ─── Helpers ─────────────────────────────────────────────────
+
+    /** @param  array<string, mixed>  $overrides */
+    private function mapping(array $overrides): void
+    {
+        $this->actingAs($this->admin)
+            ->putJson("/api/agencies/{$this->agency->id}/bank-statements/csv-mapping", $overrides + [
+                'delimiter' => ',',
+                'has_header' => true,
+                'date_column' => 'date',
+                'date_format' => 'd/m/Y',
+                'amount_column' => 'amount',
+                'label_column' => 'label',
+                'sign_convention' => 'amount_signed',
+                'decimal_separator' => ',',
+            ])->assertOk();
+    }
 
     private function fixture(): string
     {

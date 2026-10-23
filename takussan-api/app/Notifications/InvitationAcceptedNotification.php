@@ -31,7 +31,7 @@ class InvitationAcceptedNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $email = $this->invitation->email;
+        $email = $this->invitation->inviteeContact();
         $role = __('invitations.roles.'.$this->invitation->role);
 
         return (new MailMessage)

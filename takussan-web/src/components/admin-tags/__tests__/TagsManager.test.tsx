@@ -132,24 +132,23 @@ describe('<TagsManager />', () => {
    * inatteignable depuis cette interface. Il n'est donc pas assertable ici — et le balayage
    * `attendAucuneCleBrute` le couvre le jour où un champ description apparaîtra.
    */
-  it('rend les libellés FRANÇAIS de validation, jamais la clé (les 5 messages de tagFormSchema)', async () => {
+  it('rend les libellés FRANÇAIS de validation, jamais la clé (les messages de tagFormSchema)', async () => {
     const user = userEvent.setup();
     renderTagsManager();
     await user.click(screen.getByRole('button', { name: 'Nouveau tag' }));
 
     const nom = await screen.findByLabelText(/Libellé/);
-    const icone = screen.getByLabelText(/Icône/);
     const couleur = screen.getByLabelText(/Couleur/);
 
     // `fireEvent.change` plutôt que `user.type` pour les champs longs : `userEvent` coûte ~4,5 ms
     // par caractère, soit ~4,5 s pour 1000 caractères — et jusqu'à 17× cela sous charge.
-    fireEvent.change(icone, { target: { value: 'x'.repeat(61) } });
+    // TCK-1725 — l'icône se choisit dans une liste fermée : `iconTooLong` n'est plus atteignable
+    // depuis ce dialogue, comme `descriptionTooLong` (voir plus haut).
     fireEvent.change(couleur, { target: { value: 'pas-une-couleur' } });
     // `name` reste VIDE → `nameRequired`. Le formulaire porte `noValidate` : la soumission passe.
     await user.click(screen.getByRole('button', { name: 'Créer le tag' }));
 
     expect(await screen.findByText('Le libellé est requis.')).toBeInTheDocument();
-    expect(screen.getByText('Nom d’icône trop long.')).toBeInTheDocument();
     expect(screen.getByText('Couleur hexadécimale invalide (ex : #2563eb).')).toBeInTheDocument();
     attendAucuneCleBrute();
     expect(createMock).not.toHaveBeenCalled();
@@ -163,5 +162,32 @@ describe('<TagsManager />', () => {
     expect(await screen.findByText('Le libellé est trop long (100 caractères max).')).toBeInTheDocument();
     attendAucuneCleBrute();
     expect(createMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * TCK-1725 (P159.02) — l'icône se choisit parmi les clés que la fiche publique sait rendre
+   * (`AMENITY_ICONS`, les slugs du catalogue), nommées par l'équipement du catalogue. Avant, un champ
+   * libre « Icône (nom Lucide) » d'exemple `wifi` : un nom Lucide saisi (`waves`) n'était pas une clé
+   * de la table, et la fiche rendait l'icône générique.
+   */
+  it('TCK-1725 — l’icône se choisit dans la liste des icônes de la fiche, et part par sa clé', async () => {
+    const user = userEvent.setup();
+    createMock.mockResolvedValue({
+      ok: true,
+      data: { id: 4, name: 'Bassin', slug: 'bassin', type: 'amenity', icon: 'piscine', color: null, description: null },
+    });
+    renderTagsManager();
+    await user.click(screen.getByRole('button', { name: 'Nouveau tag' }));
+
+    await user.type(await screen.findByLabelText(/Libellé/), 'Bassin');
+    expect(screen.queryByPlaceholderText('wifi')).not.toBeInTheDocument();
+    await user.click(screen.getByLabelText(/^Icône/));
+    expect(await screen.findByRole('option', { name: 'Jardin' })).toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Piscine' }));
+    await user.click(screen.getByRole('button', { name: 'Créer le tag' }));
+
+    await waitFor(() => expect(createMock).toHaveBeenCalledTimes(1));
+    expect(createMock.mock.calls[0][0]).toMatchObject({ name: 'Bassin', icon: 'piscine' });
+    attendAucuneCleBrute();
   });
 });

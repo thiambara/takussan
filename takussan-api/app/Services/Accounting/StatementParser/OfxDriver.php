@@ -138,13 +138,19 @@ class OfxDriver implements StatementParserInterface
         $label = $name ?? $memo ?? $trnType ?? '';
         $counterparty = ($name !== null && $memo !== null) ? $name : null;
 
+        // TCK-1704 (P124.01) — `reference` et `counterparty` sont des `varchar(255)` : une seule
+        // transaction plus longue faisait échouer l'insertion du relevé entier. Borné en
+        // caractères ; `label` est un `text`, et `raw` garde les valeurs d'origine.
+        $reference = $fitId === null ? null : mb_substr($fitId, 0, ParsedLine::TEXT_MAX);
+        $counterparty = $counterparty === null ? null : mb_substr($counterparty, 0, ParsedLine::TEXT_MAX);
+
         return new ParsedLine(
             postedAt: $postedAt,
             amount: $amount,
             direction: $direction,
             currency: $defaultCurrency,
             label: $label,
-            reference: $fitId,
+            reference: $reference,
             counterparty: $counterparty,
             raw: [
                 'TRNTYPE' => $trnType,
@@ -168,29 +174,22 @@ class OfxDriver implements StatementParserInterface
     }
 
     /**
-     * Parse a monetary string into a float, correctly handling both decimal
-     * conventions. The previous `str_replace([' ', ','], ['', '.'])` turned
-     * EVERY comma into a decimal point, so "1,234.56" became "1.234.56" →
-     * (float) 1.234 — a silent 1000× data-loss bug.
+     * TCK-1719 (P157.03) — même règle que `CsvDriver` (TCK-593) : un montant n'est plus deviné. Les
+     * espaces (ASCII et insécables U+00A0, U+202F) sont retirés ; ce qui reste doit être un nombre à
+     * au plus UN séparateur décimal, point ou virgule, sinon la ligne est sautée et comptée. La
+     * devinette d'avant lisait `abc` 0, `12abc` 12 et `150 000` (insécable) 150, et choisissait le
+     * décimal de `1.234,56` au plus à droite. La virgule seule reste un séparateur décimal
+     * (`7500,50`), comme avant : la norme OFX qui prescrirait le point n'est pas vérifiée (D-67).
+     * Le message ne porte pas la valeur : il finirait dans un journal.
      */
     private function parseAmount(string $raw): float
     {
-        $s = str_replace(' ', '', trim($raw));
-        $hasComma = str_contains($s, ',');
-        $hasDot = str_contains($s, '.');
+        $s = str_replace([' ', "\u{00A0}", "\u{202F}"], '', trim($raw));
 
-        if ($hasComma && $hasDot) {
-            // The right-most separator is the decimal one; the other groups thousands.
-            if (strrpos($s, ',') > strrpos($s, '.')) {
-                $s = str_replace(['.', ','], ['', '.'], $s);
-            } else {
-                $s = str_replace(',', '', $s);
-            }
-        } elseif ($hasComma) {
-            // Only a comma present → it is the decimal separator.
-            $s = str_replace(',', '.', $s);
+        if (preg_match('/^[+-]?\d+([.,]\d+)?$/', $s) !== 1) {
+            throw new \RuntimeException('Invalid OFX amount');
         }
 
-        return (float) $s;
+        return (float) str_replace(',', '.', $s);
     }
 }

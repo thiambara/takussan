@@ -460,6 +460,8 @@ return [
         'cannot_unpublish' => 'Mbaar yi ñu mën a jël rekk la ñu mën a xëccu.',
         'collaborator_exists' => 'Jàngalekat bi ci mbaar mi nekk na.',
         'collaborator_not_found' => 'Jàngalekat bii bokkul ci kër gii.',
+        'has_confirmed_booking' => 'Ce bien porte une réservation confirmée : annulez-la avant de supprimer le bien.',
+        'has_upcoming_visit' => 'Ce bien porte une visite à venir : annulez-la avant de supprimer le bien.',
         'not_found' => 'Kër gi gisuñu ko.',
         'not_pending_moderation' => 'Kër gi nekkul ci xaar modération.',
         'primary_not_eligible' => 'Ajaa bu dox ci ajaasu kër gi rekk moo mën a nekk ajaa bu njëkk bi.',

@@ -227,15 +227,20 @@ export async function detachCustomerTag(
 export async function fetchCrmTags(
   token: string,
 ): Promise<Pick<Tag, 'id' | 'name' | 'slug' | 'color'>[]> {
-  const qs = buildQueryString({
-    filter: { type: 'crm' },
-    fields: { tags: TAG_FIELDS },
-    sort: '-usage_count',
-    per_page: 50,
-  });
-  const res = await apiRequest<{ data: Pick<Tag, 'id' | 'name' | 'slug' | 'color'>[] }>(
-    cheminApi`/api/tags${requete(qs)}`,
-    { token },
+  // TCK-1749 (P171.06) — toutes les pages : une page de 50 taisait les étiquettes les moins employées.
+  const res = await lireToutesLesPages((page) =>
+    apiRequest<PaginatedResponse<Pick<Tag, 'id' | 'name' | 'slug' | 'color'>>>(
+      cheminApi`/api/tags${requete(
+        buildQueryString({
+          filter: { type: 'crm' },
+          fields: { tags: TAG_FIELDS },
+          sort: '-usage_count',
+          page,
+          per_page: PAR_PAGE_MAX,
+        }),
+      )}`,
+      { token },
+    ),
   );
   return res.data;
 }

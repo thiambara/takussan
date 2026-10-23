@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/console';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin, isAgent } from '@/lib/roles';
 import { localeDeLaRequete } from '@/i18n/locale-serveur';
+import { MAINTENANCE_AWAITING_QUOTE_DECISION, maintenanceListHref } from '@/types/maintenance';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.overviewOwner');
@@ -137,7 +138,7 @@ export default async function OwnerDashboardPage() {
             />
             {/* TCK-595 (AC8) — chaque ligne porte son nombre : plus de « Voir le module ». */}
             <DashboardLinkLine
-              href="/app/maintenance"
+              href={maintenanceListHref(MAINTENANCE_AWAITING_QUOTE_DECISION)}
               label={t('quotesPending')}
               value={formatNumber(data.maintenance?.quotes_pending ?? 0, locale)}
             />
@@ -146,8 +147,9 @@ export default async function OwnerDashboardPage() {
               label={t('visitsToConfirm')}
               value={formatNumber(data.visits?.to_confirm ?? 0, locale)}
             />
+            {/* TCK-1515 (P167.02) — la boîte ouverte sur ce que le nombre compte. */}
             <DashboardLinkLine
-              href="/app/profile/reviews"
+              href="/app/profile/reviews?reply=unreplied&subject=property"
               label={t('reviewsUnanswered')}
               value={formatNumber(data.reviews?.unanswered ?? 0, locale)}
             />

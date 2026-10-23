@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, Wrench } from 'lucide-react';
@@ -26,6 +27,7 @@ import {
 import {
   MAINTENANCE_PRIORITIES,
   MAINTENANCE_STATUSES,
+  parseMaintenanceStatuses,
   type MaintenancePriority,
   type MaintenanceStatus,
 } from '@/types/maintenance';
@@ -52,17 +54,29 @@ export function MaintenanceList() {
   const tIntervention = useTranslations('maintenance.intervention.list');
   const { user } = useAuth();
   const isProvider = user ? getPrimaryRole(user.roles) === 'service_provider' : false;
-  const [status, setStatus] = useState<'' | MaintenanceStatus>('');
+  // TCK-1727 (P167.01) — `?status=a,b` ouvre la liste sur ces statuts : les aperçus y mènent avec
+  // ce que leur nombre compte. Lu au montage ; le sélecteur le remplace ensuite.
+  const searchParams = useSearchParams();
+  const [statuses, setStatuses] = useState<readonly MaintenanceStatus[]>(() =>
+    parseMaintenanceStatuses(searchParams?.get('status')),
+  );
+  const statusValue = statuses.length ? statuses.join(',') : '__all__';
+  const statusOptions = [
+    { value: '__all__', label: t('all_statuses') },
+    // Une valeur à plusieurs statuts se nomme par leurs libellés joints, sans clé neuve.
+    ...(statuses.length > 1 ? [{ value: statusValue, label: statuses.map((s) => tStatus(s)).join(', ') }] : []),
+    ...MAINTENANCE_STATUSES.map((s) => ({ value: s, label: tStatus(s) })),
+  ];
   const [priority, setPriority] = useState<'' | MaintenancePriority>('');
   // La liste annonçait « Page 1 / N » sans aucun moyen d'atteindre la page 2.
   const [page, setPage] = useState(1);
 
   const params = useMemo<MaintenanceListParams>(() => ({
-    ...(status ? { status } : {}),
+    ...(statuses.length ? { status: statuses } : {}),
     ...(priority ? { priority } : {}),
     ...(isProvider ? { sort: 'scheduled_at' } : {}),
     page,
-  }), [status, priority, page, isProvider]);
+  }), [statuses, priority, page, isProvider]);
 
   const query = useMaintenanceRequests(params);
 
@@ -74,23 +88,19 @@ export function MaintenanceList() {
             {t('status_label')}
           </label>
           <Select
-            value={status || '__all__'}
+            value={statusValue}
             onValueChange={(value) => {
-              setStatus(value === '__all__' ? '' : ((value ?? '') as '' | MaintenanceStatus));
+              setStatuses(!value || value === '__all__' ? [] : parseMaintenanceStatuses(value));
               setPage(1);
             }}
-            items={[
-              { value: '__all__', label: t('all_statuses') },
-              ...MAINTENANCE_STATUSES.map((s) => ({ value: s, label: tStatus(s) })),
-            ]}
+            items={statusOptions}
           >
             <SelectTrigger id="maintenance-filter-status" className="h-9 w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">{t('all_statuses')}</SelectItem>
-              {MAINTENANCE_STATUSES.map((s) => (
-                <SelectItem key={s} value={s}>{tStatus(s)}</SelectItem>
+              {statusOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>

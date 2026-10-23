@@ -203,12 +203,27 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
     expect(options.params.filter).toEqual({ assignable: 1 });
   });
 
-  it.each([['owner'], ['agent']])('%s lit ses demandes mais n’a pas « Attribuer » (liste des membres réservée à l’admin)', (role) => {
-    etat.roles = [role];
+  it('un bailleur sans crm.assign lit ses demandes mais n’a pas « Attribuer »', () => {
+    etat.roles = ['owner'];
+    etat.capacites = [];
     render(withIntl(<ContactLeadsInbox />));
 
     expect(screen.getByText(MESSAGE)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Attribuer' })).not.toBeInTheDocument();
+  });
+
+  it('P120.05 — l’agent qui détient crm.assign attribue, sur une liste triée par prénom', async () => {
+    etat.roles = ['agent'];
+    const user = userEvent.setup();
+    render(withIntl(<ContactLeadsInbox />));
+
+    await user.click(screen.getByRole('button', { name: 'Attribuer' }));
+    await user.selectOptions(await screen.findByLabelText('Collègue'), '21');
+    await user.click(screen.getAllByRole('button', { name: 'Attribuer' }).at(-1)!);
+
+    await waitFor(() => expect(assign.mutateAsync).toHaveBeenCalledWith({ id: 1, user_id: 21 }));
+    const [, , options] = lecturesDesMembres.at(-1) as [unknown, string, { params: { sort?: unknown } }];
+    expect(options.params.sort).toBe('first_name');
   });
 
   it('sans téléphone : ni WhatsApp ni appel', () => {
