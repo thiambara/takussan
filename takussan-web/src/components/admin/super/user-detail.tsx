@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
-import { Activity, Clock, FileArchive, KeyRound, RotateCcwKey, ShieldCheck, ShieldOff, Unlock, UserRound, XCircle } from 'lucide-react';
+import { Activity, Clock, FileArchive, KeyRound, Lock, RotateCcwKey, ShieldCheck, ShieldOff, Unlock, UserRound, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -114,6 +114,7 @@ export function UserDetailHeader({ user }: { user: AdminUserDetail }) {
   const t = useTranslations('superAdmin.userDetail');
   // Statut et rôle sont des jetons d'API : leurs libellés vivent déjà avec la liste des utilisateurs.
   const tUsers = useTranslations('superAdmin.pages.users');
+  const fmt = useFormatteurs();
   return (
     <header className="rounded-xl bg-card p-5 ring-1 ring-border">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -148,12 +149,23 @@ export function UserDetailHeader({ user }: { user: AdminUserDetail }) {
                   label={t('mfaActive')}
                 />
               ) : null}
+              {/* P83.04 (TCK-1775) — l'état que l'API dérive du verrou, jamais la clé brute. */}
+              {user.locked_until ? (
+                <StatusBadge
+                  tone="danger"
+                  icon={<Lock className="size-3" aria-hidden="true" />}
+                  label={t('lockedUntil', { time: fmt.dateTime(user.locked_until) })}
+                />
+              ) : null}
+              {user.force_2fa_reconfigure ? (
+                <StatusBadge tone="attention" label={t('force2faReconfigure')} />
+              ) : null}
             </div>
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
           <UserLifecycleActions userId={user.id} status={user.status} />
-          <UserSupportActionsMenu userId={user.id} />
+          <UserSupportActionsMenu userId={user.id} locked={user.locked_until !== null} />
         </div>
       </div>
     </header>
@@ -204,7 +216,7 @@ function supportActions(t: (key: string) => string): SupportActionMeta[] {
   ];
 }
 
-export function UserSupportActionsMenu({ userId }: { userId: number }) {
+export function UserSupportActionsMenu({ userId, locked }: { userId: number; locked: boolean }) {
   const t = useTranslations('superAdmin.userDetail');
   const [pendingAction, setPendingAction] = useState<UserSupportAction | null>(null);
   const [dataExportOpen, setDataExportOpen] = useState(false);
@@ -238,7 +250,11 @@ export function UserSupportActionsMenu({ userId }: { userId: number }) {
   const { can } = usePlatformAbilities();
   // TCK-600 (ADR-0047) — gestes de support au niveau `support` ; l'export RGPD reste au
   // `super_admin` (sa route ne déclare aucun geste).
-  const actions = can('platform.users.support') ? supportActions(t) : [];
+  // P83.04 (TCK-1775) — « Débloquer » n'est offert qu'à un compte verrouillé : sans cela, la console
+  // l'apprenait par un 409 après la saisie d'un motif.
+  const actions = can('platform.users.support')
+    ? supportActions(t).filter((item) => item.action !== 'unlock' || locked)
+    : [];
   const meta = actions.find((item) => item.action === pendingAction) ?? null;
   if (actions.length === 0 && !can()) return null;
 

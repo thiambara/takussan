@@ -8559,6 +8559,8 @@
       "crossTenant": "Utilisateur cross-tenant",
       "roleTeam": "· agence {id}",
       "mfaActive": "MFA active",
+      "lockedUntil": "Verrouillé jusqu’à {time}",
+      "force2faReconfigure": "Double facteur à reconfigurer",
       "toastActionDone": "Action support exécutée",
       "toastExportRequested": "Export RGPD demandé",
       "toastSessionRevoked": "Session révoquée",

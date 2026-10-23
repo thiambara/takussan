@@ -7908,6 +7908,8 @@
       "crossTenant": "Jëfandikukat bu jaar ci ajaans yépp",
       "roleTeam": "· ajaans {id}",
       "mfaActive": "MFA mu ngi dox",
+      "lockedUntil": "Verrouillé jusqu’à {time}",
+      "force2faReconfigure": "Double facteur à reconfigurer",
       "toastActionDone": "Jëfu ndimbal bi def na",
       "toastExportRequested": "Ñu ñaan na génneb RGPD",
       "toastSessionRevoked": "Sesioŋ bi ñu ko dindi",
