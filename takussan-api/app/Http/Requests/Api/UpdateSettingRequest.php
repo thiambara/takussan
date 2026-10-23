@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\JugeLaLigneDeReglageDAgence;
 use App\Models\Enums\SettingScope;
+use Illuminate\Validation\Validator;
 
 /**
  * TCK-305 — extrait de SettingController::update(), où les règles étaient écrites en ligne.
@@ -15,6 +17,8 @@ use App\Models\Enums\SettingScope;
  */
 class UpdateSettingRequest extends BaseFormRequest
 {
+    use JugeLaLigneDeReglageDAgence;
+
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
@@ -50,6 +54,24 @@ class UpdateSettingRequest extends BaseFormRequest
         return [
             'value' => ['required', 'array'],
         ];
+    }
+
+    /**
+     * TCK-1999 (P181.01) — une ligne d'agence obéit au catalogue au `PUT` comme au `POST`, la clé
+     * lue sur la ligne : la valeur que le `POST` refuse ne s'y écrit plus par le `PUT`.
+     *
+     * @return array<int, callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            $setting = $this->route('setting');
+            if ($validator->errors()->isNotEmpty() || $setting->scope !== SettingScope::Agency) {
+                return;
+            }
+
+            $this->jugerLaLigneDAgence($validator, (string) $setting->key, $this->input('value'));
+        }];
     }
 
     /**
