@@ -371,7 +371,9 @@ enum NotificationCode: string
             self::KycVerified => [],
             self::KycRejected => ['reason' => self::PARAM_TEXT],
             self::KycExpiringSoon => ['expires_at' => self::PARAM_DATE],
-            self::GovernanceRoleCapabilitiesChanged => ['role' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
+            // P164.04 (TCK-1808) — le code du rôle système (`agency_admin`), ou le nom d'un rôle créé,
+            // que le repli de `role()` rend tel quel.
+            self::GovernanceRoleCapabilitiesChanged => ['role' => self::PARAM_ROLE, 'actor' => self::PARAM_TEXT],
             self::GovernanceAdminAdded => ['member' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
             self::GovernanceDataExported, self::GovernanceApprovalThresholdChanged => ['actor' => self::PARAM_TEXT],
             self::GovernanceIntegrationChanged => ['provider' => self::PARAM_PROVIDER, 'actor' => self::PARAM_TEXT],

@@ -244,6 +244,9 @@ function DashboardLinkLine({
  * aussi les versements nés de ses baux et destinés à d'autres (restitution de caution au locataire,
  * facture d'un prestataire) : sans `payee_role`, la carte les annonçait comme les siens. Et un
  * versement `scheduled` ou `processing` est encore à venir, pas seulement `pending`.
+ *
+ * TCK-1804 (P162.07) — « à venir » se lit à l'API, `filter[upcoming]` (`PayoutStatus::upcoming()`),
+ * et compte aussi l'attente d'approbation : la liste écrite ici l'oubliait.
  */
 async function fetchUpcomingOwnerPayouts(ownerId: number): Promise<Payout[]> {
   const token = await getToken();
@@ -264,7 +267,7 @@ async function fetchUpcomingOwnerPayouts(ownerId: number): Promise<Payout[]> {
     filter: {
       landlord_id: ownerId,
       payee_role: 'landlord',
-      status: ['pending', 'scheduled', 'processing'],
+      upcoming: 1,
     },
     sort: ['scheduled_at', '-created_at'],
     per_page: 3,

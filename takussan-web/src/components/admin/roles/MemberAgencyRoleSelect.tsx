@@ -10,6 +10,8 @@ import { useAgencyRoles, useAssignAgencyRole } from '@/lib/queries/agency-roles'
 import type { AgencyRole, AgencyRoleAssignment } from '@/types/agency-role';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
+import { useNomDuRole } from './nomDuRole';
+
 interface MemberAgencyRoleSelectProps {
   readonly agencyId: number;
   /** L'affectation courante — le profil de ce membre DANS cette agence. */
@@ -40,6 +42,7 @@ interface MemberAgencyRoleSelectProps {
  */
 export function MemberAgencyRoleSelect({ agencyId, assignment }: MemberAgencyRoleSelectProps) {
   const t = useTranslations('admin.roles');
+  const nomDuRole = useNomDuRole();
   const messageErreur = useMessageErreurApi();
   const rolesQuery = useAgencyRoles(agencyId);
   const assign = useAssignAgencyRole(assignment.profile_id);
@@ -94,7 +97,7 @@ export function MemberAgencyRoleSelect({ agencyId, assignment }: MemberAgencyRol
         >
           {options.map((role) => (
             <option key={role.id} value={role.id}>
-              {role.name}
+              {nomDuRole(role)}
             </option>
           ))}
         </select>

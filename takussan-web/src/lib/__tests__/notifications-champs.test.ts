@@ -32,7 +32,7 @@ describe('fetchNotifications', () => {
 
     const champs = (urlAppelee().get('fields[app_notifications]') ?? '').split(',');
     expect(champs).toEqual(
-      expect.arrayContaining(['id', 'type', 'code', 'params', 'target', 'title', 'body', 'is_read', 'read_at', 'created_at']),
+      expect.arrayContaining(['id', 'type', 'code', 'params', 'param_types', 'target', 'title', 'body', 'is_read', 'read_at', 'created_at']),
     );
     expect(champs).not.toContain('data');
     expect(champs).not.toContain('sent_at');

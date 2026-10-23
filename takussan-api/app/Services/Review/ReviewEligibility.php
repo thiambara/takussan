@@ -23,7 +23,7 @@ use Illuminate\Database\Eloquent\Model;
  * TCK-597 (ADR-0043 §3) — QUI peut noter QUOI, et sur quelle PREUVE. Écrit une fois, lu par les
  * `authorize()` des quatre FormRequest de dépôt et par `GET /api/me/review-opportunities`.
  *
- *  - bien : une réservation `confirmed`/`completed` ou un bail `active`/`terminated`/`expired`
+ *  - bien : une réservation `confirmed`/`completed` ou un bail `active`/`terminating`/`terminated`/`expired`
  *    dont l'auteur est le client (règle existante) ;
  *  - agent : une visite `completed` qu'il a menée, ou un bail / une réservation honorés sur un bien
  *    qu'il a publié — jamais soi-même ;
@@ -35,7 +35,8 @@ class ReviewEligibility
 {
     public const BOOKING_STATUSES = [BookingStatus::Completed, BookingStatus::Confirmed];
 
-    public const LEASE_STATUSES = [LeaseStatus::Active, LeaseStatus::Terminated, LeaseStatus::Expired];
+    /** TCK-1804 (P162.07) — le préavis compris : l'avis est ouvert avant comme après lui. */
+    public const LEASE_STATUSES = [LeaseStatus::Active, LeaseStatus::Terminating, LeaseStatus::Terminated, LeaseStatus::Expired];
 
     public const MAINTENANCE_STATUSES = [MaintenanceStatus::Completed, MaintenanceStatus::Closed];
 

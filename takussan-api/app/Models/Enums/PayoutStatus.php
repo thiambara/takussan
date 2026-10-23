@@ -26,4 +26,16 @@ enum PayoutStatus: string
     {
         return [self::AwaitingApproval, self::Pending, self::Scheduled, self::Processing, self::Completed];
     }
+
+    /**
+     * TCK-1804 (P162.07) — un reversement encore à venir : ni payé, ni échoué, ni annulé. L'attente
+     * d'approbation en est (la somme partira une fois approuvée). Lu par `filter[upcoming]` de
+     * `GET /api/payouts`, que la carte « Prochains versements » du bailleur demande.
+     *
+     * @return list<self>
+     */
+    public static function upcoming(): array
+    {
+        return [self::AwaitingApproval, self::Pending, self::Scheduled, self::Processing];
+    }
 }

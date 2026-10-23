@@ -8,11 +8,13 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PayoutStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\QueryBuilder\AllowedFilter;
 
 class Payout extends AbstractModel
 {
@@ -66,6 +68,24 @@ class Payout extends AbstractModel
     protected static array $requestLoadable = ['issuer'];
 
     protected static array $requestRangeFilters = ['net_amount', 'gross_amount'];
+
+    /**
+     * TCK-1804 (P162.07) — `filter[upcoming]=1` : les reversements encore à venir, selon
+     * {@see PayoutStatus::upcoming()}, plutôt qu'une liste de statuts recopiée par le front. Toute
+     * autre valeur : aucun filtre.
+     *
+     * @return array<int, AllowedFilter>
+     */
+    protected static function customQueryFilters(): array
+    {
+        return [
+            AllowedFilter::callback('upcoming', function (Builder $query, mixed $value): void {
+                if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                    $query->whereIn('status', array_map(fn (PayoutStatus $s) => $s->value, PayoutStatus::upcoming()));
+                }
+            }),
+        ];
+    }
 
     protected static array $queryFields = [
         'id', 'lease_id', 'booking_id', 'service_provider_bill_id', 'agency_id', 'landlord_id', 'payee_role',

@@ -2,14 +2,19 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Booking;
+use App\Models\BookingPayment;
+use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\Capability;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\Payout;
+use App\Models\Property;
 use App\Models\ServiceProviderBill;
 use App\Notifications\CodedNotification;
 use App\Services\Dashboard\PortfolioMetrics;
+use App\Services\Payout\PayoutCalculator;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -130,6 +135,58 @@ class OwnerStatementTest extends TestCase
         $this->assertSame(420000, (int) $year['totals']['gross']);
         $this->assertSame(1, count($year['payouts']));
         $this->getJson('/api/owner-statements?period=2026-13')->assertStatus(422);
+    }
+
+    /**
+     * P177.04 (TCK-1783) — le bailleur dont les seuls encaissements du mois sont des acomptes de
+     * séjour est avisé comme les autres : le relevé les compte ({@see PayoutCalculator::bookingPayments}).
+     */
+    public function test_p177_04_a_landlord_with_only_stay_advances_is_notified_once(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        $landlord = $this->landlordOf($agency);
+        $property = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $landlord->id]);
+        $booking = Booking::factory()->create(['property_id' => $property->id, 'agency_id' => $agency->id]);
+        BookingPayment::factory()->create([
+            'booking_id' => $booking->id, 'amount' => 50_000, 'payment_type' => BookingPaymentType::Advance,
+            'status' => PaymentStatus::Paid, 'paid_at' => '2026-09-10 10:00:00',
+        ]);
+
+        $this->artisan('payouts:send-owner-statements', ['--period' => '2026-09'])->assertSuccessful();
+        $this->artisan('payouts:send-owner-statements', ['--period' => '2026-09'])->assertSuccessful();
+
+        Notification::assertSentToTimes($landlord, CodedNotification::class, 1);
+    }
+
+    /**
+     * P177.06 (TCK-1785) — les impayés sont jugés au jour du rendu, et le relevé le dit ; le CSV
+     * porte le total versé et sa date de rendu, après `totals`.
+     */
+    public function test_p177_06_unpaid_are_dated_and_the_csv_carries_paid_out_and_its_rendering_time(): void
+    {
+        [$agency, $landlord] = $this->paidOutSeptember();
+        Payout::query()->update(['status' => 'completed']);
+        Carbon::setTestNow('2026-10-02 09:30:00');
+        Sanctum::actingAs($landlord);
+
+        $data = $this->getJson('/api/owner-statements?period=2026-09')->assertOk()->json('data');
+        $this->assertSame('2026-10-02', $data['unpaid']['as_of']);
+        $this->assertSame(1, $data['unpaid']['count']);
+
+        app()->setLocale('fr');
+        $html = view('pdf.statements.owner', [
+            'title' => 'Relevé', 'document_label' => 'Relevé', 'agency' => $agency, 'statement' => $data,
+        ])->render();
+        $this->assertStringContainsString('Impayés de la période au 02/10/2026 : 1', html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+        $csv = $this->get('/api/owner-statements/csv?period=2026-09')->assertOk()->streamedContent();
+        $rows = array_map(fn (string $l): array => str_getcsv($l, ';'), array_values(array_filter(explode("\n", $csv))));
+        $this->assertSame(['type', 'reference', 'property_id', 'paid_at', 'amount', 'commission'], $rows[0]);
+        $this->assertSame(['totals', 'paid_out', 'generated_at'], array_slice(array_column($rows, 0), -3));
+        $this->assertSame(['paid_out', '', '', '', '183000', ''], $rows[count($rows) - 2]);
+        $this->assertSame('generated_at', $rows[count($rows) - 1][0]);
+        $this->assertSame(Carbon::now()->toIso8601String(), $rows[count($rows) - 1][3]);
     }
 
     public function test_the_monthly_command_notifies_each_landlord_once_and_is_scheduled(): void

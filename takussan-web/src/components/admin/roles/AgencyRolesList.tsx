@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { AgencyRole, AgencyRoleBaseType } from '@/types/agency-role';
 
+import { useNomDuRole } from './nomDuRole';
+
 /**
  * Ordre d'affichage des groupes. Figé ici, et non dérivé de l'ordre de la
  * réponse : l'API trie par `name`, donc l'ordre des groupes y dépendrait des
@@ -54,6 +56,7 @@ export function AgencyRolesList({
   canDelete,
 }: AgencyRolesListProps) {
   const t = useTranslations('admin.roles');
+  const nomDuRole = useNomDuRole();
 
   const grouped = useMemo(() => {
     const map = new Map<AgencyRoleBaseType, AgencyRole[]>();
@@ -96,11 +99,11 @@ export function AgencyRolesList({
                       type="button"
                       onClick={() => onSelect(role)}
                       aria-current={isSelected ? 'true' : undefined}
-                      aria-label={t('actions.select_role', { name: role.name })}
+                      aria-label={t('actions.select_role', { name: nomDuRole(role) })}
                       className="w-full rounded-xl px-3 py-2.5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                     >
                       <span className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-foreground">{role.name}</span>
+                        <span className="font-medium text-foreground">{nomDuRole(role)}</span>
                         {role.is_system ? (
                           <Badge variant="outline" className="shrink-0">
                             {t('list.system_badge')}
