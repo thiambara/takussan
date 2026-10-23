@@ -1,7 +1,7 @@
 ---
 id: TCK-1830
 title: "Le tableau de bord d'agence rend la mise en service et le compte d'invitations au premier affichage, lus par la page serveur"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -56,16 +56,16 @@ composants.
 
 ## Delta à produire
 
-- [ ] Clé et chemin de la mise en service partagés entre `MiseEnService` et la lecture serveur.
-- [ ] La page lit les deux en parallèle de `GET /api/dashboard/agency` et les amorce
+- [x] Clé et chemin de la mise en service partagés entre `MiseEnService` et la lecture serveur.
+- [x] La page lit les deux en parallèle de `GET /api/dashboard/agency` et les amorce
   (`AmorceLectures`, TCK-1828).
-- [ ] Test vitest : la carte et le compte d'invitations au premier rendu de la page.
+- [x] Test vitest : la carte et le compte d'invitations au premier rendu de la page.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — au premier rendu de `/app/overview/agency`, la carte de mise en service est affichée
+- [x] AC1 — au premier rendu de `/app/overview/agency`, la carte de mise en service est affichée
   et le compte d'invitations aussi, sans attendre le navigateur.
-- [ ] AC2 — `GET /api/dashboard/agency` reste lu une seule fois (AC3 de TCK-647).
+- [x] AC2 — `GET /api/dashboard/agency` reste lu une seule fois (AC3 de TCK-647).
 
 ## Hors périmètre
 
@@ -75,4 +75,11 @@ composants.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Clé, chemin et type de la mise en service sortis dans `lib/queries/mise-en-service.ts`, sans
+  directive : `MiseEnService` est `'use client'`, et une constante prise à un module client serait
+  une référence client côté serveur.
+- La page tire `getToken()` une fois pour la garde du `kind` et pour les deux lectures ; elles
+  partent en parallèle de `GET /api/dashboard/agency`, qui reste lu une fois (`page.test.tsx`, AC3
+  de TCK-647, vert).
+- Ablation : `page.tsx` rendu à `HEAD` → AC1 rouge (pas de carte au premier rendu) ; correctif
+  remis → 2/2 verts.
