@@ -14949,7 +14949,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Un montant OFX `150,000` est lu 150, et `abc` est lu 0 : la ligne entre, sans être comptée comme sautée
 - Réf : P157.03
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1719 — reste : le sort de la virgule décimale : `150,000` reste lu 150 (virgule décimale) tant que la norme OFX et des relevés réels ne sont pas vérifiés (D-67) ; au porteur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Accounting/StatementParser/OfxDriver.php:128-147`, `takussan-api/app/Services/Accounting/StatementParser/CsvDriver.php:171-207`
 - Constat :
@@ -14959,6 +14959,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu et mesuré.
 - Piste : un montant OFX qui ne correspond pas à `^[+-]?\d+([.,]\d+)?$` après retrait des espaces (insécables compris) fait sauter la ligne, comptée ; trancher si la virgule reste admise comme décimale. Test : `150,000`, `abc` et `1.234,56` dans `StatementParserTest`.
 - Mesure (2026-10-22, 86f20c94b, mesureur) : relu `OfxDriver.php:128-147` (devinette du séparateur, `(float)` sans contrôle) face à `CsvDriver.php:181-207` ; sonde Feature temporaire (retirée) : `<TRNAMT>150,000` → crédit de `150.00`, `abc` → `0.00`, `150 000` → `150000.00`, `skipped_lines_count = 0` → le constat tient ; la prescription OFX du point décimal n'est pas vérifiée (aucune norme ni relevé réel dans le dépôt, D-67). Classement : V1, le correctif change la lecture d'un montant qui s'apparie aux paiements, et la Piste laisse ouvert le sort de la virgule décimale.
+- Mesure (2026-10-23, 9f180a3ae, implementeur) : test neuf `StatementParserTest::test_un_montant_ofx_non_numerique_est_saute_et_non_devine` rouge avant correctif : `abc` → crédit de 0, `1.234,56` → 1234,56, `12abc` → 12, `150 000` à espace insécable → 150, aucune ligne sautée → `parseAmount()` retire les espaces (insécables compris) et exige `^[+-]?\d+([.,]\d+)?$`, sinon la ligne est sautée et comptée ; virgule gardée comme décimale (voie la plus étroite, `7500,50` lu juste) ; 3 sautées, 4 lues justes ; ablation → rouge, remis → vert ; `StatementParserTest` 15/15, `BankStatementPipelineTest` 21/21, `OfxJeuDeCaracteresTest` 3/3, `OfxDeuxAImportTest` 3/3.
 
 ### Un OFX en `CHARSET:1252` dont un libellé porte un accent fait échouer le relevé entier, alors que la validation le dispense du contrôle d'encodage parce qu'il « déclare son jeu de caractères »
 - Réf : P157.04
