@@ -17,7 +17,7 @@ spec_refs:
     - "docs/models-spec.md#6-bookingpayment"
   pistes:
     - "docs/plans/2026-10-15-pistes-d-amelioration.md#angle-170--montants-envoyés-par-le-navigateur-et-pris-tels-quels-par-lapi"
-tags: [api, web, bookings, payments, pistes]
+tags: [api, bookings, payments, pistes]
 ---
 
 ## Contexte
@@ -29,7 +29,7 @@ redemander l'acompte entier.
 
 ## Décision du porteur
 
-retirer `partially_paid` des statuts que le personnel peut poser (revient sur TCK-1311) ; une part reçue est une ligne `paid` de son montant ; à lier à P04.11 pour un seul sens du partiel
+validation du porteur (2026-10-23) : retirer `partially_paid` des statuts que le personnel peut poser (revient sur TCK-1311) ; une part reçue est une ligne `paid` de son montant ; à lier à P04.11 pour un seul sens du partiel
 
 ## Hypothèses (mode sans humain)
 
@@ -37,13 +37,10 @@ retirer `partially_paid` des statuts que le personnel peut poser (revient sur TC
   partiel`. Ce ticket ne retire pas le cas `PaymentStatus::PartiallyPaid` (des lignes existantes et
   les échéances de bail le lisent) ; il ferme la seule saisie manuelle de réservation, dans le sens
   « retirer » de ce reste.
-- Le type `CreateBookingPaymentInput` du front suit le contrat ; les types de lecture gardent
-  `partially_paid` (lignes existantes).
 
 ## Delta à produire
 
 - [x] `StoreBookingPaymentRequest` : `status` ∈ {`paid`, `pending`}.
-- [x] `takussan-web/src/lib/queries/bookings.ts` : `status?: 'pending' | 'paid'`.
 - [x] `BookingPaymentManualStatusTest` mis à jour, et un cas « part reçue saisie `paid` ».
 
 ## Critères d'acceptation
@@ -56,6 +53,9 @@ retirer `partially_paid` des statuts que le personnel peut poser (revient sur TC
 
 - Le retrait du cas `partially_paid` de l'enum et des échéances de bail (reste de P04.11).
 - Les lignes `partially_paid` déjà en base (aucune réécriture de données).
+- Le type `CreateBookingPaymentInput` du front (`takussan-web/src/lib/queries/bookings.ts`) admet
+  encore `partially_paid` : aucun écran ne l'envoie (le dialogue n'envoie pas de statut), et le lot
+  reste du seul côté de l'API. À aligner dans un ticket du front.
 
 ## Notes d'implémentation
 
