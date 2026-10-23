@@ -49,6 +49,29 @@ class LoginLock
         return is_string($lockedAt) && $this->stillRunning(Carbon::parse($lockedAt));
     }
 
+    /**
+     * P83.04 (TCK-1775) — l'échéance du verrou qui ferme ce compte, tous canaux confondus : celui
+     * du mot de passe (`metadata.locked_at`) et celui de son numéro vérifié. `null` : aucun verrou
+     * ne court, et une clé `locked_at` échue n'en est plus un. C'est ce que lisent la fiche de la
+     * console et `UserSupportService::unlock`, pour juger comme la connexion juge.
+     */
+    public function lockedUntil(User $user): ?Carbon
+    {
+        $lockedAt = $user->metadata['locked_at'] ?? null;
+        $echeances = [];
+        if (is_string($lockedAt) && $this->stillRunning(Carbon::parse($lockedAt))) {
+            $echeances[] = Carbon::parse($lockedAt)->addMinutes(self::LOCK_MINUTES);
+        }
+
+        $numero = $user->phone_verified_at !== null && $user->phone ? (string) $user->phone : null;
+        $numeroVerrouilleA = $numero !== null ? $this->cache->get($this->numberLockKey($numero)) : null;
+        if (is_int($numeroVerrouilleA) && $this->stillRunning(Carbon::createFromTimestamp($numeroVerrouilleA))) {
+            $echeances[] = Carbon::createFromTimestamp($numeroVerrouilleA)->addMinutes(self::LOCK_MINUTES);
+        }
+
+        return $echeances === [] ? null : max($echeances);
+    }
+
     public function recordFailure(User $user): void
     {
         $metadata = $user->metadata ?? [];
