@@ -6,7 +6,6 @@ use App\Models\Booking;
 use App\Models\CommissionEntry;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
-use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\LeaseStatus;
@@ -16,7 +15,6 @@ use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
-use App\Models\PropertyCollaborator;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
@@ -305,13 +303,8 @@ class DashboardAgentService
             return Property::query()->where('agency_id', $agencyId);
         }
 
-        return Property::query()
-            ->when($agencyId !== null, fn ($q) => $q->where('agency_id', $agencyId))
-            ->where(fn ($q) => $q->where('user_id', $agent->id)
-                ->orWhereIn('id', PropertyCollaborator::query()
-                    ->select('property_id')
-                    ->where('user_id', $agent->id)
-                    ->whereIn('role', [CollaboratorRole::Agent->value, CollaboratorRole::Manager->value])));
+        // TCK-1735 (P167.05) — la règle vit sur `Property`, que le filtre `managed_by=me` des réservations lit aussi.
+        return Property::query()->managedBy($agent, $agencyId);
     }
 
     /** Σ des lignes du grand livre de l'agent sur la période, hors lignes annulées. */
