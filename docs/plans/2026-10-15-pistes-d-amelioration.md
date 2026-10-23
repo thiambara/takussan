@@ -11996,7 +11996,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Petites améliorations
 - Réf : P122.04
-- Statut : validé — porteur (2026-10-22) : réindexer les biens touchés dans `LegacyFeaturedConversion`, et écrire la règle dans `takussan-api/CLAUDE.md` § Recherche et dans le gabarit de migration
+- Statut : retenu · à valider — chemin fermé : `takussan-api/CLAUDE.md`, que la précision du porteur demande d'écrire (§ Recherche) ; la réindexation dans `LegacyFeaturedConversion` et le gabarit de migration se feraient seuls, mais la validation ne laisse pas de reste
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Boost/LegacyFeaturedConversion.php:34-36`, `takussan-api/database/migrations/2026_10_12_500400_seed_boost_catalogue_and_convert_featured.php:16`, `takussan-api/database/seeders/System/OfferedFeaturedSeeder.php:15`, `takussan-api/Dockerfile:101-103`, `takussan-api/docker/release.sh:44-58`, `takussan-api/app/Services/Search/PropertySearchService.php:749-765`
 - Constat :
@@ -12005,6 +12005,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lu.
 - Piste : réindexer les biens touchés dans `LegacyFeaturedConversion` ; écrire dans l'en-tête de `release.sh`, ou dans `takussan-api/CLAUDE.md` § Recherche, qu'une migration qui réécrit une colonne indexée doit réimporter son modèle, et le dire au gabarit de migration.
 - Mesure (2026-10-22, 2abc59353, mesureur) : relu `LegacyFeaturedConversion::run()` (`DB::table('properties')->update(['featured' => false, …])` sans réindexation), `PropertySearchService::featuredPool()` (filtre `featured = true` dans l'index) et `hydrate()` (ne rejuge que `public()`, pas `featured`) ; test temporaire retiré : bien publié sans agence, `featured = true`, indexé, conversion → base `featured = false`, document `featured = true`, et `GET /api/public/properties/search` le sert dans `sponsored` → la partie « à vérifier » tient : le bien est tiré en emplacement sponsorisé sans boost ; l'empreinte `.search-shape` (`Dockerfile:101-103`) et `release.sh` sont inchangés. Classement : V5, la réindexation dans `LegacyFeaturedConversion` relèverait seule de A1 (ADR-0061 : `featured` dérivé des boosts), mais la Piste la lie à une règle de déploiement à écrire dans `docker/release.sh` ou au gabarit de migration, au choix ; l'état de l'index en préproduction n'est pas relevé.
+- Mesure (2026-10-23, b5e5b0401, implementeur) : relu `LegacyFeaturedConversion.php:34-35` → `DB::table('properties')->update(['featured' => false, …])` toujours sans réindexation, le défaut tient ; la précision du porteur demande d'écrire la règle dans `takussan-api/CLAUDE.md`, chemin fermé à l'implémenteur (les `CLAUDE.md`), et ne porte pas de `; reste :` qui permette de livrer la seule réindexation. Classement : chemin fermé, rendu au porteur.
 
 ## Angle 123 — Appels réseau entre un geste validé et sa trace ou sa notification
 
