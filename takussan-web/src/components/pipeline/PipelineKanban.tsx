@@ -64,12 +64,26 @@ export function PipelineKanban() {
   // Per-column data — TanStack Query fans out one fetch per stage. Each
   // result is cached under a stable key so the optimistic-mutation hook can
   // update the right column atomically.
+  // TCK-1913 (P199.01) — une relecture (focus après le `staleTime`, remontage) relit autant de pages
+  // que « Charger plus » en a ajouté : ne relire que la page 1 effaçait les suivantes du cache.
   const columns = useQueries({
     queries: PIPELINE_STAGES.map((stage) => ({
       queryKey: PIPELINE_QUERY_KEY.column(stage),
       queryFn: async () => {
         if (!token) return [] as PipelineCustomerCard[];
-        return fetchPipelineColumn(token, { stage });
+        const loaded = queryClient.getQueryData<PipelineCustomerCard[]>(PIPELINE_QUERY_KEY.column(stage));
+        const pages = Math.max(1, Math.ceil((loaded?.length ?? 0) / PIPELINE_COLUMN_PAGE_SIZE));
+        const lues = await Promise.all(
+          Array.from({ length: pages }, (_, i) =>
+            fetchPipelineColumn(token, i === 0 ? { stage } : { stage, page: i + 1 }),
+          ),
+        );
+        const seen = new Set<number>();
+        return lues.flat().filter((c) => {
+          if (seen.has(c.id)) return false;
+          seen.add(c.id);
+          return true;
+        });
       },
       enabled: !!token,
       staleTime: 30_000,

@@ -193,6 +193,22 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
     );
   });
 
+  // TCK-1919 (P157.06, décision du porteur : marquer, ne pas sauter) — une ligne déjà importée par
+  // un autre relevé de l'agence porte un badge ; les autres non.
+  it('signale la ligne déjà importée par un autre relevé', () => {
+    q.useBankStatementLines.mockReturnValue(
+      ok({
+        data: [ligne({ duplicate_of_line_id: 55 }), ligne({ id: 101, duplicate_of_line_id: null })],
+        meta: { current_page: 1, last_page: 1, per_page: 50, total: 2 },
+      }),
+    );
+    render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+    expect(within(screen.getByTestId('ligne-100')).getByTestId('doublon-100')).toHaveTextContent(
+      fr.admin.reconciliation.detail.duplicate,
+    );
+    expect(within(screen.getByTestId('ligne-101')).queryByTestId('doublon-101')).toBeNull();
+  });
+
   it('montre le sens, la suggestion et sa confiance', () => {
     render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
     const suggeree = screen.getByTestId('ligne-100');
@@ -246,7 +262,7 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
 
   it('la recherche manuelle porte le sens de la ligne, et rapproche le candidat choisi', async () => {
     q.match.mockResolvedValue({});
-    q.usePaymentSearch.mockImplementation((_a: number, _q: string, _m: number | null, _d: string, enabled: boolean) =>
+    q.usePaymentSearch.mockImplementation((_a: number, _q: string, _m: number | null, _d: string, _c: string | null, enabled: boolean) =>
       enabled
         ? ok({ data: [{ id: 5, type: 'payout', label: null, amount: '50000.00', currency: 'XOF', reference: 'PO-5', paid_at: null, payer_name: null }] })
         : { data: undefined, isLoading: false, isError: false },
@@ -257,8 +273,9 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
     const dialogue = await screen.findByRole('dialog');
     fireEvent.click(within(dialogue).getByRole('button', { name: fr.admin.reconciliation.search.submit }));
 
-    const appels = q.usePaymentSearch.mock.calls.filter((c) => c[4] === true);
-    expect(appels.at(-1)?.slice(0, 4)).toEqual([3, 'LP-2026-0012', 50000, 'debit']);
+    const appels = q.usePaymentSearch.mock.calls.filter((c) => c[5] === true);
+    // P157.01 (TCK-1917) — la devise de la ligne part avec la recherche.
+    expect(appels.at(-1)?.slice(0, 5)).toEqual([3, 'LP-2026-0012', 50000, 'debit', 'XOF']);
 
     fireEvent.click(await within(dialogue).findByRole('button', { name: fr.admin.reconciliation.search.choose }));
     await waitFor(() => expect(q.match).toHaveBeenCalledWith({ lineId: 101, payment_type: 'payout', payment_id: 5 }));
@@ -267,7 +284,7 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
   // TCK-1526 (P110.04) — un acompte remboursé reste candidat, et le dit ; il reste choisissable.
   it('la recherche manuelle montre le statut de chaque candidat, sans l’écarter', async () => {
     q.match.mockResolvedValue({});
-    q.usePaymentSearch.mockImplementation((_a: number, _q: string, _m: number | null, _d: string, enabled: boolean) =>
+    q.usePaymentSearch.mockImplementation((_a: number, _q: string, _m: number | null, _d: string, _c: string | null, enabled: boolean) =>
       enabled
         ? ok({
             data: [

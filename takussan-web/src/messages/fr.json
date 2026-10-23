@@ -6641,6 +6641,7 @@
         "match": "Rapprochement",
         "actions": "Actions",
         "paymentRef": "{type} n° {id}",
+        "duplicate": "Déjà importée dans un autre relevé",
         "confidence": "Confiance : {value}",
         "validate": "Valider",
         "search": "Chercher",
@@ -9821,6 +9822,9 @@
       "roomNameRequired": "Le nom de la pièce est requis.",
       "leaseRequired": "Sélectionnez un bail.",
       "roomsMin": "Ajoutez au moins une pièce.",
+      "roomsMax": "{max} pièces au maximum.",
+      "elementsMax": "{max} éléments par pièce au maximum.",
+      "notesTooLong": "Notes trop longues ({max} caractères max).",
       "disputeReasonRequired": "Motif du litige requis."
     },
     "lease": {

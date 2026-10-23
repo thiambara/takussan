@@ -157,6 +157,25 @@ class PaymentSearchTest extends ApiTestCase
         $this->getJson($base.'?q=&amount=1000')->assertOk();
     }
 
+    /**
+     * P157.01 (TCK-1917) — la recherche manuelle ne propose que les paiements de la devise de la
+     * ligne (`currency`), celle que juge `ReconciliationManager::confirmMatch()` : une échéance en
+     * XOF proposée à une ligne en EUR rendait 422 à la confirmation. Sans `currency`, toutes.
+     */
+    public function test_la_recherche_ne_propose_que_la_devise_de_la_ligne(): void
+    {
+        $xof = $this->leasePayment($this->agency, 'DEV-XOF', 15000);
+        $eur = $this->leasePayment($this->agency, 'DEV-EUR', 15000, ['currency' => Currency::EUR]);
+        $base = "/api/agencies/{$this->agency->id}/bank-statements/payment-search?q=DEV-";
+        $this->actingAs($this->admin);
+
+        $this->assertSame([$eur->id], array_column($this->getJson($base.'&currency=EUR')->assertOk()->json('data'), 'id'));
+        $this->assertSame([$xof->id], array_column($this->getJson($base.'&currency=XOF')->assertOk()->json('data'), 'id'));
+        $this->assertSame([], $this->getJson($base.'&currency=ABC')->assertOk()->json('data'));
+        $this->assertEqualsCanonicalizing([$xof->id, $eur->id], array_column($this->getJson($base)->assertOk()->json('data'), 'id'));
+        $this->getJson($base.'&currency[]=EUR')->assertStatus(422)->assertJsonValidationErrors(['currency']);
+    }
+
     public function test_hors_de_l_agence_le_refus_precede_la_validation(): void
     {
         $intrus = User::factory()->create(['agency_id' => $this->other->id]);
