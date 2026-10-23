@@ -49,7 +49,7 @@ TCK-276 (filtrage côté client) et la règle « filtrer côté serveur » de `C
 
 ## Delta à produire
 
-- [x] `PublicAgentController::properties` et `PublicAgencyController::properties` : filtre de contrat.
+- [x] `PublicAgentController::properties` et `PublicAgencyController::properties` : filtre de contrat, validé par `App\Http\Requests\Public\PublicPortfolioRequest`.
 - [x] Front : `fetchAgentPortfolio` / `fetchAgencyPortfolio` acceptent le contrat ; `PortfolioTabs`
       tient une liste et une page par onglet.
 - [x] Tests : `tests/Feature/Public/PortefeuilleFiltreParContratTest.php`,
@@ -71,5 +71,6 @@ TCK-276 (filtrage côté client) et la règle « filtrer côté serveur » de `C
 - Un onglet ne part des biens de la page que s'il les a **tous** : partir d'une partie, puis
   demander la page 2 du contrat, sauterait des biens.
 - Un échec de chargement rend l'onglet à son état vide ; « Voir plus » reste offert pour réessayer.
+- La règle vit dans un FormRequest (`check-inline-validation.mjs` refuse `$request->validate` dans un contrôleur) : un `filter[contract_type]` invalide rend donc 422 même pour un profil inconnu ; sans le filtre, le 404 reste.
 - Ablation : contrôleurs remis → 4 rouges sur 6 (filtre et 422) ; `PortfolioTabs` remis → 2 rouges
   sur 3 (AC2, AC3) ; correctifs remis → 6/6 et 3/3 verts.

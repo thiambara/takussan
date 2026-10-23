@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Public\ContactLeadPublicRequest;
 use App\Http\Requests\Public\IndexPublicProfilesRequest;
+use App\Http\Requests\Public\PublicPortfolioRequest;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Enums\AgencyStatus;
@@ -19,7 +20,6 @@ use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -366,7 +366,7 @@ class PublicAgentController extends Controller
     /**
      * TCK-276 — paginated portfolio for the public agent page (load-more).
      */
-    public function properties(Request $request, string $slug)
+    public function properties(PublicPortfolioRequest $request, string $slug)
     {
         $agent = self::sansAgenceHorsLigne(User::query())
             ->where('username', $slug)
@@ -376,7 +376,7 @@ class PublicAgentController extends Controller
         abort_if($agent === null, 404);
 
         $perPage = min(max((int) $request->input('per_page', 24), 1), 48);
-        $contrat = self::contratFiltre($request);
+        $contrat = $request->contractType();
 
         $properties = Property::query()
             ->where('user_id', $agent->id)
@@ -412,17 +412,5 @@ class PublicAgentController extends Controller
     {
         return $query->whereDoesntHave('agentProfiles', fn (Builder $profil) => $profil
             ->whereHas('agency', fn (Builder $agence) => $agence->where('agencies.status', '!=', AgencyStatus::Active)));
-    }
-
-    /**
-     * TCK-1730 (P168.02) — `filter[contract_type]` (`rent`|`sale`, exact) : chaque onglet du
-     * portefeuille public se charge par l'API, au lieu de filtrer côté client les seuls biens déjà
-     * chargés. Une autre valeur rend 422.
-     */
-    private static function contratFiltre(Request $request): ?ContractType
-    {
-        $request->validate(['filter.contract_type' => ['nullable', Rule::enum(ContractType::class)]]);
-
-        return ContractType::tryFrom((string) $request->input('filter.contract_type', ''));
     }
 }
