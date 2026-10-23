@@ -13,8 +13,10 @@ use App\Http\Requests\PropertyBulkVisibilityRequest;
 use App\Http\Requests\PropertyDuplicateRequest;
 use App\Http\Requests\UpdatePropertyRequest;
 use App\Http\Resources\PropertyResource;
+use App\Models\Enums\BookingStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Enums\VisitStatus;
 use App\Models\Property;
 use App\Models\User;
 use App\Notifications\PropertyProposedNotification;
@@ -272,6 +274,25 @@ class PropertyController extends Controller
     public function destroy(Request $request, Property $property): JsonResponse
     {
         $this->authorize('delete', $property);
+
+        // P130.04 (TCK-1708) — même forme que le client et le garant sous bail ouvert : un bien qui
+        // porte une réservation confirmée ou une visite à venir ne se supprime pas. Supprimé, il
+        // laissait la réservation `confirmed` et la visite `scheduled` sur un bien que plus
+        // personne ne voyait, sans que le client ni le visiteur en soient prévenus.
+        abort_code_if(
+            $property->bookings()->where('status', BookingStatus::Confirmed->value)->exists(),
+            422,
+            'property.has_confirmed_booking',
+        );
+        abort_code_if(
+            $property->visits()
+                ->whereIn('status', [VisitStatus::Scheduled->value, VisitStatus::Confirmed->value])
+                ->where('scheduled_at', '>=', now())
+                ->exists(),
+            422,
+            'property.has_upcoming_visit',
+        );
+
         $property->delete();
 
         return $this->json(['message' => 'deleted'], 204);

@@ -4,7 +4,6 @@ namespace App\Services\Reporting;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Lease;
@@ -102,7 +101,8 @@ class PlatformMetricsSnapshotter
             'users_active' => User::query()->where('status', UserStatus::Active)->count(),
             'properties_published' => Property::query()->where('status', PropertyStatus::Published)->count(),
             'properties_pending_review' => Property::query()->where('status', PropertyStatus::PendingReview)->count(),
-            'leases_active' => Lease::query()->where('status', LeaseStatus::Active)->count(),
+            // P162.02 (TCK-1714) — préavis compris : la série change à compter de ce ticket.
+            'leases_active' => Lease::query()->whereIn('status', Lease::ONGOING_STATUSES)->count(),
         ];
     }
 
