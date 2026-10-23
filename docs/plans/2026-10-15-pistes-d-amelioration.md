@@ -12978,7 +12978,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
 
 ### Petites améliorations
 - Réf : P133.06
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1729 — reste : rendre la fenêtre d'avis de visite dans la ressource de la visite (ou une date limite calculée), au lieu de `FEEDBACK_WINDOW_HOURS = 24` en dur dans `VisitDetail.tsx`
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/visits/VisitDetail.tsx:44,663,690-700`, `takussan-api/config/visits.php:14`, `takussan-web/src/components/maintenance/QuoteSubmitForm.tsx:56,197`, `takussan-api/app/Services/Maintenance/MaintenanceQuoteWorkflow.php:120-142`, `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:393,484`
 - Constat :
@@ -12987,6 +12987,7 @@ restitution de caution, qui ne calcule que le reste retenu.*
   - Configuration de l'agence : les champs « Commission » et « TVA par défaut » montrent les exemples `5` et `18` (lu, l. 393 et 484), alors qu'un champ vide vaut 0 % dans les deux calculs (lu, `PayoutCalculator.php:137`, `InvoiceService.php:64`). Un champ jamais rempli se lit comme réglé.
 - Piste : rendre la fenêtre d'avis dans la ressource de la visite (ou une date limite calculée) ; arrondir l'aperçu du devis ligne par ligne avec la devise de la demande ; remplacer les exemples par une aide qui dit « vide : 0 % ». Un test par point.
 - Mesure (2026-10-22, 70e5c1cc7, mesureur) : relu `VisitDetail.tsx:44,663,698` (`FEEDBACK_WINDOW_HOURS = 24` en dur, texte et verrou), `PropertyVisitController.php:407` et `config/visits.php:14` (`VISITS_FEEDBACK_WINDOW_HOURS`, défaut 24), `grep VISITS_FEEDBACK` sur `.env.example`, `.env.docker`, `phpunit.xml`, `prod-drivers.json` → rien ; `QuoteSubmitForm.tsx:56` (somme des produits bruts) et l. 197 (`formatCurrency(total, locale)` sans devise) ; `AgencyConfigForm.tsx:393,484` (`placeholder="5"` et `"18"`) → les trois points tiennent, lignes inchangées. Classement : V7, remplacer les exemples par une aide « vide : 0 % » est un texte neuf, et rendre la fenêtre d'avis dans la ressource de la visite change le contrat ; l'aperçu du devis touche un montant affiché (V1).
+- Mesure (2026-10-23, 55543164c, implementeur) : avant correctif, `QuoteSubmitForm.apercu-arrondi.tck-1729.test.tsx` lit « Total estimé : 1 499 F CFA » pour trois lignes de 1,5 × 333 (l'API enregistre 1 500) et « 500 F CFA » pour 1,5 × 333,33 d'une demande en EUR, et `AgencyConfigForm.taux-vides.tck-1729.test.tsx` trouve `placeholder="5"` (3 rouges) ; correctif : chaque ligne arrondie à l'unité de la devise de la demande puis sommée, aperçu formaté dans cette devise ; exemples `5` et `18` remplacés par l'aide « Laissé vide, ce taux vaut 0 %. » ; ablation (les deux composants d'avant, tests gardés) → les 3 rouges reviennent ; remis → 21 verts avec les tests voisins. Point 1 (fenêtre d'avis) non fait : il touche l'API, ce lot ne touche que le front.
 
 ## Angle 134 — Tris sur une colonne d'enum rangée en chaîne
 
