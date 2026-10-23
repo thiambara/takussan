@@ -34,7 +34,7 @@ y avait plus de biens qu'à son accueil.
 
 ## Décision du porteur (déléguée)
 
-la colonne « Biens gérés » de la performance d'équipe (`TeamPerformanceService`, `properties_managed`) écarte `Property::OUT_OF_PORTFOLIO_STATUSES` (`archived`, `sold`), comme l'accueil de l'agent depuis TCK-1359 ; test : un bien `sold` et un `archived` d'un agent ne comptent ni dans son accueil ni dans sa ligne de performance
+la colonne « Biens gérés » de la performance d'équipe (`TeamPerformanceService`, `properties_managed`) écarte `Property::OUT_OF_PORTFOLIO_STATUSES` (`archived`, `sold`), comme l'accueil de l'agent depuis TCK-1359 ; test : un bien `sold` et un `archived` d'un agent ne comptent ni dans son accueil ni dans sa ligne de performance ; reste : le « Biens » de l'accueil d'agence (`properties.total`) et `properties_count` de `GET /api/agencies/{id}/stats`, et l'écriture de la définition du portefeuille dans `docs/features.md`
 
 ## Contrat de données
 
