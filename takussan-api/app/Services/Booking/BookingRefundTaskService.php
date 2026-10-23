@@ -10,6 +10,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -101,7 +102,8 @@ class BookingRefundTaskService
     /**
      * Option retenue par défaut (question non tranchée) : l'auteur de la réservation s'il est du
      * personnel ; sinon le premier collaborateur accepté `manager` puis `agent` du bien ; sinon le
-     * premier admin de l'agence ; sinon le bailleur (hôte sans agence).
+     * premier admin de l'agence ; sinon le créateur du bien s'il compte encore (bailleur, hôte sans
+     * agence, ou personnel actif — TCK-1726).
      */
     public function assigneeFor(Booking $booking): ?User
     {
@@ -131,6 +133,8 @@ class BookingRefundTaskService
             }
         }
 
-        return $booking->property?->owner;
+        // TCK-1726 (P160.06) — le créateur du bien seulement s'il compte encore (TCK-1316) : bailleur,
+        // ou personnel actif de l'agence du bien. L'agent suspendu ou parti n'hérite pas de la tâche.
+        return $booking->property !== null ? PrimaryPropertyContact::createurDestinataire($booking->property) : null;
     }
 }

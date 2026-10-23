@@ -18,6 +18,7 @@ import {
 import { useApiForm } from '@/hooks/useApiForm';
 import { useAvertissementDepart } from '@/hooks/useAvertissementDepart';
 import { ApiError } from '@/lib/api';
+import { customerSettableStatusValues } from '@/lib/enums/customer';
 import {
   CUSTOMER_LOCALE_DEFAULT,
   customerFormSchema,
@@ -138,7 +139,14 @@ export function CustomerForm({
   // françaises de `./options` restent en place tant que `app/(dashboard)/app/
   // customers/[id]/page.tsx` — hors de ce lot — les importe.
   const pipelineStageOptions = pipelineStageValues.map((v) => ({ value: v, label: tStage(v) }));
-  const customerStatusOptions = customerStatusValues.map((v) => ({ value: v, label: tStatus(v) }));
+  // TCK-1753 (P147.06) — l'édition ne pose que `active`/`inactive` ; le statut retiré qu'une fiche
+  // porte déjà reste offert, pour qu'elle se renvoie inchangée (l'API l'accepte tel quel).
+  const statutCourant = customer?.status;
+  const customerStatusOptions = customerStatusValues
+    .filter(
+      (v) => (customerSettableStatusValues as readonly string[]).includes(v) || v === statutCourant,
+    )
+    .map((v) => ({ value: v, label: tStatus(v) }));
   const idTypeOptions = idTypeValues.map((v) => ({ value: v, label: tIdType(v) }));
   // TCK-921 — chaque langue nommée dans celle de l'interface ; « Par défaut » l'efface, comme
   // « Indifférent » efface un critère.
