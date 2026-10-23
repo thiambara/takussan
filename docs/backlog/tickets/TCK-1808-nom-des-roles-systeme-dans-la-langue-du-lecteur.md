@@ -1,7 +1,7 @@
 ---
 id: TCK-1808
 title: "Le nom d'un rôle système se lit dans la langue du lecteur, à l'avis comme à la console"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -63,17 +63,17 @@ système est écarté.
 
 ## Delta à produire
 
-- [ ] `NotificationCode::params()` et `GovernanceAlertService::paramsFor`.
-- [ ] `nomDuRole` et ses appelants de la console.
-- [ ] Tests : API (`RoleSystemeNommeDansLaLangueTest`), front (`AgencyRolesList.test.tsx`,
-  `NotificationRow.test.tsx` déjà couvert par TCK-1806).
+- [x] `NotificationCode::params()` et `GovernanceAlertService::paramsFor`.
+- [x] `nomDuRole` et ses appelants de la console.
+- [x] Tests : API (`GovernanceAlertTest`, deux cas neufs), front (`AgencyRolesList.test.tsx` et les
+  tests du sélecteur, du dialogue de création et de l'éditeur ; la cloche est couverte par TCK-1806).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — l'avis pour un rôle système `agency_admin`, rendu en `en`, ne contient pas
+- [x] AC1 — l'avis pour un rôle système `agency_admin`, rendu en `en`, ne contient pas
   « Administrateur » ; en `fr`, il nomme « administrateur d'agence ».
-- [ ] AC2 — pour un rôle créé, l'avis porte son nom tel quel.
-- [ ] AC3 — la console affiche « Agency admin » en `en` pour le rôle système, et le nom d'un rôle
+- [x] AC2 — pour un rôle créé, l'avis porte son nom tel quel.
+- [x] AC3 — la console affiche « Agency admin » en `en` pour le rôle système, et le nom d'un rôle
   créé tel quel.
 
 ## Hors périmètre
@@ -81,3 +81,14 @@ système est écarté.
 - Renommer les rôles système, réécrire les lignes d'avis existantes.
 
 ## Notes d'implémentation
+
+- Test rouge avant correctif : `GovernanceAlertTest::test_un_role_systeme_est_nomme_dans_la_langue_du_destinataire`
+  (`role` rangé « Administrateur »), et 7 rouges de la console (« Administrateur », « Agent » bruts).
+- Ablation API : `GovernanceAlertService.php` remis à l'état d'avant → 1 rouge, remis → vert.
+- Ablation front : les quatre composants de la console remis à l'état d'avant → 9 rouges, remis → vert.
+- Le nom prérempli d'un clone de rôle système devient « Agent immobilier (copie) » : c'est le nom
+  affiché du modèle, qui reste modifiable avant création.
+- Rendu API en `fr` : « administrateur d'agence » (`invitations.roles`) ; la cloche dit « Admin
+  agence » (`profile.roles`). Les deux dictionnaires existaient déjà et divergent déjà pour les
+  délégations : non unifiés ici.
+
