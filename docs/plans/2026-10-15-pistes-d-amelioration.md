@@ -6483,7 +6483,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### Petites améliorations : identifiants d'agence, de profil et de rôle
 - Réf : P62.07
-- Statut : validé — (a) comme P62.01 : même traitement, et 404 quand `assign` refuse sur `agency-role` (porteur, 2026-10-20)
+- Statut : fait · TCK-1772
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/StoreIntegrationRequest.php:25,37`, `takussan-api/app/Http/Requests/Api/IndexCalendarRequest.php:42`, `takussan-api/app/Http/Controllers/Api/CalendarController.php:34-37`, `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:20-27,71`, `takussan-api/app/Http/Requests/Agency/AssignAgencyRoleRequest.php:25-28,43`, `takussan-api/app/Http/Controllers/Api/Profile/AgencyRoleController.php:28-43`
 - Constat :
@@ -6491,6 +6491,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - `PATCH /api/profiles/{profile}/agency-role` : `authorize()` rend `user() !== null` ; `agency_role_id` porte `exists:agency_roles,id`, et le profil est résolu par `findOrFail()` (l. 36) avant `Gate::authorize('assign')` (l. 41) : profil absent → 404, profil tiers → 403 (lu, non mesuré).
 - Piste : même traitement que les entrées précédentes ; pour le profil, rendre 404 quand `assign` refuse.
 - Mesure (2026-10-20, 0ba226223, mesureur) : test temporaire retiré, compte sans agence → `GET /api/calendar?agency_id=` tierce 403 `calendar.other_agency_forbidden`, absente 422 ; `POST /api/integrations` (fournisseur invalide) : `agency_id` absente en erreur, tierce non ; `PATCH /api/profiles/{id}/agency-role` profil tiers 403, absent 404, rôle absent 422 sur `agency_role_id`. Le « à vérifier » : les identifiants d'agence sont publics par l'annuaire (lu, `PublicAgencyController.php:170` et `:343`), l'oracle ne vise donc que les agences hors annuaire. Classement : V2, comme P62.03 : rendre 404 quand `assign` refuse change la réponse d'une autorisation.
+- Mesure (2026-10-23, b5e5b0401, implementeur) : avant correctif, `AgencyAndRoleExistenceOracleTest` neuf → 6 rouges sur 7 : calendrier, agence absente 422 contre 403 `calendar.other_agency_forbidden` pour une tierce ; intégration et invitation, une erreur `agency_id` de plus pour l'absente, et 422 contre 403 pour l'admin d'une autre agence ; affectation, profil tiers 403 contre 404 absent, rôle absent « The selected agency role id is invalid » contre « This role belongs to another agency » ; correctif (`agency_id` jugé par `AgenceNommeeParLeSuperAdmin`, pour le seul super-admin qui garde son 422 ; `agency_role_id` sans `exists:`, 404 quand `assign` refuse, rôle absent → réponse du rôle d'une autre agence ; `ExistsSurRouteOuverteTest` vidé de ses exceptions) → 7 verts, 245 verts sur les 29 classes qui frappent les quatre routes ; ablations : `app/` d'origine → 6 rouges et la garde rouge, règle neutralisée → 1 rouge ici et 2 dans `AgenceSupprimeeNonCibleeTest`.
 
 ### Rien n'empêche une règle `exists:` neuve sur une route dont l'`authorize()` laisse passer tout compte
 - Réf : P62.08
