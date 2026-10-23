@@ -4257,6 +4257,7 @@
         "remove_file": "Retirer",
         "max_files": "Maximum {max} fichiers.",
         "file_type_refused": "Type de fichier refusé (PDF, JPG, PNG ou WEBP seulement) : {files}",
+        "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
         "incomplete": "Chaque ligne doit avoir une désignation, une quantité et un prix, et le devis une date de validité.",
         "failed": "Le devis n'a pas été envoyé.",
         "submitting": "Envoi…",

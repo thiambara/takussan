@@ -4286,6 +4286,7 @@
         "remove_file": "Remove",
         "max_files": "Maximum {max} files.",
         "file_type_refused": "File type refused (PDF, JPG, PNG or WEBP only): {files}",
+        "file_too_large": "File too large ({max} MB max): {files}",
         "incomplete": "Each line needs a description, a quantity and a price, and the quote a validity date.",
         "failed": "The quote was not sent.",
         "submitting": "Sending…",

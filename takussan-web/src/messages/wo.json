@@ -2526,6 +2526,7 @@
         "remove_file": "Far",
         "max_files": "Maximum {max} fichiers.",
         "file_type_refused": "Xeetu kayit bii nanguñu ko (PDF, JPG, PNG walla WEBP rekk) : {files}",
+        "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
         "incomplete": "Bépp rëdd war na am tur, lim ak njëg, te devi bi war na am bés bu muy jeex.",
         "failed": "Devi bi yónneesu ko.",
         "submitting": "Mungiy yónne…",
