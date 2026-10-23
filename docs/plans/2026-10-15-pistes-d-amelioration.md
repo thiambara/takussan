@@ -17904,7 +17904,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### Petites améliorations
 - Réf : P194.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1888
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/documents.ts:163-180` ; `takussan-web/src/components/kyc/KycUploader.tsx:74,201` ; `takussan-api/app/Support/Uploads/AcceptedUploads.php:13-14,18-22`
 - Constat :
@@ -17913,6 +17913,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Établi comment : lu.
 - Piste : réécrire le docblock pour qu'il renvoie à `AcceptedUploads::DOCUMENT_MIMETYPES` ; resserrer `accept` du KYC sur la liste de l'API ; une garde qui compare les listes `accept` du front et les constantes d'`AcceptedUploads` éviterait le retour.
 - Mesure (2026-10-23, d9da8aa85, mesureur) : relu `takussan-web/src/lib/queries/documents.ts:163-180` (docblock « aligned with `['required', 'file', 'max:10240']` », liste sans `image/heic`/`image/heif`, inchangés), `AcceptedUploads.php:13-14,18-30` (l'API accepte `heic`/`heif` pour les documents, et ne prend en KYC que `jpg, jpeg, png, webp, heic, heif, pdf`), `KycUploader.tsx:74` (`'image/*,application/pdf'`) et son seul envoi `POST /api/me/${endpoint}/${profileId}/kyc/upload` (l. 112), routes qui appliquent `AcceptedUploads::kyc()` (lu, `UploadKyc*ProfileRequest.php`) → le constat tient ; le refus d'un GIF reste déduit de la règle (`gif` absent des deux listes), non vu à l'écran. Classement : A6 et A1, le correctif aligne le front et son docblock sur le contrat d'`AcceptedUploads` déjà écrit, sans texte neuf ; correctif attendu : docblock renvoyant à `AcceptedUploads::DOCUMENT_MIMETYPES`, `image/heic,image/heif` ajoutés à `DOCUMENT_MIME_ACCEPT`, `accept` du KYC réduit aux types de `KYC_MIMETYPES`, et une garde ou un test qui compare ces listes aux constantes de l'API (A5).
+- Mesure (2026-10-23, aae5f2a23, implementeur) : reproduit avant correctif par `accept-des-televersements.parity.tck-1888.test.tsx`, qui lit `AcceptedUploads.php` : `DOCUMENT_MIME_ACCEPT` sans `image/heic` ni `image/heif` → rouge, `KycUploader` sur `image/*,application/pdf` → rouge (charge 2,77 / 2,66 / 2,50 sur 8 cœurs) → docblock renvoyant à `AcceptedUploads::DOCUMENT_MIMETYPES`, HEIC et HEIF ajoutés, `KYC_MIME_ACCEPT` exporté sur les seuls `KYC_MIMETYPES` et posé sur l'input ; `application/csv` (lu par `finfo`, jamais annoncé par un navigateur) est la seule exception nommée par le test ; ablation : HEIC/HEIF retirés et `image/*` remis → 2 rouges ; remis → 3 verts, `KycUploader.erreurs`, `KycUploader.pastille-tck-385` et `DocumentUploadDialog.onUploaded` verts.
 
 ## Angle 195 — Seuils de saisie recopiés en constantes du front, face à la règle de l'API
 
