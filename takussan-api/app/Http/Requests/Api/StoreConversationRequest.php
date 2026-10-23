@@ -40,7 +40,9 @@ class StoreConversationRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'subject' => ['nullable', 'string'],
+            // TCK-1885 (P195.01) — la colonne est `varchar(255)`, comme au renommage et au groupe :
+            // sans borne, un sujet trop long rendait 500 au lieu de 422.
+            'subject' => ['nullable', 'string', 'max:255'],
             // TCK-1875 (P191.05) — les deux seuls types que l'application écrit : `group` part
             // vers `storeGroup()`, tout le reste est une directe. `lease`, `booking`, `property`
             // et `support` passaient ici et s'enregistraient tels quels, sans écrivain ni règle
