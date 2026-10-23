@@ -17216,7 +17216,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### La console super-admin propose les filtres « Client » et « Locataire » sur les comptes, et l'API rend toujours une liste vide
 - Réf : P186.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : servir `customer`/`tenant` par la règle de `profileTypes()` ou les retirer du sélecteur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/(super-admin)/super-admin/users/page.tsx:73-82,138,211`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:50-63`, `takussan-api/app/Models/Concerns/HasProfiles.php:239-275`
 - Constat :
@@ -17227,10 +17227,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Ce qui se voit : l'opérateur qui choisit « Client » voit « aucun compte », alors que chaque compte en est un. Aucune erreur ne dit que le filtre n'est pas servi.
   - Établi comment : lu, puis mesuré par le test temporaire.
 - Piste : faire servir les deux rôles dérivés par le `match`, avec la règle de `profileTypes()` : `customer` sans restriction, et `tenant` par la même requête que `hasActiveTenantLease()`. L'autre voie est de les retirer du sélecteur. Test : un compte locataire et un compte sans bail, `filter[role]=tenant` → le seul locataire ; `filter[role]=customer` → les deux. Garde : un test qui parcourt chaque option du sélecteur et attend au moins une ligne quand un compte de ce rôle existe.
+- Mesure (2026-10-23, 6ef281d1e, mesureur) : relu `UserDetailController.php:49-62` (le `match` de `filter.role` ne connaît que cinq rôles, `default => whereRaw('1 = 0')`), `HasProfiles.php:241-276` (`profileTypes()` pousse `customer` pour tous et `tenant` sur bail en cours, TCK-492), `users/page.tsx:73-82,138` (le sélecteur propose `customer` et `tenant`, envoyés en `filter[role]`), le relais `api/super-admin-users/route.ts` (transmet la requête telle quelle) ; aucun commit ni ticket ne l'a traité (`git log` du contrôleur, `grep` des tickets) ; test temporaire `tests/Feature/Tmp/MesureurTmp186Test.php` (charge `{ 3.27 2.78 2.28 }` sur 8 cœurs, retiré) : opérateur `Support`, un compte « Clientzz » sans profil, `filter[search]=Clientzz` → total 1 ; `&filter[role]=customer` → **0** ; `&filter[role]=tenant` → **0** ; `&filter[role]=owner` → 0 → le constat tient entier. Classement : V7, la `Piste` offre deux voies (servir les deux rôles dérivés, où `customer` rendrait tous les comptes, ou les retirer du sélecteur, retrait d'une option visible), et le sens utile d'un filtre « Client » qui vaut tout le monde est un choix de produit.
 
 ### Deux recherches écrites à la main sont sensibles à la casse et prennent `%` pour un joker : la file de modération des biens et le journal de l'agence
 - Réf : P186.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:48-53`, `takussan-api/app/Http/Controllers/Api/AuditLogController.php:151-153`, `takussan-api/app/Models/Concerns/HasQueryBuilder.php:267-271`, `takussan-web/src/components/admin/PropertyModerationWorkspace.tsx:23,37,79`, `takussan-web/src/components/admin/AuditTrail.tsx:219,230`
 - Constat :
@@ -17241,10 +17242,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Le repli SQL de `filter[search]` dans `HasQueryBuilder`, pris par les modèles qui ne sont pas `Searchable`, a la même forme (lu, l. 270). Cinq modèles le prennent : `AgencyRole`, `BankStatementLine`, `GeoNeighborhood`, `Invitation`, `Tag` (`grep requestSearchFields` sans `Searchable`). Aucun écran ne semble l'appeler aujourd'hui : la console des étiquettes filtre côté client (lu, `tags.ts:62-66`), et les autres appelants n'ont pas été relus un à un (à vérifier).
   - Établi comment : lu, puis mesuré par le test temporaire pour les deux contrôleurs.
 - Piste : écrire ces trois recherches comme TCK-600 : `CaseInsensitive::sql($col).' like ?'`, `CaseInsensitive::fold()` et `addcslashes($value, '\\%_')`. Test : sur le modèle d'`AdminConsoleSearchCaseTest`, `villa` trouve « Villa Almadies », `%` ne trouve rien, pour la file, le journal et un modèle du repli (`Tag`).
+- Mesure (2026-10-23, 6ef281d1e, mesureur) : relu `PropertyModerationController.php:48-53` (`like` nu sur `title` et `reference_number`), `AuditLogController.php:151-153` (`like` nu sur `description`), `HasQueryBuilder.php:267-271` (repli SQL au même `like` nu ; `$requestSearchFields` sur `AgencyRole`, `BankStatementLine`, `GeoNeighborhood`, `Invitation`, `Tag`), et le modèle de TCK-600 dans `UserDetailController.php:35-41` ; test temporaire `tests/Feature/Tmp/MesureurTmp186Test.php` (charge `{ 3.27 2.78 2.28 }` sur 8 cœurs, retiré) : bien `pending_review` « Villa Almadies », `GET /api/properties/moderation?filter[search]=` `Villa` → 1, `villa` → **0**, `VILLA` → **0**, `%` → 1 ; journal avec « Relance Diop », `GET /api/activity-log?filter[search]=` `Diop` → 1, `diop` → **0**, `relance` → **0**, `%` → 6 (tout le journal) → le constat tient pour les deux contrôleurs ; le repli de `HasQueryBuilder` est relu, non joué, et ses appelants front non relus. Classement : A1, la recherche insensible à la casse et le `%` littéral sont écrits par TCK-600 et le piège n° 9 de `takussan-api/CLAUDE.md`, et le correctif reprend sa forme sans choix de produit.
 
 ### Petites améliorations
 - Réf : P186.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/customers.ts:179-190`, `takussan-api/app/Http/Controllers/Api/CustomerNoteController.php:14-25`, `takussan-web/src/app/(super-admin)/super-admin/users/page.tsx:150`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:97-103`, `takussan-web/src/lib/queries/leases.ts:273`
 - Constat :
@@ -17253,3 +17255,4 @@ Le PDF de l'état des lieux est P143.01.*
   - `fetchAllLeasePayments` envoie `filter[lease_id]` (lu, `leases.ts:273`). `LeasePaymentController::index` ne le lit pas : le bail vient de la route. Le paramètre est redondant et sans effet.
   - Établi comment : lu, et mesuré pour les notes.
 - Piste : retirer les deux paramètres inertes du front (`include` des comptes, `filter[lease_id]`), avec un commentaire qui dit où l'API fixe ses relations. Pour les notes, choisir entre faire lire `sort` à l'API et retirer `sort` du front en documentant l'ordre « épinglées d'abord ». Dans les deux cas, ajouter `orderByDesc('id')` en départage.
+- Mesure (2026-10-23, 6ef281d1e, mesureur) : relu `customers.ts:179-190` (`sort: '-created_at'`), `CustomerNoteController.php:14-25` (aucun `sort` lu, `orderByDesc('pinned')->latest()`, sans départage par `id`), `users/page.tsx:150` (`include=roles,agentProfiles,ownerProfiles`) contre `UserDetailController.php:97-103` (relations chargées en dur), `leases.ts:268-278` (`filter: { lease_id }`) contre `LeasePaymentController.php:30-48` (le bail vient de la route, seul `sort` est lu) ; test temporaire `tests/Feature/Tmp/MesureurTmp186Test.php` (charge `{ 3.27 2.78 2.28 }` sur 8 cœurs, retiré) : une note épinglée d'il y a trois jours et une récente, `GET /api/customers/{id}/notes?sort=-created_at` → `["ancienne epinglee","recente"]` → les trois paramètres sont inertes, le constat tient. Classement : A3, paramètres sans effet des deux côtés ; le correctif sans choix est de les retirer du front en gardant l'ordre servi aujourd'hui (épinglées d'abord) et d'ajouter `orderByDesc('id')` en départage, l'autre voie de la `Piste` (faire lire `sort` à l'API) n'étant pas prise.
