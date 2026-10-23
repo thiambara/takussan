@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\BookingPayment;
 use App\Models\User;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -37,7 +38,9 @@ class BookingPaymentPolicy extends BasePolicy
         // TCK-587 — le personnel de l'agence, plus tout membre : un bailleur de l'agence gérait les
         // paiements des réservations des autres (ADR-0031).
         return $this->isStaffOf($user, $booking->agency_id)
-            || ($booking->property?->user_id === $user->id)
+            // TCK-1932 (P190.03, décision du porteur) — le bailleur du bien (`BailleurDuBien`), plus
+            // l'agent qui l'a saisi : suspendu ou retiré, il ouvrait et vérifiait le paiement.
+            || ($booking->property !== null && BailleurDuBien::est($user, $booking->property->user_id, $booking->property->agency_id))
             || ($booking->customer?->user_id === $user->id);
     }
 }
