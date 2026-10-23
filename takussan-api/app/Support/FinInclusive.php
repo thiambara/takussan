@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
  *
  * Une seule forme pour la délégation de rôle et l'absence d'agent, qui partagent la table
  * `role_delegations` : la règle vivait dans le service de la première et dans l'écran de la seconde.
+ * TCK-1731 (P163.01) : la validité d'une offre d'achat (`bookings.expires_at`) suit la même règle.
  */
 final class FinInclusive
 {
