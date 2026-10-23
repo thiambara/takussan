@@ -70,7 +70,10 @@ class VisitNotifier
 
     /**
      * Les événements vers le visiteur rendent le sort du SMS ({@see self::toVisitor()}) :
-     * `true` parti, `false` retenu par une borne, `null` aucun SMS prévu.
+     * `true` non retenu par une borne et mis en file, `false` retenu par une borne, `null` aucun
+     * SMS prévu. ⚠ `true` ne dit PAS « parti » (P179.04, TCK-1799) : l'envoi part ensuite par
+     * `CodedNotification`, en file, et son échec ne se voit qu'au worker
+     * ({@see CodedNotification::failed()}).
      */
     public function confirmed(PropertyVisit $visit, ?User $emetteur = null): ?bool
     {
@@ -202,6 +205,10 @@ class VisitNotifier
                 // Notification routing failures must never bubble up and break
                 // the originating HTTP request — but they are logged (TCK-771),
                 // in the safe form of ADR-0044, never the message.
+                // P179.04 (TCK-1799) — ce `catch` ne voit que l'AVANT-file : le rendu, l'écriture
+                // de la cloche, la mise en file. L'échec du transport (e-mail, SMS, WhatsApp) se
+                // journalise au worker, sous « [notifications] envoi abandonné » :
+                // {@see CodedNotification::failed()}.
                 Log::warning('[VisitNotifier] agency notification failed', [
                     'visit_id' => $visit->id,
                     'code' => $code->value,
@@ -248,7 +255,8 @@ class VisitNotifier
 
             return $sms;
         } catch (\Throwable $e) {
-            // Non-blocking, logged — see toAgency().
+            // Non-blocking, logged — see toAgency(), y compris ce que ce `catch` ne voit pas
+            // (l'échec du transport, au worker : {@see CodedNotification::failed()}).
             Log::warning('[VisitNotifier] visitor notification failed', [
                 'visit_id' => $visit->id,
                 'code' => $code->value,
@@ -327,7 +335,7 @@ class VisitNotifier
      * Compté deux fois, le plafond global par numéro reviendrait par la porte du canal, et un
      * particulier qui l'épuise couperait de nouveau les SMS des agences (R1).
      *
-     * @return bool|null `true` le SMS part, `false` il est retenu, `null` aucun SMS prévu
+     * @return bool|null `true` le SMS n'est pas retenu (il est mis en file), `false` il est retenu, `null` aucun SMS prévu
      */
     private function borneLeSms(PropertyVisit $visit, ?string $numero, NotificationCode $code, ?User $emetteur): ?bool
     {

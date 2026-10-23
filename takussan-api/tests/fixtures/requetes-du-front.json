@@ -1,0 +1,163 @@
+{
+  "_": "GÉNÉRÉ par takussan-web/scripts/gen-requetes-du-front.mjs depuis src/lib/queries — ne pas éditer à la main (TCK-1800).",
+  "requetes": [
+    {
+      "source": "fetchAdminUsers()",
+      "acteur": "agence",
+      "chemin": "/api/users",
+      "parametres": {
+        "fields[users]": "id,first_name,last_name,email,phone,status,last_login_at,created_at",
+        "include": "agentProfiles,ownerProfiles,agencyAdminProfiles",
+        "sort": "-created_at",
+        "page": "1",
+        "per_page": "20",
+        "with_role_assignments": "1"
+      }
+    },
+    {
+      "source": "fetchAdminUsers(role agent, actifs, tri -last_login_at)",
+      "acteur": "agence",
+      "chemin": "/api/users",
+      "parametres": {
+        "fields[users]": "id,first_name,last_name,email,phone,status,last_login_at,created_at",
+        "include": "agentProfiles,ownerProfiles,agencyAdminProfiles",
+        "filter[status]": "active",
+        "filter[role]": "agent",
+        "sort": "-last_login_at",
+        "page": "1",
+        "per_page": "20",
+        "with_role_assignments": "1"
+      }
+    },
+    {
+      "source": "fetchAdminUsers(tri first_name)",
+      "acteur": "agence",
+      "chemin": "/api/users",
+      "parametres": {
+        "fields[users]": "id,first_name,last_name,email,phone,status,last_login_at,created_at",
+        "include": "agentProfiles,ownerProfiles,agencyAdminProfiles",
+        "sort": "first_name",
+        "page": "1",
+        "per_page": "20",
+        "with_role_assignments": "1"
+      }
+    },
+    {
+      "source": "fetchAdminUsers(tri created_at)",
+      "acteur": "agence",
+      "chemin": "/api/users",
+      "parametres": {
+        "fields[users]": "id,first_name,last_name,email,phone,status,last_login_at,created_at",
+        "include": "agentProfiles,ownerProfiles,agencyAdminProfiles",
+        "sort": "created_at",
+        "page": "1",
+        "per_page": "20",
+        "with_role_assignments": "1"
+      }
+    },
+    {
+      "source": "useLeases()",
+      "acteur": "agence",
+      "chemin": "/api/leases",
+      "parametres": {
+        "fields[leases]": "id,reference_number,type,status,start_date,end_date,monthly_rent,sale_price,currency,deposit_amount,property_id,tenant_id,landlord_id,created_at",
+        "fields[properties]": "id,title,slug",
+        "include": "property",
+        "sort": "-created_at",
+        "page": "1",
+        "per_page": "20"
+      }
+    },
+    {
+      "source": "useBookings()",
+      "acteur": "agence",
+      "chemin": "/api/bookings",
+      "parametres": {
+        "fields[bookings]": "id,reference_number,status,start_date,end_date,total_amount,deposit_amount,created_at,property_id,customer_id,agency_id",
+        "fields[properties]": "id,title,slug,price,currency",
+        "include": "property",
+        "sort": "-created_at",
+        "page": "1",
+        "per_page": "20"
+      }
+    },
+    {
+      "source": "useInvoices()",
+      "acteur": "agence",
+      "chemin": "/api/invoices",
+      "parametres": {
+        "fields[invoices]": "id,reference_number,customer_id,issued_by_id,agency_id,status,issue_date,due_date,subtotal,tax_rate,tax_amount,total_amount,currency,created_at",
+        "sort": "-created_at",
+        "page": "1",
+        "per_page": "20"
+      }
+    },
+    {
+      "source": "fetchDashboardCustomers()",
+      "acteur": "agence",
+      "chemin": "/api/customers",
+      "parametres": {
+        "fields[customers]": "id,first_name,last_name,email,phone,status,pipeline_stage,occupation,created_at",
+        "include": "tags",
+        "sort": "-created_at",
+        "page": "1",
+        "per_page": "20"
+      }
+    },
+    {
+      "source": "fetchDashboardProperties()",
+      "acteur": "agence",
+      "chemin": "/api/properties",
+      "parametres": {
+        "fields[properties]": "id,user_id,agency_id,reference_number,title,slug,price,currency,type,contract_type,rent_period,status,visibility,views_count,favorites_count,bedrooms,area,published_at,created_at",
+        "include": "address,owner,collaborators",
+        "sort": "-created_at",
+        "page": "1",
+        "per_page": "20"
+      }
+    },
+    {
+      "source": "fetchTags()",
+      "acteur": "agence",
+      "chemin": "/api/tags",
+      "parametres": {
+        "fields[tags]": "id,name,slug,type,icon,color,description,created_at",
+        "sort": "name",
+        "page": "1",
+        "per_page": "100"
+      }
+    },
+    {
+      "source": "fetchIntegrations()",
+      "acteur": "agence",
+      "chemin": "/api/integrations",
+      "parametres": {
+        "fields[integrations]": "id,provider,agency_id,is_active,last_used_at,metadata,created_at,updated_at",
+        "sort": "provider",
+        "per_page": "100"
+      }
+    },
+    {
+      "source": "fetchAdminAgencyUpgradeRequests(en attente, période)",
+      "acteur": "operateur",
+      "chemin": "/api/admin/agency-upgrade-requests",
+      "parametres": {
+        "fields[agency_upgrade_requests]": "id,agency_id,submitted_by,company_legal_name,planned_agents_count,status,submitted_at,reviewed_at,review_comment",
+        "include": "agency,submitter",
+        "sort": "-submitted_at",
+        "filter[status]": "pending",
+        "filter[submitted_from]": "2026-01-01",
+        "filter[submitted_to]": "2026-12-31"
+      }
+    },
+    {
+      "source": "fetchAdminAgencies()",
+      "acteur": "operateur",
+      "chemin": "/api/admin/agencies",
+      "parametres": {
+        "fields[agencies]": "id,name,slug,status,is_verified,verified_at,primary_admin_id,license_number,email,phone,logo_url,properties_count,members_count,last_activity_at,created_at",
+        "sort": "-created_at"
+      }
+    }
+  ]
+}

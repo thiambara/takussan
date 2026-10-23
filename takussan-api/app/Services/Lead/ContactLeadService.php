@@ -224,6 +224,8 @@ class ContactLeadService
             $this->notifyReceived($lead, $assignee);
         } catch (\Throwable $e) {
             // Un échec d'envoi ne défait pas l'attribution (TCK-771 : il se journalise).
+            // P179.04 (TCK-1799) — « envoi » avant la file seulement : le rendu, la cloche, la mise
+            // en file. L'échec du transport se journalise au worker ({@see \App\Notifications\CodedNotification::failed()}).
             $this->logFailure('lead notification failed', $lead, $e);
         }
 
@@ -347,7 +349,8 @@ class ContactLeadService
             try {
                 $this->notifyReceived($lead, $recipient);
             } catch (\Throwable $e) {
-                // Non bloquant — même règle que les notifications de visite.
+                // Non bloquant — même règle que les notifications de visite : ce `catch` ne voit
+                // que l'avant-file ({@see \App\Notifications\CodedNotification::failed()} pour le transport).
                 $this->logFailure('lead notification failed', $lead, $e);
             }
         }
