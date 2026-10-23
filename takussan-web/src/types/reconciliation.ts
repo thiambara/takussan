@@ -60,6 +60,11 @@ export interface BankStatementLine {
   label: string | null;
   reference: string | null;
   counterparty: string | null;
+  /**
+   * TCK-1919 (P157.06) — la ligne d'un autre relevé de l'agence qui porte déjà cette transaction
+   * (référence, date, montant, sens) ; nulle sinon. La ligne reste dans le relevé, signalée.
+   */
+  duplicate_of_line_id?: number | null;
   match_status: BankLineMatchStatus | null;
   matched_payment_type: MatchedPaymentType | null;
   matched_payment_id: number | null;

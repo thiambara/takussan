@@ -3,6 +3,7 @@
 namespace App\Services\Accounting\StatementParser;
 
 use App\Models\Enums\BankStatementLineDirection;
+use App\Models\Enums\Currency;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
 
@@ -79,6 +80,14 @@ class OfxDriver implements StatementParserInterface
             $lineNumber++;
 
             try {
+                // P157.01 (TCK-1917) — un `CURDEF` hors de `Currency` (`ABC`) donnait des lignes
+                // qu'aucun paiement ne pouvait apparier, affichées en « F CFA ». Chaque transaction
+                // du compte est sautée et comptée ; une devise connue autre que celle de l'agence
+                // est gardée (TCK-1475).
+                if (Currency::tryFrom($defaultCurrency) === null) {
+                    throw new \RuntimeException('Invalid OFX currency');
+                }
+
                 $parsed = $this->parseBlock($block, $defaultCurrency);
             } catch (\Throwable $e) {
                 // TCK-593 — même règle que `CsvDriver` : aucune valeur du relevé dans le journal (le

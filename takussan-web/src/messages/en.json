@@ -6641,6 +6641,7 @@
         "match": "Match",
         "actions": "Actions",
         "paymentRef": "{type} #{id}",
+        "duplicate": "Already imported in another statement",
         "confidence": "Confidence: {value}",
         "validate": "Confirm",
         "search": "Search",
