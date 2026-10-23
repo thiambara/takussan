@@ -16348,7 +16348,7 @@ règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.
 
 ### Une caution ajoutée par un agent qui efface son compte n'est plus lisible ni modifiable par personne dans l'agence
 - Réf : P175.01
-- Statut : validé — validation du porteur (2026-10-23) : une colonne `guarantors.agency_id` posée à la création, avec rattrapage des lignes existantes
+- Statut : fait · TCK-1993
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/GuarantorPolicy.php:25-33,57-75`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:22-24`, `takussan-api/app/Services/Account/AccountDeletionService.php:404,584-605`
 - Constat :
@@ -16359,6 +16359,7 @@ règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.
   - À vérifier : le même effet pour un agent seulement retiré de l'agence, ses profils supprimés rendant `agency_id` nul même sans effacement du compte.
 - Piste : rattacher la caution à une agence qui ne dépend pas de la vie de son auteur (l'agence des baux auxquels elle est attachée, ou une colonne `agency_id` posée à la création, V4), et juger `view` et `agencyOf()` par elle. Garde : un test de policy où l'auteur est effacé, puis où il est retiré, qui exige 200 pour le personnel de l'agence.
 - Mesure (2026-10-23, 2a689d48a, mesureur) : relu `GuarantorPolicy.php:25-33,64-75` (`view` exige `addedBy !== null`, `agencyOf()` lit `addedBy?->agency_id`) et `GuarantorController.php:22-24` (liste filtrée sur `added_by_id`), inchangés depuis a92368d50 (`git diff --stat`) ; test temporaire (retiré), charge 3,52 / 3,13 / 3,10 sur 8 cœurs : caution d'un agent, obligations `[]`, collègue `GET /api/guarantors/{id}` 200 avant `anonymize()`, 403 après ; admin d'agence 403 en `GET` et en `PUT`, sa liste `meta.total` = 0 → le constat tient en entier ; le cas de l'agent seulement retiré n'a pas été mesuré. Classement : V4, la piste offre deux sources d'agence dont une colonne neuve, et elle touche qui lit une pièce d'identité (V3).
+- Mesure (2026-10-23, fee847c8c, implementeur) : reproduit avant correctif par `CautionApresEffacementDeLAuteurTest` (charge 3,96 / 3,69 / 3,42 sur 8 cœurs) : caution créée par un agent, `anonymize()` de l'agent → collègue et admin d'agence 403 ; colonne `agency_id` absente → colonne `guarantors.agency_id` (migration additive, clé étrangère `nullOnDelete`, index) posée par `store` (agence de personnel de l'auteur) et par `attachGuarantor` (agence du bail), rattrapée par l'agence unique des baux, sinon des profils de l'auteur (supprimés compris), `GuarantorPolicy::agencyOf` lit la colonne d'abord ; 5/5 verts ; ablation de `app/` → 3 rouges, ablation des deux `UPDATE` → rattrapage rouge, remis → vert ; `GuarantorTest` 14/14, `LeaseGuarantorTest` 7/7, `GuarantorSensitiveDataTest` 4/4, `CustomerAndGuarantorSensitiveReadTest` 5/5, `MigratedAuthorizationRulesTest` 16/16, `OwnerIsolationWithinAgencyTest` 97/97. La liste `GET /api/guarantors` (auteur seul) n'est pas touchée.
 
 ### La visite d'un agent qui efface son compte reste à son nom : ni « non attribuée », ni reprise par la passation
 - Réf : P175.02
