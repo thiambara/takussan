@@ -33,7 +33,7 @@ class StoreCustomerNoteRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'body' => ['required', 'string'],
+            'body' => ['required', 'string', 'max:5000'],
             // TCK-978 (P54.03) — colonne NOT NULL DEFAULT false : omise → défaut, `null` → 422 (était 500).
             'pinned' => ['filled', 'boolean'],
         ];

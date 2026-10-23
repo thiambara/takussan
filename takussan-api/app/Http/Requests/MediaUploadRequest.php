@@ -14,6 +14,10 @@ class MediaUploadRequest extends FormRequest
 
     public const MAX_PHOTO_KB = 10 * 1024;   // 10MB
 
+    // TCK-1893 (P195.06) — le logo d'agence, 2 Mo : la borne de TCK-064 et du front
+    // (`AGENCY_LOGO_MAX_BYTES`). Rangé avec les photos, il passait jusqu'à 10 Mo par appel direct.
+    public const MAX_LOGO_KB = 2 * 1024;     // 2MB
+
     // TCK-763 (P10.07) — le plafond de la médiathèque (`media-library.max_file_size`, 10 Mo) :
     // validé à 25 Mo, un document de 10 à 25 Mo passait ici puis Spatie le refusait en 500.
     public const MAX_DOCUMENT_KB = 10 * 1024; // 10MB
@@ -43,7 +47,7 @@ class MediaUploadRequest extends FormRequest
                 'file',
                 'image',
                 'mimes:jpg,jpeg,png,webp',
-                'max:'.self::MAX_PHOTO_KB,
+                'max:'.($collection === 'logo' ? self::MAX_LOGO_KB : self::MAX_PHOTO_KB),
                 // TCK-1423 (P143.02) — 20 Mpx au plus : un logo est décodé dans GD à chaque PDF de
                 // l'agence, qui cède sur `memory_limit` dans l'image de l'API (GD embarquée,
                 // TCK-1812 ; voir `PixelsAuPlus`).

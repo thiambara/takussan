@@ -59,7 +59,7 @@ class StoreConversationRequest extends BaseFormRequest
             // les deux. `integer` reste : un identifiant non entier partirait en SQL.
             'property_id' => ['nullable', 'integer'],
             'lease_id' => ['nullable', 'integer'],
-            'initial_message' => ['nullable', 'string'],
+            'initial_message' => ['nullable', 'string', 'max:5000'],
         ];
     }
 

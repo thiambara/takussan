@@ -30,6 +30,7 @@ export function MaintenanceResolutionResponse({ request }: { readonly request: M
   const [contesting, setContesting] = useState(false);
   const [comment, setComment] = useState('');
   const [photos, setPhotos] = useState<File[]>([]);
+  const [photosError, setPhotosError] = useState<string | null>(null);
 
   const canConfirm = request.abilities?.can_confirm_resolution === true;
   const canContest = request.abilities?.can_contest_resolution === true;
@@ -41,7 +42,7 @@ export function MaintenanceResolutionResponse({ request }: { readonly request: M
   const sendContest = async () => {
     await contest.mutateAsync({
       comment: comment.trim(),
-      photos: photos.length > 0 ? await reduirePhotos(photos.slice(0, PHOTOS_MAX)) : undefined,
+      photos: photos.length > 0 ? await reduirePhotos(photos) : undefined,
     });
     setContesting(false);
     setComment('');
@@ -81,9 +82,26 @@ export function MaintenanceResolutionResponse({ request }: { readonly request: M
             accept="image/jpeg,image/png,image/webp"
             capture="environment"
             multiple
-            onChange={(e) => setPhotos(Array.from(e.target.files ?? []))}
+            onChange={(e) => {
+              // TCK-1889 (P195.02) — au-delà de la borne de l'API, la sélection est refusée et
+              // dite, comme `MediaDropzone`, au lieu d'être coupée en silence à l'envoi.
+              const picked = Array.from(e.target.files ?? []);
+              if (picked.length > PHOTOS_MAX) {
+                setPhotos([]);
+                setPhotosError(t('max_files', { max: PHOTOS_MAX }));
+                e.target.value = '';
+                return;
+              }
+              setPhotosError(null);
+              setPhotos(picked);
+            }}
             className="block w-full text-sm text-muted-foreground file:mr-3 file:h-11 file:cursor-pointer file:rounded-lg file:border file:border-border file:bg-background file:px-3 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted sm:file:h-8"
           />
+          {photosError ? (
+            <p role="alert" className="text-xs text-destructive">
+              {photosError}
+            </p>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <Button
               type="submit"

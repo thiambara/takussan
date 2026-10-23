@@ -74,6 +74,7 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
   const [duration, setDuration] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
   const [rejectedFiles, setRejectedFiles] = useState<string[]>([]);
+  const [tooManyFiles, setTooManyFiles] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
   // TCK-1729 — la devise du devis (celle qu'un premier devis a fixée), sinon le XOF : l'API la tire
@@ -87,7 +88,14 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
   const pickFiles = (picked: File[]) => {
     const accepted = picked.filter(isAccepted);
     setRejectedFiles(picked.filter((f) => !isAccepted(f)).map((f) => f.name));
-    setAttachments((prev) => [...prev, ...accepted].slice(0, MAX_ATTACHMENTS));
+    // TCK-1889 (P195.02) — une sélection qui porterait le total au-delà de la borne de l'API est
+    // refusée entière et dite, comme `MediaDropzone`, au lieu de perdre la sixième pièce en silence.
+    if (attachments.length + accepted.length > MAX_ATTACHMENTS) {
+      setTooManyFiles(true);
+      return;
+    }
+    setTooManyFiles(false);
+    setAttachments((prev) => [...prev, ...accepted]);
   };
 
   const submit = async () => {
@@ -271,7 +279,10 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== index))}
+                    onClick={() => {
+                      setAttachments((prev) => prev.filter((_, i) => i !== index));
+                      setTooManyFiles(false);
+                    }}
                   >
                     {t('remove_file')}
                   </Button>
@@ -282,6 +293,11 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
           {rejectedFiles.length > 0 ? (
             <p role="alert" className="mt-1 text-xs text-destructive">
               {t('file_type_refused', { files: rejectedFiles.join(', ') })}
+            </p>
+          ) : null}
+          {tooManyFiles ? (
+            <p role="alert" className="mt-1 text-xs text-destructive">
+              {t('max_files', { max: MAX_ATTACHMENTS })}
             </p>
           ) : null}
           {attachmentErrors.map(([field, messages]) => (

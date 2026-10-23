@@ -4217,6 +4217,7 @@
         "comment_label": "Qu'est-ce qui ne va pas ?",
         "comment_placeholder": "Décrivez ce qui persiste",
         "photos_label": "Photos (facultatif)",
+        "max_files": "Maximum {max} fichiers.",
         "send_contest": "Envoyer",
         "back": "Retour",
         "failed": "Votre réponse n'a pas été enregistrée. Réessayez."
@@ -4254,6 +4255,7 @@
         "duration_label": "Durée estimée (jours)",
         "attachments_label": "Pièces jointes (PDF ou images)",
         "remove_file": "Retirer",
+        "max_files": "Maximum {max} fichiers.",
         "file_type_refused": "Type de fichier refusé (PDF, JPG, PNG ou WEBP seulement) : {files}",
         "incomplete": "Chaque ligne doit avoir une désignation, une quantité et un prix, et le devis une date de validité.",
         "failed": "Le devis n'a pas été envoyé.",
@@ -9736,10 +9738,6 @@
     "profiles": {
       "loadFailed": "Impossible de charger vos profils.",
       "switchFailed": "Impossible de changer de profil."
-    },
-    "customerDocuments": {
-      "tooLarge": "Le fichier dépasse 10 Mo.",
-      "unsupportedType": "Type de fichier non autorisé (images ou PDF uniquement)."
     }
   },
   "validation": {

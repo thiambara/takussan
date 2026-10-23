@@ -2486,6 +2486,7 @@
         "comment_label": "Lan moo baaxul ?",
         "comment_placeholder": "Wax li des",
         "photos_label": "Nataal (bu la neexee)",
+        "max_files": "Maximum {max} fichiers.",
         "send_contest": "Yónne",
         "back": "Dellu",
         "failed": "Sa tontu deñu ko denc. Jéemaatal."
@@ -2523,6 +2524,7 @@
         "duration_label": "Diir bi (fan)",
         "attachments_label": "Kayit yu ñu takk (PDF walla nataal)",
         "remove_file": "Far",
+        "max_files": "Maximum {max} fichiers.",
         "file_type_refused": "Xeetu kayit bii nanguñu ko (PDF, JPG, PNG walla WEBP rekk) : {files}",
         "incomplete": "Bépp rëdd war na am tur, lim ak njëg, te devi bi war na am bés bu muy jeex.",
         "failed": "Devi bi yónneesu ko.",
@@ -9736,10 +9738,6 @@
     "superAdminCooptation": {
       "enrollFailed": "Mënunu tambali 2FA bu super-njiit bi.",
       "invalidTotp": "Kodd TOTP bi baaxul."
-    },
-    "customerDocuments": {
-      "tooLarge": "Fiise bi ëpp na 10 Mo.",
-      "unsupportedType": "Xeetu fiise bi nangu-wul (nataal walla PDF rekk)."
     }
   },
   "validation": {
