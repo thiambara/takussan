@@ -54,22 +54,24 @@ class ApplyWatermarkJob implements ShouldQueue
             return;
         }
 
-        $context = AgencyWatermarkContext::fromAgency($property->agency);
-
         // Tout le reste SOUS VERROU de la ligne, relue fraîche (`WatermarkTrace`) : deux jobs
         // de la même conversion (plusieurs processus `worker-media`) ne peuvent plus lire tous
         // deux « pas encore fait » et filigraner deux fois ; et l'ajout à la trace ne réécrit
         // pas une liste périmée par-dessus le retrait qu'a fait, entre-temps, une régénération.
-        WatermarkTrace::underLock($this->mediaId, fn (Media $media) => $this->watermark($media, $service, $context));
+        WatermarkTrace::underLock($this->mediaId, fn (Media $media) => $this->watermark($media, $service, $property));
     }
 
-    private function watermark(Media $media, WatermarkService $service, AgencyWatermarkContext $context): void
+    private function watermark(Media $media, WatermarkService $service, Property $property): void
     {
         $watermarkedConversions = $media->getCustomProperty(WatermarkTrace::KEY, []);
 
         if (in_array($this->conversionName, $watermarkedConversions, true)) {
             return;
         }
+
+        // TCK-1810 (P180.01) — le contexte, et le logo qu'il lit, APRÈS le test « déjà fait » :
+        // un job rejoué sur une conversion déjà filigranée ne relit plus le logo depuis R2.
+        $context = AgencyWatermarkContext::fromAgency($property->agency);
 
         // TCK-539 — la conversion se lit PAR SON DISQUE, jamais par `getPath()` : sur R2
         // (`r2-media`) ce chemin local n'existe pas, `file_exists()` rendait faux, et le job

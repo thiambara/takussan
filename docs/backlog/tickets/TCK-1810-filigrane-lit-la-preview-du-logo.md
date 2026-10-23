@@ -1,7 +1,7 @@
 ---
 id: TCK-1810
 title: "Le filigrane lit la `preview` du logo de l'agence, et seulement quand la conversion n'est pas déjà filigranée"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -40,18 +40,18 @@ Aucun changement de ce que l'API rend. Le logo a déjà une conversion `preview`
 
 ## Delta à produire
 
-- [ ] `AgencyWatermarkContext` : le logo se lit à la demande, par `logoFor(int $largeurCible)`,
+- [x] `AgencyWatermarkContext` : le logo se lit à la demande, par `logoFor(int $largeurCible)`,
   qui choisit la `preview` produite et assez large, sinon l'original.
-- [ ] `WatermarkService::apply()` demande le logo à la largeur qu'il posera.
-- [ ] `ApplyWatermarkJob` construit le contexte sous le verrou, après le test « déjà filigrané ».
-- [ ] Tests dans `tests/Feature/Media/ApplyWatermarkJobTest.php`.
+- [x] `WatermarkService::apply()` demande le logo à la largeur qu'il posera.
+- [x] `ApplyWatermarkJob` construit le contexte sous le verrou, après le test « déjà filigrané ».
+- [x] Tests dans `tests/Feature/Media/ApplyWatermarkJobTest.php`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `preview` produite, large de 320 px, original absent du disque : `logoFor(60)` rend
+- [x] AC1 — `preview` produite, large de 320 px, original absent du disque : `logoFor(60)` rend
   les octets de la `preview`.
-- [ ] AC2 — `preview` non produite, ou plus étroite que la cible : l'original.
-- [ ] AC3 — Un job sur une conversion déjà filigranée ne lit pas le logo.
+- [x] AC2 — `preview` non produite, ou plus étroite que la cible : l'original.
+- [x] AC3 — Un job sur une conversion déjà filigranée ne lit pas le logo.
 
 ## Hors périmètre
 
@@ -66,4 +66,13 @@ Aucun changement de ce que l'API rend. Le logo a déjà une conversion `preview`
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Classes jouées : `ApplyWatermarkJobTest` 12, `WatermarkServiceTest` 10, `WatermarkTraceDuringRegenerationTest` 3,
+  `RegenerateAgencyWatermarksJobTest` 7, `PropertyMediaConversionsTest` 13 — verts.
+- Ablation 1 : `readPreview()` rendu inopérant (`if (true)`) → 2 rouges sur 12 (AC1 : logo `null`
+  une fois l'original retiré ; AC2 : la `preview` large n'est plus rendue) ; remis → 12 verts.
+- Ablation 2 : le logo lu tout de suite dans `fromAgency()` **et** le contexte construit avant le
+  verrou → AC3 rouge (`Disk [disque-en-panne] does not have a configured driver`). L'une ou
+  l'autre seule ne le rougit pas : la lecture à la demande et le déplacement sous le verrou se
+  couvrent mutuellement.
+- Piège : `UploadedFile::fake()->image()` efface son fichier temporaire quand l'objet disparaît ;
+  le garder dans une variable avant `file_get_contents()`.
