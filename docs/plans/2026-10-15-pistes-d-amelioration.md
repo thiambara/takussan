@@ -13597,7 +13597,7 @@ laissé recomposé par décision, est P109.04 : il n'est pas repris.*
 
 ### Petites améliorations du service PDF et de sa documentation
 - Réf : P140.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1774 — reste : garder ou retirer `store()` selon la décision de P140.02
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Pdf/DocumentPdfService.php:96-141`, `docs/pdf-templates.md:8-12,78-79,83-96`
 - Constat :
@@ -13606,6 +13606,7 @@ laissé recomposé par décision, est P109.04 : il n'est pas repris.*
   - **`docs/pdf-templates.md:10`** recommande `render()` pour les « emails attachments » : aucun courriel du dépôt n'attache de PDF (lu, `grep -rn "attachData\|attach(" app` → aucun courriel).
 - Piste : corriger les deux phrases de `docs/pdf-templates.md` pour dire ce que fait le code (A6) ; garder ou retirer `store()` selon la décision de P140.02.
 - Mesure (2026-10-22, cc061fbb7, mesureur) : relu `docs/pdf-templates.md` l. 10 (`render()` pour « emails attachments ») et l. 78-79 (« Production uses the cloudflare browserless service ») ; `.env.example:247-261` déclare `LARAVEL_PDF_DRIVER=dompdf` (TCK-301) ; `docs/infra/prod-drivers.json` ne nomme aucun driver PDF ; `grep -rln "Attachment::\|function attachments\|->attachData" app` → `MessageResource` et `LeaseDepositRefundNotification`, qui listent des URL signées et n'attachent aucun PDF ; `render()` n'est appelé que par `LeaseSignatureService:63` (gel du contrat) et `PaymentReceiptPdf:48` ; `store()` sans appelant dans `app/` → les trois points tiennent. Au passage, `docs/configuration.md` § 5.5 i) (« PDF (Cloudflare Browser Rendering, défaut) ») dit encore cloudflare par défaut, hors du `Où`. Classement : A6, corriger les deux phrases de `docs/pdf-templates.md` pour dire le driver déclaré et les appelants réels de `render()` ; le sort de `store()` suit P140.02, qui est à valider, et reste hors de ce correctif.
+- Mesure (2026-10-23, b5e5b0401, implementeur) : relu à nouveau → `docs/pdf-templates.md:10` et `:78-81` inchangés ; de plus, `config/laravel-pdf.php` qu'il cite n'est pas publié (`ls takussan-api/config`) et le défaut du paquet est `browsershot` ; `.env.example`, `.env.docker`, `.env.smoke.example` et `phpunit.xml` déclarent `dompdf`, la valeur de préproduction n'est pas écrite dans le dépôt → les deux passages réécrits pour dire la clé, le défaut du paquet, les fichiers qui déclarent `dompdf` et les deux appelants de `render()` ; correctif documentaire, sans test ; `store()` laissé à P140.02.
 
 ## Angle 141 — Encaissements soldés par la plateforme face au relevé bancaire de l'agence
 
