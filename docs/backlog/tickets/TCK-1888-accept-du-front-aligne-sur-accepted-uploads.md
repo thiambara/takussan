@@ -1,7 +1,7 @@
 ---
 id: TCK-1888
 title: "Les sélecteurs de fichiers des documents et du KYC proposent les types qu'`AcceptedUploads` accepte, gardés par un test de parité"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -43,19 +43,19 @@ Réf : **P194.04** du fichier de pistes, `retenu · autonome` (A6 et A1).
 
 ## Delta à produire
 
-- [ ] `documents.ts` : docblock renvoyant à `AcceptedUploads::DOCUMENT_MIMETYPES`,
+- [x] `documents.ts` : docblock renvoyant à `AcceptedUploads::DOCUMENT_MIMETYPES`,
   `image/heic` et `image/heif` ajoutés à `DOCUMENT_MIME_ACCEPT`.
-- [ ] `KycUploader.tsx` : `accept` réduit aux types de `AcceptedUploads::KYC_MIMETYPES`, exporté
+- [x] `KycUploader.tsx` : `accept` réduit aux types de `AcceptedUploads::KYC_MIMETYPES`, exporté
   en `KYC_MIME_ACCEPT`.
-- [ ] Test Vitest de parité qui lit `AcceptedUploads.php` et compare ces deux listes à ses
+- [x] Test Vitest de parité qui lit `AcceptedUploads.php` et compare ces deux listes à ses
   constantes.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `DOCUMENT_MIME_ACCEPT` contient exactement `DOCUMENT_MIMETYPES`, moins
+- [x] AC1 — `DOCUMENT_MIME_ACCEPT` contient exactement `DOCUMENT_MIMETYPES`, moins
   `application/csv`.
-- [ ] AC2 — `KYC_MIME_ACCEPT` contient exactement `KYC_MIMETYPES`, sans joker `image/*`.
-- [ ] AC3 — L'input du KYC rendu porte `accept` = `KYC_MIME_ACCEPT`.
+- [x] AC2 — `KYC_MIME_ACCEPT` contient exactement `KYC_MIMETYPES`, sans joker `image/*`.
+- [x] AC3 — L'input du KYC rendu porte `accept` = `KYC_MIME_ACCEPT`.
 
 ## Hors périmètre
 
@@ -64,4 +64,9 @@ Réf : **P194.04** du fichier de pistes, `retenu · autonome` (A6 et A1).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Test : `takussan-web/src/lib/queries/__tests__/accept-des-televersements.parity.tck-1888.test.tsx`
+  (3 cas). Avant correctif : documents rouges (`image/heic`, `image/heif` absents), KYC rouge
+  (aucune liste exportée, `image/*` sur l'input).
+- Ablation : HEIC/HEIF retirés de `DOCUMENT_MIME_ACCEPT` et `image/*,application/pdf` remis sur
+  l'input du KYC → 2 rouges (documents, input KYC) ; remis → 3 verts.
+- Le rendu de `KycUploader` exige un mock de `@/components/ui/toast` : sans provider, base-ui jette.
