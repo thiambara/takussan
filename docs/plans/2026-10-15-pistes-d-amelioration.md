@@ -11477,7 +11477,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Approuver un bien en attente le publie sans `properties.publish`
 - Réf : P116.05
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : retenu · à valider — V7, autre que le V2 accordé : le rôle système d'agent tient `properties.publish` (`SystemRoleCapabilities::agent()`) ; juger l'approbation par elle ouvre à tout agent l'approbation des biens qu'il vient de soumettre à la file d'une agence `moderation_required`, ce qui vide la case de son sens (ADR-0043 : « un rôle n'est pas une validation ») ; l'autre voie, écrire que la modération reste un geste d'admin, passe par `docs/features.md` ou un ADR, chemins fermés
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/PropertyModerationPolicy.php:44-58`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:31-33`, `takussan-api/app/Policies/PropertyPolicy.php:169`
 - Constat :
@@ -11486,6 +11486,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Le front appelle ces routes (lu, `takussan-web/src/lib/queries/property-moderation.ts:144`, `:158`, page `/app/agency/moderation/properties`).
 - Piste : juger la modération d'agence par `properties.publish` (`properties.moderate` est réservée à la plateforme, `CapabilityEnforcementInventory.php:28`), ou écrire que la modération reste un geste d'admin. C'est un choix du porteur. Test : la règle retenue, admin sans la capacité et agent qui la tient.
 - Mesure (2026-10-22, efa6796ea, mesureur) : relu `PropertyModerationPolicy.php:43-58` (`canModerate` : `isAgencyAdminAt` sur l'agence du bien), `PropertyPolicy.php:167-170` (`publish` par `agencyGesture(…, PropertiesPublish)`) ; test temporaire retiré (`tests/Feature/Tmp`, charge 1,88 sur 8 cœurs), admin au rôle sans `team.assign_role`/`agency.update`/`team.invite`/`properties.publish` contre agent au rôle qui les porte → `GET /api/properties/moderation` 200 pour l'admin, 403 pour l'agent. Le constat tient (l'approbation elle-même n'a pas été rejouée). Classement : V2, la Piste propose deux règles et le dit choix du porteur.
+- Mesure (2026-10-23, 4436bf690, implementeur) : relu `PropertyModerationPolicy::canModerate` (`isAgencyAdminAt` sur l'agence du bien, inchangé), `Admin/PropertyModerationController::index` (même prédicat en `abort_unless`), `PropertyObserver::creating`/`updating` (toute activation d'un bien d'une agence `moderation_required` passe en `pending_review`, l'agent compris) et `SystemRoleCapabilities::agent()` (`PropertiesPublish` au rôle système). Le constat tient ; le correctif de la Piste rendrait l'approbation à chaque agent du rôle système, qui soumet lui-même à la file : effet de produit, non du seul retrait à l'admin que le V2 accorde. Rien n'est implémenté. Le porteur tranche : `properties.publish` (et la case perd son effet sur les agents), une capacité propre à la modération d'agence (V4/V6 : enum et rôles), ou la règle d'admin écrite dans la spec.
 
 ### Supprimer un média d'agence : l'admin sans `properties.update_any` le peut, l'agent qui la tient non
 - Réf : P116.06
