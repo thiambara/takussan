@@ -147,7 +147,8 @@ async function fetchUsers(params: UsersParams): Promise<UsersResponse> {
     'fields[users]',
     'id,first_name,last_name,email,phone,status,email_verified_at,two_factor_enabled,last_login_at,created_at',
   );
-  qs.set('include', 'roles,agentProfiles,ownerProfiles');
+  // TCK-1842 (P186.03) — pas d'`include` : `Admin\UserDetailController::index` charge en dur les profils
+  // (agent, propriétaire, admin d'agence, prestataire, plateforme) et les rôles qu'il rend.
   qs.set('sort', '-created_at');
   const res = await fetch(`/api/super-admin-users?${qs.toString()}`, { credentials: 'include' });
   if (!res.ok) {

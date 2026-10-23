@@ -181,7 +181,9 @@ export async function fetchCustomerNotes(
   customerId: number,
 ): Promise<CustomerNote[]> {
   const res = await lireToutesLesPages((page) => {
-    const qs = buildQueryString({ sort: '-created_at', page, per_page: PAR_PAGE_MAX });
+    // TCK-1842 (P186.03) — pas de `sort` : `CustomerNoteController::index` n'en lit aucun et sert les
+    // épinglées d'abord, puis les plus récentes, départagées par l'`id`.
+    const qs = buildQueryString({ page, per_page: PAR_PAGE_MAX });
     return apiRequest<PaginatedResponse<CustomerNote>>(
       cheminApi`/api/customers/${customerId}/notes${requete(qs)}`,
       { token },
