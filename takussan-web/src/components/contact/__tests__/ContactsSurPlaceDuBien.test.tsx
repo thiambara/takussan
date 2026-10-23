@@ -55,7 +55,7 @@ describe('<ContactsSurPlaceDuBien> — TCK-633', () => {
 
   it('corrige un contact puis enregistre la liste entière', async () => {
     lireContactsDuBien.mockResolvedValue([gardien, voisine]);
-    replacePropertyContactsAction.mockResolvedValue({ ok: true });
+    replacePropertyContactsAction.mockResolvedValue({ ok: true, data: [] });
     rendu();
 
     fireEvent.change(await screen.findByDisplayValue('Gardien'), { target: { value: 'Gardien de nuit' } });
@@ -68,9 +68,27 @@ describe('<ContactsSurPlaceDuBien> — TCK-633', () => {
     expect(await screen.findByText('Contacts sur place enregistrés.')).toBeInTheDocument();
   });
 
+  // TCK-1777 (P95.04) — le cache reçoit la liste que l'API a écrite (libellé rogné, `null` rendu
+  // vide), pas le brouillon envoyé : il le gardait jusqu'à la relecture.
+  it('après l’enregistrement, l’éditeur montre la liste que l’API a écrite', async () => {
+    lireContactsDuBien.mockResolvedValue([gardien]);
+    replacePropertyContactsAction.mockResolvedValue({
+      ok: true,
+      data: [{ label: 'Concierge', phone: '+221770000803', has_whatsapp: true }],
+    });
+    rendu();
+
+    fireEvent.change(await screen.findByDisplayValue('Gardien'), { target: { value: 'Concierge du soir' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les contacts' }));
+
+    expect(await screen.findByText('Contacts sur place enregistrés.')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Concierge')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Concierge du soir')).not.toBeInTheDocument();
+  });
+
   it('retire un contact, et le retrait s’enregistre', async () => {
     lireContactsDuBien.mockResolvedValue([gardien, voisine]);
-    replacePropertyContactsAction.mockResolvedValue({ ok: true });
+    replacePropertyContactsAction.mockResolvedValue({ ok: true, data: [] });
     rendu();
 
     await screen.findByDisplayValue('Gardien');
@@ -83,7 +101,7 @@ describe('<ContactsSurPlaceDuBien> — TCK-633', () => {
 
   it('ajoute un contact à une annonce qui n’en a aucun', async () => {
     lireContactsDuBien.mockResolvedValue([]);
-    replacePropertyContactsAction.mockResolvedValue({ ok: true });
+    replacePropertyContactsAction.mockResolvedValue({ ok: true, data: [] });
     rendu();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Ajouter un contact' }));
