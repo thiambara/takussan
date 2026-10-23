@@ -17352,7 +17352,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### L'export du journal rend 500 sur une date illisible quand l'autre borne est donnée
 - Réf : P188.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1854
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Audit/ExportActivityLogRequest.php:23-24,31-47`, `takussan-api/routes/api/audit-log.php:18`
 - Constat :
@@ -17361,6 +17361,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : sortir du rappel quand `filter.date_from` ou `filter.date_to` porte déjà une erreur, comme `IndexCalendarRequest`. Garde : un test qui envoie une borne illisible avec l'autre borne valide, et attend 422.
 - Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `ExportActivityLogRequest.php:23-24` (`filter.date_from`/`date_to` en `date`) et `:33-39` (le rappel `after()` passe les deux valeurs brutes à `Carbon::parse()` dès qu'elles sont remplies, sans regarder les erreurs), lignes inchangées, aucun commit ni ticket sur ce point (`grep -rln ExportActivityLogRequest docs/backlog/tickets` → seul TCK-104) ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré) : agency_admin, `filter[date_from]=abc&filter[date_to]=2026-01-01` → **500** `InvalidFormatException`, `filter[date_from][]=x&filter[date_to]=2026-01-01` → **500** `TypeError`, témoin `filter[date_from]=abc` seul → 422 sur `filter.date_from` → le constat tient entier. Classement : A1, la règle `date` rend déjà 422 sur la même valeur quand l'autre borne manque ; le correctif attendu est de sortir du rappel quand `filter.date_from` ou `filter.date_to` porte déjà une erreur (comme `IndexCalendarRequest::after()`), test borne illisible + autre borne valide → 422.
+- Mesure (2026-10-23, 1ac04b8ac, implementeur) : re-mesuré par le test de garde `ActivityLogExporterTest::test_une_borne_illisible_avec_l_autre_borne_rend_422` (charge `{ 1.50 2.04 2.19 }` sur 8 cœurs) : avant correctif, `filter[date_from]=abc&filter[date_to]=2026-01-01` → **500** `Could not parse 'abc'` → le rappel `after()` sort désormais quand `filter`, `filter.date_from` ou `filter.date_to` porte déjà une erreur ; borne illisible, borne en liste et `date_to` illisible → 422 sur la borne fautive ; ablation (requête remise à l'état de `pre-dev`) → rouge, correctif remis → vert (9 assertions).
 
 ### La borne d'un an de l'export du journal ne s'applique pas quand une seule borne est donnée
 - Réf : P188.02
