@@ -18133,7 +18133,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### `IntegrationsManager` fige les intégrations de l'agence quittée dans son état local : le changement de profil ne les remplace pas
 - Réf : P197.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1903 — reste : relever les autres `useState(initial…)` des pages dont la lecture porte l'indice du profil actif, et leur poser la même clé
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin-settings/IntegrationsManager.tsx:111`, `takussan-web/src/app/(dashboard)/app/agency/integrations/page.tsx:39-71`, `takussan-web/src/app/actions/admin-settings.ts:105-115`, `takussan-web/src/hooks/useProfiles.ts:97`
 - Constat :
@@ -18144,6 +18144,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Établi comment : lu ; rien n'a été rendu.
 - Piste : poser `key={agencyId}` (ou le profil actif) sur `IntegrationsManager` depuis la page, pour qu'un nouveau rendu sous une autre agence remonte le composant. Garde : un test du composant rerendu avec une autre `initialIntegrations` et une autre clé, qui exige la nouvelle liste ; le même relevé sur les autres `useState(initial…)` des pages dont la lecture porte l'indice.
 - Mesure (2026-10-23, b90814b2d, mesureur) : relu `IntegrationsManager.tsx:111` (`useState(initialIntegrations)`, aucun effet qui relise la prop : `grep -n useEffect` → rien), `integrations/page.tsx:39-71` (`<IntegrationsManager>` l. 65, sans `key`), `admin-settings.ts:105-115` (`fetchIntegrationsAction` passe `getActiveProfileId()`), `IntegrationWebhookEndpoint.tsx:50` (`useState(initialUrl)`, même copie) et `useProfiles.ts:97` (`router.refresh()`, la page reste montée) → le constat tient tel qu'écrit ; la réponse de l'API à un geste sur un identifiant de A sous B n'a pas été mesurée et n'entre pas dans le correctif ; rien n'a été rendu. Classement : A1, même contrat écrit de TCK-143 ; correctif sans choix : la page pose sur `IntegrationsManager` une `key` tirée de l'agence (ou du profil) du rendu, ce qui remonte aussi les `IntegrationWebhookEndpoint` enfants, avec le test de rerendu sous une autre clé.
+- Mesure (2026-10-23, 760e78f27, implementeur) : reproduit avant correctif par `page.changement-de-profil.tck-1903.test.tsx` (page rendue sous `profil-a`, puis rerendue sous `profil-b` avec d'autres intégrations, vrai `IntegrationsManager`) → la carte Wave de `profil-a` reste affichée ; correctif : la page pose `key={getActiveProfileId() ?? 'sans-profil'}` sur `IntegrationsManager` → vert ; ablation (`key` retirée) → rouge, remise → vert ; `page.test.tsx` (avec `@/lib/session` simulé) et `IntegrationsManager.test.tsx` verts. Le relevé des autres `useState(initial…)` n'a pas été fait : reste.
 
 ### Les clés des lectures d'agence faites par le navigateur ne portent ni l'agence ni le profil : défaut masqué par P174.01, qui apparaîtra avec son correctif
 - Réf : P197.04
