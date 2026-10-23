@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
 import type { WelcomeSlide } from '@/components/welcome/WelcomeModal';
-import type { WelcomeSeenListResponse } from '@/types/welcome-view';
+import { useAccueilsVus } from '@/hooks/useAccueilsVus';
 
 /**
  * TCK-251 — Drives a one-shot welcome modale.
@@ -12,8 +12,8 @@ import type { WelcomeSeenListResponse } from '@/types/welcome-view';
  * Behaviour:
  * - Skips entirely if the user is anonymous (per spec — strictly
  *   user-scoped tracking).
- * - On mount, calls `GET /api/me/welcome-seen`. If `key` is missing
- *   from the returned list, opens the modale.
+ * - On mount, reads the seen keys (`GET /api/me/welcome-seen`, shared through
+ *   `useAccueilsVus`, TCK-1766). If `key` is missing from the list, opens the modale.
  * - On skip OR completion, POSTs `{ key }` to `/api/me/welcome-seen`
  *   (idempotent on the server) and closes locally. The POST is
  *   fire-and-forget for the UI: the modale closes immediately so the
@@ -37,66 +37,34 @@ export function useWelcomeOnce(key: string, slides: WelcomeSlide[]): UseWelcomeO
   const { user } = useAuth();
   const isAuthenticated = user !== null;
 
-  const [open, setOpen] = useState(false);
-  // TCK-1477 — la lecture des clés vues a rendu son verdict (ou échoué).
-  const [checked, setChecked] = useState(false);
+  // TCK-1766 (P136.03) — les clés vues viennent de la lecture partagée de la coque.
+  const { vus, echec, marquerVu } = useAccueilsVus(isAuthenticated && !!key);
+  // La clé que l'utilisateur a fermée pendant ce montage : la fenêtre reste fermée même si
+  // l'écriture échoue.
+  const [fermee, setFermee] = useState<string | null>(null);
   // Guard so we never POST twice for the same modale lifecycle (the
   // server is idempotent, but the network call is wasted).
-  const acknowledgedRef = useRef(false);
+  const acknowledgedRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (!isAuthenticated || !key) return;
-    let cancelled = false;
-    acknowledgedRef.current = false;
+  // TCK-1477 — la lecture des clés vues a rendu son verdict (ou échoué).
+  const checked = vus !== null || echec;
+  const open = isAuthenticated && !!key && vus !== null && !vus.includes(key) && fermee !== key;
 
-    void (async () => {
-      try {
-        const res = await fetch('/api/me/welcome-seen', {
-          method: 'GET',
-          headers: { Accept: 'application/json' },
-          credentials: 'same-origin',
-        });
-        if (cancelled) return;
-        if (res.ok) {
-          // 401 (anonymous race) or 5xx → never block UX
-          const body = (await res.json()) as WelcomeSeenListResponse;
-          const seen = Array.isArray(body?.data) ? body.data : [];
-          if (!cancelled && !seen.includes(key)) setOpen(true);
-        }
-      } catch {
-        // Silent — never break the page because the welcome ping failed.
-      }
-      if (!cancelled) setChecked(true);
-    })();
+  const acknowledge = () => {
+    if (acknowledgedRef.current === key || !key || !isAuthenticated) return;
+    acknowledgedRef.current = key;
+    marquerVu(key);
+  };
 
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, key]);
-
-  const acknowledge = useCallback(() => {
-    if (acknowledgedRef.current || !key || !isAuthenticated) return;
-    acknowledgedRef.current = true;
-    void fetch('/api/me/welcome-seen', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ key }),
-    }).catch(() => {
-      // Silent — the server endpoint is idempotent, a missed write just
-      // means the modale may resurface on the next session.
-    });
-  }, [isAuthenticated, key]);
-
-  const onComplete = useCallback(() => {
+  const onComplete = () => {
     acknowledge();
-    setOpen(false);
-  }, [acknowledge]);
+    setFermee(key);
+  };
 
-  const onSkip = useCallback(() => {
+  const onSkip = () => {
     acknowledge();
-    setOpen(false);
-  }, [acknowledge]);
+    setFermee(key);
+  };
 
   const settled = !isAuthenticated || !key || (checked && !open);
 

@@ -256,14 +256,6 @@ class MaintenanceRequestResource extends BaseResource
             }
 
             return $request->attributes->get($key);
-        }, function (int $agencyId) use ($request, $user): bool {
-            // TCK-1709 (P153.03) — l'appartenance de l'auteur à l'agence, une fois par requête.
-            $memberKey = 'maintenance_request_resource.member_of.'.$user->id.'.'.$agencyId;
-            if (! $request->attributes->has($memberKey)) {
-                $request->attributes->set($memberKey, MaintenanceRequestPolicy::isMemberOf($user, $agencyId));
-            }
-
-            return $request->attributes->get($memberKey);
         });
     }
 

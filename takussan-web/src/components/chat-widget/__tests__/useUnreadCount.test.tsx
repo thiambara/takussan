@@ -19,9 +19,12 @@ type ListShape = { data: Conversation[]; meta?: { unread_total?: number } };
 
 const useConversationsMock = vi.fn<() => { data: ListShape | undefined; isLoading: boolean }>();
 
-vi.mock('@/lib/queries/conversations-list', () => ({
-  useConversations: (...args: unknown[]) => useConversationsMock(...(args as [])),
+// TCK-1768 — la pastille passe par sa lecture étroite, `useNonLusTotal`.
+vi.mock('@/lib/queries/conversations-list', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/queries/conversations-list')>()),
+  useNonLusTotal: (...args: unknown[]) => useConversationsMock(...(args as [])),
 }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/app' }));
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 1 } }),

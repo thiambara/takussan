@@ -4626,6 +4626,7 @@
         "phone": "Telefon",
         "website": "Site internet",
         "commission": "Komisiyon bu ñu jagleel (%)",
+        "emptyRateIsZero": "Laissé vide, ce taux vaut 0 %.",
         "websitePlaceholder": "https://sa-ajance.sn"
       },
       "moderation": {
@@ -8363,6 +8364,7 @@
       "namePlaceholder": "misaal : Pisin",
       "type": "Xeet",
       "icon": "Ikon (turu Lucide)",
+      "iconNone": "Aucune (celle du slug)",
       "color": "Melo (hex)"
     }
   },

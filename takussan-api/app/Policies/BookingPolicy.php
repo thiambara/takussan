@@ -4,9 +4,9 @@ namespace App\Policies;
 
 use App\Models\Booking;
 use App\Models\Enums\Capability;
-use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -87,30 +87,46 @@ class BookingPolicy extends BasePolicy
     }
 
     /**
+     * TCK-1494 (P116.04) — expirer une réservation à la main : le personnel de l'agence tenant
+     * `bookings.cancel`, la capacité du geste voisin (annuler). Le contrôleur jugeait « être admin »,
+     * sans capacité : un admin dont le rôle la retire expirait, un agent qui la porte était refusé.
+     * Ni le bailleur ni le client : le geste est celui de l'agence (route sans appelant au front).
+     */
+    public function expire(User $user, Booking $booking): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $this->isStaffOf($user, $booking->agency_id)
+            && $user->can(Capability::BookingsCancel->value, $booking);
+    }
+
+    /**
      * TCK-596 (VERIF-596, hors diff fermé ici) — le propriétaire du bien confirme, refuse et annule,
      * sauf s'il est suspendu (`blocked`) dans l'agence de la réservation : la règle de 587
      * (`landlordWrites`) que le bail, l'état des lieux et le remboursement appliquaient déjà.
+     *
+     * TCK-1722 (P160.03) — « propriétaire » au sens de `bailleurEcrit` : l'agent qui a saisi le bien
+     * confirme et annule au titre du personnel, sous `bookings.validate` et `bookings.cancel`.
      */
     private function landlordOf(User $user, Booking $booking): bool
     {
         $property = $booking->property;
 
-        return $this->ownerOfProperty($user, $property)
-            && $this->landlordWrites($user, $property->user_id, $booking->agency_id ?? $property->agency_id);
+        return $property !== null
+            && $this->bailleurEcrit($user, $property->user_id, $booking->agency_id ?? $property->agency_id);
     }
 
     /**
      * TCK-1707 (P153.02) — `property.user_id` est le CRÉATEUR du bien : sur un bien d'agence, souvent
-     * l'agent qui l'a saisi (vérification adverse M7, `PrimaryPropertyContact::estProprietaire`). Il ne
-     * vaut propriétaire que si le bien n'a pas d'agence, ou s'il détient un profil de bailleur dans
-     * l'agence du bien, DE TOUT STATUT : le bailleur suspendu reste partie et garde la lecture
-     * (ADR-0031 §2) ; ses gestes, `landlordWrites` les lui refuse. L'agent retiré, qui n'a plus aucun
-     * profil, n'y entre plus.
+     * l'agent qui l'a saisi (vérification adverse M7). Il ne vaut propriétaire, pour LIRE, qu'au sens
+     * de {@see BailleurDuBien}, DE TOUT STATUT : le bailleur suspendu reste partie et garde la lecture
+     * (ADR-0031 §2) ; ses gestes, `bailleurEcrit` les lui refuse. L'agent retiré n'y entre plus.
      */
     private function ownerOfProperty(User $user, ?Property $property): bool
     {
         return $property !== null
-            && (int) $property->user_id === (int) $user->id
-            && ($property->agency_id === null || $user->hasProfileAt((int) $property->agency_id, OwnerProfile::class));
+            && BailleurDuBien::est($user, $property->user_id, $property->agency_id);
     }
 }

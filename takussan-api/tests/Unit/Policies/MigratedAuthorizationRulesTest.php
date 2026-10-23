@@ -125,6 +125,9 @@ class MigratedAuthorizationRulesTest extends TestCase
     public function test_lease_view_admits_the_tenant_but_update_does_not(): void
     {
         $bailleur = $this->quidam();
+        // TCK-1722 (P160.03) — le bailleur d'un bail d'agence y a un profil de bailleur : sans lui,
+        // `landlord_id` ne lui donne pas les gestes du bailleur.
+        $this->materializeRoleProfile($bailleur, 'owner', $this->agency);
         $locataireUser = $this->quidam();
         $customer = Customer::factory()->create([
             'user_id' => $locataireUser->id,

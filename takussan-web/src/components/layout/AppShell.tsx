@@ -13,6 +13,7 @@ import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 import { ImpersonationBanner } from '@/components/admin/super/ImpersonationBanner';
 import { AgencySuspendedBanner } from '@/components/agency/AgencySuspendedBanner';
 import { AgencyStandardWelcomeWizard } from '@/components/agency/AgencyStandardWelcomeWizard';
+import type { MarqueurAccueilAgence } from '@/hooks/useAgencyStandardWelcomeOnce';
 import { AgentWelcomeWizard } from '@/components/agent/AgentWelcomeWizard';
 import { CustomerWelcomeWizard } from '@/components/customer/CustomerWelcomeWizard';
 import { MinimalProfileTriggerProvider } from '@/components/customer/MinimalProfileTriggerProvider';
@@ -33,6 +34,11 @@ interface AppShellProps {
   hasPendingUpgrade?: boolean;
   /** TCK-600 — l'agence du profil actif est suspendue : bandeau « lecture seule ». */
   agencySuspended?: boolean;
+  /**
+   * TCK-1766 (P136.03) — le marqueur d'accueil de l'agence, lu par le layout avec l'agence.
+   * `undefined` quand le layout ne l'a pas lue : l'assistant ne s'ouvre pas.
+   */
+  agencyStandardWelcome?: MarqueurAccueilAgence;
 }
 
 export function AppShell({
@@ -41,6 +47,7 @@ export function AppShell({
   agencyIsStandard,
   hasPendingUpgrade,
   agencySuspended = false,
+  agencyStandardWelcome,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const t = useTranslations('nav.sidebar');
@@ -147,7 +154,7 @@ export function AppShell({
         {customerOnboardingActive && customerWelcomeSettled ? <TenantWelcomeWizard /> : null}
         {ownerWelcomeActive ? <OwnerWelcomeWizard /> : null}
         {agentWelcomeActive ? <AgentWelcomeWizard /> : null}
-        {agencyStandardWelcomeActive ? <AgencyStandardWelcomeWizard /> : null}
+        {agencyStandardWelcomeActive ? <AgencyStandardWelcomeWizard marqueur={agencyStandardWelcome} /> : null}
       </div>
     </MinimalProfileTriggerProvider>
   );

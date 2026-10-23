@@ -311,6 +311,30 @@ class StatementParserTest extends TestCase
         $this->assertSame(2, $result['context']->tally->skipped);
     }
 
+    public function test_un_montant_ofx_non_numerique_est_saute_et_non_devine(): void
+    {
+        // TCK-1719 (P157.03) — même règle que le CSV (TCK-593) : un montant qui n'est pas un
+        // nombre, au plus un séparateur décimal (point ou virgule), est sauté et compté. `abc`
+        // entrait en crédit de 0, et `1.234,56` était deviné.
+        $ofx = $this->ofx('XOF', [
+            ['20260401', 'abc', 'TEXTE'],
+            ['20260402', '1.234,56', 'DEUX-SEPARATEURS'],
+            ['20260403', '12abc', 'RESTE'],
+            ['20260404', '150 000', 'ESPACE'],
+            ['20260405', "150\u{00A0}000", 'INSECABLE'],
+            ['20260406', '-2500.50', 'DEBIT'],
+            ['20260407', '7500,50', 'VIRGULE'],
+        ]);
+
+        $result = $this->parseOfx($ofx);
+
+        $this->assertSame(
+            ['ESPACE' => 150000.0, 'INSECABLE' => 150000.0, 'DEBIT' => 2500.5, 'VIRGULE' => 7500.5],
+            collect($result['lines'])->mapWithKeys(fn (ParsedLine $l) => [$l->label => $l->amount])->all(),
+        );
+        $this->assertSame(3, $result['context']->tally->skipped);
+    }
+
     public function test_chaque_compte_ofx_garde_sa_devise(): void
     {
         // TCK-1475 (P157.08) — un OFX à deux comptes (`STMTRS` en `XOF` puis en `EUR`) : chaque

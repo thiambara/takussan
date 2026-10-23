@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
 import { useActiveLeaseSummaries } from '@/lib/queries/leases-active-summaries';
-import type { WelcomeSeenListResponse } from '@/types/welcome-view';
+import { useAccueilsVus } from '@/hooks/useAccueilsVus';
 
 /**
  * TCK-265 — Drives the one-shot tenant welcome modale, scoped per lease.
@@ -42,37 +42,14 @@ export function useTenantWelcomeOnce(): UseTenantWelcomeOnceResult {
   // TCK-968 — les baux actifs par l'API Laravel. Le `fetch` relatif vers `/api/leases` d'avant visait
   // le serveur Next, qui n'a pas ce relais : la modale ne s'ouvrait jamais.
   const leasesQuery = useActiveLeaseSummaries(isAuthenticated);
-  const [seen, setSeen] = useState<Set<string> | null>(null);
+  // TCK-1766 (P136.03) — les clés vues viennent de la lecture partagée de la coque ; une lecture
+  // en échec laisse la file vide, comme avant.
+  const { vus, marquerVu } = useAccueilsVus(isAuthenticated);
+  const seen = vus === null ? null : new Set(vus);
   // Leases dismissed during this mount: the queue is derived, they leave it.
   const [dismissed, setDismissed] = useState<ReadonlySet<number>>(new Set());
   // Guard so we never POST twice for the same lease in a single mount.
   const acknowledgedRef = useRef<Set<number>>(new Set());
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    let cancelled = false;
-    acknowledgedRef.current = new Set();
-
-    void (async () => {
-      try {
-        const seenRes = await fetch('/api/me/welcome-seen', {
-          method: 'GET',
-          headers: { Accept: 'application/json' },
-          credentials: 'same-origin',
-        });
-        if (cancelled || !seenRes.ok) return;
-        const seenBody = (await seenRes.json()) as WelcomeSeenListResponse;
-        if (cancelled) return;
-        setSeen(new Set(Array.isArray(seenBody?.data) ? seenBody.data : []));
-      } catch {
-        // Silent — never break the dashboard because the welcome ping failed.
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated]);
 
   const leases = leasesQuery.data?.data;
   const queue =
@@ -84,38 +61,27 @@ export function useTenantWelcomeOnce(): UseTenantWelcomeOnceResult {
       : [];
   const currentLeaseId = queue[0] ?? null;
 
-  const acknowledge = useCallback(
-    (leaseId: number) => {
-      if (acknowledgedRef.current.has(leaseId) || !isAuthenticated) return;
-      acknowledgedRef.current.add(leaseId);
-      void fetch('/api/me/welcome-seen', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ key: `${STORAGE_KEY_PREFIX}${leaseId}` }),
-      }).catch(() => {
-        // Silent — server endpoint is idempotent. A missed write means the
-        // modale resurfaces on the next session, which is acceptable.
-      });
-    },
-    [isAuthenticated],
-  );
+  const acknowledge = (leaseId: number) => {
+    if (acknowledgedRef.current.has(leaseId) || !isAuthenticated) return;
+    acknowledgedRef.current.add(leaseId);
+    marquerVu(`${STORAGE_KEY_PREFIX}${leaseId}`);
+  };
 
-  const advance = useCallback((leaseId: number) => {
+  const advance = (leaseId: number) => {
     setDismissed((d) => new Set(d).add(leaseId));
-  }, []);
+  };
 
-  const onComplete = useCallback(() => {
+  const onComplete = () => {
     if (currentLeaseId === null) return;
     acknowledge(currentLeaseId);
     advance(currentLeaseId);
-  }, [acknowledge, advance, currentLeaseId]);
+  };
 
-  const onSkip = useCallback(() => {
+  const onSkip = () => {
     if (currentLeaseId === null) return;
     acknowledge(currentLeaseId);
     advance(currentLeaseId);
-  }, [acknowledge, advance, currentLeaseId]);
+  };
 
   return {
     open: currentLeaseId !== null,

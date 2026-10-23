@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Wrench } from 'lucide-react';
-import { useLeases, type LeaseWithRelations } from '@/lib/queries/leases';
+import { useAllOngoingLeases, type LeaseWithRelations } from '@/lib/queries/leases';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -35,12 +35,22 @@ export function MaintenanceNewLauncher({
   const tCommon = useTranslations('common');
   // TCK-1436 — les baux où l'API accepte la demande (TCK-1001) : un locataire en préavis habite
   // encore le logement. `filter[status]` est exact et accepte une liste.
-  const leasesQuery = useLeases({ status: 'active,terminating', per_page: 50 });
+  // TCK-1745 (P171.01) — toutes les pages : une page de 50 laissait les biens des baux plus anciens
+  // hors du choix, pour le personnel qui lit les baux de toute l'agence.
+  const leasesQuery = useAllOngoingLeases();
   const { data, isLoading, isError } = leasesQuery;
 
   const options = useMemo(() => {
     const leases = (data?.data ?? []) as LeaseWithRelations[];
+    // TCK-1745 — une option par bien : le premier bail rendu (le plus récent, `-created_at`), celui
+    // que `options.find` retenait déjà ; deux baux en cours sur un bien donnaient deux options.
+    const vus = new Set<number>();
     return leases
+      .filter((l) => {
+        if (!l.property?.id || vus.has(l.property.id)) return false;
+        vus.add(l.property.id);
+        return true;
+      })
       .filter((l): l is LeaseWithRelations & { property: NonNullable<LeaseWithRelations['property']> } =>
         Boolean(l.property?.id),
       )

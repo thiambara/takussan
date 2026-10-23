@@ -385,13 +385,16 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           <p className="mt-1 text-xs text-muted-foreground">{t('business.description')}</p>
         </div>
         <div className="grid gap-4 lg:grid-cols-3">
-          <FormInput
-            control={control}
-            name="commission_rate"
-            label={t('fields.commission')}
-            inputMode="decimal"
-            placeholder="5"
-          />
+          {/* TCK-1729 (P133.06) — vide vaut 0 % au calcul : l'exemple « 5 » le faisait lire réglé. */}
+          <div>
+            <FormInput
+              control={control}
+              name="commission_rate"
+              label={t('fields.commission')}
+              inputMode="decimal"
+            />
+            <p className="mt-1.5 text-pretty text-xs text-muted-foreground">{t('fields.emptyRateIsZero')}</p>
+          </div>
           <div>
             <FormSelect
               control={control}
@@ -476,13 +479,15 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           <p className="mt-1 text-xs text-muted-foreground">{tMoney('description')}</p>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
-          <FormInput
-            control={control}
-            name="default_tax_rate"
-            label={tMoney('taxRate')}
-            inputMode="decimal"
-            placeholder="18"
-          />
+          <div>
+            <FormInput
+              control={control}
+              name="default_tax_rate"
+              label={tMoney('taxRate')}
+              inputMode="decimal"
+            />
+            <p className="mt-1.5 text-pretty text-xs text-muted-foreground">{t('fields.emptyRateIsZero')}</p>
+          </div>
           {canSetThreshold ? (
             <div>
               <FormInput

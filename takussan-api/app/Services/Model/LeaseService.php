@@ -22,6 +22,7 @@ use App\Rules\PersonnelDeLAgence;
 use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\LeaseExitScheduleService;
 use App\Services\Lease\LeaseRenewalService;
+use App\Services\Property\BailleurDuBien;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -38,7 +39,9 @@ class LeaseService
         // bail sur le bien d'un autre, et `leases.create` n'avait aucun lecteur.
         $staffAgencyId = $user->staffAgencyId();
         $canCreate = $user->isSuperAdmin()
-            || ($property->user_id === $user->id
+            // TCK-1722 (P160.03) — le créateur du bien seulement s'il en est le bailleur : l'agent qui
+            // l'a saisi ouvre un bail au titre du personnel, sous `leases.create`.
+            || (BailleurDuBien::est($user, $property->user_id, $property->agency_id)
                 && ($property->agency_id === null || ! $user->isBlockedOwnerAt((int) $property->agency_id)))
             || ($property->agency_id !== null
                 && $staffAgencyId === (int) $property->agency_id

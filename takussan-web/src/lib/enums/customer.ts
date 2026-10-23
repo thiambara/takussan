@@ -16,6 +16,13 @@ export const customerStatusValues = [
   'deleted',
 ] as const;
 
+/**
+ * TCK-1753 (P147.06) — les statuts que l'édition d'une fiche POSE : `UpdateCustomerRequest` refuse
+ * `blocked` et `deleted`, que rien ne lit (la suppression a son geste). Ils restent dans
+ * `customerStatusValues`, pour les fiches qui les portent déjà (libellé, filtre, statut inchangé).
+ */
+export const customerSettableStatusValues = ['active', 'inactive'] as const;
+
 export const pipelineStageValues = [
   'lead',
   'prospect',

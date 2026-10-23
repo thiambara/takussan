@@ -61,3 +61,8 @@ d'agence, l'auteur (`user_id`) ne vaut titre que s'il détient un profil de **to
 - Trois fixtures prenaient pour propriétaire un compte sans profil dans l'agence du bien
   (`MigratedAuthorizationRulesTest`, `MaintenancePrincipalFieldsTest` ×2) : elles lui donnent un
   profil de bailleur.
+- Fusion avec `pre-dev` (2026-10-23, réparation de #1200) : TCK-1720 (P160.02) y a posé une règle
+  plus étroite, `BailleurDuBien::est` (profil propriétaire dans l'agence), aux deux endroits où ce
+  ticket mettait `authorHolds`. Elle couvre l'agent retiré (ni bailleur, ni personnel) : elle est
+  gardée, et `authorHolds`, `isMemberOf` et le `$memberOf` de la ressource, devenus morts, sont
+  retirés. `MembreRetireInterventionsTest` reste vert sur la règle fusionnée.

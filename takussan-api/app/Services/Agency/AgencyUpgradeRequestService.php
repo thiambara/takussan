@@ -65,9 +65,13 @@ class AgencyUpgradeRequestService
     ): AgencyUpgradeRequest {
         $this->assertAgencyIsIndividual($agency);
         $this->assertSubmitterIsAgencyAdmin($submitter, $agency);
-        $this->assertNoPendingRequest($agency);
-
         $request = DB::transaction(function () use ($agency, $submitter, $data, $statutsDoc): AgencyUpgradeRequest {
+            // TCK-1492 (P92.07) — l'agence verrouillée avant de chercher une demande en cours : hors
+            // de la transaction, deux envois simultanés passaient le contrôle, et le second heurtait
+            // `agency_upgrade_requests_one_pending_per_agency` en 500 au lieu du 422 écrit.
+            Agency::query()->whereKey($agency->getKey())->lockForUpdate()->firstOrFail();
+            $this->assertNoPendingRequest($agency);
+
             $request = AgencyUpgradeRequest::query()->create([
                 'agency_id' => $agency->id,
                 'submitted_by' => $submitter->id,

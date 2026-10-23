@@ -42,7 +42,8 @@ class MaintenancePriorityTest extends TestCase
         $manager = User::factory()->create(['agency_id' => $agency->id]);
         $agency->update(['primary_admin_id' => $manager->id]);
 
-        // TCK-1709 (P153.03) — le propriétaire d'un bien d'agence y a un profil de bailleur.
+        // TCK-1720 (P160.02) — le propriétaire d'un bien d'agence y a un profil de bailleur : sans lui,
+        // le créateur n'est donneur d'ordre qu'au titre du personnel.
         $user = User::factory()->withOwnerProfile($agency)->create();
         $property = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $user->id]);
 

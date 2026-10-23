@@ -34,6 +34,11 @@ import {
 } from '@/app/actions/console';
 import { tagTypeValues } from '@/lib/enums/tag';
 import type { TagFormValues } from '@/lib/schemas/tag';
+import { ESPACE_DU_CATALOGUE } from '@/lib/libelle-equipement';
+import { AMENITY_ICON_KEYS } from '@/app/[locale]/(public)/properties/[slug]/components/amenity-icons';
+
+/** TCK-1725 — la valeur de l'option « Aucune » : une `SelectItem` ne porte pas de chaîne vide. */
+const SANS_ICONE = '__aucune__';
 
 /**
  * Tag / amenity admin manager — TCK-066.
@@ -365,6 +370,13 @@ function CreateTagDialog({ open, onOpenChange, onSubmit }: CreateTagDialogProps)
   const typeOptions: { value: TagFormValues['type']; label: string }[] = tagTypeValues.map(
     (v) => ({ value: v, label: t(`types.${v}`) }),
   );
+  // TCK-1725 — chaque clé d'icône est un slug du catalogue (`amenity-icons.tck-914.test.ts`) : elle
+  // se nomme par l'équipement, dans la langue de l'écran.
+  const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
+  const iconOptions: { value: string; label: string }[] = [
+    { value: SANS_ICONE, label: t('form.iconNone') },
+    ...AMENITY_ICON_KEYS.map((key) => ({ value: key, label: tCatalogue.has(key) ? tCatalogue(key) : key })),
+  ];
   const [values, setValues] = useState<TagFormValues>(emptyFormValues());
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setSubmitting] = useState(false);
@@ -444,12 +456,27 @@ function CreateTagDialog({ open, onOpenChange, onSubmit }: CreateTagDialogProps)
               <label htmlFor="tag-icon" className="mb-1.5 block text-sm font-medium">
                 {t('form.icon')}
               </label>
-              <Input
-                id="tag-icon"
-                value={values.icon}
-                onChange={handleChange('icon')}
-                placeholder="wifi"
-              />
+              {/* TCK-1725 (P159.02) — une liste fermée des icônes que la fiche publique sait rendre
+                  (`AMENITY_ICONS`, indexée par les slugs du catalogue), au lieu d'un nom Lucide libre
+                  qu'elle ne connaissait pas. « Aucune » laisse l'icône suivre le slug du tag. */}
+              <Select
+                value={values.icon === '' ? SANS_ICONE : values.icon}
+                onValueChange={(value) =>
+                  setValues((current) => ({ ...current, icon: !value || value === SANS_ICONE ? '' : value }))
+                }
+                items={iconOptions}
+              >
+                <SelectTrigger id="tag-icon" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {iconOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormError>{errors.icon?.[0]}</FormError>
             </div>
             <div>

@@ -16,6 +16,7 @@ import type {
   PortfolioCategory,
 } from '@/types/agent-crm';
 import { cheminApi, requete } from '@/lib/chemin-api';
+import { lireToutesLesPages, PAR_PAGE_MAX } from '@/lib/queries/toutes-les-pages';
 
 /**
  * TCK-591 — requêtes du CRM de l'agent. Module sans directive : appelable depuis un composant
@@ -81,14 +82,20 @@ export async function fetchCustomerLinked(
       sort: '-start_date',
     },
   }[kind];
-  const qs = buildQueryString({
-    filter: spec.filter,
-    include: ['property'],
-    fields: { [spec.table]: spec.cols, properties: ['id', 'title'] },
-    sort: spec.sort,
-    per_page: 20,
-  });
-  const res = await apiRequest<PaginatedResponse<LinkedRow>>(`${spec.path}?${qs}`, { token });
+  // TCK-1747 (P171.05) — toutes les pages : une page de 20 taisait la 21ᵉ visite, réservation ou bail.
+  const res = await lireToutesLesPages((page) =>
+    apiRequest<PaginatedResponse<LinkedRow>>(
+      `${spec.path}?${buildQueryString({
+        filter: spec.filter,
+        include: ['property'],
+        fields: { [spec.table]: spec.cols, properties: ['id', 'title'] },
+        sort: spec.sort,
+        page,
+        per_page: PAR_PAGE_MAX,
+      })}`,
+      { token },
+    ),
+  );
   return res.data.map((row) => ({
     id: row.id,
     status: row.status ?? null,

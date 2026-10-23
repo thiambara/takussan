@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
 
 import { MinimalProfileTriggerProvider } from '../MinimalProfileTriggerProvider';
@@ -53,10 +54,14 @@ function mockAuth(authed: boolean) {
 }
 
 function Wrapper({ children, roles }: { children: ReactNode; roles: string[] }) {
+  // TCK-1766 — les clés vues passent par une entrée de cache TanStack partagée (`useAccueilsVus`).
+  const [client] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }));
   return (
-    <NextIntlClientProvider locale="fr" messages={frMessages as never}>
-      <MinimalProfileTriggerProvider roles={roles}>{children}</MinimalProfileTriggerProvider>
-    </NextIntlClientProvider>
+    <QueryClientProvider client={client}>
+      <NextIntlClientProvider locale="fr" messages={frMessages as never}>
+        <MinimalProfileTriggerProvider roles={roles}>{children}</MinimalProfileTriggerProvider>
+      </NextIntlClientProvider>
+    </QueryClientProvider>
   );
 }
 
