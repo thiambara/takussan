@@ -15,9 +15,11 @@ class ReviewResource extends BaseResource
     {
         $author = $this->resource->author;
         $viewer = $request->user();
+        // TCK-1781 (P175.05) — un auteur effacé ou sans nom rend `name` nul : le front écrit
+        // « Anonyme » dans la langue du lecteur (principe 5), l'API n'émet pas de libellé.
         $authorName = $author
-            ? (trim(($author->first_name ?? '').' '.($author->last_name ?? '')) ?: ($author->username ?? 'Anonyme'))
-            : 'Anonyme';
+            ? (trim(($author->first_name ?? '').' '.($author->last_name ?? '')) ?: ($author->username ?: null))
+            : null;
 
         return [
             'id' => $this->id,
