@@ -17365,7 +17365,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### La borne d'un an de l'export du journal ne s'applique pas quand une seule borne est donnée
 - Réf : P188.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1856
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Audit/ExportActivityLogRequest.php:37-46,53-62`
 - Constat :
@@ -17376,6 +17376,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : juger l'écart sur les bornes **résolues** (celles de `resolvedFilters()`), donc aussi quand une seule est fournie, et passer les deux messages par une clé `lang/`. Garde : un test `date_from` seul à plus d'un an d'aujourd'hui → 422.
 - Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `ExportActivityLogRequest.php:37` (`if ($from && $to)`), `:42,44` (deux messages anglais en dur) et `:59-60` (défauts `now() - 30 j` et `now()`), et TCK-104 l. 36-37 (« défaut 30 derniers jours, max range 1 an »), l. 82 (« max 1 an entre `date_from` et `date_to` (422 sinon) ») et AC5 l. 124 ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré) : `filter[date_from]=2000-01-01` seul → **200** (export servi), `filter[date_to]=2099-01-01` seul → **200** aussi, les deux bornes `2000-01-01`/`2026-01-01` → 422 « Date range must not exceed 1 year. » → le constat tient, et vaut aussi pour `date_to` seul. Classement : A1, TCK-104 écrit déjà la borne d'un an sur la plage exportée et le défaut de 30 jours ; le correctif attendu est de juger l'ordre et l'écart sur les bornes résolues de `resolvedFilters()` (donc avec une seule borne), et de passer les deux messages existants par une clé `lang/` sans en changer le sens (en `wo`, le texte français), test `date_from` seul à plus d'un an → 422.
+- Mesure (2026-10-23, 1ac04b8ac, implementeur) : re-mesuré par le test de garde `ActivityLogExporterTest::test_la_borne_d_un_an_vaut_aussi_avec_une_seule_borne` : avant correctif, `filter[date_from]=2000-01-01` seul → **200** → l'ordre et l'écart se jugent désormais sur les bornes de `resolvedFilters()`, l'erreur sur la borne fournie ; `date_from=2000-01-01` seul et `date_to=2099-01-01` seul → 422, témoin `date_from` à 200 jours seul → 200 ; les deux messages passent par `errors.activity_log.date_range_inverted` et `date_range_too_long` (`wo` = texte français) ; ablation (requête remise à l'état de TCK-1854) → rouge, correctif remis → vert ; `ActivityLogExporterTest` 19 verts, `LangGroupParityTest` 4 verts. Conséquence notée au ticket : `date_to` seul à plus de trente jours dans le passé rend 422 (plage résolue inversée) au lieu d'un export vide.
 
 ### La délégation de rôle rend 500 sur un `user_id` non numérique
 - Réf : P188.03
