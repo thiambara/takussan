@@ -17707,7 +17707,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Un bien en revue ou refusé n'a pas de libellé de statut, et la fiche d'agence de la console super-admin affiche `pending_review` en clair
 - Réf : P192.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1876 — reste : typer `status_label` en `string | null` dans `takussan-web/src/types/property.ts`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/lang/{fr,en,wo}/properties.php:32-42`, `takussan-api/app/Models/Enums/PropertyStatus.php:16-17`, `takussan-api/app/Http/Resources/Bases/BaseResource.php:88-97`, `takussan-api/app/Http/Resources/PropertyResource.php:107`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:202-226`, `takussan-web/src/components/admin/super/agency-detail.tsx:549`, `takussan-web/src/types/property.ts:199`
 - Constat :
@@ -17719,6 +17719,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré par script et par requête.
 - Piste : ajouter `pending_review` et `rejected` à `properties.status` dans `fr` et `en` (texte français tel quel en `wo`), en reprenant les libellés de `property.status` du front ; ou, selon le principe n° 5, faire traduire l'onglet par `property.status.<code>` comme le fait déjà `SuperAdminPropertiesTable.tsx:227`. Typer `status_label` en `string | null`. Garde : voir P192.03.
 - Mesure (2026-10-23, e4e646dee, mesureur) : relu `PropertyStatus` (onze cas, `pending_review` et `rejected` l. 16-17), `lang/fr/properties.php` `status` (neuf clés, sans ces deux-là), `BaseResource::enumLabel` (rend `null` quand la clé manque), `PropertyResource.php:107`, `AgencyDetailController::properties` (toujours sans filtre de statut), `agency-detail.tsx:549` (`status_label ?? status`), `types/property.ts:199` (`status_label: string`) ; test temporaire `Sonde192Test` (retiré, même charge) : super-admin, `Accept-Language: fr`, `GET /api/admin/agencies/{id}/properties` → `available` « Disponible », `pending_review` et `rejected` → `status_label` `null` ; `Lang::hasForLocale('properties.status.<cas>')` sur les onze cas → seuls `pending_review` et `rejected` manquent, en `fr`, `en` et `wo` ; `node -e` sur les messages du front → `property.status.pending_review` « En revue » / « In review », `rejected` « Refusé » / « Rejected » → le constat tient. Classement : A4, deux clés manquantes dont les libellés existent déjà au front, sans texte de produit neuf.
+- Mesure (2026-10-23, e273ad210, implementeur) : test `AgencyDetailTest::test_un_bien_en_revue_ou_refuse_a_un_libelle_de_statut` (super-admin, `GET /api/admin/agencies/{id}/properties`, charge 1,92 / 2,01 / 1,84 sur 8 cœurs) rouge avant correctif (`status_label` `[null, null]` sous `fr`) → clés `properties.status.pending_review` et `rejected` ajoutées dans `fr` (« En revue », « Refusé »), `en` (« In review », « Rejected ») et `wo` (texte français tel quel) → vert, 5 tests de la classe verts ; ablation (clés retirées) → rouge, remises → vert ; `LangGroupParityTest` vert. Le typage du front reste à faire.
 
 ### Aucune garde ne compare les cas d'un enum aux clés que l'API bâtit sur lui, et les replis silencieux cachent le manque
 - Réf : P192.03
