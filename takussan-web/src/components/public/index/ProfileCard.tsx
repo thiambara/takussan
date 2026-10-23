@@ -1,7 +1,8 @@
 import { BadgeCheck, MapPin, Star } from 'lucide-react';
+import Image from 'next/image';
 
 import { LienLocalise } from '@/components/shared/LienLocalise';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { ProfilPublic } from '@/lib/queries/public-profiles';
 
 export type LibellesDeCarte = {
@@ -72,14 +73,19 @@ export function ProfileCard({ profil, base, libelles, forme }: Props) {
           <Avatar
             className={forme === 'rond' ? 'size-14 shrink-0' : 'size-14 shrink-0 rounded-xl'}
           >
+            {/* TCK-1814 (P180.03) — le logo passe par le loader (ADR-0029 §4) : `logo_url` est
+                l'original, jusqu'à 10 Mo. Pas d'`AvatarImage` : il précharge sa `src` brute pour
+                savoir quand masquer le repli. Les initiales ne sont rendues que sans logo, pour
+                qu'un logo transparent ne les laisse pas voir dessous. */}
             {profil.logo_url ? (
-              <AvatarImage src={profil.logo_url} alt="" />
-            ) : null}
-            <AvatarFallback
-              className={forme === 'rond' ? 'font-display' : 'rounded-xl font-display'}
-            >
-              {initiales(profil.nom)}
-            </AvatarFallback>
+              <Image src={profil.logo_url} alt="" fill sizes="56px" className="bg-muted object-cover" />
+            ) : (
+              <AvatarFallback
+                className={forme === 'rond' ? 'font-display' : 'rounded-xl font-display'}
+              >
+                {initiales(profil.nom)}
+              </AvatarFallback>
+            )}
           </Avatar>
 
           <div className="min-w-0 flex-1">

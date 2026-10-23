@@ -55,9 +55,11 @@ class WatermarkService
 
         $textY = 5;
 
-        if ($context->logo !== null && $context->logo !== '') {
-            $logo = $manager->decodeBinary($context->logo);
-            $maxLogoWidth = (int) ($imageWidth * 0.20);
+        $maxLogoWidth = (int) ($imageWidth * 0.20);
+        $logoBytes = $context->logoFor($maxLogoWidth);
+
+        if ($logoBytes !== null && $logoBytes !== '') {
+            $logo = $manager->decodeBinary($logoBytes);
             $logo->scaleDown(width: $maxLogoWidth);
             $overlayCanvas->insert($logo, 0, 0, Alignment::TOP_LEFT, $opacityFactor);
             $textY = $logo->height() + 4;

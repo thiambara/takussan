@@ -7,7 +7,9 @@ use App\Domain\Settings\AgencySettings;
 use App\Models\Agency;
 use App\Models\Enums\WatermarkPosition;
 use App\Services\Features\FeatureFlagEvaluator;
+use Closure;
 use Illuminate\Support\Facades\Storage;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class AgencyWatermarkContext
 {
@@ -15,6 +17,10 @@ class AgencyWatermarkContext
      * @param  string|null  $logo  le CONTENU du logo, pas son chemin (TCK-539) : le logo vit sur
      *                             le disque public, qui est R2 en préproduction et en production —
      *                             il n'y a pas de chemin local à passer au décodeur.
+     * @param  (Closure(int): ?string)|null  $logoReader  TCK-1810 — le logo lu À LA DEMANDE, à la
+     *                                                    largeur que le filigrane posera ; il
+     *                                                    l'emporte sur `$logo`. `fromAgency()` ne
+     *                                                    passe que lui.
      */
     public function __construct(
         public readonly string $agencyName,
@@ -22,7 +28,18 @@ class AgencyWatermarkContext
         public readonly ?string $logo,
         public readonly WatermarkPosition $position,
         public readonly int $opacity,
+        private readonly ?Closure $logoReader = null,
     ) {}
+
+    /**
+     * TCK-1810 (P180.01) — le contenu du logo à poser à `$targetWidth` pixels de large, ou `null`.
+     * Lu seulement quand le filigrane le pose : un job sur une conversion déjà filigranée ne
+     * le lit plus.
+     */
+    public function logoFor(int $targetWidth): ?string
+    {
+        return $this->logoReader !== null ? ($this->logoReader)($targetWidth) : $this->logo;
+    }
 
     /**
      * LA règle d'activation du filigrane, écrite une fois (TCK-539, D3) : sans agence, pas de
@@ -76,10 +93,11 @@ class AgencyWatermarkContext
         return new self(
             agencyName: $agency->name ?? '',
             agencyUrl: $agency->website ?? '',
-            logo: self::readLogo($agency),
+            logo: null,
             position: WatermarkPosition::tryFrom($agency->setting('watermark_position'))
                 ?? WatermarkPosition::default(),
             opacity: $agency->setting('watermark_opacity'),
+            logoReader: fn (int $targetWidth): ?string => self::readLogo($agency, $targetWidth),
         );
     }
 
@@ -89,13 +107,22 @@ class AgencyWatermarkContext
      *
      * Un logo déclaré mais absent du disque donne un filigrane sans logo, comme avant. Une panne
      * du disque, elle, lève : le job est rejoué, plutôt que de filigraner sans logo pour de bon.
+     *
+     * TCK-1810 (P180.01) — la `preview` du logo (PNG, 320 px au plus, TCK-1425) d'abord, quand
+     * elle est produite et au moins aussi large que la cible : le filigrane la réduit à la même
+     * largeur que l'original, sans décoder un original qui peut atteindre 20 Mpx (80 Mo de pixels
+     * en GD) dans un worker `media` de 384 Mo. Sinon l'original, comme avant.
      */
-    private static function readLogo(Agency $agency): ?string
+    private static function readLogo(Agency $agency, int $targetWidth): ?string
     {
         $media = $agency->getFirstMedia('logo');
 
         if ($media === null) {
             return null;
+        }
+
+        if (($preview = self::readPreview($media, $targetWidth)) !== null) {
+            return $preview;
         }
 
         $disk = Storage::disk($media->disk);
@@ -106,5 +133,28 @@ class AgencyWatermarkContext
         }
 
         return $disk->get($path);
+    }
+
+    /**
+     * La `preview` produite, si elle couvre `$targetWidth`. Sa largeur se lit dans l'en-tête
+     * (`getimagesizefromstring`), sans décoder les pixels.
+     */
+    private static function readPreview(Media $media, int $targetWidth): ?string
+    {
+        if (! $media->hasGeneratedConversion('preview')) {
+            return null;
+        }
+
+        $disk = Storage::disk($media->conversions_disk);
+        $path = $media->getPathRelativeToRoot('preview');
+
+        if (! $disk->exists($path)) {
+            return null;
+        }
+
+        $bytes = $disk->get($path);
+        $size = $bytes !== null ? getimagesizefromstring($bytes) : false;
+
+        return $size !== false && $size[0] >= $targetWidth ? $bytes : null;
     }
 }

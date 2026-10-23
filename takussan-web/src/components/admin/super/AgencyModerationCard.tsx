@@ -124,7 +124,9 @@ export function AgencyModerationCard({ agency, requeteListe = '' }: AgencyModera
               alt=""
               width={44}
               height={44}
-              unoptimized
+              // TCK-1814 (P180.03) — par le loader (ADR-0029 §4), plus `unoptimized` : `logo_url`
+              // est l'original, jusqu'à 10 Mo.
+              sizes="44px"
               className="size-11 rounded-md border border-border object-cover"
             />
           ) : (
