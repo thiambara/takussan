@@ -3,10 +3,11 @@
 namespace App\Notifications;
 
 use App\Models\Lease;
-use App\Notifications\Concerns\RetriesWithBackoff;
+use App\Notifications\Concerns\AlertsWhenMarkedDeliveryFails;
 use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -27,12 +28,18 @@ use Illuminate\Notifications\Notification;
  */
 class TenantWelcomeNotification extends Notification implements ShouldQueue
 {
+    use AlertsWhenMarkedDeliveryFails;
     use Queueable;
-    use RetriesWithBackoff;
 
     public const KIND = 'tenant_welcome';
 
     public function __construct(public Lease $lease) {}
+
+    /** TCK-1794 (P142.02) — l'objet que l'alerte d'un envoi abandonné désigne. */
+    protected function sujetDeLEnvoi(): ?Model
+    {
+        return $this->lease;
+    }
 
     /**
      * @return list<string>

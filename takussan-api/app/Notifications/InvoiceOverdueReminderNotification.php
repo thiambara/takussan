@@ -4,11 +4,12 @@ namespace App\Notifications;
 
 use App\Models\Enums\Currency;
 use App\Models\Invoice;
-use App\Notifications\Concerns\RetriesWithBackoff;
+use App\Notifications\Concerns\AlertsWhenMarkedDeliveryFails;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -28,8 +29,8 @@ use Illuminate\Notifications\Notification;
  */
 class InvoiceOverdueReminderNotification extends Notification implements ShouldQueue
 {
+    use AlertsWhenMarkedDeliveryFails;
     use Queueable;
-    use RetriesWithBackoff;
 
     public const EVENT_TYPE = 'invoice_reminder_sent';
 
@@ -37,6 +38,12 @@ class InvoiceOverdueReminderNotification extends Notification implements ShouldQ
         public Invoice $invoice,
         public int $offsetDays,
     ) {}
+
+    /** TCK-1794 (P142.02) — l'objet que l'alerte d'un envoi abandonné désigne. */
+    protected function sujetDeLEnvoi(): ?Model
+    {
+        return $this->invoice;
+    }
 
     /**
      * @return list<string>
