@@ -30,7 +30,7 @@ d'objet.
 
 ## Décision du porteur (déléguée)
 
-« marquer `#[DeleteWhenMissingModels]` (attribut de `Illuminate\Queue\Attributes`, que `SendQueuedNotifications` lit) les seuls `AccountDeletionRequestedNotification` et `AccountDeletionReminderNotification` ; test : file `database`, demande puis annulation avant le worker → aucune ligne `failed_jobs`, aucun courriel »
+« marquer `#[DeleteWhenMissingModels]` (attribut de `Illuminate\Queue\Attributes`, que `SendQueuedNotifications` lit) les seuls `AccountDeletionRequestedNotification` et `AccountDeletionReminderNotification` ; test : file `database`, demande puis annulation avant le worker → aucune ligne `failed_jobs`, aucun courriel ; reste : la garde de `NotificationsEnFileTest` sur toute notification en file portant un modèle sans `SoftDeletes`, et le marqueur des cinq autres avis (`AgencyUpgradeApproved/Rejected/RequestSubmittedNotification`, `InvitationAcceptedNotification`, `SuperAdminInvitedBroadcast`), au porteur »
 
 Critère accordé : V7.
 
