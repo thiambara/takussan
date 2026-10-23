@@ -258,6 +258,10 @@ class PaymentController extends Controller
             'late_fee_outstanding' => $p->lateFeeOutstanding(),
             'late_fee_payable_online' => $this->gateway->lateFeeIncluded($p),
             'amount_due' => (float) ($this->gateway->amountDue($p) ?? 0),
+            // TCK-1500 (P94.04) — la date de TRI de la ligne : le paiement s'il a eu lieu, sinon, pour
+            // une échéance impayée, le début de sa période (date calendaire) mis à minuit UTC, puis la
+            // création. Choix explicite, figé par `CalendarDatesInWriteResponsesTest` ; la date
+            // calendaire elle-même sort dans `period_start`.
             'date' => ($p->paid_at ?? $p->period_start?->startOfDay() ?? $p->created_at)?->toISOString(),
             'paid_at' => $p->paid_at?->toISOString(),
             'period_start' => $p->period_start?->toDateString(),

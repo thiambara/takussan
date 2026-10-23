@@ -85,6 +85,22 @@ class BookingPolicy extends BasePolicy
     }
 
     /**
+     * TCK-1494 (P116.04) — expirer une réservation à la main : le personnel de l'agence tenant
+     * `bookings.cancel`, la capacité du geste voisin (annuler). Le contrôleur jugeait « être admin »,
+     * sans capacité : un admin dont le rôle la retire expirait, un agent qui la porte était refusé.
+     * Ni le bailleur ni le client : le geste est celui de l'agence (route sans appelant au front).
+     */
+    public function expire(User $user, Booking $booking): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $this->isStaffOf($user, $booking->agency_id)
+            && $user->can(Capability::BookingsCancel->value, $booking);
+    }
+
+    /**
      * TCK-596 (VERIF-596, hors diff fermé ici) — le propriétaire du bien confirme, refuse et annule,
      * sauf s'il est suspendu (`blocked`) dans l'agence de la réservation : la règle de 587
      * (`landlordWrites`) que le bail, l'état des lieux et le remboursement appliquaient déjà.

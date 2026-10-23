@@ -118,6 +118,11 @@ class GroupConversationService
         $added = [];
 
         DB::transaction(function () use ($conversation, $actor, $userIds, &$added) {
+            // TCK-1492 (P92.07) — la conversation verrouillée d'abord : deux ajouts simultanés du
+            // même membre lisaient tous deux « absent », et le second heurtait l'index
+            // `(conversation_id, user_id)` en 500. Sérialisés, le second le voit présent et le saute.
+            Conversation::query()->whereKey($conversation->getKey())->lockForUpdate()->firstOrFail();
+
             $existingActive = $conversation->participants()
                 ->wherePivotNull('left_at')
                 ->pluck('users.id')

@@ -12,6 +12,7 @@ use App\Models\Enums\BankStatementStatus;
 use App\Services\Accounting\StatementParser\CsvDriver;
 use App\Support\Masking;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class BankStatementController extends Controller
 {
@@ -41,33 +42,40 @@ class BankStatementController extends Controller
 
         $hash = $request->input('file_hash') ?? hash_file('sha256', $request->file('file')->getRealPath());
 
-        // Double-check for duplicate (also validated in form request)
-        $previous = BankStatement::where('agency_id', $agency->id)->where('file_hash', $hash)->get();
-        if ($previous->contains(fn (BankStatement $s) => $s->status !== BankStatementStatus::Failed)) {
-            abort_code(422, 'reconciliation.duplicate_file');
-        }
-
-        // TCK-593 — un relevé `failed` n'a aucune ligne (l'insertion est transactionnelle) : le
-        // ré-import du même fichier le remplace, sinon l'index unique `(agency_id, file_hash)`
-        // ferait d'un mapping erroné une impasse.
-        $previous->each->delete();
-
         // Mask IBAN if provided — TCK-601 : le masqueur unique du dépôt (ADR-0044 §1).
         $iban = $request->input('account_iban');
         $maskedIban = $iban ? Masking::iban($iban) : null;
 
-        $statement = BankStatement::create([
-            'agency_id' => $agency->id,
-            'uploaded_by' => $request->user()->id,
-            'source_format' => $request->input('source_format'),
-            'file_hash' => $hash,
-            'bank_name' => $request->input('bank_name'),
-            'account_iban_masked' => $maskedIban,
-            'status' => 'processing',
-            // TCK-593 — le mapping est FIGÉ sur le relevé : modifier ensuite celui de l'agence ne
-            // ré-interprète aucun relevé passé.
-            'csv_mapping' => CsvDriver::effectiveMapping($agency->bank_csv_mapping),
-        ]);
+        // TCK-1492 (P92.07) — l'agence verrouillée avant de chercher le même fichier : sans verrou,
+        // deux imports simultanés passaient le contrôle, et le second heurtait
+        // `bank_statements_agency_hash_unique` en 500 au lieu du 422 `reconciliation.duplicate_file`.
+        $statement = DB::transaction(function () use ($agency, $request, $hash, $maskedIban): BankStatement {
+            Agency::query()->whereKey($agency->getKey())->lockForUpdate()->firstOrFail();
+
+            // Double-check for duplicate (also validated in form request)
+            $previous = BankStatement::where('agency_id', $agency->id)->where('file_hash', $hash)->get();
+            if ($previous->contains(fn (BankStatement $s) => $s->status !== BankStatementStatus::Failed)) {
+                abort_code(422, 'reconciliation.duplicate_file');
+            }
+
+            // TCK-593 — un relevé `failed` n'a aucune ligne (l'insertion est transactionnelle) : le
+            // ré-import du même fichier le remplace, sinon l'index unique `(agency_id, file_hash)`
+            // ferait d'un mapping erroné une impasse.
+            $previous->each->delete();
+
+            return BankStatement::create([
+                'agency_id' => $agency->id,
+                'uploaded_by' => $request->user()->id,
+                'source_format' => $request->input('source_format'),
+                'file_hash' => $hash,
+                'bank_name' => $request->input('bank_name'),
+                'account_iban_masked' => $maskedIban,
+                'status' => 'processing',
+                // TCK-593 — le mapping est FIGÉ sur le relevé : modifier ensuite celui de l'agence ne
+                // ré-interprète aucun relevé passé.
+                'csv_mapping' => CsvDriver::effectiveMapping($agency->bank_csv_mapping),
+            ]);
+        });
 
         // Attach the file via Spatie MediaLibrary
         $statement->addMedia($request->file('file'))
