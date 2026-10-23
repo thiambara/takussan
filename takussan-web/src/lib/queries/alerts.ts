@@ -1,5 +1,7 @@
-import { apiRequest } from '@/lib/api';
+import { apiRequest, buildQueryString } from '@/lib/api';
 import { getToken } from '@/lib/session';
+import type { PaginatedResponse } from '@/types/api';
+import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
 
 /**
  * Server wrappers around /api/threshold-alerts (TCK-032 P3).
@@ -30,7 +32,14 @@ export type ThresholdAlertInput = {
 export async function fetchThresholdAlerts(): Promise<{ data: ThresholdAlert[] } | null> {
   const token = await getToken();
   if (!token) return null;
-  return apiRequest('/api/threshold-alerts', { token });
+  // TCK-2003 (P171.02) — toutes les pages : sans `per_page`, l'API rendait 15 alertes, et la 16ᵉ
+  // agissait sans pouvoir être vue, modifiée ni supprimée depuis la page.
+  return lireToutesLesPages((page) =>
+    apiRequest<PaginatedResponse<ThresholdAlert>>(
+      `/api/threshold-alerts?${buildQueryString({ page, per_page: PAR_PAGE_MAX })}`,
+      { token },
+    ),
+  );
 }
 
 // TCK-292 (2026-08-22) — `createThresholdAlert` et `deleteThresholdAlert` ont été SUPPRIMÉES,
