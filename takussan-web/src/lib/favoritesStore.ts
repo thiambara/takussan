@@ -95,8 +95,35 @@ export function replace(ids: number[]): void {
   write(ids);
 }
 
+/**
+ * TCK-1826 (P136.05) — le chargeur des favoris serveur, lancé au premier abonné du magasin.
+ *
+ * `AuthContext` le pose pour l'utilisateur connecté au lieu de lire tout de suite : un écran sans
+ * cœur ni compteur (console d'agence, `/super-admin`) ne paie plus la lecture de tous les favoris.
+ * Un chargeur ne part qu'une fois ; un abonné déjà monté le lance aussitôt posé.
+ */
+let chargeur: (() => void) | null = null;
+let abonnes = 0;
+
+function lancerChargeur(): void {
+  const fn = chargeur;
+  chargeur = null;
+  fn?.();
+}
+
+/** Pose le chargeur à lancer au premier abonné ; rend de quoi le retirer s'il n'est pas parti. */
+export function chargerAuPremierAbonne(fn: () => void): () => void {
+  chargeur = fn;
+  if (abonnes > 0) lancerChargeur();
+  return () => {
+    if (chargeur === fn) chargeur = null;
+  };
+}
+
 export function subscribe(listener: () => void): () => void {
   if (typeof window === 'undefined') return () => {};
+  abonnes += 1;
+  lancerChargeur();
   const onStorage = (e: StorageEvent) => {
     if (e.key === FAVORITES_STORAGE_KEY || e.key === null) listener();
   };
@@ -104,6 +131,7 @@ export function subscribe(listener: () => void): () => void {
   window.addEventListener('storage', onStorage);
   window.addEventListener(CHANGE_EVENT, onChange);
   return () => {
+    abonnes -= 1;
     window.removeEventListener('storage', onStorage);
     window.removeEventListener(CHANGE_EVENT, onChange);
   };

@@ -178,6 +178,34 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
     expect(screen.queryByText('Ce client semble déjà exister dans l\'agence.')).not.toBeInTheDocument();
   });
 
+  it('P182.03 (TCK-1824) — une demande déjà convertie (409 `lead.already_converted`) montre la fiche, sans toast d’erreur', async () => {
+    convert.mutateAsync.mockRejectedValueOnce(
+      new ApiError(409, { code: 'lead.already_converted', customer: { id: 77 } }),
+    );
+    const user = userEvent.setup();
+    render(withIntl(<ContactLeadsInbox />));
+
+    await user.click(screen.getByRole('button', { name: 'Convertir en client' }));
+
+    expect(await screen.findByRole('link', { name: 'Voir la fiche client' })).toHaveAttribute(
+      'href',
+      '/app/customers/77',
+    );
+    expect(screen.queryByRole('button', { name: 'Convertir en client' })).not.toBeInTheDocument();
+    expect(toastAdd).not.toHaveBeenCalled();
+  });
+
+  it('P182.03 (TCK-1824) — la carte suit `customer_id` relu, sans être remontée', () => {
+    const { rerender } = render(withIntl(<ContactLeadsInbox />));
+    expect(screen.getByRole('button', { name: 'Convertir en client' })).toBeInTheDocument();
+
+    etat.leads = [lead({ customer_id: 66 })];
+    rerender(withIntl(<ContactLeadsInbox />));
+
+    expect(screen.getByRole('link', { name: 'Voir la fiche client' })).toHaveAttribute('href', '/app/customers/66');
+    expect(screen.queryByRole('button', { name: 'Convertir en client' })).not.toBeInTheDocument();
+  });
+
   it('attribuer : l’administrateur de l’agence choisit un collègue', async () => {
     etat.roles = ['agency_admin'];
     const user = userEvent.setup();

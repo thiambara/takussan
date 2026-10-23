@@ -6,6 +6,7 @@ import { CheckCircle2, ChevronRight, Circle } from 'lucide-react';
 
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { PAGES_ADMIN, type CheminAdmin } from '@/lib/access/pages-admin';
+import { cheminMiseEnService, cleMiseEnService, type SetupStatusResponse } from '@/lib/queries/mise-en-service';
 import type { AgencyKind } from '@/types/agency';
 
 /**
@@ -22,14 +23,6 @@ import type { AgencyKind } from '@/types/agency';
  * sait pas libeller n'est pas affichée (pas de chemin de clé brut à l'écran), mais elle COMPTE dans
  * la progression — le total reste celui du serveur.
  */
-export interface EtapeMiseEnService {
-  readonly key: string;
-  readonly done: boolean;
-}
-
-interface SetupStatusResponse {
-  readonly data: { readonly complete: boolean; readonly steps: readonly EtapeMiseEnService[] };
-}
 
 /**
  * L'écran qui fait chaque étape. Les pages d'administration sont tenues à la table des pages
@@ -72,8 +65,9 @@ interface MiseEnServiceProps {
 export function MiseEnService({ agencyId, kind = 'standard' }: MiseEnServiceProps) {
   const t = useTranslations('dashboard.agencySetup');
   const { data } = useApiQuery<SetupStatusResponse>(
-    ['agencies', agencyId, 'setup-status'],
-    `/api/agencies/${agencyId}/setup-status`,
+    cleMiseEnService(agencyId),
+    // TCK-1830 — désactivée sans agence : le chemin n'est construit que pour un identifiant.
+    agencyId !== null ? cheminMiseEnService(agencyId) : '',
     { enabled: agencyId !== null, retry: false },
   );
 

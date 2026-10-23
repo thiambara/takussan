@@ -43,8 +43,11 @@ interface LeaseScheduleProps {
 }
 
 /**
- * Derived display status — `late` payments are computed client-side when
- * the server hasn't flagged them yet (due date in the past and status ≠ paid).
+ * Statut affiché, dérivé au navigateur. Une échéance `pending` dont la date d'échéance est passée
+ * s'affiche « en retard » par ce seul calcul : l'API n'écrit `late` que lorsqu'elle applique une
+ * pénalité de retard (`LateFeeCalculator`, bail à `late_fee_percent` positif, délai de grâce
+ * écoulé). Sans pénalité configurée, aucune échéance n'est jamais marquée `late` côté serveur
+ * (TCK-1829, P183.05 ; la règle du jour d'échéance reste à trancher, P183.01).
  *
  * TCK-1264 (P146.02) — suit chaque cas de `PaymentStatus` : `refunded`, `failed` et
  * `partially_paid` ne retombent plus sur « Autre ». Une restitution de dépôt (`deposit_refund`)

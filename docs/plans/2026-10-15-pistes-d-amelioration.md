@@ -13266,7 +13266,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 
 ### Petites améliorations
 - Réf : P136.05
-- Statut : validé — porteur (2026-10-22) : trois tickets : les favoris lus au premier abonné du magasin, les lectures de premier affichage passées au serveur, le reste comme l'écrit la recommandation du délégué
+- Statut : fait · TCK-1826
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/context/AuthContext.tsx:109-133`, `takussan-web/src/lib/queries/favorites.ts:91-114`, `takussan-web/src/app/(super-admin)/super-admin/page.tsx`, `takussan-web/src/components/admin/super/SystemMetricsGrid.tsx:71-75`, `takussan-web/src/components/admin/super/ConsoleRecentActivity.tsx:35-39`, `takussan-web/src/components/dashboard/admin/MiseEnService.tsx:74-78`
 - Constat :
@@ -13277,6 +13277,7 @@ Limites : les volumes de la base de développement sont trop petits pour montrer
 - Piste : ne lire les favoris qu'au premier lecteur du magasin, ou hors de `/app` et `/super-admin` ; lire côté serveur ce que l'accueil de `/super-admin` et la mise en service affichent en premier, et le passer en données initiales.
 - Mesure (2026-10-22, 20d495dfd, mesureur) : relu `AuthContext.tsx:109-133` (`fetchAllFavoritePropertyIds` à chaque connexion, puis `invalidateQueries(['favorites'])`), `favorites.ts:91-114` (50 par page, 40 pages au plus, en série), `super-admin/page.tsx` (rendu sans donnée, `ConsoleQueues`, `SystemMetricsGrid`, `ConsoleRecentActivity` lisent au client), `MiseEnService.tsx:74-78` (`useApiQuery` de `setup-status`, `null` tant que rien n'est reçu). Les trois parties tiennent ; le décalage de mise en page et la relance sur `/app/favorites` restent non vérifiés. Classement : V7, la Piste offre deux bornes pour les favoris (premier lecteur, ou hors de `/app` et `/super-admin`) qui changent quand un cœur s'affiche rempli, et trois chantiers distincts dont le choix revient au porteur.
 - Mesure (2026-10-22, 94cf4eeaa, delegue) : relu l'entrée, la `Mesure` du mesureur, `AuthContext.tsx:104-133` (lecture de tous les favoris à chaque connexion, puis `invalidateQueries(['favorites'])`), `favorites.ts:91-114`, et les abonnés du magasin (`grep -rln` → `favoritesStore.ts`, `FavoritesPopover.tsx`, `home/Navbar.tsx`, en plus de `FavoriteButton`) ; `grep -n "porteur ("` de l'angle 136 → aucune décision ; aucune durée ni décalage mesurés. Recommandation : découper en trois tickets, (1) les favoris lus au premier abonné du magasin (`FavoriteButton`, `FavoritesPopover`, `FavoritesList`) plutôt qu'exclus par chemin, parce qu'un cœur affiché reste rempli au même moment quel que soit l'écran et qu'aucune liste de chemins n'est à tenir, (2) les six lectures de l'accueil `/super-admin` passées en données initiales lues par la page serveur, (3) `setup-status` et le compte d'invitations lus par le tableau de bord serveur, avec un test qui exige la carte de mise en service au premier rendu ; non validé : trois chantiers distincts dont deux changent la forme de lecture de pages entières sans décision écrite, et le premier change quand le magasin se remplit (V7) ; manque : l'accord du porteur sur le découpage, et une mesure du décalage à l'écran.
+- Mesure (2026-10-23, 49a5b0cae, implementeur) : relu `AuthContext.tsx:109-133` (favoris lus au montage), `super-admin/page.tsx` (rendu sans donnée) et `overview/agency/page.tsx` (`MiseEnService` et le compte d'invitations lus au navigateur) → tout tient ; trois tickets, comme le porteur l'a décidé. TCK-1826 : test neuf `AuthContext.favoris-au-premier-abonne.tck-1826.test.tsx` rouge sur l'arbre d'origine (lecture au montage sans aucun cœur) → chargeur posé par `AuthContext` et lancé au premier abonné de `favoritesStore`, une fois ; ablation → 2 rouges, correctif remis → 2/2 verts, et les trois tests qui montaient `AuthProvider` sans abonné en montent un. TCK-1828 : `accueil-lu-par-le-serveur.tck-1828.test.tsx` rouge (squelettes au premier rendu) → la page lit les six requêtes avec le jeton de l'opérateur et les amorce (`AmorceLectures`, mêmes clés, mêmes constructeurs de requête que le navigateur) ; ablation → 2 rouges, remis → 2/2 verts, aucun appel du navigateur à `/api/super-admin/*`. TCK-1830 : `mise-en-service-au-premier-rendu.tck-1830.test.tsx` rouge (pas de carte au premier rendu) → `setup-status` et le compte d'invitations lus par la page et amorcés ; ablation → AC1 rouge, remis → 2/2 verts, `page.test.tsx` (une seule lecture du tableau de bord) vert. La relance de `/app/favorites` par l'invalidation et le décalage à l'écran restent non mesurés.
 
 ## Angle 137 — Écrans qui chargent les champs de formulaire et le calendrier par le fichier `index.ts` de `components/forms`
 
@@ -16966,7 +16967,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Une conversion de demande de contact dont la réponse est perdue ne montre jamais la fiche créée : le bouton « Convertir » reste, et chaque clic rend un toast d'erreur
 - Réf : P182.03
-- Statut : validé (délégué) — le 409 `lead.already_converted` porte l'identifiant de la fiche (`customer: { id }`, la forme du 201), sans passer en 200 ; la carte lit `lead.customer_id` relu en plus de son état local, et sur ce 409 pose la fiche et montre le lien « Ouvrir la fiche » existant au lieu du toast d'erreur, sans texte neuf
+- Statut : fait · TCK-1824
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leads/ContactLeadsInbox.tsx:151,177-191,279-288`, `takussan-api/app/Services/Lead/ContactLeadService.php:246-253`, `takussan-api/app/Http/Controllers/Api/ContactLeadController.php:80-90`
 - Constat :
@@ -16976,6 +16977,7 @@ Le PDF de l'état des lieux est P143.01.*
 - Piste : rendre `customer: { id }` avec le 409 `lead.already_converted` (ou 200 avec la fiche existante), et lire `lead.customer_id` en plus de l'état local. Garde : un test API du second appel et un test vitest de la carte sur ce 409.
 - Mesure (2026-10-23, 2b80de9, mesureur) : relu `ContactLeadService.php:246-253` (409 `lead.already_converted` sans identifiant de fiche, sous verrou), `ContactLeadController.php:80-90` (201 avec `customer.id`), `ContactLeadsInbox.tsx:151` (`useState(lead.customer_id)`), `:177-191` (le `catch` ne reconnaît que les doublons, sinon `toasts.error`), `:279-286` (« Convertir » tant que `customerId` est nul) et `:119` (`key={lead.id}`, la carte n'est pas remontée quand `lead` est relu, donc l'état local ne suit pas la prop). La perte de réponse n'a pas été jouée ; le même effet se produit sans elle quand un autre onglet ou un autre membre a converti la demande. Le constat tient. Classement : V7, la `Piste` laisse le choix entre un 409 qui porte la fiche et un 200 qui la rend, et ce que l'écran dit d'une demande déjà convertie n'est écrit nulle part.
 - Mesure (2026-10-23, 9891075dc, delegue) : relu l'entrée et sa mesure, `ContactLeadService.php:246-253` (409 sous verrou de la ligne relue, `customer_id` déjà connu à ce point), `PropertyContactLeadResource.php:32` (`customer_id` déjà rendu à qui lit la demande, donc le porter dans le 409 n'expose rien de neuf), `ContactLeadsInbox.tsx:132-137` (`doublonsDe` : précédent d'un 409 qui porte des données lues par la carte), `:151,177-191,279-286` ; `grep -n "porteur ("` de l'angle 182 → aucune décision. Délégation : V7, choix mineur et réversible en un commit : le 409 garde son code et gagne un champ, aucun texte neuf (la carte montre le lien « Ouvrir la fiche » qui existe déjà après un succès), et l'option du 200 est laissée parce qu'elle préjugerait du contrat de rejeu de tous les gestes, que P182.04 laisse au porteur.
+- Mesure (2026-10-23, 164a559be, implementeur) : avant correctif, `ContactLeadConvertTest` étendu au second appel → 409 `lead.already_converted` sans `customer.id` (nul) ; test vitest de `ContactLeadsInbox` → sur ce 409, aucun lien vers la fiche, et une demande relue avec `customer_id` ne change pas la carte déjà montée (le « à vérifier » sur `useState` est levé). Correctif : le 409 porte `customer: { id }` (`ApiError::with`), la carte affiche la fiche posée sinon `lead.customer_id`, et pose la fiche sur ce 409 sans toast. Ablation des trois parties → chacune rend son test rouge ; remises → `ContactLeadConvertTest` 6/6, `ContactLeadsInbox.test.tsx` 20/20, charge 1,7 à 2,4 sur 8 cœurs.
 
 ### Les gestes de l'API refusent un état déjà atteint par 422 ou 409, alors que deux gestes du dépôt le traitent déjà comme un succès sans effet
 - Réf : P182.04
@@ -17063,7 +17065,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le dialogue « Enregistrer un paiement reçu » propose de régler une restitution de caution, que l'API refuse en 422
 - Réf : P183.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1825
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeasePaymentDialog.tsx:46-52`, `takussan-api/app/Services/Model/LeasePaymentService.php:57-64`
 - Constat :
@@ -17073,10 +17075,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu. Le dialogue n'a pas été rendu.
 - Piste : écarter `payment_type === 'deposit_refund'` des options, comme `isPayable` l'écarte du paiement en ligne (`PaymentGatewayService.php:1718-1722`). Garde : un test du dialogue avec un loyer `pending` et une restitution `pending`, une seule option attendue.
 - Mesure (2026-10-23, 940b7f07f, mesureur) : relu `LeasePaymentDialog.tsx:46-52` (options = lignes `pending` ou `late`, sans `payment_type` ; `nothingToSettle` sur cette liste, inchangé), `LeasePaymentService.php:53-64` (`markPaid` refuse en 422 `lease_payment.deposit_refund_paid_by_payout` sur la ligne verrouillée), `LeasePaymentController.php:30-51` (`index` sans filtre de type) ; test temporaire ajouté à `LeasePaymentDialog.test.tsx` (retiré), charge 2,94 sur 8 cœurs : loyer `pending` et restitution `pending` → 2 options ; restitution seule → « Aucune échéance en attente sur ce bail. » absent ; 2 verts. Le constat tient. Classement : A1, le contrat est écrit par l'API appelée (TCK-594 : une restitution ne se règle jamais à la main) ; le correctif retire du choix une option que l'API refuse toujours, sans rien changer à ce qui s'écrit.
+- Mesure (2026-10-23, 80646bf3b, implementeur) : deux tests ajoutés à `LeasePaymentDialog.test.tsx`, charge 5,29 sur 8 cœurs → rouges avant correctif (option de la restitution du 1 juin 2026 en trop ; restitution seule : « Aucune échéance en attente sur ce bail. » absent) → `LeasePaymentDialog` écarte `payment_type === 'deposit_refund'` des options ; 5/5 verts ; ablation (filtre retiré) → les 2 neufs rouges, remis → verts.
 
 ### Le compte à rebours d'une résiliation anticipée retire le bouton d'annulation un jour trop tôt pour un navigateur à l'ouest d'UTC
 - Réf : P183.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1827
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:27-33,59-67,98-108`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:138-143`
 - Constat :
@@ -17085,10 +17088,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, et mesuré sur la fonction seule ; le bandeau n'a pas été rendu sous un autre fuseau.
 - Piste : compter les jours par comparaison littérale de dates calendaires (ADR-0018), ou faire servir par l'API la fin de la fenêtre d'annulation. Garde : un test de `daysFromTodayTo` sous `TZ=America/New_York`.
 - Mesure (2026-10-23, 940b7f07f, mesureur) : relu `EarlyTerminationBanner.tsx:27-33` (`daysFromTodayTo` : `new Date(iso)` puis `setHours(0,0,0,0)` local, inchangé), `:61-67,98-108` (`cancellationOpen = remaining > 0`, bouton caché sinon), `EarlyTerminationService.php:138-143` (refus si date effective `<=` aujourd'hui, `now()` en `UTC`) ; fonction recopiée, `node` sur l'instant 2026-10-31T15:00Z et la date 2026-11-01 → `Africa/Dakar` 1, `America/New_York` 0, `Asia/Tokyo` 0 : le jour perdu touche aussi un navigateur à l'est d'UTC, après minuit local (le constat ne nommait que l'ouest) ; bandeau non rendu. Classement : A1, la fenêtre est écrite par l'API (`effective > aujourd'hui` UTC) et ADR-0018 dit qu'une date calendaire se compare littéralement ; le correctif compte les jours entre `iso` et la date du jour UTC en `Y-m-d`, sans choix de produit.
+- Mesure (2026-10-23, 80646bf3b, implementeur) : test neuf `EarlyTerminationBanner.fuseau.test.tsx`, horloge à 2026-10-31T15:00Z, date effective 2026-11-01, charge 4,63 sur 8 cœurs → avant correctif, New York et Tokyo rendent « Fin aujourd'hui » sans bouton (2 rouges sur 4, Dakar et le jour UTC même verts) → `daysFromTodayTo` compte l'écart entre la date du jour UTC et la date effective, lues toutes deux à minuit UTC ; 4/4 verts, `EarlyTerminationBanner.test.tsx` et `.lien-facture` 5/5 ; ablation (ancienne fonction) → les 2 mêmes rouges, remise → verts.
 
 ### Petites améliorations
 - Réf : P183.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1829
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:104`, `takussan-web/src/components/leases/LeaseSchedule.tsx:46-47`
 - Constat :
@@ -17097,6 +17101,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu.
 - Piste : formater la date par `fmt.date` ; réécrire le docblock pour dire d'où vient le retard affiché.
 - Mesure (2026-10-23, 940b7f07f, mesureur) : relu `EarlyTerminationBanner.tsx:104` (`t('banner_effective', { date: lease.early_termination_effective_date })`, brut, inchangé), `:48` (`const fmt = useFormatteurs()`, déjà employé l. 154), `fr.json:3779` (« Date effective : {date} »), `useFormatteurs.ts:119` (`fmt.date` → `formatDate` de la locale) ; docblock de `displayStatus` (`LeaseSchedule.tsx:45-47`) inchangé, et la Mesure de P183.01 confirme qu'aucun marquage serveur n'existe sans pénalité. Les deux points tiennent. Classement : A4 pour la date (format de la locale, aucun texte neuf) et A6 pour le docblock, réécrit pour dire ce que fait le code.
+- Mesure (2026-10-23, 80646bf3b, implementeur) : test ajouté à `EarlyTerminationBanner.fuseau.test.tsx`, horloge figée, charge 4,63 sur 8 cœurs → avant correctif, le bandeau rend « Date effective : 2026-11-01 » (rouge) → `fmt.date` sur la date effective ; « Date effective : 1 nov. 2026 », 5/5 verts ; ablation (date brute) → 1 rouge, remise → verts. Docblock de `displayStatus` réécrit après lecture de `LateFeeCalculator.php:97-158` (seul écrivain de `late`, bail à `late_fee_percent` positif, grâce écoulée), sans changement de comportement ; `LeaseSchedule.test.tsx` vert.
 
 ## Angle 184 — Champs hors statut que le `PATCH` générique écrit alors qu'un geste dédié les garde
 

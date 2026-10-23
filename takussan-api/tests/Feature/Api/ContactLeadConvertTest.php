@@ -47,7 +47,10 @@ class ContactLeadConvertTest extends ApiTestCase
 
         $this->postJson("/api/contact-leads/{$lead->id}/convert")
             ->assertStatus(409)
-            ->assertJsonPath('code', 'lead.already_converted');
+            ->assertJsonPath('code', 'lead.already_converted')
+            // P182.03 (TCK-1824) — le 409 porte la fiche, sous la forme du 201 : un écran dont la
+            // première réponse s'est perdue la montre au lieu d'une erreur.
+            ->assertJsonPath('customer.id', $customer->id);
         $this->assertSame(1, Customer::query()->where('agency_id', $x->id)->count());
     }
 
