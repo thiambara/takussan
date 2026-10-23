@@ -12,6 +12,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 import { CommissionsLedger } from '../CommissionsLedger';
 
+// TCK-1732 — le statut et la page se lisent dans l'URL.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ token: 'jeton', user: { id: 1 } }),
 }));
