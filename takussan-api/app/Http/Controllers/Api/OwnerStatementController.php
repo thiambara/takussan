@@ -62,7 +62,7 @@ class OwnerStatementController extends Controller
             // P177.06 (TCK-1785) — le total versé et l'heure du rendu : deux exports d'un même mois
             // pris à des dates différentes se distinguent.
             fputcsv($out, ['paid_out', '', '', '', $statement['totals']['paid_out'], ''], ';');
-            fputcsv($out, ['generated_at', '', '', now()->toIso8601String(), '', ''], ';');
+            fputcsv($out, ['generated_at', '', '', $this->instant(now()), '', ''], ';');
             fclose($out);
         }, $name, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
