@@ -16069,7 +16069,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Un `refreshUser()` qui tombe sur une API en panne, lente ou limitée déconnecte l'utilisateur pour de bon
 - Réf : P172.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : la déconnexion sur erreur de `refreshUser` et le statut du relais `/api/auth/me` touchent la session
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/api/auth/me/route.ts:34-40`, `takussan-web/src/context/AuthContext.tsx:191-208`, `takussan-web/src/hooks/useProfiles.ts:109-117`, `takussan-web/src/components/auth/GardeDoubleFacteur.tsx:80-82`, `takussan-web/src/app/api/auth/logout/route.ts:40-50`
 - Constat :
@@ -16079,10 +16079,11 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Les autres relais `me/*` rendent le statut de l'API quand l'erreur est une `ApiError` (lu, `me/wizard-drafts/[key]/route.ts:40-42`) : `auth/me` est le seul à tout ramener à 401 (lu, `grep -n "status: 401" app/api/**/route.ts`).
   - Établi comment : code relu et deux mesures vitest ; le cas d'un 403 de second facteur sur `/auth/me` n'a pas été mesuré (à vérifier).
 - Piste : faire rendre au relais le statut de l'API pour une `ApiError` (401 seulement sur un 401 amont), et 502 ou 503 sur une panne ; faire que `refreshUser` ne déconnecte que sur un 401, et garde l'utilisateur en place sur toute autre erreur. Garde : un test du relais (`getMe` en 503 → pas de 401) et un test d'`AuthProvider` (`refreshUser` sur un 503 → aucun `POST /api/auth/logout`, utilisateur conservé).
+- Mesure (2026-10-23, 4436bf690, mesureur) : relu `app/api/auth/me/route.ts:34-40` (`catch` nu → 401), `AuthContext.tsx:191-208` (`refreshUser` : 401 → `setUser(null)` puis `POST /api/auth/logout`), `useProfiles.ts:109-117` (`refreshUser` dans `onSettled`, succès ou échec), `grep -rn "refreshUser()"` hors tests (12 appels, plus un commentaire), et lancé deux tests vitest temporaires, retirés (charge 3,31 / 4,74 / 4,68 sur 8 cœurs) : relais, `getMe` en `ApiError(503)`, `ApiError(500)` et `TypeError('fetch failed')` → 401 les trois fois ; `AuthProvider`, relais en 401 → `GET /api/auth/me` puis `POST /api/auth/logout`, utilisateur `null` → le défaut tient pour la panne, le 5xx et le délai ; le 429 du constat est improbable : `routes/api/auth.php:55-57` ne pose aucun limiteur sur `GET /auth/me`, et il n'y a pas de `throttle:api` global (`AppServiceProvider.php:483`) ; la maintenance n'y rend plus 503 depuis TCK-1174. Classement : V2, le correctif change quand une session se ferme et ce que rend le relais d'authentification, que tout le front lit.
 
 ### Après l'envoi d'un avis sur un bien, le formulaire vidé se réaffiche, sans confirmation, et un second envoi rend 422
 - Réf : P172.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:241-251`, `:266-270`, `:311`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviewForm.tsx:43-51`, `takussan-web/src/hooks/usePropertyReviews.ts:41-47`, `takussan-api/app/Http/Controllers/Api/ReviewController.php:305-311`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:726-727`
 - Constat :
@@ -16092,10 +16093,11 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - L'auteur voit donc un formulaire vide, inchangé, et la même liste ; un second envoi rend 422 `review.property_already_reviewed` (lu, `ReviewController.php:305-306`), affiché comme une erreur d'envoi.
   - Établi comment : code relu des deux côtés ; le rendu n'a pas été vu dans un navigateur.
 - Piste : après un envoi réussi, poser `alreadyReviewed` (la réponse 201 l'établit) ou relire l'éligibilité, et dire que l'avis attend la modération. Garde : un test vitest de `PropertyReviews` qui envoie un avis et exige la disparition du formulaire.
+- Mesure (2026-10-23, 4436bf690, mesureur) : relu `PropertyReviews.tsx:241-251` (éligibilité lue une fois, sous `[slug, user]`), l. 266-270 et 311 (formulaire tant que `eligible && !alreadyReviewed`), `usePropertyReviews.ts:41-47` (l'envoi ne relit que la liste), `PropertyReviewForm.tsx:43-51` (champs remis à zéro), `ReviewController.php:305-311` (422 `review.property_already_reviewed`, avis créé `is_approved = false`), `PublicPropertyController.php:727` (liste publique `is_approved = true`), et lancé un test vitest temporaire de `PropertyReviews`, retiré (éligible, envoi réussi) → `submitReview` appelé une fois, puis formulaire toujours rendu, zone de texte vide, éligibilité lue une seule fois, aucun texte « déjà laissé » ; le défaut tient tel qu'écrit. Classement : A1, TCK-180 (l. 39) écrit qu'un utilisateur qui a déjà publié un avis, modéré ou non, ne voit plus le formulaire, et la clé `property.reviews.alreadyReviewed` existe ; le message « en attente de modération » de la `Piste` serait un texte neuf (V7) et reste hors du correctif autonome.
 
 ### `refreshUser` applique la dernière réponse arrivée, pas la dernière demandée
 - Réf : P172.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : l'état de session du contexte d'authentification, y compris après `logout`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/context/AuthContext.tsx:191-208`, `takussan-web/src/hooks/useProfiles.ts:109-117`
 - Constat :
@@ -16103,10 +16105,11 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Mesuré par un test vitest temporaire : deux `refreshUser()` lancés ensemble, la première réponse (`agency_id = 1`) arrivant après la seconde (`agency_id = 2`) → état final `agency_id = 1`.
   - Chaque changement de profil appelle `refreshUser` à sa fin (lu, `useProfiles.ts:116`) : deux changements rapprochés peuvent laisser à l'écran l'agence et les rôles du profil quitté, alors que le cookie porte le dernier. Que le sélecteur de profil permette deux changements avant la fin du premier n'a pas été vérifié (à vérifier). Une `refreshUser` encore en vol au moment d'une déconnexion peut de même remettre un utilisateur après `setUser(null)` (déduit, à vérifier).
 - Piste : ne garder que la réponse de la dernière demande (compteur de rang ou `AbortController` qui annule la précédente), et ignorer toute réponse arrivée après `logout`. Garde : un test d'`AuthProvider` aux réponses inversées.
+- Mesure (2026-10-23, 4436bf690, mesureur) : relu `AuthContext.tsx:191-208` (`refreshUser` sans annulation ni rang, quand la lecture initiale l. 136-187 a `cancelled` et un `AbortController`) et `useProfiles.ts:116`, et lancé un test vitest temporaire d'`AuthProvider`, retiré : deux `refreshUser()` lancés ensemble, la seconde réponse (`agency_id = 2`) rendue avant la première (`agency_id = 1`) → état final `agency_id = 1` ; le défaut tient ; la double bascule de profil par l'interface et la réponse tardive après `logout` restent non mesurées. Classement : V2, le correctif décide quel utilisateur le contexte d'authentification garde, et doit trancher le cas d'une réponse arrivée après une déconnexion.
 
 ### Chaque `refreshUser()` relit tous les favoris et la liste des accueils vus, parce que deux effets dépendent de l'objet `user`
 - Réf : P172.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/context/AuthContext.tsx:110-134`, `takussan-web/src/components/customer/MinimalProfileTriggerProvider.tsx:66-94`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:241-251`
 - Constat :
@@ -16114,10 +16117,11 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - `MinimalProfileTriggerProvider` relit `GET /api/me/welcome-seen` sous la même dépendance `[enabled, user]` (lu, l. 94), et `PropertyReviews` son éligibilité sous `[slug, user]` (lu, l. 251) : une relecture par `refreshUser` (déduit de la même dépendance, non mesuré).
   - Un changement de profil appelle `refreshUser` (lu, `useProfiles.ts:116`) : un client qui change de profil relit tous ses favoris (déduit).
 - Piste : faire dépendre ces effets de `user?.id` (et du jeton), pas de l'objet ; ou ne poser un nouvel utilisateur que s'il diffère. Garde : un test d'`AuthProvider` qui compte les lectures de favoris autour d'un `refreshUser()` rendant le même compte.
+- Mesure (2026-10-23, 4436bf690, mesureur) : relu `AuthContext.tsx:110-134` (effet des favoris sous `[user, token, queryClient]`) et l. 196 (`setUser(await r.json())`, objet neuf à chaque appel), `MinimalProfileTriggerProvider.tsx:94` (`[enabled, user]`), `PropertyReviews.tsx:251` (`[slug, user]`), et lancé un test vitest temporaire d'`AuthProvider`, retiré, `/api/auth/me` rendant le même compte → `fetchAllFavoritePropertyIds` appelé 1 fois au montage, 3 fois après deux `refreshUser()` ; les deux autres effets ne sont pas mesurés ; et `FavoriteController::index` (l. 42-52) filtre par `staffAgencyId()`, qui suit l'agence du profil actif (`MembershipCapabilityResolver.php:450-458`) : la liste dépend de `agency_id`, et une clé `user?.id` seule, proposée par la `Piste`, cesserait de la relire au changement de profil. Classement : A2, moins de lectures sans changer de résultat si l'effet des favoris dépend de `user?.id`, `user?.agency_id` et du jeton.
 
 ### La section « Supprimer mon compte » rend une lecture en échec comme l'absence de demande, et relit ce que la mise en page vient de lire
 - Réf : P172.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : un état « lecture en échec » neuf dans la section de suppression de compte (V3 voisin)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/profile/security/AccountDeletionSection.tsx:42-52`, `takussan-web/src/app/(dashboard)/layout.tsx:66-67`, `takussan-web/src/app/actions/account-deletion.ts:71-81`
 - Constat :
@@ -16125,13 +16129,15 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Une lecture en échec (API lente, 5xx, jeton absent : `failure(err, 'loadFailed')`, lu, `account-deletion.ts:71-81`) fait donc proposer de demander la suppression à un compte dont la suppression est déjà programmée ; la nouvelle demande rendrait alors une erreur de l'API (déduit, à vérifier : la règle de `POST /api/auth/me/deletion-request` face à une demande en cours n'a pas été lue).
   - La mise en page `(dashboard)` lit la même demande, côté serveur, au même chargement (lu, `layout.tsx:66-67`) et ne la passe pas à la page : deux lectures par affichage de `/app/profile`.
 - Piste : rendre l'échec comme un échec (message, et ni bouton de demande ni bouton d'annulation), et passer à la section la demande que la mise en page a déjà lue. Garde : un test vitest de la section, server action en échec → aucun bouton de suppression.
+- Mesure (2026-10-23, 4436bf690, mesureur) : relu `AccountDeletionSection.tsx:42-52` (`setRequest(result.ok ? result.data : null)`) et l. 79-80 (`null` → bouton « Supprimer mon compte »), `account-deletion.ts:71-81` (`failure(err, 'loadFailed')`), `(dashboard)/layout.tsx:66-67` (même lecture côté serveur, non transmise ; la section est montée par `ProfileSecuritySection`), et lancé un test vitest temporaire de la section, retiré, server action en `{ ok: false }` → le bouton « Supprimer mon compte » s'affiche ; le point « à vérifier » est lu et le constat est inexact sur ce point : `AccountDeletionService::requestDeletion` (`updateOrCreate` sur `user_id`) ne rend pas d'erreur face à une demande en cours, il la reprogramme (`scheduled_for` repoussé de tout le délai de grâce) et révoque tous les jetons. Classement : V7, rendre l'échec demande un état et un message visibles neufs sur une fonction RGPD, et la double lecture se corrige en changeant ce que la mise en page passe à la page.
 
 ### Petites améliorations
 - Réf : P172.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : bandeau des démarches lu côté serveur ou propriété retirée, deux options
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/wizard/WizardDraftsBanner.tsx:20-53`, `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:68`, `takussan-web/src/context/AuthContext.tsx:136-187`, `takussan-web/src/app/layout.tsx:74-110`
 - Constat :
   - `WizardDraftsBanner` prévoit `initialDrafts` « pour éviter le décalage » (lu, l. 22-23), mais son seul appelant le monte sans propriété (lu, `page.tsx:68`, `grep -rn WizardDraftsBanner`) : le bandeau des démarches en cours arrive toujours après l'hydratation, en tête de l'accueil, et pousse la page (déduit, à vérifier à l'écran). Le chemin `initialDrafts` n'a aucun appelant.
   - La lecture initiale de `/api/auth/me` par le navigateur, avec son second essai à 500 ms puis sa déconnexion (lu, `AuthContext.tsx:136-187`), ne part que si `initialUser` vaut `undefined` ; la mise en page racine passe toujours `null` ou un utilisateur (lu, `layout.tsx:74`, `:110`) : ce code ne s'exécute pas hors des tests (mesuré, `grep -rn "<AuthProvider"` hors tests → le seul `app/layout.tsx:110`). Il porte la même déconnexion sur 401 que P172.01.
 - Piste : lire les brouillons côté serveur dans la page d'accueil et les passer en `initialDrafts`, ou retirer la propriété ; retirer la lecture initiale morte d'`AuthProvider` si aucun monteur ne passe `undefined`.
+- Mesure (2026-10-23, 4436bf690, mesureur) : relu `WizardDraftsBanner.tsx:20-53` (`initialDrafts` prévu, lecture dans un effet sinon), `grep -rn WizardDraftsBanner src` (seul appelant `(accueil)/page.tsx:68`, sans propriété), `app/layout.tsx:74-87` et l. 110 (`initialUser` vaut `null` ou un utilisateur, jamais `undefined`), `grep -rn "<AuthProvider" src` (le seul monteur hors tests est `layout.tsx:110` ; les six tests qui montent `AuthProvider` passent tous `initialUser`) → les deux constats de code tiennent, la lecture initiale d'`AuthProvider` (l. 136-187) n'a aucun chemin d'exécution, même en test ; le décalage du bandeau à l'écran n'a pas été vu. Classement : V7, la `Piste` laisse deux options pour le bandeau, dont l'une change le rendu de l'accueil ; le retrait de la lecture morte d'`AuthProvider` relèverait seul de A3.
