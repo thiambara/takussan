@@ -163,7 +163,9 @@ class ActivityLogExporter
         return [
             'id' => $log->id,
             'logged_at' => $log->created_at?->toIso8601String(),
-            'causer_email' => $causer?->email ?? $absentCauser,
+            // TCK-1997 (P193.03) — un causeur présent sans e-mail se nomme `user#<id>`, jamais par son
+            // numéro : il tombait dans le repli `system` d'une ligne sans causeur.
+            'causer_email' => $causer === null ? $absentCauser : ($causer->email ?: "user#{$causer->getKey()}"),
             'causer_role' => ($causer instanceof User ? self::roleDansLAgence($causer, $log->agency_id) : $causer?->profileTypes()->first())
                 ?? ($deletedCauser ? 'deleted' : 'system'),
             'event' => $log->event,
