@@ -50,11 +50,11 @@ const carte = (id: number) => ({
 
 function rendu() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(withIntl(
+  return { queryClient, ...render(withIntl(
     <QueryClientProvider client={queryClient}>
       <PipelineKanban />
     </QueryClientProvider>,
-  ));
+  )) };
 }
 
 describe('<PipelineKanban> — comptes, pagination, étape sans glisser', () => {
@@ -83,6 +83,25 @@ describe('<PipelineKanban> — comptes, pagination, étape sans glisser', () => 
 
     expect(await within(desktop).findByText('Client n°51')).toBeInTheDocument();
     expect(mocks.fetchPipelineColumn).toHaveBeenCalledWith('test-token', { stage: 'lead', page: 2 });
+    expect(within(desktop).queryByRole('button', { name: /Charger plus/ })).not.toBeInTheDocument();
+  });
+
+  it('garde les cartes chargées par « Charger plus » quand la colonne est relue (P199.01)', async () => {
+    const { queryClient } = rendu();
+    await screen.findAllByTestId('pipeline-column-lead', {}, { timeout: 3000 });
+    const desktop = within(screen.getByTestId('pipeline-kanban')).getByTestId('pipeline-column-lead');
+    await userEvent.setup().click(await within(desktop).findByRole('button', { name: 'Charger plus (50 sur 73)' }));
+    expect(await within(desktop).findByText('Client n°51')).toBeInTheDocument();
+
+    // Ce que fait le retour sur l'onglet après le `staleTime` de 30 s, ou un remontage.
+    mocks.fetchPipelineColumn.mockClear();
+    await queryClient.refetchQueries({ queryKey: ['crm-pipeline', 'column', 'lead'] });
+
+    await waitFor(() =>
+      expect(mocks.fetchPipelineColumn).toHaveBeenCalledWith('test-token', { stage: 'lead', page: 2 }),
+    );
+    expect(within(desktop).getByText('Client n°51')).toBeInTheDocument();
+    expect(within(desktop).getByText('Client n°73')).toBeInTheDocument();
     expect(within(desktop).queryByRole('button', { name: /Charger plus/ })).not.toBeInTheDocument();
   });
 
