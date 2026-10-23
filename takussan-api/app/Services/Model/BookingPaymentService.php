@@ -20,9 +20,59 @@ class BookingPaymentService
     ) {}
 
     /**
+     * TCK-1916 (P170.02, décision du porteur) — `$boundedByRemaining` : le montant saisi par le
+     * personnel ne dépasse pas le reste dû ({@see remainingReversable()}), jugé sous le verrou de la
+     * réservation pour que deux saisies concurrentes ne passent pas toutes deux la borne. Le client
+     * n'en a pas besoin : son montant est dérivé ({@see dueFromCustomer()}).
+     *
      * @param  array<string,mixed>  $data
      */
-    public function create(Booking $booking, User $user, array $data): BookingPayment
+    public function create(Booking $booking, User $user, array $data, bool $boundedByRemaining = false): BookingPayment
+    {
+        if (! $boundedByRemaining) {
+            return $this->write($booking, $user, $data);
+        }
+
+        return DB::transaction(function () use ($booking, $user, $data): BookingPayment {
+            Booking::query()->whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
+
+            $type = $data['payment_type'] instanceof BookingPaymentType
+                ? $data['payment_type']
+                : BookingPaymentType::from((string) $data['payment_type']);
+
+            if ($type !== BookingPaymentType::Fee) {
+                $remaining = $this->remainingReversable($booking);
+                abort_code_if(
+                    (float) $data['amount'] > $remaining,
+                    422,
+                    'booking_payment.exceeds_remaining',
+                    ['remaining' => $remaining],
+                );
+            }
+
+            return $this->write($booking, $user, $data);
+        });
+    }
+
+    /**
+     * TCK-1916 (P170.02) — ce qui reste à encaisser sur le total de la réservation : `total_amount`
+     * moins les lignes `paid` d'acompte et de solde. Les frais (`fee`) ne sont pas dans le total
+     * reversable au bailleur (ADR-0039 § 3) : ils n'en sont ni bornés ni déduits.
+     */
+    public function remainingReversable(Booking $booking): float
+    {
+        $paid = (float) $booking->payments()
+            ->where('status', PaymentStatus::Paid->value)
+            ->whereIn('payment_type', [BookingPaymentType::Deposit->value, BookingPaymentType::Advance->value])
+            ->sum('amount');
+
+        return max((float) $booking->total_amount - $paid, 0.0);
+    }
+
+    /**
+     * @param  array<string,mixed>  $data
+     */
+    private function write(Booking $booking, User $user, array $data): BookingPayment
     {
         $status = (isset($data['status']) && $data['status'] !== null && $data['status'] !== '')
             ? $data['status']
