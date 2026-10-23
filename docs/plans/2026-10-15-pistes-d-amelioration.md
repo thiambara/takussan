@@ -18103,7 +18103,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### L'abonnement et les reversements plateforme de l'agence quittée restent affichés jusqu'à cinq minutes après un changement de profil
 - Réf : P197.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/billing/AgencyBillingClient.tsx:13`, `takussan-web/src/components/billing/AgencyPayoutsClient.tsx:13-16`, `takussan-web/src/lib/queries/billing.ts:13-19`, `takussan-web/src/lib/queries/super-admin.ts:1050-1057`, `takussan-web/src/app/api/me/subscription/route.ts:15-16`, `takussan-web/src/app/api/me/payouts/route.ts:20-21`, `takussan-web/src/hooks/useProfiles.ts:109-117`, `takussan-web/src/lib/query-client.ts:23`
 - Constat :
@@ -18113,10 +18113,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Le changement fait `router.refresh()` sans quitter la page (lu, l. 97) : les composants client restent montés, et la requête n'est relue ni au montage ni au changement de clé. Avec le `staleTime` de 5 min (lu, `query-client.ts:23`), le plan, l'état d'essai et la liste des reversements de l'agence A restent à l'écran sous l'agence B jusqu'à l'expiration et un retour sur l'onglet (déduit de la configuration, à vérifier au navigateur).
   - Établi comment : chaîne lue, invalidation mesurée ; l'écran n'a pas été rendu.
 - Piste : invalider (ou mettre en clé) toute lecture qui passe par un relais à indice de profil au changement de profil confirmé — le plus sûr est un point unique dans `useSwitchActiveProfile` (voir P197.05). Garde : un test de `useSwitchActiveProfile` qui exige `['me','subscription']` et `['me','payouts']` invalidées (ou réinitialisées) après un changement réussi.
+- Mesure (2026-10-23, b90814b2d, mesureur) : relu `AgencyBillingClient.tsx:13` (`['me', 'subscription']`), `AgencyPayoutsClient.tsx:13-16` (`['me', 'payouts']`), `billing.ts:13-19` et `super-admin.ts:1050-1057` (lecture par le relais `/api/me/*`), `me/subscription/route.ts:15-16` et `me/payouts/route.ts:20-21` (indice `X-Active-Profile-Hint` posé depuis le cookie), `useProfiles.ts:97` (`router.refresh()`) et `:109-117` (`onSettled` n'invalide que `['me','profiles']`, `['roles']`, `['permissions']`) ; test vitest temporaire (`useSwitchActiveProfile` dans un `QueryClient` amorcé de huit clés, `PATCH` simulé en 200, charge 1,88 / 1,88 / 1,99 sur 8 cœurs), retiré ensuite → `['me','profiles']`, `['roles']`, `['permissions']` invalidées, `['me','subscription']` et `['me','payouts']` non ; aucun commit ni ticket ne l'a traité (`git log -S "'me', 'subscription'"`, `grep` des tickets) ; l'écran n'a pas été rendu. Classement : A1, TCK-143 écrit que l'agence courante « reflète le nouveau profil sans recharger la page » ; correctif sans choix : `useSwitchActiveProfile` invalide (ou réinitialise) `['me','subscription']` et `['me','payouts']` sur un changement réussi, le point unique de P197.05 restant hors du correctif, et l'affichage seul d'un montant n'est ni calcul ni écriture (pas V1).
 
 ### La liste de l'équipe d'une agence quittée reste servie sous la nouvelle agence, gestes compris
 - Réf : P197.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin/TeamConsole.tsx:165-170`, `takussan-web/src/lib/queries/admin-users.ts:67`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:23-24`, `takussan-web/src/app/(dashboard)/app/agency/team/page.tsx:78-84`, `takussan-web/src/hooks/useProfiles.ts:109-117`
 - Constat :
@@ -18126,10 +18127,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Après un changement de profil entre deux agences dont le compte est admin, la page reste montée (`router.refresh()`), `agencyId` et `useCan(…, agencyId)` suivent l'agence B, mais la liste et les rôles affichés restent ceux de A tant que la requête n'est pas relue (`staleTime` 15 s, sans relecture au rendu : déduit de la configuration, à vérifier). Les gestes de ligne (rôle, suspension) partent alors sous le profil de B sur un membre de A (déduit, réponse de l'API non mesurée).
   - Établi comment : lu, invalidation mesurée ; l'écran n'a pas été rendu.
 - Piste : mettre l'agence (`agencyId`, déjà en prop) dans la clé `['admin-users', 'list', agencyId, params]`, et l'invalidation de `TeamConsole.tsx:230` et d'`InviteMemberButton.tsx:67` reste valable par préfixe. Garde : un test de `TeamConsole` rendu sous l'agence 1 puis rerendu sous l'agence 2, qui exige une seconde lecture.
+- Mesure (2026-10-23, b90814b2d, mesureur) : relu `TeamConsole.tsx:133-146,165-170` (clé `['admin-users', 'list', params]`, `params` sans agence), `admin-users.ts:67` (relais `/api/admin-users`), `admin-users/[[...path]]/route.ts:23-24` (indice posé, TCK-849), `team/page.tsx:79-84` (`agencyId={user.agency_id}`), et `utilisateur-du-rendu.ts:22-26` (`getMe(token, getActiveProfileId())`) avec `User::getAgencyIdAttribute` (`User.php:446-451`, agence du profil actif) → `agencyId` suit bien le nouveau profil après `router.refresh()`, la clé non ; test temporaire de P197.01 → `['admin-users','list',{page:1}]` non invalidée ; l'invalidation de `TeamConsole.tsx:230` (`['admin-users','list']`) et d'`InviteMemberButton.tsx:67` (`['admin-users']`) reste valable par préfixe ; la réponse de l'API à un geste de ligne sur un membre de A sous B n'a pas été mesurée et n'entre pas dans le correctif. Classement : A1, même contrat écrit de TCK-143 ; correctif sans choix : `agencyId` entre dans la clé, `['admin-users', 'list', agencyId, params]`, avec le test de rerendu sous une autre agence.
 
 ### `IntegrationsManager` fige les intégrations de l'agence quittée dans son état local : le changement de profil ne les remplace pas
 - Réf : P197.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin-settings/IntegrationsManager.tsx:111`, `takussan-web/src/app/(dashboard)/app/agency/integrations/page.tsx:39-71`, `takussan-web/src/app/actions/admin-settings.ts:105-115`, `takussan-web/src/hooks/useProfiles.ts:97`
 - Constat :
@@ -18139,10 +18141,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Les gestes (tester, modifier, supprimer) partent alors sous le profil de B sur un identifiant de A (`admin-settings.ts:155,170,183`) : la réponse de l'API n'a pas été mesurée (à vérifier).
   - Établi comment : lu ; rien n'a été rendu.
 - Piste : poser `key={agencyId}` (ou le profil actif) sur `IntegrationsManager` depuis la page, pour qu'un nouveau rendu sous une autre agence remonte le composant. Garde : un test du composant rerendu avec une autre `initialIntegrations` et une autre clé, qui exige la nouvelle liste ; le même relevé sur les autres `useState(initial…)` des pages dont la lecture porte l'indice.
+- Mesure (2026-10-23, b90814b2d, mesureur) : relu `IntegrationsManager.tsx:111` (`useState(initialIntegrations)`, aucun effet qui relise la prop : `grep -n useEffect` → rien), `integrations/page.tsx:39-71` (`<IntegrationsManager>` l. 65, sans `key`), `admin-settings.ts:105-115` (`fetchIntegrationsAction` passe `getActiveProfileId()`), `IntegrationWebhookEndpoint.tsx:50` (`useState(initialUrl)`, même copie) et `useProfiles.ts:97` (`router.refresh()`, la page reste montée) → le constat tient tel qu'écrit ; la réponse de l'API à un geste sur un identifiant de A sous B n'a pas été mesurée et n'entre pas dans le correctif ; rien n'a été rendu. Classement : A1, même contrat écrit de TCK-143 ; correctif sans choix : la page pose sur `IntegrationsManager` une `key` tirée de l'agence (ou du profil) du rendu, ce qui remonte aussi les `IntegrationWebhookEndpoint` enfants, avec le test de rerendu sous une autre clé.
 
 ### Les clés des lectures d'agence faites par le navigateur ne portent ni l'agence ni le profil : défaut masqué par P174.01, qui apparaîtra avec son correctif
 - Réf : P197.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : la piste est à faire avec P174.01, lui-même à valider (V2 et V6), et mettre le profil dans toute clé de `useApiQuery` est un choix de structure
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/agency-queues.ts:56,64`, `takussan-web/src/components/layout/AppSidebar.tsx:757`, `takussan-web/src/lib/queries/leases.ts:120,141`, `takussan-web/src/components/admin/AuditTrail.tsx:236`, `takussan-web/src/lib/queries/conversations.ts:50`, `takussan-web/src/components/admin/finances/FinanceKpis.tsx:51-55`
 - Constat :
@@ -18151,10 +18154,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - La `Piste` de P174.01 fait porter l'indice par tout appel du navigateur ; ce jour-là, chacune de ces clés servira le compte ou la liste de l'agence quittée, comme P197.01. `FinanceKpis` est la seule lecture qui mette le profil dans sa clé (lu, l. 51-55).
   - Établi comment : lu et `grep` ; aucune lecture de compte multi-agences n'a été rendue.
 - Piste : à faire avec P174.01 et non avant : que `useApiQuery` ajoute lui-même le profil actif à toute clé dont il pose l'indice, plutôt que de compter sur chaque appelant. Garde : un test de `useApiQuery` qui exige deux entrées de cache distinctes pour deux profils actifs.
+- Mesure (2026-10-23, b90814b2d, mesureur) : relu `agency-queues.ts:56,64`, `AppSidebar.tsx:757`, `leases.ts:120,141`, `AuditTrail.tsx:236`, `conversations.ts:50` (clés sans agence ni profil, inchangées) et `FinanceKpis.tsx:51-55` (seule clé qui porte le profil) ; `grep -n activeProfileId src/hooks/useApiQuery.ts` → rien : `useApiQuery` ne passe pas l'`activeProfileId` qu'`apiRequest` sait poser (`api.ts:794-795`), la réponse ne dépend donc pas du profil aujourd'hui et le défaut reste latent ; test temporaire de P197.01 → `['property-moderation','pending-count']` et `['agency-invitations','pending-count']` non invalidées ; P174.01 est `retenu · à valider` (V2 et V6). Classement : V6, la piste attend le choix de P174.01 sur la façon dont le navigateur apprend le profil actif, et la clé de `useApiQuery` en découle.
 
 ### Trois remèdes locaux au même défaut, qui divergent, dont un relit sur l'écriture optimiste et un docblock faux
 - Réf : P197.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : la piste hésite entre réinitialiser tout le cache hors des profils et une liste de préfixes déclarée une fois, un point de structure du cache
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/credits-solde.ts:36-70`, `takussan-web/src/app/(dashboard)/app/agency/finances/AdminFinancesClient.tsx:31-55`, `takussan-web/src/components/admin/finances/FinanceKpis.tsx:41-55`, `takussan-web/src/hooks/useProfiles.ts:74-86`
 - Constat :
@@ -18163,3 +18167,4 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Son commentaire dit que `useSwitchActiveProfile` invalide `['auth', 'me']` (lu, l. 37-39) : aucune clé `['auth', 'me']` n'existe, le hook invalide `['me','profiles']`, `['roles']`, `['permissions']` et appelle `refreshUser()` (lu, l. 109-117).
   - Établi comment : lu.
 - Piste : un seul point de vérité au changement de profil confirmé (`onSuccess` de `useSwitchActiveProfile`) : réinitialiser tout le cache hors `['me','profiles']`, ou une liste de préfixes portés par l'agence déclarée une fois ; retirer alors les deux remèdes d'écoute, et corriger le commentaire d'`AdminFinancesClient`. Garde : le test de P197.01 étendu aux préfixes de la liste.
+- Mesure (2026-10-23, b90814b2d, mesureur) : relu `credits-solde.ts:36-70` (`resetQueries` sur le seul profil confirmé, écriture optimiste écartée), `AdminFinancesClient.tsx:31-55` (cinq `invalidateQueries` dans un effet sur `meta.active_profile_id`), `useProfiles.ts:74-86` (`onMutate` réécrit `active_profile_id` par `setQueryData` avant le `PATCH`) → l'effet d'`AdminFinancesClient` part bien sur l'écriture optimiste, sans effet aujourd'hui tant que ces lectures ne portent pas de profil (P197.04, déduit) ; `FinanceKpis.tsx:51-55` met le profil dans sa clé ; le commentaire d'`AdminFinancesClient.tsx:37-39` cite `['auth', 'me']`, et `grep -rn "'auth', 'me'" src` hors tests ne rend que ce commentaire : la clé n'existe pas. Classement : V6, le point unique demande de choisir entre deux formes d'invalidation qui fixent la règle pour tout le cache ; la seule correction du commentaire relèverait d'A6, sans trancher le reste.
