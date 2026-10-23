@@ -32,6 +32,8 @@ export type UseBookingsParams = {
   status?: string;
   page?: number;
   per_page?: number;
+  /** TCK-1735 (P167.05) — les réservations des biens de l'agent (« Mes chiffres »), `filter[managed_by]=me`. */
+  onlyMine?: boolean;
 };
 
 export function useBookings(params: UseBookingsParams = {}) {
@@ -44,6 +46,7 @@ export function useBookings(params: UseBookingsParams = {}) {
     },
     filter: {
       ...(params.status ? { status: params.status } : {}),
+      ...(params.onlyMine ? { managed_by: 'me' } : {}),
     },
     include: ['property'],
     sort: ['-created_at'],

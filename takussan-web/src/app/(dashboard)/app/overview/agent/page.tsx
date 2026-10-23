@@ -99,8 +99,10 @@ export default async function AgentDashboardPage({ searchParams }: Props = {}) {
 
       <section className="grid gap-4 lg:grid-cols-3">
         <OperationalWidget title={t('pipelinePriorities')}>
+          {/* TCK-1735 (P167.05) — sous « Mes chiffres », le nombre compte les réservations des biens
+              de l'agent : le lien porte cette portée. Sous « Agence », la liste est celle de l'agence. */}
           <MetricLink
-            href="/app/bookings"
+            href={agence ? '/app/bookings' : '/app/bookings?only_mine=1'}
             label={t('pendingRequests')}
             value={data.pipeline_ops?.pending_bookings ?? data.bookings?.pending ?? 0}
             locale={locale}
