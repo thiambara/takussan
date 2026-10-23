@@ -61,6 +61,8 @@ export async function fetchAdminUsers(
   qs.set('sort', params.sort ?? '-created_at');
   qs.set('page', String(params.page ?? 1));
   qs.set('per_page', String(params.perPage ?? 20));
+  // TCK-1770 (P136.04) — les affectations de rôle de la page, dans la même réponse.
+  qs.set('with_role_assignments', '1');
 
   const res = await fetch(cheminApi`/api/admin-users?${qs.toString()}`, {
     credentials: 'include',
