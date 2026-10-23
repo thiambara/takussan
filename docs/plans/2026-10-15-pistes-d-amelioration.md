@@ -16684,7 +16684,7 @@ lu.*
 
 ### Les tests des replis d'envoi tournent sous la file `sync` : ils restent verts si la notification passe en file, alors que le `catch` qu'ils gardent devient inerte
 - Réf : P179.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1797
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/phpunit.xml:51`, `takussan-api/tests/Feature/Search/SavedSearchAlertsTest.php:186-226`, `takussan-api/tests/Feature/Favorites/FavoriteChangeAlertsTest.php:257-330`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:141-153`, `takussan-api/tests/Unit/Architecture/NotificationsEnFileTest.php:49`
 - Constat :
@@ -16695,6 +16695,7 @@ lu.*
   - Établi comment : lu, et mesuré pour la première paire de tests.
 - Piste : une garde d'architecture qui liste les notifications dont l'appelant juge l'envoi (les trois ci-dessus) et refuse qu'elles implémentent `ShouldQueue` ; ou, dans les tests de repli, une assertion sur le caractère synchrone (`assertFalse(is_subclass_of(…, ShouldQueue::class))`) avec le motif.
 - Mesure (2026-10-23, 10c7d9819, mesureur) : `phpunit.xml:51` → `QUEUE_CONNECTION=sync` ; `SavedSearchMatchesNotification` (l. 41), `FavoriteChangesNotification` (l. 26), `LeaseSignatureCodeNotification` (l. 19) → aucune n'implémente `ShouldQueue` ; `LeaseSignatureService::sendCode()` l. 141-153 (`releaseResend()`, `smsLeft()`) et `SendFavoriteChangeAlerts` l. 167-169 tels que cités ; `NotificationsEnFileTest::notificationsEnFile()` ne retient que les classes `ShouldQueue` (lu, l. 49) ; `grep -rn 'is_subclass_of.*ShouldQueue' tests` → seul `NotificationsDeCompteEnFileTest` (autres classes) ; ablation : `ShouldQueue` ajouté à `SavedSearchMatchesNotification`, `php artisan test tests/Feature/Search/SavedSearchAlertsTest.php --filter='test_un_envoi_qui_echoue_rend_sa_reservation|test_un_e_mail_en_echec_ne_double_pas_la_cloche'` → 2 verts, 6 assertions, fichier restauré → le constat tient. Classement : A5, une garde d'architecture ajoutée, sans seuil resserré ni code de production changé.
+- Mesure (2026-10-23, 9bc782f33, implementeur) : re-mesuré avant la garde : `SavedSearchMatchesNotification`, `FavoriteChangesNotification`, `LeaseSignatureCodeNotification` n'implémentent pas `ShouldQueue` (lu), et aucun test ne le fige. Garde `tests/Unit/Architecture/NotificationsJugeesALEnvoiTest.php` (liste des trois, motif de chacune) → verte, 9 assertions ; ablation : `ShouldQueue` ajouté tour à tour à chacune des trois → rouge sur la classe touchée, avec son motif ; fichiers remis → vert.
 
 ### Petites améliorations
 - Réf : P179.04
