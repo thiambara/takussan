@@ -71,5 +71,5 @@ la réservation : la fenêtre est annoncée au passage suivant.
 
 - Le test reste dans la fenêtre de service de 24 h pour la reprise (une heure plus tard) : un jour
   plus tard, le message tomberait hors fenêtre, sans gabarit, donc `deferred`, et rien ne partirait.
-- Ablation : `WhatsappChannel.php` remis à `9bc782f33` → AC1 rouge (la reprise n'appelle pas le
-  pilote : `last_notified_at` n'est pas nul), AC2 vert ; correctif remis → 2 verts.
+- Ablation : `WhatsappChannel.php` remis à `9bc782f33` → AC1 rouge (`last_notified_at` posé après
+  l'échec sûr), AC2 vert ; correctif remis → 2 verts.
