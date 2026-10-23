@@ -17917,7 +17917,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### Créer une conversation directe avec un sujet de plus de 255 caractères rend 500 au lieu de 422
 - Réf : P195.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:42`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:120-121`, `takussan-api/database/migrations/2026_04_17_160016_create_conversations_table.php:13`, `takussan-api/app/Http/Requests/Api/UpdateConversationRequest.php:42`, `takussan-web/src/lib/schemas/message.ts:25-29`
 - Constat :
@@ -17926,10 +17926,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - mesuré : test temporaire, deux agents d'une même agence, `POST /api/conversations` avec `subject` de 300 caractères → **500** « SQLSTATE[22001]: String data, right truncated … character varying(255) ».
   - L'angle 91 (bornes `max:` face aux `varchar`) est `fait` ; ce champ n'y est pas cité (mesuré : `grep -n StoreConversationRequest` sur ce fichier → trois entrées, aucune sur `subject`).
 - Piste : `max:255` sur `subject` de `StoreConversationRequest`, comme au renommage. Test : `subject` de 256 caractères → 422 sur `subject`, et aucune conversation créée.
+- Mesure (2026-10-23, 37a217aec, mesureur) : relu `StoreConversationRequest.php` (`subject` `['nullable', 'string']` passé de la l. 42 à la l. 43, `initial_message` l. 60), `ConversationController.php:121-122` (`Conversation::create` avec `subject` tel quel), migration l. 13 (`string('subject')`), `UpdateConversationRequest.php:42` et `Conversation/CreateGroupConversationRequest.php:57` (`max:255` ; le constat situait ce dernier sous `Api/`) ; `git log` du fichier → aucun commit sur `subject` ; test temporaire `SondeMesureur195Test` (retiré, charge 2,24 / 2,19 / 2,16 sur 8 cœurs), deux agents d'une même agence, `POST /api/conversations` avec `subject` de 300 caractères → **500** `SQLSTATE[22001] … character varying(255)`, aucune conversation écrite → le constat tient. Classement : A1, la borne est écrite par la colonne `varchar(255)` et par le renommage et le groupe ; correctif attendu : `max:255` sur `subject` de `StoreConversationRequest`, et un test `subject` de 256 caractères → 422 sur `subject`, aucune conversation créée.
 
 ### Les photos d'une contestation et les pièces d'un devis au-delà de cinq sont écartées sans un mot
 - Réf : P195.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : refuser ou compter et désactiver, avec quel texte, est à choisir
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/maintenance/MaintenanceResolutionResponse.tsx:18,41-45,78-85`, `takussan-web/src/components/maintenance/QuoteSubmitForm.tsx:26,87-91`, `takussan-api/app/Http/Requests/Api/ContestMaintenanceResolutionRequest.php:25`, `takussan-api/app/Http/Requests/Maintenance/SubmitQuoteRequest.php:40`
 - Constat :
@@ -17937,10 +17938,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Devis d'un prestataire : `setAttachments((prev) => [...prev, ...accepted].slice(0, MAX_ATTACHMENTS))` (lu, l. 90) jette la sixième pièce et les suivantes au moment du choix, sans message ; seuls les fichiers de type refusé sont nommés (`setRejectedFiles`, l. 89). L'API borne aussi à `max:5` (lu, l. 40).
   - Établi comment : lu. Le comportement (pièces choisies et jamais envoyées, sans avis) est celui du code tel qu'écrit.
 - Piste : refuser la sélection au-delà de cinq avec un message (« 5 photos au plus ») au lieu de couper, ou montrer le compteur et désactiver l'ajout. Test Vitest : six fichiers choisis → message visible, et la mutation n'est pas appelée avec cinq fichiers en silence.
+- Mesure (2026-10-23, 37a217aec, mesureur) : relu `MaintenanceResolutionResponse.tsx` (`PHOTOS_MAX = 5` l. 18, `reduirePhotos(photos.slice(0, PHOTOS_MAX))` l. 44, champ `multiple` l. 83 sans compteur ni message), `QuoteSubmitForm.tsx` (`MAX_ATTACHMENTS = 5` l. 26, `.slice(0, MAX_ATTACHMENTS)` l. 90, seuls les types refusés nommés l. 89), API `ContestMaintenanceResolutionRequest.php:25` et `SubmitQuoteRequest.php:40` (`max:5`) ; `git log` des deux composants → aucun commit sur ce point → le constat tient pour la contestation, où les photos au-delà de cinq disparaissent sans trace ; pour le devis il tient en partie, la liste des pièces retenues est affichée (l. 265-280), donc la sixième manque à la liste sans qu'un message le dise. `MediaDropzone` refuse le lot entier avec `max_files` (« Maximum {max} fichiers. », `MediaManager.tsx:549-551`), une clé qui pourrait servir. Classement : V7, la piste laisse deux comportements visibles au choix (refus avec message, ou compteur et ajout désactivé).
 
 ### L'avatar est refusé au-delà de 2 Mo avant d'être réduit, alors que les autres photos sont réduites d'abord
 - Réf : P195.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/profile/ProfileHeader.tsx:90-94,110`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:52`, `takussan-web/src/components/media/MediaManager.tsx:553-556`, `takussan-web/src/lib/reduire-photo.ts:1-20,199-203`
 - Constat :
@@ -17948,10 +17950,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - `MediaDropzone` fait l'inverse depuis TCK-596 : « réduites AVANT la validation … une photo de téléphone de 7 Mo passe sous les 5 Mo de l'état des lieux au lieu d'être refusée » (lu, `MediaManager.tsx:553-556`), par `reduirePhotosSousPlafond`.
   - `reduire-photo.ts` décrit une photo de téléphone à « 3 à 8 Mo pour 12 Mpx » (lu, l. 3) ; `next.config` dit qu'« une seule photo réduite pèse déjà 1,4 Mo » (lu, l. 65). Une photo de téléphone ordinaire serait donc refusée comme avatar alors que sa version réduite passerait `max:2048` (à vérifier sur un fichier réel).
 - Piste : juger la taille après `reduirePhotosSousPlafond(…, 2 Mo)`, comme `MediaDropzone`. Test Vitest avec des outils d'image simulés : un fichier de 5 Mo réductible n'affiche pas `imageTooLarge` et part réduit.
+- Mesure (2026-10-23, 37a217aec, mesureur) : relu `ProfileHeader.tsx` (refus `file.size > 2 * 1024 * 1024` → `imageTooLarge` l. 90-94 au choix, `reduirePhoto(avatar)` seulement à l'envoi l. 110), `UpdateProfileRequest.php:52` (`max:2048`, `PixelsAuPlus`), `MediaManager.tsx:553-556` (`reduirePhotosSousPlafond` avant `validateFile`), `reduire-photo.ts:163-211` (`reduirePhotoSousPlafond` existe) et TCK-542 l. 114-119 (« l'avatar » parmi les écrans réduits ; « une photo de 12 Mo qui tombe sous le plafond une fois réduite n'a pas à être refusée ») → l'ordre refus-puis-réduction tient ; qu'une photo de téléphone réelle passe sous 2 Mo une fois réduite reste non mesuré sur un fichier. Classement : A1, la règle « réduire avant de juger la taille » est écrite par TCK-542 et appliquée par TCK-596 ; correctif attendu : dans `ProfileHeader`, réduire le fichier choisi par `reduirePhotoSousPlafond(file, 2 Mo)` avant le contrôle de taille, garder le fichier réduit pour l'envoi, et un test Vitest à outils d'image simulés où un fichier de 5 Mo réductible ne montre pas `imageTooLarge` et part réduit.
 
 ### Textes longs bornés par le seul front : avis, réponses, messages et notes de client sans `max:` à l'API
 - Réf : P195.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la valeur de chaque borne n'est écrite nulle part
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreForPropertyReviewRequest.php:53`, `takussan-api/app/Http/Requests/Api/StoreForAgencyReviewRequest.php:49`, `takussan-api/app/Http/Requests/Api/ReplyReviewRequest.php:25`, `takussan-api/app/Http/Requests/Api/SendMessageConversationRequest.php:67`, `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:60`, `takussan-api/app/Http/Requests/Api/StoreCustomerNoteRequest.php:36`, `takussan-web/src/lib/schemas/message.ts:10,16-17`, `takussan-web/src/lib/schemas/customer.ts:243-246`
 - Constat :
@@ -17961,10 +17964,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Note de client : `body` `['required', 'string']` (lu, `StoreCustomerNoteRequest.php:36`), 5000 au front (lu, `customer.ts:243-246`).
   - Colonnes `text` (lu, `create_reviews_table.php:17,21`, `create_messages_table.php:15`) : pas de 500, mais un appel direct écrit un avis public ou un message de plusieurs mégaoctets, relu en entier par chaque liste et chaque avis de notification (à vérifier pour la note de client).
 - Piste : poser à l'API la borne que le front annonce (`max:2000` pour l'avis et la réponse, `max:4000` ou `5000` pour le message, `5000` pour la note), en une constante que le front relit par un test de parité (P195.10). Test par champ : borne + 1 → 422.
+- Mesure (2026-10-23, 37a217aec, mesureur) : relu `StoreForPropertyReviewRequest.php:53` et `StoreForAgencyReviewRequest.php:49` (`content` `['nullable', 'string']`), `StoreForAgentReviewRequest.php:38` et `StoreForServiceProviderReviewRequest.php:41` (`max:5000`), `ReplyReviewRequest.php:25` (`['required', 'string']`), `SendMessageConversationRequest.php:67`, `StoreConversationRequest.php:60`, `StoreCustomerNoteRequest.php:36` (sans `max:`), `create_customer_notes_table.php:15` (`text('body')`), inchangés ; test temporaire `SondeMesureur195Test` (retiré, charge 2,24 / 2,19 / 2,16 sur 8 cœurs) : `POST /api/conversations` avec `initial_message` de 100 000 caractères → 201, puis `POST /api/conversations/{id}/messages` avec 100 000 caractères → 201 → le constat tient ; la note de client n'a pas été postée (lu seulement). Classement : V7, la piste hésite elle-même entre 4000 et 5000 pour le message, et l'avis vaut 2000 au front mais 5000 à l'API pour un agent : fixer chaque valeur est un choix de produit, lié à P195.05.
 
 ### Un même champ jugé par des seuils différents selon l'écran : réponse à un avis et contenu d'un avis
 - Réf : P195.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : les seuils de chaque champ sont à choisir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviewReplyForm.tsx:16-17,39,71`, `takussan-web/src/components/profile/ProfileReviewsList.tsx:211,251,493-496,542`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviewForm.tsx:15-16,37,59,109`
 - Constat :
@@ -17972,10 +17976,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Contenu d'un avis : la fiche de bien exige 10 caractères (`REVIEW_CONTENT_MIN`, bouton désactivé, lu l. 37 et 59) ; « Mes avis » (`usePostReview`) envoie un contenu vide ou d'un caractère (`contents[…]?.trim() || undefined`, lu l. 211). L'API n'exige rien (lu, `content` `nullable`).
   - Aucune spec ne fixe ces seuils (mesuré : `grep -n "10 caract\|2000 caract" docs/features.md` → vide).
 - Piste : une seule paire de seuils par champ, écrite à l'API et relue par les deux écrans (choix de produit : les valeurs). Test de parité front/API (P195.10).
+- Mesure (2026-10-23, 37a217aec, mesureur) : relu `PropertyReviewReplyForm.tsx:16-17,39,71` (`REPLY_MIN = 5`, `REPLY_MAX = 1000`), `ProfileReviewsList.tsx:211` (`trim() || undefined`), `:251` et `:542` (`maxLength={2000}`), `:493` (`if (!content)`), `PropertyReviewForm.tsx:15-16,37,59,109` (`REVIEW_CONTENT_MIN = 10`, `REVIEW_CONTENT_MAX = 2000`), inchangés → deux écrans, deux paires de seuils pour la même route : le constat tient ; le blocage d'une réponse de 1500 caractères rouverte depuis la fiche reste non vu au navigateur. Classement : V7, aucune spec ne fixe ces valeurs et la piste le dit elle-même (« choix de produit : les valeurs »).
 
 ### Logo d'agence : 2 Mo au front et dans TCK-064, 10 Mo à l'API
 - Réf : P195.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : 2 Mo à l'API ou 10 Mo au front, la piste laisse le choix
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/schemas/agency.ts:204-205,226`, `takussan-web/src/app/actions/admin-agency.ts:135`, `takussan-api/app/Http/Requests/MediaUploadRequest.php:14,39-47`, `docs/backlog/tickets/TCK-064-admin-agency-config.md:50`
 - Constat :
@@ -17983,20 +17988,22 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - L'API range `logo` avec les photos : `max:MAX_PHOTO_KB` = 10 Mo (lu, l. 14 et 39-47). Un logo de 2 à 10 Mo passe par appel direct, alors que le commentaire de TCK-1423 rappelle qu'un logo « est décodé dans GD à chaque PDF » (lu, l. 47).
   - Établi comment : lu.
 - Piste : borne propre à la collection `logo` (2 Mo, celle du ticket) dans `MediaUploadRequest`, ou relever le front à 10 Mo si le ticket est dépassé (choix). Test : logo de 3 Mo → 422 sur `file`.
+- Mesure (2026-10-23, 37a217aec, mesureur) : relu `agency.ts:204-205,226` (`AGENCY_LOGO_MAX_BYTES = 2 Mo`, « parity with TCK-064 »), `admin-agency.ts:135` (`validateAgencyLogoFile` avant l'envoi), `MediaUploadRequest.php:14,39-49` (`logo` jugé avec les photos, `max:MAX_PHOTO_KB` = 10 Mo, `PixelsAuPlus`), TCK-064 l. 50 (« max 2 Mo ») et l. 81 (contrainte du ticket déjà assouplie pour les formats), `AgencyConfigForm.tsx:211` (`reduirePhoto` à l'envoi) → l'écart tient. Classement : V7, la piste propose deux options (borner l'API à 2 Mo, ou relever le front à 10 Mo si le ticket est dépassé), et TCK-064 a déjà été assoupli une fois.
 
 ### Pièces d'un devis : ni taille vérifiée ni photo réduite, face à `max:5120`
 - Réf : P195.07
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/maintenance/QuoteSubmitForm.tsx:23-26,54,87-91`, `takussan-api/app/Http/Requests/Maintenance/SubmitQuoteRequest.php:45`
 - Constat :
   - L'API refuse toute pièce de plus de 5 Mo (`'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:5120']`, lu l. 45).
   - Le front ne juge que le type (`isAccepted`, l. 54) et n'appelle ni `reduirePhotos` ni `reduirePhotosSousPlafond` (mesuré : `grep -n "reduire\|size" QuoteSubmitForm.tsx` → aucun appel). Une photo de téléphone de 3 à 8 Mo (ordre de grandeur de `reduire-photo.ts:3`) fait refuser tout le devis par un 422 après saisie des lignes (à vérifier au navigateur).
 - Piste : `reduirePhotosSousPlafond(…, 5 Mo)` au choix des pièces, comme `MediaDropzone`, et refus nommé d'un PDF de plus de 5 Mo avant l'envoi. Test Vitest : PDF de 6 Mo → message au choix, aucune mutation.
+- Mesure (2026-10-23, 37a217aec, mesureur) : relu `QuoteSubmitForm.tsx:23-26,54-57,87-91` (type seul jugé, ni taille ni réduction), `SubmitQuoteRequest.php:45` (`max:5120`), `maintenance.ts:391` (pièces ajoutées telles quelles) ; `grep -rn reduirePhoto takussan-web/src` → appelé par la contestation, la clôture, la galerie, la demande, l'avatar, le logo et l'assistant, jamais par le devis → le constat tient ; une pièce de plus de 5 Mo rend un 422 que le formulaire affiche déjà sous le champ (`attachmentErrors`, l. 287-291), après saisie des lignes ; l'envoi d'une vraie photo de 5 Mo n'est pas mesuré au navigateur. Classement : A1 pour la réduction seule, la règle « réduire avant de juger, jusque sous le plafond de l'API » étant écrite par TCK-542 et TCK-596 ; correctif attendu : passer les images choisies par `reduirePhotosSousPlafond(…, 5 Mo)` dans `pickFiles`, les PDF intacts, et un test Vitest à outils d'image simulés où une image de 6 Mo réductible part réduite ; le refus nommé d'un PDF de plus de 5 Mo demande un texte neuf et n'est pas compris dans ce classement.
 
 ### Gardes du front sans appelant qui recopient une contrainte de l'API, gardées en vie par leurs seuls tests
 - Réf : P195.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le trombone a été retiré « pour l'instant » (TCK-683), garder ou non sa garde revient au porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/schemas/message.ts:22-55` (et `isAllowedAttachment` qui suit), `takussan-web/src/lib/queries/customers.ts:250-275`, `takussan-web/src/lib/__tests__/schemas.test.ts:164-191`, `takussan-web/src/lib/queries/__tests__/properties.test.ts:13-14,159`, `takussan-web/src/components/messages/ChatView.tsx:370-372`
 - Constat :
@@ -18005,6 +18012,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - `validateCustomerDocumentFile` et `CUSTOMER_DOCUMENT_MAX_BYTES` (« per TCK-042 », 10 Mo, accepte `image/gif`) n'ont d'appelant que `properties.test.ts` (mesuré : `grep -rln validateCustomerDocumentFile takussan-web/src`) ; les clés `serverActions.customerDocuments` ne servent qu'à lui (à vérifier).
   - Une garde morte qui dit « mirrors » fait croire qu'un seuil est tenu des deux côtés.
 - Piste : retirer les trois gardes, leurs tests et les clés orphelines (A3 à mesurer des deux côtés).
+- Mesure (2026-10-23, 37a217aec, mesureur) : `grep -rn` dans `takussan-web/src` → `isAllowedAttachment`, `MAX_ATTACHMENT_BYTES`, `ALLOWED_ATTACHMENT_MIME` (`message.ts:45-76`) appelés par `lib/__tests__/schemas.test.ts` seul ; `createConversationSchema` et `CreateConversationFormValues` (`message.ts:22-39`) par personne ; `validateCustomerDocumentFile`, `CUSTOMER_DOCUMENT_MAX_BYTES`, `CUSTOMER_DOCUMENT_REJECTION_NAMESPACE` (`customers.ts:251-275`) par `properties.test.ts` seul, et les clés `serverActions.customerDocuments` par ce seul espace de noms → les trois gardes sont sans appelant ; `traducteurs-de-messages.test.ts:405-425` cite `isAllowedAttachment` en exemple mais dérive sa liste, et `validateAgencyLogoFile` la garde non vide ; `ChatView.tsx:370-372` dit que le porteur a retiré le trombone « pour l'instant ». Classement : V7, retirer la garde des pièces jointes du message préjuge du retour du trombone ; `createConversationSchema` et la garde des documents de client relèveraient seuls d'A3.
 
 ### Petites améliorations : seuils du front plus étroits ou d'une autre forme que la règle de l'API
 - Réf : P195.09
