@@ -274,7 +274,7 @@ voie d'écriture (angle 13, puis 47).
 | 197 | Clés TanStack Query des lectures portées par l'agence du profil actif sans l'agence ni le profil dans la clé (`PROPERTY_MODERATION_COUNT_KEY`, `AGENCY_INVITATIONS_COUNT_KEY` d'`agency-queues.ts`, et leurs pareilles sous `src/lib/queries`) face au changement de profil actif, qui n'invalide que `profiles`, `roles` et `permissions` (`useProfiles.ts:109-117`) : compte ou liste de l'agence quittée servis depuis le cache — né de l'angle 167 | fait |
 | 198 | Un même mot compté par des règles différentes d'un écran à l'autre (« publié » : `status = published` du `PlatformMetricsSnapshotter`, `available`+`published` de `STATUTS_QUI_PUBLIENT` et de la santé d'agence, `visibility=public` de la tuile de `/app/properties` ; et leurs pareils pour « actif », « ouvert », « en retard ») : deux nombres sous un même libellé qui ne se rejoignent pas — né de P167.07 | fait |
 | 199 | Listes chargées par morceaux (« Voir plus », `useInfiniteQuery` : `ConversationList`, `CustomerActivityFeed`, `PipelineKanban`/`PipelineColumn`, `announcements`, `AgencyCombobox`) puis triées, filtrées ou comptées côté client sur les seules pages chargées : colonne, onglet ou recherche vide alors que le total de l'API en compte, et chargement de la suite qu'aucun bouton n'offre plus — né de P168.02 | fait |
-| 200 | Gestes d'argent qui créent ou encaissent une ligne sans juger l'état de son parent (`BookingPaymentController::store` et `PaymentGatewayService::isPayable` face à `BookingStatus`, `POST /api/invoices` d'un `invoiceable` annulé ou terminé, liens de paiement `LeasePaymentLinkService` d'un bail sorti, reversement d'une ligne dont la réservation a été annulée après encaissement) : paiement ouvert ou encaissé sur un dossier clos, que seul l'écran empêche — né de P170.01 | à faire |
+| 200 | Gestes d'argent qui créent ou encaissent une ligne sans juger l'état de son parent (`BookingPaymentController::store` et `PaymentGatewayService::isPayable` face à `BookingStatus`, `POST /api/invoices` d'un `invoiceable` annulé ou terminé, liens de paiement `LeasePaymentLinkService` d'un bail sorti, reversement d'une ligne dont la réservation a été annulée après encaissement) : paiement ouvert ou encaissé sur un dossier clos, que seul l'écran empêche — né de P170.01 | fait |
 | 201 | Gestes à usage unique jugés par une lecture d'éligibilité faite une fois au montage (avis d'agence, d'agent et de prestataire hors de la fiche de bien, signalement `report` d'un bien ou d'un avis, demande de contact, candidature, inscription à une alerte) : après l'envoi réussi, formulaire réaffiché et second envoi en 422 — né de P172.02 | à faire |
 | 202 | Gestes qui changent ce que rend `/api/auth/me` (rôles, profils, agence, téléphone, e-mail vérifié, second facteur, intention) suivis du seul `router.refresh()` sans `refreshUser()` : `AuthProvider` garde l'utilisateur de son premier rendu (`useState(initialUser)`, `AuthContext.tsx:80`) et ignore le nouvel `initialUser` de la mise en page racine, si bien que menus, gardes et lectures du navigateur jugent l'ancien état — né de l'angle 172 | à faire |
 | 203 | Code hors requête HTTP qui lit l'agence d'un compte par `$user->agency_id` ou `$notifiable->agency_id` (`SmsChannel.php:115`, `WhatsappChannel.php:262`, `SendSmsAfterLateWhatsappFailureJob.php:105`, et leurs pareils dans les jobs, écouteurs et commandes) : sans requête, pas de profil actif, et l'accesseur rend `null` pour un compte présent dans plusieurs agences — envoi rattaché à aucune agence, ou à la mauvaise, pour le quota, le fournisseur et le journal — né de P174.01 | à faire |
@@ -298,6 +298,7 @@ voie d'écriture (angle 13, puis 47).
 | 221 | Arguments typés `string` de méthodes privées et de constructeurs nourris par une colonne `nullable` ou un repli `?:`/`??` qui peut rendre `null` (`AdminGlobalSearchService::hit`, et leurs pareils sous `app/Services` et `app/Http/Controllers`) : `TypeError` rendu en 500 pour une ligne réelle qu'aucune fabrique de test ne produit — né de P193.01 | à faire |
 | 222 | Photos et pièces téléversées hors de `MediaManager` et `MediaDropzone` (avatar de `ProfileHeader`, pièces de devis, photos de contestation et de création d'une intervention, `KycUploader`, pièce du surclassement, document client) face au patron « réduire puis juger sous le plafond » de TCK-542 et TCK-596 : photo de téléphone refusée au front, ou envoyée entière et refusée en 422 après la saisie — né de P195.03 et P195.07 | à faire |
 | 223 | Agrégats en SQL brut (`DB::selectOne`, `DB::table(…)->join(…)`, `fromSub`) sur des tables à `SoftDeletes` qui ne posent pas `deleted_at IS NULL` là où la portée Eloquent l'aurait posé (`AgencyDetailController::health`, `PaymentSupervisionService::leaseBase`, et leurs pareils sous `app/Services` et `app/Http/Controllers`) : bien, bail ou paiement supprimé encore compté par un compteur ou listé — né de P198.02 et P198.05 | à faire |
+| 224 | Factures de prestataire et devis d'une intervention annulée, rejetée ou close (`ServiceProviderBillController`, `ServiceProviderBill` soumise ou validée, payable par mobile money et imputée par `PayoutCalculator::rechargeableBills` sans lire `maintenance_requests.status`) : frais d'un travail abandonné encore payés au prestataire ou déduits du bailleur — le pendant de l'angle 200 côté interventions | à faire |
 | 224 | Lectures TanStack dont le cache est augmenté à la main par `setQueryData` (pages ajoutées par un « Charger plus » fait main, lignes insérées après un geste) alors que leur `queryFn` ne relit qu'une partie de ce cache : relecture par défaut (focus, remontage, `refetchInterval`, `invalidateQueries`) qui efface ce que l'écran montrait — né de P199.01 |
 | 225 | Tuiles, bandeaux et badges de compte posés au-dessus d'une liste paginée (`ModerationStats`, titres de groupe, onglets, résumés « n en retard ») qui comptent `items.filter(…).length` sur la page reçue, à côté d'un `meta.total` de toute la liste : chiffres de deux portées côte à côte, sans libellé qui le dise — né de P199.02 et P199.03 |
 
@@ -18358,3 +18359,77 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 - Piste : dédoublonner les pages du fil d'activité par `id` comme `ConversationList`, et invalider `['agent-crm', 'customer', id, 'activity']` après les gestes de la fiche (note, étape, tâche) ; borner `maxPages` de la liste des fils ou ne relire que la page 1 par l'intervalle. Tests : fil d'activité à deux pages avec une entrée insérée entre deux lectures.
 - Mesure (2026-10-23, 34c97e42f, mesureur) : relu `CustomerActivityFeed.tsx:41-48,68,110` (`flatMap` sans dédoublonnage, `key={row.id}`), `CustomerActivityFeed.php:54-56` (`created_at desc, id desc`, `paginate`), `grep -rn "invalidateQueries" src | grep agent-crm` → seules `tasks`, `calendarFeed` et `absences` sont invalidées, jamais `activity` ; `conversations.ts:53-54` (`refetchInterval` 10 s, aucun `maxPages` dans `src`) ; test Vitest temporaire (page 1 = lignes 3, 2 ; page 2 décalée d'une insertion = 2, 1 ; « Voir plus »), charge 2,36 sur 8 cœurs, retiré ensuite → la ligne 2 est rendue deux fois : le premier « à vérifier » tient ; l'oubli d'invalidation est établi par lecture, non joué au navigateur ; le fil manqué de la liste des conversations reste déduit. Classement : V7, la troisième partie offre deux comportements de relecture ; les deux premières relèveraient de A1 (patron de `ConversationList`).
 - Mesure (2026-10-23, 4a12ba515, delegue) : relu le constat, la `Piste` et la `Mesure` du mesureur, `CustomerActivityFeed.tsx:41-68` (`useInfiniteQuery`, `pages.flatMap` sans dédoublonnage), `ConversationList.tsx:44-51` (dédoublonnage par `id`, première occurrence gardée, pour la même raison), `agent-crm.ts:29` (clé `activity`) et `grep -rn "invalidateQueries" src | grep -i agent-crm` (seules `tasks`, `calendarFeed` et `absences`) → le constat tient. Délégation : V7, choix mineur et réversible en un commit du seul front : les deux premières parties n'ont qu'une option, le patron déjà écrit de `ConversationList` et l'invalidation que toute mutation du dépôt fait de sa clé (le mesureur les dit relevant de A1) ; la relecture de la liste des fils, où la `Piste` offre deux comportements, va au reste ; aucun critère réservé (ni contrat de l'API ni autorisation touchés).
+
+## Angle 200 — Gestes d'argent sur un dossier clos : réservation fermée, facture d'un objet clos
+
+*Exploré le 2026-10-23 sur `pre-dev` 2a944b073, par l'explorateur, sans sous-agent. Relu par
+l'explorateur lui-même : `BookingService::cancel` et `::reject`, `BookingExpirationService::expire`,
+`OpenBookingRefundTask`, `BookingRefundTaskService::openFor` et `::closeIfSettled`,
+`BookingPaymentService::refund`, `PaymentGatewayService::applyStatusToPayment` (cas `SUCCESS`) et
+`::isPayable`, `PayoutCalculator::bookingPayments` et `::compute`, `PayoutService` (création,
+`assertItemsStillPaid`), `PayoutPreparationService::prepare`, `InvoiceController::store`,
+`StoreInvoiceRequest`, `InvoiceService::create` et `::resolveInvoiceableTarget`,
+`LeasePaymentController::store`, `LeasePaymentService::markPaid`, `LeaseExitScheduleService`,
+`ExpireEndedLeasesJob`, `LeasePaymentLinkService` (`isGone`, `isPayableByNature`), et
+`docs/features.md:161`. Mesuré par un test temporaire `tests/Feature/TmpExplo200/SondeAngle200Test.php`
+(base de test PostgreSQL, charge 3,88 / 4,42 / 3,95 sur 8 cœurs, 3 cas verts), retiré avant la fin ;
+le webhook est joué en appelant `applyStatusToPayment` par réflexion, sans fournisseur ni signature.
+Rien n'a été lu en base de développement. Écarté parce que déjà relevé : la création d'une ligne de
+paiement par le client ou le personnel sur une réservation close, et `isPayable()` qui ne lit pas le
+statut de la réservation (P170.01, P170.02) ; un remboursement après reversement (angle 205).
+Écarté parce que gardé : la ligne de loyer posée sur un bail qui ne court pas (422
+`lease_payment.lease_not_active`, P46.04), les échéances postérieures à la sortie du locataire,
+annulées par `LeaseExitScheduleService` (TCK-1151), dont le lien de paiement rend alors 410
+(`isPayableByNature`) ; les échéances antérieures à la sortie restent dues, et leur lien vivant
+est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
+
+### Un paiement en ligne confirmé après la fermeture d'une réservation devient `paid` sans tâche de remboursement, et part au reversement du bailleur
+- Réf : P200.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Model/BookingService.php:222-253,268-321`, `takussan-api/app/Services/Booking/BookingRefundTaskService.php:39-60`, `takussan-api/app/Listeners/Booking/OpenBookingRefundTask.php:17-20`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:681-721`, `takussan-api/app/Services/Payout/PayoutCalculator.php:80-99`
+- Constat :
+  - `cancel`, `reject` et `expire` changent le statut de la réservation et émettent `BookingClosed`, sans toucher à ses lignes de paiement : une ligne `pending` (checkout ouvert) le reste (lu ; `grep payments() app/Services/Model/BookingService.php` → rien).
+  - La tâche « remboursement à traiter » n'est ouverte qu'à la fermeture, par `OpenBookingRefundTask` → `openFor`, et seulement s'il existe déjà une ligne `paid` (lu, `BookingRefundTaskService.php:44-54`). Aucun autre appelant de `openFor` (lu, `grep -rn openFor app`).
+  - Le webhook de succès ne traite en doublon que les lignes déjà `paid`, `cancelled` ou `refunded` ; une ligne `pending` est écrite `paid` sans lire la réservation (lu, `PaymentGatewayService.php:692-721`).
+  - Mesuré, test temporaire : réservation `confirmed`, ligne `deposit` `pending` de 30 000 ; annulation par l'admin → 0 tâche, ligne `pending`, `isPayable()` → `true` ; succès du fournisseur → ligne `paid`, `paid_at` posé, toujours 0 tâche ; `PayoutCalculator::bookingPayments(agence, bailleur)` rend la ligne.
+  - La spec dit qu'un acompte payé sur une réservation annulée est signalé « remboursement à traiter » à l'agence (lu, `docs/features.md:161`). Ici le client a payé un séjour annulé, personne n'est prévenu, et la somme entre au brut du bailleur.
+  - Le correctif de P170.01 (`isPayable()` qui juge le statut de la réservation) refuserait une initiation neuve, pas un checkout déjà ouvert avant la fermeture (déduit, à vérifier).
+  - Établi comment : lu, mesuré.
+- Piste : à la fermeture d'une réservation (`cancel`, `reject`, `expire`), passer ses lignes `pending` à `cancelled` sous le verrou de la réservation, pour que le succès tardif emprunte le chemin du doublon déjà écrit (`gateway_duplicate_payment` et avis à l'agence, comme pour une échéance annulée par un renouvellement) ; ou, au succès d'une ligne d'une réservation close, ouvrir la tâche `booking_refund` par `openFor`. Garde : le scénario mesuré, pour les trois fermetures, qui attend une tâche ou un doublon et aucune ligne au reversement.
+
+### Un acompte encaissé d'une réservation annulée, dont la tâche de remboursement est ouverte, entre au reversement du bailleur
+- Réf : P200.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Payout/PayoutCalculator.php:80-99`, `takussan-api/app/Services/Payout/PayoutPreparationService.php:48`, `takussan-api/app/Services/Model/PayoutService.php:578-585`, `takussan-api/app/Services/Booking/BookingRefundTaskService.php:39-60`
+- Constat :
+  - `bookingPayments()` filtre l'agence, le bailleur, `status = paid`, le type et `paid_at`, jamais `bookings.status` ni une tâche `booking_refund` ouverte (lu, l. 80-99).
+  - Mesuré, test temporaire : réservation `confirmed`, acompte `paid` de 30 000 ; annulation par l'admin → `cancelled`, une tâche de remboursement ouverte ; `bookingPayments(agence, bailleur)` rend l'acompte.
+  - Le reversement ne s'arrête que si la pièce a changé avant le traitement (`assertItemsStillPaid`, lu, `PayoutService.php:578-585`). Reversé avant le remboursement, l'acompte va au bailleur alors que la tâche signale une somme à rendre ; le remboursement d'après relève de l'angle 205.
+  - Le code n'a pas de politique d'annulation (lu, `grep -rln cancellation_policy app` → rien) : qu'un acompte d'une réservation annulée puisse rester acquis au bailleur n'est écrit nulle part (à vérifier).
+  - Établi comment : lu, mesuré.
+- Piste : écarter de `bookingPayments()` les pièces d'une réservation close tant que sa tâche `booking_refund` est ouverte (ou toute réservation `cancelled`, `rejected` ou `expired`), et le dire dans la préparation ; à défaut, ce que garde le bailleur d'un acompte annulé est une décision. Garde : le scénario mesuré.
+
+### Une facture se crée et s'émet sur une réservation annulée, refusée ou expirée, ou sur un bail en brouillon
+- Réf : P200.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Model/InvoiceService.php:230-251`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:36-38`
+- Constat :
+  - `resolveInvoiceableTarget()` lit la seule ligne `id, agency_id` de l'objet facturé et ne juge que son agence (lu, l. 239-248).
+  - Mesuré, test temporaire, admin de l'agence : `POST /api/invoices` avec `invoiceable_type: booking` sur une réservation `cancelled`, `rejected` puis `expired` → `201` trois fois ; sur un bail `draft` → `201`, puis `POST /api/invoices/{id}/send` → `200` (numéro attribué, facture payable en ligne : `isPayable()` d'une facture ne lit que `sent`/`overdue`, lu `PaymentGatewayService.php:1714-1716`).
+  - Facturer un bail terminé (remise en état, solde) peut être voulu : quels statuts d'objet une facture admet n'est écrit nulle part (à vérifier, `docs/features.md:215-216`).
+- Piste : refuser par un 422 codé une facture dont l'objet est une réservation `cancelled`, `rejected` ou `expired`, ou un bail `draft`/`pending_signature`, après avoir écrit quels statuts restent facturables. Garde : un test par statut refusé, et un témoin `201` sur un bail actif.
+
+### L'objet facturé et le destinataire d'une facture ne sont pas liés : une facture adossée à la réservation d'un client se dresse à un autre
+- Réf : P200.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Model/InvoiceService.php:34-91,230-251`
+- Constat :
+  - `create()` juge le destinataire (`customer_id`, client de l'agence de l'émetteur) et l'objet (`invoiceable`, de la même agence) chacun pour soi ; rien ne compare `bookings.customer_id`, ni le locataire d'un bail, au client facturé (lu).
+  - Mesuré, test temporaire : réservation dont le client est le n° 4, facture au client n° 3 de la même agence → `201`.
+  - Les créateurs internes d'une facture de bail (`EarlyTerminationService`, `DepositRefundService`) choisissent eux-mêmes le destinataire (lu, `EarlyTerminationService.php:343`, `DepositRefundService.php:107`) ; seul l'endpoint public laisse les deux se dissocier.
+  - Qu'une facture de bail puisse viser le bailleur et non le locataire est plausible ; la règle n'est écrite nulle part (à vérifier).
+- Piste : pour une réservation, exiger que `customer_id` soit son client (422 codé sinon) ; pour un bail, écrire qui peut être facturé (locataire seul, ou locataire et bailleur) puis le garder de même. Garde : un test API « autre client → 422 » et un témoin sur le client de la réservation.
