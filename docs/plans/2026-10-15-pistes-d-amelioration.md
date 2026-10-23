@@ -17267,7 +17267,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Une recherche par nom qui contient une virgule est ignorée dans les annuaires publics des agences et des agents, qui rendent alors tout l'annuaire
 - Réf : P187.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1843
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Public/PublicAgencyController.php:143-146`, `takussan-api/app/Http/Controllers/Public/PublicAgentController.php:126-129`, `takussan-api/vendor/spatie/laravel-query-builder/src/AllowedFilter.php:220-237`, `takussan-web/src/lib/queries/public-profiles.ts:145`
 - Constat :
@@ -17278,6 +17278,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : poser `->delimiter('')` sur les deux rappels `search` (la virgule reste du texte). Garde : un test par annuaire qui cherche un nom avec virgule et attend le seul profil qui le porte, à côté d'un second profil qui ne doit pas sortir.
 - Mesure (2026-10-23, 13aa0411a, mesureur) : relu `PublicAgencyController.php:141-146` et `PublicAgentController.php:124-129` (rappel `search` sans `->delimiter('')`, sortie sur `! is_string`), et les quatre poses de `->delimiter('')` de TCK-1401 (`HasQueryBuilder.php:274`, `AuditLogController.php:154`, `Property.php:718`, `KycDossier.php:70`) ; aucun commit sur ces fichiers depuis l'exploration (`git log c6d3283e8..HEAD -- app routes` vide), aucun ticket ne cite P187 ; test temporaire `tests/Feature/Tmp/MesureurTmp187Test.php` (un cas par méthode, charge `{ 2.72 2.62 3.32 }` sur 8 cœurs, retiré) : agences « Immo, Conseil » et « Sahel Homes », `filter[search]=Immo` → total 1, `Immo,%20Conseil` → **2**, `Immo%2C%20Conseil` → **2**, `Immo%20Conseil` → 0 ; agents « Awa Diop » et « Moussa Fall », `Diop` → 1, `Diop,%20Awa` → **2** → le constat tient entier. Classement : A1, le découpage à la virgule est déjà corrigé par TCK-1401 (P151.01) sous la même forme ; le correctif est `->delimiter('')` sur les deux rappels, sans choix de produit, et l'annuaire public ne touche ni autorisation ni donnée personnelle.
+- Mesure (2026-10-23, 772307dd4, implementeur) : test neuf `PublicProfileIndexTest::test_une_recherche_par_nom_avec_virgule_reste_du_texte_sur_les_deux_index` (charge `{ 1.99 2.19 2.84 }` sur 8 cœurs), rouge avant correctif : agences « Immo, Conseil » et « Sahel Homes », `filter[search]=Immo, Conseil` → les deux → `->delimiter('')` posé sur les deux rappels `search` ; ablation par contrôleur (agence seule → rouge l. 648, agent seul → rouge l. 656), remis → vert, 23/23 dans la classe.
 
 ### Un prix ou une surface à partir de 10¹⁵ rend 500 sur la recherche publique : le nombre part au moteur en notation `1.0E+15`
 - Réf : P187.02
