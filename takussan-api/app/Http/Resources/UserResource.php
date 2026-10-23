@@ -12,6 +12,12 @@ class UserResource extends BaseResource
     private bool $pourSoi = false;
 
     /**
+     * TCK-2004 (P176.04 ; ADR-0005, amendement du 2026-10-23, point 4) — l'agence de la route d'une
+     * liste de membres : `roles` s'y rapporte, tous statuts, avec `role_statuses` à côté.
+     */
+    private ?int $agenceDeLaListe = null;
+
+    /**
      * TCK-633 (lot C, tour 2) — pour un ouvreur de session (inscription, entrée par téléphone,
      * OAuth) : `$request->user()` y est nul, et les clés « pour soi » manquaient alors à la
      * réponse que le front pose telle quelle (`openSession`), contrairement à `/api/auth/me`.
@@ -20,6 +26,18 @@ class UserResource extends BaseResource
     {
         $resource = new self($user);
         $resource->pourSoi = true;
+
+        return $resource;
+    }
+
+    /**
+     * TCK-2004 — un membre lu dans la liste d'une agence (`GET|POST /api/agencies/{agency}/members`) :
+     * `roles` ne dit que ce qu'il tient dans CETTE agence, et un admin n'y apprend rien d'une autre.
+     */
+    public static function dansLAgence(User $user, int $agencyId): self
+    {
+        $resource = new self($user);
+        $resource->agenceDeLaListe = $agencyId;
 
         return $resource;
     }
@@ -93,7 +111,13 @@ class UserResource extends BaseResource
             // l'agence que rend `agency_id` juste au-dessus (celle du profil actif, auto-bascule
             // comprise), plus les types globaux. Avant : tous les profils, de toutes les agences,
             // suspendus compris, et le front ouvrait la section d'agence que l'API refuse ensuite.
-            'roles' => $this->resource->activeProfileTypesAt($this->agency_id)->all(),
+            // TCK-2004 — dans une liste de membres, `roles` se rapporte à l'agence de la route.
+            ...($this->agenceDeLaListe === null ? [
+                'roles' => $this->resource->activeProfileTypesAt($this->agency_id)->all(),
+            ] : [
+                'roles' => $this->resource->memberProfileTypesAt($this->agenceDeLaListe)->all(),
+                'role_statuses' => (object) $this->resource->profileStatusesAt($this->agenceDeLaListe),
+            ]),
             'status' => $this->status?->value,
             // TCK-253 — opt-in personalisation hints set via PATCH /api/me.
             // Returned as an object (possibly empty) whenever the column was read, so clients can

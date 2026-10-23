@@ -302,6 +302,40 @@ trait HasProfiles
             && ActiveProfileResolver::isActiveProfile($profile));
     }
 
+    /**
+     * TCK-2004 (P176.04 ; ADR-0005, amendement du 2026-10-23, point 4) — les types tenus dans
+     * l'agence de la route d'une liste de membres, QUEL QUE SOIT leur statut : la liste d'équipe
+     * teste une appartenance (ADR-0031 § 3), et l'admin doit voir le membre suspendu pour le
+     * réactiver. Le statut sort à côté, par {@see self::profileStatusesAt()}. Les types globaux
+     * suivent la règle de {@see self::activeProfileTypesAt()}.
+     *
+     * @return Collection<int,string>
+     */
+    public function memberProfileTypesAt(int $agencyId): Collection
+    {
+        return $this->typesRetenus(fn ($profile): bool => (int) $profile->agency_id === $agencyId);
+    }
+
+    /**
+     * TCK-2004 — le statut de chaque profil d'agence tenu dans `$agencyId`, par type
+     * (`['agent' => 'suspended']`).
+     *
+     * @return array<string,string>
+     */
+    public function profileStatusesAt(int $agencyId): array
+    {
+        $statuts = [];
+        foreach (self::AGENCY_PROFILE_RELATIONS as $relation => $type) {
+            $profile = $this->profileRows($relation)->first(fn ($p): bool => (int) $p->agency_id === $agencyId);
+            if ($profile !== null) {
+                $status = $profile->getAttribute('status');
+                $statuts[$type] = $status instanceof \BackedEnum ? (string) $status->value : (string) $status;
+            }
+        }
+
+        return $statuts;
+    }
+
     /** Les relations de profil d'agence, dans l'ordre de `profileTypes()`, et leur type. */
     private const AGENCY_PROFILE_RELATIONS = [
         'agencyAdminProfiles' => 'agency_admin',
