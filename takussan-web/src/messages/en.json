@@ -9187,7 +9187,8 @@
       "opportunitySubmit": "Publish my reviews",
       "opportunitySentTitle": "Review sent",
       "opportunitySentBody": "Thank you! Your review will be published once approved.",
-      "opportunityError": "Your review could not be sent."
+      "opportunityError": "Your review could not be sent.",
+      "anonymous": "Anonymous"
     },
     "contact": {
       "title": "Contact details",
