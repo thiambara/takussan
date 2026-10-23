@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
+import { navigationDeTest } from '@/test/navigation-url';
 import { CalendarPage } from '../CalendarPage';
 import type { CalendarEvent } from '@/types/calendar';
 
@@ -27,6 +28,10 @@ const calendarResult: QueryResult = {
   isLoading: false,
   isError: false,
 };
+
+// TCK-1740 — vue, date, types, bien et « Mes rendez-vous » se lisent et s'écrivent dans l'URL.
+vi.mock('next/navigation', async () => (await import('@/test/navigation-url')).moduleNavigation);
+beforeEach(() => navigationDeTest.reinitialiser());
 
 const { useCalendarMock } = vi.hoisted(() => ({
   useCalendarMock: vi.fn(),
