@@ -21,6 +21,7 @@ use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -397,10 +398,12 @@ class PublicAgencyController extends Controller
         abort_if($agency === null, 404);
 
         $perPage = min(max((int) $request->input('per_page', 24), 1), 48);
+        $contrat = self::contratFiltre($request);
 
         $properties = Property::query()
             ->where('agency_id', $agency->id)
             ->publicPortfolio()
+            ->when($contrat !== null, fn (Builder $q) => $q->where('contract_type', $contrat))
             ->with('address', 'media')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')
@@ -409,5 +412,17 @@ class PublicAgencyController extends Controller
         // TCK-1220 (P108.03) — l'enveloppe canonique `{ data, meta }`, et non celle de Laravel
         // (`links`, `meta.path`…), dont les URL portent l'hôte de la requête.
         return $this->paginated($properties, PropertyResource::collection($properties)->toArray($request));
+    }
+
+    /**
+     * TCK-1730 (P168.02) — `filter[contract_type]` (`rent`|`sale`, exact) : chaque onglet du
+     * portefeuille public se charge par l'API, au lieu de filtrer côté client les seuls biens déjà
+     * chargés. Une autre valeur rend 422.
+     */
+    private static function contratFiltre(Request $request): ?ContractType
+    {
+        $request->validate(['filter.contract_type' => ['nullable', Rule::enum(ContractType::class)]]);
+
+        return ContractType::tryFrom((string) $request->input('filter.contract_type', ''));
     }
 }
