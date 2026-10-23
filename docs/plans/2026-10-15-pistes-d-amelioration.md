@@ -17087,7 +17087,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Petites améliorations
 - Réf : P183.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1829
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:104`, `takussan-web/src/components/leases/LeaseSchedule.tsx:46-47`
 - Constat :
@@ -17096,3 +17096,4 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu.
 - Piste : formater la date par `fmt.date` ; réécrire le docblock pour dire d'où vient le retard affiché.
 - Mesure (2026-10-23, 940b7f07f, mesureur) : relu `EarlyTerminationBanner.tsx:104` (`t('banner_effective', { date: lease.early_termination_effective_date })`, brut, inchangé), `:48` (`const fmt = useFormatteurs()`, déjà employé l. 154), `fr.json:3779` (« Date effective : {date} »), `useFormatteurs.ts:119` (`fmt.date` → `formatDate` de la locale) ; docblock de `displayStatus` (`LeaseSchedule.tsx:45-47`) inchangé, et la Mesure de P183.01 confirme qu'aucun marquage serveur n'existe sans pénalité. Les deux points tiennent. Classement : A4 pour la date (format de la locale, aucun texte neuf) et A6 pour le docblock, réécrit pour dire ce que fait le code.
+- Mesure (2026-10-23, 80646bf3b, implementeur) : test ajouté à `EarlyTerminationBanner.fuseau.test.tsx`, horloge figée, charge 4,63 sur 8 cœurs → avant correctif, le bandeau rend « Date effective : 2026-11-01 » (rouge) → `fmt.date` sur la date effective ; « Date effective : 1 nov. 2026 », 5/5 verts ; ablation (date brute) → 1 rouge, remise → verts. Docblock de `displayStatus` réécrit après lecture de `LateFeeCalculator.php:97-158` (seul écrivain de `late`, bail à `late_fee_percent` positif, grâce écoulée), sans changement de comportement ; `LeaseSchedule.test.tsx` vert.
