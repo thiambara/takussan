@@ -232,6 +232,14 @@ describe('<ProfileReviewsList> — boîte des avis reçus', () => {
     ...overrides,
   });
 
+  // TCK-1781 (P175.05) — l'API rend `author.name` nul pour un auteur effacé ou sans nom.
+  it('un avis reçu d’un auteur sans nom affiche « Anonyme »', async () => {
+    mockFetch({ received: page([recu({ author: { id: null, name: null, avatar_url: null } })]) });
+    renderList(['agent', 'customer']);
+
+    expect(await screen.findByTestId('received-review-90')).toHaveTextContent('Anonyme ·');
+  });
+
   it('un client sans profil professionnel n’a pas de boîte', async () => {
     const appels = mockFetch({});
     renderList(['customer']);

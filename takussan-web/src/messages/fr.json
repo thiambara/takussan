@@ -9187,7 +9187,8 @@
       "opportunitySubmit": "Publier mes avis",
       "opportunitySentTitle": "Avis envoyé",
       "opportunitySentBody": "Merci ! Votre avis sera publié après validation.",
-      "opportunityError": "Votre avis n'a pas pu être envoyé."
+      "opportunityError": "Votre avis n'a pas pu être envoyé.",
+      "anonymous": "Anonyme"
     },
     "contact": {
       "title": "Coordonnées",

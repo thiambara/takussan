@@ -510,7 +510,7 @@ function ReceivedReviewCard({ review }: { readonly review: Review }) {
         <div className="min-w-0 flex-1 basis-48">
           <p className="truncate text-sm font-semibold text-foreground">{review.target?.title ?? t('targetFallback')}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {review.author.name} · {review.created_at ? formatDate(review.created_at, locale) : t('unknownDate')}
+            {review.author.name || t('anonymous')} · {review.created_at ? formatDate(review.created_at, locale) : t('unknownDate')}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">

@@ -49,6 +49,8 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
   const fmt = useFormatteurs();
   const [editing, setEditing] = useState(false);
   const hasReply = Boolean(review.reply_content);
+  // TCK-1781 — l'API rend `name` nul pour un auteur effacé ou sans nom.
+  const nomAuteur = review.author.name || tNote('anonymous');
 
   return (
     <li className="border-b border-border pb-4 last:border-b-0">
@@ -57,20 +59,20 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
           {review.author.avatar_url ? (
             <Image
               src={review.author.avatar_url}
-              alt={review.author.name}
+              alt={nomAuteur}
               fill
               sizes="40px"
               className="object-cover"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm font-semibold text-muted-foreground">
-              {review.author.name.charAt(0).toUpperCase()}
+              {nomAuteur.charAt(0).toUpperCase()}
             </div>
           )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between gap-2 flex-wrap">
-            <p className="font-medium text-foreground">{review.author.name}</p>
+            <p className="font-medium text-foreground">{nomAuteur}</p>
             <time className="text-xs text-muted-foreground">{fmt.date(review.created_at, DATE_D_AVIS)}</time>
           </div>
           <div
