@@ -11818,7 +11818,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
 
 ### Le choix de l'intervenant d'une maintenance ne propose que des prestataires, alors que l'API accepte le personnel de l'agence, comptes bloqués compris
 - Réf : P120.03
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1786
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/maintenance.ts:261-280`, `takussan-web/src/components/maintenance/MaintenanceAssignmentBlock.tsx:45-55,143-160`, `takussan-api/app/Services/Maintenance/ProviderEligibility.php:33-42,92-99`, `takussan-api/app/Rules/AssignableProvider.php`
 - Constat :
@@ -11828,6 +11828,7 @@ repris. Les rendus du front n'ont pas été rejoués.*
   - Établi comment : lu.
 - Piste : décider si l'agence peut se confier une intervention depuis l'écran (ajouter le personnel `filter[assignable]=1` aux options) ou si l'API doit cesser de l'accepter ; dans les deux cas, juger la cible par `estPersonnel()` et écarter le prestataire au compte non joignable. Test : agent `blocked` en `assigned_to` → 422.
 - Mesure (2026-10-22, 851bd88b9, mesureur) : relu `ProviderEligibility::isAssignable()` (prestataire à collaboration active OU `isStaffAt()`), `MembershipCapabilityResolver::isStaffAt()` (profil actif ou délégation, aucune lecture de `users.status`), `activeCollaborations()` (statut du profil prestataire, pas du compte), `AssignableProvider` et `maintenance.ts:261-280` (le sélecteur ne lit que `/service-providers`) ; test temporaire (retiré ensuite), même charge : bailleur du bien, `PATCH /api/maintenance-requests/{mr}` `assigned_to` = agent de l'agence au compte `blocked` → **200**, `assigned_to` posé ; même geste avec un prestataire actif au compte `blocked` → **200**. Les deux parties « à vérifier » du constat tiennent. Classement : V7 et V2, la piste elle-même pose le choix (ouvrir le personnel à l'écran ou cesser de l'accepter), et juger la cible par `estPersonnel()` change qui un appelant légitime peut assigner.
+- Mesure (2026-10-23, 71fbc01f6, implementeur) : avant correctif, bailleur du bien, `PATCH /api/maintenance-requests/{mr}` `assigned_to` = agent de l'agence au compte `blocked` → 200, et prestataire actif au compte `blocked` → 200 (deux tests neufs de `MaintenanceAssignableProviderTest`, rouges) → voie retenue : le personnel ouvert à l'écran (`useAssignableStaff`, `/members?filter[assignable]=1`), l'API gardant le contrat de TCK-592 dont dépend la passation ; `AssignableProvider` juge le personnel par `estPersonnel()` et le prestataire sur un compte joignable. Ablation : règle remise → 2 rouges sur 10, rétablie → 10 verts ; front sans le personnel → 1 rouge, sans dédoublonnage → 1 rouge, rétabli → 7 verts.
 
 ### Le choix du bénéficiaire d'un reversement ne lit que les profils de bailleur actifs, alors que l'API accepte tout profil de l'agence, de tout statut
 - Réf : P120.04
