@@ -636,6 +636,29 @@ class PublicProfileIndexTest extends TestCase
         );
     }
 
+    /**
+     * P187.01 (TCK-1843) — spatie découpe à la virgule toute valeur de filtre, et le rappel
+     * `search` sortait sur un tableau sans rien filtrer : « Diop, Awa » rendait tout l'annuaire.
+     */
+    public function test_une_recherche_par_nom_avec_virgule_reste_du_texte_sur_les_deux_index(): void
+    {
+        $this->agenceEligible(['name' => 'Immo, Conseil', 'slug' => 'immo-conseil']);
+        $this->agenceEligible(['name' => 'Sahel Homes', 'slug' => 'sahel']);
+
+        $this->assertSame(
+            ['immo-conseil'],
+            $this->slugs($this->getJson('/api/public/agencies?filter[search]='.rawurlencode('Immo, Conseil'))->assertOk()),
+        );
+
+        $this->agentEligible(['username' => 'awa-diop', 'first_name' => 'Awa', 'last_name' => 'Diop, Ndiaye']);
+        $this->agentEligible(['username' => 'moussa-fall', 'first_name' => 'Moussa', 'last_name' => 'Fall']);
+
+        $this->assertSame(
+            ['awa-diop'],
+            $this->slugs($this->getJson('/api/public/agents?filter[search]='.rawurlencode('Diop, Ndiaye'))->assertOk()),
+        );
+    }
+
     public function test_le_tri_par_defaut_classe_par_volume_de_portefeuille(): void
     {
         $this->agenceEligible(['slug' => 'petite'], 1);

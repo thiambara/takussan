@@ -116,7 +116,9 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     // publique) : l'autorisation est l'état relu à chaque appel — bien public, document du bien,
     // `metadata.public` — puis une URL présignée de 5 min. Voir l'en-tête du contrôleur.
     Route::get('properties/{property}/documents/{document}/file', PublicPropertyDocumentController::class)
-        ->whereNumber(['property', 'document'])
+        // P187.05 (TCK-1851) — 18 chiffres au plus : l'action est typée `int`, et un identifiant
+        // plus long (lu en flottant par PHP) rendait 500 au lieu du 404 de tout autre échec.
+        ->where(['property' => '[0-9]{1,18}', 'document' => '[0-9]{1,18}'])
         ->name('properties.documents.file');
 
     // Reveals the owner's phone number — tighter limit than the group default

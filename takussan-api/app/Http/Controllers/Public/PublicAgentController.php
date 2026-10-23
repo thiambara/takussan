@@ -135,7 +135,9 @@ class PublicAgentController extends Controller
                             $inner->orWhereRaw(CaseInsensitive::sql($colonne).' LIKE ?', [$motif]);
                         }
                     });
-                }),
+                    // `delimiter('')` : spatie découperait sinon la saisie à la virgule, et le
+                    // tableau qui en sort faisait ignorer la recherche (P187.01, TCK-1843).
+                })->delimiter(''),
                 // Appliqué sur `$base` (relation morphe d'une relation) — déclaré ici pour que
                 // spatie ne lève pas `InvalidFilterQuery` sur un paramètre pourtant honoré.
                 AllowedFilter::callback('city', fn () => null),
