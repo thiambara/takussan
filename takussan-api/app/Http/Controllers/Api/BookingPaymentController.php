@@ -44,6 +44,9 @@ class BookingPaymentController extends Controller
         // portée par `StoreBookingPaymentRequest::payeurClient()`.
         $user = $request->user();
         if ($request->payeurClient()) {
+            // TCK-1914 (P170.01, décision du porteur) — le client ne paie qu'une réservation
+            // `pending` ou `confirmed` : la règle n'existait qu'au navigateur (`BookingDetail`).
+            abort_code_unless($booking->isPayableByCustomer(), 422, 'booking_payment.booking_not_payable');
             $data['status'] = PaymentStatus::Pending->value;
             $data['paid_at'] = null;
             unset($data['payment_method'], $data['transaction_id']);

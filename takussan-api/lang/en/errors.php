@@ -90,6 +90,7 @@ return [
         'property_unavailable' => 'This property is not available for booking.',
     ],
     'booking_payment' => [
+        'booking_not_payable' => 'This booking is no longer pending or confirmed: it can no longer be paid.',
         'nothing_due' => 'This booking is fully paid: nothing is left to pay.',
         'receipt_unpaid' => 'The receipt is only available for a settled payment.',
         'refund_exceeds_paid' => 'The refund cannot exceed the amount paid.',

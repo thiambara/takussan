@@ -43,6 +43,15 @@ class Booking extends AbstractModel
         'metadata' => 'array',
     ];
 
+    /**
+     * TCK-1914 (P170.01, décision du porteur) — les statuts où le client paie sa réservation, à la
+     * création de la ligne comme à l'initiation en ligne (`PaymentGatewayService::isPayable`). Une
+     * réservation annulée appelle un remboursement, pas un paiement (`docs/features.md` § 1.3).
+     *
+     * @var list<BookingStatus>
+     */
+    public const CUSTOMER_PAYABLE_STATUSES = [BookingStatus::Pending, BookingStatus::Confirmed];
+
     protected static array $requestFilterable = ['property_id', 'customer_id', 'created_by_id', 'agency_id', 'status', 'currency'];
 
     protected static array $requestSortable = ['id', 'created_at', 'start_date', 'end_date', 'status'];
@@ -115,5 +124,11 @@ class Booking extends AbstractModel
     public function lease(): HasOne
     {
         return $this->hasOne(Lease::class);
+    }
+
+    /** TCK-1914 (P170.01) — le client peut-il encore payer cette réservation ? */
+    public function isPayableByCustomer(): bool
+    {
+        return in_array($this->status, self::CUSTOMER_PAYABLE_STATUSES, true);
     }
 }
