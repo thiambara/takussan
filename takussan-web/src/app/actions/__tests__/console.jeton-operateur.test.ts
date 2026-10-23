@@ -49,7 +49,11 @@ function optionsDuPremierAppel(): Record<string, unknown> {
 }
 
 const LES_ACTIONS: readonly (readonly [string, () => Promise<unknown>])[] = [
-  ['fetchConsoleTagsAction', () => console_.fetchConsoleTagsAction({})],
+  // TCK-1749 — une liste rend un tableau : la lecture de toutes les pages l'itère.
+  ['fetchConsoleTagsAction', () => {
+    apiRequestMock.mockResolvedValueOnce({ data: [], meta: { last_page: 1, total: 0 } });
+    return console_.fetchConsoleTagsAction({});
+  }],
   ['createConsoleTagAction', () => console_.createConsoleTagAction({ name: 'Piscine' } as never)],
   ['updateConsoleTagAction', () => console_.updateConsoleTagAction(1, {})],
   ['deleteConsoleTagAction', () => console_.deleteConsoleTagAction(1)],

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Public;
 
+use App\Jobs\ExpireBookings;
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContractType;
@@ -10,6 +11,7 @@ use App\Models\Enums\RentPeriod;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -290,6 +292,41 @@ class PropertyBookingRequestTest extends TestCase
             'start_date' => null,
             'end_date' => null,
         ]);
+    }
+
+    /**
+     * TCK-1731 (P163.01) — « valable jusqu'au 21 » : la date seule est inclusive (règle de
+     * `FinInclusive`, TCK-1320/TCK-1455). Rangée telle quelle, l'offre tombait le 21 à 00:00 et ne
+     * vivait jamais le jour choisi.
+     */
+    public function test_une_offre_valable_jusqu_au_jour_choisi_vit_tout_ce_jour(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-20 10:00:00', 'Africa/Dakar'));
+
+        $property = Property::factory()->published()->create([
+            'price' => 121_000_000,
+            'currency' => Currency::XOF,
+            'contract_type' => ContractType::Sale,
+            'rent_period' => null,
+        ]);
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson("/api/public/properties/{$property->slug}/booking-request", [
+            'offer_amount' => 110_000_000,
+            'offer_expires_at' => '2026-10-21',
+            'terms_accepted' => true,
+        ])->assertCreated();
+
+        $booking = Booking::query()->sole();
+        $this->assertSame('2026-10-21', $booking->metadata['offer_expires_at']);
+
+        $this->travelTo(Carbon::parse('2026-10-21 23:59:00', 'Africa/Dakar'));
+        (new ExpireBookings)->handle();
+        $this->assertSame(BookingStatus::Pending, $booking->fresh()->status);
+
+        $this->travelTo(Carbon::parse('2026-10-22 00:00:01', 'Africa/Dakar'));
+        (new ExpireBookings)->handle();
+        $this->assertSame(BookingStatus::Expired, $booking->fresh()->status);
     }
 
     public function test_sale_property_rejects_legacy_booking_payload(): void

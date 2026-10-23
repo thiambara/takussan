@@ -64,7 +64,11 @@ describe('accueil client — ce qui m’attend (AC16)', () => {
     render(await TenantDashboardPage());
 
     expect(screen.getByRole('link', { name: /Prochaine visite.*Villa Almadies/ })).toHaveAttribute('href', '/app/visits/41');
-    expect(screen.getByRole('link', { name: /Demandes d'intervention en cours\s*2/ })).toHaveAttribute('href', '/app/maintenance');
+    // TCK-1727 (P167.01) : les statuts de `open()` côté API, tout sauf terminée, clôturée, annulée.
+    expect(screen.getByRole('link', { name: /Demandes d'intervention en cours\s*2/ })).toHaveAttribute(
+      'href',
+      '/app/maintenance?status=open,acknowledged,quote_requested,quote_submitted,awaiting_owner,approved,rejected,assigned,in_progress',
+    );
   });
 
   it('sans dossier : une invitation à chercher dans sa ville, nourrie par la recherche publique', async () => {

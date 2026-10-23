@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { Megaphone, PauseCircle, Pencil, Plus, Save, X } from 'lucide-react';
-import { DataTable, StatusBadge, type DataTableColumn, type StatusTone } from '@/components/console';
+import { DataTable, Pagination, StatusBadge, type DataTableColumn, type StatusTone } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -302,9 +302,12 @@ export function AnnouncementsConsole() {
   const [editing, setEditing] = useState<Announcement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tenteDEnregistrer, setTenteDEnregistrer] = useState(false);
+  // TCK-1751 (P171.07) — 30 par page, et une page suivante : la 31ᵉ annonce ne s'atteignait pas.
+  // La page reste sous la clé `['super-admin', 'announcements']`, que les écritures invalident.
+  const [page, setPage] = useState(1);
   const query = useQuery({
-    queryKey: ['super-admin', 'announcements'],
-    queryFn: () => fetchAdminAnnouncements({ perPage: 30 }),
+    queryKey: ['super-admin', 'announcements', page],
+    queryFn: () => fetchAdminAnnouncements({ page, perPage: 30 }),
     staleTime: 30_000,
   });
 
@@ -441,6 +444,7 @@ export function AnnouncementsConsole() {
             )
           }
         />
+        <Pagination className="mt-4" page={page} lastPage={query.data?.meta?.last_page ?? 1} onChange={setPage} />
       </section>
 
       <section className="min-w-0 rounded-xl bg-card p-4 ring-1 ring-border">

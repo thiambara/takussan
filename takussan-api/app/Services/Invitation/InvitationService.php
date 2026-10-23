@@ -811,6 +811,12 @@ class InvitationService
         Invitation $invitation,
         User $user,
     ): void {
+        // TCK-1492 (P92.07) — le profil verrouillé avant de chercher la collaboration : deux
+        // acceptations simultanées pour la même agence lisaient « aucune », et la seconde heurtait
+        // `sp_agency_collab_unique` en 500 au lieu du 409 écrit. Appelé dans la transaction de
+        // `acceptForUser`, le verrou tient jusqu'au commit.
+        ServiceProviderProfile::query()->whereKey($profile->getKey())->lockForUpdate()->first();
+
         $existing = ServiceProviderAgencyCollaboration::query()
             ->where('service_provider_profile_id', $profile->id)
             ->where('agency_id', $invitation->agency_id)

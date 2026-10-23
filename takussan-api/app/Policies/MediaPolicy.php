@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\Enums\Capability;
+use App\Models\Property;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -103,6 +104,14 @@ class MediaPolicy extends BasePolicy
         if ($target === null) {
             // Orphan media — only admins (handled by Gate::before) can delete.
             return false;
+        }
+
+        // TCK-1496 (P116.06) — le média d'un bien suit la règle d'écriture du bien
+        // (`PropertyPolicy::update`) : « être admin de l'agence » laissait l'admin sans
+        // `properties.update_any` supprimer la photo d'un bien qu'il ne peut pas modifier, et
+        // refusait l'agent qui la porte. `sign` délègue ici, et suit donc la même règle.
+        if ($target instanceof Property) {
+            return $user->can('update', $target);
         }
 
         // Direct ownership: media attached to the user itself (e.g. avatar).

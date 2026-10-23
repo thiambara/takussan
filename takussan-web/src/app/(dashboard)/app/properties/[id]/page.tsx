@@ -102,7 +102,7 @@ export default async function Page({ params, searchParams }: { params: Params; s
   const { id: currentUserId, roles } = await getMeAction();
   const staff = isAgent(roles) || isAdmin(roles);
 
-  const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' }, perPage: 200 });
+  const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' } });
   const tags = tagsResult.ok ? (tagsResult.data?.data ?? []) : [];
 
   return (
