@@ -17756,7 +17756,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### La recherche globale de la console rend 500 dès qu'elle trouve un compte sans nom ni e-mail
 - Réf : P193.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:187`, `:254`, `:93-105`
 - Constat :
@@ -17765,10 +17765,11 @@ Le PDF de l'état des lieux est P143.01.*
   - mesuré (test temporaire, super-admin, un compte `email` nul, noms vides, `+221771234567`) : `GET /api/admin/search?q=%2B221771234567` → **500**, « `AdminGlobalSearchService::hit(): Argument #3 ($label) must be of type string, null given` ».
   - Aucun test de la recherche globale ne crée un compte sans e-mail (à vérifier par `grep` dans `tests/` ; non fait).
 - Piste : libellé par `nameWithoutContact()` (`User.php:367`, qui retombe sur `username` puis « — ») ou, en console super-admin, nom puis e-mail puis numéro ; sous-libellé `email ?? phone`. Test : compte créé par téléphone trouvé par son numéro → 200 et un libellé non vide.
+- Mesure (2026-10-23, 874f0bb68, mesureur) : relu `AdminGlobalSearchService.php` (l. 186-187 `$u->full_name ?: $u->email` passé à `hit()`, l. 254 `string $label` ; `byPhone` l. 93-104, `users.phone` en E.164), `PhoneLoginService::createAccount` (l. 171-174 : noms vides, `email` nul) ; `grep -n "email.*null"` dans `AdminGlobalSearchTest` → rien, aucun test ne crée un compte sans e-mail ; `git log` du service → aucun correctif ; test temporaire `SondeMesureur193Test` (retiré) (charge 3,12 / 2,28 / 1,89 puis 2,90 / 2,32 / 1,92 sur 8 cœurs) : compte `email` nul, noms vides, `+221771234567`, opérateur Support, `GET /api/admin/search?q=%2B221771234567` → **500** « `hit(): Argument #3 ($label) must be of type string, null given` » → le constat tient. Classement : A1, le contrat est écrit (`hit()` typé `string`, la recherche rend 200 dans `AdminGlobalSearchTest`) ; correctif attendu sans texte neuf : libellé `full_name ?: email ?: phone ?: '#'.id` (le numéro est celui que l'opérateur vient de saisir), et un test du compte créé par téléphone trouvé par son numéro → 200, libellé non vide.
 
 ### La réinitialisation forcée du mot de passe d'un compte sans e-mail rend 500
 - Réf : P193.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : geste de réinitialisation de mot de passe d'un compte, refus par un code neuf
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/UserSupportService.php:12-25`, `takussan-api/database/migrations/0001_01_01_000000_create_users_table.php:24-28`, `takussan-api/routes/api/admin.php:153-154`
 - Constat :
@@ -17778,10 +17779,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Avec `['email' => null]`, le fournisseur Eloquent cherche `where email is null` : il peut retenir un **autre** compte sans e-mail que la cible (à vérifier ; l'insertion échoue de toute façon).
   - Un compte créé par téléphone n'a pas de mot de passe connu (lu, `PhoneLoginService.php:175-177`) : le geste n'a pas d'objet pour lui.
 - Piste : refuser le geste par un code (`409 support.no_email`, ou équivalent) quand la cible n'a pas d'e-mail vérifié, avant tout appel au broker. Test : compte sans e-mail → code attendu, aucune ligne dans `password_reset_tokens`, journal non écrit.
+- Mesure (2026-10-23, 874f0bb68, mesureur) : relu `UserSupportService::forcePasswordReset` (l. 16 `sendResetLink(['email' => $target->email])` sans garde ; révocation des jetons l. 21, après), migration `password_reset_tokens.email` clé primaire (l. 25), route `admin.users.force-password-reset` (`routes/api/admin.php:153`) ; `UserSupportTest` ne crée aucun compte sans e-mail (lu) ; test temporaire `SondeMesureur193Test` (retiré) (charge 3,12 / 2,28 / 1,89 puis 2,90 / 2,32 / 1,92 sur 8 cœurs) : super-admin, deux comptes sans e-mail, `POST /api/admin/users/{id}/force-password-reset` sur le second → **500** « `SQLSTATE[23502] null value in column "email" of relation "password_reset_tokens"` » → le constat tient ; que le broker retienne un autre compte sans e-mail (`where email is null`) n'est pas mesuré, l'insertion échoue avant. Classement : V2, le correctif touche un geste d'authentification (réinitialisation forcée) et ajoute un refus par un code neuf, dont le porteur choisit la forme (`409 support.no_email` ou autre).
 
 ### L'export du journal d'audit attribue au « système » les gestes d'un membre sans e-mail
 - Réf : P193.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : ce que l'export du journal nomme d'un causeur sans e-mail (numéro, identifiant)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:142-175`
 - Constat :
@@ -17790,10 +17792,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Sous le drapeau, un agent invité par numéro seul a un compte sans e-mail (lu, `AgentInvitationService.php:72-73`) : ses gestes sortent de l'export comme ceux du système. L'écran, lui, retombe sur `#id` (lu, `AuditTrail.tsx:563`).
   - L'export ne porte ni nom ni identifiant de causeur : la colonne e-mail est la seule qui le désigne (lu, l. 163-174).
 - Piste : distinguer les trois cas — causeur présent (e-mail, sinon numéro, sinon `user#id`), causeur supprimé (`deleted#id`), aucun causeur (`system`) — et ajouter une colonne `causer_id` si le format le permet. Test : export d'une ligne causée par un compte sans e-mail → ni `system` ni vide.
+- Mesure (2026-10-23, 874f0bb68, mesureur) : relu `ActivityLogExporter::mapRow` (l. 148-149 `$absentCauser` vaut `system` sans `causer_id` orphelin, l. 166 `causer_email => $causer?->email ?? $absentCauser` : un causeur chargé sans e-mail tombe dans le repli ; TCK-1395 et TCK-1717 ont traité le causeur supprimé et le rôle, pas ce cas) ; test temporaire `SondeMesureur193Test` (retiré) (charge 3,12 / 2,28 / 1,89 puis 2,90 / 2,32 / 1,92 sur 8 cœurs) : `activity()->causedBy()` d'un compte sans e-mail, `mapRow` par réflexion → `causer_email = 'system'`, `causer_role = 'customer'`, `causer_id = 6` → le constat tient. Classement : V3, le correctif décide quelle donnée personnelle l'export porte à la place de l'e-mail (numéro, `user#id`, colonne `causer_id` neuve), et la `Piste` propose plusieurs formes.
 
 ### Les avis envoyés par le seul canal `mail` disparaissent sans trace pour un compte sans e-mail
 - Réf : P193.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : second canal ou refus en amont, choisi par avis
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/laravel/framework/src/Illuminate/Notifications/Channels/MailChannel.php:57-60`, `takussan-api/app/Notifications/DataExportReadyNotification.php:40-43`, `AccountDeletionRequestedNotification.php:39`, `AccountDeletionReminderNotification.php:46`, `AccountDeletionExecutedNotification.php:24`, `ActivityLogExportReadyNotification.php:27`, `InvitationExpiredNotification.php:24`, `InvitationAcceptedNotification.php:29`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:55-61`
 - Constat :
@@ -17803,10 +17806,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Pour l'export du journal au-delà de 5 000 lignes, la réponse est un 202 « Export en préparation, téléchargement imminent… » (lu, `ActivityLogExportController.php:55-61`, `lang/fr/messages.php:77`), et le fichier ne s'atteint que par le lien signé du courriel (lu, `ActivityLogExportReadyNotification`). Un administrateur sans e-mail n'a aucun chemin vers son fichier (déduit des deux lectures, à vérifier). Le reste de P142.06 (TCK-1394) note l'absence de cloche, pas ce cas.
   - Le rappel de suppression pose `reminder_sent_at` sans regarder le canal (lu, `ExecuteScheduledAccountDeletions.php:40-41` ; voir P142.03, qui traite l’échec du courriel, pas son absence de destinataire) : il est compté comme envoyé.
 - Piste : pour chaque classe, choisir un second canal quand `email` est nul (cloche `database`, ou SMS au numéro vérifié comme `DeletionStepUpService`), ou refuser en amont le geste qui n'aboutit qu'à un courriel (export asynchrone). Garde possible : un test qui énumère les notifications à `via()` = `['mail']` et les rend pour un compte sans e-mail, avec une liste d'exceptions justifiées (réinitialisation de mot de passe, vérification d'adresse).
+- Mesure (2026-10-23, 874f0bb68, mesureur) : relu `MailChannel::send` (l. 57-60, retour muet sans route `mail`), les `via()` des sept classes citées (toutes `['mail']`, lu), `ActivityLogExportController` (l. 55-61 : au-delà de 5 000 lignes, job puis 202), `ExecuteScheduledAccountDeletions` (l. 40-41 : `notify` puis `reminder_sent_at` sans regarder le canal) ; test temporaire `SondeMesureur193Test` (retiré) (charge 3,12 / 2,28 / 1,89 puis 2,90 / 2,32 / 1,92 sur 8 cœurs) : transport `array`, `ActivityLogExportReadyNotification` notifiée par `notifyNow` à un compte sans e-mail → 0 message, 0 ligne `app_notifications` ; la même à un compte à e-mail → 1 message → le constat tient (mesuré sur l'export du journal plutôt que sur `DataExportReadyNotification`, même chemin `MailChannel`). Classement : V7, la `Piste` laisse ouvert, classe par classe, le choix entre cloche, SMS ou refus du geste : comportement visible neuf.
 
 ### Un compte créé par téléphone est nommé par rien, ou « Anonyme », dans les avis et la console
 - Réf : P193.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : nom affiché d'un compte sans nom (repli, numéro masqué, « anonyme »)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/AgencyUpgradeRequestSubmittedNotification.php:43-46`, `:89`, `takussan-api/app/Services/Admin/UnifiedModerationService.php:473`, `takussan-api/app/Http/Controllers/Api/ReviewController.php:196`, `takussan-web/src/components/admin/super/moderation.tsx:260`, `takussan-web/src/components/admin/ModerationDetail.tsx:212`, `takussan-api/app/Services/Governance/GovernanceAlertService.php:77`, `:108`, `takussan-api/app/Services/Messaging/SystemMessageFactory.php:155-159`, `takussan-api/app/Services/Export/ExportDataService.php:69`, `:108-109`, `:503`
 - Constat :
@@ -17817,6 +17821,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Le message système d'une conversation retombe sur `#<id>` (lu, `SystemMessageFactory.php:158`) ; les exports CSV de paiements et de baux impriment le nom seul (lu, `ExportDataService.php:503`), donc une cellule vide.
   - `User::nameWithoutContact()` porte déjà un repli (nom, `username`, « — ») (lu, `User.php:361-375`), qu'aucun de ces lecteurs n'emploie.
 - Piste : un seul accesseur de nom affichable — le repli de `nameWithoutContact()`, complété en console d'un repli sur le numéro masqué si le porteur le veut — lu par ces lecteurs ; côté console, distinguer « compte sans nom » d'« anonyme » (`user_id` présent). Test : demande d'upgrade et signalement d'un compte créé par téléphone → texte sans trou et signaleur non anonyme.
+- Mesure (2026-10-23, 874f0bb68, mesureur) : relu `AgencyUpgradeRequestSubmittedNotification::toMail` (l. 43-46, repli sur `(string) email`) et `toArray` (`submitted_by_email`), `UnifiedModerationService.php:473` et `ReviewController.php:196` (`full_name ?: email`), `moderation.tsx:260` (`reporter?.name ?? t('anonymous')`), `ModerationDetail.tsx:212` (`reporterFallback`), `GovernanceAlertService` (`$author->full_name` et `subject?->user?->full_name ?? ''`, sans repli), `SystemMessageFactory::displayName` (l. 155-159, repli `#id`), `ExportDataService` (l. 69, 108-109, 503 : nom seul), `User::nameWithoutContact()` (l. 367-376) ; test temporaire `SondeMesureur193Test` (retiré) (charge 3,12 / 2,28 / 1,89 puis 2,90 / 2,32 / 1,92 sur 8 cœurs) : `toMail` pour un demandeur sans nom ni e-mail → « (#Hill-Brekke) submitted a request to upgrade their agency to professional. », `toArray` → `submitted_by_email: null` → le constat tient ; la soumission d'une demande par un compte créé par téléphone n'est pas mesurée. Classement : V7, le texte affiché à la place du nom (repli de `nameWithoutContact`, numéro masqué, distinction « anonyme ») est un choix que la `Piste` laisse au porteur.
 
 ### Petites améliorations
 - Réf : P193.06
