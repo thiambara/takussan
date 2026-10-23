@@ -18386,7 +18386,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### Un paiement en ligne confirmé après la fermeture d'une réservation devient `paid` sans tâche de remboursement, et part au reversement du bailleur
 - Réf : P200.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : un encaissement en ligne sur une réservation close, qui part au reversement
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/BookingService.php:222-253,268-321`, `takussan-api/app/Services/Booking/BookingRefundTaskService.php:39-60`, `takussan-api/app/Listeners/Booking/OpenBookingRefundTask.php:17-20`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:681-721`, `takussan-api/app/Services/Payout/PayoutCalculator.php:80-99`
 - Constat :
@@ -18398,10 +18398,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Le correctif de P170.01 (`isPayable()` qui juge le statut de la réservation) refuserait une initiation neuve, pas un checkout déjà ouvert avant la fermeture (déduit, à vérifier).
   - Établi comment : lu, mesuré.
 - Piste : à la fermeture d'une réservation (`cancel`, `reject`, `expire`), passer ses lignes `pending` à `cancelled` sous le verrou de la réservation, pour que le succès tardif emprunte le chemin du doublon déjà écrit (`gateway_duplicate_payment` et avis à l'agence, comme pour une échéance annulée par un renouvellement) ; ou, au succès d'une ligne d'une réservation close, ouvrir la tâche `booking_refund` par `openFor`. Garde : le scénario mesuré, pour les trois fermetures, qui attend une tâche ou un doublon et aucune ligne au reversement.
+- Mesure (2026-10-23, 5159db054, mesureur) : `git log 2a944b073..HEAD` sur les fichiers cités → aucun commit, lignes en place ; relu `BookingService::cancel` (aucune écriture sur `payments()`), `BookingRefundTaskService::openFor:39-54` (ne compte que les lignes `paid`), `grep -rn openFor app` → seul `OpenBookingRefundTask:19`, `PaymentGatewayService.php:681-721` (le doublon ne vaut que pour `paid`/`cancelled`/`refunded`), `PayoutCalculator::bookingPayments:80-99` ; test temporaire (réservation `confirmed`, acompte `pending` 30 000 en checkout Wave, annulation par l'admin d'agence puis vrai webhook Wave signé), charge 3,22 sur 8 cœurs, retiré ensuite → après annulation : ligne `pending`, 0 tâche, `isPayable()` → `true` ; webhook → 200, ligne `paid`, `paid_at` posé, toujours 0 tâche ; `bookingPayments(agence, bailleur)` rend la ligne : le constat tient en entier, et `isPayable()` ne juge toujours pas la réservation (P170.01 non fait) ; seule l'annulation est rejouée, refus et expiration restent lus. Classement : V1, la piste écrit le statut d'un paiement et ce qui entre au reversement, et offre deux options (annuler les lignes `pending` ou ouvrir la tâche au succès).
 
 ### Un acompte encaissé d'une réservation annulée, dont la tâche de remboursement est ouverte, entre au reversement du bailleur
 - Réf : P200.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : ce qui entre au reversement du bailleur, et ce qu'il garde d'un acompte annulé
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payout/PayoutCalculator.php:80-99`, `takussan-api/app/Services/Payout/PayoutPreparationService.php:48`, `takussan-api/app/Services/Model/PayoutService.php:578-585`, `takussan-api/app/Services/Booking/BookingRefundTaskService.php:39-60`
 - Constat :
@@ -18411,10 +18412,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Le code n'a pas de politique d'annulation (lu, `grep -rln cancellation_policy app` → rien) : qu'un acompte d'une réservation annulée puisse rester acquis au bailleur n'est écrit nulle part (à vérifier).
   - Établi comment : lu, mesuré.
 - Piste : écarter de `bookingPayments()` les pièces d'une réservation close tant que sa tâche `booking_refund` est ouverte (ou toute réservation `cancelled`, `rejected` ou `expired`), et le dire dans la préparation ; à défaut, ce que garde le bailleur d'un acompte annulé est une décision. Garde : le scénario mesuré.
+- Mesure (2026-10-23, 5159db054, mesureur) : relu `PayoutCalculator::bookingPayments:80-99` (ni `bookings.status` ni tâche `booking_refund` jugés), inchangé depuis 2a944b073 ; `grep -rln cancellation_policy app` → rien ; test temporaire (réservation `confirmed`, acompte `paid` 30 000, annulation par l'admin d'agence), charge 3,22 sur 8 cœurs, retiré ensuite → réservation `cancelled`, 1 tâche de remboursement, `bookingPayments(agence, bailleur)` rend l'acompte : le constat tient ; `assertItemsStillPaid` non rejoué. Classement : V1, ce que touche le reversement d'un bailleur est un montant, et la règle de ce qu'il garde d'un acompte annulé n'est écrite nulle part (`docs/features.md:161` ne dit que « remboursement à traiter »).
 
 ### Une facture se crée et s'émet sur une réservation annulée, refusée ou expirée, ou sur un bail en brouillon
 - Réf : P200.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : l'émission d'une facture, sur des statuts d'objet que rien n'écrit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/InvoiceService.php:230-251`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php:36-38`
 - Constat :
@@ -18422,10 +18424,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Mesuré, test temporaire, admin de l'agence : `POST /api/invoices` avec `invoiceable_type: booking` sur une réservation `cancelled`, `rejected` puis `expired` → `201` trois fois ; sur un bail `draft` → `201`, puis `POST /api/invoices/{id}/send` → `200` (numéro attribué, facture payable en ligne : `isPayable()` d'une facture ne lit que `sent`/`overdue`, lu `PaymentGatewayService.php:1714-1716`).
   - Facturer un bail terminé (remise en état, solde) peut être voulu : quels statuts d'objet une facture admet n'est écrit nulle part (à vérifier, `docs/features.md:215-216`).
 - Piste : refuser par un 422 codé une facture dont l'objet est une réservation `cancelled`, `rejected` ou `expired`, ou un bail `draft`/`pending_signature`, après avoir écrit quels statuts restent facturables. Garde : un test par statut refusé, et un témoin `201` sur un bail actif.
+- Mesure (2026-10-23, 5159db054, mesureur) : relu `InvoiceService::resolveInvoiceableTarget:230-251` (seuls `id, agency_id` lus, seule l'agence jugée), `StoreInvoiceRequest` (aucune règle de statut), inchangés depuis 2a944b073 ; test temporaire, admin de l'agence, client de l'agence, charge 3,00 sur 8 cœurs, retiré ensuite → `POST /api/invoices` sur une réservation `cancelled`, `rejected`, `expired` → 201 trois fois ; sur un bail `draft` → 201, puis `POST /api/invoices/{id}/send` → 200, statut `sent` (numéro non relu par la sonde) : le constat tient. Classement : V1, la piste refuse l'écriture d'une facture, et quels statuts restent facturables (bail terminé, bail en signature) est un choix que `docs/features.md:215-216` n'écrit pas.
 
 ### L'objet facturé et le destinataire d'une facture ne sont pas liés : une facture adossée à la réservation d'un client se dresse à un autre
 - Réf : P200.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : le destinataire d'une facture, et qui peut être facturé pour un bail
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/InvoiceService.php:34-91,230-251`
 - Constat :
@@ -18434,3 +18437,4 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Les créateurs internes d'une facture de bail (`EarlyTerminationService`, `DepositRefundService`) choisissent eux-mêmes le destinataire (lu, `EarlyTerminationService.php:343`, `DepositRefundService.php:107`) ; seul l'endpoint public laisse les deux se dissocier.
   - Qu'une facture de bail puisse viser le bailleur et non le locataire est plausible ; la règle n'est écrite nulle part (à vérifier).
 - Piste : pour une réservation, exiger que `customer_id` soit son client (422 codé sinon) ; pour un bail, écrire qui peut être facturé (locataire seul, ou locataire et bailleur) puis le garder de même. Garde : un test API « autre client → 422 » et un témoin sur le client de la réservation.
+- Mesure (2026-10-23, 5159db054, mesureur) : relu `InvoiceService::create:36-91` (le client et l'objet jugés chacun pour soi, rien ne compare `bookings.customer_id` au client facturé), inchangé depuis 2a944b073 ; test temporaire, admin de l'agence, charge 3,00 sur 8 cœurs, retiré ensuite → réservation `confirmed` du client n° 11, facture au client n° 13 de la même agence → 201 : le constat tient pour la réservation ; le bail n'est pas rejoué. Classement : V1, la piste change à qui une facture peut s'écrire, et pour un bail (locataire seul, ou aussi bailleur) la règle reste à décider.
