@@ -92,7 +92,12 @@ describe.each(Object.entries(MENUS))('remettre en ligne par le statut depuis « 
     // Pas de message brut de l'API à côté du menu.
     expect(screen.queryByText('Pour publier, les conditions…')).not.toBeInTheDocument();
 
-    await user.click(within(dialogue).getByRole('button', { name: 'Publier' }));
+    // La boîte s'ouvre AVANT que la transition du premier geste finisse : son « Publier » est
+    // encore `disabled={enCours}` quand elle paraît, et un clic sur lui serait perdu sans bruit.
+    // Attendre qu'il soit actif, comme l'attend la personne qui le voit grisé.
+    const publier = within(dialogue).getByRole('button', { name: 'Publier' });
+    await waitFor(() => expect(publier).toBeEnabled());
+    await user.click(publier);
 
     await waitFor(() => expect(m.changerStatut).toHaveBeenLastCalledWith(47, 'available', { acceptTerms: true }));
     expect(await screen.findByRole('status')).toHaveTextContent(/^Statut mis à jour\.$/);
