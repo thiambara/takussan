@@ -13,6 +13,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\FichiersReels;
 use Tests\TestCase;
 
 /**
@@ -75,7 +76,7 @@ class AudioMessageTest extends TestCase
 
         if (isset($body['audio'])) {
             $body['audio'] = match ($body['audio']) {
-                'text' => UploadedFile::fake()->createWithContent('note.txt', 'pas un son'),
+                'text' => FichiersReels::texte('note.txt'),
                 'big' => $this->voiceNote(2049 * 1024),
                 default => $this->voiceNote(),
             };
@@ -89,10 +90,39 @@ class AudioMessageTest extends TestCase
         $this->assertSame(0, Message::query()->count());
     }
 
-    /** Un vrai en-tête Ogg : `finfo` y lit `audio/ogg`, comme sur un enregistrement réel. */
+    /**
+     * P194.03 — les deux conteneurs que le front enregistre (`VoiceNoteRecorder` : Ogg, ou MP4 de
+     * marque `M4A ` quand le navigateur n'a ni WebM ni Ogg), en fichiers RÉELS : `finfo` lit leur
+     * contenu, et non le nom.
+     *
+     * @return array<string, array{0: string}>
+     */
+    public static function conteneurs(): array
+    {
+        return ['ogg' => ['ogg'], 'm4a' => ['m4a']];
+    }
+
+    #[DataProvider('conteneurs')]
+    public function test_a_real_voice_note_container_is_accepted(string $conteneur): void
+    {
+        [$member, $conversation] = $this->conversation();
+
+        Sanctum::actingAs($member);
+        $this->post("/api/conversations/{$conversation->id}/messages", [
+            'type' => 'audio',
+            'duration' => 12,
+            'audio' => FichiersReels::$conteneur(),
+        ], ['Accept' => 'application/json'])->assertCreated();
+    }
+
+    /**
+     * Une première page Ogg Opus RÉELLE (`FichiersReels::ogg`). L'ancien faux fichier
+     * (`createWithContent('note.ogg', …)`) devait son `audio/ogg` au nom : son contenu, décalé de
+     * deux octets, se lit `application/octet-stream` (mesuré, P194.03).
+     */
     private function voiceNote(int $padding = 64): UploadedFile
     {
-        return UploadedFile::fake()->createWithContent('note.ogg', "OggS\x00\x02".str_repeat("\x00", 20).'OpusHead'.str_repeat("\x00", $padding));
+        return FichiersReels::ogg('note.ogg', $padding);
     }
 
     /** @return array{0: User, 1: Conversation} */

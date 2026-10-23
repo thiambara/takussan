@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
+use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryStatus;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Inventory;
@@ -17,6 +18,7 @@ use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Spatie\LaravelPdf\Facades\Pdf;
 use Tests\Concerns\CreatesAgencyMembers;
 use Tests\TestCase;
 
@@ -486,6 +488,39 @@ class InventorySignatureTest extends TestCase
         ]);
         $this->assertStringContainsString(e($expected), (string) $captured);
         $this->assertStringContainsString((string) $inventory->refresh()->traceability_hash, (string) $captured);
+    }
+
+    /**
+     * P192.04 — l'acte, rendu en français (TCK-672), imprime l'état général, le statut et l'état
+     * de chaque pièce par leur libellé (`inventories.pdf.conditions.*`, `statuses.*`), jamais par
+     * le code anglais de l'enum. Le PDF passe par le vrai `DocumentPdfService` (locale de l'acte
+     * comprise) ; `Pdf::fake()` garde le HTML que le moteur a reçu.
+     */
+    public function test_pdf_prints_condition_and_status_labels_not_enum_codes(): void
+    {
+        [$owner, $tenantUser, $tenant, $property, $lease] = $this->scaffoldLease();
+        $inventory = $this->makeInventory($property, $tenant, $owner, $lease);
+        $inventory->forceFill([
+            'general_condition' => InventoryCondition::Good,
+            'rooms' => [['name' => 'Salon', 'condition' => 'fair', 'notes' => null]],
+        ])->save();
+
+        Sanctum::actingAs($owner);
+        $this->postJson("/api/inventories/{$inventory->id}/sign", ['role' => 'landlord', 'signature' => self::SIGNATURE])->assertOk();
+        Sanctum::actingAs($tenantUser);
+        $this->postJson("/api/inventories/{$inventory->id}/sign", ['role' => 'tenant', 'signature' => self::SIGNATURE_ALT])->assertOk();
+        $this->assertSame(InventoryStatus::Signed, $inventory->refresh()->status);
+
+        $pdf = Pdf::fake();
+        $this->get("/api/inventories/{$inventory->id}/pdf")->assertOk();
+        $html = (string) $pdf->html;
+
+        $this->assertStringContainsString('<td>Bon</td>', $html);
+        $this->assertStringContainsString('<span class="pill">Signé</span>', $html);
+        $this->assertStringContainsString('état : Correct', $html);
+        $this->assertStringNotContainsString('<td>good</td>', $html);
+        $this->assertStringNotContainsString('<span class="pill">signed</span>', $html);
+        $this->assertStringNotContainsString('état : fair', $html);
     }
 
     /**
