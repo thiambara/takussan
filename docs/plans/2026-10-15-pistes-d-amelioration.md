@@ -16890,7 +16890,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### `settings` des indicateurs et des alertes de seuil : écrit sans borne, rendu dans les listes, lu par rien
 - Réf : P181.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-1811
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreKpiConfigRequest.php:61`, `UpdateKpiConfigRequest.php:53`, `StoreThresholdAlertRequest.php:56`, `UpdateThresholdAlertRequest.php:46`, `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:22-39,56,67`, `takussan-api/app/Http/Controllers/Api/ThresholdAlertController.php:50,60`, `takussan-web/src/lib/queries/kpis.ts:16,25`
 - Constat :
@@ -16900,6 +16900,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : retirer `settings` des quatre requêtes s'il n'a pas de lecteur (A3 si le front ne l'envoie pas), ou le fermer sur ses clés réelles. Garde : un test qui envoie `settings` et constate qu'il n'est pas écrit.
 - Mesure (2026-10-23, 31008c833, mesureur) : relu les quatre requêtes (`settings` : `sometimes|array`), `KpiConfigController` (`create`/`update` de `validated()`, liste en `items()` bruts) ; `grep` de `settings` dans `app/` → seuls `KpiConfig.php:16,22` et `ThresholdAlert.php:20,29` (fillable et cast), aucun dans `KpiResolver` ni `CheckThresholdAlertsCommand` ; front : `settings` n'est que déclaré dans `lib/queries/kpis.ts:16,25`, aucun envoi dans `actions/kpis.ts`, `actions/alerts.ts` ni `KpiConfigList.tsx` ; test temporaire `tests/Feature/TmpMesureAngle181Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,1 à 2,4 sur 8 cœurs → `POST /api/kpi-configs` et `POST /api/threshold-alerts` avec `settings` de 20 000 chaînes → 201, réponses de 0,86 Mo, `GET /api/kpi-configs` → 0,86 Mo. Le constat tient, et le « à vérifier » du front est levé. Classement : A3, une entrée sans lecteur ni émetteur des deux côtés, retirée des quatre requêtes sans toucher la colonne.
+- Mesure (2026-10-23, a9eaec20c, implementeur) : relu les quatre requêtes (`settings` : `sometimes|array`) ; `grep settings` dans `app/` → `KpiConfig.php:16,22` et `ThresholdAlert.php:20,29` seuls ; front : aucun envoi (seul `lib/queries/kpis.ts:16,25` le déclare) ; test neuf `IndicateursSettingsNonEcritTest`, `php artisan test` de la classe, charge 4,2 sur 8 cœurs → avant correctif, création et modification d'un indicateur et d'une alerte avec `settings` l'écrivent (4/4 rouges). Règle retirée des quatre requêtes, colonne intacte : `settings` envoyé n'est plus écrit, 4/4 verts ; `ThresholdAlertTest`, `KpiConfigDuplicateTest`, `AgencyIndicatorCapabilityTest` verts. Ablation (règles remises) → 4/4 rouges.
 
 ### Petites améliorations
 - Réf : P181.07
