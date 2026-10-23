@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Agency;
+use App\Policies\AgencyPolicy;
 use Illuminate\Validation\Rule;
 
 /**
@@ -16,24 +18,27 @@ use Illuminate\Validation\Rule;
 class UpdateUserRoleRequest extends BaseFormRequest
 {
     /**
-     * TCK-305 — l'autorisation court ICI, avant la validation.
+     * TCK-305 — l'autorisation court ICI, avant la validation : un appel non autorisé ET mal formé
+     * rend 403, pas 422.
      *
-     * Le contrôleur autorisait avant de valider ; un FormRequest valide avant le corps du
-     * contrôleur, ce qui rendait 422 là où l'API rendait 403 pour un appel à la fois non
-     * autorisé et mal formé. `authorize()` rétablit l'ordre d'origine.
-     *
-     * ⚠ **REPRISE, pas délégation** : cette règle n'est pas encore dans une policy — elle fait
-     * partie des 19 helpers relevés hors périmètre de TCK-306. L'expression est reproduite à
-     * l'identique ; son domicile définitif est une policy, et le ticket de suite doit la
-     * convertir en délégation comme les 35 autres.
+     * TCK-1498 (P116.01) — DÉLÉGATION à {@see AgencyPolicy::changeMemberRole()} sur l'agence du
+     * profil actif : `team.assign_role` dans cette agence. Le super-admin passe sans agence active,
+     * comme avant. La reprise « être admin de l'agence active » est retirée.
      */
     public function authorize(): bool
     {
         $actor = $this->user();
-        $agenceActive = $this->activeProfile()?->agency_id ?? $actor?->agency_id;
+        if ($actor === null) {
+            return false;
+        }
+        if ($actor->isSuperAdmin()) {
+            return true;
+        }
 
-        return $actor !== null && ($actor->isSuperAdmin()
-            || ($agenceActive !== null && $actor->isAgencyAdminAt((int) $agenceActive)));
+        $agenceActive = $this->activeProfile()?->agency_id ?? $actor->agency_id;
+        $agency = $agenceActive !== null ? Agency::query()->find($agenceActive) : null;
+
+        return $agency !== null && $actor->can('changeMemberRole', $agency);
     }
 
     /**

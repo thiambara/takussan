@@ -48,10 +48,15 @@ class PropertyCollaboratorController extends Controller
 
         $data = $request->validated();
 
-        $exists = $property->collaborators()->where('user_id', $data['user_id'])->exists();
-        abort_code_if($exists, 422, 'property.collaborator_exists');
-
         $collaborator = DB::transaction(function () use ($property, $data) {
+            // TCK-1492 (P92.07) — le bien verrouillé avant de chercher le doublon : le contrôle
+            // courait hors de la transaction, et deux ajouts simultanés du même collaborateur
+            // heurtaient `unique(property_id, user_id)` en 500 au lieu du 422 écrit.
+            Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
+
+            $exists = $property->collaborators()->where('user_id', $data['user_id'])->exists();
+            abort_code_if($exists, 422, 'property.collaborator_exists');
+
             $this->assertCommissionWithinCapLocked(
                 $property,
                 (float) ($data['commission_share'] ?? 0),
