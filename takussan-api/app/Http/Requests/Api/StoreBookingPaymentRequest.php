@@ -69,7 +69,10 @@ class StoreBookingPaymentRequest extends BaseFormRequest
             // TCK-1311 (P147.09) — une ligne saisie à la main naît `paid`, `pending` ou
             // `partially_paid` : `refunded` passe par le geste `refund`, `failed` et `late` ne se
             // déclarent pas à la création.
-            'status' => ['nullable', Rule::enum(PaymentStatus::class)->only([PaymentStatus::Paid, PaymentStatus::Pending, PaymentStatus::PartiallyPaid])],
+            // TCK-1918 (P170.03, décision du porteur) — plus `partially_paid` : la ligne n'était
+            // comptée ni dans le dû du client ni au reversement. Une part reçue est une ligne `paid`
+            // de son montant.
+            'status' => ['nullable', Rule::enum(PaymentStatus::class)->only([PaymentStatus::Paid, PaymentStatus::Pending])],
             'paid_at' => ['nullable', 'date'],
             'transaction_id' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
