@@ -568,6 +568,66 @@ class BankStatementPipelineTest extends ApiTestCase
         ];
     }
 
+    // ─── P157.06 (TCK-1919) — relevés qui se chevauchent ────────────
+
+    /**
+     * Décision du porteur : marquer, ne pas sauter. La ligne d'un second relevé dont la référence,
+     * la date, le montant et le sens égalent ceux d'une ligne déjà importée POUR L'AGENCE porte
+     * `duplicate_of_line_id` ; elle reste dans le relevé. Une ligne d'une autre agence ne compte pas.
+     */
+    public function test_une_ligne_deja_importee_par_un_autre_releve_est_marquee_et_gardee(): void
+    {
+        $ailleurs = BankStatementLine::factory()->create([
+            'bank_statement_id' => BankStatement::factory()->create()->id,
+            'posted_at' => '2026-04-01', 'amount' => 150000, 'reference' => 'F1',
+        ]);
+
+        $premier = $this->upload("date,amount,label,reference\n01/04/2026,150000,Loyer,F1\n");
+        $second = $this->upload("date,amount,label,reference\n01/04/2026,150000,Loyer,F1\n05/04/2026,1000,Autre,F2\n02/04/2026,-150000,Sortie,F1\n");
+
+        $original = $premier->lines()->sole();
+        $this->assertNull($original->duplicate_of_line_id);
+        $this->assertSame(3, $second->lines_count);
+        $lignes = $second->lines()->orderBy('posted_at')->get()->keyBy('label');
+        $this->assertSame($original->id, $lignes['Loyer']->duplicate_of_line_id);
+        $this->assertNotSame($ailleurs->id, $lignes['Loyer']->duplicate_of_line_id);
+        $this->assertNull($lignes['Autre']->duplicate_of_line_id);
+        $this->assertNull($lignes['Sortie']->duplicate_of_line_id, 'autre date et autre sens : pas un doublon');
+
+        $this->actingAs($this->admin)->getJson("/api/bank-statements/{$second->id}/lines?fields[bank_statement_lines]=id,label,duplicate_of_line_id")
+            ->assertOk()
+            ->assertJsonFragment(['label' => 'Loyer', 'duplicate_of_line_id' => $original->id]);
+    }
+
+    /**
+     * À la confirmation d'une ligne, les autres lignes suggérées sur le même paiement repassent
+     * `unmatched` : la seconde restait « suggérée » sur un paiement rapproché ailleurs, et sa
+     * confirmation rendait 422.
+     */
+    public function test_confirmer_une_ligne_retire_la_suggestion_des_autres_lignes_du_meme_paiement(): void
+    {
+        $payment = $this->leasePayment($this->agency, ['reference_number' => 'F1', 'amount' => 150000, 'paid_at' => '2026-04-01']);
+
+        $premier = $this->upload("date,amount,label,reference\n01/04/2026,150000,Loyer,F1\n");
+        $second = $this->upload("date,amount,label,reference\n01/04/2026,150000,Loyer,F1\n05/04/2026,1000,Autre,F2\n");
+        $a = $premier->lines()->sole();
+        $b = $second->lines()->where('reference', 'F1')->sole();
+        $this->assertSame(BankStatementLineMatchStatus::Suggested, $a->match_status);
+        $this->assertSame(BankStatementLineMatchStatus::Suggested, $b->match_status);
+
+        $this->actingAs($this->admin)->postJson("/api/bank-statement-lines/{$a->id}/match", [
+            'payment_type' => 'lease_payment',
+            'payment_id' => $payment->id,
+        ])->assertOk();
+
+        $b->refresh();
+        $this->assertSame(BankStatementLineMatchStatus::Unmatched, $b->match_status);
+        $this->assertNull($b->matched_payment_type);
+        $this->assertNull($b->matched_payment_id);
+        $this->assertNull($b->match_confidence);
+        $this->assertSame(BankStatementLineMatchStatus::Confirmed, $a->refresh()->match_status);
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────
 
     /** @param  array<string, mixed>  $overrides */
