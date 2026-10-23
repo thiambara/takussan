@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Enums\Capability;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\BailleurDuBien;
 
 /**
  * TCK-596 — qui touche à l'argent d'une réservation : l'enregistrement d'un paiement
@@ -14,8 +15,9 @@ use App\Services\Membership\MembershipCapabilityResolver;
  *
  * Trois voies, et le client n'en est aucune pour le remboursement :
  *
- *   - le **bailleur direct** du bien (`properties.user_id`), sauf s'il est suspendu dans l'agence
- *     du bien : il reste partie, il perd les écritures (ADR-0031 §2) ;
+ *   - le **bailleur direct** du bien (`properties.user_id`, s'il y est propriétaire :
+ *     {@see BailleurDuBien}), sauf s'il est suspendu dans l'agence du bien : il reste partie, il
+ *     perd les écritures (ADR-0031 §2) ;
  *   - le **personnel de l'agence de la réservation** (prédicat TCK-587 `isStaffAt`, jamais
  *     l'accesseur d'agence unique de l'utilisateur) — pour rembourser, titulaire de `bookings.refund` dans CETTE agence ;
  *   - le super-admin.
@@ -29,11 +31,13 @@ final class BookingMoneyAccess
     public static function isDirectLandlord(User $user, Booking $booking): bool
     {
         $property = $booking->property;
-        if ($property === null || $property->user_id === null || (int) $property->user_id !== (int) $user->id) {
+        $agencyId = self::agencyId($booking);
+
+        // TCK-1718 (P160.01) — le créateur du bien n'en est bailleur que s'il y est propriétaire :
+        // l'agent qui a saisi un bien d'agence rembourse au titre du personnel, sous `bookings.refund`.
+        if ($property === null || ! BailleurDuBien::est($user, $property->user_id, $agencyId)) {
             return false;
         }
-
-        $agencyId = self::agencyId($booking);
 
         return $agencyId === null || ! $user->isBlockedOwnerAt($agencyId);
     }
