@@ -753,6 +753,25 @@ async function resolveServerLocale(): Promise<string | undefined> {
 }
 
 /**
+ * TCK-1996 (P174.02, P174.03) — côté serveur, le profil actif du cookie `active_profile_id`, pour
+ * `X-Active-Profile-Hint`. Sans ce repli, les lectures et les écritures serveur de `/app` partaient
+ * avec le seul jeton : pour un compte de deux agences, l'API ne voyait aucun profil (elle
+ * n'auto-bascule que pour une seule agence) et rendait listes vides, fiches en 403 et créations
+ * refusées. La règle est celle de `getActiveProfileId()` (`src/lib/session.ts`), importée à
+ * l'appel comme `next/headers` : rien pendant une impersonation (TCK-600, invariant 11). Rend
+ * `undefined` dans le navigateur et hors requête. Même garde que {@link resolveVisitorIp}.
+ */
+async function resolveServerActiveProfile(): Promise<string | undefined> {
+  if (typeof window !== 'undefined') return undefined;
+  try {
+    const { getActiveProfileId } = await import('@/lib/session');
+    return (await getActiveProfileId()) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * L'appel à l'API Laravel, du navigateur comme du serveur Next.
  *
  * ⚠ TCK-1386 (P138.01) — **côté serveur, la seule déduplication d'une lecture est `cache()` de
@@ -791,8 +810,15 @@ export async function apiRequest<T>(
     requestHeaders['Accept-Language'] = requestLocale;
   }
 
-  if (activeProfileId && !requestHeaders['X-Active-Profile-Hint']) {
-    requestHeaders['X-Active-Profile-Hint'] = activeProfileId;
+  // TCK-1996 — un appel authentifié du serveur qui ne nomme aucun profil prend celui du cookie ;
+  // l'appelant qui passe le sien, un indice ou un `X-Profile-Id` l'emporte.
+  const profilActif =
+    activeProfileId ??
+    (token && !requestHeaders['X-Active-Profile-Hint'] && !requestHeaders['X-Profile-Id']
+      ? await resolveServerActiveProfile()
+      : undefined);
+  if (profilActif && !requestHeaders['X-Active-Profile-Hint']) {
+    requestHeaders['X-Active-Profile-Hint'] = profilActif;
   }
 
   if (!requestHeaders['X-Forwarded-For']) {
