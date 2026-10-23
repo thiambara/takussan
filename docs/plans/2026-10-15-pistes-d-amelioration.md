@@ -17282,7 +17282,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Un prix ou une surface à partir de 10¹⁵ rend 500 sur la recherche publique : le nombre part au moteur en notation `1.0E+15`
 - Réf : P187.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1845 — reste : le plafond `max` des bornes de prix dans `SearchPublicPropertyRequest` et des quatre bornes dans `SavedSearchCriteria`, que la `Piste` proposait et que le correctif ne demande pas
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:527-532`, `:554-559`, `takussan-api/app/Http/Requests/Public/SearchPublicPropertyRequest.php` (`price_min`, `price_max`, `area_min`, `area_max` : `numeric|min:0`, sans `max`), `takussan-api/app/Support/SavedSearchCriteria.php:68-72`
 - Constat :
@@ -17293,6 +17293,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : écrire les nombres du filtre sans notation scientifique (un formateur unique, par exemple `number_format($v, 2, '.', '')` ou `sprintf('%F')`, comme le font déjà `_geoBoundingBox` et `_geoRadius` l. 616-641), et poser un `max` aux quatre bornes dans la requête et dans `SavedSearchCriteria`. Garde : un test de recherche avec `price_min=1e15` qui attend 200.
 - Mesure (2026-10-23, 13aa0411a, mesureur) : relu `PropertySearchService.php:527-532,554-559` (`'price >= '.(float) …`, de même `price_max`, `area_min`, `area_max`), `:617-641` (géo déjà écrite par `sprintf('%F')`), `:217-227` (`alertMatches()` passe par le même `buildFilter()`), `SearchPublicPropertyRequest.php:106-115` (`numeric|min:0`, sans `max`) et `SavedSearchCriteria.php:68-72` ; test temporaire `tests/Feature/Tmp/MesureurTmp187Test.php` (un cas par méthode, charge `{ 2.72 2.62 3.32 }` sur 8 cœurs, retiré) : `search?price_min=1000000000000000` → **500** « unexpected characters … `+15` », `price_min=999999999999999` → **500**, `price_max=1e20` → **500**, `area_min=100000000000000000000` → **500** `+20`, `price_min=99999999999999` (14 chiffres) → 200 → le constat tient ; l'échec d'envoi d'une alerte reste déduit (même chemin lu, non joué). Classement : A1, une requête que la validation accepte ne doit pas rendre 500 ; le correctif attendu est un formateur unique qui écrit ces quatre bornes sans notation scientifique (comme la géo), en gardant `1e400` à 200, et le plafond `max` de la `Piste` n'est pas nécessaire au correctif ni à prendre sans le porteur.
+- Mesure (2026-10-23, 772307dd4, implementeur) : test neuf à jeu de données `PublicPropertySearchFiltersTest::test_une_borne_numerique_hors_notation_ordinaire_ne_rend_pas_500` (charge `{ 1.78 2.14 2.73 }` sur 8 cœurs), sept bornes, cinq rouges avant correctif (500 « unexpected characters … `+15` » ou `+20` sur `price_min=10¹⁵`, `999999999999999`, `price_max=1e20`, `area_min=10²⁰`, `area_max=1e20`), `price_min=0.00001` (écrit `1.0E-5`) et `1e400` déjà à 200 → formateur unique `PropertySearchService::nombre()` (`%.10F`, zéros de fin retirés, non fini inchangé) ; ablation (`(string) $nombre`) → cinq rouges, remis → 28/28 dans la classe, 6/6 dans `PropertySearchServiceTest`.
 
 ### La carte publique rend 500 sur une surface au-delà de la colonne entière
 - Réf : P187.03
