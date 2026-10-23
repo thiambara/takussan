@@ -162,8 +162,12 @@ export function TeamConsole({
     [router, searchParams],
   );
 
+  // TCK-1901 (P197.02) — le relais `/api/admin-users` répond pour l'agence du profil actif :
+  // l'agence entre dans la clé, sans quoi un changement de profil (`router.refresh()`, la console
+  // reste montée) servirait encore les membres de l'agence quittée. Les invalidations par le
+  // préfixe `['admin-users', 'list']` restent valables.
   const usersQuery = useQuery<AdminAgencyUsersResponse, ApiError>({
-    queryKey: ['admin-users', 'list', params],
+    queryKey: ['admin-users', 'list', agencyId, params],
     queryFn: () => fetchAdminUsers(params),
     staleTime: 15_000,
     enabled: !performance,
