@@ -1,7 +1,7 @@
 ---
 id: TCK-1826
 title: "Les favoris d'un utilisateur connecté se lisent au premier abonné du magasin, pas à chaque chargement"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -54,18 +54,18 @@ Aucun changement d'API (`GET /api/favorites`, inchangé).
 
 ## Delta à produire
 
-- [ ] `favoritesStore` : un chargeur à la demande, lancé au premier abonné (`useFavorites`), une
+- [x] `favoritesStore` : un chargeur à la demande, lancé au premier abonné (`useFavorites`), une
   fois par chargeur posé.
-- [ ] `AuthContext` : l'amorçage des favoris pose ce chargeur au lieu de lire tout de suite.
-- [ ] Test vitest : aucun abonné → aucune lecture ; premier abonné → une lecture ; deux abonnés →
+- [x] `AuthContext` : l'amorçage des favoris pose ce chargeur au lieu de lire tout de suite.
+- [x] Test vitest : aucun abonné → aucune lecture ; premier abonné → une lecture ; deux abonnés →
   une seule.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — un utilisateur connecté sans aucun abonné du magasin : aucun appel à
+- [x] AC1 — un utilisateur connecté sans aucun abonné du magasin : aucun appel à
   `fetchAllFavoritePropertyIds`.
-- [ ] AC2 — un abonné qui se monte ensuite déclenche une lecture, et le magasin porte les favoris.
-- [ ] AC3 — deux abonnés : une seule lecture ; le TCK-1764 tient (même compte relu → aucune
+- [x] AC2 — un abonné qui se monte ensuite déclenche une lecture, et le magasin porte les favoris.
+- [x] AC3 — deux abonnés : une seule lecture ; le TCK-1764 tient (même compte relu → aucune
   relecture).
 
 ## Hors périmètre
@@ -77,4 +77,12 @@ Aucun changement d'API (`GET /api/favorites`, inchangé).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Le chargeur vit dans `favoritesStore` (compte des abonnés de `subscribe`, que seul
+  `useSyncExternalStore` de `useFavorites` appelle) : il part au premier abonné, une fois, et un
+  abonné déjà monté le lance dès qu'`AuthContext` le pose (changement de compte ou d'agence).
+- Trois tests montaient `AuthProvider` sans abonné et attendaient l'amorçage
+  (`AuthContext.session`, `AuthContext.favoris-meme-compte.tck-1764`,
+  `ReinitialiserSessionClient`) : ils montent désormais un abonné `Coeur`, la page qui affiche
+  un cœur.
+- Ablation : `favoritesStore.ts` et `AuthContext.tsx` rendus à `HEAD` → 2 rouges sur 2 (lecture
+  au montage sans abonné) ; correctif remis → 2/2 verts.
