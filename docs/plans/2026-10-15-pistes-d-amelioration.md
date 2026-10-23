@@ -16044,7 +16044,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Annonces et versements de la plateforme : 30 lignes et un total, sans page suivante
 - Réf : P171.07
-- Statut : validé (délégué) — `AdminPayoutsClient` et la table des annonces se paginent par le composant `Pagination` de `@/components/console`, comme `payments.tsx` et `failed-jobs.tsx` de la même console : `page` dans l'état, passée à `fetchAdminPlatformPayouts` et `fetchAdminAnnouncements` (qui l'acceptent déjà), `lastPage` = `meta.last_page`, 30 par page gardé, retour à la page 1 quand l'agence ou le statut des versements change ; total affiché inchangé ; test : 31 versements, puis 31 annonces, la 31ᵉ ligne se rend en page 2
+- Statut : fait · TCK-1751
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/super-admin.ts:867-877,985`, `takussan-web/src/components/admin/super/announcements.tsx:307,424-427`, `takussan-web/src/components/billing/AdminPayoutsClient.tsx:41-52,86-88`
 - Constat :
@@ -16053,6 +16053,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 - Piste : paginer les deux tables ; un test qui rend la 31ᵉ ligne.
 - Mesure (2026-10-23, cee72033c, mesureur) : relu `AdminPayoutsClient.tsx:47` (`perPage: 30`), l. 52 et 88 (total affiché), `announcements.tsx:307` (`fetchAdminAnnouncements({ perPage: 30 })`, `useQuery` sans page) et l. 424 (`meta.total` en badge) → les deux points tiennent, celui des annonces, noté « à vérifier », est lu. Classement : V7, paginer deux tables est un comportement visible neuf.
 - Mesure (2026-10-23, f0c04f559, delegue) : relu le constat, la `Piste` et la `Mesure` du mesureur, `AdminPayoutsClient.tsx:41-52` (`perPage: 30`, une page, `meta.total` affiché), `announcements.tsx:305-309,424` (une page de 30, `meta.total` en badge), `super-admin.ts:867-877,980-986` (les deux lectures acceptent déjà `page`), et les tables voisines de la même console, `payments.tsx:148,232,392` et `failed-jobs.tsx:70,134,237` (`Pagination` de `@/components/console`, page dans l'état, remise à 1 au changement de filtre) → la `Piste` ne propose qu'une option, et la console a déjà sa forme de pagination ; le geste attendu est écrit par TCK-151 (« contrôles Précédent / Suivant » sur une liste paginée). Délégation : V7, choix mineur et réversible en un commit du seul front, qui suit la forme déjà en place sur deux tables de la console et TCK-151 ; à la différence de P171.03, la `Piste` n'ouvre pas « voir plus » ; la liste des versements est lue et non calculée, aucun montant ni écriture d'argent ne change ; aucun critère réservé.
+- Mesure (2026-10-23, 4436bf690, implementeur) : test `AdminPayoutsClient.pagination.tck-1751.test.tsx` (lecteurs bouchonnés, 31 lignes, 30 par page) rouge avant correctif : aucun bouton « Suivant » sous les versements ni sous les annonces → les deux tables se paginent par `Pagination`, la page revient à 1 au changement d'agence ; ablation (deux composants rendus à `HEAD`) → 2 rouges sur 2, correctif remis → 2/2 verts.
 
 ### Petites améliorations
 - Réf : P171.08
