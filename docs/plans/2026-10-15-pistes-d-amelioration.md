@@ -17666,7 +17666,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Un groupe rattaché à un bail accepte des participants qui ne lisent pas le bail, et leur ouvre le fil du locataire
 - Réf : P191.04
-- Statut : validé — validation du porteur (2026-10-23) : la recommandation du délégué ; la règle s'écrit dans `features.md` § 1.7 en session ; relever en préproduction les fils qui comptent déjà un tel tiers
+- Statut : validé — validation du porteur (2026-10-23) : la recommandation du délégué (participants d'un groupe rattaché à un bail limités à qui passe `LeasePolicy::view`, contrôlé à la création et à l'ajout), avec une exception : le prestataire assigné à une intervention de ce bail reste dans le fil de cette intervention (TCK-592, `SyncMaintenanceConversation`) ; la règle est écrite dans `features.md` § 1.7 ; relever en préproduction les fils qui comptent déjà un tiers
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Conversation/Concerns/GuardsConversationScope.php:46-73`, `takussan-api/app/Http/Requests/Conversation/CreateGroupConversationRequest.php:54-71`
 - Constat :
