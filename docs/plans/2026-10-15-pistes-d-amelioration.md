@@ -265,7 +265,7 @@ voie d'écriture (angle 13, puis 47).
 | 188 | Paramètres hors `filter[…]` lus à la main puis passés à `Carbon::parse()`, `DayRange` ou une colonne typée (`?from=`/`?to=`/`?start=`/`?end=` du calendrier `CalendarEventCollector` et des tableaux de bord, `?period=`, `?month=`, `?year=`) : 500 sur une date ou un nombre mal formés, et borne de fin en date seule qui exclut le jour — le pendant de l'angle 151 hors de `filter[…]` | fait |
 | 189 | Gestes montrés par une comparaison d'identité dans les détails (`isAssignedAgent` de `VisitDetail.tsx:98`, `user.id === landlord_id`, `issued_by_id`, `uploaded_by_id`, auteur d'une note ou d'un message) face à la policy, qui exige en plus le personnel actif de l'agence (`PersonnelDeLAgence::personnelActifDe`) ou un bailleur non bloqué (`isBlockedOwnerAt`) : agent parti, suspendu ou bailleur bloqué à qui le geste reste montré et rend 403 — né de P152.04 | fait |
 | 190 | Créateur d'un bien d'agence (`properties.user_id`) encore membre mais suspendu ou archivé dans l'agence, face aux policies qui l'acceptent par la seule identité (`BookingPolicy::view` et `::update` l. 36 et 51, `InventoryPolicy::view` l. 32, `MaintenanceRequestPolicy::isPrincipalFor` l. 302, `PropertyPolicy::view` l. 51, `ReviewPolicy` l. 85) : lecture et gestes laissés à un agent que l'agence a suspendu — le pendant pour le membre suspendu de P153.01 à P153.03 | fait |
-| 191 | Fils rattachés à un bail ou à une réservation (`conversations.lease_id`, groupes à contexte de bail, type `lease` et `booking`) face à la policy du porteur : `ConversationAccess` ne juge que la participation hors intervention et fil de prospect, si bien qu'un locataire sorti, un bailleur remplacé ou un agent suspendu qui y reste participant lit et écrit encore — né de P153.04 | à faire |
+| 191 | Fils rattachés à un bail ou à une réservation (`conversations.lease_id`, groupes à contexte de bail, type `lease` et `booking`) face à la policy du porteur : `ConversationAccess` ne juge que la participation hors intervention et fil de prospect, si bien qu'un locataire sorti, un bailleur remplacé ou un agent suspendu qui y reste participant lit et écrit encore — né de P153.04 | fait |
 | 192 | Libellés que l'API résout par une clé bâtie sur une valeur (`__('invitations.roles.'.$role)`, `enumLabel()` de `BaseResource`, gabarits PDF, exports CSV, `__("…{$this->kind}…")`) face aux valeurs que la validation, les constantes et les enums acceptent réellement : clé brute rendue sans erreur au lecteur — né de P155.01 | à faire |
 | 193 | Avis et textes bâtis sur l'e-mail d'un compte ou d'une invitation (`:email` des notifications, `toMail()` et `routeNotificationForMail`, exports, journaux d'équipe) face aux comptes et invitations sans e-mail depuis TCK-589 (`PHONE_LOGIN_ENABLED`) : texte à trou, courriel vers une adresse nulle, ou personne nommée par rien — né de P155.03 | à faire |
 | 194 | Règles `mimes:` et `mimetypes:` des téléversements (`StoreBankStatementRequest`, documents, pièces jointes, imports ; 13 sous `app/Http/Requests`) face au type que `finfo` lit dans un fichier réel (OFX 2 lu `xml`, CSV à point-virgule, PDF ou image d'un téléphone), et tests qui déposent par `UploadedFile::fake()`, dont le type se déduit du nom : format annoncé à l'écran refusé en 422 sans qu'aucun test le voie — né de P157.05 | à faire |
@@ -292,6 +292,7 @@ voie d'écriture (angle 13, puis 47).
 | 215 | Identifiants numériques de route hors de `bigint` sur les routes connectées : liaisons implicites `{model}` et paramètres `whereNumber()` (30 sous `routes/`) ou actions typées `int $id`, face à vingt chiffres dans l'URL — 500 `22003` ou `TypeError` au lieu d'un 404 — le relevé de P187.05 hors des routes publiques | à faire |
 | 216 | Paramètres hors `filter[…]` castés `(string)` ou passés à un argument typé `string` dans les listes et lectures écrites à la main (`(string) $request->input('include')` des trois tableaux de bord, `(string) $request->query('sort')` de `ReviewController` et `UserDetailController`, `$request->query('q')` de `PaymentSearchController`, et leurs pareils sous `app/Http/Controllers`) : une liste `x[]=` rend 500 « Array to string conversion » ou `TypeError` au lieu d'un 422 ou d'un défaut — né de P188.06 et P188.07 | à faire |
 | 217 | Clauses de périmètre des listes `index` écrites à la main (`BookingController`, `LeaseController`, `InventoryController`, `PaymentController::history`, `InvoiceController`, `PropertyVisitController`, `MaintenanceRequestController`) face à la policy `view` de leur modèle, resserrée seule par TCK-587, TCK-1705, TCK-1707 et TCK-1718 à TCK-1722 : ligne refusée en lecture qui reste listée avec ses relations chargées (fiche client, bien) — hors du créateur du bien relevé à l'angle 190 | à faire |
+| 218 | Effets que le retrait d'un membre applique (`AgencyMemberRemovalService` : fils de bail quittés, marque d'agent principal retirée, passation) et que la suspension n'applique pas (`TeamMemberSuspensionService::apply` : statut des profils et jetons seulement), face aux lectures qui jugent la participation, la marque ou l'assignation sans le statut du profil : agent suspendu qui garde ce que le retiré perd, alors qu'il se reconnecte — né de P191.01 | à faire |
 
 
 ---
@@ -17607,3 +17608,67 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré.
 - Piste : remplacer `isMemberOf` par `BailleurDuBien::est` (bailleur de tout statut) ou personnel actif de l'agence (`isStaffOf`) dans `view`, `update` et la clause de la liste. Test : agent créateur suspendu → 403 et absent de la liste ; bailleur auteur bloqué → lecture 200.
 - Mesure (2026-10-23, 0c707fc77, mesureur) : relu `PropertyPolicy::view`/`update` (`isMemberOf`, de tout statut) et `PropertyController::index` (clause bornée aux agences où l'auteur a un profil, sans statut), inchangés ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 → suspendu : `can` view/update = vrai/faux, `GET /api/properties/{id}` → 200, bien présent dans `GET /api/properties` ; retiré : `can('view')` faux, `GET` → 403, absent de la liste, comme TCK-1705 le garde → le constat tient pour le seul suspendu. Classement : V2, la ligne `Mesure` de l'implémenteur de P153.01 garde délibérément au suspendu ce qu'il a, et revenir sur ce choix contre ADR-0031 § 3 revient au porteur.
+
+## Angle 191 — Fils rattachés à un bail ou à un bien face à la policy de leur contexte
+
+*Exploré le 2026-10-23 sur `pre-dev` 60fd5f865, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : `ConversationAccess` (`allows`, `branchesAllow`, `constrainListing`), `AgencyMemberRemovalService::leaveUnreadableLeaseThreads` (TCK-1711), `TeamMemberSuspensionService`, `LeasePolicy::view`, `ConversationController::store`, `StoreConversationRequest`, `CreateGroupConversationRequest`, `GuardsConversationScope`, `GroupConversationService::create`, `ConversationPolicy::addParticipant`, `MessagingReach` (règles 1 à 4), `NotifyNewMessageJob`, `ConversationSeeder`, et côté front `types/message.ts`, `ConversationList.tsx`, `ChatView.tsx`. Mesures par un test temporaire `tests/Feature/TmpExplorateur/SondeAngle191Test.php` (base de test PostgreSQL, charge 1,76 / 1,80 / 2,08 sur 8 cœurs), retiré avant la fin, sur le jeu de `MaintenanceActors` (`maintenanceScenario`, bail passé à l'agence, agent de l'agence) : deux fils de groupe créés par l'agent avec le locataire, l'un portant `lease_id` et `property_id`, l'autre `property_id` seul ; agent **suspendu** par `TeamMemberSuspensionService::suspend`, ou **retiré** par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`. Lu en base de développement, en `SELECT` : `conversations` y compte 94 `direct` sans contexte et 146 `property` à `property_id`, aucun fil à `lease_id`. Écartés : le locataire « sorti » (fin de bail) garde la lecture du bail par `LeasePolicy::view` (lu, l. 76-78), son fil suit donc la policy ; le bailleur « remplacé » n'a pas de chemin (aucune écriture de `landlord_id` hors création, mesuré par `grep -rn "landlord_id' =>\|->landlord_id =" app`) ; le bail qui désigne l'agent créateur est P190.04 ; aucun fil ne se rattache à une réservation (`conversations` n'a pas de `booking_id`, lu `Conversation::$fillable`).*
+
+### L'agent suspendu lit, écrit et liste encore les fils de bail et de bien de son agence
+- Réf : P191.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Messaging/ConversationAccess.php:37-60,92-115`, `takussan-api/app/Services/Membership/TeamMemberSuspensionService.php:73-118`
+- Constat :
+  - `allows` exige la participation active, puis `branchesAllow` ne juge que la branche intervention et la branche prospect (directe à `property_id`) : un groupe à `lease_id` ou à `property_id` n'a aucune branche (lu, l. 37-60) ; `constrainListing` de même (lu, l. 92-115).
+  - La suspension pose le statut des profils et supprime les jetons, sans toucher aux fils (lu, `apply`, l. 73-118) ; TCK-1711 ne fait quitter les fils de bail qu'au **retrait** (lu, `AgencyMemberRemovalService.php:101,126-143`).
+  - mesuré (test temporaire) : agent suspendu (`staffAgencyId()` → null) → `can('view', $lease)` faux et `can('view', $property)` faux, mais pour les deux fils `ConversationAccess::allows` vrai, `GET /api/conversations/{id}` → 200, `GET …/messages` → 200, `POST …/messages` → 201, fil présent dans `GET /api/conversations`, `left_at` nul.
+  - Le suspendu se reconnecte : `POST /api/auth/login` lui rend un jeton (mesuré à l'angle 190, en-tête de section).
+  - `NotifyNewMessageJob` filtre ses destinataires par `branchesAllow` (lu, l. 42-50) : le suspendu reçoit donc l'avis des messages du locataire (à vérifier).
+  - Établi comment : lu, puis mesuré.
+- Piste : donner à `ConversationAccess` une branche « contexte » qui juge `LeasePolicy::view` pour un fil à `lease_id` et `PropertyPolicy::view` pour un groupe à `property_id`, dans `allows`, `branchesAllow` et `constrainListing`, comme la branche intervention ; la règle vaut alors pour le suspendu, le retiré et tout cas à venir, et rend `leaveUnreadableLeaseThreads` redondant. Test : agent suspendu → `GET` et `POST …/messages` en 403, fil absent de la liste, pas d'avis ; réactivé → 200 ; locataire et bailleur gardent le fil.
+
+### Le membre retiré garde le groupe rattaché à un bien de l'agence : TCK-1711 ne quitte que les fils de bail
+- Réf : P191.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:119-143`, `takussan-api/app/Services/Messaging/ConversationAccess.php:56-60`
+- Constat :
+  - `leaveUnreadableLeaseThreads` ne prend que les fils dont `lease_id` est un bail de l'agence (lu, l. 133-138) ; un groupe ouvert avec le seul `property_id` (ce que `NewGroupDialog` envoie sans bail, lu `NewGroupDialog.tsx:108-128`) n'est pas touché, et `ConversationAccess` ne juge pas le bien d'un groupe (lu, `isProspectThread` exige `Direct`).
+  - mesuré (test temporaire) : après le retrait, le fil à `lease_id` est quitté (`left_at` posé, 403), mais le groupe à `property_id` seul reste : `can('view', $property)` faux, `allows` vrai, `GET …/messages` → 200, `POST …/messages` → 201, fil listé.
+  - La piste de P153.04 nommait aussi les fils à `property_id` ; l'implémenteur a retenu « la plus étroite des deux » voies (lu, sa ligne `Mesure`).
+  - Établi comment : lu, puis mesuré.
+- Piste : la branche « contexte » de P191.01 couvre ce cas ; à défaut, étendre `leaveUnreadableLeaseThreads` aux groupes à `property_id` d'un bien de l'agence, jugés par `PropertyPolicy::view`. Test : retrait en `leave_unassigned` → `GET …/messages` du groupe de bien en 403, le locataire le garde.
+
+### L'agent suspendu, administrateur d'un groupe de bail, y ajoute un tiers qui lit alors tout le fil
+- Réf : P191.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/ConversationPolicy.php:22-25`, `takussan-api/app/Http/Controllers/Api/ConversationParticipantController.php:37`, `takussan-api/app/Services/Messaging/MessagingReach.php:100-175`
+- Constat :
+  - `addParticipant` ne demande que d'être administrateur actif du groupe (lu, l. 22-25) ; la joignabilité admet tout correspondant de l'acteur (règle 1, lu `MessagingReach.php:41-43,107`), sans juger le statut de l'acteur dans l'agence du bail.
+  - mesuré (test temporaire) : agent suspendu, administrateur du groupe à `lease_id`, ayant un correspondant Y (une directe antérieure) → `POST /api/conversations/{id}/participants` `{user_ids:[Y]}` → 201 ; Y, sans lien au bail (`can('view', $lease)` faux), lit le fil (`GET …/messages` 200, historique compris) et y écrit (201).
+  - Établi comment : lu, puis mesuré.
+- Piste : la branche « contexte » de P191.01 retire au suspendu ses gestes d'administrateur (`isActiveAdmin` passe par `ConversationAccess`, à vérifier) ; pour le tiers ajouté, voir P191.04. Test : agent suspendu → ajout en 403.
+
+### Un groupe rattaché à un bail accepte des participants qui ne lisent pas le bail, et leur ouvre le fil du locataire
+- Réf : P191.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Conversation/Concerns/GuardsConversationScope.php:46-73`, `takussan-api/app/Http/Requests/Conversation/CreateGroupConversationRequest.php:54-71`
+- Constat :
+  - `guardContext` exige que **l'acteur** voie le bail rattaché ; rien ne juge les autres participants face au bail, seulement leur joignabilité (lu, l. 46-73).
+  - mesuré (test temporaire) : agent actif, `POST /api/conversations` `{type: group, lease_id, participants: [locataire, X]}`, X simple correspondant de l'agent → 201 ; X : `can('view', $lease)` faux, `GET …/messages` 200, `POST` 201, fil listé avec `lease_id` et `property_id` (lu, `ConversationResource.php:19-20,42-44`).
+  - Que le contexte de bail borne les participants n'est écrit nulle part (à vérifier dans `docs/features.md` § messagerie) : c'est peut-être voulu (un artisan, un garant), d'où 🟠.
+  - Établi comment : lu, puis mesuré.
+- Piste : écrire la règle — participants d'un fil de bail = parties au bail, personnel de l'agence et invités explicites — puis, si elle borne, l'appliquer au moment de la création et de l'ajout ; la branche de P191.01 ne doit pas fermer le fil à un invité légitime sans que la règle le dise.
+
+### Petites améliorations
+- Réf : P191.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:44`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:102-128`, `takussan-api/database/seeders/Operations/ConversationSeeder.php:46-52`, `takussan-web/src/types/message.ts:6`
+- Constat :
+  - `type` accepte tout cas de `ConversationType` sur le chemin de la directe : mesuré (test temporaire) `POST /api/conversations` `{type: lease|booking|property|support, participants:[locataire], lease_id}` → 201 chaque fois, `type` enregistré tel quel. Aucun code de l'application n'écrit ces cas (mesuré, `grep -rn "ConversationType::" app`) ; le front ne connaît que `direct | group | support` et rend tout ce qui n'est pas `group` en directe (lu, `ConversationList.tsx:140`, `ChatView.tsx:126`).
+  - Le seeder écrit des fils `property` à `property_id` de 2 à 4 participants (lu, l. 46-52 ; 146 en base de développement, mesuré par `SELECT`). Ce n'est pas un fil de prospect pour `ConversationAccess` (`isProspectThread` exige `Direct`) : la base de développement montre une forme que l'application ne produit pas et que la règle d'accès ne juge pas.
+  - Établi comment : lu, mesuré.
+- Piste : borner `type` du chemin direct à `direct` (ou le retirer de la requête : `storeGroup` lit `group`) ; faire écrire au seeder des directes de prospect (`direct` + `property_id`, deux participants, créateur prospect) et des groupes, comme l'application. Test : `type=lease` → 422.
