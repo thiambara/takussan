@@ -58,8 +58,15 @@ class PropertyController extends Controller
         ]);
 
         if (! $user->isSuperAdmin()) {
-            $base->where(function ($q) use ($user) {
-                $q->where('user_id', $user->id);
+            // TCK-1705 (P153.01) — ses biens sans agence, et ceux des agences où il a encore un
+            // profil : l'agent retiré ne liste plus les biens d'agence qu'il avait saisis.
+            $memberAgencyIds = $user->ownerProfiles()->pluck('agency_id')
+                ->merge($user->agentProfiles()->pluck('agency_id'))
+                ->merge($user->agencyAdminProfiles()->pluck('agency_id'))
+                ->unique()->values()->all();
+            $base->where(function ($q) use ($user, $memberAgencyIds) {
+                $q->where(fn ($own) => $own->where('user_id', $user->id)
+                    ->where(fn ($a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds)));
                 // TCK-587 — « Mes biens » d'un bailleur sont les siens (`user_id`) ; le parc de
                 // l'agence est celui de son PERSONNEL (ADR-0031).
                 if (($staffAgencyId = $user->staffAgencyId()) !== null) {

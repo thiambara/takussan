@@ -7,6 +7,7 @@ use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\TagType;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\Tag;
 use App\Models\User;
@@ -64,6 +65,9 @@ class TagSyncIndexFilterTest extends TestCase
     public function test_un_bien_d_agence_inactive_ne_revient_pas_dans_la_recherche_publique(): void
     {
         $agence = Agency::factory()->create(['status' => AgencyStatus::Inactive]);
+        // TCK-1705 (P153.01) — sur un bien d'agence, `user_id` ne vaut titre que pour qui a un
+        // profil dans l'agence : le propriétaire y est bailleur.
+        OwnerProfile::factory()->create(['user_id' => $this->proprietaire->id, 'agency_id' => $agence->id]);
         $bien = Property::factory()->published()->create([
             'user_id' => $this->proprietaire->id,
             'agency_id' => $agence->id,
@@ -85,6 +89,9 @@ class TagSyncIndexFilterTest extends TestCase
     public function test_retirer_un_equipement_d_un_bien_d_agence_inactive_ne_l_indexe_pas(): void
     {
         $agence = Agency::factory()->create(['status' => AgencyStatus::Inactive]);
+        // TCK-1705 (P153.01) — sur un bien d'agence, `user_id` ne vaut titre que pour qui a un
+        // profil dans l'agence : le propriétaire y est bailleur.
+        OwnerProfile::factory()->create(['user_id' => $this->proprietaire->id, 'agency_id' => $agence->id]);
         $bien = Property::factory()->published()->create([
             'user_id' => $this->proprietaire->id,
             'agency_id' => $agence->id,

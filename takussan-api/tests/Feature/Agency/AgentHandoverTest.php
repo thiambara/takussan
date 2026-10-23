@@ -22,6 +22,7 @@ use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
+use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Agency\AgentHandoverService;
 use App\Services\Messaging\ConversationAccess;
 use App\Services\Model\MaintenanceRequestService;
@@ -281,6 +282,37 @@ class AgentHandoverTest extends ApiTestCase
         $this->actingAsApi($leaver)->apiPut("/api/tasks/{$tid}", ['assigned_to_id' => $leaver->id])->assertForbidden();
         $this->actingAsApi($leaver)->apiDelete("/api/tasks/{$tid}")->assertForbidden();
         $this->assertSame($this->successor->id, Task::query()->find($tid)->assigned_to_id);
+    }
+
+    /**
+     * TCK-1715 (P153.07) — l'ancien membre de l'équipe, retiré en `leave_unassigned`, garde un
+     * inventaire et une passation : l'agence voit ce qu'elle a assumé et le passe plus tard.
+     */
+    public function test_l_ancien_membre_retire_en_leave_unassigned_s_inventorie_et_se_passe(): void
+    {
+        app(AgencyMemberRemovalService::class)->remove($this->agency, $this->leaver, $this->admin, leaveUnassigned: true);
+
+        $this->actingAsApi($this->admin)->apiGet($this->url('portfolio'))
+            ->assertOk()
+            ->assertJsonPath('data.portfolio.tasks', 3)
+            ->assertJsonPath('data.portfolio.customers', 2);
+
+        $this->actingAsApi($this->admin)->apiPost($this->url('handover'), [
+            'successor_id' => $this->successor->id,
+        ])->assertOk()
+            ->assertJsonPath('data.moved.tasks', 3)
+            ->assertJsonPath('data.portfolio.tasks', 0);
+
+        $this->assertSame(3, Task::query()->whereIn('id', $this->ids['tasks'])->where('assigned_to_id', $this->successor->id)->count());
+    }
+
+    /** TCK-1715 — qui n'a jamais été de l'équipe reste refusé. */
+    public function test_qui_n_a_jamais_ete_de_l_equipe_reste_refuse(): void
+    {
+        $inconnu = User::factory()->create();
+
+        $this->actingAsApi($this->admin)->apiGet("/api/agencies/{$this->agency->id}/members/{$inconnu->id}/portfolio")
+            ->assertStatus(422)->assertJsonPath('code', 'agent_handover.member_not_staff');
     }
 
     /**
