@@ -16,7 +16,8 @@ use Illuminate\Http\Request;
  *
  * Une ligne écrite pour un destinataire `fr` et lue en `Accept-Language: en` rend donc un titre
  * anglais : la cloche ne fige plus la langue d'écriture. `title`/`body` servent de repli au
- * front, qui rend par code ; une ligne sans code rend ses colonnes stockées.
+ * front, qui rend par code ; une ligne sans code rend ses colonnes stockées. `param_types` donne
+ * la nature de chaque paramètre (P164.05).
  *
  * Champs clairsemés : `fields[app_notifications]=id,code,…` ne rend que ces clés.
  *
@@ -25,7 +26,7 @@ use Illuminate\Http\Request;
 class AppNotificationResource extends BaseResource
 {
     public const FIELDS = [
-        'id', 'type', 'code', 'params', 'target', 'title', 'body', 'data',
+        'id', 'type', 'code', 'params', 'param_types', 'target', 'title', 'body', 'data',
         'is_read', 'read_at', 'sent_at', 'created_at',
     ];
 
@@ -41,6 +42,10 @@ class AppNotificationResource extends BaseResource
             'type' => $this->enumValue($this->type),
             'code' => $this->code,
             'params' => $this->params,
+            // P164.05 (TCK-1806) — la nature de chaque paramètre, tirée du catalogue : la cloche
+            // choisit son formatage par elle, sans la deviner du préfixe du code ni de la forme
+            // de la valeur. `null` pour une ligne sans code connu.
+            'param_types' => $code !== null ? $code->params() + $code->optionalParams() : null,
             'target' => $want('target') ? NotificationTarget::forRow($this->resource)?->toArray() : null,
             'title' => $want('title') ? $this->rendered($code, 'title', $request) ?? $this->title : null,
             'body' => $want('body') ? $this->rendered($code, 'body', $request) ?? $this->body : null,

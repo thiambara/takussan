@@ -23,6 +23,7 @@ function notification(overrides: Partial<AppNotification> = {}): AppNotification
       due_date: '2026-09-29',
       property: 'Villa Almadies',
     },
+    param_types: { amount: 'money', days: 'count', due_date: 'date', property: 'text', payment_url: 'url' },
     target: { kind: 'lease', id: 12, path: '/app/leases/12' },
     title: 'Titre écrit par l’API',
     body: 'Corps écrit par l’API',
@@ -67,6 +68,7 @@ describe('NotificationRow', () => {
       type: 'system',
       code: 'moderation.property_hidden',
       params: { property: 'Villa Almadies', reason_code: 'personal_data', reason: null, ...extra },
+      param_types: { property: 'text', reason_code: 'reason_code', reason: 'text' },
       target: null,
     }), locale);
 
@@ -84,6 +86,7 @@ describe('NotificationRow', () => {
       type: 'system',
       code: 'role_delegation.activated',
       params: { role: 'agency_admin', ends_at: '2026-10-25' },
+      param_types: { role: 'role', ends_at: 'date' },
       target: null,
     }), locale);
 
@@ -104,6 +107,7 @@ describe('NotificationRow', () => {
       type: 'system',
       code: 'governance.integration_changed',
       params: { provider: code, actor: 'Awa Diop' },
+      param_types: { provider: 'provider', actor: 'text' },
       target: null,
     }), locale);
 
@@ -116,6 +120,7 @@ describe('NotificationRow', () => {
       type: 'maintenance',
       code: 'maintenance.accepted',
       params: { request: 'MR-12', provider: 'plomberie_diop' },
+      param_types: { request: 'text', provider: 'text' },
       target: null,
     }));
 
@@ -132,6 +137,7 @@ describe('NotificationRow', () => {
       type: 'payment',
       code: 'owner_statement.available',
       params: { period: '2026-09' },
+      param_types: { period: 'month' },
       target: null,
     }), locale);
 
@@ -159,6 +165,46 @@ describe('NotificationRow', () => {
     expect(screen.getByText('Votre relevé CBAO (12 lignes) est prêt à être rapproché.')).toBeInTheDocument();
   });
 
+  // P164.05 (TCK-1806) — la nature d'un paramètre vient de l'API (`param_types`), plus du préfixe
+  // du code ni de la forme de la valeur.
+  it.each([
+    ['fr', /Les droits du rôle Admin agence ont été modifiés par Awa Diop\./],
+    ['en', /The permissions of the role Agency admin were changed by Awa Diop\./],
+  ] as const)('traduit un rôle déclaré `role` hors des délégations (%s)', (locale, corps) => {
+    renderRow(notification({
+      type: 'system',
+      code: 'governance.role_capabilities_changed',
+      params: { role: 'agency_admin', actor: 'Awa Diop' },
+      param_types: { role: 'role', actor: 'text' },
+      target: null,
+    }), locale);
+
+    expect(screen.getByText(corps)).toBeInTheDocument();
+  });
+
+  it('laisse tel quel un texte à forme de date, et formate une date déclarée', () => {
+    renderRow(notification({
+      type: 'payment',
+      code: 'lease_payment.due_soon',
+      params: { amount: { amount: '150000.00', currency: 'XOF' }, due_date: '2026-09-29', property: '2026-10-30' },
+      param_types: { amount: 'money', due_date: 'date', property: 'text', payment_url: 'url' },
+      target: null,
+    }));
+
+    const texte = document.body.textContent ?? '';
+    expect(texte).toContain('2026-10-30');
+    expect(texte).toContain('29 sept. 2026');
+    expect(texte).not.toContain('2026-09-29');
+  });
+
+  it('sans `param_types`, reconnaît encore montant et date par leur forme', () => {
+    renderRow(notification({ param_types: undefined }));
+
+    const corps = screen.getByText(/est en retard de 7 jours/).textContent ?? '';
+    expect(corps).toMatch(/150\s000\sF\sCFA/u);
+    expect(corps).toContain('29 sept. 2026');
+  });
+
   it('formate le montant et la date, sans « 150000.00 » ni « XOF » bruts', () => {
     renderRow(notification());
 
@@ -178,6 +224,7 @@ describe('NotificationRow', () => {
       type: 'visit',
       code: 'visit.confirmed',
       params: { property: 'Villa Almadies', scheduled_at: '2026-10-25T14:30:00+00:00', timezone: 'Africa/Dakar' },
+      param_types: { property: 'text', scheduled_at: 'datetime', timezone: 'text' },
       target: null,
     }), locale);
 

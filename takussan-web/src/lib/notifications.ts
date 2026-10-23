@@ -22,6 +22,22 @@ export type NotificationMoney = { amount: string; currency: string };
 
 export type NotificationParam = string | number | NotificationMoney | null;
 
+/**
+ * P164.05 (TCK-1806) — la nature d'un paramètre, telle que le catalogue de l'API la déclare
+ * (`NotificationCode::PARAM_*`). Une nature que le front ne connaît pas se rend comme un texte.
+ */
+export type NatureParam =
+  | 'money'
+  | 'date'
+  | 'datetime'
+  | 'count'
+  | 'text'
+  | 'url'
+  | 'reason_code'
+  | 'role'
+  | 'provider'
+  | 'month';
+
 export type AppNotification = {
   id: number;
   type: string;
@@ -33,6 +49,11 @@ export type AppNotification = {
    */
   code?: string | null;
   params?: Record<string, NotificationParam> | null;
+  /**
+   * P164.05 (TCK-1806) — la nature de chaque paramètre, dérivée du catalogue par l'API ; `null`
+   * pour une ligne sans code connu. Absente, la cloche reconnaît montants et dates par leur forme.
+   */
+  param_types?: Record<string, NatureParam | string> | null;
   target?: NotificationTarget | null;
   title: string;
   body?: string | null;
@@ -65,7 +86,7 @@ export type NotificationsQuery = {
  * clairsemés). Ni `data` — que la ressource enrichit à la lecture, pièces signées comprises — ni
  * `sent_at`.
  */
-const CHAMPS_NOTIFICATION = 'id,type,code,params,target,title,body,is_read,read_at,created_at';
+const CHAMPS_NOTIFICATION = 'id,type,code,params,param_types,target,title,body,is_read,read_at,created_at';
 
 export async function fetchNotifications(
   token: string,
