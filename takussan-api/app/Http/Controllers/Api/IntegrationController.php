@@ -90,7 +90,7 @@ class IntegrationController extends Controller
         // TCK-1492 (P92.07) — le contrôle et la création courent sous un verrou, sinon deux envois
         // simultanés passaient tous deux le contrôle et le second heurtait l'index en 500. Le verrou
         // porte sur la ligne de l'agence ; une intégration de plateforme n'a pas de ligne mère, d'où
-        // un verrou consultatif par fournisseur (même voie que `SuperAdminCooptationService`).
+        // un verrou consultatif par fournisseur (`pg_advisory_xact_lock`, la voie de la cooptation plateforme).
         $integration = DB::transaction(function () use ($data, $agencyId): Integration {
             if ($agencyId === null) {
                 DB::selectOne('select pg_advisory_xact_lock(?)', [crc32('integration_platform:'.$data['provider'])]);
