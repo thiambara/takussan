@@ -11346,7 +11346,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
 
 ### Le profil prestataire `suspended` que gardent TCK-592 et la liste du front n'est posé par aucun chemin, ni `inactive`
 - Réf : P115.04
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : retenu · à valider — chemin fermé : `docs/models-spec.md:2346` et `docs/features.md:500` ; la voie la plus étroite, retirer `inactive` et `suspended`, réécrit la description du statut dans `models-spec.md`, et l'autre, un geste de suspension et `inactive` à la fin de la dernière collaboration, rend faux `features.md:500` (« existent dans les enums sans qu'aucun chemin ne les pose ») et retire au prestataire `inactive` son profil, `ActiveProfileResolver.php:107` ne résolvant que `active` (V2, autre que le V7 accordé)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Enums/ServiceProviderProfileStatus.php:5-22`, `takussan-api/app/Services/Onboarding/ServiceProviderOnboardingService.php:54-58`, `docs/models-spec.md:2346`, `docs/backlog/tickets/TCK-592-maintenance-intervention-de-bout-en-bout.md:242-244`, `takussan-web/src/components/service-providers/ServiceProvidersList.tsx:51-52`, `takussan-web/src/lib/queries/service-providers.ts:36-37`
 - Constat :
@@ -11357,6 +11357,7 @@ citées, sauf mention « sous-agent ». Rien n'a été exécuté. Les cas déjà
   - Établi comment : lu et `grep`.
 - Piste : soit un geste de suspension d'un prestataire (plateforme), et la mise à jour d'`inactive` à la fin de la dernière collaboration ; soit retirer les deux cas, leurs badges et la phrase de `models-spec.md`. Choix de produit.
 - Mesure (2026-10-22, 3390f9116, mesureur) : `grep -rn "ServiceProviderProfileStatus::" app` → écrits : `Draft` (`ServiceProviderInvitationService.php:110`) et `Active` (`ServiceProviderOnboardingService.php:84`) seulement ; `Suspended` lu par la seule garde (`:56`), `Inactive` jamais ; aucune règle `Rule::enum` sur ce statut ; relu `models-spec.md:2346` (`inactive` = collaborations `paused`/`ended`, `suspended` = bloqué par un admin), TCK-592 l. 242-244, et le front (`ServiceProvidersList.tsx:51-52`, `service-providers.ts:36-37`). Le constat tient. Classement : V7, la Piste demande de choisir entre un geste neuf (suspension par la plateforme, qui touche aussi l'autorisation du prestataire, V2) et le retrait de deux statuts affichés.
+- Mesure (2026-10-23, b4c6b0da0, implementeur) : `grep -rn "ServiceProviderProfileStatus::" app` → écrits : `Draft` (`ServiceProviderInvitationService.php:110`) et `Active` (`ServiceProviderOnboardingService.php:84`) ; `Suspended` lu par la seule garde (`:56`), `Inactive` jamais → le constat tient. Relu `docs/models-spec.md:2346` (décrit `inactive` et `suspended`), `docs/features.md:500` (écrit depuis TCK-1703 qu'aucun chemin ne les pose), `ActiveProfileResolver.php:107` et `MeProfilesController.php:69` (seul `active` se résout) → chacune des deux voies de la `Piste` passe par une spec fermée à l'implémenteur, et poser `inactive` couperait l'accès d'un prestataire sans agence (V2). Non implémenté : reclassé.
 
 ### Une visite manquée ne peut être que « terminée » ou « annulée » : `no_show` n'a pas de geste
 - Réf : P115.05
@@ -12255,7 +12256,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
 
 ### Cinq normaliseurs de téléphone, et ils ne rendent pas le même numéro
 - Réf : P125.05
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : retenu · à valider — V4 : le normaliseur unique change `CanonicalPhone::sql()`, qui est au caractère près l'expression de l'index d'unicité `users_phone_verified_unique` (migrations `2026_10_07_150190` et `150200`) ; il faut une migration qui réécrit cet index, dont la création peut échouer sur les numéros vérifiés que la nouvelle forme fait coïncider, ce que le V6 accordé (fondre les normaliseurs) ne couvre pas ; et le correctif dépasse M (36 fichiers de `app/` appellent l'un des cinq)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Support/TelephoneSaisi.php:41,43-61`, `takussan-api/app/Services/Crm/CustomerPhoneNormalizer.php:23-48`, `takussan-api/app/Support/CanonicalPhone.php:33-50`, `takussan-api/app/Services/Notifications/Sms/PhoneNumber.php:55-63`, `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:159-178`
 - Constat :
@@ -12268,6 +12269,7 @@ bouton WhatsApp d'un bien ne lit que ces colonnes (`PropertyContactNumbers.php:3
   - Établi comment : mesuré pour les sorties ; les conséquences par parcours sont déduites, à vérifier une à une.
 - Piste : un seul normaliseur (la forme de `TelephoneSaisi`, avec la liste d'indicatifs de `CustomerPhoneNormalizer` si `30` est confirmé), que les quatre autres appellent ; un test unitaire qui joue la même table de saisies contre chaque point d'entrée.
 - Mesure (2026-10-22, 64db86d28, mesureur) : `php` hors application sur les cinq normaliseurs → `30 123 45 67` : `TelephoneSaisi` `301234567`, `CanonicalPhone`, recherche et `CustomerPhoneNormalizer` `+221301234567` ; `77/123/45/67` : `CanonicalPhone::fold` le laisse tel quel, recherche `null` ; `123456789` : `CanonicalPhone::fold` `+221123456789` ; `PhoneNumber::normalize` lève sur les quatre saisies (il attend l'E.164). Le constat tient. Les conséquences par parcours restent déduites, et l'indicatif `30` reste à vérifier. Classement : V6, fondre cinq normaliseurs touche l'entrée par téléphone (V2) et l'expression d'un index (`CanonicalPhone.php:25-27`), une décision de structure.
+- Mesure (2026-10-23, b4c6b0da0, implementeur) : relu `CanonicalPhone.php:25-27` (« `sql('phone')` est, au caractère près, l'expression de l'index `users_phone_verified_unique` (migration `150200`) ») et `2026_10_07_150190_…:29` (l'expression y est recopiée) ; `grep -rln "TelephoneSaisi\|CustomerPhoneNormalizer\|PhoneNumber::normalize\|CanonicalPhone" app | wc -l` → 36 ; la divergence des sorties tient (lu, `CanonicalPhone::fold` rend `+221123456789` pour `123456789`, `TelephoneSaisi` non) → fondre les cinq dans la forme de `TelephoneSaisi` change ce que l'index rend unique : migration de réécriture d'index d'unicité et vérification des doublons qu'elle fait naître sur les données déployées (V4). Non implémenté : reclassé.
 
 ### Petites améliorations
 - Réf : P125.06
