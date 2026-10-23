@@ -33,6 +33,12 @@ use Illuminate\Validation\Rule;
  */
 class StorePropertyVisitRequest extends BaseFormRequest
 {
+    /**
+     * Plafond de durée d'une visite, à la création comme à la modification (TCK-1836) : une
+     * visite de 100 000 minutes, une fois confirmée, bloquait le bien.
+     */
+    public const MAX_DURATION_MINUTES = 240;
+
     private ?Property $property = null;
 
     private bool $propertyResolved = false;
@@ -111,7 +117,7 @@ class StorePropertyVisitRequest extends BaseFormRequest
             'type' => ['nullable', Rule::enum(VisitType::class)],
             // Vérification adverse (m5) — le plafond de la route publique : une visite de 100 000
             // minutes, une fois confirmée, bloquait le bien.
-            'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:240'],
+            'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:'.self::MAX_DURATION_MINUTES],
             'visitor_name' => $manager
                 ? ['nullable', 'required_without:customer_id', 'string', 'max:120']
                 : ['nullable', 'string'],
