@@ -80,17 +80,10 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   }, [user]);
 
 
-  const latePaymentsCount = useMemo(() => {
-    const list = paymentsData?.data ?? [];
-    return list.filter((p) => {
-      if (p.status === 'late') return true;
-      if (p.status === 'pending' && p.due_date) {
-        const due = new Date(p.due_date);
-        return !Number.isNaN(due.getTime()) && due < new Date();
-      }
-      return false;
-    }).length;
-  }, [paymentsData]);
+  // TCK-1833 (P183.02) — les échéances que l'API dit échues (`is_overdue`, TCK-1831 : règle de
+  // `scopeOverdue`) : ni restitution de caution, ni échéance du jour, `partially_paid` échue
+  // comprise. Aucune date n'est comparée à l'horloge du navigateur.
+  const latePaymentsCount = (paymentsData?.data ?? []).filter((p) => p.is_overdue).length;
 
   // TCK-1189 (P101.02) — le seul titre de la page est celui du bail : les écrans de chargement
   // et d'erreur gardent un h1, comme `BookingDetail`.
