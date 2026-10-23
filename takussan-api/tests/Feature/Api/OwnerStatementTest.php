@@ -2,14 +2,19 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Booking;
+use App\Models\BookingPayment;
+use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\Capability;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\Payout;
+use App\Models\Property;
 use App\Models\ServiceProviderBill;
 use App\Notifications\CodedNotification;
 use App\Services\Dashboard\PortfolioMetrics;
+use App\Services\Payout\PayoutCalculator;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -130,6 +135,28 @@ class OwnerStatementTest extends TestCase
         $this->assertSame(420000, (int) $year['totals']['gross']);
         $this->assertSame(1, count($year['payouts']));
         $this->getJson('/api/owner-statements?period=2026-13')->assertStatus(422);
+    }
+
+    /**
+     * P177.04 (TCK-1783) — le bailleur dont les seuls encaissements du mois sont des acomptes de
+     * séjour est avisé comme les autres : le relevé les compte ({@see PayoutCalculator::bookingPayments}).
+     */
+    public function test_p177_04_a_landlord_with_only_stay_advances_is_notified_once(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        $landlord = $this->landlordOf($agency);
+        $property = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $landlord->id]);
+        $booking = Booking::factory()->create(['property_id' => $property->id, 'agency_id' => $agency->id]);
+        BookingPayment::factory()->create([
+            'booking_id' => $booking->id, 'amount' => 50_000, 'payment_type' => BookingPaymentType::Advance,
+            'status' => PaymentStatus::Paid, 'paid_at' => '2026-09-10 10:00:00',
+        ]);
+
+        $this->artisan('payouts:send-owner-statements', ['--period' => '2026-09'])->assertSuccessful();
+        $this->artisan('payouts:send-owner-statements', ['--period' => '2026-09'])->assertSuccessful();
+
+        Notification::assertSentToTimes($landlord, CodedNotification::class, 1);
     }
 
     public function test_the_monthly_command_notifies_each_landlord_once_and_is_scheduled(): void

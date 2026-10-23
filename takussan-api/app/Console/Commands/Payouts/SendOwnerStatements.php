@@ -4,6 +4,7 @@ namespace App\Console\Commands\Payouts;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Models\Agency;
+use App\Models\BookingPayment;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
 use App\Models\Profiles\OwnerProfile;
@@ -42,6 +43,19 @@ class SendOwnerStatements extends Command
             ->whereNotNull('leases.agency_id')
             ->distinct()
             ->get(['leases.agency_id', 'leases.landlord_id']);
+
+        // P177.04 (TCK-1783) — les acomptes de séjour sont des encaissements du relevé
+        // (`PayoutCalculator::bookingPayments`) : leur bailleur est celui du bien.
+        $pairs = $pairs->concat(BookingPayment::query()
+            ->join('bookings', 'bookings.id', '=', 'booking_payments.booking_id')
+            ->join('properties', 'properties.id', '=', 'bookings.property_id')
+            ->where('booking_payments.status', PaymentStatus::Paid->value)
+            ->whereIn('booking_payments.payment_type', array_map(fn ($t) => $t->value, PayoutCalculator::BOOKING_TYPES))
+            ->whereBetween('booking_payments.paid_at', [$start, $end])
+            ->whereNotNull('bookings.agency_id')
+            ->whereNotNull('properties.user_id')
+            ->distinct()
+            ->get(['bookings.agency_id', 'properties.user_id as landlord_id']));
 
         foreach ($pairs as $pair) {
             $landlord = User::query()->find($pair->landlord_id);
