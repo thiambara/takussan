@@ -16934,7 +16934,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Une erreur de confirmation, de refus ou d'annulation d'une réservation ou d'une visite ne s'affiche pas : le dialogue reste ouvert, sans message
 - Réf : P182.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1818
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/bookings/BookingDetail.tsx:412-448,472-476,507`, `takussan-web/src/components/visits/VisitDetail.tsx:149-175,180-191,284-296,505-514`
 - Constat :
@@ -16945,6 +16945,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu ; le comportement à l'écran n'a pas été rendu.
 - Piste : rattraper l'erreur dans les deux composants, comme `InvoiceDetailDialog.handleAction` (`:48-56`, bandeau `messageErreur`) — le dialogue reste ouvert et affiche le message de l'API. Garde : un test vitest par composant qui fait rejeter la mutation en 422 et attend le message.
 - Mesure (2026-10-23, 2b80de9, mesureur) : relu `BookingDetail.tsx:422-448` (`onSubmit` enchaîne `mutateAsync` et toast sans `catch`) et `:472-476,507` (`handleSubmit` sans `catch`, `onClick={() => void handleSubmit()}`), `VisitDetail.tsx:149-175` (`handleConfirm`, `handleComplete`, `handleNoShow` sans `catch`, passés à `onClick` l. 284-294) et `:505-514` (`VisitActionDialog.handleSubmit` sans `catch`), `useApiQuery.ts:159-218` et `query-client.ts` (aucun `onError` ni `MutationCache`) ; test vitest temporaire (retiré) sur `BookingDetail`, admin d'agence, réservation `pending`, `useConfirmBooking().mutateAsync` rejeté en `ApiError(422, booking.dates_overlap)`, clic « Accepter » puis « Accepter » du dialogue, charge 1,9 à 2,2 sur 8 cœurs → dialogue toujours ouvert, message de l'API absent, aucun `role=alert` ni `role=status`, une `unhandledRejection`. Le constat tient pour la réservation, rendu ; pour la visite, il tient par lecture du même motif. Classement : A1, ADR-0019 (accepté) fixe le rendu d'une erreur d'API dans un composant client par `useMessageErreurApi()`, dont le repli `errors.api.unknown` existe : rattraper l'erreur et l'afficher ne demande ni texte neuf ni choix.
+- Mesure (2026-10-23, 9b7e560d4, implementeur) : tests vitest neufs `BookingDetail.erreur-geste.p182-01.test.tsx` et `VisitDetail.erreur-geste.p182-01.test.tsx`, mutation rejetée en `ApiError(422)`, rouges sur l'arbre d'origine (4/4 : aucun `role=alert`, quatre `Unhandled Rejection`) → `BookingDecisionDialog` et `VisitActionForm` rattrapent l'erreur et l'affichent dans le dialogue, qui reste ouvert ; confirmer, terminer et absent l'affichent au-dessus des actions de la fiche, par `useMessageErreurApi()` sans texte neuf ; ablation : composants rendus à `pre-dev` → 4 rouges, remis → 4 verts ; 18 fichiers de test des réservations et de la fiche de visite verts (70 tests).
 
 ### Après une erreur, aucun geste de transition ne relit l'état : le bouton reste affiché d'après le cache, et le second essai rend 422 ou 409
 - Réf : P182.02
