@@ -34,10 +34,17 @@ class ExportDataService
      * TCK-1306 (piste P112.01) — 200 en PDF, et non plus 2 000 : rendu dans la requête sous
      * `memory_limit = 256M`, un PDF de paiements mourait à 400 lignes (mesuré). La garde est
      * `ExportMemoireAuPlafondTest`. Le PDF en file reste à faire.
+     *
+     * TCK-1746 (piste P112.02) — 5 000 en XLSX : la feuille se bâtit entière en mémoire
+     * (`FromArray`), et 10 000 reversements, l'entité la plus large, coûtaient 136 à 174 Mo de
+     * surcroît et mouraient sous 256M (mesuré). Même remède que l'export d'audit (TCK-1418) : une
+     * borne, et une `limit` au-delà refusée. La garde est `ExportMemoireAuPlafondTest`.
      */
     public const MAX_ROWS = 10_000;
 
     public const MAX_ROWS_PDF = 200;
+
+    public const MAX_ROWS_XLSX = 5_000;
 
     public const DEFAULT_ROWS = 5_000;
 
@@ -517,6 +524,10 @@ class ExportDataService
     /** Le plafond de lignes d'un format d'export (TCK-713). */
     public static function maxRows(mixed $format): int
     {
-        return $format === 'pdf' ? self::MAX_ROWS_PDF : self::MAX_ROWS;
+        return match ($format) {
+            'pdf' => self::MAX_ROWS_PDF,
+            'xlsx', 'excel' => self::MAX_ROWS_XLSX,
+            default => self::MAX_ROWS,
+        };
     }
 }
