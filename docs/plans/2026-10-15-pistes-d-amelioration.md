@@ -16937,7 +16937,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Une erreur de confirmation, de refus ou d'annulation d'une réservation ou d'une visite ne s'affiche pas : le dialogue reste ouvert, sans message
 - Réf : P182.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1818
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/bookings/BookingDetail.tsx:412-448,472-476,507`, `takussan-web/src/components/visits/VisitDetail.tsx:149-175,180-191,284-296,505-514`
 - Constat :
@@ -16948,6 +16948,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu ; le comportement à l'écran n'a pas été rendu.
 - Piste : rattraper l'erreur dans les deux composants, comme `InvoiceDetailDialog.handleAction` (`:48-56`, bandeau `messageErreur`) — le dialogue reste ouvert et affiche le message de l'API. Garde : un test vitest par composant qui fait rejeter la mutation en 422 et attend le message.
 - Mesure (2026-10-23, 2b80de9, mesureur) : relu `BookingDetail.tsx:422-448` (`onSubmit` enchaîne `mutateAsync` et toast sans `catch`) et `:472-476,507` (`handleSubmit` sans `catch`, `onClick={() => void handleSubmit()}`), `VisitDetail.tsx:149-175` (`handleConfirm`, `handleComplete`, `handleNoShow` sans `catch`, passés à `onClick` l. 284-294) et `:505-514` (`VisitActionDialog.handleSubmit` sans `catch`), `useApiQuery.ts:159-218` et `query-client.ts` (aucun `onError` ni `MutationCache`) ; test vitest temporaire (retiré) sur `BookingDetail`, admin d'agence, réservation `pending`, `useConfirmBooking().mutateAsync` rejeté en `ApiError(422, booking.dates_overlap)`, clic « Accepter » puis « Accepter » du dialogue, charge 1,9 à 2,2 sur 8 cœurs → dialogue toujours ouvert, message de l'API absent, aucun `role=alert` ni `role=status`, une `unhandledRejection`. Le constat tient pour la réservation, rendu ; pour la visite, il tient par lecture du même motif. Classement : A1, ADR-0019 (accepté) fixe le rendu d'une erreur d'API dans un composant client par `useMessageErreurApi()`, dont le repli `errors.api.unknown` existe : rattraper l'erreur et l'afficher ne demande ni texte neuf ni choix.
+- Mesure (2026-10-23, 9b7e560d4, implementeur) : tests vitest neufs `BookingDetail.erreur-geste.p182-01.test.tsx` et `VisitDetail.erreur-geste.p182-01.test.tsx`, mutation rejetée en `ApiError(422)`, rouges sur l'arbre d'origine (4/4 : aucun `role=alert`, quatre `Unhandled Rejection`) → `BookingDecisionDialog` et `VisitActionForm` rattrapent l'erreur et l'affichent dans le dialogue, qui reste ouvert ; confirmer, terminer et absent l'affichent au-dessus des actions de la fiche, par `useMessageErreurApi()` sans texte neuf ; ablation : composants rendus à `pre-dev` → 4 rouges, remis → 4 verts ; 18 fichiers de test des réservations et de la fiche de visite verts (70 tests).
 
 ### Après une erreur, aucun geste de transition ne relit l'état : le bouton reste affiché d'après le cache, et le second essai rend 422 ou 409
 - Réf : P182.02
@@ -17006,7 +17007,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### L'annulation d'une visite juge le statut sur le modèle non verrouillé : deux annulations simultanées préviennent deux fois le visiteur
 - Réf : P182.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-1820
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:369-401`, `takussan-api/app/Services/Visit/VisitNotifier.php:114-122`
 - Constat :
@@ -17015,10 +17016,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu.
 - Piste : déplacer l'annulation dans `VisitSchedulingService`, sous le verrou de la ligne relue, l'avis après la transaction. Garde : un test qui annule une visite déjà `cancelled` en base derrière un modèle resté `scheduled` et attend 422 sans avis.
 - Mesure (2026-10-23, 2b80de9, mesureur) : relu `PropertyVisitController.php:369-401` (`visit.cannot_cancel` jugé sur le modèle de la route, `update` sans transaction ni verrou, puis avis), `VisitSchedulingService.php:183-199` (`confirmOrFail` verrouille et relit) ; test temporaire `tests/Feature/Tmp/TmpMesure182Test.php` (retiré), PostgreSQL de test, charge 2,2 sur 8 cœurs : visite `scheduled` chargée, ligne passée `cancelled` en base derrière elle, `PropertyVisitController::cancel` appelé par le visiteur sur le modèle périmé avec `Notification::fake()` → accepté, un avis envoyé à l'agence pour une visite déjà annulée. Le « à vérifier » est levé pour le double avis ; l'écrasement de `completed` suit du même code (lu). Classement : A1, la garde `visit.cannot_cancel` écrit déjà le contrat (une visite annulée ou faite ne s'annule pas) ; le correctif la juge sur la ligne verrouillée et relue dans une transaction, l'avis après celle-ci, comme `confirmOrFail`, sans choix de produit.
+- Mesure (2026-10-23, 9b7e560d4, implementeur) : test neuf `PropertyVisitCancelSousVerrouTest`, un écouteur `retrieved` passe la ligne à `cancelled` ou `completed` juste après la liaison de route → sur l'arbre d'origine, `POST /api/property-visits/{id}/cancel` rend 200 dans les deux cas (2 rouges sur 3) ; `VisitSchedulingService::cancelOrFail` relit la ligne sous verrou dans une transaction et y juge `visit.cannot_cancel`, l'avis part après → 422, aucun avis, `completed` intact ; ablation : contrôleur rendu à `pre-dev` → 2 rouges, remis → 3 verts ; `PropertyVisitTest`, `PropertyVisitNotificationTest`, `PropertyVisitVerificationAdverseTest`, `PropertyVisitIsolationTest`, `ProprietaireDuBienTest` verts.
 
 ### Petites améliorations
 - Réf : P182.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-1822
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Model/MaintenanceRequestService.php:202-212`, `takussan-api/app/Services/Billing/AgencySubscriptionService.php:58-70`, `takussan-api/app/Http/Controllers/Api/Admin/AgencySubscriptionController.php:37-44`
 - Constat :
@@ -17027,6 +17029,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu.
 - Piste : verrouiller et relire dans `accept` ; rendre le dernier abonnement clos plutôt que `null`, si la console le lit.
 - Mesure (2026-10-23, 2b80de9, mesureur) : relu `MaintenanceRequestService.php:202-213` (`accept` juge `accepted_at` sur le modèle reçu, sans verrou) ; test temporaire `tests/Feature/Tmp/TmpMesure182Test.php` (retiré), PostgreSQL de test, charge 2,2 sur 8 cœurs : `accept` puis `accept` sur un modèle chargé avant le premier, `Event::fake([MaintenanceStatusChanged::class])` → second appel accepté, deux événements. Abonnement : `AgencySubscriptionService::cancel` (l. 58-70) rend toujours `null` sans abonnement en cours, mais la console ne lit pas le corps (`AdminAgencySubscriptionPanel.tsx:48-55` : toast puis invalidation et relecture ; `super-admin.ts:248-254`) → cette partie ne tient pas. Retenu pour l'acceptation seule. Classement : A1, la garde `maintenance.already_accepted` écrit déjà le contrat ; le correctif verrouille et relit la ligne dans une transaction avant de la juger, sans choix de produit.
+- Mesure (2026-10-23, 9b7e560d4, implementeur) : test neuf `MaintenanceAcceptSousVerrouTest`, `accept` puis `accept` sur un modèle chargé avant le premier, `Event::fake([MaintenanceStatusChanged::class])` → sur l'arbre d'origine, la seconde acceptation passe (1 rouge sur 2) ; `accept` relit la ligne sous verrou dans une transaction et y juge ses deux gardes, l'événement part après → 422 `maintenance.already_accepted`, un seul événement, `accepted_at` du premier intact ; ablation : service rendu à `pre-dev` → 1 rouge, remis → 2 verts ; `MaintenanceAcceptDeclineTest`, `MaintenanceStatusChangedEventTest`, `MaintenanceAccessKitTest`, `MaintenanceThreadAccessTest`, `MaintenanceConversationTest`, `MaintenancePrincipalFieldsTest` verts. La partie abonnement ne se fait pas : la console ne lit pas le corps (Mesure du mesureur).
 
 ## Angle 183 — Statuts recalculés par le navigateur à partir des dates
 
