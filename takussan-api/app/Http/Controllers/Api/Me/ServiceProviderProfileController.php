@@ -105,18 +105,27 @@ class ServiceProviderProfileController extends Controller
      */
     public function show(ShowServiceProviderProfileRequest $request, ServiceProviderProfile $sp_profile): JsonResponse
     {
+        return $this->json(['data' => $this->presenter($sp_profile)]);
+    }
+
+    /**
+     * TCK-1777 (P95.04) — la projection du `show`, que `updateAvailability` rend aussi
+     * (ADR-0071 : une écriture rend la projection de son `show`).
+     *
+     * @return array{id: int, trades: array<int, string>, intervention_zones: array<int, string>, hourly_rate: mixed, visit_fee: mixed, available_slots: array<int, mixed>}
+     */
+    private function presenter(ServiceProviderProfile $sp_profile): array
+    {
         $metadata = $sp_profile->metadata ?? [];
 
-        return $this->json([
-            'data' => [
-                'id' => $sp_profile->id,
-                'trades' => $sp_profile->specialties ?? [],
-                'intervention_zones' => $sp_profile->service_areas ?? [],
-                'hourly_rate' => self::montant($sp_profile->hourly_rate_min),
-                'visit_fee' => $metadata['visit_fee'] ?? null,
-                'available_slots' => $metadata['availability'] ?? [],
-            ],
-        ]);
+        return [
+            'id' => $sp_profile->id,
+            'trades' => $sp_profile->specialties ?? [],
+            'intervention_zones' => $sp_profile->service_areas ?? [],
+            'hourly_rate' => self::montant($sp_profile->hourly_rate_min),
+            'visit_fee' => $metadata['visit_fee'] ?? null,
+            'available_slots' => $metadata['availability'] ?? [],
+        ];
     }
 
     /**
@@ -192,12 +201,7 @@ class ServiceProviderProfileController extends Controller
         $metadata['availability'] = $slots;
         $sp_profile->forceFill(['metadata' => $metadata])->save();
 
-        return $this->json([
-            'data' => [
-                'id' => $sp_profile->id,
-                'available_slots' => $slots,
-            ],
-        ]);
+        return $this->json(['data' => $this->presenter($sp_profile)]);
     }
 
     /**
