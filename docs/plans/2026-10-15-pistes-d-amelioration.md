@@ -17142,10 +17142,11 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le `PATCH` d'une visite accepte une durée sans plafond, et une seule visite confirmée bloque alors le bien
 - Réf : P184.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1836
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/UpdatePropertyVisitRequest.php:49`, `takussan-api/app/Http/Requests/Api/StorePropertyVisitRequest.php:112-114`, `takussan-api/app/Services/Visit/VisitSchedulingService.php:129-160`
 - Constat :
+- Mesure (2026-10-23, 8c6b8030f, implementeur) : reproduit par `PropertyVisitUpdateDureeTest` avant correctif (`PATCH {duration_minutes: 100000}` sur la visite A confirmée → 200 au lieu de 422, charge `{ 2.30 2.55 2.48 }` sur 8 cœurs) → `StorePropertyVisitRequest::MAX_DURATION_MINUTES = 240`, lue par la création et par `UpdatePropertyVisitRequest` ; 3 tests verts (100000 refusé, durée inchangée et visite B confirmable ; 240 accepté ; règle de modification sur la constante) ; ablation du `max:` de la modification → 2 rouges, remis → verts ; `PropertyVisitTest` et `PropertyVisitVerificationAdverseTest` verts.
   - La création borne la durée à 240 minutes, avec la raison écrite : « une visite de 100 000 minutes, une fois confirmée, bloquait le bien » (`StorePropertyVisitRequest.php:112-114`) (lu). La modification ne garde que `min:5` (`UpdatePropertyVisitRequest.php:49`) (lu).
   - Mesuré : bien à deux visites, A `confirmed` demain 10 h, B `scheduled` à J+20 ; `PATCH` de A `{duration_minutes: 100000}` → 200, durée écrite ; `POST …/confirm` de B → **422** « Another confirmed visit already covers this slot on this property. »
   - Le front n'envoie pas la durée à l'édition (aucun champ `duration_minutes` hors affichage dans `src/components/visits`, lu) : le chemin est l'API directe, ouverte à tout le personnel de l'agence du bien.
