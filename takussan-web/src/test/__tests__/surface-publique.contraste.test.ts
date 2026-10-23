@@ -379,8 +379,14 @@ const FICHIERS_HORS_JETONS = 5;
  * 199 et 219, `text-muted-foreground`). Aucun couple n'a changé : c'est le périmètre qui rétrécit.
  * Relevé en comparant la liste des encres inverses et la surface avec et sans les fichiers du lot ;
  * ce sont les seules différences avec `origin/pre-dev`, où le test est vert à 266.
+ *
+ * **263 → 264 le 2026-10-23 (TCK-1730, P168.02).** `public/profile/PortfolioTabs.tsx` charge
+ * désormais l'onglet « À louer » / « À vendre » à la demande, et gagne un message de chargement
+ * (`<p role="status">`, `text-muted-foreground`, sans fond propre, sur le fond que posent les pages
+ * de profil public). C'est sa seule entrée neuve : retirer `text-muted-foreground` de cette ligne
+ * ramène le compte à 263, la valeur d'`origin/pre-dev`.
  */
-const ENCRES_INVERSES = 263;
+const ENCRES_INVERSES = 264;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);
