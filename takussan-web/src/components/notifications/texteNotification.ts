@@ -20,6 +20,13 @@ import type { AppNotification, NotificationParam } from '@/lib/notifications';
 const DATE_SEULE = /^\d{4}-\d{2}-\d{2}$/;
 const DATE_HEURE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 
+/**
+ * P164.05 (TCK-1806) — la nature d'un paramètre se lit dans `param_types`, que l'API dérive de
+ * `NotificationCode::params()` : plus de table par code ici, ni de devinette par la forme. La forme
+ * ne sert plus que de repli à une ligne qui n'en porte pas (montant, date et motif seulement).
+ */
+type Natures = AppNotification['param_types'];
+
 export type ValeursNotification = Record<string, string | number>;
 
 /**
@@ -29,13 +36,10 @@ export type ValeursNotification = Record<string, string | number>;
 export type LibelleMotif = (code: string) => string | null;
 
 /**
- * TCK-1322 (P128.02) — le rôle d'une délégation (`role_delegation.*`) arrive CODÉ (`agency_admin`,
- * `agent`, `owner`) : il s'affiche par son libellé traduit. Un code sans libellé reste tel quel.
+ * TCK-1322 (P128.02) — un paramètre de nature `role` arrive CODÉ (`agency_admin`, `agent`,
+ * `owner`) : il s'affiche par son libellé traduit. Un code sans libellé reste tel quel.
  */
 export type LibelleRole = (code: string) => string | null;
-
-/** Les codes dont le paramètre `role` est un code de rôle délégable, et non un nom libre. */
-const CODES_A_ROLE_CODE = 'role_delegation.';
 
 /**
  * P164.01 (TCK-1468) — le fournisseur d'une intégration arrive CODÉ (`orange_money`) : il s'affiche
@@ -47,16 +51,10 @@ const CODES_A_ROLE_CODE = 'role_delegation.';
  */
 export type LibelleFournisseur = (code: string) => string | null;
 
-/** Les codes dont le paramètre `provider` est un code de fournisseur d'intégration (`PARAM_PROVIDER`). */
-const CODES_A_FOURNISSEUR = new Set(['governance.integration_changed']);
-
 /**
- * P164.02 (TCK-1470) — les paramètres de nature `month` côté API (`PARAM_MONTH`) : un mois rangé
- * `Y-m`, écrit en toutes lettres (« septembre 2026 »). Une valeur d'une autre forme reste telle quelle.
+ * P164.02 (TCK-1470) — un paramètre de nature `month` (`PARAM_MONTH`) : un mois rangé `Y-m`, écrit
+ * en toutes lettres (« septembre 2026 »). Une valeur d'une autre forme reste telle quelle.
  */
-const PARAMS_MOIS: Readonly<Record<string, readonly string[]>> = {
-  'owner_statement.available': ['period'],
-};
 const MOIS = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
@@ -90,29 +88,31 @@ export function valeursDeNotification(
   motif?: LibelleMotif,
   role?: LibelleRole,
   fournisseur?: LibelleFournisseur,
-  mois: readonly string[] = [],
+  natures?: Natures,
 ): ValeursNotification {
   const valeurs: ValeursNotification = {};
   for (const [nom, valeur] of Object.entries(params ?? {})) {
-    if (nom === 'reason_code' && typeof valeur === 'string' && valeur !== '') {
-      const libelle = motif?.(valeur) ?? VALEUR_ABSENTE;
+    const nature = natures ? (natures[nom] ?? 'text') : null;
+    const chaine = typeof valeur === 'string' && valeur !== '' ? valeur : null;
+    if ((nature === 'reason_code' || (nature === null && nom === 'reason_code')) && chaine !== null) {
+      const libelle = motif?.(chaine) ?? VALEUR_ABSENTE;
       const detail = params?.reason;
       valeurs[nom] = typeof detail === 'string' && detail !== '' ? `${libelle} (${detail})` : libelle;
-    } else if (nom === 'role' && role && typeof valeur === 'string' && valeur !== '') {
-      valeurs[nom] = role(valeur) ?? valeur;
-    } else if (nom === 'provider' && fournisseur && typeof valeur === 'string' && valeur !== '') {
-      valeurs[nom] = fournisseur(valeur) ?? valeur;
-    } else if (mois.includes(nom) && typeof valeur === 'string' && MOIS.test(valeur)) {
-      valeurs[nom] = fmt.date(`${valeur}-01`, { month: 'long', year: 'numeric' });
+    } else if (nature === 'role' && chaine !== null) {
+      valeurs[nom] = role?.(chaine) ?? chaine;
+    } else if (nature === 'provider' && chaine !== null) {
+      valeurs[nom] = fournisseur?.(chaine) ?? chaine;
+    } else if (nature === 'month' && chaine !== null && MOIS.test(chaine)) {
+      valeurs[nom] = fmt.date(`${chaine}-01`, { month: 'long', year: 'numeric' });
     } else if (valeur === null || valeur === undefined || valeur === '') {
       valeurs[nom] = VALEUR_ABSENTE;
     } else if (typeof valeur === 'number') {
       valeurs[nom] = valeur;
     } else if (typeof valeur === 'object') {
       valeurs[nom] = fmt.montant(Number(valeur.amount), valeur.currency);
-    } else if (DATE_SEULE.test(valeur)) {
+    } else if (nature === 'date' || (nature === null && DATE_SEULE.test(valeur))) {
       valeurs[nom] = fmt.date(valeur);
-    } else if (DATE_HEURE.test(valeur)) {
+    } else if (nature === 'datetime' || (nature === null && DATE_HEURE.test(valeur))) {
       valeurs[nom] = fmt.dateTime(valeur);
     } else {
       valeurs[nom] = valeur;
@@ -141,9 +141,14 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
     const code = notification.code;
     if (!code || !t.has(`${code}.title`)) return repli;
 
-    const role = code.startsWith(CODES_A_ROLE_CODE) ? libelleRole : undefined;
-    const fournisseur = CODES_A_FOURNISSEUR.has(code) ? libelleGeneriqueFournisseur : undefined;
-    const valeurs = valeursDeNotification(notification.params, fmt, motif, role, fournisseur, PARAMS_MOIS[code]);
+    const valeurs = valeursDeNotification(
+      notification.params,
+      fmt,
+      motif,
+      libelleRole,
+      libelleGeneriqueFournisseur,
+      notification.param_types,
+    );
     const cleCorps = nomAbsent(code, notification.params) && t.has(`${code}.body_unnamed`)
       ? `${code}.body_unnamed`
       : `${code}.body`;

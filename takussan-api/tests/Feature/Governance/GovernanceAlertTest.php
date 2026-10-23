@@ -12,6 +12,8 @@ use App\Models\Integration;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use App\Services\Membership\AgencyRoleService;
+use App\Services\Membership\AgencySystemRoleSeeder;
+use App\Services\Notifications\NotificationRenderer;
 use App\Services\Payout\PayoutApprovalThreshold;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -85,6 +87,41 @@ class GovernanceAlertTest extends ApiTestCase
         $this->assertSame('Role permissions changed', $notification->title);
         $this->assertStringContainsString('Comptable', $notification->body);
         $this->assertStringContainsString('Awa', $notification->body);
+    }
+
+    /**
+     * P164.04 (TCK-1808) — un rôle système est rangé par son code (`base_profile_type`) et rendu
+     * dans la langue du destinataire, jamais par son nom français rangé ; un rôle créé garde son nom.
+     */
+    public function test_un_role_systeme_est_nomme_dans_la_langue_du_destinataire(): void
+    {
+        $role = app(AgencySystemRoleSeeder::class)->systemRoleFor((int) $this->agency->id, AgencyRoleBaseType::AgencyAdmin);
+        AppNotification::query()->delete();
+
+        app(AgencyRoleService::class)->replaceCapabilities($role, [Capability::CrmExport]);
+
+        $notification = AppNotification::query()->where('user_id', $this->collegue->id)
+            ->where('code', NotificationCode::GovernanceRoleCapabilitiesChanged->value)->sole();
+        $this->assertSame('agency_admin', $notification->params['role']);
+        $this->assertStringNotContainsString('Administrateur', $notification->body);
+        $this->assertStringContainsString('agency administrator', $notification->body);
+        $this->assertStringContainsString(
+            "administrateur d'agence",
+            app(NotificationRenderer::class)->render(NotificationCode::GovernanceRoleCapabilitiesChanged, $notification->params, 'fr'),
+        );
+    }
+
+    public function test_un_role_cree_garde_son_nom_dans_l_avis(): void
+    {
+        $role = app(AgencyRoleService::class)->create($this->agency, ['name' => 'Comptable', 'base_profile_type' => AgencyRoleBaseType::AgencyAdmin->value]);
+        AppNotification::query()->delete();
+
+        app(AgencyRoleService::class)->replaceCapabilities($role, [Capability::CrmExport]);
+
+        $notification = AppNotification::query()->where('user_id', $this->collegue->id)
+            ->where('code', NotificationCode::GovernanceRoleCapabilitiesChanged->value)->sole();
+        $this->assertSame('Comptable', $notification->params['role']);
+        $this->assertStringContainsString('the role Comptable', $notification->body);
     }
 
     /** TCK-1318 (P126.05) — un admin actif au compte bloqué n'est pas averti. */
