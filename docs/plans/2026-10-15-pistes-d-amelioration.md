@@ -17854,7 +17854,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### Les documents et pièces KYC de moins de 1 Kio sont refusés en 422, alors que la règle ne visait que le fichier vide
 - Réf : P194.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Support/Uploads/AcceptedUploads.php:8-11,55-62`, appelée par `StoreDocumentRequest.php:40`, `UploadDocumentVersionRequest.php:27`, `Kyc/UploadKycDocumentRequest.php:20`, `Me/UploadKycOwnerProfileRequest.php:58`, `Me/UploadKycAgentProfileRequest.php:58`, `Me/UploadKycServiceProviderProfileRequest.php:59`, `Admin/UpdatePrivacyRequestRequest.php:29` ; `takussan-api/tests/Feature/Uploads/DocumentUploadMimeTest.php:36-52`
 - Constat :
@@ -17865,10 +17865,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Le front annonce `text/plain` et `text/csv` pour les documents (lu, `takussan-web/src/lib/queries/documents.ts:169-180`) : une note texte ou un petit CSV choisi à l'écran rend 422.
   - Établi comment : lu + mesuré.
 - Piste : remplacer `min:1` par une règle qui refuse les seuls 0 octet (règle maison sur `getSize() > 0`, ou `File::types(...)->min(...)` en octets si la version le permet) ; test qui dépose un fichier réel de quelques octets (accepté) et un fichier vide (refusé) sur une route document et une route KYC.
+- Mesure (2026-10-23, d9da8aa85, mesureur) : relu `AcceptedUploads.php` (l. 10-11 « `min:1` (Ko) refuse le fichier vide », l. 60 `'min:1'`, inchangés depuis b8d69491a, TCK-601), ses sept appelants (inchangés) et TCK-601 (AC5/AC5b : le fichier **vide** est refusé) ; `git log -S "min:1"` et `grep` des tickets → aucun correctif ; test temporaire `SondeMesureur194Test` (retiré, charge 1,89 / 2,18 / 2,10 sur 8 cœurs) qui poste des `UploadedFile` réels : `POST /api/documents` avec un `.txt` de 27 octets → **422**, un CSV de 1 023 octets → **422**, le même de 1 024 octets → 201, un faux `create('n.txt', 10)` → 201 ; `POST /api/me/owner-profiles/{id}/kyc/upload` avec un PNG réel de 767 octets (2×2, `sips`) → **422** → le constat tient en entier, documents et KYC. Classement : A1, le comportement attendu est écrit (TCK-601 AC5 et le docblock ne refusent que le fichier vide) ; correctif attendu : remplacer `min:1` dans `AcceptedUploads::rules()` par une règle qui ne refuse que 0 octet, et garder par un test qui dépose un fichier réel de quelques octets (accepté) et un vide (refusé) sur une route document et une route KYC.
 
 ### Une note vocale enregistrée en `audio/mp4` peut être lue `video/mp4` par `finfo` et refusée en 422
 - Réf : P194.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : accepter `video/mp4` ouvre la note vocale à un conteneur vidéo, choix que l'ADR-0038 n'écrit pas, et la marque de Safari n'est pas relevée
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/SendMessageConversationRequest.php:50-56,71` ; `takussan-web/src/components/messages/VoiceNoteRecorder.tsx:15,26-28,88` ; `takussan-web/src/lib/queries/conversations.ts:348,370-373` ; `takussan-api/tests/Feature/Messaging/AudioMessageTest.php:93-95` ; `docs/adr/0038-note-vocale-dans-la-messagerie.md:33-36`
 - Constat :
@@ -17879,10 +17880,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Le seul test dépose un `note.ogg` par `fake()->createWithContent` (lu, l. 93-95), dont le type se déduit du nom : aucun test n'envoie un conteneur MP4.
   - Établi comment : lu + mesuré sur un fichier produit par `afconvert`, non sur un enregistrement Safari.
 - Piste : relever la marque d'un enregistrement réel de Safari ; s'il rend `video/mp4`, l'ajouter à la liste comme `video/webm` l'a été (ADR-0038), et garder par un test qui dépose un vrai conteneur MP4 audio de cette marque.
+- Mesure (2026-10-23, d9da8aa85, mesureur) : relu `SendMessageConversationRequest.php` (`AUDIO_MIMETYPES` l. 54-56 sans `video/mp4`, règle `mimetypes:` seule l. 71, inchangés), ADR-0038 l. 35 (liste `audio/*` seule, plus `video/webm` justifié pour Chrome) ; fichiers produits par `afconvert` depuis `Ping.aiff` : marque `ftyp` `mp42` → `finfo` `video/mp4`, marque `M4A ` → `audio/x-m4a` ; test temporaire `SondeMesureur194Test` (retiré, charge 1,89 / 2,18 / 2,10 sur 8 cœurs) qui poste en `UploadedFile` réel nommé `note-vocale.m4a` sur `POST /api/conversations/{id}/messages` : `mp42` → **422**, `M4A ` → 201 → le refus d'un conteneur MP4 de marque `mp42` tient ; la marque que pose `MediaRecorder` de Safari reste non relevée (aucun Safari dans le passage), donc l'atteinte d'un utilisateur réel n'est pas établie. Classement : V7, ajouter `video/mp4` accepterait aussi une vraie vidéo comme note vocale, ce que l'ADR-0038 n'a pas décidé, et le correctif dépend d'un relevé Safari que le porteur doit faire ou demander.
 
 ### Les tests de téléversement déposent des faux fichiers dont le type vient du nom, si bien qu'aucun ne juge ce que `finfo` lira
 - Réf : P194.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/tests/Feature/Uploads/DocumentUploadMimeTest.php:36-52`, `takussan-api/tests/Feature/Uploads/KycUploadMimeTest.php`, `takussan-api/tests/Feature/Messaging/AudioMessageTest.php:93-95`, et les tests des autres requêtes de la liste `mimes:` (13 sous `app/Http/Requests`)
 - Constat :
@@ -17891,10 +17893,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Ce sont deux écarts réels de cet angle (P194.01, P194.02) et l'OFX 2 de P157.05 que ces faux fichiers ont laissés passer.
   - Établi comment : lu + mesuré.
 - Piste : un petit support de test qui produit des fichiers réels par format annoncé à l'écran (PDF de dompdf, `.xlsx` de PhpSpreadsheet, `.docx`, CSV de quelques octets, JPEG, conteneur audio) et un test par famille de requêtes qui les dépose en `UploadedFile` réel ; à défaut, au moins `createWithContent` sans type imposé.
+- Mesure (2026-10-23, d9da8aa85, mesureur) : relu `DocumentUploadMimeTest.php` (l. 36-52, faux fichiers `create($nom, $ko, $type)`), `KycUploadMimeTest.php` (faux fichiers seulement), `AudioMessageTest.php:91-95` (dont le docblock affirme « `finfo` y lit `audio/ogg` ») ; test temporaire `SondeMesureur194Test` (retiré, charge 1,89 / 2,18 / 2,10 sur 8 cœurs) : `UploadedFile::fake()->createWithContent('note.ogg', 'pas un son')->getMimeType()` → `audio/ogg`, et posté comme note vocale → **201** ; un faux `create('n.txt', 10)` passe là où le `.txt` réel de 27 octets rend 422 → le constat tient, et le docblock d'`AudioMessageTest::voiceNote()` est inexact (le type vient du nom, pas du contenu). Classement : A5, test et support de test ajoutés sans seuil resserré ; correctif attendu : un support sous `tests/Support/` qui produit des fichiers réels avec ce que le dépôt a déjà (dompdf pour le PDF, PhpSpreadsheet pour `.xlsx`/`.csv`, GD pour PNG/JPEG, texte écrit à la main, en-tête Ogg et `ftyp` `M4A ` écrits à la main), des tests qui les déposent en `UploadedFile` réel sur les routes documents, KYC et note vocale pour les formats acceptés aujourd'hui, et le docblock de `voiceNote()` corrigé ; les fichiers de moins de 1 Kio attendent P194.01 et le conteneur `mp42` attend P194.02.
 
 ### Petites améliorations
 - Réf : P194.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/documents.ts:163-180` ; `takussan-web/src/components/kyc/KycUploader.tsx:74,201` ; `takussan-api/app/Support/Uploads/AcceptedUploads.php:13-14,18-22`
 - Constat :
@@ -17902,3 +17905,4 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - `KycUploader` propose `image/*,application/pdf` (lu, l. 74) alors que l'API ne prend que `jpg, jpeg, png, webp, heic, heif, pdf` (lu, `AcceptedUploads.php:18-22`) : un GIF, un AVIF ou un BMP choisi à l'écran rend 422 (déduit de la règle, à vérifier à l'écran).
   - Établi comment : lu.
 - Piste : réécrire le docblock pour qu'il renvoie à `AcceptedUploads::DOCUMENT_MIMETYPES` ; resserrer `accept` du KYC sur la liste de l'API ; une garde qui compare les listes `accept` du front et les constantes d'`AcceptedUploads` éviterait le retour.
+- Mesure (2026-10-23, d9da8aa85, mesureur) : relu `takussan-web/src/lib/queries/documents.ts:163-180` (docblock « aligned with `['required', 'file', 'max:10240']` », liste sans `image/heic`/`image/heif`, inchangés), `AcceptedUploads.php:13-14,18-30` (l'API accepte `heic`/`heif` pour les documents, et ne prend en KYC que `jpg, jpeg, png, webp, heic, heif, pdf`), `KycUploader.tsx:74` (`'image/*,application/pdf'`) et son seul envoi `POST /api/me/${endpoint}/${profileId}/kyc/upload` (l. 112), routes qui appliquent `AcceptedUploads::kyc()` (lu, `UploadKyc*ProfileRequest.php`) → le constat tient ; le refus d'un GIF reste déduit de la règle (`gif` absent des deux listes), non vu à l'écran. Classement : A6 et A1, le correctif aligne le front et son docblock sur le contrat d'`AcceptedUploads` déjà écrit, sans texte neuf ; correctif attendu : docblock renvoyant à `AcceptedUploads::DOCUMENT_MIMETYPES`, `image/heic,image/heif` ajoutés à `DOCUMENT_MIME_ACCEPT`, `accept` du KYC réduit aux types de `KYC_MIMETYPES`, et une garde ou un test qui compare ces listes aux constantes de l'API (A5).
