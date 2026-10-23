@@ -263,6 +263,15 @@ export function PropertyReviews({
       ? eligibility.result
       : null;
 
+  // TCK-1762 (P172.02) — l'avis créé attend la modération : la liste publique relue ne le montre
+  // pas. C'est la réponse de l'envoi qui établit « déjà laissé », sans attendre une relecture.
+  async function envoyerAvis(payload: { rating: number; title?: string; content?: string }) {
+    await submit(payload);
+    if (user) {
+      setEligibility({ slug, userId: user.id, result: { eligible: true, alreadyReviewed: true } });
+    }
+  }
+
   const showReviewForm =
     !!user &&
     !!activeEligibility &&
@@ -308,7 +317,7 @@ export function PropertyReviews({
         <p className="text-sm text-muted-foreground">{t('empty')}</p>
       )}
 
-      {showReviewForm && <PropertyReviewForm onSubmit={submit} />}
+      {showReviewForm && <PropertyReviewForm onSubmit={envoyerAvis} />}
       {user && activeEligibility && !activeEligibility.eligible && !activeEligibility.alreadyReviewed && (
         <p className="rounded-xl bg-card p-4 text-sm text-muted-foreground">
           {t('notEligible')}
