@@ -88,12 +88,15 @@ class BookingPolicy extends BasePolicy
      * TCK-596 (VERIF-596, hors diff fermé ici) — le propriétaire du bien confirme, refuse et annule,
      * sauf s'il est suspendu (`blocked`) dans l'agence de la réservation : la règle de 587
      * (`landlordWrites`) que le bail, l'état des lieux et le remboursement appliquaient déjà.
+     *
+     * TCK-1722 (P160.03) — « propriétaire » au sens de `bailleurEcrit` : l'agent qui a saisi le bien
+     * confirme et annule au titre du personnel, sous `bookings.validate` et `bookings.cancel`.
      */
     private function landlordOf(User $user, Booking $booking): bool
     {
         $property = $booking->property;
 
         return $property !== null
-            && $this->landlordWrites($user, $property->user_id, $booking->agency_id ?? $property->agency_id);
+            && $this->bailleurEcrit($user, $property->user_id, $booking->agency_id ?? $property->agency_id);
     }
 }
