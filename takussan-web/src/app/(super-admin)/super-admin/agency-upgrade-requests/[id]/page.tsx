@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -34,6 +34,7 @@ import {
 } from '@/lib/queries/super-admin';
 import { PageHeader, StatusBadge, type StatusTone } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
+import { FILTRES_LISTE_DEMANDES_DE_PASSAGE, retourALaListe } from '@/components/admin/super/retour-de-liste';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 /**
@@ -124,10 +125,18 @@ export default function AgencyUpgradeRequestDetailPage() {
 
 function BackLink() {
   const t = useTranslations('superAdmin.pages.upgradeRequestDetail');
+  // TCK-1744 (P168.04) — le retour rend la liste quittée : sa requête arrive dans `?liste=`,
+  // réduite au statut connu.
+  const searchParams = useSearchParams();
+  const href = retourALaListe(
+    '/super-admin/agency-upgrade-requests',
+    searchParams.get('liste'),
+    FILTRES_LISTE_DEMANDES_DE_PASSAGE,
+  );
 
   return (
     <Link
-      href="/super-admin/agency-upgrade-requests"
+      href={href}
       className="-my-2 inline-flex min-h-10 items-center gap-1 rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <ArrowLeft className="size-4" aria-hidden="true" />

@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowUpRight, Building2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -28,6 +27,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
+import {
+  FILTRES_LISTE_DEMANDES_DE_PASSAGE,
+  requeteBornee,
+  versLeDetail,
+} from '@/components/admin/super/retour-de-liste';
 import {
   fetchAdminAgencyUpgradeRequests,
   type AdminAgencyUpgradeRequestRow,
@@ -83,13 +88,15 @@ export default function AgencyUpgradeRequestsListPage() {
   const t = useTranslations('superAdmin.pages.upgradeRequests');
   const tFiltres = useTranslations('console.filterBar');
   const fmt = useFormatteurs();
-  const searchParams = useSearchParams();
   // TCK-360 — la file « demandes d'upgrade » de l'accueil compte les `pending` ; le lien porte
-  // donc `?status=pending`, faute de quoi le clic mènerait à « toutes » et le compte affiché ne
-  // serait pas celui qu'on trouve en arrivant. Amorce seule : le filtre reste local ensuite.
-  const [statusFilter, setStatusFilter] = useState<AgencyUpgradeRequestStatus | 'all'>(
-    () => seedStatusFilter(searchParams?.get('status')),
-  );
+  // donc `?status=pending`. TCK-1744 (P168.04) — l'URL est la SOURCE du statut, et plus sa seule
+  // amorce : un choix s'y écrit (`router.replace`), et les liens vers le détail portent cette
+  // requête pour que son retour la rende. Dates et page restent locales (le reste de P168.04).
+  const { params: searchParams, remplacer } = useVueDansLUrl();
+  const statusFilter = seedStatusFilter(searchParams.get('status'));
+  const setStatusFilter = (next: AgencyUpgradeRequestStatus | 'all') =>
+    remplacer({ status: next === 'all' ? null : next });
+  const requeteListe = requeteBornee(searchParams.toString(), FILTRES_LISTE_DEMANDES_DE_PASSAGE);
   const [submittedFrom, setSubmittedFrom] = useState('');
   const [submittedTo, setSubmittedTo] = useState('');
   const [page, setPage] = useState(1);
@@ -134,7 +141,7 @@ export default function AgencyUpgradeRequestsListPage() {
           {/* Le nom mène à la fiche : sur mobile, « Examiner » vit au bout d'une table qui défile. */}
           <div className="min-w-40">
             <Link
-              href={`/super-admin/agency-upgrade-requests/${row.id}`}
+              href={versLeDetail(`/super-admin/agency-upgrade-requests/${row.id}`, requeteListe)}
               className="rounded-sm font-medium text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {row.agency?.name
@@ -198,7 +205,7 @@ export default function AgencyUpgradeRequestsListPage() {
       cell: (row) => (
         <Link
           className={buttonVariants({ variant: 'outline', size: 'sm' })}
-          href={`/super-admin/agency-upgrade-requests/${row.id}`}
+          href={versLeDetail(`/super-admin/agency-upgrade-requests/${row.id}`, requeteListe)}
         >
           {t('review')}
           <ArrowUpRight className="size-3.5" aria-hidden="true" />
