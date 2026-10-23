@@ -93,8 +93,8 @@ class DashboardAgentService
         // remboursement), comme `TeamPerformanceService` ; sans parent, elle n'est d'aucune agence.
         // Un parent supprimé en douceur garde son agence : seule la frontière d'agence change.
         $inAgency = fn (Builder $parent) => $parent->withoutGlobalScope(SoftDeletingScope::class)->where('agency_id', $agencyId);
-        $taskInAgency = fn (Builder $q) => $agencyId === null ? $q
-            : $q->whereHasMorph('taskable', [Customer::class, Property::class, Booking::class], $inAgency);
+        // TCK-1733 (P167.04) — la borne vit sur `Task`, que le filtre `assigned_to=me` de la liste lit aussi.
+        $taskInAgency = fn (Builder $q) => $q->parentInAgency($agencyId);
         $propertyInAgency = fn (Builder $q) => $agencyId === null ? $q : $q->whereHas('property', $inAgency);
 
         // Une visite confirmée est à venir autant qu'une visite planifiée.
