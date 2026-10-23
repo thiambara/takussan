@@ -133,4 +133,17 @@ class BookingPaymentStaffBoundTest extends TestCase
     {
         $this->record($this->booking($status), 10_000)->assertCreated();
     }
+
+    /**
+     * TCK-1924 (P170.06) — une ligne à 0 n'est rien à encaisser : elle naissait `paid` avec un numéro
+     * de reçu. Même règle que la ligne de bail (`gt:0`, TCK-958).
+     */
+    public function test_un_montant_nul_est_refuse_au_personnel(): void
+    {
+        $booking = $this->booking();
+
+        $this->record($booking, 0)->assertStatus(422)->assertJsonValidationErrors('amount');
+
+        $this->assertSame(0, $booking->payments()->count());
+    }
 }

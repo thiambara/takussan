@@ -62,7 +62,10 @@ class StoreBookingPaymentRequest extends BaseFormRequest
         return [
             // TCK-1309 (P133.05) — le client ne fixe plus le montant : l'API le dérive (acompte, puis
             // reste dû), et ignore ce qu'il envoie. Le personnel le saisit, toujours.
-            'amount' => [Rule::requiredIf(fn () => ! $this->payeurClient()), 'nullable', 'numeric', 'min:0'],
+            // TCK-1924 (P170.06) — `gt:0` pour le personnel : une ligne à 0 naissait `paid` avec un
+            // numéro de reçu. Même règle que la ligne de bail (TCK-958). Le montant du client est
+            // ignoré, sa règle ne change pas.
+            'amount' => [Rule::requiredIf(fn () => ! $this->payeurClient()), 'nullable', 'numeric', $this->payeurClient() ? 'min:0' : 'gt:0'],
             'payment_type' => [Rule::requiredIf(fn () => ! $this->payeurClient()), 'nullable', Rule::enum(BookingPaymentType::class)],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             // VERIF-596 passe 5 — `cancelled` n'est posé que par le renouvellement d'un bail.

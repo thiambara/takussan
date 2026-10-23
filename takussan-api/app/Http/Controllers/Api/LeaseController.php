@@ -111,6 +111,10 @@ class LeaseController extends Controller
                 422,
                 'lease.commission_locked'
             );
+            // TCK-1924 (P170.06) — une commission saisie s'arrondit à la devise du bail.
+            if (array_key_exists('commission_amount', $data)) {
+                $data['commission_amount'] = LeaseService::roundCommission($data['commission_amount'], $data['currency'] ?? $locked->currency);
+            }
             if ($data !== []) {
                 $locked->fill($data)->save();
             }
