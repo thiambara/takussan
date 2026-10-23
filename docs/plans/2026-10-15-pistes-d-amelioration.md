@@ -17323,7 +17323,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Un identifiant numérique de route au-delà de `bigint` rend 500 sur deux routes publiques
 - Réf : P187.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1851
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/routes/api/geo.php:18`, `takussan-api/app/Http/Controllers/Public/GeoReferentialController.php:70`, `takussan-api/routes/api/public.php:118-120`, `takussan-api/app/Http/Controllers/Public/PublicPropertyDocumentController.php:31-33`
 - Constat :
@@ -17333,6 +17333,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : une contrainte de route qui borne la longueur (`where('city', '[0-9]{1,18}')`, ou un motif global pour ces paramètres), ou une liaison qui rend 404 hors de `bigint`. Garde : un test par route avec 20 chiffres qui attend 404.
 - Mesure (2026-10-23, 13aa0411a, mesureur) : relu `routes/api/geo.php:18` (`whereNumber('city')`, liaison implicite de `GeoCity`), `routes/api/public.php:118-120` (`whereNumber(['property', 'document'])`) et `PublicPropertyDocumentController.php:31` (`int $property, int $document`) ; test temporaire `tests/Feature/Tmp/MesureurTmp187Test.php` (un cas par méthode, charge `{ 2.72 2.62 3.32 }` sur 8 cœurs, retiré) : `public/geo/cities/99999999999999999999` → **500** `22003 … bigint`, 19 chiffres (`9999999999999999999`) → **500** aussi, `/abc` → 404 ; `public/properties/{id}/documents/99999999999999999999/file` → **500** « Argument #2 ($document) must be of type int, string given », même 500 sur `{property}` de 20 chiffres → le constat tient entier. Classement : A1, la route rend déjà 404 sur un identifiant illisible et le contrôleur promet 404 à tout échec (en-tête) ; le correctif attendu est une contrainte de route bornée (`[0-9]{1,18}`) sur `city`, `property` et `document`, test 20 chiffres → 404 par route.
+- Mesure (2026-10-23, 772307dd4, implementeur) : tests neufs `GeoPublicEndpointsTest::test_une_ville_d_identifiant_hors_de_bigint_est_introuvable` (19 et 20 chiffres) et `MediaDiskPublicDocumentTest::test_an_identifier_beyond_bigint_is_not_found` (`{document}` de 20 chiffres, `{property}` de 19 et 20), rouges avant correctif (500) → contrainte `[0-9]{1,18}` au lieu de `whereNumber()` sur `city`, `property` et `document` ; ablation par route (`geo.php` de `pre-dev` → deux rouges, `public.php` → un rouge), remis → 11/11 et 7/7.
 
 ### Petites améliorations
 - Réf : P187.06
