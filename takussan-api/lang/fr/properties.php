@@ -39,6 +39,8 @@ return [
         'draft' => 'Brouillon',
         'published' => 'Publié',
         'archived' => 'Archivé',
+        'pending_review' => 'En revue',
+        'rejected' => 'Refusé',
     ],
     'title_type' => [
         'bail' => 'Bail',
