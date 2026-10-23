@@ -39,7 +39,7 @@ Mesuré avant correctif sur `c4adeb298` :
 
 ## Décision du porteur (déléguée)
 
-> `ContactsSurPlaceDuBien` écrit dans le cache la réponse de l'API (`r.data`), `replacePropertyContactsAction` rendant cette réponse ; `Me\ServiceProviderProfileController::updateAvailability` rend la même projection que `show` ; `specialization` reste tel quel, écho documenté du champ d'entrée
+> `ContactsSurPlaceDuBien` écrit dans le cache la réponse de l'API (`r.data`), `replacePropertyContactsAction` rendant cette réponse ; `Me\ServiceProviderProfileController::updateAvailability` rend la même projection que `show` ; `specialization` reste tel quel, écho documenté du champ d'entrée ; reste : la forme unique de `ReviewController::moderate` (`204` ou la ressource) et le `data: null` d'`Admin\AgencySubscriptionController::cancel` sans abonnement, au porteur
 
 ## Reste à faire
 
