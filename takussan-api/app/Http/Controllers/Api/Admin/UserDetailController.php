@@ -58,6 +58,12 @@ class UserDetailController extends Controller
                 'agent' => $query->whereHas('agentProfiles'),
                 'owner' => $query->whereHas('ownerProfiles'),
                 'service_provider' => $query->whereHas('serviceProviderProfile'),
+                // TCK-1852 (P186.01) — le rôle dérivé `tenant`, par la règle de
+                // `hasActiveTenantLease()` (TCK-492) : un bail en cours, préavis compris.
+                // `leases.status` qualifié : `customers` porte aussi un `status` (piège n° 7).
+                // `customer` n'est pas servi : chaque compte en est un, le filtre vaudrait « Tous ».
+                'tenant' => $query->whereHas('tenantLeases', fn (Builder $q) => $q
+                    ->whereIn('leases.status', User::ACTIVE_TENANT_LEASE_STATUSES)),
                 default => $query->whereRaw('1 = 0'),
             };
         }
