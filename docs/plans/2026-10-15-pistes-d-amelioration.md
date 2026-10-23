@@ -16015,7 +16015,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Les visites, réservations et baux d'une fiche client, et ses biens correspondants, s'arrêtent à 20 lignes
 - Réf : P171.05
-- Statut : validé (délégué) — les trois onglets de `fetchCustomerLinked` (visites, réservations, baux) lisent toutes les pages par 100 (`lireToutesLesPages`, TCK-1367), tri inchangé ; test : 21 visites d'un client, la 21ᵉ s'affiche ; reste : `CustomerMatches` (« voir plus » ou pagination des biens correspondants, dont le volume suit le catalogue, et non le client)
+- Statut : fait · TCK-1747 — reste : `CustomerMatches` (« voir plus » ou pagination des biens correspondants, dont le volume suit le catalogue, et non le client)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/agent-crm.ts:56-90,140-145`, `takussan-web/src/components/crm/CustomerLinkedRecords.tsx:60-80`, `takussan-web/src/components/crm/CustomerMatches.tsx:74-76`
 - Constat :
@@ -16025,6 +16025,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 - Piste : total et « voir plus » sur les quatre listes ; un test qui rend la 21ᵉ ligne.
 - Mesure (2026-10-23, cee72033c, mesureur) : relu `agent-crm.ts:89` (`per_page: 20` pour les trois onglets) et l. 143 (`matching-properties?per_page=20`), `CustomerMatches.tsx:74` (`meta.total` affiché), `CustomerLinkedRecords.tsx` (`grep` de `total`, `page` → rien) → le constat tient ; la base de développement reste sous le seuil, la troncature n'y est pas observable. Classement : V7, ajouter total et « voir plus » est un comportement visible neuf.
 - Mesure (2026-10-23, 79f1f3489, delegue) : relu le constat, la `Piste` et la `Mesure` du mesureur, `agent-crm.ts:56-100` (`per_page: 20`, une page) et l. 140-145 (`matching-properties?per_page=20`), `CustomerLinkedRecords.tsx:52` (`useQuery` sans `refetchInterval`), et la décision déléguée de P135.05 (`fait · TCK-1373`) qui a fait lire toutes les pages aux tâches du même client → les trois onglets sont dessinés pour la liste entière des rattachements d'un client, au plus 14 visites par client mesurées : lire toutes les pages les rend tels qu'ils se montrent jusqu'à 20. Délégation : V7, choix mineur et réversible en un commit du seul front : la voie écrite par TCK-1367 et suivie sur P135.05 pour la même fiche ; les biens correspondants, dont le volume dépend du catalogue, et le « voir plus » (comportement visible neuf) vont au reste ; aucun critère réservé (la règle de lecture de chaque index ne change pas).
+- Mesure (2026-10-23, 4436bf690, implementeur) : test `CustomerLinkedRecords.toutes-les-pages.tck-1747.test.tsx` (API bouchonnée, 20 par défaut, 100 au plus, 21 lignes) rouge avant correctif sur les trois onglets : « Bien 21 » absent → `fetchCustomerLinked` lit toutes les pages par 100 ; ablation (`agent-crm.ts` rendu à `HEAD`) → 3 rouges sur 3, correctif remis → 3/3 verts.
 
 ### Étiquettes : la liste CRM s'arrête à 50, la console à 100 avec un filtre côté client, et le choix des équipements à 100
 - Réf : P171.06
