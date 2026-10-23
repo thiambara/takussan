@@ -17267,7 +17267,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Une recherche par nom qui contient une virgule est ignorée dans les annuaires publics des agences et des agents, qui rendent alors tout l'annuaire
 - Réf : P187.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Public/PublicAgencyController.php:143-146`, `takussan-api/app/Http/Controllers/Public/PublicAgentController.php:126-129`, `takussan-api/vendor/spatie/laravel-query-builder/src/AllowedFilter.php:220-237`, `takussan-web/src/lib/queries/public-profiles.ts:145`
 - Constat :
@@ -17277,10 +17277,11 @@ Le PDF de l'état des lieux est P143.01.*
   - P151.01 a corrigé le même découpage pour `HasQueryBuilder` et le journal (`->delimiter('')`, TCK-1401) ; ces deux annuaires construisent leur `QueryBuilder` à la main et n'en ont pas profité (lu, `grep -n "delimiter" app/Http/Controllers/Public` vide).
   - Établi comment : lu, test temporaire.
 - Piste : poser `->delimiter('')` sur les deux rappels `search` (la virgule reste du texte). Garde : un test par annuaire qui cherche un nom avec virgule et attend le seul profil qui le porte, à côté d'un second profil qui ne doit pas sortir.
+- Mesure (2026-10-23, 13aa0411a, mesureur) : relu `PublicAgencyController.php:141-146` et `PublicAgentController.php:124-129` (rappel `search` sans `->delimiter('')`, sortie sur `! is_string`), et les quatre poses de `->delimiter('')` de TCK-1401 (`HasQueryBuilder.php:274`, `AuditLogController.php:154`, `Property.php:718`, `KycDossier.php:70`) ; aucun commit sur ces fichiers depuis l'exploration (`git log c6d3283e8..HEAD -- app routes` vide), aucun ticket ne cite P187 ; test temporaire `tests/Feature/Tmp/MesureurTmp187Test.php` (un cas par méthode, charge `{ 2.72 2.62 3.32 }` sur 8 cœurs, retiré) : agences « Immo, Conseil » et « Sahel Homes », `filter[search]=Immo` → total 1, `Immo,%20Conseil` → **2**, `Immo%2C%20Conseil` → **2**, `Immo%20Conseil` → 0 ; agents « Awa Diop » et « Moussa Fall », `Diop` → 1, `Diop,%20Awa` → **2** → le constat tient entier. Classement : A1, le découpage à la virgule est déjà corrigé par TCK-1401 (P151.01) sous la même forme ; le correctif est `->delimiter('')` sur les deux rappels, sans choix de produit, et l'annuaire public ne touche ni autorisation ni donnée personnelle.
 
 ### Un prix ou une surface à partir de 10¹⁵ rend 500 sur la recherche publique : le nombre part au moteur en notation `1.0E+15`
 - Réf : P187.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:527-532`, `:554-559`, `takussan-api/app/Http/Requests/Public/SearchPublicPropertyRequest.php` (`price_min`, `price_max`, `area_min`, `area_max` : `numeric|min:0`, sans `max`), `takussan-api/app/Support/SavedSearchCriteria.php:68-72`
 - Constat :
@@ -17290,10 +17291,11 @@ Le PDF de l'état des lieux est P143.01.*
   - `alertMatches()` passe par le même `buildFilter()` (lu, l. 217-227), et `SavedSearchCriteria` accepte les mêmes valeurs sans plafond (lu, l. 68-72) : une alerte enregistrée avec un tel prix ferait échouer son envoi à chaque passage (déduit, à vérifier).
   - Établi comment : lu, test temporaire.
 - Piste : écrire les nombres du filtre sans notation scientifique (un formateur unique, par exemple `number_format($v, 2, '.', '')` ou `sprintf('%F')`, comme le font déjà `_geoBoundingBox` et `_geoRadius` l. 616-641), et poser un `max` aux quatre bornes dans la requête et dans `SavedSearchCriteria`. Garde : un test de recherche avec `price_min=1e15` qui attend 200.
+- Mesure (2026-10-23, 13aa0411a, mesureur) : relu `PropertySearchService.php:527-532,554-559` (`'price >= '.(float) …`, de même `price_max`, `area_min`, `area_max`), `:617-641` (géo déjà écrite par `sprintf('%F')`), `:217-227` (`alertMatches()` passe par le même `buildFilter()`), `SearchPublicPropertyRequest.php:106-115` (`numeric|min:0`, sans `max`) et `SavedSearchCriteria.php:68-72` ; test temporaire `tests/Feature/Tmp/MesureurTmp187Test.php` (un cas par méthode, charge `{ 2.72 2.62 3.32 }` sur 8 cœurs, retiré) : `search?price_min=1000000000000000` → **500** « unexpected characters … `+15` », `price_min=999999999999999` → **500**, `price_max=1e20` → **500**, `area_min=100000000000000000000` → **500** `+20`, `price_min=99999999999999` (14 chiffres) → 200 → le constat tient ; l'échec d'envoi d'une alerte reste déduit (même chemin lu, non joué). Classement : A1, une requête que la validation accepte ne doit pas rendre 500 ; le correctif attendu est un formateur unique qui écrit ces quatre bornes sans notation scientifique (comme la géo), en gardant `1e400` à 200, et le plafond `max` de la `Piste` n'est pas nécessaire au correctif ni à prendre sans le porteur.
 
 ### La carte publique rend 500 sur une surface au-delà de la colonne entière
 - Réf : P187.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Search/FiltresDeLaCarte.php:68-73`, `takussan-api/database/migrations/2026_04_17_160005_create_properties_table.php:27`
 - Constat :
@@ -17301,10 +17303,11 @@ Le PDF de l'état des lieux est P143.01.*
   - mesuré (test temporaire), `bounds=14,-18,15,-17` : `area_min=3000000000` → **500** `22003 value "3000000000" is out of range for type integer` ; `area_min=100000000000000000000` → **500** `22P02 invalid input syntax for type integer: "1.0E+20"` ; `area_min=1e400` → **500** `"INF"`. Le prix, colonne décimale, accepte `1e400` et rend 200 (mesuré).
   - Établi comment : lu, test temporaire.
 - Piste : borner `area_min`/`area_max` par un `max` dans `SearchPublicPropertyRequest` (la carte en hérite), au plus la borne de la colonne, et lire la valeur comme un entier dans `FiltresDeLaCarte`. À faire avec P187.02, qui touche les mêmes règles. Garde : un test de la carte avec `area_min=3000000000` qui attend 422.
+- Mesure (2026-10-23, 13aa0411a, mesureur) : relu `FiltresDeLaCarte.php:68-73` (`(float) $p['area_min']` comparé à `properties.area`), la migration `create_properties_table.php:27` (`unsignedInteger`, soit `integer` signé sous PostgreSQL, borne 2147483647), et la règle héritée `numeric|min:0` ; test temporaire `tests/Feature/Tmp/MesureurTmp187Test.php` (un cas par méthode, charge `{ 2.72 2.62 3.32 }` sur 8 cœurs, retiré), `bounds=14,-18,15,-17` : `area_min=3000000000` → **500** `22003 … out of range for type integer`, `area_min=100000000000000000000` → **500** `22P02 … "1.0E+20"`, `area_min=1e400` → **500** `"INF"`, `price_min=1e400` → 200 → le constat tient entier. Classement : A1, une requête validée ne doit pas rendre 500 ; le correctif attendu est `max:2147483647` sur `area_min`/`area_max` de `SearchPublicPropertyRequest` (la borne vient de la colonne, la carte en hérite) et une lecture entière dans `FiltresDeLaCarte`, test `area_min=3000000000` → 422 sur la carte.
 
 ### `bounds` en liste rend 500 sur la carte publique, la règle de forme s'exécutant malgré l'échec de `string`
 - Réf : P187.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Public/MapPublicPropertyRequest.php:42-46`
 - Constat :
@@ -17312,10 +17315,11 @@ Le PDF de l'état des lieux est P143.01.*
   - mesuré (test temporaire) : `GET /api/public/properties/map?bounds[]=1` → **500** `Array to string conversion` ; même chose avec `bounds[]=1&bounds[]=2`.
   - Établi comment : lu, test temporaire.
 - Piste : ajouter `bail` en tête de la règle `bounds`, ou faire sortir la fermeture sur `! is_string($value)`. Garde : un test avec `bounds[]=1` qui attend 422.
+- Mesure (2026-10-23, 13aa0411a, mesureur) : relu `MapPublicPropertyRequest.php:42-48` (`required`, `string`, puis une fermeture qui ouvre sur `explode(',', (string) $value)`, sans `bail`) ; test temporaire `tests/Feature/Tmp/MesureurTmp187Test.php` (un cas par méthode, charge `{ 2.72 2.62 3.32 }` sur 8 cœurs, retiré) : `map?bounds[]=1` → **500** « Array to string conversion », `bounds[]=1&bounds[]=2` → **500** → le constat tient entier. Classement : A1, la règle `string` dit déjà qu'un tableau est refusé ; le correctif attendu est `bail` en tête de la règle `bounds` (ou une sortie sur `! is_string`), test `bounds[]=1` → 422.
 
 ### Un identifiant numérique de route au-delà de `bigint` rend 500 sur deux routes publiques
 - Réf : P187.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/routes/api/geo.php:18`, `takussan-api/app/Http/Controllers/Public/GeoReferentialController.php:70`, `takussan-api/routes/api/public.php:118-120`, `takussan-api/app/Http/Controllers/Public/PublicPropertyDocumentController.php:31-33`
 - Constat :
@@ -17324,10 +17328,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Ces deux URL sont anonymes, et la seconde vit dans la fiche publique (lu, commentaire l. 115-117) : un robot qui la tronque ou l'altère reçoit un 500.
   - Établi comment : lu, test temporaire.
 - Piste : une contrainte de route qui borne la longueur (`where('city', '[0-9]{1,18}')`, ou un motif global pour ces paramètres), ou une liaison qui rend 404 hors de `bigint`. Garde : un test par route avec 20 chiffres qui attend 404.
+- Mesure (2026-10-23, 13aa0411a, mesureur) : relu `routes/api/geo.php:18` (`whereNumber('city')`, liaison implicite de `GeoCity`), `routes/api/public.php:118-120` (`whereNumber(['property', 'document'])`) et `PublicPropertyDocumentController.php:31` (`int $property, int $document`) ; test temporaire `tests/Feature/Tmp/MesureurTmp187Test.php` (un cas par méthode, charge `{ 2.72 2.62 3.32 }` sur 8 cœurs, retiré) : `public/geo/cities/99999999999999999999` → **500** `22003 … bigint`, 19 chiffres (`9999999999999999999`) → **500** aussi, `/abc` → 404 ; `public/properties/{id}/documents/99999999999999999999/file` → **500** « Argument #2 ($document) must be of type int, string given », même 500 sur `{property}` de 20 chiffres → le constat tient entier. Classement : A1, la route rend déjà 404 sur un identifiant illisible et le contrôleur promet 404 à tout échec (en-tête) ; le correctif attendu est une contrainte de route bornée (`[0-9]{1,18}`) sur `city`, `property` et `document`, test 20 chiffres → 404 par route.
 
 ### Petites améliorations
 - Réf : P187.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : un 422 neuf sur des URL publiques qui rendent 200 aujourd'hui
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Public/SearchPublicPropertyRequest.php:117-119`, `takussan-api/app/Services/Search/PropertySearchService.php:586-598`, `takussan-api/app/Services/Search/FiltresDeLaCarte.php` (`parmi('type')`, `rent_period`)
 - Constat :
@@ -17335,3 +17340,4 @@ Le PDF de l'état des lieux est P143.01.*
   - Le portefeuille paginé d'un profil lit `per_page` à la main, sans règle (`(int) $request->input('per_page', 24)`, lu, `PublicAgencyController.php:400`, `PublicAgentController.php:378`) : `per_page=abc` ou `per_page[]=3` rendent 200 avec la page par défaut ou une page d'un bien (mesuré). Sans dommage, mais hors de la convention des autres listes publiques, qui valident `per_page`.
   - Établi comment : lu, test temporaire.
 - Piste : `Rule::enum(PropertyType::class)` par valeur de la liste `type` (sur le modèle de `condition`) et `Rule::enum(RentPeriod::class)` pour `rent_period` ; `per_page` validé dans `PublicPortfolioRequest`. Garde : les tests de `PublicPropertySearchFiltersTest` sur `title_type` étendus à ces deux clés.
+- Mesure (2026-10-23, 13aa0411a, mesureur) : relu `SearchPublicPropertyRequest.php:117-119` (`type` `string|max:500`, `rent_period` `string`) contre `:151-165` (`title_type` et `condition` jugés contre leur enum, TCK-491 et TCK-508) et `:166-170` (TCK-335 : une URL partagée qui se met à rendre 422 a déjà été jugée un défaut), `SavedSearchCriteria.php` (`type` en liste libre, `rent_period` `string|max:40`), `PublicAgencyController.php:400` et `PublicAgentController.php:378` (`min(max((int) per_page, 1), 48)`) ; test temporaire `tests/Feature/Tmp/MesureurTmp187Test.php` (un cas par méthode, charge `{ 2.72 2.62 3.32 }` sur 8 cœurs, retiré) : `search?type=nope` → 200 total 0, `rent_period=nope` → 200 total 0, `title_type=nope` → 422 ; portefeuille d'agence à deux biens, `per_page=abc` → 200, une page d'**un** bien (`(int) 'abc'` vaut 0, porté à 1, et non la page par défaut que dit le constat), `per_page[]=3` → 200, un bien → le constat tient, à cette nuance près. Classement : V7, les trois correctifs font rendre 422 des URL publiques et des recherches enregistrées qui rendent 200 aujourd'hui, et les valeurs `type` déjà stockées dans les alertes n'ont pas été relevées : juger ces clés contre l'enum est un choix de produit que TCK-335 a déjà pesé.
