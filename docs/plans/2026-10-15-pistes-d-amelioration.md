@@ -17523,7 +17523,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le créateur suspendu ou retiré lit et modifie l'état des lieux des biens qu'il a saisis, et le voit dans sa liste
 - Réf : P190.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : retire lecture et écriture à une branche que le bailleur auteur emploie aujourd'hui
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/InventoryPolicy.php:21-55`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:40-55`
 - Constat :
@@ -17533,10 +17533,11 @@ Le PDF de l'état des lieux est P143.01.*
   - ADR-0031 § 3 et `docs/features.md:527` : « un profil non actif (suspendu, …) ne confère aucune capacité ni aucun périmètre dans son agence » (lu).
   - Établi comment : lu, puis mesuré.
 - Piste : juger la branche « propriétaire du bien » de `view` par `BailleurDuBien::est` (bailleur de tout statut, qui garde la lecture, ADR-0031 § 2) et celle d'`update` par `bailleurEcrit`, comme `BookingPolicy` ; borner la clause de la liste de même. Test : agent créateur suspendu, puis retiré → `GET` et `PATCH` en 403, absent de la liste ; bailleur auteur, bloqué → lecture 200, `PATCH` 403.
+- Mesure (2026-10-23, 0c707fc77, mesureur) : relu `InventoryPolicy::view` (branche `property.user_id === user.id`) et `update` (`landlordWrites` sur `property.user_id`), `InventoryController::index` (`orWhereHas('property', … user_id)`), inchangés ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 ; état des lieux conduit par un tiers → suspendu comme retiré : `can` view/update = vrai/vrai, `GET /api/inventories/{id}` → 200, `PATCH` `{general_condition: fair}` → 200 et valeur écrite, présent dans `GET /api/inventories` → le constat tient en entier. Classement : V2, le correctif change la règle du propriétaire du bien dans deux abilities et une liste qu'emploie le bailleur actif, comme P153.01 et P153.02 classés V2.
 
 ### La liste des réservations garde au créateur suspendu ou retiré les réservations de ses biens, téléphone du client compris, que `view` lui refuse
 - Réf : P190.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 et V3 : borne une liste qu'emploie le bailleur, et l'exposition du téléphone du client
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/BookingController.php:22-37`, `takussan-api/app/Policies/BookingPolicy.php:28-40`
 - Constat :
@@ -17545,10 +17546,11 @@ Le PDF de l'état des lieux est P143.01.*
   - P153.02 relevait le même téléphone par `GET /api/bookings/{id}` ; son correctif n'a touché que la policy (lu, sa ligne `Mesure` de l'implémenteur).
   - Établi comment : lu, puis mesuré.
 - Piste : borner la clause « mes biens » de `index` par la règle d'`ownerOfProperty` (bien sans agence, ou profil de bailleur dans l'agence du bien). Test : agent créateur suspendu, puis retiré → réservation absente de la liste ; bailleur auteur, bloqué → présente.
+- Mesure (2026-10-23, 0c707fc77, mesureur) : relu `BookingController::index` (clause `orWhereHas('property', … user_id)`, `customer` chargé) et `BookingPolicy::view` (`ownerOfProperty`), inchangés ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 → suspendu comme retiré : `can('view', $booking)` faux, mais la réservation figure dans `GET /api/bookings` avec `customer.phone` renseigné → le constat tient en entier. Classement : V2 et V3, la clause « mes biens » de la liste sert le bailleur actif et le défaut expose une donnée personnelle, comme P153.02.
 
 ### Le créateur suspendu ou retiré ouvre et vérifie le paiement en ligne des acomptes de ses biens, et les lit dans l'historique
 - Réf : P190.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 et V1 : ouvre ou ferme le paiement en ligne d'un acompte
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/BookingPaymentPolicy.php:20-42`, `takussan-api/app/Http/Controllers/Api/PaymentGatewayController.php:27-33,52-55,77-80`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:41-60`
 - Constat :
@@ -17557,10 +17559,11 @@ Le PDF de l'état des lieux est P143.01.*
   - mesuré (test temporaire), suspendu comme retiré : `can('update', $bookingPayment)` vrai ; `GET /api/booking-payments/{id}/providers` → 200, `GET /api/booking-payments/{id}/verify` → 200 ; `GET /api/payments/history` rend l'acompte. `POST …/initiate` n'a pas été lancé (il appelle un fournisseur) : il passe par la même ability (lu).
   - Établi comment : lu, puis mesuré.
 - Piste : juger la branche du bien par `BailleurDuBien::est` (et `landlordWrites` pour initier), comme `BookingPolicy`, et borner la clause de `history` de même. Test : agent créateur suspendu, puis retiré → `providers` et `verify` en 403, acompte absent de l'historique ; client de la réservation toujours accepté.
+- Mesure (2026-10-23, 0c707fc77, mesureur) : relu `BookingPaymentPolicy::update` (`booking.property.user_id === user.id`), `PaymentGatewayController` (`initiate`, `verify`, `providers` sous `update`) et `PaymentController::history` (`orWhereHas('property', … user_id)` l. 52), inchangés ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 ; acompte `pending` → suspendu comme retiré : `can('update', $payment)` vrai, `GET /api/booking-payments/{id}/providers` → 200, `…/verify` → 200, `GET /api/payments/history` → 200 avec l'acompte (`source: booking`, son `id`) ; `initiate` non lancé (appel au fournisseur), même ability (lu) → le constat tient. Classement : V2 et V1, le correctif change qui initie et vérifie un paiement, sur une branche qu'emploie le bailleur actif.
 
 ### Le bail qui désigne l'agent créateur reste lisible par lui, suspendu ou retiré, en fiche et en liste
 - Réf : P190.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : la lecture du bail par `landlord_id` dépend du sens laissé à P15.06
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/LeasePolicy.php:62-81`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:27-38`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php`
 - Constat :
@@ -17570,10 +17573,11 @@ Le PDF de l'état des lieux est P143.01.*
   - TCK-1711 (P153.04) pose `left_at` au retrait sur les fils des baux « dont le retiré ne lit plus le bail », jugé par `LeasePolicy::view` (lu, sa ligne `Mesure`) : sur un bail qui le désigne, il reste donc participant au fil (à vérifier).
   - Établi comment : lu, puis mesuré.
 - Piste : juger la branche du bailleur de `view` par `BailleurDuBien::est` (le bailleur bloqué garde la lecture), et la clause `landlord_id` de la liste de même. Test : bail au `landlord_id` de l'agent, agent suspendu puis retiré → `GET` 403, absent de la liste, et le fil du bail quitté au retrait. Le sort de `landlord_id` lui-même reste celui de P15.06.
+- Mesure (2026-10-23, 0c707fc77, mesureur) : relu `LeasePolicy::view` (`user.id === landlord_id`), `LeaseController::index` (`where('landlord_id', …)`) et `AgencyMemberRemovalService` l. 121-142 (fils quittés si `! can('view', lease)`), inchangés ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 ; bail `active` au `landlord_id` de l'agent, fil `group` à `lease_id` dont l'agent est participant → suspendu comme retiré : `can` view/update = vrai/faux, `GET /api/leases/{id}` → 200, présent dans `GET /api/leases` ; après retrait, `left_at` du participant reste null et `ConversationAccess::allows` rend vrai → le « à vérifier » du constat est vérifié, le constat tient en entier. Classement : V2, le correctif retire la lecture d'un bail à celui qu'il désigne comme bailleur, et dépend du sens de `landlord_id` que P15.06 laisse au porteur.
 
 ### Le créateur suspendu ou retiré lit les documents du bien et en joint de nouveaux
 - Réf : P190.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : change la règle du bailleur dans `DocumentPolicy::reaches`, en lecture et en rattachement
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/DocumentPolicy.php:152-213`
 - Constat :
@@ -17581,10 +17585,11 @@ Le PDF de l'état des lieux est P143.01.*
   - mesuré (test temporaire), suspendu comme retiré : `can('view', $document)` vrai pour un document du bien déposé par un tiers ; `GET /api/documents/{id}` → 200 ; `POST /api/documents` (PDF de 10 Ko, `documentable_type=property`) → 201, document rattaché au bien.
   - Établi comment : lu, puis mesuré.
 - Piste : passer `$bailleur` de `reaches` par `BailleurDuBien::est` pour les colonnes de bailleur (`properties.user_id`, `leases.landlord_id`), et par `bailleurEcrit` en écriture, en gardant `landlordWrites` pour les colonnes d'auteur. Test : agent créateur suspendu, puis retiré → `GET` 403 et `POST` refusé (404 `document.owner_not_found`, TCK-732) ; bailleur bloqué → lecture 200, rattachement refusé.
+- Mesure (2026-10-23, 0c707fc77, mesureur) : relu `DocumentPolicy::reaches` (branche bailleur par identité en lecture, `landlordWrites` en écriture), inchangé ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 ; document du bien déposé par un tiers → suspendu comme retiré : `can('view', $document)` vrai, `GET /api/documents/{id}` → 200, `POST /api/documents` (PDF de 10 Ko, `documentable_type=property`) → 201, document rattaché au bien → le constat tient en entier. Classement : V2, le correctif touche la lecture et le rattachement des documents pour tout bailleur de bien et de bail, appelants d'aujourd'hui.
 
 ### Le créateur suspendu ou retiré resoumet à la modération un bien d'agence rejeté
 - Réf : P190.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : la branche `user_id` de `resubmit` sert aujourd'hui le bailleur auteur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/PropertyModerationPolicy.php:29-41`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:101-109`
 - Constat :
@@ -17592,10 +17597,11 @@ Le PDF de l'état des lieux est P143.01.*
   - mesuré (test temporaire), suspendu comme retiré : bien de l'agence passé `rejected` → `POST /api/properties/{id}/resubmit` → 200, statut `pending_review`, motif et rejet effacés (lu, `PropertyModerationService::resubmit`).
   - Établi comment : lu, puis mesuré.
 - Piste : ne tenir `user_id` pour titre que sur un bien sans agence ou pour un bailleur non bloqué de l'agence (`bailleurEcrit`) ; le personnel actif garde sa branche. Test : agent créateur suspendu, puis retiré → 403 et statut `rejected` inchangé.
+- Mesure (2026-10-23, 0c707fc77, mesureur) : relu `PropertyModerationPolicy::resubmit` (`user.id === property.user_id` avant tout jugement d'agence) et `PropertyModerationService::resubmit` (statut `pending_review`, motif et rejet effacés), inchangés ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 ; bien passé `rejected` → suspendu comme retiré : `POST /api/properties/{id}/resubmit` → 200, statut `pending_review` → le constat tient en entier. Classement : V2, le correctif restreint qui resoumet un bien, sur une branche qu'emploie le bailleur actif.
 
 ### L'agent suspendu lit encore le bien qu'il a saisi et le garde dans sa liste
 - Réf : P190.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : TCK-1705 a choisi de laisser au suspendu ce qu'il a ; le reprendre est un choix
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/PropertyPolicy.php:48-63,196-207`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:60-75`
 - Constat :
@@ -17604,3 +17610,4 @@ Le PDF de l'état des lieux est P143.01.*
   - La règle écrite est l'inverse pour l'agent : ADR-0031 § 3 et `docs/features.md:527` (aucun périmètre pour un profil non actif) ; ADR-0031 § 2 ne garde la lecture qu'au **bailleur** suspendu (lu).
   - Établi comment : lu, puis mesuré.
 - Piste : remplacer `isMemberOf` par `BailleurDuBien::est` (bailleur de tout statut) ou personnel actif de l'agence (`isStaffOf`) dans `view`, `update` et la clause de la liste. Test : agent créateur suspendu → 403 et absent de la liste ; bailleur auteur bloqué → lecture 200.
+- Mesure (2026-10-23, 0c707fc77, mesureur) : relu `PropertyPolicy::view`/`update` (`isMemberOf`, de tout statut) et `PropertyController::index` (clause bornée aux agences où l'auteur a un profil, sans statut), inchangés ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 → suspendu : `can` view/update = vrai/faux, `GET /api/properties/{id}` → 200, bien présent dans `GET /api/properties` ; retiré : `can('view')` faux, `GET` → 403, absent de la liste, comme TCK-1705 le garde → le constat tient pour le seul suspendu. Classement : V2, la ligne `Mesure` de l'implémenteur de P153.01 garde délibérément au suspendu ce qu'il a, et revenir sur ce choix contre ADR-0031 § 3 revient au porteur.
