@@ -1,7 +1,7 @@
 ---
 id: TCK-1785
 title: "Le relevé de gérance date ses impayés, et son CSV porte le total versé et sa date de rendu"
-status: todo
+status: done
 phase: P1
 family: applicatif
 estimate: S
@@ -42,18 +42,18 @@ Réf : **P177.06** du fichier de pistes.
 
 ## Delta à produire
 
-- [ ] `OwnerStatementService::unpaid()` rend `as_of`.
-- [ ] `pdf/statements/owner.blade.php` écrit « Impayés de la période au JJ/MM/AAAA ».
-- [ ] Clé `money_out.statement.unpaid_as_of` dans `lang/{fr,en,wo}`.
-- [ ] `OwnerStatementController::csv()` ajoute `paid_out` et `generated_at` après `totals`.
-- [ ] Garde dans `tests/Feature/Api/OwnerStatementTest.php`.
+- [x] `OwnerStatementService::unpaid()` rend `as_of`.
+- [x] `pdf/statements/owner.blade.php` écrit « Impayés de la période au JJ/MM/AAAA ».
+- [x] Clé `money_out.statement.unpaid_as_of` dans `lang/{fr,en,wo}`.
+- [x] `OwnerStatementController::csv()` ajoute `paid_out` et `generated_at` après `totals`.
+- [x] Garde dans `tests/Feature/Api/OwnerStatementTest.php`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Le JSON du relevé de septembre lu le 2026-10-02 porte `unpaid.as_of = 2026-10-02`, et
+- [x] AC1 — Le JSON du relevé de septembre lu le 2026-10-02 porte `unpaid.as_of = 2026-10-02`, et
   la règle des impayés est inchangée.
-- [ ] AC2 — Le PDF porte « Impayés de la période au 02/10/2026 ».
-- [ ] AC3 — Le CSV garde l'en-tête en première ligne ; après `totals` viennent
+- [x] AC2 — Le PDF porte « Impayés de la période au 02/10/2026 ».
+- [x] AC3 — Le CSV garde l'en-tête en première ligne ; après `totals` viennent
   `paid_out;;;;<totals.paid_out>;` puis `generated_at;;;<date et heure du rendu>;;`.
 
 ## Hors périmètre
@@ -62,4 +62,9 @@ Réf : **P177.06** du fichier de pistes.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Reproduit avant correctif sur `663fc2871` : le test rend « Undefined array key "as_of" ».
+- Ablation, volet par volet : service seul remis → `as_of` absent ; gabarit seul remis → la phrase
+  « Impayés de la période au 02/10/2026 : 1 » manque au PDF ; contrôleur seul remis → les trois
+  dernières lignes du CSV ne sont plus `totals`, `paid_out`, `generated_at`. Rétabli → vert.
+- La date du PDF se formate sans `->utc()`, à la différence de `$frDate` du gabarit : `as_of` est
+  une date sans heure, qu'un passage en UTC pourrait décaler d'un jour.
