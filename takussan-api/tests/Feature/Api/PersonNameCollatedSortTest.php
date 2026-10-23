@@ -55,23 +55,25 @@ class PersonNameCollatedSortTest extends ApiTestCase
     #[DataProvider('sens')]
     public function test_les_membres_d_une_agence(string $tri, array $attendu): void
     {
-        $prenoms = $this->actingAsApi($this->agencyAdmin($this->agency))
+        $admin = $this->adminHomonyme();
+        $membres = $this->actingAsApi($admin)
             ->apiGet("/api/agencies/{$this->agency->id}/members?per_page=100&sort={$tri}")
             ->assertOk()
-            ->json('data.*.first_name');
+            ->json('data');
 
-        $this->assertSame($attendu, $this->saisis($prenoms));
+        $this->assertSame($attendu, $this->saisis($membres, $admin));
     }
 
     #[DataProvider('sens')]
     public function test_l_equipe_de_l_agence(string $tri, array $attendu): void
     {
-        $prenoms = $this->actingAsApi($this->agencyAdmin($this->agency))
+        $admin = $this->adminHomonyme();
+        $membres = $this->actingAsApi($admin)
             ->apiGet("/api/users?per_page=100&sort={$tri}")
             ->assertOk()
-            ->json('data.*.first_name');
+            ->json('data');
 
-        $this->assertSame($attendu, $this->saisis($prenoms));
+        $this->assertSame($attendu, $this->saisis($membres, $admin));
     }
 
     #[DataProvider('sens')]
@@ -132,13 +134,31 @@ class PersonNameCollatedSortTest extends ApiTestCase
     }
 
     /**
-     * L'administrateur de l'agence est lui-même membre : seul l'ordre relatif des prénoms saisis compte.
+     * L'administrateur de l'agence est lui-même membre, et la réponse le porte. Son prénom vient de
+     * Faker, en `fr_FR` sur la CI, dont la liste contient « Élodie » : filtré par prénom, il
+     * doublait une fois sur 260 l'« Élodie » saisie (`pre-dev`, run 39884689833). Il porte donc
+     * délibérément ce prénom, et il est écarté par son identifiant.
+     */
+    private function adminHomonyme(): User
+    {
+        $admin = $this->agencyAdmin($this->agency);
+        $admin->update(['first_name' => 'Élodie']);
+
+        return $admin;
+    }
+
+    /**
+     * Seul l'ordre relatif des prénoms saisis compte : l'administrateur est écarté par son id.
      *
-     * @param  list<string>  $prenoms
+     * @param  list<array<string, mixed>>  $membres
      * @return list<string>
      */
-    private function saisis(array $prenoms): array
+    private function saisis(array $membres, User $admin): array
     {
-        return array_values(array_filter($prenoms, fn (string $p) => in_array($p, self::PRENOMS, true)));
+        return collect($membres)
+            ->reject(fn (array $membre) => $membre['id'] === $admin->id)
+            ->pluck('first_name')
+            ->values()
+            ->all();
     }
 }
