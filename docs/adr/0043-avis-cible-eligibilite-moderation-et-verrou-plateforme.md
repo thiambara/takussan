@@ -1,6 +1,6 @@
 # ADR-0043 — Un avis a une cible, une preuve et un modérateur ; une annonce masquée par la plateforme tient à un verrou que seule la plateforme lève
 
-- **Statut** : Accepté
+- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — qui le locataire peut noter comme agent*)
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-597](../backlog/tickets/TCK-597-avis-signalements-et-moderation.md)
 - **Précise** : le principe non négociable n° 2 (« l'agence est la frontière d'isolation ») et
@@ -290,3 +290,79 @@ rend 422. Le texte libre n'est requis que pour `other`.
 - `UnifiedModerationService::decide`, `moderation_claims` ;
   `tests/Feature/Api/Admin/ModerationQueueConcurrencyTest.php`.
 - `scripts/check-agency-scope-clause.mjs` ne tolère plus `ReviewController` ni `ReplyReviewRequest`.
+
+## Amendement du 2026-10-23 — qui le locataire peut noter comme agent
+
+Décision du porteur du 2026-10-23, sur la piste P160.05 (angle 160 du fichier de pistes,
+`docs/plans/2026-10-15-pistes-d-amelioration.md`). Il amende le point **agent** du § 3. Relu sur
+`pre-dev` 4a12ba515.
+
+**Constat.** Le § 3 disait : « **agent** : […] un bail ou une réservation honorés sur un bien dont
+il est le publieur (`properties.user_id`) ». Le code l'applique à la lettre :
+
+- `ReviewEligibility::forAgent` (`ReviewEligibility.php:62-73`) accepte un bail ou une réservation
+  de l'auteur sur un bien dont l'agent noté est `user_id` (l. 68-72) ;
+- `opportunities` propose comme sujet « agent » le `property->owner` de chaque bail et de chaque
+  réservation (l. 125-130) ;
+- le docblock écrit « un bien qu'il a publié » (l. 28-29).
+
+Or `properties.user_id` n'est pas toujours un agent. Pour un bien de bailleur, c'est le bailleur
+(ADR-0036, amendement du 2026-10-19 : le bien passe au bailleur). Le mesureur l'a constaté le
+2026-10-22 sur un bien de bailleur avec un bail `active` dont `agent_id` est l'agent collaborateur :
+
+- `opportunities` propose un seul avis « agent », et son sujet est le bailleur ;
+- `forAgent(client, bailleur)` rend le bail ;
+- `forAgent(client, agent du bail)` rend `null`.
+
+Le locataire est donc invité à noter son bailleur comme agent, et il ne peut pas noter l'agent qui
+a conclu son bail.
+
+**Décision.** Pour un bail ou une réservation honorés, les sujets « agent » que l'auteur peut noter
+sont les suivants :
+
+1. **L'agent du bail**, `leases.agent_id` : le négociateur qu'ADR-0049 fait désigner par le bail.
+2. **Les collaborateurs acceptés du bien**, de rôle `agent` ou `manager` (`property_collaborators`,
+   `accepted_at` non nul), qui sont **encore du personnel** de l'agence du bien
+   (`MembershipCapabilityResolver::isStaffAt`).
+3. **Le créateur du bien** (`properties.user_id`), **seulement s'il est du personnel** de l'agence
+   du bien.
+4. **Jamais le bailleur.** Un créateur qui n'est pas du personnel ne devient pas sujet « agent ».
+
+**Une réservation n'a pas d'`agent_id`** (la table `bookings` n'en porte pas). Elle passe par les
+points 2 et 3 seulement.
+
+La visite `completed` reste une preuve à part, inchangée : l'auteur peut noter l'`agent_id` de la
+visite. Le point « on ne se note jamais soi-même » vaut toujours.
+
+« Encore du personnel » se juge au moment du dépôt, comme toute éligibilité du § 3 : dans le
+`authorize()` du FormRequest, avant la validation. Un collaborateur parti de l'agence ou suspendu
+n'est plus proposé et ne peut plus être noté. La règle est celle que TCK-1316 applique déjà aux
+destinataires d'un bien : le créateur ne compte que s'il est bailleur ou personnel actif
+(`PrimaryPropertyContact::createurDestinataire`), et les collaborateurs `manager|agent` acceptés
+encore personnel (`BookingStakeholders::collaboratorsOf`).
+
+**Pas d'effet rétroactif.** Les avis déjà déposés sur un bailleur noté comme « agent » restent tels
+quels : ils ne sont ni retirés, ni déplacés, ni masqués. Ils restent soumis à la modération du
+§ 1. La règle ne change que ce qui peut être déposé à partir de son application.
+
+**Ce que la décision ne tranche pas, et que le code fait apparaître.**
+
+- **L'unicité par preuve n'admet qu'un avis « agent » par bail ou par réservation.** L'index
+  `reviews_author_context_uniq (author_id, reviewable_type, context_type, context_id)`
+  (`2026_10_08_100000_add_moderation_scope_to_reviews_table.php:33`) ne contient pas
+  `reviewable_id`. Pour un même auteur et un même bail, il n'existe donc qu'**un** avis de cible
+  `User`. La règle ci-dessus peut rendre éligibles plusieurs agents pour un même bail (l'agent du
+  bail, puis un collaborateur). `storeForAgent` (`ReviewController.php:422-448`) verrouille
+  l'agent et vérifie l'unicité par agent, pas par preuve. Le second avis heurterait l'index. Le
+  ticket doit choisir avant d'écrire du code : ou bien un seul sujet « agent » par preuve, ou bien
+  `reviewable_id` entre dans l'index (une migration). Cet amendement ne choisit pas.
+- **L'hôte d'une agence `individual`** est à la fois admin d'agence et bailleur de ses biens. Le
+  point 3 le retient, puisqu'il est du personnel. Le point 4 l'écarte, puisqu'il est le bailleur. Le
+  ticket relève ce cas et le soumet au porteur.
+
+**Application.** `ReviewEligibility::forAgent` et `::opportunities`, ainsi que le docblock de la
+classe (l. 28-29), suivent les points 1 à 4. Les tests partent du cas mesuré ci-dessus et
+demandent : le bailleur n'est pas proposé, et `forAgent(client, bailleur)` rend `null` ; l'agent du
+bail est proposé, et `forAgent(client, agent du bail)` rend le bail ; un collaborateur `agent`
+accepté dont le profil est suspendu n'est pas proposé ; une réservation sans bail propose ses
+collaborateurs. Chaque test se vérifie par ablation.
