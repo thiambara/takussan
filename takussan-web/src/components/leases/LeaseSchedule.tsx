@@ -43,15 +43,18 @@ interface LeaseScheduleProps {
 }
 
 /**
- * Statut affiché, dérivé au navigateur. Une échéance `pending` dont la date d'échéance est passée
- * s'affiche « en retard » par ce seul calcul : l'API n'écrit `late` que lorsqu'elle applique une
- * pénalité de retard (`LateFeeCalculator`, bail à `late_fee_percent` positif, délai de grâce
- * écoulé). Sans pénalité configurée, aucune échéance n'est jamais marquée `late` côté serveur
- * (TCK-1829, P183.05 ; la règle du jour d'échéance reste à trancher, P183.01).
+ * Statut affiché. Une échéance `pending` s'affiche « en retard » quand l'API la dit échue
+ * (`is_overdue`, TCK-1831, P183.01 : règle de `scopeOverdue`, due AVANT aujourd'hui — l'échéance
+ * du jour reste « en attente »). Le statut `late` seul ne suffit pas : l'API ne l'écrit que
+ * lorsqu'elle applique une pénalité de retard (`LateFeeCalculator`, bail à `late_fee_percent`
+ * positif, délai de grâce écoulé), et sans pénalité configurée aucune échéance n'est jamais
+ * marquée `late` côté serveur (TCK-1829, P183.05). Aucune date n'est comparée ici à l'horloge du
+ * navigateur.
  *
  * TCK-1264 (P146.02) — suit chaque cas de `PaymentStatus` : `refunded`, `failed` et
  * `partially_paid` ne retombent plus sur « Autre ». Une restitution de dépôt (`deposit_refund`)
- * ne passe jamais `late` ici : c'est l'agence qui la doit, pas le locataire (features.md, TCK-595).
+ * n'est jamais dite échue par l'API (`is_overdue` faux) : c'est l'agence qui la doit, pas le
+ * locataire (features.md, TCK-595).
  */
 function displayStatus(
   p: LeasePayment,
@@ -63,10 +66,7 @@ function displayStatus(
   if (p.status === 'refunded') return 'refunded';
   if (p.status === 'failed') return 'failed';
   if (p.status === 'partially_paid') return 'partially_paid';
-  if (p.status === 'pending' && p.due_date && p.payment_type !== 'deposit_refund') {
-    const due = new Date(p.due_date);
-    if (!Number.isNaN(due.getTime()) && due < new Date()) return 'late';
-  }
+  if (p.status === 'pending' && p.is_overdue) return 'late';
   if (p.status === 'late') return 'late';
   if (p.status === 'pending') return 'pending';
   return 'other';
