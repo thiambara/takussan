@@ -16355,7 +16355,7 @@ règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.
 
 ### Petites améliorations
 - Réf : P175.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-1781 — reste : relire le prestataire sortant d'une intervention, effacé, pour le retirer du fil dans `SyncMaintenanceConversation::swapProvider()` : `withTrashed()` seul ne suffit pas, le test d'appartenance et `GroupConversationService::removeParticipant()` passent par `participants()`, qui cache le compte effacé, et le retrait poste un message au nom de repli `deleted-<id>@takussan.local` (ou se fait sans message), un choix visible
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Resources/ReviewResource.php:16-20`, `takussan-api/app/Listeners/Maintenance/SyncMaintenanceConversation.php:91-103`
 - Constat :
@@ -16363,6 +16363,7 @@ règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.
   - `swapProvider()` relit le prestataire sortant par `User::query()->find()` (lu, l. 93) : effacé, il est introuvable et n'est pas retiré du fil de l'intervention (l. 97-102). Sans effet visible tant qu'un compte effacé ne se connecte plus (à vérifier : sa ligne de participant reste active).
 - Piste : rendre `author.name` nul et laisser le front écrire « Anonyme » par une clé i18n, charger `author` par `whenLoaded` ; relire le sortant par `User::withTrashed()` dans `swapProvider()`.
 - Mesure (2026-10-23, 2a689d48a, mesureur) : relu `ReviewResource.php:16-20` (`'Anonyme'` en dur, `author` lu sans `whenLoaded`) et `SyncMaintenanceConversation.php:93` (`User::query()->find()`, `User` en `SoftDeletes`, l. 55) ; les lectures en liste chargent toutes `author` (`ReviewController.php:72,228,252`, `PublicPropertyController` `with('author.media')`, `PublicAgentController.php:259`, `PublicAgencyController.php:347`) → la requête par avis est **caduque**, le libellé en dur et la relecture du sortant tiennent ; le front lit `review.author.name.charAt(0)` (`PropertyReviews.tsx:67`) et doit donc garder un repli, la clé `anonymous` existe déjà. Classement : A1, le principe 5 de `CLAUDE.md` dit que le front porte le libellé et le commentaire de `swapProvider()` dit que le sortant quitte le fil, sans texte neuf.
+- Mesure (2026-10-23, 5f3714e6f, implementeur) : `ReviewAuthorNameTest` avant correctif, `GET /api/public/properties/{slug}/reviews` → `author.name = "Anonyme"` pour un auteur supprimé en douceur et pour un auteur sans nom ni `username` (2 rouges sur 3) ; côté front, un `name` nul fait lever `PropertyReviews` (`charAt`) et `ReviewsSection` (`trim`) → `ReviewResource` rend `name` nul, les trois vues écrivent `publicProfile.reviews.anonymous` (« Anonyme », « Anonymous ») ; ablation API → 2 rouges, front → 5 rouges sur 16, rétablis → verts. Volet `swapProvider()` : un test de réassignation après `$first->delete()` restait vert en lisant les participants par `participants()` (portée `SoftDeletes`), rouge en lisant la table pivot (`left_at` nul) ; `withTrashed()` dans `swapProvider()` seul ne le corrige pas → laissé en reste.
 
 ## Angle 176 — Rôles lus toutes agences confondues par `profileTypes()`
 
