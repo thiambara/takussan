@@ -14,7 +14,7 @@ spec_refs:
   features:
     - "docs/features.md#21-authentification--comptes"
   pistes:
-    - "docs/plans/2026-10-15-pistes-d-amelioration.md#angle-136--lectures-du-navigateur-redondantes-ou-en-série-sur-les-écrans-connectés"
+    - "docs/plans/2026-10-15-pistes-d-amelioration.md#angle-136--lectures-du-navigateur-au-chargement-de-la-console-app-et-super-admin"
 tags: [front, accueil, performance, tanstack, pistes]
 ---
 
