@@ -58,6 +58,26 @@ class UpdateCustomerRequest extends BaseFormRequest
         return $this->user()?->can('view', $this->route('customer')) === true;
     }
 
+    /**
+     * TCK-1753 (P147.06) — l'édition ne pose que `active` et `inactive` : rien ne lit `blocked` ni
+     * `deleted` (seul `active` l'est, par le pipeline et le rapprochement), et un client « supprimé »
+     * qui reste dans la liste trompe l'agent — la suppression a son geste, `destroy`. Le statut
+     * COURANT de la fiche passe encore inchangé : le formulaire le renvoie, et une fiche déjà
+     * `blocked` ou `deleted` se modifie sans réécriture de ses données.
+     *
+     * @return list<CustomerStatus>
+     */
+    private function settableStatuses(): array
+    {
+        $statuses = [CustomerStatus::Active, CustomerStatus::Inactive];
+        $current = $this->route('customer') instanceof Customer ? $this->route('customer')->status : null;
+        if ($current instanceof CustomerStatus && ! in_array($current, $statuses, true)) {
+            $statuses[] = $current;
+        }
+
+        return $statuses;
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
@@ -72,7 +92,7 @@ class UpdateCustomerRequest extends BaseFormRequest
             'id_number' => ['sometimes', 'nullable', 'string', 'max:100'],
             'occupation' => ['sometimes', 'nullable', 'string', 'max:255'],
             'pipeline_stage' => ['sometimes', Rule::enum(CustomerPipelineStage::class)],
-            'status' => ['sometimes', Rule::enum(CustomerStatus::class)],
+            'status' => ['sometimes', Rule::enum(CustomerStatus::class)->only($this->settableStatuses())],
             'notes' => ['sometimes', 'nullable', 'string'],
             // TCK-083 — optional reason captured when transitioning to a
             // terminal stage (`converted`/`lost`). Persisted as a CustomerNote.
