@@ -75,7 +75,7 @@ describe('fiches bail et document — un h1 hors du rendu nominal (TCK-1189, P10
     it(`document en ${cas.nom} : un h1 « Fiche document »`, () => {
       etat.isLoading = cas.isLoading;
       etat.isError = cas.isError;
-      render(withIntl(<DocumentDetailClient documentId={7} currentUserId={1} currentUserRoles={[]} />));
+      render(withIntl(<DocumentDetailClient documentId={7} />));
 
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Fiche document');
     });

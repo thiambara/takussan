@@ -482,20 +482,26 @@ function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowPr
             }
           />
         ) : null}
-        <Button type="button" size="sm" variant="outline" onClick={onShare}>
-          <Share2 className="mr-1 size-4" aria-hidden="true" />
-          {t('share')}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={onDelete}
-          disabled={deleting}
-          aria-label={t('delete_aria')}
-        >
-          <Trash2 className="size-4" aria-hidden="true" />
-        </Button>
+        {/* TCK-1867 (P189.01) — les verdicts de `DocumentPolicy` que l'API sert sur la ligne : le
+            téléverseur suspendu comme bailleur dans l'agence du porteur se voyait offrir les deux. */}
+        {doc.abilities?.share ? (
+          <Button type="button" size="sm" variant="outline" onClick={onShare}>
+            <Share2 className="mr-1 size-4" aria-hidden="true" />
+            {t('share')}
+          </Button>
+        ) : null}
+        {doc.abilities?.delete ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={onDelete}
+            disabled={deleting}
+            aria-label={t('delete_aria')}
+          >
+            <Trash2 className="size-4" aria-hidden="true" />
+          </Button>
+        ) : null}
       </div>
     </li>
   );

@@ -160,6 +160,11 @@ trait HasProfiles
      */
     public function isBlockedOwnerAt(int $agencyId): bool
     {
+        // TCK-1867 (P189.01) — jugé une fois pour la page dans une liste amorcée.
+        if (($amorce = MembershipCapabilityResolver::amorce('blocked_owner', (int) $this->id, $agencyId)) !== null) {
+            return $amorce;
+        }
+
         return $this->ownerProfiles()
             ->where('agency_id', $agencyId)
             ->where('status', OwnerProfileStatus::Blocked->value)
