@@ -16928,7 +16928,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Une erreur de confirmation, de refus ou d'annulation d'une réservation ou d'une visite ne s'affiche pas : le dialogue reste ouvert, sans message
 - Réf : P182.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/bookings/BookingDetail.tsx:412-448,472-476,507`, `takussan-web/src/components/visits/VisitDetail.tsx:149-175,180-191,284-296,505-514`
 - Constat :
@@ -16938,10 +16938,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Le cas ne demande pas de réponse perdue : la confirmation d'une réservation dont les dates chevauchent une réservation confirmée ou une nuit bloquée rend 422 `booking.dates_overlap` / `booking.dates_unavailable` (lu, `PropertyAvailabilityService.php:40-51`, appelé par `BookingService::confirm` l. 204) ; sur une réservation déjà confirmée par un autre membre, 422 `booking.not_pending_confirm` (l. 179-183). L'utilisateur clique, et rien ne se passe.
   - Établi comment : lu ; le comportement à l'écran n'a pas été rendu.
 - Piste : rattraper l'erreur dans les deux composants, comme `InvoiceDetailDialog.handleAction` (`:48-56`, bandeau `messageErreur`) — le dialogue reste ouvert et affiche le message de l'API. Garde : un test vitest par composant qui fait rejeter la mutation en 422 et attend le message.
+- Mesure (2026-10-23, 2b80de9, mesureur) : relu `BookingDetail.tsx:422-448` (`onSubmit` enchaîne `mutateAsync` et toast sans `catch`) et `:472-476,507` (`handleSubmit` sans `catch`, `onClick={() => void handleSubmit()}`), `VisitDetail.tsx:149-175` (`handleConfirm`, `handleComplete`, `handleNoShow` sans `catch`, passés à `onClick` l. 284-294) et `:505-514` (`VisitActionDialog.handleSubmit` sans `catch`), `useApiQuery.ts:159-218` et `query-client.ts` (aucun `onError` ni `MutationCache`) ; test vitest temporaire (retiré) sur `BookingDetail`, admin d'agence, réservation `pending`, `useConfirmBooking().mutateAsync` rejeté en `ApiError(422, booking.dates_overlap)`, clic « Accepter » puis « Accepter » du dialogue, charge 1,9 à 2,2 sur 8 cœurs → dialogue toujours ouvert, message de l'API absent, aucun `role=alert` ni `role=status`, une `unhandledRejection`. Le constat tient pour la réservation, rendu ; pour la visite, il tient par lecture du même motif. Classement : A1, ADR-0019 (accepté) fixe le rendu d'une erreur d'API dans un composant client par `useMessageErreurApi()`, dont le repli `errors.api.unknown` existe : rattraper l'erreur et l'afficher ne demande ni texte neuf ni choix.
 
 ### Après une erreur, aucun geste de transition ne relit l'état : le bouton reste affiché d'après le cache, et le second essai rend 422 ou 409
 - Réf : P182.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux options d'invalidation, et le comportement après erreur de tous les écrans qui passent par `useApiMutation`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/hooks/useApiQuery.ts:205-214`, `takussan-web/src/lib/queries/bookings.ts:115-145`, `takussan-web/src/lib/queries/payments.ts:187-215,383-391`, `takussan-web/src/lib/queries/commissions.ts:79-84`, `takussan-web/src/lib/queries/maintenance.ts:214-227`, `takussan-web/src/lib/queries/leases.ts:332-342`, `takussan-web/src/lib/queries/visits.ts:158-207`
 - Constat :
@@ -16951,10 +16952,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Aucun de ces codes n'est lu par le front (sous-agent : `grep` des codes dans `takussan-web/src` → rien, hors un commentaire de `BookingDetail.tsx:190`).
   - Établi comment : lu ; le second essai n'a pas été joué.
 - Piste : invalider aussi en `onError` dans `useApiMutation` (option `invalidate` rejouée sur toute erreur, ou une option `relireSurErreur`), pour que l'écran montre l'état réel après l'échec. Garde : un test vitest du hook qui fait échouer la mutation et vérifie l'invalidation des clés.
+- Mesure (2026-10-23, 2b80de9, mesureur) : relu `useApiQuery.ts:159-218` (l'invalidation des clés `invalidate` n'est que dans `onSuccess`, l. 205-214 ; aucun `onError` posé par le hook), `query-client.ts:32-35` (mutations `retry: false`) ; `grep -rn` de `not_draft_send`, `cannot_cancel`, `commission.not_due`, `already_accepted`, `status_transition_invalid`, `already_converted` dans `takussan-web/src` hors tests → le seul commentaire de `BookingDetail.tsx:190`. Le second essai et la coupure de réseau après écriture n'ont pas été joués. Le constat tient pour sa partie lue (aucune relecture après erreur). Classement : V7, la `Piste` laisse le choix entre rejouer l'invalidation sur toute erreur (y compris les 422 de formulaire, sur chaque écran du hook) et une option à poser écran par écran.
 
 ### Une conversion de demande de contact dont la réponse est perdue ne montre jamais la fiche créée : le bouton « Convertir » reste, et chaque clic rend un toast d'erreur
 - Réf : P182.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le 409 `lead.already_converted` change de corps ou devient un 200, au choix
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leads/ContactLeadsInbox.tsx:151,177-191,279-288`, `takussan-api/app/Services/Lead/ContactLeadService.php:246-253`, `takussan-api/app/Http/Controllers/Api/ContactLeadController.php:80-90`
 - Constat :
@@ -16962,10 +16964,11 @@ Le PDF de l'état des lieux est P143.01.*
   - La carte tient `customerId` dans un `useState(lead.customer_id)` (lu, `:151`), posé seulement au succès (`:181`) : un `lead` relu plus tard ne le change pas tant que la carte n'est pas remontée (déduit de la sémantique de `useState`, à vérifier). Le bouton de conversion s'affiche tant que `customerId` est nul (`:279-286`), et le `catch` ne reconnaît que `customer.duplicate` ; le 409 `lead.already_converted` tombe sur le toast générique `toasts.error` (lu, `:182-190`).
   - Établi comment : lu.
 - Piste : rendre `customer: { id }` avec le 409 `lead.already_converted` (ou 200 avec la fiche existante), et lire `lead.customer_id` en plus de l'état local. Garde : un test API du second appel et un test vitest de la carte sur ce 409.
+- Mesure (2026-10-23, 2b80de9, mesureur) : relu `ContactLeadService.php:246-253` (409 `lead.already_converted` sans identifiant de fiche, sous verrou), `ContactLeadController.php:80-90` (201 avec `customer.id`), `ContactLeadsInbox.tsx:151` (`useState(lead.customer_id)`), `:177-191` (le `catch` ne reconnaît que les doublons, sinon `toasts.error`), `:279-286` (« Convertir » tant que `customerId` est nul) et `:119` (`key={lead.id}`, la carte n'est pas remontée quand `lead` est relu, donc l'état local ne suit pas la prop). La perte de réponse n'a pas été jouée ; le même effet se produit sans elle quand un autre onglet ou un autre membre a converti la demande. Le constat tient. Classement : V7, la `Piste` laisse le choix entre un 409 qui porte la fiche et un 200 qui la rend, et ce que l'écran dit d'une demande déjà convertie n'est écrit nulle part.
 
 ### Les gestes de l'API refusent un état déjà atteint par 422 ou 409, alors que deux gestes du dépôt le traitent déjà comme un succès sans effet
 - Réf : P182.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la `Piste` le dit elle-même, rendre 200 sur l'état cible atteint est un choix de produit
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Model/BookingService.php:179-183,274-291`, `takussan-api/app/Services/Model/InvoiceService.php:133-137,173-177`, `takussan-api/app/Services/Visit/VisitSchedulingService.php:191-195`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:204-205`, `takussan-api/app/Services/Lead/ContactLeadService.php:210-217`, `takussan-api/app/Services/Invitation/InvitationService.php:330-335`
 - Constat :
@@ -16973,10 +16976,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Tous les autres gestes relus rendent 422 sur l'état cible déjà atteint : `confirm` et `cancel` d'une réservation, `send` et `cancel` d'une facture, `confirm` et `cancel` d'une visite, `accept` d'une intervention, `cancel` d'un reversement, d'une commission, d'un boost, `confirm` d'une résiliation anticipée (lu, lignes citées et `EarlyTerminationService.php:197-201`). Leur garde reste juste contre une transition d'un autre état : c'est la seule distinction « même état cible » qui manque.
   - Établi comment : lu.
 - Piste : choix de produit — rendre 200 et la ressource quand l'état courant est déjà l'état cible du geste, sans effet ni avis (le précédent de `markHandled`), au moins pour les gestes sans motif (`confirm`, `send`, `accept`) ; ou garder les 422 et laisser P182.02 corriger l'écran. Garde, si retenu : un test API par geste, second appel → 200 et aucun second avis (`Notification::fake`).
+- Mesure (2026-10-23, 2b80de9, mesureur) : relu les précédents `ContactLeadService::markHandled` (l. 210-217, n'écrit que si `handled_at` est nul, rend 200) et `InvitationService::revoke` (l. 330-334, rend l'invitation déjà révoquée), et les refus `InvoiceService.php:136,176` (`invoice.not_draft_send`, `invoice.cannot_cancel`), `VisitSchedulingService.php:191-195` (`visit.not_scheduled_confirm`), `BookingService.php:179-183,201`, `MaintenanceRequestService.php:204-205` (`maintenance.already_accepted`) → lignes inchangées, les gestes refusent toujours l'état cible déjà atteint. Le constat tient. Classement : V7, rendre 200 sans effet change le contrat visible de dix gestes, et la `Piste` propose aussi de garder les 422.
 
 ### L'annulation d'un reversement plateforme juge le statut hors verrou : une annulation concurrente d'un paiement peut écraser `paid` et rendre les lignes éligibles à une nouvelle clôture
 - Réf : P182.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : écriture du statut d'un reversement plateforme et détachement des paiements
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:209-227,112-116,148-152,534-548`
 - Constat :
@@ -16985,10 +16989,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Un second `cancel` après une réponse perdue rend 422 `platform_payout.status_transition_invalid` (`cancelled` n'a aucune transition, lu).
   - Établi comment : lu.
 - Piste : verrouiller la ligne dans la transaction et juger la transition sur la ligne verrouillée, comme `approve` et `markPaid`. Garde : un test qui pose un reversement `paid` derrière un modèle resté `approved` en mémoire et attend 422 de `cancel`, sans détachement.
+- Mesure (2026-10-23, 2b80de9, mesureur) : relu `PlatformPayoutService.php:209-227` (`assertTransition` sur le modèle lié, hors transaction, puis détachement des `BookingPayment` et `LeasePayment` et écriture de `cancelled` sans relire), `:112-116,148-152` (`approve` et `markPaid` verrouillent et jugent sur la ligne verrouillée), `TRANSITIONS` l. 34-39 ; test temporaire `tests/Feature/Tmp/TmpMesure182Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,2 sur 8 cœurs : reversement `approved` chargé, ligne passée `paid` en base derrière lui, puis `cancel` sur le modèle périmé → accepté, statut en base `cancelled`. Le « à vérifier » est levé : un `paid` est écrasé. Classement : V1, le correctif touche l'écriture du statut d'un reversement et le détachement des paiements qu'une clôture reprend.
 
 ### L'annulation d'une visite juge le statut sur le modèle non verrouillé : deux annulations simultanées préviennent deux fois le visiteur
 - Réf : P182.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:369-401`, `takussan-api/app/Services/Visit/VisitNotifier.php:114-122`
 - Constat :
@@ -16996,10 +17001,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Deux appels concurrents (deux onglets, deux membres) passent tous deux le contrôle et envoient deux avis ; une annulation concurrente d'un `complete` peut écraser `completed` (déduit, course non jouée : à vérifier).
   - Établi comment : lu.
 - Piste : déplacer l'annulation dans `VisitSchedulingService`, sous le verrou de la ligne relue, l'avis après la transaction. Garde : un test qui annule une visite déjà `cancelled` en base derrière un modèle resté `scheduled` et attend 422 sans avis.
+- Mesure (2026-10-23, 2b80de9, mesureur) : relu `PropertyVisitController.php:369-401` (`visit.cannot_cancel` jugé sur le modèle de la route, `update` sans transaction ni verrou, puis avis), `VisitSchedulingService.php:183-199` (`confirmOrFail` verrouille et relit) ; test temporaire `tests/Feature/Tmp/TmpMesure182Test.php` (retiré), PostgreSQL de test, charge 2,2 sur 8 cœurs : visite `scheduled` chargée, ligne passée `cancelled` en base derrière elle, `PropertyVisitController::cancel` appelé par le visiteur sur le modèle périmé avec `Notification::fake()` → accepté, un avis envoyé à l'agence pour une visite déjà annulée. Le « à vérifier » est levé pour le double avis ; l'écrasement de `completed` suit du même code (lu). Classement : A1, la garde `visit.cannot_cancel` écrit déjà le contrat (une visite annulée ou faite ne s'annule pas) ; le correctif la juge sur la ligne verrouillée et relue dans une transaction, l'avis après celle-ci, comme `confirmOrFail`, sans choix de produit.
 
 ### Petites améliorations
 - Réf : P182.07
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Model/MaintenanceRequestService.php:202-212`, `takussan-api/app/Services/Billing/AgencySubscriptionService.php:58-70`, `takussan-api/app/Http/Controllers/Api/Admin/AgencySubscriptionController.php:37-44`
 - Constat :
@@ -17007,3 +17013,4 @@ Le PDF de l'état des lieux est P143.01.*
   - `cancel` de l'abonnement d'agence sans abonnement en cours rend 200 `{ data: null }` (lu) : le rejeu est sans effet, mais l'écran de la console ne reçoit pas l'abonnement clos qu'il vient d'annuler (rendu du front non relu).
   - Établi comment : lu.
 - Piste : verrouiller et relire dans `accept` ; rendre le dernier abonnement clos plutôt que `null`, si la console le lit.
+- Mesure (2026-10-23, 2b80de9, mesureur) : relu `MaintenanceRequestService.php:202-213` (`accept` juge `accepted_at` sur le modèle reçu, sans verrou) ; test temporaire `tests/Feature/Tmp/TmpMesure182Test.php` (retiré), PostgreSQL de test, charge 2,2 sur 8 cœurs : `accept` puis `accept` sur un modèle chargé avant le premier, `Event::fake([MaintenanceStatusChanged::class])` → second appel accepté, deux événements. Abonnement : `AgencySubscriptionService::cancel` (l. 58-70) rend toujours `null` sans abonnement en cours, mais la console ne lit pas le corps (`AdminAgencySubscriptionPanel.tsx:48-55` : toast puis invalidation et relecture ; `super-admin.ts:248-254`) → cette partie ne tient pas. Retenu pour l'acceptation seule. Classement : A1, la garde `maintenance.already_accepted` écrit déjà le contrat ; le correctif verrouille et relit la ligne dans une transaction avant de la juger, sans choix de produit.
