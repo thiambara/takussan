@@ -221,6 +221,40 @@ class AgencyLogoUploadTest extends ApiTestCase
         ])->assertJsonMissingValidationErrors(['file']);
     }
 
+    /**
+     * TCK-1893 (P195.06) — le logo a sa propre borne, 2 Mo : celle de TCK-064 et du front
+     * (`AGENCY_LOGO_MAX_BYTES`). Rangé avec les photos, il passait jusqu'à 10 Mo par appel direct.
+     * Une photo de la même taille reste acceptée.
+     */
+    public function test_a_logo_above_two_megabytes_is_refused_while_a_photo_of_that_size_is_not(): void
+    {
+        $agency = Agency::factory()->create();
+        $user = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+
+        $this->postJson('/api/media', [
+            'file' => UploadedFile::fake()->image('logo.png', 400, 400)->size(3 * 1024),
+            'collection' => 'logo',
+            'model_type' => Agency::class,
+            'model_id' => $agency->id,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['file']);
+        $this->assertDatabaseCount('media', 0);
+
+        $this->postJson('/api/media', [
+            'file' => UploadedFile::fake()->image('logo.png', 400, 400)->size(2 * 1024),
+            'collection' => 'logo',
+            'model_type' => Agency::class,
+            'model_id' => $agency->id,
+        ])->assertCreated();
+
+        $this->postJson('/api/media', [
+            'file' => UploadedFile::fake()->image('photo.png', 400, 400)->size(3 * 1024),
+            'collection' => 'photos',
+            'model_type' => User::class,
+            'model_id' => $user->id,
+        ])->assertCreated();
+    }
+
     private function postLogo(Agency $agency, array $headers = []): TestResponse
     {
         return $this->postJson('/api/media', [
