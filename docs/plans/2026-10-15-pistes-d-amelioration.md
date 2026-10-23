@@ -264,7 +264,7 @@ voie d'écriture (angle 13, puis 47).
 | 187 | Paramètres des routes publiques sans compte (`/api/public/properties/search` et `PropertySearchService`, `PublicAgencyController`, `PublicAgentController`, `IndexPublicProfilesRequest`, fiches par slug) face à une valeur mal formée, une liste `[]` ou une virgule : 500 servi à un visiteur anonyme ou à un robot d'indexation au lieu d'un 400 ou d'une liste vide — le relevé de l'angle 151 hors des listes connectées | fait |
 | 188 | Paramètres hors `filter[…]` lus à la main puis passés à `Carbon::parse()`, `DayRange` ou une colonne typée (`?from=`/`?to=`/`?start=`/`?end=` du calendrier `CalendarEventCollector` et des tableaux de bord, `?period=`, `?month=`, `?year=`) : 500 sur une date ou un nombre mal formés, et borne de fin en date seule qui exclut le jour — le pendant de l'angle 151 hors de `filter[…]` | fait |
 | 189 | Gestes montrés par une comparaison d'identité dans les détails (`isAssignedAgent` de `VisitDetail.tsx:98`, `user.id === landlord_id`, `issued_by_id`, `uploaded_by_id`, auteur d'une note ou d'un message) face à la policy, qui exige en plus le personnel actif de l'agence (`PersonnelDeLAgence::personnelActifDe`) ou un bailleur non bloqué (`isBlockedOwnerAt`) : agent parti, suspendu ou bailleur bloqué à qui le geste reste montré et rend 403 — né de P152.04 | fait |
-| 190 | Créateur d'un bien d'agence (`properties.user_id`) encore membre mais suspendu ou archivé dans l'agence, face aux policies qui l'acceptent par la seule identité (`BookingPolicy::view` et `::update` l. 36 et 51, `InventoryPolicy::view` l. 32, `MaintenanceRequestPolicy::isPrincipalFor` l. 302, `PropertyPolicy::view` l. 51, `ReviewPolicy` l. 85) : lecture et gestes laissés à un agent que l'agence a suspendu — le pendant pour le membre suspendu de P153.01 à P153.03 | à faire |
+| 190 | Créateur d'un bien d'agence (`properties.user_id`) encore membre mais suspendu ou archivé dans l'agence, face aux policies qui l'acceptent par la seule identité (`BookingPolicy::view` et `::update` l. 36 et 51, `InventoryPolicy::view` l. 32, `MaintenanceRequestPolicy::isPrincipalFor` l. 302, `PropertyPolicy::view` l. 51, `ReviewPolicy` l. 85) : lecture et gestes laissés à un agent que l'agence a suspendu — le pendant pour le membre suspendu de P153.01 à P153.03 | fait |
 | 191 | Fils rattachés à un bail ou à une réservation (`conversations.lease_id`, groupes à contexte de bail, type `lease` et `booking`) face à la policy du porteur : `ConversationAccess` ne juge que la participation hors intervention et fil de prospect, si bien qu'un locataire sorti, un bailleur remplacé ou un agent suspendu qui y reste participant lit et écrit encore — né de P153.04 | à faire |
 | 192 | Libellés que l'API résout par une clé bâtie sur une valeur (`__('invitations.roles.'.$role)`, `enumLabel()` de `BaseResource`, gabarits PDF, exports CSV, `__("…{$this->kind}…")`) face aux valeurs que la validation, les constantes et les enums acceptent réellement : clé brute rendue sans erreur au lecteur — né de P155.01 | à faire |
 | 193 | Avis et textes bâtis sur l'e-mail d'un compte ou d'une invitation (`:email` des notifications, `toMail()` et `routeNotificationForMail`, exports, journaux d'équipe) face aux comptes et invitations sans e-mail depuis TCK-589 (`PHONE_LOGIN_ENABLED`) : texte à trou, courriel vers une adresse nulle, ou personne nommée par rien — né de P155.03 | à faire |
@@ -291,6 +291,7 @@ voie d'écriture (angle 13, puis 47).
 | 214 | Formulaires d'édition qui renvoient en entier une colonne JSON qu'ils ne montrent qu'en partie (`saved_searches.criteria` de `SearchPreferencesForm`, `announcements.segment`, `integrations.metadata`, `available_slots`, `limits` des plans), face à un `fill()` qui remplace la colonne : clés posées par un autre écran ou une autre version effacées par un simple enregistrement — né de P185.01 | à faire |
 | 215 | Identifiants numériques de route hors de `bigint` sur les routes connectées : liaisons implicites `{model}` et paramètres `whereNumber()` (30 sous `routes/`) ou actions typées `int $id`, face à vingt chiffres dans l'URL — 500 `22003` ou `TypeError` au lieu d'un 404 — le relevé de P187.05 hors des routes publiques | à faire |
 | 216 | Paramètres hors `filter[…]` castés `(string)` ou passés à un argument typé `string` dans les listes et lectures écrites à la main (`(string) $request->input('include')` des trois tableaux de bord, `(string) $request->query('sort')` de `ReviewController` et `UserDetailController`, `$request->query('q')` de `PaymentSearchController`, et leurs pareils sous `app/Http/Controllers`) : une liste `x[]=` rend 500 « Array to string conversion » ou `TypeError` au lieu d'un 422 ou d'un défaut — né de P188.06 et P188.07 | à faire |
+| 217 | Clauses de périmètre des listes `index` écrites à la main (`BookingController`, `LeaseController`, `InventoryController`, `PaymentController::history`, `InvoiceController`, `PropertyVisitController`, `MaintenanceRequestController`) face à la policy `view` de leur modèle, resserrée seule par TCK-587, TCK-1705, TCK-1707 et TCK-1718 à TCK-1722 : ligne refusée en lecture qui reste listée avec ses relations chargées (fiche client, bien) — hors du créateur du bien relevé à l'angle 190 | à faire |
 
 
 ---
@@ -17501,3 +17502,93 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré. Distinct de P88.03 (la liste des cibles) et de P152.05 (« Attribuer » une demande de contact).
 - Piste : juger les deux gestes par `useCan('crm.assign')` (la capacité que l'API lit, comme P152.05), ou par un `abilities.assign` servi avec la fiche ; masquer « Moi » et « Désigner » sans elle. Test de `CustomerReferent` avec un agent sans `crm.assign` : ni l'un ni l'autre.
 - Mesure (2026-10-23, 66ff6bc10, mesureur) : relu `CustomerReferent.tsx:50,62-90` (« Moi » dès que l'appelant n'est pas le référent, « Désigner » dès qu'un autre agent existe, aucune capacité lue), `customers/[id]/page.tsx:170` (monté sans condition), `SetPrimaryContactCustomerRequest::authorize` (l. 31-40, `view` **et** `crm.assign`, TCK-591) ; aucun commit sur ces chemins depuis 1ac04b8ac ; même test temporaire (retiré) : agent au rôle système moins `crm.assign` → `GET /api/customers/{id}` 200, `GET …/relationships` 200, `POST …/primary-contact` avec son propre identifiant **403** ; témoin agent au rôle système → 200 → le constat tient. Classement : A1, la règle attendue est écrite dans `SetPrimaryContactCustomerRequest` (TCK-591) ; le correctif attendu juge « Moi » et « Désigner » par `useCan('crm.assign', agencyId)` et les masque sans elle, le titre et le nom du référent restant affichés (précédent P152.05, TCK-1430).
+
+## Angle 190 — Créateur d'un bien d'agence, suspendu ou retiré, face aux règles qui l'acceptent par la seule identité
+
+*Exploré le 2026-10-23 sur `pre-dev` 61dba15e4, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : `PropertyPolicy` (`view`, `update`, `isMemberOf`), `PropertyController::index`, `BookingPolicy` (déjà jugée par `BailleurDuBien` depuis TCK-1707 et TCK-1722 : conforme pour le suspendu), `MaintenanceRequestPolicy::isPrincipalFor` (`BailleurDuBien` depuis TCK-1720 : conforme), `ReviewPolicy::publisherReplies` (`isOwnerAt` ou `isStaffAt` : conforme), `InventoryPolicy`, `InventoryController::index`, `BookingController::index`, `BookingPaymentPolicy`, `PaymentGatewayController`, `PaymentController::history`, `PropertyModerationPolicy::resubmit`, `LeasePolicy::view`, `LeaseController::index`, `DocumentPolicy::reaches`, `PropertyVisitPolicy::update` (la branche `landlordWrites` ne décide plus que pour un bien sans agence depuis TCK-590 : écartée), `TeamMemberSuspensionService` et `AuthController::login`. Les lignes citées par l'intitulé de l'angle pour `BookingPolicy`, `MaintenanceRequestPolicy` et `ReviewPolicy` ne valent plus : l'angle 160 (TCK-1718 à TCK-1722) les a traitées. Écartés parce que déjà relevés : le bailleur **suspendu** et ses documents (P82.02, fait), les avis au créateur (P126.04, fait), le bail qui désigne l'agent créateur (P15.06, à valider). Mesures par un test temporaire `tests/Feature/TmpExplorateur/SondeAngle190Test.php` (base de test PostgreSQL, charge 5,08 / 3,50 / 3,06 puis 4,05 / 3,79 / 3,24 sur 8 cœurs), retiré avant la fin, sur le jeu de `BuildsBookingStakeholders` : bien de l'agence au `user_id` de l'agent (`forceFill`, ce que fait `PropertyController::store`), réservation `pending` et acompte `pending`, état des lieux conduit par un tiers, bail `active` au `landlord_id` de l'agent (ce que recopie `LeaseService::create`), document du bien déposé par un tiers. Deux cas : l'agent **suspendu** par `TeamMemberSuspensionService::suspend` (profil `suspended`, `staffAgencyId()` → null), et l'agent **retiré** par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`. Le statut `archived` n'a pas été mesuré. Rien n'a été lu en base de développement.*
+
+*Dans les deux cas, la suspension ou le retrait suppriment ses jetons, mais `POST /api/auth/login` lui en rend un neuf : mesuré 200 avec jeton après suspension et après retrait (le login ne refuse que le compte `blocked`, lu `AuthController.php:94`). Les mesures par `Sanctum::actingAs` ci-dessous valent donc pour un agent qui se reconnecte.*
+
+### Le créateur suspendu ou retiré lit et modifie l'état des lieux des biens qu'il a saisis, et le voit dans sa liste
+- Réf : P190.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/InventoryPolicy.php:21-55`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:40-55`
+- Constat :
+  - `view` accepte `property.user_id === user.id` sans rien juger d'autre (lu, l. 32). `update` passe `property.user_id` à `landlordWrites`, qui ne refuse que le **bailleur** bloqué dans l'agence (`isBlockedOwnerAt`) : un agent sans profil de bailleur n'est jamais « bloqué », donc accepté (lu, l. 54, et `BasePolicy.php:132-141`). Les voisines ont quitté cette forme : `BookingPolicy` et `MaintenanceRequestPolicy` jugent le créateur par `BailleurDuBien` depuis TCK-1707, TCK-1720 et TCK-1722 (lu).
+  - La liste reprend l'identité : `orWhereHas('property', … where('user_id', $user->id))` (lu, `InventoryController.php:44-49`).
+  - mesuré (test temporaire), suspendu comme retiré : `can('view')` et `can('update')` vrais ; `GET /api/inventories/{id}` → 200 ; `PATCH /api/inventories/{id}` `{general_condition: fair}` → 200, valeur écrite ; l'état des lieux figure dans `GET /api/inventories`.
+  - ADR-0031 § 3 et `docs/features.md:527` : « un profil non actif (suspendu, …) ne confère aucune capacité ni aucun périmètre dans son agence » (lu).
+  - Établi comment : lu, puis mesuré.
+- Piste : juger la branche « propriétaire du bien » de `view` par `BailleurDuBien::est` (bailleur de tout statut, qui garde la lecture, ADR-0031 § 2) et celle d'`update` par `bailleurEcrit`, comme `BookingPolicy` ; borner la clause de la liste de même. Test : agent créateur suspendu, puis retiré → `GET` et `PATCH` en 403, absent de la liste ; bailleur auteur, bloqué → lecture 200, `PATCH` 403.
+
+### La liste des réservations garde au créateur suspendu ou retiré les réservations de ses biens, téléphone du client compris, que `view` lui refuse
+- Réf : P190.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/BookingController.php:22-37`, `takussan-api/app/Policies/BookingPolicy.php:28-40`
+- Constat :
+  - TCK-1707 a fait juger `view` par `ownerOfProperty` (`BailleurDuBien`), mais `index` liste toujours `orWhereHas('property', … where('user_id', $user->id))`, et charge `customer` (lu, `BookingController.php:25-31`).
+  - mesuré (test temporaire), suspendu comme retiré : `can('view', $booking)` faux, mais la réservation figure dans `GET /api/bookings`, et `data.0.customer.phone` y rend le téléphone de la fiche client.
+  - P153.02 relevait le même téléphone par `GET /api/bookings/{id}` ; son correctif n'a touché que la policy (lu, sa ligne `Mesure` de l'implémenteur).
+  - Établi comment : lu, puis mesuré.
+- Piste : borner la clause « mes biens » de `index` par la règle d'`ownerOfProperty` (bien sans agence, ou profil de bailleur dans l'agence du bien). Test : agent créateur suspendu, puis retiré → réservation absente de la liste ; bailleur auteur, bloqué → présente.
+
+### Le créateur suspendu ou retiré ouvre et vérifie le paiement en ligne des acomptes de ses biens, et les lit dans l'historique
+- Réf : P190.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/BookingPaymentPolicy.php:20-42`, `takussan-api/app/Http/Controllers/Api/PaymentGatewayController.php:27-33,52-55,77-80`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:41-60`
+- Constat :
+  - `update`, qui garde `initiate`, `verify` et `providers` de la passerelle, accepte `booking.property.user_id === user.id` sans juger l'agence ni le statut (lu, `BookingPaymentPolicy.php:40` ; `PaymentGatewayController.php:33,55,80`).
+  - `PaymentController::history` liste les paiements de réservation des biens dont l'appelant est `user_id` (lu, l. 49-52).
+  - mesuré (test temporaire), suspendu comme retiré : `can('update', $bookingPayment)` vrai ; `GET /api/booking-payments/{id}/providers` → 200, `GET /api/booking-payments/{id}/verify` → 200 ; `GET /api/payments/history` rend l'acompte. `POST …/initiate` n'a pas été lancé (il appelle un fournisseur) : il passe par la même ability (lu).
+  - Établi comment : lu, puis mesuré.
+- Piste : juger la branche du bien par `BailleurDuBien::est` (et `landlordWrites` pour initier), comme `BookingPolicy`, et borner la clause de `history` de même. Test : agent créateur suspendu, puis retiré → `providers` et `verify` en 403, acompte absent de l'historique ; client de la réservation toujours accepté.
+
+### Le bail qui désigne l'agent créateur reste lisible par lui, suspendu ou retiré, en fiche et en liste
+- Réf : P190.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/LeasePolicy.php:62-81`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:27-38`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php`
+- Constat :
+  - `view` rend vrai dès que `user.id === landlord_id` (lu, l. 68). `LeaseService::create` recopie `properties.user_id` en `landlord_id` (P15.06 ; doc de `BailleurDuBien`, lu) : sur un bien saisi par un agent, le bail le désigne. `index` liste `where('landlord_id', $user->id)` (lu, `LeaseController.php:35`).
+  - TCK-1722 a fait juger les **gestes** du bail par `bailleurEcrit` ; `view` n'a pas suivi (lu).
+  - mesuré (test temporaire), suspendu comme retiré : `can('view', $lease)` vrai, `can('update')` faux ; `GET /api/leases/{id}` → 200 ; le bail figure dans `GET /api/leases`.
+  - TCK-1711 (P153.04) pose `left_at` au retrait sur les fils des baux « dont le retiré ne lit plus le bail », jugé par `LeasePolicy::view` (lu, sa ligne `Mesure`) : sur un bail qui le désigne, il reste donc participant au fil (à vérifier).
+  - Établi comment : lu, puis mesuré.
+- Piste : juger la branche du bailleur de `view` par `BailleurDuBien::est` (le bailleur bloqué garde la lecture), et la clause `landlord_id` de la liste de même. Test : bail au `landlord_id` de l'agent, agent suspendu puis retiré → `GET` 403, absent de la liste, et le fil du bail quitté au retrait. Le sort de `landlord_id` lui-même reste celui de P15.06.
+
+### Le créateur suspendu ou retiré lit les documents du bien et en joint de nouveaux
+- Réf : P190.05
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/DocumentPolicy.php:152-213`
+- Constat :
+  - `reaches` juge la branche du bailleur par l'identité en lecture et par `landlordWrites` en écriture (lu, l. 167-169), pour le bien, le bail, la réservation et l'état des lieux (l. 171-209). `landlordWrites` ne refuse que le bailleur bloqué (lu) : l'agent sans profil de bailleur passe. P82.02 (TCK-1142) a traité le seul bailleur suspendu.
+  - mesuré (test temporaire), suspendu comme retiré : `can('view', $document)` vrai pour un document du bien déposé par un tiers ; `GET /api/documents/{id}` → 200 ; `POST /api/documents` (PDF de 10 Ko, `documentable_type=property`) → 201, document rattaché au bien.
+  - Établi comment : lu, puis mesuré.
+- Piste : passer `$bailleur` de `reaches` par `BailleurDuBien::est` pour les colonnes de bailleur (`properties.user_id`, `leases.landlord_id`), et par `bailleurEcrit` en écriture, en gardant `landlordWrites` pour les colonnes d'auteur. Test : agent créateur suspendu, puis retiré → `GET` 403 et `POST` refusé (404 `document.owner_not_found`, TCK-732) ; bailleur bloqué → lecture 200, rattachement refusé.
+
+### Le créateur suspendu ou retiré resoumet à la modération un bien d'agence rejeté
+- Réf : P190.06
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/PropertyModerationPolicy.php:29-41`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:101-109`
+- Constat :
+  - `resubmit` rend vrai dès que `user.id === property.user_id`, avant tout jugement d'agence ; le personnel n'y entre que par `staffAgencyId()` (lu, l. 34-40).
+  - mesuré (test temporaire), suspendu comme retiré : bien de l'agence passé `rejected` → `POST /api/properties/{id}/resubmit` → 200, statut `pending_review`, motif et rejet effacés (lu, `PropertyModerationService::resubmit`).
+  - Établi comment : lu, puis mesuré.
+- Piste : ne tenir `user_id` pour titre que sur un bien sans agence ou pour un bailleur non bloqué de l'agence (`bailleurEcrit`) ; le personnel actif garde sa branche. Test : agent créateur suspendu, puis retiré → 403 et statut `rejected` inchangé.
+
+### L'agent suspendu lit encore le bien qu'il a saisi et le garde dans sa liste
+- Réf : P190.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Policies/PropertyPolicy.php:48-63,196-207`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:60-75`
+- Constat :
+  - TCK-1705 ne tient `user_id` pour titre sur un bien d'agence que si l'auteur y a un profil « de tout statut » (`isMemberOf`, lu, l. 54 et 196-207), et la liste borne la clause aux agences où il a un profil, sans statut (lu, `PropertyController.php:62-70`). La ligne `Mesure` de l'implémenteur de P153.01 dit ce choix : « voie la plus étroite : le bailleur ou l'agent suspendu garde ce qu'il a ».
+  - mesuré (test temporaire) : agent suspendu → `can('view')` vrai, `can('update')` faux (la capacité `update_own` n'est plus conférée), `GET /api/properties/{id}` → 200, bien présent dans `GET /api/properties`. Retiré → 403 et absent, comme TCK-1705 le garde.
+  - La règle écrite est l'inverse pour l'agent : ADR-0031 § 3 et `docs/features.md:527` (aucun périmètre pour un profil non actif) ; ADR-0031 § 2 ne garde la lecture qu'au **bailleur** suspendu (lu).
+  - Établi comment : lu, puis mesuré.
+- Piste : remplacer `isMemberOf` par `BailleurDuBien::est` (bailleur de tout statut) ou personnel actif de l'agence (`isStaffOf`) dans `view`, `update` et la clause de la liste. Test : agent créateur suspendu → 403 et absent de la liste ; bailleur auteur bloqué → lecture 200.
