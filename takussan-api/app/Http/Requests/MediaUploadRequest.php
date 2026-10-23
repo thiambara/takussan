@@ -45,7 +45,8 @@ class MediaUploadRequest extends FormRequest
                 'mimes:jpg,jpeg,png,webp',
                 'max:'.self::MAX_PHOTO_KB,
                 // TCK-1423 (P143.02) — 20 Mpx au plus : un logo est décodé dans GD à chaque PDF de
-                // l'agence, hors de `memory_limit`.
+                // l'agence, qui cède sur `memory_limit` dans l'image de l'API (GD embarquée,
+                // TCK-1812 ; voir `PixelsAuPlus`).
                 new PixelsAuPlus,
             ];
         }
