@@ -13465,7 +13465,7 @@ l'une ni l'autre n'est reprise ici.*
 
 ### La colonne `causer_role` de l'export d'une agence donne le premier rôle du compte, toutes agences confondues
 - Réf : P139.02
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1717
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:45,155`, `takussan-api/app/Models/Concerns/HasProfiles.php:238-260`
 - Constat :
@@ -13476,6 +13476,7 @@ l'une ni l'autre n'est reprise ici.*
   - P78.01 (validé) touche la même ligne pour la performance : calculer `causer_role` une fois par auteur. Si l'implémenteur suit cette voie, il garde la valeur fausse.
 - Piste : juger le rôle dans l'agence de l'export (`$agencyId` est déjà passé à `buildPayload()`), par les profils de cette agence seule. Pour l'export de la console, sans agence, rendre l'agence de la ligne, ou la liste. Garde : le test ci-dessus, un compte à deux agences.
 - Mesure (2026-10-22, a518e2cd2, mesureur) : lu `mapRow()` (`causer_role` = `profileTypes()->first()`, l. 155), le préchargement sans filtre d'agence (l. 45) et `HasProfiles::profileTypes()` (ordre `super_admin`, `agency_admin`, `agent`, `owner`, `service_provider`, l. 240-260) ; test temporaire retiré : un compte agent dans A et admin de B cause une ligne sur A → l'export de l'admin de A rend `["agency_admin"]` → le constat tient. Classement : V7, la `Piste` laisse ouverte la valeur de l'export de la console (agence de la ligne, ou liste), et la fuite d'un rôle d'une autre agence touche V3.
+- Mesure (2026-10-23, 9f180a3ae, implementeur) : test neuf `RoleDuCauseurDansLExportTest` rouge avant correctif : un compte agent dans A et admin de B cause une ligne sur A → l'export de l'admin de A et celui de la console rendent `causer_role` = `agency_admin` → `mapRow()` juge les trois profils d'agence dans l'agence de la ligne (`activity_log.agency_id`, voie la plus étroite pour la console), les autres types dans l'ordre de `profileTypes()` ; 2 verts, ablation → 2 rouges, remis → verts ; `CauseurSupprimeDansLExportTest` 2/2, `ActivityLogExporterTest` 16/16, `ExportAuditRequetesParLigneTest` 3/3, `AgencyAuditScopeTest` 13/13, `CrossTenantAuditExportTest` 6/6.
 
 ### Le journal d'audit lit `causer->name`, que `User` n'a pas : l'écran montre l'adresse à la place du nom
 - Réf : P139.03
