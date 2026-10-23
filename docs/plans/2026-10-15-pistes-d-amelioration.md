@@ -273,7 +273,7 @@ voie d'écriture (angle 13, puis 47).
 | 196 | Cas d'enum déclarés que rien n'écrit, mais que des filtres, compteurs, transitions ou libellés lisent (`AgencySubscriptionStatus::PastDue`, `PaymentStatus::PartiallyPaid` sur les loyers, `PaymentStatus::Late` sur les paiements de réservation, et leurs pareils sous `app/Models/Enums`) : branche qui fait croire à un état géré, compteur toujours nul, ou état réel rangé ailleurs — né de P162.06 | fait |
 | 197 | Clés TanStack Query des lectures portées par l'agence du profil actif sans l'agence ni le profil dans la clé (`PROPERTY_MODERATION_COUNT_KEY`, `AGENCY_INVITATIONS_COUNT_KEY` d'`agency-queues.ts`, et leurs pareilles sous `src/lib/queries`) face au changement de profil actif, qui n'invalide que `profiles`, `roles` et `permissions` (`useProfiles.ts:109-117`) : compte ou liste de l'agence quittée servis depuis le cache — né de l'angle 167 | fait |
 | 198 | Un même mot compté par des règles différentes d'un écran à l'autre (« publié » : `status = published` du `PlatformMetricsSnapshotter`, `available`+`published` de `STATUTS_QUI_PUBLIENT` et de la santé d'agence, `visibility=public` de la tuile de `/app/properties` ; et leurs pareils pour « actif », « ouvert », « en retard ») : deux nombres sous un même libellé qui ne se rejoignent pas — né de P167.07 | fait |
-| 199 | Listes chargées par morceaux (« Voir plus », `useInfiniteQuery` : `ConversationList`, `CustomerActivityFeed`, `PipelineKanban`/`PipelineColumn`, `announcements`, `AgencyCombobox`) puis triées, filtrées ou comptées côté client sur les seules pages chargées : colonne, onglet ou recherche vide alors que le total de l'API en compte, et chargement de la suite qu'aucun bouton n'offre plus — né de P168.02 | à faire |
+| 199 | Listes chargées par morceaux (« Voir plus », `useInfiniteQuery` : `ConversationList`, `CustomerActivityFeed`, `PipelineKanban`/`PipelineColumn`, `announcements`, `AgencyCombobox`) puis triées, filtrées ou comptées côté client sur les seules pages chargées : colonne, onglet ou recherche vide alors que le total de l'API en compte, et chargement de la suite qu'aucun bouton n'offre plus — né de P168.02 | fait |
 | 200 | Gestes d'argent qui créent ou encaissent une ligne sans juger l'état de son parent (`BookingPaymentController::store` et `PaymentGatewayService::isPayable` face à `BookingStatus`, `POST /api/invoices` d'un `invoiceable` annulé ou terminé, liens de paiement `LeasePaymentLinkService` d'un bail sorti, reversement d'une ligne dont la réservation a été annulée après encaissement) : paiement ouvert ou encaissé sur un dossier clos, que seul l'écran empêche — né de P170.01 | à faire |
 | 201 | Gestes à usage unique jugés par une lecture d'éligibilité faite une fois au montage (avis d'agence, d'agent et de prestataire hors de la fiche de bien, signalement `report` d'un bien ou d'un avis, demande de contact, candidature, inscription à une alerte) : après l'envoi réussi, formulaire réaffiché et second envoi en 422 — né de P172.02 | à faire |
 | 202 | Gestes qui changent ce que rend `/api/auth/me` (rôles, profils, agence, téléphone, e-mail vérifié, second facteur, intention) suivis du seul `router.refresh()` sans `refreshUser()` : `AuthProvider` garde l'utilisateur de son premier rendu (`useState(initialUser)`, `AuthContext.tsx:80`) et ignore le nouvel `initialUser` de la mise en page racine, si bien que menus, gardes et lectures du navigateur jugent l'ancien état — né de l'angle 172 | à faire |
@@ -298,6 +298,8 @@ voie d'écriture (angle 13, puis 47).
 | 221 | Arguments typés `string` de méthodes privées et de constructeurs nourris par une colonne `nullable` ou un repli `?:`/`??` qui peut rendre `null` (`AdminGlobalSearchService::hit`, et leurs pareils sous `app/Services` et `app/Http/Controllers`) : `TypeError` rendu en 500 pour une ligne réelle qu'aucune fabrique de test ne produit — né de P193.01 | à faire |
 | 222 | Photos et pièces téléversées hors de `MediaManager` et `MediaDropzone` (avatar de `ProfileHeader`, pièces de devis, photos de contestation et de création d'une intervention, `KycUploader`, pièce du surclassement, document client) face au patron « réduire puis juger sous le plafond » de TCK-542 et TCK-596 : photo de téléphone refusée au front, ou envoyée entière et refusée en 422 après la saisie — né de P195.03 et P195.07 | à faire |
 | 223 | Agrégats en SQL brut (`DB::selectOne`, `DB::table(…)->join(…)`, `fromSub`) sur des tables à `SoftDeletes` qui ne posent pas `deleted_at IS NULL` là où la portée Eloquent l'aurait posé (`AgencyDetailController::health`, `PaymentSupervisionService::leaseBase`, et leurs pareils sous `app/Services` et `app/Http/Controllers`) : bien, bail ou paiement supprimé encore compté par un compteur ou listé — né de P198.02 et P198.05 | à faire |
+| 224 | Lectures TanStack dont le cache est augmenté à la main par `setQueryData` (pages ajoutées par un « Charger plus » fait main, lignes insérées après un geste) alors que leur `queryFn` ne relit qu'une partie de ce cache : relecture par défaut (focus, remontage, `refetchInterval`, `invalidateQueries`) qui efface ce que l'écran montrait — né de P199.01 |
+| 225 | Tuiles, bandeaux et badges de compte posés au-dessus d'une liste paginée (`ModerationStats`, titres de groupe, onglets, résumés « n en retard ») qui comptent `items.filter(…).length` sur la page reçue, à côté d'un `meta.total` de toute la liste : chiffres de deux portées côte à côte, sans libellé qui le dise — né de P199.02 et P199.03 |
 
 
 ---
@@ -18271,3 +18273,77 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Établi comment : lu.
 - Piste : la même jointure au bail non supprimé que `PortfolioMetrics::overdue`, ou une portée partagée « échéances dues d'un bail vivant ». Test : un bail supprimé ne laisse aucun impayé à l'accueil du locataire.
 - Mesure (2026-10-23, 8d90a4c66, mesureur) : relu `DashboardTenantService.php:33-85` (`leaseOwed()` filtré par `payer_id`, sans jointure au bail, inchangé) ; vérifié ce qu'il advient d'un bail supprimé : `routes/api/leases.php` n'a aucune route `DELETE leases/{lease}`, `LeaseObserver` n'a que `updated`, et `grep -rnE "leases\(\)->(delete|each)|\$lease\??->delete|Lease::destroy" app` → rien, aucun service (vie privée compris) ne supprime de bail → l'écart de jointure est réel dans le code mais sans aucune donnée qui l'atteigne. Classement : aucun critère, le défaut décrit ne peut pas se produire sur l'arbre mesuré ; à rouvrir si une suppression de bail apparaît.
+
+## Angle 199 — Listes chargées par morceaux, puis comptées, groupées ou triées sur la seule page chargée
+
+*Exploré le 2026-10-23 sur `pre-dev` 85e53b525, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : les six `useInfiniteQuery` du front (`ConversationList`, `ChatView`, `CustomerActivityFeed`, `MyTasks`, `AgencyCombobox`, `useAgencesCiblables` d'`announcements.tsx`), le « Charger plus » fait main de `PipelineKanban`/`PipelineColumn` et `useCustomerStageMutation`, `query-client.ts`, puis les listes paginées dont la page est filtrée, groupée ou comptée au navigateur (`ModerationStats`, `DocumentsLibrary`, `MaintenanceList`, `CustomerPayments`, `ParticipantPicker`, `CustomerMatches`, `TagsManager`) ; côté API, `PipelineStatsService::scopedQuery` (même portée et même `status = active` que la colonne), `CustomerActivityFeed::paginate`, `TaskController::index`, `PaymentController::history`, `MaintenanceRequestController::index`, `DocumentController::index`, `UnifiedModerationService::paginate`. Écartés après lecture : `AgencyCombobox`, `useAgencesCiblables` et `ParticipantPicker` cherchent côté serveur (`filter={null}`, `filter[exclude]`) ; `MyTasks` filtre par `filter[due]`, et `buildQuery()` départage les tris par `id` (`DepartageQueryBuilder`) ; les noms d'agence des pastilles d'annonce tirés des seules pages chargées sont une conséquence écrite et assumée (`announcements.tsx:131-137`) ; `CustomerMatches` et `TagsManager` sont déjà relevés (P171.05, reste de TCK-1747 ; P171.06). Une mesure par un test Vitest temporaire (charge 2,13 / 2,25 / 2,38 sur 8 cœurs), retiré avant la fin ; rien de joué au navigateur ni en base.*
+
+### Le pipeline CRM perd les cartes chargées par « Charger plus » dès que sa colonne est relue (retour sur l'onglet après 30 s, remontage)
+- Réf : P199.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/pipeline/PipelineKanban.tsx:67-77,113-131`, `takussan-web/src/components/pipeline/PipelineColumn.tsx:59-60,126-135`, `takussan-web/src/lib/query-client.ts:11-12`
+- Constat :
+  - Chaque colonne est une `useQueries` dont le `queryFn` ne lit que la page 1 (`fetchPipelineColumn(token, { stage })`, `staleTime: 30_000`) ; « Charger plus » ajoute la page suivante au cache par `setQueryData` (lu, l. 67-77 et 113-131).
+  - Le client garde `refetchOnWindowFocus` (lu, `query-client.ts:11-12`) : une relecture de la colonne rend au cache la seule page 1, et efface les pages ajoutées (lu).
+  - Mesuré : test Vitest temporaire, copie de `PipelineKanban.pagination.test.tsx` (73 leads, « Charger plus (50 sur 73) » → « Client n°51 » rendu), puis `queryClient.refetchQueries({ queryKey: ['crm-pipeline', 'column', 'lead'] })`, ce que fait le retour sur l'onglet après 30 s → « Client n°51 » n'est plus rendu, le bouton revient à « 50 sur 73 ». Le déclenchement réel par le focus n'a pas été joué.
+  - Établi comment : lu, et mesuré par la relecture directe.
+- Piste : porter chaque colonne par `useInfiniteQuery` (TanStack relit alors toutes les pages chargées), en adaptant `useCustomerStageMutation` à la forme `pages` ; ou, à défaut, `refetchOnWindowFocus: false` sur les colonnes. Garde : le test de pagination étendu d'une relecture après « Charger plus », qui exige la 51ᵉ carte.
+
+### La file de modération pose côte à côte le total de la file, titré « Total page », et des comptes « Biens » et « Avis » pris sur les 20 lignes de la page
+- Réf : P199.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/admin/super/moderation.tsx:718-745`, `takussan-web/src/app/(super-admin)/super-admin/moderation/page.tsx:48,92`, `takussan-web/src/messages/fr.json:7384-7387`, `takussan-api/app/Services/Admin/UnifiedModerationService.php:56-83`
+- Constat :
+  - La première tuile affiche `meta.total` (toute la file filtrée) sous le libellé « Total page » / « Page total » (lu, `page.tsx:92`, `fr.json:7384`, `en.json:7384`).
+  - « Biens » et « Avis » comptent `items.filter(…).length` sur la page de 20 (lu, `moderation.tsx:720-722`, `perPage: 20`) : au-delà de 20 signalements, Biens + Avis < Total, sans que rien le dise ; « attendent depuis plus de 7 jours » dit bien « de cette page » (l. 723, `fr.json:7387`).
+  - L'API ne rend aucun compte par type (lu, `UnifiedModerationService::paginate`, `paginate()` seul).
+  - Établi comment : lu.
+- Piste : des comptes par type calculés par l'API dans `meta` (comme `meta.unread_total` de TCK-1387), lus par les tuiles ; ou, à défaut, un libellé qui dise « sur cette page » pour les deux tuiles et « Total » pour la première. Test : file de 25 éléments, la tuile « Biens » rend le compte de la file.
+
+### La bibliothèque de documents groupe par type une page de 30 triée par date, et chaque groupe affiche le compte de sa page
+- Réf : P199.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/documents/DocumentsLibrary.tsx:88-120,203-210`, `takussan-web/src/lib/queries/documents.ts:76`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:52-61`
+- Constat :
+  - La page lit `per_page: 30`, `sort: '-created_at'` (pertinence sous `filter[search]`) (lu, `DocumentsLibrary.tsx:96`, `documents.ts:76`, `DocumentController.php` `defaultSortsWithRelevance('-created_at')`).
+  - Le navigateur regroupe ces 30 lignes par `type` et rend sous chaque titre un `Badge` de `docs.length` (lu, l. 106-120 et 210) : au-delà de 30 documents, « Contrat de bail 3 » en page 1 et « Contrat de bail 5 » en page 2 ; un type dont tous les documents sont plus anciens n'apparaît pas en page 1 (lu).
+  - Établi comment : lu ; aucun compte de documents par compte relevé.
+- Piste : soit trier côté serveur par type puis date (les groupes deviennent contigus), avec des comptes par type dans `meta` ; soit retirer le compte du titre de groupe quand `last_page > 1`. Choix d'affichage au porteur. Test : 35 documents de deux types, le compte d'un groupe n'est pas celui de la page.
+
+### Pour le prestataire, « Urgences prioritaires » ne regroupe que les urgences de la page courante, triée par date d'intervention
+- Réf : P199.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/maintenance/MaintenanceList.tsx:74-79,165-166,217-262`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:56`
+- Constat :
+  - Hors prestataire, l'API trie d'abord par priorité (`defaultSortsWithRelevance('-priority', '-created_at')`, rang de `MaintenancePrioritySort`) : les urgences tiennent en tête des premières pages (lu).
+  - Le prestataire demande `sort: 'scheduled_at'` (lu, l. 77) ; la liste sépare alors `priority === 'urgent'` dans la seule page reçue et la titre « Urgences prioritaires » (lu, l. 165-166, 217-222) : une urgence planifiée tard est rangée en page 2 ou 3, et la page 1 ne montre pas de section d'urgences.
+  - Établi comment : lu ; non mesuré sur un jeu réel de prestataire.
+- Piste : pour le prestataire aussi, trier `-priority,scheduled_at` côté serveur, ou ne rendre la section « urgences » que quand la liste tient sur une page. Test : prestataire à 20 demandes, l'urgente planifiée la dernière apparaît en page 1 sous le titre.
+
+### « Prochain paiement » et « Autres échéances » du locataire sont tirés de 50 lignes triées par date, puis filtrées au navigateur sur la source « bail »
+- Réf : P199.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/payments/CustomerPayments.tsx:35,65-71,159-175`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:77-82,118-145,181-206`, `takussan-api/app/Services/Model/LeaseService.php:236-262`
+- Constat :
+  - La lecture demande `status=pending,partially_paid,late,failed`, `sort=date`, `per_page: 50`, une page, puis garde `source === 'lease' && amount_due > 0` (lu, l. 65-71). L'API n'a pas de filtre de source : `entity_type` exige un `entity_id` (lu, `PaymentController.php:77-82,181-206`).
+  - Les acomptes de réservation dus du même client occupent des places parmi les 50 (lu, `history` fusionne `bookingRows` et `leaseRows`, date d'une réservation = `created_at`), et l'échéancier d'un bail est émis en entier à l'activation (lu, `LeaseService.php:236-262`, une ligne `pending` par période jusqu'à `end_date`) : un bail de cinq ans en compte 60.
+  - « Autres échéances » s'arrête donc à 49 lignes moins les réservations, sans le dire ; « Prochain paiement » reste juste tant que la première échéance due est parmi les 50 (lu). Voisin de l'angle 171, qui ne relève pas cet écran.
+  - Établi comment : lu.
+- Piste : un filtre serveur de source (`filter[source]=lease`) et `amount_due > 0` jugé par l'API, ou une borne de dates (`date_to`) sur les échéances à venir ; garder la page unique mais annoncer la suite. Test : locataire à 60 échéances et 3 acomptes de réservation dus, la liste rend ses échéances de bail sans réservation au milieu.
+
+### Petites améliorations
+- Réf : P199.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/crm/CustomerActivityFeed.tsx:41-48,68,110-117`, `takussan-web/src/lib/queries/agent-crm.ts:29`, `takussan-web/src/lib/queries/conversations.ts:45-66`, `takussan-web/src/components/messages/ConversationList.tsx:44-51`
+- Constat :
+  - `CustomerActivityFeed` concatène ses pages sans dédoublonner (lu, l. 68), alors que l'API pagine par décalage sur `created_at desc, id desc` (lu, `CustomerActivityFeed::paginate`) : une entrée journalisée entre deux « Voir plus » repousse la dernière ligne de la page 1 en tête de la page 2, rendue deux fois sous la même `key` React (déduit, à vérifier). `ConversationList` dédoublonne déjà pour cette raison (l. 44-51).
+  - La clé `AGENT_CRM_QUERY_KEY.activity` n'est invalidée nulle part (mesuré : `grep -rn "activity(" src` → la seule lecture de `CustomerActivityFeed.tsx:42`) : une note ajoutée ou une étape changée dans la fiche n'apparaît dans l'onglet « Activité » qu'après le `staleTime` de 5 min (lu, `query-client.ts`), à vérifier au navigateur.
+  - `useConversationsInfinite` relit toutes les pages chargées toutes les 10 s, sans `maxPages` (lu, `conversations.ts:53-54`) : après dix pages, dix requêtes par relecture. Un fil qui remonte en tête entre la relecture de la page 1 et celle de la page 2 n'est dans aucune des deux jusqu'à la relecture suivante (déduit, à vérifier).
+  - Établi comment : lu, et déduit là où c'est dit.
+- Piste : dédoublonner les pages du fil d'activité par `id` comme `ConversationList`, et invalider `['agent-crm', 'customer', id, 'activity']` après les gestes de la fiche (note, étape, tâche) ; borner `maxPages` de la liste des fils ou ne relire que la page 1 par l'intervalle. Tests : fil d'activité à deux pages avec une entrée insérée entre deux lectures.
