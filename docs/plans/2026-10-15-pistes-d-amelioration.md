@@ -15007,7 +15007,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### En OFX, la référence du virement portée par `MEMO` n'atteint ni la référence ni le libellé de la ligne : la règle 95 ne s'applique jamais à un relevé OFX
 - Réf : P157.07
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1721
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/StatementParser/OfxDriver.php:90-100`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:189-194`
 - Constat :
@@ -15018,6 +15018,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 - Piste : chercher la référence du paiement dans `MEMO` (et dans le libellé du CSV) en plus de `reference`, ou garder `MEMO` dans le libellé ; la règle de lecture est à trancher sans relevé réel (D-67). Test : le cas de la sonde, suggéré à 95 sur `LP-77`.
 - Mesure (2026-10-22, 86f20c94b, mesureur) : relu `OfxDriver.php:90-100` (`FITID` → `reference`, `NAME` → `label`) et `ReconciliationMatcher.php:189-194` (règle 95 sur `reference`) ; sonde Feature temporaire (retirée) : deux échéances de 150 000 (`LP-77`, `LP-88`), crédit OFX `FITID=BANK-9981`, `NAME=VIR DIOP`, `MEMO=LP-77` → ligne `reference = BANK-9981`, `label = VIR DIOP`, `counterparty = VIR DIOP`, `unmatched` → le constat tient ; l'usage bancaire de `MEMO` reste non vérifié (D-67). Classement : V7, la Piste offre deux lectures (chercher la référence dans `MEMO`, ou garder `MEMO` au libellé) et dit qu'elle est à trancher.
 - Mesure (2026-10-22, 0ceb6b27c, delegue) : relu `OfxDriver.php:90-100` (`FITID` → `reference`, `NAME` → `label`, `MEMO` au seul `raw_payload` quand `NAME` existe), `ReconciliationMatcher.php:189-194` (règle 95 sur `reference`) et D-67 de l'ardoise (aucun relevé Wave ni Orange Money réel) → aucune décision écrite sur la lecture de `MEMO`. Recommandation : chercher le `reference_number` du paiement aussi dans `MEMO` (et dans le libellé du CSV), en gardant `FITID` en `reference` et `NAME` en `label`, plutôt que de changer le libellé : la règle 95 s'étend sans rien retirer de ce que l'écran affiche ; à ne pas valider : elle change ce que le matcher suggère à 95, sur une hypothèse d'usage bancaire non vérifiée ; manque : un relevé réel (D-67), ou l'accord du porteur sur la recherche en sous-chaîne.
+- Mesure (2026-10-23, 9f180a3ae, implementeur) : test neuf `ReferenceDansLeLibelleTest` rouge avant correctif : deux échéances de 150 000 (`LP-77`, `LP-88`), crédit au lendemain `reference = BANK-9981` avec `MEMO = LP-77` (OFX) ou libellé « Loyer avril lp-77 Diop » (CSV) → aucune suggestion (deux à 70) → la règle 95 cherche aussi le `reference_number` dans le `MEMO` de l'OFX et le libellé du CSV, par mot entier (recommandation du délégué ; `FITID` et `NAME` inchangés) → 95 sur `LP-77`, `LP-770` et `XLP-77` ne comptent pas ; ablation → 2 rouges, borne de mot retirée → 1 rouge, remis → 3 verts ; `BankStatementPipelineTest` 21/21, `ReconciliationAmbiguityTest` 4/4, `PlatformSettledReconciliationTest` 10/10, `BankReconciliationTest` 20/20, `PayoutBypassTest` 43/43.
 
 ### Petites améliorations de l'import des relevés
 - Réf : P157.08
