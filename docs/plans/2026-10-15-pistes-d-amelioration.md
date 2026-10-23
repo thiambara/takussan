@@ -17350,7 +17350,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### L'export du journal rend 500 sur une date illisible quand l'autre borne est donnée
 - Réf : P188.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Audit/ExportActivityLogRequest.php:23-24,31-47`, `takussan-api/routes/api/audit-log.php:18`
 - Constat :
@@ -17358,10 +17358,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Mesuré, `agency_admin`, `GET /api/activity-logs/export?format=csv&filter[date_from]=abc&filter[date_to]=2026-01-01` → **500** `InvalidFormatException` « Could not parse 'abc' » ; `filter[date_from][]=x&filter[date_to]=2026-01-01` → **500** `TypeError` (`Carbon::parse()` reçoit un tableau).
   - Établi comment : lu, test temporaire.
 - Piste : sortir du rappel quand `filter.date_from` ou `filter.date_to` porte déjà une erreur, comme `IndexCalendarRequest`. Garde : un test qui envoie une borne illisible avec l'autre borne valide, et attend 422.
+- Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `ExportActivityLogRequest.php:23-24` (`filter.date_from`/`date_to` en `date`) et `:33-39` (le rappel `after()` passe les deux valeurs brutes à `Carbon::parse()` dès qu'elles sont remplies, sans regarder les erreurs), lignes inchangées, aucun commit ni ticket sur ce point (`grep -rln ExportActivityLogRequest docs/backlog/tickets` → seul TCK-104) ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré) : agency_admin, `filter[date_from]=abc&filter[date_to]=2026-01-01` → **500** `InvalidFormatException`, `filter[date_from][]=x&filter[date_to]=2026-01-01` → **500** `TypeError`, témoin `filter[date_from]=abc` seul → 422 sur `filter.date_from` → le constat tient entier. Classement : A1, la règle `date` rend déjà 422 sur la même valeur quand l'autre borne manque ; le correctif attendu est de sortir du rappel quand `filter.date_from` ou `filter.date_to` porte déjà une erreur (comme `IndexCalendarRequest::after()`), test borne illisible + autre borne valide → 422.
 
 ### La borne d'un an de l'export du journal ne s'applique pas quand une seule borne est donnée
 - Réf : P188.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Audit/ExportActivityLogRequest.php:37-46,53-62`
 - Constat :
@@ -17371,10 +17372,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Le coût d'un export long est déjà relevé ailleurs (XLSX en mémoire, voir P78.03, fait par TCK-1418). Le CSV, lui, n'a pas de plafond de lignes (lu, `ExportAuditXlsxBorneTest.php:15-19`).
   - Établi comment : lu, test temporaire.
 - Piste : juger l'écart sur les bornes **résolues** (celles de `resolvedFilters()`), donc aussi quand une seule est fournie, et passer les deux messages par une clé `lang/`. Garde : un test `date_from` seul à plus d'un an d'aujourd'hui → 422.
+- Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `ExportActivityLogRequest.php:37` (`if ($from && $to)`), `:42,44` (deux messages anglais en dur) et `:59-60` (défauts `now() - 30 j` et `now()`), et TCK-104 l. 36-37 (« défaut 30 derniers jours, max range 1 an »), l. 82 (« max 1 an entre `date_from` et `date_to` (422 sinon) ») et AC5 l. 124 ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré) : `filter[date_from]=2000-01-01` seul → **200** (export servi), `filter[date_to]=2099-01-01` seul → **200** aussi, les deux bornes `2000-01-01`/`2026-01-01` → 422 « Date range must not exceed 1 year. » → le constat tient, et vaut aussi pour `date_to` seul. Classement : A1, TCK-104 écrit déjà la borne d'un an sur la plage exportée et le défaut de 30 jours ; le correctif attendu est de juger l'ordre et l'écart sur les bornes résolues de `resolvedFilters()` (donc avec une seule borne), et de passer les deux messages existants par une clé `lang/` sans en changer le sens (en `wo`, le texte français), test `date_from` seul à plus d'un an → 422.
 
 ### La délégation de rôle rend 500 sur un `user_id` non numérique
 - Réf : P188.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Permissions/StoreRoleDelegationRequest.php:25,33-61`
 - Constat :
@@ -17382,10 +17384,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Mesuré, `agency_admin` à second facteur, `POST /api/agencies/{agency}/role-delegations` avec `{"user_id":"abc","role":"agent",…}` → **500** `SQLSTATE[22P02] invalid input syntax for type bigint`.
   - Établi comment : lu, test temporaire.
 - Piste : sortir du rappel quand `user_id` porte déjà une erreur (ou quand la valeur n'est pas un entier). Garde : un test `user_id=abc` → 422 sur `user_id`.
+- Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `StoreRoleDelegationRequest.php:25` (`required|integer|exists`) et `:49-61` (`validateBeneficiaryInAgency()` fait `User::find()` sur la valeur brute ; `validateNotSelf()` et `validateRoleNotPrimaryAdmin()` castent en `(int)`), lignes inchangées ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré) : agency_admin à second facteur, `POST /api/agencies/{agency}/role-delegations` `user_id=abc` → **500** `22P02`, `user_id=99999999999999999999` → **500** `22003` (hors `bigint`, non relevé par le constat) → le constat tient, élargi aux 20 chiffres. Classement : A1, la règle `integer` rend déjà l'erreur sur `user_id` et seul le rappel la double en 500 ; le correctif attendu est de sortir des contrôles du rappel quand `user_id` porte déjà une erreur, sans changer qui peut déléguer (aucun appelant légitime touché, pas V2), tests `abc` et 20 chiffres → 422 sur `user_id`.
 
 ### La série mensuelle du tableau de bord de l'agent se décale d'un mois les jours où le mois de départ est plus court
 - Réf : P188.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:249-258`, `takussan-web/src/lib/queries/dashboard.ts:168-170`
 - Constat :
@@ -17394,10 +17397,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Le front demande toujours `months=12` (lu, `dashboard.ts:169`). Le décalage touche donc chaque jour où le mois de départ compte moins de jours que le jour courant : le 31 mars, mai, août et octobre, et du 29 au 31 janvier hors année bissextile (déduit du calendrier, à vérifier).
   - Établi comment : lu, test temporaire.
 - Piste : `subMonthsNoOverflow()`, comme les deux services voisins. Garde : un test daté du 31 octobre qui attend la première étiquette du mois de novembre de l'année précédente, et la dernière sur le mois courant.
+- Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `DashboardAgentService.php:252` (`now()->subMonths($months - 1)->startOfMonth()`) contre `DashboardOwnerService.php:131` et `DashboardAgencyService.php:138` (`subMonthsNoOverflow`) ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré), `monthlyTimeseries($agent, 12)` sous `Carbon::setTestNow` : 2026-10-31 → `2025-12` … `2026-11`, 2026-03-31 → `2025-05` … `2026-04`, 2027-01-29 → `2026-03` … `2027-02`, témoin 2026-10-15 → `2025-11` … `2026-10` → le constat tient, et la déduction sur les 29-31 janvier est vérifiée. Classement : A1, les deux services voisins et le témoin du 15 rendent une série qui finit sur le mois courant ; le correctif attendu est `subMonthsNoOverflow()`, sans toucher au calcul des commissions de chaque mois (pas V1 : seule la fenêtre des étiquettes est corrigée), test daté du 31 octobre → première étiquette novembre de l'an passé, dernière le mois courant.
 
 ### La liste des garants rend 500 sur un `lease_id` non numérique ou hors de `bigint`
 - Réf : P188.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/GuarantorController.php:18-30`, `takussan-api/routes/api/guarantors.php:7`
 - Constat :
@@ -17406,10 +17410,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Aucun appel du front n'envoie `lease_id` à cette route (mesuré, `grep -rn "guarantors?lease_id" takussan-web/src` → rien) : seul un appel à la main l'atteint.
   - Établi comment : lu, test temporaire.
 - Piste : juger `lease_id` par `ExactIdentifierFilter::exiger()` (400 `filter.identifier_invalid`, le précédent de TCK-1273), ou par une `FormRequest` (`integer`), au choix du mesureur selon le précédent qu'il retient. Garde : un test `lease_id=abc` → 4xx.
+- Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `GuarantorController.php:28-29` (`$request->input('lease_id')` brut dans `whereHas`), `ExactIdentifierFilter::exiger()` (400 `filter.identifier_invalid`, borne de chiffres, utilisé par `UserDetailController.php:69` et `Property.php:699`, TCK-1273) ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré), chacun seul : `GET /api/guarantors?lease_id=abc` → **500** `22P02`, `lease_id=99999999999999999999` → **500** `22003` (re-mesuré seul, comme le demandait le constat), témoin `lease_id=5` → 200 → le constat tient entier. Classement : A1, le précédent `exiger()` est écrit et fixe la réponse d'un identifiant mal formé ; le correctif attendu est `ExactIdentifierFilter::exiger($request->input('lease_id'), 'lease_id')` avant le `whereHas`, tests `abc` et 20 chiffres → 400.
 
 ### La recherche manuelle de paiements du rapprochement rend 500 sur `q` ou `direction` en liste
 - Réf : P188.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Accounting/PaymentSearchController.php:16-27`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:34`
 - Constat :
@@ -17417,10 +17422,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Mesuré, administrateur de l'agence, `GET /api/agencies/{agency}/bank-statements/payment-search?q[]=abc` → **500** `TypeError` ; `?q=abc&direction[]=credit` → **500** « Array to string conversion ». Témoins : `q=abc` → 200 ; `amount=abc`, `amount=1e400` et `amount=NAN` → 200 (`$request->float()` les absorbe).
   - Établi comment : lu, test temporaire.
 - Piste : une `FormRequest` (`q` : `nullable|string|max:…`, `direction` : `Rule::enum(BankStatementLineDirection::class)`, `amount` : `nullable|numeric`). Garde : un test qui envoie chaque paramètre en liste et attend 422.
+- Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `PaymentSearchController.php:21,24` (`q` brut, `(string)` sur `direction`) et `PaymentSearchService.php:34` (`string $query`), et `takussan-web/src/lib/queries/reconciliation.ts:131-132` (le front envoie `q`, `amount`, `direction` en chaînes) ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré) : admin d'agence, `payment-search?q[]=abc` → **500** `TypeError`, `q=abc&direction[]=credit` → **500** « Array to string conversion », témoin `q=abc&amount=abc` → 200 → le constat tient pour `q` et `direction` en liste ; `amount` ne fait pas de 500. Classement : A1, la signature `string` du service et la convention `FormRequest` du dépôt fixent la réponse ; le correctif attendu est une `FormRequest` qui rend 422 sur `q` ou `direction` en liste (`nullable|string`) en gardant `tryFrom()` pour une direction inconnue et `amount` tel quel — juger `amount` en `numeric` ou `direction` par `Rule::enum` ferait rendre 422 à des appels qui rendent 200 et sort du correctif autonome.
 
 ### Petites améliorations
 - Réf : P188.07
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/DashboardOwnerController.php:38,43`, `takussan-api/app/Http/Controllers/Api/DashboardAgentController.php:55,60`, `takussan-api/app/Http/Controllers/Api/DashboardAgencyController.php:64,69`, `takussan-api/app/Http/Controllers/Api/Admin/AdminBoostController.php:24-29`
 - Constat :
@@ -17429,3 +17435,4 @@ Le PDF de l'état des lieux est P143.01.*
   - La console super-admin des boosts caste `(string) ($filtres['status'] ?? '')` et `kind` de la même façon (lu, l. 27-28). Mesuré, super-admin, `GET /api/admin/boosts?filter[status][]=active` → **500** « Array to string conversion ». `filter=abc` → 200, le `(array)` l'absorbe.
   - Établi comment : lu, test temporaire.
 - Piste : ignorer une valeur qui n'est pas une chaîne (`is_string()` avant le cast, comme TCK-1407 pour `filter[moderation_status]`), ou un 422 par règle. Garde : un test par route qui envoie la valeur en liste.
+- Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `DashboardOwnerController.php:38,43`, `DashboardAgentController.php:55,60`, `DashboardAgencyController.php:64,69` (`(string) $request->input('include', '')`, `(int) months`) et `AdminBoostController.php:27-28` (`(string) ($filtres['status'] ?? '')`, idem `kind`), et TCK-1407 (`done`, une valeur en liste rend la réponse d'une valeur inconnue) ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré) : `dashboard/owner?include[]=timeseries`, `dashboard/agent?include[]=timeseries`, `dashboard/agency?include[]=timeseries` → **500** « Array to string conversion » tous trois, `admin/boosts?filter[status][]=active` et `filter[kind][]=x` → **500** ; `dashboard/owner?include=timeseries&months=abc` → 200, série d'un mois (`2026-10`), contre douze sans `months` → le constat tient entier. Classement : A1, TCK-1407 a déjà fixé la réponse d'une valeur en liste ; le correctif attendu est un `is_string()` avant chaque cast (liste ignorée comme une valeur absente), tests un par route avec la valeur en liste → 200 ; `months=abc` reste hors du correctif, choisir entre le défaut 12 et un 422 étant un choix que le constat ne tranche pas.
