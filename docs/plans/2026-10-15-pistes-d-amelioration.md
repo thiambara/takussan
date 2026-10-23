@@ -262,7 +262,7 @@ voie d'écriture (angle 13, puis 47).
 | 185 | Formulaires d'édition du front hors du bien, du client et du profil (`src/components/**` et `src/app/actions/*` qui construisent un corps `PATCH`/`PUT` : `|| undefined`, `blank()`, `transform(… ? v : undefined)`, `z.coerce.number()` sur un champ facultatif) : champ vidé omis du corps, ou lu comme `0`, alors que l'API efface sur `null` — le relevé de P149.01 à P149.04 sur le reste des écrans | fait |
 | 186 | Paramètres `filter[…]`, `sort=` et `include=` envoyés par le front à une liste écrite à la main hors de `buildQuery()` (`ConversationController::index`, `ReviewController::index`, `PaymentController::history`, `Admin\AgencyModerationController::index` et leurs pareilles) qui ne les lit pas : filtre ou tri accepté en 200 et sans effet, liste non filtrée montrée comme filtrée — le pendant silencieux de l'angle 150, né de P150.05 | fait |
 | 187 | Paramètres des routes publiques sans compte (`/api/public/properties/search` et `PropertySearchService`, `PublicAgencyController`, `PublicAgentController`, `IndexPublicProfilesRequest`, fiches par slug) face à une valeur mal formée, une liste `[]` ou une virgule : 500 servi à un visiteur anonyme ou à un robot d'indexation au lieu d'un 400 ou d'une liste vide — le relevé de l'angle 151 hors des listes connectées | fait |
-| 188 | Paramètres hors `filter[…]` lus à la main puis passés à `Carbon::parse()`, `DayRange` ou une colonne typée (`?from=`/`?to=`/`?start=`/`?end=` du calendrier `CalendarEventCollector` et des tableaux de bord, `?period=`, `?month=`, `?year=`) : 500 sur une date ou un nombre mal formés, et borne de fin en date seule qui exclut le jour — le pendant de l'angle 151 hors de `filter[…]` | à faire |
+| 188 | Paramètres hors `filter[…]` lus à la main puis passés à `Carbon::parse()`, `DayRange` ou une colonne typée (`?from=`/`?to=`/`?start=`/`?end=` du calendrier `CalendarEventCollector` et des tableaux de bord, `?period=`, `?month=`, `?year=`) : 500 sur une date ou un nombre mal formés, et borne de fin en date seule qui exclut le jour — le pendant de l'angle 151 hors de `filter[…]` | fait |
 | 189 | Gestes montrés par une comparaison d'identité dans les détails (`isAssignedAgent` de `VisitDetail.tsx:98`, `user.id === landlord_id`, `issued_by_id`, `uploaded_by_id`, auteur d'une note ou d'un message) face à la policy, qui exige en plus le personnel actif de l'agence (`PersonnelDeLAgence::personnelActifDe`) ou un bailleur non bloqué (`isBlockedOwnerAt`) : agent parti, suspendu ou bailleur bloqué à qui le geste reste montré et rend 403 — né de P152.04 | à faire |
 | 190 | Créateur d'un bien d'agence (`properties.user_id`) encore membre mais suspendu ou archivé dans l'agence, face aux policies qui l'acceptent par la seule identité (`BookingPolicy::view` et `::update` l. 36 et 51, `InventoryPolicy::view` l. 32, `MaintenanceRequestPolicy::isPrincipalFor` l. 302, `PropertyPolicy::view` l. 51, `ReviewPolicy` l. 85) : lecture et gestes laissés à un agent que l'agence a suspendu — le pendant pour le membre suspendu de P153.01 à P153.03 | à faire |
 | 191 | Fils rattachés à un bail ou à une réservation (`conversations.lease_id`, groupes à contexte de bail, type `lease` et `booking`) face à la policy du porteur : `ConversationAccess` ne juge que la participation hors intervention et fil de prospect, si bien qu'un locataire sorti, un bailleur remplacé ou un agent suspendu qui y reste participant lit et écrit encore — né de P153.04 | à faire |
@@ -290,6 +290,7 @@ voie d'écriture (angle 13, puis 47).
 | 213 | Contrôleurs et services qui écrivent (`fill()->save()`, `update()`, `recordOwnerCost`) puis appellent une garde ou un service qui peut encore lever un 4xx, hors `DB::transaction` (`MaintenanceRequestController::update` l. 211-219 et ses pareils sous `app/Http/Controllers/Api` et `app/Services`) : réponse d'erreur sur une écriture déjà faite, que l'écran présente comme un échec — né de P184.02 | à faire |
 | 214 | Formulaires d'édition qui renvoient en entier une colonne JSON qu'ils ne montrent qu'en partie (`saved_searches.criteria` de `SearchPreferencesForm`, `announcements.segment`, `integrations.metadata`, `available_slots`, `limits` des plans), face à un `fill()` qui remplace la colonne : clés posées par un autre écran ou une autre version effacées par un simple enregistrement — né de P185.01 | à faire |
 | 215 | Identifiants numériques de route hors de `bigint` sur les routes connectées : liaisons implicites `{model}` et paramètres `whereNumber()` (30 sous `routes/`) ou actions typées `int $id`, face à vingt chiffres dans l'URL — 500 `22003` ou `TypeError` au lieu d'un 404 — le relevé de P187.05 hors des routes publiques | à faire |
+| 216 | Paramètres hors `filter[…]` castés `(string)` ou passés à un argument typé `string` dans les listes et lectures écrites à la main (`(string) $request->input('include')` des trois tableaux de bord, `(string) $request->query('sort')` de `ReviewController` et `UserDetailController`, `$request->query('q')` de `PaymentSearchController`, et leurs pareils sous `app/Http/Controllers`) : une liste `x[]=` rend 500 « Array to string conversion » ou `TypeError` au lieu d'un 422 ou d'un défaut — né de P188.06 et P188.07 | à faire |
 
 
 ---
@@ -17342,3 +17343,89 @@ Le PDF de l'état des lieux est P143.01.*
 - Piste : `Rule::enum(PropertyType::class)` par valeur de la liste `type` (sur le modèle de `condition`) et `Rule::enum(RentPeriod::class)` pour `rent_period` ; `per_page` validé dans `PublicPortfolioRequest`. Garde : les tests de `PublicPropertySearchFiltersTest` sur `title_type` étendus à ces deux clés.
 - Mesure (2026-10-23, 13aa0411a, mesureur) : relu `SearchPublicPropertyRequest.php:117-119` (`type` `string|max:500`, `rent_period` `string`) contre `:151-165` (`title_type` et `condition` jugés contre leur enum, TCK-491 et TCK-508) et `:166-170` (TCK-335 : une URL partagée qui se met à rendre 422 a déjà été jugée un défaut), `SavedSearchCriteria.php` (`type` en liste libre, `rent_period` `string|max:40`), `PublicAgencyController.php:400` et `PublicAgentController.php:378` (`min(max((int) per_page, 1), 48)`) ; test temporaire `tests/Feature/Tmp/MesureurTmp187Test.php` (un cas par méthode, charge `{ 2.72 2.62 3.32 }` sur 8 cœurs, retiré) : `search?type=nope` → 200 total 0, `rent_period=nope` → 200 total 0, `title_type=nope` → 422 ; portefeuille d'agence à deux biens, `per_page=abc` → 200, une page d'**un** bien (`(int) 'abc'` vaut 0, porté à 1, et non la page par défaut que dit le constat), `per_page[]=3` → 200, un bien → le constat tient, à cette nuance près. Classement : V7, les trois correctifs font rendre 422 des URL publiques et des recherches enregistrées qui rendent 200 aujourd'hui, et les valeurs `type` déjà stockées dans les alertes n'ont pas été relevées : juger ces clés contre l'enum est un choix de produit que TCK-335 a déjà pesé.
 - Mesure (2026-10-23, 772307dd4, delegue) : relu l'entrée et la `Mesure` du mesureur, `SearchPublicPropertyRequest.php:117-119` (`type` `string|max:500`, `rent_period` `string`) et `:149-165` (TCK-491 : « un statut inconnu doit rendre 422 plutôt que d'écarter le catalogue entier en silence », TCK-508 : `condition` jugée valeur par valeur), `:166-170` (TCK-335 vise une URL **valide** qui pourrit avec le temps, une date passée, pas une valeur qui n'a jamais existé), `PropertySearchService.php:587-598` (les valeurs vont telles quelles à Meilisearch), `SavedSearchCriteria.php:24-27,64-67` (TCK-599, ADR-0050 § 2 : « les règles de valeur de `/properties` s'appliquent ici », et `type`/`rent_period` y sont encore libres), l'entrée P66.04 (`fait` : la console n'ajoute plus de valeur, `Property` caste `type` et `rent_period` vers les enums PHP, ADR-0007) et `takussan-web/src/lib/enums/property.ts:12-29` (le front n'écrit que les 16 cas de `PropertyType`), `PublicPortfolioRequest.php` (ne règle que `filter.contract_type`) et `lib/queries/profile-portfolio.ts:22` (le front envoie `per_page=24`) → une valeur hors enum ne peut correspondre à aucun bien, le front ne l'écrit jamais, et l'API n'a jamais servi en production (`CLAUDE.md`, § Workflow git) : aucun lien partagé ni alerte d'un usager réel ne la porte. Délégation : V7, la décision suit une règle déjà écrite deux fois sur les clés voisines (TCK-491, TCK-508) et celle de TCK-599 pour les alertes, ne change aucun résultat pour une valeur que le front écrit, n'ajoute ni texte ni écran, et se défait en un commit ; la borne haute de `per_page` est laissée au plafond existant pour ne refuser aucune URL qui rend une page aujourd'hui.
+
+## Angle 188 — Paramètres de date et de nombre lus à la main, hors de `filter[…]`
+
+*Exploré le 2026-10-23 sur `pre-dev` e8f752ba9, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : tous les `Carbon::parse()`, `CarbonImmutable::parse()` et `createFromFormat()` de `app/Http` et `app/Services` qui lisent une valeur de la requête, les `FormRequest` qui les portent (`IndexCalendarRequest`, `BoostStatsRequest`, `PreparePayoutRequest`, `ClosePlatformPayoutPeriodRequest`, `MarkPlatformPayoutPaidRequest`, `OwnerStatementRequest`, `ShowTeamPerformanceRequest`, `IndexPaymentSupervisionRequest`, `SearchQueryRequest`, `ShowExportRequest`, les quatre requêtes de `ReportingController`, `PublicPropertyAvailabilityRequest`, `IndexPropertyUnavailabilityRequest`), les seize `after()`/`withValidator()` de `app/Http/Requests`, `CalendarEventCollector` (bornes par `DayRange` et `endOfDay()`), `PayoutCalculator::period()`, `PlatformPayoutService::closePeriod()`, `PlatformReportingService::window()` et `::bucketsFor()`, les `monthlyTimeseries()` des trois services de tableau de bord, et chaque lecture `$request->input|query|integer|float|string(…)` hors `filter`, `fields`, `include`, `sort`, `page` sous `app/Http/Controllers`. Ce que l'intitulé nommait (calendrier, rapports, relevé, reversements, `?period=`, `?month=`) est déjà jugé par une règle `date`, `date_format`, `regex` ou `Rule::in` avant toute lecture, et les bornes de fin y vont jusqu'à la fin du jour : ce passage n'y relève rien. Les constats viennent des lectures à la main voisines. Mesures : un test temporaire (`tests/Feature/Tmp/TmpExplorateur188Test.php`, base de test PostgreSQL, charge 4,35 sur 8 cœurs), une requête fautive par test là où PostgreSQL abandonne la transaction ; retiré ensuite.*
+
+### L'export du journal rend 500 sur une date illisible quand l'autre borne est donnée
+- Réf : P188.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Audit/ExportActivityLogRequest.php:23-24,31-47`, `takussan-api/routes/api/audit-log.php:18`
+- Constat :
+  - Les règles jugent `filter.date_from` et `filter.date_to` par `date` (lu, l. 23-24), mais le rappel `after()` relit les deux valeurs brutes et les passe à `Carbon::parse()` dès qu'elles sont toutes deux remplies, sans regarder si la règle a déjà échoué (lu, l. 33-39). `IndexCalendarRequest::after()` fait ce test (`errors()->hasAny([...])`, lu, l. 66).
+  - Mesuré, `agency_admin`, `GET /api/activity-logs/export?format=csv&filter[date_from]=abc&filter[date_to]=2026-01-01` → **500** `InvalidFormatException` « Could not parse 'abc' » ; `filter[date_from][]=x&filter[date_to]=2026-01-01` → **500** `TypeError` (`Carbon::parse()` reçoit un tableau).
+  - Établi comment : lu, test temporaire.
+- Piste : sortir du rappel quand `filter.date_from` ou `filter.date_to` porte déjà une erreur, comme `IndexCalendarRequest`. Garde : un test qui envoie une borne illisible avec l'autre borne valide, et attend 422.
+
+### La borne d'un an de l'export du journal ne s'applique pas quand une seule borne est donnée
+- Réf : P188.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Audit/ExportActivityLogRequest.php:37-46,53-62`
+- Constat :
+  - L'écart d'un an au plus n'est jugé que si les deux bornes sont fournies (`if ($from && $to)`, lu, l. 37). `resolvedFilters()` donne ensuite à la borne absente une valeur par défaut, `now()` pour `date_to` et `now() - 30 j` pour `date_from` (lu, l. 59-60). La plage exportée n'est donc jamais rejugée.
+  - Mesuré : `filter[date_from]=2000-01-01` seul → **200** (export de 26 ans servi), quand `filter[date_from]=2000-01-01&filter[date_to]=2026-01-01` → 422 « Date range must not exceed 1 year. ».
+  - Les deux messages du rappel sont de l'anglais écrit en dur (lu, l. 42 et 44), là où l'API rend d'ordinaire une clé traduite.
+  - Le coût d'un export long est déjà relevé ailleurs (XLSX en mémoire, voir P78.03, fait par TCK-1418). Le CSV, lui, n'a pas de plafond de lignes (lu, `ExportAuditXlsxBorneTest.php:15-19`).
+  - Établi comment : lu, test temporaire.
+- Piste : juger l'écart sur les bornes **résolues** (celles de `resolvedFilters()`), donc aussi quand une seule est fournie, et passer les deux messages par une clé `lang/`. Garde : un test `date_from` seul à plus d'un an d'aujourd'hui → 422.
+
+### La délégation de rôle rend 500 sur un `user_id` non numérique
+- Réf : P188.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Permissions/StoreRoleDelegationRequest.php:25,33-61`
+- Constat :
+  - La règle `integer` refuse bien `abc`, et Laravel saute alors `exists` (lu, l. 25). Mais le rappel `after()` appelle `validateBeneficiaryInAgency()`, qui fait `User::find($this->input('user_id'))` sur la valeur brute sans regarder les erreurs déjà posées (lu, l. 51-58).
+  - Mesuré, `agency_admin` à second facteur, `POST /api/agencies/{agency}/role-delegations` avec `{"user_id":"abc","role":"agent",…}` → **500** `SQLSTATE[22P02] invalid input syntax for type bigint`.
+  - Établi comment : lu, test temporaire.
+- Piste : sortir du rappel quand `user_id` porte déjà une erreur (ou quand la valeur n'est pas un entier). Garde : un test `user_id=abc` → 422 sur `user_id`.
+
+### La série mensuelle du tableau de bord de l'agent se décale d'un mois les jours où le mois de départ est plus court
+- Réf : P188.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Dashboard/DashboardAgentService.php:249-258`, `takussan-web/src/lib/queries/dashboard.ts:168-170`
+- Constat :
+  - Le début de la série est `now()->subMonths($months - 1)->startOfMonth()` (lu, l. 252). `subMonths()` déborde : le 31 octobre, onze mois plus tôt tombe un « 31 novembre », soit le 1ᵉʳ décembre. Les services du bailleur et de l'agence écrivent `subMonthsNoOverflow()` (lu, `DashboardOwnerService.php:131`, `DashboardAgencyService.php:138`).
+  - Mesuré, `Carbon::setTestNow('2026-10-31')` : `subMonths(11)->startOfMonth()` → `2025-12-01`, contre `2025-11-01` sans débordement. `monthlyTimeseries()` rend alors les étiquettes `2025-12` … `2026-11` : novembre 2025 manque (baux signés et commissions de ce mois non comptés), et la série finit sur un mois à venir, vide.
+  - Le front demande toujours `months=12` (lu, `dashboard.ts:169`). Le décalage touche donc chaque jour où le mois de départ compte moins de jours que le jour courant : le 31 mars, mai, août et octobre, et du 29 au 31 janvier hors année bissextile (déduit du calendrier, à vérifier).
+  - Établi comment : lu, test temporaire.
+- Piste : `subMonthsNoOverflow()`, comme les deux services voisins. Garde : un test daté du 31 octobre qui attend la première étiquette du mois de novembre de l'année précédente, et la dernière sur le mois courant.
+
+### La liste des garants rend 500 sur un `lease_id` non numérique ou hors de `bigint`
+- Réf : P188.05
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/GuarantorController.php:18-30`, `takussan-api/routes/api/guarantors.php:7`
+- Constat :
+  - L'action reçoit un `Request` nu et passe `$request->input('lease_id')` tel quel à `whereHas('leases', fn ($q) => $q->where('id', $leaseId))` (lu, l. 28-29). Aucune `FormRequest`, aucune règle.
+  - Mesuré, compte authentifié, `GET /api/guarantors?lease_id=abc` → **500** `SQLSTATE[22P02]` ; `lease_id=99999999999999999999` → 500 aussi (lu dans une transaction déjà abandonnée par la requête précédente, donc à re-mesurer seul).
+  - Aucun appel du front n'envoie `lease_id` à cette route (mesuré, `grep -rn "guarantors?lease_id" takussan-web/src` → rien) : seul un appel à la main l'atteint.
+  - Établi comment : lu, test temporaire.
+- Piste : juger `lease_id` par `ExactIdentifierFilter::exiger()` (400 `filter.identifier_invalid`, le précédent de TCK-1273), ou par une `FormRequest` (`integer`), au choix du mesureur selon le précédent qu'il retient. Garde : un test `lease_id=abc` → 4xx.
+
+### La recherche manuelle de paiements du rapprochement rend 500 sur `q` ou `direction` en liste
+- Réf : P188.06
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/Accounting/PaymentSearchController.php:16-27`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:34`
+- Constat :
+  - L'action reçoit un `Request` nu. `q` part sans contrôle à un argument typé `string` (lu, l. 21 ; `search(Agency $agency, string $query, …)`, l. 34). `direction` est casté `(string)` avant `tryFrom()` (lu, l. 24).
+  - Mesuré, administrateur de l'agence, `GET /api/agencies/{agency}/bank-statements/payment-search?q[]=abc` → **500** `TypeError` ; `?q=abc&direction[]=credit` → **500** « Array to string conversion ». Témoins : `q=abc` → 200 ; `amount=abc`, `amount=1e400` et `amount=NAN` → 200 (`$request->float()` les absorbe).
+  - Établi comment : lu, test temporaire.
+- Piste : une `FormRequest` (`q` : `nullable|string|max:…`, `direction` : `Rule::enum(BankStatementLineDirection::class)`, `amount` : `nullable|numeric`). Garde : un test qui envoie chaque paramètre en liste et attend 422.
+
+### Petites améliorations
+- Réf : P188.07
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/DashboardOwnerController.php:38,43`, `takussan-api/app/Http/Controllers/Api/DashboardAgentController.php:55,60`, `takussan-api/app/Http/Controllers/Api/DashboardAgencyController.php:64,69`, `takussan-api/app/Http/Controllers/Api/Admin/AdminBoostController.php:24-29`
+- Constat :
+  - Les trois tableaux de bord castent `(string) $request->input('include', '')` (lu). Mesuré, bailleur, `GET /api/dashboard/owner?include[]=timeseries` → **500** « Array to string conversion ». Le front envoie `include=timeseries` en chaîne (lu, `dashboard.ts:165-170` et `api.ts:881-883`, qui joint la liste par des virgules) : seul un appel à la main l'atteint.
+  - `months` y est lu par `(int)` puis borné à 1..36 dans le service (lu, `DashboardOwnerService.php:130`). `months=abc` rend donc 200 sur un seul mois, sans le dire (mesuré, 200).
+  - La console super-admin des boosts caste `(string) ($filtres['status'] ?? '')` et `kind` de la même façon (lu, l. 27-28). Mesuré, super-admin, `GET /api/admin/boosts?filter[status][]=active` → **500** « Array to string conversion ». `filter=abc` → 200, le `(array)` l'absorbe.
+  - Établi comment : lu, test temporaire.
+- Piste : ignorer une valeur qui n'est pas une chaîne (`is_string()` avant le cast, comme TCK-1407 pour `filter[moderation_status]`), ou un 422 par règle. Garde : un test par route qui envoie la valeur en liste.
