@@ -16479,7 +16479,7 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
 
 ### La liste des membres d'une agence sert à son admin les rôles qu'un membre tient dans d'autres agences
 - Réf : P176.04
-- Statut : validé — validation du porteur (2026-10-23) : ADR-0005, amendement du 2026-10-23 : `roles` rapporté à l'agence de la route dans les listes de membres (un membre suspendu y garde son type, avec son statut), dans la réponse de `POST members`, et à l'agence où le rôle est posé pour `PUT /users/{user}/role`
+- Statut : fait · TCK-2004
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:172-197,296`, `takussan-api/app/Http/Resources/UserResource.php:91-92`, `takussan-api/app/Http/Controllers/Api/UserRoleController.php:86-92`
 - Constat :
@@ -16489,6 +16489,7 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
   - Aucun écran ne rend ces `roles` aujourd'hui : les lecteurs de `/members` n'en tirent que le nom (lu, `ContactLeadsInbox.tsx:317`, `AuditTrail.tsx:189`, `role-delegations.ts:160`), et `putUserRole` ignore le corps de la réponse (lu, `UserRolesEditor.tsx:75-80`). La donnée sort de l'API sans être affichée.
 - Piste : rapporter `roles` à l'agence de la route dans ces trois réponses, ou ne pas le rendre hors de `/api/auth/me` (la variante de P02.01 que son classement laissait de côté). Garde : un test de `/members` sur un membre de deux agences, qui refuse le rôle de l'autre.
 - Mesure (2026-10-23, f5f00baf2, mesureur) : même test temporaire (retiré) : admin actif de A, `GET /api/agencies/{A}/members` → 200, la ligne du membre agent de A et admin de B porte `roles = ["agency_admin","agent","customer"]` ; relu `AgencyController.php:184-197` (préchargement des profils toutes agences, `UserResource`), l. 290-296 (`UserResource::make($target->refresh())`) et `UserRoleController.php:91` (`$user->fresh()->profileTypes()`), ces deux dernières réponses non mesurées → le constat tient. Classement : V3, une donnée d'une autre agence sort vers un admin, et la `Piste` propose deux options (rapporter `roles` à l'agence de la route, ou ne plus le rendre hors de `/api/auth/me`) dont la seconde retire un champ à des clients.
+- Mesure (2026-10-23, 5fcadf598, implementeur) : `AgencyMembersRolesDansLAgenceTest` avant correctif : `GET /api/agencies/{A}/members` et `POST …/members` ne rendaient pas les rôles tenus dans A (membre agent de A, admin et bailleur de B), `PUT /api/users/{u}/role` dans A rendait le `agency_admin` tenu dans B (4 rouges sur 4) → `UserResource::dansLAgence()` (rôles de l'agence de la route, tous statuts, avec `role_statuses`) lue par `listMembers` et `addAgent`, et `UserRoleController::update` rapporté à `$targetAgencyId` ; agent suspendu de A rendu avec `agent` et `{"agent":"suspended"}` ; ablation : les trois sites d'origine → 4 rouges, correctif → vert ; `AgencyMembersQueryCountTest`, `AgencyMembersListTest`, `UserRoleControllerTest`, `UserResourceSparseFieldsTest`, `MemberProfileRestoreTest`, `MemberRoleChangeCapabilityTest`, `TeamFormationBoundaryTest`, `AgencyTeamRolesTest` (profil suspendu gardé par la console) verts.
 
 ### Annonces et drapeaux ciblés par rôle atteignent les profils suspendus, et le ciblage par agence dépend du profil actif
 - Réf : P176.05
