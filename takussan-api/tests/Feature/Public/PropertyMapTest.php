@@ -70,6 +70,29 @@ class PropertyMapTest extends TestCase
             ->assertJsonValidationErrors(['bounds']);
     }
 
+    /**
+     * P187.04 (TCK-1849) — sans `bail`, la fermeture de forme s'exécutait après l'échec de
+     * `string` et convertissait le tableau en chaîne : 500 « Array to string conversion ».
+     *
+     * @return array<string, array{string}>
+     */
+    public static function boundsEnListe(): array
+    {
+        return [
+            'un élément' => ['bounds[]=1'],
+            'deux éléments' => ['bounds[]=1&bounds[]=2'],
+            'quatre éléments' => ['bounds[]=14&bounds[]=-18&bounds[]=15&bounds[]=-17'],
+        ];
+    }
+
+    #[DataProvider('boundsEnListe')]
+    public function test_map_rejects_bounds_given_as_a_list(string $requete): void
+    {
+        $this->getJson('/api/public/properties/map?'.$requete)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['bounds']);
+    }
+
     public function test_map_excludes_properties_without_coordinates(): void
     {
         $withCoords = Property::factory()->published()->create();
