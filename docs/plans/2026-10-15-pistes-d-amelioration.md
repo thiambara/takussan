@@ -17179,7 +17179,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Enregistrer ses préférences de recherche dans le profil efface les critères de l'alerte que le formulaire ne montre pas
 - Réf : P185.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux options (fusion des critères ou édition limitée aux recherches du profil)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/profile/SearchPreferencesForm.tsx:61-105,152-157`, `takussan-web/src/components/profile/ProfileCustomerSection.tsx:20-25`, `takussan-web/src/components/favorites/SaveSearchButton.tsx:56-66`, `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:41-46`, `takussan-api/app/Support/SavedSearchCriteria.php:32-36`
 - Constat :
@@ -17191,10 +17191,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Le test existant (`components/profile/__tests__/SearchPreferencesForm.test.tsx:108-136`) ne vérifie que `notification_frequency`, sur un échantillon qui n'a que les trois clés du formulaire.
   - Établi comment : lecture des cinq fichiers, puis le test temporaire. L'effet sur l'envoi des alertes n'a pas été joué.
 - Piste : en édition, partir des critères existants et ne remplacer que les clés que le formulaire porte (`{ ...initial.criteria, type, cities, price_max }`, une clé vidée posée à `null` ou retirée), et retirer `city` quand le formulaire écrit `cities`. Ou bien n'éditer depuis le profil qu'une recherche créée par lui. Test : alerte à critères de recherche, enregistrement sans changement → `criteria` inchangé ; ablation sur la fusion.
+- Mesure (2026-10-23, 9b16aba1e, mesureur) : relu `SearchPreferencesForm.tsx:61-106,153-158` (`readInitial` ne lit que `type`, `cities`/`city`, `price_max` ; `buildCriteria` rebâtit `criteria` de ces trois clés seules, envoyé à chaque `PATCH`), `ProfileCustomerSection.tsx:20-25` (`pickDefault`, toute recherche active la plus récente), `SaveSearchButton.tsx:56-66` (`filtersToCriteria`, toutes les clés de rôle `filtre`), `SavedSearchController.php:40-46` (`fill($request->validated())`) et `SavedSearch.php:19` (`criteria` casté `array`, remplacé en entier) ; aucun commit ni ticket ne l'a traité (`git log` des fichiers, TCK-136 et TCK-599 lus) ; test Vitest temporaire (charge `{ 1.98 2.10 2.30 }` sur 8 cœurs, retiré) : alerte `{contract_type: rent, city, region, bedrooms: 3, price_min, price_max, type: [apartment], furnished: true}`, « Enregistrer » sans rien toucher → `PATCH /api/saved-searches/7 {"criteria":{"type":["apartment"],"cities":["Dakar"],"price_max":300000},"notification_frequency":"daily"}`, cinq critères perdus ; le trajet en base non joué, le contrôleur se lit. Classement : V7, la `Piste` propose deux options (fusionner les critères existants, ou n'éditer depuis le profil qu'une recherche créée par lui) qui changent ce que l'écran édite, et le sort de `city` face à `cities` est lié au vocabulaire à trancher en P185.02.
 
 ### Les villes posées depuis le profil (`cities`) ne se lisent ni dans le résumé de l'alerte ni dans son lien vers les résultats
 - Réf : P185.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux vocabulaires de ville possibles (`city` seule ou `cities` appris du front)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/profile/SearchPreferencesForm.tsx:93-102`, `takussan-web/src/components/favorites/SavedSearchesList.tsx:43-79,158-159`, `takussan-web/src/types/search.ts:211-476`, `takussan-api/app/Services/Search/PropertySearchService.php:509-525`
 - Constat :
@@ -17204,3 +17205,4 @@ Le PDF de l'état des lieux est P143.01.*
   - Conséquence attendue : une alerte réglée sur deux villes s'affiche sans ville, et « voir les résultats » montre tout le pays (à vérifier à l'écran).
   - Établi comment : lecture seule.
 - Piste : un seul vocabulaire de ville pour les alertes. Soit le formulaire écrit `city` (une ville), soit le front apprend `cities` dans `SEARCH_FILTER_KEYS` (lecture, puce, URL) avec un test aller-retour `criteria` → URL → filtres. À trancher avec P185.01.
+- Mesure (2026-10-23, 9b16aba1e, mesureur) : relu `SearchPreferencesForm.tsx:101` (écrit `criteria.cities`), `types/search.ts:226-250` (`SEARCH_FILTER_KEYS` ne connaît que `city`, aucune clé `cities`), `SavedSearchesList.tsx:43-79,158-159` (résumé et lien par `criteriaToQueryString` puis `filtersFromSearchParams`), `useSearch.ts:86-93,196` (la page `/properties` lit l'URL par le même `filtersFromSearchParams`), `PropertySearchService.php:519-525` (l'alerte, elle, applique `cities`) ; `grep -c cities SearchPublicPropertyRequest.php` → 0 ; test Vitest temporaire (charge `{ 1.98 2.10 2.30 }` sur 8 cœurs, retiré) : `filtersFromSearchParams("cities=Dakar,Thiès&price_max=300000")` → `{"price_max":300000}` : la ville sort du résumé et du lien, les deux « à vérifier » tiennent au niveau du code, l'écran non joué. Classement : V7, la `Piste` offre deux vocabulaires (le formulaire écrit une seule `city`, ou le front apprend `cities` avec puce et URL), choix de produit à trancher avec P185.01.
