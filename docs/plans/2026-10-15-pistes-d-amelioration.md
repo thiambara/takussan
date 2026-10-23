@@ -255,7 +255,7 @@ voie d'écriture (angle 13, puis 47).
 | 178 | Loyers et acomptes encaissés par la plateforme et pas encore reversés, comptés comme argent de l'agence (`PayoutCalculator` et la préparation des reversements au bailleur, `CollectedPayments` et tableaux de bord, relevé de gérance `OwnerStatementService`) : reversement au bailleur d'un argent que la plateforme détient encore, ou qu'elle a rendu — né de P141.01 | fait |
 | 179 | `try`/`catch` qui entourent un envoi en file et promettent un repli (`AgencyProvisioningService::sendActivationLink`, `SendSavedSearchAlerts.php:141`, `SendFavoriteChangeAlerts.php:164`, et leurs pareils autour de `notify()`, `Notification::send()` ou `Mail::send()` d'une classe `ShouldQueue`) : 502, annulation, statut d'échec ou marque de reprise que le `catch` ne peut jamais poser, l'envoi n'ayant lieu qu'au worker — né de P142.01 | fait |
 | 180 | Téléversements d'images sans `PixelsAuPlus` hors de ceux que P143.02 relève (`MediaUploadRequest` collections `photos` et `avatars`, photos de maintenance, pièces jointes de messages et de litiges, documents image) face aux décodages GD qui les suivent (conversions `nonQueued`, `AvatarReencode`, `PdfImageEmbedder`) : RSS hors de `memory_limit` face au `mem_limit` du conteneur — né de P143.02 | fait |
-| 181 | Tableaux reçus sans `max:` par les FormRequests et rangés en `jsonb` (`rooms` d'état des lieux hors du PDF, `metadata`, critères de recherches enregistrées, brouillons d'assistant, réglages) puis relus en entier : taille de ligne, de réponse JSON et de rendu sans borne — le relevé de P143.01 hors du PDF | à faire |
+| 181 | Tableaux reçus sans `max:` par les FormRequests et rangés en `jsonb` (`rooms` d'état des lieux hors du PDF, `metadata`, critères de recherches enregistrées, brouillons d'assistant, réglages) puis relus en entier : taille de ligne, de réponse JSON et de rendu sans borne — le relevé de P143.01 hors du PDF | fait |
 | 182 | Gestes de transition rejoués sur un état déjà atteint (`POST …/confirm`, `cancel`, `send` d'une facture, `convert` et `handle` d'une demande de contact, `accept` d'une intervention, `activate` d'un bail) : second appel après une réponse perdue qui rend 422 ou 409 au lieu de l'état déjà écrit, écran en erreur pour un geste fait — le pendant pour les transitions de l'angle 144 | à faire |
 | 183 | Statuts recalculés par le navigateur à partir des dates au lieu de ceux que l'API sert (`displayStatus` de `LeaseSchedule.tsx:44-56`, échéance `pending` passée affichée « En retard », et leurs pareilles pour réservations, visites, délégations, abonnements) : écart avec les compteurs et relances de l'API, et lignes que le calcul ne vise pas (restitution de dépôt due par l'agence) — né de P146.02 | à faire |
 | 184 | Champs hors statut que le `PATCH` générique écrit alors qu'un geste dédié les garde (`assigned_to` et `scheduled_at` d'`UpdateMaintenanceRequestRequest` face à l'assignation d'intervention, `scheduled_at` et `agent_id` d'`UpdatePropertyVisitRequest` face au report et à la réaffectation de visite, `pipeline_stage` d'`UpdateCustomerRequest` face à `…/pipeline-stage`) : capacité, contrôle de chevauchement, transition, avis et journal du geste sautés — le pendant hors statut de P147.01 | à faire |
@@ -282,6 +282,8 @@ voie d'écriture (angle 13, puis 47).
 | 205 | Pièces déjà reversées au bailleur (reversement `completed`, `payout_lease_payment`, `payout_booking_payment`) puis remboursées par `BookingPaymentService::refund` ou par webhook (`PaymentGatewayService::applyRefund`) : aucune reprise sur le bailleur — ni ligne négative au reversement suivant, ni dette, ni avis à l'agence —, si bien que l'agence rend au locataire un argent déjà versé — né de P177.01 | à faire |
 | 206 | Pénalités de retard réglées sur la ligne du loyer (`late_fee_amount`, `late_fee_paid_at`, en ligne ou par `LateFeeSettlement`) face aux lecteurs de l'argent qui ne lisent que `amount − refund_amount` (`CollectedPayments::LEASE_NET_SQL`, `PayoutCalculator::kept`, relevé de gérance, exports, métriques) alors que la clôture plateforme les reverse à l'agence (`lateFeeSettledWith`) : pénalité encaissée absente de l'« Encaissé », du relevé et de tout reversement au bailleur, sans texte qui dise à qui elle revient — né de P178.03 | à faire |
 | 207 | Rappels et relances planifiés passés par `NotificationService::send()` (file `CodedNotification`) dont la marque se pose à la mise en file (`SendLeasePaymentReminders`, `SendPropertyVisitReminders`, relances de documents et d'échéances) : e-mail épuisé après `failed()`, ou SMS et WhatsApp refusés par tous les fournisseurs sans exception (`SmsRouterDriver`, `WhatsappChannel`), rappel perdu sans reprise ni trace lisible — le pendant de P142.02 pour les notifications codées, né de P179.01 | à faire |
+| 208 | Invitations émises par l'endpoint générique `POST /api/invitations` (`CreateInvitationRequest`, `InvitationController::store`) face aux services par rôle qui gardent le même geste (`SuperAdminCooptationService::invite` et ses verrou, avis aux autres super-admins et journal ; `InviteServiceProviderRequest` et sa règle de `metadata.from_maintenance_request_id` ; `AgentInvitationService`, `OwnerInvitationController`) : garde, contrôle de `metadata` ou effet du geste dédié sautés par le chemin générique — né de P181.05 | à faire |
+| 209 | Requêtes de modification qui ne rejouent pas les règles de valeur de leur création (`UpdateSettingRequest` face au catalogue de `StoreSettingRequest::after()`, et leurs pareilles : un `after()`, une règle de catalogue, un `Rule::unique` ou une sous-règle `x.*` présents dans `Store*Request` et absents de `Update*Request` du même modèle) : valeur refusée en 422 à la création et enregistrée en 200 à la modification — né de P181.01 | à faire |
 
 
 ---
@@ -16788,3 +16790,116 @@ sur Cloudflare.*
   - Établi comment : lecture et mesure locale. Rien n'a été mesuré dans l'image.
 - Piste : relever la version de GD de l'image et un décodage sous borne, puis corriger le docblock pour dire ce qui se passe réellement dans le conteneur.
 - Mesure (2026-10-23, 10b5781d7, mesureur) : `docker save` de l'image `ghcr.io/thiambara/takussan-api:local` (construite le 2026-10-22 sur 0ad8a403a ; la ligne `install-php-extensions … gd …` de `Dockerfile:24` est inchangée depuis f64d385f9), lecture de sa couche sans lancer de conteneur → `strings gd.so` rend `GD_BUNDLED` et `bundled (2.1.0 compatible)`, aucune `libgd.so` liée, et des imports `_emalloc_*`, `_ecalloc`, `_safe_emalloc`, `_erealloc` ; l'en-tête de l'image `ext/gd/libgd/gdhelpers.h:15-18` définit `gdMalloc` → `emalloc`, `gdCalloc` → `ecalloc`, `gdRealloc` → `erealloc` : dans le conteneur, le tampon de pixels compte dans `memory_limit = 256M` (`docker/php.ini:3`), et le docblock de `PixelsAuPlus.php:13-15` (« GD alloue hors du gestionnaire de mémoire de PHP… c'est la mémoire du conteneur qui cède ») décrit la GD externe du poste, pas l'image ; même affirmation dans `UploadRoomPhotosInventoryRequest.php:40` (TCK-1423) et `MediaUploadRequest.php:48`. Le décodage sous borne n'a pas été exécuté dans l'image (aucun conteneur lancé) : la panne attendue, un `Allowed memory size exhausted` lisible, est déduite de ces lectures. La borne de 20 Mpx reste juste. Classement : A6, commentaires qui contredisent le binaire mesuré, corrigés pour dire que dans l'image la GD embarquée alloue par `emalloc` et cède sur `memory_limit`, la GD externe d'un poste de développement ne le faisant pas.
+
+## Angle 181 — Tableaux sans borne rangés en `jsonb` et relus en entier
+
+*Exploré le 2026-10-23 sur `pre-dev` 10b5781d7, par l'explorateur, sans sous-agent. Relus par
+l'explorateur : les règles `array` sans `max:` de `app/Http/Requests` qui écrivent une colonne
+`jsonb` (`grep` des règles `metadata`, `settings`, `data`, `value`, `preferences`, `segment`,
+`messages`, `limits`, `rooms`, `criteria`), `UpsertWizardDraftRequest`, `WizardDraftController`,
+`routes/api/me.php:59-72`, la migration de `wizard_drafts`, `WizardDraftsBanner.tsx` et
+`lib/wizard-drafts.ts`, `StoreSettingRequest`, `UpdateSettingRequest`, `SettingController`,
+`ScopedSetting`, `OverdueReminderService::offsets`, `AgencyUpdateRequest`, `AgencySettings`,
+`AgencyController::update`, `CreateInvitationRequest`, `InvitationService::send`,
+`InvitationResource`, `ServiceProviderOnboardingService`, `SuperAdminTwoFactorController`,
+`StoreGuarantorRequest` et `GuarantorController::format`, `KpiConfigController`,
+`ThresholdAlertController`, `IntegrationService`, `SavedSearchCriteria`, `docker/php.ini`,
+`docker/Caddyfile`. Mesures par deux tests temporaires (retirés), `XDEBUG_MODE=off php artisan test
+<fichier>`, base de test PostgreSQL locale, charge 1,9 à 2,7 sur 8 cœurs. Les tailles en base sont
+`pg_column_size` : un tableau de chaînes répétées s'y compresse (5 Mo → 94 Ko), un tableau de
+chaînes aléatoires non (1 Mo → 1,04 Mo) ; seules les secondes disent le pire cas. La borne du corps
+est celle de Caddy et de PHP, 25 Mio (`Caddyfile:22-23`, `php.ini:5-6`).
+**Écartés, sans entrée** : les critères de recherche enregistrée sont fermés et bornés
+(`SavedSearchCriteria::rules`, `array:` + `max:` par clé) ; `agencies.settings` n'écrit que les
+clés du catalogue (mesuré : une clé inconnue de 1 Mo dans `PATCH /api/agencies/{id}` → 200, rien
+d'écrit, `pg_column_size` 30) ; `messages`, `segment`, `title`, `body` de la console déclarent leurs
+sous-clés ; `preferences` de notification est filtré par liste blanche avant écriture
+(`PreferenceResolver::updateMany`) et n'est pas en `jsonb` ; `rooms` n'est pas dans
+`Inventory::$queryFields`, la liste des états des lieux ne le relit pas sous les sparse fieldsets.
+Le PDF de l'état des lieux est P143.01.*
+
+### `PUT /api/settings/{id}` enregistre sur une ligne d'agence une valeur que le catalogue refuse au `POST`
+- Réf : P181.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/UpdateSettingRequest.php:48-62`, `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php:59-92`, `takussan-api/app/Http/Controllers/Api/SettingController.php:68-80`, `takussan-api/app/Services/Invoice/OverdueReminderService.php:61-80`
+- Constat :
+  - `StoreSettingRequest::after()` juge une ligne d'agence par le catalogue : clé de catégorie `rentals`, puis valeur déballée passée aux `rules` et `item_rules` de la clé (lu, l. 70-92, TCK-964). `UpdateSettingRequest` n'a que `'value' => ['required', 'array']` et un refus de la portée globale (lu, l. 48-62). Le contrôleur écrit `$data['value']` tel quel (lu, l. 75-77).
+  - Mesuré, admin d'agence : `POST /api/settings` `invoice.reminder_offsets_days` à `[1000]` → 422 ; à `[3]` → 201 ; puis `PUT /api/settings/{id}` à `{"value": ["abc", -5, 100000]}` → 200, ligne enregistrée telle quelle. `OverdueReminderService::offsets($agence)` rend alors `[100000]` : la relance des factures impayées de l'agence ne part plus qu'à 100 000 jours, au lieu des bornes 1 à 365 du catalogue.
+  - Aucun appel du front à `PUT /api/settings/{id}` (`grep -rn "api/settings/" takussan-web/src` hors tests → rien) : la voie est celle de l'API seule.
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : faire rejouer à `UpdateSettingRequest` la même règle que `StoreSettingRequest::after()`, écrite une fois (un trait ou une méthode statique sur `EditablePlatformSettings`), avec la clé lue sur la ligne. Garde : un test qui envoie au `PUT` chaque valeur que le `POST` refuse et attend 422, ligne inchangée.
+
+### Une clé de brouillon d'assistant de plus de 255 caractères rend 500
+- Réf : P181.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/routes/api/me.php:64-72`, `takussan-api/database/migrations/*_create_wizard_drafts_table.php` (`string('key')`), `takussan-api/app/Http/Controllers/WizardDraftController.php:80-92`
+- Constat :
+  - Les trois routes `wizard-drafts/{key}` ne contraignent la clé que par `[A-Za-z0-9._:-]+`, sans longueur (lu). La colonne est un `varchar(255)` (lu).
+  - Mesuré : `PUT /api/me/wizard-drafts/<300 × k>` → 500 `SQLSTATE[22001] … character varying(255)`.
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : borner la clé dans la contrainte de route (`[A-Za-z0-9._:-]{1,255}`, ce qui rend 404) ou par une règle de la requête (422). Un test au-delà de 255 et un à 255.
+
+### Les brouillons d'assistant n'ont ni borne de taille ni de nombre, et l'accueil les relit tous, données comprises
+- Réf : P181.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/UpsertWizardDraftRequest.php:44-48`, `takussan-api/app/Http/Controllers/WizardDraftController.php:42-49`, `takussan-web/src/components/wizard/WizardDraftsBanner.tsx:30-60`, `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:68`
+- Constat :
+  - `data` est `nullable|array` sans borne, et la clé est libre dans la forme de la route : un compte crée autant de lignes qu'il veut (lu).
+  - `GET /api/me/wizard-drafts` rend toutes les lignes du compte, sans pagination, avec `data` entier (lu, `get(['id', 'key', 'step', 'data', 'updated_at'])`). La bannière de l'accueil de `/app` l'appelle à chaque montage et ne garde de chaque brouillon que la clé, l'étape et la date, plus un test « vierge » (lu, `WizardDraftsBanner.tsx`, `projectDraftForBanner`).
+  - Mesuré : `PUT` d'un brouillon de 5 Mo → 201 en 0,7 s, réponse de 4,6 Mo qui renvoie le brouillon ; 20 brouillons de 1 Mo et celui-là → la liste rend 21 lignes, 22,9 Mo, pic de mémoire PHP de 176 Mo pour la requête. Un brouillon de 1 Mo de chaînes aléatoires occupe 1,04 Mo en base.
+  - Ce qu'un assistant réel écrit n'a pas été mesuré : la taille ordinaire est à vérifier, les photos restant hors du brouillon (voir l'angle 84).
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : borner `data` en octets dans la requête (une règle sur la taille de `json_encode`), plafonner le nombre de brouillons par compte, et ne pas rendre `data` dans la liste quand la bannière n'en a pas besoin (le test « vierge » se ferait côté API, ou par un champ dérivé). Garde : un test au-delà de chaque plafond.
+
+### Une ligne de réglage d'agence garde tout ce que le client envoie autour de `value`, et chaque lecture le relit
+- Réf : P181.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php:63,84-88`, `takussan-api/app/Support/ScopedSetting.php:43-63`, `takussan-api/app/Http/Controllers/Api/SettingController.php:16-36,53-61`
+- Constat :
+  - Le `POST` ne valide que la valeur déballée par `ScopedSetting::unwrap()`, c'est-à-dire `value.value` (lu, l. 84-88, et `unwrap` l. 52-63). Le reste du tableau `value` n'a aucune règle et est écrit en entier (lu, `SettingController` l. 60).
+  - Mesuré, admin d'agence : `POST /api/settings` `lease.require_signature` avec `{"value": true, "junk": [20 000 chaînes aléatoires]}` → 201, ligne de 1,04 Mo en base, réponse de 1 Mo ; `GET /api/settings` → 1 Mo par ligne ainsi chargée.
+  - `ScopedSetting::value()` lit la ligne entière pour en extraire `value` (lu, l. 45) : chaque lecture du réglage décode tout le `jsonb` (le coût par lecture est déduit, à vérifier).
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : n'écrire que la valeur déballée et validée, reconstruite sous la forme canonique `{"value": …}`, ou refuser toute autre clé (`array:value`). Le même traitement au `PUT` va avec P181.01. Garde : un test qui envoie une clé de plus et relit la ligne.
+
+### `metadata` d'une invitation générique est libre : taille sans borne, clés internes écrites par le client
+- Réf : P181.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:75-78`, `takussan-api/app/Services/Invitation/InvitationService.php:174`, `takussan-api/app/Http/Resources/InvitationResource.php:38`, `takussan-api/app/Services/Onboarding/ServiceProviderOnboardingService.php:178-196,223`, `takussan-api/app/Http/Controllers/Api/Auth/SuperAdminTwoFactorController.php:184`, `takussan-api/app/Http/Controllers/Public/InvitationAcceptController.php:61`
+- Constat :
+  - `metadata` est `nullable|array` sans sous-règle (lu). `send()` le recopie et n'y pose que `locale` (lu, l. 174).
+  - Le code relit dans `invitations.metadata` des clés qu'il écrit lui-même : `from_maintenance_request_id` et `deep_link_consumed_at` (onboarding du prestataire, l. 178 et 223), `level` (cooptation super-admin, l. 184). `InviteServiceProviderRequest` borne `from_maintenance_request_id` à une demande ouverte de l'agence (lu, l. 64-75) ; le chemin générique ne le fait pas.
+  - Mesuré, admin d'agence, invitation de bailleur : `POST /api/invitations` avec `metadata` = 20 000 chaînes aléatoires, `deep_link_consumed_at`, `from_maintenance_request_id: 999999` et `level: viewer` → 201, ligne de 1,04 Mo, `from_maintenance_request_id` enregistré ; réponse et `GET /api/invitations` de 1 Mo.
+  - `InvitationResource` rend `metadata` entier, y compris à l'invité qui accepte par le jeton (lu, `InvitationAcceptController` l. 61).
+  - Ce qu'une clé interne écrite par ce chemin déclenche (lien profond d'un prestataire invité par le générique, niveau d'une cooptation émise par le générique) n'a pas été joué : à vérifier. Voir l'angle 208.
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : fermer `metadata` du chemin générique sur une liste de clés (`array:<clés>` et une règle par clé), ou ne plus l'accepter du tout si aucun écran ne l'envoie, et ne rendre au client que les clés qu'il lit. Garde : un test qui envoie une clé interne et une clé inconnue.
+
+### `settings` des indicateurs et des alertes de seuil : écrit sans borne, rendu dans les listes, lu par rien
+- Réf : P181.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreKpiConfigRequest.php:61`, `UpdateKpiConfigRequest.php:53`, `StoreThresholdAlertRequest.php:56`, `UpdateThresholdAlertRequest.php:46`, `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:22-39,56,67`, `takussan-api/app/Http/Controllers/Api/ThresholdAlertController.php:50,60`, `takussan-web/src/lib/queries/kpis.ts:16,25`
+- Constat :
+  - `settings` est `sometimes|array` sans sous-règle, et `validated()` est écrit tel quel par `create` et `update` (lu).
+  - Aucun lecteur côté API : `grep -rn settings` sur `KpiResolver`, `CheckThresholdAlertsCommand`, `ThresholdAlertTriggered` et les deux contrôleurs → rien hors des modèles (lu). Côté front, seul le type de `kpis.ts` le déclare (lu) ; qu'aucun écran ne l'envoie est à vérifier.
+  - Mesuré, admin d'agence : `POST /api/kpi-configs` et `POST /api/threshold-alerts` avec `settings` de 1 Mo → 201, réponse de 0,9 Mo ; `GET /api/kpi-configs` → 0,9 Mo pour une ligne, la liste rendant `items()` bruts jusqu'à `per_page=100` (`HasQueryBuilder::PER_PAGE_MAX`).
+  - Établi comment : lu, mesuré par test temporaire.
+- Piste : retirer `settings` des quatre requêtes s'il n'a pas de lecteur (A3 si le front ne l'envoie pas), ou le fermer sur ses clés réelles. Garde : un test qui envoie `settings` et constate qu'il n'est pas écrit.
+
+### Petites améliorations
+- Réf : P181.07
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Api/StoreGuarantorRequest.php:49`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:41-45,115-134`, `takussan-api/app/Http/Requests/Api/StoreIntegrationRequest.php:43`, `takussan-api/app/Http/Requests/Api/UpdateIntegrationRequest.php:53`, `takussan-api/app/Services/Admin/IntegrationService.php:71-84`, `takussan-api/app/Http/Requests/Api/Admin/StoreAnnouncementRequest.php:27-31`
+- Constat :
+  - **Garant** : `metadata` est accepté (`nullable|array`), écrit par `Guarantor::create($data)`, jamais rendu par `format()` et lu nulle part (`grep -rn metadata` → le modèle seul). Mesuré : `POST /api/guarantors` avec `metadata` de 1 Mo → 201, colonne écrite, réponse de 270 octets. Une écriture sans lecteur ni borne.
+  - **Intégrations** : `metadata` est libre et sans borne (lu) ; le code en lit `sender_id` et l'URL d'envoi (`LAfricaMobileSmsDriver.php:58-60`), et `IntegrationService` journalise la liste des clés avant et après (l. 71-84), si bien qu'un `metadata` à milliers de clés grossit aussi `activity_log` (déduit, à vérifier).
+  - **Annonces** : `segment.roles` et `segment.agency_ids` n'ont pas de `max:`, et chaque `agency_ids.*` coûte une requête `exists` (lu) ; surface du seul super-admin.
+  - Établi comment : lu ; le garant mesuré par test temporaire.
+- Piste : retirer `metadata` de `StoreGuarantorRequest` (aucun lecteur) ; fermer `metadata` des intégrations sur les clés que les pilotes lisent ; poser un `max:` aux deux listes de `segment`.
