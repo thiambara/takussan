@@ -17985,7 +17985,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### Logo d'agence : 2 Mo au front et dans TCK-064, 10 Mo à l'API
 - Réf : P195.06
-- Statut : validé (délégué) — borne propre à la collection `logo` dans `MediaUploadRequest`, 2 Mo (`max:2048`), celle de TCK-064 et d'`AGENCY_LOGO_MAX_BYTES`, mêmes types et même `PixelsAuPlus` que les photos ; test : logo de 3 Mo → 422 sur `file`, photo de 3 Mo toujours acceptée
+- Statut : fait · TCK-1893
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/schemas/agency.ts:204-205,226`, `takussan-web/src/app/actions/admin-agency.ts:135`, `takussan-api/app/Http/Requests/MediaUploadRequest.php:14,39-47`, `docs/backlog/tickets/TCK-064-admin-agency-config.md:50`
 - Constat :
@@ -17995,6 +17995,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 - Piste : borne propre à la collection `logo` (2 Mo, celle du ticket) dans `MediaUploadRequest`, ou relever le front à 10 Mo si le ticket est dépassé (choix). Test : logo de 3 Mo → 422 sur `file`.
 - Mesure (2026-10-23, 37a217aec, mesureur) : relu `agency.ts:204-205,226` (`AGENCY_LOGO_MAX_BYTES = 2 Mo`, « parity with TCK-064 »), `admin-agency.ts:135` (`validateAgencyLogoFile` avant l'envoi), `MediaUploadRequest.php:14,39-49` (`logo` jugé avec les photos, `max:MAX_PHOTO_KB` = 10 Mo, `PixelsAuPlus`), TCK-064 l. 50 (« max 2 Mo ») et l. 81 (contrainte du ticket déjà assouplie pour les formats), `AgencyConfigForm.tsx:211` (`reduirePhoto` à l'envoi) → l'écart tient. Classement : V7, la piste propose deux options (borner l'API à 2 Mo, ou relever le front à 10 Mo si le ticket est dépassé), et TCK-064 a déjà été assoupli une fois.
 - Mesure (2026-10-23, 0303e7d79, delegue) : relu l'entrée et la `Mesure` du mesureur, TCK-064 l. 50 (« max 2 Mo ») et l. 81 (seuls les formats assouplis, la taille non), `MediaUploadRequest.php:13,38-51` (`logo` jugé avec les photos, `MAX_PHOTO_KB`, commentaire TCK-1423 : un logo « est décodé dans GD à chaque PDF ») ; `grep -rln "'logo'"` → le seul écran qui téléverse un logo est la configuration d'agence, déjà bornée à 2 Mo par `validateAgencyLogoFile` → le constat tient. Délégation : V7, la borne suit la décision écrite de TCK-064 et celle que le front applique déjà, aucun écran ne change de comportement, et elle va dans le sens de TCK-1423 (coût du décodage GD) ; se défait en un commit ; aucun autre critère relevé.
+- Mesure (2026-10-23, 800ff2ba3, implementeur) : `AgencyLogoUploadTest::test_a_logo_above_two_megabytes_is_refused_while_a_photo_of_that_size_is_not` avant correctif → rouge, un logo de 3 Mo rend 201 ; `MAX_LOGO_KB = 2048` appliqué à la seule collection `logo` de `MediaUploadRequest`, mêmes types et même `PixelsAuPlus` → logo de 3 Mo en 422 sur `file` sans média écrit, logo de 2 Mo et photo de 3 Mo en 201 ; ablation (borne retirée → rouge, remise → vert) ; `AgencyLogoUploadTest` 10 et `MediaUploadTest` 12 verts.
 
 ### Pièces d'un devis : ni taille vérifiée ni photo réduite, face à `max:5120`
 - Réf : P195.07
