@@ -9,6 +9,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Queue\Attributes\DeleteWhenMissingModels;
 use Throwable;
 
 /**
@@ -18,7 +19,12 @@ use Throwable;
  * Si le worker abandonne l'envoi, {@see failed()} remet `reminder_sent_at` à nul, pour que le
  * passage suivant le renvoie, et reporte la suppression du temps écoulé depuis la marque : sans
  * cela, le compte était supprimé à `scheduled_for` sans que son titulaire ait été prévenu.
+ *
+ * TCK-1750 (P166.01) — `#[DeleteWhenMissingModels]` : `cancelDeletion` supprime la demande pour de
+ * bon ; annulée avant le passage du worker, l'avis n'a plus d'objet et sort de la file sans échec
+ * (il levait `ModelNotFoundException` et laissait une ligne `failed_jobs`).
  */
+#[DeleteWhenMissingModels]
 class AccountDeletionReminderNotification extends Notification implements ShouldQueue
 {
     use Queueable;
