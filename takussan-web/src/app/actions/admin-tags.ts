@@ -4,7 +4,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { ApiError, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
-import { fetchTags, type FetchTagsParams } from '@/lib/queries/tags';
+import { fetchAllTags, type FetchTagsParams } from '@/lib/queries/tags';
 import type { Tag } from '@/types/tag';
 import type { PaginatedResponse } from '@/types/api';
 import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
@@ -59,13 +59,14 @@ async function requireToken(): Promise<
   return { ok: true, token };
 }
 
+/** TCK-1749 — toutes les pages : les formulaires de bien proposent chaque équipement. */
 export async function fetchTagsAction(
-  params: FetchTagsParams = {},
+  params: Omit<FetchTagsParams, 'page' | 'perPage'> = {},
 ): Promise<ActionResult<PaginatedResponse<Tag>>> {
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    const data = await fetchTags(auth.token, params);
+    const data = await fetchAllTags(auth.token, params);
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };

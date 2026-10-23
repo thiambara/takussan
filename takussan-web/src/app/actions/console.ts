@@ -5,7 +5,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { ApiError, messageErreurApi } from '@/lib/api';
 import { getOperatorToken } from '@/lib/session';
-import { createTag, deleteTag, fetchTags, updateTag, type FetchTagsParams } from '@/lib/queries/tags';
+import { createTag, deleteTag, fetchAllTags, updateTag, type FetchTagsParams } from '@/lib/queries/tags';
 import type { TagFormPayload } from '@/lib/schemas/tag';
 import type { Tag } from '@/types/tag';
 import type { PaginatedResponse } from '@/types/api';
@@ -73,13 +73,14 @@ async function requireOperatorToken(): Promise<
 
 // ── Étiquettes — `/super-admin/tags` (TCK-066) ─────────────────────────────────────────────────
 
+/** TCK-1749 — toutes les pages : `TagsManager` filtre et cherche côté client, sur la liste entière. */
 export async function fetchConsoleTagsAction(
-  params: FetchTagsParams = {},
+  params: Omit<FetchTagsParams, 'page' | 'perPage'> = {},
 ): Promise<ActionResult<PaginatedResponse<Tag>>> {
   const auth = await requireOperatorToken();
   if (!auth.ok) return auth.result;
   try {
-    const data = await fetchTags(auth.token, params);
+    const data = await fetchAllTags(auth.token, params);
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
