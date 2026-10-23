@@ -112,9 +112,10 @@ export default async function AgentDashboardPage({ searchParams }: Props = {}) {
             value={data.pipeline_ops?.leases_to_sign ?? 0}
             locale={locale}
           />
-          {/* TCK-591 — menait à cette page elle-même. */}
+          {/* TCK-591 — menait à cette page elle-même. TCK-1733 (P167.04) — le nombre compte les
+              tâches assignées à l'agent dans l'agence active : le lien porte cette portée. */}
           <MetricLink
-            href="/app/tasks?filter[due]=today"
+            href="/app/tasks?filter[due]=today&filter[assigned_to]=me"
             label={t('tasksToday')}
             value={data.pipeline_ops?.tasks_today ?? data.tasks?.today ?? 0}
             locale={locale}

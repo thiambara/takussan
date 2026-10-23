@@ -28,7 +28,7 @@ export const AGENT_CRM_QUERY_KEY = {
   activity: (customerId: number) => ['agent-crm', 'customer', customerId, 'activity'] as const,
   matchingProperties: (customerId: number) => ['agent-crm', 'customer', customerId, 'matching-properties'] as const,
   matchingCustomers: (propertyId: number) => ['agent-crm', 'property', propertyId, 'matching-customers'] as const,
-  tasks: (due: string) => ['agent-crm', 'tasks', due] as const,
+  tasks: (due: string, assignedToMe = false) => ['agent-crm', 'tasks', due, assignedToMe ? 'mine' : 'all'] as const,
   taskables: (type: string, search: string) => ['agent-crm', 'taskables', type, search] as const,
   calendarFeed: () => ['agent-crm', 'calendar-feed'] as const,
   portfolio: (agencyId: number, userId: number) => ['agent-crm', 'agency', agencyId, 'portfolio', userId] as const,
@@ -269,14 +269,18 @@ export const TASK_DUE_FILTERS: readonly TaskDue[] = ['overdue', 'today', 'upcomi
 /**
  * TCK-591 §3 — « Mes tâches » : les tâches que je porte ou que j'ai créées (plus celles d'un
  * collègue que je remplace), filtrées par échéance CÔTÉ SERVEUR (`filter[due]`, fuseau de Dakar).
+ * TCK-1733 (P167.04) — `assignedToMe` borne aux tâches qui me sont assignées dans l'agence active
+ * (`filter[assigned_to]=me`), la portée que compte la tuile « Tâches du jour ».
  */
 export async function fetchMyTasks(
   token: string,
   due: TaskDue | null,
   page = 1,
+  assignedToMe = false,
 ): Promise<PaginatedResponse<AgentTask>> {
+  const filter = { ...(due ? { due } : {}), ...(assignedToMe ? { assigned_to: 'me' } : {}) };
   const qs = buildQueryString({
-    ...(due ? { filter: { due } } : {}),
+    ...(Object.keys(filter).length > 0 ? { filter } : {}),
     sort: due === 'overdue' || due === 'today' || due === 'upcoming' ? 'due_at' : '-created_at',
     page,
     per_page: 30,

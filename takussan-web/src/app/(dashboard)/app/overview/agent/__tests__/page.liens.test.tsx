@@ -31,4 +31,13 @@ describe('Aperçu de l’agent — les liens des priorités (TCK-1513)', () => {
     const lien = screen.getByRole('link', { name: new RegExp(fr.dashboard.agent.leasesToSign) });
     expect(lien).toHaveAttribute('href', '/app/leases?status=pending_signature');
   });
+
+  // TCK-1733 (P167.04) — « Tâches du jour » compte les tâches assignées à l'agent : le lien porte
+  // cette portée, en plus de l'échéance.
+  it('« Tâches du jour » ouvre les tâches du jour qui lui sont assignées', async () => {
+    render(await Page());
+
+    const lien = screen.getByRole('link', { name: new RegExp(fr.dashboard.agent.tasksToday) });
+    expect(lien).toHaveAttribute('href', '/app/tasks?filter[due]=today&filter[assigned_to]=me');
+  });
 });
