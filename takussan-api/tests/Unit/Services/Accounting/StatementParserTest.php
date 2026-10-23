@@ -237,6 +237,23 @@ class StatementParserTest extends TestCase
         $this->assertSame(3, $result['context']->tally->skipped);
     }
 
+    public function test_un_code_csv_hors_des_devises_connues_fait_sauter_la_ligne(): void
+    {
+        // P157.01 (TCK-1917) — un code de trois lettres qui n'est pas un cas de `Currency` entrait
+        // tel quel : la ligne ne s'appariait jamais et l'écran l'affichait en « F CFA ». Elle est
+        // sautée et comptée ; un code connu autre que celui de l'agence est gardé (TCK-1475).
+        $result = $this->parseCsv(
+            "date,amount,label,Devise\n"
+            ."01/04/2026,1000,A,ABC\n"
+            ."02/04/2026,1000,B,usd\n"
+            ."03/04/2026,1000,C,XOF\n",
+            ['currency_column' => 'Devise'],
+        );
+
+        $this->assertSame(['USD', 'XOF'], array_map(fn (ParsedLine $l): string => $l->currency, $result['lines']));
+        $this->assertSame(1, $result['context']->tally->skipped);
+    }
+
     private function parseCsv(string $csv, array $mapping): array
     {
         // `tempnam()` réserve un chemin de façon atomique — mais le `.csv` concaténé APRÈS n'est
@@ -361,6 +378,22 @@ class StatementParserTest extends TestCase
         $lines = $this->parseOfx($ofx)['lines'];
 
         $this->assertSame(['EUR', 'XOF'], array_map(fn (ParsedLine $l): string => $l->currency, $lines));
+    }
+
+    public function test_un_compte_ofx_d_une_devise_inconnue_fait_sauter_ses_lignes(): void
+    {
+        // P157.01 (TCK-1917) — un `CURDEF` de trois lettres hors de `Currency` donnait des lignes
+        // qui ne s'appariaient jamais. Ses transactions sont sautées et comptées ; le compte `EUR`
+        // voisin est gardé (TCK-1475).
+        $ofx = "OFXHEADER:100\nDATA:OFXSGML\nVERSION:102\n\n<OFX><BANKMSGSRSV1>"
+            .'<STMTTRNRS>'.$this->stmtrs('ABC', [['20260401', '15000', 'A'], ['20260402', '1000', 'B']]).'</STMTTRNRS>'
+            .'<STMTTRNRS>'.$this->stmtrs('EUR', [['20260403', '25', 'C']]).'</STMTTRNRS>'
+            .'</BANKMSGSRSV1></OFX>';
+
+        $result = $this->parseOfx($ofx);
+
+        $this->assertSame(['EUR'], array_map(fn (ParsedLine $l): string => $l->currency, $result['lines']));
+        $this->assertSame(2, $result['context']->tally->skipped);
     }
 
     public function test_un_fitid_et_un_name_ofx_trop_longs_sont_tronques_a_255(): void

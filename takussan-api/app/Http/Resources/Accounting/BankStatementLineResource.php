@@ -32,6 +32,9 @@ class BankStatementLineResource extends BaseResource
             'label' => $this->label,
             'reference' => $this->reference,
             'counterparty' => $this->counterparty,
+            // TCK-1919 (P157.06) — la ligne d'un autre relevé de l'agence qui porte déjà cette
+            // transaction (référence, date, montant, sens), nulle sinon.
+            'duplicate_of_line_id' => $this->duplicate_of_line_id,
             'match_status' => $this->match_status?->value,
             'match_status_label' => $this->match_status ? __("reconciliation.line_status.{$this->match_status->value}") : null,
             'matched_payment_type' => $this->matched_payment_type

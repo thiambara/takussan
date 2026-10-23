@@ -120,6 +120,8 @@ class ParseBankStatementJob implements ShouldQueue
                     BankStatementLine::insert($paquet);
                 }
 
+                $this->marquerLesDoublons($statement);
+
                 $skipped = $context->tally->skipped;
 
                 // TCK-593 — un fichier dont des lignes ont été sautées et AUCUNE lue n'est pas un
@@ -183,6 +185,37 @@ class ParseBankStatementJob implements ShouldQueue
                 $e instanceof QueryException ? ($e->errorInfo[0] ?? 'n/a') : 'n/a',
             ));
         }
+    }
+
+    /**
+     * TCK-1919 (P157.06, décision du porteur : marquer, ne pas sauter) — une ligne dont la
+     * référence, la date, le montant et le sens égalent ceux d'une ligne d'un AUTRE relevé de la
+     * même agence pointe vers la plus ancienne d'entre elles. Deux relevés qui se chevauchent (un
+     * export mensuel, puis « depuis le début du mois ») donnaient deux lignes suggérées sur le même
+     * paiement, sans rien qui le dise. La ligne reste dans le relevé.
+     *
+     * Une ligne sans référence n'est jamais marquée : deux virements du même montant le même jour
+     * sont plausibles, et rien ne les distingue alors. Une seule requête, dans la transaction de
+     * l'analyse ; l'index `(posted_at, amount)` la sert.
+     */
+    private function marquerLesDoublons(BankStatement $statement): void
+    {
+        $original = BankStatementLine::query()
+            ->from('bank_statement_lines as o')
+            ->join('bank_statements as s', 's.id', '=', 'o.bank_statement_id')
+            ->where('s.agency_id', $statement->agency_id)
+            ->whereColumn('o.bank_statement_id', '<>', 'bank_statement_lines.bank_statement_id')
+            ->whereColumn('o.reference', 'bank_statement_lines.reference')
+            ->whereColumn('o.posted_at', 'bank_statement_lines.posted_at')
+            ->whereColumn('o.amount', 'bank_statement_lines.amount')
+            ->whereColumn('o.direction', 'bank_statement_lines.direction')
+            ->selectRaw('min(o.id)');
+
+        BankStatementLine::query()
+            ->where('bank_statement_id', $statement->id)
+            ->whereNotNull('reference')
+            ->whereExists($original->clone()->select(DB::raw(1)))
+            ->update(['duplicate_of_line_id' => DB::raw('('.$original->toRawSql().')')]);
     }
 
     /**

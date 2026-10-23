@@ -215,6 +215,12 @@ export function StatementDetail({
                       <p className="text-xs text-muted-foreground">
                         {[l.reference, l.counterparty].filter(Boolean).join(' · ')}
                       </p>
+                      {l.duplicate_of_line_id != null && (
+                        <div className="mt-1">
+                          {/* TCK-1919 (P157.06) — déjà importée par un autre relevé : marquée, pas sautée. */}
+                          <StatusBadge tone="attention" label={t('detail.duplicate')} data-testid={`doublon-${l.id}`} />
+                        </div>
+                      )}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       {l.direction && (
