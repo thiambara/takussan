@@ -260,6 +260,7 @@ class RoleDelegationActivityWindowTest extends TestCase
 
         $events = Activity::query()
             ->whereIn('description', ['role_delegation.created', 'role_delegation.revoked'])
+            ->orderBy('id') // sans ordre, PostgreSQL rend les deux lignes dans un ordre quelconque
             ->pluck('event', 'description')
             ->all();
         $this->assertSame(['role_delegation.created' => 'created', 'role_delegation.revoked' => 'revoked'], $events);

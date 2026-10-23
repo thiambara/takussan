@@ -24,6 +24,7 @@ return [
         'net' => 'Net',
         'paid_out' => 'Li ñu delloo',
         'unpaid' => 'Li ñu feyul ci période bi',
+        'unpaid_as_of' => 'au :date',
         'payouts' => 'Reversements',
         'reference' => 'Référence',
         'date' => 'Bés',
