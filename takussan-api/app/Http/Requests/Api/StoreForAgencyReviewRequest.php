@@ -46,7 +46,7 @@ class StoreForAgencyReviewRequest extends BaseFormRequest
         return [
             'rating' => ['required', 'integer', 'min:1', 'max:5'],
             'title' => ['nullable', 'string', 'max:255'],
-            'content' => ['nullable', 'string'],
+            'content' => ['nullable', 'string', 'max:2000'],
         ];
     }
 }

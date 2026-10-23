@@ -22,7 +22,7 @@ class ReplyReviewRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'reply_content' => ['required', 'string'],
+            'reply_content' => ['required', 'string', 'max:2000'],
         ];
     }
 }
