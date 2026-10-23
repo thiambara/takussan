@@ -105,7 +105,8 @@ class GuarantorTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        foreach ([LeaseStatus::PendingSignature, LeaseStatus::Active] as $status) {
+        // P162.03 (TCK-1716) — le bail en préavis (`terminating`) reste ouvert : son loyer est dû.
+        foreach ([LeaseStatus::PendingSignature, LeaseStatus::Active, LeaseStatus::Terminating] as $status) {
             foreach (['pivot', 'colonne'] as $link) {
                 $guarantor = Guarantor::factory()->create(['added_by_id' => $user->id]);
                 $lease = Lease::factory()->create(['status' => $status]);
