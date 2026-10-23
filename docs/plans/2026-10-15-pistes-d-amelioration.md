@@ -17796,7 +17796,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### L'export du journal d'audit attribue au « système » les gestes d'un membre sans e-mail
 - Réf : P193.03
-- Statut : validé — validation du porteur (2026-10-23) : `causer_email` : l'e-mail, sinon `user#<id>`, jamais le téléphone
+- Statut : fait · TCK-1997
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:142-175`
 - Constat :
@@ -17806,6 +17806,7 @@ Le PDF de l'état des lieux est P143.01.*
   - L'export ne porte ni nom ni identifiant de causeur : la colonne e-mail est la seule qui le désigne (lu, l. 163-174).
 - Piste : distinguer les trois cas — causeur présent (e-mail, sinon numéro, sinon `user#id`), causeur supprimé (`deleted#id`), aucun causeur (`system`) — et ajouter une colonne `causer_id` si le format le permet. Test : export d'une ligne causée par un compte sans e-mail → ni `system` ni vide.
 - Mesure (2026-10-23, 874f0bb68, mesureur) : relu `ActivityLogExporter::mapRow` (l. 148-149 `$absentCauser` vaut `system` sans `causer_id` orphelin, l. 166 `causer_email => $causer?->email ?? $absentCauser` : un causeur chargé sans e-mail tombe dans le repli ; TCK-1395 et TCK-1717 ont traité le causeur supprimé et le rôle, pas ce cas) ; test temporaire `SondeMesureur193Test` (retiré) (charge 3,12 / 2,28 / 1,89 puis 2,90 / 2,32 / 1,92 sur 8 cœurs) : `activity()->causedBy()` d'un compte sans e-mail, `mapRow` par réflexion → `causer_email = 'system'`, `causer_role = 'customer'`, `causer_id = 6` → le constat tient. Classement : V3, le correctif décide quelle donnée personnelle l'export porte à la place de l'e-mail (numéro, `user#id`, colonne `causer_id` neuve), et la `Piste` propose plusieurs formes.
+- Mesure (2026-10-23, fee847c8c, implementeur) : reproduit avant correctif par `CauseurSansEmailDansLExportTest` (charge 3,45 / 3,28 / 3,29 sur 8 cœurs) : ligne causée par un agent sans e-mail → `causer_email = 'system'` → causeur présent : e-mail, sinon `user#<id>` ; `deleted#<id>` et `system` inchangés ; vert dans l'export d'agence et de la console, numéro absent de la ligne ; ablation → `system`, rouge, remis → vert ; `CauseurSupprimeDansLExportTest` 2/2, `RoleDuCauseurDansLExportTest` 2/2, `ActivityLogExporterTest` 19/19, `AgencyAuditScopeTest` 13/13.
 
 ### Les avis envoyés par le seul canal `mail` disparaissent sans trace pour un compte sans e-mail
 - Réf : P193.04
