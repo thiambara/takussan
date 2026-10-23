@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
+import { navigationDeTest } from '@/test/navigation-url';
 import { InventoryList } from '../InventoryList';
 import type { InventoryListParams } from '@/lib/queries/inventory';
 import type { Inventory } from '@/types/inventory';
@@ -23,6 +24,9 @@ function ligne(id: number): Inventory {
     updated_at: '2026-08-01T10:00:00Z',
   } as unknown as Inventory;
 }
+
+// TCK-1734 — type, statut et page se lisent et s'écrivent dans l'URL.
+vi.mock('next/navigation', async () => (await import('@/test/navigation-url')).moduleNavigation);
 
 vi.mock('@/lib/queries/inventory', () => ({
   useInventories: (params: InventoryListParams) => {
@@ -63,6 +67,7 @@ function dernierAppel(): InventoryListParams {
 describe('InventoryList — un filtre ramène à la page 1 (P168.01)', () => {
   beforeEach(() => {
     appels.params = [];
+    navigationDeTest.reinitialiser();
   });
 
   it('remet la page à 1 quand le statut change', async () => {

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, ClipboardList, Plus } from 'lucide-react';
 
@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { formatDate } from '@/lib/format';
+import { pageDeLUrl, useVueDansLUrl, valeurBornee } from '@/hooks/useVueDansLUrl';
 import type { Locale } from '@/i18n/config';
 import {
   useInventories,
@@ -49,9 +50,12 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
   const tRoot = useTranslations('inventory');
   const tTypes = useTranslations('inventory.types');
   const tStatus = useTranslations('inventory.status');
-  const [type, setType] = useState<'' | InventoryType>('');
-  const [status, setStatus] = useState<'' | InventoryStatus>('');
-  const [page, setPage] = useState(1);
+  // TCK-1734 (P168.03) — type, statut et page dans l'URL : la vue survit au retour de la fiche,
+  // au rechargement et au lien copié.
+  const { params: requete, remplacer } = useVueDansLUrl();
+  const type = valeurBornee(requete, 'type', INVENTORY_TYPES) ?? '';
+  const status = valeurBornee(requete, 'status', INVENTORY_STATUSES) ?? '';
+  const page = pageDeLUrl(requete);
 
   const params = useMemo<InventoryListParams>(() => ({
     ...(type ? { type } : {}),
@@ -61,8 +65,8 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
 
   const query = useInventories(params);
 
-  const prevPage = useCallback(() => setPage((p) => Math.max(1, p - 1)), []);
-  const nextPage = useCallback(() => setPage((p) => p + 1), []);
+  const prevPage = () => remplacer({ page: Math.max(1, page - 1) });
+  const nextPage = () => remplacer({ page: page + 1 });
 
   return (
     <div className="space-y-4">
@@ -74,8 +78,7 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
           <Select
             value={type || '__all__'}
             onValueChange={(value) => {
-              setType(value === '__all__' ? '' : ((value ?? '') as '' | InventoryType));
-              setPage(1);
+              remplacer({ type: value === '__all__' ? null : ((value ?? null) as InventoryType | null), page: null });
             }}
             items={[{ value: '__all__', label: t('allTypes') }, ...INVENTORY_TYPES.map((value) => ({ value, label: tTypes(value) }))]}
           >
@@ -97,8 +100,7 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
           <Select
             value={status || '__all__'}
             onValueChange={(value) => {
-              setStatus(value === '__all__' ? '' : ((value ?? '') as '' | InventoryStatus));
-              setPage(1);
+              remplacer({ status: value === '__all__' ? null : ((value ?? null) as InventoryStatus | null), page: null });
             }}
             items={[{ value: '__all__', label: t('allStatuses') }, ...INVENTORY_STATUSES.map((value) => ({ value, label: tStatus(value) }))]}
           >
