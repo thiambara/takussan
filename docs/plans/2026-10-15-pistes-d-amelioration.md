@@ -17781,7 +17781,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### La réinitialisation forcée du mot de passe d'un compte sans e-mail rend 500
 - Réf : P193.02
-- Statut : validé — validation du porteur (2026-10-23) : refus par un code (`409 support.no_email`) avant tout appel au broker
+- Statut : fait · TCK-1995
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/UserSupportService.php:12-25`, `takussan-api/database/migrations/0001_01_01_000000_create_users_table.php:24-28`, `takussan-api/routes/api/admin.php:153-154`
 - Constat :
@@ -17792,6 +17792,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Un compte créé par téléphone n'a pas de mot de passe connu (lu, `PhoneLoginService.php:175-177`) : le geste n'a pas d'objet pour lui.
 - Piste : refuser le geste par un code (`409 support.no_email`, ou équivalent) quand la cible n'a pas d'e-mail vérifié, avant tout appel au broker. Test : compte sans e-mail → code attendu, aucune ligne dans `password_reset_tokens`, journal non écrit.
 - Mesure (2026-10-23, 874f0bb68, mesureur) : relu `UserSupportService::forcePasswordReset` (l. 16 `sendResetLink(['email' => $target->email])` sans garde ; révocation des jetons l. 21, après), migration `password_reset_tokens.email` clé primaire (l. 25), route `admin.users.force-password-reset` (`routes/api/admin.php:153`) ; `UserSupportTest` ne crée aucun compte sans e-mail (lu) ; test temporaire `SondeMesureur193Test` (retiré) (charge 3,12 / 2,28 / 1,89 puis 2,90 / 2,32 / 1,92 sur 8 cœurs) : super-admin, deux comptes sans e-mail, `POST /api/admin/users/{id}/force-password-reset` sur le second → **500** « `SQLSTATE[23502] null value in column "email" of relation "password_reset_tokens"` » → le constat tient ; que le broker retienne un autre compte sans e-mail (`where email is null`) n'est pas mesuré, l'insertion échoue avant. Classement : V2, le correctif touche un geste d'authentification (réinitialisation forcée) et ajoute un refus par un code neuf, dont le porteur choisit la forme (`409 support.no_email` ou autre).
+- Mesure (2026-10-23, fee847c8c, implementeur) : reproduit avant correctif par `UserSupportTest::test_force_password_reset_refuses_an_account_without_email` (charge 3,45 / 3,28 / 3,29 sur 8 cœurs) : super-admin, deux comptes sans e-mail, `POST /api/admin/users/{id}/force-password-reset` → 500 → `abort_code_if(blank($target->email), 409, 'support.no_email')` avant le broker, message `errors.support.no_email` (`wo` = français) ; 409, aucune ligne `password_reset_tokens`, jetons gardés, journal et notification absents ; ablation → 500, remis → `UserSupportTest` 11/11. Un e-mail non vérifié reçoit toujours le lien (la décision nomme `no_email`).
 
 ### L'export du journal d'audit attribue au « système » les gestes d'un membre sans e-mail
 - Réf : P193.03
