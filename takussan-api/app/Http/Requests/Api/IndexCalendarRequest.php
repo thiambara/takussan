@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\AgenceNommeeParLeSuperAdmin;
 use App\Services\Calendar\CalendarEventCollector;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -41,8 +42,9 @@ class IndexCalendarRequest extends BaseFormRequest
             // TCK-078 — admin multi-property view supports `property_ids[]`.
             'property_ids' => ['sometimes', 'array'],
             'property_ids.*' => ['integer'],
-            // TCK-078 — admin-only cross-agency view.
-            'agency_id' => ['sometimes', 'integer', 'exists:agencies,id'],
+            // TCK-078 — admin-only cross-agency view. TCK-1772 (P62.07) — l'existence ne se juge que
+            // pour le super-admin : tout autre compte reçoit le 403 du contrôleur, absente ou tierce.
+            'agency_id' => ['sometimes', 'integer', new AgenceNommeeParLeSuperAdmin($this->user())],
             'types' => ['sometimes', 'array'],
             // TCK-591 — tâches, échéances de bail et interventions s'ajoutent aux deux types d'origine.
             'types.*' => ['string', Rule::in(CalendarEventCollector::TYPES)],

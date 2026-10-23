@@ -11,6 +11,7 @@ use App\Services\Membership\AgencyRoleService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 /**
  * TCK-279 — `PATCH /api/profiles/{profile}/agency-role` (AC7).
@@ -32,15 +33,19 @@ class AgencyRoleController extends Controller
         $class = $type->profileClass();
         abort_if($class === null, 404);
 
-        /** @var Model $model */
-        $model = $class::query()->findOrFail($profile);
+        /** @var Model|null $model */
+        $model = $class::query()->find($profile);
 
-        $agency = $model->agency;
-        abort_if($agency === null, 404);
+        // TCK-1772 (P62.07, décision du porteur) — le profil absent, sans agence ou d'une agence où
+        // l'appelant ne peut pas affecter de rôle rend le même 404 : un 403 disait que le profil existe.
+        $agency = $model?->agency;
+        abort_if($agency === null || Gate::denies('assign', [AgencyRole::class, $agency]), 404);
 
-        Gate::authorize('assign', [AgencyRole::class, $agency]);
-
-        $role = AgencyRole::query()->findOrFail((int) $data['agency_role_id']);
+        // Le rôle absent reçoit la réponse du rôle d'une autre agence (`AgencyRoleService::assign`).
+        $role = AgencyRole::query()->find((int) $data['agency_role_id'])
+            ?? throw ValidationException::withMessages([
+                'agency_role_id' => __('errors.agency_role.other_agency'),
+            ]);
 
         $model = $this->service->assign($model, $role);
 

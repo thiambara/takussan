@@ -6486,7 +6486,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### Petites améliorations : identifiants d'agence, de profil et de rôle
 - Réf : P62.07
-- Statut : validé — (a) comme P62.01 : même traitement, et 404 quand `assign` refuse sur `agency-role` (porteur, 2026-10-20)
+- Statut : fait · TCK-1772
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/StoreIntegrationRequest.php:25,37`, `takussan-api/app/Http/Requests/Api/IndexCalendarRequest.php:42`, `takussan-api/app/Http/Controllers/Api/CalendarController.php:34-37`, `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:20-27,71`, `takussan-api/app/Http/Requests/Agency/AssignAgencyRoleRequest.php:25-28,43`, `takussan-api/app/Http/Controllers/Api/Profile/AgencyRoleController.php:28-43`
 - Constat :
@@ -6494,6 +6494,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - `PATCH /api/profiles/{profile}/agency-role` : `authorize()` rend `user() !== null` ; `agency_role_id` porte `exists:agency_roles,id`, et le profil est résolu par `findOrFail()` (l. 36) avant `Gate::authorize('assign')` (l. 41) : profil absent → 404, profil tiers → 403 (lu, non mesuré).
 - Piste : même traitement que les entrées précédentes ; pour le profil, rendre 404 quand `assign` refuse.
 - Mesure (2026-10-20, 0ba226223, mesureur) : test temporaire retiré, compte sans agence → `GET /api/calendar?agency_id=` tierce 403 `calendar.other_agency_forbidden`, absente 422 ; `POST /api/integrations` (fournisseur invalide) : `agency_id` absente en erreur, tierce non ; `PATCH /api/profiles/{id}/agency-role` profil tiers 403, absent 404, rôle absent 422 sur `agency_role_id`. Le « à vérifier » : les identifiants d'agence sont publics par l'annuaire (lu, `PublicAgencyController.php:170` et `:343`), l'oracle ne vise donc que les agences hors annuaire. Classement : V2, comme P62.03 : rendre 404 quand `assign` refuse change la réponse d'une autorisation.
+- Mesure (2026-10-23, b5e5b0401, implementeur) : avant correctif, `AgencyAndRoleExistenceOracleTest` neuf → 6 rouges sur 7 : calendrier, agence absente 422 contre 403 `calendar.other_agency_forbidden` pour une tierce ; intégration et invitation, une erreur `agency_id` de plus pour l'absente, et 422 contre 403 pour l'admin d'une autre agence ; affectation, profil tiers 403 contre 404 absent, rôle absent « The selected agency role id is invalid » contre « This role belongs to another agency » ; correctif (`agency_id` jugé par `AgenceNommeeParLeSuperAdmin`, pour le seul super-admin qui garde son 422 ; `agency_role_id` sans `exists:`, 404 quand `assign` refuse, rôle absent → réponse du rôle d'une autre agence ; `ExistsSurRouteOuverteTest` vidé de ses exceptions) → 7 verts, 245 verts sur les 29 classes qui frappent les quatre routes ; ablations : `app/` d'origine → 6 rouges et la garde rouge, règle neutralisée → 1 rouge ici et 2 dans `AgenceSupprimeeNonCibleeTest`.
 
 ### Rien n'empêche une règle `exists:` neuve sur une route dont l'`authorize()` laisse passer tout compte
 - Réf : P62.08
@@ -12001,7 +12002,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Petites améliorations
 - Réf : P122.04
-- Statut : validé — porteur (2026-10-22) : réindexer les biens touchés dans `LegacyFeaturedConversion`, et écrire la règle dans `takussan-api/CLAUDE.md` § Recherche et dans le gabarit de migration
+- Statut : retenu · à valider — chemin fermé : `takussan-api/CLAUDE.md`, que la précision du porteur demande d'écrire (§ Recherche) ; la réindexation dans `LegacyFeaturedConversion` et le gabarit de migration se feraient seuls, mais la validation ne laisse pas de reste
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Boost/LegacyFeaturedConversion.php:34-36`, `takussan-api/database/migrations/2026_10_12_500400_seed_boost_catalogue_and_convert_featured.php:16`, `takussan-api/database/seeders/System/OfferedFeaturedSeeder.php:15`, `takussan-api/Dockerfile:101-103`, `takussan-api/docker/release.sh:44-58`, `takussan-api/app/Services/Search/PropertySearchService.php:749-765`
 - Constat :
@@ -12010,6 +12011,7 @@ masse relève de l'angle 122 et n'est pas repris.*
   - Établi comment : lu.
 - Piste : réindexer les biens touchés dans `LegacyFeaturedConversion` ; écrire dans l'en-tête de `release.sh`, ou dans `takussan-api/CLAUDE.md` § Recherche, qu'une migration qui réécrit une colonne indexée doit réimporter son modèle, et le dire au gabarit de migration.
 - Mesure (2026-10-22, 2abc59353, mesureur) : relu `LegacyFeaturedConversion::run()` (`DB::table('properties')->update(['featured' => false, …])` sans réindexation), `PropertySearchService::featuredPool()` (filtre `featured = true` dans l'index) et `hydrate()` (ne rejuge que `public()`, pas `featured`) ; test temporaire retiré : bien publié sans agence, `featured = true`, indexé, conversion → base `featured = false`, document `featured = true`, et `GET /api/public/properties/search` le sert dans `sponsored` → la partie « à vérifier » tient : le bien est tiré en emplacement sponsorisé sans boost ; l'empreinte `.search-shape` (`Dockerfile:101-103`) et `release.sh` sont inchangés. Classement : V5, la réindexation dans `LegacyFeaturedConversion` relèverait seule de A1 (ADR-0061 : `featured` dérivé des boosts), mais la Piste la lie à une règle de déploiement à écrire dans `docker/release.sh` ou au gabarit de migration, au choix ; l'état de l'index en préproduction n'est pas relevé.
+- Mesure (2026-10-23, b5e5b0401, implementeur) : relu `LegacyFeaturedConversion.php:34-35` → `DB::table('properties')->update(['featured' => false, …])` toujours sans réindexation, le défaut tient ; la précision du porteur demande d'écrire la règle dans `takussan-api/CLAUDE.md`, chemin fermé à l'implémenteur (les `CLAUDE.md`), et ne porte pas de `; reste :` qui permette de livrer la seule réindexation. Classement : chemin fermé, rendu au porteur.
 
 ## Angle 123 — Appels réseau entre un geste validé et sa trace ou sa notification
 
@@ -13607,7 +13609,7 @@ laissé recomposé par décision, est P109.04 : il n'est pas repris.*
 
 ### Petites améliorations du service PDF et de sa documentation
 - Réf : P140.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-1774 — reste : garder ou retirer `store()` selon la décision de P140.02
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Pdf/DocumentPdfService.php:96-141`, `docs/pdf-templates.md:8-12,78-79,83-96`
 - Constat :
@@ -13616,6 +13618,7 @@ laissé recomposé par décision, est P109.04 : il n'est pas repris.*
   - **`docs/pdf-templates.md:10`** recommande `render()` pour les « emails attachments » : aucun courriel du dépôt n'attache de PDF (lu, `grep -rn "attachData\|attach(" app` → aucun courriel).
 - Piste : corriger les deux phrases de `docs/pdf-templates.md` pour dire ce que fait le code (A6) ; garder ou retirer `store()` selon la décision de P140.02.
 - Mesure (2026-10-22, cc061fbb7, mesureur) : relu `docs/pdf-templates.md` l. 10 (`render()` pour « emails attachments ») et l. 78-79 (« Production uses the cloudflare browserless service ») ; `.env.example:247-261` déclare `LARAVEL_PDF_DRIVER=dompdf` (TCK-301) ; `docs/infra/prod-drivers.json` ne nomme aucun driver PDF ; `grep -rln "Attachment::\|function attachments\|->attachData" app` → `MessageResource` et `LeaseDepositRefundNotification`, qui listent des URL signées et n'attachent aucun PDF ; `render()` n'est appelé que par `LeaseSignatureService:63` (gel du contrat) et `PaymentReceiptPdf:48` ; `store()` sans appelant dans `app/` → les trois points tiennent. Au passage, `docs/configuration.md` § 5.5 i) (« PDF (Cloudflare Browser Rendering, défaut) ») dit encore cloudflare par défaut, hors du `Où`. Classement : A6, corriger les deux phrases de `docs/pdf-templates.md` pour dire le driver déclaré et les appelants réels de `render()` ; le sort de `store()` suit P140.02, qui est à valider, et reste hors de ce correctif.
+- Mesure (2026-10-23, b5e5b0401, implementeur) : relu à nouveau → `docs/pdf-templates.md:10` et `:78-81` inchangés ; de plus, `config/laravel-pdf.php` qu'il cite n'est pas publié (`ls takussan-api/config`) et le défaut du paquet est `browsershot` ; `.env.example`, `.env.docker`, `.env.smoke.example` et `phpunit.xml` déclarent `dompdf`, la valeur de préproduction n'est pas écrite dans le dépôt → les deux passages réécrits pour dire la clé, le défaut du paquet, les fichiers qui déclarent `dompdf` et les deux appelants de `render()` ; correctif documentaire, sans test ; `store()` laissé à P140.02.
 
 ## Angle 141 — Encaissements soldés par la plateforme face au relevé bancaire de l'agence
 

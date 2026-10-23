@@ -22,12 +22,7 @@ use RecursiveIteratorIterator;
 class ExistsSurRouteOuverteTest extends TestCase
 {
     /** Relatifs à `app/Http/Requests/`. La Réf est celle de l'entrée du fichier de pistes qui la corrige. */
-    private const EXCEPTIONS = [
-        'Api/IndexCalendarRequest.php' => 'P62.07',
-        'Api/StoreIntegrationRequest.php' => 'P62.07',
-        'Invitation/CreateInvitationRequest.php' => 'P62.07',
-        'Agency/AssignAgencyRoleRequest.php' => 'P62.07',
-    ];
+    private const EXCEPTIONS = [];
 
     /** Les tables dont une ligne appartient à une agence (ou en est une). */
     private const TABLES_D_AGENCE = [

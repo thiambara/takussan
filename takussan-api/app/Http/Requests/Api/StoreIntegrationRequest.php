@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Domain\Integrations\Providers\IntegrationProviderRegistry;
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\AgenceNommeeParLeSuperAdmin;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\Rule;
 
@@ -34,7 +35,9 @@ class StoreIntegrationRequest extends BaseFormRequest
             // TCK-602 (ADR-0051 §3) — un fournisseur que le registre ne connaît pas n'a ni pilote
             // ni schéma : l'accepter, c'était créer une intégration que rien ne lit.
             'provider' => ['required', 'string', 'max:255', Rule::in(app(IntegrationProviderRegistry::class)->keys())],
-            'agency_id' => ['nullable', Rule::exists('agencies', 'id')->withoutTrashed()],
+            // TCK-1772 (P62.07) — l'existence ne se juge que pour le super-admin : tout autre compte
+            // reçoit le 403 `integration.other_agency_forbidden`, l'agence absente comme la tierce.
+            'agency_id' => ['nullable', 'integer', new AgenceNommeeParLeSuperAdmin($this->user())],
             'credentials' => ['required', 'array'],
             'is_active' => ['nullable', 'boolean'],
             'metadata' => ['nullable', 'array'],

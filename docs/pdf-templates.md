@@ -7,7 +7,7 @@ a small set of Blade templates. The service lives in
 
 | Method                                           | Returns                       | When to use                                           |
 | ------------------------------------------------ | ----------------------------- | ----------------------------------------------------- |
-| `render(string $template, array $data)`          | raw PDF bytes                 | emails attachments, background jobs, queue handlers   |
+| `render(string $template, array $data)`          | raw PDF bytes                 | bytes kept by the caller: the frozen lease contract (`LeaseSignatureService`), the booking receipt (`PaymentReceiptPdf`). No email attaches a PDF today |
 | `stream(string $template, array $data, ?name)`   | `Illuminate\Http\Response`    | controller responses (inline, `Content-Type: application/pdf`) |
 | `store(string $template, array $data, Model, ?name)` | persisted `App\Models\Document` | archive the PDF, link to a morphable target via medialibrary |
 
@@ -75,10 +75,14 @@ implementation.
 
 ## Driver / environment
 
-`config/laravel-pdf.php` selects the driver. Production uses the cloudflare
-browserless service; CI/tests pin `dompdf` via `phpunit.xml`
-(`LARAVEL_PDF_DRIVER=dompdf`). Templates must render on both — avoid
-JS-driven layouts, and keep CSS inlined in `<style>` for dompdf.
+`LARAVEL_PDF_DRIVER` selects the driver. The package config is not published
+(no `config/laravel-pdf.php`): without the key, spatie/laravel-pdf falls back to
+`browsershot`. Every environment file of the repository declares `dompdf` —
+`.env.example`, `.env.docker`, `deploy/takussan/.env.smoke.example` — and the
+test suite pins it in `phpunit.xml`. The value deployed in pre-production is not
+recorded in the repository (`docs/infra/hebergement.md` names the key only).
+Templates must render with `dompdf` — avoid JS-driven layouts, and keep CSS
+inlined in `<style>`.
 
 ## Persistence (`store()`)
 
