@@ -261,7 +261,7 @@ voie d'écriture (angle 13, puis 47).
 | 184 | Champs hors statut que le `PATCH` générique écrit alors qu'un geste dédié les garde (`assigned_to` et `scheduled_at` d'`UpdateMaintenanceRequestRequest` face à l'assignation d'intervention, `scheduled_at` et `agent_id` d'`UpdatePropertyVisitRequest` face au report et à la réaffectation de visite, `pipeline_stage` d'`UpdateCustomerRequest` face à `…/pipeline-stage`) : capacité, contrôle de chevauchement, transition, avis et journal du geste sautés — le pendant hors statut de P147.01 | fait |
 | 185 | Formulaires d'édition du front hors du bien, du client et du profil (`src/components/**` et `src/app/actions/*` qui construisent un corps `PATCH`/`PUT` : `|| undefined`, `blank()`, `transform(… ? v : undefined)`, `z.coerce.number()` sur un champ facultatif) : champ vidé omis du corps, ou lu comme `0`, alors que l'API efface sur `null` — le relevé de P149.01 à P149.04 sur le reste des écrans | fait |
 | 186 | Paramètres `filter[…]`, `sort=` et `include=` envoyés par le front à une liste écrite à la main hors de `buildQuery()` (`ConversationController::index`, `ReviewController::index`, `PaymentController::history`, `Admin\AgencyModerationController::index` et leurs pareilles) qui ne les lit pas : filtre ou tri accepté en 200 et sans effet, liste non filtrée montrée comme filtrée — le pendant silencieux de l'angle 150, né de P150.05 | fait |
-| 187 | Paramètres des routes publiques sans compte (`/api/public/properties/search` et `PropertySearchService`, `PublicAgencyController`, `PublicAgentController`, `IndexPublicProfilesRequest`, fiches par slug) face à une valeur mal formée, une liste `[]` ou une virgule : 500 servi à un visiteur anonyme ou à un robot d'indexation au lieu d'un 400 ou d'une liste vide — le relevé de l'angle 151 hors des listes connectées | à faire |
+| 187 | Paramètres des routes publiques sans compte (`/api/public/properties/search` et `PropertySearchService`, `PublicAgencyController`, `PublicAgentController`, `IndexPublicProfilesRequest`, fiches par slug) face à une valeur mal formée, une liste `[]` ou une virgule : 500 servi à un visiteur anonyme ou à un robot d'indexation au lieu d'un 400 ou d'une liste vide — le relevé de l'angle 151 hors des listes connectées | fait |
 | 188 | Paramètres hors `filter[…]` lus à la main puis passés à `Carbon::parse()`, `DayRange` ou une colonne typée (`?from=`/`?to=`/`?start=`/`?end=` du calendrier `CalendarEventCollector` et des tableaux de bord, `?period=`, `?month=`, `?year=`) : 500 sur une date ou un nombre mal formés, et borne de fin en date seule qui exclut le jour — le pendant de l'angle 151 hors de `filter[…]` | à faire |
 | 189 | Gestes montrés par une comparaison d'identité dans les détails (`isAssignedAgent` de `VisitDetail.tsx:98`, `user.id === landlord_id`, `issued_by_id`, `uploaded_by_id`, auteur d'une note ou d'un message) face à la policy, qui exige en plus le personnel actif de l'agence (`PersonnelDeLAgence::personnelActifDe`) ou un bailleur non bloqué (`isBlockedOwnerAt`) : agent parti, suspendu ou bailleur bloqué à qui le geste reste montré et rend 403 — né de P152.04 | à faire |
 | 190 | Créateur d'un bien d'agence (`properties.user_id`) encore membre mais suspendu ou archivé dans l'agence, face aux policies qui l'acceptent par la seule identité (`BookingPolicy::view` et `::update` l. 36 et 51, `InventoryPolicy::view` l. 32, `MaintenanceRequestPolicy::isPrincipalFor` l. 302, `PropertyPolicy::view` l. 51, `ReviewPolicy` l. 85) : lecture et gestes laissés à un agent que l'agence a suspendu — le pendant pour le membre suspendu de P153.01 à P153.03 | à faire |
@@ -289,6 +289,7 @@ voie d'écriture (angle 13, puis 47).
 | 212 | Dates calendaires `Y-m-d` de l'API lues par `new Date(…)` au navigateur puis comparées à l'instant ou ramenées à minuit local (`setHours(0, 0, 0, 0)`, `getDate()` : `EarlyTerminationBanner.daysFromTodayTo`, `LeaseRenewalDialog.tsx:44`, `refine` de `lib/schemas/lease.ts:81` et `booking.ts:42`, et leurs pareilles sous `src/components`) au lieu de la comparaison littérale de jours qu'ADR-0018 pose : jour décalé pour un navigateur hors UTC, ou dès minuit UTC du jour même — né de P183.01 et P183.04 | à faire |
 | 213 | Contrôleurs et services qui écrivent (`fill()->save()`, `update()`, `recordOwnerCost`) puis appellent une garde ou un service qui peut encore lever un 4xx, hors `DB::transaction` (`MaintenanceRequestController::update` l. 211-219 et ses pareils sous `app/Http/Controllers/Api` et `app/Services`) : réponse d'erreur sur une écriture déjà faite, que l'écran présente comme un échec — né de P184.02 | à faire |
 | 214 | Formulaires d'édition qui renvoient en entier une colonne JSON qu'ils ne montrent qu'en partie (`saved_searches.criteria` de `SearchPreferencesForm`, `announcements.segment`, `integrations.metadata`, `available_slots`, `limits` des plans), face à un `fill()` qui remplace la colonne : clés posées par un autre écran ou une autre version effacées par un simple enregistrement — né de P185.01 | à faire |
+| 215 | Identifiants numériques de route hors de `bigint` sur les routes connectées : liaisons implicites `{model}` et paramètres `whereNumber()` (30 sous `routes/`) ou actions typées `int $id`, face à vingt chiffres dans l'URL — 500 `22003` ou `TypeError` au lieu d'un 404 — le relevé de P187.05 hors des routes publiques | à faire |
 
 
 ---
@@ -17259,3 +17260,78 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, et mesuré pour les notes.
 - Piste : retirer les deux paramètres inertes du front (`include` des comptes, `filter[lease_id]`), avec un commentaire qui dit où l'API fixe ses relations. Pour les notes, choisir entre faire lire `sort` à l'API et retirer `sort` du front en documentant l'ordre « épinglées d'abord ». Dans les deux cas, ajouter `orderByDesc('id')` en départage.
 - Mesure (2026-10-23, 6ef281d1e, mesureur) : relu `customers.ts:179-190` (`sort: '-created_at'`), `CustomerNoteController.php:14-25` (aucun `sort` lu, `orderByDesc('pinned')->latest()`, sans départage par `id`), `users/page.tsx:150` (`include=roles,agentProfiles,ownerProfiles`) contre `UserDetailController.php:97-103` (relations chargées en dur), `leases.ts:268-278` (`filter: { lease_id }`) contre `LeasePaymentController.php:30-48` (le bail vient de la route, seul `sort` est lu) ; test temporaire `tests/Feature/Tmp/MesureurTmp186Test.php` (charge `{ 3.27 2.78 2.28 }` sur 8 cœurs, retiré) : une note épinglée d'il y a trois jours et une récente, `GET /api/customers/{id}/notes?sort=-created_at` → `["ancienne epinglee","recente"]` → les trois paramètres sont inertes, le constat tient. Classement : A3, paramètres sans effet des deux côtés ; le correctif sans choix est de les retirer du front en gardant l'ordre servi aujourd'hui (épinglées d'abord) et d'ajouter `orderByDesc('id')` en départage, l'autre voie de la `Piste` (faire lire `sort` à l'API) n'étant pas prise.
+
+## Angle 187 — Paramètres des routes publiques sans compte face à une valeur mal formée
+
+*Exploré le 2026-10-23 sur `pre-dev` c6d3283e8, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : `routes/api/public.php`, `routes/api/geo.php`, les `FormRequest` de `app/Http/Requests/Public/` et `Geo/`, `PublicPropertyController` (`index`, `sitemap`, `search`, `compare`, `byIds`, `map`, `show`, `reviews`, `similar`), `PublicAgencyController` et `PublicAgentController` (`index`, `properties`), `PublicPropertyDocumentController`, `PublicPropertyAvailabilityController`, `PropertySearchService::search()` et `::buildFilter()`, `FiltresDeLaCarte`, `AllowedFilter::splitFilterValue()` de spatie (`vendor/`). Mesures : un test temporaire (`tests/Feature/Tmp/TmpExplorateur187Test.php`, retiré avant la fin), un cas par test pour qu'un 500 SQL n'avorte pas la transaction des suivants, deux agences, deux agents et deux biens publics indexés dans le Meilisearch du test ; 82 requêtes anonymes, charge 2,3 sur 8 cœurs. Ce qui rend 422, 400 ou 404 proprement n'est pas repris ci-dessous (dont `filter=abc`, `sort[]=`, `page[]=` des annuaires, `q[]=`, `tags[]=`, `available_from` illisible, `radius_km` hors borne de la recherche, slugs de 300 caractères ou `%00`, `compare`/`by-ids` avec `1e30` ou 20 chiffres). Les routes `POST` (contact, signalement, demande de visite) n'ont pas été relevées.*
+
+### Une recherche par nom qui contient une virgule est ignorée dans les annuaires publics des agences et des agents, qui rendent alors tout l'annuaire
+- Réf : P187.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Public/PublicAgencyController.php:143-146`, `takussan-api/app/Http/Controllers/Public/PublicAgentController.php:126-129`, `takussan-api/vendor/spatie/laravel-query-builder/src/AllowedFilter.php:220-237`, `takussan-web/src/lib/queries/public-profiles.ts:145`
+- Constat :
+  - spatie découpe toute valeur de filtre qui contient `,` en tableau (lu, `AllowedFilter.php:236-237`). Les deux rappels `search` des annuaires publics sortent sans filtrer quand la valeur n'est pas une chaîne : `if (! is_string($valeur) || trim($valeur) === '') { return; }` (lu, l. 144 et 127). La règle `filter.search => string` d'`IndexPublicProfilesRequest` juge la valeur brute, encore une chaîne, et laisse passer (lu).
+  - mesuré (test temporaire) : agences « Immo, Conseil » et « Sahel Homes » ; `GET /api/public/agencies?filter[search]=Immo` → `total=1` ; `filter[search]=Immo,%20Conseil` (et `Immo%2C%20Conseil`) → `total=2`, tout l'annuaire ; `filter[search]=Immo%20Conseil` → `total=0`. Agents « Awa Diop » et « Moussa Fall » : `filter[search]=Diop` → 1, `filter[search]=Diop,%20Awa` → 2.
+  - Le front passe la saisie du visiteur telle quelle en `filter[search]` (lu, `public-profiles.ts:145`) : chercher « Diop, Awa » rend tous les agents, sans signe que la recherche a été ignorée.
+  - P151.01 a corrigé le même découpage pour `HasQueryBuilder` et le journal (`->delimiter('')`, TCK-1401) ; ces deux annuaires construisent leur `QueryBuilder` à la main et n'en ont pas profité (lu, `grep -n "delimiter" app/Http/Controllers/Public` vide).
+  - Établi comment : lu, test temporaire.
+- Piste : poser `->delimiter('')` sur les deux rappels `search` (la virgule reste du texte). Garde : un test par annuaire qui cherche un nom avec virgule et attend le seul profil qui le porte, à côté d'un second profil qui ne doit pas sortir.
+
+### Un prix ou une surface à partir de 10¹⁵ rend 500 sur la recherche publique : le nombre part au moteur en notation `1.0E+15`
+- Réf : P187.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Search/PropertySearchService.php:527-532`, `:554-559`, `takussan-api/app/Http/Requests/Public/SearchPublicPropertyRequest.php` (`price_min`, `price_max`, `area_min`, `area_max` : `numeric|min:0`, sans `max`), `takussan-api/app/Support/SavedSearchCriteria.php:68-72`
+- Constat :
+  - `buildFilter()` concatène `(float) $p['price_min']` dans la chaîne de filtre Meilisearch (lu, l. 528 ; de même `price_max`, `area_min`, `area_max`). PHP écrit un flottant d'exposant 15 ou plus en notation scientifique (`1.0E+15`), que le moteur refuse.
+  - mesuré (test temporaire) : `GET /api/public/properties/search?price_min=1000000000000000` → **500** `Found unexpected characters at the end of the filter: '+15'` ; même 500 pour `price_min=999999999999999` (15 chiffres), `price_min=1e20`, `area_min=100000000000000000000`. `price_min=1e400` rend 200 et 0 bien (`INF`).
+  - La validation n'y met pas de plafond (`numeric|min:0`, lu). Le front relit `?price_min=` par `Number()` (lu, `types/search.ts:163-166`) : une URL partagée, ou une saisie de seize chiffres, met la page de résultats en erreur.
+  - `alertMatches()` passe par le même `buildFilter()` (lu, l. 217-227), et `SavedSearchCriteria` accepte les mêmes valeurs sans plafond (lu, l. 68-72) : une alerte enregistrée avec un tel prix ferait échouer son envoi à chaque passage (déduit, à vérifier).
+  - Établi comment : lu, test temporaire.
+- Piste : écrire les nombres du filtre sans notation scientifique (un formateur unique, par exemple `number_format($v, 2, '.', '')` ou `sprintf('%F')`, comme le font déjà `_geoBoundingBox` et `_geoRadius` l. 616-641), et poser un `max` aux quatre bornes dans la requête et dans `SavedSearchCriteria`. Garde : un test de recherche avec `price_min=1e15` qui attend 200.
+
+### La carte publique rend 500 sur une surface au-delà de la colonne entière
+- Réf : P187.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Search/FiltresDeLaCarte.php:68-73`, `takussan-api/database/migrations/2026_04_17_160005_create_properties_table.php:27`
+- Constat :
+  - `FiltresDeLaCarte` compare `(float) $p['area_min']` et `area_max` à `properties.area`, un `unsignedInteger` (lu). La règle hérite de la recherche, `numeric|min:0` sans plafond (lu).
+  - mesuré (test temporaire), `bounds=14,-18,15,-17` : `area_min=3000000000` → **500** `22003 value "3000000000" is out of range for type integer` ; `area_min=100000000000000000000` → **500** `22P02 invalid input syntax for type integer: "1.0E+20"` ; `area_min=1e400` → **500** `"INF"`. Le prix, colonne décimale, accepte `1e400` et rend 200 (mesuré).
+  - Établi comment : lu, test temporaire.
+- Piste : borner `area_min`/`area_max` par un `max` dans `SearchPublicPropertyRequest` (la carte en hérite), au plus la borne de la colonne, et lire la valeur comme un entier dans `FiltresDeLaCarte`. À faire avec P187.02, qui touche les mêmes règles. Garde : un test de la carte avec `area_min=3000000000` qui attend 422.
+
+### `bounds` en liste rend 500 sur la carte publique, la règle de forme s'exécutant malgré l'échec de `string`
+- Réf : P187.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Public/MapPublicPropertyRequest.php:42-46`
+- Constat :
+  - La règle `bounds` est `required`, `string`, puis une fermeture qui commence par `explode(',', (string) $value)` (lu). Sans `bail`, Laravel joue la fermeture même quand `string` a échoué.
+  - mesuré (test temporaire) : `GET /api/public/properties/map?bounds[]=1` → **500** `Array to string conversion` ; même chose avec `bounds[]=1&bounds[]=2`.
+  - Établi comment : lu, test temporaire.
+- Piste : ajouter `bail` en tête de la règle `bounds`, ou faire sortir la fermeture sur `! is_string($value)`. Garde : un test avec `bounds[]=1` qui attend 422.
+
+### Un identifiant numérique de route au-delà de `bigint` rend 500 sur deux routes publiques
+- Réf : P187.05
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/routes/api/geo.php:18`, `takussan-api/app/Http/Controllers/Public/GeoReferentialController.php:70`, `takussan-api/routes/api/public.php:118-120`, `takussan-api/app/Http/Controllers/Public/PublicPropertyDocumentController.php:31-33`
+- Constat :
+  - `whereNumber()` accepte toute suite de chiffres (lu). Pour `public/geo/cities/{city}`, la liaison implicite de `GeoCity` passe la valeur à PostgreSQL : mesuré, `GET /api/public/geo/cities/99999999999999999999` → **500** `22003 value "99999999999999999999" is out of range for type bigint` (`/abc` → 404).
+  - Pour le fichier d'un document public, l'action est typée `int $property, int $document` (lu, l. 31) : mesuré, `GET /api/public/properties/{id}/documents/99999999999999999999/file` → **500** `Argument #2 ($document) must be of type int, string given` ; même 500 sur `{property}` trop long.
+  - Ces deux URL sont anonymes, et la seconde vit dans la fiche publique (lu, commentaire l. 115-117) : un robot qui la tronque ou l'altère reçoit un 500.
+  - Établi comment : lu, test temporaire.
+- Piste : une contrainte de route qui borne la longueur (`where('city', '[0-9]{1,18}')`, ou un motif global pour ces paramètres), ou une liaison qui rend 404 hors de `bigint`. Garde : un test par route avec 20 chiffres qui attend 404.
+
+### Petites améliorations
+- Réf : P187.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Public/SearchPublicPropertyRequest.php:117-119`, `takussan-api/app/Services/Search/PropertySearchService.php:586-598`, `takussan-api/app/Services/Search/FiltresDeLaCarte.php` (`parmi('type')`, `rent_period`)
+- Constat :
+  - `type` (`string|max:500`) et `rent_period` (`string`, sans borne) ne sont pas jugés contre leur enum (`PropertyType`, `RentPeriod`), alors que `title_type` et `condition`, juste à côté, rendent 422 sur une valeur inconnue pour éviter « d'écarter le catalogue entier en silence » (lu, commentaires TCK-491 et TCK-508). mesuré : `search?type=nope` → 200 `total=0` ; `search?rent_period=nope` → 200 `total=0`.
+  - Le portefeuille paginé d'un profil lit `per_page` à la main, sans règle (`(int) $request->input('per_page', 24)`, lu, `PublicAgencyController.php:400`, `PublicAgentController.php:378`) : `per_page=abc` ou `per_page[]=3` rendent 200 avec la page par défaut ou une page d'un bien (mesuré). Sans dommage, mais hors de la convention des autres listes publiques, qui valident `per_page`.
+  - Établi comment : lu, test temporaire.
+- Piste : `Rule::enum(PropertyType::class)` par valeur de la liste `type` (sur le modèle de `condition`) et `Rule::enum(RentPeriod::class)` pour `rent_period` ; `per_page` validé dans `PublicPortfolioRequest`. Garde : les tests de `PublicPropertySearchFiltersTest` sur `title_type` étendus à ces deux clés.
