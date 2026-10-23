@@ -50,7 +50,12 @@ const bien = {
 async function soumettre() {
   render(withIntl(<BookingTunnel property={bien} />));
   fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Continuer' }));
+  // Attendre l'étape 1 RENDUE, pas un bouton « Continuer » : l'étape 0 porte le même libellé, et
+  // `handleNext` attend `form.trigger` avant de changer d'étape. Sous charge, `findByRole` rendait
+  // le bouton de l'étape 0, le clic repartait de `stepIndex = 0`, et « Soumettre la demande »
+  // n'apparaissait jamais (run 39909001465 de pre-dev).
+  await screen.findByTestId('booking-total');
+  fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Soumettre la demande' }));
 }
 
