@@ -1,6 +1,6 @@
 import { apiFetch } from '@/lib/api';
 import type { PropertyListItem } from '@/types/property';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 export interface PortfolioPage {
   readonly data: PropertyListItem[];
@@ -12,14 +12,36 @@ export interface PortfolioPage {
   };
 }
 
-export function fetchAgentPortfolio(slug: string, page: number, perPage = 24): Promise<PortfolioPage> {
+export type PortfolioContract = 'rent' | 'sale';
+
+/**
+ * TCK-1730 (P168.02) — `contract` borne la page à un contrat (`filter[contract_type]`) : chaque
+ * onglet du portefeuille se charge par l'API, au lieu de filtrer les biens déjà chargés.
+ */
+function requetePortefeuille(page: number, perPage: number, contract?: PortfolioContract) {
+  const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  if (contract) qs.set('filter[contract_type]', contract);
+  return requete(qs);
+}
+
+export function fetchAgentPortfolio(
+  slug: string,
+  page: number,
+  perPage = 24,
+  contract?: PortfolioContract,
+): Promise<PortfolioPage> {
   return apiFetch<PortfolioPage>(
-    cheminApi`/public/agents/${slug}/properties?page=${page}&per_page=${perPage}`,
+    cheminApi`/public/agents/${slug}/properties${requetePortefeuille(page, perPage, contract)}`,
   );
 }
 
-export function fetchAgencyPortfolio(slug: string, page: number, perPage = 24): Promise<PortfolioPage> {
+export function fetchAgencyPortfolio(
+  slug: string,
+  page: number,
+  perPage = 24,
+  contract?: PortfolioContract,
+): Promise<PortfolioPage> {
   return apiFetch<PortfolioPage>(
-    cheminApi`/public/agencies/${slug}/properties?page=${page}&per_page=${perPage}`,
+    cheminApi`/public/agencies/${slug}/properties${requetePortefeuille(page, perPage, contract)}`,
   );
 }

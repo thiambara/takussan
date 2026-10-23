@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
+import { navigationDeTest } from '@/test/navigation-url';
 import { AuditTrail } from '../AuditTrail';
 import type { ActivityLogEntry } from '@/lib/queries/audit-logs';
 
@@ -16,6 +17,9 @@ import type { ActivityLogEntry } from '@/lib/queries/audit-logs';
  * était un `<div>` piloté par un `useState`, sans `Escape`, sans clic extérieur, sans
  * `aria-expanded`.
  */
+
+// TCK-1738 — les filtres et la page se lisent et s'écrivent dans l'URL.
+vi.mock('next/navigation', async () => (await import('@/test/navigation-url')).moduleNavigation);
 
 const mockFetchLogs = vi.fn();
 /** Le VRAI `fetchAuditLogs`, gardé pour AC18b : il faut voir la requête qui part, pas l'objet. */
@@ -123,6 +127,7 @@ async function celluleObjet() {
 
 describe('<AuditTrail> (TCK-376)', () => {
   beforeEach(() => {
+    navigationDeTest.reinitialiser();
     mockFetchLogs.mockReset();
     toastAdd.mockReset();
     mockFetchLogs.mockResolvedValue(reponse());
@@ -342,6 +347,7 @@ describe('<AuditTrail> (TCK-376)', () => {
  */
 describe('<AuditTrail> — membre et acteur système (TCK-601 · AC18b)', () => {
   beforeEach(() => {
+    navigationDeTest.reinitialiser();
     mockFetchLogs.mockReset();
     toastAdd.mockReset();
     apiRequestMock.mockReset();

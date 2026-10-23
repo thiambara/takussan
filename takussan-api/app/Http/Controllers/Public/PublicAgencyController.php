@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Public\IndexPublicProfilesRequest;
+use App\Http\Requests\Public\PublicPortfolioRequest;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Agency;
@@ -386,7 +387,7 @@ class PublicAgencyController extends Controller
     /**
      * TCK-276 — paginated portfolio for the public agency page (load-more).
      */
-    public function properties(Request $request, string $slug)
+    public function properties(PublicPortfolioRequest $request, string $slug)
     {
         $agency = Agency::query()
             ->where('slug', $slug)
@@ -397,10 +398,12 @@ class PublicAgencyController extends Controller
         abort_if($agency === null, 404);
 
         $perPage = min(max((int) $request->input('per_page', 24), 1), 48);
+        $contrat = $request->contractType();
 
         $properties = Property::query()
             ->where('agency_id', $agency->id)
             ->publicPortfolio()
+            ->when($contrat !== null, fn (Builder $q) => $q->where('contract_type', $contrat))
             ->with('address', 'media')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')

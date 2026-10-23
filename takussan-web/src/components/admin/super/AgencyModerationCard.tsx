@@ -12,6 +12,7 @@ import { ConfirmActionDialog } from './ConfirmActionDialog';
 import { AVEC_MOTIF, GESTE_DE_TRANSITION, transitionsDeModeration } from './agency-moderation';
 import { usePlatformAbilities } from './PlatformAbilitiesProvider';
 import { StatusBadge, type StatusTone } from '@/components/console';
+import { versLeDetail } from './retour-de-liste';
 import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
 
 /** TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.agencyStatus.*`). */
@@ -30,6 +31,8 @@ const STATUS_TONES: Record<string, StatusTone> = {
 
 interface AgencyModerationCardProps {
   agency: AdminAgency;
+  /** TCK-1742 — la requête de la liste, que le lien vers le détail lui passe pour son retour. */
+  readonly requeteListe?: string;
 }
 
 type Action = AgencyModerationAction;
@@ -79,7 +82,8 @@ const VARIANTES: Record<Action, 'default' | 'destructive' | 'outline'> = {
   reinstate: 'default',
 };
 
-export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
+export function AgencyModerationCard({ agency, requeteListe = '' }: AgencyModerationCardProps) {
+  const versDetail = versLeDetail(`/super-admin/agencies/${agency.id}`, requeteListe);
   const t = useTranslations('superAdmin.agencyCard');
   const tStatus = useTranslations('superAdmin.agencyStatus');
   const fmt = useFormatteurs();
@@ -130,7 +134,7 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
           )}
           <div className="min-w-0">
             <h3 className="truncate font-display text-base font-semibold text-foreground">
-              <Link className="rounded-sm transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href={`/super-admin/agencies/${agency.id}`}>
+              <Link className="rounded-sm transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href={versDetail}>
                 {agency.name}
               </Link>
             </h3>
@@ -175,7 +179,7 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
       </dl>
 
       <div className="flex flex-wrap gap-2">
-        <Link className={buttonVariants({ size: 'sm', variant: 'outline' })} href={`/super-admin/agencies/${agency.id}`}>
+        <Link className={buttonVariants({ size: 'sm', variant: 'outline' })} href={versDetail}>
           {t('open')}
         </Link>
         {transitions.map((action) => (

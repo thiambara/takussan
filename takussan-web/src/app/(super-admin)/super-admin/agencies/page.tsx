@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Building2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -23,6 +22,8 @@ import {
 import type { AdminAgenciesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
+import { FILTRES_LISTE_AGENCES, requeteBornee } from '@/components/admin/super/retour-de-liste';
 import { PageHeader } from '@/components/console';
 
 const ALL = '__all__';
@@ -74,12 +75,17 @@ export default function SuperAdminAgenciesPage() {
   const tPage = useTranslations('superAdmin.pages.agencies');
   const tFiltres = useTranslations('console.filterBar');
   const messageErreur = useMessageErreurApi();
-  const searchParams = useSearchParams();
-  // TCK-360 — l'accueil de la console lie ses tuiles vers `?status=…`. Amorce SEULE : la valeur
-  // sert d'état initial et le filtre reste local ensuite. Miroiter le choix dans l'URL
-  // demanderait de câbler les cinq autres filtres de cet écran, ce que ce ticket ne fait pas.
-  const [status, setStatus] = useState(() => seedStatus(searchParams?.get('status')));
-  const [verification, setVerification] = useState(() => seedVerification(searchParams?.get('is_verified')));
+  // TCK-360 — l'accueil de la console lie ses tuiles vers `?status=…` et `?is_verified=…`.
+  // TCK-1742 (P168.04) — l'URL est la SOURCE de ces deux filtres, et plus leur seule amorce : un
+  // choix s'y écrit (`router.replace`), un rechargement ou un lien copié le rendent, et le lien
+  // vers le détail porte cette requête pour que son retour la rende. Recherche, dates, tri et page
+  // restent locaux (le reste de P168.04).
+  const { params: searchParams, remplacer } = useVueDansLUrl();
+  const status = seedStatus(searchParams.get('status'));
+  const verification = seedVerification(searchParams.get('is_verified'));
+  const setStatus = (next: string) => remplacer({ status: next === ALL ? null : next });
+  const setVerification = (next: string) => remplacer({ is_verified: next === ALL ? null : next });
+  const requeteListe = requeteBornee(searchParams.toString(), FILTRES_LISTE_AGENCES);
   const [search, setSearch] = useState('');
   const [createdFrom, setCreatedFrom] = useState('');
   const [createdTo, setCreatedTo] = useState('');
@@ -111,15 +117,14 @@ export default function SuperAdminAgenciesPage() {
   const filtresPoses =
     status !== ALL || verification !== ALL || search !== '' || createdFrom !== '' || createdTo !== '';
 
-  const reinitialiser = useCallback(() => {
-    setStatus(ALL);
-    setVerification(ALL);
+  const reinitialiser = () => {
+    remplacer({ status: null, is_verified: null });
     setSearch('');
     setCreatedFrom('');
     setCreatedTo('');
     setSort('-created_at');
     setPage(1);
-  }, []);
+  };
 
   return (
     <div className="space-y-6">
@@ -257,7 +262,7 @@ export default function SuperAdminAgenciesPage() {
               tronquaient nom, email et dates (TCK-505). */}
           <div className="grid gap-3 lg:grid-cols-2">
             {data.data.map((agency) => (
-              <AgencyModerationCard key={agency.id} agency={agency} />
+              <AgencyModerationCard key={agency.id} agency={agency} requeteListe={requeteListe} />
             ))}
           </div>
           <Pagination

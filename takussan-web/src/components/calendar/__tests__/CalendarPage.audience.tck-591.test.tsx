@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
+import { navigationDeTest } from '@/test/navigation-url';
 import { CalendarPage } from '../CalendarPage';
 
 const { useCalendarMock, redirectMock, getMeMock } = vi.hoisted(() => ({
@@ -22,7 +23,11 @@ vi.mock('@/lib/queries/calendar', () => ({
   useCalendar: useCalendarMock,
   calendarQueryKeys: { range: (p: unknown) => ['calendar', 'range', p] as const },
 }));
-vi.mock('next/navigation', () => ({ redirect: redirectMock }));
+// TCK-1740 — la vue de l'agenda se lit et s'écrit dans l'URL.
+vi.mock('next/navigation', async () => ({
+  ...(await import('@/test/navigation-url')).moduleNavigation,
+  redirect: redirectMock,
+}));
 vi.mock('@/app/actions/auth', () => ({ getMeAction: getMeMock }));
 
 import CalendarLayout from '@/app/(dashboard)/app/calendar/layout';
@@ -34,6 +39,7 @@ function rendu(ui: React.ReactElement) {
 
 describe('agenda — prestataire et agent (AC27)', () => {
   beforeEach(() => {
+    navigationDeTest.reinitialiser();
     useCalendarMock.mockClear();
     redirectMock.mockClear();
   });

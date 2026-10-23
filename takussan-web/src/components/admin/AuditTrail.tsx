@@ -16,6 +16,7 @@ import type { Locale } from '@/i18n/config';
 
 import { useAuth } from '@/context/AuthContext';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { pageDeLUrl, useVueDansLUrl, valeurBornee } from '@/hooks/useVueDansLUrl';
 import type { PaginatedResponse } from '@/types/api';
 import { useToast } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
@@ -201,13 +202,23 @@ export function AuditTrail() {
     ...(membersQuery.data?.data ?? []).map((m) => ({ value: String(m.id), label: memberLabel(m) })),
   ];
 
-  const [dateFrom, setDateFrom] = useState(thirtyDaysAgo());
-  const [dateTo, setDateTo] = useState(today());
-  const [event, setEvent] = useState('');
-  const [subjectType, setSubjectType] = useState('');
-  const [causerId, setCauserId] = useState<number | null>(null);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  // TCK-1738 (P168.03) — dates, événement, objet, membre, recherche et page dans l'URL : la vue
+  // survit au retour de l'objet ouvert d'un clic, au rechargement et au lien copié. Chaque valeur
+  // est bornée ; une valeur inconnue rend le défaut. Un changement de filtre retire `page`.
+  const { params: requete, remplacer } = useVueDansLUrl();
+  const dateDeLUrl = (cle: string) => {
+    const v = requete.get(cle);
+    return v !== null && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+  };
+  const dateFrom = dateDeLUrl('from') ?? thirtyDaysAgo();
+  const dateTo = dateDeLUrl('to') ?? today();
+  const event = valeurBornee(requete, 'event', KNOWN_EVENTS) ?? '';
+  const subjectType = valeurBornee(requete, 'subject', KNOWN_SUBJECT_TYPES.map((st) => st.value)) ?? '';
+  const membre = requete.get('member');
+  const causerId = membre !== null && /^[1-9]\d*$/.test(membre) ? Number(membre) : null;
+  const search = requete.get('search') ?? '';
+  const page = pageDeLUrl(requete);
+  const filtrer = (changement: Record<string, string | null>) => remplacer({ ...changement, page: null });
   const [exportLoading, setExportLoading] = useState(false);
 
   const filters: AuditLogFilters = useMemo(() => ({
@@ -301,7 +312,7 @@ export function AuditTrail() {
           <DatePicker
             value={dateFrom}
             max={dateTo || today()}
-            onValueChange={(value) => { setDateFrom(value); setPage(1); }}
+            onValueChange={(value) => filtrer({ from: value })}
             buttonClassName="h-10"
           />
         </div>
@@ -312,7 +323,7 @@ export function AuditTrail() {
             value={dateTo}
             min={dateFrom}
             max={today()}
-            onValueChange={(value) => { setDateTo(value); setPage(1); }}
+            onValueChange={(value) => filtrer({ to: value })}
             buttonClassName="h-10"
           />
         </div>
@@ -321,7 +332,7 @@ export function AuditTrail() {
           <label className="text-xs font-medium text-muted-foreground">{t('filters.action')}</label>
           <Select
             value={event || ANY}
-            onValueChange={(next) => { setEvent(next === ANY ? '' : (next ?? '')); setPage(1); }}
+            onValueChange={(next) => filtrer({ event: next === ANY ? null : (next ?? null) })}
             items={eventOptions}
           >
             <SelectTrigger className="h-10" aria-label={t('filters.actionAria')}>
@@ -339,7 +350,7 @@ export function AuditTrail() {
           <label className="text-xs font-medium text-muted-foreground">{t('filters.subject')}</label>
           <Select
             value={subjectType || ANY}
-            onValueChange={(next) => { setSubjectType(next === ANY ? '' : (next ?? '')); setPage(1); }}
+            onValueChange={(next) => filtrer({ subject: next === ANY ? null : (next ?? null) })}
             items={subjectTypeOptions}
           >
             <SelectTrigger className="h-10" aria-label={t('filters.subjectAria')}>
@@ -359,10 +370,7 @@ export function AuditTrail() {
           <label className="text-xs font-medium text-muted-foreground">{t('filters.member')}</label>
           <Select
             value={causerId === null ? ANY : String(causerId)}
-            onValueChange={(next) => {
-              setCauserId(!next || next === ANY ? null : Number(next));
-              setPage(1);
-            }}
+            onValueChange={(next) => filtrer({ member: !next || next === ANY ? null : next })}
             items={memberOptions}
           >
             <SelectTrigger className="h-10" aria-label={t('filters.memberAria')}>
@@ -382,7 +390,7 @@ export function AuditTrail() {
           </label>
           {/*
             TCK-376 — chaque frappe changeait la clé de requête, sur des pages de 50 lignes :
-            dix caractères tapés valaient dix requêtes. Le `setPage(1)` reste, et il reste sur
+            dix caractères tapés valaient dix requêtes. Le retour à la page 1 reste, et il reste sur
             les CINQ filtres — poser un filtre depuis la page 7 rend une file vide qui dit
             « aucun résultat » alors que la réponse est page 1.
           */}
@@ -390,7 +398,7 @@ export function AuditTrail() {
             id="audit-search"
             className="w-full sm:w-56"
             value={search}
-            onCommit={(next) => { setSearch(next); setPage(1); }}
+            onCommit={(next) => filtrer({ search: next })}
             placeholder={t('filters.searchPlaceholder')}
             aria-label={t('filters.searchAria')}
             busy={isFetching}
@@ -469,7 +477,7 @@ export function AuditTrail() {
       {meta && meta.last_page > 1 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <span>{t('entries', { count: meta.total, total: String(meta.total) })}</span>
-          <Pagination page={page} lastPage={meta.last_page} onChange={setPage} />
+          <Pagination page={page} lastPage={meta.last_page} onChange={(p) => remplacer({ page: p })} />
         </div>
       ) : null}
     </div>
