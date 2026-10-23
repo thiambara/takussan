@@ -17615,7 +17615,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### L'agent suspendu lit, écrit et liste encore les fils de bail et de bien de son agence
 - Réf : P191.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : ajouter une branche « contexte » à `ConversationAccess` change l'accès aux fils de tous les participants, invités compris (P191.04)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/ConversationAccess.php:37-60,92-115`, `takussan-api/app/Services/Membership/TeamMemberSuspensionService.php:73-118`
 - Constat :
@@ -17626,10 +17626,11 @@ Le PDF de l'état des lieux est P143.01.*
   - `NotifyNewMessageJob` filtre ses destinataires par `branchesAllow` (lu, l. 42-50) : le suspendu reçoit donc l'avis des messages du locataire (à vérifier).
   - Établi comment : lu, puis mesuré.
 - Piste : donner à `ConversationAccess` une branche « contexte » qui juge `LeasePolicy::view` pour un fil à `lease_id` et `PropertyPolicy::view` pour un groupe à `property_id`, dans `allows`, `branchesAllow` et `constrainListing`, comme la branche intervention ; la règle vaut alors pour le suspendu, le retiré et tout cas à venir, et rend `leaveUnreadableLeaseThreads` redondant. Test : agent suspendu → `GET` et `POST …/messages` en 403, fil absent de la liste, pas d'avis ; réactivé → 200 ; locataire et bailleur gardent le fil.
+- Mesure (2026-10-23, b4891d8a9, mesureur) : relu `ConversationAccess::allows`/`branchesAllow`/`constrainListing` (seules les branches intervention et prospect directe, aucune pour `lease_id` ni pour un groupe à `property_id`) et `NotifyNewMessageJob` (filtre par `branchesAllow`), inchangés ; `git log 60fd5f865..b4891d8a9` sur `app/Services/Messaging`, `app/Services/Agency`, `app/Services/Membership`, `ConversationPolicy`, les requêtes et contrôleurs de conversation → aucun commit ; aucun ticket ne cite P191 ; test temporaire `tests/Feature/TmpMesureur/Sonde191Test.php` (retiré, charge 2,73 / 2,35 / 2,13 sur 8 cœurs) sur `MaintenanceActors` (`maintenanceScenario`, bail passé à l'agence, agent de l'agence, un groupe à `lease_id` + `property_id` et un groupe à `property_id` seul, agent administrateur, locataire membre), agent suspendu par `TeamMemberSuspensionService::suspend` → `staffAgencyId()` null, `can('view')` bail et bien faux, mais pour les deux fils `allows` vrai, `branchesAllow` vrai (l'avis de message lui part donc, par le filtre lu du job), `GET /api/conversations/{id}` 200, `GET …/messages` 200, `POST …/messages` 201, fil listé, `left_at` nul → le constat tient en entier. Classement : V2, le correctif retire un accès que la participation donne aujourd'hui et la branche proposée jugerait aussi les invités légitimes d'un fil, dont la règle n'est pas écrite (P191.04).
 
 ### Le membre retiré garde le groupe rattaché à un bien de l'agence : TCK-1711 ne quitte que les fils de bail
 - Réf : P191.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : étendre TCK-1711 aux groupes de bien revient sur la voie « la plus étroite » choisie par P153.04
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:119-143`, `takussan-api/app/Services/Messaging/ConversationAccess.php:56-60`
 - Constat :
@@ -17638,10 +17639,11 @@ Le PDF de l'état des lieux est P143.01.*
   - La piste de P153.04 nommait aussi les fils à `property_id` ; l'implémenteur a retenu « la plus étroite des deux » voies (lu, sa ligne `Mesure`).
   - Établi comment : lu, puis mesuré.
 - Piste : la branche « contexte » de P191.01 couvre ce cas ; à défaut, étendre `leaveUnreadableLeaseThreads` aux groupes à `property_id` d'un bien de l'agence, jugés par `PropertyPolicy::view`. Test : retrait en `leave_unassigned` → `GET …/messages` du groupe de bien en 403, le locataire le garde.
+- Mesure (2026-10-23, b4891d8a9, mesureur) : relu `AgencyMemberRemovalService::leaveUnreadableLeaseThreads` (ne prend que les fils dont `lease_id` est un bail de l'agence), inchangé ; `git log 60fd5f865..b4891d8a9` sur `app/Services/Messaging`, `app/Services/Agency`, `app/Services/Membership`, `ConversationPolicy`, les requêtes et contrôleurs de conversation → aucun commit ; aucun ticket ne cite P191 ; test temporaire `tests/Feature/TmpMesureur/Sonde191Test.php` (retiré, charge 2,73 / 2,35 / 2,13 sur 8 cœurs) sur `MaintenanceActors` (`maintenanceScenario`, bail passé à l'agence, agent de l'agence, un groupe à `lease_id` + `property_id` et un groupe à `property_id` seul, agent administrateur, locataire membre), agent retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` → fil à `lease_id` quitté (`left_at` posé, `allows` faux, `GET`, `GET …/messages` et `POST …/messages` en 403, absent de la liste), mais groupe à `property_id` seul gardé : `can('view', $property)` faux, `allows` vrai, `GET …/messages` 200, `POST …/messages` 201, listé, `left_at` nul → le constat tient en entier. Classement : V2, l'implémenteur de P153.04 a écarté les fils à `property_id` en choisissant la voie la plus étroite, et la piste propose deux voies (branche « contexte » ou extension du retrait).
 
 ### L'agent suspendu, administrateur d'un groupe de bail, y ajoute un tiers qui lit alors tout le fil
 - Réf : P191.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : retirer au suspendu ses gestes d'administrateur de groupe touche une autorisation que la policy accorde aujourd'hui
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/ConversationPolicy.php:22-25`, `takussan-api/app/Http/Controllers/Api/ConversationParticipantController.php:37`, `takussan-api/app/Services/Messaging/MessagingReach.php:100-175`
 - Constat :
@@ -17649,10 +17651,11 @@ Le PDF de l'état des lieux est P143.01.*
   - mesuré (test temporaire) : agent suspendu, administrateur du groupe à `lease_id`, ayant un correspondant Y (une directe antérieure) → `POST /api/conversations/{id}/participants` `{user_ids:[Y]}` → 201 ; Y, sans lien au bail (`can('view', $lease)` faux), lit le fil (`GET …/messages` 200, historique compris) et y écrit (201).
   - Établi comment : lu, puis mesuré.
 - Piste : la branche « contexte » de P191.01 retire au suspendu ses gestes d'administrateur (`isActiveAdmin` passe par `ConversationAccess`, à vérifier) ; pour le tiers ajouté, voir P191.04. Test : agent suspendu → ajout en 403.
+- Mesure (2026-10-23, b4891d8a9, mesureur) : relu `ConversationPolicy::addParticipant` (administrateur actif du groupe, rien d'autre) et `MessagingReach` règle 1 (tout correspondant), inchangés ; `git log 60fd5f865..b4891d8a9` sur `app/Services/Messaging`, `app/Services/Agency`, `app/Services/Membership`, `ConversationPolicy`, les requêtes et contrôleurs de conversation → aucun commit ; aucun ticket ne cite P191 ; test temporaire `tests/Feature/TmpMesureur/Sonde191Test.php` (retiré, charge 2,73 / 2,35 / 2,13 sur 8 cœurs) sur `MaintenanceActors` (`maintenanceScenario`, bail passé à l'agence, agent de l'agence, un groupe à `lease_id` + `property_id` et un groupe à `property_id` seul, agent administrateur, locataire membre), Y correspondant de l'agent par une directe antérieure, agent suspendu → `POST /api/conversations/{id}/participants` `{user_ids:[Y]}` → 201 ; Y : `can('view', $lease)` faux, `allows` vrai, `GET …/messages` 200, `POST …/messages` 201, fil listé → le constat tient en entier. Classement : V2, le correctif change qui peut ajouter un participant à un groupe, et dépend de la règle des participants d'un fil de bail que P191.04 laisse à écrire.
 
 ### Un groupe rattaché à un bail accepte des participants qui ne lisent pas le bail, et leur ouvre le fil du locataire
 - Réf : P191.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : qui peut participer à un fil de bail n'est écrit nulle part ; un artisan ou un garant peut y être voulu
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Conversation/Concerns/GuardsConversationScope.php:46-73`, `takussan-api/app/Http/Requests/Conversation/CreateGroupConversationRequest.php:54-71`
 - Constat :
@@ -17661,10 +17664,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Que le contexte de bail borne les participants n'est écrit nulle part (à vérifier dans `docs/features.md` § messagerie) : c'est peut-être voulu (un artisan, un garant), d'où 🟠.
   - Établi comment : lu, puis mesuré.
 - Piste : écrire la règle — participants d'un fil de bail = parties au bail, personnel de l'agence et invités explicites — puis, si elle borne, l'appliquer au moment de la création et de l'ajout ; la branche de P191.01 ne doit pas fermer le fil à un invité légitime sans que la règle le dise.
+- Mesure (2026-10-23, b4891d8a9, mesureur) : relu `GuardsConversationScope::guardContext` (seul l'acteur est jugé face au bail) et `guardReach` (joignabilité seule pour les autres), inchangés ; `grep` de `docs/features.md` : la ligne 277 (groupes) dit le bail « dans le périmètre visible de l'acteur », rien sur les autres participants ; `git log 60fd5f865..b4891d8a9` sur `app/Services/Messaging`, `app/Services/Agency`, `app/Services/Membership`, `ConversationPolicy`, les requêtes et contrôleurs de conversation → aucun commit ; aucun ticket ne cite P191 ; test temporaire `tests/Feature/TmpMesureur/Sonde191Test.php` (retiré, charge 2,73 / 2,35 / 2,13 sur 8 cœurs) sur `MaintenanceActors` (`maintenanceScenario`, bail passé à l'agence, agent de l'agence, un groupe à `lease_id` + `property_id` et un groupe à `property_id` seul, agent administrateur, locataire membre), sans fil préalable : agent actif, X et le locataire correspondants de l'agent par une directe → `POST /api/conversations` `{type: group, subject, lease_id, participants: [locataire, X]}` → 201 ; X : `can('view', $lease)` faux, `allows` vrai, `GET …/messages` 200, `POST …/messages` 201, fil listé ; le groupe créé sans `property_id` le rend `null` (le constat dit le fil listé avec `property_id` : c'est seulement si la requête l'envoie) → le constat tient. Classement : V7, borner les participants d'un fil de bail est une règle de produit à écrire d'abord, comme la piste le dit elle-même.
 
 ### Petites améliorations
 - Réf : P191.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : aucune règle écrite ne dit quels `type` la directe accepte, et la piste propose deux voies plus une autre forme des données du seeder
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:44`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:102-128`, `takussan-api/database/seeders/Operations/ConversationSeeder.php:46-52`, `takussan-web/src/types/message.ts:6`
 - Constat :
@@ -17672,3 +17676,4 @@ Le PDF de l'état des lieux est P143.01.*
   - Le seeder écrit des fils `property` à `property_id` de 2 à 4 participants (lu, l. 46-52 ; 146 en base de développement, mesuré par `SELECT`). Ce n'est pas un fil de prospect pour `ConversationAccess` (`isProspectThread` exige `Direct`) : la base de développement montre une forme que l'application ne produit pas et que la règle d'accès ne juge pas.
   - Établi comment : lu, mesuré.
 - Piste : borner `type` du chemin direct à `direct` (ou le retirer de la requête : `storeGroup` lit `group`) ; faire écrire au seeder des directes de prospect (`direct` + `property_id`, deux participants, créateur prospect) et des groupes, comme l'application. Test : `type=lease` → 422.
+- Mesure (2026-10-23, b4891d8a9, mesureur) : relu `StoreConversationRequest` (`type` : `Rule::enum(ConversationType::class)`), `ConversationController::store` (`type` enregistré tel quel hors `group`) et `ConversationSeeder` l. 46-52 (`Property` dès qu'un `property_id` est tiré), inchangés ; `grep -rnE "type: ?['\"](support|direct|lease|group)" takussan-web/src` → seul `NewGroupDialog` envoie un `type` (`group`), `types/message.ts:6` = `direct | group | support` ; `grep -rn "ConversationType::(Support|Lease|Booking|Property)" app` → aucun écrivain ; `git log 60fd5f865..b4891d8a9` sur `app/Services/Messaging`, `app/Services/Agency`, `app/Services/Membership`, `ConversationPolicy`, les requêtes et contrôleurs de conversation → aucun commit ; aucun ticket ne cite P191 ; même test temporaire, agent correspondant du locataire : `POST /api/conversations` `{type: lease|booking|property|support, participants:[locataire], lease_id}` → 201 chaque fois, `type` enregistré tel quel → le constat tient (le `SELECT` de la base de développement n'a pas été rejoué). Classement : V7, borner ou retirer `type` est un choix d'API sans règle écrite, et la forme des fils du seeder (prospect direct ou groupe) se décide avec lui.
