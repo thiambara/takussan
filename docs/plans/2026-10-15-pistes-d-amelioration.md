@@ -17297,7 +17297,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### La carte publique rend 500 sur une surface au-delà de la colonne entière
 - Réf : P187.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1847 — reste : le plafond `max` sur `area_min`/`area_max` de `SearchPublicPropertyRequest` que la `Piste` proposait, qui ferait rendre 422 à la liste là où elle rend 200 aujourd'hui
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Search/FiltresDeLaCarte.php:68-73`, `takussan-api/database/migrations/2026_04_17_160005_create_properties_table.php:27`
 - Constat :
@@ -17306,6 +17306,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : borner `area_min`/`area_max` par un `max` dans `SearchPublicPropertyRequest` (la carte en hérite), au plus la borne de la colonne, et lire la valeur comme un entier dans `FiltresDeLaCarte`. À faire avec P187.02, qui touche les mêmes règles. Garde : un test de la carte avec `area_min=3000000000` qui attend 422.
 - Mesure (2026-10-23, 13aa0411a, mesureur) : relu `FiltresDeLaCarte.php:68-73` (`(float) $p['area_min']` comparé à `properties.area`), la migration `create_properties_table.php:27` (`unsignedInteger`, soit `integer` signé sous PostgreSQL, borne 2147483647), et la règle héritée `numeric|min:0` ; test temporaire `tests/Feature/Tmp/MesureurTmp187Test.php` (un cas par méthode, charge `{ 2.72 2.62 3.32 }` sur 8 cœurs, retiré), `bounds=14,-18,15,-17` : `area_min=3000000000` → **500** `22003 … out of range for type integer`, `area_min=100000000000000000000` → **500** `22P02 … "1.0E+20"`, `area_min=1e400` → **500** `"INF"`, `price_min=1e400` → 200 → le constat tient entier. Classement : A1, une requête validée ne doit pas rendre 500 ; le correctif attendu est `max:2147483647` sur `area_min`/`area_max` de `SearchPublicPropertyRequest` (la borne vient de la colonne, la carte en hérite) et une lecture entière dans `FiltresDeLaCarte`, test `area_min=3000000000` → 422 sur la carte.
+- Mesure (2026-10-23, 772307dd4, implementeur) : test neuf à jeu de données `PropertyMapTest::test_map_une_surface_hors_de_la_colonne_entiere_ne_rend_pas_500`, sept rouges avant correctif : 500 `22003` sur `area_min`/`area_max=3000000000`, `22P02` sur `1.0E+20`, `INF`, et aussi sur `119.5` (une surface décimale cassait la carte, ce que le constat ne relevait pas) → bornes lues en entier dans `FiltresDeLaCarte` (minimum arrondi au-dessus, maximum au-dessous, bornés par 2³¹ − 1), sans `max` dans la requête : il ferait rendre 422 à `/search`, qui rend 200 sur `area_min=3000000000` ; ablation (`FiltresDeLaCarte` de `pre-dev`) → sept rouges, remis → 20/20 dans `PropertyMapTest`, 31/31 dans `MapFiltersParityTest`.
 
 ### `bounds` en liste rend 500 sur la carte publique, la règle de forme s'exécutant malgré l'échec de `string`
 - Réf : P187.04
