@@ -7,9 +7,13 @@
     // the source of truth for which currency we settled on at issuance time;
     // we fall back to the agency's current currency, then XOF for safety.
     $currency = $invoice->currency ?? $agency?->currency ?? 'XOF';
+    // P140.03 (TCK-1790) — une facture émise imprime les mentions, le destinataire et la
+    // désignation figés à son émission (`InvoiceNumberAllocator`) ; un brouillon, ou une facture
+    // émise avant ce gel, les valeurs courantes.
+    $issued = is_array($invoice->metadata['issued'] ?? null) ? $invoice->metadata['issued'] : null;
     // TCK-835 (P26.05) — sans lignes, la désignation de l'objet facturé, et « Prestation » en dernier.
     $lines = $lines ?? [[
-        'label' => $invoice->designation() ?? 'Prestation',
+        'label' => ($issued !== null ? ($issued['designation'] ?? null) : $invoice->designation()) ?? 'Prestation',
         'qty' => 1,
         'unit_price' => $invoice->subtotal,
         'total' => $invoice->subtotal,
@@ -21,12 +25,23 @@
     // légales de l'agence s'impriment quand elles existent, jamais un libellé vide.
     $isCreditNote = ($invoice->kind?->value ?? $invoice->kind) === 'credit_note';
     $credited = $isCreditNote ? $invoice->creditedInvoice : null;
+    $legalSource = $issued !== null ? (array) ($issued['agency'] ?? []) : [
+        'legal_name' => $agency?->legal_name,
+        'ninea' => $agency?->ninea,
+        'rccm' => $agency?->rccm,
+        'legal_address' => $agency?->legal_address,
+    ];
     $legal = array_filter([
-        'Raison sociale' => $agency?->legal_name,
-        'NINEA' => $agency?->ninea,
-        'RCCM' => $agency?->rccm,
-        'Adresse' => $agency?->legal_address,
+        'Raison sociale' => $legalSource['legal_name'] ?? null,
+        'NINEA' => $legalSource['ninea'] ?? null,
+        'RCCM' => $legalSource['rccm'] ?? null,
+        'Adresse' => $legalSource['legal_address'] ?? null,
     ], static fn ($value): bool => is_string($value) && trim($value) !== '');
+    $recipient = $issued !== null ? (array) ($issued['customer'] ?? []) : [
+        'name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: ($customer->name ?? null),
+        'email' => $customer->email ?? null,
+        'phone' => $customer->phone ?? null,
+    ];
 @endphp
 
 @section('content')
@@ -67,18 +82,18 @@
     <table class="kv">
         <tr>
             <th>Client</th>
-            <td>{{ trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: ($customer->name ?? '—') }}</td>
+            <td>{{ ($recipient['name'] ?? null) ?: '—' }}</td>
         </tr>
-        @if ($customer->email ?? false)
+        @if ($recipient['email'] ?? false)
         <tr>
             <th>Email</th>
-            <td>{{ $customer->email }}</td>
+            <td>{{ $recipient['email'] }}</td>
         </tr>
         @endif
-        @if ($customer->phone ?? false)
+        @if ($recipient['phone'] ?? false)
         <tr>
             <th>Téléphone</th>
-            <td>{{ $customer->phone }}</td>
+            <td>{{ $recipient['phone'] }}</td>
         </tr>
         @endif
     </table>
