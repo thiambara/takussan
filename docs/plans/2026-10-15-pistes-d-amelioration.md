@@ -14898,7 +14898,7 @@ mais les valeurs mises en cache relues sont des scalaires et des tableaux, sans 
 
 ### `MediaConversionTest` garde une réponse de téléversement que seule la file `sync` produit : en développement et en préproduction, `preview` et `full` y sont nulles
 - Réf : P156.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1760
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/tests/Feature/Media/MediaConversionTest.php:37-67`, `takussan-api/app/Http/Controllers/Api/MediaController.php:54-57`, `takussan-api/app/Http/Resources/MediaResource.php:123-138`, `takussan-api/config/media-library.php:61`, `:74`, `:79`
 - Constat :
@@ -14909,6 +14909,7 @@ mais les valeurs mises en cache relues sont des scalaires et des tableaux, sans 
   - Établi comment : lecture, puis le test lancé sous les deux régimes de file.
 - Piste : écrire le contrat réel (la réponse du téléversement ne promet que `thumbnail`, les deux autres arrivent avec le worker) dans le test, joué sous la file `database`, et corriger le commentaire de `MediaController::store()`. Si P156.01 est retenu, ce test rougit avec lui et se corrige du même pas.
 - Mesure (2026-10-22, 5b942c15d, mesureur) : relu `MediaController::store()` (commentaire « generated_conversions written by the sync conversion job », toujours là) et `MediaConversionTest.php:37-67` ; `php artisan test tests/Feature/Media/MediaConversionTest.php` → 3/3 ; `QUEUE_CONNECTION=database php artisan test tests/Feature/Media/MediaConversionTest.php` → `test_uploading_image_generates_thumbnail_preview_full_urls` rouge (« false is true », `hasGeneratedConversion('preview')`), les deux autres verts ; `git log -S` sur le commentaire → seuls TCK-050 et l'explorateur → le constat tient ; la réponse servie hors suite reste déduite, comme le disait le constat. Classement : A6, le test et le commentaire décrivent un régime que le développement et la préproduction n'ont pas, et le front ne lit pas `conversions` : les ramener à ce que fait le code ne change aucun comportement.
+- Mesure (2026-10-23, 4436bf690, implementeur) : relu `MediaController::store()` (commentaire « sync conversion job », inchangé) ; test neuf `MediaConversionTest::test_sous_une_file_reelle_la_reponse_ne_promet_que_la_vignette`, file `database` : réponse `thumbnail` non nulle, `preview` et `full` nulles, un job en file `media`, puis `queue:work --stop-when-empty` → `preview` et `full` produites ; 4/4 verts. Le même test sans ses deux lignes de configuration (file `sync`) → rouge sur `preview` non nulle : il sépare les deux régimes. Commentaire de `store()` corrigé, test `sync` existant documenté comme garde de production des conversions ; pas d'ablation de code (A6, aucun comportement changé) ; `MediaGenericUploadTest` vert.
 
 ### Petites améliorations
 - Réf : P156.03
