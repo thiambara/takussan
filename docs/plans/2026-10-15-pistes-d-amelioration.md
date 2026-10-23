@@ -18446,7 +18446,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### L'éligibilité à l'avis lue par la fiche d'un bien ne suit pas la règle du dépôt : formulaire offert puis 403 ou 422, ou refusé à qui peut noter
 - Réf : P201.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : qu'une visite finalisée ouvre ou non l'avis d'un bien (TCK-180 contre `ReviewEligibility`), et le texte `notEligible` qui la cite
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:899-948`, `takussan-api/app/Services/Review/ReviewEligibility.php:36-49`, `takussan-api/app/Http/Requests/Api/StoreForPropertyReviewRequest.php:29-45`, `takussan-api/app/Http/Controllers/Api/ReviewController.php:305-306`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:279-334`, `takussan-web/src/app/actions/property.ts:109-133`
 - Constat :
@@ -18457,10 +18457,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - TCK-180 écrit qu'une visite `completed` ouvre l'avis (lu, `TCK-180-…md:23,54`) ; `ReviewEligibility` écrit la règle inverse (« une réservation ou un bail », l. 26-27). Laquelle fait foi n'est écrit nulle part ailleurs (à vérifier).
   - Établi comment : code relu des deux côtés et mesure PHPUnit ; le rendu n'a pas été vu.
 - Piste : faire rendre à `review-eligibility` le verdict de `ReviewEligibility::forProperty` (et `already_reviewed` en `withTrashed()`), pour qu'une seule règle juge la lecture et l'écriture ; trancher d'abord le cas de la visite (TCK-180 contre `ReviewEligibility`) et le texte `notEligible` qui la cite. Garde : un test qui, pour chaque preuve (visite, bail par statut, réservation par statut, avis retiré), exige que `eligible && !already_reviewed` égale « le dépôt rend 201 ».
+- Mesure (2026-10-23, e75677bf8, mesureur) : relu `PublicPropertyController::reviewEligibility` (visite `completed` ou bail de tout statut, avis lus sans `withTrashed()`), `StoreForPropertyReviewRequest::authorize` → `ReviewEligibility::forProperty` (réservation `confirmed`/`completed` ou bail `active`/`terminating`/`terminated`/`expired`), `ReviewController::storeForProperty` (`withTrashed()`), aucun commit sur ces fichiers depuis 49aa336db ; test PHPUnit temporaire, charge 3,03 sur 8 cœurs, retiré ensuite → visite `completed` : `eligible=true`, dépôt 403 ; bail `draft` : `eligible=true`, dépôt 403 ; réservation `confirmed` : `eligible=false`, dépôt 201 ; avis supprimé en douceur et bail actif : `already_reviewed=false`, dépôt 422 : le constat tient en entier. Classement : V7, aligner la lecture sur le dépôt retire l'avis aux visiteurs que la fiche invite aujourd'hui, et TCK-180 écrit l'inverse de `ReviewEligibility` : laquelle fait foi est un choix de produit.
 
 ### La fiche d'un bail montre « Partagez votre expérience » à l'agent, au bailleur et à l'administrateur d'agence
 - Réf : P201.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeaseDetail.tsx:76-80,344-354`, `takussan-web/src/components/bookings/BookingDetail.tsx:122,322`
 - Constat :
@@ -18468,10 +18469,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Mesuré par un test vitest temporaire de `LeaseDetail` (bail `active` avec un bien, `LeaveReviewCta` remplacé par un repère) : rôles `agent`, `owner`, `agency_admin` → l'appel s'affiche, comme pour `customer`.
   - Le dépôt n'accepte que le locataire du bail (lu, `ReviewEligibility.php:176-183`, `tenant.user_id`) : le gestionnaire qui suit le lien arrive sur la fiche publique avec « Vous pourrez laisser un avis… » (déduit de P201.01, non vu).
 - Piste : ne monter l'appel que pour le locataire du bail (ou hors `isAgentSurface`, comme la fiche de réservation). Garde : un test de `LeaseDetail` en rôle `agent` qui exige l'absence de l'appel.
+- Mesure (2026-10-23, e75677bf8, mesureur) : relu `LeaseDetail.tsx:344` (l'appel monté sur `canLeaseLeaveReview(lease) && lease.property?.slug`, sans rôle) et `BookingDetail.tsx:322` (`!isDashboardAgent`), aucun commit depuis 49aa336db ; test vitest temporaire de `LeaseDetail` (bail avec bien, `LeaveReviewCta` remplacé par un repère), charge 4,06 sur 8 cœurs, retiré ensuite → rôles `agent`, `owner`, `agency_admin` sur un bail `active` ou `renewed` : appel affiché, comme pour `customer` : le constat tient. Le type `Lease` du front n'expose pas le `user_id` du locataire (lu, `types/lease.ts:56`, `tenant_id` seul) : le correctif sans changement d'API est la condition `!isAgentSurface`, que la fiche emploie déjà (l. 232). Classement : A1, le dépôt n'accepte que le locataire (`ReviewEligibility::leasesOf`, `tenant.user_id`) et la fiche de réservation applique déjà la même exclusion : aucun choix de produit.
 
 ### Les prédicats `canLeaseLeaveReview` et `canBookingLeaveReview` recopient une règle de l'API devenue autre, et ignorent un avis déjà déposé
 - Réf : P201.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : verdict porté par l'API ou appel redirigé vers `/app/profile/reviews`, et l'appel masqué après l'avis
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/reviews/reviewEligibility.ts:9-28`, `takussan-web/src/components/reviews/__tests__/reviewEligibility.test.ts`, `takussan-api/app/Services/Review/ReviewEligibility.php:36-39`
 - Constat :
@@ -18479,13 +18481,15 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Côté réservation, le front ne retient que `completed` (lu, l. 9-14), l'API `confirmed` et `completed` (lu, l. 36). Le test du front fige `confirmed` comme non éligible et `renewed` comme éligible (lu, `reviewEligibility.test.ts`).
   - Ni l'une ni l'autre fiche ne sait si l'avis est déjà déposé : l'appel reste affiché après l'avis, et mène à « Merci, vous avez déjà laissé un avis » (lu, `LeaveReviewCta.tsx`, aucune lecture d'avis ; `PropertyReviews.tsx:330-333`).
 - Piste : faire porter le verdict par l'API (un drapeau sur la ressource du bail et de la réservation, calculé par `ReviewEligibility` et l'absence d'avis), ou diriger l'appel vers `/app/profile/reviews`, dont la liste d'invitations suit déjà la règle et les avis déposés. Garde : un test par statut qui compare le prédicat ou le drapeau à `ReviewEligibility::LEASE_STATUSES` et `BOOKING_STATUSES`.
+- Mesure (2026-10-23, e75677bf8, mesureur) : relu `reviewEligibility.ts` (réservation `completed` seule ; bail `active`/`expired`/`terminated`/`renewed`, « Mirrors `ReviewController@storeForProperty` ») contre `ReviewEligibility::BOOKING_STATUSES` (`completed`, `confirmed`) et `LEASE_STATUSES` (`active`, `terminating`, `terminated`, `expired`), et `reviewEligibility.test.ts:18,46-47` (`confirmed` figé non éligible, `renewed` éligible) ; même test vitest temporaire que P201.02, rôle `customer` → bail `renewed` : appel affiché ; bail `terminating` : absent : le constat tient. Classement : V7, la piste propose deux voies (drapeau de l'API, ou appel renvoyé vers `/app/profile/reviews`) et masquer l'appel après l'avis change ce que voit le client ; seul l'alignement des statuts sur l'API relèverait de A1.
 
 ### Petites améliorations
 - Réf : P201.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : un texte neuf pour l'envoi partiel, et le sort d'un second signalement
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/profile/ProfileReviewsList.tsx:198-217`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:780-795`, `takussan-api/app/Services/Review/ReviewReportService.php:44-49`
 - Constat :
   - Le formulaire d'invitation dépose un avis par cible notée, en série ; si le deuxième échoue, le premier est déjà enregistré, mais l'écran ne montre que l'erreur, sans dire qu'une partie est partie (lu, `ProfileReviewsList.tsx:204-217`, le `toast` de succès n'est posé qu'après la boucle). La cible déposée disparaît ensuite de la liste relue (déduit, non mesuré).
   - Un second signalement du même bien dans les 24 h, même avec un autre motif ou d'autres détails, est jeté sans trace et rend le même remerciement (lu, `PublicPropertyController.php:783-795`) ; de même pour un avis (lu, `ReviewReportService.php:44-49`). Que ce soit voulu par TCK-597 est probable (à vérifier) ; le motif ajouté est perdu.
 - Piste : dans le formulaire d'invitation, dire quelles cibles sont parties avant l'erreur ; pour le signalement, ajouter le détail du second envoi au premier signalement, ou l'écrire comme voulu dans le code.
+- Mesure (2026-10-23, e75677bf8, mesureur) : relu `ProfileReviewsList.tsx:198-217` (dépôts en série dans un `try`, le `toast` de succès après la boucle, l'erreur seule sinon) et `PublicPropertyController.php:780-795` (second signalement du même bien par le même compte ou la même empreinte dans les 24 h : `return` sans écrire) ; `ReviewReportService.php:44-49` dédoublonne un avis **sans fenêtre de 24 h** (tout signalement antérieur du même compte ou de la même empreinte compte), le constat est inexact sur ce point ; le dédoublonnage vient de TCK-597 (lu, ticket, l. 106-113) ; l'envoi partiel n'est pas rejoué. Classement : V7, dire quelles cibles sont parties demande un texte neuf, et fusionner ou jeter le second signalement est un choix que TCK-597 n'écrit pas.
