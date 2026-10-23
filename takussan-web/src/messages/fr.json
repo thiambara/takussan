@@ -9738,10 +9738,6 @@
     "profiles": {
       "loadFailed": "Impossible de charger vos profils.",
       "switchFailed": "Impossible de changer de profil."
-    },
-    "customerDocuments": {
-      "tooLarge": "Le fichier dépasse 10 Mo.",
-      "unsupportedType": "Type de fichier non autorisé (images ou PDF uniquement)."
     }
   },
   "validation": {

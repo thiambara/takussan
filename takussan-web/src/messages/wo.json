@@ -9738,10 +9738,6 @@
     "superAdminCooptation": {
       "enrollFailed": "Mënunu tambali 2FA bu super-njiit bi.",
       "invalidTotp": "Kodd TOTP bi baaxul."
-    },
-    "customerDocuments": {
-      "tooLarge": "Fiise bi ëpp na 10 Mo.",
-      "unsupportedType": "Xeetu fiise bi nangu-wul (nataal walla PDF rekk)."
     }
   },
   "validation": {

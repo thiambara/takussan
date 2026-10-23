@@ -9738,10 +9738,6 @@
     "superAdminCooptation": {
       "enrollFailed": "Could not set up super-admin two-factor authentication.",
       "invalidTotp": "Invalid TOTP code."
-    },
-    "customerDocuments": {
-      "tooLarge": "The file is larger than 10 MB.",
-      "unsupportedType": "File type not allowed (images or PDF only)."
     }
   },
   "validation": {
