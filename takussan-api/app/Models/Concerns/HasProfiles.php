@@ -9,6 +9,7 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PlatformAbility;
 use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Lease;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -40,7 +41,7 @@ trait HasProfiles
      * {@see self::hasActiveTenantLease()}). Constante pour que le préchargement de
      * `tenantLeases` (TCK-653, liste des membres) filtre exactement comme la requête.
      */
-    public const ACTIVE_TENANT_LEASE_STATUSES = [LeaseStatus::Active->value, LeaseStatus::Terminating->value];
+    public const ACTIVE_TENANT_LEASE_STATUSES = Lease::ONGOING_STATUSES;
 
     public function ownerProfiles(): HasMany
     {

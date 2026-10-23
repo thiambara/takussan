@@ -27,6 +27,14 @@ class Lease extends AbstractModel implements HasMedia
 {
     use Auditable, HasFactory, InteractsWithMedia, SoftDeletes;
 
+    /**
+     * P162.02 (TCK-1714) — les baux EN COURS : `active`, et `terminating`, dont le loyer reste dû
+     * jusqu'à la date d'effet du préavis (`LeaseStatus`). Une seule définition, que lisent le
+     * locataire (`HasProfiles::ACTIVE_TENANT_LEASE_STATUSES`), le bailleur, l'agence, ses
+     * statistiques, son compteur `active_leases_count` et l'instantané plateforme.
+     */
+    public const ONGOING_STATUSES = [LeaseStatus::Active->value, LeaseStatus::Terminating->value];
+
     protected $fillable = [
         'property_id', 'landlord_id', 'tenant_id', 'agency_id',
         'booking_id', 'renewed_from_lease_id', 'guarantor_id',
