@@ -8559,6 +8559,8 @@
       "crossTenant": "Cross-tenant user",
       "roleTeam": "· agency {id}",
       "mfaActive": "MFA active",
+      "lockedUntil": "Locked until {time}",
+      "force2faReconfigure": "Two-factor to reconfigure",
       "toastActionDone": "Support action executed",
       "toastExportRequested": "GDPR export requested",
       "toastSessionRevoked": "Session revoked",

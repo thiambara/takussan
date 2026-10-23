@@ -257,6 +257,9 @@ export type AdminUserDetail = {
   last_login_at: string | null;
   two_factor_enabled: boolean;
   mfa_enabled: boolean;
+  /** P83.04 (TCK-1775) — échéance du verrou de connexion qui court, `null` sans verrou (un verrou échu rend `null`). */
+  locked_until: string | null;
+  force_2fa_reconfigure: boolean;
   created_at: string | null;
   roles: Array<{ name: string; team_id: number | null }>;
   profiles: {
