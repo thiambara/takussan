@@ -16150,7 +16150,7 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
 
 ### Quarante-quatre squelettes de chargement et soixante-six écrans téléchargent le tableau, la pagination et la recherche de la console sans les afficher
 - Réf : P173.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/console/index.ts:1-20`, `takussan-web/src/app/(dashboard)/app/commissions/loading.tsx:1` (et les 43 autres `loading.tsx` de `(dashboard)/app`), `takussan-web/src/app/(dashboard)/app/overview/agent/page.tsx:15`, `takussan-web/src/app/(dashboard)/app/overview/owner/page.tsx:15`, `takussan-web/src/app/(super-admin)/super-admin/system/page.tsx:5`, `takussan-web/src/app/(super-admin)/super-admin/plans/page.tsx:3`
 - Constat :
@@ -16161,10 +16161,11 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Le poids gagné page par page n'est pas mesuré (aucun build d'ablation) : de l'ordre de 4,4 Kio gzip là où le morceau est à part, à vérifier ailleurs.
   - Établi comment : code relu, graphe client mesuré avant et après le renvoi simulé, manifestes et morceaux du build existant relus.
 - Piste : prendre chaque nom à son fichier (`@/components/console/PageHeader`, `…/RouteSkeleton`…) dans les importeurs, au moins les 44 `loading.tsx` et les pages serveur ; ou retirer de l'`index.ts` les quatre composants client et les faire prendre à leur fichier par leurs importeurs (voie de TCK-1461). Huit tests font `vi.mock('@/components/console')` (mesuré) et suivront le chemin choisi. Garde du patron de `graphe-client-de-l-authentification.test.ts` : aucun `loading.tsx` de `src/app` n'a de module client, et l'`index.ts` de la console ne réexporte aucun module `'use client'`.
+- Mesure (2026-10-23, 1d82ba59b, mesureur) : relu `components/console/index.ts` (18 lignes aujourd'hui, et non 1-20 ; neuf composants, `'use client'` en tête de `DataTable`, `DebouncedSearchInput`, `FilterBar` et `Pagination` seuls), `commissions/loading.tsx` (n'importe que `RouteSkeleton` par l'`index.ts`), et lancé un test vitest temporaire, retiré, qui applique `modulesDuGrapheClient` aux 236 entrées de `src/app` → 139 entrées ont au moins un des quatre composants client dans leur graphe (celles qui s'en servent comprises), dont les 44 `loading.tsx`, chacun à 11 modules (`Pagination`, `FilterBar`, `DebouncedSearchInput`, `DataTable`, `ui/table`, `ui/button`, `ui/input`…), comme `overview/agent`, `overview/owner` et `super-admin/system` ; `RouteSkeleton.tsx` et `PageHeader.tsx` pris à leur fichier → 0 module client ; `git log -S` et `grep -rn` des tickets → aucun ticket ne l'a traitée ; au moins 37 fichiers hors tests importent un des quatre composants client par l'`index.ts`, et 8 tests font `vi.mock('@/components/console')` ; le build et le poids en octets n'ont pas été relus. Classement : A2, découpage d'imports qui ne change aucun rendu, et la garde de la `Piste` relève de A5.
 
 ### La page de création d'un bien télécharge le formulaire d'édition par l'`index.ts` de `property-form`
 - Réf : P173.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(dashboard)/app/properties/new/page.tsx:9`, `takussan-web/src/components/property-form/index.ts:1-3`, `takussan-web/src/components/property-dashboard/PropertyDetailTabs.tsx:18-22`
 - Constat :
@@ -16173,10 +16174,11 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Build du 2026-10-21 : des chaînes propres à `PropertyForm` (`amenities.saveFailed`, `fields.periodPlaceholder`, `features.hintFull`, présentes dans ce seul fichier de `src`, mesuré) sont dans `static/chunks/0__oyl66ruhe3.js` (19 578 octets gzip), qui figure dans les `entryJSFiles` de la page (mesuré). La part du formulaire dans ce morceau n'est pas mesurée (à vérifier).
   - Établi comment : code relu, graphe client mesuré, build existant relu.
 - Piste : `import { PropertyWizard } from '@/components/property-form/PropertyWizard'`, puis retirer l'`index.ts` s'il n'a plus d'importeur (les quatre `vi.mock('@/components/property-form')` des tests suivent, mesuré `grep`). Garde : `PropertyForm.tsx` hors du graphe client de `properties/new/page.tsx`, par `modulesDuGrapheClient`.
+- Mesure (2026-10-23, 1d82ba59b, mesureur) : relu `properties/new/page.tsx:9` (`PropertyWizard` pris à `@/components/property-form`, seul importeur hors tests de cet `index.ts`, `grep -rn`), `property-form/index.ts:1-3` (`PropertyForm`, `PropertyWizard`, `options`) et `PropertyDetailTabs.tsx:22` (`PropertyForm` par `next/dynamic`, TCK-1040), et lancé un test vitest temporaire, retiré → le graphe client de la page compte 108 modules dont `property-form/PropertyForm.tsx`, celui de `PropertyWizard.tsx` pris seul 99 modules sans `PropertyForm.tsx` ni `hooks/useAvertissementDepart.ts` ; 4 tests font `vi.mock('@/components/property-form')` ; la page prend aussi `PageHeader` à l'`index.ts` de la console, ce que traite P173.01 ; le build n'a pas été relu. Classement : A2, import repris au fichier sans changer le rendu, la garde par `modulesDuGrapheClient` relevant de A5.
 
 ### Petites améliorations sur les `index.ts` réexportateurs
 - Réf : P173.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : règle de structure neuve sur tous les `index.ts` de `src/components`, et une option « laisser tel quel »
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/feedback/index.ts:1-4`, `takussan-web/src/components/console/DataState.tsx:3`, `takussan-web/src/test/graphe-client.ts:92-106`
 - Constat :
@@ -16184,3 +16186,4 @@ caution du contrat et non par l'encaissée est P04.10, et n'est pas reprise.*
   - Les gardes de graphe client existantes ne jugent que des **paquets** (`paquetsDuGrapheClient`, lu) : un `index.ts` qui fait entrer des modules du dépôt sans paquet neuf — le cas de P173.01 — ne fait rougir aucune d'elles (déduit de leur lecture, à vérifier). Aucune règle `no-restricted-imports` dans `eslint.config.mjs` (mesuré, `grep -c` → 0).
   - Établi comment : code relu, graphe client mesuré.
 - Piste : prendre `EmptyState` à son fichier, ou laisser l'`index.ts` de `feedback` tel quel si le gain n'est pas jugé utile ; et, pour empêcher le retour du motif des angles 104, 137 et 173, un test qui refuse sous `src/components/` tout `index.ts` réexportant un module `'use client'` vers un importeur serveur (patron de la garde `index-sans-selecteur-de-date.test.ts`), à mesurer d'abord sur les deux `index.ts` restants.
+- Mesure (2026-10-23, 1d82ba59b, mesureur) : relu `feedback/index.ts:1-4` et les en-têtes d'`EmptyState.tsx` et d'`ErrorState.tsx` (aucun des deux n'est `'use client'` : ils n'entrent au graphe client que par un importeur client), `DataState.tsx:3`, `graphe-client.ts:92-106` ; lancé un test vitest temporaire, retiré → 6 entrées de `src/app` ont `feedback/ErrorState.tsx` dans leur graphe client sans qu'aucun de leurs modules hors `feedback` nomme `ErrorState`, et non 22 (comptage différent de celui de l'explorateur, non réconcilié) ; le constat sur les gardes est inexact en partie : six tests appliquent déjà `modulesDuGrapheClient` à des modules du dépôt (`grep -rn`), mais aucun ne vise la console ni `feedback` ; `grep -c no-restricted-imports eslint.config.mjs` → 0 ; et la garde proposée, mesurée comme la `Piste` le demande, toucherait sept `index.ts` qui réexportent un module `'use client'` (`console`, `forms`, `property-form`, `customer-form`, `floating-dock`, `media`, `map`). Classement : V6, la garde pose une règle d'organisation sur tous les `index.ts` du dépôt, dont quatre que l'angle juge sans défaut, et la `Piste` laisse ouvert de ne rien faire pour `feedback`.
