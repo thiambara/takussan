@@ -17922,7 +17922,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### Créer une conversation directe avec un sujet de plus de 255 caractères rend 500 au lieu de 422
 - Réf : P195.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1885
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:42`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:120-121`, `takussan-api/database/migrations/2026_04_17_160016_create_conversations_table.php:13`, `takussan-api/app/Http/Requests/Api/UpdateConversationRequest.php:42`, `takussan-web/src/lib/schemas/message.ts:25-29`
 - Constat :
@@ -17932,6 +17932,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - L'angle 91 (bornes `max:` face aux `varchar`) est `fait` ; ce champ n'y est pas cité (mesuré : `grep -n StoreConversationRequest` sur ce fichier → trois entrées, aucune sur `subject`).
 - Piste : `max:255` sur `subject` de `StoreConversationRequest`, comme au renommage. Test : `subject` de 256 caractères → 422 sur `subject`, et aucune conversation créée.
 - Mesure (2026-10-23, 37a217aec, mesureur) : relu `StoreConversationRequest.php` (`subject` `['nullable', 'string']` passé de la l. 42 à la l. 43, `initial_message` l. 60), `ConversationController.php:121-122` (`Conversation::create` avec `subject` tel quel), migration l. 13 (`string('subject')`), `UpdateConversationRequest.php:42` et `Conversation/CreateGroupConversationRequest.php:57` (`max:255` ; le constat situait ce dernier sous `Api/`) ; `git log` du fichier → aucun commit sur `subject` ; test temporaire `SondeMesureur195Test` (retiré, charge 2,24 / 2,19 / 2,16 sur 8 cœurs), deux agents d'une même agence, `POST /api/conversations` avec `subject` de 300 caractères → **500** `SQLSTATE[22001] … character varying(255)`, aucune conversation écrite → le constat tient. Classement : A1, la borne est écrite par la colonne `varchar(255)` et par le renommage et le groupe ; correctif attendu : `max:255` sur `subject` de `StoreConversationRequest`, et un test `subject` de 256 caractères → 422 sur `subject`, aucune conversation créée.
+- Mesure (2026-10-23, 0303e7d79, implementeur) : test `ConversationTest::test_le_sujet_d_une_directe_est_borne_a_255_caracteres` avant correctif → rouge sur `QueryException` (`varchar(255)`, le 500 du constat) ; `max:255` sur `subject` de `StoreConversationRequest` → 256 caractères rendent 422 sur `subject` sans conversation créée, 255 passent ; ablation (borne retirée → rouge, remise → vert) ; `ConversationTest` 15 verts.
 
 ### Les photos d'une contestation et les pièces d'un devis au-delà de cinq sont écartées sans un mot
 - Réf : P195.02
@@ -17948,7 +17949,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### L'avatar est refusé au-delà de 2 Mo avant d'être réduit, alors que les autres photos sont réduites d'abord
 - Réf : P195.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1887
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/profile/ProfileHeader.tsx:90-94,110`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:52`, `takussan-web/src/components/media/MediaManager.tsx:553-556`, `takussan-web/src/lib/reduire-photo.ts:1-20,199-203`
 - Constat :
@@ -17957,6 +17958,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - `reduire-photo.ts` décrit une photo de téléphone à « 3 à 8 Mo pour 12 Mpx » (lu, l. 3) ; `next.config` dit qu'« une seule photo réduite pèse déjà 1,4 Mo » (lu, l. 65). Une photo de téléphone ordinaire serait donc refusée comme avatar alors que sa version réduite passerait `max:2048` (à vérifier sur un fichier réel).
 - Piste : juger la taille après `reduirePhotosSousPlafond(…, 2 Mo)`, comme `MediaDropzone`. Test Vitest avec des outils d'image simulés : un fichier de 5 Mo réductible n'affiche pas `imageTooLarge` et part réduit.
 - Mesure (2026-10-23, 37a217aec, mesureur) : relu `ProfileHeader.tsx` (refus `file.size > 2 * 1024 * 1024` → `imageTooLarge` l. 90-94 au choix, `reduirePhoto(avatar)` seulement à l'envoi l. 110), `UpdateProfileRequest.php:52` (`max:2048`, `PixelsAuPlus`), `MediaManager.tsx:553-556` (`reduirePhotosSousPlafond` avant `validateFile`), `reduire-photo.ts:163-211` (`reduirePhotoSousPlafond` existe) et TCK-542 l. 114-119 (« l'avatar » parmi les écrans réduits ; « une photo de 12 Mo qui tombe sous le plafond une fois réduite n'a pas à être refusée ») → l'ordre refus-puis-réduction tient ; qu'une photo de téléphone réelle passe sous 2 Mo une fois réduite reste non mesuré sur un fichier. Classement : A1, la règle « réduire avant de juger la taille » est écrite par TCK-542 et appliquée par TCK-596 ; correctif attendu : dans `ProfileHeader`, réduire le fichier choisi par `reduirePhotoSousPlafond(file, 2 Mo)` avant le contrôle de taille, garder le fichier réduit pour l'envoi, et un test Vitest à outils d'image simulés où un fichier de 5 Mo réductible ne montre pas `imageTooLarge` et part réduit.
+- Mesure (2026-10-23, 0303e7d79, implementeur) : test Vitest `ProfileHeader.test.tsx` (`reduirePhotoSousPlafond` doublé) avant correctif → un fichier de 5 Mo réductible sous 2 Mo est refusé par `imageTooLarge` ; `ProfileHeader` réduit par `reduirePhotoSousPlafond(file, 2 Mo)` au choix, juge la taille du fichier réduit et l'envoie tel quel → accepté et envoyé réduit, et un fichier resté au-dessus de 2 Mo est toujours refusé ; ablation (contrôle remis sur le fichier brut → rouge, remis → vert) ; 6 verts.
 
 ### Textes longs bornés par le seul front : avis, réponses, messages et notes de client sans `max:` à l'API
 - Réf : P195.04
@@ -18001,7 +18003,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### Pièces d'un devis : ni taille vérifiée ni photo réduite, face à `max:5120`
 - Réf : P195.07
-- Statut : retenu · autonome
+- Statut : retenu · à valider — V7 : TCK-542 range les pièces d'un devis parmi les pièces justificatives, qui partent telles quelles sans réduction ; les réduire revient sur ce choix écrit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/maintenance/QuoteSubmitForm.tsx:23-26,54,87-91`, `takussan-api/app/Http/Requests/Maintenance/SubmitQuoteRequest.php:45`
 - Constat :
@@ -18009,6 +18011,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Le front ne juge que le type (`isAccepted`, l. 54) et n'appelle ni `reduirePhotos` ni `reduirePhotosSousPlafond` (mesuré : `grep -n "reduire\|size" QuoteSubmitForm.tsx` → aucun appel). Une photo de téléphone de 3 à 8 Mo (ordre de grandeur de `reduire-photo.ts:3`) fait refuser tout le devis par un 422 après saisie des lignes (à vérifier au navigateur).
 - Piste : `reduirePhotosSousPlafond(…, 5 Mo)` au choix des pièces, comme `MediaDropzone`, et refus nommé d'un PDF de plus de 5 Mo avant l'envoi. Test Vitest : PDF de 6 Mo → message au choix, aucune mutation.
 - Mesure (2026-10-23, 37a217aec, mesureur) : relu `QuoteSubmitForm.tsx:23-26,54-57,87-91` (type seul jugé, ni taille ni réduction), `SubmitQuoteRequest.php:45` (`max:5120`), `maintenance.ts:391` (pièces ajoutées telles quelles) ; `grep -rn reduirePhoto takussan-web/src` → appelé par la contestation, la clôture, la galerie, la demande, l'avatar, le logo et l'assistant, jamais par le devis → le constat tient ; une pièce de plus de 5 Mo rend un 422 que le formulaire affiche déjà sous le champ (`attachmentErrors`, l. 287-291), après saisie des lignes ; l'envoi d'une vraie photo de 5 Mo n'est pas mesuré au navigateur. Classement : A1 pour la réduction seule, la règle « réduire avant de juger, jusque sous le plafond de l'API » étant écrite par TCK-542 et TCK-596 ; correctif attendu : passer les images choisies par `reduirePhotosSousPlafond(…, 5 Mo)` dans `pickFiles`, les PDF intacts, et un test Vitest à outils d'image simulés où une image de 6 Mo réductible part réduite ; le refus nommé d'un PDF de plus de 5 Mo demande un texte neuf et n'est pas compris dans ce classement.
+- Mesure (2026-10-23, 0303e7d79, implementeur) : relu `QuoteSubmitForm.tsx:87-91` (type seul jugé, ni taille ni réduction, inchangé) et `SubmitQuoteRequest.php:45` (`max:5120`) → l'écart tient ; mais TCK-542, « Hors périmètre » l. 91-92, écrit « Pièces KYC, documents, devis et justificatifs : ce sont des pièces justificatives. Elles partent telles qu'elles ont été produites, même quand ce sont des images », et `src/lib/__tests__/reduire-photo.branchement.test.ts` (`PIECES_JUSTIFICATIVES`) garde que `QuoteSubmitForm.tsx` n'importe pas `reduire-photo` ; mesuré : correctif écrit (`reduirePhotosSousPlafond(images, 5 Mo)` dans `pickFiles`, PDF intacts) → son test vert, mais cette garde rouge (« QuoteSubmitForm.tsx ne réduit RIEN »), correctif retiré. La règle « réduire avant de juger » de TCK-596 ne vaut que pour les écrans de photos : le classement A1 ne tient pas. Classement : V7, réduire les photos d'un devis, ou les refuser avec un message au-delà de 5 Mo, ou laisser le 422 de l'API, est un choix de produit sur une décision écrite.
 
 ### Gardes du front sans appelant qui recopient une contrainte de l'API, gardées en vie par leurs seuls tests
 - Réf : P195.08

@@ -59,6 +59,30 @@ class ConversationTest extends TestCase
             ->assertJsonPath('meta.has_more', false);
     }
 
+    /**
+     * TCK-1885 (P195.01) — `subject` part vers `varchar(255)` : sans `max:255`, 256 caractères
+     * rendaient 500 (`SQLSTATE[22001]`) au lieu d'une erreur de validation.
+     */
+    public function test_le_sujet_d_une_directe_est_borne_a_255_caracteres(): void
+    {
+        $me = User::factory()->create();
+        $other = User::factory()->create();
+        $this->mettreEnContact($me, $other);
+
+        Sanctum::actingAs($me);
+
+        $this->postJson('/api/conversations', [
+            'subject' => str_repeat('a', 256),
+            'participants' => [$other->id],
+        ])->assertUnprocessable()->assertJsonValidationErrors('subject');
+        $this->assertSame(0, Conversation::query()->count());
+
+        $this->postJson('/api/conversations', [
+            'subject' => str_repeat('a', 255),
+            'participants' => [$other->id],
+        ])->assertCreated();
+    }
+
     public function test_non_participant_cannot_send_message(): void
     {
         $me = User::factory()->create();

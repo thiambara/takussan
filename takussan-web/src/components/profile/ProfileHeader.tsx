@@ -17,10 +17,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { updateProfileAction } from '@/app/actions/auth';
-import { reduirePhoto } from '@/lib/reduire-photo';
+import { reduirePhotoSousPlafond } from '@/lib/reduire-photo';
 import { initialesDe, libelleDe } from '@/lib/identite';
 
 /** La donnée porte la CLÉ de `profile.roles.*` ; le libellé est résolu au rendu. */
+/** `max:2048` d'`UpdateProfileRequest`. */
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+
 const ROLE_KEYS: Record<UserRole, string> = {
   customer: 'customer',
   tenant: 'tenant',
@@ -71,8 +74,9 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
     setAvatarError(null);
   }
 
-  function handleAvatarChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
+  async function handleAvatarChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.target;
+    const file = input.files?.[0] ?? null;
     setAvatarError(null);
 
     if (!file) {
@@ -83,19 +87,22 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
 
     if (!file.type.startsWith('image/')) {
       setAvatarError(t('invalidImage'));
-      event.target.value = '';
+      input.value = '';
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
+    // TCK-1887 (P195.03) — réduite AVANT de juger la taille, comme `MediaDropzone` (TCK-596) :
+    // une photo de téléphone de 5 Mo qui tombe sous les 2 Mo de l'API n'a pas à être refusée.
+    const reduit = await reduirePhotoSousPlafond(file, AVATAR_MAX_BYTES);
+    if (reduit.size > AVATAR_MAX_BYTES) {
       setAvatarError(t('imageTooLarge'));
-      event.target.value = '';
+      input.value = '';
       return;
     }
 
-    setAvatar(file);
+    setAvatar(reduit);
     setRemoveAvatar(false);
-    setAvatarPreview(URL.createObjectURL(file));
+    setAvatarPreview(URL.createObjectURL(reduit));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -106,8 +113,8 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
     fd.append('first_name', firstName);
     fd.append('last_name', lastName);
     fd.append('bio', bio);
-    // Réduit dans le navigateur avant l'envoi (TCK-542).
-    if (avatar) fd.append('avatar', await reduirePhoto(avatar));
+    // Déjà réduit dans le navigateur au choix (TCK-542, TCK-1887).
+    if (avatar) fd.append('avatar', avatar);
     if (removeAvatar) fd.append('avatar_remove', '1');
     const result = await updateProfileAction(fd);
     setLoading(false);
