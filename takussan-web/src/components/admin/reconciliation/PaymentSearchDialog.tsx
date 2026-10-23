@@ -20,6 +20,7 @@ import type { Locale } from '@/i18n/config';
 import type { BankStatementLine, MatchCandidate } from '@/types/reconciliation';
 
 import { enNombre } from './format';
+import { PayableStatusBadge } from './PayableStatusBadge';
 
 /**
  * TCK-593 (Partie 4) — recherche manuelle du paiement d'une ligne de relevé.
@@ -127,6 +128,11 @@ export function PaymentSearchDialog({
                       <p className="font-medium text-foreground">
                         {tTypes(c.type)} · {c.reference ?? `#${c.id}`}
                       </p>
+                      <PayableStatusBadge
+                        type={c.type}
+                        status={c.status}
+                        data-testid={`statut-candidat-${c.type}-${c.id}`}
+                      />
                       <p className="text-xs text-muted-foreground">
                         {[c.payer_name, c.paid_at ? formatDate(c.paid_at, locale) : null]
                           .filter(Boolean)

@@ -14,7 +14,7 @@ use App\Models\CustomerNote;
 use App\Models\Enums\CustomerNoteKind;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
-use App\Models\Enums\LeaseStatus;
+use App\Models\Lease;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Services\Crm\CustomerActivityFeed;
@@ -186,9 +186,8 @@ class CustomerController extends Controller
         // courir sans locataire — relances vers personne, pénalités qui s'appliquent — et le
         // locataire à compte perdait l'accès à son bail, ses quittances et ses factures.
         abort_code_if(
-            $customer->leases()
-                ->whereIn('status', [LeaseStatus::PendingSignature->value, LeaseStatus::Active->value])
-                ->exists(),
+            // P162.03 (TCK-1716) — préavis compris.
+            $customer->leases()->whereIn('status', Lease::OPEN_STATUSES)->exists(),
             422,
             'customer.attached_to_open_lease',
         );

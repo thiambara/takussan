@@ -60,6 +60,22 @@ class ActivityLogExporterTest extends ApiTestCase
         }
     }
 
+    /**
+     * TCK-1703 (P108.02) — aucun chemin n'écrit l'IP au journal : la colonne `ip_address` sortait
+     * vide dans tout export. Elle n'est plus annoncée.
+     */
+    public function test_l_export_n_annonce_pas_de_colonne_que_rien_n_ecrit(): void
+    {
+        $agency = Agency::factory()->create();
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $this->makeLog($admin);
+
+        $entete = strtok($this->apiGet('/api/activity-logs/export?format=csv')->streamedContent(), "\n");
+
+        $this->assertStringContainsString('properties_diff', $entete);
+        $this->assertStringNotContainsString('ip_address', $entete);
+    }
+
     // ─── AC2 — XLSX valide ─────────────────────────────────────────────────────
 
     public function test_agency_admin_gets_xlsx_file(): void

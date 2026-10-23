@@ -13,7 +13,10 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ActivityLogExporter
 {
-    /** Columns emitted in every export. */
+    /**
+     * Columns emitted in every export. TCK-1703 (P108.02) — plus d'`ip_address` : aucun chemin
+     * n'écrit l'IP au journal, la colonne sortait vide dans tout fichier.
+     */
     private const COLUMNS = [
         'id',
         'logged_at',
@@ -24,7 +27,6 @@ class ActivityLogExporter
         'subject_id',
         'description',
         'properties_diff',
-        'ip_address',
     ];
 
     /**
@@ -168,7 +170,6 @@ class ActivityLogExporter
             'subject_id' => $log->subject_id,
             'description' => $log->description,
             'properties_diff' => $changes,
-            'ip_address' => $props->get('ip'),
         ];
     }
 

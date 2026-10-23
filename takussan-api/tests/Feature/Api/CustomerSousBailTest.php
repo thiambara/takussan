@@ -36,7 +36,8 @@ class CustomerSousBailTest extends TestCase
 
     public function test_une_fiche_sous_bail_ouvert_ne_se_supprime_pas(): void
     {
-        foreach ([LeaseStatus::Active, LeaseStatus::PendingSignature] as $status) {
+        // P162.03 (TCK-1716) — le bail en préavis (`terminating`) reste ouvert : son loyer est dû.
+        foreach ([LeaseStatus::Active, LeaseStatus::PendingSignature, LeaseStatus::Terminating] as $status) {
             [$author, $customer] = $this->ficheAvecBail($status);
             Sanctum::actingAs($author);
 

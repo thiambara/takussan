@@ -58,7 +58,8 @@ class DashboardAgencyService
 
         $leases = Lease::query()
             ->where('agency_id', $agency->id)
-            ->where('status', LeaseStatus::Active->value)
+            // P162.02 (TCK-1714) — le bail en préavis reste en cours, son loyer est dû.
+            ->whereIn('status', Lease::ONGOING_STATUSES)
             ->toBase()
             ->selectRaw('COUNT(*) AS active')
             ->first();

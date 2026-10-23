@@ -3,8 +3,10 @@
 namespace Tests\Feature\Console;
 
 use App\Models\Agency;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Payout;
+use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Notifications\CodedNotification;
 use Illuminate\Console\Scheduling\Event;
@@ -41,14 +43,17 @@ class RemindDuePayoutsCommandTest extends TestCase
     public function test_ac20_each_due_payout_reminds_its_issuer_once(): void
     {
         Notification::fake();
-        $scheduledIssuer = User::factory()->create();
-        $pendingIssuer = User::factory()->create();
-        $quiet = User::factory()->create();
+        // TCK-1706 — des émetteurs ACTIFS de l'agence du reversement : un émetteur sans profil y
+        // cède désormais le rappel aux détenteurs de `payouts.create`.
+        $agency = $this->moneyAgency();
+        $scheduledIssuer = $this->agencyAgent($agency);
+        $pendingIssuer = $this->agencyAgent($agency);
+        $quiet = $this->agencyAgent($agency);
 
-        $this->payout($scheduledIssuer, PayoutStatus::Scheduled, now()->subDay()->toDateTimeString());
-        $this->payout($pendingIssuer, PayoutStatus::Pending, now()->subDay()->toDateTimeString());
-        $this->payout($quiet, PayoutStatus::Scheduled, now()->addDay()->toDateTimeString());
-        $this->payout($quiet, PayoutStatus::Completed, now()->subDay()->toDateTimeString());
+        $this->payout($scheduledIssuer, PayoutStatus::Scheduled, now()->subDay()->toDateTimeString(), $agency);
+        $this->payout($pendingIssuer, PayoutStatus::Pending, now()->subDay()->toDateTimeString(), $agency);
+        $this->payout($quiet, PayoutStatus::Scheduled, now()->addDay()->toDateTimeString(), $agency);
+        $this->payout($quiet, PayoutStatus::Completed, now()->subDay()->toDateTimeString(), $agency);
 
         $this->artisan('payouts:remind-due')->assertSuccessful();
 
@@ -76,7 +81,8 @@ class RemindDuePayoutsCommandTest extends TestCase
         $hier = now()->subDay()->toDateTimeString();
         $this->payout($agent, PayoutStatus::Scheduled, $hier, $agency);
         $this->payout($admin, PayoutStatus::Scheduled, $hier, $agency);
-        // Admin d'une AUTRE agence que celle du reversement : il n'ouvre pas les finances de celle-ci.
+        // Admin d'une AUTRE agence que celle du reversement : il n'en est pas le personnel, et le
+        // rappel va aux détenteurs actifs de `payouts.create` de l'agence (TCK-1706).
         $ailleurs = $this->agencyAdmin($this->moneyAgency());
         $this->payout($ailleurs, PayoutStatus::Scheduled, $hier, $agency);
 
@@ -89,7 +95,36 @@ class RemindDuePayoutsCommandTest extends TestCase
         };
         $this->assertSame('/app/payments?tab=payouts', $chemin($agent));
         $this->assertSame('/app/agency/finances', $chemin($admin));
-        $this->assertSame('/app/payments?tab=payouts', $chemin($ailleurs));
+        $this->assertNull($chemin($ailleurs));
+        Notification::assertSentToTimes($agent, CodedNotification::class, 2);
+        Notification::assertSentToTimes($admin, CodedNotification::class, 2);
+        foreach (Notification::sent($agent, CodedNotification::class) as $envoye) {
+            $this->assertSame('/app/payments?tab=payouts', $envoye->target['path']);
+        }
+    }
+
+    /**
+     * TCK-1706 (P126.03) — le rappel n'allait qu'à `User::find($payout->issued_by_id)`, sans juger
+     * son profil : un émetteur suspendu le recevait seul, et l'équipe active n'en savait rien. Un
+     * émetteur qui n'est plus personnel actif tenant `payouts.create` cède le rappel aux détenteurs
+     * actifs de la capacité dans l'agence du reversement.
+     */
+    public function test_un_emetteur_suspendu_cede_le_rappel_aux_detenteurs_actifs(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        $suspendu = $this->agencyAgent($agency);
+        AgentProfile::query()->where('user_id', $suspendu->id)->update(['status' => AgentProfileStatus::Suspended->value]);
+        $admin = $this->agencyAdmin($agency);
+        $collegue = $this->agencyAgent($agency);
+        $this->payout($suspendu, PayoutStatus::Scheduled, now()->subDay()->toDateTimeString(), $agency);
+
+        $this->artisan('payouts:remind-due')->assertSuccessful();
+
+        Notification::assertNotSentTo($suspendu, CodedNotification::class);
+        Notification::assertSentToTimes($admin, CodedNotification::class, 1);
+        Notification::assertSentToTimes($collegue, CodedNotification::class, 1);
+        Notification::assertCount(2);
     }
 
     public function test_ac20_the_command_is_scheduled_daily(): void

@@ -18,6 +18,7 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { KycDossier, KycDossierStatus } from '@/types/super-admin';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { demainIso } from '@/lib/kyc-echeance';
+import { lienPieceKyc } from '@/lib/lien-piece-kyc';
 import { KycEcheance } from './KycEcheance';
 import { SharedIdentifiersNotice } from './SharedIdentifiersNotice';
 
@@ -140,7 +141,7 @@ export function KycDocumentUploader({ agencyId, dossier }: { agencyId: number; d
                   />
                 </div>
                 {uploaded ? (
-                  <a className="mt-1 inline-flex max-w-full items-center text-sm text-primary hover:underline" href={uploaded.signed_url} target="_blank" rel="noreferrer">
+                  <a className="mt-1 inline-flex max-w-full items-center text-sm text-primary hover:underline" href={lienPieceKyc(uploaded.signed_url)} target="_blank" rel="noreferrer">
                     <FileText className="mr-1 size-4 shrink-0" aria-hidden="true" />
                     <span className="truncate">{uploaded.file_name}</span>
                     <ExternalLink className="ml-1 size-3 shrink-0" aria-hidden="true" />

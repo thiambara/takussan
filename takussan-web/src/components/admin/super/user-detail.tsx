@@ -374,7 +374,7 @@ export function UserProfilesSection({ user }: { user: AdminUserDetail }) {
                   label={tUsers.has(`statuses.${profile.status}`) ? tUsers(`statuses.${profile.status}`) : profile.status}
                 />
               ) : null}
-              <Link className={buttonVariants({ variant: 'outline', size: 'sm' })} href={`/super-admin/agencies/${profile.agency_id}`}>
+              <Link className={buttonVariants({ variant: 'outline', size: 'sm' })} href={`/super-admin/agencies/${profile.agency_id}?tab=team`}>
                 {t('agencyLink')}
               </Link>
             </div>

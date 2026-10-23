@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { FileText } from 'lucide-react';
@@ -60,12 +61,24 @@ function statusFilterLabel(
     : tStatus(value);
 }
 
+function isLeaseStatus(value: string | null): value is LeaseStatus {
+  return value !== null && STATUS_ORDER.includes(value as LeaseStatus);
+}
+
+/**
+ * TCK-1513 (P167.03) — `?status=` initialise le sélecteur de statut à l'ouverture, comme
+ * `BookingsList` depuis TCK-1293 : « Baux à signer » de l'aperçu de l'agent mène à
+ * `?status=pending_signature`. Une valeur hors de `STATUS_ORDER` est ignorée (« Tous »).
+ */
 export function LeasesList() {
   const locale = useLocale() as Locale;
   const t = useTranslations('lease.list');
   const tStatus = useTranslations('lease.status');
   const tCommon = useTranslations('common');
-  const [status, setStatus] = useState<string>('all');
+  const statutDemande = useSearchParams().get('status');
+  const [status, setStatus] = useState<string>(() =>
+    isLeaseStatus(statutDemande) ? statutDemande : 'all',
+  );
   const [propertyId, setPropertyId] = useState<string>('all');
   const propertiesQuery = useLeasePropertyOptions();
   const { data, isLoading, isError, refetch } = useLeases({

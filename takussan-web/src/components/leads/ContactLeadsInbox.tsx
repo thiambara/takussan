@@ -20,7 +20,6 @@ import { ApiError } from '@/lib/api';
 import type { CustomerDuplicateMatch } from '@/app/actions/dashboard-customers';
 import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
-import { isAdmin } from '@/lib/roles';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Pagination, StatusBadge } from '@/components/console';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -159,13 +158,11 @@ function DemandeDeContact({ lead, designee = false }: { readonly lead: ContactLe
   const reponse = lead.property
     ? t('whatsappReplyProperty', { name: nom, title: lead.property.title })
     : t('whatsappReply', { name: nom });
-  // La liste des collègues (`GET /agencies/{id}/members`) est réservée à l'administrateur de
-  // l'agence : un agent détient `crm.assign`, mais le menu qu'on lui ouvrirait serait vide.
-  // P152.05 — et `PropertyContactLeadPolicy::assign` exige `crm.assign` dans l'agence de la
+  // P152.05 — `PropertyContactLeadPolicy::assign` exige `crm.assign` dans l'agence de la
   // demande, sans branche d'admin : un admin dont le rôle ne la porte pas recevait 403.
-  const estAdmin = user ? isAdmin(user.roles) : false;
-  const { can: tientCrmAssign } = useCan('crm.assign', lead.agency_id ?? undefined, estAdmin);
-  const peutAttribuer = estAdmin && tientCrmAssign;
+  // P120.05 (TCK-1530) — et la capacité suffit : l'agent qui la détient lit les cibles par
+  // `GET /agencies/{id}/members`, que l'API lui borne au personnel joignable, nom seul.
+  const { can: peutAttribuer } = useCan('crm.assign', lead.agency_id ?? undefined, user !== null);
 
   async function marquerTraitee() {
     try {
@@ -317,7 +314,7 @@ function AttribuerDialog({ leadId, agencyId, onClose }: { leadId: number; agency
   const membres = useApiQuery<PaginatedResponse<User>>(
     ['agency-members', agencyId, 'assign'],
     `/api/agencies/${agencyId}/members`,
-    { params: { fields: { users: ['id', 'first_name', 'last_name'] }, filter: { assignable: 1 }, per_page: 100 } },
+    { params: { fields: { users: ['id', 'first_name', 'last_name'] }, filter: { assignable: 1 }, sort: 'first_name', per_page: 100 } },
   );
 
   async function valider(e: React.FormEvent) {

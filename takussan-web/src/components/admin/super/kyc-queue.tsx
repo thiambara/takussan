@@ -15,6 +15,7 @@ import { ApiError } from '@/lib/api';
 import { postKycReview } from '@/lib/queries/super-admin';
 import type { KycDossier, KycDossierStatus } from '@/types/super-admin';
 import { cn } from '@/lib/utils';
+import { lienPieceKyc } from '@/lib/lien-piece-kyc';
 import { KycEcheance } from '@/components/kyc/KycEcheance';
 import { SharedIdentifiersNotice } from '@/components/kyc/SharedIdentifiersNotice';
 
@@ -373,7 +374,7 @@ export function KycDecisionPanel({
               {piece ? (
                 <a
                   className="inline-flex items-center gap-1 text-primary hover:underline"
-                  href={piece.signed_url}
+                  href={lienPieceKyc(piece.signed_url)}
                   target="_blank"
                   rel="noreferrer"
                 >

@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreGuarantorRequest;
 use App\Http\Requests\Api\UpdateGuarantorRequest;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
+use App\Models\Lease;
 use App\Policies\GuarantorPolicy;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\Masking;
@@ -98,7 +98,8 @@ class GuarantorController extends Controller
         // VERIF-596 passe 5 (m-g) — un garant supprimé disparaît du contrat d'un bail en attente de
         // signature (le rendu exclut les garants supprimés) sans rien défiger, et d'un bail en
         // cours sans trace. On le détache d'abord par la route du bail, qui défige.
-        $open = [LeaseStatus::PendingSignature->value, LeaseStatus::Active->value];
+        // P162.03 (TCK-1716) — préavis compris.
+        $open = Lease::OPEN_STATUSES;
         abort_code_if(
             $guarantor->leasesPivot()->whereIn('leases.status', $open)->exists()
                 || $guarantor->leases()->whereIn('status', $open)->exists(),

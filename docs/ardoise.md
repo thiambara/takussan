@@ -2968,6 +2968,11 @@ ticket de la vague porte le geste (`maintenance.*` par TCK-592, `payouts.approve
 `messaging.archive`. Elles s'accordent dans l'éditeur de rôles et ne changent rien — l'éditeur le
 dira désormais (« sans effet pour l'instant »). Relevé du 2026-10-06 (passe de correction de TCK-587).
 
+**Mise à jour du 2026-10-22 — il en reste quatre.** `agency.update` juge désormais la configuration
+des indicateurs et des alertes de seuil (`AgencyIndicatorPolicy`, [TCK-1701](backlog/tickets/TCK-1701-indicateurs-et-alertes-par-capacite.md),
+P82.04) : sa ligne a quitté l'inventaire, cliquet 7 → 6. Restent `agency.upgrade_request`,
+`payments.refund`, `messaging.broadcast`, `messaging.archive`.
+
 *Pas de ticket : brancher une capacité sans geste, c'est inventer le geste. Condition de réouverture :
 le ticket qui crée le geste (remboursement, diffusion, archivage de conversation…) la branche et la
 retire de l'inventaire ; la garde de TCK-587 l'exige, puisque l'inventaire ne peut que décroître.*

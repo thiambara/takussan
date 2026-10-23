@@ -105,8 +105,9 @@ export default async function AgentDashboardPage({ searchParams }: Props = {}) {
             value={data.pipeline_ops?.pending_bookings ?? data.bookings?.pending ?? 0}
             locale={locale}
           />
+          {/* TCK-1513 (P167.03) — la liste ouverte sur le statut que le nombre compte. */}
           <MetricLink
-            href="/app/leases"
+            href="/app/leases?status=pending_signature"
             label={t('leasesToSign')}
             value={data.pipeline_ops?.leases_to_sign ?? 0}
             locale={locale}

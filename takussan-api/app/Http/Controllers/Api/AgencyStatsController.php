@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Models\Agency;
 use App\Models\Customer;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Services\Dashboard\DashboardAgencyService;
@@ -35,8 +34,9 @@ class AgencyStatsController extends Controller
         $membersCount = DashboardAgencyService::membersCount((int) $agency->id);
         $customersCount = Customer::where('agency_id', $agency->id)->count();
 
+        // P162.02 (TCK-1714) — le bail en préavis reste en cours.
         $activeLeasesCount = Lease::where('agency_id', $agency->id)
-            ->where('status', LeaseStatus::Active->value)
+            ->whereIn('status', Lease::ONGOING_STATUSES)
             ->count();
 
         // TCK-595 (ADR-0049 §5) — la même règle que la tuile du tableau de bord d'agence.

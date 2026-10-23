@@ -73,6 +73,7 @@ class PaymentSearchService
             reference: $p->reference_number,
             paidAt: $p->paid_at?->toDateString(),
             payerName: $p->payer?->full_name,
+            status: $p->status?->value,
         ));
     }
 
@@ -99,6 +100,7 @@ class PaymentSearchService
             reference: $p->reference_number,
             paidAt: $p->paid_at?->toDateString(),
             payerName: $p->payer?->full_name,
+            status: $p->status?->value,
         ));
     }
 
@@ -128,6 +130,7 @@ class PaymentSearchService
             reference: $p->reference_number,
             paidAt: $p->issue_date?->toDateString(),
             payerName: $p->customer?->full_name,
+            status: $p->status?->value,
         ));
     }
 
@@ -159,6 +162,7 @@ class PaymentSearchService
             reference: $p->reference_number,
             paidAt: $p->processed_at?->toDateString(),
             payerName: $p->landlord?->full_name,
+            status: $p->status?->value,
         ));
     }
 
@@ -187,6 +191,7 @@ class PaymentSearchService
             reference: $p->payment_reference,
             paidAt: $p->processed_at?->toDateString(),
             payerName: null,
+            status: $p->status?->value,
         ));
     }
 

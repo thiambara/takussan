@@ -49,7 +49,13 @@ const OWNERS = vi.hoisted(() => ({
   },
   isLoading: false,
 }));
-vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery: () => OWNERS }));
+const OWNERS_ARGS = vi.hoisted(() => [] as unknown[][]);
+vi.mock('@/hooks/useApiQuery', () => ({
+  useApiQuery: (...args: unknown[]) => {
+    OWNERS_ARGS.push(args);
+    return OWNERS;
+  },
+}));
 const AUTH = vi.hoisted(() => ({ user: { id: 9, agency_id: 3 }, token: 'jeton' }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => AUTH }));
 
@@ -92,6 +98,14 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
     vi.clearAllMocks();
     PREPARATION_ARGS.length = 0;
     PREPARATION.current = { data: undefined, isError: false, isFetching: false, error: null };
+  });
+
+  it('propose les bailleurs actifs et inactifs, à qui des loyers peuvent rester dus (P120.04)', () => {
+    monter();
+
+    const [, chemin, options] = OWNERS_ARGS.at(-1) as [unknown, string, { params: { filter: Record<string, unknown> } }];
+    expect(chemin).toBe('/api/owners');
+    expect(options.params.filter.status).toEqual(['active', 'inactive']);
   });
 
   it("n'offre aucun champ de montant, et rien à créer avant le calcul", () => {
