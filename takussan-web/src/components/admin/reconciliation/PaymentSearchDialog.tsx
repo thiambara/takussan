@@ -27,7 +27,7 @@ import { PayableStatusBadge } from './PayableStatusBadge';
  *
  * La recherche porte le SENS de la ligne (`direction`) : un encaissement ne se rapproche pas d'un
  * reversement sortant. L'API le refuse aussi (422) ; le filtrer ici évite de proposer un geste
- * voué à l'échec.
+ * voué à l'échec. Elle porte aussi sa DEVISE (P157.01, TCK-1917), pour la même raison.
  */
 export function PaymentSearchDialog({
   agencyId,
@@ -56,6 +56,7 @@ export function PaymentSearchDialog({
     criteres?.q ?? '',
     criteres?.amount ?? null,
     ligne.direction,
+    ligne.currency,
     criteres !== null,
   );
 
