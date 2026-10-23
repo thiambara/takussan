@@ -26,7 +26,8 @@ import { Pagination } from '@/components/console/Pagination';
 import { useDemarrerImpersonation } from '@/hooks/useImpersonation';
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { ApiError } from '@/lib/api';
-import type { User, UserRole } from '@/types/user';
+import type { User, UserRole, UserStatus } from '@/types/user';
+import { lireTable } from '@/lib/table-de-statut';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
@@ -58,10 +59,11 @@ const ALL = '__all__';
 const PARAMS_DE_FILTRE = ['search', 'role', 'agency', 'status', 'email', 'twoFactor'] as const;
 
 /** Le statut du compte → le ton du DS. */
-const USER_STATUS_TONES: Record<string, StatusTone> = {
+const USER_STATUS_TONES: Record<UserStatus, StatusTone> = {
   active: 'success',
   inactive: 'neutral',
   blocked: 'danger',
+  deleted: 'neutral',
 };
 
 /**
@@ -316,7 +318,7 @@ export default function SuperAdminUsersPage() {
       cell: (u) =>
         u.status ? (
           <StatusBadge
-            tone={USER_STATUS_TONES[u.status] ?? 'neutral'}
+            tone={lireTable(USER_STATUS_TONES, u.status) ?? 'neutral'}
             // Repli sur le jeton brut pour un statut que l'écran ne connaît pas encore : l'avouer
             // vaut mieux que l'effacer.
             label={tPage.has(`statuses.${u.status}`) ? tPage(`statuses.${u.status}`) : u.status}

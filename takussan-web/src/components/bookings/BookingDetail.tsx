@@ -31,7 +31,7 @@ import { useCanAll } from '@/hooks/useCan';
 import { isAgent, isAdmin, isOwner } from '@/lib/roles';
 import { formatISODate } from '@/lib/calendar-date';
 import type { Locale } from '@/i18n/config';
-import type { Booking, BookingPayment } from '@/types/booking';
+import type { Booking, BookingPayment, BookingPaymentStatus } from '@/types/booking';
 import {
   BOOKING_PAYMENT_STATUS_TONE,
   BOOKING_STATUS_LABEL_KEY,
@@ -66,7 +66,7 @@ const PAYMENT_TYPE_LABEL_KEY: Record<string, string> = {
   fee: 'paymentType.fee',
 };
 
-const PAYMENT_STATUS_LABEL_KEY: Record<string, string> = {
+const PAYMENT_STATUS_LABEL_KEY: Record<BookingPaymentStatus, string> = {
   pending: 'paymentStatus.pending',
   paid: 'paymentStatus.paid',
   late: 'paymentStatus.late',

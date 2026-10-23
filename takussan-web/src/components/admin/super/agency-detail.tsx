@@ -24,6 +24,7 @@ import {
   Users,
 } from 'lucide-react';
 import { StatCard, StatusBadge, type StatusTone } from '@/components/console';
+import type { AgencyStatus } from '@/types/agency';
 import { ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -124,13 +125,13 @@ const BOUTONS: Record<Action, { icon: typeof Ban; variant: 'default' | 'destruct
 };
 
 /** TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.agencyStatus.*`). */
-const STATUS_KEY: Record<string, string> = {
+const STATUS_KEY: Record<AgencyStatus, string> = {
   active: 'active',
   inactive: 'inactive',
   suspended: 'suspended',
 };
 
-const STATUS_TONES: Record<string, StatusTone> = {
+const STATUS_TONES: Record<AgencyStatus, StatusTone> = {
   active: 'success',
   inactive: 'neutral',
   suspended: 'danger',

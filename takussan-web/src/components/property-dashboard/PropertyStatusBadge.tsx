@@ -4,7 +4,8 @@ import { useTranslations } from 'next-intl';
 
 import { StatusBadge as ConsoleStatusBadge, type StatusTone } from '@/components/console';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
-import { propertyStatusFilterValues } from '@/lib/enums/property';
+import { propertyStatusFilterValues, type PropertyStatusFilterValue } from '@/lib/enums/property';
+import { lireTable } from '@/lib/table-de-statut';
 
 /**
  * `statut du bien → ton du DS` — **l'unique table du produit pour ce vocabulaire** (TCK-472).
@@ -51,7 +52,7 @@ import { propertyStatusFilterValues } from '@/lib/enums/property';
  * sont pas des gestes (TCK-1268) ; `propertyStatusFilterValues` porte les onze.
  * Un statut absent de la table retombe sur `neutral` — jamais sur une absence de pastille.
  */
-export const PROPERTY_STATUS_TONE: Readonly<Record<string, StatusTone>> = {
+export const PROPERTY_STATUS_TONE: Readonly<Record<PropertyStatusFilterValue, StatusTone>> = {
   draft: 'neutral',
   archived: 'neutral',
   available: 'success',
@@ -111,7 +112,7 @@ export function PropertyStatusBadge({
   return (
     <ConsoleStatusBadge
       label={label}
-      tone={PROPERTY_STATUS_TONE[status] ?? 'neutral'}
+      tone={lireTable(PROPERTY_STATUS_TONE, status) ?? 'neutral'}
       className={className}
       data-testid={dataTestId}
     />
