@@ -114,3 +114,16 @@ describe('EarlyTerminationBanner — jours comptés en dates calendaires (TCK-18
     expect(screen.queryByRole('button', { name: /Annuler la résiliation/i })).toBeNull();
   });
 });
+
+/**
+ * TCK-1829 (P183.05) — la date effective passait brute au libellé : « Date effective : 2026-11-01 ».
+ */
+describe('EarlyTerminationBanner — date effective dans la langue du lecteur (TCK-1829)', () => {
+  it('formate la date effective', () => {
+    monter();
+
+    const bandeau = screen.getByTestId('early-termination-banner');
+    expect(bandeau).toHaveTextContent('Date effective : 1 nov. 2026');
+    expect(bandeau).not.toHaveTextContent('2026-11-01');
+  });
+});
