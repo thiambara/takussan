@@ -42,7 +42,7 @@ réduction ne servait qu'aux fichiers déjà sous le plafond.
 ## Delta à produire
 
 - [x] `ProfileHeader` : `reduirePhotoSousPlafond(file, 2 Mo)` avant le contrôle de taille.
-- [x] Tests dans `ProfileHeader.test.tsx`.
+- [x] Tests dans `ProfileHeader.test.tsx` ; motif de `reduire-photo.branchement.test.ts` élargi à la variante sous plafond.
 
 ## Critères d'acceptation
 
@@ -56,4 +56,6 @@ réduction ne servait qu'aux fichiers déjà sous le plafond.
 ## Notes d'implémentation
 
 - Ablation : contrôle de taille remis sur le fichier brut, avant la réduction → AC1 rouge ; remis → 6 verts.
-- Le test TCK-542 voisin double désormais `reduirePhotoSousPlafond` au lieu de `reduirePhoto`.
+- Le test TCK-542 voisin double désormais `reduirePhotoSousPlafond` au lieu de `reduirePhoto`, et la
+  garde `reduire-photo.branchement.test.ts` accepte `await reduirePhotoSousPlafond(` (son motif ne
+  voyait que `reduirePhoto(s)(`).

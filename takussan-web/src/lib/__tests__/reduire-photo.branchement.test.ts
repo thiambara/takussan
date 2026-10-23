@@ -38,7 +38,8 @@ describe('réduction des photos — branchement', () => {
   it.each(ECRANS_DE_PHOTOS)('%s importe la réduction et l’appelle', (chemin) => {
     const source = lire(chemin);
     expect(source).toMatch(/from '@\/lib\/reduire-photo'/);
-    expect(source).toMatch(/await reduirePhotos?\(/);
+    // TCK-1887 — la variante sous plafond (`reduirePhotoSousPlafond`, TCK-596) réduit aussi.
+    expect(source).toMatch(/await reduirePhotos?(SousPlafond)?\(/);
   });
 
   it.each(PIECES_JUSTIFICATIVES)('%s ne réduit RIEN : une pièce part telle quelle', (chemin) => {
