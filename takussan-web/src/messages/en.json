@@ -4246,6 +4246,7 @@
         "comment_label": "What is wrong?",
         "comment_placeholder": "Describe what persists",
         "photos_label": "Photos (optional)",
+        "max_files": "Maximum {max} files.",
         "send_contest": "Send",
         "back": "Back",
         "failed": "Your answer was not saved. Please try again."
@@ -4283,6 +4284,7 @@
         "duration_label": "Estimated duration (days)",
         "attachments_label": "Attachments (PDF or images)",
         "remove_file": "Remove",
+        "max_files": "Maximum {max} files.",
         "file_type_refused": "File type refused (PDF, JPG, PNG or WEBP only): {files}",
         "incomplete": "Each line needs a description, a quantity and a price, and the quote a validity date.",
         "failed": "The quote was not sent.",
