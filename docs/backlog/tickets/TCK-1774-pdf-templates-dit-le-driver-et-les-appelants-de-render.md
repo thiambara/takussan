@@ -3,8 +3,8 @@ id: TCK-1774
 title: "docs/pdf-templates.md dit le driver déclaré et les appelants réels de render() (P140.04)"
 status: done
 phase: P2
-family: docs
-estimate: XS
+family: technique
+estimate: S
 wave: null
 created: 2026-10-23
 updated: 2026-10-23
