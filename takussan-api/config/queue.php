@@ -38,8 +38,13 @@ return [
 
     'connections' => [
 
+        // `after_commit` sur `sync` aussi (TCK-1802, P156.01) : c'est la file de la suite
+        // (`phpunit.xml`). Sans la clé, un job mis en file dans une transaction s'y exécutait
+        // avant le commit, et son échec annulait le geste : un ordre et une atomicité que le
+        // worker de `database` n'a pas. Vaut aussi pour `dispatchSync()` dans une transaction.
         'sync' => [
             'driver' => 'sync',
+            'after_commit' => true,
         ],
 
         'database' => [
