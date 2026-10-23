@@ -15608,7 +15608,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
 
 ### Un avis encore en file quand le compte est effacé part vers `deleted-<id>@takussan.local`
 - Réf : P166.02
-- Statut : validé — validation en bloc du porteur (2026-10-22) : la piste telle qu'écrite, avec la recommandation du délégué quand l'entrée en porte une ; où elle laisse plusieurs voies sans recommandation, l'implémenteur retient la plus étroite et écrit son choix dans le ticket
+- Statut : fait · TCK-1752
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:258-263`, `takussan-api/app/Services/Account/AccountDeletionService.php:313`, `takussan-api/app/Services/Account/AccountDeletionService.php:324`, `takussan-api/app/Jobs/Notifications/BuildUserDigestJob.php:62`
 - Constat :
@@ -15620,6 +15620,7 @@ caractères, qui font échouer le relevé entier (P124.01).*
   - Établi comment : lu et mesuré.
 - Piste : ne rien livrer à un destinataire supprimé : un écouteur `NotificationSending` qui rend `false` pour un `User` `trashed()` (et `BuildUserDigestJob` qui sort sur `trashed()`). Test : avis en file, compte effacé avant le worker → aucun courriel, aucune ligne in-app, aucun `failed_jobs`.
 - Mesure (2026-10-22, 7c6b79809, mesureur) : relu `anonymize()` (adresse remplacée par `deleted-%d@takussan.local`, puis `delete()` en douceur), `BuildUserDigestJob.php` (garde sur `notifications_email_enabled` et `email` seuls, aucun `trashed()`) ; `grep -rn NotificationSending app` → rien ; test temporaire `SondeMesureur166Test` (retiré), avis `ShouldQueue` canal `mail` mis en file `database` pour `alice@example.com`, puis `executeDeletion()`, puis `queue:work --stop-when-empty` → compte `trashed()`, `failed_jobs` 0, **un courriel livré à `deleted-1@takussan.local`** (transport `array`) → le constat tient ; le résumé `BuildUserDigestJob` et le refus du transport `resend` restent non rejoués. Classement : V3, le correctif décide de ce qui est encore envoyé au titulaire d'un compte effacé, et touche le flux RGPD d'effacement.
+- Mesure (2026-10-23, 4436bf690, implementeur) : test neuf `RienPourUnCompteEffaceTest` avant correctif, file `database` : avis `ShouldQueue` canal `mail` mis en file pour `alice@example.com`, puis `anonymize()`, puis `queue:work --stop-when-empty` → `NotificationSent` sur `mail` (rouge) ; `BuildUserDigestJob` d'un compte supprimé avec une notification non lue → résumé envoyé (rouge). Correctif : écouteur `NotificationSending` découvert (`app/Listeners/Notifications/RienPourUnCompteEfface`), `false` pour un `User` `trashed()`, et `BuildUserDigestJob` qui sort sur `trashed()` → 3/3 verts (compte actif toujours servi) ; ablation (écouteur retiré, job remis à `HEAD`) → les 2 mêmes rouges, remis → 3/3 ; `EventListenerDuplicationTest`, `ListenerSideEffectsRunOnceTest`, `NotificationDigestMailTest`, `SendNotificationDigestJobTest`, `AccountDeletionExecuteTest`, `AccountErasureLedgerTest` verts.
 
 ## Angle 167 — Tuiles et lignes cliquables des tableaux de bord : ce que le lien ouvre face à ce que le nombre compte
 
