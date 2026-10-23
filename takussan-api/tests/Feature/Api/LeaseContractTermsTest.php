@@ -839,7 +839,7 @@ class LeaseContractTermsTest extends TestCase
 
     /**
      * P5-md.5 — un parent figé par ses SEULES colonnes : l'enfant d'un renouvellement sans changement
-     * naît actif, sans empreinte, avec les termes d'exécution recopiés. Le renouveler ensuite à
+     * naît actif, avec les termes d'exécution recopiés (et, depuis P140.01, son contrat figé). Le renouveler ensuite à
      * +50 % reste un avenant : `pending_signature`. Jugé sur l'empreinte seule, le contournement
      * de m-d en deux temps rouvrait (`active`, sans signature).
      */
@@ -848,7 +848,8 @@ class LeaseContractTermsTest extends TestCase
         $parent = $this->signedParent(['rent_review_max_pct' => 10]);
         $child = $this->renew($parent);
         $this->assertSame(LeaseStatus::Active, $child->status);
-        $this->assertNull($child->contract_sha256);
+        // P140.01 (TCK-1788) — l'enfant né actif a désormais son contrat figé à sa naissance.
+        $this->assertNotNull($child->contract_sha256);
         $this->assertSame(10.0, (float) $child->rent_review_max_pct);
 
         $grandChild = $this->renew($child, ['monthly_rent' => 150_000, 'end_date' => now()->addYears(10)->toDateString()]);

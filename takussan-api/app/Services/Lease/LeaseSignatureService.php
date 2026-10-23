@@ -64,16 +64,7 @@ class LeaseSignatureService
         $terms = $this->executionTerms($lease);
         $printed = (clone $lease)->forceFill($terms);
 
-        $bytes = $this->pdf->render('pdf.leases.contract', [
-            'title' => 'Contrat de bail '.($lease->reference_number ?? $lease->id),
-            'document_label' => 'Bail',
-            'lease' => $printed,
-            'tenant' => $lease->tenant,
-            'landlord' => $lease->landlord,
-            'property' => $lease->property,
-            'agency' => $lease->agency,
-            'guarantors' => $lease->guarantors,
-        ]);
+        $bytes = $this->renderContract($lease, $printed);
         $sha = hash('sha256', $bytes);
 
         $fresh = DB::transaction(function () use ($lease, $bytes, $sha, $terms): Lease {
@@ -252,6 +243,42 @@ class LeaseSignatureService
 
             return $activated;
         });
+    }
+
+    /**
+     * P140.01 (TCK-1788, ADR-0042 §1) — un renouvellement qui naît `active` sans signature fige son
+     * contrat comme la voie papier ({@see signOnPaper()}) : empreinte, et le PDF rendu rangé dans
+     * `signed_contract`. Sans cela, son contrat était rendu à la volée à chaque téléchargement : une
+     * révision de loyer réimprimait le loyer révisé. L'appelant ne fige qu'un enfant dont les termes
+     * d'exécution sont déjà posés ; ceux d'un enfant de parent antérieur restent nuls (ADR-0042 §1).
+     *
+     * L'appelant tient la transaction du renouvellement ; le fichier s'écrit en dernier (M-F).
+     */
+    public function freezeRenewal(Lease $child): void
+    {
+        $child->loadMissing(['property.address', 'tenant.user', 'landlord', 'agency', 'guarantors']);
+        $terms = $this->executionTerms($child);
+        $bytes = $this->renderContract($child, (clone $child)->forceFill($terms));
+
+        $child->forceFill($terms + ['contract_sha256' => hash('sha256', $bytes)])->save();
+        $child->addMediaFromString($bytes)
+            ->usingFileName(sprintf('bail-%s.pdf', $child->reference_number ?? $child->id))
+            ->toMediaCollection('signed_contract');
+    }
+
+    /** Le contrat de `$lease`, imprimant les termes de `$printed` (une copie aux termes figés). */
+    private function renderContract(Lease $lease, Lease $printed): string
+    {
+        return $this->pdf->render('pdf.leases.contract', [
+            'title' => 'Contrat de bail '.($lease->reference_number ?? $lease->id),
+            'document_label' => 'Bail',
+            'lease' => $printed,
+            'tenant' => $lease->tenant,
+            'landlord' => $lease->landlord,
+            'property' => $lease->property,
+            'agency' => $lease->agency,
+            'guarantors' => $lease->guarantors,
+        ]);
     }
 
     /** Le signataire, revérifié ici — super-admin compris (`Gate::before`). */
