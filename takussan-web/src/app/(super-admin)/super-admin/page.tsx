@@ -4,6 +4,9 @@ import { ConsoleQueues } from '@/components/admin/super/ConsoleQueues';
 import { ConsoleRecentActivity } from '@/components/admin/super/ConsoleRecentActivity';
 import { SystemMetricsGrid } from '@/components/admin/super/SystemMetricsGrid';
 import { PageHeader } from '@/components/console';
+import { AmorceLectures } from '@/components/providers/AmorceLectures';
+import { lireAccueilConsole } from '@/lib/queries/accueil-console';
+import { getOperatorToken } from '@/lib/session';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('superAdmin.pages.home');
@@ -17,24 +20,32 @@ export async function generateMetadata(): Promise<Metadata> {
  * ensuite (les métriques), ce qui vient de se passer en bas (l'audit). La page précédente
  * commençait par huit nombres sans destination — la première chose qu'un super-admin y voyait
  * n'était pas ce qu'il avait à faire.
+ *
+ * TCK-1828 (P136.05) — les trois sections sont lues ici, avec le jeton de l'opérateur (celui du
+ * relais `/api/super-admin/*`), et amorcées dans TanStack : elles rendent leurs données au premier
+ * affichage. Une lecture en échec reste au navigateur.
  */
 export default async function SuperAdminDashboardPage() {
   const t = await getTranslations('superAdmin.pages.home');
+  const token = await getOperatorToken();
+  const lectures = token ? await lireAccueilConsole(token) : [];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t('title')}
-        description={t('subtitle')}
-      />
-      <ConsoleQueues />
-      <section aria-labelledby="super-admin-metrics" className="space-y-3">
-        <h2 id="super-admin-metrics" className="font-display text-base font-semibold text-foreground">
-          {t('metricsTitle')}
-        </h2>
-        <SystemMetricsGrid />
-      </section>
-      <ConsoleRecentActivity />
-    </div>
+    <AmorceLectures lectures={lectures}>
+      <div className="space-y-6">
+        <PageHeader
+          title={t('title')}
+          description={t('subtitle')}
+        />
+        <ConsoleQueues />
+        <section aria-labelledby="super-admin-metrics" className="space-y-3">
+          <h2 id="super-admin-metrics" className="font-display text-base font-semibold text-foreground">
+            {t('metricsTitle')}
+          </h2>
+          <SystemMetricsGrid />
+        </section>
+        <ConsoleRecentActivity />
+      </div>
+    </AmorceLectures>
   );
 }

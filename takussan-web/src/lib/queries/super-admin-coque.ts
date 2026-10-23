@@ -60,6 +60,18 @@ export async function fetchAdminKycQueue(params: {
   page?: number;
   perPage?: number;
 } = {}): Promise<KycDossiersResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/kyc?${requeteFileKyc(params).toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<KycDossiersResponse>(res);
+}
+
+/** TCK-1828 — la requête de la file KYC, lue par le navigateur et par l'accueil serveur. */
+export function requeteFileKyc(params: {
+  status?: KycDossierStatus;
+  page?: number;
+  perPage?: number;
+} = {}): URLSearchParams {
   const qs = new URLSearchParams();
   qs.set('fields[kyc_dossiers]', KYC_DOSSIER_FIELDS);
   qs.set('include', 'subject');
@@ -68,10 +80,7 @@ export async function fetchAdminKycQueue(params: {
   qs.set('sort', 'submitted_at');
   qs.set('per_page', String(params.perPage ?? 20));
   if (params.page) qs.set('page', String(params.page));
-  const res = await fetch(cheminApi`/api/super-admin/kyc?${qs.toString()}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<KycDossiersResponse>(res);
+  return qs;
 }
 
 /** TCK-600 — un résultat de la recherche globale de la console (`AdminGlobalSearchService`). */
@@ -102,6 +111,21 @@ export async function fetchModerationQueue(params: {
   page?: number;
   perPage?: number;
 } = {}): Promise<AdminModerationResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/moderation?${requeteFileModeration(params).toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<AdminModerationResponse>(res);
+}
+
+/** TCK-1828 — la requête de la file de modération, lue par le navigateur et par l'accueil serveur. */
+export function requeteFileModeration(params: {
+  type?: ModerationItemType;
+  status?: ModerationItemStatus;
+  agencyId?: number;
+  sort?: string;
+  page?: number;
+  perPage?: number;
+} = {}): URLSearchParams {
   const qs = new URLSearchParams();
   // P100.05 (TCK-1186) — `fields` inerte : `Admin\ModerationQueueController::index` assemble la file à la main.
   qs.set('fields[moderation]', 'id,type,status,subject_type,subject_id,agency_id,reported_at,reason');
@@ -112,19 +136,22 @@ export async function fetchModerationQueue(params: {
   qs.set('sort', params.sort ?? '-reported_at');
   qs.set('page', String(params.page ?? 1));
   qs.set('per_page', String(params.perPage ?? 20));
-
-  const res = await fetch(cheminApi`/api/super-admin/moderation?${qs.toString()}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<AdminModerationResponse>(res);
+  return qs;
 }
 
 export async function fetchFailedJobs(params: { page?: number; perPage?: number } = {}): Promise<FailedJobsResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/jobs/failed?${requeteJobsEchoues(params).toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<FailedJobsResponse>(res);
+}
+
+/** TCK-1828 — la requête des jobs échoués, lue par le navigateur et par l'accueil serveur. */
+export function requeteJobsEchoues(params: { page?: number; perPage?: number } = {}): URLSearchParams {
   const qs = new URLSearchParams();
   qs.set('per_page', String(params.perPage ?? 20));
   if (params.page) qs.set('page', String(params.page));
-  const res = await fetch(cheminApi`/api/super-admin/jobs/failed?${qs.toString()}`, { credentials: 'include' });
-  return jsonOrThrow<FailedJobsResponse>(res);
+  return qs;
 }
 
 export async function fetchAdminAgencyUpgradePendingCount(): Promise<number> {

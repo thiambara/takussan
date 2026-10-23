@@ -534,14 +534,22 @@ export async function fetchAuditLog(params: AuditLogFilterParams & {
   page?: number;
   perPage?: number;
 } = {}): Promise<AuditLogResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/audit?${requeteJournalAudit(params).toString()}`, {
+    credentials: 'include',
+  });
+  return jsonOrThrow<AuditLogResponse>(res);
+}
+
+/** TCK-1828 — la requête du journal d'audit, lue par le navigateur et par l'accueil serveur. */
+export function requeteJournalAudit(params: AuditLogFilterParams & {
+  page?: number;
+  perPage?: number;
+} = {}): URLSearchParams {
   const qs = auditFilterQuery(params);
   if (params.page) qs.set('page', String(params.page));
   if (params.perPage) qs.set('per_page', String(params.perPage));
   qs.set('include', 'causer');
-  const res = await fetch(cheminApi`/api/super-admin/audit?${qs.toString()}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<AuditLogResponse>(res);
+  return qs;
 }
 
 /** TCK-601 — un export CSV de l'audit plateforme : un lien signé, à ouvrir avant `expires_at`. */
