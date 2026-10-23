@@ -250,7 +250,7 @@ voie d'écriture (angle 13, puis 47).
 | 173 | Autres fichiers `index.ts` réexportateurs (`components/feedback`, `components/map`, `components/media`, `components/console`, `components/property-form`, `components/customer-form`, `components/floating-dock`) : paquets lourds (carte, téléversement, éditeurs) qu'un écran charge pour un seul composant léger qu'il y prend — le relevé de l'angle 137 hors de `components/forms` | fait |
 | 174 | Lectures serveur `apiRequest` qui ne transmettent pas le profil actif (`activeProfileId` absent : racine `getMe`, `sonderExistence`, `fetchDashboardProperty`, `fetchDashboardCustomer`, `fetchDashboardMe`, `fetchAgencyUpgradeRequests`, `getAccountDeletionRequestAction`, `fetchMyCapabilities`, et leurs pareilles sous `src/lib/queries` et `src/app/actions`) face aux lectures du navigateur, qui le portent : pour un compte présent dans plusieurs agences, rendu serveur sans profil actif (404 ou 403 d'une fiche, liste vide, agence nulle) — né de P138.03 | fait |
 | 175 | Relations vers un `User` supprimé en douceur par la suppression de compte (`causer`, `author`, `sender`, `issued_by`, `collector`, `handler`, `landlord` : portée `SoftDeletes` d'un `belongsTo` ou `morphTo` nu) lues dans les listes, les exports, les PDF et les notifications : auteur rendu « système », vide, ou 500 là où la ligne reste lisible — le pendant pour le compte des angles 130 et 165, né de P139.01 | fait |
-| 176 | Rôles lus toutes agences confondues par `profileTypes()` là où l'écran montre le rôle dans une agence donnée (`AgencyDetailController.php:184` de la console, `UserRoleController.php:90`, `UserResource.php:90` rendu dans les listes d'équipe, ciblage par rôle de `AnnouncementResolver` et `FeatureFlagEvaluator`) : rôle d'une autre agence affiché ou appliqué — né de P139.02 | à faire |
+| 176 | Rôles lus toutes agences confondues par `profileTypes()` là où l'écran montre le rôle dans une agence donnée (`AgencyDetailController.php:184` de la console, `UserRoleController.php:90`, `UserResource.php:90` rendu dans les listes d'équipe, ciblage par rôle de `AnnouncementResolver` et `FeatureFlagEvaluator`) : rôle d'une autre agence affiché ou appliqué — né de P139.02 | fait |
 | 177 | Relevés de gérance d'une période close recalculés à chaque lecture (`OwnerStatementController`, `OwnerStatementService`, PDF `pdf/statements/owner`, avis mensuel `SendOwnerStatements`) face aux remboursements, annulations, rapprochements et reversements écrits après la clôture : relevé envoyé au bailleur que plus rien ne reproduit — le pendant des relevés de l'angle 140 | à faire |
 | 178 | Loyers et acomptes encaissés par la plateforme et pas encore reversés, comptés comme argent de l'agence (`PayoutCalculator` et la préparation des reversements au bailleur, `CollectedPayments` et tableaux de bord, relevé de gérance `OwnerStatementService`) : reversement au bailleur d'un argent que la plateforme détient encore, ou qu'elle a rendu — né de P141.01 | à faire |
 | 179 | `try`/`catch` qui entourent un envoi en file et promettent un repli (`AgencyProvisioningService::sendActivationLink`, `SendSavedSearchAlerts.php:141`, `SendFavoriteChangeAlerts.php:164`, et leurs pareils autour de `notify()`, `Notification::send()` ou `Mail::send()` d'une classe `ShouldQueue`) : 502, annulation, statut d'échec ou marque de reprise que le `catch` ne peut jamais poser, l'envoi n'ayant lieu qu'au worker — né de P142.01 | à faire |
@@ -16350,3 +16350,94 @@ règle de l'agent parti (`CommissionLedgerService`, `isStaffAt`) : non relevée.
   - `swapProvider()` relit le prestataire sortant par `User::query()->find()` (lu, l. 93) : effacé, il est introuvable et n'est pas retiré du fil de l'intervention (l. 97-102). Sans effet visible tant qu'un compte effacé ne se connecte plus (à vérifier : sa ligne de participant reste active).
 - Piste : rendre `author.name` nul et laisser le front écrire « Anonyme » par une clé i18n, charger `author` par `whenLoaded` ; relire le sortant par `User::withTrashed()` dans `swapProvider()`.
 - Mesure (2026-10-23, 2a689d48a, mesureur) : relu `ReviewResource.php:16-20` (`'Anonyme'` en dur, `author` lu sans `whenLoaded`) et `SyncMaintenanceConversation.php:93` (`User::query()->find()`, `User` en `SoftDeletes`, l. 55) ; les lectures en liste chargent toutes `author` (`ReviewController.php:72,228,252`, `PublicPropertyController` `with('author.media')`, `PublicAgentController.php:259`, `PublicAgencyController.php:347`) → la requête par avis est **caduque**, le libellé en dur et la relecture du sortant tiennent ; le front lit `review.author.name.charAt(0)` (`PropertyReviews.tsx:67`) et doit donc garder un repli, la clé `anonymous` existe déjà. Classement : A1, le principe 5 de `CLAUDE.md` dit que le front porte le libellé et le commentaire de `swapProvider()` dit que le sortant quitte le fil, sans texte neuf.
+
+## Angle 176 — Rôles lus toutes agences confondues par `profileTypes()`
+
+*Exploré le 2026-10-23 sur `pre-dev` c4adeb298, par l'explorateur, sans sous-agent. Relu par
+l'explorateur lui-même : `HasProfiles::profileTypes()` et `profileRelationExists()`, les relations
+`*Profiles()` (sans filtre de statut), `User::getAgencyIdAttribute()`, les sept appelants de
+`profileTypes()` sous `app/` (`UserResource`, `UserDetailResource`, `UserRoleController`,
+`Admin\AgencyDetailController::team`, `AnnouncementResolver::matches`, `FeatureFlagEvaluator::evaluate`,
+`ActivityLogExporter`, ce dernier déjà corrigé par TCK-1717), `AgencyController::listMembers`,
+`UserAdminController::index`, ADR-0031 § 1 ; côté front `lib/roles.ts`, `(dashboard)/app/layout.tsx`,
+`(dashboard)/app/agency/layout.tsx`, `pages-admin.ts` (`pageAccessible`), `pages-admin-server.ts`
+(`contexteAdmin`), `AppShell.tsx`, `ProfileAdminSection.tsx`, `agency-detail.tsx` de la console,
+`TeamConsole.tsx`, `AdminUsersTable.tsx`, `UserRolesEditor.tsx`, `UserDetailDrawer.tsx`,
+`queries/admin-users.ts`, et les consommateurs de `/api/agencies/{id}/members`. Mesuré par un test
+temporaire (`tests/Feature/Tmp/Angle176TmpTest.php`, base de test PostgreSQL, charge `{ 2.05 2.17 2.42 }`
+sur 8 cœurs), retiré avant la fin. Aucun écran n'a été rendu : ce qui est dit de l'écran est lu dans
+le code. `UserDetailResource` de la console (fiche d'un compte, toutes agences par nature, avec
+`agencies` et le détail par profil) n'est pas relevé. Les boutons montrés par `isAdmin(user.roles)`
+face à une capacité relèvent de l'angle 152 et les délégations absentes de `roles` de P148.01 : non
+repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
+
+### L'onglet Équipe d'une agence, dans la console, donne à un membre les rôles qu'il tient dans d'autres agences
+- Réf : P176.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:162-187`, `takussan-api/app/Models/Concerns/HasProfiles.php:239-275`, `takussan-web/src/components/admin/super/agency-detail.tsx:508-510`
+- Constat :
+  - `team()` borne la liste aux membres de l'agence (`membreDe`), précharge les cinq relations de profil sans filtre d'agence, puis rend `'roles' => $user->profileTypes()->all()` (lu, l. 167-183). `profileTypes()` empile les types de profil du compte dans toutes ses agences (lu, `HasProfiles.php:239-275`).
+  - Mesuré (test temporaire, retiré) : un compte est agent actif dans l'agence A et admin actif de l'agence B. Super-admin, `GET /api/admin/agencies/{A}/team` → 200, la ligne du compte porte `"roles":["agency_admin","agent","customer"]`.
+  - L'onglet rend chaque valeur de `member.roles` en badge (lu, `agency-detail.tsx:508-510`) : l'opérateur lit qu'un administrateur siège dans l'agence A, où il n'y a qu'un agent.
+  - Même défaut, déjà corrigé pour l'export d'audit par TCK-1717 (P139.02) : `mapRow()` juge les profils d'agence dans l'agence de la ligne.
+- Piste : rendre dans `team()` les seuls types de profil tenus dans l'agence lue (filtrer le préchargement sur `agency_id`, ou un `rolesDansLAgence($agencyId)` partagé avec `ActivityLogExporter::roleDansLAgence`), rôles dérivés (`customer`, `tenant`) à part. Garde : un test de `team()` avec un compte agent dans A et admin de B, qui exige `agent` sans `agency_admin` dans la liste de A.
+
+### Le `roles` de `/api/auth/me` ouvre la section d'agence de l'agence active à un admin d'une autre agence
+- Réf : P176.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Resources/UserResource.php:91-92`, `takussan-web/src/app/(dashboard)/app/agency/layout.tsx:28`, `takussan-web/src/lib/access/pages-admin.ts:154-171`, `takussan-web/src/lib/access/pages-admin-server.ts:78-109`, `takussan-web/src/app/(dashboard)/app/layout.tsx:38-66`, `takussan-web/src/components/layout/AppShell.tsx:84,157`
+- Constat :
+  - Mesuré (test temporaire, retiré) : compte agent actif de A et admin actif de B, `GET /api/auth/me` sous `X-Profile-Id: agent:<profil de A>` → `roles = ["agency_admin","agent","customer"]`, `agency_id` = A. `agency_id` suit le profil actif (lu, `User.php:446-451`), `roles` non.
+  - Le layout de la section laisse passer `isAdmin(user.roles)` (lu, `layout.tsx:28`). `pageAccessible` saute l'examen des capacités ouvrantes dès que `isAdmin(ctx.roles)` (lu, `pages-admin.ts:161-164`) : `/app/agency/team`, `finances`, `finances/reconciliation`, `integrations` et les autres pages sans `capacite` sont offertes pour l'agence A (lu, `pages-admin.ts:74-129`).
+  - L'API les refuse : même compte, même profil actif, `GET /api/users?per_page=5` (la liste de `/app/agency/team`) → **403** (mesuré).
+  - Le layout de `/app` traite le compte en admin de A : il lit les demandes de passage au plan supérieur de A (`fetchAgencyUpgradeRequests`, l. 38-45) et prépare le marqueur d'accueil de A ; `AppShell` monte `AgencyStandardWelcomeWizard` sur `isAgencyAdmin(user.roles)` (lu, `AppShell.tsx:84,157`). Ce que rend la lecture des demandes pour un agent n'a pas été mesuré (à vérifier).
+  - Distinct de P148.01, qui relève l'inverse (un délégataire `agency_admin` que `roles` ne nomme pas).
+- Piste : juger l'administration de la section sur l'agence active, côté API (un `roles` rapporté au profil actif, ou un champ neuf `active_roles`, l'ancien gardé pour les écrans qui veulent tous les rôles) ou côté front (`pageAccessible` et le layout lisant les capacités de `/api/me/capabilities` aussi pour un admin). Garde : un test de `pageAccessible`/`contexteAdmin` et un test de `/api/auth/me` sur un compte agent dans A, admin de B, profil actif dans A.
+
+### Un profil suspendu ou archivé donne encore son rôle dans `roles`, et la section d'agence s'ouvre à l'admin suspendu
+- Réf : P176.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Models/Concerns/HasProfiles.php:46-65,239-260,318-327`, `takussan-web/src/lib/access/pages-admin.ts:154-171`, `takussan-web/src/lib/access/pages-admin-server.ts:85-109`, `takussan-web/src/app/(dashboard)/app/agency/layout.tsx:28`
+- Constat :
+  - Les relations `agencyAdminProfiles()`, `agentProfiles()`, `ownerProfiles()` ne filtrent aucun statut (lu, l. 46-65), et `profileRelationExists()` n'en juge aucun (lu, l. 318-327). ADR-0031 § 1 réserve le personnel aux profils **actifs**, et `getAgencyIdAttribute()` ignore les profils suspendus (lu, `User.php:462-465`).
+  - Mesuré (test temporaire, retiré) : compte dont le seul profil est `AgencyAdminProfile` `suspended` → `GET /api/auth/me` rend `roles = ["agency_admin","customer"]`, `agency_id = null`. Compte dont le seul profil est `AgentProfile` `suspended` → `roles = ["agent","customer"]`.
+  - Côté front, `contexteAdmin` rend `agence: null` sans agence (lu, `pages-admin-server.ts:89-101`), et `pageAccessible` ne bloque l'exigence `standard` que si l'agence est connue (lu, `pages-admin.ts:165-167`) : l'admin suspendu reçoit toutes les pages de la section sans `capacite`. `GET /api/users` → **403** pour lui (mesuré).
+  - L'agent suspendu passe de même les gardes `assertCanReachAgentArea(roles)` des layouts de `/app/properties`, `customers`, `leads`, `tasks` (lu, `grep -rn "assertCanReachAgentArea" takussan-web/src/app`) ; ce que rendent ensuite ces pages n'a pas été mesuré (à vérifier).
+- Piste : ne compter dans `profileTypes()` que les profils actifs (même règle que `ActiveProfileResolver::isActiveProfile`, déjà lue par `getAgencyIdAttribute()`), ou rendre le statut avec le rôle et laisser le front en juger. Garde : un test de `/api/auth/me` avec un profil d'admin `suspended` et un d'agent `archived`, qui refuse leur type dans `roles`.
+
+### La liste des membres d'une agence sert à son admin les rôles qu'un membre tient dans d'autres agences
+- Réf : P176.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:172-197,296`, `takussan-api/app/Http/Resources/UserResource.php:91-92`, `takussan-api/app/Http/Controllers/Api/UserRoleController.php:86-92`
+- Constat :
+  - `listMembers()` précharge les profils de toutes les agences et rend `UserResource`, dont `roles` vaut `profileTypes()` (lu, l. 183-195 ; `UserResource.php:92`).
+  - Mesuré (test temporaire, retiré) : admin actif de A, `GET /api/agencies/{A}/members` → la ligne d'un membre agent de A, admin de B, porte `["agency_admin","agent","customer"]`. L'admin de A apprend un rôle tenu dans une autre agence.
+  - Même source dans la réponse de `POST /api/agencies/{id}/members` (`UserResource::make($target->refresh())`, lu, l. 296) et dans celle de `PUT /api/users/{user}/role` (`$user->fresh()->profileTypes()`, lu, `UserRoleController.php:91`) ; non mesuré pour ces deux-là (à vérifier).
+  - Aucun écran ne rend ces `roles` aujourd'hui : les lecteurs de `/members` n'en tirent que le nom (lu, `ContactLeadsInbox.tsx:317`, `AuditTrail.tsx:189`, `role-delegations.ts:160`), et `putUserRole` ignore le corps de la réponse (lu, `UserRolesEditor.tsx:75-80`). La donnée sort de l'API sans être affichée.
+- Piste : rapporter `roles` à l'agence de la route dans ces trois réponses, ou ne pas le rendre hors de `/api/auth/me` (la variante de P02.01 que son classement laissait de côté). Garde : un test de `/members` sur un membre de deux agences, qui refuse le rôle de l'autre.
+
+### Annonces et drapeaux ciblés par rôle atteignent les profils suspendus, et le ciblage par agence dépend du profil actif
+- Réf : P176.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Features/FeatureFlagEvaluator.php:51-58`, `takussan-api/app/Services/Announcements/AnnouncementResolver.php:66-75`
+- Constat :
+  - Les deux croisent `segment.roles` avec `profileTypes()` (lu, `FeatureFlagEvaluator.php:52`, `AnnouncementResolver.php:69`).
+  - Mesuré (test temporaire, retiré) : drapeau `enabled`, `segments_json = {"roles":["agency_admin"]}`, compte au seul profil d'admin `suspended` → `evaluate()` rend `true`. Le résolveur d'annonces suit le même chemin (lu, non mesuré).
+  - Le ciblage `agency_ids` lit `$user->agency_id` (lu, `FeatureFlagEvaluator.php:57`, `AnnouncementResolver.php:73`) : pour un compte de deux agences sans profil actif résolu, l'accesseur rend `null` (lu, `User.php:464-472`) et une annonce ciblée sur l'une de ses agences ne l'atteint pas ; avec un profil actif, seule l'agence active compte (déduit, à vérifier).
+- Piste : juger le rôle sur les profils actifs (suite de P176.03) et le ciblage par agence sur toutes les agences où le compte est actif, sans dépendre du profil actif de la requête. Garde : un test par service, profil suspendu et compte de deux agences.
+
+### Petites améliorations
+- Réf : P176.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/profile/ProfileAdminSection.tsx:38,54`, `takussan-web/src/components/profile/ProfileHeader.tsx:59,139-141`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:73`, `takussan-web/src/components/admin/users/AdminUsersTable.tsx:202-210`, `takussan-web/src/components/admin/users/UserRolesEditor.tsx:66-70`, `takussan-web/src/lib/queries/admin-users.ts:26-29`
+- Constat :
+  - Le rôle « principal » du profil vient de `getPrimaryRole(user.roles)` (lu, `ProfileAdminSection.tsx:38`, `ProfileHeader.tsx:59`) : un agent de A, admin de B, profil actif dans A, lit « administrateur d'agence » (déduit de la mesure de P176.02, à vérifier à l'écran).
+  - La fiche client montre la révélation du numéro de pièce sur `isAdmin(roles)` (lu, `customers/[id]/page.tsx:73`) : même compte, même effet ; la règle de l'API n'a pas été relue (à vérifier, voisin de l'angle 152).
+  - `/app/agency/team` lit `/api/users` avec `fields[users]`, et l'API n'y rend pas de `roles` : mesuré (test temporaire, retiré), admin de A, clés de la ligne = `id, first_name, last_name, email, phone, status, last_login_at, created_at, two_factor_enabled, agent_profiles, owner_profiles, agency_admin_profiles`. Le commentaire du front affirme le contraire (« derived server-side by `UserResource::toArray()` », lu, `admin-users.ts:26-29`). La colonne « Rôle » retombe sur `row.roles?.[0]` quand la ligne n'a pas d'affectation de rôle d'agence (lu, `AdminUsersTable.tsx:202-210`), et `UserRolesEditor` prend `roles[0]` comme rôle de départ (lu, l. 66-70) : il part donc sans rôle courant (déduit, à vérifier à l'écran).
+- Piste : lire le rôle de l'agence active (suite de P176.02) ; pour l'équipe, dériver le rôle des `*_profiles` déjà rendus, bornés à l'agence active par TCK-665, et corriger le commentaire d'`admin-users.ts`. Garde : un test de `AdminUsersTable`/`UserRolesEditor` sur une ligne sans `roles`, avec un `agency_admin_profiles` non vide.
