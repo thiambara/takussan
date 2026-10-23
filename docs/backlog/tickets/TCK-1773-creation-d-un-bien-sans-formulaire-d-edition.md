@@ -45,7 +45,7 @@ neuve, 1 rouge sur 2). La fiche du bien charge `PropertyForm` par `next/dynamic`
 - [x] `properties/new/page.tsx` prend `PropertyWizard` à son fichier.
 - [x] `components/property-form/index.ts` retiré.
 - [x] Les quatre `vi.mock` suivent.
-- [x] Garde : `properties/new/__tests__/graphe-client-de-la-creation.test.ts`.
+- [x] Garde : `app/__tests__/graphe-client-de-la-creation-d-un-bien.test.ts`.
 
 ## Critères d'acceptation
 
@@ -56,3 +56,6 @@ neuve, 1 rouge sur 2). La fiche du bien charge `PropertyForm` par `next/dynamic`
 
 - Ablation : `index.ts` et l'import de la page remis à leur état antérieur → 1 rouge sur 2 ;
   rétablis → 2 verts.
+- Piège : la garde vit sous `src/app/__tests__/`, pas sous `properties/new/__tests__/`. Placée
+  sous `(dashboard)/app`, elle faisait entrer `src/test/analyse-statique.ts` dans le « reste non
+  gardé » de l'écran `/app` que compte `scripts/check-super-admin-tokens.mjs` (19 > 17).
