@@ -276,7 +276,7 @@ voie d'écriture (angle 13, puis 47).
 | 199 | Listes chargées par morceaux (« Voir plus », `useInfiniteQuery` : `ConversationList`, `CustomerActivityFeed`, `PipelineKanban`/`PipelineColumn`, `announcements`, `AgencyCombobox`) puis triées, filtrées ou comptées côté client sur les seules pages chargées : colonne, onglet ou recherche vide alors que le total de l'API en compte, et chargement de la suite qu'aucun bouton n'offre plus — né de P168.02 | fait |
 | 200 | Gestes d'argent qui créent ou encaissent une ligne sans juger l'état de son parent (`BookingPaymentController::store` et `PaymentGatewayService::isPayable` face à `BookingStatus`, `POST /api/invoices` d'un `invoiceable` annulé ou terminé, liens de paiement `LeasePaymentLinkService` d'un bail sorti, reversement d'une ligne dont la réservation a été annulée après encaissement) : paiement ouvert ou encaissé sur un dossier clos, que seul l'écran empêche — né de P170.01 | fait |
 | 201 | Gestes à usage unique jugés par une lecture d'éligibilité faite une fois au montage (avis d'agence, d'agent et de prestataire hors de la fiche de bien, signalement `report` d'un bien ou d'un avis, demande de contact, candidature, inscription à une alerte) : après l'envoi réussi, formulaire réaffiché et second envoi en 422 — né de P172.02 | fait |
-| 202 | Gestes qui changent ce que rend `/api/auth/me` (rôles, profils, agence, téléphone, e-mail vérifié, second facteur, intention) suivis du seul `router.refresh()` sans `refreshUser()` : `AuthProvider` garde l'utilisateur de son premier rendu (`useState(initialUser)`, `AuthContext.tsx:80`) et ignore le nouvel `initialUser` de la mise en page racine, si bien que menus, gardes et lectures du navigateur jugent l'ancien état — né de l'angle 172 | à faire |
+| 202 | Gestes qui changent ce que rend `/api/auth/me` (rôles, profils, agence, téléphone, e-mail vérifié, second facteur, intention) suivis du seul `router.refresh()` sans `refreshUser()` : `AuthProvider` garde l'utilisateur de son premier rendu (`useState(initialUser)`, `AuthContext.tsx:80`) et ignore le nouvel `initialUser` de la mise en page racine, si bien que menus, gardes et lectures du navigateur jugent l'ancien état — né de l'angle 172 | fait |
 | 203 | Code hors requête HTTP qui lit l'agence d'un compte par `$user->agency_id` ou `$notifiable->agency_id` (`SmsChannel.php:115`, `WhatsappChannel.php:262`, `SendSmsAfterLateWhatsappFailureJob.php:105`, et leurs pareils dans les jobs, écouteurs et commandes) : sans requête, pas de profil actif, et l'accesseur rend `null` pour un compte présent dans plusieurs agences — envoi rattaché à aucune agence, ou à la mauvaise, pour le quota, le fournisseur et le journal — né de P174.01 | à faire |
 | 204 | Comptes d'agent ou de prestataire effacés par `AccountDeletionService` sans passer par le retrait d'agence : tâches (`assigned_to_id`), interventions (`assigned_to`), demandes de contact (`handled_by_id`, `recipient_user_id`), baux (`agent_id`) et collaborations de bien laissés au compte effacé, que `AgentHandoverService::move` sait déplacer mais dont la passation rend 404 (liaison de route sous `SoftDeletes`) : travail à son nom que personne ne reprend — né de P175.02 | à faire |
 | 205 | Pièces déjà reversées au bailleur (reversement `completed`, `payout_lease_payment`, `payout_booking_payment`) puis remboursées par `BookingPaymentService::refund` ou par webhook (`PaymentGatewayService::applyRefund`) : aucune reprise sur le bailleur — ni ligne négative au reversement suivant, ni dette, ni avis à l'agence —, si bien que l'agence rend au locataire un argent déjà versé — né de P177.01 | à faire |
@@ -18499,3 +18499,87 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 - Piste : dans le formulaire d'invitation, dire quelles cibles sont parties avant l'erreur ; pour le signalement, ajouter le détail du second envoi au premier signalement, ou l'écrire comme voulu dans le code.
 - Mesure (2026-10-23, e75677bf8, mesureur) : relu `ProfileReviewsList.tsx:198-217` (dépôts en série dans un `try`, le `toast` de succès après la boucle, l'erreur seule sinon) et `PublicPropertyController.php:780-795` (second signalement du même bien par le même compte ou la même empreinte dans les 24 h : `return` sans écrire) ; `ReviewReportService.php:44-49` dédoublonne un avis **sans fenêtre de 24 h** (tout signalement antérieur du même compte ou de la même empreinte compte), le constat est inexact sur ce point ; le dédoublonnage vient de TCK-597 (lu, ticket, l. 106-113) ; l'envoi partiel n'est pas rejoué. Classement : V7, dire quelles cibles sont parties demande un texte neuf, et fusionner ou jeter le second signalement est un choix que TCK-597 n'écrit pas.
 - Mesure (2026-10-23, 5fcadf598, delegue) : relu l'entrée, `ProfileReviewsList.tsx:198-217` (dépôts en série, succès après la boucle, l'erreur seule sinon), ADR-0043 § 6 (« le dédoublonnage se fait par compte si l'auteur est connecté, sinon par empreinte visiteur ») et TCK-597 (l. 106-113) → le dédoublonnage du signalement est une décision écrite ; fusionner le second envoi garderait des détails libres de plus (V3 à juger), d'où l'option « l'écrire comme voulu ». Délégation : V7, un libellé de retour d'erreur qui nomme ce qui est déjà parti, mineur et réversible, et un commentaire qui renvoie à une règle déjà écrite ; aucun critère réservé, la conservation des signalements ne change pas.
+
+## Angle 202 — Gestes qui changent `/api/auth/me` sans relire le contexte d'authentification
+
+*Exploré le 2026-10-23 sur `pre-dev` e261b5ef2, par l'explorateur. Tout a été relu par l'explorateur lui-même, sans sous-agent : `AuthContext.tsx`, le layout racine, les 25 fichiers de `src` qui appellent `router.refresh()` et les 12 qui appellent `refreshUser()` (relevé par `grep`), les 69 lecteurs de `useAuth()` qui prennent `user`, la page du profil et ses sections (`ProfileHeader`, `ProfileContactSection`, `ProfileSecuritySection`, `TwoFactorSection`, `PhoneVerificationSection`, `SecondaryPhoneSection`, `AccountDeletionDialog`), `AccepterInvitation`, `/publish` et `autoOnboardAction`, `CoordonneesPublication`, la `Navbar` publique, et côté API `HasProfiles::profileTypes`, `TwoFactorController::enable`, `RequestAccountDeletionRequest`, `HostIndividualOnboardingService::autoOnboard`. Un test vitest temporaire, retiré, a mesuré `AuthProvider` (charge 3,27 / 3,17 / 3,27 sur 8 cœurs). Ni le front ni l'API ne tournaient, aucun écran n'a été rendu au navigateur. La coque de `/app` (barre du haut, barre latérale, menu du compte) reçoit l'utilisateur du serveur en propriété et suit donc `router.refresh()` : elle n'est pas en cause. Hors de l'entrée, déjà relevés : `refreshUser` sur une panne et ses réponses inversées (P172.01, P172.03, PR #1365), et le profil actif absent des appels du navigateur (P174.01). L'impersonation recharge la page entière, délibérément (`super-admin/users/page.tsx:535-539`) : elle n'a pas d'entrée.*
+
+### Le contexte d'authentification ignore tout nouvel utilisateur que lui passe la mise en page racine
+- Réf : P202.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/context/AuthContext.tsx:81-83,146-147`, `takussan-web/src/app/layout.tsx:74-110`
+- Constat :
+  - `AuthProvider` pose `user` et `token` par `useState(initialUser ?? null)` et `useState(initialToken ?? null)` (lu, l. 81-82). Le seul effet qui dépend d'`initialUser` sort aussitôt quand il est fourni (lu, l. 147) ; le layout racine le fournit toujours, `null` compris (lu, `layout.tsx:74,110`).
+  - Le layout racine relit `/api/auth/me` à chaque rendu serveur (lu, l. 74-87), mais il n'est jamais remonté par une navigation du client : un `router.refresh()` lui fait rendre un nouvel `initialUser`, que l'état ignore.
+  - Mesuré, test vitest temporaire (retiré) : `AuthProvider` monté avec `{ first_name: 'Awa', roles: ['customer'], two_factor_enabled: false }`, puis re-rendu avec `{ first_name: 'Aïssatou', roles: ['owner', 'customer'], two_factor_enabled: true }`, puis avec `null` → `useAuth().user` rend `Awa|customer|false` les trois fois.
+  - Tout geste qui change ce que rend `/api/auth/me` sans `setUser` ni `refreshUser` laisse donc l'ancien compte aux lecteurs de `useAuth()` jusqu'au prochain chargement complet du document. P202.02 à P202.06 relèvent ceux qui sont touchés aujourd'hui.
+- Piste : faire suivre l'état à la propriété quand elle change (comparer l'`initialUser` reçu à celui du rendu précédent et poser le nouveau, sur le patron « état dérivé d'une propriété » ; de même pour `initialToken`), pour que `router.refresh()` suffise après tout geste ; ou bien exiger `refreshUser()` après chaque geste, ce que P202.02 à P202.06 montrent fragile. Garde : un test d'`AuthProvider` re-rendu avec un autre `initialUser`, qui exige le nouveau compte.
+
+### Activer ou couper le second facteur au profil laisse l'ancien état au contexte, et la demande de suppression du compte part sans le code exigé
+- Réf : P202.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/profile/security/TwoFactorSection.tsx:35,68-96`, `takussan-web/src/components/profile/ProfileSecuritySection.tsx:21,59,68-69`, `takussan-web/src/components/profile/security/AccountDeletionDialog.tsx:130,144-146,240`, `takussan-api/app/Http/Requests/Auth/RequestAccountDeletionRequest.php:150-167`
+- Constat :
+  - `TwoFactorSection` tient l'état dans un `useState(initialEnabled)` local et, à la confirmation comme à la coupure, ne pose que `setEnabled(true)` ou `setEnabled(false)` : ni `setUser`, ni `refreshUser`, ni `router.refresh()` (lu, l. 35, 77, 93).
+  - `ProfileSecuritySection` passe `user.two_factor_enabled`, lu dans le contexte, à `TwoFactorSection` et à `AccountDeletionSection` (lu, l. 21, 59, 69). Le dialogue de suppression n'affiche le champ du code et n'envoie `two_factor_code` que si ce drapeau est vrai (lu, `AccountDeletionDialog.tsx:130,240`).
+  - L'API exige le code dès que `users.two_factor_enabled` est vrai, et refuse sinon par une 422 sur `two_factor_code` (lu, `RequestAccountDeletionRequest.php:152-167`).
+  - Après avoir activé le second facteur, sur la même page, une demande de suppression part donc sans code, et le refus porte sur un champ que le dialogue n'affiche pas (lu ; message de l'API à l'écran, par `result.message`, l. 133). Après l'avoir coupé, le dialogue exige six chiffres que l'API ne lira pas (lu, l. 146).
+  - Quitter le profil par un lien de `/app` puis y revenir remonte `TwoFactorSection` avec le drapeau périmé du contexte : la section dit « désactivé » et propose d'activer un second facteur déjà actif (déduit de l. 35 et de P202.01, à vérifier). `TwoFactorController::enable` prend alors la branche du renouvellement, sous step-up (lu, `TwoFactorController.php:43-51`).
+- Piste : poser le drapeau dans le contexte à la confirmation et à la coupure (`setUser({ ...user, two_factor_enabled })`), ou relire par `refreshUser()` ; P202.01 le rendrait suffisant avec un `router.refresh()`. Garde : un test de `ProfileSecuritySection` sous un vrai `AuthProvider`, second facteur confirmé, qui exige le champ du code dans le dialogue de suppression.
+
+### Le téléphone vérifié dans « Sécurité » reste non vérifié pour le reste de l'application
+- Réf : P202.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/profile/security/PhoneVerificationSection.tsx:34,63-68`, `takussan-web/src/components/profile/ProfileSecuritySection.tsx:61-64`, `takussan-web/src/components/profile/security/SecondaryPhoneSection.tsx:29,38`, `takussan-web/src/components/profile/ProfileContactSection.tsx:57-58,193-208`, `takussan-web/src/components/contact/CoordonneesPublication.tsx:22-27,99-114`
+- Constat :
+  - Le profil propose deux vérifications du même numéro. Celle de « Coordonnées » pose `phone_verified_at` dans le contexte (lu, `ProfileContactSection.tsx:207-208`). Celle de « Sécurité » ne pose que son état local `setVerified(true)` (lu, `PhoneVerificationSection.tsx:68`), sans `setUser`, `refreshUser` ni `router.refresh()`.
+  - `SecondaryPhoneSection`, sur la même page, se masque tant que le contexte n'a pas `phone_verified_at` (lu, l. 38) : un numéro vérifié par « Sécurité » ne fait pas apparaître l'ajout du second numéro. « Coordonnées » garde de son côté son badge « non vérifié », pris une fois de la propriété serveur (lu, l. 57-58).
+  - Dans le parcours de publication, `manquesLocaux` juge le numéro sur le contexte (lu, `CoordonneesPublication.tsx:26`) : le numéro y est donné à vérifier, et seul le cas inverse (le serveur dit « manque », le contexte non) déclenche une relecture (lu, l. 99-102). Que la publication en soit bloquée, ou seulement redemande un code, n'a pas été établi (à vérifier).
+  - Dans l'autre sens : un numéro changé dans « Coordonnées » remet `phone_verified_at` à `null` dans le contexte (lu, l. 125-142), mais `PhoneVerificationSection` garde son `useState(initialVerified)` et continue d'afficher « vérifié » (lu, l. 34).
+- Piste : poser `phone_verified_at` dans le contexte à la vérification de « Sécurité » comme le fait « Coordonnées », et faire lire l'état aux deux sections depuis le contexte plutôt que depuis un état local pris au montage ; ou ne garder qu'une des deux vérifications. Garde : un test de la page du profil sous un vrai `AuthProvider`, vérification par « Sécurité », qui exige l'ajout du second numéro.
+
+### Accepter une invitation en étant connecté laisse au navigateur les rôles d'avant
+- Réf : P202.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/invitations/accept/AccepterInvitation.tsx:44-54`, `takussan-api/app/Models/Concerns/HasProfiles.php:244-274`, `takussan-web/src/components/home/Navbar.tsx:551,801-804`, `takussan-web/src/components/payments/PaymentsTabs.tsx:62-63`, `takussan-web/src/components/visits/VisitsList.tsx:35-36`, `takussan-web/src/components/maintenance/MaintenanceList.tsx:55-56`
+- Constat :
+  - Connecté, l'acceptation fait `router.push(destination)` et rien d'autre (lu, l. 52-54) : ni `refreshUser`, ni `setUser`, ni invalidation des profils. Le chemin non connecté, lui, ouvre une session neuve par `openSession` (lu, l. 61-64).
+  - `roles` de `/api/auth/me` liste tous les profils du compte (lu, `HasProfiles.php:244-274`). Accepter une invitation de bailleur, d'agent ou de prestataire en ajoute un, que le contexte ne voit pas (P202.01).
+  - Lecteurs touchés, tous sur `useAuth().user.roles` : la `Navbar` publique, qui n'offre ni « Mes biens » ni le portefeuille (lu, l. 551, 801-804) ; l'onglet du bailleur de `PaymentsTabs` (lu, l. 63) ; la vue du personnel de `VisitsList` (lu, l. 36) ; la vue prestataire de `MaintenanceList` (lu, l. 56). La coque de `/app`, rendue par le serveur, montre bien le nouveau rôle : les deux disent des choses différentes sur le même écran (déduit, à vérifier au navigateur).
+- Piste : `await refreshUser()` et invalider `profilesKeys.all` avant la navigation, comme le font les assistants d'intégration ; P202.01 traiterait la cause. Garde : un test d'`AccepterInvitation` connecté, invitation acceptée, qui exige une relecture de `/api/auth/me` avant `router.push`.
+
+### L'espace créé sans question par « Publier » n'apparaît pas dans les rôles que le navigateur connaît
+- Réf : P202.05
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/publish/page.tsx:43-50`, `takussan-web/src/app/actions/auto-onboard.ts:25-41`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:128-163`, `takussan-web/src/components/home/Navbar.tsx:551,801-804`
+- Constat :
+  - `autoOnboard` crée une agence, un profil d'administrateur d'agence et un profil de bailleur (lu, `HostIndividualOnboardingService.php:128-163`), et l'action pose le cookie du profil actif (lu, `auto-onboard.ts:35-41`).
+  - Au retour, `/publish` invalide la liste des profils puis navigue (lu, `page.tsx:46-48`), sans `refreshUser()` : le contexte garde `roles: ['customer']` et `agency_id: null`. L'assistant hôte, qui fait le même geste par un autre chemin, appelle `refreshUser()` (lu, `grep -rn "refreshUser()" src/components/onboarding`).
+  - Effet lu : de retour sur le site public, la `Navbar` n'offre ni « Mes biens » ni le portefeuille au compte qui vient de créer son espace (lu, l. 551, 801-804) ; les lecteurs de `roles` de P202.04 sont touchés de même.
+- Piste : `await refreshUser()` après l'action réussie, avant la navigation ; ou P202.01. Garde : un test de `/publish`, création réussie, qui exige la relecture de l'utilisateur.
+
+### Changer son nom ou sa photo dans l'en-tête du profil laisse l'ancien nom et l'ancienne photo à la barre du site public
+- Réf : P202.06
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/profile/ProfileHeader.tsx:47,119-130`, `takussan-web/src/components/home/Navbar.tsx:324,780`, `takussan-web/src/components/onboarding/EtapePrenom.tsx:44-50`
+- Constat :
+  - L'enregistrement pose l'utilisateur rendu dans un état local (`setCurrentUser`, lu, l. 47, 125), puis `router.refresh()` (lu, l. 130), sans `setUser` ni `refreshUser`. La coque de `/app` suit (propriété serveur) ; le contexte, non (P202.01).
+  - La `Navbar` du site public lit le libellé et la photo dans `useAuth().user` (lu, l. 324, 780) : après un passage de `/app/profile` au site public par un lien, elle montre l'ancien nom et l'ancienne photo, jusqu'au prochain chargement complet (déduit de P202.01, non rendu au navigateur).
+  - `EtapePrenom`, qui fait le même enregistrement, pose bien le contexte (`setUser({ ...user, ...resultat.user })`, lu, l. 49) : le patron existe à côté.
+- Piste : poser l'utilisateur rendu dans le contexte, comme `EtapePrenom` ; ou P202.01. Garde : un test de `ProfileHeader` sous un vrai `AuthProvider`, qui exige le nouveau prénom dans `useAuth().user`.
+
+### La vérification d'e-mail par le lien peut laisser l'adresse « non vérifiée » au contexte de la session qui l'a faite
+- Réf : P202.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/(auth)/auth/verify-email/[id]/[hash]/page.tsx:20-52`, `takussan-web/src/app/layout.tsx:74-87`, `takussan-web/src/components/profile/ProfileSecuritySection.tsx:22`
+- Constat :
+  - La page du lien vérifie l'adresse côté serveur (lu, l. 32), puis propose un lien du client vers `/onboarding/intention` (lu, l. 50). Le layout racine lit `/api/auth/me` pour le même document (lu, `layout.tsx:74-87`).
+  - Si le layout lit `/api/auth/me` avant que la page n'ait vérifié, `initialUser` porte `email_verified_at: null`, que le contexte garde ensuite pour toute la navigation du client (P202.01) ; `ProfileSecuritySection` dit alors l'adresse « non vérifiée » (lu, l. 22). Que Next rende le layout et la page en parallèle, et dans quel ordre partent les deux appels, n'a pas été mesuré (à vérifier).
+- Piste : mesurer l'ordre des deux appels (journal du relais, ou test de rendu) ; si le défaut tient, P202.01 le règle sur le premier `router.refresh()`, ou la page de vérification peut relire l'utilisateur avant de proposer la suite.
