@@ -8,6 +8,9 @@
  * - le locataire du bail voit « Donner mon préavis », l'ouvre, et peut retirer sa demande ;
  * - un client qui n'est pas ce locataire ne voit rien ;
  * - l'agent garde son geste de gestion, inchangé.
+ *
+ * P189.03 (TCK-1871) — le geste suit désormais le verdict que l'API sert
+ * (`abilities.request_early_termination`, le même prédicat) : les fixtures le portent.
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -62,6 +65,16 @@ import { LeaseDetail } from '../LeaseDetail';
 
 const LOCATAIRE_USER_ID = 30;
 
+const PREAVIS_REFUSE = {
+  renew: false,
+  review_rent: false,
+  record_payment: false,
+  refund_deposit: false,
+  request_early_termination: false,
+  update: false,
+};
+const PREAVIS_ACCORDE = { ...PREAVIS_REFUSE, request_early_termination: true };
+
 function bail(overrides: Partial<LeaseWithRelations> = {}): LeaseWithRelations {
   return {
     id: 1,
@@ -97,6 +110,7 @@ function bail(overrides: Partial<LeaseWithRelations> = {}): LeaseWithRelations {
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
     tenant: { id: 300, user_id: LOCATAIRE_USER_ID },
+    abilities: PREAVIS_REFUSE,
     ...overrides,
   };
 }
@@ -113,6 +127,7 @@ describe('LeaseDetail — préavis du locataire (TCK-596 §1)', () => {
 
   it('le locataire du bail voit « Donner mon préavis » et ouvre le dialogue', () => {
     etat.user = { id: LOCATAIRE_USER_ID, roles: ['customer'] };
+    etat.lease = bail({ abilities: PREAVIS_ACCORDE });
     rendre();
 
     const geste = screen.getByRole('button', { name: 'Donner mon préavis' });
@@ -126,6 +141,7 @@ describe('LeaseDetail — préavis du locataire (TCK-596 §1)', () => {
   it('le locataire retire sa demande depuis la bannière tant que la fenêtre est ouverte', () => {
     etat.user = { id: LOCATAIRE_USER_ID, roles: ['customer'] };
     etat.lease = bail({
+      abilities: PREAVIS_ACCORDE,
       status: 'terminating',
       early_termination_requested_at: '2026-04-25T10:00:00Z',
       early_termination_effective_date: new Date(Date.now() + 30 * 86_400_000)
@@ -156,6 +172,7 @@ describe('LeaseDetail — préavis du locataire (TCK-596 §1)', () => {
 
   it("l'agent garde son geste de gestion, inchangé", () => {
     etat.user = { id: 77, roles: ['agent'] };
+    etat.lease = bail({ abilities: { ...PREAVIS_ACCORDE, update: true } });
     rendre();
 
     expect(screen.getByRole('button', { name: 'Résilier le bail' })).toBeInTheDocument();

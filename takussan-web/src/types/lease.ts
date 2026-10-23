@@ -123,6 +123,10 @@ export interface LeaseAbilities {
   readonly review_rent: boolean;
   readonly record_payment: boolean;
   readonly refund_deposit: boolean;
+  /** P189.03 — `LeasePolicy::requestEarlyTermination` : le préavis et son annulation. */
+  readonly request_early_termination: boolean;
+  /** P189.03 — `LeasePolicy::update` : l'ajout de garant et le lien de paiement d'une échéance. */
+  readonly update: boolean;
 }
 
 /**
