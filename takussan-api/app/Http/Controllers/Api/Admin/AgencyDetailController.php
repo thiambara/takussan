@@ -167,9 +167,21 @@ class AgencyDetailController extends Controller
         // P120.02 (TCK-1244) — les administrateurs aussi, par la portée commune `membreDe`.
         $base = User::query()->membreDe((int) $agency->id);
 
+        // TCK-1780 (P176.01) — les trois profils d'agence préchargés DANS l'agence lue : `roles`
+        // vaut `profileTypes()`, qui empilait sinon ceux de toutes les agences du compte (l'agent
+        // de A qui administre B sortait `agency_admin` dans l'équipe de A). Les autres types
+        // (plateforme, prestataire, rôles dérivés) restent ceux du compte, comme TCK-1717.
+        $dansLAgence = fn ($profils) => $profils->where('agency_id', $agency->id);
+
         $users = User::buildQuery($base, $request)
             ->defaultSorts(...[...User::nameSorts(), 'id'])
-            ->with(['agencyAdminProfiles', 'agentProfiles', 'ownerProfiles', 'serviceProviderProfile', 'platformProfile'])
+            ->with([
+                'agencyAdminProfiles' => $dansLAgence,
+                'agentProfiles' => $dansLAgence,
+                'ownerProfiles' => $dansLAgence,
+                'serviceProviderProfile',
+                'platformProfile',
+            ])
             ->paginate(min(max((int) $request->query('per_page', 15), 1), 100));
 
         return $this->json([
