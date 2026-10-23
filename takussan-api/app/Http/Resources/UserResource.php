@@ -89,7 +89,11 @@ class UserResource extends BaseResource
                 'timezone' => $this->timezone,
             ] : []),
             'agency_id' => $this->agency_id,
-            'roles' => $this->profileTypes()->all(),
+            // TCK-2002 (P176.02, P176.03 ; ADR-0005, amendement du 2026-10-23) — les profils ACTIFS de
+            // l'agence que rend `agency_id` juste au-dessus (celle du profil actif, auto-bascule
+            // comprise), plus les types globaux. Avant : tous les profils, de toutes les agences,
+            // suspendus compris, et le front ouvrait la section d'agence que l'API refuse ensuite.
+            'roles' => $this->resource->activeProfileTypesAt($this->agency_id)->all(),
             'status' => $this->status?->value,
             // TCK-253 — opt-in personalisation hints set via PATCH /api/me.
             // Returned as an object (possibly empty) whenever the column was read, so clients can
