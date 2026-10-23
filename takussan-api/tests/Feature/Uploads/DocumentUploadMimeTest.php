@@ -90,4 +90,38 @@ class DocumentUploadMimeTest extends TestCase
             $this->postJson("/api/documents/{$document->id}/versions", ['file' => $file])->assertCreated();
         }
     }
+
+    /**
+     * P194.01 — un fichier RÉEL de quelques octets passe : `min:1` jugeait en kilo-octets et
+     * refusait tout fichier de moins de 1 024 octets, alors que la règle ne visait que le vide
+     * (voir `vide` ci-dessus). Fichiers réels, pour que `finfo` lise leur contenu : un faux
+     * fichier annonce la taille qu'on lui donne.
+     */
+    public function test_un_petit_fichier_reel_passe_sur_le_depot_et_la_version(): void
+    {
+        $document = Document::factory()->create([
+            'documentable_id' => $this->property->id,
+            'documentable_type' => Property::class,
+            'uploaded_by' => $this->owner->id,
+        ]);
+
+        foreach ([
+            'note.txt' => "Une note de vingt-sept oct.\n",
+            'petit.csv' => "nom,montant,date\nloyer,150000,2026-10-01\ncharges,12000,2026-10-01\n",
+        ] as $nom => $contenu) {
+            $this->assertLessThan(1024, strlen($contenu));
+
+            $this->store(self::fichierReel($nom, $contenu))->assertCreated();
+            $this->postJson("/api/documents/{$document->id}/versions", ['file' => self::fichierReel($nom, $contenu)])
+                ->assertCreated();
+        }
+    }
+
+    private static function fichierReel(string $nom, string $contenu): UploadedFile
+    {
+        $chemin = tempnam(sys_get_temp_dir(), 'p19401');
+        file_put_contents($chemin, $contenu);
+
+        return new UploadedFile($chemin, $nom, null, null, true);
+    }
 }

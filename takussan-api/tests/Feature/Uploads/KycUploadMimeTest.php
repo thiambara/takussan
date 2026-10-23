@@ -82,4 +82,22 @@ class KycUploadMimeTest extends TestCase
             $this->postJson($uri, $fields + [$field => $file])->assertCreated();
         }
     }
+
+    /**
+     * P194.01 — une photo RÉELLE de moins de 1 Kio (PNG 2×2 de GD) passe sur les quatre routes :
+     * `min:1` jugeait en kilo-octets et la refusait, alors que la règle ne visait que le vide.
+     */
+    #[DataProvider('routes')]
+    public function test_une_petite_photo_reelle_passe(string $route): void
+    {
+        [$uri, $fields, $field] = $this->route($route);
+
+        $image = imagecreatetruecolor(2, 2);
+        $chemin = tempnam(sys_get_temp_dir(), 'p19401');
+        imagepng($image, $chemin);
+        $this->assertLessThan(1024, (int) filesize($chemin));
+
+        $this->postJson($uri, $fields + [$field => new UploadedFile($chemin, 'piece.png', null, null, true)])
+            ->assertCreated();
+    }
 }
