@@ -33,6 +33,9 @@ use Illuminate\Support\Carbon;
 final class FiltresDeLaCarte
 {
     /** Clé de la requête → colonne de `properties`, comparée en « au moins ». */
+    /** La borne de `properties.area`, `unsignedInteger` : un `integer` signé sous PostgreSQL. */
+    private const AREA_MAX = 2147483647;
+
     private const MINIMUMS = [
         'bedrooms' => 'bedrooms',
         'bathrooms' => 'bathrooms',
@@ -65,11 +68,20 @@ final class FiltresDeLaCarte
                 $query->where($query->qualifyColumn($colonne), '>=', (int) $p[$cle]);
             }
         }
+        // P187.03 (TCK-1847) — `properties.area` est un ENTIER (borne 2³¹ − 1) : la borne passait
+        // en flottant, et PostgreSQL rendait 500 sur `3000000000`, `1.0E+20`, `INF` ou `119.5`.
+        // Elle se lit en entier sans changer le résultat, qui reste celui de la liste
+        // (`PropertySearchService`) : un minimum s'arrondit au-dessus, un maximum au-dessous ;
+        // un minimum hors de la colonne n'admet aucun bien, un maximum hors de la colonne
+        // n'écarte que les surfaces inconnues, comme toute comparaison numérique.
         if (isset($p['area_min']) && is_numeric($p['area_min'])) {
-            $query->where($query->qualifyColumn('area'), '>=', (float) $p['area_min']);
+            $minimum = ceil((float) $p['area_min']);
+            $minimum > self::AREA_MAX
+                ? $query->whereRaw('1 = 0')
+                : $query->where($query->qualifyColumn('area'), '>=', (int) $minimum);
         }
         if (isset($p['area_max']) && is_numeric($p['area_max'])) {
-            $query->where($query->qualifyColumn('area'), '<=', (float) $p['area_max']);
+            $query->where($query->qualifyColumn('area'), '<=', (int) min(floor((float) $p['area_max']), self::AREA_MAX));
         }
         if (array_key_exists('featured', $p) && filter_var($p['featured'], FILTER_VALIDATE_BOOLEAN)) {
             $query->where($query->qualifyColumn('featured'), true);
