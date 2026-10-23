@@ -17380,7 +17380,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### La délégation de rôle rend 500 sur un `user_id` non numérique
 - Réf : P188.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1858
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Permissions/StoreRoleDelegationRequest.php:25,33-61`
 - Constat :
@@ -17389,6 +17389,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, test temporaire.
 - Piste : sortir du rappel quand `user_id` porte déjà une erreur (ou quand la valeur n'est pas un entier). Garde : un test `user_id=abc` → 422 sur `user_id`.
 - Mesure (2026-10-23, 8496d4c1a, mesureur) : relu `StoreRoleDelegationRequest.php:25` (`required|integer|exists`) et `:49-61` (`validateBeneficiaryInAgency()` fait `User::find()` sur la valeur brute ; `validateNotSelf()` et `validateRoleNotPrimaryAdmin()` castent en `(int)`), lignes inchangées ; test temporaire `tests/Feature/Tmp/MesureurTmp188Test.php` (un cas par méthode, charge `{ 2.34 2.23 2.30 }` sur 8 cœurs, retiré) : agency_admin à second facteur, `POST /api/agencies/{agency}/role-delegations` `user_id=abc` → **500** `22P02`, `user_id=99999999999999999999` → **500** `22003` (hors `bigint`, non relevé par le constat) → le constat tient, élargi aux 20 chiffres. Classement : A1, la règle `integer` rend déjà l'erreur sur `user_id` et seul le rappel la double en 500 ; le correctif attendu est de sortir des contrôles du rappel quand `user_id` porte déjà une erreur, sans changer qui peut déléguer (aucun appelant légitime touché, pas V2), tests `abc` et 20 chiffres → 422 sur `user_id`.
+- Mesure (2026-10-23, 1ac04b8ac, implementeur) : re-mesuré par le test de garde `RoleDelegationTest::test_un_user_id_non_entier_rend_422_et_non_500` : avant correctif, `user_id=abc` → **500** → le rappel `after()` sort désormais quand `user_id` porte déjà une erreur ; `abc` et 20 chiffres → 422 sur `user_id` ; ablation (requête remise à l'état de `pre-dev`) → rouge, correctif remis → vert ; `RoleDelegationTest` 15 verts, `RoleDelegationFinInclusiveTest` vert.
 
 ### La série mensuelle du tableau de bord de l'agent se décale d'un mois les jours où le mois de départ est plus court
 - Réf : P188.04
