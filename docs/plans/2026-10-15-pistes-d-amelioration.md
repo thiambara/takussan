@@ -17000,7 +17000,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### L'annulation d'une visite juge le statut sur le modèle non verrouillé : deux annulations simultanées préviennent deux fois le visiteur
 - Réf : P182.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-1820
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:369-401`, `takussan-api/app/Services/Visit/VisitNotifier.php:114-122`
 - Constat :
@@ -17009,6 +17009,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu.
 - Piste : déplacer l'annulation dans `VisitSchedulingService`, sous le verrou de la ligne relue, l'avis après la transaction. Garde : un test qui annule une visite déjà `cancelled` en base derrière un modèle resté `scheduled` et attend 422 sans avis.
 - Mesure (2026-10-23, 2b80de9, mesureur) : relu `PropertyVisitController.php:369-401` (`visit.cannot_cancel` jugé sur le modèle de la route, `update` sans transaction ni verrou, puis avis), `VisitSchedulingService.php:183-199` (`confirmOrFail` verrouille et relit) ; test temporaire `tests/Feature/Tmp/TmpMesure182Test.php` (retiré), PostgreSQL de test, charge 2,2 sur 8 cœurs : visite `scheduled` chargée, ligne passée `cancelled` en base derrière elle, `PropertyVisitController::cancel` appelé par le visiteur sur le modèle périmé avec `Notification::fake()` → accepté, un avis envoyé à l'agence pour une visite déjà annulée. Le « à vérifier » est levé pour le double avis ; l'écrasement de `completed` suit du même code (lu). Classement : A1, la garde `visit.cannot_cancel` écrit déjà le contrat (une visite annulée ou faite ne s'annule pas) ; le correctif la juge sur la ligne verrouillée et relue dans une transaction, l'avis après celle-ci, comme `confirmOrFail`, sans choix de produit.
+- Mesure (2026-10-23, 9b7e560d4, implementeur) : test neuf `PropertyVisitCancelSousVerrouTest`, un écouteur `retrieved` passe la ligne à `cancelled` ou `completed` juste après la liaison de route → sur l'arbre d'origine, `POST /api/property-visits/{id}/cancel` rend 200 dans les deux cas (2 rouges sur 3) ; `VisitSchedulingService::cancelOrFail` relit la ligne sous verrou dans une transaction et y juge `visit.cannot_cancel`, l'avis part après → 422, aucun avis, `completed` intact ; ablation : contrôleur rendu à `pre-dev` → 2 rouges, remis → 3 verts ; `PropertyVisitTest`, `PropertyVisitNotificationTest`, `PropertyVisitVerificationAdverseTest`, `PropertyVisitIsolationTest`, `ProprietaireDuBienTest` verts.
 
 ### Petites améliorations
 - Réf : P182.07
