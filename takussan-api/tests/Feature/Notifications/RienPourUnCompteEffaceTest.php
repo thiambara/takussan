@@ -32,6 +32,13 @@ class RienPourUnCompteEffaceTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Le worker sort en 12 (`Worker::EXIT_MEMORY_LIMIT`) quand le PROCESSUS dépasse `--memory`
+     * (128 Mo par défaut) : sous la suite entière avec couverture, c'est le processus de PHPUnit
+     * qui les dépasse, pas le job. Le plafond se lève pour que le test juge l'avis, pas la suite.
+     */
+    private const MEMOIRE_SANS_PLAFOND = 1_000_000;
+
     public function test_un_avis_en_file_pour_un_compte_efface_avant_le_worker_ne_part_pas(): void
     {
         config()->set('queue.default', 'database');
@@ -47,7 +54,7 @@ class RienPourUnCompteEffaceTest extends TestCase
         app(AccountDeletionService::class)->anonymize($user, notifier: false);
         $this->assertTrue(User::withTrashed()->find($user->id)->trashed(), 'le compte est effacé');
 
-        $this->artisan('queue:work', ['connection' => 'database', '--stop-when-empty' => true])->assertSuccessful();
+        $this->artisan('queue:work', ['connection' => 'database', '--stop-when-empty' => true, '--memory' => self::MEMOIRE_SANS_PLAFOND])->assertSuccessful();
 
         $this->assertSame([], $envois, 'aucun canal ne livre');
         $this->assertSame(0, DB::table('jobs')->count());
@@ -65,7 +72,7 @@ class RienPourUnCompteEffaceTest extends TestCase
         $user = User::factory()->create(['email' => 'bob@example.com']);
         $user->notify(new AvisEnFilePourEssai);
 
-        $this->artisan('queue:work', ['connection' => 'database', '--stop-when-empty' => true])->assertSuccessful();
+        $this->artisan('queue:work', ['connection' => 'database', '--stop-when-empty' => true, '--memory' => self::MEMOIRE_SANS_PLAFOND])->assertSuccessful();
 
         $this->assertSame(['mail'], $envois);
     }

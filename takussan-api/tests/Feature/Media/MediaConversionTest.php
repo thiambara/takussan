@@ -101,6 +101,10 @@ class MediaConversionTest extends TestCase
             'connection' => 'database',
             '--queue' => config('media-library.queue_name'),
             '--stop-when-empty' => true,
+            // Le worker sort en 12 (`Worker::EXIT_MEMORY_LIMIT`) quand le processus dépasse
+            // `--memory`, 128 Mo par défaut : sous la suite entière avec couverture, c'est
+            // PHPUnit qui les dépasse, pas la conversion.
+            '--memory' => 1_000_000,
         ])->assertSuccessful();
 
         $media = Media::findOrFail((int) $response->json('data.id'));
