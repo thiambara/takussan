@@ -77,6 +77,8 @@ export const BANK_LINE_FIELDS = [
   'label',
   'reference',
   'counterparty',
+  // TCK-1919 (P157.06) — la marque d'une ligne déjà importée par un autre relevé.
+  'duplicate_of_line_id',
   'match_status',
   'matched_payment_type',
   'matched_payment_id',

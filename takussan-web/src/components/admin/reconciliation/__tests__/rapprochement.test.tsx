@@ -193,6 +193,22 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
     );
   });
 
+  // TCK-1919 (P157.06, décision du porteur : marquer, ne pas sauter) — une ligne déjà importée par
+  // un autre relevé de l'agence porte un badge ; les autres non.
+  it('signale la ligne déjà importée par un autre relevé', () => {
+    q.useBankStatementLines.mockReturnValue(
+      ok({
+        data: [ligne({ duplicate_of_line_id: 55 }), ligne({ id: 101, duplicate_of_line_id: null })],
+        meta: { current_page: 1, last_page: 1, per_page: 50, total: 2 },
+      }),
+    );
+    render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+    expect(within(screen.getByTestId('ligne-100')).getByTestId('doublon-100')).toHaveTextContent(
+      fr.admin.reconciliation.detail.duplicate,
+    );
+    expect(within(screen.getByTestId('ligne-101')).queryByTestId('doublon-101')).toBeNull();
+  });
+
   it('montre le sens, la suggestion et sa confiance', () => {
     render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
     const suggeree = screen.getByTestId('ligne-100');

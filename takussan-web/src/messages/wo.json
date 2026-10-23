@@ -4881,6 +4881,7 @@
         "match": "Méngale",
         "actions": "Jëf yi",
         "paymentRef": "{type} n° {id}",
+        "duplicate": "Déjà importée dans un autre relevé",
         "confidence": "Wóolu : {value}",
         "validate": "Dëggal",
         "search": "Seet",
