@@ -17552,7 +17552,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### La liste des réservations garde au créateur suspendu ou retiré les réservations de ses biens, téléphone du client compris, que `view` lui refuse
 - Réf : P190.02
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite ; la première du lot (téléphone du client)
+- Statut : fait · TCK-1930
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/BookingController.php:22-37`, `takussan-api/app/Policies/BookingPolicy.php:28-40`
 - Constat :
@@ -17562,6 +17562,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré.
 - Piste : borner la clause « mes biens » de `index` par la règle d'`ownerOfProperty` (bien sans agence, ou profil de bailleur dans l'agence du bien). Test : agent créateur suspendu, puis retiré → réservation absente de la liste ; bailleur auteur, bloqué → présente.
 - Mesure (2026-10-23, 0c707fc77, mesureur) : relu `BookingController::index` (clause `orWhereHas('property', … user_id)`, `customer` chargé) et `BookingPolicy::view` (`ownerOfProperty`), inchangés ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 → suspendu comme retiré : `can('view', $booking)` faux, mais la réservation figure dans `GET /api/bookings` avec `customer.phone` renseigné → le constat tient en entier. Classement : V2 et V3, la clause « mes biens » de la liste sert le bailleur actif et le défaut expose une donnée personnelle, comme P153.02.
+- Mesure (2026-10-23, 2a944b073, implementeur) : `AgentCreateurListeDesReservationsTest` avant correctif → 2 rouges sur 4 : réservation du bien saisi par l'agent, agent suspendu puis retiré → présente dans `GET /api/bookings` ; `BookingController::index` borne la clause « mes biens » par `BailleurDuBien::restreindre` → absente, et présente pour le bailleur bloqué et pour l'agent actif → 4 verts ; ablation (contrôleur remis → 2 rouges, remis → verts) ; `BookingTest`, `DemandesEnAttenteLienTest`, `AgencySuspensionTest`, `BookingExistenceOracleTest` verts.
 
 ### Le créateur suspendu ou retiré ouvre et vérifie le paiement en ligne des acomptes de ses biens, et les lit dans l'historique
 - Réf : P190.03
