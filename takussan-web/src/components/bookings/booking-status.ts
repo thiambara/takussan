@@ -1,5 +1,5 @@
 import type { StatusTone } from '@/components/console';
-import type { BookingStatus } from '@/types/booking';
+import type { BookingPaymentStatus, BookingStatus } from '@/types/booking';
 
 /**
  * TCK-292 — tables hors composant : elles transportent la CLÉ (relative au namespace `bookings`),
@@ -30,7 +30,7 @@ export const BOOKING_STATUS_TONE: Record<BookingStatus, StatusTone> = {
 };
 
 /** Ton d'un paiement de réservation ; un statut inconnu de l'API retombe sur le neutre. */
-export const BOOKING_PAYMENT_STATUS_TONE: Record<string, StatusTone> = {
+export const BOOKING_PAYMENT_STATUS_TONE: Record<BookingPaymentStatus, StatusTone> = {
   pending: 'attention',
   paid: 'success',
   late: 'danger',
