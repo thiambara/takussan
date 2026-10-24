@@ -20745,7 +20745,7 @@ sans `delete`).*
 
 ### Le visiteur qui propose un autre créneau choisit un jour sans borne, et un jour passé ou au-delà de 60 jours rend « L'action n'a pas abouti »
 - Réf : P230.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2228
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/visits/VisitDetail.tsx:378-447`, `takussan-web/src/lib/visites/useCreneaux.ts:29-37`, `takussan-api/app/Http/Requests/Public/VisitSlotsPublicPropertyRequest.php:17`
 - Constat :
@@ -20755,6 +20755,7 @@ sans `delete`).*
   - Établi comment : lu des deux côtés, et mesuré sur le validateur ; le dialogue n'a pas été rendu.
 - Piste : borner le champ par la même fenêtre que TCK-2094 (`jourDeLApi()` à `decalerJour(jourDeLApi(), 60)`, `src/lib/jour-de-l-api.ts`), idéalement par une constante partagée avec `PropertyVisitDialog`. Garde : un test du dialogue à horloge figée où `min` et `max` portent ces deux jours.
 - Mesure (2026-10-24, 09c83726d, mesureur) : relu `VisitDetail.tsx:412-420` (`<Input type="date">` de `ProposerUnCreneau`, ni `min` ni `max`), `useCreneaux.ts:29-37` (tout rejet → `erreur`), `VisitDetail.tsx:443-446` (`actionError`), `VisitSlotsPublicPropertyRequest.php:17` ; `PropertyVisitDialog.tsx:45-46,85-91` borne déjà par `jourDeLApi()` et `JOURS_DE_VISITE_OUVERTS = 60` ; `php artisan tinker` (`Validator::make`, lecture seule) à 2026-10-24T18:10Z, charge 2,91 / 2,96 / 2,78 sur 8 cœurs → J-1 refusé, J0 et J+60 acceptés, J+61 refusé ; aucun commit ni ticket ne cite P230 hors l'exploration (`git log -S 'P230'`, `grep` des tickets) → le constat tient ; le dialogue n'a pas été rendu. Classement : A1, la fenêtre [jour UTC, J+60] est écrite par la règle de l'API et déjà appliquée par l'autre appelant (TCK-2094) ; le correctif pose `min`/`max` depuis `src/lib/jour-de-l-api.ts`, sans texte neuf.
+- Mesure (2026-10-24, c5ee97e97, implementeur) : reproduit par `VisitDetail.proposer-fenetre.p230-01.test.tsx` (navigateur à New York, 01:00 Z le 25 octobre) : le champ du jour de `ProposerUnCreneau` rendait `min` absent (`null`) → correctif : `min` = `jourDeLApi()`, `max` = J+60 par `JOURS_DE_VISITE_OUVERTS`, désormais exporté de `useCreneaux.ts` et partagé avec `PropertyVisitDialog` ; ablation (bornes retirées) → rouge, remises → vert, avec `VisitDetail.tck-590` et les deux tests de `PropertyVisitDialog` (18 tests).
 
 ### « Bloquer des dates » propose comme « Jour de reprise » la première nuit elle-même, que l'API refuse, et aucune borne haute face aux 24 mois de l'API
 - Réf : P230.02
