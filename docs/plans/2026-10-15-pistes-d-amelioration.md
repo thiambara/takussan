@@ -284,7 +284,7 @@ voie d'écriture (angle 13, puis 47).
 | 207 | Rappels et relances planifiés passés par `NotificationService::send()` (file `CodedNotification`) dont la marque se pose à la mise en file (`SendLeasePaymentReminders`, `SendPropertyVisitReminders`, relances de documents et d'échéances) : e-mail épuisé après `failed()`, ou SMS et WhatsApp refusés par tous les fournisseurs sans exception (`SmsRouterDriver`, `WhatsappChannel`), rappel perdu sans reprise ni trace lisible — le pendant de P142.02 pour les notifications codées, né de P179.01 | fait |
 | 208 | Invitations émises par l'endpoint générique `POST /api/invitations` (`CreateInvitationRequest`, `InvitationController::store`) face aux services par rôle qui gardent le même geste (`SuperAdminCooptationService::invite` et ses verrou, avis aux autres super-admins et journal ; `InviteServiceProviderRequest` et sa règle de `metadata.from_maintenance_request_id` ; `AgentInvitationService`, `OwnerInvitationController`) : garde, contrôle de `metadata` ou effet du geste dédié sautés par le chemin générique — né de P181.05 | fait |
 | 209 | Requêtes de modification qui ne rejouent pas les règles de valeur de leur création (`UpdateSettingRequest` face au catalogue de `StoreSettingRequest::after()`, et leurs pareilles : un `after()`, une règle de catalogue, un `Rule::unique` ou une sous-règle `x.*` présents dans `Store*Request` et absents de `Update*Request` du même modèle) : valeur refusée en 422 à la création et enregistrée en 200 à la modification — né de P181.01 | fait |
-| 210 | Gestionnaires `async` du front qui attendent `mutateAsync()` sans `try`/`catch` et sont passés tels quels à `onClick` ou par `void handleSubmit()` (`BookingDecisionDialog`, `VisitDetail` et leurs pareils sous `src/components/**`, hors gestes de transition) : erreur de l'API rendue en promesse rejetée non rattrapée, sans message à l'écran ni fermeture du dialogue — le relevé de P182.01 sur le reste des écrans | à faire |
+| 210 | Gestionnaires `async` du front qui attendent `mutateAsync()` sans `try`/`catch` et sont passés tels quels à `onClick` ou par `void handleSubmit()` (`BookingDecisionDialog`, `VisitDetail` et leurs pareils sous `src/components/**`, hors gestes de transition) : erreur de l'API rendue en promesse rejetée non rattrapée, sans message à l'écran ni fermeture du dialogue — le relevé de P182.01 sur le reste des écrans | fait |
 | 211 | Gestes d'écriture qui jugent le statut sur le modèle lié à la route, hors transaction ou sans verrou, alors que leurs voisins verrouillent et relisent la ligne (`PlatformPayoutService::cancel`, `PropertyVisitController::cancel`, `MaintenanceRequestService::accept`, et leurs pareils sous `app/Services` et `app/Http/Controllers/Api`) : transition concurrente écrasée, effet ou avis émis deux fois — né de P182.05 et P182.06 | à faire |
 | 212 | Dates calendaires `Y-m-d` de l'API lues par `new Date(…)` au navigateur puis comparées à l'instant ou ramenées à minuit local (`setHours(0, 0, 0, 0)`, `getDate()` : `EarlyTerminationBanner.daysFromTodayTo`, `LeaseRenewalDialog.tsx:44`, `refine` de `lib/schemas/lease.ts:81` et `booking.ts:42`, et leurs pareilles sous `src/components`) au lieu de la comparaison littérale de jours qu'ADR-0018 pose : jour décalé pour un navigateur hors UTC, ou dès minuit UTC du jour même — né de P183.01 et P183.04 | à faire |
 | 213 | Contrôleurs et services qui écrivent (`fill()->save()`, `update()`, `recordOwnerCost`) puis appellent une garde ou un service qui peut encore lever un 4xx, hors `DB::transaction` (`MaintenanceRequestController::update` l. 211-219 et ses pareils sous `app/Http/Controllers/Api` et `app/Services`) : réponse d'erreur sur une écriture déjà faite, que l'écran présente comme un échec — né de P184.02 | à faire |
@@ -304,6 +304,7 @@ voie d'écriture (angle 13, puis 47).
 | 225 | Tuiles, bandeaux et badges de compte posés au-dessus d'une liste paginée (`ModerationStats`, titres de groupe, onglets, résumés « n en retard ») qui comptent `items.filter(…).length` sur la page reçue, à côté d'un `meta.total` de toute la liste : chiffres de deux portées côte à côte, sans libellé qui le dise — né de P199.02 et P199.03 |
 | 226 | Paires polymorphes `*_type` / `*_id` et identifiants de ligne cible reçus du client sur les routes d'écriture (`invitable_*` hors du générique, `documentable_*`, `taskable_*`, `attachable_*`, `subject_*`, et leurs pareils dans `app/Http/Requests`), validés par `integer` ou `Rule::in` sans juger que la ligne visée existe et relève de l'agence de l'appelant : écriture ou effet posé sur la ligne d'une autre agence — né de P208.01 | à faire |
 | 227 | Requêtes de création (`Store*Request` et leur contrôleur) restées plus larges que les gestes dédiés et les requêtes de modification resserrés depuis (statut, visibilité, assignation, contact principal, commission : `StorePropertyRequest` face à TCK-1341 et TCK-1427, `StoreLeaseRequest`, `StorePropertyCollaboratorRequest`, et leurs pareilles sous `app/Http/Requests`) : ce qu'un `PATCH` ou un geste refuse s'obtient en créant la ligne — né de P209.01 et P209.02 | à faire |
+| 228 | Mutations lancées par `mutate()` sans `onError` et dont l'écran ne lit ni `error` ni `isError` (`generateSchedule` de `LeaseDetail.tsx:185`, `revoke` d'`AgentAbsencesSection.tsx:132`, `submit` d'`InventoryDetail.tsx:331`, et leurs pareilles sous `takussan-web/src/components`) : geste refusé par l'API sans rejet ni message, le bouton se réactive et rien ne dit l'échec — le pendant de l'angle 210 pour `mutate()` | à faire |
 
 
 ---
@@ -19169,3 +19170,66 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu.
 - Piste : borner `special_conditions` au renouvellement comme à la création (la même constante) ; donner à `estimated_cost` la règle `decimal:0,2` d'`actual_cost`.
 - Mesure (2026-10-24, cdf91988a, mesureur) : relu `RenewLeaseRequest.php:46` (`special_conditions` sans `max`), `StoreLeaseRequest.php:64` (`max:5000`, TCK-1240), `UpdateMaintenanceRequestRequest.php:117,119` (`decimal:0,2` sur `actual_cost` seul) ; rejoué par test temporaire `tests/Feature/TmpMesureP209Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 7,96 / 4,57 / 3,45 sur 8 cœurs : `POST /api/leases/{id}/renew` avec 6 000 caractères de `special_conditions` → 201, 6 000 caractères enregistrés ; agent de l'agence, `PATCH /api/maintenance-requests/{id}` `{estimated_cost: 1234.567}` → 200, ligne `1234.57` (le « à vérifier » tient : arrondi par la colonne sans refus) ; `{estimated_cost: "5e5"}` → 200, ligne `500000.00` (le 500 de bcmath que cite le commentaire d'`actual_cost` ne se produit pas sur ce champ). Classement : V1, borner la saisie d'un devis est une écriture de montant ; la borne de `special_conditions` au renouvellement relève seule de A1 (la constante de la création, TCK-1240).
+
+## Angle 210 — Gestionnaires `async` du front qui attendent `mutateAsync()` sans rattraper l'erreur
+
+*Exploré le 2026-10-24 sur `pre-dev` a197fdaca, par l'explorateur, sans sous-agent. Relevé de départ : un script de lecture qui liste, sous `takussan-web/src` hors tests, chaque appel `mutateAsync(` qu'aucun `try` ni `.catch(` n'entoure dans les 60 lignes précédentes → 52 appels dans 29 fichiers ; puis chaque appel relu ici. Écartés après lecture : les `onSubmit` de `useApiForm` (le hook rattrape et pose `globalError`, lu `useApiForm.ts:269-296` : `BookingPaymentDialog`, `BookingRefundPanel`, `DocumentUploadDialog`, `GuarantorSection`, `LeasePaymentDialog`, `CreateLeaseForm`, `InventoryForm`, `MaintenanceForm`, `MaintenanceCompleteForm`, `QuoteRejectionModal`, `CreateInvoiceDialog`), les gestes passés à un assistant qui rattrape (`agir` de `StatementDetail` et `CommissionsLedger`, `handleAction` d'`InvoiceDetailDialog` et `PayoutDetailDialog`, `act` de `ServiceProviderBillsTable`, `run` de `PayoutMethodsSection` et `PropertyCalendarPanel`, `PaymentSearchDialog.onChoisir`, `FileDePropositions`), les cinq appels `void x().catch(() => undefined)` dont l'écran lit `mutation.error` (`MaintenanceAssignmentBlock`, `MaintenanceGallery`, `MaintenanceResolutionResponse`, `QuoteSubmitForm`), et `BookingDetail`/`VisitDetail`, corrigés par TCK-1818 (P182.01). Un second relevé des `try … finally` sans `catch` a donné `SavedSearchesList`. Les fonctions de `src/lib/*.ts` qui appellent `apiRequest` sans `catch` passent par des actions serveur qui rendent un résultat (`failure(...)`) : écartées. Deux tests vitest temporaires, retirés avant la fin, charge 6,11 / 3,82 / 3,09 sur 8 cœurs. Le rendu au navigateur et l'incrustation d'erreur de Next en développement n'ont pas été observés.*
+
+### Une révision de loyer refusée par l'API ne s'affiche pas : après les deux saisies, rien ne se passe
+- Réf : P210.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/LeaseDetail.tsx:132-146,196`, `takussan-api/app/Services/Lease/RentReviewService.php:45,61-100`
+- Constat :
+  - `handleRentReview` est une fonction `async` passée telle quelle à `onClick` (l. 196) ; elle demande montant et motif par deux `window.prompt`, fait `await reviewRent.mutateAsync(...)` puis le toast de succès, sans `try`/`catch` (lu, l. 132-146). `reviewRent.error` n'est lu nulle part dans le composant (lu : `grep -n reviewRent` → l. 66, 139, 197, 199).
+  - L'API refuse en 422 des saisies courantes : motif de moins de 5 caractères (`REASON_MIN = 5`, l. 45 et 61-64), bail hors des statuts révisables (l. 78-82), variation au-delà du plafond sans `force` (l. 93-100) (lu). Le front ne borne ni le motif ni la variation.
+  - Mesuré : test vitest temporaire sur `LeaseDetail` (mocks de `LeaseDetail.capacites.test.tsx`, `abilities.review_rent` vrai), `window.prompt` → `400000` puis `Indexation annuelle`, `mutateAsync` rejeté en `ApiError(422, { message: 'La variation dépasse le plafond légal' })` → 0 `role=alert`, 0 `role=status`, aucun appel au toast, message absent de l'écran, et Vitest relève une « Unhandled Rejection: API error 422 ».
+  - Une saisie écartée par le front lui-même (montant non numérique ou nul, motif vide) sort aussi en `return` sans rien dire (lu, l. 134-138).
+  - Établi comment : lu et mesuré.
+- Piste : rattraper l'erreur et l'afficher par `useMessageErreurApi()` (ADR-0019), comme `InvoiceDetailDialog.handleAction` ; la question d'un vrai dialogue à la place des `window.prompt` (bornes du motif et de la variation montrées avant l'envoi) est un choix d'écran à part. Garde : un test vitest qui rejette la mutation en 422 et attend le message.
+
+### Le bouton de paiement du client sur une réservation échoue sans rien dire
+- Réf : P210.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/bookings/BookingDetail.tsx:549,573-575,585`, `takussan-api/app/Http/Controllers/Api/BookingPaymentController.php:45-51`, `takussan-api/app/Services/Model/BookingPaymentService.php:62-66`
+- Constat :
+  - `CustomerPayCta.handleClick` fait `await createPayment.mutateAsync({ status: 'pending' })` sans `try`/`catch`, passé tel quel à `onClick` (lu, l. 573-575, 585) ; `createPayment.error` n'est lu nulle part (lu : `grep -n createPayment` → l. 549, 574, 586), et `useCreateBookingPayment` ne pose ni `onError` ni toast (lu, `lib/queries/bookings.ts:154-166`).
+  - Pour le payeur client, l'API dérive le montant par `dueFromCustomer` (lu, `BookingPaymentController.php:45-51`), qui rend 422 `booking_payment.nothing_due` quand plus rien n'est dû (lu, `BookingPaymentService.php:66`) — cas d'un paiement acquitté par le fournisseur pendant que la fiche affiche encore le bouton depuis le cache.
+  - Le même motif que P210.01 (fonction `async` sur `onClick`, aucune lecture de l'erreur) : le client clique, le bouton se réactive, aucun message.
+  - Établi comment : lu ; le rendu n'a pas été mesuré.
+- Piste : rattraper l'erreur et l'afficher sous le bouton par `useMessageErreurApi()`. Garde : un test vitest de `CustomerPayCta` qui rejette la mutation en 422 et attend le message.
+
+### Une recherche sauvegardée dont la suppression échoue reste à l'écran sans message
+- Réf : P210.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/favorites/SavedSearchesList.tsx:141,185,205,244-251,259`
+- Constat :
+  - `handleDelete` fait `try { await remove.mutateAsync({ id }) } finally { … }`, sans `catch` (lu, l. 244-251) ; la ligne l'appelle par `onClick={() => onDelete(search.id)}`, typé `(id: number) => void` (lu, l. 141, 185). `remove.error` n'est lu nulle part (lu : le seul `role="alert"` du fichier, l. 127, est celui du réglage d'alerte de la ligne).
+  - Mesuré : test vitest temporaire (montage de `SavedSearchesList.alerte.test.tsx`, `fetch` simulé en 500 sur `DELETE`), clic sur « supprimer » de la première ligne → requête `DELETE` partie, 0 `role=alert`, 0 `role=status`, les deux lignes toujours affichées, et une « Unhandled Rejection: API error 500 ».
+  - Établi comment : lu et mesuré. Les codes que l'API peut rendre sur ce `DELETE` n'ont pas été relevés (à vérifier).
+- Piste : ajouter le `catch` et afficher l'erreur sur la ligne par `useMessageErreurApi()`. Garde : le test ci-dessus, qui attend le message.
+
+### Rejets non rattrapés là où l'écran affiche pourtant l'erreur par `mutation.error`
+- Réf : P210.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/admin/roles/AgencyRoleEditor.tsx:109-121,131-134,216`, `takussan-web/src/components/admin/roles/CreateRoleDialog.tsx:112-121,195-197,210`, `takussan-web/src/components/documents/DocumentVersionsList.tsx:99-108,118-121,230-234,252-254,263`
+- Constat :
+  - Quatre gestionnaires appelés par `void f()` attendent `mutateAsync` sans `catch` : `save` de l'éditeur de rôle, `submit` de la création de rôle, `handleSubmit` de l'ajout de version et `handleConfirm` de la restauration (lu). Chaque écran lit l'erreur de la mutation et l'affiche (lu, l. 131-134 et 203-205 ; 195-197 ; 119-121 ; 252-254) : le message est montré.
+  - Le rejet reste pourtant non rattrapé : `void` ne fait que taire l'avertissement. Vitest compte un tel rejet en erreur de l'exécution (constaté dans les deux sondes de P210.01 et P210.03 : « Errors 1 error »), et l'incrustation d'erreur de Next en développement le relève (à vérifier).
+  - Le dépôt a déjà la forme qui convient, `void f().catch(() => undefined)` avec l'erreur lue sur la mutation (lu, `MaintenanceAssignmentBlock.tsx:128`, `QuoteSubmitForm.tsx:153`).
+  - Établi comment : lu.
+- Piste : ajouter `.catch(() => undefined)` aux quatre appels (aucun changement visible). Garde : un test par composant qui rejette la mutation et passe sans erreur non rattrapée.
+
+### Aucune garde ne refuse une promesse passée à `onClick` ou laissée flottante
+- Réf : P210.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/eslint.config.mjs`
+- Constat :
+  - `eslint.config.mjs` n'active ni `@typescript-eslint/no-misused-promises` ni `@typescript-eslint/no-floating-promises`, et ne configure pas le lint typé (lu : `grep -n "promise\|Promise\|projectService\|parserOptions"` → rien). Les trois 🔴 de cet angle et P182.01 sont le motif que la première règle refuse (`onClick={handleRentReview}` d'une fonction `async`).
+  - Les quatre appels de P210.04 seraient acceptés par `no-misused-promises` (`void f()`) : la règle ne remplace pas le `catch`.
+  - Le coût du lint typé sur ~870 fichiers et le nombre de rouges qu'il ouvrirait n'ont pas été mesurés (à vérifier).
+- Piste : activer `no-misused-promises` (`checksVoidReturn` sur les attributs JSX) en lint typé, après relevé du nombre de violations ; à défaut, une garde de dépôt qui refuse `onClick={<nom>}` quand `<nom>` est une fonction `async` déclarée dans le même fichier.
