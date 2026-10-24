@@ -57,13 +57,17 @@ class PropertyVisitController extends Controller
             // du profil actif (ADR-0031 §1) : `agencesOuPersonnelActif`, au plus une.
             $personnelDe = PersonnelDeLAgence::agencesOuPersonnelActif($user);
             $request->attributes->set('visits.staff_agencies', $personnelDe);
+            // P217.05 (TCK-2237) — sur un bien SANS agence, le créateur n'est propriétaire que
+            // joignable, comme dans `view` (`PrimaryPropertyContact::estProprietaire`).
+            $proprietaireSansAgence = PrimaryPropertyContact::joignable($user);
 
-            $base->where(function ($q) use ($user, $bailleurDe, $personnelDe) {
+            $base->where(function ($q) use ($user, $bailleurDe, $personnelDe, $proprietaireSansAgence) {
                 $q->where('visitor_id', $user->id)
                     ->orWhere(fn ($a) => $a->where('agent_id', $user->id)
                         ->whereHas('property', fn ($p) => $p->whereNull('agency_id')->orWhereIn('agency_id', $personnelDe)))
                     ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id)
-                        ->where(fn ($a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $bailleurDe)))
+                        ->where(fn ($a) => $a->when($proprietaireSansAgence, fn ($s) => $s->whereNull('agency_id'))
+                            ->orWhereIn('agency_id', $bailleurDe)))
                     ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
 
                 if ($personnelDe !== []) {

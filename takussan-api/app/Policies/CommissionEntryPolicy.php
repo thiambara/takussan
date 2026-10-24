@@ -17,6 +17,14 @@ use App\Models\User;
  */
 class CommissionEntryPolicy
 {
+    /**
+     * P217.05 (TCK-2237, porteur 2026-10-24) — `view` n'a PAS de lecteur : il n'existe pas de
+     * route `GET /api/commissions/{id}`, et aucun code n'invoque `view` sur une ligne. Le relevé
+     * (`GET /api/commissions`) et l'export lisent le périmètre de `CommissionEntry::scopeVisibleTo`,
+     * qui exige le personnel de l'agence active : c'est lui qui fait foi. Le bénéficiaire sorti de
+     * l'agence, admis ici sans condition, ne lit donc rien. Une route de lecture unitaire qui
+     * appellerait cette règle devrait d'abord l'aligner sur `scopeVisibleTo`.
+     */
     public function view(User $user, CommissionEntry $entry): bool
     {
         return $entry->beneficiary_id === $user->id
