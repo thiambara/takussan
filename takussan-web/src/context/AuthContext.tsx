@@ -14,6 +14,7 @@ import {
 import { DELAI_DECONNEXION_MS } from '@/lib/delais-deconnexion';
 import { apiRequest } from '@/lib/api';
 import { poserProfilActifNavigateur } from '@/lib/profil-actif-navigateur';
+import { oublierLeCacheDEspace } from '@/lib/cache-d-espace';
 import {
   getIds as getLocalFavoriteIds,
   clear as clearLocalFavorites,
@@ -119,9 +120,17 @@ export function AuthProvider({
   // Le layout racine se rend de nouveau sur `router.refresh()` et après une action serveur qui
   // pose le cookie (les parcours d'accueil) : la valeur qu'il lit fait alors foi.
   const [profilDuLayout, setProfilDuLayout] = useState<string | null>(initialActiveProfileId ?? null);
+  // TCK-2229 (P197.06) — rang des changements d'espace venus de la mise en page : l'effet plus bas
+  // oublie le cache à chaque rang neuf, jamais pendant le rendu.
+  const [changementsDuLayout, setChangementsDuLayout] = useState(0);
   if ((initialActiveProfileId ?? null) !== profilDuLayout) {
-    setProfilDuLayout(initialActiveProfileId ?? null);
-    setActiveProfileIdState(initialActiveProfileId ?? null);
+    const profilNeuf = initialActiveProfileId ?? null;
+    setProfilDuLayout(profilNeuf);
+    // Seulement un profil que le client ne tient pas déjà : après un changement par le menu,
+    // `useSwitchActiveProfile` a posé le profil et oublié le cache avant son `router.refresh()`,
+    // dont le rendu apporte ce même profil.
+    if (profilNeuf !== activeProfileId) setChangementsDuLayout((n) => n + 1);
+    setActiveProfileIdState(profilNeuf);
   }
   useLayoutEffect(() => {
     poserProfilActifNavigateur(activeProfileId);
@@ -139,6 +148,10 @@ export function AuthProvider({
   const rangDemandeRef = useRef(0);
   const wasAuthedRef = useRef(false);
   const queryClient = useQueryClient();
+  useEffect(() => {
+    if (changementsDuLayout === 0) return;
+    void oublierLeCacheDEspace(queryClient);
+  }, [changementsDuLayout, queryClient]);
 
   // Sync local (anonymous) favorites into the DB after login. Returns nothing
   // — the seed effect picks up the canonical IDs immediately after.

@@ -8,9 +8,10 @@ import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
 import type { MyProfilesResponse, Profile } from '@/types/profile';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { CLE_PROFILS, oublierLeCacheDEspace } from '@/lib/cache-d-espace';
 
 export const profilesKeys = {
-  all: ['me', 'profiles'] as const,
+  all: CLE_PROFILS,
 };
 
 async function fetchProfilesViaProxy(): Promise<MyProfilesResponse> {
@@ -61,10 +62,6 @@ export function useMyProfiles() {
   });
 }
 
-function estClePrefixee(cle: readonly unknown[], prefixe: readonly unknown[]): boolean {
-  return prefixe.every((segment, i) => cle[i] === segment);
-}
-
 export function useSwitchActiveProfile() {
   const queryClient = useQueryClient();
   const { refreshUser, setActiveProfileId } = useAuth();
@@ -102,16 +99,12 @@ export function useSwitchActiveProfile() {
       // Re-render server components with the new cookie context so dashboard
       // pages refetch under the right team_id.
       router.refresh();
-      // TCK-2091 (P197.05) — le SEUL point où le cache suit le changement d'espace. Depuis TCK-2050,
-      // toute lecture du navigateur porte le profil actif, posé juste au-dessus ; une clé qui ne le
-      // porte pas (la plupart) garderait l'agence quittée jusqu'à son `staleTime`. Tout est donc
-      // OUBLIÉ et relu, hors les profils (le menu garde sa coche ; `onSettled` les relit) : `reset`
-      // et non `invalidate`, pour ne jamais montrer l'ancien espace pendant la relecture. Ici et non
-      // dans un effet sur `meta.active_profile_id`, que `onMutate` réécrit AVANT le `PATCH`.
-      // Une liste de préfixes « portés par l'agence » serait l'oubli que ce point corrige.
-      return queryClient.resetQueries({
-        predicate: (query) => !estClePrefixee(query.queryKey, profilesKeys.all),
-      });
+      // TCK-2091 (P197.05) — le cache suit le changement d'espace confirmé : tout est OUBLIÉ et
+      // relu, hors les profils (`onSettled` les relit). Ici et non dans un effet sur
+      // `meta.active_profile_id`, que `onMutate` réécrit AVANT le `PATCH`. Le `router.refresh()`
+      // ci-dessus rend le profil déjà posé par `setActiveProfileId` : `AuthProvider`, qui oublie
+      // aussi le cache quand la mise en page change le profil (TCK-2229), ne le refait pas.
+      return oublierLeCacheDEspace(queryClient);
     },
     onError: (err, _profileId, context) => {
       if (context?.previousProfiles) {
