@@ -17,7 +17,8 @@ export type AccountDeletionRequest = {
 };
 
 export type AccountDeletionObligation = {
-  type: 'lease' | 'lease_payment' | 'invoice' | 'booking';
+  // TCK-2015 (P175.03) — `payout` : un reversement en cours ; `payout_due` : une agence qui doit encore un reversement (`id` = l'agence).
+  type: 'lease' | 'lease_payment' | 'invoice' | 'booking' | 'payout' | 'payout_due';
   id: number;
   reference: string | null;
   label: string;
