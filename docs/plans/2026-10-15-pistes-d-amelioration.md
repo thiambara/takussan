@@ -20075,7 +20075,7 @@ l'import de relevé bancaire n'envoie qu'un CSV ou un OFX.*
 
 ### Le logo d'agence est refusé au-delà de 2 Mo avant d'être réduit, comme l'avatar l'était avant TCK-1887
 - Réf : P222.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2144
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:195-211`, `takussan-web/src/lib/schemas/agency.ts:205,226`, `takussan-web/src/app/actions/admin-agency.ts:135`, `takussan-api/app/Http/Requests/MediaUploadRequest.php:17,50`, `takussan-web/src/components/profile/ProfileHeader.tsx:96-103`
 - Constat :
@@ -20085,6 +20085,7 @@ l'import de relevé bancaire n'envoie qu'un CSV ou un OFX.*
   - Établi comment : lu.
 - Piste : réduire par `reduirePhotoSousPlafond(file, AGENCY_LOGO_MAX_BYTES)` avant `validateAgencyLogoFile`, et envoyer le fichier réduit, comme l'avatar. Garde : un test Vitest à outils d'image simulés où un logo de 5 Mo réductible n'affiche pas `logoTooLarge` et part réduit.
 - Mesure (2026-10-24, 03a8930d8, mesureur) : relu `AgencyConfigForm.tsx:193-211` (`validateAgencyLogoFile(file)` avant, `reduirePhoto(file)` après), `agency.ts:205,226` (`AGENCY_LOGO_MAX_BYTES` = 2 Mo), `ProfileHeader.tsx:96-103` (l'avatar réduit par `reduirePhotoSousPlafond` avant de juger, TCK-1887), `reduire-photo.ts:163` (`reduirePhotoSousPlafond`, format inchangé, rend l'original sur échec), TCK-542 l. 114-119 (le logo est parmi les écrans de photos ; « une photo de 12 Mo qui tombe sous le plafond une fois réduite n'a pas à être refusée ») → le constat tient, lignes inchangées ; le gain sur un vrai fichier de logo n'est pas mesuré. Classement : A1, le comportement attendu est écrit dans TCK-542 et déjà appliqué à l'avatar par TCK-1887, sans texte neuf (`logoTooLarge` existe) ni critère V.
+- Mesure (2026-10-24, b2f1aebab, implementeur) : avant correctif, `AgencyConfigForm.logo-reduit.tck-2144.test.tsx` (outils d'image doublés : `reduirePhotoSousPlafond` rend 1 Mo pour un logo de 5 Mo) rougit — `logoTooLarge` affiché, `uploadAgencyLogoAction` jamais appelé ; `handleLogoPick` réduit désormais par `reduirePhotoSousPlafond(file, AGENCY_LOGO_MAX_BYTES)` avant `validateAgencyLogoFile` et envoie le fichier réduit → 2 verts (accepté et envoyé réduit ; refusé sans envoi s'il reste au-dessus de 2 Mo). Ablation : jugement remis sur le fichier brut → le premier test rouge ; remis → vert.
 
 ### Restitution de caution : pièces envoyées sans contrôle de taille ni de nombre, dix pièces de 10 Mo admises par la règle et refusées par le proxy
 - Réf : P222.04
