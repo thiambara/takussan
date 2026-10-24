@@ -19959,7 +19959,7 @@ les envoie.*
 
 ### Les listes de bailleurs et de prestataires ignorent le nom saisi à l'invitation dès qu'un compte est lié
 - Réf : P220.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-2136
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/owners/OwnersList.tsx:176`, `:189`, `:385-390`, `takussan-web/src/components/service-providers/ServiceProvidersList.tsx:132`, `:256-261`, `takussan-web/src/components/payments/CreatePayoutDialog.tsx:41-45`, `takussan-web/src/components/maintenance/MaintenanceAssignmentBlock.tsx:182-187`
 - Constat :
@@ -19969,6 +19969,7 @@ les envoie.*
   - Établi comment : lu.
 - Piste : retomber sur `metadata` champ par champ quand le nom du compte est vide (ou corriger à la source, P220.07). Test de rendu d'un bailleur lié à un compte sans nom, `metadata` nommée → le nom de l'invitation.
 - Mesure (2026-10-24, 6d8095e26, mesureur) : relu `OwnersList.tsx:385-390` et `ServiceProvidersList.tsx:256-261` (`nomDe` : noms du compte dès que `user` existe, `metadata` sinon), `CreatePayoutDialog.tsx:41-45` (`user?.first_name ?? metadata?.first_name`), inchangés → un compte lié à noms `''` bloque le repli vers `metadata` ; le constat tient. Classement : A1, `nomDe` et `ownerName` lisent déjà `metadata` comme source du nom : retomber sur `metadata` quand le nom composé du compte est vide (`||` au lieu de `??`, et test de vacuité dans `nomDe`) n'ajoute ni texte ni donnée.
+- Mesure (2026-10-24, 3e8efc3c5, implementeur) : avant correctif, un bailleur et un prestataire liés à un compte à noms `''` avec `metadata` nommée ne montraient pas le nom de l'invitation (quatre tests rouges : `OwnersList`, `ServiceProvidersList`, `CreatePayoutDialog`, `MaintenanceAssignmentBlock`) ; `nomDe`, `ownerName` et `providerName` retombent sur le nom composé de `metadata` quand celui du compte est vide ; les quatre cas verts, voisins des deux listes verts (14) ; ablation : les quatre fichiers remis à leur version d'avant → les quatre cas rougissent.
 
 ### Un compte existant qui accepte une invitation ne reçoit pas le nom que l'agence a saisi
 - Réf : P220.07
