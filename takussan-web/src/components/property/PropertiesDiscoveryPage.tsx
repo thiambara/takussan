@@ -384,6 +384,12 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
       handleFilterChange({
         condition: next.length > 0 ? next : undefined,
       });
+    } else if (key === 'cities' && subKey) {
+      // P185.02 (TCK-2061) — les villes du profil : la puce retire SA ville, pas la liste.
+      const next = (filters.cities ?? []).filter((v) => v !== subKey);
+      handleFilterChange({
+        cities: next.length > 0 ? next : undefined,
+      });
     } else {
       removeFilter(key);
     }

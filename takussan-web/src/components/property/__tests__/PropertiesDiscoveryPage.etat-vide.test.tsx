@@ -131,6 +131,17 @@ describe('TCK-558 — chaque filtre actif se retire seul depuis l’état vide (
     expect(url.get('condition')).toBe('off_plan');
   });
 
+  it('P185.02 (TCK-2061) — les villes du profil : retirer « Dakar » garde `cities=Thiès`', async () => {
+    const vide = await monteAZero('cities=Dakar,Thiès&furnished=true');
+    const puces = within(vide).getAllByRole('button').filter((b) => b.closest('[data-rangee="puces"]'));
+    // `cities` éclatée en deux puces + `furnished`.
+    expect(puces).toHaveLength(3);
+    await userEvent.click(within(vide).getByRole('button', { name: /^dakar/i }));
+    const url = derniereUrl();
+    expect(url.get('furnished')).toBe('true');
+    expect(url.get('cities')).toBe('Thiès');
+  });
+
   it('les puces ne sont pas rendues DEUX fois : la barre d’outils n’en porte plus à zéro résultat', async () => {
     const vide = await monteAZero('q=zzzqqq&contract_type=rent');
     const rangees = [...document.querySelectorAll('[data-rangee="puces"]')];
