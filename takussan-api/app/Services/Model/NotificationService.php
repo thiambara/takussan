@@ -8,6 +8,7 @@ use App\Events\NewNotification;
 use App\Models\AppNotification;
 use App\Models\Enums\NotificationChannel;
 use App\Models\User;
+use App\Notifications\Channels\AgenceDeLEnvoi;
 use App\Notifications\Channels\SmsChannel;
 use App\Notifications\CodedNotification;
 use App\Services\Notifications\ContactSansCompte;
@@ -60,6 +61,11 @@ class NotificationService
      * le message ({@see SmsChannel}). L'appelant qui marque l'envoi
      * « au plus une fois » sait ainsi lequel est perdu. Ignoré pour un compte.
      *
+     * P203.01, P203.02 (TCK-2161) — `$agencyId` : l'agence de l'objet notifié (bail, visite,
+     * réservation), dont les SMS et les WhatsApp prennent l'intégration. Pour un contact sans
+     * compte, à défaut, celle que porte {@see ContactSansCompte}. Sans elle, l'accesseur du
+     * destinataire, comme avant ({@see AgenceDeLEnvoi}).
+     *
      * @param  array<string, mixed>  $params  paramètres BRUTS (cf. {@see NotificationCode::params()})
      * @param  array<string, mixed>|null  $data
      */
@@ -72,9 +78,10 @@ class NotificationService
         ?array $data = null,
         ?array $deferredSmsGuard = null,
         ?Model $smsRefusalSubject = null,
+        ?int $agencyId = null,
     ): ?AppNotification {
         if ($to instanceof ContactSansCompte) {
-            $this->sendToContact($to, $code, $params, $target, $mobileBorne, $deferredSmsGuard, smsRefusalSubject: $smsRefusalSubject);
+            $this->sendToContact($to, $code, $params, $target, $mobileBorne, $deferredSmsGuard, smsRefusalSubject: $smsRefusalSubject, agencyId: $agencyId);
 
             return null;
         }
@@ -104,7 +111,7 @@ class NotificationService
         ]);
 
         $to->notify(
-            (new CodedNotification($code, $params, $target?->toArray(), $notification->id, $mobileBorne))->locale($locale)
+            (new CodedNotification($code, $params, $target?->toArray(), $notification->id, $mobileBorne, agencyId: $agencyId))->locale($locale)
         );
 
         if (class_exists(NewNotification::class)) {
@@ -139,7 +146,7 @@ class NotificationService
         return $outcome;
     }
 
-    private function sendToContact(ContactSansCompte $to, NotificationCode $code, array $params, ?NotificationTarget $target, ?bool $mobileBorne = null, ?array $deferredSmsGuard = null, ?SmsOutcome $outcome = null, ?Model $smsRefusalSubject = null): void
+    private function sendToContact(ContactSansCompte $to, NotificationCode $code, array $params, ?NotificationTarget $target, ?bool $mobileBorne = null, ?array $deferredSmsGuard = null, ?SmsOutcome $outcome = null, ?Model $smsRefusalSubject = null, ?int $agencyId = null): void
     {
         if (! $code->reachesContacts()) {
             throw new LogicException(sprintf(
@@ -162,6 +169,9 @@ class NotificationService
             'mail' => $to->email,
             'sms' => $to->phone,
             'whatsapp' => $to->phone,
+            // P203.02 (TCK-2161) — l'agence de la fiche, de la visite ou de l'objet, lue par les
+            // canaux mobiles : seulement quand un numéro peut en faire partir un.
+            AgenceDeLEnvoi::ROUTE => $to->hasPhone() ? ($agencyId ?? $to->agencyId) : null,
         ]);
         $refusalSubject = $smsRefusalSubject !== null
             ? ['type' => $smsRefusalSubject::class, 'id' => $smsRefusalSubject->getKey()]

@@ -75,6 +75,9 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
         // fournisseurs refusent le SMS d'un envoi marqué « au plus une fois » (classe et clé, pas
         // le modèle : la copie en file ne doit pas échouer si la ligne disparaît d'ici là).
         public readonly ?array $smsRefusalSubject = null,
+        // P203.01 (TCK-2161) — l'agence de l'objet notifié, dont les canaux mobiles prennent
+        // l'intégration ({@see \App\Notifications\Channels\AgenceDeLEnvoi}) ; `null`, l'accesseur du destinataire.
+        public readonly ?int $agencyId = null,
     ) {}
 
     /**

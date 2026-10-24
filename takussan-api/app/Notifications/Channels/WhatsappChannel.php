@@ -104,7 +104,7 @@ class WhatsappChannel
         $context = [
             'is_critical' => $isCritical,
             'event_type' => $this->resolveEventType($notification),
-            'agency_id' => $this->resolveAgencyId($notifiable),
+            'agency_id' => AgenceDeLEnvoi::resolve($notifiable, $notification),
             'notification_id' => $this->resolveAppNotificationId($notifiable, $notification),
         ];
 
@@ -267,13 +267,6 @@ class WhatsappChannel
         }
 
         return is_string($notifiable->phone ?? null) ? $notifiable->phone : null;
-    }
-
-    private function resolveAgencyId(object $notifiable): ?int
-    {
-        $val = $notifiable->agency_id ?? null;
-
-        return is_int($val) ? $val : (ctype_digit((string) $val) ? (int) $val : null);
     }
 
     private function resolveEventType(Notification $notification): ?string

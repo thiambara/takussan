@@ -191,6 +191,15 @@ class VisitNotifier
             : PersonnelDeLAgence::estPersonnel($agent, $agencyId);
     }
 
+    /** P203.01 (TCK-2161) — l'agence dont les SMS et WhatsApp d'une visite prennent l'intégration. */
+    private function agenceDuBien(PropertyVisit $visit): ?int
+    {
+        $visit->loadMissing('property');
+        $agencyId = $visit->property?->agency_id;
+
+        return $agencyId !== null ? (int) $agencyId : null;
+    }
+
     private function toAgency(PropertyVisit $visit, NotificationCode $code, bool $withPrimaryAndOwner = false): void
     {
         foreach ($this->agencyRecipients($visit, $withPrimaryAndOwner) as $recipient) {
@@ -200,6 +209,8 @@ class VisitNotifier
                     $code,
                     $this->params($visit, $code, $recipient->timezone),
                     NotificationTarget::of('visit', $visit->id),
+                    // P203.01 (TCK-2161) — l'intégration de l'agence du bien.
+                    agencyId: $this->agenceDuBien($visit),
                 );
             } catch (\Throwable $e) {
                 // Notification routing failures must never bubble up and break
@@ -240,6 +251,7 @@ class VisitNotifier
                 // Le SMS est borné ICI, seule source du plafond : `true` dit aux canaux mobiles de
                 // ne pas le recompter, `false` (retenu, ou pas de mobile) n'en ouvre aucun.
                 mobileBorne: $sms === true,
+                agencyId: $this->agenceDuBien($visit),
             );
 
             // TCK-1493 (P107.01) — un compte sans téléphone vérifié ne reçoit aucun SMS : le canal

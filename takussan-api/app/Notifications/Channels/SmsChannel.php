@@ -89,7 +89,7 @@ class SmsChannel
             // P72.04 (TCK-1354) — le délai de renvoi qu'un accusé `failed` du code lève.
             'otp_resend_key' => method_exists($notification, 'otpResendKey') ? $notification->otpResendKey() : null,
             'event_type' => $this->resolveEventType($notification),
-            'agency_id' => $this->resolveAgencyId($notifiable),
+            'agency_id' => AgenceDeLEnvoi::resolve($notifiable, $notification),
             'notification_id' => $this->resolveAppNotificationId($notifiable, $notification),
         ];
         // TCK-1346 (P132.04) — un SMS porteur de lien relit son objet s'il est reporté à la nuit.
@@ -154,13 +154,6 @@ class SmsChannel
         }
 
         return is_string($notifiable->phone ?? null) ? $notifiable->phone : null;
-    }
-
-    private function resolveAgencyId(object $notifiable): ?int
-    {
-        $val = $notifiable->agency_id ?? null;
-
-        return is_int($val) ? $val : (ctype_digit((string) $val) ? (int) $val : null);
     }
 
     private function resolveEventType(Notification $notification): ?string
