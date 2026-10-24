@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { Locale } from '@/i18n/config';
 import { LeaseSchedule } from './LeaseSchedule';
 import { LeasePaymentDialog } from './LeasePaymentDialog';
@@ -65,6 +66,10 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const generateSchedule = useGenerateSchedule(leaseId);
   const reviewRent = useReviewLeaseRent(leaseId);
   const toast = useToast();
+  const messageErreur = useMessageErreurApi();
+  // P210.01 (TCK-2080) — le refus de la révision par l'API (motif trop court, plafond dépassé,
+  // bail non révisable) se dit sous les gestes (ADR-0019) : sans lui, rien ne se passait.
+  const [erreurRevision, setErreurRevision] = useState<string | null>(null);
 
   // TCK-173 — les gestes de gestion qu'aucune capacité ne juge (document, échéancier) ne se
   // montrent pas au locataire : tout rôle de gestion les voit. Garants et préavis suivent
@@ -136,7 +141,13 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
     if (!Number.isFinite(newRent) || newRent <= 0) return;
     const reason = window.prompt(t('rentPromptReason'))?.trim();
     if (!reason) return;
-    await reviewRent.mutateAsync({ new_rent: newRent, reason });
+    setErreurRevision(null);
+    try {
+      await reviewRent.mutateAsync({ new_rent: newRent, reason });
+    } catch (erreur) {
+      setErreurRevision(messageErreur(erreur));
+      return;
+    }
     toast.add({
       title: t('rentReviewedToastTitle'),
       description: t('rentReviewedToastBody'),
@@ -193,7 +204,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={handleRentReview}
+              onClick={() => void handleRentReview()}
               disabled={reviewRent.isPending}
             >
               {t('reviewRent')}
@@ -234,6 +245,12 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
             )}
         </div>
       </div>
+
+      {erreurRevision ? (
+        <p role="alert" className="text-sm text-destructive">
+          {erreurRevision}
+        </p>
+      ) : null}
 
       <LeaseChainTimeline leaseId={leaseId} currentId={leaseId} />
 
