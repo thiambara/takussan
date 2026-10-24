@@ -19406,7 +19406,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### L'échéance d'une pièce KYC propose dès « demain » local un jour que l'API refuse le soir à l'ouest d'UTC
 - Réf : P212.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-2100 — reste : aligner `etatEcheance` sur le jour UTC face à `kyc:expire-dossiers`, écart resté à vérifier
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/kyc-echeance.ts:67-73`, `takussan-web/src/components/kyc/kyc-components.tsx:159-163`, `takussan-api/app/Http/Requests/Kyc/UploadKycDocumentRequest.php:22`
 - Constat :
@@ -19416,6 +19416,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, et mesuré sur la fonction seule.
 - Piste : dériver « aujourd'hui » et « demain » du jour UTC, celui que les règles `today` de l'API lisent. Garde : les tests existants de `kyc-echeance` étendus d'un instant à 01:00Z sous `TZ=America/New_York`.
 - Mesure (2026-10-24, ccb5c7995, mesureur) : relu `kyc-echeance.ts:67-73` (`demainIso` en composantes locales), `kyc-components.tsx:161` (`min={demainIso()}`) et `UploadKycDocumentRequest.php:22` (`after:today`) ; `node` → sous `America/New_York` à 2026-10-25T01:00Z, `demainIso` rend 2026-10-25, le jour UTC ; sous `Europe/Paris` à 22:30Z, 2026-10-26 pour 2026-10-25 recevable ; `tinker` → `after:today` refuse le jour UTC → le constat tient pour `demainIso` ; `etatEcheance` (l. 41-53) lit aussi le jour local, mais son écart face à `kyc:expire-dossiers` reste déduit. Classement : A1, la première date recevable est écrite par la règle de l'API et le correctif dérive `demainIso` du jour UTC ; aligner `etatEcheance` reste à vérifier, et hors du correctif autonome.
+- Mesure (2026-10-24, f8516986a, implementeur) : `kyc-echeance.demain.p212-04.test.ts` sous `TZ=America/New_York` à 2026-10-25T01:00Z, avant correctif → `demainIso` rend 2026-10-25, le jour UTC que `after:today` refuse, rouge → `demainIso` dérivé de `jourDeLApi` → vert, `kyc-echeance.test.ts` (10) et `KycUploader.*` (16) verts ; ablation → rouge. `etatEcheance` non touché.
 
 ### Le renouvellement d'un bail pré-remplit, aux jours de changement d'heure, un début égal à la fin du parent et une fin trop courte d'un jour
 - Réf : P212.05
