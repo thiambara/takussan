@@ -114,9 +114,16 @@ class MaintenanceRequestController extends Controller
 
         // TCK-1070 (P62.04) — le bail rattaché se juge ici, avec la réponse du refus : un bail
         // absent et un bail que l'appelant ne voit pas reçoivent le même 403.
+        // TCK-2204 (P226.02) — et le bail d'un AUTRE bien aussi : un bail et un bien rattachés
+        // ensemble vont ensemble (TCK-576, `guardLeaseMatchesProperty`).
         if (isset($data['lease_id'])) {
             $lease = Lease::query()->find((int) $data['lease_id']);
-            abort_unless($lease !== null && $user->can('view', $lease), 403);
+            abort_unless(
+                $lease !== null
+                    && (int) $lease->property_id === (int) $property->id
+                    && $user->can('view', $lease),
+                403,
+            );
         }
 
         $assigneeId = $isStaff ? ($data['assigned_to'] ?? null) : null;

@@ -12058,7 +12058,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 
 ### Petites améliorations
 - Réf : P122.04
-- Statut : validé — validation du porteur (2026-10-24) : réindexer les biens touchés dans `LegacyFeaturedConversion` (règle de `takussan-api/CLAUDE.md` § Recherche, TCK-1990) ; reste : relever l'index de préproduction, où la migration 500400 a déjà tourné, et réimporter `Property` si un bien sans agence y garde `featured = true`
+- Statut : fait · TCK-2208 — reste : relever l'index de préproduction, où la migration 500400 a déjà tourné, et réimporter `Property` si un bien sans agence y garde `featured = true`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Boost/LegacyFeaturedConversion.php:34-36`, `takussan-api/database/migrations/2026_10_12_500400_seed_boost_catalogue_and_convert_featured.php:16`, `takussan-api/database/seeders/System/OfferedFeaturedSeeder.php:15`, `takussan-api/Dockerfile:101-103`, `takussan-api/docker/release.sh:44-58`, `takussan-api/app/Services/Search/PropertySearchService.php:749-765`
 - Constat :
@@ -12069,6 +12069,7 @@ masse relève de l'angle 122 et n'est pas repris.*
 - Mesure (2026-10-22, 2abc59353, mesureur) : relu `LegacyFeaturedConversion::run()` (`DB::table('properties')->update(['featured' => false, …])` sans réindexation), `PropertySearchService::featuredPool()` (filtre `featured = true` dans l'index) et `hydrate()` (ne rejuge que `public()`, pas `featured`) ; test temporaire retiré : bien publié sans agence, `featured = true`, indexé, conversion → base `featured = false`, document `featured = true`, et `GET /api/public/properties/search` le sert dans `sponsored` → la partie « à vérifier » tient : le bien est tiré en emplacement sponsorisé sans boost ; l'empreinte `.search-shape` (`Dockerfile:101-103`) et `release.sh` sont inchangés. Classement : V5, la réindexation dans `LegacyFeaturedConversion` relèverait seule de A1 (ADR-0061 : `featured` dérivé des boosts), mais la Piste la lie à une règle de déploiement à écrire dans `docker/release.sh` ou au gabarit de migration, au choix ; l'état de l'index en préproduction n'est pas relevé.
 - Mesure (2026-10-23, b5e5b0401, implementeur) : relu `LegacyFeaturedConversion.php:34-35` → `DB::table('properties')->update(['featured' => false, …])` toujours sans réindexation, le défaut tient ; la précision du porteur demande d'écrire la règle dans `takussan-api/CLAUDE.md`, chemin fermé à l'implémenteur (les `CLAUDE.md`), et ne porte pas de `; reste :` qui permette de livrer la seule réindexation. Classement : chemin fermé, rendu au porteur.
 - Mesure (2026-10-24, 601e074c0, implementeur) : relu `LegacyFeaturedConversion.php:34-35` → `DB::table('properties')->where('id', $p->id)->update(['featured' => false, 'sponsored_until' => null])` toujours sans réindexation (dernier commit du fichier : 6548b29c7), le défaut tient ; relu `takussan-api/CLAUDE.md:442-450` → la règle « une migration qui réécrit une colonne indexée réimporte son modèle » y est, et `TCK-1990` (`done`) la coche pour P122.04. La précision ne laisse donc rien à faire hors de son « ; reste : », que l'implémenteur n'implémente pas, et `fait · TCK-1990` ne tient pas (le ticket ne recopie pas la précision). Classement : précision contradictoire avec TCK-1990, rendue au porteur ; la réindexation seule relève de A1 (mesure du 2026-10-22).
+- Mesure (2026-10-24, 8cc72d66e, implementeur) : reproduit avant correctif par `LegacyFeaturedConversionIndexTest` (Meilisearch de test : bien publié sans agence, `featured = true`, indexé et servi en `sponsored` ; après `LegacyFeaturedConversion::run()`, `featured` faux en base et toujours servi en `sponsored`) → la conversion réindexe à la fin les biens qu'elle touche (`searchable` / `unsearchable`, synchronisation coupée respectée) ; après : absent de `sponsored` ; `BoostCatalogueTest` vert ; ablation (appel retiré) → rouge, rétabli → vert.
 
 ## Angle 123 — Appels réseau entre un geste validé et sa trace ou sa notification
 
@@ -19818,7 +19819,7 @@ les envoie.*
 
 ### L'agent suspendu qui tient une délégation de rôle active reste personnel de l'agence et garde les capacités déléguées : il invite, se reconnecte et garde son flux d'agenda
 - Réf : P218.01
-- Statut : validé — validation du porteur (2026-10-24) : ADR-0031, amendement du 2026-10-24 : une délégation ne compte que si le délégué détient un profil actif dans l'agence, règle écrite une fois en scope de `RoleDelegation` et lue par tous les sites qui confèrent un droit ; la réactivation rend la délégation ; ferme P218.02 et le second point de P218.05
+- Statut : fait · TCK-2202
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Membership/MembershipCapabilityResolver.php:73-83,330-338,469-492`, `takussan-api/app/Services/Membership/TeamMemberSuspensionService.php:73-118`, `takussan-api/app/Services/Agency/AgencyMemberRemovalService.php:93-98`
 - Constat :
@@ -19830,10 +19831,11 @@ les envoie.*
   - Établi comment : lu, puis mesuré.
 - Piste : deux voies, à trancher. Soit la suspension révoque (ou met en attente) les délégations où le suspendu est délégué, comme le retrait. Soit la lecture exige, pour qu'une délégation compte, que le délégué n'ait dans l'agence aucun profil `suspended` ou `blocked` (dans `loadActiveDelegations` et dans la branche délégation de `isStaffAt`) : la réactivation rend alors la délégation sans geste de plus. Test : agent délégué `agency_admin`, suspendu → `POST …/agents/invite` 403, `isStaffAt` faux, flux d'agenda 404 ; réactivé → 201.
 - Mesure (2026-10-24, 1614726d0, mesureur) : relu `MembershipCapabilityResolver.php:73-83` (`allows` → `delegationAllows`), `:330-338` (`loadActiveDelegations` sans statut du délégué) et `:469-492` (branche délégation de `isStaffAt` sans statut), `TeamMemberSuspensionService::apply` (statuts et jetons seuls) et `AgencyMemberRemovalService.php:93-98` (révocation des délégations au retrait), inchangés ; aucun ticket ni commit (`grep -rn P218 docs/backlog/tickets` vide ; seul TCK-2111, les transitions sous verrou, a touché `RoleDelegationService` depuis l'exploration) ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde218Test.php`, retirée ; jeu de `BuildsBookingStakeholders` et admin d'agence par `agencyAdmin`, charge `{ 1.42 1.62 1.63 }` sur 8 cœurs), délégation `agency_admin` active posée par l'admin, flux d'agenda émis avant → agent **suspendu** : délégation toujours `active`, `allows(team.invite)` vrai, `isStaffAt` vrai, `CalendarFeedService::resolve` sert le flux, `POST /api/auth/login` 200, `POST /api/agencies/{id}/agents/invite` 201 avec `invited_by` = l'agent ; témoin actif : identique → le constat tient en entier (les fils de `ConversationAccess` n'ont pas été re-mesurés). Classement : V2, le correctif change ce qu'accorde une délégation et la Piste laisse deux voies au choix du porteur.
+- Mesure (2026-10-24, 8cc72d66e, implementeur) : reproduit avant correctif par `DelegationEnVigueurTest` (agent délégué `agency_admin`, suspendu par `TeamMemberSuspensionService` : délégation toujours `active`, `allows(team.invite)` vrai, approbateur de `PayoutApprovers` et lecteur de `ContactLeadService::agencyReaders`) → `RoleDelegation::scopeEnVigueur()` (active, et un profil `AgentProfile`, `AgencyAdminProfile` ou `OwnerProfile` actif du délégué dans l'agence) lu par les quatre sites du résolveur, `ContactLeadService::delegues`, `PayoutApprovers::holders` et `AgentAvailability` ; suspendu : `allows` faux, `isStaffAt` faux (aussi sous `primed`), `staffAgencyIds` sans l'agence, `POST …/agents/invite` 403 ; réactivé : 201 sans geste ; ablation (scope réduit à `active()`) → 3 rouges sur 4, rétabli → 4 verts ; le flux d'agenda suit par `isStaffAt` (`CalendarFeedTest` vert, non ré-épinglé).
 
 ### Une délégation de rôle se crée vers un agent déjà suspendu, et elle le refait personnel de l'agence
 - Réf : P218.02
-- Statut : validé — validation du porteur (2026-10-24) : rien de propre : une délégation vers un délégué sans profil actif reste permise et inerte (ADR-0031, amendement du 2026-10-24) ; le commentaire renvoie au § 3 ; même ticket que P218.01
+- Statut : fait · TCK-2202
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Permissions/RoleDelegationService.php:67-77`, `takussan-api/app/Services/Membership/MembershipCapabilityResolver.php:486-491`
 - Constat :
@@ -19843,6 +19845,7 @@ les envoie.*
   - Le commentaire dit que l'absence de filtre est voulue, mais il ne dit pas pourquoi. Le cas du bailleur bloqué délégué `agent` n'a pas été relu (à vérifier).
 - Piste : si P218.01 retient la voie de lecture, ce cas se ferme avec elle. Sinon, refuser en 422 la délégation vers un membre dont un profil de l'agence est `suspended` ou `blocked`, ou écrire dans le service pourquoi elle reste permise. Test : délégation vers un agent suspendu → 422, ou `isStaffAt` faux.
 - Mesure (2026-10-24, 1614726d0, mesureur) : relu `RoleDelegationService.php:67-77` (appartenance « sans filtre de statut », TCK-587) et `MembershipCapabilityResolver::isStaffAt` (branche délégation), inchangés ; (sonde temporaire `tests/Feature/TmpMesureur/Sonde218Test.php`, retirée ; jeu de `BuildsBookingStakeholders` et admin d'agence par `agencyAdmin`, charge `{ 1.42 1.62 1.63 }` sur 8 cœurs) → agent suspendu : `isStaffAt` faux ; `RoleDelegationService::create(…, rôle agent, effet immédiat)` → `active`, `isStaffAt` vrai ; le cas « à vérifier » du bailleur **bloqué** délégué `agent` mesuré : `create` → `active`, `isStaffAt` vrai ; la route HTTP (2FA de l'admin) n'a pas été jouée → le constat tient, cas du bailleur bloqué compris. Classement : V2, la Piste se ferme avec la voie de lecture de P218.01 ou demande un refus neuf, choix du porteur.
+- Mesure (2026-10-24, 8cc72d66e, implementeur) : `DelegationEnVigueurTest::test_une_delegation_creee_vers_un_suspendu_reste_inerte` → avant correctif, `RoleDelegationService::create(…, rôle agent)` vers un agent suspendu rend une délégation `active` et `isStaffAt` vrai ; après, la création reste permise (`active`) et `isStaffAt` faux ; le commentaire de `create` renvoie à ADR-0031, amendement du 2026-10-24, § A, point 5 ; ablation commune avec P218.01 (rouge sans le scope).
 
 ### L'agent suspendu ou retiré lit et liste encore les factures, reversements et réservations qu'il a émis ou créés
 - Réf : P218.03
@@ -20466,7 +20469,7 @@ sans `delete`).*
 
 ### Une demande d'intervention sur un bien accepte le bail d'un autre bien
 - Réf : P226.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2204 — reste : relire en `SELECT` les demandes existantes dont `lease_id` vise un autre bien, avant de décider s'il faut les corriger (V4)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:114-119`, `takussan-api/app/Listeners/Maintenance/SyncMaintenanceConversation.php:76-89`, `takussan-api/app/Services/Maintenance/MaintenanceQuoteWorkflow.php:264-275`, à comparer à `takussan-api/app/Http/Requests/Conversation/Concerns/GuardsConversationScope.php` (`guardLeaseMatchesProperty`)
 - Constat :
@@ -20478,10 +20481,11 @@ sans `delete`).*
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : refuser un `lease_id` dont le bien n'est pas le `property_id` de la demande, avec le refus d'un bail invisible (TCK-1070). Garde : un test sur le bail d'un autre bien, et une lecture des lignes existantes en `SELECT` avant de décider s'il faut les corriger.
 - Mesure (2026-10-24, 7ced6a130, mesureur) : relu `MaintenanceRequestController::store` (l. 114-119 : `lease_id` jugé par `can('view')` seul) ; sonde temporaire `SondeMesureurAngle226Test` (retirée), charge 4,2 sur 8 cœurs : admin d'agence, `POST /api/maintenance-requests {property_id: P1, lease_id: <bail de P2>}` → 201, ligne `property_id` = P1, `lease_id` = bail de P2 ; locataire d'un bail en cours sur P1 et sur P2, même appel → 201 avec le bail de P2 (la partie déduite tient) ; le groupe de conversation (`SyncMaintenanceConversation`) n'a pas été rejoué ; front : `MaintenanceNewLauncher.tsx:58-59` envoie toujours le bail avec son propre bien. Classement : A1, la règle « un bail et un bien rattachés ensemble vont ensemble » est écrite par TCK-576 (`guardLeaseMatchesProperty`) et le refus par TCK-1070, et aucun appelant légitime n'envoie une paire incohérente ; corriger les lignes existantes reste hors du correctif (V4).
+- Mesure (2026-10-24, 8cc72d66e, implementeur) : reproduit avant correctif par `BailDuMemeBienTest` (bailleur de P1 et P2 sans agence, `POST /api/maintenance-requests {property_id: P1, lease_id: <bail de P2>}` → 201) → `MaintenanceRequestController::store` exige `lease.property_id` = `property_id`, sous le 403 du bail invisible (TCK-1070) ; après : 403, réponse identique à celle d'un bail absent, aucune ligne ; témoin bail du bien → 201 ; ablation (comparaison retirée) → 1 rouge, rétablie → 2 verts ; le groupe de `SyncMaintenanceConversation` ne reçoit plus de paire incohérente à la source, non rejoué.
 
 ### Petites améliorations
 - Réf : P226.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2206
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/MediaController.php:28-38`, `takussan-api/app/Http/Requests/MediaUploadRequest.php:25-28,57-63`, `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php:51-56`
 - Constat :
@@ -20490,6 +20494,7 @@ sans `delete`).*
   - Établi comment : lu.
 - Piste : résoudre la cible des médias après l'autorisation, ou rendre au manquant le refus du tiers ; comparer `(int)` dans `StoreSettingRequest`. Garde : un test d'égalité des réponses absent / tiers pour `POST /api/media`.
 - Mesure (2026-10-24, 7ced6a130, mesureur) : relu `MediaController::store` (l. 28-38, `findOrFail` avant `authorizeAttach`) et `StoreSettingRequest::authorize()` (l. 51-56, comparaison stricte) ; sonde temporaire `SondeMesureurAngle226Test` (retirée) : compte sans lien, `POST /api/media` `model_type` = `App\Models\Property`, bien d'un tiers → 403, identifiant absent → 404 ; admin d'agence, `POST /api/settings` `scope: agency`, `scope_id` entier → 201, le même en chaîne → 403 `setting.other_agency_forbidden` ; le front n'appelle pas `POST /api/settings` (`grep` dans `takussan-web/src`). Les deux parties déduites tiennent. Classement : A1, « un absent reçoit le refus du tiers » est la règle écrite par l'angle 62 (TCK-1066 à TCK-1072), et l'admin de sa propre agence est déjà admis quand l'identifiant est un entier.
+- Mesure (2026-10-24, 8cc72d66e, implementeur) : reproduit avant correctif par `IdentifiantsCiblesDuClientTest` (compte sans lien, `POST /api/media` `model_type` = `App\Models\Property` : bien tiers → 403, identifiant absent → 404 ; admin d'agence, `POST /api/settings` `scope: agency`, `scope_id` = son agence en chaîne → 403) → `MediaController::store` rend 403 pour une cible absente avant l'autorisation, `StoreSettingRequest::authorize()` compare `(int)` ; après : même statut et même corps absent / tiers, réglage en chaîne → 201, autre agence (entier ou chaîne) → 403 ; ablation (les deux correctifs retirés) → 2 rouges, rétablis → 3 verts.
 
 ## Angle 227 — Requêtes de création plus larges que les gestes et les modifications resserrés
 

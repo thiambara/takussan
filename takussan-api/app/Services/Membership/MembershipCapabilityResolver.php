@@ -333,7 +333,7 @@ class MembershipCapabilityResolver
             ->with('delegator')
             ->where('user_id', $user->id)
             ->where('agency_id', (int) $agency->id)
-            ->active()
+            ->enVigueur()
             ->get();
     }
 
@@ -460,7 +460,8 @@ class MembershipCapabilityResolver
 
     /**
      * TCK-587 (ADR-0031 §1) — l'utilisateur est-il personnel de cette agence : un `AgentProfile` ou un
-     * `AgencyAdminProfile` ACTIF, ou une `RoleDelegation` active de rôle `agent` / `agency_admin` ?
+     * `AgencyAdminProfile` ACTIF, ou une `RoleDelegation` EN VIGUEUR (`scopeEnVigueur`, TCK-2202 :
+     * active, et le délégué y garde un profil actif) de rôle `agent` / `agency_admin` ?
      *
      * La délégation compte : sans elle, déléguer `agent` conférerait des capacités (TCK-395) que le
      * périmètre rendrait inutilisables. Exposée pour juger un TIERS — la cible d'une affectation
@@ -487,7 +488,7 @@ class MembershipCapabilityResolver
             ->where('user_id', $user->id)
             ->where('agency_id', $agencyId)
             ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
-            ->active()
+            ->enVigueur()
             ->exists();
     }
 
@@ -524,7 +525,7 @@ class MembershipCapabilityResolver
             + $couples(AgencyRoleBaseType::AgencyAdmin->profileClass()::query()->active())
             + $couples(RoleDelegation::query()
                 ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
-                ->active());
+                ->enVigueur());
 
         self::$amorce = [
             'users' => array_fill_keys($users, true),
@@ -588,7 +589,7 @@ class MembershipCapabilityResolver
         $ids = $ids->merge(RoleDelegation::query()
             ->where('user_id', $user->id)
             ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
-            ->active()
+            ->enVigueur()
             ->pluck('agency_id'));
 
         return $ids->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();

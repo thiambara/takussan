@@ -110,7 +110,7 @@ class ContactLeadService
     }
 
     /**
-     * Les délégués ACTIFS (`RoleDelegation::scopeActive`, comme `isStaffAt`) d'un rôle de l'agence.
+     * Les délégués EN VIGUEUR (`RoleDelegation::scopeEnVigueur`, comme `isStaffAt` ; TCK-2202) d'un rôle de l'agence.
      *
      * @return Collection<int,User>
      */
@@ -123,7 +123,7 @@ class ContactLeadService
         return RoleDelegation::query()
             ->where('agency_id', $agencyId)
             ->where('role', $role->value)
-            ->active()
+            ->enVigueur()
             ->with('user')
             ->get()
             ->pluck('user')
