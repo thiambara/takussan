@@ -16,6 +16,7 @@ import { InviteMemberDialog } from '../InviteMemberDialog';
  */
 vi.mock('@/lib/queries/agency-members', () => ({ addAgencyMember: vi.fn() }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ token: 'jeton' }) }));
+vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: true, isLoading: false }) }));
 
 const refus = () => new ApiError(403, { code: 'two_factor_required', message: 'Second facteur requis.' });
 
