@@ -7143,7 +7143,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### Les listes de contexte des conversations proposent à l'agent suspendu ou retiré le bail et le bien qu'il a saisis
 - Réf : P232.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-2240
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationContextController.php:96-107`, `:139-153`
 - Constat :
@@ -7152,6 +7152,7 @@ base de développement. Les écrans n'ont pas été joués.*
   - Établi comment : lu, puis mesuré.
 - Piste : borner les deux clauses par `BailleurDuBien::restreindre` (`'landlord_id'` pour les baux). `ConversationContextTest` vérifie déjà que tout ce qui est listé passe la policy : y ajouter l'agent créateur suspendu et retiré, ce qui empêche le retour.
 - Mesure (2026-10-24, 027642063, mesureur) : relu `ConversationContextController.php:94-108` et `:138-153` (clauses `leases.landlord_id` et `properties.user_id` sans `BailleurDuBien`) et son en-tête (l. 46-53 : la liste est « la traduction ligne à ligne » de `PropertyPolicy::view` / `LeasePolicy::view`, incluse dans ce que `CreateGroupConversationRequest` accepte) ; test temporaire `tests/Feature/TmpMesureur/SondeP232Test.php` (retiré ; charge 3,30 / 3,65 / 4,12 sur 8 cœurs) : bien d'agence passé au `user_id` de l'agent, bail `active` à 150 000 au `landlord_id` de l'agent, fils `lease` et `property` dont l'agent et un admin sont participants ; suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` null, `can('view')` du bail et du bien faux dans les deux cas) → suspendu comme retiré, `GET /api/conversations/context/leases` et `…/properties` rendent le bail et le bien alors que `can('view')` est faux pour les deux : le constat tient. Classement : A1, le contrat (liste ⊆ policy) est écrit dans le contrôleur et tenu par `ConversationContextTest`, et `BailleurDuBien::restreindre` est la règle que les policies appliquent déjà : aucun appelant que la policy admet ne perd une ligne.
+- Mesure (2026-10-24, 7d24f772d, implementeur) : avant correctif, `ConversationContextTest::test_l_agent_createur_ecarte_ne_se_voit_plus_proposer_le_bien_ni_le_bail_qu_il_a_saisis` (bien d'agence au `user_id` de l'agent, bail au `landlord_id` de l'agent ; suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` ; prémisse `can('view')` faux pour les deux, tenue) → rouge dans les deux cas, le bien listé par `…/context/properties` → les deux clauses bornées par `BailleurDuBien::restreindre` ; 17 verts (dont les témoins agent actif et propriétaire de l'agence, tout listé passant la policy) ; ablation clause par clause : biens remis → 2 rouges « bien saisi proposé », baux remis → 2 rouges « bail saisi proposé », rétabli → 17 verts (charge 2,71 / 2,80 / 2,49 sur 8 cœurs).
 
 ### L'agent créateur ne peut pas effacer son compte : les baux qu'il a saisis comptent comme ses obligations de bailleur
 - Réf : P232.05
