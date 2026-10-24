@@ -9,7 +9,6 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
-use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -52,11 +51,7 @@ class PropertyPolicy extends BasePolicy
         // TCK-1705 (P153.01) — sur un bien d'agence, `user_id` (le CRÉATEUR, souvent l'agent qui l'a
         // saisi) ne vaut titre que pour qui a encore un profil dans l'agence : l'agent retiré ne lit
         // plus le bien. Même règle que `PropertyVisitPolicy` pour l'agent parti.
-        //
-        // TCK-2020 (P190.07, ADR-0031 § 3) — et ce profil est celui du BAILLEUR (`BailleurDuBien`,
-        // de tout statut : ADR-0031 § 2 lui garde la lecture) ou un profil de PERSONNEL ACTIF :
-        // l'agent créateur suspendu n'a plus de périmètre.
-        if ($this->auteurMembre($user, $model)) {
+        if ($user->id === $model->user_id && ($model->agency_id === null || $this->isMemberOf($user, $model->agency_id))) {
             return true;
         }
 
@@ -149,11 +144,9 @@ class PropertyPolicy extends BasePolicy
             return true;
         }
 
-        // TCK-2020 (P190.07) — l'auteur membre de l'agence : son bailleur ou son personnel actif
-        // (`auteurMembre`), plus un profil de tout statut.
         if ($user->id === $model->user_id) {
             return $model->agency_id === null
-                || ($this->auteurMembre($user, $model)
+                || ($this->isMemberOf($user, $model->agency_id)
                     && $user->can(Capability::PropertiesUpdateOwn->value, $model));
         }
 
@@ -197,26 +190,6 @@ class PropertyPolicy extends BasePolicy
 
         return $this->isMemberOf($user, $model->agency_id)
             && $user->can($capability->value, $model);
-    }
-
-    /**
-     * TCK-2020 (P190.07, décision du porteur : ADR-0031 § 3) — l'auteur (`user_id`) a-t-il encore
-     * titre sur le bien ? Sur un bien sans agence, oui. Sur un bien d'agence, s'il en est le
-     * bailleur ({@see BailleurDuBien}, de tout statut : ADR-0031 § 2 garde la lecture au bailleur
-     * suspendu) ou s'il y tient un profil d'agent ou d'admin au statut ACTIF. Le statut, et non le
-     * profil actif de la requête : l'agent de deux agences garde ses biens de l'une en agissant
-     * depuis l'autre, comme avant ; seul le profil non actif perd son périmètre.
-     */
-    private function auteurMembre(User $user, Property $property): bool
-    {
-        if ($property->user_id === null || (int) $property->user_id !== $user->id) {
-            return false;
-        }
-
-        return $property->agency_id === null
-            || BailleurDuBien::est($user, $property->user_id, $property->agency_id)
-            || $user->isAgentAt((int) $property->agency_id)
-            || $user->isAgencyAdminAt((int) $property->agency_id);
     }
 
     /** Un profil (de tout statut) dans l'agence : c'est ce qui fait qu'un rôle juge l'auteur. */

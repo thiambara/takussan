@@ -60,12 +60,9 @@ class PropertyController extends Controller
         if (! $user->isSuperAdmin()) {
             // TCK-1705 (P153.01) — ses biens sans agence, et ceux des agences où il a encore un
             // profil : l'agent retiré ne liste plus les biens d'agence qu'il avait saisis.
-            // TCK-2020 (P190.07, ADR-0031 § 3) — ce profil est celui du BAILLEUR (`BailleurDuBien`,
-            // de tout statut) ou un profil de personnel au statut ACTIF (`PropertyPolicy::view`) :
-            // l'agent suspendu ne liste plus ce qu'il a saisi.
             $memberAgencyIds = $user->ownerProfiles()->pluck('agency_id')
-                ->merge($user->agentProfiles()->active()->pluck('agency_id'))
-                ->merge($user->agencyAdminProfiles()->active()->pluck('agency_id'))
+                ->merge($user->agentProfiles()->pluck('agency_id'))
+                ->merge($user->agencyAdminProfiles()->pluck('agency_id'))
                 ->unique()->values()->all();
             $base->where(function ($q) use ($user, $memberAgencyIds) {
                 $q->where(fn ($own) => $own->where('user_id', $user->id)
