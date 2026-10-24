@@ -18759,7 +18759,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### La Gate des capacités juge un compte à l'agence du profil actif de la requête, même quand ce profil appartient à un autre compte
 - Réf : P203.04
-- Statut : validé — validation du porteur (2026-10-24) : la Gate lit `$user->activeProfile()` au lieu du profil actif de la requête, avec un test sur un tiers
+- Statut : fait · TCK-2163
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Providers/AppServiceProvider.php:897-915`, `takussan-api/app/Models/Concerns/HasProfiles.php:463-475`
 - Constat :
@@ -18768,6 +18768,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Aucun appelant d'aujourd'hui ne juge une capacité pour un tiers : `grep -rnE "\->can\(Capability::|->can\('[a-z_]+\.[a-z_]+'"` sous `app/`, hors `$user`, `$actor` et l'utilisateur de la requête, ne rend rien, et aucun job, écouteur ni commande n'appelle `can()` sur une capacité (lu). Le défaut est latent : le premier `$tiers->can('…')` écrit dans une requête jugera le tiers dans l'agence de l'appelant.
 - Piste : lire `$user->activeProfile()` au lieu de `request()->activeProfile()` dans la Gate. Test : dans une requête d'un agent de A, `$agentDeB->can(Capability::…)` ne doit pas être jugé dans A.
 - Mesure (2026-10-24, 26195d12e, mesureur) : relu `AppServiceProvider.php:897-915` (`request()->activeProfile()` sans comparer son `user_id` à `$user`) et `HasProfiles.php:599-611` (`activeProfile()` rend `null` quand le profil de la requête est d'un autre compte) ; lancé (test temporaire `tests/Feature/TmpMesureur/AgenceHorsRequeteTest.php`, base créée par le test, charge 6,72 / 4,50 / 3,81 sur 8 cœurs, retiré ensuite) : l'agent de B seul, `can('properties.create')` → vrai ; la requête portant le profil d'un agent de A → faux ; avec `$b` en contexte → vrai ; `$agentB->activeProfile()` → `null` ; un `grep` des `->can(Capability::…)` sous `app/` hors `$user`/`$actor`/l'utilisateur de la requête ne rend rien, le défaut reste latent. Classement : V2, le correctif est étroit (`$user->activeProfile()`), mais il touche l'autorisation que tout appelant traverse aujourd'hui.
+- Mesure (2026-10-24, a03cd3caf, implementeur) : reproduit avant correctif par `GateJugeLeTiersDansSonAgenceTest` (agent de A et agent de B, `active_profile` de la requête = profil de A) → `$agentDeB->can('properties.create')` faux (rouge), vrai hors requête et avec `$b` en contexte → la Gate lit `$user->activeProfile()`, qui rend `null` pour le profil d'un autre compte ; l'appelant de deux agences reste jugé à son profil actif ; ablation : `request()->activeProfile()` remis → 1 rouge, remis → 2 verts ; `AuthProfileTest`, `MultiProfileStrictAccessTest`, `CiblageParRoleEtAgenceTest`, `PlatformPowerStepUpTest`, `BoostSpendCapabilityTest`, `ImpersonationReadOnlyTest` verts.
 
 ### Petites améliorations
 - Réf : P203.05
