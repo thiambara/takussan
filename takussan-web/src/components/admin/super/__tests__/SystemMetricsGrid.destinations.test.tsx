@@ -95,7 +95,7 @@ const DESTINATIONS: Readonly<Record<string, string>> = {
   agenciesActive: '/super-admin/agencies?status=active',
   agenciesSuspended: '/super-admin/agencies?status=suspended',
   usersTotal: '/super-admin/users',
-  publishedProperties: '/super-admin/properties?filter[status]=published',
+  publishedProperties: '/super-admin/properties?filter[public]=1',
   pendingReview: '/super-admin/properties?filter[status]=pending_review',
   collectedTotal: '/super-admin/reports',
   gmv: '/super-admin/payouts',

@@ -441,6 +441,8 @@ export interface FetchAdminPropertiesParams {
   readonly status?: string;
   readonly type?: string;
   readonly visibility?: string;
+  /** P167.07 (TCK-2087) — « publiés » au sens du catalogue : `filter[public]=1` (TCK-2036). */
+  readonly public?: boolean;
   readonly agencyId?: number;
   readonly sort?: string;
   readonly page?: number;
@@ -457,6 +459,7 @@ export async function fetchAdminProperties(
   if (params.status) qs.set('filter[status]', params.status);
   if (params.type) qs.set('filter[type]', params.type);
   if (params.visibility) qs.set('filter[visibility]', params.visibility);
+  if (params.public) qs.set('filter[public]', '1');
   if (typeof params.agencyId === 'number') qs.set('filter[agency_id]', String(params.agencyId));
   qs.set('sort', params.sort ?? '-created_at');
   qs.set('page', String(params.page ?? 1));
