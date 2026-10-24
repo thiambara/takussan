@@ -21,8 +21,10 @@ use Illuminate\Support\Facades\DB;
  *
  * Il se lit sur les MÊMES règles que la préparation ({@see PayoutCalculator}) : encaissements
  * éligibles de la période (`paid_at`), commission ligne par ligne ; les frais sont les factures
- * d'intervention imputées aux reversements qui portent ces encaissements ; le net reversé se lit sur
- * ces reversements, avec leurs références. Il ne lit que `payee_role = landlord` : la caution rendue
+ * d'intervention imputées aux reversements versés dans la période (`processed_at`, P177.03), et le
+ * versé se lit sur ces mêmes reversements. La liste cite aussi les reversements qui portent un
+ * encaissement de la période, marqués `paid_in_period` quand ils ont été versés dans la période.
+ * Il ne lit que `payee_role = landlord` : la caution rendue
  * au locataire n'est pas un reversement au bailleur.
  */
 final class OwnerStatementService
@@ -51,13 +53,21 @@ final class OwnerStatementService
         $leasePayments = $this->calculator->leasePayments((int) $agency->id, (int) $landlord->id, $start, $end, false)->get();
         $bookingPayments = $this->calculator->bookingPayments((int) $agency->id, (int) $landlord->id, $start, $end, false)->get();
 
-        $payouts = $this->payoutsCarrying($agency, $landlord, $leasePayments->pluck('id')->all(), $bookingPayments->pluck('id')->all());
+        $carrying = $this->payoutsCarrying($agency, $landlord, $leasePayments->pluck('id')->all(), $bookingPayments->pluck('id')->all());
+        // P177.03 (TCK-2041) — le versé et les frais vont au mois de `processed_at`, comme le « net
+        // reversé » du tableau de bord ({@see PortfolioMetrics::netPaidOutByMonth()}) : un reversement
+        // qui porte des pièces de plusieurs mois n'est compté, frais compris, que dans le mois où il
+        // a été versé, et la somme des mois rejoint l'année. Brut et commission restent ventilés par
+        // pièce de la période. Les frais d'un reversement pas encore versé n'entrent dans aucun mois.
+        $paid = $this->payoutsPaidIn($agency, $landlord, $start, $end);
         $bills = ServiceProviderBill::query()
-            ->whereIn('imputed_payout_id', $payouts->pluck('id'))
+            ->whereIn('imputed_payout_id', $paid->pluck('id'))
             ->orderBy('id')
             ->get();
 
-        $computation = $this->calculator->compute($agency, $leasePayments, $bookingPayments, $bills, $this->retainedRates($payouts));
+        $computation = $this->calculator->compute($agency, $leasePayments, $bookingPayments, $bills, $this->retainedRates($carrying));
+        $paidIds = $paid->pluck('id')->all();
+        $payouts = $carrying->concat($paid)->unique('id')->sortBy('id')->values();
 
         return [
             'agency' => ['id' => $agency->id, 'name' => $agency->name],
@@ -68,7 +78,7 @@ final class OwnerStatementService
             'period_end' => $end->toDateString(),
             'currency' => $computation['currency'],
             'totals' => array_merge($computation['totals'], [
-                'paid_out' => (float) $payouts->where('status', PayoutStatus::Completed)->sum(fn (Payout $p) => (float) $p->net_amount),
+                'paid_out' => (float) $paid->sum(fn (Payout $p) => (float) $p->net_amount),
             ]),
             'properties' => $this->byProperty($computation['lines']),
             'lines' => $computation['lines'],
@@ -79,6 +89,7 @@ final class OwnerStatementService
                 'net_amount' => (float) $p->net_amount,
                 'transaction_id' => $p->transaction_id,
                 'processed_at' => $p->processed_at?->toIso8601String(),
+                'paid_in_period' => in_array($p->id, $paidIds, true),
             ])->values()->all(),
             'unpaid' => $this->unpaid($agency, $landlord, $start, $end),
         ];
@@ -103,6 +114,24 @@ final class OwnerStatementService
                 $q->whereIn('id', DB::table('payout_lease_payment')->whereIn('lease_payment_id', $leaseIds ?: [0])->select('payout_id'))
                     ->orWhereIn('id', DB::table('payout_booking_payment')->whereIn('booking_payment_id', $bookingIds ?: [0])->select('payout_id'));
             })
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * P177.03 (TCK-2041) — les reversements AU BAILLEUR versés (`completed`) dans la période, par
+     * `processed_at`, la règle de {@see PortfolioMetrics::netPaidOutByMonth()}.
+     *
+     * @return Collection<int, Payout>
+     */
+    private function payoutsPaidIn(Agency $agency, User $landlord, CarbonImmutable $start, CarbonImmutable $end)
+    {
+        return Payout::query()
+            ->where('agency_id', $agency->id)
+            ->where('landlord_id', $landlord->id)
+            ->where('payee_role', PayeeRole::Landlord->value)
+            ->where('status', PayoutStatus::Completed->value)
+            ->whereBetween('processed_at', [$start->startOfDay(), $end->endOfDay()])
             ->orderBy('id')
             ->get();
     }

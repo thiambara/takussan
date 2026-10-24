@@ -125,7 +125,7 @@ class ActesPdfEnFrancaisTest extends TestCase
                 'period_start' => '2026-10-01',
                 'period_end' => '2026-10-31',
                 'properties' => [],
-                'totals' => ['gross' => 0, 'commission' => 0, 'fees' => 0, 'net' => 0],
+                'totals' => ['gross' => 0, 'commission' => 0, 'fees' => 0, 'net' => 0, 'paid_out' => 0],
                 'payouts' => [],
                 'unpaid' => ['count' => 0],
             ],

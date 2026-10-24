@@ -35,7 +35,7 @@ class OwnerStatementTest extends TestCase
     use CreatesAgencyMembers;
     use RefreshDatabase;
 
-    /** Le jeu d'AC1 reversé avec une facture d'intervention refacturable de 15 000. */
+    /** Le jeu d'AC1 reversé avec une facture d'intervention refacturable de 15 000, versé le 30 septembre. */
     private function paidOutSeptember(): array
     {
         $agency = $this->moneyAgency();
@@ -51,6 +51,9 @@ class OwnerStatementTest extends TestCase
             'lease_payment_ids' => [$rent->id, $charges->id],
             'service_provider_bill_ids' => [$bill->id],
         ])->assertCreated()->assertJsonPath('data.net_amount', 183000)->json('data.id');
+        // Versé en septembre : depuis P177.03 (TCK-2041), le versé et les frais d'un relevé sont ceux
+        // des reversements versés dans la période.
+        Payout::query()->whereKey($id)->update(['status' => 'completed', 'processed_at' => '2026-09-30 09:00:00']);
 
         return [$agency, $landlord, Payout::findOrFail($id), $lease];
     }
@@ -230,7 +233,7 @@ class OwnerStatementTest extends TestCase
             'lease_payment_ids' => [$rent->id, $charges->id],
             'booking_payment_ids' => [$advance->id],
         ])->assertCreated()->assertJsonPath('data.commission_amount', 21600)->json('data.id');
-        Payout::query()->whereKey($id)->update(['status' => 'completed', 'processed_at' => '2026-10-01 09:00:00']);
+        Payout::query()->whereKey($id)->update(['status' => 'completed', 'processed_at' => '2026-09-30 09:00:00']);
 
         // La copie par ligne, posée à la création.
         $this->assertDatabaseHas('payout_lease_payment', [
@@ -255,5 +258,59 @@ class OwnerStatementTest extends TestCase
         $this->assertEquals(8, $rates[$rent->id]);
         $this->assertEquals(12, end($rates));
         $this->assertEquals(8, $data['lines']['booking_payments'][0]['commission_rate']);
+    }
+
+    /**
+     * P177.03 (TCK-2041) — un reversement qui porte des pièces de septembre et d'octobre, versé le
+     * 5 octobre : brut et commission restent ventilés par pièce, le versé et les frais vont au mois
+     * de `processed_at`, et la somme des mois rejoint l'année.
+     */
+    public function test_p177_03_paid_out_and_fees_go_to_the_month_of_processed_at_and_the_months_sum_to_the_year(): void
+    {
+        $agency = $this->moneyAgency();
+        $landlord = $this->landlordOf($agency);
+        $lease = $this->leaseOf($agency, $landlord, 10);
+        $september = $this->leasePayment($lease, 200_000);
+        $october = $this->leasePayment($lease, 200_000, LeasePaymentType::Rent, '2026-10-02 10:00:00');
+        $bill = ServiceProviderBill::factory()->validated()->create([
+            'agency_id' => $agency->id, 'property_id' => $lease->property_id, 'amount' => 15_000,
+        ]);
+        Sanctum::actingAs($this->agencyAgent($agency));
+        $id = $this->postJson('/api/payouts', [
+            'landlord_id' => $landlord->id,
+            'lease_payment_ids' => [$september->id, $october->id],
+            'service_provider_bill_ids' => [$bill->id],
+        ])->assertCreated()->assertJsonPath('data.net_amount', 345000)->json('data.id');
+        Payout::query()->whereKey($id)->update(['status' => 'completed', 'processed_at' => '2026-10-05 09:00:00']);
+        Sanctum::actingAs($landlord);
+
+        $totals = fn (string $period): array => array_map('intval', array_intersect_key(
+            $this->getJson("/api/owner-statements?period={$period}")->assertOk()->json('data.totals'),
+            array_flip(['gross', 'commission', 'fees', 'net', 'paid_out']),
+        ));
+
+        $sep = $totals('2026-09');
+        $oct = $totals('2026-10');
+        $year = $totals('2026');
+        $this->assertSame(['gross' => 200000, 'commission' => 20000, 'fees' => 0, 'net' => 180000, 'paid_out' => 0], $sep);
+        $this->assertSame(['gross' => 200000, 'commission' => 20000, 'fees' => 15000, 'net' => 165000, 'paid_out' => 345000], $oct);
+        $this->assertSame(['gross' => 400000, 'commission' => 40000, 'fees' => 15000, 'net' => 345000, 'paid_out' => 345000], $year);
+        foreach (['gross', 'commission', 'fees', 'net', 'paid_out'] as $key) {
+            $this->assertSame($year[$key], $sep[$key] + $oct[$key], $key);
+        }
+
+        // Le reversement reste cité en septembre, qui porte une de ses pièces, mais n'y est pas « versé ce mois ».
+        $payouts = fn (string $period): array => array_column(
+            $this->getJson("/api/owner-statements?period={$period}")->json('data.payouts'), 'paid_in_period', 'id',
+        );
+        $this->assertSame([$id => false], $payouts('2026-09'));
+        $this->assertSame([$id => true], $payouts('2026-10'));
+
+        $statement = $this->getJson('/api/owner-statements?period=2026-10')->json('data');
+        app()->setLocale('fr');
+        $html = html_entity_decode(view('pdf.statements.owner', [
+            'title' => 'Relevé', 'document_label' => 'Relevé', 'agency' => $agency, 'statement' => $statement,
+        ])->render(), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $this->assertStringContainsString('Versé ce mois', $html);
     }
 }
