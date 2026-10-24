@@ -161,6 +161,9 @@ class MigratedAuthorizationRulesTest extends TestCase
     public function test_booking_view_admits_creator_and_customer_but_update_does_not(): void
     {
         $createur = $this->quidam();
+        // P218.03 (TCK-2196) — la branche du créateur exige qu'il soit encore membre de l'agence
+        // (ADR-0031, amendement du 2026-10-24) : un bailleur actif, qui n'est pas du personnel.
+        $this->materializeRoleProfile($createur, 'owner', $this->agency);
         $clientUser = $this->quidam();
         $proprietaire = $this->quidam();
         // TCK-1707 (P153.02) — le propriétaire d'un bien d'agence y a un profil de bailleur.
@@ -274,6 +277,9 @@ class MigratedAuthorizationRulesTest extends TestCase
     public function test_invoice_view_admits_the_billed_customer_but_update_does_not(): void
     {
         $emetteur = $this->quidam();
+        // P218.03 (TCK-2196) — l'émetteur encore membre de l'agence (ADR-0031, amendement du
+        // 2026-10-24) : un bailleur actif, qui n'est pas du personnel.
+        $this->materializeRoleProfile($emetteur, 'owner', $this->agency);
         $clientUser = $this->quidam();
         $customer = Customer::factory()->create([
             'user_id' => $clientUser->id,

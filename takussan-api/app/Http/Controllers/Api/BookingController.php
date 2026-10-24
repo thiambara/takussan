@@ -10,6 +10,7 @@ use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\Property;
 use App\Services\Booking\BookingMoneyAccess;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\BookingService;
 use App\Services\Property\BailleurDuBien;
 use Illuminate\Http\JsonResponse;
@@ -26,8 +27,11 @@ class BookingController extends Controller
         $base = Booking::query()->with(['property.address', 'property.media', 'customer', 'agency']);
 
         if (! $user->isSuperAdmin()) {
-            $base->where(function ($q) use ($user) {
-                $q->where('created_by_id', $user->id)
+            // P218.03 (TCK-2196) — le créateur encore membre de l'agence, comme `BookingPolicy::view`.
+            $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
+            $base->where(function ($q) use ($user, $memberAgencyIds) {
+                $q->where(fn ($a) => $a->where('created_by_id', $user->id)
+                    ->where(fn ($m) => $m->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds)))
                     // TCK-1930 (P190.02, décision du porteur) — le bailleur du bien, comme
                     // `BookingPolicy::view` : plus l'agent créateur suspendu ou retiré.
                     ->orWhereHas('property', fn ($p) => BailleurDuBien::restreindre($p, $user))
