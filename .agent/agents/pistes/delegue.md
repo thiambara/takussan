@@ -54,7 +54,8 @@ Et, sans que la garde puisse le voir :
    l'implémenteur la passera `caduc`.
    - Cherche ce que le porteur a déjà décidé ailleurs : `docs/features.md`, `docs/models-spec.md`,
      les ADR (`docs/adr/README.md`), les tickets (`grep -rn` dans `docs/backlog/tickets`), les
-     décisions sur des entrées voisines du fichier de pistes (`grep -n "porteur (" …`). **Une
+     décisions sur des entrées voisines, closes comprises (`grep -rn "porteur ("
+     docs/plans/2026-10-15-pistes-d-amelioration.md docs/plans/pistes-archive/`). **Une
      décision qui suit une décision écrite est sûre ; une décision que rien d'écrit n'appuie ne
      l'est pas.**
    - Un critère V réservé que tu découvres en relisant, et que le mesureur n'avait pas vu : tu ne
