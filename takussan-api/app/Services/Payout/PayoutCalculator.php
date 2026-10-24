@@ -375,7 +375,8 @@ final class PayoutCalculator
         foreach ($lateFees as $payment) {
             $rate = $retainedRates['late_fees'][$payment->id]
                 ?? ($payment->lease?->commission_rate !== null ? (float) $payment->lease->commission_rate : $agencyRate);
-            $amount = max(0.0, (float) $payment->late_fee_amount);
+            // P206.04 — net de la part rendue par un remboursement (ADR-0039, amendement du 2026-10-24, point 7).
+            $amount = max(0.0, (float) $payment->late_fee_amount - (float) ($payment->late_fee_refund_amount ?? 0));
             $lateFeeLines[] = [
                 'id' => $payment->id,
                 'reference_number' => $payment->reference_number,

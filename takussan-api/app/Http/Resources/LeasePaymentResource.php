@@ -41,6 +41,9 @@ class LeasePaymentResource extends BaseResource
             // TCK-593 — ce que doit le locataire, calculé UNE fois (`PaymentGatewayService::amountDue`) :
             // le front affiche ces montants et n'additionne rien.
             'late_fee_paid_at' => $this->iso($this->late_fee_paid_at),
+            // P206.04 (ADR-0039, amendement du 2026-10-24, point 7) — la part de pénalité rendue : une
+            // pénalité rendue en entier est remise, ni acquittée ni due.
+            'late_fee_refund_amount' => $this->late_fee_refund_amount !== null ? (float) $this->late_fee_refund_amount : null,
             'late_fee_outstanding' => $this->resource->lateFeeOutstanding(),
             'late_fee_payable_online' => $gateway->lateFeeIncluded($this->resource),
             'amount_due' => (float) ($gateway->amountDue($this->resource) ?? 0),

@@ -689,12 +689,17 @@ class PayoutService
     {
         $leases = $payout->leasePayments()->get(['lease_payments.amount', 'lease_payments.refund_amount']);
         $bookings = $payout->bookingPayments()->get(['booking_payments.amount', 'booking_payments.refund_amount']);
+        // P206.01 et P206.04 — la pénalité prise par ce reversement est une ligne de son brut, et sa
+        // part rendue depuis la préparation se voit comme celle d'une pièce.
+        $lateFees = LeasePayment::query()->where('late_fee_payout_id', $payout->id)->get(['late_fee_amount', 'late_fee_refund_amount']);
         $items = $leases->concat($bookings);
-        if (! $items->contains(fn ($item): bool => (float) ($item->refund_amount ?? 0) > 0)) {
+        if (! $items->contains(fn ($item): bool => (float) ($item->refund_amount ?? 0) > 0)
+            && ! $lateFees->contains(fn ($fee): bool => (float) ($fee->late_fee_refund_amount ?? 0) > 0)) {
             return false;
         }
 
-        $gross = $items->sum(fn ($item): float => max(0.0, (float) $item->amount - (float) ($item->refund_amount ?? 0)));
+        $gross = $items->sum(fn ($item): float => max(0.0, (float) $item->amount - (float) ($item->refund_amount ?? 0)))
+            + $lateFees->sum(fn ($fee): float => max(0.0, (float) $fee->late_fee_amount - (float) ($fee->late_fee_refund_amount ?? 0)));
 
         return Currency::roundAmount($gross, $payout->currency) < (float) $payout->gross_amount;
     }

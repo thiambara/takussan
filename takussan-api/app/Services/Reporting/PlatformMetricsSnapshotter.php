@@ -70,7 +70,7 @@ class PlatformMetricsSnapshotter
         $lateFeeGmv = 0.0;
         $lateFeeFees = 0.0;
         foreach ($lateFees as $payment) {
-            $lateFeeGmv += (float) $payment->late_fee_amount;
+            $lateFeeGmv += max(0.0, (float) $payment->late_fee_amount - (float) ($payment->late_fee_refund_amount ?? 0));
             $byPlatform = $settledByPlatform[(int) $payment->id] ?? 0.0;
             if ($byPlatform > 0) {
                 $lateFeeFees += Currency::roundAmount($byPlatform * (float) ($payment->platform_fee_pct_at_payment ?? 0) / 100, $payment->currency);

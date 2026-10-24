@@ -63,7 +63,7 @@ final class CollectedPayments
      * P206.02 — la pénalité de retard réglée d'une échéance, second agrégat de l'*Encaissé*, à dater
      * par `lease_payments.late_fee_paid_at`.
      */
-    public const LATE_FEE_NET_SQL = 'COALESCE(lease_payments.late_fee_amount, 0)';
+    public const LATE_FEE_NET_SQL = 'COALESCE(lease_payments.late_fee_amount, 0) - COALESCE(lease_payments.late_fee_refund_amount, 0)';
 
     /** P206.03 — la pénalité appliquée et non réglée d'une échéance. */
     public const LATE_FEE_OUTSTANDING_SQL = 'COALESCE(lease_payments.late_fee_amount, 0)';

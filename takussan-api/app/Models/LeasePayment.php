@@ -65,6 +65,8 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
         'late_fee_payout_amount' => 'decimal:2',
         'late_fee_payout_commission_rate' => 'decimal:2',
         'late_fee_payout_commission_amount' => 'decimal:2',
+        // P206.04 (ADR-0039, amendement du 2026-10-24, point 7) — la part de pénalité rendue.
+        'late_fee_refund_amount' => 'decimal:2',
         'marked_paid_at' => 'datetime',
         'metadata' => 'array',
         'bank_reconciled_at' => 'datetime',
