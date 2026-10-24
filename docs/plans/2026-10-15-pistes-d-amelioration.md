@@ -19406,7 +19406,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Petites améliorations
 - Réf : P211.07
-- Statut : validé — validation du porteur (2026-10-24) : mise à jour conditionnelle (`where status = blocked` ou `suspended`) en transaction pour la réactivation et la réintégration ; journal et avis seulement si une ligne a changé ; la partie KYC est retirée, `verify` exigeant déjà `submitted` sous verrou
+- Statut : fait · TCK-2195
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/UserLifecycleController.php:58-68`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:213-222`, `takussan-api/app/Services/Kyc/KycExpiryService.php:36-49,81-90`
 - Constat :
@@ -19415,6 +19415,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu.
 - Piste : même patron que les entrées précédentes (relecture sous verrou, ou mise à jour conditionnelle sur le statut attendu) ; l'avis après le commit et seulement si la ligne a changé.
 - Mesure (2026-10-24, 0c24562d3, mesureur) : relu `UserLifecycleController::reactivate` (`user.not_blocked` jugé sur le modèle lié, `forceFill()->save()` hors transaction, journal et avis), `AgencyModerationController::reinstate` (`agency.not_suspended` sur le modèle lié puis `transition` et `notifyAdmins`) et `KycExpiryService::run` / `expire` (chargement `verified` par `each()`, `update` du dossier et de l'agence sur le modèle chargé, sans relecture de `status` ni d'`expires_at`) → le motif décrit est dans le code ; aucune des trois courses n'a été jouée (doubles avis et journal, vérification neuve écrasée : toujours à vérifier). Classement : V2, `reactivate` rend l'accès d'un compte et `reinstate` celui d'une agence, et les trois parties restent déduites : au porteur.
+- Mesure (2026-10-24, 47223cd19, implementeur) : reproduit avant correctif par `LeveeDeSanctionConditionnelleTest` (la ligne passe en base à `active` juste après que la route l'a chargée, depuis l'événement `retrieved` : ce que voit le second de deux appels simultanés) → `POST /api/admin/users/{id}/reactivate` et `POST /api/admin/agencies/{id}/reinstate` 200, journal et avis → la condition `status = blocked` / `suspended` se juge en base sur la ligne lue sous `lockForUpdate` dans la transaction, écrite par le modèle (pour garder `AgencyObserver` et le journal du statut de `User`, qu'un `update()` par requête sauterait), journal dans la transaction, avis après et seulement si la ligne a changé → 422 `user.not_blocked` / `agency.not_suspended`, aucun journal, aucun avis ; cas ordinaire écrit, journalisé une fois, prévenu ; ablation (deux contrôleurs remis à `HEAD`) → 2 rouges sur 3, remis → 3 verts ; `AdminUserLifecycleTest` 6, `AgencySuspensionTest` 8, `AgencySuspensionSearchIndexTest` 2, `PlatformPowerStepUpTest` 5, `PlatformRoutesDefaultDenyTest` 7 verts (charge 3,97 / 3,08 / 3,24 sur 8 cœurs). La partie KYC est retirée par la décision.
 
 ## Angle 212 — Dates calendaires et « aujourd'hui » calculés au navigateur, face au jour UTC de l'API
 
