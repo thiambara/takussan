@@ -19625,7 +19625,7 @@ les envoie.*
 
 ### L'historique unifié des paiements rend 500 sur `filter[status]`, `filter[entity_type]` ou `sort` en liste
 - Réf : P216.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2122
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:45,79,91,125`
 - Constat :
@@ -19635,6 +19635,7 @@ les envoie.*
   - Établi comment : lu, test temporaire.
 - Piste : `is_string()` avant chaque cast ; `status` en liste rendu comme un statut inconnu (422 `payment.filter_status_invalid`), `entity_type` et `sort` en liste ignorés comme absents. Garde : un test par paramètre.
 - Mesure (2026-10-24, 38e9e45bf, mesureur) : relu `PaymentController.php:45,79,91,95,125` (inchangés) ; aucun ticket ni commit ; test temporaire `tests/Feature/Tmp/MesureurTmp216Test.php` (retiré), une requête par paramètre, gestionnaire d'exceptions actif, charge `{ 3.18 2.91 2.63 }` sur 8 cœurs → super-admin : `/api/payments/history?filter[status][]=x` → 500 l. 91, `filter[entity_type][]=lease&filter[entity_id]=1` → 500 l. 79, `sort[]=x` → 500 l. 125 ; témoins `filter[date_from][]=…` → 422 (`ValidationException`), sans paramètre → 200 → le constat tient. Classement : A1, la réponse à un statut inconnu (422 `payment.filter_status_invalid`, l. 95) et à une date en liste (422) est déjà écrite, et un tri ou un type inconnus sont déjà ignorés : aucun montant ni aucune autorisation ne changent, seul le 500 d'une URL forgée disparaît.
+- Mesure (2026-10-24, 9d78f2609, implementeur) : reproduit par `tests/Feature/Api/ValeursEnListeHistoriqueDesPaiementsTest.php` (3 rouges « Array to string conversion » avant correctif, l. 91, 79, 125) → `is_array()` avant chaque cast : statut en liste → 422 `payment.filter_status_invalid`, type d'entité et tri en liste ignorés ; ablation (contrôleur remis à `pre-dev`) → 3 rouges, correctif remis → 3 verts ; `PaymentHistoryTest` (11) et trois classes voisines vertes. Vu au passage, hors piste : `filter[entity_id][]=5` se lit `(int)` = 1, sans erreur.
 
 ### Un `include[]=` lu à la main après `buildQuery()` rend 500 sur les interventions, la fiche d'un document et les biens d'une agence en console
 - Réf : P216.03
