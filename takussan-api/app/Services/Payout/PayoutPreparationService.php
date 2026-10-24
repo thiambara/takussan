@@ -44,8 +44,9 @@ final class PayoutPreparationService
 
         $computation = $this->calculator->compute(
             $agency,
-            $this->calculator->leasePayments((int) $agency->id, (int) $landlord->id, $start, $end)->get(),
-            $this->calculator->bookingPayments((int) $agency->id, (int) $landlord->id, $start, $end)->get(),
+            // TCK-2064 (P178.01) — une pièce encaissée par la plateforme attend son `PlatformPayout` payé.
+            $this->calculator->exceptAwaitingPlatform($this->calculator->leasePayments((int) $agency->id, (int) $landlord->id, $start, $end), $agency)->get(),
+            $this->calculator->exceptAwaitingPlatform($this->calculator->bookingPayments((int) $agency->id, (int) $landlord->id, $start, $end), $agency)->get(),
             $this->calculator->rechargeableBills((int) $agency->id, (int) $landlord->id)->get(),
         );
 

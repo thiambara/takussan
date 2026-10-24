@@ -8,6 +8,7 @@ use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\Currency;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\Enums\ServiceProviderBillStatus;
 use App\Models\LeasePayment;
 use App\Models\ServiceProviderBill;
@@ -32,6 +33,8 @@ use Illuminate\Support\Collection;
  *  - **Frais** : factures d'intervention `validated`, refacturables, non encore imputées.
  *  - Une pièce déjà rattachée à un reversement n'est plus éligible : les pivots portent un index
  *    unique, et un reversement `cancelled` ou `failed` les détache.
+ *  - Une pièce soldée par la plateforme n'est reversable qu'une fois son `PlatformPayout` `paid`
+ *    (TCK-2064), hors agence `individual` : {@see self::exceptAwaitingPlatform()}.
  */
 final class PayoutCalculator
 {
@@ -98,6 +101,35 @@ final class PayoutCalculator
         }
 
         return $query->orderBy('booking_payments.paid_at')->orderBy('booking_payments.id');
+    }
+
+    /**
+     * TCK-2064 (P178.01, décision du porteur du 2026-10-23, option stricte) — retire des pièces
+     * éligibles celles que la plateforme a encaissées (soldées par une intégration globale, la
+     * lecture de `PlatformPayoutService::isSettledByPlatform()`) tant que leur `PlatformPayout`
+     * n'est pas `paid` : l'agence n'a pas encore reçu cet argent, elle ne le reverse pas au bailleur.
+     * Les agences `individual` restent hors de la règle (ADR-0039 § 2).
+     *
+     * Lu par la préparation et la création seules : le relevé de gérance et l'effacement de compte
+     * comptent toujours ces pièces comme dues au bailleur.
+     *
+     * @template TModel of LeasePayment|BookingPayment
+     *
+     * @param  Builder<TModel>  $query
+     * @return Builder<TModel>
+     */
+    public function exceptAwaitingPlatform(Builder $query, Agency $agency): Builder
+    {
+        if ($agency->kind?->isIndividual()) {
+            return $query;
+        }
+
+        $table = $query->getModel()->getTable();
+
+        return $query->where(fn (Builder $q) => $q->whereNotSettledByPlatform()
+            ->orWhereExists(fn ($paid) => $paid->selectRaw('1')->from('platform_payouts')
+                ->whereColumn('platform_payouts.id', "{$table}.platform_payout_id")
+                ->where('platform_payouts.status', PlatformPayoutStatus::Paid->value)));
     }
 
     /**
