@@ -51,7 +51,9 @@ class DocumentResource extends BaseResource
                 ->first(fn ($m) => (bool) $m->getCustomProperty('is_active', false))
             : $this->activeVersion();
 
-        $includes = array_filter(array_map('trim', explode(',', (string) $request->query('include', ''))));
+        // P216.03 (TCK-2124) — `include[]=…` vaut un `include` absent (TCK-1407, TCK-1866), et n'est plus casté.
+        $include = $request->query('include', '');
+        $includes = is_string($include) ? array_filter(array_map('trim', explode(',', $include))) : [];
         $includeVersions = in_array('versions', $includes, true);
 
         return [
