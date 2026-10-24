@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Activity;
 
 /**
  * TCK-305 — extrait de AuditLogController::index(), où les règles étaient écrites en ligne.
@@ -21,17 +22,12 @@ class IndexAuditLogRequest extends BaseFormRequest
      * contrôleur, ce qui rendait 422 là où l'API rendait 403 pour un appel à la fois non
      * autorisé et mal formé. `authorize()` rétablit l'ordre d'origine.
      *
-     * ⚠ **REPRISE, pas délégation** : cette règle n'est pas encore dans une policy — elle fait
-     * partie des 19 helpers relevés hors périmètre de TCK-306. L'expression est reproduite à
-     * l'identique ; son domicile définitif est une policy, et le ticket de suite doit la
-     * convertir en délégation comme les 35 autres.
+     * TCK-2260 (P116.07) — la règle vit dans `ActivityLogPolicy::viewAny` (l'admin ET
+     * `reports.view_agency`) ; elle était recopiée ici.
      */
     public function authorize(): bool
     {
-        $user = $this->user();
-
-        return $user !== null && ($user->isSuperAdmin()
-            || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)));
+        return $this->user()?->can('viewAny', Activity::class) === true;
     }
 
     /** @return array<string, mixed> */
