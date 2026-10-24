@@ -19206,7 +19206,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Une recherche sauvegardée dont la suppression échoue reste à l'écran sans message
 - Réf : P210.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2084
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/favorites/SavedSearchesList.tsx:141,185,205,244-251,259`
 - Constat :
@@ -19215,6 +19215,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré. Les codes que l'API peut rendre sur ce `DELETE` n'ont pas été relevés (à vérifier).
 - Piste : ajouter le `catch` et afficher l'erreur sur la ligne par `useMessageErreurApi()`. Garde : le test ci-dessus, qui attend le message.
 - Mesure (2026-10-24, 0507e0a2f, mesureur) : relu `SavedSearchesList.tsx:243-251` (`handleDelete` en `try … finally` sans `catch`), `:141` (`onDelete: (id: number) => void`), `:185` (`onClick={() => onDelete(search.id)}`), seul `role="alert"` à la l. 127 (réglage d'alerte) ; côté API `SavedSearchController::destroy` (`SavedSearchController.php:110-116`) rend 403 hors propriétaire, 204 sinon — le reste est une panne (500, réseau) ou 404 ; test vitest temporaire (retiré), montage et `fetch` de `SavedSearchesList.alerte.test.tsx`, `DELETE` simulé en 500, clic sur « Supprimer Dakar », charge 2,6 sur 8 cœurs → `DELETE` parti, 0 `role=alert`, 0 `role=status`, les deux lignes toujours affichées, une « Unhandled Rejection: API error 500 » → le constat tient. Classement : A1, ADR-0019 fixe l'affichage par `useMessageErreurApi()` avec repli existant : ajouter le `catch` et montrer le message sur la ligne ne demande aucun choix.
+- Mesure (2026-10-24, 72976c063, implementeur) : test vitest `SavedSearchesList.suppression-refusee.p210-03.test.tsx` (montage et `fetch` de `SavedSearchesList.alerte.test.tsx`, `DELETE` simulé en 500), charge 4,19 / 3,30 / 2,85 sur 8 cœurs, sur `SavedSearchesList.tsx` de `pre-dev` → 2/2 rouges (« Unable to find role="alert" », deux « Unhandled Rejection: API error 500 ») ; correctif (`catch`, message par `useMessageErreurApi()` gardé avec l'`id` et affiché sur la seule ligne visée, effacé au nouvel essai) → 2/2 verts, ligne toujours affichée ; ablation (fichier rendu à `pre-dev`) → rouge, remis → vert ; les trois autres fichiers `SavedSearchesList.*.test.tsx` verts.
 
 ### Rejets non rattrapés là où l'écran affiche pourtant l'erreur par `mutation.error`
 - Réf : P210.04
