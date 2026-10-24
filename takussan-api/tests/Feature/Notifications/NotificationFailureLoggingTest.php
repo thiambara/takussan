@@ -16,11 +16,16 @@ use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Mockery;
+use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
 /**
  * TCK-800 (P11.10) — le journal ne garde que le suffixe d'un numéro, et une notification par code
  * en file attend avant de réessayer, puis journalise son échec final.
+ *
+ * P207.03 (TCK-2071) — vers un contact sans compte, l'échec final écrit en plus l'activité alertable
+ * `ops_critical_job_failed`, comme les envois marqués hors code (TCK-1794) : pour lui, aucune cloche
+ * ne reste, et l'appelant a déjà posé sa marque « envoyé ».
  */
 class NotificationFailureLoggingTest extends TestCase
 {
@@ -65,6 +70,50 @@ class NotificationFailureLoggingTest extends TestCase
                 && $ctx['exception'] === 'RuntimeException'
                 && ! str_contains(json_encode($ctx), 'secret'),
         ))->once();
+    }
+
+    public function test_the_final_failure_of_a_copy_to_a_contact_writes_an_alertable_activity(): void
+    {
+        Queue::fake();
+        \Illuminate\Support\Facades\Notification::route('mail', 'awa@example.test')
+            ->notify(new CodedNotification(NotificationCode::LeasePaymentDueSoon, ['amount' => 1000, 'phone' => '+221771234567']));
+
+        $mail = $this->copieSerialisee('mail');
+        $mail->failed(new \RuntimeException('secret awa@example.test'));
+
+        $activites = Activity::query()->where('event', 'ops_critical_job_failed')->get();
+        $this->assertCount(1, $activites);
+        $proprietes = $activites->first()->properties->toArray();
+        $this->assertSame('CodedNotification', $proprietes['job']);
+        $this->assertSame('lease_payment.due_soon', $proprietes['code']);
+        $this->assertSame('mail', $proprietes['channel']);
+        $this->assertSame('RuntimeException', $proprietes['exception']);
+        $encodees = (string) json_encode($proprietes);
+        $this->assertStringNotContainsString('secret', $encodees);
+        $this->assertStringNotContainsString('awa@example.test', $encodees);
+        $this->assertStringNotContainsString('221771234567', $encodees);
+        $this->assertStringNotContainsString('1000', $encodees);
+    }
+
+    public function test_the_final_failure_of_a_copy_to_an_account_writes_no_activity(): void
+    {
+        Queue::fake();
+        User::factory()->create(['email' => 'awa@example.test'])
+            ->notify(new CodedNotification(NotificationCode::LeasePaymentDueSoon, ['amount' => 1000], null, 42));
+
+        $this->copieSerialisee('mail')->failed(new \RuntimeException('panne'));
+
+        $this->assertSame(0, Activity::query()->where('event', 'ops_critical_job_failed')->count());
+    }
+
+    /** La copie telle que le worker la relit : sérialisée (et chiffrée) à la mise en file. */
+    private function copieSerialisee(string $canal): SendQueuedNotifications
+    {
+        $job = Queue::pushed(SendQueuedNotifications::class)
+            ->first(fn (SendQueuedNotifications $job) => $job->channels === [$canal]);
+        $this->assertNotNull($job, "un job pour le canal {$canal}");
+
+        return unserialize(serialize($job));
     }
 
     private function mobile(): Notification

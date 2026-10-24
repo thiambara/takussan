@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Domain\Notifications\NotificationCode;
 use App\Models\User;
 use App\Models\WhatsappContact;
+use App\Notifications\Concerns\AlertsWhenMarkedDeliveryFails;
 use App\Notifications\Concerns\SupportsSms;
 use App\Notifications\Concerns\SupportsWhatsapp;
 use App\Services\Model\NotificationService;
@@ -79,6 +80,12 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
     public ?string $queuedChannel = null;
 
     /**
+     * P207.03 (TCK-2071) — la copie vise un contact sans compte (`AnonymousNotifiable`), retenu à la
+     * mise en file comme le canal : `failed()` ne reçoit pas le destinataire.
+     */
+    public bool $queuedForContact = false;
+
+    /**
      * TCK-800 (P11.10) — attendre avant de réessayer : sans délai, le worker (`--tries=3`)
      * épuisait ses trois essais en quelques secondes sur une panne brève du transport.
      *
@@ -93,6 +100,7 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
     public function middleware(object $notifiable, string $channel): array
     {
         $this->queuedChannel = $channel;
+        $this->queuedForContact = $notifiable instanceof AnonymousNotifiable;
 
         return [];
     }
@@ -100,6 +108,12 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
     /**
      * TCK-800 (P11.10) — l'échec final se journalise : le code, le canal, la ligne de la cloche. Ni
      * les paramètres ni le message de l'exception, qui peuvent porter des données personnelles.
+     *
+     * P207.03 (TCK-2071) — vers un contact sans compte, l'activité alertable `ops_critical_job_failed`
+     * s'écrit en plus, comme pour les envois marqués hors code ({@see AlertsWhenMarkedDeliveryFails},
+     * TCK-1794) : aucune cloche ne lui reste, et l'appelant (relance de loyer, rappel de visite) a
+     * déjà posé sa marque « envoyé ». Mêmes clés que le journal, sans la ligne de cloche qu'un contact n'a pas (ADR-0044
+     * § 2). La marque n'est pas touchée, et rien n'est renvoyé.
      */
     public function failed(?\Throwable $e): void
     {
@@ -112,6 +126,19 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
             'exception' => $context['exception'] ?? null,
             'at' => $context['at'] ?? null,
         ]);
+
+        if ($this->queuedForContact) {
+            activity('Ops')
+                ->event('ops_critical_job_failed')
+                ->withProperties([
+                    'job' => class_basename(static::class),
+                    'code' => $this->code->value,
+                    'channel' => $this->queuedChannel,
+                    'exception' => $context['exception'] ?? null,
+                    'at' => $context['at'] ?? null,
+                ])
+                ->log('ops_critical_job_failed');
+        }
     }
 
     /** Le SMS a été borné au point d'envoi : les canaux mobiles ne le recomptent pas. */
