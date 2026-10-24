@@ -19686,7 +19686,7 @@ les envoie.*
 
 ### La liste des interventions garde à l'agent créateur suspendu ou retiré les interventions du bien qu'il a saisi, que `view` lui refuse
 - Réf : P217.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : resserre une clause de liste qu'emploie le bailleur du bien, comme P190.01
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/MaintenanceRequest.php:163-185`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:46-72`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:298-320`
 - Constat :
@@ -19695,10 +19695,11 @@ les envoie.*
   - mesuré (test temporaire), suspendu comme retiré : `can('view', $intervention)` faux, `GET /api/maintenance-requests/{id}` → 403, mais l'intervention figure dans `GET /api/maintenance-requests?include=property`, avec `title`, `description`, `estimated_cost`, `actual_cost`, `resolution_notes` et le bien.
   - Établi comment : lu, puis mesuré.
 - Piste : borner la clause du bien de `scopeVisibleTo` par `BailleurDuBien::restreindre`, comme les listes de TCK-1926 à TCK-1932. Le scope sert aussi `indexForProperty` et `ConversationAccess::constrainListing` (P217.02) : un seul correctif. Test : agent créateur suspendu, puis retiré → intervention absente de la liste ; bailleur du bien, bloqué → présente ; agent actif → présente.
+- Mesure (2026-10-24, a9ec5dd1a, mesureur) : relu `MaintenanceRequest.php:175` (`orWhereHas('property', … user_id)` sans autre condition), `MaintenanceRequestPolicy.php:311` (`BailleurDuBien::est`) et `MaintenanceRequestController.php:50` (inchangés) ; `git log` des trois fichiers et `grep -rl P217 docs/backlog/tickets` → aucun correctif ; test temporaire `tests/Feature/TmpMesureur/Sonde217Test.php` (retiré), jeu de `BuildsBookingStakeholders`, bien passé au `user_id` de l'agent, trois cas (suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, témoin actif), charge `{ 1.73 1.72 1.77 }` sur 8 cœurs → suspendu comme retiré : `staffAgencyId()` null, `can('view')` faux, `GET /api/maintenance-requests/{id}` 403, mais l'intervention est dans `GET /api/maintenance-requests?include=property` ; témoin actif : 200 et listée → le constat tient. Classement : V2, le correctif change la clause « mes biens » d'une liste que le bailleur actif emploie aujourd'hui, comme P190.01 (TCK-1928), classé V2 et tranché par le porteur.
 
 ### La liste des conversations garde à l'agent créateur suspendu ou retiré les fils des interventions de son bien, aperçu du dernier message compris
 - Réf : P217.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : dépend de la clause de P217.01, qui sert le bailleur actif
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/ConversationAccess.php:138-165`
 - Constat :
@@ -19706,10 +19707,11 @@ les envoie.*
   - mesuré (test temporaire), suspendu comme retiré, l'agent étant participant du fil : `ConversationAccess::allows` faux, `GET /api/conversations/{id}` → 403 et `GET /api/conversations/{id}/messages` → 403, mais le fil figure dans `GET /api/conversations` avec `last_message_preview` (le texte du message posté par l'admin après la sortie de l'agent n'est pas mesuré ; celui posté avant est rendu en entier) et `unread_count` à 1.
   - Établi comment : lu, puis mesuré.
 - Piste : le correctif de P217.01 ferme ce cas. Test propre au fil : même jeu → fil absent de `GET /api/conversations` ; témoin bailleur du bien.
+- Mesure (2026-10-24, a9ec5dd1a, mesureur) : relu `ConversationAccess.php:138-146` (`maintenanceAllows` par `can('view')`) et `:164` (`constrainListing` par `visibleTo`), inchangés ; aucun ticket ni commit ; test temporaire `tests/Feature/TmpMesureur/Sonde217Test.php` (retiré), jeu de `BuildsBookingStakeholders`, bien passé au `user_id` de l'agent, trois cas (suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, témoin actif), charge `{ 1.73 1.72 1.77 }` sur 8 cœurs, l'agent participant d'un fil de groupe à `maintenance_request_id` → suspendu comme retiré : `ConversationAccess::allows` faux, `GET /api/conversations/{id}` 403, mais le fil est dans `GET /api/conversations` ; témoin actif : 200 et listé → le constat tient (l'aperçu du dernier message n'a pas été re-mesuré). Classement : V2, le correctif est celui de P217.01 et en partage le classement ; le fil expose aussi un message (V3).
 
 ### L'historique des paiements garde à l'agent créateur suspendu ou retiré les loyers du bail qui le désigne, que `LeasePolicy::view` lui refuse
 - Réf : P217.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : resserre la branche des loyers de l'historique qu'emploie le bailleur actif, comme P190.03
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:64-75`
 - Constat :
@@ -19717,10 +19719,11 @@ les envoie.*
   - mesuré (test temporaire), suspendu comme retiré : `can('view', $lease)` faux, mais `GET /api/payments/history` rend la ligne `source: lease` (montant, statut, période, échéance, `customer_id` du locataire), et `filter[entity_type]=lease&filter[entity_id]=<bail>` en compte 1.
   - Établi comment : lu, puis mesuré.
 - Piste : borner la branche des loyers par `BailleurDuBien::restreindre($lq, $user, 'landlord_id')`, comme `LeaseController::index`. Test : agent créateur suspendu, puis retiré → aucune ligne `lease` ; bailleur du bien, bloqué → ses loyers ; locataire → ses loyers.
+- Mesure (2026-10-24, a9ec5dd1a, mesureur) : relu `PaymentController.php:64-75` (branche des loyers sur `where('landlord_id', $user->id)` seule, la branche des acomptes bornée par `BailleurDuBien::restreindre` l. 54), inchangé ; aucun ticket ni commit ; test temporaire `tests/Feature/TmpMesureur/Sonde217Test.php` (retiré), jeu de `BuildsBookingStakeholders`, bien passé au `user_id` de l'agent, trois cas (suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, témoin actif), charge `{ 1.73 1.72 1.77 }` sur 8 cœurs, bail `active` au `landlord_id` de l'agent et une échéance `pending` → suspendu comme retiré : `can('view', $lease)` faux, mais l'échéance figure dans `GET /api/payments/history` en `source: lease` ; témoin actif : listée → le constat tient. Classement : V2 (et V3 : montant et `customer_id` du locataire), le correctif change ce que liste le bailleur d'un bail, appelant d'aujourd'hui, comme P190.03 et P190.04, classés V2.
 
 ### L'agent créateur suspendu ou retiré ouvre les moyens de paiement et vérifie les loyers du bail qui le désigne
 - Réf : P217.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 et V2 : change qui ouvre et vérifie un paiement de loyer, comme P190.03
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/LeasePaymentPolicy.php:16-37`, `takussan-api/app/Http/Controllers/Api/PaymentGatewayController.php:29-33,53-55,78-80`
 - Constat :
@@ -19729,10 +19732,11 @@ les envoie.*
   - Le reste de P190.03 (initiation refusée au bailleur bloqué) porte sur une autre population : voir P190.03.
   - Établi comment : lu, puis mesuré.
 - Piste : remplacer `landlordWrites` par `bailleurEcrit` dans `LeasePaymentPolicy::update`. Test : agent créateur suspendu, puis retiré → `providers` et `verify` en 403 ; bailleur du bien et locataire acceptés ; agent actif accepté au titre du personnel.
+- Mesure (2026-10-24, a9ec5dd1a, mesureur) : relu `LeasePaymentPolicy.php:35` (`landlordWrites`) et `BasePolicy.php:132-141` (ne refuse que le bailleur bloqué), inchangés ; aucun ticket ni commit ; test temporaire `tests/Feature/TmpMesureur/Sonde217Test.php` (retiré), jeu de `BuildsBookingStakeholders`, bien passé au `user_id` de l'agent, trois cas (suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, témoin actif), charge `{ 1.73 1.72 1.77 }` sur 8 cœurs → suspendu comme retiré : `can('update', $echeance)` vrai, `GET /api/lease-payments/{id}/providers` 200, `GET /api/lease-payments/{id}/verify` 200 ; témoin actif : vrai, 200, 200 → le constat tient ; `initiate` n'a pas été lancé (même ability, lu). Classement : V1 et V2, le correctif change qui initie et vérifie un paiement sur une branche qu'emploie le bailleur actif, comme P190.03 (TCK-1932), classé V2 et V1.
 
 ### Petites améliorations
 - Réf : P217.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : aligner une liste plus étroite que sa lecture ouvre une liste à de nouveaux lecteurs, ou demande d'écrire pourquoi elles divergent
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:45-70`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php`, `takussan-api/app/Models/CommissionEntry.php` (`scopeVisibleTo`), `takussan-api/app/Policies/CommissionEntryPolicy.php`
 - Constat :
@@ -19741,3 +19745,4 @@ les envoie.*
   - Commissions : la liste exige `staffAgencyId()` (lu), quand `view` accepte le bénéficiaire sans condition (lu) : l'agent retiré lit sa commission par l'URL, mais ne la liste plus. Plus étroit, sans fuite.
   - Établi comment : lu.
 - Piste : aligner chaque liste sur son `view`, ou écrire dans la policy pourquoi elles divergent. Pour les cinq entrées de cet angle, une garde qui, pour chaque liste à clause écrite à la main, crée une ligne refusée par `view` (créateur suspendu ou retiré) et vérifie qu'elle n'est pas listée, empêcherait le retour : chaque correctif de l'angle 190 a recopié la règle à la main dans une clause.
+- Mesure (2026-10-24, a9ec5dd1a, mesureur) : relu `PropertyVisitController.php:65-66`, `PrimaryPropertyContact.php:158-164,211-215`, `GuarantorController.php:25`, `GuarantorPolicy.php:31-33`, `CommissionEntry.php:67-85`, `CommissionEntryPolicy.php:20-24` (inchangés) ; vérifié les deux « à vérifier » : le blocage par l'opérateur (`UserLifecycleController.php:45-46`) et la suppression du compte (`AccountDeletionService.php:130,290`) révoquent les jetons, si bien que l'écart des visites ne vise qu'un compte `blocked` ou `deleted` encore authentifié par un autre moyen (session non mesurée) ; le front ne lit pas `GET /api/guarantors` (`grep -rn guarantors takussan-web/src` → seul `/api/leases/{id}/guarantors`, `lib/queries/leases.ts:533`), aucun écran ne dépend donc de la liste des garants → les trois écarts tiennent à la lecture, aucun n'est une fuite. Classement : V7, les deux listes plus étroites que leur `view` (garants, commissions) ne s'alignent qu'en ouvrant une liste à de nouveaux lecteurs, ou en écrivant pourquoi elles divergent : c'est un choix ; la garde générale proposée est à part et dépend de P217.01 à P217.04.
