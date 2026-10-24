@@ -2,7 +2,22 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { Activity, Cloud, Cpu, Database, HardDrive, Images, ListChecks, Mail, Search, Wifi } from 'lucide-react';
+import {
+  Activity,
+  CalendarClock,
+  Cloud,
+  Cpu,
+  Database,
+  HardDrive,
+  Images,
+  ListChecks,
+  Mail,
+  MessageCircle,
+  Network,
+  Search,
+  Webhook,
+  Wifi,
+} from 'lucide-react';
 import { StatCard, StatusBadge } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
 import { fetchPlatformHealth } from '@/lib/queries/super-admin';
@@ -18,9 +33,30 @@ import type { HealthcheckStatus, HealthLevel } from '@/types/super-admin';
  * d'entre eux (`Cache`, `Mail`, `SMS`) sont identiques en `fr` et en `en`, ce qui est exactement
  * la raison pour laquelle personne ne les voyait.
  */
-type CheckKey = 'db' | 'cache' | 'storage' | 'media_storage' | 'mail' | 'sms' | 'search' | 'queue' | 'workers' | 'cdn';
+type CheckKey =
+  | 'db'
+  | 'cache'
+  | 'storage'
+  | 'media_storage'
+  | 'mail'
+  | 'sms'
+  | 'whatsapp'
+  | 'search'
+  | 'queue'
+  | 'workers'
+  | 'cdn'
+  | 'scheduler'
+  | 'proxies'
+  | 'lemon_squeezy_webhook';
 
-/** TCK-600 — médias (R2), recherche, files, workers et CDN rejoignent les cinq sondes d'origine. */
+/**
+ * TCK-600 — médias (R2), recherche, files, workers et CDN rejoignent les cinq sondes d'origine.
+ *
+ * TCK-2129 — une tuile par sonde de `HealthcheckService::probe()`, dans son ordre : l'état général
+ * est le pire de TOUTES, et une sonde sans tuile faisait dire « En panne » à la page sans qu'aucune
+ * tuile ne le montre. `HealthcheckTuilesConcordanceTest` (API) lit cette liste et la compare aux
+ * sondes émises.
+ */
 const CHECKS: Array<{ key: CheckKey; icon: typeof Database }> = [
   { key: 'db', icon: Database },
   { key: 'cache', icon: Activity },
@@ -28,10 +64,14 @@ const CHECKS: Array<{ key: CheckKey; icon: typeof Database }> = [
   { key: 'media_storage', icon: Images },
   { key: 'mail', icon: Mail },
   { key: 'sms', icon: Wifi },
+  { key: 'whatsapp', icon: MessageCircle },
   { key: 'search', icon: Search },
   { key: 'queue', icon: ListChecks },
   { key: 'workers', icon: Cpu },
   { key: 'cdn', icon: Cloud },
+  { key: 'scheduler', icon: CalendarClock },
+  { key: 'proxies', icon: Network },
+  { key: 'lemon_squeezy_webhook', icon: Webhook },
 ];
 
 const TONE: Record<HealthLevel, 'success' | 'attention' | 'danger'> = {
@@ -73,7 +113,7 @@ export function HealthDashboard() {
         </p>
       ) : null}
       {/*
-        Dix tuiles, cinq par rangée en `xl` seulement — à 768 la coque laisse ~460 px, soit 80 px
+        Quatorze tuiles, cinq par rangée en `xl` seulement — à 768 la coque laisse ~460 px, soit 80 px
         par tuile, où « Base de données » cassait sur deux lignes (TCK-505).
       */}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">

@@ -7047,7 +7047,11 @@
         "search": "Seet",
         "queue": "Toggu liggéey yi",
         "workers": "Workers",
-        "cdn": "CDN"
+        "cdn": "CDN",
+        "whatsapp": "WhatsApp",
+        "scheduler": "Planificateur",
+        "proxies": "Mandataires de confiance",
+        "lemon_squeezy_webhook": "Webhook Lemon Squeezy"
       },
       "hint": {
         "error": "Njuumte : {message}",

@@ -756,6 +756,7 @@ export type PlatformHealth = {
   media_storage?: HealthcheckStatus & { disks?: string[]; disk?: string };
   mail: HealthcheckStatus;
   sms: HealthcheckStatus & { attempts_1h?: number; failure_rate_1h?: number };
+  whatsapp?: HealthcheckStatus & { attempts_1h?: number; failure_rate_1h?: number };
   search?: HealthcheckStatus & { documents?: number; expected?: number; gap?: number };
   queue: Partial<HealthcheckStatus> & {
     pending: number;
@@ -767,7 +768,10 @@ export type PlatformHealth = {
     queues?: Record<string, { status: HealthLevel; last_heartbeat_seconds: number | null }>;
   };
   cdn?: HealthcheckStatus;
-  scheduler: { last_run_at: string | null };
+  /** TCK-2129 — `failed` quand aucune tâche n'a tourné depuis le seuil (`HealthcheckService::scheduler()`). */
+  scheduler?: HealthcheckStatus & { last_run_at?: string | null };
+  proxies?: HealthcheckStatus;
+  lemon_squeezy_webhook?: HealthcheckStatus;
   status?: HealthLevel;
   generated_at: string;
 };

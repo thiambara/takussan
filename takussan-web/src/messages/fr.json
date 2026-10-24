@@ -7698,7 +7698,11 @@
         "search": "Recherche",
         "queue": "Files de jobs",
         "workers": "Workers",
-        "cdn": "CDN"
+        "cdn": "CDN",
+        "whatsapp": "WhatsApp",
+        "scheduler": "Planificateur",
+        "proxies": "Mandataires de confiance",
+        "lemon_squeezy_webhook": "Webhook Lemon Squeezy"
       },
       "hint": {
         "error": "Erreur : {message}",
