@@ -34,6 +34,6 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     // Réaffectation d'un profil. `{profile}` est un id nu : le type vient du
     // corps (`profile_type`) — cf. AssignAgencyRoleRequest.
-    Route::patch('profiles/{profile}/agency-role', [AgencyRoleController::class, 'update'])
+    Route::patch('profiles/{profile}/agency-role', [AgencyRoleController::class, 'update'])->where('profile', '[0-9]{1,18}')
         ->name('profiles.agency-role.update');
 });

@@ -121,7 +121,7 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
 
     // Session management
     Route::get('/sessions', [SessionController::class, 'index']);
-    Route::delete('/sessions/{tokenId}', [SessionController::class, 'destroy']);
+    Route::delete('/sessions/{tokenId}', [SessionController::class, 'destroy'])->where('tokenId', '[0-9]{1,18}');
 
     // TCK-080 — RGPD self-service account deletion (request → grace → execute).
     // Creating a request revokes ALL Sanctum tokens, so the throttle on POST

@@ -20,8 +20,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Document versions — TCK-097
     Route::get('documents/{document}/versions', [DocumentVersionController::class, 'index'])->name('document-versions.index');
     Route::post('documents/{document}/versions', [DocumentVersionController::class, 'store'])->name('document-versions.store');
-    Route::get('documents/{document}/versions/{versionId}/download', [DocumentVersionController::class, 'download'])->name('document-versions.download');
-    Route::post('documents/{document}/versions/{versionId}/restore', [DocumentVersionController::class, 'restore'])->name('document-versions.restore');
+    Route::get('documents/{document}/versions/{versionId}/download', [DocumentVersionController::class, 'download'])->where('versionId', '[0-9]{1,18}')->name('document-versions.download');
+    Route::post('documents/{document}/versions/{versionId}/restore', [DocumentVersionController::class, 'restore'])->where('versionId', '[0-9]{1,18}')->name('document-versions.restore');
 });
 
 // Public share link routes (no auth required)

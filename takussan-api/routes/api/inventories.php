@@ -15,7 +15,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('inventories/{inventory}/room-photos', [InventoryController::class, 'uploadRoomPhotos'])->name('inventories.room-photos');
     // TCK-596 — retrait d'une photo de pièce, en brouillon seulement.
     Route::delete('inventories/{inventory}/room-photos/{media}', [InventoryController::class, 'destroyRoomPhoto'])
-        ->whereNumber('media')
+        ->where('media', '[0-9]{1,18}')
         ->name('inventories.room-photos.destroy');
     // TCK-076 — PDF export, available once both parties have signed.
     Route::get('inventories/{inventory}/pdf', [InventoryController::class, 'downloadPdf'])->name('inventories.pdf');

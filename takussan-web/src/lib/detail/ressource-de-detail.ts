@@ -95,10 +95,17 @@ export type SegmentDeDetail = keyof typeof RESSOURCES_DE_DETAIL;
  *
  * ⚠ `Number.isInteger`, et non `Number.isFinite` que les pages employaient : `/app/bookings/1.5`
  * est un chemin qui ne désigne aucune ligne, et `Number.isFinite(1.5)` l'acceptait.
+ *
+ * TCK-2119 (P215.03) — des chiffres seuls, sans zéro de tête, et un entier EXACT : `Number`
+ * acceptait `1e3`, `0x10`, et lisait `12345678901234567` comme `12345678901234568`, une autre
+ * ligne que celle du chemin ; vingt chiffres repartaient vers l'API en `100000000000000000000`.
  */
+const ID_DE_DETAIL = /^[1-9][0-9]{0,15}$/;
+
 export function idDeDetail(brut: string): number | null {
+  if (!ID_DE_DETAIL.test(brut)) return null;
   const id = Number(brut);
-  return Number.isInteger(id) && id > 0 ? id : null;
+  return Number.isSafeInteger(id) ? id : null;
 }
 
 /**

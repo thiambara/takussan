@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('service-provider-bills', [ServiceProviderBillController::class, 'index'])->name('service-provider-bills.index');
     Route::get('service-provider-bills/{bill}', [ServiceProviderBillController::class, 'show'])
-        ->whereNumber('bill')->name('service-provider-bills.show');
+        ->where('bill', '[0-9]{1,18}')->name('service-provider-bills.show');
     Route::post('service-provider-bills/{serviceProviderBill}/validate', [ServiceProviderBillController::class, 'validateBill'])
         ->name('service-provider-bills.validate');
     Route::post('service-provider-bills/{serviceProviderBill}/reject', [ServiceProviderBillController::class, 'reject'])
