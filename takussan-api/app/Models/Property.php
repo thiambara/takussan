@@ -717,6 +717,14 @@ class Property extends AbstractModel implements HasMedia
             // TCK-1401 (P151.01) — texte libre : sans délimiteur, spatie découpe « Diop, Awa » en tableau.
         })->delimiter('');
 
+        // P198.03 (TCK-2036) — « publiés » au sens du catalogue (TCK-1115) : la règle que compte
+        // l'accueil d'agence, et non le seul `visibility = public`, qui garde loués et vendus.
+        $filters[] = AllowedFilter::callback('public', function (Builder $q, mixed $value): void {
+            if (filter_var($value, FILTER_VALIDATE_BOOL)) {
+                $q->public();
+            }
+        });
+
         $filters[] = AllowedFilter::callback('created_from', function (Builder $q, mixed $value): void {
             if ($value !== null && $value !== '') {
                 DateBoundaryFilter::exiger($value, 'created_from');
