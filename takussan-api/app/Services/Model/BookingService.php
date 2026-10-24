@@ -86,6 +86,7 @@ class BookingService
         abort_code_if($isOwner, 403, 'booking.own_property');
 
         $isBookingForSelf = false;
+        $resoudreLeClient = false;
         if (! empty($data['customer_id'])) {
             // TCK-1066 (P62.02) — un client absent tombe dans le même refus qu'un client tiers.
             $customer = Customer::query()->find((int) $data['customer_id']);
@@ -99,7 +100,11 @@ class BookingService
             // TCK-530 — le tunnel public n'envoie pas de `customer_id` : sans cette résolution,
             // un client ne pouvait JAMAIS réserver par lui (403). Même geste que
             // `PublicPropertyController::bookingRequest()`.
-            $data['customer_id'] = $this->customers->findOrCreateFromUser($user)->id;
+            //
+            // P213.03 (TCK-2199) — la fiche se résout APRÈS les gardes, dans la transaction, après
+            // `assertAvailable` : résolue ici, une demande refusée en 422 (montant, nuits prises)
+            // laissait au demandeur une fiche créée ou rattachée.
+            $resoudreLeClient = true;
             $isBookingForSelf = true;
         }
 
@@ -117,9 +122,14 @@ class BookingService
 
         // TCK-596 — une demande sur des nuits déjà confirmées est refusée dès la demande, sous le
         // verrou de la ligne du bien que `confirm` prend aussi.
-        $booking = DB::transaction(function () use ($property, $user, $data): Booking {
+        $booking = DB::transaction(function () use ($property, $user, $data, $resoudreLeClient): Booking {
             Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
             $this->availability->assertAvailable($property, $data['start_date'] ?? null, $data['end_date'] ?? null);
+
+            // Verrous dans l'ordre `properties` puis `users` (`findOrCreateFromUser`), comme le tunnel public.
+            if ($resoudreLeClient) {
+                $data['customer_id'] = $this->customers->findOrCreateFromUser($user)->id;
+            }
 
             return Booking::create(array_merge($data, [
                 'reference_number' => ReferenceNumberGenerator::booking(),
