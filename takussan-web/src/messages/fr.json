@@ -863,7 +863,7 @@
       "countSuffix": "{count} avis",
       "loading": "Chargement des avis…",
       "empty": "Aucun avis pour l'instant.",
-      "notEligible": "Vous pourrez laisser un avis après une visite finalisée ou la signature d'un bail sur ce bien.",
+      "notEligible": "Vous pourrez laisser un avis après une réservation honorée ou un bail sur ce bien.",
       "alreadyReviewed": "Merci, vous avez déjà laissé un avis sur ce bien.",
       "agentReply": "Réponse de l'agent",
       "edit": "Modifier",

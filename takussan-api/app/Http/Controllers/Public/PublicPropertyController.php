@@ -35,11 +35,8 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
-use App\Models\Lease;
 use App\Models\Property;
 use App\Models\PropertyReport;
-use App\Models\PropertyVisit;
-use App\Models\Review;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Booking\BookingQuote;
 use App\Services\Booking\PropertyAvailabilityService;
@@ -54,6 +51,7 @@ use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyContactNumbers;
 use App\Services\Property\PropertyViewCounter;
 use App\Services\Property\SimilarPropertiesService;
+use App\Services\Review\ReviewEligibility;
 use App\Services\Search\FiltresDeLaCarte;
 use App\Services\Search\PropertySearchService;
 use App\Services\Visit\VisitNotifier;
@@ -892,11 +890,14 @@ class PublicPropertyController extends Controller
      * TCK-180 — gate the "Laisser un avis" form on the property page.
      *
      * GET /api/public/properties/{slug}/review-eligibility →
-     *   { eligible: bool, reason: 'visit'|'lease'|'none', already_reviewed: bool }
+     *   { eligible: bool, reason: 'booking'|'lease'|'none', already_reviewed: bool }
      *
-     * Anonymous callers always get `eligible:false, reason:'none'`.
+     * P201.01 (TCK-2033) — le verdict est celui du dépôt (ADR-0043 § 3) : `ReviewEligibility::forProperty`,
+     * que juge aussi `StoreForPropertyReviewRequest::authorize`, et un avis retiré compte
+     * (`withTrashed()`, comme `ReviewController::storeForProperty`). Une visite finalisée n'ouvre
+     * plus l'avis du bien. Anonymous callers always get `eligible:false, reason:'none'`.
      */
-    public function reviewEligibility(Request $request, string $slug): JsonResponse
+    public function reviewEligibility(Request $request, ReviewEligibility $eligibility, string $slug): JsonResponse
     {
         $property = Property::query()
             ->public()
@@ -911,37 +912,14 @@ class PublicPropertyController extends Controller
             ]);
         }
 
-        $hasCompletedVisit = PropertyVisit::query()
-            ->where('property_id', $property->id)
-            ->where('status', VisitStatus::Completed)
-            ->where(function ($q) use ($user): void {
-                $q->where('visitor_id', $user->id)
-                    ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
-            })
-            ->exists();
+        $proof = $eligibility->forProperty($user, $property);
 
-        $hasLease = Lease::query()
-            ->where('property_id', $property->id)
-            ->whereHas('tenant', fn ($c) => $c->where('user_id', $user->id))
-            ->exists();
-
-        $alreadyReviewed = Review::query()
-            ->where('reviewable_type', Property::class)
-            ->where('reviewable_id', $property->id)
-            ->where('author_id', $user->id)
-            ->exists();
-
-        $reason = 'none';
-        if ($hasLease) {
-            $reason = 'lease';
-        } elseif ($hasCompletedVisit) {
-            $reason = 'visit';
-        }
+        $alreadyReviewed = $property->reviews()->withTrashed()->where('author_id', $user->id)->exists();
 
         return $this->json([
             'data' => [
-                'eligible' => $reason !== 'none',
-                'reason' => $reason,
+                'eligible' => $proof !== null,
+                'reason' => $proof === null ? 'none' : ReviewEligibility::contextKind($proof),
                 'already_reviewed' => $alreadyReviewed,
             ],
         ]);
