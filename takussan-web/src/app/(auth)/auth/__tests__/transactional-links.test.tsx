@@ -41,7 +41,7 @@ vi.mock('@/lib/auth', () => ({
 }));
 
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ setUser: vi.fn() }),
+  useAuth: () => ({ setUser: vi.fn(), refreshUser: vi.fn(async () => {}) }),
 }));
 
 vi.mock('@/components/auth/OAuthButtons', () => ({
