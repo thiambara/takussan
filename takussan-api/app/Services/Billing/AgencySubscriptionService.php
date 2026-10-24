@@ -55,6 +55,67 @@ class AgencySubscriptionService
         });
     }
 
+    /**
+     * TCK-2222 (P214.01, décision du porteur du 2026-10-24) — modifie sur place les dérogations de
+     * l'abonnement ouvert, sans le clore : statut, essai et période restent ceux de la ligne.
+     * `assign()` reste le changement de plan, qui clôt et ouvre une ligne neuve.
+     *
+     * `platform_fee_pct` présent remplace la commission dérogée (`null` la retire) ; `limits` se
+     * fusionne clé par clé sur les quotas dérogés, une clé à `null` retirée (« merge », spec 44).
+     * Rend `null` sans abonnement ouvert.
+     *
+     * @param  array{platform_fee_pct?: float|int|string|null, limits?: array<string, int|null>}  $data
+     */
+    public function updateOverrides(Agency $agency, User $actor, array $data): ?AgencySubscription
+    {
+        return DB::transaction(function () use ($agency, $actor, $data): ?AgencySubscription {
+            $subscription = AgencySubscription::query()
+                ->where('agency_id', $agency->id)
+                ->whereNull('ended_at')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $subscription) {
+                return null;
+            }
+
+            $before = [
+                'platform_fee_pct' => $subscription->platform_fee_pct_override,
+                'limits' => $subscription->limits_override,
+            ];
+
+            if (array_key_exists('platform_fee_pct', $data)) {
+                $subscription->platform_fee_pct_override = $data['platform_fee_pct'];
+            }
+
+            if (array_key_exists('limits', $data)) {
+                $limits = array_filter(
+                    array_replace($subscription->limits_override ?? [], $data['limits']),
+                    static fn ($value): bool => $value !== null,
+                );
+                $subscription->limits_override = $limits === [] ? null : $limits;
+            }
+
+            $subscription->save();
+
+            activity('Billing')
+                ->causedBy($actor)
+                ->performedOn($subscription)
+                ->event('super_admin_subscription_overrides_updated')
+                ->withProperties([
+                    'agency_id' => $agency->id,
+                    'before' => $before,
+                    'after' => [
+                        'platform_fee_pct' => $subscription->platform_fee_pct_override,
+                        'limits' => $subscription->limits_override,
+                    ],
+                ])
+                ->log('Agency subscription overrides updated');
+
+            return $subscription->refresh()->load('plan');
+        });
+    }
+
     public function cancel(Agency $agency, User $actor): ?AgencySubscription
     {
         return DB::transaction(function () use ($agency, $actor): ?AgencySubscription {

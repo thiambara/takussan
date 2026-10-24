@@ -87,6 +87,9 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
             ->name('admin.agencies.subscription.store');
         Route::post('{agency}/subscription/cancel', [AgencySubscriptionController::class, 'cancel'])
             ->name('admin.agencies.subscription.cancel');
+        // TCK-2222 (P214.01) — modifier les dérogations sans changer de plan ni clore l'abonnement.
+        Route::patch('{agency}/subscription/overrides', [AgencySubscriptionController::class, 'updateOverrides'])
+            ->name('admin.agencies.subscription.overrides');
         Route::post('{agency}/verify', [AgencyModerationController::class, 'verify'])
             ->name('admin.agencies.verify');
         Route::post('{agency}/suspend', [AgencyModerationController::class, 'suspend'])
