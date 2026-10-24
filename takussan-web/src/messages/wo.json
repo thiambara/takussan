@@ -8541,6 +8541,7 @@
       "opportunitySentTitle": "Avis bi dem na",
       "opportunitySentBody": "Jërëjëf ! Sa avis dina feeñ su ñu ko nanguwee.",
       "opportunityError": "Sa avis mënul a dem.",
+      "opportunityPartiallySent": "Déjà enregistré : {targets}.",
       "anonymous": "Anonyme"
     },
     "contact": {
