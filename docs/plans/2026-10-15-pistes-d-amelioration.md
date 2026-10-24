@@ -286,7 +286,7 @@ voie d'écriture (angle 13, puis 47).
 | 209 | Requêtes de modification qui ne rejouent pas les règles de valeur de leur création (`UpdateSettingRequest` face au catalogue de `StoreSettingRequest::after()`, et leurs pareilles : un `after()`, une règle de catalogue, un `Rule::unique` ou une sous-règle `x.*` présents dans `Store*Request` et absents de `Update*Request` du même modèle) : valeur refusée en 422 à la création et enregistrée en 200 à la modification — né de P181.01 | fait |
 | 210 | Gestionnaires `async` du front qui attendent `mutateAsync()` sans `try`/`catch` et sont passés tels quels à `onClick` ou par `void handleSubmit()` (`BookingDecisionDialog`, `VisitDetail` et leurs pareils sous `src/components/**`, hors gestes de transition) : erreur de l'API rendue en promesse rejetée non rattrapée, sans message à l'écran ni fermeture du dialogue — le relevé de P182.01 sur le reste des écrans | fait |
 | 211 | Gestes d'écriture qui jugent le statut sur le modèle lié à la route, hors transaction ou sans verrou, alors que leurs voisins verrouillent et relisent la ligne (`PlatformPayoutService::cancel`, `PropertyVisitController::cancel`, `MaintenanceRequestService::accept`, et leurs pareils sous `app/Services` et `app/Http/Controllers/Api`) : transition concurrente écrasée, effet ou avis émis deux fois — né de P182.05 et P182.06 | fait |
-| 212 | Dates calendaires `Y-m-d` de l'API lues par `new Date(…)` au navigateur puis comparées à l'instant ou ramenées à minuit local (`setHours(0, 0, 0, 0)`, `getDate()` : `EarlyTerminationBanner.daysFromTodayTo`, `LeaseRenewalDialog.tsx:44`, `refine` de `lib/schemas/lease.ts:81` et `booking.ts:42`, et leurs pareilles sous `src/components`) au lieu de la comparaison littérale de jours qu'ADR-0018 pose : jour décalé pour un navigateur hors UTC, ou dès minuit UTC du jour même — né de P183.01 et P183.04 | à faire |
+| 212 | Dates calendaires `Y-m-d` de l'API lues par `new Date(…)` au navigateur puis comparées à l'instant ou ramenées à minuit local (`setHours(0, 0, 0, 0)`, `getDate()` : `EarlyTerminationBanner.daysFromTodayTo`, `LeaseRenewalDialog.tsx:44`, `refine` de `lib/schemas/lease.ts:81` et `booking.ts:42`, et leurs pareilles sous `src/components`) au lieu de la comparaison littérale de jours qu'ADR-0018 pose : jour décalé pour un navigateur hors UTC, ou dès minuit UTC du jour même — né de P183.01 et P183.04 | fait |
 | 213 | Contrôleurs et services qui écrivent (`fill()->save()`, `update()`, `recordOwnerCost`) puis appellent une garde ou un service qui peut encore lever un 4xx, hors `DB::transaction` (`MaintenanceRequestController::update` l. 211-219 et ses pareils sous `app/Http/Controllers/Api` et `app/Services`) : réponse d'erreur sur une écriture déjà faite, que l'écran présente comme un échec — né de P184.02 | à faire |
 | 214 | Formulaires d'édition qui renvoient en entier une colonne JSON qu'ils ne montrent qu'en partie (`saved_searches.criteria` de `SearchPreferencesForm`, `announcements.segment`, `integrations.metadata`, `available_slots`, `limits` des plans), face à un `fill()` qui remplace la colonne : clés posées par un autre écran ou une autre version effacées par un simple enregistrement — né de P185.01 | à faire |
 | 215 | Identifiants numériques de route hors de `bigint` sur les routes connectées : liaisons implicites `{model}` et paramètres `whereNumber()` (30 sous `routes/`) ou actions typées `int $id`, face à vingt chiffres dans l'URL — 500 `22003` ou `TypeError` au lieu d'un 404 — le relevé de P187.05 hors des routes publiques | à faire |
@@ -306,6 +306,7 @@ voie d'écriture (angle 13, puis 47).
 | 227 | Requêtes de création (`Store*Request` et leur contrôleur) restées plus larges que les gestes dédiés et les requêtes de modification resserrés depuis (statut, visibilité, assignation, contact principal, commission : `StorePropertyRequest` face à TCK-1341 et TCK-1427, `StoreLeaseRequest`, `StorePropertyCollaboratorRequest`, et leurs pareilles sous `app/Http/Requests`) : ce qu'un `PATCH` ou un geste refuse s'obtient en créant la ligne — né de P209.01 et P209.02 | à faire |
 | 228 | Mutations lancées par `mutate()` sans `onError` et dont l'écran ne lit ni `error` ni `isError` (`generateSchedule` de `LeaseDetail.tsx:185`, `revoke` d'`AgentAbsencesSection.tsx:132`, `submit` d'`InventoryDetail.tsx:331`, et leurs pareilles sous `takussan-web/src/components`) : geste refusé par l'API sans rejet ni message, le bouton se réactive et rien ne dit l'échec — le pendant de l'angle 210 pour `mutate()` | à faire |
 | 229 | Commandes et jobs planifiés qui chargent un lot de lignes puis appliquent une transition à chacune sur le modèle chargé, sans réclamation conditionnelle ni relecture sous verrou (`AutoCloseMaintenanceRequests`, `ProcessRoleDelegationsJob`, `KycExpiryService::run`, `ExpireInvitations`, `ExpireBookings`, `ExpireEndedLeasesJob`, `BoostLifecycle::endExpired`, et leurs pareils sous `app/Console` et `app/Jobs`) face au geste de l'utilisateur joué pendant le passage : geste écrasé, avis envoyé pour une ligne déjà sortie de l'état — né de P211.03 et P211.06 | à faire |
+| 230 | Règles de date relatives au jour des requêtes de l'API (`after:today`, `after_or_equal:today`, `before_or_equal:today`, `before_or_equal:+60 days`, une trentaine de lignes sous `app/Http/Requests`) face au `min`, au `max` et à la valeur pré-remplie du champ du front qui les nourrit (`DatePicker`, `<input type="date">`, défauts calculés) : jour proposé ou pré-rempli que l'API refuse en 422, ou borne de l'API absente du champ — le relevé systématique dont l'angle 212 n'a vu que quatre sites (P212.01, P212.03, P212.04, P212.06) | à faire |
 
 
 ---
@@ -19348,3 +19349,79 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu.
 - Piste : même patron que les entrées précédentes (relecture sous verrou, ou mise à jour conditionnelle sur le statut attendu) ; l'avis après le commit et seulement si la ligne a changé.
 - Mesure (2026-10-24, 0c24562d3, mesureur) : relu `UserLifecycleController::reactivate` (`user.not_blocked` jugé sur le modèle lié, `forceFill()->save()` hors transaction, journal et avis), `AgencyModerationController::reinstate` (`agency.not_suspended` sur le modèle lié puis `transition` et `notifyAdmins`) et `KycExpiryService::run` / `expire` (chargement `verified` par `each()`, `update` du dossier et de l'agence sur le modèle chargé, sans relecture de `status` ni d'`expires_at`) → le motif décrit est dans le code ; aucune des trois courses n'a été jouée (doubles avis et journal, vérification neuve écrasée : toujours à vérifier). Classement : V2, `reactivate` rend l'accès d'un compte et `reinstate` celui d'une agence, et les trois parties restent déduites : au porteur.
+
+## Angle 212 — Dates calendaires et « aujourd'hui » calculés au navigateur, face au jour UTC de l'API
+
+*Exploré le 2026-10-24 sur `pre-dev` 5471a5047, par l'explorateur, sans sous-agent. Relevé de départ : `grep` sous `takussan-web/src`, hors tests, de `new Date(` sur un champ `*_date`, de `setHours(0`, `getDate()`, `getMonth()`, `getFullYear()`, `setDate(`, `Date.parse(`, `toISOString().slice(0, 10)` et des divisions par `86_400_000`, puis lecture de chaque site et de la règle de l'API qui le juge (`app/Http/Requests`, `BookingService`, `LeaseRenewalService`). Écartés après lecture : les deux `refine` que l'angle nommait (`lib/schemas/lease.ts:80-89`, `lib/schemas/booking.ts:41-51`) lisent les DEUX bornes par `new Date(…)`, toutes deux à minuit UTC : leur comparaison est juste sous tout fuseau ; `EarlyTerminationBanner.daysFromTodayTo` (corrigé par TCK-1827) ; le compte de nuits de `BookingTunnel.tsx:112-118` et `PropertyReservationDialog.tsx:155-159` (deux dates de champ lues de même) ; `DatePicker` (`parseISO` puis `format`, aller-retour en heure locale cohérent) ; `lib/format.ts` (formate à `Africa/Dakar`) ; les compteurs d'ancienneté sur des instants (`TenantOnboardingPendingList`, `agency-upgrade-requests`, `useDateRelative`). L'agenda (`calendar-date.ts`, `CalendarPage`) relève de P94.02 et n'est pas relu. Mesures : `node` sur les fonctions recopiées, sous `TZ=Africa/Dakar`, `UTC`, `Europe/Paris`, `America/New_York`, `Asia/Tokyo` ; `php artisan tinker` en lecture sur le validateur. Aucun écran rendu, aucun test lancé. Le fuseau de l'API est `UTC` (`config/app.php:70`, relu par P183.01) et Dakar vit à UTC+0 sans heure d'été : tous les écarts ci-dessous épargnent un navigateur réglé sur Dakar, sauf le premier.*
+
+### Le calendrier de la demande de visite propose tout jour à venir, et l'API refuse au-delà de 60 jours : « Les créneaux n'ont pas pu être chargés »
+- Réf : P212.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:81-85,202-208`, `takussan-web/src/lib/visites/useCreneaux.ts:29-37`, `takussan-api/app/Http/Requests/Public/VisitSlotsPublicPropertyRequest.php:17`, `takussan-web/src/messages/fr.json:10352`
+- Constat :
+  - Le calendrier ne grise que les jours d'avant aujourd'hui : `disabled={{ before: today }}`, sans borne haute (lu, l. 206).
+  - Le jour choisi part aussitôt en `GET /public/properties/{slug}/visit-slots?date=…` (lu, `useCreneaux.ts:29-31`) ; la requête exige `before_or_equal:+60 days` (lu, l. 17). Mesuré : `php artisan tinker` sur ces règles → J+0 et J+60 passent, J+61 et J+90 rendent « The date field must be a date before or equal to +60 days. ».
+  - Tout refus est rendu en état `erreur` (lu, `useCreneaux.ts:35-36`), affiché « Les créneaux n'ont pas pu être chargés. » (lu, `fr.json:10352`) : le visiteur qui choisit un jour au-delà de deux mois lit une panne, et non une borne, quel que soit son fuseau.
+  - Second écart, pour un navigateur hors Dakar seulement : `today` est minuit LOCAL (lu, l. 81-85) et la requête juge `after_or_equal:today` en UTC (lu, l. 17). Le soir à New York (01:00 Z), la veille UTC reste cliquable et rend la même erreur (déduit de la mesure `node` de P212.03, à vérifier sur le dialogue).
+  - Établi comment : lu des deux côtés, et mesuré sur le validateur ; le dialogue n'a pas été rendu.
+- Piste : borner le calendrier par la même fenêtre (`after:` aujourd'hui UTC, J+60), idéalement servie par l'API ou portée par une constante partagée, et distinguer dans `useCreneaux` un 422 (jour hors fenêtre) d'une panne. Garde : un test du dialogue à horloge figée où J+61 est grisé.
+
+### Le bouton « Annuler » d'une réservation confirmée suit le jour du navigateur, l'API celui d'UTC
+- Réf : P212.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/bookings/BookingDetail.tsx:192-199`, `takussan-web/src/lib/calendar-date.ts:118-123`, `takussan-api/app/Services/Model/BookingService.php:284-290`
+- Constat :
+  - `stayStarted` compare `booking.start_date` à `formatISODate(new Date())` (lu, l. 195), qui lit les composantes LOCALES (lu, `calendar-date.ts:118-123`).
+  - L'API refuse l'annulation d'un séjour `confirmed` dès que `start_date <= now()->toDateString()`, en UTC (lu, `BookingService.php:284-290`, TCK-1301).
+  - Mesuré, `node` sur la même lecture locale : à 2026-10-24T22:30Z, `Europe/Paris` rend 2026-10-25 contre 2026-10-24 en UTC ; à 2026-10-25T01:00Z, `America/New_York` rend 2026-10-24 contre 2026-10-25. Pour un séjour qui commence le 25 : à Paris, le bouton disparaît une heure ou deux avant que l'API ne ferme l'annulation ; à New York, il reste offert pendant que l'API répond `booking.cannot_cancel` (déduit de la mesure et des deux lectures, à vérifier sur l'écran).
+  - Établi comment : lu, et mesuré sur la fonction seule.
+- Piste : juger « commencé » sur la date du jour UTC en `Y-m-d` (comme `property-availability.ts:36`), ou faire servir par l'API un `can_cancel`. Garde : un test de `BookingDetail` sous horloge figée, aux deux instants ci-dessus.
+
+### La demande de droits créée à la console porte par défaut la date du jour du navigateur, que l'API peut refuser en 422
+- Réf : P212.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/admin/super/PrivacyRequestChamps.tsx:11-17`, `takussan-web/src/components/admin/super/CreatePrivacyRequestForm.tsx:62,158`, `takussan-api/app/Http/Requests/Api/Admin/StorePrivacyRequestRequest.php:28`
+- Constat :
+  - `received_at` est pré-rempli et borné par `aujourdhui()`, la date LOCALE du navigateur (lu, `PrivacyRequestChamps.tsx:11-17`, `CreatePrivacyRequestForm.tsx:62,158`). L'API exige `before_or_equal:today`, jugé en UTC (lu, l. 28).
+  - Mesuré, `node` : à 2026-10-24T22:30Z, sous `Europe/Paris`, `aujourdhui()` vaut 2026-10-25 pour un `today` UTC du 2026-10-24. Entre minuit local et minuit UTC, à l'est d'UTC, la valeur par défaut est donc refusée (déduit de la règle, à vérifier par un envoi).
+  - Établi comment : lu, et mesuré sur la fonction seule.
+- Piste : pré-remplir et borner par le jour UTC, comme `PayoutCloseDialog.tsx:30` et `CreateInvoiceDialog.tsx:52` le font déjà. Garde : un test du formulaire sous horloge figée à 22:30Z et `TZ=Europe/Paris`, ou un test de la fonction.
+
+### L'échéance d'une pièce KYC propose dès « demain » local un jour que l'API refuse le soir à l'ouest d'UTC
+- Réf : P212.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/kyc-echeance.ts:67-73`, `takussan-web/src/components/kyc/kyc-components.tsx:159-163`, `takussan-api/app/Http/Requests/Kyc/UploadKycDocumentRequest.php:22`
+- Constat :
+  - `demainIso` rend le lendemain LOCAL (lu, l. 67-73 : son docblock le dit « en `YYYY-MM-DD` local ») et sert de `min` au champ d'échéance (lu, `kyc-components.tsx:161`). L'API exige `after:today`, en UTC (lu, l. 22).
+  - Mesuré, `node` : à 2026-10-25T01:00Z, sous `America/New_York`, `demainIso` rend 2026-10-25, qui est le `today` UTC : le premier jour offert est refusé (« after:today »), et le dépôt échoue par un toast (lu, l. 110). À l'est d'UTC, à l'inverse, le premier jour recevable est grisé entre minuit local et minuit UTC (mesuré : `Europe/Paris` à 22:30Z rend 2026-10-26 pour 2026-10-25 recevable).
+  - `etatEcheance` (l. 41-53) juge aussi « aujourd'hui » en local face à `kyc:expire-dossiers` qui tourne en UTC : même écart d'affichage, de quelques heures (lu, à vérifier sur la commande).
+  - Établi comment : lu, et mesuré sur la fonction seule.
+- Piste : dériver « aujourd'hui » et « demain » du jour UTC, celui que les règles `today` de l'API lisent. Garde : les tests existants de `kyc-echeance` étendus d'un instant à 01:00Z sous `TZ=America/New_York`.
+
+### Le renouvellement d'un bail pré-remplit, aux jours de changement d'heure, un début égal à la fin du parent et une fin trop courte d'un jour
+- Réf : P212.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/leases/LeaseRenewalDialog.tsx:42-54`, `takussan-api/app/Services/Lease/LeaseRenewalService.php:87-89,249-258`
+- Constat :
+  - `defaultStartDate` lit `parent.end_date` par `new Date(…)` (minuit UTC), ajoute un jour par `setDate(getDate() + 1)` en heure locale, puis relit en UTC par `toISOString()` ; `defaultEndDate` fait de même par `setFullYear` (lu, l. 42-54).
+  - Mesuré, `node` sur les deux fonctions recopiées, chaque jour de 2026 et 2027 : 0 écart sous `Africa/Dakar`, `UTC` et `Asia/Tokyo` ; 11 sous `Europe/Paris` et 11 sous `America/New_York`. Exemples : fin du parent le 2026-03-29 → début proposé 2026-03-29 (Paris) ; 2026-03-08 → 2026-03-08 (New York) ; début 2026-10-26 → fin proposée 2027-10-25 au lieu du 2027-10-26 (Paris).
+  - L'API ne ramène la fin du parent qu'en cas de chevauchement strict (`$startDate->lt($parentEnd)`, lu, l. 252) : un enfant qui commence le jour même de la fin du parent garde ce jour en double (déduit, à vérifier sur les échéances, `overlappingRentDues` l. 261).
+  - Établi comment : lu, et mesuré sur les fonctions seules ; le dialogue n'a pas été rendu.
+- Piste : calculer les deux défauts sur des jours UTC (`Date.UTC` puis `toISOString().slice(0, 10)`), ou les faire servir par l'API, qui sait déjà dériver le début (`parentEnd + 1`, l. 89). Garde : un test des deux défauts sous `TZ=Europe/Paris` sur la fin du 2026-03-29.
+
+### Petites améliorations
+- Réf : P212.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/leases/EarlyTerminationDialog.tsx:34-38`, `takussan-web/src/components/maintenance/QuoteSubmitForm.tsx:248`, `takussan-api/app/Http/Requests/Maintenance/SubmitQuoteRequest.php:38`, `takussan-web/src/lib/calendar-date.ts:118`, `takussan-web/src/components/admin/super/PrivacyRequestChamps.tsx:12`, `takussan-web/src/lib/kyc-echeance.ts:68`, `takussan-web/src/components/reporting/window.ts:96`, `takussan-web/src/lib/property-availability.ts:36`
+- Constat :
+  - `todayPlusDays` (préavis minimal de la résiliation anticipée) ajoute les jours en heure locale puis relit en UTC (lu, l. 34-38). Mesuré, `node`, chaque heure de 2026 pour 30 jours : 0 heure fausse sous Dakar, 60 sous `Europe/Paris` et 60 sous `America/New_York` (ex. 2026-02-28T00:00Z → 2026-03-29 pour 2026-03-30 attendu). Pendant ces heures, la date proposée par défaut est un jour trop tôt, et l'API la refuse (`notice_too_short`, lu, `EarlyTerminationService.php:72-82`).
+  - Le champ « valable jusqu'au » d'un devis n'a pas de `min` (lu, `QuoteSubmitForm.tsx:248`) face à `after_or_equal:today` (lu, `SubmitQuoteRequest.php:38`) : une date passée se choisit, puis l'envoi est refusé.
+  - Le front a au moins six façons d'écrire « aujourd'hui » en `Y-m-d` : `toISOString()` coupé au jour (UTC, 24 lignes hors tests, mesuré par `grep`), `formatISODate`, `aujourdhui()`, `demainIso`, `enDate` et `jourChoisi` (locales, lu aux lignes citées), `property-availability.ts:36` (UTC, documenté). Aucune n'est nommée comme « le jour de l'API » : P212.02 à P212.05 viennent toutes d'un choix local là où l'API juge en UTC.
+  - Établi comment : lu, et mesuré pour le premier point.
+- Piste : une fonction partagée (« jour de l'API », UTC) pour tout `min`, `max` ou défaut jugé par une règle `today`, et un `min` sur l'échéance du devis. Garde : une règle de lint ou une garde qui refuse `getDate()`/`setDate()` sur une valeur passée ensuite à `toISOString()`.
