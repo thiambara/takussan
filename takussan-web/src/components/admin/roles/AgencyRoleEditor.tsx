@@ -213,7 +213,7 @@ export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorPr
 
       {readOnly ? null : (
         <div className="flex items-center gap-2">
-          <Button disabled={!dirty || isPending || name.trim() === ''} onClick={() => void save()}>
+          <Button disabled={!dirty || isPending || name.trim() === ''} onClick={() => void save().catch(() => undefined)}>
             {isPending ? (
               <Loader2 className="mr-1 size-4 animate-spin" aria-hidden="true" />
             ) : null}

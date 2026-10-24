@@ -115,7 +115,7 @@ function UploadVersionModal({ open, documentId, onOpenChange }: UploadVersionMod
           <DialogDescription>{t('add_description')}</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+        <form onSubmit={(e) => void handleSubmit(e).catch(() => undefined)} className="space-y-4">
           {upload.error ? (
             <p role="alert" className="rounded bg-destructive/10 px-3 py-2 text-xs text-destructive">
               {messageErreur(upload.error, t('generic_error'))}
@@ -260,7 +260,7 @@ function RestoreConfirmDialog({ open, version, documentId, onOpenChange }: Resto
           </Button>
           <Button
             type="button"
-            onClick={() => void handleConfirm()}
+            onClick={() => void handleConfirm().catch(() => undefined)}
             disabled={restore.isPending}
           >
             {restore.isPending ? t('restoring') : tCommon('actions.confirm')}
