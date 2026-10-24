@@ -19379,7 +19379,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Le bouton « Annuler » d'une réservation confirmée suit le jour du navigateur, l'API celui d'UTC
 - Réf : P212.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2096
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/bookings/BookingDetail.tsx:192-199`, `takussan-web/src/lib/calendar-date.ts:118-123`, `takussan-api/app/Services/Model/BookingService.php:284-290`
 - Constat :
@@ -19389,6 +19389,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, et mesuré sur la fonction seule.
 - Piste : juger « commencé » sur la date du jour UTC en `Y-m-d` (comme `property-availability.ts:36`), ou faire servir par l'API un `can_cancel`. Garde : un test de `BookingDetail` sous horloge figée, aux deux instants ci-dessus.
 - Mesure (2026-10-24, ccb5c7995, mesureur) : relu `BookingDetail.tsx:192-195` (`stayStarted` compare `start_date` à `formatISODate(new Date())`), `calendar-date.ts:118-123` (`getFullYear`/`getMonth`/`getDate`, composantes locales) et `BookingService.php:284-290` (`start_date->toDateString() <= now()->toDateString()`, fuseau `UTC`, `config/app.php:70`) ; `node` sur la même lecture locale → à 2026-10-24T22:30Z, `Europe/Paris` rend 2026-10-25 pour 2026-10-24 en UTC ; à 2026-10-25T01:00Z, `America/New_York` rend 2026-10-24 pour 2026-10-25 → le constat tient ; l'écran n'a pas été rendu. Classement : A1, la règle d'annulation est écrite par l'API (TCK-1301) et le correctif juge « commencé » sur le jour UTC, comme `property-availability.ts:36`, sans changer ce que l'API accepte.
+- Mesure (2026-10-24, f8516986a, implementeur) : `BookingDetail.jour-de-l-api.{new-york,paris}.p212-02.test.tsx`, avant correctif → à 2026-10-25T01:00Z sous `America/New_York` « Annuler » offert pour un séjour confirmé du 25, à 2026-10-24T22:30Z sous `Europe/Paris` absent, 2/2 rouges → `stayStarted` jugé sur `jourDeLApi()` → 2/2 verts, `BookingDetail.sejour-commence.tck-1301` (4) vert ; ablation → 2/2 rouges.
 
 ### La demande de droits créée à la console porte par défaut la date du jour du navigateur, que l'API peut refuser en 422
 - Réf : P212.03
