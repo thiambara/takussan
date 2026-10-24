@@ -188,7 +188,7 @@ export function useCreateInvoice() {
 export function useInvoiceSend(invoiceId: number) {
   return useApiMutation<ApiResponse<Invoice>, void>(
     { path: cheminApi`/api/invoices/${invoiceId}/send`, method: 'POST', body: () => undefined },
-    { invalidate: [['invoices']] },
+    { relireSurErreur: true, invalidate: [['invoices']] },
   );
 }
 
@@ -199,7 +199,7 @@ export function useInvoiceMarkPaid(invoiceId: number) {
       method: 'POST',
       body: () => undefined,
     },
-    { invalidate: [['invoices']] },
+    { relireSurErreur: true, invalidate: [['invoices']] },
   );
 }
 
@@ -210,7 +210,7 @@ export function useInvoiceCancel(invoiceId: number) {
       method: 'POST',
       body: () => undefined,
     },
-    { invalidate: [['invoices']] },
+    { relireSurErreur: true, invalidate: [['invoices']] },
   );
 }
 
@@ -324,7 +324,7 @@ export function usePayoutPreparation(params: UsePayoutPreparationParams) {
 export function usePayoutApprove(payoutId: number) {
   return useApiMutation<ApiResponse<Payout>, { payout_method_id?: number } | void>(
     { path: cheminApi`/api/payouts/${payoutId}/approve`, method: 'POST', body: (v) => v ?? undefined },
-    { invalidate: [['payouts']] },
+    { relireSurErreur: true, invalidate: [['payouts']] },
   );
 }
 
@@ -365,7 +365,7 @@ export function usePayoutMarkProcessed(payoutId: number) {
       path: cheminApi`/api/payouts/${payoutId}/mark-processed`,
       method: 'POST',
     },
-    { invalidate: [['payouts']] },
+    { relireSurErreur: true, invalidate: [['payouts']] },
   );
 }
 
@@ -375,7 +375,7 @@ export function usePayoutMarkFailed(payoutId: number) {
       path: cheminApi`/api/payouts/${payoutId}/mark-failed`,
       method: 'POST',
     },
-    { invalidate: [['payouts']] },
+    { relireSurErreur: true, invalidate: [['payouts']] },
   );
 }
 
@@ -386,7 +386,7 @@ export function usePayoutCancel(payoutId: number) {
       method: 'POST',
       body: () => undefined,
     },
-    { invalidate: [['payouts']] },
+    { relireSurErreur: true, invalidate: [['payouts']] },
   );
 }
 
