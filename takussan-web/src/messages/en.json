@@ -4049,7 +4049,8 @@
       "activatedToast": "Lease signed and activated.",
       "paperLabel": "Contract signed on paper (PDF, JPG or PNG, 10 MB)",
       "paperSubmit": "Activate on paper contract",
-      "genericError": "The operation failed. Try again."
+      "genericError": "The operation failed. Try again.",
+      "paperTooLarge": "File too large ({max} MB max): {files}"
     }
   },
   "maintenance": {
@@ -8812,7 +8813,8 @@
         "responseSummary": "Response summary",
         "proof": "Proof of response",
         "proofHint": "PDF or image (JPG, PNG, WebP, HEIC).",
-        "proofReplace": "A proof is already on file ({name}): a new file replaces it."
+        "proofReplace": "A proof is already on file ({name}): a new file replaces it.",
+        "proofTooLarge": "File too large ({max} MB max): {files}"
       }
     },
     "payments": {
@@ -10099,7 +10101,8 @@
       "choose": "Choose a file",
       "replace": "Replace the file",
       "accepted": "PDF, JPG, PNG or WEBP",
-      "chooseAria": "Choose the file: {document}"
+      "chooseAria": "Choose the file: {document}",
+      "fileTooLarge": "File too large ({max} MB max): {files}"
     },
     "review": {
       "title": "Super-admin review",

@@ -4020,7 +4020,8 @@
       "activatedToast": "Bail signé et activé.",
       "paperLabel": "Contrat signé sur papier (PDF, JPG ou PNG, 10 Mo)",
       "paperSubmit": "Activer sur contrat papier",
-      "genericError": "L’opération a échoué. Réessayez."
+      "genericError": "L’opération a échoué. Réessayez.",
+      "paperTooLarge": "Fichier trop lourd ({max} Mo au plus) : {files}"
     }
   },
   "maintenance": {
@@ -8812,7 +8813,8 @@
         "responseSummary": "Résumé de la réponse",
         "proof": "Preuve de réponse",
         "proofHint": "PDF ou image (JPG, PNG, WebP, HEIC).",
-        "proofReplace": "Une preuve est déjà déposée ({name}) : un nouveau fichier la remplace."
+        "proofReplace": "Une preuve est déjà déposée ({name}) : un nouveau fichier la remplace.",
+        "proofTooLarge": "Fichier trop lourd ({max} Mo au plus) : {files}"
       }
     },
     "payments": {
@@ -10099,7 +10101,8 @@
       "choose": "Choisir un fichier",
       "replace": "Remplacer le fichier",
       "accepted": "PDF, JPG, PNG ou WEBP",
-      "chooseAria": "Choisir le fichier : {document}"
+      "chooseAria": "Choisir le fichier : {document}",
+      "fileTooLarge": "Fichier trop lourd ({max} Mo au plus) : {files}"
     },
     "review": {
       "title": "Instruction super-admin",

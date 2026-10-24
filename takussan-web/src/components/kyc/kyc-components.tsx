@@ -20,6 +20,7 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { demainIso } from '@/lib/kyc-echeance';
 import { lienPieceKyc } from '@/lib/lien-piece-kyc';
 import { KycEcheance } from './KycEcheance';
+import { KYC_MIME_ACCEPT } from './KycUploader';
 import { SharedIdentifiersNotice } from './SharedIdentifiersNotice';
 
 type DocumentType = 'rccm' | 'ninea' | 'director_id';
@@ -32,6 +33,10 @@ const DOCUMENTS: readonly DocumentType[] = ['rccm', 'ninea', 'director_id'];
  * `expires_at` `required_if:document_type,director_id`). Les autres n'en portent pas.
  */
 const PIECES_A_ECHEANCE: readonly DocumentType[] = ['director_id'];
+
+/** TCK-2150 (P222.06) — `AcceptedUploads::kyc(10240)` d'`UploadKycDocumentRequest`. La pièce part telle quelle. */
+const PIECE_MAX_MB = 10;
+const PIECE_MAX_BYTES = PIECE_MAX_MB * 1024 * 1024;
 
 export function KycDossierTimeline({ dossier }: { dossier: KycDossier }) {
   const t = useTranslations('kyc');
@@ -91,6 +96,7 @@ export function KycDocumentUploader({ agencyId, dossier }: { agencyId: number; d
   const queryClient = useQueryClient();
   const [files, setFiles] = useState<Partial<Record<DocumentType, File>>>({});
   const [echeances, setEcheances] = useState<Partial<Record<DocumentType, string>>>({});
+  const [tropLourdes, setTropLourdes] = useState<Partial<Record<DocumentType, string>>>({});
   const inputs = useRef<Partial<Record<DocumentType, HTMLInputElement | null>>>({});
   const locked = dossier.status === 'verified';
   const documentsByType = useMemo(
@@ -182,11 +188,18 @@ export function KycDocumentUploader({ agencyId, dossier }: { agencyId: number; d
                   }}
                   id={`kyc-file-${type}`}
                   type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  accept={KYC_MIME_ACCEPT}
                   className="sr-only"
                   tabIndex={-1}
                   disabled={locked || uploadMutation.isPending}
-                  onChange={(event) => setFiles((current) => ({ ...current, [type]: event.target.files?.[0] }))}
+                  onChange={(event) => {
+                    const chosen = event.target.files?.[0];
+                    // Refusée au choix plutôt qu'en 422 après l'envoi (TCK-2150).
+                    const tropLourde = chosen !== undefined && chosen.size > PIECE_MAX_BYTES;
+                    setTropLourdes((current) => ({ ...current, [type]: tropLourde ? chosen.name : undefined }));
+                    setFiles((current) => ({ ...current, [type]: tropLourde ? undefined : chosen }));
+                    if (tropLourde) event.target.value = '';
+                  }}
                 />
                 <Button
                   type="button"
@@ -213,6 +226,11 @@ export function KycDocumentUploader({ agencyId, dossier }: { agencyId: number; d
                   <Upload className="size-4" aria-hidden="true" />
                   {t('uploader.add')}
                 </Button>
+                {tropLourdes[type] ? (
+                  <p role="alert" className="basis-full text-xs text-destructive">
+                    {t('uploader.fileTooLarge', { max: PIECE_MAX_MB, files: tropLourdes[type] })}
+                  </p>
+                ) : null}
               </div>
             </div>
           );

@@ -1,7 +1,7 @@
 ---
 id: TCK-2150
 title: "Le contrat papier, la pièce KYC d'agence et la preuve RGPD sont refusés au choix au-delà de 10 Mo"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -56,18 +56,18 @@ Réf : **P222.06** du fichier de pistes, `validé (délégué)`. `ActivateLeaseR
 
 ## Delta à produire
 
-- [ ] `LeaseSignaturePanel` (`PaperActivation`) : refus au-delà de 10 Mo.
-- [ ] `kyc-components.tsx` (`KycDocumentUploader`) : refus au-delà de 10 Mo par pièce, `accept={KYC_MIME_ACCEPT}`.
-- [ ] `PrivacyRequestsConsole` (mise à jour d'une demande) : refus de la preuve au-delà de 10 Mo.
-- [ ] Trois clés neuves en `fr`, `en`, `wo`.
-- [ ] Un test Vitest par écran.
+- [x] `LeaseSignaturePanel` (`PaperActivation`) : refus au-delà de 10 Mo.
+- [x] `kyc-components.tsx` (`KycDocumentUploader`) : refus au-delà de 10 Mo par pièce, `accept={KYC_MIME_ACCEPT}`.
+- [x] `PrivacyRequestsConsole` (mise à jour d'une demande) : refus de la preuve au-delà de 10 Mo.
+- [x] Trois clés neuves en `fr`, `en`, `wo`.
+- [x] Un test Vitest par écran.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Contrat papier de 11 Mo : nommé avec « 10 Mo », bouton d'activation inactif, aucun appel.
-- [ ] AC2 — Pièce KYC d'agence de 11 Mo : nommée avec « 10 Mo », aucun envoi ; l'`accept` de l'input est `KYC_MIME_ACCEPT`.
-- [ ] AC3 — Preuve RGPD de 11 Mo : nommée avec « 10 Mo », aucune mise à jour envoyée.
-- [ ] AC4 — Un fichier de 10 Mo exactement est retenu sans alerte (au moins sur un écran).
+- [x] AC1 — Contrat papier de 11 Mo : nommé avec « 10 Mo », bouton d'activation inactif, aucun appel.
+- [x] AC2 — Pièce KYC d'agence de 11 Mo : nommée avec « 10 Mo », aucun envoi ; l'`accept` de l'input est `KYC_MIME_ACCEPT`.
+- [x] AC3 — Preuve RGPD de 11 Mo : nommée avec « 10 Mo », aucune mise à jour envoyée.
+- [x] AC4 — Un fichier de 10 Mo exactement est retenu sans alerte (au moins sur un écran).
 
 ## Hors périmètre
 
@@ -77,4 +77,6 @@ Réf : **P222.06** du fichier de pistes, `validé (délégué)`. `ActivateLeaseR
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : les trois plafonds mis à `Infinity` et l'ancien `accept=".pdf,.jpg,.jpeg,.png,.webp"` remis → les quatre tests de refus et d'`accept` rouges ; remis → vert. Les cas « 10 Mo exactement » sont verts avant et après : ils gardent le caractère inclusif du plafond, pas le refus.
+- Le champ natif est vidé (`value = ''`) au refus : sinon il afficherait le nom d'un fichier qui ne part pas.
+- `KYC_MIME_ACCEPT` est importé de `KycUploader` : la garde de parité TCK-1888 qui le compare à `AcceptedUploads::KYC_MIMETYPES` couvre donc aussi ce sélecteur.
