@@ -284,6 +284,38 @@ class BillingPlansTest extends TestCase
         ];
     }
 
+    /**
+     * TCK-2114 (P214.02) — `limits` d'un `PATCH` de plan se fusionne clé par clé avec les bornes en
+     * base (comme `settings`, TCK-593) ; une clé à `null` est retirée ; `limits: null` en entier
+     * garde son sens (plus aucune borne).
+     */
+    public function test_un_patch_de_limits_partiel_garde_les_autres_bornes(): void
+    {
+        $this->actingAsRole('super_admin');
+        $plan = $this->plan('pro', ['limits' => ['max_agents' => 3, 'max_active_listings' => 10, 'max_branches' => 2]]);
+
+        $this->patchJson("/api/admin/plans/{$plan->id}", ['limits' => ['max_agents' => 5]])->assertOk();
+        $this->assertEquals(
+            ['max_agents' => 5, 'max_active_listings' => 10, 'max_branches' => 2],
+            $plan->refresh()->limits,
+        );
+
+        $this->patchJson("/api/admin/plans/{$plan->id}", ['limits' => ['max_branches' => null]])->assertOk();
+        $this->assertEquals(
+            ['max_agents' => 5, 'max_active_listings' => 10],
+            $plan->refresh()->limits,
+        );
+
+        $this->patchJson("/api/admin/plans/{$plan->id}", ['label' => 'Pro+'])->assertOk();
+        $this->assertEquals(
+            ['max_agents' => 5, 'max_active_listings' => 10],
+            $plan->refresh()->limits,
+        );
+
+        $this->patchJson("/api/admin/plans/{$plan->id}", ['limits' => null])->assertOk();
+        $this->assertNull($plan->refresh()->limits);
+    }
+
     private function plan(string $code, array $overrides = []): Plan
     {
         return Plan::query()->create(array_merge([
