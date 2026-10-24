@@ -16535,7 +16535,7 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
 
 ### La commission et le net d'un mois déjà reversé se recalculent au taux d'agence du jour, et ne rejoignent plus ce que le reversement a retenu
 - Réf : P177.02
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite, sur la copie par ligne de P177.01, dans le même ticket
+- Statut : fait · TCK-2017
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payout/PayoutCalculator.php:138-173`, `takussan-api/app/Services/Payout/OwnerStatementService.php:59`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:63`, `takussan-api/app/Services/Model/PayoutService.php:475-477`
 - Constat :
@@ -16546,6 +16546,7 @@ repris, sauf là où l'autre agence ou le statut du profil ajoutent un fait.*
 - Piste : pour les pièces reversées, lire la commission rangée par le reversement (ou le taux qu'il a appliqué, rangé avec lui) ; ne recalculer au taux du jour que les pièces pas encore reversées. Garde : un test qui change le taux après versement et attend la même commission.
 - Mesure (2026-10-23, ddd77d99a, mesureur) : `git diff 7e626b8bf ddd77d99a` vide sur `app/Services/Payout`, `SendOwnerStatements`, `OwnerStatementController`, `PayoutService`, `BookingPaymentService`, `PaymentGatewayService`, `LeasePaymentService` et `app/Http/Requests` (code inchangé depuis l'exploration) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle177Test.php` (retiré, charge 2,90 / 2,17 / 1,78 sur 8 cœurs), reversement créé par `POST /api/payouts` puis passé `completed` par `forceFill`, bail sans taux propre, agence à 8 % → reversement `net 202400, commission 17600` ; agence passée à 12 % par `update` du modèle → relevé de septembre `commission 26400, net 193600, paid_out 202400`. Le constat tient. Classement : V1, la piste change le calcul de la commission affichée d'un relevé.
 
+- Mesure (2026-10-24, c7f6c4101, implementeur) : reproduit avant correctif par `OwnerStatementTest::test_p177_02_a_paid_out_month_keeps_the_commission_its_payout_retained_after_the_agency_rate_changes` (bail sans taux propre, agence à 8 %, reversement `completed` d'un loyer, de charges et d'un acompte de séjour, commission retenue 21 600 ; agence passée à 12 %) → commission 33 600, net 246 400 ; le reversement copie à sa création, dans `payout_lease_payment` et `payout_booking_payment` (migration additive), le montant, le taux et la commission de chaque pièce, et le relevé relit ce taux → commission 22 800 (21 600 retenus + 12 % d'une pièce de la période non reversée), net 257 200, versé 248 400 ; ablation (lecture des taux retirée → 33 600, rouge ; copie retirée → ligne de pivot absente, rouge), rétablie → vert ; `OwnerStatementTest` 8/8, `PayoutTest` 21/21, `PayoutPreparationTest` 7/7, `PayoutItemScopeTest` 9/9, `PartialRefundStaysPaidTest` 11/11 verts.
 ### Un reversement qui porte des pièces de plusieurs mois est compté en entier, frais compris, dans le relevé de chaque mois
 - Réf : P177.03
 - Statut : validé — validation du porteur (2026-10-23) : brut et commission ventilés par pièce (copie de P177.01) ; « versé » et frais rattachés au mois de `processed_at`, avec la mention « versé ce mois » ; après P177.01
