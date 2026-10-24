@@ -95,7 +95,13 @@ class SmsChannel
             $context[DeferredSmsGuard::CONTEXT_KEY] = $notification->deferredSmsGuard;
         }
 
-        return $this->router->send($phone, $message, $context);
+        $results = $this->router->send($phone, $message, $context);
+        // P179.01 (TCK-2155) — un envoi hors file relit le sort du SMS.
+        if ($notification instanceof CodedNotification) {
+            $notification->smsOutcome?->record($results);
+        }
+
+        return $results;
     }
 
     private function resolvePhone(object $notifiable, Notification $notification): ?string

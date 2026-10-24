@@ -11,6 +11,7 @@ use App\Notifications\Concerns\SupportsWhatsapp;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
+use App\Services\Notifications\Sms\SmsOutcome;
 use App\Services\Notifications\Sms\SmsTimeBudget;
 use App\Services\Notifications\Whatsapp\TemplateResolver;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
@@ -84,6 +85,12 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
      * mise en file comme le canal : `failed()` ne reçoit pas le destinataire.
      */
     public bool $queuedForContact = false;
+
+    /**
+     * P179.01 (TCK-2155) — posé par un envoi HORS FILE dont l'appelant relit le sort du SMS
+     * ({@see NotificationService::sendToContactNow()}) ; `null` pour tout envoi en file.
+     */
+    public ?SmsOutcome $smsOutcome = null;
 
     /**
      * TCK-800 (P11.10) — attendre avant de réessayer : sans délai, le worker (`--tries=3`)
@@ -215,6 +222,9 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
             ->where('opt_in_status', WhatsappContact::OPT_IN_OPTED_IN)
             ->exists();
         $channels[] = $optedIn ? 'whatsapp' : 'sms';
+        if (! $optedIn && $this->smsOutcome !== null) {
+            $this->smsOutcome->smsChosen = true;
+        }
 
         return $channels;
     }

@@ -312,7 +312,7 @@ class SmsRouterDriver implements SmsDriverInterface
             ->delay(CarbonImmutable::now()->diffInSeconds($delay, true));
         $results = [];
         foreach ($recipients as $r) {
-            $deferred = SmsResult::deferred($r, $this->id(), 'quiet_hours');
+            $deferred = SmsResult::deferred($r, $this->id(), SmsResult::REASON_QUIET_HOURS);
             $this->appendAttempt($context['notification_id'] ?? null, 1, $deferred);
             $results[$r] = $deferred;
         }

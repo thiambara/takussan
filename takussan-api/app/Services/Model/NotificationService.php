@@ -12,6 +12,7 @@ use App\Notifications\CodedNotification;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\Sms\DeferredSmsGuard;
+use App\Services\Notifications\Sms\SmsOutcome;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -109,7 +110,28 @@ class NotificationService
         return $notification;
     }
 
-    private function sendToContact(ContactSansCompte $to, NotificationCode $code, array $params, ?NotificationTarget $target, ?bool $mobileBorne = null, ?array $deferredSmsGuard = null): void
+    /**
+     * P179.01 (TCK-2155) — comme {@see send()} vers un contact sans compte, mais HORS FILE, et le
+     * sort du SMS rendu à l'appelant : le rappel d'une invitation ne se tient pour posé que si un
+     * fournisseur a pu recevoir le message. Mis en file, l'envoi réussissait toujours (le routeur
+     * change tout refus en `SmsResult::failed`, sans lever), et l'appelant ne voyait rien.
+     *
+     * @param  array<string, mixed>  $params  paramètres BRUTS
+     */
+    public function sendToContactNow(
+        ContactSansCompte $to,
+        NotificationCode $code,
+        array $params,
+        ?NotificationTarget $target = null,
+        ?array $deferredSmsGuard = null,
+    ): SmsOutcome {
+        $outcome = new SmsOutcome;
+        $this->sendToContact($to, $code, $params, $target, null, $deferredSmsGuard, $outcome);
+
+        return $outcome;
+    }
+
+    private function sendToContact(ContactSansCompte $to, NotificationCode $code, array $params, ?NotificationTarget $target, ?bool $mobileBorne = null, ?array $deferredSmsGuard = null, ?SmsOutcome $outcome = null): void
     {
         if (! $code->reachesContacts()) {
             throw new LogicException(sprintf(
@@ -133,7 +155,13 @@ class NotificationService
             'sms' => $to->phone,
             'whatsapp' => $to->phone,
         ]);
-        Notification::routes($routes)
-            ->notify((new CodedNotification($code, $params, $target?->toArray(), null, $mobileBorne, $deferredSmsGuard))->locale($to->locale));
+        $notification = (new CodedNotification($code, $params, $target?->toArray(), null, $mobileBorne, $deferredSmsGuard))->locale($to->locale);
+        if ($outcome !== null) {
+            $notification->smsOutcome = $outcome;
+            Notification::routes($routes)->notifyNow($notification);
+
+            return;
+        }
+        Notification::routes($routes)->notify($notification);
     }
 }
