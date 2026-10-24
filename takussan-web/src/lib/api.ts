@@ -1,6 +1,10 @@
 import type { SpatieQueryParams } from '@/types/api';
 import { origineApi } from '@/lib/config-publique';
-import { cheminParLeRelais, relaisImpersonationActif } from '@/lib/impersonation';
+import {
+  cheminParLeRelais,
+  profilActifEspaceApplicatif,
+  relaisImpersonationActif,
+} from '@/lib/impersonation';
 
 // L'origine publique de l'API, sans `/api`, se lit à l'appel (`origineApi()`, ADR-0069 § 3) :
 // une constante de module figerait la valeur du premier import.
@@ -757,15 +761,19 @@ async function resolveServerLocale(): Promise<string | undefined> {
  * `X-Active-Profile-Hint`. Sans ce repli, les lectures et les écritures serveur de `/app` partaient
  * avec le seul jeton : pour un compte de deux agences, l'API ne voyait aucun profil (elle
  * n'auto-bascule que pour une seule agence) et rendait listes vides, fiches en 403 et créations
- * refusées. La règle est celle de `getActiveProfileId()` (`src/lib/session.ts`), importée à
- * l'appel comme `next/headers` : rien pendant une impersonation (TCK-600, invariant 11). Rend
- * `undefined` dans le navigateur et hors requête. Même garde que {@link resolveVisitorIp}.
+ * refusées. La règle est celle de `getActiveProfileId()` : rien pendant une impersonation
+ * (TCK-600, invariant 11), par {@link profilActifEspaceApplicatif}. Rend `undefined` dans le
+ * navigateur et hors requête. Même garde que {@link resolveVisitorIp}.
+ *
+ * ⚠ `next/headers` s'importe ici directement, jamais par `@/lib/session` : ce module l'importe en
+ * statique, et `api.ts` est aussi chargé côté client — `next build` refuse alors le graphe
+ * (« You're importing a module that depends on "next/headers" »), ce que ni `tsc` ni vitest ne voient.
  */
 async function resolveServerActiveProfile(): Promise<string | undefined> {
   if (typeof window !== 'undefined') return undefined;
   try {
-    const { getActiveProfileId } = await import('@/lib/session');
-    return (await getActiveProfileId()) || undefined;
+    const { cookies } = await import('next/headers');
+    return profilActifEspaceApplicatif(await cookies()) || undefined;
   } catch {
     return undefined;
   }

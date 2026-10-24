@@ -79,9 +79,13 @@ change : `ResolveActiveProfile` ignore un indice invalide et retombe sur l'auto-
 
 ## Notes d'implémentation
 
-- `getActiveProfileId()` est importée à l'appel (`await import('@/lib/session')`), comme
-  `next/headers` : un import statique aurait créé le cycle `api.ts` → `profiles.ts` → `api.ts`, et
-  recopier la règle d'impersonation l'aurait dédoublée.
+- La règle d'impersonation se prend de `profilActifEspaceApplicatif` (`src/lib/impersonation.ts`,
+  déjà importé par `api.ts`, sans dépendance), sur `cookies()` de `next/headers` importé à l'appel.
+  ⚠ Piège payé (réparation de la PR #1365) : la première version importait à l'appel
+  `@/lib/session`, qui importe `next/headers` en **statique** ; `api.ts` étant aussi chargé côté
+  client, `next build` (Turbopack) refusait le graphe — « You're importing a module that depends on
+  "next/headers" » — alors que `tsc`, ESLint et vitest étaient verts. Un import statique de
+  `profiles.ts` aurait, lui, créé le cycle `api.ts` → `profiles.ts` → `api.ts`.
 - Hors requête (build, script) ou sous un `next/headers` simulé sans `cookies`, le repli rend
   `undefined` (même garde que `resolveVisitorIp`).
 - Ablation : `src/lib/api.ts` rendu à `HEAD` → 2 rouges sur 7 (les deux cas où l'indice doit être
