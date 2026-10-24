@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 // `withIntl` charge le VRAI `fr.json` : depuis TCK-292 ces composants passent par next-intl, et
 // un rendu sans provider LÈVE. Les assertions françaises sont inchangées — c'est le point.
 import { withIntl } from '@/test/intl';
-import { PropertyReviewReplyForm, REPLY_MIN } from '../PropertyReviewReplyForm';
+import { PropertyReviewReplyForm } from '../PropertyReviewReplyForm';
 
 type ReplySubmit = ComponentProps<typeof PropertyReviewReplyForm>['onSubmit'];
 
@@ -16,7 +16,7 @@ describe('<PropertyReviewReplyForm>', () => {
     submit = vi.fn<ReplySubmit>().mockResolvedValue(undefined);
   });
 
-  it('disables the primary action when the content is too short', async () => {
+  it('disables the primary action while the reply is empty or blank', async () => {
     const user = userEvent.setup();
     render(withIntl(<PropertyReviewReplyForm reviewId={42} onSubmit={submit} />));
 
@@ -25,13 +25,29 @@ describe('<PropertyReviewReplyForm>', () => {
       screen.getByRole('button', { name: /publier la réponse/i }),
     ).toBeDisabled();
 
-    // Type fewer than REPLY_MIN chars → still disabled.
-    const tooShort = 'a'.repeat(REPLY_MIN - 1);
-    await user.type(screen.getByLabelText(/contenu de la réponse/i), tooShort);
+    // Blank content → still disabled.
+    await user.type(screen.getByLabelText(/contenu de la réponse/i), '   ');
     expect(
       screen.getByRole('button', { name: /publier la réponse/i }),
     ).toBeDisabled();
     expect(submit).not.toHaveBeenCalled();
+  });
+
+  it('TCK-2089 — une réponse d’un caractère se publie : l’API n’exige qu’une réponse non vide', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<PropertyReviewReplyForm reviewId={9} onSubmit={submit} />));
+
+    await user.type(screen.getByLabelText(/contenu de la réponse/i), 'ok');
+    await user.click(screen.getByRole('button', { name: /publier la réponse/i }));
+
+    expect(submit).toHaveBeenCalledWith(9, 'ok');
+  });
+
+  it('TCK-2089 — une réponse de 1500 caractères écrite depuis « Mes avis » se complète ici (2000 au plus, comme l’API)', () => {
+    render(withIntl(<PropertyReviewReplyForm reviewId={3} initialContent={'a'.repeat(1500)} onSubmit={submit} />));
+
+    expect(screen.getByLabelText(/contenu de la réponse/i)).toHaveAttribute('maxLength', '2000');
+    expect(screen.getByText('1500/2000')).toBeInTheDocument();
   });
 
   it('submits the reply with the reviewId when content is valid', async () => {

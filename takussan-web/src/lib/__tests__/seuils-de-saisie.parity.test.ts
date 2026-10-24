@@ -102,6 +102,17 @@ const PAIRES: ReadonlyArray<{ nom: string; front: () => number; api: () => numbe
     front: () => constanteFront(`${WEB}/components/maintenance/MaintenanceResolutionResponse.tsx`, 'PHOTOS_MAX'),
     api: () => maxDeLaRegle(`${API}/Http/Requests/Api/ContestMaintenanceResolutionRequest.php`, 'photos'),
   },
+  // TCK-2089 (P195.05) : la fiche de bien et « Mes avis » lisent les mêmes maximums.
+  ...(['Property', 'Agency'] as const).map((sujet) => ({
+    nom: `contenu d'un avis (${sujet})`,
+    front: () => constanteFront(`${WEB}/lib/review-limits.ts`, 'REVIEW_CONTENT_MAX'),
+    api: () => maxDeLaRegle(`${API}/Http/Requests/Api/StoreFor${sujet}ReviewRequest.php`, 'content'),
+  })),
+  {
+    nom: "réponse à un avis",
+    front: () => constanteFront(`${WEB}/lib/review-limits.ts`, 'REVIEW_REPLY_MAX'),
+    api: () => maxDeLaRegle(`${API}/Http/Requests/Api/ReplyReviewRequest.php`, 'reply_content'),
+  },
   {
     nom: "pièces d'un devis",
     front: () => constanteFront(`${WEB}/components/maintenance/QuoteSubmitForm.tsx`, 'MAX_ATTACHMENTS'),
