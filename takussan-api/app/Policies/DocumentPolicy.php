@@ -10,6 +10,7 @@ use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Property\BailleurDuBien;
 use App\Support\ImpersonationContext;
 use Illuminate\Database\Eloquent\Model;
 
@@ -156,7 +157,8 @@ class DocumentPolicy extends BasePolicy
 
     /**
      * L'accès au porteur, en lecture (`view()`) ou en écriture (`attachTo()`). Les deux ne
-     * diffèrent que sur les branches du bailleur : en écriture, elles passent par `landlordWrites`.
+     * diffèrent que sur les branches du bailleur : en écriture, elles passent par `bailleurEcrit`
+     * (TCK-2027 : `landlordWrites` avant), en lecture par `BailleurDuBien::est`.
      */
     private function reaches(User $user, Model $documentable, bool $writing): bool
     {
@@ -164,9 +166,14 @@ class DocumentPolicy extends BasePolicy
             return true;
         }
 
-        $bailleur = fn (mixed $authorId, mixed $agencyId): bool => $writing
-            ? $this->landlordWrites($user, $authorId, $agencyId)
-            : $authorId !== null && (int) $authorId === $user->id;
+        // TCK-2027 (P190.05) — `$bailleur` ne reçoit que des colonnes de BAILLEUR
+        // (`properties.user_id`, `leases.landlord_id`) : l'utilisateur désigné n'en est le bailleur
+        // qu'au sens de `BailleurDuBien`, de tout statut en lecture, non bloqué en écriture.
+        // L'agent qui a saisi le bien entre par la branche du personnel, et seulement actif. Les
+        // colonnes d'AUTEUR (`uploaded_by`, `conducted_by`, `created_by_id`) restent jugées à part.
+        $bailleur = fn (mixed $landlordId, mixed $agencyId): bool => $writing
+            ? $this->bailleurEcrit($user, $landlordId, $agencyId)
+            : BailleurDuBien::est($user, $landlordId, $agencyId);
 
         if ($documentable instanceof Property) {
             return $bailleur($documentable->user_id, $documentable->agency_id)

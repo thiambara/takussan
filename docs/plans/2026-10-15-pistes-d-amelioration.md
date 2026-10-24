@@ -17610,7 +17610,7 @@ Le PDF de l'état des lieux est P143.01.*
 
 ### Le créateur suspendu ou retiré lit les documents du bien et en joint de nouveaux
 - Réf : P190.05
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite (`BailleurDuBien` pour les colonnes de bailleur, `landlordWrites` gardé pour les colonnes d'auteur)
+- Statut : fait · TCK-2027
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/DocumentPolicy.php:152-213`
 - Constat :
@@ -17619,10 +17619,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré.
 - Piste : passer `$bailleur` de `reaches` par `BailleurDuBien::est` pour les colonnes de bailleur (`properties.user_id`, `leases.landlord_id`), et par `bailleurEcrit` en écriture, en gardant `landlordWrites` pour les colonnes d'auteur. Test : agent créateur suspendu, puis retiré → `GET` 403 et `POST` refusé (404 `document.owner_not_found`, TCK-732) ; bailleur bloqué → lecture 200, rattachement refusé.
 - Mesure (2026-10-23, 0c707fc77, mesureur) : relu `DocumentPolicy::reaches` (branche bailleur par identité en lecture, `landlordWrites` en écriture), inchangé ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 ; document du bien déposé par un tiers → suspendu comme retiré : `can('view', $document)` vrai, `GET /api/documents/{id}` → 200, `POST /api/documents` (PDF de 10 Ko, `documentable_type=property`) → 201, document rattaché au bien → le constat tient en entier. Classement : V2, le correctif touche la lecture et le rattachement des documents pour tout bailleur de bien et de bail, appelants d'aujourd'hui.
+- Mesure (2026-10-24, 26195d12e, implementeur) : relu `DocumentPolicy::reaches` inchangé (bailleur par identité en lecture, `landlordWrites` en écriture) ; reproduit avant correctif par `AgentCreateurDocumentsDuBienTest` (agent créateur suspendu, puis retiré : `GET /api/documents/{id}` d'un document du bien → 200) → `$bailleur` passe par `BailleurDuBien::est` en lecture et `bailleurEcrit` en écriture : suspendu comme retiré, `GET` du document du bien et du bail en 403, `POST /api/documents` en 404 `document.owner_not_found` ; bailleur bloqué lit sans joindre, bailleur et agent actifs lisent et joignent. Ablation : 2 rouges, vert remis.
 
 ### Le créateur suspendu ou retiré resoumet à la modération un bien d'agence rejeté
 - Réf : P190.06
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite
+- Statut : fait · TCK-2029
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Policies/PropertyModerationPolicy.php:29-41`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:101-109`
 - Constat :
@@ -17631,10 +17632,11 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré.
 - Piste : ne tenir `user_id` pour titre que sur un bien sans agence ou pour un bailleur non bloqué de l'agence (`bailleurEcrit`) ; le personnel actif garde sa branche. Test : agent créateur suspendu, puis retiré → 403 et statut `rejected` inchangé.
 - Mesure (2026-10-23, 0c707fc77, mesureur) : relu `PropertyModerationPolicy::resubmit` (`user.id === property.user_id` avant tout jugement d'agence) et `PropertyModerationService::resubmit` (statut `pending_review`, motif et rejet effacés), inchangés ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 ; bien passé `rejected` → suspendu comme retiré : `POST /api/properties/{id}/resubmit` → 200, statut `pending_review` → le constat tient en entier. Classement : V2, le correctif restreint qui resoumet un bien, sur une branche qu'emploie le bailleur actif.
+- Mesure (2026-10-24, 26195d12e, implementeur) : relu `PropertyModerationPolicy::resubmit` inchangé (`user.id === property.user_id` avant tout jugement d'agence) ; reproduit avant correctif par `AgentCreateurResoumissionTest` (agent créateur suspendu, puis retiré, et bailleur bloqué : `POST /api/properties/{id}/resubmit` → 200) → `user_id` ne vaut titre que par `BailleurDuBien::est` et non bloqué dans l'agence : les trois en 403, statut `rejected` inchangé ; bailleur actif, agent actif et propriétaire d'un bien sans agence → 200. Ablation : 3 rouges, vert remis.
 
 ### L'agent suspendu lit encore le bien qu'il a saisi et le garde dans sa liste
 - Réf : P190.07
-- Statut : validé — validation du porteur (2026-10-23) : la piste telle qu'écrite : ADR-0031 § 3, aucun périmètre pour un profil non actif (revient sur la voie étroite de TCK-1705)
+- Statut : fait · TCK-2031
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/PropertyPolicy.php:48-63,196-207`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:60-75`
 - Constat :
@@ -17644,6 +17646,7 @@ Le PDF de l'état des lieux est P143.01.*
   - Établi comment : lu, puis mesuré.
 - Piste : remplacer `isMemberOf` par `BailleurDuBien::est` (bailleur de tout statut) ou personnel actif de l'agence (`isStaffOf`) dans `view`, `update` et la clause de la liste. Test : agent créateur suspendu → 403 et absent de la liste ; bailleur auteur bloqué → lecture 200.
 - Mesure (2026-10-23, 0c707fc77, mesureur) : relu `PropertyPolicy::view`/`update` (`isMemberOf`, de tout statut) et `PropertyController::index` (clause bornée aux agences où l'auteur a un profil, sans statut), inchangés ; test temporaire `tests/Feature/TmpMesureur/Sonde190Test.php` (retiré, charge 3,94 / 3,77 / 3,46 sur 8 cœurs) sur `BuildsBookingStakeholders`, bien de l'agence passé au `user_id` de l'agent (`forceFill`), agent suspendu par `TeamMemberSuspensionService::suspend` puis retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)` (`staffAgencyId()` → null dans les deux cas) ; `git log 61dba15e4..0c707fc77` sur `app/Policies`, les contrôleurs cités, `app/Support` et `app/Services/Agency` → seul TCK-1853, sans rapport ; aucun ticket ne cite P190 → suspendu : `can` view/update = vrai/faux, `GET /api/properties/{id}` → 200, bien présent dans `GET /api/properties` ; retiré : `can('view')` faux, `GET` → 403, absent de la liste, comme TCK-1705 le garde → le constat tient pour le seul suspendu. Classement : V2, la ligne `Mesure` de l'implémenteur de P153.01 garde délibérément au suspendu ce qu'il a, et revenir sur ce choix contre ADR-0031 § 3 revient au porteur.
+- Mesure (2026-10-24, 26195d12e, implementeur) : relu `PropertyPolicy::view`/`update` (`isMemberOf`, de tout statut) et `PropertyController::index` (clause « mes biens » bornée aux agences où l'appelant a un profil, sans statut), inchangés ; reproduit avant correctif par `AgentCreateurSuspenduBienSaisiTest` (agent créateur suspendu : `can('view')` vrai) → `view` et `update` jugent l'auteur par `BailleurDuBien::est` ou par un profil de personnel au statut actif dans l'agence du bien, la liste borne la clause aux agences où l'appelant est propriétaire ou a un profil actif (le profil actif de la requête, `isStaffOf`, retirait à l'agent de deux agences le bien saisi dans l'autre : `AgencySuspendedWriteLockTest` rouge) : suspendu → `GET` et `PUT` 403, absent de la liste ; bailleur auteur bloqué → lecture 200 et listé ; agent actif → lecture et liste ; `MembreRetireBiensSaisisTest` (retiré, TCK-1705) reste vert. Ablation : policy et liste remises → 1 rouge, liste seule remise → 1 rouge, vert remis.
 
 ## Angle 191 — Fils rattachés à un bail ou à un bien face à la policy de leur contexte
 
