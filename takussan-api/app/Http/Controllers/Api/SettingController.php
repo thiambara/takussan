@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreSettingRequest;
 use App\Http\Requests\Api\UpdateSettingRequest;
 use App\Http\Resources\SettingResource;
+use App\Models\Agency;
 use App\Models\Enums\SettingScope;
 use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
@@ -23,7 +24,8 @@ class SettingController extends Controller
         // les lignes de son agence : jamais les lignes `global`, dont les publiques passent par
         // `GET /api/settings/public`.
         if (! $user->isSuperAdmin()) {
-            abort_unless($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id), 403);
+            // TCK-2024 (P116.02) — `AgencyPolicy::configure` : l'admin ET `agency.update`.
+            abort_unless($user->agency_id !== null && $user->can('configure', Agency::query()->find($user->agency_id)), 403);
             $base->where('scope', SettingScope::Agency)
                 ->where('scope_id', $user->agency_id);
         }
@@ -91,7 +93,7 @@ class SettingController extends Controller
             abort_unless($user->isSuperAdmin(), 403);
         } else {
             abort_unless(
-                $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $setting->scope_id && $user->isAgencyAdminAt((int) $setting->scope_id)),
+                $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $setting->scope_id && $user->can('configure', Agency::query()->find($setting->scope_id))),
                 403
             );
         }

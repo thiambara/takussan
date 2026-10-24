@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\JugeLaLigneDeReglageDAgence;
+use App\Models\Agency;
 use App\Models\Enums\SettingScope;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -49,7 +50,8 @@ class StoreSettingRequest extends BaseFormRequest
 
         $targetAgencyId = $this->input('scope_id') ?? $user->agency_id;
         abort_code_unless(
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $targetAgencyId && $user->isAgencyAdminAt((int) $targetAgencyId)),
+            // TCK-2024 (P116.02) — `AgencyPolicy::configure` : l'admin ET `agency.update`.
+            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $targetAgencyId && $user->can('configure', Agency::query()->find($targetAgencyId))),
             403,
             'setting.other_agency_forbidden'
         );

@@ -2,6 +2,8 @@
 
 namespace App\Policies;
 
+use App\Models\Agency;
+use App\Models\Enums\Capability;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Property\BailleurDuBien;
@@ -54,10 +56,25 @@ class PropertyModerationPolicy
         // The active-profile-aware `$user->agency_id` accessor enforces
         // that the admin is currently acting under the right agency.
         $agencyId = $user->agency_id;
-        if ($agencyId === null || $agencyId !== $property->agency_id || ! $user->isAgencyAdminAt((int) $agencyId)) {
+        if ($agencyId === null || $agencyId !== $property->agency_id) {
             return false;
         }
 
-        return true;
+        return $this->moderatesAt($user, (int) $agencyId);
+    }
+
+    /**
+     * TCK-2022 (P116.05, décision du porteur) — approuver un bien en attente le PUBLIE : la
+     * modération d'agence exige l'admin de l'agence ET `properties.publish` à cette agence, patron
+     * d'`AgencyPolicy::updatePayoutThreshold`. Aucun agent ne la gagne, même s'il tient la capacité.
+     * Lue par `canModerate` et par la file (`PropertyModerationController::index`).
+     */
+    public function moderatesAt(User $user, int $agencyId): bool
+    {
+        $agency = Agency::query()->find($agencyId);
+
+        return $agency !== null
+            && $user->isAgencyAdminAt($agencyId)
+            && $user->canActAt(Capability::PropertiesPublish, $agency);
     }
 }

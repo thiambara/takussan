@@ -9,7 +9,7 @@ import { withIntl } from '@/test/intl';
 
 const refreshUserMock = vi.fn();
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 1 }, refreshUser: refreshUserMock }),
+  useAuth: () => ({ user: { id: 1 }, refreshUser: refreshUserMock, setActiveProfileId: vi.fn() }),
 }));
 
 // `useSwitchActiveProfile` (called unconditionally by <ProfileSwitcher>) reaches
