@@ -298,7 +298,7 @@ voie d'écriture (angle 13, puis 47).
 | 221 | Arguments typés `string` de méthodes privées et de constructeurs nourris par une colonne `nullable` ou un repli `?:`/`??` qui peut rendre `null` (`AdminGlobalSearchService::hit`, et leurs pareils sous `app/Services` et `app/Http/Controllers`) : `TypeError` rendu en 500 pour une ligne réelle qu'aucune fabrique de test ne produit — né de P193.01 | fait |
 | 222 | Photos et pièces téléversées hors de `MediaManager` et `MediaDropzone` (avatar de `ProfileHeader`, pièces de devis, photos de contestation et de création d'une intervention, `KycUploader`, pièce du surclassement, document client) face au patron « réduire puis juger sous le plafond » de TCK-542 et TCK-596 : photo de téléphone refusée au front, ou envoyée entière et refusée en 422 après la saisie — né de P195.03 et P195.07 | fait |
 | 223 | Agrégats en SQL brut (`DB::selectOne`, `DB::table(…)->join(…)`, `fromSub`) sur des tables à `SoftDeletes` qui ne posent pas `deleted_at IS NULL` là où la portée Eloquent l'aurait posé (`AgencyDetailController::health`, `PaymentSupervisionService::leaseBase`, et leurs pareils sous `app/Services` et `app/Http/Controllers`) : bien, bail ou paiement supprimé encore compté par un compteur ou listé — né de P198.02 et P198.05 | fait |
-| 224 | Factures de prestataire et devis d'une intervention annulée, rejetée ou close (`ServiceProviderBillController`, `ServiceProviderBill` soumise ou validée, payable par mobile money et imputée par `PayoutCalculator::rechargeableBills` sans lire `maintenance_requests.status`) : frais d'un travail abandonné encore payés au prestataire ou déduits du bailleur — le pendant de l'angle 200 côté interventions | à faire |
+| 224 | Factures de prestataire et devis d'une intervention annulée, rejetée ou close (`ServiceProviderBillController`, `ServiceProviderBill` soumise ou validée, payable par mobile money et imputée par `PayoutCalculator::rechargeableBills` sans lire `maintenance_requests.status`) : frais d'un travail abandonné encore payés au prestataire ou déduits du bailleur — le pendant de l'angle 200 côté interventions | fait |
 | 224 | Lectures TanStack dont le cache est augmenté à la main par `setQueryData` (pages ajoutées par un « Charger plus » fait main, lignes insérées après un geste) alors que leur `queryFn` ne relit qu'une partie de ce cache : relecture par défaut (focus, remontage, `refetchInterval`, `invalidateQueries`) qui efface ce que l'écran montrait — né de P199.01 |
 | 225 | Ce qu'une agence attache à son administrateur principal (`agencies.primary_admin_id` : passe-droits d'`AgencyPolicy`, `RoleDelegationPolicy`, `BankStatementPolicy`, `AgencyIndicatorPolicy`, `MediaPolicy`, destinataire nommé des avis comme `KycWorkflowService`) quand ce compte est effacé, bloqué, suspendu ou n'a plus de profil d'administrateur : titre jamais transmis, gestes réservés que personne ne tient, avis envoyés à un compte qui ne les lira pas — né de P204.02 | à faire |
 | 225 | Tuiles, bandeaux et badges de compte posés au-dessus d'une liste paginée (`ModerationStats`, titres de groupe, onglets, résumés « n en retard ») qui comptent `items.filter(…).length` sur la page reçue, à côté d'un `meta.total` de toute la liste : chiffres de deux portées côte à côte, sans libellé qui le dise — né de P199.02 et P199.03 |
@@ -314,6 +314,7 @@ voie d'écriture (angle 13, puis 47).
 | 235 | Replis `??` de l'API sur des colonnes texte non nulles que des écrivains remplissent de `''` (`CustomerService::rattacherOuCreer` `?? 'Client'`, et leurs pareils sous `app/Services` et `app/Http/Resources` sur `first_name`, `last_name`, `username`, `title`, `name`) : repli écrit qui ne joue jamais, chaîne vide rangée ou rendue — né de P220.03 | à faire |
 | 236 | Réponses d'erreur sans corps JSON (413 de la borne de 25 Mio de `docker/Caddyfile`, 502 et 504 du proxy, page d'erreur de PHP) lues par `apiRequest`, `jsonOrThrow` de `lib/queries/kyc.ts` et les relais BFF, puis rendues par `useMessageErreurApi` et `messageErreur` : envoi refusé pour sa taille ou coupé par le proxy affiché comme une erreur générique ou de réseau, sans dire quoi changer — né de P222.02 et P222.04 | à faire |
 | 237 | Gestes en deux requêtes, création puis complément (photos, pièces, invitations, lignes), dont le second échec est avalé par un `catch {}` ou un `.catch(() => undefined)` sous `takussan-web/src/components` et `src/app/actions` (`MaintenanceForm.tsx:89-92` et ses pareils) : ligne créée sans son complément, et rien ne le dit — né de P222.01 | à faire |
+| 238 | Observateurs et écouteurs qui créent une ligne fille au passage d'un statut (`wasChanged('status')` sous `app/Observers` et `app/Listeners`, `insertOrIgnore` contre un index unique partiel) face aux transitions de retour de la machine d'état du parent (contestation, réouverture, reprise, annulation après coup) : ligne née d'un état que le parent a quitté, jamais retirée ni recalculée — né de P224.01 et P224.03 | à faire |
 
 
 ---
@@ -20204,3 +20205,63 @@ l'import de relevé bancaire n'envoie qu'un CSV ou un OFX.*
 - Piste : écarter de la file les avis d'un bien supprimé (ou les clore à la suppression du bien), et poser `b.deleted_at IS NULL` dans `bookingBase` pour aligner les deux bases. Test : l'avis en attente d'un bien supprimé n'est plus dans la file.
 - Mesure (2026-10-24, cc50671c9, mesureur) : relu `UnifiedModerationService.php:356-378` (branche « avis » en `leftJoin` sur `properties as rp`, aucun `rp.deleted_at IS NULL`, seul `r.deleted_at` écarté) et `PaymentSupervisionService.php:158-172` (`leaseBase` pose `l.deleted_at IS NULL`, `bookingBase` ne joint `bookings as b` que sur `bp.deleted_at`) ; même test temporaire que P223.01 → après suppression du bien, l'avis `pending` reste dans `GET /api/admin/moderation` → les deux points tiennent, le second sans effet tant qu'aucune réservation ne se supprime (non re-mesuré). Classement : V7, la `Piste` propose deux options (écarter de la file, ou clore l'avis à la suppression du bien) qui ne laissent pas la même trace de modération ; l'alignement de `bookingBase` seul relèverait de A1.
 - Mesure (2026-10-24, 52824256a, delegue) : relu l'entrée et la `Mesure` du mesureur, `UnifiedModerationService.php:315-380` (biens, signalements et doublons : `whereNull('p.deleted_at')` ; avis : `leftJoin` sur `properties as rp` et `agencies as ra`, aucun `rp.deleted_at`), `PaymentSupervisionService.php:158-172` (`leaseBase` : `l.deleted_at IS NULL`, TCK-2034 ; `bookingBase` : rien sur `b`), la délégation de P198.05 (même jointure, validée et faite) ; `grep -n "porteur ("` → aucune décision sur l'angle 223. Délégation : V7, des deux options de la `Piste`, écarter est celle qu'appuie une règle écrite (les trois autres branches de la même file) et la seule qui n'écrit rien : un avis écarté reste en base dans son statut ; `bookingBase` relève de A1 (TCK-2034) et n'a aucun effet tant qu'aucune réservation ne se supprime — une liste de supervision filtrée, aucun montant calculé ni écrit ; réversible en un commit ; clore l'avis (décision tracée) reste au porteur.
+
+## Angle 224 — Factures de prestataire d'une intervention annulée, contestée ou réassignée
+
+*Exploré le 2026-10-24 sur `pre-dev` a03cd3caf, par l'explorateur, sans sous-agent. Relu par
+l'explorateur lui-même : `MaintenanceRequestObserver`, `ServiceProviderBillController`,
+`PayoutService::createForBill`, `PayoutCalculator::rechargeableBills`, `MaintenanceStateMachine`,
+`MaintenanceRequestService` (`complete`, `contestResolution`, `assign`), la migration de
+`service_provider_bills`, `ServiceProviderBillsTable.tsx`. Mesuré par un test temporaire (retiré),
+bâti sur les aides de `tests/Feature/Api/ServiceProviderBillTest.php`, charge `{ 2.46 2.53 2.65 }`
+sur 8 cœurs, trois cas joués par `MaintenanceRequestService` puis les routes de la facture. Hors
+mesure : les devis (`MaintenanceQuoteController`), que la table d'états ferme déjà depuis
+`cancelled` ; une intervention ne se supprime par aucune route (`routes/api/maintenance-requests.php`
+sans `delete`).*
+
+### La facture d'une intervention contestée puis annulée reste validable, payable et imputée au bailleur
+- Réf : P224.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Maintenance/MaintenanceStateMachine.php:53-54`, `takussan-api/app/Http/Controllers/Api/ServiceProviderBillController.php:82-93`, `takussan-api/app/Services/Model/PayoutService.php:145-165`, `takussan-api/app/Services/Payout/PayoutCalculator.php:140-154`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:385-418`
+- Constat :
+  - La facture naît au passage à `completed` (`MaintenanceRequestObserver.php:24-31`), et la table d'états permet ensuite `completed → in_progress` (contestation) puis `in_progress → cancelled` (lu, `MaintenanceStateMachine.php:53-54`). `contestResolution` ne touche pas la facture (lu, l. 385-418), et aucun écrivain ne pose `rejected` ni `cancelled` sur une facture au départ de l'intervention (lu : `grep -rn ServiceProviderBill app` ne rend que l'observateur, le contrôleur, `PayoutService`, `PayoutCalculator`, `OwnerStatementService`, la policy).
+  - `decide()` ne juge que `status === pending_validation` (lu, l. 88) ; `createForBill` que `status === validated` et l'absence de reversement vivant (lu, l. 157-165) ; `rechargeableBills` que le statut de la facture, `rechargeable_to_landlord` et `imputed_payout_id` (lu, l. 140-154). Aucun ne lit `maintenance_requests.status`.
+  - Mesuré : intervention `in_progress` au devis approuvé de 50 000, `complete()`, `contestResolution()`, `transition(cancelled)` → intervention `cancelled`, facture `pending_validation` de 50 000 ; `POST …/validate` → 200 ; `POST …/pay` → 201, reversement `pending` ; `rechargeableBills(agence, bailleur)->count()` → 1.
+  - Une facture déjà validée et imputée à un reversement au bailleur avant la contestation n'est pas reprise non plus (déduit de la même lecture, à vérifier).
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : à l'annulation d'une intervention (et à sa contestation, selon le choix du porteur), passer sa facture ouverte à `cancelled` (le cas existe dans `ServiceProviderBillStatus` sans écrivain, voir P115.07) ; à défaut, refuser `validate`, `pay` et l'imputation d'une facture dont l'intervention n'est ni `completed` ni `closed`. Test : contestation puis annulation → `validate` et `pay` en 422, facture absente de `rechargeableBills`.
+
+### Réassigner après contestation laisse la facture de l'ancien prestataire, et le nouveau n'est jamais facturé
+- Réf : P224.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Model/MaintenanceRequestService.php:111-160`, `takussan-api/app/Observers/MaintenanceRequestObserver.php:59-74`, `takussan-api/database/migrations/2026_10_07_200100_create_service_provider_bills_table.php:42`
+- Constat :
+  - `assign()` refuse une intervention terminale ou `completed` (lu, l. 115 et 125), mais pas une intervention repartie `in_progress` par contestation ; il remet le devis à zéro sans toucher la facture déjà née (lu, l. 162-200).
+  - L'index unique partiel `sp_bills_one_open_per_request` n'admet qu'une facture hors `rejected`/`cancelled` par intervention (lu, migration l. 42), et l'observateur écrit par `insertOrIgnore` (lu, l. 59) : la fin des travaux du nouveau prestataire n'écrit rien.
+  - Mesuré : prestataire A, `complete()`, `contestResolution()`, `assign(B)`, puis (raccourci du test : statut et devis de B posés par `forceFill`) `complete(['actual_cost' => 70 000])` → une seule facture, celle de A, 50 000, `pending_validation` ; aucune pour B.
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : à la réassignation d'une intervention qui porte une facture ouverte, l'annuler (ou refuser la réassignation tant qu'elle est ouverte) ; le choix revient au porteur. Test : contestation, réassignation, fin des travaux de B → une facture de B, celle de A `cancelled` ou la réassignation en 422.
+
+### Une seconde fin des travaux à un autre coût réel laisse la facture à l'ancien montant
+- Réf : P224.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Observers/MaintenanceRequestObserver.php:16-20,46-74`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:313-367`
+- Constat :
+  - L'en-tête de l'observateur veut qu'« un second passage par `completed` n'en crée pas de seconde » (lu, l. 18-20) ; `insertOrIgnore` ignore alors la ligne entière, montant et `exceeds_quote` compris (lu, l. 59-74). Le test `test_ac15_completion_creates_one_bill_at_the_approved_quote` n'épingle que l'unicité, au même montant (lu, `ServiceProviderBillTest.php:59-72`).
+  - Mesuré : devis approuvé de 50 000, `complete([])`, `contestResolution()`, `complete(['actual_cost' => 80 000])` → `actual_cost` de l'intervention à 80 000, facture à 50 000, `exceeds_quote = false`. Le prestataire est payé 50 000 et le bailleur débité de 50 000 pour un coût accordé de 80 000.
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : à une nouvelle fin des travaux, mettre à jour le montant et `exceeds_quote` de la facture encore `pending_validation`, et pour une facture déjà validée ou payée, le signaler au lieu de l'ignorer (choix du porteur, argent). Test : seconde fin à un autre coût → facture au nouveau montant.
+
+### L'écran des factures ne montre pas l'état de l'intervention qu'il fait valider et payer
+- Réf : P224.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/payments.ts:450-466`, `takussan-web/src/components/payments/ServiceProviderBillsTable.tsx:77,208`
+- Constat :
+  - La liste ne demande que les colonnes de la facture, sans `include=maintenanceRequest` (lu, `payments.ts:450-466`, alors que `ServiceProviderBill::$requestLoadable` l'offre) ; la colonne de l'intervention rend `#<id>` seul (lu, `ServiceProviderBillsTable.tsx:208`), et le bouton de validation ne dépend que de `bill.status` (lu, l. 77).
+  - Rien ne dit donc à qui valide que l'intervention a été contestée ou annulée (P224.01).
+  - Établi comment : lu.
+- Piste : charger `maintenanceRequest` (champs `id,status`) et afficher son état, avec un avertissement quand elle n'est ni `completed` ni `closed`. Le correctif d'API de P224.01 reste la garde ; ceci n'en est que la lecture.
