@@ -4146,7 +4146,9 @@
       "photos_label": "Photos (optional)",
       "photos_selected": "{count, plural, =1 {# photo selected.} other {# photos selected.}}",
       "submitting": "Sending…",
-      "submit": "Report the problem"
+      "submit": "Report the problem",
+      "photos_failed_title": "Photos not sent",
+      "photos_failed_body": "The request was created, but its photos could not be sent."
     },
     "complete": {
       "title": "Close the intervention",

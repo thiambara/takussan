@@ -1,7 +1,7 @@
 ---
 id: TCK-2146
 title: "L'échec de l'envoi des photos d'une demande d'intervention neuve est dit sur la fiche"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -49,14 +49,14 @@ pas au demandeur.
 
 ## Delta à produire
 
-- [ ] `MaintenanceForm` : le `catch` lève l'avertissement, le commentaire trompeur est retiré.
-- [ ] Clés `maintenance.form.photos_failed_title` et `photos_failed_body` en `fr`, `en`, `wo`.
-- [ ] Test Vitest `MaintenanceForm.echec-photos.tck-2146.test.tsx`.
+- [x] `MaintenanceForm` : le `catch` lève l'avertissement, le commentaire trompeur est retiré.
+- [x] Clés `maintenance.form.photos_failed_title` et `photos_failed_body` en `fr`, `en`, `wo`.
+- [x] Test Vitest `MaintenanceForm.echec-photos.tck-2146.test.tsx`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `uploadPhotos` rejette : l'avertissement s'affiche, et la navigation vers la fiche a lieu.
-- [ ] AC2 — `uploadPhotos` réussit : aucun avertissement.
+- [x] AC1 — `uploadPhotos` rejette : l'avertissement s'affiche, et la navigation vers la fiche a lieu.
+- [x] AC2 — `uploadPhotos` réussit : aucun avertissement.
 
 ## Hors périmètre
 
@@ -65,4 +65,5 @@ pas au demandeur.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : `toast.add` neutralisé dans le `catch` → AC1 rouge (aucun avertissement) ; remis → vert.
+- Le `Toaster` vit dans `(dashboard)/layout.tsx`, que la navigation vers la fiche ne démonte pas : c'est ce qui fait d'un toast persistant un avertissement « sur la fiche ». Le test monte donc `ToastProvider` et `Toaster` autour du formulaire.

@@ -2388,7 +2388,9 @@
       "photos_label": "Nataal yi (bu ñu soxlawul)",
       "photos_selected": "{count, plural, other {# nataal la ñu tànn.}}",
       "submitting": "Yónnee…",
-      "submit": "Yégle jafe-jafe bi"
+      "submit": "Yégle jafe-jafe bi",
+      "photos_failed_title": "Photos non envoyées",
+      "photos_failed_body": "La demande est créée, mais ses photos n'ont pas pu être envoyées."
     },
     "complete": {
       "title": "Tëj liggéey bi",

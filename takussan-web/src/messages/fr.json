@@ -4117,7 +4117,9 @@
       "photos_label": "Photos (optionnel)",
       "photos_selected": "{count, plural, =1 {# photo sélectionnée.} other {# photos sélectionnées.}}",
       "submitting": "Envoi…",
-      "submit": "Signaler le problème"
+      "submit": "Signaler le problème",
+      "photos_failed_title": "Photos non envoyées",
+      "photos_failed_body": "La demande est créée, mais ses photos n'ont pas pu être envoyées."
     },
     "complete": {
       "title": "Clôturer l'intervention",
