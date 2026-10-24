@@ -300,7 +300,7 @@ voie d'écriture (angle 13, puis 47).
 | 223 | Agrégats en SQL brut (`DB::selectOne`, `DB::table(…)->join(…)`, `fromSub`) sur des tables à `SoftDeletes` qui ne posent pas `deleted_at IS NULL` là où la portée Eloquent l'aurait posé (`AgencyDetailController::health`, `PaymentSupervisionService::leaseBase`, et leurs pareils sous `app/Services` et `app/Http/Controllers`) : bien, bail ou paiement supprimé encore compté par un compteur ou listé — né de P198.02 et P198.05 | fait |
 | 224 | Factures de prestataire et devis d'une intervention annulée, rejetée ou close (`ServiceProviderBillController`, `ServiceProviderBill` soumise ou validée, payable par mobile money et imputée par `PayoutCalculator::rechargeableBills` sans lire `maintenance_requests.status`) : frais d'un travail abandonné encore payés au prestataire ou déduits du bailleur — le pendant de l'angle 200 côté interventions | fait |
 | 224 | Lectures TanStack dont le cache est augmenté à la main par `setQueryData` (pages ajoutées par un « Charger plus » fait main, lignes insérées après un geste) alors que leur `queryFn` ne relit qu'une partie de ce cache : relecture par défaut (focus, remontage, `refetchInterval`, `invalidateQueries`) qui efface ce que l'écran montrait — né de P199.01 |
-| 225 | Ce qu'une agence attache à son administrateur principal (`agencies.primary_admin_id` : passe-droits d'`AgencyPolicy`, `RoleDelegationPolicy`, `BankStatementPolicy`, `AgencyIndicatorPolicy`, `MediaPolicy`, destinataire nommé des avis comme `KycWorkflowService`) quand ce compte est effacé, bloqué, suspendu ou n'a plus de profil d'administrateur : titre jamais transmis, gestes réservés que personne ne tient, avis envoyés à un compte qui ne les lira pas — né de P204.02 | à faire |
+| 225 | Ce qu'une agence attache à son administrateur principal (`agencies.primary_admin_id` : passe-droits d'`AgencyPolicy`, `RoleDelegationPolicy`, `BankStatementPolicy`, `AgencyIndicatorPolicy`, `MediaPolicy`, destinataire nommé des avis comme `KycWorkflowService`) quand ce compte est effacé, bloqué, suspendu ou n'a plus de profil d'administrateur : titre jamais transmis, gestes réservés que personne ne tient, avis envoyés à un compte qui ne les lira pas — né de P204.02 | fait |
 | 225 | Tuiles, bandeaux et badges de compte posés au-dessus d'une liste paginée (`ModerationStats`, titres de groupe, onglets, résumés « n en retard ») qui comptent `items.filter(…).length` sur la page reçue, à côté d'un `meta.total` de toute la liste : chiffres de deux portées côte à côte, sans libellé qui le dise — né de P199.02 et P199.03 |
 | 226 | Paires polymorphes `*_type` / `*_id` et identifiants de ligne cible reçus du client sur les routes d'écriture (`invitable_*` hors du générique, `documentable_*`, `taskable_*`, `attachable_*`, `subject_*`, et leurs pareils dans `app/Http/Requests`), validés par `integer` ou `Rule::in` sans juger que la ligne visée existe et relève de l'agence de l'appelant : écriture ou effet posé sur la ligne d'une autre agence — né de P208.01 | à faire |
 | 227 | Requêtes de création (`Store*Request` et leur contrôleur) restées plus larges que les gestes dédiés et les requêtes de modification resserrés depuis (statut, visibilité, assignation, contact principal, commission : `StorePropertyRequest` face à TCK-1341 et TCK-1427, `StoreLeaseRequest`, `StorePropertyCollaboratorRequest`, et leurs pareilles sous `app/Http/Requests`) : ce qu'un `PATCH` ou un geste refuse s'obtient en créant la ligne — né de P209.01 et P209.02 | à faire |
@@ -315,6 +315,7 @@ voie d'écriture (angle 13, puis 47).
 | 236 | Réponses d'erreur sans corps JSON (413 de la borne de 25 Mio de `docker/Caddyfile`, 502 et 504 du proxy, page d'erreur de PHP) lues par `apiRequest`, `jsonOrThrow` de `lib/queries/kyc.ts` et les relais BFF, puis rendues par `useMessageErreurApi` et `messageErreur` : envoi refusé pour sa taille ou coupé par le proxy affiché comme une erreur générique ou de réseau, sans dire quoi changer — né de P222.02 et P222.04 | à faire |
 | 237 | Gestes en deux requêtes, création puis complément (photos, pièces, invitations, lignes), dont le second échec est avalé par un `catch {}` ou un `.catch(() => undefined)` sous `takussan-web/src/components` et `src/app/actions` (`MaintenanceForm.tsx:89-92` et ses pareils) : ligne créée sans son complément, et rien ne le dit — né de P222.01 | à faire |
 | 238 | Observateurs et écouteurs qui créent une ligne fille au passage d'un statut (`wasChanged('status')` sous `app/Observers` et `app/Listeners`, `insertOrIgnore` contre un index unique partiel) face aux transitions de retour de la machine d'état du parent (contestation, réouverture, reprise, annulation après coup) : ligne née d'un état que le parent a quitté, jamais retirée ni recalculée — né de P224.01 et P224.03 | à faire |
+| 239 | Avis envoyés par `Notification::send()` ou `->notify()` directs, hors de `NotificationService::send` qui écarte les comptes non joignables (l. 73-78, TCK-1350) : une cinquantaine de sites sous `app/Jobs`, `app/Console`, `app/Services` et `app/Http/Controllers` (`EscalateUrgentMaintenanceJob`, `RemindTenantOnboarding`, `BookingExpirationService`, `MaintenanceRequestController::sendUrgentAlert`, et leurs pareils) dont le destinataire peut être un compte `blocked` : courriel et avis remis à un compte que la plateforme a fermé — né de P225.01 et P225.02 | à faire |
 
 
 ---
@@ -20273,3 +20274,121 @@ sans `delete`).*
 - Piste : charger `maintenanceRequest` (champs `id,status`) et afficher son état, avec un avertissement quand elle n'est ni `completed` ni `closed`. Le correctif d'API de P224.01 reste la garde ; ceci n'en est que la lecture.
 - Mesure (2026-10-24, 441b83b8e, mesureur) : relu `payments.ts:450-492` (`fields[service_provider_bills]` seul, ni `include=maintenanceRequest`), `ServiceProviderBillsTable.tsx:77` (validation sur `bill.status` seul) et l. 208 (`#<id>`) ; `ServiceProviderBill::$requestLoadable` offre `maintenanceRequest` (l. 49), mais `ServiceProviderBillResource` ne rend que `maintenance_request_id` (l. 15, aucun `whenLoaded`) : la `Piste` demande donc aussi de toucher la ressource, ce que le constat ne dit pas → le constat tient. Classement : V7, afficher l'état de l'intervention et un avertissement est un comportement visible et un texte neufs.
 - Mesure (2026-10-24, c1e3d4b6b, delegue) : relu l'entrée et la `Mesure` du mesureur, `ServiceProviderBillResource.php:13-31` (aucun `whenLoaded`, `maintenance_request_id` seul), `payments.ts:450-466` (`SERVICE_PROVIDER_BILL_FIELDS`, sans `include`), `ServiceProviderBillsTable.tsx:75-77` (validation et rejet ouverts en mode `agency` sur `bill.status === 'pending_validation'` seul) et l. 207-208 (`#<id>`) ; statuts de P224.01 à P224.03 (`retenu · à valider`, V1, encore au porteur) ; `grep -n "porteur ("` du fichier sur les factures d'intervention → aucune décision ; décision voisine du délégué sur P199 (un champ neuf du contrat de l'API n'est pas un choix mineur). Recommandation : rendre `maintenance_request` par `whenLoaded` dans `ServiceProviderBillResource` (`id`, `status`), le demander par `include=maintenanceRequest&fields[maintenance_requests]=id,status` dans la liste, afficher l'état à côté de `#<id>` par les libellés d'état d'intervention déjà traduits, et un avertissement en mode `agency` quand l'intervention n'est ni `completed` ni `closed`, sans masquer le bouton de validation (le refus reste la garde d'API de P224.01) ; non validé : l'avertissement est un texte neuf sur l'écran qui fait valider et payer une facture (V7 non mineur, et lecture d'un geste d'argent, V1 voisin que le mesureur n'avait pas nommé), et la ressource gagne un champ du contrat ; manque : la décision du porteur sur P224.01 (ce que devient une facture d'intervention annulée), dont dépend le texte de l'avertissement, et son accord sur le libellé.
+
+## Angle 225 — Ce que l'agence attache à son administrateur principal quand ce compte part
+
+*Exploré le 2026-10-24 sur `pre-dev` 4ac84c0e7, par l'explorateur, sans sous-agent.*
+
+*Relu par l'explorateur lui-même :*
+- *tous les lecteurs de `primary_admin_id` et de `primaryAdmin` sous `app/` (`grep -rn`) : `AgencyPolicy`, `AgencyIndicatorPolicy`, `RoleDelegationPolicy`, `BankStatementPolicy`, `InvitationPolicy`, `MediaPolicy`, `RegenerateWatermarksController`, `StoreRoleDelegationRequest`, `AgencyController::store`, `UserRoleController::assertRoleChangeable`, `TeamMemberSuspensionService`, `AgencyMemberRemovalService`, `UserLifecycleController::block`, `AgencyProvisioningService`, `HostIndividualOnboardingService`, `EscalateUrgentMaintenanceJob`, `MaintenanceRequestController::sendUrgentAlert`, `RemindTenantOnboarding`, `BookingExpirationService::resolveFallbackAgent`, `KycWorkflowService::notifyReviewed`, `NotifyStatementFinalized`, `PaymentGatewayService::notifyDuplicatePayment`, `AgencySetupStatus`, `WelcomeCreditService`, `PlatformPayoutService::assertNotBeneficiary` ;*
+- *les pièces voisines : `AdminsDeLAgence`, `NotificationService::send` et `RienPourUnCompteEfface` ;*
+- *côté front : `RegenerateWatermarksCard.tsx` et `pages-admin.ts`.*
+
+*Mesures par un test temporaire (`tests/Feature/TmpExplorateur/SondeAngle225Test.php`, retiré), sur une base créée par le test, charge 1,98 / 2,86 / 3,37 sur 8 cœurs. Le compte « effacé » y est simulé par `status = deleted` puis `delete()` (suppression douce), sans passer par `AccountDeletionService::executeDeletion()`.*
+
+*Ce que ce passage ne relève pas :*
+- *l'effacement de l'administrateur principal lui-même, sujet de P204.02. Son correctif est validé (le titre passe à un autre administrateur à l'exécution, ou l'agence devient `inactive`) mais pas encore implémenté. Les entrées ci-dessous relèvent les lecteurs du titre, et ce que ce correctif ne couvre pas : le compte bloqué, et les agences déjà dans cet état ;*
+- *les passe-droits des policies, comme défauts. Un compte bloqué ou effacé n'ouvre aucune session (lu, `User::canOpenSession()`, l. 789-793), donc il ne s'en sert pas. Le vrai défaut est que personne d'autre ne tient le geste (P225.04) ;*
+- *les avis qui passent par `NotificationService::send` (verdict KYC, relevé finalisé, paiement en double). Ce service écarte déjà les comptes bloqués ou effacés (lu, l. 73-78) : ces avis ne partent à personne, sans erreur.*
+
+### L'escalade d'une intervention urgente ne vise que l'administrateur principal : effacé, elle ne part à personne et se marque faite ; bloqué, elle part au compte fermé
+- Réf : P225.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Jobs/EscalateUrgentMaintenanceJob.php:20,35-44`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:267-277`
+- Constat :
+  - Le job charge `property.agency.primaryAdmin`. Si la relation n'est pas nulle, il l'envoie par `Notification::send()`. Il pose ensuite `escalated_at` dans tous les cas (lu, l. 35-44). Aucun autre administrateur n'est lu.
+  - L'alerte d'urgence d'origine vise l'assigné et l'administrateur principal, et aucun autre administrateur (lu, `sendUrgentAlert`, l. 270-277).
+  - Mesuré (test temporaire) : agence à deux administrateurs actifs, dont l'administrateur principal ; intervention urgente ouverte depuis 2 h.
+    - Administrateur principal **effacé** : `EscalateUrgentMaintenanceJob::handle()` envoie 0 avis à l'administrateur principal et **0 au co-administrateur**, puis pose `escalated_at`. L'escalade ne repassera plus (filtre `whereNull(escalated_at)`, l. 24).
+    - Administrateur principal **bloqué** : 1 avis à l'administrateur principal, 0 au co-administrateur.
+  - Pourquoi le compte bloqué reçoit l'avis :
+    - `Notification::send()` ne passe pas par le filtre `joignable` de `NotificationService::send` (lu, l. 73-78) ;
+    - `RienPourUnCompteEfface` n'arrête que les comptes supprimés en douceur (lu, l. 24-31).
+  - Le courriel part donc à un compte qui ne peut plus ouvrir de session. Ce point est déduit de `Notification::fake` et reste à vérifier sur un envoi réel.
+  - Établi comment : lu, et mesuré par le test temporaire.
+- Piste : adresser l'escalade et l'alerte d'urgence aux administrateurs actifs et joignables de l'agence (`AdminsDeLAgence::destinataires`), l'administrateur principal n'étant qu'un repli. Ne poser `escalated_at` que si un avis est parti, ou sinon le dire au journal. Garde : un test « administrateur principal effacé, co-administrateur actif » qui exige l'avis au co-administrateur.
+
+### Le rappel de l'état des lieux, le repli de l'expiration de réservation et celui du verdict KYC visent l'administrateur principal sans juger qu'il est joignable
+- Réf : P225.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Console/Commands/RemindTenantOnboarding.php:39,56-67`, `takussan-api/app/Services/Booking/BookingExpirationService.php:275-283,303-306`, `takussan-api/app/Services/Kyc/KycWorkflowService.php:262-267`
+- Constat :
+  - `RemindTenantOnboarding` envoie le rappel « agent » à `lease.agency.primaryAdmin` par `Notification::send()`, faute d'agent attitré (lu, commentaire l. 56-59). Un administrateur principal bloqué le reçoit, et aucun autre membre ne le reçoit (lu).
+  - `BookingExpirationService::resolveFallbackAgent` rend l'administrateur principal en dernier repli, sans lire son statut. L'avis part par `->notify()` (lu, l. 282, 303-306).
+  - `KycWorkflowService::notifyReviewed` retient les administrateurs joignables (`AdminsDeLAgence`) qui tiennent la capacité. À défaut, il se replie sur `primaryAdmin` sans le juger (lu, l. 262-267). L'avis passe ici par `NotificationService::send`, qui l'écarte si le compte est bloqué : le verdict ne part alors à personne (lu, à vérifier par un envoi).
+  - Les trois sites n'ont pas été rejoués. Le comportement de `Notification::send()` vers un compte bloqué est mesuré en P225.01.
+  - Établi comment : lu.
+- Piste : faire passer ces trois replis par une même lecture : les administrateurs joignables de l'agence, puis l'administrateur principal s'il est joignable. L'angle 239 relève les autres envois directs. Garde : un test par site, avec l'administrateur principal bloqué et un co-administrateur actif.
+
+### La carte de mise en service compte l'administrateur principal effacé : « 2FA des administrateurs » repasse à faux pour toujours
+- Réf : P225.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Agency/AgencySetupStatus.php:81,90-99,102-121`
+- Constat :
+  - `adminIds()` ajoute `primary_admin_id` aux profils `AgencyAdminProfile` actifs sans lire le compte (lu, l. 109).
+  - `adminsHaveTwoFactor()` compte ensuite les comptes à 2FA par `User::query()->whereIn(…)->where('two_factor_enabled', true)`, et exige que ce compte égale celui des administrateurs (lu, l. 118-120). Or un compte supprimé en douceur n'est pas relu par `User::query()`.
+  - Mesuré (test temporaire) : agence à deux administrateurs avec la 2FA, dont l'administrateur principal.
+    - `GET /api/agencies/{id}/setup-status` par le co-administrateur → `admin_two_factor` vaut `true`.
+    - Administrateur principal effacé → `admin_two_factor` vaut **`false`**. Aucun geste de l'agence ne le fait repasser à `true`, puisque le titre ne se transmet pas (P225.05).
+    - Administrateur principal **bloqué**, avec la 2FA → `admin_two_factor` reste `true` : le compte bloqué est compté comme administrateur.
+  - `first_member` compte lui aussi l'administrateur principal par `adminIds()` (lu, l. 90-99), quel que soit son statut.
+  - Établi comment : lu, et mesuré.
+- Piste : lire les administrateurs de la carte par les seuls profils actifs de comptes joignables. Ne pas y ajouter `primary_admin_id` à part, ou seulement s'il est joignable. Voir P204.02 : son correctif fera passer le titre à l'exécution pour les effacements à venir, mais ne reprendra pas les agences déjà dans cet état. Garde : le test ci-dessus.
+
+### Régénérer les filigranes n'est permis qu'à l'administrateur principal : bloqué ou effacé, plus personne dans l'agence ne le peut
+- Réf : P225.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Agency/RegenerateWatermarksController.php:17-20`, `takussan-web/src/components/admin-agency/RegenerateWatermarksCard.tsx:31-34`, `takussan-web/src/app/(dashboard)/app/agency/page.tsx:66`
+- Constat :
+  - La garde est `primary_admin_id === user->id || isSuperAdmin()`, sans capacité ni autre administrateur (lu).
+  - C'est le seul geste d'agence relevé dans ce passage qu'aucune capacité n'ouvre. Les autres passe-droits du titre ont tous une seconde branche par capacité (lu) : `AgencyPolicy` (`update`, `configure`, `removeMember`, `changeMemberRole`, `updateKyc`), `AgencyIndicatorPolicy`, `InvitationPolicy` et `MediaPolicy::viewRaw`.
+  - Mesuré (test temporaire) : co-administrateur actif avec la 2FA, administrateur principal bloqué puis effacé → `POST /api/agencies/{id}/regenerate-watermarks` rend **403** dans les deux cas.
+  - La carte est affichée à tout administrateur de la page `/app/agency` (lu, `page.tsx:66`, `pages-admin.ts:86-89`). Son docblock assume le 403 du co-administrateur (lu, l. 31-34). Ce choix d'écran tient tant qu'un administrateur principal joignable existe ; sans lui, le geste n'a plus de titulaire dans l'agence.
+  - Établi comment : lu, et mesuré.
+- Piste : juger le geste par `AgencyPolicy::configure` (capacité `agency.update`, administrateur principal en court-circuit), comme le logo. Garde : un test « co-administrateur qui tient `agency.update` → 202 ».
+
+### Le titre d'administrateur principal ne se transmet par aucune route, et le blocage d'un compte par la plateforme ne le lit pas
+- Réf : P225.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/UserLifecycleController.php:39-56,97-101`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:47-69`, `takussan-api/app/Services/Admin/AgencyProvisioningService.php:81`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:260`
+- Constat :
+  - `primary_admin_id` n'est écrit qu'à la création d'une agence (lu) : `AgencyController::store` (l. 61), `AgencyProvisioningService` (l. 81) et `HostIndividualOnboardingService` (l. 260).
+  - Établi par `grep -rn "primary_admin_id" app` : aucune requête de `app/Http/Requests` ne l'accepte (seule `StoreRoleDelegationRequest` le lit, l. 80), et aucune route de la console ne modifie une agence. Le titre ne change donc jamais, pas même par le super-admin.
+  - Les trois voies de sortie du personnel refusent l'administrateur principal (lu) :
+    - le retrait : `agency_member.cannot_remove_primary_admin`, `AgencyMemberRemovalService.php:59` ;
+    - la suspension : `team.suspension_primary_admin`, `TeamMemberSuspensionService.php:59` ;
+    - la rétrogradation : `user.role_primary_admin`, `UserRoleController.php:111-116`.
+
+    Un administrateur principal qui quitte l'agence n'a donc aucun chemin, sauf effacer son compte (P204.02).
+  - Le blocage par la plateforme ne lit pas le titre. `block()` ne refuse que de se bloquer soi-même ou de bloquer un opérateur (`refuserSoiEtOperateur`, l. 97-101), puis bloque le compte et retire ses jetons (lu, l. 39-56). L'agence garde pour titulaire un compte sans session. Si c'était son seul administrateur, plus personne dans l'agence ne tient les gestes d'administration. Ce cas n'a pas été rejoué.
+  - Établi comment : lu, et `grep`.
+- Piste : deux décisions (V7).
+  - Un geste de transmission du titre à un autre administrateur actif, tenu par l'administrateur principal et par la console, et journalisé (`primary_admin_id` est déjà dans `Agency::AUDIT_ONLY`, l. 48). Le correctif validé de P204.02 réutiliserait ce geste à l'exécution de l'effacement.
+  - Si `block()` avertit, ou refuse, quand le compte est l'administrateur principal d'une agence active.
+
+  Garde : un test de transmission, et un test de blocage de l'administrateur principal.
+
+### `POST /api/agencies` fait de son auteur l'administrateur principal sans lui créer de profil d'administrateur
+- Réf : P225.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:47-69`, `takussan-api/app/Services/Admin/AgencyProvisioningService.php:141`, `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:272`
+- Constat :
+  - `store` crée l'agence avec `primary_admin_id` = l'auteur, et ne crée aucun profil (lu, l. 59-63). Les deux autres créations d'agence créent un `AgencyAdminProfile` (lu, `AgencyProvisioningService.php:141`, `HostIndividualOnboardingService.php:272`).
+  - Mesuré (test temporaire) : un compte sans agence envoie `POST /api/agencies {name}` → 201. Ensuite :
+    - l'agence a **0** `AgencyAdminProfile` ;
+    - `AdminsDeLAgence::destinataires` rend 0 compte ;
+    - `GET /api/me/capabilities` rend `{"agency_id": null, "capabilities": []}`.
+  - Mesuré : l'auteur obtient pourtant ce que les court-circuits du titre accordent, et il est refusé partout où la règle lit un profil.
+    - Accordé : `PATCH /api/agencies/{id}` → 200, `GET …/setup-status` → 200, `GET …/kyc` → 200.
+    - Refusé : `GET …/bank-statements` → 403, `GET …/role-delegations` → 403.
+  - Le front n'appelle jamais `POST /api/agencies` (déjà relevé par P91.01, lu). La route reste ouverte à tout compte connecté (`StoreAgencyRequest::authorize()` rend `true`, lu en P147.07).
+  - Établi comment : lu, et mesuré.
+- Piste : deux voies.
+  - Créer l'`AgencyAdminProfile` dans `store`, comme les deux autres voies, avec le rôle système (comme `AgencyProvisioningService::assignAgencyAdminRole`). Garde : un test « création → profil d'administrateur actif et capacités non vides ».
+  - Ou retirer la route, qui n'a pas d'appelant (A3, si le retrait se confirme des deux côtés). Garde : le test du 404.
