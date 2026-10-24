@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { localeDateFns } from '@/lib/format/dateFnsLocale';
+import { decalerAnnees, decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
 import {
   useCalendarFeeds,
   useCreateCalendarFeed,
@@ -147,6 +148,9 @@ function BlockDatesSection({
   const [endsOn, setEndsOn] = useState('');
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // `StorePropertyUnavailabilityRequest` : `ends_on` `after:starts_on` et `before_or_equal:` le jour
+  // de l'API + 24 mois. La première nuit s'arrête donc la veille de cette borne (P230.02).
+  const [derniereReprise] = useState(() => decalerAnnees(jourDeLApi(), 2));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -169,11 +173,11 @@ function BlockDatesSection({
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-sm">
             <span className="text-foreground">{t('blockFrom')}</span>
-            <DatePicker required value={startsOn} onValueChange={setStartsOn} min={today} placeholder={t('blockFrom')} />
+            <DatePicker required value={startsOn} onValueChange={setStartsOn} min={today} max={decalerJour(derniereReprise, -1)} placeholder={t('blockFrom')} />
           </label>
           <label className="space-y-1 text-sm">
             <span className="text-foreground">{t('blockTo')}</span>
-            <DatePicker required value={endsOn} onValueChange={setEndsOn} min={startsOn || today} placeholder={t('blockTo')} />
+            <DatePicker required value={endsOn} onValueChange={setEndsOn} min={decalerJour(startsOn || today, 1)} max={derniereReprise} placeholder={t('blockTo')} />
           </label>
         </div>
         <label className="block space-y-1 text-sm">
