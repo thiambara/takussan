@@ -4824,7 +4824,7 @@ position)`, qui sert aussi d'index à la clé étrangère ; CHECK `property_boos
 | `properties.*` | `properties.create`, `properties.update_any`, `properties.update_own`, `properties.delete`, `properties.publish`, `properties.moderate` |
 | `bookings.*` | `bookings.validate`, `bookings.cancel`, `bookings.refund` |
 | `leases.*` | `leases.create`, `leases.sign`, `leases.terminate`, `leases.renew`, `leases.refund_deposit`, `leases.rent_review`, `leases.rent_review_force` |
-| `payments.*` | `payments.record`, `payments.refund`, `payments.export` |
+| `payments.*` | `payments.record`, `payments.refund`, `payments.export`, `payments.reconcile` (TCK-2260, ADR-0003 amendé le 2026-10-24 — le rapprochement bancaire ; admin d'agence par défaut, agent système non) |
 | `invoices.*` | `invoices.create`, `invoices.write_off`, `invoices.send` |
 | `payouts.*` | `payouts.create`, `payouts.approve` |
 | `crm.*` | `crm.view_all`, `crm.export`, `crm.assign` |
