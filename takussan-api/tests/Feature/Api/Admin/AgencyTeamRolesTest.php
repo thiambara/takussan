@@ -41,4 +41,26 @@ class AgencyTeamRolesTest extends TestCase
             ->keyBy('id');
         $this->assertSame(['agency_admin', 'owner', 'customer'], $lignesB[$membre->id]['roles']);
     }
+
+    /**
+     * TCK-2004 (ADR-0005, amendement du 2026-10-23, point 3) — les vues super-admin gardent les
+     * profils suspendus : l'opérateur doit voir qu'un compte A un profil suspendu, quand `/api/auth/me`
+     * ne le compte plus (TCK-2002).
+     */
+    public function test_les_vues_de_la_console_gardent_un_profil_suspendu(): void
+    {
+        $this->actingAsRole('super_admin');
+        $a = Agency::factory()->create();
+        $membre = User::factory()->create();
+        AgentProfile::factory()->suspended()->create(['user_id' => $membre->id, 'agency_id' => $a->id]);
+        AgencyAdminProfile::factory()->suspended()->create(['user_id' => $membre->id, 'agency_id' => $a->id]);
+
+        $lignes = collect($this->getJson("/api/admin/agencies/{$a->id}/team?per_page=100")->assertOk()->json('data'))
+            ->keyBy('id');
+        $this->assertSame(['agency_admin', 'agent', 'customer'], $lignes[$membre->id]['roles']);
+
+        $roles = collect($this->getJson("/api/admin/users/{$membre->id}")->assertOk()->json('data.roles'))->pluck('name');
+        $this->assertContains('agency_admin', $roles);
+        $this->assertContains('agent', $roles);
+    }
 }

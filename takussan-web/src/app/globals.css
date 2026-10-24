@@ -293,11 +293,15 @@
   --color-surface: var(--surface);
   --color-surface-container: var(--surface-container);
 
-  /* Fonts — Contemporain (Bricolage Grotesque + DM Sans). */
-  --font-sans: "DM Sans", "DM Sans Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Bricolage Grotesque", "Bricolage Grotesque Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-heading: "Bricolage Grotesque", "Bricolage Grotesque Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-headline: "Bricolage Grotesque", "Bricolage Grotesque Fallback", ui-sans-serif, system-ui, sans-serif;
+  /* Fonts — Contemporain (Bricolage Grotesque + DM Sans), posées par `src/app/layout.tsx`.
+     ADR-0074 — par leurs VARIABLES, jamais par leur nom : `next/font/local` nomme la famille
+     d'après la constante JS (`dmSans`), et un nom écrit ici ne désignerait plus aucune face.
+     La variable `-ext` (latin-ext, le « ŋ » du wolof) vient en tête : son unicode-range ne
+     couvre pas l'espace, elle ne pèse ni sur les métriques ni sur le texte latin. */
+  --font-sans: var(--font-dm-sans-ext), var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage-ext), var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-bricolage-ext), var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-headline: var(--font-bricolage-ext), var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
 
   /* Sidebar */
   --color-sidebar-ring: var(--sidebar-ring);

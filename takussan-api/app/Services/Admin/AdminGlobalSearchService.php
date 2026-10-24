@@ -15,6 +15,7 @@ use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
+use App\Support\TelephoneSaisi;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -158,18 +159,14 @@ class AdminGlobalSearchService
     /**
      * `77 123 45 67`, `+221 77 123 45 67`, `00221771234567`, `221771234567` → `+221771234567` ;
      * `null` si la saisie n'a pas la forme d'un numéro.
+     *
+     * P125.05 (TCK-2025) — la forme vient de {@see TelephoneSaisi::normaliser()}, le normaliseur de
+     * saisie commun : la recherche trouve le numéro que la fiche client et les formulaires ont rangé.
      */
     public static function phoneCandidate(string $q): ?string
     {
-        $compact = preg_replace('/[\s.\-()]/', '', $q) ?? $q;
-        $candidate = match (true) {
-            preg_match('/^[37]\d{8}$/', $compact) === 1 => '+221'.$compact,
-            preg_match('/^221[37]\d{8}$/', $compact) === 1 => '+'.$compact,
-            str_starts_with($compact, '00') => '+'.substr($compact, 2),
-            str_starts_with($compact, '+') => $compact,
-            default => null,
-        };
-        if ($candidate === null) {
+        $candidate = TelephoneSaisi::normaliser($q);
+        if (! is_string($candidate) || ! str_starts_with($candidate, '+')) {
             return null;
         }
 

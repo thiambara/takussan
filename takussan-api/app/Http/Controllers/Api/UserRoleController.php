@@ -88,7 +88,11 @@ class UserRoleController extends Controller
                 // TCK-278 — `roles` est dérivé des profils polymorphes
                 // (cf. Règle 5) ; expose-le pour rétro-compat des clients
                 // qui utilisaient la sortie spatie.
-                'roles' => $user->fresh()->profileTypes()->all(),
+                // TCK-2004 (P176.04 ; ADR-0005, amendement du 2026-10-23, point 4) — rapporté à
+                // l'agence où le rôle vient d'être posé, qui tient lieu d'agence de la route : rien
+                // de ce que la cible tient dans une autre agence.
+                'roles' => $user->fresh()->memberProfileTypesAt((int) $targetAgencyId)->all(),
+                'role_statuses' => (object) $user->fresh()->profileStatusesAt((int) $targetAgencyId),
             ],
         ]);
     }

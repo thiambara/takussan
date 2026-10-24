@@ -5,10 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  * appelle la recherche publique pour ses rangées, et chaque affichage comptait des impressions
  * sponsorisées qu'il ne montre pas. Il reste un outil de développement (`next dev`).
  */
-vi.mock('next/font/google', () => {
-  const police = () => ({ variable: 'police' });
-  return { Manrope: police, Inter: police, Fraunces: police };
-});
+vi.mock('next/font/local', () => ({ default: () => ({ variable: 'police' }) }));
 vi.mock('../PlaygroundClient', () => ({ PlaygroundClient: () => null }));
 vi.mock('next/navigation', () => ({
   notFound: () => {

@@ -17,7 +17,9 @@ use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\RoleDelegation;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Profiles\ActiveProfileResolver;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -278,6 +280,140 @@ trait HasProfiles
         }
 
         return $types->values();
+    }
+
+    /**
+     * TCK-2002 (P176.02, P176.03 ; ADR-0005, amendement du 2026-10-23) — la variante « actifs
+     * seulement » de {@see self::profileTypes()}, bornée à UNE agence : les types des profils
+     * d'agence ACTIFS tenus dans `$agencyId`, puis les types globaux (`super_admin`,
+     * `service_provider` actif, `customer`, `tenant`), dans l'ordre de `profileTypes()`.
+     *
+     * `$agencyId` nul = aucune agence en jeu : seuls les types globaux sortent. C'est le `roles` de
+     * `/api/auth/me` (`UserResource`), lu avec l'agence du profil actif. Un profil suspendu,
+     * archivé, inactif ou bloqué ne confère aucun rôle (ADR-0031 § 3), même règle que
+     * `getAgencyIdAttribute()` : {@see ActiveProfileResolver::isActiveProfile()}.
+     *
+     * @return Collection<int,string>
+     */
+    public function activeProfileTypesAt(?int $agencyId): Collection
+    {
+        return $this->typesRetenus(fn ($profile): bool => $agencyId !== null
+            && (int) $profile->agency_id === $agencyId
+            && ActiveProfileResolver::isActiveProfile($profile));
+    }
+
+    /**
+     * TCK-2004 (P176.04 ; ADR-0005, amendement du 2026-10-23, point 4) — les types tenus dans
+     * l'agence de la route d'une liste de membres, QUEL QUE SOIT leur statut : la liste d'équipe
+     * teste une appartenance (ADR-0031 § 3), et l'admin doit voir le membre suspendu pour le
+     * réactiver. Le statut sort à côté, par {@see self::profileStatusesAt()}. Les types globaux
+     * suivent la règle de {@see self::activeProfileTypesAt()}.
+     *
+     * @return Collection<int,string>
+     */
+    public function memberProfileTypesAt(int $agencyId): Collection
+    {
+        return $this->typesRetenus(fn ($profile): bool => (int) $profile->agency_id === $agencyId);
+    }
+
+    /**
+     * TCK-2004 — le statut de chaque profil d'agence tenu dans `$agencyId`, par type
+     * (`['agent' => 'suspended']`).
+     *
+     * @return array<string,string>
+     */
+    public function profileStatusesAt(int $agencyId): array
+    {
+        $statuts = [];
+        foreach (self::AGENCY_PROFILE_RELATIONS as $relation => $type) {
+            $profile = $this->profileRows($relation)->first(fn ($p): bool => (int) $p->agency_id === $agencyId);
+            if ($profile !== null) {
+                $status = $profile->getAttribute('status');
+                $statuts[$type] = $status instanceof \BackedEnum ? (string) $status->value : (string) $status;
+            }
+        }
+
+        return $statuts;
+    }
+
+    /**
+     * TCK-2006 (P176.05 ; ADR-0005, amendement du 2026-10-23, point 2) — la variante « actifs
+     * seulement », toutes agences : le critère `roles` du ciblage des annonces et des drapeaux.
+     *
+     * @return Collection<int,string>
+     */
+    public function activeProfileTypes(): Collection
+    {
+        return $this->typesRetenus(fn ($profile): bool => ActiveProfileResolver::isActiveProfile($profile));
+    }
+
+    /**
+     * TCK-2006 (P176.05 ; ADR-0005, amendement du 2026-10-23, point 2) — les agences où le compte
+     * tient un profil ACTIF, toutes : le critère `agency_ids` du ciblage, qui ne dépend plus du profil
+     * actif de la requête.
+     *
+     * @return list<int>
+     */
+    public function activeAgencyIds(): array
+    {
+        $ids = [];
+        foreach (array_keys(self::AGENCY_PROFILE_RELATIONS) as $relation) {
+            foreach ($this->profileRows($relation) as $profile) {
+                if (ActiveProfileResolver::isActiveProfile($profile)) {
+                    $ids[] = (int) $profile->agency_id;
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /** Les relations de profil d'agence, dans l'ordre de `profileTypes()`, et leur type. */
+    private const AGENCY_PROFILE_RELATIONS = [
+        'agencyAdminProfiles' => 'agency_admin',
+        'agentProfiles' => 'agent',
+        'ownerProfiles' => 'owner',
+    ];
+
+    /**
+     * Le calcul commun des variantes de `profileTypes()` : un type d'agence sort si l'une de ses
+     * lignes passe `$retenu` ; les types globaux suivent la règle des profils actifs.
+     *
+     * @param  callable(Model): bool  $retenu
+     * @return Collection<int,string>
+     */
+    private function typesRetenus(callable $retenu): Collection
+    {
+        $types = new Collection;
+        if ($this->hasActiveSuperAdminProfile()) {
+            $types->push('super_admin');
+        }
+        foreach (self::AGENCY_PROFILE_RELATIONS as $relation => $type) {
+            if ($this->profileRows($relation)->contains($retenu)) {
+                $types->push($type);
+            }
+        }
+        $prestataire = $this->relationLoaded('serviceProviderProfile')
+            ? $this->serviceProviderProfile
+            : $this->serviceProviderProfile()->first();
+        if ($prestataire !== null && ActiveProfileResolver::isActiveProfile($prestataire)) {
+            $types->push('service_provider');
+        }
+        $types->push('customer');
+        if ($this->hasActiveTenantLease()) {
+            $types->push('tenant');
+        }
+
+        return $types->values();
+    }
+
+    /**
+     * Les lignes d'une relation de profil d'agence : la relation préchargée quand elle l'est (une
+     * liste de membres, TCK-653), sinon une lecture.
+     */
+    private function profileRows(string $relation): Collection
+    {
+        return $this->relationLoaded($relation) ? $this->getRelation($relation) : $this->{$relation}()->get();
     }
 
     /**
