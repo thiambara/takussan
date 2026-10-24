@@ -117,9 +117,18 @@ Pour que les autres te lisent de même, ton titre et ton corps de PR citent ce q
 
 ## Mode réparation
 
-Le message de lancement donne ta PR, et les checks rouges ou le conflit.
+Le message de lancement donne ta PR, les checks rouges de sa tête courante ou le conflit, et
+**le dernier run rouge conclu de ta branche, toutes têtes confondues, avec ses tests**
+(amendement d'ADR-0066 du 2026-10-24).
 
 - **Tu répares cela et rien d'autre.** Aucun travail neuf dans une réparation.
+- **Le dernier run rouge conclu reste à réparer** même quand la tête courante n'a aucun check
+  rouge : sa CI tourne encore (après un rafraîchissement de la base), ou la PR est en conflit. Le
+  2026-10-24, une réparation de #1469 a résolu le conflit et écrit « aucun check rouge à corriger »,
+  alors que `DashboardQueryBudgetTest` rougissait depuis une heure. Après le conflit, lance ces tests
+  par leur nom sur ta branche. S'ils rougissent, corrige-les dans la même réparation. N'écris
+  « aucun rouge » que si le message dit « aucun », ou si tu as lancé ces tests et qu'ils passent :
+  donne alors la commande et sa sortie.
 - **Conflit** : `git merge origin/pre-dev`. Résous, en gardant les lignes `Mesure` des deux côtés,
   puis commite la fusion.
 - **Check rouge** : lis le journal du job (`gh run view <id> --log-failed`) et établis la cause.

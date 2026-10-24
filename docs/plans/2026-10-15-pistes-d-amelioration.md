@@ -305,7 +305,7 @@ voie d'écriture (angle 13, puis 47).
 | 226 | Paires polymorphes `*_type` / `*_id` et identifiants de ligne cible reçus du client sur les routes d'écriture (`invitable_*` hors du générique, `documentable_*`, `taskable_*`, `attachable_*`, `subject_*`, et leurs pareils dans `app/Http/Requests`), validés par `integer` ou `Rule::in` sans juger que la ligne visée existe et relève de l'agence de l'appelant : écriture ou effet posé sur la ligne d'une autre agence — né de P208.01 | fait |
 | 227 | Requêtes de création (`Store*Request` et leur contrôleur) restées plus larges que les gestes dédiés et les requêtes de modification resserrés depuis (statut, visibilité, assignation, contact principal, commission : `StorePropertyRequest` face à TCK-1341 et TCK-1427, `StoreLeaseRequest`, `StorePropertyCollaboratorRequest`, et leurs pareilles sous `app/Http/Requests`) : ce qu'un `PATCH` ou un geste refuse s'obtient en créant la ligne — né de P209.01 et P209.02 | fait |
 | 228 | Mutations lancées par `mutate()` sans `onError` et dont l'écran ne lit ni `error` ni `isError` (`generateSchedule` de `LeaseDetail.tsx:185`, `revoke` d'`AgentAbsencesSection.tsx:132`, `submit` d'`InventoryDetail.tsx:331`, et leurs pareilles sous `takussan-web/src/components`) : geste refusé par l'API sans rejet ni message, le bouton se réactive et rien ne dit l'échec — le pendant de l'angle 210 pour `mutate()` | fait |
-| 229 | Commandes et jobs planifiés qui chargent un lot de lignes puis appliquent une transition à chacune sur le modèle chargé, sans réclamation conditionnelle ni relecture sous verrou (`AutoCloseMaintenanceRequests`, `ProcessRoleDelegationsJob`, `KycExpiryService::run`, `ExpireInvitations`, `ExpireBookings`, `ExpireEndedLeasesJob`, `BoostLifecycle::endExpired`, et leurs pareils sous `app/Console` et `app/Jobs`) face au geste de l'utilisateur joué pendant le passage : geste écrasé, avis envoyé pour une ligne déjà sortie de l'état — né de P211.03 et P211.06 | à faire |
+| 229 | Commandes et jobs planifiés qui chargent un lot de lignes puis appliquent une transition à chacune sur le modèle chargé, sans réclamation conditionnelle ni relecture sous verrou (`AutoCloseMaintenanceRequests`, `ProcessRoleDelegationsJob`, `KycExpiryService::run`, `ExpireInvitations`, `ExpireBookings`, `ExpireEndedLeasesJob`, `BoostLifecycle::endExpired`, et leurs pareils sous `app/Console` et `app/Jobs`) face au geste de l'utilisateur joué pendant le passage : geste écrasé, avis envoyé pour une ligne déjà sortie de l'état — né de P211.03 et P211.06 | fait |
 | 230 | Règles de date relatives au jour des requêtes de l'API (`after:today`, `after_or_equal:today`, `before_or_equal:today`, `before_or_equal:+60 days`, une trentaine de lignes sous `app/Http/Requests`) face au `min`, au `max` et à la valeur pré-remplie du champ du front qui les nourrit (`DatePicker`, `<input type="date">`, défauts calculés) : jour proposé ou pré-rempli que l'API refuse en 422, ou borne de l'API absente du champ — le relevé systématique dont l'angle 212 n'a vu que quatre sites (P212.01, P212.03, P212.04, P212.06) | à faire |
 | 231 | Gestes qui « modifient » en clôturant une ligne et en ouvrant une neuve (`AgencySubscriptionService::assign`, et leurs pareils sous `app/Services` : renouvellement, reconduction, passation, re-téléversement) face aux champs de l'ancienne ligne que le geste ne reçoit pas (dérogations, essai, période, notes) : valeur négociée ou état en cours perdu sans que l'écran l'ait montré — né de P214.01 | à faire |
 | 232 | Lecteurs hors policy et hors liste qui tiennent `leases.landlord_id` ou `properties.user_id` pour le bailleur sans `BailleurDuBien` (`DashboardOwnerService:49`, `ExportDataService::scopeToActor`, `DataExportBuilder:121`, `OwnerStatementService:110,131`, `PayoutApprovalRule:66`, `ConversationAccess::constrainContext:199`) : agent créateur suspendu ou retiré qui compte, exporte ou lit encore les baux et loyers d'un bien qu'il a saisi — né de P217.03 | à faire |
@@ -321,6 +321,8 @@ voie d'écriture (angle 13, puis 47).
 | 242 | `POST /api/agencies/{id}/members` (`AgencyController::addAgent`), qui rattache un compte existant désigné par identifiant ou par e-mail en créant d'emblée son profil actif, face au parcours d'invitation (`InvitationService`, acceptation par le compte) : accord du compte visé, compte bailleur ou client d'une autre agence, avis envoyés, quota et profils restaurés — né de P227.03 | à faire |
 | 243 | Écritures optimistes du front posées avant la réponse (bascules du store local `favoritesStore` et pareils, `setQueryData` dans `onMutate`, `useState` mis à la valeur visée avant l'appel, sous `takussan-web/src/components` et `src/hooks`) sans retour arrière dans `onError` ni relecture sur l'échec : écran qui montre fait un geste que l'API a refusé — né de P228.03 | à faire |
 | 244 | Champs de saisie remis à zéro dans le même gestionnaire que l'envoi, avant la réponse (`onAdd(x); setX('')` de `NotesTab`, `mutate(x); reset()`, fermeture du dialogue au clic, sous `takussan-web/src/components`) face aux bornes de l'API que le champ ne porte pas (`max:` sans `maxLength`) : texte saisi perdu quand l'API refuse — né de P228.02 | à faire |
+| 245 | Colonnes JSON recomposées depuis le modèle chargé puis réécrites en entier (`$m->metadata = [...]; save()`, `forceFill(['reminders_sent' => …])`, `expiry_reminders`, sous `app/Jobs`, `app/Console`, `app/Services` et `app/Observers`) face à un second écrivain de la même colonne pendant l'écriture : clé posée entre-temps effacée, ou clé effacée remise — né de P229.03 | à faire |
+| 246 | Montants calculés hors de la transaction sur le modèle reçu, puis écrits après une relecture sous verrou qui ne rejuge que le statut (`LateFeeCalculator::apply`, et leurs pareils sous `app/Services` : pénalités, commissions, remboursements, reversements, crédits) : montant d'une ligne que la relecture a vue changer — né de P229.05 | à faire |
 
 
 ---
@@ -20637,3 +20639,78 @@ sans `delete`).*
 - Piste : une garde vitest de relevé statique, rouge sur tout appel neuf sans chemin d'erreur, une fois P228.01 à P228.05 traités (sinon, une liste d'exceptions datée). Un `onError` global sur `MutationCache` serait l'autre voie, mais il afficherait un message pour des gestes qui rattrapent déjà l'erreur eux-mêmes : c'est un choix d'écran.
 - Mesure (2026-10-24, d44d3bc59, mesureur) : relu `lib/query-client.ts:19-38` (ni `MutationCache` ni `onError` par défaut ; `mutations` : `retry: false`, `networkMode: 'always'`) ; `grep -rn MutationCache takussan-web/src` → 1, un test (`PaymentProviderPicker.hors-ligne.test.tsx:57`, lecture de `getMutationCache()`), aucune garde ; `ls src/lib/__tests__` → `relais-bff.tck-968.test.ts` et `api-relais-impersonation.test.ts`, aucune garde des `mutate(` ; `eslint.config` ne nomme pas `mutate` → le constat tient. Classement : A5, une garde vitest de relevé statique ajoutée, sans seuil existant resserré ; les sites de P228.01 restés ouverts (à valider) entrent dans sa liste d'exceptions datée.
 - Mesure (2026-10-24, 68ab70c5b, implementeur) : `grep -rn MutationCache takussan-web/src` → le seul test `PaymentProviderPicker.hors-ligne`, aucune garde des `mutate(` → le constat tient ; garde `mutations-chemin-d-erreur.p228-06.test.ts` (relevé statique, cas synthétiques, 133 appels relevés, deux exceptions motivées) ; ablation : les 13 composants de l'angle rendus à `pre-dev` → rouge sur 16 variables (les 18 appels de l'angle), arbre remis → vert.
+
+## Angle 229 — Tâches planifiées qui transitent une ligne chargée en lot, face au geste joué pendant leur passage
+
+*Exploré le 2026-10-24 sur `pre-dev` 94407183e, par l'explorateur, sans sous-agent. Les deux exemples nés de l'angle 211 ne sont pas repris : `maintenance:auto-close` est P211.03 (validé), `ProcessRoleDelegationsJob` est P211.06 (fait, TCK-2111), et `kyc:expire-dossiers` est dans P211.07. Relu par l'explorateur lui-même : `routes/console.php`, puis chaque tâche qui écrit un statut ou envoie un avis par ligne. Sont sains, et écartés : `ExpireBookings` et `ExpirePendingBookingsJob` (`BookingExpirationService::expire`, verrou puis `refresh()` puis `canBeExpired`), `CompleteEndedBookingsJob` et `ExpireEndedLeasesJob` (sélection rejouée sous `lockForUpdate`), `ConfirmEarlyTerminationsJob` (`EarlyTerminationService::confirm` relit sous verrou et lève, la tâche saute), `RenewAgencySubscriptionPeriods` (relu sous verrou), `boosts:tick` (`BoostLifecycle::end`, `claimTransition`, `closeWithRefund` : mises à jour conditionnelles sur `whereIn('status', live)`), `CreditLedger::expireDue` (verrou sur l'agence puis relecture des lots), `impersonation:close-expired` (`stop` relit sous verrou), `search-alerts:purge-unconfirmed` (un seul `delete` conditionnel), `account:execute-deletions` pour l'exécution (une annulation est refusée dès l'échéance passée, `AccountDeletionService.php:166`). Mesures : un test temporaire `tests/Feature/TmpExplorateur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,14 / 2,30 / 2,75 puis 2,93 / 2,51 / 2,80 sur 8 cœurs. Chaque cas joue le geste concurrent dans un écouteur `retrieved` du modèle, une seule fois : la tâche a déjà lu ses lignes, le geste passe et commite (par le service réel quand il existe, sinon par la mise à jour qu'il écrit), puis la tâche continue sur sa copie. Aucune course entre deux processus n'a été jouée ; la largeur réelle de la fenêtre (durée de la boucle, envois synchrones) n'est pas mesurée.*
+
+### `invitations:expire` repasse en `expired` une invitation relancée pendant son passage : le lien neuf rend 410, l'invitant est prévenu d'une expiration
+- Réf : P229.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Invitation/InvitationService.php:519-552,426-480`, `takussan-api/app/Console/Commands/ExpireInvitations.php`, `takussan-api/routes/console.php:121`
+- Constat :
+  - `expire()` charge toutes les invitations `sent` échues par `get()`, puis pour chacune `forceFill(['status' => expired])->save()` sur le modèle chargé, sans relecture ni condition sur le statut en base, et envoie `InvitationExpiredNotification` à l'invitant (lu, l. 523-549).
+  - `resend()` relit sous `lockForUpdate`, et son commentaire dit que ce verrou « ferme la course avec les écrivains qui ne passent pas par ici (le cron `invitations:expire`, la révocation) » (lu, l. 438-443). La tâche ne prend aucun verrou : le verrou d'un seul côté ne ferme rien.
+  - mesuré : invitation `sent` échue d'une heure, chargée par `expire()` ; `resend()` réel joué sur une copie fraîche (nouveau jeton, `expires_at` à J+7) → après le passage : `status = expired`, `expires_at = 2026-10-31T17:24:05`, un `InvitationExpiredNotification`. L'invité reçoit un lien neuf que `lookupActiveInvitation` refuse en 410 `invitation.token_expired` (lu, l. 627-639), et l'invitant lit « expirée » juste après avoir relancé.
+  - La relance est justement le geste attendu sur une invitation échue (`resend` accepte `sent` et `expired`, l. 428) ; la boucle envoie un courriel synchrone par invitation, ce qui élargit la fenêtre avec le nombre de lignes (lu ; durée non mesurée).
+  - Établi comment : lu et mesuré.
+- Piste : écrire l'expiration par une réclamation conditionnelle (`where('status', sent)->where('expires_at', '<=', $now)->whereKey($id)->update(…)`), ou relire la ligne sous verrou et rejuger statut et échéance ; n'écrire le journal et n'envoyer l'avis que si la ligne a été prise. Corriger le commentaire de `resend`. Garde : relance jouée après la lecture de la tâche → invitation `sent`, échéance neuve, aucun avis d'expiration.
+
+### La même expiration écrase une révocation ou une acceptation faite pendant son passage
+- Réf : P229.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Invitation/InvitationService.php:338-363,519-552,786-800`
+- Constat :
+  - mesuré : invitation `sent` échue chargée par `expire()`, `revoke()` réel joué sur une copie fraîche → après le passage : `status = expired`, `revoked_at` posé ; la révocation de l'agence est effacée du statut, et l'invitant reçoit l'avis d'expiration d'une invitation qu'il a révoquée.
+  - mesuré : invitation `sent` échue d'une minute chargée par `expire()`, ligne passée en base à `accepted` (`accepted_at` posé, ce qu'écrit `finalizeAccept`, lu l. 794-797) → après le passage : `status = expired`, `accepted_at` posé. Le profil créé à l'acceptation reste actif (non joué : `finalizeAccept` n'a pas été appelé) pendant que la liste des invitations montre l'invitation expirée, et l'invitant reçoit les deux avis (déduit, à vérifier). L'acceptation n'est possible que si `expires_at` est encore à venir au moment de `lookupActiveInvitation` (lu, l. 637-639), donc pour une acceptation commencée juste avant l'échéance : fenêtre étroite.
+  - `revoke()` lui-même juge le statut sur le modèle lié et écrit sans verrou (lu, l. 338-361) : une révocation sur un modèle resté `sent` repasse en `revoked` une invitation acceptée entre-temps (non joué, à vérifier).
+  - Établi comment : lu et mesuré.
+- Piste : la réclamation conditionnelle de P229.01 couvre les deux premiers cas ; `revoke` relit sous verrou et rejuge `accepted` / `revoked`, comme `resend`. Garde : révocation puis expiration sur la copie de la tâche → `revoked`, aucun avis.
+
+### L'escalade d'une intervention urgente part pour une demande déjà annulée ou remise en priorité normale, et réécrit ses `metadata` d'avant
+- Réf : P229.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/EscalateUrgentMaintenanceJob.php:19-55`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:222-236`, `takussan-api/routes/console.php:108`
+- Constat :
+  - Le job charge les demandes urgentes `open` ou `acknowledged` sans `escalated_at` par `get()`, envoie `UrgentMaintenanceCreatedNotification(isEscalation: true)` aux administrateurs, puis recompose `metadata` depuis le modèle chargé et l'écrit par `saveQuietly()` (lu, l. 21-54). Ni le statut, ni la priorité, ni `metadata` ne sont relus.
+  - La modification qui quitte l'urgence efface `urgent_since` et `escalated_at` de `metadata` (lu, contrôleur l. 228-235).
+  - mesuré : demande urgente `open` depuis 35 min, `metadata = {urgent_since, autre: x}`, chargée par le job ; ligne passée en base à `priority = normal`, `status = cancelled`, `metadata = {autre: y}` → l'avis d'escalade part à l'administrateur principal, et la ligne finit `normal`, `cancelled`, `metadata = {autre: x, urgent_since, escalated_at}` : la valeur écrite entre-temps est écrasée, et une demande normale porte une date d'urgence.
+  - Établi comment : lu et mesuré.
+- Piste : par demande, relire sous verrou (ou rejouer la sélection sur l'identifiant) avant d'envoyer, et écrire `escalated_at` seul (`jsonb_set`, ou relecture puis fusion sous verrou) ; l'avis après le commit. Garde : priorité baissée et demande annulée après la lecture du job → aucun avis, `metadata` intacte.
+
+### Le rappel d'effacement de compte part après que l'utilisateur a annulé sa demande
+- Réf : P229.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:37-49`, `takussan-api/app/Services/Account/AccountDeletionService.php:155-185,614-626`, `takussan-api/routes/console.php:96`
+- Constat :
+  - `account:execute-deletions` (toutes les heures) charge les demandes à rappeler par `dueForReminder()->get()`, puis envoie `AccountDeletionReminderNotification` et pose `reminder_sent_at` sur chaque modèle chargé, sans relire que la demande existe encore (lu).
+  - `cancelDeletion` est permise tant que `scheduled_for` est à venir, ce qui est le cas de toute demande à rappeler (lu, l. 166 et 621-622), et supprime la ligne (lu, l. 180).
+  - mesuré : demande à J+5 chargée par la commande, `cancelDeletion()` réel joué → la ligne est supprimée, `deletion_requested_at` nul, et le rappel part quand même. L'utilisateur qui vient d'annuler lit que son compte sera effacé à une date qui n'existe plus. L'écriture de `reminder_sent_at` sur la ligne supprimée ne touche rien (déduit, sans erreur au test).
+  - Établi comment : lu et mesuré.
+- Piste : relire la demande (sous verrou, ou `whereKey()->whereNull('executed_at')->whereNull('reminder_sent_at')->update(…)` comme réclamation) avant d'envoyer, et n'envoyer que si elle a été prise. Garde : annulation après la lecture de la commande → aucun rappel.
+
+### La pénalité de retard se calcule sur l'échéance lue par le lot, puis s'écrit sous verrou sans être recalculée
+- Réf : P229.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Lease/LateFeeCalculator.php:127-170,180-185`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:50-62`
+- Constat :
+  - `apply()` calcule `$amount = compute($payment)` et `$base` sur le modèle reçu du lot (`chunkById(200)`), hors transaction ; la transaction relit ensuite la ligne sous verrou et ne rejuge que `late_fee_applied_at` et le statut, puis écrit le montant calculé avant (lu, l. 129-159). La base est `remaining_amount`, dérivée de `metadata.paid_amount` (lu, l. 180-185, `HasPaymentAttributes.php:261-302`).
+  - mesuré : loyer `pending` de 100 000 échu de 7 jours, bail à 5 %, chargé par `ApplyLateFeesJob` ; ligne passée en base à `partially_paid` avec `paid_amount = 80 000` → la pénalité écrite est 5 000.00 (5 % de 100 000), restant 20 000 : la pénalité de la ligne relue serait 1 000. Le journal `late_fee_applied` et l'événement `LeasePaymentLateFeeApplied` portent la base d'avant (lu, l. 146-157).
+  - Établi comment : lu et mesuré.
+- Piste : calculer montant et base depuis la ligne verrouillée (`compute($locked)`), dans la transaction. Garde : paiement partiel posé après la lecture du lot → pénalité sur le restant relu.
+
+### Petites améliorations
+- Réf : P229.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Billing/AgencySubscriptionService.php:136-162`, `takussan-api/app/Services/Admin/ImpersonationService.php:161-172`
+- Constat :
+  - `processTrialExpirations` relit chaque abonnement par `find()` hors verrou et n'y rejuge que `status = trialing`, ni `ended_at`, ni `trial_ends_at`, ni le statut de l'agence de sa sélection ; puis `update(['status' => active])` (lu). Une annulation (`cancel`, sous verrou, `ended` + `ended_at`) jouée entre `find()` et `update()` donnerait un abonnement `active` à `ended_at` posé (déduit, fenêtre de quelques requêtes ; le cas joué au test temporaire n'a rien mesuré, la sélection n'ayant rendu aucune ligne : à vérifier). Le patron de `renewPeriods` (verrou, tous les critères rejugés) s'applique tel quel.
+  - `closeExpired` rend le nombre de sessions chargées, non le nombre de sessions fermées par `stop()` (qui saute une session déjà fermée) : la sortie de `impersonation:close-expired` compte aussi celles qu'un `stop` concurrent a fermées (lu).
+  - Établi comment : lu.
+- Piste : `processTrialExpirations` sur le modèle de `renewPeriods` ; `stop()` rend un booléen que `closeExpired` additionne.
