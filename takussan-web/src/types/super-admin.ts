@@ -969,7 +969,7 @@ export type AdminPropertiesResponse = {
 /** TCK-602 — la console « Paiements » : une échéance ou un acompte en échec ou en retard. */
 export type PaymentSupervisionRow = {
   type: 'lease_payment' | 'booking_payment';
-  reason: 'failed' | 'late';
+  reason: 'failed' | 'late' | 'refund_due';
   id: number;
   reference_number: string | null;
   status: string;

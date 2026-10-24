@@ -32,6 +32,7 @@ use App\Services\Payments\Dto\CheckoutSession;
 use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus as PaymentDriverStatus;
 use App\Services\Payments\Dto\WebhookAuthority;
+use App\Services\Payout\ObservedRefundPayout;
 use App\Services\Webhooks\WebhookJournal;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -667,6 +668,7 @@ class PaymentGatewayService
         $existingMeta = is_array($payment->metadata ?? null) ? $payment->metadata : [];
 
         $current = $this->currentPaymentStatus($payment);
+        $refundedBefore = (float) ($payment->refund_amount ?? 0);
 
         // Already paid / refunded — never regress to pending. We still log
         // the late event in metadata for traceability.
@@ -849,6 +851,17 @@ class PaymentGatewayService
         // trace du règlement se perdait. Il est rangé sous l'entrée de l'événement (`markAsProcessed`).
         $payment->metadata = $existingMeta;
         $payment->save();
+
+        // TCK-2052 (ADR-0039, amendement du 2026-10-23) — un remboursement appliqué par cet
+        // événement (branche `REFUNDED` ou `applyPendingRefund`) est de l'argent déjà sorti : un
+        // `Payout` constaté de la part neuve, dans la transaction de l'événement. Jugé APRÈS la
+        // sauvegarde : le règlement que lit `isSettledByPlatform` est alors celui de l'événement.
+        if ($payment instanceof LeasePayment || $payment instanceof BookingPayment) {
+            $refundedPart = (float) ($payment->refund_amount ?? 0) - $refundedBefore;
+            if ($refundedPart > 0) {
+                app(ObservedRefundPayout::class)->record($payment, $refundedPart, now());
+            }
+        }
 
         // TCK-873 (P39.03) — un acompte remboursé par le fournisseur clôt la tâche de remboursement,
         // comme le geste manuel.

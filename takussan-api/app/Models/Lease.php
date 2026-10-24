@@ -422,6 +422,8 @@ class Lease extends AbstractModel implements HasMedia
         $linked = Payout::query()
             ->where('lease_id', $this->getKey())
             ->where('payee_role', PayeeRole::Tenant->value)
+            // TCK-2052 — « `tenant` + `lease_id` » ne vaut caution que hors constaté.
+            ->whereNull('refunded_payment_id')
             ->whereNotNull('metadata->invoice_id')
             ->selectRaw("(metadata->>'invoice_id')::bigint");
 

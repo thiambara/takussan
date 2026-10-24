@@ -76,6 +76,8 @@ export default async function Page({
     type: asString(params.type),
     contract_type: asString(params.contract_type),
     visibility: asString(params.visibility),
+    // TCK-2036 (P198.03) — « publiés » au sens du catalogue, le lien de la tuile.
+    public: asString(params.public) === '1' ? '1' : undefined,
     search: asString(params.search),
     city: asString(params.city),
     user_id: asString(params.only_mine) === '1' ? String(user.id) : asString(params.user_id),
@@ -109,9 +111,12 @@ export default async function Page({
       // TCK-1382 (P138.08) — sans autre filtre que la portée, « Total » est le `meta.total` de la
       // liste elle-même : on ne le redemande pas.
       sansFiltreHorsPortee(filters) ? null : countProperties(token, { user_id: filters.user_id }),
+      // TCK-2036 (P198.03) — « Publiés » est la règle du catalogue (`Property::public()`,
+      // TCK-1115), celle de l'accueil d'agence : `visibility=public` seul gardait les biens loués,
+      // vendus ou en revue restés publics, et l'avertissement de numéro non vérifié le lisait.
       countProperties(token, {
         user_id: filters.user_id,
-        filter: { visibility: 'public' },
+        filter: { public: '1' },
       }),
       countProperties(token, {
         user_id: filters.user_id,
@@ -164,9 +169,9 @@ export default async function Page({
     {
       label: t('published'),
       value: publishedCount,
-      href: lienTuile('visibility=public'),
+      href: lienTuile('public=1'),
       tone: 'accent' as const,
-      active: currentVisibility === 'public',
+      active: filters.public === '1',
     },
     {
       label: t('soldRented'),

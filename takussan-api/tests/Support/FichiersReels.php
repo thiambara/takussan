@@ -127,6 +127,17 @@ final class FichiersReels
         return self::fichier(pack('N', 24).'ftypM4A '.pack('N', 0).'M4A isom'.str_repeat("\x00", 64), $nom);
     }
 
+    /**
+     * TCK-2058 (P194.02, ADR-0038 amendement du 2026-10-23) — un VRAI conteneur MP4 audio : une
+     * seconde d'AAC à 32 kbit/s produite par `afconvert -f mp4f -d aac` (une seule piste, `hdlr`
+     * `soun`), marque majeure posée à `isom`. `finfo` y lit `video/mp4` : il juge la marque `ftyp`,
+     * pas la piste.
+     */
+    public static function mp4Isom(string $nom = 'note-vocale.m4a'): UploadedFile
+    {
+        return self::fichier((string) file_get_contents(base_path('tests/fixtures/audio/note-vocale-isom.mp4')), $nom);
+    }
+
     private static function classeur(): Spreadsheet
     {
         $classeur = new Spreadsheet;

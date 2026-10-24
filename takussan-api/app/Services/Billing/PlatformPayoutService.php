@@ -208,16 +208,21 @@ class PlatformPayoutService
 
     public function cancel(PlatformPayout $payout, User $actor, string $reason): PlatformPayout
     {
-        $this->assertTransition($payout, PlatformPayoutStatus::Cancelled);
-
+        // TCK-2056 (P182.05) — la transition se juge sur la ligne VERROUILLÉE, dans la transaction,
+        // comme `approve` et `markPaid` : jugée sur le modèle de la route, hors transaction, elle
+        // laissait un `markPaid` concurrent être écrasé en `cancelled`, et ses lignes détachées
+        // revenir à la clôture suivante alors que l'argent était parti.
         DB::transaction(function () use ($payout, $reason): void {
+            $locked = PlatformPayout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
+            $this->assertTransition($locked, PlatformPayoutStatus::Cancelled);
+
             // Detach payments — they become eligible for a future close-period.
-            BookingPayment::query()->where('platform_payout_id', $payout->id)
+            BookingPayment::query()->where('platform_payout_id', $locked->id)
                 ->update(['platform_payout_id' => null]);
-            LeasePayment::query()->where('platform_payout_id', $payout->id)
+            LeasePayment::query()->where('platform_payout_id', $locked->id)
                 ->update(['platform_payout_id' => null]);
 
-            $payout->update([
+            $locked->update([
                 'status' => PlatformPayoutStatus::Cancelled,
                 'failure_reason' => $reason,
             ]);

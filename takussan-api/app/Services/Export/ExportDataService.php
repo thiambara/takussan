@@ -54,7 +54,7 @@ class ExportDataService
     public function payments(User $actor, array $filters = []): array
     {
         $query = LeasePayment::query()
-            ->select(['id', 'reference_number', 'lease_id', 'payer_id', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount', 'refund_amount'])
+            ->select(['id', 'reference_number', 'lease_id', 'payer_id', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount', 'refund_amount', 'late_fee_paid_at'])
             ->with(['lease:id,reference_number,agency_id,landlord_id', 'payer:id,first_name,last_name']);
 
         $this->scopeToActor($query, $actor, 'lease_payment');
@@ -77,11 +77,13 @@ class ExportDataService
                 'late_fee_amount' => (float) $p->late_fee_amount,
                 // TCK-1135 (P76.06) — la valeur en base, sans calcul.
                 'refund_amount' => $p->refund_amount !== null ? (float) $p->refund_amount : null,
+                // TCK-2060 (P206.05) — pénalité réglée ou due : la valeur en base, sans calcul.
+                'late_fee_paid_at' => $p->late_fee_paid_at?->toDateTimeString(),
             ];
         })->all();
 
         return [
-            'columns' => ['id', 'reference', 'lease', 'payer', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount', 'refund_amount'],
+            'columns' => ['id', 'reference', 'lease', 'payer', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount', 'refund_amount', 'late_fee_paid_at'],
             'rows' => $rows,
             'filename' => 'payments-'.now()->format('Ymd-His'),
         ];
@@ -197,7 +199,7 @@ class ExportDataService
     public function payouts(User $actor, array $filters = []): array
     {
         $query = Payout::query()
-            ->select(['id', 'reference_number', 'payee_role', 'landlord_id', 'lease_id', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at'])
+            ->select(['id', 'reference_number', 'payee_role', 'landlord_id', 'lease_id', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at', 'refunded_payment_type', 'refunded_payment_id'])
             ->with(['lease:id,reference_number', 'landlord:id,first_name,last_name,username']);
 
         $this->scopeToActor($query, $actor, 'payout');
@@ -219,10 +221,13 @@ class ExportDataService
             'status' => $p->status?->value,
             'approved_at' => $p->approved_at?->toDateTimeString(),
             'processed_at' => $p->processed_at?->toDateTimeString(),
+            'refunded_payment_type' => $p->refundedPaymentTypeKey(),
+            'refunded_payment_id' => $p->refunded_payment_id,
         ])->all();
 
         return [
-            'columns' => ['id', 'reference', 'payee_role', 'payee', 'lease', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at'],
+            // TCK-2052 — les deux dernières colonnes désignent le payable d'un `Payout` constaté.
+            'columns' => ['id', 'reference', 'payee_role', 'payee', 'lease', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at', 'refunded_payment_type', 'refunded_payment_id'],
             'rows' => $rows,
             'filename' => 'payouts-'.now()->format('Ymd-His'),
         ];

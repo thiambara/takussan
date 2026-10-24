@@ -50,9 +50,12 @@ class SendMessageConversationRequest extends BaseFormRequest
     /**
      * ADR-0038 — formats que produisent les navigateurs mobiles (`MediaRecorder`) et les lecteurs
      * courants. `video/webm` : ce que `finfo` rend pour un enregistrement Chrome sans piste vidéo.
+     * `video/mp4` (TCK-2058, amendement du 2026-10-23) : ce que `finfo` rend pour un MP4 audio de
+     * marque générique (`isom`, `iso5`, `iso6`, `mp42`) — il juge la marque `ftyp`, pas la piste ;
+     * seule la marque `M4A ` est lue `audio/x-m4a`. La borne de 2 Mo reste ce qui protège.
      */
     public const AUDIO_MIMETYPES = [
-        'audio/webm', 'video/webm', 'audio/ogg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/mpeg',
+        'audio/webm', 'video/webm', 'audio/ogg', 'audio/mp4', 'video/mp4', 'audio/x-m4a', 'audio/aac', 'audio/mpeg',
     ];
 
     /** ADR-0038 — la borne APPLIQUÉE (Ko). La durée, elle, est déclarée par le client. */

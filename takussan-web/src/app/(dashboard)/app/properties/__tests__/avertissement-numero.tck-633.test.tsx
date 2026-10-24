@@ -13,11 +13,12 @@ vi.mock('next-intl/server', () => ({ getTranslations: async () => (cle: string) 
 vi.mock('@/lib/queries/properties-server', () => ({
   fetchDashboardProperties: async (_token: string, params: { filters?: Record<string, string | undefined> }) => ({
     data: [],
-    meta: { total: params.filters?.visibility === 'public' ? me.enLigne : 0, current_page: 1, last_page: 1, per_page: 1 },
+    meta: { total: params.filters?.public === '1' ? me.enLigne : 0, current_page: 1, last_page: 1, per_page: 1 },
   }),
   // TCK-1382 — les compteurs passent par leur propre lecture, sans la liste.
+  // TCK-2036 — « en ligne » se compte par filter[public]=1, la règle du catalogue.
   countDashboardProperties: async (_token: string, filters?: Record<string, string | undefined>) =>
-    filters?.visibility === 'public' ? me.enLigne : 0,
+    filters?.public === '1' ? me.enLigne : 0,
 }));
 
 const rendu = vi.hoisted(() => ({ props: undefined as { phoneVerifiedAt?: string | null; annoncesEnLigne?: number } | undefined }));

@@ -795,7 +795,8 @@ class PayoutService
      */
     private function releaseDeposit(Payout $payout, PayoutStatus $previous, string $outcome, ?User $actor): void
     {
-        if ($payout->payee_role !== PayeeRole::Tenant || $payout->lease_id === null
+        // TCK-2052 — un constaté (remboursement déjà sorti) n'est pas une caution.
+        if ($payout->payee_role !== PayeeRole::Tenant || $payout->lease_id === null || $payout->isObservedRefund()
             || ! in_array($previous, PayoutStatus::holdingItems(), true)) {
             return;
         }
@@ -837,7 +838,7 @@ class PayoutService
     private function depositRefundLine(Payout $payout): ?LeasePayment
     {
         $lineId = $payout->metadata['lease_payment_id'] ?? null;
-        if ($payout->payee_role !== PayeeRole::Tenant || $payout->lease_id === null || $lineId === null) {
+        if ($payout->payee_role !== PayeeRole::Tenant || $payout->lease_id === null || $lineId === null || $payout->isObservedRefund()) {
             return null;
         }
 
