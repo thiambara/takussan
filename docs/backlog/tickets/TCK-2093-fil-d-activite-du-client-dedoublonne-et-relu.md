@@ -28,7 +28,7 @@ sans attendre cinq minutes.
 
 Réf : **P199.06** du fichier de pistes, `validé (délégué)`.
 
-Décision du porteur (déléguée) : dédoublonner par `id` les pages du fil d'activité de `CustomerActivityFeed`, première occurrence gardée, comme `ConversationList`, et invalider `['agent-crm', 'customer', id, 'activity']` après les gestes de la fiche client qui journalisent (note, étape, tâche) ; test : fil d'activité à deux pages décalées d'une insertion entre deux lectures, chaque ligne rendue une fois
+Décision du porteur (déléguée) : dédoublonner par `id` les pages du fil d'activité de `CustomerActivityFeed`, première occurrence gardée, comme `ConversationList`, et invalider `['agent-crm', 'customer', id, 'activity']` après les gestes de la fiche client qui journalisent (note, étape, tâche) ; test : fil d'activité à deux pages décalées d'une insertion entre deux lectures, chaque ligne rendue une fois ; reste : la relecture de la liste des fils (`maxPages` borné ou page 1 seule par l'intervalle)
 
 Avant (lu) : `CustomerActivityFeed.tsx:68` concatène les pages (`flatMap`) sous `key={row.id}`,
 alors que l'API pagine par décalage (`created_at desc, id desc`) ; la clé
