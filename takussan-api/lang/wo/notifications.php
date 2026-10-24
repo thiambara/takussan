@@ -660,6 +660,12 @@ return [
                 'body' => 'Sa laaj liggéey léegi mungi : liggéey bi dafa ndeyi. Prestataire bi dina ñëw ci :scheduled_at.',
                 'sms' => 'Takussan : Sa laaj « :request » : liggéey bi dafa ndeyi',
             ],
+            // TCK-2012 (P184.01) — le passage fixé ou déplacé, à toutes les parties sauf l'auteur.
+            'schedule_changed' => [
+                'title' => 'Passage prévu : « :request »',
+                'body' => 'Le passage pour l\'intervention « :request » est prévu le :scheduled_at.',
+                'sms' => 'Takussan : passage prévu le :scheduled_at pour « :request ».',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [

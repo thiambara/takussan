@@ -6,6 +6,7 @@ use App\Domain\Notifications\NotificationCode;
 use App\Events\Accounting\BankStatementFinalized;
 use App\Events\Booking\BookingClosed;
 use App\Events\Booking\BookingRequested;
+use App\Events\Maintenance\MaintenanceScheduleChanged;
 use App\Events\Maintenance\MaintenanceStatusChanged;
 use App\Events\Permissions\RoleDelegationActivated;
 use App\Jobs\SendLeasePaymentReminders;
@@ -84,6 +85,7 @@ class FormeDesDatesDeNotificationTest extends TestCase
         NotificationCode::MaintenanceStepAcknowledgedScheduled,
         NotificationCode::MaintenanceStepAssignedScheduled,
         NotificationCode::MaintenanceStepInProgressScheduled,
+        NotificationCode::MaintenanceScheduleChanged,
         NotificationCode::PropertyCalendarConflict,
         NotificationCode::ImpersonationEnded,
     ];
@@ -227,6 +229,20 @@ class FormeDesDatesDeNotificationTest extends TestCase
         $this->assertFormes(NotificationCode::MaintenanceStepAcknowledgedScheduled);
         $this->assertFormes(NotificationCode::MaintenanceStepAssignedScheduled);
         $this->assertFormes(NotificationCode::MaintenanceStepInProgressScheduled);
+    }
+
+    /** TCK-2012 (P184.01) — le passage fixé ou déplacé. */
+    public function test_le_passage_d_intervention_deplace(): void
+    {
+        $request = MaintenanceRequest::factory()->create([
+            'property_id' => $this->property->id,
+            'requester_id' => User::factory()->create()->id,
+            'scheduled_at' => now()->addDays(2),
+        ]);
+
+        app(NotifyMaintenanceParticipants::class)->handleScheduleChanged(new MaintenanceScheduleChanged($request, $this->agent));
+
+        $this->assertFormes(NotificationCode::MaintenanceScheduleChanged);
     }
 
     public function test_le_conflit_de_calendrier(): void

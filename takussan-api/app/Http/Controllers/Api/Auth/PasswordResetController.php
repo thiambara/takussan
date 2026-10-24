@@ -45,11 +45,15 @@ class PasswordResetController extends Controller
             }
         );
 
-        if ($status === Password::PASSWORD_RESET) {
-            return $this->json(['message' => __($status)]);
-        }
+        // TCK-2026 (P192.01) — un code stable, et le texte de l'API dans la langue négociée : le
+        // courtier rend des clés `passwords.*` qu'aucune langue du dépôt ne traduit, et le repli
+        // `en` affichait la phrase anglaise du cadriciel. Tout refus rend le même code : une
+        // adresse sans compte (`passwords.user`) répond comme un jeton faux, pour ne pas dire si
+        // le compte existe (décision du porteur, comme `forgotPassword`). `passwords.throttled`
+        // n'est rendu que par `sendResetLink`, jamais par `reset`.
+        abort_code_unless($status === Password::PASSWORD_RESET, 422, 'password_reset.invalid_link');
 
-        return $this->json(['message' => __($status)], 422);
+        return $this->json(['message' => __('messages.password_reset_done')]);
     }
 
     /**

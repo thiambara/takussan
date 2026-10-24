@@ -9,6 +9,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -49,9 +50,12 @@ class PropertyPolicy extends BasePolicy
         }
 
         // TCK-1705 (P153.01) — sur un bien d'agence, `user_id` (le CRÉATEUR, souvent l'agent qui l'a
-        // saisi) ne vaut titre que pour qui a encore un profil dans l'agence : l'agent retiré ne lit
-        // plus le bien. Même règle que `PropertyVisitPolicy` pour l'agent parti.
-        if ($user->id === $model->user_id && ($model->agency_id === null || $this->isMemberOf($user, $model->agency_id))) {
+        // saisi) ne vaut pas titre à lui seul : l'agent retiré ne lit plus le bien.
+        // TCK-2031 (P190.07, ADR-0031 § 3) — l'agent SUSPENDU non plus : `user_id` ne vaut titre que
+        // pour le bailleur du bien (`BailleurDuBien`, de tout statut : le bailleur bloqué garde la
+        // lecture, § 2), ou pour l'auteur qui est encore personnel ACTIF de l'agence du bien.
+        if (BailleurDuBien::est($user, $model->user_id, $model->agency_id)
+            || ($user->id === $model->user_id && $this->isActiveStaffMemberOf($user, $model->agency_id))) {
             return true;
         }
 
@@ -131,7 +135,8 @@ class PropertyPolicy extends BasePolicy
      *  - son propre bien (`user_id`) : `properties.update_own` dans l'agence du bien, pour qui en
      *    est membre ; l'auteur d'un bien sans agence garde son bien, il n'a pas de rôle qui
      *    pourrait porter la capacité. TCK-1705 (P153.01) : l'auteur sans aucun profil dans l'agence
-     *    du bien — l'agent retiré qui l'avait saisi — ne le garde plus ;
+     *    du bien — l'agent retiré qui l'avait saisi — ne le garde plus ; TCK-2031 (P190.07) : ni
+     *    l'agent suspendu, l'auteur doit en être le bailleur ou le personnel actif ;
      *  - le bien d'un autre : personnel de l'agence du bien tenant `properties.update_any`.
      */
     public function update(User $user, Model $model): bool
@@ -144,9 +149,11 @@ class PropertyPolicy extends BasePolicy
             return true;
         }
 
+        // TCK-2031 (P190.07) — membre de l'agence au sens du bailleur du bien ou du personnel ACTIF,
+        // plus de tout statut (`isMemberOf`).
         if ($user->id === $model->user_id) {
             return $model->agency_id === null
-                || ($this->isMemberOf($user, $model->agency_id)
+                || ((BailleurDuBien::est($user, $model->user_id, $model->agency_id) || $this->isActiveStaffMemberOf($user, $model->agency_id))
                     && $user->can(Capability::PropertiesUpdateOwn->value, $model));
         }
 
@@ -190,6 +197,18 @@ class PropertyPolicy extends BasePolicy
 
         return $this->isMemberOf($user, $model->agency_id)
             && $user->can($capability->value, $model);
+    }
+
+    /**
+     * TCK-2031 (P190.07, ADR-0031 § 3) — un profil de PERSONNEL (agent, admin d'agence) au statut
+     * actif dans l'agence, quel que soit le profil actif de la requête : l'agent de deux agences garde
+     * le bien qu'il a saisi dans l'autre (`AgencySuspendedWriteLockTest`), l'agent suspendu non.
+     */
+    private function isActiveStaffMemberOf(User $user, mixed $agencyId): bool
+    {
+        return $agencyId !== null
+            && $user->activeProfileTypesAt((int) $agencyId)
+                ->contains(fn (string $type): bool => in_array($type, ['agent', 'agency_admin'], true));
     }
 
     /** Un profil (de tout statut) dans l'agence : c'est ce qui fait qu'un rôle juge l'auteur. */

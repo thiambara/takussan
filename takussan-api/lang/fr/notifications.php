@@ -665,6 +665,12 @@ return [
                 'body' => 'Votre demande d\'intervention est désormais : en cours. Passage prévu le :scheduled_at.',
                 'sms' => 'Takussan : Votre demande « :request » : en cours',
             ],
+            // TCK-2012 (P184.01) — le passage fixé ou déplacé, à toutes les parties sauf l'auteur.
+            'schedule_changed' => [
+                'title' => 'Passage prévu : « :request »',
+                'body' => 'Le passage pour l\'intervention « :request » est prévu le :scheduled_at.',
+                'sms' => 'Takussan : passage prévu le :scheduled_at pour « :request ».',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [
