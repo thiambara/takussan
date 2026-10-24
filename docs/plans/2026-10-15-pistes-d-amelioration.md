@@ -16678,7 +16678,7 @@ l'hôte »). Hors du relevé : la pièce remboursée après un reversement au ba
 
 ### Une commission de bail inférieure à celle de la plateforme fait verser au bailleur plus que ce que l'agence reçoit
 - Réf : P178.03
-- Statut : validé — validation du porteur (2026-10-23) : l'agence porte la commission de la plateforme (règle actuelle, `features.md:232`) ; montrée à la préparation, avertissement sans blocage quand le taux du bail est inférieur ; après P178.01
+- Statut : fait · TCK-2074
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payout/PayoutCalculator.php:134-206`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:333-352`, `docs/features.md:232`
 - Constat :
@@ -16689,6 +16689,7 @@ l'hôte »). Hors du relevé : la pièce remboursée après un reversement au ba
   - Établi comment : code lu, sonde par HTTP.
 - Piste : décider (V1, V7) qui porte la commission de la plateforme sur un loyer qu'elle encaisse (l'agence, comme aujourd'hui, ou le bailleur), puis au moins le montrer à la préparation (commission plateforme et net reçu par l'agence, ligne par ligne). Garde : le cas à 0 %.
 - Mesure (2026-10-23, fd28a149f, mesureur) : `PayoutCalculator::compute` relu (l. 134-206) : commission du bail ou de l'agence seule, sans `platform_fee_pct_at_payment` ; `PlatformPayoutService::closeForAgency` relu (l. 330-352) : commission plateforme ligne par ligne ; `grep -rn "commission_rate\|platform_fee" app/Http/Requests` → `commission_rate` en `numeric|min:0|max:100` seul (`StoreLeaseRequest.php:51`, `RenewLeaseRequest.php:38`, `AgencyUpdateRequest.php:63`, `StoreAgencyRequest.php:44`), `platform_fee` dans `AssignAgencySubscriptionRequest.php:20` seulement ; même sonde → bail à 10 % : bailleur `net 135000`, plateforme à l'agence `net 142500` (l'agence garde 7 500) ; bail à 0 % : bailleur `net 150000`, plateforme à l'agence `net 142500` sur le seul loyer (sans pénalité cette fois) → l'agence avance 7 500. Classement : V1 et V7, répartir la commission de la plateforme ou l'afficher à la préparation est un choix d'argent et un affichage neuf.
+- Mesure (2026-10-24, a197fdaca, implementeur) : reproduit avant correctif par `CommissionPlateformeALaPreparationTest` (bail à 0 %, loyer de 150 000 soldé par l'intégration globale à 5 % et reversé par la plateforme → aucune clé de commission plateforme dans `GET /api/payouts/preparation`, 4 rouges) → `PayoutPreparationService` émet par ligne `settled_by_platform`, `platform_fee_rate`, `platform_fee` (7 500), `agency_received` (142 500) et `commission_below_platform_fee`, plus `totals.platform_fee` ; net du bailleur inchangé (150 000), création 201 ; espèces et intégration de l'agence sans commission ; `CreatePayoutDialog` montre ligne, total et avertissement (`role="status"`), bouton actif ; ablation : `settledByPlatform` vide → 3 rouges, comparaison des taux neutralisée → 1 rouge, note et avertissement du dialogue retirés → 1 rouge ; `PayoutPreparationTest`, `ReversementApresLaPlateformeTest`, `PayoutBypassTest`, `PayoutPayeeRoleTest` verts.
 
 ### Petites améliorations
 - Réf : P178.04
