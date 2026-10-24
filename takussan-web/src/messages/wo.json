@@ -10759,6 +10759,10 @@
         "step_in_progress_scheduled": {
           "title": "Sa laaj « {request} » : liggéey bi dafa ndeyi",
           "body": "Sa laaj liggéey léegi mungi : liggéey bi dafa ndeyi. Prestataire bi dina ñëw ci {scheduled_at}."
+        },
+        "schedule_changed": {
+          "title": "Passage prévu : « {request} »",
+          "body": "Le passage pour l'intervention « {request} » est prévu le {scheduled_at}."
         }
       },
       "maintenance_quote": {

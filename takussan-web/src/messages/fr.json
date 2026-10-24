@@ -10759,6 +10759,10 @@
         "step_in_progress_scheduled": {
           "title": "Votre demande « {request} » : en cours",
           "body": "Votre demande d'intervention est désormais : en cours. Passage prévu le {scheduled_at}."
+        },
+        "schedule_changed": {
+          "title": "Passage prévu : « {request} »",
+          "body": "Le passage pour l'intervention « {request} » est prévu le {scheduled_at}."
         }
       },
       "maintenance_quote": {

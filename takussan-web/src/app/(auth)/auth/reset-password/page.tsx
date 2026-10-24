@@ -55,7 +55,15 @@ function ResetPasswordForm() {
         if (err.status === 422 && err.data && typeof err.data === 'object' && 'errors' in err.data) {
           setErrors((err.data as { errors: Record<string, string[]> }).errors);
         } else {
-          setGlobalError((err.data as { message?: string })?.message ?? t('failed'));
+          // TCK-2026 (P192.01) — l'API rend un code stable pour un lien faux ou expiré, et une
+          // adresse sans compte sous le même code : l'écran le traduit, le `message` de l'API
+          // n'est qu'un repli pour un code que l'écran ne connaît pas.
+          const data = err.data as { code?: string; message?: string } | null;
+          setGlobalError(
+            data?.code === 'password_reset.invalid_link'
+              ? t('invalidBody')
+              : (data?.message ?? t('failed')),
+          );
         }
       } else {
         setGlobalError(t('networkFailed'));

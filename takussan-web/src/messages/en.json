@@ -10759,6 +10759,10 @@
         "step_in_progress_scheduled": {
           "title": "Your request \"{request}\": in progress",
           "body": "Your maintenance request is now: in progress. Visit planned on {scheduled_at}."
+        },
+        "schedule_changed": {
+          "title": "Visit planned: \"{request}\"",
+          "body": "The visit for the maintenance request \"{request}\" is planned on {scheduled_at}."
         }
       },
       "maintenance_quote": {

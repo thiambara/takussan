@@ -1,3 +1,4 @@
+import { ApiError } from '@/lib/api';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { getMe } from '@/lib/auth';
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation';
@@ -35,7 +36,11 @@ async function reponseOperateur(token: string, activeProfileId: string | undefin
   try {
     const user = await getMe(token, activeProfileId);
     return NextResponse.json(user);
-  } catch {
-    return NextResponse.json(null, { status: 401 });
+  } catch (err) {
+    // TCK-1992 (P172.01) — 401 seulement sur un 401 de l'API : `refreshUser` ferme la session sur
+    // ce statut, et une API en panne, lente ou injoignable ne dit rien de la session. Une
+    // `ApiError` garde son statut ; une absence de réponse rend 503.
+    const status = err instanceof ApiError && err.status >= 400 ? err.status : 503;
+    return NextResponse.json(null, { status });
   }
 }
