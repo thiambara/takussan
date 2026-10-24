@@ -18451,7 +18451,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### « Prochain paiement » et « Autres échéances » du locataire sont tirés de 50 lignes triées par date, puis filtrées au navigateur sur la source « bail »
 - Réf : P199.05
-- Statut : validé — validation du porteur (2026-10-24) : front seul : la lecture des dus du locataire est bornée par `date_to` à six mois, les retards passés restent, et le titre dit l'horizon (« Échéances des 6 prochains mois ») avec un lien vers l'historique ; le contrat de l'API ne change pas
+- Statut : fait · TCK-2169
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/payments/CustomerPayments.tsx:35,65-71,159-175`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:77-82,118-145,181-206`, `takussan-api/app/Services/Model/LeaseService.php:236-262`
 - Constat :
@@ -18461,6 +18461,7 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
   - Établi comment : lu.
 - Piste : un filtre serveur de source (`filter[source]=lease`) et `amount_due > 0` jugé par l'API, ou une borne de dates (`date_to`) sur les échéances à venir ; garder la page unique mais annoncer la suite. Test : locataire à 60 échéances et 3 acomptes de réservation dus, la liste rend ses échéances de bail sans réservation au milieu.
 - Mesure (2026-10-23, 34c97e42f, mesureur) : relu `CustomerPayments.tsx:65-71` (`status=pending,…`, `sort=date`, `per_page: 50`, puis `source === 'lease' && amount_due > 0` au navigateur), `PaymentController.php:77-82,180-206` (`entity_type` exige `entity_id`, aucun filtre de source) et `LeaseService.php:236-262` (une échéance `pending` par période jusqu'à `end_date`, plafond de 12 seulement sans date de fin) → le constat tient. Classement : V7, la piste offre trois comportements dont un visible (annoncer la suite), sur un écran d'échéances à payer (V1 voisin, lecture seule).
+- Mesure (2026-10-24, 4ac84c0e7, implementeur) : deux cas neufs de `CustomerPayments.test.tsx` rouges avant correctif : la lecture des dus part sans `date_to` (50 lignes sans borne), et la liste reste titrée « Autres paiements à régler », sans lien → `date_to` à six mois (2027-04-24 le 2026-10-24), sans borne basse, liste titrée « Échéances des 6 prochains mois » avec « Voir l’historique » vers `#historique-paiements` ; ablation → 2 rouges, correctif remis → 11 verts.
 
 ### Petites améliorations
 - Réf : P199.06
