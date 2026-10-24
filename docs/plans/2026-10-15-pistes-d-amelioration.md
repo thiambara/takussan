@@ -19282,7 +19282,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Le verdict KYC se juge sur le dossier lié à la route : un rejet après une vérification laisse le dossier `rejected` et l'agence vérifiée
 - Réf : P211.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2105
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Kyc/KycWorkflowService.php:96-176,185-190`
 - Constat :
@@ -19292,10 +19292,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré.
 - Piste : relire le dossier sous `lockForUpdate` dans une transaction qui porte aussi l'écriture de l'agence, y juger `assertTransitionable` / `assertNotVerified`, et prévenir après le commit, comme `InventorySignatureService::sign`. Garde : un test qui vérifie puis rejette sur une copie périmée et attend 422 `CODE_NOT_TRANSITIONABLE`, l'agence intacte.
 - Mesure (2026-10-24, 0c24562d3, mesureur) : relu `KycWorkflowService.php` : `submit` (`assertNotVerified` sur le modèle reçu, l. 96-116), `verify` et `reject` (`assertTransitionable` sur le modèle reçu, `update` du dossier puis de l'agence hors transaction ni verrou, `notifyReviewed`, l. 118-176), lignes inchangées ; `git log` sur `app/Services/Kyc` et `grep` des tickets → rien ne l'a traité ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : dossier `submitted` complet chargé deux fois, `verify` sur l'un puis `reject` sur l'autre → rejet accepté, dossier `rejected`, agence `active` et `is_verified = true` → le constat tient ; le double `submit` n'a pas été joué. Classement : A1, la garde `CODE_NOT_TRANSITIONABLE` écrit déjà le contrat (un dossier tranché ne se tranche plus) ; le correctif la juge sur la ligne relue sous verrou dans une transaction qui porte aussi l'écriture de l'agence, avis après le commit, comme TCK-1820 et TCK-1822.
+- Mesure (2026-10-24, b9243f4b6, implementeur) : dossier `submitted` complet chargé deux fois, `verify` sur l'un puis `reject` sur l'autre → rejet accepté (reproduit par `tests/Feature/Kyc/KycVerdictSousVerrouTest.php`, 3 rouges sur 4 avant correctif : rejet après vérification, vérification après rejet, soumission d'un dossier vérifié) → `submit`, `verify` et `reject` relisent le dossier sous `lockForUpdate` dans une transaction qui porte l'écriture de l'agence, avis après le commit ; 4 verts, ablation (service remis à `HEAD`) → 3 rouges, correctif remis → 4 verts.
 
 ### La demande de passage en agence se juge `pending` hors verrou : un rejet après une approbation laisse la demande `rejected` et l'agence passée en `standard`
 - Réf : P211.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2107
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Agency/AgencyUpgradeReviewService.php:44-107,109-150,156-165`
 - Constat :
@@ -19304,6 +19305,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré.
 - Piste : verrouiller et relire la demande dans la transaction, y juger `assertPending`, avis après le commit. Garde : approbation puis rejet sur une copie périmée → 422 `not_pending`, demande `approved`.
 - Mesure (2026-10-24, 0c24562d3, mesureur) : relu `AgencyUpgradeReviewService.php` : `approve` et `reject` jugent `assertPending` sur le modèle lié (l. 49, 114) avant la transaction (l. 69, 126), la bascule `AgencyKindFlipService::flip` dans celle d'`approve`, `notifySubmitter` après ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : demande `pending` chargée deux fois, KYC vérifié, `approve` sur l'une puis `reject` sur l'autre → rejet accepté, demande `rejected`, agence `kind = standard` → le constat tient ; les avis n'ont pas été comptés. Classement : A1, la garde `not_pending` écrit déjà le contrat ; le correctif relit la demande sous verrou dans la transaction et y juge `assertPending`, sans rien changer de la bascule ni de l'avis.
+- Mesure (2026-10-24, b9243f4b6, implementeur) : demande `pending` chargée deux fois, KYC vérifié, `approve` sur l'une puis `reject` sur l'autre → rejet accepté (reproduit par `tests/Feature/Admin/AgencyUpgradeReviewSousVerrouTest.php`, 2 rouges sur 3 avant correctif, dans les deux ordres) → `approve` et `reject` relisent la demande sous `lockForUpdate` dans leur transaction et y jugent `assertPending` ; 3 verts, `AgencyUpgradeRequestReviewTest` 17 verts ; ablation (service remis à `HEAD`) → 2 rouges, correctif remis → 3 verts.
 
 ### Les transitions d'une intervention se jugent sur le modèle lié : la clôture automatique écrase une contestation faite pendant son passage
 - Réf : P211.03
@@ -19334,7 +19336,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Un état des lieux se modifie sur le modèle lié pendant qu'une partie le signe : le contenu change après la première signature
 - Réf : P211.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-2109
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/InventoryController.php:117-153,295-346`, `takussan-api/app/Services/Model/InventoryService.php:39-83`, `takussan-api/app/Services/Inventory/InventorySignatureService.php:39-94`
 - Constat :
@@ -19344,10 +19346,11 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré.
 - Piste : juger `draft` sur la ligne relue sous `lockForUpdate` dans une transaction pour `update`, l'ajout et le retrait de photo, `submit` et `dispute`, comme `sign`. Garde : signature posée derrière un modèle resté `draft` → `update` 422 `inventory.not_draft`, pièces intactes.
 - Mesure (2026-10-24, 0c24562d3, mesureur) : relu `InventoryService.php` (`update` l. 39-50, `submit`, `dispute` : garde jugée sur le modèle reçu, écriture sans verrou), `InventoryController.php` (`update` l. 117-153, `uploadRoomPhotos`, `destroyRoomPhoto`, `assertDraft` l. 339-346) et `InventorySignatureService::sign` (verrou et relecture) ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : état des lieux `draft` chargé, ligne passée en base à `pending_signature` et `tenant_signed = true`, `InventoryService::update` sur le modèle resté `draft` avec de nouvelles `rooms` → accepté, ligne `pending_signature`, signature du locataire gardée, pièces remplacées → le constat tient ; la photo pendant la signature n'a pas été jouée. Classement : A1, les gardes `inventory.not_draft`, `signed_locked`, `not_draft_submit` et `cannot_dispute` écrivent le contrat ; le correctif les juge sur la ligne relue sous `lockForUpdate`, patron de `sign`.
+- Mesure (2026-10-24, b9243f4b6, implementeur) : état des lieux `draft` chargé, ligne passée en base à `pending_signature` et `tenant_signed = true`, `InventoryService::update` sur le modèle resté `draft` → accepté, pièces remplacées (reproduit par `tests/Feature/Api/InventoryGestesSousVerrouTest.php` : 6 rouges sur 7 avant verrou — `update` en `pending_signature` et en `signed`, `submit` d'un état signé, seconde contestation, ajout et retrait de photo ; les deux gestes photo d'abord déplacés du contrôleur au service à comportement égal) → les cinq gestes relisent la ligne sous `lockForUpdate` dans une transaction et y jugent leur garde ; 7 verts, les 11 classes d'état des lieux vertes ; ablation (service sans verrou) → 6 rouges, correctif remis → 7 verts.
 
 ### Une délégation révoquée pendant le passage de la tâche planifiée est réactivée
 - Réf : P211.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-2111
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Permissions/RoleDelegationService.php:131-189`, `takussan-api/app/Models/RoleDelegation.php:159-182`, `takussan-api/app/Jobs/Permissions/ProcessRoleDelegationsJob.php:17-28`, `takussan-api/routes/console.php:111`
 - Constat :
@@ -19356,6 +19359,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu et mesuré.
 - Piste : écrire les transitions par une mise à jour conditionnelle (`where('status', scheduled)->update(…)`, réclamation comme `BoostLifecycle::closeWithRefund`) ou sous verrou relu, et n'émettre l'événement que si la ligne a été prise. Garde : révocation puis activation sur le modèle chargé par le job → `revoked`, aucun événement.
 - Mesure (2026-10-24, 0c24562d3, mesureur) : relu `RoleDelegationService.php` : `revoke`, `activate` et `expire` jugent `status` sur le modèle reçu puis écrivent par `markRevoked` / `markActive` / `markExpired` (`RoleDelegation.php:159-182`, `update()` sans condition sur le statut en base) ; `ProcessRoleDelegationsJob` charge par `cursor()` et appelle sur chaque modèle chargé ; test temporaire `tests/Feature/TmpMesureur/TmpMesure211Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 1,66 / 1,78 / 1,95 sur 8 cœurs : délégation `scheduled` échue chargée par `readyToActivate()`, `revoke` sur une copie fraîche, puis `activate` sur le modèle chargé → `status = active`, `revoked_at` conservé → le constat tient ; le nombre de `RoleDelegationActivated` n'a pas été relevé (événement après commit, non vu sous `RefreshDatabase`). Classement : A1, la révocation écrit le contrat (une délégation `revoked` ne s'active plus, garde `status !== Scheduled` d'`activate`) ; le correctif la rend effective sur la ligne en base par une mise à jour conditionnelle ou un verrou, sans toucher à ce qu'une délégation légitime accorde.
+- Mesure (2026-10-24, b9243f4b6, implementeur) : délégation `scheduled` échue chargée par `readyToActivate()`, `revoke` sur une copie fraîche puis `activate` sur le modèle chargé → `active` (reproduit par `tests/Feature/Api/Permissions/RoleDelegationSousVerrouTest.php` : 3 rouges sur 4 avant correctif — activation et expiration après révocation, seconde révocation périmée) → `revoke`, `activate` et `expire` relisent la ligne sous `lockForUpdate` et n'écrivent ni n'émettent que si elle a été prise ; 4 verts, `ProcessRoleDelegationsJobTest`, `RoleDelegationTest`, `AgentAbsenceTest` verts ; ablation (service remis à `HEAD`) → 3 rouges, correctif remis → 4 verts.
 
 ### Petites améliorations
 - Réf : P211.07
