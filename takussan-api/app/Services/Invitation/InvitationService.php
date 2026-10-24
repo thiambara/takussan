@@ -21,6 +21,7 @@ use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Services\Notifications\Sms\SmsOutcome;
 use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
 use App\Support\LienFront;
@@ -128,6 +129,13 @@ class InvitationService
      * fires once per invitation, idempotent on `last_reminded_at`.
      */
     public const REMINDER_OFFSET_DAYS = 2;
+
+    /**
+     * P179.01 (TCK-2155, décision du porteur du 2026-10-24) — essais du rappel au plus, un par
+     * jour : un SMS que tous les fournisseurs refusent se retente, sans plus. Un rappel posé
+     * épuise le compte ({@see self::remindPending()}).
+     */
+    public const MAX_REMINDER_ATTEMPTS = 3;
 
     /**
      * Send a new invitation.
@@ -452,6 +460,7 @@ class InvitationService
                 'token' => $this->generateUniqueToken(),
                 'expires_at' => now()->addDays(self::DEFAULT_TTL_DAYS),
                 'last_reminded_at' => null,
+                'reminder_attempts' => 0,
             ])->save();
 
             // Le courriel part DANS la transaction (TCK-367 : un échec la défait).
@@ -546,7 +555,9 @@ class InvitationService
     /**
      * Send a J+2 reminder to invitees who haven't accepted yet. Idempotent
      * via `last_reminded_at` — the second pass is a no-op for any
-     * invitation already reminded.
+     * invitation already reminded. P179.01 (TCK-2155) : un SMS de rappel
+     * qu'aucun fournisseur n'a pu recevoir n'est pas tenu pour posé ; il se
+     * retente un jour plus tard, `MAX_REMINDER_ATTEMPTS` essais au plus.
      *
      * @return Collection<int,Invitation>
      */
@@ -562,14 +573,19 @@ class InvitationService
             // docblock de `resend`. `created_at` faisait partir le rappel dans l'heure de la relance.
             ->where('expires_at', '<=', $threshold->copy()->addDays(self::DEFAULT_TTL_DAYS))
             ->where('expires_at', '>', $now)
-            ->whereNull('last_reminded_at')
+            // P179.01 (TCK-2155) — jamais rappelée, ou un essai refusé (compte entre 1 et le
+            // plafond) daté de plus d'un jour. Un rappel posé épuise le compte ; une invitation
+            // rappelée avant la colonne (compte 0, date posée) reste tenue pour rappelée.
+            ->where(fn ($q) => $q->whereNull('last_reminded_at')->orWhere(fn ($q) => $q
+                ->whereBetween('reminder_attempts', [1, self::MAX_REMINDER_ATTEMPTS - 1])
+                ->where('last_reminded_at', '<=', $now->copy()->subDay())))
             ->get();
 
         foreach ($due as $invitation) {
             // P123.04 (TCK-1251) — un rappel qui échoue est rapporté et n'arrête plus les suivants ;
             // non marqué, il est retenté au passage suivant.
             try {
-                $this->deliver(
+                $outcome = $this->deliver(
                     $invitation,
                     $this->recipientAccount($invitation->email, $this->smsRecipient($invitation)),
                     isReminder: true,
@@ -580,7 +596,16 @@ class InvitationService
                 continue;
             }
 
-            $invitation->forceFill(['last_reminded_at' => $now])->save();
+            // P179.01 (TCK-2155) — le SMS du rappel part hors file et son sort se relit : posé s'il
+            // a pu atteindre l'invité (accepté, échec ambigu, report de nuit), sinon un essai de
+            // plus, retenté le lendemain. Le courriel, synchrone, lève sur un échec (ci-dessus).
+            $pose = $outcome === null || ! $outcome->smsChosen || $outcome->mayHaveReached();
+            $invitation->forceFill([
+                'last_reminded_at' => $now,
+                'reminder_attempts' => $pose
+                    ? self::MAX_REMINDER_ATTEMPTS
+                    : min(self::MAX_REMINDER_ATTEMPTS, (int) $invitation->reminder_attempts + 1),
+            ])->save();
         }
 
         return $due;
@@ -1012,7 +1037,7 @@ class InvitationService
      * l'invitation, l'invitant peut relancer. Seul le courriel d'une RELANCE part
      * dans sa transaction ({@see self::resend()}, TCK-367).
      */
-    protected function deliver(Invitation $invitation, ?User $existingUser, bool $isReminder = false): void
+    protected function deliver(Invitation $invitation, ?User $existingUser, bool $isReminder = false): ?SmsOutcome
     {
         $locale = $this->preferredLocale($existingUser, $invitation);
 
@@ -1020,20 +1045,28 @@ class InvitationService
             Mail::to($invitation->email)->locale($locale)
                 ->send(new InvitationMailable($invitation, isReminder: $isReminder));
 
-            return;
+            return null;
         }
 
-        app(NotificationService::class)->send(
-            ContactSansCompte::fromInvitation($invitation, $locale),
-            $isReminder ? NotificationCode::InvitationReminder : NotificationCode::InvitationReceived,
-            [
-                'agency' => self::smsAgencyName($invitation->agency?->name),
-                // Même lien que le courriel (`InvitationMailable`).
-                'url' => LienFront::vers('/invitations/accept?token='.$invitation->token),
-            ],
-            // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit l'invitation avant de partir.
-            deferredSmsGuard: DeferredSmsGuard::forInvitation($invitation),
-        );
+        $contact = ContactSansCompte::fromInvitation($invitation, $locale);
+        $params = [
+            'agency' => self::smsAgencyName($invitation->agency?->name),
+            // Même lien que le courriel (`InvitationMailable`).
+            'url' => LienFront::vers('/invitations/accept?token='.$invitation->token),
+        ];
+        // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit l'invitation avant de partir.
+        $guard = DeferredSmsGuard::forInvitation($invitation);
+
+        // P179.01 (TCK-2155) — le rappel part hors file : la tâche relit le sort du SMS.
+        if ($isReminder) {
+            return app(NotificationService::class)->sendToContactNow(
+                $contact, NotificationCode::InvitationReminder, $params, deferredSmsGuard: $guard,
+            );
+        }
+
+        app(NotificationService::class)->send($contact, NotificationCode::InvitationReceived, $params, deferredSmsGuard: $guard);
+
+        return null;
     }
 
     /**

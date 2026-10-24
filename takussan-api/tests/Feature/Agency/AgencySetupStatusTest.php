@@ -5,6 +5,7 @@ namespace Tests\Feature\Agency;
 use App\Models\Agency;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\KycDossierStatus;
+use App\Models\Enums\UserStatus;
 use App\Models\Integration;
 use App\Models\KycDossier;
 use App\Models\Profiles\AgentProfile;
@@ -121,6 +122,43 @@ class AgencySetupStatusTest extends TestCase
         $this->materializeRoleProfile($second, 'agency_admin', $this->agency);
 
         $this->assertFalse($this->etape('admin_two_factor'));
+    }
+
+    /**
+     * TCK-2189 (P225.03, décision déléguée) — `primary_admin_id` ne s'ajoute aux administrateurs
+     * de la carte que si son compte est joignable : effacé, `User::query()` ne le relisait plus et
+     * l'étape restait fausse pour toujours ; bloqué, il comptait encore.
+     */
+    public function test_un_administrateur_principal_efface_ne_compte_plus(): void
+    {
+        $this->admin->forceFill(['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET])->save();
+        $principal = User::factory()->create(['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET]);
+        $this->agency->forceFill(['primary_admin_id' => $principal->id])->save();
+        $principal->forceFill(['status' => UserStatus::Deleted])->save();
+        $principal->delete();
+
+        $this->assertTrue($this->etape('admin_two_factor'));
+    }
+
+    public function test_un_administrateur_principal_bloque_ne_compte_plus(): void
+    {
+        $this->admin->forceFill(['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET])->save();
+        $principal = User::factory()->create(['two_factor_enabled' => false, 'status' => UserStatus::Blocked]);
+        $this->agency->forceFill(['primary_admin_id' => $principal->id])->save();
+
+        $this->assertTrue($this->etape('admin_two_factor'));
+        $this->assertFalse($this->etape('first_member'), 'le compte bloqué n\'est pas un second membre');
+    }
+
+    /** Témoin : un administrateur principal joignable sans 2FA laisse l'étape ouverte (TCK-589). */
+    public function test_un_administrateur_principal_joignable_sans_2fa_compte(): void
+    {
+        $this->admin->forceFill(['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET])->save();
+        $principal = User::factory()->create(['two_factor_enabled' => false]);
+        $this->agency->forceFill(['primary_admin_id' => $principal->id])->save();
+
+        $this->assertFalse($this->etape('admin_two_factor'));
+        $this->assertTrue($this->etape('first_member'));
     }
 
     public function test_un_agent_de_l_agence_recoit_403(): void

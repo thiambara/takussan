@@ -9,7 +9,7 @@ import { DocumentsLibrary } from '../DocumentsLibrary';
 // transformé quand le test ouvre le dialogue, qui arrive au tick suivant.
 import '../DocumentUploadDialog';
 import fr from '@/messages/fr.json';
-import type { Document } from '@/types/document';
+import type { Document, DocumentType } from '@/types/document';
 import type { User } from '@/lib/auth';
 
 const routerReplace = vi.fn();
@@ -40,7 +40,13 @@ const mutation = {
 const documentsQuery = {
   data: {
     data: [] as Document[],
-    meta: { total: 0, current_page: 1, last_page: 1, per_page: 30 },
+    meta: {
+      total: 0,
+      current_page: 1,
+      last_page: 1,
+      per_page: 30,
+      counts: undefined as Partial<Record<DocumentType, number>> | undefined,
+    },
     links: { first: null, last: null, prev: null, next: null },
   },
   isLoading: false,
@@ -96,6 +102,7 @@ describe('<DocumentsLibrary>', () => {
     authState.user = ownerUser();
     documentsQuery.data.data = [];
     documentsQuery.data.meta.total = 0;
+    documentsQuery.data.meta.counts = undefined;
     documentsQuery.isLoading = false;
     documentsQuery.isError = false;
     routerReplace.mockClear();
@@ -174,6 +181,24 @@ describe('<DocumentsLibrary> — pièces RIB et NINEA (TCK-1272, P134.02)', () =
 
   beforeEach(() => {
     authState.user = ownerUser();
+    documentsQuery.data.meta.counts = undefined;
+    documentsQuery.data.meta.last_page = 1;
+  });
+
+  /**
+   * P199.03 (TCK-2165) — le badge d'un groupe comptait les documents de SA page de 30 : il lit
+   * désormais le compte par type de toute la liste filtrée, rendu par l'API (`meta.counts`).
+   */
+  it('affiche au badge du groupe le compte du type sur toute la liste, pas sur la page', () => {
+    documentsQuery.data.data = [doc(1, 'lease_contract', 'bail-1'), doc(2, 'lease_contract', 'bail-2')];
+    documentsQuery.data.meta.total = 35;
+    documentsQuery.data.meta.last_page = 2;
+    documentsQuery.data.meta.counts = { lease_contract: 20, receipt: 15 };
+    render(wrap(<DocumentsLibrary />));
+
+    const entete = screen.getByRole('heading', { level: 2, name: fr.documents.types.lease_contract })
+      .parentElement;
+    expect(entete?.textContent).toContain('20');
   });
 
   it('nomme le groupe RIB et le range après « Contrat de bail »', () => {

@@ -234,8 +234,14 @@ class PropertyAuthorizationTest extends ApiTestCase
             'PATCH statut → available' => ['PATCH', '', ['status' => 'available']],
             'PATCH visibilité → public' => ['PATCH', '', ['visibility' => 'public']],
             // P147.05 (TCK-1341) — `published` ne se pose plus à la main : PropertyStatutsDeModerationTest.
+            // P209.01 (TCK-2175) — la création était le sixième chemin : elle publiait sans `publish`.
+            'POST création statut → available' => ['POST', self::CREATION, ['status' => 'available']],
+            'POST création visibilité → public' => ['POST', self::CREATION, ['visibility' => 'public', 'accept_terms' => true]],
         ];
     }
+
+    /** Marque, dans `cheminsDePublication`, le chemin de la création (`POST /api/properties`). */
+    private const CREATION = '@création';
 
     /** @param  array<string, mixed>  $body */
     #[DataProvider('cheminsDePublication')]
@@ -249,11 +255,14 @@ class PropertyAuthorizationTest extends ApiTestCase
             'visibility' => PropertyVisibility::Private,
         ]);
 
+        $this->rendrePubliable($agent);
+
         $this->actingAsApi($agent)
-            ->json($method, rtrim("/api/properties/{$property->id}/{$path}", '/'), $body)
+            ->json($method, $this->cheminDePublication($property, $path), $this->corpsDePublication($path, $body))
             ->assertForbidden();
         $this->assertSame(PropertyStatus::Draft, $property->fresh()->status);
         $this->assertSame(PropertyVisibility::Private, $property->fresh()->visibility);
+        $this->assertSame(1, Property::query()->count());
 
         // Le rôle système, lui, publie par chacun des chemins.
         $systeme = $this->agencyAgent($this->agency);
@@ -265,8 +274,24 @@ class PropertyAuthorizationTest extends ApiTestCase
             'visibility' => PropertyVisibility::Private,
         ]);
         $this->actingAsApi($systeme)
-            ->json($method, rtrim("/api/properties/{$sien->id}/{$path}", '/'), $body)
-            ->assertOk();
+            ->json($method, $this->cheminDePublication($sien, $path), $this->corpsDePublication($path, $body))
+            ->assertSuccessful();
+    }
+
+    private function cheminDePublication(Property $property, string $path): string
+    {
+        return $path === self::CREATION
+            ? '/api/properties'
+            : rtrim("/api/properties/{$property->id}/{$path}", '/');
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     * @return array<string, mixed>
+     */
+    private function corpsDePublication(string $path, array $body): array
+    {
+        return $path === self::CREATION ? $this->payload($body) : $body;
     }
 
     public function test_sans_properties_publish_les_autres_statuts_restent_ouverts(): void

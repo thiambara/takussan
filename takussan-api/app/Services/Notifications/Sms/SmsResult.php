@@ -19,6 +19,9 @@ class SmsResult
 
     public const STATUS_DELIVERED = 'delivered';
 
+    /** Raison d'un SMS remis à la nuit par les heures calmes ({@see SmsRouterDriver}). */
+    public const REASON_QUIET_HOURS = 'quiet_hours';
+
     public function __construct(
         public readonly string $to,
         public readonly string $provider,

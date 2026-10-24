@@ -169,6 +169,8 @@ class PaymentSupervisionService
         return DB::table('booking_payments as bp')
             ->join('bookings as b', 'b.id', '=', 'bp.booking_id')
             ->whereNull('bp.deleted_at')
+            // P223.03 (TCK-2173) — une réservation supprimée, comme un bail supprimé (`leaseBase`).
+            ->whereNull('b.deleted_at')
             ->selectRaw("'booking_payment' AS type, ? AS reason, bp.id, bp.reference_number, bp.status, {$this->provider('bp')} AS provider, bp.amount, bp.currency, b.agency_id, bp.updated_at::timestamptz AS event_at, NULL::date AS due_date", [$kind]);
     }
 

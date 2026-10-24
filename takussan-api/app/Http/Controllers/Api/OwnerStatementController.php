@@ -47,7 +47,7 @@ class OwnerStatementController extends Controller
         return response()->streamDownload(function () use ($statement): void {
             $out = fopen('php://output', 'w');
             fputcsv($out, ['type', 'reference', 'property_id', 'paid_at', 'amount', 'commission'], ';');
-            foreach (['lease_payments', 'booking_payments'] as $set) {
+            foreach (['lease_payments', 'booking_payments', 'late_fees'] as $set) {
                 foreach ($statement['lines'][$set] as $line) {
                     fputcsv($out, [$set, $line['reference_number'], $line['property_id'], $line['paid_at'], $line['amount'], $line['commission']], ';');
                 }

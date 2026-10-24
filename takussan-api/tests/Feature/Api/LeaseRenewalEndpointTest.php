@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Http\Requests\Api\StoreLeaseRequest;
 use App\Models\Customer;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
@@ -74,6 +75,25 @@ class LeaseRenewalEndpointTest extends TestCase
             'tenant_id' => $otherTenant->id,
             'start_date' => $lease->end_date->copy()->addDay()->toDateString(),
         ])->assertStatus(422);
+    }
+
+    /** P209.05 (TCK-2177) — la borne de `special_conditions` de la création (TCK-1240) vaut au renouvellement. */
+    public function test_renew_bounds_special_conditions_like_the_creation(): void
+    {
+        [$landlord, $lease] = $this->scaffold();
+        Sanctum::actingAs($landlord);
+        $debut = $lease->end_date->copy()->addDay()->toDateString();
+
+        $this->postJson("/api/leases/{$lease->id}/renew", [
+            'start_date' => $debut,
+            'special_conditions' => str_repeat('a', StoreLeaseRequest::SPECIAL_CONDITIONS_MAX + 1),
+        ])->assertUnprocessable()->assertJsonValidationErrors('special_conditions');
+        $this->assertSame(LeaseStatus::Active, $lease->fresh()->status);
+
+        $this->postJson("/api/leases/{$lease->id}/renew", [
+            'start_date' => $debut,
+            'special_conditions' => str_repeat('a', StoreLeaseRequest::SPECIAL_CONDITIONS_MAX),
+        ])->assertCreated();
     }
 
     public function test_renew_returns_403_when_user_lacks_permission(): void

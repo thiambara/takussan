@@ -37,6 +37,9 @@ final class ContactSansCompte
         public readonly string $locale,
         public readonly ?int $customerId,
         public readonly ?string $email = null,
+        // P203.02 (TCK-2161) — l'agence de la fiche ou de la visite, dont les canaux mobiles
+        // prennent l'intégration (`docs/features.md`, « Émetteur »).
+        public readonly ?int $agencyId = null,
     ) {}
 
     public static function fromCustomer(Customer $customer): self
@@ -48,6 +51,7 @@ final class ContactSansCompte
             trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: null,
             $customer->user?->preferredLocale() ?? ($customer->locale ?: self::DEFAULT_LOCALE),
             $customer->getKey(),
+            agencyId: $customer->agency_id !== null ? (int) $customer->agency_id : null,
         );
     }
 
@@ -60,8 +64,9 @@ final class ContactSansCompte
      */
     public static function fromVisit(PropertyVisit $visit): self
     {
-        $visit->loadMissing('customer.user');
+        $visit->loadMissing('customer.user', 'property');
         $customer = $visit->customer;
+        $agencyId = $visit->property?->agency_id;
 
         return new self(
             self::normalize($visit->visitor_phone) ?? self::normalize($customer?->phone),
@@ -69,6 +74,7 @@ final class ContactSansCompte
             $customer?->user?->preferredLocale() ?? ($visit->locale ?: self::DEFAULT_LOCALE),
             $customer?->getKey(),
             self::email($visit->visitor_email) ?? self::email($customer?->email),
+            $agencyId !== null ? (int) $agencyId : null,
         );
     }
 
@@ -117,7 +123,7 @@ final class ContactSansCompte
             return null;
         }
 
-        return new self($fiche->phone, $fiche->name, $fiche->locale, $fiche->customerId);
+        return new self($fiche->phone, $fiche->name, $fiche->locale, $fiche->customerId, agencyId: $fiche->agencyId);
     }
 
     public function hasPhone(): bool

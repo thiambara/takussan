@@ -9,6 +9,7 @@ use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Document;
+use App\Models\Enums\DocumentType;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
@@ -53,6 +54,19 @@ class DocumentController extends Controller
         // `defaultSortsWithRelevance()` s'évalue APRÈS `buildQuery()`, qui interroge Meilisearch.
         $query = Document::buildQuery($base, $request);
 
+        // P199.03 (TCK-2165) — le compte par type de toute la liste filtrée : l'écran groupe par
+        // type une page triée par date, et le badge d'un groupe comptait les lignes de sa page.
+        $parType = $query->getEloquentBuilder()->clone()->toBase()
+            ->reorder()
+            ->select('type')
+            ->selectRaw('COUNT(*) as aggregate')
+            ->groupBy('type')
+            ->pluck('aggregate', 'type');
+        $counts = [];
+        foreach (DocumentType::cases() as $type) {
+            $counts[$type->value] = (int) ($parType[$type->value] ?? 0);
+        }
+
         // P20.05 (TCK-901) — le fichier et la version active de chaque ligne se lisent sur `media`
         // chargé une fois pour la page, et non par deux requêtes par document.
         $paginator = $query
@@ -60,7 +74,7 @@ class DocumentController extends Controller
             ->with('media')
             ->paginate();
 
-        return $this->paginated($paginator, DocumentResource::page($paginator, $request));
+        return $this->paginated($paginator, DocumentResource::page($paginator, $request), ['counts' => $counts]);
     }
 
     public function store(StoreDocumentRequest $request): JsonResponse

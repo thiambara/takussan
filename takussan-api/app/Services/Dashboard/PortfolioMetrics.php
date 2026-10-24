@@ -16,6 +16,7 @@ use App\Models\Payout;
 use App\Services\Payout\PayoutClawbacks;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -249,12 +250,26 @@ class PortfolioMetrics
     {
         [$start, $end] = $this->monthBounds($from, $to);
 
-        $rows = CollectedPayments::leaseIncome()
+        $ofScope = fn (Builder $q): Builder => $q
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->whereNull('leases.deleted_at')
-            ->where('leases.'.$scope->leaseColumn, $scope->id)
+            ->where('leases.'.$scope->leaseColumn, $scope->id);
+
+        $rents = $ofScope(CollectedPayments::leaseIncome())
             ->whereBetween('lease_payments.paid_at', [$start->startOfDay(), $end->endOfDay()])
-            ->selectRaw("to_char(date_trunc('month', lease_payments.paid_at), 'YYYY-MM') AS m, SUM(".CollectedPayments::LEASE_NET_SQL.') AS total')
+            ->selectRaw("to_char(date_trunc('month', lease_payments.paid_at), 'YYYY-MM') AS m, ".CollectedPayments::LEASE_NET_SQL.' AS v')
+            ->toBase();
+
+        // P206.02 (ADR-0057, amendement du 2026-10-24) — la pénalité réglée, au mois de son règlement,
+        // dans la même requête : le budget de requêtes de l'accueil ne bouge pas.
+        $lateFees = $ofScope(CollectedPayments::lateFeeIncome())
+            ->whereBetween('lease_payments.late_fee_paid_at', [$start->startOfDay(), $end->endOfDay()])
+            ->selectRaw("to_char(date_trunc('month', lease_payments.late_fee_paid_at), 'YYYY-MM') AS m, ".CollectedPayments::LATE_FEE_NET_SQL.' AS v')
+            ->toBase();
+
+        $rows = DB::query()
+            ->fromSub($rents->unionAll($lateFees), 'income')
+            ->selectRaw('m, SUM(v) AS total')
             ->groupBy('m')
             ->pluck('total', 'm');
 
@@ -340,16 +355,30 @@ class PortfolioMetrics
      */
     public function overdue(PortfolioScope $scope): array
     {
-        $row = CollectedPayments::leaseOwed()
+        $ofScope = fn (Builder $q): Builder => $q
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->whereNull('leases.deleted_at')
-            ->where('leases.'.$scope->leaseColumn, $scope->id)
-            ->whereDate('lease_payments.due_date', '<', now()->toDateString())
-            ->selectRaw('COUNT(*) AS n, COALESCE(SUM('.CollectedPayments::OWED_REMAINING_SQL.'), 0) AS total')
-            ->toBase()
-            ->first();
+            ->where('leases.'.$scope->leaseColumn, $scope->id);
 
-        return ['count' => (int) ($row->n ?? 0), 'amount' => round((float) ($row->total ?? 0), 2)];
+        $owed = $ofScope(CollectedPayments::leaseOwed())
+            ->whereDate('lease_payments.due_date', '<', now()->toDateString())
+            ->selectRaw("'owed' AS k, COUNT(*) AS n, COALESCE(SUM(".CollectedPayments::OWED_REMAINING_SQL.'), 0) AS total')
+            ->toBase();
+
+        // P206.03 (ADR-0057, amendement du 2026-10-24, point 3) — les pénalités à recouvrer, total à
+        // part, lues dans la même requête : le budget de requêtes de l'accueil ne bouge pas.
+        $lateFees = $ofScope(CollectedPayments::lateFeesOutstanding())
+            ->selectRaw("'late_fees' AS k, COUNT(*) AS n, COALESCE(SUM(".CollectedPayments::LATE_FEE_OUTSTANDING_SQL.'), 0) AS total')
+            ->toBase();
+
+        $rows = $owed->unionAll($lateFees)->get()->keyBy('k');
+
+        return [
+            'count' => (int) ($rows['owed']->n ?? 0),
+            'amount' => round((float) ($rows['owed']->total ?? 0), 2),
+            'late_fees_count' => (int) ($rows['late_fees']->n ?? 0),
+            'late_fees_amount' => round((float) ($rows['late_fees']->total ?? 0), 2),
+        ];
     }
 
     /**

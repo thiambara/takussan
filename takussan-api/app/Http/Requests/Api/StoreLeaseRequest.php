@@ -21,6 +21,12 @@ use Illuminate\Validation\Rule;
 class StoreLeaseRequest extends BaseFormRequest
 {
     /**
+     * TCK-1240 (P114.01) — borne des conditions particulières, celle du schéma du front. Relue par
+     * `RenewLeaseRequest` (P209.05, TCK-2177) : un renouvellement crée aussi une ligne `leases`.
+     */
+    public const SPECIAL_CONDITIONS_MAX = 5000;
+
+    /**
      * L'autorisation NE migre PAS ici : elle appartient au contrôleur puis aux policies
      * (principes non négociables 1 et 2, et TCK-306). `BaseFormRequest` refuse par défaut —
      * *fail-closed* — donc sans cette surcharge l'endpoint rendrait 403 pour tout le monde.
@@ -61,7 +67,7 @@ class StoreLeaseRequest extends BaseFormRequest
             'terms' => ['nullable', 'string'],
             // TCK-1240 (P114.01) — le formulaire de création l'envoie ; absente des règles, `validated()`
             // l'écartait et le bail naissait sans ses conditions particulières. Borne du schéma du front.
-            'special_conditions' => ['nullable', 'string', 'max:5000'],
+            'special_conditions' => ['nullable', 'string', 'max:'.self::SPECIAL_CONDITIONS_MAX],
         ];
     }
 

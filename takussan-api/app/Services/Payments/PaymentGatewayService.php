@@ -669,7 +669,9 @@ class PaymentGatewayService
         $existingMeta = is_array($payment->metadata ?? null) ? $payment->metadata : [];
 
         $current = $this->currentPaymentStatus($payment);
-        $refundedBefore = (float) ($payment->refund_amount ?? 0);
+        // P206.04 — la part de pénalité rendue compte au remboursement : le constaté le porte entier.
+        $refundedBefore = (float) ($payment->refund_amount ?? 0)
+            + ($payment instanceof LeasePayment ? (float) ($payment->late_fee_refund_amount ?? 0) : 0.0);
 
         // Already paid / refunded — never regress to pending. We still log
         // the late event in metadata for traceability.
@@ -858,7 +860,9 @@ class PaymentGatewayService
         // `Payout` constaté de la part neuve, dans la transaction de l'événement. Jugé APRÈS la
         // sauvegarde : le règlement que lit `isSettledByPlatform` est alors celui de l'événement.
         if ($payment instanceof LeasePayment || $payment instanceof BookingPayment) {
-            $refundedPart = (float) ($payment->refund_amount ?? 0) - $refundedBefore;
+            $refundedPart = (float) ($payment->refund_amount ?? 0)
+                + ($payment instanceof LeasePayment ? (float) ($payment->late_fee_refund_amount ?? 0) : 0.0)
+                - $refundedBefore;
             if ($refundedPart > 0) {
                 app(ObservedRefundPayout::class)->record($payment, $refundedPart, now());
                 // TCK-2151 (ADR-0039, amendement du 2026-10-24, point 2) — quel que soit l'encaisseur :
@@ -1363,16 +1367,47 @@ class PaymentGatewayService
             return;
         }
 
-        $refund = $this->reportedRefundAmount($payment, $metadata);
+        // P206.04 (ADR-0039, amendement du 2026-10-24, point 7) — un remboursement d'un checkout qui
+        // portait la pénalité s'impute d'abord à elle, puis au loyer, et son plafond devient loyer +
+        // pénalité. La part de pénalité va dans `late_fee_refund_amount` ; `refund_amount` reste
+        // plafonné au loyer, et `late_fee_paid_at` garde sa valeur (une pénalité rendue est remise).
+        $lateFee = $payment instanceof LeasePayment ? $this->checkoutLateFee($payment) : 0.0;
+        $refund = $this->reportedRefundAmount($payment, $metadata, $lateFee);
+        if ($lateFee > 0) {
+            $feePart = min($refund, $lateFee);
+            $payment->late_fee_refund_amount = $feePart;
+            $refund -= $feePart;
+        }
         $payment->refund_amount = $refund;
         if ($refund >= (float) $payment->amount) {
             $this->writeStatus($payment, PaymentStatus::Refunded);
         }
     }
 
-    protected function reportedRefundAmount(Model $payment, array $metadata): float
+    /**
+     * P206.04 — la pénalité que portait le checkout qui a soldé ce loyer : celle figée à son
+     * initiation, à défaut la pénalité de l'échéance (le repli de `applyStatusToPayment`) ; 0 si ce
+     * checkout ne la portait pas, ou si elle n'a pas été acquittée.
+     */
+    protected function checkoutLateFee(LeasePayment $payment): float
     {
-        $amount = (float) $payment->amount;
+        $meta = is_array($payment->metadata ?? null) ? $payment->metadata : [];
+        $settledBy = $meta['gateway']['settled_by'] ?? null;
+        if (! is_string($settledBy) || $settledBy === '' || $payment->late_fee_paid_at === null) {
+            return 0.0;
+        }
+
+        $initiation = $this->initiationFor($meta, $settledBy);
+        if ($initiation['late_fee_included'] !== true) {
+            return 0.0;
+        }
+
+        return (float) ($initiation['late_fee_amount'] ?? $this->roundToCurrencyUnit((float) $payment->late_fee_amount, $payment));
+    }
+
+    protected function reportedRefundAmount(Model $payment, array $metadata, float $lateFee = 0.0): float
+    {
+        $amount = (float) $payment->amount + $lateFee;
         $reported = $metadata['amount'] ?? null;
         $reportedCurrency = isset($metadata['currency']) ? strtoupper((string) $metadata['currency']) : null;
 

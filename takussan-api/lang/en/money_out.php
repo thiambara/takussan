@@ -25,6 +25,7 @@ return [
         'paid_out' => 'Paid out',
         'unpaid' => 'Unpaid for the period',
         'unpaid_as_of' => 'as of :date',
+        'late_fees_outstanding' => 'Late fees to collect',
         'payouts' => 'Payouts',
         // P177.03 (TCK-2041) — le versé du relevé se lit au mois (ou à l'année) de son versement.
         'paid_this_month' => 'Paid out this month',

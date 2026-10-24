@@ -116,6 +116,9 @@ export type TenantDashboard = {
     }>;
     overdue_count: number;
     overdue_amount: number;
+    /** P206.03 (ADR-0057, amendement du 2026-10-24) — pénalités appliquées non réglées, à part de l'impayé. */
+    late_fees_outstanding_count?: number;
+    late_fees_outstanding_amount?: number;
   };
   /** TCK-595 (AC16) — les 5 prochaines visites du client. */
   visits?: {

@@ -28,6 +28,8 @@ export function AgencyKpis({ summary }: Props) {
   const locale = isLocale(brute) ? brute : DEFAULT_LOCALE;
   const overdueCount = summary.finance.overdue_count;
   const unpaidRate = summary.finance.unpaid_rate_percent;
+  // P206.03 (ADR-0057, amendement du 2026-10-24) — les pénalités à recouvrer, à part de l'impayé.
+  const lateFees = summary.finance.late_fees_outstanding_amount ?? 0;
 
   return (
     // Les deux MONTANTS prennent la ligne entière tant que la grille n'a que deux colonnes : un
@@ -62,6 +64,7 @@ export function AgencyKpis({ summary }: Props) {
       <AgencyKpiTile
         label={t('overdue')}
         value={formatCurrency(summary.finance.overdue_amount, locale)}
+        hint={lateFees > 0 ? t('lateFeesHint', { amount: formatCurrency(lateFees, locale) }) : undefined}
         accent={overdueCount > 0 ? 'danger' : 'default'}
         className="col-span-2 lg:col-span-1"
       />
