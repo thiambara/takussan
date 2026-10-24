@@ -19937,7 +19937,7 @@ les envoie.*
 
 ### Le tableau d'équipe et ses dialogues montrent une ligne vide pour un membre sans nom ni e-mail
 - Réf : P220.04
-- Statut : validé (délégué) — un seul assembleur de nom affichable sous `src/lib` : prénom et nom, sinon e-mail, sinon numéro, sinon `#<id>`, avec les seuls champs que chaque écran charge déjà (aucun champ de contact neuf demandé à l'API), employé par le tableau d'équipe (cellule, initiales, `aria-label` des actions), le tiroir du membre, la confirmation de suspension, l'assistant de passation, la révocation et la liste des délégations ; colonne e-mail à `—` et sans lien quand l'e-mail est nul ; le numéro n'apparaît que comme repli du nom, sans colonne neuve
+- Statut : fait · TCK-2138
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/users/AdminUsersTable.tsx:59-61`, `:157-159`, `:172-177`, `:281-283`, `takussan-web/src/components/admin/users/UserDetailDrawer.tsx:116-118`, `takussan-web/src/components/admin/ConfirmSuspendDialog.tsx:42`, `takussan-web/src/components/crm/HandoverWizard.tsx:73`, `takussan-web/src/components/admin/roles/RevokeDelegationDialog.tsx:77`, `takussan-web/src/components/admin/roles/RoleDelegationsSection.tsx:225-228`, `takussan-web/src/lib/queries/admin-users.ts:35-44`
 - Constat :
@@ -19948,10 +19948,11 @@ les envoie.*
 - Piste : un assembleur de nom commun au front (nom, sinon e-mail, sinon numéro pour le personnel de l'agence, sinon `#id`), employé par ces écrans ; colonne e-mail à `—` quand elle est nulle. Test de rendu d'une ligne sans nom ni e-mail.
 - Mesure (2026-10-24, 6d8095e26, mesureur) : relu `AdminUsersTable.tsx:59-61,157-159,172-177` (nom composé sans repli, `mailto:${row.email}` sans test de nullité, `grep phone` → aucune occurrence), `UserDetailDrawer.tsx:117`, `ConfirmSuspendDialog.tsx:42`, `HandoverWizard.tsx:73`, `RevokeDelegationDialog.tsx:77`, `RoleDelegationsSection.tsx:227`, inchangés → le constat tient ; l'entrée d'un tel compte dans l'équipe est mesurée sous P220.07. Classement : V7, l'assembleur commun fixe un ordre (nom, e-mail, numéro, `#id`) et montre un numéro que le tableau n'affiche pas aujourd'hui ; seul le `mailto:null` serait A1.
 - Mesure (2026-10-24, 3e8efc3c5, delegue) : relu l'entrée et la `Mesure` du mesureur, `AdminUsersTable.tsx:157-159,172-177`, `admin-users.ts:40` (`phone` déjà demandé), `UserDetailDrawer.tsx:141` (le tiroir affiche déjà le numéro à l'administrateur), TCK-2053 (porteur, 2026-10-23 : `full_name ?: email ?: phone` dans la console et l'avis d'upgrade) → l'ordre de repli est celui que le porteur a déjà écrit pour un écran d'administration, et le numéro est déjà montré au même lecteur : aucune donnée neuve n'est chargée ni montrée. Délégation : V7, repli d'affichage sans texte neuf ni colonne neuve, suivant une décision écrite du porteur (TCK-2053), réversible en un commit.
+- Mesure (2026-10-24, 60bd7e880, implementeur) : avant correctif, un membre à noms `''` sans e-mail ne laissait voir au tableau que la pastille `·`, une colonne e-mail sans texte ni lien utile, et « Actions pour  » ; tiroir, suspension, passation et délégations sans nom (sept tests rouges) ; `nomAffichable()` (`src/lib/identite.ts`, nom → e-mail → numéro → `#<id>`) employé par ces six écrans, e-mail nul rendu `—` sans lien ; `equipe-membre-sans-nom.p220-04.test.tsx` (6), `HandoverWizard.test`, `RoleDelegationsSection.test`, `identite.test` verts, voisins verts (49) ; ablation : les six composants remis → les sept cas rougissent.
 
 ### Les sélecteurs de membre proposent des options sans libellé pour un membre sans nom
 - Réf : P220.05
-- Statut : validé (délégué) — le même assembleur que P220.04 (un seul assembleur de nom affichable sous `src/lib` : prénom et nom, sinon e-mail, sinon numéro, sinon `#<id>`, avec les seuls champs que chaque écran charge déjà (aucun champ de contact neuf demandé à l'API)) dans `fetchAgencyAgents`, `CreateDelegationDialog`, `ContactLeadsInbox` (`nomComplet`, option et ligne destinataire) et le filtre d'agent de la liste des biens ; `fetchAgencyAgents` garde `fields[users]=id,first_name,last_name`, et retombe donc sur `#<id>`
+- Statut : fait · TCK-2140
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/agent-crm.ts:114-125`, `takussan-web/src/components/admin/roles/CreateDelegationDialog.tsx:200-204`, `takussan-web/src/components/leads/ContactLeadsInbox.tsx:147-149`, `:245`, `:371-375`, `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:263`
 - Constat :
@@ -19963,6 +19964,7 @@ les envoie.*
 - Piste : le même assembleur que P220.04 dans ces quatre lecteurs. Test de `fetchAgencyAgents` sur un membre sans nom → `name` non vide.
 - Mesure (2026-10-24, 6d8095e26, mesureur) : relu `agent-crm.ts:124` (`[first_name, last_name].filter(Boolean).join(' ')`), `CreateDelegationDialog.tsx:202`, `ContactLeadsInbox.tsx:147-148`, `properties/(liste)/page.tsx:263`, inchangés ; `property-collaborators.ts:77` et `VisitDetail.tsx:608` retombent déjà, chacun autrement → le constat tient. Classement : V7, la `Piste` est l'assembleur de P220.04, dont l'ordre de repli reste à choisir.
 - Mesure (2026-10-24, 3e8efc3c5, delegue) : relu l'entrée et la `Mesure` du mesureur, `agent-crm.ts:114-125` (`fields[users]` = `id`, `first_name`, `last_name` seuls), `CreateDelegationDialog.tsx:200-204`, `ContactLeadsInbox.tsx:147-149`, et les replis déjà en place `MaintenanceAssignmentBlock.tsx:167-168` (`name || String(member.id)`) et `AuditTrail.tsx:113-115` (nom, e-mail, `#id`) → avec la règle « seuls les champs déjà chargés », ces sélecteurs retombent sur `#<id>` comme `MaintenanceAssignmentBlock`, sans coordonnée ajoutée aux requêtes. Délégation : V7, même règle que P220.04, sans texte neuf ni champ neuf, réversible en un commit.
+- Mesure (2026-10-24, 60bd7e880, implementeur) : avant correctif, `fetchAgencyAgents` rendait `name: ''` pour un agent sans nom, le bénéficiaire d'une délégation, le destinataire et le collègue d'une demande de contact et l'utilisateur courant du filtre d'agent des biens étaient sans libellé (quatre tests rouges) ; les quatre sites passent par `nomAffichable()` (TCK-2138), `fetchAgencyAgents` garde ses trois champs et rend `#<id>` ; les quatre cas verts, voisins verts (23) ; ablation : les quatre fichiers remis → les quatre cas rougissent.
 
 ### Les listes de bailleurs et de prestataires ignorent le nom saisi à l'invitation dès qu'un compte est lié
 - Réf : P220.06
@@ -19993,7 +19995,7 @@ les envoie.*
 
 ### Petites améliorations
 - Réf : P220.08
-- Statut : validé (délégué) — « Bailleur actif » nommé par le même assembleur que P220.04 (un seul assembleur de nom affichable sous `src/lib` : prénom et nom, sinon e-mail, sinon numéro, sinon `#<id>`, avec les seuls champs que chaque écran charge déjà (aucun champ de contact neuf demandé à l'API)) ; `property-collaborators.ts:77` et `VisitDetail.tsx:608` passent par lui ; une garde `scripts/check-*.mjs` refuse la composition `first_name` + `last_name` hors de l'assembleur, avec une liste d'exceptions motivées pour les sites que le lot ne convertit pas
+- Statut : fait · TCK-2142
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:212-216`, `takussan-web/src/lib/queries/property-collaborators.ts:77`, `takussan-web/src/components/visits/VisitDetail.tsx:608`
 - Constat :
@@ -20003,6 +20005,7 @@ les envoie.*
 - Piste : un `nomAffichable()` sous `src/lib`, et une garde légère (`grep` dans `scripts/check-*.mjs`) contre la composition `${first_name} ${last_name}` hors de lui.
 - Mesure (2026-10-24, 6d8095e26, mesureur) : relu `CreateLeaseForm.tsx:214` (`t('activeLandlord', { name: user.full_name })`), `fr.json:3918` (« Bailleur actif : {name} »), `property-collaborators.ts:77` (`#id`), `VisitDetail.tsx:608` (e-mail), `grep nomAffichable src/lib` → rien, inchangés → le constat tient. Classement : V7, le repli à afficher et l'assembleur dépendent du choix de P220.04 ; la garde seule serait A5.
 - Mesure (2026-10-24, 3e8efc3c5, delegue) : relu l'entrée et la `Mesure` du mesureur, `CreateLeaseForm.tsx:212-216` (le nom est celui du compte courant, lu par lui-même), `property-collaborators.ts:77` et `VisitDetail.tsx:608` (replis divergents) → l'assembleur est celui de P220.04, dont l'ordre suit TCK-2053 ; la garde est une garde de code neuve, sans seuil existant resserré (A5), hors des bornes des agents. Délégation : V7, même règle que P220.04, sans texte neuf, réversible en un commit.
+- Mesure (2026-10-24, 60bd7e880, implementeur) : avant correctif, le récapitulatif d'un bail créé par un bailleur sans nom n'affichait pas « Bailleur actif : <numéro> » ni « #4 », et un visiteur inscrit sans nom ni e-mail se lisait « Utilisateur inscrit » malgré son numéro (trois tests rouges) ; `CreateLeaseForm`, `collaboratorName` et `VisitDetail` passent par `nomAffichable()` (TCK-2138), les libellés traduits existants servant de repli ; `scripts/check-nom-affichable.mjs` refuse la composition prénom + nom hors de `src/lib/identite.ts`, 33 sites excusés dans 19 fichiers ; tests verts, voisins verts (34) ; ablation : les trois fichiers remis → trois rouges, une composition remise dans `ConfirmSuspendDialog` → la garde rougit.
 
 ## Angle 221 — Arguments typés `string` nourris par une colonne nullable ou un repli qui rend `null`
 

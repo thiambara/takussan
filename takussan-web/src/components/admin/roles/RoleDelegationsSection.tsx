@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/table';
 import { CreateDelegationDialog } from './CreateDelegationDialog';
 import { RevokeDelegationDialog } from './RevokeDelegationDialog';
+import { nomAffichable } from '@/lib/identite';
 import { useRoleDelegations } from '@/lib/queries/role-delegations';
 import { useCanAll } from '@/hooks/useCan';
 import { useFormatDate } from '@/i18n/hooks';
@@ -224,7 +225,7 @@ export function RoleDelegationsSection({ agencyId }: RoleDelegationsSectionProps
   const nomComplet = (delegation: RoleDelegation): string => {
     const partie = delegation.user;
     if (!partie) return t('unknown_member', { id: delegation.user_id });
-    return `${partie.first_name} ${partie.last_name}`.trim();
+    return nomAffichable(partie);
   };
 
   return (

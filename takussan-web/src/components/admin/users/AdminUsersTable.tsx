@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatDate as formatDateIntl } from '@/lib/format';
+import { initialesDe, nomAffichable } from '@/lib/identite';
 import type { Locale } from '@/i18n/config';
 import type { TeamSuspensionAction } from '@/lib/queries/team-suspension';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
@@ -57,7 +58,7 @@ const ROLE_KEYS = new Set([
 ]);
 
 function getInitials(u: AdminAgencyUserRow): string {
-  return `${u.first_name?.[0] ?? ''}${u.last_name?.[0] ?? ''}`.toUpperCase() || '·';
+  return initialesDe(u) ?? '·';
 }
 
 /**
@@ -154,9 +155,7 @@ export function AdminUsersTable({
             <AvatarFallback>{getInitials(row)}</AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-semibold text-foreground">
-              {row.first_name} {row.last_name}
-            </p>
+            <p className="font-semibold text-foreground">{nomAffichable(row)}</p>
             {row.id === currentUserId ? (
               <p className="text-xs text-muted-foreground">{t('table.you')}</p>
             ) : null}
@@ -168,14 +167,18 @@ export function AdminUsersTable({
       id: 'email',
       header: t('table.email'),
       className: 'align-middle whitespace-nowrap text-muted-foreground',
-      cell: (row) => (
-        <a
-          href={`mailto:${row.email}`}
-          className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          {row.email}
-        </a>
-      ),
+      // P220.04 — un membre créé par téléphone n'a pas d'e-mail : « — », pas un lien `mailto:null`.
+      cell: (row) =>
+        row.email ? (
+          <a
+            href={`mailto:${row.email}`}
+            className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            {row.email}
+          </a>
+        ) : (
+          '—'
+        ),
     },
     {
       id: 'role',
@@ -278,9 +281,7 @@ export function AdminUsersTable({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={t('table.actionsAria', {
-                    name: `${row.first_name} ${row.last_name}`,
-                  })}
+                  aria-label={t('table.actionsAria', { name: nomAffichable(row) })}
                 />
               )}
             >

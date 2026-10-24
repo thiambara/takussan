@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Plus } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
+import { nomAffichable } from '@/lib/identite';
 import { getToken } from '@/lib/session';
 import { countDashboardProperties, fetchDashboardProperties } from '@/lib/queries/properties-server';
 import { PropertyList } from '@/components/property-dashboard/PropertyList';
@@ -260,7 +261,7 @@ function buildAgentOptions(
   user: Awaited<ReturnType<typeof getMeAction>>,
 ) {
   const map = new Map<number, string>();
-  map.set(user.id, user.full_name || `${user.first_name} ${user.last_name}`.trim());
+  map.set(user.id, nomAffichable(user));
   for (const property of properties) {
     if (property.owner) {
       map.set(property.owner.id, property.owner.name);

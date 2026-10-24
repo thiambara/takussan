@@ -1,5 +1,6 @@
 import { apiRequest } from '@/lib/api';
 import { cheminApi } from '@/lib/chemin-api';
+import { nomAffichable } from '@/lib/identite';
 
 /**
  * TCK-504 — les collaborateurs d'un bien et son agent principal. Module sans directive : appelable
@@ -74,5 +75,6 @@ export function designatePrimaryCollaborator(
 export function collaboratorName(row: PropertyCollaboratorRow): string {
   const user = row.user;
   if (!user) return `#${row.user_id}`;
-  return [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || user.username || `#${user.id}`;
+  // P220.08 — ni e-mail ni numéro chargés ici : le pseudonyme tient lieu de repli avant `#<id>`.
+  return nomAffichable(user, user.username);
 }

@@ -33,12 +33,12 @@ const VIDE = {
 const TOUT = ['tasks', 'visits', 'maintenance', 'responsible_properties', 'held_properties', 'collaborations', 'customers'];
 const partant = { id: 7, first_name: 'Moussa', last_name: 'Fall' };
 
-function rendu() {
+function rendu(membre: { id: number; first_name: string; last_name: string; email?: string | null } = partant) {
   const onDone = vi.fn();
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(withIntl(
     <QueryClientProvider client={client}>
-      <HandoverWizard agencyId={3} member={partant} onClose={vi.fn()} onDone={onDone} />
+      <HandoverWizard agencyId={3} member={membre} onClose={vi.fn()} onDone={onDone} />
     </QueryClientProvider>,
   ));
   return onDone;
@@ -135,5 +135,22 @@ describe('HandoverWizard', () => {
     expect(await screen.findByText(/Son portefeuille est vide/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: "Retirer de l'agence" }));
     await waitFor(() => expect(removeMember).toHaveBeenCalledWith('jeton', 3, 7, false));
+  });
+
+  it("nomme un partant sans nom par son e-mail (P220.04, TCK-2138)", async () => {
+    fetchMemberPortfolio.mockResolvedValue({
+      user_id: 7,
+      portfolio: { ...VIDE, tasks: 1 },
+      transferable: TOUT,
+      pending: [],
+    });
+    rendu({ id: 7, first_name: '', last_name: '', email: 'moussa@example.test' });
+
+    await userEvent.selectOptions(await screen.findByLabelText('Repreneur'), '8');
+    await userEvent.click(screen.getByRole('button', { name: 'Relire' }));
+
+    expect(screen.getByTestId('handover-review')).toHaveTextContent(
+      'Awa Diop reprendra ce que moussa@example.test porte',
+    );
   });
 });

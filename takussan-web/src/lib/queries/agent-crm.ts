@@ -16,6 +16,7 @@ import type {
   PortfolioCategory,
 } from '@/types/agent-crm';
 import { cheminApi, requete } from '@/lib/chemin-api';
+import { nomAffichable } from '@/lib/identite';
 import { lireToutesLesPages, PAR_PAGE_MAX } from '@/lib/queries/toutes-les-pages';
 
 /**
@@ -121,7 +122,8 @@ export async function fetchAgencyAgents(token: string, agencyId: number): Promis
     cheminApi`/api/agencies/${agencyId}/members?${qs}`,
     { token },
   );
-  return res.data.map((u) => ({ id: u.id, name: [u.first_name, u.last_name].filter(Boolean).join(' ') }));
+  // P220.05 — ni e-mail ni numéro demandés ici : un agent sans nom retombe sur `#<id>`.
+  return res.data.map((u) => ({ id: u.id, name: nomAffichable(u) }));
 }
 
 export async function setCustomerPrimaryContact(token: string, customerId: number, userId: number): Promise<void> {
