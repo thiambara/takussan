@@ -20597,7 +20597,7 @@ sans `delete`).*
 
 ### Six gestes de la console plateforme échouent sans message
 - Réf : P228.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-2216
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/super/alerts.tsx:59-65,128,252-262`, `takussan-web/src/components/admin/super/announcements.tsx:563-584`, `takussan-web/src/components/admin/super/feature-flags.tsx:174-188`, `takussan-web/src/components/admin/super/integrations.tsx:99-116`, `takussan-web/src/components/admin/super/maintenance.tsx:41,59-65,89,140`, `takussan-api/app/Support/Security/ProtectedActions.php:206-212`
 - Constat :
@@ -20607,6 +20607,7 @@ sans `delete`).*
   - Établi comment : lu.
 - Piste : un `onError` qui pose le message (`setError(messageErreur(err))`, déjà en place dans les dialogues voisins des mêmes fichiers) pour chacun, ou un affichage commun des erreurs de mutation de la console. Garde : un test par composant qui rejette la mutation et exige un `role="alert"`.
 - Mesure (2026-10-24, d44d3bc59, mesureur) : relu, sous `components/admin/super/` : `alerts.tsx:59-65,128` (`remove`, `onSuccess` seul) et `:255-261` (`AlertTestButton`, `onSuccess` seul), `announcements.tsx:563-584` (désactivation, `onSuccess` seul), `feature-flags.tsx:178-188` (`SessionOverrideToggle` sous `avecGardeDoubleFacteur`, `onSuccess` seul), `integrations.tsx:104-116` (`IntegrationTestButton` sous `avecGardeDoubleFacteur`, `onSuccess` seul), `maintenance.tsx:59-65,89` (`cancel`, `onSuccess` seul) alors que `error` (l. 41, `role="alert"` l. 140) n'est nourri que par `schedule` (l. 57) ; les dialogues voisins des mêmes fichiers posent `onError: (err) => setError(messageErreur(err))` (`alerts.tsx:176`, `announcements.tsx:340`, `feature-flags.tsx:131`, `integrations.tsx:160`, `maintenance.tsx:57`), step-up compris ; aucun commit sur ces fichiers depuis 157e11cb4, aucun ticket ne cite P228 → les six sites tiennent, lus (aucun rendu lancé). Classement : A1, ADR-0019 et le motif déjà en place dans chaque fichier fixent la forme : un `onError` par geste vers `messageErreur(err)` dans un `role="alert"`, sans texte neuf.
+- Mesure (2026-10-24, 68ab70c5b, implementeur) : relu à `pre-dev` les six `useMutation` (`alerts.tsx` `remove` et `AlertTestButton`, `announcements.tsx` `AnnouncementAction`, `feature-flags.tsx` `SessionOverrideToggle`, `integrations.tsx` `IntegrationTestButton`, `maintenance.tsx` `cancel`), chacun à `onSuccess` seul, sans lecture de son erreur → le constat tient ; `gestes-refuses.p228-04.test.tsx` (un cas par geste, rejet 422 → message en `role="alert"`) ; ablation : les cinq composants de `pre-dev` → 6/6 rouges, correctif remis → 6/6 verts, huit fichiers voisins verts (42 tests).
 
 ### Petites améliorations : gestes d'écran dont l'échec est muet, refusés surtout sur un écran périmé
 - Réf : P228.05
