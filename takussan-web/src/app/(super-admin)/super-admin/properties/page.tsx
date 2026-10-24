@@ -34,6 +34,8 @@ export default function SuperAdminPropertiesPage() {
       status: searchParams.get('filter[status]') ?? undefined,
       type: searchParams.get('filter[type]') ?? undefined,
       visibility: searchParams.get('filter[visibility]') ?? undefined,
+      // P167.07 (TCK-2087) — le lien de la tuile « Biens publiés » de la console.
+      public: searchParams.get('filter[public]') === '1' ? true : undefined,
       agencyId: searchParams.get('filter[agency_id]')
         ? Number(searchParams.get('filter[agency_id]'))
         : undefined,
