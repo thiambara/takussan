@@ -19,10 +19,19 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <!-- `APP_DEBUG` à `false`, comme la préproduction (docs/infra/hebergement.md) : un 500 n'y
+             rend ni le message ni la trace de l'exception, et la suite doit éprouver le même corps
+             (P156.03). Sans cette ligne, elle le prenait du `.env` : `true`. Un test qui veut le
+             régime de débogage le pose lui-même (`config(['app.debug' => true])`). -->
+        <env name="APP_DEBUG" value="false"/>
         <env name="APP_KEY" value="base64:R5EF3VcZYPHBxqSF14pu4iX0El1uooG4pKjjj+CANJA="/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
+        <!-- `array`, quand le développement et la préproduction déclarent `redis` : chaque test
+             part d'un cache vide, et rien ne se partage entre deux tests ni entre deux processus
+             (la panne D-44, sur une autre ressource). Le magasin `array` sert `Cache::tags()`
+             comme `redis` ; il ne dit rien de l'expiration réelle ni du verrou entre processus. -->
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="pgsql"/>
         <env name="DB_HOST" value="127.0.0.1"/>
@@ -48,7 +57,14 @@
              ⚠⚠ Le driver est forcé SANS REPLI, comme `SCOUT_DRIVER`. PostgreSQL est un
              prérequis dur de la suite : `docker-compose.yml` en fournit un (ADR-0011). -->
         <env name="MAIL_MAILER" value="array"/>
+        <!-- `sync`, quand le développement et la préproduction déclarent `database` : un job
+             s'exécute dans le test qui le met en file, sans worker. Depuis TCK-1802 (P156.01),
+             `sync` porte `after_commit` (config/queue.php) : le job attend le commit, comme sous
+             le worker. Ce que `sync` ne reproduit pas : les tentatives, les délais, et l'échec
+             d'un job remonte dans la requête qui l'a mis en file. -->
         <env name="QUEUE_CONNECTION" value="sync"/>
+        <!-- `array`, quand le développement et la préproduction déclarent `redis` : aucune
+             session ne survit au test, ni ne se partage entre processus. -->
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
@@ -101,6 +117,12 @@
              développement lié à 127.0.0.1. -->
         <env name="MEILISEARCH_HOST" value="http://127.0.0.1:7701"/>
         <env name="MEILISEARCH_KEY" value="masterKey"/>
+        <!-- Les deux à `false` : l'index s'écrit dans la requête, avant le commit, et un
+             Meilisearch coupé y annule le geste en entier (mesuré, P123.03). Le développement
+             déclare `false`/`true` (`.env.docker`), la préproduction `true`/`true` (relevé du
+             2026-10-22, docs/infra/hebergement.md). L'écart est assumé : la préproduction indexe en file
+             après le commit, et le porteur n'a pas voulu de code pour les deux autres régimes
+             (P123.03, 2026-10-23). -->
         <env name="SCOUT_QUEUE" value="false"/>
         <env name="SCOUT_AFTER_COMMIT" value="false"/>
         <env name="LARAVEL_PDF_DRIVER" value="dompdf"/>

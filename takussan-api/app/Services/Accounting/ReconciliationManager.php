@@ -172,6 +172,21 @@ class ReconciliationManager
                 'bank_statement_line_id' => $locked->id,
             ]);
 
+            // TCK-1919 (P157.06, décision du porteur) — les autres lignes suggérées sur ce paiement
+            // repassent `unmatched` : la ligne d'un relevé qui en chevauche un autre restait
+            // « suggérée » sur un paiement rapproché ailleurs, et sa confirmation rendait 422.
+            BankStatementLine::query()
+                ->whereKeyNot($locked->id)
+                ->where('match_status', BankStatementLineMatchStatus::Suggested)
+                ->where('matched_payment_type', get_class($payment))
+                ->where('matched_payment_id', $payment->id)
+                ->update([
+                    'match_status' => BankStatementLineMatchStatus::Unmatched,
+                    'matched_payment_type' => null,
+                    'matched_payment_id' => null,
+                    'match_confidence' => null,
+                ]);
+
             // TCK-1524 (P110.03, décision du porteur) — un crédit confirmé sur une facture envoyée
             // ou en retard vaut règlement : elle restait `sent`, relancée au jalon suivant, puis
             // annulable par avoir avec sa ligne toujours rapprochée.

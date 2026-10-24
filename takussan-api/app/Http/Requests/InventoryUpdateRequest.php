@@ -26,15 +26,15 @@ class InventoryUpdateRequest extends FormRequest
     {
         return [
             'general_condition' => ['filled', Rule::enum(InventoryCondition::class)],
-            'rooms' => ['filled', 'array', 'min:1'],
+            'rooms' => ['filled', 'array', 'min:1', 'max:'.InventoryStoreRequest::MAX_ROOMS],
             'rooms.*.name' => ['required_with:rooms', 'string', 'max:255'],
             'rooms.*.condition' => ['required_with:rooms', Rule::enum(InventoryCondition::class)],
-            'rooms.*.notes' => ['nullable', 'string'],
-            'rooms.*.elements' => ['nullable', 'array'],
+            'rooms.*.notes' => ['nullable', 'string', 'max:'.InventoryStoreRequest::MAX_NOTES],
+            'rooms.*.elements' => ['nullable', 'array', 'max:'.InventoryStoreRequest::MAX_ELEMENTS_PER_ROOM],
             'rooms.*.elements.*.label' => ['required_with:rooms.*.elements', 'string', 'max:255'],
             'rooms.*.elements.*.state' => ['required_with:rooms.*.elements', Rule::enum(InventoryElementState::class)],
-            'rooms.*.elements.*.notes' => ['nullable', 'string'],
-            'notes' => ['nullable', 'string'],
+            'rooms.*.elements.*.notes' => ['nullable', 'string', 'max:'.InventoryStoreRequest::MAX_ELEMENT_NOTES],
+            'notes' => ['nullable', 'string', 'max:'.InventoryStoreRequest::MAX_NOTES],
         ];
     }
 }

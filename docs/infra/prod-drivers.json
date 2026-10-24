@@ -60,6 +60,20 @@
           "date": "2026-09-14",
           "commande": "compose.one → env (Dokploy)",
           "note": "Présente et vraie depuis la migration — le manque relevé le 2026-08-16 est fermé."
+        },
+        "SCOUT_QUEUE": {
+          "valeur": "true",
+          "etat": "mesure",
+          "date": "2026-10-22",
+          "commande": "compose.one → env (Dokploy)",
+          "note": "L'indexation part en file (QUEUE_CONNECTION=database) : une panne de Meilisearch ne fait pas échouer la requête (P123.03, hebergement.md). `.env.docker` pose `false`."
+        },
+        "SCOUT_AFTER_COMMIT": {
+          "valeur": "true",
+          "etat": "mesure",
+          "date": "2026-10-22",
+          "commande": "compose.one → env (Dokploy)",
+          "note": "L'écriture dans l'index attend le commit (P123.03). `phpunit.xml` pose `false`."
         }
       }
     },

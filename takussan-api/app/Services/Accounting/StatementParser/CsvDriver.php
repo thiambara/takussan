@@ -3,6 +3,7 @@
 namespace App\Services\Accounting\StatementParser;
 
 use App\Models\Enums\BankStatementLineDirection;
+use App\Models\Enums\Currency;
 use App\Support\Logging\SafeExceptionContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
@@ -161,7 +162,7 @@ class CsvDriver implements StatementParserInterface
      * TCK-1704 (P124.01) — la devise lue dans sa colonne. `bank_statement_lines.currency` est un
      * `char(3)` : `FCFA`, l'écriture courante des relevés sénégalais, faisait échouer l'insertion
      * et le relevé entier. Les écritures connues du franc CFA deviennent `XOF` ; un code de trois
-     * lettres passe en majuscules ; toute autre valeur, vide comprise, fait sauter la ligne,
+     * lettres connu de `Currency` passe en majuscules ; toute autre valeur, vide comprise, fait sauter la ligne,
      * comptée comme une ligne illisible. Le message ne porte pas la valeur.
      */
     private function parseCurrency(string $raw): string
@@ -172,7 +173,10 @@ class CsvDriver implements StatementParserInterface
             return 'XOF';
         }
 
-        if (preg_match('/^[A-Z]{3}$/', $value) !== 1) {
+        // P157.01 (TCK-1917) — un code de trois lettres qui n'est pas un cas de `Currency` (`ABC`)
+        // entrait tel quel : aucun paiement ne s'y appariait, et l'écran l'affichait en « F CFA ».
+        // Sauté et compté. Un code connu autre que celui de l'agence est gardé (TCK-1475).
+        if (Currency::tryFrom($value) === null) {
             throw new \RuntimeException('Invalid currency');
         }
 

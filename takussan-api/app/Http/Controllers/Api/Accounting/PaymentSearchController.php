@@ -22,6 +22,7 @@ class PaymentSearchController extends Controller
             amountHint: $request->float('amount') ?: null,
             limit: 20,
             direction: BankStatementLineDirection::tryFrom((string) $request->query('direction', '')),
+            currency: $request->validated('currency'),
         );
 
         return MatchCandidateResource::collection($candidates);
