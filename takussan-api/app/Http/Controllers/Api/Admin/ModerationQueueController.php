@@ -19,13 +19,19 @@ class ModerationQueueController extends Controller
     {
         $data = $request->validated();
 
+        $filters = $data['filter'] ?? [];
         $paginator = $this->service->paginate(
-            $data['filter'] ?? [],
+            $filters,
             (string) ($data['sort'] ?? '-reported_at'),
             (int) ($data['per_page'] ?? 20),
         );
 
-        return $this->paginated($paginator, ModerationItemResource::collection($paginator)->toArray($request));
+        // P199.02 (TCK-2165) — les comptes par type de la file entière, que les tuiles lisent.
+        return $this->paginated(
+            $paginator,
+            ModerationItemResource::collection($paginator)->toArray($request),
+            ['counts' => $this->service->countsByType($filters)],
+        );
     }
 
     public function decide(DecideModerationQueueRequest $request, string $id): JsonResponse
