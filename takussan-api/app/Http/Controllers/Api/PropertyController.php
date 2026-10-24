@@ -58,12 +58,14 @@ class PropertyController extends Controller
         ]);
 
         if (! $user->isSuperAdmin()) {
-            // TCK-1705 (P153.01) — ses biens sans agence, et ceux des agences où il a encore un
-            // profil : l'agent retiré ne liste plus les biens d'agence qu'il avait saisis.
+            // TCK-1705 (P153.01) — ses biens sans agence, et ceux des agences où il est membre :
+            // l'agent retiré ne liste plus les biens d'agence qu'il avait saisis.
+            // TCK-2031 (P190.07, ADR-0031 § 3) — l'agent suspendu non plus : la clause suit
+            // `PropertyPolicy::view`, c'est-à-dire un profil propriétaire de tout statut
+            // (`BailleurDuBien`), ou un profil au statut actif dans l'agence du bien.
             $memberAgencyIds = $user->ownerProfiles()->pluck('agency_id')
-                ->merge($user->agentProfiles()->pluck('agency_id'))
-                ->merge($user->agencyAdminProfiles()->pluck('agency_id'))
-                ->unique()->values()->all();
+                ->merge($user->activeAgencyIds())
+                ->map(fn ($id) => (int) $id)->unique()->values()->all();
             $base->where(function ($q) use ($user, $memberAgencyIds) {
                 $q->where(fn ($own) => $own->where('user_id', $user->id)
                     ->where(fn ($a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds)));
