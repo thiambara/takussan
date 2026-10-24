@@ -41,7 +41,7 @@ gestes bancaires et sur les cinq lectures.
 
 ## Décision du porteur
 
-validation du porteur (2026-10-24) : la décision du 2026-10-23 (capacité neuve `payments.reconcile`, réservée par défaut à l'admin, pour les quatre gestes bancaires ; journal d'audit et tableau de bord du bailleur par `reports.view_agency`), avec une migration de données idempotente, en ajout seul, qui insère `payments.reconcile` dans les rôles personnalisés de base `agency_admin` et ne retire rien ; `IntegrationController::paymentProviders` appelle le prédicat d'`index` au lieu de le recopier
+validation du porteur (2026-10-24) : la décision du 2026-10-23 (capacité neuve `payments.reconcile`, réservée par défaut à l'admin, pour les quatre gestes bancaires ; journal d'audit et tableau de bord du bailleur par `reports.view_agency`), avec une migration de données idempotente, en ajout seul, qui insère `payments.reconcile` dans les rôles personnalisés de base `agency_admin` et ne retire rien ; `IntegrationController::paymentProviders` appelle le prédicat d'`index` au lieu de le recopier ; reste : compter en préproduction les rôles personnalisés de base `agency_admin`
 
 ## Reste à faire
 
