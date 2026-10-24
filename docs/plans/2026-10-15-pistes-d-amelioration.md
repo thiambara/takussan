@@ -290,7 +290,7 @@ voie d'écriture (angle 13, puis 47).
 | 213 | Contrôleurs et services qui écrivent (`fill()->save()`, `update()`, `recordOwnerCost`) puis appellent une garde ou un service qui peut encore lever un 4xx, hors `DB::transaction` (`MaintenanceRequestController::update` l. 211-219 et ses pareils sous `app/Http/Controllers/Api` et `app/Services`) : réponse d'erreur sur une écriture déjà faite, que l'écran présente comme un échec — né de P184.02 | fait |
 | 214 | Formulaires d'édition qui renvoient en entier une colonne JSON qu'ils ne montrent qu'en partie (`saved_searches.criteria` de `SearchPreferencesForm`, `announcements.segment`, `integrations.metadata`, `available_slots`, `limits` des plans), face à un `fill()` qui remplace la colonne : clés posées par un autre écran ou une autre version effacées par un simple enregistrement — né de P185.01 | fait |
 | 215 | Identifiants numériques de route hors de `bigint` sur les routes connectées : liaisons implicites `{model}` et paramètres `whereNumber()` (30 sous `routes/`) ou actions typées `int $id`, face à vingt chiffres dans l'URL — 500 `22003` ou `TypeError` au lieu d'un 404 — le relevé de P187.05 hors des routes publiques | fait |
-| 216 | Paramètres hors `filter[…]` castés `(string)` ou passés à un argument typé `string` dans les listes et lectures écrites à la main (`(string) $request->input('include')` des trois tableaux de bord, `(string) $request->query('sort')` de `ReviewController` et `UserDetailController`, `$request->query('q')` de `PaymentSearchController`, et leurs pareils sous `app/Http/Controllers`) : une liste `x[]=` rend 500 « Array to string conversion » ou `TypeError` au lieu d'un 422 ou d'un défaut — né de P188.06 et P188.07 | à faire |
+| 216 | Paramètres hors `filter[…]` castés `(string)` ou passés à un argument typé `string` dans les listes et lectures écrites à la main (`(string) $request->input('include')` des trois tableaux de bord, `(string) $request->query('sort')` de `ReviewController` et `UserDetailController`, `$request->query('q')` de `PaymentSearchController`, et leurs pareils sous `app/Http/Controllers`) : une liste `x[]=` rend 500 « Array to string conversion » ou `TypeError` au lieu d'un 422 ou d'un défaut — né de P188.06 et P188.07 | fait |
 | 217 | Clauses de périmètre des listes `index` écrites à la main (`BookingController`, `LeaseController`, `InventoryController`, `PaymentController::history`, `InvoiceController`, `PropertyVisitController`, `MaintenanceRequestController`) face à la policy `view` de leur modèle, resserrée seule par TCK-587, TCK-1705, TCK-1707 et TCK-1718 à TCK-1722 : ligne refusée en lecture qui reste listée avec ses relations chargées (fiche client, bien) — hors du créateur du bien relevé à l'angle 190 | à faire |
 | 218 | Effets que le retrait d'un membre applique (`AgencyMemberRemovalService` : fils de bail quittés, marque d'agent principal retirée, passation) et que la suspension n'applique pas (`TeamMemberSuspensionService::apply` : statut des profils et jetons seulement), face aux lectures qui jugent la participation, la marque ou l'assignation sans le statut du profil : agent suspendu qui garde ce que le retiré perd, alors qu'il se reconnecte — né de P191.01 | à faire |
 | 219 | Clés next-intl bâties sur une valeur venue de l'API (``t(`status.${row.status}`)`` et leurs pareilles, environ 250 sous `takussan-web/src` ; `CommissionsLedger.tsx:126`, `DataExportsPanel.tsx:157`, `agency-upgrade-requests/page.tsx:185`) sans `t.has()` ni liste de valeurs connues, face aux cas que l'enum de l'API peut rendre : `MISSING_MESSAGE` qui lève au rendu hors production et peint le chemin de la clé en production (`src/i18n/erreurs.ts`) — né de l'angle 192 | à faire |
@@ -19601,3 +19601,70 @@ les envoie.*
   - Les identifiants réels de la base sont loin de ces bornes : le risque est une URL tapée ou forgée, pas une ligne réelle (déduit, à vérifier).
 - Piste : `idDeDetail` n'accepte que `^[1-9][0-9]{0,15}$` (ou `Number.isSafeInteger`), ce qui rend `notFound()` aux autres ; test unitaire de `idDeDetail` sur vingt chiffres et sur `12345678901234567`.
 - Mesure (2026-10-24, 3aa990fc9, mesureur) : relu `ressource-de-detail.ts:93-102` (`idDeDetail` : `Number(brut)`, entier et positif ; son docblock veut qu'un chemin qui ne désigne aucune ligne soit refusé), `:126-145` (un statut autre que 404 rend `indecidable`), `chemin-api.ts:66-95` (`String(valeur)`) et `properties/[id]/page.tsx:63` (`Number(id)`) ; test vitest temporaire (retiré) sur la vraie fonction → `99999999999999999999` → `100000000000000000000`, `12345678901234567` → `12345678901234568`, et aussi `1e3` → 1000, `0x10` → 16 (non relevé au constat) ; `1.5` et `abc` → `null` → la partie `idDeDetail` tient ; ce que chaque page affiche alors n'a pas été joué. Classement : A1, le docblock d'`idDeDetail` écrit l'attendu (refuser un chemin qui ne désigne aucune ligne) et le correctif est technique (`^[1-9][0-9]{0,15}$`), sans choix de produit.
+
+## Angle 216 — Paramètres lus à la main en chaîne, hors de `buildQuery()`, reçus en liste
+
+*Exploré le 2026-10-24 sur `pre-dev` fe931c088, par l'explorateur, sans sous-agent. Relu par l'explorateur lui-même : les `(string) $request->…` et `$request->string(…)` de `app/Http/Controllers`, `app/Http/Resources` et `app/Services` (grep), puis chaque site sur une action à `Request` nu ; les sites lus après une `FormRequest` qui juge la clé en `string` (`validated()`, `ReportingController`, `PlatformPayoutController`, `KycController`…) sont écartés, ainsi que les webhooks (gardés par jeton d'URL) et `ActivityLogExportController::download` (lien signé). Mesure : test temporaire `tests/Feature/Tmp/ExplorateurTmp216Test.php` (retiré), une requête par paramètre, d'abord sans gestionnaire d'exceptions pour lire l'exception et sa ligne, puis avec pour quatre cas (tous 500 « Server Error »), charge `{ 2.21 2.52 2.22 }` sur 8 cœurs. Les sites déjà traités par P188.06 (`PaymentSearchController`, TCK-1864) et P188.07 (tableaux de bord et boosts, TCK-1866) ne sont pas repris. Le front sérialise ces paramètres en chaînes (`buildQueryString`, `takussan-web/src/lib/api.ts:894-915`, joint les listes par des virgules) : seule une URL tapée ou forgée atteint ces 500.*
+
+### Les consoles super-admin des comptes, des agences, des biens et des portefeuilles rendent 500 sur un filtre ou un tri en liste
+- Réf : P216.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:30,46,50,71,89`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:64,70,90,98,103,108`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:51`, `takussan-api/app/Http/Controllers/Api/Admin/AdminCreditWalletController.php:27`
+- Constat :
+  - Les quatre actions `index` reçoivent un `Request` nu et lisent leurs filtres par `$request->string('filter.x')`, qui construit un `Stringable` par `(string) $value` (lu) ; le tri par `(string) $request->query('sort', …)` ; la recherche des portefeuilles par `trim((string) $request->input('search', ''))` (lu).
+  - mesuré, super-admin : `/api/admin/users?filter[search][]=x`, `filter[status][]=x`, `filter[role][]=x`, `filter[agency_id][]=1` → `ErrorException` « Array to string conversion » à `Stringable.php:33` ; `sort[]=x` → même exception à `UserDetailController.php:89`, rendue **500** avec gestionnaire. Témoin `sort=-created_at` → 200.
+  - mesuré, super-admin : `/api/admin/agencies?filter[status][]=x`, `filter[search][]=x`, `filter[is_verified][]=1`, `filter[created_from][]=2026-01-01` → même exception (`Stringable.php:33`) ; `sort[]=x` → l. 108.
+  - mesuré, super-admin : `/api/properties/moderation?filter[search][]=x` → `Stringable.php:33` ; `/api/admin/credit-wallets?search[]=x` → `AdminCreditWalletController.php:27`.
+  - Chaque lecture a déjà sa réponse à une valeur qu'elle ne connaît pas : statut inconnu ignoré (`AgencyStatus::tryFrom`, l. 65), booléen invalide ignoré (l. 90-95), rôle inconnu → liste vide (`UserDetailController.php:67`), tri inconnu → `created_at` (l. 93) (lu).
+  - Établi comment : lu, test temporaire.
+- Piste : ne lire la valeur que si `is_string()`, une liste valant une valeur absente (le précédent de TCK-1407 et TCK-1866). Garde : un test par console qui envoie chaque paramètre en liste et attend 200.
+
+### L'historique unifié des paiements rend 500 sur `filter[status]`, `filter[entity_type]` ou `sort` en liste
+- Réf : P216.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:45,79,91,125`
+- Constat :
+  - `$filters = (array) $request->input('filter', [])` (lu, l. 45), puis `strtolower((string) $filters['entity_type'])` (l. 79), `explode(',', (string) $filters['status'])` (l. 91) et `(string) $request->input('sort', '-date')` (l. 125) (lu).
+  - mesuré, super-admin : `/api/payments/history?filter[status][]=x` → « Array to string conversion » l. 91, **500** avec gestionnaire ; `filter[entity_type][]=lease&filter[entity_id]=1` → l. 79 ; `sort[]=x` → l. 125.
+  - Témoin : `filter[date_from][]=2026-01-01` → `ValidationException` (422) par `DateBoundaryFilter::exiger` (mesuré) ; un statut inconnu rend déjà 422 `payment.filter_status_invalid` (lu, l. 95).
+  - Établi comment : lu, test temporaire.
+- Piste : `is_string()` avant chaque cast ; `status` en liste rendu comme un statut inconnu (422 `payment.filter_status_invalid`), `entity_type` et `sort` en liste ignorés comme absents. Garde : un test par paramètre.
+
+### Un `include[]=` lu à la main après `buildQuery()` rend 500 sur les interventions, la fiche d'un document et les biens d'une agence en console
+- Réf : P216.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:63,165`, `takussan-api/app/Http/Resources/DocumentResource.php:54`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:187-194`
+- Constat :
+  - `explode(',', (string) $request->query('include'))` (lu, `MaintenanceRequestController.php:63`, après le `paginate()` de `buildQuery()` ; l. 165 dans `show`), `explode(',', (string) $request->query('include', ''))` dans `DocumentResource::toArray` (l. 54) et dans `AgencyDetailController::properties` pour l'opérateur sans `UsersView` (l. 191).
+  - mesuré, super-admin : `/api/maintenance-requests?include[]=property` → « Array to string conversion » l. 63 ; `/api/maintenance-requests/{id}?include[]=property` → l. 165 ; `/api/documents/{id}?include[]=versions` → **500** (témoin `include=versions` → 200).
+  - mesuré, opérateur `viewer` : `/api/admin/agencies/{id}/properties?include[]=owner` → l. 191, témoin `include=owner` → 200.
+  - Pour la liste des interventions, l'exception tombe après la requête paginée : spatie a déjà accepté la liste (déduit de l'ordre des lignes, à vérifier).
+  - Établi comment : lu, test temporaire.
+- Piste : lire `include` par `is_string()` (liste ignorée comme une valeur absente), comme `DashboardOwnerController.php:40` depuis TCK-1866. Garde : un test par route avec `include[]=`.
+
+### Le tri de la file des avis et celui de l'échéancier d'un bail rendent 500 sur `sort` en liste
+- Réf : P216.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/ReviewController.php:113`, `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:40`
+- Constat :
+  - `(string) ($request->query('sort') ?? '-reported_count,-created_at')` (lu, `ReviewController.php:113`) et `self::TRIS[(string) $request->query('sort')] ?? […]` (lu, `LeasePaymentController.php:40`).
+  - mesuré, super-admin : `/api/reviews?sort[]=x` → « Array to string conversion » l. 113 ; `/api/leases/{id}/payments?sort[]=x` → l. 40.
+  - Un tri inconnu a déjà sa réponse : ignoré colonne par colonne (`ReviewController.php:124`), ordre par défaut (`LeasePaymentController.php:40`) (lu). Le même contrôleur des avis traite déjà `filter[moderation_status]` en liste par `is_string()` (lu, l. 95, TCK-1407).
+  - Établi comment : lu, test temporaire.
+- Piste : `is_string()` avant le cast, une liste valant l'ordre par défaut. Garde : un test par route.
+
+### Chaque correctif d'une valeur en liste est local, et aucune garde n'empêche le cast suivant
+- Réf : P216.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/DashboardOwnerController.php:40`, `takussan-api/app/Http/Controllers/Api/Admin/AdminBoostController.php:26`, `takussan-api/app/Http/Controllers/Api/ReviewController.php:95`, `takussan-api/app/Http/Requests/Accounting/SearchPaymentsRequest.php`
+- Constat :
+  - Trois correctifs récents écrivent chacun leur garde : `is_string($include) ? … : []` (lu, `DashboardOwnerController.php:40`), une fermeture `$chaine` (lu, `AdminBoostController.php:26`), `is_string($status) && …` (lu, `ReviewController.php:95`) ; P188.06 a pris une `FormRequest` (TCK-1864). Aucun assistant partagé (grep `is_string` sous `app/Http/Controllers`, lu).
+  - Les quatre entrées ci-dessus montrent 22 lectures du même motif encore ouvertes sur onze actions, dont `$request->string(…)`, que rien ne signale comme un cast (mesuré : `Stringable.php:33`).
+  - `scripts/check-inline-validation.mjs` ne voit que la validation en ligne ; aucune garde ne lit `(string) $request->` ni `$request->string(` sur une action à `Request` nu (mesuré : `grep -ln "request->string\|(string) \$request" scripts/check-*.mjs` → aucun fichier).
+  - Établi comment : lu, grep.
+- Piste : un seul lecteur (par exemple une méthode qui rend la chaîne ou `null`, à l'image de `ExactIdentifierFilter`), employé par les correctifs de P216.01 à P216.04 ; et un test qui parcourt les routes `GET` de liste en envoyant `sort[]`, `include[]` et `filter[x][]` et refuse tout 500, plutôt qu'une garde de motif qui ne verrait pas `$request->string(`.
