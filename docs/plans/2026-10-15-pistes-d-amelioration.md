@@ -18243,10 +18243,11 @@ repris ; les CSV à point-virgule, en latin-1, à BOM ou à tabulation passent l
 
 ### « Publiés » dans l'espace d'agence : le prédicat du catalogue sur l'accueil, `visibility=public` sur la page des biens
 - Réf : P198.03
-- Statut : validé — validation du porteur (2026-10-23) : la recommandation du délégué ; même filtre que P167.07
+- Statut : fait · TCK-2036
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Dashboard/DashboardAgencyService.php:40-56`, `takussan-api/app/Models/Property.php:589-612`, `takussan-web/src/components/dashboard/admin/AgencyKpis.tsx:40-44`, `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:101-128,163-170,214`
 - Constat :
+- Mesure (2026-10-24, 96d942893, implementeur) : reproduit avant correctif par `PropertyCrudTest::test_p198_03_filter_public_suit_la_regle_du_catalogue` (`filter[public]=1` → 400, filtre inconnu) et `publies.tck-2036.test.tsx` (la page comptait « Publiés » par `filter[visibility]=public`, l'avertissement de numéro non vérifié lisait ce compte, la tuile ouvrait `visibility=public`) ; correctif : filtre `public` de `/api/properties` (callback sur `Property::public()`, le nom de la décision de P167.07), lu par la tuile, son lien `public=1` et l'avertissement → un bien `rented` public, un privé et un sans `published_at` ne sont plus comptés ; ablation (`Property.php` remis → 400 ; `page.tsx` et `properties-server.ts` remis → 3 rouges), rétabli → verts ; `PropertyCrudTest` (22), `tuiles.tck-1289` (4, lien mis à jour), `comptes.tck-1382` (4) verts.
   - L'accueil d'agence dit « # publiés » (`publishedHint`) pour `Property::public()` : agence active, `visibility = public`, `is_test` faux, `published_at` posé, statut hors de huit (`draft`, `sold`, `rented`, `archived`, `under_maintenance`, `unavailable`, `pending_review`, `rejected`) (lu, `DashboardAgencyService.php:40-56`, `Property.php:596-612`), règle de TCK-1115.
   - La tuile « Publiés » de `/app/properties` compte `filter[visibility]=public` seul (lu, `page.tsx:112-115,165-167`), donc les biens loués, vendus, en maintenance, en revue ou refusés restés publics ; la liste exclut les archivés par défaut (`include_archived`, lu, `PropertyController.php:81`).
   - Mesuré : `tinker` en lecture, agence 1 → `visibility = public` hors archivés 203, `public()` 67 ; sur toute la base, `visibility = public` par statut → `available` 423, `rented` 333, `under_maintenance` 20, `sold` 17, `archived` 12, … ; `public()` 246.
