@@ -20890,7 +20890,7 @@ base de développement. Les écrans n'ont pas été joués.*
 
 ### Petites améliorations : numérotation des versions de document
 - Réf : P231.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-2239
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Document/DocumentVersionService.php:42-43,167-196`
 - Constat :
@@ -20899,3 +20899,4 @@ base de développement. Les écrans n'ont pas été joués.*
   - Établi comment : lecture seule.
 - Piste : numéroter depuis le plus grand numéro existant (`max + 1`), sous le verrou du document. Test : 22 envois → numéros 1 à 22 distincts, les deux plus anciens purgés.
 - Mesure (2026-10-24, 498535ca1, mesureur) : relu `uploadVersion` (l. 42-43 : `count() + 1`) et `enforceCap` (purge au-delà de 20) ; test temporaire (retiré), 22 envois par `DocumentVersionService::uploadVersion` → numéros `1,…,20,21,21` : le premier point tient, mesuré. Le second (premier envoi numéroté 1, le fichier de `file` n'étant pas une version) n'est pas retenu : `DocumentVersionTest:63` l'épingle (`version_number` 1 au premier envoi), c'est le contrat de TCK-097. Classement : A1, TCK-097 décrit des versions « ordonnées par numéro de version » et une purge de « la plus ancienne » (AC6), que des numéros répétés ne tiennent plus ; le correctif numérote par `max + 1` des versions existantes, sous le verrou de la ligne `Document`, sans toucher au premier numéro.
+- Mesure (2026-10-24, 26b3a9292, implementeur) : reproduit par `DocumentVersionTest::test_les_numeros_restent_distincts_et_croissants_au_dela_du_plafond` : 22 envois par `uploadVersion`, le 22ᵉ numéroté 21 (rouge) → `max + 1` des versions existantes, sous `lockForUpdate` de la ligne `Document` : numéros 1 à 22, restent 3 à 22, purges journalisées 1 puis 2 ; ablation (`count() + 1` remis) → 1 rouge sur 12, remis → 12 verts ; le premier envoi reste numéroté 1.
