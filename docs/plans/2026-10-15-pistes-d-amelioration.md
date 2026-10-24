@@ -19561,7 +19561,7 @@ les envoie.*
 
 ### Un identifiant de route hors de `bigint`, ou non numérique, rend 500 sur environ 380 routes connectées
 - Réf : P215.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/Bases/AbstractModel.php:38-41` (aucune `resolveRouteBinding`), `takussan-api/bootstrap/app.php:132-133` et `:179-181` (la `QueryException` n'est pas interceptée, elle est rapportée en `error`), `routes/api/*.php` (liaisons implicites `{model}` sans contrainte, et les 26 routes `whereNumber()` relevées plus bas)
   - `whereNumber()` : `routes/api/contact-leads.php:9-12`, `routes/api/me.php:96-161` (`sp_profile`, `owner_profile`, `agent_profile`, `collaboration`), `routes/api/property-calendar.php:16-28`, `routes/api/customers.php:16`, `routes/api/guarantors.php:13`, `routes/api/owners.php:16`, `routes/api/inventories.php:18`, `routes/api/agencies.php:115`
@@ -19574,10 +19574,11 @@ les envoie.*
   - Les routes publiques en `{slug}` et les routes à jeton rendent 404 ou 422 (mesuré) ; le seul pendant public, P187.05, a été corrigé route par route par `[0-9]{1,18}` (lu, `routes/api/geo.php:18-20`, `routes/api/public.php:121`).
   - Établi comment : lecture des fichiers cités, et le parcours décrit en tête de section.
 - Piste : rendre introuvable, à la liaison, toute valeur qui ne peut pas être une clé : une `resolveRouteBinding()` dans `AbstractModel` (et dans `User`, qui étend `Authenticatable`, et `ConversationParticipant`) qui rend `null` — donc `ModelNotFoundException`, donc 404 `http.404` — quand le champ lié est la clé entière et que la valeur ne correspond pas à `^[0-9]{1,18}$` ; les `whereNumber()` restants passent à `[0-9]{1,18}` comme P187.05, ou s'en remettent à cette liaison. Garde : un test qui parcourt `Route::getRoutes()` comme la sonde ci-dessus, avec `abc` et vingt chiffres, et n'accepte aucun 500.
+- Mesure (2026-10-24, 3aa990fc9, mesureur) : relu `AbstractModel.php:38-41` (aucune `resolveRouteBinding`), `bootstrap/app.php:127-133` (TCK-588 : modèle introuvable → `http.404` ; `QueryException` non interceptée) et `:179-181` ; `grep -rn "Route::pattern\|Route::bind\|resolveRouteBinding" app routes bootstrap` → rien ; aucun ticket ni commit hors TCK-1851 (P187.05, routes publiques seules) ; test temporaire (retiré), super-admin à step-up, une requête par point de sauvegarde, charge `{ 2.62 2.34 2.08 }` sur 8 cœurs → vingt chiffres : `GET /api/contact-leads/…` (`whereNumber`), `/api/customers/…`, `/api/customers/…/sensitive`, `/api/properties/…` en 500 `22003` ; `abc` : `/api/customers/abc` et `/api/properties/abc` en 500 `22P02`, `/api/contact-leads/abc` en 404 ; `/api/properties/9223372036854775807` en 404, `…808` en 500 → le constat tient sur l'échantillon ; le parcours des 433 routes n'a pas été rejoué. Classement : A1, l'attendu est écrit (un modèle introuvable rend `http.404`, TCK-588) et TCK-1851 l'a déjà appliqué aux routes publiques par `[0-9]{1,18}`, sans choix de produit.
 
 ### Une action typée `int $id` rend 500 « must be of type int, string given » sur vingt chiffres ou une valeur non numérique
 - Réf : P215.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/ServiceProviderBillController.php:37`, `Me/PlatformPayoutController.php:37`, `Auth/SessionController.php:34`, `AuditLogController.php:25`, `PaymentGatewayController.php:51,76`, `Admin/FailedJobController.php:25,30,56` ; routes `routes/api/service-provider-bills.php:11`, `routes/api/me.php:50`, `routes/api/payments.php:20-30` (`paymentId => '\d+'`)
 - Constat :
@@ -19587,10 +19588,11 @@ les envoie.*
   - `DELETE /api/inventories/{inventory}/room-photos/{media}` et `DELETE /api/properties/{property}/media/{mediaId}` passent par la liaison du modèle parent d'abord, et tombent sous P215.01 (mesuré : 500 `22003`, et `22P02` sur `abc`, levés par la liaison).
   - Établi comment : lecture des signatures (`grep -rnE "public function \w+\([^)]*\bint \\\$"`), et le parcours décrit en tête de section.
 - Piste : une contrainte de route `[0-9]{1,18}` sur chacun de ces paramètres (et sur `{id}` de `admin/jobs/failed`, `{tokenId}`, `{id}` des journaux d'audit, qui n'en ont aucune), ce qui rend 404 avant l'appel ; garde : la même sonde que P215.01, qui couvre aussi ces routes.
+- Mesure (2026-10-24, 3aa990fc9, mesureur) : relu les signatures `int` (`ServiceProviderBillController.php:37`, `Me/PlatformPayoutController.php:37`, `Auth/SessionController.php:34`, `AuditLogController.php:25`, `PaymentGatewayController.php:27,51,76`, `Admin/FailedJobController.php:25,30,56`) et les routes (`whereNumber` sur `bill` et `payout`, `paymentId => '\d+'`, aucune contrainte sur `{tokenId}`, `{id}` d'`audit-log` et d'`admin/jobs/failed`) ; même test temporaire que P215.01 (retiré) → vingt chiffres : `GET /api/service-provider-bills/…`, `GET /api/me/payouts/…`, `DELETE /api/auth/sessions/…`, `GET /api/audit-log/property/…`, `GET /api/admin/jobs/failed/…`, `GET /api/invoices/…/verify` et `/providers` en 500 `TypeError` ; `abc` : `DELETE /api/auth/sessions/abc`, `GET /api/audit-log/property/abc`, `GET` et `DELETE /api/admin/jobs/failed/abc` en 500 `TypeError` ; `POST /api/invoices/…/initiate` en 422 → le constat tient. Classement : A1, même attendu écrit et même correctif que TCK-1851 (contrainte `[0-9]{1,18}` avant l'appel, rendant 404) ; aucune autorisation, aucun montant changés pour un identifiant réel.
 
 ### Le front accepte un identifiant de page au-delà des entiers exacts, et lit alors une autre ligne ou l'API hors de `bigint`
 - Réf : P215.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/detail/ressource-de-detail.ts:99-102` (`idDeDetail`), `takussan-web/src/app/(dashboard)/app/properties/[id]/page.tsx:63` (`Number(id)`)
 - Constat :
@@ -19598,3 +19600,4 @@ les envoie.*
   - Le 500 de l'API est lu `indecidable` par `sonderExistence` (lu, `ressource-de-detail.ts:126-145`) : la page se rend au lieu du 404. Ce que la page affiche alors (frontière d'erreur ou panneau) est à vérifier page par page.
   - Les identifiants réels de la base sont loin de ces bornes : le risque est une URL tapée ou forgée, pas une ligne réelle (déduit, à vérifier).
 - Piste : `idDeDetail` n'accepte que `^[1-9][0-9]{0,15}$` (ou `Number.isSafeInteger`), ce qui rend `notFound()` aux autres ; test unitaire de `idDeDetail` sur vingt chiffres et sur `12345678901234567`.
+- Mesure (2026-10-24, 3aa990fc9, mesureur) : relu `ressource-de-detail.ts:93-102` (`idDeDetail` : `Number(brut)`, entier et positif ; son docblock veut qu'un chemin qui ne désigne aucune ligne soit refusé), `:126-145` (un statut autre que 404 rend `indecidable`), `chemin-api.ts:66-95` (`String(valeur)`) et `properties/[id]/page.tsx:63` (`Number(id)`) ; test vitest temporaire (retiré) sur la vraie fonction → `99999999999999999999` → `100000000000000000000`, `12345678901234567` → `12345678901234568`, et aussi `1e3` → 1000, `0x10` → 16 (non relevé au constat) ; `1.5` et `abc` → `null` → la partie `idDeDetail` tient ; ce que chaque page affiche alors n'a pas été joué. Classement : A1, le docblock d'`idDeDetail` écrit l'attendu (refuser un chemin qui ne désigne aucune ligne) et le correctif est technique (`^[1-9][0-9]{0,15}$`), sans choix de produit.
