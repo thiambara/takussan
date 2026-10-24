@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Profiles\AgencyAdminProfile;
@@ -178,7 +179,29 @@ class PropertyPolicy extends BasePolicy
      */
     public function publish(User $user, Property $property): bool
     {
-        return $this->agencyGesture($user, $property, Capability::PropertiesPublish);
+        if ($property->agency_id === null) {
+            return $user->isSuperAdmin() || $user->id === $property->user_id;
+        }
+
+        return $this->publishAt($user, $property->agency_id);
+    }
+
+    /**
+     * P209.01 (TCK-2175) — `publish` jugé pour une AGENCE, quand le bien n'existe pas encore : la
+     * création qui pose un statut publiant ou `visibility=public` (`StorePropertyRequest`). Même
+     * règle que pour un bien de l'agence : `properties.publish` et un profil dans l'agence.
+     */
+    public function publishAt(User $user, mixed $agencyId): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        $agency = $agencyId === null ? null : Agency::query()->find((int) $agencyId);
+
+        return $agency !== null
+            && $this->isMemberOf($user, $agency->id)
+            && $user->can(Capability::PropertiesPublish->value, $agency);
     }
 
     private function agencyGesture(User $user, Model $model, Capability $capability): bool
