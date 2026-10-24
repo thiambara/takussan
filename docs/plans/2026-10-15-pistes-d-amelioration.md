@@ -19106,7 +19106,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### L'acceptation remet `active` le profil suspendu d'un autre compte, dans une autre agence
 - Réf : P208.02
-- Statut : validé — validation du porteur (2026-10-24) : `finalizeAccept` ne fait passer `active` qu'un profil `draft` ; un profil déjà `active` reste tel quel ; un profil `suspended` ou `inactive` fait refuser l'acceptation par un refus nommé, l'invitation intacte ; garde sur le chemin générique et sur le prestataire réutilisé
+- Statut : fait · TCK-2192
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:733-753`, `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:71`
 - Constat :
@@ -19115,6 +19115,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : n'activer que le profil `draft` sans compte que l'invitation a créé, et refuser l'acceptation sinon ; va avec P208.01. Garde : un test qui vise un profil suspendu et constate qu'il le reste.
 - Mesure (2026-10-24, 955bdeac4, mesureur) : relu `finalizeAccept()` (l. 735-753 : `status = active` posé sur tout profil visé qui a une colonne `status`, `user_id` seulement s'il est nul) ; rejoué (un test temporaire `tests/Feature/TmpMesureP208Test.php`, retiré, `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 3,1 à 5,8 sur 8 cœurs) : profil d'agent `suspended` de l'agence B, titulaire un autre compte ; admin de A, `POST /api/invitations` qui le vise → 201 ; acceptation par un compte neuf → 200 ; profil de B `active`, titulaire inchangé → le constat tient. Classement : V2, la suspension est une décision d'accès que l'acceptation lève aujourd'hui, et la Piste (refuser l'acceptation hors d'un brouillon sans compte) dépend du choix de P208.01.
+- Mesure (2026-10-24, 973736af4, implementeur) : reproduit par `AcceptationNActiveQueLeBrouillonTest`, invitation qui vise le profil d'agent `suspended` d'un autre compte, acceptée par un compte neuf → 200 et profil repassé `active` avant correctif → `finalizeAccept()` lit le statut avant toute écriture : 409 `invitation.profile_unavailable`, profil suspendu, titulaire inchangé, invitation `sent`, aucun compte créé ; même refus pour un agent `inactive`, un bailleur `blocked` et un prestataire réutilisé `suspended` (aucune collaboration) ; témoins `active` (reste tel quel) et `draft` (passe `active`) verts ; ablation (refus à `false`) → 4 rouges, remise → 6 verts ; `InvitationAcceptTest`, `ServiceProviderMultiAgencyTest`, `InviteOwnerTest`, `InviteServiceProviderTest`, `InviteAgentTest`, `LangGroupParityTest` verts.
 
 ### Un admin d'agence émet une cooptation `super_admin`, et le compte qui l'accepte perd sa 2FA et reste bloqué sur l'enrôlement
 - Réf : P208.03
