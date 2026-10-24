@@ -33,7 +33,7 @@ cours (mesuré par l'explorateur et le mesureur, et re-mesuré par le test de ce
 
 ## Décision du porteur
 
-un geste séparé « Modifier les dérogations » : une route super-admin qui modifie sur place l'abonnement ouvert (commission, trois quotas), sans le clore, période et essai gardés ; « Changer de plan » garde la clôture ; le résumé montre les dérogations actives ; la route est gardée et couverte par `NamespaceAccessGuardTest`
+validation du porteur (2026-10-24) : un geste séparé « Modifier les dérogations » : une route super-admin qui modifie sur place l'abonnement ouvert (commission, trois quotas), sans le clore, période et essai gardés ; « Changer de plan » garde la clôture ; le résumé montre les dérogations actives ; la route est gardée et couverte par `NamespaceAccessGuardTest`
 
 ## Objectif utilisateur
 
