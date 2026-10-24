@@ -302,6 +302,7 @@ return [
         'resend_too_soon' => 'A code was just sent: wait a minute before asking for another one.',
         'terms_changed' => 'The lease changed while the contract was being prepared: nothing was frozen. Request the signature again.',
         'sms_not_sent' => 'The code could not be sent by SMS: try again in a minute, or contact support.',
+        'no_destination' => 'There is no way to send you the code: verify your phone number from your profile, then try again.',
         'tenant_without_account' => 'The tenant of this lease has no account: sign on paper and attach the scanned contract.',
     ],
     'lease_payment' => [
