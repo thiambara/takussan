@@ -18937,7 +18937,7 @@ Non mesuré : les écrans du front, et le remboursement par webhook (lu seulemen
 
 ### L'« Encaissé » et les métriques plateforme ignorent la pénalité réglée, alors que la clôture prélève sa commission dessus
 - Réf : P206.02
-- Statut : validé — validation du porteur (2026-10-24) : ADR-0057, amendement du 2026-10-24 : l'Encaissé compte la pénalité de retard réglée, datée par `late_fee_paid_at` (second agrégat) ; ses frais plateforme ne portent que sur la pénalité réglée par le checkout de la plateforme, lue ligne à ligne par `lateFeeSettledWith`, partagé avec la clôture
+- Statut : fait · TCK-2176
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:16-21,53,71-78`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:247-260`, `takussan-api/app/Services/Reporting/PlatformMetricsSnapshotter.php:40-63`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:341-350`, `docs/adr/0057-instantanes-quotidiens-des-metriques-plateforme.md:48-53`
 - Constat :
@@ -18947,6 +18947,7 @@ Non mesuré : les écrans du front, et le remboursement par webhook (lu seulemen
   - ADR-0057 § 2 définit l'*Encaissé* par type de pièce, sans dire si la pénalité réglée sur la ligne en fait partie (lu, l. 48) : rien d'écrit ne tranche.
 - Piste : décider (V1) si l'*Encaissé* compte la pénalité réglée, datée par `late_fee_paid_at` ; si oui, une seule expression SQL dans `CollectedPayments` pour tous les lecteurs, et les frais plateforme alignés sur la clôture. Garde : un test de `CollectedPayments` avec pénalité réglée, et l'égalité frais de la clôture = frais des métriques sur le même jeu.
 - Mesure (2026-10-24, ab585ab0d, mesureur) : relu `CollectedPayments.php:53` (`LEASE_NET_SQL` = `amount − COALESCE(refund_amount, 0)`) et `PlatformPayoutService.php` (`late_fees_gross` et `late_fees_fee` en métadonnées de clôture, l. 204, 269-270, 373-374). Même sonde que P206.01 : `CollectedPayments::leaseIncome()->sum(LEASE_NET_SQL)` → `250000.00` avec 7 500 de pénalité réglée → le constat tient ; l'écart de take rate sur une clôture réelle n'a pas été mesuré. Classement : V1, ADR-0057 § 2 ne tranche pas si la pénalité réglée fait partie de l'Encaissé, c'est un choix sur un montant.
+- Mesure (2026-10-24, 5e00c117b, implementeur) : `PenaliteDeRetardEncaisseeTest` avant correctif : 4 rouges (`flowsBetween` → GMV 250 000 pour 150 000 + 7 500 de pénalité réglée et 100 000 ; `revenue_30d` 150 000 au lieu de 157 500). Après : second agrégat `CollectedPayments::lateFeeIncome()` daté par `late_fee_paid_at`, lu par `leaseIncomeByMonth` (même requête, `UNION ALL`, le budget de `DashboardQueryBudgetTest` tient), `flowsBetween` et la santé d'agence ; frais sur la seule pénalité du checkout de la plateforme, par la méthode de la clôture : 375 aux métriques, `late_fees_fee` 375 à la clôture du même jeu. Ablation : agrégat vidé → 4 rouges, frais de pénalité coupés → 1 rouge ; remis → 5 verts.
 
 ### Une pénalité encore due sur un loyer payé n'est comptée dans aucun impayé
 - Réf : P206.03
