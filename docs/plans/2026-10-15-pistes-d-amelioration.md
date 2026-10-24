@@ -19889,7 +19889,7 @@ les envoie.*
 
 ### Un participant de conversation sans nom s'affiche sans nom ni initiales : la ligne ne porte que son rôle
 - Réf : P220.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2132
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/messages/ParticipantRow.tsx:34-40`, `:51`, `takussan-api/app/Http/Resources/ConversationResource.php:74-77`, `takussan-api/app/Models/User.php:357-360`, `:362-378`
 - Constat :
@@ -19900,6 +19900,7 @@ les envoie.*
   - Établi comment : lu, et mesuré par rendu.
 - Piste : rendre `full_name` des participants par `nameWithoutContact()` côté API (comme `MessageResource` et `MessagingContactResource`, TCK-815 et TCK-971), et remplacer les `??` du composant par un repli sur chaîne vide. Test : ressource d'une conversation dont un participant n'a pas de nom → `full_name = "—"` ; rendu du composant avec `full_name: ''` → `#<id>` ou « — ».
 - Mesure (2026-10-24, 6d8095e26, mesureur) : relu `ConversationResource.php:76` (`'full_name' => $user->full_name`), `User.php:357-378` (`getFullNameAttribute` = `trim("{first} {last}")` ; docblock de `nameWithoutContact()` qui vise `ConversationResource`), `MessageResource.php:23` (`nameWithoutContact()`), `PhoneLoginService.php:172-173` (`''`), `ParticipantRow.tsx:34,51` (`?? '?'`, `?? \`#${user_id}\``), inchangés ; `git log -S` et `grep` des tickets → rien ne l'a traité ; test Vitest temporaire (retiré, charge 1,57 / 2,05 / 2,34 sur 8 cœurs), `ParticipantRow` avec `full_name: ''` → `textContent` = `"Membre"` → le constat tient. Classement : A1, la règle est écrite (docblock de `nameWithoutContact()`, TCK-815) et les replis du composant existent : rendre `full_name` par `nameWithoutContact()` et remplacer les deux `??` par `||` ne demande aucun choix.
+- Mesure (2026-10-24, 3e8efc3c5, implementeur) : avant correctif, `GET /api/conversations/{id}` rendait `full_name = ''` pour un participant à noms vides, et `ParticipantRow` avec `full_name: ''` n'affichait ni `#<id>` ni initiales ; `ConversationResource` passe par `nameWithoutContact()` et `ParticipantRow` replie par `||` ; `SenderNameWithoutContactTest` (participant sans nom → `—`, sans e-mail) et `ParticipantRow.test.tsx` (`#42`, `?`) verts ; ablation : `$user->full_name` remis → le test PHP rougit, `??` remis sur le nom → le cas vide rougit.
 
 ### Le panneau de signature d'un bail écrit « Signé par  le … », et efface le « pour le compte de » quand le bailleur n'a pas de nom
 - Réf : P220.02
