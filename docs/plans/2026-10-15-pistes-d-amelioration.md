@@ -19719,7 +19719,7 @@ les envoie.*
 
 ### La liste des interventions garde à l'agent créateur suspendu ou retiré les interventions du bien qu'il a saisi, que `view` lui refuse
 - Réf : P217.01
-- Statut : validé — validation du porteur (2026-10-24) : la clause du bien de la liste des interventions passe par `BailleurDuBien::restreindre`, comme TCK-1928 et TCK-1930 ; ferme aussi P217.02, même ticket
+- Statut : fait · TCK-2179
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/MaintenanceRequest.php:163-185`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:46-72`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:298-320`
 - Constat :
@@ -19729,10 +19729,11 @@ les envoie.*
   - Établi comment : lu, puis mesuré.
 - Piste : borner la clause du bien de `scopeVisibleTo` par `BailleurDuBien::restreindre`, comme les listes de TCK-1926 à TCK-1932. Le scope sert aussi `indexForProperty` et `ConversationAccess::constrainListing` (P217.02) : un seul correctif. Test : agent créateur suspendu, puis retiré → intervention absente de la liste ; bailleur du bien, bloqué → présente ; agent actif → présente.
 - Mesure (2026-10-24, a9ec5dd1a, mesureur) : relu `MaintenanceRequest.php:175` (`orWhereHas('property', … user_id)` sans autre condition), `MaintenanceRequestPolicy.php:311` (`BailleurDuBien::est`) et `MaintenanceRequestController.php:50` (inchangés) ; `git log` des trois fichiers et `grep -rl P217 docs/backlog/tickets` → aucun correctif ; test temporaire `tests/Feature/TmpMesureur/Sonde217Test.php` (retiré), jeu de `BuildsBookingStakeholders`, bien passé au `user_id` de l'agent, trois cas (suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, témoin actif), charge `{ 1.73 1.72 1.77 }` sur 8 cœurs → suspendu comme retiré : `staffAgencyId()` null, `can('view')` faux, `GET /api/maintenance-requests/{id}` 403, mais l'intervention est dans `GET /api/maintenance-requests?include=property` ; témoin actif : 200 et listée → le constat tient. Classement : V2, le correctif change la clause « mes biens » d'une liste que le bailleur actif emploie aujourd'hui, comme P190.01 (TCK-1928), classé V2 et tranché par le porteur.
+- Mesure (2026-10-24, 5e00c117b, implementeur) : reproduit par `AgentCreateurListeDesInterventionsTest` (jeu de `BuildsBookingStakeholders`, bien passé au `user_id` de l'agent) : suspendu par `TeamMemberSuspensionService::suspend` comme retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, l'intervention est dans `GET /api/maintenance-requests` avant correctif → la clause du bien de `scopeVisibleTo` passe par `BailleurDuBien::restreindre` : absente dans les deux cas, présente pour l'agent actif et pour le bailleur du bien bloqué ; ablation (clause remise à `where('user_id', …)`) → 2 rouges, remise → 4 verts ; `MaintenanceRequestTest` 11, `MembreRetireInterventionsTest` 2, `MaintenanceCapabilitiesTest` 5, `MaintenanceRequestListQueryBudgetTest` 1, `ProListQueryBudgetTest` 6 verts.
 
 ### La liste des conversations garde à l'agent créateur suspendu ou retiré les fils des interventions de son bien, aperçu du dernier message compris
 - Réf : P217.02
-- Statut : validé — validation du porteur (2026-10-24) : fermée par le correctif de P217.01, même ticket, avec un test dédié (fil absent de `GET /api/conversations`, témoin bailleur présent)
+- Statut : fait · TCK-2179
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/ConversationAccess.php:138-165`
 - Constat :
@@ -19741,6 +19742,7 @@ les envoie.*
   - Établi comment : lu, puis mesuré.
 - Piste : le correctif de P217.01 ferme ce cas. Test propre au fil : même jeu → fil absent de `GET /api/conversations` ; témoin bailleur du bien.
 - Mesure (2026-10-24, a9ec5dd1a, mesureur) : relu `ConversationAccess.php:138-146` (`maintenanceAllows` par `can('view')`) et `:164` (`constrainListing` par `visibleTo`), inchangés ; aucun ticket ni commit ; test temporaire `tests/Feature/TmpMesureur/Sonde217Test.php` (retiré), jeu de `BuildsBookingStakeholders`, bien passé au `user_id` de l'agent, trois cas (suspendu par `TeamMemberSuspensionService::suspend`, retiré par `AgencyMemberRemovalService::remove(…, leaveUnassigned: true)`, témoin actif), charge `{ 1.73 1.72 1.77 }` sur 8 cœurs, l'agent participant d'un fil de groupe à `maintenance_request_id` → suspendu comme retiré : `ConversationAccess::allows` faux, `GET /api/conversations/{id}` 403, mais le fil est dans `GET /api/conversations` ; témoin actif : 200 et listé → le constat tient (l'aperçu du dernier message n'a pas été re-mesuré). Classement : V2, le correctif est celui de P217.01 et en partage le classement ; le fil expose aussi un message (V3).
+- Mesure (2026-10-24, 5e00c117b, implementeur) : reproduit par `AgentCreateurListeDesInterventionsTest`, l'agent participant d'un fil de groupe à `maintenance_request_id` : suspendu comme retiré, le fil est dans `GET /api/conversations` avant correctif → fermé par le correctif de P217.01 (`constrainListing` lit `visibleTo`) : absent dans les deux cas, présent pour l'agent actif et pour le bailleur du bien bloqué ; ablation commune à P217.01 → 2 rouges, remise → 4 verts.
 
 ### L'historique des paiements garde à l'agent créateur suspendu ou retiré les loyers du bail qui le désigne, que `LeasePolicy::view` lui refuse
 - Réf : P217.03
