@@ -72,10 +72,10 @@ export type Message = {
   metadata?: MessageMetadata | null;
   created_at: string;
   updated_at: string;
+  // TCK-2013 (P175.04) — rendu par `MessageResource` ; nul pour un compte effacé.
   sender?: {
     id: number;
     full_name: string;
-    avatar_url: string | null;
   } | null;
 };
 

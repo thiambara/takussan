@@ -284,7 +284,8 @@ class ConversationController extends Controller
                 // for a long time). The client re-polls so anything beyond
                 // this cap will be fetched on the next call.
                 ->limit(200)
-                ->with('media')
+                // TCK-2013 (P175.04) — `MessageResource` rend l'auteur.
+                ->with(['media', 'sender'])
                 ->get();
 
             return $this->json([
@@ -302,8 +303,9 @@ class ConversationController extends Controller
             $query->where('id', '<', (int) $data['before_id']);
         }
 
-        // TCK-592 — `MessageResource` rend `attachments` : les médias chargés d'un coup.
-        $messages = $query->limit($perPage)->with('media')->get();
+        // TCK-592 — `MessageResource` rend `attachments` : les médias chargés d'un coup ;
+        // TCK-2013 (P175.04) — et `sender`, l'auteur.
+        $messages = $query->limit($perPage)->with(['media', 'sender'])->get();
 
         return $this->json([
             'data' => MessageResource::collection($messages)->toArray($request),

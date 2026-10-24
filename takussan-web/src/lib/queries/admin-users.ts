@@ -23,10 +23,14 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
  * `fields[users]` would fail with HTTP 400 (`InvalidFieldQuery`) against
  * the canonical `User::$queryFields` whitelist.
  *
- * `roles` is *not* in this list either — it is derived server-side by
- * `UserResource::toArray()` from `profileTypes()` (TCK-278, post-spatie
- * removal). To avoid N+1 when the resource enumerates each user's
- * polymorphic profiles, we eager-load them via `include=…` below.
+ * `roles` is *not* in this list either, and `/api/users` does NOT return it
+ * (TCK-2008, P176.06 — mesuré le 2026-10-23) : with `fields[users]`,
+ * `UserAdminController::index` serialises the models themselves, not
+ * `UserResource`, so a row carries only these columns, `two_factor_enabled`
+ * and the profiles asked by `include=…` below (`agent_profiles`,
+ * `owner_profiles`, `agency_admin_profiles`, bounded to the active agency by
+ * TCK-665). A row's role is to be read from those profiles or from
+ * `role_assignments`, never from `row.roles`, which stays undefined here.
  */
 export const ADMIN_USERS_FIELDS = [
   'id',

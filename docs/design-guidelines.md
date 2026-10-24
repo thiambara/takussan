@@ -14,7 +14,7 @@ Ces directives s'appliquent à **toutes les interfaces** de Takussan. Elles prim
 
 ## Typographie
 
-Deux familles, chargées via `next/font` dans `src/app/layout.tsx` et exposées comme tokens Tailwind :
+Deux familles, versionnées dans le dépôt, chargées via `next/font/local` dans `src/app/layout.tsx` ([ADR-0074](adr/0074-les-polices-sont-versionnees-dans-le-depot.md)) et exposées comme tokens Tailwind :
 
 | Token | Famille | Usage |
 |---|---|---|

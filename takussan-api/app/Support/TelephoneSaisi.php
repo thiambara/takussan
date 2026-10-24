@@ -15,12 +15,17 @@ use Illuminate\Contracts\Validation\ValidationRule;
  *
  *   `+221 77 123-45.67` → `+221771234567`   séparateurs de saisie retirés
  *   `77 123 45 67`      → `+221771234567`   mobile sénégalais au format national (70, 75-78)
- *   `33 820 12 34`      → `+221338201234`   fixe sénégalais (33)
+ *   `33 820 12 34`      → `+221338201234`   fixe sénégalais (33, ou 30 depuis P125.05)
  *   `00221771234567`    → `+221771234567`   préfixe international `00`
  *   `221771234567`      → `+221771234567`   indicatif sans `+`
  *
  * Rien d'autre n'est deviné : un numéro qui ne prend aucune de ces formes reste tel quel, et la
- * règle le refuse. `customers.phone` n'est PAS concerné (TCK-591).
+ * règle le refuse.
+ *
+ * P125.05 (TCK-2025, décision du porteur) — LE normaliseur de saisie : la fiche client
+ * (`CustomerPhoneNormalizer`) et la recherche de la console (`AdminGlobalSearchService::phoneCandidate`)
+ * l'appellent, et l'indicatif fixe `30`, que la fiche client acceptait seule, l'est partout. `CanonicalPhone` (expression d'un
+ * index) et `PhoneNumber::normalize` (E.164 strict, à l'envoi) restent à part.
  *
  * Vérification adverse, passe 1b :
  *
@@ -35,10 +40,10 @@ use Illuminate\Contracts\Validation\ValidationRule;
 final class TelephoneSaisi implements ValidationRule
 {
     /** Un `+` devant un numéro national sénégalais nu : l'indicatif manque, il n'est pas « +7 ». */
-    private const INDICATIF_MANQUANT = '/^\+(?:7[05678]|33)\d{7}$/';
+    private const INDICATIF_MANQUANT = '/^\+(?:7[05678]|3[03])\d{7}$/';
 
-    /** Mobile (70, 75, 76, 77, 78) ou fixe (33) sénégalais : 9 chiffres, sans indicatif. */
-    public const NATIONAL_SENEGAL = '/^(?:7[05678]|33)\d{7}$/';
+    /** Mobile (70, 75, 76, 77, 78) ou fixe (30, 33) sénégalais : 9 chiffres, sans indicatif. */
+    public const NATIONAL_SENEGAL = '/^(?:7[05678]|3[03])\d{7}$/';
 
     public static function normaliser(mixed $value): mixed
     {
