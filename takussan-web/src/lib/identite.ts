@@ -78,6 +78,9 @@ export interface IdentiteAvecId extends IdentiteAffichable {
  * L'appelant ne passe que les champs qu'il charge déjà : un e-mail ou un numéro absents sont sautés,
  * ils ne se demandent pas à l'API pour l'occasion. `repli` remplace `#<id>` quand l'écran a déjà
  * son propre libellé traduit (« Membre #12 ») ; une chaîne vide n'en est pas un.
+ *
+ * P220.08 (TCK-2142) — `scripts/check-nom-affichable.mjs` refuse toute composition `first_name` +
+ * `last_name` hors de ce module, sauf les sites qu'il excuse un par un, avec leur motif.
  */
 export function nomAffichable(user: IdentiteAvecId, repli?: string | null): string {
   return libelleDe(user) ?? nettoyer(repli) ?? `#${user.id}`;

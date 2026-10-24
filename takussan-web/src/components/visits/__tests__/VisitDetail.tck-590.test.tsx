@@ -164,5 +164,17 @@ describe('<VisitDetail> — TCK-590', () => {
       rendu.unmount();
     }
   });
-});
 
+  it('P220.08 (TCK-2142) — un visiteur inscrit sans nom ni e-mail se nomme par son numéro', () => {
+    etat.visit = visite({
+      visitor_id: 30,
+      visitor_name: null,
+      visitor_phone: null,
+      visitor: { id: 30, first_name: '', last_name: '', email: null, phone: '+221771234567' },
+    });
+    render(withIntl(<VisitDetail id={1} />));
+
+    expect(screen.getByText('+221 77 123 45 67')).toBeInTheDocument();
+    expect(screen.queryByText('Utilisateur inscrit')).toBeNull();
+  });
+});
