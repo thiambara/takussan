@@ -5,9 +5,11 @@ namespace App\Services\Model;
 use App\Models\Customer;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\User;
+use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Crm\CustomerPhoneNormalizer;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class CustomerService
 {
@@ -34,15 +36,33 @@ class CustomerService
         $customer->update(['user_id' => $user->id]);
     }
 
+    /**
+     * TCK-2054 (ADR-0073) — la ligne `users` du compte est verrouillée, puis la fiche relue SOUS ce
+     * verrou : sans relecture, la seconde de deux requêtes simultanées attendait le verrou puis créait
+     * quand même. Le verrou consultatif de la fiche suit, si le compte a une agence.
+     */
     public function findOrCreateFromUser(User $user): Customer
     {
-        $existing = Customer::where('user_id', $user->id)->first();
-        if ($existing !== null) {
-            return $existing;
-        }
+        return DB::transaction(function () use ($user): Customer {
+            User::query()->whereKey($user->id)->lockForUpdate()->first(['id']);
 
-        $agencyId = $user->agency_id;
-        $orpheline = $agencyId !== null ? $this->ficheARattacher((int) $agencyId, $user) : null;
+            $existing = Customer::where('user_id', $user->id)->first();
+            if ($existing !== null) {
+                return $existing;
+            }
+
+            $agencyId = $user->agency_id;
+            if ($agencyId !== null) {
+                CustomerDuplicateDetector::lockCreation((int) $agencyId, $user->phone, $user->email);
+            }
+
+            return $this->rattacherOuCreer($user, $agencyId !== null ? (int) $agencyId : null);
+        });
+    }
+
+    private function rattacherOuCreer(User $user, ?int $agencyId): Customer
+    {
+        $orpheline = $agencyId !== null ? $this->ficheARattacher($agencyId, $user) : null;
         if ($orpheline !== null) {
             $this->linkUser($orpheline, $user);
 
