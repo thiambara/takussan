@@ -53,3 +53,6 @@ rendait « L'action n'a pas abouti. ».
 - Ablation : `min`/`max` retirés de `VisitDetail.tsx` → le test neuf rouge (`min` reçu `null`) ;
   remis → vert, ainsi que `VisitDetail.tck-590.test.tsx` et les deux tests de `PropertyVisitDialog`
   (18 tests).
+- Piège : jsdom applique `min`/`max` à la soumission. `VisitDetail.tck-590.test.tsx` saisit le
+  12 novembre 2026 sous l'horloge réelle : avec le `min` neuf, il rougit dès le 13 (mesuré,
+  horloge posée au 20 novembre → 1 rouge). Son horloge est figée au 24 octobre (`toFake: ['Date']`).
