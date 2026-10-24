@@ -19830,7 +19830,7 @@ les envoie.*
 
 ### La page de santé dit « En panne » ou « Dégradé » sans montrer la sonde en cause : quatre des quatorze sondes de l'API n'ont ni tuile ni libellé
 - Réf : P219.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : quatre tuiles et leurs libellés neufs, et deux formes proposées (tuiles ou ligne « autres sondes »)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/HealthcheckService.php:122-157,392-407,433-463`, `takussan-web/src/components/admin/super/system-health.tsx:24-35,65-72,167-176`, `takussan-web/src/types/super-admin.ts:735-772`
 - Constat :
@@ -19844,10 +19844,11 @@ les envoie.*
   - Mesuré, test vitest temporaire (retiré) : `HealthDashboard` monté sous `fr` avec les dix sondes affichées à `ok`, `scheduler` à `failed`, `proxies` et `lemon_squeezy_webhook` à `degraded`, `status: 'failed'` → texte rendu « État général : En panne », dix « OK », aucune occurrence de « planificateur », « WhatsApp », « mandataire » ni « Lemon ». L'opérateur voit une panne sans pouvoir la situer.
   - Établi comment : lu côté API et côté front, puis rendu par un test.
 - Piste : rendre une tuile pour chacune des quatorze sondes, ou une ligne « autres sondes » qui nomme celles qui ne sont pas `ok`. Ajouter au type les quatre sondes absentes, avec les deux motifs au dictionnaire (voir P219.02). Garde : un test qui compare les clés de sonde rendues par `HealthcheckService::snapshot()` à la liste `CHECKS` (ou une table écrite dans les deux dépôts et lue par une garde), et un test vitest qui monte la page avec une seule sonde hors tuile en `failed` et exige son nom à l'écran.
+- Mesure (2026-10-24, 880203cdc, mesureur) : `git diff 4866d0b88 880203cdc` sur `HealthcheckService.php`, `system-health.tsx`, `super-admin.ts` et `fr.json` → vide ; relu `HealthcheckService::probe()` (quatorze sondes, `status` = pire de toutes), `CHECKS` (dix clés, seule source des tuiles, `system-health.tsx:24-35,80-93`) et `PlatformHealth` (`scheduler: { last_run_at }`, ni `whatsapp`, ni `proxies`, ni `lemon_squeezy_webhook`) ; test vitest temporaire (retiré, charge `{ 1.66 1.78 1.70 }` sur 8 cœurs) : `HealthDashboard` sous `fr`, dix sondes `ok`, `scheduler` `failed`, `proxies` et `lemon_squeezy_webhook` `degraded`, `status: 'failed'` → « État général : En panne », dix « OK », aucun « Dégradé », aucun nom des quatre sondes → le constat tient. La page `/super-admin/system/scheduler` liste les tâches mais ne dit rien de la sonde ; TCK-1091 et TCK-853 laissent l'affichage hors périmètre sans le décrire (lu, « Hors périmètre »). Classement : V7, le correctif ajoute un comportement visible et quatre libellés neufs, et la Piste laisse le choix entre quatre tuiles et une ligne qui nomme les sondes en défaut.
 
 ### Deux motifs de sonde émis par l'API n'ont pas de clé `hint.reason`, et l'union `HealthReason` du front les ignore
 - Réf : P219.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux libellés neufs au dictionnaire
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/HealthcheckService.php:441,463`, `takussan-web/src/types/super-admin.ts:739`, `takussan-web/src/components/admin/super/system-health.tsx:173`, `takussan-web/src/messages/{fr,en,wo}.json` (`superAdmin.systemHealth.hint.reason`)
 - Constat :
@@ -19857,10 +19858,11 @@ les envoie.*
   - Aujourd'hui, les deux sondes en cause n'ont pas de tuile (P219.01) : le défaut est latent. Dès qu'une tuile leur est donnée, l'indice lève `MISSING_MESSAGE` hors production et peint `superAdmin.systemHealth.hint.reason.wildcard_trusts_nobody` en production. Cet effet se déduit de `surErreurIntl` (lu, `src/i18n/erreurs.ts:35-40`) ; à vérifier par un rendu.
   - Établi comment : lu, et mesuré sur le dictionnaire.
 - Piste : ajouter les deux motifs à `HealthReason` et aux trois dictionnaires. Le texte est neuf : français et anglais, et en `wo` le français tel quel. Poser un repli `t.has()` dans `indice()` qui tombe sur `hint.value` ou sur le code brut. Garde : un test PHP qui relève les `'reason' =>` de `HealthcheckService` et les compare à une liste tenue côté front, ou la garde de P219.03 étendue à cette liste.
+- Mesure (2026-10-24, 880203cdc, mesureur) : relu `HealthcheckService.php:220,228,301,441,463` (cinq `reason`), `HealthReason` (`super-admin.ts:739`, trois cas) et `indice()` (`system-health.tsx:173`, `t(\`hint.reason.${status.reason}\`)` sans `t.has()`), inchangés ; `node -e` sur `fr.json` → `hint.reason` = `no_delivery`, `unreachable`, `not_meilisearch` ; test vitest temporaire (retiré, même charge), `search` à `degraded` avec `reason: 'wildcard_trusts_nobody'` → la tuile rend « Dégradé » puis `superAdmin.systemHealth.hint.reason.wildcard_trusts_nobody` en toutes lettres (le harnais `withIntl` garde le repli par défaut de next-intl, comme `surErreurIntl` en production ; la levée hors production se lit dans `erreurs.ts:35-40`, non rendue) → le constat tient, latent tant que P219.01 n'est pas fait. Classement : V7, les deux motifs demandent un texte neuf en français et en anglais (A4 ne couvre qu'une clé sans texte neuf) ; le repli `t.has()` et la garde seraient seuls autonomes.
 
 ### Aucune garde ne lie les clés du dictionnaire aux valeurs que l'API émet : la chaîne enum → union → table de tons s'arrête avant le libellé
 - Réf : P219.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `scripts/check-status-unions.mjs:1-40`, `takussan-web/src/components/commissions/CommissionsLedger.tsx:31,126`, `takussan-web/src/components/privacy/DataExportsPanel.tsx:157-158`, `takussan-web/src/app/(super-admin)/super-admin/agency-upgrade-requests/page.tsx:185`, `takussan-web/src/components/admin/super/platform-settings.tsx:151-152`, `takussan-web/src/components/admin/super/moderation.tsx:564`
 - Constat :
@@ -19874,3 +19876,4 @@ les envoie.*
   - Inventaire : 282 appels interpolés hors tests, dont 37 lignes déjà gardées par `t.has()` ou par une liste connue (mesuré, script temporaire hors dépôt). Les autres lisent une valeur que le front choisit lui-même, ou une valeur d'API dont l'enum correspond aujourd'hui (relu pour chaque site nourri par l'API, liste dans l'en-tête de l'angle).
   - Établi comment : lu, et mesuré par script et `grep`.
 - Piste : prolonger `check-status-unions.mjs`, ou une garde voisine, pour qu'elle exige, pour chaque union déclarée, une clé par cas sous l'espace de noms que l'écran lit. Une table `union → chemins du dictionnaire`, bilatérale comme `CORRESPONDANCES`, et la même règle pour les deux listes PHP ci-dessus. L'autre voie est de typer les messages par `AppConfig` : `tsc` attraperait alors toute clé bâtie sur une union, mais c'est un changement de contrat sur les quelque 670 fichiers qui traduisent.
+- Mesure (2026-10-24, 880203cdc, mesureur) : relu l'en-tête de `scripts/check-status-unions.mjs` (« Ce qu'elle NE prouve PAS : … les libellés ») ; `grep -rn "AppConfig\|interface Messages" takussan-web/src` → seule `MessagesPageProps`, sans rapport ; `takussan-web/scripts/check-i18n.mjs` compare la parité des clés entre langues et ne compte pas les gabarits interpolés (lu, l. 28-29, 58) ; `CommissionsLedger.tsx:31,126`, `DataExportsPanel.tsx:157` et `agency-upgrade-requests/page.tsx:185` rendent `t(\`status.${…}\`)` sans repli (lu) ; `node -e` → `commissions.status` = `due`, `paid`, `cancelled`, égal à l'enum → le constat tient : rien aujourd'hui ne casse si un cas d'enum gagne une union et une entrée de ton mais pas sa clé. Classement : A5, une garde ajoutée sans seuil à resserrer : pour chaque union de `CORRESPONDANCES` lue par un écran, une table `union → chemin du dictionnaire` bilatérale qui exige une clé `fr` par cas, et la même règle pour `EditablePlatformSettings` et `UnifiedModerationService::DECISIONS` ; le typage par `AppConfig` est exclu (V6, contrat des ~670 fichiers qui traduisent).
