@@ -18832,7 +18832,7 @@ Non mesuré : les écrans du front, et le remboursement par webhook (lu seulemen
 
 ### La pénalité de retard réglée n'entre jamais au reversement au bailleur ni à son relevé, alors que TCK-594 la lui attribue
 - Réf : P206.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : faire entrer la pénalité réglée au brut reversé, et lui donner une éligibilité propre, est un calcul de reversement
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payout/PayoutCalculator.php:57-77,145-161,219-222`, `takussan-api/app/Services/Payout/OwnerStatementService.php:51-60`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:337-350,494-503`, `docs/backlog/tickets/TCK-594-sorties-d-argent-calculees-et-validees.md:295-296`, `docs/backlog/tickets/TCK-593-encaissements-locataire-et-rapprochement.md:336-337`
 - Constat :
@@ -18843,10 +18843,11 @@ Non mesuré : les écrans du front, et le remboursement par webhook (lu seulemen
   - La clôture plateforme, elle, met la pénalité réglée par son checkout au brut de l'agence (lu, l. 341-350, `metadata.late_fees_gross`) : l'agence reçoit la pénalité et ne la reverse pas.
   - Établi comment : code lu, puis test temporaire.
 - Piste : faire entrer au calcul la pénalité dont `late_fee_paid_at` tombe dans la période, commission comprise, comme TCK-594 l'a retenu (V1). Point à trancher dans le ticket : une pénalité réglée après le reversement de son loyer (la pièce est déjà dans `payout_lease_payment`) — il faut une éligibilité propre à la pénalité (colonne ou pivot), pas seulement à la ligne. Garde : le cas du test (préparation, création et relevé à 157 500 brut) et une pénalité réglée le mois suivant son loyer.
+- Mesure (2026-10-24, ab585ab0d, mesureur) : relu `PayoutCalculator.php` (`leasePayments` ne retient que les pièces `paid` par type et `paid_at`, `kept()` = `amount − refund_amount`, l. 219-222 ; aucune lecture de `late_fee_*`), `OwnerStatementService` (même calcul), TCK-594 l. 295-296 et TCK-593 l. 336-337 (cités exacts) ; `git log -S 'late_fee_paid_at' -- takussan-api/app` → TCK-593, TCK-596, TCK-833, aucun commit de reversement ; aucun ticket ne cite P206. sonde temporaire `tests/Feature/TmpMesureur/SondeAngle206Test.php` (base créée par le test, charge 7,45 / 4,97 / 4,74 sur 8 cœurs, retirée ensuite) : loyer de 150 000 payé avec 7 500 de pénalité réglée et loyer de 100 000, bail à 10 % → `compute` lignes `[150000, 100000]`, totaux `gross 250000, commission 25000, net 225000` ; relevé du mois → `gross 250000` → les 7 500 n'apparaissent nulle part, le constat tient (mesuré sur les services, pas par `POST /api/payouts`). Classement : V1, le comportement est écrit par TCK-594 mais touche le montant reversé, et l'éligibilité propre à la pénalité demande une colonne ou un pivot (V4).
 
 ### L'« Encaissé » et les métriques plateforme ignorent la pénalité réglée, alors que la clôture prélève sa commission dessus
 - Réf : P206.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : décider si l'Encaissé et les frais plateforme comptent la pénalité réglée
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:16-21,53,71-78`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:247-260`, `takussan-api/app/Services/Reporting/PlatformMetricsSnapshotter.php:40-63`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:341-350`, `docs/adr/0057-instantanes-quotidiens-des-metriques-plateforme.md:48-53`
 - Constat :
@@ -18855,10 +18856,11 @@ Non mesuré : les écrans du front, et le remboursement par webhook (lu seulemen
   - Les frais plateforme du tableau de bord sont `Σ (amount − refund_amount) × platform_fee_pct_at_payment` (lu, l. 47-48), alors que la clôture prélève aussi sa commission sur la pénalité encaissée par son checkout (lu, `PlatformPayoutService.php:345-347`) : le take rate affiché sous-estime ce que la plateforme retient (déduit, à vérifier sur une clôture réelle).
   - ADR-0057 § 2 définit l'*Encaissé* par type de pièce, sans dire si la pénalité réglée sur la ligne en fait partie (lu, l. 48) : rien d'écrit ne tranche.
 - Piste : décider (V1) si l'*Encaissé* compte la pénalité réglée, datée par `late_fee_paid_at` ; si oui, une seule expression SQL dans `CollectedPayments` pour tous les lecteurs, et les frais plateforme alignés sur la clôture. Garde : un test de `CollectedPayments` avec pénalité réglée, et l'égalité frais de la clôture = frais des métriques sur le même jeu.
+- Mesure (2026-10-24, ab585ab0d, mesureur) : relu `CollectedPayments.php:53` (`LEASE_NET_SQL` = `amount − COALESCE(refund_amount, 0)`) et `PlatformPayoutService.php` (`late_fees_gross` et `late_fees_fee` en métadonnées de clôture, l. 204, 269-270, 373-374). Même sonde que P206.01 : `CollectedPayments::leaseIncome()->sum(LEASE_NET_SQL)` → `250000.00` avec 7 500 de pénalité réglée → le constat tient ; l'écart de take rate sur une clôture réelle n'a pas été mesuré. Classement : V1, ADR-0057 § 2 ne tranche pas si la pénalité réglée fait partie de l'Encaissé, c'est un choix sur un montant.
 
 ### Une pénalité encore due sur un loyer payé n'est comptée dans aucun impayé
 - Réf : P206.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : compter la pénalité due dans l'Impayé ou à part est un choix sur un montant et sur l'écran (V7)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Dashboard/CollectedPayments.php:44-50,92-100`, `takussan-api/app/Services/Payout/OwnerStatementService.php:166-185`, `takussan-api/app/Services/Reporting/AgingBalanceService.php:54-60`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:37,84`
 - Constat :
@@ -18867,10 +18869,11 @@ Non mesuré : les écrans du front, et le remboursement par webhook (lu seulemen
   - Seuls l'échéancier du bail et le montant dû d'une ligne montrent la pénalité due (lu, `LeaseSchedule.tsx:209,286`, `montant-du.ts:28`) : l'agence n'a aucun total des pénalités à recouvrer, ni le locataire sur son accueil (déduit de `DashboardTenantService.php:84`, à vérifier à l'écran).
   - `docs/features.md:598` définit l'impayé comme « échéance échue non payée, qu'une pénalité s'applique ou non » : la pénalité seule due n'y est ni incluse ni exclue (lu).
 - Piste : décider (V1, V7) si la pénalité due entre dans l'*Impayé* (tuiles, balance âgée, relevé) ou se montre à part (« pénalités à recouvrer »). Garde : le cas du test.
+- Mesure (2026-10-24, ab585ab0d, mesureur) : relu `CollectedPayments.php:44-50` (`OWED_STATUSES` = `pending | partially_paid | late`, reste dû = `amount − paid_amount`) et `OwnerStatementService::unpaid` (l. 166-185, même règle). Même sonde : loyer de 100 000 `paid`, pénalité de 5 000 appliquée non réglée (`lateFeeOutstanding()` → 5000) → `CollectedPayments::leaseOwed()->count()` → `0`, relevé du mois → `unpaid {"count":0,"amount":0}` → le constat tient ; l'accueil du locataire n'a pas été mesuré. Classement : V1 et V7, `docs/features.md:598` ne tranche pas, et inclure la pénalité ou la montrer à part change un montant affiché.
 
 ### Le remboursement d'un paiement qui incluait la pénalité laisse celle-ci « acquittée »
 - Réf : P206.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : l'imputation d'un remboursement entre loyer et pénalité est un choix d'argent
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:725-747,1340-1370`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:108-115`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:337-350`
 - Constat :
@@ -18878,13 +18881,15 @@ Non mesuré : les écrans du front, et le remboursement par webhook (lu seulemen
   - Aucune écriture ne remet `late_fee_paid_at` à `null` sur remboursement (mesuré : `grep -n "late_fee_paid_at" app/Services/Payments/PaymentGatewayService.php` → l. 726-727 seulement) : la pénalité rendue au locataire reste « acquittée » sur la quittance et l'échéancier (déduit, à vérifier par sonde).
   - Un remboursement partiel laisse la ligne `paid` ; la clôture plateforme y compte encore la pénalité entière (`lateFeeSettledWith` ne lit pas `refund_amount`, lu l. 494-503) — on ne sait pas quelle part du remboursement porte sur la pénalité.
 - Piste : décider (V1) à quoi s'impute un remboursement d'un paiement qui portait la pénalité (pénalité d'abord, ou au prorata), puis remettre `late_fee_paid_at` à `null` quand la part de pénalité est rendue et l'exclure de la clôture. Garde : remboursement total et partiel d'un checkout pénalité incluse.
+- Mesure (2026-10-24, ab585ab0d, mesureur) : relu `PaymentGatewayService.php:725-727` (seule écriture de `late_fee_paid_at` dans ce service) et `reportedRefundAmount` (`min($reported, $amount)`, l. 1369). Même sonde : checkout pénalité incluse (`late_fee_online_collection`), webhook Wave de 157 500 → `paid`, `late_fee_paid_at` posé ; événement de remboursement de 157 500 → `status refunded`, `refund_amount 150000.00`, `late_fee_paid_at` inchangé, `lateFeeOutstanding()` → 0 → la pénalité rendue reste « acquittée », le constat tient (la quittance et la clôture sur remboursement partiel sont lues, pas mesurées). Classement : V1, la part d'un remboursement qui porte sur la pénalité (en premier ou au prorata) n'est écrite nulle part.
 
 ### Petites améliorations
 - Réf : P206.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : colonne d'export neuve ; la correction des documents suit P206.01
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Export/ExportDataService.php:57,77,84`, `docs/features.md:218`, `docs/adr/0039-les-sorties-d-argent.md:84-86`
 - Constat :
   - L'export des paiements porte `late_fee_amount` mais ni `late_fee_paid_at` ni le moyen de règlement de la pénalité (lu, l. 57 et 84) : on n'y distingue pas une pénalité réglée d'une pénalité due.
   - `docs/features.md:218` et ADR-0039 § 3 disent « pénalités » / type `penalty` sans distinguer l'indemnité de résiliation (pièce `penalty`, `LeaseService.php:331`) de la pénalité de retard portée par la ligne du loyer : le texte laisse croire que la seconde est reversée (lu).
 - Piste : ajouter `late_fee_paid_at` à l'export (colonne neuve, V7 mineur) ; écrire dans `features.md` et ADR-0039 où va la pénalité de retard, une fois P206.01 tranchée (A6).
+- Mesure (2026-10-24, ab585ab0d, mesureur) : relu `ExportDataService.php:57,77,84` (colonnes `… late_fee_amount, refund_amount`, ni `late_fee_paid_at` ni moyen de règlement de la pénalité), `docs/features.md:218` (« loyer, charges, pénalités, régularisations ») et ADR-0039 l. 84-85 (type `penalty`) → le constat tient. Classement : V7, la colonne d'export est un comportement visible neuf ; la partie A6 ne peut pas s'écrire avant P206.01, car le document dit ce que TCK-594 veut et non ce que fait le code.
