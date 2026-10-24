@@ -19654,7 +19654,7 @@ les envoie.*
 
 ### Le tri de la file des avis et celui de l'échéancier d'un bail rendent 500 sur `sort` en liste
 - Réf : P216.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-2126
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/ReviewController.php:113`, `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:40`
 - Constat :
@@ -19664,6 +19664,7 @@ les envoie.*
   - Établi comment : lu, test temporaire.
 - Piste : `is_string()` avant le cast, une liste valant l'ordre par défaut. Garde : un test par route.
 - Mesure (2026-10-24, 38e9e45bf, mesureur) : relu `ReviewController.php:95,113,124` et `LeasePaymentController.php:40` (inchangés) ; aucun ticket ni commit ; test temporaire `tests/Feature/Tmp/MesureurTmp216Test.php` (retiré), une requête par paramètre, gestionnaire d'exceptions actif, charge `{ 3.18 2.91 2.63 }` sur 8 cœurs → super-admin : `/api/reviews?sort[]=x` → 500 l. 113, `/api/leases/{id}/payments?sort[]=x` → 500 l. 40 ; témoins sans `sort` → 200 et 200 → le constat tient. Classement : A1, un tri inconnu a déjà sa réponse (ignoré, ordre par défaut) et le même contrôleur applique déjà `is_string()` à `filter[moderation_status]` (TCK-1407).
+- Mesure (2026-10-24, 9d78f2609, implementeur) : reproduit par `tests/Feature/Api/ValeursEnListeTriDesAvisEtDeLEcheancierTest.php` (2 rouges « Array to string conversion » avant correctif, `ReviewController.php:113` et `LeasePaymentController.php:40`) → `is_string()` avant le cast, une liste valant l'ordre par défaut ; ablation (contrôleurs remis à `pre-dev`) → 2 rouges, correctif remis → 2 verts ; 6 classes voisines vertes (66 tests).
 
 ### Chaque correctif d'une valeur en liste est local, et aucune garde n'empêche le cast suivant
 - Réf : P216.05
