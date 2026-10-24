@@ -20672,7 +20672,7 @@ sans `delete`).*
 
 ### L'escalade d'une intervention urgente part pour une demande déjà annulée ou remise en priorité normale, et réécrit ses `metadata` d'avant
 - Réf : P229.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2225
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/EscalateUrgentMaintenanceJob.php:19-55`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:222-236`, `takussan-api/routes/console.php:108`
 - Constat :
@@ -20682,6 +20682,7 @@ sans `delete`).*
   - Établi comment : lu et mesuré.
 - Piste : par demande, relire sous verrou (ou rejouer la sélection sur l'identifiant) avant d'envoyer, et écrire `escalated_at` seul (`jsonb_set`, ou relecture puis fusion sous verrou) ; l'avis après le commit. Garde : priorité baissée et demande annulée après la lecture du job → aucun avis, `metadata` intacte.
 - Mesure (2026-10-24, c2629a2af, mesureur) : relu `EscalateUrgentMaintenanceJob.php:21-54` (sélection `urgent` + `open`/`acknowledged` par `get()`, avis, puis `metadata` recomposée du modèle chargé et `saveQuietly()`, sans relecture ; seul changement depuis l'exploration : les destinataires de TCK-2185) ; Test temporaire `tests/Feature/TmpMesureur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,85 / 2,61 / 2,67 sur 8 cœurs, geste concurrent joué une fois dans un écouteur `retrieved` : demande passée en base à `normal`, `cancelled`, `metadata = {autre: y}` après la lecture du job → 1 avis d'escalade, ligne finale `normal`, `cancelled`, `metadata = {autre: x, escalated_at, urgent_since}`. Le constat tient. Classement : A1, la sélection du job et l'effacement d'`urgent_since`/`escalated_at` quand l'urgence est quittée (`MaintenanceRequestController`) fixent le contrat : par demande, relire sous verrou et rejouer la sélection, n'envoyer que si elle tient, écrire `escalated_at` sur la `metadata` relue.
+- Mesure (2026-10-24, fc8c717f8, implementeur) : test `tests/Feature/Maintenance/EscaladeFaceAuGesteConcurrentTest.php`, ligne passée en base à `normal`, `cancelled`, `metadata = {autre: y}` dans l'écouteur `retrieved` après la lecture du job → avant correctif 1 avis d'escalade (rouge), et une `metadata` modifiée entre-temps écrasée (rouge) ; demande relue sous verrou, sélection et délai rejugés, `escalated_at` écrit sur la ligne relue, avis après le commit → aucun avis, `metadata` intacte ; valeur neuve gardée avec `escalated_at` (2 verts, témoin sans geste vert) ; ablation (job remis) → 2 rouges.
 
 ### Le rappel d'effacement de compte part après que l'utilisateur a annulé sa demande
 - Réf : P229.04
