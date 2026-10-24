@@ -6,6 +6,7 @@ use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
+use App\Models\Enums\ConversationType;
 use App\Models\Enums\RoleDelegationStatus;
 use App\Models\Lease;
 use App\Models\Profiles\AgencyAdminProfile;
@@ -139,6 +140,21 @@ class AgencyMemberRemovalService
             ->with('conversation.lease')
             ->get()
             ->reject(fn (ConversationParticipant $p) => $p->conversation?->lease !== null && $retire->can('view', $p->conversation->lease))
+            ->each(fn (ConversationParticipant $p) => $p->forceFill(['left_at' => now()])->save());
+
+        // P191.02 (TCK-2021) — de même pour un groupe rattaché au seul bien (sans bail) d'un bien de
+        // l'agence, jugé par `PropertyPolicy::view` : `NewGroupDialog` ouvre de tels groupes.
+        ConversationParticipant::query()
+            ->where('user_id', $member->id)
+            ->whereNull('left_at')
+            ->whereIn('conversation_id', Conversation::query()
+                ->where('type', ConversationType::Group->value)
+                ->whereNull('lease_id')
+                ->whereIn('property_id', Property::withTrashed()->where('agency_id', $agencyId)->select('id'))
+                ->select('id'))
+            ->with(['conversation.property' => fn ($q) => $q->withTrashed()])
+            ->get()
+            ->reject(fn (ConversationParticipant $p) => $p->conversation?->property !== null && $retire->can('view', $p->conversation->property))
             ->each(fn (ConversationParticipant $p) => $p->forceFill(['left_at' => now()])->save());
     }
 
