@@ -3,7 +3,7 @@ id: TCK-2174
 title: "La pénalité de retard réglée est une ligne du reversement au bailleur et de son relevé"
 status: done
 phase: P2
-family: fullstack
+family: full
 estimate: M
 wave: null
 created: 2026-10-24

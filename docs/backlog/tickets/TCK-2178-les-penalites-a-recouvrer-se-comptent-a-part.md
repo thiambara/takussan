@@ -3,7 +3,7 @@ id: TCK-2178
 title: "Les pénalités à recouvrer se comptent à part, sur l'accueil de l'agence, le relevé et l'accueil du locataire"
 status: done
 phase: P2
-family: fullstack
+family: full
 estimate: S
 wave: null
 created: 2026-10-24
