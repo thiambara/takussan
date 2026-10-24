@@ -20611,7 +20611,7 @@ sans `delete`).*
 
 ### Petites améliorations : gestes d'écran dont l'échec est muet, refusés surtout sur un écran périmé
 - Réf : P228.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-2218
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/inventory/InventoryDetail.tsx:313-342`, `takussan-web/src/components/crm/AgentAbsencesSection.tsx:90-93,132,186-188`, `takussan-web/src/components/messages/ConversationInfoSheet.tsx:106-117,173-178,219`, `takussan-web/src/components/tenant/TenantOnboardingChecklistWidget.tsx:150-153`, `takussan-web/src/components/announcements/GlobalAnnouncementBanner.tsx:42-45,73`
 - Constat :
@@ -20623,6 +20623,7 @@ sans `delete`).*
   - Établi comment : lu.
 - Piste : brancher chaque geste sur la zone d'erreur que l'écran possède déjà, ou à défaut sur un toast `messageErreur`. Pas de texte neuf : les libellés génériques d'échec existent (`useMessageErreurApi`).
 - Mesure (2026-10-24, d44d3bc59, mesureur) : relu `InventoryDetail.tsx:314,339` (`submit.mutate()` sans `onError`, alors que `remove`, `upload` et `dispute` affichent `isError`, l. 265, 299, 378), `AgentAbsencesSection.tsx:90-91,132` (`revoke` sans `onError`, sous `avecGardeDoubleFacteur`) et `:186-188` (`declare.error` affiché), `ConversationInfoSheet.tsx:112-118` (départ, `onSuccess` seul), `:173,176,178` (retrait et rôles) et `:219` (`toggleMute`) sans `onError`, alors que `setError`/`AlerteErreurs` servent au renommage et à l'ajout (l. 66, 82, 100, 210), `TenantOnboardingChecklistWidget.tsx:75,152` et `GlobalAnnouncementBanner.tsx:42-45,73` sans `onError` ; aucun crochet de `lib/queries/` ne porte d'`onError` pour ces gestes (`grep`) ; aucun commit sur ces fichiers depuis 157e11cb4, aucun ticket ne cite P228 → les cinq composants tiennent, lus (aucun rendu lancé). Classement : A1, ADR-0019 fixe le rendu par `useMessageErreurApi()` : chaque geste se branche sur la zone d'erreur que l'écran a déjà, ou sur une ligne `role="alert"` qui la porte, sans texte neuf.
+- Mesure (2026-10-24, 68ab70c5b, implementeur) : relu à `pre-dev` `InventoryDetail` (`submit.mutate()` sans `onError`), `AgentAbsencesSection` (`revoke` à `onSuccess` seul), `ConversationInfoSheet` (départ, retrait, rôles, sourdine sans `onError`), `TenantOnboardingChecklistWidget` et `GlobalAnnouncementBanner` (`mutation.mutate` sans `onError`, erreur non lue) → les cinq tiennent ; cinq tests `*.p228-05.test.tsx` (9 cas, rejet de l'API → message en `role="alert"`) ; ablation : composants de `pre-dev` → 9/9 rouges, correctif remis → 9/9 verts, huit fichiers voisins verts (33 tests).
 
 ### Rien ne garde contre une mutation lancée par `mutate()` sans chemin d'erreur
 - Réf : P228.06
