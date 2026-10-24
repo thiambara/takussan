@@ -71,6 +71,10 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
         // TCK-1346 (P132.04) — ce qu'un SMS reporté par les heures calmes relit avant de partir
         // ({@see \App\Services\Notifications\Sms\DeferredSmsGuard}).
         public readonly ?array $deferredSmsGuard = null,
+        // P207.01 (TCK-2157) — l'objet auquel rattacher l'activité d'exploitation quand tous les
+        // fournisseurs refusent le SMS d'un envoi marqué « au plus une fois » (classe et clé, pas
+        // le modèle : la copie en file ne doit pas échouer si la ligne disparaît d'ici là).
+        public readonly ?array $smsRefusalSubject = null,
     ) {}
 
     /**

@@ -208,7 +208,9 @@ class SendLeasePaymentReminders implements ShouldQueue
                 // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit son lien avant de partir.
                 $guard = DeferredSmsGuard::forPayLink($params['payment_url']);
             }
-            $notifications->send($contact, $code, $params, $target, deferredSmsGuard: $guard);
+            // P207.01 (TCK-2157) — au plus une fois (TCK-740) : un SMS que tous les fournisseurs
+            // refusent n'est pas renvoyé, et laisse une activité d'exploitation sur l'échéance.
+            $notifications->send($contact, $code, $params, $target, deferredSmsGuard: $guard, smsRefusalSubject: $payment);
 
             return;
         }

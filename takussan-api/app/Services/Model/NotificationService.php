@@ -8,12 +8,14 @@ use App\Events\NewNotification;
 use App\Models\AppNotification;
 use App\Models\Enums\NotificationChannel;
 use App\Models\User;
+use App\Notifications\Channels\SmsChannel;
 use App\Notifications\CodedNotification;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Notifications\Sms\SmsOutcome;
 use App\Services\Property\PrimaryPropertyContact;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use LogicException;
@@ -53,6 +55,11 @@ class NotificationService
      * TCK-1346 (P132.04) — `$deferredSmsGuard` : pour un contact sans compte, ce que son SMS relit
      * s'il est reporté par les heures calmes ({@see DeferredSmsGuard}). Un compte n'a pas de lien porteur.
      *
+     * P207.01 (TCK-2157) — `$smsRefusalSubject` : pour un contact sans compte, l'objet auquel le
+     * canal SMS rattache l'activité `ops_critical_job_failed` quand tous les fournisseurs refusent
+     * le message ({@see SmsChannel}). L'appelant qui marque l'envoi
+     * « au plus une fois » sait ainsi lequel est perdu. Ignoré pour un compte.
+     *
      * @param  array<string, mixed>  $params  paramètres BRUTS (cf. {@see NotificationCode::params()})
      * @param  array<string, mixed>|null  $data
      */
@@ -64,9 +71,10 @@ class NotificationService
         ?bool $mobileBorne = null,
         ?array $data = null,
         ?array $deferredSmsGuard = null,
+        ?Model $smsRefusalSubject = null,
     ): ?AppNotification {
         if ($to instanceof ContactSansCompte) {
-            $this->sendToContact($to, $code, $params, $target, $mobileBorne, $deferredSmsGuard);
+            $this->sendToContact($to, $code, $params, $target, $mobileBorne, $deferredSmsGuard, smsRefusalSubject: $smsRefusalSubject);
 
             return null;
         }
@@ -131,7 +139,7 @@ class NotificationService
         return $outcome;
     }
 
-    private function sendToContact(ContactSansCompte $to, NotificationCode $code, array $params, ?NotificationTarget $target, ?bool $mobileBorne = null, ?array $deferredSmsGuard = null, ?SmsOutcome $outcome = null): void
+    private function sendToContact(ContactSansCompte $to, NotificationCode $code, array $params, ?NotificationTarget $target, ?bool $mobileBorne = null, ?array $deferredSmsGuard = null, ?SmsOutcome $outcome = null, ?Model $smsRefusalSubject = null): void
     {
         if (! $code->reachesContacts()) {
             throw new LogicException(sprintf(
@@ -155,7 +163,10 @@ class NotificationService
             'sms' => $to->phone,
             'whatsapp' => $to->phone,
         ]);
-        $notification = (new CodedNotification($code, $params, $target?->toArray(), null, $mobileBorne, $deferredSmsGuard))->locale($to->locale);
+        $refusalSubject = $smsRefusalSubject !== null
+            ? ['type' => $smsRefusalSubject::class, 'id' => $smsRefusalSubject->getKey()]
+            : null;
+        $notification = (new CodedNotification($code, $params, $target?->toArray(), null, $mobileBorne, $deferredSmsGuard, $refusalSubject))->locale($to->locale);
         if ($outcome !== null) {
             $notification->smsOutcome = $outcome;
             Notification::routes($routes)->notifyNow($notification);

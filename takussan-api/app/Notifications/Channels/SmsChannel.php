@@ -8,8 +8,10 @@ use App\Notifications\Concerns\SupportsSms;
 use App\Services\Notifications\PreferenceResolver;
 use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -99,9 +101,47 @@ class SmsChannel
         // P179.01 (TCK-2155) — un envoi hors file relit le sort du SMS.
         if ($notification instanceof CodedNotification) {
             $notification->smsOutcome?->record($results);
+            $this->traceRefusal($notification, $results);
         }
 
         return $results;
+    }
+
+    /**
+     * P207.01 (TCK-2157) — un envoi marqué « au plus une fois » (la relance de loyer d'un locataire
+     * sans compte) que TOUS les fournisseurs refusent laisse l'activité alertable
+     * `ops_critical_job_failed`, rattachée à son objet : rien ne le renverra, et rien d'autre ne
+     * dirait lequel est perdu. Ni le numéro, ni les paramètres (ADR-0044 § 2). Un échec ambigu (le
+     * fournisseur a pu le recevoir) n'écrit rien.
+     *
+     * @param  array<string, mixed>  $results
+     */
+    private function traceRefusal(CodedNotification $notification, array $results): void
+    {
+        $subject = $notification->smsRefusalSubject;
+        if ($subject === null || $results === []) {
+            return;
+        }
+        foreach ($results as $result) {
+            if (! $result instanceof SmsResult || $result->status !== SmsResult::STATUS_FAILED || $result->ambiguous) {
+                return;
+            }
+        }
+
+        $activity = activity('Ops')->event('ops_critical_job_failed');
+        $class = $subject['type'] ?? null;
+        $model = is_string($class) && is_subclass_of($class, Model::class) ? $class::query()->find($subject['id'] ?? null) : null;
+        if ($model !== null) {
+            $activity->performedOn($model);
+        }
+        $activity
+            ->withProperties([
+                'job' => class_basename($notification),
+                'code' => $notification->code->value,
+                'channel' => 'sms',
+                'reason' => 'sms_refused_by_all_providers',
+            ])
+            ->log('ops_critical_job_failed');
     }
 
     private function resolvePhone(object $notifiable, Notification $notification): ?string
