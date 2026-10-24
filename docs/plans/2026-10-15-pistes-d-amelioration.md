@@ -20686,7 +20686,7 @@ sans `delete`).*
 
 ### Le rappel d'effacement de compte part après que l'utilisateur a annulé sa demande
 - Réf : P229.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-2227
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:37-49`, `takussan-api/app/Services/Account/AccountDeletionService.php:155-185,614-626`, `takussan-api/routes/console.php:96`
 - Constat :
@@ -20696,6 +20696,7 @@ sans `delete`).*
   - Établi comment : lu et mesuré.
 - Piste : relire la demande (sous verrou, ou `whereKey()->whereNull('executed_at')->whereNull('reminder_sent_at')->update(…)` comme réclamation) avant d'envoyer, et n'envoyer que si elle a été prise. Garde : annulation après la lecture de la commande → aucun rappel.
 - Mesure (2026-10-24, c2629a2af, mesureur) : relu `ExecuteScheduledAccountDeletions.php:37-49` (rappel et `reminder_sent_at` sur chaque modèle de `dueForReminder()->get()`, sans relecture) et `AccountDeletionService.php:160-185` (`cancelDeletion` permise avant `scheduled_for`, supprime la ligne) ; Test temporaire `tests/Feature/TmpMesureur/TmpSonde229Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 2,85 / 2,61 / 2,67 sur 8 cœurs, geste concurrent joué une fois dans un écouteur `retrieved` : `cancelDeletion()` réel joué pendant la commande, demande à J+5 → ligne supprimée, `deletion_requested_at` nul, 1 `AccountDeletionReminderNotification`. Le constat tient. Classement : A1, une demande annulée n'existe plus, et `dueForReminder` ne vise que des demandes existantes non rappelées : réclamer la demande (`whereKey()->whereNull('executed_at')->whereNull('reminder_sent_at')->update(['reminder_sent_at' => now()])`) avant d'envoyer, et n'envoyer que si une ligne est prise ; ni ce qui est effacé ni ce qui est conservé ne change (pas V3).
+- Mesure (2026-10-24, fc8c717f8, implementeur) : test `tests/Feature/Auth/RappelDeSuppressionApresAnnulationTest.php`, `cancelDeletion()` réel joué dans l'écouteur `retrieved` après la lecture du lot, demande à J+5 → avant correctif le rappel part, `reminders=1` (rouge) ; rappel posé par un autre passage pendant la lecture → second rappel (rouge) ; réclamation conditionnelle (`whereKey`, `executed_at` et `reminder_sent_at` nuls, `scheduled_for` à venir) avant l'envoi → aucun rappel dans les deux cas, le témoin sans geste reçoit le sien (3 verts) ; ablation (commande remise) → 2 rouges.
 
 ### La pénalité de retard se calcule sur l'échéance lue par le lot, puis s'écrit sous verrou sans être recalculée
 - Réf : P229.05
