@@ -19524,7 +19524,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Renvoyer le code avec un numéro neuf l'enregistre (et défait la vérification de l'ancien), puis répond 429 sur le délai de renvoi ou le quota
 - Réf : P213.02
-- Statut : validé — validation du porteur (2026-10-24) : le délai par compte et le quota du numéro entrant se jugent avant toute écriture ; la branche neutre `isVerifiedElsewhere` reste après l'écriture ; `notifyReplaced` ne part qu'après un `sendOtp` réussi, refus 503 du plafond global compris
+- Statut : fait · TCK-2197
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Auth/PhoneVerificationController.php:55-98`
 - Constat :
@@ -19533,6 +19533,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu pour l'ordre ; non exécuté.
 - Piste : juger le délai de renvoi et le quota sur le numéro entrant avant toute écriture (ou envelopper l'écriture et les gardes dans une transaction, avis après le commit). Garde : renvoi avec un numéro neuf dans la fenêtre de 60 s → 429 et `phone`, `phone_verified_at` inchangés, aucun avis.
 - Mesure (2026-10-24, 7f465356a, mesureur) : relu `PhoneVerificationController.php:45-110` (écriture `phone`/`phone_verified_at = null` l. 74-77 et `notifyReplaced` l. 78-80 avant `refuseWhileCoolingDown` l. 93 et `quota->ensureAvailable` l. 98 ; `resendAvailableIn` juge le compte, `PhoneVerificationService.php:68-71`) ; test temporaire (retiré) → compte non vérifié, second `send-otp` avec un autre numéro à moins de 60 s : 429 `phone.resend_too_soon`, `phone` = le nouveau numéro, aucun SMS ; compte vérifié avec mot de passe, quota du nouveau numéro épuisé : 429 `phone.send_limit_day`, `phone` remplacé, `phone_verified_at` NULL, un SMS d'avis à l'ancien numéro → le constat tient dans les deux cas. Classement : V2, le correctif réordonne le chemin de vérification et de remplacement d'un numéro vérifié (preuve TCK-589, avis) et la `Piste` propose deux options.
+- Mesure (2026-10-24, 47223cd19, implementeur) : reproduit avant correctif par `PhoneResendAvantEcritureTest` (compte vérifié avec mot de passe, `POST /api/auth/phone/send-otp` `{phone: <neuf>, current_password}`) : délai de renvoi en cours → 429 `phone.resend_too_soon` mais numéro remplacé, `phone_verified_at` nul, avis à l'ancien numéro ; quota du numéro entrant épuisé → 429 `phone.send_limit_day`, même écriture ; plafond global atteint → 503, avis parti → `refuseWhileCoolingDown` et `quota->ensureAvailable($incoming)` avant l'écriture, `notifyReplaced` après un `sendOtp` réussi (et après la réponse neutre, qui imite un envoi réussi) → 429 sans écriture ni avis, 503 sans avis, envoi réussi et réponse neutre : numéro écrit, un avis ; ablation (contrôleur remis à `HEAD`) → 3 rouges sur 5, remis → 5 verts ; `PhoneChangeNoticeTest` 3, `SendOtpNeutralResponseTest` 4, `PhoneSendQuotaTest` 8, `PhoneVerificationTest` 22, `SmsOtpRelayTest` 7, `PhoneOtpDeliveryTest` 3, `PhoneNumberUniquenessTest` 3, `OtpPreviewTest` 11, `AuthProfileTest` 23 verts (charge 2,26 / 2,80 / 3,08 sur 8 cœurs). Sur le 503, le numéro reste écrit, comme la décision le laisse.
 
 ### Une réservation refusée en 422 (période, dates, chevauchement) laisse la fiche client créée ou rattachée pour le demandeur
 - Réf : P213.03
