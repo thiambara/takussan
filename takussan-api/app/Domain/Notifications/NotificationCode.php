@@ -125,6 +125,8 @@ enum NotificationCode: string
     case MaintenanceStepAssignedScheduled = 'maintenance.step_assigned_scheduled';
     case MaintenanceStepInProgressScheduled = 'maintenance.step_in_progress_scheduled';
     case MaintenanceQuoteAwaitingOwner = 'maintenance_quote.awaiting_owner';
+    // TCK-2012 (P184.01) — le passage fixé ou déplacé par le `PATCH`, à toutes les parties sauf l'auteur.
+    case MaintenanceScheduleChanged = 'maintenance.schedule_changed';
 
     // ─── CRM ───────────────────────────────────────────────────────────────────────────
     /** TCK-591 — le récapitulatif quotidien des biens qui correspondent aux prospects d'un référent. */
@@ -250,7 +252,7 @@ enum NotificationCode: string
             self::BankStatementFinalized => NotificationType::BankStatementFinalized,
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
-            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner => NotificationType::Maintenance,
+            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceScheduleChanged => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon,
             self::GovernanceRoleCapabilitiesChanged, self::GovernanceAdminAdded, self::GovernanceDataExported,
             self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged,
@@ -302,7 +304,7 @@ enum NotificationCode: string
             self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged => null,
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => 'maintenance_status_changed',
-            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner => 'maintenance_status_changed',
+            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceScheduleChanged => 'maintenance_status_changed',
             self::RoleDelegationActivated, self::RoleDelegationActivatedDelegator,
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
@@ -397,7 +399,8 @@ enum NotificationCode: string
             self::MaintenanceContested => ['request' => self::PARAM_TEXT, 'comment' => self::PARAM_TEXT],
             self::MaintenanceAutoClosed => ['request' => self::PARAM_TEXT, 'days' => self::PARAM_COUNT],
             self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled,
-            self::MaintenanceStepInProgressScheduled => ['request' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME],
+            self::MaintenanceStepInProgressScheduled,
+            self::MaintenanceScheduleChanged => ['request' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertySubmittedForReview => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],

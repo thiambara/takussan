@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
+use App\Events\Maintenance\MaintenanceScheduleChanged;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\CompleteMaintenanceRequestRequest;
 use App\Http\Requests\Api\ConfirmMaintenanceResolutionRequest;
@@ -213,7 +214,11 @@ class MaintenanceRequestController extends Controller
             $assigneeId = $data['assigned_to'] ?? null;
             unset($data['assigned_to']);
 
-            $maintenanceRequest->fill($data)->save();
+            $maintenanceRequest->fill($data);
+            // TCK-2012 (P184.01) — un passage fixé ou déplacé s'annonce ; la même heure renvoyée par
+            // le bloc d'assignation (`isDirty` compare l'instant) ou une heure retirée, non.
+            $scheduleChanged = $maintenanceRequest->isDirty('scheduled_at') && $maintenanceRequest->scheduled_at !== null;
+            $maintenanceRequest->save();
 
             if ($assignmentChanged) {
                 $this->service->assign(
@@ -221,6 +226,10 @@ class MaintenanceRequestController extends Controller
                     $assigneeId !== null ? User::query()->findOrFail($assigneeId) : null,
                     $request->user(),
                 );
+            }
+
+            if ($scheduleChanged) {
+                MaintenanceScheduleChanged::dispatch($maintenanceRequest, $request->user());
             }
         });
 
