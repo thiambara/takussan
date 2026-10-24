@@ -19609,7 +19609,7 @@ les envoie.*
 
 ### Les consoles super-admin des comptes, des agences, des biens et des portefeuilles rendent 500 sur un filtre ou un tri en liste
 - Réf : P216.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:30,46,50,71,89`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:64,70,90,98,103,108`, `takussan-api/app/Http/Controllers/Api/Admin/PropertyModerationController.php:51`, `takussan-api/app/Http/Controllers/Api/Admin/AdminCreditWalletController.php:27`
 - Constat :
@@ -19620,10 +19620,11 @@ les envoie.*
   - Chaque lecture a déjà sa réponse à une valeur qu'elle ne connaît pas : statut inconnu ignoré (`AgencyStatus::tryFrom`, l. 65), booléen invalide ignoré (l. 90-95), rôle inconnu → liste vide (`UserDetailController.php:67`), tri inconnu → `created_at` (l. 93) (lu).
   - Établi comment : lu, test temporaire.
 - Piste : ne lire la valeur que si `is_string()`, une liste valant une valeur absente (le précédent de TCK-1407 et TCK-1866). Garde : un test par console qui envoie chaque paramètre en liste et attend 200.
+- Mesure (2026-10-24, 38e9e45bf, mesureur) : relu `UserDetailController.php:30,46,50,71,89`, `AgencyModerationController.php:64,70,90,98,103,108`, `PropertyModerationController.php:51`, `AdminCreditWalletController.php:27` (inchangés) ; aucun ticket ni commit (grep `docs/backlog/tickets`, `git log`) ; test temporaire `tests/Feature/Tmp/MesureurTmp216Test.php` (retiré), une requête par paramètre, gestionnaire d'exceptions actif, charge `{ 3.18 2.91 2.63 }` sur 8 cœurs → super-admin : `/api/admin/users` en liste sur `filter[search|status|role|agency_id]` → 500 « Array to string conversion » `Stringable.php:33`, `sort[]` → 500 l. 89, témoin `sort=-created_at` 200 ; `/api/admin/agencies` sur `filter[status|search|is_verified|created_from]` et aussi `filter[created_to]` (l. 103, non relevé au constat) → 500 `Stringable.php:33`, `sort[]` → 500 l. 108 ; `/api/properties/moderation?filter[search][]=x` → 500 ; `/api/admin/credit-wallets?search[]=x` → 500 l. 27, témoin `search=x` 200 → le constat tient. Classement : A1, chaque lecture a déjà sa réponse à une valeur inconnue et TCK-1866 a écrit l'attendu sur la console voisine des boosts (une liste vaut une valeur absente), sans choix de produit ni autorisation changée.
 
 ### L'historique unifié des paiements rend 500 sur `filter[status]`, `filter[entity_type]` ou `sort` en liste
 - Réf : P216.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:45,79,91,125`
 - Constat :
@@ -19632,10 +19633,11 @@ les envoie.*
   - Témoin : `filter[date_from][]=2026-01-01` → `ValidationException` (422) par `DateBoundaryFilter::exiger` (mesuré) ; un statut inconnu rend déjà 422 `payment.filter_status_invalid` (lu, l. 95).
   - Établi comment : lu, test temporaire.
 - Piste : `is_string()` avant chaque cast ; `status` en liste rendu comme un statut inconnu (422 `payment.filter_status_invalid`), `entity_type` et `sort` en liste ignorés comme absents. Garde : un test par paramètre.
+- Mesure (2026-10-24, 38e9e45bf, mesureur) : relu `PaymentController.php:45,79,91,95,125` (inchangés) ; aucun ticket ni commit ; test temporaire `tests/Feature/Tmp/MesureurTmp216Test.php` (retiré), une requête par paramètre, gestionnaire d'exceptions actif, charge `{ 3.18 2.91 2.63 }` sur 8 cœurs → super-admin : `/api/payments/history?filter[status][]=x` → 500 l. 91, `filter[entity_type][]=lease&filter[entity_id]=1` → 500 l. 79, `sort[]=x` → 500 l. 125 ; témoins `filter[date_from][]=…` → 422 (`ValidationException`), sans paramètre → 200 → le constat tient. Classement : A1, la réponse à un statut inconnu (422 `payment.filter_status_invalid`, l. 95) et à une date en liste (422) est déjà écrite, et un tri ou un type inconnus sont déjà ignorés : aucun montant ni aucune autorisation ne changent, seul le 500 d'une URL forgée disparaît.
 
 ### Un `include[]=` lu à la main après `buildQuery()` rend 500 sur les interventions, la fiche d'un document et les biens d'une agence en console
 - Réf : P216.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:63,165`, `takussan-api/app/Http/Resources/DocumentResource.php:54`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:187-194`
 - Constat :
@@ -19645,10 +19647,11 @@ les envoie.*
   - Pour la liste des interventions, l'exception tombe après la requête paginée : spatie a déjà accepté la liste (déduit de l'ordre des lignes, à vérifier).
   - Établi comment : lu, test temporaire.
 - Piste : lire `include` par `is_string()` (liste ignorée comme une valeur absente), comme `DashboardOwnerController.php:40` depuis TCK-1866. Garde : un test par route avec `include[]=`.
+- Mesure (2026-10-24, 38e9e45bf, mesureur) : relu `MaintenanceRequestController.php:63` (après `paginate()`) et `:165`, `DocumentResource.php:54`, `AgencyDetailController.php:187-194` (inchangés) ; aucun ticket ni commit ; test temporaire `tests/Feature/Tmp/MesureurTmp216Test.php` (retiré), une requête par paramètre, gestionnaire d'exceptions actif, charge `{ 3.18 2.91 2.63 }` sur 8 cœurs → super-admin : `/api/maintenance-requests?include[]=property` → 500 l. 63, `/api/maintenance-requests/{id}?include[]=property` → 500 l. 165, `/api/documents/{id}?include[]=versions` → 500 `DocumentResource.php:54` (témoin `include=versions` 200) ; opérateur `viewer` : `/api/admin/agencies/{id}/properties?include[]=owner` → 500 l. 191 (témoin `include=owner` 200) → le constat tient ; que spatie accepte la liste avant la l. 63 reste déduit de l'ordre des lignes. Classement : A1, précédent écrit de TCK-1866 (`DashboardOwnerController.php:40`, une liste vaut une valeur absente) ; pour `AgencyDetailController`, le correctif doit remplacer une liste par `include=''` et ne jamais la laisser atteindre spatie, sans quoi le `viewer` recevrait `owner` (TCK-600) — le test le vérifie.
 
 ### Le tri de la file des avis et celui de l'échéancier d'un bail rendent 500 sur `sort` en liste
 - Réf : P216.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/ReviewController.php:113`, `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:40`
 - Constat :
@@ -19657,10 +19660,11 @@ les envoie.*
   - Un tri inconnu a déjà sa réponse : ignoré colonne par colonne (`ReviewController.php:124`), ordre par défaut (`LeasePaymentController.php:40`) (lu). Le même contrôleur des avis traite déjà `filter[moderation_status]` en liste par `is_string()` (lu, l. 95, TCK-1407).
   - Établi comment : lu, test temporaire.
 - Piste : `is_string()` avant le cast, une liste valant l'ordre par défaut. Garde : un test par route.
+- Mesure (2026-10-24, 38e9e45bf, mesureur) : relu `ReviewController.php:95,113,124` et `LeasePaymentController.php:40` (inchangés) ; aucun ticket ni commit ; test temporaire `tests/Feature/Tmp/MesureurTmp216Test.php` (retiré), une requête par paramètre, gestionnaire d'exceptions actif, charge `{ 3.18 2.91 2.63 }` sur 8 cœurs → super-admin : `/api/reviews?sort[]=x` → 500 l. 113, `/api/leases/{id}/payments?sort[]=x` → 500 l. 40 ; témoins sans `sort` → 200 et 200 → le constat tient. Classement : A1, un tri inconnu a déjà sa réponse (ignoré, ordre par défaut) et le même contrôleur applique déjà `is_string()` à `filter[moderation_status]` (TCK-1407).
 
 ### Chaque correctif d'une valeur en liste est local, et aucune garde n'empêche le cast suivant
 - Réf : P216.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : choisir une convention de lecture commune (assistant partagé ou `FormRequest`) pour tous les contrôleurs
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/DashboardOwnerController.php:40`, `takussan-api/app/Http/Controllers/Api/Admin/AdminBoostController.php:26`, `takussan-api/app/Http/Controllers/Api/ReviewController.php:95`, `takussan-api/app/Http/Requests/Accounting/SearchPaymentsRequest.php`
 - Constat :
@@ -19669,3 +19673,4 @@ les envoie.*
   - `scripts/check-inline-validation.mjs` ne voit que la validation en ligne ; aucune garde ne lit `(string) $request->` ni `$request->string(` sur une action à `Request` nu (mesuré : `grep -ln "request->string\|(string) \$request" scripts/check-*.mjs` → aucun fichier).
   - Établi comment : lu, grep.
 - Piste : un seul lecteur (par exemple une méthode qui rend la chaîne ou `null`, à l'image de `ExactIdentifierFilter`), employé par les correctifs de P216.01 à P216.04 ; et un test qui parcourt les routes `GET` de liste en envoyant `sort[]`, `include[]` et `filter[x][]` et refuse tout 500, plutôt qu'une garde de motif qui ne verrait pas `$request->string(`.
+- Mesure (2026-10-24, 38e9e45bf, mesureur) : relu `DashboardOwnerController.php:40`, `AdminBoostController.php:26`, `ReviewController.php:95` (trois gardes locales, chacune la sienne) ; `grep -ln "request->string\|(string) \$request" scripts/check-*.mjs` → aucun fichier ; `grep -rn is_string app/Http/Controllers` → 24 lignes, aucun assistant partagé ; le test temporaire de P216.01 à P216.04 a reproduit les 500 des lectures citées → le constat tient. Classement : V6, le dépôt a deux précédents qui divergent (une liste rend 422 par `FormRequest`, TCK-1864 ; une liste vaut absente, TCK-1866) et la piste fixe une convention pour tous les contrôleurs ; le parcours de toutes les routes `GET` de liste peut aussi faire apparaître des 500 hors des quatre entrées, de portée non mesurée.
