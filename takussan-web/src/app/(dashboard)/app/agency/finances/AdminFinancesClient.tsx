@@ -1,7 +1,5 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useMyProfiles } from '@/hooks/useProfiles';
 import { AdminFinancesTabs } from '@/components/admin/finances/AdminFinancesTabs';
 import { FinanceKpis } from '@/components/admin/finances/FinanceKpis';
@@ -29,30 +27,11 @@ export function AdminFinancesClient({
 }: AdminFinancesClientProps) {
   const t = useTranslations('admin.finances');
   const profilesQuery = useMyProfiles();
-  const queryClient = useQueryClient();
   const activeProfileId = profilesQuery.data?.meta.active_profile_id ?? null;
 
-  // AC8: when the user switches profile via the topbar (TCK-143), the
-  // backend rotates `team_id` and the existing cached pages now belong to
-  // the previous agency. `useSwitchActiveProfile` only invalidates
-  // `['auth', 'me']` and `['me', 'profiles']` (it's the lowest-common
-  // change for app-wide consumers); we lift the page-local cache here so
-  // every finance query refetches without a full reload.
-  const lastProfileIdRef = useRef<string | null | undefined>(undefined);
-  useEffect(() => {
-    if (lastProfileIdRef.current === undefined) {
-      lastProfileIdRef.current = activeProfileId;
-      return;
-    }
-    if (lastProfileIdRef.current !== activeProfileId) {
-      lastProfileIdRef.current = activeProfileId;
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['payouts'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-finances'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-agency'] });
-    }
-  }, [activeProfileId, queryClient]);
+  // AC8 — après un changement de profil, les lectures des finances suivent le nouvel espace :
+  // `useSwitchActiveProfile` oublie tout le cache hors des profils quand le serveur le confirme
+  // (TCK-2091, P197.05). Plus rien à invalider ici.
 
   if (!canViewFinances) {
     return (
