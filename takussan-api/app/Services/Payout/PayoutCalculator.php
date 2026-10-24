@@ -7,7 +7,9 @@ use App\Models\BookingPayment;
 use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\Currency;
 use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\Enums\ServiceProviderBillStatus;
 use App\Models\LeasePayment;
@@ -57,14 +59,14 @@ final class PayoutCalculator
      *
      * @return Builder<LeasePayment>
      */
-    public function leasePayments(int $agencyId, int $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true): Builder
+    public function leasePayments(int $agencyId, int $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true, bool $orPaidOut = false): Builder
     {
         $query = LeasePayment::query()
             ->select('lease_payments.*')
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->where('leases.agency_id', $agencyId)
             ->where('leases.landlord_id', $landlordId)
-            ->where('lease_payments.status', PaymentStatus::Paid->value)
+            ->where(fn (Builder $q) => $this->paidOrPaidOut($q, 'lease_payments', 'payout_lease_payment', 'lease_payment_id', $orPaidOut))
             ->whereIn('lease_payments.payment_type', array_map(fn ($t) => $t->value, self::LEASE_TYPES))
             ->whereNotNull('lease_payments.paid_at')
             ->with('lease:id,reference_number,property_id,commission_rate,agency_id,landlord_id');
@@ -80,7 +82,7 @@ final class PayoutCalculator
     }
 
     /** @return Builder<BookingPayment> */
-    public function bookingPayments(int $agencyId, int $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true): Builder
+    public function bookingPayments(int $agencyId, int $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true, bool $orPaidOut = false): Builder
     {
         $query = BookingPayment::query()
             ->select('booking_payments.*')
@@ -88,7 +90,7 @@ final class PayoutCalculator
             ->join('properties', 'properties.id', '=', 'bookings.property_id')
             ->where('bookings.agency_id', $agencyId)
             ->where('properties.user_id', $landlordId)
-            ->where('booking_payments.status', PaymentStatus::Paid->value)
+            ->where(fn (Builder $q) => $this->paidOrPaidOut($q, 'booking_payments', 'payout_booking_payment', 'booking_payment_id', $orPaidOut))
             ->whereIn('booking_payments.payment_type', array_map(fn ($t) => $t->value, self::BOOKING_TYPES))
             ->whereNotNull('booking_payments.paid_at')
             ->with('booking:id,reference_number,property_id,agency_id');
@@ -101,6 +103,27 @@ final class PayoutCalculator
         }
 
         return $query->orderBy('booking_payments.paid_at')->orderBy('booking_payments.id');
+    }
+
+    /**
+     * TCK-2151 (P177.01, ADR-0039, amendement du 2026-10-24, point 1) — `$orPaidOut`, lu par le seul
+     * relevé de gérance : une pièce portée par un reversement au bailleur `completed`, avec sa copie
+     * (TCK-2017), se lit quel que soit son statut du jour. Le remboursement postérieur figure par sa
+     * reprise, au mois du remboursement. Une ligne de pivot sans copie se lit comme avant.
+     *
+     * @param  Builder<LeasePayment>|Builder<BookingPayment>  $query
+     */
+    private function paidOrPaidOut(Builder $query, string $table, string $pivot, string $column, bool $orPaidOut): void
+    {
+        $query->where("{$table}.status", PaymentStatus::Paid->value);
+        if ($orPaidOut) {
+            $query->orWhereExists(fn ($q) => $q->selectRaw('1')->from($pivot)
+                ->join('payouts', 'payouts.id', '=', "{$pivot}.payout_id")
+                ->whereColumn("{$pivot}.{$column}", "{$table}.id")
+                ->whereNotNull("{$pivot}.amount")
+                ->where('payouts.status', PayoutStatus::Completed->value)
+                ->where('payouts.payee_role', PayeeRole::Landlord->value));
+        }
     }
 
     /**
@@ -161,13 +184,14 @@ final class PayoutCalculator
      * @param  Collection<int, BookingPayment>  $bookingPayments
      * @param  Collection<int, ServiceProviderBill>  $bills
      * @param  array{lease_payments?: array<int, float>, booking_payments?: array<int, float>}  $retainedRates
+     * @param  array{lease_payments?: array<int, float>, booking_payments?: array<int, float>}  $retainedAmounts  TCK-2151 (P177.01) : le montant qu'un reversement versé a pris de la pièce (copie du pivot), qui l'emporte sur `montant − refund_amount` du jour
      * @return array{
      *     currency: string,
      *     lines: array{lease_payments: list<array<string,mixed>>, booking_payments: list<array<string,mixed>>, service_provider_bills: list<array<string,mixed>>},
      *     totals: array{gross: float, commission: float, fees: float, net: float},
      * }
      */
-    public function compute(Agency $agency, Collection $leasePayments, Collection $bookingPayments, Collection $bills, array $retainedRates = []): array
+    public function compute(Agency $agency, Collection $leasePayments, Collection $bookingPayments, Collection $bills, array $retainedRates = [], array $retainedAmounts = []): array
     {
         $currency = $this->currencyOf($agency, $leasePayments, $bookingPayments, $bills);
         $places = $currency->decimalPlaces();
@@ -177,7 +201,7 @@ final class PayoutCalculator
         foreach ($leasePayments as $payment) {
             $rate = $retainedRates['lease_payments'][$payment->id]
                 ?? ($payment->lease?->commission_rate !== null ? (float) $payment->lease->commission_rate : $agencyRate);
-            $amount = $this->kept($payment);
+            $amount = $retainedAmounts['lease_payments'][$payment->id] ?? $this->kept($payment);
             $leaseLines[] = [
                 'id' => $payment->id,
                 'reference_number' => $payment->reference_number,
@@ -195,7 +219,7 @@ final class PayoutCalculator
 
         $bookingLines = [];
         foreach ($bookingPayments as $payment) {
-            $amount = $this->kept($payment);
+            $amount = $retainedAmounts['booking_payments'][$payment->id] ?? $this->kept($payment);
             $rate = $retainedRates['booking_payments'][$payment->id] ?? $agencyRate;
             $bookingLines[] = [
                 'id' => $payment->id,

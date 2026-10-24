@@ -33,6 +33,7 @@ use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus as PaymentDriverStatus;
 use App\Services\Payments\Dto\WebhookAuthority;
 use App\Services\Payout\ObservedRefundPayout;
+use App\Services\Payout\PayoutClawbacks;
 use App\Services\Webhooks\WebhookJournal;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -860,6 +861,9 @@ class PaymentGatewayService
             $refundedPart = (float) ($payment->refund_amount ?? 0) - $refundedBefore;
             if ($refundedPart > 0) {
                 app(ObservedRefundPayout::class)->record($payment, $refundedPart, now());
+                // TCK-2151 (ADR-0039, amendement du 2026-10-24, point 2) — quel que soit l'encaisseur :
+                // la part déjà reversée au bailleur donne une reprise, imputée au reversement suivant.
+                app(PayoutClawbacks::class)->recordRefund($payment, $refundedPart, now());
             }
         }
 

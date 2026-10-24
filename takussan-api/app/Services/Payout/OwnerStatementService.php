@@ -29,7 +29,10 @@ use Illuminate\Support\Facades\DB;
  */
 final class OwnerStatementService
 {
-    public function __construct(private readonly PayoutCalculator $calculator) {}
+    public function __construct(
+        private readonly PayoutCalculator $calculator,
+        private readonly PayoutClawbacks $clawbacks,
+    ) {}
 
     /** @return array{0: CarbonImmutable, 1: CarbonImmutable, 2: bool} début, fin, annuel */
     public static function period(string $period): array
@@ -50,8 +53,10 @@ final class OwnerStatementService
     {
         [$start, $end, $annual] = self::period($period);
 
-        $leasePayments = $this->calculator->leasePayments((int) $agency->id, (int) $landlord->id, $start, $end, false)->get();
-        $bookingPayments = $this->calculator->bookingPayments((int) $agency->id, (int) $landlord->id, $start, $end, false)->get();
+        // TCK-2151 (P177.01) — une pièce d'un reversement versé se lit par sa copie, quel que soit son
+        // statut du jour : le mois versé ne change plus quand elle est remboursée ensuite.
+        $leasePayments = $this->calculator->leasePayments((int) $agency->id, (int) $landlord->id, $start, $end, false, true)->get();
+        $bookingPayments = $this->calculator->bookingPayments((int) $agency->id, (int) $landlord->id, $start, $end, false, true)->get();
 
         $carrying = $this->payoutsCarrying($agency, $landlord, $leasePayments->pluck('id')->all(), $bookingPayments->pluck('id')->all());
         // P177.03 (TCK-2041) — le versé et les frais vont au mois de `processed_at`, comme le « net
@@ -65,8 +70,23 @@ final class OwnerStatementService
             ->orderBy('id')
             ->get();
 
-        $computation = $this->calculator->compute($agency, $leasePayments, $bookingPayments, $bills, $this->retainedRates($carrying));
+        $computation = $this->calculator->compute($agency, $leasePayments, $bookingPayments, $bills, $this->retainedRates($carrying), $this->retainedAmounts($carrying));
         $paidIds = $paid->pluck('id')->all();
+
+        // TCK-2151 (P205.01, P205.03 ; ADR-0039, amendement du 2026-10-24, point 4) — la reprise est
+        // la seule ligne négative d'un remboursement, au mois du remboursement : elle diminue le net
+        // dû et le versé. Le reversement qui l'impute compte au versé AVANT reprise.
+        $clawbacks = $this->clawbacks->datedIn('landlord_id', (int) $landlord->id, $start, $end, (int) $agency->id);
+        $clawedBack = round((float) $clawbacks->sum(fn (object $c) => (float) $c->amount), 2);
+        $computation['lines']['clawbacks'] = $clawbacks->map(fn (object $c): array => [
+            'id' => (int) $c->id,
+            'source_payout_id' => (int) $c->source_payout_id,
+            'refunded_at' => CarbonImmutable::parse($c->refunded_at)->toIso8601String(),
+            'refund_amount' => (float) $c->refund_amount,
+            'commission_rate' => (float) $c->commission_rate,
+            'commission' => (float) $c->commission_amount,
+            'amount' => -(float) $c->amount,
+        ])->values()->all();
         $payouts = $carrying->concat($paid)->unique('id')->sortBy('id')->values();
 
         return [
@@ -78,7 +98,9 @@ final class OwnerStatementService
             'period_end' => $end->toDateString(),
             'currency' => $computation['currency'],
             'totals' => array_merge($computation['totals'], [
-                'paid_out' => (float) $paid->sum(fn (Payout $p) => (float) $p->net_amount),
+                'net' => round($computation['totals']['net'] - $clawedBack, 2),
+                'clawback' => $clawedBack,
+                'paid_out' => round((float) $paid->sum(fn (Payout $p) => (float) $p->net_amount + (float) ($p->clawback_amount ?? 0)) - $clawedBack, 2),
             ]),
             'properties' => $this->byProperty($computation['lines']),
             'lines' => $computation['lines'],
@@ -87,6 +109,7 @@ final class OwnerStatementService
                 'reference_number' => $p->reference_number,
                 'status' => $p->status?->value,
                 'net_amount' => (float) $p->net_amount,
+                'clawback_amount' => $p->clawback_amount !== null ? (float) $p->clawback_amount : null,
                 'transaction_id' => $p->transaction_id,
                 'processed_at' => $p->processed_at?->toIso8601String(),
                 'paid_in_period' => in_array($p->id, $paidIds, true),
@@ -157,6 +180,29 @@ final class OwnerStatementService
         }
 
         return $rates;
+    }
+
+    /**
+     * TCK-2151 (P177.01) — le montant que chaque reversement VERSÉ a pris de ses pièces, copié dans
+     * le pivot à sa création (TCK-2017). Une ligne sans copie n'y figure pas, et se lit au jour.
+     *
+     * @param  Collection<int, Payout>  $payouts
+     * @return array{lease_payments: array<int, float>, booking_payments: array<int, float>}
+     */
+    private function retainedAmounts(Collection $payouts): array
+    {
+        $completed = $payouts->filter(fn (Payout $p) => $p->status === PayoutStatus::Completed)->pluck('id')->all();
+        $amounts = [];
+        foreach (['lease_payments' => ['payout_lease_payment', 'lease_payment_id'], 'booking_payments' => ['payout_booking_payment', 'booking_payment_id']] as $set => [$pivot, $column]) {
+            $amounts[$set] = DB::table($pivot)
+                ->whereIn('payout_id', $completed ?: [0])
+                ->whereNotNull('amount')
+                ->pluck('amount', $column)
+                ->map(fn ($amount): float => (float) $amount)
+                ->all();
+        }
+
+        return $amounts;
     }
 
     /**

@@ -13,6 +13,7 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Services\Payout\PayoutClawbacks;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -296,11 +297,24 @@ class PortfolioMetrics
             ->where('payouts.status', PayoutStatus::Completed->value)
             ->where('payouts.payee_role', PayeeRole::Landlord->value)
             ->whereBetween('payouts.processed_at', [$start->startOfDay(), $end->endOfDay()])
-            ->selectRaw("to_char(date_trunc('month', payouts.processed_at), 'YYYY-MM') AS m, SUM(payouts.net_amount) AS total")
+            ->selectRaw("to_char(date_trunc('month', payouts.processed_at), 'YYYY-MM') AS m, SUM(payouts.net_amount + COALESCE(payouts.clawback_amount, 0)) AS total")
+            ->groupBy('m')
+            ->pluck('total', 'm')
+            ->all();
+
+        // TCK-2151 (P205.03 ; ADR-0039, amendement du 2026-10-24, point 4) — la reprise est un versé
+        // négatif daté de son mois ; le reversement qui l'impute compte avant reprise (ci-dessus).
+        $clawbacks = DB::table(PayoutClawbacks::TABLE)
+            ->where($scope->payoutColumn, $scope->id)
+            ->whereBetween('refunded_at', [$start->startOfDay(), $end->endOfDay()])
+            ->selectRaw("to_char(date_trunc('month', refunded_at), 'YYYY-MM') AS m, SUM(amount) AS total")
             ->groupBy('m')
             ->pluck('total', 'm');
+        foreach ($clawbacks as $month => $total) {
+            $rows[$month] = (float) ($rows[$month] ?? 0) - (float) $total;
+        }
 
-        return $this->fillMonths($start, $end, $rows->all());
+        return $this->fillMonths($start, $end, $rows);
     }
 
     /** Cautions détenues : dépôts payés − restitutions payées, sur tous les baux du périmètre. */

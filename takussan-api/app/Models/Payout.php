@@ -39,6 +39,8 @@ class Payout extends AbstractModel
         // TCK-2052 (ADR-0039, amendement du 2026-10-23, point 8) — le payable d'un remboursement
         // déjà sorti : la marque et le lien du `Payout` « constaté ».
         'refunded_payment_type', 'refunded_payment_id',
+        // TCK-2151 (ADR-0039, amendement du 2026-10-24) — la reprise imputée à ce reversement.
+        'clawback_amount',
     ];
 
     /** TCK-594 — le défaut de la colonne, lisible avant le premier `refresh()`. */
@@ -56,6 +58,7 @@ class Payout extends AbstractModel
         'gross_amount' => 'decimal:2',
         'commission_amount' => 'decimal:2',
         'fees_amount' => 'decimal:2',
+        'clawback_amount' => 'decimal:2',
         'net_amount' => 'decimal:2',
         'scheduled_at' => 'datetime',
         'processed_at' => 'datetime',
