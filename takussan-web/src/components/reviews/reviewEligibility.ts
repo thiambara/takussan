@@ -2,26 +2,25 @@ import type { BookingStatus } from '@/types/booking';
 import type { LeaseStatus } from '@/types/lease';
 
 /**
- * A booking is review-eligible once it is `completed` and actually references
- * a property (we need a slug to deep-link to the public page). Backend still
- * enforces the rule — this predicate just drives the UI affordance.
+ * P201.03 (TCK-2037) — les statuts qui ouvrent l'avis d'un bien, recopiés de
+ * `ReviewEligibility::BOOKING_STATUSES` et `LEASE_STATUSES` (API, ADR-0043 § 3), que juge le dépôt
+ * (`StoreForPropertyReviewRequest::authorize`). L'API reste juge : ces prédicats ne décident que de
+ * l'appel affiché. Un slug est exigé pour renvoyer vers la fiche publique.
  */
+const BOOKING_STATUSES: readonly BookingStatus[] = ['confirmed', 'completed'];
+
+const LEASE_STATUSES: readonly LeaseStatus[] = ['active', 'terminating', 'terminated', 'expired'];
+
 export function canBookingLeaveReview(booking: {
   status: BookingStatus;
   property?: { slug?: string | null } | null;
 }): boolean {
-  return booking.status === 'completed' && Boolean(booking.property?.slug);
+  return BOOKING_STATUSES.includes(booking.status) && Boolean(booking.property?.slug);
 }
 
-/**
- * A lease is review-eligible while active (during the stay) or after it has
- * ended (expired/terminated/renewed). Drafts and leases awaiting signature
- * are not eligible yet. Mirrors `ReviewController@storeForProperty`.
- */
 export function canLeaseLeaveReview(lease: {
   status: LeaseStatus;
   property?: { slug?: string | null } | null;
 }): boolean {
-  const eligibleStatuses: LeaseStatus[] = ['active', 'expired', 'terminated', 'renewed'];
-  return eligibleStatuses.includes(lease.status) && Boolean(lease.property?.slug);
+  return LEASE_STATUSES.includes(lease.status) && Boolean(lease.property?.slug);
 }

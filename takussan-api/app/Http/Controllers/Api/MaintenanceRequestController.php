@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
+use App\Events\Maintenance\MaintenanceScheduleChanged;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\CompleteMaintenanceRequestRequest;
 use App\Http\Requests\Api\ConfirmMaintenanceResolutionRequest;
@@ -31,6 +32,7 @@ use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 class MaintenanceRequestController extends Controller
@@ -191,32 +193,45 @@ class MaintenanceRequestController extends Controller
 
         $data = Arr::except($request->validated(), UpdateMaintenanceRequestRequest::STATE_FIELDS);
 
-        // TCK-592 — l'assignation a son chemin (`accepted_at` remis à nul, événement) : elle ne passe
-        // pas par `fill()`.
-        // TCK-592 (verif-592, M1) — au-delà du plafond du bailleur, `actual_cost` est à son accord.
-        if (($data['actual_cost'] ?? null) !== null) {
-            // verif-592 passe 2 (N5) — arrondi à l'unité de la devise avant d'être comparé ou écrit.
-            $data['actual_cost'] = CurrencyUnit::cost($maintenanceRequest, $data['actual_cost']);
-            app(OwnerApprovalThreshold::class)->assertActualCostAgreed($maintenanceRequest, $data['actual_cost'], $request->user()->id);
-            app(OwnerApprovalThreshold::class)->recordOwnerCost($maintenanceRequest, $data['actual_cost'], $request->user()->id);
-        } elseif (array_key_exists('actual_cost', $data)) {
-            // verif-592 passe 4 (N11) — un coût retiré n'est plus un accord du bailleur.
-            app(OwnerApprovalThreshold::class)->forgetOwnerCost($maintenanceRequest);
-        }
+        // TCK-2010 (P184.02) — tout ou rien : `assign()` peut encore refuser (`completed`,
+        // `maintenance.reassign_after_completion`) après que l'heure, la priorité et le coût réel
+        // ont été écrits. La transaction rend la ligne intacte sur ce refus.
+        DB::transaction(function () use ($request, $maintenanceRequest, $data): void {
+            // TCK-592 — l'assignation a son chemin (`accepted_at` remis à nul, événement) : elle ne passe
+            // pas par `fill()`.
+            // TCK-592 (verif-592, M1) — au-delà du plafond du bailleur, `actual_cost` est à son accord.
+            if (($data['actual_cost'] ?? null) !== null) {
+                // verif-592 passe 2 (N5) — arrondi à l'unité de la devise avant d'être comparé ou écrit.
+                $data['actual_cost'] = CurrencyUnit::cost($maintenanceRequest, $data['actual_cost']);
+                app(OwnerApprovalThreshold::class)->assertActualCostAgreed($maintenanceRequest, $data['actual_cost'], $request->user()->id);
+                app(OwnerApprovalThreshold::class)->recordOwnerCost($maintenanceRequest, $data['actual_cost'], $request->user()->id);
+            } elseif (array_key_exists('actual_cost', $data)) {
+                // verif-592 passe 4 (N11) — un coût retiré n'est plus un accord du bailleur.
+                app(OwnerApprovalThreshold::class)->forgetOwnerCost($maintenanceRequest);
+            }
 
-        $assignmentChanged = array_key_exists('assigned_to', $data);
-        $assigneeId = $data['assigned_to'] ?? null;
-        unset($data['assigned_to']);
+            $assignmentChanged = array_key_exists('assigned_to', $data);
+            $assigneeId = $data['assigned_to'] ?? null;
+            unset($data['assigned_to']);
 
-        $maintenanceRequest->fill($data)->save();
+            $maintenanceRequest->fill($data);
+            // TCK-2012 (P184.01) — un passage fixé ou déplacé s'annonce ; la même heure renvoyée par
+            // le bloc d'assignation (`isDirty` compare l'instant) ou une heure retirée, non.
+            $scheduleChanged = $maintenanceRequest->isDirty('scheduled_at') && $maintenanceRequest->scheduled_at !== null;
+            $maintenanceRequest->save();
 
-        if ($assignmentChanged) {
-            $this->service->assign(
-                $maintenanceRequest,
-                $assigneeId !== null ? User::query()->findOrFail($assigneeId) : null,
-                $request->user(),
-            );
-        }
+            if ($assignmentChanged) {
+                $this->service->assign(
+                    $maintenanceRequest,
+                    $assigneeId !== null ? User::query()->findOrFail($assigneeId) : null,
+                    $request->user(),
+                );
+            }
+
+            if ($scheduleChanged) {
+                MaintenanceScheduleChanged::dispatch($maintenanceRequest, $request->user());
+            }
+        });
 
         return $this->json([
             'data' => MaintenanceRequestResource::make($maintenanceRequest->refresh())->resolve($request),

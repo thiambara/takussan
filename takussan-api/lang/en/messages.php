@@ -83,4 +83,5 @@ return [
     'email_verified' => 'Email address verified.',
     'verification_email_resent' => 'Verification email resent.',
     'password_reset_link_sent' => 'If an account exists with that address, a reset link has been sent.',
+    'password_reset_done' => 'Your password has been reset.',
 ];

@@ -1,26 +1,42 @@
+/**
+ * P201.03 (TCK-2037) — les prédicats suivent `ReviewEligibility::BOOKING_STATUSES`
+ * (`confirmed`, `completed`) et `LEASE_STATUSES` (`active`, `terminating`, `terminated`,
+ * `expired`) de l'API (ADR-0043 § 3) : un test par statut, les deux sens.
+ */
 import { describe, it, expect } from 'vitest';
 import {
   canBookingLeaveReview,
   canLeaseLeaveReview,
 } from '../reviewEligibility';
+import type { BookingStatus } from '@/types/booking';
+import type { LeaseStatus } from '@/types/lease';
+
+const BOOKING: Record<BookingStatus, boolean> = {
+  pending: false,
+  confirmed: true,
+  rejected: false,
+  cancelled: false,
+  expired: false,
+  completed: true,
+};
+
+const LEASE: Record<LeaseStatus, boolean> = {
+  draft: false,
+  pending_signature: false,
+  active: true,
+  expired: true,
+  terminating: true,
+  terminated: true,
+  renewed: false,
+};
 
 describe('canBookingLeaveReview', () => {
-  it('returns true when booking is completed and property has a slug', () => {
-    expect(
-      canBookingLeaveReview({
-        status: 'completed',
-        property: { slug: 'villa-dakar' },
-      }),
-    ).toBe(true);
-  });
-
-  it('returns false for non-completed bookings, even with a valid slug', () => {
-    for (const status of ['pending', 'confirmed', 'rejected', 'cancelled', 'expired'] as const) {
-      expect(
-        canBookingLeaveReview({ status, property: { slug: 'villa-dakar' } }),
-      ).toBe(false);
-    }
-  });
+  it.each(Object.entries(BOOKING) as [BookingStatus, boolean][])(
+    'réservation %s avec un bien → %s',
+    (status, attendu) => {
+      expect(canBookingLeaveReview({ status, property: { slug: 'villa-dakar' } })).toBe(attendu);
+    },
+  );
 
   it('returns false when the property slug is missing', () => {
     expect(canBookingLeaveReview({ status: 'completed' })).toBe(false);
@@ -34,30 +50,12 @@ describe('canBookingLeaveReview', () => {
 });
 
 describe('canLeaseLeaveReview', () => {
-  it('returns true for active leases with a slug', () => {
-    expect(
-      canLeaseLeaveReview({
-        status: 'active',
-        property: { slug: 'appartement-thies' },
-      }),
-    ).toBe(true);
-  });
-
-  it('returns true for past leases (expired/terminated/renewed)', () => {
-    for (const status of ['expired', 'terminated', 'renewed'] as const) {
-      expect(
-        canLeaseLeaveReview({ status, property: { slug: 'appartement-thies' } }),
-      ).toBe(true);
-    }
-  });
-
-  it('returns false for draft or pending_signature leases', () => {
-    for (const status of ['draft', 'pending_signature'] as const) {
-      expect(
-        canLeaseLeaveReview({ status, property: { slug: 'appartement-thies' } }),
-      ).toBe(false);
-    }
-  });
+  it.each(Object.entries(LEASE) as [LeaseStatus, boolean][])(
+    'bail %s avec un bien → %s',
+    (status, attendu) => {
+      expect(canLeaseLeaveReview({ status, property: { slug: 'appartement-thies' } })).toBe(attendu);
+    },
+  );
 
   it('returns false when the property slug is missing', () => {
     expect(canLeaseLeaveReview({ status: 'active' })).toBe(false);
