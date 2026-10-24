@@ -207,4 +207,53 @@ class OwnerStatementTest extends TestCase
         $this->assertSame('0 8 1 * *', $events[0]->expression);
         $this->assertSame('Africa/Dakar', $events[0]->timezone);
     }
+
+    /**
+     * P177.02 (TCK-2017) — la commission d'une pièce reversée est celle que le reversement a
+     * retenue : copiée ligne par ligne dans le pivot à sa création, elle ne suit plus le taux
+     * d'agence du jour. Une pièce de la même période pas encore reversée, elle, le suit.
+     */
+    public function test_p177_02_a_paid_out_month_keeps_the_commission_its_payout_retained_after_the_agency_rate_changes(): void
+    {
+        $agency = $this->moneyAgency(['commission_rate' => 8]);
+        $landlord = $this->landlordOf($agency);
+        $lease = $this->leaseOf($agency, $landlord, null);
+        [$rent, $charges] = $this->septemberOf($lease);
+        $booking = Booking::factory()->create(['property_id' => $lease->property_id, 'agency_id' => $agency->id]);
+        $advance = BookingPayment::factory()->create([
+            'booking_id' => $booking->id, 'amount' => 50_000, 'payment_type' => BookingPaymentType::Advance,
+            'status' => PaymentStatus::Paid, 'paid_at' => '2026-09-15 10:00:00',
+        ]);
+        Sanctum::actingAs($this->agencyAgent($agency));
+        $id = $this->postJson('/api/payouts', [
+            'landlord_id' => $landlord->id,
+            'lease_payment_ids' => [$rent->id, $charges->id],
+            'booking_payment_ids' => [$advance->id],
+        ])->assertCreated()->assertJsonPath('data.commission_amount', 21600)->json('data.id');
+        Payout::query()->whereKey($id)->update(['status' => 'completed', 'processed_at' => '2026-10-01 09:00:00']);
+
+        // La copie par ligne, posée à la création.
+        $this->assertDatabaseHas('payout_lease_payment', [
+            'payout_id' => $id, 'lease_payment_id' => $rent->id, 'amount' => 200000, 'commission_rate' => 8, 'commission_amount' => 16000,
+        ]);
+        $this->assertDatabaseHas('payout_booking_payment', [
+            'payout_id' => $id, 'booking_payment_id' => $advance->id, 'amount' => 50000, 'commission_rate' => 8, 'commission_amount' => 4000,
+        ]);
+
+        // Une pièce de septembre encaissée après le reversement, pas encore reversée.
+        $this->leasePayment($lease, 10_000, LeasePaymentType::Charges, '2026-09-28 10:00:00');
+        $agency->update(['commission_rate' => 12]);
+        Sanctum::actingAs($landlord);
+
+        $data = $this->getJson('/api/owner-statements?period=2026-09')->assertOk()->json('data');
+
+        // 21 600 retenus par le reversement + 1 200 (12 % de 10 000) pour la pièce non reversée.
+        $this->assertSame([280000, 22800, 257200, 248400], array_map('intval', [
+            $data['totals']['gross'], $data['totals']['commission'], $data['totals']['net'], $data['totals']['paid_out'],
+        ]));
+        $rates = array_column($data['lines']['lease_payments'], 'commission_rate', 'id');
+        $this->assertEquals(8, $rates[$rent->id]);
+        $this->assertEquals(12, end($rates));
+        $this->assertEquals(8, $data['lines']['booking_payments'][0]['commission_rate']);
+    }
 }

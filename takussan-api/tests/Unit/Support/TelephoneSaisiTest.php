@@ -3,6 +3,8 @@
 namespace Tests\Unit\Support;
 
 use App\Rules\TelephoneJoignable;
+use App\Services\Admin\AdminGlobalSearchService;
+use App\Services\Crm\CustomerPhoneNormalizer;
 use App\Support\TelephoneSaisi;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -67,6 +69,41 @@ class TelephoneSaisiTest extends TestCase
     public function test_un_indicatif_manquant_est_refuse(string $saisie): void
     {
         $this->assertFalse($this->passeLaRegle((string) TelephoneSaisi::normaliser($saisie)));
+    }
+
+    /** @return array<string, array{string, string}> */
+    public static function saisiesCommunes(): array
+    {
+        return [
+            'fixe 30 espacé' => ['30 123 45 67', '+221301234567'],
+            'mobile à barres obliques' => ['77/123/45/67', '+221771234567'],
+            'mobile national espacé' => ['77 123 45 67', '+221771234567'],
+            'fixe 33' => ['33 820 12 34', '+221338201234'],
+            'E.164 à tirets' => ['+221 77-123-45-67', '+221771234567'],
+            'préfixe 00' => ['00221771234567', '+221771234567'],
+            'indicatif sans +' => ['221771234567', '+221771234567'],
+        ];
+    }
+
+    /**
+     * P125.05 (TCK-2025) — les trois normaliseurs de saisie (fiche client, recherche de la console,
+     * formulaires publics) rendent le même numéro pour la même saisie : ils passent tous par
+     * {@see TelephoneSaisi::normaliser()}, qui accepte l'indicatif fixe `30` comme la fiche client.
+     */
+    #[DataProvider('saisiesCommunes')]
+    public function test_p125_05_les_trois_points_de_saisie_rendent_le_meme_numero(string $saisie, string $attendu): void
+    {
+        $this->assertSame($attendu, TelephoneSaisi::normaliser($saisie), 'TelephoneSaisi');
+        $this->assertSame($attendu, CustomerPhoneNormalizer::normalize($saisie), 'CustomerPhoneNormalizer');
+        $this->assertSame($attendu, AdminGlobalSearchService::phoneCandidate($saisie), 'recherche de la console');
+        $this->assertTrue($this->passeLaRegle($attendu));
+    }
+
+    /** P125.05 — un `+` devant un fixe `30` nu est un indicatif manquant, comme devant le `33`. */
+    public function test_p125_05_un_plus_devant_le_fixe_30_est_un_indicatif_manquant(): void
+    {
+        $this->assertFalse($this->passeLaRegle((string) TelephoneSaisi::normaliser('+30 123 45 67')));
+        $this->assertFalse(TelephoneSaisi::recoitLesSms('+221301234567'), 'un fixe ne reçoit pas de SMS');
     }
 
     private function passeLaRegle(string $valeur): bool
