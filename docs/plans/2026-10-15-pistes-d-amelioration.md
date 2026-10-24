@@ -19117,7 +19117,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### `PATCH /api/customers/{id}` enregistre un budget maximal sous le budget minimal, que la création refuse
 - Réf : P209.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2067
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Concerns/ValidatesCustomerContactAndCriteria.php:49-55`, `takussan-api/app/Services/Crm/ProspectMatcher.php:99-100,168`
 - Constat :
@@ -19128,6 +19128,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : à la modification, comparer à la valeur enregistrée quand l'une des deux bornes manque (le plancher de la ligne pour `budget_max`, le plafond de la ligne pour `budget_min`). Garde : un test qui envoie chaque borne seule de part et d'autre de la valeur enregistrée et attend 422, ligne inchangée.
 - Mesure (2026-10-24, cdf91988a, mesureur) : relu `ValidatesCustomerContactAndCriteria.php:49-55` (`gte:budget_min` sous `Rule::when(is_numeric(input('budget_min')))`, la ligne enregistrée jamais lue) ; rejoué par test temporaire `tests/Feature/TmpMesureP209Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 7,96 / 4,57 / 3,45 sur 8 cœurs : client à 500 000 / 800 000 → `PATCH {budget_max: 100}` → 200, ligne 500 000 / 100 ; le cas symétrique « à vérifier » tient aussi : `PATCH {budget_min: 900000}` → 200, ligne 900 000 / 800 000 ; la création refuse le couple inversé par la même règle quand les deux bornes sont données (lu ; mon `POST` a rendu 403 faute d'agence pour l'auteur, il ne mesure pas ce point) ; le « à vérifier » sur le front est levé : `CustomerForm` envoie les deux bornes ensemble et les compare déjà (lu, `lib/schemas/customer.ts:110-116,229-230`), la voie est celle de l'API seule. Classement : A1, la création et le formulaire écrivent déjà la règle min ≤ max, et la porter sur la valeur finale à la modification ne demande aucun choix ; un budget de recherche n'est ni facture ni paiement (pas V1), et aucune donnée existante n'est réécrite (pas V4).
+- Mesure (2026-10-24, 2ca6ec743, implementeur) : reproduit par `CustomerCriteriaValidationTest`, fiche à 500 000 / 800 000 : `PATCH {budget_max: 100}` → 200 et `PATCH {budget_min: 900000}` → 200 avant correctif → `UpdateCustomerRequest::after()` compare la borne envoyée seule à l'autre borne enregistrée : les deux → 422 sur la borne envoyée, ligne inchangée ; une borne seule du bon côté reste 200, et `budget_min: null` libère le plafond ; ablation (`after()` vide) → 2 rouges, remis → 6 verts ; `CustomerTest` 11 verts, `CustomerPipelineTest` 12 verts.
 
 ### `PATCH /api/admin/announcements/{id}` enregistre une fin avant le début, que la création refuse
 - Réf : P209.04
