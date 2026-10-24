@@ -440,6 +440,8 @@ class PayoutService
                 $this->ineligibleItem('booking_payment_ids', (int) $payment->id);
             }
         }
+        // TCK-2154 (P200.02) — relu sous le verrou des réservations : une fermeture passée entre-temps.
+        $this->assertNotHeldForRefund($bookingIds);
 
         // Relu sous verrou : une pièce reversée entre la vérification et le verrou rend 409. La
         // course que ce test ne voit pas, l'index unique la refuse — et elle devient 409 aussi.
@@ -578,6 +580,8 @@ class PayoutService
         // `PlatformPayout` payé (hors agence `individual`) : la préparation ne la propose pas.
         $this->assertNotAwaitingPlatform($agency, LeasePayment::query(), $leaseIds, 'lease_payment_ids');
         $this->assertNotAwaitingPlatform($agency, BookingPayment::query(), $bookingIds, 'booking_payment_ids');
+        // TCK-2154 (P200.02) — un acompte à rembourser au client ne se reverse pas au bailleur.
+        $this->assertNotHeldForRefund($bookingIds);
 
         $bills = ServiceProviderBill::query()->with('property:id,user_id')->whereIn('id', $billIds)->get()->keyBy('id');
         foreach ($billIds as $id) {
@@ -648,6 +652,14 @@ class PayoutService
             if (! in_array($id, $eligible, true)) {
                 $this->ineligibleItem($field, $id);
             }
+        }
+    }
+
+    /** @param  list<int>  $bookingIds */
+    private function assertNotHeldForRefund(array $bookingIds): void
+    {
+        foreach ($this->calculator->heldForRefundAmong($bookingIds) as $id) {
+            $this->ineligibleItem('booking_payment_ids', $id);
         }
     }
 
