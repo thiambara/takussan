@@ -20221,7 +20221,7 @@ sans `delete`).*
 
 ### La facture d'une intervention contestée puis annulée reste validable, payable et imputée au bailleur
 - Réf : P224.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : écriture du statut d'une facture de prestataire, et refus de la payer ou de l'imputer au bailleur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Maintenance/MaintenanceStateMachine.php:53-54`, `takussan-api/app/Http/Controllers/Api/ServiceProviderBillController.php:82-93`, `takussan-api/app/Services/Model/PayoutService.php:145-165`, `takussan-api/app/Services/Payout/PayoutCalculator.php:140-154`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:385-418`
 - Constat :
@@ -20231,10 +20231,11 @@ sans `delete`).*
   - Une facture déjà validée et imputée à un reversement au bailleur avant la contestation n'est pas reprise non plus (déduit de la même lecture, à vérifier).
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : à l'annulation d'une intervention (et à sa contestation, selon le choix du porteur), passer sa facture ouverte à `cancelled` (le cas existe dans `ServiceProviderBillStatus` sans écrivain, voir P115.07) ; à défaut, refuser `validate`, `pay` et l'imputation d'une facture dont l'intervention n'est ni `completed` ni `closed`. Test : contestation puis annulation → `validate` et `pay` en 422, facture absente de `rechargeableBills`.
+- Mesure (2026-10-24, 441b83b8e, mesureur) : relu `MaintenanceStateMachine.php:53-54` (`in_progress → cancelled`, `completed → in_progress`), `contestResolution` (`MaintenanceRequestService.php:385-418`, facture non touchée), `decide()` (`ServiceProviderBillController.php:88`, statut seul), `createForBill` (`PayoutService.php:157-165`), `rechargeableBills` (`PayoutCalculator.php:140-154`) ; aucun commit sur ces fichiers depuis a03cd3caf ; test temporaire (retiré, charge `{ 3.43 2.79 2.67 }` sur 8) : `complete`, `contestResolution`, `transition(cancelled)` → intervention `cancelled`, facture `pending_validation` 50 000, `validate` → 200, `pay` → 201 (reversement `pending`), `rechargeableBills` → 1 ; la partie « à vérifier » mesurée aussi : facture validée avant la contestation, puis annulation → reste `validated` et refacturable (1) → le constat tient entier. Classement : V1, la `Piste` écrit le statut d'une facture et ferme son paiement et sa refacturation au bailleur, avec une option (contestation) laissée au porteur.
 
 ### Réassigner après contestation laisse la facture de l'ancien prestataire, et le nouveau n'est jamais facturé
 - Réf : P224.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : sort de la facture de l'ancien prestataire, ou refus de réassigner (deux options)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/MaintenanceRequestService.php:111-160`, `takussan-api/app/Observers/MaintenanceRequestObserver.php:59-74`, `takussan-api/database/migrations/2026_10_07_200100_create_service_provider_bills_table.php:42`
 - Constat :
@@ -20243,10 +20244,11 @@ sans `delete`).*
   - Mesuré : prestataire A, `complete()`, `contestResolution()`, `assign(B)`, puis (raccourci du test : statut et devis de B posés par `forceFill`) `complete(['actual_cost' => 70 000])` → une seule facture, celle de A, 50 000, `pending_validation` ; aucune pour B.
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : à la réassignation d'une intervention qui porte une facture ouverte, l'annuler (ou refuser la réassignation tant qu'elle est ouverte) ; le choix revient au porteur. Test : contestation, réassignation, fin des travaux de B → une facture de B, celle de A `cancelled` ou la réassignation en 422.
+- Mesure (2026-10-24, 441b83b8e, mesureur) : relu `assign()` (`MaintenanceRequestService.php:111-130` : refuse terminal et `completed`, pas `in_progress` après contestation), l'observateur (`insertOrIgnore`, l. 59) et l'index `sp_bills_one_open_per_request` ; test temporaire (retiré, même charge) : prestataire A, `complete`, `contestResolution`, `assign(B)` → `in_progress`, assignée à B ; devis de B posé par `forceFill`, `complete(['actual_cost' => 70 000])` → une seule facture, `A:50000.00:pending_validation`, aucune pour B → le constat tient. Classement : V1, la `Piste` propose deux options (annuler la facture de A, ou refuser la réassignation) qui ne paient pas le même prestataire.
 
 ### Une seconde fin des travaux à un autre coût réel laisse la facture à l'ancien montant
 - Réf : P224.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : montant d'une facture réécrit, et sort d'une facture déjà validée ou payée
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Observers/MaintenanceRequestObserver.php:16-20,46-74`, `takussan-api/app/Services/Model/MaintenanceRequestService.php:313-367`
 - Constat :
@@ -20254,10 +20256,11 @@ sans `delete`).*
   - Mesuré : devis approuvé de 50 000, `complete([])`, `contestResolution()`, `complete(['actual_cost' => 80 000])` → `actual_cost` de l'intervention à 80 000, facture à 50 000, `exceeds_quote = false`. Le prestataire est payé 50 000 et le bailleur débité de 50 000 pour un coût accordé de 80 000.
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : à une nouvelle fin des travaux, mettre à jour le montant et `exceeds_quote` de la facture encore `pending_validation`, et pour une facture déjà validée ou payée, le signaler au lieu de l'ignorer (choix du porteur, argent). Test : seconde fin à un autre coût → facture au nouveau montant.
+- Mesure (2026-10-24, 441b83b8e, mesureur) : relu l'en-tête de `MaintenanceRequestObserver.php:13-20` et `bill()` l. 39-74 (`insertOrIgnore` : la ligne entière est ignorée au second passage) ; test temporaire (retiré, même charge) : devis approuvé de 50 000, `complete([])`, `contestResolution`, `complete(['actual_cost' => 80 000])` → `actual_cost` 80 000, facture `50000.00`, `exceeds_quote` false, `pending_validation` → le constat tient. Classement : V1, la `Piste` réécrit le montant d'une facture et laisse au porteur le cas d'une facture déjà validée ou payée.
 
 ### L'écran des factures ne montre pas l'état de l'intervention qu'il fait valider et payer
 - Réf : P224.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : état et avertissement neufs sur l'écran des factures
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/payments.ts:450-466`, `takussan-web/src/components/payments/ServiceProviderBillsTable.tsx:77,208`
 - Constat :
@@ -20265,3 +20268,4 @@ sans `delete`).*
   - Rien ne dit donc à qui valide que l'intervention a été contestée ou annulée (P224.01).
   - Établi comment : lu.
 - Piste : charger `maintenanceRequest` (champs `id,status`) et afficher son état, avec un avertissement quand elle n'est ni `completed` ni `closed`. Le correctif d'API de P224.01 reste la garde ; ceci n'en est que la lecture.
+- Mesure (2026-10-24, 441b83b8e, mesureur) : relu `payments.ts:450-492` (`fields[service_provider_bills]` seul, ni `include=maintenanceRequest`), `ServiceProviderBillsTable.tsx:77` (validation sur `bill.status` seul) et l. 208 (`#<id>`) ; `ServiceProviderBill::$requestLoadable` offre `maintenanceRequest` (l. 49), mais `ServiceProviderBillResource` ne rend que `maintenance_request_id` (l. 15, aucun `whenLoaded`) : la `Piste` demande donc aussi de toucher la ressource, ce que le constat ne dit pas → le constat tient. Classement : V7, afficher l'état de l'intervention et un avertissement est un comportement visible et un texte neufs.
