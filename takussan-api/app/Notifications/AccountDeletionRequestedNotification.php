@@ -3,7 +3,10 @@
 namespace App\Notifications;
 
 use App\Models\AccountDeletionRequest;
+use App\Notifications\Channels\SmsChannel;
+use App\Notifications\Concerns\RepliSmsSansEmail;
 use App\Notifications\Concerns\RetriesWithBackoff;
+use App\Notifications\Concerns\SupportsSms;
 use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -20,24 +23,19 @@ use Illuminate\Queue\Attributes\DeleteWhenMissingModels;
  * (il levait `ModelNotFoundException` et laissait une ligne `failed_jobs`).
  */
 #[DeleteWhenMissingModels]
-class AccountDeletionRequestedNotification extends Notification implements ShouldQueue
+class AccountDeletionRequestedNotification extends Notification implements ShouldQueue, SupportsSms
 {
     use Queueable;
+    use RepliSmsSansEmail;
     use RetriesWithBackoff;
 
-    /** TCK-747 (P11.04) — les e-mails du compte partent par la file urgente, hors de la requête. */
+    /** TCK-747 (P11.04) — les avis du compte partent par la file urgente, hors de la requête ; le SMS d'un compte sans e-mail aussi (TCK-2051). */
     public function viaQueues(): array
     {
-        return ['mail' => 'notifications-urgent'];
+        return ['mail' => 'notifications-urgent', SmsChannel::class => 'notifications-urgent'];
     }
 
     public function __construct(public readonly AccountDeletionRequest $request) {}
-
-    /** @return array<int,string> */
-    public function via(object $notifiable): array
-    {
-        return ['mail'];
-    }
 
     public function toMail(object $notifiable): MailMessage
     {
@@ -52,5 +50,11 @@ class AccountDeletionRequestedNotification extends Notification implements Shoul
             ->action(__('notifications.account_deletion_requested.action'), $cancelUrl)
             ->line(__('notifications.account_deletion_requested.ignore'))
             ->salutation(__('notifications.salutation'));
+    }
+
+    /** P193.04 (TCK-2051) — un compte sans e-mail : SMS au numéro vérifié. */
+    public function toSms(object $notifiable): string
+    {
+        return __('notifications.account_deletion_requested.sms', ['date' => $this->request->scheduled_for?->format('d/m/Y') ?? '']);
     }
 }

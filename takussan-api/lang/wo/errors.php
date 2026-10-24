@@ -18,6 +18,7 @@ return [
     ],
     'activity_log' => [
         'export_too_large' => 'Bari na lool ngir génne ko : wàññil seetu yi.',
+        'export_needs_email' => 'Cet export dépasse 5 000 lignes : il est préparé puis envoyé par e-mail. Ajoutez une adresse e-mail à votre compte, ou resserrez les filtres.',
         'export_link_invalid' => 'Lënk bi jeex na walla baaxul.',
         'date_range_inverted' => 'La date de début doit précéder la date de fin, ou lui être égale.',
         'date_range_too_long' => 'La période exportée ne doit pas dépasser un an.',

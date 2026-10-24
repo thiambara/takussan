@@ -53,6 +53,11 @@ class ActivityLogExportController extends Controller
             ->log('Exported audit trail');
 
         if ($count > 5000) {
+            // P193.04 (TCK-2051) — le fichier asynchrone ne s'atteint que par le lien du courriel :
+            // un compte sans e-mail n'y aurait aucun chemin.
+            if (! is_string($user->email) || $user->email === '') {
+                abort_code(422, 'activity_log.export_needs_email');
+            }
             ExportActivityLogJob::dispatch($user, array_merge($filters, ['format' => $format]), $agencyId);
 
             return response()->json([

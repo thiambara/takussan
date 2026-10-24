@@ -18,6 +18,7 @@ return [
     ],
     'activity_log' => [
         'export_too_large' => 'Too many rows to export: narrow the filters.',
+        'export_needs_email' => 'This export exceeds 5,000 rows: it is prepared and then sent by e-mail. Add an e-mail address to your account, or narrow the filters.',
         'export_link_invalid' => 'Expired or invalid link.',
         'date_range_inverted' => 'date_from must be before or equal to date_to.',
         'date_range_too_long' => 'Date range must not exceed 1 year.',
