@@ -20773,7 +20773,7 @@ sans `delete`).*
 
 ### La fenêtre de maintenance se programme sans `min`, et la minute en cours, seule façon de dire « maintenant », est refusée
 - Réf : P230.04
-- Statut : retenu · à valider — V7 : « maintenant » ne se dit qu’en changeant l’API ou la primitive
+- Statut : validé (délégué) — poser `min` sur les deux `DateTimePicker` de `maintenance.tsx` : l'instant présent (forme locale `YYYY-MM-DDTHH:mm` de la primitive) sur le début, le début choisi (à défaut l'instant présent) sur la fin ; l'API reste inchangée (`after_or_equal:now`, écrit par TCK-218) et aucun texte neuf ; garde : un test du formulaire à horloge figée où la veille est grisée dans les deux champs ; reste : dire « maintenant » (API qui tolère la minute courante, heure bornée dans la primitive, ou bouton « maintenant »)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/admin/super/maintenance.tsx:44-46,101,105`, `takussan-api/app/Http/Requests/Api/Admin/StoreMaintenanceRequest.php:32`
 - Constat :
@@ -20782,6 +20782,7 @@ sans `delete`).*
   - Établi comment : lu, et mesuré sur le validateur ; l'écran n'a pas été rendu.
 - Piste : `min` à la minute suivante sur le début, et `min` au début choisi sur la fin ; ou faire tolérer par l'API un début à la minute courante. Le second choix change ce que l'API accepte et revient au mesureur.
 - Mesure (2026-10-24, 09c83726d, mesureur) : relu `maintenance.tsx:44-46` (`new Date(startsAt).toISOString()`) et `:101,105` (deux `DateTimePicker` sans `min` ni `max`), `date-time-picker.tsx:117-141` (le `min` de la primitive ne grise que des JOURS : l'heure saisie n'est pas bornée), `StoreMaintenanceRequest.php:32` (`after_or_equal:now`) ; `php artisan tinker` (`Validator::make`, lecture seule) à 2026-10-24T18:10Z, charge 2,91 / 2,96 / 2,78 sur 8 cœurs → `now()->startOfMinute()` refusé, la minute suivante acceptée → le constat tient ; l'écran n'a pas été rendu. Classement : V7, un `min` posé sur la primitive ne grise que les jours passés et laisse la minute courante choisissable : rendre « maintenant » possible demande soit que l'API tolère la minute courante (ce qu'elle accepte change), soit un geste neuf (heure bornée ou bouton « maintenant »), deux choix de produit que la piste laisse ouverts.
+- Mesure (2026-10-24, d6bad1977, delegue) : relu `maintenance.tsx:29-30,44-46,101,105` (deux `DateTimePicker` sans `min`), `date-time-picker.tsx:32-33,117-141` (`min` accepté, ne grise que les jours avant celui de `min`), `StoreMaintenanceRequest.php:32` (`after_or_equal:now`), `TCK-218-super-admin-maintenance-mode.md:52,74` (« `starts_at >= now()` à la création », « une fenêtre avec `starts_at < now()` est refusée 422 ») ; `grep` des tickets et des décisions `porteur (` → aucune décision sur « maintenant » ni sur ce formulaire → le constat tient ; seule la moitié « bornes » est sûre. Délégation : V7, la borne posée est celle que TCK-218 et la règle de l'API écrivent déjà (relève de A1), sans texte ni geste neufs, et se défait en un commit ; le choix de produit que le mesureur a relevé — rendre « maintenant » possible — n'est pas tranché et part en reste, au porteur.
 
 ### Petites améliorations
 - Réf : P230.05
