@@ -31,7 +31,7 @@ racine relit `/api/auth/me` à chaque rendu serveur, mais l'état ignorait la no
 
 ## Décision du porteur
 
-`AuthProvider` suit `initialUser` quand il est non nul et ne vide le compte que si `initialToken` passe aussi à `null` ; un `null` avec un jeton présent (échec ou délai de `/me`) garde le compte, comme TCK-1992
+validation du porteur (2026-10-24) : `AuthProvider` suit `initialUser` quand il est non nul et ne vide le compte que si `initialToken` passe aussi à `null` ; un `null` avec un jeton présent (échec ou délai de `/me`) garde le compte, comme TCK-1992
 
 ## Hypothèses (mode sans humain)
 

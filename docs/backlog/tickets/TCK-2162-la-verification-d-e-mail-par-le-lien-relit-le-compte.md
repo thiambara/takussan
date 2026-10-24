@@ -32,7 +32,7 @@ se rendent en parallèle (`node_modules/next/dist/docs/01-app/01-getting-started
 
 ## Décision du porteur
 
-sur la page de succès de la vérification d'e-mail, un composant client appelle `refreshUser()` au montage quand un jeton est présent, comme TCK-2042
+validation du porteur (2026-10-24) : sur la page de succès de la vérification d'e-mail, un composant client appelle `refreshUser()` au montage quand un jeton est présent, comme TCK-2042
 
 ## Hypothèses (mode sans humain)
 

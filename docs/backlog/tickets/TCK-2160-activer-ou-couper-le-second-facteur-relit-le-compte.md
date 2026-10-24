@@ -32,7 +32,7 @@ dès que `users.two_factor_enabled` est vrai (`RequestAccountDeletionRequest`).
 
 ## Décision du porteur
 
-correctif local : `refreshUser()` à la confirmation et à la coupure du second facteur, comme P202.04 (TCK-2042), avec le test de la piste sous un vrai `AuthProvider` ; l'API reste juge du code
+validation du porteur (2026-10-24) : correctif local : `refreshUser()` à la confirmation et à la coupure du second facteur, comme P202.04 (TCK-2042), avec le test de la piste sous un vrai `AuthProvider` ; l'API reste juge du code
 
 ## Hypothèses (mode sans humain)
 
