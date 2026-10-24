@@ -95,7 +95,14 @@ const MESSAGE_API = 'La variation dépasse le plafond légal';
 
 describe('LeaseDetail — la révision de loyer refusée se dit (P210.01)', () => {
   beforeEach(() => {
-    etat.abilities = { review_rent: true, update: true };
+    etat.abilities = {
+      renew: false,
+      review_rent: true,
+      record_payment: false,
+      refund_deposit: false,
+      request_early_termination: false,
+      update: true,
+    };
     revision.mutateAsync.mockReset();
     toastAdd.mockReset();
     vi.spyOn(window, 'prompt')
