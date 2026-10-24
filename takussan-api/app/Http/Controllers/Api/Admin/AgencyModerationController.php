@@ -17,6 +17,7 @@ use App\Sorts\CollatedNameSort;
 use App\Support\CaseInsensitive;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-144 — Agency moderation (super-admin only). The verify / suspend /
@@ -215,7 +216,21 @@ class AgencyModerationController extends Controller
         abort_code_unless($agency->status === AgencyStatus::Suspended, 422, 'agency.not_suspended');
 
         $reason = (string) $request->validated('reason');
-        $response = $this->transition($request, $agency, AgencyStatus::Active, 'super_admin_agency_reinstated', [], $reason);
+        // P211.07 (TCK-2195) — la condition `status = suspended` se juge en base, dans la
+        // transaction, sur la ligne verrouillée : deux réintégrations ensemble journalisaient et
+        // prévenaient deux fois. L'écriture passe par le modèle : `AgencyObserver` réindexe les biens.
+        $response = DB::transaction(function () use ($request, $agency, $reason): ?JsonResponse {
+            $ligne = Agency::query()
+                ->whereKey($agency->getKey())
+                ->where('status', AgencyStatus::Suspended->value)
+                ->lockForUpdate()
+                ->first();
+
+            return $ligne === null
+                ? null
+                : $this->transition($request, $ligne, AgencyStatus::Active, 'super_admin_agency_reinstated', [], $reason);
+        });
+        abort_code_if($response === null, 422, 'agency.not_suspended');
         $this->notifyAdmins($agency, NotificationCode::AgencyReinstated, $reason);
 
         return $response;

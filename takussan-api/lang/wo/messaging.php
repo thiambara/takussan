@@ -13,6 +13,8 @@ return [
         'participants_unavailable' => 'Kenn ci ñi nga tànn amatul. Tànnaatal ñi bokk ci lim bi.',
         'participants_out_of_reach' => 'Ñenn ci ñi nga tànn mënuñu bokk ci kuréel gi : ñi ngay jokkoo ba noppi rekk nga mën a woo.',
         'participants_duplicate' => 'Tànn nga benn nit ñaari yoon.',
+        // TCK-2191 (P191.04) — un groupe rattaché à un bail ne compte que qui lit ce bail.
+        'participants_cannot_read_lease' => 'Certaines personnes choisies ne peuvent pas rejoindre ce groupe : il est rattaché à un bail, et seules les personnes qui ont accès à ce bail peuvent y participer. Pour échanger avec elles, créez un groupe sans bail rattaché.',
         'group_context_forbidden' => 'Mënuloo boole kuréel gi ak lii.',
         // TCK-565, réparation 2 — la conversation directe applique le périmètre du groupe.
         'direct_single_participant' => 'Waxtaan wu ñaari nit, benn nit rekk nga ciy boole. Ngir dajale ay nit, sosal kuréel.',

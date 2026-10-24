@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Conversation;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Conversation\Concerns\GuardsConversationScope;
 use App\Models\Conversation;
 use App\Models\Enums\ParticipantRole;
 use App\Models\User;
@@ -28,6 +29,8 @@ use Illuminate\Validation\Validator;
  */
 class AddParticipantsRequest extends BaseFormRequest
 {
+    use GuardsConversationScope;
+
     public function authorize(): bool
     {
         return true;
@@ -98,6 +101,8 @@ class AddParticipantsRequest extends BaseFormRequest
             // conversation, qui alimente le sélecteur du front
             // (`GET /conversations/{conversation}/contacts`) : il ne propose donc personne que
             // cette garde refuse, et elle n'accepte personne qu'il ne montre pas.
+            // ⚠ TCK-2191 : sauf la borne du groupe de bail plus bas, que le sélecteur ne lit pas — il
+            // peut proposer un correspondant que l'ajout refuse ensuite en 422.
             $actor = $this->user();
             $newIds = array_values(array_unique(array_diff(array_map('intval', $userIds), $alreadyIn)));
 
@@ -109,6 +114,16 @@ class AddParticipantsRequest extends BaseFormRequest
 
             if (! $actor || app(MessagingReach::class)->outOfReach($actor, $newIds, $conversation) !== []) {
                 $v->errors()->add('user_ids', __('messaging.errors.participants_out_of_reach'));
+
+                return;
+            }
+
+            // TCK-2191 (P191.04) — un groupe rattaché à un bail ne reçoit que qui lit ce bail, hors
+            // le prestataire assigné à l'intervention que le fil porte. Jugé pour le seul acteur qui
+            // peut ajouter : à tout autre, le contrôleur répond 403 (`messaging.admin_only`), et un
+            // 422 rendu avant lui dirait qui lit le bail à qui n'a aucun geste sur le fil.
+            if ($actor->can('addParticipant', $conversation)) {
+                $this->guardLeaseReaders($v, $conversation->lease_id, $newIds, 'user_ids', $conversation->maintenance_request_id);
             }
         });
     }

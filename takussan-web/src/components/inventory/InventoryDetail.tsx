@@ -11,6 +11,7 @@ import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDateTime } from '@/lib/format';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { Locale } from '@/i18n/config';
 import {
   useDeleteInventoryRoomPhoto,
@@ -313,6 +314,10 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
   const tStatus = useTranslations('inventory.status');
   const submit = useSubmitInventory(inventory.id);
   const dispute = useDisputeInventory(inventory.id);
+  const messageErreur = useMessageErreurApi();
+  // P228.05 (TCK-2218) — l'envoi à la signature refusé (écran périmé : l'état des lieux n'est plus un
+  // brouillon) se dit sous les gestes ; il ne disait rien.
+  const [erreurEnvoi, setErreurEnvoi] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const [showDispute, setShowDispute] = useState(false);
 
@@ -336,7 +341,12 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
         {canSubmit ? (
           <Button
             type="button"
-            onClick={() => submit.mutate()}
+            onClick={() => {
+              setErreurEnvoi(null);
+              submit.mutate(undefined, {
+                onError: (erreur) => setErreurEnvoi(messageErreur(erreur)),
+              });
+            }}
             disabled={submit.isPending}
           >
             {submit.isPending ? t('submitting') : t('submitForSignature')}
@@ -358,6 +368,11 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
           />
         ) : null}
       </div>
+      {erreurEnvoi ? (
+        <p role="alert" className="text-xs text-destructive">
+          {erreurEnvoi}
+        </p>
+      ) : null}
 
       {showDispute ? (
         <div className="space-y-2 rounded-lg bg-muted p-3">

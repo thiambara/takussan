@@ -31,6 +31,7 @@ use App\Services\Notifications\NotificationRenderer;
 use App\Services\Payout\PayoutApprovalRule;
 use App\Services\Payout\PayoutApprovers;
 use App\Services\Payout\PayoutCalculator;
+use App\Services\Payout\PayoutClawbacks;
 use App\Support\SegregationOfDuties;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -73,6 +74,7 @@ class PayoutService
         private readonly PayoutApprovers $approvers,
         private readonly DisbursementDriverContract $disbursement,
         private readonly PayoutApprovalRule $approvalRule,
+        private readonly PayoutClawbacks $clawbacks,
     ) {}
 
     /**
@@ -428,6 +430,9 @@ class PayoutService
         Booking::query()->whereIn('id', $bookingPayments->pluck('booking_id')->unique()->sort()->values())
             ->orderBy('id')->lockForUpdate()->get(['id']);
         $bills = ServiceProviderBill::query()->whereIn('id', $billIds)->orderBy('id')->lockForUpdate()->get();
+        // TCK-2151 (ADR-0039, amendement du 2026-10-24, point 2.5) — les reprises encore dues de ce
+        // bailleur, verrouillées après les pièces et avant la ligne agence, qui reste la dernière.
+        $outstanding = $this->clawbacks->outstanding((int) $agency->id, (int) $landlord->id, lock: true);
         // VERIF-594 M-1 — la ligne agence en DERNIER (les pièces d'abord, comme la caution rendue) :
         // le cumul des nets non approuvés vers ce bailleur se lit sous son verrou.
         $agency = $this->lockAgency($agency);
@@ -475,7 +480,11 @@ class PayoutService
             $lateFees->load('lease:id,reference_number,property_id,commission_rate'),
         );
         $totals = $computation['totals'];
+        // TCK-2151 (point 2.6) — `net_negative` ne juge que le net AVANT reprise. La reprise s'impute
+        // à hauteur de ce net, de la plus ancienne à la plus récente ; le reliquat passe au suivant.
         abort_code_if($totals['net'] < 0, 422, 'payout.net_negative');
+        [$imputations, $clawedBack] = $this->clawbacks->plan($outstanding, $totals['net']);
+        $net = Currency::roundAmount($totals['net'] - $clawedBack, $computation['currency']);
 
         $paidAt = $leasePayments->pluck('paid_at')->concat($bookingPayments->pluck('paid_at'))
             ->concat($lateFees->pluck('late_fee_paid_at'))->filter();
@@ -491,13 +500,14 @@ class PayoutService
             'payee_role' => PayeeRole::Landlord->value,
             'issued_by_id' => $user->id,
             'reference_number' => ReferenceNumberGenerator::payout(),
-            'status' => $this->initialStatus($agency, $totals['net'], $data['scheduled_at'] ?? null, PayeeRole::Landlord, (int) $landlord->id)->value,
+            'status' => $this->initialStatus($agency, $net, $data['scheduled_at'] ?? null, PayeeRole::Landlord, (int) $landlord->id)->value,
             'period_start' => $data['period_start'] ?? $this->dateOf($paidAt->min()),
             'period_end' => $data['period_end'] ?? $this->dateOf($paidAt->max()),
             'gross_amount' => $totals['gross'],
             'commission_amount' => $totals['commission'],
             'fees_amount' => $totals['fees'] > 0 ? $totals['fees'] : null,
-            'net_amount' => $totals['net'],
+            'clawback_amount' => $clawedBack > 0 ? $clawedBack : null,
+            'net_amount' => $net,
             'currency' => $computation['currency'],
             'payment_method' => $data['payment_method'] ?? null,
             'payout_method_id' => $destination?->id,
@@ -527,6 +537,7 @@ class PayoutService
                 'late_fee_payout_commission_amount' => $line['commission'],
             ]);
         }
+        $this->clawbacks->impute($payout, $imputations);
 
         return $payout;
     }
@@ -989,6 +1000,8 @@ class PayoutService
         DB::table('payout_lease_payment')->where('payout_id', $payout->id)->delete();
         DB::table('payout_booking_payment')->where('payout_id', $payout->id)->delete();
         ServiceProviderBill::query()->where('imputed_payout_id', $payout->id)->update(['imputed_payout_id' => null]);
+        // TCK-2151 (point 2.7) — ses reprises reviennent, comme ses pièces.
+        $this->clawbacks->release($payout);
         // P206.01 — la pénalité redevient reversable, sa copie s'efface avec le rattachement.
         DB::table('lease_payments')->where('late_fee_payout_id', $payout->id)->update([
             'late_fee_payout_id' => null,

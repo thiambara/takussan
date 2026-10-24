@@ -969,9 +969,9 @@ class PublicPropertyController extends Controller
             default => ['total_amount' => (string) $property->price, 'deposit_amount' => null],
         };
 
-        $customer = $customers->findOrCreateFromUser($user);
-
         if ($isSale) {
+            // L'offre d'achat n'a aucune garde après ce point : la fiche se résout ici.
+            $customer = $customers->findOrCreateFromUser($user);
             $booking = Booking::create([
                 'property_id' => $property->id,
                 'customer_id' => $customer->id,
@@ -1005,9 +1005,14 @@ class PublicPropertyController extends Controller
 
         // TCK-596 — un séjour daté sur des nuits déjà confirmées est refusé, sous le verrou de la
         // ligne du bien que `BookingService::confirm` prend aussi. L'offre d'achat n'a pas de nuits.
-        $booking = DB::transaction(function () use ($availability, $property, $customer, $user, $data, $amounts): Booking {
+        $booking = DB::transaction(function () use ($availability, $customers, $property, $user, $data, $amounts): Booking {
             Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
             $availability->assertAvailable($property, $data['start_date'], $data['end_date']);
+
+            // P213.03 (TCK-2199) — la fiche se résout après la garde des nuits, dans la transaction :
+            // une demande refusée en 422 ne crée ni ne rattache plus de fiche. Verrous dans l'ordre
+            // `properties` puis `users` (`findOrCreateFromUser`), comme `BookingService::create`.
+            $customer = $customers->findOrCreateFromUser($user);
 
             return Booking::create([
                 'property_id' => $property->id,

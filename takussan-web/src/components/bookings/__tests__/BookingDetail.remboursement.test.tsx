@@ -120,3 +120,44 @@ describe('BookingDetail — acompte d’une réservation fermée (TCK-596 AC5)',
     expect(within(panneau).queryByRole('button', { name: 'Rembourser' })).not.toBeInTheDocument();
   });
 });
+
+describe('BookingDetail — acompte déjà reversé au bailleur (P205.02, TCK-2153)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    etat.refund.mockResolvedValue({ data: {} });
+    vi.mocked(useCanAll).mockReturnValue({ can: false, isLoading: false });
+  });
+
+  const REVERSE = {
+    ...PAYE,
+    paid_out: { payout_id: 7, reference_number: 'PO-2026-07', processed_at: '2026-09-30T09:00:00+00:00' },
+  };
+
+  it('la ligne et le dialogue disent le reversement, et le geste reste permis', async () => {
+    monter(reservation({ refund_status: 'pending', can_refund: true, booking_payments: [REVERSE] }), {
+      id: 3,
+      roles: ['agency_admin'],
+    });
+
+    const panneau = screen.getByTestId('booking-refund-panel');
+    expect(within(panneau).getByText(/Reversé au bailleur le .*30.*2026.*PO-2026-07/)).toBeInTheDocument();
+    fireEvent.click(within(panneau).getByRole('button', { name: 'Rembourser' }));
+
+    const dialogue = await screen.findByRole('dialog');
+    expect(within(dialogue).getByRole('alert')).toHaveTextContent(
+      /déjà été reversé au bailleur.*PO-2026-07.*reprise sur son prochain reversement/,
+    );
+    fireEvent.click(within(dialogue).getByRole('button', { name: 'Enregistrer le remboursement' }));
+    await waitFor(() => expect(etat.refund).toHaveBeenCalledWith(expect.objectContaining({ paymentId: 41 })));
+  });
+
+  it('un acompte jamais reversé n’affiche ni la mention ni l’avertissement', async () => {
+    monter(reservation({ refund_status: 'pending', can_refund: true }), { id: 3, roles: ['agency_admin'] });
+
+    const panneau = screen.getByTestId('booking-refund-panel');
+    expect(within(panneau).queryByText(/Reversé au bailleur/)).not.toBeInTheDocument();
+    fireEvent.click(within(panneau).getByRole('button', { name: 'Rembourser' }));
+    const dialogue = await screen.findByRole('dialog');
+    expect(within(dialogue).queryByRole('alert')).not.toBeInTheDocument();
+  });
+});

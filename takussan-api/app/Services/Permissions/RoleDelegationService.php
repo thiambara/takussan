@@ -69,6 +69,9 @@ class RoleDelegationService
         // accessor is null for multi-profile users without an active context
         // and would falsely reject an otherwise-valid delegation target.
         // TCK-587 — APPARTENANCE du délégataire, sans filtre de statut.
+        // TCK-2202 (ADR-0031, amendement du 2026-10-24, § A, point 5) — voulu : vers un délégué
+        // sans profil actif (suspendu, bailleur bloqué), la délégation se crée et reste INERTE
+        // (`RoleDelegation::scopeEnVigueur`) jusqu'à son retour ; elle peut ainsi préparer un retour.
         if (! $user->hasProfileAt((int) $agency->id, AgentProfile::class)
             && ! $user->hasProfileAt((int) $agency->id, OwnerProfile::class)) {
             throw ValidationException::withMessages([

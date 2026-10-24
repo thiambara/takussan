@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useAuth } from '@/context/AuthContext';
 import {
   useFavorites,
+  add as storeAdd,
   remove as storeRemove,
 } from '@/lib/favoritesStore';
 import {
@@ -156,7 +157,9 @@ function PopoverBody({ count, items, isLoading, onItemClick }: PopoverBodyProps)
       // Optimistic store flip — the heart everywhere reflects it instantly.
       storeRemove(id);
       if (user) {
-        removeMutation.mutate({ property_id: id });
+        // P228.03 (TCK-2214) — même contrat que `FavoriteButton` : un refus de l'API remet le
+        // bien dans le store, sans quoi il disparaissait de la session en restant en base.
+        removeMutation.mutate({ property_id: id }, { onError: () => storeAdd(id) });
       }
     },
     [user, removeMutation],

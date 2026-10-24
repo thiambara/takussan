@@ -10,6 +10,8 @@ use App\Models\Enums\ConversationType;
 use App\Models\Enums\ParticipantRole;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Notifications\CodedNotification;
@@ -46,6 +48,25 @@ class GroupConversationCreationTest extends TestCase
             ]);
             $past->participants()->attach($actor->id, ['joined_at' => now()]);
             $past->participants()->attach($other->id, ['joined_at' => now()]);
+        }
+    }
+
+    /**
+     * TCK-2191 (P191.04) — un groupe rattaché à un bail ne compte que qui lit ce bail. Les témoins
+     * qui rattachent un bail y mettent donc des lecteurs : le personnel de l'agence du bail, où le
+     * bailleur détient son profil.
+     *
+     * @param  list<Lease>  $baux
+     */
+    private function lecteursDesBaux(User $bailleur, array $baux, User ...$lecteurs): void
+    {
+        $agence = Agency::factory()->create();
+        OwnerProfile::query()->firstOrCreate(['user_id' => $bailleur->id, 'agency_id' => $agence->id]);
+        foreach ($lecteurs as $lecteur) {
+            AgentProfile::query()->create(['user_id' => $lecteur->id, 'agency_id' => $agence->id]);
+        }
+        foreach ($baux as $bail) {
+            $bail->forceFill(['agency_id' => $agence->id])->save();
         }
     }
 
@@ -385,6 +406,7 @@ class GroupConversationCreationTest extends TestCase
         // L'intervention porte sur le bien du bail : depuis la reprise du 2026-09-24, une
         // intervention d'un AUTRE bien se refuse (les deux fabriques en créaient chacune un).
         $intervention = MaintenanceRequest::factory()->create(['requester_id' => $me->id, 'property_id' => $bail->property_id]);
+        $this->lecteursDesBaux($me, [$bail], $a, $b);
 
         Sanctum::actingAs($me);
 
@@ -467,6 +489,7 @@ class GroupConversationCreationTest extends TestCase
         $villa = Property::factory()->create(['user_id' => $me->id]);
         $bureau = Property::factory()->create(['user_id' => $me->id]);
         $bailDuBureau = Lease::factory()->create(['property_id' => $bureau->id, 'landlord_id' => $me->id]);
+        $this->lecteursDesBaux($me, [$bailDuBureau], $a, $b);
 
         Sanctum::actingAs($me);
 
@@ -568,6 +591,7 @@ class GroupConversationCreationTest extends TestCase
         $bailDeLaVilla = Lease::factory()->create(['property_id' => $villa->id, 'landlord_id' => $me->id]);
         $bailDuBureau = Lease::factory()->create(['property_id' => $bureau->id, 'landlord_id' => $me->id]);
         $interventionAuBureau = MaintenanceRequest::factory()->create(['property_id' => $bureau->id, 'requester_id' => $me->id]);
+        $this->lecteursDesBaux($me, [$bailDeLaVilla, $bailDuBureau], $a, $b);
 
         Sanctum::actingAs($me);
 

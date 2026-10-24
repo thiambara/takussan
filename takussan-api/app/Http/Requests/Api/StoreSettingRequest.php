@@ -48,10 +48,11 @@ class StoreSettingRequest extends BaseFormRequest
             return true;
         }
 
+        // TCK-2206 (P226.03) — comparé en entier : `"12"` désigne l'agence 12.
         $targetAgencyId = $this->input('scope_id') ?? $user->agency_id;
         abort_code_unless(
             // TCK-2024 (P116.02) — `AgencyPolicy::configure` : l'admin ET `agency.update`.
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $targetAgencyId && $user->can('configure', Agency::query()->find($targetAgencyId))),
+            $user->isSuperAdmin() || ($user->agency_id !== null && (int) $user->agency_id === (int) $targetAgencyId && $user->can('configure', Agency::query()->find($targetAgencyId))),
             403,
             'setting.other_agency_forbidden'
         );

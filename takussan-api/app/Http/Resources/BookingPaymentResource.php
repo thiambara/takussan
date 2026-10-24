@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Services\Payout\PayoutClawbacks;
 use Illuminate\Http\Request;
 
 class BookingPaymentResource extends BaseResource
@@ -29,6 +30,28 @@ class BookingPaymentResource extends BaseResource
             'transaction_id' => $this->transaction_id,
             'notes' => $this->notes,
             'created_at' => $this->iso($this->created_at),
+            'paid_out' => $this->paidOut($request),
+        ];
+    }
+
+    /**
+     * TCK-2153 (P205.02 ; ADR-0039, amendement du 2026-10-24, point 5) — le reversement au bailleur
+     * `completed` qui a porté cet acompte : son remboursement créera une reprise (TCK-2151). Rendu
+     * à qui peut lire ce reversement (`PayoutPolicy::view`), `null` sinon.
+     *
+     * @return array{payout_id: int, reference_number: string, processed_at: ?string}|null
+     */
+    private function paidOut(Request $request): ?array
+    {
+        $payout = app(PayoutClawbacks::class)->paidOutPayout((int) $this->id);
+        if ($payout === null || $request->user()?->can('view', $payout) !== true) {
+            return null;
+        }
+
+        return [
+            'payout_id' => (int) $payout->id,
+            'reference_number' => $payout->reference_number,
+            'processed_at' => $this->iso($payout->processed_at),
         ];
     }
 }
