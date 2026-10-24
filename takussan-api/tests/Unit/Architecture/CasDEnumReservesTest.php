@@ -7,6 +7,7 @@ use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\PayoutStatus;
+use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\Enums\RelationshipStatus;
 use App\Models\Enums\ServiceProviderBillStatus;
 use App\Models\Enums\ServiceProviderProfileStatus;
@@ -40,6 +41,9 @@ class CasDEnumReservesTest extends TestCase
             // TCK-2043 (P115.04) : un profil prestataire ne naît que `draft` et ne devient que `active`.
             ServiceProviderProfileStatus::Inactive,
             ServiceProviderProfileStatus::Suspended,
+            // TCK-2078 (P196.01) : `approve`, `markPaid`, `cancel` et la clôture ne posent ni l'un ni l'autre.
+            PlatformPayoutStatus::Processing,
+            PlatformPayoutStatus::Failed,
         ];
     }
 
