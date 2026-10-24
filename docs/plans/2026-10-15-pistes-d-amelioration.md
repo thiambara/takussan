@@ -19364,7 +19364,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### Le calendrier de la demande de visite propose tout jour à venir, et l'API refuse au-delà de 60 jours : « Les créneaux n'ont pas pu être chargés »
 - Réf : P212.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-2094 — reste : distinguer dans `useCreneaux` un 422 (jour hors fenêtre) d’une panne, ce qui demande un texte neuf (V7)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:81-85,202-208`, `takussan-web/src/lib/visites/useCreneaux.ts:29-37`, `takussan-api/app/Http/Requests/Public/VisitSlotsPublicPropertyRequest.php:17`, `takussan-web/src/messages/fr.json:10352`
 - Constat :
@@ -19375,6 +19375,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu des deux côtés, et mesuré sur le validateur ; le dialogue n'a pas été rendu.
 - Piste : borner le calendrier par la même fenêtre (`after:` aujourd'hui UTC, J+60), idéalement servie par l'API ou portée par une constante partagée, et distinguer dans `useCreneaux` un 422 (jour hors fenêtre) d'une panne. Garde : un test du dialogue à horloge figée où J+61 est grisé.
 - Mesure (2026-10-24, ccb5c7995, mesureur) : relu `PropertyVisitDialog.tsx:81-85,206` (`disabled={{ before: today }}`, `today` à minuit local, aucune borne haute), `useCreneaux.ts:29-37` (tout rejet → état `erreur`), `VisitSlotsPublicPropertyRequest.php:17` et `fr.json:10352` (`slotsError`) ; `php artisan tinker` sur ces règles (`Validator::make`, lecture seule) → J+0 et J+60 passent, J+61 et J+90 rendent « before or equal to +60 days » ; `node` sous `TZ=America/New_York` à 2026-10-25T01:00Z → jour local 2026-10-24 pour un jour UTC 2026-10-25 → le constat tient, borne haute et borne basse ; le dialogue n'a pas été rendu ; aucun ticket ouvert ni commit ne le traite (`git log` des deux fichiers, `grep` des tickets). Classement : A1, la fenêtre [aujourd'hui UTC, J+60] est écrite par la règle de l'API, et le correctif borne le calendrier sur elle, comme TCK-1491 l'a fait pour d'autres champs ; distinguer un 422 d'une panne demande un texte neuf (V7) et reste hors du correctif autonome.
+- Mesure (2026-10-24, f8516986a, implementeur) : `PropertyVisitDialog.fenetre.p212-01.test.tsx` sous `TZ=America/New_York` à 2026-10-25T01:00Z, avant correctif → le 24 octobre (jour local, veille UTC) et le 25 décembre (J+61) offerts, 2/2 rouges → calendrier borné à [jour UTC, J+60] par `src/lib/jour-de-l-api.ts` → 2/2 verts, `PropertyVisitDialog.test.tsx` (8) vert ; ablation (composant rendu à `pre-dev`) → 2/2 rouges. Distinguer un 422 d'une panne dans `useCreneaux` reste hors du correctif (texte neuf, V7, déjà écarté par le classement).
 
 ### Le bouton « Annuler » d'une réservation confirmée suit le jour du navigateur, l'API celui d'UTC
 - Réf : P212.02
