@@ -18602,7 +18602,7 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
 
 ### Les SMS et les WhatsApp partent par l'intégration de la seule agence du destinataire, quelle que soit l'agence dont parle la notification
 - Réf : P203.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : l'agence que porte une notification, et qui paie le SMS d'une agence, ne sont écrites nulle part
 - Gravité : 🟠 risque ou dette (intention à vérifier)
 - Où : `takussan-api/app/Notifications/Channels/SmsChannel.php:90,113-118`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:105,270-275`, `takussan-api/app/Notifications/CodedNotification.php:46,61-72`, `takussan-api/app/Services/Model/NotificationService.php:58-66`, `takussan-api/app/Services/Notifications/Sms/IntegrationLocator.php:25-34`, `takussan-api/app/Services/Notifications/Whatsapp/CloudApiWhatsappDriver.php:44`
 - Constat :
@@ -18613,10 +18613,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Un bailleur ou un agent de A qui est aussi locataire ou client d'un bien de B reçoit donc les rappels du bail de B par le compte SMS, l'émetteur et le numéro WhatsApp de A, à la charge de A s'il en a un. Ce cas n'a pas été rejoué de bout en bout avec un vrai bail de B (à vérifier).
   - TCK-102 dit seulement que le routeur lit les intégrations « de l'agence courante » (l. 159-160). Ce que doit être cette agence hors requête n'est écrit nulle part, comme le notait déjà P11.06.
 - Piste : faire porter l'agence de l'objet par la notification : un argument `agencyId` de `NotificationService::send()`, rangé dans `CodedNotification` (et sur `app_notifications` si le repli tardif doit le relire, P203.03), que les canaux lisent avant l'accesseur. Sans agence, la plateforme. Ce choix demande d'écrire qui paie un SMS d'agence. Test : compte d'une seule agence A, notification d'un bail de B → `agency_id` = B dans le contexte du routeur.
+- Mesure (2026-10-24, 26195d12e, mesureur) : relu `SmsChannel.php:90,113-115`, `WhatsappChannel.php:105,270-272` (`$notifiable->agency_id ?? null`), `CodedNotification.php:46,61-72` (`ShouldQueue`, ni agence ni objet dans le constructeur), `NotificationService.php:58-66` (signature sans agence), `IntegrationLocator.php:25-34` (l'agence passée, sinon la plateforme) et `User.php:446-472` ; lancé (test temporaire `tests/Feature/TmpMesureur/AgenceHorsRequeteTest.php`, base créée par le test, charge 6,72 / 4,50 / 3,81 sur 8 cœurs, retiré ensuite) : `resolveAgencyId` des deux canaux rend A pour un compte au seul `OwnerProfile` de A, `null` pour un compte de A et de B ; aucun commit sur ces fichiers depuis 820c142e0 (`git log`), aucun ticket ne fait porter l'agence par la notification (`grep -rn` dans `docs/backlog/tickets`) ; le constat tient, le cas d'un vrai bail de B n'a pas été rejoué. Classement : V7, la `Piste` le dit, choisir l'agence d'une notification hors requête et qui paie son SMS est un choix de produit (et V4 si l'agence est rangée sur `app_notifications`).
 
 ### Un contact sans compte passe toujours par l'intégration de la plateforme, même pour la fiche, la visite ou la demande d'une agence qui a la sienne
 - Réf : P203.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : même choix que P203.01, pour le contact sans compte
 - Gravité : 🟠 risque ou dette (intention à vérifier)
 - Où : `takussan-api/app/Services/Model/NotificationService.php:112-138`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:34-58`, `takussan-api/app/Notifications/Channels/SmsChannel.php:113-118`, `takussan-api/vendor/laravel/framework/src/Illuminate/Notifications/AnonymousNotifiable.php:15`
 - Constat :
@@ -18624,10 +18625,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - `ContactSansCompte` est pourtant bâti depuis une fiche client, une visite ou une demande de contact, qui portent toutes une agence (lu, `fromCustomer`, `fromVisit`, `fromLead`). Il ne garde que le numéro, le nom, la langue, l'e-mail et l'identifiant de la fiche (lu, l. 34-40).
   - Pour une même agence qui a son compte SMS, un client avec compte reçoit donc ses SMS par ce compte (P203.01), et un client sans compte par celui de la plateforme (déduit des deux lectures, à vérifier par un envoi).
 - Piste : la même que P203.01, l'agence venant de la fiche, de la visite ou de la demande (`ContactSansCompte` la porte, et les canaux la lisent sur l'`AnonymousNotifiable` par une route dédiée). Test : fiche client de A, A a une intégration `sms_lafricamobile` → contexte `agency_id` = A.
+- Mesure (2026-10-24, 26195d12e, mesureur) : relu `NotificationService.php:112-137` (`Notification::routes($routes)`), `ContactSansCompte.php:34-58` (numéro, nom, langue, fiche, e-mail, aucune agence) et `SmsChannel.php:113-115` ; lancé (test temporaire `tests/Feature/TmpMesureur/AgenceHorsRequeteTest.php`, base créée par le test, charge 6,72 / 4,50 / 3,81 sur 8 cœurs, retiré ensuite) : `resolveAgencyId` rend `null` sur un `AnonymousNotifiable` pour les deux canaux, donc l'intégration de la plateforme ; l'envoi de bout en bout pour une agence munie de sa propre intégration n'a pas été rejoué. Classement : V7, la `Piste` reprend celle de P203.01, dont le choix n'est pas fait.
 
 ### Le SMS de repli après un échec tardif de WhatsApp recalcule l'agence au moment du repli, et ne reprend pas celle du message WhatsApp
 - Réf : P203.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la `Piste` dépend du choix de P203.01, ou se réduit au commentaire
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/SendSmsAfterLateWhatsappFailureJob.php:92-108`, `takussan-api/app/Jobs/UpdateWhatsappDeliveryStatusJob.php:61-62`
 - Constat :
@@ -18635,10 +18637,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Mesuré (test temporaire) : compte d'un seul profil dans A → repli avec `agency_id` = A ; compte de deux agences → `null`. Le job reprend donc aussi le défaut de P203.01.
   - Un profil ajouté, retiré ou suspendu dans l'intervalle (jusqu'à `MAX_DELAY_SECONDS`) fait partir le SMS par une autre intégration que le WhatsApp (déduit, à vérifier).
 - Piste : relire l'agence rangée avec la notification si P203.01 la range, au lieu de la recalculer ; sinon, corriger le commentaire.
+- Mesure (2026-10-24, 26195d12e, mesureur) : relu `SendSmsAfterLateWhatsappFailureJob.php:92-107` (`'agency_id' => $user->agency_id`, recalculé au repli, avec le commentaire « Même agence que `WhatsappChannel::resolveAgencyId()` » l. 104) ; ni la tentative ni la notification ne rangent l'agence (relu `CodedNotification.php:61-72`) ; (test temporaire `tests/Feature/TmpMesureur/AgenceHorsRequeteTest.php`, base créée par le test, charge 6,72 / 4,50 / 3,81 sur 8 cœurs, retiré ensuite) rend A pour un compte d'une agence et `null` pour deux, donc le repli reprend P203.01 ; l'écart sur un profil changé entre l'envoi et l'accusé reste déduit. Classement : V7, la `Piste` a deux voies selon que P203.01 range l'agence ou non, et ce choix n'est pas fait.
 
 ### La Gate des capacités juge un compte à l'agence du profil actif de la requête, même quand ce profil appartient à un autre compte
 - Réf : P203.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : la Gate de toutes les capacités, que tout appelant légitime traverse
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Providers/AppServiceProvider.php:897-915`, `takussan-api/app/Models/Concerns/HasProfiles.php:463-475`
 - Constat :
@@ -18646,10 +18649,11 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - Dans un worker, la Gate retombe sur l'accesseur (l. 910-912) : `null` pour un compte de plusieurs agences. `allows()` sans agence ne retient alors que les capacités de plateforme (lu, `MembershipCapabilityResolver.php:73-84`).
   - Aucun appelant d'aujourd'hui ne juge une capacité pour un tiers : `grep -rnE "\->can\(Capability::|->can\('[a-z_]+\.[a-z_]+'"` sous `app/`, hors `$user`, `$actor` et l'utilisateur de la requête, ne rend rien, et aucun job, écouteur ni commande n'appelle `can()` sur une capacité (lu). Le défaut est latent : le premier `$tiers->can('…')` écrit dans une requête jugera le tiers dans l'agence de l'appelant.
 - Piste : lire `$user->activeProfile()` au lieu de `request()->activeProfile()` dans la Gate. Test : dans une requête d'un agent de A, `$agentDeB->can(Capability::…)` ne doit pas être jugé dans A.
+- Mesure (2026-10-24, 26195d12e, mesureur) : relu `AppServiceProvider.php:897-915` (`request()->activeProfile()` sans comparer son `user_id` à `$user`) et `HasProfiles.php:599-611` (`activeProfile()` rend `null` quand le profil de la requête est d'un autre compte) ; lancé (test temporaire `tests/Feature/TmpMesureur/AgenceHorsRequeteTest.php`, base créée par le test, charge 6,72 / 4,50 / 3,81 sur 8 cœurs, retiré ensuite) : l'agent de B seul, `can('properties.create')` → vrai ; la requête portant le profil d'un agent de A → faux ; avec `$b` en contexte → vrai ; `$agentB->activeProfile()` → `null` ; un `grep` des `->can(Capability::…)` sous `app/` hors `$user`/`$actor`/l'utilisateur de la requête ne rend rien, le défaut reste latent. Classement : V2, le correctif est étroit (`$user->activeProfile()`), mais il touche l'autorisation que tout appelant traverse aujourd'hui.
 
 ### Petites améliorations
 - Réf : P203.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer le texte libre de WhatsApp ou ajouter la réception des messages entrants
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/phpunit.xml:65`, `takussan-api/app/Services/Notifications/Whatsapp/ServiceWindow.php:18-25`, `takussan-api/app/Models/WhatsappContact.php:24-32`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:244,298`
 - Constat :
@@ -18657,3 +18661,4 @@ est conforme à `docs/models-spec.md` § 14 tel que le cite TCK-1151.*
   - `WhatsappContact.last_inbound_at` n'a aucun écrivain sous `app/` (lu, `grep -rn last_inbound_at app` → `ServiceWindow.php:20,25` seuls), et aucun contrôleur ne reçoit les messages entrants (lu, `app/Http/Controllers/Webhook/WhatsappStatusController.php` ne traite que les accusés). La fenêtre de service est donc toujours fermée hors des tests, et le texte libre de `WhatsappChannel::resolveMessage` (l. 156-157) ne part jamais. De plus, la fenêtre de Meta vaut pour un numéro d'entreprise, et la colonne n'en garde aucun : avec des numéros WhatsApp d'agence (P203.01), elle ne pourrait pas dire laquelle est ouverte.
   - Les deux `Log::warning` du routeur qui citent `agency_id` (l. 244, 298) sont la seule trace de l'agence retenue (lu). Une intégration d'agence prise à tort ne se voit donc nulle part dans la base.
 - Piste : écrire le cas de la file synchrone dans le `CLAUDE.md` de l'API, ou faire tourner les tests de canal par un vrai passage en file ; retirer la branche « texte libre » ou ajouter l'écrivain de la fenêtre (par numéro d'entreprise) ; journaliser l'agence et l'intégration retenues sur la tentative si P203.01 est retenu.
+- Mesure (2026-10-24, 26195d12e, mesureur) : relu `phpunit.xml:65` (`QUEUE_CONNECTION=sync`) ; (test temporaire `tests/Feature/TmpMesureur/AgenceHorsRequeteTest.php`, base créée par le test, charge 6,72 / 4,50 / 3,81 sur 8 cœurs, retiré ensuite) montre que l'agence de la Gate suit `active_profile` de la requête, ce qui rend plausible le biais du premier point, non rejoué par une route ; `grep -rn last_inbound_at app` → `ServiceWindow.php:20,25`, `WhatsappContact.php:31,37,84` et `AlertSubscriber.php:176`, que des lectures (le constat oubliait ce dernier lecteur), et `routes/api/whatsapp-webhooks.php:17,23` n'expose que `status/{token}` : aucun écrivain, la branche texte libre de `WhatsappChannel.php:156-157` ne part pas hors des tests ; `SmsRouterDriver.php:244,298` sont bien les seules traces de l'agence. Classement : V7, le deuxième point retire une fonction visible ou en ajoute une, et le troisième dépend de P203.01.
