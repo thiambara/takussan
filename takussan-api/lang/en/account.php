@@ -35,6 +35,7 @@ return [
             // TCK-2015 (P175.03)
             'payout_upcoming' => 'Payout in progress :reference.',
             'payout_due' => 'Payout owed by :agency.',
+            'agency_admin_succession' => 'Only administrator of :agency: appoint another administrator first.',
         ],
     ],
 

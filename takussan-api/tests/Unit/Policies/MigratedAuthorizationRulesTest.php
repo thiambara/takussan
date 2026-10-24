@@ -558,7 +558,11 @@ class MigratedAuthorizationRulesTest extends TestCase
 
     public function test_lease_payment_update_follows_the_lease(): void
     {
+        // TCK-2183 (P217.04) — le bailleur au sens de `BailleurDuBien` : un profil propriétaire dans
+        // l'agence du bail. Désigné sans en détenir aucun (l'agent créateur retiré), il n'est plus admis.
         $bailleur = $this->quidam();
+        OwnerProfile::query()->create(['user_id' => $bailleur->id, 'agency_id' => $this->agency->id]);
+        $designeSansProfil = $this->quidam();
         $lease = Lease::factory()->create([
             'landlord_id' => $bailleur->id,
             'agency_id' => $this->agency->id,
@@ -567,6 +571,10 @@ class MigratedAuthorizationRulesTest extends TestCase
         $policy = new LeasePaymentPolicy;
 
         $this->assertTrue($policy->update($bailleur, $payment), 'bailleur');
+        $lease->forceFill(['landlord_id' => $designeSansProfil->id])->save();
+        $this->assertFalse($policy->update($designeSansProfil, $payment->fresh()), 'désigné sans profil propriétaire');
+        $lease->forceFill(['landlord_id' => $bailleur->id])->save();
+        $payment = $payment->fresh();
         $this->assertTrue($policy->update($this->membre, $payment), "périmètre d'agence du bail");
         $this->assertFalse($policy->update($this->etranger, $payment), 'agence tierce');
     }

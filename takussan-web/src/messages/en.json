@@ -1752,6 +1752,7 @@
       "activeLeases": "Active leases",
       "nextRent": "Next rent",
       "overdue": "Overdue",
+      "lateFeesOutstanding": "Late fees to collect",
       "pendingBookings": "Pending bookings",
       "upcoming30d": "Instalments in the next 30 days",
       "noUpcoming": "No instalment scheduled.",
@@ -2242,6 +2243,7 @@
       "occupancyRate": "Occupancy rate",
       "revenueMonth": "Revenue this month",
       "overdue": "Overdue",
+      "lateFeesHint": "Late fees to collect: {amount}",
       "unpaidRate": "Unpaid rate",
       "rentedHint": "{count, plural, one {# property rented} other {# properties rented}}",
       "commissionHint": "Commissions: {amount}"
@@ -3093,7 +3095,8 @@
         "collaborations": "Property collaborations",
         "customers": "Customers they are the lead contact for",
         "responsible_properties": "Properties they are the responsible agent for",
-        "held_properties": "Properties registered in their name"
+        "held_properties": "Properties registered in their name",
+        "contact_leads": "Unhandled contact requests"
       },
       "notTransferable": "not transferable yet",
       "successor": "Successor",
@@ -3598,6 +3601,7 @@
       "colAmount": "Amount",
       "colCommission": "Commission",
       "leaseLine": "Rent — lease {reference}",
+      "lateFeeLine": "Late fee — lease {reference}",
       "bookingLine": "Booking {reference}",
       "billLine": "Job {reference}",
       "rateFromLease": "({rate}% from the lease)",
@@ -3696,6 +3700,7 @@
       "fees": "Repairs",
       "net": "Net",
       "paidOut": "Already paid out",
+      "lateFeesOutstanding": "Late fees to collect",
       "downloadPdf": "Download PDF",
       "downloadCsv": "Download CSV",
       "downloadFailed": "The statement download failed.",
@@ -10866,6 +10871,10 @@
         "reinstated": {
           "title": "Suspension lifted: {agency}",
           "body": "The suspension of the agency {agency} has been lifted. Reason: {reason}. Its public listings are visible again."
+        },
+        "member_deletion_requested": {
+          "title": "Account deletion requested: {member}",
+          "body": "{member} has requested the deletion of their account, effective {scheduled_for}. Their portfolio in the agency: {tasks, plural, one {# task} other {# tasks}}, {visits, plural, one {# visit} other {# visits}}, {maintenance, plural, one {# maintenance request} other {# maintenance requests}}, {responsible_properties, plural, one {# property as lead agent} other {# properties as lead agent}}, {held_properties, plural, one {# property entered} other {# properties entered}}, {collaborations, plural, one {# collaboration} other {# collaborations}}, {customers, plural, one {# client followed} other {# clients followed}}, {contact_leads, plural, one {# unhandled contact request} other {# unhandled contact requests}}. Hand it over to a colleague before that date from the team page: {url}"
         }
       },
       "platform_operator": {

@@ -29,8 +29,9 @@ vi.mock('@/lib/queries/agent-crm', async (original) => ({
 
 const VIDE = {
   tasks: 0, visits: 0, maintenance: 0, responsible_properties: 0, held_properties: 0, collaborations: 0, customers: 0,
+  contact_leads: 0,
 };
-const TOUT = ['tasks', 'visits', 'maintenance', 'responsible_properties', 'held_properties', 'collaborations', 'customers'];
+const TOUT = ['tasks', 'visits', 'maintenance', 'responsible_properties', 'held_properties', 'collaborations', 'customers', 'contact_leads'];
 const partant = { id: 7, first_name: 'Moussa', last_name: 'Fall' };
 
 function rendu(membre: { id: number; first_name: string; last_name: string; email?: string | null } = partant) {
@@ -125,6 +126,18 @@ describe('HandoverWizard', () => {
     expect(handOverPortfolio).toHaveBeenCalledWith('jeton', 3, 7, {
       successor_id: 8, remove_after: true, leave_unassigned: false,
     });
+  });
+
+  /** TCK-2170 (P204.04) — les demandes de contact non traitées sont une catégorie du portefeuille. */
+  it('compte les demandes de contact non traitées du partant', async () => {
+    fetchMemberPortfolio.mockResolvedValue({
+      user_id: 7, portfolio: { ...VIDE, contact_leads: 2 }, transferable: TOUT, pending: [],
+    });
+    rendu();
+
+    const portefeuille = await screen.findByTestId('handover-portfolio');
+    expect(portefeuille).toHaveTextContent('Demandes de contact non traitées2');
+    expect(portefeuille).not.toHaveTextContent('pas encore transmissible');
   });
 
   it('un portefeuille vide se retire sans passation ni aveu', async () => {

@@ -125,6 +125,10 @@ export function OwnerStatementPanel({ landlordId, initialMonth }: OwnerStatement
             <Total label={t('fees')} value={money(-statement.totals.fees)} />
             <Total label={t('net')} value={money(statement.totals.net)} strong />
             <Total label={t('paidOut')} value={money(statement.totals.paid_out)} />
+            {/* P206.03 (ADR-0057, amendement du 2026-10-24) — à part de l'impayé, qui ne les compte pas. */}
+            {(statement.late_fees_outstanding?.amount ?? 0) > 0 ? (
+              <Total label={t('lateFeesOutstanding')} value={money(statement.late_fees_outstanding?.amount ?? 0)} />
+            ) : null}
           </dl>
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" size="sm" disabled={downloading !== null} onClick={() => void download('pdf')}>

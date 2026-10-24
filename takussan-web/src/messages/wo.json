@@ -1335,7 +1335,8 @@
         "collaborations": "Ndimbalante ci kër yi",
         "customers": "Kiliyaan yi mu yor",
         "responsible_properties": "Kër yi mu di ajaŋ bi leen topp",
-        "held_properties": "Kër yi ñu bind ci turam"
+        "held_properties": "Kër yi ñu bind ci turam",
+        "contact_leads": "Demandes de contact non traitées"
       },
       "notTransferable": "jotul a jàll",
       "successor": "Ki koy jël",
@@ -1840,6 +1841,7 @@
       "colAmount": "Xaalis",
       "colCommission": "Commission",
       "leaseLine": "Loyer — bail {reference}",
+      "lateFeeLine": "Pénalité de retard — bail {reference}",
       "bookingLine": "Réservation {reference}",
       "billLine": "Intervention {reference}",
       "rateFromLease": "({rate} % bu bail bi)",
@@ -1938,6 +1940,7 @@
       "fees": "Liggéey yi",
       "net": "Net",
       "paidOut": "Li ñu fey ba noppi",
+      "lateFeesOutstanding": "Pénalités à recouvrer",
       "downloadPdf": "Yebbi PDF bi",
       "downloadCsv": "Yebbi CSV bi",
       "downloadFailed": "Yebbi relevé bi antuwul.",
@@ -8914,6 +8917,7 @@
       "activeLeases": "Kontaraa yuy dox",
       "nextRent": "Luwaas bi ci topp",
       "overdue": "Yu ñu feyul",
+      "lateFeesOutstanding": "Pénalités de retard à recouvrer",
       "pendingBookings": "Réservasioŋ yuy xaar",
       "upcoming30d": "Bes yi ci 30 fan yu ñëw",
       "noUpcoming": "Amul bes bu ñu tëral.",
@@ -9409,6 +9413,7 @@
       "occupancyRate": "Peggu dalal",
       "revenueMonth": "Njariñu weer wi",
       "overdue": "Yu ñu feyul",
+      "lateFeesHint": "Pénalités à recouvrer : {amount}",
       "unpaidRate": "Peggu pey yu ñu feyul",
       "rentedHint": "{count} kër la ñu luwaa",
       "commissionHint": "Komisioŋ : {amount}"
@@ -10866,6 +10871,10 @@
         "reinstated": {
           "title": "Taxawal gi dindi nañu ko : {agency}",
           "body": "Taxawal gu ajans {agency} dindi nañu ko. Lu ko waral : {reason}. Ay yéenekaayam feeñ nañu ci kaw."
+        },
+        "member_deletion_requested": {
+          "title": "Effacement de compte demandé : {member}",
+          "body": "{member} a demandé l'effacement de son compte, effectif le {scheduled_for}. Son portefeuille dans l'agence : {tasks, plural, one {# tâche} other {# tâches}}, {visits, plural, one {# visite} other {# visites}}, {maintenance, plural, one {# intervention} other {# interventions}}, {responsible_properties, plural, one {# bien dont il est l'agent principal} other {# biens dont il est l'agent principal}}, {held_properties, plural, one {# bien saisi} other {# biens saisis}}, {collaborations, plural, one {# collaboration} other {# collaborations}}, {customers, plural, one {# client suivi} other {# clients suivis}}, {contact_leads, plural, one {# demande de contact non traitée} other {# demandes de contact non traitées}}. Passez-le à un collègue avant cette date depuis l'équipe : {url}"
         }
       },
       "platform_operator": {

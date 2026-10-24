@@ -30,9 +30,11 @@ class LeasePaymentPolicy extends BasePolicy
         }
 
         // TCK-587 — le personnel de l'agence du bail (ADR-0031), le bailleur s'il n'y est pas
-        // suspendu (m3), ou le locataire.
+        // suspendu (m3), ou le locataire. TCK-2183 (P217.04) — le bailleur au sens de
+        // `BailleurDuBien` (`bailleurEcrit`, TCK-1722) : l'agent recopié en `landlord_id` passe par
+        // la branche du personnel, et la perd suspendu ou retiré.
         return $this->isStaffOf($user, $lease->agency_id)
-            || $this->landlordWrites($user, $lease->landlord_id, $lease->agency_id)
+            || $this->bailleurEcrit($user, $lease->landlord_id, $lease->agency_id)
             || ($lease->tenant?->user_id === $user->id);
     }
 }

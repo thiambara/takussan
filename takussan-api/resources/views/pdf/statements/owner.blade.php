@@ -87,6 +87,11 @@
         <p>{{ __('money_out.statement.unpaid') }}@if (! empty($statement['unpaid']['as_of'])) {{ __('money_out.statement.unpaid_as_of', ['date' => \Illuminate\Support\Carbon::parse($statement['unpaid']['as_of'])->format('d/m/Y')]) }}@endif : {{ $statement['unpaid']['count'] }} — @currency($statement['unpaid']['amount'], $currency)</p>
     @endif
 
+    @if (($statement['late_fees_outstanding']['count'] ?? 0) > 0)
+        {{-- P206.03 (ADR-0057, amendement du 2026-10-24) — à part de l'impayé, qui ne les compte pas. --}}
+        <p>{{ __('money_out.statement.late_fees_outstanding') }} : {{ $statement['late_fees_outstanding']['count'] }} — @currency($statement['late_fees_outstanding']['amount'], $currency)</p>
+    @endif
+
     @if ($legal !== [])
         <p class="muted legal-mentions">
             @foreach ($legal as $label => $value)

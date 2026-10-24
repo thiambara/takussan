@@ -177,6 +177,25 @@ class MaintenanceActualCostTest extends TestCase
     }
 
     /**
+     * P209.05 (TCK-2177) — le devis porte la règle du coût réel : trois décimales étaient arrondies
+     * par la colonne sans refus, et `5e5` écrit 500 000.
+     */
+    public function test_an_estimated_cost_beyond_two_decimals_is_refused(): void
+    {
+        ['mr' => $mr, 'agency' => $agency] = $this->maintenanceScenario(MaintenanceStatus::InProgress, ['accepted_at' => now(), 'estimated_cost' => 1000]);
+
+        Sanctum::actingAs($this->agentOf($agency));
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['estimated_cost' => 1234.567])
+            ->assertUnprocessable()->assertJsonValidationErrors('estimated_cost');
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['estimated_cost' => '5e5'])
+            ->assertUnprocessable()->assertJsonValidationErrors('estimated_cost');
+        $this->assertEquals(1000, (float) $mr->refresh()->estimated_cost);
+
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['estimated_cost' => 1234.5])->assertOk();
+        $this->assertEquals(1234.5, (float) $mr->refresh()->estimated_cost);
+    }
+
+    /**
      * Passe 2 (N5) — le coût est arrondi à l'unité de la devise (0 décimale en XOF) AVANT d'être
      * comparé au plafond et écrit : 50 000,40 est 50 000, égal au plafond ; 50 000,50 est 50 001.
      */

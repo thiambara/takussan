@@ -1723,6 +1723,7 @@
       "activeLeases": "Baux actifs",
       "nextRent": "Prochain loyer",
       "overdue": "Impayés",
+      "lateFeesOutstanding": "Pénalités de retard à recouvrer",
       "pendingBookings": "Réservations en attente",
       "upcoming30d": "Échéances des 30 prochains jours",
       "noUpcoming": "Aucune échéance prévue.",
@@ -2213,6 +2214,7 @@
       "occupancyRate": "Taux d'occupation",
       "revenueMonth": "Revenus du mois",
       "overdue": "Impayés",
+      "lateFeesHint": "Pénalités à recouvrer : {amount}",
       "unpaidRate": "Taux d'impayés",
       "rentedHint": "{count, plural, one {# bien loué} other {# biens loués}}",
       "commissionHint": "Commissions : {amount}"
@@ -3064,7 +3066,8 @@
         "collaborations": "Collaborations sur des biens",
         "customers": "Clients dont il est le référent",
         "responsible_properties": "Biens dont il est l’agent responsable",
-        "held_properties": "Biens saisis à son nom"
+        "held_properties": "Biens saisis à son nom",
+        "contact_leads": "Demandes de contact non traitées"
       },
       "notTransferable": "pas encore transmissible",
       "successor": "Repreneur",
@@ -3569,6 +3572,7 @@
       "colAmount": "Montant",
       "colCommission": "Commission",
       "leaseLine": "Loyer — bail {reference}",
+      "lateFeeLine": "Pénalité de retard — bail {reference}",
       "bookingLine": "Réservation {reference}",
       "billLine": "Intervention {reference}",
       "rateFromLease": "({rate} % du bail)",
@@ -3667,6 +3671,7 @@
       "fees": "Interventions",
       "net": "Net",
       "paidOut": "Déjà versé",
+      "lateFeesOutstanding": "Pénalités à recouvrer",
       "downloadPdf": "Télécharger le PDF",
       "downloadCsv": "Télécharger le CSV",
       "downloadFailed": "Le téléchargement du relevé a échoué.",
@@ -10866,6 +10871,10 @@
         "reinstated": {
           "title": "Suspension levée : {agency}",
           "body": "La suspension de l'agence {agency} est levée. Motif : {reason}. Ses annonces publiques sont de nouveau visibles."
+        },
+        "member_deletion_requested": {
+          "title": "Effacement de compte demandé : {member}",
+          "body": "{member} a demandé l'effacement de son compte, effectif le {scheduled_for}. Son portefeuille dans l'agence : {tasks, plural, one {# tâche} other {# tâches}}, {visits, plural, one {# visite} other {# visites}}, {maintenance, plural, one {# intervention} other {# interventions}}, {responsible_properties, plural, one {# bien dont il est l'agent principal} other {# biens dont il est l'agent principal}}, {held_properties, plural, one {# bien saisi} other {# biens saisis}}, {collaborations, plural, one {# collaboration} other {# collaborations}}, {customers, plural, one {# client suivi} other {# clients suivis}}, {contact_leads, plural, one {# demande de contact non traitée} other {# demandes de contact non traitées}}. Passez-le à un collègue avant cette date depuis l'équipe : {url}"
         }
       },
       "platform_operator": {

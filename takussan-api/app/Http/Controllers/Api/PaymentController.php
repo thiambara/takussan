@@ -66,7 +66,9 @@ class PaymentController extends Controller
             ->when(! $user->isSuperAdmin(), function ($q) use ($user): void {
                 $q->whereHas('lease', function ($lq) use ($user): void {
                     $lq->where(function ($inner) use ($user): void {
-                        $inner->where('landlord_id', $user->id);
+                        // TCK-2181 (P217.03) — le bailleur du bail, comme `LeaseController::index` et la
+                        // branche des acomptes ci-dessus : l'agent recopié en `landlord_id` passe par le personnel.
+                        $inner->where(fn ($l) => BailleurDuBien::restreindre($l, $user, 'landlord_id'));
                         if (($staffAgencyId = $user->staffAgencyId()) !== null) {
                             $inner->orWhere('agency_id', $staffAgencyId);
                         }

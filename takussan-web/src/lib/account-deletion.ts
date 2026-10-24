@@ -18,7 +18,8 @@ export type AccountDeletionRequest = {
 
 export type AccountDeletionObligation = {
   // TCK-2015 (P175.03) — `payout` : un reversement en cours ; `payout_due` : une agence qui doit encore un reversement (`id` = l'agence).
-  type: 'lease' | 'lease_payment' | 'invoice' | 'booking' | 'payout' | 'payout_due';
+  // TCK-2166 (P204.02) — `agency_admin_succession` : une agence dont le compte est le seul administrateur (`id` = l'agence).
+  type: 'lease' | 'lease_payment' | 'invoice' | 'booking' | 'payout' | 'payout_due' | 'agency_admin_succession';
   id: number;
   reference: string | null;
   label: string;

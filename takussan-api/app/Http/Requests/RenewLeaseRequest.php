@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Api\StoreLeaseRequest;
+
 /**
  * TCK-089 — Validation du payload `POST /api/leases/{lease}/renew`.
  *
@@ -43,7 +45,8 @@ class RenewLeaseRequest extends BaseFormRequest
             'early_termination_penalty_months' => ['sometimes', 'nullable', 'integer', 'between:0,12'],
             'rent_review_max_pct' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
             'terms' => ['sometimes', 'nullable', 'string'],
-            'special_conditions' => ['sometimes', 'nullable', 'string'],
+            // P209.05 (TCK-2177) — la borne de la création : un renouvellement crée aussi un bail.
+            'special_conditions' => ['sometimes', 'nullable', 'string', 'max:'.StoreLeaseRequest::SPECIAL_CONDITIONS_MAX],
             // Immutables côté avenant — pour changer de locataire / bien
             // il faut créer un nouveau bail racine.
             'tenant_id' => ['prohibited'],

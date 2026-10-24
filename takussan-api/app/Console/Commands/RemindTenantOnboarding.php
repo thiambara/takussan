@@ -3,8 +3,10 @@
 namespace App\Console\Commands;
 
 use App\Models\TenantOnboardingChecklist;
+use App\Models\User;
 use App\Notifications\AgentTenantInventoryReminderNotification;
 use App\Notifications\TenantInventoryReminderNotification;
+use App\Services\Membership\AdminsDeLAgence;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Notification;
 
@@ -57,10 +59,13 @@ class RemindTenantOnboarding extends Command
                     // d'agent assigné explicite (pas de colonne dédiée à
                     // ce jour ; on choisit le primary admin comme proxy
                     // raisonnable et non bloquant).
-                    $agentUser = $lease->agency?->primaryAdmin;
-                    if ($agentUser !== null && $tenantUser?->id !== $agentUser->id) {
+                    // TCK-2187 (P225.02) — s'il est joignable ; sinon les admins joignables de
+                    // l'agence. Le locataire reste écarté du rappel « agent ».
+                    $agents = AdminsDeLAgence::principalSinonDestinataires($lease->agency)
+                        ->reject(fn (User $agent): bool => $tenantUser !== null && $agent->id === $tenantUser->id);
+                    if ($agents->isNotEmpty()) {
                         Notification::send(
-                            $agentUser,
+                            $agents,
                             new AgentTenantInventoryReminderNotification($lease),
                         );
                     }

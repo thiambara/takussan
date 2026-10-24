@@ -173,6 +173,38 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
     }
   });
 
+  // P206.01 (ADR-0039, amendement du 2026-10-24, point 6) — la pénalité de retard réglée est une
+  // ligne propre du reversement : montrée, et citée à la création par sa ligne de loyer.
+  it('montre la pénalité de retard réglée et la cite à la création', async () => {
+    PREPARATION.current = {
+      data: {
+        data: {
+          ...CALCUL.data,
+          lines: {
+            ...CALCUL.data.lines,
+            late_fees: [
+              { id: 101, reference_number: 'LP-1', lease_id: 7, lease_reference: 'BAIL-7', property_id: 1, paid_at: '2026-09-12T10:00:00Z', amount: 7500, commission_rate: 10, commission_rate_source: 'lease', commission: 750 },
+            ],
+          },
+        },
+      },
+      isError: false,
+      isFetching: false,
+      error: null,
+    };
+    const user = userEvent.setup();
+    monter();
+
+    const ligne = screen.getByText('Pénalité de retard — bail BAIL-7').closest('tr');
+    expect(sansEspaces(ligne?.textContent ?? '')).toContain('7500FCFA');
+
+    await user.click(screen.getByRole('button', { name: 'Créer le reversement' }));
+    expect(MUTATION.mutateAsync.mock.calls[0][0]).toMatchObject({
+      lease_payment_ids: [101, 102],
+      late_fee_lease_payment_ids: [101],
+    });
+  });
+
   it("propose à l'agence de vérifier une destination en attente, et seulement celle-là", async () => {
     PREPARATION.current = { data: CALCUL, isError: false, isFetching: false, error: null };
     const user = userEvent.setup();

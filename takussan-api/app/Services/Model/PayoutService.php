@@ -110,13 +110,16 @@ class PayoutService
         $leaseIds = $this->ids($data['lease_payment_ids'] ?? []);
         $bookingIds = $this->ids($data['booking_payment_ids'] ?? []);
         $billIds = $this->ids($data['service_provider_bill_ids'] ?? []);
+        // P206.01 — les lignes de loyer dont la PÉNALITÉ réglée est reversée (son éligibilité propre).
+        $lateFeeIds = $this->ids($data['late_fee_lease_payment_ids'] ?? []);
 
-        if ($leaseIds === [] && $bookingIds === [] && $billIds === []) {
+        if ($leaseIds === [] && $bookingIds === [] && $billIds === [] && $lateFeeIds === []) {
             throw ValidationException::withMessages(['lease_payment_ids' => __('money_out.payout.no_items')]);
         }
 
         // AC19 — le périmètre se vérifie AVANT toute écriture : rien n'est écrit sur un refus.
         $this->assertItemsInScope($agency, $landlord, $leaseIds, $bookingIds, $billIds);
+        $this->assertLateFeesInScope($agency, $landlord, $lateFeeIds);
         $destination = $this->destinationOf($data['payout_method_id'] ?? null, $landlord->id)
             ?? $this->defaultVerifiedDestination($landlord->id, (int) $agency->id);
 
@@ -124,7 +127,7 @@ class PayoutService
             // Piège PostgreSQL n° 1 : une violation d'unicité n'est JAMAIS attrapée dans la
             // transaction. Elle la traverse, le rollback a lieu, puis elle devient 409 ici.
             $payout = DB::transaction(fn (): Payout => $this->createLocked(
-                $user, $landlord, $agency, $leaseIds, $bookingIds, $billIds, $destination, $data,
+                $user, $landlord, $agency, $leaseIds, $bookingIds, $billIds, $destination, $data, $lateFeeIds,
             ));
         } catch (UniqueConstraintViolationException) {
             abort_code(409, 'payout.already_paid_out');
@@ -402,6 +405,7 @@ class PayoutService
      * @param  list<int>  $bookingIds
      * @param  list<int>  $billIds
      * @param  array<string,mixed>  $data
+     * @param  list<int>  $lateFeeIds  P206.01 — les lignes dont la pénalité réglée est reversée
      */
     private function createLocked(
         User $user,
@@ -412,10 +416,12 @@ class PayoutService
         array $billIds,
         ?PayoutMethod $destination,
         array $data,
+        array $lateFeeIds = [],
     ): Payout {
         // ADR-0039 §3 — le point de sérialisation est la LIGNE PARENT (bail, réservation), jamais un
         // `lockForUpdate()` sur un agrégat (piège PostgreSQL n° 2). L'ordre des verrous est fixe.
-        $leasePayments = LeasePayment::query()->whereIn('id', $leaseIds)->get();
+        // P206.01 — la pénalité se verrouille comme une pièce, par son bail.
+        $leasePayments = LeasePayment::query()->whereIn('id', array_merge($leaseIds, $lateFeeIds))->get();
         Lease::query()->whereIn('id', $leasePayments->pluck('lease_id')->unique()->sort()->values())
             ->orderBy('id')->lockForUpdate()->get(['id']);
         $bookingPayments = BookingPayment::query()->whereIn('id', $bookingIds)->get();
@@ -443,6 +449,16 @@ class PayoutService
         // TCK-2154 (P200.02) — relu sous le verrou des réservations : une fermeture passée entre-temps.
         $this->assertNotHeldForRefund($bookingIds);
 
+        // P206.01 — la pénalité relue sous le verrou de son bail : encore réglée, et pas déjà prise.
+        $lateFees = LeasePayment::query()
+            ->whereIn('lease_payments.id', $lateFeeIds)
+            ->where(fn ($q) => $this->calculator->whereLateFeeSettled($q))
+            ->get();
+        foreach (array_diff($lateFeeIds, $lateFees->modelKeys()) as $id) {
+            $this->ineligibleItem('late_fee_lease_payment_ids', (int) $id);
+        }
+        abort_code_if($lateFees->contains(fn (LeasePayment $fee): bool => $fee->late_fee_payout_id !== null), 409, 'payout.already_paid_out');
+
         // Relu sous verrou : une pièce reversée entre la vérification et le verrou rend 409. La
         // course que ce test ne voit pas, l'index unique la refuse — et elle devient 409 aussi.
         $alreadyOut = ($leaseIds !== [] && DB::table('payout_lease_payment')->whereIn('lease_payment_id', $leaseIds)->exists())
@@ -455,13 +471,16 @@ class PayoutService
             $leasePayments->load('lease:id,reference_number,property_id,commission_rate'),
             $bookingPayments->load('booking:id,reference_number,property_id'),
             $bills,
+            [],
+            $lateFees->load('lease:id,reference_number,property_id,commission_rate'),
         );
         $totals = $computation['totals'];
         abort_code_if($totals['net'] < 0, 422, 'payout.net_negative');
 
-        $paidAt = $leasePayments->pluck('paid_at')->concat($bookingPayments->pluck('paid_at'))->filter();
-        $leaseOrigin = $bookingPayments->isEmpty() ? $leasePayments->pluck('lease_id')->unique() : collect();
-        $bookingOrigin = $leasePayments->isEmpty() ? $bookingPayments->pluck('booking_id')->unique() : collect();
+        $paidAt = $leasePayments->pluck('paid_at')->concat($bookingPayments->pluck('paid_at'))
+            ->concat($lateFees->pluck('late_fee_paid_at'))->filter();
+        $leaseOrigin = $bookingPayments->isEmpty() ? $leasePayments->pluck('lease_id')->concat($lateFees->pluck('lease_id'))->unique() : collect();
+        $bookingOrigin = $leasePayments->isEmpty() && $lateFees->isEmpty() ? $bookingPayments->pluck('booking_id')->unique() : collect();
 
         $payout = Payout::create([
             // L'origine : un seul bail (resp. réservation) → sa colonne ; sinon les pivots la portent.
@@ -496,6 +515,17 @@ class PayoutService
         }
         if ($billIds !== []) {
             ServiceProviderBill::query()->whereIn('id', $billIds)->update(['imputed_payout_id' => $payout->id]);
+        }
+        // P206.01 (ADR-0039, amendement du 2026-10-24, point 6) — la pénalité prise, et sa copie
+        // figée, comme le pivot d'une pièce (TCK-2017). Écrite sans événement de modèle : c'est la
+        // pièce du reversement, pas un geste sur le loyer.
+        foreach ($computation['lines']['late_fees'] as $line) {
+            DB::table('lease_payments')->where('id', (int) $line['id'])->whereNull('late_fee_payout_id')->update([
+                'late_fee_payout_id' => $payout->id,
+                'late_fee_payout_amount' => $line['amount'],
+                'late_fee_payout_commission_rate' => $line['commission_rate'],
+                'late_fee_payout_commission_amount' => $line['commission'],
+            ]);
         }
 
         return $payout;
@@ -598,6 +628,40 @@ class PayoutService
         }
     }
 
+    /**
+     * P206.01 — la pénalité citée est celle d'une ligne de ce bailleur dans cette agence, réglée
+     * (le prédicat de {@see PayoutCalculator::lateFees()}), et pas en attente de la plateforme.
+     * Déjà prise : la relecture sous verrou rend 409, comme pour une pièce.
+     *
+     * @param  list<int>  $lateFeeIds
+     */
+    private function assertLateFeesInScope(Agency $agency, User $landlord, array $lateFeeIds): void
+    {
+        if ($lateFeeIds === []) {
+            return;
+        }
+
+        $rows = LeasePayment::query()->with('lease:id,agency_id,landlord_id')->whereIn('id', $lateFeeIds)->get()->keyBy('id');
+        foreach ($lateFeeIds as $id) {
+            $row = $rows->get($id);
+            if ($row === null || $row->lease === null
+                || (int) $row->lease->agency_id !== (int) $agency->id
+                || (int) $row->lease->landlord_id !== (int) $landlord->id) {
+                $this->foreignItem('late_fee_lease_payment_ids', $id);
+            }
+        }
+
+        $settled = LeasePayment::query()->whereIn('lease_payments.id', $lateFeeIds)
+            ->where(fn ($q) => $this->calculator->whereLateFeeSettled($q))
+            ->get();
+        $eligible = $this->calculator->exceptLateFeesAwaitingPlatform($settled, $agency)->modelKeys();
+        foreach ($lateFeeIds as $id) {
+            if (! in_array($id, $eligible, true)) {
+                $this->ineligibleItem('late_fee_lease_payment_ids', $id);
+            }
+        }
+    }
+
     private function foreignItem(string $field, int $id): never
     {
         throw ValidationException::withMessages([$field => __('money_out.payout.foreign_item', ['id' => $id])]);
@@ -625,12 +689,17 @@ class PayoutService
     {
         $leases = $payout->leasePayments()->get(['lease_payments.amount', 'lease_payments.refund_amount']);
         $bookings = $payout->bookingPayments()->get(['booking_payments.amount', 'booking_payments.refund_amount']);
+        // P206.01 et P206.04 — la pénalité prise par ce reversement est une ligne de son brut, et sa
+        // part rendue depuis la préparation se voit comme celle d'une pièce.
+        $lateFees = LeasePayment::query()->where('late_fee_payout_id', $payout->id)->get(['late_fee_amount', 'late_fee_refund_amount']);
         $items = $leases->concat($bookings);
-        if (! $items->contains(fn ($item): bool => (float) ($item->refund_amount ?? 0) > 0)) {
+        if (! $items->contains(fn ($item): bool => (float) ($item->refund_amount ?? 0) > 0)
+            && ! $lateFees->contains(fn ($fee): bool => (float) ($fee->late_fee_refund_amount ?? 0) > 0)) {
             return false;
         }
 
-        $gross = $items->sum(fn ($item): float => max(0.0, (float) $item->amount - (float) ($item->refund_amount ?? 0)));
+        $gross = $items->sum(fn ($item): float => max(0.0, (float) $item->amount - (float) ($item->refund_amount ?? 0)))
+            + $lateFees->sum(fn ($fee): float => max(0.0, (float) $fee->late_fee_amount - (float) ($fee->late_fee_refund_amount ?? 0)));
 
         return Currency::roundAmount($gross, $payout->currency) < (float) $payout->gross_amount;
     }
@@ -920,6 +989,13 @@ class PayoutService
         DB::table('payout_lease_payment')->where('payout_id', $payout->id)->delete();
         DB::table('payout_booking_payment')->where('payout_id', $payout->id)->delete();
         ServiceProviderBill::query()->where('imputed_payout_id', $payout->id)->update(['imputed_payout_id' => null]);
+        // P206.01 — la pénalité redevient reversable, sa copie s'efface avec le rattachement.
+        DB::table('lease_payments')->where('late_fee_payout_id', $payout->id)->update([
+            'late_fee_payout_id' => null,
+            'late_fee_payout_amount' => null,
+            'late_fee_payout_commission_rate' => null,
+            'late_fee_payout_commission_amount' => null,
+        ]);
     }
 
     /** Les approbateurs possibles d'un reversement en attente, hors émetteur et bénéficiaire. */

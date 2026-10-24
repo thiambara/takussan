@@ -28,7 +28,7 @@ class LeasePaymentResourceContractTest extends TestCase
         'amount', 'currency', 'payment_method', 'payment_type',
         'period_start', 'period_end', 'due_date', 'paid_at', 'status',
         'paid_amount', 'remaining_amount', 'refund_amount',
-        'late_fee_amount', 'late_fee_applied_at', 'late_fee_paid_at',
+        'late_fee_amount', 'late_fee_applied_at', 'late_fee_paid_at', 'late_fee_refund_amount',
         'late_fee_outstanding', 'late_fee_payable_online', 'amount_due', 'receipt_available',
         'is_overdue', 'notes', 'created_at',
     ];

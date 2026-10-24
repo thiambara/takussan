@@ -24,6 +24,7 @@ use App\Models\Enums\BookingStatus;
 use App\Models\Enums\KycDossierStatus;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Enums\TaskStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\KycDossier;
 use App\Models\Lease;
@@ -33,7 +34,9 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\PropertyCalendarFeed;
 use App\Models\PropertyVisit;
 use App\Models\RoleDelegation;
+use App\Models\Task;
 use App\Models\User;
+use App\Services\Account\AccountDeletionService;
 use App\Services\Booking\PropertyCalendarSyncService;
 use App\Services\Kyc\KycExpiryService;
 use App\Services\Model\BookingService;
@@ -88,6 +91,7 @@ class FormeDesDatesDeNotificationTest extends TestCase
         NotificationCode::MaintenanceScheduleChanged,
         NotificationCode::PropertyCalendarConflict,
         NotificationCode::ImpersonationEnded,
+        NotificationCode::AgencyMemberDeletionRequested,
     ];
 
     protected function setUp(): void
@@ -284,6 +288,19 @@ class FormeDesDatesDeNotificationTest extends TestCase
         $this->commeOperateur($operateur)->postJson('/api/admin/impersonate/stop')->assertOk();
 
         $this->assertFormes(NotificationCode::ImpersonationEnded);
+    }
+
+    public function test_l_effacement_demande_par_un_membre_au_portefeuille_ouvert(): void
+    {
+        AgencyAdminProfile::factory()->create(['user_id' => User::factory()->create()->id, 'agency_id' => $this->agency->id]);
+        Task::factory()->forCustomer(Customer::factory()->create(['agency_id' => $this->agency->id]))->create([
+            'assigned_to_id' => $this->agent->id,
+            'status' => TaskStatus::Open,
+        ]);
+
+        app(AccountDeletionService::class)->requestDeletion($this->agent);
+
+        $this->assertFormes(NotificationCode::AgencyMemberDeletionRequested);
     }
 
     public function test_chaque_code_date_du_catalogue_est_eprouve_ici(): void
