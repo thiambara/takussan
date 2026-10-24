@@ -3,7 +3,7 @@ id: TCK-2060
 title: "L'export des paiements rend la date de règlement de la pénalité de retard"
 status: done
 phase: P2
-family: feature
+family: back
 estimate: S
 wave: null
 created: 2026-10-24
