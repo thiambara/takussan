@@ -122,16 +122,20 @@ final class PayoutCalculator
     }
 
     /**
+     * `$retainedRates` (P177.02, TCK-2017) : le taux qu'un reversement a déjà appliqué à une pièce,
+     * par id. Il l'emporte sur le taux du jour : c'est le relevé de gérance qui le passe.
+     *
      * @param  Collection<int, LeasePayment>  $leasePayments
      * @param  Collection<int, BookingPayment>  $bookingPayments
      * @param  Collection<int, ServiceProviderBill>  $bills
+     * @param  array{lease_payments?: array<int, float>, booking_payments?: array<int, float>}  $retainedRates
      * @return array{
      *     currency: string,
      *     lines: array{lease_payments: list<array<string,mixed>>, booking_payments: list<array<string,mixed>>, service_provider_bills: list<array<string,mixed>>},
      *     totals: array{gross: float, commission: float, fees: float, net: float},
      * }
      */
-    public function compute(Agency $agency, Collection $leasePayments, Collection $bookingPayments, Collection $bills): array
+    public function compute(Agency $agency, Collection $leasePayments, Collection $bookingPayments, Collection $bills, array $retainedRates = []): array
     {
         $currency = $this->currencyOf($agency, $leasePayments, $bookingPayments, $bills);
         $places = $currency->decimalPlaces();
@@ -139,7 +143,8 @@ final class PayoutCalculator
 
         $leaseLines = [];
         foreach ($leasePayments as $payment) {
-            $rate = $payment->lease?->commission_rate !== null ? (float) $payment->lease->commission_rate : $agencyRate;
+            $rate = $retainedRates['lease_payments'][$payment->id]
+                ?? ($payment->lease?->commission_rate !== null ? (float) $payment->lease->commission_rate : $agencyRate);
             $amount = $this->kept($payment);
             $leaseLines[] = [
                 'id' => $payment->id,
@@ -159,6 +164,7 @@ final class PayoutCalculator
         $bookingLines = [];
         foreach ($bookingPayments as $payment) {
             $amount = $this->kept($payment);
+            $rate = $retainedRates['booking_payments'][$payment->id] ?? $agencyRate;
             $bookingLines[] = [
                 'id' => $payment->id,
                 'reference_number' => $payment->reference_number,
@@ -168,9 +174,9 @@ final class PayoutCalculator
                 'property_id' => $payment->booking?->property_id,
                 'paid_at' => $payment->paid_at?->toIso8601String(),
                 'amount' => $amount,
-                'commission_rate' => $agencyRate,
+                'commission_rate' => $rate,
                 'commission_rate_source' => 'agency',
-                'commission' => $this->round($amount * $agencyRate / 100, $places),
+                'commission' => $this->round($amount * $rate / 100, $places),
             ];
         }
 

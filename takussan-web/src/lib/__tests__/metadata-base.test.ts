@@ -25,20 +25,13 @@ import { origineSite, alternatesPubliques } from '../alternates';
 const { resolveUrl } = await import('next/dist/lib/metadata/resolvers/resolve-url.js');
 
 /**
- * ⚠ `next/font/google` est un module que le COMPILATEUR de Next remplace à la construction : il
- * télécharge les fontes et fabrique les classes CSS. Sous vitest il est importé tel quel, et
- * `Geist(...)` lève « Geist is not a function ». Le doubler n'affaiblit rien de ce qui est éprouvé
- * ici — la fonction sous test ne lit aucune fonte —, mais il faut nommer chaque export : un
- * `Proxy` sans `ownKeys` ne présente aucun export nommé au résolveur de modules.
+ * ⚠ `next/font/local` est un module que le COMPILATEUR de Next remplace à la construction : il
+ * lit les fichiers de fonte et fabrique les classes CSS. Sous vitest il est importé tel quel, et
+ * sa fonction par défaut lève une `Error` vide. Le doubler n'affaiblit rien de ce qui est éprouvé
+ * ici — la fonction sous test ne lit aucune fonte.
  */
-const fonteDeTest = () => ({ variable: '--fonte-de-test', className: 'fonte-de-test' });
-vi.mock('next/font/google', () => ({
-  Geist: fonteDeTest,
-  Manrope: fonteDeTest,
-  Inter: fonteDeTest,
-  Bricolage_Grotesque: fonteDeTest,
-  DM_Sans: fonteDeTest,
-  Fraunces: fonteDeTest,
+vi.mock('next/font/local', () => ({
+  default: () => ({ variable: '--fonte-de-test', className: 'fonte-de-test' }),
 }));
 
 describe('metadataBase', () => {

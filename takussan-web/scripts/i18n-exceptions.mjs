@@ -398,6 +398,15 @@ export const EXCEPTIONS_JUSTIFIEES = [
   { fichier: 'src/components/playground/PropertyRowLocal.tsx', motif: /^(Wide horizontal|Variante :|Tout voir|aria-label="(Précédent|Suivant)"|Pas encore de biens dans cette sélection\.)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
   { fichier: 'src/components/playground/PropertyCardLocal.tsx', motif: /^(En vente|En location|ch|sdb)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
   { fichier: 'src/components/playground/PropertyCardCompact.tsx', litteral: 'ch', famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
+  {
+    fichier: 'src/app/[locale]/(public)/playground/page.tsx',
+    litteral: 'Times New Roman',
+    famille: 'TECHNIQUE',
+    raison:
+      "Option `adjustFontFallback` de `localFont` (ADR-0074) : le nom de la police SYSTÈME dont "
+      + "next/font calque les métriques pour la face de repli de Fraunces, jamais affiché. C'est "
+      + "la valeur que next/font/google choisissait lui-même pour une famille à empattements.",
+  },
   { fichier: 'src/components/playground/PropertyCardWide.tsx', motif: /^(ch|sdb)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
   { fichier: 'src/components/playground/PropertyCardOverlay.tsx', litteral: 'Coup de cœur', famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
   { fichier: 'src/components/playground/PropertyCardCompact.tsx', motif: /^(Retirer des|Ajouter aux) favoris$/, famille: 'PLAYGROUND', raison: R_FAVORIS_POC },
