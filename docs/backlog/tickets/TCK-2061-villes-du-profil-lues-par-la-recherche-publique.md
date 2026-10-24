@@ -3,7 +3,7 @@ id: TCK-2061
 title: "Les villes du profil (`cities`) se lisent dans le résumé de l'alerte, son lien et la recherche publique"
 status: done
 phase: P2
-family: recherche
+family: bug
 estimate: S
 wave: null
 created: 2026-10-24
