@@ -197,7 +197,7 @@ class ExportDataService
     public function payouts(User $actor, array $filters = []): array
     {
         $query = Payout::query()
-            ->select(['id', 'reference_number', 'payee_role', 'landlord_id', 'lease_id', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at'])
+            ->select(['id', 'reference_number', 'payee_role', 'landlord_id', 'lease_id', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at', 'refunded_payment_type', 'refunded_payment_id'])
             ->with(['lease:id,reference_number', 'landlord:id,first_name,last_name']);
 
         $this->scopeToActor($query, $actor, 'payout');
@@ -219,10 +219,13 @@ class ExportDataService
             'status' => $p->status?->value,
             'approved_at' => $p->approved_at?->toDateTimeString(),
             'processed_at' => $p->processed_at?->toDateTimeString(),
+            'refunded_payment_type' => $p->refundedPaymentTypeKey(),
+            'refunded_payment_id' => $p->refunded_payment_id,
         ])->all();
 
         return [
-            'columns' => ['id', 'reference', 'payee_role', 'payee', 'lease', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at'],
+            // TCK-2052 — les deux dernières colonnes désignent le payable d'un `Payout` constaté.
+            'columns' => ['id', 'reference', 'payee_role', 'payee', 'lease', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at', 'refunded_payment_type', 'refunded_payment_id'],
             'rows' => $rows,
             'filename' => 'payouts-'.now()->format('Ymd-His'),
         ];

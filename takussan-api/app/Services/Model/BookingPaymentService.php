@@ -10,6 +10,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\User;
 use App\Services\Billing\PlatformPayoutService;
 use App\Services\Booking\BookingRefundTaskService;
+use App\Services\Payout\ObservedRefundPayout;
 use Illuminate\Support\Facades\DB;
 
 class BookingPaymentService
@@ -17,6 +18,7 @@ class BookingPaymentService
     public function __construct(
         private readonly BookingRefundTaskService $refundTasks,
         private readonly PlatformPayoutService $platformPayouts,
+        private readonly ObservedRefundPayout $observedRefunds,
     ) {}
 
     /**
@@ -123,6 +125,10 @@ class BookingPaymentService
                 'refund_amount' => $refunded,
                 'refund_reason' => $data['refund_reason'] ?? $payment->refund_reason,
             ]);
+
+            // TCK-2052 (ADR-0039, amendement du 2026-10-23) — l'argent est sorti du compte de
+            // l'agence : un `Payout` constaté, de CE remboursement, que le débit du relevé rapproche.
+            $this->observedRefunds->record($payment, (float) $data['refund_amount'], now(), auth()->id() !== null ? (int) auth()->id() : null);
 
             return $payment->refresh();
         });

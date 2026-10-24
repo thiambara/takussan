@@ -50,6 +50,10 @@ class PayoutResource extends BaseResource
             'processed_at' => $this->iso($this->processed_at),
             // TCK-593 — rapproché sur un débit du relevé bancaire.
             'bank_reconciled_at' => $this->iso($this->bank_reconciled_at),
+            // TCK-2052 (ADR-0039, amendement du 2026-10-23, n° 13) — non nuls pour un `Payout`
+            // « constaté » : le remboursement déjà sorti de ce payable, pas un reversement à approuver.
+            'refunded_payment_type' => $this->resource->refundedPaymentTypeKey(),
+            'refunded_payment_id' => $this->refunded_payment_id,
             'failed_reason' => $this->failed_reason,
             'notes' => $this->notes,
             'created_at' => $this->iso($this->created_at),
