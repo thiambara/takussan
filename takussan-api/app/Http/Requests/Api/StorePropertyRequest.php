@@ -56,7 +56,9 @@ class StorePropertyRequest extends BaseFormRequest
             // TCK-508 — accepté pour tout type : c'est le modèle qui l'efface sur un terrain
             // (invariant `saving`), pour que la règle tienne aussi quand le TYPE change.
             'condition' => ['nullable', Rule::enum(PropertyCondition::class)],
-            'status' => ['nullable', Rule::enum(PropertyStatus::class)],
+            // P209.02 (TCK-2065) — les statuts de modération ne se posent pas plus à la création
+            // qu'à la modification (TCK-1341) : ni horodatage, ni motif, ni auteur.
+            'status' => ['nullable', Rule::enum(PropertyStatus::class)->except(PropertyStatus::NOT_SETTABLE_BY_HAND)],
             'visibility' => ['nullable', Rule::enum(PropertyVisibility::class)],
             // TCK-633 — bornes de COLONNE (`numeric(14,2)`, `integer`) : au-delà, 500 et non 422.
             'price' => ['required', 'numeric', 'min:0', 'max:999999999999.99'],
