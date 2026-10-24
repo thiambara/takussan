@@ -553,6 +553,7 @@ return [
     'support' => [
         'account_not_locked' => 'Ce compte n\'est pas verrouillé.',
         'cannot_revoke_current' => 'Impossible de révoquer votre propre session en cours.',
+        'no_email' => 'Ce compte n\'a pas d\'adresse e-mail : aucun lien de réinitialisation ne peut lui être envoyé.',
         'no_revocable_session' => 'Aucune session à révoquer.',
         'target_super_admin' => 'Les actions de support ne peuvent pas viser un autre super-administrateur.',
         'two_factor_already_disabled' => 'La double authentification est déjà désactivée.',

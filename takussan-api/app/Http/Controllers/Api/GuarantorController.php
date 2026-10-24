@@ -44,8 +44,12 @@ class GuarantorController extends Controller
     {
         $data = $request->validated();
 
+        // TCK-1993 (P175.01) — la caution entre dans l'agence où l'auteur est PERSONNEL, comme une
+        // fiche client (TCK-591) ; à défaut, celle de l'accesseur pont (un bailleur d'une seule agence).
+        $user = $request->user();
         $guarantor = Guarantor::create(array_merge($data, [
-            'added_by_id' => $request->user()->id,
+            'added_by_id' => $user->id,
+            'agency_id' => $user->staffAgencyId() ?? $user->agency_id,
         ]));
 
         return $this->json(['data' => $this->format($guarantor)], 201);

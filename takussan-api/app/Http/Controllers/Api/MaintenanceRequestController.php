@@ -125,6 +125,12 @@ class MaintenanceRequestController extends Controller
             'priority' => $data['priority'] ?? MaintenancePriority::Normal->value,
         ]));
 
+        // TCK-1991 (P169.03) — l'escalade compte ses 30 minutes depuis le passage en urgent.
+        if ($mr->priority === MaintenancePriority::Urgent) {
+            $mr->metadata = [...($mr->metadata ?? []), MaintenanceRequest::URGENT_SINCE => $this->instant(now())];
+            $mr->saveQuietly();
+        }
+
         // TCK-592 — une assignation à la création emprunte le chemin de toutes les autres :
         // `accepted_at` nul, événement émis (notification, fil de l'intervention).
         if ($assigneeId !== null) {
@@ -137,14 +143,7 @@ class MaintenanceRequestController extends Controller
         $owner = PrimaryPropertyContact::createurDestinataire($property);
 
         if ($mr->priority === MaintenancePriority::Urgent) {
-            $assignedAgent = $mr->assignee;
-            $manager = $property->agency?->primaryAdmin;
-
-            $notifiables = collect([$assignedAgent, $manager])->filter()->unique('id');
-
-            if ($notifiables->isNotEmpty()) {
-                Notification::send($notifiables, new UrgentMaintenanceCreatedNotification($mr));
-            }
+            $this->sendUrgentAlert($mr, $property);
         }
 
         if ($owner && $owner->id !== $user->id) {
@@ -196,7 +195,8 @@ class MaintenanceRequestController extends Controller
         // TCK-2010 (P184.02) — tout ou rien : `assign()` peut encore refuser (`completed`,
         // `maintenance.reassign_after_completion`) après que l'heure, la priorité et le coût réel
         // ont été écrits. La transaction rend la ligne intacte sur ce refus.
-        DB::transaction(function () use ($request, $maintenanceRequest, $data): void {
+        $becameUrgent = false;
+        DB::transaction(function () use ($request, $maintenanceRequest, $data, &$becameUrgent): void {
             // TCK-592 — l'assignation a son chemin (`accepted_at` remis à nul, événement) : elle ne passe
             // pas par `fill()`.
             // TCK-592 (verif-592, M1) — au-delà du plafond du bailleur, `actual_cost` est à son accord.
@@ -214,7 +214,22 @@ class MaintenanceRequestController extends Controller
             $assigneeId = $data['assigned_to'] ?? null;
             unset($data['assigned_to']);
 
+            $wasUrgent = $maintenanceRequest->priority === MaintenancePriority::Urgent;
             $maintenanceRequest->fill($data);
+            $isUrgent = $maintenanceRequest->priority === MaintenancePriority::Urgent;
+            $becameUrgent = ! $wasUrgent && $isUrgent;
+
+            // TCK-1991 (P169.03) — le passage en urgent est daté, et le retour à une autre priorité
+            // efface cette date et l'escalade : une demande remise en urgent s'escalade de nouveau.
+            if ($wasUrgent !== $isUrgent) {
+                $metadata = $maintenanceRequest->metadata ?? [];
+                unset($metadata[MaintenanceRequest::URGENT_SINCE], $metadata[MaintenanceRequest::ESCALATED_AT]);
+                if ($becameUrgent) {
+                    $metadata[MaintenanceRequest::URGENT_SINCE] = $this->instant(now());
+                }
+                $maintenanceRequest->metadata = $metadata;
+            }
+
             // TCK-2012 (P184.01) — un passage fixé ou déplacé s'annonce ; la même heure renvoyée par
             // le bloc d'assignation (`isDirty` compare l'instant) ou une heure retirée, non.
             $scheduleChanged = $maintenanceRequest->isDirty('scheduled_at') && $maintenanceRequest->scheduled_at !== null;
@@ -233,9 +248,28 @@ class MaintenanceRequestController extends Controller
             }
         });
 
+        // TCK-1991 (P169.03) — l'alerte d'urgence part au passage en urgent, pas seulement à la
+        // création : sans elle, l'escalade arrivait la première, ou personne n'était prévenu.
+        if ($becameUrgent) {
+            $maintenanceRequest->refresh();
+            $this->sendUrgentAlert($maintenanceRequest, $maintenanceRequest->property, becameUrgent: true);
+        }
+
         return $this->json([
             'data' => MaintenanceRequestResource::make($maintenanceRequest->refresh())->resolve($request),
         ]);
+    }
+
+    /**
+     * L'alerte d'urgence : l'assigné et l'admin principal de l'agence du bien.
+     */
+    private function sendUrgentAlert(MaintenanceRequest $mr, ?Property $property, bool $becameUrgent = false): void
+    {
+        $notifiables = collect([$mr->assignee, $property?->agency?->primaryAdmin])->filter()->unique('id');
+
+        if ($notifiables->isNotEmpty()) {
+            Notification::send($notifiables, new UrgentMaintenanceCreatedNotification($mr, becameUrgent: $becameUrgent));
+        }
     }
 
     public function updateStatus(UpdateStatusMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse

@@ -21,13 +21,16 @@ import { PayoutTable } from './PayoutTable';
 
 const ALL_STATUS = '__all__';
 
-/** Les valeurs d'enum sont la donnée ; le libellé se résout au rendu (TCK-292). */
+/**
+ * Les valeurs d'enum sont la donnée ; le libellé se résout au rendu (TCK-292).
+ *
+ * TCK-2078 (P196.01, décision du porteur du 2026-10-23) — ni `processing` ni `failed` : aucun geste
+ * de l'API ne les pose (`PlatformPayoutStatus`, cas « Réservé »), le filtre rendait toujours vide.
+ */
 const STATUS_VALUES = [
   'pending',
   'approved',
-  'processing',
   'paid',
-  'failed',
   'cancelled',
 ] as const;
 

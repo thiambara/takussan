@@ -154,6 +154,18 @@ type PreparationLine = {
   amount: number;
 };
 
+/**
+ * TCK-2074 (P178.03) — la commission de la plateforme sur une pièce qu'elle a encaissée : l'agence
+ * la porte, le bailleur n'en voit rien. Nuls hors des pièces soldées par la plateforme.
+ */
+type PlatformFeeFields = {
+  settled_by_platform: boolean;
+  platform_fee_rate: number | null;
+  platform_fee: number | null;
+  agency_received: number | null;
+  commission_below_platform_fee: boolean;
+};
+
 /** `GET /api/payouts/preparation` — la lecture qui précède un reversement : rien ne s'y saisit. */
 export type PayoutPreparation = {
   agency_id: number;
@@ -170,7 +182,7 @@ export type PayoutPreparation = {
       commission_rate: number;
       commission_rate_source: 'lease' | 'agency';
       commission: number;
-    }>;
+    } & PlatformFeeFields>;
     booking_payments: Array<PreparationLine & {
       payment_type: string | null;
       booking_id: number;
@@ -178,10 +190,11 @@ export type PayoutPreparation = {
       paid_at: string | null;
       commission_rate: number;
       commission: number;
-    }>;
+    } & PlatformFeeFields>;
     service_provider_bills: Array<PreparationLine & { maintenance_request_id: number | null }>;
   };
-  totals: { gross: number; commission: number; fees: number; net: number };
+  /** `platform_fee` (TCK-2074) : la commission de la plateforme sur les pièces qu'elle a encaissées. */
+  totals: { gross: number; commission: number; fees: number; net: number; platform_fee: number };
   requires_approval: boolean;
   approval_threshold: number | null;
   /** VERIF-594 passe 2, N-3 — la fenêtre du cumul, en jours glissants (`PayoutApprovalRule::WINDOW_DAYS`). */

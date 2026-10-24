@@ -553,6 +553,7 @@ return [
     'support' => [
         'account_not_locked' => 'This account is not locked.',
         'cannot_revoke_current' => 'Your own current session cannot be revoked.',
+        'no_email' => 'This account has no email address: no reset link can be sent to it.',
         'no_revocable_session' => 'No session to revoke.',
         'target_super_admin' => 'Support actions cannot target another super administrator.',
         'two_factor_already_disabled' => 'Two-factor authentication is already disabled.',

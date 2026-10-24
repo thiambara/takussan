@@ -59,7 +59,8 @@ class SettingController extends Controller
                 'scope_id' => $data['scope_id'] ?? null,
             ],
             [
-                'value' => $data['value'],
+                // TCK-1999 (P181.04) — la forme canonique : la valeur jugée, sans les clés reçues autour.
+                'value' => StoreSettingRequest::formeCanonique($data['key'], $data['value']),
                 'updated_by_id' => $user->id,
             ]
         );
@@ -74,8 +75,10 @@ class SettingController extends Controller
         $user = $request->user();
         $data = $request->validated();
 
+        // TCK-1999 (P181.04) — la ligne (d'agence : la portée globale a rendu 422) sous sa forme
+        // canonique.
         $setting->update([
-            'value' => $data['value'],
+            'value' => UpdateSettingRequest::formeCanonique((string) $setting->key, $data['value']),
             'updated_by_id' => $user->id,
         ]);
 

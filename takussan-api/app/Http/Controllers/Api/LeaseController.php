@@ -194,6 +194,8 @@ class LeaseController extends Controller
                 'relationship_to_tenant' => $data['relationship_to_tenant'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'added_by_id' => $request->user()->id,
+                // TCK-1993 (P175.01) — l'agence du bail qui la porte.
+                'agency_id' => $lease->agency_id,
             ]);
         }
 

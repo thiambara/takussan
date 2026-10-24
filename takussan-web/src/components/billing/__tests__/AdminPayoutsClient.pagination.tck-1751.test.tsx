@@ -7,7 +7,7 @@
  * `fetchAdminAnnouncements`), qui acceptent déjà `page`.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -111,5 +111,21 @@ describe('TCK-1751 — versements et annonces de la console se paginent', () => 
     await user.click(screen.getByRole('button', { name: /Suivant/ }));
     expect(await screen.findByText('Annonce 31')).toBeInTheDocument();
     expect(vi.mocked(fetchAdminAnnouncements)).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, perPage: 30 }));
+  });
+});
+
+describe('TCK-2078 (P196.01) — la console ne propose que les statuts que l’API pose', () => {
+  it('le filtre de statut n’offre ni « En cours » ni « Échec », cas réservés', async () => {
+    const user = userEvent.setup();
+    rendre(<AdminPayoutsClient />);
+    await screen.findByText('#1001');
+
+    await user.click(screen.getByRole('combobox', { name: 'Filtrer par statut' }));
+    const liste = await screen.findByRole('listbox');
+    const libelles = within(liste).getAllByRole('option').map((o) => o.textContent);
+
+    expect(libelles).toEqual(expect.arrayContaining(['En attente', 'Approuvé', 'Payé', 'Annulé']));
+    expect(libelles).not.toContain('En cours');
+    expect(libelles).not.toContain('Échec');
   });
 });

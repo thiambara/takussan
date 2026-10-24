@@ -21,6 +21,7 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { OWNER_PROFILE_FIELDS, type OwnerProfileSummary } from '@/lib/queries/owners';
 import { useCreatePayout, usePayoutPreparation, useVerifyPayoutMethod } from '@/lib/queries/payments';
 import type { PaginatedResponse } from '@/types/api';
+import type { PayoutPreparation } from '@/types/invoice';
 import type { Locale } from '@/i18n/config';
 
 import { PAYMENT_METHOD_VALUES } from './constants';
@@ -31,6 +32,8 @@ interface CreatePayoutDialogProps {
   readonly onOpenChange: (open: boolean) => void;
   readonly onCreated?: (payoutId: number) => void;
 }
+
+type PlatformFeeLine = PayoutPreparation['lines']['lease_payments'][number] | PayoutPreparation['lines']['booking_payments'][number];
 
 const SELECT_CLASS =
   'h-9 w-full rounded-md border border-border bg-transparent px-3 text-sm text-foreground';
@@ -100,6 +103,28 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
   const lineCount = prep
     ? prep.lines.lease_payments.length + prep.lines.booking_payments.length + prep.lines.service_provider_bills.length
     : 0;
+  // TCK-2074 (P178.03, décision du porteur du 2026-10-23) — l'agence porte la commission de la
+  // plateforme sur ce que celle-ci a encaissé : la préparation la montre, et avertit sans bloquer
+  // quand la commission prise au bailleur est inférieure.
+  const belowPlatformFee = prep
+    ? [...prep.lines.lease_payments, ...prep.lines.booking_payments].filter((l) => l.commission_below_platform_fee).length
+    : 0;
+  const platformFeeNote = (l: PlatformFeeLine) =>
+    l.settled_by_platform && l.platform_fee !== null ? (
+      <span className="block text-xs text-muted-foreground">
+        {t('platformFeeLine', {
+          amount: money(l.platform_fee),
+          rate: l.platform_fee_rate ?? 0,
+          received: money(l.agency_received ?? 0),
+        })}
+      </span>
+    ) : null;
+  // TCK-2076 (P178.04, décision du porteur du 2026-10-23) — un seul libellé, « encaissé par la
+  // plateforme », pour la pièce que la plateforme a encaissée puis reversée à l'agence.
+  const settledByPlatformLabel = (l: PlatformFeeLine) =>
+    l.settled_by_platform ? (
+      <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{t('settledByPlatform')}</span>
+    ) : null;
   // TCK-594 (ADR-0039 §6) — l'agence vérifie la destination qu'elle va payer : le titulaire la
   // déclare, quelqu'un d'autre la confirme (le serveur refuse au titulaire de se vérifier lui-même).
   const defaultVerified = prep?.payout_methods.find((m) => m.is_default && m.verified);
@@ -258,7 +283,8 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
                       {prep.lines.lease_payments.map((l) => (
                         <tr key={`lp-${l.id}`} className="border-t border-border">
                           <td className="px-3 py-2">
-                            {t('leaseLine', { reference: l.lease_reference ?? `#${l.lease_id}` })}
+                            <span>{t('leaseLine', { reference: l.lease_reference ?? `#${l.lease_id}` })}</span>
+                            {settledByPlatformLabel(l)}
                           </td>
                           <td className="px-3 py-2">{l.paid_at ? formatDate(l.paid_at, locale) : '—'}</td>
                           <td className="px-3 py-2 text-right">{money(l.amount)}</td>
@@ -269,17 +295,22 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
                                 rate: l.commission_rate,
                               })}
                             </span>
+                            {platformFeeNote(l)}
                           </td>
                         </tr>
                       ))}
                       {prep.lines.booking_payments.map((l) => (
                         <tr key={`bp-${l.id}`} className="border-t border-border">
                           <td className="px-3 py-2">
-                            {t('bookingLine', { reference: l.booking_reference ?? `#${l.booking_id}` })}
+                            <span>{t('bookingLine', { reference: l.booking_reference ?? `#${l.booking_id}` })}</span>
+                            {settledByPlatformLabel(l)}
                           </td>
                           <td className="px-3 py-2">{l.paid_at ? formatDate(l.paid_at, locale) : '—'}</td>
                           <td className="px-3 py-2 text-right">{money(l.amount)}</td>
-                          <td className="px-3 py-2 text-right">{money(l.commission)}</td>
+                          <td className="px-3 py-2 text-right">
+                            {money(l.commission)}
+                            {platformFeeNote(l)}
+                          </td>
                         </tr>
                       ))}
                       {prep.lines.service_provider_bills.map((l) => (
@@ -304,6 +335,8 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
                     ['commission', prep.totals.commission],
                     ['fees', prep.totals.fees],
                     ['net', prep.totals.net],
+                    // TCK-2074 (P178.03) — montrée seulement quand une pièce est passée par la plateforme.
+                    ...(prep.totals.platform_fee > 0 ? [['platformFeeTotal', prep.totals.platform_fee] as const] : []),
                   ] as const
                 ).map(([key, amount]) => (
                   <div key={key}>
@@ -314,6 +347,12 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
                   </div>
                 ))}
               </dl>
+
+              {belowPlatformFee > 0 ? (
+                <p role="status" className="rounded-xl border border-border bg-card p-3 text-sm text-foreground">
+                  {t('commissionBelowPlatformFee', { count: belowPlatformFee })}
+                </p>
+              ) : null}
 
               {prep.requires_approval ? (
                 <p className="rounded-xl border border-border bg-card p-3 text-sm text-foreground">

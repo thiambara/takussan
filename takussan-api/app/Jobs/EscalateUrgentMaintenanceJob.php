@@ -8,6 +8,7 @@ use App\Models\MaintenanceRequest;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 
 class EscalateUrgentMaintenanceJob implements ShouldQueue
@@ -20,8 +21,15 @@ class EscalateUrgentMaintenanceJob implements ShouldQueue
             ->where('priority', MaintenancePriority::Urgent->value)
             ->where('created_at', '<=', now()->subMinutes(30))
             ->whereIn('status', [MaintenanceStatus::Open->value, MaintenanceStatus::Acknowledged->value])
-            ->whereNull('metadata->escalated_at')
-            ->get();
+            ->whereNull('metadata->'.MaintenanceRequest::ESCALATED_AT)
+            ->get()
+            // TCK-1991 (P169.03) — les 30 minutes courent depuis le passage en urgent. `created_at`
+            // ci-dessus n'est qu'un préfiltre : le passage en urgent ne le précède jamais.
+            ->filter(function (MaintenanceRequest $mr): bool {
+                $since = $mr->metadata[MaintenanceRequest::URGENT_SINCE] ?? null;
+
+                return $since === null || Carbon::parse($since)->lte(now()->subMinutes(30));
+            });
 
         foreach ($requests as $mr) {
             $manager = $mr->property?->agency?->primaryAdmin;
@@ -31,7 +39,7 @@ class EscalateUrgentMaintenanceJob implements ShouldQueue
             }
 
             $metadata = $mr->metadata ?? [];
-            $metadata['escalated_at'] = now()->toIso8601String();
+            $metadata[MaintenanceRequest::ESCALATED_AT] = now()->toIso8601String();
             $mr->metadata = $metadata;
             $mr->saveQuietly();
         }
