@@ -11,6 +11,7 @@ use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
 use App\Services\Maintenance\ProviderEligibility;
+use App\Services\Property\BailleurDuBien;
 use App\Sorts\MaintenancePrioritySort;
 use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
@@ -172,7 +173,9 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
 
         return $query->where(function (Builder $q) use ($user, $assignableAgencyIds, $staffAgencyId): void {
             $q->where('requester_id', $user->id)
-                ->orWhereHas('property', fn (Builder $p) => $p->where('user_id', $user->id))
+                // TCK-2179 (P217.01) — le bailleur du bien, au sens de `view` (`BailleurDuBien::est`,
+                // TCK-1720) : l'agent qui l'a saisi est jugé par la branche du personnel ci-dessous.
+                ->orWhereHas('property', fn (Builder $p) => BailleurDuBien::restreindre($p, $user))
                 ->orWhere(fn (Builder $assigned) => $assigned
                     ->where('assigned_to', $user->id)
                     ->whereHas('property', fn (Builder $p) => $p->whereIn('agency_id', $assignableAgencyIds)));

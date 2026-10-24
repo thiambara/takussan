@@ -114,7 +114,8 @@ class UpdateMaintenanceRequestRequest extends BaseFormRequest
             'priority' => ['sometimes', Rule::enum(MaintenancePriority::class)],
             'status' => ['prohibited'],
             // verif-592 passe 3 (N10) — au-delà de la colonne `decimal(14,2)` : 500.
-            'estimated_cost' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN],
+            // P209.05 (TCK-2177) — la règle d'`actual_cost` : trois décimales étaient arrondies sans refus.
+            'estimated_cost' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN, 'decimal:0,2'],
             // verif-592 passe 2 (N5) — `numeric` admet `5e5`, que bcmath refuse (500).
             'actual_cost' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN, 'decimal:0,2'],
             'scheduled_at' => ['sometimes', 'nullable', 'date'],

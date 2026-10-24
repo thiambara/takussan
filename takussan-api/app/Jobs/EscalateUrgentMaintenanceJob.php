@@ -6,9 +6,11 @@ use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
+use App\Services\Membership\AdminsDeLAgence;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 class EscalateUrgentMaintenanceJob implements ShouldQueue
@@ -32,10 +34,18 @@ class EscalateUrgentMaintenanceJob implements ShouldQueue
             });
 
         foreach ($requests as $mr) {
-            $manager = $mr->property?->agency?->primaryAdmin;
+            // TCK-2185 (P225.01) — l'administrateur principal s'il est joignable, sinon les
+            // administrateurs joignables ; `escalated_at` reste posé, et l'absence dite au journal.
+            $agency = $mr->property?->agency;
+            $destinataires = AdminsDeLAgence::principalSinonDestinataires($agency);
 
-            if ($manager) {
-                Notification::send($manager, new UrgentMaintenanceCreatedNotification($mr, isEscalation: true));
+            if ($destinataires->isNotEmpty()) {
+                Notification::send($destinataires, new UrgentMaintenanceCreatedNotification($mr, isEscalation: true));
+            } else {
+                Log::warning('Escalade d\'intervention urgente sans destinataire joignable', [
+                    'maintenance_request_id' => $mr->id,
+                    'agency_id' => $agency?->id,
+                ]);
             }
 
             $metadata = $mr->metadata ?? [];
