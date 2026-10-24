@@ -17,7 +17,8 @@ use Illuminate\Support\Str;
  * par Google recevait un jeton sans saisir son TOTP, et ce jeton ouvrait la console. Pour un
  * tel compte, le rappel ne rend donc PAS de jeton mais un défi :
  *  - un secret aléatoire, haché en cache, lié au compte, valable 5 minutes ;
- *  - à usage unique (`pull` au succès), oublié après 5 seconds facteurs faux ;
+ *  - à usage unique (`pull` avant le facteur, remis sur un facteur faux — TCK-2201), oublié
+ *    après 5 seconds facteurs faux ;
  *  - soldé par `POST /auth/oauth/2fa` avec un TOTP ou un code de secours, le même défi que
  *    `login` : l'échec compte contre le verrou du compte, et le jeton naît avec
  *    `two_factor_verified_at` ({@see TwoFactorSession}).
@@ -77,29 +78,33 @@ final class OAuthSessionOpener
             return AuthRefusal::response(423, 'account_locked', 'auth.account.locked');
         }
 
-        if (! $this->secondFactorHolds($user, $proof)) {
-            $this->lock->recordFailure($user);
-            $attempts = (int) $pending['attempts'] + 1;
-            $attempts >= self::MAX_ATTEMPTS
-                ? $this->cache->forget($key)
-                : $this->cache->put($key, ['attempts' => $attempts] + $pending, now()->setTimestamp((int) $pending['expires_at']));
-
-            return new JsonResponse(['requires_2fa' => true, 'message' => __('auth.two_factor_invalid')], 401);
-        }
-
-        // Usage unique : deux soumissions concurrentes ne retirent le défi qu'une fois.
-        if ($this->cache->pull($key) === null) {
-            return AuthRefusal::response(422, 'oauth_challenge_invalid', 'auth.oauth.challenge_invalid');
-        }
-
+        // P213.04 (TCK-2201) — les refus qui ne dépendent pas du facteur passent AVANT lui : vérifier
+        // un code de secours le retire, et il était brûlé sur une session ensuite refusée.
         // Bloqué entre le rappel et le défi : le même refus que partout ailleurs.
         if (! $user->canOpenSession()) {
             return AuthRefusal::response(403, 'account_blocked', 'auth.account.blocked');
         }
 
+        // Usage unique : le défi est tiré avant le facteur, et deux soumissions concurrentes ne le
+        // retirent qu'une fois. Un facteur faux le remet, une tentative de plus.
+        $pulled = $this->cache->pull($key);
+        if (! is_array($pulled)) {
+            return AuthRefusal::response(422, 'oauth_challenge_invalid', 'auth.oauth.challenge_invalid');
+        }
+
+        if (! $this->secondFactorHolds($user, $proof)) {
+            $this->lock->recordFailure($user);
+            $attempts = (int) $pulled['attempts'] + 1;
+            if ($attempts < self::MAX_ATTEMPTS) {
+                $this->cache->put($key, ['attempts' => $attempts] + $pulled, now()->setTimestamp((int) $pulled['expires_at']));
+            }
+
+            return new JsonResponse(['requires_2fa' => true, 'message' => __('auth.two_factor_invalid')], 401);
+        }
+
         $this->lock->clear($user);
 
-        return $this->issue($user, (string) $pending['token_name'], true, $request);
+        return $this->issue($user, (string) $pulled['token_name'], true, $request);
     }
 
     private function issue(User $user, string $tokenName, bool $twoFactorJustVerified, Request $request): JsonResponse
