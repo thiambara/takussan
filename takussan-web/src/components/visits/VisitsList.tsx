@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CalendarClock, ChevronRight } from 'lucide-react';
 import { useVisits } from '@/lib/queries/visits';
@@ -12,6 +12,7 @@ import { formatDateTime } from '@/lib/format';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { StatusBadge } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { PropertyVisit } from '@/types/visit';
@@ -49,12 +50,24 @@ export function VisitsList() {
     return maintenant.toISOString();
   }, []);
 
+  // TCK-2005 (P171.03) — une page par onglet, dans l'état de la liste : une page de 30 sans page
+  // suivante taisait la 31ᵉ visite, sous un compteur d'onglet qui annonçait le total.
+  const [pages, setPages] = useState<Record<TabKey, number>>({
+    unassigned: 1,
+    requested: 1,
+    confirmed: 1,
+    past: 1,
+    cancelled: 1,
+  });
+  const allerA = (onglet: TabKey) => (page: number) => setPages((avant) => ({ ...avant, [onglet]: page }));
+
   const unassigned = useVisits({
     status: 'scheduled',
     unassigned: true,
     scheduled_at_min: nowIso,
     sort: 'scheduled_at',
     per_page: 30,
+    page: pages.unassigned,
   });
 
   const requested = useVisits({
@@ -62,6 +75,7 @@ export function VisitsList() {
     scheduled_at_min: nowIso,
     sort: 'scheduled_at',
     per_page: 30,
+    page: pages.requested,
   });
 
   const confirmed = useVisits({
@@ -69,18 +83,21 @@ export function VisitsList() {
     scheduled_at_min: nowIso,
     sort: 'scheduled_at',
     per_page: 30,
+    page: pages.confirmed,
   });
 
   const past = useVisits({
     scheduled_at_max: nowIso,
     sort: '-scheduled_at',
     per_page: 30,
+    page: pages.past,
   });
 
   const cancelled = useVisits({
     status: 'cancelled',
     sort: '-scheduled_at',
     per_page: 30,
+    page: pages.cancelled,
   });
 
   const tabs: ReadonlyArray<{ value: TabKey; label: string; query: ReturnType<typeof useVisits> }> = [
@@ -113,7 +130,7 @@ export function VisitsList() {
 
       {tabs.map((t) => (
         <TabsContent key={t.value} value={t.value} className="mt-4">
-          <VisitsListBody query={t.query} locale={locale} tab={t.value} />
+          <VisitsListBody query={t.query} locale={locale} tab={t.value} onPage={allerA(t.value)} />
         </TabsContent>
       ))}
     </Tabs>
@@ -126,10 +143,12 @@ function VisitsListBody({
   query,
   locale,
   tab,
+  onPage,
 }: {
   query: QueryLike;
   locale: Locale;
   tab: TabKey;
+  onPage: (page: number) => void;
 }) {
   const t = useTranslations('visits.list');
   const tPlanning = useTranslations('visitPlanning');
@@ -158,11 +177,16 @@ function VisitsListBody({
         }
 
         return (
-          <ul className="space-y-3">
-            {visits.map((visit) => (
-              <VisitRow key={visit.id} visit={visit} locale={locale} />
-            ))}
-          </ul>
+          <div className="space-y-4">
+            <ul className="space-y-3">
+              {visits.map((visit) => (
+                <VisitRow key={visit.id} visit={visit} locale={locale} />
+              ))}
+            </ul>
+            {data.meta ? (
+              <Pagination page={data.meta.current_page} lastPage={data.meta.last_page} onChange={onPage} />
+            ) : null}
+          </div>
         );
       }}
     </QueryBoundary>
