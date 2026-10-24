@@ -1335,7 +1335,8 @@
         "collaborations": "Ndimbalante ci kër yi",
         "customers": "Kiliyaan yi mu yor",
         "responsible_properties": "Kër yi mu di ajaŋ bi leen topp",
-        "held_properties": "Kër yi ñu bind ci turam"
+        "held_properties": "Kër yi ñu bind ci turam",
+        "contact_leads": "Demandes de contact non traitées"
       },
       "notTransferable": "jotul a jàll",
       "successor": "Ki koy jël",
@@ -10870,6 +10871,10 @@
         "reinstated": {
           "title": "Taxawal gi dindi nañu ko : {agency}",
           "body": "Taxawal gu ajans {agency} dindi nañu ko. Lu ko waral : {reason}. Ay yéenekaayam feeñ nañu ci kaw."
+        },
+        "member_deletion_requested": {
+          "title": "Effacement de compte demandé : {member}",
+          "body": "{member} a demandé l'effacement de son compte, effectif le {scheduled_for}. Son portefeuille dans l'agence : {tasks, plural, one {# tâche} other {# tâches}}, {visits, plural, one {# visite} other {# visites}}, {maintenance, plural, one {# intervention} other {# interventions}}, {responsible_properties, plural, one {# bien dont il est l'agent principal} other {# biens dont il est l'agent principal}}, {held_properties, plural, one {# bien saisi} other {# biens saisis}}, {collaborations, plural, one {# collaboration} other {# collaborations}}, {customers, plural, one {# client suivi} other {# clients suivis}}, {contact_leads, plural, one {# demande de contact non traitée} other {# demandes de contact non traitées}}. Passez-le à un collègue avant cette date depuis l'équipe : {url}"
         }
       },
       "platform_operator": {

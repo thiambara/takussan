@@ -3066,7 +3066,8 @@
         "collaborations": "Collaborations sur des biens",
         "customers": "Clients dont il est le référent",
         "responsible_properties": "Biens dont il est l’agent responsable",
-        "held_properties": "Biens saisis à son nom"
+        "held_properties": "Biens saisis à son nom",
+        "contact_leads": "Demandes de contact non traitées"
       },
       "notTransferable": "pas encore transmissible",
       "successor": "Repreneur",
@@ -10870,6 +10871,10 @@
         "reinstated": {
           "title": "Suspension levée : {agency}",
           "body": "La suspension de l'agence {agency} est levée. Motif : {reason}. Ses annonces publiques sont de nouveau visibles."
+        },
+        "member_deletion_requested": {
+          "title": "Effacement de compte demandé : {member}",
+          "body": "{member} a demandé l'effacement de son compte, effectif le {scheduled_for}. Son portefeuille dans l'agence : {tasks, plural, one {# tâche} other {# tâches}}, {visits, plural, one {# visite} other {# visites}}, {maintenance, plural, one {# intervention} other {# interventions}}, {responsible_properties, plural, one {# bien dont il est l'agent principal} other {# biens dont il est l'agent principal}}, {held_properties, plural, one {# bien saisi} other {# biens saisis}}, {collaborations, plural, one {# collaboration} other {# collaborations}}, {customers, plural, one {# client suivi} other {# clients suivis}}, {contact_leads, plural, one {# demande de contact non traitée} other {# demandes de contact non traitées}}. Passez-le à un collègue avant cette date depuis l'équipe : {url}"
         }
       },
       "platform_operator": {

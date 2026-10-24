@@ -29,6 +29,7 @@ use App\Models\User;
 use App\Models\WhatsappContact;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
+use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Payout\PayoutCalculator;
 use App\Support\CaseInsensitive;
@@ -142,6 +143,10 @@ class AccountDeletionService
                 ->log('account.deletion.requested');
 
             $user->notify(new AccountDeletionRequestedNotification($request));
+
+            // TCK-2164 (P204.01) — les admins de chaque agence où le compte laisse un portefeuille
+            // en reçoivent l'inventaire, pour le passer pendant le délai de grâce.
+            DB::afterCommit(fn () => app(ErasedMemberPortfolio::class)->notifyAgencies($user, $scheduledFor));
 
             return $request->fresh();
         });
@@ -332,6 +337,12 @@ class AccountDeletionService
         $user->clearMediaCollection('avatars');
         $user->clearMediaCollection('photos');
 
+        // TCK-2172 (P204.05) — les extinctions du retrait, par sa méthode : délégations révoquées,
+        // marques d'agent principal ôtées, dans toutes les agences. AVANT la suppression : l'avis
+        // de révocation lit encore le délégué (`$delegation->user`), déjà anonymisé et `deleted`,
+        // que les avis écartent.
+        app(AgencyMemberRemovalService::class)->dropDelegationsAndMarks($user, null, $user);
+
         // Soft-delete the row. Auth queries use the default scope so the
         // user can no longer log in.
         $user->delete();
@@ -415,6 +426,14 @@ class AccountDeletionService
         // mais le nom de fichier choisi par la personne, sur la pièce et sur ses médias, cède la
         // place au type. Les profils déjà terminés (agent retiré de l'agence) comptent aussi.
         // Décision du porteur, 2026-10-20.
+        // TCK-2166 (P204.02) — l'agence dont le compte était le seul administrateur, ou
+        // l'administrateur principal : inactive, ou titre transmis. Avant la fin des profils, qui
+        // les rend inactifs.
+        app(ErasedAgencyAdmin::class)->settle($user);
+
+        // TCK-2168 (P204.03) — tâches et interventions qui restent au compte : libérées.
+        app(ErasedMemberPortfolio::class)->release($user);
+
         $this->endProfiles($user);
 
         // TCK-1025 (P57.05) — le contact WhatsApp et les alertes sans compte du contact vérifié
@@ -575,6 +594,17 @@ class AccountDeletionService
                 'id' => $agency->id,
                 'reference' => null,
                 'label' => __('account.deletion.obligations.payout_due', ['agency' => $agency->name]),
+            ];
+        }
+
+        // TCK-2166 (P204.02) — une agence qui garde du personnel sans autre administrateur : le
+        // compte nomme d'abord un autre administrateur (décision du porteur, 2026-10-24).
+        foreach (app(ErasedAgencyAdmin::class)->successionsDue($user) as $agency) {
+            $obligations[] = [
+                'type' => 'agency_admin_succession',
+                'id' => $agency->id,
+                'reference' => null,
+                'label' => __('account.deletion.obligations.agency_admin_succession', ['agency' => $agency->name]),
             ];
         }
 

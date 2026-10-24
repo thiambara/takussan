@@ -35,6 +35,7 @@ return [
             // TCK-2015 (P175.03)
             'payout_upcoming' => 'Reversement en cours :reference.',
             'payout_due' => 'Reversement dû par :agency.',
+            'agency_admin_succession' => 'Seul administrateur de :agency : nommez un autre administrateur.',
         ],
     ],
 

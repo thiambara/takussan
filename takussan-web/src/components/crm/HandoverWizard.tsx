@@ -47,6 +47,7 @@ interface HandoverWizardProps {
 // passation traite dans cet ordre (TCK-603, ADR-0059 §3).
 const CATEGORIES: readonly PortfolioCategory[] = [
   'tasks', 'visits', 'maintenance', 'responsible_properties', 'held_properties', 'collaborations', 'customers',
+  'contact_leads',
 ];
 
 /**

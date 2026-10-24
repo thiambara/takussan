@@ -90,15 +90,8 @@ class AgencyMemberRemovalService
                 $removed[] = 'agency_admin';
             }
 
-            RoleDelegation::query()
-                ->where('agency_id', $agencyId)
-                ->where(fn ($q) => $q->where('user_id', $member->id)->orWhere('replaces_user_id', $member->id))
-                ->whereIn('status', [RoleDelegationStatus::Scheduled, RoleDelegationStatus::Active])
-                ->get()
-                ->each(fn (RoleDelegation $d) => $this->delegations->revoke($d, $actor));
-
+            $this->dropDelegationsAndMarks($member, $agencyId, $actor);
             $this->feeds->revoke($member, $agencyId);
-            $this->dropPrimaryMarks($member, $agencyId);
             $this->leaveUnreadableLeaseThreads($member, $agencyId);
 
             activity('Membership')
@@ -159,17 +152,37 @@ class AgencyMemberRemovalService
     }
 
     /**
+     * TCK-2172 (P204.05, décision du porteur du 2026-10-24) — LA méthode commune au retrait et à
+     * l'effacement (`AccountDeletionService::anonymize()`) : les délégations de rôle où figure le
+     * membre (délégué ou remplacé) sont révoquées (ADR-0035), et ses marques d'agent principal
+     * tombent (TCK-1333). `$agencyId` nul : dans toutes les agences — l'effacement. Le référent
+     * client reste un sujet à part.
+     */
+    public function dropDelegationsAndMarks(User $member, ?int $agencyId, User $actor): void
+    {
+        RoleDelegation::query()
+            ->when($agencyId !== null, fn ($q) => $q->where('agency_id', $agencyId))
+            ->where(fn ($q) => $q->where('user_id', $member->id)->orWhere('replaces_user_id', $member->id))
+            ->whereIn('status', [RoleDelegationStatus::Scheduled, RoleDelegationStatus::Active])
+            ->orderBy('id')
+            ->get()
+            ->each(fn (RoleDelegation $d) => $this->delegations->revoke($d, $actor));
+
+        $this->dropPrimaryMarks($member, $agencyId);
+    }
+
+    /**
      * TCK-1333 (P121.04, décision du porteur) — un non-membre ne porte plus la marque d'agent
      * principal d'un bien de l'agence : elle tombe dans le repli, comme pour un repreneur refusé
      * (TCK-1253). La ligne reste — seule la marque part. Les biens sont verrouillés d'abord, par
      * identifiant croissant (ADR-0059 §3 : bien → lignes, l'ordre de `PrimaryAgentDesignator`).
      */
-    private function dropPrimaryMarks(User $member, int $agencyId): void
+    private function dropPrimaryMarks(User $member, ?int $agencyId): void
     {
         $marked = fn () => PropertyCollaborator::query()
             ->where('user_id', $member->id)
             ->where('is_primary', true)
-            ->whereIn('property_id', Property::withTrashed()->where('agency_id', $agencyId)->select('id'));
+            ->when($agencyId !== null, fn ($q) => $q->whereIn('property_id', Property::withTrashed()->where('agency_id', $agencyId)->select('id')));
 
         $propertyIds = $marked()->pluck('property_id')->all();
         if ($propertyIds === []) {

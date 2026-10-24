@@ -42,6 +42,7 @@ use Illuminate\Support\Facades\DB;
  *    et si celle du partant portait la marque, elle passe d'abord au repreneur (ADR-0053,
  *    « Conséquences ») ; un repreneur co-propriétaire du bien laisse la collaboration DÉSASSIGNÉE ; si le repreneur des biens a été refusé pour ce bien, la ligne réécrite
  *    perd sa marque, qui tombe dans le repli (ADR-0059 §3, TCK-1253) ;
+ *  - `contact_leads` (TCK-2170) : le repreneur devient le destinataire des demandes non traitées ;
  *  - `customers` : le référent (`is_primary`) passe au repreneur ; s'il a déjà une relation de même
  *    type avec le client, elle devient la principale et celle du partant est supprimée.
  *
@@ -312,6 +313,11 @@ class AgentHandoverService
                 }
 
                 return [array_values(array_diff($ids, $dropped)), $dropped];
+
+            case 'contact_leads':
+                DB::table('property_contact_leads')->whereIn('id', $ids)->update(['recipient_user_id' => $successor->id, 'updated_at' => now()]);
+
+                return [$ids, []];
 
             case 'customers':
                 foreach (UserCustomerRelationship::query()->whereIn('id', $ids)->get() as $row) {
