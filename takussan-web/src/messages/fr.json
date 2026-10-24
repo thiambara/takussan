@@ -3569,6 +3569,7 @@
       "colAmount": "Montant",
       "colCommission": "Commission",
       "leaseLine": "Loyer — bail {reference}",
+      "lateFeeLine": "Pénalité de retard — bail {reference}",
       "bookingLine": "Réservation {reference}",
       "billLine": "Intervention {reference}",
       "rateFromLease": "({rate} % du bail)",

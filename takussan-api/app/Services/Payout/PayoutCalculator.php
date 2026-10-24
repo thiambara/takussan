@@ -14,7 +14,9 @@ use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\Enums\ServiceProviderBillStatus;
 use App\Models\Enums\TaskStatus;
 use App\Models\LeasePayment;
+use App\Models\PlatformPayout;
 use App\Models\ServiceProviderBill;
+use App\Services\Billing\PlatformPayoutService;
 use App\Services\Booking\BookingRefundTaskService;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,6 +41,9 @@ use Illuminate\Support\Collection;
  *    unique, et un reversement `cancelled` ou `failed` les détache.
  *  - Une pièce soldée par la plateforme n'est reversable qu'une fois son `PlatformPayout` `paid`
  *    (TCK-2064), hors agence `individual` : {@see self::exceptAwaitingPlatform()}.
+ *  - **Pénalités de retard réglées** (P206.01, ADR-0039, amendement du 2026-10-24, point 6) : une
+ *    ligne propre, au mois de `late_fee_paid_at`, au taux du bail ; éligibles tant que
+ *    `late_fee_payout_id` est nul : {@see self::lateFees()}.
  */
 final class PayoutCalculator
 {
@@ -81,6 +86,77 @@ final class PayoutCalculator
         }
 
         return $query->orderBy('lease_payments.paid_at')->orderBy('lease_payments.id');
+    }
+
+    /**
+     * P206.01 (ADR-0039, amendement du 2026-10-24, point 6 ; TCK-594 : « pénalités […] reviennent
+     * au bailleur, entrent dans le brut et portent commission ») — les lignes de loyer dont la
+     * pénalité de retard a été réglée dans la période (`late_fee_paid_at`), quel que soit le statut
+     * du loyer, sauf `cancelled`. L'éligibilité est propre à la pénalité (`late_fee_payout_id`) :
+     * une pénalité réglée après le reversement de son loyer reste reversable.
+     *
+     * @return Builder<LeasePayment>
+     */
+    public function lateFees(int $agencyId, int $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true): Builder
+    {
+        $query = LeasePayment::query()
+            ->select('lease_payments.*')
+            ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
+            ->where('leases.agency_id', $agencyId)
+            ->where('leases.landlord_id', $landlordId)
+            ->where(fn (Builder $q) => $this->whereLateFeeSettled($q));
+
+        $this->period($query, 'lease_payments.late_fee_paid_at', $from, $to);
+
+        if ($onlyUnpaidOut) {
+            $query->whereNull('lease_payments.late_fee_payout_id');
+        }
+
+        return $query->with('lease:id,reference_number,property_id,commission_rate,agency_id,landlord_id')
+            ->orderBy('lease_payments.late_fee_paid_at')
+            ->orderBy('lease_payments.id');
+    }
+
+    /**
+     * La pénalité réglée d'une ligne, en SQL : le prédicat de {@see self::lateFees()}, relu par la
+     * création sous verrou.
+     *
+     * @param  Builder<LeasePayment>  $query
+     */
+    public function whereLateFeeSettled(Builder $query): void
+    {
+        $query->where('lease_payments.status', '!=', PaymentStatus::Cancelled->value)
+            ->whereIn('lease_payments.payment_type', array_map(fn ($t) => $t->value, self::LEASE_TYPES))
+            ->whereNotNull('lease_payments.late_fee_paid_at')
+            ->where('lease_payments.late_fee_amount', '>', 0);
+    }
+
+    /**
+     * P206.01 (ADR-0039, amendement du 2026-10-24, point 6, « Encaisseur ») — une pénalité réglée
+     * dans un checkout de la plateforme (la lecture de la clôture,
+     * {@see PlatformPayoutService::lateFeeSettledByPlatform()}) attend que son `PlatformPayout` soit
+     * `paid`, comme sa pièce (TCK-2064). Réglée à l'agence, elle est reversable aussitôt. Les agences
+     * `individual` restent hors de la règle.
+     *
+     * @param  Collection<int, LeasePayment>  $lateFees
+     * @return Collection<int, LeasePayment>
+     */
+    public function exceptLateFeesAwaitingPlatform(Collection $lateFees, Agency $agency): Collection
+    {
+        if ($agency->kind?->isIndividual() || $lateFees->isEmpty()) {
+            return $lateFees;
+        }
+
+        $platform = app(PlatformPayoutService::class);
+        $paid = PlatformPayout::query()
+            ->whereIn('id', $lateFees->pluck('platform_payout_id')->filter()->unique()->values())
+            ->where('status', PlatformPayoutStatus::Paid->value)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return $lateFees->reject(fn (LeasePayment $fee): bool => ! in_array((int) $fee->platform_payout_id, $paid, true)
+            && $platform->lateFeeSettledByPlatform($fee))->values();
     }
 
     /**
@@ -240,16 +316,18 @@ final class PayoutCalculator
      * @param  Collection<int, LeasePayment>  $leasePayments
      * @param  Collection<int, BookingPayment>  $bookingPayments
      * @param  Collection<int, ServiceProviderBill>  $bills
-     * @param  array{lease_payments?: array<int, float>, booking_payments?: array<int, float>}  $retainedRates
+     * @param  array{lease_payments?: array<int, float>, booking_payments?: array<int, float>, late_fees?: array<int, float>}  $retainedRates
+     * @param  Collection<int, LeasePayment>|null  $lateFees  les lignes de {@see self::lateFees()} (P206.01)
      * @return array{
      *     currency: string,
-     *     lines: array{lease_payments: list<array<string,mixed>>, booking_payments: list<array<string,mixed>>, service_provider_bills: list<array<string,mixed>>},
+     *     lines: array{lease_payments: list<array<string,mixed>>, booking_payments: list<array<string,mixed>>, service_provider_bills: list<array<string,mixed>>, late_fees: list<array<string,mixed>>},
      *     totals: array{gross: float, commission: float, fees: float, net: float},
      * }
      */
-    public function compute(Agency $agency, Collection $leasePayments, Collection $bookingPayments, Collection $bills, array $retainedRates = []): array
+    public function compute(Agency $agency, Collection $leasePayments, Collection $bookingPayments, Collection $bills, array $retainedRates = [], ?Collection $lateFees = null): array
     {
-        $currency = $this->currencyOf($agency, $leasePayments, $bookingPayments, $bills);
+        $lateFees ??= collect();
+        $currency = $this->currencyOf($agency, $leasePayments, $bookingPayments, $bills, $lateFees);
         $places = $currency->decimalPlaces();
         $agencyRate = $agency->commission_rate !== null ? (float) $agency->commission_rate : 0.0;
 
@@ -292,6 +370,27 @@ final class PayoutCalculator
             ];
         }
 
+        // P206.01 — la pénalité réglée : une ligne à part, datée de son règlement, au taux du bail.
+        $lateFeeLines = [];
+        foreach ($lateFees as $payment) {
+            $rate = $retainedRates['late_fees'][$payment->id]
+                ?? ($payment->lease?->commission_rate !== null ? (float) $payment->lease->commission_rate : $agencyRate);
+            $amount = max(0.0, (float) $payment->late_fee_amount);
+            $lateFeeLines[] = [
+                'id' => $payment->id,
+                'reference_number' => $payment->reference_number,
+                'payment_type' => 'late_fee',
+                'lease_id' => $payment->lease_id,
+                'lease_reference' => $payment->lease?->reference_number,
+                'property_id' => $payment->lease?->property_id,
+                'paid_at' => $payment->late_fee_paid_at?->toIso8601String(),
+                'amount' => $amount,
+                'commission_rate' => $rate,
+                'commission_rate_source' => $payment->lease?->commission_rate !== null ? 'lease' : 'agency',
+                'commission' => $this->round($amount * $rate / 100, $places),
+            ];
+        }
+
         $billLines = [];
         foreach ($bills as $bill) {
             $billLines[] = [
@@ -303,8 +402,8 @@ final class PayoutCalculator
             ];
         }
 
-        $gross = $this->round(array_sum(array_column($leaseLines, 'amount')) + array_sum(array_column($bookingLines, 'amount')), $places);
-        $commission = $this->round(array_sum(array_column($leaseLines, 'commission')) + array_sum(array_column($bookingLines, 'commission')), $places);
+        $gross = $this->round(array_sum(array_column($leaseLines, 'amount')) + array_sum(array_column($bookingLines, 'amount')) + array_sum(array_column($lateFeeLines, 'amount')), $places);
+        $commission = $this->round(array_sum(array_column($leaseLines, 'commission')) + array_sum(array_column($bookingLines, 'commission')) + array_sum(array_column($lateFeeLines, 'commission')), $places);
         $fees = $this->round(array_sum(array_column($billLines, 'amount')), $places);
 
         return [
@@ -313,6 +412,7 @@ final class PayoutCalculator
                 'lease_payments' => $leaseLines,
                 'booking_payments' => $bookingLines,
                 'service_provider_bills' => $billLines,
+                'late_fees' => $lateFeeLines,
             ],
             'totals' => [
                 'gross' => $gross,

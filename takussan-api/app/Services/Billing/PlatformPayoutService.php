@@ -408,6 +408,17 @@ class PlatformPayoutService
     }
 
     /**
+     * P206.01 (ADR-0039, amendement du 2026-10-24, point 6, « Encaisseur ») — la pénalité de cette
+     * ligne a-t-elle été réglée dans le checkout de la plateforme qui a soldé le loyer ? La lecture
+     * même de la clôture ({@see self::lateFeeSettledWith()}) : c'est elle qui la met au brut de
+     * l'agence, et le reversement au bailleur l'attend.
+     */
+    public function lateFeeSettledByPlatform(LeasePayment $payment): bool
+    {
+        return $this->lateFeeSettledWith($payment, $this->settledBy($payment, $this->globalIntegrationIds([$payment]))) > 0;
+    }
+
+    /**
      * Les intégrations GLOBALES (`agency_id` nul, supprimées comprises) parmi celles qui ont initié
      * le règlement de ces paiements. Une requête pour toute la clôture.
      *

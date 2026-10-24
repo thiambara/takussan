@@ -3598,6 +3598,7 @@
       "colAmount": "Amount",
       "colCommission": "Commission",
       "leaseLine": "Rent — lease {reference}",
+      "lateFeeLine": "Late fee — lease {reference}",
       "bookingLine": "Booking {reference}",
       "billLine": "Job {reference}",
       "rateFromLease": "({rate}% from the lease)",
