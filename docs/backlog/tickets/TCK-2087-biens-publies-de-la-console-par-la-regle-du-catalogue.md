@@ -1,7 +1,7 @@
 ---
 id: TCK-2087
 title: "« Biens publiés » de la console plateforme compte `Property::public()`, et sa liste lit `filter[public]=1`"
-status: todo
+status: done
 phase: P1
 family: applicatif
 estimate: S
@@ -49,19 +49,19 @@ développement : 2 biens `published` contre 427 `available`.
 
 ## Delta à produire
 
-- [ ] API : `PlatformMetricsSnapshotter::stocks()` compte `properties_published` par
+- [x] API : `PlatformMetricsSnapshotter::stocks()` compte `properties_published` par
   `Property::query()->public()`, la rupture de série notée en commentaire.
-- [ ] Front : le lien de la tuile ouvre `/super-admin/properties?filter[public]=1` ; la page lit
+- [x] Front : le lien de la tuile ouvre `/super-admin/properties?filter[public]=1` ; la page lit
   `filter[public]` et `fetchAdminProperties` le relaie ; la barre de filtres le compte parmi ses
   paramètres.
-- [ ] Gardes : un test du snapshotter (bien `available` public compté, `rented` public, privé et
+- [x] Gardes : un test du snapshotter (bien `available` public compté, `rented` public, privé et
   `is_test` non comptés) ; les tests de destination de la tuile et de la lecture de la console.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `stocks()['properties_published']` vaut le compte de `Property::public()` : un bien
+- [x] AC1 — `stocks()['properties_published']` vaut le compte de `Property::public()` : un bien
   `available` public est compté, un `published` privé, un `rented` public et un bien de test non.
-- [ ] AC2 — la tuile « Biens publiés » mène à `/super-admin/properties?filter[public]=1`, et la
+- [x] AC2 — la tuile « Biens publiés » mène à `/super-admin/properties?filter[public]=1`, et la
   liste y envoie `filter[public]=1` à l'API.
 
 ## Hors périmètre
@@ -71,3 +71,11 @@ développement : 2 biens `published` contre 427 `available`.
 - La série passée de `platform_metrics_daily` : elle garde l'ancienne règle (décision).
 
 ## Notes d'implémentation
+
+- Reproduit sur `09237a2e9` : `BiensPubliesConsoleTest` → `Failed asserting that 2 is identical to
+  3` (deux biens `available` publics non comptés, le `published` privé compté) ; les tests front
+  rendaient le lien `filter[status]=published` et une lecture sans `filter[public]`.
+- Piège : une première version du test (un seul bien `available`) était verte AVANT correctif, les
+  deux règles tombant par hasard sur 2. Le second bien `available` les fait diverger.
+- Ablation : snapshotter remis → rouge (`2 is identical to 3`) ; les quatre fichiers front remis →
+  4 rouges sur 13 ; rétablis → verts.
