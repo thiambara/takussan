@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Admin\AssignAgencySubscriptionRequest;
+use App\Http\Requests\Api\Admin\UpdateAgencySubscriptionOverridesRequest;
 use App\Http\Resources\Api\Admin\AgencySubscriptionResource;
 use App\Models\Agency;
 use App\Models\Plan;
@@ -32,6 +33,17 @@ class AgencySubscriptionController extends Controller
         return $this->json([
             'data' => (new AgencySubscriptionResource($subscription))->resolve($request),
         ], 201);
+    }
+
+    /** TCK-2222 (P214.01) — les dérogations modifiées sur place, sans clore l'abonnement. */
+    public function updateOverrides(UpdateAgencySubscriptionOverridesRequest $request, Agency $agency): JsonResponse
+    {
+        $subscription = $this->subscriptions->updateOverrides($agency, $request->user(), $request->validated());
+        abort_if($subscription === null, 404);
+
+        return $this->json([
+            'data' => (new AgencySubscriptionResource($subscription))->resolve($request),
+        ]);
     }
 
     public function cancel(Request $request, Agency $agency): JsonResponse

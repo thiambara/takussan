@@ -20,7 +20,18 @@ const STATUS_TONE: Record<AgencySubscription['status'], StatusTone> = {
   ended: 'neutral',
 };
 
-export function SubscriptionSummary({ subscription }: { subscription: AgencySubscription | null }) {
+/**
+ * `showOverrides` (TCK-2222, P214.01) : la console du super-admin liste les dérogations actives de
+ * l'abonnement, que les valeurs effectives seules ne distinguent pas de celles du plan. L'écran de
+ * facturation de l'agence ne les montre pas.
+ */
+export function SubscriptionSummary({
+  subscription,
+  showOverrides = false,
+}: {
+  readonly subscription: AgencySubscription | null;
+  readonly showOverrides?: boolean;
+}) {
   // Le hook se place AVANT la sortie anticipée : un `useTranslations` posé après serait un hook
   // conditionnel, refusé par le React Compiler (ADR-0015).
   const t = useTranslations('billing.subscription');
@@ -67,8 +78,38 @@ export function SubscriptionSummary({ subscription }: { subscription: AgencySubs
             value={displayLimit(subscription.effective_limits.max_agents, t('unlimited'))}
           />
         </div>
+        {showOverrides && <ActiveOverrides subscription={subscription} />}
       </CardContent>
     </Card>
+  );
+}
+
+function ActiveOverrides({ subscription }: { readonly subscription: AgencySubscription }) {
+  const t = useTranslations('billing.subscription');
+  const limits = subscription.limits_override ?? {};
+  const items: { label: string; value: string }[] = [];
+  if (subscription.platform_fee_pct_override !== null) {
+    items.push({ label: t('platformFee'), value: `${subscription.platform_fee_pct_override}%` });
+  }
+  const libelles = { max_active_listings: t('activeListings'), max_agents: t('agents'), max_branches: t('branches') };
+  for (const [cle, label] of Object.entries(libelles)) {
+    const value = limits[cle];
+    if (value !== undefined && value !== null) items.push({ label, value: String(value) });
+  }
+
+  return (
+    <div className="space-y-2 border-t border-border pt-3">
+      <p id={`derogations-${subscription.id}`} className="text-sm font-medium text-foreground">{t('overrides.title')}</p>
+      {items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t('overrides.none')}</p>
+      ) : (
+        <ul aria-labelledby={`derogations-${subscription.id}`} className="space-y-1 text-sm tabular-nums text-foreground">
+          {items.map((item) => (
+            <li key={item.label}>{t('overrides.item', { label: item.label, value: item.value })}</li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

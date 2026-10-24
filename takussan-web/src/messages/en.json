@@ -9571,7 +9571,13 @@
         "suspended": "Suspended",
         "ended": "Ended"
       },
-      "noneDescription": "Your plan's limits and commission will appear here as soon as a subscription is active."
+      "noneDescription": "Your plan's limits and commission will appear here as soon as a subscription is active.",
+      "overrides": {
+        "title": "Active overrides",
+        "none": "No override: the plan values apply.",
+        "item": "{label}: {value}"
+      },
+      "branches": "Branches"
     },
     "agencySubscription": {
       "changePlan": "Change plan",
@@ -9584,7 +9590,19 @@
         "assigned": "Subscription updated",
         "assignFailed": "Assignment failed",
         "closed": "Subscription closed",
-        "closeFailed": "Closing failed"
+        "closeFailed": "Closing failed",
+        "overridesSaved": "Overrides saved",
+        "overridesFailed": "Could not save overrides"
+      },
+      "overrides": {
+        "title": "Edit overrides",
+        "hint": "Edits the current subscription without changing plan, trial or period. An empty field restores the plan value.",
+        "fee": "Fee override (%)",
+        "listings": "Active listings quota override",
+        "agents": "Agents quota override",
+        "branches": "Branches quota override",
+        "planValue": "Plan value",
+        "save": "Save overrides"
       }
     },
     "plans": {
