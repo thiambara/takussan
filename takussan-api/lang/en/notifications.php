@@ -660,6 +660,12 @@ return [
                 'body' => 'Your maintenance request is now: in progress. Visit planned on :scheduled_at.',
                 'sms' => 'Takussan: Your request ":request": in progress',
             ],
+            // TCK-2012 (P184.01) — le passage fixé ou déplacé, à toutes les parties sauf l'auteur.
+            'schedule_changed' => [
+                'title' => 'Visit planned: ":request"',
+                'body' => 'The visit for the maintenance request ":request" is planned on :scheduled_at.',
+                'sms' => 'Takussan: visit planned on :scheduled_at for ":request".',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [

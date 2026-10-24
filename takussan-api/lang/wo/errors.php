@@ -367,6 +367,9 @@ return [
         'service_provider_not_owner' => 'Mënuloo soppi profil prestataire bii.',
         'service_provider_suspended' => 'Profil prestataire bii dañu ko taxawal : jeexal bindu bi du ko yeesal.',
     ],
+    'password_reset' => [
+        'invalid_link' => 'Ce lien de réinitialisation est invalide ou a expiré. Demandez-en un nouveau.',
+    ],
     'payment' => [
         'amount_not_positive' => 'Xaalis bi ñuy fay war na ëpp tus.',
         'amount_short' => 'Xaalis bi ñu jot moo gën a tuuti xaalis bi ñu xaaroon.',

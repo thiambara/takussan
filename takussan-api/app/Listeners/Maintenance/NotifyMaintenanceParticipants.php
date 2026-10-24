@@ -4,6 +4,7 @@ namespace App\Listeners\Maintenance;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
+use App\Events\Maintenance\MaintenanceScheduleChanged;
 use App\Events\Maintenance\MaintenanceStatusChanged;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
@@ -26,7 +27,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
  *  - **demandeur** : chaque étape visible ({@see self::REQUESTER_STEPS}), avec le passage prévu
  *    (`scheduled_at`) — **jamais** un montant ni une étape de devis ;
  *  - **donneurs d'ordre** (bailleur + équipe) : acceptation, refus avec son motif, devis soumis,
- *    fin des travaux, issue de la clôture, annulation.
+ *    fin des travaux, issue de la clôture, annulation ;
+ *  - **toutes les parties** : le passage fixé ou déplacé (TCK-2012, {@see self::handleScheduleChanged()}).
  *
  * L'auteur du geste n'est jamais notifié de son propre geste ; un destinataire qui tient deux rôles
  * ne reçoit qu'une notification, celle du premier rôle listé.
@@ -60,6 +62,31 @@ class NotifyMaintenanceParticipants implements ShouldQueue
 
         foreach ($sends as [$recipient, $key, $extra]) {
             $this->send($recipient, $key, $extra, $mr, $event);
+        }
+    }
+
+    /**
+     * TCK-2012 (P184.01, décision du porteur) — le passage fixé ou déplacé : un seul code,
+     * `maintenance.schedule_changed`, au prestataire, au demandeur et aux donneurs d'ordre, sauf à
+     * l'auteur ; une notification par destinataire, quel que soit le nombre de ses rôles.
+     */
+    public function handleScheduleChanged(MaintenanceScheduleChanged $event): void
+    {
+        $mr = $event->maintenanceRequest->loadMissing(['property.agency', 'property.owner', 'assignee', 'requester']);
+        if ($mr->scheduled_at === null) {
+            return;
+        }
+
+        $sends = [];
+        foreach ([$this->providerRecipient($mr), $mr->requester, ...$this->participants->principals($mr)] as $recipient) {
+            if ($recipient instanceof User && $recipient->id !== $event->actor?->id) {
+                $sends[$recipient->id] = $recipient;
+            }
+        }
+
+        $params = ['request' => (string) $mr->title, 'scheduled_at' => $mr->scheduled_at->toIso8601String()];
+        foreach ($sends as $recipient) {
+            $this->notifications->send($recipient, NotificationCode::MaintenanceScheduleChanged, $params, NotificationTarget::of('maintenance', $mr->id));
         }
     }
 

@@ -367,6 +367,9 @@ return [
         'service_provider_not_owner' => 'You cannot edit this service provider profile.',
         'service_provider_suspended' => 'This service provider profile is suspended: completing onboarding does not reactivate it.',
     ],
+    'password_reset' => [
+        'invalid_link' => 'This reset link is invalid or has expired. Request a new one.',
+    ],
     'payment' => [
         'amount_not_positive' => 'The amount to pay must be positive.',
         'amount_short' => 'The amount received is less than the amount expected.',

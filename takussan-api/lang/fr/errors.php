@@ -367,6 +367,9 @@ return [
         'service_provider_not_owner' => 'Vous ne pouvez pas modifier ce profil prestataire.',
         'service_provider_suspended' => "Ce profil prestataire est suspendu : la fin d'inscription ne le réactive pas.",
     ],
+    'password_reset' => [
+        'invalid_link' => 'Ce lien de réinitialisation est invalide ou a expiré. Demandez-en un nouveau.',
+    ],
     'payment' => [
         'amount_not_positive' => 'Le montant à payer doit être positif.',
         'amount_short' => 'Le montant reçu est inférieur au montant attendu.',

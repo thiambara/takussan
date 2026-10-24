@@ -209,7 +209,9 @@ class MaintenanceRequestResource extends BaseResource
                 && in_array($status, [MaintenanceStatus::QuoteRequested, MaintenanceStatus::Rejected], true),
             'can_accept' => $canRespond,
             'can_decline' => $canRespond && in_array($status->value, MaintenanceRequestService::UNSTARTED, true),
-            'can_assign' => ! $terminal && $user->can('actAsPrincipal', $mr),
+            // TCK-2010 (P184.02) — faux sur `completed` aussi : `assign()` y refuse toute réassignation
+            // (`maintenance.reassign_after_completion`), et le bloc menait à ce 422.
+            'can_assign' => ! $terminal && $status !== MaintenanceStatus::Completed && $user->can('actAsPrincipal', $mr),
             'can_complete' => $user->can('transitionTo', [$mr, MaintenanceStatus::Completed]),
             'can_upload_before_photos' => ! $terminal && $isProvider && $mr->accepted_at !== null,
             'can_confirm_resolution' => $user->can('respondToResolution', [$mr, MaintenanceStatus::Closed]),
