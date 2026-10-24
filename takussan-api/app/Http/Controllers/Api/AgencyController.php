@@ -88,7 +88,8 @@ class AgencyController extends Controller
         // `{"message":"This action is unauthorized."}` — une phrase ANGLAISE
         // que le front affiche telle quelle (`ApiError::displayMessage`) dans
         // une UI française. Dédupliquer ne doit rien changer d'observable.
-        abort_unless($request->user()->can('update', $agency), 403);
+        // TCK-2024 (P116.02) — modifier la fiche, c'est CONFIGURER l'agence : `agency.update` en plus.
+        abort_unless($request->user()->can('configure', $agency), 403);
 
         $data = $request->validated();
 

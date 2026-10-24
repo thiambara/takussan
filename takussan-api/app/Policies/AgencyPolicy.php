@@ -58,6 +58,33 @@ class AgencyPolicy
     }
 
     /**
+     * TCK-2024 (P116.02, décision du porteur) — CONFIGURER l'agence : sa fiche (`PATCH`), son logo,
+     * ses réglages, ses intégrations et la carte de mise en service. `update()` (qui administre
+     * l'agence, sous son profil actif) ET la capacité `agency.update` à cette agence, comme
+     * {@see AgencyIndicatorPolicy} : un rôle personnalisé peut la retirer à un admin. L'admin
+     * principal ne s'en enferme pas dehors. `listMembers` reste sur `update()`.
+     */
+    public function configure(User $user, Agency $agency): bool
+    {
+        if ($user->isSuperAdmin() || $agency->primary_admin_id === $user->id) {
+            return true;
+        }
+
+        return $this->update($user, $agency)
+            && $user->canActAt(Capability::AgencyUpdate, $agency);
+    }
+
+    /**
+     * TCK-2024 (P116.02) — le logo, seule collection de l'agence : lu par
+     * `MediaController::authorizeAttach`, qui préfère `attachMedia` à `update` quand la policy
+     * l'expose.
+     */
+    public function attachMedia(User $user, Agency $agency): bool
+    {
+        return $this->configure($user, $agency);
+    }
+
+    /**
      * TCK-594 (ADR-0039 §4) — le seuil des quatre yeux se règle par qui administre l'agence ET
      * détient `payouts.approve` à cette agence : celui qui approuve décide quand on approuve. Le
      * remettre à `null` est le même geste — désactiver le contrôle n'est pas moins sensible.
