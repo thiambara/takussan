@@ -19993,7 +19993,7 @@ les envoie.*
 
 ### Petites améliorations
 - Réf : P220.08
-- Statut : validé (délégué) — « Bailleur actif » nommé par le même assembleur que P220.04 (un seul assembleur de nom affichable sous `src/lib` : prénom et nom, sinon e-mail, sinon numéro, sinon `#<id>`, avec les seuls champs que chaque écran charge déjà (aucun champ de contact neuf demandé à l'API)) ; `property-collaborators.ts:77` et `VisitDetail.tsx:608` passent par lui ; une garde `scripts/check-*.mjs` refuse la composition `first_name` + `last_name` hors de l'assembleur, avec une liste d'exceptions motivées pour les sites que le lot ne convertit pas
+- Statut : fait · TCK-2142
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:212-216`, `takussan-web/src/lib/queries/property-collaborators.ts:77`, `takussan-web/src/components/visits/VisitDetail.tsx:608`
 - Constat :
@@ -20003,6 +20003,7 @@ les envoie.*
 - Piste : un `nomAffichable()` sous `src/lib`, et une garde légère (`grep` dans `scripts/check-*.mjs`) contre la composition `${first_name} ${last_name}` hors de lui.
 - Mesure (2026-10-24, 6d8095e26, mesureur) : relu `CreateLeaseForm.tsx:214` (`t('activeLandlord', { name: user.full_name })`), `fr.json:3918` (« Bailleur actif : {name} »), `property-collaborators.ts:77` (`#id`), `VisitDetail.tsx:608` (e-mail), `grep nomAffichable src/lib` → rien, inchangés → le constat tient. Classement : V7, le repli à afficher et l'assembleur dépendent du choix de P220.04 ; la garde seule serait A5.
 - Mesure (2026-10-24, 3e8efc3c5, delegue) : relu l'entrée et la `Mesure` du mesureur, `CreateLeaseForm.tsx:212-216` (le nom est celui du compte courant, lu par lui-même), `property-collaborators.ts:77` et `VisitDetail.tsx:608` (replis divergents) → l'assembleur est celui de P220.04, dont l'ordre suit TCK-2053 ; la garde est une garde de code neuve, sans seuil existant resserré (A5), hors des bornes des agents. Délégation : V7, même règle que P220.04, sans texte neuf, réversible en un commit.
+- Mesure (2026-10-24, 60bd7e880, implementeur) : avant correctif, le récapitulatif d'un bail créé par un bailleur sans nom n'affichait pas « Bailleur actif : <numéro> » ni « #4 », et un visiteur inscrit sans nom ni e-mail se lisait « Utilisateur inscrit » malgré son numéro (trois tests rouges) ; `CreateLeaseForm`, `collaboratorName` et `VisitDetail` passent par `nomAffichable()` (TCK-2138), les libellés traduits existants servant de repli ; `scripts/check-nom-affichable.mjs` refuse la composition prénom + nom hors de `src/lib/identite.ts`, 33 sites excusés dans 19 fichiers ; tests verts, voisins verts (34) ; ablation : les trois fichiers remis → trois rouges, une composition remise dans `ConfirmSuspendDialog` → la garde rougit.
 
 ## Angle 221 — Arguments typés `string` nourris par une colonne nullable ou un repli qui rend `null`
 
