@@ -19639,7 +19639,7 @@ les envoie.*
 
 ### Un `include[]=` lu à la main après `buildQuery()` rend 500 sur les interventions, la fiche d'un document et les biens d'une agence en console
 - Réf : P216.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-2124
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:63,165`, `takussan-api/app/Http/Resources/DocumentResource.php:54`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyDetailController.php:187-194`
 - Constat :
@@ -19650,6 +19650,7 @@ les envoie.*
   - Établi comment : lu, test temporaire.
 - Piste : lire `include` par `is_string()` (liste ignorée comme une valeur absente), comme `DashboardOwnerController.php:40` depuis TCK-1866. Garde : un test par route avec `include[]=`.
 - Mesure (2026-10-24, 38e9e45bf, mesureur) : relu `MaintenanceRequestController.php:63` (après `paginate()`) et `:165`, `DocumentResource.php:54`, `AgencyDetailController.php:187-194` (inchangés) ; aucun ticket ni commit ; test temporaire `tests/Feature/Tmp/MesureurTmp216Test.php` (retiré), une requête par paramètre, gestionnaire d'exceptions actif, charge `{ 3.18 2.91 2.63 }` sur 8 cœurs → super-admin : `/api/maintenance-requests?include[]=property` → 500 l. 63, `/api/maintenance-requests/{id}?include[]=property` → 500 l. 165, `/api/documents/{id}?include[]=versions` → 500 `DocumentResource.php:54` (témoin `include=versions` 200) ; opérateur `viewer` : `/api/admin/agencies/{id}/properties?include[]=owner` → 500 l. 191 (témoin `include=owner` 200) → le constat tient ; que spatie accepte la liste avant la l. 63 reste déduit de l'ordre des lignes. Classement : A1, précédent écrit de TCK-1866 (`DashboardOwnerController.php:40`, une liste vaut une valeur absente) ; pour `AgencyDetailController`, le correctif doit remplacer une liste par `include=''` et ne jamais la laisser atteindre spatie, sans quoi le `viewer` recevrait `owner` (TCK-600) — le test le vérifie.
+- Mesure (2026-10-24, 9d78f2609, implementeur) : reproduit par `tests/Feature/Api/ValeursEnListeIncludeLuALaMainTest.php` (4 rouges « Array to string conversion » avant correctif, aux quatre lignes du constat) → `is_string()` avant le découpage, et pour le `viewer` une liste remplacée par `include=''` ; ablation (fichiers remis à `pre-dev`) → 4 rouges, correctif remis → 4 verts ; variante qui laisse la liste atteindre spatie → rouge sur `owner` servi au `viewer` (TCK-600 tenu) ; 6 classes voisines vertes.
 
 ### Le tri de la file des avis et celui de l'échéancier d'un bail rendent 500 sur `sort` en liste
 - Réf : P216.04
