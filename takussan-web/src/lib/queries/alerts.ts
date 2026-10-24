@@ -1,4 +1,5 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 import { getToken } from '@/lib/session';
 import type { PaginatedResponse } from '@/types/api';
 import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
@@ -36,7 +37,7 @@ export async function fetchThresholdAlerts(): Promise<{ data: ThresholdAlert[] }
   // agissait sans pouvoir être vue, modifiée ni supprimée depuis la page.
   return lireToutesLesPages((page) =>
     apiRequest<PaginatedResponse<ThresholdAlert>>(
-      `/api/threshold-alerts?${buildQueryString({ page, per_page: PAR_PAGE_MAX })}`,
+      cheminApi`/api/threshold-alerts${requete(buildQueryString({ page, per_page: PAR_PAGE_MAX }))}`,
       { token },
     ),
   );
