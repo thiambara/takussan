@@ -5171,9 +5171,6 @@
         "ratingAria": "Nota ci 5",
         "titlePlaceholder": "Bopp (soo ko bëggee)",
         "thanks": "Jërëjëf ci sa xalaat.",
-        "contentTooShort": "Sa xalaat war na am lu mu néew {min} araf.",
-        "contentPlaceholder": "Sa xalaat (lu mu néew {min} araf)",
-        "charsLeft": "{count, plural, other {Des na # araf.}}",
         "starsAria": "{count, plural, other {# biddiw}}"
       },
       "replyForm": {
@@ -5186,8 +5183,7 @@
         "cancel": "Neenal",
         "publish": "Génne tontu bi",
         "sending": "Mu ngi yónnee…",
-        "save": "Denc",
-        "contentTooShort": "Sa tontu war na am lu mu néew {min} araf."
+        "save": "Denc"
       },
       "loadError": "Mënunu yeb xalaat yi."
     },

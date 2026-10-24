@@ -6,17 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { REVIEW_CONTENT_MAX } from '@/lib/review-limits';
 
 interface PropertyReviewFormProps {
   onSubmit: (payload: { rating: number; title?: string; content?: string }) => Promise<void>;
   submitting?: boolean;
 }
 
-export const REVIEW_CONTENT_MIN = 10;
-export const REVIEW_CONTENT_MAX = 2000;
-
 export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormProps) {
   const t = useTranslations('property.reviews.form');
+  // TCK-2089 : le commentaire est facultatif, comme à l'API et dans « Mes avis » ; même libellé.
+  const tProfile = useTranslations('profile.reviews');
   const messageErreur = useMessageErreurApi();
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
@@ -34,17 +34,13 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
       setError(t('ratingRequired'));
       return;
     }
-    if (contentLength < REVIEW_CONTENT_MIN) {
-      setError(t('contentTooShort', { min: REVIEW_CONTENT_MIN }));
-      return;
-    }
     setError(null);
     setPending(true);
     try {
       await onSubmit({
         rating,
         title: title.trim() || undefined,
-        content: contentTrimmed,
+        content: contentTrimmed || undefined,
       });
       setRating(0);
       setTitle('');
@@ -56,7 +52,7 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
     }
   }
 
-  const disabled = Boolean(submitting) || pending || rating < 1 || contentLength < REVIEW_CONTENT_MIN;
+  const disabled = Boolean(submitting) || pending || rating < 1;
 
   return (
     <form
@@ -101,8 +97,8 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
       />
       <div className="space-y-1">
         <Textarea
-          placeholder={t('contentPlaceholder', { min: REVIEW_CONTENT_MIN })}
-          aria-label={t('contentPlaceholder', { min: REVIEW_CONTENT_MIN })}
+          placeholder={tProfile('opportunityCommentLabel')}
+          aria-label={tProfile('opportunityCommentLabel')}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={3}
@@ -113,11 +109,7 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
           id="review-content-hint"
           className="text-xs text-muted-foreground flex justify-between"
         >
-          <span>
-            {contentLength < REVIEW_CONTENT_MIN
-              ? t('charsLeft', { count: REVIEW_CONTENT_MIN - contentLength })
-              : t('thanks')}
-          </span>
+          <span>{contentLength > 0 ? t('thanks') : null}</span>
           <span>
             {contentLength}/{REVIEW_CONTENT_MAX}
           </span>

@@ -876,9 +876,6 @@
         "ratingAria": "Note sur 5",
         "titlePlaceholder": "Titre (optionnel)",
         "thanks": "Merci pour votre retour.",
-        "contentTooShort": "Votre commentaire doit contenir au moins {min} caractères.",
-        "contentPlaceholder": "Votre avis (min. {min} caractères)",
-        "charsLeft": "{count, plural, =1 {Encore # caractère minimum.} other {Encore # caractères minimum.}}",
         "starsAria": "{count, plural, one {# étoile} other {# étoiles}}"
       },
       "replyForm": {
@@ -891,8 +888,7 @@
         "cancel": "Annuler",
         "publish": "Publier la réponse",
         "sending": "Envoi…",
-        "save": "Enregistrer",
-        "contentTooShort": "Votre réponse doit contenir au moins {min} caractères."
+        "save": "Enregistrer"
       },
       "loadError": "Impossible de charger les avis."
     },

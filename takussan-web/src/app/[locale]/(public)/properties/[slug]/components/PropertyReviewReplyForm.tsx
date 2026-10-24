@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { REVIEW_REPLY_MAX } from '@/lib/review-limits';
 
 interface PropertyReviewReplyFormProps {
   reviewId: number;
@@ -13,14 +14,12 @@ interface PropertyReviewReplyFormProps {
   onCancel?: () => void;
 }
 
-export const REPLY_MIN = 5;
-export const REPLY_MAX = 1000;
-
 /**
  * Inline form for agent/owner to post or edit a public reply to a review.
  *
  * Backend surface: `POST /api/reviews/{id}/reply` performs an upsert, so the
- * same form is reused for initial post and edit.
+ * same form is reused for initial post and edit. Its thresholds are the API's (TCK-2089): a
+ * non-empty reply, `REVIEW_REPLY_MAX` characters at most — the same as « Mes avis ».
  */
 export function PropertyReviewReplyForm({
   reviewId,
@@ -30,18 +29,19 @@ export function PropertyReviewReplyForm({
 }: PropertyReviewReplyFormProps) {
   const t = useTranslations('property.reviews.replyForm');
   const tForm = useTranslations('property.reviews.form');
+  const tProfile = useTranslations('profile.reviews');
   const messageErreur = useMessageErreurApi();
   const [content, setContent] = useState(initialContent ?? '');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   const trimmed = content.trim();
-  const tooShort = trimmed.length < REPLY_MIN;
+  const empty = trimmed.length === 0;
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
-    if (tooShort) {
-      setError(t('contentTooShort', { min: REPLY_MIN }));
+    if (empty) {
+      setError(tProfile('replyRequired'));
       return;
     }
     setError(null);
@@ -68,13 +68,13 @@ export function PropertyReviewReplyForm({
         value={content}
         onChange={(e) => setContent(e.target.value)}
         rows={3}
-        maxLength={REPLY_MAX}
+        maxLength={REVIEW_REPLY_MAX}
         placeholder={t('placeholder')}
         aria-label={t('contentAria')}
       />
       <div className="flex justify-between items-center gap-2 text-xs text-muted-foreground">
         <span>
-          {trimmed.length}/{REPLY_MAX}
+          {trimmed.length}/{REVIEW_REPLY_MAX}
         </span>
         {error && (
           <span role="alert" className="text-destructive">
@@ -88,7 +88,7 @@ export function PropertyReviewReplyForm({
             {t('cancel')}
           </Button>
         )}
-        <Button type="submit" disabled={pending || tooShort}>
+        <Button type="submit" disabled={pending || empty}>
           {pending ? t('sending') : initialContent ? t('save') : t('publish')}
         </Button>
       </div>
