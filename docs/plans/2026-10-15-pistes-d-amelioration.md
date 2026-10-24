@@ -19102,7 +19102,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
 
 ### `POST /api/properties` pose à la main `pending_review`, `rejected` et `published`, que TCK-1341 a retirés du `PATCH`
 - Réf : P209.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-2065
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:59`, `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:66`, `takussan-api/app/Models/Enums/PropertyStatus.php:19-24`, `takussan-api/app/Observers/PropertyObserver.php:43-61,221-229`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:146-149`
 - Constat :
@@ -19113,6 +19113,7 @@ fois ») ; pour un compte, la cloche est écrite en synchrone avant toute mise e
   - Établi comment : lu, mesuré par test temporaire.
 - Piste : appliquer à `StorePropertyRequest` le même `->except(PropertyStatus::NOT_SETTABLE_BY_HAND)` que les deux requêtes de modification. Garde : étendre `PropertyStatutsDeModerationTest` au `POST`.
 - Mesure (2026-10-24, cdf91988a, mesureur) : relu `StorePropertyRequest.php` (`'status' => ['nullable', Rule::enum(PropertyStatus::class)]`, sans `->except`), `UpdatePropertyRequest` et `UpdateStatusPropertyRequest` (`->except(PropertyStatus::NOT_SETTABLE_BY_HAND)`), le docblock de `NOT_SETTABLE_BY_HAND` (« `published` ne s'écrit par aucun geste ») ; rejoué par test temporaire `tests/Feature/TmpMesureP209Test.php` (retiré), `XDEBUG_MODE=off php artisan test <fichier>`, PostgreSQL de test, charge 7,96 / 4,57 / 3,45 sur 8 cœurs : admin d'une agence sans modération → `POST /api/properties` `{status: pending_review}` → 201, `submitted_at` nul ; `{status: rejected}` → 201, `rejected_at` nul ; `{status: published}` → 201 → le constat tient ; aucun appelant légitime ne s'en sert : le formulaire du front envoie toujours `draft`/`private` (lu, `property-form/payload.ts:147-154`) et aucun test de `tests/` ne poste un de ces trois statuts à la création (`grep`). Classement : A1, le comportement attendu est écrit par TCK-1341 et le docblock de l'enum, et le correctif (le même `->except(...)` dans `StorePropertyRequest`) ne demande aucun choix ; aucun critère V : ni capacité, ni montant, ni schéma.
+- Mesure (2026-10-24, 2ca6ec743, implementeur) : reproduit par `PropertyStatutsDeModerationTest` étendu au `POST`, admin d'une agence sans modération : `POST /api/properties` `{status: pending_review | rejected | published}` → 201 pour les trois avant correctif → `StorePropertyRequest` prend `->except(PropertyStatus::NOT_SETTABLE_BY_HAND)` : les trois → 422 sur `status`, aucun bien créé, `available` reste 201 ; ablation (`->except` retiré) → 3 rouges, remis → 11 verts ; `PropertyModerationTest` 9 verts.
 
 ### `PATCH /api/customers/{id}` enregistre un budget maximal sous le budget minimal, que la création refuse
 - Réf : P209.03
