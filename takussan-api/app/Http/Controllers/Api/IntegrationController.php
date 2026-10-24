@@ -24,7 +24,8 @@ class IntegrationController extends Controller
         $base = Integration::query();
 
         if (! $user->isSuperAdmin()) {
-            abort_unless($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id), 403);
+            // TCK-2024 (P116.02) — `AgencyPolicy::configure` : l'admin ET `agency.update`.
+            abort_unless($user->agency_id !== null && $user->can('configure', Agency::query()->find($user->agency_id)), 403);
             // TCK-587 — un admin actif est personnel : le prédicat unique (ADR-0031 §1).
             $base->where('agency_id', $user->staffAgencyId());
         }
@@ -45,7 +46,8 @@ class IntegrationController extends Controller
     {
         $user = $request->user();
         if (! $user->isSuperAdmin()) {
-            abort_unless($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id), 403);
+            // TCK-2024 (P116.02) — `AgencyPolicy::configure` : l'admin ET `agency.update`.
+            abort_unless($user->agency_id !== null && $user->can('configure', Agency::query()->find($user->agency_id)), 403);
         }
 
         $providers = [];
@@ -77,7 +79,7 @@ class IntegrationController extends Controller
         $agencyId = $data['agency_id'] ?? $user->agency_id;
 
         abort_code_unless(
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $agencyId && $user->isAgencyAdminAt((int) $agencyId)),
+            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $agencyId && $user->can('configure', Agency::query()->find($agencyId))),
             403,
             'integration.other_agency_forbidden'
         );
@@ -204,7 +206,7 @@ class IntegrationController extends Controller
         $user = $request->user();
 
         abort_unless(
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id)),
+            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id) && $user->can('configure', $integration->agency)),
             403
         );
 
@@ -226,7 +228,7 @@ class IntegrationController extends Controller
         $user = $request->user();
 
         abort_unless(
-            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id)),
+            $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id) && $user->can('configure', $integration->agency)),
             403
         );
 

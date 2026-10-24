@@ -5,6 +5,7 @@ import {
   profilActifEspaceApplicatif,
   relaisImpersonationActif,
 } from '@/lib/impersonation';
+import { profilActifNavigateur } from '@/lib/profil-actif-navigateur';
 
 // L'origine publique de l'API, sans `/api`, se lit à l'appel (`origineApi()`, ADR-0069 § 3) :
 // une constante de module figerait la valeur du premier import.
@@ -819,11 +820,12 @@ export async function apiRequest<T>(
   }
 
   // TCK-1996 — un appel authentifié du serveur qui ne nomme aucun profil prend celui du cookie ;
-  // l'appelant qui passe le sien, un indice ou un `X-Profile-Id` l'emporte.
+  // l'appelant qui passe le sien, un indice ou un `X-Profile-Id` l'emporte. TCK-2050 (P174.01) —
+  // dans le navigateur, celui que tient `AuthProvider` : le cookie n'y atteint pas l'API.
   const profilActif =
     activeProfileId ??
     (token && !requestHeaders['X-Active-Profile-Hint'] && !requestHeaders['X-Profile-Id']
-      ? await resolveServerActiveProfile()
+      ? (profilActifNavigateur() ?? (await resolveServerActiveProfile()))
       : undefined);
   if (profilActif && !requestHeaders['X-Active-Profile-Hint']) {
     requestHeaders['X-Active-Profile-Hint'] = profilActif;

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CalendarCheck, ChevronRight } from 'lucide-react';
 import { useBookings } from '@/lib/queries/bookings';
@@ -9,6 +10,7 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { StatusBadge } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Booking } from '@/types/booking';
@@ -90,7 +92,8 @@ export function BookingsList() {
 
       {TABS.map((tab) => (
         <TabsContent key={tab.value} value={tab.value} className="mt-4">
-          <BookingsListBody status={tab.value} locale={locale} onlyMine={onlyMine} />
+          {/* La clé ramène en page 1 quand la portée « Mes biens » change (TCK-2005). */}
+          <BookingsListBody key={String(onlyMine)} status={tab.value} locale={locale} onlyMine={onlyMine} />
         </TabsContent>
       ))}
     </Tabs>
@@ -109,7 +112,10 @@ function BookingsListBody({
   onlyMine: boolean;
 }) {
   const t = useTranslations('bookings.list');
-  const query = useBookings({ status, per_page: 30, onlyMine });
+  // TCK-2005 (P171.03) — une page par onglet, dans l'état de la liste : une page de 30 sans page
+  // suivante taisait la 31ᵉ réservation.
+  const [page, setPage] = useState(1);
+  const query = useBookings({ status, per_page: 30, onlyMine, page });
 
   return (
     <QueryBoundary
@@ -135,11 +141,16 @@ function BookingsListBody({
         }
 
         return (
-          <ul className="space-y-3">
-            {bookings.map((b) => (
-              <BookingRow key={b.id} booking={b} locale={locale} />
-            ))}
-          </ul>
+          <div className="space-y-4">
+            <ul className="space-y-3">
+              {bookings.map((b) => (
+                <BookingRow key={b.id} booking={b} locale={locale} />
+              ))}
+            </ul>
+            {data.meta ? (
+              <Pagination page={data.meta.current_page} lastPage={data.meta.last_page} onChange={setPage} />
+            ) : null}
+          </div>
         );
       }}
     </QueryBoundary>

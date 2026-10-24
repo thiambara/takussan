@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Agency;
 use App\Models\Enums\SettingScope;
 
 /**
@@ -41,7 +42,8 @@ class UpdateSettingRequest extends BaseFormRequest
         }
 
         return $user->isSuperAdmin()
-            || ($user->agency_id !== null && $user->agency_id === $setting->scope_id && $user->isAgencyAdminAt((int) $setting->scope_id));
+            // TCK-2024 (P116.02) — `AgencyPolicy::configure` : l'admin ET `agency.update`.
+            || ($user->agency_id !== null && $user->agency_id === $setting->scope_id && $user->can('configure', Agency::query()->find($setting->scope_id)));
     }
 
     /** @return array<string, mixed> */

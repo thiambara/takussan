@@ -4080,6 +4080,7 @@
       "property_fallback": "Property #{id}"
     },
     "history": {
+      "title": "Maintenance on this property",
       "empty_title": "No intervention recorded",
       "empty_description": "Maintenance requests on this property will show up here.",
       "completed_at": "Completed on {date}"
@@ -7821,6 +7822,7 @@
     },
     "agencyDetail": {
       "loadError": "Unable to load this agency.",
+      "seeAll": "See all",
       "kycLoadError": "Unable to load the KYC file.",
       "crossTenant": "Cross-tenant agency",
       "verified": "Verified",

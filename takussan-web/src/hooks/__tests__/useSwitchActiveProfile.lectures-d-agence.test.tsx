@@ -6,7 +6,7 @@ import { useSwitchActiveProfile } from '../useProfiles';
 import { withIntl } from '@/test/intl';
 
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 1 }, refreshUser: vi.fn(async () => undefined) }),
+  useAuth: () => ({ user: { id: 1 }, refreshUser: vi.fn(async () => undefined), setActiveProfileId: vi.fn() }),
 }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),

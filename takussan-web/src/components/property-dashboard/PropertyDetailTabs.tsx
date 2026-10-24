@@ -26,6 +26,11 @@ const PropertyMediaPanel = dynamic(() =>
 const PropertyCalendarPanel = dynamic(() =>
   import('@/components/property-dashboard/PropertyCalendarPanel').then((m) => m.PropertyCalendarPanel),
 );
+// TCK-2009 (P171.08) — l'historique des interventions du bien (`docs/features.md` § 1.8), sous
+// l'onglet « Historique » : différé comme les autres onglets.
+const MaintenanceHistoryByProperty = dynamic(() =>
+  import('@/components/maintenance/MaintenanceHistoryByProperty').then((m) => m.MaintenanceHistoryByProperty),
+);
 
 const TAB_VALUES = ['overview', 'edit', 'media', 'calendar', 'history'] as const;
 type TabKey = (typeof TAB_VALUES)[number];
@@ -115,7 +120,7 @@ export function PropertyDetailTabs({ property, tags }: Props) {
         </TabsContent>
       )}
 
-      <TabsContent value="history">
+      <TabsContent value="history" className="space-y-6">
         <section className="rounded-xl bg-card p-6">
           <header>
             <h2 className="text-base font-semibold text-foreground">
@@ -132,6 +137,7 @@ export function PropertyDetailTabs({ property, tags }: Props) {
             />
           )}
         </section>
+        <MaintenanceHistoryByProperty propertyId={property.id} />
       </TabsContent>
     </Tabs>
   );
