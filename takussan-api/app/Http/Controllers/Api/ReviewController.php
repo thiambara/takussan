@@ -193,7 +193,8 @@ class ReviewController extends Controller
                     'anonymous' => $userId === null,
                     'user' => $user ? [
                         'id' => $user->id,
-                        'name' => $user->full_name ?: $user->email,
+                        // P193.05 (TCK-2053) — un compte créé par téléphone n'a ni nom ni e-mail.
+                        'name' => $user->full_name ?: ($user->email ?: $user->phone),
                         'email' => $user->email,
                     ] : null,
                     'reason' => $r['reason'] ?? null,

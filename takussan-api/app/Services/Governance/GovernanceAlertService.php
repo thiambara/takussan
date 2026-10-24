@@ -75,7 +75,8 @@ class GovernanceAlertService
             return;
         }
 
-        $params = $this->paramsFor($code, $activity, $author->full_name);
+        // P193.05 (TCK-2053) — `nameWithoutContact()` : un compte sans nom n'écrit pas un trou.
+        $params = $this->paramsFor($code, $activity, $author->nameWithoutContact());
 
         foreach ($this->recipients((int) $activity->agency_id, $author->id) as $admin) {
             $this->notifications->send($admin, $code, $params, NotificationTarget::of('audit')->forAgency($activity->agency_id));
@@ -105,7 +106,7 @@ class GovernanceAlertService
 
         return match ($code) {
             NotificationCode::GovernanceRoleCapabilitiesChanged => ['role' => $this->roleParam($subject), 'actor' => $actor],
-            NotificationCode::GovernanceAdminAdded => ['member' => (string) ($subject?->user?->full_name ?? ''), 'actor' => $actor],
+            NotificationCode::GovernanceAdminAdded => ['member' => (string) ($subject?->user?->nameWithoutContact() ?? ''), 'actor' => $actor],
             NotificationCode::GovernanceIntegrationChanged => [
                 'provider' => (string) ($subject?->provider ?? $activity->attribute_changes?->get('old')['provider'] ?? ''),
                 'actor' => $actor,

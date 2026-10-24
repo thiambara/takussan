@@ -94,7 +94,7 @@ class ExportDataService
     {
         $query = Lease::query()
             ->select(['id', 'reference_number', 'property_id', 'tenant_id', 'landlord_id', 'monthly_rent', 'currency', 'type', 'status', 'start_date', 'end_date', 'signed_at'])
-            ->with(['property:id,title,reference_number', 'tenant:id,first_name,last_name', 'landlord:id,first_name,last_name']);
+            ->with(['property:id,title,reference_number', 'tenant:id,first_name,last_name', 'landlord:id,first_name,last_name,username']);
 
         $this->scopeToActor($query, $actor, 'lease');
 
@@ -106,7 +106,7 @@ class ExportDataService
                 'reference' => $l->reference_number,
                 'property' => $l->property?->title,
                 'tenant' => $l->tenant ? trim("{$l->tenant->first_name} {$l->tenant->last_name}") : null,
-                'landlord' => $l->landlord ? trim("{$l->landlord->first_name} {$l->landlord->last_name}") : null,
+                'landlord' => $this->fullName($l->landlord),
                 'monthly_rent' => (float) $l->monthly_rent,
                 'currency' => $l->currency?->value,
                 'type' => $l->type?->value,
@@ -198,7 +198,7 @@ class ExportDataService
     {
         $query = Payout::query()
             ->select(['id', 'reference_number', 'payee_role', 'landlord_id', 'lease_id', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at'])
-            ->with(['lease:id,reference_number', 'landlord:id,first_name,last_name']);
+            ->with(['lease:id,reference_number', 'landlord:id,first_name,last_name,username']);
 
         $this->scopeToActor($query, $actor, 'payout');
         $this->applyRangeFilter($query, 'created_at', $filters['from'] ?? null, $filters['to'] ?? null);
@@ -272,7 +272,7 @@ class ExportDataService
     {
         $query = CommissionEntry::query()
             ->select(['id', 'lease_id', 'beneficiary_id', 'origin', 'base_amount', 'share_percent', 'amount', 'currency', 'status', 'earned_at', 'paid_at'])
-            ->with(['lease:id,reference_number', 'beneficiary:id,first_name,last_name']);
+            ->with(['lease:id,reference_number', 'beneficiary:id,first_name,last_name,username']);
 
         // verif-595 M2 — le périmètre du relevé, pas seulement l'agence : sans `viewReports`, ses lignes.
         $query->visibleTo($actor);
@@ -314,7 +314,7 @@ class ExportDataService
             ->whereDate('due_date', '<', $today->toDateString())
             // `metadata` porte le reçu d'un paiement partiel, que lit `remaining_amount`.
             ->select(['id', 'reference_number', 'lease_id', 'payer_id', 'due_date', 'amount', 'currency', 'status', 'metadata'])
-            ->with(['lease:id,reference_number,landlord_id', 'lease.landlord:id,first_name,last_name', 'payer:id,first_name,last_name']);
+            ->with(['lease:id,reference_number,landlord_id', 'lease.landlord:id,first_name,last_name,username', 'payer:id,first_name,last_name']);
 
         $this->scopeToActor($query, $actor, 'lease_payment');
         $this->applyRangeFilter($query, 'due_date', $filters['from'] ?? null, $filters['to'] ?? null);
@@ -371,7 +371,7 @@ class ExportDataService
         $leases = Lease::query()
             ->select(['id', 'reference_number', 'property_id', 'tenant_id', 'landlord_id', 'currency'])
             ->whereIn('id', $sums->keys()->all())
-            ->with(['property:id,title', 'tenant:id,first_name,last_name', 'landlord:id,first_name,last_name'])
+            ->with(['property:id,title', 'tenant:id,first_name,last_name', 'landlord:id,first_name,last_name,username'])
             ->orderBy('id')
             ->limit($this->limit($filters) + 1)
             ->get();
@@ -498,8 +498,16 @@ class ExportDataService
         return null;
     }
 
+    /**
+     * P193.05 (TCK-2053) — un compte (`User`) se nomme par `nameWithoutContact()` : un compte créé
+     * par téléphone n'a pas de nom, et sa cellule restait vide. Une fiche client garde son nom.
+     */
     protected function fullName(?object $person): ?string
     {
+        if ($person instanceof User) {
+            return $person->nameWithoutContact();
+        }
+
         return $person ? trim("{$person->first_name} {$person->last_name}") : null;
     }
 

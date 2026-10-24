@@ -160,6 +160,17 @@ class GovernanceAlertTest extends ApiTestCase
         $this->assertStringContainsString('Moussa', AppNotification::query()->where('user_id', $this->collegue->id)->sole()->body);
     }
 
+    /** P193.05 (TCK-2053) — un admin créé par téléphone, sans nom : `nameWithoutContact()`, pas un trou. */
+    public function test_un_nouvel_admin_sans_nom_est_nomme_sans_trou(): void
+    {
+        $nouveau = User::factory()->create([
+            'first_name' => '', 'last_name' => '', 'email' => null, 'username' => 'moussa221', 'phone' => '+221770000196',
+        ]);
+        AgencyAdminProfile::factory()->create(['user_id' => $nouveau->id, 'agency_id' => $this->agency->id]);
+
+        $this->assertSame('moussa221', AppNotification::query()->where('user_id', $this->collegue->id)->sole()->params['member']);
+    }
+
     public function test_une_integration_creee_modifiee_supprimee_avertit_a_chaque_fois(): void
     {
         $integration = Integration::factory()->create(['agency_id' => $this->agency->id, 'provider' => 'wave']);

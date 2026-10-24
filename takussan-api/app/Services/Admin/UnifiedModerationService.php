@@ -470,7 +470,8 @@ class UnifiedModerationService
                 'subject' => $subject,
                 'reporter' => $reporter ? [
                     'id' => $reporter->id,
-                    'name' => $reporter->full_name ?: $reporter->email,
+                    // P193.05 (TCK-2053) — un compte créé par téléphone n'a ni nom ni e-mail.
+                    'name' => $reporter->full_name ?: ($reporter->email ?: $reporter->phone),
                     'email' => $reporter->email,
                 ] : null,
                 'agency' => $agency ? [
