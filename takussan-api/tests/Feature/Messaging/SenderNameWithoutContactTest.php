@@ -104,4 +104,26 @@ class SenderNameWithoutContactTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.recipient.name', '—');
     }
+
+    /**
+     * P220.01 (TCK-2132) — la feuille d'infos d'une conversation nomme ses participants par la
+     * même règle : un compte créé par téléphone (`first_name = ''`, `last_name = ''`) n'y rend
+     * jamais un nom vide.
+     */
+    public function test_un_participant_sans_nom_ni_username_est_nomme_d_un_tiret_dans_la_conversation(): void
+    {
+        $nameless = $this->nameless();
+        $reader = User::factory()->create(['first_name' => 'Awa', 'last_name' => 'Sarr']);
+        $conversation = $this->directBetween($reader, $nameless);
+        Sanctum::actingAs($reader);
+
+        $participants = collect($this->getJson("/api/conversations/{$conversation->id}")
+            ->assertOk()
+            ->json('data.participants'))
+            ->keyBy('user_id');
+
+        $this->assertSame('—', $participants[$nameless->id]['user']['full_name']);
+        $this->assertSame('Awa Sarr', $participants[$reader->id]['user']['full_name']);
+        $this->assertStringNotContainsString('secret@example.test', json_encode($participants->all()));
+    }
 }
