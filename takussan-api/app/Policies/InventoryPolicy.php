@@ -29,7 +29,11 @@ class InventoryPolicy extends BasePolicy
         $tenant = $model->tenant;
 
         return $user->isSuperAdmin()
-            || $model->conducted_by === $user->id
+            // P218.04 (TCK-2198) — le conducteur encore membre de l'agence du bien, ou qui y a un
+            // profil de bailleur de tout statut (le bailleur bloqué garde la lecture).
+            || $this->auteurEncoreMembre($user, $model->conducted_by, $property?->agency_id)
+            || ($property?->agency_id !== null && $model->conducted_by === $user->id
+                && $user->ownerProfiles()->where('agency_id', $property->agency_id)->exists())
             // TCK-1928 (P190.01, décision du porteur) — le bailleur du bien, de tout statut ; plus
             // l'agent qui l'a saisi (`properties.user_id`), jugé au titre du personnel.
             || ($property && BailleurDuBien::est($user, $property->user_id, $property->agency_id))
@@ -53,7 +57,9 @@ class InventoryPolicy extends BasePolicy
         $property = $model->property;
 
         return $user->isSuperAdmin()
-            || $this->landlordWrites($user, $model->conducted_by, $property?->agency_id)
+            // P218.04 (TCK-2198) — `landlordWrites` gardé, et le conducteur encore membre.
+            || ($this->landlordWrites($user, $model->conducted_by, $property?->agency_id)
+                && $this->auteurEncoreMembre($user, $model->conducted_by, $property?->agency_id))
             // TCK-1928 (P190.01) — `bailleurEcrit` : le bailleur non bloqué, jamais l'agent créateur.
             || ($property && $this->bailleurEcrit($user, $property->user_id, $property->agency_id))
             || ($property && $this->isStaffOf($user, $property->agency_id));

@@ -245,6 +245,8 @@ class MigratedAuthorizationRulesTest extends TestCase
     public function test_inventory_view_admits_the_tenant_but_update_does_not(): void
     {
         $conducteur = $this->quidam();
+        // P218.04 (TCK-2198) — le conducteur encore membre de l'agence du bien : un bailleur actif.
+        $this->materializeRoleProfile($conducteur, 'owner', $this->agency);
         $locataireUser = $this->quidam();
         $customer = Customer::factory()->create([
             'user_id' => $locataireUser->id,
